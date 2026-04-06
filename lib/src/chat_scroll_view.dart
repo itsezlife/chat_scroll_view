@@ -274,29 +274,27 @@ abstract class ChatScrollController extends ChangeNotifier {
   }
 
   /// Upsert a message into the chunk cache.
-  /// If the chunk is not cached, the message is ignored —
-  /// it will be fetched naturally when scrolled into view.
-  /// Returns `true` if the message was placed into a cached chunk.
-  bool upsertMessage(IChatMessage message) {
-    final chunk = _chunks[_ChatScrollChunk.chunkOf(message.id)];
-    if (chunk == null) return false;
+  /// Creates the chunk if it does not exist yet.
+  void upsertMessage(IChatMessage message) {
+    final chunkIndex = _ChatScrollChunk.chunkOf(message.id);
+    final chunk = _chunks[chunkIndex] ??=
+        _ChatScrollChunk(index: chunkIndex);
     chunk.messages[message.id - chunk.firstId] = message;
     notifyListeners();
-    return true;
   }
 
   /// Upsert multiple messages into the chunk cache.
-  /// Returns `true` if at least one message was placed into a cached chunk.
-  bool upsertMessages(Iterable<IChatMessage> messages) {
+  /// Creates chunks as needed for messages that fall into uncached chunks.
+  void upsertMessages(Iterable<IChatMessage> messages) {
     var changed = false;
     for (final message in messages) {
-      final chunk = _chunks[_ChatScrollChunk.chunkOf(message.id)];
-      if (chunk == null) continue;
+      final chunkIndex = _ChatScrollChunk.chunkOf(message.id);
+      final chunk = _chunks[chunkIndex] ??=
+          _ChatScrollChunk(index: chunkIndex);
       chunk.messages[message.id - chunk.firstId] = message;
       changed = true;
     }
     if (changed) notifyListeners();
-    return changed;
   }
 
   // --- Anchor state ---
