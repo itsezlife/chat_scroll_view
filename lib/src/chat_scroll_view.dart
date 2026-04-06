@@ -1,7 +1,9 @@
+import 'dart:collection';
 import 'dart:ui' as ui;
 
 import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart';
+import 'package:meta/meta.dart';
 
 /// Chat message interface.
 abstract interface class IChatMessage {
@@ -119,40 +121,59 @@ class ChatScrollChunk {
   ChatMessageStatus _status; // ignore: prefer_final_fields
 }
 
-/// Cached layout and picture for a single message.
-class MessageEntry {
-  MessageEntry({required this.messageId});
+/// Lightweight render object for a single chat message.
+///
+/// Owns layout state (e.g. [TextPainter]s) between [performLayout] and
+/// [paint], so work done during layout is reused at paint time.
+///
+/// Created by the [ChatMessageRenderFactory] passed to [ChatScrollView].
+/// The viewport manages [height], [offsetY], [dirty], and [picture] fields.
+abstract class ChatMessageRender {
+  /// Lay out the message for the given [availableWidth].
+  /// Returns the computed height.
+  double performLayout(double availableWidth);
 
-  final int messageId;
+  /// Paint the message onto [canvas] within [size].
+  ///
+  /// Called once after [performLayout]; the result is cached as a
+  /// [ui.Picture] by the viewport — subsequent frames use the cached
+  /// picture until the entry is marked dirty.
+  void paint(Canvas canvas, Size size);
 
-  /// The computed height of this message.
-  double height = 0.0;
+  /// Hit-test at [position] (local to this message's origin).
+  ///
+  /// Returns `true` if the message handles the hit.
+  bool hitTest(Offset position) => false;
 
-  /// The Y offset within the viewport (set during layout).
-  double offsetY = 0.0;
-
-  /// Whether this entry needs to be re-laid out and re-painted.
-  bool dirty = true;
-
-  /// Cached picture for this message, produced by [ui.PictureRecorder].
-  ui.Picture? picture;
-
+  /// Release resources (TextPainters, images, etc.).
+  @mustCallSuper
   void dispose() {
     picture?.dispose();
     picture = null;
   }
+
+  // --- Managed by the viewport (not overridable) ---
+
+  /// The Y offset within the viewport (set during layout).
+  @nonVirtual
+  double offsetY = 0.0;
+
+  /// The computed height of this message (set after [performLayout]).
+  @nonVirtual
+  double height = 0.0;
+
+  /// Whether this message needs to be re-laid out and re-painted.
+  @nonVirtual
+  bool dirty = true;
+
+  /// Cached [ui.Picture] produced from [paint].
+  @nonVirtual
+  ui.Picture? picture;
 }
 
-/// Callback to paint a single message onto a canvas.
-///
-/// The canvas is sized to [size] (full viewport width x message height).
-/// The painter should draw the message content within these bounds.
-typedef MessagePainter =
-    void Function(Canvas canvas, Size size, IChatMessage message);
-
-/// Callback to compute the height of a message given the available width.
-typedef MessageLayouter =
-    double Function(double availableWidth, IChatMessage message);
+/// Creates a [ChatMessageRender] for the given [message].
+typedef ChatMessageRenderFactory =
+    ChatMessageRender Function(IChatMessage message);
 
 // --- Controller ---
 
@@ -223,26 +244,21 @@ class ChatScrollView extends LeafRenderObjectWidget {
   /// {@macro chat_scroll_view}
   const ChatScrollView({
     required this.controller,
-    required this.painter,
-    required this.layouter,
+    required this.messageBuilder,
     super.key, // ignore: unused_element_parameter
   });
 
   /// The controller that owns message data and anchor state.
   final ChatScrollController controller;
 
-  /// Paints a single message onto the provided canvas.
-  final MessagePainter painter;
-
-  /// Computes the height of a message given the available width.
-  final MessageLayouter layouter;
+  /// Creates a [ChatMessageRender] for each message.
+  final ChatMessageRenderFactory messageBuilder;
 
   @override
   RenderChatScrollView createRenderObject(BuildContext context) =>
       RenderChatScrollView(
         controller: controller,
-        painter: painter,
-        layouter: layouter,
+        messageBuilder: messageBuilder,
       );
 
   @override
@@ -252,8 +268,7 @@ class ChatScrollView extends LeafRenderObjectWidget {
   ) {
     renderObject
       ..controller = controller
-      ..painter = painter
-      ..layouter = layouter;
+      ..messageBuilder = messageBuilder;
   }
 }
 
@@ -265,11 +280,9 @@ class ChatScrollView extends LeafRenderObjectWidget {
 class RenderChatScrollView extends RenderBox {
   RenderChatScrollView({
     required ChatScrollController controller,
-    required MessagePainter painter,
-    required MessageLayouter layouter,
+    required ChatMessageRenderFactory messageBuilder,
   }) : _controller = controller,
-       _painter = painter,
-       _layouter = layouter;
+       _messageBuilder = messageBuilder;
 
   // --- Controller ---
 
@@ -289,20 +302,11 @@ class RenderChatScrollView extends RenderBox {
 
   // --- Configuration ---
 
-  MessagePainter get painter => _painter;
-  MessagePainter _painter;
-  set painter(MessagePainter value) {
-    if (_painter == value) return;
-    _painter = value;
-    _markAllEntriesDirty();
-    markNeedsPaint();
-  }
-
-  MessageLayouter get layouter => _layouter;
-  MessageLayouter _layouter;
-  set layouter(MessageLayouter value) {
-    if (_layouter == value) return;
-    _layouter = value;
+  ChatMessageRenderFactory get messageBuilder => _messageBuilder;
+  ChatMessageRenderFactory _messageBuilder;
+  set messageBuilder(ChatMessageRenderFactory value) {
+    if (_messageBuilder == value) return;
+    _messageBuilder = value;
     _markAllEntriesDirty();
     markNeedsLayout();
   }
@@ -319,7 +323,8 @@ class RenderChatScrollView extends RenderBox {
   // --- Layout cache ---
 
   /// Layout cache: messageId → MessageEntry.
-  final Map<int, MessageEntry> _entries = {};
+  final Map<int, ChatMessageRender> _entries =
+      HashMap<int, ChatMessageRender>();
 
   /// Range of message IDs currently laid out (inclusive).
   int _layoutMinId = 0;
@@ -387,9 +392,11 @@ class RenderChatScrollView extends RenderBox {
       final message = _controller.getMessage(id);
       if (message == null) break;
 
-      final entry = _ensureEntry(id);
+      final entry = _ensureEntry(id, message);
       if (entry.dirty) {
-        entry.height = _layouter(viewportWidth, message);
+        entry.height = entry.performLayout(viewportWidth);
+        entry.picture?.dispose();
+        entry.picture = null;
         entry.dirty = false;
       }
       entry.offsetY = y;
@@ -406,9 +413,11 @@ class RenderChatScrollView extends RenderBox {
       final message = _controller.getMessage(id);
       if (message == null) break;
 
-      final entry = _ensureEntry(id);
+      final entry = _ensureEntry(id, message);
       if (entry.dirty) {
-        entry.height = _layouter(viewportWidth, message);
+        entry.height = entry.performLayout(viewportWidth);
+        entry.picture?.dispose();
+        entry.picture = null;
         entry.dirty = false;
       }
       y -= entry.height;
@@ -450,26 +459,25 @@ class RenderChatScrollView extends RenderBox {
       }
 
       // Build picture if needed
-      if (entry.picture == null) {
-        final message = _controller.getMessage(id);
-        if (message != null) {
-          entry.picture = _recordPicture(viewportWidth, entry.height, message);
-        }
-      }
+      entry.picture ??= _recordPicture(viewportWidth, entry.height, entry);
 
-      if (entry.picture != null) {
+      if (entry.picture case final picture?) {
         canvas.save();
         canvas.translate(offset.dx, offset.dy + entry.offsetY);
-        canvas.drawPicture(entry.picture!);
+        canvas.drawPicture(picture);
         canvas.restore();
       }
     }
   }
 
-  ui.Picture _recordPicture(double width, double height, IChatMessage message) {
+  ui.Picture _recordPicture(
+    double width,
+    double height,
+    ChatMessageRender render,
+  ) {
     final recorder = ui.PictureRecorder();
     final canvas = Canvas(recorder, Rect.fromLTWH(0, 0, width, height));
-    _painter(canvas, Size(width, height), message);
+    render.paint(canvas, Size(width, height));
     return recorder.endRecording();
   }
 
@@ -489,12 +497,8 @@ class RenderChatScrollView extends RenderBox {
 
   // --- Entry management ---
 
-  MessageEntry _ensureEntry(int messageId) {
-    return _entries.putIfAbsent(
-      messageId,
-      () => MessageEntry(messageId: messageId),
-    );
-  }
+  ChatMessageRender _ensureEntry(int messageId, IChatMessage message) =>
+      _entries.putIfAbsent(messageId, () => _messageBuilder(message));
 
   void _markAllEntriesDirty() {
     for (final entry in _entries.values) {
