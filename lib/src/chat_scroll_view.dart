@@ -351,8 +351,11 @@ class RenderChatScrollView extends RenderBox {
 
   // --- Controller ---
 
-  ChatScrollController get controller => _controller;
+  /// The controller that owns message data and anchor state.
   ChatScrollController _controller;
+
+  /// Update the controller,
+  /// removing listener from the old one and adding to the new one.
   set controller(ChatScrollController value) {
     if (identical(_controller, value)) return;
     _controller.removeListener(_onControllerChanged);
@@ -370,8 +373,11 @@ class RenderChatScrollView extends RenderBox {
 
   // --- Configuration ---
 
-  ChatMessageRenderFactory get messageBuilder => _messageBuilder;
+  /// Factory to create a [ChatMessageRender] for each message.
   ChatMessageRenderFactory _messageBuilder;
+
+  /// Update the message builder and mark all renders dirty to trigger re-layout
+  /// and re-paint with the new builder.
   set messageBuilder(ChatMessageRenderFactory value) {
     if (identical(_messageBuilder, value)) return;
     _messageBuilder = value;
@@ -422,6 +428,8 @@ class RenderChatScrollView extends RenderBox {
     super.detach();
   }
 
+  /// Mark all renders dirty when system fonts change,
+  /// as this may affect layout.
   void _onSystemFontsChange() {
     _markAllRendersDirty();
     markNeedsLayout();
@@ -543,6 +551,7 @@ class RenderChatScrollView extends RenderBox {
     );
   }
 
+  /// Paint all visible messages onto the canvas.
   void _paintMessages(PaintingContext context, Offset offset) {
     final canvas = context.canvas;
     final viewportHeight = size.height;
@@ -605,12 +614,18 @@ class RenderChatScrollView extends RenderBox {
     markNeedsPaint();
   }
 
+  /// Mark all renders in all chunks as dirty, causing them to be re-laid out
+  /// and re-painted on the next frame.
+  /// Use for global changes like font updates.
   void _markAllRendersDirty() {
     for (final chunk in _controller._chunks.values) {
       chunk.markRendersDirty();
     }
   }
 
+  /// Evict old chunks if we exceed [ChatScrollController.maxChunks].
+  /// Never evict chunks in the current layout range. Among the rest, evict the
+  /// oldest based on [ChatScrollChunk.lastAccessTick].
   void _evictRenderChunks() {
     final chunks = _controller._chunks;
     final toRemove = chunks.length - _controller.maxChunks;
@@ -622,12 +637,16 @@ class RenderChatScrollView extends RenderBox {
     var filled = 0;
     var maxVictimTick = 0; // highest tick among current victims
 
+    // Iterate all chunks to find eviction candidates.
     for (final chunk in chunks.values) {
       // Never evict chunks in the current layout range.
       if (chunk.index >= _layoutMinChunk && chunk.index <= _layoutMaxChunk) {
         continue;
       }
 
+      // Always fill the victim list until full, then only replace if older than
+      // the youngest victim so far. This gives a good approximation of LRU
+      // order without needing to sort the entire list on every eviction.
       if (filled < toRemove) {
         // Still filling — take any evictable chunk.
         victims[filled++] = chunk;
@@ -655,6 +674,7 @@ class RenderChatScrollView extends RenderBox {
       }
     }
 
+    // Evict the selected chunks.
     for (var i = 0; i < filled; i++) {
       final chunk = victims[i]!;
       chunk.disposeRenders();
