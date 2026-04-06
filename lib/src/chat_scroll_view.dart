@@ -116,6 +116,9 @@ class _ChatScrollChunk {
   /// Data status (dirty, fetching, error, valid).
   ChatMessageStatus status = ChatMessageStatus.dirty;
 
+  /// Monotonic access tick — bumped on layout to track LRU order.
+  int lastAccessTick = 0;
+
   /// Y offset of this chunk's first message within the viewport.
   double offsetY = 0.0;
 
@@ -250,6 +253,11 @@ abstract class ChatScrollController extends ChangeNotifier {
 
   // --- Chunk storage ---
 
+  /// Maximum number of chunks to keep in memory.
+  /// Override to control the memory/re-fetch tradeoff.
+  /// Default 16 ≈ 1024 messages.
+  int get maxChunks => 16;
+
   /// Unordered map of message chunks by chunk index.
   final Map<int, _ChatScrollChunk> _chunks = HashMap<int, _ChatScrollChunk>();
 
@@ -373,6 +381,9 @@ class RenderChatScrollView extends RenderBox {
     markNeedsLayout();
   }
 
+  /// Monotonic counter for LRU chunk eviction.
+  int _accessTick = 0;
+
   /// Range of chunk indices currently laid out (inclusive).
   int _layoutMinChunk = 0;
   int _layoutMaxChunk = -1; // empty range initially
@@ -478,6 +489,7 @@ class RenderChatScrollView extends RenderBox {
 
   /// Layout all renders in [chunk], recomputing [chunk.height].
   void _layoutChunkRenders(_ChatScrollChunk chunk, double viewportWidth) {
+    chunk.lastAccessTick = ++_accessTick;
     var totalHeight = 0.0;
     for (var i = 0; i < _ChatScrollChunk.kSize; i++) {
       final message = chunk.messages[i];
@@ -591,14 +603,54 @@ class RenderChatScrollView extends RenderBox {
   }
 
   void _evictRenderChunks() {
-    final keepMin = _layoutMinChunk - 1;
-    final keepMax = _layoutMaxChunk + 1;
-    _controller._chunks.removeWhere((chunkIndex, chunk) {
-      if (chunkIndex < keepMin || chunkIndex > keepMax) {
-        chunk.disposeRenders();
-        return true;
+    final chunks = _controller._chunks;
+    final toRemove = chunks.length - _controller.maxChunks;
+    if (toRemove <= 0) return;
+
+    // Find the N oldest evictable chunks via partial selection.
+    // Fixed-size list, filled with the oldest candidates so far.
+    final victims = List<_ChatScrollChunk?>.filled(toRemove, null);
+    var filled = 0;
+    var maxVictimTick = 0; // highest tick among current victims
+
+    for (final chunk in chunks.values) {
+      // Never evict chunks in the current layout range.
+      if (chunk.index >= _layoutMinChunk &&
+          chunk.index <= _layoutMaxChunk) {
+        continue;
       }
-      return false;
-    });
+
+      if (filled < toRemove) {
+        // Still filling — take any evictable chunk.
+        victims[filled++] = chunk;
+        if (chunk.lastAccessTick > maxVictimTick) {
+          maxVictimTick = chunk.lastAccessTick;
+        }
+      } else if (chunk.lastAccessTick < maxVictimTick) {
+        // Replace the youngest victim with this older chunk.
+        var youngestIdx = 0;
+        var youngestTick = victims[0]!.lastAccessTick;
+        for (var i = 1; i < toRemove; i++) {
+          if (victims[i]!.lastAccessTick > youngestTick) {
+            youngestTick = victims[i]!.lastAccessTick;
+            youngestIdx = i;
+          }
+        }
+        victims[youngestIdx] = chunk;
+        // Recompute maxVictimTick.
+        maxVictimTick = victims[0]!.lastAccessTick;
+        for (var i = 1; i < toRemove; i++) {
+          if (victims[i]!.lastAccessTick > maxVictimTick) {
+            maxVictimTick = victims[i]!.lastAccessTick;
+          }
+        }
+      }
+    }
+
+    for (var i = 0; i < filled; i++) {
+      final chunk = victims[i]!;
+      chunk.disposeRenders();
+      chunks.remove(chunk.index);
+    }
   }
 }
