@@ -160,10 +160,11 @@ class _ChatScrollChunk {
 abstract class ChatMessageRender {
   /// Called when message data or chunk status may have changed.
   ///
-  /// Compare with previous values (e.g. via [identical] for message,
-  /// `==` for status) and set [dirty] or call [invalidatePaint]
+  /// [message] is `null` when the slot has no content yet (chunk just created,
+  /// fetch in progress). Compare with previous values (e.g. via [identical]
+  /// for message, `==` for status) and set [dirty] or call [invalidatePaint]
   /// as appropriate.
-  void update(IChatMessage message, ChatMessageStatus status);
+  void update(IChatMessage? message, ChatMessageStatus status);
 
   /// Lay out the message for the given [availableWidth].
   /// Returns the computed height.
@@ -234,8 +235,9 @@ abstract class ChatMessageRender {
 }
 
 /// Creates a [ChatMessageRender] for the given [message].
+/// [message] is `null` for slots that have no content yet.
 typedef ChatMessageRenderFactory =
-    ChatMessageRender Function(IChatMessage message);
+    ChatMessageRender Function(IChatMessage? message);
 
 // --- Controller ---
 
@@ -334,6 +336,7 @@ class ChatScrollView extends LeafRenderObjectWidget {
   final ChatScrollController controller;
 
   /// Creates a [ChatMessageRender] for each message.
+  /// Receives `null` for slots that have no content yet.
   final ChatMessageRenderFactory builder;
 
   @override
@@ -524,15 +527,12 @@ class RenderChatScrollView extends RenderBox {
     var totalHeight = 0.0;
     for (var i = 0; i < _ChatScrollChunk.kSize; i++) {
       final message = chunk.messages[i];
-      if (message == null) continue;
       var render = chunk.renders[i];
       if (render == null) {
         render = _messageBuilder(message);
         chunk.renders[i] = render;
-        render.update(message, chunk.status);
-      } else {
-        render.update(message, chunk.status);
       }
+      render.update(message, chunk.status);
       if (render.dirty) {
         render.height = render.performLayout(viewportWidth);
         render.invalidatePaint();
@@ -640,16 +640,38 @@ class RenderChatScrollView extends RenderBox {
   }
 
   /// Evict old chunks if we exceed [ChatScrollController.maxChunks].
-  /// Never evict chunks in the current layout range. Among the rest, evict the
-  /// oldest based on [ChatScrollChunk.lastAccessTick].
+  /// Never evict chunks in the current layout range or the two newest chunks
+  /// (most recent messages the user will likely return to).
+  /// Among the rest, evict the oldest based on [_ChatScrollChunk.lastAccessTick].
   void _evictRenderChunks() {
     final chunks = _controller._chunks;
     final toRemove = chunks.length - _controller.maxChunks;
     if (toRemove <= 0) return;
 
+    // Find the two newest chunks by index — these are never evicted.
+    var maxChunkIndex = -1 >>> 1; // will be overwritten
+    var secondMaxChunkIndex = maxChunkIndex;
+    var first = true;
+    for (final chunk in chunks.values) {
+      if (first) {
+        maxChunkIndex = chunk.index;
+        secondMaxChunkIndex = chunk.index;
+        first = false;
+      } else if (chunk.index > maxChunkIndex) {
+        secondMaxChunkIndex = maxChunkIndex;
+        maxChunkIndex = chunk.index;
+      } else if (chunk.index > secondMaxChunkIndex) {
+        secondMaxChunkIndex = chunk.index;
+      }
+    }
+
     // Find the N oldest evictable chunks via partial selection.
     // Fixed-size list, filled with the oldest candidates so far.
-    final victims = List<_ChatScrollChunk?>.filled(toRemove, null);
+    final victims = List<_ChatScrollChunk?>.filled(
+      toRemove,
+      null,
+      growable: false,
+    );
     var filled = 0;
     var maxVictimTick = 0; // highest tick among current victims
 
@@ -657,6 +679,11 @@ class RenderChatScrollView extends RenderBox {
     for (final chunk in chunks.values) {
       // Never evict chunks in the current layout range.
       if (chunk.index >= _layoutMinChunk && chunk.index <= _layoutMaxChunk) {
+        continue;
+      }
+
+      // Never evict the two newest chunks (most recent messages).
+      if (chunk.index == maxChunkIndex || chunk.index == secondMaxChunkIndex) {
         continue;
       }
 
