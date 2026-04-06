@@ -85,12 +85,11 @@ class _ChatScrollChunk {
   static const int kSize = 64; // 1 << kBits
 
   /// Get the chunk index for a given message id.
-  static int chunkOf(int messageId) =>
-      messageId >= 0 ? messageId >> kBits : -(-messageId >> kBits);
+  /// Dart's `>>` is arithmetic shift — works correctly for negative IDs.
+  static int chunkOf(int messageId) => messageId >> kBits;
 
   /// Get the first message id for a given chunk index.
-  static int firstIdOf(int chunkIndex) =>
-      chunkIndex >= 0 ? chunkIndex << kBits : -(-chunkIndex << kBits);
+  static int firstIdOf(int chunkIndex) => chunkIndex << kBits;
 
   _ChatScrollChunk({required this.index})
     : messages = List<IChatMessage?>.filled(kSize, null, growable: false),
@@ -362,6 +361,9 @@ class RenderChatScrollView extends RenderBox {
     markNeedsLayout();
   }
 
+  // TODO: Split into scroll (repaint-only) vs data (relayout) notifications.
+  // Currently any anchorPixelOffset change triggers full relayout of all
+  // visible chunks, even though only offsetY positions need updating.
   void _onControllerChanged() {
     markNeedsLayout();
   }
@@ -503,6 +505,7 @@ class RenderChatScrollView extends RenderBox {
       if (render == null) {
         render = _messageBuilder(message);
         chunk.renders[i] = render;
+        render.update(message, chunk.status);
       } else {
         render.update(message, chunk.status);
       }
@@ -536,7 +539,6 @@ class RenderChatScrollView extends RenderBox {
       offset,
       Offset.zero & size,
       _paintMessages,
-      clipBehavior: Clip.hardEdge,
       oldLayer: layer as ClipRectLayer?,
     );
   }
