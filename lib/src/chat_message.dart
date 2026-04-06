@@ -13,9 +13,10 @@ sealed class ChatMessage implements IChatMessage {
   final int id;
 
   @override
-  final DateTime updatedAt;
-
   final DateTime createdAt;
+
+  @override
+  final DateTime updatedAt;
 }
 
 class ChatMessage$System extends ChatMessage {
