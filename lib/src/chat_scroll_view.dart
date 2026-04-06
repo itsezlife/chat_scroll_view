@@ -285,6 +285,20 @@ abstract class ChatScrollController extends ChangeNotifier {
     return true;
   }
 
+  /// Upsert multiple messages into the chunk cache.
+  /// Returns `true` if at least one message was placed into a cached chunk.
+  bool upsertMessages(List<IChatMessage> messages) {
+    var changed = false;
+    for (final message in messages) {
+      final chunk = _chunks[_ChatScrollChunk.chunkOf(message.id)];
+      if (chunk == null) continue;
+      chunk.messages[message.id - chunk.firstId] = message;
+      changed = true;
+    }
+    if (changed) notifyListeners();
+    return changed;
+  }
+
   // --- Anchor state ---
 
   /// The message ID used as layout origin.
