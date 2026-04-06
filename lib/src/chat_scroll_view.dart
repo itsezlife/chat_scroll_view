@@ -86,19 +86,25 @@ class _ChatScrollChunk {
 
   /// Get the chunk index for a given message id.
   static int chunkOf(int messageId) =>
-      messageId < 0 ? -(-messageId >> kBits) : messageId >> kBits;
+      messageId >= 0 ? messageId >> kBits : -(-messageId >> kBits);
 
   /// Get the first message id for a given chunk index.
   static int firstIdOf(int chunkIndex) =>
-      chunkIndex < 0 ? -(-chunkIndex << kBits) : chunkIndex << kBits;
+      chunkIndex >= 0 ? chunkIndex << kBits : -(-chunkIndex << kBits);
 
   _ChatScrollChunk({required this.index})
     : messages = List<IChatMessage?>.filled(kSize, null, growable: false),
       renders = List<ChatMessageRender?>.filled(kSize, null, growable: false),
       firstId = firstIdOf(index);
 
+  /// The chunk index, calculated as messageId >> kBits.
+  /// Can be negative for messages with negative IDs.
   final int index;
+
+  /// The first message id in this chunk (inclusive).
   final int firstId;
+
+  /// The last message id in this chunk (inclusive).
   int get lastId => firstId + kSize - 1;
 
   /// Message data — populated from fetch results.
@@ -110,6 +116,8 @@ class _ChatScrollChunk {
   /// Data status (dirty, fetching, error, valid).
   ChatMessageStatus status = ChatMessageStatus.dirty;
 
+  /// Mark all renders in this chunk as dirty, causing them to be re-laid out
+  /// and re-painted on the next frame.
   void markRendersDirty() {
     for (final render in renders) {
       if (render == null) continue;
@@ -119,6 +127,7 @@ class _ChatScrollChunk {
     }
   }
 
+  /// Dispose all renders in this chunk and clear the list.
   void disposeRenders() {
     for (var i = 0; i < renders.length; i++) {
       renders[i]?.dispose();
