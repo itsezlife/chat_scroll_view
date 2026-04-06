@@ -116,14 +116,19 @@ class _ChatScrollChunk {
   /// Data status (dirty, fetching, error, valid).
   ChatMessageStatus status = ChatMessageStatus.dirty;
 
+  /// Y offset of this chunk's first message within the viewport.
+  double offsetY = 0.0;
+
+  /// Total height of all laid-out messages in this chunk.
+  double height = 0.0;
+
   /// Mark all renders in this chunk as dirty, causing them to be re-laid out
   /// and re-painted on the next frame.
   void markRendersDirty() {
     for (final render in renders) {
       if (render == null) continue;
       render.dirty = true;
-      render.picture?.dispose();
-      render.picture = null;
+      render.invalidatePaint();
     }
   }
 
@@ -142,30 +147,74 @@ class _ChatScrollChunk {
 /// [paint], so work done during layout is reused at paint time.
 ///
 /// Created by the [ChatMessageRenderFactory] passed to [ChatScrollView].
-/// The viewport manages [height], [offsetY], [dirty], and [picture] fields.
+/// The viewport manages [height], [offsetY], and [dirty] fields.
+///
+/// ### Picture caching
+///
+/// The default [paint] records drawing commands into a [ui.Picture] via
+/// [paintMessage] and caches it. Subsequent frames replay the cached
+/// picture. Override [paint] to draw directly every frame (animations,
+/// selection highlights, etc.) — return `true` to request another frame.
 abstract class ChatMessageRender {
+  /// Called when message data or chunk status may have changed.
+  ///
+  /// Compare with previous values (e.g. via [identical] for message,
+  /// `==` for status) and set [dirty] or call [invalidatePaint]
+  /// as appropriate.
+  void update(IChatMessage message, ChatMessageStatus status);
+
   /// Lay out the message for the given [availableWidth].
   /// Returns the computed height.
   double performLayout(double availableWidth);
 
-  /// Paint the message onto [canvas] within [size].
+  /// Paint the message content onto [canvas] within [size].
   ///
-  /// Called once after [performLayout]; the result is cached as a
-  /// [ui.Picture] by the viewport — subsequent frames use the cached
-  /// picture until the entry is marked dirty.
-  void paint(Canvas canvas, Size size);
+  /// Override this to define what the message looks like.
+  /// By default the result is cached as a [ui.Picture].
+  void paintMessage(Canvas canvas, Size size);
+
+  /// Paint this message. Returns `true` if the viewport should schedule
+  /// another frame (e.g. an animation is in progress).
+  ///
+  /// The default implementation caches [paintMessage] output as a
+  /// [ui.Picture]. Override to draw directly every frame — but then
+  /// you are responsible for your own caching strategy.
+  bool paint(Canvas canvas, Size size) {
+    final pic = _picture ??= _record(size);
+    canvas.drawPicture(pic);
+    return false;
+  }
 
   /// Hit-test at [position] (local to this message's origin).
   ///
   /// Returns `true` if the message handles the hit.
   bool hitTest(Offset position) => false;
 
+  /// Invalidate the cached picture, causing [paintMessage] to be called
+  /// again on the next frame. Does not trigger layout.
+  void invalidatePaint() {
+    _picture?.dispose();
+    _picture = null;
+  }
+
   /// Release resources (TextPainters, images, etc.).
   @mustCallSuper
   void dispose() {
-    picture?.dispose();
-    picture = null;
+    _picture?.dispose();
+    _picture = null;
   }
+
+  ui.Picture _record(Size size) {
+    final recorder = ui.PictureRecorder();
+    final canvas = Canvas(
+      recorder,
+      Rect.fromLTWH(0, 0, size.width, size.height),
+    );
+    paintMessage(canvas, size);
+    return recorder.endRecording();
+  }
+
+  ui.Picture? _picture;
 
   // --- Managed by the viewport (not overridable) ---
 
@@ -180,10 +229,6 @@ abstract class ChatMessageRender {
   /// Whether this message needs to be re-laid out and re-painted.
   @nonVirtual
   bool dirty = true;
-
-  /// Cached [ui.Picture] produced from [paint].
-  @nonVirtual
-  ui.Picture? picture;
 }
 
 /// Creates a [ChatMessageRender] for the given [message].
@@ -207,12 +252,6 @@ abstract class ChatScrollController extends ChangeNotifier {
 
   /// Unordered map of message chunks by chunk index.
   final Map<int, _ChatScrollChunk> _chunks = HashMap<int, _ChatScrollChunk>();
-
-  /// Get or create a chunk for the given [chunkIndex].
-  _ChatScrollChunk _ensureChunk(int chunkIndex) => _chunks.putIfAbsent(
-    chunkIndex,
-    () => _ChatScrollChunk(index: chunkIndex),
-  );
 
   /// Get a message by ID from the chunk cache.
   IChatMessage? getMessage(int messageId) {
@@ -334,9 +373,9 @@ class RenderChatScrollView extends RenderBox {
     markNeedsLayout();
   }
 
-  /// Range of message IDs currently laid out (inclusive).
-  int _layoutMinId = 0;
-  int _layoutMaxId = -1; // empty range initially
+  /// Range of chunk indices currently laid out (inclusive).
+  int _layoutMinChunk = 0;
+  int _layoutMaxChunk = -1; // empty range initially
 
   // --- RenderBox overrides ---
 
@@ -389,55 +428,86 @@ class RenderChatScrollView extends RenderBox {
 
     final anchorId = _controller.anchorMessageId;
     final anchorOffset = _controller.anchorPixelOffset;
+    final anchorChunkIndex = _ChatScrollChunk.chunkOf(anchorId);
 
-    var newMaxId = anchorId - 1;
+    // Layout anchor chunk
+    final anchorChunk = _controller._chunks[anchorChunkIndex];
+    if (anchorChunk == null) return;
 
-    // Layout downward from anchor
-    var y = anchorOffset;
-    var id = anchorId;
-    while (y < lowerBound) {
-      final message = _controller.getMessage(id);
-      if (message == null) break;
+    _layoutChunkRenders(anchorChunk, viewportWidth);
 
-      final entry = _ensureRender(id, message);
-      if (entry.dirty) {
-        entry.height = entry.performLayout(viewportWidth);
-        entry.picture?.dispose();
-        entry.picture = null;
-        entry.dirty = false;
-      }
-      entry.offsetY = y;
-      y += entry.height;
-      newMaxId = id;
-      id++;
+    // Position anchor chunk so that anchorId's top edge is at anchorOffset
+    var beforeAnchorHeight = 0.0;
+    final anchorLocalIndex = anchorId - anchorChunk.firstId;
+    for (var i = 0; i < anchorLocalIndex; i++) {
+      final r = anchorChunk.renders[i];
+      if (r != null) beforeAnchorHeight += r.height;
+    }
+    anchorChunk.offsetY = anchorOffset - beforeAnchorHeight;
+    _positionChunkRenders(anchorChunk);
+
+    _layoutMinChunk = anchorChunkIndex;
+    _layoutMaxChunk = anchorChunkIndex;
+
+    // Layout chunks downward
+    var y = anchorChunk.offsetY + anchorChunk.height;
+    for (var ci = anchorChunkIndex + 1; y < lowerBound; ci++) {
+      final chunk = _controller._chunks[ci];
+      if (chunk == null) break;
+      _layoutChunkRenders(chunk, viewportWidth);
+      chunk.offsetY = y;
+      _positionChunkRenders(chunk);
+      y += chunk.height;
+      _layoutMaxChunk = ci;
     }
 
-    // Layout upward from anchor
-    y = anchorOffset;
-    id = anchorId - 1;
-    var newMinId = anchorId;
-    while (y > upperBound) {
-      final message = _controller.getMessage(id);
-      if (message == null) break;
-
-      final entry = _ensureRender(id, message);
-      if (entry.dirty) {
-        entry.height = entry.performLayout(viewportWidth);
-        entry.picture?.dispose();
-        entry.picture = null;
-        entry.dirty = false;
-      }
-      y -= entry.height;
-      entry.offsetY = y;
-      newMinId = id;
-      id--;
+    // Layout chunks upward
+    y = anchorChunk.offsetY;
+    for (var ci = anchorChunkIndex - 1; y > upperBound; ci--) {
+      final chunk = _controller._chunks[ci];
+      if (chunk == null) break;
+      _layoutChunkRenders(chunk, viewportWidth);
+      y -= chunk.height;
+      chunk.offsetY = y;
+      _positionChunkRenders(chunk);
+      _layoutMinChunk = ci;
     }
 
-    _layoutMinId = newMinId;
-    _layoutMaxId = newMaxId;
-
-    // Evict entries far outside the laid-out range
     _evictRenderChunks();
+  }
+
+  /// Layout all renders in [chunk], recomputing [chunk.height].
+  void _layoutChunkRenders(_ChatScrollChunk chunk, double viewportWidth) {
+    var totalHeight = 0.0;
+    for (var i = 0; i < _ChatScrollChunk.kSize; i++) {
+      final message = chunk.messages[i];
+      if (message == null) continue;
+      var render = chunk.renders[i];
+      if (render == null) {
+        render = _messageBuilder(message);
+        chunk.renders[i] = render;
+      } else {
+        render.update(message, chunk.status);
+      }
+      if (render.dirty) {
+        render.height = render.performLayout(viewportWidth);
+        render.invalidatePaint();
+        render.dirty = false;
+      }
+      totalHeight += render.height;
+    }
+    chunk.height = totalHeight;
+  }
+
+  /// Set [offsetY] on each render in [chunk] based on [chunk.offsetY].
+  void _positionChunkRenders(_ChatScrollChunk chunk) {
+    var y = chunk.offsetY;
+    for (var i = 0; i < _ChatScrollChunk.kSize; i++) {
+      final render = chunk.renders[i];
+      if (render == null) continue;
+      render.offsetY = y;
+      y += render.height;
+    }
   }
 
   // --- Paint ---
@@ -454,38 +524,36 @@ class RenderChatScrollView extends RenderBox {
 
   void _paintMessages(PaintingContext context, Offset offset) {
     final canvas = context.canvas;
-    final viewportWidth = size.width;
+    final viewportHeight = size.height;
+    var needsRepaint = false;
 
-    for (var id = _layoutMinId; id <= _layoutMaxId; id++) {
-      final render = _getRender(id);
-      if (render == null) continue;
+    for (var ci = _layoutMinChunk; ci <= _layoutMaxChunk; ci++) {
+      final chunk = _controller._chunks[ci];
+      if (chunk == null) continue;
 
-      // Skip if entirely outside visible area
-      if (render.offsetY + render.height < 0 || render.offsetY > size.height) {
+      // Skip entire chunk if off-screen
+      if (chunk.offsetY + chunk.height < 0 || chunk.offsetY > viewportHeight) {
         continue;
       }
 
-      // Build picture if needed
-      render.picture ??= _recordPicture(viewportWidth, render.height, render);
+      for (var i = 0; i < _ChatScrollChunk.kSize; i++) {
+        final render = chunk.renders[i];
+        if (render == null) continue;
 
-      if (render.picture case final picture?) {
+        // Skip if entirely outside visible area
+        if (render.offsetY + render.height < 0 ||
+            render.offsetY > viewportHeight) {
+          continue;
+        }
+
         canvas.save();
         canvas.translate(offset.dx, offset.dy + render.offsetY);
-        canvas.drawPicture(picture);
+        needsRepaint |= render.paint(canvas, Size(size.width, render.height));
         canvas.restore();
       }
     }
-  }
 
-  ui.Picture _recordPicture(
-    double width,
-    double height,
-    ChatMessageRender render,
-  ) {
-    final recorder = ui.PictureRecorder();
-    final canvas = Canvas(recorder, Rect.fromLTWH(0, 0, width, height));
-    render.paint(canvas, Size(width, height));
-    return recorder.endRecording();
+    if (needsRepaint) markNeedsPaint();
   }
 
   // --- Hit testing ---
@@ -504,19 +572,16 @@ class RenderChatScrollView extends RenderBox {
 
   // --- Render management (via controller's chunks) ---
 
-  /// Get an existing render for [messageId], or null.
-  ChatMessageRender? _getRender(int messageId) {
+  /// Invalidate the cached picture for [messageId] without triggering layout.
+  /// Use for animations, selection highlights, or any visual-only change.
+  void markMessageNeedsPaint(int messageId) {
     final chunkIndex = _ChatScrollChunk.chunkOf(messageId);
     final chunk = _controller._chunks[chunkIndex];
-    if (chunk == null) return null;
-    return chunk.renders[messageId - chunk.firstId];
-  }
-
-  /// Get or create a render for [messageId].
-  ChatMessageRender _ensureRender(int messageId, IChatMessage message) {
-    final chunk = _controller._ensureChunk(_ChatScrollChunk.chunkOf(messageId));
-    final i = messageId - chunk.firstId;
-    return chunk.renders[i] ??= _messageBuilder(message);
+    if (chunk == null) return;
+    final render = chunk.renders[messageId - chunk.firstId];
+    if (render == null) return;
+    render.invalidatePaint();
+    markNeedsPaint();
   }
 
   void _markAllRendersDirty() {
@@ -526,8 +591,8 @@ class RenderChatScrollView extends RenderBox {
   }
 
   void _evictRenderChunks() {
-    final keepMin = _ChatScrollChunk.chunkOf(_layoutMinId) - 1;
-    final keepMax = _ChatScrollChunk.chunkOf(_layoutMaxId) + 1;
+    final keepMin = _layoutMinChunk - 1;
+    final keepMax = _layoutMaxChunk + 1;
     _controller._chunks.removeWhere((chunkIndex, chunk) {
       if (chunkIndex < keepMin || chunkIndex > keepMax) {
         chunk.disposeRenders();
