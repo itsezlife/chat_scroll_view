@@ -499,6 +499,8 @@ class RenderChatScrollView extends RenderBox {
       _layoutMinChunk = ci;
     }
 
+    // Evict old chunks if we exceed the limit,
+    // prioritizing keeping currently visible chunks.
     _evictRenderChunks();
   }
 
