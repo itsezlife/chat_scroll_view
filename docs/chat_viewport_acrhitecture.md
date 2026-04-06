@@ -2,7 +2,7 @@
 
 ## Обзор
 
-Кастомный viewport для Flutter-чата, построенный на chunk-based архитектуре сообщений. Полностью кастомный scroll и rendering без использования sliver-протокола Flutter.
+Кастомный viewport для Flutter-чата, построенный на chunk-based архитектуре. Использует `LeafRenderObjectWidget` — все сообщения рисуются на одном canvas без child-виджетов. Каждое сообщение представлено лёгким `ChatMessageRender` объектом с `ui.Picture` кэшированием.
 
 ## Почему не стандартные решения
 
@@ -18,29 +18,48 @@
 - При телепортации к сообщению 1500 нужно объяснить framework'у новый `scrollOffset`, что приводит к постоянным коррекциям через `ScrollPosition.correctBy()`
 - Мы не используем ни один плюс slivers (SliverList, SliverGrid, координированный скролл нескольких slivers)
 
+### MultiChildRenderObjectWidget — лишний overhead
+
+- Каждое сообщение — полноценный Element + RenderObject, которые нам не нужны
+- Мы не используем виджет-дерево внутри сообщений (Markdown, облачка — всё рисуется на canvas)
+- Element lifecycle management (inflateWidget, deactivateChild) дублирует логику, которая проще решается через массив `ChatMessageRender`
+
 ## Выбранный подход
 
-Кастомный `RenderObjectWidget` + кастомный `Element` + `RenderBox` с `ContainerRenderObjectMixin`.
+`LeafRenderObjectWidget` + `RenderBox` — один RenderObject на весь viewport. Сообщения — это лёгкие `ChatMessageRender` объекты (не RenderObject), хранящиеся в чанках.
 
-### Три слоя
+### Два слоя вместо трёх
 
-| Слой         | Базовый класс                              | Ответственность                                            |
-| ------------ | ------------------------------------------ | ---------------------------------------------------------- |
-| Widget       | `RenderObjectWidget`                       | Публичный API: `fetch` + `builder`                         |
-| Element      | `RenderObjectElement`                      | Ленивое создание/удаление children по запросу RenderObject |
-| RenderObject | `RenderBox` + `ContainerRenderObjectMixin` | Layout, paint, hit-testing, scroll-физика                  |
+| Слой         | Класс                          | Ответственность                                        |
+| ------------ | ------------------------------ | ------------------------------------------------------ |
+| Widget       | `ChatScrollView` (Leaf)        | Публичный API: `controller` + `builder`                |
+| RenderObject | `RenderChatScrollView`         | Layout, paint, hit-testing, chunk management, eviction |
+
+Element создаётся автоматически фреймворком (стандартный `LeafRenderObjectElement`), кастомный не нужен.
 
 ## Публичный API
 
 ```dart
 ChatScrollView(
-  Future<List<ChatMessage>> Function({int? from, int? to, DateTime? after}) fetch,
-  Widget Function(ChatMessage message) builder,
+  controller: chatScrollController,
+  builder: (IChatMessage message) => MyMessageRender(message),
 )
 ```
 
-- `fetch` — пагинация и обновление данных с сервера
-- `builder` — построение виджета для каждого сообщения
+- `controller` — `ChatScrollController`, владеет данными (чанки), anchor-состоянием и fetch-функцией
+- `builder` — `ChatMessageRenderFactory`, создаёт `ChatMessageRender` для каждого сообщения
+
+### IChatMessage
+
+```dart
+abstract interface class IChatMessage {
+  abstract final int id;
+  abstract final DateTime createdAt;
+  abstract final DateTime updatedAt;
+}
+```
+
+Минимальный контракт для данных сообщения. Конкретная реализация добавляет свои поля (текст, автор, вложения).
 
 ## Система координат
 
@@ -48,12 +67,12 @@ Anchor-based, без абсолютных пиксельных смещений:
 
 ```
 anchorMessageId: int       // ID сообщения — начало координат
-anchorPixelOffset: double  // смещение anchor от точки привязки в viewport
+anchorPixelOffset: double  // смещение top edge anchor-сообщения от top viewport
 ```
 
 - Никакого маппинга ID → абсолютные пиксели
-- Телепортация к любому сообщению — просто смена anchor + markNeedsLayout
-- Layout всегда от anchor в обе стороны, пока не заполнится viewport + cacheExtent
+- Телепортация к любому сообщению — просто смена anchor + `notifyListeners()`
+- Layout всегда от anchor-чанка в обе стороны, пока не заполнится viewport + cacheExtent
 
 ## ID сообщений
 
@@ -69,187 +88,254 @@ anchorPixelOffset: double  // смещение anchor от точки привя
 CHUNK_BITS = 6
 CHUNK_SIZE = 64
 
-chunkId      = msgId >> 6
-indexInChunk = msgId & 63
+chunkIndex   = msgId >> 6  (для положительных)
+indexInChunk = msgId - chunk.firstId
+```
+
+### Структура чанка
+
+```dart
+class _ChatScrollChunk {
+  final int index;            // chunk index
+  final int firstId;          // first message id (inclusive)
+  int get lastId;             // firstId + 63
+
+  List<IChatMessage?> messages; // [64] — данные
+  List<ChatMessageRender?> renders; // [64] — рендеры (лениво)
+
+  ChatMessageStatus status;   // dirty, fetching, error, valid (bitfield)
+  int lastAccessTick;          // LRU — бамп при layout
+  double offsetY;              // Y позиция в viewport
+  double height;               // суммарная высота всех renders
+}
 ```
 
 ### Отрицательные ID
 
-Арифметический сдвиг вправо корректно работает для отрицательных чисел и в Dart, и в Rust:
+Арифметический сдвиг корректно работает для отрицательных:
 
 ```
-id =  64  → chunkId =  1, index =  0
-id =   0  → chunkId =  0, index =  0
-id =  -1  → chunkId = -1, index = 63
-id = -64  → chunkId = -1, index =  0
-id = -65  → chunkId = -2, index = 63
+id =  64  → chunkIndex =  1, firstId =  64
+id =   0  → chunkIndex =  0, firstId =   0
+id =  -1  → chunkIndex = -1, firstId = -64
+id = -64  → chunkIndex = -1, firstId = -64
+id = -65  → chunkIndex = -2, firstId = -128
 ```
 
 Чанк `-1` содержит сообщения от `-64` до `-1`, чанк `0` — от `0` до `63`. Непрерывность сохраняется.
 
-## Взаимодействие слоёв
+## ChatMessageRender
 
-```
-RenderObject: "мне нужны children для id 1500..1560"
-      ↓ callback
-Element: вызывает builder для каждого id,
-         inflateWidget → создаёт Element + RenderObject,
-         insertChildRenderObject → добавляет в parent
-      ↓
-RenderObject: markNeedsLayout, лейаутит появившихся детей
-```
+Лёгкий объект рендеринга (не Flutter RenderObject). Каждое сообщение имеет свой `ChatMessageRender`, который управляет layout-кэшем и picture-кэшем.
 
-### Element — управление жизненным циклом
+### Жизненный цикл
+
+1. **Создание**: `ChatMessageRenderFactory(message)` — при первом появлении сообщения в layout
+2. **Обновление**: `update(message, status)` — при каждом последующем layout; subclass сравнивает через `identical` и решает, нужен ли relayout
+3. **Layout**: `performLayout(width) → height` — вычисляет размер, строит layout-кэш (TextPainter'ы и т.д.)
+4. **Paint**: `paintMessage(canvas, size)` — рисует на canvas
+5. **Dispose**: `dispose()` — освобождает ресурсы
+
+### Picture-кэширование
 
 ```dart
-class ChatScrollElement extends RenderObjectElement {
-  final Map<int, Element> _childElements = {};
+abstract class ChatMessageRender {
+  // Subclass переопределяет — что рисовать
+  void paintMessage(Canvas canvas, Size size);
 
-  void buildChildren(int fromId, int toId) {
-    for (var id = fromId; id <= toId; id++) {
-      if (!_childElements.containsKey(id)) {
-        final message = _controller.getMessage(id);
-        if (message != null) {
-          final widget = widget.builder(message);
-          final element = inflateWidget(widget, ...);
-          _childElements[id] = element;
-        }
-      }
-    }
-    // убираем далёких от viewport
-    _childElements.removeWhere((id, element) {
-      if (id < fromId - 128 || id > toId + 128) {
-        deactivateChild(element);
-        return true;
-      }
-      return false;
-    });
+  // Base class кэширует результат paintMessage в ui.Picture
+  bool paint(Canvas canvas, Size size) {
+    final pic = _picture ??= _record(size);
+    canvas.drawPicture(pic);
+    return false; // true = нужен ещё фрейм (анимация)
+  }
+
+  void invalidatePaint() {
+    _picture?.dispose();
+    _picture = null;
   }
 }
 ```
 
-### RenderObject — layout
+- **Статичное сообщение**: `paintMessage` вызывается один раз, результат кэшируется как `ui.Picture`, последующие фреймы — `drawPicture`
+- **Анимированное сообщение**: subclass переопределяет `paint`, рисует напрямую каждый фрейм, возвращает `true` — viewport вызовет `markNeedsPaint()` для следующего фрейма
+
+### Update и dirty-флаг
+
+`update(IChatMessage, ChatMessageStatus)` — абстрактный. Базовый класс не хранит message/status, это решение subclass'а. Subclass сам решает:
+- Изменились ли данные → `dirty = true` (нужен relayout + repaint)
+- Изменился ли визуал без изменения размера → `invalidatePaint()` (только repaint)
+- Ничего не изменилось → ничего не делает
+
+### Поля, управляемые viewport'ом
 
 ```dart
-class RenderChatViewport extends RenderBox
-    with ContainerRenderObjectMixin<RenderBox, ChatParentData> {
+@nonVirtual double offsetY = 0.0;  // позиция в viewport
+@nonVirtual double height = 0.0;   // высота после layout
+@nonVirtual bool dirty = true;      // нужен relayout
+```
 
+## ChatMessageStatus (bitfield)
+
+```dart
+extension type const ChatMessageStatus._(int _value) {
+  static const valid    = ChatMessageStatus._(0);
+  static const dirty    = ChatMessageStatus._(1 << 0);
+  static const error    = ChatMessageStatus._(1 << 1);
+  static const fetching = ChatMessageStatus._(1 << 2);
+
+  bool contains(ChatMessageStatus flag);
+  ChatMessageStatus add(ChatMessageStatus flag);
+  ChatMessageStatus remove(ChatMessageStatus flag);
+}
+```
+
+Используется как extension type для type-safe bitfield. Чанк может одновременно быть `dirty | fetching`. Передаётся в `ChatMessageRender.update` — рендер может отображать состояние загрузки.
+
+## ChatScrollController
+
+```dart
+abstract class ChatScrollController extends ChangeNotifier {
+  Future<List<IChatMessage>> fetch({int? from, int? to, DateTime? after});
+
+  int get maxChunks => 16; // ≈ 1024 сообщений
+
+  // Anchor state
   int anchorMessageId;
   double anchorPixelOffset;
-
-  @override
-  void performLayout() {
-    var y = anchorPixelOffset;
-    var id = anchorMessageId;
-
-    // Лейаут вниз от anchor
-    while (y < size.height + cacheExtent) {
-      final child = getChildForId(id);
-      if (child == null) {
-        _needsChildrenCallback!(id, id + 64);
-        break;
-      }
-      child.layout(constraints, parentUsesSize: true);
-      (child.parentData as ChatParentData).offset = Offset(0, y);
-      y += child.size.height;
-      id++;
-    }
-
-    // Аналогично вверх от anchor
-    // ...
-  }
+  void jumpTo(int messageId);
 }
 ```
 
-## Scroll-физика
+- Владеет `Map<int, _ChatScrollChunk>` — хранилище чанков
+- `RenderChatScrollView` читает данные напрямую из контроллера
+- Изменение anchor → `notifyListeners()` → `markNeedsLayout()`
+- `maxChunks` — лимит на количество чанков в памяти (для LRU-eviction)
 
-Без sliver-протокола, подключается вручную через жесты и симуляцию:
+## Layout (performLayout)
 
-```dart
-// Drag
-anchorPixelOffset += delta.dy;
-markNeedsLayout();
+Chunk-based, от anchor в обе стороны:
 
-// Fling (инерция)
-_simulation = ClampingScrollSimulation(
-  position: anchorPixelOffset,
-  velocity: details.velocity.pixelsPerSecond.dy,
-);
-_ticker.start(); // каждый тик: anchorPixelOffset = _simulation.x(t)
+```
+1. Определить anchorChunkIndex по anchorMessageId
+2. Layout anchor chunk → _layoutChunkRenders(chunk, width)
+3. Позиционировать anchor chunk так, чтобы anchorId.top == anchorPixelOffset
+4. Layout чанков вниз, пока не выйдем за viewport + cacheExtent
+5. Layout чанков вверх аналогично
+6. Evict старых чанков
 ```
 
-Когда offset выносит за границу текущего anchor-сообщения — anchor пересчитывается на соседнее.
+### _layoutChunkRenders
+
+Для каждого сообщения в чанке:
+1. Бамп `lastAccessTick` (LRU)
+2. Если render отсутствует — создать через factory
+3. Если render есть — вызвать `update(message, status)`
+4. Если `dirty` — вызвать `performLayout(width)`, обновить высоту, сбросить picture-кэш
+5. Суммировать высоты → `chunk.height`
+
+### _positionChunkRenders
+
+Последовательно расставляет `offsetY` каждого render'а, начиная от `chunk.offsetY`.
+
+## Paint
+
+Двухуровневый culling:
+
+```
+1. Итерация по чанкам в диапазоне [_layoutMinChunk, _layoutMaxChunk]
+2. Если весь чанк за пределами viewport → skip (по chunk.offsetY + chunk.height)
+3. Для каждого render в чанке: если за пределами → skip
+4. canvas.translate → render.paint(canvas, size) → возвращает bool
+5. Если хотя бы один render вернул true → markNeedsPaint()
+```
+
+Viewport является `isRepaintBoundary = true`, что изолирует его перерисовки от остального дерева.
+
+Clip через `context.pushClipRect` — ничего не рисуется за пределами viewport'а.
+
+## LRU Eviction
+
+При каждом layout проверяется количество чанков. Если превышен `maxChunks`:
+
+1. Подсчитать `toRemove = chunks.length - maxChunks`
+2. Алгоритм partial selection: фиксированный массив из `toRemove` элементов
+3. За один проход по `chunks.values` (O(n·k)) — найти `toRemove` чанков с наименьшим `lastAccessTick`
+4. Чанки из текущего layout диапазона `[_layoutMinChunk, _layoutMaxChunk]` не evict'ятся
+5. Dispose renders жертв, удалить из map
+
+Преимущество: нет аллокации growable list, нет сортировки. Один проход с фиксированным массивом.
+
+## Hit Testing
+
+```dart
+bool hitTestSelf(Offset position) => true;
+```
+
+Viewport перехватывает все жесты внутри своих bounds. `ChatMessageRender.hitTest(position)` — для будущего per-message hit-testing.
 
 ## Телепортация (Jump to message)
 
 ```dart
-void jumpTo(int messageId) {
-  anchorMessageId = messageId;
-  anchorPixelOffset = 0.0;
-  // сброс кэша children далеко от нового anchor
-  markNeedsLayout();
-}
+controller.jumpTo(messageId);
+// anchorMessageId = messageId
+// anchorPixelOffset = 0.0
+// notifyListeners() → markNeedsLayout()
 ```
 
-В следующем фрейме `performLayout` запрашивает нужный чанк, лейаутит от нового anchor. Никакой анимированной прокрутки через тысячи сообщений.
+В следующем фрейме `performLayout` лейаутит от нового anchor. Никакой анимированной прокрутки через тысячи сообщений — мгновенный переход.
 
-## Скроллбар
+## Скроллбар (планируется)
 
 - Отдельный виджет, не связанный со scroll offset
 - Позиция thumb: `(anchorId - minId) / totalCount`
-- `totalCount` = `maxId - minId + 1`, пересчитывается при обнаружении новых границ
-- `minId` изначально предполагается `0`, расширяется при скролле вверх
 - Drag скроллбара → маппинг `thumbPosition → targetMessageId` → телепортация
-- Fast-scroll режим (press-hold) с on-demand chunk loading
 
-## Rendering сообщений
+## Scroll-физика (планируется)
 
-Каждое сообщение — кастомный `RenderBox` с canvas-отрисовкой (Markdown, облачки и т.д.):
+Без sliver-протокола, через жесты и симуляцию:
 
-```
-MessageRenderBox
-  ├─ List<LayoutBlock> layoutCache
-  │    ├─ ParagraphBlock { TextPainter, Offset }
-  │    ├─ CodeBlock { TextPainter, Rect background }
-  │    └─ ...
-  ├─ performLayout() → строит layoutCache, вычисляет size
-  ├─ paint() → итерирует layoutCache, рисует на canvas
-  └─ getTextPosition(Offset) → блок по Y → TextPainter.getPositionForOffset()
+```dart
+// Drag
+anchorPixelOffset += delta.dy;
+
+// Fling (инерция)
+ClampingScrollSimulation → каждый тик обновляет anchorPixelOffset
 ```
 
-### Оптимизация перерисовки
+Когда offset выносит за границу текущего anchor-сообщения — anchor пересчитывается на соседнее.
 
-Без `RepaintBoundary` (один viewport RenderBox) любое изменение → перерисовка всего. Решение: кэширование отрисованных сообщений в `ui.Picture` через `PictureRecorder`, в `paint()` — `canvas.drawPicture()` для неизменённых, перерисовка только dirty.
+## Selection (планируется)
 
-## Selection (выделение)
-
-Двухрежимная модель, управляется на уровне viewport:
+Двухрежимная модель на уровне viewport:
 
 ```dart
 enum SelectionMode { none, text, messages }
-
-class ChatSelectionState {
-  SelectionMode mode;
-
-  // mode == text:
-  int messageId;
-  int startOffset;
-  int endOffset;
-
-  // mode == messages:
-  int startMessageId;
-  int endMessageId;
-}
 ```
-
-### Логика переключения
 
 1. Drag начинается → hit-test определяет сообщение → `mode = text`
 2. Drag выходит за границу сообщения → `mode = messages`, выделяются сообщения целиком
 
-## Данные и загрузка
+Перерисовка выделения — через `invalidatePaint()` без relayout.
 
-- Fetch-функция живёт в контроллере, не в Element
-- Element берёт данные из кэша контроллера
-- Кэш пуст → контроллер запускает fetch → данные приходят → `markNeedsBuild` → Element перестраивает нужный диапазон
-- Placeholder (shimmer) фиксированной высоты для незагруженных сообщений
+## Диаграмма зависимостей
+
+```
+ChatScrollView (LeafRenderObjectWidget)
+  └─ RenderChatScrollView (RenderBox)
+       ├─ reads ─── ChatScrollController
+       │              ├─ anchor state (messageId, pixelOffset)
+       │              ├─ Map<int, _ChatScrollChunk>
+       │              │    ├─ messages[64]  (IChatMessage?)
+       │              │    ├─ renders[64]   (ChatMessageRender?)
+       │              │    ├─ status        (ChatMessageStatus)
+       │              │    ├─ offsetY, height
+       │              │    └─ lastAccessTick
+       │              └─ fetch(), maxChunks
+       └─ creates ── ChatMessageRender (via factory)
+                       ├─ update()
+                       ├─ performLayout() → height
+                       ├─ paintMessage() → ui.Picture cache
+                       ├─ paint() → bool (animation)
+                       └─ dispose()
+```

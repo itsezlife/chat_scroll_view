@@ -249,6 +249,11 @@ abstract class ChatScrollController extends ChangeNotifier {
   ChatScrollController();
 
   /// Fetch messages by ID range or timestamp.
+  /// `from` and `to` are inclusive message IDs, where `from <= to`.
+  /// `after` used for time-based pagination,
+  /// fetching only updated messages after the given timestamp.
+  /// If nothing is provided, fetch should return the most recent messages to
+  /// dermine the initial scroll position, anchoring on the most recent message.
   Future<List<IChatMessage>> fetch({int? from, int? to, DateTime? after});
 
   // --- Chunk storage ---
@@ -615,8 +620,7 @@ class RenderChatScrollView extends RenderBox {
 
     for (final chunk in chunks.values) {
       // Never evict chunks in the current layout range.
-      if (chunk.index >= _layoutMinChunk &&
-          chunk.index <= _layoutMaxChunk) {
+      if (chunk.index >= _layoutMinChunk && chunk.index <= _layoutMaxChunk) {
         continue;
       }
 
