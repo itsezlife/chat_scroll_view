@@ -245,8 +245,6 @@ typedef ChatMessageRenderFactory =
 /// The [RenderChatScrollView] reads data from this controller
 /// and listens for changes via [ChangeNotifier].
 abstract class ChatScrollController extends ChangeNotifier {
-  ChatScrollController();
-
   /// Fetch messages by ID range or timestamp.
   /// `from` and `to` are inclusive message IDs, where `from <= to`.
   /// `after` used for time-based pagination,
@@ -273,11 +271,25 @@ abstract class ChatScrollController extends ChangeNotifier {
     return chunk.messages[messageId - chunk.firstId];
   }
 
+  /// Upsert a message into the chunk cache.
+  /// If the chunk is not cached, the message is ignored —
+  /// it will be fetched naturally when scrolled into view.
+  /// Returns `true` if the message was placed into a cached chunk.
+  bool upsertMessage(IChatMessage message) {
+    final chunk = _chunks[_ChatScrollChunk.chunkOf(message.id)];
+    if (chunk == null) return false;
+    chunk.messages[message.id - chunk.firstId] = message;
+    notifyListeners();
+    return true;
+  }
+
   // --- Anchor state ---
 
   /// The message ID used as layout origin.
   int get anchorMessageId => _anchorMessageId;
   int _anchorMessageId = 0;
+
+  /// Set a new anchor message ID and notify listeners to trigger layout.
   set anchorMessageId(int value) {
     if (_anchorMessageId == value) return;
     _anchorMessageId = value;
@@ -287,6 +299,8 @@ abstract class ChatScrollController extends ChangeNotifier {
   /// Pixel offset of the anchor message's top edge from the viewport top.
   double get anchorPixelOffset => _anchorPixelOffset;
   double _anchorPixelOffset = 0.0;
+
+  /// Set a new anchor pixel offset and notify listeners to trigger layout.
   set anchorPixelOffset(double value) {
     if (_anchorPixelOffset == value) return;
     _anchorPixelOffset = value;
