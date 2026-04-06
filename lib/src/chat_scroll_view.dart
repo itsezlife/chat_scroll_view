@@ -277,8 +277,10 @@ abstract class ChatScrollController extends ChangeNotifier {
   /// Creates the chunk if it does not exist yet.
   void upsertMessage(IChatMessage message) {
     final chunkIndex = _ChatScrollChunk.chunkOf(message.id);
-    final chunk = _chunks[chunkIndex] ??=
-        _ChatScrollChunk(index: chunkIndex);
+    final chunk = _chunks.putIfAbsent(
+      chunkIndex,
+      () => _ChatScrollChunk(index: chunkIndex),
+    );
     chunk.messages[message.id - chunk.firstId] = message;
     notifyListeners();
   }
@@ -289,8 +291,10 @@ abstract class ChatScrollController extends ChangeNotifier {
     var changed = false;
     for (final message in messages) {
       final chunkIndex = _ChatScrollChunk.chunkOf(message.id);
-      final chunk = _chunks[chunkIndex] ??=
-          _ChatScrollChunk(index: chunkIndex);
+      final chunk = _chunks.putIfAbsent(
+        chunkIndex,
+        () => _ChatScrollChunk(index: chunkIndex),
+      );
       chunk.messages[message.id - chunk.firstId] = message;
       changed = true;
     }
