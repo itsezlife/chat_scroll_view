@@ -244,7 +244,7 @@ class ChatScrollView extends LeafRenderObjectWidget {
   /// {@macro chat_scroll_view}
   const ChatScrollView({
     required this.controller,
-    required this.messageBuilder,
+    required this.builder,
     super.key, // ignore: unused_element_parameter
   });
 
@@ -252,14 +252,11 @@ class ChatScrollView extends LeafRenderObjectWidget {
   final ChatScrollController controller;
 
   /// Creates a [ChatMessageRender] for each message.
-  final ChatMessageRenderFactory messageBuilder;
+  final ChatMessageRenderFactory builder;
 
   @override
   RenderChatScrollView createRenderObject(BuildContext context) =>
-      RenderChatScrollView(
-        controller: controller,
-        messageBuilder: messageBuilder,
-      );
+      RenderChatScrollView(controller: controller, messageBuilder: builder);
 
   @override
   void updateRenderObject(
@@ -268,7 +265,7 @@ class ChatScrollView extends LeafRenderObjectWidget {
   ) {
     renderObject
       ..controller = controller
-      ..messageBuilder = messageBuilder;
+      ..messageBuilder = builder;
   }
 }
 
