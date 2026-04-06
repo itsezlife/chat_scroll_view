@@ -403,8 +403,9 @@ class RenderChatScrollView extends RenderBox {
   }
 
   /// Extra pixels to lay out beyond the visible viewport.
-  double get cacheExtent => _cacheExtent;
   double _cacheExtent = 250.0;
+
+  /// Update the cache extent and trigger layout if it changes.
   set cacheExtent(double value) {
     if (_cacheExtent == value) return;
     _cacheExtent = value;
