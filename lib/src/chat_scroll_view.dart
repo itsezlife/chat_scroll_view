@@ -531,11 +531,13 @@ class RenderChatScrollView extends RenderBox {
 
   @override
   void paint(PaintingContext context, Offset offset) {
-    context.pushClipRect(
+    layer = context.pushClipRect(
       needsCompositing,
       offset,
       Offset.zero & size,
       _paintMessages,
+      clipBehavior: Clip.hardEdge,
+      oldLayer: layer as ClipRectLayer?,
     );
   }
 
