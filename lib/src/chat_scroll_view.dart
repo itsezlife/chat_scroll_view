@@ -286,7 +286,7 @@ class RenderChatScrollView extends RenderBox {
   ChatScrollController get controller => _controller;
   ChatScrollController _controller;
   set controller(ChatScrollController value) {
-    if (_controller == value) return;
+    if (identical(_controller, value)) return;
     _controller.removeListener(_onControllerChanged);
     _controller = value;
     _controller.addListener(_onControllerChanged);
@@ -302,7 +302,7 @@ class RenderChatScrollView extends RenderBox {
   ChatMessageRenderFactory get messageBuilder => _messageBuilder;
   ChatMessageRenderFactory _messageBuilder;
   set messageBuilder(ChatMessageRenderFactory value) {
-    if (_messageBuilder == value) return;
+    if (identical(_messageBuilder, value)) return;
     _messageBuilder = value;
     _markAllEntriesDirty();
     markNeedsLayout();
