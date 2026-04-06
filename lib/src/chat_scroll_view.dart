@@ -76,49 +76,55 @@ extension type const ChatMessageStatus._(int _value) {
   bool get isFetching => contains(ChatMessageStatus.fetching);
 }
 
-/// Chunk of chat messages used for pagination.
-/// The chunk index is calculated by shifting
-/// the message id to the right by [ChatScrollChunk.kChunkBits].
-class ChatScrollChunk {
-  /// The number of bits to shift to get the chunk index.
-  static const int kChunkBits = 6;
-
-  /// The max number of items in a chunk.
-  static const int kChunkSize = 64;
+/// Chunk of chat messages used for pagination and rendering.
+///
+/// Holds both message data and render objects in parallel fixed-size arrays.
+/// Chunk index is calculated by shifting the message id right by [kBits].
+class _ChatScrollChunk {
+  static const int kBits = 6;
+  static const int kSize = 64; // 1 << kBits
 
   /// Get the chunk index for a given message id.
-  static int getChunkIndex(int messageId) =>
-      messageId < 0 ? -(-messageId >> kChunkBits) : messageId >> kChunkBits;
+  static int chunkOf(int messageId) =>
+      messageId < 0 ? -(-messageId >> kBits) : messageId >> kBits;
 
   /// Get the first message id for a given chunk index.
-  static int getChunkFirstId(int chunkIndex) =>
-      chunkIndex < 0 ? -(-chunkIndex << kChunkBits) : chunkIndex << kChunkBits;
+  static int firstIdOf(int chunkIndex) =>
+      chunkIndex < 0 ? -(-chunkIndex << kBits) : chunkIndex << kBits;
 
-  ChatScrollChunk({required this.index})
-    : items = List<IChatMessage?>.filled(kChunkSize, null, growable: false),
-      firstId = getChunkFirstId(index),
-      lastId = getChunkFirstId(index) + kChunkSize - 1,
-      _status = ChatMessageStatus.dirty;
+  _ChatScrollChunk({required this.index})
+    : messages = List<IChatMessage?>.filled(kSize, null, growable: false),
+      renders = List<ChatMessageRender?>.filled(kSize, null, growable: false),
+      firstId = firstIdOf(index);
 
-  /// The index of the chunk.
-  /// Could be negative for messages with negative ids.
   final int index;
-
-  /// The id of the first message in the chunk.
   final int firstId;
+  int get lastId => firstId + kSize - 1;
 
-  /// The id of the last message in the chunk.
-  final int lastId;
+  /// Message data — populated from fetch results.
+  final List<IChatMessage?> messages;
 
-  /// The items in the chunk.
-  /// The list is fixed length and filled with nulls initially.
-  /// When a message is loaded, it is placed in the list at the index
-  /// corresponding to its id relative to the chunk's first id.
-  final List<IChatMessage?> items;
+  /// Render objects — created lazily by the viewport.
+  final List<ChatMessageRender?> renders;
 
-  /// Get the status of the chunk and its messages.
-  ChatMessageStatus get status => _status;
-  ChatMessageStatus _status; // ignore: prefer_final_fields
+  /// Data status (dirty, fetching, error, valid).
+  ChatMessageStatus status = ChatMessageStatus.dirty;
+
+  void markRendersDirty() {
+    for (final render in renders) {
+      if (render == null) continue;
+      render.dirty = true;
+      render.picture?.dispose();
+      render.picture = null;
+    }
+  }
+
+  void disposeRenders() {
+    for (var i = 0; i < renders.length; i++) {
+      renders[i]?.dispose();
+      renders[i] = null;
+    }
+  }
 }
 
 /// Lightweight render object for a single chat message.
@@ -190,19 +196,21 @@ abstract class ChatScrollController extends ChangeNotifier {
 
   // --- Chunk storage ---
 
-  final Map<int, ChatScrollChunk> _chunks = <int, ChatScrollChunk>{};
+  /// Unordered map of message chunks by chunk index.
+  final Map<int, _ChatScrollChunk> _chunks = HashMap<int, _ChatScrollChunk>();
+
+  /// Get or create a chunk for the given [chunkIndex].
+  _ChatScrollChunk _ensureChunk(int chunkIndex) => _chunks.putIfAbsent(
+    chunkIndex,
+    () => _ChatScrollChunk(index: chunkIndex),
+  );
 
   /// Get a message by ID from the chunk cache.
   IChatMessage? getMessage(int messageId) {
-    final chunkIndex = ChatScrollChunk.getChunkIndex(messageId);
+    final chunkIndex = _ChatScrollChunk.chunkOf(messageId);
     final chunk = _chunks[chunkIndex];
     if (chunk == null) return null;
-    final indexInChunk = messageId - chunk.firstId;
-    assert(
-      indexInChunk >= 0 && indexInChunk < ChatScrollChunk.kChunkSize,
-      'Message ID $messageId is out of bounds for chunk index $chunkIndex',
-    );
-    return chunk.items[indexInChunk];
+    return chunk.messages[messageId - chunk.firstId];
   }
 
   // --- Anchor state ---
@@ -304,7 +312,7 @@ class RenderChatScrollView extends RenderBox {
   set messageBuilder(ChatMessageRenderFactory value) {
     if (identical(_messageBuilder, value)) return;
     _messageBuilder = value;
-    _markAllEntriesDirty();
+    _markAllRendersDirty();
     markNeedsLayout();
   }
 
@@ -316,12 +324,6 @@ class RenderChatScrollView extends RenderBox {
     _cacheExtent = value;
     markNeedsLayout();
   }
-
-  // --- Layout cache ---
-
-  /// Layout cache: messageId → MessageEntry.
-  final Map<int, ChatMessageRender> _entries =
-      HashMap<int, ChatMessageRender>();
 
   /// Range of message IDs currently laid out (inclusive).
   int _layoutMinId = 0;
@@ -355,16 +357,15 @@ class RenderChatScrollView extends RenderBox {
   }
 
   void _onSystemFontsChange() {
-    _markAllEntriesDirty();
+    _markAllRendersDirty();
     markNeedsLayout();
   }
 
   @override
   void dispose() {
-    for (final entry in _entries.values) {
-      entry.dispose();
+    for (final chunk in _controller._chunks.values) {
+      chunk.disposeRenders();
     }
-    _entries.clear();
     super.dispose();
   }
 
@@ -389,7 +390,7 @@ class RenderChatScrollView extends RenderBox {
       final message = _controller.getMessage(id);
       if (message == null) break;
 
-      final entry = _ensureEntry(id, message);
+      final entry = _ensureRender(id, message);
       if (entry.dirty) {
         entry.height = entry.performLayout(viewportWidth);
         entry.picture?.dispose();
@@ -410,7 +411,7 @@ class RenderChatScrollView extends RenderBox {
       final message = _controller.getMessage(id);
       if (message == null) break;
 
-      final entry = _ensureEntry(id, message);
+      final entry = _ensureRender(id, message);
       if (entry.dirty) {
         entry.height = entry.performLayout(viewportWidth);
         entry.picture?.dispose();
@@ -427,7 +428,7 @@ class RenderChatScrollView extends RenderBox {
     _layoutMaxId = newMaxId;
 
     // Evict entries far outside the laid-out range
-    _evictEntries();
+    _evictRenderChunks();
   }
 
   // --- Paint ---
@@ -447,20 +448,20 @@ class RenderChatScrollView extends RenderBox {
     final viewportWidth = size.width;
 
     for (var id = _layoutMinId; id <= _layoutMaxId; id++) {
-      final entry = _entries[id];
-      if (entry == null) continue;
+      final render = _getRender(id);
+      if (render == null) continue;
 
       // Skip if entirely outside visible area
-      if (entry.offsetY + entry.height < 0 || entry.offsetY > size.height) {
+      if (render.offsetY + render.height < 0 || render.offsetY > size.height) {
         continue;
       }
 
       // Build picture if needed
-      entry.picture ??= _recordPicture(viewportWidth, entry.height, entry);
+      render.picture ??= _recordPicture(viewportWidth, render.height, render);
 
-      if (entry.picture case final picture?) {
+      if (render.picture case final picture?) {
         canvas.save();
-        canvas.translate(offset.dx, offset.dy + entry.offsetY);
+        canvas.translate(offset.dx, offset.dy + render.offsetY);
         canvas.drawPicture(picture);
         canvas.restore();
       }
@@ -492,25 +493,35 @@ class RenderChatScrollView extends RenderBox {
     return false;
   }
 
-  // --- Entry management ---
+  // --- Render management (via controller's chunks) ---
 
-  ChatMessageRender _ensureEntry(int messageId, IChatMessage message) =>
-      _entries.putIfAbsent(messageId, () => _messageBuilder(message));
+  /// Get an existing render for [messageId], or null.
+  ChatMessageRender? _getRender(int messageId) {
+    final chunkIndex = _ChatScrollChunk.chunkOf(messageId);
+    final chunk = _controller._chunks[chunkIndex];
+    if (chunk == null) return null;
+    return chunk.renders[messageId - chunk.firstId];
+  }
 
-  void _markAllEntriesDirty() {
-    for (final entry in _entries.values) {
-      entry.dirty = true;
-      entry.picture?.dispose();
-      entry.picture = null;
+  /// Get or create a render for [messageId].
+  ChatMessageRender _ensureRender(int messageId, IChatMessage message) {
+    final chunk = _controller._ensureChunk(_ChatScrollChunk.chunkOf(messageId));
+    final i = messageId - chunk.firstId;
+    return chunk.renders[i] ??= _messageBuilder(message);
+  }
+
+  void _markAllRendersDirty() {
+    for (final chunk in _controller._chunks.values) {
+      chunk.markRendersDirty();
     }
   }
 
-  void _evictEntries() {
-    final keepMin = _layoutMinId - ChatScrollChunk.kChunkSize;
-    final keepMax = _layoutMaxId + ChatScrollChunk.kChunkSize;
-    _entries.removeWhere((id, entry) {
-      if (id < keepMin || id > keepMax) {
-        entry.dispose();
+  void _evictRenderChunks() {
+    final keepMin = _ChatScrollChunk.chunkOf(_layoutMinId) - 1;
+    final keepMax = _ChatScrollChunk.chunkOf(_layoutMaxId) + 1;
+    _controller._chunks.removeWhere((chunkIndex, chunk) {
+      if (chunkIndex < keepMin || chunkIndex > keepMax) {
+        chunk.disposeRenders();
         return true;
       }
       return false;
