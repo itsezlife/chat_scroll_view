@@ -399,6 +399,109 @@ Fade-out подсветка целевого сообщения (opacity 1.0 →
 
 ---
 
+## Тестирование, бенчмарки и профайлинг
+
+Стратегия: инструментация добавляется рано (после Этапа 1), полноценное сравнение с `ListView.builder` — после Этапа 4. Цель — убедиться что архитектура выигрывает у стандартного подхода и найти слабые места до того, как они закопаются под фичами.
+
+### После Этапа 1 (Scroll) — baseline замер
+
+Минимальный момент для сравнения: есть рендеринг, скролл, compositing layers.
+
+**Timeline инструментация** (`dart:developer`):
+
+```dart
+import 'dart:developer';
+
+// В ключевых точках:
+Timeline.startSync('ChatScroll.performLayout');
+// ... layout code ...
+Timeline.finishSync();
+
+Timeline.startSync('ChatScroll.paint');
+// ... paint code ...
+Timeline.finishSync();
+
+// Частота вызовов:
+Timeline.startSync('ChatScroll.attachLayer', arguments: {'messageId': id});
+Timeline.finishSync();
+```
+
+Точки инструментации:
+- `performLayout` — общее время
+- `paint` — общее время
+- `attachLayer` / `detachLayer` — частота вызовов
+- `rerecordPicture` — сколько раз за фрейм
+
+**Unit-тесты** (первая партия):
+- `messageIdToChunkIndex` / `messageIdToSlotIndex` — chunk math
+- Anchor renormalization
+- LRU eviction порядок
+- Attach/detach зоны — гистерезис (сообщение в attach zone → attached, между зонами → без изменений, за detach zone → detached)
+
+**Service Protocol метрики**:
+- Frame build time vs raster time через `SchedulerBinding`
+- `debugDumpLayerTree()` — количество layer'ов
+
+### После Этапа 4 (Fight Club) — полноценный A/B бенчмарк
+
+Первый момент с реалистичными данными и рендерингом.
+
+**A/B benchmark app** — два экрана с переключателем:
+- `ListView.builder` с аналогичными виджетами пузырьков
+- `ChatScrollView` с `BookMessageRender`
+- Одинаковые данные, одинаковый автоматический fling-скролл
+- Overlay с метриками: avg/p95/p99 frame time, layer count, memory
+
+**Integration test** (`flutter_test` + `IntegrationTestWidgetsFlutterBinding`):
+- Автоматический скролл через 10000 сообщений
+- Сбор `FrameTiming` через `SchedulerBinding.instance.addTimingsCallback`
+- Assert: p99 < 16ms (60fps)
+
+**Memory profiling**:
+- `ProcessInfo.currentRss` до/после длинного скролла
+- Количество живых `Picture` объектов
+- Верификация что LRU eviction + detach реально освобождают память
+
+### После Этапов 7-8 (Markdown + Selection) — stress-тест
+
+- Сообщения с тяжёлым markdown (code blocks, images, вложенные списки)
+- Выделение текста через 50+ сообщений
+- Верификация что `rerecordPicture` не вызывается без необходимости
+- Golden-тесты: пузырьки, shimmer, selection highlights
+
+### Структура файлов
+
+```
+benchmark/
+  lib/
+    comparison_screen.dart       — A/B: ListView vs ChatScrollView
+    auto_scroll_driver.dart      — программный fling с замерами
+    metrics_overlay.dart         — overlay с frame times
+  integration_test/
+    scroll_performance_test.dart
+
+test/
+  unit/
+    chunk_math_test.dart
+    hysteresis_zone_test.dart
+    anchor_renorm_test.dart
+  widget/
+    scroll_basic_test.dart
+    fetch_trigger_test.dart
+```
+
+### Ключевые метрики для сравнения с ListView.builder
+
+| Метрика | ListView.builder | ChatScrollView | Почему выигрыш |
+|---------|-----------------|----------------|-----------------|
+| Scroll-only frame | rebuild + layout + paint | paint only (offset update) | Нет Element tree reconciliation |
+| Layer count | 1 RepaintBoundary per item | 1 OffsetLayer per message | Сопоставимо |
+| Picture re-record | Каждый scroll (RenderParagraph) | Только attach + dirty | Picture кэшируется |
+| Memory (idle) | Widget + Element + RenderObject per visible | ChatMessageRender per cached | Меньше объектов |
+| GC pressure | Создание/уничтожение виджетов | Reuse renders в чанках | Меньше аллокаций |
+
+---
+
 ## Прочее для учёта
 
 - **Accessibility**: `SemanticsNode` per message для screen readers
