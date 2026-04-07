@@ -30,10 +30,10 @@
 
 ### Два слоя вместо трёх
 
-| Слой         | Класс                          | Ответственность                                        |
-| ------------ | ------------------------------ | ------------------------------------------------------ |
-| Widget       | `ChatScrollView` (Leaf)        | Публичный API: `controller` + `builder`                |
-| RenderObject | `RenderChatScrollView`         | Layout, paint, hit-testing, chunk management, eviction |
+| Слой         | Класс                   | Ответственность                                        |
+| ------------ | ----------------------- | ------------------------------------------------------ |
+| Widget       | `ChatScrollView` (Leaf) | Публичный API: `controller` + `builder`                |
+| RenderObject | `RenderChatScrollView`  | Layout, paint, hit-testing, chunk management, eviction |
 
 Element создаётся автоматически фреймворком (стандартный `LeafRenderObjectElement`), кастомный не нужен.
 
@@ -190,6 +190,7 @@ Detach-зона шире attach-зоны — предотвращает thrashin
 ### Update и dirty-флаг
 
 `update(IChatMessage, ChatMessageStatus)` — абстрактный. Базовый класс не хранит message/status, это решение subclass'а. Subclass сам решает:
+
 - Изменились ли данные → `dirty = true` (нужен relayout + repaint)
 - Изменился ли визуал без изменения размера → `invalidatePaint()` (только repaint)
 - Ничего не изменилось → ничего не делает
@@ -258,16 +259,17 @@ Chunk-based, от anchor в обе стороны:
 6. Evict старых чанков
 ```
 
-### _layoutChunkRenders
+### \_layoutChunkRenders
 
 Для каждого сообщения в чанке:
+
 1. Бамп `lastAccessTick` (LRU)
 2. Если render отсутствует — создать через factory
 3. Если render есть — вызвать `update(message, status)`
 4. Если `dirty` — вызвать `performLayout(width)`, обновить высоту, сбросить picture-кэш
 5. Суммировать высоты → `chunk.height`
 
-### _positionChunkRenders
+### \_positionChunkRenders
 
 Последовательно расставляет `offsetY` каждого render'а, начиная от `chunk.offsetY`.
 
@@ -303,6 +305,7 @@ Viewport является `isRepaintBoundary = true` и `alwaysNeedsCompositing 
 ### Scroll-only оптимизация
 
 `ChatScrollController` разделяет уведомления:
+
 - `anchorPixelOffset` setter → `_notifyScroll()` → viewport вызывает только `markNeedsPaint()`
 - Изменение данных/anchor ID → `_notifyData()` → viewport вызывает `markNeedsLayout()`
 

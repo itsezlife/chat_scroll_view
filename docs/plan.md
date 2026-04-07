@@ -378,6 +378,7 @@ Fade-out подсветка целевого сообщения (opacity 1.0 →
 ### ~~11.1 Разделение scroll/data notifications~~ ✅ Реализовано
 
 Реализовано в рамках OffsetLayer compositing:
+
 - `_notifyScroll()` → `markNeedsPaint()` — только обновление `OffsetLayer.offset`
 - `_notifyData()` → `markNeedsLayout()` — полный relayout
 - `_repositionChunks()` — пересчёт offsetY без relayout renders
@@ -427,18 +428,21 @@ Timeline.finishSync();
 ```
 
 Точки инструментации:
+
 - `performLayout` — общее время
 - `paint` — общее время
 - `attachLayer` / `detachLayer` — частота вызовов
 - `rerecordPicture` — сколько раз за фрейм
 
 **Unit-тесты** (первая партия):
+
 - `messageIdToChunkIndex` / `messageIdToSlotIndex` — chunk math
 - Anchor renormalization
 - LRU eviction порядок
 - Attach/detach зоны — гистерезис (сообщение в attach zone → attached, между зонами → без изменений, за detach zone → detached)
 
 **Service Protocol метрики**:
+
 - Frame build time vs raster time через `SchedulerBinding`
 - `debugDumpLayerTree()` — количество layer'ов
 
@@ -447,17 +451,20 @@ Timeline.finishSync();
 Первый момент с реалистичными данными и рендерингом.
 
 **A/B benchmark app** — два экрана с переключателем:
+
 - `ListView.builder` с аналогичными виджетами пузырьков
 - `ChatScrollView` с `BookMessageRender`
 - Одинаковые данные, одинаковый автоматический fling-скролл
 - Overlay с метриками: avg/p95/p99 frame time, layer count, memory
 
 **Integration test** (`flutter_test` + `IntegrationTestWidgetsFlutterBinding`):
+
 - Автоматический скролл через 10000 сообщений
 - Сбор `FrameTiming` через `SchedulerBinding.instance.addTimingsCallback`
 - Assert: p99 < 16ms (60fps)
 
 **Memory profiling**:
+
 - `ProcessInfo.currentRss` до/после длинного скролла
 - Количество живых `Picture` объектов
 - Верификация что LRU eviction + detach реально освобождают память
@@ -492,13 +499,13 @@ test/
 
 ### Ключевые метрики для сравнения с ListView.builder
 
-| Метрика | ListView.builder | ChatScrollView | Почему выигрыш |
-|---------|-----------------|----------------|-----------------|
-| Scroll-only frame | rebuild + layout + paint | paint only (offset update) | Нет Element tree reconciliation |
-| Layer count | 1 RepaintBoundary per item | 1 OffsetLayer per message | Сопоставимо |
-| Picture re-record | Каждый scroll (RenderParagraph) | Только attach + dirty | Picture кэшируется |
-| Memory (idle) | Widget + Element + RenderObject per visible | ChatMessageRender per cached | Меньше объектов |
-| GC pressure | Создание/уничтожение виджетов | Reuse renders в чанках | Меньше аллокаций |
+| Метрика           | ListView.builder                            | ChatScrollView               | Почему выигрыш                  |
+| ----------------- | ------------------------------------------- | ---------------------------- | ------------------------------- |
+| Scroll-only frame | rebuild + layout + paint                    | paint only (offset update)   | Нет Element tree reconciliation |
+| Layer count       | 1 RepaintBoundary per item                  | 1 OffsetLayer per message    | Сопоставимо                     |
+| Picture re-record | Каждый scroll (RenderParagraph)             | Только attach + dirty        | Picture кэшируется              |
+| Memory (idle)     | Widget + Element + RenderObject per visible | ChatMessageRender per cached | Меньше объектов                 |
+| GC pressure       | Создание/уничтожение виджетов               | Reuse renders в чанках       | Меньше аллокаций                |
 
 ---
 
