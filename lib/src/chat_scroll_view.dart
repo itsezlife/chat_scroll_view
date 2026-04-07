@@ -187,6 +187,15 @@ abstract class ChatMessageRender {
   /// a [PictureLayer] inside this render's [OffsetLayer].
   void paintMessage(Canvas canvas, Size size);
 
+  /// Whether this render has no content to display.
+  ///
+  /// Empty renders (e.g. null slots beyond the real message range in partial
+  /// chunks) skip layer creation entirely — no [OffsetLayer], no
+  /// [PictureLayer], no [paintMessage] call.
+  ///
+  /// Defaults to `true` when [height] is zero.
+  bool get isEmpty => height == 0.0;
+
   /// Whether this message needs its [PictureLayer] re-recorded every frame.
   ///
   /// Override and return `true` for animations (hover, buttons, etc.).
@@ -724,7 +733,20 @@ class RenderChatScrollView extends RenderBox {
 
     // On scroll-only changes, performLayout was skipped — recompute
     // chunk/render offsetY positions from the current anchor state.
-    if (_controller._scrollOnly) _repositionChunks();
+    // If the scroll moved so far that laid-out chunks no longer cover
+    // the viewport, fall back to a full layout pass.
+    if (_controller._scrollOnly) {
+      _repositionChunks();
+      final first = _controller._chunks[_layoutMinChunk];
+      final last = _controller._chunks[_layoutMaxChunk];
+      if (first == null ||
+          last == null ||
+          first.offsetY > viewportHeight ||
+          last.offsetY + last.height < 0) {
+        markNeedsLayout();
+        return;
+      }
+    }
 
     var hasAnimating = false;
 
@@ -736,6 +758,12 @@ class RenderChatScrollView extends RenderBox {
       for (var i = 0; i < _ChatScrollChunk.kSize; i++) {
         final render = chunk.renders[i];
         if (render == null) continue;
+
+        // Skip empty renders — no layer needed for zero-height slots.
+        if (render.isEmpty) {
+          if (render._attached) render.detachLayer();
+          continue;
+        }
 
         final top = render.offsetY;
         final bottom = top + render.height;
