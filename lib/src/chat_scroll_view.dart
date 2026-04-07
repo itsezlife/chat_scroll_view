@@ -1,7 +1,9 @@
 import 'dart:collection';
 import 'dart:ui' as ui;
 
+import 'package:flutter/gestures.dart';
 import 'package:flutter/rendering.dart';
+import 'package:flutter/scheduler.dart';
 import 'package:flutter/widgets.dart';
 import 'package:meta/meta.dart';
 
@@ -208,15 +210,16 @@ abstract class ChatMessageRender {
   bool hitTest(Offset position) => false;
 
   /// Invalidate the cached picture, causing [paintMessage] to be called
-  /// again on the next frame. Does not trigger layout.
+  /// again on the next paint frame. Does not trigger layout.
   ///
-  /// If attached, immediately re-records the [PictureLayer].
-  /// If not attached, the picture will be recorded upon [attachLayer].
+  /// Safe to call during layout — the actual re-recording is deferred
+  /// to the paint phase.
   void invalidatePaint() {
-    if (_attached) {
-      rerecordPicture();
-    }
+    _pictureInvalid = true;
   }
+
+  /// Whether the cached picture needs re-recording in the next paint pass.
+  bool _pictureInvalid = false;
 
   /// Release resources (TextPainters, images, etc.).
   @mustCallSuper
@@ -233,8 +236,9 @@ abstract class ChatMessageRender {
     assert(!_attached);
     _layerWidth = width;
     _layer = OffsetLayer(offset: Offset(0, offsetY));
-    rerecordPicture();
     _attached = true;
+    _pictureInvalid = false;
+    rerecordPicture();
   }
 
   /// Dispose the [PictureLayer] and [OffsetLayer], releasing the
@@ -261,17 +265,21 @@ abstract class ChatMessageRender {
   }
 
   void _disposePictureLayer() {
-    if (_pictureLayer != null) {
-      _pictureLayer!.picture?.dispose();
-      _pictureLayer!.remove();
+    if (_pictureLayer case final pictureLayer?) {
+      pictureLayer.remove();
       _pictureLayer = null;
     }
   }
 
   // --- Layer fields ---
 
-  /// The compositing layer for this message.
-  OffsetLayer? _layer;
+  /// The compositing layer for this message, held via [LayerHandle]
+  /// to prevent disposal when the parent [ClipRectLayer] removes children.
+  final LayerHandle<OffsetLayer> _layerHandle = LayerHandle<OffsetLayer>();
+
+  /// Convenience accessor for the underlying [OffsetLayer].
+  OffsetLayer? get _layer => _layerHandle.layer;
+  set _layer(OffsetLayer? value) => _layerHandle.layer = value;
 
   /// The picture layer holding the recorded [paintMessage] output.
   PictureLayer? _pictureLayer;
@@ -414,6 +422,32 @@ abstract class ChatScrollController extends ChangeNotifier {
     _anchorPixelOffset = 0.0;
     _notifyData();
   }
+
+  // --- Boundary state ---
+
+  /// Whether the oldest message in the conversation has been fetched.
+  bool get reachedOldest => _reachedOldest;
+  bool _reachedOldest = false;
+  set reachedOldest(bool value) {
+    if (_reachedOldest == value) return;
+    _reachedOldest = value;
+    _notifyData();
+  }
+
+  /// Whether the newest message in the conversation has been fetched.
+  bool get reachedNewest => _reachedNewest;
+  bool _reachedNewest = false;
+  set reachedNewest(bool value) {
+    if (_reachedNewest == value) return;
+    _reachedNewest = value;
+    _notifyData();
+  }
+
+  /// The ID of the oldest known message, if any.
+  int? oldestKnownId;
+
+  /// The ID of the newest known message, if any.
+  int? newestKnownId;
 }
 
 /// {@template chat_scroll_view}
@@ -530,6 +564,20 @@ class RenderChatScrollView extends RenderBox {
   int _layoutMinChunk = 0;
   int _layoutMaxChunk = -1; // empty range initially
 
+  // --- Gesture & scroll physics ---
+
+  VerticalDragGestureRecognizer? _drag;
+  Ticker? _ticker;
+  ClampingScrollSimulation? _simulation;
+  double _lastFlingValue = 0.0;
+
+  /// Clip layer owned by this render object, appended as child of
+  /// the framework-managed [OffsetLayer] (which is [layer]).
+  /// Held via [LayerHandle] to prevent the framework from disposing it
+  /// when [OffsetLayer.removeAllChildren] is called between paint calls.
+  final LayerHandle<ClipRectLayer> _clipLayerHandle =
+      LayerHandle<ClipRectLayer>();
+
   // --- RenderBox overrides ---
 
   @override
@@ -551,10 +599,20 @@ class RenderChatScrollView extends RenderBox {
     super.attach(owner);
     _controller.addListener(_onControllerChanged);
     PaintingBinding.instance.systemFonts.addListener(_onSystemFontsChange);
+    _drag = VerticalDragGestureRecognizer()
+      ..onStart = _onDragStart
+      ..onUpdate = _onDragUpdate
+      ..onEnd = _onDragEnd;
+    _ticker = Ticker(_onTick);
   }
 
   @override
   void detach() {
+    _cancelFling();
+    _ticker?.dispose();
+    _ticker = null;
+    _drag?.dispose();
+    _drag = null;
     _controller.removeListener(_onControllerChanged);
     PaintingBinding.instance.systemFonts.removeListener(_onSystemFontsChange);
     super.detach();
@@ -569,10 +627,71 @@ class RenderChatScrollView extends RenderBox {
 
   @override
   void dispose() {
+    _cancelFling();
+    _ticker?.dispose();
+    _ticker = null;
+    _drag?.dispose();
+    _drag = null;
+    _clipLayerHandle.layer = null;
     for (final chunk in _controller._chunks.values) {
       chunk.disposeRenders();
     }
     super.dispose();
+  }
+
+  // --- Gesture handling ---
+
+  @override
+  void handleEvent(PointerEvent event, BoxHitTestEntry entry) {
+    assert(debugHandleEvent(event, entry));
+    if (event is PointerDownEvent) _drag?.addPointer(event);
+  }
+
+  void _onDragStart(DragStartDetails details) {
+    _cancelFling();
+  }
+
+  void _onDragUpdate(DragUpdateDetails details) {
+    _controller.anchorPixelOffset += details.delta.dy;
+  }
+
+  void _onDragEnd(DragEndDetails details) {
+    final velocity = details.primaryVelocity;
+    if (velocity == null || velocity.abs() < 50.0) return;
+    _startFling(velocity);
+  }
+
+  // --- Fling (inertia) ---
+
+  void _startFling(double velocity) {
+    _cancelFling();
+    _simulation = ClampingScrollSimulation(position: 0.0, velocity: velocity);
+    _lastFlingValue = 0.0;
+    _ticker!.start();
+  }
+
+  void _cancelFling() {
+    if (_ticker?.isActive ?? false) {
+      _ticker!.stop();
+    }
+    _simulation = null;
+  }
+
+  void _onTick(Duration elapsed) {
+    final simulation = _simulation;
+    if (simulation == null) {
+      _cancelFling();
+      return;
+    }
+    final seconds = elapsed.inMicroseconds / Duration.microsecondsPerSecond;
+    if (simulation.isDone(seconds)) {
+      _cancelFling();
+      return;
+    }
+    final currentValue = simulation.x(seconds);
+    final delta = currentValue - _lastFlingValue;
+    _lastFlingValue = currentValue;
+    _controller.anchorPixelOffset += delta;
   }
 
   // --- Layout ---
@@ -630,6 +749,12 @@ class RenderChatScrollView extends RenderBox {
       _positionChunkRenders(chunk);
       _layoutMinChunk = ci;
     }
+
+    // Re-normalize anchor if it drifted beyond cacheExtent from viewport.
+    _renormalizeAnchor();
+
+    // Clamp scroll at conversation boundaries.
+    _clampScrollBoundaries();
 
     // Evict old chunks if we exceed the limit,
     // prioritizing keeping currently visible chunks.
@@ -711,16 +836,126 @@ class RenderChatScrollView extends RenderBox {
     }
   }
 
+  // --- Anchor re-normalization ---
+
+  /// If the anchor message drifted beyond [_cacheExtent] from the viewport,
+  /// silently reassign to the first visible message. Direct field writes —
+  /// no [notifyListeners] since we are inside [performLayout].
+  void _renormalizeAnchor() {
+    final anchorId = _controller.anchorMessageId;
+    final anchorChunkIndex = _ChatScrollChunk.chunkOf(anchorId);
+    final anchorChunk = _controller._chunks[anchorChunkIndex];
+    if (anchorChunk == null) return;
+
+    final anchorLocalIndex = anchorId - anchorChunk.firstId;
+    final anchorRender = anchorChunk.renders[anchorLocalIndex];
+    if (anchorRender == null) return;
+
+    final anchorTop = anchorRender.offsetY;
+    final anchorBottom = anchorTop + anchorRender.height;
+    final viewportHeight = size.height;
+
+    // Anchor still within viewport + cacheExtent — nothing to do.
+    if (anchorBottom >= -_cacheExtent &&
+        anchorTop <= viewportHeight + _cacheExtent) {
+      return;
+    }
+
+    // Find first message whose bottom edge is below viewport top.
+    for (var ci = _layoutMinChunk; ci <= _layoutMaxChunk; ci++) {
+      final chunk = _controller._chunks[ci];
+      if (chunk == null) continue;
+      for (var i = 0; i < _ChatScrollChunk.kSize; i++) {
+        final render = chunk.renders[i];
+        if (render == null || render.isEmpty) continue;
+        if (render.offsetY + render.height > 0) {
+          _controller._anchorMessageId = chunk.firstId + i;
+          _controller._anchorPixelOffset = render.offsetY;
+          return;
+        }
+      }
+    }
+  }
+
+  // --- Boundary clamping ---
+
+  /// Clamp scroll so content doesn't detach from viewport edges
+  /// when the conversation boundary has been reached.
+  void _clampScrollBoundaries() {
+    final viewportHeight = size.height;
+
+    // Bottom: if newest message reached, pin content bottom to viewport bottom.
+    if (_controller._reachedNewest) {
+      final lastChunk = _controller._chunks[_layoutMaxChunk];
+      if (lastChunk != null) {
+        final contentBottom = lastChunk.offsetY + lastChunk.height;
+        if (contentBottom < viewportHeight) {
+          final correction = viewportHeight - contentBottom;
+          _controller._anchorPixelOffset += correction;
+          _repositionAfterClamp();
+          _cancelFling();
+        }
+      }
+    }
+
+    // Top: if oldest message reached, pin content top to viewport top.
+    if (_controller._reachedOldest) {
+      final firstChunk = _controller._chunks[_layoutMinChunk];
+      if (firstChunk != null) {
+        final contentTop = firstChunk.offsetY;
+        if (contentTop > 0) {
+          _controller._anchorPixelOffset -= contentTop;
+          _repositionAfterClamp();
+          _cancelFling();
+        }
+      }
+    }
+  }
+
+  /// Recompute chunk/render positions after a boundary clamp correction.
+  void _repositionAfterClamp() {
+    final anchorId = _controller._anchorMessageId;
+    final anchorOffset = _controller._anchorPixelOffset;
+    final anchorChunkIndex = _ChatScrollChunk.chunkOf(anchorId);
+    final anchorChunk = _controller._chunks[anchorChunkIndex];
+    if (anchorChunk == null) return;
+
+    var beforeAnchorHeight = 0.0;
+    final anchorLocalIndex = anchorId - anchorChunk.firstId;
+    for (var i = 0; i < anchorLocalIndex; i++) {
+      final r = anchorChunk.renders[i];
+      if (r != null) beforeAnchorHeight += r.height;
+    }
+    anchorChunk.offsetY = anchorOffset - beforeAnchorHeight;
+    _positionChunkRenders(anchorChunk);
+
+    var y = anchorChunk.offsetY + anchorChunk.height;
+    for (var ci = anchorChunkIndex + 1; ci <= _layoutMaxChunk; ci++) {
+      final chunk = _controller._chunks[ci];
+      if (chunk == null) break;
+      chunk.offsetY = y;
+      _positionChunkRenders(chunk);
+      y += chunk.height;
+    }
+
+    y = anchorChunk.offsetY;
+    for (var ci = anchorChunkIndex - 1; ci >= _layoutMinChunk; ci--) {
+      final chunk = _controller._chunks[ci];
+      if (chunk == null) break;
+      y -= chunk.height;
+      chunk.offsetY = y;
+      _positionChunkRenders(chunk);
+    }
+  }
+
   // --- Paint (layer-tree based) ---
 
   @override
   void paint(PaintingContext context, Offset offset) {
-    // Reuse or create the root clip layer.
-    final clipLayer =
-        (layer as ClipRectLayer?) ??
-        ClipRectLayer(clipRect: offset & size, clipBehavior: Clip.hardEdge);
+    // Reuse or create the clip layer (child of framework-managed OffsetLayer).
+    final clipLayer = _clipLayerHandle.layer ??= ClipRectLayer();
     clipLayer.clipRect = offset & size;
-    layer = clipLayer;
+    clipLayer.clipBehavior = Clip.hardEdge;
 
     final viewportHeight = size.height;
     final attachExtent = viewportHeight * _attachFactor;
@@ -776,10 +1011,11 @@ class RenderChatScrollView extends RenderBox {
           }
           // Update layer offset for scroll.
           render._layer!.offset = Offset(offset.dx, offset.dy + top);
-          // Re-record animated renders.
-          if (render.needsRepaint) {
+          // Re-record invalidated or animated renders.
+          if (render._pictureInvalid || render.needsRepaint) {
+            render._pictureInvalid = false;
             render.rerecordPicture();
-            hasAnimating = true;
+            if (render.needsRepaint) hasAnimating = true;
           }
         } else {
           // Check if render entered the attach zone.
@@ -803,6 +1039,9 @@ class RenderChatScrollView extends RenderBox {
         clipLayer.append(render._layer!);
       }
     }
+
+    // Append clip layer to the framework-managed OffsetLayer.
+    context.addLayer(clipLayer);
 
     // TODO: Sticky overlays (avatars, date separators) — append a
     // PictureLayer last in clipLayer so it draws on top of all messages.
