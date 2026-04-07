@@ -136,29 +136,56 @@ id = -65  → chunkIndex = -2, firstId = -128
 4. **Paint**: `paintMessage(canvas, size)` — рисует на canvas
 5. **Dispose**: `dispose()` — освобождает ресурсы
 
-### Picture-кэширование
+### Compositing-архитектура (OffsetLayer per message)
+
+Каждое сообщение владеет поддеревом `OffsetLayer` → `PictureLayer`. Viewport управляет жизненным циклом слоёв через зоны видимости с гистерезисом.
 
 ```dart
 abstract class ChatMessageRender {
   // Subclass переопределяет — что рисовать
   void paintMessage(Canvas canvas, Size size);
 
-  // Base class кэширует результат paintMessage в ui.Picture
-  bool paint(Canvas canvas, Size size) {
-    final pic = _picture ??= _record(size);
-    canvas.drawPicture(pic);
-    return false; // true = нужен ещё фрейм (анимация)
-  }
+  // Viewport вызывает при входе в attach-зону
+  void attachLayer(double width);   // создаёт OffsetLayer → PictureLayer
+
+  // Viewport вызывает при выходе из detach-зоны
+  void detachLayer();               // высвобождает слои и Picture
+
+  // Пересоздать PictureLayer (анимация, invalidatePaint)
+  void rerecordPicture();
+
+  // Для анимированных сообщений — viewport пересоздаёт Picture каждый фрейм
+  bool get needsRepaint => false;
 
   void invalidatePaint() {
-    _picture?.dispose();
-    _picture = null;
+    if (_attached) rerecordPicture();
   }
 }
 ```
 
-- **Статичное сообщение**: `paintMessage` вызывается один раз, результат кэшируется как `ui.Picture`, последующие фреймы — `drawPicture`
-- **Анимированное сообщение**: subclass переопределяет `paint`, рисует напрямую каждый фрейм, возвращает `true` — viewport вызовет `markNeedsPaint()` для следующего фрейма
+- **Статичное сообщение**: `paintMessage` вызывается один раз при `attachLayer`, результат кэшируется в `PictureLayer`. При скролле обновляется только `OffsetLayer.offset` — GPU композитит без re-record
+- **Анимированное сообщение**: subclass переопределяет `needsRepaint → true`, viewport вызывает `rerecordPicture()` каждый фрейм и планирует следующий через `markNeedsPaint()`
+
+### Зоны видимости (гистерезис)
+
+```
+static const double _attachFactor = 1.0;  // attach: 1× viewport от краёв
+static const double _detachFactor = 1.7;  // detach: 1.7× viewport от краёв
+
+         ┌─────────────────────┐
+         │   detach zone       │  -detachExtent
+         │  ┌───────────────┐  │
+         │  │ attach zone   │  │  -attachExtent
+         │  │ ┌───────────┐ │  │
+         │  │ │ VIEWPORT  │ │  │   0 .. viewportHeight
+         │  │ └───────────┘ │  │
+         │  │ attach zone   │  │  +attachExtent
+         │  └───────────────┘  │
+         │   detach zone       │  +detachExtent
+         └─────────────────────┘
+```
+
+Detach-зона шире attach-зоны — предотвращает thrashing при мелких подёргиваниях скролла. Между зонами — ничего не делать (гистерезис).
 
 ### Update и dirty-флаг
 
@@ -170,9 +197,15 @@ abstract class ChatMessageRender {
 ### Поля, управляемые viewport'ом
 
 ```dart
-@nonVirtual double offsetY = 0.0;  // позиция в viewport
-@nonVirtual double height = 0.0;   // высота после layout
-@nonVirtual bool dirty = true;      // нужен relayout
+@nonVirtual double offsetY = 0.0;   // позиция в viewport
+@nonVirtual double height = 0.0;    // высота после layout
+@nonVirtual bool dirty = true;       // нужен relayout
+
+// Layer-поля
+OffsetLayer? _layer;                 // compositing layer
+PictureLayer? _pictureLayer;         // cached picture
+bool _attached = false;              // есть ли живой layer
+double _layerWidth = 0.0;            // ширина для записи
 ```
 
 ## ChatMessageStatus (bitfield)
@@ -238,21 +271,42 @@ Chunk-based, от anchor в обе стороны:
 
 Последовательно расставляет `offsetY` каждого render'а, начиная от `chunk.offsetY`.
 
-## Paint
+## Paint (layer-tree based)
 
-Двухуровневый culling:
+Viewport строит дерево слоёв вместо рисования на canvas:
 
 ```
-1. Итерация по чанкам в диапазоне [_layoutMinChunk, _layoutMaxChunk]
-2. Если весь чанк за пределами viewport → skip (по chunk.offsetY + chunk.height)
-3. Для каждого render в чанке: если за пределами → skip
-4. canvas.translate → render.paint(canvas, size) → возвращает bool
-5. Если хотя бы один render вернул true → markNeedsPaint()
+ClipRectLayer (корень, = layer viewport'а)
+  ├─ OffsetLayer (msg 1) → PictureLayer
+  ├─ OffsetLayer (msg 2) → PictureLayer
+  ├─ ...
+  └─ PictureLayer (sticky overlays — аватары, даты; будущее)
 ```
 
-Viewport является `isRepaintBoundary = true`, что изолирует его перерисовки от остального дерева.
+Один проход по laid-out чанкам:
 
-Clip через `context.pushClipRect` — ничего не рисуется за пределами viewport'а.
+```
+1. Scroll-only? → _repositionChunks() (пересчёт offsetY без relayout)
+2. Для каждого render:
+   a. attached + вне detach-зоны → detachLayer()
+   b. attached + в зоне → обновить OffsetLayer.offset
+   c. attached + needsRepaint → rerecordPicture()
+   d. !attached + в attach-зоне → attachLayer(), установить offset
+3. clipLayer.removeAllChildren()
+4. Re-append все attached layers в порядке чанков
+   (порядок не критичен — сообщения не перекрываются)
+5. Append sticky overlay layer последним (поверх всех)
+```
+
+Viewport является `isRepaintBoundary = true` и `alwaysNeedsCompositing = true`.
+
+### Scroll-only оптимизация
+
+`ChatScrollController` разделяет уведомления:
+- `anchorPixelOffset` setter → `_notifyScroll()` → viewport вызывает только `markNeedsPaint()`
+- Изменение данных/anchor ID → `_notifyData()` → viewport вызывает `markNeedsLayout()`
+
+При scroll-only: `_repositionChunks()` пересчитывает offsetY всех renders от текущего anchor, затем paint обновляет `OffsetLayer.offset`. Никакого relayout, никакого re-record Picture.
 
 ## LRU Eviction
 
@@ -322,9 +376,11 @@ enum SelectionMode { none, text, messages }
 
 ```
 ChatScrollView (LeafRenderObjectWidget)
-  └─ RenderChatScrollView (RenderBox)
+  └─ RenderChatScrollView (RenderBox, alwaysNeedsCompositing)
+       │
        ├─ reads ─── ChatScrollController
        │              ├─ anchor state (messageId, pixelOffset)
+       │              ├─ _scrollOnly flag (_notifyScroll vs _notifyData)
        │              ├─ Map<int, _ChatScrollChunk>
        │              │    ├─ messages[64]  (IChatMessage?)
        │              │    ├─ renders[64]   (ChatMessageRender?)
@@ -332,10 +388,19 @@ ChatScrollView (LeafRenderObjectWidget)
        │              │    ├─ offsetY, height
        │              │    └─ lastAccessTick
        │              └─ fetch(), maxChunks
-       └─ creates ── ChatMessageRender (via factory)
-                       ├─ update()
-                       ├─ performLayout() → height
-                       ├─ paintMessage() → ui.Picture cache
-                       ├─ paint() → bool (animation)
-                       └─ dispose()
+       │
+       ├─ creates ── ChatMessageRender (via factory)
+       │               ├─ update()
+       │               ├─ performLayout() → height
+       │               ├─ paintMessage() → recorded into PictureLayer
+       │               ├─ attachLayer() / detachLayer() (lifecycle)
+       │               ├─ rerecordPicture() (animation / invalidate)
+       │               ├─ needsRepaint → bool
+       │               └─ dispose()
+       │
+       └─ layer tree:
+            ClipRectLayer
+              ├─ OffsetLayer(msg) → PictureLayer  (per attached render)
+              ├─ ...
+              └─ PictureLayer (sticky overlays, future)
 ```
