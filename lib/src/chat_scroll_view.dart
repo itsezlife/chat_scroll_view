@@ -21,6 +21,9 @@ abstract interface class IChatMessage {
   abstract final DateTime updatedAt;
 }
 
+/// Chat message status flags.
+/// Could be implemented as a bitfield for efficient storage and combination.
+/// Allows representing multiple states simultaneously (e.g. dirty + fetching).
 extension type const ChatMessageStatus._(int _value) {
   /// The message has been fetched and contains actual content.
   static const ChatMessageStatus valid = ChatMessageStatus._(0);
@@ -146,17 +149,24 @@ class _ChatScrollChunk {
 /// Lightweight render object for a single chat message.
 ///
 /// Owns layout state (e.g. [TextPainter]s) between [performLayout] and
-/// [paint], so work done during layout is reused at paint time.
+/// [paintMessage], so work done during layout is reused at paint time.
 ///
 /// Created by the [ChatMessageRenderFactory] passed to [ChatScrollView].
 /// The viewport manages [height], [offsetY], and [dirty] fields.
 ///
-/// ### Picture caching
+/// ### Compositing architecture
 ///
-/// The default [paint] records drawing commands into a [ui.Picture] via
-/// [paintMessage] and caches it. Subsequent frames replay the cached
-/// picture. Override [paint] to draw directly every frame (animations,
-/// selection highlights, etc.) — return `true` to request another frame.
+/// Each message owns an [OffsetLayer] → [PictureLayer] subtree.
+/// The viewport calls [attachLayer] when the message enters the attach zone
+/// and [detachLayer] when it leaves the detach zone (wider than attach zone
+/// to avoid thrashing on small scroll oscillations).
+///
+/// When attached, [paintMessage] output is recorded into a [ui.Picture]
+/// and stored in the [PictureLayer]. Scrolling only updates
+/// [OffsetLayer.offset] — no re-recording.
+///
+/// For animated messages, override [needsRepaint] to return `true`.
+/// The viewport will call [rerecordPicture] every frame while active.
 abstract class ChatMessageRender {
   /// Called when message data or chunk status may have changed.
   ///
@@ -173,20 +183,15 @@ abstract class ChatMessageRender {
   /// Paint the message content onto [canvas] within [size].
   ///
   /// Override this to define what the message looks like.
-  /// By default the result is cached as a [ui.Picture].
+  /// The result is recorded into a [ui.Picture] and cached in
+  /// a [PictureLayer] inside this render's [OffsetLayer].
   void paintMessage(Canvas canvas, Size size);
 
-  /// Paint this message. Returns `true` if the viewport should schedule
-  /// another frame (e.g. an animation is in progress).
+  /// Whether this message needs its [PictureLayer] re-recorded every frame.
   ///
-  /// The default implementation caches [paintMessage] output as a
-  /// [ui.Picture]. Override to draw directly every frame — but then
-  /// you are responsible for your own caching strategy.
-  bool paint(Canvas canvas, Size size) {
-    final pic = _picture ??= _record(size);
-    canvas.drawPicture(pic);
-    return false;
-  }
+  /// Override and return `true` for animations (hover, buttons, etc.).
+  /// The viewport will call [rerecordPicture] and schedule another frame.
+  bool get needsRepaint => false;
 
   /// Hit-test at [position] (local to this message's origin).
   ///
@@ -195,29 +200,78 @@ abstract class ChatMessageRender {
 
   /// Invalidate the cached picture, causing [paintMessage] to be called
   /// again on the next frame. Does not trigger layout.
+  ///
+  /// If attached, immediately re-records the [PictureLayer].
+  /// If not attached, the picture will be recorded upon [attachLayer].
   void invalidatePaint() {
-    _picture?.dispose();
-    _picture = null;
+    if (_attached) {
+      rerecordPicture();
+    }
   }
 
   /// Release resources (TextPainters, images, etc.).
   @mustCallSuper
   void dispose() {
-    _picture?.dispose();
-    _picture = null;
+    if (_attached) detachLayer();
   }
 
-  ui.Picture _record(Size size) {
+  // --- Layer management (called by viewport during paint phase) ---
+
+  /// Create the [OffsetLayer] → [PictureLayer] subtree and record
+  /// the initial picture via [paintMessage].
+  @nonVirtual
+  void attachLayer(double width) {
+    assert(!_attached);
+    _layerWidth = width;
+    _layer = OffsetLayer(offset: Offset(0, offsetY));
+    rerecordPicture();
+    _attached = true;
+  }
+
+  /// Dispose the [PictureLayer] and [OffsetLayer], releasing the
+  /// cached [ui.Picture].
+  @nonVirtual
+  void detachLayer() {
+    assert(_attached);
+    _disposePictureLayer();
+    _layer = null;
+    _attached = false;
+  }
+
+  /// Re-record [paintMessage] into a fresh [PictureLayer].
+  /// Used for animations and after [invalidatePaint] while attached.
+  @nonVirtual
+  void rerecordPicture() {
+    assert(_attached);
+    _disposePictureLayer();
+    final rect = Rect.fromLTWH(0, 0, _layerWidth, height);
     final recorder = ui.PictureRecorder();
-    final canvas = Canvas(
-      recorder,
-      Rect.fromLTWH(0, 0, size.width, size.height),
-    );
-    paintMessage(canvas, size);
-    return recorder.endRecording();
+    paintMessage(Canvas(recorder, rect), Size(_layerWidth, height));
+    _pictureLayer = PictureLayer(rect)..picture = recorder.endRecording();
+    _layer!.append(_pictureLayer!);
   }
 
-  ui.Picture? _picture;
+  void _disposePictureLayer() {
+    if (_pictureLayer != null) {
+      _pictureLayer!.picture?.dispose();
+      _pictureLayer!.remove();
+      _pictureLayer = null;
+    }
+  }
+
+  // --- Layer fields ---
+
+  /// The compositing layer for this message.
+  OffsetLayer? _layer;
+
+  /// The picture layer holding the recorded [paintMessage] output.
+  PictureLayer? _pictureLayer;
+
+  /// Whether this render has a live layer subtree.
+  bool _attached = false;
+
+  /// Width used for recording (set at [attachLayer] time).
+  double _layerWidth = 0.0;
 
   // --- Managed by the viewport (not overridable) ---
 
@@ -282,7 +336,7 @@ abstract class ChatScrollController extends ChangeNotifier {
       () => _ChatScrollChunk(index: chunkIndex),
     );
     chunk.messages[message.id - chunk.firstId] = message;
-    notifyListeners();
+    _notifyData();
   }
 
   /// Upsert multiple messages into the chunk cache.
@@ -298,7 +352,25 @@ abstract class ChatScrollController extends ChangeNotifier {
       chunk.messages[message.id - chunk.firstId] = message;
       changed = true;
     }
-    if (changed) notifyListeners();
+    if (changed) _notifyData();
+  }
+
+  // --- Notification type ---
+
+  /// When `true`, the next [notifyListeners] is a scroll-only change
+  /// (only [anchorPixelOffset] moved). The viewport uses this to skip
+  /// relayout and only update [OffsetLayer] offsets.
+  bool _scrollOnly = false;
+
+  void _notifyScroll() {
+    _scrollOnly = true;
+    notifyListeners();
+    _scrollOnly = false;
+  }
+
+  void _notifyData() {
+    _scrollOnly = false;
+    notifyListeners();
   }
 
   // --- Anchor state ---
@@ -307,29 +379,31 @@ abstract class ChatScrollController extends ChangeNotifier {
   int get anchorMessageId => _anchorMessageId;
   int _anchorMessageId = 0;
 
-  /// Set a new anchor message ID and notify listeners to trigger layout.
+  /// Set a new anchor message ID and notify listeners to trigger relayout.
   set anchorMessageId(int value) {
     if (_anchorMessageId == value) return;
     _anchorMessageId = value;
-    notifyListeners();
+    _notifyData();
   }
 
   /// Pixel offset of the anchor message's top edge from the viewport top.
   double get anchorPixelOffset => _anchorPixelOffset;
   double _anchorPixelOffset = 0.0;
 
-  /// Set a new anchor pixel offset and notify listeners to trigger layout.
+  /// Set a new anchor pixel offset and notify listeners.
+  /// This is a scroll-only change — the viewport updates layer offsets
+  /// without relaying out message renders.
   set anchorPixelOffset(double value) {
     if (_anchorPixelOffset == value) return;
     _anchorPixelOffset = value;
-    notifyListeners();
+    _notifyScroll();
   }
 
   /// Jump to a specific message, resetting the anchor.
   void jumpTo(int messageId) {
     _anchorMessageId = messageId;
     _anchorPixelOffset = 0.0;
-    notifyListeners();
+    _notifyData();
   }
 }
 
@@ -373,8 +447,9 @@ class ChatScrollView extends LeafRenderObjectWidget {
 /// The render object for [ChatScrollView].
 ///
 /// Reads message data and anchor state from [ChatScrollController].
-/// Manages layout cache ([MessageEntry]) and [ui.Picture] caching.
-/// Paints all visible messages onto a single canvas.
+/// Each visible message owns an [OffsetLayer] → [PictureLayer] subtree.
+/// Scrolling updates [OffsetLayer.offset] — GPU composites without
+/// re-recording pictures.
 class RenderChatScrollView extends RenderBox {
   RenderChatScrollView({
     required ChatScrollController controller,
@@ -397,11 +472,13 @@ class RenderChatScrollView extends RenderBox {
     markNeedsLayout();
   }
 
-  // TODO: Split into scroll (repaint-only) vs data (relayout) notifications.
-  // Currently any anchorPixelOffset change triggers full relayout of all
-  // visible chunks, even though only offsetY positions need updating.
   void _onControllerChanged() {
-    markNeedsLayout();
+    if (_controller._scrollOnly) {
+      // Scroll-only: just update OffsetLayer offsets, no relayout.
+      markNeedsPaint();
+    } else {
+      markNeedsLayout();
+    }
   }
 
   // --- Configuration ---
@@ -428,6 +505,15 @@ class RenderChatScrollView extends RenderBox {
     markNeedsLayout();
   }
 
+  // --- Attach / detach zones (hysteresis) ---
+
+  /// Layers are created when a render enters this distance from viewport edges.
+  static const double _attachFactor = 1.0;
+
+  /// Layers are disposed when a render leaves this (wider) distance.
+  /// Must be > [_attachFactor] to prevent thrashing on small scroll jitter.
+  static const double _detachFactor = 1.7;
+
   /// Monotonic counter for LRU chunk eviction.
   int _accessTick = 0;
 
@@ -439,6 +525,9 @@ class RenderChatScrollView extends RenderBox {
 
   @override
   bool get isRepaintBoundary => true;
+
+  @override
+  bool get alwaysNeedsCompositing => true;
 
   @override
   bool get sizedByParent => true;
@@ -560,6 +649,48 @@ class RenderChatScrollView extends RenderBox {
     chunk.height = totalHeight;
   }
 
+  /// Recompute all chunk and render [offsetY] positions from the current
+  /// anchor state without relaying out renders. Used on scroll-only changes
+  /// where heights have not changed — only the anchor pixel offset moved.
+  void _repositionChunks() {
+    final anchorId = _controller.anchorMessageId;
+    final anchorOffset = _controller.anchorPixelOffset;
+    final anchorChunkIndex = _ChatScrollChunk.chunkOf(anchorId);
+
+    final anchorChunk = _controller._chunks[anchorChunkIndex];
+    if (anchorChunk == null) return;
+
+    // Recompute anchor chunk offsetY.
+    var beforeAnchorHeight = 0.0;
+    final anchorLocalIndex = anchorId - anchorChunk.firstId;
+    for (var i = 0; i < anchorLocalIndex; i++) {
+      final r = anchorChunk.renders[i];
+      if (r != null) beforeAnchorHeight += r.height;
+    }
+    anchorChunk.offsetY = anchorOffset - beforeAnchorHeight;
+    _positionChunkRenders(anchorChunk);
+
+    // Reposition chunks downward.
+    var y = anchorChunk.offsetY + anchorChunk.height;
+    for (var ci = anchorChunkIndex + 1; ci <= _layoutMaxChunk; ci++) {
+      final chunk = _controller._chunks[ci];
+      if (chunk == null) break;
+      chunk.offsetY = y;
+      _positionChunkRenders(chunk);
+      y += chunk.height;
+    }
+
+    // Reposition chunks upward.
+    y = anchorChunk.offsetY;
+    for (var ci = anchorChunkIndex - 1; ci >= _layoutMinChunk; ci--) {
+      final chunk = _controller._chunks[ci];
+      if (chunk == null) break;
+      y -= chunk.height;
+      chunk.offsetY = y;
+      _positionChunkRenders(chunk);
+    }
+  }
+
   /// Set [offsetY] on each render in [chunk] based on [chunk.offsetY].
   void _positionChunkRenders(_ChatScrollChunk chunk) {
     var y = chunk.offsetY;
@@ -571,52 +702,84 @@ class RenderChatScrollView extends RenderBox {
     }
   }
 
-  // --- Paint ---
+  // --- Paint (layer-tree based) ---
 
   @override
   void paint(PaintingContext context, Offset offset) {
-    layer = context.pushClipRect(
-      needsCompositing,
-      offset,
-      Offset.zero & size,
-      _paintMessages,
-      oldLayer: layer as ClipRectLayer?,
-    );
-  }
+    // Reuse or create the root clip layer.
+    final clipLayer =
+        (layer as ClipRectLayer?) ??
+        ClipRectLayer(clipRect: offset & size, clipBehavior: Clip.hardEdge);
+    clipLayer.clipRect = offset & size;
+    layer = clipLayer;
 
-  /// Paint all visible messages onto the canvas.
-  void _paintMessages(PaintingContext context, Offset offset) {
-    final canvas = context.canvas;
     final viewportHeight = size.height;
-    var needsRepaint = false;
+    final attachExtent = viewportHeight * _attachFactor;
+    final detachExtent = viewportHeight * _detachFactor;
+    final attachTop = -attachExtent;
+    final attachBottom = viewportHeight + attachExtent;
+    final detachTop = -detachExtent;
+    final detachBottom = viewportHeight + detachExtent;
+    final viewportWidth = size.width;
 
+    // On scroll-only changes, performLayout was skipped — recompute
+    // chunk/render offsetY positions from the current anchor state.
+    if (_controller._scrollOnly) _repositionChunks();
+
+    var hasAnimating = false;
+
+    // Single pass: attach/detach layers, update offsets, re-record animations.
     for (var ci = _layoutMinChunk; ci <= _layoutMaxChunk; ci++) {
       final chunk = _controller._chunks[ci];
       if (chunk == null) continue;
-
-      // Skip entire chunk if off-screen
-      if (chunk.offsetY + chunk.height < 0 || chunk.offsetY > viewportHeight) {
-        continue;
-      }
 
       for (var i = 0; i < _ChatScrollChunk.kSize; i++) {
         final render = chunk.renders[i];
         if (render == null) continue;
 
-        // Skip if entirely outside visible area
-        if (render.offsetY + render.height < 0 ||
-            render.offsetY > viewportHeight) {
-          continue;
-        }
+        final top = render.offsetY;
+        final bottom = top + render.height;
 
-        canvas.save();
-        canvas.translate(offset.dx, offset.dy + render.offsetY);
-        needsRepaint |= render.paint(canvas, Size(size.width, render.height));
-        canvas.restore();
+        if (render._attached) {
+          // Check if render left the detach zone.
+          if (bottom < detachTop || top > detachBottom) {
+            render.detachLayer();
+            continue;
+          }
+          // Update layer offset for scroll.
+          render._layer!.offset = Offset(offset.dx, offset.dy + top);
+          // Re-record animated renders.
+          if (render.needsRepaint) {
+            render.rerecordPicture();
+            hasAnimating = true;
+          }
+        } else {
+          // Check if render entered the attach zone.
+          if (bottom >= attachTop && top <= attachBottom) {
+            render.attachLayer(viewportWidth);
+            render._layer!.offset = Offset(offset.dx, offset.dy + top);
+          }
+        }
       }
     }
 
-    if (needsRepaint) markNeedsPaint();
+    // Rebuild clip layer children: remove all, re-append attached layers.
+    // O(n) where n ≈ 10-20 attached renders — trivial cost.
+    clipLayer.removeAllChildren();
+    for (var ci = _layoutMinChunk; ci <= _layoutMaxChunk; ci++) {
+      final chunk = _controller._chunks[ci];
+      if (chunk == null) continue;
+      for (var i = 0; i < _ChatScrollChunk.kSize; i++) {
+        final render = chunk.renders[i];
+        if (render == null || !render._attached) continue;
+        clipLayer.append(render._layer!);
+      }
+    }
+
+    // TODO: Sticky overlays (avatars, date separators) — append a
+    // PictureLayer last in clipLayer so it draws on top of all messages.
+
+    if (hasAnimating) markNeedsPaint();
   }
 
   // --- Hit testing ---
