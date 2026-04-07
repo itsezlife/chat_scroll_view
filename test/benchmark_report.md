@@ -107,30 +107,6 @@ Width oscillated 400→500→400 pixels.
 
 ---
 
-## Issues Found and Fixed During Benchmarking
-
-### 1. Measurement Bug: Stale Frame Values
-
-**Problem**: `debugLastLayoutDuration` / `debugLastPaintDuration` persisted from previous frame when layout/paint wasn't called (nothing dirty). This caused fling benchmarks to report the same value for all 300 frames even when only ~49 had actual work.
-
-**Fix**: Added `debugLayoutFrameId` / `debugPaintFrameId` monotonic counters. Fling benchmarks switched to total `Stopwatch` around `tester.pump()` for fair comparison.
-
-### 2. ListView Wrapper Doesn't Capture Internal Scrolling
-
-**Problem**: `RenderBenchmarkListViewWrapper` (RenderProxyBox) never gets re-laid-out during fling — the internal `RenderViewport` → `RenderSliverList` handles scrolling directly.
-
-**Fix**: For fling comparison, switched to total frame time measurement (Stopwatch around `tester.pump()`) which captures the full rendering pipeline for both implementations.
-
-### 3. No Issues Found in ChatScrollView
-
-- No memory leaks detected
-- Attach/detach hysteresis working correctly (stable counts)
-- Boundary clamping works properly
-- Resize properly triggers full relayout
-- Layer management (LayerHandle) prevents disposal issues
-
----
-
 ## Summary
 
 | Metric              | CSV advantage         | Notes                                                         |
