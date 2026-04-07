@@ -500,6 +500,53 @@ class RenderChatScrollView extends RenderBox {
   }) : _controller = controller,
        _messageBuilder = messageBuilder;
 
+  // --- Debug instrumentation (zero-cost in release) ---
+
+  /// Duration of the last [performLayout] call. Set only in debug/profile mode.
+  @visibleForTesting
+  Duration debugLastLayoutDuration = Duration.zero;
+
+  /// Monotonic counter incremented each time [performLayout] runs.
+  @visibleForTesting
+  int debugLayoutFrameId = 0;
+
+  /// Duration of the last [paint] call. Set only in debug/profile mode.
+  @visibleForTesting
+  Duration debugLastPaintDuration = Duration.zero;
+
+  /// Monotonic counter incremented each time [paint] runs.
+  @visibleForTesting
+  int debugPaintFrameId = 0;
+
+  /// Number of currently attached (has live layer subtree) renders.
+  @visibleForTesting
+  int get debugAttachedRenderCount {
+    var count = 0;
+    for (final chunk in _controller._chunks.values) {
+      for (var i = 0; i < _ChatScrollChunk.kSize; i++) {
+        final render = chunk.renders[i];
+        if (render != null && render._attached) count++;
+      }
+    }
+    return count;
+  }
+
+  /// Total number of created render objects across all chunks.
+  @visibleForTesting
+  int get debugTotalRenderCount {
+    var count = 0;
+    for (final chunk in _controller._chunks.values) {
+      for (var i = 0; i < _ChatScrollChunk.kSize; i++) {
+        if (chunk.renders[i] != null) count++;
+      }
+    }
+    return count;
+  }
+
+  /// Number of chunks currently held by the controller.
+  @visibleForTesting
+  int get debugChunkCount => _controller._chunks.length;
+
   // --- Controller ---
 
   /// The controller that owns message data and anchor state.
@@ -732,6 +779,13 @@ class RenderChatScrollView extends RenderBox {
 
   @override
   void performLayout() {
+    final sw = Stopwatch()..start();
+    _performLayoutImpl();
+    debugLastLayoutDuration = sw.elapsed;
+    debugLayoutFrameId++;
+  }
+
+  void _performLayoutImpl() {
     _layoutPending = false;
     final viewportWidth = size.width;
     final viewportHeight = size.height;
@@ -1005,6 +1059,13 @@ class RenderChatScrollView extends RenderBox {
 
   @override
   void paint(PaintingContext context, Offset offset) {
+    final sw = Stopwatch()..start();
+    _paintImpl(context, offset);
+    debugLastPaintDuration = sw.elapsed;
+    debugPaintFrameId++;
+  }
+
+  void _paintImpl(PaintingContext context, Offset offset) {
     // Reuse or create the clip layer (child of framework-managed OffsetLayer).
     final clipLayer = _clipLayerHandle.layer ??= ClipRectLayer();
     clipLayer.clipRect = offset & size;
