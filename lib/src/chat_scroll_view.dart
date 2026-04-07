@@ -727,11 +727,21 @@ class RenderChatScrollView extends RenderBox {
 
   // --- Layout ---
 
+  /// Last width used for laying out message renders.
+  double _lastLayoutWidth = 0.0;
+
   @override
   void performLayout() {
     _layoutPending = false;
     final viewportWidth = size.width;
     final viewportHeight = size.height;
+
+    // If viewport width changed, all renders need re-layout
+    // (text wrapping depends on available width).
+    if (_lastLayoutWidth != viewportWidth) {
+      _lastLayoutWidth = viewportWidth;
+      _markAllRendersDirty();
+    }
     final upperBound = -_cacheExtent;
     final lowerBound = viewportHeight + _cacheExtent;
 
@@ -1073,6 +1083,7 @@ class RenderChatScrollView extends RenderBox {
           // Re-record invalidated or animated renders.
           if (render._pictureInvalid || render.needsRepaint) {
             render._pictureInvalid = false;
+            render._layerWidth = viewportWidth;
             render.rerecordPicture();
             if (render.needsRepaint) hasAnimating = true;
           }
