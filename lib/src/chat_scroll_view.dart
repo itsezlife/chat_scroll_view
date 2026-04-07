@@ -515,11 +515,20 @@ class RenderChatScrollView extends RenderBox {
     markNeedsLayout();
   }
 
+  /// Whether the pending paint was triggered by a scroll-only change.
+  /// Captured synchronously in [_onControllerChanged] because the
+  /// controller resets [_scrollOnly] immediately after notifying.
+  bool _pendingScrollOnly = false;
+
   void _onControllerChanged() {
     if (_controller._scrollOnly) {
       // Scroll-only: just update OffsetLayer offsets, no relayout.
-      markNeedsPaint();
+      if (!_layoutPending) {
+        _pendingScrollOnly = true;
+        markNeedsPaint();
+      }
     } else {
+      _pendingScrollOnly = false;
       markNeedsLayout();
     }
   }
@@ -567,8 +576,8 @@ class RenderChatScrollView extends RenderBox {
   // --- Gesture & scroll physics ---
 
   VerticalDragGestureRecognizer? _drag;
-  Ticker? _ticker;
   ClampingScrollSimulation? _simulation;
+  Duration? _flingStartTime;
   double _lastFlingValue = 0.0;
 
   /// Clip layer owned by this render object, appended as child of
@@ -603,14 +612,11 @@ class RenderChatScrollView extends RenderBox {
       ..onStart = _onDragStart
       ..onUpdate = _onDragUpdate
       ..onEnd = _onDragEnd;
-    _ticker = Ticker(_onTick);
   }
 
   @override
   void detach() {
     _cancelFling();
-    _ticker?.dispose();
-    _ticker = null;
     _drag?.dispose();
     _drag = null;
     _controller.removeListener(_onControllerChanged);
@@ -628,8 +634,6 @@ class RenderChatScrollView extends RenderBox {
   @override
   void dispose() {
     _cancelFling();
-    _ticker?.dispose();
-    _ticker = null;
     _drag?.dispose();
     _drag = null;
     _clipLayerHandle.layer = null;
@@ -652,7 +656,7 @@ class RenderChatScrollView extends RenderBox {
   }
 
   void _onDragUpdate(DragUpdateDetails details) {
-    _controller.anchorPixelOffset += details.delta.dy;
+    _applyScrollDelta(details.delta.dy);
   }
 
   void _onDragEnd(DragEndDetails details) {
@@ -661,43 +665,71 @@ class RenderChatScrollView extends RenderBox {
     _startFling(velocity);
   }
 
-  // --- Fling (inertia) ---
+  // --- Fling (inertia, paint-driven) ---
 
   void _startFling(double velocity) {
     _cancelFling();
     _simulation = ClampingScrollSimulation(position: 0.0, velocity: velocity);
     _lastFlingValue = 0.0;
-    _ticker!.start();
+    // _flingStartTime is set on the first _advanceFling call inside paint,
+    // where currentFrameTimeStamp is guaranteed to be valid.
+    _flingStartTime = null;
+    markNeedsPaint();
   }
 
   void _cancelFling() {
-    if (_ticker?.isActive ?? false) {
-      _ticker!.stop();
-    }
     _simulation = null;
+    _flingStartTime = null;
   }
 
-  void _onTick(Duration elapsed) {
+  /// Advance the fling simulation using the current frame timestamp.
+  /// Called from [paint]; schedules another paint if not done.
+  void _advanceFling() {
     final simulation = _simulation;
-    if (simulation == null) {
-      _cancelFling();
-      return;
-    }
+    if (simulation == null) return;
+
+    final now = SchedulerBinding.instance.currentFrameTimeStamp;
+    final startTime = _flingStartTime ??= now;
+
+    final elapsed = now - startTime;
     final seconds = elapsed.inMicroseconds / Duration.microsecondsPerSecond;
+
     if (simulation.isDone(seconds)) {
       _cancelFling();
       return;
     }
+
     final currentValue = simulation.x(seconds);
     final delta = currentValue - _lastFlingValue;
     _lastFlingValue = currentValue;
-    _controller.anchorPixelOffset += delta;
+    _controller._anchorPixelOffset += delta;
+  }
+
+  /// Apply a scroll delta from drag gestures.
+  void _applyScrollDelta(double delta) {
+    if (delta == 0.0) return;
+    _controller._anchorPixelOffset += delta;
+    if (!_layoutPending) {
+      _pendingScrollOnly = true;
+      markNeedsPaint();
+    }
+  }
+
+  /// Tracks whether a layout pass is pending, so that scroll-only
+  /// updates (drag/fling) don't call [markNeedsPaint] on a dirty object.
+  bool _layoutPending = true; // starts true, cleared after first layout
+
+  @override
+  void markNeedsLayout() {
+    _layoutPending = true;
+    super.markNeedsLayout();
   }
 
   // --- Layout ---
 
   @override
   void performLayout() {
+    _layoutPending = false;
     final viewportWidth = size.width;
     final viewportHeight = size.height;
     final upperBound = -_cacheExtent;
@@ -884,29 +916,40 @@ class RenderChatScrollView extends RenderBox {
   void _clampScrollBoundaries() {
     final viewportHeight = size.height;
 
-    // Bottom: if newest message reached, pin content bottom to viewport bottom.
-    if (_controller._reachedNewest) {
-      final lastChunk = _controller._chunks[_layoutMaxChunk];
-      if (lastChunk != null) {
-        final contentBottom = lastChunk.offsetY + lastChunk.height;
-        if (contentBottom < viewportHeight) {
-          final correction = viewportHeight - contentBottom;
-          _controller._anchorPixelOffset += correction;
-          _repositionAfterClamp();
-          _cancelFling();
+    // Bottom: if newest message reached AND the newest chunk is in the
+    // laid-out range, pin content bottom to viewport bottom.
+    if (_controller._reachedNewest && _controller.newestKnownId != null) {
+      final newestChunkIndex =
+          _ChatScrollChunk.chunkOf(_controller.newestKnownId!);
+      if (newestChunkIndex <= _layoutMaxChunk) {
+        final lastChunk = _controller._chunks[_layoutMaxChunk];
+        if (lastChunk != null) {
+          final contentBottom = lastChunk.offsetY + lastChunk.height;
+          if (contentBottom < viewportHeight) {
+            final correction = viewportHeight - contentBottom;
+            _controller._anchorPixelOffset += correction;
+            _repositionAfterClamp();
+            _cancelFling();
+          }
         }
       }
     }
+    
 
-    // Top: if oldest message reached, pin content top to viewport top.
-    if (_controller._reachedOldest) {
-      final firstChunk = _controller._chunks[_layoutMinChunk];
-      if (firstChunk != null) {
-        final contentTop = firstChunk.offsetY;
-        if (contentTop > 0) {
-          _controller._anchorPixelOffset -= contentTop;
-          _repositionAfterClamp();
-          _cancelFling();
+    // Top: if oldest message reached AND the oldest chunk is in the
+    // laid-out range, pin content top to viewport top.
+    if (_controller._reachedOldest && _controller.oldestKnownId != null) {
+      final oldestChunkIndex =
+          _ChatScrollChunk.chunkOf(_controller.oldestKnownId!);
+      if (oldestChunkIndex >= _layoutMinChunk) {
+        final firstChunk = _controller._chunks[_layoutMinChunk];
+        if (firstChunk != null) {
+          final contentTop = firstChunk.offsetY;
+          if (contentTop > 0) {
+            _controller._anchorPixelOffset -= contentTop;
+            _repositionAfterClamp();
+            _cancelFling();
+          }
         }
       }
     }
@@ -970,15 +1013,31 @@ class RenderChatScrollView extends RenderBox {
     // chunk/render offsetY positions from the current anchor state.
     // If the scroll moved so far that laid-out chunks no longer cover
     // the viewport, fall back to a full layout pass.
-    if (_controller._scrollOnly) {
+    // Advance fling simulation (paint-driven, no Ticker).
+    if (_simulation != null) {
+      _advanceFling();
+      _pendingScrollOnly = true;
+    }
+
+    if (_pendingScrollOnly) {
+      _pendingScrollOnly = false;
       _repositionChunks();
+
+      // Apply boundary clamping during scroll-only updates too.
+      _clampScrollBoundaries();
+
       final first = _controller._chunks[_layoutMinChunk];
       final last = _controller._chunks[_layoutMaxChunk];
       if (first == null ||
           last == null ||
           first.offsetY > viewportHeight ||
           last.offsetY + last.height < 0) {
-        markNeedsLayout();
+        // Chunks no longer cover the viewport — need full layout.
+        // Defer to post-frame since we cannot call markNeedsLayout
+        // during paint.
+        SchedulerBinding.instance.addPostFrameCallback((_) {
+          markNeedsLayout();
+        });
         return;
       }
     }
@@ -1046,7 +1105,13 @@ class RenderChatScrollView extends RenderBox {
     // TODO: Sticky overlays (avatars, date separators) — append a
     // PictureLayer last in clipLayer so it draws on top of all messages.
 
-    if (hasAnimating) markNeedsPaint();
+    // Schedule next frame for animations or active fling.
+    // Cannot call markNeedsPaint() during paint — defer to post-frame.
+    if (hasAnimating || _simulation != null) {
+      SchedulerBinding.instance.addPostFrameCallback((_) {
+        if (!_layoutPending) markNeedsPaint();
+      });
+    }
   }
 
   // --- Hit testing ---
