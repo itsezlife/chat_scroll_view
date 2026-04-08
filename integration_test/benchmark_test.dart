@@ -7,6 +7,7 @@ import 'dart:ui' as ui;
 
 import 'package:chatscrollview/src/chat_message.dart';
 import 'package:chatscrollview/src/chat_scroll_view.dart';
+import 'package:chatscrollview/src/chat_scroll_view_common.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -55,8 +56,14 @@ List<IChatMessage> _generateMessages(int count) {
     } else {
       content = _kLong[rng.nextInt(_kLong.length)];
     }
-    messages.add(ChatMessage$User(
-        id: i, createdAt: time, updatedAt: time, content: content));
+    messages.add(
+      ChatMessage$User(
+        id: i,
+        createdAt: time,
+        updatedAt: time,
+        content: content,
+      ),
+    );
   }
   return messages;
 }
@@ -72,9 +79,11 @@ class _BenchController extends ChatScrollController {
   }
 
   @override
-  Future<List<IChatMessage>> fetch(
-          {int? from, int? to, DateTime? after}) async =>
-      const [];
+  Future<List<IChatMessage>> fetch({
+    int? from,
+    int? to,
+    DateTime? after,
+  }) async => const [];
 }
 
 class _BenchRender extends ChatMessageRender {
@@ -108,12 +117,11 @@ class _BenchRender extends ChatMessageRender {
       _ => 'Message #${message.id}',
     };
     final textWidth = availableWidth - _bubblePadding * 2 - _padding * 2;
-    final builder = ui.ParagraphBuilder(
-      ui.ParagraphStyle(fontSize: 15.0, height: 1.4),
-    )
-      ..pushStyle(ui.TextStyle(color: const Color(0xFF1A1A1A)))
-      ..addText(content)
-      ..pop();
+    final builder =
+        ui.ParagraphBuilder(ui.ParagraphStyle(fontSize: 15.0, height: 1.4))
+          ..pushStyle(ui.TextStyle(color: const Color(0xFF1A1A1A)))
+          ..addText(content)
+          ..pop();
     _paragraph = builder.build()
       ..layout(ui.ParagraphConstraints(width: textWidth));
     return _paragraph!.height + _bubblePadding * 2 + _padding;
@@ -125,15 +133,19 @@ class _BenchRender extends ChatMessageRender {
     if (paragraph == null) return;
     final bubbleRect = RRect.fromRectAndRadius(
       Rect.fromLTWH(
-          _padding, _padding / 2, size.width - _padding * 2, size.height - _padding),
+        _padding,
+        _padding / 2,
+        size.width - _padding * 2,
+        size.height - _padding,
+      ),
       const Radius.circular(12.0),
     );
     final isEven = (_message?.id ?? 0).isEven;
     canvas.drawRRect(
-        bubbleRect,
-        Paint()
-          ..color =
-              isEven ? const Color(0xFFE3F2FD) : const Color(0xFFF5F5F5));
+      bubbleRect,
+      Paint()
+        ..color = isEven ? const Color(0xFFE3F2FD) : const Color(0xFFF5F5F5),
+    );
     canvas.save();
     canvas.translate(_padding + _bubblePadding, _padding / 2 + _bubblePadding);
     canvas.drawParagraph(paragraph, Offset.zero);
@@ -189,17 +201,17 @@ class _RenderLVBubble extends RenderBox {
         _ => 'Message #${_message.id}',
       };
       final textWidth = maxWidth - _bubblePadding * 2 - _padding * 2;
-      final builder = ui.ParagraphBuilder(
-        ui.ParagraphStyle(fontSize: 15.0, height: 1.4),
-      )
-        ..pushStyle(ui.TextStyle(color: const Color(0xFF1A1A1A)))
-        ..addText(content)
-        ..pop();
+      final builder =
+          ui.ParagraphBuilder(ui.ParagraphStyle(fontSize: 15.0, height: 1.4))
+            ..pushStyle(ui.TextStyle(color: const Color(0xFF1A1A1A)))
+            ..addText(content)
+            ..pop();
       _paragraph = builder.build()
         ..layout(ui.ParagraphConstraints(width: textWidth));
     }
-    size =
-        constraints.constrain(Size(maxWidth, _paragraph!.height + _bubblePadding * 2 + _padding));
+    size = constraints.constrain(
+      Size(maxWidth, _paragraph!.height + _bubblePadding * 2 + _padding),
+    );
   }
 
   @override
@@ -208,19 +220,25 @@ class _RenderLVBubble extends RenderBox {
     if (paragraph == null) return;
     final canvas = context.canvas;
     final bubbleRect = RRect.fromRectAndRadius(
-      Rect.fromLTWH(offset.dx + _padding, offset.dy + _padding / 2,
-          size.width - _padding * 2, size.height - _padding),
+      Rect.fromLTWH(
+        offset.dx + _padding,
+        offset.dy + _padding / 2,
+        size.width - _padding * 2,
+        size.height - _padding,
+      ),
       const Radius.circular(12.0),
     );
     final isEven = _message.id.isEven;
     canvas.drawRRect(
-        bubbleRect,
-        Paint()
-          ..color =
-              isEven ? const Color(0xFFE3F2FD) : const Color(0xFFF5F5F5));
+      bubbleRect,
+      Paint()
+        ..color = isEven ? const Color(0xFFE3F2FD) : const Color(0xFFF5F5F5),
+    );
     canvas.save();
-    canvas.translate(offset.dx + _padding + _bubblePadding,
-        offset.dy + _padding / 2 + _bubblePadding);
+    canvas.translate(
+      offset.dx + _padding + _bubblePadding,
+      offset.dy + _padding / 2 + _bubblePadding,
+    );
     canvas.drawParagraph(paragraph, Offset.zero);
     canvas.restore();
   }
@@ -252,12 +270,14 @@ class _FrameTimingCollector {
       timings.map((t) => t.rasterDuration.inMicroseconds).toList();
 
   List<int> get totalTimesUs => timings
-      .map((t) =>
-          t.buildDuration.inMicroseconds + t.rasterDuration.inMicroseconds)
+      .map(
+        (t) => t.buildDuration.inMicroseconds + t.rasterDuration.inMicroseconds,
+      )
       .toList();
 
-  int get jankCount =>
-      timings.where((t) => t.totalSpan > const Duration(milliseconds: 16)).length;
+  int get jankCount => timings
+      .where((t) => t.totalSpan > const Duration(milliseconds: 16))
+      .length;
 
   String summary(String label) {
     if (timings.isEmpty) return '$label: no frames collected';
@@ -292,24 +312,21 @@ class _FrameTimingCollector {
 // ---------------------------------------------------------------------------
 
 Widget _csvApp(_BenchController controller) => MaterialApp(
-      home: Scaffold(
-        body: ChatScrollView(
-          controller: controller,
-          builder: _BenchRender.new,
-        ),
-      ),
-    );
+  home: Scaffold(
+    body: ChatScrollView(controller: controller, builder: _BenchRender.new),
+  ),
+);
 
 Widget _lvApp(List<IChatMessage> messages, ScrollController sc) => MaterialApp(
-      home: Scaffold(
-        body: ListView.builder(
-          controller: sc,
-          physics: const ClampingScrollPhysics(),
-          itemCount: messages.length,
-          itemBuilder: (_, i) => _LVBubble(message: messages[i]),
-        ),
-      ),
-    );
+  home: Scaffold(
+    body: ListView.builder(
+      controller: sc,
+      physics: const ClampingScrollPhysics(),
+      itemCount: messages.length,
+      itemBuilder: (_, i) => _LVBubble(message: messages[i]),
+    ),
+  ),
+);
 
 // ---------------------------------------------------------------------------
 // Tests
@@ -348,8 +365,7 @@ void main() {
         await tester.pumpAndSettle();
         collector.stop();
 
-        final result =
-            collector.summary('CSV drag scroll ($count msgs)');
+        final result = collector.summary('CSV drag scroll ($count msgs)');
         debugPrint(result);
         report.writeln('## Drag Scroll — $count msgs\n');
         report.writeln('```');
@@ -376,8 +392,7 @@ void main() {
         await tester.pumpAndSettle();
         collector.stop();
 
-        final result =
-            collector.summary('LV drag scroll ($count msgs)');
+        final result = collector.summary('LV drag scroll ($count msgs)');
         debugPrint(result);
         report.writeln(result);
         report.writeln('```\n');
@@ -405,7 +420,10 @@ void main() {
         final collector = _FrameTimingCollector()..start();
 
         await tester.fling(
-            find.byType(ChatScrollView), const Offset(0, -300), 3000.0);
+          find.byType(ChatScrollView),
+          const Offset(0, -300),
+          3000.0,
+        );
         // Let fling animate
         for (var i = 0; i < 300; i++) {
           await tester.pump(const Duration(milliseconds: 16));
@@ -434,7 +452,10 @@ void main() {
         final collector = _FrameTimingCollector()..start();
 
         await tester.fling(
-            find.byType(ListView), const Offset(0, -300), 3000.0);
+          find.byType(ListView),
+          const Offset(0, -300),
+          3000.0,
+        );
         for (var i = 0; i < 300; i++) {
           await tester.pump(const Duration(milliseconds: 16));
         }
@@ -479,13 +500,13 @@ void main() {
 
         final totalUs = collector.totalTimesUs;
         totalUs.sort();
-        final meanTotal =
-            totalUs.reduce((a, b) => a + b) / totalUs.length;
+        final meanTotal = totalUs.reduce((a, b) => a + b) / totalUs.length;
         final p95Total = totalUs[((totalUs.length - 1) * 0.95).round()];
         final maxFpsMean = 1000000.0 / meanTotal;
         final maxFpsP95 = 1000000.0 / p95Total;
 
-        final result = 'CSV theoretical max FPS ($count msgs): '
+        final result =
+            'CSV theoretical max FPS ($count msgs): '
             'mean=${maxFpsMean.toStringAsFixed(0)} FPS '
             '(mean frame ${(meanTotal / 1000).toStringAsFixed(2)}ms)  '
             'p95-limited=${maxFpsP95.toStringAsFixed(0)} FPS '
@@ -519,13 +540,13 @@ void main() {
 
         final totalUs = collector.totalTimesUs;
         totalUs.sort();
-        final meanTotal =
-            totalUs.reduce((a, b) => a + b) / totalUs.length;
+        final meanTotal = totalUs.reduce((a, b) => a + b) / totalUs.length;
         final p95Total = totalUs[((totalUs.length - 1) * 0.95).round()];
         final maxFpsMean = 1000000.0 / meanTotal;
         final maxFpsP95 = 1000000.0 / p95Total;
 
-        final result = 'LV theoretical max FPS ($count msgs): '
+        final result =
+            'LV theoretical max FPS ($count msgs): '
             'mean=${maxFpsMean.toStringAsFixed(0)} FPS '
             '(mean frame ${(meanTotal / 1000).toStringAsFixed(2)}ms)  '
             'p95-limited=${maxFpsP95.toStringAsFixed(0)} FPS '
@@ -555,7 +576,8 @@ void main() {
         await tester.pumpAndSettle();
 
         final render = tester.renderObject<RenderChatScrollView>(
-            find.byType(ChatScrollView));
+          find.byType(ChatScrollView),
+        );
 
         // Warm up
         for (var i = 0; i < 20; i++) {
@@ -586,15 +608,15 @@ void main() {
           }
         }
 
-        final avgLayoutUs =
-            layoutFrames > 0 ? totalLayoutUs / layoutFrames : 0;
-        final avgPaintUs =
-            paintFrames > 0 ? totalPaintUs / paintFrames : 0;
+        final avgLayoutUs = layoutFrames > 0 ? totalLayoutUs / layoutFrames : 0;
+        final avgPaintUs = paintFrames > 0 ? totalPaintUs / paintFrames : 0;
         final avgTotalUs = avgLayoutUs + avgPaintUs;
-        final rawFps =
-            avgTotalUs > 0 ? (1000000.0 / avgTotalUs).toStringAsFixed(0) : '∞';
+        final rawFps = avgTotalUs > 0
+            ? (1000000.0 / avgTotalUs).toStringAsFixed(0)
+            : '∞';
 
-        final result = 'CSV raw compute ($count msgs): '
+        final result =
+            'CSV raw compute ($count msgs): '
             'layout=${avgLayoutUs.toStringAsFixed(1)}µs  '
             'paint=${avgPaintUs.toStringAsFixed(1)}µs  '
             'total=${avgTotalUs.toStringAsFixed(1)}µs  '
@@ -633,10 +655,10 @@ void main() {
         samples.sort();
         final p10 = samples[(samples.length * 0.1).round()];
         final meanUs = samples.reduce((a, b) => a + b) / samples.length;
-        final rawFps =
-            p10 > 0 ? (1000000.0 / p10).toStringAsFixed(0) : '∞';
+        final rawFps = p10 > 0 ? (1000000.0 / p10).toStringAsFixed(0) : '∞';
 
-        final result = 'LV raw compute ($count msgs): '
+        final result =
+            'LV raw compute ($count msgs): '
             'mean_pump=${(meanUs / 1000).toStringAsFixed(2)}ms  '
             'p10_pump=${(p10 / 1000).toStringAsFixed(2)}ms  '
             'estimated_raw=$rawFps FPS';
@@ -665,7 +687,8 @@ void main() {
         await tester.pumpAndSettle();
 
         final render = tester.renderObject<RenderChatScrollView>(
-            find.byType(ChatScrollView));
+          find.byType(ChatScrollView),
+        );
         final collector = _FrameTimingCollector()..start();
 
         // 200 frames with direction change every 5 frames
@@ -678,8 +701,7 @@ void main() {
 
         collector.stop();
 
-        final result = collector.summary(
-            'CSV direction stress ($count msgs)');
+        final result = collector.summary('CSV direction stress ($count msgs)');
         debugPrint(result);
         debugPrint('  Attached renders: ${render.debugAttachedRenderCount}');
         debugPrint('  Total renders: ${render.debugTotalRenderCount}');
@@ -688,9 +710,10 @@ void main() {
         report.writeln('```');
         report.writeln(result);
         report.writeln(
-            '  Attached: ${render.debugAttachedRenderCount}  '
-            'Total: ${render.debugTotalRenderCount}  '
-            'Chunks: ${render.debugChunkCount}');
+          '  Attached: ${render.debugAttachedRenderCount}  '
+          'Total: ${render.debugTotalRenderCount}  '
+          'Chunks: ${render.debugChunkCount}',
+        );
         report.writeln('```\n');
 
         controller.dispose();
@@ -715,7 +738,8 @@ void main() {
         await tester.pumpAndSettle();
 
         final render = tester.renderObject<RenderChatScrollView>(
-            find.byType(ChatScrollView));
+          find.byType(ChatScrollView),
+        );
         final collector = _FrameTimingCollector()..start();
 
         // Scroll down through all messages with ~50px per frame
@@ -727,8 +751,7 @@ void main() {
 
         collector.stop();
 
-        final result =
-            collector.summary('CSV full traversal ($count msgs)');
+        final result = collector.summary('CSV full traversal ($count msgs)');
         debugPrint(result);
         debugPrint('  Peak attached: ${render.debugAttachedRenderCount}');
         debugPrint('  Peak total: ${render.debugTotalRenderCount}');
@@ -737,9 +760,10 @@ void main() {
         report.writeln('```');
         report.writeln(result);
         report.writeln(
-            '  Attached: ${render.debugAttachedRenderCount}  '
-            'Total: ${render.debugTotalRenderCount}  '
-            'Chunks: ${render.debugChunkCount}');
+          '  Attached: ${render.debugAttachedRenderCount}  '
+          'Total: ${render.debugTotalRenderCount}  '
+          'Chunks: ${render.debugChunkCount}',
+        );
         report.writeln('```\n');
 
         controller.dispose();
@@ -767,8 +791,7 @@ void main() {
 
         collector.stop();
 
-        final result =
-            collector.summary('LV full traversal ($count msgs)');
+        final result = collector.summary('LV full traversal ($count msgs)');
         debugPrint(result);
         report.writeln('```');
         report.writeln(result);
@@ -783,15 +806,17 @@ void main() {
   // 6. Memory stability — long scroll session
   //    Scroll through entire list 3 times, check no growth.
   // =========================================================================
-  testWidgets('Memory stability — 3 full traversals (6000 msgs)',
-      (tester) async {
+  testWidgets('Memory stability — 3 full traversals (6000 msgs)', (
+    tester,
+  ) async {
     final messages = _generateMessages(6000);
     final controller = _BenchController(messages);
     await tester.pumpWidget(_csvApp(controller));
     await tester.pumpAndSettle();
 
     final render = tester.renderObject<RenderChatScrollView>(
-        find.byType(ChatScrollView));
+      find.byType(ChatScrollView),
+    );
 
     final snapshots = <String>[];
 
@@ -810,7 +835,8 @@ void main() {
         await tester.pump(const Duration(milliseconds: 16));
       }
 
-      final snap = 'Pass ${pass + 1}: '
+      final snap =
+          'Pass ${pass + 1}: '
           'attached=${render.debugAttachedRenderCount} '
           'total=${render.debugTotalRenderCount} '
           'chunks=${render.debugChunkCount}';
@@ -826,8 +852,11 @@ void main() {
     report.writeln('```\n');
 
     // Verify no growth between passes
-    expect(render.debugChunkCount, lessThanOrEqualTo(16),
-        reason: 'Chunk count should stay within maxChunks');
+    expect(
+      render.debugChunkCount,
+      lessThanOrEqualTo(16),
+      reason: 'Chunk count should stay within maxChunks',
+    );
 
     controller.dispose();
   });
