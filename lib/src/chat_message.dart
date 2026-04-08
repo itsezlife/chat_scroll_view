@@ -1,4 +1,4 @@
-import 'package:chatscrollview/src/chat_scroll_view.dart';
+import 'package:chatscrollview/src/chat_scroll_view_common.dart';
 import 'package:meta/meta.dart';
 
 @immutable
