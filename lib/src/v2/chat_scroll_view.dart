@@ -476,7 +476,7 @@ class RenderChatScrollView extends RenderBox {
 
   @override
   void performLayout() {
-    assert(() { _debugSw.start(); return true; }());
+    assert(() { _debugSw..reset()..start(); return true; }());
 
     final viewportWidth = size.width;
     final viewportHeight = size.height;
@@ -517,7 +517,7 @@ class RenderChatScrollView extends RenderBox {
       _layoutMaxChunk,
     );
 
-    assert(() { debugLastLayoutDuration = _debugSw.elapsed; _debugSw.reset(); debugLayoutFrameId++; return true; }());
+    assert(() { debugLastLayoutDuration = _debugSw.elapsed; _debugSw.stop(); debugLayoutFrameId++; return true; }());
   }
 
   /// Layout chunks from anchor, expand up/down to fill viewport + cacheExtent,
@@ -595,7 +595,7 @@ class RenderChatScrollView extends RenderBox {
 
   @override
   void paint(PaintingContext context, Offset offset) {
-    assert(() { _debugSw.start(); return true; }());
+    assert(() { _debugSw..reset()..start(); return true; }());
 
     final clipLayer = _clipLayerHandle.layer ??= ClipRectLayer();
     clipLayer.clipRect = offset & size;
@@ -607,7 +607,7 @@ class RenderChatScrollView extends RenderBox {
     context.addLayer(clipLayer);
     _initialPaintDone = true;
 
-    assert(() { debugLastPaintDuration = _debugSw.elapsed; _debugSw.reset(); debugPaintFrameId++; return true; }());
+    assert(() { debugLastPaintDuration = _debugSw.elapsed; _debugSw.stop(); debugPaintFrameId++; return true; }());
   }
 
   /// Full layer rebuild during paint (after layout, initial paint, resize).
