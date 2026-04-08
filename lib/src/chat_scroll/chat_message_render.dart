@@ -191,4 +191,4 @@ abstract class ChatMessageRender {
 /// Creates a [ChatMessageRender] for the given [message].
 /// [message] is `null` for slots that have no content yet.
 typedef ChatMessageRenderFactory =
-    ChatMessageRender Function(Object? message);
+    ChatMessageRender Function(IChatMessage? message);
