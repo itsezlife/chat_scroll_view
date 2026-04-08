@@ -1,4 +1,4 @@
-import 'package:chatscrollview/src/chat_scroll_view_common.dart';
+import 'package:chatscrollview/src/chat_scroll/chat_scroll_common.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 

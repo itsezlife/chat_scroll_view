@@ -1,11 +1,38 @@
+// Headless ChatScrollView benchmarks (flutter test).
+//
+// Baseline results (2026-04-09, macOS, debug mode, flutter test):
+//
+//   Layout:
+//     32 msgs:   mean=32µs  median=32µs  p95=32µs
+//     256 msgs:  mean=22µs  median=22µs  p95=22µs
+//     6000 msgs: mean=15µs  median=15µs  p95=15µs
+//
+//   Paint (scroll-only):
+//     32 msgs:   mean=7.5µs  median=5µs  p95=15µs
+//     256 msgs:  mean=2.3µs  median=2µs  p95=3µs
+//     6000 msgs: mean=1.4µs  median=1µs  p95=3µs
+//
+//   Fling (frame time):
+//     32 msgs:   mean=41µs  median=23µs  p95=118µs
+//     256 msgs:  mean=27µs  median=15µs  p95=78µs
+//     6000 msgs: mean=21µs  median=14µs  p95=48µs
+//
+//   Memory (static):
+//     32 msgs:   attached=8   total=64   chunks=1
+//     256 msgs:  attached=10  total=64   chunks=4
+//     6000 msgs: attached=8   total=64   chunks=16
+//
+//   Leak detection (256 msgs, 50 cycles): range=0 (stable)
+//   Resize stress (256 msgs, 200 frames): mean=20µs
+
 import 'dart:ui' as ui;
 
 import 'package:chatscrollview/src/chat_message.dart';
-import 'package:chatscrollview/src/chat_scroll_view_common.dart';
-import 'package:chatscrollview/src/v2/chat_data_source.dart';
-import 'package:chatscrollview/src/v2/chat_message_render.dart';
-import 'package:chatscrollview/src/v2/chat_scroll_controller.dart';
-import 'package:chatscrollview/src/v2/chat_scroll_view.dart';
+import 'package:chatscrollview/src/chat_scroll/chat_scroll_common.dart';
+import 'package:chatscrollview/src/chat_scroll/chat_data_source.dart';
+import 'package:chatscrollview/src/chat_scroll/chat_message_render.dart';
+import 'package:chatscrollview/src/chat_scroll/chat_scroll_controller.dart';
+import 'package:chatscrollview/src/chat_scroll/chat_scroll_view.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -13,7 +40,7 @@ import '../benchmark/shared/metrics.dart';
 import '../benchmark/shared/test_messages.dart';
 
 // ---------------------------------------------------------------------------
-// v2 bench message render (identical logic to v1)
+// Bench message render
 // ---------------------------------------------------------------------------
 
 class _BenchMessageRender extends ChatMessageRender {
@@ -95,7 +122,7 @@ class _BenchMessageRender extends ChatMessageRender {
 }
 
 // ---------------------------------------------------------------------------
-// v2 test data source
+// Test data source
 // ---------------------------------------------------------------------------
 
 class _BenchDataSource extends ChatDataSource {
@@ -142,7 +169,7 @@ const _kMedium = 256;
 const _kLarge = 6000;
 
 void main() {
-  group('v2 ChatScrollView benchmarks', () {
+  group('ChatScrollView benchmarks', () {
     for (final count in [_kSmall, _kMedium, _kLarge]) {
       testWidgets('layout — $count messages', (tester) async {
         final messages = generateMessages(count);
@@ -182,7 +209,7 @@ void main() {
           samples.add(render.debugLastLayoutDuration.inMicroseconds);
         }
 
-        final metrics = BenchmarkMetrics('v2 CSV layout ($count msgs)', samples);
+        final metrics = BenchmarkMetrics('CSV layout ($count msgs)', samples);
         // ignore: avoid_print
         print(metrics);
 
@@ -208,8 +235,7 @@ void main() {
         const measured = 300;
 
         // Warmup: scroll via applyScrollDelta + markNeedsLayout
-        // (v2 doesn't have anchorPixelOffset setter that notifies,
-        //  so we use applyScrollDelta + markNeedsLayout to force paint)
+        // Use applyScrollDelta + markNeedsLayout to force paint
         for (var i = 0; i < warmup; i++) {
           controller.applyScrollDelta(5.0);
           render.markNeedsLayout();
@@ -226,7 +252,7 @@ void main() {
         }
 
         final metrics = BenchmarkMetrics(
-          'v2 CSV paint scroll-only ($count msgs)',
+          'CSV paint scroll-only ($count msgs)',
           samples,
         );
         // ignore: avoid_print
@@ -265,7 +291,7 @@ void main() {
         }
 
         final metrics = BenchmarkMetrics(
-          'v2 CSV fling frame ($count msgs)',
+          'CSV fling frame ($count msgs)',
           samples,
         );
         // ignore: avoid_print
@@ -290,7 +316,7 @@ void main() {
         final render = _findRender(tester);
 
         final snapshot = MemorySnapshot(
-          label: 'v2 CSV static ($count msgs)',
+          label: 'CSV static ($count msgs)',
           attachedRenders: render.debugAttachedRenderCount,
           totalRenders: render.debugTotalRenderCount,
           chunkCount: render.debugChunkCount,
@@ -331,7 +357,7 @@ void main() {
 
       // ignore: avoid_print
       print(
-        'v2 CSV scroll-through peak: attached=$peakAttached '
+        'CSV scroll-through peak: attached=$peakAttached '
         'total=$peakTotal chunks=${render.debugChunkCount}',
       );
 
@@ -340,7 +366,7 @@ void main() {
 
       // ignore: avoid_print
       print(
-        'v2 CSV after return: attached=${render.debugAttachedRenderCount} '
+        'CSV after return: attached=${render.debugAttachedRenderCount} '
         'total=${render.debugTotalRenderCount} '
         'chunks=${render.debugChunkCount}',
       );
@@ -377,7 +403,7 @@ void main() {
 
       // ignore: avoid_print
       print(
-        'v2 CSV leak test: initial=$initialAttached '
+        'CSV leak test: initial=$initialAttached '
         'min=$minAttached max=$maxAttached '
         'range=${maxAttached - minAttached}',
       );
@@ -416,7 +442,7 @@ void main() {
         samples.add(total);
       }
 
-      final metrics = BenchmarkMetrics('v2 CSV resize stress', samples);
+      final metrics = BenchmarkMetrics('CSV resize stress', samples);
       // ignore: avoid_print
       print(metrics);
 

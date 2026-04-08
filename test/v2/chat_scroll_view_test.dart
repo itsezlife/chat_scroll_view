@@ -1,12 +1,12 @@
 import 'dart:ui' as ui;
 
 import 'package:chatscrollview/src/chat_message.dart';
-import 'package:chatscrollview/src/chat_scroll_view_common.dart';
-import 'package:chatscrollview/src/v2/chat_data_source.dart';
-import 'package:chatscrollview/src/v2/chat_message_render.dart';
-import 'package:chatscrollview/src/v2/chat_scroll_chunk.dart';
-import 'package:chatscrollview/src/v2/chat_scroll_controller.dart';
-import 'package:chatscrollview/src/v2/chat_scroll_view.dart';
+import 'package:chatscrollview/src/chat_scroll/chat_scroll_common.dart';
+import 'package:chatscrollview/src/chat_scroll/chat_data_source.dart';
+import 'package:chatscrollview/src/chat_scroll/chat_message_render.dart';
+import 'package:chatscrollview/src/chat_scroll/chat_scroll_chunk.dart';
+import 'package:chatscrollview/src/chat_scroll/chat_scroll_controller.dart';
+import 'package:chatscrollview/src/chat_scroll/chat_scroll_view.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -135,7 +135,7 @@ Widget _buildTestWidget({
 // ---------------------------------------------------------------------------
 
 void main() {
-  group('v2 ChatScrollView', () {
+  group('ChatScrollView', () {
     group('scroll coverage', () {
       testWidgets('all 256 messages remain accessible after scrolling up and back',
           (tester) async {

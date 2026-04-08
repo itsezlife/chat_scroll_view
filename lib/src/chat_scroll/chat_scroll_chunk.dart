@@ -1,5 +1,5 @@
-import 'package:chatscrollview/src/chat_scroll_view_common.dart';
-import 'package:chatscrollview/src/v2/chat_message_render.dart';
+import 'package:chatscrollview/src/chat_scroll/chat_scroll_common.dart';
+import 'package:chatscrollview/src/chat_scroll/chat_message_render.dart';
 import 'package:meta/meta.dart';
 
 /// Chunk of chat messages used for pagination and rendering.

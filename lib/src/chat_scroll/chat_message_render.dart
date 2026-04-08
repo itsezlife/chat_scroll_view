@@ -1,6 +1,6 @@
 import 'dart:ui' as ui;
 
-import 'package:chatscrollview/src/chat_scroll_view_common.dart';
+import 'package:chatscrollview/src/chat_scroll/chat_scroll_common.dart';
 import 'package:flutter/rendering.dart';
 import 'package:meta/meta.dart';
 

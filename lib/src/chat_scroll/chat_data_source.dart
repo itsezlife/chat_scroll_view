@@ -1,8 +1,8 @@
 import 'dart:collection';
 import 'dart:ui';
 
-import 'package:chatscrollview/src/chat_scroll_view_common.dart';
-import 'package:chatscrollview/src/v2/chat_scroll_chunk.dart';
+import 'package:chatscrollview/src/chat_scroll/chat_scroll_common.dart';
+import 'package:chatscrollview/src/chat_scroll/chat_scroll_chunk.dart';
 import 'package:meta/meta.dart';
 
 /// Data source for [ChatScrollView].

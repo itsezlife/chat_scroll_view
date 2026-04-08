@@ -1,8 +1,7 @@
 import 'dart:math';
 
 import 'package:chatscrollview/src/chat_message.dart';
-import 'package:chatscrollview/src/chat_scroll_view.dart';
-import 'package:chatscrollview/src/chat_scroll_view_common.dart';
+import 'package:chatscrollview/src/chat_scroll/chat_scroll_common.dart';
 
 /// Preset message counts for benchmarks.
 const int kSmall = 32;
@@ -88,22 +87,3 @@ List<IChatMessage> generateMessages(int count) {
   return messages;
 }
 
-/// A simple [ChatScrollController] loaded with [messages].
-/// All data pre-loaded, no fetching.
-class BenchmarkChatController extends ChatScrollController {
-  BenchmarkChatController(List<IChatMessage> messages) {
-    upsertMessages(messages);
-    oldestKnownId = 0;
-    newestKnownId = messages.length - 1;
-    reachedOldest = true;
-    reachedNewest = true;
-    jumpTo(messages.length - 1);
-  }
-
-  @override
-  Future<List<IChatMessage>> fetch({
-    int? from,
-    int? to,
-    DateTime? after,
-  }) async => const [];
-}

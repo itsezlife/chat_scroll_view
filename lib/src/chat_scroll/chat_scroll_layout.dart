@@ -1,7 +1,7 @@
-import 'package:chatscrollview/src/v2/chat_data_source.dart';
-import 'package:chatscrollview/src/v2/chat_message_render.dart';
-import 'package:chatscrollview/src/v2/chat_scroll_chunk.dart';
-import 'package:chatscrollview/src/v2/chat_scroll_controller.dart';
+import 'package:chatscrollview/src/chat_scroll/chat_data_source.dart';
+import 'package:chatscrollview/src/chat_scroll/chat_message_render.dart';
+import 'package:chatscrollview/src/chat_scroll/chat_scroll_chunk.dart';
+import 'package:chatscrollview/src/chat_scroll/chat_scroll_controller.dart';
 
 /// Stateless helper for chunk layout, positioning, clamping, and eviction.
 ///
