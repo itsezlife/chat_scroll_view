@@ -2,8 +2,11 @@ import 'dart:async';
 import 'dart:ui' as ui;
 
 import 'package:chatscrollview/src/chat_message.dart';
-import 'package:chatscrollview/src/chat_scroll_view.dart';
 import 'package:chatscrollview/src/chat_scroll_view_common.dart';
+import 'package:chatscrollview/src/v2/chat_data_source.dart';
+import 'package:chatscrollview/src/v2/chat_message_render.dart';
+import 'package:chatscrollview/src/v2/chat_scroll_controller.dart';
+import 'package:chatscrollview/src/v2/chat_scroll_view.dart';
 import 'package:flutter/material.dart';
 import 'package:l/l.dart';
 
@@ -35,45 +38,23 @@ class ChatScreen extends StatefulWidget {
 }
 
 class _ChatScreenState extends State<ChatScreen> {
-  late final _DemoController _controller;
+  late final _DemoDataSource _dataSource;
+  late final ChatScrollController _scrollController;
 
   @override
   void initState() {
     super.initState();
-    _controller = _DemoController();
-    _controller.init();
+    _dataSource = _DemoDataSource();
+    _scrollController = ChatScrollController();
+    _initDemo();
   }
 
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(title: const Text('Chat Scroll View')),
-    body: SafeArea(
-      child: ChatScrollView(
-        controller: _controller,
-        builder: _DemoMessageRender.new,
-      ),
-    ),
-  );
-}
-
-// ---------------------------------------------------------------------------
-// Demo controller with 256 hardcoded messages
-// ---------------------------------------------------------------------------
-
-class _DemoController extends ChatScrollController {
-  static const int _messageCount = 256;
-
-  void init() {
+  void _initDemo() {
+    const messageCount = 256;
     final now = DateTime.now();
     final messages = <IChatMessage>[];
-    for (var i = 0; i < _messageCount; i++) {
-      final time = now.subtract(Duration(minutes: _messageCount - i));
+    for (var i = 0; i < messageCount; i++) {
+      final time = now.subtract(Duration(minutes: messageCount - i));
       messages.add(
         ChatMessage$User(
           id: i,
@@ -86,16 +67,34 @@ class _DemoController extends ChatScrollController {
         ),
       );
     }
-    upsertMessages(messages);
-    oldestKnownId = 0;
-    newestKnownId = _messageCount - 1;
-    reachedOldest = true;
-    reachedNewest = true;
+    _dataSource.upsertMessages(messages);
+    _scrollController.oldestKnownId = 0;
+    _scrollController.newestKnownId = messageCount - 1;
+    _scrollController.reachedOldest = true;
+    _scrollController.reachedNewest = true;
     // Anchor to the newest message, positioned at bottom of viewport.
     // A large offset pushes it down; boundary clamping will correct it.
-    jumpTo(_messageCount - 1);
+    _scrollController.jumpTo(messageCount - 1);
   }
 
+  @override
+  Widget build(BuildContext context) => Scaffold(
+    appBar: AppBar(title: const Text('Chat Scroll View')),
+    body: SafeArea(
+      child: ChatScrollView(
+        dataSource: _dataSource,
+        controller: _scrollController,
+        builder: _DemoMessageRender.new,
+      ),
+    ),
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Demo data source with hardcoded messages
+// ---------------------------------------------------------------------------
+
+class _DemoDataSource extends ChatDataSource {
   @override
   Future<List<IChatMessage>> fetch({
     int? from,
@@ -112,8 +111,8 @@ class _DemoController extends ChatScrollController {
 // ---------------------------------------------------------------------------
 
 class _DemoMessageRender extends ChatMessageRender {
-  _DemoMessageRender(IChatMessage? message) {
-    if (message != null) _updateText(message);
+  _DemoMessageRender(Object? message) {
+    if (message is IChatMessage) _updateText(message);
   }
 
   static const double _padding = 12.0;
@@ -129,9 +128,9 @@ class _DemoMessageRender extends ChatMessageRender {
   }
 
   @override
-  void update(IChatMessage? message, ChatMessageStatus status) {
+  void update(Object? message, ChatMessageStatus status) {
     if (identical(_message, message)) return;
-    if (message == null) {
+    if (message is! IChatMessage) {
       _message = null;
       _paragraph = null;
       dirty = true;
