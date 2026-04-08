@@ -58,6 +58,15 @@ abstract class ChatMessageRender {
   /// Hit-test at [position] (local to this message's origin).
   bool hitTest(Offset position) => false;
 
+  /// Called by the viewport when a pointer event occurs within this
+  /// render's bounds. [localPosition] is in this render's coordinate
+  /// space (0,0 = top-left of message).
+  ///
+  /// Override for interactive content (links, buttons, hover effects).
+  /// Selection handling is done by the viewport — this method is for
+  /// render-local interactions.
+  void handlePointerEvent(PointerEvent event, Offset localPosition) {}
+
   /// Invalidate the cached picture, causing [paintMessage] to be called
   /// again on the next paint frame. Does not trigger layout.
   void invalidatePaint() {
