@@ -2,6 +2,7 @@ import 'dart:math';
 
 import 'package:chatscrollview/src/chat_message.dart';
 import 'package:chatscrollview/src/chat_scroll_view.dart';
+import 'package:chatscrollview/src/chat_scroll_view_common.dart';
 
 /// Preset message counts for benchmarks.
 const int kSmall = 32;
@@ -104,6 +105,5 @@ class BenchmarkChatController extends ChatScrollController {
     int? from,
     int? to,
     DateTime? after,
-  }) async =>
-      const [];
+  }) async => const [];
 }

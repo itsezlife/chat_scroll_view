@@ -3,6 +3,7 @@ import 'dart:ui' as ui;
 
 import 'package:chatscrollview/src/chat_message.dart';
 import 'package:chatscrollview/src/chat_scroll_view.dart';
+import 'package:chatscrollview/src/chat_scroll_view_common.dart';
 import 'package:flutter/material.dart';
 import 'package:l/l.dart';
 
@@ -21,9 +22,7 @@ class App extends StatelessWidget {
   @override
   Widget build(BuildContext context) => MaterialApp(
     title: 'Chat Scroll View',
-    theme: ThemeData(
-      colorScheme: ColorScheme.fromSeed(seedColor: Colors.blue),
-    ),
+    theme: ThemeData(colorScheme: ColorScheme.fromSeed(seedColor: Colors.blue)),
     home: const ChatScreen(),
   );
 }
@@ -80,7 +79,8 @@ class _DemoController extends ChatScrollController {
           id: i,
           createdAt: time,
           updatedAt: time,
-          content: 'Message #$i — '
+          content:
+              'Message #$i — '
               'The first rule of Fight Club is: you do not talk about Fight Club. '
               'The second rule of Fight Club is: you DO NOT talk about Fight Club!',
         ),
@@ -97,7 +97,11 @@ class _DemoController extends ChatScrollController {
   }
 
   @override
-  Future<List<IChatMessage>> fetch({int? from, int? to, DateTime? after}) async {
+  Future<List<IChatMessage>> fetch({
+    int? from,
+    int? to,
+    DateTime? after,
+  }) async {
     // All data is already loaded — nothing to fetch.
     return const [];
   }
@@ -148,16 +152,17 @@ class _DemoMessageRender extends ChatMessageRender {
     };
 
     final textWidth = availableWidth - _bubblePadding * 2 - _padding * 2;
-    final builder = ui.ParagraphBuilder(
-      ui.ParagraphStyle(
-        fontSize: 15.0,
-        fontFamily: '.AppleSystemUIFont',
-        height: 1.4,
-      ),
-    )
-      ..pushStyle(ui.TextStyle(color: const Color(0xFF1A1A1A)))
-      ..addText(content)
-      ..pop();
+    final builder =
+        ui.ParagraphBuilder(
+            ui.ParagraphStyle(
+              fontSize: 15.0,
+              fontFamily: '.AppleSystemUIFont',
+              height: 1.4,
+            ),
+          )
+          ..pushStyle(ui.TextStyle(color: const Color(0xFF1A1A1A)))
+          ..addText(content)
+          ..pop();
 
     _paragraph = builder.build()
       ..layout(ui.ParagraphConstraints(width: textWidth));
@@ -182,9 +187,7 @@ class _DemoMessageRender extends ChatMessageRender {
 
     // Alternate bubble color by message ID.
     final isEven = (_message?.id ?? 0).isEven;
-    final bgColor = isEven
-        ? const Color(0xFFE3F2FD)
-        : const Color(0xFFF5F5F5);
+    final bgColor = isEven ? const Color(0xFFE3F2FD) : const Color(0xFFF5F5F5);
 
     canvas.drawRRect(bubbleRect, Paint()..color = bgColor);
     canvas.save();

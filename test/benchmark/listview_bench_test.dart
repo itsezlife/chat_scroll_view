@@ -1,4 +1,4 @@
-import 'package:chatscrollview/src/chat_scroll_view.dart';
+import 'package:chatscrollview/src/chat_scroll_view_common.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -10,30 +10,30 @@ Widget _buildLV(
   List<dynamic> messages,
   ScrollController sc, {
   bool useTextWidget = false,
-}) =>
-    MaterialApp(
-      home: Scaffold(
-        body: SizedBox(
-          width: 400,
-          height: 800,
-          child: BenchmarkListViewWrapper(
-            child: useTextWidget
-                ? ListViewChatText(
-                    messages: messages.cast<IChatMessage>(),
-                    scrollController: sc,
-                  )
-                : ListViewChatCustomPaint(
-                    messages: messages.cast<IChatMessage>(),
-                    scrollController: sc,
-                  ),
-          ),
-        ),
+}) => MaterialApp(
+  home: Scaffold(
+    body: SizedBox(
+      width: 400,
+      height: 800,
+      child: BenchmarkListViewWrapper(
+        child: useTextWidget
+            ? ListViewChatText(
+                messages: messages.cast<IChatMessage>(),
+                scrollController: sc,
+              )
+            : ListViewChatCustomPaint(
+                messages: messages.cast<IChatMessage>(),
+                scrollController: sc,
+              ),
       ),
-    );
+    ),
+  ),
+);
 
 RenderBenchmarkListViewWrapper _findRender(WidgetTester tester) =>
     tester.renderObject<RenderBenchmarkListViewWrapper>(
-        find.byType(BenchmarkListViewWrapper));
+      find.byType(BenchmarkListViewWrapper),
+    );
 
 int _countElements(WidgetTester tester, Type type) =>
     tester.elementList(find.byType(type, skipOffstage: false)).length;
@@ -44,6 +44,7 @@ int _countRenderObjects(WidgetTester tester) {
     if (element.renderObject != null) count++;
     element.visitChildren(visit);
   }
+
   final root = tester.element(find.byType(MaterialApp));
   visit(root);
   return count;
@@ -117,8 +118,10 @@ void main() {
           samples.add(render.debugLastPaintDuration.inMicroseconds);
         }
 
-        final metrics =
-            BenchmarkMetrics('LV-CP paint scroll ($count msgs)', samples);
+        final metrics = BenchmarkMetrics(
+          'LV-CP paint scroll ($count msgs)',
+          samples,
+        );
         // ignore: avoid_print
         print(metrics);
 
@@ -139,7 +142,10 @@ void main() {
         // Fling — total frame time
         final samples = <int>[];
         await tester.fling(
-            find.byType(ListView), const Offset(0, -500), 2000.0);
+          find.byType(ListView),
+          const Offset(0, -500),
+          2000.0,
+        );
 
         for (var i = 0; i < 300; i++) {
           final sw = Stopwatch()..start();
@@ -147,8 +153,10 @@ void main() {
           samples.add(sw.elapsed.inMicroseconds);
         }
 
-        final metrics =
-            BenchmarkMetrics('LV-CP fling frame ($count msgs)', samples);
+        final metrics = BenchmarkMetrics(
+          'LV-CP fling frame ($count msgs)',
+          samples,
+        );
         // ignore: avoid_print
         print(metrics);
 
@@ -203,8 +211,10 @@ void main() {
       }
 
       // ignore: avoid_print
-      print('LV-CP scroll-through peak: elements=$peakElements '
-          'renderObjects=$peakRO');
+      print(
+        'LV-CP scroll-through peak: elements=$peakElements '
+        'renderObjects=$peakRO',
+      );
 
       // Return to start
       sc.jumpTo(0);
@@ -217,8 +227,7 @@ void main() {
       sc.dispose();
     });
 
-    testWidgets('leak detection — 50 scroll cycles (256 msgs)',
-        (tester) async {
+    testWidgets('leak detection — 50 scroll cycles (256 msgs)', (tester) async {
       final messages = generateMessages(kMedium);
       final sc = ScrollController();
 
@@ -241,11 +250,16 @@ void main() {
       final minEl = elementCounts.reduce((a, b) => a < b ? a : b);
 
       // ignore: avoid_print
-      print('LV-CP leak test: initial=$initialElements '
-          'min=$minEl max=$maxEl range=${maxEl - minEl}');
+      print(
+        'LV-CP leak test: initial=$initialElements '
+        'min=$minEl max=$maxEl range=${maxEl - minEl}',
+      );
 
-      expect(maxEl - minEl, lessThan(10),
-          reason: 'Element count should be stable across scroll cycles');
+      expect(
+        maxEl - minEl,
+        lessThan(10),
+        reason: 'Element count should be stable across scroll cycles',
+      );
 
       sc.dispose();
     });
@@ -265,7 +279,8 @@ void main() {
         tester.view.physicalSize = Size(width, 800.0);
         tester.view.devicePixelRatio = 1.0;
         await tester.pump();
-        final total = render.debugLastLayoutDuration.inMicroseconds +
+        final total =
+            render.debugLastLayoutDuration.inMicroseconds +
             render.debugLastPaintDuration.inMicroseconds;
         samples.add(total);
       }
@@ -313,8 +328,10 @@ void main() {
           samples.add(render.debugLastLayoutDuration.inMicroseconds);
         }
 
-        final metrics =
-            BenchmarkMetrics('LV-Text layout ($count msgs)', samples);
+        final metrics = BenchmarkMetrics(
+          'LV-Text layout ($count msgs)',
+          samples,
+        );
         // ignore: avoid_print
         print(metrics);
 
@@ -335,7 +352,10 @@ void main() {
 
         final samples = <int>[];
         await tester.fling(
-            find.byType(ListView), const Offset(0, -500), 2000.0);
+          find.byType(ListView),
+          const Offset(0, -500),
+          2000.0,
+        );
 
         for (var i = 0; i < 300; i++) {
           final sw = Stopwatch()..start();
@@ -343,8 +363,10 @@ void main() {
           samples.add(sw.elapsed.inMicroseconds);
         }
 
-        final metrics =
-            BenchmarkMetrics('LV-Text fling frame ($count msgs)', samples);
+        final metrics = BenchmarkMetrics(
+          'LV-Text fling frame ($count msgs)',
+          samples,
+        );
         // ignore: avoid_print
         print(metrics);
 
@@ -353,4 +375,3 @@ void main() {
     }
   });
 }
-

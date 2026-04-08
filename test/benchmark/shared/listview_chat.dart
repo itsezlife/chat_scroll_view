@@ -1,7 +1,7 @@
 import 'dart:ui' as ui;
 
 import 'package:chatscrollview/src/chat_message.dart';
-import 'package:chatscrollview/src/chat_scroll_view.dart';
+import 'package:chatscrollview/src/chat_scroll_view_common.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 
@@ -26,12 +26,11 @@ class ListViewChatCustomPaint extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => ListView.builder(
-        controller: scrollController,
-        physics: const ClampingScrollPhysics(),
-        itemCount: messages.length,
-        itemBuilder: (_, index) =>
-            CustomPaintBubble(message: messages[index]),
-      );
+    controller: scrollController,
+    physics: const ClampingScrollPhysics(),
+    itemCount: messages.length,
+    itemBuilder: (_, index) => CustomPaintBubble(message: messages[index]),
+  );
 }
 
 class CustomPaintBubble extends LeafRenderObjectWidget {
@@ -45,7 +44,9 @@ class CustomPaintBubble extends LeafRenderObjectWidget {
 
   @override
   void updateRenderObject(
-      BuildContext context, RenderCustomPaintBubble renderObject) {
+    BuildContext context,
+    RenderCustomPaintBubble renderObject,
+  ) {
     renderObject.message = message;
   }
 }
@@ -86,16 +87,17 @@ class RenderCustomPaintBubble extends RenderBox {
     };
 
     final textWidth = maxWidth - _bubblePadding * 2 - _padding * 2;
-    final builder = ui.ParagraphBuilder(
-      ui.ParagraphStyle(
-        fontSize: 15.0,
-        fontFamily: '.AppleSystemUIFont',
-        height: 1.4,
-      ),
-    )
-      ..pushStyle(ui.TextStyle(color: const Color(0xFF1A1A1A)))
-      ..addText(content)
-      ..pop();
+    final builder =
+        ui.ParagraphBuilder(
+            ui.ParagraphStyle(
+              fontSize: 15.0,
+              fontFamily: '.AppleSystemUIFont',
+              height: 1.4,
+            ),
+          )
+          ..pushStyle(ui.TextStyle(color: const Color(0xFF1A1A1A)))
+          ..addText(content)
+          ..pop();
 
     _paragraph = builder.build()
       ..layout(ui.ParagraphConstraints(width: textWidth));
@@ -118,8 +120,7 @@ class RenderCustomPaintBubble extends RenderBox {
     );
 
     final isEven = _message.id.isEven;
-    final bgColor =
-        isEven ? const Color(0xFFE3F2FD) : const Color(0xFFF5F5F5);
+    final bgColor = isEven ? const Color(0xFFE3F2FD) : const Color(0xFFF5F5F5);
 
     canvas.drawRRect(bubbleRect, Paint()..color = bgColor);
     canvas.save();
@@ -151,11 +152,11 @@ class ListViewChatText extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => ListView.builder(
-        controller: scrollController,
-        physics: const ClampingScrollPhysics(),
-        itemCount: messages.length,
-        itemBuilder: (_, index) => _TextBubble(message: messages[index]),
-      );
+    controller: scrollController,
+    physics: const ClampingScrollPhysics(),
+    itemCount: messages.length,
+    itemBuilder: (_, index) => _TextBubble(message: messages[index]),
+  );
 }
 
 class _TextBubble extends StatelessWidget {
@@ -172,8 +173,7 @@ class _TextBubble extends StatelessWidget {
     };
 
     final isEven = message.id.isEven;
-    final bgColor =
-        isEven ? const Color(0xFFE3F2FD) : const Color(0xFFF5F5F5);
+    final bgColor = isEven ? const Color(0xFFE3F2FD) : const Color(0xFFF5F5F5);
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 6.0),

@@ -4,6 +4,7 @@ import 'dart:ui' as ui;
 
 import 'package:chatscrollview/src/chat_message.dart';
 import 'package:chatscrollview/src/chat_scroll_view.dart';
+import 'package:chatscrollview/src/chat_scroll_view_common.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -53,12 +54,11 @@ class _BenchMessageRender extends ChatMessageRender {
       _ => 'Message #${message.id}',
     };
     final textWidth = availableWidth - _bubblePadding * 2 - _padding * 2;
-    final builder = ui.ParagraphBuilder(
-      ui.ParagraphStyle(fontSize: 15.0, height: 1.4),
-    )
-      ..pushStyle(ui.TextStyle(color: const Color(0xFF1A1A1A)))
-      ..addText(content)
-      ..pop();
+    final builder =
+        ui.ParagraphBuilder(ui.ParagraphStyle(fontSize: 15.0, height: 1.4))
+          ..pushStyle(ui.TextStyle(color: const Color(0xFF1A1A1A)))
+          ..addText(content)
+          ..pop();
     _paragraph = builder.build()
       ..layout(ui.ParagraphConstraints(width: textWidth));
     return _paragraph!.height + _bubblePadding * 2 + _padding;
@@ -70,15 +70,19 @@ class _BenchMessageRender extends ChatMessageRender {
     if (paragraph == null) return;
     final bubbleRect = RRect.fromRectAndRadius(
       Rect.fromLTWH(
-          _padding, _padding / 2, size.width - _padding * 2, size.height - _padding),
+        _padding,
+        _padding / 2,
+        size.width - _padding * 2,
+        size.height - _padding,
+      ),
       const Radius.circular(12.0),
     );
     final isEven = (_message?.id ?? 0).isEven;
     canvas.drawRRect(
-        bubbleRect,
-        Paint()
-          ..color =
-              isEven ? const Color(0xFFE3F2FD) : const Color(0xFFF5F5F5));
+      bubbleRect,
+      Paint()
+        ..color = isEven ? const Color(0xFFE3F2FD) : const Color(0xFFF5F5F5),
+    );
     canvas.save();
     canvas.translate(_padding + _bubblePadding, _padding / 2 + _bubblePadding);
     canvas.drawParagraph(paragraph, Offset.zero);
@@ -97,17 +101,17 @@ class _BenchMessageRender extends ChatMessageRender {
 // ---------------------------------------------------------------------------
 
 Widget _buildCSV(BenchmarkChatController controller) => MaterialApp(
-      home: Scaffold(
-        body: SizedBox(
-          width: 400,
-          height: 800,
-          child: ChatScrollView(
-            controller: controller,
-            builder: _BenchMessageRender.new,
-          ),
-        ),
+  home: Scaffold(
+    body: SizedBox(
+      width: 400,
+      height: 800,
+      child: ChatScrollView(
+        controller: controller,
+        builder: _BenchMessageRender.new,
       ),
-    );
+    ),
+  ),
+);
 
 Widget _buildLV(List<IChatMessage> messages, ScrollController sc) =>
     MaterialApp(
@@ -130,7 +134,8 @@ RenderChatScrollView _findCSVRender(WidgetTester tester) =>
 
 RenderBenchmarkListViewWrapper _findLVRender(WidgetTester tester) =>
     tester.renderObject<RenderBenchmarkListViewWrapper>(
-        find.byType(BenchmarkListViewWrapper));
+      find.byType(BenchmarkListViewWrapper),
+    );
 
 // ---------------------------------------------------------------------------
 // Tests
@@ -165,7 +170,9 @@ void main() {
           tester.view.physicalSize = Size(400.0 + (i.isEven ? 0 : 1), 800.0);
           tester.view.devicePixelRatio = 1.0;
           await tester.pump();
-          csvLayoutSamples.add(csvRender.debugLastLayoutDuration.inMicroseconds);
+          csvLayoutSamples.add(
+            csvRender.debugLastLayoutDuration.inMicroseconds,
+          );
         }
         tester.view.resetPhysicalSize();
         tester.view.resetDevicePixelRatio();
@@ -198,10 +205,14 @@ void main() {
         tester.view.resetDevicePixelRatio();
         sc.dispose();
 
-        final csvMetrics =
-            BenchmarkMetrics('CSV layout ($count)', csvLayoutSamples);
-        final lvMetrics =
-            BenchmarkMetrics('LV layout ($count)', lvLayoutSamples);
+        final csvMetrics = BenchmarkMetrics(
+          'CSV layout ($count)',
+          csvLayoutSamples,
+        );
+        final lvMetrics = BenchmarkMetrics(
+          'LV layout ($count)',
+          lvLayoutSamples,
+        );
 
         // ignore: avoid_print
         print('\n=== Layout Comparison ($count messages) ===');
@@ -210,12 +221,15 @@ void main() {
         // ignore: avoid_print
         print('LV:  $lvMetrics');
         // ignore: avoid_print
-        print('Ratio (CSV/LV): '
-            '${(csvMetrics.meanUs / lvMetrics.meanUs).toStringAsFixed(3)}x');
+        print(
+          'Ratio (CSV/LV): '
+          '${(csvMetrics.meanUs / lvMetrics.meanUs).toStringAsFixed(3)}x',
+        );
       });
 
-      testWidgets('scroll-only paint comparison — $count messages',
-          (tester) async {
+      testWidgets('scroll-only paint comparison — $count messages', (
+        tester,
+      ) async {
         const warmup = 10;
         const measured = 300;
 
@@ -260,10 +274,8 @@ void main() {
         }
         sc.dispose();
 
-        final csvMetrics =
-            BenchmarkMetrics('CSV paint ($count)', csvSamples);
-        final lvMetrics =
-            BenchmarkMetrics('LV paint ($count)', lvSamples);
+        final csvMetrics = BenchmarkMetrics('CSV paint ($count)', csvSamples);
+        final lvMetrics = BenchmarkMetrics('LV paint ($count)', lvSamples);
 
         // ignore: avoid_print
         print('\n=== Scroll-only Paint Comparison ($count messages) ===');
@@ -272,8 +284,10 @@ void main() {
         // ignore: avoid_print
         print('LV:  $lvMetrics');
         // ignore: avoid_print
-        print('Ratio (CSV/LV): '
-            '${(csvMetrics.meanUs / lvMetrics.meanUs).toStringAsFixed(3)}x');
+        print(
+          'Ratio (CSV/LV): '
+          '${(csvMetrics.meanUs / lvMetrics.meanUs).toStringAsFixed(3)}x',
+        );
       });
 
       testWidgets('fling comparison — $count messages', (tester) async {
@@ -292,7 +306,10 @@ void main() {
 
         final csvSamples = <int>[];
         await tester.fling(
-            find.byType(ChatScrollView), const Offset(0, -500), 2000.0);
+          find.byType(ChatScrollView),
+          const Offset(0, -500),
+          2000.0,
+        );
         for (var i = 0; i < 300; i++) {
           final sw = Stopwatch()..start();
           await tester.pump(const Duration(milliseconds: 16));
@@ -311,7 +328,10 @@ void main() {
 
         final lvSamples = <int>[];
         await tester.fling(
-            find.byType(ListView), const Offset(0, -500), 2000.0);
+          find.byType(ListView),
+          const Offset(0, -500),
+          2000.0,
+        );
         for (var i = 0; i < 300; i++) {
           final sw = Stopwatch()..start();
           await tester.pump(const Duration(milliseconds: 16));
@@ -319,20 +339,22 @@ void main() {
         }
         sc.dispose();
 
-        final csvMetrics =
-            BenchmarkMetrics('CSV fling ($count)', csvSamples);
-        final lvMetrics =
-            BenchmarkMetrics('LV fling ($count)', lvSamples);
+        final csvMetrics = BenchmarkMetrics('CSV fling ($count)', csvSamples);
+        final lvMetrics = BenchmarkMetrics('LV fling ($count)', lvSamples);
 
         // ignore: avoid_print
-        print('\n=== Fling Comparison — total frame time ($count messages) ===');
+        print(
+          '\n=== Fling Comparison — total frame time ($count messages) ===',
+        );
         // ignore: avoid_print
         print('CSV: $csvMetrics');
         // ignore: avoid_print
         print('LV:  $lvMetrics');
         // ignore: avoid_print
-        print('Ratio (CSV/LV): '
-            '${(csvMetrics.meanUs / lvMetrics.meanUs).toStringAsFixed(3)}x');
+        print(
+          'Ratio (CSV/LV): '
+          '${(csvMetrics.meanUs / lvMetrics.meanUs).toStringAsFixed(3)}x',
+        );
       });
     }
 
@@ -363,8 +385,8 @@ void main() {
           lvRenderObjects++;
           element.visitChildren(visit);
         }
-        lvElements =
-            tester.elementList(find.byType(CustomPaintBubble)).length;
+
+        lvElements = tester.elementList(find.byType(CustomPaintBubble)).length;
         visit(tester.element(find.byType(MaterialApp)));
         sc.dispose();
         await tester.pumpWidget(const SizedBox.shrink());
@@ -374,8 +396,10 @@ void main() {
         // ignore: avoid_print
         print('CSV: attached=$csvAttached total=$csvTotal chunks=$csvChunks');
         // ignore: avoid_print
-        print('LV:  visible_elements=$lvElements '
-            'total_render_objects=$lvRenderObjects');
+        print(
+          'LV:  visible_elements=$lvElements '
+          'total_render_objects=$lvRenderObjects',
+        );
       }
     });
   });

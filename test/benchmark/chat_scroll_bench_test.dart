@@ -2,6 +2,7 @@ import 'dart:ui' as ui;
 
 import 'package:chatscrollview/src/chat_message.dart';
 import 'package:chatscrollview/src/chat_scroll_view.dart';
+import 'package:chatscrollview/src/chat_scroll_view_common.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -48,12 +49,11 @@ class _BenchMessageRender extends ChatMessageRender {
       _ => 'Message #${message.id}',
     };
     final textWidth = availableWidth - _bubblePadding * 2 - _padding * 2;
-    final builder = ui.ParagraphBuilder(
-      ui.ParagraphStyle(fontSize: 15.0, height: 1.4),
-    )
-      ..pushStyle(ui.TextStyle(color: const Color(0xFF1A1A1A)))
-      ..addText(content)
-      ..pop();
+    final builder =
+        ui.ParagraphBuilder(ui.ParagraphStyle(fontSize: 15.0, height: 1.4))
+          ..pushStyle(ui.TextStyle(color: const Color(0xFF1A1A1A)))
+          ..addText(content)
+          ..pop();
     _paragraph = builder.build()
       ..layout(ui.ParagraphConstraints(width: textWidth));
     return _paragraph!.height + _bubblePadding * 2 + _padding;
@@ -65,7 +65,11 @@ class _BenchMessageRender extends ChatMessageRender {
     if (paragraph == null) return;
     final bubbleRect = RRect.fromRectAndRadius(
       Rect.fromLTWH(
-          _padding, _padding / 2, size.width - _padding * 2, size.height - _padding),
+        _padding,
+        _padding / 2,
+        size.width - _padding * 2,
+        size.height - _padding,
+      ),
       const Radius.circular(_bubbleRadius),
     );
     final isEven = (_message?.id ?? 0).isEven;
@@ -85,17 +89,17 @@ class _BenchMessageRender extends ChatMessageRender {
 }
 
 Widget _buildCSV(BenchmarkChatController controller) => MaterialApp(
-      home: Scaffold(
-        body: SizedBox(
-          width: 400,
-          height: 800,
-          child: ChatScrollView(
-            controller: controller,
-            builder: _BenchMessageRender.new,
-          ),
-        ),
+  home: Scaffold(
+    body: SizedBox(
+      width: 400,
+      height: 800,
+      child: ChatScrollView(
+        controller: controller,
+        builder: _BenchMessageRender.new,
       ),
-    );
+    ),
+  ),
+);
 
 RenderChatScrollView _findRender(WidgetTester tester) =>
     tester.renderObject<RenderChatScrollView>(find.byType(ChatScrollView));
@@ -173,8 +177,10 @@ void main() {
           samples.add(render.debugLastPaintDuration.inMicroseconds);
         }
 
-        final metrics =
-            BenchmarkMetrics('CSV paint scroll-only ($count msgs)', samples);
+        final metrics = BenchmarkMetrics(
+          'CSV paint scroll-only ($count msgs)',
+          samples,
+        );
         // ignore: avoid_print
         print(metrics);
 
@@ -195,7 +201,10 @@ void main() {
         // Measure total frame time during fling
         final samples = <int>[];
         await tester.fling(
-            find.byType(ChatScrollView), const Offset(0, -500), 2000.0);
+          find.byType(ChatScrollView),
+          const Offset(0, -500),
+          2000.0,
+        );
 
         for (var i = 0; i < 300; i++) {
           final sw = Stopwatch()..start();
@@ -203,8 +212,10 @@ void main() {
           samples.add(sw.elapsed.inMicroseconds);
         }
 
-        final metrics =
-            BenchmarkMetrics('CSV fling frame ($count msgs)', samples);
+        final metrics = BenchmarkMetrics(
+          'CSV fling frame ($count msgs)',
+          samples,
+        );
         // ignore: avoid_print
         print(metrics);
 
@@ -263,23 +274,26 @@ void main() {
       }
 
       // ignore: avoid_print
-      print('CSV scroll-through peak: attached=$peakAttached '
-          'total=$peakTotal chunks=${render.debugChunkCount}');
+      print(
+        'CSV scroll-through peak: attached=$peakAttached '
+        'total=$peakTotal chunks=${render.debugChunkCount}',
+      );
 
       // Return to start and check
       controller.jumpTo(kMedium - 1);
       await tester.pumpAndSettle();
 
       // ignore: avoid_print
-      print('CSV after return: attached=${render.debugAttachedRenderCount} '
-          'total=${render.debugTotalRenderCount} '
-          'chunks=${render.debugChunkCount}');
+      print(
+        'CSV after return: attached=${render.debugAttachedRenderCount} '
+        'total=${render.debugTotalRenderCount} '
+        'chunks=${render.debugChunkCount}',
+      );
 
       controller.dispose();
     });
 
-    testWidgets('leak detection — 50 scroll cycles (256 msgs)',
-        (tester) async {
+    testWidgets('leak detection — 50 scroll cycles (256 msgs)', (tester) async {
       final messages = generateMessages(kMedium);
       final controller = BenchmarkChatController(messages);
 
@@ -302,19 +316,22 @@ void main() {
         attachedCounts.add(render.debugAttachedRenderCount);
       }
 
-      final maxAttached =
-          attachedCounts.reduce((a, b) => a > b ? a : b);
-      final minAttached =
-          attachedCounts.reduce((a, b) => a < b ? a : b);
+      final maxAttached = attachedCounts.reduce((a, b) => a > b ? a : b);
+      final minAttached = attachedCounts.reduce((a, b) => a < b ? a : b);
 
       // ignore: avoid_print
-      print('CSV leak test: initial=$initialAttached '
-          'min=$minAttached max=$maxAttached '
-          'range=${maxAttached - minAttached}');
+      print(
+        'CSV leak test: initial=$initialAttached '
+        'min=$minAttached max=$maxAttached '
+        'range=${maxAttached - minAttached}',
+      );
 
       // Range should be small (no growing trend)
-      expect(maxAttached - minAttached, lessThan(10),
-          reason: 'Attached render count should be stable across cycles');
+      expect(
+        maxAttached - minAttached,
+        lessThan(10),
+        reason: 'Attached render count should be stable across cycles',
+      );
 
       controller.dispose();
     });
@@ -335,7 +352,8 @@ void main() {
         tester.view.physicalSize = Size(width, 800.0);
         tester.view.devicePixelRatio = 1.0;
         await tester.pump();
-        final total = render.debugLastLayoutDuration.inMicroseconds +
+        final total =
+            render.debugLastLayoutDuration.inMicroseconds +
             render.debugLastPaintDuration.inMicroseconds;
         samples.add(total);
       }
