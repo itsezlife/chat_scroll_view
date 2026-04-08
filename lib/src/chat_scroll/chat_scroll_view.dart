@@ -8,13 +8,13 @@ import 'package:flutter/rendering.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/widgets.dart';
 
-/// {@template chat_scroll_view_v2}
+/// {@template chat_scroll_view}
 /// A custom chat viewport that renders all messages on a single canvas
 /// using [ui.Picture] caching per message. No child widgets — everything
 /// is drawn by [ChatMessageRender] objects managed by [RenderChatScrollView].
 /// {@endtemplate}
 class ChatScrollView extends LeafRenderObjectWidget {
-  /// {@macro chat_scroll_view_v2}
+  /// {@macro chat_scroll_view}
   const ChatScrollView({
     required this.dataSource,
     required this.controller,
