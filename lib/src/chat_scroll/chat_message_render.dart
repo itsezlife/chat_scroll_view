@@ -50,6 +50,9 @@ abstract class ChatMessageRender {
   /// Whether this message needs its [PictureLayer] re-recorded every frame.
   ///
   /// Override and return `true` for animations (hover, buttons, etc.).
+  /// Alternatively, create a [Ticker] in [attachLayer] and call
+  /// [rerecordPicture] directly — this avoids viewport polling and lets
+  /// the render drive its own animation lifecycle.
   bool get needsRepaint => false;
 
   /// Hit-test at [position] (local to this message's origin).
@@ -74,7 +77,17 @@ abstract class ChatMessageRender {
   /// the initial picture via [paintMessage].
   ///
   /// Override to react to entering the visible zone (start animations,
-  /// load resources). Always call `super.attachLayer(width)` first.
+  /// load resources, create a [Ticker]). Always call `super.attachLayer(width)`
+  /// first — layers are ready after super returns.
+  ///
+  /// Example (render-owned animation):
+  /// ```dart
+  /// @override
+  /// void attachLayer(double width) {
+  ///   super.attachLayer(width);
+  ///   _ticker = Ticker(_onTick)..start();
+  /// }
+  /// ```
   @mustCallSuper
   void attachLayer(double width) {
     assert(!_attached);
@@ -89,7 +102,18 @@ abstract class ChatMessageRender {
   /// cached [ui.Picture].
   ///
   /// Override to react to leaving the visible zone (stop animations,
-  /// release resources). Call `super.detachLayer()` last.
+  /// dispose [Ticker]s, release resources). Call `super.detachLayer()` last —
+  /// layers are still alive until super runs.
+  ///
+  /// Example:
+  /// ```dart
+  /// @override
+  /// void detachLayer() {
+  ///   _ticker?.dispose();
+  ///   _ticker = null;
+  ///   super.detachLayer();
+  /// }
+  /// ```
   @mustCallSuper
   void detachLayer() {
     assert(_attached);
@@ -99,7 +123,14 @@ abstract class ChatMessageRender {
   }
 
   /// Re-record [paintMessage] into a fresh [PictureLayer].
-  @nonVirtual
+  ///
+  /// Called by the viewport when [pictureInvalid] or [needsRepaint] is `true`.
+  /// Can also be called directly from a render-owned [Ticker] to drive
+  /// per-message animations without involving the viewport's paint pass.
+  ///
+  /// Sets [PictureLayer.picture], which triggers [markNeedsAddToScene] —
+  /// the compositor re-composites only this layer subtree. No
+  /// [markNeedsPaint] on the parent [RenderBox] required.
   void rerecordPicture() {
     assert(_attached);
     _disposePictureLayer();

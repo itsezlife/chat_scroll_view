@@ -300,10 +300,7 @@ class RenderChatScrollView extends RenderBox {
 
   void _startFling(double velocity) {
     _cancelFling();
-    _simulation = ClampingScrollSimulation(
-      position: 0.0,
-      velocity: velocity,
-    );
+    _simulation = ClampingScrollSimulation(position: 0.0, velocity: velocity);
     _lastFlingValue = 0.0;
     _flingStartTime = Duration.zero;
     _ensureTickerStarted();
@@ -476,7 +473,12 @@ class RenderChatScrollView extends RenderBox {
 
   @override
   void performLayout() {
-    assert(() { _debugSw..reset()..start(); return true; }());
+    assert(() {
+      _debugSw
+        ..reset()
+        ..start();
+      return true;
+    }());
 
     final viewportWidth = size.width;
     final viewportHeight = size.height;
@@ -517,7 +519,12 @@ class RenderChatScrollView extends RenderBox {
       _layoutMaxChunk,
     );
 
-    assert(() { debugLastLayoutDuration = _debugSw.elapsed; _debugSw.stop(); debugLayoutFrameId++; return true; }());
+    assert(() {
+      debugLastLayoutDuration = _debugSw.elapsed;
+      _debugSw.stop();
+      debugLayoutFrameId++;
+      return true;
+    }());
   }
 
   /// Layout chunks from anchor, expand up/down to fill viewport + cacheExtent,
@@ -525,8 +532,9 @@ class RenderChatScrollView extends RenderBox {
   void _expandAndPosition(double viewportWidth, double viewportHeight) {
     final upperBound = -_cacheExtent;
     final lowerBound = viewportHeight + _cacheExtent;
-    final anchorChunkIndex =
-        ChatScrollChunk.chunkOf(_controller.anchorMessageId);
+    final anchorChunkIndex = ChatScrollChunk.chunkOf(
+      _controller.anchorMessageId,
+    );
 
     final anchorChunk = _dataSource.chunks[anchorChunkIndex];
     if (anchorChunk == null) return;
@@ -595,7 +603,12 @@ class RenderChatScrollView extends RenderBox {
 
   @override
   void paint(PaintingContext context, Offset offset) {
-    assert(() { _debugSw..reset()..start(); return true; }());
+    assert(() {
+      _debugSw
+        ..reset()
+        ..start();
+      return true;
+    }());
 
     final clipLayer = _clipLayerHandle.layer ??= ClipRectLayer();
     clipLayer.clipRect = offset & size;
@@ -607,7 +620,12 @@ class RenderChatScrollView extends RenderBox {
     context.addLayer(clipLayer);
     _initialPaintDone = true;
 
-    assert(() { debugLastPaintDuration = _debugSw.elapsed; _debugSw.stop(); debugPaintFrameId++; return true; }());
+    assert(() {
+      debugLastPaintDuration = _debugSw.elapsed;
+      _debugSw.stop();
+      debugPaintFrameId++;
+      return true;
+    }());
   }
 
   /// Full layer rebuild during paint (after layout, initial paint, resize).
