@@ -183,7 +183,7 @@ create (factory)
 ```dart
 abstract class ChatMessageRender {
   // --- Subclass overrides ---
-  void update(covariant Object? message, ChatMessageStatus status);
+  void update(covariant IChatMessage? message, ChatMessageStatus status);
   double performLayout(double availableWidth);
   void paintMessage(Canvas canvas, Size size);
 
@@ -240,7 +240,7 @@ Detach-зона шире attach-зоны — предотвращает thrashin
 
 ### Update и dirty-флаг
 
-`update(Object? message, ChatMessageStatus status)` — абстрактный. Базовый класс не хранит message/status, это решение subclass'а. Subclass сам решает:
+`update(IChatMessage? message, ChatMessageStatus status)` — абстрактный. Базовый класс не хранит message/status, это решение subclass'а. Subclass сам решает:
 
 - Изменились ли данные → `dirty = true` (нужен relayout + repaint)
 - Изменился ли визуал без изменения размера → `invalidatePaint()` (только repaint)

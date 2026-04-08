@@ -1,10 +1,10 @@
 import 'dart:ui' as ui;
 
 import 'package:chatscrollview/src/chat_message.dart';
-import 'package:chatscrollview/src/chat_scroll/chat_scroll_common.dart';
 import 'package:chatscrollview/src/chat_scroll/chat_data_source.dart';
 import 'package:chatscrollview/src/chat_scroll/chat_message_render.dart';
 import 'package:chatscrollview/src/chat_scroll/chat_scroll_chunk.dart';
+import 'package:chatscrollview/src/chat_scroll/chat_scroll_common.dart';
 import 'package:chatscrollview/src/chat_scroll/chat_scroll_controller.dart';
 import 'package:chatscrollview/src/chat_scroll/chat_scroll_view.dart';
 import 'package:flutter/material.dart';
@@ -32,7 +32,7 @@ class _TestDataSource extends ChatDataSource {
 // ---------------------------------------------------------------------------
 
 class _TestMessageRender extends ChatMessageRender {
-  _TestMessageRender(Object? message) {
+  _TestMessageRender(IChatMessage? message) {
     if (message is IChatMessage) _updateText(message);
   }
 
@@ -48,7 +48,7 @@ class _TestMessageRender extends ChatMessageRender {
   }
 
   @override
-  void update(Object? message, ChatMessageStatus status) {
+  void update(IChatMessage? message, ChatMessageStatus status) {
     if (identical(_message, message)) return;
     if (message is! IChatMessage) {
       _message = null;
@@ -83,7 +83,10 @@ class _TestMessageRender extends ChatMessageRender {
   void paintMessage(Canvas canvas, Size size) {
     final paragraph = _paragraph;
     if (paragraph == null) return;
-    canvas.drawParagraph(paragraph, Offset(_padding + _bubblePadding, _padding));
+    canvas.drawParagraph(
+      paragraph,
+      Offset(_padding + _bubblePadding, _padding),
+    );
   }
 
   @override
@@ -105,7 +108,8 @@ List<IChatMessage> _generateMessages(int count) {
         id: i,
         createdAt: now.add(Duration(minutes: i)),
         updatedAt: now.add(Duration(minutes: i)),
-        content: 'Message #$i — The first rule of Fight Club is: '
+        content:
+            'Message #$i — The first rule of Fight Club is: '
             'you do not talk about Fight Club.',
       ),
   ];
@@ -137,65 +141,67 @@ Widget _buildTestWidget({
 void main() {
   group('ChatScrollView', () {
     group('scroll coverage', () {
-      testWidgets('all 256 messages remain accessible after scrolling up and back',
-          (tester) async {
-        const count = 256;
-        final messages = _generateMessages(count);
-        final dataSource = _TestDataSource(messages);
-        final controller = ChatScrollController()
-          ..oldestKnownId = 0
-          ..newestKnownId = count - 1
-          ..reachedOldest = true
-          ..reachedNewest = true;
-        controller.jumpTo(count - 1);
+      testWidgets(
+        'all 256 messages remain accessible after scrolling up and back',
+        (tester) async {
+          const count = 256;
+          final messages = _generateMessages(count);
+          final dataSource = _TestDataSource(messages);
+          final controller = ChatScrollController()
+            ..oldestKnownId = 0
+            ..newestKnownId = count - 1
+            ..reachedOldest = true
+            ..reachedNewest = true;
+          controller.jumpTo(count - 1);
 
-        await tester.pumpWidget(_buildTestWidget(
-          dataSource: dataSource,
-          controller: controller,
-        ));
-        await tester.pump();
-
-        final renderObject = tester.renderObject<RenderChatScrollView>(
-          find.byType(ChatScrollView),
-        );
-
-        // Verify all 4 chunks exist (256 / 64 = 4).
-        expect(renderObject.debugChunkCount, 4);
-
-        // Scroll UP (see older messages) — positive delta moves anchor down,
-        // revealing content above.
-        for (var i = 0; i < 80; i++) {
-          controller.applyScrollDelta(200.0);
-          renderObject.markNeedsLayout();
+          await tester.pumpWidget(
+            _buildTestWidget(dataSource: dataSource, controller: controller),
+          );
           await tester.pump();
-        }
 
-        // Verify we moved toward older chunks.
-        expect(renderObject.debugLayoutMinChunk, lessThanOrEqualTo(1));
+          final renderObject = tester.renderObject<RenderChatScrollView>(
+            find.byType(ChatScrollView),
+          );
 
-        // Now scroll back DOWN (see newer messages) — negative delta.
-        for (var i = 0; i < 80; i++) {
-          controller.applyScrollDelta(-200.0);
-          renderObject.markNeedsLayout();
-          await tester.pump();
-        }
+          // Verify all 4 chunks exist (256 / 64 = 4).
+          expect(renderObject.debugChunkCount, 4);
 
-        // Verify all chunks still exist (no eviction — only 4 chunks, max is 16).
-        expect(renderObject.debugChunkCount, 4);
+          // Scroll UP (see older messages) — positive delta moves anchor down,
+          // revealing content above.
+          for (var i = 0; i < 80; i++) {
+            controller.applyScrollDelta(200.0);
+            renderObject.markNeedsLayout();
+            await tester.pump();
+          }
 
-        // Verify the newest message render exists and has a height.
-        final newestChunk = dataSource.chunks[ChatScrollChunk.chunkOf(255)];
-        expect(newestChunk, isNotNull);
-        final newestRender = newestChunk!.renders[255 - newestChunk.firstId];
-        expect(newestRender, isNotNull);
-        expect(newestRender!.height, greaterThan(0));
+          // Verify we moved toward older chunks.
+          expect(renderObject.debugLayoutMinChunk, lessThanOrEqualTo(1));
 
-        // Verify chunk 3 (messages 192-255) is in the layout range.
-        expect(renderObject.debugLayoutMaxChunk, 3);
-      });
+          // Now scroll back DOWN (see newer messages) — negative delta.
+          for (var i = 0; i < 80; i++) {
+            controller.applyScrollDelta(-200.0);
+            renderObject.markNeedsLayout();
+            await tester.pump();
+          }
 
-      testWidgets('anchor chunk covers viewport — no extra chunks needed',
-          (tester) async {
+          // Verify all chunks still exist (no eviction — only 4 chunks, max is 16).
+          expect(renderObject.debugChunkCount, 4);
+
+          // Verify the newest message render exists and has a height.
+          final newestChunk = dataSource.chunks[ChatScrollChunk.chunkOf(255)];
+          expect(newestChunk, isNotNull);
+          final newestRender = newestChunk!.renders[255 - newestChunk.firstId];
+          expect(newestRender, isNotNull);
+          expect(newestRender!.height, greaterThan(0));
+
+          // Verify chunk 3 (messages 192-255) is in the layout range.
+          expect(renderObject.debugLayoutMaxChunk, 3);
+        },
+      );
+
+      testWidgets('anchor chunk covers viewport — no extra chunks needed', (
+        tester,
+      ) async {
         // With 64 messages per chunk, each ~60px, a single chunk is ~3840px.
         // Viewport is 600px. One chunk alone covers the viewport.
         const count = 256;
@@ -209,10 +215,9 @@ void main() {
 
         controller.jumpTo(0);
 
-        await tester.pumpWidget(_buildTestWidget(
-          dataSource: dataSource,
-          controller: controller,
-        ));
+        await tester.pumpWidget(
+          _buildTestWidget(dataSource: dataSource, controller: controller),
+        );
         await tester.pump();
 
         final renderObject = tester.renderObject<RenderChatScrollView>(
@@ -225,8 +230,9 @@ void main() {
         expect(renderObject.debugLayoutMaxChunk, 0);
       });
 
-      testWidgets('boundary clamping expands layout to cover viewport',
-          (tester) async {
+      testWidgets('boundary clamping expands layout to cover viewport', (
+        tester,
+      ) async {
         // With few short messages, boundary clamping might need extra chunks.
         final now = DateTime(2026, 1, 1);
         final messages = <IChatMessage>[
@@ -249,10 +255,9 @@ void main() {
         // and expand upward to fill the viewport.
         controller.jumpTo(255);
 
-        await tester.pumpWidget(_buildTestWidget(
-          dataSource: dataSource,
-          controller: controller,
-        ));
+        await tester.pumpWidget(
+          _buildTestWidget(dataSource: dataSource, controller: controller),
+        );
         await tester.pump();
 
         final renderObject = tester.renderObject<RenderChatScrollView>(
@@ -279,10 +284,9 @@ void main() {
           ..reachedNewest = true;
         controller.jumpTo(31);
 
-        await tester.pumpWidget(_buildTestWidget(
-          dataSource: dataSource,
-          controller: controller,
-        ));
+        await tester.pumpWidget(
+          _buildTestWidget(dataSource: dataSource, controller: controller),
+        );
         await tester.pump();
 
         final renderObject = tester.renderObject<RenderChatScrollView>(
@@ -292,12 +296,14 @@ void main() {
         final framesBefore = renderObject.debugLayoutFrameId;
 
         // Upsert triggers notifyDataChanged → markNeedsLayout.
-        dataSource.upsertMessage(ChatMessage$User(
-          id: 5,
-          createdAt: DateTime.now(),
-          updatedAt: DateTime.now(),
-          content: 'Updated message',
-        ));
+        dataSource.upsertMessage(
+          ChatMessage$User(
+            id: 5,
+            createdAt: DateTime.now(),
+            updatedAt: DateTime.now(),
+            content: 'Updated message',
+          ),
+        );
         await tester.pump();
 
         expect(renderObject.debugLayoutFrameId, greaterThan(framesBefore));
@@ -313,10 +319,9 @@ void main() {
           ..reachedNewest = true;
         controller.jumpTo(255);
 
-        await tester.pumpWidget(_buildTestWidget(
-          dataSource: dataSource,
-          controller: controller,
-        ));
+        await tester.pumpWidget(
+          _buildTestWidget(dataSource: dataSource, controller: controller),
+        );
         await tester.pump();
 
         final ro = tester.renderObject<RenderChatScrollView>(

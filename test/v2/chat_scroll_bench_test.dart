@@ -28,9 +28,9 @@
 import 'dart:ui' as ui;
 
 import 'package:chatscrollview/src/chat_message.dart';
-import 'package:chatscrollview/src/chat_scroll/chat_scroll_common.dart';
 import 'package:chatscrollview/src/chat_scroll/chat_data_source.dart';
 import 'package:chatscrollview/src/chat_scroll/chat_message_render.dart';
+import 'package:chatscrollview/src/chat_scroll/chat_scroll_common.dart';
 import 'package:chatscrollview/src/chat_scroll/chat_scroll_controller.dart';
 import 'package:chatscrollview/src/chat_scroll/chat_scroll_view.dart';
 import 'package:flutter/material.dart';
@@ -44,7 +44,7 @@ import '../benchmark/shared/test_messages.dart';
 // ---------------------------------------------------------------------------
 
 class _BenchMessageRender extends ChatMessageRender {
-  _BenchMessageRender(Object? message) {
+  _BenchMessageRender(IChatMessage? message) {
     if (message is IChatMessage) _updateText(message);
   }
 
@@ -61,7 +61,7 @@ class _BenchMessageRender extends ChatMessageRender {
   }
 
   @override
-  void update(Object? message, ChatMessageStatus status) {
+  void update(IChatMessage? message, ChatMessageStatus status) {
     if (identical(_message, message)) return;
     if (message is! IChatMessage) {
       _message = null;
@@ -142,20 +142,22 @@ class _BenchDataSource extends ChatDataSource {
 // Helpers
 // ---------------------------------------------------------------------------
 
-Widget _buildCSV(_BenchDataSource dataSource, ChatScrollController controller) =>
-    MaterialApp(
-      home: Scaffold(
-        body: SizedBox(
-          width: 400,
-          height: 800,
-          child: ChatScrollView(
-            dataSource: dataSource,
-            controller: controller,
-            builder: _BenchMessageRender.new,
-          ),
-        ),
+Widget _buildCSV(
+  _BenchDataSource dataSource,
+  ChatScrollController controller,
+) => MaterialApp(
+  home: Scaffold(
+    body: SizedBox(
+      width: 400,
+      height: 800,
+      child: ChatScrollView(
+        dataSource: dataSource,
+        controller: controller,
+        builder: _BenchMessageRender.new,
       ),
-    );
+    ),
+  ),
+);
 
 RenderChatScrollView _findRender(WidgetTester tester) =>
     tester.renderObject<RenderChatScrollView>(find.byType(ChatScrollView));

@@ -28,7 +28,7 @@ abstract class ChatMessageRender {
   /// [message] is `null` when the slot has no content yet (chunk just created,
   /// fetch in progress). Compare with previous values (e.g. via [identical])
   /// and set [dirty] or call [invalidatePaint] as appropriate.
-  void update(covariant Object? message, ChatMessageStatus status);
+  void update(covariant IChatMessage? message, ChatMessageStatus status);
 
   /// Lay out the message for the given [availableWidth].
   /// Returns the computed height.

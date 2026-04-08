@@ -2,9 +2,9 @@ import 'dart:async';
 import 'dart:ui' as ui;
 
 import 'package:chatscrollview/src/chat_message.dart';
-import 'package:chatscrollview/src/chat_scroll/chat_scroll_common.dart';
 import 'package:chatscrollview/src/chat_scroll/chat_data_source.dart';
 import 'package:chatscrollview/src/chat_scroll/chat_message_render.dart';
+import 'package:chatscrollview/src/chat_scroll/chat_scroll_common.dart';
 import 'package:chatscrollview/src/chat_scroll/chat_scroll_controller.dart';
 import 'package:chatscrollview/src/chat_scroll/chat_scroll_view.dart';
 import 'package:flutter/material.dart';
@@ -111,7 +111,7 @@ class _DemoDataSource extends ChatDataSource {
 // ---------------------------------------------------------------------------
 
 class _DemoMessageRender extends ChatMessageRender {
-  _DemoMessageRender(Object? message) {
+  _DemoMessageRender(IChatMessage? message) {
     if (message is IChatMessage) _updateText(message);
   }
 
@@ -128,7 +128,7 @@ class _DemoMessageRender extends ChatMessageRender {
   }
 
   @override
-  void update(Object? message, ChatMessageStatus status) {
+  void update(IChatMessage? message, ChatMessageStatus status) {
     if (identical(_message, message)) return;
     if (message is! IChatMessage) {
       _message = null;
