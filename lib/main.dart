@@ -27,6 +27,8 @@ class App extends StatelessWidget {
   Widget build(BuildContext context) => MaterialApp(
     title: 'Chat Scroll View',
     theme: ThemeData(colorScheme: ColorScheme.fromSeed(seedColor: Colors.blue)),
+    debugShowCheckedModeBanner: false,
+    showPerformanceOverlay: true,
     home: const ChatScreen(),
   );
 }
@@ -189,8 +191,7 @@ class _DemoMessageRender extends ChatMessageRender {
     final bubbleLeft = switch (alignment) {
       ChatMessageAlignment.left =>
         _padding + (selectionMode ? _indicatorSpace : 0),
-      ChatMessageAlignment.right =>
-        size.width - bubbleWidth - _padding,
+      ChatMessageAlignment.right => size.width - bubbleWidth - _padding,
     };
 
     final bubbleRect = RRect.fromRectAndRadius(
