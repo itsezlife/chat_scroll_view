@@ -1,4 +1,3 @@
-import 'dart:math' as math;
 import 'dart:ui' as ui;
 
 import 'package:chatscrollview/src/chat_scroll/chat_scroll_common.dart';
