@@ -4,6 +4,7 @@ import 'package:chatscrollview/src/chat_scroll/chat_data_source.dart';
 import 'package:chatscrollview/src/chat_scroll/chat_message_render.dart';
 import 'package:chatscrollview/src/chat_scroll/chat_scroll_chunk.dart';
 import 'package:chatscrollview/src/chat_scroll/chat_scroll_controller.dart';
+import 'package:chatscrollview/src/chat_scroll/chat_scroll_bar.dart';
 import 'package:chatscrollview/src/chat_scroll/chat_scroll_layout.dart';
 import 'package:chatscrollview/src/chat_scroll/chat_selection_controller.dart';
 import 'package:flutter/gestures.dart';
@@ -228,6 +229,11 @@ class RenderChatScrollView extends RenderBox {
   LongPressGestureRecognizer? _longPress;
   TapGestureRecognizer? _tap;
 
+  // --- Scrollbar ---
+
+  final ChatScrollBar _scrollBar = ChatScrollBar();
+  int? _scrollbarPointerId;
+
   // --- Layer management ---
 
   final LayerHandle<ClipRectLayer> _clipLayerHandle =
@@ -298,6 +304,7 @@ class RenderChatScrollView extends RenderBox {
     _longPress = null;
     _tap?.dispose();
     _tap = null;
+    _scrollBar.dispose();
     _clipLayerHandle.layer = null;
     for (final chunk in _dataSource.chunks.values) {
       chunk.disposeRenders();
@@ -327,7 +334,29 @@ class RenderChatScrollView extends RenderBox {
   void handleEvent(PointerEvent event, BoxHitTestEntry entry) {
     assert(debugHandleEvent(event, entry));
 
+    // Scrollbar drag in progress — consume move/up/cancel events.
+    if (_scrollbarPointerId != null) {
+      if (event is PointerMoveEvent && event.pointer == _scrollbarPointerId) {
+        _onScrollbarPointerMove(event);
+        return;
+      }
+      if (event is PointerUpEvent && event.pointer == _scrollbarPointerId) {
+        _onScrollbarPointerUp();
+        return;
+      }
+      if (event is PointerCancelEvent &&
+          event.pointer == _scrollbarPointerId) {
+        _onScrollbarPointerUp();
+        return;
+      }
+    }
+
     if (event is PointerDownEvent) {
+      if (_scrollBar.isInHitArea(event.localPosition.dx, size.width) &&
+          _controller.newestKnownId != null) {
+        _onScrollbarPointerDown(event);
+        return;
+      }
       _drag?.addPointer(event);
       _longPress?.addPointer(event);
       _tap?.addPointer(event);
@@ -448,6 +477,115 @@ class RenderChatScrollView extends RenderBox {
     }
   }
 
+  // --- Scrollbar gesture handling ---
+
+  void _onScrollbarPointerDown(PointerDownEvent event) {
+    _cancelFling();
+    _scrollbarPointerId = event.pointer;
+    _scrollBar.isDragging = true;
+    _jumpToScrollbarPosition(event.localPosition.dy);
+  }
+
+  void _onScrollbarPointerMove(PointerMoveEvent event) {
+    _jumpToScrollbarPosition(event.localPosition.dy);
+  }
+
+  void _onScrollbarPointerUp() {
+    _scrollbarPointerId = null;
+    _scrollBar.isDragging = false;
+    _updateScrollbar();
+  }
+
+  void _jumpToScrollbarPosition(double localY) {
+    final newestId = _controller.newestKnownId;
+    if (newestId == null || newestId == 0) return;
+    final progress = _scrollBar.progressFromY(localY, size.height);
+    final targetId = ChatScrollBar.targetIdFromProgress(progress, newestId);
+    if (targetId != _controller.anchorMessageId) {
+      _controller.jumpTo(targetId);
+    }
+  }
+
+  // --- Scrollbar update ---
+
+  /// Compute scrollbar progress from visible messages.
+  ///
+  /// Returns `null` when the scrollbar should be hidden (all content fits
+  /// in the viewport or data is insufficient).
+  /// Returns 0.0 at the top boundary, 1.0 at the bottom boundary, and
+  /// smooth intermediate values based on the first visible message with
+  /// sub-message pixel interpolation.
+  double? _computeScrollbarProgress() {
+    final newest = _controller.newestKnownId;
+    final oldest = _controller.oldestKnownId;
+    if (newest == null || oldest == null) return null;
+    final range = newest - oldest;
+    if (range <= 0) return null;
+
+    final viewportHeight = size.height;
+    final firstChunk = _dataSource.chunks[_layoutMinChunk];
+    final lastChunk = _dataSource.chunks[_layoutMaxChunk];
+    if (firstChunk == null || lastChunk == null) return null;
+
+    final contentTop = firstChunk.offsetY;
+    final contentBottom = lastChunk.offsetY + lastChunk.height;
+
+    // All content fits in viewport → hide scrollbar.
+    if (_controller.reachedOldest &&
+        _controller.reachedNewest &&
+        contentTop >= -0.5 &&
+        contentBottom <= viewportHeight + 0.5) {
+      return null;
+    }
+
+    // At top boundary → 0%.
+    if (_controller.reachedOldest && contentTop >= -0.5) return 0.0;
+
+    // At bottom boundary → 100%.
+    if (_controller.reachedNewest &&
+        contentBottom <= viewportHeight + 0.5) {
+      return 1.0;
+    }
+
+    // In between: find first visible message and interpolate within it.
+    for (var ci = _layoutMinChunk; ci <= _layoutMaxChunk; ci++) {
+      final chunk = _dataSource.chunks[ci];
+      if (chunk == null) continue;
+      for (var i = 0; i < ChatScrollChunk.kSize; i++) {
+        final render = chunk.renders[i];
+        if (render == null || render.isEmpty) continue;
+        if (render.offsetY + render.height > 0) {
+          final id = chunk.firstId + i;
+          var fraction = 0.0;
+          if (render.offsetY < 0 && render.height > 0) {
+            fraction = -render.offsetY / render.height;
+          }
+          return ((id + fraction - oldest) / range).clamp(0.0, 1.0);
+        }
+      }
+    }
+
+    return null;
+  }
+
+  void _updateScrollbar() {
+    if (!_initialPaintDone) return;
+    final progress = _computeScrollbarProgress();
+    if (progress == null) {
+      // Hide scrollbar: remove from layer tree and reset state.
+      final scrollbarLayer = _scrollBar.layer;
+      if (scrollbarLayer != null) scrollbarLayer.remove();
+      return;
+    }
+    _scrollBar.update(progress, size);
+
+    final scrollbarLayer = _scrollBar.layer;
+    if (scrollbarLayer != null) {
+      scrollbarLayer.remove();
+      _clipLayerHandle.layer?.append(scrollbarLayer);
+    }
+  }
+
   // --- Fling ---
 
   void _startFling(double velocity) {
@@ -524,6 +662,9 @@ class RenderChatScrollView extends RenderBox {
 
     // Update layers (attach/detach, offsets, re-record).
     _updateLayers();
+
+    // Update scrollbar thumb position.
+    _updateScrollbar();
 
     // Trigger full layout if laid-out chunks don't cover the viewport
     // and more chunks are available beyond the current range.
@@ -841,6 +982,16 @@ class RenderChatScrollView extends RenderBox {
         final render = chunk.renders[i];
         if (render == null || !render.isAttached) continue;
         clipLayer.append(render.layer!);
+      }
+    }
+
+    // Append scrollbar layer on top of message layers.
+    final progress = _computeScrollbarProgress();
+    if (progress != null) {
+      _scrollBar.update(progress, size);
+      final scrollbarLayer = _scrollBar.layer;
+      if (scrollbarLayer != null) {
+        clipLayer.append(scrollbarLayer);
       }
     }
   }
