@@ -379,6 +379,7 @@ class RenderChatScrollView extends RenderBox {
 
   void _onDragUpdate(DragUpdateDetails details) {
     _pendingScrollDelta += details.delta.dy;
+    _ensureTickerStarted();
   }
 
   void _onDragEnd(DragEndDetails details) {
