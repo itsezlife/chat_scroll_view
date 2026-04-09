@@ -10,6 +10,7 @@ import 'package:chatscrollview/src/chat_scroll/chat_selection_controller.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/scheduler.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 
 /// {@template chat_scroll_view}
@@ -70,7 +71,8 @@ class ChatScrollView extends LeafRenderObjectWidget {
 ///
 /// Layout and paint are only triggered by data changes, jumps, boundary
 /// changes, and viewport resize.
-class RenderChatScrollView extends RenderBox {
+class RenderChatScrollView extends RenderBox
+    implements MouseTrackerAnnotation {
   RenderChatScrollView({
     required ChatDataSource dataSource,
     required ChatScrollController controller,
@@ -234,6 +236,27 @@ class RenderChatScrollView extends RenderBox {
   final ChatScrollBar _scrollBar = ChatScrollBar();
   int? _scrollbarPointerId;
 
+  // --- MouseTrackerAnnotation (hover/exit detection) ---
+
+  @override
+  MouseCursor get cursor => MouseCursor.defer;
+
+  @override
+  PointerEnterEventListener? get onEnter => null;
+
+  @override
+  PointerExitEventListener? get onExit => _onPointerExit;
+
+  @override
+  bool get validForMouseTracker => true;
+
+  void _onPointerExit(PointerExitEvent event) {
+    if (_scrollBar.isHovered) {
+      _scrollBar.isHovered = false;
+      markNeedsPaint();
+    }
+  }
+
   // --- Layer management ---
 
   final LayerHandle<ClipRectLayer> _clipLayerHandle =
@@ -357,6 +380,11 @@ class RenderChatScrollView extends RenderBox {
         _onScrollbarPointerDown(event);
         return;
       }
+      // Tap outside scrollbar clears hover highlight.
+      if (_scrollBar.isHovered) {
+        _scrollBar.isHovered = false;
+        markNeedsPaint();
+      }
       _drag?.addPointer(event);
       _longPress?.addPointer(event);
       _tap?.addPointer(event);
@@ -369,6 +397,13 @@ class RenderChatScrollView extends RenderBox {
       _cancelFling();
       _pendingScrollDelta -= event.scrollDelta.dy;
       _ensureTickerStarted();
+    } else if (event is PointerHoverEvent) {
+      final inHitArea = _scrollBar.isInHitArea(event.localPosition.dx, size.width)
+          && _controller.newestKnownId != null;
+      if (inHitArea != _scrollBar.isHovered) {
+        _scrollBar.isHovered = inHitArea;
+        markNeedsPaint();
+      }
     }
   }
 

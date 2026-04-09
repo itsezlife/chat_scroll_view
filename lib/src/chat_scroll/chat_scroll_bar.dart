@@ -33,11 +33,17 @@ class ChatScrollBar {
   // --- State ---
 
   double _lastProgress = -1.0;
-  bool _lastDragging = false;
+  bool _lastActive = false;
   Size _lastViewportSize = Size.zero;
 
   /// Whether the scrollbar is being dragged. Set by the render object.
   bool isDragging = false;
+
+  /// Whether the mouse cursor is hovering over the scrollbar hit area.
+  bool isHovered = false;
+
+  /// Whether the scrollbar should display in its active (wider) state.
+  bool get isActive => isDragging || isHovered;
 
   // --- Layer ---
 
@@ -51,16 +57,16 @@ class ChatScrollBar {
   /// Re-records only when progress, drag state, or viewport size changed.
   /// Creates the [PictureLayer] lazily on first call.
   void update(double progress, Size viewportSize) {
-    final dragging = isDragging;
+    final active = isActive;
     if (progress == _lastProgress &&
-        dragging == _lastDragging &&
+        active == _lastActive &&
         viewportSize == _lastViewportSize) {
       return;
     }
     _lastProgress = progress;
-    _lastDragging = dragging;
+    _lastActive = active;
     _lastViewportSize = viewportSize;
-    _rerecord(progress, viewportSize, dragging);
+    _rerecord(progress, viewportSize, active);
   }
 
   /// Remove and dispose the picture layer.
@@ -88,14 +94,14 @@ class ChatScrollBar {
 
   // --- Private ---
 
-  void _rerecord(double progress, Size viewportSize, bool dragging) {
+  void _rerecord(double progress, Size viewportSize, bool active) {
     // Remove old layer from the parent tree before disposal via LayerHandle.
     _layerHandle.layer?.remove();
     final rect = Offset.zero & viewportSize;
     final recorder = ui.PictureRecorder();
     final canvas = Canvas(recorder, rect);
 
-    _paintScrollbar(canvas, viewportSize, progress, dragging);
+    _paintScrollbar(canvas, viewportSize, progress, active);
 
     _layerHandle.layer = PictureLayer(rect)..picture = recorder.endRecording();
   }
@@ -104,9 +110,9 @@ class ChatScrollBar {
     Canvas canvas,
     Size viewportSize,
     double progress,
-    bool dragging,
+    bool active,
   ) {
-    final currentTrackWidth = dragging ? activeTrackWidth : trackWidth;
+    final currentTrackWidth = active ? activeTrackWidth : trackWidth;
     final trackX =
         viewportSize.width - rightPadding - currentTrackWidth;
     final trackY = trackPadding;
@@ -135,7 +141,7 @@ class ChatScrollBar {
     );
     canvas.drawRRect(
       thumbRRect,
-      Paint()..color = Color(dragging ? 0x99000000 : 0x66000000),
+      Paint()..color = Color(active ? 0x99000000 : 0x66000000),
     );
   }
 }
