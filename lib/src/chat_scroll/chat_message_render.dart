@@ -67,6 +67,13 @@ abstract class ChatMessageRender {
   /// render-local interactions.
   void handlePointerEvent(PointerEvent event, Offset localPosition) {}
 
+  // --- Selection state (set by viewport) ---
+
+  /// Whether this message is currently selected.
+  /// Set by the viewport; the concrete render uses it in [paintMessage].
+  @nonVirtual
+  bool selected = false;
+
   /// Invalidate the cached picture, causing [paintMessage] to be called
   /// again on the next paint frame. Does not trigger layout.
   void invalidatePaint() {

@@ -8,7 +8,6 @@ import 'package:chatscrollview/src/chat_scroll/chat_scroll_common.dart';
 import 'package:chatscrollview/src/chat_scroll/chat_scroll_controller.dart';
 import 'package:chatscrollview/src/chat_scroll/chat_scroll_view.dart';
 import 'package:chatscrollview/src/chat_scroll/chat_selection_controller.dart';
-import 'package:chatscrollview/src/chat_scroll/selectable_chat_message_render.dart';
 import 'package:flutter/material.dart';
 import 'package:l/l.dart';
 
@@ -115,8 +114,7 @@ class _DemoDataSource extends ChatDataSource {
 // Demo message render — simple bubble with text
 // ---------------------------------------------------------------------------
 
-class _DemoMessageRender extends ChatMessageRender
-    with SelectableChatMessageRender {
+class _DemoMessageRender extends ChatMessageRender {
   _DemoMessageRender(IChatMessage? message) {
     if (message is IChatMessage) _updateText(message);
   }
@@ -127,13 +125,6 @@ class _DemoMessageRender extends ChatMessageRender
 
   IChatMessage? _message;
   ui.Paragraph? _paragraph;
-
-  @override
-  ui.Paragraph? get selectableParagraph => _paragraph;
-
-  @override
-  Offset get paragraphOrigin =>
-      const Offset(_padding + _bubblePadding, _padding / 2 + _bubblePadding);
 
   void _updateText(IChatMessage message) {
     _message = message;
@@ -202,7 +193,9 @@ class _DemoMessageRender extends ChatMessageRender
     final bgColor = isEven ? const Color(0xFFE3F2FD) : const Color(0xFFF5F5F5);
 
     canvas.drawRRect(bubbleRect, Paint()..color = bgColor);
-    paintSelectionHighlight(canvas, size);
+    if (selected) {
+      canvas.drawRRect(bubbleRect, Paint()..color = const Color(0x300D47A1));
+    }
     canvas.save();
     canvas.translate(_padding + _bubblePadding, _padding / 2 + _bubblePadding);
     canvas.drawParagraph(paragraph, Offset.zero);

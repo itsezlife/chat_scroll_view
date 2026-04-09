@@ -1,79 +1,58 @@
 import 'dart:collection';
 
-import 'package:flutter/services.dart' show TextSelection;
+import 'package:flutter/foundation.dart' show VoidCallback;
 
-/// Callback that receives the current selection state.
-typedef ChatSelectionListener = void Function(
-  Map<int, TextSelection?> selection,
-);
-
-/// Selection state for [ChatScrollView].
+/// Whole-message selection controller for [ChatScrollView].
 ///
-/// Holds a `Map<int, TextSelection?>` where:
-/// - key = messageId
-/// - value = [TextSelection] for text-range selection, or `null` for
-///   whole-bubble selection
+/// Long press enters selection mode and selects the message.
+/// Taps toggle messages. Selection mode exits when the set empties.
 ///
 /// Lives outside the render tree — survives render eviction and can be
 /// queried by external UI (toolbar, copy button).
 class ChatSelectionController {
-  final _selection = HashMap<int, TextSelection?>();
-  late final _view = UnmodifiableMapView<int, TextSelection?>(_selection);
-  final _listeners = <ChatSelectionListener>[];
+  final _selectedIds = HashSet<int>();
 
-  /// Current selection (unmodifiable view, zero-copy).
-  Map<int, TextSelection?> get selection => _view;
+  /// Whether selection mode is active.
+  bool get isSelectionMode => _selectedIds.isNotEmpty;
 
-  /// Whether any messages are selected.
-  bool get hasSelection => _selection.isNotEmpty;
+  /// The set of selected message IDs (unmodifiable view).
+  Set<int> get selectedIds => UnmodifiableSetView<int>(_selectedIds);
 
   /// Whether [messageId] is in the selection.
-  bool isSelected(int messageId) => _selection.containsKey(messageId);
+  bool isSelected(int messageId) => _selectedIds.contains(messageId);
 
-  // --- Mutation ---
-
-  /// Select text range within a single message. Clears previous selection.
-  void selectText(int messageId, TextSelection textSelection) {
-    _selection
-      ..clear()
-      ..[messageId] = textSelection;
+  /// Enter selection mode and select [messageId].
+  void startSelection(int messageId) {
+    _selectedIds.add(messageId);
     _notify();
   }
 
-  /// Select messages as whole bubbles. Clears previous selection.
-  void selectBubbles(Iterable<int> messageIds) {
-    _selection.clear();
-    for (final id in messageIds) {
-      _selection[id] = null;
+  /// Toggle [messageId] in/out of selection.
+  /// Exits selection mode when the set becomes empty.
+  void toggle(int messageId) {
+    if (!_selectedIds.remove(messageId)) {
+      _selectedIds.add(messageId);
     }
     _notify();
   }
 
-  /// Toggle a single message in/out of bubble selection.
-  void toggleBubble(int messageId) {
-    if (_selection.containsKey(messageId)) {
-      _selection.remove(messageId);
-    } else {
-      _selection[messageId] = null;
-    }
-    _notify();
-  }
-
-  /// Clear all selection.
+  /// Clear all selection. Exits selection mode.
   void clear() {
-    if (_selection.isEmpty) return;
-    _selection.clear();
+    if (_selectedIds.isEmpty) return;
+    _selectedIds.clear();
     _notify();
   }
 
-  // --- Typed listener ---
+  // --- Listeners ---
 
-  void addListener(ChatSelectionListener cb) => _listeners.add(cb);
-  void removeListener(ChatSelectionListener cb) => _listeners.remove(cb);
+  final _listeners = <VoidCallback>[];
+
+  void addListener(VoidCallback cb) => _listeners.add(cb);
+  void removeListener(VoidCallback cb) => _listeners.remove(cb);
 
   void _notify() {
     for (final cb in _listeners) {
-      cb(_view);
+      cb();
     }
   }
 }

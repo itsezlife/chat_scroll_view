@@ -4,7 +4,6 @@ import 'package:chatscrollview/src/chat_scroll/chat_scroll_chunk.dart';
 import 'package:chatscrollview/src/chat_scroll/chat_scroll_controller.dart';
 import 'package:chatscrollview/src/chat_scroll/chat_scroll_layout.dart';
 import 'package:chatscrollview/src/chat_scroll/chat_selection_controller.dart';
-import 'package:chatscrollview/src/chat_scroll/selectable_chat_message_render.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/scheduler.dart';
@@ -59,8 +58,6 @@ class ChatScrollView extends LeafRenderObjectWidget {
   }
 }
 
-/// Selection gesture phase (lives on viewport, not controller).
-enum _SelectionPhase { none, dragging, bubbleActive }
 
 /// The render object for [ChatScrollView].
 ///
@@ -217,10 +214,6 @@ class RenderChatScrollView extends RenderBox {
 
   LongPressGestureRecognizer? _longPress;
   TapGestureRecognizer? _tap;
-  _SelectionPhase _selectionPhase = _SelectionPhase.none;
-  int? _selectionOriginId;
-  Map<int, TextSelection?> _prevSelection = const {};
-  late final _hitTester = _createHitTester();
 
   // --- Layer management ---
 
@@ -321,25 +314,19 @@ class RenderChatScrollView extends RenderBox {
   void handleEvent(PointerEvent event, BoxHitTestEntry entry) {
     assert(debugHandleEvent(event, entry));
 
-    // Route non-down events to render for hover/move handling.
-    if (event is! PointerDownEvent && _selectionController != null) {
-      final hit = _hitTester(event.localPosition);
-      if (hit != null) {
-        final (render, _) = hit;
-        render.handlePointerEvent(
-          event,
-          Offset(event.localPosition.dx, event.localPosition.dy - render.offsetY),
-        );
-      }
-    }
-
     if (event is PointerDownEvent) {
       _drag?.addPointer(event);
       _longPress?.addPointer(event);
-      // Only compete with tap when there's selection to clear/toggle.
-      if (_selectionController?.hasSelection ?? false) {
-        _tap?.addPointer(event);
-      }
+      _tap?.addPointer(event);
+    } else if (event is PointerPanZoomStartEvent) {
+      // Trackpad two-finger scroll — route to drag recognizer.
+      _cancelFling();
+      _drag?.addPointerPanZoom(event);
+    } else if (event is PointerScrollEvent) {
+      // Mouse wheel / trackpad momentum after finger lift.
+      _cancelFling();
+      _pendingScrollDelta -= event.scrollDelta.dy;
+      _ensureTickerStarted();
     }
   }
 
@@ -368,9 +355,7 @@ class RenderChatScrollView extends RenderBox {
     _tap?.dispose();
     if (_selectionController != null) {
       _longPress = LongPressGestureRecognizer()
-        ..onLongPressStart = _onSelectionStart
-        ..onLongPressMoveUpdate = _onSelectionUpdate
-        ..onLongPressEnd = _onSelectionEnd;
+        ..onLongPressStart = _onLongPressStart;
       _tap = TapGestureRecognizer()..onTapUp = _onTapUp;
     } else {
       _longPress = null;
@@ -378,220 +363,71 @@ class RenderChatScrollView extends RenderBox {
     }
   }
 
-  void _onSelectionStart(LongPressStartDetails details) {
-    _cancelFling();
-    final sel = _selectionController;
-    if (sel == null) return;
-
-    final hit = _hitTester(details.localPosition);
-    if (hit == null) {
-      sel.clear();
-      _selectionPhase = _SelectionPhase.none;
-      return;
-    }
-
-    final (render, messageId) = hit;
-    _selectionOriginId = messageId;
-    _selectionPhase = _SelectionPhase.dragging;
-
-    if (render is SelectableChatMessageRender &&
-        render.selectableParagraph != null) {
-      final localPos = Offset(
-        details.localPosition.dx,
-        details.localPosition.dy - render.offsetY,
-      );
-      final pos = render.getTextPosition(localPos);
-      final word = render.getWordBoundary(pos);
-      sel.selectText(
-        messageId,
-        TextSelection(baseOffset: word.start, extentOffset: word.end),
-      );
-    } else {
-      sel.selectBubbles([messageId]);
-    }
-  }
-
-  void _onSelectionUpdate(LongPressMoveUpdateDetails details) {
-    if (_selectionPhase != _SelectionPhase.dragging) return;
-    final sel = _selectionController;
-    if (sel == null || _selectionOriginId == null) return;
-
-    final hit = _hitTester(details.localPosition);
-    if (hit == null) return;
-
-    final (render, messageId) = hit;
-    final originId = _selectionOriginId!;
-
-    // Still within the same message with text selection?
-    final inTextMode = sel.selection.length == 1 &&
-        sel.selection[originId] != null &&
-        messageId == originId;
-
-    if (inTextMode &&
-        render is SelectableChatMessageRender &&
-        render.selectableParagraph != null) {
-      final localPos = Offset(
-        details.localPosition.dx,
-        details.localPosition.dy - render.offsetY,
-      );
-      final pos = render.getTextPosition(localPos);
-      final base = sel.selection[originId]!;
-      sel.selectText(
-        messageId,
-        TextSelection(baseOffset: base.baseOffset, extentOffset: pos.offset),
-      );
-    } else {
-      // Crossed message boundary → bubble mode for entire range.
-      final lo = messageId < originId ? messageId : originId;
-      final hi = messageId < originId ? originId : messageId;
-      sel.selectBubbles([for (var id = lo; id <= hi; id++) id]);
-    }
-  }
-
-  void _onSelectionEnd(LongPressEndDetails details) {
-    if (_selectionPhase != _SelectionPhase.dragging) return;
-    final sel = _selectionController;
-    if (sel == null) {
-      _selectionPhase = _SelectionPhase.none;
-      _selectionOriginId = null;
-      return;
-    }
-
-    // If in bubble mode → transition to bubbleActive for tap toggle.
-    if (sel.hasSelection && sel.selection.values.every((v) => v == null)) {
-      _selectionPhase = _SelectionPhase.bubbleActive;
-    } else {
-      _selectionPhase = _SelectionPhase.none;
-    }
-    _selectionOriginId = null;
+  void _onLongPressStart(LongPressStartDetails details) {
+    final sc = _selectionController;
+    if (sc == null) return;
+    final id = _messageIdAtPosition(details.localPosition);
+    if (id == null) return;
+    sc.startSelection(id);
   }
 
   void _onTapUp(TapUpDetails details) {
-    final sel = _selectionController;
-    if (sel == null) return;
-
-    if (_selectionPhase == _SelectionPhase.bubbleActive) {
-      final hit = _hitTester(details.localPosition);
-      if (hit != null) {
-        sel.toggleBubble(hit.$2);
-        if (!sel.hasSelection) _selectionPhase = _SelectionPhase.none;
-      } else {
-        sel.clear();
-        _selectionPhase = _SelectionPhase.none;
-      }
-    } else if (sel.hasSelection) {
-      // Tap to clear visible selection.
-      sel.clear();
-      _selectionPhase = _SelectionPhase.none;
-    }
+    final sc = _selectionController;
+    if (sc == null || !sc.isSelectionMode) return;
+    final id = _messageIdAtPosition(details.localPosition);
+    if (id == null) return;
+    sc.toggle(id);
   }
 
-  // --- Selection listener → invalidatePaint ---
+  // --- Selection listener → re-record changed renders ---
 
-  void _onSelectionChanged(Map<int, TextSelection?> newSelection) {
-    // Deselect renders no longer in selection.
-    for (final id in _prevSelection.keys) {
-      if (!newSelection.containsKey(id)) {
-        _applySelectionToRender(id, selected: false);
+  void _onSelectionChanged() {
+    if (!_initialPaintDone) return;
+    var changed = false;
+    for (var ci = _layoutMinChunk; ci <= _layoutMaxChunk; ci++) {
+      final chunk = _dataSource.chunks[ci];
+      if (chunk == null) continue;
+      for (var i = 0; i < ChatScrollChunk.kSize; i++) {
+        final render = chunk.renders[i];
+        if (render == null) continue;
+        final sel = _selectionController?.isSelected(chunk.firstId + i) ?? false;
+        if (render.selected != sel) {
+          render.selected = sel;
+          if (render.isAttached) render.rerecordPicture();
+          changed = true;
+        }
       }
     }
-    // Apply/update selection on current renders.
-    for (final entry in newSelection.entries) {
-      _applySelectionToRender(
-        entry.key,
-        selected: true,
-        textSel: entry.value,
-      );
-    }
-    _prevSelection = Map.of(newSelection);
+    // Schedule a frame so the compositor picks up the re-recorded pictures.
+    if (changed) markNeedsPaint();
   }
 
-  void _applySelectionToRender(
-    int messageId, {
-    required bool selected,
-    TextSelection? textSel,
-  }) {
-    final ci = ChatScrollChunk.chunkOf(messageId);
-    final chunk = _dataSource.chunks[ci];
-    if (chunk == null) return;
-    final slot = messageId - chunk.firstId;
-    if (slot < 0 || slot >= ChatScrollChunk.kSize) return;
-    final render = chunk.renders[slot];
-    if (render is SelectableChatMessageRender) {
-      if (selected) {
-        render.applySelection(textSel);
-      } else {
-        render.clearSelection();
+  /// Find the message ID at [position] in viewport coordinates.
+  int? _messageIdAtPosition(Offset position) {
+    for (var ci = _layoutMinChunk; ci <= _layoutMaxChunk; ci++) {
+      final chunk = _dataSource.chunks[ci];
+      if (chunk == null) continue;
+      for (var i = 0; i < ChatScrollChunk.kSize; i++) {
+        final render = chunk.renders[i];
+        if (render == null || render.isEmpty) continue;
+        if (position.dy >= render.offsetY &&
+            position.dy < render.offsetY + render.height) {
+          return chunk.firstId + i;
+        }
       }
     }
+    return null;
   }
 
   /// Restore selection state on renders after layout/creation.
   void _restoreSelectionOnChunk(ChatScrollChunk chunk) {
-    final sel = _selectionController;
-    if (sel == null || !sel.hasSelection) return;
+    final sc = _selectionController;
+    if (sc == null || !sc.isSelectionMode) return;
     for (var i = 0; i < ChatScrollChunk.kSize; i++) {
       final render = chunk.renders[i];
       if (render == null) continue;
-      final messageId = chunk.firstId + i;
-      if (sel.isSelected(messageId) && render is SelectableChatMessageRender) {
-        render.applySelection(sel.selection[messageId]);
-      }
+      render.selected = sc.isSelected(chunk.firstId + i);
     }
-  }
-
-  // --- Hit testing with cached closure ---
-
-  (ChatMessageRender, int)? Function(Offset) _createHitTester() {
-    var cachedChunk = -1;
-    var cachedSlot = -1;
-
-    return (Offset localPos) {
-      // 1. O(1): check cached render.
-      if (cachedChunk >= 0) {
-        final chunk = _dataSource.chunks[cachedChunk];
-        if (chunk != null && cachedSlot < ChatScrollChunk.kSize) {
-          final r = chunk.renders[cachedSlot];
-          if (r != null &&
-              !r.isEmpty &&
-              localPos.dy >= r.offsetY &&
-              localPos.dy < r.offsetY + r.height) {
-            return (r, chunk.firstId + cachedSlot);
-          }
-        }
-
-        // 2. O(64): same chunk, different slot.
-        if (chunk != null) {
-          for (var i = 0; i < ChatScrollChunk.kSize; i++) {
-            final r = chunk.renders[i];
-            if (r == null || r.isEmpty) continue;
-            if (localPos.dy >= r.offsetY &&
-                localPos.dy < r.offsetY + r.height) {
-              cachedSlot = i;
-              return (r, chunk.firstId + i);
-            }
-          }
-        }
-      }
-
-      // 3. Full scan (only on chunk change).
-      for (var ci = _layoutMinChunk; ci <= _layoutMaxChunk; ci++) {
-        final chunk = _dataSource.chunks[ci];
-        if (chunk == null) continue;
-        for (var i = 0; i < ChatScrollChunk.kSize; i++) {
-          final r = chunk.renders[i];
-          if (r == null || r.isEmpty) continue;
-          if (localPos.dy >= r.offsetY && localPos.dy < r.offsetY + r.height) {
-            cachedChunk = ci;
-            cachedSlot = i;
-            return (r, chunk.firstId + i);
-          }
-        }
-      }
-
-      cachedChunk = -1;
-      return null;
-    };
   }
 
   // --- Fling ---
