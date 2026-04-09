@@ -1,8 +1,12 @@
+import 'dart:math' as math;
 import 'dart:ui' as ui;
 
 import 'package:chatscrollview/src/chat_scroll/chat_scroll_common.dart';
 import 'package:flutter/rendering.dart';
 import 'package:meta/meta.dart';
+
+/// Whether a message is aligned to the left or right of the content area.
+enum ChatMessageAlignment { left, right }
 
 /// Lightweight render object for a single chat message.
 ///
@@ -67,7 +71,17 @@ abstract class ChatMessageRender {
   /// render-local interactions.
   void handlePointerEvent(PointerEvent event, Offset localPosition) {}
 
+  // --- Layout properties (set by viewport or concrete render) ---
+
+  /// Alignment within the content area. Set by concrete render in [update].
+  @nonVirtual
+  ChatMessageAlignment alignment = ChatMessageAlignment.left;
+
   // --- Selection state (set by viewport) ---
+
+  /// Whether selection mode is globally active (checkboxes visible).
+  @nonVirtual
+  bool selectionMode = false;
 
   /// Whether this message is currently selected.
   /// Set by the viewport; the concrete render uses it in [paintMessage].
@@ -152,9 +166,55 @@ abstract class ChatMessageRender {
     _disposePictureLayer();
     final rect = Rect.fromLTWH(0, 0, layerWidth, height);
     final recorder = ui.PictureRecorder();
-    paintMessage(Canvas(recorder, rect), Size(layerWidth, height));
+    final canvas = Canvas(recorder, rect);
+    paintMessage(canvas, Size(layerWidth, height));
+    if (selectionMode) paintSelectionIndicator(canvas);
     _pictureLayer = PictureLayer(rect)..picture = recorder.endRecording();
     layer!.append(_pictureLayer!);
+  }
+
+  /// Paints the selection checkbox indicator at the right edge of the
+  /// content area, vertically centered. Override for custom appearance.
+  @protected
+  void paintSelectionIndicator(Canvas canvas) {
+    const radius = 12.0;
+    const padding = 8.0;
+    final cx = radius + padding;
+    final cy = height - radius - padding;
+    final center = Offset(cx, cy);
+
+    if (selected) {
+      // Filled circle.
+      canvas.drawCircle(
+        center,
+        radius,
+        Paint()..color = const Color(0xFF448AFF),
+      );
+      // Checkmark.
+      final path = Path()
+        ..moveTo(cx - 5, cy)
+        ..lineTo(cx - 1.5, cy + 4)
+        ..lineTo(cx + 5.5, cy - 4);
+      canvas.drawPath(
+        path,
+        Paint()
+          ..color = const Color(0xFFFFFFFF)
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 2.0
+          ..strokeCap = StrokeCap.round
+          ..strokeJoin = StrokeJoin.round,
+      );
+    } else {
+      // Empty circle.
+      canvas.drawCircle(
+        center,
+        radius,
+        Paint()
+          ..color = const Color(0xFF9E9E9E)
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 1.5,
+      );
+    }
   }
 
   /// Release resources (TextPainters, images, etc.).

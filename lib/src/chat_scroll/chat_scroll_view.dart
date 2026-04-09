@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:chatscrollview/src/chat_scroll/chat_data_source.dart';
 import 'package:chatscrollview/src/chat_scroll/chat_message_render.dart';
 import 'package:chatscrollview/src/chat_scroll/chat_scroll_chunk.dart';
@@ -172,6 +174,17 @@ class RenderChatScrollView extends RenderBox {
     _cacheExtent = value;
     markNeedsLayout();
   }
+
+  // --- Content area constraints ---
+
+  static const double _maxContentWidth = 620.0;
+  static const double _maxBubbleWidth = 464.0;
+  static const double _bubbleWidthFraction = 0.75;
+
+  double get _contentWidth => math.min(size.width, _maxContentWidth);
+  double get _contentX => (size.width - _contentWidth) / 2;
+  double get _bubbleMaxWidth =>
+      math.min(_maxBubbleWidth, _contentWidth * _bubbleWidthFraction);
 
   // --- Attach / detach zones (hysteresis) ---
 
@@ -383,6 +396,7 @@ class RenderChatScrollView extends RenderBox {
 
   void _onSelectionChanged() {
     if (!_initialPaintDone) return;
+    final newMode = _selectionController?.isSelectionMode ?? false;
     var changed = false;
     for (var ci = _layoutMinChunk; ci <= _layoutMaxChunk; ci++) {
       final chunk = _dataSource.chunks[ci];
@@ -391,9 +405,12 @@ class RenderChatScrollView extends RenderBox {
         final render = chunk.renders[i];
         if (render == null) continue;
         final sel = _selectionController?.isSelected(chunk.firstId + i) ?? false;
-        if (render.selected != sel) {
-          render.selected = sel;
-          if (render.isAttached) render.rerecordPicture();
+        final modeChanged = render.selectionMode != newMode;
+        final selChanged = render.selected != sel;
+        if (modeChanged) render.selectionMode = newMode;
+        if (selChanged) render.selected = sel;
+        if ((modeChanged || selChanged) && render.isAttached) {
+          render.rerecordPicture();
           changed = true;
         }
       }
@@ -426,6 +443,7 @@ class RenderChatScrollView extends RenderBox {
     for (var i = 0; i < ChatScrollChunk.kSize; i++) {
       final render = chunk.renders[i];
       if (render == null) continue;
+      render.selectionMode = true;
       render.selected = sc.isSelected(chunk.firstId + i);
     }
   }
@@ -558,7 +576,8 @@ class RenderChatScrollView extends RenderBox {
     final attachBottom = viewportHeight + attachExtent;
     final detachTop = -detachExtent;
     final detachBottom = viewportHeight + detachExtent;
-    final viewportWidth = size.width;
+    final contentWidth = _contentWidth;
+    final contentX = _contentX;
 
     for (var ci = _layoutMinChunk; ci <= _layoutMaxChunk; ci++) {
       final chunk = _dataSource.chunks[ci];
@@ -584,18 +603,18 @@ class RenderChatScrollView extends RenderBox {
             continue;
           }
           // Update layer offset.
-          render.layer!.offset = Offset(0, top);
+          render.layer!.offset = Offset(contentX, top);
           // Re-record if invalidated or animated.
           if (render.pictureInvalid || render.needsRepaint) {
             render.pictureInvalid = false;
-            render.layerWidth = viewportWidth;
+            render.layerWidth = contentWidth;
             render.rerecordPicture();
           }
         } else {
           // Check attach zone.
           if (bottom >= attachTop && top <= attachBottom) {
-            render.attachLayer(viewportWidth);
-            render.layer!.offset = Offset(0, top);
+            render.attachLayer(contentWidth);
+            render.layer!.offset = Offset(contentX, top);
             _clipLayerHandle.layer?.append(render.layer!);
           }
         }
@@ -623,7 +642,7 @@ class RenderChatScrollView extends RenderBox {
       _markAllRendersDirty();
     }
 
-    _expandAndPosition(viewportWidth, viewportHeight);
+    _expandAndPosition(viewportHeight);
 
     _layoutHelper.renormalizeAnchor(
       _controller,
@@ -643,7 +662,7 @@ class RenderChatScrollView extends RenderBox {
     )) {
       _cancelFling();
       // Clamping changed anchor offset — re-expand to cover the viewport.
-      _expandAndPosition(viewportWidth, viewportHeight);
+      _expandAndPosition(viewportHeight);
     }
 
     _layoutHelper.evictChunks(
@@ -663,7 +682,8 @@ class RenderChatScrollView extends RenderBox {
 
   /// Layout chunks from anchor, expand up/down to fill viewport + cacheExtent,
   /// then position all via [positionFromAnchor].
-  void _expandAndPosition(double viewportWidth, double viewportHeight) {
+  void _expandAndPosition(double viewportHeight) {
+    final bubbleMaxWidth = _bubbleMaxWidth;
     final upperBound = -_cacheExtent;
     final lowerBound = viewportHeight + _cacheExtent;
     final anchorChunkIndex = ChatScrollChunk.chunkOf(
@@ -676,7 +696,7 @@ class RenderChatScrollView extends RenderBox {
     // Layout anchor chunk.
     _layoutHelper.layoutChunkRenders(
       anchorChunk,
-      viewportWidth,
+      bubbleMaxWidth,
       _messageBuilder,
       ++_accessTick,
     );
@@ -702,7 +722,7 @@ class RenderChatScrollView extends RenderBox {
       if (chunk == null) break;
       _layoutHelper.layoutChunkRenders(
         chunk,
-        viewportWidth,
+        bubbleMaxWidth,
         _messageBuilder,
         ++_accessTick,
       );
@@ -718,7 +738,7 @@ class RenderChatScrollView extends RenderBox {
       if (chunk == null) break;
       _layoutHelper.layoutChunkRenders(
         chunk,
-        viewportWidth,
+        bubbleMaxWidth,
         _messageBuilder,
         ++_accessTick,
       );
@@ -775,7 +795,8 @@ class RenderChatScrollView extends RenderBox {
     final detachExtent = viewportHeight * _detachFactor;
     final detachTop = -detachExtent;
     final detachBottom = viewportHeight + detachExtent;
-    final viewportWidth = size.width;
+    final contentWidth = _contentWidth;
+    final contentX = _contentX;
 
     for (var ci = _layoutMinChunk; ci <= _layoutMaxChunk; ci++) {
       final chunk = _dataSource.chunks[ci];
@@ -798,15 +819,15 @@ class RenderChatScrollView extends RenderBox {
             render.detachLayer();
             continue;
           }
-          render.layer!.offset = Offset(offset.dx, offset.dy + top);
+          render.layer!.offset = Offset(offset.dx + contentX, offset.dy + top);
           if (render.pictureInvalid || render.needsRepaint) {
             render.pictureInvalid = false;
-            render.layerWidth = viewportWidth;
+            render.layerWidth = contentWidth;
             render.rerecordPicture();
           }
         } else if (bottom >= attachTop && top <= attachBottom) {
-          render.attachLayer(viewportWidth);
-          render.layer!.offset = Offset(offset.dx, offset.dy + top);
+          render.attachLayer(contentWidth);
+          render.layer!.offset = Offset(offset.dx + contentX, offset.dy + top);
         }
       }
     }

@@ -122,12 +122,17 @@ class _DemoMessageRender extends ChatMessageRender {
   static const double _padding = 12.0;
   static const double _bubblePadding = 16.0;
   static const double _bubbleRadius = 12.0;
+  static const double _indicatorSpace = 40.0;
 
   IChatMessage? _message;
   ui.Paragraph? _paragraph;
+  double _layoutWidth = 0;
 
   void _updateText(IChatMessage message) {
     _message = message;
+    alignment = message.id.isEven
+        ? ChatMessageAlignment.left
+        : ChatMessageAlignment.right;
     dirty = true;
   }
 
@@ -147,6 +152,8 @@ class _DemoMessageRender extends ChatMessageRender {
   double performLayout(double availableWidth) {
     final message = _message;
     if (message == null) return 0.0;
+
+    _layoutWidth = availableWidth;
 
     final content = switch (message) {
       ChatMessage$User(:final content) => content,
@@ -178,11 +185,19 @@ class _DemoMessageRender extends ChatMessageRender {
     final paragraph = _paragraph;
     if (paragraph == null) return;
 
+    final bubbleWidth = _layoutWidth - _padding * 2;
+    final bubbleLeft = switch (alignment) {
+      ChatMessageAlignment.left =>
+        _padding + (selectionMode ? _indicatorSpace : 0),
+      ChatMessageAlignment.right =>
+        size.width - bubbleWidth - _padding,
+    };
+
     final bubbleRect = RRect.fromRectAndRadius(
       Rect.fromLTWH(
-        _padding,
+        bubbleLeft,
         _padding / 2,
-        size.width - _padding * 2,
+        bubbleWidth,
         size.height - _padding,
       ),
       const Radius.circular(_bubbleRadius),
@@ -197,7 +212,10 @@ class _DemoMessageRender extends ChatMessageRender {
       canvas.drawRRect(bubbleRect, Paint()..color = const Color(0x300D47A1));
     }
     canvas.save();
-    canvas.translate(_padding + _bubblePadding, _padding / 2 + _bubblePadding);
+    canvas.translate(
+      bubbleLeft + _bubblePadding,
+      _padding / 2 + _bubblePadding,
+    );
     canvas.drawParagraph(paragraph, Offset.zero);
     canvas.restore();
   }

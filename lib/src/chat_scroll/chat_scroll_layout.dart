@@ -12,9 +12,12 @@ class ChatScrollLayoutHelper {
 
   /// Layout all renders in [chunk], recomputing [chunk.height].
   /// Creates renders lazily via [builder] if missing.
+  ///
+  /// [bubbleMaxWidth] is the maximum width available for the message bubble
+  /// (already constrained by content area and fraction limits).
   void layoutChunkRenders(
     ChatScrollChunk chunk,
-    double viewportWidth,
+    double bubbleMaxWidth,
     ChatMessageRenderFactory builder,
     int accessTick,
   ) {
@@ -29,7 +32,7 @@ class ChatScrollLayoutHelper {
       }
       render.update(message, chunk.status);
       if (render.dirty) {
-        render.height = render.performLayout(viewportWidth);
+        render.height = render.performLayout(bubbleMaxWidth);
         render.invalidatePaint();
         render.dirty = false;
       }
