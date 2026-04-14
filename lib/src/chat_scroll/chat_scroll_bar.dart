@@ -113,8 +113,7 @@ class ChatScrollBar {
     bool active,
   ) {
     final currentTrackWidth = active ? activeTrackWidth : trackWidth;
-    final trackX =
-        viewportSize.width - rightPadding - currentTrackWidth;
+    final trackX = viewportSize.width - rightPadding - currentTrackWidth;
     final trackY = trackPadding;
     final trackHeight = viewportSize.height - trackPadding * 2;
 
@@ -125,10 +124,7 @@ class ChatScrollBar {
       Rect.fromLTWH(trackX, trackY, currentTrackWidth, trackHeight),
       Radius.circular(currentTrackWidth / 2),
     );
-    canvas.drawRRect(
-      trackRRect,
-      Paint()..color = const Color(0x1A000000),
-    );
+    canvas.drawRRect(trackRRect, Paint()..color = const Color(0x1A000000));
 
     // Thumb.
     final thumbTravel = trackHeight - thumbHeight;

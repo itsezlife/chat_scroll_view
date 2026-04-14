@@ -1,8 +1,8 @@
 import 'dart:collection';
 import 'dart:ui';
 
-import 'package:chatscrollview/src/chat_scroll/chat_scroll_common.dart';
 import 'package:chatscrollview/src/chat_scroll/chat_scroll_chunk.dart';
+import 'package:chatscrollview/src/chat_scroll/chat_scroll_common.dart';
 import 'package:meta/meta.dart';
 
 /// Data source for [ChatScrollView].
@@ -74,8 +74,7 @@ abstract class ChatDataSource {
   final _dataListeners = <VoidCallback>[];
 
   /// Subscribe to data changes.
-  void addDataListener(VoidCallback callback) =>
-      _dataListeners.add(callback);
+  void addDataListener(VoidCallback callback) => _dataListeners.add(callback);
 
   /// Unsubscribe from data changes.
   void removeDataListener(VoidCallback callback) =>
