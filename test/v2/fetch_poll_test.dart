@@ -85,8 +85,7 @@ class _TestRender extends ChatMessageRender {
   }
 
   @override
-  double performLayout(double availableWidth) =>
-      _message == null ? 0.0 : 60.0;
+  double performLayout(double availableWidth) => _message == null ? 0.0 : 60.0;
 
   @override
   void paintMessage(Canvas canvas, Size size) {}
@@ -100,21 +99,20 @@ Widget _buildWidget({
   required _TrackingDataSource dataSource,
   required ChatScrollController controller,
   ChatShimmerRender? shimmer,
-}) =>
-    MaterialApp(
-      home: Scaffold(
-        body: SizedBox(
-          width: 400,
-          height: 600,
-          child: ChatScrollView(
-            dataSource: dataSource,
-            controller: controller,
-            shimmer: shimmer,
-            builder: _TestRender.new,
-          ),
-        ),
+}) => MaterialApp(
+  home: Scaffold(
+    body: SizedBox(
+      width: 400,
+      height: 600,
+      child: ChatScrollView(
+        dataSource: dataSource,
+        controller: controller,
+        shimmer: shimmer,
+        builder: _TestRender.new,
       ),
-    );
+    ),
+  ),
+);
 
 // ---------------------------------------------------------------------------
 // Tests
@@ -150,11 +148,14 @@ void main() {
       await tester.pump();
 
       // No fetch during active scrolling.
-      expect(ds.fetchCallCount, 0,
-        reason: 'Poll timer should skip while scroll timestamp is recent');
+      expect(
+        ds.fetchCallCount,
+        0,
+        reason: 'Poll timer should skip while scroll timestamp is recent',
+      );
     });
 
-    testWidgets('fetch triggers after scroll stops for 250ms', (tester) async {
+    testWidgets('fetch triggers after scroll stops for 150ms', (tester) async {
       final ds = _TrackingDataSource(messageCount: 4000);
       final ctrl = ChatScrollController()
         ..oldestKnownId = 0
@@ -172,9 +173,9 @@ void main() {
 
       // Scroll once then stop.
       ctrl.applyScrollDelta(2000.0);
-      tester.renderObject<RenderChatScrollView>(
-        find.byType(ChatScrollView),
-      ).markNeedsLayout();
+      tester
+          .renderObject<RenderChatScrollView>(find.byType(ChatScrollView))
+          .markNeedsLayout();
       await tester.pump();
 
       // Not enough time passed.
@@ -184,8 +185,11 @@ void main() {
       // Wait for poll interval to fire after scroll is idle.
       await tester.pump(const Duration(milliseconds: 300));
 
-      expect(ds.fetchCallCount, greaterThan(0),
-        reason: 'Fetch should trigger after scroll idle > 250ms');
+      expect(
+        ds.fetchCallCount,
+        greaterThan(0),
+        reason: 'Fetch should trigger after scroll idle > 150ms',
+      );
     });
 
     testWidgets('single range fetch, not per-chunk', (tester) async {
@@ -208,14 +212,20 @@ void main() {
       await tester.pump(const Duration(milliseconds: 300));
 
       // Should be exactly 1 fetch call for the entire range.
-      expect(ds.fetchCallCount, 1,
-        reason: 'Should issue one range fetch, not per-chunk');
+      expect(
+        ds.fetchCallCount,
+        1,
+        reason: 'Should issue one range fetch, not per-chunk',
+      );
 
       // The range should cover multiple chunks worth of IDs.
       expect(ds.fetchedRanges, hasLength(1));
       final (from, to) = ds.fetchedRanges.first;
-      expect(to - from, greaterThan(63),
-        reason: 'Range should span multiple chunks');
+      expect(
+        to - from,
+        greaterThan(63),
+        reason: 'Range should span multiple chunks',
+      );
     });
   });
 }

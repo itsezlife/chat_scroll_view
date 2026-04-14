@@ -29,7 +29,7 @@ class App extends StatelessWidget {
     title: 'Chat Scroll View',
     theme: ThemeData(colorScheme: ColorScheme.fromSeed(seedColor: Colors.blue)),
     debugShowCheckedModeBanner: false,
-    showPerformanceOverlay: true,
+    showPerformanceOverlay: false,
     home: const ChatScreen(),
   );
 }
@@ -92,7 +92,7 @@ class _DemoDataSource extends ChatDataSource {
     int? to,
     DateTime? after,
   }) async {
-    await Future<void>.delayed(const Duration(milliseconds: 350));
+    await Future<void>.delayed(const Duration(milliseconds: 150));
 
     final lo = (from ?? 0).clamp(0, messageCount - 1);
     final hi = (to ?? messageCount - 1).clamp(0, messageCount - 1);

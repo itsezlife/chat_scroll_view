@@ -204,12 +204,12 @@ class RenderChatScrollView extends RenderBox implements MouseTrackerAnnotation {
   // --- Poll timer ---
 
   Timer? _pollTimer;
-  static const Duration _pollInterval = Duration(milliseconds: 250);
+  static const Duration _pollInterval = Duration(milliseconds: 150);
   int _lastScrollTimestamp = 0;
 
   void _onPollTick(Timer _) {
     final now = DateTime.now().millisecondsSinceEpoch;
-    if (now - _lastScrollTimestamp < 250) return;
+    if (now - _lastScrollTimestamp < 150) return;
     _dataSource.requestChunks(_layoutMinChunk, _layoutMaxChunk);
   }
 
@@ -633,11 +633,10 @@ class RenderChatScrollView extends RenderBox implements MouseTrackerAnnotation {
 
     // Estimate how far above viewport top the anchor is, in message units.
     // Use the actual render height if available, otherwise shimmer slot height.
-    final anchorChunk = _dataSource.chunks[
-        ChatScrollChunk.chunkOf(anchorId)];
-    final slotHeight = anchorChunk?.renders[
-        anchorId - anchorChunk.firstId]?.height
-        ?? (_shimmerSlotHeight > 0 ? _shimmerSlotHeight : 60.0);
+    final anchorChunk = _dataSource.chunks[ChatScrollChunk.chunkOf(anchorId)];
+    final slotHeight =
+        anchorChunk?.renders[anchorId - anchorChunk.firstId]?.height ??
+        (_shimmerSlotHeight > 0 ? _shimmerSlotHeight : 60.0);
 
     final fractionalId = anchorId - anchorOffset / slotHeight;
 
