@@ -1,4 +1,6 @@
+import 'dart:async';
 import 'dart:collection';
+import 'dart:math' as math;
 import 'dart:ui';
 
 import 'package:chatscrollview/src/chat_scroll/chat_scroll_chunk.dart';
@@ -67,6 +69,104 @@ abstract class ChatDataSource {
       changed = true;
     }
     if (changed) notifyDataChanged();
+  }
+
+  // --- Range fetch orchestration ---
+
+  static final math.Random _rnd = math.Random();
+  Object? _fetchToken;
+  int _fetchRetryStep = 0;
+  Timer? _retryTimer;
+  int _fetchingMinChunk = 0;
+  int _fetchingMaxChunk = -1;
+
+  /// Check visible chunk range and fetch missing/dirty data.
+  /// Called from the viewport's periodic poll timer.
+  @internal
+  void requestChunks(int layoutMinChunk, int layoutMaxChunk) {
+    // Find the actual range that needs fetching.
+    var needsMin = -1;
+    var needsMax = -1;
+    for (var ci = layoutMinChunk; ci <= layoutMaxChunk; ci++) {
+      final chunk = _chunks[ci];
+      if (chunk == null || chunk.status.isDirty) {
+        if (needsMin < 0) needsMin = ci;
+        needsMax = ci;
+      }
+    }
+    if (needsMin < 0) return; // all chunks valid
+
+    // Same range already fetching — wait for it.
+    if (_fetchToken != null &&
+        _fetchingMinChunk == needsMin &&
+        _fetchingMaxChunk == needsMax) {
+      return;
+    }
+
+    // New range — cancel old request and start fresh.
+    _cancelFetch();
+    _fetchingMinChunk = needsMin;
+    _fetchingMaxChunk = needsMax;
+    _fetchRetryStep = 0;
+    _executeFetch();
+  }
+
+  /// Cancel any in-flight fetch and retry timer.
+  @internal
+  void cancelFetch() => _cancelFetch();
+
+  void _cancelFetch() {
+    _fetchToken = null;
+    _retryTimer?.cancel();
+    _retryTimer = null;
+  }
+
+  void _executeFetch() {
+    final token = Object();
+    _fetchToken = token;
+
+    final fromId = ChatScrollChunk.firstIdOf(_fetchingMinChunk);
+    final toId =
+        ChatScrollChunk.firstIdOf(_fetchingMaxChunk) +
+        ChatScrollChunk.kSize -
+        1;
+
+    fetch(from: fromId, to: toId).then(
+      (messages) {
+        if (_fetchToken != token) return; // cancelled or replaced
+        _fetchToken = null;
+
+        // Upsert and mark chunks valid.
+        for (final msg in messages) {
+          final ci = ChatScrollChunk.chunkOf(msg.id);
+          final chunk = _chunks.putIfAbsent(
+            ci,
+            () => ChatScrollChunk(index: ci),
+          );
+          chunk.messages[msg.id - chunk.firstId] = msg;
+        }
+        for (var ci = _fetchingMinChunk; ci <= _fetchingMaxChunk; ci++) {
+          _chunks[ci]?.status = ChatMessageStatus.valid;
+        }
+        notifyDataChanged();
+      },
+      onError: (Object _) {
+        if (_fetchToken != token) return; // cancelled or replaced
+        _fetchToken = null;
+
+        // Retry with backoff.
+        final delay = _nextDelay(_fetchRetryStep, 500, 30000);
+        _fetchRetryStep++;
+        _retryTimer = Timer(delay, _executeFetch);
+      },
+    );
+  }
+
+  static Duration _nextDelay(int step, int minDelay, int maxDelay) {
+    if (minDelay >= maxDelay) return Duration(milliseconds: maxDelay);
+    final val = math.min(maxDelay, minDelay * math.pow(2, step.clamp(0, 31)));
+    final interval = _rnd.nextInt(val.toInt());
+    return Duration(milliseconds: (minDelay + interval).clamp(0, maxDelay));
   }
 
   // --- Typed listener: data changed ---

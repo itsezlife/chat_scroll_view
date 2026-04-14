@@ -8,6 +8,7 @@ import 'package:chatscrollview/src/chat_scroll/chat_scroll_common.dart';
 import 'package:chatscrollview/src/chat_scroll/chat_scroll_controller.dart';
 import 'package:chatscrollview/src/chat_scroll/chat_scroll_view.dart';
 import 'package:chatscrollview/src/chat_scroll/chat_selection_controller.dart';
+import 'package:chatscrollview/src/chat_scroll/chat_shimmer_render.dart';
 import 'package:flutter/material.dart';
 import 'package:l/l.dart';
 
@@ -45,41 +46,19 @@ class _ChatScreenState extends State<ChatScreen> {
   late final ChatScrollController _scrollController;
   late final ChatSelectionController _selectionController;
 
+  static const int _messageCount = 4000;
+
   @override
   void initState() {
     super.initState();
-    _dataSource = _DemoDataSource();
+    _dataSource = _DemoDataSource(messageCount: _messageCount);
     _scrollController = ChatScrollController();
     _selectionController = ChatSelectionController();
-    _initDemo();
-  }
-
-  void _initDemo() {
-    const messageCount = 256;
-    final now = DateTime.now();
-    final messages = <IChatMessage>[];
-    for (var i = 0; i < messageCount; i++) {
-      final time = now.subtract(Duration(minutes: messageCount - i));
-      messages.add(
-        ChatMessage$User(
-          id: i,
-          createdAt: time,
-          updatedAt: time,
-          content:
-              'Message #$i — '
-              'The first rule of Fight Club is: you do not talk about Fight Club. '
-              'The second rule of Fight Club is: you DO NOT talk about Fight Club!',
-        ),
-      );
-    }
-    _dataSource.upsertMessages(messages);
     _scrollController.oldestKnownId = 0;
-    _scrollController.newestKnownId = messageCount - 1;
+    _scrollController.newestKnownId = _messageCount - 1;
     _scrollController.reachedOldest = true;
     _scrollController.reachedNewest = true;
-    // Anchor to the newest message, positioned at bottom of viewport.
-    // A large offset pushes it down; boundary clamping will correct it.
-    _scrollController.jumpTo(messageCount - 1);
+    _scrollController.jumpTo(_messageCount - 1);
   }
 
   @override
@@ -90,6 +69,7 @@ class _ChatScreenState extends State<ChatScreen> {
         dataSource: _dataSource,
         controller: _scrollController,
         selectionController: _selectionController,
+        shimmer: _DemoShimmerRender(),
         builder: _DemoMessageRender.new,
       ),
     ),
@@ -97,18 +77,80 @@ class _ChatScreenState extends State<ChatScreen> {
 }
 
 // ---------------------------------------------------------------------------
-// Demo data source with hardcoded messages
+// Demo data source — generates messages on demand via async fetch
 // ---------------------------------------------------------------------------
 
 class _DemoDataSource extends ChatDataSource {
+  _DemoDataSource({required this.messageCount});
+
+  final int messageCount;
+  final DateTime _baseTime = DateTime.now();
+
   @override
   Future<List<IChatMessage>> fetch({
     int? from,
     int? to,
     DateTime? after,
   }) async {
-    // All data is already loaded — nothing to fetch.
-    return const [];
+    await Future<void>.delayed(const Duration(milliseconds: 350));
+
+    final lo = (from ?? 0).clamp(0, messageCount - 1);
+    final hi = (to ?? messageCount - 1).clamp(0, messageCount - 1);
+    return <IChatMessage>[
+      for (var i = lo; i <= hi; i++)
+        ChatMessage$User(
+          id: i,
+          createdAt: _baseTime.subtract(Duration(minutes: messageCount - i)),
+          updatedAt: _baseTime.subtract(Duration(minutes: messageCount - i)),
+          content:
+              'Message #$i — '
+              'The first rule of Fight Club is: you do not talk about Fight Club. '
+              'The second rule of Fight Club is: you DO NOT talk about Fight Club!',
+        ),
+    ];
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Demo shimmer render
+// ---------------------------------------------------------------------------
+
+class _DemoShimmerRender extends ChatShimmerRender {
+  static const double _padding = 12.0;
+  static const double _bubblePadding = 16.0;
+  static const double _bubbleRadius = 12.0;
+  static const double _height = 72.0;
+
+  @override
+  double performLayout(double availableWidth) => _height;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final bubbleWidth = size.width - _padding * 2;
+    final bubbleRect = RRect.fromRectAndRadius(
+      Rect.fromLTWH(
+        _padding,
+        _padding / 2,
+        bubbleWidth,
+        size.height - _padding,
+      ),
+      const Radius.circular(_bubbleRadius),
+    );
+    canvas.drawRRect(bubbleRect, Paint()..color = const Color(0xFFE0E0E0));
+
+    final linePaint = Paint()..color = const Color(0xFFBDBDBD);
+    final lineTop = _padding / 2 + _bubblePadding;
+    for (var i = 0; i < 2; i++) {
+      final y = lineTop + i * 20.0;
+      final w = i == 1 ? bubbleWidth * 0.5 : bubbleWidth * 0.75;
+      canvas.drawRRect(
+        RRect.fromRectAndRadius(
+          Rect.fromLTWH(_padding + _bubblePadding, y, w, 10),
+          const Radius.circular(4),
+        ),
+        linePaint,
+      );
+    }
   }
 }
 

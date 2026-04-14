@@ -60,45 +60,69 @@ class ChatScrollLayoutHelper {
     required int layoutMinChunk,
     required int layoutMaxChunk,
     void Function(ChatScrollChunk chunk)? layoutChunk,
+    double shimmerChunkHeight = 0,
+    Map<int, double>? shimmerOffsets,
   }) {
     final anchorId = controller.anchorMessageId;
     final anchorOffset = controller.anchorPixelOffset;
     final anchorChunkIndex = ChatScrollChunk.chunkOf(anchorId);
     final anchorChunk = dataSource.chunks[anchorChunkIndex];
-    if (anchorChunk == null) return false;
 
-    if (layoutChunk != null) layoutChunk(anchorChunk);
+    double anchorChunkOffsetY;
+    double anchorChunkHeight;
 
-    // Compute height of messages before anchor in its chunk.
-    var beforeAnchorHeight = 0.0;
-    final anchorLocalIndex = anchorId - anchorChunk.firstId;
-    for (var i = 0; i < anchorLocalIndex; i++) {
-      final r = anchorChunk.renders[i];
-      if (r != null) beforeAnchorHeight += r.height;
+    if (anchorChunk != null) {
+      if (layoutChunk != null) layoutChunk(anchorChunk);
+      var beforeAnchorHeight = 0.0;
+      final anchorLocalIndex = anchorId - anchorChunk.firstId;
+      for (var i = 0; i < anchorLocalIndex; i++) {
+        final r = anchorChunk.renders[i];
+        if (r != null) beforeAnchorHeight += r.height;
+      }
+      anchorChunkOffsetY = anchorOffset - beforeAnchorHeight;
+      anchorChunk.offsetY = anchorChunkOffsetY;
+      _positionChunkRenders(anchorChunk);
+      anchorChunkHeight = anchorChunk.height;
+    } else if (shimmerChunkHeight > 0) {
+      anchorChunkOffsetY = anchorOffset;
+      anchorChunkHeight = shimmerChunkHeight;
+      shimmerOffsets?[anchorChunkIndex] = anchorChunkOffsetY;
+    } else {
+      return false;
     }
-    anchorChunk.offsetY = anchorOffset - beforeAnchorHeight;
-    _positionChunkRenders(anchorChunk);
 
     // Fan out downward.
-    var y = anchorChunk.offsetY + anchorChunk.height;
+    var y = anchorChunkOffsetY + anchorChunkHeight;
     for (var ci = anchorChunkIndex + 1; ci <= layoutMaxChunk; ci++) {
       final chunk = dataSource.chunks[ci];
-      if (chunk == null) break;
-      if (layoutChunk != null) layoutChunk(chunk);
-      chunk.offsetY = y;
-      _positionChunkRenders(chunk);
-      y += chunk.height;
+      if (chunk != null) {
+        if (layoutChunk != null) layoutChunk(chunk);
+        chunk.offsetY = y;
+        _positionChunkRenders(chunk);
+        y += chunk.height;
+      } else if (shimmerChunkHeight > 0) {
+        shimmerOffsets?[ci] = y;
+        y += shimmerChunkHeight;
+      } else {
+        break;
+      }
     }
 
     // Fan out upward.
-    y = anchorChunk.offsetY;
+    y = anchorChunkOffsetY;
     for (var ci = anchorChunkIndex - 1; ci >= layoutMinChunk; ci--) {
       final chunk = dataSource.chunks[ci];
-      if (chunk == null) break;
-      if (layoutChunk != null) layoutChunk(chunk);
-      y -= chunk.height;
-      chunk.offsetY = y;
-      _positionChunkRenders(chunk);
+      if (chunk != null) {
+        if (layoutChunk != null) layoutChunk(chunk);
+        y -= chunk.height;
+        chunk.offsetY = y;
+        _positionChunkRenders(chunk);
+      } else if (shimmerChunkHeight > 0) {
+        y -= shimmerChunkHeight;
+        shimmerOffsets?[ci] = y;
+      } else {
+        break;
+      }
     }
 
     return true;
@@ -171,8 +195,10 @@ class ChatScrollLayoutHelper {
     ChatDataSource dataSource,
     int layoutMinChunk,
     int layoutMaxChunk,
-    double viewportHeight,
-  ) {
+    double viewportHeight, {
+    double shimmerChunkHeight = 0,
+    Map<int, double>? shimmerOffsets,
+  }) {
     var cancelFling = false;
 
     // Bottom: pin content bottom to viewport bottom.
@@ -181,20 +207,24 @@ class ChatScrollLayoutHelper {
         controller.newestKnownId!,
       );
       if (newestChunkIndex <= layoutMaxChunk) {
-        final lastChunk = dataSource.chunks[layoutMaxChunk];
-        if (lastChunk != null) {
-          final contentBottom = lastChunk.offsetY + lastChunk.height;
-          if (contentBottom < viewportHeight) {
-            final correction = viewportHeight - contentBottom;
-            controller.applyScrollDelta(correction);
-            positionFromAnchor(
-              controller: controller,
-              dataSource: dataSource,
-              layoutMinChunk: layoutMinChunk,
-              layoutMaxChunk: layoutMaxChunk,
-            );
-            cancelFling = true;
-          }
+        final contentBottom = _contentBottom(
+          dataSource,
+          layoutMaxChunk,
+          shimmerChunkHeight,
+          shimmerOffsets,
+        );
+        if (contentBottom != null && contentBottom < viewportHeight) {
+          final correction = viewportHeight - contentBottom;
+          controller.applyScrollDelta(correction);
+          positionFromAnchor(
+            controller: controller,
+            dataSource: dataSource,
+            layoutMinChunk: layoutMinChunk,
+            layoutMaxChunk: layoutMaxChunk,
+            shimmerChunkHeight: shimmerChunkHeight,
+            shimmerOffsets: shimmerOffsets,
+          );
+          cancelFling = true;
         }
       }
     }
@@ -205,25 +235,46 @@ class ChatScrollLayoutHelper {
         controller.oldestKnownId!,
       );
       if (oldestChunkIndex >= layoutMinChunk) {
-        final firstChunk = dataSource.chunks[layoutMinChunk];
-        if (firstChunk != null) {
-          final contentTop = firstChunk.offsetY;
-          if (contentTop > 0) {
-            controller.applyScrollDelta(-contentTop);
-            positionFromAnchor(
-              controller: controller,
-              dataSource: dataSource,
-              layoutMinChunk: layoutMinChunk,
-              layoutMaxChunk: layoutMaxChunk,
-            );
-            cancelFling = true;
-          }
+        final contentTop = _contentTop(
+          dataSource,
+          layoutMinChunk,
+          shimmerOffsets,
+        );
+        if (contentTop != null && contentTop > 0) {
+          controller.applyScrollDelta(-contentTop);
+          positionFromAnchor(
+            controller: controller,
+            dataSource: dataSource,
+            layoutMinChunk: layoutMinChunk,
+            layoutMaxChunk: layoutMaxChunk,
+            shimmerChunkHeight: shimmerChunkHeight,
+            shimmerOffsets: shimmerOffsets,
+          );
+          cancelFling = true;
         }
       }
     }
 
     return cancelFling;
   }
+
+  double? _contentBottom(
+    ChatDataSource ds,
+    int maxChunk,
+    double shimH,
+    Map<int, double>? shimO,
+  ) {
+    final c = ds.chunks[maxChunk];
+    if (c != null) return c.offsetY + c.height;
+    final y = shimO?[maxChunk];
+    return y != null ? y + shimH : null;
+  }
+
+  double? _contentTop(
+    ChatDataSource ds,
+    int minChunk,
+    Map<int, double>? shimO,
+  ) => ds.chunks[minChunk]?.offsetY ?? shimO?[minChunk];
 
   // --- LRU chunk eviction ---
 

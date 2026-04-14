@@ -1,4 +1,6 @@
+import 'dart:async';
 import 'dart:math' as math;
+import 'dart:ui' as ui;
 
 import 'package:chatscrollview/src/chat_scroll/chat_data_source.dart';
 import 'package:chatscrollview/src/chat_scroll/chat_message_render.dart';
@@ -7,6 +9,7 @@ import 'package:chatscrollview/src/chat_scroll/chat_scroll_chunk.dart';
 import 'package:chatscrollview/src/chat_scroll/chat_scroll_controller.dart';
 import 'package:chatscrollview/src/chat_scroll/chat_scroll_layout.dart';
 import 'package:chatscrollview/src/chat_scroll/chat_selection_controller.dart';
+import 'package:chatscrollview/src/chat_scroll/chat_shimmer_render.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/scheduler.dart';
@@ -24,6 +27,7 @@ class ChatScrollView extends LeafRenderObjectWidget {
     required this.dataSource,
     required this.controller,
     required this.builder,
+    this.shimmer,
     this.selectionController,
     super.key,
   });
@@ -37,6 +41,9 @@ class ChatScrollView extends LeafRenderObjectWidget {
   /// Creates a [ChatMessageRender] for each message.
   final ChatMessageRenderFactory builder;
 
+  /// Shared shimmer render for unfetched chunks.
+  final ChatShimmerRender? shimmer;
+
   /// Optional selection controller for text/bubble selection.
   final ChatSelectionController? selectionController;
 
@@ -46,6 +53,7 @@ class ChatScrollView extends LeafRenderObjectWidget {
         dataSource: dataSource,
         controller: controller,
         messageBuilder: builder,
+        shimmer: shimmer,
         selectionController: selectionController,
       );
 
@@ -58,6 +66,7 @@ class ChatScrollView extends LeafRenderObjectWidget {
       ..dataSource = dataSource
       ..controller = controller
       ..messageBuilder = builder
+      ..shimmer = shimmer
       ..selectionController = selectionController;
   }
 }
@@ -75,10 +84,12 @@ class RenderChatScrollView extends RenderBox implements MouseTrackerAnnotation {
     required ChatDataSource dataSource,
     required ChatScrollController controller,
     required ChatMessageRenderFactory messageBuilder,
+    ChatShimmerRender? shimmer,
     ChatSelectionController? selectionController,
   }) : _dataSource = dataSource,
        _controller = controller,
        _messageBuilder = messageBuilder,
+       _shimmer = shimmer,
        _selectionController = selectionController;
 
   // --- Debug instrumentation (zero-cost in release via assert) ---
@@ -164,6 +175,46 @@ class RenderChatScrollView extends RenderBox implements MouseTrackerAnnotation {
     _messageBuilder = value;
     _markAllRendersDirty();
     markNeedsLayout();
+  }
+
+  // --- Shimmer ---
+
+  ChatShimmerRender? _shimmer;
+
+  set shimmer(ChatShimmerRender? value) {
+    if (identical(_shimmer, value)) return;
+    _shimmer = value;
+    _disposeShimmerLayers();
+    markNeedsLayout();
+  }
+
+  double _shimmerSlotHeight = 0;
+  double _shimmerChunkHeight = 0;
+  final Map<int, double> _shimmerOffsets = {};
+  final Map<int, LayerHandle<OffsetLayer>> _shimmerLayers = {};
+
+  int get _minChunkIndex => _controller.oldestKnownId != null
+      ? ChatScrollChunk.chunkOf(_controller.oldestKnownId!)
+      : _layoutMinChunk;
+
+  int get _maxChunkIndex => _controller.newestKnownId != null
+      ? ChatScrollChunk.chunkOf(_controller.newestKnownId!)
+      : _layoutMaxChunk;
+
+  // --- Poll timer ---
+
+  Timer? _pollTimer;
+  static const Duration _pollInterval = Duration(milliseconds: 250);
+  int _lastScrollTimestamp = 0;
+
+  void _onPollTick(Timer _) {
+    final now = DateTime.now().millisecondsSinceEpoch;
+    if (now - _lastScrollTimestamp < 250) return;
+    _dataSource.requestChunks(_layoutMinChunk, _layoutMaxChunk);
+  }
+
+  void _markScrollActive() {
+    _lastScrollTimestamp = DateTime.now().millisecondsSinceEpoch;
   }
 
   // --- Configuration ---
@@ -283,6 +334,7 @@ class RenderChatScrollView extends RenderBox implements MouseTrackerAnnotation {
   void attach(PipelineOwner owner) {
     super.attach(owner);
     _ticker = Ticker(_onTick);
+    _pollTimer = Timer.periodic(_pollInterval, _onPollTick);
     _dataSource.addDataListener(_onDataChanged);
     _controller.addJumpListener(_onJump);
     _controller.addBoundaryListener(_onBoundaryChanged);
@@ -298,6 +350,9 @@ class RenderChatScrollView extends RenderBox implements MouseTrackerAnnotation {
   @override
   void detach() {
     _cancelFling();
+    _pollTimer?.cancel();
+    _pollTimer = null;
+    _dataSource.cancelFetch();
     _ticker?.dispose();
     _ticker = null;
     _drag?.dispose();
@@ -317,9 +372,10 @@ class RenderChatScrollView extends RenderBox implements MouseTrackerAnnotation {
   @override
   void dispose() {
     _cancelFling();
-    // TODO(plugfox): Cancel any pending fetches in the data source
-    // to avoid calling back after dispose.
-    // Mike Matiunin <plugfox@gmail.com>, 14 April 2026
+    _pollTimer?.cancel();
+    _pollTimer = null;
+    _dataSource.cancelFetch();
+    _disposeShimmerLayers();
     _ticker?.dispose();
     _ticker = null;
     _drag?.dispose();
@@ -334,6 +390,14 @@ class RenderChatScrollView extends RenderBox implements MouseTrackerAnnotation {
       chunk.disposeRenders();
     }
     super.dispose();
+  }
+
+  void _disposeShimmerLayers() {
+    for (final handle in _shimmerLayers.values) {
+      handle.layer = null;
+    }
+    _shimmerLayers.clear();
+    _shimmerOffsets.clear();
   }
 
   // --- Typed listener handlers (no flags!) ---
@@ -395,6 +459,7 @@ class RenderChatScrollView extends RenderBox implements MouseTrackerAnnotation {
     } else if (event is PointerScrollEvent) {
       // Mouse wheel / trackpad momentum after finger lift.
       _cancelFling();
+      _markScrollActive();
       _pendingScrollDelta -= event.scrollDelta.dy;
       _ensureTickerStarted();
     } else if (event is PointerHoverEvent) {
@@ -414,6 +479,7 @@ class RenderChatScrollView extends RenderBox implements MouseTrackerAnnotation {
   }
 
   void _onDragUpdate(DragUpdateDetails details) {
+    _markScrollActive();
     _pendingScrollDelta += details.delta.dy;
     _ensureTickerStarted();
   }
@@ -560,49 +626,22 @@ class RenderChatScrollView extends RenderBox implements MouseTrackerAnnotation {
     final range = newest - oldest;
     if (range <= 0) return null;
 
-    final viewportHeight = size.height;
-    final firstChunk = _dataSource.chunks[_layoutMinChunk];
-    final lastChunk = _dataSource.chunks[_layoutMaxChunk];
-    if (firstChunk == null || lastChunk == null) return null;
+    // Compute the fractional ID at the viewport's top edge.
+    // Works with both real chunks and shimmer — pure ID arithmetic.
+    final anchorId = _controller.anchorMessageId;
+    final anchorOffset = _controller.anchorPixelOffset;
 
-    final contentTop = firstChunk.offsetY;
-    final contentBottom = lastChunk.offsetY + lastChunk.height;
+    // Estimate how far above viewport top the anchor is, in message units.
+    // Use the actual render height if available, otherwise shimmer slot height.
+    final anchorChunk = _dataSource.chunks[
+        ChatScrollChunk.chunkOf(anchorId)];
+    final slotHeight = anchorChunk?.renders[
+        anchorId - anchorChunk.firstId]?.height
+        ?? (_shimmerSlotHeight > 0 ? _shimmerSlotHeight : 60.0);
 
-    // All content fits in viewport → hide scrollbar.
-    if (_controller.reachedOldest &&
-        _controller.reachedNewest &&
-        contentTop >= -0.5 &&
-        contentBottom <= viewportHeight + 0.5) {
-      return null;
-    }
+    final fractionalId = anchorId - anchorOffset / slotHeight;
 
-    // At top boundary → 0%.
-    if (_controller.reachedOldest && contentTop >= -0.5) return 0.0;
-
-    // At bottom boundary → 100%.
-    if (_controller.reachedNewest && contentBottom <= viewportHeight + 0.5) {
-      return 1.0;
-    }
-
-    // In between: find first visible message and interpolate within it.
-    for (var ci = _layoutMinChunk; ci <= _layoutMaxChunk; ci++) {
-      final chunk = _dataSource.chunks[ci];
-      if (chunk == null) continue;
-      for (var i = 0; i < ChatScrollChunk.kSize; i++) {
-        final render = chunk.renders[i];
-        if (render == null || render.isEmpty) continue;
-        if (render.offsetY + render.height > 0) {
-          final id = chunk.firstId + i;
-          var fraction = 0.0;
-          if (render.offsetY < 0 && render.height > 0) {
-            fraction = -render.offsetY / render.height;
-          }
-          return ((id + fraction - oldest) / range).clamp(0.0, 1.0);
-        }
-      }
-    }
-
-    return null;
+    return ((fractionalId - oldest) / range).clamp(0.0, 1.0);
   }
 
   void _updateScrollbar() {
@@ -647,14 +686,13 @@ class RenderChatScrollView extends RenderBox implements MouseTrackerAnnotation {
   void _stopTickerIfIdle() {
     if (_simulation == null && _pendingScrollDelta == 0.0) {
       _ticker?.stop();
-      // TODO(plugfox): Fetch nearby chunks
-      // Mike Matiunin <plugfox@gmail.com>, 14 April 2026
     }
   }
 
   // --- Ticker callback: ALL scroll logic lives here ---
 
   void _onTick(Duration elapsed) {
+    _markScrollActive();
     var delta = _pendingScrollDelta;
     _pendingScrollDelta = 0.0;
 
@@ -681,11 +719,14 @@ class RenderChatScrollView extends RenderBox implements MouseTrackerAnnotation {
     }
 
     // Reposition chunks from anchor.
+    _shimmerOffsets.clear();
     _layoutHelper.positionFromAnchor(
       controller: _controller,
       dataSource: _dataSource,
       layoutMinChunk: _layoutMinChunk,
       layoutMaxChunk: _layoutMaxChunk,
+      shimmerChunkHeight: _shimmerChunkHeight,
+      shimmerOffsets: _shimmerOffsets,
     );
 
     // Clamp at conversation boundaries.
@@ -695,6 +736,8 @@ class RenderChatScrollView extends RenderBox implements MouseTrackerAnnotation {
       _layoutMinChunk,
       _layoutMaxChunk,
       size.height,
+      shimmerChunkHeight: _shimmerChunkHeight,
+      shimmerOffsets: _shimmerOffsets,
     )) {
       _cancelFling();
     }
@@ -722,23 +765,34 @@ class RenderChatScrollView extends RenderBox implements MouseTrackerAnnotation {
   bool _needsLayoutExpansion() {
     final first = _dataSource.chunks[_layoutMinChunk];
     final last = _dataSource.chunks[_layoutMaxChunk];
-    if (first == null || last == null) return true;
+    final contentTop = first?.offsetY ?? _shimmerOffsets[_layoutMinChunk];
+    final contentBottom = last != null
+        ? last.offsetY + last.height
+        : _shimmerOffsets.containsKey(_layoutMaxChunk)
+        ? _shimmerOffsets[_layoutMaxChunk]! + _shimmerChunkHeight
+        : null;
 
-    // All chunks completely out of view.
-    if (first.offsetY > size.height || last.offsetY + last.height < 0) {
-      return true;
-    }
+    if (contentTop == null || contentBottom == null) return true;
+
+    // All content completely out of view.
+    if (contentTop > size.height || contentBottom < 0) return true;
+
+    final hasShimmer = _shimmerChunkHeight > 0;
 
     // Gap at bottom with more content available.
-    if (last.offsetY + last.height < size.height + _cacheExtent &&
-        _dataSource.chunks.containsKey(_layoutMaxChunk + 1)) {
-      return true;
+    if (contentBottom < size.height + _cacheExtent) {
+      final moreBelow = hasShimmer
+          ? _layoutMaxChunk < _maxChunkIndex
+          : _dataSource.chunks.containsKey(_layoutMaxChunk + 1);
+      if (moreBelow) return true;
     }
 
     // Gap at top with more content available.
-    if (first.offsetY > -_cacheExtent &&
-        _dataSource.chunks.containsKey(_layoutMinChunk - 1)) {
-      return true;
+    if (contentTop > -_cacheExtent) {
+      final moreAbove = hasShimmer
+          ? _layoutMinChunk > _minChunkIndex
+          : _dataSource.chunks.containsKey(_layoutMinChunk - 1);
+      if (moreAbove) return true;
     }
 
     return false;
@@ -758,10 +812,26 @@ class RenderChatScrollView extends RenderBox implements MouseTrackerAnnotation {
     final detachBottom = viewportHeight + detachExtent;
     final contentWidth = _contentWidth;
     final contentX = _contentX;
+    final activeShimmer = <int>{};
 
     for (var ci = _layoutMinChunk; ci <= _layoutMaxChunk; ci++) {
       final chunk = _dataSource.chunks[ci];
-      if (chunk == null) continue;
+
+      // Shimmer chunk.
+      if (chunk == null) {
+        final sy = _shimmerOffsets[ci];
+        if (sy != null &&
+            sy + _shimmerChunkHeight >= attachTop &&
+            sy <= attachBottom) {
+          activeShimmer.add(ci);
+          _ensureShimmerLayer(ci, contentX, sy, contentWidth);
+        }
+        continue;
+      }
+
+      // Real chunk replaced a shimmer — remove old layer.
+      final oldSh = _shimmerLayers.remove(ci);
+      if (oldSh != null) oldSh.layer = null;
 
       for (var i = 0; i < ChatScrollChunk.kSize; i++) {
         final render = chunk.renders[i];
@@ -776,22 +846,18 @@ class RenderChatScrollView extends RenderBox implements MouseTrackerAnnotation {
         final bottom = top + render.height;
 
         if (render.isAttached) {
-          // Check detach zone.
           if (bottom < detachTop || top > detachBottom) {
             render.layer?.remove();
             render.detachLayer();
             continue;
           }
-          // Update layer offset.
           render.layer!.offset = Offset(contentX, top);
-          // Re-record if invalidated or animated.
           if (render.pictureInvalid || render.needsRepaint) {
             render.pictureInvalid = false;
             render.layerWidth = contentWidth;
             render.rerecordPicture();
           }
         } else {
-          // Check attach zone.
           if (bottom >= attachTop && top <= attachBottom) {
             render.attachLayer(contentWidth);
             render.layer!.offset = Offset(contentX, top);
@@ -800,6 +866,44 @@ class RenderChatScrollView extends RenderBox implements MouseTrackerAnnotation {
         }
       }
     }
+
+    // Remove stale shimmer layers.
+    _shimmerLayers.removeWhere((ci, handle) {
+      if (activeShimmer.contains(ci)) return false;
+      handle.layer = null;
+      return true;
+    });
+  }
+
+  void _ensureShimmerLayer(
+    int ci,
+    double contentX,
+    double offsetY,
+    double contentWidth,
+  ) {
+    final handle = _shimmerLayers.putIfAbsent(ci, LayerHandle<OffsetLayer>.new);
+    if (handle.layer == null) {
+      handle.layer = OffsetLayer();
+      _recordShimmerPicture(handle.layer!, contentWidth);
+      _clipLayerHandle.layer?.append(handle.layer!);
+    }
+    handle.layer!.offset = Offset(contentX, offsetY);
+  }
+
+  void _recordShimmerPicture(OffsetLayer parent, double width) {
+    final sh = _shimmer;
+    if (sh == null) return;
+    final h = _shimmerSlotHeight;
+    final total = _shimmerChunkHeight;
+    final rect = Rect.fromLTWH(0, 0, width, total);
+    final recorder = ui.PictureRecorder();
+    final canvas = Canvas(recorder, rect);
+    final slotSize = Size(width, h);
+    for (var i = 0; i < ChatScrollChunk.kSize; i++) {
+      sh.paint(canvas, slotSize);
+      canvas.translate(0, h);
+    }
+    parent.append(PictureLayer(rect)..picture = recorder.endRecording());
   }
 
   // --- Layout ---
@@ -822,6 +926,16 @@ class RenderChatScrollView extends RenderBox implements MouseTrackerAnnotation {
       _markAllRendersDirty();
     }
 
+    // Compute shimmer slot height.
+    final sh = _shimmer;
+    if (sh != null) {
+      _shimmerSlotHeight = sh.performLayout(_bubbleMaxWidth);
+      _shimmerChunkHeight = _shimmerSlotHeight * ChatScrollChunk.kSize;
+    } else {
+      _shimmerSlotHeight = 0;
+      _shimmerChunkHeight = 0;
+    }
+
     _expandAndPosition(viewportHeight);
 
     _layoutHelper.renormalizeAnchor(
@@ -839,9 +953,10 @@ class RenderChatScrollView extends RenderBox implements MouseTrackerAnnotation {
       _layoutMinChunk,
       _layoutMaxChunk,
       viewportHeight,
+      shimmerChunkHeight: _shimmerChunkHeight,
+      shimmerOffsets: _shimmerOffsets,
     )) {
       _cancelFling();
-      // Clamping changed anchor offset — re-expand to cover the viewport.
       _expandAndPosition(viewportHeight);
     }
 
@@ -851,12 +966,6 @@ class RenderChatScrollView extends RenderBox implements MouseTrackerAnnotation {
       _layoutMinChunk,
       _layoutMaxChunk,
     );
-
-    // Fetch dirty chunks when not actively scrolling.
-    if (_ticker == null || !_ticker!.isActive) {
-      // TODO(plugfox): Fetch nearby chunks around the current range
-      // Mike Matiunin <plugfox@gmail.com>, 14 April 2026
-    }
 
     assert(() {
       debugLastLayoutDuration = _debugSw.elapsed;
@@ -875,70 +984,94 @@ class RenderChatScrollView extends RenderBox implements MouseTrackerAnnotation {
     final anchorChunkIndex = ChatScrollChunk.chunkOf(
       _controller.anchorMessageId,
     );
+    final shH = _shimmerChunkHeight;
 
     final anchorChunk = _dataSource.chunks[anchorChunkIndex];
-    if (anchorChunk == null) return;
 
-    // Layout anchor chunk.
-    _layoutHelper.layoutChunkRenders(
-      anchorChunk,
-      bubbleMaxWidth,
-      _messageBuilder,
-      ++_accessTick,
-    );
-    _restoreSelectionOnChunk(anchorChunk);
+    double anchorChunkTop;
+    double anchorChunkHeight;
 
-    // Compute anchor chunk's actual Y position to determine expansion bounds.
-    final anchorId = _controller.anchorMessageId;
-    final anchorLocalIndex = anchorId - anchorChunk.firstId;
-    var beforeAnchorHeight = 0.0;
-    for (var i = 0; i < anchorLocalIndex; i++) {
-      final r = anchorChunk.renders[i];
-      if (r != null) beforeAnchorHeight += r.height;
+    if (anchorChunk != null) {
+      _layoutHelper.layoutChunkRenders(
+        anchorChunk,
+        bubbleMaxWidth,
+        _messageBuilder,
+        ++_accessTick,
+      );
+      _restoreSelectionOnChunk(anchorChunk);
+      final anchorId = _controller.anchorMessageId;
+      final anchorLocalIndex = anchorId - anchorChunk.firstId;
+      var beforeAnchorHeight = 0.0;
+      for (var i = 0; i < anchorLocalIndex; i++) {
+        final r = anchorChunk.renders[i];
+        if (r != null) beforeAnchorHeight += r.height;
+      }
+      anchorChunkTop = _controller.anchorPixelOffset - beforeAnchorHeight;
+      anchorChunkHeight = anchorChunk.height;
+    } else if (shH > 0) {
+      anchorChunkTop = _controller.anchorPixelOffset;
+      anchorChunkHeight = shH;
+    } else {
+      return;
     }
-    final anchorChunkTop = _controller.anchorPixelOffset - beforeAnchorHeight;
 
     _layoutMinChunk = anchorChunkIndex;
     _layoutMaxChunk = anchorChunkIndex;
 
-    // Expand downward from the actual bottom of the anchor chunk.
-    var y = anchorChunkTop + anchorChunk.height;
-    for (var ci = anchorChunkIndex + 1; y < lowerBound; ci++) {
+    final maxCI = _maxChunkIndex;
+    final minCI = _minChunkIndex;
+
+    // Expand downward.
+    var y = anchorChunkTop + anchorChunkHeight;
+    for (var ci = anchorChunkIndex + 1; y < lowerBound && ci <= maxCI; ci++) {
       final chunk = _dataSource.chunks[ci];
-      if (chunk == null) break;
-      _layoutHelper.layoutChunkRenders(
-        chunk,
-        bubbleMaxWidth,
-        _messageBuilder,
-        ++_accessTick,
-      );
-      _restoreSelectionOnChunk(chunk);
-      y += chunk.height;
+      if (chunk != null) {
+        _layoutHelper.layoutChunkRenders(
+          chunk,
+          bubbleMaxWidth,
+          _messageBuilder,
+          ++_accessTick,
+        );
+        _restoreSelectionOnChunk(chunk);
+        y += chunk.height;
+      } else if (shH > 0) {
+        y += shH;
+      } else {
+        break;
+      }
       _layoutMaxChunk = ci;
     }
 
-    // Expand upward from the actual top of the anchor chunk.
+    // Expand upward.
     y = anchorChunkTop;
-    for (var ci = anchorChunkIndex - 1; y > upperBound; ci--) {
+    for (var ci = anchorChunkIndex - 1; y > upperBound && ci >= minCI; ci--) {
       final chunk = _dataSource.chunks[ci];
-      if (chunk == null) break;
-      _layoutHelper.layoutChunkRenders(
-        chunk,
-        bubbleMaxWidth,
-        _messageBuilder,
-        ++_accessTick,
-      );
-      _restoreSelectionOnChunk(chunk);
-      y -= chunk.height;
+      if (chunk != null) {
+        _layoutHelper.layoutChunkRenders(
+          chunk,
+          bubbleMaxWidth,
+          _messageBuilder,
+          ++_accessTick,
+        );
+        _restoreSelectionOnChunk(chunk);
+        y -= chunk.height;
+      } else if (shH > 0) {
+        y -= shH;
+      } else {
+        break;
+      }
       _layoutMinChunk = ci;
     }
 
-    // Position all chunks from anchor (single call, no duplication).
+    // Position all chunks (real + shimmer).
+    _shimmerOffsets.clear();
     _layoutHelper.positionFromAnchor(
       controller: _controller,
       dataSource: _dataSource,
       layoutMinChunk: _layoutMinChunk,
       layoutMaxChunk: _layoutMaxChunk,
+      shimmerChunkHeight: shH,
+      shimmerOffsets: _shimmerOffsets,
     );
   }
 
@@ -983,10 +1116,34 @@ class RenderChatScrollView extends RenderBox implements MouseTrackerAnnotation {
     final detachBottom = viewportHeight + detachExtent;
     final contentWidth = _contentWidth;
     final contentX = _contentX;
+    final activeShimmer = <int>{};
 
     for (var ci = _layoutMinChunk; ci <= _layoutMaxChunk; ci++) {
       final chunk = _dataSource.chunks[ci];
-      if (chunk == null) continue;
+
+      // Shimmer chunk.
+      if (chunk == null) {
+        final sy = _shimmerOffsets[ci];
+        if (sy != null) {
+          final sb = sy + _shimmerChunkHeight;
+          if (sb >= attachTop && sy <= attachBottom) {
+            activeShimmer.add(ci);
+            final handle = _shimmerLayers.putIfAbsent(
+              ci,
+              LayerHandle<OffsetLayer>.new,
+            );
+            handle.layer?.removeAllChildren();
+            handle.layer = OffsetLayer();
+            _recordShimmerPicture(handle.layer!, contentWidth);
+            handle.layer!.offset = Offset(offset.dx + contentX, offset.dy + sy);
+          }
+        }
+        continue;
+      }
+
+      // Real chunk — remove old shimmer layer.
+      final oldSh = _shimmerLayers.remove(ci);
+      if (oldSh != null) oldSh.layer = null;
 
       for (var i = 0; i < ChatScrollChunk.kSize; i++) {
         final render = chunk.renders[i];
@@ -1018,11 +1175,22 @@ class RenderChatScrollView extends RenderBox implements MouseTrackerAnnotation {
       }
     }
 
+    // Remove stale shimmer layers.
+    _shimmerLayers.removeWhere((ci, handle) {
+      if (activeShimmer.contains(ci)) return false;
+      handle.layer = null;
+      return true;
+    });
+
     // Rebuild clip layer children.
     clipLayer.removeAllChildren();
     for (var ci = _layoutMinChunk; ci <= _layoutMaxChunk; ci++) {
       final chunk = _dataSource.chunks[ci];
-      if (chunk == null) continue;
+      if (chunk == null) {
+        final shHandle = _shimmerLayers[ci];
+        if (shHandle?.layer != null) clipLayer.append(shHandle!.layer!);
+        continue;
+      }
       for (var i = 0; i < ChatScrollChunk.kSize; i++) {
         final render = chunk.renders[i];
         if (render == null || !render.isAttached) continue;
