@@ -2,9 +2,9 @@ import 'dart:math' as math;
 
 import 'package:chatscrollview/src/chat_scroll/chat_data_source.dart';
 import 'package:chatscrollview/src/chat_scroll/chat_message_render.dart';
+import 'package:chatscrollview/src/chat_scroll/chat_scroll_bar.dart';
 import 'package:chatscrollview/src/chat_scroll/chat_scroll_chunk.dart';
 import 'package:chatscrollview/src/chat_scroll/chat_scroll_controller.dart';
-import 'package:chatscrollview/src/chat_scroll/chat_scroll_bar.dart';
 import 'package:chatscrollview/src/chat_scroll/chat_scroll_layout.dart';
 import 'package:chatscrollview/src/chat_scroll/chat_selection_controller.dart';
 import 'package:flutter/gestures.dart';
@@ -62,7 +62,6 @@ class ChatScrollView extends LeafRenderObjectWidget {
   }
 }
 
-
 /// The render object for [ChatScrollView].
 ///
 /// Uses a [Ticker] for scroll updates (drag + fling) — the scroll path
@@ -71,8 +70,7 @@ class ChatScrollView extends LeafRenderObjectWidget {
 ///
 /// Layout and paint are only triggered by data changes, jumps, boundary
 /// changes, and viewport resize.
-class RenderChatScrollView extends RenderBox
-    implements MouseTrackerAnnotation {
+class RenderChatScrollView extends RenderBox implements MouseTrackerAnnotation {
   RenderChatScrollView({
     required ChatDataSource dataSource,
     required ChatScrollController controller,
@@ -319,6 +317,9 @@ class RenderChatScrollView extends RenderBox
   @override
   void dispose() {
     _cancelFling();
+    // TODO(plugfox): Cancel any pending fetches in the data source
+    // to avoid calling back after dispose.
+    // Mike Matiunin <plugfox@gmail.com>, 14 April 2026
     _ticker?.dispose();
     _ticker = null;
     _drag?.dispose();
@@ -367,8 +368,7 @@ class RenderChatScrollView extends RenderBox
         _onScrollbarPointerUp();
         return;
       }
-      if (event is PointerCancelEvent &&
-          event.pointer == _scrollbarPointerId) {
+      if (event is PointerCancelEvent && event.pointer == _scrollbarPointerId) {
         _onScrollbarPointerUp();
         return;
       }
@@ -398,8 +398,9 @@ class RenderChatScrollView extends RenderBox
       _pendingScrollDelta -= event.scrollDelta.dy;
       _ensureTickerStarted();
     } else if (event is PointerHoverEvent) {
-      final inHitArea = _scrollBar.isInHitArea(event.localPosition.dx, size.width)
-          && _controller.newestKnownId != null;
+      final inHitArea =
+          _scrollBar.isInHitArea(event.localPosition.dx, size.width) &&
+          _controller.newestKnownId != null;
       if (inHitArea != _scrollBar.isHovered) {
         _scrollBar.isHovered = inHitArea;
         markNeedsPaint();
@@ -469,7 +470,8 @@ class RenderChatScrollView extends RenderBox
       for (var i = 0; i < ChatScrollChunk.kSize; i++) {
         final render = chunk.renders[i];
         if (render == null) continue;
-        final sel = _selectionController?.isSelected(chunk.firstId + i) ?? false;
+        final sel =
+            _selectionController?.isSelected(chunk.firstId + i) ?? false;
         final modeChanged = render.selectionMode != newMode;
         final selChanged = render.selected != sel;
         if (modeChanged) render.selectionMode = newMode;
@@ -578,8 +580,7 @@ class RenderChatScrollView extends RenderBox
     if (_controller.reachedOldest && contentTop >= -0.5) return 0.0;
 
     // At bottom boundary → 100%.
-    if (_controller.reachedNewest &&
-        contentBottom <= viewportHeight + 0.5) {
+    if (_controller.reachedNewest && contentBottom <= viewportHeight + 0.5) {
       return 1.0;
     }
 
@@ -646,6 +647,8 @@ class RenderChatScrollView extends RenderBox
   void _stopTickerIfIdle() {
     if (_simulation == null && _pendingScrollDelta == 0.0) {
       _ticker?.stop();
+      // TODO(plugfox): Fetch nearby chunks
+      // Mike Matiunin <plugfox@gmail.com>, 14 April 2026
     }
   }
 
@@ -848,6 +851,12 @@ class RenderChatScrollView extends RenderBox
       _layoutMinChunk,
       _layoutMaxChunk,
     );
+
+    // Fetch dirty chunks when not actively scrolling.
+    if (_ticker == null || !_ticker!.isActive) {
+      // TODO(plugfox): Fetch nearby chunks around the current range
+      // Mike Matiunin <plugfox@gmail.com>, 14 April 2026
+    }
 
     assert(() {
       debugLastLayoutDuration = _debugSw.elapsed;
