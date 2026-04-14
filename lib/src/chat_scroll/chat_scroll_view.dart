@@ -331,7 +331,7 @@ class RenderChatScrollView extends RenderBox implements MouseTrackerAnnotation {
     _scrollBar.dispose();
     _clipLayerHandle.layer = null;
     for (final chunk in _dataSource.chunks.values) {
-      chunk.dispose();
+      chunk.disposeRenders();
     }
     super.dispose();
   }

@@ -177,8 +177,9 @@ class ChatScrollLayoutHelper {
 
     // Bottom: pin content bottom to viewport bottom.
     if (controller.reachedNewest && controller.newestKnownId != null) {
-      final newestChunkIndex =
-          ChatScrollChunk.chunkOf(controller.newestKnownId!);
+      final newestChunkIndex = ChatScrollChunk.chunkOf(
+        controller.newestKnownId!,
+      );
       if (newestChunkIndex <= layoutMaxChunk) {
         final lastChunk = dataSource.chunks[layoutMaxChunk];
         if (lastChunk != null) {
@@ -200,8 +201,9 @@ class ChatScrollLayoutHelper {
 
     // Top: pin content top to viewport top.
     if (controller.reachedOldest && controller.oldestKnownId != null) {
-      final oldestChunkIndex =
-          ChatScrollChunk.chunkOf(controller.oldestKnownId!);
+      final oldestChunkIndex = ChatScrollChunk.chunkOf(
+        controller.oldestKnownId!,
+      );
       if (oldestChunkIndex >= layoutMinChunk) {
         final firstChunk = dataSource.chunks[layoutMinChunk];
         if (firstChunk != null) {
@@ -236,17 +238,15 @@ class ChatScrollLayoutHelper {
     while (chunks.length > maxChunks) {
       ChatScrollChunk? oldest;
       for (final chunk in chunks.values) {
-        if (chunk.index >= layoutMinChunk &&
-            chunk.index <= layoutMaxChunk) {
+        if (chunk.index >= layoutMinChunk && chunk.index <= layoutMaxChunk) {
           continue;
         }
-        if (oldest == null ||
-            chunk.lastAccessTick < oldest.lastAccessTick) {
+        if (oldest == null || chunk.lastAccessTick < oldest.lastAccessTick) {
           oldest = chunk;
         }
       }
       if (oldest == null) break;
-      oldest.dispose();
+      oldest.disposeRenders();
       chunks.remove(oldest.index);
     }
   }

@@ -62,7 +62,7 @@ class ChatScrollChunk {
   }
 
   /// Dispose all renders in this chunk and clear the list.
-  void dispose() {
+  void disposeRenders() {
     for (var i = 0; i < renders.length; i++) {
       renders[i]?.dispose();
       renders[i] = null;
