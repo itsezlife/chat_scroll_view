@@ -246,7 +246,7 @@ class ChatScrollLayoutHelper {
         }
       }
       if (oldest == null) break;
-      oldest.disposeRenders();
+      oldest.dispose();
       chunks.remove(oldest.index);
     }
   }

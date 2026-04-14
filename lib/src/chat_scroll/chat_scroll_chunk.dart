@@ -1,5 +1,5 @@
-import 'package:chatscrollview/src/chat_scroll/chat_scroll_common.dart';
 import 'package:chatscrollview/src/chat_scroll/chat_message_render.dart';
+import 'package:chatscrollview/src/chat_scroll/chat_scroll_common.dart';
 import 'package:meta/meta.dart';
 
 /// Chunk of chat messages used for pagination and rendering.
@@ -62,7 +62,7 @@ class ChatScrollChunk {
   }
 
   /// Dispose all renders in this chunk and clear the list.
-  void disposeRenders() {
+  void dispose() {
     for (var i = 0; i < renders.length; i++) {
       renders[i]?.dispose();
       renders[i] = null;
