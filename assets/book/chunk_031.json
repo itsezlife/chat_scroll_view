@@ -1,0 +1,386 @@
+[
+  {
+    "id": 1984,
+    "sender": "cbazza",
+    "content": "I am thinking of 'Dart level implementation' on top of dart:ui.\r\n\r\n2 basic use cases:\r\n\r\n(1) load static icon svg files with something like your \r\n\"image: new AssetImage('graphics/background.svg')\", where the\r\nfile could come from the file system or over the network \r\ndynamically.\r\n\r\n(2) Widget based svg support with DSX (JSX like construct)\r\nwhich would look very similar to:\r\nhttps://github.com/react-native-community/react-native-svg\r\n\r\nRegarding 'Test data' I need real files from people that need\r\nthis and not the w3 test suite. SVG support would be dependent\r\nupon what dart:ui supports so if a resired svg file contains\r\nstuff that can't be done with dart:ui, I would be able to \r\nfind out fast.\r\n\r\n\r\nCarlos.\r\n",
+    "createdAt": "2018-02-27T13:10:26Z"
+  },
+  {
+    "id": 1985,
+    "sender": "dnfield",
+    "content": "I do not think we should go for the react native SVG model.  I get wanting to support real life cases, bit I think covering the w3 suite would give us a better basline of what works and what doesn't and how challenging it would be to implement)",
+    "createdAt": "2018-02-27T13:23:00Z"
+  },
+  {
+    "id": 1986,
+    "sender": "cbazza",
+    "content": "OK, there seems to be some misunderstanding...\r\nWhen I do (1) it will take standard SVG files and I'll try to support as much as it can given dart:ui (Skia).\r\nWhen I do (2), which is create widgets to handle SVG like constructs it will look very similar to that react-native-svg library. These are 2 very different things. ",
+    "createdAt": "2018-02-27T14:44:28Z"
+  },
+  {
+    "id": 1987,
+    "sender": "deborah-ufw",
+    "content": "@cbazza the use case for svgs in our app is mainly for one-color svgs we use as icons. Here is a link to a zip file on Dropbox with a selection of recent svgs that are representative.  https://www.dropbox.com/s/dp38wxc22625cvc/icons.zip?dl=0",
+    "createdAt": "2018-02-27T17:45:11Z"
+  },
+  {
+    "id": 1988,
+    "sender": "amirh",
+    "content": "Thanks for the interest in helping here, I would be happy to see an SVG Flutter plugin coming to life!\r\n\r\nI wrote a tool that does some **minimal** parsing of a sequence of somewhat-SVG files and dumps out Dart files that we later use to show icon animations: [vitool](https://github.com/flutter/flutter/tree/master/dev/tools/vitool).\r\n\r\nI used this tool to create the [AnimatedIcons](https://master-docs-flutter-io.firebaseapp.com/flutter/material/AnimatedIcons-class.html) data, you can check the result by running the [manual test app](https://github.com/flutter/flutter/blob/master/dev/manual_tests/lib/animated_icons.dart) (`cd dev/manual_tests; flutter run -t lib/animated_icons.dart`).\r\n\r\nIt is far from being optimal or complete, but works for the current set of animated icons we have, and someone should feel empowered to fork/extend it.",
+    "createdAt": "2018-02-27T17:54:05Z"
+  },
+  {
+    "id": 1989,
+    "sender": "amirh",
+    "content": "@deborah-ufw for these single color icons something you can do is create an icons font, and show the icons using the [Icon widget](https://master-docs-flutter-io.firebaseapp.com/flutter/widgets/Icon-class.html).",
+    "createdAt": "2018-02-27T17:57:56Z"
+  },
+  {
+    "id": 1990,
+    "sender": "zoechi",
+    "content": "@amirh doesn't seem to be easy to create color vector fonts",
+    "createdAt": "2018-02-27T19:41:39Z"
+  },
+  {
+    "id": 1991,
+    "sender": "deborah-ufw",
+    "content": "@amirh if you read the whole thread above, creating and defining a font with glyphs as icons is an extra series of steps that has to be taken because SVG is not supported. SVG support is much more efficient than a font. Also, zoechi is right - any vector art that has several colors is nearly impossible to make into a font.",
+    "createdAt": "2018-02-27T19:56:24Z"
+  },
+  {
+    "id": 1992,
+    "sender": "amirh",
+    "content": "Sorry - I looked at the sample icons and thought that you only needed single color icons.",
+    "createdAt": "2018-02-27T20:37:00Z"
+  },
+  {
+    "id": 1993,
+    "sender": "cbazza",
+    "content": "@deborah-ufw, thank you for the files, exactly what I was looking for and already found stuff that my files don't have.\r\n\r\n@amirh, yes I have seen your great work already ;)\r\n",
+    "createdAt": "2018-02-27T22:53:21Z"
+  },
+  {
+    "id": 1994,
+    "sender": "KalpeshVedak",
+    "content": "Do we finally have a straight way to source an svg or vector asset xml into the image for flutter",
+    "createdAt": "2018-03-01T14:19:12Z"
+  },
+  {
+    "id": 1995,
+    "sender": "VincentH-Net",
+    "content": "@Hixie: please (re)consider that for multi-platform native mobile teams this is a real pain point, but that only **partial, relatively simple SVG support** is needed to solve this. Towards the SVG standard maintainers this could be considered half-hearted, but Flutter is for mobile developers, not for general standards authors. Flutter would win the hearts of mobile developers if it alleviates their very real pain, even if only in a pragmatic manner.\r\n\r\nPlease also consider that despite this long-existing need, the community support approach has failed to produce workable solutions in Flutter competitor **Xamarin** (in my 5 years of Xamarin experience - libs can't handle design tool exports, are too limited, not stable, paid and/or closed source).\r\n\r\nBecause of this I am not optimistic that the Flutter community will succeed where the Xamarin community failed. I do estimate that a practical. partial support for SVG icons is something that the Flutter team could deliver, using existing Skia primitives.\r\n\r\nThis would **fit the Flutter goal** well: enable mobile developers to deliver beautiful, high performance UX **in record time**. It would improve productivity, fidility and performance (an SVG loads a lot faster than all those PNG's; icon SVG's typically have modest computational cost because a requirement for visual clarity quite often leads to a shape of modest complexity).\r\n\r\n**The core need is for a productive workflow from commonly used creative designer tools (such as Adobe) to scalable native app icons.**\r\n\r\nThe current PNG approach is very wasteful in terms of productivity and app size; it is just so primitive to generate and ship every icon in up to 9 fixed bitmaps (6 Android, 3 iOS) that are then post-processed at runtime. The problem increases steadily as resolutions increase in size and variation.\r\nIt sticks out as a sore thumb in the otherwise delightful innovative and productive Flutter developer experience. I think Flutter has a real opportunity to win devs hearts & minds here,\r\n\r\nAlso @dnfield the above mentioned **SVG features** that are mentioned as obstacles for implementing in Flutter are in my experience either not relevant or are rare enough that falling back to PNGs for those design assets is a minor inconvenience.\r\nDon't cares: CSS, HTML, SMIL, Document Model, scripting\r\nAnimation, Text: rare enough to fall back to other technologies for that\r\n\r\nI hope the length of this comment conveys how much value a solution would have. Hth!",
+    "createdAt": "2018-03-05T11:35:46Z"
+  },
+  {
+    "id": 1996,
+    "sender": "cbazza",
+    "content": "@VincentH-Net I am 100% with you because I feel the pain too !!! Please send me some of your SVG files. Perhaps Xamarin struggled to deliver SVG support due to lack of vector graphics engine that could handle it; this is not the case for Flutter with Skia so I am very optimistic that a community solution will happen.\r\n",
+    "createdAt": "2018-03-05T15:31:09Z"
+  },
+  {
+    "id": 1997,
+    "sender": "dnfield",
+    "content": "FWIW, Xamarin also has Skia available in SkiaSharp.  SVG can be tricky even for minimal implementation.\r\n\r\nBut @cbazza I'd be very interested in collaborating with you on this",
+    "createdAt": "2018-03-05T17:57:04Z"
+  },
+  {
+    "id": 1998,
+    "sender": "dnfield",
+    "content": "And on the animation front, I think that enabling Lottie would satisfy a lot of use cases (and probably do it with better tooling for designers).",
+    "createdAt": "2018-03-05T18:38:09Z"
+  },
+  {
+    "id": 1999,
+    "sender": "zoechi",
+    "content": "@dnfield I think these Lottie animations can easily be rebuilt as Flutter widgets",
+    "createdAt": "2018-03-05T20:20:16Z"
+  },
+  {
+    "id": 2000,
+    "sender": "cbazza",
+    "content": "@dnfield, excellent you could be the low level guy handling changes in the engine level while I do the upper level work on widget (async svg parsing, 'picture' construction that can be cached and sent to canvas on rendering updates, etc). \r\nyes, Lottie working would be great for designer/developer workflow.\r\n@zoechi why rebuild something by hand with widgets when you can simply import a working Lottie widget that handles everything for you? Having said that my previous goal (2) above would work great with widget animations (hence why I want to do it too).",
+    "createdAt": "2018-03-05T21:44:46Z"
+  },
+  {
+    "id": 2001,
+    "sender": "dnfield",
+    "content": "@zoechi - the goal would be to enable designers to create such things and render them with minimal effort on the developer's part.  A secondary goal would be to enable loading them as resources at runtime, rather than necessitating precompilation.\r\n\r\nThe same is true for SVG - yes, a developer could certainly convert SVG vector data to Dart, but ideally you can just include a vector drawing (SVG or not) resource and render it at runtime. \r\n\r\nIn other words, I want to be able to tell my designer to create a vector asset once and be able to use it in my Flutter application with minimal modification (and without having the designer export it 5 times in various raster formats that will end up being invalid as soon as Apple or Samsung release their next phone).",
+    "createdAt": "2018-03-06T00:24:30Z"
+  },
+  {
+    "id": 2002,
+    "sender": "zoechi",
+    "content": "> various raster formats \r\n\r\nyeah, that feels like the previous decade",
+    "createdAt": "2018-03-06T05:14:12Z"
+  },
+  {
+    "id": 2003,
+    "sender": "dnfield",
+    "content": "https://github.com/luberda-molinet/FFImageLoading Might be worth looking at, uses Skia to render SVG for Xamarin\r\n\r\n@escamoteur",
+    "createdAt": "2018-03-11T16:38:48Z"
+  },
+  {
+    "id": 2004,
+    "sender": "cbazza",
+    "content": "Thanks, that looks really good, only thing missing is that it is not async ;)",
+    "createdAt": "2018-03-11T20:19:24Z"
+  },
+  {
+    "id": 2005,
+    "sender": "zokipirlo",
+    "content": "I'm using only vector drawables in Android application recently, and I don't see any noticeable performance penalty. Icons are sharp and app size is a lot smaller. It's also much easier and faster to test different images. This @2, @3, @4, @5,.... solution looks like a huge step back in such a modern framework as Flutter is.\r\nI don't understand why you just can't go to the team responsible for android vector drawables, and use their ideas or implementation (if possible) on solving that problem.",
+    "createdAt": "2018-03-11T22:36:43Z"
+  },
+  {
+    "id": 2006,
+    "sender": "dnfield",
+    "content": "I've been toying around with some SVGs being drawn on a canvas here.  `path` elements are probably the trickiest to implement, but there's a Skia API that would really help if exposed.  I've experimented with exposing it in the engine and will open a PR once I've had a little more time to refine it.  \r\n\r\nThe rough idea would be something that allows us to create a `dart:ui` `Path` from an SVG data string, using already existing Skia API to do so.  Proposed method is `static Path Path.parseFromSvgData(String svgData) -> Path`\r\n\r\nThat still leaves some work around parsing out the various transformations/strokes/fills that can be applied.  I think we can borrow a good amount of that from work @amirh did (I didn't borrow all his path parsing logic because it seemed like it might have constraints SkParsePath doesn't and like SkParsePath should be more efficient since it will require only one round trip to the native side to draw the path rather than round trips for each drawing command).  I also didn't end up using @matanlurey for similar reasons.\r\n\r\nSee https://github.com/flutter/flutter/blob/master/dev/tools/vitool/lib/vitool.dart, https://github.com/dnfield/flutter_svg (which is currently capable of rendering the two SVGs included in that project to a canvas), and https://github.com/dnfield/engine/tree/path_svg (which is currently also including my PathMeasure/PathMetrics related work for Lottie).",
+    "createdAt": "2018-03-12T04:25:31Z"
+  },
+  {
+    "id": 2007,
+    "sender": "cbazza",
+    "content": "Hi @dnfield ,\r\n\r\nHere is my take on your initial implementation. Let me just say that whatever I am going to say should make no difference to your enthusiasm and coding progress. The more you do the better because we can always use it later.\r\n\r\nThe problem I have is architectural and here is why. In order for UI to be responsive at 60 frames/sec, each frame only has ~16ms to run before blocking the UI. So let's assume half is used by Flutter to do it's thing, that leaves 8ms for our SVG parser and there is no way to parse any SVG file and generate image in that period no matter how powerful a phone/tablet you have. So best thing to do is to target slow devices and have async code that is able to do this using multiple frames but the key is that each frame can only run up to 8ms and then it must return and pick up on the next frame.  \r\n \r\nSo you can't parse the XML using dart:xml because it is not async, it will block until the whole file is parsed. Also generating the image should be async because you can't do everything in 8ms. There is no point in prematurely optimizing the code though so write the best code that can be read. I have a plan that will work but it will take some time so I want you do continue as you are because I can always take your work and use it later. My design plugs into the current image loading functionality (AssetImage & NetworkImage) and the user just needs to specify a '.svg' instead of '.png'.\r\n\r\nCarlos.\r\n",
+    "createdAt": "2018-03-12T15:09:43Z"
+  },
+  {
+    "id": 2008,
+    "sender": "zoechi",
+    "content": "@cbazza just an idea: Parsing could be done in an isolate. I think there was some work done to be able to communicate with message channels from isolates others than the UI isolate and to pass data between isolates by reference instead of copying (not sure about status or progress though)",
+    "createdAt": "2018-03-12T15:18:54Z"
+  },
+  {
+    "id": 2009,
+    "sender": "dnfield",
+    "content": "@cbazza  - thanks.  I don't think that dart_xml is the best solution for this, but it works and enables some progress around the drawing logic (and I didn't want to block this completely while working to implement an async XML parser).  I also started looking at implementing `ImageProvider`, but I figure that can be an implementation detail we can obscure from the users.\r\n\r\nI am in no way set on any of this API.  But we can at least start on drawing SVGs, and probably support simple ones on decent phones.\r\n\r\nAre you intending to work on the XML/SVG reading/parsing API?",
+    "createdAt": "2018-03-12T15:20:00Z"
+  },
+  {
+    "id": 2010,
+    "sender": "dnfield",
+    "content": "@zoechi - we could still achieve much better memory usage and probably better parsing time with a streaming reader model.",
+    "createdAt": "2018-03-12T17:59:15Z"
+  },
+  {
+    "id": 2011,
+    "sender": "cbazza",
+    "content": "@zoechi yes I looked at isolates but you can only pass primitive values (null, num, bool, double, String) and lists and maps, and not objects and/or object trees, so async route seemed better. Another interesting thing about figuring out async xml parsing is that the concepts would apply to any async tree processing, like for example the widget or element tree. This would enable async reconciliation for example like in React's Fiber :)\r\n\r\n@dnfield yes I am working on async xml/svg parser/processor.\r\n",
+    "createdAt": "2018-03-12T18:10:48Z"
+  },
+  {
+    "id": 2012,
+    "sender": "Khalid-Nowaf",
+    "content": "just wondering, rendering SVG using a web-view can be an option?  ",
+    "createdAt": "2018-03-12T23:34:57Z"
+  },
+  {
+    "id": 2013,
+    "sender": "cbazza",
+    "content": "Too heavy for simple buttons and I am not sure the webview will be able to handle 60 frames/sec changes. I mean let's say we move the icon around or scale it for example.",
+    "createdAt": "2018-03-13T13:49:33Z"
+  },
+  {
+    "id": 2014,
+    "sender": "zokipirlo",
+    "content": "I'm not iOS developer, so I see now that also [iOS 11 has support for vector assets](https://www.reddit.com/r/sketchapp/comments/6fwej9/vector_assets_support_coming_to_ios_11_goodbye/). It's not SVG, but PDF. Is easier to support PDF vector assets?",
+    "createdAt": "2018-03-13T14:53:56Z"
+  },
+  {
+    "id": 2015,
+    "sender": "dnfield",
+    "content": "No.  Quartz has a lot of historical ties to PDF for its internal rendering system, which makes it easier to do this on an iOS device.  Skia is not a PDF renderer, and the file format would (IMO) introduce a lot of ambiguity about what's supported and what's not (with not-as-good tooling to fix it available).",
+    "createdAt": "2018-03-13T15:06:17Z"
+  },
+  {
+    "id": 2016,
+    "sender": "cbazza",
+    "content": "PDF is more complicated than SVG and the PDF/X subset (which is used for vector assets) is designed for printing. I would love to see PDF rendering support on Flutter though but for us let's stick to SVG.",
+    "createdAt": "2018-03-13T15:54:19Z"
+  },
+  {
+    "id": 2017,
+    "sender": "ohir",
+    "content": "I'd be happy with mere VectorDrawable subset of svg (point, line, curve, fill, move).  Flutter allows for RAD and aims to be truly multiplatform (with desktop coming) but now it can not. Both Android and Apple platforms are present on 60\"+ 4HD screens. There vector graphics is a must. \r\n\r\nP.S. Excuse me, but without VG your (flutter team) work is going to vanish in wake of Kotlin working natively on many platforms including iOS. Sure Kotlin native its still in beta but so is Flutter. :(\r\n ",
+    "createdAt": "2018-03-13T20:29:34Z"
+  },
+  {
+    "id": 2018,
+    "sender": "lukaspili",
+    "content": "@ohir Please explain how you would write a cross platform view (single code) that works both on iOS and Android with Kotlin native. Unless you intend to make a kotlin version of react native widget abstraction?",
+    "createdAt": "2018-03-13T20:51:56Z"
+  },
+  {
+    "id": 2019,
+    "sender": "cbazza",
+    "content": "Let's not underestimate what the Kotlin native people will do because the possibilities are endless. I got to Flutter from my experiments creating something like Flutter using Cocos2d-x. They could use that too and/or React Native and/or Flutter because everything is open sourced and available for cross pollination :) ",
+    "createdAt": "2018-03-13T21:18:28Z"
+  },
+  {
+    "id": 2020,
+    "sender": "lukaspili",
+    "content": "Yeah totally agree, kotlin love and adoption from developers is huge and cross platform compilation makes possibilities endless. But the comparison between Flutter beta and Kotlin native beta for mobile cross platform today is pointless. \r\nAnyway, deviating from the subject.\r\n",
+    "createdAt": "2018-03-13T21:57:29Z"
+  },
+  {
+    "id": 2021,
+    "sender": "ohir",
+    "content": "@lukaspili So far there is anko for Android. Its layouts DSL could work intact also with apko*, linko* and winko* included in respective platform subtree. But this is OT for the Flutter VG issue. [* does not exist yet].",
+    "createdAt": "2018-03-13T22:21:25Z"
+  },
+  {
+    "id": 2022,
+    "sender": "sethladd",
+    "content": "Thanks for all the passionate conversation! We'd like to keep this issue focused on the use cases and requirements for vector formats and APIs. Thanks in advance for staying on topic! :)",
+    "createdAt": "2018-03-13T22:44:28Z"
+  },
+  {
+    "id": 2023,
+    "sender": "dnfield",
+    "content": "What do people think of splitting this into an issue for supporting SVG and keeping this one for some TBD flutter vector format?",
+    "createdAt": "2018-03-13T22:56:27Z"
+  },
+  {
+    "id": 2024,
+    "sender": "krisgiesing",
+    "content": "That would make sense to me; the original issue is phrased as a Flutter-specific vector format of some kind.",
+    "createdAt": "2018-03-13T22:58:36Z"
+  },
+  {
+    "id": 2025,
+    "sender": "emilieroberts",
+    "content": "@cbazza Hooray for svg-like support. I have a bunch of non-icon svgs that I use to basically draw the whole UI of an app. How should I send them to you?\r\n\r\nWould love to try moving to flutter but generating a zillion pngs is going to seriously bloat app size and look ugly.",
+    "createdAt": "2018-03-19T03:47:29Z"
+  },
+  {
+    "id": 2026,
+    "sender": "cbazza",
+    "content": "yes, please send me an URL to look at the files.\r\n",
+    "createdAt": "2018-03-19T15:25:47Z"
+  },
+  {
+    "id": 2027,
+    "sender": "dnfield",
+    "content": "So at this point, on this front, I'm pursuing a Flatbuffer based approach.  I'm working on defining a Flatbuffer schema that could capture vector drawing commands - more or less the way Skia captures paths.\r\n\r\nI could see this being semi-interoperable with SVG (e.g. have a SVG -> Flatbuffer conversion tool, or Android Vector Drawable XML -> Flatbuffer, that could cover many of SVGs use cases), and avoid a lot of the performance hits that we'd face with SVG (lack of streaming XML parsing, need to parse SVG path data and then send it to native bit by bit).  I've also been able to produce smaller binary files than the SVG format (although it remains to be seen how well that will scale).\r\n\r\nIt should also be possible to give more clarity up front in the conversion tooling about what features are not supported in a given SVG (e.g. \"ForeignElements are not supported by this format\").  \r\n\r\nThe Flatbuffer parsing bit could be done in Dart or C++ - the one thing in dart is that it'd still be nice to have some way to batch commands over to Skia for building paths and drawing on Canvas.",
+    "createdAt": "2018-03-22T01:01:47Z"
+  },
+  {
+    "id": 2028,
+    "sender": "sandrobilbeisi",
+    "content": "there is a potentially much simpler solution which is to perform a compile-time parsing and digest of SVG to Skia node operations ... this would eliminate the runtime parsing of SVG altogether and allow retained mode caching of intermediate buffers",
+    "createdAt": "2018-04-03T18:13:05Z"
+  },
+  {
+    "id": 2029,
+    "sender": "zoechi",
+    "content": "@sandrobilbeisi you mean like https://github.com/amirh/flutter/commit/69de4bbf3177d9766a386c55b27a12619da43a05 ?",
+    "createdAt": "2018-04-03T18:35:04Z"
+  },
+  {
+    "id": 2030,
+    "sender": "sandrobilbeisi",
+    "content": "that's noteworthy ... and there's also vitool https://github.com/flutter/flutter/blob/master/dev/tools/vitool/lib/vitool.dart\r\n\r\nbut I was thinking more as a build step like the one Xcode uses with SVG assets for iOS deliverables",
+    "createdAt": "2018-04-03T18:58:00Z"
+  },
+  {
+    "id": 2031,
+    "sender": "escamoteur",
+    "content": "@sandrobilbeisi do you mean creating bitmap from svgs during compile time?\r\n\r\nBTW the Xamarin package ffimageloading caches the rendered bitmaps so only one time rendering. It also caches network images and resized images which makes it really fast ",
+    "createdAt": "2018-04-03T19:43:27Z"
+  },
+  {
+    "id": 2032,
+    "sender": "sandrobilbeisi",
+    "content": "not bitmap , but Skia which is originally a vector graphics engine for *<***canvas***>*\r\nhttps://skia.org/ ( p.s. acquired by Google a dozen years ago : http://www.satine.org/archives/2007/03/05/the-skia-source-code-dilemma/ )",
+    "createdAt": "2018-04-03T20:00:00Z"
+  },
+  {
+    "id": 2033,
+    "sender": "escamoteur",
+    "content": "You mean converting svg into a skia image format? ",
+    "createdAt": "2018-04-03T20:06:24Z"
+  },
+  {
+    "id": 2034,
+    "sender": "sandrobilbeisi",
+    "content": "yes",
+    "createdAt": "2018-04-03T20:17:59Z"
+  },
+  {
+    "id": 2035,
+    "sender": "emilieroberts",
+    "content": "@cbazza link to SVG test files: https://github.com/slingshotapp/artwork",
+    "createdAt": "2018-04-22T18:22:06Z"
+  },
+  {
+    "id": 2036,
+    "sender": "fmatosqg",
+    "content": "Is there a way to run vitool at project level? I can create the generated file but it needs access to lots of private classes that prevent me from adding the `.g.dart` to my project.\r\n\r\nReferring to the tool at  `<flutter>/dev/tools/vitool`: `#dart bin/main.dart --asset-name=_$hello --output=here.g.dart   ./test_assets/horizontal_bar_relative.svg`",
+    "createdAt": "2018-04-23T04:47:57Z"
+  },
+  {
+    "id": 2037,
+    "sender": "cbazza",
+    "content": "@emilieroberts Thanks but those files are not in SVG format but rather on the custom android vector format which is very similar to SVG.\r\n",
+    "createdAt": "2018-04-23T14:15:07Z"
+  },
+  {
+    "id": 2038,
+    "sender": "emilieroberts",
+    "content": "@cbazza oops, indeed - most of the svgs are up there now :)",
+    "createdAt": "2018-04-23T15:14:40Z"
+  },
+  {
+    "id": 2039,
+    "sender": "fmatosqg",
+    "content": "@cbazza can you clarify what you mean with custom android vector? They have an `<svg` tag, unlike android vector drawables.\r\n\r\nWhatever it's being done with vitool at the moment is amazing, but I couldn't find a trace of documentation anywhere. I can write it an example with `AnimatedIcons.arrow_menu`, but I'd also like to know what it would take to do that from assets from outside flutter SDK.\r\n\r\n",
+    "createdAt": "2018-04-24T01:45:27Z"
+  },
+  {
+    "id": 2040,
+    "sender": "amirh",
+    "content": "@fmatosqg you are right, the code that's used to run animations generated by vitool is private to the framework. The reason is that there are still open questions around what would be a good vector format for Flutter (as tracked in this issue), and I wanted to avoid a public API that supports any specific format (as that will be committing to that format if we don't want breaking changes in the future).\r\nThe current API surface for AnimatedIcon allows us to use files generated by vitool internally in the framework, and still be able to replace the underlying implementation and vector format without breaking any client.\r\n\r\nIf you want to generate files with vitool and use it in your project, you can do it by copying the code from `packages/flutter/lib/src/material/animated_icons` and including it as part of your project (this also guarantees that your project won't break if we change machinery the used by AnimatedIcon).\r\n\r\nSorry for the inconvenience and hope we get a better solution soon.",
+    "createdAt": "2018-04-24T02:15:58Z"
+  },
+  {
+    "id": 2041,
+    "sender": "fmatosqg",
+    "content": "I like this idea, specially if https://github.com/flutter/flutter/issues/13834 goes forward. I believe such a thing should not be part of a monolithic SDK, but not particularly concerned if it's an official or community package. \r\n",
+    "createdAt": "2018-04-24T02:27:36Z"
+  },
+  {
+    "id": 2042,
+    "sender": "ohir",
+    "content": "There is a compact [format for subset of svg](https://godoc.org/golang.org/x/exp/shiny/iconvg) coined for *Shiny* (Go desktop framework) by someone at the big **G**. Its binary representation and can bring default Android launcher icon size under 100 bytes. As stated way above in the thread - and IMSO - drawing vectors should be Skia's duty, with Flutter passing a most compact representation available. Its the tooling duty to compile `res/` svg files to the internal format.\r\n[@amirh Re: *open questions around what would be a good vector format*]",
+    "createdAt": "2018-04-24T06:24:18Z"
+  },
+  {
+    "id": 2043,
+    "sender": "dnfield",
+    "content": "So FWIW, in flutter_svg I've formulated the code such that all the drawing is really done by intermediate objects.  The SVG related work is basically mapping SVG to those objects.  There's still work to do to get that intermediate format fully stabilized (for example, I've started on text support but it is very bad right now).\r\n\r\nI've started porting over support for Android Vector Drawables into the framework (minus support for external color and style references etc., and not yet supporting clip paths or probably some other features).  It should be entirely possible to support Shiny this way as well, or really any other format.  I like working through SVG for it at this point because it helps cover a lot of interesting cases to support, so that's my primary focus for now.",
+    "createdAt": "2018-05-09T12:39:39Z"
+  },
+  {
+    "id": 2044,
+    "sender": "jules15",
+    "content": "After reading this thread -- and a long one about JSX support -- I can't help thinking that there exists a governance issue. The Flutter team risks being pulled in a thousand different directions as developer's clamor for what _they_ feel is important. Perhaps Flutter should institute \"incubator\" projects, like Apache. Requested features are implemented by plugins, in an open-source manner, possibly with contributions from the Flutter team themselves. If the plugins achieve sufficient support, efficacy and popularity, they become candidates for inclusion in the core Flutter framework. \r\n\r\nI feel this would let the most vocal developers put their \"code where there mouth is\" rather than resorting to the chest- and brow-beating on display here, and would leave the Flutter team more free to concentrate on core engineering.\r\n\r\n",
+    "createdAt": "2018-06-06T04:12:42Z"
+  },
+  {
+    "id": 2045,
+    "sender": "fmatosqg",
+    "content": "I respectfully disagree. If you look into the milestones like bucket5 you'll know what the team is working on and if you go to bucket6 you know what they consider a priority. Also you can know what they don't consider urgent if you look at other milestones down the road.\r\n\r\nAlso the reason to have something added to the flutter core should be more than \"I can do a plugin and it works for everybody and everybody wants it\". That's a reason to create a plugin, but not enough to be added to this repo or other flutter repos.\r\n\r\nAn example of things that should not be plugins: things that @dnfield added to the engine so he could benefit and use from the plugin he owns. Such plugin would have no chance of doing all the features it does if they were not added to the engine.\r\n\r\nBeing vocal is important, but will never guarantee that it will go through. Putting the code where the mouth is is also important but still not enough. This project has a lot of transparency and they clearly listen to what devs say, but it is not a democracy and doesn't mean popular vote will win without reasoning about consequences.",
+    "createdAt": "2018-06-07T00:20:15Z"
+  },
+  {
+    "id": 2046,
+    "sender": "Hixie",
+    "content": "Yes, please don't be concerned that the developers working on Flutter's framework will be distracted by discussions on bugs. :-) We do read the discussions, and we care very much about everyone's opinions, but at the end of the day we have [clear guiding principles](https://flutter.io/design-principles/#api-design) and we're not going to just react to the loudest voices. We perform careful market analysis to determine what the community as a whole cares about.",
+    "createdAt": "2018-06-11T23:16:38Z"
+  },
+  {
+    "id": 2047,
+    "sender": "lukepighetti",
+    "content": "Interesting conversation that leaves me with a simple question. How does Flutter team recommend we go from design phase (SVG) to vector graphics in Flutter?",
+    "createdAt": "2018-06-23T11:37:26Z"
+  }
+]

@@ -1,0 +1,386 @@
+[
+  {
+    "id": 8960,
+    "sender": "luisdiaz14",
+    "content": "Any news on this matter?\r\nI am facing the same issue.\r\n\r\nThanks in advance.",
+    "createdAt": "2019-11-12T16:40:43Z"
+  },
+  {
+    "id": 8961,
+    "sender": "pkkhandsome",
+    "content": "I rolled back the version to 1.7.8 h4.",
+    "createdAt": "2019-11-14T06:14:58Z"
+  },
+  {
+    "id": 8962,
+    "sender": "tvolkert",
+    "content": "For what it's worth to everyone following this issue: we are aware of the pain inherent in our current release process, and we're currently in the process of designing a better release process -- one of the goals of which is to make it easier to cherrypick important fixes into existing stable releases.  We're not there yet, but we're working on it -- and in the meantime, I apologize for any painful choices you have to make in choosing which Flutter release you use to build your app.",
+    "createdAt": "2019-11-14T06:58:00Z"
+  },
+  {
+    "id": 8963,
+    "sender": "campioncino",
+    "content": "> I rolled back the version to 1.7.8 h4.\r\n\r\nI rolled back to 1.7.8 hofix 4 for Android and 1.9.1 hotfix 6 for iOS\r\n\r\n",
+    "createdAt": "2019-11-14T07:34:18Z"
+  },
+  {
+    "id": 8964,
+    "sender": "andreichiritescu",
+    "content": "same problem has been reported on Nokia 2.1 (E2M) Android 9 OpenGL ES version 3.0. As well as J6+ and J4+.\r\nI have the utmost respect for the developers, but having a bug which affects more then 5% or the devices in a stable build and saying to wait 3-4 months is not acceptable for a stable release. A fix for this should be a blocker and if its not possible it should be specified in the release notes or by other means. Dont let us release in production a version which does not work for 5% of the users. ",
+    "createdAt": "2019-11-14T08:42:52Z"
+  },
+  {
+    "id": 8965,
+    "sender": "liyuqian",
+    "content": "@tvolkert : I further bisected the fix downto engine commit https://github.com/flutter/engine/commit/12769335c486ff8cead000df7a8ec92781caebfc and Skia commit https://skia.googlesource.com/skia.git/+/ca8b07cf8a59f74ce959df49135940bec7bdc84e . The root cause of this failure is because the GPU driver of Samsung J4+ and J6+ reports the incorrect GLSL version number. The Skia fix is a workaround of that driver bug by limiting the GLSL version number to be no greater than the GL version.",
+    "createdAt": "2019-11-16T00:49:38Z"
+  },
+  {
+    "id": 8966,
+    "sender": "tvolkert",
+    "content": "@brianosman is there a test on the Skia side that will guard against a regression here?  See the previous comment for context.",
+    "createdAt": "2019-11-18T15:37:26Z"
+  },
+  {
+    "id": 8967,
+    "sender": "brianosman",
+    "content": "Not currently, no. We'd need a test that mocks a broken driver, and we don't have the framework for any tests like that (though it is possible). I've filed a bug about this on our end: https://bugs.chromium.org/p/skia/issues/detail?id=9656. ",
+    "createdAt": "2019-11-18T21:24:56Z"
+  },
+  {
+    "id": 8968,
+    "sender": "tvolkert",
+    "content": "Thanks Brian.\r\n\r\nSince the fix is on master, I'm going to close this issue.",
+    "createdAt": "2019-11-19T18:12:16Z"
+  },
+  {
+    "id": 8969,
+    "sender": "jeffwoooo",
+    "content": "After closing, can I expect to be noticed from this issue when the fix be merged into stable branch, or do I have to track it on my own?",
+    "createdAt": "2019-11-20T07:18:03Z"
+  },
+  {
+    "id": 8970,
+    "sender": "tvolkert",
+    "content": "The fix will definitely be in the next stable, which will be released within the next month.",
+    "createdAt": "2019-11-20T15:16:25Z"
+  },
+  {
+    "id": 8971,
+    "sender": "karatasemre",
+    "content": "@tvolkert Do we have to wait for the next month for this problem? We receive this error in our live corporate application and this is a big problem for us. What is your suggestion? Thanks.",
+    "createdAt": "2019-11-21T06:53:51Z"
+  },
+  {
+    "id": 8972,
+    "sender": "tvolkert",
+    "content": "The beta release that will become the next stable should be available in ~2 weeks.",
+    "createdAt": "2019-11-21T16:37:47Z"
+  },
+  {
+    "id": 8973,
+    "sender": "shinayser",
+    "content": "> The beta release that will become the next stable should be available in ~2 weeks.\r\n\r\nWell, actually this fix is already on beta. I had to turn my brach to beta just because of that fix.\r\nI am on beta  `v1.10.7`.",
+    "createdAt": "2019-11-21T17:21:26Z"
+  },
+  {
+    "id": 8974,
+    "sender": "kevin4dhd",
+    "content": "![image](https://user-images.githubusercontent.com/22886367/69602880-fa08d900-0fe6-11ea-94eb-46a3dce59c5a.png)\r\n\r\nI have V1.10.7 but the problem persists, someone else if it works well with this version?",
+    "createdAt": "2019-11-26T05:53:57Z"
+  },
+  {
+    "id": 8975,
+    "sender": "TheJulianJES",
+    "content": "I'm not sure if this is related, but I didn't want to create a new issue due to the lack of information.\r\nI've had one person report, that my flutter app, built with the current beta channel, crashed on their \"Huawei Y7 Prime 2019 (HWDUB-Q)\" at startup.\r\nAfter a downgrade to a version built from the stable channel, the problem went away.\r\nI have no crashlogs, as it seems like the crashes were only caught by the Google Play Console (which only shows a very brief report and not by Firebase Crashlytics:)\r\n```\r\n*** *** *** *** *** *** *** *** *** *** *** *** *** *** *** ***\r\npid: 0, tid: 0 >>> de.tjjstudios.glplanflutter <<<\r\n\r\nbacktrace:\r\n \r\n  #00  pc 000000000047cc4c  /data/app/de.tjjstudios.glplanflutter-Ed0RLKOLWu88CyFi1p0HaQ==/split_config.arm64_v8a.apk\r\n \r\n  #01  pc 000000000004e6dc  /data/app/de.tjjstudios.glplanflutter-Ed0RLKOLWu88CyFi1p0HaQ==/split_config.arm64_v8a.apk\r\n```",
+    "createdAt": "2019-11-26T16:53:21Z"
+  },
+  {
+    "id": 8976,
+    "sender": "JCKodel",
+    "content": "What I don't understand is: 1.9 has 6 hotfixes. Why the reluctance in such important fix now? I have an app with 1.6 million downloads, you can imagine the problems in release it with beta technology (I also have 1 star reviews with \"won't open\")\r\n\r\nBut is just for the sake of curiosity. I will never use Flutter again. Last update broke a lot of plugins... It's just too unstable for serious using.",
+    "createdAt": "2019-11-26T18:23:31Z"
+  },
+  {
+    "id": 8977,
+    "sender": "opensourcegps",
+    "content": "LG Aristo 3+ (cv1s) is also affected by this problem. \r\n",
+    "createdAt": "2019-11-27T12:07:26Z"
+  },
+  {
+    "id": 8978,
+    "sender": "rafaelcorbellini-egsys",
+    "content": "I have the same inssue on` v1.12.15` a regreat to` v1.7.9` and works fine",
+    "createdAt": "2019-12-03T18:18:45Z"
+  },
+  {
+    "id": 8979,
+    "sender": "liyuqian",
+    "content": "@rafaelcorbellini-egsys : if there's still a black screen in `v1.12.15`, there might be another issue. Can you please provide us more details of how to reproduce the black screen? Are you also testing `flutter_gallery` app on a Samsung Galaxy J6+?",
+    "createdAt": "2019-12-03T19:12:17Z"
+  },
+  {
+    "id": 8980,
+    "sender": "tvolkert",
+    "content": "This issue is closed (original problem found and fixed).  Further discussion on this bug is likely to get lost.  @rafaelcorbellini-egsys please file a new issue with reproducible steps to track the new issue you're encountering.",
+    "createdAt": "2019-12-03T20:02:10Z"
+  },
+  {
+    "id": 8981,
+    "sender": "Hixie",
+    "content": "@zaralockheart \r\n> @Hixie With this, means that channel is good for production use right? We have this problem too at this point. I want to suggest to my development team to change to beta channel but I need your assurance to notify the team :)\r\n\r\nFWIW, with the applications I publish on my own time I literally ship from dev. I just pick a dev build that I find works well for my app, then stick with it as I fix the last few bugs before uploading to the store. Then when I do an update later, I switch to a more recent dev.",
+    "createdAt": "2019-12-04T02:47:34Z"
+  },
+  {
+    "id": 8982,
+    "sender": "rafaelcorbellini-egsys",
+    "content": "My bad,for some reason i believe  in  test i was not at `1.12.5`.\r\n\r\nI re-tested at `1.12.5`and it worked on Galaxy J6+",
+    "createdAt": "2019-12-04T17:38:08Z"
+  },
+  {
+    "id": 8983,
+    "sender": "Gyoko",
+    "content": "@tvolkert said that a stable release would be up in 2 weeks... 2 weeks ago. When will the black screen get fixed in stable release? I have a lot of dependencies now and rolling back to `1.7.9` is not an option without disabling a quarter of features.",
+    "createdAt": "2019-12-04T19:57:54Z"
+  },
+  {
+    "id": 8984,
+    "sender": "tvolkert",
+    "content": "Actually I said that \"the _beta_ release that will become the next stable should be available in ~2 weeks.\"\r\n\r\nThe beta release is available as of yesterday.  The current beta release is `v1.12.13+hotfix.2`, which contains this fix.",
+    "createdAt": "2019-12-04T20:10:31Z"
+  },
+  {
+    "id": 8985,
+    "sender": "Gyoko",
+    "content": "_Sigh_, now that \"black screen\" users are okay, normal users start getting crashes at startup. I hope the new release process you're talking about works out.",
+    "createdAt": "2019-12-05T00:12:18Z"
+  },
+  {
+    "id": 8986,
+    "sender": "tvolkert",
+    "content": "> normal users start getting crashes at startup\r\n\r\n@Gyoko if this is due to a bug in Flutter, can you file a new bug with info so we can track it down? Thanks!\r\n",
+    "createdAt": "2019-12-05T02:35:08Z"
+  },
+  {
+    "id": 8987,
+    "sender": "JCKodel",
+    "content": "> > normal users start getting crashes at startup\r\n> \r\n> @Gyoko if this is due to a bug in Flutter, can you file a new bug with info so we can track it down? Thanks!\r\n\r\nWhy? So you can ignore for 2, 3 months as well?",
+    "createdAt": "2019-12-05T03:17:30Z"
+  },
+  {
+    "id": 8988,
+    "sender": "tvolkert",
+    "content": "@JCKodel such language is not helpful.  Please read and follow our [code of conduct](https://github.com/flutter/flutter/blob/master/CODE_OF_CONDUCT.md).  If you're not willing to adhere to it, then please refrain from commenting on issues.",
+    "createdAt": "2019-12-05T03:49:25Z"
+  },
+  {
+    "id": 8989,
+    "sender": "JCKodel",
+    "content": "> _Sigh_, now that \"black screen\" users are okay, normal users start getting crashes at startup. I hope the new release process you're talking about works out.\r\n\r\nSame here.\r\nUse beta for users with Adreno 308 and lose other users or rollback to whatever version is working and lose J4+, J6+, J7 Prime and other Adreno 308 users?\r\n\r\nIT IS NOT POSSIBLE TO USE A BETA VERSION FOR PRODUCTION APPS. HOW HARD IS TO UNDERSTAND THAT?\r\n\r\nTotal regret in using Flutter >.<",
+    "createdAt": "2019-12-08T04:22:13Z"
+  },
+  {
+    "id": 8990,
+    "sender": "tvolkert",
+    "content": "@JCKodel we are trying to fix the bugs that are reported, but as far as I know, there's been no bug filed about the crashing on Adreno 308, so we have no way of investigating.\r\n\r\nI ask again: will you (a) please file a bug about the new crash on beta, and (b) please use constructive, helpful language?",
+    "createdAt": "2019-12-08T15:50:16Z"
+  },
+  {
+    "id": 8991,
+    "sender": "tvolkert",
+    "content": "ping @Gyoko have you filed a bug about the crash?",
+    "createdAt": "2019-12-08T15:51:06Z"
+  },
+  {
+    "id": 8992,
+    "sender": "Gyoko",
+    "content": "@tvolkert\r\nAt least when on android, **after switching branches (`master `-> `beta`), updating app via GooglePlay results in black screen on start**. Meaning you need to perform a clean install for the app to actually work. I don't know whether this is caused by something in `1.12` or the channels themselves. But it does mean that this solution is nonviable - developer must explain each and every client (that decides to reach out, instead of leaving 1 star and moving on) that they need to reinstall the app. \r\n\r\nAt this point I've accepted the fact that I will be moving to `1.7.9`, and somehow will figure out how to avoid disabling any of the features. \r\n\r\nAnyways, I do get why your dev team gets much hate, and I can't really say that it's undeserved. It's not the first time there are problems with flutter running on Samsung phones - you could've already acquired a few platforms for testing to ensure there are no half-baked `master `releases...\r\nBut at the same time Flutter has a LOT of potential - Fuchsia, Desktop. Keep up the ~~good~~ work. It will pay off :)",
+    "createdAt": "2019-12-09T00:08:17Z"
+  },
+  {
+    "id": 8993,
+    "sender": "JCKodel",
+    "content": "![image](https://user-images.githubusercontent.com/379339/70399067-e22a4f80-19ff-11ea-9766-a7bd71f510e7.png)\r\n\r\nAbout 50% of my user base use crappy Samsungs and I have to inform them: choose between black screen or the app not opening.\r\n\r\nBugs are ok. Months to apply a fix THAT IS ALREADY READY is unacceptable.\r\n\r\nNow a lot of bugs in iOS as well (regression bugs on google_sign_in).\r\n\r\nWORST DECISION EVER TO USE FLUTTER!",
+    "createdAt": "2019-12-09T00:17:07Z"
+  },
+  {
+    "id": 8994,
+    "sender": "tvolkert",
+    "content": "@Gyoko it seems like there are multiple distinct issues being discussed, and it gets very confusing to try to discuss them all in one bug.  Also, again, the bug causing this issue has been found and fixed, so this bug is not the right venue to discuss new issues.  Thus, I filed https://github.com/flutter/flutter/issues/46570 to discuss to black screen on Play Store update, and I filed https://github.com/flutter/flutter/issues/46571 to discuss the crash that you reported.  Please add information to those bugs so we can have a look.\r\n\r\n@JCKodel you continue to not follow our code of conduct, so unfortunately, I'm going to block you for 7 days.  If you would like to continue to engage pleasantly, we'd be happy to listen and try to address any issues you run into.",
+    "createdAt": "2019-12-09T02:35:39Z"
+  },
+  {
+    "id": 8995,
+    "sender": "myriky",
+    "content": "did you know that SAMSUNG GALAXY S7 (Qualcomm Snapdragon 820 Models) also affected by this problem.",
+    "createdAt": "2019-12-09T05:03:16Z"
+  },
+  {
+    "id": 8996,
+    "sender": "ric-cl",
+    "content": "Hi,\r\nAny update of when the stable update with this fix will be available (pre-christmas gift) please.",
+    "createdAt": "2019-12-09T12:49:17Z"
+  },
+  {
+    "id": 8997,
+    "sender": "tvolkert",
+    "content": "@ric-cl we're going through the final testing of the next stable - it should be any day now (definitely before Christmas 🙂)",
+    "createdAt": "2019-12-09T19:39:32Z"
+  },
+  {
+    "id": 8998,
+    "sender": "tvolkert",
+    "content": "This fix is now available on the stable channel (`v1.12.13+hotfix.5`)",
+    "createdAt": "2019-12-11T18:11:29Z"
+  },
+  {
+    "id": 8999,
+    "sender": "davidmartos96",
+    "content": "@myriky Does the latest stable version fixes the problem you mention with the Samsung Galaxy S7?\r\n\r\n",
+    "createdAt": "2019-12-12T10:52:03Z"
+  },
+  {
+    "id": 9000,
+    "sender": "hermuxo",
+    "content": "> This fix is now available on the stable channel (`v1.12.13+hotfix.5`)\r\n\r\nThank you!\r\n\r\nUpdated our app last night. Still getting in reports (7 in the last 5 hours) specific to Huawei Y7 Prime 2019 (HWDUB-Q), but this might be different issues - seems to be a crash.\r\nFor example:\r\n> ★\r\n> Oh no... The newest version suddenly doesn't work anymore. It just closes on its own as you try open it. I did uninstall and reinstall.\r\n\r\nDon't see anything in crash reports (yet). Thanks again!\r\n",
+    "createdAt": "2019-12-13T15:14:04Z"
+  },
+  {
+    "id": 9001,
+    "sender": "tvolkert",
+    "content": "Thanks @hermanmaritz!  If you get details on the crash, please mention me on the issue, and I'll have a look.",
+    "createdAt": "2019-12-13T15:30:09Z"
+  },
+  {
+    "id": 9002,
+    "sender": "TheJulianJES",
+    "content": "@hermanmaritz I'm also seeing crashes on the Google Play Console for the \"Huawei Y7 Prime 2019 (HWDUB-Q), Android 8.1\" (with v1.12.13+hotfix.5 and prior beta versions).\r\nHowever, I'm unable to file a new issue, as I don't have any crash logs myself. (Firebase Crashlytics has no logs of any of the 32 crashes) and the Google Play Console also doesn't show very much in terms of a crashlog.\r\n\r\nThe only thing I can say is that after I sent the user an earlier build using Flutter v1.9.1+hotfix.6, it seems to work fine. So a new issue should probably be filled for this.",
+    "createdAt": "2019-12-13T15:47:54Z"
+  },
+  {
+    "id": 9003,
+    "sender": "Xgamefactory",
+    "content": "we will wait for couple weeks  to be sure that this release really stable.",
+    "createdAt": "2019-12-13T22:10:48Z"
+  },
+  {
+    "id": 9004,
+    "sender": "n0tc0ding",
+    "content": "Hello @hermanmaritz @TheJulianJES , any news about the crashes on Huawei? ",
+    "createdAt": "2019-12-14T22:52:28Z"
+  },
+  {
+    "id": 9005,
+    "sender": "hermuxo",
+    "content": "Unfortunately from 15 App Reviews on the app I can confirm that the \"Black screen\" us still an issue on `Y7 Prime 2019 (HWDUB-Q)`. If there is something I can do to help debug this let me know? \r\n\r\n```\r\nflutter --version\r\nFlutter 1.12.13+hotfix.5 • channel stable • https://github.com/flutter/flutter.git\r\nFramework • revision 27321ebbad (5 days ago) • 2019-12-10 18:15:01 -0800\r\nEngine • revision 2994f7e1e6\r\n```",
+    "createdAt": "2019-12-16T10:13:28Z"
+  },
+  {
+    "id": 9006,
+    "sender": "birtanyildiz",
+    "content": "we are facing this problem with honor 8c and huawei y7 prime 2019 devices.( May be its not the same with samsung j4 / j6 ) on google play console we can only see the error like this. I am trying to find a device may be i can reach more information after that. but its only on theese devices.\r\n![image](https://user-images.githubusercontent.com/810556/70914116-66945800-2028-11ea-937a-fe15f86dc3c1.png)\r\n",
+    "createdAt": "2019-12-16T14:23:39Z"
+  },
+  {
+    "id": 9007,
+    "sender": "liyuqian",
+    "content": "@birtanyildiz @hermanmaritz @TheJulianJES : since this issue is Samsung specific, I created a new issue https://github.com/flutter/flutter/issues/47164 for Huawei. Let's redirect our future discussions and fix on the Huawei devices there.",
+    "createdAt": "2019-12-16T22:31:42Z"
+  },
+  {
+    "id": 9008,
+    "sender": "abdulmueizrosli",
+    "content": "Unfortunately the \"Black screen\" still an issue on VIVO V5 Plus.\r\n\r\nE:\\Flutter\\flutter\\bin\\flutter.bat doctor --verbose\r\n[√] Flutter (Channel stable, v1.12.13+hotfix.5\r\n    • Flutter version 1.12.13+hotfix.5 at E:\\Flutter\\flutter\r\n    • Framework revision 27321ebbad\r\n    • Engine revision 2994f7e1e6",
+    "createdAt": "2019-12-26T05:13:33Z"
+  },
+  {
+    "id": 9009,
+    "sender": "premtemp1",
+    "content": "Any solution... I am seeing this error on LG --OS9",
+    "createdAt": "2020-01-16T20:52:56Z"
+  },
+  {
+    "id": 9010,
+    "sender": "tmatrai",
+    "content": "I have an app in Google Play with some thousand users, and I still have one star reviews related with black screen issues. On 95% of the devices is okkey, but on others it is still an issue. \r\n\r\nMy latest app release is built on Flutter 1.12.13+hotfix5 (stable channel).",
+    "createdAt": "2020-01-17T08:04:10Z"
+  },
+  {
+    "id": 9011,
+    "sender": "LuizLeite",
+    "content": "Hi. In my case, i removed the \"get_ip\" package, and the black screen is gone, the app is back up and running.",
+    "createdAt": "2020-01-23T01:32:58Z"
+  },
+  {
+    "id": 9012,
+    "sender": "dumplings",
+    "content": "![WechatIMG71](https://user-images.githubusercontent.com/16367785/73610087-cb266900-460e-11ea-9dba-b8c305b46c32.jpeg)\r\nthe same issues with me.\r\n\r\n ~ flutter --version\r\nFlutter 1.12.13+hotfix.7 • channel stable • https://github.com/flutter/flutter.git\r\nFramework • revision 9f5ff2306b (6 days ago) • 2020-01-26 22:38:26 -0800\r\nEngine • revision a67792536c\r\nTools • Dart 2.7.0",
+    "createdAt": "2020-02-02T14:55:14Z"
+  },
+  {
+    "id": 9013,
+    "sender": "campioncino",
+    "content": "Do you know if the v1.12.13+hotfix.7 solve the Huawei problem?",
+    "createdAt": "2020-02-04T07:59:36Z"
+  },
+  {
+    "id": 9014,
+    "sender": "LuizLeite",
+    "content": "Hi.I am trying to believe that these are packages that have not been upgraded to version 1.12.xx of Flutter. Try to remove them and test. If the problem persists, then it’s up to the folks at Google.\n\nLuiz Leite\n \n\n    Em terça-feira, 4 de fevereiro de 2020 04:59:41 BRT, campioncino <notifications@github.com> escreveu:  \n \n \nDo you know if the v1.12.13+hotfix.7 solve the Huawei problem?\n\n—\nYou are receiving this because you commented.\nReply to this email directly, view it on GitHub, or unsubscribe.\n  ",
+    "createdAt": "2020-02-04T11:34:16Z"
+  },
+  {
+    "id": 9015,
+    "sender": "liyuqian",
+    "content": "@tmatrai : v1.12.13+hotfix.5 is known to have some blackscreen issues and it's fixed in v1.12.13+hotfix.7. Please see https://github.com/flutter/flutter/issues/47164\r\n\r\n@dumplings : what device did you see the blackscreen problem with v1.12.13+hotfix.7 ?\r\n\r\n@GaryQian : can you please double check v1.12.13+hotfix.7 with the Huawei devices that we recently purchased, and the Samsung J6+ device (probably in my drawer)? I believe they should be fixed in v1.12.13+hotfix.7.",
+    "createdAt": "2020-02-05T04:49:28Z"
+  },
+  {
+    "id": 9016,
+    "sender": "costarf",
+    "content": "Updated to v1.12.13+hotfix.7 and still get the error on J4 and Huawei.\r\n\r\nAny estimate when this will be really fixed?",
+    "createdAt": "2020-02-10T11:02:02Z"
+  },
+  {
+    "id": 9017,
+    "sender": "GaryQian",
+    "content": "@costarf What devices exactly are you testing on? I just verified that this crash is fixed on Huawei Y7Pro/Enjoy9 (DUB AL20) and Huawei Honor8C (BKK AL10) as well as Samsung J6+ (SM-J610G) using 1.12.13+hotfix.7\r\n\r\nAlso, is this happening with a minimal app such as the hello world app from `flutter create`?",
+    "createdAt": "2020-02-11T23:14:54Z"
+  },
+  {
+    "id": 9018,
+    "sender": "Bernardomrf",
+    "content": "I had some problems like this, after I migrated my flutter project to AndroidX. On some android devices the app wouldn't pass the splash screen.\r\n\r\n**Solution:**\r\nI discovered that I had the _android:hardwareAccelerated_ variable set to false, in AndroidManifest.xml. After I set it to true, I got the app working on those android devices.\r\n\r\nI'm using the Stable channel - v1.12.13+hotfix.8.\r\n",
+    "createdAt": "2020-02-12T12:14:03Z"
+  },
+  {
+    "id": 9019,
+    "sender": "liyuqian",
+    "content": "@xster : according to https://github.com/flutter/flutter/issues/37155#issuecomment-585177594, we might have issues when android:hardwareAccelerated is set to false. Do we support setting android:hardwareAccelerated to false? If so, there seems to be a bug. If not, maybe we should make it impossible to set it to false.",
+    "createdAt": "2020-02-13T20:24:20Z"
+  },
+  {
+    "id": 9020,
+    "sender": "xster",
+    "content": "@liyuqian this is probably a question for @jason-simmons or @chinmaygarde what our official level of support is for software rendering on Android for debug or in general. \r\n\r\nThis is also probably the same question as ramifications to https://github.com/flutter/flutter/issues/47804 and whether it could cause more obscure issues down the line.",
+    "createdAt": "2020-02-16T08:45:07Z"
+  },
+  {
+    "id": 9021,
+    "sender": "liyuqian",
+    "content": "@xster : the software backend should be quite solid as all Google-internal golden tests are running with software rendering. The only downside of using software rendering is the performance hit as far as I know.\r\n\r\nDo you suggest to fallback to software if the GPU backend fails to initialize? If so, I think we first have to establish some alerting system so we won't let some GPU issues slip through and cause wide performance regressions without detections.",
+    "createdAt": "2020-02-16T19:08:40Z"
+  },
+  {
+    "id": 9022,
+    "sender": "xster",
+    "content": "Ah, good to know. Let's continue on https://github.com/flutter/flutter/issues/50900. Once we establish signaling like you're saying, we can just fail on benchmarks on software fallbacks. ",
+    "createdAt": "2020-02-16T22:45:24Z"
+  },
+  {
+    "id": 9023,
+    "sender": "mohamed-saber21",
+    "content": "> Hi. In my case, i removed the \"get_ip\" package, and the black screen is gone, the app is back up and running.\r\n\r\nhow i can do this?",
+    "createdAt": "2020-03-12T11:46:20Z"
+  }
+]

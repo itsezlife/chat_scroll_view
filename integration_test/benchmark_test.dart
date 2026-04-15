@@ -73,6 +73,7 @@ List<IChatMessage> _generateMessages(int count) {
     for (var i = 0; i < count; i++)
       ChatMessage$User(
         id: i,
+        sender: 'User',
         createdAt: now.add(Duration(minutes: i)),
         updatedAt: now.add(Duration(minutes: i)),
         content: () {

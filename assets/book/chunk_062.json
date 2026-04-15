@@ -1,0 +1,386 @@
+[
+  {
+    "id": 3968,
+    "sender": "lukepighetti",
+    "content": "I don't think angry comments increase the heat, but adding actual examples of where this is falling apart might.",
+    "createdAt": "2022-06-15T17:40:42Z"
+  },
+  {
+    "id": 3969,
+    "sender": "iosephmagno",
+    "content": "@lukepighetti what examples? Emojis’ size and letter spacing is always off, no specific case needed. \r\n\r\nSaying that people dont comment because disheartened is not angry reply, just the truth.\r\n3yrs passed by, no deadline, p4 and no one really on it. Why do you guys expect more comments in the thread?",
+    "createdAt": "2022-06-15T17:53:50Z"
+  },
+  {
+    "id": 3970,
+    "sender": "iosephmagno",
+    "content": "@lukepighetti btw we have made this repo\r\nhttps://github.com/indjec/ui-label\r\n\r\nYou can see comparison between UIlabel native wrapper and flutter text. Maybe it will be easier to compare them on the same screen and use this to test your fix, when available.",
+    "createdAt": "2022-06-15T18:00:46Z"
+  },
+  {
+    "id": 3971,
+    "sender": "miyoyo",
+    "content": "Just going to add this again because it got burried, but **this is a Skia bug**.\r\n\r\nHere is the issue, it's currently absolutely ignored: https://bugs.chromium.org/p/skia/issues/detail?id=9976&q=emoji&can=2\r\n\r\n@lukepighetti You may want to add that link to the original post for quick reference",
+    "createdAt": "2022-08-18T01:49:28Z"
+  },
+  {
+    "id": 3972,
+    "sender": "iosephmagno",
+    "content": "@miyoyo thx for trying to move this forward.\r\nIt is sad to read again “medium” priority at that link.\r\n\r\nOur point is that if an issue halts the launch of entire categories of products, a fix should land with high urgency.\r\n\r\nUnfortunately, current policy didnt allow a priority change. Can I suggest to reconsider the rule?",
+    "createdAt": "2022-08-18T07:17:27Z"
+  },
+  {
+    "id": 3973,
+    "sender": "simplenotezy",
+    "content": "Thanks @lukepighetti, I adjusted your code a bit to center the emojis, and align the distances no matter if there's a space after the emoji or not (using trim).\r\n\r\n```dart\r\nclass EmojiText extends StatelessWidget {\r\n  final String text;\r\n  final TextStyle style;\r\n  final double emojiFontMultiplier;\r\n\r\n  const EmojiText({\r\n    required this.text,\r\n    required this.style,\r\n    this.emojiFontMultiplier = 1.4, // Increase by 40%\r\n  });\r\n\r\n  // Regex to match emojis\r\n  static final regex = RegExp(\"(\\u00a9|\\u00ae|[\\u2000-\\u3300]|\\ud83c[\\ud000-\\udfff]|\\ud83d[\\ud000-\\udfff]|\\ud83e[\\ud000-\\udfff])\");\r\n\r\n  List<InlineSpan> generateTextSpans(String text) {\r\n    List<InlineSpan> spans = [];\r\n    final TextStyle emojiStyle = style.copyWith(\r\n      fontSize: (style.fontSize! * emojiFontMultiplier),\r\n      letterSpacing: 2,\r\n      height: 1.1,\r\n    );\r\n\r\n    text.splitMapJoin(\r\n      regex,\r\n      onMatch: (m) {\r\n        spans.add(\r\n          WidgetSpan(\r\n            alignment: PlaceholderAlignment.middle,\r\n            child: Text(m.group(0) ?? '', style: emojiStyle),\r\n          ),\r\n        );\r\n        return \"\";\r\n      },\r\n      onNonMatch: (s) {\r\n        spans.add(TextSpan(text: s.trim()));\r\n        return \"\";\r\n      },\r\n    );\r\n    return spans;\r\n  }\r\n\r\n  @override\r\n  Widget build(BuildContext context) {\r\n    return Container(\r\n      child: RichText(\r\n        strutStyle: StrutStyle(\r\n          forceStrutHeight: true,\r\n        ),\r\n        text: TextSpan(\r\n          children: generateTextSpans(text),\r\n          style: style,\r\n        ),\r\n      ),\r\n    );\r\n  }\r\n}\r\n```\r\n\r\nUsage:\r\n\r\n```dart\r\nEmojiText(\r\n  text: 'Hello world 😊',\r\n  style: TextStyle(\r\n    fontSize: 15,\r\n  ),\r\n)\r\n```\r\n\r\n![image](https://user-images.githubusercontent.com/3786627/201613799-d55cc6d0-823f-46ea-a7e9-99ab76ad161d.png)\r\n\r\n",
+    "createdAt": "2022-11-14T08:37:11Z"
+  },
+  {
+    "id": 3974,
+    "sender": "delfme",
+    "content": "@simplenotezy unfortunately there is no workaround for this issue so far. Since issue is severe and pending for such a long time, I think flutter team cannot fix it due to some technical limitation related to skia.\r\n\r\nI see you are coding a chat app, here a few remarks you might want to know:\r\n- if you try to improve emojis baseline, they will get cut (you can see issue in your very image attached below)\r\n- that regex formula doesnt work well. Several emojis will not render or will not render properly for a specific color. To discover them, you should try them all.\r\n- emojis will render badly inside textfield. For a chat app, this is a deal breaker. I would suggest you to use React Native. Discord for ios is made in React, app performance are very good, you can give it a look. \r\n\r\n![3C1A6757-76BA-44E5-B64F-499F5A4C62FB](https://user-images.githubusercontent.com/53510751/201631980-b36450a4-a0d3-4d0a-9e4c-d13e16ffc79e.jpeg)\r\n\r\n\r\n\r\n",
+    "createdAt": "2022-11-14T10:15:48Z"
+  },
+  {
+    "id": 3975,
+    "sender": "lukepighetti",
+    "content": "My emoji fix is not a good one. I wouldn't recommend anyone use it. But maybe it can help people who are feeling extreme pain. Probably the best thing you can do is improve the regex. I'm not sure what the emoji unicode regex actually is.",
+    "createdAt": "2022-11-14T17:21:41Z"
+  },
+  {
+    "id": 3976,
+    "sender": "delfme",
+    "content": "Yep formula would improve by adding ufe0f, udb40 and udc61-udc7f.\r\n\r\nHowever, improving formula is not beneficial because emojis issue will still be visible inside textfields and end result would be sort of frankenstein (emojis looking good inside Text and bad inside TextField). \r\n\r\nHope this issue will be fixed soon, all people trying my app candidly described textfield as “weird” and “defective”: weird/ugly emojis, weird keyboard’s movement (it is the unsync animation issue), weird look (it is the other known fidelity issues).",
+    "createdAt": "2022-11-18T10:43:06Z"
+  },
+  {
+    "id": 3977,
+    "sender": "delfme",
+    "content": "Guys this is serious. Please see below 2 mockups to understand the gravity of the situation. One pic is native style and the other one is real flutter text.\r\n\r\nI do understand there is some pesky bug on skia that you still couldnt fix, but we cannot ship app with this bug. Also, I think at this point it would be fair to write clearly on flutter website that text on ios is not production ready and mention this bug.\r\n\r\n![6F6D450E-4F92-43EB-AF7B-7E83BE6F2A45](https://user-images.githubusercontent.com/53510751/207883850-8bb78a4a-098e-409b-baf4-e4ff93081537.png)\r\n\r\n![D17EBECC-01C9-4BCB-B33F-27C7C85DD2E0](https://user-images.githubusercontent.com/53510751/207883867-c6ec0c1a-a34f-4d74-81df-9b01eafb3110.png)\r\n",
+    "createdAt": "2022-12-15T14:27:58Z"
+  },
+  {
+    "id": 3978,
+    "sender": "mariopepe",
+    "content": "priority p4, opened in 2019...\r\n\r\nDefinitely adding this to the list I share with the people who ask me \"should I use Flutter or not?\"",
+    "createdAt": "2023-01-07T21:58:57Z"
+  },
+  {
+    "id": 3979,
+    "sender": "Nico3652",
+    "content": "> Definitely adding this to the list I share with the people who ask me \"should I use Flutter or not?\"\r\n \r\nAgree on this if you are trying to start a social / chat app now. \r\n\r\nI have found a new ugly Emoji issue maybe linked to this one and opened a new issue #118154.\r\n\r\nFor those who have created chat app and haven't noticed yet, I suggest you to check your ```BouncingScrollPhysics``` on iOS for ```ListView``` and ```TextField``` and go to workaround this...",
+    "createdAt": "2023-01-08T11:27:28Z"
+  },
+  {
+    "id": 3980,
+    "sender": "delfme",
+    "content": "Flutter team is making good steps forward in improving text/textfield, but yes they are not production ready. Beyond emojis issues, there are known bugs related to keyboard animation, selection, magnifier lens and platform fidelity. They are working on them but it will take time.\r\n\r\n@mariopepe from my understanding this p1 has been tagged as p4 not because flutter team thinks it is p4, but because there is a pesky issue on Skia and p4 warns the community not to expect a fix anytime soon.\r\n\r\nAnother point which might deserve a second thought, is whether the flutter rendering approach should be applied to textfield. Texfield is not “just another widget”. Both Apple and Google are adding so many features to it that the only way to provide a native-like experience is to wrap the native one. For example, see Translate, Lookup, etc (pics below). Then there is UI fidelity which is tricky to catch up on iOS but also on android, where vendors customize toolbars and users love to change themes and fonts. \r\n\r\nAnother thought: I noticed that community is starting to spread word about not to use flutter for serious apps or apps where text is key. If this trend becomes pervasive, it will be hard to revert. Maybe proving a temporary workaround to community might be necessary, same as with shaders warmup. The two widgets might coexist inside app: flutter textfield widget for form fields and search fields, flutter native_textfield widget for chat textfields or text editors.\r\n\r\n![20B038CA-9907-4DE1-8DE3-A491A7C71000](https://user-images.githubusercontent.com/53510751/211503383-37199556-79fc-45c9-9c2c-0fd78b13085d.jpeg)\r\n \r\n\r\n![E657FA91-8368-4CC4-BCE1-C02AA569B34F](https://user-images.githubusercontent.com/53510751/211503373-80ee05c0-7467-4315-a90b-7bd47e22167c.jpeg)\r\n\r\n",
+    "createdAt": "2023-01-10T09:31:16Z"
+  },
+  {
+    "id": 3981,
+    "sender": "orestesgaolin",
+    "content": "> Maybe proving a temporary workaround to community might be necessary, same as with shaders warmup. The two widgets might coexist inside app: flutter textfield widget for form fields and search fields, flutter native_textfield widget for chat textfields or text editors.\r\n\r\nI think you have a point that it often feels to be limited by the Flutter text fields compared to native ones. Some apps add additional functionality (passwords managers or dictionaries apps), and the selection experience is usually much more natural. On the other hand Flutter text fields look consistent across various system versions and vendors, and you can customize them to your own liking.\r\n\r\nThere were some attempts in showing the native text field like [flutter_native_text_input](https://pub.dev/packages/flutter_native_text_input) to use platform views hosting text fields. It may be fine in cases like static sign in page, but in more complex environments like scrolling lists or multiline views it may not be the best experience.\r\n\r\nI wonder if Flutter team has any plans to make a significant change in how text fields are displayed, or are they going to continue with the current approach, whilst trying to make them as close to platform as possible.",
+    "createdAt": "2023-01-10T14:22:44Z"
+  },
+  {
+    "id": 3982,
+    "sender": "delfme",
+    "content": "That plugin you mentioned was sort of abandoned due to issues with platform views, especially in multiline mode and on the android side.\r\n\r\nAs for performance, one single native textfield inside a chat screen or a text-editor screen performs very well.\r\n\r\nKeep improving flutter textfield to mimic native experience might be a dead-end street due to issues listed above. Also, questions are: How long will it take? It is a fact that we couldn’t fix emojis in 3yrs. Will it really feel native? Very unlikely. Do we want flutter to be perceived as the go-to platform to code quick cheap apps? That’s a real risk.",
+    "createdAt": "2023-01-10T16:58:41Z"
+  },
+  {
+    "id": 3983,
+    "sender": "miyoyo",
+    "content": "The only real solution here is to wait for impeller, or to somehow wake the Skia issue up.\r\n\r\nClearly, nobody on the Chrome team for macOS cares either, since nobody complains regularly about it.\r\n\r\nNo point complaining here, again, this is more relevant: https://bugs.chromium.org/p/skia/issues/detail?id=9976&q=emoji&can=2",
+    "createdAt": "2023-01-10T17:14:04Z"
+  },
+  {
+    "id": 3984,
+    "sender": "delfme",
+    "content": "> The only real solution here is to wait for impeller, or to somehow wake the Skia issue up.\r\n> \r\n> Clearly, nobody on the Chrome team for macOS cares either, since nobody complains regularly about it.\r\n> \r\n> No point complaining here, again, this is more relevant: https://bugs.chromium.org/p/skia/issues/detail?id=9976&q=emoji&can=2\r\n\r\nCheck reply there in 2020. From then after no responses at all. If they don’t want / cant answer, I dont see the use of keeping asking.\r\n\r\nBut your worry about Chrome team not working on ios looks groundless. Desktop flutter counts 1% of flutter projects. Issue is that skia text is buggy and difficult to fix. As bungeman says in his comment, it is a miracle that things ever work at all. Waiting for Impeller won’t help since it seems to use Skia for text rendering.\r\n\r\n![B5263DDC-75D6-4DC8-BFE6-2CE9F2845671](https://user-images.githubusercontent.com/53510751/212535817-5028aabf-95c9-434c-a72a-3c6901ae2c48.jpeg)\r\n\r\n\r\n\r\n\r\n",
+    "createdAt": "2023-01-15T10:48:54Z"
+  },
+  {
+    "id": 3985,
+    "sender": "delfme",
+    "content": "My humble advice here is:\r\n- try to put more people on this issue because it is so severe that prevents apps from being shipped. Unfortunately community cant help much here, issue is so tricky that even flutter team has an hard time fixing it.\r\n- inform on website that text on ios is not production ready and mention main text/textfield issues. People cant imagine issues with text and tend to discover this problem several months after coding. \r\n\r\nThe temptation to hide some shit under the rug to better win new clients is a thing, but this is too serious not to warn the people. Ofc some will switch to React Native but will still think good of flutter and might use it for next projects.\r\n",
+    "createdAt": "2023-01-15T11:09:13Z"
+  },
+  {
+    "id": 3986,
+    "sender": "miyoyo",
+    "content": "@delfme \r\n> your worry about Chrome team not working on ios looks groundless\r\n\r\nIt isn't on iOS, as iOS effectively bans other browser engines, however, on macOS, Chrome **does** have the exact same bug, this is how this image was produced:\r\n![https://user-images.githubusercontent.com/3525610/79082516-d5f42d00-7d26-11ea-97ca-dbdaa2e9e902.png](https://user-images.githubusercontent.com/3525610/79082516-d5f42d00-7d26-11ea-97ca-dbdaa2e9e902.png)\r\n\r\nIt still isn't impossible to use a separate component that isn't Skia for text layout and shaping, that's just the current plan, text rendering is already planned to be done by impeller.",
+    "createdAt": "2023-01-21T08:55:39Z"
+  },
+  {
+    "id": 3987,
+    "sender": "delfme",
+    "content": "Pic makes sense.\r\n\r\nOn dart side, I had to apply a Sizemultiplier which is 1.22 on ios and 1.1 on android (emojis size is a bit off on android as well). These values reproduce what I see on telegram with 100% fidelity.\r\n\r\nAlso, I had to Offset emojis to compensate their baseline that breaks when size is increased. This is tricky because it must be dynamically parametrized with both font size and text height properties and requires 12 dioptres and testing with letter “g” ;) Formula first calculates Offset by leveraging on font size, then it further adjusts the value accordingly to text height (otherwise emojis baseline would break if user changes text height).\r\n\r\nI dont remember whether I had to change also VA for emojis, but maybe VA adjusts automatically as soon as emojis size is set correctly.",
+    "createdAt": "2023-01-21T10:01:16Z"
+  },
+  {
+    "id": 3988,
+    "sender": "delfme",
+    "content": "> @delfme\r\n\r\n> It still isn't impossible to use a separate component that isn't Skia for text layout and shaping, that's just the current plan, text rendering is already planned to be done by impeller.\r\n\r\nI might be wrong but Impeller will keep using Skia for text layout (SkParagraph), so fix is needed there. But a text-wizard coder with design skill can do it easily by following my fix above. Im not into skia/engine or I would have done it myself ",
+    "createdAt": "2023-01-21T10:19:47Z"
+  },
+  {
+    "id": 3989,
+    "sender": "miyoyo",
+    "content": "> > @delfme\r\n> \r\n> > It still isn't impossible to use a separate component that isn't Skia for text layout and shaping, that's just the current plan, text rendering is already planned to be done by impeller.\r\n> \r\n> I might be wrong but Impeller will keep using Skia for text layout (SkParagraph), so fix is needed there. But a text-wizard coder with design skill can do it easily by following my fix above. Im not into skia/engine or I would have done it myself\r\n\r\nActually, I think this isn't a text shaping problem, but a rendering problem, from what I can see in chrome, the emojis take the correct amount of space in text, but they're just drawn completely wrong.\r\n\r\nWithout a direct 1:1 comparison though, it'll be hard to point to the exact problem, and yeah, without proper rendering, the only solution would be to track shaping boxes (and I'm far too lazy to do that)",
+    "createdAt": "2023-02-11T17:47:37Z"
+  },
+  {
+    "id": 3990,
+    "sender": "delfme",
+    "content": "@miyoyo you can use my trick above to fix emojis rendering for Text. \r\n\r\nTo fix emojis rendering inside Textfield we have to code a native textfield wrapper.\r\n\r\nCoding a native textfield wrapper to workaround emojis issue might seem overkilling, but flutter textfield still suffers of several issues and we couldn’t use it anyway inside a social media/messaging app where textfield issues get amplified. For example, users wouldn’t accept the lack of the native toolbar and there are other known issues like these ones:\r\n#119121 \r\n#100342\r\n#50563\r\n#38530\r\n#115400\r\n#120373\r\n#105028\r\n#72029\r\n#120631\r\n#120604\r\n#120551",
+    "createdAt": "2023-02-11T21:47:37Z"
+  },
+  {
+    "id": 3991,
+    "sender": "delfme",
+    "content": "@miyoyo Forgot to mention the keyboard animation issue on android #116836 (where I wrote a workaround). \r\n\r\nI also added #120551 \r\n\r\nThe idea is to help flutter team improve textfield and try to wrap native textfield which should be used to workaround emojis issue and inside more demanding apps (where platform fidelity is key). \r\n\r\nImpeller team said that emojis fix might require detaching from Skia. \r\nThey said this is not trivial and cannot be done anytime soon.\r\nhttps://github.com/flutter/engine/pull/39119#issuecomment-1404123894",
+    "createdAt": "2023-02-12T08:16:42Z"
+  },
+  {
+    "id": 3992,
+    "sender": "dnfield",
+    "content": "I've spent the last day or so looking at this. Here's what I can tell:\r\n\r\n- Skia is doing exactly what we ask it to - rendering an emoji from Apple Color Emoji at the exact font size we're asking for.\r\n- A simple program using CoreText shows the same behavior.\r\n- A simple program purely using Skia shows the same behavior.\r\n- On macOS, a SwiftUI \"Text\" widget shows the same behavior.\r\n- Safari and Chrome show the same behavior on macOS.\r\n\r\niOS seems to have some kind of special handling in Safari/Chrome/UIKit/SwiftUI, where AppleColorEmoji are scaled up a bit from what their normal size would be. I initially thought this was a multiplier of something like 125% (which is about what the scaling difference is when the font size is 16), but at larger sizes it goes away. I tried a test of rendering emoji at increasing sizes and the increase seems to be nearly linear for a 🤔 emoji:\r\n\r\n|Font Size|Glyph Height|\r\n|---|---|\r\n|11 | 28 |\r\n|12 | 30|\r\n|13 | 32|\r\n|14 | 34|\r\n|15 | 38|\r\n|16 | 40|\r\n|17 | 40|\r\n|18 | 40|\r\n|19 | 41|\r\n|20 | 42|\r\n|21 | 43|\r\n|22 | 44|\r\n|23 | 46|\r\n|24 | 48|\r\n|25 | 50|\r\n|26 | 52|\r\n|27 | 54|\r\n|28 | 56|\r\n|29 | 56|\r\n|30 | 58|\r\n\r\nYou can see this in https://github.com/indjec/ui-label if you change the font size to something sufficiently large - there are still some spacing differences but the size difference is much less noticeable at larger font sizes.\r\n\r\nI'm not quite sure what to do about this. One option would be to have some mode in Skia that lets us bump up the size a bit when the font is Apple Color Emoji and use that only on iOS. That's probably good enough to improve the fidelity. It's a bit disappointing that UIKit isn't open source to be able to see what it's doing with this or why it renders things any differently here. I tried finding relevant code in WebKit and couldn't.\r\n\r\nSome sample programs:\r\n\r\nA basic CoreText program that renders some Apple Color Emoji more-or-less the way Skia does to a png:\r\n\r\n```objc\r\n#include <Foundation/foundation.h>\r\n\r\n#include <CoreFoundation/CoreFoundation.h>\r\n#include <CoreGraphics/CoreGraphics.h>\r\n#include <CoreText/CTFontManager.h>\r\n#include <CoreText/CoreText.h>\r\n#include <ImageIO/ImageIO.h>\r\n#include <UniformTypeIdentifiers/UniformTypeIdentifiers.h>\r\n\r\nint main() {\r\n  CTFontRef ct_font = CTFontCreateWithName((CFStringRef) @\"Apple Color Emoji\",\r\n                                           (CGFloat)30, nullptr);\r\n\r\n  if (!ct_font) {\r\n    printf(\"Canot find Apple Color Emoji?\\n\");\r\n    return -1;\r\n  }\r\n\r\n  CGGlyph glyphs[2];\r\n  glyphs[0] = 1089;\r\n  glyphs[1] = 2427;\r\n  CGPoint positions[2];\r\n  positions[0] = CGPointMake(50, 50);\r\n  positions[1] = CGPointMake(90, 50);\r\n\r\n  const CGBitmapInfo bitmapInfo =\r\n      kCGBitmapByteOrder32Host | kCGImageAlphaPremultipliedFirst;\r\n\r\n  size_t width = 200;\r\n  size_t height = 100;\r\n  size_t row_bytes = width * sizeof(uint32_t);\r\n\r\n  unsigned short image[height * row_bytes];\r\n\r\n  CGContextRef context =\r\n      CGBitmapContextCreate(image, width, height, 8, row_bytes,\r\n                            CGColorSpaceCreateDeviceRGB(), bitmapInfo);\r\n\r\n  CTFontDrawGlyphs(ct_font, glyphs, positions, 2, context);\r\n\r\n  CGContextFlush(context);\r\n\r\n  CGImageRef out_image = CGBitmapContextCreateImage(context);\r\n  CFURLRef url =\r\n      (__bridge CFURLRef)[[NSURL alloc] initFileURLWithPath:@\"emoji.png\"];\r\n  CGImageDestinationRef destination = CGImageDestinationCreateWithURL(\r\n      url, (__bridge CFStringRef)UTTypePNG.identifier, 1, nil);\r\n  CGImageDestinationAddImage(destination, out_image, nil);\r\n  CGImageDestinationFinalize(destination);\r\n  CFRelease(destination);\r\n\r\n  return 0;\r\n}\r\n```\r\n\r\nA Skia test (only really makes sense on iOS/macOS):\r\n\r\n```cpp\r\n    auto manager = SkFontMgr::RefDefault();\r\n    auto aceType = manager->matchFamilyStyle(\"Apple Color Emoji\", SkFontStyle());\r\n    auto arialType = manager->matchFamilyStyle(\"Arial\", SkFontStyle());\r\n\r\n    auto fontSizes = {12, 16, 24, 30, 32, 64, 128};\r\n    SkScalar y = 100;\r\n    for (auto fontSize : fontSizes) {\r\n        SkTextBlobBuilder textBlobBuilder;\r\n        SkTextBlobBuilder textBlobBuilder2;\r\n        SkFont aceFont(aceType, fontSize);\r\n        SkFont arialFont(arialType, fontSize);\r\n\r\n        const SkTextBlobBuilder::RunBuffer& run1 = textBlobBuilder.allocRun(arialFont, 4, 10, y);\r\n        run1.glyphs[0] = 39;\r\n        run1.glyphs[1] = 72;\r\n        run1.glyphs[2] = 80;\r\n        run1.glyphs[3] = 82;\r\n\r\n        SkRect bounds[4];\r\n        arialFont.getBounds(run1.glyphs, 4, bounds, nullptr);\r\n        SkScalar advance = 0;\r\n        for (size_t i = 0; i < 4; i++) {\r\n            advance += bounds[i].width();\r\n        }\r\n        const SkTextBlobBuilder::RunBuffer& run2 =\r\n                textBlobBuilder2.allocRun(aceFont, 2, advance + fontSize / 2, y);\r\n        run2.glyphs[0] = 1089;\r\n        run2.glyphs[1] = 2427;\r\n        sk_sp<const SkTextBlob> blob = textBlobBuilder.make();\r\n        sk_sp<const SkTextBlob> blob2 = textBlobBuilder2.make();\r\n\r\n        SkPaint paint;\r\n        paint.setColor(SK_ColorBLUE);\r\n        canvas->drawTextBlob(blob.get(), 0, 0, paint);\r\n        canvas->drawTextBlob(blob2.get(), 0, 0, paint);\r\n        y += aceFont.getMetrics(nullptr) * 2;\r\n    }\r\n```\r\n\r\n",
+    "createdAt": "2023-04-28T04:36:15Z"
+  },
+  {
+    "id": 3993,
+    "sender": "delfme",
+    "content": "@dnfield So nice to see you’ve made time for this 🎉🚀 No idea if this can help, but at dart level we partially fixed issue this way. I say partially, coz unlike your fix, it cannot work inside textfields.\r\n\r\nWe multiply emojis size by `size_multiplier` = 1.22\r\n\r\nThat will then require a change to line `height` by using `height-multiplier`, or else text will break when having emojis in a multiline scenario. To reproduce issue, we use a multiline text like this one and compare it with native one. Letter “g” and emoji “👍” helped us notice issues.\r\n\r\nText sample:\r\nIt has been a great day ☀️\r\n🎉🎉🎉 we got to see each others\r\nafter such a longgg time 🤗🤗. Bla\r\nGggggggg 👍👍👍👍 bla bla bla\r\n👍👍👍 bla bla bla 👍😊😊😊\r\n\r\n`height-multiplier` should be dynamically set accordingly to size.\r\n\r\nAs to `letterspacing`, we keep it to 0 for the emojis span. So even if text has a different letter spacing, emojis will always be displayed one close to the other.\r\n\r\nBy applying above changes, baseline gets off and emojis could get cut in the multiline scenario. So we apply `offset` to correct this as well:\r\n\r\nTransform.translate(                                 \r\noffset: Platform.isIOS  ? Offset(                               \r\n0, offset_multiplier)\r\n\r\nI guess your native code already addresses points above, but can you please check above text sample with different text size inside our test repo? I see you already played around it https://github.com/indjec/ui-label",
+    "createdAt": "2023-04-28T08:05:09Z"
+  },
+  {
+    "id": 3994,
+    "sender": "dnfield",
+    "content": "@delfme - What does your fix look like with large text?\r\n\r\nIf what I'm seeing is right, then I'd expect at larger font sizes (say larger than size 30), your change would make the emoji look bigger than iOS native labels.",
+    "createdAt": "2023-04-28T16:06:21Z"
+  },
+  {
+    "id": 3995,
+    "sender": "dnfield",
+    "content": "Oh, and also if I'm right about this being iOS specific, Chrome almost certainly never hits this code path.",
+    "createdAt": "2023-04-28T16:11:44Z"
+  },
+  {
+    "id": 3996,
+    "sender": "delfme",
+    "content": "Yes we noticed that and procrastinated a fix since we dont use big size. But at first glance it looked like the parameters should be adjusted according to a few sets. Say \r\n< 18\r\n[18-25]\r\n[25-35]\r\netc…\r\n\r\nI wrote just random numbers.",
+    "createdAt": "2023-04-28T21:17:51Z"
+  },
+  {
+    "id": 3997,
+    "sender": "dnfield",
+    "content": "Yeah, I think what's happening is that Apple is making some kind of asymptotic change to the size, so smaller sizes get scaled up more (at 16pt, it's about 125%, but by the time you hit 30 it's equal).",
+    "createdAt": "2023-04-28T21:20:14Z"
+  },
+  {
+    "id": 3998,
+    "sender": "gnprice",
+    "content": "Very interesting! Thanks for digging into this.\r\n\r\n> I tried a test of rendering emoji at increasing sizes\r\n\r\nHuh, those results are quite puzzling.\r\n\r\nFor each +1 increment in the font size, the glyph height first increases by +2 for a while; later +1 for a bit; then back to +2. With that faster-slower-faster behavior, it doesn't look like any kind of straight-line relationship, even with any kind of rounding or quantization.\r\n\r\nThen there's also the odd wrinkle from 14 up to 18 where it jumps once by +4, then hangs out (+0) for a few increments. Plus a smaller wrinkle at 28-30.\r\n\r\nI'm not sure how to compare those results to a multiplier like 125%. What glyph heights would you expect as normal behavior?\r\n",
+    "createdAt": "2023-04-28T23:15:55Z"
+  },
+  {
+    "id": 3999,
+    "sender": "delfme",
+    "content": "@gnprice yeah no straightline relationship apart partial paths, we had to manually play around with complex texts and do side by side comparison with native.\r\n\r\nSize apart, line height is an issue too. Have you tried a long text? On dart it took us some time to match height fidelity in a multiline scenario.\r\n\r\nQuick mention: idk if the skia fix can be made CP, but on android we also adjust size for perfect fidelity. With a 16.5-17pt font size, we scale up by 1.22 on iOS and 1.1 on android.",
+    "createdAt": "2023-04-28T23:52:04Z"
+  },
+  {
+    "id": 4000,
+    "sender": "dnfield",
+    "content": "If someone can figure out the exact function or mapping table that iOS is using, we could probably try to do something to emulate this. But it'll be kind of painful because:\r\n\r\n- Besides the sizing differences, we don't really match the way iOS draws text pixel for pixel anyway (for example kerning is sometimes a little different).\r\n- That makes it really difficult to write any kind of golden test for this to catch regressions - so if iOS changes the way that it resizes emoji in iOS vNext, we'll be slightly off again and need to repeat an expensive manual process to figure out what's going on.",
+    "createdAt": "2023-05-04T05:24:59Z"
+  },
+  {
+    "id": 4001,
+    "sender": "delfme",
+    "content": "@dnfield @gnprice wait for me on this one.",
+    "createdAt": "2023-05-06T18:48:21Z"
+  },
+  {
+    "id": 4002,
+    "sender": "delfme",
+    "content": "@dnfield look at text height. Toggle on is fix enabled.\r\n\r\nWe should instruct Skia on how to change 5 properties based on text fontsize: 2 for the text (kerning and height) and 3 for emojis (kerning, fontsize, offset). If this is sth you can do, then we have a fix 😉\r\n\r\nhttps://user-images.githubusercontent.com/53510751/236710562-24396546-430b-4554-880d-5f6ad8eead54.MOV\r\n\r\n",
+    "createdAt": "2023-05-08T00:35:20Z"
+  },
+  {
+    "id": 4003,
+    "sender": "dnfield",
+    "content": "@delfme it would be helpful if you could share some code.\r\n\r\nI think if we have to treat rendering `Apple Color Emoji` specially on iOS that's probably ok. We just need to know what the parameters are.",
+    "createdAt": "2023-05-08T17:48:50Z"
+  },
+  {
+    "id": 4004,
+    "sender": "delfme",
+    "content": "@dnfield was a bit swamped. Here is code extracted from a closed codebase https://github.com/delfme/text-widget\r\nInviting you there. Also inviting @jonahwilliams, @bdero, @chinmaygarde.\r\nYou guys can use it for an engine/skia fix if you want to. Have a nice Sunday.\r\n",
+    "createdAt": "2023-05-14T16:32:35Z"
+  },
+  {
+    "id": 4005,
+    "sender": "jonahwilliams",
+    "content": "@delfme by policy we're not allowed to look at closed source code. If you're interested in sharing, please make an example public with a permissive license. Thanks! ",
+    "createdAt": "2023-05-14T18:49:54Z"
+  },
+  {
+    "id": 4006,
+    "sender": "delfme",
+    "content": "@jonahwilliams we have open and close code, just followed our policy. However, I see there is nothing there justifying it being close. Hope it helps https://github.com/delfme/text-widget\r\n\r\n@dnfield idk skia/impeller, but on dart fix involves text properties too. Details inside Readme.",
+    "createdAt": "2023-05-15T18:54:01Z"
+  },
+  {
+    "id": 4007,
+    "sender": "jonahwilliams",
+    "content": "Thank you!",
+    "createdAt": "2023-05-15T18:55:25Z"
+  },
+  {
+    "id": 4008,
+    "sender": "delfme",
+    "content": "FYI @dnfield @jonahwilliams A guy raised this issue and made we think fontWeight should also be taken into account. https://github.com/delfme/text-widget/issues/1#issuecomment-1686523618",
+    "createdAt": "2023-08-21T15:19:11Z"
+  },
+  {
+    "id": 4009,
+    "sender": "delfme",
+    "content": "Sharing this to keep sponsoring a discussion around the rationale that flutter should go native for texfields.\r\n\r\n**This is flutter:**\r\n\r\nhttps://github.com/flutter/flutter/assets/53510751/c52389e4-90ae-4dd2-8042-225fc4174c4c\r\n\r\n\r\n![1E8C786E-4B46-4B02-94EB-E72C5F1EBFCC](https://github.com/flutter/flutter/assets/53510751/633f5a98-6ff6-4060-8a85-3d15c0c28389)\r\n\r\nUser notices: 1) non-native magnifier shape. 2) magnifier is also buggy coz doesnt display the underneath text in some cases. 3) non-native menu toolbar and text selection 4) the emoji wrong size and emojis wrong letter spacing issues 5) other known minor open issues related to either emojis or textfield/keyboard.\r\n\r\n\r\n**This is same screen in native:**\r\n\r\nhttps://github.com/flutter/flutter/assets/53510751/654d5ce1-3ee3-4474-911f-63d924953cc1\r\n",
+    "createdAt": "2023-09-07T10:22:43Z"
+  },
+  {
+    "id": 4010,
+    "sender": "mariopepe",
+    "content": "Thanks @delfme for keeping the conversation going.\r\n\r\nThis is such an important issue, so sad no one is working on it 😞.",
+    "createdAt": "2023-09-07T10:30:01Z"
+  },
+  {
+    "id": 4011,
+    "sender": "delfme",
+    "content": "An idea might be:\r\n- for anything unrelated to emojis and text eding (ie: otp code verification fields, form fields, search field) we would use flutter textfield\r\n- for anything related to emojis and text editing (ie. chat, note, posts) we would use flutter native_textfield\r\n\r\n",
+    "createdAt": "2023-09-07T10:33:57Z"
+  },
+  {
+    "id": 4012,
+    "sender": "delfme",
+    "content": "To everyone into/struggling with this issue, this is what we are going to do:\r\n\r\n1) Remove flutter textfields everywhere but OTP code validation screen. \r\n2) Use a wrapper to provide native text input. Note: on android system, `Hybrid Composition` is required, otherwise loupe/magnifer wont work for both Text and Texfield. We tested it and fortunately the performance is good (no delays or similar issues).\r\n3) Use a wrapper to provide native Text everywhere a `text is displayed && text selection is provided`. So for example, there is no need to do that for chat bubbles inside a chatscreen (where we imagine we would have perf issues) or app labels.\r\n4) use our widget `text-widget` to display Text if selection is not required but the text might have emojis inside it. Thanks to this widget, emojis will look native-like.\r\n\r\nBy adopting above points, user wont be hit by any non-native behaviour/UI and several pending text/emojis related bugs will be fixed as consequence. \r\nAlso, with the current level of performance provided by Impeller, it will be hard for users to notice that app is not native.\r\nHope this helps.\r\n",
+    "createdAt": "2023-09-08T09:24:20Z"
+  },
+  {
+    "id": 4013,
+    "sender": "gnprice",
+    "content": "> Sharing this to keep sponsoring a discussion around the rationale that flutter should go native for texfields.\r\n\r\n@delfme Please file a new thread for that discussion. This thread is for a specific issue, which is that the size of emoji is wrong. There's useful technical progress above (starting at https://github.com/flutter/flutter/issues/28894#issuecomment-1526978974) on fixing this issue. When unrelated comments get added to the thread, it pushes that useful technical discussion up into the dreaded GitHub \"hidden comments\" section, which makes it harder for someone to work on this issue and get it fixed.\r\n\r\nI just tried searching the tracker for an existing issue on using native text fields, and didn't find one. (The closest was #88010.) It's a recurring question and would be a good discussion to have — but again, not mixed up in this thread for this other, specific, issue. So a fresh issue thread for that idea would be great.\r\n\r\nPlease also review our guidelines for commenting in issue threads:\r\nhttps://github.com/flutter/flutter/wiki/Issue-hygiene#comments\r\n\r\n\r\n> User notices: 1) non-native magnifier shape. 2) magnifier is also buggy coz doesnt display the underneath text in some cases. 3) non-native menu toolbar and text selection 4) the emoji wrong size and emojis wrong letter spacing issues 5) other known minor open issues related to either emojis or textfield/keyboard.\r\n\r\nSimilarly, if there are any of these that don't already have issues in the tracker, it would be great to have them filed with specifics. There are a number of known issues in this area, but many others [have gotten fixed](https://github.com/flutter/flutter/issues?q=label%3A%22a%3A+text+input%22+label%3Aplatform-ios+is%3Aissue+is%3Aclosed+label%3A%22r%3A+fixed%22), and reporting the issue is the first step for that.\r\n",
+    "createdAt": "2023-09-12T21:35:38Z"
+  },
+  {
+    "id": 4014,
+    "sender": "delfme",
+    "content": "@gnprice to recap with proper focus on the issue, a good workaround while waiting for a fix, is:\r\n1) For emoji inside text: adopt our widget here https://github.com/delfme/text-widget . Previous solutions were not working due to wrong Regex formula and also because the fix itself required a more complex implementation\r\n2) For emoji inside textfield, adopt a native textfield so that emoji size will be correct.\r\n\r\nThe combination of 1) and 2) will do the job.",
+    "createdAt": "2023-09-13T06:47:15Z"
+  },
+  {
+    "id": 4015,
+    "sender": "delfme",
+    "content": "Someone wrote me asking about performance. Since this is a common worry, here is a video showing what to expect.\r\n\r\nhttps://github.com/flutter/flutter/assets/53510751/0ec9b1d7-4d25-4b22-b458-4045834a118f\r\n\r\nBoth title and body are native textView under the assumption that users could add emojis to both fields and to provide uniform look&feel.\r\n\r\nIf we disabled hybrid composition, the loading time would be faster but we’d lose the magnifying lense, which is a must-have. We are happy with performance so far, if flutter team could gain a 100ms improvement with hybrid composition, that would be perfection. \r\n\r\nUPDATE: just noticed I uploaded the wrong platform. Will soon upload the iOS one.",
+    "createdAt": "2023-09-14T16:50:41Z"
+  },
+  {
+    "id": 4016,
+    "sender": "delfme",
+    "content": "Here is performance on iOS. \r\n\r\nhttps://github.com/flutter/flutter/assets/53510751/5641b350-4b62-4deb-a290-95cd67f788e1\r\n\r\nHiding my previous comment since it refers to android.",
+    "createdAt": "2023-09-14T17:20:55Z"
+  },
+  {
+    "id": 4017,
+    "sender": "delfme",
+    "content": "At everyone, found a workaround to issue https://github.com/flutter/flutter/issues/119623#issuecomment-1535669615\r\n\r\nSorry, but I have no time to add it to our public class but anyone who needs it can do it this way:\r\n1) Wrap the text inside Padding, you can copy/paste this snippet. \r\n```\r\nWidgetSpan(\r\n  baseline: TextBaseline.ideographic,\r\n  alignment: PlaceholderAlignment.top,\r\n  child: Builder(builder: (context) {\r\n    return Transform.translate(\r\n      //Emoji baseline will be off-center after increasing its size, Offset will\r\n      //fix baseline to look native-like\r\n      offset: Offset(0, emojiOffsetMultiplier),\r\n      // Correct issue with emoji not being centered on iOS\r\n      // https://github.com/flutter/flutter/issues/119623#issuecomment-1535669615\r\n      child: Padding(\r\n        padding: (Platform.isIOS) ?\r\n            EdgeInsets.only(left:1)\r\n            :\r\n            EdgeInsets.only(left:0),\r\n        child:Text(\r\n        e,\r\n        style: emojiStyle,\r\n        maxLines: maxLines,\r\n        overflow: overflow,\r\n      ),),\r\n    );\r\n  }),\r\n),\r\n```\r\n\r\n2) Now that you shifted the emoji to the right in order to fix above issue, you must compensate this change by reducing of 1px the `letterSpacing` inside `text_widget_utils_IOS.dart`.\r\n3) This would be enough for most cases. But to those who also needs `TextWidget` to overflow with breaking-words (ie. chat bubbles UI), you must fix this issue too https://github.com/flutter/flutter/issues/61081. To do it, use `runes` to add an invisible white space breaking-word '\\u200B'. Now text will overflow/wrap correctly but you will see a small space between chars. To compensate it, adjust `letterSpacing` inside `text_widget_utils_IOS.dart` (as in point 2).\r\n\r\nFinal result is close to native.\r\nHowever, we found no way to workaround https://github.com/flutter/flutter/issues/120857 coz it is out of our reach.\r\nIf flutter team can fix it, we will finally have a real workaround for text on iOS meantime it becomes production-ready. Until that moment, we don't feel comfy to show our app to users.",
+    "createdAt": "2023-10-14T09:39:09Z"
+  },
+  {
+    "id": 4018,
+    "sender": "delfme",
+    "content": "🎉 I fixed also this\r\n(https://github.com/flutter/flutter/issues/120857)\r\nhttps://github.com/flutter/flutter/issues/120857#issuecomment-1762887590\r\n\r\nUnorthodox and meh resource-wise, but it does the job. Should be added to `TextWidget`, see `return Text.rich`.\r\n\r\nHope this helps.",
+    "createdAt": "2023-10-14T13:07:15Z"
+  },
+  {
+    "id": 4019,
+    "sender": "gnprice",
+    "content": "@dnfield wrote at https://github.com/flutter/flutter/issues/28894#issuecomment-1534111286:\r\n> If someone can figure out the exact function or mapping table that iOS is using, we could probably try to do something to emulate this.\r\n\r\nIt seems like CoreText provides the answer for this, if one calls `CTFontGetAdvancesForGlyphs`.\r\n\r\nI'm taking that from the investigation @jason-simmons did in April on the related issue #119623, at https://github.com/flutter/flutter/issues/119623#issuecomment-1513908032: it turns out that Skia is calling that function to determine the advance. (And the mismatch between the scaled-up value it gets there, and the actual visual width of the emoji, then causes the emoji to appear off-center, which is #119623.)\r\n\r\nIn at least the example in that comment, a font size of 15 gives a width there of 19, which I believe agrees with the corresponding row in the table at https://github.com/flutter/flutter/issues/28894#issuecomment-1526978974 (though I'm a bit puzzled because all the heights in that table seem a factor of 2 larger than I'd expect from the discussion around it).\r\n\r\nSo perhaps that function can be used to drive this adjustment.\r\n\r\nIt'd still be a hack, for sure. But no more of a hack than it seems like Apple themselves are doing (based on the investigation at https://github.com/flutter/flutter/issues/28894#issuecomment-1526978974). And if in some future version of iOS they tweak the exact mapping of sizes, then using this CoreText function would probably be more robust to that change than if we reverse-engineered out an explicit mapping table — in order to get the text laid out correctly, they'd probably adjust that CoreText function to match.\r\n",
+    "createdAt": "2023-11-27T21:17:49Z"
+  },
+  {
+    "id": 4020,
+    "sender": "delfme",
+    "content": "Hello guys, would be great if we could fix this issue during next weeks.\r\nAs we know, wrong emojis size and off-center emojis https://github.com/flutter/flutter/issues/119623 is a real pain for Flutter apps, coz almost all texts typed in on a phone contain an emoji.\r\n\r\nWe provided a workaround here https://github.com/delfme/text-widget, along with a sample code that can be useful for testing fixes in a multiline scenario. In our case, several manipulations must be performed on the text and that affects performance if not done at engine level. Also, we noticed that `textPainter.width` provides a wrong result when emojis are inside the text, which means that we currently cannot determine the correct width of a text (which is a much needed func).\r\n\r\n@gnprice does this https://github.com/flutter/flutter/issues/28894#issuecomment-1828630104 take into account the required changes to emojis `Offset` after emoji size is increased? Coz increasing the emoji `fontSize` inside a line must be compensated via `Offset` to avoid to break baseline. This is indeed the hack that Apple is doing. They also hack the emoji `letterSpacing`, coz user might type several emojis in a row like this: \"😊😊😊\" and that `WidgetSpan` uses a specific `letterSpacing` that varies based on `fontSize`.\r\n\r\n@dnfield @jonahwilliams is there a reason why we cannot just replicate at engine level the fix from https://github.com/delfme/text-widget ?",
+    "createdAt": "2024-01-02T15:42:50Z"
+  },
+  {
+    "id": 4021,
+    "sender": "delfme",
+    "content": "Well, indeed performance are not bad in spite of the many computations. So lets consider vid below, as shown here https://github.com/delfme/text-widget\r\nwe:\r\n- Break text into spans to fetch emojs\r\n- Apply a custom style to emojis to increase fontSize and compensate the visual impact of it via dynamic offset and height.\r\n- Apply dynamic custom letterSpacing to make it looks native (coz emojis letterSpacing is also broken).\r\n- Add a left padding to fix issue https://github.com/flutter/flutter/issues/119623\r\n- Then paint two texts for each text, coz a foreground painter will add a stroke and fix this other key issue https://github.com/flutter/flutter/issues/120857\r\n\r\n\r\n\r\nhttps://github.com/flutter/flutter/assets/53510751/d0fe4121-63e3-4d66-b2e7-7851ef25527a\r\n\r\n\r\nNo idea whether these points can be added at engine level without causing janks. If not, at least there is this workaround. Note: workaround may be unperformant if texts are many. Also, those who will use it need to integrate a native textfield to uniform how texts look throughout the app.\r\n\r\nHope this help.",
+    "createdAt": "2024-01-03T13:52:40Z"
+  },
+  {
+    "id": 4022,
+    "sender": "miyoyo",
+    "content": "I would vote against this workaround, as it isn't a fix as much as it's a hack. It could be made as a package instead.\r\n\r\nThis is a fundamental issue related to Skia/Harfbuzz/CoreText's handling of all SBIX fonts, not just Apple's Emojis. This fix also does not cover expansions to the font, or different sbix fonts that do not have the same emoji patterns, so this would require both maintenance, and not completely fix the issues with all fonts.\r\n\r\nIt would be more productive for the flutter team to just ask for https://issues.skia.org/issues/40041310 (Almost four years old, prepare the cake!) to be fixed, as this would fix the issue for _all_ SBIX fonts, as well as the same problem in Chrome (and everything depending on harfbuzz/skia).\r\n\r\nOr we have to hope for Impeller to handle SBIX properly, I can't comment on that myself though.",
+    "createdAt": "2024-01-03T14:06:58Z"
+  },
+  {
+    "id": 4023,
+    "sender": "danagbemava-nc",
+    "content": "Reproduces using the sample code in https://github.com/flutter/flutter/issues/28894#issuecomment-470507172\r\n\r\n<img src=\"https://github.com/flutter/flutter/assets/88313112/6ede5548-cec7-4b4f-bd0e-664f2b1ae702\" width=\"300\"/>\r\n\r\n\r\n<details>\r\n<summary>flutter doctor -v</summary>\r\n\r\n```\r\n[✓] Flutter (Channel stable, 3.19.5, on macOS 14.4.1 23E224 darwin-arm64, locale en-GB)\r\n    • Flutter version 3.19.5 on channel stable at /Users/nexus/dev/sdks/flutter\r\n    • Upstream repository https://github.com/flutter/flutter.git\r\n    • Framework revision 300451adae (2 weeks ago), 2024-03-27 21:54:07 -0500\r\n    • Engine revision e76c956498\r\n    • Dart version 3.3.3\r\n    • DevTools version 2.31.1\r\n\r\n[✓] Android toolchain - develop for Android devices (Android SDK version 34.0.0)\r\n    • Android SDK at /Users/nexus/Library/Android/sdk\r\n    • Platform android-34, build-tools 34.0.0\r\n    • Java binary at: /Users/nexus/Applications/Android Studio.app/Contents/jbr/Contents/Home/bin/java\r\n    • Java version OpenJDK Runtime Environment (build 17.0.7+0-17.0.7b1000.6-10550314)\r\n    • All Android licenses accepted.\r\n\r\n[✓] Xcode - develop for iOS and macOS (Xcode 15.3)\r\n    • Xcode at /Applications/Xcode-15.3.0.app/Contents/Developer\r\n    • Build 15E204a\r\n    • CocoaPods version 1.14.3\r\n\r\n[✓] Chrome - develop for the web\r\n    • Chrome at /Applications/Google Chrome.app/Contents/MacOS/Google Chrome\r\n\r\n[✓] Android Studio (version 2023.1)\r\n    • Android Studio at /Users/nexus/Applications/Android Studio.app/Contents\r\n    • Flutter plugin can be installed from:\r\n      🔨 https://plugins.jetbrains.com/plugin/9212-flutter\r\n    • Dart plugin can be installed from:\r\n      🔨 https://plugins.jetbrains.com/plugin/6351-dart\r\n    • Java version OpenJDK Runtime Environment (build 17.0.7+0-17.0.7b1000.6-10550314)\r\n\r\n[✓] IntelliJ IDEA Ultimate Edition (version 2023.2.5)\r\n    • IntelliJ at /Users/nexus/Applications/IntelliJ IDEA Ultimate.app\r\n    • Flutter plugin version 77.2.2\r\n    • Dart plugin version 232.10286\r\n\r\n[✓] VS Code (version 1.87.2)\r\n    • VS Code at /Applications/Visual Studio Code.app/Contents\r\n    • Flutter extension version 3.86.0\r\n\r\n[✓] Connected device (4 available)\r\n    • Nexus (mobile)       • 00008020-001875E83A38002E • ios            • iOS 17.4.1 21E236\r\n    • Dean’s iPad (mobile) • 00008103-000825C811E3401E • ios            • iOS 17.4.1 21E236\r\n    • macOS (desktop)      • macos                     • darwin-arm64   • macOS 14.4.1 23E224 darwin-arm64\r\n    • Chrome (web)         • chrome                    • web-javascript • Google Chrome 123.0.6312.107\r\n\r\n[✓] Network resources\r\n    • All expected network resources are available.\r\n\r\n• No issues found!\r\n```\r\n\r\n```\r\n[!] Flutter (Channel master, 3.22.0-8.0.pre.17, on macOS 14.4.1 23E224 darwin-arm64, locale en-GB)\r\n    • Flutter version 3.22.0-8.0.pre.17 on channel master at /Users/nexus/dev/sdks/flutters\r\n    ! Warning: `flutter` on your path resolves to /Users/nexus/dev/sdks/flutter/bin/flutter, which is not inside your current Flutter SDK checkout at /Users/nexus/dev/sdks/flutters. Consider adding /Users/nexus/dev/sdks/flutters/bin to the front of your path.\r\n    ! Warning: `dart` on your path resolves to /Users/nexus/dev/sdks/flutter/bin/dart, which is not inside your current Flutter SDK checkout at /Users/nexus/dev/sdks/flutters. Consider adding /Users/nexus/dev/sdks/flutters/bin to the front of your path.\r\n    • Upstream repository https://github.com/flutter/flutter.git\r\n    • Framework revision 61cbe2f5b7 (6 hours ago), 2024-04-11 01:44:16 -0400\r\n    • Engine revision fef8499fb9\r\n    • Dart version 3.5.0 (build 3.5.0-47.0.dev)\r\n    • DevTools version 2.34.1\r\n    • If those were intentional, you can disregard the above warnings; however it is recommended to use \"git\" directly to perform update checks and upgrades.\r\n\r\n[✓] Android toolchain - develop for Android devices (Android SDK version 34.0.0)\r\n    • Android SDK at /Users/nexus/Library/Android/sdk\r\n    • Platform android-34, build-tools 34.0.0\r\n    • Java binary at: /Users/nexus/Applications/Android Studio.app/Contents/jbr/Contents/Home/bin/java\r\n    • Java version OpenJDK Runtime Environment (build 17.0.7+0-17.0.7b1000.6-10550314)\r\n    • All Android licenses accepted.\r\n\r\n[✓] Xcode - develop for iOS and macOS (Xcode 15.3)\r\n    • Xcode at /Applications/Xcode-15.3.0.app/Contents/Developer\r\n    • Build 15E204a\r\n    • CocoaPods version 1.14.3\r\n\r\n[✓] Chrome - develop for the web\r\n    • Chrome at /Applications/Google Chrome.app/Contents/MacOS/Google Chrome\r\n\r\n[✓] Android Studio (version 2023.1)\r\n    • Android Studio at /Users/nexus/Applications/Android Studio.app/Contents\r\n    • Flutter plugin can be installed from:\r\n      🔨 https://plugins.jetbrains.com/plugin/9212-flutter\r\n    • Dart plugin can be installed from:\r\n      🔨 https://plugins.jetbrains.com/plugin/6351-dart\r\n    • Java version OpenJDK Runtime Environment (build 17.0.7+0-17.0.7b1000.6-10550314)\r\n\r\n[✓] IntelliJ IDEA Ultimate Edition (version 2023.2.5)\r\n    • IntelliJ at /Users/nexus/Applications/IntelliJ IDEA Ultimate.app\r\n    • Flutter plugin version 77.2.2\r\n    • Dart plugin version 232.10286\r\n\r\n[✓] VS Code (version 1.87.2)\r\n    • VS Code at /Applications/Visual Studio Code.app/Contents\r\n    • Flutter extension version 3.86.0\r\n\r\n[✓] Connected device (5 available)\r\n    • Nexus (mobile)                  • 00008020-001875E83A38002E • ios            • iOS 17.4.1 21E236\r\n    • Dean’s iPad (mobile)            • 00008103-000825C811E3401E • ios            • iOS 17.4.1 21E236\r\n    • macOS (desktop)                 • macos                     • darwin-arm64   • macOS 14.4.1 23E224 darwin-arm64\r\n    • Mac Designed for iPad (desktop) • mac-designed-for-ipad     • darwin         • macOS 14.4.1 23E224 darwin-arm64\r\n    • Chrome (web)                    • chrome                    • web-javascript • Google Chrome 123.0.6312.107\r\n\r\n[✓] Network resources\r\n    • All expected network resources are available.\r\n\r\n! Doctor found issues in 1 category.\r\n```\r\n</details>",
+    "createdAt": "2024-04-11T11:31:58Z"
+  },
+  {
+    "id": 4024,
+    "sender": "delfme",
+    "content": "> I've spent the last day or so looking at this. Here's what I can tell:\r\n> \r\n> * Skia is doing exactly what we ask it to - rendering an emoji from Apple Color Emoji at the exact font size we're asking for.\r\n> * A simple program using CoreText shows the same behavior.\r\n> * A simple program purely using Skia shows the same behavior.\r\n> * On macOS, a SwiftUI \"Text\" widget shows the same behavior.\r\n> * Safari and Chrome show the same behavior on macOS.\r\n> \r\n> iOS seems to have some kind of special handling in Safari/Chrome/UIKit/SwiftUI, where AppleColorEmoji are scaled up a bit from what their normal size would be. I initially thought this was a multiplier of something like 125% (which is about what the scaling difference is when the font size is 16), but at larger sizes it goes away. I tried a test of rendering emoji at increasing sizes and the increase seems to be nearly linear for a 🤔 emoji:\r\n> \r\n> Font Size\tGlyph Height\r\n> 11\t28\r\n> 12\t30\r\n> 13\t32\r\n> 14\t34\r\n> 15\t38\r\n> 16\t40\r\n> 17\t40\r\n> 18\t40\r\n> 19\t41\r\n> 20\t42\r\n> 21\t43\r\n> 22\t44\r\n> 23\t46\r\n> 24\t48\r\n> 25\t50\r\n> 26\t52\r\n> 27\t54\r\n> 28\t56\r\n> 29\t56\r\n> 30\t58\r\n> You can see this in https://github.com/indjec/ui-label if you change the font size to something sufficiently large - there are still some spacing differences but the size difference is much less noticeable at larger font sizes.\r\n> \r\n> I'm not quite sure what to do about this. One option would be to have some mode in Skia that lets us bump up the size a bit when the font is Apple Color Emoji and use that only on iOS. That's probably good enough to improve the fidelity. It's a bit disappointing that UIKit isn't open source to be able to see what it's doing with this or why it renders things any differently here. I tried finding relevant code in WebKit and couldn't.\r\n> \r\n> Some sample programs:\r\n> \r\n> A basic CoreText program that renders some Apple Color Emoji more-or-less the way Skia does to a png:\r\n> \r\n> ```objc\r\n> #include <Foundation/foundation.h>\r\n> \r\n> #include <CoreFoundation/CoreFoundation.h>\r\n> #include <CoreGraphics/CoreGraphics.h>\r\n> #include <CoreText/CTFontManager.h>\r\n> #include <CoreText/CoreText.h>\r\n> #include <ImageIO/ImageIO.h>\r\n> #include <UniformTypeIdentifiers/UniformTypeIdentifiers.h>\r\n> \r\n> int main() {\r\n>   CTFontRef ct_font = CTFontCreateWithName((CFStringRef) @\"Apple Color Emoji\",\r\n>                                            (CGFloat)30, nullptr);\r\n> \r\n>   if (!ct_font) {\r\n>     printf(\"Canot find Apple Color Emoji?\\n\");\r\n>     return -1;\r\n>   }\r\n> \r\n>   CGGlyph glyphs[2];\r\n>   glyphs[0] = 1089;\r\n>   glyphs[1] = 2427;\r\n>   CGPoint positions[2];\r\n>   positions[0] = CGPointMake(50, 50);\r\n>   positions[1] = CGPointMake(90, 50);\r\n> \r\n>   const CGBitmapInfo bitmapInfo =\r\n>       kCGBitmapByteOrder32Host | kCGImageAlphaPremultipliedFirst;\r\n> \r\n>   size_t width = 200;\r\n>   size_t height = 100;\r\n>   size_t row_bytes = width * sizeof(uint32_t);\r\n> \r\n>   unsigned short image[height * row_bytes];\r\n> \r\n>   CGContextRef context =\r\n>       CGBitmapContextCreate(image, width, height, 8, row_bytes,\r\n>                             CGColorSpaceCreateDeviceRGB(), bitmapInfo);\r\n> \r\n>   CTFontDrawGlyphs(ct_font, glyphs, positions, 2, context);\r\n> \r\n>   CGContextFlush(context);\r\n> \r\n>   CGImageRef out_image = CGBitmapContextCreateImage(context);\r\n>   CFURLRef url =\r\n>       (__bridge CFURLRef)[[NSURL alloc] initFileURLWithPath:@\"emoji.png\"];\r\n>   CGImageDestinationRef destination = CGImageDestinationCreateWithURL(\r\n>       url, (__bridge CFStringRef)UTTypePNG.identifier, 1, nil);\r\n>   CGImageDestinationAddImage(destination, out_image, nil);\r\n>   CGImageDestinationFinalize(destination);\r\n>   CFRelease(destination);\r\n> \r\n>   return 0;\r\n> }\r\n> ```\r\n> \r\n> A Skia test (only really makes sense on iOS/macOS):\r\n> \r\n> ```c++\r\n>     auto manager = SkFontMgr::RefDefault();\r\n>     auto aceType = manager->matchFamilyStyle(\"Apple Color Emoji\", SkFontStyle());\r\n>     auto arialType = manager->matchFamilyStyle(\"Arial\", SkFontStyle());\r\n> \r\n>     auto fontSizes = {12, 16, 24, 30, 32, 64, 128};\r\n>     SkScalar y = 100;\r\n>     for (auto fontSize : fontSizes) {\r\n>         SkTextBlobBuilder textBlobBuilder;\r\n>         SkTextBlobBuilder textBlobBuilder2;\r\n>         SkFont aceFont(aceType, fontSize);\r\n>         SkFont arialFont(arialType, fontSize);\r\n> \r\n>         const SkTextBlobBuilder::RunBuffer& run1 = textBlobBuilder.allocRun(arialFont, 4, 10, y);\r\n>         run1.glyphs[0] = 39;\r\n>         run1.glyphs[1] = 72;\r\n>         run1.glyphs[2] = 80;\r\n>         run1.glyphs[3] = 82;\r\n> \r\n>         SkRect bounds[4];\r\n>         arialFont.getBounds(run1.glyphs, 4, bounds, nullptr);\r\n>         SkScalar advance = 0;\r\n>         for (size_t i = 0; i < 4; i++) {\r\n>             advance += bounds[i].width();\r\n>         }\r\n>         const SkTextBlobBuilder::RunBuffer& run2 =\r\n>                 textBlobBuilder2.allocRun(aceFont, 2, advance + fontSize / 2, y);\r\n>         run2.glyphs[0] = 1089;\r\n>         run2.glyphs[1] = 2427;\r\n>         sk_sp<const SkTextBlob> blob = textBlobBuilder.make();\r\n>         sk_sp<const SkTextBlob> blob2 = textBlobBuilder2.make();\r\n> \r\n>         SkPaint paint;\r\n>         paint.setColor(SK_ColorBLUE);\r\n>         canvas->drawTextBlob(blob.get(), 0, 0, paint);\r\n>         canvas->drawTextBlob(blob2.get(), 0, 0, paint);\r\n>         y += aceFont.getMetrics(nullptr) * 2;\r\n>     }\r\n> ```\r\n\r\n@dnfield why can't we adopt the approach you mentioned here with the discovery made in our repo ? https://github.com/delfme/text-widget\r\nAs mentioned, issue is size, kernel and offset (when text is multiline) but can't we just ask Skia to manipulate those parameters as we do inside `text-widget`? In case, I can provide more precise numbers, we kept tuning things up.\r\n\r\nI kindly disagree with those who mentioned they'd rather not fix issue this way coz it looks like a patch. I mean, meantime there is no perfect fix, it is way better to have something for the users. Also, several text-related issues are intertwined. For example, I lately filed this https://github.com/flutter/flutter/issues/151952 where I think `textPainter` might be returning width values that are not very precise when emojis are inside text (prolly due to emojis' wrong kernel and size).\r\n\r\nOne last consideration is about iphone users: they notice UI fidelity issues in one second, and are quick to mark an app like \"cheap\" or uninstall it.",
+    "createdAt": "2024-07-18T15:14:23Z"
+  },
+  {
+    "id": 4025,
+    "sender": "delfme",
+    "content": "Hello Flutter team,\n\nI’m providing a work-in-progress update and would greatly appreciate any thoughts regarding issues like this one, which currently cause text rendering to look non-native.\n\nPlease take a look at this video showcasing Flutter’s TextField, which handles emoji and multiline text well:\n\nhttps://github.com/user-attachments/assets/ff48f932-bcaf-451e-9245-349a6e6dcdbf\n\nI have some concerns about whether focusing on mimicking the native text field behavior is the best approach, given that the final result may not fully meet expectations. Below are a few points I’d like to highlight:\n\nToolbar: The toolbar includes commands like Cut, Copy, Format, Look Up, Translate, Search Web, and AutoFill. \nReplicating all of these is challenging, and we haven't been able to implement them fully so far. Is anyone from flutter team working on the missing features?\n\nMagnifier: The magnifier is highly detailed, and users can quickly tell if it’s not the native one. I’m not sure if replicating it accurately in Flutter is feasible, which might explain why the current implementation doesn't look native. Any insights about that?\n\nSelection: See [Flutter issue #162197](https://github.com/flutter/flutter/issues/162197). There’s an inconsistency in the selection height between characters and emojis, which might be worth addressing. Additionally, the overall experience of using the selection still doesn't feels native.\n\nEmoji Set: Currently, Flutter doesn’t seem to have access to system emojis. While this isn’t an issue on iOS, Android users will see the generic Noto emoji instead of the emojis specific to their device model. Do you have any plans to add this feature in the near future?\n\nIn Presence Messenger, we rely on native text field wherever possible (e.g., on the chat screen) because the difference is significant. Unfortunately, issues with PlatformViews prevent us from using it universally. While we continue to use both solutions, we're also working on enhancing Flutter’s TextField.\n\nI’d love to hear your thoughts and suggestions on these points. Thanks so much!",
+    "createdAt": "2025-01-24T21:56:29Z"
+  },
+  {
+    "id": 4026,
+    "sender": "delfme",
+    "content": "@knopp could you please take a look at my previous comment and share your thoughts? I've tested the issue on SuperList and attached below a video for reference.  \n\nFirst, my compliments on the app—it’s impressive! We truly believe this year can be a pivotal moment for Flutter's growth if premium massively adopted native-like flutter apps with 4-5 star reviews become available on app stores. \n\nhttps://github.com/user-attachments/assets/21de9bea-4c51-4fe6-a4ad-351503261cf5\n\nAs you can see from video, things go wrong as soon as user add emoji to text.",
+    "createdAt": "2025-01-25T08:22:12Z"
+  },
+  {
+    "id": 4027,
+    "sender": "justinmc",
+    "content": "@delfme Here are some thoughts on those points but let's try to keep discussion these other problems in their respective issues:\n\nToolbar: We're currently missing format, translate, and autofill [in the Flutter-rendered context menu](https://main-api.flutter.dev/flutter/widgets/ContextMenuButtonType.html). It's also possible to show the [system context menu](https://main-api.flutter.dev/flutter/widgets/SystemContextMenu-class.html), and work on improving that more is ongoing (https://github.com/flutter/flutter/pull/159013).\n\nMagnifier: This was updated recently in https://github.com/flutter/flutter/pull/157815 and looks a lot better, though still not perfect. It's being worked on and tracked in https://github.com/flutter/flutter/issues/158353.\n\nSelection: We could possibly address https://github.com/flutter/flutter/issues/162197 before this issue. Someone should take a look at the \"feel\" of selection.\n\nEmoji: Is that https://github.com/flutter/flutter/issues/157918 or are you referring to something else?\n\nFeel free to open an issue if you find any specific bugs that aren't covered by the existing ones.",
+    "createdAt": "2025-01-27T18:59:29Z"
+  },
+  {
+    "id": 4028,
+    "sender": "delfme",
+    "content": "Hello @justinmc, thanks for the info!\n\nLet me respond here to explain my point more clearly, and afterward, we can hide this comment as off-topic or remove it.\n\nFirst, please take a look at this new video where I work around the [selection issue](https://github.com/flutter/flutter/issues/162197) and manage to display emojis with the correct size:\n\nhttps://github.com/user-attachments/assets/b9889b36-783f-4fd9-a9a4-d6bd1b3a21a2\n\nNotice how the selection height aligns perfectly with the line height, and the emoji size is now correct.\n\nTo complete the fix, we would need to adjust the emojis' vertical positioning to move them downward, right? Because increasing their size requires compensating for the vertical offset. Here's a general outline of the approach:\n\n1. I created an `EmojiTextEditingController`, which extends `TextEditingController` and returns a `CustomTextSpan`.\n2. This custom span `_parse` the text to extract emojis and styles them properly (e.g., increasing their size and moving them a few pixels downward).\n3. While size adjustments are straightforward with just `TextSpan`, adjusting their vertical position requires setting `Offset.y`. This was achieved using `Transform` combined with `WidgetSpan`.\nI succeeded in implementing this, and I have a sample where the resulting text with emojis looked native. However, this introduced a new issue: the text selection broke due to these related problems:\n\n- https://github.com/flutter/flutter/issues/107432\n- https://github.com/flutter/flutter/issues/150864\n\n",
+    "createdAt": "2025-01-28T11:09:18Z"
+  },
+  {
+    "id": 4029,
+    "sender": "delfme",
+    "content": "So, my point is that these pending issues are somewhat intertwined, which explains why we're having such a hard time arriving at a final fix.\n\nFor instance, Renzo's fix for the Magnifier https://github.com/flutter/flutter/issues/158353 began on Nov 8, 2024, which suggests he might be blocked by some other related issue.\n\nCould I suggest creating a parent issue titled something like \"TextField: Fix severe issues\"? This could serve as a checklist consolidating the 5–6 issues we've discussed so far. By doing so, we could invite all contributors who have worked on these topics to share their insights and materials to push the progress forward.\n\nOn my side, I can provide valuable material on how to style emojis to look native in both TextField and Text, as well as how to style the Magnifier to achieve a native appearance.\n\nI believe this approach could help us resolve these interconnected issues within 1–2 months. If you proceed with it, please count me in—but only if we can organize a temporary team to tackle this scope effectively. I'm currently working 14 hours a day, so for me to dedicate time to this, I need to know that the effort is structured to achieve the goal efficiently.",
+    "createdAt": "2025-01-28T11:11:24Z"
+  },
+  {
+    "id": 4030,
+    "sender": "justinmc",
+    "content": "@delfme Can you list out the issues that you want to group? I'm unsure if/how they're related.\n\nIt seems like the ideal solution to this issue is [in Skia](https://g-issues.skia.org/issues/40041310?pli=1&authuser=0), and your solution would best be done as a package.",
+    "createdAt": "2025-01-28T21:36:06Z"
+  },
+  {
+    "id": 4031,
+    "sender": "delfme",
+    "content": "Hi @justinmc I meant to say that the issues mentioned above would unlock a great Textfield experience if they were all addressed.\n\nA fix in Skia would be preferable, but 5-6 years have passed, and the Skia team couldn't implement it. If we could come up with a workaround, that would be great. Look at this comparison between flutter and native. All our iOS testers have been complaining about texts.\n\n![Image](https://github.com/user-attachments/assets/60a3056c-7e7a-4c3b-bdde-e787f4f3ecea)",
+    "createdAt": "2025-01-29T21:43:28Z"
+  }
+]

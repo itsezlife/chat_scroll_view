@@ -1,0 +1,386 @@
+[
+  {
+    "id": 3648,
+    "sender": "liyuqian",
+    "content": "@ghenry : I'm sorry to hear that. Are you using the default Flutter iOS engine with Metal, or are you using a custom OpenGL Flutter iOS engine? The SkSL warm up doesn't help Metal right now so you may need something like https://github.com/flutter/flutter/issues/61045#issuecomment-699044134. And thank you for the suggestion on https://flutter.dev/docs/perf/rendering/shader#how-to-use-sksl-warmup! I'll revise that soon.",
+    "createdAt": "2020-11-05T01:07:11Z"
+  },
+  {
+    "id": 3649,
+    "sender": "ghenry",
+    "content": "Just the default. I'll look at the way you suggest. Thanks. ",
+    "createdAt": "2020-11-05T07:24:20Z"
+  },
+  {
+    "id": 3650,
+    "sender": "acoutts",
+    "content": "@liyuqian sadly after quite a bit of testing I’ve experienced a few OOM crashes when using OpenGL on iOS so I need to go back to  using metal for now. I hope we have metal SkSL warmup soon!\r\n\r\nI know there’s a number of issues on it but is this the best issue to follow the progress on?",
+    "createdAt": "2020-11-06T09:06:09Z"
+  },
+  {
+    "id": 3651,
+    "sender": "theniceboy",
+    "content": "Hi, Flutter Team! Thank you for the incredible work! Regarding this issue, I'm considering which route to take, Metal or OpenGL. My concern is that Flutter compiled without Metal may have unexpected issues in production. So is there a rough ETA on SKSL warm-up for Metal? Thanks!",
+    "createdAt": "2020-11-06T09:16:49Z"
+  },
+  {
+    "id": 3652,
+    "sender": "primaryperson",
+    "content": "I have problem with my animation something like that: https://github.com/flutter/flutter/issues/61450\r\nAnd I am still waiting for a solution to this problem",
+    "createdAt": "2020-11-08T18:59:49Z"
+  },
+  {
+    "id": 3653,
+    "sender": "meowofficial",
+    "content": "> @liyuqian sadly after quite a bit of testing I’ve experienced a few OOM crashes when using OpenGL on iOS so I need to go back to using metal for now.\r\n\r\nCould you please say a couple of words about how did you find out your app has a problem with OOM crashes using OpenGL? I don't have experience in testing and TDD, so it would be very helpful.",
+    "createdAt": "2020-11-08T19:18:41Z"
+  },
+  {
+    "id": 3654,
+    "sender": "acoutts",
+    "content": "> > @liyuqian sadly after quite a bit of testing I’ve experienced a few OOM crashes when using OpenGL on iOS so I need to go back to using metal for now.\r\n> \r\n> Could you please say a couple of words about how did you find out your app has a problem with OOM crashes using OpenGL? I don't have experience in testing and TDD, so it would be very helpful.\r\n\r\nIt's just a hunch as I don't have a hard proof test that crashes it, but anecdotally I and some of our users have experienced random crashes while using my app and it's only on the builds I compiled with a Flutter engine with Metal disabled. It's usually random, but happening during an animation like a screen transition.",
+    "createdAt": "2020-11-08T22:15:39Z"
+  },
+  {
+    "id": 3655,
+    "sender": "meowofficial",
+    "content": "Could anyone from Flutter team say something about probable terms of solution for ios? As far as I know the issue became critical on ios after release of flutter 1.17.0 on stable channel 6 months ago. I think almost all of flutter developers who know about the cause of their app's lags need this information to choose 1 of 4 available options:\r\n1) Downgrade to flutter 1.12\r\nI don't know much about consequences of this option because I didn't try it yet. I can't remember critical issues for me from that time, probably `firebase_crashlytics` won't work, may be obfuscation. If there wasn't a problem with OOM crashes it's the best of the worst I think.\r\n2) Release with no-metal flutter engine \r\nI don't know about others, but I don't have testing team or variety of iPhones. I would test on couple iPhones I have and it seems to me I can possibly face OOM crashes on production and won't do anything about it.\r\n3) Release with metal flutter engine\r\nAs for me the janks are so terrible and app is so unusable that the only result I would achieve is 1-star rating, angry users and ruined launch.\r\n4) Wait for fix and add new features while issue is resolving. The question is how long?",
+    "createdAt": "2020-11-10T00:56:56Z"
+  },
+  {
+    "id": 3656,
+    "sender": "zanderso",
+    "content": "Hi all,\r\n\r\nThanks for the useful perspective and discussion on this thread. This issue is *very* important to us. Given the flexibility of the Flutter framework, it is also a very difficult issue to solve. Designing a user-friendly, long-term solution is among the highest priority work the engine team is doing in Q4 and going into next year. We hope to be able to share more about this design before the end of next month.\r\n\r\nIn the meantime, the situation on iOS should be improved thanks to help from the Skia team on https://github.com/flutter/flutter/issues/60267.\r\n\r\nThanks again for your feedback, and thanks for your patience as we make these improvements.\r\n\r\n/cc @chinmaygarde @liyuqian",
+    "createdAt": "2020-11-10T16:50:37Z"
+  },
+  {
+    "id": 3657,
+    "sender": "ghenry",
+    "content": "Thanks. Will take a look at #60267\n<https://github.com/flutter/flutter/issues/60267>\n",
+    "createdAt": "2020-11-10T17:26:30Z"
+  },
+  {
+    "id": 3658,
+    "sender": "sinshev",
+    "content": "A possible workaround for a simple application is to actually run the animation on the app launch but hide it under the \"loading\" dialog. A 1-second loading dialog is a much more user friendly than junky animation while interacting with the app.",
+    "createdAt": "2020-11-21T07:20:49Z"
+  },
+  {
+    "id": 3659,
+    "sender": "acoutts",
+    "content": "> A possible workaround for a simple application is to actually run the animation on the app launch but hide it under the \"loading\" dialog. A 1-second loading dialog is a much more user friendly than junky animation while interacting with the app.\r\n\r\nI tried this but to simulate even just a few screen transitions you’re looking at 300ms * each transition. The loading time quickly adds up. I also found just simulating a transition type with a blank screen isn’t enough, you would need to actually walk through your app’s screens. Doing it with empty dummy screens doesn’t help anything.\r\n\r\nAnother issue is the animation of opening the keyboard can’t be done this way because the keyboard can’t hide behind the loading screen. So if your screen uses the keyboard it will be janky.\r\n\r\nThe absolute only thing I’ve found to fix it is to compile the flutter engine without metal and use SkSL warmup like android, but there are OOM crashes and instability.",
+    "createdAt": "2020-11-21T08:46:51Z"
+  },
+  {
+    "id": 3660,
+    "sender": "jacksteves",
+    "content": "Wondering if there is an update here? \n\nIn my opinion this is by far and away the most important issue facing Flutter and, until fixed, Flutter is hardly suitable for distribution on iOS (at least not for large-scale, company-owned apps). \n\nI know the Flutter team is doing what they can to fix the issue and I recognize the complexity of the issue. However, the issue has now existed for 6+ months. And as a developer and CTO who has invested thousands of hours and tens of thousands of dollars into this framework (and continues to do so), I would very much appreciate seeing regular status updates and ETAs. ",
+    "createdAt": "2020-11-27T18:12:59Z"
+  },
+  {
+    "id": 3661,
+    "sender": "ghenry",
+    "content": "+1 here as a CEO too. I need this to look better on iOS. What can we do to\nhelp? Not money as Google has lots. Time? Resources?\n\nhttp://blog.tadsummit.com/2020/11/17/building-the-surevoip-app-gavin-henry/\n",
+    "createdAt": "2020-11-27T18:24:38Z"
+  },
+  {
+    "id": 3662,
+    "sender": "nt4f04uNd",
+    "content": "That's hilarious how this issue has P2 tag on it, I just can't get it.",
+    "createdAt": "2020-11-27T18:52:57Z"
+  },
+  {
+    "id": 3663,
+    "sender": "FelixMittermeier",
+    "content": "@nt4f04uNd Of course, this is a big problem for many people (including me) at the moment, which should not be underestimated. However, the developers themselves know this and so we simply need patience. Constantly complaining about it doesn't help anybody and only stresses the team unnecessarily more. Sometimes a little bit more gratitude is appropriate for what we are allowed to use completely free of charge. Have a nice weekend :-)",
+    "createdAt": "2020-11-27T19:43:29Z"
+  },
+  {
+    "id": 3664,
+    "sender": "ghenry",
+    "content": "Out of interest, how is React Native handling this?\n",
+    "createdAt": "2020-11-27T20:48:44Z"
+  },
+  {
+    "id": 3665,
+    "sender": "FelixMittermeier",
+    "content": "@ghenry React Native is using a completely different approach: it uses actual native (therefore the name) components from the underlying operating system just like native written apps do. In contrast Flutter can be imagined like a game engine where all the user interface rendering and drawing is done by the framework itself. So in the end React Native doesn't have this problem at all because it doesn't handle the rendering and that is the critical part here. ",
+    "createdAt": "2020-11-27T20:55:50Z"
+  },
+  {
+    "id": 3666,
+    "sender": "ghenry",
+    "content": "That's what I thought. I did a podcast show with Tom Sneath and he explained it well. I just wondered if anything could be referenced from any other framework but Flutter Architecture is unique.\n\nOur show will be here next month https://www.se-radio.net/team/gavin-henry/ if interested. ",
+    "createdAt": "2020-11-27T20:59:17Z"
+  },
+  {
+    "id": 3667,
+    "sender": "alectogeek",
+    "content": "@ghenry Doesn't Unity do the same?",
+    "createdAt": "2020-11-27T21:50:35Z"
+  },
+  {
+    "id": 3668,
+    "sender": "nt4f04uNd",
+    "content": "@alectogeek unity doesn't use skia",
+    "createdAt": "2020-11-27T21:55:02Z"
+  },
+  {
+    "id": 3669,
+    "sender": "alectogeek",
+    "content": "@nt4f04uNd  But it also uses own rendering engine.",
+    "createdAt": "2020-11-27T21:55:55Z"
+  },
+  {
+    "id": 3670,
+    "sender": "huvi8161",
+    "content": "@liyuqian i understand that automatic handling of this issue on iOS with Metal is complex but if Skia resolves cache for compiled shaders(https://github.com/flutter/flutter/issues/60267, jvanverth) on iOS, would it be possible to provide us a manual solution that would allow us to manually go through the app and after that include all the shaders in final ipa file that Skia could recompile on app start the way it is doing now on Android and iOS(where Open GL is used). I know that this is not an optimal solution and it does take some work from developer side but it would allow us to give our customers app without jank issues?",
+    "createdAt": "2020-11-28T10:11:54Z"
+  },
+  {
+    "id": 3671,
+    "sender": "nt4f04uNd",
+    "content": "@alectogeek that's an interesting point tho, how do unity, unreal, etc. handle these things?",
+    "createdAt": "2020-11-28T12:28:57Z"
+  },
+  {
+    "id": 3672,
+    "sender": "theniceboy",
+    "content": "https://github.com/flutter/flutter/issues/60267#issuecomment-739223129",
+    "createdAt": "2020-12-05T11:06:17Z"
+  },
+  {
+    "id": 3673,
+    "sender": "aliakhtar",
+    "content": "Any update / ETA on this?",
+    "createdAt": "2021-02-01T17:16:23Z"
+  },
+  {
+    "id": 3674,
+    "sender": "aliakhtar",
+    "content": "Question for those who've encountered this issue - If a Flutter app works mostly okay on an Iphone 8+, will it work just as well on newer models? Or is the issue worse in newer models?",
+    "createdAt": "2021-02-01T18:16:23Z"
+  },
+  {
+    "id": 3675,
+    "sender": "ghost",
+    "content": "From experience it's worse on newer iPhone models.\r\nWe're experiencing this issue on our app - start & onboarding lagging but obviously it only runs once so no chance for a smoother re-try. After that every screen animations lagging the first time they run - second times mostly smoother.\r\n\r\nYou can take a look at our app here: [https://itunes.apple.com/us/app/id1505560791](https://itunes.apple.com/us/app/id1505560791)\r\nAlthough GitHub Issue page is probably not the best place to \"showcase\" an app 😂   pls take it for illustration purpose as we long thought it was an issue on our end.",
+    "createdAt": "2021-02-02T01:15:05Z"
+  },
+  {
+    "id": 3676,
+    "sender": "aliakhtar",
+    "content": " @MoonshotQuest  Curious to test it on iphone 8+ but its not available in my region. Feel free to send me a test build thru firebase / testflight - ali@ali.actor",
+    "createdAt": "2021-02-02T01:19:32Z"
+  },
+  {
+    "id": 3677,
+    "sender": "istornz",
+    "content": "@MoonshotQuest I can confirm too, it's laggy on iPhone X but only the first time :/\n\nIt's very frustrating mostly when you have a lot animations like your app (very nice btw ✌️). Many users get an idea of the first screens of an application so this issue is probably, in my opinion, the most critical I see on Flutter 🥺\n\nI added a lot of animations before this issue but now I try to add as little as possible in order to promise a smooth experience (very frustrating 😩)\n",
+    "createdAt": "2021-02-02T07:03:08Z"
+  },
+  {
+    "id": 3678,
+    "sender": "aliakhtar",
+    "content": "In the other issue I read something about carrying out the animations in\nthe launch screen (invisibly) to warm up the system. Has anyone been able\nto try that?\n\n\nOn Tue, 2 Feb 2021 at 12:03 PM, Dimitri Dessus <notifications@github.com>\nwrote:\n\n> @MoonshotQuest <https://github.com/MoonshotQuest> I can confirm too, it's\n> laggy on iPhone X but only the first time :/\n>\n> It's very frustrating mostly when you have a lot animations like your app\n> (very nice btw ✌️). Many users get an idea of the first screens of an\n> application so this issue is probably, in my opinion, the most critical I\n> see on Flutter 🥺\n>\n> I added a lot of animations before this issue but now I try to add as\n> little as possible in order to promise a smooth experience (very\n> frustrating 😩)\n>\n> —\n> You are receiving this because you commented.\n> Reply to this email directly, view it on GitHub\n> <https://github.com/flutter/flutter/issues/32170#issuecomment-771416204>,\n> or unsubscribe\n> <https://github.com/notifications/unsubscribe-auth/ABIUCOHAZKKVSXU4NHI3MCDS46PT5ANCNFSM4HLDC5TQ>\n> .\n>\n",
+    "createdAt": "2021-02-02T09:01:55Z"
+  },
+  {
+    "id": 3679,
+    "sender": "erf",
+    "content": "Hi @MoonshotQuest, i tested it on the latest iPhone SE and all the animations seemed smooth. I used to notice yank on my previous iPhone 7. Very nice UI BTW. You can test my app at -> https://apps.apple.com/app/id1500199497",
+    "createdAt": "2021-02-02T10:13:44Z"
+  },
+  {
+    "id": 3680,
+    "sender": "ghost",
+    "content": "Thanks @istornz & @erf !\r\nI tried your app @erf on iPhone XS love your minimalistic UI! it's running smoothly on all screens I tested except \"Licenses\" screen yanking a bit the first time but that could be loading lag to pull all the Text widgets for all licenses if ever you load them all upfront. ",
+    "createdAt": "2021-02-02T21:17:47Z"
+  },
+  {
+    "id": 3681,
+    "sender": "erf",
+    "content": "Thanks @MoonshotQuest ! What device did you test on?",
+    "createdAt": "2021-02-02T22:53:17Z"
+  },
+  {
+    "id": 3682,
+    "sender": "ghost",
+    "content": "@erf iPhone XS",
+    "createdAt": "2021-02-02T23:51:59Z"
+  },
+  {
+    "id": 3683,
+    "sender": "mellowcello77",
+    "content": "@erf\r\n\r\nJust to clarify, with your Cashplan app, your UI is smooth because you are running the animations on launch?",
+    "createdAt": "2021-02-04T11:05:45Z"
+  },
+  {
+    "id": 3684,
+    "sender": "erf",
+    "content": "@mellowcello77 \r\n\r\nI don't do any tricks like that.. but try to adhere to [performance best practices](https://flutter.dev/docs/perf/rendering).\r\n\r\nBut i believe my app is yanky on older iOS devices.",
+    "createdAt": "2021-02-04T11:45:46Z"
+  },
+  {
+    "id": 3685,
+    "sender": "aliakhtar",
+    "content": "I’m on iPhone 8+ and can also confirm a bit of jank when the left side menu\nis first opened.\n\nOn Thu, 4 Feb 2021 at 4:46 PM, Erlend <notifications@github.com> wrote:\n\n> @mellowcello77 <https://github.com/mellowcello77>\n>\n> I don't do any tricks like that.. but try to adhere to performance best\n> practices <https://flutter.dev/docs/perf/rendering>.\n>\n> But i believe my app is yanky on older iOS devices.\n>\n> —\n> You are receiving this because you commented.\n> Reply to this email directly, view it on GitHub\n> <https://github.com/flutter/flutter/issues/32170#issuecomment-773247486>,\n> or unsubscribe\n> <https://github.com/notifications/unsubscribe-auth/ABIUCOAZZUS6IOCX4S4IBUDS5KCH5ANCNFSM4HLDC5TQ>\n> .\n>\n",
+    "createdAt": "2021-02-04T18:19:25Z"
+  },
+  {
+    "id": 3686,
+    "sender": "masterlonghorn",
+    "content": "Any deadline for this issue guys?\r\nHow are animations in Nubank and Reflectly so smooth even at launch but so terrible in Google Pay?\r\n\r\nSide note - I ran dummy animation in background using timer 300 milliseconds after startup. That way when my actual animation ran, it was smooth.\r\nIs this an okay practice? If so, is there a widget that implements default platform navigator transition behaviour (including swipe back for ios)?",
+    "createdAt": "2021-02-07T03:59:16Z"
+  },
+  {
+    "id": 3687,
+    "sender": "aliakhtar",
+    "content": "@masterlonghorn I think that sounds like a great workaround, can you share your code for running the animations in the background please?\r\n\r\nI also found this class which is supposed to let you run animations to warm up the shader: https://master-api.flutter.dev/flutter/painting/ShaderWarmUp-class.html \r\n\r\nBut haven't been able to dig into it yet.\r\n\r\nNot sure if those apps are still using Flutter. I know Insight timer is a native app now even though its still on the showcase.",
+    "createdAt": "2021-02-07T04:14:20Z"
+  },
+  {
+    "id": 3688,
+    "sender": "dodatw",
+    "content": "> Any deadline for this issue guys?\r\n> How are animations in Nubank and Reflectly so smooth even at launch but so terrible in Google Pay?\r\n> \r\n> Side note - I ran dummy animation in background using timer 300 milliseconds after startup. That way when my actual animation ran, it was smooth.\r\n> Is this an okay practice? If so, is there a widget that implements default platform navigator transition behaviour (including swipe back for ios)?\r\n\r\nHow to run \"dummy animation\" ?",
+    "createdAt": "2021-02-09T06:49:12Z"
+  },
+  {
+    "id": 3689,
+    "sender": "masterlonghorn",
+    "content": "On the splash screen, I have a stack and the animations run on a background layer. That smooths out any custom animation I have in the app. But the default navigator transition still janks once.",
+    "createdAt": "2021-02-10T23:40:00Z"
+  },
+  {
+    "id": 3690,
+    "sender": "aliakhtar",
+    "content": "@masterlonghorn \r\n\r\nAre you running Flutter code inside your splash screen? A splash screen is just supposed to be images, and you have to write Swift / java code if you want to do anything custom, according to docs.\r\n",
+    "createdAt": "2021-02-11T02:46:02Z"
+  },
+  {
+    "id": 3691,
+    "sender": "istornz",
+    "content": "> @masterlonghorn \n> \n> \n> \n> Are you running Flutter code inside your splash screen? A splash screen is just supposed to be images, and you have to write Swift / java code if you want to do anything custom, according to docs.\n> \n> \n\nI think he created a \"fake\" splahscreen with a static timer after the real one (native).\nIn this case we can trigger Flutter code in the low layer Stack.\n\nThis is a good workaround but not working if there is multiple screens in the app (unless created fake splahscreen before accessing each screen 😅) \n\n\n\n",
+    "createdAt": "2021-02-11T06:55:44Z"
+  },
+  {
+    "id": 3692,
+    "sender": "masterlonghorn",
+    "content": "Yes its a fake one that comes after the native splashscreen. Since navigator 2.0 allows full stack control and that the warm up is only needed on cold launches, 1 should be enough. Depends on the flow of the app.\r\n\r\nFirst navigator push is still janky and looks very bad. How can I replicate the default navigator transition, so maybe it can be warmed up as well?\r\n\r\nMy experience is that the animations I run in the fake splashscreen run smooth later but others jank once.",
+    "createdAt": "2021-02-11T07:26:50Z"
+  },
+  {
+    "id": 3693,
+    "sender": "huvi8161",
+    "content": "@masterlonghorn could you post an example of your code some where? For the navigator transition you could maybe push and pop cupertino route(it implements the cupertino page transition) and you could set opaque value to false and have the whole page transparent?",
+    "createdAt": "2021-02-11T07:41:06Z"
+  },
+  {
+    "id": 3694,
+    "sender": "aliakhtar",
+    "content": "Sounds like you could also perhaps use https://flutter.dev/docs/cookbook/animation/page-route-animation#1-set-up-a-pageroutebuilder to create your own pageRouteBuilder (but I'm not sure if that lets you customize the animations or not).\r\n\r\nHow are you running the animations behind the scene @masterlonghorn - just using your own controller and setting it to `.forward()`?",
+    "createdAt": "2021-02-11T07:49:06Z"
+  },
+  {
+    "id": 3695,
+    "sender": "huvi8161",
+    "content": "You can create your own page transitions, also you could copy cupertino route code from Flutter source code and do whatever you wan't with it. ",
+    "createdAt": "2021-02-11T07:51:10Z"
+  },
+  {
+    "id": 3696,
+    "sender": "masterlonghorn",
+    "content": "@aliakhtar Yes call `.forward()` after checking `mounted`, I am doing it 300ms after initialized. Thanks for the link.\r\n\r\n@huvi8161 Will try to post the relevant part in a new flutter project in the coming week. I found that running animation on an empty container doesnt work, it needs to have atleast some text in it. So I am not sure if a transparent page will do the trick. I am thinking if I can replicate the exact animation and use that inside my splashscreen stack, it might work. Its all experimental though.",
+    "createdAt": "2021-02-11T09:48:31Z"
+  },
+  {
+    "id": 3697,
+    "sender": "huvi8161",
+    "content": "Yes I was trying with empty page but I don't see any difference, the initial page transition is still janky.  ",
+    "createdAt": "2021-02-11T10:38:29Z"
+  },
+  {
+    "id": 3698,
+    "sender": "mu-projects",
+    "content": "In what situations is the animation warmup reset? (iOS)\r\ni see\r\n(iPhone 5S) \r\nFirst open after app install\r\nFirst open after device start",
+    "createdAt": "2021-02-13T17:23:11Z"
+  },
+  {
+    "id": 3699,
+    "sender": "nt4f04uNd",
+    "content": "yep, can confirm the shader cache seems to be reset on metal after device is reloaded",
+    "createdAt": "2021-02-13T18:27:57Z"
+  },
+  {
+    "id": 3700,
+    "sender": "mu-projects",
+    "content": "in this link https://flutter.dev/docs/perf/rendering/shader\r\n\"user might see jank when an animation first occurs every time the user opens the app from scratch.\"\r\n\r\nDoes this happen at every app launch? \r\nI wanted to ask because I don't have the chance to try this on other devices.",
+    "createdAt": "2021-02-13T19:01:51Z"
+  },
+  {
+    "id": 3701,
+    "sender": "danReynolds",
+    "content": "> Yes its a fake one that comes after the native splashscreen. Since navigator 2.0 allows full stack control and that the warm up is only needed on cold launches, 1 should be enough. Depends on the flow of the app.\n> \n> \n> \n> First navigator push is still janky and looks very bad. How can I replicate the default navigator transition, so maybe it can be warmed up as well?\n> \n> \n> \n> My experience is that the animations I run in the fake splashscreen run smooth later but others jank once.\n\nA full code example of this would be amazing. I'd be in your debt. I'm using animations from the 'animations' pub and they look awful on iOS on first launch. I am on a mission to fix this issue ",
+    "createdAt": "2021-02-14T13:00:05Z"
+  },
+  {
+    "id": 3702,
+    "sender": "InfiniteTabs",
+    "content": "Which issue is the best to follow the progress of the iOS Jank issue in general?  When is a realistic date for this issue to be solved? ",
+    "createdAt": "2021-02-15T07:59:55Z"
+  },
+  {
+    "id": 3703,
+    "sender": "danReynolds",
+    "content": "> Which issue is the best to follow the progress of the iOS Jank issue in general?  When is a realistic date for this issue to be solved? \n\nI have not seen a reply about timelines in the many threads on this issue. I think we may have to assume it's a while out and work together to find the best workaround. ",
+    "createdAt": "2021-02-15T16:09:04Z"
+  },
+  {
+    "id": 3704,
+    "sender": "istornz",
+    "content": "To solve this issue, it can be interesting to integrate all this stuff directly inside the Flutter engine:\r\n\r\n1. Detect a cold boot from the app directly in the Flutter engine.\r\n2. Perform all animations detected in the app in the background (loading will be a bit longer, but much better performance).\r\n3. Let's user use the app normally.\r\n\r\nWhat do you think ?",
+    "createdAt": "2021-02-15T16:14:23Z"
+  },
+  {
+    "id": 3705,
+    "sender": "dodatw",
+    "content": "> > @masterlonghorn\r\n> > Are you running Flutter code inside your splash screen? A splash screen is just supposed to be images, and you have to write Swift / java code if you want to do anything custom, according to docs.\r\n> \r\n> I think he created a \"fake\" splahscreen with a static timer after the real one (native).\r\n> In this case we can trigger Flutter code in the low layer Stack.\r\n> \r\n> This is a good workaround but not working if there is multiple screens in the app (unless created fake splahscreen before accessing each screen 😅)\r\n\r\nThis solution is work. but launch time is bad. \r\nI have 5 panels need preload, each animation time is 300 ms.\r\nThat's mean I need delay 5 x (300 ms forward + 300 ms reverse ) = 3 sec.\r\n\r\nI tried to set preload duration to 1 ms, but solution is not work. (seem duration must same)",
+    "createdAt": "2021-02-17T03:40:56Z"
+  },
+  {
+    "id": 3706,
+    "sender": "danReynolds",
+    "content": "Hey all! I made a basic example of iOS jank to help the Flutter team debug: https://github.com/flutter/flutter/issues/76180 feel free to +1 so that we can get eyes on this issue.",
+    "createdAt": "2021-02-17T04:52:20Z"
+  },
+  {
+    "id": 3707,
+    "sender": "masterlonghorn",
+    "content": "@dodatw You dont need to pause your entire app while animations render in background. The user will anyway take a few seconds to tap something depending on your content. I will try to post my solution this weekend possibly. My splash screen is displayed for about 1 sec which is similar to Insta, Youtube. Google Pay takes almost 3 sec sometimes.",
+    "createdAt": "2021-02-17T09:45:03Z"
+  },
+  {
+    "id": 3708,
+    "sender": "aliakhtar",
+    "content": "@masterlonghorn  You could also look at this demo project made by @danReynolds  to demonstrate jank:\r\n\r\nhttps://github.com/danReynolds/iosjank\r\n\r\nIf you could show how to use your method with this demo example (if its harder to share your real code), that'd be really helpful too",
+    "createdAt": "2021-02-17T10:01:22Z"
+  },
+  {
+    "id": 3709,
+    "sender": "Hixie",
+    "content": "Current status here is that we have shader warm-up working on all platforms except iOS (Metal), where it doesn't make enough of a difference to matter (because of issues described briefly in https://github.com/flutter/website/pull/5351). There's some work going on over in Skia land to make that better, as I understand it, but there's not really anything else related to shader warm-up specifically that we can do on Flutter's side.\r\n\r\nTo address the Metal-specific jank issue, we are going to have to use a different approach. Some of the approaches we're considering include a widget that would delay the start of an animation until the first frame could be rendered (https://github.com/flutter/flutter/issues/74630), ideas around either having a simpler set of shaders altogether or having more general backup shaders to use while we compile bespoke shaders (no bug number for that yet, and it would be a large amount of work), and investigating the cause of differences between OpenGL and Metal on iOS (https://github.com/flutter/flutter/issues/74631).\r\n\r\nSee https://github.com/flutter/flutter/projects/188 for a list of issues I am currently tracking around jank, and don't hesitate to let me know if there are others I should be tracking by pinging me on Discord (see our contributing docs for details).",
+    "createdAt": "2021-02-25T06:25:16Z"
+  },
+  {
+    "id": 3710,
+    "sender": "trixky",
+    "content": "hello, I'm new to flutter and just finished learning about animations. So I try on my phone and yes, the first time it is jerky. rather than bothering with the shader warm-up which only works for android I would like to create a loading page.\r\n\r\nas a beginner i naively set an opacity to 0 then made it visible after a while but it's the same if not worse. can you show an example of how you did @masterlonghorn ?\r\nI'm not sure to continue on flutter if it's not possible to fix it, it's a very powerful framework (that's why I'm here, thanks google), but the 60fps is a showcase lie.\r\nMuch of the strength of flutter is its powerful animations, but they are broken on first use.\r\n\r\nyou can build Lamborghinis with third world starters.\r\n\"_it's ridiculous when it starts, but then it works strong!_\", Yes..\r\nSo you can sell Lamborghinis to customers, just don't start them and it's ok, i'm a little disappointed.\r\n\r\nI'm french, sorry if my english is poor.\r\nedit: \r\ni don't want to make an unconstructive review, i know you are working on it, i just came from this damn 'react-native' and when i started learning flutter it was like a rebirth, I'm looking forward to your solutions, in the meantime I'll try this: https://pub.dev/packages/warmup_routine\r\n\r\nthank you",
+    "createdAt": "2021-02-27T15:43:32Z"
+  },
+  {
+    "id": 3711,
+    "sender": "Hixie",
+    "content": "@trixky If you're running into a specific case of shader warmup jank, please please file a bug with a little app showing the transition or animation or scene that's having jank issues, along with a short video and a timeline trace, so that we can debug that jank.\r\n\r\nHave a look at https://github.com/flutter/flutter/issues/76180 or https://github.com/flutter/flutter/issues/76517 for examples of how to do it.",
+    "createdAt": "2021-02-27T22:07:06Z"
+  }
+]

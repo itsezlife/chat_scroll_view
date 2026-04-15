@@ -1,0 +1,386 @@
+[
+  {
+    "id": 5504,
+    "sender": "sateesh-penumalla",
+    "content": "@brooth, I am struggling to make maps work in RN. If you have a perfect example, please post it. Now I am on the verge of RN or Flutter. The only reason is the bug free easy to use maps. If I get maps working in RN then I would use RN. ",
+    "createdAt": "2018-04-05T22:36:28Z"
+  },
+  {
+    "id": 5505,
+    "sender": "alegsm",
+    "content": "Just gonna leave this here. If your needs of map usage are limited to asking the user for an address I implemented a plugin that handles everything, from location permission handling to reverse geocoding. https://pub.dartlang.org/packages/location_picker",
+    "createdAt": "2018-04-12T19:47:52Z"
+  },
+  {
+    "id": 5506,
+    "sender": "nitneuq33",
+    "content": "hello alegsm, I'm very interested about your plugin but I don't understand the example... I'm newbi I just want to set longitude and latitude and visualise geolocalisation. Did anyone succeed? \r\ndoes anyone have a simple example? thanks evrybody",
+    "createdAt": "2018-04-14T18:53:17Z"
+  },
+  {
+    "id": 5507,
+    "sender": "alegsm",
+    "content": "@nitneuq33  yes you can do it with location_picker. It is intended to work as a prompt for things like asking the user to input a delivery address. You can look at the example project inside the repo. ill leave you a link\r\nhttps://github.com/touwolf/location_picker/tree/master/example",
+    "createdAt": "2018-04-14T19:17:03Z"
+  },
+  {
+    "id": 5508,
+    "sender": "nitneuq33",
+    "content": "sorry  alegsm , I tried to use the example and try to set  (double initialLat; and  double initialLong; ) but nothing. I think I'm too noob ^^ I don't understand how to set my lat variable and longitude variable into your example to visualise a map. any simple example or easy explication \r\nwill be welcome :)",
+    "createdAt": "2018-04-15T11:21:35Z"
+  },
+  {
+    "id": 5509,
+    "sender": "rolurq",
+    "content": "Is there any updates about this?",
+    "createdAt": "2018-04-23T20:12:29Z"
+  },
+  {
+    "id": 5510,
+    "sender": "haydenflinner",
+    "content": "What's wrong with `flutter_map`?",
+    "createdAt": "2018-04-24T14:20:02Z"
+  },
+  {
+    "id": 5511,
+    "sender": "piotrtobolski",
+    "content": "`flutter_map` is good substitute but it also significantly worse than native map views. It is using tiles instead of vector maps and doesn't support Google Maps let alone Apple Maps. I am personally waiting for streaming native view contents into flutter hierarchy as it will allow to close a lot more gaps than this one (e.g. WebViews, other SDKs) as referenced here: https://github.com/flutter/flutter/issues/730#issuecomment-370274688",
+    "createdAt": "2018-04-24T14:59:51Z"
+  },
+  {
+    "id": 5512,
+    "sender": "haydenflinner",
+    "content": "[Move on marker press not working iOS](https://github.com/react-community/react-native-maps/issues/1374)\r\n[Inconsistent Polygon Rendering](https://github.com/react-community/react-native-maps/issues/2025)\r\n[Marker offset not working in Android](https://github.com/react-community/react-native-maps/issues/2173)\r\n[(one user) works on android not on IOS](https://github.com/react-community/react-native-maps/issues/2199)\r\n[Z index doesn't work on iOS](https://github.com/react-community/react-native-maps/issues/1671)\r\n[Marker rotation doesn't work on iOS](https://github.com/react-community/react-native-maps/issues/2186)\r\n[Urltemplate not changing iOS](https://github.com/react-community/react-native-maps/issues/2200)\r\n[Animated callout problem in iOS](https://github.com/react-community/react-native-maps/issues/1062)\r\n[Marker onSelect doesn't work on Android](https://github.com/react-community/react-native-maps/issues/114)\r\n[Android onclick not accurate](https://github.com/react-community/react-native-maps/issues/1562)\r\n[Image in custom callout not working Android](https://github.com/react-community/react-native-maps/issues/1870)\r\n\r\nI dumped React Native and came back to Flutter because of how awful its map experience was for me, and I didn't care at all about things working on one platform and not on another. I think everyone's experience would be much better if we just added vector maps support to `flutter_map` (I don't know if gmap/apple map integration is doable?), for the same reasons that xster wrote about in [Why Flutter doesn’t use OEM widgets](https://medium.com/flutter-io/why-flutter-doesnt-use-oem-widgets-94746e812510)",
+    "createdAt": "2018-04-24T17:52:02Z"
+  },
+  {
+    "id": 5513,
+    "sender": "wmleler",
+    "content": "Note that flutter_map is based on Leaflet (rewritten into Dart/Flutter),\nand there is a plugin for Leaflet that supports vector maps. Someone would\nneed to rewrite it into Dart/Flutter, but then you could use mapbox's\nvector maps.\n\nOn Tue, Apr 24, 2018 at 10:52 AM, Hayden Flinner <notifications@github.com>\nwrote:\n\n> Move on marker press not working iOS\n> <https://github.com/react-community/react-native-maps/issues/1374>\n> Inconsistent Polygon Rendering\n> <https://github.com/react-community/react-native-maps/issues/2025>\n> Marker offset not working in Android\n> <https://github.com/react-community/react-native-maps/issues/2173>\n> (one user) works on android not on IOS\n> <https://github.com/react-community/react-native-maps/issues/2199>\n> Z index doesn't work on iOS\n> <https://github.com/react-community/react-native-maps/issues/1671>\n> Marker rotation doesn't work on iOS\n> <https://github.com/react-community/react-native-maps/issues/2186>\n> Urltemplate not changing iOS\n> <https://github.com/react-community/react-native-maps/issues/2200>\n> Animated callout problem in iOS\n> <https://github.com/react-community/react-native-maps/issues/1062>\n> Marker onSelect doesn't work on Android\n> <https://github.com/react-community/react-native-maps/issues/114>\n> Android onclick not accurate\n> <https://github.com/react-community/react-native-maps/issues/1562>\n> Image in custom callout not working Android\n> <https://github.com/react-community/react-native-maps/issues/1870>\n>\n> I dumped React Native because of how awful its map support is, and I\n> didn't care at all about things working on one platform and not on another.\n> I think everyone's experience would be much better if we just added vector\n> maps support to flutter_map (I don't know if gmap/apple map integration\n> is doable?), for the same reasons that xster wrote about in Why Flutter\n> doesn’t use OEM widgets\n> <https://medium.com/flutter-io/why-flutter-doesnt-use-oem-widgets-94746e812510>\n>\n> —\n> You are receiving this because you were mentioned.\n> Reply to this email directly, view it on GitHub\n> <https://github.com/flutter/flutter/issues/73#issuecomment-384022436>, or mute\n> the thread\n> <https://github.com/notifications/unsubscribe-auth/AADEteKhVTC5rtZ5Er4uVSwYDYeGfDDkks5tr2ZlgaJpZM4Ge5yO>\n> .\n>\n",
+    "createdAt": "2018-04-24T18:06:38Z"
+  },
+  {
+    "id": 5514,
+    "sender": "Hixie",
+    "content": "We consider this to be a high priority and are working on it. It is going to take a while as it is a quite complicated problem to solve properly. We apologise for the delay and ask for your patience.",
+    "createdAt": "2018-04-25T00:12:52Z"
+  },
+  {
+    "id": 5515,
+    "sender": "nitneuq33",
+    "content": "thank you, it's ok now for dependencies, but it'snt working\n\nhere is my code\n\n1- I push the button\n\nnew IconButton(\n    icon: new Icon(Icons.gps_fixed),\n    onPressed: ()\n      async {\n\n        SmsMessage message = new SmsMessage(address, '$loc1');\n        message.addStateListener((state) {\n          if (state == SmsMessageState.Sent) {\n            print(\"SMS is sent!\");\n          } else if (state == SmsMessageState.Delivered) {\n\n            print(\"SMS is receive!\")\n\n _onSmsReceived;\n\n}\n});\nsender.sendSms(message);\n}\n\n2- \"sent\" is printed\n\n3- receive is printed\n\n4 launch on \"_onSmsReceived\" with listen of\"msg\"\n\nvoid _onSmsReceived(SmsMessage sms) async {\n\n  _smsSubscription = _receiver.onSmsReceived.listen((SmsMessage msg)\n=> _lastMessage = msg);\n\nbut need always to clic 2 times to listen the good sms\n\n\n2018-04-25 2:13 GMT+02:00 Ian Hickson <notifications@github.com>:\n\n> We consider this to be a high priority and are working on it. It is going\n> to take a while as it is a quite complicated problem to solve properly. We\n> apologise for the delay and ask for your patience.\n>\n> —\n> You are receiving this because you were mentioned.\n> Reply to this email directly, view it on GitHub\n> <https://github.com/flutter/flutter/issues/73#issuecomment-384119563>, or mute\n> the thread\n> <https://github.com/notifications/unsubscribe-auth/AaWFy_Rfxcql60HUsZYb6f8-kyuxOJMwks5tr7-hgaJpZM4Ge5yO>\n> .\n>\n",
+    "createdAt": "2018-04-25T06:22:33Z"
+  },
+  {
+    "id": 5516,
+    "sender": "xclud",
+    "content": "I am working on an open-source map widget for Flutter written in pure Dart in this [Github repository](https://github.com/xclud/flutter_native_map) and [Pub](https://pub.dartlang.org/packages/map_native).\r\n\r\nAny contributions to the project are welcome.\r\n\r\n![MapView Screenshot](https://github.com/xclud/flutter_native_map/raw/master/screenshots/map01.png)\r\n",
+    "createdAt": "2018-05-01T18:22:15Z"
+  },
+  {
+    "id": 5517,
+    "sender": "wmleler",
+    "content": "Mapbox (the company that provides Leaflet and a wide assortment of vector\nand raster map tiles) appears to have vector maps working in Flutter. Right\nnow it is working on Android only, but since they are using the texture map\ntechnique (same as what inline video is using) it should not be difficult\nto get it working on iOS as well.\n\nhttps://github.com/mapbox/flutter-mapbox-gl\n\nI'm believe they are taking pull requests.\n\nGood to see all these map solutions coming from the community.\n\nOn Tue, Apr 24, 2018 at 11:06 AM, Wm Leler <wmleler@google.com> wrote:\n\n> Note that flutter_map is based on Leaflet (rewritten into Dart/Flutter),\n> and there is a plugin for Leaflet that supports vector maps. Someone would\n> need to rewrite it into Dart/Flutter, but then you could use mapbox's\n> vector maps.\n>\n> On Tue, Apr 24, 2018 at 10:52 AM, Hayden Flinner <notifications@github.com\n> > wrote:\n>\n>> Move on marker press not working iOS\n>> <https://github.com/react-community/react-native-maps/issues/1374>\n>> Inconsistent Polygon Rendering\n>> <https://github.com/react-community/react-native-maps/issues/2025>\n>> Marker offset not working in Android\n>> <https://github.com/react-community/react-native-maps/issues/2173>\n>> (one user) works on android not on IOS\n>> <https://github.com/react-community/react-native-maps/issues/2199>\n>> Z index doesn't work on iOS\n>> <https://github.com/react-community/react-native-maps/issues/1671>\n>> Marker rotation doesn't work on iOS\n>> <https://github.com/react-community/react-native-maps/issues/2186>\n>> Urltemplate not changing iOS\n>> <https://github.com/react-community/react-native-maps/issues/2200>\n>> Animated callout problem in iOS\n>> <https://github.com/react-community/react-native-maps/issues/1062>\n>> Marker onSelect doesn't work on Android\n>> <https://github.com/react-community/react-native-maps/issues/114>\n>> Android onclick not accurate\n>> <https://github.com/react-community/react-native-maps/issues/1562>\n>> Image in custom callout not working Android\n>> <https://github.com/react-community/react-native-maps/issues/1870>\n>>\n>> I dumped React Native because of how awful its map support is, and I\n>> didn't care at all about things working on one platform and not on another.\n>> I think everyone's experience would be much better if we just added vector\n>> maps support to flutter_map (I don't know if gmap/apple map integration\n>> is doable?), for the same reasons that xster wrote about in Why Flutter\n>> doesn’t use OEM widgets\n>> <https://medium.com/flutter-io/why-flutter-doesnt-use-oem-widgets-94746e812510>\n>>\n>> —\n>> You are receiving this because you were mentioned.\n>> Reply to this email directly, view it on GitHub\n>> <https://github.com/flutter/flutter/issues/73#issuecomment-384022436>,\n>> or mute the thread\n>> <https://github.com/notifications/unsubscribe-auth/AADEteKhVTC5rtZ5Er4uVSwYDYeGfDDkks5tr2ZlgaJpZM4Ge5yO>\n>> .\n>>\n>\n>\n",
+    "createdAt": "2018-05-01T19:03:45Z"
+  },
+  {
+    "id": 5518,
+    "sender": "jposuna",
+    "content": "@mravn-google the google_mobile_maps repo seems to have disappeared; Do you have any info?",
+    "createdAt": "2018-05-20T17:47:47Z"
+  },
+  {
+    "id": 5519,
+    "sender": "levrik",
+    "content": "@jposuna It got renamed. See flutter/plugins#518",
+    "createdAt": "2018-05-20T17:51:43Z"
+  },
+  {
+    "id": 5520,
+    "sender": "mit-mit",
+    "content": "Renamed the present bug to make it clearer that this tracks inline 'Google Maps' support.",
+    "createdAt": "2018-05-22T14:22:44Z"
+  },
+  {
+    "id": 5521,
+    "sender": "rolurq",
+    "content": "@mit-mit Just to be clear, that means that flutter will __not__ provide a way to render offline maps?",
+    "createdAt": "2018-05-22T15:10:43Z"
+  },
+  {
+    "id": 5522,
+    "sender": "mit-mit",
+    "content": "My comment was not meant to make any such statement. The long-term goal is to provide a Flutter widget that has similar API capabilities to what Google Maps has on in it's Android and iOS APIs.\r\n\r\nThe term 'inline' we use here, is to capture the goal that the Flutter Google Map is a Flutter widget; something that you can place 'inline' among other Flutter widgets (next to, stack below, stack above, etc.).",
+    "createdAt": "2018-05-22T18:58:16Z"
+  },
+  {
+    "id": 5523,
+    "sender": "feinstein",
+    "content": "@mit-mit any timeline or expected release date on that long term? I have a project coming in and I would like to make it in Flutter, but without Google maps support I will have to go native.(Java/Swift). ",
+    "createdAt": "2018-05-22T19:44:16Z"
+  },
+  {
+    "id": 5524,
+    "sender": "mpiannucci",
+    "content": "@feinstein there is a working bare bones plugin in the Flutter/plugins repo under google_maps_flutter. ",
+    "createdAt": "2018-05-22T21:39:26Z"
+  },
+  {
+    "id": 5525,
+    "sender": "PetrShypila",
+    "content": "@mit-mit Indeed, some long-term release date would be really useful. The whole idea of flutter looks amazing. Unfortunately without Maps I hardly see starting a project on a Flutter",
+    "createdAt": "2018-05-22T21:42:23Z"
+  },
+  {
+    "id": 5526,
+    "sender": "mit-mit",
+    "content": "Sorry, we have no public schedule we can communicate yet :-(.\r\n\r\nAs mentioned a few comments up, our latest progress is in the plugins repo, and it does currently hold a very early version with some documented deficiencies. You may want to take a look at that.",
+    "createdAt": "2018-05-23T06:26:32Z"
+  },
+  {
+    "id": 5527,
+    "sender": "nitneuq33000",
+    "content": "\r\nhello there is way to customize the toolbar in map_view? or add widgets (floatingactionbutton). https://pub.dartlang.org/packages/map_view\r\n\r\ncurrently map_view opens a new window full screen with a slide to the left with a black toolbar. I would like to customize the page transistion , color toolbar and add widgets to interact without having to go back.\r\n\r\nFinally, it would not be possible to have the dynamic map in a pop up box instead of a full screen? \r\n\r\nthank you",
+    "createdAt": "2018-05-23T08:29:20Z"
+  },
+  {
+    "id": 5528,
+    "sender": "mravn-google",
+    "content": "@nitneuq33000 The `map_view` plugin is not maintained by the Flutter team. Please open issues at https://github.com/apptreesoftware/flutter_google_map_view.",
+    "createdAt": "2018-05-23T08:36:11Z"
+  },
+  {
+    "id": 5529,
+    "sender": "bjornbjorn",
+    "content": "@mravn-google Is polyline support on the roadmap for this plugin?\r\n\r\n(what I've seen so far in the /example folder looks great btw!)",
+    "createdAt": "2018-05-23T09:59:51Z"
+  },
+  {
+    "id": 5530,
+    "sender": "mravn-google",
+    "content": "@bjornbjorn Full API coverage is on the roadmap where meaningful. Prioritization is very much informed by user feedback. So please [create an issue](https://github.com/flutter/flutter/issues/new) with your feature requests. Then other people can upvote them and/or feel motivated to submit PRs ... and/or we'll get to work on it asap.\r\n\r\nTo be clear, my comment here is about the `google_maps_flutter` plugin. If your question is about the `map_view` package, please direct it to the AppTree team.",
+    "createdAt": "2018-05-23T10:42:17Z"
+  },
+  {
+    "id": 5531,
+    "sender": "bjornbjorn",
+    "content": "Yes, I'm also referring to `google_maps_flutter`- I created an issue here: https://github.com/flutter/flutter/issues/17832",
+    "createdAt": "2018-05-23T11:12:29Z"
+  },
+  {
+    "id": 5532,
+    "sender": "xclud",
+    "content": "@mravn-google I am doing a Map widget by my own in pure Dart code (See my post above). At the moment i am implementing only the features i need for my project, but I would make it better overtime.\r\n\r\nI will be happy to create a PR and see my work merged into Flutter. I don't know how to start and i appreciate your help getting started.",
+    "createdAt": "2018-05-23T11:12:59Z"
+  },
+  {
+    "id": 5533,
+    "sender": "mravn-google",
+    "content": "@xclud There are many ways to deliver maps in the context of Flutter, and it therefore makes little sense to elevate one of them and put it into Flutter (= the Flutter framework). I also think it makes little sense to try and consolidate different maps packages whose approaches are very different.\r\n\r\nThe `google_maps_flutter` package will remain a plugin, separate from the Flutter framework. It is going to mirror the iOS/Android APIs for Google Maps pretty closely, and some operations will involve asynchronous platform messages to make changes to the native map view.\r\n\r\nYour package, being a pure Dart solution, is likely to expose a very different API, because you don't need to mirror or call the existing GoogleMaps Android and iOS APIs, and you don't need asynchronous platform messages.",
+    "createdAt": "2018-05-23T12:36:42Z"
+  },
+  {
+    "id": 5534,
+    "sender": "feinstein",
+    "content": "@mravn-google what's the advantage of using the platform native maps, instead of making a pure Dart solution from scratch? Why don't you integrate it with the Flutter framework?\r\n\r\nI thought Flutter was all about consolidating everything into a new code base, trying to use as little as possible the inner platforms, just replicating its behavior in Dart.\r\n\r\nIs this a temporary solution for the rendering problems? Or is it related to some business problems on the Google Maps keys usage? ",
+    "createdAt": "2018-05-23T15:55:15Z"
+  },
+  {
+    "id": 5535,
+    "sender": "wmleler",
+    "content": "There is no one best solution for maps. We have some customers who really\nwant the real Google maps. We have other customers who need highly\ncustomized maps.\n\nIf you are interested in a map solution that is based on Flutter (where all\nelements of the map are Flutter widgets), check out\nhttps://github.com/apptreesoftware/flutter_map\n\nOn Wed, May 23, 2018 at 8:55 AM, feinstein <notifications@github.com> wrote:\n\n> @mravn-gooogle what's the advantage of using the platform native maps,\n> instead of making a pure Dart solution from scratch? Why don't you\n> integrate it with the Flutter framework?\n>\n> I thought Flutter was all about consolidating everything into a new code\n> base, trying to use as little as possible the inner platforms, just\n> replicating its behavior in Dart.\n>\n> Is this a temporary solution for the rendering problems? Or is it related\n> to some business problems on the Google Maps keys usage?\n>\n> —\n> You are receiving this because you were mentioned.\n> Reply to this email directly, view it on GitHub\n> <https://github.com/flutter/flutter/issues/73#issuecomment-391399983>, or mute\n> the thread\n> <https://github.com/notifications/unsubscribe-auth/AADEtZTlI-eGZyGlVb5exvz9kyJyiQHuks5t1YaLgaJpZM4Ge5yO>\n> .\n>\n",
+    "createdAt": "2018-05-23T16:34:36Z"
+  },
+  {
+    "id": 5536,
+    "sender": "feinstein",
+    "content": "@wmleler I am sorry but I still don't understand, what's the problem with making \"the real Google Maps\" in Dart as part of Flutter? Are there any limitations? ",
+    "createdAt": "2018-05-23T16:54:42Z"
+  },
+  {
+    "id": 5537,
+    "sender": "MisterJimson",
+    "content": "I think we would want to avoid a dependency on a separate service/server in\nFlutter core.\n\nThis is what plugins are made for, either official flutter supported\nplugins or third party.\nOn Wed, May 23, 2018 at 12:55 PM feinstein <notifications@github.com> wrote:\n\n> @wmleler <https://github.com/wmleler> I am sorry but I still don't\n> understand, what's the problem with making \"the real Google Maps\" in Dart\n> as part of Flutter? Is it there any limitations?\n>\n> —\n> You are receiving this because you are subscribed to this thread.\n> Reply to this email directly, view it on GitHub\n> <https://github.com/flutter/flutter/issues/73#issuecomment-391421822>, or mute\n> the thread\n> <https://github.com/notifications/unsubscribe-auth/AHAsITlRVopqGvZ9Dj044wp_mjoyyEoLks5t1ZR5gaJpZM4Ge5yO>\n> .\n>\n",
+    "createdAt": "2018-05-23T16:57:28Z"
+  },
+  {
+    "id": 5538,
+    "sender": "mravn-google",
+    "content": "@feinstein Google Maps is just one maps provider (albeit an important one). But Flutter apps should also work with MapBox and any other maps provider out there.\r\n\r\nFlutter is not about consolidating everything into a monolithic code base. That's why we have packages and plugins separate from the Flutter framework.\r\n\r\nThat said, in the ideal world, the Google Maps team would supply a pure Dart maps widget as a Flutter package. MapBox would supply their take on the same thing. And so on. This is bound to happen, if Flutter becomes popular enough. In the meantime, we need to integrate the maps components we have.",
+    "createdAt": "2018-05-23T16:58:19Z"
+  },
+  {
+    "id": 5539,
+    "sender": "feinstein",
+    "content": "@mravn-google thanks, this makes perfect sense to me! \r\n\r\nOn that topic, I think Flutter will be adopted a lot quicker if there was a supporting ecosystem around it, the same as Java for Android currently has, that being Dagger 2, Retrofit, Picasso, Room, RxAndroid, Junit, Expresso etc... (I know some of this functionalities we can already find in Flutter, but I just wanted to be thorough on my list nonetheless). I understand this is asking a lot of you guys, but I can see a speed up on adptoion once developers see an easy migration and don't miss anything from the old platform. ",
+    "createdAt": "2018-05-23T17:05:45Z"
+  },
+  {
+    "id": 5540,
+    "sender": "Hixie",
+    "content": "@feinstein Do you mean something like https://pub.dartlang.org/flutter ?",
+    "createdAt": "2018-05-23T22:46:33Z"
+  },
+  {
+    "id": 5541,
+    "sender": "feinstein",
+    "content": "@Hixie some time a go I made this reddit post:\r\n\r\nhttps://www.reddit.com/r/FlutterDev/comments/839j38/dartflutter_ecosystem/?utm_source=reddit-android\r\n\r\nAnd the reply I got is that DI, REST(Retrofit) and JSON (GSON, Jackson) isn't available yet... Did it change? \r\n",
+    "createdAt": "2018-05-23T23:05:49Z"
+  },
+  {
+    "id": 5542,
+    "sender": "Hixie",
+    "content": "@feinstein Let's move this discussion to separate bugs. Can you file a bug for each package you think is missing, and we'll see what we can do to address your need in each case? Thanks.",
+    "createdAt": "2018-05-23T23:08:24Z"
+  },
+  {
+    "id": 5543,
+    "sender": "feinstein",
+    "content": "@Hixie, sure thing! ",
+    "createdAt": "2018-05-23T23:14:17Z"
+  },
+  {
+    "id": 5544,
+    "sender": "jposuna",
+    "content": "I've been playing around with the plugin, and I'm not able to do the following:\r\nI want to be able to navigate to a page that contains the map widget, in full screen, and when pressing \"back\" (or other actions), the map widget disappears.\r\n\r\nFrom what I can see, the examples folder attaches the navigatorObservers when creating the app. My issue is that GoogleMapOverlayController needs a width and a height to be created, and the only way I've been able to get the dimensions of the screen is using a LayoutBuilder (getting the BoxConstraints), at build stage (ie. can't do it statically). To get the map to be interactive, I need to manually attach it to the context. But then there's no way I've been able to detach it. When I press the back button, the app navigates back, but the map is still over all the contents.\r\n\r\nBelow is the code I've been trying.\r\n\r\n**Page 1**\r\n`Navigator.push(context, new MaterialPageRoute(builder: (context) => new GoogleMapsPage()));`\r\n\r\n\r\n**Google Maps Page**\r\n```\r\nclass GoogleMapsPage extends StatelessWidget {\r\n  @override\r\n  Widget build(BuildContext context) {\r\n    return new Scaffold(\r\n      appBar: new AppBar(title: const Text(\"Test Maps\")),\r\n      body: new GoogleMaps(),\r\n    );\r\n  }\r\n}\r\n\r\nclass GoogleMaps extends StatefulWidget {\r\n  GoogleMaps({Key key}) : super(key: key);\r\n\r\n  @override\r\n  _GoogleMaps createState() => new _GoogleMaps();\r\n}\r\n\r\nclass _GoogleMaps extends State<GoogleMaps> {\r\n\r\n  GoogleMapOverlayController mapOverlayController;\r\n\r\n  @override\r\n  Widget build(BuildContext context) {\r\n    return new Center(\r\n      child: LayoutBuilder(\r\n          builder: (BuildContext context, BoxConstraints constraints) {\r\n        mapOverlayController = GoogleMapOverlayController.fromSize(\r\n          width: constraints.maxWidth,\r\n          height: constraints.maxHeight,\r\n          options: GoogleMapOptions(\r\n            cameraPosition: const CameraPosition(\r\n              target: LatLng(-34.022631, 150.620685),\r\n              zoom: 15.0,\r\n            ),\r\n            tiltGesturesEnabled: false,\r\n            rotateGesturesEnabled: false,\r\n          ),\r\n        );\r\n        mapOverlayController.overlayController.activateOverlay();\r\n        mapOverlayController.overlayController.attachTo(context);\r\n        return GoogleMapOverlay(controller: mapOverlayController);\r\n      }),\r\n    );\r\n  }\r\n\r\n  @override\r\n  void deactivate() {\r\n    super.deactivate();\r\n    mapOverlayController.overlayController.deactivateOverlay();\r\n    mapOverlayController.overlayController.detach();\r\n    mapOverlayController.overlayController.dispose();\r\n    mapOverlayController.mapController.dispose();\r\n    mapOverlayController.dispose();\r\n  }\r\n}\r\n```\r\n\r\nAny help would be appreciated.\r\n\r\nThanks!",
+    "createdAt": "2018-05-27T17:04:53Z"
+  },
+  {
+    "id": 5545,
+    "sender": "mravn-google",
+    "content": "@jposuna As stated in the [readme](https://github.com/flutter/plugins/blob/master/packages/google_maps_flutter/README.md#caveat) file, the plugin is a preview intended to help bring the `GoogleMapController` Dart API to life. The Flutter team does not intend to support platform overlays for maps beyond what is needed to showcase and test the `GoogleMapController` API as we build it.\r\n\r\nFull screen Google Maps is available using the [`map_view`](https://pub.dartlang.org/packages/map_view) package.",
+    "createdAt": "2018-05-27T18:24:15Z"
+  },
+  {
+    "id": 5546,
+    "sender": "jposuna",
+    "content": "@mravn-google thanks for the quick reply. To be clear, the limitation I'm running into is not full-screen support (I was able to get it full-screen), but getting it off the screen when navigating away.\r\n\r\nI'm completely new to flutter, so there might be jargon that is escaping me, but from the README (\"Issues and pull requests aimed to help us prioritize and speed up this effort are very welcome\"), and your earlier comment on this thread (\"Full API coverage is on the roadmap where meaningful. Prioritization is very much informed by user feedback\") I understood that it was a preview meant to be expanded over time based on use-cases and feedback.\r\n\r\nBut from your answer, it seems like it's not meant to develop into a fully-fledged solution, but rather serve as a proof-of-concept before the real solution. I'm I understanding it correctly? Either way is fine, I'm just trying to understanding the situation, before doing a full integration with one solution, and then having to change the whole integration down the line.",
+    "createdAt": "2018-05-27T19:11:12Z"
+  },
+  {
+    "id": 5547,
+    "sender": "mravn-google",
+    "content": "@jposuna We intend to expand the `GoogleMapController` part of the plugin to a full solution, including 1) full coverage of relevant Google Maps APIs for controlling what is shown in the map view and responding to user interaction with that view, and 2) integrating the map view as a standard widget, to be freely composed with other widgets, including those implementing navigation.\r\n\r\nThe `GoogleMapOverlayController`, and platform overlays in general, is a crutch for doing 2), a temporary solution because we currently don't have the Google Maps APIs needed for the real widget integration. We do not intend to work on the crutch, because it cannot carry us to where we want to go.\r\n\r\nThis means that the part of your code that depends on `GoogleMapOverlayController` will eventually have to change. And in case your code must employ hacks to work around the limitations of platform overlays, those hacks will eventually become unnecessary.",
+    "createdAt": "2018-05-27T19:48:28Z"
+  },
+  {
+    "id": 5548,
+    "sender": "tieorange",
+    "content": "Our company can't wait for google maps support on Flutter",
+    "createdAt": "2018-06-01T10:21:18Z"
+  },
+  {
+    "id": 5549,
+    "sender": "levrik",
+    "content": "@tieorange Then I would suggest to pick another framework or build native apps.",
+    "createdAt": "2018-06-01T15:20:14Z"
+  },
+  {
+    "id": 5550,
+    "sender": "bercilak13",
+    "content": "Was that literally can't wait, or was that an idiomatic expression of excitement?\r\n\r\nAlso, does the lack of Maps support for Flutter extend to the Places API, or could one conceivably access the Places data independently of actually pulling it up from the map itself?",
+    "createdAt": "2018-06-02T04:26:05Z"
+  },
+  {
+    "id": 5551,
+    "sender": "kitty7756",
+    "content": "Also waiting for this support 👍 ",
+    "createdAt": "2018-06-04T06:03:23Z"
+  },
+  {
+    "id": 5552,
+    "sender": "PauloMelo",
+    "content": "I'm having problems compiling, I get \"ld: framework not found google_maps_flutter \"\r\nbecause of another plugin I have use_frameworks! on my PodFile. \r\n\r\nMy flutter doctor.\r\n[✓] Flutter (Channel master, v0.5.2-pre.55, on Mac OS X 10.13.4 17E202, locale en-PT)\r\n[✓] Android toolchain - develop for Android devices (Android SDK 27.0.3)\r\n[✓] iOS toolchain - develop for iOS devices (Xcode 9.4)\r\n[✓] Android Studio (version 3.1)\r\n[✓] VS Code (version 1.23.1)\r\n[✓] Connected devices (3 available)",
+    "createdAt": "2018-06-05T11:01:51Z"
+  },
+  {
+    "id": 5553,
+    "sender": "slightfoot",
+    "content": "@PauloMelo run `flutter build ios` from your project directory. Then xcode will build fine. Also remember to run `flutter packages get`",
+    "createdAt": "2018-06-05T11:11:30Z"
+  },
+  {
+    "id": 5554,
+    "sender": "PauloMelo",
+    "content": "No it won't. \r\nI tryed everything: rm DerivedData, flutter clean, flutter build ios,  even opening the xworkspace and build it inside xcode, I get always the same message...",
+    "createdAt": "2018-06-05T11:26:07Z"
+  },
+  {
+    "id": 5555,
+    "sender": "lovung",
+    "content": "@PauloMelo Have you add \r\n`google_maps_flutter:`\r\n   `git:`\r\n     `url: git://github.com/flutter/plugins`\r\n     `path: packages/google_maps_flutter`\r\nas a dependency in your pubspec.yaml file?\r\nhttps://github.com/flutter/plugins/tree/master/packages/google_maps_flutter",
+    "createdAt": "2018-06-06T07:05:14Z"
+  },
+  {
+    "id": 5556,
+    "sender": "mravn-google",
+    "content": "Seems the `google_maps_flutter.podspec` file needs a\r\n```Ruby\r\ns.static_framework = true\r\n```\r\nline. I'll cook up a PR.",
+    "createdAt": "2018-06-06T07:43:37Z"
+  },
+  {
+    "id": 5557,
+    "sender": "PauloMelo",
+    "content": "@mravn-google Thanks, that solved my problem.",
+    "createdAt": "2018-06-07T07:31:25Z"
+  },
+  {
+    "id": 5558,
+    "sender": "Georgian",
+    "content": "Started a new flutter project which should include a map view, and I hit this brick wall. Waiting for the good news!",
+    "createdAt": "2018-06-07T09:30:19Z"
+  },
+  {
+    "id": 5559,
+    "sender": "gerryhigh",
+    "content": "@jposuna I have gotten it to disappear when navigating away. When I get a chance I'll post what I'm doing. Here's a short video of it in action: https://twitter.com/gerryhigh/status/997312139663757312",
+    "createdAt": "2018-06-11T19:57:42Z"
+  },
+  {
+    "id": 5560,
+    "sender": "nitneuq33",
+    "content": "hello, I just tested the plugin and it's really impressive ! I like the\ncontrolleur and all customisations and possibilities. I just see somes bug.\nlike crash after click on the  newCameraPosition  button and I pinch to\nzoom from the back. other experience, I tried to integer map in a Card to\nhave ronded border, but it's doesn,'t work. other I tried to make a\ngeofencing zone, I stack a circular shape with 50% opacity over the map but\nimpossible to set le circular shape over the map.\n\n2018-06-11 21:58 GMT+02:00 Gerry High <notifications@github.com>:\n\n> @jposuna <https://github.com/jposuna> I have gotten it to disappear when\n> navigating away. When I get a chance I'll post what I'm doing. Here's a\n> short video of it in action: https://twitter.com/gerryhigh/\n> status/997312139663757312\n>\n> —\n> You are receiving this because you were mentioned.\n> Reply to this email directly, view it on GitHub\n> <https://github.com/flutter/flutter/issues/73#issuecomment-396366977>, or mute\n> the thread\n> <https://github.com/notifications/unsubscribe-auth/AaWFywrVAg5KtnMG_FDJc5O8N9zQ3PbEks5t7svngaJpZM4Ge5yO>\n> .\n>\n",
+    "createdAt": "2018-06-14T10:35:55Z"
+  },
+  {
+    "id": 5561,
+    "sender": "piotrtobolski",
+    "content": "@nitneuq33 As you can read in the README.md of this plugin - it works by placing platform view as overlay over the flutter view and it doesn't allow freely compositing with other widgets.",
+    "createdAt": "2018-06-14T10:48:27Z"
+  },
+  {
+    "id": 5562,
+    "sender": "nitneuq33",
+    "content": "Sorry OK,is there any possibilities to implement geofencing controller ?\nlike a custom tag but circular and dynamic in function of the zoom and\nvalue of the radius ?\n\n2018-06-14 12:49 GMT+02:00 Piotr Tobolski <notifications@github.com>:\n\n> @nitneuq33 <https://github.com/nitneuq33> As you can read in the\n> README.md of this plugin - it works by placing platform view as overlay\n> over the flutter view and it doesn't allow freely compositing with other\n> widgets.\n>\n> —\n> You are receiving this because you were mentioned.\n> Reply to this email directly, view it on GitHub\n> <https://github.com/flutter/flutter/issues/73#issuecomment-397252927>, or mute\n> the thread\n> <https://github.com/notifications/unsubscribe-auth/AaWFyzd7A-TFa1xGOTdUC3s3X6lcK6RWks5t8j-cgaJpZM4Ge5yO>\n> .\n>\n",
+    "createdAt": "2018-06-14T10:53:45Z"
+  },
+  {
+    "id": 5563,
+    "sender": "pau-not-paul",
+    "content": "Is there an ETA for this feature?",
+    "createdAt": "2018-06-14T20:35:57Z"
+  },
+  {
+    "id": 5564,
+    "sender": "nitneuq33",
+    "content": "Sorry what is ETA ?\n\nLe jeu. 14 juin 2018 à 22:36, daldoy <notifications@github.com> a écrit :\n\n> Is there an ETA for this feature?\n>\n> —\n> You are receiving this because you were mentioned.\n> Reply to this email directly, view it on GitHub\n> <https://github.com/flutter/flutter/issues/73#issuecomment-397429930>, or mute\n> the thread\n> <https://github.com/notifications/unsubscribe-auth/AaWFywmRIFV5h9JzrbBjlatRiMvHCZ9Bks5t8slagaJpZM4Ge5yO>\n> .\n>\n",
+    "createdAt": "2018-06-14T21:00:24Z"
+  },
+  {
+    "id": 5565,
+    "sender": "feinstein",
+    "content": "Estimated Time of Arrival.\r\n\r\nAnd no, there isn't, have been asked many times before already. ",
+    "createdAt": "2018-06-14T21:02:58Z"
+  },
+  {
+    "id": 5566,
+    "sender": "nitneuq33",
+    "content": "hello, I tried to use the exemple\nhttps://github.com/flutter/plugins/tree/master/packages/google_maps_flutter/example/lib\nbut with simple view, I tried to display map after app launch with only 3\nbutton ( sattelite type, hybrid type and new location ). I succes to do\nthis but without change the page architecture of the example. so I tried to\nuse the other simpler example\nhttps://github.com/flutter/plugins/tree/master/packages/google_maps_flutter\nbut it use StatLessWidget and the exemple of map_ui use statfulWidget but\nwhen I tried to use statfullwidget I have errors. Can I have a simple\nexample with statfullWidget to use map at the launch of the app ? ( just\nneed of 3 button to change the type of map and lanch a new localisation ) .\nI'm new on flutter sorry if it's not clear but this plugin is realy\nimportant and this is the last bloc for me :)\n\n2018-06-14 23:03 GMT+02:00 feinstein <notifications@github.com>:\n\n> Estimated Time of Arrival.\n>\n> And no, there isn't, have been asked many times before already.\n>\n> —\n> You are receiving this because you were mentioned.\n> Reply to this email directly, view it on GitHub\n> <https://github.com/flutter/flutter/issues/73#issuecomment-397437407>, or mute\n> the thread\n> <https://github.com/notifications/unsubscribe-auth/AaWFyzu5X9Y5nhPIEeW1Myl12kf1JIEbks5t8s-xgaJpZM4Ge5yO>\n> .\n>\n",
+    "createdAt": "2018-06-15T11:32:29Z"
+  },
+  {
+    "id": 5567,
+    "sender": "mit-mit",
+    "content": "@nitneuq33 sorry to hear you are having issues. For support questions like that, you are likely going to get better support on stackoverflow (https://stackoverflow.com/questions/tagged/flutter). The present issue tracker is meant to track overall feature progress.",
+    "createdAt": "2018-06-15T17:48:34Z"
+  }
+]

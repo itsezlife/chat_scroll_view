@@ -1,0 +1,386 @@
+[
+  {
+    "id": 6656,
+    "sender": "mravn-google",
+    "content": "@0916174 Can I ask you to try the following:\r\n- make sure you have Cocoapods 1.5.0 installed (`pod --version` should say `1.5.0`)\r\n- change any dependencies you have on the `firebase_xxx`, `google_sign_in`, or `cloud_firestore` plugins to the newest versions (look for changelog entries referring to Cocoapods 1.5.0)\r\n- change your `ios/Podfile` to the newest version on Flutter master branch (https://github.com/flutter/flutter/tree/master/packages/flutter_tools/templates/cocoapods)\r\n- delete `ios/Podfile.lock` and `ios/Pods`\r\n- switch to Flutter master branch\r\n- `flutter clean ; flutter run`\r\n\r\nCf. #16443, flutter/plugins#483",
+    "createdAt": "2018-04-12T07:53:36Z"
+  },
+  {
+    "id": 6657,
+    "sender": "jeroen-meijer",
+    "content": "I've done so, same error.\r\n\r\nI just remembered something that may be of value. When I said 'It seems this problem is fixed.' I was having a different error. To fix that, I commented `use_frameworks!` in the Podfile. Then I got the Flutter.h not found-error. After that, I uncommented `use_frameworks!` again like before I got the error, but the error persists.\r\nI'll give this up and do a Mac reinstall soon. I don't see anything that could fix this.\r\n\r\nIf you come up with any suggestions, go ahead. Thanks for your help.",
+    "createdAt": "2018-04-12T14:13:09Z"
+  },
+  {
+    "id": 6658,
+    "sender": "mravn-google",
+    "content": "You should have use_frameworks! in your Podfile only if your Flutter project uses Swift",
+    "createdAt": "2018-04-12T14:30:44Z"
+  },
+  {
+    "id": 6659,
+    "sender": "acidjazz",
+    "content": "I don't understand why this was closed @0916174 ? I don't see how this issue is solved.\r\n\r\nDowngrading to 1.4.0 worked, sure, but shouldn't flutter support 1.5.0? Or is it still beta? then why is brew installing a beta version of this by default?",
+    "createdAt": "2018-04-13T19:39:08Z"
+  },
+  {
+    "id": 6660,
+    "sender": "jeroen-meijer",
+    "content": "I closed this since it seems it's a problem with my local machine. Any possible solution didn't work or temporarily worked and then stopped working again. I'll reopen it since it's still an issue, yes, but I'll be reinstalling my Mac OS (or getting a new one while I'm at it).\r\n\r\nThings about flutter and the beta are better answered by the devs.",
+    "createdAt": "2018-04-13T20:02:26Z"
+  },
+  {
+    "id": 6661,
+    "sender": "acidjazz",
+    "content": "@0916174 No I think you also found a legit bug with 1.5.0",
+    "createdAt": "2018-04-13T20:08:17Z"
+  },
+  {
+    "id": 6662,
+    "sender": "makalu-niko",
+    "content": "I have te same issue",
+    "createdAt": "2018-04-14T12:36:55Z"
+  },
+  {
+    "id": 6663,
+    "sender": "mravn-google",
+    "content": "@makalu-niko Would you be able to share the output of `flutter doctor -v` and the `pubspec.yaml` and `ios/Podfile` files in your project?",
+    "createdAt": "2018-04-14T13:12:05Z"
+  },
+  {
+    "id": 6664,
+    "sender": "makalu-niko",
+    "content": "Way to re-produce the problem:\r\n`flutter create sandbox`\r\nAdd google_sign_in: \"^3.0.1\" in pubspec.yaml\r\n`flutter run`\r\n\r\nResults of the execution:\r\n\r\n```\r\n$ flutter run\r\nRunning \"flutter packages get\" in sandbox...                 1,0s\r\nLaunching lib/main.dart on iPhone X in debug mode...\r\nRunning pod install...                                       1,5s\r\nRunning Xcode clean...                                       1,0s\r\nStarting Xcode build...                                          \r\nXcode build done                                             2,5s\r\nFailed to build iOS app\r\nError output from Xcode build:\r\n↳\r\n    ** BUILD FAILED **\r\n    \r\nXcode's output:\r\n↳\r\n    === BUILD TARGET google_sign_in OF PROJECT Pods WITH CONFIGURATION Debug ===\r\n    In file included from /Users/Nicolas/flutter/.pub-cache/hosted/pub.dartlang.org/google_sign_in-3.0.1/ios/Classes/GoogleSignInPlugin.m:5:\r\n    /Users/Nicolas/flutter/.pub-cache/hosted/pub.dartlang.org/google_sign_in-3.0.1/ios/Classes/GoogleSignInPlugin.h:5:9: fatal error: 'Flutter/Flutter.h' file not found\r\n    #import <Flutter/Flutter.h>\r\n            ^~~~~~~~~~~~~~~~~~~\r\n    1 error generated.\r\nCould not build the application for the simulator.\r\nError launching application on iPhone X.\r\n```\r\n\r\n\r\nResults of flutter doctor -v\r\n```\r\n[✓] Flutter (Channel beta, v0.2.8, on Mac OS X 10.13.4 17E199, locale fr-FR)\r\n    • Flutter version 0.2.8 at /Users/Nicolas/flutter\r\n    • Framework revision b397406561 (12 days ago), 2018-04-02 13:53:20 -0700\r\n    • Engine revision c903c217a1\r\n    • Dart version 2.0.0-dev.43.0.flutter-52afcba357\r\n\r\n[✗] Android toolchain - develop for Android devices\r\n    ✗ Unable to locate Android SDK.\r\n      Install Android Studio from: https://developer.android.com/studio/index.html\r\n      On first launch it will assist you in installing the Android SDK components.\r\n      (or visit https://flutter.io/setup/#android-setup for detailed instructions).\r\n      If Android SDK has been installed to a custom location, set $ANDROID_HOME to that location.\r\n\r\n[✓] iOS toolchain - develop for iOS devices (Xcode 9.3)\r\n    • Xcode at /Applications/Xcode.app/Contents/Developer\r\n    • Xcode 9.3, Build version 9E145\r\n    • ios-deploy 1.9.2\r\n    • CocoaPods version 1.5.0\r\n\r\n[✗] Android Studio (not installed)\r\n    • Android Studio not found; download from https://developer.android.com/studio/index.html\r\n      (or visit https://flutter.io/setup/#android-setup for detailed instructions).\r\n\r\n[✓] IntelliJ IDEA Community Edition (version 2018.1.1)\r\n    • IntelliJ at /Applications/IntelliJ IDEA CE.app\r\n    • Flutter plugin version 23.2.3\r\n    • Dart plugin version 181.4445.29\r\n\r\n[✓] Connected devices (1 available)\r\n    • iPhone X • 29F3E55E-BC01-496F-8399-E68DA6B195ED • ios • iOS 11.3 (simulator)\r\n\r\n! Doctor found issues in 2 categories.`\r\n```\r\n\r\n\r\n[pubspec.yaml.zip](https://github.com/flutter/flutter/files/1910659/pubspec.yaml.zip)\r\n[Podfile.zip](https://github.com/flutter/flutter/files/1910660/Podfile.zip)\r\n",
+    "createdAt": "2018-04-14T17:31:46Z"
+  },
+  {
+    "id": 6665,
+    "sender": "mravn-google",
+    "content": "@makalu-niko Thank you very much! It appears you are on Flutter's beta channel, and therefore the `Podfile` that Flutter tooling generates for your `sandbox` project is not based on the newest template from Flutter master.\r\n\r\nI can thus reproduce the error with your `Podfile`, but not with the [tip-of-tree version](https://raw.githubusercontent.com/flutter/flutter/master/packages/flutter_tools/templates/cocoapods/Podfile-objc).\r\n\r\nIf you replace `sandbox/ios/Podfile` with that one and delete `sandbox/ios/Podfile.lock` and `sandbox/ios/Pods/`, then `flutter clean ; flutter run` should work.",
+    "createdAt": "2018-04-15T08:05:15Z"
+  },
+  {
+    "id": 6666,
+    "sender": "enrichman",
+    "content": "Just encountered the same error, also with a new project. I've tried almost everything (so my env could be pretty messed up actually) but no fix for now.\r\n\r\nSteps:\r\n```bash\r\nflutter create cocoatest\r\n\r\n// blablabla\r\n[✓] Flutter is fully installed. (Channel master, v0.2.12-pre.33, on Mac OS X 10.13.4 17E199, locale en-IT)\r\n[✓] Android toolchain - develop for Android devices is fully installed. (Android SDK 27.0.3)\r\n[✓] iOS toolchain - develop for iOS devices is fully installed. (Xcode 9.3)\r\n[✓] Android Studio is fully installed. (version 3.0)\r\n[!] IntelliJ IDEA Ultimate Edition is partially installed; more components are available. (version 2016.2.5)\r\n[✓] VS Code is fully installed. (version 1.22.2)\r\n[✓] Connected devices is fully installed. (1 available)\r\n```\r\nthen trying to run:\r\n\r\n```bash\r\ncd cocoatest\r\nflutter run\r\n\r\nLaunching lib/main.dart on iPhone X in debug mode...\r\nRunning Xcode clean...                                       1.0s\r\nStarting Xcode build...\r\n ├─Assembling Flutter resources...                    1.3s\r\n └─Compiling, linking and signing...                  0.2s\r\nXcode build done.                                            2.8s\r\nFailed to build iOS app\r\nError output from Xcode build:\r\n↳\r\n    ** BUILD FAILED **\r\n\r\nXcode's output:\r\n↳\r\n    In file included from /Users/enrico/Development/flutter_projects/cocoatest/ios/Runner/GeneratedPluginRegistrant.m:5:\r\n    /Users/enrico/Development/flutter_projects/cocoatest/ios/Runner/GeneratedPluginRegistrant.h:8:9: fatal error: 'Flutter/Flutter.h' file not found\r\n    #import <Flutter/Flutter.h>\r\n            ^~~~~~~~~~~~~~~~~~~\r\n    1 error generated.\r\nCould not build the application for the simulator.\r\nError launching application on iPhone X.\r\n```\r\n\r\nJust to be sure a `flutter doctor -v` outputs\r\n\r\n```bash\r\n[✓] Flutter (Channel master, v0.2.12-pre.33, on Mac OS X 10.13.4 17E199, locale en-IT)\r\n    • Flutter version 0.2.12-pre.33 at /Users/enrico/development/flutter\r\n    • Framework revision ea30c95dc9 (35 hours ago), 2018-04-13 17:02:14 -0700\r\n    • Engine revision 76cb311d9c\r\n    • Dart version 2.0.0-dev.47.0.flutter-f76dad0adc\r\n\r\n[✓] iOS toolchain - develop for iOS devices (Xcode 9.3)\r\n    • Xcode at /Applications/Xcode.app/Contents/Developer\r\n    • Xcode 9.3, Build version 9E145\r\n    • ios-deploy 1.9.2\r\n    • CocoaPods version 1.5.0\r\n```\r\n\r\nPretty frustrating..",
+    "createdAt": "2018-04-15T10:45:33Z"
+  },
+  {
+    "id": 6667,
+    "sender": "mravn-google",
+    "content": "@enrichman Does this mean that `flutter run` fails for a newly created Flutter project without any plugin dependencies added? Otherwise, can I ask you to share your `pubspec.yaml` file `ios/Podfile` (if present)?",
+    "createdAt": "2018-04-15T11:23:45Z"
+  },
+  {
+    "id": 6668,
+    "sender": "enrichman",
+    "content": "> Does this mean that flutter run fails for a newly created Flutter project without any plugin dependencies added?\r\n\r\n@mravn-google that's true. As you can see no Podfile in the project.\r\n\r\n<img width=\"215\" alt=\"screen shot 2018-04-15 at 13 27 47\" src=\"https://user-images.githubusercontent.com/1763949/38777933-f195ae80-40b0-11e8-8f7c-989cab3d49fe.png\">\r\n\r\nThe `pubspec.yaml` is the default one (I've removed the comments):\r\n\r\n```yaml\r\nname: cocoatest\r\ndescription: A new Flutter project.\r\n\r\ndependencies:\r\n  flutter:\r\n    sdk: flutter\r\n\r\n  cupertino_icons: ^0.1.0\r\n\r\ndev_dependencies:\r\n  flutter_test:\r\n    sdk: flutter\r\n\r\nflutter:\r\n  uses-material-design: true\r\n```\r\n\r\nThanks for your quick support on this one. I'm not a iOS dev so I'm pretty lost on the errors coming from it (I didn't even know what a pod is 😂).",
+    "createdAt": "2018-04-15T11:32:29Z"
+  },
+  {
+    "id": 6669,
+    "sender": "mravn-google",
+    "content": "@enrichman Now that is puzzling... I seem to have the exact same configuration you do\r\n```\r\n[✓] Flutter (Channel master, v0.2.12-pre.33, on Mac OS X 10.13.3 17D102, locale en-US)\r\n    • Flutter version 0.2.12-pre.33 at /Users/mravn/github/flutter\r\n    • Framework revision ea30c95dc9 (2 days ago), 2018-04-13 17:02:14 -0700\r\n    • Engine revision 76cb311d9c\r\n    • Dart version 2.0.0-dev.47.0.flutter-f76dad0adc\r\n\r\n[✓] iOS toolchain - develop for iOS devices (Xcode 9.3)\r\n    • Xcode at /Applications/Xcode.app/Contents/Developer\r\n    • Xcode 9.3, Build version 9E145\r\n    • ios-deploy 1.9.2\r\n    • CocoaPods version 1.5.0\r\n```\r\nyet I cannot reproduce the error. What is the contents of your `ios/Flutter` folder and the `Generated.xcconfig` file within it? Mine look as follows:\r\n\r\nios/Flutter\r\n```\r\nApp.framework\r\nflutter_assets\r\nFlutter.framework\r\nAppFrameworkInfo.plist\r\nDebug.xcconfig\r\nGenerated.xcconfig\r\nRelease.xcconfig\r\n```\r\n\r\nGenerated.xcconfig:\r\n```\r\n// This is a generated file; do not edit or check into version control.\r\nFLUTTER_ROOT=/Users/mravn/github/flutter\r\nFLUTTER_APPLICATION_PATH=/Users/mravn/apps/flutter_projects/cocotest\r\nFLUTTER_TARGET=lib/main.dart\r\nFLUTTER_BUILD_MODE=debug\r\nFLUTTER_BUILD_DIR=build\r\nSYMROOT=${SOURCE_ROOT}/../build/ios\r\nFLUTTER_FRAMEWORK_DIR=/Users/mravn/github/flutter/bin/cache/artifacts/engine/ios\r\nPREVIEW_DART_2=true\r\n```",
+    "createdAt": "2018-04-15T11:53:09Z"
+  },
+  {
+    "id": 6670,
+    "sender": "enrichman",
+    "content": "@mravn-google I was hoping to find something different but the dir and the file are exactly the same as yours:\r\n\r\n<img width=\"230\" alt=\"screen shot 2018-04-15 at 14 03 52\" src=\"https://user-images.githubusercontent.com/1763949/38778188-db3437ec-40b5-11e8-8a9b-909bb5497a1e.png\">\r\n\r\n\r\n```\r\n// This is a generated file; do not edit or check into version control.\r\nFLUTTER_ROOT=/Users/enrico/development/flutter\r\nFLUTTER_APPLICATION_PATH=/Users/enrico/Development/flutter_projects/cocoatest\r\nFLUTTER_TARGET=lib/main.dart\r\nFLUTTER_BUILD_MODE=debug\r\nFLUTTER_BUILD_DIR=build\r\nSYMROOT=${SOURCE_ROOT}/../build/ios\r\nFLUTTER_FRAMEWORK_DIR=/Users/enrico/development/flutter/bin/cache/artifacts/engine/ios\r\nPREVIEW_DART_2=true\r\n```\r\n\r\nThe Headers folder is empty though:\r\n\r\n<img width=\"224\" alt=\"screen shot 2018-04-15 at 14 05 37\" src=\"https://user-images.githubusercontent.com/1763949/38778213-1a14ef1a-40b6-11e8-9242-6afb0db3ba03.png\">\r\n",
+    "createdAt": "2018-04-15T12:07:56Z"
+  },
+  {
+    "id": 6671,
+    "sender": "mravn-google",
+    "content": "Bingo. The `Headers` folder is not supposed to be empty! Indeed, mine contains all the `FlutterXxx.h` header files. These are supposed to be copied from your Flutter installation. In your case, `/Users/enrico/development/flutter/bin/cache/artifacts/engine/ios/Flutter.framework`. Is that folder empty too? If so, your Flutter installation is incomplete. I suggest you delete the `flutter/bin/cache/` directory and then execute `flutter doctor`. That should download the files needed and recreate the cache. We'd then need to find out what caused your Flutter installation to end up in that state.",
+    "createdAt": "2018-04-15T12:30:14Z"
+  },
+  {
+    "id": 6672,
+    "sender": "enrichman",
+    "content": "Thanks you @mravn-google !\r\nThe folder was not empty but it was messed up with strange symlinks:\r\n\r\n<img width=\"880\" alt=\"screen shot 2018-04-15 at 14 37 32\" src=\"https://user-images.githubusercontent.com/1763949/38778515-079e3436-40bb-11e8-97de-9ad579ea4626.png\">\r\n\r\nAs you said clearing the cache `rm -rf ~/Development/flutter/bin/cache` and running a `flutter doctor` worked.\r\nThe Headers files were there and everything seems to work now.\r\n\r\nJust created a new project and did a run without any issues. 🎉 \r\n\r\nNow I have to see what is breaking my original project, or how to fix it:\r\n\r\n```bash\r\nFailed to build iOS app\r\nError output from Xcode build:\r\n↳\r\n    ** BUILD FAILED **\r\n\r\nXcode's output:\r\n↳\r\n    In file included from /Users/enrico/development/flutter/.pub-cache/hosted/pub.dartlang.org/firebase_analytics-0.3.1/ios/Classes/FirebaseAnalyticsPlugin.m:5:\r\n    /Users/enrico/development/flutter/.pub-cache/hosted/pub.dartlang.org/firebase_analytics-0.3.1/ios/Classes/FirebaseAnalyticsPlugin.h:5:9: fatal error: 'Flutter/Flutter.h' file not found\r\n    #import <Flutter/Flutter.h>\r\n            ^~~~~~~~~~~~~~~~~~~\r\n    1 error generated.\r\nCould not build the application for the simulator.\r\n```\r\n\r\nAny help on this?\r\n\r\nI've tried to clear the cache of the packages (just trying to delete every cache on my Mac basically) to see if it was something related, but with no luck.\r\n\r\n```\r\nrm -rf /Users/enrico/development/flutter/.pub-cache\r\nflutter packages get\r\nflutter clean ; flutter run\r\n```",
+    "createdAt": "2018-04-15T12:51:53Z"
+  },
+  {
+    "id": 6673,
+    "sender": "ashim888",
+    "content": "@enrichman all i did was at first i removed the 1.5.0 `brew rm cocoapods` and then switched to 1.4.0\r\n\r\n`brew switch cocoapods 1.4.0` it just worked for me there's some problems with 1.5.0.",
+    "createdAt": "2018-04-15T13:04:55Z"
+  },
+  {
+    "id": 6674,
+    "sender": "enrichman",
+    "content": "@ashim888 I had troubles installing the 1.4.0 actually. I haven't found a way with brew. Maybe you have installed it previously, that's why `brew switch` doesn't work for me (I don't have the version locally).\r\n\r\n```bash\r\nbrew switch cocoapods 1.4.0\r\nError: cocoapods not found in the Cellar.\r\n\r\nbrew install cocoapods@1.4.0\r\nError: No available formula with the name \"cocoapods@1.4.0\"\r\n\r\nbrew search cocoapods\r\n==> Searching local taps...\r\ncocoapods\r\n```\r\n\r\nMaybe later I'll try to see if installing manually the 1.4.0 could fix the issue, but this seems just a workaround and I would like to see if there is a solution.",
+    "createdAt": "2018-04-15T13:12:48Z"
+  },
+  {
+    "id": 6675,
+    "sender": "ashim888",
+    "content": "@enrichman yeah me too searching for a solution, but that worked for me for now.",
+    "createdAt": "2018-04-15T13:17:20Z"
+  },
+  {
+    "id": 6676,
+    "sender": "mravn-google",
+    "content": "@ashim888 @enrichman The workarounds we had in place to use Cocoapods 1.4.0 resulted in iOS archives with link failures (see #15031), so I would not go that way.\r\n\r\n@enrichman For us to help out with your original project with `firebase_analytics`, please share your `pubspec.yaml` and `ios/Podfile`.",
+    "createdAt": "2018-04-15T14:11:51Z"
+  },
+  {
+    "id": 6677,
+    "sender": "enrichman",
+    "content": "@mravn-google \r\n\r\nThe `pubspec.yaml` is standard but with these dependencies:\r\n\r\n```yaml\r\ndependencies:\r\n  flutter:\r\n    sdk: flutter\r\n  image_picker: 0.1.1\r\n  google_sign_in: 3.0.1\r\n  firebase_analytics: 0.3.1\r\n  firebase_auth: 0.5.4\r\n  firebase_database: 0.4.4\r\n  firebase_storage: 0.2.2\r\n  flutter_facebook_login: 1.1.1\r\n```\r\n\r\nand the Podfile is the one you linked before (https://raw.githubusercontent.com/flutter/flutter/master/packages/flutter_tools/templates/cocoapods/Podfile-objc)",
+    "createdAt": "2018-04-15T16:18:00Z"
+  },
+  {
+    "id": 6678,
+    "sender": "mravn-google",
+    "content": "@enrichman These dependencies work fine for me in a newly created Flutter project, including the referenced `Podfile`. Does it help to delete the following and retry?\r\n```\r\nrm -rf build/ ios/Podfile.lock ios/Pods/\r\nflutter run\r\n```",
+    "createdAt": "2018-04-15T16:36:47Z"
+  },
+  {
+    "id": 6679,
+    "sender": "enrichman",
+    "content": "@mravn-google hm, clearing those files generates a different error the first time:\r\n\r\n```bash\r\nLaunching lib/main.dart on iPhone X in debug mode...\r\nRunning pod install...                                       6.2s\r\nRunning Xcode clean...                                       1.2s\r\nStarting Xcode build...\r\nXcode build done.                                            4.8s\r\nFailed to build iOS app\r\nError output from Xcode build:\r\n↳\r\n    ** BUILD FAILED **\r\n\r\nXcode's output:\r\n↳\r\n    === BUILD TARGET leveldb-library OF PROJECT Pods WITH CONFIGURATION Debug ===\r\n    /Users/enrico/Development/flutter_projects/myproject/ios/Pods/Bolts/Bolts/iOS/BFAppLinkReturnToRefererController.m:133:17: warning: block implicitly retains 'self'; explicitly mention 'self' to indicate this is intended behavior [-Wimplicit-retain-self]\r\n                    _view.frame = CGRectMake(0.0, 0.0, CGRectGetWidth(_view.bounds), 0.0);\r\n                    ^\r\n                    self->\r\n    /Users/enrico/Development/flutter_projects/myproject/ios/Pods/Bolts/Bolts/iOS/BFAppLinkReturnToRefererController.m:133:67: warning: block implicitly retains 'self'; explicitly mention 'self' to indicate this is intended behavior [-Wimplicit-retain-self]\r\n                    _view.frame = CGRectMake(0.0, 0.0, CGRectGetWidth(_view.bounds), 0.0);\r\n                                                                      ^\r\n                                                                      self->\r\n    /Users/enrico/Development/flutter_projects/myproject/ios/Pods/Bolts/Bolts/iOS/BFAppLinkReturnToRefererController.m:148:18: warning: block implicitly retains 'self'; explicitly mention 'self' to indicate this is intended behavior [-Wimplicit-retain-self]\r\n                    [_view sizeToFit];\r\n                     ^\r\n                     self->\r\n    /Users/enrico/Development/flutter_projects/myproject/ios/Pods/Bolts/Bolts/iOS/BFAppLinkReturnToRefererController.m:189:13: warning: block implicitly retains 'self'; explicitly mention 'self' to indicate this is intended behavior [-Wimplicit-retain-self]\r\n            if (_navigationController) {\r\n                ^\r\n                self->\r\n    /Users/enrico/Development/flutter_projects/myproject/ios/Pods/Bolts/Bolts/iOS/BFAppLinkReturnToRefererController.m:190:40: warning: block implicitly retains 'self'; explicitly mention 'self' to indicate this is intended behavior [-Wimplicit-retain-self]\r\n                [self updateNavigationBarY:_view.statusBarHeight];\r\n                                           ^\r\n                                           self->\r\n    /Users/enrico/Development/flutter_projects/myproject/ios/Pods/Bolts/Bolts/iOS/BFAppLinkReturnToRefererController.m:193:24: warning: block implicitly retains 'self'; explicitly mention 'self' to indicate this is intended behavior [-Wimplicit-retain-self]\r\n            CGRect frame = _view.frame;\r\n                           ^\r\n                           self->\r\n    /Users/enrico/Development/flutter_projects/myproject/ios/Pods/Bolts/Bolts/iOS/BFAppLinkReturnToRefererController.m:195:9: warning: block implicitly retains 'self'; explicitly mention 'self' to indicate this is intended behavior [-Wimplicit-retain-self]\r\n            _view.frame = frame;\r\n            ^\r\n            self->\r\n    /Users/enrico/Development/flutter_projects/myproject/ios/Pods/Bolts/Bolts/iOS/BFAppLinkReturnToRefererController.m:203:17: warning: block implicitly retains 'self'; explicitly mention 'self' to indicate this is intended behavior [-Wimplicit-retain-self]\r\n                    _view.closed = YES;\r\n                    ^\r\n                    self->\r\n    8 warnings generated.\r\n    In file included from /Users/enrico/.pub-cache/hosted/pub.dartlang.org/firebase_analytics-0.3.1/ios/Classes/FirebaseAnalyticsPlugin.m:5:\r\n    /Users/enrico/.pub-cache/hosted/pub.dartlang.org/firebase_analytics-0.3.1/ios/Classes/FirebaseAnalyticsPlugin.h:5:9: fatal error: 'Flutter/Flutter.h' file not found\r\n    #import <Flutter/Flutter.h>\r\n            ^~~~~~~~~~~~~~~~~~~\r\n    1 error generated.\r\nCould not build the application for the simulator.\r\nError launching application on iPhone X.\r\n```\r\n\r\nThen the second `flutter run` triggers the same error as before (the one about the FirebaseAnalyticsPlugin).\r\n\r\nI'm pretty sure I've messed up something in my env or configuration while changing branch.\r\nThe project is still at the beginning and I can probably just copy everything in a new one, but I was curious to understand what happened (maybe it could be of some help for someone).",
+    "createdAt": "2018-04-15T17:00:35Z"
+  },
+  {
+    "id": 6680,
+    "sender": "mravn-google",
+    "content": "Most of the above is just warnings which I guess you'll see only on the first build, because after that, the code involved has already been built. It seems the error, reported at the end, is the same as before.",
+    "createdAt": "2018-04-15T17:44:45Z"
+  },
+  {
+    "id": 6681,
+    "sender": "enrichman",
+    "content": "@mravn-google just to add some more info I'm not able to add a single dependency..\r\n\r\nAfter I've created a new project and added any new dependency (i.e.: `image_picker: 0.4.1`) I got the error:\r\n\r\n```bash\r\nFailed to build iOS app\r\nError output from Xcode build:\r\n↳\r\n    ** BUILD FAILED **\r\n\r\nXcode's output:\r\n↳\r\n    === BUILD TARGET image_picker OF PROJECT Pods WITH CONFIGURATION Debug ===\r\n    In file included from /Users/enrico/.pub-cache/hosted/pub.dartlang.org/image_picker-0.4.1/ios/Classes/ImagePickerPlugin.m:7:\r\n    /Users/enrico/.pub-cache/hosted/pub.dartlang.org/image_picker-0.4.1/ios/Classes/ImagePickerPlugin.h:5:9: fatal error: 'Flutter/Flutter.h' file not found\r\n    #import <Flutter/Flutter.h>\r\n            ^~~~~~~~~~~~~~~~~~~\r\n    1 error generated.\r\nCould not build the application for the simulator.\r\nError launching application on iPhone X.\r\n```\r\n\r\nShould I try to reinstall flutter? No clue..",
+    "createdAt": "2018-04-17T22:17:19Z"
+  },
+  {
+    "id": 6682,
+    "sender": "mravn-google",
+    "content": "@enrichman Your `ios/Podfile` must be a copy of [the latest Flutter project templates](https://github.com/flutter/flutter/tree/master/packages/flutter_tools/templates/cocoapods) to work with Cocoapods 1.5.0.",
+    "createdAt": "2018-04-18T08:14:22Z"
+  },
+  {
+    "id": 6683,
+    "sender": "Winghin2517",
+    "content": "I'm also experiencing the same error: \r\n\r\n```\r\nLaunching lib/main.dart on iPhone X in debug mode...\r\nRunning Xcode clean...\r\nStarting Xcode build...\r\nXcode build done\r\nFailed to build iOS app\r\nError output from Xcode build:\r\n↳\r\n    ** BUILD FAILED **\r\n    \r\nXcode's output:\r\n↳\r\n    In file included from /Users/WingHinChan/.pub-cache/hosted/pub.dartlang.org/path_provider-0.4.0/ios/Classes/PathProviderPlugin.m:5:\r\n    /Users/WingHinChan/.pub-cache/hosted/pub.dartlang.org/path_provider-0.4.0/ios/Classes/PathProviderPlugin.h:5:9: fatal error: 'Flutter/Flutter.h' file not found\r\n    #import <Flutter/Flutter.h>\r\n            ^~~~~~~~~~~~~~~~~~~\r\n    1 error generated.\r\n    In file included from /Users/WingHinChan/.pub-cache/hosted/pub.dartlang.org/shared_preferences-0.4.1/ios/Classes/SharedPreferencesPlugin.m:5:\r\n    /Users/WingHinChan/.pub-cache/hosted/pub.dartlang.org/shared_preferences-0.4.1/ios/Classes/SharedPreferencesPlugin.h:5:9: fatal error: 'Flutter/Flutter.h' file not found\r\n    #import <Flutter/Flutter.h>\r\n            ^~~~~~~~~~~~~~~~~~~\r\n    1 error generated.\r\nCould not build the application for the simulator.\r\nError launching application on iPhone X.\r\n```\r\nI'm trying to downgrade my Cocoapods to see if I can solve this by downgrading it to 1.4.0. I used the code from this SO thread to do so:\r\n\r\n> sudo gem uninstall cocoapods\r\n\r\n> sudo gem install cocoapods -v 1.4.0\r\n\r\nThis my gem list:\r\n\r\n<img width=\"254\" alt=\"screen shot 2018-04-18 at 11 24 54\" src=\"https://user-images.githubusercontent.com/7094734/38923581-370e4ab6-42fb-11e8-938e-d41e4b01ab49.png\">\r\n\r\nWhen I run flutter doctor, it asks me to install cocoapods through brew:\r\n```\r\n\r\nbrew install cocoapods\r\npod setup\r\n```\r\n\r\nWhy does flutter not recognise that I have a cocoapods 1.4.0 installed through gem? \r\nAlso, when I tried brew install cocoapods@1.4.0, it fails as the downgrade cannot be found.\r\n\r\n\r\n",
+    "createdAt": "2018-04-18T09:27:59Z"
+  },
+  {
+    "id": 6684,
+    "sender": "jeroen-meijer",
+    "content": "It asks you to install via brew because the actual cocoapods gem wasn’t in your gem list for some reason.\r\n`cocoapods (1.4.0)` was missing. It should be there above `cocoapods-core (1.4.0)`.",
+    "createdAt": "2018-04-18T09:31:37Z"
+  },
+  {
+    "id": 6685,
+    "sender": "mravn-google",
+    "content": "It should not matter to Flutter how you install Cocoapods as long as the `pod` executable is on your path.\r\n\r\n@0916174 Downgrading Cocoapods to 1.4.0 is unlikely to solve your problems, and Flutter tooling will be tested with Cocoapods 1.5.0 going forward.",
+    "createdAt": "2018-04-18T09:33:36Z"
+  },
+  {
+    "id": 6686,
+    "sender": "enrichman",
+    "content": "@mravn-google the problem is that I already have the exactly same file.\r\n\r\nI've tried to do the same on my other Mac and it works with no issues. It's probably something that I broke on my machine that causes the issue.\r\n\r\nIt seems that the `flutter run` links the files in the cache in a strange way ([@see](https://user-images.githubusercontent.com/1763949/38778515-079e3436-40bb-11e8-97de-9ad579ea4626.png)), and since they're referenced in the `.symlinks` dir under `ios/Pods` something weird happens.\r\n\r\nOn my second Mac, after the `flutter run`, they're ok.\r\n\r\nI'll try to delete `flutter` and reinstall it.",
+    "createdAt": "2018-04-18T12:12:50Z"
+  },
+  {
+    "id": 6687,
+    "sender": "mravn-google",
+    "content": "@enrichman If the contents of `<flutter_install_dir>/bin/cache` is broken, just delete `bin/cache`, then run `flutter doctor`. I'd be very interested in learning steps to reproduce the self-symlinks you get.",
+    "createdAt": "2018-04-18T12:33:15Z"
+  },
+  {
+    "id": 6688,
+    "sender": "arden",
+    "content": "@mravn-google i'm try to delete bin/cache, then run flutter doctor, and then flutter run, but still have the errors.",
+    "createdAt": "2018-04-18T13:15:38Z"
+  },
+  {
+    "id": 6689,
+    "sender": "enrichman",
+    "content": "@mravn-google already did that, also deleting the .pub-cache of the dependencies but still getting the same behaviour.\r\n\r\nThe strange things that I did before getting the error was mainly switching branches of Flutter and recompiling with `flutter doctor`. Not sure if there are other \"hidden\" folders that I could try to clear.",
+    "createdAt": "2018-04-18T13:19:13Z"
+  },
+  {
+    "id": 6690,
+    "sender": "mravn-google",
+    "content": "@arden @enrichman Exact steps to reproduce would be very welcome. E.g. which project, with which dependencies (`pubspec.yaml`) and `ios/Podfile` (if any), are you running? Which version of Flutter are you using? (`flutter doctor -v`). Do you have the project open in Xcode while you perform these steps? Do you specify any parameters to `flutter run`?",
+    "createdAt": "2018-04-18T14:18:31Z"
+  },
+  {
+    "id": 6691,
+    "sender": "enrichman",
+    "content": "@mravn-google \r\nI've pulled the `master` and it doesn't even start, so I've tried to checkout the `v0.3.0`.\r\n\r\nThe steps were basically clear the caches:\r\n\r\n```sh\r\nrm -rf /Users/enrico/.pub-cache\r\nrm -rf /Users/enrico/development/flutter/bin/cache\r\n```\r\nbuild `flutter`\r\n\r\n```sh\r\nflutter doctor -v\r\n\r\n[✓] Flutter (Channel unknown, v0.3.0, on Mac OS X 10.13.4 17E199, locale en-IT)\r\n    • Flutter version 0.3.0 at /Users/enrico/development/flutter\r\n    • Framework revision c73b8a7cf6 (6 days ago), 2018-04-12 16:17:26 -0700\r\n    • Engine revision 8a6e64a8ef\r\n    • Dart version 2.0.0-dev.47.0.flutter-4126459025\r\n\r\n[✓] iOS toolchain - develop for iOS devices (Xcode 9.3)\r\n    • Xcode at /Applications/Xcode.app/Contents/Developer\r\n    • Xcode 9.3, Build version 9E145\r\n    • ios-deploy 1.9.2\r\n    • CocoaPods version 1.5.0\r\n```\r\n\r\ncreated and run a testapp:\r\n\r\n```bash\r\nflutter create testapp\r\ncd testapp\r\nflutter run\r\n```\r\n\r\nThe app runs. The `Headers` are ok.\r\n\r\n```bash\r\nll /Users/enrico/development/flutter/bin/cache/artifacts/engine/ios/Flutter.framework/Headers\r\n\r\n-rw-r--r--  1 enrico  staff   1,9K  5 Apr 00:03 Flutter.h\r\n-rw-r--r--  1 enrico  staff   1,5K  5 Apr 00:03 FlutterAppDelegate.h\r\n-rw-r--r--  1 enrico  staff   2,5K  5 Apr 00:03 FlutterBinaryMessenger.h\r\n-rw-r--r--  1 enrico  staff    13K  5 Apr 00:03 FlutterChannels.h\r\n-rw-r--r--  1 enrico  staff    13K  5 Apr 00:03 FlutterCodecs.h\r\n-rw-r--r--  1 enrico  staff   1,7K  5 Apr 00:03 FlutterDartProject.h\r\n-rw-r--r--  1 enrico  staff   1,1K  5 Apr 00:03 FlutterHeadlessDartRunner.h\r\n-rw-r--r--  1 enrico  staff   1,4K  5 Apr 00:03 FlutterMacros.h\r\n-rw-r--r--  1 enrico  staff   261B  5 Apr 00:03 FlutterNavigationController.h\r\n-rw-r--r--  1 enrico  staff   7,4K  5 Apr 00:03 FlutterPlugin.h\r\n-rw-r--r--  1 enrico  staff   741B  5 Apr 00:03 FlutterTexture.h\r\n-rw-r--r--  1 enrico  staff   1,8K  5 Apr 00:03 FlutterViewController.h\r\n```\r\n\r\nSo far, so good.\r\n\r\nThen I've add a single dependency (`image_picker: 0.1.1`) in the `pubspec.yaml` that triggered a `flutter packages get`, that generated the `Podfile`, identical to the one you referenced.\r\n\r\nChecked the Headers and they're still good.\r\n\r\nRunning then a `flutter run` will fail, and mess up the Headers:\r\n\r\n```bash\r\nLaunching lib/main.dart on iPhone X in debug mode...\r\nSkipping compilation. Fingerprint match.\r\nRunning Xcode clean...                                       0.9s\r\nStarting Xcode build...\r\nXcode build done.                                            1.1s\r\nFailed to build iOS app\r\nError output from Xcode build:\r\n↳\r\n    ** BUILD FAILED **\r\n\r\nXcode's output:\r\n↳\r\n    === BUILD TARGET image_picker OF PROJECT Pods WITH CONFIGURATION Debug ===\r\n    In file included from /Users/enrico/.pub-cache/hosted/pub.dartlang.org/image_picker-0.1.1/ios/Classes/ImagePickerPlugin.m:7:\r\n    /Users/enrico/.pub-cache/hosted/pub.dartlang.org/image_picker-0.1.1/ios/Classes/ImagePickerPlugin.h:5:9: fatal error: 'Flutter/Flutter.h' file not found\r\n    #import <Flutter/Flutter.h>\r\n            ^~~~~~~~~~~~~~~~~~~\r\n    1 error generated.\r\nCould not build the application for the simulator.\r\nError launching application on iPhone X.\r\n```\r\n\r\n```bash\r\nll /Users/enrico/development/flutter/bin/cache/artifacts/engine/ios/Flutter.framework/Headers\r\n\r\nlrwxr-xr-x  1 enrico  staff     9B 18 Apr 21:18 Flutter.h -> Flutter.h\r\nlrwxr-xr-x  1 enrico  staff    20B 18 Apr 21:18 FlutterAppDelegate.h -> FlutterAppDelegate.h\r\nlrwxr-xr-x  1 enrico  staff    24B 18 Apr 21:18 FlutterBinaryMessenger.h -> FlutterBinaryMessenger.h\r\nlrwxr-xr-x  1 enrico  staff    17B 18 Apr 21:18 FlutterChannels.h -> FlutterChannels.h\r\nlrwxr-xr-x  1 enrico  staff    15B 18 Apr 21:18 FlutterCodecs.h -> FlutterCodecs.h\r\nlrwxr-xr-x  1 enrico  staff    20B 18 Apr 21:18 FlutterDartProject.h -> FlutterDartProject.h\r\nlrwxr-xr-x  1 enrico  staff    27B 18 Apr 21:18 FlutterHeadlessDartRunner.h -> FlutterHeadlessDartRunner.h\r\nlrwxr-xr-x  1 enrico  staff    15B 18 Apr 21:18 FlutterMacros.h -> FlutterMacros.h\r\nlrwxr-xr-x  1 enrico  staff    29B 18 Apr 21:18 FlutterNavigationController.h -> FlutterNavigationController.h\r\nlrwxr-xr-x  1 enrico  staff    15B 18 Apr 21:18 FlutterPlugin.h -> FlutterPlugin.h\r\nlrwxr-xr-x  1 enrico  staff    16B 18 Apr 21:18 FlutterTexture.h -> FlutterTexture.h\r\nlrwxr-xr-x  1 enrico  staff    23B 18 Apr 21:18 FlutterViewController.h -> FlutterViewController.h\r\n```\r\n\r\nJust checking out the output of the `flutter run -v` and found these lines:\r\n\r\n```bash\r\n[        ] Error output from CocoaPods:\r\n           ↳\r\n[        ]\r\n           [!] `<PBXGroup UUID=`97C146E51CF9000F007C117D`>` attempted to initialize an object with an unknown UUID. `CF3B75C9A7D2FA2A4C99F110` for attribute: `children`. This can be the result of a merge and  the unknown UUID is being discarded.\r\n\r\n           [!] Automatically assigning platform `ios` with version `8.0` on target `Runner` because no platform was specified. Please specify a platform for this target in your Podfile. See `https://guides.cocoapods.org/syntax/podfile.html#platform`.\r\n```\r\n\r\nCould be related? [Here](https://gist.github.com/enrichman/c22587588e454567fc64e2f75b2ee78f) the rest of part of the output\r\n",
+    "createdAt": "2018-04-18T19:27:08Z"
+  },
+  {
+    "id": 6692,
+    "sender": "mravn-google",
+    "content": "@enrichman Thank you so much, this is extremely helpful. I'll try to reproduce immediately.",
+    "createdAt": "2018-04-18T19:38:54Z"
+  },
+  {
+    "id": 6693,
+    "sender": "mravn-google",
+    "content": "No luck. `flutter run` works nicely, Headers folder left intact.",
+    "createdAt": "2018-04-18T19:49:18Z"
+  },
+  {
+    "id": 6694,
+    "sender": "mravn-google",
+    "content": "`flutter run -v` transcript:\r\n```\r\n[ +550 ms] pod --version\r\n[ +551 ms] 1.5.0\r\n[   +2 ms] Running pod install...\r\n[+1179 ms] CocoaPods' output:\r\n                   ↳\r\n[        ]   Preparing\r\n           \r\n           Analyzing dependencies\r\n           \r\n           Inspecting targets to integrate\r\n             Using `ARCHS` setting to build architectures of target `Pods-Runner`: (`arm64`)\r\n           \r\n           Fetching external sources\r\n           -> Fetching podspec for `Flutter` from `Pods/.symlinks/flutter/ios`\r\n           -> Fetching podspec for `image_picker` from `Pods/.symlinks/plugins/image_picker/ios`\r\n           \r\n           Resolving dependencies of `Podfile`\r\n           \r\n           Comparing resolved specification to the sandbox manifest\r\n             A Flutter\r\n             A image_picker\r\n           \r\n           Downloading dependencies\r\n           \r\n           -> Installing Flutter (1.0.0)\r\n           \r\n           -> Installing image_picker (0.0.1)\r\n             - Running pre install hooks\r\n           \r\n           Generating Pods project\r\n             - Creating Pods project\r\n             - Adding source files to Pods project\r\n             - Adding frameworks to Pods project\r\n             - Adding libraries to Pods project\r\n             - Adding resources to Pods project\r\n             - Adding development pod helper files to Pods project\r\n             - Linking headers\r\n             - Installing targets\r\n               - Installing target `image_picker` iOS 4.3\r\n               - Installing target `Pods-Runner` iOS 8.0\r\n             - Running post install hooks\r\n               - Podfile\r\n             - Writing Xcode project file to `Pods/Pods.xcodeproj`\r\n               - Generating deterministic UUIDs\r\n             - Writing Lockfile in `Podfile.lock`\r\n             - Writing Manifest in `Pods/Manifest.lock`\r\n           \r\n           Integrating client project\r\n           \r\n           Integrating target `Pods-Runner` (`Runner.xcodeproj` project)\r\n             - Running post install hooks\r\n               - cocoapods-stats from `/usr/local/Cellar/ruby/2.5.1/lib/ruby/gems/2.5.0/gems/cocoapods-stats-1.0.0/lib/cocoapods_plugin.rb`\r\n           \r\n           -> Pod installation complete! There are 2 dependencies from the Podfile and 2 total pods installed.\r\n           \r\n[        ] Error output from CocoaPods:\r\n           ↳\r\n[        ] \r\n           [!] Automatically assigning platform `ios` with version `8.0` on target `Runner` because no platform was specified. Please specify a platform for this target in your Podfile. See `https://guides.cocoapods.org/syntax/podfile.html#platform`.\r\n           \r\n[        ] Running Xcode clean...\r\n```",
+    "createdAt": "2018-04-18T19:53:07Z"
+  },
+  {
+    "id": 6695,
+    "sender": "enrichman",
+    "content": "@mravn-google thanks for your support. I've tried to reinstall `flutter` and `cocoapods` removing everything with no success.\r\n\r\nThe problem is on the `pod install`. After it I found the symlinks messed up.. Not sure on what is wrong but is related to my environment.",
+    "createdAt": "2018-04-19T20:12:16Z"
+  },
+  {
+    "id": 6696,
+    "sender": "mravn-google",
+    "content": "@enrichman One experiment to make is to modify the `Podfile` to keep the `.symlinks` folder outside `Pods/`, as a sibling of it instead.",
+    "createdAt": "2018-04-19T20:14:33Z"
+  },
+  {
+    "id": 6697,
+    "sender": "mravn-google",
+    "content": "Something like this (not tested). And then add `.symlinks` to the `ios/.gitignore` file.\r\n\r\n```ruby\r\n# Uncomment this line to define a global platform for your project\r\n# platform :ios, '9.0'\r\n\r\n# CocoaPods analytics sends network stats synchronously affecting flutter build latency.\r\nENV['COCOAPODS_DISABLE_STATS'] = 'true'\r\n\r\ndef parse_KV_file(file, separator='=')\r\n  file_abs_path = File.expand_path(file)\r\n  if !File.exists? file_abs_path\r\n    return [];\r\n  end\r\n  pods_ary = []\r\n  skip_line_start_symbols = [\"#\", \"/\"]\r\n  File.foreach(file_abs_path) { |line|\r\n      next if skip_line_start_symbols.any? { |symbol| line =~ /^\\s*#{symbol}/ }\r\n      plugin = line.split(pattern=separator)\r\n      if plugin.length == 2\r\n        podname = plugin[0].strip()\r\n        path = plugin[1].strip()\r\n        podpath = File.expand_path(\"#{path}\", file_abs_path)\r\n        pods_ary.push({:name => podname, :path => podpath});\r\n      else\r\n        puts \"Invalid plugin specification: #{line}\"\r\n      end\r\n  }\r\n  return pods_ary\r\nend\r\n\r\ntarget 'Runner' do\r\n  use_frameworks!\r\n\r\n  # Prepare symlinks folder. We use symlinks to avoid having Podfile.lock\r\n  # referring to absolute paths on developers' machines.\r\n  system('rm -rf .symlinks')\r\n  system('mkdir -p .symlinks/plugins')\r\n\r\n  # Flutter Pods\r\n  generated_xcode_build_settings = parse_KV_file('./Flutter/Generated.xcconfig')\r\n  if generated_xcode_build_settings.empty?\r\n    puts \"Generated.xcconfig must exist. If you're running pod install manually, make sure flutter packages get is executed first.\"\r\n  end\r\n  generated_xcode_build_settings.map { |p|\r\n    if p[:name] == 'FLUTTER_FRAMEWORK_DIR'\r\n      symlink = File.join('.symlinks', 'flutter')\r\n      File.symlink(File.dirname(p[:path]), symlink)\r\n      pod 'Flutter', :path => File.join(symlink, File.basename(p[:path]))\r\n    end\r\n  }\r\n\r\n  # Plugin Pods\r\n  plugin_pods = parse_KV_file('../.flutter-plugins')\r\n  plugin_pods.map { |p|\r\n    symlink = File.join('.symlinks', 'plugins', p[:name])\r\n    File.symlink(p[:path], symlink)\r\n    pod p[:name], :path => File.join(symlink, 'ios')\r\n  }\r\nend\r\n\r\npost_install do |installer|\r\n  installer.pods_project.targets.each do |target|\r\n    target.build_configurations.each do |config|\r\n      config.build_settings['ENABLE_BITCODE'] = 'NO'\r\n    end\r\n  end\r\nend\r\n```",
+    "createdAt": "2018-04-19T20:18:02Z"
+  },
+  {
+    "id": 6698,
+    "sender": "enrichman",
+    "content": "@mravn-google tried with no luck. Not sure if I did the correct steps but in the end the `.symlinks` folder was outside with the links (and the Headers where messed up again.\r\n\r\nBUT I've tried to create a swift project (`flutter create -i swift testapp`) and it worked. 😧 \r\n\r\nEDIT: I haven't tried your Podfile. I'll do!",
+    "createdAt": "2018-04-19T21:00:09Z"
+  },
+  {
+    "id": 6699,
+    "sender": "enrichman",
+    "content": "@mravn-google IT WORKED!!! :open_mouth::open_mouth::open_mouth:\r\nI don't know why, but it works! Thanks!!",
+    "createdAt": "2018-04-19T21:05:40Z"
+  },
+  {
+    "id": 6700,
+    "sender": "mravn-google",
+    "content": "Thanks @enrichman, good to know.\r\n@0916174 Does this approach work for you too?",
+    "createdAt": "2018-04-19T21:17:04Z"
+  },
+  {
+    "id": 6701,
+    "sender": "dhubler",
+    "content": "@mravn-google Could you summarize the final, suggested workaround?  It's unclear which steps are necessary and which are not.  e.g. Do i need to be flutter master channel? Do I need to get files from flutter github, do i need to remove certain files, do i need to downgrade cocoapos, do i need copy in files from above? I have same issue with Flutter/Flutter.h but with audioplayer plugin. ",
+    "createdAt": "2018-04-20T10:36:34Z"
+  },
+  {
+    "id": 6702,
+    "sender": "miguelpruivo",
+    "content": "Suddenly this issue started to happen with me with a project that I had previous working without issues. I didn't \"touch\" the project for the last few days and now that I opened it and tried to run on iOS I start getting this error.",
+    "createdAt": "2018-04-20T11:11:11Z"
+  },
+  {
+    "id": 6703,
+    "sender": "miguelpruivo",
+    "content": "For those with this problem these steps seemed to work with me:\r\n\r\n    1. uninstall cocoapods\r\n\r\n         $sudo gem uninstall cocoapods\r\n\r\n         $sudo gem uninstall -n/usr/local/bin cocoapods\r\n\r\n    2. install cocoapods 1.4\r\n\r\n        $sudo gem install cocoapods -v 1.4\r\n\r\n    3. update pod\r\n\r\n        $cd ios\r\n\r\n    4. pod\r\n\r\n        $pod update\r\n\r\n\r\nSource: [http://www.jcodecraeer.com/a/anzhuokaifa/2018/0416/9596.html](url)",
+    "createdAt": "2018-04-20T11:29:43Z"
+  },
+  {
+    "id": 6704,
+    "sender": "mravn-google",
+    "content": "@miguelpruivo Going back to Cocoapods 1.4.0 is a short-term solution, at best. Flutter tooling (on Flutter master) does not support it, because we have been unable to make it work with Swift projects. You are advised to update your `ios/Podfile` instead.",
+    "createdAt": "2018-04-20T11:37:48Z"
+  },
+  {
+    "id": 6705,
+    "sender": "miguelpruivo",
+    "content": "@mravn-google what are the steps to do so? ",
+    "createdAt": "2018-04-20T11:38:52Z"
+  },
+  {
+    "id": 6706,
+    "sender": "mravn-google",
+    "content": "@miguelpruivo Copy the `Podfile` suitable to your project from [Flutter master](https://github.com/flutter/flutter/tree/master/packages/flutter_tools/templates/cocoapods) to your project's `ios/Podfile` and delete `ios/Podfile.lock`. Use the ObjC version, if your Flutter project wasn't created with `-i swift`.",
+    "createdAt": "2018-04-20T11:50:22Z"
+  },
+  {
+    "id": 6707,
+    "sender": "jeroen-meijer",
+    "content": "@mravn-google Sorry for being absent for a while.\r\nI'm currently installing all the software on my new Mac, but haven't tried flutter yet.\r\n\r\nHowever, while browsing my user files (`~/Users/jeroen`), I found this:\r\n![image](https://user-images.githubusercontent.com/14292245/39083319-1675e3ee-4563-11e8-9578-c0df4ca8eefe.png)\r\n\r\nIt seems the flutter headers everyone is talking about are stored incorrectly. Instead of `~/Users/jeroen/flutter/bin...`, it's in `~/Users/jeroen/jeroen/flutter/bin...`.\r\n\r\nWhile moving the folder to the correct location, I accidentally deleted my original flutter folder, so I can't test it out myself, but maybe other people here could check if their headers are in the incorrect folder as well.",
+    "createdAt": "2018-04-21T11:05:19Z"
+  },
+  {
+    "id": 6708,
+    "sender": "jeroen-meijer",
+    "content": "My new MacBook with a fresh install (no Time Machine restore) is having the same problems (Flutter.h not found). I'll try the solutions above and report back.",
+    "createdAt": "2018-04-21T13:58:28Z"
+  },
+  {
+    "id": 6709,
+    "sender": "bdytx5",
+    "content": "Do you have the 12 inch macbook? I'm facing this issue on mine...",
+    "createdAt": "2018-04-22T04:20:55Z"
+  },
+  {
+    "id": 6710,
+    "sender": "jeroen-meijer",
+    "content": "Nope, MacBook Pro 15” 2017.",
+    "createdAt": "2018-04-22T11:33:21Z"
+  },
+  {
+    "id": 6711,
+    "sender": "fuzzybinary",
+    "content": "I also had this happen and looked into it a bit. For some reason it tends to appear when flutter decides to switch from the engine built at 'ios-release' vs. 'ios'.  \r\n\r\nIf that helps.\r\n\r\nI was able to get partially back in business by deleting most all pod artifacts and then building through VSCode which I believe is building a debug artifact instead of a release artifact.",
+    "createdAt": "2018-04-23T19:12:45Z"
+  },
+  {
+    "id": 6712,
+    "sender": "mravn-google",
+    "content": "Thanks for helping. I still cannot reproduce :-(",
+    "createdAt": "2018-04-24T09:15:23Z"
+  },
+  {
+    "id": 6713,
+    "sender": "MehndirattaPiyush",
+    "content": "Worked like Charm! Thanks",
+    "createdAt": "2018-04-28T22:58:50Z"
+  },
+  {
+    "id": 6714,
+    "sender": "NathanielBlackburn",
+    "content": "@mravn-google I confirm as well, your solution to move the `.symlinks` folder outside of `Pods/` worked and my project builds properly with CocoaPods 1.5.0, thank you.",
+    "createdAt": "2018-05-02T10:16:19Z"
+  },
+  {
+    "id": 6715,
+    "sender": "rodydavis",
+    "content": "I was able to resolve it by \r\n1. `sudo gem uninstall cocoapods`\r\n2. `sudo gem install cocoapods -v 1.4.0`\r\n3. `flutter clean && flutter build ios`\r\n\r\nSomehow CocoaPods 1.5.0 and 1.4.0 were both installed. ",
+    "createdAt": "2018-05-02T18:34:19Z"
+  },
+  {
+    "id": 6716,
+    "sender": "mravn-google",
+    "content": "@AppleEducate Please be aware of https://github.com/flutter/flutter/issues/16036#issuecomment-383069566",
+    "createdAt": "2018-05-02T18:39:44Z"
+  },
+  {
+    "id": 6717,
+    "sender": "renatoathaydes",
+    "content": "@mravn-google copying the Podfile from Flutter's master as you suggested fixed the `Flutter.h not found` issue but did not fix the `The “Swift Language Version” (SWIFT_VERSION) build setting must be set to a supported value for targets which use Swift` problem.\r\n\r\nAdding this line to the `post_install` loop on `build_configurations` as suggested [here](https://github.com/flutter/flutter/issues/16049) makes it work after running `pod install`:\r\n\r\n```ruby\r\nconfig.build_settings['SWIFT_VERSION'] = '3.2'\r\n```\r\n\r\nWouldn't it be better to add this line to the Flutter's Podfile?",
+    "createdAt": "2018-05-03T10:24:16Z"
+  },
+  {
+    "id": 6718,
+    "sender": "jeroen-meijer",
+    "content": "Everything seems to be working now on pods version 1.5.0 and the latest flutter master.\r\nThank you all for your help.",
+    "createdAt": "2018-05-07T14:47:04Z"
+  },
+  {
+    "id": 6719,
+    "sender": "mravn-google",
+    "content": "@0916174 Happy to hear it is working for you now!",
+    "createdAt": "2018-05-07T21:21:43Z"
+  }
+]

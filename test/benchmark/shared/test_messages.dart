@@ -78,6 +78,7 @@ List<IChatMessage> generateMessages(int count) {
     messages.add(
       ChatMessage$User(
         id: i,
+        sender: 'User',
         createdAt: time,
         updatedAt: time,
         content: content,

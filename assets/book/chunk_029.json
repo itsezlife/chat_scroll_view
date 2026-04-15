@@ -1,0 +1,386 @@
+[
+  {
+    "id": 1856,
+    "sender": "moffatman",
+    "content": "@xiaoyanermiemie \r\n\r\nI think I wasn't clear. There isn't any problem with your PR when using trackpad and touchscreen at the same time. It's all good :thumbsup:. I mean that when using trackpad and touchscreen at the same time in other apps (not Flutter), it's almost never handled correctly by other systems. ",
+    "createdAt": "2022-07-02T17:35:30Z"
+  },
+  {
+    "id": 1857,
+    "sender": "winctoryang",
+    "content": "> \r\n\r\n\r\n\r\n> @xiaoyanermiemie\r\n> \r\n> I think I wasn't clear. There isn't any problem with your PR when using trackpad and touchscreen at the same time. It's all good 👍. I mean that when using trackpad and touchscreen at the same time in other apps (not Flutter), it's almost never handled correctly by other systems.\r\n\r\n@moffatman \r\n\r\nThank you for your reply, however, I am confused about  **in other apps (not Flutter)**. What I understand is that some apps use **the flutter/flutter repository**  but are not called the flutter app, am I right？ Could you give me some codes or repository which is **flickering and not correctly handled** by this PR so that I can fix this issue more efficiently? I do not know how to reproduce the problem.",
+    "createdAt": "2022-07-04T05:16:04Z"
+  },
+  {
+    "id": 1858,
+    "sender": "moffatman",
+    "content": "@xiaoyanermiemie I mean other apps which don't use Flutter at all. When I said other platforms, I meant UIKit, SwiftUI, Windows UWP. See what it looks like using touchscreen and trackpad at the same time on the iPad settings app (noticeable jumping):\r\n\r\n\r\nhttps://user-images.githubusercontent.com/789275/177086367-aa2f58d9-a061-4bb8-8ffc-3bf413309e6c.mov\r\n\r\n\r\nI didn't see any flickering using your PR at all. There is no problem :smile:. ",
+    "createdAt": "2022-07-04T05:23:34Z"
+  },
+  {
+    "id": 1859,
+    "sender": "MaxBittker",
+    "content": "thank you @xiaoyanermiemie !",
+    "createdAt": "2022-07-05T15:14:35Z"
+  },
+  {
+    "id": 1860,
+    "sender": "winctoryang",
+    "content": "@moffatman \r\nI have modified the code according to your suggestion, please have a review😄, thank you.",
+    "createdAt": "2022-07-06T03:24:56Z"
+  },
+  {
+    "id": 1861,
+    "sender": "winctoryang",
+    "content": "> I don't know the specific place, but it should be documented in the code somewhere the new behavior of this class (the drag position will be the average of individual pointers)\r\n\r\n@moffatman \r\n\r\nI have added some comments to explain the logic and some example. Please have a review, thank you😃!",
+    "createdAt": "2022-07-06T16:57:46Z"
+  },
+  {
+    "id": 1862,
+    "sender": "winctoryang",
+    "content": "> > I don't know the specific place, but it should be documented in the code somewhere the new behavior of this class (the drag position will be the average of individual pointers)\r\n> \r\n> @moffatman\r\n> \r\n> I have added some comments to explain the logic and some example. Please have a review, thank you😃!\r\n\r\n@dkwingsmt \r\n\r\nPlease have a review too,  thank you😃!",
+    "createdAt": "2022-07-08T02:20:16Z"
+  },
+  {
+    "id": 1863,
+    "sender": "SoolyChristy",
+    "content": "LGTM",
+    "createdAt": "2022-07-08T03:02:00Z"
+  },
+  {
+    "id": 1864,
+    "sender": "winctoryang",
+    "content": "@moffatman  \r\nHello, do you have time to have a review this week😳?",
+    "createdAt": "2022-07-11T09:14:13Z"
+  },
+  {
+    "id": 1865,
+    "sender": "dkwingsmt",
+    "content": "I'll review it today. Sorry about the delay.",
+    "createdAt": "2022-07-11T14:45:21Z"
+  },
+  {
+    "id": 1866,
+    "sender": "winctoryang",
+    "content": "> I'll review it today. Sorry about the delay.\r\n\r\nThank you!",
+    "createdAt": "2022-07-12T03:35:40Z"
+  },
+  {
+    "id": 1867,
+    "sender": "dkwingsmt",
+    "content": "I've asked @/goderbauer who will make a second review once my change requests are resolved.",
+    "createdAt": "2022-07-14T17:42:32Z"
+  },
+  {
+    "id": 1868,
+    "sender": "winctoryang",
+    "content": "> I've asked @/goderbauer who will make a second review once my change requests are resolved.\r\n\r\n@dkwingsmt \r\nI have resolved the change requests, please have a review and the second review, thank you!",
+    "createdAt": "2022-07-16T13:14:09Z"
+  },
+  {
+    "id": 1869,
+    "sender": "dkwingsmt",
+    "content": "@goderbauer The PR seems ready for a second review.",
+    "createdAt": "2022-07-16T14:08:13Z"
+  },
+  {
+    "id": 1870,
+    "sender": "dkwingsmt",
+    "content": "@goderbauer ",
+    "createdAt": "2022-07-20T14:50:59Z"
+  },
+  {
+    "id": 1871,
+    "sender": "goderbauer",
+    "content": "Do the native platforms maybe tell us which events belong to the same batch? I seem to remember something like this at least on Android. If we pipe that information through to the framework, could we just use that information instead of reverse engineering it from the pointer sequence? (I haven't checked if native platforms actually provide us with that information...)",
+    "createdAt": "2022-07-21T22:49:44Z"
+  },
+  {
+    "id": 1872,
+    "sender": "dkwingsmt",
+    "content": "I'll have to check, but we don't need it for Android, because the Android native system uses a very simple stack-like behavior. We only need the batch information for iOS.",
+    "createdAt": "2022-07-21T22:51:31Z"
+  },
+  {
+    "id": 1873,
+    "sender": "winctoryang",
+    "content": "> I'll have to check, but we don't need it for Android, because the Android native system uses a very simple stack-like behavior. We only need the batch information for iOS.\r\n\r\n@dkwingsmt @goderbauer \r\n\r\nI know why only moved pointer dispatches on iOS but not on Android. https://github.com/flutter/engine/blob/main/shell/platform/darwin/ios/framework/Source/FlutterViewController.mm#:~:text=%2D%20(void)dispatchTouches,(UIEvent*)event%20%7B  In the `dispatchTouches` function, it should use the `event.alltouches`.",
+    "createdAt": "2022-07-22T09:28:05Z"
+  },
+  {
+    "id": 1874,
+    "sender": "dkwingsmt",
+    "content": "Great find! Thank you. Now it seems like the better solution is to change the engine API to deliver the batching information...",
+    "createdAt": "2022-07-22T10:32:35Z"
+  },
+  {
+    "id": 1875,
+    "sender": "winctoryang",
+    "content": "> Great find! Thank you. Now it seems like the better solution is to change the engine API to deliver the batching information...\r\n\r\n@dkwingsmt \r\n Yes, the best solution is guaranteed to have a batch from the platform which as I said above `event.alltouches`.  But I do not know how to compile the flutter/engine, the engine instruction is too long to read. Could you modify it?\r\n\r\nAlthough the 'Only some pointers move, and only the moving pointers dispatch PointerMoveEvents' situation is gone on iOS by the batch guaranteed by the platform, I think the fixed logic is still useful. Because we can not guarantee any platform will give the batch when we only move some pointers?",
+    "createdAt": "2022-07-22T17:00:44Z"
+  },
+  {
+    "id": 1876,
+    "sender": "winctoryang",
+    "content": "> I'll have to check, but we don't need it for Android, because the Android native system uses a very simple stack-like behavior. We only need the batch information for iOS.\r\n\r\nIt is the same on Android. Please refer to the video I uploaded.",
+    "createdAt": "2022-07-22T17:01:40Z"
+  },
+  {
+    "id": 1877,
+    "sender": "winctoryang",
+    "content": "> Do the native platforms maybe tell us which events belong to the same batch? I seem to remember something like this at least on Android. If we pipe that information through to the framework, could we just use that information instead of reverse engineering it from the pointer sequence? (I haven't checked if native platforms actually provide us with that information...)\r\n\r\n@dkwingsmt  @goderbauer \r\nAndroid and iOS both tell us. But we can not guarantee any platform do the same.\r\nSo I suggest the better solution is:\r\n1) Keep the logic I fixed for flutter/flutter (this PR).\r\n2) And modify the `event.alltouches` for flutter/engine (could you help me do that?).",
+    "createdAt": "2022-07-22T17:06:02Z"
+  },
+  {
+    "id": 1878,
+    "sender": "dkwingsmt",
+    "content": "I'll take a look at the engine changes in the next few days.\r\n\r\nEventually we'll want different behaviors for Android and iOS. But as the first step I think it's okay for you to only implement the iOS behavior and apply it to all platforms in this PR. After all it solves this problem, and is not making anything worse.",
+    "createdAt": "2022-07-25T03:05:17Z"
+  },
+  {
+    "id": 1879,
+    "sender": "winctoryang",
+    "content": "> \r\n\r\nAfter this PR is solved, I will try to imply Android behaviors. ",
+    "createdAt": "2022-07-25T07:20:48Z"
+  },
+  {
+    "id": 1880,
+    "sender": "dkwingsmt",
+    "content": "It turns out that the events seem to be already sent in batches, but the batching information was removed when flushed. \r\n\r\nThere are many ways to show the batching information, but I'm proposing a simple way, which is a boolean that indicates the end of a batch. https://github.com/flutter/flutter/pull/108340\r\n\r\n@xiaoyanermiemie Can you check if this work for you? (Feel free to just copy my changes to your PR.)",
+    "createdAt": "2022-07-26T02:40:25Z"
+  },
+  {
+    "id": 1881,
+    "sender": "winctoryang",
+    "content": "> It turns out that the events seem to be already sent in batches, but the batching information was removed when flushed.\r\n> \r\n> There are many ways to show the batching information, but I'm proposing a simple way, which is a boolean that indicates the end of a batch. #108340\r\n> \r\n> @xiaoyanermiemie Can you check if this work for you? (Feel free to just copy my changes to your PR.)\r\n\r\n@dkwingsmt \r\n\r\nI copied your changes, it is very good.  Please have a review, thank you!",
+    "createdAt": "2022-07-26T15:49:25Z"
+  },
+  {
+    "id": 1882,
+    "sender": "dnfield",
+    "content": "Fun fact: this is a somewhat known but not-often complained about issue, and up until now it's been an easy way to detect Flutter applications in the wild. We'll miss you, extra fast three finger scrolling.",
+    "createdAt": "2022-07-27T04:09:39Z"
+  },
+  {
+    "id": 1883,
+    "sender": "winctoryang",
+    "content": "@dkwingsmt \r\n\r\nI do not know what happened, some tests(window, web) failed. Does this PR impact them?",
+    "createdAt": "2022-07-27T07:27:40Z"
+  },
+  {
+    "id": 1884,
+    "sender": "SoolyChristy",
+    "content": "> Fun fact: this is a somewhat known but not-often complained about issue, and up until now it's been an easy way to detect Flutter applications in the wild. We'll miss you, extra fast three finger scrolling.\r\n\r\nGood Bye, extra fast three finger scrolling.",
+    "createdAt": "2022-07-27T07:47:23Z"
+  },
+  {
+    "id": 1885,
+    "sender": "dkwingsmt",
+    "content": "@xiaoyanermiemie The failing tests seem to be valid failures.\r\n\r\nFor example,\r\n\r\n```\r\n04:04 +6808 ~14 -5: /b/s/w/ir/x/w/flutter/packages/flutter/test/gestures/drag_test.dart: Two pointers down but only one moves [E]                                                                      \r\n  Expected: []\r\n    Actual: ['drag1-update']\r\n     Which: at location [0] is ['drag1-update'] which longer than expected\r\n  \r\n  package:test_api                                    expect\r\n  package:flutter_test/src/widget_tester.dart 460:16  expect\r\n  test/gestures/drag_test.dart 789:5                  main.<fn>\r\n  test/gestures/gesture_tester.dart 31:15             testGesture.<fn>.<fn>\r\n  package:fake_async/fake_async.dart 182:54           FakeAsync.run.<fn>.<fn>\r\n  dart:async                                          runZoned\r\n  package:clock/src/default.dart 52:10                withClock\r\n  package:fake_async/fake_async.dart 182:22           FakeAsync.run.<fn>\r\n  dart:async                                          runZoned\r\n  package:fake_async/fake_async.dart 182:7            FakeAsync.run\r\n  test/gestures/gesture_tester.dart 30:17             testGesture.<fn>\r\n```\r\namong others.\r\n\r\nhttps://logs.chromium.org/logs/flutter/buildbucket/cr-buildbucket/8807558854634793185/+/u/run_test.dart_for_framework_tests_shard_and_subshard_libraries/test_stdout",
+    "createdAt": "2022-07-27T10:17:39Z"
+  },
+  {
+    "id": 1886,
+    "sender": "winctoryang",
+    "content": "> Some concerns from @goderbauer should no longer be valid after we turn to batching information from the platform. However, the tests are still created based on individual events. In other words, all pointer events created in the tests have `endOfBatch: true`.\r\n> \r\n> We should probably change `packages\\flutter_test\\lib\\src\\test_pointer.dart` and add a `endOfBatch` to the event simulating methods, and then change the tests accordingly.\r\n\r\nI get it.",
+    "createdAt": "2022-07-27T13:11:40Z"
+  },
+  {
+    "id": 1887,
+    "sender": "winctoryang",
+    "content": "@dkwingsmt \r\n\r\nI have updated the logic according to your endOfBatch, And I updated unit tests, it is more clear now! Please have a review!",
+    "createdAt": "2022-07-28T13:17:43Z"
+  },
+  {
+    "id": 1888,
+    "sender": "winctoryang",
+    "content": "@goderbauer \r\n\r\nAfter the update, it would not hurt scrolling fidelity now. Please have a review. Thank you!",
+    "createdAt": "2022-07-28T13:22:18Z"
+  },
+  {
+    "id": 1889,
+    "sender": "winctoryang",
+    "content": "\r\n\r\n> @dkwingsmt\r\n> \r\n> I have updated the logic according to your endOfBatch, And I updated unit tests, it is more clear now! Please have a review!\r\n\r\n@dkwingsmt \r\n\r\nDo you have time to review this week?",
+    "createdAt": "2022-08-01T02:37:42Z"
+  },
+  {
+    "id": 1890,
+    "sender": "winctoryang",
+    "content": "@dkwingsmt \r\n\r\nDo you have time this week for a review? Thank you.",
+    "createdAt": "2022-08-08T10:46:04Z"
+  },
+  {
+    "id": 1891,
+    "sender": "dkwingsmt",
+    "content": "Oh I was waiting for you. Can you take a look at https://github.com/flutter/flutter/pull/106552#discussion_r935535606?",
+    "createdAt": "2022-08-08T10:47:05Z"
+  },
+  {
+    "id": 1892,
+    "sender": "winctoryang",
+    "content": "> Oh I was waiting for you. Can you take a look at [#106552 (comment)](https://github.com/flutter/flutter/pull/106552#discussion_r935535606)?\r\n\r\n@dkwingsmt \r\n\r\nI do not know why no notification to you. I replied to you before😳:\r\n\r\nIn fact, I tried this logic. But I failed because this will affect more low-level logic, for example, the accept or possible state. And the consequence of affecting more code is that there may be hidden bugs. So I think _multiPointerMoveTrackers.length == _multiPointerStartTrackers.length is a better solution than 'do not give up'. Although it is a little confused.",
+    "createdAt": "2022-08-08T11:02:40Z"
+  },
+  {
+    "id": 1893,
+    "sender": "dkwingsmt",
+    "content": "That's fair, thanks for explaining (and for avoiding we waiting for both each other forever.) This is not crucial anyway.\r\n\r\nI think this PR is ready. @goderbauer Can you take another look?",
+    "createdAt": "2022-08-08T11:15:04Z"
+  },
+  {
+    "id": 1894,
+    "sender": "dkwingsmt",
+    "content": "Regarding the `endOfBatch` changes, I'll probably merge https://github.com/flutter/flutter/pull/108340 first after resolving the issue about resampling before merging this.",
+    "createdAt": "2022-08-08T11:22:40Z"
+  },
+  {
+    "id": 1895,
+    "sender": "winctoryang",
+    "content": "> Regarding the `endOfBatch` changes, I'll probably merge #108340 first after resolving the issue about resampling before merging this.\r\n\r\nThat is nice!",
+    "createdAt": "2022-08-08T11:34:08Z"
+  },
+  {
+    "id": 1896,
+    "sender": "winctoryang",
+    "content": "@goderbauer \r\n\r\nDo you have time for a review this week?",
+    "createdAt": "2022-08-10T11:03:24Z"
+  },
+  {
+    "id": 1897,
+    "sender": "goderbauer",
+    "content": "> Do you have time for a review this week?\r\n\r\nI have this in my review queue.",
+    "createdAt": "2022-08-10T16:27:27Z"
+  },
+  {
+    "id": 1898,
+    "sender": "goderbauer",
+    "content": "Actually, before reviewing this one, lets make sure that https://github.com/flutter/flutter/pull/108340 is good to go first since this change depends on that one.",
+    "createdAt": "2022-08-15T17:35:52Z"
+  },
+  {
+    "id": 1899,
+    "sender": "goderbauer",
+    "content": "(triage) @xiaoyanermiemie Same comment as on https://github.com/flutter/flutter/pull/108340: Do you still have plans for this PR in the near future?",
+    "createdAt": "2022-09-20T22:19:09Z"
+  },
+  {
+    "id": 1900,
+    "sender": "goderbauer",
+    "content": "(Triage): I am going to close this one as there hasn't been any follow-up and the discussion has largely centered around https://github.com/flutter/flutter/pull/108340",
+    "createdAt": "2022-10-04T22:17:54Z"
+  },
+  {
+    "id": 1901,
+    "sender": "davidhicks980",
+    "content": "## Implement RawMenuAnchor\n\nThis PR adds a `RawMenuAnchor()` widget to widgets.dart. The purpose of this widget is to provide a menu primitive for the Material and Cupertino libraries (and others) to build upon. Additionally, this PR makes MenuController an inherited widget to simplify nested access to the menu (e.g. if you want to launch a context menu from a deeply-nested widget).\r\n\r\nThis PR:\r\n* Centralizes core menu logic to a private class,` _RawMenuAnchor()`, \r\n  * Provides the internals for interacting with menus:\r\n    * TapRegion interop\r\n    * DismissMenuAction handler\r\n    * Close on scroll/resize\r\n    * Focus traversal information, if applicable\r\n    * Subclasses override `_open`, `_close`, `_isOpen`, `_buildAnchor`, and `_menuScopeNode`\r\n  * State is accessible by descendents via `MenuController.maybeOf(context)._anchor`\r\n* Adds 2 public constructors, backed by a `_RawMenuAnchor()` that contains shared logic.\r\n  * `RawMenuAnchor()`\r\n    * Users build the overlay from scratch.\r\n    * Provides anchor/overlay position information and TapRegionGroupId to builder\r\n    * Does not provide FocusScope management. \r\n  * `RawMenuAnchorGroup()`\r\n    * A primitive for menus that do not have overlays (menu bars). \r\n    * This was previously called RawMenuAnchor.node(), but @dkwingsmt made a good case for splitting out the constructor.\r\n\r\n<s>Documentation examples have been added, and can be viewed at https://menu-anchor.web.app/</s>\r\n\r\n<s>https://github.com/user-attachments/assets/25d35f23-2aad-4d07-9172-5c3fd65d53cf</s>\r\n\r\n@dkwingsmt \r\n\r\nList which issues are fixed by this PR. https://github.com/flutter/flutter/pull/143712\r\n\r\nSome issues that need to be addressed:\r\n\r\nSemantics:\r\n<img width=\"1027\" alt=\"image\" src=\"https://github.com/user-attachments/assets/d69661c9-8435-4d9c-b200-474968cb57eb\">\r\nI'm basing the menu semantics off of the comment [here](https://github.com/flutter/engine/blob/ef3ca70db20230436b6defe5b4cdb0d242deea96/lib/web_ui/lib/src/engine/semantics/semantics.dart#L382), but I'm unsure whether the route should be given a name. There is no menubar/menu/menuitem role in Flutter, so I'm assuming the menu should be composed of nested dialogs\r\n\r\n<s>Unlike the menubar pattern from [W3C](https://www.w3.org/WAI/ARIA/apg/patterns/menubar/examples/menubar-navigation/), the RawMenuAnchor\r\n\r\n- does not close on tab/shift-tab. I left this behavior out of the menu so that users could customize tab behavior, but I'm not opinionated either way\r\n- does not open on ArrowUp/ArrowDown, because this could interfere with user focus behavior in unconventional menu setups (e.g. a vertical menu).\r\n- does not automatically focus the first item in a menu overlay when activated via enter/spacebar, but does focus the first item when horizontal traversal opens a submenu. Automatically focusing the first item whenever an overlay opens interferes with hover traversal, and I couldn't think of a good way to only focus the first item when an overlay is triggered via enter/spacebar.\r\n- doesn't focus disabled items (I wasn't sure how to address this without editing MenuItemButton)\r\n\r\nWhile it is possible to nest menus -- for example, a dropdown anchor within a full-app context menu area -- nested menus behave as a single group. I was considering adding an additional parameter that separates nested root menus from their parents, and am interested to hear your feedback.</s>\r\n\r\n*If you had to change anything in the [flutter/tests] repo, include a link to the migration guide as per the [breaking change policy].*\r\n\r\n## Pre-launch Checklist\r\n\r\n- [x] I read the [Contributor Guide] and followed the process outlined there for submitting PRs.\r\n- [x] I read the [Tree Hygiene] wiki page, which explains my responsibilities.\r\n- [x] I read and followed the [Flutter Style Guide], including [Features we expect every widget to implement].\r\n- [x] I signed the [CLA].\r\n- [x] I listed at least one issue that this PR fixes in the description above.\r\n- [x] I updated/added relevant documentation (doc comments with `///`).\r\n- [x] I added new tests to check the change I am making, or this PR is [test-exempt].\r\n- [x] I followed the [breaking change policy] and added [Data Driven Fixes] where supported.\r\n- [x] All existing and new tests are passing.\r\n\r\nIf you need help, consider asking for advice on the #hackers-new channel on [Discord].\r\n\r\n<!-- Links -->\r\n[Contributor Guide]: https://github.com/flutter/flutter/blob/main/docs/contributing/Tree-hygiene.md#overview\r\n[Tree Hygiene]: https://github.com/flutter/flutter/blob/main/docs/contributing/Tree-hygiene.md\r\n[test-exempt]: https://github.com/flutter/flutter/blob/main/docs/contributing/Tree-hygiene.md#tests\r\n[Flutter Style Guide]: https://github.com/flutter/flutter/blob/main/docs/contributing/Style-guide-for-Flutter-repo.md\r\n[Features we expect every widget to implement]: https://github.com/flutter/flutter/blob/main/docs/contributing/Style-guide-for-Flutter-repo.md#features-we-expect-every-widget-to-implement\r\n[CLA]: https://cla.developers.google.com/\r\n[flutter/tests]: https://github.com/flutter/tests\r\n[breaking change policy]: https://github.com/flutter/flutter/blob/main/docs/contributing/Tree-hygiene.md#handling-breaking-changes\r\n[Discord]: https://github.com/flutter/flutter/blob/main/docs/contributing/Chat.md\r\n[Data Driven Fixes]: https://github.com/flutter/flutter/blob/main/docs/contributing/Data-driven-Fixes.md\r",
+    "createdAt": "2024-11-06T11:56:02Z"
+  },
+  {
+    "id": 1902,
+    "sender": "dkwingsmt",
+    "content": "> This PR only includes the raw_menu_anchor.dart and raw_menu_anchor_test.dart because the test suite is over 5000 LOC\r\n\r\nHoly cow! That was quite some work! Thanks in advance (before I start to take a look)! :) ",
+    "createdAt": "2024-11-06T19:39:21Z"
+  },
+  {
+    "id": 1903,
+    "sender": "davidhicks980",
+    "content": "> Impressive work! 🤩\r\n> \r\n> I just reviewed the examples as a starting point. Noticed some formatting nits and one file is missing a newline at the end of the file which makes the 'Linux analyze' CI check red.\r\n\r\nThanks for the fixes! I should have come back and fixed these a while ago... I appreciate you doing so.",
+    "createdAt": "2024-11-12T16:49:47Z"
+  },
+  {
+    "id": 1904,
+    "sender": "bleroux",
+    "content": "@davidhicks980\r\nIt seems the remaning CI failures are related to two failing tests from `menu_anchor_test.dart` (only two failing tests is impressive for such a huge PR).\r\nThose failures look legit.\r\nI extracted one of the test as a runnable code sample:\r\n\r\n<details ><summary>MenuBar with padding above MaterialApp</summary>\r\n\r\n```dart\r\n// Copyright 2014 The Flutter Authors. All rights reserved.\r\n// Use of this source code is governed by a BSD-style license that can be\r\n// found in the LICENSE file.\r\n\r\nimport 'package:flutter/material.dart';\r\n\r\n/// Flutter code sample for a [RawMenuAnchor] that shows a simple menu with\r\n/// three items.\r\nvoid main() => runApp(const SimpleMenuApp());\r\n\r\nclass SimpleMenuApp extends StatelessWidget {\r\n  const SimpleMenuApp({super.key});\r\n\r\n  @override\r\n  Widget build(BuildContext context) {\r\n    return Padding(\r\n      padding: const EdgeInsets.all(10.0),\r\n      child: MaterialApp(\r\n        theme: ThemeData(useMaterial3: false),\r\n        home: Material(\r\n          child: Column(\r\n            children: <Widget>[\r\n              Padding(\r\n                padding: const EdgeInsets.all(12.0),\r\n                child: Row(\r\n                  children: <Widget>[\r\n                    Expanded(\r\n                      child: MenuBar(\r\n                        children: createTestMenus(onPressed: (TestMenu entry) {\r\n                          print('$entry pressed!');\r\n                        }),\r\n                      ),\r\n                    ),\r\n                  ],\r\n                ),\r\n              ),\r\n              const Expanded(child: Placeholder()),\r\n            ],\r\n          ),\r\n        ),\r\n      ),\r\n    );\r\n  }\r\n}\r\n\r\nList<Widget> createTestMenus({\r\n  void Function(TestMenu)? onPressed,\r\n  void Function(TestMenu)? onOpen,\r\n  void Function(TestMenu)? onClose,\r\n  Map<TestMenu, MenuSerializableShortcut> shortcuts = const <TestMenu, MenuSerializableShortcut>{},\r\n  bool includeExtraGroups = false,\r\n  bool accelerators = false,\r\n}) {\r\n  Widget submenuButton(\r\n    TestMenu menu, {\r\n    required List<Widget> menuChildren,\r\n  }) {\r\n    return SubmenuButton(\r\n      onOpen: onOpen != null ? () => onOpen(menu) : null,\r\n      onClose: onClose != null ? () => onClose(menu) : null,\r\n      menuChildren: menuChildren,\r\n      child: accelerators ? MenuAcceleratorLabel(menu.acceleratorLabel) : Text(menu.label),\r\n    );\r\n  }\r\n\r\n  Widget menuItemButton(\r\n    TestMenu menu, {\r\n    bool enabled = true,\r\n    Widget? leadingIcon,\r\n    Widget? trailingIcon,\r\n    Key? key,\r\n  }) {\r\n    return MenuItemButton(\r\n      key: key,\r\n      onPressed: enabled && onPressed != null ? () => onPressed(menu) : null,\r\n      shortcut: shortcuts[menu],\r\n      leadingIcon: leadingIcon,\r\n      trailingIcon: trailingIcon,\r\n      child: accelerators ? MenuAcceleratorLabel(menu.acceleratorLabel) : Text(menu.label),\r\n    );\r\n  }\r\n\r\n  final List<Widget> result = <Widget>[\r\n    submenuButton(\r\n      TestMenu.mainMenu0,\r\n      menuChildren: <Widget>[\r\n        menuItemButton(TestMenu.subMenu00, leadingIcon: const Icon(Icons.add)),\r\n        menuItemButton(TestMenu.subMenu01),\r\n        menuItemButton(TestMenu.subMenu02),\r\n      ],\r\n    ),\r\n    submenuButton(\r\n      TestMenu.mainMenu1,\r\n      menuChildren: <Widget>[\r\n        menuItemButton(TestMenu.subMenu10),\r\n        submenuButton(\r\n          TestMenu.subMenu11,\r\n          menuChildren: <Widget>[\r\n            menuItemButton(TestMenu.subSubMenu110, key: UniqueKey()),\r\n            menuItemButton(TestMenu.subSubMenu111),\r\n            menuItemButton(TestMenu.subSubMenu112),\r\n            menuItemButton(TestMenu.subSubMenu113),\r\n          ],\r\n        ),\r\n        menuItemButton(TestMenu.subMenu12),\r\n      ],\r\n    ),\r\n    submenuButton(\r\n      TestMenu.mainMenu2,\r\n      menuChildren: <Widget>[\r\n        menuItemButton(\r\n          TestMenu.subMenu20,\r\n          leadingIcon: const Icon(Icons.ac_unit),\r\n          enabled: false,\r\n        ),\r\n      ],\r\n    ),\r\n    if (includeExtraGroups)\r\n      submenuButton(\r\n        TestMenu.mainMenu3,\r\n        menuChildren: <Widget>[\r\n          menuItemButton(TestMenu.subMenu30, enabled: false),\r\n        ],\r\n      ),\r\n    if (includeExtraGroups)\r\n      submenuButton(\r\n        TestMenu.mainMenu4,\r\n        menuChildren: <Widget>[\r\n          menuItemButton(TestMenu.subMenu40, enabled: false),\r\n          menuItemButton(TestMenu.subMenu41, enabled: false),\r\n          menuItemButton(TestMenu.subMenu42, enabled: false),\r\n        ],\r\n      ),\r\n    submenuButton(TestMenu.mainMenu5, menuChildren: const <Widget>[]),\r\n  ];\r\n  return result;\r\n}\r\n\r\nenum TestMenu {\r\n  mainMenu0('&Menu 0'),\r\n  mainMenu1('M&enu &1'),\r\n  mainMenu2('Me&nu 2'),\r\n  mainMenu3('Men&u 3'),\r\n  mainMenu4('Menu &4'),\r\n  mainMenu5('Menu &5 && &6 &'),\r\n  subMenu00('Sub &Menu 0&0'),\r\n  subMenu01('Sub Menu 0&1'),\r\n  subMenu02('Sub Menu 0&2'),\r\n  subMenu10('Sub Menu 1&0'),\r\n  subMenu11('Sub Menu 1&1'),\r\n  subMenu12('Sub Menu 1&2'),\r\n  subMenu20('Sub Menu 2&0'),\r\n  subMenu30('Sub Menu 3&0'),\r\n  subMenu40('Sub Menu 4&0'),\r\n  subMenu41('Sub Menu 4&1'),\r\n  subMenu42('Sub Menu 4&2'),\r\n  subSubMenu110('Sub Sub Menu 11&0'),\r\n  subSubMenu111('Sub Sub Menu 11&1'),\r\n  subSubMenu112('Sub Sub Menu 11&2'),\r\n  subSubMenu113('Sub Sub Menu 11&3'),\r\n  anchorButton('Press Me'),\r\n  outsideButton('Outside');\r\n\r\n  const TestMenu(this.acceleratorLabel);\r\n  final String acceleratorLabel;\r\n  // Strip the accelerator markers.\r\n  String get label => MenuAcceleratorLabel.stripAcceleratorMarkers(acceleratorLabel);\r\n}\r\n``` \r\n</details> \r\n\r\n| Before | After |\r\n|--------|--------|\r\n| ![image](https://github.com/user-attachments/assets/c1584ec1-1e65-4d37-be54-40b3dde3e65a) | ![image](https://github.com/user-attachments/assets/5f03f3bf-f185-4f45-9044-c79cc04a6c01) | | \r\n\r\nIf it can save you time, I can investigate this particular issue.\r\n\r\nA more general question, are they some features you want to implement or issues you want to fix before marking this PR as ready for review?\r\n",
+    "createdAt": "2024-11-13T14:57:02Z"
+  },
+  {
+    "id": 1905,
+    "sender": "davidhicks980",
+    "content": "Oh actually I think I know what caused this... it's related to the\r\n_MenuPanel widget and how it handles padding. I don't want to waste your\r\ntime, but it'll be a little later today before I can get to it. Otherwise,\r\nthis PR should be ready! Aside from overall design concerns, all features\r\nshould be implemented.\r\n\r\nOn Wed, Nov 13, 2024, 9:57 AM Bruno Leroux ***@***.***> wrote:\r\n\r\n> @davidhicks980 <https://github.com/davidhicks980>\r\n> It seems the remaning CI failures are related to two failing tests from\r\n> menu_anchor_test.dart (only two failing tests is impressive for such a\r\n> huge PR).\r\n> Those failures look legit.\r\n> I extracted one of the test as runnable code sample:\r\n> MenuBar with padding above MaterialApp\r\n>\r\n> // Copyright 2014 The Flutter Authors. All rights reserved.// Use of this source code is governed by a BSD-style license that can be// found in the LICENSE file.\r\n> import 'package:flutter/material.dart';\r\n> /// Flutter code sample for a [RawMenuAnchor] that shows a simple menu with/// three items.void main() => runApp(const SimpleMenuApp());\r\n> class SimpleMenuApp extends StatelessWidget {\r\n>   const SimpleMenuApp({super.key});\r\n>\r\n>   @override\r\n>   Widget build(BuildContext context) {\r\n>     return Padding(\r\n>       padding: const EdgeInsets.all(10.0),\r\n>       child: MaterialApp(\r\n>         theme: ThemeData(useMaterial3: false),\r\n>         home: Material(\r\n>           child: Column(\r\n>             children: <Widget>[\r\n>               Padding(\r\n>                 padding: const EdgeInsets.all(12.0),\r\n>                 child: Row(\r\n>                   children: <Widget>[\r\n>                     Expanded(\r\n>                       child: MenuBar(\r\n>                         children: createTestMenus(onPressed: (TestMenu entry) {\r\n>                           print('$entry pressed!');\r\n>                         }),\r\n>                       ),\r\n>                     ),\r\n>                   ],\r\n>                 ),\r\n>               ),\r\n>               const Expanded(child: Placeholder()),\r\n>             ],\r\n>           ),\r\n>         ),\r\n>       ),\r\n>     );\r\n>   }\r\n> }\r\n> List<Widget> createTestMenus({\r\n>   void Function(TestMenu)? onPressed,\r\n>   void Function(TestMenu)? onOpen,\r\n>   void Function(TestMenu)? onClose,\r\n>   Map<TestMenu, MenuSerializableShortcut> shortcuts = const <TestMenu, MenuSerializableShortcut>{},\r\n>   bool includeExtraGroups = false,\r\n>   bool accelerators = false,\r\n> }) {\r\n>   Widget submenuButton(\r\n>     TestMenu menu, {\r\n>     required List<Widget> menuChildren,\r\n>   }) {\r\n>     return SubmenuButton(\r\n>       onOpen: onOpen != null ? () => onOpen(menu) : null,\r\n>       onClose: onClose != null ? () => onClose(menu) : null,\r\n>       menuChildren: menuChildren,\r\n>       child: accelerators ? MenuAcceleratorLabel(menu.acceleratorLabel) : Text(menu.label),\r\n>     );\r\n>   }\r\n>\r\n>   Widget menuItemButton(\r\n>     TestMenu menu, {\r\n>     bool enabled = true,\r\n>     Widget? leadingIcon,\r\n>     Widget? trailingIcon,\r\n>     Key? key,\r\n>   }) {\r\n>     return MenuItemButton(\r\n>       key: key,\r\n>       onPressed: enabled && onPressed != null ? () => onPressed(menu) : null,\r\n>       shortcut: shortcuts[menu],\r\n>       leadingIcon: leadingIcon,\r\n>       trailingIcon: trailingIcon,\r\n>       child: accelerators ? MenuAcceleratorLabel(menu.acceleratorLabel) : Text(menu.label),\r\n>     );\r\n>   }\r\n>\r\n>   final List<Widget> result = <Widget>[\r\n>     submenuButton(\r\n>       TestMenu.mainMenu0,\r\n>       menuChildren: <Widget>[\r\n>         menuItemButton(TestMenu.subMenu00, leadingIcon: const Icon(Icons.add)),\r\n>         menuItemButton(TestMenu.subMenu01),\r\n>         menuItemButton(TestMenu.subMenu02),\r\n>       ],\r\n>     ),\r\n>     submenuButton(\r\n>       TestMenu.mainMenu1,\r\n>       menuChildren: <Widget>[\r\n>         menuItemButton(TestMenu.subMenu10),\r\n>         submenuButton(\r\n>           TestMenu.subMenu11,\r\n>           menuChildren: <Widget>[\r\n>             menuItemButton(TestMenu.subSubMenu110, key: UniqueKey()),\r\n>             menuItemButton(TestMenu.subSubMenu111),\r\n>             menuItemButton(TestMenu.subSubMenu112),\r\n>             menuItemButton(TestMenu.subSubMenu113),\r\n>           ],\r\n>         ),\r\n>         menuItemButton(TestMenu.subMenu12),\r\n>       ],\r\n>     ),\r\n>     submenuButton(\r\n>       TestMenu.mainMenu2,\r\n>       menuChildren: <Widget>[\r\n>         menuItemButton(\r\n>           TestMenu.subMenu20,\r\n>           leadingIcon: const Icon(Icons.ac_unit),\r\n>           enabled: false,\r\n>         ),\r\n>       ],\r\n>     ),\r\n>     if (includeExtraGroups)\r\n>       submenuButton(\r\n>         TestMenu.mainMenu3,\r\n>         menuChildren: <Widget>[\r\n>           menuItemButton(TestMenu.subMenu30, enabled: false),\r\n>         ],\r\n>       ),\r\n>     if (includeExtraGroups)\r\n>       submenuButton(\r\n>         TestMenu.mainMenu4,\r\n>         menuChildren: <Widget>[\r\n>           menuItemButton(TestMenu.subMenu40, enabled: false),\r\n>           menuItemButton(TestMenu.subMenu41, enabled: false),\r\n>           menuItemButton(TestMenu.subMenu42, enabled: false),\r\n>         ],\r\n>       ),\r\n>     submenuButton(TestMenu.mainMenu5, menuChildren: const <Widget>[]),\r\n>   ];\r\n>   return result;\r\n> }\r\n> enum TestMenu {\r\n>   mainMenu0('&Menu 0'),\r\n>   mainMenu1('M&enu &1'),\r\n>   mainMenu2('Me&nu 2'),\r\n>   mainMenu3('Men&u 3'),\r\n>   mainMenu4('Menu &4'),\r\n>   mainMenu5('Menu &5 && &6 &'),\r\n>   subMenu00('Sub &Menu 0&0'),\r\n>   subMenu01('Sub Menu 0&1'),\r\n>   subMenu02('Sub Menu 0&2'),\r\n>   subMenu10('Sub Menu 1&0'),\r\n>   subMenu11('Sub Menu 1&1'),\r\n>   subMenu12('Sub Menu 1&2'),\r\n>   subMenu20('Sub Menu 2&0'),\r\n>   subMenu30('Sub Menu 3&0'),\r\n>   subMenu40('Sub Menu 4&0'),\r\n>   subMenu41('Sub Menu 4&1'),\r\n>   subMenu42('Sub Menu 4&2'),\r\n>   subSubMenu110('Sub Sub Menu 11&0'),\r\n>   subSubMenu111('Sub Sub Menu 11&1'),\r\n>   subSubMenu112('Sub Sub Menu 11&2'),\r\n>   subSubMenu113('Sub Sub Menu 11&3'),\r\n>   anchorButton('Press Me'),\r\n>   outsideButton('Outside');\r\n>\r\n>   const TestMenu(this.acceleratorLabel);\r\n>   final String acceleratorLabel;\r\n>   // Strip the accelerator markers.\r\n>   String get label => MenuAcceleratorLabel.stripAcceleratorMarkers(acceleratorLabel);\r\n> }\r\n>\r\n> Before After\r\n> image.png (view on web)\r\n> <https://github.com/user-attachments/assets/c1584ec1-1e65-4d37-be54-40b3dde3e65a> image.png\r\n> (view on web)\r\n> <https://github.com/user-attachments/assets/5f03f3bf-f185-4f45-9044-c79cc04a6c01>\r\n>\r\n> If it can save you time, I can investigate this particular issue.\r\n>\r\n> A more general question, are they some features you want to implement or\r\n> issues you want to fix before marking this PR as ready for review?\r\n>\r\n> —\r\n> Reply to this email directly, view it on GitHub\r\n> <https://github.com/flutter/flutter/pull/158255#issuecomment-2473856710>,\r\n> or unsubscribe\r\n> <https://github.com/notifications/unsubscribe-auth/AODY6MOQLLECMHRJCEOK4GT2ANSFPAVCNFSM6AAAAABRIVFRKKVHI2DSMVQWIX3LMV43OSLTON2WKQ3PNVWWK3TUHMZDINZTHA2TMNZRGA>\r\n> .\r\n> You are receiving this because you were mentioned.Message ID:\r\n> ***@***.***>\r\n>\r\n",
+    "createdAt": "2024-11-13T15:13:09Z"
+  },
+  {
+    "id": 1906,
+    "sender": "davidhicks980",
+    "content": "OH nevermind, my comment is incorrect. I think this may be something that\r\nneeds to be fixed on MenuAnchor, since MenuAnchor targets the root overlay.\r\nAlso, I think I need to pass the root overlay dimensions to the position\r\nparameter. I could also be completely wrong -- I'm on my phone so I'll be\r\nable to dive in later! Feel free to make any edits though.\r\n\r\nOn Wed, Nov 13, 2024, 10:12 AM Bruno Leroux ***@***.***>\r\nwrote:\r\n\r\n> ***@***.**** commented on this pull request.\r\n> ------------------------------\r\n>\r\n> In packages/flutter/lib/src/widgets/raw_menu_anchor.dart\r\n> <https://github.com/flutter/flutter/pull/158255#discussion_r1840546536>:\r\n>\r\n> > +      includeSemantics: false,\r\n> +      canRequestFocus: false,\r\n> +      onFocusChange: _handleFocusChange,\r\n> +      child: OverlayPortal.targetsRootOverlay(\r\n> +        controller: _overlayController,\r\n> +        overlayChildBuilder: _buildOverlay,\r\n> +        child: child,\r\n> +      ),\r\n> +    );\r\n> +  }\r\n> +\r\n> +  Widget _buildOverlay(BuildContext context) {\r\n> +    final BuildContext anchorContext = _anchorKey.currentContext!;\r\n> +    final RenderBox overlay = Overlay.of(anchorContext).context.findRenderObject()! as RenderBox;\r\n> +    final RenderBox anchor = anchorContext.findRenderObject()! as RenderBox;\r\n> +    final Rect anchorRect = anchor.localToGlobal(Offset.zero) & anchor.size;\r\n>\r\n> ⬇️ Suggested change\r\n>\r\n> -    final Rect anchorRect = anchor.localToGlobal(Offset.zero) & anchor.size;\r\n> +    final Rect anchorRect = anchor.localToGlobal(Offset.zero, ancestor: overlay) & anchor.size;\r\n>\r\n> Just after posting my comment about the failing tests, I remembered seeing this\r\n> commit\r\n> <https://github.com/flutter/flutter/pull/158255/commits/763bdeb255315edce1eb8447931c953f13d17773>\r\n> and wondering why the ancestor parameter was removed?\r\n> Looks like it was required as there are no more test failures once this\r\n> parameter is restored.\r\n>\r\n> —\r\n> Reply to this email directly, view it on GitHub\r\n> <https://github.com/flutter/flutter/pull/158255#pullrequestreview-2433552996>,\r\n> or unsubscribe\r\n> <https://github.com/notifications/unsubscribe-auth/AODY6MNOU2DCNE744XJGCIL2ANT7LAVCNFSM6AAAAABRIVFRKKVHI2DSMVQWIX3LMV43YUDVNRWFEZLROVSXG5CSMV3GSZLXHMZDIMZTGU2TEOJZGY>\r\n> .\r\n> You are receiving this because you were mentioned.Message ID:\r\n> ***@***.***>\r\n>\r\n",
+    "createdAt": "2024-11-13T15:22:56Z"
+  },
+  {
+    "id": 1907,
+    "sender": "davidhicks980",
+    "content": "@bleroux Sorry I see that you're making changes and some of the tests I added are getting in the way. The reason why I removed the ancestor overlay parameter is because of a previous PR that moved from using the default `OverlayPortal()` constructor to `OverlayPortal.targetsRootOverlay`. Because we are targeting the root overlay, I don't think it makes sense to use the closest overlay to transform coordinates. I'm not sure if that's a correct assumption though -- should we either be transforming against the root overlay?\r\n\r\nAlso, I should note that I experienced the issue with this when creating the demo website. The sidebar shrunk the nearest overlay by 300px, so the menu was misaligned with its anchor.",
+    "createdAt": "2024-11-14T10:21:53Z"
+  },
+  {
+    "id": 1908,
+    "sender": "bleroux",
+    "content": "@davidhicks980 \r\n> Sorry I see that you're making changes and some of the tests I added are getting in the way.\r\n\r\nNo worry at all, I pushed my change because I thought that all checks would be green but later figured out that this change was intended (I have yet to understand the whole `RawMenuAnchor` structure).\r\nThanks for your message explaining the reasoning.\r\nI will try to understand the positioning logic more deeply. Feel free to push more commits, I don't want to slow you down, just want to help this effort.\r\nI just added a new `MenuAnchor` tests that might fail with this PR for the moment, see https://github.com/flutter/flutter/pull/158915.\r\n",
+    "createdAt": "2024-11-14T10:40:27Z"
+  },
+  {
+    "id": 1909,
+    "sender": "davidhicks980",
+    "content": "@bleroux No worries! You've helped a lot, and the test you added is important. I'm still not sure how this should be handled. ",
+    "createdAt": "2024-11-14T10:51:27Z"
+  },
+  {
+    "id": 1910,
+    "sender": "davidhicks980",
+    "content": "@bleroux thank you so much for the test you added. I migrated the _MenuPanel incorrectly, and it would've completely broken any menus that used LayerLink() had the test not caught the issue.\r\n\r\nOtherwise, it looks like everything is fixed... assuming the tree-status changes. Any thoughts before submitting for review? \r\n\r\nEdit: One potential bug I came across. A menu using LayerLink can overflow the screen without flipping. I'm not sure if this is something to address in the future, though.",
+    "createdAt": "2024-11-14T15:04:23Z"
+  },
+  {
+    "id": 1911,
+    "sender": "bleroux",
+    "content": "> Otherwise, it looks like everything is fixed... assuming the tree-status changes. Any thoughts before submitting for review?\r\n\r\nGreat! All checks are green, I think you can mark this PR as 'Ready for review'\r\n\r\n> Edit: One potential bug I came across. A menu using LayerLink can overflow the screen without flipping. I'm not sure if this is something to address in the future, though.\r\n\r\nyes, there are issues to address with the LayerLink. DropdownMenu is the only widget to rely on it and I proposed to revert this usage in https://github.com/flutter/flutter/pull/158930.\r\nSo we can decide on either to remove it from (probably after this PR is merged) and come back to it later or keep it and try to fix it (not part of this PR, I will come back to https://github.com/flutter/flutter/pull/157921, or another solution, when RawMenuAnchor will have landed).",
+    "createdAt": "2024-11-14T15:57:38Z"
+  },
+  {
+    "id": 1912,
+    "sender": "davidhicks980",
+    "content": "> > Otherwise, it looks like everything is fixed... assuming the tree-status changes. Any thoughts before submitting for review?\r\n> \r\n> Great! All checks are green, I think you can mark this PR as 'Ready for review'\r\n> \r\n> > Edit: One potential bug I came across. A menu using LayerLink can overflow the screen without flipping. I'm not sure if this is something to address in the future, though.\r\n> \r\n> yes, there are issues to address with the LayerLink. DropdownMenu is the only widget to rely on it and I proposed to revert this usage in #158930. So we can decide on either to remove it from (probably after this PR is merged) and come back to it later or keep it and try to fix it (not part of this PR, I will come back to #157921, or another solution, when RawMenuAnchor will have landed).\r\n\r\nVery interesting -- I'm going to follow your work on this. I've been meaning to dig into the follower/target because it avoids  the single-frame lag that MenuAnchor experiences when moved around the screen, and may be a better candidate for implementing nested animated menus (see https://github.com/flutter/flutter/pull/137936 for an example -- unfortunately this implementation uses Flow instead of overlays). Anyways, I appreciate the help!",
+    "createdAt": "2024-11-14T16:33:30Z"
+  },
+  {
+    "id": 1913,
+    "sender": "bleroux",
+    "content": "FYI, I rebased the PR to synch it with master and pushed a small commit with purely cosmetic changes (missing dots in comments). ",
+    "createdAt": "2024-11-28T09:50:04Z"
+  },
+  {
+    "id": 1914,
+    "sender": "justinmc",
+    "content": "@gspencergoog Just tagged you for review here since it's to do with MenuAnchor. Let me know if someone else should take a look.",
+    "createdAt": "2024-12-05T16:15:25Z"
+  },
+  {
+    "id": 1915,
+    "sender": "gspencergoog",
+    "content": "Sure, I'll take a look. @davidhicks980  Can I just say that I love your visualization video in the PR description!  I wish I had something like that when I was developing the original! Can we (some day, not in this PR) put something like that into the API docs to explain the various parameters?",
+    "createdAt": "2024-12-05T18:38:21Z"
+  },
+  {
+    "id": 1916,
+    "sender": "davidhicks980",
+    "content": "@gspencergoog Sure thing! I need to read up on how framework documentation handles assets, but I can add it in ASAP. For some reason the video is no longer playing for me, so feel free to use the website (https://menu-anchor.web.app/#/padding) when debugging. The \"Documentation\" section contains each of the 4 documentation examples, and the Development section contains the two MenuAnchor documentation examples (to check that changes don't affect the material MenuAnchor), and layout examples with knobs to play with. At some point I'd like to implement a DatUI/Storybook interface for working on components, but, until then, this should hopefully make it easier to debug.\r\n\r\nOh, also, the tests all a basic \"button\" component so that I didn't have to rely on the Material library. These could be changed to TextButtons in the future, but I didn't want a circular dependency issue to come up. ",
+    "createdAt": "2024-12-05T21:51:32Z"
+  },
+  {
+    "id": 1917,
+    "sender": "davidhicks980",
+    "content": "Reviewers: What are your opinions on replacing the menuChildren parameter with a child parameter, and either not providing a default panel (currently represented by the _MenuOverlayPanel widget), or providing a separate RawMenuPanel based on _MenuOverlayPanel. @dkwingsmt and I were discussing this and it makes sense, considering menuChildren's only purspose is to be passed to the panel. This would provide the semantics and positioning used by the default menu, while allowing the panel to be customized. It would also simplify the creation of a custom animated menu using the default positioning.\r\n\r\n```dart\r\nclass RawMenuPanel extends StatelessWidget {\r\n  const RawMenuPanel({\r\n    required this.decoration,\r\n    required this.clipBehavior,\r\n    required this.constraints,\r\n    required this.menuChildren,\r\n    required this.constrainCrossAxis,\r\n    this.padding,\r\n  });\r\n\r\n  final Decoration decoration;\r\n  final Clip clipBehavior;\r\n  final BoxConstraints? constraints;\r\n  final List<Widget> menuChildren;\r\n  final bool constrainCrossAxis;\r\n  final EdgeInsetsGeometry? padding;\r\n\r\n  @override\r\n  Widget build(BuildContext context) {\r\n    Widget child = IntrinsicWidth(\r\n      child: Container(\r\n        padding: padding,\r\n        decoration: decoration,\r\n        clipBehavior: clipBehavior,\r\n        child: SingleChildScrollView(\r\n          child: ListBody(children: menuChildren),\r\n        ),\r\n      ),\r\n    );\r\n\r\n    if (constraints != null) {\r\n      child = ConstrainedBox(\r\n        constraints: constraints!,\r\n        child: child,\r\n      );\r\n    }\r\n\r\n    // The menu's items will be constrained to the size of the overlay,\r\n    // potentially causing the items to overflow or wrap.\r\n    if (constrainCrossAxis) {\r\n      return child;\r\n    }\r\n\r\n    // The menu's items can grow beyond the size of the overlay, but will be\r\n    // clipped by the overlay's bounds.\r\n    return UnconstrainedBox(\r\n      clipBehavior: Clip.hardEdge,\r\n      alignment: AlignmentDirectional.centerStart,\r\n      constrainedAxis: Axis.vertical,\r\n      child: child,\r\n    );\r\n  }\r\n}\r\n```",
+    "createdAt": "2024-12-19T18:23:09Z"
+  },
+  {
+    "id": 1918,
+    "sender": "nate-thegrate",
+    "content": "I feel a slight tinge of sadness about the verbosity of `RawMenuOverlayPanel`, but having the common `RawMenu` prefix is probably the right call, and [compared to some things](https://main-api.flutter.dev/flutter/widgets/ExtendSelectionToNextParagraphBoundaryOrCaretLocationIntent-class.html) it's not that bad!\r\n\r\nOverall I'm definitely in favor—it'd be nice to mix & match between default/custom positioning and default/custom panels.",
+    "createdAt": "2024-12-19T23:07:04Z"
+  },
+  {
+    "id": 1919,
+    "sender": "davidhicks980",
+    "content": "@nate-thegrate Oh, we should just call it RawMenuPanel! I didn't think too hard about the name. I updated the proposal.",
+    "createdAt": "2024-12-19T23:34:50Z"
+  }
+]

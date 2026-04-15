@@ -1,0 +1,386 @@
+[
+  {
+    "id": 5056,
+    "sender": "XHL-study",
+    "content": "> @XHL-study Thanks for all the help. it now working.\r\n> The issue was with dart and Flutter outdated. upgrade solve the issue now (with the above code downloaded).\r\n\r\nhaha, you are welcome. 😉😉😉\r\n\r\nBut it still has bugs\r\nhttps://github.com/flutter/flutter/issues/19718#issuecomment-508479955",
+    "createdAt": "2019-07-09T14:18:24Z"
+  },
+  {
+    "id": 5057,
+    "sender": "amirh",
+    "content": "> > this version is very old and doesn't include changes made a very long time (like javascriptChannels).\r\n> > so can't use it at all.\r\n> > the official version needs to have the fix. Flutter team ? @FlutterIssues\r\n> \r\n> God, I answered wrong again.\r\n> Is this version\r\n> https://github.com/amirh/plugins/tree/64fe811f8d6861cc87258d5db3df59414be8b49d/packages/webview_flutter\r\n\r\nThis is an incomplete in progress prototype, you shouldn't use it for any production app. We are working on resolving the remaining issues with Android versions prior to N.",
+    "createdAt": "2019-07-09T16:21:51Z"
+  },
+  {
+    "id": 5058,
+    "sender": "mklim",
+    "content": "I took the partial fix from @amirh at amirh/plugins@64fe811 a little further. There's a rough prototype at mklim/plugins@b258f7c91 that, combined with flutter/engine#9727, should fix:\r\n\r\n> 1. _Caching the input connection across webview resizes_ - we should probably provide some hooks to allow the plugin to do the caching(as the engine has no reference to the threaded input connection proxy).\r\n\r\nHowever this is still a problem:\r\n\r\n> 2. _Changing the input target from webview to a Flutter framework client_ - when the engine restarts the input, IMM goes directly to the threaded proxy for a new connection leaving the engine no chance to change the connection.",
+    "createdAt": "2019-07-09T21:29:42Z"
+  },
+  {
+    "id": 5059,
+    "sender": "qiaolin-pan",
+    "content": "fix this issue as soon as possible please.",
+    "createdAt": "2019-07-10T00:14:43Z"
+  },
+  {
+    "id": 5060,
+    "sender": "XHL-study",
+    "content": "> > > this version is very old and doesn't include changes made a very long time (like javascriptChannels).\r\n> > > so can't use it at all.\r\n> > > the official version needs to have the fix. Flutter team ? @FlutterIssues\r\n> > \r\n> > \r\n> > God, I answered wrong again.\r\n> > Is this version\r\n> > https://github.com/amirh/plugins/tree/64fe811f8d6861cc87258d5db3df59414be8b49d/packages/webview_flutter\r\n> \r\n> This is an incomplete in progress prototype, you shouldn't use it for any production app. We are working on resolving the remaining issues with Android versions prior to N.\r\n\r\nOk, I am currently only testing it for feasibility.",
+    "createdAt": "2019-07-10T00:21:15Z"
+  },
+  {
+    "id": 5061,
+    "sender": "junr-he",
+    "content": "When will this issue be resolved？",
+    "createdAt": "2019-07-10T06:56:50Z"
+  },
+  {
+    "id": 5062,
+    "sender": "lzxb",
+    "content": "This problem has been going on for almost a year.",
+    "createdAt": "2019-07-10T08:56:36Z"
+  },
+  {
+    "id": 5063,
+    "sender": "zhangruiyu",
+    "content": "because of this problem, our app is ready to change to native",
+    "createdAt": "2019-07-10T09:00:19Z"
+  },
+  {
+    "id": 5064,
+    "sender": "mohSalah66",
+    "content": "My app is wait for issues for **six month** now , please community if this **can not be solved**. i need to know.\r\nThank you all.",
+    "createdAt": "2019-07-10T16:26:50Z"
+  },
+  {
+    "id": 5065,
+    "sender": "PITR-DEV",
+    "content": "> My app is wait for issues for **six month** now , please community if this **can not be solved**. i need to know.\r\n> Thank you all.\r\n\r\nUpdating to the latest version of flutter fixed this issue for me",
+    "createdAt": "2019-07-10T18:20:44Z"
+  },
+  {
+    "id": 5066,
+    "sender": "rspauwen",
+    "content": "> Updating to the latest version of flutter fixed this issue for me\r\n\r\nHard to believe, but it seems to be true: I'm getting the keyboard on v1.7.8+hotfix.3",
+    "createdAt": "2019-07-10T19:05:19Z"
+  },
+  {
+    "id": 5067,
+    "sender": "amirh",
+    "content": "Yes as mentioned in https://github.com/flutter/flutter/issues/19718#issuecomment-499759204 technically the platform views keyboard support landed.\r\n**But - Android WebView prior to Android N has a special behavior that breaks our keyboard support.**\r\n\r\nAs we assume that many people who thumbed up this issue are mainly interested in webview keyboard support, we are keeping this issue open until we resolve the pre Android N WebView issue. We have made good progress with prototypes on that front(you can find progress updates on this issue), and @mklim is currently driving a production solution.",
+    "createdAt": "2019-07-10T19:18:33Z"
+  },
+  {
+    "id": 5068,
+    "sender": "zhhal",
+    "content": "After updating v1.7.8+hotfix.3,the keyboard can be bring up but the input value is not show in the inputbox.",
+    "createdAt": "2019-07-12T10:57:46Z"
+  },
+  {
+    "id": 5069,
+    "sender": "mklim",
+    "content": "Version `0.3.10` of the webview_flutter plugin has added basic keyboard support on all versions of Android. :tada:\r\n\r\n**There's still one known issue.** This isn't compatible with a UI that also contains Flutter `TextField`s. Tapping between the webview text field and the Flutter text field will end up losing the input. mklim/plugins@928c790521 has detailed reproduction steps. We're still working on a fix for this.\r\n\r\n**This also requires some changes that are currently only on Flutter `master`, flutter/flutter@b1a8637028.** The keyboard will still appear when it previously didn't if run with older versions of Flutter. But on older versions of Flutter if the WebView is resized while showing the keyboard, the text field will need to be tapped on multiple times for the anything typed on the keyboard to show up in the text field.\r\n\r\nWe're still working on closing out the remaining known issue, thanks for your patience!",
+    "createdAt": "2019-07-13T02:17:00Z"
+  },
+  {
+    "id": 5070,
+    "sender": "XHL-study",
+    "content": "Does anyone pay attention to this issue?\r\n\r\nhttps://github.com/flutter/flutter/issues/19718#issuecomment-508479955",
+    "createdAt": "2019-07-15T00:53:03Z"
+  },
+  {
+    "id": 5071,
+    "sender": "mklim",
+    "content": "@XHL-study thanks for the bug report. I'm able to reproduce it, mklim/plugins@3e033be. Looking into it more now.\r\n\r\n_Edited to add:_ Fix is in flutter/plugins#1853",
+    "createdAt": "2019-07-15T20:06:47Z"
+  },
+  {
+    "id": 5072,
+    "sender": "mklim",
+    "content": "Version `0.3.10+2` of the webview_flutter plugin has been published with bug fixes for the Flutter TextInput and route issues talked about above.\r\n\r\n**This still requires some changes that are currently only on Flutter master, b1a8637.** If the WebView is resized while showing the keyboard on an older Flutter version, the user will need to tap on the text field multiple times for any keyboard input to show up in the text field.\r\n\r\nI'm closing this as fixed since webview_flutter keyboard support has landed. If you see any other bugs with the webview_flutter keyboard on Flutter `master`, please file a new issue for them. Thanks!",
+    "createdAt": "2019-07-16T00:47:15Z"
+  },
+  {
+    "id": 5073,
+    "sender": "XHL-study",
+    "content": "> Version `0.3.10+2` of the webview_flutter plugin has been published with bug fixes for the Flutter TextInput and route issues talked about above.\r\n> \r\n> **This still requires some changes that are currently only on Flutter master, [b1a8637](https://github.com/flutter/flutter/commit/b1a8637028e1f85a421a8a46a90235276a4e1188).** If the WebView is resized while showing the keyboard on an older Flutter version, the user will need to tap on the text field multiple times for any keyboard input to show up in the text field.\r\n> \r\n> I'm closing this as fixed since webview_flutter keyboard support has landed. If you see any other bugs with the webview_flutter keyboard on Flutter `master`, please file a new issue for them. Thanks!\r\n\r\nWhen I stepped back the route, the application crashed.\r\nconsole log\r\n```\r\n\r\nE/AndroidRuntime( 5177): java.lang.NullPointerException: Attempt to invoke virtual method 'android.view.inputmethod.InputConnection android.view.View.onCreateInputConnection(android.view.inputmethod.EditorInfo)' on a null object reference\r\nE/AndroidRuntime( 5177): \tat io.flutter.plugin.editing.TextInputPlugin.createInputConnection(TextInputPlugin.java:195)\r\nE/AndroidRuntime( 5177): \tat io.flutter.view.FlutterView.onCreateInputConnection(FlutterView.java:397)\r\nE/AndroidRuntime( 5177): \tat android.view.inputmethod.InputMethodManager.startInputInner(InputMethodManager.java:1236)\r\nE/AndroidRuntime( 5177): \tat android.view.inputmethod.InputMethodManager.checkFocus(InputMethodManager.java:1428)\r\nE/AndroidRuntime( 5177): \tat android.view.inputmethod.InputMethodManager.isActive(InputMethodManager.java:786)\r\nE/AndroidRuntime( 5177): \tat io.flutter.plugins.webviewflutter.InputAwareWebView$1.run(InputAwareWebView.java:153)\r\nE/AndroidRuntime( 5177): \tat android.os.Handler.handleCallback(Handler.java:815)\r\nE/AndroidRuntime( 5177): \tat android.os.Handler.dispatchMessage(Handler.java:104)\r\nE/AndroidRuntime( 5177): \tat android.os.Looper.loop(Looper.java:207)\r\nE/AndroidRuntime( 5177): \tat android.app.ActivityThread.main(ActivityThread.java:5845)\r\nE/AndroidRuntime( 5177): \tat java.lang.reflect.Method.invoke(Native Method)\r\nE/AndroidRuntime( 5177): \tat com.android.internal.os.ZygoteInit$MethodAndArgsCaller.run(ZygoteInit.java:907)\r\nE/AndroidRuntime( 5177): \tat com.android.internal.os.ZygoteInit.main(ZygoteInit.java:768)\r\nI/BufferQueueProducer( 5177): [SurfaceTexture-0-5177-0](this:0x7f5a47c400,id:0,api:1,p:-1,c:-1) disconnect(P): api 1\r\nI/BufferQueueProducer( 5177): [SurfaceTexture-0-5177-0](this:0x7f5a47c400,id:0,api:1,p:-1,c:-1) disconnect(P): api 1\r\nI/Process ( 5177): Sending signal. PID: 5177 SIG: 9\r\nLost connection to device.\r\n```\r\nwebview_flutter: ^0.3.10+2\r\n\r\nflutter doctor\r\n```\r\nDoctor summary (to see all details, run flutter doctor -v):\r\n[√] Flutter (Channel stable, v1.7.8+hotfix.3, on Microsoft Windows [Version 10.0.17134.829], locale zh-CN)\r\n\r\n[√] Android toolchain - develop for Android devices (Android SDK version 29.0.0-rc2)\r\n[√] Android Studio (version 3.4)\r\n[!] IntelliJ IDEA Ultimate Edition (version 2019.1)\r\n    X Flutter plugin not installed; this adds Flutter specific functionality.\r\n    X Dart plugin not installed; this adds Dart specific functionality.\r\n[√] Connected device (1 available)\r\n\r\n! Doctor found issues in 1 category.\r\n\r\n```\r\n![1563239595851](https://user-images.githubusercontent.com/22956309/61258844-1b8cc500-a7aa-11e9-9778-df3900afc594.gif)\r\n\r\nlook for https://github.com/flutter/flutter/issues/36232",
+    "createdAt": "2019-07-16T01:11:50Z"
+  },
+  {
+    "id": 5074,
+    "sender": "qiaolin-pan",
+    "content": "[android] How to dismiss the keyboard after clicking outside TextField/anywhere on screen?",
+    "createdAt": "2019-07-16T07:07:57Z"
+  },
+  {
+    "id": 5075,
+    "sender": "masewo",
+    "content": "With version 0.3.10+3 of webview_flutter plugin and flutter on master channel it is now not possible anymore to copy and paste text from clipboard to input fields (tested on multiple Android 9 devices including emulator). Happens on multiple websites and also in the webview_flutter example app.",
+    "createdAt": "2019-07-18T17:24:44Z"
+  },
+  {
+    "id": 5076,
+    "sender": "mklim",
+    "content": "@pakyo-pan filed flutter/flutter#36478 to track this, thanks.\r\n@masewo thanks for the detailed info. That's currently being tracked in flutter/flutter#24585.",
+    "createdAt": "2019-07-18T19:06:01Z"
+  },
+  {
+    "id": 5077,
+    "sender": "joelbrostrom",
+    "content": "@masewo \r\nI noticed the same thing.\r\nI can add that double clicking text highlights it and brings up the option bar above it.\r\nPressing any one of cut/copy/paste closes the option bar and deselect the text but does not perform the action.\r\n\r\nThis is an important feature for any \"look up\" application.\r\nFix would be appreciated. \r\n\r\nJust open google in a WebView to try it out:\r\n\r\n```\r\nimport 'package:blk_birthday_flutter/utility/const.dart';\r\nimport 'package:flutter/material.dart';\r\nimport 'package:webview_flutter/webview_flutter.dart';\r\n\r\nvoid main() => runApp(\r\n      MaterialApp(\r\n        theme: appTheme,\r\n        title: 'Birthday',\r\n        home: Scaffold(\r\n          body: WebView(\r\n            initialUrl: 'https://google.com',\r\n          ),\r\n        ),\r\n      ),\r\n    );\r\n```",
+    "createdAt": "2019-08-09T15:07:45Z"
+  },
+  {
+    "id": 5078,
+    "sender": "luffynas",
+    "content": "yeach, this issue still occurs, please read this https://github.com/flutter/flutter/issues/38668#issuecomment-522221140",
+    "createdAt": "2019-08-17T09:31:02Z"
+  },
+  {
+    "id": 5079,
+    "sender": "honghuazhao",
+    "content": "After upgrading to webview_flutter 0.3.13 and Flutter 1.7.8 hotfix 4 stable, I can input text in normal textfield. But I still cannot input in password textfield. Could you please fix it? @amirh ",
+    "createdAt": "2019-08-17T11:23:34Z"
+  },
+  {
+    "id": 5080,
+    "sender": "pythoneer",
+    "content": "@jameszhao-io can you please file a new issue, this one is closed!",
+    "createdAt": "2019-08-18T17:59:15Z"
+  },
+  {
+    "id": 5081,
+    "sender": "sldboy",
+    "content": "After upgrading to webview_flutter 0.3.13 and Flutter 1.7.8 hotfix 3 stable, I can input text in normal textfield. But I still cannot input in password textfield.    me too.@jameszhao-io",
+    "createdAt": "2019-08-23T06:20:49Z"
+  },
+  {
+    "id": 5082,
+    "sender": "amirh",
+    "content": "@sldboy thanks for the report, do you mind filing a separate issue for password fields?",
+    "createdAt": "2019-09-10T20:11:24Z"
+  },
+  {
+    "id": 5083,
+    "sender": "marclester-tang",
+    "content": "This issue still persists in android 10",
+    "createdAt": "2019-09-16T05:32:28Z"
+  },
+  {
+    "id": 5084,
+    "sender": "pythoneer",
+    "content": "@marclester-tang what do you mean? Is there a regression that makes the issue reoccur on Android 10? I can't really tell what \"still\" means in this context, because the issue was solved thus it can't be \"still\" there. Or do you want us to know that the problem was never solved on your environment? What version of Flutter do you have? Regardless of your particular case it is the best idea if you file a new issue with your specific problem because it looks like the issue was solved for the majority of the people involved.  ",
+    "createdAt": "2019-09-16T16:39:59Z"
+  },
+  {
+    "id": 5085,
+    "sender": "mklim",
+    "content": "@marclester-tang @pythoneer sounds like issue flutter/flutter#38375. ",
+    "createdAt": "2019-09-16T16:47:27Z"
+  },
+  {
+    "id": 5086,
+    "sender": "smurfxx",
+    "content": "I can confirm that the keyboard issue is still present on Android 10, I tested on a Pixel 3a and the keyboard never appears when focusing an input text field of the web pages.",
+    "createdAt": "2019-11-20T16:07:00Z"
+  },
+  {
+    "id": 5087,
+    "sender": "mklim",
+    "content": "@smurfxx thanks for the report. Could you please file a new issue for this with `flutter doctor` if you're seeing this on a recent version of Flutter? So far it sounds like flutter/flutter#38375. That has been fixed upstream but currently the fix still hasn't rolled into stable.",
+    "createdAt": "2019-11-20T17:47:44Z"
+  },
+  {
+    "id": 5088,
+    "sender": "ChrisRollz",
+    "content": "Same issues today with keyboard. Can focus the input field within the WebViews but the keyboard does not populate the field. We tried on both a nexus and a Huawei mate 9 pro. ",
+    "createdAt": "2020-02-02T03:22:47Z"
+  },
+  {
+    "id": 5089,
+    "sender": "mklim",
+    "content": "@ChrisFetterly thanks for the report. Could you file a new issue for the problem you're seeing with the output of `flutter doctor` and a small reproducible sample case?",
+    "createdAt": "2020-02-03T17:55:06Z"
+  },
+  {
+    "id": 5090,
+    "sender": "hnvn",
+    "content": "Hi guys, I am facing a problem with keyboard in Android that it overlaps input fields when it shows up. Is there anyone know this issue?",
+    "createdAt": "2020-05-06T09:07:08Z"
+  },
+  {
+    "id": 5091,
+    "sender": "jtibbles",
+    "content": "On Android it doesn't seem to work if you click inside the textfield, it only works if you click on the top border of the textfield. Then the keyboard pops up.\r\nAnd if you click anywhere else the keyboard remains on-screen.",
+    "createdAt": "2020-05-12T08:58:40Z"
+  },
+  {
+    "id": 5092,
+    "sender": "veselinnguyen",
+    "content": "Hi guys,\r\nThe issue still occurs and it has been here for ages. Noone has found already a solution?\r\n\r\nI am opening a WEBPAGE in a FLUTTER WEBVIEW. The Keyboard works only for ANDROID.\r\n\r\n![Screenshot 2020-06-23 at 11 13 10 PM](https://user-images.githubusercontent.com/2046167/85669991-b97a5680-b6c0-11ea-9a9d-88e18904f440.png)\r\n\r\n",
+    "createdAt": "2020-06-25T06:49:48Z"
+  },
+  {
+    "id": 5093,
+    "sender": "crypto-maria",
+    "content": "> Hi guys,\r\n> The issue still occurs and it has been here for ages. Noone has found already a solution?\r\n> \r\n> I am opening a WEBPAGE in a FLUTTER WEBVIEW. The Keyboard works only for ANDROID.\r\n> \r\n> ![Screenshot 2020-06-23 at 11 13 10 PM](https://user-images.githubusercontent.com/2046167/85669991-b97a5680-b6c0-11ea-9a9d-88e18904f440.png)\r\n\r\nHave you got any solution for this?",
+    "createdAt": "2020-09-05T12:44:04Z"
+  },
+  {
+    "id": 5094,
+    "sender": "matuella",
+    "content": "> Hi guys,\r\n> The issue still occurs and it has been here for ages. Noone has found already a solution?\r\n> \r\n> I am opening a WEBPAGE in a FLUTTER WEBVIEW. The Keyboard works only for ANDROID.\r\n> \r\n> ![Screenshot 2020-06-23 at 11 13 10 PM](https://user-images.githubusercontent.com/2046167/85669991-b97a5680-b6c0-11ea-9a9d-88e18904f440.png)\r\n\r\nare you sure you haven't disabled the simulator visual keyboard (CMD + K / SHIFT + CMD + K)?",
+    "createdAt": "2020-10-07T10:54:51Z"
+  },
+  {
+    "id": 5095,
+    "sender": "crypto-maria",
+    "content": "Thats probably because, in emulator setting the virtual keyboard is turned\noff. However the problem could be have also been caused if you are using\nthe older version of the library if not then see if the keyboard is not\nenabled in the setting as by default it is disabled in the emulator.\n\nOn Wed, 7 Oct 2020, 15:55 Guilherme Carlos Matuella, <\nnotifications@github.com> wrote:\n\n> Hi guys,\n> The issue still occurs and it has been here for ages. Noone has found\n> already a solution?\n>\n> I am opening a WEBPAGE in a FLUTTER WEBVIEW. The Keyboard works only for\n> ANDROID.\n>\n> [image: Screenshot 2020-06-23 at 11 13 10 PM]\n> <https://user-images.githubusercontent.com/2046167/85669991-b97a5680-b6c0-11ea-9a9d-88e18904f440.png>\n>\n> are you sure you haven't disabled the simulator visual keyboard (CMD + K /\n> SHIFT + CMD + K)?\n>\n> —\n> You are receiving this because you commented.\n> Reply to this email directly, view it on GitHub\n> <https://github.com/flutter/flutter/issues/19718#issuecomment-704857369>,\n> or unsubscribe\n> <https://github.com/notifications/unsubscribe-auth/AOW4IEFOYBISDCRWRSIDSULSJRCJJANCNFSM4FLUCUTA>\n> .\n>\n",
+    "createdAt": "2020-10-07T11:00:08Z"
+  },
+  {
+    "id": 5096,
+    "sender": "lukef",
+    "content": "## Add a welcome screen and a demo from the Posse gallery\n\ncc/ @mit-mit @xster \r\n\r\n**NOTE: This version uses assets that are not in the gallery assets package. Once the assets have been added to that package I'll do a conversion to use those.**\r\n\r\nHighlights:\r\n- Adds a first time run experience to describe what the gallery is all about\r\n- Adds in the running demo",
+    "createdAt": "2018-11-22T00:27:45Z"
+  },
+  {
+    "id": 5097,
+    "sender": "lukef",
+    "content": "CLAs signed",
+    "createdAt": "2018-11-22T00:30:25Z"
+  },
+  {
+    "id": 5098,
+    "sender": "btobin",
+    "content": "CLA signed. I confirm my commits are ok to be contributed.",
+    "createdAt": "2018-11-22T00:34:57Z"
+  },
+  {
+    "id": 5099,
+    "sender": "mit-mit",
+    "content": "Once this is ready to land, I believe @Hixie requested that it is landed to a branch, not master?",
+    "createdAt": "2018-11-22T21:10:05Z"
+  },
+  {
+    "id": 5100,
+    "sender": "mit-mit",
+    "content": "@lukef, fyi 0.1.7 of `flutter_gallery_assets` is live with the needed assets",
+    "createdAt": "2018-11-26T20:13:56Z"
+  },
+  {
+    "id": 5101,
+    "sender": "lukef",
+    "content": "@xster I've corrected most/all of the issues. Can I get a re-review?",
+    "createdAt": "2018-11-26T23:55:43Z"
+  },
+  {
+    "id": 5102,
+    "sender": "xster",
+    "content": "I'm out today. Will look in the morning ",
+    "createdAt": "2018-11-27T01:11:10Z"
+  },
+  {
+    "id": 5103,
+    "sender": "xster",
+    "content": "It's weird that from a re-invoked welcome screen and from the detailed 'view my stats' page of the activity tracker, you can iOS back swipe those pages away. Make sure the visible UI presents the right affordance or disable the swipe gesture (via a `WillPopScope` or some such)",
+    "createdAt": "2018-11-27T19:38:40Z"
+  },
+  {
+    "id": 5104,
+    "sender": "xster",
+    "content": "I might have more nits when we try to merge this into master but I'm generally ok with building binaries from this once the comments are addressed. ",
+    "createdAt": "2018-11-27T22:18:34Z"
+  },
+  {
+    "id": 5105,
+    "sender": "lukef",
+    "content": "I think everything is now addressed and we should be good to LGTM. Maybe quick confirm in the AM?",
+    "createdAt": "2018-11-28T05:43:56Z"
+  },
+  {
+    "id": 5106,
+    "sender": "xster",
+    "content": "Please make sure the integration tests pass. It's just blocked on a lint at the moment. You can see it in the PR checks tab.",
+    "createdAt": "2018-11-28T07:24:55Z"
+  },
+  {
+    "id": 5107,
+    "sender": "lukef",
+    "content": "@xster @mit-mit  can we remove the CLA:no tag?",
+    "createdAt": "2018-11-28T21:37:01Z"
+  },
+  {
+    "id": 5108,
+    "sender": "xster",
+    "content": "@googlebot both authors okay'ed the CLA in https://github.com/flutter/flutter/pull/24636#issuecomment-440864099 and https://github.com/flutter/flutter/pull/24636#issuecomment-440865518",
+    "createdAt": "2018-11-28T22:14:34Z"
+  },
+  {
+    "id": 5109,
+    "sender": "xster",
+    "content": "Merging into branch",
+    "createdAt": "2018-11-29T00:40:24Z"
+  },
+  {
+    "id": 5110,
+    "sender": "Renzo-Olivares",
+    "content": "## [web] Listen to text spacing overrides\n\n# Framework:\r\n* `EditableText`/`SelectableText`, applies `lineHeightScaleFactorOverride`, `wordSpacingOverride`, and `letterSpacingOverride` to it's `TextStyle` similarly to how we already do for bold platform overrides. Note `SelectableText` is built on `EditableText` so it also applies these overrides.\r\n* `Text`, applies `lineHeightScaleFactorOverride`, `wordSpacingOverride`, and `letterSpacingOverride` to it's `TextStyle` similarly to how we already do for bold platform overrides.\r\n* Exposes line height override through `MediaQueryData.lineHeightScaleFactorOverride` and `maybeLineHeightScaleFactorOverrideOf(context)`.\r\n* Exposes letter spacing override through `MediaQueryData.letterSpacingOverride` and `maybeLetterSpacingOverrideOf(context)`.\r\n* Exposes word spacing override through `MediaQueryData.wordSpacingOverride` and `maybeWordSpacingOverrideOf(context)`.\r\n* Exposes paragraph spacing override through `MediaQueryData.paragraphSpacingOverride` and `maybeParagraphSpacingOf(context)`.\r\n\r\n# Engine:\r\n* Introduces new members on `PlatformDispatcher` API that hold the text spacing properties that are overridden on the web.\r\n* We provide the `lineHeightScaleFactorOverride`, `letterSpacingOverride`, `wordSpacingOverride`, and `paragraphSpacingOverride` on the web by attaching a `ResizeObserver` to an off-screen hidden element, when its size changes we capture its text spacing CSS properties, and notify the framework through `onMetricsChanged`.\r\n\r\nFixes #142712\r\n\r\nhttps://github.com/user-attachments/assets/aaaa3e74-c232-4956-acd2-ae1a4487e415\r\n\r\n## Pre-launch Checklist\r\n\r\n- [x] I read the [Contributor Guide] and followed the process outlined there for submitting PRs.\r\n- [x] I read the [Tree Hygiene] wiki page, which explains my responsibilities.\r\n- [x] I read and followed the [Flutter Style Guide], including [Features we expect every widget to implement].\r\n- [x] I signed the [CLA].\r\n- [x] I listed at least one issue that this PR fixes in the description above.\r\n- [x] I updated/added relevant documentation (doc comments with `///`).\r\n- [x] I added new tests to check the change I am making, or this PR is [test-exempt].\r\n- [x] I followed the [breaking change policy] and added [Data Driven Fixes] where supported.\r\n- [x] All existing and new tests are passing.",
+    "createdAt": "2025-07-29T19:41:26Z"
+  },
+  {
+    "id": 5111,
+    "sender": "Renzo-Olivares",
+    "content": "> > applies paragraph spacing (margin-bottom) by wrapping its contents with a bottom Padding.\r\n> \r\n> Will this handle cases where developer use \\n\\n to generate paragraph within a single text widget? or is this something that we don't care about?\r\n\r\nI want to say we don't really care about that case since the web doesn't seem to properly handle that case either. The extensions and bookmarklet's i've tried only apply \"paragraphSpacing\" between \"p\" elements.",
+    "createdAt": "2025-08-14T19:08:17Z"
+  },
+  {
+    "id": 5112,
+    "sender": "LongCatIsLooong",
+    "content": "These things seem to do overriding similar to `AccessibilityFeature.boldText` and I suspect people will have similar complains: https://github.com/flutter/flutter/issues/139712. ",
+    "createdAt": "2025-10-24T22:11:22Z"
+  },
+  {
+    "id": 5113,
+    "sender": "Renzo-Olivares",
+    "content": "> These things seem to do overriding similar to `AccessibilityFeature.boldText` and I suspect people will have similar complains: #139712.\r\n\r\nThat's definitely a concern, though I feel like with regards to accessibility, if you are using an extension who's intention is to apply a specific specification, for example WCAG https://www.w3.org/TR/WCAG21/ , then it is reasonable that is overrides any application defaults.\r\n\r\nI tested out what the web does in this scenario by setting some large number for letter-spacing to some text, and enabling text spacing settings through an extension, it ends up overriding the default letter-spacing that I set.",
+    "createdAt": "2025-10-24T22:23:01Z"
+  },
+  {
+    "id": 5114,
+    "sender": "Renzo-Olivares",
+    "content": "> left some comments. Also, this should be disabled in `Icon`. The paragraph spacing should be disabled in a `WidgetSpan`.\r\n\r\nThanks for calling this out, `Icon` should be okay since it uses `RichText` and `RichText` does not inherit these values. Disabling this for `WidgetSpan` definitely sounds reasonable.",
+    "createdAt": "2025-10-25T00:35:45Z"
+  },
+  {
+    "id": 5115,
+    "sender": "Renzo-Olivares",
+    "content": "After talking offline with @loic-sharma I think we should leave the framework automatically applying `paragraphSpacing` to its text widgets out of this PR. I plan to explore some options we can take for this in a design doc.\r\n\r\nConcerns:\r\n- If this feature is opt-out from the start then users may experience unexpected behavior (such as clipping) when enabling a text spacing extension or bookmarklet because the paragraph spacing is applied to all text across all components, this includes headers, navigation bar destinations, tab destinations, badges, buttons, and other ui components where it may be better to always have paragraph spacing disabled. On the framework side we can disable it for all the components we own, but it's likely that flutter users have used the `Text`/ or `SelectableText` widgets in their own custom components so they will also be broken.\r\n\r\nChanges since last review:\r\n- `paragraphSpacing` -> `paragraphSpacingOverride`, and the value is now nullable. This change was made to support the the use-case where if the framework does end up implementing default paragraph spacing, a user can still request it to be 0.0 overriding the default value. If this remained non-nullable the framework would not be able to differentiate between 0.0 set by the user and 0.0 the default.\r\n- The framework no longer automatically applies `paragraphSpacingOverride` to its text but the value is still accessible through `MediaQuery`.",
+    "createdAt": "2025-10-28T19:27:03Z"
+  },
+  {
+    "id": 5116,
+    "sender": "Renzo-Olivares",
+    "content": "Closing this in favor of https://github.com/flutter/flutter/pull/178081",
+    "createdAt": "2025-11-07T23:32:05Z"
+  },
+  {
+    "id": 5117,
+    "sender": "amirh",
+    "content": "## Add an AnimatedIcon class and vitool (vector icon tool) to generate data for it\n\nFollowing the request I merged all the incremental CLs into one CL to be reviewed in one chunk.\r\n\r\nFixes #13345",
+    "createdAt": "2017-12-13T00:32:57Z"
+  },
+  {
+    "id": 5118,
+    "sender": "Hixie",
+    "content": "Looks pretty good.\r\n\r\nI'd like to take another look after you've made the analyzer happy, but I don't expect many additional comments.",
+    "createdAt": "2017-12-13T23:39:18Z"
+  },
+  {
+    "id": 5119,
+    "sender": "amirh",
+    "content": "Thanks for the review PTAL",
+    "createdAt": "2017-12-14T23:01:46Z"
+  }
+]

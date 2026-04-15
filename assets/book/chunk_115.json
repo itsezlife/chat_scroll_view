@@ -1,0 +1,386 @@
+[
+  {
+    "id": 7360,
+    "sender": "mattkae",
+    "content": "> @mattkae Pardon my excitement, but I'm really looking forward to this PR being merged! I was wondering — will the two failing checks block the merge, or can it still proceed?\r\n\r\nI believe Knopp will address them some time today, but then we should be good!",
+    "createdAt": "2025-07-08T13:00:28Z"
+  },
+  {
+    "id": 7361,
+    "sender": "scnufan",
+    "content": "when will the multi-window support merge from engine to release version?",
+    "createdAt": "2025-10-10T08:32:42Z"
+  },
+  {
+    "id": 7362,
+    "sender": "blasten",
+    "content": "## Add flutter build aar\n\n## Description\r\n\r\n`flutter build aar`\r\n\r\nThis new build command works just like `flutter build apk` or `flutter build appbundle`, but for plugins and module projects.\r\n\r\nThis PR also refactors how plugins are included in app or module projects. By building the plugins as AARs, the Android Gradle plugin is able to use Jetifier to translate support libraries into AndroidX libraries for all the plugin's native code. Thus, reducing the error rate when using AndroidX in apps.\r\n\r\nThis change also allows to build modules as AARs, so developers can take these artifacts and distribute them along with the native host app without the need of the Flutter tool. This is a requirement for add to app.\r\n\r\n`flutter build aar` generates POM artifacts (XML files) which contain metadata about the native dependencies used by the plugin. This allows Gradle to resolve dependencies at the app level. The result of this new build command is a single `build/outputs/repo`, the local repository that contains all the generated AARs and POM files.\r\n\r\nIn a Flutter app project, this local repo is used by the Flutter Gradle plugin to resolve the plugin dependencies.   In add to app case, the developer needs to configure the local repo and the dependency manually in `build.gradle`:\r\n\r\n```.gradle\r\nrepositories {\r\n    maven {\r\n        url \"<path-to-flutter-module>build/host/outputs/repo\"\r\n    }\r\n}\r\n\r\ndependencies {\r\n    implementation(\"<package-name>:flutter_<build-mode>:1.0@aar\") {\r\n       transitive = true\r\n    }\r\n}\r\n\r\n```\r\n\r\n## Related Issues\r\nhttps://github.com/flutter/flutter/issues/23586\r\nhttps://github.com/flutter/flutter/issues/29328\r\nhttps://github.com/flutter/flutter/issues/26099\r\nhttps://github.com/flutter/flutter/issues/25979\r\nhttps://github.com/flutter/flutter/issues/28805\r\nhttps://github.com/flutter/flutter/issues/27254\r\nhttps://github.com/flutter/flutter/issues/24859\r\n\r\n## Tests\r\n\r\nI added the following tests:\r\n\r\n* Unit test to check how the tool picks the Gradle version based on the Android Gradle plugin.\r\n* gradle_jetifier_test - Tests that Jetifier translates support into AndroidX dependencies\r\n* gradle_plugin_dependencies_test - Tests this issue: https://github.com/flutter/flutter/issues/27254\r\n* build_aar_plugin_test - Tests that plugins can be built as AARs.\r\n* build_aar_module_test - Tests that modules with plugins can be built as AARs.\r\n* Automatic migration of settings.gradle.\r\n\r\n## Checklist\r\n\r\nBefore you create this PR confirm that it meets all requirements listed below by checking the relevant checkboxes (`[x]`). This will ensure a smooth and quick review process.\r\n\r\n- [x] I read the [Contributor Guide] and followed the process outlined there for submitting PRs.\r\n- [x] I signed the [CLA].\r\n- [x] I read and followed the [Flutter Style Guide], including [Features we expect every widget to implement].\r\n- [x] I updated/added relevant documentation (doc comments with `///`).\r\n- [x] All existing and new tests are passing.\r\n- [x] The analyzer (`flutter analyze --flutter-repo`) does not report any problems on my PR.\r\n- [x] I am willing to follow-up on review comments in a timely manner.\r\n\r\n## Breaking Change\r\n\r\nDoes your PR require Flutter developers to manually update their apps to accommodate your change?\r\n\r\n- [ ] Yes, this is a breaking change (Please read [Handling breaking changes]). *Replace this with a link to the e-mail where you asked for input on this proposed change.*\r\n- [x] No, this is *not* a breaking change.\r\n\r\n<!-- Links -->\r\n[issue database]: https://github.com/flutter/flutter/issues\r\n[Contributor Guide]: https://github.com/flutter/flutter/wiki/Tree-hygiene#overview\r\n[Test Coverage]: https://github.com/flutter/flutter/wiki/Test-coverage-for-package%3Aflutter\r\n[Flutter Style Guide]: https://github.com/flutter/flutter/wiki/Style-guide-for-Flutter-repo\r\n[Features we expect every widget to implement]: https://github.com/flutter/flutter/wiki/Style-guide-for-Flutter-repo#features-we-expect-every-widget-to-implement\r\n[CLA]: https://cla.developers.google.com/\r\n[Handling breaking changes]: https://github.com/flutter/flutter/wiki/Tree-hygiene#handling-breaking-changes\r",
+    "createdAt": "2019-06-27T20:48:22Z"
+  },
+  {
+    "id": 7363,
+    "sender": "xster",
+    "content": "Still LGTM",
+    "createdAt": "2019-07-23T00:32:09Z"
+  },
+  {
+    "id": 7364,
+    "sender": "gspencergoog",
+    "content": "## Implement hover support for mouse pointers.\n\nThis implements support for hovering mouse pointers, so that mice connected to Android devices, and ChromeOS devices running Android apps will work properly.\r\n\r\nIt teaches flutter_test about hover events, which required changing how they are created and used.\r\n\r\nAlso modifies `AnnotatedRegion` to allow a region that can be located someplace other than just the origin.\r\n\r\nAlong with tests for all of the above.\r\n\r\nThis code needs https://github.com/flutter/engine/pull/6961 in order to actually receive hover events, but doesn't require it to compile.\r\n\r\nFixes #5504 ",
+    "createdAt": "2018-11-28T21:53:20Z"
+  },
+  {
+    "id": 7365,
+    "sender": "gspencergoog",
+    "content": "@Hixie friendly ping...",
+    "createdAt": "2019-01-07T23:59:36Z"
+  },
+  {
+    "id": 7366,
+    "sender": "Hixie",
+    "content": "This seems mostly fine but one major issue I see is that it assumes that there's only one mouse. We should track each pointer separately, any number of them could be mice.",
+    "createdAt": "2019-01-10T00:26:05Z"
+  },
+  {
+    "id": 7367,
+    "sender": "gspencergoog",
+    "content": "Oooh, good point.  OK, I've added support for multiple pointers.",
+    "createdAt": "2019-01-10T18:14:52Z"
+  },
+  {
+    "id": 7368,
+    "sender": "eseidelGoogle",
+    "content": "## Flutter should provide an abstraction for background execution\n\nCustomers would like to execute dart code as background processes on both iOS and Android, for things like syncing down data when wifi is available but the app is not open, etc.\r\n\r\n@mpcomplete created a background process on Android to execute Dart code to update flutter.  But I'm not aware of a parallel on iOS.\r\n\r\nThis issue tracks the development of APIs in plugins or otherwise. Engine support for these abstractions is tracked in https://github.com/flutter/flutter/issues/6192.",
+    "createdAt": "2016-05-02T20:38:30Z"
+  },
+  {
+    "id": 7369,
+    "sender": "abarth",
+    "content": "Should the code that runs in the background be written in Dart or in Java/Objective-C ?\n",
+    "createdAt": "2016-05-02T21:13:49Z"
+  },
+  {
+    "id": 7370,
+    "sender": "eseidelGoogle",
+    "content": "This came up in the context of wanting to update the local data model when connectivity was available.  e.g. subway maps/times when you might be walking in/out of a subway.  So I think the goal would be to have the executed code be Dart so you didn't have to have separate data-model-manipulation code for each platform.\n",
+    "createdAt": "2016-05-02T21:18:47Z"
+  },
+  {
+    "id": 7371,
+    "sender": "mit-mit",
+    "content": "CC @kasperl; we have explored many ways of executing code in the background across our various targets, and perhaps some learnings could be drawn from that.\n",
+    "createdAt": "2016-08-23T10:38:18Z"
+  },
+  {
+    "id": 7372,
+    "sender": "sethladd",
+    "content": "Do we have some use cases from our users? The only one that I heard was \"We want to run some code on the device, in response to a push message. We want to sync the data onto the device, even if the app isn't open.\"\n",
+    "createdAt": "2016-08-23T16:56:21Z"
+  },
+  {
+    "id": 7373,
+    "sender": "mit-mit",
+    "content": "It's typically pretty restricted what an app is actually allowed to do in the background, so in this case I think we can get inspiration for the use cases from there. For example, here is the iOS model:\nhttps://developer.apple.com/library/ios/documentation/iPhone/Conceptual/iPhoneOSProgrammingGuide/BackgroundExecution/BackgroundExecution.html\n",
+    "createdAt": "2016-08-24T12:03:01Z"
+  },
+  {
+    "id": 7374,
+    "sender": "eseidelGoogle",
+    "content": "I believe this is the same bug as flutter/flutter#6192, yes.",
+    "createdAt": "2017-01-17T16:32:47Z"
+  },
+  {
+    "id": 7375,
+    "sender": "mit-mit",
+    "content": "Adding leafy tag and milestone value from flutter/flutter#6192 ",
+    "createdAt": "2017-01-18T11:12:29Z"
+  },
+  {
+    "id": 7376,
+    "sender": "mit-mit",
+    "content": "@mravn-google @sigurdm something to think about!",
+    "createdAt": "2017-01-18T11:13:30Z"
+  },
+  {
+    "id": 7377,
+    "sender": "mit-mit",
+    "content": "Assigning to Mikkel for a very initial investigation to better understand feasibility and cost.",
+    "createdAt": "2017-02-02T13:22:57Z"
+  },
+  {
+    "id": 7378,
+    "sender": "mehmetf",
+    "content": "Here's an update from Leafy:\r\n\r\nDue to limitations of data notifications (i.e. notifications that require app to respond in some way), leafy is leaning towards using display notifications (i.e. notifications that are pushed directly to user screen without app involvement). Support for these already exist in Flutter.\r\n\r\nHowever, during conversations with other teams another use case has surfaced: If you want to support wearables or [home screen] widgets from your app, you would need to write the UI in native code since these surfaces are not yet supported by Flutter. However, it would be nice to be able to \"wake up the app and ask for data\" so that the model layer and business logic can be shared across the flutter app and the wearable app. Having never written one of these, I am not sure how existing native apps do this but it certainly seems like a valid use case for background tasks.",
+    "createdAt": "2017-02-02T17:59:07Z"
+  },
+  {
+    "id": 7379,
+    "sender": "sethladd",
+    "content": "Just talked to author of Flutter talk for Berlin DroidCon, and this was one of his top asks. \"How to do this, the Flutter way\"",
+    "createdAt": "2017-07-19T18:12:29Z"
+  },
+  {
+    "id": 7380,
+    "sender": "eseidelGoogle",
+    "content": "To be clear, it is currently possible to write background processes as part of a Flutter-using App.  However those processes can only execute Obj-C/Swift or Java/Kotlin code.  This bug is about fixing the limitation in our engine to allow executing Dart code in these background processes, as well as possibly providing an abstraction to allow scheduling such background work from Dart (likely that belongs in a plugin once the FlutterView-needs-to-be-on-screen restriction is removed).\r\n\r\nhttps://github.com/flutter/flutter/issues/6192#issuecomment-258928555 discusses the current engine limitation and our intention to solve it.  FYI @a-siva ",
+    "createdAt": "2017-08-02T19:38:22Z"
+  },
+  {
+    "id": 7381,
+    "sender": "eseidelGoogle",
+    "content": "This is also related to (a duplicate of?) https://github.com/flutter/flutter/issues/5048.",
+    "createdAt": "2017-08-02T19:41:13Z"
+  },
+  {
+    "id": 7382,
+    "sender": "pauldemarco",
+    "content": "We have a use case I do not see mentioned: We are location tracking every 5 seconds, and have certain other information being attached to that event, all of which business logic is implemented in Dart.  If our user brings another activity to the foreground, we need to display a persistent notification and continue to run that Dart code every 5 seconds.\r\n\r\nThis is a blocker for us. I'd be interested in hearing any workarounds we could implement at the moment, since this will delay shipment.",
+    "createdAt": "2017-08-02T20:56:24Z"
+  },
+  {
+    "id": 7383,
+    "sender": "mehmetf",
+    "content": "I would try to simply leave the timer active and see what happens. I wouldn't think it would be reliable but our app also has a use case of one-time cache cleanup (15 minutes after app has been put to background) and we have seen it successfully execute. We schedule it while the app is being stopped in Dart. Something like this:\r\n\r\n```dart\r\n@override\r\nvoid didChangeAppLifecycleState(AppLifecycleState state) {\r\n    if (state == AppLifecycleState.paused) {\r\n        new Future.delayed(const Duration(seconds: 5), () => _doSomething());\r\n    }\r\n}\r\n```\r\n\r\nIt would not work if:\r\n- App is explicitly killed by user (e.g. from the task switcher).\r\n- App is killed by OS due to memory pressure.\r\n- On iOS? I don't think we have tried that so please feel free to try and report back.",
+    "createdAt": "2017-08-02T21:27:18Z"
+  },
+  {
+    "id": 7384,
+    "sender": "pauldemarco",
+    "content": "I'm not sure of the iOS counterparts, but on Android a flutter plugin could be created that launches a foreground service, which gives the process a higher priority and makes it less likely to be killed during resource demanding times. Would this also give the long running Dart timer a better chance of survival?",
+    "createdAt": "2017-08-03T09:09:35Z"
+  },
+  {
+    "id": 7385,
+    "sender": "mehmetf",
+    "content": "Yes, that might help since your activity (thus your flutter view) will remain active. I am still not convinced that we have enough clarity to do a plugin.\r\n\r\nIf the point is to support periodic background polling of information, it might be better to design a plugin just for that. It should allow registering a callback in Dart that is invoked via a timer in native code rather than implementing the Timer in Dart. We could do that with a service on Android.\r\n\r\n**OR**\r\n\r\nWe could simply have a HowTo for creating KeepAlive&trade; Flutter apps.\r\n\r\nOn iOS, you can set an [UIBackgroundMode](https://developer.apple.com/library/content/documentation/iPhone/Conceptual/iPhoneOSProgrammingGuide/BackgroundExecution/BackgroundExecution.html) in your `Info.plist` to make it much less likely for the app to be killed.\r\n\r\nOn Android, setup an empty service. This is mostly AndroidManifest.xml change + a trivial service class implementation.\r\n\r\nA generic KeepAlive plugin does not seem to be workable as it would still require manual setup on iOS and isn't clear whether to use foreground/background service on Android (foreground service is tougher to kill but requires a persistent notification).",
+    "createdAt": "2017-08-03T22:28:45Z"
+  },
+  {
+    "id": 7386,
+    "sender": "pauldemarco",
+    "content": "Even with a foreground service, the OS could still kill our process for any reason.\r\n\r\nI feel the ideal solution must utilize Android's Alarm Manager, which is intended for cases where you want to have your application code run at a specific time, even if your application is not currently running.  But even with this, how might we reboot the Dart process with the same state, since we'll have a logged-in Firebase user making authenticated database writes?",
+    "createdAt": "2017-08-03T23:58:17Z"
+  },
+  {
+    "id": 7387,
+    "sender": "mehmetf",
+    "content": "@pauldemarco hence this bug... There's no way for Flutter right now to execute Dart code in any state w/o a FlutterView running. This includes Alarm Manager, Wearable/Native Widget Data Sync, or Push Notifications (though the use case for the last one is slowly going away https://github.com/flutter/flutter/issues/6192). \r\n\r\nI would think the _same state_ issue should be resolved at app level not at Flutter level. For native apps you have the same problem. Once a process is dead, you cannot recover state unless you save it somewhere (shared preferences or sqlite for instance). Presumably you would do the same in your Dart code. One thing Flutter can do is to communicate messages such as `applicationWillTerminate` on iOS and `onSaveInstanceState` on Android so you can prepare yourself for this.",
+    "createdAt": "2017-08-04T13:27:31Z"
+  },
+  {
+    "id": 7388,
+    "sender": "Hixie",
+    "content": "Questions:\r\n - What are the iOS and Android models for background execution?\r\n   - What signals can trigger the application to run?\r\n   - How long do you have to run? How do you know when that's running out?\r\n - What execution model do we want for background execution? (e.g. a separate isolate? Use the main dart:ui thread?)\r\n - Do we want to support code running without the app (as in `runApp`) having first run?\r\n - Can we collect a canonical list of use cases?\r\n\r\nCurrently this isn't planned for the near future. It's a large process, we would need to move something else off our short-term priority list to do this soon.\r\n",
+    "createdAt": "2017-08-08T20:30:29Z"
+  },
+  {
+    "id": 7389,
+    "sender": "pauldemarco",
+    "content": "**Use case**\r\nWe have different modes of operation that record events at different intervals (5 seconds, 10 minutes, 30 minutes, 6 hours).  We need a way to ensure the logging process runs whether or not the app is currently running.\r\n\r\n> What signals can trigger the application to run?\r\n\r\nOn Android this would be via a PendingIntent that is sent from a scheduled Alarm in AlarmManager.\r\nI'm not sure of the iOS counterpart to this at the moment.\r\n\r\n> How long do you have to run? How do you know when that's running out?\r\n\r\nWe must first gather needed information for the event, some of which is async (GPS Location), then record the event in an online datastore (Firebase). This entire process can last up to 30 seconds.\r\n\r\n> What execution model do we want for background execution? (e.g. a separate isolate? Use the main dart:ui thread?)\r\n\r\nI don't think this matters to us, we won't be doing any expensive computation.\r\n\r\n> Do we want to support code running without the app (as in runApp) having first run?\r\n\r\nI'm not sure of the implications here. I suppose since we initialize our business logic and state in the normal app, it would be best to have that stuff run first, so we can utilize crash reporting etc.",
+    "createdAt": "2017-08-10T03:43:29Z"
+  },
+  {
+    "id": 7390,
+    "sender": "Areiser",
+    "content": "I can add another user case, this functionality is the only thing keeping me from finalizing my app. I had an android app for this and decided to create a newer, better version that ideally also works on iOS. I am not familiar with the components in iOS (when researching I found that background tasks in iOS are a lot more restricted than on android) but I can name the Android components I used.\r\n\r\n> What signals can trigger the application to run?\r\n\r\nMost of the code is triggered by an Alarm in AlarmManager as well. \r\n\r\nHowever, to start that alarm all the time some code is executed on device boot and also on package upgrade (android.intent.action.MY_PACKAGE_REPLACED) because previous alarms would be removed.\r\n\r\n> How long do you have to run? How do you know when that's running out?\r\n\r\nIdeally for under a second. A small network request is made and the result is persisted, in some cases a notification is displayed. After that the method returns.\r\n\r\n> What execution model do we want for background execution? (e.g. a separate isolate? Use the main dart:ui thread?)\r\n\r\nDoes not matter to me as well.\r\n\r\n> Do we want to support code running without the app (as in runApp) having first run?\r\n\r\nIn my case after running once would be fine, however if something like a boot receiver is possible, it should run even if the app wasn't started before.",
+    "createdAt": "2017-08-12T19:13:29Z"
+  },
+  {
+    "id": 7391,
+    "sender": "eseidelGoogle",
+    "content": "https://stackoverflow.com/questions/41924890/how-do-i-run-code-in-the-background-even-with-the-screen-off is Flutter's most-viewed stack overflow question as far as I can tell. :)  There definitely seems to be interest in this space.",
+    "createdAt": "2017-09-14T20:26:40Z"
+  },
+  {
+    "id": 7392,
+    "sender": "mit-mit",
+    "content": "https://github.com/flutter/flutter/issues/6192 was reactivated to provide the underlying support for actually running Dart code when a FlutterView is not rendering.",
+    "createdAt": "2017-09-15T11:44:44Z"
+  },
+  {
+    "id": 7393,
+    "sender": "Hixie",
+    "content": "This is on our near-term radar, but will be a few months at least.",
+    "createdAt": "2017-09-26T20:28:35Z"
+  },
+  {
+    "id": 7394,
+    "sender": "mit-mit",
+    "content": "Sorry un-assigning @zanderso from this bug, I meant to assign him to the underlying background execution bug (#6192)",
+    "createdAt": "2017-10-11T12:17:36Z"
+  },
+  {
+    "id": 7395,
+    "sender": "aam",
+    "content": ">CC @kasperl; we have explored many ways of executing code in the background across our various targets, and perhaps some learnings could be drawn from that.\r\n\r\n@mit-mit did you document your findings in some shape or form?\r\n\r\n",
+    "createdAt": "2017-10-16T17:26:12Z"
+  },
+  {
+    "id": 7396,
+    "sender": "aegis123",
+    "content": "Another reason to want background processing is if you want to create a Streaming Audio app. The user open the app to start an audio stream. The background process downloads the stream and plays the audio end receives events to start/stop/pause/ff/rewind end sends events to change UI e.g the the seekbar audio meta data to ui. You need a background process for when the user leaves your apps ui the download/playing of the stream needs to continue",
+    "createdAt": "2017-10-25T13:08:15Z"
+  },
+  {
+    "id": 7397,
+    "sender": "Hixie",
+    "content": "We are currently working on this. No ETA at this time.",
+    "createdAt": "2017-11-01T20:27:55Z"
+  },
+  {
+    "id": 7398,
+    "sender": "sethladd",
+    "content": "@zanderso posted an updated over here: https://github.com/flutter/flutter/issues/6192#issuecomment-342214725",
+    "createdAt": "2017-11-06T17:05:41Z"
+  },
+  {
+    "id": 7399,
+    "sender": "Hixie",
+    "content": "@a-siva informs me that this is still ongoing; Android is up and running and we're working on iOS now.",
+    "createdAt": "2017-12-06T00:14:17Z"
+  },
+  {
+    "id": 7400,
+    "sender": "bjornbjorn",
+    "content": "We have a use case for this where we would like to track user location in the background to register whether or not they went to a specific location at a specific time (ie. during an event).",
+    "createdAt": "2017-12-13T15:40:56Z"
+  },
+  {
+    "id": 7401,
+    "sender": "aegis123",
+    "content": "@bjornbjorn can't you use geo fences for that? don't know if IOS has something similar but you can achieve this [Play Service Geofencing](https://developer.android.com/training/location/geofencing.html)",
+    "createdAt": "2017-12-13T15:59:55Z"
+  },
+  {
+    "id": 7402,
+    "sender": "rusenask",
+    "content": "are there any news @Hixie ? I am currently in the stage where I need my app to run as a background service (most of the app is written in Go) but it gets eventually killed. I started implementing foreground service in Java side but it's going to be pretty nasty if I have to reimplement it eventually for iOS. \r\n\r\nSome estimate whether this will be available for android in the next week or next month would be really appreciated :) ",
+    "createdAt": "2018-02-01T10:11:05Z"
+  },
+  {
+    "id": 7403,
+    "sender": "mit-mit",
+    "content": "@rusenask as detailed over in https://github.com/flutter/flutter/issues/6192, we now have a plugin for this on Android! Please take a look at https://pub.dartlang.org/packages/android_alarm_manager, and let us know if that satisfies your requirements.",
+    "createdAt": "2018-02-01T13:56:54Z"
+  },
+  {
+    "id": 7404,
+    "sender": "rusenask",
+    "content": "It looks promising and I could probably change my app from \"daemon\" style to more like \"periodic bursts\" with that alarm manager. To wake up, consume any news and shutdown. \r\n\r\nHowever, ideally I would use something that allows my process to always run in the foreground. https://stackoverflow.com/questions/15758980/android-service-needs-to-run-always-never-pause-or-stop . In short, my app runs a bot so it pretty much always needs to run.",
+    "createdAt": "2018-02-01T15:08:11Z"
+  },
+  {
+    "id": 7405,
+    "sender": "Hixie",
+    "content": "We will need to make sure we have documented this before we consider this done.",
+    "createdAt": "2018-02-14T00:18:20Z"
+  },
+  {
+    "id": 7406,
+    "sender": "sethladd",
+    "content": "Should we open a new documentation issue?",
+    "createdAt": "2018-02-14T00:20:26Z"
+  },
+  {
+    "id": 7407,
+    "sender": "mit-mit",
+    "content": "Adding to FAQ in https://github.com/flutter/website/pull/802",
+    "createdAt": "2018-02-15T14:44:11Z"
+  },
+  {
+    "id": 7408,
+    "sender": "cbracken",
+    "content": "@zanderso -- @mjohnsullivan is the best contact for the documentation side.",
+    "createdAt": "2018-02-23T00:34:26Z"
+  },
+  {
+    "id": 7409,
+    "sender": "art-voloshyn",
+    "content": "Is the ETA known?",
+    "createdAt": "2018-03-11T13:40:22Z"
+  },
+  {
+    "id": 7410,
+    "sender": "Hixie",
+    "content": "@it2bz ETA for what exactly? Support on Android? Documentation? Support on iOS? Examples?",
+    "createdAt": "2018-03-11T20:05:14Z"
+  },
+  {
+    "id": 7411,
+    "sender": "art-voloshyn",
+    "content": "@Hixie Support on Android and iOS and at least basic documentation with examples",
+    "createdAt": "2018-03-11T20:40:28Z"
+  },
+  {
+    "id": 7412,
+    "sender": "Hixie",
+    "content": "For iOS, can you elaborate on exactly what you would like? Apple has strict restrictions on what applications can do in the background, so it would be useful for us to know exactly which APIs you want us to hook into.",
+    "createdAt": "2018-03-12T00:25:36Z"
+  },
+  {
+    "id": 7413,
+    "sender": "art-voloshyn",
+    "content": "I'm looking for opportunity background work with user location",
+    "createdAt": "2018-03-16T18:21:41Z"
+  },
+  {
+    "id": 7414,
+    "sender": "mainrs",
+    "content": "Looks like this is the 'ask background stuff' thread so I'll start. I wanted to implement a music player using flutter but am unsure if it would be possible (API wise) to keep the music playing even if the app is minized on the phone. I know that on Android you could start a service which would actually be able to continue even if the app gets closed. It would then relaunch the activity if needed. Is something similar possible on flutter right now? ",
+    "createdAt": "2018-03-17T18:09:58Z"
+  },
+  {
+    "id": 7415,
+    "sender": "refi64",
+    "content": "@SirWindfield Your best bet would be to use each platform's native media player API, which will keep playing separately from the app. ",
+    "createdAt": "2018-03-17T19:55:26Z"
+  },
+  {
+    "id": 7416,
+    "sender": "mainrs",
+    "content": "@kirbyfan64 I thought so, thank you!",
+    "createdAt": "2018-03-17T21:38:23Z"
+  },
+  {
+    "id": 7417,
+    "sender": "holospeed",
+    "content": "@Hixie , a solution  like this (Cordova): https://github.com/katzer/cordova-plugin-background-mode, or like this (Swift): https://github.com/yarodevuci/backgroundTask would be nice for Flutter background tasks.",
+    "createdAt": "2018-03-18T23:31:54Z"
+  },
+  {
+    "id": 7418,
+    "sender": "Hixie",
+    "content": "@holospeed Those are approaches that Apple would likely not let you ship, so I'm guessing we wouldn't want to spend time implementing this ourselves. It's certainly something we welcome you to implement as a community-contributed package on pub, if you care about personal apps on iOS, though.",
+    "createdAt": "2018-03-20T23:15:37Z"
+  },
+  {
+    "id": 7419,
+    "sender": "aegis123",
+    "content": "Maybe a solution would be to make specific background plugins like a plugin for audio playback in the background, and a plugin for GPS/Location in the background etc. instead of trying to create a abstract background mechanism which needs to support everything.",
+    "createdAt": "2018-03-21T08:49:02Z"
+  },
+  {
+    "id": 7420,
+    "sender": "iBob101",
+    "content": "Is it possible to run a timer in the background that brings the app to the\nforeground at a certain time?\n\nOn Wed, 21 Mar 2018 at 08:49, Dylan Drost <notifications@github.com> wrote:\n\n> Maybe a solution would be to make specific background plugins like a\n> plugin for audio playback in the background, and a plugin for GPS/Location\n> in the background etc. instead of trying to create a abstract background\n> mechanism which needs to support everything.\n>\n> —\n> You are receiving this because you are subscribed to this thread.\n> Reply to this email directly, view it on GitHub\n> <https://github.com/flutter/flutter/issues/3671#issuecomment-374867947>,\n> or mute the thread\n> <https://github.com/notifications/unsubscribe-auth/AK-c-E0KdEkvbH5uCBIM8FaAbYQkSU2tks5tghQWgaJpZM4IVsUk>\n> .\n>\n",
+    "createdAt": "2018-03-21T09:11:33Z"
+  },
+  {
+    "id": 7421,
+    "sender": "zanderso",
+    "content": "@iBob101 I believe this is possible if you use the [android_alarm_manager](https://github.com/flutter/plugins/tree/master/packages/android_alarm_manager) plugin in combination with the [android_intent](https://github.com/flutter/plugins/tree/master/packages/android_intent) plugin.",
+    "createdAt": "2018-03-23T05:49:30Z"
+  },
+  {
+    "id": 7422,
+    "sender": "dahabit",
+    "content": "In my use case All background tasks i need  are to play audio in the background at certain time  so i think @aegis123 suggestion is great we can start small and by time provide mechanism that support any background process ",
+    "createdAt": "2018-04-12T13:47:15Z"
+  },
+  {
+    "id": 7423,
+    "sender": "thedumbtechguy",
+    "content": "I also need this for playing music in the background.",
+    "createdAt": "2018-04-19T19:17:23Z"
+  }
+]

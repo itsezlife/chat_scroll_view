@@ -1,0 +1,386 @@
+[
+  {
+    "id": 1728,
+    "sender": "KsAmJ",
+    "content": "do we still need to put \r\n`ndk {\r\n       abiFilters 'armeabi-v7a' , 'x86', 'armeabi'\r\n       }` in the gradle ot no longer needed after the fix on beta??",
+    "createdAt": "2019-07-07T15:10:12Z"
+  },
+  {
+    "id": 1729,
+    "sender": "blasten",
+    "content": "@ksamj that isn’t needed.",
+    "createdAt": "2019-07-07T18:26:50Z"
+  },
+  {
+    "id": 1730,
+    "sender": "ssghazaryan",
+    "content": "> > i tried but not working at 32\r\n> \r\n> What do you mean by `32`? Like \"I can generate a fat apk, and that apk is working on a 64-bit device, but crashing on 32-bit device\"?\r\n> \r\n> Can you post the result of `flutter doctor`, your step-by-step (e.g. this is the step 2 of progard https://flutter.dev/docs/deployment/android#step-2---enable-obfuscation-andor-minification), are you generating APK or AAB, and which device are you testing?\r\n\r\nDoctor summary (to see all details, run flutter doctor -v):\r\n[✓] Flutter (Channel beta, v1.7.8+hotfix.2, on Mac OS X 10.14.5 18F132, locale ru-RU)\r\n \r\n[✓] Android toolchain - develop for Android devices (Android SDK version 28.0.3)\r\n[✓] Xcode - develop for iOS and macOS (Xcode 10.2.1)\r\n[✓] iOS tools - develop for iOS devices\r\n[✓] Android Studio (version 3.4)\r\n[✓] Connected device (1 available)\r\n\r\n• No issues found!\r\n\r\nDoctor summary (to see all details, run flutter doctor -v):\r\n[✓] Flutter (Channel beta, v1.7.8+hotfix.2, on Mac OS X 10.14.5 18F132, locale ru-RU)\r\n \r\n[✓] Android toolchain - develop for Android devices (Android SDK version 28.0.3)\r\n[✓] Xcode - develop for iOS and macOS (Xcode 10.2.1)\r\n[✓] iOS tools - develop for iOS devices\r\n[✓] Android Studio (version 3.4)\r\n[✓] Connected device (1 available)\r\n\r\n• No issues found!\r\nDoctor summary (to see all details, run flutter doctor -v):\r\n[✓] Flutter (Channel beta, v1.7.8+hotfix.2, on Mac OS X 10.14.5 18F132, locale ru-RU)\r\n \r\n[✓] Android toolchain - develop for Android devices (Android SDK version 28.0.3)\r\n[✓] Xcode - develop for iOS and macOS (Xcode 10.2.1)\r\n[✓] iOS tools - develop for iOS devices\r\n[✓] Android Studio (version 3.4)\r\n[✓] Connected device (1 available)\r\n\r\n• No issues found!\r\nbuild apk \r\nI did everything as in the instructions but it does not install on 32 bit",
+    "createdAt": "2019-07-08T08:43:09Z"
+  },
+  {
+    "id": 1731,
+    "sender": "truongsinh",
+    "content": "> I did everything as in the instructions but it does not install on 32 bit\r\n\r\nAny screenshot/log showing that the installation of 32-bit apk on the 32-bit device was not successful, and what device model is that?",
+    "createdAt": "2019-07-08T10:38:08Z"
+  },
+  {
+    "id": 1732,
+    "sender": "tvolkert",
+    "content": "Hi all,\r\n\r\n`v1.7.8+hotfix.2` has been released to the stable channel, so this fix is now available in all channels.  Thanks everyone for your patience and help along the way!",
+    "createdAt": "2019-07-08T17:50:01Z"
+  },
+  {
+    "id": 1733,
+    "sender": "ssghazaryan",
+    "content": "> > I did everything as in the instructions but it does not install on 32 bit\r\n> \r\n> Any screenshot/log showing that the installation of 32-bit apk on the 32-bit device was not successful, and what device model is that?\r\n\r\nthanks for help, i tried to build appbundle and its worked.",
+    "createdAt": "2019-07-09T05:54:30Z"
+  },
+  {
+    "id": 1734,
+    "sender": "nimesh1997",
+    "content": "@tvolkert Same issue please check it. [https://github.com/flutter/flutter/issues/31962#issuecomment-509458960](https://github.com/flutter/flutter/issues/31962#issuecomment-509458960)",
+    "createdAt": "2019-07-09T06:09:20Z"
+  },
+  {
+    "id": 1735,
+    "sender": "dnfield",
+    "content": "@nimesh1997 that issue has nothing to do with this one.  If you didn't find the answers provides in the linked issue helpful, perhaps you could look at posting a Stackoverflow question with your problem.",
+    "createdAt": "2019-07-09T06:21:07Z"
+  },
+  {
+    "id": 1736,
+    "sender": "angel1st",
+    "content": "@tvolkert - just to clarify - the above hotfix can be used to build separate apks according to [flutter docs instructions](https://flutter.dev/docs/deployment/android#build-an-apk), correct? \r\nTherefore, it won't be required to make any other changes in gradle file [as described in earlier partial solutions](https://github.com/flutter/flutter/issues/18494#issuecomment-495972649)\r\nThanks for you and the rest of the team excellent work and on time delivery!",
+    "createdAt": "2019-07-09T13:50:23Z"
+  },
+  {
+    "id": 1737,
+    "sender": "angel1st",
+    "content": "I have just compiled one of my app with the most recent hot fix. As a result the compiled `app-production-armeabi-v7a-release.apk` is not able to run on Galaxy S3 mini (Android OS 4.1.2) - after the splash screen, the app closes without any notification.\r\nI am able however to successfully run the very same apk on 64 phone e.g. Galaxy S8.\r\nhere is how I run the flutter from the command line:\r\n\r\n> flutter build apk --target=\"lib/config/main_production.dart\" --flavor=production --split-per-abi\r\n\r\nand here is my `flutter doctor -v`\r\n\r\n> [√] Flutter (Channel stable, v1.7.8+hotfix.2, on Microsoft Windows [Version 10.0.17763.557], locale en-US)\r\n    • Flutter version 1.7.8+hotfix.2 at E:\\DevTools\\flutter\r\n    • Framework revision 2e540931f7 (7 days ago), 2019-07-02 09:31:07 -0700\r\n    • Engine revision b1cb0d9e9b\r\n    • Dart version 2.4.0\r\n\r\n\r\n> [√] Android toolchain - develop for Android devices (Android SDK version 28.0.3)\r\n    • Android SDK at E:\\DevTools\\Android\\Sdk\r\n    • Android NDK location not configured (optional; useful for native profiling support)\r\n    • Platform android-28, build-tools 28.0.3\r\n    • ANDROID_SDK_ROOT = E:\\DevTools\\Android\\Sdk\r\n    • Java binary at: E:\\DevTools\\android-studio\\jre\\bin\\java\r\n    • Java version OpenJDK Runtime Environment (build 1.8.0_152-release-1343-b01)\r\n    • All Android licenses accepted.\r\n\r\n> [√] Android Studio (version 3.4)\r\n    • Android Studio at E:\\DevTools\\android-studio\r\n    • Flutter plugin version 37.0.1\r\n    • Dart plugin version 183.6270\r\n    • Java version OpenJDK Runtime Environment (build 1.8.0_152-release-1343-b01)\r\n\r\n> [√] Connected device (1 available)\r\n    • Android SDK built for x86 • emulator-5554 • android-x86 • Android 8.1.0 (API 27) (emulator)\r\n\r\n> • No issues found!\r\n\r\n\r\nAdditionally - the **fat** apk also is not able to run - after the install (on the same arm-32 device) & run it just closes.\r\nPlease let me know how to proceed and resolve the issue, thanks!",
+    "createdAt": "2019-07-09T14:28:30Z"
+  },
+  {
+    "id": 1738,
+    "sender": "truongsinh",
+    "content": "@angel1st is it possible that you can share your AAB and/or APK file here so that we can help you troubleshooting?",
+    "createdAt": "2019-07-09T14:56:52Z"
+  },
+  {
+    "id": 1739,
+    "sender": "angel1st",
+    "content": "@truongsinh - sure, here they are:\r\n\r\n[app-production-releases.zip](https://github.com/flutter/flutter/files/3373585/app-production-releases.zip)\r\n\r\nI have uploaded both APKs, although, the alleged issue is with arm-32 version as stated above.",
+    "createdAt": "2019-07-09T15:05:55Z"
+  },
+  {
+    "id": 1740,
+    "sender": "angel1st",
+    "content": "Guys, in the meantime, would someone be so kind and tell (if they know), what would happen after August 1st in Google Play Store, in case you do not have arm-64 version of your app - would the apk will stop to be served to arm64 devices or you will not be able to upload arm32 only version or both?",
+    "createdAt": "2019-07-09T16:28:57Z"
+  },
+  {
+    "id": 1741,
+    "sender": "blasten",
+    "content": "@angel1st I was able to run the app (app-production-armeabi-v7a-release.apk) on Android 4.4.2 Galaxy S4. Nice app!\r\n\r\nI suspect this is very specific to Galaxy S3 mini / Android OS 4.1.2. In the meanwhile, I requested this configuration to see if I can repro the issue.",
+    "createdAt": "2019-07-09T18:03:43Z"
+  },
+  {
+    "id": 1742,
+    "sender": "truongsinh",
+    "content": "@angel1st here's the most informative source: https://android-developers.googleblog.com/2019/01/get-your-apps-ready-for-64-bit.html\r\n\r\n>  The requirement [64-bit stuff] does not apply to:\r\n> - APKs or app bundles explicitly targeting Wear OS or Android TV, which are form factors that do not currently support 64-bit code.\r\n> - APKs or app bundles that are not distributed to devices running Android 9 Pie or later.\r\n\r\n> Starting August 1, 2019:\r\n> - All new apps and app updates that include native code are required to provide 64-bit versions in addition to 32-bit versions when publishing to Google Play.\r\n\r\nIn other words, apps continue to be distributed, though you cannot upload a new version of exisiting app, or publish new app without compliance. ",
+    "createdAt": "2019-07-10T00:22:04Z"
+  },
+  {
+    "id": 1743,
+    "sender": "blasten",
+    "content": "@angel1st I was able to repro this issue on a Galaxy S3 mini running Android OS 4.1.2.\r\n\r\nThe logcat is:\r\n```\r\n[ERROR:flutter/fml/platform/posix/native_library_posix.cc(16)] Could not open library 'libapp.so' due to error 'Cannot load library: load_library[1093]: Library 'libapp.so' not found'.\r\n07-10 00:16:50.298 8739-8739/? E/flutter: [ERROR:flutter/fml/platform/posix/native_library_posix.cc(16)] Could not open library 'libapp.so' due to error 'Cannot load library: load_library[1093]: Library 'libapp.so' not found'.\r\n07-10 00:16:50.298 8739-8739/? E/flutter: [ERROR:flutter/runtime/dart_vm_data.cc(19)] VM snapshot invalid and could not be inferred from settings.\r\n07-10 00:16:50.298 8739-8739/? E/flutter: [ERROR:flutter/runtime/dart_vm.cc(238)] Could not setup VM data to bootstrap the VM from.\r\n07-10 00:16:50.298 8739-8739/? E/flutter: [ERROR:flutter/runtime/dart_vm_lifecycle.cc(89)] Could not create Dart VM instance.\r\n07-10 00:16:50.298 8739-8739/? A/flutter: [FATAL:flutter/shell/common/shell.cc(218)] Check failed: vm. Must be able to initialize the VM.\r\n```\r\n\r\nI filed https://github.com/flutter/flutter/issues/35838 in the meanwhile.\r\n\r\ncc @jason-simmons ",
+    "createdAt": "2019-07-10T00:25:37Z"
+  },
+  {
+    "id": 1744,
+    "sender": "angel1st",
+    "content": "@truongsinh - thanks for the overview.\r\n\r\n@blasten - thanks for the prompt feedback. As far as I understand, there is nothing I can do ATM but monitor #35838 with fingers crossed it will be resolved at some point this month? I believe the same issue will appear to any other apk for Android 4.1.2 compiled with the most recent hot fix?\r\nFYI - the app apk compiled with previous flutter stable version does not have this issue (S3 mini with Android 4.1.2 is one of my test devices).",
+    "createdAt": "2019-07-10T05:16:59Z"
+  },
+  {
+    "id": 1745,
+    "sender": "nohli",
+    "content": "Anyone else got a mail from Google today, saying \r\n\r\n> \"Action required: Update your apps to be 64-bit compliant by August 1, 2019\"\r\n\r\nalthough already publishing both 32bit and 64bit versions?\r\n\r\nIt says \r\n\r\n> By August 1, 2019, all apps that use native code must provide a 64-bit version in order to publish an update. As of the sending of this email, at least one of your apps* does not yet meet the requirement\r\n\r\n> *Note: This list of apps reflects Google’s best estimate as of the sending of this email. (...)\r\n\r\nI guess, Google's \"best estimate\" is not correct?",
+    "createdAt": "2019-07-10T07:05:07Z"
+  },
+  {
+    "id": 1746,
+    "sender": "JaeyoungChu",
+    "content": "Thanks for Flutter team. I upgrade Flutter and build on stable channel and the warning is gone.\r\nhope to not have a bug with testers but so far I did not find any bugs yet with real device!",
+    "createdAt": "2019-07-10T14:46:16Z"
+  },
+  {
+    "id": 1747,
+    "sender": "rsin46",
+    "content": "Thanks Team Flutter, upgrading Flutter with the hotfix fixes this issue when building .aab",
+    "createdAt": "2019-07-11T07:28:16Z"
+  },
+  {
+    "id": 1748,
+    "sender": "christiangarciareyes",
+    "content": "Thanks to the flutter team for this achievement. Now to continue programmed!",
+    "createdAt": "2019-07-12T20:18:24Z"
+  },
+  {
+    "id": 1749,
+    "sender": "abdullayev007",
+    "content": "@angel1st I am also having issues on some Samsung devices.\r\n\r\nhttps://github.com/flutter/flutter/issues/36128",
+    "createdAt": "2019-07-14T04:35:21Z"
+  },
+  {
+    "id": 1750,
+    "sender": "angel1st",
+    "content": "@abdullayev007 - thanks! I would suggest you to take a look at #35838, it might be somehow related.",
+    "createdAt": "2019-07-14T05:09:18Z"
+  },
+  {
+    "id": 1751,
+    "sender": "surveshoeb",
+    "content": "> > I did everything as in the instructions but it does not install on 32 bit\r\n> \r\n> Any screenshot/log showing that the installation of 32-bit apk on the 32-bit device was not successful, and what device model is that?\r\n![IMG-20190710-WA0000](https://user-images.githubusercontent.com/26933124/61184883-378c4b80-a670-11e9-8518-2a2825a4cafb.jpg)\r\n\r\nThe device is Samsung M10\r\n\r\n",
+    "createdAt": "2019-07-14T14:18:31Z"
+  },
+  {
+    "id": 1752,
+    "sender": "ghost",
+    "content": "@tvolkert Please give me any solution for fixing following issue:\r\nhttps://github.com/flutter/flutter/issues/36063\r\n\r\nThanks",
+    "createdAt": "2019-07-15T06:21:54Z"
+  },
+  {
+    "id": 1753,
+    "sender": "muthufmass",
+    "content": "I tried the latest version of flutter from dev channel - v1.8.4. I created a fresh project too - vanilla flutter project and tried building a release signed version out of it. It builds and app size is just 10.4 mb. But tried all above steps in this trail, nothing helping out. Can some one give a clear set of sequence of steps to take a build that we can push to playstore with aab or apk with emulator and local device from flutter. Its been more than a week, we have project built on flutter not moving to prod on android, but we are able to publish to appstore on ios. Some help will be great.\r\n\r\n`[✓] Flutter (Channel dev, v1.8.4, on Mac OS X 10.14.5, locale en-US)\r\n    • Flutter version 1.8.4 at /Users/muthu/muthu/devapps/flutter\r\n    • Framework revision 954714c967 (7 days ago), 2019-08-02 10:10:39 -0700\r\n    • Engine revision 26368225b5\r\n    • Dart version 2.5.0 (build 2.5.0-dev.1.0 bd049f5b53)\r\n\r\n[!] Android toolchain - develop for Android devices (Android SDK version 29.0.1)\r\n    • Android SDK at ../Library/Android/sdk\r\n    • Android NDK location not configured (optional; useful for native profiling support)\r\n    • Platform android-29, build-tools 29.0.1\r\n    • Java binary at: /Applications/Android Studio.app/Contents/jre/jdk/Contents/Home/bin/java\r\n    • Java version OpenJDK Runtime Environment (build 1.8.0_152-release-1343-b01)\r\n    ✗ Android license status unknown.\r\n      Try re-installing or updating your Android SDK Manager.\r\n      See https://developer.android.com/studio/#downloads or visit https://flutter.dev/setup/#android-setup\r\n      for detailed instructions.\r\n\r\n[✓] Xcode - develop for iOS and macOS (Xcode 10.3)\r\n    • Xcode at /Applications/Xcode.app/Contents/Developer\r\n    • Xcode 10.3, Build version 10G8\r\n    • CocoaPods version 1.7.3\r\n\r\n[✓] Android Studio (version 3.4)\r\n    • Android Studio at /Applications/Android Studio.app/Contents\r\n    • Flutter plugin version 38.2.1\r\n    • Dart plugin version 183.6270\r\n    • Java version OpenJDK Runtime Environment (build 1.8.0_152-release-1343-b01)\r\n\r\n[✓] VS Code (version 1.36.1)\r\n    • VS Code at /Applications/Visual Studio Code.app/Contents\r\n    • Flutter extension version 3.3.0\r\n\r\n[✓] Connected device (3 available)\r\n    • Android SDK built for x86 • emulator-5554                        • android-x86 • Android 9 (API 28)\r\n      (emulator)`",
+    "createdAt": "2019-08-09T12:56:33Z"
+  },
+  {
+    "id": 1754,
+    "sender": "tvolkert",
+    "content": "@muthufmass, please file a new issue with details of what's not working and how to reproduce the failure.  Thanks!",
+    "createdAt": "2019-08-09T14:32:46Z"
+  },
+  {
+    "id": 1755,
+    "sender": "truongsinh",
+    "content": "> Can some one give a clear set of sequence of steps to take a build that we can push to playstore\r\n\r\nhttps://flutter.dev/docs/deployment/android",
+    "createdAt": "2019-08-09T14:39:59Z"
+  },
+  {
+    "id": 1756,
+    "sender": "muthufmass",
+    "content": "> > Can some one give a clear set of sequence of steps to take a build that we can push to playstore\r\n> \r\n> https://flutter.dev/docs/deployment/android\r\n\r\nThese steps are already followed, its not working on the prod release build. debug build works! I clearly find a difference, in debug build, the .so files of flutter are present, but not with the release version. Those are ones, creating problem to install the apk to emulator or to devices with signed apk. ",
+    "createdAt": "2019-08-09T14:55:04Z"
+  },
+  {
+    "id": 1757,
+    "sender": "muthufmass",
+    "content": "> @muthufmass, please file a new issue with details of what's not working and how to reproduce the failure. Thanks!\r\n\r\nI hope I have shared cleared steps above. Fresh app creation using flutter create - vanilla code with latest flutter sdk. Unable to build a release version, while debug versions runs smooth. Significant difference between prod and dev version of apk on size. Tried all the above steps, unable to build a release version that runs. Build happens super fast and file comes less than 11 mb with release, while with debug apk it comes around 40mb+. Debug apk works, while prod release signed apk doesnt install even.\r\n\r\n<img width=\"332\" alt=\"Screen Shot 2019-08-09 at 8 29 12 PM\" src=\"https://user-images.githubusercontent.com/378984/62788406-6ddcaf80-bae4-11e9-9dda-c6d839b6833d.png\">\r\n",
+    "createdAt": "2019-08-09T15:00:00Z"
+  },
+  {
+    "id": 1758,
+    "sender": "blasten",
+    "content": "@muthufmass when you file the new issue, please include the Android SDK version, device model, the doctor output, and steps starting from `flutter create`.",
+    "createdAt": "2019-08-09T15:06:30Z"
+  },
+  {
+    "id": 1759,
+    "sender": "tvolkert",
+    "content": "@muthufmass as well as adb logcat output.\r\n\r\nThis issue is closed - please file a new issue so we can track it properly.",
+    "createdAt": "2019-08-09T15:08:05Z"
+  },
+  {
+    "id": 1760,
+    "sender": "muthufmass",
+    "content": "raised a separate ticket now https://github.com/flutter/flutter/issues/37935",
+    "createdAt": "2019-08-09T17:34:53Z"
+  },
+  {
+    "id": 1761,
+    "sender": "solid-dimakoniaiev",
+    "content": "If u had flavors in your project, and want to support both x64 and x32, just add jniLibs folder to your   flavor folder and it's work great, like this \r\n![image](https://user-images.githubusercontent.com/52494380/63346682-34b30380-c35e-11e9-9ab2-a106834cadbc.png)\r\n",
+    "createdAt": "2019-08-20T12:21:45Z"
+  },
+  {
+    "id": 1762,
+    "sender": "jeuxdaily",
+    "content": "how can I do this in adobe animate cc\r\nneed more info\r\n",
+    "createdAt": "2019-08-23T06:46:37Z"
+  },
+  {
+    "id": 1763,
+    "sender": "newapproach",
+    "content": "Google play console recently has started disabling the rollout button because of various warnings. And one of those warnings is using apk instead of .aab file. There are solutions to make .aab file if the project has been created in Android Studio or Unity. But what if apk has been created by Animate CC or Haxe/Flash Develop? Is there any way to convert?",
+    "createdAt": "2019-09-14T06:06:15Z"
+  },
+  {
+    "id": 1764,
+    "sender": "eseidelGoogle",
+    "content": "@newapproach it's not clear to me if your comment has anything to do with Flutter?  Would you be willing to file a new issue with more details?  Thanks!",
+    "createdAt": "2019-09-16T15:14:41Z"
+  },
+  {
+    "id": 1765,
+    "sender": "kecson",
+    "content": "> Have the same problem - but flutter.so not included in \"armeabi-v7a folder.\r\n> Has only third party libraries for x86 and armeabi-v7a - but no arm64.\r\n> Would like to build flutter only for \"armeabi-v7a with\r\n> ndk{\r\n> abiFilters \"armeabi-v7a\" // also not work\"armeabi\", \"x86\",\r\n> }\r\n> and set as target-platform as @mravn-google suggest to android-arm.\r\n> \r\n> APK without specify arch and not include libraries\r\n> <img alt=\"screen shot 2018-07-26 at 21 06 53\" width=\"746\" src=\"https://user-images.githubusercontent.com/604580/43284614-a4f9450c-911c-11e8-8a71-6cc3c4799cc3.png\">\r\n> \r\n> APK with libraries and no arm spec\r\n> <img alt=\"screen shot 2018-07-26 at 21 10 30\" width=\"748\" src=\"https://user-images.githubusercontent.com/604580/43284663-d232a3ec-911c-11e8-922f-4735242ad7ff.png\">\r\n> \r\n> APK with specify arch and include libraries\r\n> <img alt=\"screen shot 2018-07-26 at 21 12 58\" width=\"759\" src=\"https://user-images.githubusercontent.com/604580/43284645-c4591486-911c-11e8-9ed7-5991efeffe0c.png\">\r\n> \r\n> Any suggestion how to debug further steps?\r\n\r\n  I has find this error too, it is fixed?? Could help me?",
+    "createdAt": "2019-11-22T09:08:34Z"
+  },
+  {
+    "id": 1766,
+    "sender": "eseidelGoogle",
+    "content": "I recommend asking on Stack Overflow, or opening a new bug.  I doubt this closed bug will be the right place for folks to help you resolve the above issue.  Thanks!",
+    "createdAt": "2019-11-22T15:17:10Z"
+  },
+  {
+    "id": 1767,
+    "sender": "aldwnesx",
+    "content": "> This was my solution:\r\n> \r\n> 1. in `app gradle`\r\n> \r\n> ```groovy-gradle\r\n> splits {\r\n>         // Configures multiple APKs based on ABI.\r\n>         abi {\r\n>             // Enables building multiple APKs per ABI.\r\n>             enable true\r\n>             // By default all ABIs are included, so use reset() and include to specify that we only\r\n>             // want APKs for armeabi-v7a and arm64-v8a.\r\n> \r\n>             // Resets the list of ABIs that Gradle should create APKs for to none.\r\n>             reset()\r\n> \r\n>             // Specifies a list of ABIs that Gradle should create APKs for.\r\n>             include \"armeabi-v7a\", \"arm64-v8a\"\r\n> \r\n>             // Specifies that we do not want to also generate a universal APK that includes all ABIs.\r\n>             universalApk false\r\n>         }\r\n>     }\r\n> ```\r\n> \r\n> 1. run `flutter build apk --release --target-platform=android-arm`\r\n> 2. upload `app-armeabi-v7a-release.apk` to the play store\r\n> 3. increment `versionCode`\r\n> 4. run `flutter build apk --release --target-platform=android-arm64 `\r\n> 5. upload `app-arm64-v8a-release.apk` to the play store\r\n> \r\n> Google play store will serve App according to device architecture. 32bit devices are happy, 64bit devices are happy and I'm happy knowing that my APK size remains relatively small while still serving both architectures.\r\n> \r\n> If we include support for both architectures in the same APK, expect the size of your app to be 10MB+\r\n\r\ndoesn't work.. when I view it on playstore on pixel 2 it says not supported for this device",
+    "createdAt": "2020-03-28T06:08:19Z"
+  },
+  {
+    "id": 1768,
+    "sender": "jbg",
+    "content": "It does work, many well-known apps have been deploying multiple APKs this way and letting the Play Store serve the appropriate one to the appropriate device for a long time.\r\n\r\nApp bundles are the modern way to do this, though.",
+    "createdAt": "2020-03-28T06:38:41Z"
+  },
+  {
+    "id": 1769,
+    "sender": "aldwnesx",
+    "content": "> It does work, many well-known apps have been deploying multiple APKs this way and letting the Play Store serve the appropriate one to the appropriate device for a long time.\r\n> \r\n> App bundles are the modern way to do this, though.\r\n\r\nI don’t know why it’s not showing up on pixel 2 playstore for me then... I folllowr exactly , twice, just incase..\r\nI used app bundle and my app is crashing hence I’m looking for alternatives ",
+    "createdAt": "2020-03-28T06:46:21Z"
+  },
+  {
+    "id": 1770,
+    "sender": "awdavies",
+    "content": "## [fuchsia_remote_debug_protocol] Adds the fuchsia remote debug protocol library.\n\nIncludes very basic functionality to connect to a VM instance and\r\ndetermine the active Flutter Views running on the machine.",
+    "createdAt": "2018-01-26T20:59:02Z"
+  },
+  {
+    "id": 1771,
+    "sender": "yjbanov",
+    "content": "The high-level structure of this package LGTM. Let's do a round of design review, then style review. Let's also make sure the package is configured consistently with the other packages, e.g. transitive dependencies in `pubspec.yaml`.\r\n\r\nAlso, let's add tests! 😃 ",
+    "createdAt": "2018-01-26T21:56:48Z"
+  },
+  {
+    "id": 1772,
+    "sender": "awdavies",
+    "content": "Most code is addressed.  Still figuring out what makes exiting the program hang (having some issues with observatory).",
+    "createdAt": "2018-01-27T00:32:35Z"
+  },
+  {
+    "id": 1773,
+    "sender": "Hixie",
+    "content": "I'm concerned about this being a top-level package. Can you elaborate on the use case and why this is a package? Do we expect people to import it?",
+    "createdAt": "2018-01-29T21:37:14Z"
+  },
+  {
+    "id": 1774,
+    "sender": "awdavies",
+    "content": "@Hixie the package is intended to function similar to the flutter_driver, but from the context of running in a Fuchsia environment.  This would require significant refactoring of the existing flutter_driver, due to the fact that there are often multiple instances of the Dart VM running at a given time, and that an application can be composed of multiple isolates across multiple Dart VM's.\r\n\r\nWe would expect people to import this, yes.  This change is mostly a dummy one for myself to figure out the basics of connecting/talking to the Fuchsia Dart VM (and to work out any potential issues I might run into with things like flutter analyze, continuous integration, etc) before trying to tackle a robust API.",
+    "createdAt": "2018-01-30T00:16:23Z"
+  },
+  {
+    "id": 1775,
+    "sender": "Hixie",
+    "content": "Ah, I see. Maybe it should be called something like `multiinstance_driver`? I'm worried that `flutter_fuchsia` really doesn't convey what it is; the `driver` part of `flutter_driver` is really the important part, not the `flutter` part.",
+    "createdAt": "2018-01-30T01:29:59Z"
+  },
+  {
+    "id": 1776,
+    "sender": "awdavies",
+    "content": "sgtm.  @yjbanov thoughts?",
+    "createdAt": "2018-01-30T01:32:22Z"
+  },
+  {
+    "id": 1777,
+    "sender": "Hixie",
+    "content": "Also unless this is very fuchsia-specific I recommend keeping the API agnostic about the OS, because that way if we ever have a similar setup on another platform we can re-use this without the awkward problem of the classes referring to another OS. :-)",
+    "createdAt": "2018-01-30T01:36:14Z"
+  },
+  {
+    "id": 1778,
+    "sender": "awdavies",
+    "content": "@Hixie To double check again with a comment Yegor made: should the License header be written under the Flutter team, or under the Fuchsia team?  I figure given the OS agnostic comment it'd be Copyrighted under the Flutter team?\r\n\r\n@yjbanov PTAL at the code (also check up on Ian's comments about the purpose of this package).",
+    "createdAt": "2018-01-30T20:11:47Z"
+  },
+  {
+    "id": 1779,
+    "sender": "yjbanov",
+    "content": "@Hixie, all of the OS-agnostic bits will indeed go in `package:flutter_driver`. This new package would only contain Fuchsia-specific parts (How to talk to a Fuchsia device over USB and SSH. How to track the lifecycle of processes/stories/mods running in Fuchsia. How to enable/disable the driver extension inside a Flutter app running on Fuchsia.). One way to look at it is this is \"adb for Fuchsia\". It can indeed be imported and used independently of `flutter_driver` and `flutter_tools` (perhaps the Fuchsia infra team can use it for some testing). I still think that this package should live over in the Fuchsia source (similar to how adb is developed as part of the Android SDK), and managed and tested using Fuchsia infra (`jiri` and so on). But I failed to convince the Fuchsia team to do this. Developing it as part of Flutter but as a standalone package seemed like a good compromise.",
+    "createdAt": "2018-01-30T22:40:36Z"
+  },
+  {
+    "id": 1780,
+    "sender": "yjbanov",
+    "content": "- [ ] let's add tests\r\n- [ ] when you ran `flutter update-packages --force-upgrade`, did it update other pubspecs? It usually does\r\n",
+    "createdAt": "2018-01-30T22:56:12Z"
+  },
+  {
+    "id": 1781,
+    "sender": "awdavies",
+    "content": "- Will do!\r\n- Yes, it did. I wasn't sure whether to include changes to other pubspecs as part of this change.",
+    "createdAt": "2018-01-30T23:20:16Z"
+  },
+  {
+    "id": 1782,
+    "sender": "awdavies",
+    "content": "/CC @krisgiesing here's the start to the driver impl we discussed",
+    "createdAt": "2018-01-30T23:25:54Z"
+  },
+  {
+    "id": 1783,
+    "sender": "yjbanov",
+    "content": "> I wasn't sure whether to include changes to other pubspecs as part of this change.\r\n\r\nYes, they should be included. The analyzer will complain if the pubspecs have different version numbers.\r\n",
+    "createdAt": "2018-01-30T23:42:37Z"
+  },
+  {
+    "id": 1784,
+    "sender": "Hixie",
+    "content": "I don't really understand what this package is. I can't work out if it's flutter-specific, fuchsia-specific, driver-specific, or what.\r\n\r\nCan we meet before this lands to discuss it?",
+    "createdAt": "2018-01-31T05:10:31Z"
+  },
+  {
+    "id": 1785,
+    "sender": "Hixie",
+    "content": "> @Hixie To double check again with a comment Yegor made: should the License header be written under the Flutter team, or under the Fuchsia team? I figure given the OS agnostic comment it'd be Copyrighted under the Flutter team?\r\n\r\nAll code in this repo should have the exact same copyright license. Just copy it from another file, do not change anything except (optionally) the year (if and only if you created the entire file from scratch).",
+    "createdAt": "2018-01-31T05:11:13Z"
+  },
+  {
+    "id": 1786,
+    "sender": "Hixie",
+    "content": "Ok so @yjbanov explained some of the background to me, and now I have a better idea of what's going on.\r\n\r\nSeveral things come to mind:\r\n\r\n* We should make sure this is _heavily_ tested, including the code that uses `ssh` and that talks over a Web socket.\r\n* I think the code would be easier to read if every type and member didn't have the word \"fuchsia\" in it.\r\n* Rather than `flutter_fuchsia`, the library name should either be more descriptive, e.g. `fuchsia_remote_debug_protocol`, or something more pithy that will become a name we use to refer to it unambiguously, like `fdb` (with a parallel to `adb`).\r\n* We should find a solution that doesn't depend on the existence of a Fuchsia build tree. People will presumably develop for Fuchsia without having compiled it first.\r\n* We should avoid depending on `logging` or any other package that isn't critical; our long-term plan is to dramatically scale back our dependencies because everything we depend on is something we pin for all our developers.\r\n* We should support IPv6 from the get-go. Ideally we'd be agnostic as to v4 vs v6.\r\n* `_potentiallyAvailablePort` is an antipattern; we've gone down that route several times in the past couple of years and it's always been a mistake. The race condition appears harmless but always becomes a flaky test or a crash or some such thing. We should allocate the port when we actually connect, not before then attempt to reuse it.\r\n* I'm a little concerned about depending a magic file in `/tmp` on the host, but I presume that is something that will develop over time over in Fuchsia land.\r\n* We should make sure this follows the [Flutter style guide](https://github.com/flutter/flutter/wiki/Style-guide-for-Flutter-repo) and other conventions. For example, we should make sure to export everything (not just limited to `show`), have dartdocs for everything public (looks like this is already done), constructors first in classes, examples in .../examples/ rather than .../bin/, trailing commas in parameter declarations and argument lists so dartfmt does the right thing (basically an open `(`, `{`, or `[` should either be followed by a newline or the matching close should be on the same line; and vice versa with the closing equivalents).\r\n",
+    "createdAt": "2018-01-31T06:14:57Z"
+  },
+  {
+    "id": 1787,
+    "sender": "MarkOSullivan94",
+    "content": "@awdavies  / @Hixie could you provide a bit more clarity on what this is?",
+    "createdAt": "2018-01-31T12:59:59Z"
+  },
+  {
+    "id": 1788,
+    "sender": "awdavies",
+    "content": "/CC @shrike69 @dglazkov\r\n\r\n(more interested parties)",
+    "createdAt": "2018-01-31T23:04:39Z"
+  },
+  {
+    "id": 1789,
+    "sender": "Hixie",
+    "content": "@MarkOSullivan94 As I understand it, this is a library for use by flutter_tools and flutter_driver (and eventually maybe standalone tools shipped with the library itself) for connecting to a Fuchsia host and listing the Flutter views instantiated on that host.",
+    "createdAt": "2018-01-31T23:37:13Z"
+  },
+  {
+    "id": 1790,
+    "sender": "awdavies",
+    "content": "Sorry for the delay.  Addressing concerns.\r\n\r\n> We should make sure this is heavily tested, including the code that uses ssh and that talks over a Web socket.\r\n\r\nWorking on that right now! :smile: \r\n\r\n> I think the code would be easier to read if every type and member didn't have the word \"fuchsia\" in it.\r\n\r\nDefinitely agree here, I'm just hoping to avoid stepping over existing namespaces (e.g. FlutterView, Isolate, VMService etc).\r\n\r\n> We should find a solution that doesn't depend on the existence of a Fuchsia build tree. People will presumably develop for Fuchsia without having compiled it first.\r\n\r\nAgreed.  My first instinct here was just to optionally point to an SSH config, though if there are more straightforward ways to connect to a Fuchsia instance I would definitely like to implement things that way instead.\r\n\r\n> We should avoid depending on logging or any other package that isn't critical; our long-term plan is to dramatically scale back our dependencies because everything we depend on is something we pin for all our developers.\r\n\r\nI can understand this, but is there a workaround so that we can support logging?  I think it is at least important to know if, say, the user doesn't have permission to bind to a port or the like.\r\n\r\n> We should support IPv6 from the get-go. Ideally we'd be agnostic as to v4 vs v6.\r\n\r\nCan do!\r\n\r\n> `_potentiallyAvailablePort` is an antipattern; we've gone down that route several times in the past couple of years and it's always been a mistake. The race condition appears harmless but always becomes a flaky test or a crash or some such thing. We should allocate the port when we actually connect, not before then attempt to reuse it.\r\n\r\nAh.  This was something I blatantly stole from `flutter_tools`.  That race condition actually ended up being a huge problem on OSX for me, which is for the hack fallback code that I added.  I'll chop it out, though.\r\n\r\n> I'm a little concerned about depending a magic file in /tmp on the host, but I presume that is something that will develop over time over in Fuchsia land.\r\n\r\nAgreed.  The hope is to work with Fuchsia to turn this into an established service so that information about the VM instances can be taken from a websocket similar to the existing Dart VM.  The intent for now is that this method is a placeholder.\r\n\r\n> We should make sure this follows the Flutter style guide and other conventions. For example, we should make sure to export everything (not just limited to show), have dartdocs for everything public (looks like this is already done), constructors first in classes, examples in .../examples/ rather than .../bin/, trailing commas in parameter declarations and argument lists so dartfmt does the right thing (basically an open (, {, or [ should either be followed by a newline or the matching close should be on the same line; and vice versa with the closing equivalents).\r\n\r\nThis was addressed recently, with the exceptions being ../bin/, exports, and trailing commas.  This along with testing and previous comments are in progress :smile: \r\n\r\n ",
+    "createdAt": "2018-01-31T23:58:13Z"
+  },
+  {
+    "id": 1791,
+    "sender": "awdavies",
+    "content": "> @awdavies / @Hixie could you provide a bit more clarity on what this is?\r\n\r\nLong term this is intended to replace lots of code that _should_ be shared between flutter_driver and flutter_tools in such a way as to allow connecting to an arbitrary number of Dart VM's, and then on top of that allow for driving stories/mods on Fuchsia devices similar to flutter_driver.\r\n\r\nI am unsure where the highest priorities lie regarding those requirements.  I am simply implementing things with guidance from @yjbanov.  I am also unsure of how much information has been sync'd between @yjbanov and @Hixie.  It appears they are both on the same page now?  I need to sync up with Yegor, though, to make sure I understand (as far as I understand there is no up-to-date PRD or design doc to reference).\r\n\r\nAt the time of writing this I am under the impression this is initially going to be more Fuchsia-centric code, but now I'm not sure given the existing feedback.",
+    "createdAt": "2018-02-01T00:05:00Z"
+  }
+]

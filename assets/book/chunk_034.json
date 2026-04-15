@@ -1,0 +1,386 @@
+[
+  {
+    "id": 2176,
+    "sender": "Hixie",
+    "content": "I put together some notes on this topic here: [flutter.dev/go/vector-graphics](https://flutter.dev/go/vector-graphics)",
+    "createdAt": "2021-07-09T23:24:19Z"
+  },
+  {
+    "id": 2177,
+    "sender": "Hixie",
+    "content": "[flutter.dev/go/vector-graphics](https://flutter.dev/go/vector-graphics) has a section at the bottom with a proposal for a new format. There's some known issues that early reviewers have reported, but they're mostly minor so far; I'd be very interested in particular in feedback from people who see this format proposal as a non-starter or who see major failings with the proposal as it stands.",
+    "createdAt": "2021-07-16T22:10:38Z"
+  },
+  {
+    "id": 2178,
+    "sender": "creativecreatorormaybenot",
+    "content": "> has a section at the bottom with a proposal for a new format.\r\n\r\nThe table of contents confuses me. Do you mean \"A fixed-alignment binary format\"? @Hixie If so, I guess I would make the headline larger and actually state that it is the proposal for a new format 👍 \r\n\r\nAnd since the document is too long for me to find where the comment would be suited, I want to ask a question here @Hixie:\r\n* Does this proposal have in mind that the number one use case is using existing vector graphics?\r\n* Will it be supported as an option for export by the tools used to create vector graphics (e.g. Adobe Illustrator)?\r\n* Will it have first-party support for converting from SVG and other vector formats?",
+    "createdAt": "2021-07-16T22:23:11Z"
+  },
+  {
+    "id": 2179,
+    "sender": "Hixie",
+    "content": "Yeah, it's the \"A fixed-alignment binary format\" section. It's mostly intended to provoke discussion currently, not implementations, which is why I'm not describing it as a formal proposal.\r\n\r\n> * Does this proposal have in mind that the number one use case is using existing vector graphics?\r\n\r\nYes.\r\n\r\n> * Will it be supported as an option for export by the tools used to create vector graphics (e.g. Adobe Illustrator)?\r\n> * Will it have first-party support for converting from SVG and other vector formats?\r\n\r\nRight now it's just a strawman proposal, in its current form it won't even be supported by Flutter, let alone anyone else. :-)\r\n\r\nBut whatever actual proposals come out of this, whether they are almost identical to the current strawman proposal or whether they are completely different, support as an export format from other tools is a necessary step to deploying a new format, so yes, I imagine we would definitely find a way to export from Adobe Illustrator and other tools. Conversion from SVG is tricky for all the same reasons that implementing SVG is tricky (e.g. I wouldn't expect scripted SVG to ever be perfectly exported to another format, since that's mathematically impossible to implement in the general case), but again, one would definitely want to make tools that support that kind of thing. The tool I wrote to experiment with WVG (the format in the doc above) supports a subset of SVG path syntax, which allowed me to test some images with it. (There's a link to them in the doc.)",
+    "createdAt": "2021-07-16T22:29:00Z"
+  },
+  {
+    "id": 2180,
+    "sender": "creativecreatorormaybenot",
+    "content": "Thanks a lot @Hixie ❤️  That does sound a like like what I wanted to hear 🙂 \r\n\r\n> Conversion from SVG is tricky for all the same reasons that implementing SVG is tricky (e.g. I wouldn't expect scripted SVG to ever be perfectly exported to another format, since that's mathematically impossible to implement in the general case)\r\n\r\nI am of course aware that SVG is tricky because the format itself is not sufficiently standardized. The reason I brought it up is because I feel that this is one of the requirements to make _Flutter Web_ **feel** web-native. You see, in any HTML web app, you can simply plug-in any SVG file and it _just works_. Iirc, Chrome has some of the best compatibility when it comes to displaying SVGs.  \r\nAnd since it is such a widely used format, I really do feel that having this same _plugging in any SVG file just works_ is a big opportunity for Flutter Web.\r\n\r\nFor context, efforts like [`flutter_svg`](https://pub.dev/packages/flutter_svg) are _nice_, but if I am really honest, they are not sufficient. What we end up doing is converting all SVG files to a raster format on the backend-side (which obviously sucks) when using Flutter because almost all SVG files have some kind of incompatibility with `flutter_svg` and that is why I think this is a big lever.\r\n\r\n---\r\n\r\nSo the reason I mentioned SVG: I think it is a key to Flutter Web.  \r\nAnd your strawman proposal gives me a positive feeling (for Flutter as a whole) 🚀 ",
+    "createdAt": "2021-07-16T22:42:32Z"
+  },
+  {
+    "id": 2181,
+    "sender": "Hixie",
+    "content": "If we come up with a new standard here we'd want to work with the browser vendors also to implement it there too, so you'd be able to use the same images in Flutter and on the web just like you can with PNGs.",
+    "createdAt": "2021-07-16T23:12:49Z"
+  },
+  {
+    "id": 2182,
+    "sender": "themightychris",
+    "content": "Could it also be possible for the Flutter web HTML renderer to handle $newStandard -> SVG?",
+    "createdAt": "2021-07-16T23:42:33Z"
+  },
+  {
+    "id": 2183,
+    "sender": "Hixie",
+    "content": "In general I suspect any vector graphics format could be converted to SVG, since SVG is very expressive.",
+    "createdAt": "2021-07-17T00:38:28Z"
+  },
+  {
+    "id": 2184,
+    "sender": "ohir",
+    "content": "First of all: thank you, @‍Hixie for coming up with more general, even if sketchy, proposal.\r\n\r\n> see major failings with the proposal as it stands\r\n\r\nI see no apparent failings, with minor one of it being much aware about *current* GPU capabilities. Though, thinking future, next format would be for either holographic, or for direct silicon-protein interfaces ;) So... just keep working on this one, please.\r\n\r\n---\r\n@creativecreatorormaybenot \r\n>  in any HTML web app, you can simply plug-in any SVG file and it just works. Iirc,\r\n\r\n(**Any** SVG) \"just works\" if displayed in Chrome. And it is enough fast on the overpowered machine with hyperpowered GPU. \"Any\" SVG to be displayed with desktop's older browser, or on low end phone/tablet needs much massaging before deployment.\r\n\r\nThat said, as discussed format addresses the very bottleneck problems of the current \"standard\", **and** it will see first implementation targetted at Skia (that runs behind Chrome and Flutter), **and** it will carry statically precomposed scene graph(s) — we may expect both decent sizes and the good rendering speeds. Huge win over SVG.\r\n\r\n",
+    "createdAt": "2021-07-17T16:39:00Z"
+  },
+  {
+    "id": 2185,
+    "sender": "ibrierley",
+    "content": "me too :D\n\nOn Sat, Jul 17, 2021 at 11:51 PM Jonah Greenthal ***@***.***>\nwrote:\n\n> I don't agree with that.\n>\n> —\n> You are receiving this because you are subscribed to this thread.\n> Reply to this email directly, view it on GitHub\n> <https://github.com/flutter/flutter/issues/1831#issuecomment-881970545>,\n> or unsubscribe\n> <https://github.com/notifications/unsubscribe-auth/AA5YN5IUNXRXZQPPOQCIH23TYICPTANCNFSM4B3FXMMQ>\n> .\n>\n",
+    "createdAt": "2021-07-18T06:04:36Z"
+  },
+  {
+    "id": 2186,
+    "sender": "cbazza",
+    "content": "I would love to see how this bare-bones vector format compares in performance against the similar bare-bones implementation of it's equivalent SVG feature set. Basically the tiniest of features of the SVG Tiny 1.1 spec, let's call it 'SVG Atom-Tiny 1.1'.  You know just quad & cubic path fills and a few other things.\r\n",
+    "createdAt": "2021-07-18T14:24:00Z"
+  },
+  {
+    "id": 2187,
+    "sender": "mbullington",
+    "content": "WVG looks super interesting, especially given that ideally it could be used in Flutter (which of course I'm a fan of) but in browsers as well. SVG is great but imo the spec surface area is so large I've even found browser bugs with SVG implementations before. \r\n\r\nReading https://flutter.dev/go/vector-graphics I'd almost wonder if the human readable format should be JSON based? \r\n\r\nExcited to see what this turns into! 😃 ",
+    "createdAt": "2021-09-15T02:54:32Z"
+  },
+  {
+    "id": 2188,
+    "sender": "zathras",
+    "content": "FWIW, I took a swing at the SVG TIny features (plus a bit of SVG 1.1 not in Tiny) that are worth supporting.  Here's my current list, taken from the readme of my [jovial_svg](https://pub.dev/packages/jovial_svg) library on pub.dev.\r\n\r\nOne thing I haven't thought about is making some sort of DOM-like API to manipulate the resulting asset programmatically (e.g. for animation).\r\n\r\n## Supported SVG Profile\r\n\r\nSVG profile notes:\r\n\r\n  *  SVG paths and transforms are of course supported.\r\n  *  The `use` element is supported (including forward references).\r\n  *  Stroke modifiers like `stroke-linecap`, `stroke-linejoin` and\r\n     `stroke-miterlimit` are supported.\r\n  *  The `stroke-dasharray` and `stroke-dashoffset` attributes are\r\n     supported (cf. Tiny s. 11.4).\r\n  *  Gradients are supported, and additionally support `xlink:href` attributes\r\n     to other gradients, and `gradientTransform` attributes from SVG 1.1.\r\n  *  Text elements are supported.\r\n  *  Embedded images are supported.\r\n  *  Object/group opacity is supported -- cf. SVG 1.1 s. 14.5.  It was\r\n     eliminated from SVG Tiny 1.2.\r\n  *  As per the Tiny spec s. 6.2, full CSS is not supported.  However, the\r\n     `style=` attribute is supported as a way of specifying presentation\r\n     attributes.\r\n  *  Non-scaling stroke is not supported (not in SVG 1.1; cf. Tiny 11.5)\r\n  *  Constrained transformations are not supported (not in SVG 1.1;\r\n     cf. Tiny 7.7)\r\n  *  A DOM and other features related to animation are not supported.\r\n  *  Conditional processing (Tiny s. 5.8) is not supported\r\n  *  The `clipPath` SVG element is not supported (cf. SVG 1.1 14.3.5).  It\r\n     is not defined for SVG Tiny 1.2.  The more restricted Android Vector\r\n     Drawable `clipPath` is supported for AVD files, however.\r\n  *  Filter effects (SVG s. 15) are not supported.  They are not a part\r\n     of SVG Tiny 1.2.\r\n  *  Text restrictions:\r\n      * Embedded fonts are not supported.  However, the `font-family` attribute\r\n        is used when selecting a font, and fonts can be included in an\r\n        application that uses this library.  For example, the demo program\r\n        includes the <a href=\"https://www.dafont.com/rollerball-1975.font\">ROLLERBALL 1975</a> font.\r\n      * `textArea` is not supported (not in SVG 1.1).\r\n      * `font-variant` (`small-caps`) is not supported.\r\n      * `rotate` is not supported (but normal transformations, including\r\n         rotation, apply to text elements).\r\n      * Bi-directional text is not supported\r\n",
+    "createdAt": "2021-11-06T22:40:54Z"
+  },
+  {
+    "id": 2189,
+    "sender": "Hixie",
+    "content": "Quick status update: I'm afraid there hasn't been any progress since [last summer's updates](https://github.com/flutter/flutter/issues/1831#issuecomment-881745047). The next step is to experiment with implementing the proposal using shaders, to see how practical the suggested approach actually is. If anyone is interested in trying that out please don't hesitate to reach out to me (ian@hixie.ch or if you're on our Discord just ping me in the #hackers channel). It's unlikely that anyone on the Flutter team will have the bandwidth to work on this any time soon because our shader experts are focused on the more important task of addressing jank issues.\r\n\r\nThere have been some other proposals from other folks in the meantime; [IconVG](https://github.com/google/iconvg) has had a major update recently and [TinyVG](https://github.com/TinyVG) was recently proposed. These formats solve different problems than the problems we are primarily worried about here, but are interesting nonetheless.",
+    "createdAt": "2022-01-14T01:00:55Z"
+  },
+  {
+    "id": 2190,
+    "sender": "cedvdb",
+    "content": "TinyVG looks promising. It is not part of your write up, so...\r\n\r\n - What problem does it solves that is different from the ones you wish to solve ?\r\n - Are you active in one of those repositories to see if the specifications can align with the flutter team or is it not on your radar at all?\r\n - Is there anything that the team can do to allow easier integration with those formats by the community ? I'm down to help.\r\n\r\n \r\n This issue lasted through 3 US presidents so far, Obama, Trump and now Biden, soon enough it will outlive the democratic system.",
+    "createdAt": "2022-01-16T23:45:49Z"
+  },
+  {
+    "id": 2191,
+    "sender": "Hixie",
+    "content": "TinyVG post-dates the work on that document, yeah. It seems to be about creating small files. This isn't really a problem that I think needs solving (gzipped SVG files are sufficiently small for most purposes), the problem that seems valuable to solve is rendering performance (the doc goes into more detail about the order of priorities).\r\n\r\nThese formats (including SVG) are already implementable pretty reasonably today, using techniques similar to `flutter_svg`. I did a demo of WVG that way too. This is just driving a canvas, basically (at the core, Flutter is just a way to drive a canvas). So if you are interested in implementing them, please don't hesitate to create packages along those lines. (For IconVG I did a Flutter implementation of the earlier version of the format, it's in the IconVG repo IIRC.)",
+    "createdAt": "2022-01-17T02:46:43Z"
+  },
+  {
+    "id": 2192,
+    "sender": "aytunch",
+    "content": "Whatever new format is decided, I think us devs will need a reliable way to export a SVG in to this new format. A Figma plugin can help with conversion maybe? Or a third party tool.\r\n\r\nIt has been nearly 6 years and Flutter has evolved a lot in terms of performance. Are we still thinking that Flutter can not handle the full SVG specifications?",
+    "createdAt": "2022-01-17T15:39:06Z"
+  },
+  {
+    "id": 2193,
+    "sender": "denizdogan",
+    "content": "@aytunch I'm curious as well. I think that even in the original issue statement, there should be room for reconsideration at this point.\r\n\r\n\"We don't want **full** SVG support\" seems reasonable to me, because full support is a tall order. However, with all due respect to the brilliant people behind Flutter, if that means **zero** work on improving the SVG experience, this whole thing reads like _Waiting for Godot_.",
+    "createdAt": "2022-01-17T16:18:51Z"
+  },
+  {
+    "id": 2194,
+    "sender": "dnfield",
+    "content": "I am 100% certain that Flutter cannot handle the full SVG specification. In fact, on low end devices, Flutter will have a semi-challenging time handling even subsets of the specification, because SVG lets you do _really_ dumb things and editors find interesting ways to do those dumb things, and existing optimization tools tend to focus on the wrong things (typically binary size of the encoded SVG rather than render complexity). On the web this isn't quite as big a deal because everything around you is so slow that SVG performance isn't as noticable. On Flutter running on a low end embedded device where you want to render this thing in real time at 60-120fps it matters a lot.\r\n\r\nIconVG and TinyVG are interesting, and should be fairly simple to implement for Flutter if people want that. IMHO they do not quite hit the sweet spot of supporting enough features compared to static SVG, and they also have heavily optimized for binary size rather than for encouraging better render composition for dynamic online rendering.\r\n\r\nI think ideally, we'd have a format that supports the following:\r\n\r\n- A static format that does not support variables or animations, and potentially does not support text.\r\n- A dynamic format that supports variables, animations, and text.\r\n\r\nBoth formats would be constructed with the following in mind:\r\n\r\n- Binary size matters, but not as much as people seem to think. When choosing between binary size and render complexity, optimize for less render complexity (but this will also typically reduce binary size as a side effect).\r\n- Render complexity matters a whole lot more. Offline tooling is necessary to both optimize and score render complexity. Designers and programmers need to undertand how expensive it will be to render their desired graphic on target hardware.\r\n- Render complexity is less about \"can quickly translate to GPU instructions\" and more about \"Can quickly translate to GPU instructions that the GPU can process quickly.\"\r\n\r\nTo this end:\r\n\r\n- The format should discourage and preprocess away anything that requires targetting a new bitmap during the render pass. E.g. opacity applied to groups, color filtering applied to groups, masking operations.\r\n- The format should discourage/avoid real time overdraw.\r\n- The format should discourage expressing the same vectors differently over and over again - e.g. the same path drawn with different translations should be expressed once, and if a design tool messed this up it should be processed away at build time.\r\n\r\nAnd yes, ideally the format would be able to render 100% of what Chrome can render in an SVG in a single frame.",
+    "createdAt": "2022-01-18T04:18:01Z"
+  },
+  {
+    "id": 2195,
+    "sender": "duzy",
+    "content": "In fact, SVG in Chrome is more than a graphic format to represent a vector image (both static and dynamic). SVG inside WebKit can be a foundation of GUI elements, thus it's possible to implement a fully functional modern Web GUI with SVG+CSS+JS, and SVG will be serving as the low level drawing primitives and interactive element supports. Which is a fully alternative to the HTML5+CSS+JS approach for web apps.\r\n\r\nThe question I wish to introduce is:\r\n-  Should Flutter SVG support interactive vector graphics?\r\n\r\nThe decision of this question can lead to two braining directions:\r\n- Flutter SVG as a vector image representation for lost-less scalable graphics elements. \r\n- Flutter SVG as a applet container serving more than animations, but also user interactive graphics elements.\r\n\r\nMost talks in this thread before this is about the vector image part of SVG. But the most exciting approach is the transparent integration of SVG and Dart/Flutter when it's going to be an applet container. This is will enable designer to do more jobs for user interface with a modern SVG editor thus release more work from programmer.\r\n",
+    "createdAt": "2022-01-18T05:07:25Z"
+  },
+  {
+    "id": 2196,
+    "sender": "Hixie",
+    "content": "SVG is explicitly out of scope for this bug; for SVG discussions I encourage you to file separate bugs.\r\n\r\nhttps://flutter.dev/go/vector-graphics answers most of the questions above, FWIW. I would encourage people to read that paper and comment there if it doesn't answer your questions about what this issue is about.",
+    "createdAt": "2022-01-18T07:43:38Z"
+  },
+  {
+    "id": 2197,
+    "sender": "denizdogan",
+    "content": "Issue #15501 was closed and locked automatically due to inactivity, and after that, a reference to this issue was included. I suspect that most comments in this thread are a result of that reference. Someone not really paying too much attention to the topic might expect this thread to be about one of the following:\r\n\r\n- This is the place to discuss the general lack of SVG support in Flutter\r\n- This is the place to discuss the expected level of SVG support in Flutter\r\n\r\nIf someone wants to make an issue about adding SVG support to Flutter, can they just create a new GitHub issue about that? Because this issue makes it seem like that's out of the question or a waste of time, since we're making a new vector format anyway.\r\n\r\nAdditionally, I think a lot of people have commented on this issue to question the validity of the plan to design a completely new vector format specifically designed with Flutter's technical capabilities in mind. I don't believe these comments have been met with the appropriate description of exactly what the issues are.\r\n\r\nIt has now been more than six years since the issue was created, and the latest progress I've seen is the Google Docs document describing a proposal, with a few comments from very few different developers. That document is way too technical for 99.99% of the people reading this issue, and the discussion seems to have stagnated. I'm not surprised, because as an outsider, there's still no obvious path forward here. Who is in charge of making this happen? How many people are actively working on making it a reality?\r\n\r\nIt's obviously a huge hill to climb, and the incline is steep here. Not many people in the world can realistically take on the task and complete it. How long is the Flutter dev team willing to wait on this idea becoming reality? A decade? Until the end of time? I'm not being sarcastic, I'm truly interested in knowing what's going on with the new vector graphics format. Flutter 3 was released recently. Is the goal to have completed this issue by Flutter 4? Is there discussion internally within the Flutter dev team about this? I think an update is due here.\r\n\r\nTo be clear, this is not intended as criticism of the work put into the Flutter project, these are genuine questions and concerns of mine regarding the future.",
+    "createdAt": "2022-05-22T01:34:26Z"
+  },
+  {
+    "id": 2198,
+    "sender": "dnfield",
+    "content": "https://pub.dev/packages/flutter_svg is still the most common/popular way to render SVGs using Flutter. It works reasonably well, but has some performance issues that I have not been able to overcome and that I think are inherent to a combination of the SVG specification, XML, and limitations Flutter currently has around dynamic shader compilation.\r\n\r\nThere are at least three other SVG implementations for Flutter \r\n\r\n- https://pub.dev/packages/jovial_svg \r\n- https://pub.dev/packages/rive\r\n- https://fluttershapemaker.com/\r\n\r\nIn addition, @jonahwilliams and I are working a new package called vector_graphics that more efficiently compiles SVGs to a binary format while still supporitng a larger portion of the SVG specification than the current offerings do. This is something of a halfway step between what you're asking for (better SVG support) and what this issue is actually about (a better vector graphics format). vector_graphics is intentionally trying to avoid creating a new format for the time being. At some point, it may be able to output to something like the document linked for the proposed new specification. The new package already supports most of what flutter_svg does and a little more, but it is not quite ready for pub.dev and is still missing at least a couple features that flutter_svg has (notably, image support).\r\n\r\nThis issue, as has been mentioned before, does _not_ aim to be something that is simple of quick to implement. It's not clear to me if or when this will ever get implemented. If it does get implemented, I expect it won't really be meaningfully implemented for at least another year.",
+    "createdAt": "2022-05-22T03:53:21Z"
+  },
+  {
+    "id": 2199,
+    "sender": "isAlmogK",
+    "content": "Following to see if support is added for this ",
+    "createdAt": "2022-12-14T16:28:43Z"
+  },
+  {
+    "id": 2200,
+    "sender": "aytunch",
+    "content": "@dnfield Hi,\r\n\r\n> but has some performance issues that I have not been able to overcome and that I think are inherent to a combination of the SVG specification, XML, and limitations Flutter currently has around dynamic shader compilation.\r\n\r\nWould `Impeller` be of any help with either `flutter_svg` or the `vector_graphics` that you guys are working on?\r\nThanks",
+    "createdAt": "2022-12-15T13:18:46Z"
+  },
+  {
+    "id": 2201,
+    "sender": "Hixie",
+    "content": "I'm going to close this issue. While we may follow up on this topic one day, it is not currently part of our medium term roadmap, as it will be a long time before low-end GPUs are ready for the kind of evolution we could do here that would be a significantly improvement.\r\n\r\nFor people interested in following along, I recommend checking https://flutter.dev/go/vector-graphics occasionally, as that is where any further updates are likely to be posted.",
+    "createdAt": "2023-08-07T21:20:44Z"
+  },
+  {
+    "id": 2202,
+    "sender": "IchordeDionysos",
+    "content": "@Hixie does it make sense to add a \"Last Updated\" to that document, as we as \"Commentators\" can't see the version history.\r\n<img width=\"324\" alt=\"image\" src=\"https://github.com/flutter/flutter/assets/10195482/543a1236-71b3-4c7d-a7a3-4f7d89daa480\">\r\n\r\nThe document is quite long to know when something has changed there.\r\nIdeally a version history of the changes would also be helpful.",
+    "createdAt": "2023-08-21T14:56:32Z"
+  },
+  {
+    "id": 2203,
+    "sender": "Hixie",
+    "content": "There's a date at the very top that gets updated whenever significant changes are made.",
+    "createdAt": "2023-08-21T19:28:40Z"
+  },
+  {
+    "id": 2204,
+    "sender": "mattkae",
+    "content": "## Add the 'windowing' feature flag and use to wrap an implementation for regular windows that always throws\n\n## What's new?\r\n\r\n- Added the `windowing` feature flag to the project\r\n- Created the internal `_window.dart` API with support for regular windows\r\n- Implemented a `_WindowingOwnerUnsupported` implementation of the `WindowingOwner` interface\r\n- Marked all points of the public API as `@internal` with a corresponding warning documentation\r\n- Threw an `UnsupportedError` where it is appropriate to do so\r\n\r\nNote that this PR does **NOT** include a real implementation of `WindowingOwner` (e.g. for win32 or macOS). That work will be opened as a follow up.\r\n\r\nThis work is based off of https://github.com/flutter/flutter/pull/168697 and http://github.com/flutter/flutter/pull/168437, as well as this design document: https://docs.flutter.dev/go/multi-window-experimental-apis\r\n\r\n## Pre-launch Checklist\r\n\r\n- [x] I read the [Contributor Guide] and followed the process outlined there for submitting PRs.\r\n- [x] I read the [Tree Hygiene] wiki page, which explains my responsibilities.\r\n- [x] I read and followed the [Flutter Style Guide], including [Features we expect every widget to implement].\r\n- [x] I signed the [CLA].\r\n- [x] I listed at least one issue that this PR fixes in the description above.\r\n- [x] I updated/added relevant documentation (doc comments with `///`).\r\n- [x] I added new tests to check the change I am making, or this PR is [test-exempt].\r\n- [x] I followed the [breaking change policy] and added [Data Driven Fixes] where supported.\r\n- [x] All existing and new tests are passing.\r",
+    "createdAt": "2025-07-21T17:57:00Z"
+  },
+  {
+    "id": 2205,
+    "sender": "wanjm",
+    "content": "will multi-view be supported in the future? @loic-sharma @mattkae ",
+    "createdAt": "2025-07-28T02:48:46Z"
+  },
+  {
+    "id": 2206,
+    "sender": "mattkae",
+    "content": "> will multi-view be supported in the future? @loic-sharma @mattkae\r\n\r\nYes, the multi window work will be based on multiple views :)",
+    "createdAt": "2025-07-28T12:37:22Z"
+  },
+  {
+    "id": 2207,
+    "sender": "jonahwilliams",
+    "content": "## Use toPictureSync for faster zoom page transition\n\nRather than using transform layers, snap off a texture of the current/next route using toGpuImage, and then draw the scale/opacity operations using these images while the animation is ongoing.\r\n\r\n\r\nEdit: Updated because I realized I was accidentally drawing one of the layers twice + dpr\r\n\r\n\r\n### Pixel 6\r\n\r\n<html>\r\n<body>\r\n\r\n  | toGpuImage | ToT |   | Delta\r\n-- | -- | -- | -- | --\r\naverage_frame_rasterizer_time_millis | 2.704333333 | 6.932666667 |   | 4.228333333\r\n90th_percentile_frame_rasterizer_time_millis | 3.108333333 | 13.91833333 |   | 10.81\r\n99th_percentile_frame_rasterizer_time_millis | 13.19466667 | 21.64666667 |   | 8.452\r\nworst_frame_rasterizer_time_millis | 16.031 | 24.299 |   | 8.268\r\n\r\n<!--EndFragment-->\r\n</body>\r\n</html>\r\n\r\n### Wembly\r\n\r\n<html>\r\n<body>\r\n\r\n  | toGpuImage | ToT |   | Delta\r\n-- | -- | -- | -- | --\r\naverage_frame_rasterizer_time_millis | 6.576966868 | 10.93125447 |   | 4.354287606\r\n90th_percentile_frame_rasterizer_time_millis | 8.874 | 15.01333333 |   | 6.139333333\r\n99th_percentile_frame_rasterizer_time_millis | 10.67266667 | 20.96766667 |   | 10.295\r\nworst_frame_rasterizer_time_millis | 33.301 | 39.167 |   | 5.866\r\n\r\n<!--EndFragment-->\r\n</body>\r\n</html>\r\n\r\nFixes https://github.com/flutter/flutter/issues/104680\r\nFixes https://github.com/flutter/flutter/issues/100972",
+    "createdAt": "2022-06-26T00:55:33Z"
+  },
+  {
+    "id": 2208,
+    "sender": "jonahwilliams",
+    "content": "FYI @dnfield , this is awesome ",
+    "createdAt": "2022-06-26T00:56:18Z"
+  },
+  {
+    "id": 2209,
+    "sender": "jonahwilliams",
+    "content": "Ahh shit, web",
+    "createdAt": "2022-06-26T01:11:43Z"
+  },
+  {
+    "id": 2210,
+    "sender": "jonahwilliams",
+    "content": "Updated numbers with pixel 6 benchmark, the improvement is even more dramatic, partially due to a new benchmark I wrote which isolates the page transition better",
+    "createdAt": "2022-06-26T14:08:11Z"
+  },
+  {
+    "id": 2211,
+    "sender": "jonahwilliams",
+    "content": "The fidelity of this is a little off, but promising results so far. Hopefully fixing the fidelity doesn't tank the performance...",
+    "createdAt": "2022-06-26T14:54:44Z"
+  },
+  {
+    "id": 2212,
+    "sender": "jonahwilliams",
+    "content": "I also investigated total frame count after @dnfield raised some concerns about potentially hidden costs of toGpuImage. I found that with toGpuImage, the attached benchmark pumps about 208 frames. With the old version, we get about 65 frames - on a pixel 6.",
+    "createdAt": "2022-06-27T18:48:21Z"
+  },
+  {
+    "id": 2213,
+    "sender": "jonahwilliams",
+    "content": "![Flutter DevTools - Google Chrome 6_27_2022 1_34_24 PM](https://user-images.githubusercontent.com/8975114/176030939-205d5d65-f50b-426c-99ff-49d8b2347947.png)\r\n\r\nI'm observing some odd GC behavior, it seems to trigger consistently when calling toGpuImage",
+    "createdAt": "2022-06-27T20:35:33Z"
+  },
+  {
+    "id": 2214,
+    "sender": "jonahwilliams",
+    "content": "Filled https://github.com/flutter/flutter/issues/106698",
+    "createdAt": "2022-06-27T21:03:19Z"
+  },
+  {
+    "id": 2215,
+    "sender": "jonahwilliams",
+    "content": "> I think we need to figure out what to do about people who try to play animations during transitions. We may need an escape hatch for them - some parameter that can be passed to the route to say \"do this the slow way so that an animation can try to play every frame.\"\r\n\r\n> That said, it's probably almost never a good idea to do that. We should at least document the behavior though.\r\n\r\nDo we want to add an API that we wouldn't want people to use? I agree with documentation. Probably on the theme builder itself to start",
+    "createdAt": "2022-06-28T16:31:29Z"
+  },
+  {
+    "id": 2216,
+    "sender": "jonahwilliams",
+    "content": "I suppose if its not the default then its probably fine, and we need to keep the old one around for html anyway",
+    "createdAt": "2022-06-28T16:57:52Z"
+  },
+  {
+    "id": 2217,
+    "sender": "jonahwilliams",
+    "content": "> I am going back and forth on this. On the one hand, this is also how iOS handles transitions, I believe. On the other hand, this was a cool feature of flutter that we could do animations while transitioning...\r\n\r\nToday I can't run a zoom page transition at 90hz on a Pixel 6. Maybe supporting animation was okay for the relatively cheap slide in transitions, but visible jank even on top of the line phones is _terrible_\r\n\r\nI agree we shouldn't break heroes or other transitions, but as long as they don't use the ZoomPageTransition they should be unaffected.\r\n\r\n> Also, there are transitions where when you trigger them manually (e.g. by swiping back) things actually animate on the screen (e.g. a back-arrow animates back to a Hamburger Menu button). Are any of these use cases impacted?\r\n\r\nDo you have an example of this? I think I've seen those before. It may not work\r\n\r\n",
+    "createdAt": "2022-06-28T17:54:00Z"
+  },
+  {
+    "id": 2218,
+    "sender": "jonahwilliams",
+    "content": "One possible compromise is that we could apply the raster only to the next route and not the current route. That would allow animations on the current page to continue working.",
+    "createdAt": "2022-06-28T17:58:20Z"
+  },
+  {
+    "id": 2219,
+    "sender": "goderbauer",
+    "content": "> I agree we shouldn't break heroes or other transitions, but as long as they don't use the ZoomPageTransition they should be unaffected.\r\n\r\nIsn't this transition the default? People would be likely to use it with heroes then. We should check that they continue to work, is what I am saying :)\r\n\r\n> Do you have an example of this? I think I've seen those before. It may not work\r\n\r\nI don't have one immediately at hand...",
+    "createdAt": "2022-06-28T18:00:19Z"
+  },
+  {
+    "id": 2220,
+    "sender": "jonahwilliams",
+    "content": "I thought that heroes used different transitions? I am showing my ignorance of heroes a bit. If they're in a different overlay then they should \"just work\" but I will check",
+    "createdAt": "2022-06-28T18:01:32Z"
+  },
+  {
+    "id": 2221,
+    "sender": "jonahwilliams",
+    "content": "Heroes still work:\r\n\r\nhttps://user-images.githubusercontent.com/8975114/176255545-951c450c-7c4d-4c2f-9388-6e9174431efd.mp4\r\n\r\n\r\nhttps://user-images.githubusercontent.com/8975114/176255553-864c46c0-aba5-4d2b-a180-6955e029c136.mp4\r\n\r\n\r\n",
+    "createdAt": "2022-06-28T18:25:27Z"
+  },
+  {
+    "id": 2222,
+    "sender": "goderbauer",
+    "content": "> Heroes still work:\r\n\r\nIt's hard to tell because the animation is happening so fast (can you post one with animations slowed down?): But it looks like that in the demo_new the word \"Banner\" actually appears multiple times on screen (one flying around and one sitting at the start (or end?) location)....",
+    "createdAt": "2022-06-28T18:31:52Z"
+  },
+  {
+    "id": 2223,
+    "sender": "dnfield",
+    "content": "Is `Banner` supposed to be red between transitions? \r\n![image](https://user-images.githubusercontent.com/8620741/176259595-4796118a-81d8-45df-93f7-0fe2225ca512.png)\r\n",
+    "createdAt": "2022-06-28T18:49:45Z"
+  },
+  {
+    "id": 2224,
+    "sender": "jonahwilliams",
+    "content": "Its red on bot ToT and with the new version so that is unrelated.",
+    "createdAt": "2022-06-28T19:01:07Z"
+  },
+  {
+    "id": 2225,
+    "sender": "jonahwilliams",
+    "content": "New slowed down. \r\n\r\nhttps://user-images.githubusercontent.com/8975114/176262945-e9b54a5d-f00e-49fa-95e7-ade0921e2d35.mp4\r\n\r\n",
+    "createdAt": "2022-06-28T19:05:53Z"
+  },
+  {
+    "id": 2226,
+    "sender": "jonahwilliams",
+    "content": "Old slowed down:\r\n\r\nhttps://user-images.githubusercontent.com/8975114/176263716-788671f1-71ec-4389-927c-1a8b70dd6e1d.mp4\r\n\r\n\r\n",
+    "createdAt": "2022-06-28T19:07:53Z"
+  },
+  {
+    "id": 2227,
+    "sender": "jonahwilliams",
+    "content": "So you're right, we wouldn't see Banner disappear on the outgoing route since we snapshot on frame 1.\r\n\r\nLike the animating out back button case, for this sort of transition we'd need to keep updating the outgoing route",
+    "createdAt": "2022-06-28T19:08:52Z"
+  },
+  {
+    "id": 2228,
+    "sender": "dnfield",
+    "content": "It's turning red because it's getting put in a subtree with no default text style",
+    "createdAt": "2022-06-28T19:10:34Z"
+  },
+  {
+    "id": 2229,
+    "sender": "jonahwilliams",
+    "content": "> It's turning red because it's getting put in a subtree with no default text style\r\n\r\nDan, this isn't really relevant at all to the discussion",
+    "createdAt": "2022-06-28T19:14:29Z"
+  },
+  {
+    "id": 2230,
+    "sender": "jonahwilliams",
+    "content": "I'm going to grab lunch, why don't we talk about this in a GVC later today?",
+    "createdAt": "2022-06-28T19:21:11Z"
+  },
+  {
+    "id": 2231,
+    "sender": "dnfield",
+    "content": "> > It's turning red because it's getting put in a subtree with no default text style\r\n> \r\n> Dan, this isn't really relevant at all to the discussion\r\n\r\nHaha it's not for this pr but it was bothering me.  Sure let's chat. It'd be good to figure out a way to make the hero closer",
+    "createdAt": "2022-06-28T19:23:09Z"
+  },
+  {
+    "id": 2232,
+    "sender": "jonahwilliams",
+    "content": "I think we can get away with making frame 1 of the outgoing route skip the raster and only start that on frame 2. On frame 1 both opacity and scale should be at 1.0 which means all of the existing raster cache entries still exist",
+    "createdAt": "2022-06-28T19:57:57Z"
+  },
+  {
+    "id": 2233,
+    "sender": "goderbauer",
+    "content": "> \r\nI'm going to grab lunch, why don't we talk about this in a GVC later today?\r\n\r\nFeel free to put something on my calendar. ",
+    "createdAt": "2022-06-28T20:11:25Z"
+  },
+  {
+    "id": 2234,
+    "sender": "jonahwilliams",
+    "content": "I've updated this so that we only rasterize if `scale != 0` or `opacity != 0 || 1`. This allows the hero animation to begin correctly\r\n\r\nResults aren't any worse:\r\n\r\n```\r\n  \"average_frame_rasterizer_time_millis\": 2.5510900473933633,\r\n  \"90th_percentile_frame_rasterizer_time_millis\": 2.963,\r\n  \"99th_percentile_frame_rasterizer_time_millis\": 9.966,\r\n  \"worst_frame_rasterizer_time_millis\": 12.701,\r\n   \"frame_rasterizer_count\": 211,\r\n  ```",
+    "createdAt": "2022-06-28T20:31:47Z"
+  },
+  {
+    "id": 2235,
+    "sender": "jonahwilliams",
+    "content": "numbers aren't much worse if I skip rasterization on frame 1\r\n\r\n```\r\n  \"average_frame_rasterizer_time_millis\": 2.649248780487806,\r\n  \"90th_percentile_frame_rasterizer_time_millis\": 2.944,\r\n  \"99th_percentile_frame_rasterizer_time_millis\": 12.926,\r\n  \"worst_frame_rasterizer_time_millis\": 13.699,\r\n  \"missed_frame_rasterizer_budget_count\": 0,\r\n  \"frame_count\": 204,\r\n  \"frame_rasterizer_count\": 205,\r\n  ```",
+    "createdAt": "2022-06-28T20:35:10Z"
+  },
+  {
+    "id": 2236,
+    "sender": "jonahwilliams",
+    "content": "hero is fixed:\r\n\r\nhttps://user-images.githubusercontent.com/8975114/176282727-09a6737d-a91f-49d7-9bf1-65925df1ed36.mp4\r\n\r\n\r\n",
+    "createdAt": "2022-06-28T20:40:19Z"
+  },
+  {
+    "id": 2237,
+    "sender": "jonahwilliams",
+    "content": "From offline discussion:\r\n\r\n* The rasterization behavior can be the default, but we need an opt out. `shouldRasterize` on `TransitionRoute` default to true, let the transition builder read that value. This should be well documented.\r\n* Make the widget/RO private for now since we're not sure about the API\r\n* Remove the painting context API and just ignore the warning for stopRecordingIfNeeded\r\n",
+    "createdAt": "2022-06-28T22:41:50Z"
+  },
+  {
+    "id": 2238,
+    "sender": "nt4f04uNd",
+    "content": "It's sad that you will not see new splash effects from the source route with this. It would be cool if this could be optimized in some other way.\n\nAlso, how will it look like if you hold your finger a bit, so the splash expands, and then release it - would the splash be frozen for the time of the transition? I guess that's a bit weird.",
+    "createdAt": "2022-06-29T07:16:58Z"
+  },
+  {
+    "id": 2239,
+    "sender": "jonahwilliams",
+    "content": "If you have other ideas for how to improve performance you should certainly puruse those as well. We'll allow an opt out if the old behavior is important, though I suspect most folks won't actually notice.",
+    "createdAt": "2022-06-29T17:54:23Z"
+  }
+]

@@ -38,6 +38,7 @@ class _TrackingDataSource extends ChatDataSource {
       for (var i = lo; i <= hi; i++)
         ChatMessage$User(
           id: i,
+          sender: 'User',
           createdAt: _baseTime.add(Duration(minutes: i)),
           updatedAt: _baseTime.add(Duration(minutes: i)),
           content: 'Message #$i',

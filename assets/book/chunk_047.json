@@ -1,0 +1,386 @@
+[
+  {
+    "id": 3008,
+    "sender": "olof-dev",
+    "content": "> Well, this has been a long journey! We've completed all the prerequisite work, and even fixed two items from the [post-deprecation list](https://github.com/flutter/flutter/issues/145954).\r\n\r\n@yjbanov Thanks for your and everyone else's work! I think the link might be wrong here: was https://github.com/flutter/flutter/issues/153974 intended for the post-deprecation list?",
+    "createdAt": "2024-12-06T10:41:52Z"
+  },
+  {
+    "id": 3009,
+    "sender": "LuisReyes98",
+    "content": "@yjbanov I am also concerned about the issue @koji-1009 mentioned \r\nSince our production app also suffers from the issue https://github.com/flutter/flutter/issues/93404\r\nAnd on Safari iPhone the app will constantly crash on CanvasKit , and the only way to get the app running on Safari is using the HTML renderer.",
+    "createdAt": "2024-12-06T17:11:15Z"
+  },
+  {
+    "id": 3010,
+    "sender": "zambetpentru",
+    "content": "That is great news that some progress has been made to identify the crashes on Canvaskit on mobile around image management here: https://github.com/flutter/flutter/issues/93404 It would be really great if that can be resolved before removing the HTML renderer so those of us who need it for a stable Mobile Web App will not be left behind on an older version. ",
+    "createdAt": "2024-12-06T21:39:48Z"
+  },
+  {
+    "id": 3011,
+    "sender": "lsuhov",
+    "content": "Hello @yjbanov ,\r\nWe have stumbled upon https://github.com/flutter/flutter/issues/159974 blocker issue in Canvaskit renderer, while utilising Element Embeding scenario in mobile phones.\r\nThis is impacting the viability of our project and we cannot transition to Canvaskit without this being fixed.",
+    "createdAt": "2024-12-09T15:12:59Z"
+  },
+  {
+    "id": 3012,
+    "sender": "BirjuVachhani",
+    "content": "Will it be possible to build chrome extensions using Flutter web without HTML renderer? AFAIK, it uses the HTML renderer...",
+    "createdAt": "2024-12-12T04:57:04Z"
+  },
+  {
+    "id": 3013,
+    "sender": "SlowGen",
+    "content": "@BirjuVachhani yes, please see the above: https://github.com/flutter/flutter/issues/145954#issuecomment-2486162109",
+    "createdAt": "2024-12-12T15:47:27Z"
+  },
+  {
+    "id": 3014,
+    "sender": "NicolasDionB",
+    "content": "There is also an existing limitation for the number of active `HtmlElementView` in CanvasKit. for instance we need this to display user cameras, each user needs a Html `VideoElement` and thus an `HtmlElementView` to display and align it properly. See issue #113699 for more details.",
+    "createdAt": "2024-12-12T18:48:58Z"
+  },
+  {
+    "id": 3015,
+    "sender": "Levi-Lesches",
+    "content": "@yjbanov @harryterkelsen I could not get https://github.com/flutter/flutter/pull/157755 to fix CORS issues on the web. See [my comment](https://github.com/flutter/flutter/pull/157755#issuecomment-2525409863) there. Could be a simple issue on my end, but if not, it feels like a serious issue. ",
+    "createdAt": "2024-12-13T03:42:54Z"
+  },
+  {
+    "id": 3016,
+    "sender": "mit-mit",
+    "content": "@Levi-Lesches if CORS is still not working, can you please file a new issue with clear repro steps?",
+    "createdAt": "2024-12-13T12:01:43Z"
+  },
+  {
+    "id": 3017,
+    "sender": "koji-1009",
+    "content": "I'd like to share some issues that have arisen due to the removal of the HTML renderer and the iOS 18.2 scroll issue not being included in the 3.24.x. This is to inform, not criticize. I am writing to share what happened and discuss improvements.\r\n\r\nIn iOS 18.2, users encountered a problem where they could not scroll in Flutter web application.\r\n\r\nhttps://github.com/flutter/flutter/issues/158299\r\n\r\niOS 18.2 was released on December 11, 2024, making this problem widespread among users.\r\n\r\nhttps://developer.apple.com/documentation/ios-ipados-release-notes/ios-ipados-18_2-release-notes\r\n\r\nThe issue was fixed on November 20, 2024.\r\n\r\nhttps://github.com/flutter/engine/pull/56719\r\n\r\nHowever, this fix has not been cherry-picked into the 3.24.x.\r\n\r\nhttps://github.com/flutter/engine/pull/56903\r\n\r\nBecause of the above, we need to update to Flutter 3.27.x.\r\n\r\n---\r\n\r\nUpdate: This block is a misunderstanding by @koji-1009. the HTML renderer is still available in 3.27.0.\r\n\r\nIn Flutter 3.27, the HTML renderer is no longer available. We will need to migrate from the HTML renderer to CanvasKit.\r\n\r\nhttps://github.com/flutter/flutter/pull/156376\r\nhttps://github.com/flutter/flutter/pull/159314\r\n\r\n---\r\n\r\nThe combination of iPhone + Safari + CanvasKit is prone to application crashes and our application needs to be checked and fixed to work. Since there are many iPhone users, this is seen as a serious problem.\r\nHowever, CanvasKit also has problems. For example, there is a problem with Image.network where the resize option is not available, but no stable fix has been distributed yet.\r\n\r\nhttps://github.com/flutter/flutter/issues/160199\r\n\r\n---\r\n\r\nWe're thinking of using the master branch commit to fix the HTML renderer issue in iOS 18.2 because switching to CanvasKit will take time.\r\n\r\nBut right now, the big issue is not only technical.\r\nThe big concern now is the need to discuss the future of Flutter Web within the team. The developers believe in Flutter web, but the trust of the team members is losing. If trust continues to lose, we will have to choose a technology that is not Flutter web.\r\n\r\nI understand the interest in promoting CanvasKit and the advantages of moving to it.\r\nHowever, just because the HTML renderer is removed doesn't mean that all Flutter web applications can be easily migrated to CanvasKit. Could we support the Flutter Web migration by temporarily reverting to removing the HTML renderer? Or is it possible to have a version available as 3.24.6 that resolves the iOS 18.2 issue?\r\n\r\nAlso, is there any way to make Flutter web releases more incremental? For example, if Flutter web crashes in a beta version of Safari, Firefox, or Chrome, could we prioritize distributing it on the current rather than releasing the next stable version?\r\n\r\nThank you for reading this message.",
+    "createdAt": "2024-12-18T08:28:01Z"
+  },
+  {
+    "id": 3018,
+    "sender": "lAmirshahinxl",
+    "content": "I faced with that issue too",
+    "createdAt": "2024-12-18T11:41:24Z"
+  },
+  {
+    "id": 3019,
+    "sender": "MrAlek",
+    "content": "[edit] Thanks for clarifying @yjbanov, glad the html renderer still is available [/edit]\n\nSame here. For us it's very unfortunate that the html-renderer was killed already before system emoji support has landed for CanvasKit. Now we are forced to upgrade in a very busy period before holidays and add a significant size to our bundle because of the Noto Color Emoji font whilst getting a worse UX for iOS/Mac users.",
+    "createdAt": "2024-12-18T11:51:50Z"
+  },
+  {
+    "id": 3020,
+    "sender": "yjbanov",
+    "content": "@koji-1009 I haven't digested your message in detail, but I would like to just comment on this:\r\n\r\n> In Flutter 3.27, the HTML renderer is no longer available.\r\n\r\nThe HTML renderer is still available in 3.27. The only thing that's changed is you get a warning when you pass `--web-renderer=html`. The complete removal is scheduled for the first release in 2025.\r\n",
+    "createdAt": "2024-12-18T18:00:12Z"
+  },
+  {
+    "id": 3021,
+    "sender": "koji-1009",
+    "content": "@yjbanov \r\nThanks for the info. And sorry, I was wrong about the HTML renderer not working with Flutter 3.27.0.\r\n\r\nOn the other hand, the information you provide reads as a suggestion to apply the updated version immediately after the release of the Flutter SDK. Since the release date of the Flutter SDK is not made public in advance, it is necessary for developers to hurry up and plan for the update when the Flutter SDK is released. Since this issue affects the planning of all team members, not just the developers, this situation raises the following question: “Why can't we plan for updates in advance if we choose Flutter Web?”\r\n\r\nAnd the biggest question currently being asked is, “The next time there is a problem with Flutter Web not working in a beta version of the browser, can it be fixed before the stable version is distributed?” It is the first topic developers have to answer to our team members. We need to clarify if we can resolve similar issues with (for example) Safari before the next release of the Flutter SDK. Even if the next stable release (2025 first release) is coming soon, could we still prioritize cherry-picking changes to the current stable release (3.27.x)?",
+    "createdAt": "2024-12-19T02:19:19Z"
+  },
+  {
+    "id": 3022,
+    "sender": "slavap",
+    "content": "@koji-1009 @yjbanov \r\n>> The next time there is a problem with Flutter Web not working in a beta version of the browser, can it be fixed before the stable version is distributed?\r\n\r\nIMO, if Flutter Web \"stopped\" working in beta of any major browser, the latest two Flutter versions must immediately be fixed.\r\nIn that case versions **3.22 and 3.24**.",
+    "createdAt": "2024-12-19T04:28:48Z"
+  },
+  {
+    "id": 3023,
+    "sender": "higaski",
+    "content": "Could someone please explain the naming of the new web renderers to me? Why does the documentation call them **default** and **WebAssembly**? To me it looks like all new renderers are WebAssembly based? \r\n\r\nThere is\r\n- `canvaskit.wasm`\r\n- `chromium/canvaskit.wasm`\r\n- `skwasm.wasm`\r\n\r\nIsn't `.wasm` the WebAssembly extension?\r\n\r\nAlso, please make sure to **not** repeat issue #96509. A user picking the `--no-wasm` option does not want the additional garbage collected stuff...",
+    "createdAt": "2024-12-23T12:22:24Z"
+  },
+  {
+    "id": 3024,
+    "sender": "AbderrazakBenarous",
+    "content": "i am having a problem with CanvasKit , it does not show pictures fetched from links (google profile pictures per exemple) and the view gets all messed up, see picture for more comprehension. the error that i am getting is : SecurityError: Failed to execute 'texImage2D' on 'WebGL2RenderingContext': The image element contains cross-origin data, and may not be loaded. I need a solution please!",
+    "createdAt": "2024-12-29T09:06:00Z"
+  },
+  {
+    "id": 3025,
+    "sender": "olof-dev",
+    "content": "> i am having a problem with CanvasKit , it does not show pictures fetched from links (google profile pictures per exemple) and the view gets all messed up, see picture for more comprehension. the error that i am getting is : SecurityError: Failed to execute 'texImage2D' on 'WebGL2RenderingContext': The image element contains cross-origin data, and may not be loaded. I need a solution please!\r\n\r\nThis issue isn't the place for individual debugging, but just to highlight something that's mentioned in the original post: this is related to something called CORS. Hopefully https://docs.flutter.dev/platform-integration/web/web-images can help you.",
+    "createdAt": "2024-12-30T21:18:18Z"
+  },
+  {
+    "id": 3026,
+    "sender": "Juliusvm",
+    "content": "Did anyone successfully write E2E tests using canvaskit/wasm? I.e no html elements, I find it impossible since the locators in e.g playwright cant find elements to click on.",
+    "createdAt": "2025-01-06T11:34:53Z"
+  },
+  {
+    "id": 3027,
+    "sender": "slavap",
+    "content": "@Juliusvm \r\nYou can use semantics for finding and testing, it works for both html and canvaskit renderers, take a look: https://github.com/flutter/flutter/issues/97455#issuecomment-1058758602",
+    "createdAt": "2025-01-06T23:40:39Z"
+  },
+  {
+    "id": 3028,
+    "sender": "yjbanov",
+    "content": "@Juliusvm \r\n\r\nWhat @slavap said, and this was also discussed above in https://github.com/flutter/flutter/issues/145954#issuecomment-2138419510.",
+    "createdAt": "2025-01-07T01:24:03Z"
+  },
+  {
+    "id": 3029,
+    "sender": "timbera",
+    "content": "> i am having a problem with CanvasKit , it does not show pictures fetched from links (google profile pictures per exemple) and the view gets all messed up, see picture for more comprehension. the error that i am getting is : SecurityError: Failed to execute 'texImage2D' on 'WebGL2RenderingContext': The image element contains cross-origin data, and may not be loaded. I need a solution please!\r\n\r\n@AbderrazakBenarous Have you found a solution? I have the same issue after upgrading to Flutter 3.27.0. Images show up only if I use HTML render. ",
+    "createdAt": "2025-01-09T09:17:42Z"
+  },
+  {
+    "id": 3030,
+    "sender": "yjbanov",
+    "content": "@timbera Does this happen on the master channel? This might have been https://github.com/flutter/flutter/issues/160127. I want to say the fix is landing in 3.27.2 🤞 ",
+    "createdAt": "2025-01-09T21:40:37Z"
+  },
+  {
+    "id": 3031,
+    "sender": "timbera",
+    "content": "> @timbera Does this happen on the master channel? This might have been #160127. I want to say the fix is landing in 3.27.2 🤞\r\n\r\n@yjbanov i checked on a the stable channel, and yes it was related. https://github.com/Baseflow/flutter_cached_network_image/issues/995#issuecomment-2537985625 fixed the issue for now. \r\n\r\nGood news! Waiting for the release !",
+    "createdAt": "2025-01-10T07:29:20Z"
+  },
+  {
+    "id": 3032,
+    "sender": "wreppun",
+    "content": "Quite a thread.  I want to hop back to something mentioned early on here:\r\n\r\n> On the native side Flutter already requires a GPU, and with Impeller that requirement will go even further and require the latest crop of graphics APIs that don't make sense without GPUs at all. I doubt that Flutter Web is positioned to fight that trend or risk putting brakes on Flutter overall. I think if GPU-less hardware is important for your app, Flutter may not be the right choice\r\n\r\nThis is interesting.  I do hear the reasoning. But there are a lot of devices out there without GPUs, still.  We work with schools from the district level down to the classroom level, and while we were originally planning on a mobile-only product we quickly found that:\r\n\r\n- Chromebooks tend to be the default device in the majority of classrooms (in the US at least -- internationally we tend to work more with independent schools, which tend to have a different demographic)\r\n- Recent trends have led to _fewer_ students having access to a mobile device at school, and driven _up_ chromebook usage\r\n- Many chromebooks, especially those sold in bulk to schools/districts, _do not have GPUs_\r\n\r\nI can see how the easier path is to ***shrug*** and move on.  And maybe this is the better path for Flutter -- progress first!  But one of the promises of the web is accessibility -- and that's one of my biggest nits with the design doc.  The HTML renderer _is_ much more accessible than CanvasKit, just in a different way than described in the doc.  It's accessible to millions of more users who are working with, for whatever reasons, lower power devices.\r\n\r\nI'm glad I'm not in your shoes.  The limitations of the HTML renderer (although they mostly seem to be focused on drawing to the canvas), are well-documented.  The open issues with CanvasKit are also moderately terrifying.\r\n\r\nIgnoring the GPU-only support challenge; I think fixing the CanvasKit issues (at the very least, the ones in #153974, but it might be worth tracking all the ones in this thread) _before_ removing the HTML renderer would go a long way towards making people more comfortable with this process.  I'm sure most of the participants here have had some experience with issues languishing in the tracker (no shade -- that's just the nature of ambitious projects with a multi platform/device footprint).\r\n\r\nAnyway, all this makes me a bit nervous.  As our team is committed to supporting schools, and not just the schools that can afford devices with dedicated GPUs, I'm not sure what our path forward looks like.  \r\n\r\nWe might just end up stuck on `3.27`.\r\n\r\nThanks for all the time and work put into this framework and for listening to all the feedback in this thread :)",
+    "createdAt": "2025-01-12T21:37:12Z"
+  },
+  {
+    "id": 3033,
+    "sender": "jtkeyva",
+    "content": "How about a complete re-think of how to provide real HTML?\n\nWhy not BYO HTML via @annotations ?\n\n```\nWidget build(BuildContext context) {\n    return Scaffold(\n      @HtmlTag('header')\n      appBar: AppBar(\n        @HtmlTag('h1')\n        title: const Text('My Simple Flutter App'),\n      ),\n      \n      body: SingleChildScrollView(\n        padding: const EdgeInsets.all(16.0),\n        child: Column(\n          crossAxisAlignment: CrossAxisAlignment.start,\n          children: [\n            @HtmlTag('h2')\n            const Text(\n              'My Favorite Foods',\n              style: TextStyle(\n                fontSize: 24,\n                fontWeight: FontWeight.bold,\n              ),\n            ),\n```\n\nAlso, I think we could live with some gradient issues and create workarounds via images if needed.",
+    "createdAt": "2025-01-16T05:55:53Z"
+  },
+  {
+    "id": 3034,
+    "sender": "tigtms",
+    "content": "I am scratching my head in disbelief that this is even being considered. I understand the need to focus on the next generation(s) of content delivery into browsers, but to remove the support for the delivery of the bare bones of the web (i.e. HTML) is astonishing. In the past I have needed to embed functionality (such as a third party WebRTC client into a frame) manually. Heaven knows how I would achieve this without being able to inspect the output, when I have no control on what is provided by a third party. \n\nI have also previously had to retrograde canvaskit builds back to html in some projects when certain packages are not performing as expected - in one case the rendering of SVGs creating a clunky experience in non-chrome browsers hence the need to manage them manually at html level.",
+    "createdAt": "2025-01-16T16:04:43Z"
+  },
+  {
+    "id": 3035,
+    "sender": "wreppun",
+    "content": "The more I think about this, the more I feel like if Flutter goes down this route (which seems to be happening), this should be acknowledged front and center.\n\nFrom the homepage (additions italicized):\n> Flutter transforms the development process. Build, test, and deploy beautiful mobile, ~~web,~~ desktop, and embedded experiences from a single codebase.  _Flutter also works on the web on modern devices that have dedicated GPUs._\n\nMostly because when people think \"oh, this compiles to the web?\" the default assumption is _accessibility_, because that's what the web is for.\n\nWhile the update/upgrade cycle for mobile devices is common, when computers get old?  Well, you can still browse the web :)\n\n",
+    "createdAt": "2025-01-23T20:32:50Z"
+  },
+  {
+    "id": 3036,
+    "sender": "slavap",
+    "content": "@wreppun \n>> when computers get old? Well, you can still browse the web :)\n\nwasm + canvaskit renderer works faster on the old PCs than js + html renderer :-)\n\naccessibility - if you are talking about the real accessibility - does not depend on renderer, works for html and canvaskit renderers.",
+    "createdAt": "2025-01-23T23:17:50Z"
+  },
+  {
+    "id": 3037,
+    "sender": "tolotrasamuel",
+    "content": "Hello,\nPlease add https://github.com/flutter/flutter/issues/84288 in the backlog of the mandatory issues to resolve before deprecating Html renderer. Otherwise, millions of Chrome Extension Based Flutter apps will no longer work.\n\nIt does not seem to be a very intricate issue to resolve, the https://www.gstatic.com/flutter-canvaskit/ script should be downloaded in the build folder at build time, not loaded externally and ran using eval which is forbidden in Chrome Extension.",
+    "createdAt": "2025-01-24T22:39:34Z"
+  },
+  {
+    "id": 3038,
+    "sender": "kevmoo",
+    "content": "@tolotrasamuel : \"millions of Chrome Extension Based Flutter apps will no longer work\" - millions?\n\n\"should be downloaded in the build folder at build time\" – have you seen the `--no-web-resources-cdn` flag? We already support this.",
+    "createdAt": "2025-01-24T23:06:56Z"
+  },
+  {
+    "id": 3039,
+    "sender": "jtkeyva",
+    "content": "@kevmoo  Can we get a formal \"don't plan on SEO now/anytime/ever\" or \"we have a an SEO solution in the works\" or \"we are actively seeking solutions as we know this is important\"?\nthanks",
+    "createdAt": "2025-01-25T04:15:27Z"
+  },
+  {
+    "id": 3040,
+    "sender": "yjbanov",
+    "content": "@wreppun \n\n> Many chromebooks, especially those sold in bulk to schools/districts, do not have GPUs\n\nCould you please provide a few examples of chromebooks that do not have GPUs?\n\n@jtkeyva \n\n> Can we get a formal \"don't plan on SEO now/anytime/ever\" or \"we have a an SEO solution in the works\" or \"we are actively seeking solutions as we know this is important\"?\n\nIt's the last one: we are actively seeking solutions as we know this is important. We cannot promise anything though. Right now, we're looking into an approach that uses Flutter's semantics tree. Try this in your app, and see if SEO improves:\n\n```dart\nvoid main() {\n  runApp(const App());\n  if (kIsWeb) {\n    SemanticsBinding.instance.ensureSemantics();\n  }\n}\n```\n\n@tigtms \n\n> I have needed to embed functionality (such as a third party WebRTC client into a frame) manually. Heaven knows how I would achieve this without being able to inspect the output, when I have no control on what is provided by a third party.\n\nThis kind of functionality is embedded using platform views, which are fully supported in our WebGL renderers. And yes, you can right click and inspect the contents of a platform view. If the view is all HTML provided by the third party, you'll see it.\n\n> rendering of SVGs creating a clunky experience in non-chrome browsers hence the need to manage them manually at html level.\n\nThere are a few ways to render SVGs in Flutter Web, all supported by our WebGL renderers. Some are web-specific but provide all functionality offered by browsers. Others are limited but provide consistency across all platforms.\n\n**Web-specific**\n\n* [Draw the SVG into a canvas](https://stackoverflow.com/questions/3768565/drawing-an-svg-file-on-a-html5-canvas). Then use [createImageFromTextureSource](https://api.flutter.dev/flutter/dart-ui_web/createImageFromTextureSource.html) to turn it into an `Image` object that Flutter can render.\n* If the UI is made of _few_ large SVGs, you can embed them as `<svg>` tags using platform views. \"Few\" is the operative word here. Platform views should be used sparingly, as they have performance cost.\n\n**Cross-platform**\n\nThe following packages sacrifice some SVG functionality, but work consistently across all platforms supported by Flutter:\n\n* `package:flutter_svg` - implements a subset of SVG.\n* `package:vector_graphics` - a vector graphics file format optimized for Flutter.\n",
+    "createdAt": "2025-01-27T18:06:49Z"
+  },
+  {
+    "id": 3041,
+    "sender": "kmahmood74",
+    "content": "canvasKit is bloated and has some major issues such as CORS, unable to work with any web automation test suite and much much more. It is just unusable for any production application. HTML renderer even with all its short comings is, at a minimum, a first class citizen of the web. It produces DOM (even if shadow DOM), has smaller download size and doesn't have weird CORS issues. It is a terrible decision to drop support for HTML renderer, if anything the Flutter team should be working on improving it. ",
+    "createdAt": "2025-01-30T19:42:06Z"
+  },
+  {
+    "id": 3042,
+    "sender": "parancode",
+    "content": "@yjbanov \n\nWhen rendering WebRTC video using HtmlElementView with CanvasKit,\nit consumes a significant amount of resources, especially on low-end devices and Chromebooks. \nTherefore, we are still sticking with the HTML renderer. We need a solution for this issue.",
+    "createdAt": "2025-02-03T00:50:44Z"
+  },
+  {
+    "id": 3043,
+    "sender": "elios-cama",
+    "content": "Hi, you should try rendering in CanvasKit but remove the CachedNetworkImage and use Image.Network() only for the web. Might be some caching conflicts with the browser. Worked for me 🙏 ",
+    "createdAt": "2025-02-03T09:23:33Z"
+  },
+  {
+    "id": 3044,
+    "sender": "felix-mittermeier",
+    "content": "> [@yjbanov](https://github.com/yjbanov)\n> \n> When rendering WebRTC video using HtmlElementView with CanvasKit, it consumes a significant amount of resources, especially on low-end devices and Chromebooks. Therefore, we are still sticking with the HTML renderer. We need a solution for this issue.\n\nSimilar issue for us. We are using a map platform view and the rendering performance with Canvaskit is significantly slower compared to the html renderer.",
+    "createdAt": "2025-02-03T16:19:03Z"
+  },
+  {
+    "id": 3045,
+    "sender": "yjbanov",
+    "content": "@parancode @felix-mittermeier \n\nCan you please file issues with repro steps? We're optimizing exactly this aspect right now.\n",
+    "createdAt": "2025-02-03T18:50:55Z"
+  },
+  {
+    "id": 3046,
+    "sender": "kevmoo",
+    "content": "@parancode @felix-mittermeier – we've created https://github.com/flutter/flutter/issues/162618 to track these concerns.",
+    "createdAt": "2025-02-03T19:08:35Z"
+  },
+  {
+    "id": 3047,
+    "sender": "timomono",
+    "content": "Regarding CORS, I think it might be possible to make the use_img_tag flag in the Image widget.",
+    "createdAt": "2025-02-06T04:31:12Z"
+  },
+  {
+    "id": 3048,
+    "sender": "kdhhhserddf",
+    "content": "My reasons for including web-rendered html: Quicker site launch, adequate site display and smiley support. If at least the startup speed became the same as with html, I think it makes sense to remove render html",
+    "createdAt": "2025-02-07T15:58:35Z"
+  },
+  {
+    "id": 3049,
+    "sender": "elliotkhd",
+    "content": "Html renderer is removed from flutter 3.29, any workaround to use html renderer on 3.29? I need the load speed of html renderer and new features on flutter 3.29",
+    "createdAt": "2025-02-13T02:44:53Z"
+  },
+  {
+    "id": 3050,
+    "sender": "slavap",
+    "content": "@elliotkhd I see nothing in 3.29 release notes about removal of html renderer, only removal from docs.",
+    "createdAt": "2025-02-13T03:40:42Z"
+  },
+  {
+    "id": 3051,
+    "sender": "kevmoo",
+    "content": "See https://medium.com/flutter/whats-new-in-flutter-3-29-f90c380c2317 \"Removal of the web HTML renderer\"\n\nSee also https://groups.google.com/g/flutter-announce/c/fngDlrI-nvY from Dec 11\nAnd https://groups.google.com/g/flutter-announce/c/JqkMe7cPkQo/m/Jx5VhNVOAwAJ from Aug 20",
+    "createdAt": "2025-02-13T03:46:57Z"
+  },
+  {
+    "id": 3052,
+    "sender": "ronaldoandjames",
+    "content": "do not remove html render.   canvaskit makes web crash badly in mobile safari especially when  there are many pictures in the web.  or anyone can solves this problem?",
+    "createdAt": "2025-02-13T06:39:27Z"
+  },
+  {
+    "id": 3053,
+    "sender": "kevmoo",
+    "content": "> do not remove html render. canvaskit makes web crash badly in mobile safari especially when there are many pictures in the web. or anyone can solves this problem?\n\nWe've done a BUNCH of work to improve this in the latest release. Please try it and file issues. CC @harryterkelsen ",
+    "createdAt": "2025-02-13T18:00:22Z"
+  },
+  {
+    "id": 3054,
+    "sender": "saurabhguptasg",
+    "content": "@kevmoo hope you're doing well! `NetworkImage(FirebaseAuth.instance.currentUser!.photoURL!)` throws a 429 exception on web when using defaults, but is fixed when using `--web-renderer=html` even though it gives a deprecation warning. So I think some fixes are still needed",
+    "createdAt": "2025-02-14T00:35:05Z"
+  },
+  {
+    "id": 3055,
+    "sender": "PrathivDev",
+    "content": "Flutter team web solution is so bad , even after making it stable for 3 year and many basic things are very poor , flutter web is still looking like in alpha stage. load time , SEO , performance , network image ..... hope at least from skwasm future version will give decent improvements",
+    "createdAt": "2025-02-14T05:13:14Z"
+  },
+  {
+    "id": 3056,
+    "sender": "iapicca",
+    "content": "> [...] `NetworkImage(FirebaseAuth.instance.currentUser!.photoURL!)` throws a 429 exception on web when using defaults, but is fixed when using `--web-renderer=html` even though it gives a deprecation warning. So I think some fixes are still needed\n\n@saurabhguptasg I recommend to open an issue for that (complete with reproducible code sample)",
+    "createdAt": "2025-02-14T05:47:37Z"
+  },
+  {
+    "id": 3057,
+    "sender": "yvrez",
+    "content": "@PrathivDev Funny for us, with a very complexe app that handles dynamic subprogram rendering with mutlistate management and very complexe data renderings, it is almost inline with desktop app perfs and has a very few issues.\nThere were a lot of improvments these last months/years. Of course nothing is perfect, but comon this sounds like pure bashing… Of course SEO is not there, this is not a use case (for now) for flutter web…you should know that!\n\nWhat are you working on that causes such massive issues ?",
+    "createdAt": "2025-02-14T10:47:55Z"
+  },
+  {
+    "id": 3058,
+    "sender": "PrathivDev",
+    "content": "\"Massive issues? Just consider the load time alone. I’ve been a strong advocate for Flutter, even convincing two of my past companies to choose it over RN. Acknowledging Flutter Web’s limitations isn’t bashing—it’s recognizing areas that need improvement while still hoping for progress.\n\nSEO not being a 'use case' isn’t an excuse—it’s simply a challenge the team hasn’t solved yet\n\nAfter 3 to 4 year of stable I felt few things on mobile browser are\n \nStartup performance: Even simple apps take significantly longer to load compared to native web frameworks. The massive JS bundle size \n\nNetwork image handling: Flutter Web still struggles with caching, responsiveness, and loading performance for images, making UIs feel sluggish.\n\nText rendering issues: The way text is handled in the CanvasKit/WebGL model often leads to blurry text, incorrect spacing, and accessibility problems.\n\nKeyboard and input inconsistencies: Handling focus, text input, and accessibility across different browsers is still unreliable.\nScrolling performance: It’s not as smooth as native web or RN web, especially on complex UIs. Mouse wheel behavior and trackpad gestures often feel unnatural.*\n\nEvery time we deliver a project, we get the same client feedback: ‘The mobile app looks great, but the web version feels slow—why?’ That speaks for itself. Flutter Web has improved, but let’s not overlook the real issues that still need work.\"\n**I just wanted to stay on flutter** \n\nAnd also when it's canvas render instead of html on mobile it's taking still longer to load . Yes I agrees the way flutter is build make it harder to improve it , but being a **flutter dev I love to see the magic** \nReact Native's New Architecture is a significant overhaul of its core systems\n\nI love flutter ❤️",
+    "createdAt": "2025-02-14T11:44:15Z"
+  },
+  {
+    "id": 3059,
+    "sender": "yvrez",
+    "content": "Thanks for your answer @PrathivDev, which clearly indicates I misinterpreted your initial message. My bad!\nYou point out some valid issues that we have encountered too, but we have always found solutions (sometimes relying on smart bitmap caching, using custom painters to avoid heavy re-layout calculation, ...).\n\nWe have literally thousands of reactive rows filled with custom formatting/rich texts/values in multiple massive data grids, with sometimes dozens of multidimensional columns updated in real-time with WebSocket updates. It was challenging to keep a butter-smooth experience (like it would have been in a traditional JS/DOM approach), but having access to low-level rendering/WebGL canvas while keeping the widget hierarchy in the mix was really useful to achieve our results.\n\nFor us, keyboard handling is not an issue, and we have a looot of shortcuts for different sub-sections of each running program in the Flutter main app. However, in our very specific project (an internal app), every user is using Chrome only. That avoids a lot of the issues you encounter.\n\nGood luck with your projects and have a nice day!\nFlutter powa!\n\n",
+    "createdAt": "2025-02-14T12:58:27Z"
+  },
+  {
+    "id": 3060,
+    "sender": "kjxbyz",
+    "content": "After upgrading to 3.29.0, running the web application in debug mode requires downloading more than 90MB of static resources, and my browser is stuck and cannot be used.",
+    "createdAt": "2025-02-14T14:00:18Z"
+  },
+  {
+    "id": 3061,
+    "sender": "lokesh1996v",
+    "content": "This issue must be addressed before HTML Renderer deprecation.\n\nChrome > Menu > [CHECK] Desktop mode\n\nCanvas kit -> Doesn't render anything in Desktop mode web mobile, always hang up on index.html blank screen.\n\nHtml Renderer -> Works perfectly.",
+    "createdAt": "2025-02-14T18:57:24Z"
+  },
+  {
+    "id": 3062,
+    "sender": "saurabhguptasg",
+    "content": "> > [...] `NetworkImage(FirebaseAuth.instance.currentUser!.photoURL!)` throws a 429 exception on web when using defaults, but is fixed when using `--web-renderer=html` even though it gives a deprecation warning. So I think some fixes are still needed\n> \n> [@saurabhguptasg](https://github.com/saurabhguptasg) I recommend to open an issue for that (complete with reproducible code sample)\n\njust as a follow up, I read up on the [http](https://pub.dev/packages/http) package and it shows the browser client doesn't have caching, so I switched to using fetch_client and made an explicit memory image:\n```\nstatic final FetchClient _client = FetchClient(mode: RequestMode.cors);\n\n  static Future<Uint8List> getBytes(String url) async {\n    FetchResponse response = await _client.send(http.Request(\"GET\", Uri.parse(url)));\n    if(response.statusCode == 200) {\n      return response.stream.toBytes();\n    }\n    return Uint8List(0);\n  }\n\n  bool _isLoading = true;\n  Image? _userImage;\n  Future<void> _init() async {\n\n    Uint8List imageBytes = await getBytes(FirebaseAuth.instance.currentUser!.photoURL!);\n    Image memoryImage;\n    if(imageBytes.isNotEmpty) {\n      memoryImage = Image.memory(imageBytes);\n    }\n    else {\n      memoryImage = await createBlankImageWidget(96, 96);\n    }\n    setState(() {\n      _isLoading = false;\n      _userImage = memoryImage;\n    });\n  }\n\nWidget _buildUserIcon(BuildContext context) {\n    if(_isLoading) {\n      return Padding(\n        padding: const EdgeInsets.all(8.0),\n        child: CircularProgressIndicator(),\n      );\n    }\n    if(_userImage == null) {\n      return Padding(\n        padding: const EdgeInsets.all(8.0),\n        child: Icon(Icons.account_circle_outlined),\n      );\n    }\n    return Padding(\n      padding: const EdgeInsets.all(8.0),\n      child: CircleAvatar(\n        backgroundImage: _userImage!.image,\n      ),\n    );\n\n  }\n\n```\n\nthis works now after removing the `--web-renderer=html` flag\n",
+    "createdAt": "2025-02-14T22:06:27Z"
+  },
+  {
+    "id": 3063,
+    "sender": "higaski",
+    "content": "In my opinion, communication with the community needs to be drastically improved.\nThe breaking changes in the 3.29 [release notes](https://docs.flutter.dev/release/breaking-changes#released-in-flutter-3-29) do not mention that the web-renderer option has been removed.\n\nInvoking `flutter build web --help` now tells me that this version got the `--wasm` option, it does not include the `no-wasm` option however. Why is that? That option has been mentioned here: https://docs.flutter.dev/platform-integration/web/renderers\n\nMy [question](https://github.com/flutter/flutter/issues/145954#issuecomment-2559602422) on those options still remains unanswered.",
+    "createdAt": "2025-02-16T19:16:31Z"
+  },
+  {
+    "id": 3064,
+    "sender": "kevmoo",
+    "content": "@higaski \n\n> Could someone please explain the naming of the new web renderers to me? Why does the documentation call them **default** and **WebAssembly**? To me it looks like all new renderers are WebAssembly based?\n> \n> There is\n> \n> * `canvaskit.wasm`\n> * `chromium/canvaskit.wasm`\n> * `skwasm.wasm`\n> \n> Isn't `.wasm` the WebAssembly extension?\n> \n> Also, please make sure to **not** repeat issue [#96509](https://github.com/flutter/flutter/issues/96509). A user picking the `--no-wasm` option does not want the additional garbage collected stuff...\n\nWe have one renderer: canvaskit. BUT, we have 3 flavors of canvaskit to allow bindings.\n\nchromium/canvaskit is optimized for Chrome, since Chrome includes features other browsers don't. This allows us to make a smaller binary.\n\nskwasm: this is canvaskit (the name is a portmanteau for skia wasm) built to enable direct wasm-to-wasm binding when you compile your app to wasm.\n\nThere is actually a 4th, too!\n\nskwasm_st: is the same as skwasm, but built for single-threaded execution.\n\nWe'd REALLY like to have fewer flavors for everyone's sanity, but rest assured these are all canvaskit.",
+    "createdAt": "2025-02-16T20:54:24Z"
+  },
+  {
+    "id": 3065,
+    "sender": "kevmoo",
+    "content": "@PrathivDev – feel free to reach out to me on socials - (links here https://kevmoo.com/) I'd love to understand your issues more!",
+    "createdAt": "2025-02-17T23:59:42Z"
+  },
+  {
+    "id": 3066,
+    "sender": "DVCStudioX",
+    "content": "please don't remove `Html Renderer`, just leave it as is with a note like stop improving, at least that way there will be an option for people who have `CORS` problem _(ex. show image assets from open API url)_ or experienced Html smoother than Canvaskit with their specific product (I'm in both cases)",
+    "createdAt": "2025-02-18T02:07:35Z"
+  },
+  {
+    "id": 3067,
+    "sender": "higaski",
+    "content": "> [@higaski](https://github.com/higaski)\n> \n> > Could someone please explain the naming of the new web renderers to me? Why does the documentation call them **default** and **WebAssembly**? To me it looks like all new renderers are WebAssembly based?\n> > There is\n> > \n> > * `canvaskit.wasm`\n> > * `chromium/canvaskit.wasm`\n> > * `skwasm.wasm`\n> > \n> > Isn't `.wasm` the WebAssembly extension?\n> > Also, please make sure to **not** repeat issue [#96509](https://github.com/flutter/flutter/issues/96509). A user picking the `--no-wasm` option does not want the additional garbage collected stuff...\n> \n> We have one renderer: canvaskit. BUT, we have 3 flavors of canvaskit to allow bindings.\n> \n> chromium/canvaskit is optimized for Chrome, since Chrome includes features other browsers don't. This allows us to make a smaller binary.\n> \n> skwasm: this is canvaskit (the name is a portmanteau for skia wasm) built to enable direct wasm-to-wasm binding when you compile your app to wasm.\n> \n> There is actually a 4th, too!\n> \n> skwasm_st: is the same as skwasm, but built for single-threaded execution.\n> \n> We'd REALLY like to have fewer flavors for everyone's sanity, but rest assured these are all canvaskit.\n\nThank you for the explanation. Now I know this is a little like reading coffee residue but are you expecting the .wasm version which works on all browsers to drop in size?\nCurrently my web app (working on all major browsers) has increased in size from 1.1 to 3.8 MB just by switching to canvaskit.",
+    "createdAt": "2025-02-19T08:12:11Z"
+  },
+  {
+    "id": 3068,
+    "sender": "2000calories",
+    "content": "In my case,\nweb app need to load **21.1MB** static files using `flutter build web`.\nwhile it needs only **5.2MB** static files using `flutter build web --web-renderer html`.\n\nI do not understand why you removed the html renderer. ",
+    "createdAt": "2025-02-21T09:55:17Z"
+  },
+  {
+    "id": 3069,
+    "sender": "kevmoo",
+    "content": "@2000calories - please see the explanation in the bug description ☝.\n\nThe size delta should only be about 1MB...unless the rest of it is fonts. Is that what you're seeing?",
+    "createdAt": "2025-02-21T17:37:00Z"
+  },
+  {
+    "id": 3070,
+    "sender": "higaski",
+    "content": "> [@2000calories](https://github.com/2000calories) - please see the explanation in the bug description ☝.\n> \n> The size delta should only be about 1MB...unless the rest of it is fonts. Is that what you're seeing?\n\nThat's only true if you're talking about Chromium (and therefor the canvaskit implementation inside the `chromium` subdirectory) exclusively.",
+    "createdAt": "2025-02-21T18:12:25Z"
+  },
+  {
+    "id": 3071,
+    "sender": "kevmoo",
+    "content": "For non-Chromium it's about ~2MB compressed if I remember correctly.",
+    "createdAt": "2025-02-21T18:15:04Z"
+  }
+]

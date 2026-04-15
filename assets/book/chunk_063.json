@@ -1,0 +1,386 @@
+[
+  {
+    "id": 4032,
+    "sender": "delfme",
+    "content": "> [@knopp](https://github.com/knopp) could you please take a look at my previous comment and share your thoughts? I've tested the issue on SuperList and attached below a video for reference.\n> \n> First, my compliments on the app—it’s impressive! We truly believe this year can be a pivotal moment for Flutter's growth if premium massively adopted native-like flutter apps with 4-5 star reviews become available on app stores.\n> \n>  videozip_1352.mp4 \n> \n> As you can see from video, things go wrong as soon as user add emoji to text.\n\n\nIt looks like the sun emoji is rendering in black in the SuperList app's video. We noticed this issue when using custom variable fonts, but if that's not the case here, it could be a regression. (On version 3.24.5, this issue isn't present.)",
+    "createdAt": "2025-02-26T17:01:02Z"
+  },
+  {
+    "id": 4033,
+    "sender": "delfme",
+    "content": "> [@delfme](https://github.com/delfme) Can you list out the issues that you want to group? I'm unsure if/how they're related.\n> \n> It seems like the ideal solution to this issue is [in Skia](https://g-issues.skia.org/issues/40041310?pli=1&authuser=0), and your solution would best be done as a package.\n\n@justinmc GPT also warns that Skia team might not be able to resolve text fidelity issues. We hope Flutter team will get to somehow workaround this limitations and meantime we'll be also keeping an eye on Lynx. \n\n![Image](https://github.com/user-attachments/assets/b87b7adf-2d33-4fcf-82f0-251424bae1a6)\n\n![Image](https://github.com/user-attachments/assets/d0729bd1-9310-4dc6-8913-2ca419beee27)",
+    "createdAt": "2025-03-07T19:52:31Z"
+  },
+  {
+    "id": 4034,
+    "sender": "delfme",
+    "content": "Added comments here https://github.com/flutter/flutter/issues/150824 to underline our discoveries on how iOS text rendering bugs are intertwined and why should be better grouped into one single PR (Fix text rendering fidelity on iOS) where all knowledge could be shared in one place.\n\nCC @dkwingsmt, who’s been making great fixes on iOS fidelity and he’ll likely encounter this emoji-related bug while working on multiline text rendering.\n\nRegarding the suggestion that https://github.com/flutter/flutter/issues/28894 should be fixed in Skia, we’d appreciate a clarification:\n- This issue is critical and has been reported in both the Flutter and Skia repositories.\n- Since both teams are part of the same organization, we assume there is a direct communication channel available between them.\n- A dart patch has been provided 2 years ago - it is a mere patch but explains the elements that play a role in the issue (height, fontSize, emoji offset) and is a good reference for those working on a fix. https://github.com/delfme/text-widget\n\nCould you please share what the current technical blockers are for resolving this issue? ",
+    "createdAt": "2025-05-31T10:16:00Z"
+  },
+  {
+    "id": 4035,
+    "sender": "auradigitaldev",
+    "content": "Wild that it's been over 6 years since this was reported and still no fix in sight. It's bugs like these that push me toward considering SwiftUI/React Native.",
+    "createdAt": "2025-06-12T20:16:44Z"
+  },
+  {
+    "id": 4036,
+    "sender": "sethladd",
+    "content": "This is apparently the upstream issue: https://issues.skia.org/issues/40041310",
+    "createdAt": "2025-07-02T18:52:15Z"
+  },
+  {
+    "id": 4037,
+    "sender": "delfme",
+    "content": "@sethladd, in that thread, CoreText is cited as undocumented, which is not accurate - as I demonstrated here: https://github.com/flutter/flutter/issues/150824#issuecomment-2689080396.\n\n@flutterteam since this can’t be resolved within Skia and causes Flutter apps look washed out, could we consider moving away from Skia and instead use CoreText directly? This single shift would address a wide range of long-standing issues all at once - from emoji rendering to incorrect font weights and more.\n",
+    "createdAt": "2025-07-02T21:38:10Z"
+  },
+  {
+    "id": 4038,
+    "sender": "sethladd",
+    "content": "cc @jtmcdole for question above re: CoreText",
+    "createdAt": "2025-07-07T16:09:11Z"
+  },
+  {
+    "id": 4039,
+    "sender": "justinmc",
+    "content": "## Autocomplete Options Width\n\n| Problem | Before | After |\r\n| --- | --- | --- |\r\n| Width | <img width=\"797\" alt=\"Screenshot 2024-02-09 at 1 29 09 PM\" src=\"https://github.com/flutter/flutter/assets/389558/c49fa584-2550-41f6-ab80-6c20d01412b1\"> | <img width=\"794\" alt=\"Screenshot 2024-02-09 at 1 23 59 PM\" src=\"https://github.com/flutter/flutter/assets/389558/1326f797-9883-4916-9de3-1939e7648d46\">  |\r\n| Overflow | ![Screenshot from 2024-06-07 13-39-45](https://github.com/flutter/flutter/assets/389558/8a24c87a-2b5e-4bdc-8347-339d850f5a82) | ![Screenshot from 2024-06-07 13-38-26](https://github.com/flutter/flutter/assets/389558/735248aa-8969-413b-a6cf-4f9b708f9ea8)  |\r\n\r\nFixes https://github.com/flutter/flutter/issues/78746\r\nFixes https://github.com/flutter/flutter/issues/92851\r\nPart of https://github.com/flutter/flutter/issues/101620\r\nFixes https://github.com/flutter/flutter/issues/147483\r\nFixes https://github.com/flutter/flutter/issues/153274\r\nPart of Google b/317115348\r\nFixes optionsViewOpenDirection not working, mentioned in https://github.com/flutter/flutter/pull/143249#issuecomment-2036191457.\r\n\r\n### Requirements\r\n\r\n * [x] By default, the width of the options matches the width of the field.\r\n * [x] Options can be aligned to the start or end for LTR/RTL languages.\r\n * [x] The optionsViewOpenDirection parameter is respected.\r\n * [x] If the options would vertically exceed the top or bottom of the screen, they reposition themselves to fit on the screen while covering the field. At least enough to tap an option. This has accessibility implications, because sometimes an Autocomplete near the edge of a narrow screen can be unusable.\r\n * [x] If the Autocomplete is in a ScrollView, then the options move along with the field during scrolling.\r\n * [x] When the field moves or resizes, the options position and size change to match. Even if the field is animated.\r\n * [ ] The options layout updates on the same frame that the field layout changes.\r\n\r\nIt's probably not possible to check all of these boxes so we'll probably need to compromise.\r\n\r\n #### Tools that I've used to try to achieve this\r\n\r\n * LayoutBuilder to provide the field constraints[^1].\r\n * Looking up layout information of a widget via GlobalKey.\r\n * CompositedTransformFollower/Target.\r\n * CustomSingleChildLayout.\r\n\r\n[^1]: Originally this didn't work due to a bug when using LayoutBuilder with OverlayPortal (https://github.com/flutter/flutter/pull/147856). That has now been fixed.",
+    "createdAt": "2024-02-09T21:30:25Z"
+  },
+  {
+    "id": 4040,
+    "sender": "justinmc",
+    "content": "@LongCatIsLooong Would something like this work in OverlayPortal? Or maybe better, `_optionsLayerLink.leaderSize.width`?",
+    "createdAt": "2024-02-09T21:41:14Z"
+  },
+  {
+    "id": 4041,
+    "sender": "justinmc",
+    "content": "I've tracked down the bug from the failing Google tests. Disposing the field's TextEditingController at the time that an option is selected results in:\r\n\r\n```\r\nThe following assertion was thrown building RawGestureDetector(state:\r\nRawGestureDetectorState#6436d(gestures: [tap, long press, tap and pan], excludeFromSemantics: true,\r\nbehavior: translucent)):\r\nA TextEditingController was used after being disposed.\r\nOnce you have called dispose() on a TextEditingController, it can no longer be used.\r\n```\r\n\r\nThe bug happens like this:\r\n\r\n 1. An option is tapped, and the TextEditingController is modified with the new selected value.\r\n 2. TextFormField calls setState due to the changed controller.\r\n 3. The controller is disposed.\r\n 4. TextFormField builds with the disposed controller.\r\n\r\nThe cause is the LayoutBuilder added in this PR. It delays the build until after the controller has been disposed but before it's been replaced.\r\n\r\nI think the question is: Is this something that should work, or should we discourage messing with the controller like this? @LongCatIsLooong \r\n\r\n<details>\r\n\r\n<summary>Full error</summary>\r\n\r\n```\r\nThe following assertion was thrown building RawGestureDetector(state:\r\nRawGestureDetectorState#6436d(gestures: [tap, long press, tap and pan], excludeFromSemantics: true,\r\nbehavior: translucent)):\r\nA TextEditingController was used after being disposed.\r\nOnce you have called dispose() on a TextEditingController, it can no longer be used.\r\n\r\nThe relevant error-causing widget was:\r\n  TextFormField\r\n  TextFormField:file:///usr/local/google/home/jmccandless/Projects/issues/sandbox/lib/main.dart:57:16\r\n\r\nWhen the exception was thrown, this was the stack:\r\n#0      ChangeNotifier.debugAssertNotDisposed.<anonymous closure> (package:flutter/src/foundation/change_notifier.dart:179:9)\r\n#1      ChangeNotifier.debugAssertNotDisposed (package:flutter/src/foundation/change_notifier.dart:186:6)\r\n#2      ChangeNotifier.addListener (package:flutter/src/foundation/change_notifier.dart:271:27)\r\n#3      _MergingListenable.addListener (package:flutter/src/foundation/change_notifier.dart:499:14)\r\n#4      _AnimatedState.didUpdateWidget (package:flutter/src/widgets/transitions.dart:118:25)\r\n#5      StatefulElement.update (package:flutter/src/widgets/framework.dart:5659:55)\r\n#6      Element.updateChild (package:flutter/src/widgets/framework.dart:3827:15)\r\n#7      SingleChildRenderObjectElement.update (package:flutter/src/widgets/framework.dart:6776:14)\r\n#8      Element.updateChild (package:flutter/src/widgets/framework.dart:3827:15)\r\n#9      ComponentElement.performRebuild (package:flutter/src/widgets/framework.dart:5512:16)\r\n#10     StatefulElement.performRebuild (package:flutter/src/widgets/framework.dart:5650:11)\r\n#11     Element.rebuild (package:flutter/src/widgets/framework.dart:5203:7)\r\n#12     StatefulElement.update (package:flutter/src/widgets/framework.dart:5673:5)\r\n#13     Element.updateChild (package:flutter/src/widgets/framework.dart:3827:15)\r\n#14     ComponentElement.performRebuild (package:flutter/src/widgets/framework.dart:5512:16)\r\n#15     StatefulElement.performRebuild (package:flutter/src/widgets/framework.dart:5650:11)\r\n#16     Element.rebuild (package:flutter/src/widgets/framework.dart:5203:7)\r\n#17     StatefulElement.update (package:flutter/src/widgets/framework.dart:5673:5)\r\n#18     Element.updateChild (package:flutter/src/widgets/framework.dart:3827:15)\r\n#19     SingleChildRenderObjectElement.update (package:flutter/src/widgets/framework.dart:6776:14)\r\n#20     Element.updateChild (package:flutter/src/widgets/framework.dart:3827:15)\r\n#21     ComponentElement.performRebuild (package:flutter/src/widgets/framework.dart:5512:16)\r\n#22     StatefulElement.performRebuild (package:flutter/src/widgets/framework.dart:5650:11)\r\n#23     Element.rebuild (package:flutter/src/widgets/framework.dart:5203:7)\r\n#24     StatefulElement.update (package:flutter/src/widgets/framework.dart:5673:5)\r\n#25     Element.updateChild (package:flutter/src/widgets/framework.dart:3827:15)\r\n#26     SingleChildRenderObjectElement.update (package:flutter/src/widgets/framework.dart:6776:14)\r\n#27     Element.updateChild (package:flutter/src/widgets/framework.dart:3827:15)\r\n#28     SingleChildRenderObjectElement.update (package:flutter/src/widgets/framework.dart:6776:14)\r\n#29     Element.updateChild (package:flutter/src/widgets/framework.dart:3827:15)\r\n#30     SingleChildRenderObjectElement.update (package:flutter/src/widgets/framework.dart:6776:14)\r\n#31     Element.updateChild (package:flutter/src/widgets/framework.dart:3827:15)\r\n#32     ComponentElement.performRebuild (package:flutter/src/widgets/framework.dart:5512:16)\r\n#33     StatefulElement.performRebuild (package:flutter/src/widgets/framework.dart:5650:11)\r\n#34     Element.rebuild (package:flutter/src/widgets/framework.dart:5203:7)\r\n#35     StatefulElement.update (package:flutter/src/widgets/framework.dart:5673:5)\r\n#36     Element.updateChild (package:flutter/src/widgets/framework.dart:3827:15)\r\n#37     ComponentElement.performRebuild (package:flutter/src/widgets/framework.dart:5512:16)\r\n#38     Element.rebuild (package:flutter/src/widgets/framework.dart:5203:7)\r\n#39     ProxyElement.update (package:flutter/src/widgets/framework.dart:5816:5)\r\n#40     Element.updateChild (package:flutter/src/widgets/framework.dart:3827:15)\r\n#41     ComponentElement.performRebuild (package:flutter/src/widgets/framework.dart:5512:16)\r\n#42     StatefulElement.performRebuild (package:flutter/src/widgets/framework.dart:5650:11)\r\n#43     Element.rebuild (package:flutter/src/widgets/framework.dart:5203:7)\r\n#44     BuildOwner.buildScope (package:flutter/src/widgets/framework.dart:2905:19)\r\n#45     WidgetsBinding.drawFrame (package:flutter/src/widgets/binding.dart:1021:21)\r\n#46     RendererBinding._handlePersistentFrameCallback (package:flutter/src/rendering/binding.dart:443:5)\r\n#47     SchedulerBinding._invokeFrameCallback (package:flutter/src/scheduler/binding.dart:1388:15)\r\n#48     SchedulerBinding.handleDrawFrame (package:flutter/src/scheduler/binding.dart:1313:9)\r\n#49     SchedulerBinding._handleDrawFrame (package:flutter/src/scheduler/binding.dart:1171:5)\r\n#50     _invoke (dart:ui/hooks.dart:312:13)\r\n#51     PlatformDispatcher._drawFrame (dart:ui/platform_dispatcher.dart:419:5)\r\n#52     _drawFrame (dart:ui/hooks.dart:283:31)\r\n\r\n════════════════════════════════════════════════════════════════════════════════════════════════════\r\n```\r\n\r\n</details>\r\n\r\n<details>\r\n\r\n<summary>Repro code </summary>\r\n\r\n```dart\r\nimport 'package:flutter/material.dart';\r\n\r\nvoid main() => runApp(const AutocompleteExampleApp());\r\n\r\nclass AutocompleteExampleApp extends StatelessWidget {\r\n  const AutocompleteExampleApp({super.key});\r\n\r\n  @override\r\n  Widget build(BuildContext context) {\r\n    return MaterialApp(\r\n      home: Scaffold(\r\n        appBar: AppBar(\r\n          title: const Text('Autocomplete Basic'),\r\n        ),\r\n        body: const Center(\r\n          child: Column(\r\n            mainAxisAlignment: MainAxisAlignment.center,\r\n            children: <Widget>[\r\n              Padding(\r\n                padding: EdgeInsets.symmetric(horizontal: 32.0),\r\n                child: _MyAutocomplete(),\r\n              ),\r\n            ],\r\n          ),\r\n        ),\r\n      ),\r\n    );\r\n  }\r\n}\r\n\r\nclass _MyAutocomplete extends StatefulWidget {\r\n  const _MyAutocomplete();\r\n\r\n  @override\r\n  State<_MyAutocomplete> createState() => _MyAutocompleteState();\r\n}\r\n\r\nclass _MyAutocompleteState extends State<_MyAutocomplete> {\r\n  final FocusNode focusNode = FocusNode();\r\n  TextEditingController controller = TextEditingController(text: 'First text');\r\n\r\n  static const List<String> _kOptions = <String>[\r\n    'aardvark',\r\n    'bobcat',\r\n    'chameleon',\r\n  ];\r\n\r\n  @override\r\n  Widget build(BuildContext context) {\r\n    return RawAutocomplete<String>(\r\n      textEditingController: controller,\r\n      focusNode: focusNode,\r\n      fieldViewBuilder: (BuildContext buildContext, TextEditingController controller, FocusNode focusNode, VoidCallback onSubmitted) {\r\n        debugPrint('fieldviewbuilder ${controller.text}');\r\n        // TODO(justinmc): This must be TFF to reproduce, not TF, because TFF\r\n        // listens to the controller and rebuilds if it changes.\r\n        return TextFormField(\r\n          controller: controller,\r\n          focusNode: focusNode,\r\n          onFieldSubmitted: (String value) => onSubmitted(),\r\n        );\r\n      },\r\n      optionsViewBuilder: (BuildContext context, AutocompleteOnSelected<String> onSelected, Iterable<String> options) {\r\n        return Column(\r\n          children: <Widget>[\r\n            ...options.map((String option) {\r\n              return TextButton(\r\n                onPressed: () {\r\n                  onSelected(option);\r\n                },\r\n                child: Text(option),\r\n              );\r\n            }),\r\n          ],\r\n        );\r\n      },\r\n      optionsBuilder: (TextEditingValue textEditingValue) {\r\n        return _kOptions;\r\n      },\r\n      onSelected: (String selection) {\r\n        debugPrint('You just selected $selection');\r\n        setState(() {\r\n          controller.dispose();\r\n          controller = TextEditingController(text: 'Last text');\r\n        });\r\n      },\r\n    );\r\n  }\r\n}\r\n```\r\n\r\n</details>\r\n\r\n",
+    "createdAt": "2024-03-12T20:01:12Z"
+  },
+  {
+    "id": 4042,
+    "sender": "LongCatIsLooong",
+    "content": "Ah interesting. `onSelected` only gets called when the user taps the selection right?",
+    "createdAt": "2024-03-12T23:01:16Z"
+  },
+  {
+    "id": 4043,
+    "sender": "justinmc",
+    "content": "@LongCatIsLooong Yes (though I could use the keyboard or something if I wanted to). Also, the bug doesn't happen if I do the whole controller swap based on a separate button click or something, only when it happens as a part of onSelected. That's because the RawAutocomplete code updates the TextEditingController before calling onSelected.",
+    "createdAt": "2024-03-13T19:45:00Z"
+  },
+  {
+    "id": 4044,
+    "sender": "LongCatIsLooong",
+    "content": "> 3. The controller is disposed.\r\n> 4. TextFormField builds with the disposed controller.\r\n \r\nSo the onSelect callback is called between, say, frame `n` and `n + 1`, and the controller is disposed,  then when we build the widget tree for frame `n + 1`:\r\n\r\n`_MyAutocompleteState` should rebuild first, which rebuilds `RawAutocomplete`, and `RawAutocomplete`'s state should be using the new controller now. What am I missing?\r\n",
+    "createdAt": "2024-03-13T20:00:32Z"
+  },
+  {
+    "id": 4045,
+    "sender": "wmadden",
+    "content": "Any progress here? The Autocomplete widget isn't really usable as it is",
+    "createdAt": "2024-04-02T23:53:14Z"
+  },
+  {
+    "id": 4046,
+    "sender": "wmadden",
+    "content": "@justinmc you can solve this problem much more simply, without using the `LayoutBuilder`.\r\n\r\nThe issue is actually the `OverlayEntry`, which will size its child to occupy as much space as possible. You can use the existing fieldKey to get the RenderBox of the text field and use that to size the options list widget. You'll need to introduce a container between the OverlayEntry and the options list to change the sizing constraints.\r\n\r\nThat way you don't need the postframe callback, which should simplify the tests",
+    "createdAt": "2024-04-04T00:54:21Z"
+  },
+  {
+    "id": 4047,
+    "sender": "wmadden",
+    "content": "Incidentally, and I suppose this should be a separate bug ticket, the Autocomplete `optionsViewOpenDirection: OptionsViewOpenDirection.up` doesn't function at all because the options list is positioned way off the screen. Because of the same issue with the OverlayEntry.\r\n\r\nYou can reproduce using the live example on the Autocomplete docs page, just set `optionsViewOpenDirection` to up: https://api.flutter.dev/flutter/material/Autocomplete-class.html",
+    "createdAt": "2024-04-04T04:57:16Z"
+  },
+  {
+    "id": 4048,
+    "sender": "justinmc",
+    "content": "@wmadden You're right about the OptionsViewOpenDirection bug, can you open a separate issue? I'll investigate if this fix is related to whatever we should do to fix that bug too.\r\n\r\nAbout your proposed solution, I believe it won't update the options when the size of the field changes. Also, using a GlobalKey to get the size of another widget requires that you wait until that widget has been laid out, so I think they would still be 1 frame delayed from each other (maybe not a terrible problem).",
+    "createdAt": "2024-04-06T00:00:53Z"
+  },
+  {
+    "id": 4049,
+    "sender": "justinmc",
+    "content": "I was just walking through this error with @LongCatIsLooong and wanted to post a summary of why it happens. Run the repro code and select an option, and this is the process of the bug happening:\r\n\r\n [1.](https://github.com/flutter/flutter/blob/4d1161b5912b200d3e57dbd7c4161b2a6b321d7b/packages/flutter/lib/src/widgets/autocomplete.dart#L386) RawAutocomplete updates the field's TextEditingController to the selected string.\r\n\r\n [2.](https://github.com/flutter/flutter/blob/4d1161b5912b200d3e57dbd7c4161b2a6b321d7b/packages/flutter/lib/src/material/text_form_field.dart#L397) TextFormField, which has a listener on the disposed controller, schedules itself to rebuild.\r\n\r\n\r\n [3.](https://github.com/flutter/flutter/blob/4d1161b5912b200d3e57dbd7c4161b2a6b321d7b/packages/flutter/lib/src/widgets/autocomplete.dart#L390) RawAutocomplete calls onSelected, which calls the repro code and disposes the controller:\r\n\r\n```dart\r\nsetState(() {\r\n  controller.dispose();\r\n  controller = TextEditingController(text: 'Last text');\r\n});\r\n```\r\n\r\n [4.](https://github.com/flutter/flutter/blob/4d1161b5912b200d3e57dbd7c4161b2a6b321d7b/packages/flutter/lib/src/material/text_field.dart#L1535) TextFormField rebuilds along with its underlying TextField, which ends up trying to add a listener on the disposed controller, which is what ultimately triggers the error in the stack trace.\r\n ",
+    "createdAt": "2024-04-06T00:01:44Z"
+  },
+  {
+    "id": 4050,
+    "sender": "wmadden",
+    "content": "@justinmc I [opened a new issue](https://github.com/flutter/flutter/issues/146376) reporting the broken direction behavior ✅ \r\n\r\n> About your proposed solution, I believe it won't update the options when the size of the field changes. Also, using a GlobalKey to get the size of another widget requires that you wait until that widget has been laid out, so I think they would still be 1 frame delayed from each other (maybe not a terrible problem).\r\n\r\nI'll defer to your judgement here - I'm sure you know more about this than I do. But in what real-world scenario would the TextField _not_ already be laid out by the time the menu is being drawn?\r\n\r\nI noticed the `MenuAnchor` implementation uses a very different implementation to the `Autocomplete`. It doesn't use the `LayerLink` to position the menu, instead providing its own `CustomSingleChildLayoutDelegate`. As a result, it's capable of measuring the available space between the edges of the overlay layer and the edges of the anchor widget - something the AutoComplete layout logic currently lacks completely.\r\n\r\nIt looks like the AutoComplete's layout logic is missing a lot of edge cases - like opening upwards (:D), and like providing constraining the list widget's size to the available space. The Flutter team probably ought to consider a more complete solution and ideally it should share some layout logic with MenuAnchor since they're doing exactly the same thing.\r\n\r\nI know this isn't directly helpful to solving your problem, but I hope it helps nonetheless :)",
+    "createdAt": "2024-04-06T00:29:01Z"
+  },
+  {
+    "id": 4051,
+    "sender": "justinmc",
+    "content": "Here is a repro case that has nothing to do with Autocomplete, to get to the root of the bug. I'm not sure if there is a bug that should be fixed here, or if Autocomplete should just work around it.\r\n\r\n<details>\r\n\r\n<summary>Repro code without Autocomplete</summary>\r\n\r\n```dart\r\nimport 'package:flutter/material.dart';\r\n\r\nvoid main() {\r\n  runApp(const MyApp());\r\n}\r\n\r\nclass MyApp extends StatelessWidget {\r\n  const MyApp({super.key});\r\n\r\n  @override\r\n  Widget build(BuildContext context) {\r\n    return MaterialApp(\r\n      title: 'Flutter Demo',\r\n      theme: ThemeData(\r\n        primarySwatch: Colors.blue,\r\n      ),\r\n      home: const MyHomePage(title: 'Flutter Demo Home Page'),\r\n    );\r\n  }\r\n}\r\n\r\nclass MyHomePage extends StatelessWidget {\r\n  const MyHomePage({super.key, required this.title});\r\n\r\n  final String title;\r\n\r\n  @override\r\n  Widget build(BuildContext context) {\r\n    return Scaffold(\r\n      appBar: AppBar(\r\n        title: Text(title),\r\n      ),\r\n      body: Center(\r\n        child: Column(\r\n          mainAxisAlignment: MainAxisAlignment.center,\r\n          children: <Widget>[\r\n            MyParentWidget(),\r\n          ],\r\n        ),\r\n      ),\r\n    );\r\n  }\r\n}\r\n\r\nclass MyParentWidget extends StatelessWidget {\r\n  MyParentWidget({\r\n    super.key,\r\n  });\r\n\r\n  final ValueNotifier<String> notifier = ValueNotifier<String>('one');\r\n\r\n  @override\r\n  Widget build(BuildContext context) {\r\n    return Column(\r\n      children: <Widget>[\r\n        MyChildWidget(notifier: notifier),\r\n        TextButton(\r\n          onPressed: () {\r\n            // When the value is changed, MyChildWidget is going to schedule a\r\n            // build.\r\n            notifier.value = 'two';\r\n            // But then the notifier is disposed, so when MyChildWidget builds,\r\n            // it will be building with a disposed notifier.\r\n            notifier.dispose();\r\n          },\r\n          child: const Text('Click to cause bug'),\r\n        ),\r\n      ],\r\n    );\r\n  }\r\n}\r\n\r\nclass MyChildWidget extends StatefulWidget {\r\n  const MyChildWidget ({\r\n    super.key,\r\n    required this.notifier,\r\n  });\r\n\r\n  final ValueNotifier<String> notifier;\r\n\r\n  @override\r\n  State<MyChildWidget> createState() => _MyChildWidgetState();\r\n}\r\n\r\nclass _MyChildWidgetState extends State<MyChildWidget> {\r\n  int _numberOfTimesNotifierHasNotified = 0;\r\n\r\n  @override\r\n  void initState() {\r\n    super.initState();\r\n\r\n    widget.notifier.addListener(_handleNotifierChange);\r\n  }\r\n\r\n  @override\r\n  void didUpdateWidget(MyChildWidget oldWidget) {\r\n    super.didUpdateWidget(oldWidget);\r\n    if (widget.notifier != oldWidget.notifier) {\r\n      oldWidget.notifier.removeListener(_handleNotifierChange);\r\n      widget.notifier.addListener(_handleNotifierChange);\r\n    }\r\n  }\r\n\r\n  @override\r\n  void dispose() {\r\n    widget.notifier.removeListener(_handleNotifierChange);\r\n    super.dispose();\r\n  }\r\n\r\n  _handleNotifierChange() {\r\n    setState(() {\r\n      _numberOfTimesNotifierHasNotified += 1;\r\n    });\r\n  }\r\n\r\n  @override\r\n  Widget build(BuildContext context) {\r\n    return AnimatedBuilder(\r\n      // Listenable.merge will add a listener to widget.notifier, which is not\r\n      // allowed on a disposed ValueNotifier.\r\n      animation: Listenable.merge(<Listenable>[ widget.notifier ]),\r\n      builder: (BuildContext context, Widget? child) {\r\n        return Text('notifier is: ${widget.notifier.value} and has notified this many times: $_numberOfTimesNotifierHasNotified');\r\n      },\r\n    );\r\n  }\r\n}\r\n```\r\n\r\n</details>",
+    "createdAt": "2024-04-06T00:41:37Z"
+  },
+  {
+    "id": 4052,
+    "sender": "justinmc",
+    "content": "This PR is blocked on https://github.com/flutter/flutter/pull/147856. It's probably not worth it for me to find a workaround if that PR can be merged in the near future.",
+    "createdAt": "2024-05-13T17:01:04Z"
+  },
+  {
+    "id": 4053,
+    "sender": "justinmc",
+    "content": "The error mentioned in https://github.com/flutter/flutter/pull/143249#issuecomment-1992468754 seems to be fixed after https://github.com/flutter/flutter/issues/146379 was merged (using the LayoutBuilder approach). I'm hoping that the Google tests will work now, once I get this PR cleaned up.",
+    "createdAt": "2024-06-07T17:33:12Z"
+  },
+  {
+    "id": 4054,
+    "sender": "justinmc",
+    "content": "Looks like the Google test failure is legit. I've messed up the height of the options in some cases. I will try to reproduce it locally and do something to not cause that.",
+    "createdAt": "2024-06-15T00:02:39Z"
+  },
+  {
+    "id": 4055,
+    "sender": "justinmc",
+    "content": "Moving to draft until I have time to return to this.",
+    "createdAt": "2024-09-04T18:08:44Z"
+  },
+  {
+    "id": 4056,
+    "sender": "victorsanni",
+    "content": "The test `when field scrolled offscreen, options are hidden` passes on mobile but fails on desktop and web. I played around with DropdownMenu on web and macOS and realized that scrolling actions (with trackpad, mouse wheel, scrollbar) immediately close the options menu (but not on mobile in tests). So, in tests, if the options view is open, scrolled offscreen, and scrolled back until visible, it would still be open on mobile but not on desktop.",
+    "createdAt": "2024-10-15T23:47:46Z"
+  },
+  {
+    "id": 4057,
+    "sender": "victorsanni",
+    "content": "These are my findings from investigating the customer testing failures.\r\n\r\n- When the tests run, the options view opens upwards, showing the right options.\r\n- When any option is tapped, a warning that the widget at that offset cannot be hit-tested is thrown.\r\n- Changing the underlying `RawAutocomplete`'s `optionsViewOpenDirection` to `.down` instead of the current `.up` makes it so that the options view opens downwards instead of upwards, but no warning is thrown and the tests all pass.\r\n\r\n@gnprice @justinmc @LongCatIsLooong do you have any insights as to why this is happening w.r.t the changes in this PR?",
+    "createdAt": "2024-10-18T22:33:27Z"
+  },
+  {
+    "id": 4058,
+    "sender": "victorsanni",
+    "content": "> These are my findings from investigating the customer testing failures.\r\n> \r\n> * When the tests run, the options view opens upwards, showing the right options.\r\n> * When any option is tapped, a warning that the widget at that offset cannot be hit-tested is thrown.\r\n> * Changing the underlying `RawAutocomplete`'s `optionsViewOpenDirection` to `.down` instead of the current `.up` makes it so that the options view opens downwards instead of upwards, but no warning is thrown and the tests all pass.\r\n\r\n\r\nI can also reproduce this in the RawAutocomplete tests. Take the test `tapping on an option selects it` in `RawAutocomplete`, wrap the RawAutocomplete in a Center, and change its optionsViewOpenDirection to .up, and the test fails even though there is as much space above the field as below.\r\n\r\n<details>\r\n<summary>Sample code</summary>\r\n\r\n```dart\r\n\r\nimport 'package:flutter/material.dart';\r\nimport 'package:flutter_test/flutter_test.dart';\r\n\r\nvoid main() {\r\n  const List<String> kOptions = <String>[\r\n    'aardvark',\r\n    'bobcat',\r\n    'chameleon',\r\n    'dingo',\r\n    'elephant',\r\n    'flamingo',\r\n    'goose',\r\n    'hippopotamus',\r\n    'iguana',\r\n    'jaguar',\r\n    'koala',\r\n    'lemur',\r\n    'mouse',\r\n    'northern white rhinoceros',\r\n  ];\r\n\r\n  testWidgets('tapping on an option selects it', (WidgetTester tester) async {\r\n    final GlobalKey fieldKey = GlobalKey();\r\n    final GlobalKey optionsKey = GlobalKey();\r\n    late Iterable<String> lastOptions;\r\n    late FocusNode focusNode;\r\n    late TextEditingController textEditingController;\r\n\r\n    await tester.pumpWidget(\r\n      MaterialApp(\r\n        home: Scaffold(\r\n          body: Column(\r\n            children: [\r\n              Container(height: 100),\r\n              RawAutocomplete<String>(\r\n                optionsViewOpenDirection: OptionsViewOpenDirection.up,\r\n                optionsBuilder: (TextEditingValue textEditingValue) {\r\n                  return kOptions.where((String option) {\r\n                    return option.contains(textEditingValue.text.toLowerCase());\r\n                  });\r\n                },\r\n                fieldViewBuilder: (BuildContext context, TextEditingController fieldTextEditingController, FocusNode fieldFocusNode, VoidCallback onFieldSubmitted) {\r\n                  focusNode = fieldFocusNode;\r\n                  textEditingController = fieldTextEditingController;\r\n                  return TextField(\r\n                    key: fieldKey,\r\n                    focusNode: focusNode,\r\n                    controller: textEditingController,\r\n                  );\r\n                },\r\n                optionsViewBuilder: (BuildContext context, AutocompleteOnSelected<String> onSelected, Iterable<String> options) {\r\n                  lastOptions = options;\r\n                  return Material(\r\n                    elevation: 4.0,\r\n                    child: ListView.builder(\r\n                      key: optionsKey,\r\n                      padding: const EdgeInsets.all(8.0),\r\n                      itemCount: options.length,\r\n                      itemBuilder: (BuildContext context, int index) {\r\n                        final String option = options.elementAt(index);\r\n                        return GestureDetector(\r\n                          onTap: () {\r\n                            onSelected(option);\r\n                          },\r\n                          child: ListTile(\r\n                            title: Text(option),\r\n                          ),\r\n                        );\r\n                      },\r\n                    ),\r\n                  );\r\n                },\r\n              ),\r\n            ],\r\n          ),\r\n        ),\r\n      ),\r\n    );\r\n\r\n    // The field is always rendered, but the options are not unless needed.\r\n    expect(find.byKey(fieldKey), findsOneWidget);\r\n    expect(find.byKey(optionsKey), findsNothing);\r\n\r\n    // Tap on the text field to open the options.\r\n    await tester.tap(find.byKey(fieldKey));\r\n    await tester.pump();\r\n    expect(find.byKey(optionsKey), findsOneWidget);\r\n    expect(lastOptions.length, kOptions.length);\r\n\r\n    await tester.tap(find.text(kOptions[2]));\r\n    await tester.pump();\r\n\r\n    expect(find.byKey(optionsKey), findsNothing);\r\n\r\n    expect(textEditingController.text, equals(kOptions[2]));\r\n  });\r\n}\r\n```\r\n\r\n</details>",
+    "createdAt": "2024-10-18T23:14:10Z"
+  },
+  {
+    "id": 4059,
+    "sender": "dikatok",
+    "content": "@justinmc Hey, are you still working on this PR? I am fixing a similar issue in which the suggestion overlay overflows behind the soft keyboard, and apparently I can use it to fix the width issue as well. Would you mind taking a look at the PR when it is up?",
+    "createdAt": "2024-10-25T08:40:57Z"
+  },
+  {
+    "id": 4060,
+    "sender": "justinmc",
+    "content": "@LongCatIsLooong Could you re-review this since you reviewed it before?",
+    "createdAt": "2024-11-01T21:06:36Z"
+  },
+  {
+    "id": 4061,
+    "sender": "victorsanni",
+    "content": "> The Google failures look like just a handful of acceptable goldens right?\r\n\r\nAnd some failing tests for which I have prepared a fix.\r\n\r\n> It looks to me like all of the requirements in the PR description are met and tested, except that the options render 1 frame late. I think that is a good compromise to make. Can you double confirm that all of those cases work and have a test?\r\n\r\nYep, confirmed. And is why I've checked the applicable boxes in the PR description.\r\n\r\n",
+    "createdAt": "2024-11-01T21:11:45Z"
+  },
+  {
+    "id": 4062,
+    "sender": "gnprice",
+    "content": "Looking back at the (updated) description: that is a long list of fixed issues! :tada: \r\n\r\nDoes this really fix #101620? As I understand it, in a situation like https://github.com/flutter/flutter/issues/101620#issuecomment-1286576417 this would just cause the options view to be very small so it fits below the field; and if the field were still closer to the bottom then it would give the options view a minimal height and let it obscure the field in order to stay on the screen.\r\n\r\nBut what that issue is asking for is that in that situation the `Autocomplete` would automatically detect that the field is (a lot) closer to the bottom than to the top and would place the options above the field, where there's plenty of room for them. IIUC this PR doesn't do that (which is fine — it's doing plenty as it is!), so should leave that issue open.\r\n",
+    "createdAt": "2024-11-22T08:02:27Z"
+  },
+  {
+    "id": 4063,
+    "sender": "gnprice",
+    "content": "From that list of fixed issues, I see that there's also been a string of reports of `OptionsViewOpenDirection.up` not working. I don't think I'd spotted those until now — definitely good to get those fixed.\r\n\r\nAs you saw from those `customer_testing` failures, we use that option in Zulip; and it works fine for us. For a screenshot, see this recent PR that happened to be about the design of the options in the autocomplete list:\r\nhttps://github.com/zulip/zulip-flutter/pull/995\r\n\r\nI don't know offhand what the relevant variable is that differs between our usage and those reports. Perhaps it relates to putting the field in `Center`? That seems to be a common thread of the reports, and of your repro at https://github.com/flutter/flutter/pull/143249#issuecomment-2423356875 . (Not that we need to pin down the answer to that question, if we're fixing the bug anyway.)\r\n\r\n---\r\n\r\nIt sounds like we don't have a test in Zulip that would detect if we changed `up` to `down`, though:\r\nhttps://github.com/flutter/flutter/pull/143249#issuecomment-2423327719\r\neven though that'd certainly break the UI as users experience it. So we should probably add such a test. I'll file a Zulip issue.\r\n\r\n… **edit:** Hmm, or perhaps I misunderstood that comment. I tried this diff in the zulip/zulip-flutter tree:\r\n\r\n```diff\r\ndiff --git lib/widgets/autocomplete.dart lib/widgets/autocomplete.dart\r\nindex 277048f6a..3fd7671da 100644\r\n--- lib/widgets/autocomplete.dart\r\n+++ lib/widgets/autocomplete.dart\r\n@@ -105,3 +105,3 @@ class _AutocompleteFieldState<QueryT extends AutocompleteQuery, ResultT extends\r\n       optionsBuilder: (_) => _resultsToDisplay,\r\n-      optionsViewOpenDirection: OptionsViewOpenDirection.up,\r\n+      optionsViewOpenDirection: OptionsViewOpenDirection.down,\r\n       // RawAutocomplete passes these when it calls optionsViewBuilder:\r\n```\r\n\r\nand it does cause one of our tests to fail, as one would hope:\r\n> test/widgets/autocomplete_test.dart: ComposeAutocomplete options appear, disappear, and change correctly\r\n\r\nThat test tries an autocomplete interaction; then uses `find.text` to look for one of the options that should appear; and when `up` is changed to `down`, the expected option isn't found.\r\n",
+    "createdAt": "2024-11-22T08:13:06Z"
+  },
+  {
+    "id": 4064,
+    "sender": "gnprice",
+    "content": "(@nate-thegrate re https://github.com/flutter/flutter/pull/143249#event-15290736523 : what I learned at  https://github.com/flutter/flutter/pull/143249#discussion_r1853414759 makes a good example of why for a PR with a complex history like this one it's helpful to push only new commits on top, merging from main when needed, instead of rebasing and force-pushing. Though I see our docs at https://github.com/flutter/flutter/blob/master/docs/contributing/Tree-hygiene.md#using-git recommend the opposite ¯\\\\\\_(ツ)_/¯ )",
+    "createdAt": "2024-11-22T08:44:55Z"
+  },
+  {
+    "id": 4065,
+    "sender": "nate-thegrate",
+    "content": "> (@nate-thegrate re [#143249 (comment)](https://github.com/flutter/flutter/pull/143249#event-15290736523) : what I learned at [#143249 (comment)](https://github.com/flutter/flutter/pull/143249#discussion_r1853414759) makes a good example of why for a PR with a complex history like this one it's helpful to push only new commits on top, merging from main when needed, instead of rebasing and force-pushing. Though I see our docs at https://github.com/flutter/flutter/blob/master/docs/contributing/Tree-hygiene.md#using-git recommend the opposite ¯\\\\\\_(ツ)\\_/¯ )\r\n\r\nGood to know! My understanding has been that Google Testing behaves differently based on which commits from master are present in the PR's branch and can have a hard time understanding merge commits, i.e. we should rebase when it fails.\r\n\r\nDoes anyone understand why Google Testing is passing for this PR? Perhaps we could update the [Tree Hygiene](https://github.com/flutter/flutter/blob/master/docs/contributing/Tree-hygiene.md#using-git) page based on new info.",
+    "createdAt": "2024-11-22T16:18:44Z"
+  },
+  {
+    "id": 4066,
+    "sender": "victorsanni",
+    "content": "Seems like this is ready to merge... unless there are any objections? @gnprice @justinmc @LongCatIsLooong ",
+    "createdAt": "2024-12-09T19:48:18Z"
+  },
+  {
+    "id": 4067,
+    "sender": "justinmc",
+    "content": "> > (@nate-thegrate re [#143249 (comment)](https://github.com/flutter/flutter/pull/143249#event-15290736523) : what I learned at [#143249 (comment)](https://github.com/flutter/flutter/pull/143249#discussion_r1853414759) makes a good example of why for a PR with a complex history like this one it's helpful to push only new commits on top, merging from main when needed, instead of rebasing and force-pushing. Though I see our docs at https://github.com/flutter/flutter/blob/master/docs/contributing/Tree-hygiene.md#using-git recommend the opposite ¯\\_(ツ)_/¯ )\r\n> \r\n> Good to know! My understanding has been that Google Testing behaves differently based on which commits from master are present in the PR's branch and can have a hard time understanding merge commits, i.e. we should rebase when it fails.\r\n> \r\n> Does anyone understand why Google Testing is passing for this PR? Perhaps we could update the [Tree Hygiene](https://github.com/flutter/flutter/blob/master/docs/contributing/Tree-hygiene.md#using-git) page based on new info.\r\n\r\nGoogle Testing is passing because @victorsanni approved all of the visual diff test changes.\r\n\r\nI asked around about merge commits:\r\n\r\n  * There is probably still a possibility that merge commits could confuse customer_testing (and maybe also Google testing?).\r\n  * This would manifest as a false fail and not a false pass. So if your tests pass then they really pass, if they fail then it could be because it's confused by your merge commits. \"we should rebase when it fails\" as @nate-thegrate said above.\r\n  * Lots of contributors continue to use merge commits in spite of this, including myself for the reasons give by @gnprice above.",
+    "createdAt": "2024-12-10T19:05:44Z"
+  },
+  {
+    "id": 4068,
+    "sender": "dikatok",
+    "content": "Hey guys, any plans to wrap this PR up? Would love to re-start my PR based on the final changes.",
+    "createdAt": "2025-01-11T11:43:41Z"
+  },
+  {
+    "id": 4069,
+    "sender": "maheshj01",
+    "content": "This PR deserves a bow 🙇 🚀",
+    "createdAt": "2025-01-14T02:45:43Z"
+  },
+  {
+    "id": 4070,
+    "sender": "jacobsimionato",
+    "content": "Reason for revert: Blocking google3 roll as this broke some google3 tests - see b/390128156\r\n\r\nThese tests are easy to fix forward, but I'll roll this back to unblock the roll without waiting for review of the fix forward.",
+    "createdAt": "2025-01-15T12:55:56Z"
+  },
+  {
+    "id": 4071,
+    "sender": "creativecreatorormaybenot",
+    "content": "## Support app bundles with 32-bit and 64-bit binaries within them\n\n>Warning\r\n>\r\n>This release is not compliant with the Play 64-bit requirement.\r\n>\r\n>The following APKs or App Bundles are available to 64-bit devices, but they have only 32-bit native code: {version code}.\r\n>\r\n>From August 1, 2019 all releases must be compliant with the Play 64-bit requirement.\r\n>\r\n>Include 64-bit native code in addition to 32-bit native code in your app. Use the Android App Bundle publishing format to automatically ensure that each device architecture receives just the native code it needs. [Learn More](https://developer.android.com/distribute/best-practices/develop/64-bit)\r\n\r\nThis warning appears when trying to publish an `aab` created by `flutter build appbundle` to the *Play Store since today*.\r\n\r\nIs this something that I need to worry about or will Flutter automatically resolve this, i.e. is this already planned to be resolved in time?",
+    "createdAt": "2019-05-01T17:31:54Z"
+  },
+  {
+    "id": 4072,
+    "sender": "Ahmad-Rayyan",
+    "content": "no",
+    "createdAt": "2019-05-02T11:54:23Z"
+  },
+  {
+    "id": 4073,
+    "sender": "ayush221b",
+    "content": "I had the same warning. Could someone from the Flutter team care to comment on, or explain the same, and what can we do to ensure that the appbundle generated with `flutter build appbundle --release` also have the 64-bit code. @zoechi Can you tell us something about it?",
+    "createdAt": "2019-05-02T18:57:01Z"
+  },
+  {
+    "id": 4074,
+    "sender": "danwulff",
+    "content": "I'm also seeing this. Here's a screenshot:\r\n<img width=\"622\" alt=\"Screen Shot 2019-05-02 at 12 25 57 PM\" src=\"https://user-images.githubusercontent.com/17821843/57101340-e0641500-6cd5-11e9-9427-279bc8a0bd52.png\">\r\n\r\nAnd the \"learn more\" documentation is here: https://developer.android.com/distribute/best-practices/develop/64-bit\r\n\r\nI'm looking forward to a reply from the Flutter team.",
+    "createdAt": "2019-05-02T19:30:31Z"
+  },
+  {
+    "id": 4075,
+    "sender": "AmitJoki",
+    "content": "I got this warning message today too.",
+    "createdAt": "2019-05-03T12:48:54Z"
+  },
+  {
+    "id": 4076,
+    "sender": "overgaardmorten",
+    "content": "Same issue here.",
+    "createdAt": "2019-05-04T07:36:04Z"
+  },
+  {
+    "id": 4077,
+    "sender": "perez-danilo",
+    "content": "me too",
+    "createdAt": "2019-05-04T12:32:01Z"
+  },
+  {
+    "id": 4078,
+    "sender": "melvinm99",
+    "content": "me too",
+    "createdAt": "2019-05-05T10:08:27Z"
+  },
+  {
+    "id": 4079,
+    "sender": "Rafi993",
+    "content": "Is there a solution for this yet?",
+    "createdAt": "2019-05-05T11:35:01Z"
+  },
+  {
+    "id": 4080,
+    "sender": "dayofr",
+    "content": "Look at this: https://github.com/flutter/flutter/issues/18494#issuecomment-477502287\r\n\r\nIt worked for me.",
+    "createdAt": "2019-05-05T17:52:24Z"
+  },
+  {
+    "id": 4081,
+    "sender": "ciez",
+    "content": "the [start rollout to internal test] button is disabled in app releases page of Google Play Console (the screen where the above 64bit warning message appears)\r\n\r\nthe 64bit bundle requirement is now a show stopper for flutter projects.",
+    "createdAt": "2019-05-06T07:58:19Z"
+  },
+  {
+    "id": 4082,
+    "sender": "tvolkert",
+    "content": "/cc @mklim @cbracken ",
+    "createdAt": "2019-05-06T15:41:40Z"
+  },
+  {
+    "id": 4083,
+    "sender": "eseidelGoogle",
+    "content": "It appears the play store has started issuing a warning which is triggered if using the default release instructions from Flutter.\r\nhttps://flutter.dev/docs/deployment/android\r\n\r\nIt is possible to submit APKs for both 32 and 64-bit ARM with Flutter, it just currently requires a couple extra steps.  Various approaches to solving such are discussed in:\r\nhttps://github.com/flutter/flutter/issues/18494#issuecomment-477502287\r\n\r\nWe're also looking right now to see how best we should update the default template/tools/release steps to avoid this warning.\r\n\r\nThanks for your patience.",
+    "createdAt": "2019-05-06T16:10:21Z"
+  },
+  {
+    "id": 4084,
+    "sender": "creativecreatorormaybenot",
+    "content": "@eseidelGoogle Correct me if I am wrong, however, I thought that the whole point of an **app bundle** was to pack everything into a single file and let the Play Store only ship the necessary *apk* to each user.\r\n\r\nAs I pointed out in my original question, I am using `flutter build appbundle`. In this case, the solution you proposed would not apply, right?",
+    "createdAt": "2019-05-06T16:39:23Z"
+  },
+  {
+    "id": 4085,
+    "sender": "neiljaywarner",
+    "content": "We tried flutter build appbundle yesterday and were getting  error messages from the play store that it was a debug build ...\r\n\r\nof course it also needs to work in add2app scenarios where instructions  from flutter.dev are not used but instead android studio build->Generate Signed APK is used \r\n\r\nThank you for labeling it critical",
+    "createdAt": "2019-05-06T16:45:58Z"
+  },
+  {
+    "id": 4086,
+    "sender": "eseidelGoogle",
+    "content": "We just discussed this in person.  @tvolkert is going to find someone to help drive this to closure.",
+    "createdAt": "2019-05-06T18:11:46Z"
+  },
+  {
+    "id": 4087,
+    "sender": "apravint",
+    "content": "I am also getting this warning, is there a way to default to 64bit ?",
+    "createdAt": "2019-05-07T04:44:02Z"
+  },
+  {
+    "id": 4088,
+    "sender": "SPodjasek",
+    "content": "Small modification to `build.gradle` can force inclusion of 64bit native libs in release apk and aab - take a look [here for workaround](https://github.com/flutter/flutter/issues/18494#issuecomment-489807239)",
+    "createdAt": "2019-05-07T10:25:01Z"
+  },
+  {
+    "id": 4089,
+    "sender": "VarolOkan",
+    "content": "For googles sake, please give us visibility in how many phones out there still use 32bit.\r\nIf you add 64bit and 32bit libs you increase the final apk size.\r\n\r\nI have a non-flutter project, where I split the APK by ABI, so I have separate apks for 32bit and 64bit to reduce the size. Now this step seems to force me to increase the apk size moving forward.\r\nBut why ?\r\n\r\nI don't have stats on how many 32bit only phones are out there in India/Africa ... I am certain it's next to nothing in Europe, the US, and parts of Asia.\r\nWhat about x86 / x86_64 vs armeabi / arm64-v8a ? Do we need to add libflutter.so for all 4 ABIs into the final production apk ?\r\n.. also mips ... are there any phones out there still using mips ? Only google knows.\r\n",
+    "createdAt": "2019-05-07T11:52:17Z"
+  },
+  {
+    "id": 4090,
+    "sender": "SPodjasek",
+    "content": "@VarolOkan Use AAB and let google generate APK's for all ABI & screen dpi combinations it needs.",
+    "createdAt": "2019-05-07T12:10:15Z"
+  },
+  {
+    "id": 4091,
+    "sender": "neiljaywarner",
+    "content": "> the [start rollout to internal test] button is disabled in app releases page of Google Play Console (the screen where the above 64bit warning message appears)\r\n> \r\n> the 64bit bundle requirement is now a show stopper for flutter projects.\r\n\r\n@eseidelGoogle or anyone - can anyone confirm if this is \r\na) a show stopper\r\nor b) a warning until August\r\nsee: https://forums.expo.io/t/warning-with-the-google-play-64-bit-requirement/22305\r\nHe indicates there are some boxes on the left to check to get it to work, and if the warning says August it seems like a big problem if it is actually early May.\r\n\r\nAlso - very useful to know if in fact there are approximately no 32bit machines and using a single line abiFilter for 64bit arm is a viable option to support 99.5% of users or something; I saw somebody cleaning a full year  ago \"all phones on market\" were 64bit... perhaps that means there are lots of old phones?",
+    "createdAt": "2019-05-07T14:11:56Z"
+  },
+  {
+    "id": 4092,
+    "sender": "eseidelGoogle",
+    "content": "My understanding is this is not a show stopper, but rather a common warning.  We've asked @blasten to take a look at what we can do here to make the default Flutter setup avoid this warning.  I expect we'll have some updates in the next few days.",
+    "createdAt": "2019-05-07T15:26:28Z"
+  },
+  {
+    "id": 4093,
+    "sender": "blasten",
+    "content": "As @eseidelGoogle said, I will be taking care of this issue. In the meanwhile, have you tried to follow these steps https://github.com/flutter/flutter/issues/18494#issuecomment-489807239?",
+    "createdAt": "2019-05-07T15:34:50Z"
+  },
+  {
+    "id": 4094,
+    "sender": "audkar",
+    "content": "Is this not a problem anymore? https://github.com/flutter/flutter/issues/18494#issuecomment-482795450",
+    "createdAt": "2019-05-07T15:44:47Z"
+  },
+  {
+    "id": 4095,
+    "sender": "overgaardmorten",
+    "content": "It's not a showstopper. I got the warning but was able to release my app to\nthe playstore.\n\nKr Morten\n\nOn Tue, 7 May 2019 at 17.46, Audrius Karosevicius <notifications@github.com>\nwrote:\n\n> Is this not a problem anymore? #18494 (comment)\n> <https://github.com/flutter/flutter/issues/18494#issuecomment-482795450>\n>\n> —\n> You are receiving this because you commented.\n> Reply to this email directly, view it on GitHub\n> <https://github.com/flutter/flutter/issues/31922#issuecomment-490135779>,\n> or mute the thread\n> <https://github.com/notifications/unsubscribe-auth/AA4B4J5BY3BJVIELNEPC4N3PUGP7BANCNFSM4HJU7TZA>\n> .\n>\n-- \n;-)\n/Morten\n\nWeb: http://buildsucceeded.dk\nMobil: 51 21 90 79\n",
+    "createdAt": "2019-05-07T15:50:09Z"
+  }
+]

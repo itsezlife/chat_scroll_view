@@ -1,0 +1,386 @@
+[
+  {
+    "id": 1408,
+    "sender": "JeffreyMcJeffFace",
+    "content": "Many of our customers will be using our Flutter app on a kiosk device behind strict firewalls that would prevent Google Store's app-update mechanisms. These customers will not whitelist the Play Store. We will ultimately have 100's of hardware devices with the Flutter app, and having a way to push updates to app while adhering to customer firewall restrictions would be amazing! ",
+    "createdAt": "2018-11-07T18:24:08Z"
+  },
+  {
+    "id": 1409,
+    "sender": "rockneverdies55",
+    "content": "@eseidelGoogle - it's been a while since you guys provided some updates in here. \r\n\r\nAre you guys still working on this? How are the things going?",
+    "createdAt": "2018-11-27T04:27:29Z"
+  },
+  {
+    "id": 1410,
+    "sender": "eseidelGoogle",
+    "content": "Progress continues.  No updates to share at this time.",
+    "createdAt": "2018-11-27T17:31:16Z"
+  },
+  {
+    "id": 1411,
+    "sender": "Hixie",
+    "content": "We came up with three clear terms for what people have been lumping into this bug earlier today:\r\n\r\n- \"Dynamic patching\": the ability to update the Dart code of an app in the field by downloading a patch (of sorts) and providing it to the Dart VM. This would require a reload of the app to take effect.\r\n- \"Dynamic extension loading\": the ability to download some Dart code that wasn't written when the app was first published, which adds a new feature to the app. This could be done on the fly. It may require the core app to be larger since we can't know ahead of time what is needed by each future extension.\r\n- \"Modular application delivery\": the ability to package a single app into multiple separate archives when compiling it, and download them independently as needed.\r\n\r\nWe should probably split this issue into three bugs that we can track separately.",
+    "createdAt": "2018-11-28T00:44:50Z"
+  },
+  {
+    "id": 1412,
+    "sender": "knopp",
+    "content": "Is this really feasible for iOS? Apart from the possibility of Apple banning this just like they [did with rollout.io](https://medium.com/@isaacacasanova/apple-rolls-back-rollout-io-6a9a6cd9702f), the javascript would have to run without any kind of JIT (no writing to executable pages on iOS). Also the different GC characteristics of Javascript core while Flutter creating tons of short lived object might not bode well.",
+    "createdAt": "2018-11-28T01:00:40Z"
+  },
+  {
+    "id": 1413,
+    "sender": "eseidelGoogle",
+    "content": "What Apple does/does not allow currently (or in the future) is wholly separate from the technical implementations.  Flutter runs in a lot of places other than iOS.  Obviously we would like to always design technologies which can work on iOS (as I believe many possible \"code push\" solutions could), but iOS is not the only consideration.  Hope that helps?",
+    "createdAt": "2018-11-28T04:07:02Z"
+  },
+  {
+    "id": 1414,
+    "sender": "iconico",
+    "content": "Really sad not to see Code Push released in 1.0. Like others this is the main reason I can't use it on projects that require the ability to patch without waiting for the app stores.\r\nI appreciate that it's a heavy lift to get there, best of luck.",
+    "createdAt": "2018-12-13T14:12:45Z"
+  },
+  {
+    "id": 1415,
+    "sender": "youmengna",
+    "content": "There is only one reason to prevent us from using Flutter: Code push\r\n\r\n",
+    "createdAt": "2018-12-16T13:16:12Z"
+  },
+  {
+    "id": 1416,
+    "sender": "mattiagalati",
+    "content": "Would like to leave my feedback just to show my interest on this topic.\r\nMy company develops an android-only multi-customer app to manage maintenance teams. In 2018 we released approx 100 updates, none of which has requested a new version through Google Play since most of them are little tweaks and customizations that each customer requires, that are unpredictable beforehand.\r\nRewriting this app in Flutter would be a dream, but aside the rewriting costs, wasting money to wait for a fix or customizations to be published through GPlay would be a nightmare.",
+    "createdAt": "2018-12-17T10:07:06Z"
+  },
+  {
+    "id": 1417,
+    "sender": "koudle",
+    "content": "Hope to achieve as soon as possible",
+    "createdAt": "2018-12-22T06:39:14Z"
+  },
+  {
+    "id": 1418,
+    "sender": "flypigz",
+    "content": "Another point: If the Flutter team provides the hot-fix solution officially, I think the Apple may reject all Apps built by Flutter at some time, because hot-fix breaks the AppStore Review Guideline definitely, the developers can bypass AppStore review and modify their app, it is unsafe to users. \r\n\r\nCurrently Apple rejects all Apps with JsPatch, which was the most popular hot-fix solution in China. JsPatch is built on top of JsCore and OC runtime.\r\n\r\nI would like to build Flutter Apps without hot-fix function, rather than Apps may rejected by Apple in the future. ",
+    "createdAt": "2018-12-22T18:53:25Z"
+  },
+  {
+    "id": 1419,
+    "sender": "yaronlevi",
+    "content": "@MaxZeng Nice to know about JsPatch. But for now, it seems like hot patching is allowed. There are many React Native apps in Apple's store and they all use hot patching via CodePush.",
+    "createdAt": "2018-12-22T20:44:34Z"
+  },
+  {
+    "id": 1420,
+    "sender": "vinceramcesoliveros",
+    "content": "If only iOS/android support such as this example:\r\n**MyFlutterApplication** asks permission/wants to update your app\r\nChangelogs: add kitties and dogs(v1.0)\r\n**Allow** | Don't allow\r\n\r\nafter reviewing the guidelines for both parties.",
+    "createdAt": "2018-12-23T05:55:24Z"
+  },
+  {
+    "id": 1421,
+    "sender": "flypigz",
+    "content": "> @MaxZeng Nice to know about JsPatch. But for now, it seems like hot patching is allowed. There are many React Native apps in Apple's store and they all use hot patching via CodePush.\r\n\r\nYes, ReactNative is an exception of code push for now, but it does't not means that Apple supports it officially. Our company's App is rejected by AppStore more than 3 times recently due to RN like framework, and we have to re-write these functions by OC/H5, it is nightmare for developers .\r\n\r\nReact Native is still a *SAFE* framework to Apple, because it is rendered on top of UIKit finally, but Flutter is completely different:\r\n1、Firstly, It breaks the Apple's developer ecosystems, It bypasses the UIKit framework, and it's OUT of Apple's control, for example there will be more and more MD style Apps in AppStore, and this may against the Apple's Human Interface Guideline. Apple is a famous company because of its great design.\r\n2、Secondly, if hot-reload is supported by Flutter officially, Apple may use this reason to reject Flutter Apps directly.\r\n\r\nFrom my perspective, Flutter should follow the AppStore Review Guideline instead of breaking it, this is important for a cross-platform mobile framework, you should not break the ecosystem of Apple because we can do it. If Apple rejects Flutter, the key advantage of Flutter will be gone.\r\n\r\nThe CodePush is not a hard or mysterious technique, Apple can implement it easily (especially based on OC), the only reason that Apples disallow it is that it is unsafe to end users, and this damages the AppStore/Google Play completely. It is a disaster if many apps can change their functionality anytime and anywhere, and it is hard to trace and limit these harmful actions after the App is allowed to publish.\r\n\r\nCodePush is not just a technique, it is an important part of the mobile ecosystems. I think Flutter team should not provide such technique officially, although it may implemented by some developers privately, this is OK because it won't be used wildly.\r\n\r\n",
+    "createdAt": "2018-12-23T09:36:34Z"
+  },
+  {
+    "id": 1422,
+    "sender": "excitedhaha",
+    "content": "> > @MaxZeng Nice to know about JsPatch. But for now, it seems like hot patching is allowed. There are many React Native apps in Apple's store and they all use hot patching via CodePush.\r\n> \r\n> Yes, ReactNative is an exception of code push for now, but it does't not means that Apple supports it officially. Our company's App is rejected by AppStore more than 3 times recently due to RN like framework, and we have to re-write these functions by OC/H5, it is nightmare for developers .\r\n> \r\n> React Native is still a _SAFE_ framework to Apple, because it is rendered on top of UIKit finally, but Flutter is completely different:\r\n> 1、Firstly, It breaks the Apple's developer ecosystems, It bypasses the UIKit framework, and it's OUT of Apple's control, for example there will be more and more MD style Apps in AppStore, and this may against the Apple's Human Interface Guideline. Apple is a famous company because of its great design.\r\n> 2、Secondly, if hot-reload is supported by Flutter officially, Apple may use this reason to reject Flutter Apps directly.\r\n> \r\n> From my perspective, Flutter should follow the AppStore Review Guideline instead of breaking it, this is important for a cross-platform mobile framework, you should not break the ecosystem of Apple because we can do it. If Apple rejects Flutter, the key advantage of Flutter will be gone.\r\n> \r\n> The CodePush is not a hard or mysterious technique, Apple can implement it easily (especially based on OC), the only reason that Apples disallow it is that it is unsafe to end users, and this damages the AppStore/Google Play completely. It is a disaster if many apps can change their functionality anytime and anywhere, and it is hard to trace and limit these harmful actions after the App is allowed to publish.\r\n> \r\n> CodePush is not just a technique, it is an important part of the mobile ecosystems. I think Flutter team should not provide such technique officially, although it may implemented by some developers privately, this is OK because it won't be used wildly.\r\n\r\nVery interesting point and sounds reasonable in some ways, but also have some mistakes. \r\n1. **Flutter also support Apple's Cupertino**, MD is not the only chosen.\r\n2. You may know the Unity in the Gaming area, Flutter's render system works similarly in some ways.\r\n3. In fact and for now, using the web(JS) can implement the CodePush and bypass AppStore's review to modify their app. So why reject Flutter(dart) and let off JS.",
+    "createdAt": "2018-12-23T12:51:53Z"
+  },
+  {
+    "id": 1423,
+    "sender": "zoechi",
+    "content": "> So why reject Flutter(dart) and let off JS.\r\n\r\nJS runs in a sandbox and is therefore secure. (like every loaded web page in Safari)\r\n\r\nDart compiles to binary code and is not constrained by such a sandbox.",
+    "createdAt": "2018-12-23T13:09:14Z"
+  },
+  {
+    "id": 1424,
+    "sender": "AweiLoveAndroid",
+    "content": "I am an android developer for many years.  I  think Code push is not so important.  \r\nIf without Code Push, you can't develop?  If so, that's too foolish.\r\nFlutter is a framework for mobile, so first at all you must learn more mobile develop knowlewdge.\r\nWithout Code push,you can use Full-update.\r\nAs the ad says: cross the bridge when one comes to it.\r\nAs an developer, i think it's more important to use different ways to solve the same problem.\r\n\r\n----\r\n\r\nFlutter is not React Native,you can't use the experience for React Native(or other framework) to look at Flutter.They are different things.",
+    "createdAt": "2018-12-23T14:35:50Z"
+  },
+  {
+    "id": 1425,
+    "sender": "potterdai",
+    "content": "@MaxZeng Perhaps flutter can enable hot update exclusively for Android.",
+    "createdAt": "2018-12-23T15:12:35Z"
+  },
+  {
+    "id": 1426,
+    "sender": "blessonabraham",
+    "content": "Without hot update like RN, we won't be moving to Flutter! Frameworks should make a developer life easier!!",
+    "createdAt": "2018-12-25T20:56:44Z"
+  },
+  {
+    "id": 1427,
+    "sender": "zxm8241213zxm",
+    "content": "The flowers I waited for are all gone.",
+    "createdAt": "2018-12-28T02:15:26Z"
+  },
+  {
+    "id": 1428,
+    "sender": "flypigz",
+    "content": "> @MaxZeng Perhaps flutter can enable hot update exclusively for Android.\r\n\r\n1、Actually it will damage the ecosystems of Google Play Store too, it will make Android team hard to control the App behaviors.  \r\n2、CodePush is not necessary for most Apps，this technology will be maliciously used by some developers.\r\n3、It could cause large “Man In The Middle Attack” if developers do not encrypt patches correctly，malignant hackers may modify pushed-code to hijack Flutter Apps.\r\n\r\n\r\n",
+    "createdAt": "2018-12-28T02:59:56Z"
+  },
+  {
+    "id": 1429,
+    "sender": "act64",
+    "content": "I just want to say ，hotfix is an import feature for most Chinese companies  .  more then 70% Chinese Android Devices don‘t support Google Play  ",
+    "createdAt": "2019-01-18T02:28:43Z"
+  },
+  {
+    "id": 1430,
+    "sender": "zoechi",
+    "content": "@act64 check https://github.com/flutter/flutter/wiki/Roadmap",
+    "createdAt": "2019-01-18T06:42:57Z"
+  },
+  {
+    "id": 1431,
+    "sender": "taibaiyinxing",
+    "content": "> @act64 check https://github.com/flutter/flutter/wiki/Roadmap\r\n\r\nThe roadmap said hotfix on Android.Hope that the iOS will be supported soon.",
+    "createdAt": "2019-01-18T07:18:40Z"
+  },
+  {
+    "id": 1432,
+    "sender": "zoechi",
+    "content": "@taibaiyinxing Flutter can not provide features that are disallowed by Apples App-store though.",
+    "createdAt": "2019-01-18T07:24:41Z"
+  },
+  {
+    "id": 1433,
+    "sender": "BANG88",
+    "content": "> @taibaiyinxing Flutter can not provide features that are disallowed by Apples App-store though.\r\n\r\n@zoechi We use enterprise app and we do not need upload to app-store. ",
+    "createdAt": "2019-01-18T09:37:30Z"
+  },
+  {
+    "id": 1434,
+    "sender": "yaronlevi",
+    "content": "> Dynamic patching on Android, allowing for code updates to deployed to Flutter applications running on Android directly from a servers.\r\n🎉 ",
+    "createdAt": "2019-01-18T11:32:15Z"
+  },
+  {
+    "id": 1435,
+    "sender": "SunshowerC",
+    "content": ">  https://github.com/flutter/flutter/wiki/Roadmap\r\n\r\nIt seems that there is no plan to support CODE PUSH **on IOS** in this year. \r\n\r\n",
+    "createdAt": "2019-02-14T08:28:06Z"
+  },
+  {
+    "id": 1436,
+    "sender": "eseidelGoogle",
+    "content": "> https://github.com/flutter/flutter/wiki/Roadmap\r\n\r\n\"The list here shouldn't be viewed either as exhaustive, nor a promise that we will complete all this work.\" :)\r\n\r\nThe code-push work is still in relatively early days of testing.  What platforms we will/will-not deploy that work to in 2019 is not yet determined.  It's only February after all.  10 months is a long time!\r\n\r\nCurrently engineers are focused on building out the core technology to support the 3 use-cases @Hixie outlined in: https://github.com/flutter/flutter/issues/14330#issuecomment-442274897\r\nI expect we'll start doing some limited testing of at least one of those use cases in the coming months.\r\n",
+    "createdAt": "2019-02-14T15:25:41Z"
+  },
+  {
+    "id": 1437,
+    "sender": "zcyc",
+    "content": "Because our flutter development technology is not very mature, the APP is frequently updated, and many are urgent updates. And our app doesn't plan to upload an app store. So this feature is very important. This can improve the iteration speed of the APP. Otherwise, the fragmentation of APP causes our api to be delayed.",
+    "createdAt": "2019-02-26T09:44:38Z"
+  },
+  {
+    "id": 1438,
+    "sender": "mmcc007",
+    "content": "As I think we can all agree, the driver of this issue is that delivering any mobile app to end-users via the walled-gardens managed by both Google and Apple (the stores), is a major inconvenience for app developers (not to mention poor service to end-users of good/innovative apps), Apple being the most inconvenient (days for Apple as opposed to hours for Google).\r\n\r\nAs a side-point, a possible solution could be if the stores provided a path for instant updates for 'trusted' developers (like a fast-track service). Google and Apple could then do a realtime audit (automated,... like with AI??... with auto-rollback post-facto as necessary) of the app. But this seems unlikely for a bunch of technical and other reasons. Both stores do of course have a fast-track to beta testers.\r\n\r\nSo... while waiting for the features in this issue, one way to alleviate the inconvenience involved in delivering any mobile app to end-users is to automate the steps. \r\n\r\nFor an example of a tool that does this kind of automation for Flutter see:\r\nhttps://github.com/mmcc007/fledge\r\nFor the record, it includes documentation for many of the one-time setup-steps involved that cannot easily be automated:\r\nhttps://mmcc007.github.io/fledge/\r\n\r\n@charliezzo Using this tool, or tools like it, a Flutter app (and updates, etc..) can be delivered to android and ios beta testers within minutes. \r\n\r\nIt also has a workflow to automate delivery to end-users via stores (hours+ for Google, days+ for Apple 😂👍).",
+    "createdAt": "2019-02-26T17:13:33Z"
+  },
+  {
+    "id": 1439,
+    "sender": "zcyc",
+    "content": "@mmcc007 \r\noh,thank you. but i say i dont't want to push my app to google play and app store.\r\ni need to sale my app in other way.\r\nand i dont need google play and app store to update my app.\r\ni only want to update my app by itself when users installed it and start it.\r\nand ,flutter is a 60FPS or higher framework, it can make online game , we dont want to have a little patch by google play and app store.\r\nyou know every patch in a little time by google play and app store are slow and hard.\r\nin fact you know we cant use google play in china . and app store is very slowly. \r\nthere are a lot of app store like google play in china.we have no time to push update to every app store.",
+    "createdAt": "2019-02-27T15:04:21Z"
+  },
+  {
+    "id": 1440,
+    "sender": "Taxi4you",
+    "content": "Code Push should be a primary feature in Flutter. Put it on top. ",
+    "createdAt": "2019-03-03T06:07:35Z"
+  },
+  {
+    "id": 1441,
+    "sender": "LNeway",
+    "content": "We can make it by replacing all the files in the app_flutters on Android ",
+    "createdAt": "2019-03-07T09:06:02Z"
+  },
+  {
+    "id": 1442,
+    "sender": "KinsomyJS",
+    "content": "hi can you give me your email for further discussion，our team also found this solution， but it can work only when the application must  be killed and restart app。tks @LNeway \r\n",
+    "createdAt": "2019-03-08T02:35:50Z"
+  },
+  {
+    "id": 1443,
+    "sender": "LNeway",
+    "content": "> hi can you give me your email for further discussion，our team also found this solution， but it can work only when the application must be killed and restart app。tks @LNeway\r\n@KinsomyJS \r\n我也是跑了个demo验证可行性. 哈哈哈~",
+    "createdAt": "2019-03-08T08:39:59Z"
+  },
+  {
+    "id": 1444,
+    "sender": "neiljaywarner",
+    "content": "Please share with brief snippet or blog post or comment here or cc njwandroid@gmail.com in the email...",
+    "createdAt": "2019-03-08T13:26:44Z"
+  },
+  {
+    "id": 1445,
+    "sender": "neiljaywarner",
+    "content": "@LNeway @KinsomyJS  Can either of you give further details please?\r\nThanks",
+    "createdAt": "2019-04-08T22:21:07Z"
+  },
+  {
+    "id": 1446,
+    "sender": "neiljaywarner",
+    "content": "> @taibaiyinxing Flutter can not provide features that are disallowed by Apples App-store though.\r\n\r\n@zoechi  Are you saying you and/or Flutter team has an analysis that concludes that a codepush technique feasible by Flutter is fundamentally different than one by React-native and is prohibited - and therefore, due to Apple, may never come to iPhone?",
+    "createdAt": "2019-04-09T19:20:43Z"
+  },
+  {
+    "id": 1447,
+    "sender": "siddshadab",
+    "content": "If this feature is added, will it be supporting beta 1.0.0?",
+    "createdAt": "2019-04-12T08:43:35Z"
+  },
+  {
+    "id": 1448,
+    "sender": "mohamedsharaf",
+    "content": "@dahabdev ",
+    "createdAt": "2019-04-12T11:05:00Z"
+  },
+  {
+    "id": 1449,
+    "sender": "matthewlloyd",
+    "content": "For what it's worth, from my experience with Ionic, I believe \"code push\" is overrated, and I hope the Flutter team doesn't spend too much time working on it while there are still so many other, basic, essential features missing.\r\n\r\nBack when I developed UAVForecast, I used Ionic, attracted by the \"ionic deploy\" feature which offered to update the entire contents of the app remotely. Back then (this was 2014), Apple's App Store review times were on the order of 2 weeks. I wanted to iterate quickly, move fast, and break things, as they say.\r\n\r\nAt first \"ionic deploy\" was great, but soon, I noticed some major problems. It caused confusion for my users (\"the app says it has updated itself, so why is there another update pending in the Play Store / App Store?\"); it broke the app sometimes, e.g. when app metadata (e.g. permissions) were silently changed by a Cordova plugin but didn't get updated by a hot code push; tracking version numbers was tricky and they would get out of sync with what I'd pushed to the stores; it made me lazy about testing, since I could always \"ionic deploy\" myself out of bugs; and sometimes I ended up pushing worse bugs, ones that might have been caught by the app review teams had I given them a chance to look.\r\n\r\nAbout a year after I released the first version, App Store review times had improved significantly. Today, it's down to just a few days, and of course on Google's Play Store it can be as little as a few hours. Given all the problems I'd had, I decided to remove \"ionic deploy\" functionality from my app, and with several million downloads now behind me, I haven't looked back.\r\n\r\nWhile I like Ionic and really appreciate everything its developer, Drifty, has done (thank you!), I'd argue Drifty made the mistake of investing too much time into glossy features like code push which attract users, and not enough time into getting the nuts and bolts of the framework right to avoid issues which end up driving them away. Now in its fourth version, Ionic has been rewritten so many times in backwards incompatible ways that I have stopped trying to keep up - the latest version still has several serious issues outstanding which prevent me upgrading, and I'm now rewriting my entire app in Flutter.\r\n\r\nThe experience so far has been excellent, and I'm having a lot of fun, but there are still some major gaps and omissions in Flutter, especially in the plugins. For example: there's no text field integration with password autofill, the Google Maps plugin is barebones (and there are related framework rendering bugs), the native WebView doesn't support file:// URLs for loading assets, the tab bar doesn't support transparency or gradient backgrounds, table cells don't support colspan, ThemeData is not extensible with app-specific colors to use with animation, the only fully timezone-aware DateTime library is lacking many important features of moment and moment-timezone, there are so many approaches to state management it is confusing for newcomers, you have to \"flutter clean\" frequently to avoid weird exceptions, hot-swap often doesn't work as it should, and I could go on...\r\n\r\nI would rank _all_ of these as more important than \"code push\", especially if it risks Apple rejecting Flutter apps, if it requires major changes to the compiler framework that could eventually make optimizations that improve app performance more difficult (I'd take a 5% performance improvement over \"code push\" any day), or takes time away from getting the framework feature complete.\r\n\r\nOn the other hand, I can see that some developers might genuinely need it in some situations, especially if they are operating outside of the stores, so I can understand the enthusiasm here.",
+    "createdAt": "2019-04-19T01:30:50Z"
+  },
+  {
+    "id": 1450,
+    "sender": "jamesdixon",
+    "content": "@matthewlloyd lots of great points!",
+    "createdAt": "2019-04-19T17:02:00Z"
+  },
+  {
+    "id": 1451,
+    "sender": "neiljaywarner",
+    "content": "> If you guys can not support Code Push, is there a way to make a Parser to generate from some dictionaries (like json, xml...) to Flutter Widget? Is this impossible or a good idea?\r\n\r\n--Does anyone have an opinion about this one?\r\nhttps://pub.dartlang.org/packages/dynamic_widget\r\nit appears promising, although it doesn't address the 'critical bug' fear.\r\n\r\nThat's the crazy part is that code push is the elephant in the room, that is deeply a business/process issue and a technical one, and one side tends to ignore the other...",
+    "createdAt": "2019-04-19T17:16:09Z"
+  },
+  {
+    "id": 1452,
+    "sender": "truongsinh",
+    "content": "> there's no text field integration with password autofill, the Google Maps plugin is barebones (and there are related framework rendering bugs), the native WebView doesn't support file:// URLs for loading assets, the tab bar doesn't support transparency or gradient backgrounds, table cells don't support colspan, ThemeData is not extensible with app-specific colors to use with animation, the only fully timezone-aware DateTime library is lacking many important features of moment and moment-timezone, there are so many approaches to state management it is confusing for newcomers, you have to \"flutter clean\" frequently to avoid weird exceptions, hot-swap often doesn't work as it should, and I could go on...\r\n\r\nHopefully all of these already have Github issue :D",
+    "createdAt": "2019-04-21T10:50:55Z"
+  },
+  {
+    "id": 1453,
+    "sender": "Hixie",
+    "content": "This was previously on our roadmap for 2019. After investigating this in greater detail, we have decided not to proceed with this work for now.\r\n\r\nThere were several factors that led us to this decision:\r\n\r\n* To comply with our understanding of store policies on Android and iOS, any solution would be limited to JIT code on Android and interpreted code on iOS. We are not confident that the performance characteristics of such a solution on iOS would reach the quality that we demand of our product. (In other words, \"it would be too slow\".)\r\n\r\n* There are some serious security concerns. Since these patches would essentially allow arbitrary code execution, they would be extremely attractive malware vectors. We could mitigate this by requiring that patches be signed using the same key as the original package, but this is error prone and any mistake would have serious consequences. This is, fundamentally, the same problem that has plagued platforms that allow execution of code from third-party sources. This problem could be mitigated by integrating with a platform update mechanism, but this defeats the purpose of an out-of-band patching mechanism.\r\n\r\n* There is currently no out-of-the-box open source hosting solution for patching applications, so we would either have to rely on people configuring their Web servers accordingly, or we would have to create integrations for proprietary third-party services, or we would have to create our own bespoke solution. Hosting patches is a space we are not eager to enter. Having people configure their own server leaves them open to making mistakes with potentially serious implications as explained in the previous point about security. Depending on third-party services puts Flutter in an awkward position of having to pick winners and exposes us to the risk of those projects themselves making policy changes that would affect this feature.\r\n\r\nWe prefer to spend our engineering effort on other issues for now. We expect to keep experimenting in this space and will probably become serious about this again in the future (for example, we will probably need an update solution for desktop applications), but probably not this year.\r\n",
+    "createdAt": "2019-04-22T21:51:36Z"
+  },
+  {
+    "id": 1454,
+    "sender": "kunit1",
+    "content": "While I understand the reason behind dropping this feature, it is still disappointing. The Play Store and App Store are important considerations but not every app is distributed this way. For our use case, we supply the customer with both the device and and the app preinstalled. Having a mechanism to dynamically push updates to the user is a very important feature as we don't want to go through the stores. This feature would've been invaluable. I do hope it is revisited in the future as you mentioned.\r\n\r\nThank you for transparently communicating the team's rational.  ",
+    "createdAt": "2019-04-23T02:50:30Z"
+  },
+  {
+    "id": 1455,
+    "sender": "lanistor",
+    "content": "@eseidelGoogle Will the JavaScript code that compiled from Dart be able to use Skia to render pages?",
+    "createdAt": "2019-04-23T03:48:54Z"
+  },
+  {
+    "id": 1456,
+    "sender": "yaronlevi",
+    "content": "This is quite disappointing.\r\n\r\nRegarding all the security and store compliance issues you mentioned, they might be valid and legitimate, but at the end of the day there is an example of \"hot updates\" technology that is already working: code push.\r\n\r\nReact Native + the code push service works and proven itself in the real world. It's battle tested. There seem to be no problem with the app stores regarding the indirect updates. It seems everyone is \"ok\" with it. So I think Flutter's solution could be allowed as well.\r\n\r\nRegarding the performance issues, it might be a good idea to let the developer choose to work in \"low performance\" mode but enable live updates.\r\n",
+    "createdAt": "2019-04-23T16:25:47Z"
+  },
+  {
+    "id": 1457,
+    "sender": "FaisalAbid",
+    "content": "A good move! I rather the engineering effort be spent on optimizing Flutter than adding a code-push feature that can overcomplicate and hurt the ecosystem",
+    "createdAt": "2019-04-23T19:33:56Z"
+  },
+  {
+    "id": 1458,
+    "sender": "AmitJoki",
+    "content": "I am currently having my first ever app, developed in Flutter, in the open beta testing and I've pushed around some 10 app bundles with fixes. But it should be *mostly* error free when I release it to the production.\r\n\r\nSo I don't know if I will ever need this feature, but I found this pub package [**OTA Update**](https://pub.dartlang.org/packages/ota_update) that seems to be doing good on the score of 89, which is only brought down by its popularity. Is that package secure? It seems to be downloading APK from a URL and unpacking it natively and triggering the APK installation intent on Android.\r\n\r\nThose who absolutely need this feature can try out that package.\r\n\r\nBut I can see why Flutter team isn't too excited about this, because, let's take the above package in case. It seems to be downloading from an URL. And a website is always more hacker-friendly than native apps. There are too many security concerns as of now. It just makes a Flutter app as vulnerable as a website which is a strict no-no.\r\n\r\nI had a 2 GB RAM machine when I started out, trying to develop an Android App as I always wanted but my machine wasn't up to the task. I tried PhoneGap, Cordova, some Intel framework, React-Native, and none of them even started to run. Flutter was the only one who I got actually started with and with it's beautiful UI and development tools, it is miles ahead of its contemporaries even without this feature.",
+    "createdAt": "2019-04-24T05:20:16Z"
+  },
+  {
+    "id": 1459,
+    "sender": "0xc0d3r",
+    "content": "Any update?",
+    "createdAt": "2019-04-24T05:35:42Z"
+  },
+  {
+    "id": 1460,
+    "sender": "TheRusskiy",
+    "content": "App release workflow is never going to be the same after the way react-native spoiled us with Code Push. Real shame that Flutter won't support it. Flutter is shaping up nicely and it could have been a competitor to React Native if they chose to support this feature. Alas...",
+    "createdAt": "2019-04-24T06:53:59Z"
+  },
+  {
+    "id": 1461,
+    "sender": "neiljaywarner",
+    "content": "@Hixie OK, so a fundamental engineering/technical change has too many downsides for now - that makes sense to me.\r\n\r\nHowever - how do you feel about helping flutter devs that business concern in the short and medium term with some alternate approaches that get some documentation/discussion - perhaps even videos, while perhaps not an 'endorsed' or official solution, but some attention.\r\n\r\ne.g. \r\n\r\n- Firebase real-time config\r\n- Server baased json->widgets (e.g. https://github.com/dengyin2000/dynamic_widget/blob/master/WIDGETS.md or simlar, i don't endorse the exact plugin yet but the idea)\r\n- or perhaps something else, perhaps cloud functions for advanced users...\r\n- obviously I'm not suggesting you take a bunch of engineering effort for a 'big' use case, but sort of a hello-world-code-push-alternative that addresses most of the need without a 'let's fix/change every single thing' type architecture.\r\n\r\nmy  premise is that \"we\" can meet 70-90% of the concern for codepush without a fundamental architecture change for flutter; what does anyone think of this?\r\n\r\nFlutter's code-as-ui approach might even make this easier than it would for android devs....\r\n\r\nI've seen personally at least two companies that chose  the other guys over flutter just for this reason, and many others have spoken out similarly.\r\n\r\nMaybe the conversation could go\r\n\"User: Are you skipping codepush support\"\r\n\"Flutter team: Yes-for now, for these reasons, (as you did) but additionally, you could try A or B for some use cases\"\r\n\r\nSorry for long comment\r\n",
+    "createdAt": "2019-04-24T17:34:13Z"
+  },
+  {
+    "id": 1462,
+    "sender": "VistianOpenSource",
+    "content": "@neiljaywarner Perhaps LUA is worth a look for you - I did a proof of concept last year whereby LUA scripts could be used for creating/adjusting the functionality of a Flutter app.",
+    "createdAt": "2019-04-24T17:59:26Z"
+  },
+  {
+    "id": 1463,
+    "sender": "Hixie",
+    "content": "@neiljaywarner I'm all in favour of that kind of approach, but that's an orthogonal concern than what this bug is covering.",
+    "createdAt": "2019-04-24T21:14:43Z"
+  },
+  {
+    "id": 1464,
+    "sender": "billzhouGitHub",
+    "content": "> 虽然我理解放弃此功能背后的原因，但仍然令人失望。Play商店和App Store是重要的考虑因素，但不是每个应用都以这种方式分发。对于我们的用例，我们为客户提供预装的设备和应用程序。有一个动态推送更新给用户的机制是一个非常重要的功能，因为我们不想通过商店。这个功能非常宝贵。我希望将来如你所提到的那样重新审视。\r\n> \r\n> 感谢您透明地传达团队的理性。\r\n\r\n我同意",
+    "createdAt": "2019-05-07T09:07:08Z"
+  },
+  {
+    "id": 1465,
+    "sender": "catalsdevelop",
+    "content": "code-push functionality means more apps, more clients, more developers, more tests, more bug fix, less issues",
+    "createdAt": "2019-05-13T02:51:54Z"
+  },
+  {
+    "id": 1466,
+    "sender": "maplerichie",
+    "content": "For a startup's MVP or growing applications, the updates or bugs fix is crucial, while performance are less concern most of the time. This will cause pros and cons to Flutter ecosystem. The decline of adoption, startups and personal developer are important for early stage community growth. The advantages might be the quality apps and teams that would switch to Flutter which aim for higher performance?\r\n",
+    "createdAt": "2019-05-13T09:30:44Z"
+  },
+  {
+    "id": 1467,
+    "sender": "vinceramcesoliveros",
+    "content": "@maplerichie, Agree, the reason why I love flutter is the Developer Experience, performance, and cross-platform for all devices. I don't mind if code-push will not be implemented(maybe), It's for the sake of the reputation and popularity of the ecosystem.  Now I know why code-push seems too slow when using windows apps.(slow startup, delay of input and laggy animation) [here](https://github.com/microsoft/react-native-code-push)",
+    "createdAt": "2019-05-13T10:22:05Z"
+  },
+  {
+    "id": 1468,
+    "sender": "0-php",
+    "content": "we are very need this function\r\n很需要热更啊",
+    "createdAt": "2019-05-17T07:27:48Z"
+  },
+  {
+    "id": 1469,
+    "sender": "yaronlevi",
+    "content": "As others before mentioned, big companies and large dev teams might not need hot updates. But think of a small startup, a couple of devs working on a mobile app, delivering features to production with quick release cycles. There is no time for testing and QA cycles. Create a new feature, see if it works and users like it, replace or fix it. We could not get to where we are without hot updates. It's a real game changer for mobile development.",
+    "createdAt": "2019-05-19T12:41:58Z"
+  },
+  {
+    "id": 1470,
+    "sender": "matthewlloyd",
+    "content": "@yaronlevi I am a \"small startup\", even less than a couple of devs working on a mobile app, it's just me, and I deliver to production with quick release cycles. With the Google Play Store offering updates that take just a few hours, and Apple App Store reviewing updates almost always less than 24 hours in my experience these days, I for one definitely do not need code push. If Flutter had code push, I would actively take steps to make sure it was disabled in my app.",
+    "createdAt": "2019-05-19T17:05:42Z"
+  },
+  {
+    "id": 1471,
+    "sender": "faustinoribeiro",
+    "content": "I am currently the sole developer of a mobile app (and the matching back-end) for a small company. I really love Flutter, but I have to constantly explain to a client who doesn't understand the need for unit tests or automation testing why it takes so long to implement functionalities that can be describe in 10 words. I am a little worried to have to release something half baked and not be able to push critical bug fixes quickly. I will do without for now, but code push would definitively be nice to have. However, I understand the technical challenges and security concerns and in the end I support a precautious approach. ",
+    "createdAt": "2019-05-21T02:32:05Z"
+  }
+]

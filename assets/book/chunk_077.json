@@ -1,0 +1,386 @@
+[
+  {
+    "id": 4928,
+    "sender": "ZBarbosa",
+    "content": "Same problem here keyboard is the only thing that stops me from releasing my app :(",
+    "createdAt": "2019-02-18T18:09:34Z"
+  },
+  {
+    "id": 4929,
+    "sender": "andyduke",
+    "content": "This is actually a blocker that does not allow the application to be made with viewing web content.",
+    "createdAt": "2019-02-18T18:21:21Z"
+  },
+  {
+    "id": 4930,
+    "sender": "rakeshlanjewar",
+    "content": "This is important when your app  supporting online payment where we have to redirect user to bank site.\r\n\r\nOther Plugins are good but cant use them.\r\n\r\nWhat are the challenges we are facing ? is it the context : something else ",
+    "createdAt": "2019-02-19T08:28:22Z"
+  },
+  {
+    "id": 4931,
+    "sender": "alsocalledchris",
+    "content": "Really need this - OAuth flow often requires a working web view - this is a showstopper until supported for many scenarios around signing in.",
+    "createdAt": "2019-02-21T16:20:28Z"
+  },
+  {
+    "id": 4932,
+    "sender": "mikuhl-dev",
+    "content": "Wishing luck to find a solution!",
+    "createdAt": "2019-02-22T07:42:06Z"
+  },
+  {
+    "id": 4933,
+    "sender": "zhangruiyu",
+    "content": "Hope to repair as soon as possible.",
+    "createdAt": "2019-02-23T04:46:37Z"
+  },
+  {
+    "id": 4934,
+    "sender": "mikuhl-dev",
+    "content": "Looks like a scary issue..",
+    "createdAt": "2019-02-27T05:13:39Z"
+  },
+  {
+    "id": 4935,
+    "sender": "huy11",
+    "content": "What about virtual keyboard(s) embedded into your website(s)?\r\n\r\nNotes:\r\n* Maybe this solution contains security issues.\r\n* Maybe the keyboard performance is not good.\r\n* Maybe there are other issues when using virtual keyboard.\r\n\r\nI am not sure this can help you.\r\n\r\nI hope Flutter will allow android views to bring up the keyboard soon.",
+    "createdAt": "2019-02-28T09:16:48Z"
+  },
+  {
+    "id": 4936,
+    "sender": "zhangruiyu",
+    "content": "> What about virtual keyboard?\r\n> \r\n> Notes:\r\n> \r\n> * Maybe this solution contains security issues.\r\n> * Maybe the keyboard performance is not good.\r\n> * Maybe there are other issues when using virtual keyboard.\r\n> \r\n> I am not sure this can help you.\r\n\r\nAs long as we can solve this problem, it's ok, because we really need the keyboard",
+    "createdAt": "2019-02-28T09:20:06Z"
+  },
+  {
+    "id": 4937,
+    "sender": "ZBarbosa",
+    "content": "A middle finger for google and flutter team for restricting the web view! Learning flutter has been a waste of time. I'm going to rebuild my entire project using React Native and I think you guys should do the same. Good luck with this good shit.",
+    "createdAt": "2019-03-02T09:29:11Z"
+  },
+  {
+    "id": 4938,
+    "sender": "spinny007",
+    "content": "Is it possible to create as of now, English keyboard and embedded it within official flutter web view? As Web view loads the html, it is aware about elements and can provide a way to identify text boxes or input boxes.",
+    "createdAt": "2019-03-04T05:22:47Z"
+  },
+  {
+    "id": 4939,
+    "sender": "sp0cket",
+    "content": "@spinny007 I don't think it's a good idea, Users may not trust third-party keyboard when typing, especially passwords.And there are so many languages in the world.",
+    "createdAt": "2019-03-04T05:36:45Z"
+  },
+  {
+    "id": 4940,
+    "sender": "krsolutions",
+    "content": "We have built the complete product on flutter, now we are not able to release, as the keyboard is not opening for webview.\r\nFlutter team kindly resolve this issue asap.",
+    "createdAt": "2019-03-05T10:00:04Z"
+  },
+  {
+    "id": 4941,
+    "sender": "sinpobox",
+    "content": "I guess this problem will not be solved in the short term.",
+    "createdAt": "2019-03-05T12:43:22Z"
+  },
+  {
+    "id": 4942,
+    "sender": "rkunboxed",
+    "content": "I had the same problem. Until it gets fixed you can use the `flutter_webview_plugin` package instead. I just did a quick test and the keyboard worked for me.",
+    "createdAt": "2019-03-07T21:15:30Z"
+  },
+  {
+    "id": 4943,
+    "sender": "pointshd",
+    "content": "For those of you who doesn't need to embed a web view into a Flutter window, just write a plugin with native windows and customize it however you like. And you only need to do this for Android since the official web view plugin for IOS seems working fine.\r\n\r\nIf you need a full-blown web browser inside your app, you're gonna need to write a plugin anyways, since all the web view plugins out there are really missing a lot of features including the official one, even if we don't have this keyboard issue.",
+    "createdAt": "2019-03-08T01:28:19Z"
+  },
+  {
+    "id": 4944,
+    "sender": "rakeshlanjewar",
+    "content": "is it possible to write Webview in dart without depending on Webview? \r\nAny references or tuts?",
+    "createdAt": "2019-03-09T05:52:11Z"
+  },
+  {
+    "id": 4945,
+    "sender": "guyzk",
+    "content": "Well it seems as if this issue isn't a priority for google at all.\r\nIt has been marked as a goal for the  **October 2019 milestone**!!!!\r\nIt took me a while to convince our product managers to start porting our app from react native to flutter but since our app is heavily reliant on a webview for online payment processing, the transition will not be possible.\r\nI spent 2 whole months writing code and now its all down the drain...\r\nI hope someone will see how this is affecting several companies and apps and speed things up.",
+    "createdAt": "2019-03-10T14:41:26Z"
+  },
+  {
+    "id": 4946,
+    "sender": "mikuhl-dev",
+    "content": "You can still use the Flutter community WebView plugin. I just wish the\nFlutter Team one had more development.\n",
+    "createdAt": "2019-03-10T16:20:37Z"
+  },
+  {
+    "id": 4947,
+    "sender": "Pash237",
+    "content": "What's the difference between official `webview_flutter` plugin and community plugins `flutter_webview_plugin`? Why these works fine?",
+    "createdAt": "2019-03-11T20:06:55Z"
+  },
+  {
+    "id": 4948,
+    "sender": "mikuhl-dev",
+    "content": "The Flutter Team one is using experimental technology. And the other uses a\nnative view on top of Flutter.\n",
+    "createdAt": "2019-03-11T20:10:29Z"
+  },
+  {
+    "id": 4949,
+    "sender": "shripad-agashe",
+    "content": "> I had the same problem. Until it gets fixed you can use the `flutter_webview_plugin` package instead. I just did a quick test and the keyboard worked for me.\r\n\r\nI tried with flutter_webview_plugin and still have keyboard issue. Did you do anything specific? Which version did you use?",
+    "createdAt": "2019-03-12T12:39:21Z"
+  },
+  {
+    "id": 4950,
+    "sender": "shripad-agashe",
+    "content": "> > I had the same problem. Until it gets fixed you can use the `flutter_webview_plugin` package instead. I just did a quick test and the keyboard worked for me.\r\n> \r\n> I tried with flutter_webview_plugin and still have keyboard issue. Did you do anything specific? Which version did you use?\r\n\r\nI'm able to get proper keyboard behaviour with flutter_webview_plugin after upgrading flutter and the plugin to the latest.",
+    "createdAt": "2019-03-12T16:21:58Z"
+  },
+  {
+    "id": 4951,
+    "sender": "krsolutions",
+    "content": "But as per document, it occupies complete screen, where i want to use inside the container. Please let me know if possible to use inside my view.",
+    "createdAt": "2019-03-12T16:29:07Z"
+  },
+  {
+    "id": 4952,
+    "sender": "shripad-agashe",
+    "content": "> But as per document, it occupies complete screen, where i want to use inside the container. Please let me know if possible to use inside my view.\r\n\r\nYes. You can render it within a container as well.  I used this approach and I could render it within a container as well.\r\nhttps://stackoverflow.com/questions/45172362/getting-rid-of-highlighted-red-stripe-on-flutter",
+    "createdAt": "2019-03-13T04:57:33Z"
+  },
+  {
+    "id": 4953,
+    "sender": "andyduke",
+    "content": "I would very much like to hear from the Flutter team, when could we expect to solve this problem?",
+    "createdAt": "2019-03-14T13:41:12Z"
+  },
+  {
+    "id": 4954,
+    "sender": "amirh",
+    "content": "The status hasn't changed since the last update on this issue(https://github.com/flutter/flutter/issues/19718#issuecomment-454659155).\r\n\r\nI realize that this is important for many developers and want to get keyboard support as well, it is a non trivial piece of work though and it's going to take time.\r\n\r\nLooks like the plan is going to stay setting a proxying mechanism for the input connection, pulling tricks to figure out when the webview wants to bring up the keyboard.",
+    "createdAt": "2019-03-14T17:17:35Z"
+  },
+  {
+    "id": 4955,
+    "sender": "bagintz",
+    "content": "@amirh Thank you for the update!  Is there anything that we (the motivated people commenting above) can do to help?   Are there things we can try, test or throw against the wall?  I would be happy to put some resources to it if there were some specific things I could do.\r\n\r\nThanks again for all you and your team does for the Flutter community!",
+    "createdAt": "2019-03-14T17:41:03Z"
+  },
+  {
+    "id": 4956,
+    "sender": "me-abhinav",
+    "content": "If anyone is looking for a solution and just want a full screen webview then you can use [platform channels](https://flutter.dev/docs/development/platform-integration/platform-channels).\r\nI had a use case to implement oauth in my app. For this, I created a platform channel to retrieve auth code from native (Java) code like this:\r\n**In your dart class**:\r\n```dart\r\nstatic const _authPlatform = const MethodChannel('com.example.flutter.demo/oauth');\r\nstatic const _getAuthCodeMethodId = 'getAuthCode';\r\n\r\nFuture<String> _getAuthCode(String loginHint) async {\r\n    try {\r\n        return await _authPlatform.invokeMethod(_getAuthCodeMethodId);\r\n    } on PlatformException {\r\n        return null;\r\n    }\r\n}\r\n```\r\n**In MainActivity.java**:\r\n```Java\r\n@Override\r\nprotected void onCreate(Bundle savedInstanceState) {\r\n    super.onCreate(savedInstanceState);\r\n    GeneratedPluginRegistrant.registerWith(this);\r\n\r\n    new MethodChannel(getFlutterView(), \"com.example.flutter.demo/oauth\").setMethodCallHandler(\r\n            (call, result) -> {\r\n                if (\"getAuthCode\".equals(call.method)) {\r\n                    onGetAuthCodeMethodCall(call, result);\r\n                } else {\r\n                    result.notImplemented();\r\n                }\r\n            });\r\n}\r\n\r\nprivate void onGetAuthCodeMethodCall(MethodCall call, MethodChannel.Result result) {\r\n    mGetAuthCodeResult = result;\r\n    Intent webViewActivityIntent = new Intent(this, WebViewActivity.class);\r\n    startActivityForResult(webViewActivityIntent, WebViewActivity.REQUEST_CODE_AUTH_CODE);\r\n}\r\n\r\nprotected void onActivityResult(int requestCode, int resultCode, Intent data) {\r\n    super.onActivityResult(requestCode, resultCode, data);\r\n    mGetAuthCodeResult.success(data.getStringExtra(WebViewActivity.KEY_AUTH_CODE));\r\n}\r\n```\r\nSame can be done for iOS also.",
+    "createdAt": "2019-03-15T03:46:08Z"
+  },
+  {
+    "id": 4957,
+    "sender": "amirh",
+    "content": "@bagintz I think the first step towards getting this working is getting an e2e prototype working, once we got that we could make sure we're ok with the design and figure out a plan to land it in pieces that are reasonable to review.\r\n\r\nNote that a Flutter team is just to starting to do that, so it might end up being a duplicate effort, but if you are very motivated and don't want to wait for us this shouldn't hold you.",
+    "createdAt": "2019-03-23T03:08:07Z"
+  },
+  {
+    "id": 4958,
+    "sender": "czronaldo11",
+    "content": "any process?\r\nBecause flutter's textfield has any problem. so I use AndroidView to realize input'view.But now,AndroidView can't bring up the keyboard ~i dont know what can i do~\r\n\r\n\r\n",
+    "createdAt": "2019-03-23T11:37:04Z"
+  },
+  {
+    "id": 4959,
+    "sender": "DreamBuddy",
+    "content": "Still waiting for some fix~",
+    "createdAt": "2019-03-26T07:08:39Z"
+  },
+  {
+    "id": 4960,
+    "sender": "stuartsoft",
+    "content": "Can we at least get an answer on IF this will be fixed? I'd like to know if I should seek a different solution or build my own",
+    "createdAt": "2019-03-27T23:30:09Z"
+  },
+  {
+    "id": 4961,
+    "sender": "Hixie",
+    "content": "Based on the milestone, our current plan is to fix this by October 2019.\r\nSee: https://github.com/flutter/flutter/wiki/Issue-hygiene#when-will-my-bug-be-fixed",
+    "createdAt": "2019-03-28T02:09:22Z"
+  },
+  {
+    "id": 4962,
+    "sender": "Hixie",
+    "content": "(We welcome contributions if anyone wants to fix it sooner. See https://github.com/flutter/flutter/blob/master/CONTRIBUTING.md)",
+    "createdAt": "2019-03-28T02:09:57Z"
+  },
+  {
+    "id": 4963,
+    "sender": "stuartsoft",
+    "content": "Thanks @Hixie !",
+    "createdAt": "2019-03-28T14:41:23Z"
+  },
+  {
+    "id": 4964,
+    "sender": "dcov",
+    "content": "Is there an open issue, or a place for the community to discuss possible solutions? I'd like to collaborate with others on this instead of everyone going off on and building their own solutions.\r\n\r\n@amirh You mentioned that you guys have a team that is starting to work on this, is there any way we can help them out?",
+    "createdAt": "2019-03-29T22:39:40Z"
+  },
+  {
+    "id": 4965,
+    "sender": "amirh",
+    "content": "I put together a (very rough and hacky) POC prototype for input connection proxying, it's far from being something we can land but it confirms that this approach works:\r\n\r\n![ime](https://user-images.githubusercontent.com/1024117/55272648-ddac7500-527c-11e9-886a-b313aafc6af8.gif)\r\n\r\n\r\n\r\n### POC code\r\nEngine: https://github.com/amirh/engine/tree/ime_poc\r\nWebView plugin: https://github.com/amirh/plugins/tree/ime_poc\r\n\r\n### Unresolved issues\r\n\r\n#### Detecting that a platform view wants IME\r\nThe major piece that is still unresolved is how to determine that a platform view is asking for the keyboard, for this POC I injected JS into the webview that listens to focus events, ideally we could come up with something more generic, I experimented with [View#setOnFocusChangedListener](https://developer.android.com/reference/android/view/View.html#setOnFocusChangeListener(android.view.View.)) but it didn't seemed to get triggered whenever the webview wanted to show the keyboard(I'm thinking this may be because the embedded view is the only focusable view in the VD, if that is the case we may workaround by adding a dummy focusable view just so the webview can be non focused).\r\n\r\nI'm guessing that as a last resort we can expose a `requestFocus` as part of the engine plugins API, and leave it to the plugin to trigger it(I think that at least for most webview use cases a JavaScript workaround similar to the one in the prototype should be enough).\r\n\r\n#### WebView prior to Android N\r\nFor performance reasons prior to Android N the webview input connection is proxied internally which allows it to handle the input connection not on the main thread.\r\n`WebView#onCreateInputConnection` is pulling some tricks to make its proxy view the input connection target and make the IMM call `onCreateInputConnection` on the proxy view from the dedicated IME thread.\r\nOn these Android versions `WebView#onCreateInputConnection` returns null, which breaks the prototype.\r\n\r\nTo workaround this I believe we should be able to cache the real input connection target reference that is passed to `checkInputConnectionProxy`\r\n\r\n#### Resizing the platform view\r\nResizing a platform view on Android involves moving it from one virtual display to another.\r\nIt seems that open input connections are lost when this is done.\r\n\r\nThis is a common use case as opening the soft keyboard results in resizing the FlutterView and thus likely resizing the WebView.\r\n\r\nIn the POC I just set a fixed size for the WebView(without it you need to tap on the webview's text field again after the keyboard opens). I believe that this can be fixed just by restarting the input connection as the last step of the resize sequence.\r\n\r\n### Next steps\r\n\r\nWe should keep exploring all of our current ideas for a generic way to detect that a platform view wants to show keyboard. Without a generic way we will have to add a public API to the Android embedding. Since removing the API later will be a breaking change I want to feel certain that there isn't a better way before adding such API. Specifically I think it will be useful to experiment with a pure Android app that has a text field and a webview, and see if we can determine when the webview gets and loses text focus, and how can we programmatically make it lose focus.\r\n\r\nAfter the triggering question is resolved we can move forward with a real implementation, this should probably involve sending the \"webview wants keyboard focus\" event to the framework so that the framework's focus tree is updated accordingly, and then having the framework tell the engine what's the current input target (FlutterView or one of the platform views). The framework should also trigger \"clear focus\" on the platform view when appropriate.",
+    "createdAt": "2019-03-30T07:26:01Z"
+  },
+  {
+    "id": 4966,
+    "sender": "krsolutions",
+    "content": "Hi Amirh,\r\n\r\nWe can't able to find the code snippet for webview issue, can you please post working webview snippet here.",
+    "createdAt": "2019-04-01T11:56:44Z"
+  },
+  {
+    "id": 4967,
+    "sender": "LuisThein",
+    "content": "A hacky workaround for the webview would be to use Javascript and JavascriptChannels to manually listen for the focus of certain input fields and then open the keyboard on a hidden TextInput.\r\nHeres a little example: https://github.com/LuisThein/webview_flutter_textinput ",
+    "createdAt": "2019-04-08T16:23:22Z"
+  },
+  {
+    "id": 4968,
+    "sender": "pushangupta",
+    "content": "Any solutions so far? Its too long now!",
+    "createdAt": "2019-04-08T21:29:29Z"
+  },
+  {
+    "id": 4969,
+    "sender": "dcov",
+    "content": "@amirh\r\nI have a working prototype here: https://github.com/dcov/engine/tree/fix-android-ime\r\n\r\nThere are still some things I haven't worked out like restarting the input when the virtual display resizes, or hiding the keyboard when the platform view loses focus. It can also be cleaned up a bit, but in general it works without having to expose an API to the plugins, so it's a start.",
+    "createdAt": "2019-04-16T19:00:29Z"
+  },
+  {
+    "id": 4970,
+    "sender": "amirh",
+    "content": "Thanks @dcov! looks like you were able to figure out the triggering issue, that is awesome!\r\nIt looks like we now have prototypes with solutions for all the core problems.\r\nI'm currently out, but I plan to start working on the real framework/engine implementation when I'm back.",
+    "createdAt": "2019-04-18T12:15:31Z"
+  },
+  {
+    "id": 4971,
+    "sender": "sakinaboriwala",
+    "content": "@amirh @dcov  Can you please provide some guidance or a resource that guides me on **how to use flutter engine?** I am not sure how to make https://github.com/flutter/flutter/issues/19718#issuecomment-478216265 this work on my existing Application? \r\n\r\nThanks a lot.",
+    "createdAt": "2019-04-24T12:53:43Z"
+  },
+  {
+    "id": 4972,
+    "sender": "dcov",
+    "content": "@SakinaBoriwala21 Checkout ['Setting up the engine environment'](https://github.com/flutter/flutter/wiki/Setting-up-the-Engine-development-environment) which guides you in setting up the engine repo, compiling a local engine, and running an app with a local engine.\r\n\r\nAs for how to reproduce https://github.com/flutter/flutter/issues/19718#issuecomment-478216265, you'd need to clone the two repos he linked, or pull in the branches to your local copy. I also opened https://github.com/flutter/engine/pull/8687 which fixes it, just needs to be reviewed, so you could wait for that to land.",
+    "createdAt": "2019-04-25T02:40:11Z"
+  },
+  {
+    "id": 4973,
+    "sender": "sakinaboriwala",
+    "content": "@dcov Appreciate you getting back to me. Thanks a lot.\r\n",
+    "createdAt": "2019-04-25T05:09:59Z"
+  },
+  {
+    "id": 4974,
+    "sender": "apm29",
+    "content": "@dcov if your PR was been allowed , is that means I don't need to compile the flutter engine then ? \r\n0 _ 0",
+    "createdAt": "2019-04-27T05:24:01Z"
+  },
+  {
+    "id": 4975,
+    "sender": "apm29",
+    "content": "> A hacky workaround for the webview would be to use Javascript and JavascriptChannels to manually listen for the focus of certain input fields and then open the keyboard on a hidden TextInput.\r\n> Heres a little example: https://github.com/LuisThein/webview_flutter_textinput\r\n\r\nhow to add listener for multiple input or text area in javascript? confused by it",
+    "createdAt": "2019-04-29T09:22:16Z"
+  },
+  {
+    "id": 4976,
+    "sender": "NebiSarigul",
+    "content": "Can anyone solve this problem please?",
+    "createdAt": "2019-04-30T12:51:20Z"
+  },
+  {
+    "id": 4977,
+    "sender": "rockneverdies55",
+    "content": "If keyboard doesn't work in android why this incomplete thing even put into flutter plugins project. And if put, why it's not stated clearly in README that the keyboard doesn't work?\r\n\r\nStuff that are missing fundamental features and functionality should not be in flutter/plugins. \r\n",
+    "createdAt": "2019-05-03T10:53:20Z"
+  },
+  {
+    "id": 4978,
+    "sender": "dcov",
+    "content": "@rockneverdies55 It's a work in progress, if you really need keyboard input you can use [flutter_webview_plugin](https://pub.dartlang.org/packages/flutter_webview_plugin). Although it's not embedded so you can't overlay Flutter widgets on top of it, but for cases like oauth it should work.",
+    "createdAt": "2019-05-03T17:09:19Z"
+  },
+  {
+    "id": 4979,
+    "sender": "kittugit",
+    "content": "flutter_webview_plugin has it's own issue.  We tried to dynamically load local file urls by using bottomnavigationbar, but it is not working.  \"Adding flutter to existing app\" is another option we are going to explore.\r\n",
+    "createdAt": "2019-05-04T18:13:56Z"
+  },
+  {
+    "id": 4980,
+    "sender": "sakinaboriwala",
+    "content": "@apm29 Just create one more TextField in the background. Although you would want to change the focus event listener to \"click\" .\r\n\r\n@LuisThein This work around is perfect. I was able to add it on my existing application nicely. Did face a few issues related to calling the keyboard again after pressing the back button. \r\n\r\nI will share my workaround for multiple input fields shortly.",
+    "createdAt": "2019-05-06T05:50:26Z"
+  },
+  {
+    "id": 4981,
+    "sender": "tfzxyinhao",
+    "content": "wait ...",
+    "createdAt": "2019-05-17T14:44:45Z"
+  },
+  {
+    "id": 4982,
+    "sender": "jdelrue",
+    "content": "> Based on the milestone, our current plan is to fix this by October 2019.\r\n> See: https://github.com/flutter/flutter/wiki/Issue-hygiene#when-will-my-bug-be-fixed\r\n\r\nSo webview functionality is broken since July 18 and will be fixed in october 19. Why did I ever agree to use flutter for our app development...",
+    "createdAt": "2019-05-21T13:13:05Z"
+  },
+  {
+    "id": 4983,
+    "sender": "marcosgallardo",
+    "content": "> A hacky workaround for the webview would be to use Javascript and JavascriptChannels to manually listen for the focus of certain input fields and then open the keyboard on a hidden TextInput.\r\n> Heres a little example: https://github.com/LuisThein/webview_flutter_textinput\r\n\r\n@LuisThein Man, I would like to thank you for your help and for sharing your implementation, it was very helpful.\r\nI dared to clone your repo and \"improve\" your implementation a little more.\r\n\r\nHere you can find it: https://github.com/marcosgallardo/webview_flutter_textinput\r\n\r\nHope this help.",
+    "createdAt": "2019-05-21T22:36:40Z"
+  },
+  {
+    "id": 4984,
+    "sender": "DreamBuddy",
+    "content": "@marcosgallardo I tested, input will focus ,then focusout ,then repeat forever.",
+    "createdAt": "2019-05-22T09:53:57Z"
+  },
+  {
+    "id": 4985,
+    "sender": "marcosgallardo",
+    "content": "> @marcosgallardo I tested, input will focus ,then focusout ,then repeat forever.\r\n\r\n@DreamBuddy Thanks for your feed back, I realized that I had an outdated VM.\r\nI just upload an [update to the repo](https://github.com/marcosgallardo/webview_flutter_textinput)\r\n\r\nBefore someone complains, I would like to point that are still things that need to be fix:\r\n- The keyboard does not longer adjust to input types (couldn't make it work again yet)\r\n- If the keyboard is hidden by clicking \"phone back button\", you will have to click an other element (_not an input_) and click the input, otherwise the keyobard will not be shown again.\r\n- Some times the cursor is not shown on the input, but the keyboard is show and you type in it.\r\n- If someone position the cursor between words/chars, text always is erase form the end or added at the end.\r\n\r\nHappy hacking!",
+    "createdAt": "2019-05-22T14:54:28Z"
+  },
+  {
+    "id": 4986,
+    "sender": "ghost",
+    "content": "Any follow-up on when @amirh's PR can make it to the stable/dev channel?",
+    "createdAt": "2019-05-24T15:15:16Z"
+  },
+  {
+    "id": 4987,
+    "sender": "ghost",
+    "content": "BTW, I've been trying with a more selective version of @marcosgallardo / @LuisThein approach, but on sites like https://purecss.io/forms/ the whole app will crash as soon as I tap on the \"State\" example dropdown  :(\r\n\r\nYet, on some react applications, the text input values get wiped as soon as the DOM re-renders.\r\nMy only alternative left is trying to inject an HTML virtual keyboard from JS, but handling international versions appropriately may need to invest a fair amount of time.",
+    "createdAt": "2019-05-24T15:22:08Z"
+  },
+  {
+    "id": 4988,
+    "sender": "dazza5000",
+    "content": "The keyboard works on this plugin: https://pub.dev/packages/flutter_webview_plugin#-installing-tab-",
+    "createdAt": "2019-05-25T04:30:16Z"
+  },
+  {
+    "id": 4989,
+    "sender": "DreamBuddy",
+    "content": "@dazza5000 This plugin is not inline webview",
+    "createdAt": "2019-05-25T15:13:23Z"
+  },
+  {
+    "id": 4990,
+    "sender": "joasag",
+    "content": "So this has been an issue since July 2018, and is basic functionality for webview, but still not solved? When can we expect it working, without using flutter_webview_plugin ?",
+    "createdAt": "2019-05-26T09:34:07Z"
+  },
+  {
+    "id": 4991,
+    "sender": "pravinarr",
+    "content": "Is there any ETA on the fix to be available in dev/stable ?",
+    "createdAt": "2019-05-30T23:36:11Z"
+  }
+]

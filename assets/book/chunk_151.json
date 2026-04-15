@@ -1,0 +1,386 @@
+[
+  {
+    "id": 9664,
+    "sender": "cabaucom376",
+    "content": "@Piinks your 2 cents are invaluable and I love hearing about the perspective you guys have with the Cupertino refresh.\n\n> As part of that work, we have been identifying and relocating core components out of Material and into the Widgets layer where appropriate.\n> Having a more robust widgets layer for core components not only allows Cupertino and Material to share common function and implementation, which is awesome for those libraries to be consistent, share code where they can and have all those benefits - but as we are really hoping to achieve - makes it easier as well for other design libraries to be implemented.\n\nThis is, honestly, one of the more significant points in this complex issue thread that I wanted to see resolved. Flutter’s strength lies in its ability to essentially run on any device. I believe where it truly excels is in creating custom user interfaces that are independent of the platform. Therefore, I hesitate to rely on Material or Cupertino. Any development that facilitates this reality is greatly appreciated, and widgets.dart improvements are always a great step in that direction.\n\nConsidering the points about Material updates being tied to framework releases, I believe there’s still an advantage to migrating Material and Cupertino into pub.dev packages. Honestly, I never considered how UI bug fixes were dependent on cherry picks and SDK releases. That said, I completely understand how little sense the effort to value balance is for the team. I’ve been expecting this to become a community-driven effort since my interest in the topic.",
+    "createdAt": "2025-02-18T18:33:43Z"
+  },
+  {
+    "id": 9665,
+    "sender": "MitchellGoodwin",
+    "content": "Hello. I've worked predominantly on Cupertino since I've joined the Flutter team, and I thought I'd give my thoughts as well. For the most part these are my own thoughts and I haven't checked rigorously with others on the team on how they feel on everything.\n\nI'm not sure on the rest of the team, but I like the idea of splitting Cupertino and Material off into their own packages. It would make several things easier when it comes to building both of those libraries, and also create a firmer distinction between our design libraries and the core Flutter framework. There are a lot of difficulties involved with that though. There's a lot of changes we need to make in the design libraries that need changes in the core framework and engine at the same time. Everything to do with text is a big example. Having those have disconnected releases could be taxing on our resources. We'd also still have to run most of our checks on Material and Cupertino. Most of those are effectively looking for breaking changes. And since it's **been** expected that you would use those libraries by default, we can't now suddenly not test them as strongly. We have to honor our promises, even if we don't agree with our original direction.\n\nBut the main reason we haven't talked internally in depth about putting them into their own package is because currently we aren't at a place where we could consider that. Without Material or Cupertino, Flutter as a UI framework is very bare bones. Yes, it'll run, but you are stuck with building a huge amount of widgets from scratch. Material in particular has too much logic in it outside of applying Material design. While I think the team would be hesitant about separating Material and Cupertino into packages, the fact that we can't is a big gap we would like to fill regardless.\n\nAs Kate said, as a team we've been focusing on Cupertino. We really wanted to push on our iOS offerings since the've been lackluster, and there were several challenging technical issues that we wanted to get multiple people on in Cupertino. But also we wanted to work towards two other large future goals: more design adaptive widgets, and better tools for creating custom designs for your apps (or really just not Material or Cupertino). We could do this while working on Cupertino by looking for opportunities to move code down into the widgets layer, and have Material and Cupertino build on top of that, which as Kate pointed out, we've done so in a couple places.\n\nOnce we are done with our current Cupertino push, the next effort will likely continue that, whether it's by focusing on adaptive widgets or something else.\n\nRefactoring the logic down is also dangerous in terms of breaking changes. A lot of the time, it doesn't take much effort to move it down, but making sure it doesn't break in every situation Flutter can be run on (ignoring somewhat wacky cases, if a Cupertino widget looks odd when being rendered on a toaster, we aren't going to take that too personally) takes a lot of time to think up and check all the edge cases. And we usually miss several. So doing a bunch in one go is tricky, but a bit at a time is reasonable. We're learning a lot about how this process works through the Cupertino refresh. We are getting closer to a point where we can focus on that refactor.\n\n**So what can people do now if they want to help** if you want to help us towards moving logic out of Material and Cupertino, we'd be more than happy for the help. We are not expecting a hero to step up and refactor the whole thing in one go. Besides that would end up in a months long discussion hell anyway. \n\nI'd recommend this:\n\n- Find a Material or Cupertino widget that you think could benefit from having its logic separated out and moved to the widgets layer\n- Write a design doc. I know it feels impersonal to ask someone to write a design doc. I personally don't like asking people to write them. They are a pain to make, but especially for changes like these that need to be well documented and thought out ahead of time, they are necessary.\n- Solicit feedback. I'd love to look at design docs on these issues. Feel free to ping me on them, and I know several others would as well. Our discord is overall the best place to talk about design. Most of us are active on there, and it's meant for free form discussion. Threads like this with a lot of design discussion on Github issues are kind of rare, we mostly use the issues to gather raw data. It's likely that we'd recommend design docs on these topics to be on a Dash forum, which are public meetings to discuss design. Most of them are heavily attended by senior engineers on the team, so you'd be talking directly with the people most involved in large changes to Flutter.",
+    "createdAt": "2025-02-18T19:51:50Z"
+  },
+  {
+    "id": 9666,
+    "sender": "lukepighetti",
+    "content": "@MitchellGoodwin are dash forums open to the public?",
+    "createdAt": "2025-02-18T21:18:04Z"
+  },
+  {
+    "id": 9667,
+    "sender": "MitchellGoodwin",
+    "content": "> are dash forums open to the public?\n\nSometimes they are not, but usually they are, and they are always public if it's a non-Googler presenting I believe. They are broadcasted informally in the Discord.",
+    "createdAt": "2025-02-18T21:28:40Z"
+  },
+  {
+    "id": 9668,
+    "sender": "chunhtai",
+    "content": "I can comment on whether things will get easier or harder for the maintainer if we move it out. From my experience when working on go_router, I will say it will likely be **harder**. Mainly when a fix involve core framework change, you have to wait for a release to be able to fix it in the pub package. I usually wait for a quarter or more under the current release cycles, there are also issues with version alignment and backward compatibility(If the package needs to some how work with older version, but there isn't a way to read flutter version). It is also one of the reason we merge framework and engine to make it easier to make change across both repros.\n\n\n",
+    "createdAt": "2025-02-18T21:58:50Z"
+  },
+  {
+    "id": 9669,
+    "sender": "jezell",
+    "content": "@MitchellGoodwin Colors is probably low hanging fruit to move out of Material. In practice even if you want to only use widgets.dart Colors is probably the first reason material.dart leaks in. Another low hanging fruit to set up would be to stop material.dart from exporting widgets.dart so people get their dependencies straightened out ahead of any split. Quite a few cases even in Flutter code the wrong import is made to Material and Cupertino instead of widgets.dart, not because there is an actual dependency but because it's so easy to introduce the wrong dependency via widgets being exported by material. \n\nI'm not sure the argument that Flutter is too barebones if Material and Cupertino are on pub instead of in the base install holds water. There are plenty of essential parts of Flutter that already work this way from the dart side (for example the http and web package.) You can't really ship much without http and you can't ship much on web without the web package, but they are both on pub.dev. Them being on pub.dev doesn't make people wonder if they could use http or talk to a web api. The dart team didn't even pull them out of the dart repo to do this. Even without pulling it out of the repo, simply changing the publishing process so they can be published and consumed like normal packages would probably be a step in the right direction, and it would remove one big roadblock if extracting them happens one day.",
+    "createdAt": "2025-02-18T22:26:10Z"
+  },
+  {
+    "id": 9670,
+    "sender": "matthew-carroll",
+    "content": "I think some of these replies illustrate major reasons why the community is so invested in this desire:\n\n> Without Material or Cupertino, Flutter as a UI framework is very bare bones. Yes, it'll run, but you are stuck with building a huge amount of widgets from scratch.\n@MitchellGoodwin \n\nThese are the requirements faced by anyone other than the Flutter team, when building a widget kit. Yes, there's a lot to do. It would be great if the Flutter team felt the same pain, so that the Flutter team could then alleviate it.\n\n> I can comment on whether things will get easier or harder for the maintainer if we move it out. From my experience when working on go_router, I will say it will likely be harder. Mainly when a fix involve core framework change, you have to wait for a release to be able to fix it in the pub package. I usually wait for a quarter or more under the current release cycles, there are also issues with version alignment and backward compatibility(If the package needs to some how work with older version, but there isn't a way to read flutter version). It is also one of the reason we merge framework and engine to make it easier to make change across both repros.\n@chunhtai \n\nRight, these are the struggles of every single non-Flutter team package. This is what we live with on a daily basis. It would be good for the Flutter team to live with that pain, so that the Flutter team might alleviate it.",
+    "createdAt": "2025-02-18T22:30:36Z"
+  },
+  {
+    "id": 9671,
+    "sender": "MitchellGoodwin",
+    "content": "> Colors is probably low hanging fruit to move out of Material. In practice even if you want to only use widgets.dart Colors is probably the first reason material.dart leaks in.\n\nAgreed. I think there's a fair amount of examples like that. We just have to be careful about letting Material design leaking into the widgets layer. When Material shows up unexpectantly, it's *loud*. I'm also not a fan of Material widgets having pretty generic names, but that's an annoying fix in terms of breaking changes.\n\n> I'm not sure the argument that Flutter is too barebones if Material and Cupertino are on pub instead of in the base install holds water.\n\nI think different functions have different expectations on whether they should be part of the base sdk, and which can be packages. My opinion is that if a developer is spending their first couple of minutes with Flutter and find out that in order to show a button they have to import a pub package or make one from scratch, that sends a very weird signal.\n\nBut on the flip side, I recognize having not one, but two opinionated design languages packed with a UI framework is odd too. I'm not opposed to it, I'm just saying the laundry list is long. And I'm not in a hurry to break things until we flesh out the base offerings.\n\n> These are the requirements faced by anyone other than the Flutter team, when building a widget kit. Yes, there's a lot to do. It would be great if the Flutter team felt the same pain, so that the Flutter team could then alleviate it.\n\nAgain, I would love to enable building with just WidgetsApp more. But recommending it now before we do the work to support it more would be disingenuous, in my opinion. I admit I don't understand your statement fully. From drawing raw pixels on the screen to shipping two design packages we do build widget kits? My opinion is that we don't provide enough entry points for developers to build on top of.\n\nOn the package maintenance, it's not a hard no, just adding details to the tradeoff. It would be more work, but theoretically, it could be worth it. Ideally we would keep that difficulty from impacting non-Google contributors too. Being able to release more often **would** be really nice. Versioning would solve a lot of issues, depending on how robust the packages could be against future updates to core Flutter. As in, if Material 2 could work with stable Flutter for a reasonable amount of time, great. If it breaks within a release or two, or it makes us hesitate to make needed changes to the framework, not so great. It would also be nice to be able to have a slightly looser breaking changes policy versus the core framework. I mention that because I think our policy is stricter than both Material's and Apple's, which causes some friction and weirdness over time.",
+    "createdAt": "2025-02-18T23:18:03Z"
+  },
+  {
+    "id": 9672,
+    "sender": "n7trd",
+    "content": "> My opinion is that we don't provide enough entry points for developers to build on top of.\n\nThese are the basic components React Native [provides](https://reactnative.dev/docs/components-and-apis), and no one seems to care. Adding a few templates/starters as an option in the cli and everyone is happy. \n\nI would go so far as to say that exposing newcomers to material (and its theme system 😱 )they might think twice about whether they've come to the right place. Maybe starting by drawing a few pixels and getting to know the basic layout widgets is better, in my opinion. That's how I started, and I'm still trying to avoid dragging material inside my project.",
+    "createdAt": "2025-02-18T23:48:19Z"
+  },
+  {
+    "id": 9673,
+    "sender": "n7trd",
+    "content": ">  Another low hanging fruit to set up would be to stop material.dart from exporting widgets.dart so people get their dependencies straightened out ahead of any split.\n\nAdding to that, from a user perspective looking _just_ at the API docs, I don't even know what's inside the Cupertino and Material libraries because they're full of re-exports from widgets and other parts of the framework. ([Issue to that](https://github.com/flutter/flutter/issues/100444))",
+    "createdAt": "2025-02-19T00:05:16Z"
+  },
+  {
+    "id": 9674,
+    "sender": "dickermoshe",
+    "content": "@MitchellGoodwin Thank you so much for engaging with us on this - we truly value having this open dialogue with the Flutter team.\n\nI completely understand that this would require careful consideration and planning. I've noticed many community members who seem eager to contribute their expertise to help move this forward.\n\nI wanted to respectfully bring up something I've observed: There have been times when well-intentioned community contributions didn't align with the team's current priorities, which led to some disconnects. I'd love to better understand the team's perspective on this particular issue.\n\nWould you mind sharing whether this is something the Flutter team sees as valuable but perhaps not yet prioritized, or if you have a different view on its importance? This would really help us understand how to best support and align with the team's vision.",
+    "createdAt": "2025-02-19T00:15:23Z"
+  },
+  {
+    "id": 9675,
+    "sender": "maxfrees",
+    "content": "As the team members say, if someone in the community is willing to contribute, you can first find a Material or Cupertino widget that you think can benefit from the separation logic and move to the widgets layer, and then share your experience and drive this thing forward",
+    "createdAt": "2025-02-19T00:54:45Z"
+  },
+  {
+    "id": 9676,
+    "sender": "MitchellGoodwin",
+    "content": "> Would you mind sharing whether this is something the Flutter team sees as valuable but perhaps not yet prioritized\n\nThis issue received enough activity for the bot to mark it as needing triage again, so the broader design team is going to discuss it this week, so I or someone else can give a better answer of how the team feels as a whole after that. I don't want to speak too much for the others.",
+    "createdAt": "2025-02-19T00:57:16Z"
+  },
+  {
+    "id": 9677,
+    "sender": "maxfrees",
+    "content": "What is the Discord link and can I access it  ？",
+    "createdAt": "2025-02-19T01:00:49Z"
+  },
+  {
+    "id": 9678,
+    "sender": "MitchellGoodwin",
+    "content": "The link and how to see the channels after you join are here: https://github.com/flutter/flutter/blob/master/docs/contributing/Chat.md",
+    "createdAt": "2025-02-19T01:06:29Z"
+  },
+  {
+    "id": 9679,
+    "sender": "maxfrees",
+    "content": "> The link and how to see the channels after you join are here: https://github.com/flutter/flutter/blob/master/docs/contributing/Chat.md\n\nthank you，Expect this proposal to move forward as soon as possible, too many people in the community expect this",
+    "createdAt": "2025-02-19T01:17:58Z"
+  },
+  {
+    "id": 9680,
+    "sender": "Piinks",
+    "content": "> This issue received enough activity for the bot to mark it as needing triage again, so the broader design team is going to discuss it this week, so I or someone else can give a better answer of how the team feels as a whole after that. I don't want to speak too much for the others.\n\nFollowing up on this, we did meet in triage today and discussed this! We don't currently have plans to do this, and likely will not this year. We appreciate all the feedback and discussion around separating these libraries from the core SDK. We might decide to pursue this in the future, so this issue will remain open. Thank you!\n",
+    "createdAt": "2025-02-19T21:21:05Z"
+  },
+  {
+    "id": 9681,
+    "sender": "MitchellGoodwin",
+    "content": "Adding on, there is a lot of work we have planned that involves a lot of coordination between the framework and the design libraries. So moving them to packages would, at best still result in them being tightly bound to framework releases and versioning, or at worst cause huge bottlenecks for us merging and testing PRs. We are still dedicated to moving code down to the widgets layer, so we will be at a better point to evaluate this again down the road. But as the blocker for doing this proposal, and what we are working on anyway are pretty close together, we think we'll naturally get there without having to abandon the current push we are on. It's not going to happen this year though.\n\nOn the concerns about update cadence: I wasn't aware of this, but other teams were already looking into that. We've been evaluating our infrastructure recently to look for improvements. The monorepo merge was a major change related to that, and now we are seeing what we can improve further. It did make our last release a little rocky, but in the long run it looks pretty exciting.",
+    "createdAt": "2025-02-19T22:20:41Z"
+  },
+  {
+    "id": 9682,
+    "sender": "knopp",
+    "content": "Another point. Working on Flutter framework gets quite frustrating because the framework is basically one huge analyzer cycle. So changes sometimes take tens of second for the analyzer to process.\n\nMaterial + Cupertino are around 150kloc, about half of the framework, and they use barrel imports, which is possible contribution to the cycle size.",
+    "createdAt": "2025-03-10T15:28:45Z"
+  },
+  {
+    "id": 9683,
+    "sender": "yakagami",
+    "content": "As someone who stumbled onto this issue via [Issues sorted by thumbs-up](https://github.com/flutter/flutter/issues?q=is%3Aissue+is%3Aopen+sort%3Areactions-%2B1-desc). I like that Cupertino and Material are part of the SDK. I agree in principle with others that said new users would find it strange to have to download a package just to create a basic UI (although, the flutter create tool could do that automatically, so it's not really that big of a deal). The main issue to me is that while, as noted above, there are a lot of one line PRs that get stuck due to the current system, many of the most _important_ PRs tend to revolve around framework changes like gestures and rendering. Some examples: https://github.com/flutter/flutter/pull/161111 https://github.com/flutter/flutter/pull/136708 https://github.com/flutter/flutter/pull/109573. I think we would be missing out more if we had to coordinate those larger changes across three libraries that have different release cadences. For example, imagine if some new Material/Cupertino feature is worked on that requires changes to the framework, how do you make those changes until the next version of Flutter is released? That would seem to make releases even slower in those cases. I think maybe in a few year when Flutter is more stable this would make more sense. I like that when you upgrade Flutter you get a new dart version, new engine, new framework fixes and new/improved widgets all at once which makes it less likely to run into dependency issues. Also what would support look like? If Material and Cupertino were rolling release, would the devs still be expected to support older versions like they do with the framework? I do agree that there should be more separation between Material and the base framework though, just not as different packages and release cadences.",
+    "createdAt": "2025-03-11T03:42:20Z"
+  },
+  {
+    "id": 9684,
+    "sender": "knopp",
+    "content": "> The main issue to me is that while, as noted above, there are a lot of one line PRs that get stuck due to the current system, many of the most _important_ PRs tend to revolve around framework changes like gestures and rendering. Some examples: [#161111](https://github.com/flutter/flutter/pull/161111) [#136708](https://github.com/flutter/flutter/pull/136708) [#109573](https://github.com/flutter/flutter/pull/109573). I think we would be missing out more if we had to coordinate those larger changes across three libraries that have different release cadences. For example, imagine if some new Material/Cupertino feature is worked on that requires changes to the framework, how do you make those changes until the next version of Flutter is released? \n\nJust like with any other package that depends on newly added Flutter features? You land the change first in Flutter then you release update of your package. I really don't see what makes material so special that somehow this couldn't be done. None of the examples you provided counter this in any way.\n",
+    "createdAt": "2025-03-11T04:23:49Z"
+  },
+  {
+    "id": 9685,
+    "sender": "n7trd",
+    "content": "@MitchellGoodwin \n\nJust trying to figure out what _should_ be in the widgets library 🤔 \n\n> Find a Material or Cupertino widget that you think could benefit from having its logic separated out and moved to the widgets layer\n\nvs\n\n> My opinion is that we don't provide enough entry points for developers to build on top of.\n&\nMy opinion is that if a developer is spending their first couple of minutes with Flutter and find out that in order to show a button they have to import a pub package or make one from scratch, that sends a very weird signal.\n\nThe first thing sounds like finding some gap that exists that would be nice/needed to implement basic logic. The second like the blankcanvas projects with a lot more functionality that devs could use right away with some styling on top.\n\nCould you provide a hint what the team would consider to be part of the widgets library.",
+    "createdAt": "2025-03-14T14:18:21Z"
+  },
+  {
+    "id": 9686,
+    "sender": "MitchellGoodwin",
+    "content": "> Just trying to figure out what should be in the widgets library\n\nSure, I can see the need for clarification. The main difference between these and blankcanvas would be how they integrate with the rest of flutter and Material and Cupertino. Blankcanvas's priority is showing unstyled widgets that can be customized freely, and is made separately from the existing two design libraries. Blankcanvas is also not a project for the current Flutter team within Google, so I'm not sure what the timeline is on that.\n\nWhereas the widgets library approach has the priorities swapped. The priority is that logic there is able to be used by either Material or Cupertino. So, even if the base widget doesn't show anything on the screen without some code added, it's beneficial in increasing code share and making it easier to create custom widgets. An example of this is the [RawMenuAnchor](https://github.com/flutter/flutter/pull/158255) recently added. While it doesn't show anything by default, it makes it much easier to make a custom pulldown menu using code that is tested by our infrastructure. It also thins out what Material applies to its widget, and creates an easier opportunity for adding a Cupertino version which only needs to add Cupertino specific styling and behavior while making it easier to create an adaptive version in the future.\n\nSo the preference is, anything that lets us delete code in either Cupertino or Material is great for the widgets layer. Anything that provides functionality that is not specific to either library is great.",
+    "createdAt": "2025-03-14T18:32:26Z"
+  },
+  {
+    "id": 9687,
+    "sender": "iapicca",
+    "content": "> Blankcanvas is also not a project for the current Flutter team within Google, so I'm not sure what the timeline is on that.\n\n@MitchellGoodwin  how so? It's in [flutter 2024 roadmap](https://github.com/flutter/flutter/blob/master/docs/roadmap/Roadmap.md#core-framework--engine)\n\n> Work is also expected to continue on [blankcanvas](https://docs.google.com/document/d/1rS_RO2DQ_d4_roc3taAB6vXFjv7-9hJP7pyZ9NhPOdA/edit?resourcekey=0-VBzTPoqLwsruo0j9dokuOg).",
+    "createdAt": "2025-03-16T16:40:27Z"
+  },
+  {
+    "id": 9688,
+    "sender": "MitchellGoodwin",
+    "content": "Blankcanvas is a project being lead by @Hixie who left Google but is still on the Flutter team. So we have no formal tracking of blankcanvas (at least that I'm aware of). Also, the roadmap hasn't been updated for this year yet.",
+    "createdAt": "2025-03-17T17:50:44Z"
+  },
+  {
+    "id": 9689,
+    "sender": "Hixie",
+    "content": "I've unfortunately not had the funding to work on Blank Canvas for a while (my time has been taken up with other projects). It's still something I'd like to get to, but I have no ETA.",
+    "createdAt": "2025-03-18T00:22:07Z"
+  },
+  {
+    "id": 9690,
+    "sender": "yakagami",
+    "content": ">You land the change first in Flutter then you release update of your package. I really don't see what makes material so special that somehow this couldn't be done. None of the examples you provided counter this in any way.\n\nMy argument isn't that it couldn't be done, I agree that it can be done and I also agree that there would be benefits for some (perhaps large[^1]) percentage of users. My argument is just that it makes development more cumbersome. A single PR change turns into a two or three PR change. Dependent PRs cannot be merged until the dependency PR is merged. (Unless we are going to use feature flags, which I don't think is the case.) If changes were made in the mean time to the dependent packages the original PR has to be changed even though it was written earlier and now needs to be re-reviewed.  Any Flutter cherrypicked point release updates must also come with an additional package update if necessary. Maybe it would be helpful to get some data on the number of such changes: how many Material/Cupertino changes depend on Flutter changes from the previous/current release? How large are such changes compared to normal ones?\n\nAs I understand it, part of the rationale of merging the engine and framework into a single repo was to avoid these types of issues. although I can't find the issue that describes the motivation for that change so I may be wrong. (I'm assuming the Cupertino/Material packages would still be in the flutter repo.)\n\n>Just like with any other package that depends on newly added Flutter features\n\nMost packages should not be nearly as large as Material/Cupertino so the dependency surface should be much smaller in the first place. Speaking of packages, am I correct that Flutter packages would now have to specify which Cupertino, Material and Flutter versions each package release supports if they use those packages? (Or use the Material/Cupertino version to imply the supported Flutter version as these packages would still need to pegged to specific Flutter versions anyway?)\n\nAlso Flutter Doctor/issue triagers would have to ask for the Cupertino and Material versions of the user for every Flutter issue. Since they are just packages, it's not clear how the Flutter tool could read that as it would be project specific. You also need someone to actually create the release for each package.\n\nI also think there are some perhaps reasonable assumptions that still should be validated: 1. Splitting flutter into UI packages will result in quicker UI releases 2. It is not feasible or would be too difficult to increase the number of Flutter releases such that it would be acceptable for a reasonable number of those interested in increasing the UI release cadence.\n\nThis is just what I think about it. I could be wrong and maybe these are all non issues or simple issues that have an obvious solution.\n\n[^1]: This is something I think needs more data. How many people want this feature vs. don't care vs. do not want it?",
+    "createdAt": "2025-03-28T17:32:33Z"
+  },
+  {
+    "id": 9691,
+    "sender": "maxfrees",
+    "content": "Obviously, if the UI package and devtools are moved out of flutter, there are only benefits and no disadvantages. Now, every change to UI or devtools has to wait for several months before it can be released, which is too inefficient.",
+    "createdAt": "2025-03-29T03:21:18Z"
+  },
+  {
+    "id": 9692,
+    "sender": "dickermoshe",
+    "content": "Update: https://github.com/flutter/flutter/issues/168813#issuecomment-2881009665\n\n@MitchellGoodwin Let us know if you go in this direction. This would be really exicting!",
+    "createdAt": "2025-05-14T17:32:17Z"
+  },
+  {
+    "id": 9693,
+    "sender": "dickermoshe",
+    "content": "> As I understand it, part of the rationale of merging the engine and framework into a single repo was to avoid these types of issues. although I can't find the issue that describes the motivation for that change so I may be wrong. (I'm assuming the Cupertino/Material packages would still be in the flutter repo.)\n\nComparing this to the engine/framework merge isn't quite the same, as the engine and framework are really only used together. Design systems like Material are different because they change a lot over time.\n\nWe've ended up with a single design system which has combined Material 2 and Material 3, and we are now stuck because we realize that Material Expressive will require even more widgets which serve the same function, but with a slightly different name. \nThis is not sustainable long term.\n\n\n",
+    "createdAt": "2025-05-15T17:47:22Z"
+  },
+  {
+    "id": 9694,
+    "sender": "maxfrees",
+    "content": "Should material and cupertino be moved out of the flutter sdk to allow material expressive to participate better?",
+    "createdAt": "2025-05-16T07:46:13Z"
+  },
+  {
+    "id": 9695,
+    "sender": "TekExplorer",
+    "content": "man... this just reminds me how aggravating the m2-m3 migration was, breaking things even with the toggle off. they're completely separate design languages, so why would one _replace_ the other? separating material/cupertino out into packages makes a ton of sense, because that would allow us to have a `material2` and a `material3` and so on.\n\nPlus, flutter can just re-export them both until we can do a breaking change. that may not sound too useful, until you remember dependency overrides exist.\n\nNot to mention external packages can start relying on non-material widgets for their designs when they _arent_ material design...\n\nFor an app framework with heavy emphasis on UI, this should be pretty high up there in priority. the code hygiene benefits on top of just letting everything be so much _cleaner_ and easy to update cant be understated.\n\ni know this can be a lot of work, but I do think its important.\n\nseriously, what is google doing? where the hell are they?",
+    "createdAt": "2025-05-17T01:13:08Z"
+  },
+  {
+    "id": 9696,
+    "sender": "atototenten",
+    "content": "actually material 2 to 3 was point-less .\n\nbecause we could have both as separate packages ,\nand a common one to abstract both ,\nprociding ultimate choice and freedom to the dev.s .\n\nflutter's leadership is incompetent ,\nespecially visible from their decision regarding porting react-fiber concept .",
+    "createdAt": "2025-05-17T02:36:59Z"
+  },
+  {
+    "id": 9697,
+    "sender": "MitchellGoodwin",
+    "content": "Thinking more about this: but theoretically if these libraries were to be moved outside of Flutter, we'd still probably want to keep some parts of them specific to their respective platforms in core Flutter in some way, possibly under a different library name. Things like scrolling physics, platform specific accessibility, page transitions, text input, etc. Anything that you need for your UI to \"belong\" on the platform. I imagine even if someone wants to have an old version of Material on their app, they don't want their users to feel like the scrolling and gesture physics are from an older phone.\n\nFor Material I think that's a relatively clean split. An Android app does not need a majority of Material design to not feel off to users.\n\nFor Cupertino, it's a bit harder, because design wise iOS has a stronger ecosystem. My perception is that with iOS developers the amount of widgets that are \"required\" to be able to look like a native app is higher compared to Material. But also there is a disagreement on which widgets are necessary. One developer may feel like iOS style navbars are a hard requirement, but another may disagree. I don't think we can make as clean of a cutoff.\n\nBut if we were start on this work, I think starting with Material (even ignoring expressive) makes the most sense. Partially because Material depends on Cupertino, so pulling Cupertino out first would cause some headaches.",
+    "createdAt": "2025-05-22T17:56:48Z"
+  },
+  {
+    "id": 9698,
+    "sender": "maxfrees",
+    "content": "You can start with the material first and start this work as soon as possible. It is so important.",
+    "createdAt": "2025-05-23T01:06:31Z"
+  },
+  {
+    "id": 9699,
+    "sender": "maxfrees",
+    "content": "Why should flutter devtools and UI packages be integrated with the flutter SDK, which is not the case in any large project, devtools have problems every time they are released, and it makes sense to wait a month or even a quarter for every update to the flutter patch?",
+    "createdAt": "2025-05-27T12:50:01Z"
+  },
+  {
+    "id": 9700,
+    "sender": "maxfrees",
+    "content": "Where are the Google technical experts? Haven't they used Flutter? The development tools, libraries, Cupertino, the data update takes at least one month or even a quarter each time. Isn't this a serious problem?",
+    "createdAt": "2025-05-27T12:50:11Z"
+  },
+  {
+    "id": 9701,
+    "sender": "ricardodalarme",
+    "content": "For what it's worth, I think a great first step for Flutter would be to separate the .adaptive constructors (e.g. `Switch.adaptive`, `SwitchListTile.adaptive`, `Slider.adaptive`, `CircularProgressIndicator.adaptive`, `Checkbox.adaptive`, etc) into a separate package. IMO it doesn't make any sense for them to be tied to the Material library.\n\n",
+    "createdAt": "2025-05-27T17:33:56Z"
+  },
+  {
+    "id": 9702,
+    "sender": "MitchellGoodwin",
+    "content": "I agree that adaptive logic shouldn't be tied to the Material library and should be separated out regardless. It might be easier to do so after the migration to packages though. Not sure.",
+    "createdAt": "2025-05-27T22:42:31Z"
+  },
+  {
+    "id": 9703,
+    "sender": "ricardodalarme",
+    "content": "@MitchellGoodwin don't you think it would be easier to start by creating an adaptive package? because it's one less thing from Cupertino that will have to import in the material package",
+    "createdAt": "2025-05-30T15:00:33Z"
+  },
+  {
+    "id": 9704,
+    "sender": "MitchellGoodwin",
+    "content": "I think separating out the adaptive logic would be a breaking change, so would be easier to do so in the packages where v1.0.0 would be the same as how Material works currently. That's not a strong opinion though.",
+    "createdAt": "2025-05-30T17:26:49Z"
+  },
+  {
+    "id": 9705,
+    "sender": "iapicca",
+    "content": "> [@MitchellGoodwin](https://github.com/MitchellGoodwin) don't you think it would be easier to start by creating an adaptive package? because it's one less thing from Cupertino that will have to import in the material package\n\n@ricardodalarme\nI think an \"adaptive_package\" should belong in [blankcanvas](https://github.com/flutter/flutter/issues/165502) as part of flutter sdk\nan independent package would create a situation where \na part of sdk will depend on adaptive package that depends on the sdk itself\nnot only for material/cupertino (that hopefully will move out of it soon)\nbut also any \"base widget\" that still resides in the sdk\n",
+    "createdAt": "2025-05-31T17:18:18Z"
+  },
+  {
+    "id": 9706,
+    "sender": "Kypsis",
+    "content": "Problem with those `.adaptive` constructors is that they are still way too much like point solutions. Adaptive to what would be the question then, only Material and Cupertino? What about other design libraries that target Windows or Linux or anything custom. It would be better if there was a platform aware abstraction that takes in a list (or some other data structure) of design library specific component(s) and from there switches based on platform. It's always bad if a higher level abstraction leaks downwards. \n\nThe chance to extract Material and Cupertino out to their own packages should be viewed from a higher vantage point than just immediately obvious tasks at hand. This is an opportunity to create truly flexible and agnostic abstractions. Or even do a deep review what is it that Flutter actually does at its core or should be doing. Should styling, layout and behavioural logic just be intermixed like it is currently or pathway to scalability and flexibility would be better achieved by aiming for better separation of concerns. \n\nThe crux of the problem is that there are no core \"headless UI\" type of components. For styling and theming there's nothing even remotely as flexible and reactive as CSS variables + HTML data attributes are for web. And honestly in this new AI world where you already have startups creating revenue with on demand generative AI UIs (and even alluded to by Sundar Pichai in the recent interview with Lex Friedman), is even a component atomic enough of an abstraction. Or should we start thinking about it in terms of composable behaviours + flexible styling/theming layers.\n\nI don't want to always bring web into this topic but a properly flexible and composable approach opens up a lot of options eg [https://github.com/tonym/prompt-ui](https://github.com/tonym/prompt-ui) and it's companion article [https://www.designsystemscollective.com/how-ai-integrated-design-systems-and-generative-component-libraries-work-a060897b8abb](https://www.designsystemscollective.com/how-ai-integrated-design-systems-and-generative-component-libraries-work-a060897b8abb). Or even Flutter's own video superficially touching upon the subject [https://youtu.be/xo271p-Fl_4?t=1081](https://youtu.be/xo271p-Fl_4?t=1081). But this topic already goes so soooo far beyond.",
+    "createdAt": "2025-06-16T09:06:34Z"
+  },
+  {
+    "id": 9707,
+    "sender": "dickermoshe",
+    "content": ">Problem with those .adaptive constructors is that they are still way too much like point solutions. Adaptive to what would be the question then, only Material and Cupertino? What about other design libraries that target Windows or Linux or anything custom. It would be better if there was a platform aware abstraction that takes in a list (or some other data structure) of design library specific component(s) and from there switches based on platform. It's always bad if a higher level abstraction leaks downwards.\n\nAnother problem to with the `.adaptive` constructors  is that they don't take into account what version of iOS your running. If a user on iOS 26 sees an old slider or vice versa, it will look extremely odd.\n",
+    "createdAt": "2025-06-16T10:37:21Z"
+  },
+  {
+    "id": 9708,
+    "sender": "benthillerkus",
+    "content": "...and they assume that there's a 1:1 mapping of components between toolkits and you could just translate a Material Design app into an Apple HIG one if you'd just replaced every Material widget with a Cupertino widget -- which is not at all the case, because the layouts and UI flows are different between the platforms. If you want native you'll have to build two UIs.\n\nThey're good enough for not showing a Material Circular Progress Indicator on iOS, but not much more IMO",
+    "createdAt": "2025-06-16T10:50:37Z"
+  },
+  {
+    "id": 9709,
+    "sender": "benthillerkus",
+    "content": "> Should styling, layout and behavioural logic just be intermixed like it is currently or pathway to scalability and flexibility would be better achieved by aiming for better separation of concerns.\n\n> For styling and theming there's nothing even remotely as flexible and reactive as CSS variables + HTML data attributes are for web.\n\nThe blankcanvas proposal was kinda weird, because it wanted to introduce a sort of theming system, but it really wouldn't have been enough to be useful.\nSome capabilities that are required for good theming as seen in CSS, just aren't possible with Flutter at the moment: selectors like the sibling selector or :has. Without being able to make rules based on the shape of the Widget tree, you can't really split _style_ and _substance_ -- and without being able to do that, you can't really replace one styling with another, which is what theming is.\n\nSo I think it would be most pragmatic to just focus on delivering headless primitive components for now, because they are immediately useful, and then think about theming and what Flutter users want to get out of that later",
+    "createdAt": "2025-06-16T11:02:01Z"
+  },
+  {
+    "id": 9710,
+    "sender": "Kypsis",
+    "content": "Even mapping a subset of a modern design system, design tokens usage (both value tokens and reference tokens) with the classical 3 layers (primitive, semantic, component) tree structure is just major PITA in Flutter. You either end up with your own custom ThemeData implementation or a custom set of composed ThemeExtensions but it's just extremely clunky to write, generate and use. And still the result is in many ways inflexible and static bespoke effort. Let's not even talk about scaling up to n amount of layers or n amount of styling contexts, handling dark and light mode is already a pain. Guess there's a reason why any sort of design tokens usage in Flutter Material end up basically resolved and flat mapped to actual values.\n\nThis issue has actually proven itself such a blocker to achieve parity with web that in our corp we have had to resort to some out of the box thinking to resolve it (currently still as a POC, but a promising one). But I'd rather not reinvent the wheel and rely on bespoke approaches when you have a Google full of people whose main hireability criteria was the ability to solve abstract puzzles (Leetcode).",
+    "createdAt": "2025-06-16T12:02:03Z"
+  },
+  {
+    "id": 9711,
+    "sender": "falrom",
+    "content": "I believe it's necessary to move Material and Cupertino out of Flutter's core.\n\nMaterial and Cupertino can't really be used together — developers ultimately have to choose one. This means an app can never feel truly \"native\" across all platforms. Ironically, Flutter's biggest strength is allowing companies to implement their own consistent UI across platforms, but to do that, we're still forced to rely on Material as the base, since the default WidgetApp is just too minimal.\n\nAlso — though this might be a bit off-topic here — I think it's equally important to separate unrelated components out of Flutter and into pure Dart packages. Dart's use cases are still very limited, and I believe that's one of the main reasons people hesitate to adopt Flutter. If Dart were more usable across both frontend and backend, the whole Flutter ecosystem would benefit.\n\nFor example, I've often wanted to use ChangeNotifier in my backend code, only to find out it's part of Flutter, not pure Dart — which is really frustrating.",
+    "createdAt": "2025-06-17T13:09:42Z"
+  },
+  {
+    "id": 9712,
+    "sender": "n7trd",
+    "content": "> Material and Cupertino can't really be used together — developers ultimately have to choose one. This means an app can never feel truly \"native\" across all platforms.\n\nCouldn't agree more. There are basically no flutter apps that I know of, including google's, that switch between design systems to look native on each platform. That's not what a cross-platform framework is good for. I would just go full native with all its implications if that were my biggest concern. The Material Design guidelines removed the \"[Platform adaptation](https://m1.material.io/platforms/platform-adaptation.html)\" and \"[Cross-platform adaptation](https://m2.material.io/design/platform-guidance/cross-platform-adaptation.html#when-to-adapt)\" sections a long time ago.\n\nBreaking design systems by sprinkling in some native-looking tabs, buttons, and switches via adaptive constructors doesn't provide a better user experience and looks odd and uncanny at best.\n\n**An alternative way to make design libraries more adaptive:**\n\nSplit out core platform interactions and styles from cupertino and material. What's the core? Scrolling mechanics, route animations, scrollbars, text selection, and basic styles like color, icons, animations, shapes, and typography. \nPut that base widgets and implementations, along with blank styles in widgets, and the rest in material_base and cupertino_base that provide custom implementations. If it looks familiar, yes, the http package does something similar.\n\nHow does that look overall?\n\nCore Framework:  \n- `widgets`: Base widgets and implementations pointed out above (I think that is already a work in progress).\n- `material_base` (android) & `cupertino_base` (ios/macos): Custom styles and implementations for the platforms \n(I really don't care if it's part of flutter or not, whatever works best)\n\nAs separated packages:\n- `material` & `cupertino`: All remaining widgets like buttons, tabs,...\n- The community could create Linux and Windows versions to add more platforms.\n\nWith that in place, cross-platform UI libraries, and I count material as one, especially with the addition of expression design, could adapt their interaction and tweak their themes—not controls—to better adapt to a platform by importing selected *_base packages. I think that would be a win for everyone.\n\n---\n\nWhere does that leave blankcanvas #165502 ? There are already awesome projects out there like forui, shadcn_ui, or [naked](https://github.com/btwld/mix/tree/main/packages/naked) (Mix) in the works. Maybe we should support them instead. I don't think most users want to design their widgets from scratch; I really don't know where that assumption comes from.\n\nUnifying all kinds of design systems with headless base widgets and an interchangeable theme system that works across different design systems has worked quite well on the web so far... 🙄 . I don't really want to blame the flutter team at google that that's not their top priority. As for AI, yeah, maybe they'll figure it out someday.",
+    "createdAt": "2025-06-20T00:40:01Z"
+  },
+  {
+    "id": 9713,
+    "sender": "iapicca",
+    "content": "> Core Framework:\n> [...]\n> * `material_base` (android) & `cupertino_base` (ios/macos)\n\nplease don't",
+    "createdAt": "2025-06-20T19:02:51Z"
+  },
+  {
+    "id": 9714,
+    "sender": "MitchellGoodwin",
+    "content": "Honestly, the way an app \"should\" adapt seems so completely up to personal taste, I'm wondering if we should completely give up on it, besides some non-negotiables like scrolling, and leave that up to community packages. People can make a package that automatically adapt how they think an app should adapt, and others can use the package that makes sense to them.\n\n> There are basically no flutter apps that I know of, including google's, that switch between design systems to look native on each platform.\n\nCase in point, I believe Google's apps do adapt across platforms, and even use adaptive constructors, but by choice Google apps use Material design on all platforms so it's not obvious. But nobody else would want to adapt the way Google adapts it's design. (At least I assume so)",
+    "createdAt": "2025-06-20T23:16:13Z"
+  },
+  {
+    "id": 9715,
+    "sender": "qiqetes",
+    "content": " There are basically no flutter apps that I know of, including google's, that switch between design systems to look native on each platform.\nLichess mobile has total different design system for iOs and android https://github.com/lichess-org/mobile",
+    "createdAt": "2025-06-25T07:31:32Z"
+  },
+  {
+    "id": 9716,
+    "sender": "n7trd",
+    "content": "Some people want a unified design across platforms. Others prefer adapting certain widgets based on the platform. Some aim to get as close as possible to a native look (though I see this more in case studies than in real-world apps). Also, as people have pointed out above, if it should adapt, to what? There are more platforms than Flutter supports out of the box. Additionally, there is an increasing number of UI elements that morph from one state to another, which I think is an interesting evolution in UI design. However, this makes it increasingly difficult to create a base class for such elements.\n\n> I'm wondering if we should completely give up on it..\n\nI _totally_ think we should give it up and focus on the 'non-negotiables'.\n\nA current pain point in Flutter is that even for something as simple as creating a custom text box with native-looking text selection and toolbar behavior, you have to integrate material and cupertino widgets into your UI library. This also means dealing with additional complexities like theming.\n\nIf there were a base class for these non-negotiables, along with platform-specific implementations for the platforms flutter currently supports (ios & android), it would be much easier to use them within an otherwise cross-platform UI library. Additionally, this approach would benefit the community by allowing developers to create and maintain implementations for other platforms, which could then be used by various cross-platform UI libraries.",
+    "createdAt": "2025-06-25T11:05:32Z"
+  },
+  {
+    "id": 9717,
+    "sender": "n7trd",
+    "content": "*A Note on the material library\n\nWhat’s also missing in the discussion is that theming is surprisingly underutilized in general. Do we really need to switch widgets to achieve a more native-looking app? Why doesn’t material have a cupertino theme instead, where certain aspects of some widgets are tweaked? Or a themed FAB with that shiny liquid-glass effect?\n\nI think material could be _expressive_ 😉  enough to adapt to all kinds of platforms through themes. It’s not a bad library, as many make it seem—it’s just that for cross-platform apps, it’s too opinionated and complicated to customize. Given the time and effort that went into it, it would be a real wasted opportunity to stick to the belief that we _all_ need to build our own UI libraries from scratch. Personally, I don’t want to do that—I just want a good-looking library so I can focus on the apps I’m building.",
+    "createdAt": "2025-06-25T11:22:28Z"
+  },
+  {
+    "id": 9718,
+    "sender": "benthillerkus",
+    "content": "> Why doesn’t material have a cupertino theme instead, where certain aspects of some widgets are tweaked?\n\nit does",
+    "createdAt": "2025-06-25T11:24:55Z"
+  },
+  {
+    "id": 9719,
+    "sender": "n7trd",
+    "content": "> it does\n\nA cupertino theme for material? All I see are some adaptive widgets/constructors that replace their material counterparts with cupertino equivalents. That’s not exactly what I’d call a \"theme\".",
+    "createdAt": "2025-06-25T12:01:47Z"
+  },
+  {
+    "id": 9720,
+    "sender": "matthew-carroll",
+    "content": "@n7trd \n\n> A current pain point in Flutter is that even for something as simple as creating a custom text box with native-looking text selection and toolbar behavior, you have to integrate material and cupertino widgets into your UI library. This also means dealing with additional complexities like theming.\n\n`super_editor` provides `SuperTextField` which doesn't use any Material or Cupertino pieces. In fact, it doesn't even use `RenderEditable`. It might need some updates for your use-cases - not sure - but the Flutter community should definitely feel empowered to use that text field and completely avoid Material and Cupertino stuff.",
+    "createdAt": "2025-06-28T22:20:04Z"
+  },
+  {
+    "id": 9721,
+    "sender": "n7trd",
+    "content": "@matthew-carroll \n\nI didn't know that, thanks! I will definitely try it.",
+    "createdAt": "2025-07-10T21:02:05Z"
+  },
+  {
+    "id": 9722,
+    "sender": "Piinks",
+    "content": "Hi folks! We have decided to pursue decoupling the design libraries from the framework. Please see OP above for a doc on how we are getting started, and linked issues for tracking various aspects of this project.",
+    "createdAt": "2025-07-30T00:27:20Z"
+  },
+  {
+    "id": 9723,
+    "sender": "medz",
+    "content": "You finally did something right!",
+    "createdAt": "2025-07-30T09:46:10Z"
+  },
+  {
+    "id": 9724,
+    "sender": "CreativeToby02",
+    "content": "Wow\n",
+    "createdAt": "2025-07-30T15:57:17Z"
+  },
+  {
+    "id": 9725,
+    "sender": "maxipombo",
+    "content": "Following this closely as it directly unblocks Material 3 Expressive #168813. The strategic pause on M3 Expressive makes sense, but it would be great to have visibility into the timeline for this decoupling work.\nIs there an estimated target for when the new standalone packages might be available? Many of us are eager to adopt the Expressive components and understanding the roadmap would help us plan accordingly.",
+    "createdAt": "2025-11-27T18:43:42Z"
+  },
+  {
+    "id": 9726,
+    "sender": "Piinks",
+    "content": "The linked document above lays out the loose timeline we are working under for this project. You can also follow progress in the Github project. We are still targeting early 2026 for the new packages to be published, and are working on the necessary infrastructure currently.",
+    "createdAt": "2025-12-01T17:21:36Z"
+  },
+  {
+    "id": 9727,
+    "sender": "lsaudon",
+    "content": "The package name [`material`](https://pub.dev/packages/material) is already taken by someone else. What will the official package be called?",
+    "createdAt": "2026-01-10T14:07:19Z"
+  }
+]

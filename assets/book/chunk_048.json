@@ -1,0 +1,386 @@
+[
+  {
+    "id": 3072,
+    "sender": "higaski",
+    "content": "> For non-Chromium it's about ~2MB compressed if I remember correctly.\n\nYes something like that.\nI assume @2000calories is looking at the entire uncompressed build folder with all CanvasKit flavors in it. This is also one of the points I mentioned above. The user currently has too little influence over what is created, and inexperienced users cannot decide what they can actually delete.\n\nThat said the size increase is currently still \"huge\" for the non-chromium builds. I have a very simple web app I deploy from an ESP32 microcontroller. Having to suddenly ship 3.8MB instead of 1.1MB (both gzipped) is a factor of 3.4.\n\nPlease don't get me wrong, the work you are doing is impressive. But I still think that the HTML renderer was abandoned a little prematurely and the argument for it is a bit of a \"false advertisement\". On the one hand, Flutter is the \"cross-platform\" framework par excellence, and then a size comparison is made with a CanvasKit variant that runs on one of at least 3(?) major browsers.",
+    "createdAt": "2025-02-21T18:48:01Z"
+  },
+  {
+    "id": 3073,
+    "sender": "iapicca",
+    "content": "my 2 cents: \napp size, rendering bugs and stuff like that should be threaded like issues \nnot as reasons to keeping alive a whole renderer",
+    "createdAt": "2025-02-21T19:19:53Z"
+  },
+  {
+    "id": 3074,
+    "sender": "2000calories",
+    "content": "> [@2000calories](https://github.com/2000calories) - please see the explanation in the bug description ☝.\n> \n> The size delta should only be about 1MB...unless the rest of it is fonts. Is that what you're seeing?\n\nMy app has many dependencies, I do not know how they behave under different renderers.\nBut from the resources loaded,\n\nusing `flutter build web`\nabout 10MB is font. another 10 MB is js, images etc. \n![Image](https://github.com/user-attachments/assets/bed3ee57-e73b-4ff1-bc8f-748bea412a90)\n![Image](https://github.com/user-attachments/assets/f7eef508-78a7-4dbc-b057-3453c326c1f1)\n\nusing `flutter build web --web-renderer html`\nNo font. 5.2 MB js, images etc.\n![Image](https://github.com/user-attachments/assets/e914a159-76bf-4514-b5ac-8f1e18d3286c)",
+    "createdAt": "2025-02-24T02:50:03Z"
+  },
+  {
+    "id": 3075,
+    "sender": "kjxbyz",
+    "content": "Why do requests to load fonts appear in \"Fetch/XHR\" instead of \"Fonts\"?\n\n![Image](https://github.com/user-attachments/assets/cf64d9c8-4c12-41fb-8638-844c6f9fb0bc)\n\nhttps://www.jetbrains.com/idea/nextversion/\n\n![Image](https://github.com/user-attachments/assets/7e8b4656-b892-48b0-b9e2-fd7e9049a987)",
+    "createdAt": "2025-02-24T03:44:43Z"
+  },
+  {
+    "id": 3076,
+    "sender": "2000calories",
+    "content": "> Why do requests to load fonts appear in \"Fetch/XHR\" instead of \"Fonts\"?\n\nIf fonts are loaded dynamically using JavaScript (e.g., via fetch() or XMLHttpRequest), the request will be categorized as \"Fetch/XHR\" because it is initiated by JavaScript rather than a traditional <font>.\n\nI think it is not a question related to html renderer. Better to post on stackoverflow or somewhere else.",
+    "createdAt": "2025-02-24T03:51:40Z"
+  },
+  {
+    "id": 3077,
+    "sender": "kjxbyz",
+    "content": "> > Why do requests to load fonts appear in \"Fetch/XHR\" instead of \"Fonts\"?\n> \n> If fonts are loaded dynamically using JavaScript (e.g., via fetch() or XMLHttpRequest), the request will be categorized as \"Fetch/XHR\" because it is initiated by JavaScript rather than a traditional .\n> \n> I think it is not a question related to html renderer. Better to post on stackoverflow or somewhere else.\n\nWhat I mean is why when flutter packages the web platform, it doesn't nest the font files in the head tag like the front-end project?",
+    "createdAt": "2025-02-24T04:00:21Z"
+  },
+  {
+    "id": 3078,
+    "sender": "yjbanov",
+    "content": "@kjxbyz If you know which fonts you need ahead of time, you can put them in the `<head>` prefetch tags (the `index.html` or whatever host HTML page you are using is under your control, not Flutter's). The browser will kick off prefetching asap. Later, when the framework requests the font using `fetch` the browser will get the font from the local cache. You can see this method used in a real-world scenario on https://earth.google.com.",
+    "createdAt": "2025-02-24T21:20:58Z"
+  },
+  {
+    "id": 3079,
+    "sender": "slavap",
+    "content": "@yjbanov \nBy the way, could you please explain why earth.google.com is prefetching a canvas kit in index.html? What advantages does it provide compared to \"embedded\" Flutter Web loading?\n\nI'm talking about this comment in their index.html\n\n// This detects Chromium browsers which use a different, smaller version of Canvaskit. This\n// preload logic is the same as the actual loading logic built into Flutter.\n",
+    "createdAt": "2025-02-26T00:19:58Z"
+  },
+  {
+    "id": 3080,
+    "sender": "yjbanov",
+    "content": "@slavap \n\n> By the way, could you please explain why earth.google.com is prefetching a canvas kit in index.html? What advantages does it provide compared to \"embedded\" Flutter Web loading?\n\nProbably because they haven't switched to the new `flutter_bootstrap.js` yet. They still embed Flutter using `<script src=\"main.dart.js\">`. So they had to write some of the prefetching code by hand. Since `main.dart.js` is quite big, waiting for it to be fetched, parsed, and run would be wasteful.\n",
+    "createdAt": "2025-03-04T21:12:30Z"
+  },
+  {
+    "id": 3081,
+    "sender": "maheshj01",
+    "content": "@yjbanov  is the `--web-renderer` flag removed?\n\nref: https://github.com/flutter/flutter/issues/163199",
+    "createdAt": "2025-03-06T15:52:08Z"
+  },
+  {
+    "id": 3082,
+    "sender": "kevmoo",
+    "content": "\n@maheshj01 Yes, it is!",
+    "createdAt": "2025-03-06T18:35:28Z"
+  },
+  {
+    "id": 3083,
+    "sender": "jtkeyva",
+    "content": "@kevmoo do you understand that you are killing all web applications that depend on native emoji rendering? it's going to completely ruin the UI/UX with those corny noto emoji. it's really cheapening the experience. do you have a solution in place? this is a deal breaker for me using flutter for web and i'm really upset as having automatic web support was a key reason i chose flutter. but i am just one person...",
+    "createdAt": "2025-03-06T19:44:21Z"
+  },
+  {
+    "id": 3084,
+    "sender": "kevmoo",
+    "content": "@jtkeyva – I'd love to confirm this.\n\nSee https://dartpad.dev/?id=8549647494637e5f594087d135956332\n\nThe emoji that are rendered are Google standard (are you saying they are corny vs the Apple defaults?)\n\n",
+    "createdAt": "2025-03-06T20:29:49Z"
+  },
+  {
+    "id": 3085,
+    "sender": "jtkeyva",
+    "content": "@kevmoo thanks for the demo. yes, it's corny being on an apple computer and showing some knock-off emojis. it would be one thing if they were some custom branded emoji that was unique to my app, but having a \"low budget\" emoji is just wrong on so many levels. any serious app requires a level of aesthetic design that people know and love. sorry, but apple is a design company and google is not. apple users want the emojis they know and love.\n\n(a)i just created this which gives me my native emoji but at the cost of extra complexity\n\n```\nimport 'package:flutter/material.dart';\nimport 'dart:convert';\nimport 'dart:ui_web' as ui;\nimport 'dart:html' as html;\n\nvoid main() {\n  runApp(const MyApp());\n}\n\nclass MyApp extends StatelessWidget {\n  const MyApp({Key? key}) : super(key: key);\n\n  @override\n  Widget build(BuildContext context) {\n    return MaterialApp(\n      title: 'Flutter Web Native Emoji',\n      theme: ThemeData(\n        colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),\n        useMaterial3: true,\n      ),\n      home: const EmojiReactionPage(),\n    );\n  }\n}\n\nclass EmojiReactionPage extends StatefulWidget {\n  const EmojiReactionPage({Key? key}) : super(key: key);\n\n  @override\n  State<EmojiReactionPage> createState() => _EmojiReactionPageState();\n}\n\nclass _EmojiReactionPageState extends State<EmojiReactionPage> {\n  final String _viewType = 'native-emoji-view-${DateTime.now().millisecondsSinceEpoch}';\n  final Map<String, int> _reactionCounts = {};\n  bool _webViewLoaded = false;\n  late html.MessageChannel _channel;\n  late html.IFrameElement _iframeElement;\n\n  // The HTML content for our emoji reactions\n  final String _htmlContent = '''\n<!DOCTYPE html>\n<html>\n<head>\n  <meta charset=\"UTF-8\">\n  <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes\">\n  <title>Native Emoji Reactions</title>\n  <style>\n    body {\n      font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;\n      margin: 0;\n      padding: 0;\n      display: flex;\n      flex-direction: column;\n      height: 100vh;\n      font-size: 16px;\n    }\n    \n    .post {\n      padding: 1rem;\n      border-bottom: 1px solid #e0e0e0;\n      background: white;\n    }\n    \n    .reactions-container {\n      display: flex;\n      flex-wrap: wrap;\n      gap: 0.5rem;\n      margin-top: 0.75rem;\n    }\n    \n    .reaction {\n      display: flex;\n      align-items: center;\n      padding: 0.25rem 0.5rem;\n      background-color: #f0f2f5;\n      border-radius: 1rem;\n      cursor: pointer;\n      user-select: none;\n      transition: background-color 0.2s;\n    }\n    \n    .reaction:hover {\n      background-color: #e4e6eb;\n    }\n    \n    .reaction.active {\n      background-color: #e7f3ff;\n    }\n    \n    .reaction-emoji {\n      font-size: 1.125rem;\n      margin-right: 0.25rem;\n    }\n    \n    .reaction-count {\n      font-size: 0.875rem;\n    }\n    \n    .emoji-picker {\n      padding: 0.75rem;\n      display: flex;\n      flex-wrap: wrap;\n      gap: 0.75rem;\n      background-color: #f8f9fa;\n      border-top: 1px solid #e0e0e0;\n    }\n    \n    .emoji-btn {\n      font-size: 1.5rem;\n      cursor: pointer;\n      user-select: none;\n      transition: transform 0.1s;\n    }\n    \n    .emoji-btn:hover {\n      transform: scale(1.2);\n    }\n  </style>\n</head>\n<body>\n  <div class=\"post\">\n    <div>\n      <h3>Flutter Web with Native Emoji</h3>\n      <p>This is a demo of using native emoji in Flutter Web via iframe.</p>\n    </div>\n    <div class=\"reactions-container\" id=\"reactions\">\n      <!-- Reactions will be added here -->\n    </div>\n  </div>\n  \n  <div class=\"emoji-picker\">\n    <span class=\"emoji-btn\" onclick=\"addReaction('👍')\">👍</span>\n    <span class=\"emoji-btn\" onclick=\"addReaction('❤️')\">❤️</span>\n    <span class=\"emoji-btn\" onclick=\"addReaction('😂')\">😂</span>\n    <span class=\"emoji-btn\" onclick=\"addReaction('😮')\">😮</span>\n    <span class=\"emoji-btn\" onclick=\"addReaction('😢')\">😢</span>\n    <span class=\"emoji-btn\" onclick=\"addReaction('😡')\">😡</span>\n    <span class=\"emoji-btn\" onclick=\"addReaction('🎉')\">🎉</span>\n    <span class=\"emoji-btn\" onclick=\"addReaction('🚀')\">🚀</span>\n  </div>\n\n  <script>\n    // Store reaction counts\n    let reactions = {};\n    \n    // Function to add or update a reaction\n    function addReaction(emoji) {\n      if (!reactions[emoji]) {\n        reactions[emoji] = 0;\n      }\n      reactions[emoji]++;\n      updateReactions();\n      \n      // Send data to Flutter via postMessage\n      window.parent.postMessage({\n        type: 'reaction_updated',\n        emoji: emoji,\n        count: reactions[emoji]\n      }, '*');\n    }\n    \n    // Function to update the reactions display\n    function updateReactions() {\n      const container = document.getElementById('reactions');\n      container.innerHTML = '';\n      \n      Object.keys(reactions).forEach(emoji => {\n        if (reactions[emoji] > 0) {\n          const reaction = document.createElement('div');\n          reaction.className = 'reaction';\n          reaction.onclick = () => addReaction(emoji);\n          \n          const emojiSpan = document.createElement('span');\n          emojiSpan.className = 'reaction-emoji';\n          emojiSpan.textContent = emoji;\n          \n          const countSpan = document.createElement('span');\n          countSpan.className = 'reaction-count';\n          countSpan.textContent = reactions[emoji];\n          \n          reaction.appendChild(emojiSpan);\n          reaction.appendChild(countSpan);\n          container.appendChild(reaction);\n        }\n      });\n    }\n    \n    // Function to set initial reaction data from Flutter\n    function setReactions(reactionData) {\n      try {\n        reactions = JSON.parse(reactionData);\n        updateReactions();\n      } catch (e) {\n        console.error('Error parsing reaction data:', e);\n      }\n    }\n    \n    // Listen for messages from Flutter\n    window.addEventListener('message', function(event) {\n      const data = event.data;\n      \n      if (data && data.type === 'add_reaction') {\n        addReaction(data.emoji);\n      } else if (data && data.type === 'set_reactions') {\n        setReactions(data.reactions);\n      }\n    });\n    \n    // Notify Flutter when the page is fully loaded\n    window.addEventListener('load', () => {\n      window.parent.postMessage({\n        type: 'webview_loaded'\n      }, '*');\n    });\n  </script>\n</body>\n</html>\n  ''';\n\n  @override\n  void initState() {\n    super.initState();\n    _setupIframe();\n  }\n\n  void _setupIframe() {\n    // Register the iframe view factory\n    ui.platformViewRegistry.registerViewFactory(\n      _viewType,\n      (int viewId) {\n        // Create an iframe element\n        _iframeElement = html.IFrameElement()\n          ..style.border = 'none'\n          ..style.height = '100%'\n          ..style.width = '100%'\n          ..srcdoc = _htmlContent;\n\n        // Setup message communication\n        html.window.addEventListener('message', _handleMessageEvent);\n\n        return _iframeElement;\n      },\n    );\n\n    // Create a message channel for more secure communication\n    _channel = html.MessageChannel();\n  }\n\n  void _handleMessageEvent(html.Event event) {\n    if (event is html.MessageEvent) {\n      final data = event.data;\n      \n      if (data is Map) {\n        if (data['type'] == 'reaction_updated') {\n          setState(() {\n            _reactionCounts[data['emoji']] = data['count'];\n          });\n        } else if (data['type'] == 'webview_loaded') {\n          setState(() {\n            _webViewLoaded = true;\n          });\n          \n          // Send initial data if available\n          if (_reactionCounts.isNotEmpty) {\n            _sendReactionsToWebView();\n          }\n        }\n      }\n    }\n  }\n\n  void _sendReactionsToWebView() {\n    final jsonData = jsonEncode(_reactionCounts);\n    _iframeElement.contentWindow?.postMessage({\n      'type': 'set_reactions',\n      'reactions': jsonData\n    }, '*');\n  }\n\n  void _addEmojiReaction(String emoji) {\n    _iframeElement.contentWindow?.postMessage({\n      'type': 'add_reaction',\n      'emoji': emoji\n    }, '*');\n  }\n\n  @override\n  Widget build(BuildContext context) {\n    return Scaffold(\n      appBar: AppBar(\n        title: const Text('Native Emoji Reactions'),\n        backgroundColor: Theme.of(context).colorScheme.inversePrimary,\n      ),\n      body: Column(\n        children: [\n          // Instructions\n          Padding(\n            padding: const EdgeInsets.all(16.0),\n            child: Card(\n              child: Padding(\n                padding: const EdgeInsets.all(16.0),\n                child: Column(\n                  crossAxisAlignment: CrossAxisAlignment.start,\n                  children: [\n                    Text(\n                      'Native Emoji in Flutter Web',\n                      style: Theme.of(context).textTheme.headlineSmall,\n                    ),\n                    const SizedBox(height: 8),\n                    const Text(\n                      'This demo shows how to use native browser emojis in Flutter web via an iframe. '\n                      'The emojis below come from your system and are rendered by the browser, not Flutter.',\n                    ),\n                    const SizedBox(height: 16),\n                    Text(\n                      'Current Reactions:',\n                      style: Theme.of(context).textTheme.titleMedium,\n                    ),\n                    const SizedBox(height: 8),\n                    Wrap(\n                      spacing: 8,\n                      children: _reactionCounts.entries.map((entry) {\n                        return Chip(\n                          label: Text('${entry.key} × ${entry.value}'),\n                        );\n                      }).toList(),\n                    ),\n                  ],\n                ),\n              ),\n            ),\n          ),\n          \n          // WebView for emoji reactions\n          Expanded(\n            child: HtmlElementView(viewType: _viewType),\n          ),\n          \n          // Flutter-side emoji picker\n          Container(\n            padding: const EdgeInsets.all(16),\n            decoration: BoxDecoration(\n              color: Theme.of(context).colorScheme.surface,\n              boxShadow: [\n                BoxShadow(\n                  color: Colors.black.withOpacity(0.1),\n                  blurRadius: 4,\n                  offset: const Offset(0, -2),\n                ),\n              ],\n            ),\n            child: Column(\n              crossAxisAlignment: CrossAxisAlignment.start,\n              children: [\n                Text(\n                  'Add reaction from Flutter:',\n                  style: Theme.of(context).textTheme.titleMedium,\n                ),\n                const SizedBox(height: 8),\n                Wrap(\n                  spacing: 16,\n                  children: [\n                    _emojiButton('🔥', onTap: () => _addEmojiReaction('🔥')),\n                    _emojiButton('👏', onTap: () => _addEmojiReaction('👏')),\n                    _emojiButton('🤔', onTap: () => _addEmojiReaction('🤔')),\n                    _emojiButton('👀', onTap: () => _addEmojiReaction('👀')),\n                    _emojiButton('💯', onTap: () => _addEmojiReaction('💯')),\n                    _emojiButton('🏆', onTap: () => _addEmojiReaction('🏆')),\n                  ],\n                ),\n              ],\n            ),\n          ),\n        ],\n      ),\n    );\n  }\n\n  Widget _emojiButton(String emoji, {required Function() onTap}) {\n    return InkWell(\n      onTap: onTap,\n      borderRadius: BorderRadius.circular(8),\n      child: Container(\n        padding: const EdgeInsets.all(8),\n        child: Text(\n          emoji,\n          style: const TextStyle(fontSize: 24),\n        ),\n      ),\n    );\n  }\n\n  @override\n  void dispose() {\n    // Remove event listener\n    html.window.removeEventListener('message', _handleMessageEvent);\n    super.dispose();\n  }\n}\n```",
+    "createdAt": "2025-03-06T20:44:25Z"
+  },
+  {
+    "id": 3086,
+    "sender": "jtkeyva",
+    "content": "> [@jtkeyva](https://github.com/jtkeyva) – I'd love to confirm this.\n> \n> See https://dartpad.dev/?id=8549647494637e5f594087d135956332\n> \n> The emoji that are rendered are Google standard (are you saying they are corny vs the Apple defaults?)\n\nalso, another problem from what i understand is that we have to download a full 24mb color emoji file/font to do this",
+    "createdAt": "2025-03-06T21:00:19Z"
+  },
+  {
+    "id": 3087,
+    "sender": "iapicca",
+    "content": ">  native emoji rendering? [...] this is a deal breaker for me using flutter for web and i'm really upset as it was a key reason i chose flutter.\n\n@jtkeyva\nthis is the reason why you chose flutter? \n\n```dart\n  // The HTML content for our emoji reactions\n  final String _htmlContent = '''\n<!DOCTYPE html>\n<html>\n<head>\n  <meta charset=\"UTF-8\">\n  <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes\">\n  <title>Native Emoji Reactions</title>\n  <style>\n    body {\n      font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;\n      margin: 0;\n      padding: 0;\n      display: flex;\n      flex-direction: column;\n      height: 100vh;\n      font-size: 16px;\n    }\n\n/// [...]\n  \n  <div class=\"emoji-picker\">\n    <span class=\"emoji-btn\" onclick=\"addReaction('👍')\">👍</span>\n    <span class=\"emoji-btn\" onclick=\"addReaction('❤️')\">❤️</span>\n    <span class=\"emoji-btn\" onclick=\"addReaction('😂')\">😂</span>\n    <span class=\"emoji-btn\" onclick=\"addReaction('😮')\">😮</span>\n    <span class=\"emoji-btn\" onclick=\"addReaction('😢')\">😢</span>\n    <span class=\"emoji-btn\" onclick=\"addReaction('😡')\">😡</span>\n    <span class=\"emoji-btn\" onclick=\"addReaction('🎉')\">🎉</span>\n    <span class=\"emoji-btn\" onclick=\"addReaction('🚀')\">🚀</span>\n  </div>\n```\nI'm very confused",
+    "createdAt": "2025-03-07T20:18:04Z"
+  },
+  {
+    "id": 3088,
+    "sender": "jtkeyva",
+    "content": "@iapicca oh it was a typo that i have corrected\n\"having automatic web support was a key reason i chose flutter. but i am just one person...\"",
+    "createdAt": "2025-03-07T20:37:55Z"
+  },
+  {
+    "id": 3089,
+    "sender": "kevmoo",
+    "content": "@jtkeyva – we split up these requests now. Should be MUCH smaller...unless you're showing ALL of the emoji at once.",
+    "createdAt": "2025-03-07T20:55:41Z"
+  },
+  {
+    "id": 3090,
+    "sender": "kdhhhserddf",
+    "content": "Does anyone know how to create google extensions on canvaskit now?",
+    "createdAt": "2025-03-07T22:14:58Z"
+  },
+  {
+    "id": 3091,
+    "sender": "jtkeyva",
+    "content": "> [@jtkeyva](https://github.com/jtkeyva) – we split up these requests now. Should be MUCH smaller...unless you're showing ALL of the emoji at once.\n\n@kevmoo thanks. i would love to hear your feedback on my native emoji workaround. any plans to fully support native emoji?",
+    "createdAt": "2025-03-08T02:16:38Z"
+  },
+  {
+    "id": 3092,
+    "sender": "kevmoo",
+    "content": "> > [@jtkeyva](https://github.com/jtkeyva) – we split up these requests now. Should be MUCH smaller...unless you're showing ALL of the emoji at once.\n> \n> [@kevmoo[<img alt=\"\" width=\"15\" height=\"15\" src=\"chrome-extension://dlebflppeeemcdpidccbiblndppbmjmh/ospo-chrome-ext-logo.png\">](https://teams.googleplex.com/kevmoo@google.com)](https://github.com/kevmoo) thanks. i would love to hear your feedback on my native emoji workaround. any plans to fully support native emoji?\n\nWe need a new browser feature here. @yjbanov should be able to share details.",
+    "createdAt": "2025-03-08T02:17:51Z"
+  },
+  {
+    "id": 3093,
+    "sender": "hala-kadour",
+    "content": "Please don't remove HTML Renderer on Flutter Web. It's the way I can view network images that I have brought from the API.",
+    "createdAt": "2025-03-08T05:30:36Z"
+  },
+  {
+    "id": 3094,
+    "sender": "kevmoo",
+    "content": "@Halakadour – we fixed this. See https://github.com/flutter/flutter/pull/157755",
+    "createdAt": "2025-03-08T20:07:05Z"
+  },
+  {
+    "id": 3095,
+    "sender": "SlowGen",
+    "content": "> Does anyone know how to create google extensions on canvaskit now?\n\n\n@zelmkhan \n\nhttps://www.droidcon.com/2024/10/17/browser-extensions-with-flutter/\n\nFeel free if you have questions \n",
+    "createdAt": "2025-03-09T01:53:32Z"
+  },
+  {
+    "id": 3096,
+    "sender": "jtkeyva",
+    "content": "hi @yjbanov any info / news / resources appreciated about the native emoji support appreciated thanks",
+    "createdAt": "2025-03-09T19:25:29Z"
+  },
+  {
+    "id": 3097,
+    "sender": "yjbanov",
+    "content": "@jtkeyva We're investigating https://github.com/fserb/canvas2D/blob/master/spec/enhanced-textmetrics.md as a way to get native emojis (in fact, we plan to use it for all fallback fonts, which most browsers get from native OS fonts). This is available behind an experimental flag in some Chromium-based browsers already (e.g. Chrome). However, our scope is to be able to render arbitrary text (all languages, all text style features), so it will take a while, and I'm not even counting the time it will take the browsers to adopt the new spec.\n\nI wonder if there's a way to use the existing Canvas 2D API for just emojis. If anyone would like to whip up a prototype, I'd be interested in seeing the results.",
+    "createdAt": "2025-03-12T21:53:29Z"
+  },
+  {
+    "id": 3098,
+    "sender": "jtkeyva",
+    "content": "@yjbanov thanks. i will see if the webview workaround will suffice for the time being. sounds like flutter is not planning on supporting native text rendering ala lynx in the foreseeable future. is that safe to say?",
+    "createdAt": "2025-03-13T06:08:32Z"
+  },
+  {
+    "id": 3099,
+    "sender": "caseyryan",
+    "content": "The app, using canvasKit, constantly crashes on iOS browsers, no matter how optimized the app is. I have a few image previewers, and a SliverList with images (thumbs about 6 - 8 kb each, very small). Once i scroll it for a few seconds, the app just crashes and reloads everytime. \nIt's not the problem of the app code. I'm experienced enough to know about all possible optimizations and the places where memory leaks can happen. I profiled all those apps and found out nothing interesting. The memory consumption is stable up to the moment of the crash, the same with CPU usage, no spikes, nothing. And even no errors in console. The app just reloads, which is very annoying. I've experienced the same behavior in several different apps and the only working solution was to switch to html renderer, which is much more stable. It has some other disadvantages but the app never crashes with it. So I would say canvas kit renderer is not mature enough to replace html",
+    "createdAt": "2025-03-15T05:36:09Z"
+  },
+  {
+    "id": 3100,
+    "sender": "bftigertms",
+    "content": "> The app, using canvasKit, constantly crashes on iOS browsers, no matter how optimized the app is. I have a few image previewers, and a SliverList with images (thumbs about 6 - 8 kb each, very small). Once i scroll it for a few seconds, the app just crashes and reloads everytime. It's not the problem of the app code. I'm experienced enough to know about all possible optimizations and the places where memory leaks can happen. I profiled all those apps and found out nothing interesting. The memory consumption is stable up to the moment of the crash, the same with CPU usage, no spikes, nothing. And even no errors in console. The app just reloads, which is very annoying. I've experienced the same behavior in several different apps and the only working solution was to switch to html renderer, which is much more stable. It has some other disadvantages but the app never crashes with it. So I would say canvas kit renderer is not mature enough to replace html\n\nI fully concur with this statement. I had an app I had to move away from canvaskit to html, as performance on the Safari mobile browser was dire, especially during rapid scrolling and even worse with any usage of Slivers.",
+    "createdAt": "2025-03-15T10:06:04Z"
+  },
+  {
+    "id": 3101,
+    "sender": "caseyryan",
+    "content": "![Image](https://github.com/user-attachments/assets/9ad10b4c-3128-45fa-a94c-ef3ecb82461d)\nHere's the safari profiler. The moment of crash is shown with the arrow. As you can see, nothong special. No memory overconsumption and the CPU usage is pretty low. But the page just reloads. There's also no errors in the console.\n\nI tried to build it with the latest version of flutter 3.29.2. I also tried to build it with --wasp option and use skwasp renderer as described in the docs, but for some reason all checks always say wasp is not available. In any browsers",
+    "createdAt": "2025-03-15T10:38:46Z"
+  },
+  {
+    "id": 3102,
+    "sender": "caseyryan",
+    "content": "Seems like the problem isn't really in Flutter itself. The cause of the problem is the network images, no matter if they are Image.network or a third party Cachednetworkimage, when there's many incomplete loaders for the images, Safari seems to consider this as the abnormal behavior and reloads the page. If i disable the images and just add placeholders instead or return image bytes from the backend along with models, i can scroll infinitely. So the solution is to find a way to stop loaders of the images that went off screen. Unfortunately there isn't a clear way to do it without some ugly hacks. But that's another matter",
+    "createdAt": "2025-03-15T17:13:51Z"
+  },
+  {
+    "id": 3103,
+    "sender": "jtkeyva",
+    "content": "the complaints about removing html keep pouring in. i wish you would listen to your users and work on it instead of removing it\nhttps://www.reddit.com/r/FlutterDev/comments/1jb5yed/flutter_seo_with_puppeteer_to_generate_static/",
+    "createdAt": "2025-03-15T19:37:00Z"
+  },
+  {
+    "id": 3104,
+    "sender": "kevmoo",
+    "content": "For those having issues with Safari. Is this on *recent* hardware and iOS versions or older versions?",
+    "createdAt": "2025-03-15T22:05:32Z"
+  },
+  {
+    "id": 3105,
+    "sender": "caseyryan",
+    "content": "> For those having issues with Safari. Is this on _recent_ hardware and iOS versions or older versions?\n\nOn all ios versions, and at least iPhone 13. The problem has been existing (at least when I first experienced it) for more than 3 years. \nIt can be easily reproduced actually. Just create an infinite SliverList and fill it with network images, e.g. some placeholders like this https://fillmurray.lucidinternets.com and build a web app. The main idea is that all urls must be unique, so that NetworkImage starts loading a new image everytime. It will crash in safari on iPhone 100%. Well, not really crash but safari will just reload the page at some point. I suppose the problem is in many loaders that don't stop. But there's just no NetworkImage package what would allow to do so. I saw some advice to use ScrollAwareImageProvider but it doesn't really stop loading the image, it just doesn't decode the ones that are offscreen. It helps to improve performance but doesn't solve this problem. \nRight now I'm experimenting with my own implementation of a NetworkImage that can really stop loading forcefully and see if it helps.\n\n I'm sure that only network images cause this problem. I've tried to replace all network images with AssetImage and leave all other code as is. It doesn't crash like this, even though it might be slow since the image is quite large. So it's definitely not because of CPU or memory\n\nHere's how the crash looks like. It just reloads the page. In this case on ~120 articles with images (the images are all from 4 to 7 kb thumbnails, I don't even load full size images)\n\nhttps://github.com/user-attachments/assets/1f41cc05-ee28-413f-91f9-e422d48f0b91\n\nAnd here's the exactly same app and same code, except for using asset image instead of network \n\nhttps://github.com/user-attachments/assets/fdd4a819-8a84-4b51-8de6-1a2d55f8a68f \n\nThe video was about 2 minutes long, I refreshed that page manually and started all over again, and it didn't crash. I just had to cut the video because github has an uplaod size restriction to 10mb\n\nP.s. it's Flutter 3.29.2 Stable version and safari on ios 18 running on iPhone 13 mini\n\np.p.s It's weird (regarding that all browsers use WebKit on ios) but the problem is not reproducible  in Google Chrome or Opera on the same device, though it's easily reproduced in safari or some webviews",
+    "createdAt": "2025-03-16T09:58:01Z"
+  },
+  {
+    "id": 3106,
+    "sender": "caseyryan",
+    "content": "Another update from my end. I've developed a custom image based on dio (just as a proof of concept) whose loading can be cancelled at any time, so i cancel the unfinished loadings once dispose is called on it's state. It didn't solve the problem. \nAnd what's even worse, html renderer also doesn't solve it. It just works longer. I can scroll through the page a few times and then it will still reload in safari. \nI've found out it's not only a flutter problem but a very vast one https://www.reddit.com/r/webdev/comments/18df57g/issue_with_website_autoreloading_on_iphones/  \nSo seems like it's impossible to solve it using Flutter ",
+    "createdAt": "2025-03-16T15:30:28Z"
+  },
+  {
+    "id": 3107,
+    "sender": "kevmoo",
+    "content": "@caseyryan – let's move the conversation to https://github.com/flutter/flutter/issues/152709 ? This seems like the same issue, correct?",
+    "createdAt": "2025-03-18T02:11:46Z"
+  },
+  {
+    "id": 3108,
+    "sender": "caseyryan",
+    "content": "> [@caseyryan](https://github.com/caseyryan) – let's move the conversation to [#152709](https://github.com/flutter/flutter/issues/152709) ? This seems like the same issue, correct?\n\nSeem similar, yes. I’m not completely sure what causes the problem though but it’s definitely not because of image sizes",
+    "createdAt": "2025-03-18T02:15:55Z"
+  },
+  {
+    "id": 3109,
+    "sender": "milke",
+    "content": "I have two shipping Flutter projects and both required the html renderer.  One was a Safari Extension and Safari can't run the latest flutter with canvas kit.  The other is an online store that must run on WebKit on macOS which crashes the latest flutter.  This could be fixed, by making sure that WebAssembly.xxx exists before calling it. This was reported years ago.",
+    "createdAt": "2025-03-29T09:44:20Z"
+  },
+  {
+    "id": 3110,
+    "sender": "caseyryan",
+    "content": "> I have two shipping Flutter projects and both required the html renderer. One was a Safari Extension and Safari can't run the latest flutter with canvas kit. The other is an online store that must run on WebKit on macOS which crashes the latest flutter. This could be fixed, by making sure that WebAssembly.xxx exists before calling it. This was reported years ago.\n\nWhy do you say safari can’t run canvaskit? For me it works",
+    "createdAt": "2025-03-29T16:26:14Z"
+  },
+  {
+    "id": 3111,
+    "sender": "milke",
+    "content": "The explanation is practically given in the description of this WebKit bug: https://bugs.webkit.org/show_bug.cgi?id=290153\n\nI don't really know if it's a WebKit issue, or Flutter issue, or both. As far as Flutter is concerned, it used to have an 'html' renderer, but now that is deprecated and doesn't exist. As far as I can figure it out, the new renderer, even if not compiled as wasm, runs a bit of wasm to test which renderer to use. And that causes the issue.\n\nIf the new renderer didn't use wasm if not compiled as wasm, that could be the workaround  for the WebKit issue.\n\nMaybe I'm wrong in all this, if so please correct me.",
+    "createdAt": "2025-03-31T16:45:19Z"
+  },
+  {
+    "id": 3112,
+    "sender": "desmond206x",
+    "content": "Yes @milke. Flutter uses `WebAssembly.validate()` on startup. This crashes on browsers like firefox where WASM could be disabled in the config completely.",
+    "createdAt": "2025-04-01T08:33:13Z"
+  },
+  {
+    "id": 3113,
+    "sender": "kevmoo",
+    "content": "Moreover, @milke – the only renderer now is a Wasm module. So all Flutter web apps use Wasm, even if the application code is compiled to Javascript.",
+    "createdAt": "2025-04-01T20:53:55Z"
+  },
+  {
+    "id": 3114,
+    "sender": "kevmoo",
+    "content": "Thanks for all of the discussion here. The best way to help the team moving forward is to 👍issues related to specific problems you're having – or to file new issues.\n\nSome specific, related issues we're looking at:\n\n- https://github.com/flutter/flutter/issues/76248 - Emoji\n- https://github.com/flutter/flutter/issues/46589 - Size\n- https://github.com/flutter/flutter/issues/152709 - Crashes with Safari\n\nThanks again for your patience during this transition. We're committed to providing a high-fidelity, high-performance web experience for Flutter.\n",
+    "createdAt": "2025-04-01T21:07:51Z"
+  },
+  {
+    "id": 3115,
+    "sender": "AlexV525",
+    "content": "## Introduce `MaxLengthEnforcement`\n\n## Description\r\n\r\nIn #63754 a new behavior about the composing `TextEditingValue` for the `LengthLimitingTextInputFormatter` was introduced, but it's not optional which somehow breaks the original behavior for the limiting. \r\n\r\nThis PR: \r\n* brings a new enum `MaxLengthEnforcement`.\r\n* deprecate `maxLengthEnforced` that exist in text fields.\r\n\r\nNew behaviors for different platforms: \r\n* Android, Windows: `MaxLengthEnforcement.enforced`. The native behavior of these platforms is enforced. The composing will be handled by the IME while users are entering CJK characters.\r\n* iOS: `MaxLengthEnforcement.truncateAfterCompositionEnds`. iOS has no default behavior and it requires users implement the behavior themselves. Allow the composition to exceed to avoid breaking CJK input.\r\n* Web, macOS, linux, fuchsia: `MaxLengthEnforcement.truncateAfterCompositionEnds`. These platforms allow the composition to exceed by default.\r\n\r\n## Related Issues\r\n\r\nFixes #67898 .\r\n\r\n## Tests\r\n\r\nI added the following tests:\r\n\r\n* Grouped max length tests in editable text test.\r\n* `MaxLengthEnforcement` tests in cupertino/material text field tests.\r\n* \"enforced composing truncated\" in editable text test.\r\n* \"composing range removed if it's overflowed the truncated value's length\" in editable text test.\r\n* truncate behaviors on different platforms.\r\n\r\n## Checklist\r\n\r\nBefore you create this PR, confirm that it meets all requirements listed below by checking the relevant checkboxes (`[x]`). This will ensure a smooth and quick review process.\r\n\r\n- [x] I read the [Contributor Guide] and followed the process outlined there for submitting PRs.\r\n- [x] I signed the [CLA].\r\n- [x] I read and followed the [Flutter Style Guide], including [Features we expect every widget to implement].\r\n- [x] I read the [Tree Hygiene] wiki page, which explains my responsibilities.\r\n- [x] I updated/added relevant documentation (doc comments with `///`).\r\n- [x] All existing and new tests are passing.\r\n- [x] The analyzer (`flutter analyze --flutter-repo`) does not report any problems on my PR.\r\n- [x] I am willing to follow-up on review comments in a timely manner.\r\n\r\n## Breaking Change\r\n\r\nDid any tests fail when you ran them? Please read [Handling breaking changes].\r\n\r\n- [ ] No, no existing tests failed, so this is *not* a breaking change.\r\n- [x] Yes, this is a breaking change.\r\n   - [x] I wrote a design doc: https://docs.google.com/document/d/1S900lQaTPOsePnIeE7o3-Ia8f39VZaSv0JnjNyBfCvU\r\n   - [x] I got input from the developer relations team, specifically from: @LongCatIsLooong @justinmc \r\n   - [x] I wrote a migration guide: https://github.com/flutter/website/pull/4883\r\n\r\n\r\n<!-- Links -->\r\n[issue database]: https://github.com/flutter/flutter/issues\r\n[Contributor Guide]: https://github.com/flutter/flutter/wiki/Tree-hygiene#overview\r\n[Test Coverage]: https://github.com/flutter/flutter/wiki/Test-coverage-for-package%3Aflutter\r\n[Flutter Style Guide]: https://github.com/flutter/flutter/wiki/Style-guide-for-Flutter-repo\r\n[Features we expect every widget to implement]: https://github.com/flutter/flutter/wiki/Style-guide-for-Flutter-repo#features-we-expect-every-widget-to-implement\r\n[CLA]: https://cla.developers.google.com/\r\n[Tree Hygiene]: https://github.com/flutter/flutter/wiki/Tree-hygiene\r\n[Handling breaking changes]: https://github.com/flutter/flutter/wiki/Tree-hygiene#handling-breaking-changes",
+    "createdAt": "2020-10-14T07:30:53Z"
+  },
+  {
+    "id": 3116,
+    "sender": "AlexV525",
+    "content": "Should we move these tests into text formatter test?",
+    "createdAt": "2020-10-15T03:01:47Z"
+  },
+  {
+    "id": 3117,
+    "sender": "justinmc",
+    "content": "I think I'm in favor of this solution to the problems discussed in https://github.com/flutter/flutter/issues/67898. Limiting length with/without composing characters both seem to have valid uses, so it makes sense to let developers choose which they want.  I'm also interested in what @LongCatIsLooong thinks.\r\n\r\nMaybe instead of a bool, this should be combined with maxLengthEnforced and made into an enum?  Like `maxLengthEnforcement` or something like that.  Then deprecate maxLengthEnforced.  Then we don't have to worry about both bools being true, and it's future-proof if more cases appear later.",
+    "createdAt": "2020-10-16T00:41:35Z"
+  },
+  {
+    "id": 3118,
+    "sender": "AlexV525",
+    "content": "> Maybe instead of a bool, this should be combined with maxLengthEnforced and made into an enum?\r\n\r\nBefore, `maxLengthEnforced` in `TextField` controls whether a `LengthLimitingTextInputFormatter` will be inserted or not. If not, it will be only an error tip when the value reached limitation.\r\n\r\nIf it can convert to enum, I prefer `maxLengthEnforcement ` too, and there will be three values for it:\r\n* `none` or `regular`: Same as the current truncate behavior, as default.\r\n* `warningOnly`: Same as `maxLength == x && maxLengthEnforced == false`.\r\n* `truncateComposing`: Apply length limit on composing value too.\r\n\r\nDoes it seems valid?\r\n",
+    "createdAt": "2020-10-16T01:44:48Z"
+  },
+  {
+    "id": 3119,
+    "sender": "AlexV525",
+    "content": "> This doesn't seem to be a breaking change? See https://github.com/flutter/flutter/wiki/Tree-hygiene#1-determine-if-your-change-is-a-breaking-change, the tests seem to be passing?\r\n\r\nIt was suggested from https://github.com/flutter/flutter/issues/67898#issuecomment-707335793",
+    "createdAt": "2020-10-16T04:31:42Z"
+  },
+  {
+    "id": 3120,
+    "sender": "LongCatIsLooong",
+    "content": "@AlexV525 Ah I meant this PR per se is not breaking (at least customer_testing is not failing).\r\n\r\nMaking `maxLengthEnforced` an enum sounds good to me.\r\n\r\n> none or regular: Same as the current truncate behavior, as default.\r\nI think `none` is already covered by setting `maxLength` to null or -1?",
+    "createdAt": "2020-10-16T04:36:13Z"
+  },
+  {
+    "id": 3121,
+    "sender": "AlexV525",
+    "content": "> I think `none` is already covered by setting `maxLength` to null or -1?\r\n\r\nSo maybe `regular` is more fit for the case, which means truncated while it's not composing.",
+    "createdAt": "2020-10-16T04:43:48Z"
+  },
+  {
+    "id": 3122,
+    "sender": "AlexV525",
+    "content": "> Ah I meant this PR per se is not breaking (at least customer_testing is not failing).\r\n\r\n😕 Then how should we announce this...? Or not?",
+    "createdAt": "2020-10-16T04:46:41Z"
+  },
+  {
+    "id": 3123,
+    "sender": "LongCatIsLooong",
+    "content": "> confused Then how should we announce this...? Or not?\r\n\r\nSorry I got ahead of myself in that issue. If we deprecate the `maxLengthEnforced` parameter then it will be a breaking change (when we eventually remove the parameter it's going to break code that's still using it).  ",
+    "createdAt": "2020-10-16T04:59:54Z"
+  },
+  {
+    "id": 3124,
+    "sender": "AlexV525",
+    "content": "Both `TextField` and `CupertinoTextField` have `maxLengthEnforced`, is it okay to put the enum in `editable_text.dart` ? Maybe `text_formatter.dart` ?",
+    "createdAt": "2020-10-17T03:19:56Z"
+  },
+  {
+    "id": 3125,
+    "sender": "LongCatIsLooong",
+    "content": "Yeah makes sense to put it in `text_formatter.dart` since that's where the length limiting formatter is.",
+    "createdAt": "2020-10-17T05:53:12Z"
+  },
+  {
+    "id": 3126,
+    "sender": "AlexV525",
+    "content": "It should need more test in API reference, hold on a sec.",
+    "createdAt": "2020-10-17T11:41:42Z"
+  },
+  {
+    "id": 3127,
+    "sender": "AlexV525",
+    "content": "It's breaking gallery's tests, with usages of `maxLengthEnforced` 👍 ",
+    "createdAt": "2020-10-17T16:05:14Z"
+  },
+  {
+    "id": 3128,
+    "sender": "justinmc",
+    "content": "Also, the test failures are due to a usage of maxLengthEnforced in lib/demos/material/text_field_demo.dart that we will need to update to use maxLengthEnforcement.",
+    "createdAt": "2020-10-23T18:08:41Z"
+  },
+  {
+    "id": 3129,
+    "sender": "AlexV525",
+    "content": "> Also, the test failures are due to a usage of maxLengthEnforced in lib/demos/material/text_field_demo.dart that we will need to update to use maxLengthEnforcement.\r\n\r\nShould we update tests ourselves or contact people that tests referred?",
+    "createdAt": "2020-10-24T02:45:01Z"
+  },
+  {
+    "id": 3130,
+    "sender": "AlexV525",
+    "content": "By reviewing previous changes to the formatter, I found no behaviors update patched, yet seems need to be change too. I think we can make another PR to gathered them together. So I'm going to revert selection behavior change in here.",
+    "createdAt": "2020-10-24T06:05:44Z"
+  },
+  {
+    "id": 3131,
+    "sender": "AlexV525",
+    "content": "@justinmc @LongCatIsLooong Take the last review then let's start the rest process. 🤣 ",
+    "createdAt": "2020-10-26T01:40:58Z"
+  },
+  {
+    "id": 3132,
+    "sender": "AlexV525",
+    "content": "> I see that you already have a migration guide. Should I review that yet?\r\n\r\nDefinitely. 😄 \r\n\r\n> We'll also have to create a design doc and get that reviewed, and get Hixie to look at the migration guide.\r\n\r\nWill update the description once it's finished.",
+    "createdAt": "2020-10-27T05:28:24Z"
+  },
+  {
+    "id": 3133,
+    "sender": "AlexV525",
+    "content": "@Hixie A design doc has added (see description), could you help me review the doc?",
+    "createdAt": "2020-10-27T05:59:31Z"
+  },
+  {
+    "id": 3134,
+    "sender": "justinmc",
+    "content": "Thanks for all the work on this.  The test failures looked like infrastructure problems to me (not problems with the PR), so I re-ran them.  If they don't turn green in an hour or so, then you might have to merge master into this to get them to turn green.",
+    "createdAt": "2020-11-02T19:31:58Z"
+  },
+  {
+    "id": 3135,
+    "sender": "justinmc",
+    "content": "There is one analyzer error now:\r\n\r\n```\r\ninfo • 'maxLengthEnforced' is deprecated and shouldn't be used. Use maxLengthEnforcement parameter which provides more specific behavior related to the maxLength limit. This feature was deprecated after v1.23.0-19.0.pre. • lib/demos/material/text_field_demo.dart:218:19\r\n```",
+    "createdAt": "2020-11-03T16:53:35Z"
+  }
+]

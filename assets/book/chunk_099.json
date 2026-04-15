@@ -1,0 +1,386 @@
+[
+  {
+    "id": 6336,
+    "sender": "mdebbar",
+    "content": "I'm sure there's an issue for hot reload somewhere that @jonahwilliams might know.",
+    "createdAt": "2020-03-26T23:12:39Z"
+  },
+  {
+    "id": 6337,
+    "sender": "yjbanov",
+    "content": "> I see no mention of routes or urls in the issue.\r\n\r\nI assumed \"view\" was referring to route, and that we may have a bug where upon page reload we throw the app back to the root route:\r\n\r\n> Expected results:\r\n> Browser should reload, but stay on the same view\r\n> \r\n> Actual results:\r\n> Browser fully restarts the app --> Again at the main view\r\n",
+    "createdAt": "2020-03-26T23:27:16Z"
+  },
+  {
+    "id": 6338,
+    "sender": "mdebbar",
+    "content": "> I assumed \"view\" was referring to route\r\n\r\nThat's possible.\r\n\r\nI tried hot restart in the flutter gallery and it worked fine. @jakobwgnr if you are using named routes and are losing the url state when you do a hot restart or reload, please share your app code so I can take a look and debug it.",
+    "createdAt": "2020-03-26T23:33:26Z"
+  },
+  {
+    "id": 6339,
+    "sender": "jakobwgnr",
+    "content": "Hello!\r\nI have recreated the route-Setup we are using in our app in a small sample project & I couldn't recreate that issue there as well --> https://github.com/jakobwgnr/flutter_web_reload_issue\r\n\r\nWe're using the Provider package in our app with StreamProvider.. maybe because of that?! \r\n\r\nTry to figure out how to provide our app code in the meantime",
+    "createdAt": "2020-03-27T09:48:56Z"
+  },
+  {
+    "id": 6340,
+    "sender": "andcea",
+    "content": "We've recently started working on a project with Flutter Web but we were unaware that it doesn't support Hot Reload. I guess we took it for granted as it's such a fundamental feature in flutter. This makes it much harder to develop as we rely on the state and we might have to switch to a different framework.\r\n\r\nDo you have an issue for this feature? What's the timeline and priority for implementing Hot Reload for web?",
+    "createdAt": "2020-05-26T19:31:51Z"
+  },
+  {
+    "id": 6341,
+    "sender": "gustav3d",
+    "content": "I agree, the current situation sucks.\nBIGTIME.\nBut it used to support hot reload in the web too.\nIt got removed.\nIt makes my life much harder now:(\n\nOn Tuesday, 26 May 2020, Andrei Ceaus <notifications@github.com> wrote:\n\n> We've recently started working on a project with Flutter Web but we were\n> unaware that it doesn't support Hot Reload. I guess we took it for granted\n> as it's such a fundamental feature in flutter. This makes it much harder to\n> develop as we rely on the state and we might have to switch to a different\n> framework.\n>\n> Do you have an issue for this feature? What's the timeline and priority\n> for implementing Hot Reload for web?\n>\n> —\n> You are receiving this because you are subscribed to this thread.\n> Reply to this email directly, view it on GitHub\n> <https://github.com/flutter/flutter/issues/53041#issuecomment-634231628>,\n> or unsubscribe\n> <https://github.com/notifications/unsubscribe-auth/AABCY4KWC3NYNPXZ54VFPE3RTQKLVANCNFSM4LRHEWRA>\n> .\n>\n",
+    "createdAt": "2020-05-27T04:18:51Z"
+  },
+  {
+    "id": 6342,
+    "sender": "jonahwilliams",
+    "content": "We've never supported hot reload for the web. Nothing was removed.",
+    "createdAt": "2020-05-27T05:02:28Z"
+  },
+  {
+    "id": 6343,
+    "sender": "gustav3d",
+    "content": "It did exist anyhow.\nUntil you stated that its not supported.\nI would not had started to use Flutter for web otherwise.\nAnd now im stuck, cause my project gone too far :(\n\nIts pretty bad of you to make such a decission that totaly cripples the web\nplatform.\n\n\nOn Wednesday, 27 May 2020, Jonah Williams <notifications@github.com> wrote:\n\n> We've never supported hot reload for the web. Nothing was removed.\n>\n> —\n> You are receiving this because you are subscribed to this thread.\n> Reply to this email directly, view it on GitHub\n> <https://github.com/flutter/flutter/issues/53041#issuecomment-634429845>,\n> or unsubscribe\n> <https://github.com/notifications/unsubscribe-auth/AABCY4JWDXNKTYXNQPU3H7DRTSNHHANCNFSM4LRHEWRA>\n> .\n>\n",
+    "createdAt": "2020-05-27T05:45:09Z"
+  },
+  {
+    "id": 6344,
+    "sender": "tolotrasamuel",
+    "content": "This is a very important feature because it makes developing apps that rely on complex states **impossible** with Flutter web. That's because even the smallest change such as changing the background color or fixing a grammar mistake on a Text Widget requires the developer to manually restore the state of the app (clicking on several buttons, changing routes, entering specific values...) that very **time-consuming** I find myself spending 80% of my time restoring the state manually and only coding for the remaining 20%! Please make this feature a **priority**, even a workaround solution can be immediately useful for many Flutter Web developers! It completely kills the point of Flutter Web. ",
+    "createdAt": "2020-07-11T09:16:49Z"
+  },
+  {
+    "id": 6345,
+    "sender": "gustav3d",
+    "content": "I agree 100% with this.\nIt's currently EXTREMELY frustrating to develop complex state on the web\nplatform.\n\n\nOn Sat, 11 Jul 2020 at 11:17, tolotrasamuel <notifications@github.com>\nwrote:\n\n> This is a very important feature because it makes developing apps that\n> rely on complex states *impossible* with Flutter web. That's because even\n> the smallest change such as changing the background color or fixing a\n> grammar mistake on a Text Widget requires the developer to manually restore\n> the state of the app (clicking on several buttons, changing routes,\n> entering specific values...) that very *time-consuming* I find myself\n> spending 80% of my time restoring the state manually and only coding for\n> the remaining 20%! Please make this feature a *priority*, even a\n> workaround solution can be immediately useful for many Flutter Web\n> developers! It completely kills the point of Flutter Web.\n>\n> —\n> You are receiving this because you are subscribed to this thread.\n> Reply to this email directly, view it on GitHub\n> <https://github.com/flutter/flutter/issues/53041#issuecomment-657021664>,\n> or unsubscribe\n> <https://github.com/notifications/unsubscribe-auth/AABCY4K2S3X6INLM4DE6AQLR3AUY5ANCNFSM4LRHEWRA>\n> .\n>\n",
+    "createdAt": "2020-07-11T10:33:45Z"
+  },
+  {
+    "id": 6346,
+    "sender": "jmewes",
+    "content": "The hot reload capabilities of Flutter are based upon the features of the Dart VM (see https://flutter.dev/docs/development/tools/hot-reload). Maybe this could have worked with something like Dartium but it seems like this was too expensive to maintain (see https://github.com/dart-lang/sdk/issues/33580#issuecomment-462493607). However, the web development version is basically compiled JavaScript, isn't it? Is there any framework in the JavaScript ecosystem which supports a hot reload capability comparable to the Flutter workflow for mobile devices?\r\n\r\n> Please make this feature a priority, even a workaround solution can be immediately useful for many Flutter Web developers!\r\n\r\nProbably it will take a while until somebody develops a custom browser which embeds the Dart VM. Until then, what about developing components against a mobile device and then compose them for the web deployment? (see http://xunitpatterns.com/Humble%20Object.html)\r\n\r\n> Robust hot reloading is not just a build system feature, needs an app architecture that separates state and logic\r\n\r\nhttps://robertknight.github.io/hot-reloading-talk/#43",
+    "createdAt": "2020-07-13T19:37:40Z"
+  },
+  {
+    "id": 6347,
+    "sender": "jamesblasco",
+    "content": "> however, the web development version is basically compiled JavaScript, isn't it? Is there any framework in the JavaScript ecosystem which supports a hot reload capability comparable to the Flutter workflow for mobile devices?\r\n\r\nI am not an expert on this, but I have worked with Vue and hot reload works pretty great on that web framework \r\nhttps://vue-loader.vuejs.org/guide/hot-reload.html",
+    "createdAt": "2020-07-13T19:50:55Z"
+  },
+  {
+    "id": 6348,
+    "sender": "tolotrasamuel",
+    "content": "Yes, vue.js supports hot reload like flutter mobile\n\nOn Mon, Jul 13, 2020, 23:51 Jaime Blasco <notifications@github.com> wrote:\n\n> however, the web development version is basically compiled JavaScript,\n> isn't it? Is there any framework in the JavaScript ecosystem which supports\n> a hot reload capability comparable to the Flutter workflow for mobile\n> devices?\n>\n> I am not an expert on this, but I have worked with Vue and hot reload\n> works pretty great on that web framework\n> https://vue-loader.vuejs.org/guide/hot-reload.html\n>\n> —\n> You are receiving this because you are subscribed to this thread.\n> Reply to this email directly, view it on GitHub\n> <https://github.com/flutter/flutter/issues/53041#issuecomment-657757472>,\n> or unsubscribe\n> <https://github.com/notifications/unsubscribe-auth/AG7AJX6XCE5QS3JUXD5N7HDR3NQTDANCNFSM4LRHEWRA>\n> .\n>\n",
+    "createdAt": "2020-07-13T20:06:46Z"
+  },
+  {
+    "id": 6349,
+    "sender": "Akashmathwani",
+    "content": "The whole app restarts. In order to land on the same page routing can be used. I have all routes defined with regex which corresponds to different screens.",
+    "createdAt": "2020-09-09T16:01:56Z"
+  },
+  {
+    "id": 6350,
+    "sender": "alanmeier",
+    "content": "We mistakenly started developing a flutter web app thinking it had debugging facilities. The flutter team should make it clear that there is no real debugging solution for web apps and it should be considered an experimental product until it does have. Having a beta development system that does not support step by step debugging and hot reload/restart is grossly misleading. Their website says debugging is supported when in fact it is NOT. Only way to develop is to develop on android or iOS device then run in web to see if it still works",
+    "createdAt": "2020-09-11T01:40:33Z"
+  },
+  {
+    "id": 6351,
+    "sender": "tolotrasamuel",
+    "content": "@alanmeier Actually, they mentioned it on their website. I quote\r\n\r\n> Does hot reload work with a web app?\r\n> No, but you can use hot restart\r\n\r\nHowever, guess where they put this. Deep deep down in the FAQ section of flutter web. \r\n\r\nI think it should be written bold on top of the get started page.\r\n",
+    "createdAt": "2020-09-11T08:08:12Z"
+  },
+  {
+    "id": 6352,
+    "sender": "vinceramcesoliveros",
+    "content": "> Yes, vue.js supports hot reload like flutter mobile\r\n> […](#)\r\n> On Mon, Jul 13, 2020, 23:51 Jaime Blasco ***@***.***> wrote: however, the web development version is basically compiled JavaScript, isn't it? Is there any framework in the JavaScript ecosystem which supports a hot reload capability comparable to the Flutter workflow for mobile devices? I am not an expert on this, but I have worked with Vue and hot reload works pretty great on that web framework https://vue-loader.vuejs.org/guide/hot-reload.html — You are receiving this because you are subscribed to this thread. Reply to this email directly, view it on GitHub <[#53041 (comment)](https://github.com/flutter/flutter/issues/53041#issuecomment-657757472)>, or unsubscribe <https://github.com/notifications/unsubscribe-auth/AG7AJX6XCE5QS3JUXD5N7HDR3NQTDANCNFSM4LRHEWRA> .\r\n\r\nIsn't vue hot-restart when a new component is added or there is a change of data. The only thing hot reload works as if the html was added in the template and not the javascript code.",
+    "createdAt": "2020-09-11T09:25:25Z"
+  },
+  {
+    "id": 6353,
+    "sender": "tolotrasamuel",
+    "content": "Vue.js keep the state during hot reload.\nIf you have counter state variable in your JavaScript code set to \"5\", it\nwill still be \"5\" after hot reload.\n\nCheck this out\n\nhttps://vue-loader.vuejs.org/guide/hot-reload.html#state-preservation-rules\n\nFlutter web destroys the state after hot restart. It does not even keep the\nsame route.\n\n\nOn Fri, Sep 11, 2020, 13:25 Vince Ramces Oliveros <notifications@github.com>\nwrote:\n\n> Yes, vue.js supports hot reload like flutter mobile\n> … <#m_4075555647441377940_m_-7748767110169518820_>\n> On Mon, Jul 13, 2020, 23:51 Jaime Blasco *@*.***> wrote: however, the web\n> development version is basically compiled JavaScript, isn't it? Is there\n> any framework in the JavaScript ecosystem which supports a hot reload\n> capability comparable to the Flutter workflow for mobile devices? I am not\n> an expert on this, but I have worked with Vue and hot reload works pretty\n> great on that web framework\n> https://vue-loader.vuejs.org/guide/hot-reload.html — You are receiving\n> this because you are subscribed to this thread. Reply to this email\n> directly, view it on GitHub <#53041 (comment)\n> <https://github.com/flutter/flutter/issues/53041#issuecomment-657757472>>,\n> or unsubscribe\n> https://github.com/notifications/unsubscribe-auth/AG7AJX6XCE5QS3JUXD5N7HDR3NQTDANCNFSM4LRHEWRA\n> .\n>\n> Isn't vue hot-restart when a new component is added or there is a change\n> of data. The only thing hot reload works as if the html was added in the\n> template and not the javascript code.\n>\n> —\n> You are receiving this because you are subscribed to this thread.\n> Reply to this email directly, view it on GitHub\n> <https://github.com/flutter/flutter/issues/53041#issuecomment-690980836>,\n> or unsubscribe\n> <https://github.com/notifications/unsubscribe-auth/AG7AJX2HWDGEPOVBVWW5LQLSFHUJVANCNFSM4LRHEWRA>\n> .\n>\n",
+    "createdAt": "2020-09-11T11:14:21Z"
+  },
+  {
+    "id": 6354,
+    "sender": "alanmeier",
+    "content": "> @alanmeier Actually, they mentioned it on their website. I quote\r\n> \r\n> > Does hot reload work with a web app?\r\n> > No, but you can use hot restart\r\n> \r\n> However, guess where they put this. Deep deep down in the FAQ section of flutter web.\r\n> \r\n> I think it should be written bold on top of the get started page.\r\n\r\nIn my case I cannot get either hot reload or hot restart to work, it is very sporadic. What they should have done is made a version that could be debugged as a web session on the nexus tablet. \r\n\r\nThanks for the reply though I will not trust google going forward and will do very thorough investigation before I ever try to use something from them again",
+    "createdAt": "2020-09-11T11:20:15Z"
+  },
+  {
+    "id": 6355,
+    "sender": "vinceramcesoliveros",
+    "content": "> Vue.js keep the state during hot reload. If you have counter state variable in your JavaScript code set to \"5\", it will still be \"5\" after hot reload. Check this out https://vue-loader.vuejs.org/guide/hot-reload.html#state-preservation-rules Flutter web destroys the state after hot restart. It does not even keep the same route. \r\n\r\n@tolotrasamuel I'm not sure if HTML differs from Javascript code.  Vue's hot reload only works in the template, so to say that the state is in the Javascript code and not in the html. The state might get re-create(so it'll be hot restart instead of hot reload).\r\nBut it will only affect in that component and not the whole tree. Example of that is adding a decrement counter to an existing increment counter app.\r\nFrom Quote:\r\n> When editing the <script> part of a component, instances of the edited component will be destroyed and re-created in place. (State of the other components in the app are preserved) This is because <script> can include lifecycle hooks that may produce side-effects, so a \"reload\" instead of re-render is required to ensure consistent behavior. \r\n\r\nCompare to Dart, it compiles to javascript code, but it does not depend on HTML code, but inside of a canvas, which is also part of javascript code... so hot restart is vital to re-render the whole tree.",
+    "createdAt": "2020-09-12T13:08:53Z"
+  },
+  {
+    "id": 6356,
+    "sender": "danielleiszen",
+    "content": "I use GetX as state management . For me, the navigation state is preserved between Hot Reload/Restart whenever I save a file in VSCode, however the _main_ function is called each time and the controllers are loosing their state. I think the reason is that I use named routes for navigation.\r\n\r\nThis behavior is quite annoying, since the app remains at the same page in a state that cannot really happen during normal run. (At least I hope during normal run the state is never lost). So, either it should preserve the state and not run the main function or it should loose its navigation state as well and really start from scratch. Both would work for me, but this is simply hard to accept that I always start working on preparing for state combinations that would never happen in release. \r\n\r\nDoes anyone have a workaround or can tell me how to reset the navigation when Hot Reload? Thx",
+    "createdAt": "2020-09-20T20:48:03Z"
+  },
+  {
+    "id": 6357,
+    "sender": "iapicca",
+    "content": "@danielleiszen issues about [getX](https://pub.dev/packages/get) should be open [here](https://github.com/jonataslaw/getx/issues)",
+    "createdAt": "2020-09-20T21:28:55Z"
+  },
+  {
+    "id": 6358,
+    "sender": "creativecreatorormaybenot",
+    "content": "Is there an underlying issue preventing hot reload from working on web?\r\n\r\nI am wondering as it would be nice to know about the outlook for this feature.",
+    "createdAt": "2020-10-11T02:14:57Z"
+  },
+  {
+    "id": 6359,
+    "sender": "dannycortesv",
+    "content": "Is there any solution for this? It is hard to develop on web scenario",
+    "createdAt": "2020-11-04T17:39:58Z"
+  },
+  {
+    "id": 6360,
+    "sender": "gustav3d",
+    "content": "The solution is to primarily develop on a non web platform :(\nAnd then pray it works on the web.\nThat's what I'm forced to do for some complex state scenarios.\n\n\nOn Wed, 4 Nov 2020 at 18:40, Danny Cortes <notifications@github.com> wrote:\n\n> Is there any solution for this? It is hard to develop on web scenario\n>\n> —\n> You are receiving this because you are subscribed to this thread.\n> Reply to this email directly, view it on GitHub\n> <https://github.com/flutter/flutter/issues/53041#issuecomment-721875324>,\n> or unsubscribe\n> <https://github.com/notifications/unsubscribe-auth/AABCY4P3UW64YNDG7UXR5DDSOGGX5ANCNFSM4LRHEWRA>\n> .\n>\n",
+    "createdAt": "2020-11-04T18:31:08Z"
+  },
+  {
+    "id": 6361,
+    "sender": "danielleiszen",
+    "content": "> @danielleiszen issues about [getX](https://pub.dev/packages/get) should be open [here](https://github.com/jonataslaw/getx/issues)\r\n\r\nthank you for the response. I do not think this has anything to do with GetX.\r\nI created a minimal example about the behavior, please see [flutter_web_reload_example](https://github.com/danielleiszen/flutter_web_reload_example)\r\n\r\nwhen you run with\r\n`flutter run -d Chrome`\r\nyou will see some console messages indicating that the main method is called\r\nthen click 'Login' and the app navigates to the second screen\r\nthen press r in the console to hot restart\r\nyou will see that main method is called again\r\nthe navigation context is lost and the back arrow is disappeared from the app bar\r\n\r\nwhen someone develops a flutter app in VSCode every code change triggers the same behavior. maybe you can imagine the experience of developing a page somewhere deep in your navigation tree and for every change going back to the root because the whole context is lost. I think GetX is just a convenience wrapper around flutter navigation. since the experience is the same without GetX, I would kindly ask to let me know how to avoid this behavior or guide me where I can find the suggested way in the documentation.\r\n\r\nthank you in advance.\r\n\r\n",
+    "createdAt": "2020-11-04T22:24:48Z"
+  },
+  {
+    "id": 6362,
+    "sender": "Gokulnair21",
+    "content": "Hey guyzz , Is there any update regarding this issue ?",
+    "createdAt": "2021-01-24T14:39:45Z"
+  },
+  {
+    "id": 6363,
+    "sender": "michaellee8",
+    "content": "Is there any blocks preventing this? I am trying to develop flutter from a remote linux machine and it is only possible to test my app via flutter web. It would be very useful if we have hot reload.",
+    "createdAt": "2021-03-20T23:21:00Z"
+  },
+  {
+    "id": 6364,
+    "sender": "marwan-at-work",
+    "content": "I've been following this issue for a bit, but I ended up asking the Flutter team live on [this virtual conference](https://youtu.be/BsX9t69lKVw?t=11245) and the answer seemed to be, and I'm paraphrasing: \"We'd love to get feedback on why this is important, given that Hot Restart brings you back to the correct page in Web\". And I'll start with my answer: \r\n\r\n1. The obvious one that Mariam already mentioned in her answer: keeping the state between file changes. \r\n2. I think more importantly, the speed and the developer experience is just much more delightful with Hot Reload as opposed to Hot Restart. \r\n\r\nTherefore, I am definitely looking forward to see this land in Web. \r\n\r\nThanks!",
+    "createdAt": "2021-04-17T21:32:07Z"
+  },
+  {
+    "id": 6365,
+    "sender": "gustav3d",
+    "content": "Seriously, how can this issue be treated so badly by the developers?.\n\nThere was indeed a time when hot reload did work on the master branch - for\nthe web, in intellij IDEA.\nMaybe not in some corner cases it did not, but otherwise it was there\nIt was removed, yeah over a year ago by now.\nBut their attitude was that it had never existed, when I questioned the\nchange..\n\n\nOn Sat, 17 Apr 2021 at 23:32, Marwan Sulaiman ***@***.***>\nwrote:\n\n> I've been following this issue for a bit, but I ended up asking the\n> Flutter team live on this virtual conference\n> <https://youtu.be/BsX9t69lKVw?t=11245> and the answer seemed to be, and\n> I'm paraphrasing: \"We'd love to get feedback on why this is important,\n> given that Hot Restart brings you back to the correct page in Web\". And\n> I'll start with my answer:\n>\n>    1. The obvious one that Mariam already mentioned in her answer:\n>    keeping the state between file changes.\n>    2. I think more importantly, the speed and the developer experience is\n>    just much more delightful with Hot Reload as opposed to Hot Restart.\n>\n> Therefore, I am definitely looking forward to see this land in Web.\n>\n> Thanks!\n>\n> —\n> You are receiving this because you are subscribed to this thread.\n> Reply to this email directly, view it on GitHub\n> <https://github.com/flutter/flutter/issues/53041#issuecomment-821890565>,\n> or unsubscribe\n> <https://github.com/notifications/unsubscribe-auth/AABCY4IKRFJUCVXEK5A6YT3TJH46JANCNFSM4LRHEWRA>\n> .\n>\n",
+    "createdAt": "2021-04-17T21:54:22Z"
+  },
+  {
+    "id": 6366,
+    "sender": "tomrozb",
+    "content": "For anyone interested in this issue to be resolved let's thumbs up the first post. It's currently 4th in this filter: `is:open is:issue label:platform-web sort:reactions-+1-desc` \r\n\r\n @yjbanov could we make it P3?",
+    "createdAt": "2021-04-18T07:22:30Z"
+  },
+  {
+    "id": 6367,
+    "sender": "creativecreatorormaybenot",
+    "content": "I am somewhat confused by the [answer from Mariam](https://youtu.be/BsX9t69lKVw?t=11302).\r\n\r\nThis feature is _inherently_ needed as Flutter heavily markets **Stateful Hot Reload**. This is the first point on [flutter.dev](https://flutter.dev) as of now:\r\n>**Fast Development**\r\n>Paint your app to life in milliseconds with Stateful Hot Reload. Use a rich set of fully-customizable widgets to build native interfaces in minutes. \r\n\r\n---\r\n\r\nThe fact that Flutter Web does not support it as a *stable* platform should be a big red flag in terms of priority. If the priority is low because it seems like this is not feasible, you should at least give us an indication that it is not going to happen.",
+    "createdAt": "2021-04-18T10:16:33Z"
+  },
+  {
+    "id": 6368,
+    "sender": "iapicca",
+    "content": "> I am somewhat confused by the [answer from Mariam](https://youtu.be/BsX9t69lKVw?t=11302).\r\n\r\nI share your confusion, the answer seems to be :\r\n- `[...] WHEN will we have that` [3:09:13](https://youtu.be/BsX9t69lKVw?t=11353)\r\n- `we'd love to understand the use cases` (3 seconds later) which I paraphrase in \"we are considering it\"\r\n\r\nimho the underling question is:` is partity between platforms a goal or a possibility?`\r\n",
+    "createdAt": "2021-04-18T11:10:59Z"
+  },
+  {
+    "id": 6369,
+    "sender": "danielleiszen",
+    "content": ">  \"We'd love to get feedback on why this is important, given that Hot Restart brings you back to the correct page in Web\".\r\n\r\nThis is only true when someone uses routed navigation. In my use case I navigate without routes, because I do not want the user to navigate to a certain page from outside the app. \r\n\r\nFurthermore you imagine a complex page for example a filter setup with lots of possible combinations. If I work on a certain combination that requires a dozen steps (clicks on the UI) to get there. And I have to start over every time I change a padding or a margin due to hot restart - that is not the advertised development experience.",
+    "createdAt": "2021-04-18T15:47:35Z"
+  },
+  {
+    "id": 6370,
+    "sender": "xuanswe",
+    "content": "> \"We'd love to get feedback on why this is important, given that Hot Restart brings you back to the correct page in Web\".\r\n\r\nIn a complex page, the URL doesn't contain enough information to continue the current work. If we need to develop a form with many fields, whose data is stored in the state (not in the URL). Now we do a hot restart, we must fill all the fields again. In this case, hot reload is very very helpful to speed up development.",
+    "createdAt": "2021-04-18T16:38:04Z"
+  },
+  {
+    "id": 6371,
+    "sender": "marwan-at-work",
+    "content": "Adding another reason: if you are iterating on pop up modals, they lose state after a hot restart which hinders the development speed and experience. ",
+    "createdAt": "2021-04-20T03:31:26Z"
+  },
+  {
+    "id": 6372,
+    "sender": "amorenew",
+    "content": "@Hixie Could you increase the priority of this issue as it is really difficult working daily on Flutter web without hot-reloading\r\nThanks",
+    "createdAt": "2021-04-28T10:26:08Z"
+  },
+  {
+    "id": 6373,
+    "sender": "Hixie",
+    "content": "As some people have mentioned, hot reload in Flutter relies on some low-level features of the Dart VM. This feature predates our support for web. Our web support, on the other hand, doesn't use the Dart VM; it compiles to JavaScript and runs that in a browser using its JavaScript VM.\r\n\r\nWhen developing with Flutter, you can target any platform (not just the one that you are targeting for release). So one thing you could do is run your app on one of our other supported platforms (e.g. desktop, or on a mobile device plugged into your computer, or on an Android or iOS emulator). That way you will get hot reload today.\r\n\r\nWe are interested in developing hot reload for the web. However, it is a significant effort, and will require our engineers to perform several acts of magic, since our framework was not originally designed for the web.\r\n\r\nSome existing web frameworks, like vue.js, support some level of hot reload, though not quite what we'd like to achieve (with Flutter on the Dart VM, we literally replace the running code, so you can literally have a running websocket connection, change huge chunks of the code of the object that owns the websocket, e.g. the code that parses messages from the websocket, reload, and the connection stays up but running with the new code).\r\n\r\nAnyway that's all to say that this is something that we'd like to do, but I really have no way to say when it'll be done. It's not a matter of prioritisation really, you can't just throw more people at a problem this subtle and get better effects. See the \"mythical man month\" and so on.",
+    "createdAt": "2021-04-29T05:10:02Z"
+  },
+  {
+    "id": 6374,
+    "sender": "RatakondalaArun",
+    "content": "Maybe we should use `dartium` instead of chrome for *developing* flutter web since it has **Dart VM**",
+    "createdAt": "2021-04-29T05:51:19Z"
+  },
+  {
+    "id": 6375,
+    "sender": "xuanswe",
+    "content": "Currently, I must use android emulator and send deeplink via command if I need hot-reload. The problem of this approach is that I cannot see what is the current URL of the app (ex. URL is not the one I sent because of an automatic redirection). It's also not so convenience when compare to working with browser address bar.\r\nBefore hot-reload is supported for web, it would be nice if **flutter plugin** can provide a **simulated browser address bar**.",
+    "createdAt": "2021-04-29T08:33:17Z"
+  },
+  {
+    "id": 6376,
+    "sender": "tolotrasamuel",
+    "content": "@Hixie Most of us totally understand the technical complexity of implementing hot reload on web. \r\nBut from observation (reading the comments) developers are rather feeling mislead by the way flutter web support has been communicated. \r\nFlutter core development team advertise in huge banners that \"FLUTTER WEB IS SUPPORTED AND IT'S STABLE\"\r\nPart of Flutter's identity is hot reload, so developers think that since Flutter supports web, then Flutter web supports hot reload. And here is where confusion and frustration starts.\r\nI think it is not a matter of \"throwing more people  at the problem\", it's rather a feedback from the community to the development team (or marketing team to be more concise) that communication on Flutter Web in regard of hot reload should be improved.\r\nMaybe the banner should be retractored as \"FLUTTER CAN TARGET WEB PLATFORMS AND IT'S STABLE\" \r\nor \"FLUTTER SUPPORTS WEB BUT DOES NOT INCLUDE HOT RELOAD\". The point is it should be understood within a fraction of a second, instead of weeks or months later when we actually start developping on web.\r\n\r\nThis small improvement can solve all of issues and a lot of time for us developers.",
+    "createdAt": "2021-04-29T13:57:25Z"
+  },
+  {
+    "id": 6377,
+    "sender": "SchabanBo",
+    "content": "> it would be nice if **flutter plugin** can provide a **simulated browser address bar**.\r\n\r\nI liked the idea from @nguyenxndaidev . So I did something smilier in `qlevar_router` [here](https://github.com/SchabanBo/qlevar_router#web-hot-reload)\r\nyou can now (when you are using `qlevar-router`) debug your application on any other supported platform and have the same AddressBar as a browser.",
+    "createdAt": "2021-04-29T18:02:01Z"
+  },
+  {
+    "id": 6378,
+    "sender": "Hixie",
+    "content": "@tolotrasamuel That's probably reasonable; can you file a bug on the web site (https://github.com/flutter/website/issues/new) for us to consider improving the way we communicate that?",
+    "createdAt": "2021-04-29T18:13:09Z"
+  },
+  {
+    "id": 6379,
+    "sender": "amr-eniou-3r",
+    "content": "@Hixie Already exist in web FAQ\r\nhttps://flutter.dev/docs/development/platform-integration/web#does-hot-reload-work-with-a-web-app",
+    "createdAt": "2021-04-30T01:11:46Z"
+  },
+  {
+    "id": 6380,
+    "sender": "JayPerfetto",
+    "content": "Flutter web has jumped the shark, its time to move on\r\n\r\nFlutter Marketing => \"Hot Reload is a core feature!\"\r\nFlutter Devs => \"Hot Reload doesnt work on a major platform\"\r\nFlutter Team => \"Why is hot reload even important?\"\r\n\r\nclassic...",
+    "createdAt": "2021-05-25T22:37:27Z"
+  },
+  {
+    "id": 6381,
+    "sender": "silvermarten88",
+    "content": "Seriously? \r\nThey just said it's difficult and gave up?\r\nIsn't that what us devs do? fix difficult stuff?",
+    "createdAt": "2021-06-03T10:42:33Z"
+  },
+  {
+    "id": 6382,
+    "sender": "amr-eniou-3r",
+    "content": "@silvermarten88 It is not difficult but the time they need for a big change on the engine is huge.\r\nit is not a one day or a week work otherwise they would do it",
+    "createdAt": "2021-06-03T11:56:46Z"
+  },
+  {
+    "id": 6383,
+    "sender": "silvermarten88",
+    "content": "@amr-eniou-3r This issue is from March 2020 ... sounds like enough time.\r\nDon't get me wrong, \r\nI appreciate all the work and use Flutter because I love it and I trust the devs.",
+    "createdAt": "2021-06-03T12:14:13Z"
+  },
+  {
+    "id": 6384,
+    "sender": "michaellee8",
+    "content": "Hi @Hixie,\n\nI have did my research and it looks like there are some previous experiment\ndone on similar topic already, just that it was a few years ago and was for\nAngularDart.\n\nI have looked at an issue asking about whether AngularDart can provide hot\nreload like flutter does, https://github.com/angulardart/angular/issues/160,\nand it was discussed there was some poc code about combining dartdevc and\nwebpack to provide some sort of hot reload.\n\nhttps://github.com/vsmenon/dart-jsinterop-quill\nhttps://www.youtube.com/watch?v=oH6czEQwHdE&index=4&list=PLOU2XLYxmsILKY-A1kq4eHMcku3GMAyp2\n\nIt seems that if we throw the output from dartdevc to webpack we may be\nable to use the hot reload feature of webpack to do our job.\n\nWill the flutter team consider implementing hot reload in web this way? Hot\nreload in flutter web would have really been a very nice feature, it would\nallow flutter web to gain feature parity with some more native web\nJavaScript framework like React.js or Vue.js, the hot reload feature is\njust too important for any productive development work in flutter.\n\nOn Thu, Jun 3, 2021, 20:14 silvermarten88 ***@***.***> wrote:\n\n> @amr-eniou-3r <https://github.com/amr-eniou-3r> This issue is from March\n> 2020 ... sounds like enough time.\n> Don't get me wrong,\n> I appreciate all the work and use Flutter because I love it and I trust\n> the devs.\n>\n> —\n> You are receiving this because you commented.\n> Reply to this email directly, view it on GitHub\n> <https://github.com/flutter/flutter/issues/53041#issuecomment-853822688>,\n> or unsubscribe\n> <https://github.com/notifications/unsubscribe-auth/AD6KEDX6IQDNA4LKJXQAVDTTQ5W2RANCNFSM4LRHEWRA>\n> .\n>\n",
+    "createdAt": "2021-06-03T12:48:54Z"
+  },
+  {
+    "id": 6385,
+    "sender": "Hixie",
+    "content": "I would encourage everyone participating in this discussion to consider our code of conduct, which requires that all discussions be actively welcoming and friendly. That includes conversations about contributions by other contributors (including Google employees). If one day you are feeling entitled, I encourage you to take the day off commenting on open source projects.\r\n\r\nThat said, we agree that hot reload is valuable.\r\n\r\n@michaellee8 I'm not directly familiar with this work but I'll pass it on to the Dart team, thanks.",
+    "createdAt": "2021-06-03T23:19:52Z"
+  },
+  {
+    "id": 6386,
+    "sender": "michaellee8",
+    "content": "@Hixie I found this issue quite interesting and indeed I would like to provide some experiement on that, but currently I have trouble understanding the role of `dartdevc` in the flutter tooling. I am unable to find any document or wiki about the building process for a flutter web app, and a quick search of `dartdevc` points to https://github.com/flutter/flutter/blob/34059eec2c671472ee95f5093705fb9fed0b3919/packages/flutter_tools/lib/src/compile.dart and https://github.com/flutter/flutter/blob/f666f93dbb5cd6d1ecdcf1b290da4c68162308c2/packages/flutter_tools/lib/src/resident_runner.dart, but I am unable to find the actual `dartdevc` command used to generate the development version of javascript code. I think once I am able to deduce the command used for generation, I can retrive the generated js and then stuff them into webpack like what had @vsmenon done. However, I would need more guidance on the build process inside `flutter_tools` first, can you offer some quick tips here?",
+    "createdAt": "2021-06-04T00:56:35Z"
+  },
+  {
+    "id": 6387,
+    "sender": "Hixie",
+    "content": "If you'd like to contribute I would recommend starting at https://github.com/flutter/flutter/blob/master/CONTRIBUTING.md -- there's advice in there about how to get set up, where to go to chat with other contributors, etc.",
+    "createdAt": "2021-06-04T01:51:40Z"
+  },
+  {
+    "id": 6388,
+    "sender": "JayPerfetto",
+    "content": "Are the people who are building their own company supposed to stop doing that to instead work on adding the *advertised* features of  their chosen platform? Or choose a different platform...\r\n\r\nKeep hiding the comments that call out Google for advertising a feature that doesn't exist as \"disruptive\" tho, that'll really get the job done",
+    "createdAt": "2021-06-04T02:48:42Z"
+  },
+  {
+    "id": 6389,
+    "sender": "Hixie",
+    "content": "@JayPerfetto Sorry, but that kind of talk is quite offensive to the people who are working on creating this open source product (not all of whom work for Google). Please take a moment to think about how your words may affect the morale of other contributors.",
+    "createdAt": "2021-06-04T03:07:45Z"
+  },
+  {
+    "id": 6390,
+    "sender": "Levi-Lesches",
+    "content": "In the spirit of @Hixie's comment, I would like to remind everyone that Flutter is free and open-source, for everyone to use. I am not a part of the Google/Dart/Flutter teams, yet I have been using Flutter since it was still in beta and full of cryptic errors, and have benefited greatly from the two and shared my creations to benefit others.\r\n\r\nIf a particular feature is not working the way you'd like, wait respectfully while others work on it, or better yet, contribute yourself. Adding hot-reload to web is a big deal, and I'm sure the teams are working hard on it. Comments like \"we should choose another framework\", \"Flutter is nothing without this\" or \"Google should do this if they want people to use Flutter\" is not helpful, and is insulting to those who have dedicated their time to improving Flutter. This applies to _all_ discussions on the repo. ",
+    "createdAt": "2021-06-04T05:03:58Z"
+  },
+  {
+    "id": 6391,
+    "sender": "vsmenon",
+    "content": "@michaellee8 - what I demoed in the past with WebPack is already wired up in Flutter.\r\n\r\nIt's what we call \"hot restart\" (a stateless hot reload).  Technically, it's stateless on the Dart side (which we can reset automatically) but semi-stateful on the DOM side (which we cannot).  Depending on your app, it can look more or less stateful.  \r\n\r\nTo this this robustly and efficiently (similar to native support), we'd need a fairly thorough restructuring of the Dart -> JS compiler (dartdevc).  ( @sigmundch )",
+    "createdAt": "2021-06-04T13:38:07Z"
+  },
+  {
+    "id": 6392,
+    "sender": "Levi-Lesches",
+    "content": "@vsmenon, would such a restructure be plausible in any reasonable time-frame? Or even worth doing? I think hot-reload for web would be massively appreciated, especially since it allows development on one device, but I can also understand not wanting to tear up and redesign a tool as complex as `dartdevc` (and maybe `dart2js`).",
+    "createdAt": "2021-06-04T20:00:32Z"
+  },
+  {
+    "id": 6393,
+    "sender": "michaellee8",
+    "content": "@vsmenon Thanks for your explanation, it looks like we need further work to get hot reload then. \r\n\r\nSo I have did some further research on how are hor reload generally implemented, and these doc on React's hot reloader gives some insight. http://gaearon.github.io/react-hot-loader/getstarted/. It looks like what we have now is step 2 in their instructions, which simply replace the root widget with the new version, and that is hot restart. To achieve hot reload, we would need to get their step 3, which is what the react-hot-loader works. Maybe we can start by looking at their code first.",
+    "createdAt": "2021-06-04T20:13:35Z"
+  },
+  {
+    "id": 6394,
+    "sender": "jlubeck",
+    "content": "Just throwing my 2 cents here, since I've been hearing that we can just develop in a simulator or desktop and then it will just work on the web. Well, I'm currently working on a project which works with Firebase Phone auth ONLY, and that apparently only works on real devices AND web. Not on simulators, and not on desktop. So since I don't have an actual tablet, there is no workaround to develop with hot reload, which is making it very tedious. \r\n\r\nHaving said that, it's the first project I've had a problem with, all the other's I've done exactly that (develop in simulator). \r\n\r\nSo I kind of understand this not having such a high priority, but I would really appreciate it **whenever** it comes!\r\n\r\nThanks!",
+    "createdAt": "2021-06-04T20:18:01Z"
+  },
+  {
+    "id": 6395,
+    "sender": "vsmenon",
+    "content": "@Levi-Lesches - good questions.  We're still trying to assess.  Some of the approaches we've discussed would de-optimize the generated code, which might result in more (too much?) sluggishness during debugging.\r\n\r\n@michaellee8 - that wouldn't provide \"normal\" Flutter/Dart hot reload (the Dart VM walks objects in the heap, not just component state vars).  Not sure how well that would work in practice, but I *think* this would be a breaking change in Flutter to explicitly track what to save/restore.\r\n\r\n@jlubeck (and others) - thanks.  It's useful to under when Desktop is and isn't good for development in practice.",
+    "createdAt": "2021-06-04T21:20:42Z"
+  },
+  {
+    "id": 6396,
+    "sender": "michaellee8",
+    "content": "@vsmenon Can you elaborate more about the approaches you have been discussing internally? Seems like more ideas can facilitate brainstorm. Indeed, I would whether have less optimized debug version of the app if we can gain hot reload through that, most of developing like us would be debugging on a quite powerful computer already, so performance degradation should be quite acceptable imo. ",
+    "createdAt": "2021-06-07T23:57:50Z"
+  },
+  {
+    "id": 6397,
+    "sender": "creativecreatorormaybenot",
+    "content": "### Chrome first-party support\r\n\r\n@Hixie what I am wondering, is there any **Chrome <> Flutter** communication in this regard?  \r\nGiven that the default debug target for Flutter web is Chrome, I am wondering if there are any thoughts of modifying Chrome functionality to make hot reload work for Flutter?\r\n\r\nIt might of course not make things easier, but I can imagine that there are many avenues to make this work (more easily) when considering changing the engine 🚀 ",
+    "createdAt": "2021-06-08T00:02:30Z"
+  },
+  {
+    "id": 6398,
+    "sender": "michaellee8",
+    "content": "@creativecreatorormaybenot\r\n> ### Chrome first-party support\r\n> @Hixie what I am wondering, is there any **Chrome <> Flutter** communication in this regard?\r\n> Given that the default debug target for Flutter web is Chrome, I am wondering if there are any thoughts of modifying Chrome functionality to make hot reload work for Flutter?\r\n> \r\n> It might of course not make things easier, but I can imagine that there are many avenues to make this work (more easily) when considering changing the engine\r\n\r\nThere WAS the Dartium thing for Dart 1.x, which is a custom chromium with a Dart VM embeeded, however the in-browser VM was not accepted by other browser vendors and didn't land in Chrome upstream, so those are deprecated in Dart 2.0. See https://dart.dev/web/dart-2. If I am understanding it correctly, Dartium has long been deprecated before Flutter Web even have existed, that was originally designed for Angular Dart, which seems to be mostly used in Google internally.\r\n\r\nAbout changing the engine, there are also feature requests to support running Flutter Web on WebAssmebly, but there are currently no dart2wasm support so it is not possible to transpile dart to webassembly (think of aot mode in Flutter mobile), and it looks like there are no executable-writable memory in webassembly so I am wondering compile the Flutter engine + Dart VM on webassembly and then try to execute dart code there would work.Currently there are ports to webassembly for the cpython runtime but python is a interputed language.",
+    "createdAt": "2021-06-08T00:43:44Z"
+  },
+  {
+    "id": 6399,
+    "sender": "Hixie",
+    "content": "While close collaboration between the Chromium and Flutter open source projects would be welcome, I think we have to be very careful not to do something that would compromise the vendor-neutrality of the web.",
+    "createdAt": "2021-06-08T06:39:57Z"
+  }
+]

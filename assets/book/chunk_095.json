@@ -1,0 +1,386 @@
+[
+  {
+    "id": 6080,
+    "sender": "brnyza",
+    "content": "> > > > > @libo1223 Thank you! I also found some code [#3225](https://github.com/flutter/plugins/pull/3225/files)\r\n> > > > \r\n> > > > \r\n> > > > After changing all the code of webview_flutter like this code [#3225](https://github.com/flutter/plugins/pull/3225/files)\r\n> > > > The app crash when I click on `<input tipe=\"file\">`\r\n> > > > ```\r\n> > > > W/System.err(12698): java.lang.NullPointerException: Attempt to invoke virtual method 'int android.content.Context.checkPermission(java.lang.String, int, int)' on a null object reference\r\n> > > > W/System.err(12698): \tat androidx.core.content.ContextCompat.checkSelfPermission(ContextCompat.java:535)\r\n> > > > W/System.err(12698): \tat io.flutter.plugins.webviewflutter.FileChooserLauncher.hasCameraPermission(FileChooserLauncher.java:60)\r\n> > > > W/System.err(12698): \tat io.flutter.plugins.webviewflutter.FileChooserLauncher.start(FileChooserLauncher.java:65)\r\n> > > > W/System.err(12698): \tat io.flutter.plugins.webviewflutter.FlutterWebView$FlutterWebChromeClient.onShowFileChooser(FlutterWebView.java:86)\r\n> > > > ```\r\n> > > \r\n> > > \r\n> > > I had same problem with NullPointerException on checkPermission method and I resolved it by replacing `Actvity` with `Context`.\r\n> > > Check this commit [michaltrmac/plugins@9376b1e](https://github.com/michaltrmac/plugins/commit/9376b1e15998c2d46ac14ae3d41d913a3bcf0f93) for more info.\r\n> > > This work for my app.\r\n> > \r\n> > \r\n> > Thank you @michaltrmac it worked well now. (I don't have idea how do you find these solutions)\r\n> > There is only one problem for me. My html code is:\r\n> > `<input type=\"file\" accept=\"image/*\" capture>`\r\n> > Now it's possible to select a file. But I need the both option 1-Select a file, or 2-Take a picture.\r\n> > The same as Chrome do.\r\n> > Does anyone know how to do it?\r\n> \r\n> @brnyza You have to request `CAMERA` permission.\r\n> Add\r\n> \r\n> ```\r\n> <uses-permission android:name=\"android.permission.CAMERA\" />\r\n> ```\r\n> \r\n> to `android/app/src/main/AndroidManifest.xml` and use some plugin to request permissions in app.\r\n> \r\n> I use this plugin https://pub.dev/packages/permission_handler and then in app request permission with code like this:\r\n> \r\n> ```dart\r\n> PermissionStatus status = await Permission.camera.status;\r\n> if (status.isUndetermined) {\r\n>     await Permission.camera.request();\r\n> }\r\n> ```\r\n> \r\n> I also fully uninstalled the app from phone and install it again.\r\n\r\n@michaltrmac Thank you more one time, worked perfectly!",
+    "createdAt": "2020-11-28T13:18:35Z"
+  },
+  {
+    "id": 6081,
+    "sender": "Burak45",
+    "content": "@libo1223  and @michaltrmac thank you so much, I have a problem. I applied the codes, but when I upload a picture from the camera, it does not load the page. When I choose it from the gallery, it loads without any problem. Do you have an opinion on this?",
+    "createdAt": "2020-11-28T18:53:34Z"
+  },
+  {
+    "id": 6082,
+    "sender": "Burak45",
+    "content": "> @libo1223 and @michaltrmac thank you so much, I have a problem. I applied the codes, but when I upload a picture from the camera, it does not load the page. When I choose it from the gallery, it loads without any problem. Do you have an opinion on this?\r\n\r\nimg upload but image type goes blank ",
+    "createdAt": "2020-11-29T12:08:34Z"
+  },
+  {
+    "id": 6083,
+    "sender": "edex96",
+    "content": "since july 2019 checking this thread every month to see if the workarounds got polished and merged\r\nand I am in awe that how such a crucial and small fix took this long and still not published",
+    "createdAt": "2021-01-02T01:51:12Z"
+  },
+  {
+    "id": 6084,
+    "sender": "clemenskieninger",
+    "content": "I am still facing this issue, none of the above forks seem to work for me. ",
+    "createdAt": "2021-01-07T23:53:52Z"
+  },
+  {
+    "id": 6085,
+    "sender": "madspark7",
+    "content": "I am still facing the issue too.",
+    "createdAt": "2021-01-08T15:01:45Z"
+  },
+  {
+    "id": 6086,
+    "sender": "Burak45",
+    "content": "The problem is solved but not working on mi note 9 pro series phones",
+    "createdAt": "2021-01-08T15:21:32Z"
+  },
+  {
+    "id": 6087,
+    "sender": "kishan2612",
+    "content": "Any update in file upload ? Its one of the serious issue",
+    "createdAt": "2021-01-19T09:12:07Z"
+  },
+  {
+    "id": 6088,
+    "sender": "Paras-Gupta790",
+    "content": "> > > > Using @libo1223 's code as a base I have managed to get a completely working solution for the file upload where it will prompt the user to either take a picture from the camera or choose from the native files app (this can be changed of course). It doesn't require making a custom layout for the intents. Here are the steps to make it work:\r\n> > > > Open External Libraries > Flutter Plugins > webview_flutter > android > src.main> java.io. ...> FlutterWebView.java and add\r\n> > > > ```\r\n> > > >     context1 = context;\r\n> > > >     webView.setWebChromeClient ( new WebChromeClient () {\r\n> > > >       @Override\r\n> > > >       public  boolean onShowFileChooser (\r\n> > > >               WebView webView, ValueCallback<Uri[]> filePathCallback,\r\n> > > >               FileChooserParams fileChooserParams) {\r\n> > > > \r\n> > > >         // Successfully jump to newActivity! ! ! Very nice\r\n> > > >          // jump to newActivity to open the folder operation \r\n> > > >         Intent intent = new Intent(context1, newActivity. class );\r\n> > > >         newActivity.getfilePathCallback(filePathCallback);\r\n> > > >         intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);\r\n> > > >         context1.startActivity(intent);\r\n> > > >         return true;\r\n> > > >       }\r\n> > > > \r\n> > > >       public void onGeolocationPermissionsShowPrompt(String origin, GeolocationPermissions.Callback callback) {\r\n> > > >         callback.invoke(origin, true, false);\r\n> > > >       }\r\n> > > > \r\n> > > >     });\r\n> > > > ```\r\n> > > > \r\n> > > > \r\n> > > > after the line `webView = new InputAwareWebView(context, containerView);` and make sure to add the relative imports and variable declarations (check [here](https://github.com/libo1223/plugins/blob/master/packages/webview_flutter/android/src/main/java/io/flutter/plugins/webviewflutter/FlutterWebView.java) just to make sure). After the imports and declarations the InputAwareWebView line was at line 54 (webview_flutter version 0.3.22+1).\r\n> > > > Next, right click on the java.io. ... folder and create a new file, calling it newActivity.java. Inside this put all this code:\r\n> > > > ```\r\n> > > > package io.flutter.plugins.webviewflutter;\r\n> > > > \r\n> > > > import android.app.Activity;\r\n> > > > import android.app.Dialog;\r\n> > > > import android.content.ClipData;\r\n> > > > import android.content.ComponentName;\r\n> > > > import android.content.DialogInterface;\r\n> > > > import android.content.Intent;\r\n> > > > import android.content.pm.PackageManager;\r\n> > > > import android.content.pm.ResolveInfo;\r\n> > > > import android.content.res.AssetFileDescriptor;\r\n> > > > import android.graphics.Bitmap;\r\n> > > > import android.graphics.BitmapFactory;\r\n> > > > import android.net.Uri;\r\n> > > > import android.os.Bundle;\r\n> > > > import android.os.Environment;\r\n> > > > import android.os.Parcelable;\r\n> > > > import android.provider.MediaStore;\r\n> > > > import android.util.Log;\r\n> > > > import android.view.Gravity;\r\n> > > > import android.view.View;\r\n> > > > import android.view.ViewGroup;\r\n> > > > import android.view.Window;\r\n> > > > import android.view.WindowManager;\r\n> > > > import android.webkit.ValueCallback;\r\n> > > > \r\n> > > > import androidx.annotation.Nullable;\r\n> > > > \r\n> > > > import java.io.File;\r\n> > > > import java.io.FileNotFoundException;\r\n> > > > import java.io.FileOutputStream;\r\n> > > > import java.io.IOException;\r\n> > > > import java.util.ArrayList;\r\n> > > > import java.util.List;\r\n> > > > \r\n> > > > public class newActivity extends Activity {\r\n> > > >     private static ValueCallback<Uri[]> mUploadMessages;\r\n> > > >     private Object Utils;\r\n> > > >     private File outputFile;\r\n> > > >     private Uri mOutputFileUri;\r\n> > > >     private Uri image;\r\n> > > > \r\n> > > >     public static void getfilePathCallback(ValueCallback<Uri[]> filePathCallback){\r\n> > > >         mUploadMessages = filePathCallback;\r\n> > > >     }\r\n> > > > \r\n> > > >     @Override\r\n> > > >     protected void onCreate(@Nullable Bundle savedInstanceState) {\r\n> > > >         super.onCreate(savedInstanceState);\r\n> > > > \r\n> > > >         getWindow().addFlags(WindowManager.LayoutParams.FLAG_TRANSLUCENT_STATUS);\r\n> > > > \r\n> > > >         openImageIntent();\r\n> > > >     }\r\n> > > > \r\n> > > > \r\n> > > >     private Uri outputFileUri;\r\n> > > > \r\n> > > >     private void openImageIntent() {\r\n> > > >         try {\r\n> > > >             outputFile = File.createTempFile(\"tmp\", \".jpg\", getCacheDir());\r\n> > > >         } catch (IOException pE) {\r\n> > > >             pE.printStackTrace();\r\n> > > >         }\r\n> > > >         File imageStorageDir = new File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES), \"FolderName\");\r\n> > > > \r\n> > > >         if (!imageStorageDir.exists()) {\r\n> > > >             imageStorageDir.mkdirs();\r\n> > > >         }\r\n> > > >         File file = new File(imageStorageDir + File.separator + \"IMG_\" + String.valueOf(System.currentTimeMillis()) + \".jpg\");\r\n> > > >         mOutputFileUri = Uri.fromFile(file);\r\n> > > > \r\n> > > >         // Camera.\r\n> > > >         final Intent captureIntent = new Intent(MediaStore.ACTION_IMAGE_CAPTURE);\r\n> > > >         captureIntent.putExtra(MediaStore.EXTRA_OUTPUT, mOutputFileUri);\r\n> > > > \r\n> > > >         // Filesystem.\r\n> > > >         final Intent fileIntent = new Intent();\r\n> > > >         fileIntent.setType(\"*/*\");\r\n> > > >         fileIntent.setAction(Intent.ACTION_GET_CONTENT);\r\n> > > >         fileIntent.addCategory(Intent.CATEGORY_OPENABLE);\r\n> > > > \r\n> > > >         // Chooser of filesystem options.\r\n> > > >         final Intent chooserIntent = Intent.createChooser(fileIntent, \"Select Source\");\r\n> > > > \r\n> > > >         // Add the camera options.\r\n> > > >         chooserIntent.putExtra(Intent.EXTRA_INITIAL_INTENTS, new Parcelable[]{captureIntent});\r\n> > > >         startActivityForResult(chooserIntent, 42);\r\n> > > >     }\r\n> > > > \r\n> > > >     @Override\r\n> > > >     protected void onActivityResult(int requestCode, int resultCode, Intent intent) {\r\n> > > >         super.onActivityResult(requestCode, resultCode, intent);\r\n> > > >         Uri[] results = null;\r\n> > > >         try {\r\n> > > >             if (resultCode != RESULT_OK) {\r\n> > > >                 results = null;\r\n> > > >             } else {\r\n> > > >                 if (intent != null) {\r\n> > > >                     String dataString = intent.getDataString();\r\n> > > >                     ClipData clipData = intent.getClipData();\r\n> > > >                     if (clipData != null) {\r\n> > > >                         results = new Uri[clipData.getItemCount()];\r\n> > > >                         for (int i = 0; i < clipData.getItemCount(); i++) {\r\n> > > >                             ClipData.Item item = clipData.getItemAt(i);\r\n> > > >                             results[i] = item.getUri();\r\n> > > >                         }\r\n> > > >                     }\r\n> > > >                     if (dataString != null) {\r\n> > > >                         results = new Uri[]{Uri.parse(dataString)};\r\n> > > >                     }\r\n> > > >                 } else {\r\n> > > >                     results = new Uri[]{mOutputFileUri};\r\n> > > >                 }\r\n> > > >             }\r\n> > > >         } catch (Exception e) {\r\n> > > >             e.printStackTrace();\r\n> > > >         }\r\n> > > >         mUploadMessages.onReceiveValue(results);\r\n> > > >         mUploadMessages = null;\r\n> > > >         finish();\r\n> > > >     }\r\n> > > > }\r\n> > > > ```\r\n> > > > \r\n> > > > \r\n> > > > In the `fileIntent.setType(\"*/*\");` line you can change the MIME type for a specific type of file to fit your needs, like image/*.\r\n> > > > After that, add\r\n> > > > ```\r\n> > > > <uses-permission android:name=\"android.permission.WRITE_EXTERNAL_STORAGE\"/>\r\n> > > > <uses-permission android:name=\"android.permission.READ_EXTERNAL_STORAGE\"/>\r\n> > > > ```\r\n> > > > \r\n> > > > \r\n> > > > and\r\n> > > > ```\r\n> > > > <activity\r\n> > > >             android:name=\"io.flutter.plugins.webviewflutter.newActivity\"\r\n> > > >             android:theme=\"@android:style/Theme.Translucent.NoTitleBar\"/>\r\n> > > > ```\r\n> > > > \r\n> > > > \r\n> > > > in your app's AndroidManifest, and follow the steps in the the package [permission_handler](https://pub.dev/packages/permission_handler) to set up the iOS Podfile. Then add\r\n> > > > ```\r\n> > > > <key>NSPhotoLibraryUsageDescription</key>\r\n> > > > <string>YOUR_REASON_HERE</string>\r\n> > > > ```\r\n> > > > \r\n> > > > \r\n> > > > in your app's Info.plist.\r\n> > > > Finally, you'll need to prompt the user for file access - you can either do this OS specific so it asks only when the file input is clicked or you could do it through Flutter, which I did. Use the package [permission_handler](https://pub.dev/packages/permission_handler) again and add this code wherever:\r\n> > > > ```\r\n> > > > bool storage = Platform.isAndroid ? await Permission.storage.isGranted : await Permission.photos.isGranted;\r\n> > > >     if (!storage) {\r\n> > > >       Platform.isAndroid? await Permission.storage.request() : await Permission.photos.request();\r\n> > > >     }\r\n> > > > ```\r\n> > > > \r\n> > > > \r\n> > > > Now in the webview when you click a file upload button it should prompt for either camera or files, and upload correctly. Tested on SM-G975F running Android 10.\r\n> > > > Leave a thumbs up if this helped!\r\n> > > \r\n> > > \r\n> > > With your code:\r\n> > > -I can select a file and upload to HTML page.\r\n> > > -I can open the camera, but after taking the photo, Is not possible to upload it to HTML page.\r\n> > \r\n> > \r\n> > i have the same problem...\r\n> \r\n> you can look it to fix. I run my demo now, and can't found any problem.\r\n> [libo1223/plugins@57af939](https://github.com/libo1223/plugins/commit/57af93947c8be6d8be28cb8bf6665bb70658b3f4)\r\n\r\nI followed the same steps you mentioned but got this error\r\nLaunching lib/main.dart on sdk gphone x86 arm in debug mode...\r\nRunning Gradle task 'assembleDebug'...\r\n/home/paras/AndroidStudioProjects/inspireip_app/android/app/src/main/java/io/flutter/plugins/webviewflutter/FlutterWebViewClient.java:5: error: cannot find symbol\r\n    public FlutterWebViewClient(MethodChannel methodChannel) {\r\n                                ^\r\n  symbol:   class MethodChannel\r\n  location: class FlutterWebViewClient\r\nNote: /home/paras/AndroidStudioProjects/inspireip_app/android/app/src/main/java/io/flutter/plugins/newActivity.java uses or overrides a deprecated API.\r\nNote: Recompile with -Xlint:deprecation for details.\r\n1 error\r\n\r\nFAILURE: Build failed with an exception.\r\n\r\n* What went wrong:\r\nExecution failed for task ':app:compileDebugJavaWithJavac'.\r\n> Compilation failed; see the compiler error output for details.\r\n\r\n* Try:\r\nRun with --stacktrace option to get the stack trace. Run with --info or --debug option to get more log output. Run with --scan to get full insights.\r\n\r\n* Get more help at https://help.gradle.org\r\n\r\nBUILD FAILED in 6s\r\nException: Gradle task assembleDebug failed with exit code 1\r\n\r\n\r\n\r\n",
+    "createdAt": "2021-01-19T13:13:07Z"
+  },
+  {
+    "id": 6089,
+    "sender": "afei1223",
+    "content": "The Version of the Flutter is upgraded, so my code maybe have error. Unfortunately, I don't study flutter now. But the key of the issues is override the function what is \r\n```\r\nwebView.setWebChromeClient ( new WebChromeClient () {\r\n      @Override\r\n      public  boolean onShowFileChooser (\r\n              WebView webView, ValueCallback<Uri[]> filePathCallback,\r\n              FileChooserParams fileChooserParams) {\r\n\r\n        // Successfully jump to newActivity! ! ! Very nice\r\n         // jump to newActivity to open the folder operation \r\n        Intent intent = new Intent(context1, newActivity. class );\r\n        newActivity.getfilePathCallback(filePathCallback);\r\n        intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);\r\n        context1.startActivity(intent);\r\n        return true;\r\n      }\r\n\r\n      public void onGeolocationPermissionsShowPrompt(String origin, GeolocationPermissions.Callback callback) {\r\n        callback.invoke(origin, true, false);\r\n      }\r\n\r\n    });\r\n``` ",
+    "createdAt": "2021-01-20T01:22:36Z"
+  },
+  {
+    "id": 6090,
+    "sender": "tneotia",
+    "content": "All, I will try to update my tutorial to fix the file chooser tomorrow, but no promises 😉\r\n\r\nPersonally I have migrated to `flutter_inappwebview` because it fits my needs better, but I'll try to help all y'all out who depend on this plugin and this functionality.",
+    "createdAt": "2021-01-20T02:01:06Z"
+  },
+  {
+    "id": 6091,
+    "sender": "tneotia",
+    "content": "@Paras-Gupta790 you thumbs down so what issue did you have with the above? I can try and fix it...",
+    "createdAt": "2021-01-30T13:48:31Z"
+  },
+  {
+    "id": 6092,
+    "sender": "Paras-Gupta790",
+    "content": "This is not working at my end. I am using dropzone for file uploading. When I click on the dropzone, the file chooser doesn't open.",
+    "createdAt": "2021-01-30T14:32:41Z"
+  },
+  {
+    "id": 6093,
+    "sender": "tneotia",
+    "content": "> This is not working at my end. I am using dropzone for file uploading. When I click on the dropzone, the file chooser doesn't open.\n\nWhat is the URL? Is it https://www.dropzonejs.com?",
+    "createdAt": "2021-01-30T14:39:23Z"
+  },
+  {
+    "id": 6094,
+    "sender": "Paras-Gupta790",
+    "content": "Yes\r\n",
+    "createdAt": "2021-01-30T14:40:02Z"
+  },
+  {
+    "id": 6095,
+    "sender": "tneotia",
+    "content": "Okay I will look into it in a few hours and update the tutorial above if necessary.",
+    "createdAt": "2021-01-30T14:44:15Z"
+  },
+  {
+    "id": 6096,
+    "sender": "Paras-Gupta790",
+    "content": "Sure. Thank you so much.\r\n\r\n",
+    "createdAt": "2021-01-30T14:45:23Z"
+  },
+  {
+    "id": 6097,
+    "sender": "Paras-Gupta790",
+    "content": "@tneotia - If you can share the complete code of WebviewFlutter.java, then it will be great for all the developers working in this ddomain.",
+    "createdAt": "2021-01-30T14:48:04Z"
+  },
+  {
+    "id": 6098,
+    "sender": "tneotia",
+    "content": "@Paras-Gupta790 working great for me:\r\n\r\n\r\nhttps://user-images.githubusercontent.com/50850142/106361889-d7123d00-62ed-11eb-8cfe-dd19e73ba9a8.mp4\r\n\r\nThis is my WebView widget:\r\n```dart\r\nWebView(\r\n   initialUrl: \"https://dropzonejs.com\",\r\n   javascriptMode: JavascriptMode.unrestricted,\r\n);\r\n```\r\n\r\nNevertheless I will redo my instructions above to instead provide a gist of the FlutterWebView file.",
+    "createdAt": "2021-01-30T16:26:00Z"
+  },
+  {
+    "id": 6099,
+    "sender": "123parasgupta",
+    "content": "Can you please share the code, I guess I am doing something wrong ",
+    "createdAt": "2021-01-30T16:28:19Z"
+  },
+  {
+    "id": 6100,
+    "sender": "Paras-Gupta790",
+    "content": "Here is my code - \r\n```\r\nimport 'package:flutter/material.dart';\r\nimport 'package:webview_flutter/webview_flutter.dart';\r\nimport 'package:url_launcher/url_launcher.dart';\r\n\r\nvoid main() => runApp(MyApp());\r\n\r\nclass MyApp extends StatelessWidget {\r\n  @override\r\n  Widget build(BuildContext context) {\r\n    return MaterialApp(\r\n      home: Scaffold(\r\n          body: SafeArea(\r\n            child : WebView(\r\n              initialUrl: 'https://user-profile.com',\r\n              javascriptMode: JavascriptMode.unrestricted,\r\n              navigationDelegate: (NavigationRequest request) {\r\n                if (request.url.contains(\"mailto:\")) {\r\n                  launch(request.url);\r\n                  return NavigationDecision.prevent;\r\n                }\r\n                // if (request.url.contains(\"download\")) {\r\n                //   launch(request.url);\r\n                //   return NavigationDecision.prevent;\r\n                // }\r\n                return NavigationDecision.navigate;\r\n              },\r\n            ),\r\n          )\r\n      ),\r\n    );\r\n  }\r\n}\r\n```",
+    "createdAt": "2021-01-30T16:33:19Z"
+  },
+  {
+    "id": 6101,
+    "sender": "tneotia",
+    "content": "@Paras-Gupta790 and all others, I have solved the file upload issue again with the following code. Tested on Galaxy S8 Android 9, release mode and debug mode with uploading website as https://pasteboard.co and https://dropzonejs.com, and `webview_flutter: ^1.0.7`. Tested both standard rendering method and new hybrid composition rendering method. Both images and file upload should function correctly now.\r\n\r\n<details><summary>Instructions</summary>\r\n\r\n1. Open `External Libraries > Flutter Plugins > webview_flutter > android > src.main> java.io. ...> FlutterWebView.java`.\r\n2. Replace code in this file from the code [here](https://gist.github.com/tneotia/ccdb84ba66d6863980b9d558fb95312e).\r\n3. Create a `newActivity.java` file in the same directory, copy the code from [here](https://gist.github.com/tneotia/adc61196cfa59a5a7bdef6efb0ab5883).\r\n\r\nIn your own app,\r\n1. In `AndroidManifest`, add:\r\n```xml\r\n<uses-permission android:name=\"android.permission.WRITE_EXTERNAL_STORAGE\"/>\r\n<uses-permission android:name=\"android.permission.READ_EXTERNAL_STORAGE\"/>\r\n<uses-permission android:name=\"android.permission.CAMERA\"/>\r\n```\r\nIf you don't want the camera choosing capability you can leave out the camera permission.\r\n2. Above the `.MainActivity` declaration in `AndroidManifest` add:\r\n```xml\r\n<activity\r\n            android:name=\"io.flutter.plugins.webviewflutter.newActivity\"\r\n            android:theme=\"@android:style/Theme.Translucent.NoTitleBar\"/>\r\n```\r\n\r\nThe last thing left to do is in Dart. Use the `permission_handler` plugin (or something similar, for these instructions I am using that) to request for your permissions like so:\r\n```dart\r\nawait Permission.camera.request();\r\nawait Permission.storage.request();\r\n```\r\nThese requests return `bool`, so you can check whether the user granted or denied the permission and perform actions accordingly. Again, if you don't want the camera choosing functionality you don't need to request for the camera permission.\r\n\r\nDepending on how the website is set up, you may need to use `JavascriptMode.unrestricted`:\r\n```dart\r\nWebView(\r\n    initialUrl: your_url,\r\n    javascriptMode: JavascriptMode.unrestricted,\r\n    //any other parameters\r\n),\r\n```\r\n</details>\r\n\r\nLet's try to keep this thread clean and avoid quoting my huge post, this is why I put it in a dropdown - but I'm not sure if GitHub will preserve the dropdown when quoted. Let me know of any issues and I may be able to take care of them, and leave a thumbs up if it worked for you!",
+    "createdAt": "2021-01-30T16:35:11Z"
+  },
+  {
+    "id": 6102,
+    "sender": "tneotia",
+    "content": "> Here is my code -\r\n\r\nLooks fine, you probably made a mistake in the java files, I updated the instructions above.",
+    "createdAt": "2021-01-30T16:35:54Z"
+  },
+  {
+    "id": 6103,
+    "sender": "Paras-Gupta790",
+    "content": " Is the path of files correct or not?\r\n \r\n Path of file -> \r\n \r\n\r\n> /AndroidStudioProjects/profile_app/android/app/src/main/java/io/flutter/plugins/webviewflutter/FlutterWebView.java",
+    "createdAt": "2021-01-30T16:40:30Z"
+  },
+  {
+    "id": 6104,
+    "sender": "tneotia",
+    "content": "No that doesn't look right, you shouldn't have an existing file there in that directory I think. Mine is like so:\r\n\r\n> C:\\flutter\\.pub-cache\\hosted\\pub.dartlang.org\\webview_flutter-1.0.7\\android\\src\\main\\java\\io\\flutter\\plugins\\webviewflutter\\FlutterWebView.java\r\n\r\nIn android studio you access this like so:\r\n\r\n![image](https://user-images.githubusercontent.com/50850142/106362344-3ffab480-62f0-11eb-8678-fa98dcf743f1.png)\r\n",
+    "createdAt": "2021-01-30T16:42:48Z"
+  },
+  {
+    "id": 6105,
+    "sender": "Paras-Gupta790",
+    "content": "WHere we have to do these modifications? - \r\n\r\n> The last thing left to do is in Dart. Use the permission_handler plugin (or something similar, for these instructions I am using that) to request for your permissions at runtime like so:\r\n> \r\n> await Permission.camera.request();\r\n> await Permission.storage.request();\r\n> These requests return bool, so you can check whether the user granted or denied the permission and perform actions accordingly. Again, if you don't want the camera choosing functionality you don't need to request for the camera permission.\r\n> \r\n> ",
+    "createdAt": "2021-01-30T17:25:51Z"
+  },
+  {
+    "id": 6106,
+    "sender": "tneotia",
+    "content": "Anytime before the user will click file upload will work. I don't know of a way to detect *when* a user has clicked on file upload, but you could put that code in `initState` or something to make it work.",
+    "createdAt": "2021-01-30T17:29:27Z"
+  },
+  {
+    "id": 6107,
+    "sender": "Paras-Gupta790",
+    "content": "Not working at my end. When I click on the dropzone it throws me an error and asks me to send the bug report for analysis. \r\n\r\nI have added these permissions here - \r\n\r\n```import 'package:flutter/material.dart';\r\nimport 'package:webview_flutter/webview_flutter.dart';\r\nimport 'package:url_launcher/url_launcher.dart';\r\nimport 'package:permission_handler/permission_handler.dart';\r\n\r\nvoid main() {\r\n   Permission.camera.request();\r\n   Permission.storage.request();\r\n  runApp(MyApp());\r\n}\r\n\r\n\r\nclass MyApp extends StatelessWidget {\r\n      @override\r\n      Widget build(BuildContext context) {\r\n            return MaterialApp(\r\n                  home: Scaffold(\r\n                        body: SafeArea(\r\n                              child : WebView(\r\n                                    initialUrl: 'https://user-profile.com',\r\n                                    javascriptMode: JavascriptMode.unrestricted,\r\n                                    navigationDelegate: (NavigationRequest request) {\r\n                                          if (request.url.contains(\"mailto:\")) {\r\n                                                launch(request.url);\r\n                                                return NavigationDecision.prevent;\r\n                                          }\r\n                                          // if (request.url.contains(\"download\")) {\r\n                                          //   launch(request.url);\r\n                                          //   return NavigationDecision.prevent;\r\n                                          // }\r\n                                          return NavigationDecision.navigate;\r\n                                    },\r\n                              ),\r\n                        )\r\n                  ),\r\n            );\r\n      }\r\n}\r\n```",
+    "createdAt": "2021-01-30T17:48:47Z"
+  },
+  {
+    "id": 6108,
+    "sender": "tneotia",
+    "content": "2 questions:\r\n\r\n1. What is the error you get?\r\n2. Do the permission request dialogs show when the app starts?",
+    "createdAt": "2021-01-30T17:56:21Z"
+  },
+  {
+    "id": 6109,
+    "sender": "Paras-Gupta790",
+    "content": "What is the error you get? - App got crashed and the message is the app keeps stopping.\r\n\r\nDo the permission request dialogs show when the app starts?  - No\r\n\r\n\r\n",
+    "createdAt": "2021-01-30T17:58:30Z"
+  },
+  {
+    "id": 6110,
+    "sender": "tneotia",
+    "content": "> Do the permission request dialogs show when the app starts? - No\r\n\r\nThis is the issue then. I think you cannot request for the permissions before `runApp`. Try putting them in a spot like this:\r\n```dart\r\n@override\r\n      Widget build(BuildContext context) {\r\nPermission.camera.request();\r\n   Permission.storage.request();\r\nreturn MaterialApp(\r\n...\r\n)\r\n}\r\n```\r\n~~This is definitely not ideal, ie don't use in production I'm just suggesting this to you for testing.~~\r\nNever mind I didn't register you were returning `MaterialApp` there, in that case it should be fine. I was worried initially because a `setState()` would rebuild the widget tree and potentially call that code again for no reason.",
+    "createdAt": "2021-01-30T18:00:49Z"
+  },
+  {
+    "id": 6111,
+    "sender": "Paras-Gupta790",
+    "content": "yeah, working now. Thanks a lot @tneotia.\r\n\r\n1 more question - \r\n\r\n>  Is there any way we can add downloading files capability in the android applications build using the same plugin?",
+    "createdAt": "2021-01-30T18:36:08Z"
+  },
+  {
+    "id": 6112,
+    "sender": "tneotia",
+    "content": "> Is there any way we can add downloading files capability in the android applications build using the same plugin?\r\n\r\nThis unfortunately I have not worked on, but the plugin I use (`flutter_inappwebview`) has this functionality. If you really want to keep using `webview_flutter` you can do some workarounds:\r\n\r\n1. Use `url_launcher` plugin and detect your download URL, then open browser to download the file.\r\n2. Use `dio` plugin and make a DOWNLOAD request when your download URL is detected:\r\n```dart\r\nresponse = await dio.download(\"https://www.google.com/\", \"./xx.html\");\r\n```\r\nThe first parameter is download url, second is path to save the file. You will likely need `path_provider` plugin because of the storage restrictions introduced in recent Android versions. I do something like this:\r\n```dart\r\n String dirloc = \"\";\r\nString fileUrl = download_url;\r\n        if (Platform.isAndroid) {\r\n          dirloc = \"/storage/emulated/0/Download/\";\r\n        } else {\r\n          dirloc = (await getApplicationDocumentsDirectory()).path + \"/\";\r\n        }\r\n        try {\r\n          //make directory if it doesn't exist\r\n          FileUtils.mkdir([dirloc]);\r\n         //create file path however you want\r\n          String filePath = dirloc + fileName + \"_\" + random.nextInt(10000).toString() +\".\" + mimeType;\r\n          await dio.download(fileUrl, filePath);\r\n        //other logic here\r\n         //optional, I use OpenFile plugin to open the file when download is complete\r\n          OpenFile.open(filePath);\r\n        } catch (e) {\r\n          print(e);\r\n         //other logic here\r\n        }\r\n```",
+    "createdAt": "2021-01-30T18:54:19Z"
+  },
+  {
+    "id": 6113,
+    "sender": "edex96",
+    "content": "none of the workarounds above is eligible in the long term\r\ncan somebody at least add a callback for this and create pull request",
+    "createdAt": "2021-02-05T11:54:17Z"
+  },
+  {
+    "id": 6114,
+    "sender": "nandakumar5398",
+    "content": "For me it is opening the camera and taking snap but doesn't show images in viewer in the above mentioned site. And when i use reader in js it doesn't get into reader.onload nor into on error function. Can anyone help me this",
+    "createdAt": "2021-02-05T12:51:14Z"
+  },
+  {
+    "id": 6115,
+    "sender": "tneotia",
+    "content": "Yeah I'm still trying to figure it out with @Paras-Gupta790 but no luck yet.. it is definitely working on my Samsung S8 debug mode. I don't understand why it wouldn't work on other devices.",
+    "createdAt": "2021-02-05T13:17:01Z"
+  },
+  {
+    "id": 6116,
+    "sender": "Aulig",
+    "content": "> This has been fixed in Flutter 1.22/ WebView 1.0 - use hybrid composition in the Flutter WebView plugin.\r\n> \r\n> https://github.com/flutter/plugins/tree/master/packages/webview_flutter#using-hybrid-composition\r\n\r\n@blasten can you please re-open this issue? As you can see from all the comments, it's not fixed, even with hybrid composition. You can try it by opening this URL in a webview: https://www.w3schools.com/tags/tryit.asp?filename=tryhtml5_input_type_file",
+    "createdAt": "2021-02-05T16:38:36Z"
+  },
+  {
+    "id": 6117,
+    "sender": "blasten",
+    "content": "I have verified that this doesn't work although I remember seeing it working",
+    "createdAt": "2021-02-06T00:01:37Z"
+  },
+  {
+    "id": 6118,
+    "sender": "Shubhankt1",
+    "content": "> @Paras-Gupta790 and all others, I have solved the file upload issue again with the following code. Tested on Galaxy S8 Android 9, release mode and debug mode with uploading website as https://pasteboard.co and https://dropzonejs.com, and `webview_flutter: ^1.0.7`. Tested both standard rendering method and new hybrid composition rendering method. Both images and file upload should function correctly now.\r\n> \r\n> Instructions\r\n> Let's try to keep this thread clean and avoid quoting my huge post, this is why I put it in a dropdown - but I'm not sure if GitHub will preserve the dropdown when quoted. Let me know of any issues and I may be able to take care of them, and leave a thumbs up if it worked for you!\r\n\r\n@tneotia The solution you gave (by editing code in the java file) worked for me but not completely. If I try to upload an image using Camera, this is what happens:\r\n- Camera app gets opened\r\n- I click a photograph and click on the tick (✔️ ) icon.\r\n- But, when I try to upload the image I clicked, it says no file is selected.\r\n\r\nAlso, FYI, I'm not using the \"Permission\" plugin to ask for permission. My app already asks for camera permission after you install it and open for the first time.",
+    "createdAt": "2021-02-11T11:43:16Z"
+  },
+  {
+    "id": 6119,
+    "sender": "tneotia",
+    "content": "Yeah @Paras-Gupta790 is having a similar issue, the camera opens and takes the snap, but the upload is unsuccessful. Still trying to work it out but I feel this is stretching beyond my expertise.",
+    "createdAt": "2021-02-11T14:53:04Z"
+  },
+  {
+    "id": 6120,
+    "sender": "Shubhankt1",
+    "content": "Ohhh. It's alright. Thanks though! Just in case you find any solution, please do let me know. It'd would be really helpful.\r\n@Paras-Gupta790 did you happen to solve the issue yet?",
+    "createdAt": "2021-02-12T04:39:24Z"
+  },
+  {
+    "id": 6121,
+    "sender": "Paras-Gupta790",
+    "content": "Not yet. Me and @tneotia are working on this issue but not able to figure out the solution yet.",
+    "createdAt": "2021-02-12T04:53:06Z"
+  },
+  {
+    "id": 6122,
+    "sender": "Shubhankt1",
+    "content": "ohhh.\r\nGuys, by the way, I just got to know that camera upload is working in a different mobile (Samsung M21), if that's of any help to you to figure out.\r\nLet me know if you need any extra hand for help. I'll be happy to help! 😄 ",
+    "createdAt": "2021-02-12T05:43:49Z"
+  },
+  {
+    "id": 6123,
+    "sender": "SafaMerve",
+    "content": "https://github.com/flutter/plugins/pull/3225/files this solution worked for me. \r\nextension defined at this file \"packages/webview_flutter/android/src/main/res/values/strings.xml\"\r\nI didn't change \"packages/webview_flutter/pubspec.yaml\" file.\r\ni using  \"webview_flutter: ^1.0.7\"\r\n\r\nthank you @libo1223 ",
+    "createdAt": "2021-02-13T21:11:19Z"
+  },
+  {
+    "id": 6124,
+    "sender": "Darkethic06",
+    "content": "i worked on that same , but i couldn't solve my error.\r\n\r\nHere is my Code :\r\n`import 'package:flutter/material.dart';\r\nimport 'package:permission_handler/permission_handler.dart';\r\nimport 'package:webview_flutter/webview_flutter.dart';\r\nimport 'dart:async';\r\n\r\nvoid main() {\r\n  runApp(MyApp());\r\n}\r\n\r\nclass MyApp extends StatelessWidget {\r\n  @override\r\n  Widget build(BuildContext context) {\r\n    Permission.camera.request();\r\n    Permission.storage.request();\r\n    return MaterialApp(\r\n      title: 'Door Steps Markets',\r\n      theme: ThemeData(\r\n        primarySwatch: Colors.blue,\r\n        visualDensity: VisualDensity.adaptivePlatformDensity,\r\n      ),\r\n      home: MyHomePage(),\r\n    );\r\n  }\r\n}\r\n\r\nclass MyHomePage extends StatefulWidget {\r\n  MyHomePage({Key key, this.title}) : super(key: key);\r\n\r\n  final String title;\r\n\r\n  @override\r\n  _MyHomePageState createState() => _MyHomePageState();\r\n}\r\n\r\nclass _MyHomePageState extends State<MyHomePage> {\r\n  @override\r\n  Widget build(BuildContext context) {\r\n    return Scaffold(\r\n      body: Padding(\r\n        padding: const EdgeInsets.only(top: 25.0),\r\n        child: Container(\r\n          child: WebView(\r\n            initialUrl: 'https://doorstepsmarkets.com',\r\n            javascriptMode: JavascriptMode.unrestricted,\r\n          ),\r\n        ),\r\n      ),\r\n    );\r\n  }\r\n}`\r\n\r\n",
+    "createdAt": "2021-02-14T09:35:07Z"
+  },
+  {
+    "id": 6125,
+    "sender": "syssam",
+    "content": "any good news?",
+    "createdAt": "2021-02-15T14:50:44Z"
+  },
+  {
+    "id": 6126,
+    "sender": "yeeemayy",
+    "content": "> @Paras-Gupta790 and all others, I have solved the file upload issue again with the following code. Tested on Galaxy S8 Android 9, release mode and debug mode with uploading website as https://pasteboard.co and https://dropzonejs.com, and `webview_flutter: ^1.0.7`. Tested both standard rendering method and new hybrid composition rendering method. Both images and file upload should function correctly now.\r\n> \r\n> Instructions\r\n> 1. Open `External Libraries > Flutter Plugins > webview_flutter > android > src.main> java.io. ...> FlutterWebView.java`.\r\n> 2. Replace code in this file from the code [here](https://gist.github.com/tneotia/ccdb84ba66d6863980b9d558fb95312e).\r\n> 3. Create a `newActivity.java` file in the same directory, copy the code from [here](https://gist.github.com/tneotia/adc61196cfa59a5a7bdef6efb0ab5883).\r\n> \r\n> In your own app,\r\n> \r\n> 1. In `AndroidManifest`, add:\r\n> \r\n> ```\r\n> <uses-permission android:name=\"android.permission.WRITE_EXTERNAL_STORAGE\"/>\r\n> <uses-permission android:name=\"android.permission.READ_EXTERNAL_STORAGE\"/>\r\n> <uses-permission android:name=\"android.permission.CAMERA\"/>\r\n> ```\r\n> \r\n> If you don't want the camera choosing capability you can leave out the camera permission.\r\n> 2. Above the `.MainActivity` declaration in `AndroidManifest` add:\r\n> \r\n> ```\r\n> <activity\r\n>             android:name=\"io.flutter.plugins.webviewflutter.newActivity\"\r\n>             android:theme=\"@android:style/Theme.Translucent.NoTitleBar\"/>\r\n> ```\r\n> \r\n> The last thing left to do is in Dart. Use the `permission_handler` plugin (or something similar, for these instructions I am using that) to request for your permissions like so:\r\n> \r\n> ```dart\r\n> await Permission.camera.request();\r\n> await Permission.storage.request();\r\n> ```\r\n> \r\n> These requests return `bool`, so you can check whether the user granted or denied the permission and perform actions accordingly. Again, if you don't want the camera choosing functionality you don't need to request for the camera permission.\r\n> \r\n> Depending on how the website is set up, you may need to use `JavascriptMode.unrestricted`:\r\n> \r\n> ```dart\r\n> WebView(\r\n>     initialUrl: your_url,\r\n>     javascriptMode: JavascriptMode.unrestricted,\r\n>     //any other parameters\r\n> ),\r\n> ```\r\n> \r\n> Let's try to keep this thread clean and avoid quoting my huge post, this is why I put it in a dropdown - but I'm not sure if GitHub will preserve the dropdown when quoted. Let me know of any issues and I may be able to take care of them, and leave a thumbs up if it worked for you!\r\n\r\nI've followed everything in the instructions but after taking photo by camera the app crashes, does this happen to anyone too?",
+    "createdAt": "2021-02-22T09:24:24Z"
+  },
+  {
+    "id": 6127,
+    "sender": "Paras-Gupta790",
+    "content": "Thanks, @yeeemayy. Will try this. \r\n\r\nOne more thing - This will ask for user permissions at the beginning. Can we ask for user permissions whenever he tries to upload documents?",
+    "createdAt": "2021-02-22T09:37:40Z"
+  },
+  {
+    "id": 6128,
+    "sender": "yeeemayy",
+    "content": "Correct me if i'm wrong, it seems impossible to keep asking for permission after user granted the permission once. On the other hand, if user permanently denied the permission request, there's no way we can request again but to prompt user to grant permission in app settings.",
+    "createdAt": "2021-02-22T09:54:41Z"
+  },
+  {
+    "id": 6129,
+    "sender": "Paras-Gupta790",
+    "content": "According to Google guidelines - **The app requests runtime permissions in context, when the functionality is requested, rather than upfront during app startup.**\r\n\r\nWe can check before asking permissions based on the status, which is either undetermined, granted, denied, restricted or permanentlyDenied. But IDk how to ask for permissions when the user tries to upload image (i.e. when the functionality is requested) \r\n",
+    "createdAt": "2021-02-22T10:28:21Z"
+  },
+  {
+    "id": 6130,
+    "sender": "tylerteh",
+    "content": "> https://github.com/flutter/plugins/pull/3225/files this solution worked for me.\r\n> extension defined at this file \"packages/webview_flutter/android/src/main/res/values/strings.xml\"\r\n> I didn't change \"packages/webview_flutter/pubspec.yaml\" file.\r\n> i using \"webview_flutter: ^1.0.7\"\r\n> \r\n> thank you @libo1223\r\n\r\nYes, by applying the code changes from https://github.com/flutter/plugins/pull/3225 (Add file choose on Android), now the webview can handle file-input field correctly. I'm using webview_flutter: 2.0.0-nullsafety.3\r\n\r\nHowever, please take note that the code changes will throw java.lang.IllegalArgumentException if you're using a plugin called \"flutter_downloader\". After removed flutter_downloader from pubspec.yaml, it is working flawlessly.\r\n\r\nThanks to the code contributor, @fesp",
+    "createdAt": "2021-03-11T09:38:01Z"
+  },
+  {
+    "id": 6131,
+    "sender": "FarrukhSajjad",
+    "content": "> Hey, I have a workaround for this. This will take another plugin though. 😄\r\n> The plugin: https://github.com/fluttercommunity/flutter_webview_plugin\r\n> The code:\r\n> \r\n> ```\r\n>         child: WebviewScaffold(\r\n>           url: _url,\r\n>           withLocalStorage: true,\r\n>         ),\r\n>       ),\r\n> ```\r\n\r\nyes this works great, but is there any way to assign a controller with it just as we can with `flutter_inappwebview` so that we can call javascript functions?",
+    "createdAt": "2021-03-30T16:54:08Z"
+  },
+  {
+    "id": 6132,
+    "sender": "tneotia",
+    "content": "> yes this works great, but is there any way to assign a controller with it just as we can with `flutter_inappwebview` so that we can call javascript functions?\r\n\r\n`flutter_inappwebview` works just fine with input type file so if you currently use that no need to switch to `flutter_webview_plugin`.",
+    "createdAt": "2021-03-30T18:00:08Z"
+  },
+  {
+    "id": 6133,
+    "sender": "b-hre",
+    "content": "hello @tneotia ...im newbie in dart language..\r\nin my project app,im using inappwebview plugin...in my problem,this plugin cannot show keyboard after fullscreen inappwebview..\r\ncan you help me?\r\nthanks\r\n",
+    "createdAt": "2021-03-31T05:10:52Z"
+  },
+  {
+    "id": 6134,
+    "sender": "Mkhira",
+    "content": "i had solved this problem by adding this line of code in the initState of the class which have the WebViewPage\r\n\r\nadd this code.\r\n\r\n void initState() {\r\n    super.initState();\r\n    WidgetsFlutterBinding.ensureInitialized();\r\n    if (Platform.isAndroid) WebView.platform = SurfaceAndroidWebView();\r\n}",
+    "createdAt": "2021-04-05T15:46:34Z"
+  },
+  {
+    "id": 6135,
+    "sender": "tneotia",
+    "content": "> hello @tneotia ...im newbie in dart language..\r\n> in my project app,im using inappwebview plugin...in my problem,this plugin cannot show keyboard after fullscreen inappwebview..\r\n> can you help me?\r\n> thanks\r\n\r\nI haven't experienced this issue at all, I use the webview fullscreen and the keyboard shows.",
+    "createdAt": "2021-04-05T16:21:07Z"
+  },
+  {
+    "id": 6136,
+    "sender": "b-hre",
+    "content": "> i had solved this problem by adding this line of code in the initState of the class which have the WebViewPage\r\n> \r\n> add this code.\r\n> \r\n> void initState() {\r\n> super.initState();\r\n> WidgetsFlutterBinding.ensureInitialized();\r\n> if (Platform.isAndroid) WebView.platform = SurfaceAndroidWebView();\r\n> }\r\n\r\nThanks mr Mkhira...\r\nsorry,im using inappwebview plugin...\r\nwebview.platform cannot found in this plugin...can you help me?",
+    "createdAt": "2021-04-07T13:32:40Z"
+  },
+  {
+    "id": 6137,
+    "sender": "Shubhankt1",
+    "content": "Hi. I got few app crashes when the user selected camera option to upload an image. And it happened in only in one device repeatedly (Samsung M21)\r\nbelow are the logs. Could you help? @tneotia @Paras-Gupta790 @yeeemayy \r\n\r\n```\r\nFatal Exception: java.lang.RuntimeException: Unable to resume activity {com.forwoodsafety.safetyapps/io.flutter.plugins.webviewflutter.newActivity}: java.lang.RuntimeException: Failure delivering result ResultInfo{who=null, request=42, result=0, data=null} to activity {com.forwoodsafety.safetyapps/io.flutter.plugins.webviewflutter.newActivity}: java.lang.NullPointerException: Attempt to invoke interface method 'void android.webkit.ValueCallback.onReceiveValue(java.lang.Object)' on a null object reference\r\n       at android.app.ActivityThread.performResumeActivity(ActivityThread.java:4864)\r\n       at android.app.ActivityThread.handleResumeActivity(ActivityThread.java:4901)\r\n       at android.app.servertransaction.ResumeActivityItem.execute(ResumeActivityItem.java:52)\r\n       at android.app.servertransaction.TransactionExecutor.executeLifecycleState(TransactionExecutor.java:176)\r\n       at android.app.servertransaction.TransactionExecutor.execute(TransactionExecutor.java:97)\r\n       at android.app.ActivityThread$H.handleMessage(ActivityThread.java:2307)\r\n       at android.os.Handler.dispatchMessage(Handler.java:106)\r\n       at android.os.Looper.loop(Looper.java:246)\r\n       at android.app.ActivityThread.main(ActivityThread.java:8506)\r\n       at java.lang.reflect.Method.invoke(Method.java)\r\n       at com.android.internal.os.RuntimeInit$MethodAndArgsCaller.run(RuntimeInit.java:602)\r\n       at com.android.internal.os.ZygoteInit.main(ZygoteInit.java:1139)\r\n```\r\n```\r\nCaused by java.lang.RuntimeException: Failure delivering result ResultInfo{who=null, request=42, result=0, data=null} to activity {com.forwoodsafety.safetyapps/io.flutter.plugins.webviewflutter.newActivity}: java.lang.NullPointerException: Attempt to invoke interface method 'void android.webkit.ValueCallback.onReceiveValue(java.lang.Object)' on a null object reference\r\n       at android.app.ActivityThread.deliverResults(ActivityThread.java:5506)\r\n       at android.app.ActivityThread.performResumeActivity(ActivityThread.java:4851)\r\n       at android.app.ActivityThread.handleResumeActivity(ActivityThread.java:4901)\r\n       at android.app.servertransaction.ResumeActivityItem.execute(ResumeActivityItem.java:52)\r\n       at android.app.servertransaction.TransactionExecutor.executeLifecycleState(TransactionExecutor.java:176)\r\n       at android.app.servertransaction.TransactionExecutor.execute(TransactionExecutor.java:97)\r\n       at android.app.ActivityThread$H.handleMessage(ActivityThread.java:2307)\r\n       at android.os.Handler.dispatchMessage(Handler.java:106)\r\n       at android.os.Looper.loop(Looper.java:246)\r\n       at android.app.ActivityThread.main(ActivityThread.java:8506)\r\n       at java.lang.reflect.Method.invoke(Method.java)\r\n       at com.android.internal.os.RuntimeInit$MethodAndArgsCaller.run(RuntimeInit.java:602)\r\n       at com.android.internal.os.ZygoteInit.main(ZygoteInit.java:1139)\r\n```\r\n```\r\nCaused by java.lang.NullPointerException: Attempt to invoke interface method 'void android.webkit.ValueCallback.onReceiveValue(java.lang.Object)' on a null object reference\r\n       at io.flutter.plugins.webviewflutter.newActivity.onActivityResult(newActivity.java:80)\r\n       at android.app.Activity.dispatchActivityResult(Activity.java:8541)\r\n       at android.app.ActivityThread.deliverResults(ActivityThread.java:5499)\r\n       at android.app.ActivityThread.performResumeActivity(ActivityThread.java:4851)\r\n       at android.app.ActivityThread.handleResumeActivity(ActivityThread.java:4901)\r\n       at android.app.servertransaction.ResumeActivityItem.execute(ResumeActivityItem.java:52)\r\n       at android.app.servertransaction.TransactionExecutor.executeLifecycleState(TransactionExecutor.java:176)\r\n       at android.app.servertransaction.TransactionExecutor.execute(TransactionExecutor.java:97)\r\n       at android.app.ActivityThread$H.handleMessage(ActivityThread.java:2307)\r\n       at android.os.Handler.dispatchMessage(Handler.java:106)\r\n       at android.os.Looper.loop(Looper.java:246)\r\n       at android.app.ActivityThread.main(ActivityThread.java:8506)\r\n       at java.lang.reflect.Method.invoke(Method.java)\r\n       at com.android.internal.os.RuntimeInit$MethodAndArgsCaller.run(RuntimeInit.java:602)\r\n       at com.android.internal.os.ZygoteInit.main(ZygoteInit.java:1139)\r\n```\r\n\r\nAnd this is the `newActivity.java` file:\r\n\r\n```\r\npackage io.flutter.plugins.webviewflutter;\r\n\r\nimport android.app.Activity;\r\nimport android.app.Dialog;\r\nimport android.content.ClipData;\r\nimport android.content.ComponentName;\r\nimport android.content.DialogInterface;\r\nimport android.content.Intent;\r\nimport android.content.pm.PackageManager;\r\nimport android.content.pm.ResolveInfo;\r\nimport android.content.res.AssetFileDescriptor;\r\nimport android.graphics.Bitmap;\r\nimport android.graphics.BitmapFactory;\r\nimport android.net.Uri;\r\nimport android.os.Bundle;\r\nimport android.os.Environment;\r\nimport android.os.Parcelable;\r\nimport android.provider.MediaStore;\r\nimport android.util.Log;\r\nimport android.view.Gravity;\r\nimport android.view.View;\r\nimport android.view.ViewGroup;\r\nimport android.view.Window;\r\nimport android.view.WindowManager;\r\nimport android.webkit.ValueCallback;\r\nimport java.io.File;\r\nimport java.io.FileNotFoundException;\r\nimport java.io.FileOutputStream;\r\nimport java.io.IOException;\r\nimport java.util.ArrayList;\r\nimport java.util.List;\r\n\r\npublic class newActivity extends Activity {\r\n    private static ValueCallback<Uri[]> mUploadMessages;\r\n    private Object Utils;\r\n    private File outputFile;\r\n    private Uri mOutputFileUri;\r\n    private Uri image;\r\n\r\n    public static void getfilePathCallback(ValueCallback<Uri[]> filePathCallback){\r\n        mUploadMessages = filePathCallback;\r\n    }\r\n\r\n    @Override\r\n    protected void onCreate(Bundle savedInstanceState) {\r\n        super.onCreate(savedInstanceState);\r\n\r\n        getWindow().addFlags(WindowManager.LayoutParams.FLAG_TRANSLUCENT_STATUS);\r\n\r\n        openImageIntent();\r\n    }\r\n\r\n\r\n    private Uri outputFileUri;\r\n\r\n    private void openImageIntent() {\r\n        try {\r\n            outputFile = File.createTempFile(\"tmp\", \".jpg\", getCacheDir());\r\n        } catch (IOException pE) {\r\n            pE.printStackTrace();\r\n        }\r\n        File imageStorageDir = new File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES), \"FolderName\");\r\n\r\n        if (!imageStorageDir.exists()) {\r\n            imageStorageDir.mkdirs();\r\n        }\r\n        File file = new File(imageStorageDir + File.separator + \"IMG_\" + String.valueOf(System.currentTimeMillis()) + \".jpg\");\r\n        mOutputFileUri = Uri.fromFile(file);\r\n\r\n        // Camera.\r\n        final Intent captureIntent = new Intent(MediaStore.ACTION_IMAGE_CAPTURE);\r\n        captureIntent.putExtra(MediaStore.EXTRA_OUTPUT, mOutputFileUri);\r\n\r\n        // Filesystem.\r\n        final Intent fileIntent = new Intent();\r\n        fileIntent.setType(\"*/*\");\r\n        fileIntent.setAction(Intent.ACTION_OPEN_DOCUMENT);\r\n        fileIntent.addCategory(Intent.CATEGORY_OPENABLE);\r\n\r\n        // Chooser of filesystem options.\r\n        final Intent chooserIntent = Intent.createChooser(fileIntent, \"Select Source\");\r\n\r\n        // Add the camera options.\r\n        chooserIntent.putExtra(Intent.EXTRA_INITIAL_INTENTS, new Parcelable[]{captureIntent});\r\n        startActivityForResult(chooserIntent, 42);\r\n    }\r\n\r\n    @Override\r\n    protected void onActivityResult(int requestCode, int resultCode, Intent intent) {\r\n        super.onActivityResult(requestCode, resultCode, intent);\r\n        Uri[] results = null;\r\n        try {\r\n            if (resultCode != RESULT_OK) {\r\n                results = null;\r\n            } else {\r\n                if (intent != null) {\r\n                    String dataString = intent.getDataString();\r\n                    ClipData clipData = intent.getClipData();\r\n                    if (clipData != null) {\r\n                        results = new Uri[clipData.getItemCount()];\r\n                        for (int i = 0; i < clipData.getItemCount(); i++) {\r\n                            ClipData.Item item = clipData.getItemAt(i);\r\n                            results[i] = item.getUri();\r\n                        }\r\n                    }\r\n                    if (dataString != null) {\r\n                        results = new Uri[]{Uri.parse(dataString)};\r\n                    }\r\n                } else {\r\n                    results = new Uri[]{mOutputFileUri};\r\n                }\r\n            }\r\n        } catch (Exception e) {\r\n            e.printStackTrace();\r\n        }\r\n        mUploadMessages.onReceiveValue(results);\r\n        mUploadMessages = null;\r\n        finish();\r\n    }\r\n}\r\n\r\n```",
+    "createdAt": "2021-04-22T11:54:13Z"
+  },
+  {
+    "id": 6138,
+    "sender": "Shubhankt1",
+    "content": "> Yeah @Paras-Gupta790 is having a similar issue, the camera opens and takes the snap, but the upload is unsuccessful. Still trying to work it out but I feel this is stretching beyond my expertise.\r\n\r\n@tneotia @Paras-Gupta790 did you get anything to fix this issue? It is still not working for me. need help guys\r\n",
+    "createdAt": "2021-04-23T11:05:12Z"
+  },
+  {
+    "id": 6139,
+    "sender": "Shubhankt1",
+    "content": "> https://github.com/flutter/plugins/pull/3225/files this solution worked for me.\r\n> extension defined at this file \"packages/webview_flutter/android/src/main/res/values/strings.xml\"\r\n> I didn't change \"packages/webview_flutter/pubspec.yaml\" file.\r\n> i using \"webview_flutter: ^1.0.7\"\r\n> \r\n> thank you @libo1223\r\n\r\nAfter I tried the solution here, I'm getting this error\r\n```\r\nI/Timeline(26709): Timeline: Activity_launch_request time:162255045 intent:Intent { flg=0x10000000 cmp=com.forwoodsafety.safetyapps/io.flutter.plugins.webviewflutter.FileChooserActivity (has extras) }\r\nD/OneSignal(26709): curActivity is NOW: null\r\nW/ActivityThread(26709): handleWindowVisibility: no activity for token android.os.BinderProxy@1811995\r\nD/AndroidRuntime(26709): Shutting down VM\r\nE/AndroidRuntime(26709): FATAL EXCEPTION: main\r\nE/AndroidRuntime(26709): Process: com.forwoodsafety.safetyapps, PID: 26709\r\nE/AndroidRuntime(26709): java.lang.RuntimeException: Unable to start activity ComponentInfo{com.forwoodsafety.safetyapps/io.flutter.plugins.webviewflutter.FileChooserActivity}: java.lang.IllegalArgumentException: Failed to find configured root that contains /data/data/com.forwoodsafety.safetyapps/cache/storage/CAPTURE-20210426_203521.jpg\r\nE/AndroidRuntime(26709): \tat android.app.ActivityThread.performLaunchActivity(ActivityThread.java:2946)\r\nE/AndroidRuntime(26709): \tat android.app.ActivityThread.handleLaunchActivity(ActivityThread.java:3081)\r\nE/AndroidRuntime(26709): \tat android.app.servertransaction.LaunchActivityItem.execute(LaunchActivityItem.java:78)\r\nE/AndroidRuntime(26709): \tat android.app.servertransaction.TransactionExecutor.executeCallbacks(TransactionExecutor.java:108)\r\nE/AndroidRuntime(26709): \tat android.app.servertransaction.TransactionExecutor.execute(TransactionExecutor.java:68)\r\nE/AndroidRuntime(26709): \tat android.app.ActivityThread$H.handleMessage(ActivityThread.java:1831)\r\nE/AndroidRuntime(26709): \tat android.os.Handler.dispatchMessage(Handler.java:106)\r\nE/AndroidRuntime(26709): \tat android.os.Looper.loop(Looper.java:201)\r\nE/AndroidRuntime(26709): \tat android.app.ActivityThread.main(ActivityThread.java:6810)\r\nE/AndroidRuntime(26709): \tat java.lang.reflect.Method.invoke(Native Method)\r\nE/AndroidRuntime(26709): \tat com.android.internal.os.RuntimeInit$MethodAndArgsCaller.run(RuntimeInit.java:547)\r\nE/AndroidRuntime(26709): \tat com.android.internal.os.ZygoteInit.main(ZygoteInit.java:873)\r\nE/AndroidRuntime(26709): Caused by: java.lang.IllegalArgumentException: Failed to find configured root that contains /data/data/com.forwoodsafety.safetyapps/cache/storage/CAPTURE-20210426_203521.jpg\r\nE/AndroidRuntime(26709): \tat androidx.core.content.FileProvider$SimplePathStrategy.getUriForFile(FileProvider.java:744)\r\nE/AndroidRuntime(26709): \tat androidx.core.content.FileProvider.getUriForFile(FileProvider.java:418)\r\nE/AndroidRuntime(26709): \tat io.flutter.plugins.webviewflutter.FileChooserActivity.getTempUri(FileChooserActivity.java:138)\r\nE/AndroidRuntime(26709): \tat io.flutter.plugins.webviewflutter.FileChooserActivity.createCaptureIntent(FileChooserActivity.java:119)\r\nE/AndroidRuntime(26709): \tat io.flutter.plugins.webviewflutter.FileChooserActivity.showFileChooser(FileChooserActivity.java:54)\r\nE/AndroidRuntime(26709): \tat io.flutter.plugins.webviewflutter.FileChooserActivity.onCreate(FileChooserActivity.java:46)\r\nE/AndroidRuntime(26709): \tat android.app.Activity.performCreate(Activity.java:7224)\r\nE/AndroidRuntime(26709): \tat android.app.Activity.performCreate(Activity.java:7213)\r\nE/AndroidRuntime(26709): \tat android.app.Instrumentation.callActivityOnCreate(Instrumentation.java:1272)\r\nE/AndroidRuntime(26709): \tat android.app.ActivityThread.performLaunchActivity(ActivityThread.java:2926)\r\nE/AndroidRuntime(26709): \t... 11 more\r\nD/libcrashlytics(26709): Initializing libcrashlytics version 3.0.0\r\nD/libcrashlytics(26709): Initializing native crash handling successful.\r\n```\r\n\r\nAlso, I don't have `flutter_downloader` plugin.\r\n@tylerteh @fesp @libo1223 could you please help?",
+    "createdAt": "2021-04-26T15:10:39Z"
+  },
+  {
+    "id": 6140,
+    "sender": "tneotia",
+    "content": "> > Yeah @Paras-Gupta790 is having a similar issue, the camera opens and takes the snap, but the upload is unsuccessful. Still trying to work it out but I feel this is stretching beyond my expertise.\r\n> \r\n> @tneotia @Paras-Gupta790 did you get anything to fix this issue? It is still not working for me. need help guys\r\n\r\nI don't remember if @Paras-Gupta790 's issue was resolved. It has been a few months since then. I still don't have any concrete solution.\r\n\r\nI understand this is a thread for webview_flutter but at this point I highly recommend switching to flutter_inappwebview until it is fixed here. It is now being actively maintained again and I haven't had any issues with file upload.",
+    "createdAt": "2021-04-26T15:31:44Z"
+  },
+  {
+    "id": 6141,
+    "sender": "Shubhankt1",
+    "content": "Could anybody please help me on this:\r\n\r\nhttps://stackoverflow.com/questions/67279734/java-lang-illegalargumentexception-failed-to-find-configured-root-that-contains\r\n\r\n@tylerteh @fesp @libo1223 @tneotia @Paras-Gupta790 ",
+    "createdAt": "2021-04-27T11:27:20Z"
+  },
+  {
+    "id": 6142,
+    "sender": "nashihu",
+    "content": "i got the same error but it's not file upload case, but the download case. there's a button to download pdf file in the webview and when button is clicked, i got same error as mentioned above\r\n\r\n```Failed to get fallback IMM with expected displayId=6 actual IMM#displayId=0```",
+    "createdAt": "2021-06-16T06:22:34Z"
+  },
+  {
+    "id": 6143,
+    "sender": "DivyanshuCaremonitor",
+    "content": "> > yes this works great, but is there any way to assign a controller with it just as we can with `flutter_inappwebview` so that we can call javascript functions?\r\n> \r\n> `flutter_inappwebview` works just fine with input type file so if you currently use that no need to switch to `flutter_webview_plugin`.\r\n\r\nWorked for me. Thanks!",
+    "createdAt": "2021-07-28T08:38:46Z"
+  }
+]

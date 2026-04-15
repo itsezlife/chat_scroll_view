@@ -1,0 +1,386 @@
+[
+  {
+    "id": 2816,
+    "sender": "rydmike",
+    "content": "@johnsonmh I noticed you made a commit to change the `NavigationBarDestination` `icon` and `unselectedIcon` to Widgets instead of `IconData`, I think that is good move. 👍🏻 \r\n\r\nI did not try the revised version yet, but I think it is a nice choice for consistency and simplicity, especially if all you want to do is to modify the icons with a small custom widget, but otherwise keep the default behavior or want to make a shared wrapper API with current navigation control widgets.\r\n\r\n### Tooltip Observation\r\nConcerning the tooltips, there is via `NavigationBarDestination` currently no simple way to control the tooltips. \r\nThis makes it complex to change them from the icon label and to even adjust their usage at all.\r\n\r\nCurrently tooltips also show up on Desktop/Web also when the label is also shown in the `NavigationBar`, thus duplicating the already shown label as a tooltip, with the same text. This does not add any new information to the UI and is actually a bit annoying to users on desktop/web.\r\n\r\nThe `BottomNavigationBar` used to be like this too, but it was later fixed so it is now possible to remove the tooltips, or customize the tooltips via `BottomNavigationBarItem` to something else than just the icon label.\r\n\r\nBasically if you in `BottomNavigationBarItem` don't define a tooltip, you get the icon label, but you can remove it by specifying an empty string, or customize it to something that adds some other info than just the icon label that is already shown, if you really also want a tooltip when you are showing the labels.\r\n\r\nIt makes it possible to do something like this:\r\n\r\n```dart\r\n        child: BottomNavigationBar(\r\n          items: <BottomNavigationBarItem>[\r\n            for (MyDestination item in destinations)\r\n              BottomNavigationBarItem(\r\n                icon: item.icon,\r\n                activeIcon: item.selectedIcon,\r\n                label: item.label,\r\n                tooltip: useTooltips &&\r\n                        item.tooltip != item.label &&\r\n                        item.tooltip != null\r\n                    ? item.tooltip\r\n                    : '',\r\n              ),\r\n          ],\r\n         ...\r\n```\r\nWhich would only show tooltips if an \"app\" level flag to actually show tooltips is true, and if the tooltip is different from the label. Obviously in a `NavigationBar` equivalent destination you would also have to combine the logic with the used `labelBehavior`. \r\nUsers may then choose in settings (affecting `useTooltips` if tooltips are used or not in the app. Many users perceive that tooltips get in the way after you are familiar with the app.\r\n\r\nPlease consider some similar feature for `NavigationBar` to make it easier to build support for the above behavior.\r\n\r\nThis GIF show the tooltips showing up all the time now on Desktop/Web and there is no simple way to get rid of them.\r\n\r\n![NavigationBar1](https://user-images.githubusercontent.com/39990307/119144320-3937af00-ba51-11eb-830c-fccfab1f39f1.gif)\r\n\r\n### Accessibility/Legibility Design Issue\r\n\r\nThis is a Material design matter. However, the default `NavigationBar` label size using the Flutter `overline` text style is barely legible on Web/Desktop that use device pixel ratio 1.0. \r\n\r\nThis seems to be something that Material Design team may have overlooked in the design spec.\r\n\r\nMajority (+80% globally) of Desktop Windows and Linux PCs use a display setting that have a device pixel ratio of 1.0. Fonts with very small dp become illegible on them. The small 10dp works OK on devices with a higher device pixel ratio, like all modern phones, tablets and also most Mac desktop/laptop computers. Some Windows/Linux laptops also use device pixel ratio of 1.5 or higher, on them the default `overline` size of the `NavigationBar` works OK, but generally desktops use 1.0.\r\n\r\nI tried by moving the running version of the above test app over to a my laptop screen with pixel density 1.5, on that it looks OK, but not on a normal desktop screen with device pixel ratio 1.0. \r\n\r\nThe above GIF recording also show this. The above gif recording is from a screen with device pixel ratio 1.0. click on the GIF to open it from GitHub in native resolution and not its inline zoomed state.\r\n\r\n\r\n",
+    "createdAt": "2021-05-21T13:46:35Z"
+  },
+  {
+    "id": 2817,
+    "sender": "rydmike",
+    "content": "@johnsonmh Another wish, I hope `NavigationBar` also gets its own subtheme where you can address some of the basic customization needs. \r\n\r\nNow if you want to customize its look just a little bit, like making it use `colorScheme.primary` for the selected icon, OK if the icons are now Widgets this part became a easier, you can tweak it there, but normally that part has been preferred to be in the Widgets sub-theme so you can just set it once for your app. Plus you may want it to use `colorScheme.primary` with same opacity as it has for the current default `colorScheme.secondary` now for the highlight around the selected icon. But you can't re-use that easily, since it is hard coded. The roundness is also hard coded to border radius 20dp, maybe consider using a shape with a default stadium border if that is the design intent, and make the highlight shape customizable via a theme. The Flutter shapes have the added built-in advantage that they also animates between shape changes if it is changed, just a cool bonus.\r\n\r\nWhen using `NavigationBar` you may also want to tune the unselected icon color and labels to match that of the `NavigationRail`'s unselected default theme icon and label color (which imo are nicer defaults than this one has now). Regardless of opinions on what is nicer looking, in a scenario where you use both `NavigationRail` and `NavigationBar` in a responsive design, you may often want their styles to match exactly. The defaults diverge quite a bit now, so you need to customize one of them quite a bit to accomplish that.\r\n\r\nYou may also need to customize is the label font/size, if you feel it is required for more legible labels. Having access to them via a theme would be nice.\r\n\r\nAs it looks now, you kind of have to build the `NavigationBar` up from all of its atomic builders to do most of above customizations. Doable, sure perhaps so, but imo not very fun or as easy to modify as previous approach. Not for the most common customization scenarios anyway, for  totally changing the `NavigationBar` into something entirely customized, the builders are a great addition of course. ",
+    "createdAt": "2021-05-21T15:14:27Z"
+  },
+  {
+    "id": 2818,
+    "sender": "johnsonmh",
+    "content": "@YazeedAlKhalaf I don't have guidance to link to at the moment - more will be shared later this Fall.\r\n\r\n@creativecreatorormaybenot Thanks for spotting this, the intention is not to have a highlight color and only have the ripple. I will update the code to remove the highlight color.\r\n\r\n@rydmike Thank you for the detailed feedback, this is all very helpful. I will incorporate the feedback to hopefully 1) Make the API more consistent with existing bottom navigation and navigation rail API and 2) make the customization easier (and with more examples given).",
+    "createdAt": "2021-05-21T16:45:15Z"
+  },
+  {
+    "id": 2819,
+    "sender": "rydmike",
+    "content": "@johnsonmh I noticed another difference and minor inconsistency compared to default background with `BottomNavigationBar`.\r\n\r\nThe `BottomNavigationBar`'s default background is when using newer color scheme based Themes `ThemeData.from` basing its background color on `colorScheme.background` via the fact that `ThemeData.from` assigns `colorScheme.background` to `ThemeData.canvasColor` that the default Material canvas type uses as background color.\r\n\r\nThis new `NavigationBar` on the other hand, bases its default background color on `colorScheme.surface`  via\r\n\r\n```dart\r\nMaterial(\r\n      elevation: elevation,\r\n      color: backgroundColor ??\r\n          ElevationOverlay.colorWithOverlay(\r\n              colorScheme.surface, colorScheme.onSurface, 3.0),\r\n```\r\n\r\nNormally when dealing with plain vanilla surface and background colors, these are of course identical. However, when building more nuanced user interfaces for a larger canvas, it is common to use a slight hint of primary color (alphaBlend) mixed into to the `colorScheme.surface` and/or `colorScheme.background`. When you go really fancy, you can use a slightly different blend strength of primary into the surface and background colors, for even more nuanced effects.\r\n\r\nWhen you do so, the end result is that the `BottomNavigationBar` and `NavigationBar` have backgrounds that then looks different in such designs, since they use different theme based default background colors. Perhaps this is intentional, but it might be worth considering if they should not default to the same base background color definition, it would seem more logical and again have less an impact on expected default background if you switch between them, or eg when you migrate from `BottomNavigationBar` to the new `NavigationBar`.\r\n\r\nHere is an example showing the difference when using such primary blended surface and background color theming in dark mode. I used a bit exaggerated difference in primary blend strength on surface and background color, than one might normally use, just to show the difference more clearly, the used example theme colors are shown too:\r\n\r\n![image](https://user-images.githubusercontent.com/39990307/119194791-48881e00-ba8c-11eb-9504-60ae6a5e9b4a.png)\r\n\r\nHere it is shown as a hires GIF animation too. I also **removed the double Ink ripple** for this demo that @creativecreatorormaybenot mentioned:\r\n\r\n![NavigationBar3](https://user-images.githubusercontent.com/39990307/119195495-6904a800-ba8d-11eb-9466-4e834ff91d9e.gif)\r\n\r\nThis was just a quick experimental fix using:\r\n\r\n```dart\r\nreturn NavigationBarDestinationSemantics(\r\n      child: NavigationBarDestinationTooltip(\r\n        message: label,\r\n        child: InkWell(\r\n          highlightColor: Colors.transparent,  // Hide ink effect\r\n          splashColor: Colors.transparent,     // Hide ink effect\r\n          onTap: info.onTap,\r\n          child: Row(\r\n            children: <Widget>[\r\n              Expanded(\r\n                child: NavigationBarDestinationLayout(\r\n                  icon: buildIcon(context),\r\n                  label: buildLabel(context),\r\n                ),\r\n              ),\r\n            ],\r\n          ),\r\n        ),\r\n      ),\r\n    );\r\n```\r\n\r\n\r\nIt still has hover effect on desktop as before though, shown below. The yellow dot ink effect in the GIF are just from the screen recorders mouse click effect, that it uses to show when and where mouse was clicked.\r\n\r\n![NavigationBar4](https://user-images.githubusercontent.com/39990307/119196267-8f771300-ba8e-11eb-94ee-317571da3f60.gif)\r\n\r\n\r\n\r\n",
+    "createdAt": "2021-05-21T20:52:40Z"
+  },
+  {
+    "id": 2820,
+    "sender": "bernaferrari",
+    "content": "Nice work! I have a few questions:\r\n1. Could you please add onLongPress? It might not be *frequent* usage, but I've seen apps delegating the long press as reload mechanism or quick settings.\r\n2. Shouldn't you use onPressed instead of onTap? ElevatedButton, OutlinedButton and TextButton uses `onPressed`.\r\n3. Why is the tooltip vertical offset set to 42? Can't the user change it? For mobile it might not make a lot of sense, but who knows what people do on the web and other platforms. What if someone uses that on the top? Then there would be no tooltip.",
+    "createdAt": "2021-05-21T21:48:32Z"
+  },
+  {
+    "id": 2821,
+    "sender": "rydmike",
+    "content": "Good comments @bernaferrari, here are my additions on the same topic.\r\n\r\n1. I agree, `onLongPress` and with that rationale also, `onSecondaryPress`, for opening, typically a right mouse click based context menu on desktop apps, could certainly both be useful interactions to support out of the box for other devices than phones and tablets, but perhaps it is not in the Material spec for this widget to support that, pasts ones don't do it either. Hard to say, I don't think none Googlers have the new spec for this new MaterialYou widget yet.\r\n\r\n2. The `BottomNavigationBar`, that this Widget primarily replaces also uses `onTap` (so does the CupertinoTabBar), so from that viewpoint the current `onTap` is the correct choice. I added API naming comparison to my earlier table. The `onPressed` callback used by buttons are as far as I recall always a void callback, whereas as the `onTap` callbacks are `ValueChanged<int>?` so there is that as well. But generally sometimes it seems these call back API names are a bit varied, the `NavigationRail`s `onDestinationSelected` is a good example, what was wrong with `onTap` for that one for consistency? These things happens in big SDKs.\r\n\r\n3. About tooltips, I totally agree the `NavigationBar` API should expose more config options without requiring constructing the thing from atoms using its builders. Tooltip labels should be possible to easily customize to something else than the navbar's text label, or completely removed. And like you say, if a default vertical offset is need (probably is due to height of this widget) that is different from Tooltip default theme vertical office, it must be available as parameter via a property, if it is hard coded like now it can't be modified even by wrapping the entire widget in its own ThemeData and custom TooltipThemeData.\r\n\r\n---\r\n\r\n**Some additional observations**, these are just my viewpoints from playing with and using the new widget a bit. I know the design is probably written in stone by the Material Design Theme, but I'm going to throw my views out there anyway.\r\n\r\n### Height when labels are shown.\r\nIn my opinion the default height design is a bit excessive when it comes to height when labels are shown (74dp), there is room to remove a few pixels and still keeping the look balanced and nice, the size when labels are not shown, could also be tighter (it is 56dp). Old bottom nav bar is 56dp and Cupertino one is 50dp btw. However, since the API includes a `height` adjustment it already allows for very easy minor opinionated tweaks to this, so it honestly does not matter so much, since you can tweak it as you want it easily.\r\n\r\n**However,** @johnsonmh I noticed a **bug**, the `height` property currently has no impact on the height of the widget! The line:\r\n \r\n```dart\r\n   final double effectiveHeight = \r\n      labelBehavior == NavigationBarDestinationLabelBehavior.alwaysHide\r\n            ? 56\r\n            : 74;\r\n```\r\nshould probably be:\r\n\r\n```dart\r\n   final double effectiveHeight = height ??\r\n        (labelBehavior == NavigationBarDestinationLabelBehavior.alwaysHide\r\n            ? 56\r\n            : 74);\r\n```\r\n\r\nOtherwise the `height` property has  has no impact on the height of the `NavigationBar`.\r\n\r\n### Default label font\r\n\r\nThe current default font style is an odd one, the `overline` style has letter spacing that just looks a bit strange. Flutter 2.2 still defaults to old typography (2014), my demos use the newer \"correct\" one (2018). However, the `overline` style is the same with both, it is just a peculiar style choice imo, with its 1.5 letter spacing. Plus as mentioned before, due to its default small size (10dp), it is barely legible on monitors with device pixel ratio 1.0. The old `BottomNavigationBar` defaults are clearer, and strangely even Cupertino looks better than this, although it is also too small for device pixel ratio 1.0, but it still looks much nicer.\r\n\r\nLike I mentioned before, an API, perhaps via own sub-theme for the `NavigationBar` is needed to adjust the label text styles (maybe both selected/unselected?) easily, the sub-theme could then also include more/additional style, layout and theming properties, like e.g. custom heights for the different label style behaviors.\r\n\r\nBelow is an additional example showing **NavigationBar**, **BottomNavigationBar** and **CupertinoTabBar** on same screen.\r\n\r\nI applied the **height fix** so I could change the height of the **NavigationBar**, just to try how it looks at some other sizes. I tried **50dp, same as Cupertino**, when not showing labels, and quite a bit tighter, **62dp when showing labels**, alongside with is current default values 56 and 74. The tighter values work well enough too. But like mentioned, if it has a working version of the `height` property, the default can be whatever, easy enough to tweak. **However**, the height values should **also** be themeable, **both values**, so it is easy to theme it differently globally for an app, and not apply it to every widget, or be forced to make a custom wrapper widget for it and use that instead, just to change the height. Great that you are supposed to be able to easily adjust the height too though, this is a welcome new feature.\r\n\r\nThe first screen GIF recording below is at device pixel ratio 1.5. On a high res laptop screen you might have that or higher, also on devices the device pixel ratio is normally 1.5 or even much higher, at this device pixel ratio, and higher, the small fonts on `NavigationBar` and `CupertinoTabBar` are still legible and fine, although the `overline` font style looks odd when used here, due to its 1.5 letter spacing.\r\n\r\n![NavigationBar6](https://user-images.githubusercontent.com/39990307/119234355-2c40bb80-bb36-11eb-8f8e-7cf465df6d4a.gif)\r\n\r\nHere is the same screen, but now on a **normal** (none Mac) desktop screen, that use the most common desktop device pixel ratio 1.0. **Now** the small default font size is barely legible and have poor readability and accessibility due to that.\r\n\r\n![NavigationBar7](https://user-images.githubusercontent.com/39990307/119234465-b6891f80-bb36-11eb-9374-5dad1c933ce1.gif)\r\n\r\n(In both cases, click on the GIFs to open them to see them at actual pixel accurate sizes).\r\n\r\nYou could consider the `caption` style instead as the default label style, if it has to have style and not just default text style with a size of 12dp. Caption uses 12dp and very similar style as default unselected label on the `BottomNavigationBar`, which is smaller than the default selected label on it (14dp). It would look like this, on device pixel ratio 1.0 screen, when using the newer typography 2018. \r\n\r\n![NavigationBar8](https://user-images.githubusercontent.com/39990307/119235083-6c556d80-bb39-11eb-8c17-56f9442828a2.gif)\r\n\r\nIt still fits nicely, even in my smaller height examples, and this is legible on screens with device pixel ratio 1.0 as well, and the letter spacing does not look odd, like it does with the `overline` text style.\r\n\r\nWith typography 2014 there would be a bit more space between the letters, caption 2018 uses letter spacing 0.4 and 2014 is 1.0, both are 12dp. \r\n\r\nAs a rule of thumb, most fonts become close to illegible at 10dp if the device pixel ratio is 1.0, while 12dp is OK with most fonts, 11dp is OKish.  If the device pixel ratio is 1.5 or higher, then using font size 10dp is perfectly fine, the problem is +80% of desktops in the world use monitors that are setup to use device pixel ratio 1.0.  Since **Flutter** also support desktop usage, I think default font choices for widgets should also consider that they also need to work well enough and be legible on screens using device pixel ratio 1.0.\r\n\r\nI also drive my 2x32\" 4k home office screens at native resolution, thus at screen pixel ratio 1.0. However my 13\" touch laptop screen is 3000x2000 pixels, this one is too small to drive at such high native resolution, so here I zoom 150%, meaning the device pixel ratio is 1.5. \r\n\r\n----\r\n\r\nThe discussion of too small font size (10dp) at device pixel ratio 1.0, was also earlier discussed when it comes to the default Flutter tooltip theme style, that now also uses 10dp, a size that is just too small to be legible at device pixel ratio 1.0. This was discussed and and demonstrated here https://github.com/flutter/flutter/issues/71429. \r\n\r\nThe Material Design team rep even seemed to agree after the demonstration that 10dp is not a very legible choice. Tooltips were 14dp before in Flutter, before it changed to 10dp. I recommended 12dp instead as default as good compromise between compact but still legible. It has however not been changed yet, so the issue is still open. It is however easy to theme the tooltip globally and correct the unfortunately too small default font size.\r\n\r\n----\r\n\r\nBy the way, here is also the issue where tooltip config (other label than icon label and no tooltip at all shown) was added to the `BottomNavigationBar`, plus its rationale and discussion too: https://github.com/flutter/flutter/issues/71049\r\n\r\nThe `NavigationBar` is now in its current form recreating the issue that was fixed for the `BottomNavigationBar`, can we please not do that? 😃 \r\n\r\n\r\n\r\n\r\n\r\n\r\n",
+    "createdAt": "2021-05-22T18:19:20Z"
+  },
+  {
+    "id": 2822,
+    "sender": "rydmike",
+    "content": "@johnsonmh Sorry about dropping even more comments. I was however wondering before when I tried the widget why it was getting overlay color also in light theme mode and not changing with elevation changes, not even in dark theme mode.\r\n\r\nAt least in the past, background overlay color has in Flutter only been applied to Material backgrounds in dark theme mode and when ambient ThemeData `applyElevationOverlayColor` is set to true. In this Widget you are applying overlay to both dark and light theme mode and it is not controlled by ambient theme setting for this behavior at all, as before in Flutter.\r\n\r\nAlso the `elevation` used for the elevation overlay color is hard coded to 3, and not using the actual `elevation` of the `NavigationBar` widget, so the overlay color is always constant, it does not change with elevation as it normally would in Flutter, and it is also applied to light theme mode, which is currently not the case in Flutter when using overlay color for elevation, you have this now:\r\n\r\nYou are using `colorWithOverlay` \r\n```dart\r\n    return Material(\r\n      elevation: elevation,\r\n      color: backgroundColor ??\r\n          ElevationOverlay.colorWithOverlay(colorScheme.surface, colorScheme.onSurface, 3.0),\r\n      child: NavigationBarBottomPadding(\r\n   ...\r\n```\r\n\r\nPerhaps this is a new standard? But more in line with current expected behavior in Flutter would be using `applyOverlay`:\r\n\r\n```dart\r\n    return Material(\r\n      elevation: elevation,\r\n      color: backgroundColor ??\r\n          ElevationOverlay.applyOverlay(context, colorScheme.onSurface, elevation),\r\n      child: NavigationBarBottomPadding(\r\n   ...\r\n```\r\n\r\nThis would use the widget elevation for applied overlay color, but only in dark theme mode, and only when the theme flag that toggles its usage is true.\r\n\r\nThis still gives the widget a default `colorScheme.surface` colored background and not the `colorsScheme.Background` color, like widgets of this type currently use as their background color, that they actually get from the Material's default background color.\r\n\r\nTo make it use the same default background and the Material dark overlay color behavior, then simply just pass the `backgroundColor`, it will get the Material default color if it is null or used supplied `backgroundColor`, and get overlay color applied based on the elevation of the Material and only in dark theme mode, and only when the flag to use it is set in ambient theme data, simply because this is already baked in behavior in Material.\r\n\r\n```dart\r\n    return Material(\r\n      elevation: elevation,\r\n      color: backgroundColor,\r\n      child: NavigationBarBottomPadding(\r\n   ...\r\n```\r\n\r\n\r\nStill of course, it all depends on what the new Material You design specs are, but it seems a bit off that it would deviate this much from past designs, when it comes to elevation, if that is the case pretty much all past widgets in Flutter will need to be rewritten or replaced with new ones to accommodate MaterialYou color scheme behavior.\r\n\r\nAnyway, I just though I would mention this since it deviated quite radically from past Flutter SDK background color and elevation behavior.\r\n",
+    "createdAt": "2021-05-23T18:15:40Z"
+  },
+  {
+    "id": 2823,
+    "sender": "JaffaKetchup",
+    "content": "Wow, this looks amazing! Any chance of this coming soon?",
+    "createdAt": "2021-06-26T09:14:10Z"
+  },
+  {
+    "id": 2824,
+    "sender": "yagiz-dev",
+    "content": "Any updates?",
+    "createdAt": "2021-07-16T13:09:41Z"
+  },
+  {
+    "id": 2825,
+    "sender": "JaffaKetchup",
+    "content": "It's been 4 months, and Android 12 with Material You is now in open-beta; is it time to look at this again?",
+    "createdAt": "2021-08-12T14:37:15Z"
+  },
+  {
+    "id": 2826,
+    "sender": "rydmike",
+    "content": "@JaffaKetchup and @evrifaessa if I would have to guess, I would say that this MaterialYou widget is perhaps being worked on and tested in a none public clone, away from public eyes. Probably together with a number of other new MaterialYou related updates that Flutter will need in order to support MaterialYou that is introduced with Android12. \r\n\r\nIf not, there will indeed be a big rush to release Anroid12 related MaterialYou widgets and features in Flutter when Android12 is released. So I'm pretty sure Flutter - Android - Material teams are collaborating on including support for MaterialYou in a way that will try to match the release of Android12, if possible. This way Flutter applications can also migrate and use new MaterialYou design features after Abdroid12 is released. Sure it would of course be nice to have them before Android12 is released so that we could also prepare Flutter apps that use the new Material design features in advance too. However, I have not noticed them in master channel yet, although I must admit I have not spent so much time on master channel recently.\r\n\r\nI know that the above feedback has been received and reviewed by the Material design team, but I guess we will have to wait and see what the result is until it is released.\r\n\r\ncc: @willlarche",
+    "createdAt": "2021-08-13T20:44:49Z"
+  },
+  {
+    "id": 2827,
+    "sender": "rami-a",
+    "content": "Hey folks, we are definitely hard at work in bringing Material You to Flutter soon! Please be patient as we continue to bring all these important updates to Flutter in the coming months :)",
+    "createdAt": "2021-08-13T21:20:52Z"
+  },
+  {
+    "id": 2828,
+    "sender": "rami-a",
+    "content": "Thanks for all the great feedback on this PR folks, MH and I have tried to incorporate much of it, and I believe we can add additional functionality at a later time if needed.",
+    "createdAt": "2021-08-25T16:04:45Z"
+  },
+  {
+    "id": 2829,
+    "sender": "rami-a",
+    "content": "\r\n\r\n\r\n> Looking good. I love the composability here! Would it make sense to add some params to the constructor and theme that allow the developer to override things like DestinationBuilder for easier customization?\r\n\r\nPossibly, but I think this first iteration should be simpler for now",
+    "createdAt": "2021-08-25T18:18:37Z"
+  },
+  {
+    "id": 2830,
+    "sender": "bernaferrari",
+    "content": "> Possibly, but I think this first iteration should be simpler for now\r\n\r\nAdding things incrementally is fine, but I'm afraid later it becomes breaking change :(",
+    "createdAt": "2021-08-25T19:03:31Z"
+  },
+  {
+    "id": 2831,
+    "sender": "rami-a",
+    "content": "> > Possibly, but I think this first iteration should be simpler for now\r\n> \r\n> Adding things incrementally is fine, but I'm afraid later it becomes breaking change :(\r\n\r\nIn some cases, things can be breaking but I guess it depends case by case",
+    "createdAt": "2021-08-25T19:10:20Z"
+  },
+  {
+    "id": 2832,
+    "sender": "rami-a",
+    "content": "I think it makes sense to align the APIs for both nav bar and nav rail (https://github.com/flutter/flutter/issues/88887). So I'm thinking of renaming all the classes that compose this Nav Bar to drop the word `Bar` in order to use them in the NavRail too.\r\n\r\nThoughts @clocksmith and @HansMuller ?",
+    "createdAt": "2021-08-26T13:34:00Z"
+  },
+  {
+    "id": 2833,
+    "sender": "rydmike",
+    "content": "Thanks @HansMuller, what an excellent review!\r\n\r\nI was actually looking at it a bit too and I think you captured most of the things I noticed too and then some.  I'm just out of curiosity following this review a bit, since I tried the super early version. 😃  Which was when I noticed some issues (on earlier version), like the elevation overlay in dark mode was not used, if theme used it and height parameter had no effect and minor other things, like more control over tooltips. The visual density and text scale factor questions where next on my list too ask about too. Oh, I like the idea with both text labels and optional widget, used it for some custom widgets for similar as mentioned reasons too.\r\n\r\nEven if this is a new Material v3 widget, I think it is important that it fits and uses conventions that matches how Flutter widgets currently behave, whenever that is appropriate and may be reasonably expected. Glad to see you are taking time to get it as right as possible. Great job @johnsonmh and I'm looking forward to using this widget for real soon enough 🙏🏻 😃  \r\n\r\n\r\n### Design question\r\nThe usage of overline style ad default label choice and its default size is still poor imo. It is not very legible on most common desktops that actually use pixel ratio 1.0, as demonstrated earlier. Curios as to what drives design choices like it, as default values anyway. Sure on phone devices with much higher device pixel ratio it works, but not on a 1.0 desktop, but I guess it is what it is 😃 💙\r\n ",
+    "createdAt": "2021-09-03T17:34:22Z"
+  },
+  {
+    "id": 2834,
+    "sender": "rami-a",
+    "content": "hey @rydmike, thanks for all your useful feedback! Regarding the `overline` usage. That is going to be what the spec calls for (and keep an eye out for updates to the text theme default values coming soon, which will update overline to be size 12 by default I believe)\r\n\r\nThe height param is now used and themable. The widget does not adjust its size due to visualDensity or textScaleFactor, by design. The tooltips do adjust to textScaleFactor however.\r\n\r\nThanks for the thorough review so far @HansMuller !",
+    "createdAt": "2021-09-07T14:12:12Z"
+  },
+  {
+    "id": 2835,
+    "sender": "LasseRosenow",
+    "content": "In you screenshots above I noticed that the on click effect (ripple) is a rectangle, but the new clocks app from Google that already uses the new component has a circle which also overlaps with the item next to it.\n\nAlso the circle is not a gray shade, but some very transparent shade of the accent color or secondary color or something like that.\n\n![Screenshot_2021-09-10-15-36-19-890_com.google.android.deskclock.jpg](https://user-images.githubusercontent.com/10547444/132861957-56095582-dada-4e30-9b49-63096a2ae8a1.jpg)",
+    "createdAt": "2021-09-10T13:37:16Z"
+  },
+  {
+    "id": 2836,
+    "sender": "rami-a",
+    "content": "Hey @LasseRosenow thanks for the feedback!\r\n\r\nI've spoken with our Android counterparts and I think the overlapping/unbounded ripples are actually a bug and should be fixed shortly. The spec (once published) should indicate that the ripple expands out to the bounds of the destination (so a rectangle)\r\n\r\nAs for the color of the ripple, that can be customized with the `ThemeData.splashColor` param and we'll make sure to set the correct default for Material 3/You once we have a full Material 3 theme ready.",
+    "createdAt": "2021-09-10T14:36:09Z"
+  },
+  {
+    "id": 2837,
+    "sender": "rami-a",
+    "content": "For some reason Github wouldn't let me directly reply to a few of the comments, so I'll address them here @HansMuller \r\n\r\n>Not respecting textScaleFactor doesn't seem like a good idea wrt a11y, but OK.\r\n\r\nThis was an a11y decision made by Material last year since growing the height of the bar wouldn't add value as the labels would just become truncated and you'd lose screen real estate. So the a11y text scaling decision was to just scale the tooltips up instead (this also aligns with Apple's bottom navigation behavior)\r\n\r\n>If a NavigationDestination needs a builder to create its icon or label, why not just use Builder?\r\n\r\nI made the builder class private for now, we can explore making it a building block after",
+    "createdAt": "2021-09-16T14:04:59Z"
+  },
+  {
+    "id": 2838,
+    "sender": "creativecreatorormaybenot",
+    "content": "@rami-a off-topic, but you can only reply in the original thread (when responding go a previous review in a review) on GitHub.",
+    "createdAt": "2021-09-16T18:33:52Z"
+  },
+  {
+    "id": 2839,
+    "sender": "LasseRosenow",
+    "content": "Is the height of the new NavigationBar really still supposed to be 80?\r\n\r\n![image](https://user-images.githubusercontent.com/10547444/134437062-11e13d8e-493d-45d3-8793-09ec7c731682.png)\r\n\r\n\r\nI just read, that the most recent GMail App changed it to be the same height as the old BottomNavigationBar.",
+    "createdAt": "2021-09-22T23:57:13Z"
+  },
+  {
+    "id": 2840,
+    "sender": "rami-a",
+    "content": "> Is the height of the new NavigationBar really still supposed to be 80?\r\n\r\nHey @LasseRosenow, yes the new default height is supposed to be 80 (you'll be able to see this once the official spec is published on material.io). It's likely that gmail decided to override this, and we provided the flexibility for developers to override the default as well.",
+    "createdAt": "2021-09-23T14:00:42Z"
+  },
+  {
+    "id": 2841,
+    "sender": "therealsujitk",
+    "content": "> I've spoken with our Android counterparts and I think the overlapping/unbounded ripples are actually a bug and should be fixed shortly. The spec (once published) should indicate that the ripple expands out to the bounds of the destination (so a rectangle)\r\n\r\nHi @rami-a, I'm not sure if you'll get a notification about this comment or not since this PR is already merged, but I'm not really sure where else to ask this.\r\n\r\nYou mentioned overlapping/unbound ripples are a bug, to be honest that's a shame because it looks so much better, but I assume the spec says the ripples shouldn't overlap so that it doesn't give the impression the touch areas overlap as well. Wouldn't it look better to have a circular boundary rather than a rectangular one? (Like in the current YouTube app for example)\r\n\r\n![image](https://user-images.githubusercontent.com/60378235/141724654-edcf61eb-4a39-438a-a5db-0c873171ed6c.png)\r\n\r\nI wasn't able to select two at a time like in the other apps, but they don't overlap. I still like the \"bug\" a lot better though.",
+    "createdAt": "2021-11-15T04:57:48Z"
+  },
+  {
+    "id": 2842,
+    "sender": "MaxYablochkin",
+    "content": "@rami-a \r\nWhat is the difficulty of implementing NavigationBar(Material 3/You) exactly the same as in native Android? For example, I noticed that the effect of InkRipple.splashFactory for NavigationBar in Flutter is somewhat different from BottomNavigationBar(Material 3/You) in native Android. The radius of the circle when clicking on the NavigationBar is also different from the native Android, while the borders of the elements on the panel are visible, and there is still no ripple effect on the circle. I gave an example in two screenshots of the bottom navigation bar in Flutter, the first BottomNavigationBar, the second NavigationBar.\r\n![Screenshot_1649886096](https://user-images.githubusercontent.com/102767277/163277731-903df16f-073d-4832-93e1-9911574b0d90.png)\r\n![Screenshot_1649886180](https://user-images.githubusercontent.com/102767277/163277736-8983f31e-f6a6-4c2a-9c20-8eb596b0bfa8.png)\r\n",
+    "createdAt": "2022-04-13T22:03:08Z"
+  },
+  {
+    "id": 2843,
+    "sender": "MaxYablochkin",
+    "content": "@rami-a \r\nWhy are some style properties not supported in the NavigationBar widget by default, namely indicatorColor, labelTextStyle, and iconTheme, but they can be called in the NavigationBarThemeData widget? I also wanted to know why, using the BottomNavigationBar example, you can use all the default style properties without using the BottomNavigationBarThemeData widget?",
+    "createdAt": "2022-04-15T00:29:04Z"
+  },
+  {
+    "id": 2844,
+    "sender": "dposs",
+    "content": "M3 specs define badges (small and large) in Navigation Bar. Is it implemented in any way?\r\nhttps://m3.material.io/components/navigation-bar/specs",
+    "createdAt": "2022-08-17T13:16:13Z"
+  },
+  {
+    "id": 2845,
+    "sender": "guidezpl",
+    "content": "No, not yet.",
+    "createdAt": "2022-08-17T14:40:18Z"
+  },
+  {
+    "id": 2846,
+    "sender": "HansMuller",
+    "content": "@dposs - There was an attempt (now closed) to add support for badges about 5 months ago: https://github.com/flutter/flutter/pull/99853. Should be a relatively straightforward feature to implement.",
+    "createdAt": "2022-08-18T14:34:38Z"
+  },
+  {
+    "id": 2847,
+    "sender": "Renzo-Olivares",
+    "content": "## Add support for double tap and drag for text selection\n\nThis change adds support for double tap + drag, to select word by word when double tapping and then dragging the mouse.\r\n\r\nThis change also adds a new gesture recognizers that will be specifically useful for text selection:\r\n* `TapAndDragGestureRecognizer`\r\n\r\nThis recognizer makes use of a `_TapStatusTrackerMixin` to keep track of the tap count.\r\n\r\n`TextSelectionGestureDetector` no longer uses a `TapGestureRecognizer` or `PanGestureRecognizer`. `TapUp`,`TapDown`, `TapCancel`, `onStart`, `onUpdate`, `onEnd`, and `onCancel` are now handled by the new recognizer.\r\n\r\nCurrently our text selection system does not support double tap + drag (selects word by word) and triple tap + drag (selects line by line). This PR adds support for this behavior by bundling the handling of tap up and tap down with a drag gesture recognizer and long press gesture recognizer. This helps us avoid having to pass state around to accomplish the same behavior. For example, this behavior could also be accomplished by having the TapGestureRecognizer.onTapDown callback, save the tap count, then this tap count can be used by the DragGestureRecognizer.onUpdate callback to determine if the selection should be updated character by character, word by word, or line by line. Some disadvantages of passing state around between gesture recognizers are that you can't accomplish this behavior in a classes initializer (Trying to build a default mapping of gesture recognizers for text selection https://github.com/Renzo-Olivares/flutter/blob/3dbffa3922c656e5c2f97fb6ff8d42b4573d152c/packages/flutter/lib/src/widgets/default_selection_gestures.dart#L24).\r\n\r\nWill be handled in separate PR: \r\nSelection area #104552\r\n\r\nFixes #99071, #64550, #23973\r\n\r\n## Pre-launch Checklist\r\n\r\n- [x] I read the [Contributor Guide] and followed the process outlined there for submitting PRs.\r\n- [x] I read the [Tree Hygiene] wiki page, which explains my responsibilities.\r\n- [x] I read and followed the [Flutter Style Guide], including [Features we expect every widget to implement].\r\n- [x] I signed the [CLA].\r\n- [x] I listed at least one issue that this PR fixes in the description above.\r\n- [x] I updated/added relevant documentation (doc comments with `///`).\r\n- [x] I added new tests to check the change I am making, or this PR is [test-exempt].\r\n- [x] All existing and new tests are passing.",
+    "createdAt": "2022-08-15T21:44:02Z"
+  },
+  {
+    "id": 2848,
+    "sender": "Renzo-Olivares",
+    "content": "@justinmc @chunhtai @LongCatIsLooong This is ready for review. \r\n\r\nThere's an analyzer issue due to a dependency loop that happens when I bring in `HardwareKeyboard.instance` from `services.dart` into my `selection_recognizers.dart`. I can move `selection_recognizers` into the `widgets` folder, since my plan was for it to live in the same file as the selection gestures widget I'm working on, that would fix this dependency loop. However, I'd like to get everyones take on handing the `Shift Tapping` in the recognizer itself, or if that logic should be delegated somewhere else. \r\n\r\nMy main motivation for having it in the recognizer is so that I can then define a map of GestureRecognizer subclasses to GestureRecognizerFactory, in the initialization of a class https://github.com/Renzo-Olivares/flutter/blob/3dbffa3922c656e5c2f97fb6ff8d42b4573d152c/packages/flutter/lib/src/widgets/default_selection_gestures.dart#L43. This can't be done in the initializer if I have to save state, such as saving if shift was tapped when on tap down is pressed.",
+    "createdAt": "2022-09-23T17:22:02Z"
+  },
+  {
+    "id": 2849,
+    "sender": "Renzo-Olivares",
+    "content": "> The one thing that I want to double check is the existence of TapStatus separate from the gesture Details. It just seems strangely different from the other gesture callbacks when I see both parameters. Could it be combined into the relevant Details classes, or is this approach actually better so we don't have to make changes to so many Details classes?\r\n\r\nI see what you mean. It feels like `TapStatus` should just be a part of the gesture `Details` object. I think some new `Details` object might be the way forward here, since `TapGestureRecognizer` and `DragGestureRecognizer` won't make use of the consecutive tap count or shift status, the alternative being what I have now with `TapStatus`.",
+    "createdAt": "2022-09-28T07:59:00Z"
+  },
+  {
+    "id": 2850,
+    "sender": "Renzo-Olivares",
+    "content": "This is ready for another review. Most of the changes since the last review happened in `selection_gestures.dart`. They mostly include `_ConsecutiveTapTrackerMixin` -> `_TapStatusTrackerMixin`. And the `_TapStatusTrackerMixin` is now more self-sufficient in setting it’s own state. \r\n\r\nI am still unsure how to proceed with the callback signatures including a tap status vs making a new details object. My only gripe about making new details objects is that I’m not sure what direction we want to move with them since the different details objects now share some common fields.",
+    "createdAt": "2022-11-08T19:50:16Z"
+  },
+  {
+    "id": 2851,
+    "sender": "Renzo-Olivares",
+    "content": "## Add `SelectionListener`/`SelectedContentRange`\n\nhttps://github.com/user-attachments/assets/59225cf7-5506-414e-87da-aa4d3227e7f6\r\n\r\nAdds:\r\n* `SelectionListener`, allows a user to listen to selection changes under the subtree it wraps given their is an ancestor `SelectionArea` or `SelectableRegion`. These selection changes can be listened to through the `SelectionListenerNotifier` that is provided to a `SelectionListener`.\r\n* `SelectionListenerNotifier`, used with `SelectionListener`, allows a user listen to selection changes for the subtree of the `SelectionListener` it was provided to. Provides access to individual selection values through the `SelectionDetails` object `selection`.\r\n* `SelectableRegionSelectionStatusScope`, allows the user to listen to when a parent `SelectableRegion` is changing or finalizing the selection.\r\n* `SelectedContentRange`, provides information about the selection range under a `SelectionHandler` or `Selectable` through the `getSelection()` method. This includes a start and end offset relative to the `Selectable`s content.\r\n* `SelectionHandler.contentLength`, to describe the length of the content contained by a selectable.\r\n\r\nOriginal PR & Discussion: https://github.com/flutter/flutter/pull/148998\r\n\r\nFixes: #110594\r\n\r\n## Pre-launch Checklist\r\n\r\n- [x] I read the [Contributor Guide] and followed the process outlined there for submitting PRs.\r\n- [x] I read the [Tree Hygiene] wiki page, which explains my responsibilities.\r\n- [x] I read and followed the [Flutter Style Guide], including [Features we expect every widget to implement].\r\n- [x] I signed the [CLA].\r\n- [x] I listed at least one issue that this PR fixes in the description above.\r\n- [x] I updated/added relevant documentation (doc comments with `///`).\r\n- [x] I added new tests to check the change I am making, or this PR is [test-exempt].\r\n- [x] I followed the [breaking change policy] and added [Data Driven Fixes] where supported.\r\n- [x] All existing and new tests are passing.",
+    "createdAt": "2024-08-27T20:14:40Z"
+  },
+  {
+    "id": 2852,
+    "sender": "Renzo-Olivares",
+    "content": "This is ready for another review, the main change is that a `Selectable`/`SelectionHandler` now only return a single `SelectedContentRange` instead of a list of ranges and other comments have been addressed.",
+    "createdAt": "2024-09-09T17:32:24Z"
+  },
+  {
+    "id": 2853,
+    "sender": "chunhtai",
+    "content": "Talked to @Renzo-Olivares offline, the current idea is to use a listen/notify API something like TextEditingController to listen to selection changes, Ideally this can also get rid of the SelectionFinalizedEvent if the controller can listen to the SelectableRegion's state changes above the current widget, and it sounds good to me. Since I will be out for another 2 weeks, this PR will LGTM if it can be implemented without SelectionfinalizedEvent and also LGT @justinmc and @LongCatIsLooong .",
+    "createdAt": "2024-10-10T23:19:42Z"
+  },
+  {
+    "id": 2854,
+    "sender": "vergaraSC",
+    "content": "@Renzo-Olivares This will go into production (we have an estimated date)?, it is a very good feature.",
+    "createdAt": "2024-10-16T15:43:57Z"
+  },
+  {
+    "id": 2855,
+    "sender": "Renzo-Olivares",
+    "content": "Friendly bump for review.",
+    "createdAt": "2024-11-18T21:43:23Z"
+  },
+  {
+    "id": 2856,
+    "sender": "DaveShuckerow",
+    "content": "## Add support for placing the FAB in different positions\n\n- [x] Implement support for positioning the FAB inside the Scaffold\r\n- [x] Tests\r\n- [x] Demo in the gallery\r\n\r\nI'd like to talk with you about the approach to be sure we're agreed that it's the right way to go before I continue with testing and the demo.\r",
+    "createdAt": "2018-01-30T21:39:51Z"
+  },
+  {
+    "id": 2857,
+    "sender": "Hixie",
+    "content": "The approach seems pretty solid to me.\r\n@HansMuller and @amirh may have more informed opinions.",
+    "createdAt": "2018-02-01T01:07:01Z"
+  },
+  {
+    "id": 2858,
+    "sender": "DaveShuckerow",
+    "content": "Thanks for the comments, @Hixie \r\n\r\nHans and I have a detailed discussion planned for tomorrow afternoon.",
+    "createdAt": "2018-02-01T01:59:29Z"
+  },
+  {
+    "id": 2859,
+    "sender": "Hixie",
+    "content": "@DaveShuckerow Should we close this PR while you work on this, to get it off the review queue?",
+    "createdAt": "2018-02-05T20:56:16Z"
+  },
+  {
+    "id": 2860,
+    "sender": "DaveShuckerow",
+    "content": "I haven't addressed all the comments yet, but I had a question that I'd like to ask.\r\n\r\nI'm getting a test failure with the test `Floating action button directionality`.  The offset of the fab doesn't update in the test.  \r\n\r\nI suspect that the `_ScaffoldLayout` layout delegate is not detecting the change in directionality, but the delegate is comparing the build context between builds.\r\n\r\nIs BuildContext supposed to support equality comparison?",
+    "createdAt": "2018-02-13T00:40:40Z"
+  },
+  {
+    "id": 2861,
+    "sender": "Hixie",
+    "content": "Comparing the BuildContext won't tell you anything useful.\r\n\r\nYou should pass the directionality to the scaffold layout. That way you can compare the directionality rather than the build context.",
+    "createdAt": "2018-02-13T00:58:23Z"
+  },
+  {
+    "id": 2862,
+    "sender": "DaveShuckerow",
+    "content": "That makes sense, but I suspect that approach might not scale.\r\n\r\nWith this change, the scaffold layout is taking in a text direction without ever using it except to re-layout when the direction changes.  It's only used by one of the FabPositioners to place the FAB at the end of the view.\r\n\r\nI propose that we allow FabPositioners to diff the BuildContext and flag whether or not the change requires a re-layout.",
+    "createdAt": "2018-02-13T01:20:10Z"
+  },
+  {
+    "id": 2863,
+    "sender": "Hixie",
+    "content": "I don't understand what doesn't scale. Can you elaborate?\r\n\r\n> I propose that we allow FabPositioners to diff the BuildContext and flag whether or not the change requires a re-layout.\r\n\r\nI don't understand what this means.",
+    "createdAt": "2018-02-13T01:30:48Z"
+  },
+  {
+    "id": 2864,
+    "sender": "DaveShuckerow",
+    "content": "> I don't understand what doesn't scale. Can you elaborate?\r\n\r\nBeing able to customize the fab's position with the build context as a parameter means that a fab positioner could pull any relevant fields off of the build context.\r\n\r\nIn this PR, the scaffold layout delegate is listening to the textDirection for changes and re-laying out, but it never actually uses the textDirection.  Only the fab positioner that sets up the end-floating position actually uses the textDirection.\r\n\r\nI imagine something similar could happen to other features of the build context, such as the theme or the locale.  I can come discuss in-person as well.",
+    "createdAt": "2018-02-13T18:32:51Z"
+  },
+  {
+    "id": 2865,
+    "sender": "Hixie",
+    "content": "If we want to allow the build context to be used, then we should use the builder pattern rather than the delegate pattern. The delegate pattern should not depend on anything outside of its constructor arguments, since otherwise it can't report when to update. The inheritance mechanism that works by getting inherited values through build contexts causes rebuilds.",
+    "createdAt": "2018-02-13T19:13:50Z"
+  },
+  {
+    "id": 2866,
+    "sender": "Hixie",
+    "content": "(Always happy to chat in person.)",
+    "createdAt": "2018-02-13T19:14:02Z"
+  },
+  {
+    "id": 2867,
+    "sender": "DaveShuckerow",
+    "content": "The only thing that's used anywhere is the textDirection, so I think this work is manageable without the build context.  Instead, we'll just provide the text direction directly.\r\n\r\nI talked to @amirh and @HansMuller and we agree that this won't affect #14580 that Amir is working on.  I'll respond to all the rest of the comments on this change today and be ready for the next round of review.",
+    "createdAt": "2018-02-13T20:49:06Z"
+  },
+  {
+    "id": 2868,
+    "sender": "DaveShuckerow",
+    "content": "Okay, I've addressed all the review comments.  Please take another look.",
+    "createdAt": "2018-02-14T21:25:18Z"
+  },
+  {
+    "id": 2869,
+    "sender": "DaveShuckerow",
+    "content": "I've done the small changes.  I'll make a second pass for the two large changes and the documentation expansion as soon as I can.",
+    "createdAt": "2018-02-15T20:10:58Z"
+  },
+  {
+    "id": 2870,
+    "sender": "DaveShuckerow",
+    "content": "I've responded @Hixie's comments.\r\n\r\n@HansMuller can you take a pass on this PR and see if everything looks sensible to you?  I'd like to know if there's anything that gives you pause or makes you ask a question.",
+    "createdAt": "2018-02-22T01:25:53Z"
+  },
+  {
+    "id": 2871,
+    "sender": "DaveShuckerow",
+    "content": "Ready for review again.  PTAL.",
+    "createdAt": "2018-03-01T19:31:38Z"
+  },
+  {
+    "id": 2872,
+    "sender": "Hixie",
+    "content": "looks pretty good, just some minor issues.",
+    "createdAt": "2018-03-06T00:47:22Z"
+  },
+  {
+    "id": 2873,
+    "sender": "Hixie",
+    "content": "Approach looks good. I'll defer to someone else on the team to do the final detailed review.",
+    "createdAt": "2018-03-12T17:13:38Z"
+  },
+  {
+    "id": 2874,
+    "sender": "HansMuller",
+    "content": "Looks like you still need to address two of @Hixie's comments\r\nhttps://github.com/flutter/flutter/pull/14368/files#r173874416\r\nhttps://github.com/flutter/flutter/pull/14368/files#r173874797\r\n",
+    "createdAt": "2018-03-12T22:41:51Z"
+  },
+  {
+    "id": 2875,
+    "sender": "HansMuller",
+    "content": "Thanks for breaking out floating_action_button_location.dart; made scaffold.dart a little easier to read.\r\n\r\nStill LGTM!\r\n",
+    "createdAt": "2018-03-15T22:29:53Z"
+  },
+  {
+    "id": 2876,
+    "sender": "DaveShuckerow",
+    "content": "Once the tests pass, I will merge this commit.  Thanks for the review, Hans and Ian!",
+    "createdAt": "2018-03-15T22:31:47Z"
+  },
+  {
+    "id": 2877,
+    "sender": "aam",
+    "content": "## Use separate isolate for image loading.\n\n## Description\r\n\r\nUse separate isolate for image loading.\r\n\r\nThis also uses recently introduced `TransferableTypedData` to const-cost receive bytes from that isolate.\r\n\r\nMain benefit of doing image loading on separate isolate is in freeing main isolate event loop from handling stream of io-requests that accompany https network operations. This moves those events to a designated isolate's event loop. Main isolate can be quite busy with ui work(animation), so handling network operations on separate event loop reduces latency of request-response scenarios. For example, https protocol(unlike http) requires back and forth communication before image bytes are provided by the server. \r\n\r\n## Related Issues\r\n\r\n## Tests\r\n\r\nimage_list test adapted to loading images from remote https server shows 10-20% speed-up on Moto G4:\r\nwith this PR:\r\n ```\r\nflutter/examples/image_list $ FH/flutter/bin/flutter run --profile --trace-systrace\r\n...\r\nAn Observatory debugger and profiler on Moto G 4 is available at\r\nhttp://127.0.0.1:41007/Bkc9liL-u_E=/\r\nFor a more detailed help message, press \"h\". To quit, press \"q\".\r\nI/flutter ( 5605): ===image_list=== all loaded in 6781ms.\r\nI/flutter ( 5605): ===image_list=== all loaded in 5451ms.\r\nI/flutter ( 5605): ===image_list=== all loaded in 5333ms.\r\n```\r\nversus before this PR:\r\n```\r\nAn Observatory debugger and profiler on Moto G 4 is available at\r\nhttp://127.0.0.1:36339/Q_g7-fjoeoA=/\r\nFor a more detailed help message, press \"h\". To quit, press \"q\".\r\nI/flutter ( 6236): ===image_list=== all loaded in 7340ms.\r\nI/flutter ( 6236): ===image_list=== all loaded in 6765ms.\r\nI/flutter ( 6236): ===image_list=== all loaded in 6517ms.\r\n```\r\n\r\nhttps://github.com/flutter/flutter/pull/39124 adapts image_list test to use local https server.\r\n\r\n## Checklist\r\n\r\nBefore you create this PR confirm that it meets all requirements listed below by checking the relevant checkboxes (`[x]`). This will ensure a smooth and quick review process.\r\n\r\n- [ ] I read the [Contributor Guide] and followed the process outlined there for submitting PRs.\r\n- [ ] I signed the [CLA].\r\n- [ ] I read and followed the [Flutter Style Guide], including [Features we expect every widget to implement].\r\n- [ ] I updated/added relevant documentation (doc comments with `///`).\r\n- [ ] All existing and new tests are passing.\r\n- [ ] The analyzer (`flutter analyze --flutter-repo`) does not report any problems on my PR.\r\n- [ ] I am willing to follow-up on review comments in a timely manner.\r\n\r\n## Breaking Change\r\n\r\nDoes your PR require Flutter developers to manually update their apps to accommodate your change?\r\n\r\n- [ ] Yes, this is a breaking change (Please read [Handling breaking changes]). https://groups.google.com/forum/#!topic/flutter-announce/qBEwMnPNYXU\r\n- [x] No, this is *not* a breaking change.\r",
+    "createdAt": "2019-06-10T22:18:45Z"
+  },
+  {
+    "id": 2878,
+    "sender": "aam",
+    "content": "@tvolkert @hixie fyi",
+    "createdAt": "2019-06-10T22:19:44Z"
+  },
+  {
+    "id": 2879,
+    "sender": "tvolkert",
+    "content": "+cc @yjbanov for implications of using `dart:isolate` on the web.",
+    "createdAt": "2019-06-10T22:37:32Z"
+  }
+]

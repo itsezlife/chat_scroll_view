@@ -1,0 +1,386 @@
+[
+  {
+    "id": 6464,
+    "sender": "vijayvaghela72",
+    "content": "i am sock to heart that the hot - reload not working in flutter web ",
+    "createdAt": "2023-04-12T06:15:15Z"
+  },
+  {
+    "id": 6465,
+    "sender": "TomerconDevelopers",
+    "content": "guys don't use flutter for web apps. Here are the problems i faced in web during my 3 years experience with flutter\r\n1. No hot reload, for every single piece of change, you need to check from starting\r\n2. No deep hyperlinking. Not seo friendly. Unable to deep link to a page properly\r\n3. Many plugins are not properly implemented in web\r\n4. Initial page load time is higher than pure html or other frameworks\r\n5. responsive page building is difficult\r\n6. after each update of your website, in case of pure html you only need to download new changes, all other style files, js files automatically cached, while in the case of flutter, you need to download whole main.js file\r\n7. if you already use a framework in backend, then its easy to integrate your frontend logic using tempate like blade in laravel, handlebars in nodejs. While in flutter everything is need to build as APIs in backend.\r\n8. Testing is difficult, in pure html you can manually test individual pages",
+    "createdAt": "2023-04-14T09:53:19Z"
+  },
+  {
+    "id": 6466,
+    "sender": "FilipKrawiec",
+    "content": "> @michaellee8 I'm not aware of any published articles. The best technical deep dive is to check out the [code for the dart2wasm compiler](https://github.com/dart-lang/sdk/tree/main/pkg/dart2wasm).\r\n> \r\n> The Dart VM isn't compiled to WASM. Instead, the compiler uses the new WasmGC instructions that are being added to WebAssembly spec right now (it's a [stage 3 proposal](https://github.com/WebAssembly/proposals) as of this writing), so the WebAssembly runtime _is_ the VM for Dart when compiled to wasm. Hot-reload depends on the code loading capabilities of the WebAssembly runtime, and at the moment those capabilities are too limited to implement a Dart VM-like hot reload. For the time being we'll continue supporting hot restart via DDC and JavaScript.\r\n> \r\n> We've mused about different kinds of approaches we could take to add stateful hot reload:\r\n> \r\n> * Add hot reload to DDC.\r\n> * A [Dartium](https://google.fandom.com/wiki/Dartium)-like approach of embedding the Dart VM into Chromium.\r\n> * Use Flutter's desktop embedder, perhaps with Chromium attached to it to have access to browser API.\r\n> * Propose a hot-reload extension to WebAssembly.\r\n> \r\n> I'm sure there are other options we haven't even imagined yet. What we do know is that it would be a huge effort, so we really need to balance it with other things our users want us to do.\r\n\r\nIt may be huge effort, but for web development, improved performance, using fancy wasm etc. is not as important as we are forced to pick other framework.",
+    "createdAt": "2023-05-11T17:53:54Z"
+  },
+  {
+    "id": 6467,
+    "sender": "vijayvaghela72",
+    "content": "why my comment is mark as duplicate ?\r\n",
+    "createdAt": "2023-05-12T03:53:01Z"
+  },
+  {
+    "id": 6468,
+    "sender": "vijayvaghela72",
+    "content": "there is truth flutter not enough good flutter web ",
+    "createdAt": "2023-05-12T03:53:36Z"
+  },
+  {
+    "id": 6469,
+    "sender": "vijayvaghela72",
+    "content": "also i read this comment and currently it's says it's duplicate it's not but it's truth which flutter team have to accept \r\n\r\n'''\r\nguys don't use flutter for web apps. Here are the problems i faced in web during my 3 years experience with flutter\r\n\r\nNo hot reload, for every single piece of change, you need to check from starting\r\nNo deep hyperlinking. Not seo friendly. Unable to deep link to a page properly\r\nMany plugins are not properly implemented in web\r\nInitial page load time is higher than pure html or other frameworks\r\nresponsive page building is difficult\r\nafter each update of your website, in case of pure html you only need to download new changes, all other style files, js files automatically cached, while in the case of flutter, you need to download whole main.js file\r\nif you already use a framework in backend, then its easy to integrate your frontend logic using tempate like blade in laravel, handlebars in nodejs. While in flutter everything is need to build as APIs in backend.\r\nTesting is difficult, in pure html you can manually test individual pages\r\n\r\n'''\r\n\r\nabove comment is almost true .\r\nThank you .",
+    "createdAt": "2023-05-12T03:56:44Z"
+  },
+  {
+    "id": 6470,
+    "sender": "Hixie",
+    "content": "Before commenting on Flutter issues please see our [comment policy](https://github.com/flutter/flutter/wiki/Issue-hygiene#comments) and [code of conduct](https://github.com/flutter/flutter/blob/master/CODE_OF_CONDUCT.md).\r\n\r\nNotably, please do not add comments to the effect of \"me too\" (just click the \"thumb-up\" button at the top of the issue), and please do not act as if you expect other people to fix bugs for you. Flutter is an open source project with many contributors (some paid, some not). If there is an issue that is blocking your work, rather than expecting someone else to fix it for you, consider how you might be able to contribute to the project to resolve it. If the problem is outside your skillset, you may be able to hire someone to fix the bug for you.\r\n\r\nSimilarly, please do not ask for updates. Any updates to issues will be reported when they are available. In the meantime, for the most [popular issues](https://github.com/flutter/flutter/wiki/Popular-issues), the comment at the top of the issue will often have a link to a comment with the current status.",
+    "createdAt": "2023-05-12T06:15:39Z"
+  },
+  {
+    "id": 6471,
+    "sender": "moesaid",
+    "content": "any update ?",
+    "createdAt": "2023-09-18T20:52:52Z"
+  },
+  {
+    "id": 6472,
+    "sender": "vijayvaghela72",
+    "content": "i think team is not working on flutter web .",
+    "createdAt": "2023-09-19T01:41:37Z"
+  },
+  {
+    "id": 6473,
+    "sender": "vijayvaghela72",
+    "content": "flutter app development is just awesome but web we need same simple as app development .",
+    "createdAt": "2023-09-19T01:42:42Z"
+  },
+  {
+    "id": 6474,
+    "sender": "Andrewcpu",
+    "content": "Where can I start to look to contribute to Flutter + add stateful hot reload? ",
+    "createdAt": "2023-11-22T03:02:22Z"
+  },
+  {
+    "id": 6475,
+    "sender": "hyungtaecf",
+    "content": "I wonder if, with the advent of WebAssembly (Wasm) support for Flutter Web, this couldn't be more easily achievable because it wouldn't depend entirely on JavaScript.\r\n\r\nAnother idea would be running the debug app like an emulator on top of a JavaScript version of the Dart VM.",
+    "createdAt": "2023-11-22T08:46:56Z"
+  },
+  {
+    "id": 6476,
+    "sender": "tomasweigenast",
+    "content": "Any update on this? Any work in progress or something like that?",
+    "createdAt": "2024-02-09T22:10:30Z"
+  },
+  {
+    "id": 6477,
+    "sender": "IchordeDionysos",
+    "content": "@tomasweigenast just want to point toward the Flutter roadmap for 2024: https://github.com/flutter/flutter/wiki/Roadmap\r\nIt's listed there as the last item with \"plan to resume work\".\r\n\r\nRoadmaps can change, but it seems like we can carefully hope for some progress this year (if everything goes well).\r\nFeel free to react instead of responding to not spam this issue 😌 ",
+    "createdAt": "2024-02-15T20:20:15Z"
+  },
+  {
+    "id": 6478,
+    "sender": "sigmundch",
+    "content": "Indeed - it's part of the Dart web team plans to dive into hot reload support. It's a long road ahead and we are just getting started, so we don't have much to share at this time. We'll be tracking our efforts in https://github.com/dart-lang/sdk/issues/54934.",
+    "createdAt": "2024-02-15T22:17:00Z"
+  },
+  {
+    "id": 6479,
+    "sender": "kaumudpa",
+    "content": "This issue should be tagged as P1 and not as P2.",
+    "createdAt": "2024-03-22T09:10:07Z"
+  },
+  {
+    "id": 6480,
+    "sender": "Hixie",
+    "content": "Please see <https://github.com/flutter/flutter/wiki/Issue-hygiene#escalating-an-issue-that-has-the-wrong-priority>.",
+    "createdAt": "2024-03-22T16:27:42Z"
+  },
+  {
+    "id": 6481,
+    "sender": "ElihuJ",
+    "content": "We are almost at the end of the year, could you please advise if the work for hot reload in Web has been resumed? ",
+    "createdAt": "2024-11-18T06:07:16Z"
+  },
+  {
+    "id": 6482,
+    "sender": "hahouari",
+    "content": "@ElihuJ Apparently YES, something like https://github.com/flutter/flutter/pull/161276 was merged recently which brings flutter closer to hot reload, though I didn't yet find anything organized as a roadmap to display what's implemented and what's not to arrive to fully implemented hot reload.",
+    "createdAt": "2025-01-28T14:05:20Z"
+  },
+  {
+    "id": 6483,
+    "sender": "kevmoo",
+    "content": "Thanks for your patience. It will be rewarded. 😀 ",
+    "createdAt": "2025-02-06T21:30:47Z"
+  },
+  {
+    "id": 6484,
+    "sender": "kaumudpa",
+    "content": "For those who missed the update - few hours ago @kevmoo announced on reddit that this feature is currently available on the beta channel - Requesting everyone to try it and file for any discovered issues as per the post's guidelines.\n\nFull post on reddit can be [accessed here](https://www.reddit.com/r/FlutterDev/comments/1jedakr/try_out_hot_reload_on_the_web_with_the_latest/).\n\nA big shoutout to @kevmoo to finally make this happen 🫡 🙏. Fingers crossed for the stable release 🤞. ",
+    "createdAt": "2025-03-19T07:59:21Z"
+  },
+  {
+    "id": 6485,
+    "sender": "kevmoo",
+    "content": "> A big shoutout to @kevmoo \n\nI'm just the joyful messenger. We have an AMAZING team who has pulled this all together.\n\n",
+    "createdAt": "2025-03-19T14:28:30Z"
+  },
+  {
+    "id": 6486,
+    "sender": "talski",
+    "content": "I'm using beta with --wasm and getting this error, \n\n```Failed to Hot Reload: DebugAdapterException: LateInitializationError: Local 'report' has not been initialized.``` \n\nnow when I save a file I need to wait almost 1 minute to app to refresh, without wasm it seems to work, but it still reloads the whole page\n",
+    "createdAt": "2025-04-25T20:47:37Z"
+  },
+  {
+    "id": 6487,
+    "sender": "biggs0125",
+    "content": "Hi all,\n\nWe're happy to announce that the newly released Flutter 3.32 now includes hot reload for the web! \n\nThere are some pretty significant changes to our web development compiler so we've included an opt-in flag for the feature. This will allow developers to kick the tires on it before we [enable it by default](https://github.com/flutter/flutter/issues/167510) in the next release.\n\nCheck out the [Flutter docs](https://docs.flutter.dev/platform-integration/web/building#hot-reload-web) for more information on how to enable this feature in your local environment.\n\nHappy hot reloading 🔥 ♻ !\n\n- The Dart Web team",
+    "createdAt": "2025-05-20T20:51:46Z"
+  },
+  {
+    "id": 6488,
+    "sender": "dpnnl",
+    "content": "> Hi all,\n> \n> We're happy to announce that the newly released Flutter 3.32 now includes hot reload for the web!\n> \n> There are some pretty significant changes to our web development compiler so we've included an opt-in flag for the feature. This will allow developers to kick the tires on it before we [enable it by default](https://github.com/flutter/flutter/issues/167510) in the next release.\n> \n> Check out the [Flutter docs](https://docs.flutter.dev/platform-integration/web/building#hot-reload-web) for more information on how to enable this feature in your local environment.\n> \n> Happy hot reloading 🔥 ♻ !\n> \n> * The Dart Web team\n\nAh finally! I've been waiting a long time for this (years?). Congratulations to the team!",
+    "createdAt": "2025-05-20T20:54:53Z"
+  },
+  {
+    "id": 6489,
+    "sender": "victorsanni",
+    "content": "## Raw tooltip with smaller API surface that exposes tooltip widget\n\nThe raw widget used to make a [Tooltip](https://api.flutter.dev/flutter/material/Tooltip-class.html).\r\n\r\nDesign doc: flutter.dev/go/codeshare-tooltip\r\n\r\n## Constructor\r\n```dart\r\nclass RawTooltip extends StatefulWidget {\r\n  const RawTooltip({\r\n    super.key,\r\n    required this.semanticsTooltip,\r\n    required this.tooltipBuilder,\r\n    this.enableTapToDismiss = true,\r\n    this.triggerMode = TooltipTriggerMode.longPress,\r\n    this.enableFeedback = true,\r\n    this.onTriggered,\r\n    this.hoverDelay = Duration.zero,\r\n    this.touchDelay = const Duration(milliseconds: 1500),\r\n    this.dismissDelay = const Duration(milliseconds: 100),\r\n    this.animationStyle = _kDefaultAnimationStyle,\r\n    this.positionDelegate,\r\n    required this.child,\r\n  });\r\n```\r\n\r\n## Properties\r\n```dart\r\n  final String semanticsTooltip;\r\n  final TooltipComponentBuilder tooltipBuilder;\r\n  final Duration hoverDelay;\r\n  final Duration touchDelay;\r\n  final Duration dismissDelay;\r\n  final bool enableTapToDismiss;\r\n  final TooltipTriggerMode triggerMode;\r\n  final bool enableFeedback;\r\n  final TooltipTriggeredCallback? onTriggered;\r\n  final AnimationStyle animationStyle;\r\n  final TooltipPositionDelegate? positionDelegate;\r\n  final Widget child;\r\n```\r\n\r\nPart of [☂️ Reinforcement: Add more basic components to the core framework](https://github.com/flutter/flutter/issues/97496)\r\nPart of [☂️ Reinforcement: Refactor widgets from design into the core before decoupling](https://github.com/flutter/flutter/issues/53059)\r\nFixes [Custom Overlay for Tooltip Widget ](https://github.com/flutter/flutter/issues/45034)",
+    "createdAt": "2025-10-28T19:02:50Z"
+  },
+  {
+    "id": 6490,
+    "sender": "victorsanni",
+    "content": "I've addressed the comments in the design doc, this PR is ready for review.",
+    "createdAt": "2025-12-01T17:52:04Z"
+  },
+  {
+    "id": 6491,
+    "sender": "shubham-ctl",
+    "content": "## [shared_preferences] Android exception: `Unable to establish connection on channel: \"dev.flutter.pigeon.shared_preferences_android.SharedPreferencesApi.getAll\"`\n\nLong explanation of what is happening https://github.com/flutter/flutter/issues/153075#issuecomment-3313363609 \n\nTLDR: Update your Android Gradle Plugin version to 8.9.1 or higher and ensure that all of your android plugins are using at least AGP 8.9.1 or higher. \n\nIf you have a reproduction that is using AGP 8.9.1 and higher for an app and all of its plugins please add a comment with your reproduction. \n\n### Steps to reproduce\n\n1. Use old api of shared preferences.\n2. Build the app.\n\n### Expected results\n\nIt should work with old api of shared preferences.\n\n### Actual results\n\nGetting exception as below\n\nUnhandled Exception: PlatformException(channel-error, Unable to establish connection on channel: \"dev.flutter.pigeon.shared_preferences_android.SharedPreferencesApi.getAll\"., null, null)\n\n### Code sample\n\n<details open><summary>Code sample</summary>\n\n```dart\n_sharedPrefs = await SharedPreferences.getInstance();\n```\n\n</details>\n\n\n### Screenshots or Video\n\n<details open>\n<summary>Screenshots / Video demonstration</summary>\n\n[Upload media here]\n\n</details>\n\n\n### Logs\n\n<details open><summary>Logs</summary>\n\n```console\n[Paste your logs here]\n```\n\n</details>\n\n\n### Flutter Doctor output\n\n<details open><summary>Doctor output</summary>\n\n```console\n[✓] Flutter (Channel stable, 3.22.3, on macOS 14.4.1 23E224 darwin-arm64, locale en-IN)\n[✓] Android toolchain - develop for Android devices (Android SDK version 34.0.0)\n[✓] Xcode - develop for iOS and macOS (Xcode 15.4)\n[✓] Chrome - develop for the web\n[✓] Android Studio (version 2023.2)\n[✓] VS Code (version 1.92.0)\n[✓] Connected device (4 available)\n[✓] Network resources\n\n• No issues found!\n```\n\n</details>",
+    "createdAt": "2024-08-08T06:23:22Z"
+  },
+  {
+    "id": 6492,
+    "sender": "huycozy",
+    "content": "Hi @shubham-ctl \r\nWhich `shared_preferences_android` package version you are using? (Please check it on `pubspec.lock` file). \r\n\r\nPlease also provide the entire output of `flutter run -v` to see the complete crash stack trace. Thanks!",
+    "createdAt": "2024-08-08T09:18:34Z"
+  },
+  {
+    "id": 6493,
+    "sender": "AlvinImeje",
+    "content": "Having the same issue with the shared_preferences: ^2.3.1 . Deleting my debug APK and rebuilding has no effect. Any ideas on how to resolve it?",
+    "createdAt": "2024-08-12T01:19:38Z"
+  },
+  {
+    "id": 6494,
+    "sender": "huycozy",
+    "content": "@AlvinImeje Can you share a [completed and minimal reproducible code sample](https://stackoverflow.com/help/minimal-reproducible-example) along with the complete crash stack trace?",
+    "createdAt": "2024-08-12T10:49:08Z"
+  },
+  {
+    "id": 6495,
+    "sender": "AlvinImeje",
+    "content": "Here's the code causing the issue:\r\n\r\n```dart\r\nString userId = json1[\"user id\"].toString();\r\nString userName = json1[\"username\"].toString();\r\nString userType = json1[\"user type\"].toString();\r\n\r\nSharedPreferences prefs = await SharedPreferences.getInstance();\r\nawait prefs.setString('user id', userId);\r\nawait prefs.setString('user name', userName);\r\nawait prefs.setString('user email', userEmail!);\r\nawait prefs.setString('user type', userType);\r\n\r\nNavigator.of(context)\r\n    .pushReplacement(MaterialPageRoute(builder: (context) {\r\n  return App();\r\n}));\r\n```\r\n\r\nIt's supposed to open a new route after saving the details, but nothing happens and I simply get this on the logs:\r\n\r\n```console\r\n> E/flutter ( 7072): [ERROR:flutter/runtime/dart_vm_initializer.cc(41)] Unhandled Exception: PlatformException(channel-error, Unable to establish connection on channel: \"dev.flutter.pigeon.shared_preferences_android.SharedPreferencesApi.getAll\"., null, null)\r\n```",
+    "createdAt": "2024-08-12T11:43:04Z"
+  },
+  {
+    "id": 6496,
+    "sender": "huycozy",
+    "content": "@AlvinImeje The sample code you provided is a snippet code but is not complete enough to reproduce the issue. Please check my comment above. Thanks!",
+    "createdAt": "2024-08-13T11:12:05Z"
+  },
+  {
+    "id": 6497,
+    "sender": "AlvinImeje",
+    "content": "The rest of the code is not relevant. And that's literally all I get in the stacktrace.",
+    "createdAt": "2024-08-13T23:53:13Z"
+  },
+  {
+    "id": 6498,
+    "sender": "N4J13",
+    "content": "If you're running the project on iOS, make sure that the following line exists in AppDelegate.swift\r\n\r\n`GeneratedPluginRegistrant.register(with: self)`.",
+    "createdAt": "2024-08-14T11:47:35Z"
+  },
+  {
+    "id": 6499,
+    "sender": "AlvinImeje",
+    "content": "I'm running the project on Android. Initially the same code worked fine. With no changes, after upgrading to the latest flutter and shared_preferences versions, it stopped working\r\n\r\n",
+    "createdAt": "2024-08-14T12:58:09Z"
+  },
+  {
+    "id": 6500,
+    "sender": "Trung15010802",
+    "content": "I have the same issue \r\n**Edit:** I'm using EventChannel to invoke java code on mobile. Running normally on web\r\n![image](https://github.com/user-attachments/assets/3d74607c-693b-4ecd-8f71-02e5531c6b58)\r\n![image](https://github.com/user-attachments/assets/3e27ac11-7469-4b37-b644-f9bdbe0994b9)\r\n\r\n\r\n```console\r\n'-- shared_preferences 2.3.2\r\n    |-- shared_preferences_android 2.3.1\r\n    |   |-- flutter...\r\n    |   '-- shared_preferences_platform_interface...\r\n    |-- shared_preferences_foundation 2.5.2\r\n    |   |-- flutter...\r\n    |   '-- shared_preferences_platform_interface...\r\n    |-- shared_preferences_linux 2.4.1\r\n    |   |-- file 7.0.0\r\n    |   |   |-- meta...\r\n    |   |   '-- path...\r\n    |   |-- path_provider_linux 2.2.1\r\n    |   |   |-- ffi 2.1.3\r\n    |   |   |-- xdg_directories 1.0.4\r\n    |   |   |   |-- meta...\r\n    |   |   |   '-- path...\r\n    |   |   |-- flutter...\r\n    |   |   |-- path...\r\n    |   |   '-- path_provider_platform_interface...\r\n    |   |-- path_provider_platform_interface 2.1.2\r\n    |   |   |-- platform 3.1.5\r\n    |   |   |-- flutter...\r\n    |   |   '-- plugin_platform_interface...\r\n    |   |-- flutter...\r\n    |   |-- path...\r\n    |   '-- shared_preferences_platform_interface...\r\n    |-- shared_preferences_platform_interface 2.4.1\r\n    |   |-- plugin_platform_interface 2.1.8\r\n    |   |   '-- meta...\r\n    |   '-- flutter...\r\n    |-- shared_preferences_web 2.4.2\r\n    |   |-- flutter_web_plugins 0.0.0\r\n    |   |   |-- characters...\r\n    |   |   |-- collection...\r\n    |   |   |-- flutter...\r\n    |   |   |-- material_color_utilities...\r\n    |   |   |-- meta...\r\n    |   |   '-- vector_math...\r\n    |   |-- web 1.0.0\r\n    |   |-- flutter...\r\n    |   '-- shared_preferences_platform_interface...\r\n    |-- shared_preferences_windows 2.4.1\r\n    |   |-- path_provider_windows 2.3.0\r\n    |   |   |-- ffi...\r\n    |   |   |-- flutter...\r\n    |   |   |-- path...\r\n    |   |   '-- path_provider_platform_interface...\r\n    |   |-- file...\r\n    |   |-- flutter...\r\n    |   |-- path...\r\n    |   |-- path_provider_platform_interface...\r\n    |   '-- shared_preferences_platform_interface...\r\n    '-- flutter...\r\n```",
+    "createdAt": "2024-08-16T04:44:25Z"
+  },
+  {
+    "id": 6501,
+    "sender": "Trung15010802",
+    "content": "In my case I add            ` super.configureFlutterEngine(flutterEngine); // Add this line`\r\nin MainActivity.java ",
+    "createdAt": "2024-08-19T03:17:05Z"
+  },
+  {
+    "id": 6502,
+    "sender": "AlvinImeje",
+    "content": "> In my case I add ` super.configureFlutterEngine(flutterEngine); // Add this line` in MainActivity.java\r\n\r\nWhat would be the kotlin version of this?",
+    "createdAt": "2024-08-19T04:41:19Z"
+  },
+  {
+    "id": 6503,
+    "sender": "googlb",
+    "content": "Having the same issue with the shared_preferences: ^2.3.2\r\n`flutter run --release --verbose`\r\n`[ +415 ms] E/flutter (10477): [ERROR:flutter/runtime/dart_vm_initializer.cc(41)] Unhandled Exception:\r\nPlatformException(channel-error, Unable to establish connection on channel:\r\n\"dev.flutter.pigeon.shared_preferences_android.SharedPreferencesApi.getAll\"., null, null)\r\n[        ] E/flutter (10477): `",
+    "createdAt": "2024-08-19T04:41:51Z"
+  },
+  {
+    "id": 6504,
+    "sender": "AwaisQazii",
+    "content": "facing same issue",
+    "createdAt": "2024-08-19T13:00:55Z"
+  },
+  {
+    "id": 6505,
+    "sender": "huycozy",
+    "content": "@stuartmorgan There are several reports for this issue, I wonder if this is also similar to https://github.com/flutter/flutter/issues/153412 and is duplicated of https://github.com/flutter/flutter/issues/43785 per your comment at https://github.com/flutter/flutter/issues/153412#issuecomment-2299652675",
+    "createdAt": "2024-08-21T03:23:58Z"
+  },
+  {
+    "id": 6506,
+    "sender": "stuartmorgan-g",
+    "content": "No, this is unrelated to 43785; `shared_preferences` doesn't have any instance-based channels.\r\n\r\nGiven that this is only affecting release Android builds, it feels like an R8 issue. It may be that the analysis is incorrectly determining that the legacy plugin class is unreachable and removing it.\r\n\r\nFor those experiencing this:\r\n- Does using the new `WithCache` API work in the same build configuration where the legacy API is failing?\r\n- Does [adding a ProGuard rule](https://developer.android.com/build/shrink-code) to keep `io.flutter.plugins.sharedpreferences.LegacySharedPreferencesPlugin` fix the issue?\r\n\r\nIf this is the problem, we can add a rule to the plugin itself.",
+    "createdAt": "2024-08-21T09:43:39Z"
+  },
+  {
+    "id": 6507,
+    "sender": "rekire",
+    "content": "FYI: I run into the same bug, within the EasyLocation package. the exception is thrown in:\r\n```dart\r\n  static Future<void> initEasyLocation() async {\r\n    final preferences = await SharedPreferences.getInstance();\r\n```\r\nChecking now for this error in the package issues itself. Spoiler: There seems to be no exact match, but an older similar issue.",
+    "createdAt": "2024-08-25T12:35:48Z"
+  },
+  {
+    "id": 6508,
+    "sender": "rekire",
+    "content": "@stuartmorgan I created a new issue in that package. In my case I can sort out R8, can you explain me what you mean with the `WithCache` API?",
+    "createdAt": "2024-08-25T13:06:59Z"
+  },
+  {
+    "id": 6509,
+    "sender": "stuartmorgan-g",
+    "content": "> I created a new issue in that package.\r\n\r\nPackages using `shared_preferences` do not need to do anything different than they were doing before.\r\n\r\n> In my case I can sort out R8, can you explain me what you mean with the `WithCache` API?\r\n\r\nThe question is whether `SharedPreferencesWithCache.create` works in the same builds where `SharedPreferences.getInstance` fails (which would potentially indicate that R8 is stripping out the secondary Java class, but not the primary one).",
+    "createdAt": "2024-08-26T15:02:01Z"
+  },
+  {
+    "id": 6510,
+    "sender": "huycozy",
+    "content": "Keeping this issue open for further input from others. If anyone experiences this issue, please take a look at https://github.com/flutter/flutter/issues/153075#issuecomment-2301620868 and confirm info and solution there. ",
+    "createdAt": "2024-08-28T11:28:22Z"
+  },
+  {
+    "id": 6511,
+    "sender": "rekire",
+    "content": "**@stuartmorgan said:**\r\n> The question is whether `SharedPreferencesWithCache.create` works in the same builds where `SharedPreferences.getInstance` fails (which would potentially indicate that R8 is stripping out the secondary Java class, but not the primary one).\r\n\r\nI forked the library locally and replaced ([my diff](https://github.com/rekire/easy_localization_fork/commit/7d49612e0321f62ae88dbe3f3ad0eb910b4dbd3a)):\r\n```dart\r\nfinal preferences = await SharedPreferences.getInstance();\r\n```\r\nby:\r\n```dart\r\nfinal preferences = await SharedPreferencesWithCache.create(\r\n  cacheOptions: const SharedPreferencesWithCacheOptions(allowList: null),\r\n);\r\n```\r\nthen I still get the same exception:\r\n\r\n> E/flutter (27050): [ERROR:flutter/runtime/dart_vm_initializer.cc(41)] Unhandled Exception: PlatformException(channel-error, Unable to establish connection on channel: \"dev.flutter.pigeon.shared_preferences_android.SharedPreferencesAsyncApi.getAll\"., null, null)\r\n> E/flutter (27050): #0      SharedPreferencesAsyncApi.getAll (package:shared_preferences_android/src/messages_async.g.dart:376:7)\r\n> E/flutter (27050): <asynchronous suspension>\r\n> E/flutter (27050): #1      SharedPreferencesAsyncAndroid.getPreferences (package:shared_preferences_android/src/shared_preferences_async_android.dart:184:40)\r\n> E/flutter (27050): <asynchronous suspension>\r\n> E/flutter (27050): #2      SharedPreferencesWithCache.reloadCache (package:shared_preferences/src/shared_preferences_async.dart:225:9)\r\n> E/flutter (27050): <asynchronous suspension>\r\n> E/flutter (27050): #3      SharedPreferencesWithCache.create (package:shared_preferences/src/shared_preferences_async.dart:200:5)\r\n> E/flutter (27050): <asynchronous suspension>\r\n> E/flutter (27050): #4      EasyLocalizationController.initEasyLocation (package:easy_localization/src/easy_localization_controller.dart:212:25)\r\n> E/flutter (27050): <asynchronous suspension>\r\n> E/flutter (27050): #5      EasyLocalization.ensureInitialized (package:easy_localization/src/easy_localization_app.dart:163:7)\r\n> E/flutter (27050): <asynchronous suspension>\r\n\r\nIn my test project are minification and r8 disabled. Edit: This also happens on a clean build, just to sort this out.",
+    "createdAt": "2024-08-31T09:46:45Z"
+  },
+  {
+    "id": 6512,
+    "sender": "cliff-rono",
+    "content": "I did a `flutter clean` \r\nI ran the app again, and issue was fixed. This is `shared_preferences: ^2.3.2`",
+    "createdAt": "2024-08-31T11:32:45Z"
+  },
+  {
+    "id": 6513,
+    "sender": "AnikethMohan",
+    "content": "I am facing the same issue with but with hive .",
+    "createdAt": "2024-09-02T06:08:08Z"
+  },
+  {
+    "id": 6514,
+    "sender": "reidbaker",
+    "content": "> No, this is unrelated to 43785; `shared_preferences` doesn't have any instance-based channels.\r\n> \r\n> Given that this is only affecting release Android builds, it feels like an R8 issue. It may be that the analysis is incorrectly determining that the legacy plugin class is unreachable and removing it.\r\n> \r\n> For those experiencing this:\r\n> \r\n> * Does using the new `WithCache` API work in the same build configuration where the legacy API is failing?\r\n> * Does [adding a ProGuard rule](https://developer.android.com/build/shrink-code) to keep `io.flutter.plugins.sharedpreferences.LegacySharedPreferencesPlugin` fix the issue?\r\n> \r\n> If this is the problem, we can add a rule to the plugin itself.\r\n\r\nIf adding the proguard rule fixes your issue then. \r\nhttps://github.com/flutter/flutter/pull/154677 when landed will also fix your issue. ",
+    "createdAt": "2024-09-05T18:31:49Z"
+  },
+  {
+    "id": 6515,
+    "sender": "reidbaker",
+    "content": "The flutter android teams current belief is that the issue is not related to shared preferences code but instead related possibly to the version of r8/d8 used during compilation. ",
+    "createdAt": "2024-09-05T18:35:20Z"
+  },
+  {
+    "id": 6516,
+    "sender": "rekire",
+    "content": "I still don't think this is related to r8 since this happens for me also in debug builds where r8 is not used. See my demo project here: https://github.com/rekire/flutter_issue_153075",
+    "createdAt": "2024-09-05T19:20:24Z"
+  },
+  {
+    "id": 6517,
+    "sender": "reidbaker",
+    "content": "> In my test project are minification and r8 disabled\r\n\r\nSorry I missed \"In my test project are minification and r8 disabled\" ",
+    "createdAt": "2024-09-05T19:24:20Z"
+  },
+  {
+    "id": 6518,
+    "sender": "huycozy",
+    "content": "@rekire I ran your sample project in debug and release mode but the issue didn't appear. What is Flutter version and Android device you are checking on?",
+    "createdAt": "2024-09-06T04:45:39Z"
+  },
+  {
+    "id": 6519,
+    "sender": "rekire",
+    "content": "That is surprising me. I'm using Windows 11 and MacOS 14.6.1, Flutter 3.24.1/3.24.2 and I run it on my Pixel 6 with Android 14.\r\n\r\n<details><summary>Doctor output (Windows)</summary>\r\n\r\n```console\r\nDoctor summary (to see all details, run flutter doctor -v):\r\n[√] Flutter (Channel stable, 3.24.1, on Microsoft Windows [Version 10.0.22631.4037], locale de-DE)\r\n[√] Windows Version (Installed version of Windows is version 10 or higher)\r\n[√] Android toolchain - develop for Android devices (Android SDK version 34.0.0)\r\n[√] Chrome - develop for the web\r\n[√] Visual Studio - develop Windows apps (Visual Studio Community 2022 17.8.3)\r\n[√] Android Studio (version 2024.1)\r\n[√] Connected device (3 available)\r\n[√] Network resources\r\n\r\n• No issues found!\r\n```\r\n</details>\r\n\r\n<details><summary>Doctor output (MacOS)</summary>\r\n\r\n```console\r\nDoctor summary (to see all details, run flutter doctor -v):\r\n[✓] Flutter (Channel stable, 3.24.2, on macOS 14.6.1 23G93 darwin-arm64, locale de-DE)\r\n[✓] Android toolchain - develop for Android devices (Android SDK version 35.0.0)\r\n[✓] Xcode - develop for iOS and macOS (Xcode 15.4)\r\n[✓] Chrome - develop for the web\r\n[✓] Android Studio (version 2024.1)\r\n[✓] IntelliJ IDEA Community Edition (version 2024.2.0.1)\r\n[✓] VS Code (version 1.92.2)\r\n[✓] Connected device (4 available)            \r\n[✓] Network resources\r\n\r\n• No issues found!\r\n```\r\n</details>",
+    "createdAt": "2024-09-06T04:54:11Z"
+  },
+  {
+    "id": 6520,
+    "sender": "sylvbravo",
+    "content": "@rekire I noticed this error is on older version of android, you can try it on android 10 emulator. I also encounter the same issue using SharedPreferencesAsync(). when I call getbool() on a variable that has not been set before.\r\n\r\nIt works perfectly on android 14",
+    "createdAt": "2024-09-06T12:08:27Z"
+  },
+  {
+    "id": 6521,
+    "sender": "camsim99",
+    "content": "Just tried reproducing this on a Pixel 3A running Android 12 by adding a call to `final preferences = await SharedPreferences.getInstance();` to the template counter app and did not see an issue. Going to try running on an older device to see if I get the error, and if not, try to figure out what I'm missing.\r\n\r\nUpdate: Tried API 26 and that also did not work.",
+    "createdAt": "2024-09-06T15:56:38Z"
+  },
+  {
+    "id": 6522,
+    "sender": "elijahloola",
+    "content": "> MainActivity.java\r\n\r\nWhere do you find this file in a Flutter project? (with VS Code)",
+    "createdAt": "2024-09-06T17:45:43Z"
+  },
+  {
+    "id": 6523,
+    "sender": "camsim99",
+    "content": "Ok I was able to see an error with https://github.com/rekire/flutter_issue_153075:\r\n\r\n<details open>\r\n<summary>Error</summary>\r\n<br>\r\n\r\n```\r\nInstalling build/app/outputs/flutter-apk/app-debug.apk...           4.4s\r\nE/flutter ( 3198): [ERROR:flutter/runtime/dart_vm_initializer.cc(40)] Unhandled Exception: Binding has not yet been initialized.\r\nE/flutter ( 3198): The \"instance\" getter on the ServicesBinding binding mixin is only available once that binding has been initialized.\r\nE/flutter ( 3198): Typically, this is done by calling \"WidgetsFlutterBinding.ensureInitialized()\" or \"runApp()\" (the latter calls the former). Typically this call is done in the \"void main()\" method. The \"ensureInitialized\" method is idempotent; calling it multiple times is not harmful. After calling that method, the \"instance\" getter will return the binding.\r\nE/flutter ( 3198): In a test, one can call \"TestWidgetsFlutterBinding.ensureInitialized()\" as the first line in the test's \"main()\" method to initialize the binding.\r\nE/flutter ( 3198): If ServicesBinding is a custom binding mixin, there must also be a custom binding class, like WidgetsFlutterBinding, but that mixes in the selected binding, and that is the class that must be constructed before using the \"instance\" getter.\r\nE/flutter ( 3198): #0      BindingBase.checkInstance.<anonymous closure> (package:flutter/src/foundation/binding.dart:310:9)\r\nE/flutter ( 3198): #1      BindingBase.checkInstance (package:flutter/src/foundation/binding.dart:391:6)\r\nE/flutter ( 3198): #2      ServicesBinding.instance (package:flutter/src/services/binding.dart:69:54)\r\nE/flutter ( 3198): #3      _findBinaryMessenger (package:flutter/src/services/platform_channel.dart:158:25)\r\nE/flutter ( 3198): #4      BasicMessageChannel.binaryMessenger (package:flutter/src/services/platform_channel.dart:204:56)\r\nE/flutter ( 3198): #5      BasicMessageChannel.send (package:flutter/src/services/platform_channel.dart:218:38)\r\nE/flutter ( 3198): #6      SharedPreferencesAsyncApi.getAll (package:shared_preferences_android/src/messages_async.g.dart:374:10)\r\nE/flutter ( 3198): #7      SharedPreferencesAsyncAndroid.getPreferences (package:shared_preferences_android/src/shared_preferences_async_android.dart:184:51)\r\nE/flutter ( 3198): #8      SharedPreferencesAsync.getAll (package:shared_preferences/src/shared_preferences_async.dart:55:22)\r\nE/flutter ( 3198): #9      SharedPreferencesWithCache.reloadCache (package:shared_preferences/src/shared_preferences_async.dart:225:32)\r\nE/flutter ( 3198): #10     SharedPreferencesWithCache.create (package:shared_preferences/src/shared_preferences_async.dart:200:23)\r\nE/flutter ( 3198): #11     EasyLocalizationController.initEasyLocation (package:easy_localization/src/easy_localization_controller.dart:208:58)\r\nE/flutter ( 3198): #12     EasyLocalization.ensureInitialized (package:easy_localization/src/easy_localization_app.dart:163:40)\r\nE/flutter ( 3198): #13     main (package:shared_prefs_issue/main.dart:6:26)\r\nE/flutter ( 3198): #14     _runMain.<anonymous closure> (dart:ui/hooks.dart:301:23)\r\nE/flutter ( 3198): #15     _delayEntrypointInvocation.<anonymous closure> (dart:isolate-patch/isolate_patch.dart:297:19)\r\nE/flutter ( 3198): #16     _RawReceivePort._handleMessage (dart:isolate-patch/isolate_patch.dart:184:12)\r\nE/flutter ( 3198): \r\n```\r\n</details>\r\n\r\nHowever, this seems unrelated to this issue and moreso to the structure of the app? Changing the location of the `await EasyLocalization.ensureInitialized()` call got rid of the error.\r\n\r\n@rekire or any other reporter: were you able to get a minimal repro for this issue?",
+    "createdAt": "2024-09-06T18:46:18Z"
+  },
+  {
+    "id": 6524,
+    "sender": "rekire",
+    "content": "This is the way I got this bug. When you check the code of the plugin then you can see that basically just SharedPreferences is initialized.\r\n\r\nThe code is mentioned here: https://github.com/flutter/flutter/issues/153075#issuecomment-2308816441",
+    "createdAt": "2024-09-06T20:35:54Z"
+  },
+  {
+    "id": 6525,
+    "sender": "HypertextAssassinRajith",
+    "content": "> I did a `flutter clean` I ran the app again, and issue was fixed. This is `shared_preferences: ^2.3.2`\r\n\r\nthis fixed the issue for me thanks.",
+    "createdAt": "2024-09-09T03:57:55Z"
+  },
+  {
+    "id": 6526,
+    "sender": "camsim99",
+    "content": "> This is the way I got this bug. When you check the code of the plugin then you can see that basically just SharedPreferences is initialized.\r\n> \r\n> The code is mentioned here: [#153075 (comment)](https://github.com/flutter/flutter/issues/153075#issuecomment-2308816441)\r\n\r\nHmm okay. I can't reproduce this issue on my Pixel in debug or release mode with my own repro calling the [code you mentioned](https://github.com/flutter/flutter/issues/153075#issuecomment-2308816441) or https://github.com/rekire/flutter_issue_153075. I only see the error I mentioned [before](https://github.com/flutter/flutter/issues/153075#issuecomment-2334629512) which is unrelated to `shared_preferences` I believe. I get that error when the call to `await SharedPreferences.getInstance()` is called before the call to `runApp(...)` in the `main` method.\r\n\r\nOn Friday, I tried running on some older devices and I don't believe I saw it then either but I can try again. Still wondering if there's something I'm missing to repro.",
+    "createdAt": "2024-09-09T19:09:24Z"
+  },
+  {
+    "id": 6527,
+    "sender": "rekire",
+    "content": "The only thing I could imagine is that I'm using a work profile with the Island App, but I don't really believe that this is the case.",
+    "createdAt": "2024-09-09T19:15:34Z"
+  }
+]

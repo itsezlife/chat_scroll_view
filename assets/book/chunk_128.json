@@ -1,0 +1,386 @@
+[
+  {
+    "id": 8192,
+    "sender": "inagornyi",
+    "content": "Guys, flutter for the web is not a good solution today, my team is now rewriting to reactjs 🤪. A lot of questions to performance, first loading the app, navigation, rendering and many other things where you need to 🩼. Flutter is cool for mobile development for android and ios 😎. I believe that in the future flutter for the web will be number one 🥇.",
+    "createdAt": "2022-11-21T19:32:44Z"
+  },
+  {
+    "id": 8193,
+    "sender": "slavap",
+    "content": "@inagornyi \r\n\r\n> flutter for the web is not a good solution today\r\n\r\nit is a good solution, but not for every possible case.\r\n",
+    "createdAt": "2022-11-22T02:59:10Z"
+  },
+  {
+    "id": 8194,
+    "sender": "justinekatebe69",
+    "content": "> Guys, flutter for the web is not a good solution today, my team is now rewriting to reactjs 🤪. A lot of questions to performance, first loading the app, navigation, rendering and many other things where you need to 🩼. Flutter is cool for mobile development for android and ios 😎. I believe that in the future flutter for the web will be number one 🥇.\r\n\r\nYeah true. It's just not there yet as a web framework honestly. It needs more time... ",
+    "createdAt": "2022-11-24T06:50:55Z"
+  },
+  {
+    "id": 8195,
+    "sender": "kyluke",
+    "content": "following",
+    "createdAt": "2022-11-26T09:21:47Z"
+  },
+  {
+    "id": 8196,
+    "sender": "Piinks",
+    "content": "Per our [issue hygiene](https://github.com/flutter/flutter/wiki/Issue-hygiene#comments), please keep comments on issues focused on the topic. Github issues are not the appropriate venue for conversation.\r\n\r\nAlso, `following` and `me too` comments are generally distracting and make it harder to find other more meaningful content in the bug. If you have no new details to add, consider just thumbs up-ing the issue. If you wish to subscribe to the issue, click the \"subscribe\" button in the right hand column of the GitHub UI. ",
+    "createdAt": "2022-11-28T22:51:27Z"
+  },
+  {
+    "id": 8197,
+    "sender": "commandiron",
+    "content": "15 February 2023, this issue Not solved. OK.",
+    "createdAt": "2023-02-15T13:49:20Z"
+  },
+  {
+    "id": 8198,
+    "sender": "vasilich6107",
+    "content": "For iOS this helps for me\r\n\r\nadd this code before closing body tag\r\n```\r\n<script>\r\n    var element = document.getElementsByTagName('body')[0];\r\n\r\n    var handleScroll = function() {\r\n      \telement.scrollTo(0, 0);  // required when scroll bar is drgged\r\n    };\r\n\r\n    element.addEventListener('scroll', handleScroll, false);\r\n\r\n    var handleEvent = function(e) {\r\n    \te.preventDefault();      // disables scrolling by mouse wheel and touch move\r\n    };\r\n\r\n    element.addEventListener('scroll', handleEvent,{passive: false});\r\n    element.addEventListener('mousewheel', handleEvent,{passive: false});\r\n    element.addEventListener('touchmove', handleEvent, {passive: false});\r\n  </script>\r\n```\r\n\r\nDo you know any possible workaround for android devices?",
+    "createdAt": "2023-03-13T14:59:59Z"
+  },
+  {
+    "id": 8199,
+    "sender": "yjbanov",
+    "content": "@Piinks \r\n\r\n> We could probably communicate this pretty easily to the engine. AFAIK that's the easy part. When scrolling is occurring, the framework could maybe use a platform channel to let the engine know? From what I can tell we already have all of the recommended and appropriate Apple meta tags and flags set, if we tell the engine we are scrolling, will your idea with `<flt-glass-pane>` work?\r\n\r\nIt might be worth a try, but I haven't tried it myself to say for sure if it would work.",
+    "createdAt": "2023-03-21T01:12:09Z"
+  },
+  {
+    "id": 8200,
+    "sender": "jiazhong520",
+    "content": "这个问题还没解决吗",
+    "createdAt": "2023-03-22T04:37:37Z"
+  },
+  {
+    "id": 8201,
+    "sender": "tompetk",
+    "content": "> For iOS this helps for me\r\n> \r\n> add this code before closing body tag\r\n> \r\n> ```\r\n> <script>\r\n>     var element = document.getElementsByTagName('body')[0];\r\n> \r\n>     var handleScroll = function() {\r\n>       \telement.scrollTo(0, 0);  // required when scroll bar is drgged\r\n>     };\r\n> \r\n>     element.addEventListener('scroll', handleScroll, false);\r\n> \r\n>     var handleEvent = function(e) {\r\n>     \te.preventDefault();      // disables scrolling by mouse wheel and touch move\r\n>     };\r\n> \r\n>     element.addEventListener('scroll', handleEvent,{passive: false});\r\n>     element.addEventListener('mousewheel', handleEvent,{passive: false});\r\n>     element.addEventListener('touchmove', handleEvent, {passive: false});\r\n>   </script>\r\n> ```\r\n> \r\n> Do you know any possible workaround for android devices?\r\n\r\nThis has fixed the issue on iOS for me, that scrolling in Flutter web app opened in Facebook Messenger was closing whole webview. Didn't notice any side effects yet. Thanks a lot!",
+    "createdAt": "2023-03-22T19:05:49Z"
+  },
+  {
+    "id": 8202,
+    "sender": "maRci002",
+    "content": "While I was searching for solutions I found this:\r\n\r\nhttps://github.com/google/material-design-lite/issues/1072#issuecomment-357673854\r\n\r\n> Side note: Just discovered that the URL address bar will not hide on Chrome browsers when scrolling down if your HTTP connection is insecure (possibly due to mixed content over the wire or an invalid SSL certificate). I guess that this is a security precaution to keep the user informed that their connection is not secure. This is not related to the fix above, but just to be aware in case you think that the fix is not working.\r\n\r\nThis can make testing the workarounds a bit more difficult for instance if we host the webserver from the PC via `flutter run -d web-server --web-hostname 0.0.0.0 --web-port=8080 --release --target lib/main.dart --web-renderer html` command and access application on the phone via `192.168.0.2:8080`.\r\n\r\nThis is also a problem for PWA installation so usually I'm hosting the server on the Android phone itself since NodeJS can be installed on the phone by using [Termux](https://termux.dev/en/). `localhost:8080` doesn't have certification issues so I can install PWA on my phone that's why I think that scrolling can also be tested on `localhost`.",
+    "createdAt": "2023-03-24T21:25:35Z"
+  },
+  {
+    "id": 8203,
+    "sender": "santa112358",
+    "content": "This works perfectly on iOS. \r\nhttps://github.com/flutter/flutter/issues/69529#issuecomment-1466313973",
+    "createdAt": "2023-03-26T14:08:46Z"
+  },
+  {
+    "id": 8204,
+    "sender": "tomasbaran",
+    "content": "Unfortunately doesn't work on iOS for me.\r\nhttps://github.com/flutter/flutter/issues/69529#issuecomment-1466313973",
+    "createdAt": "2023-03-27T13:48:24Z"
+  },
+  {
+    "id": 8205,
+    "sender": "Simileholluwa",
+    "content": "I am also experiencing this issue on flutter web app. I've tried different workarounds but none worked.\r\nThe flutter team should look into this.",
+    "createdAt": "2023-03-30T14:30:12Z"
+  },
+  {
+    "id": 8206,
+    "sender": "bobo2018cp",
+    "content": "Doesn’t flutter officially come out to solve the problem?",
+    "createdAt": "2023-06-20T02:38:57Z"
+  },
+  {
+    "id": 8207,
+    "sender": "Andrflor",
+    "content": "The proposed fix do not work anymore, but this code at the end of the head will make the browser scrollbar behave properly. \r\n\r\n```html\r\n <style>\r\n    body {\r\n      height: 200vh !important;\r\n      position: static !important;\r\n    }\r\n\r\n    flt-glass-pane {\r\n      position: fixed !important;\r\n    }\r\n  </style>\r\n  ```\r\n\r\nThen how to force rendering underneath address bar ?? I can't figure it out...",
+    "createdAt": "2023-07-27T11:34:45Z"
+  },
+  {
+    "id": 8208,
+    "sender": "iKK001",
+    "content": "This did now work [1653437178](https://github.com/flutter/flutter/issues/69529#issuecomment-1653437178).\r\n\r\nThe navigation bar only gets \"blurry\" - but it does not dissappear!\r\n\r\nAny solution to this ?\r\n\r\nUsers really often open Web on their mobile phone. So Flutter-Web app with Scrolling should really work with the smooth nav-bar dissappear/show behaviour in the Browser that everybody is used to. Otherwise users will dislike Flutter-Web Apps on Mobile quite a bit.",
+    "createdAt": "2023-09-09T09:49:35Z"
+  },
+  {
+    "id": 8209,
+    "sender": "upsraka",
+    "content": "hi, i just face the same problem and i try this https://github.com/flutter/flutter/issues/69529#issuecomment-1712471508\r\n\r\nthe address bar is gone but the content does not expand. any solution for this?\r\n\r\nthanks for the answer...\r\n\r\nhttps://github.com/flutter/flutter/assets/57344209/979a3a7b-9224-40cc-81c1-b96d85534de5\r\n\r\n\r\n",
+    "createdAt": "2023-09-10T10:34:30Z"
+  },
+  {
+    "id": 8210,
+    "sender": "metafounder",
+    "content": "any plans to push the priority of this? ",
+    "createdAt": "2023-10-13T10:26:50Z"
+  },
+  {
+    "id": 8211,
+    "sender": "shoaibomar",
+    "content": "@gspencergoog @gmackall @goderbauer I am adding you guys to this as I don't know who the relevant person would be to bring this up to but this not working is really ruining the flutter web experience on mobile, please let me know if there is any way I can help, but this needs to be fixed for flutter web mobile to be useable, I hope someone can push this issue up the priority chain and get a decent fix for this soon",
+    "createdAt": "2023-10-14T10:14:20Z"
+  },
+  {
+    "id": 8212,
+    "sender": "goderbauer",
+    "content": "@yjbanov @Piinks FYI",
+    "createdAt": "2023-10-16T17:45:58Z"
+  },
+  {
+    "id": 8213,
+    "sender": "Piinks",
+    "content": "Referring to an earlier comment I made here: https://github.com/flutter/flutter/issues/69529#issuecomment-1215762415\r\n\r\nAFAIK there is no available API from Apple to tell the browser the screen has scrolled some content. Since we are not rendering the browser bar, we do not have control over it. It would be very easy for us to do so if there were a way to communicate that to the platform, but I have looked many times over the years for this specific issue and have not found a way yet.\r\n\r\n@yjbanov has suggested some ideas to approach this from the engine above, but I don't know if they have been tried or successful.",
+    "createdAt": "2023-10-16T18:46:35Z"
+  },
+  {
+    "id": 8214,
+    "sender": "shoaibomar",
+    "content": "@Piinks just a suggestion (I don't know how feasible it would be) is it possible to change it such that the scrolling is done through the browser instead of inside the flutter engine, and we have js communicate back to flutter to indicated the scroll position, that way we dont have to tell the browser anything, instead the browser is the source of truth for flutter and not flutter the source of truth for the browser ?",
+    "createdAt": "2023-10-16T19:31:20Z"
+  },
+  {
+    "id": 8215,
+    "sender": "Piinks",
+    "content": "> scrolling is done through the browser instead of inside the flutter engine\r\n\r\nScrolling is handled through the framework not the engine. Flutter does not use native elements in order to scroll, all of the physics, gesture handling etc. is all in the framework, above the engine.",
+    "createdAt": "2023-10-16T19:49:23Z"
+  },
+  {
+    "id": 8216,
+    "sender": "shoaibomar",
+    "content": "@Piinks  got it.\r\n\r\nThis is just a suggestion, and to be honest I think its maybe one of the only ways to fix it stably;\r\n\r\nEither flutter needs to be able to tell the browser what's going (for that all major browsers need to write code to make it happen, which is probably more of a tall ask) or flutter needs to use the browsers the way they were designed to be used, at least until the browsers can be convinced the add this feature, because leaving it in this broken state is not really a solution.\r\n\r\nWould it be out of the realm of practicality to change it around?",
+    "createdAt": "2023-10-17T13:07:52Z"
+  },
+  {
+    "id": 8217,
+    "sender": "cedric-albeke",
+    "content": "It's been almost three years since this topic was created. Can't believe that there 's still no solution to this. It makes Flutter apps on mobile browsers just BAD, especially for smaller screen sizes.\r\n\r\nBumping this...",
+    "createdAt": "2023-10-26T16:02:26Z"
+  },
+  {
+    "id": 8218,
+    "sender": "bobo2018cp",
+    "content": "I think the official Flutter team may have abandoned the web solution.",
+    "createdAt": "2023-12-22T03:04:01Z"
+  },
+  {
+    "id": 8219,
+    "sender": "commandiron",
+    "content": "This issue marked as P3 (Issues that we currently consider unimportant) - Actually, I think this is the most important problem for flutter web. Isn't there anyone working on this?",
+    "createdAt": "2023-12-22T13:24:16Z"
+  },
+  {
+    "id": 8220,
+    "sender": "iKK001",
+    "content": "It is a killer argument to use Flutter Web, I think. Scrolling behaviour of Flutter-Web on Mobile as it currently is, is an absolute no-go for most users... The Flutter team should be aware of this, no?\r\n\r\nWhy isn't anyone from the Flutter team responding to this ? Is there severe technical reasons or what is the painpoint ?",
+    "createdAt": "2023-12-22T13:39:36Z"
+  },
+  {
+    "id": 8221,
+    "sender": "cedric-albeke",
+    "content": "It really is. If they don't care about it then they've officially abandoned web support which results in me abandoning Flutter as a whole. ",
+    "createdAt": "2023-12-22T14:54:26Z"
+  },
+  {
+    "id": 8222,
+    "sender": "tubules",
+    "content": "It is so silly that this issue is 3 years old. Come on guys, Flutter is so awesome, why destroying all with this feature here? For me it is also a no go and I couldn't figure out any solution  ",
+    "createdAt": "2023-12-24T16:25:27Z"
+  },
+  {
+    "id": 8223,
+    "sender": "commandiron",
+    "content": "\r\n\r\n> Referring to an earlier comment I made here: [#69529 (comment)](https://github.com/flutter/flutter/issues/69529#issuecomment-1215762415)\r\n> \r\n> AFAIK there is no available API from Apple to tell the browser the screen has scrolled some content. Since we are not rendering the browser bar, we do not have control over it. It would be very easy for us to do so if there were a way to communicate that to the platform, but I have looked many times over the years for this specific issue and have not found a way yet.\r\n> \r\n> @yjbanov has suggested some ideas to approach this from the engine above, but I don't know if they have been tried or successful.\r\n\r\nI really don't understand what's going on here. It's an almost 3-year-old problem and according to @Piinks, who works at Google and is the last person to respond to this problem; Inability to communicate with the platform. In other words, when the user interacts with the browser, there is no API to notify browser by the framework. I am not an expert but I could understand the delay in this issue on Apple phones. But can someone explain to me why this problem has persisted for 3 years on an Android phone using Chrome? Can't the guys in the Flutter team contact the relevant people at Google and solve this problem?\r\n\r\nIf Flutter wants to be a permanent solution for multiple platforms, it should be aware that the web is one of the most important of these platforms.",
+    "createdAt": "2023-12-24T17:09:06Z"
+  },
+  {
+    "id": 8224,
+    "sender": "nialljawad96",
+    "content": "How is this not sorted? Remarkable. ",
+    "createdAt": "2024-01-28T23:07:07Z"
+  },
+  {
+    "id": 8225,
+    "sender": "nialljawad96",
+    "content": "@kevmoo Hi Kevin any update on this? We're desperate",
+    "createdAt": "2024-02-01T15:26:16Z"
+  },
+  {
+    "id": 8226,
+    "sender": "iapicca",
+    "content": "@yjbanov\r\nis this `p3` the current, correct `p3` or the 2020 `p3`?\r\nseems weird to me that such a bug labelled `crowd` has such low priority",
+    "createdAt": "2024-02-01T17:02:58Z"
+  },
+  {
+    "id": 8227,
+    "sender": "yjbanov",
+    "content": "I think once we fix https://github.com/flutter/flutter/issues/139263, then this functionality can be implemented as a pub package. The only way I know to make this work is to delegate scrolling to the browser, which is currently broken by https://github.com/flutter/flutter/issues/139263.",
+    "createdAt": "2024-02-01T20:59:53Z"
+  },
+  {
+    "id": 8228,
+    "sender": "nialljawad96",
+    "content": "@yjbanov surely this needs to be part of the framework? This is critical functionality for any web app, and any website really. It makes it impossible to use these web app's when you've got a massive URL + toolbar at the bottom on iOS safari or mobile Google Chrome. I am surprised this has been going on for 3.5 years. ",
+    "createdAt": "2024-02-08T12:36:31Z"
+  },
+  {
+    "id": 8229,
+    "sender": "omarjericho31",
+    "content": "Any update or an efficient workaround? I'm stuck on this for long time :( ",
+    "createdAt": "2024-02-08T21:51:46Z"
+  },
+  {
+    "id": 8230,
+    "sender": "nialljawad96",
+    "content": "@yjbanov @kevmoo Any news on this? it is mission critical for Flutter Web - the apps are not functioning like normal web apps (or even websites) without it. ",
+    "createdAt": "2024-02-13T15:29:52Z"
+  },
+  {
+    "id": 8231,
+    "sender": "huycozy",
+    "content": "Reproduced this issue on the latest stable/master channels. \r\n\r\n<details>\r\n<summary>Sample code</summary>\r\n\r\nSource: https://github.com/flutter/flutter/issues/109502\r\n\r\n```dart\r\nimport 'package:flutter/material.dart';\r\n\r\nvoid main() {\r\n  runApp(const MyApp());\r\n}\r\n\r\nclass MyApp extends StatelessWidget {\r\n  const MyApp({Key? key}) : super(key: key);\r\n\r\n  @override\r\n  Widget build(BuildContext context) {\r\n    Widget text = const Text(\r\n      'text',\r\n      style: TextStyle(backgroundColor: Colors.black, color: Colors.white),\r\n    );\r\n    List<Widget> children = [];\r\n    for (int i = 0; i < 100; i++) {\r\n      children.add(text);\r\n    }\r\n    return MaterialApp(\r\n      title: 'Scroll',\r\n      home: Scrollbar(\r\n        child: SingleChildScrollView(\r\n          child: ColoredBox(\r\n            color: Colors.black,\r\n            child: Center(child: Column(children: children)),\r\n          ),\r\n        ),\r\n      ),\r\n    );\r\n  }\r\n}\r\n```\r\n</details>\r\n\r\n<details>\r\n<summary>Demo</summary>\r\n\r\n| Android Chrome browser | iOS Safari browser |\r\n| --------------- | --------------- |\r\n<video src=\"https://github.com/flutter/flutter/assets/104349824/20231d7a-edbc-437a-abe4-b8ac7dfbb742\"/> | <video src=\"https://github.com/flutter/flutter/assets/104349824/d76aa0c9-df4f-493d-9fe3-f77e2efd5e48\"/>\r\n\r\n</details>\r\n\r\n<details>\r\n<summary>flutter doctor -v (stable and master)</summary>\r\n\r\n```bash\r\n[✓] Flutter (Channel stable, 3.19.0, on macOS 14.1 23B74 darwin-x64, locale en-VN)\r\n    • Flutter version 3.19.0 on channel stable at /Users/huynq/Documents/GitHub/flutter\r\n    • Upstream repository https://github.com/flutter/flutter.git\r\n    • Framework revision bae5e49bc2 (2 days ago), 2024-02-13 17:46:18 -0800\r\n    • Engine revision 04817c99c9\r\n    • Dart version 3.3.0\r\n    • DevTools version 2.31.1\r\n\r\n[✓] Android toolchain - develop for Android devices (Android SDK version 34.0.0)\r\n    • Android SDK at /Users/huynq/Library/Android/sdk\r\n    • Platform android-34, build-tools 34.0.0\r\n    • ANDROID_HOME = /Users/huynq/Library/Android/sdk\r\n    • Java binary at: /Applications/Android Studio.app/Contents/jbr/Contents/Home/bin/java\r\n    • Java version OpenJDK Runtime Environment (build 17.0.6+0-17.0.6b802.4-9586694)\r\n    • All Android licenses accepted.\r\n\r\n[✓] Xcode - develop for iOS and macOS (Xcode 15.0.1)\r\n    • Xcode at /Applications/Xcode.app/Contents/Developer\r\n    • Build 15A507\r\n    • CocoaPods version 1.14.3\r\n\r\n[✓] Chrome - develop for the web\r\n    • Chrome at /Applications/Google Chrome.app/Contents/MacOS/Google Chrome\r\n\r\n[✓] Android Studio (version 2023.1)\r\n    • Android Studio at /Applications/Android Studio Hedgehog.app/Contents\r\n    • Flutter plugin can be installed from:\r\n      🔨 https://plugins.jetbrains.com/plugin/9212-flutter\r\n    • Dart plugin can be installed from:\r\n      🔨 https://plugins.jetbrains.com/plugin/6351-dart\r\n    • Java version OpenJDK Runtime Environment (build 17.0.7+0-17.0.7b1000.6-10550314)\r\n\r\n[✓] Android Studio (version 2022.2)\r\n    • Android Studio at /Applications/Android Studio.app/Contents\r\n    • Flutter plugin can be installed from:\r\n      🔨 https://plugins.jetbrains.com/plugin/9212-flutter\r\n    • Dart plugin can be installed from:\r\n      🔨 https://plugins.jetbrains.com/plugin/6351-dart\r\n    • android-studio-dir = /Applications/Android Studio.app/\r\n    • Java version OpenJDK Runtime Environment (build 17.0.6+0-17.0.6b802.4-9586694)\r\n\r\n[✓] VS Code (version 1.86.0)\r\n    • VS Code at /Applications/Visual Studio Code.app/Contents\r\n    • Flutter extension version 3.82.0\r\n\r\n[✓] Connected device (3 available)\r\n    • RMX2001 (mobile) • EUYTFEUSQSRGDA6D • android-arm64  • Android 11 (API 30)\r\n    • macOS (desktop)  • macos            • darwin-x64     • macOS 14.1 23B74 darwin-x64\r\n    • Chrome (web)     • chrome           • web-javascript • Google Chrome 121.0.6167.160\r\n    ! Error: Browsing on the local area network for iPad. Ensure the device is unlocked and attached with a cable or associated with the same local area network as this Mac.\r\n      The device must be opted into Developer Mode to connect wirelessly. (code -27)\r\n\r\n[✓] Network resources\r\n    • All expected network resources are available.\r\n\r\n• No issues found!\r\n```\r\n\r\n```bash\r\n[!] Flutter (Channel master, 3.20.0-7.0.pre.79, on macOS 14.1 23B74 darwin-x64, locale en-VN)\r\n    • Flutter version 3.20.0-7.0.pre.79 on channel master at /Users/huynq/Documents/GitHub/flutter_master\r\n    ! Warning: `flutter` on your path resolves to /Users/huynq/Documents/GitHub/flutter/bin/flutter, which is not inside your current Flutter SDK checkout at /Users/huynq/Documents/GitHub/flutter_master. Consider adding /Users/huynq/Documents/GitHub/flutter_master/bin to the front of your path.\r\n    ! Warning: `dart` on your path resolves to /Users/huynq/Documents/GitHub/flutter/bin/dart, which is not inside your current Flutter SDK checkout at /Users/huynq/Documents/GitHub/flutter_master. Consider adding /Users/huynq/Documents/GitHub/flutter_master/bin to the front of your path.\r\n    • Upstream repository https://github.com/flutter/flutter.git\r\n    • Framework revision 7b9f7be7f6 (38 minutes ago), 2024-02-15 18:13:21 -0800\r\n    • Engine revision bc4dd534a0\r\n    • Dart version 3.4.0 (build 3.4.0-143.0.dev)\r\n    • DevTools version 2.33.0-dev.6\r\n    • If those were intentional, you can disregard the above warnings; however it is recommended to use \"git\" directly to perform update checks and upgrades.\r\n\r\n[✓] Android toolchain - develop for Android devices (Android SDK version 34.0.0)\r\n    • Android SDK at /Users/huynq/Library/Android/sdk\r\n    • Platform android-34, build-tools 34.0.0\r\n    • ANDROID_HOME = /Users/huynq/Library/Android/sdk\r\n    • Java binary at: /Applications/Android Studio.app/Contents/jbr/Contents/Home/bin/java\r\n    • Java version OpenJDK Runtime Environment (build 17.0.6+0-17.0.6b802.4-9586694)\r\n    • All Android licenses accepted.\r\n\r\n[✓] Xcode - develop for iOS and macOS (Xcode 15.0.1)\r\n    • Xcode at /Applications/Xcode.app/Contents/Developer\r\n    • Build 15A507\r\n    • CocoaPods version 1.14.3\r\n\r\n[✓] Chrome - develop for the web\r\n    • Chrome at /Applications/Google Chrome.app/Contents/MacOS/Google Chrome\r\n\r\n[✓] Android Studio (version 2023.1)\r\n    • Android Studio at /Applications/Android Studio Hedgehog.app/Contents\r\n    • Flutter plugin can be installed from:\r\n      🔨 https://plugins.jetbrains.com/plugin/9212-flutter\r\n    • Dart plugin can be installed from:\r\n      🔨 https://plugins.jetbrains.com/plugin/6351-dart\r\n    • Java version OpenJDK Runtime Environment (build 17.0.7+0-17.0.7b1000.6-10550314)\r\n\r\n[✓] Android Studio (version 2022.2)\r\n    • Android Studio at /Applications/Android Studio.app/Contents\r\n    • Flutter plugin can be installed from:\r\n      🔨 https://plugins.jetbrains.com/plugin/9212-flutter\r\n    • Dart plugin can be installed from:\r\n      🔨 https://plugins.jetbrains.com/plugin/6351-dart\r\n    • android-studio-dir = /Applications/Android Studio.app/\r\n    • Java version OpenJDK Runtime Environment (build 17.0.6+0-17.0.6b802.4-9586694)\r\n\r\n[✓] VS Code (version 1.86.0)\r\n    • VS Code at /Applications/Visual Studio Code.app/Contents\r\n    • Flutter extension version 3.82.0\r\n\r\n[✓] Connected device (4 available)\r\n    • RMX2001 (mobile) • EUYTFEUSQSRGDA6D          • android-arm64  • Android 11 (API 30)\r\n    • iPad (mobile)    • 00008103-000A1464346A201E • ios            • iOS 17.2 21C62\r\n    • macOS (desktop)  • macos                     • darwin-x64     • macOS 14.1 23B74 darwin-x64\r\n    • Chrome (web)     • chrome                    • web-javascript • Google Chrome 121.0.6167.160\r\n\r\n[✓] Network resources\r\n    • All expected network resources are available.\r\n\r\n! Doctor found issues in 1 category.\r\n```\r\n</details>\r\n\r\n\r\n",
+    "createdAt": "2024-02-16T11:35:55Z"
+  },
+  {
+    "id": 8232,
+    "sender": "QoLTech",
+    "content": "Would love to see this addressed.",
+    "createdAt": "2024-02-17T21:55:43Z"
+  },
+  {
+    "id": 8233,
+    "sender": "metafounder",
+    "content": "So nice if this could get fixed",
+    "createdAt": "2024-02-18T09:52:55Z"
+  },
+  {
+    "id": 8234,
+    "sender": "nialljawad96",
+    "content": "Any news on this disabling problem for Flutter Web apps @huycozy @yjbanov @kevmoo? \r\n\r\nThanks guys. Appreciate all you do. ",
+    "createdAt": "2024-02-23T18:00:49Z"
+  },
+  {
+    "id": 8235,
+    "sender": "yjbanov",
+    "content": "Unfortunately, no news on this one. Flutter currently does custom scrolling and the browser is unaware that anything scrolls at all. However, we hope to start making progress on https://github.com/flutter/flutter/issues/139263 soon (once we find an owner we'll upgrade to P1). After it is fixed, it should be possible to implement this functionality as a package.",
+    "createdAt": "2024-02-28T23:06:20Z"
+  },
+  {
+    "id": 8236,
+    "sender": "nialljawad96",
+    "content": "@yjbanov Sad! This is the most important issue for Flutter Web currently. Yet the roadmap is focusing on WASM, which I find to be strange. This issue, hot reload, and general speed on lower-performance devices are the biggest problems. \r\n\r\nIt needs to be prioritised, because next year, this problem will hit half a decade in existence. Half a decade! \r\n\r\nIf I seem terse, it's because I love Flutter - I don't think the roadmap right now is aligned to what the masses want.\r\n\r\nSo how come, if you don't mind me asking, it isn't being prioritised? What could possibly be a bigger priority for Flutter Web (other than the other 2 issues mentioned?). Is this a prioritisation issue or a manpower issue? \r\n\r\nI appreciate you engaging on this matter at least, so thanks for that. ",
+    "createdAt": "2024-02-29T10:55:27Z"
+  },
+  {
+    "id": 8237,
+    "sender": "kevmoo",
+    "content": "@nialljawad96 - \"general speed on lower-performance devices\" - Wasm will be a BIG help here.",
+    "createdAt": "2024-02-29T18:54:41Z"
+  },
+  {
+    "id": 8238,
+    "sender": "The-RootCause",
+    "content": "The web version is getting better thanks to skwasm. but this scrolling issue is making the web app look like a normal website. When scrolling the url bar and browser menu are not hidden as all single page app out there.\r\nA fix for this issue is a major important step into making flutter web usable.\r\nIs there any actions we can help with, to make the flutter team prioritize this issue that has been waiting for ~3.5 years ?",
+    "createdAt": "2024-03-25T11:23:06Z"
+  },
+  {
+    "id": 8239,
+    "sender": "sharan21",
+    "content": "Would really like to see this get addressed. In our case, this causes the URL bar to not auto-hide on scrolling and decreases the amount of usable screen we have left. It really is the difference between night and day",
+    "createdAt": "2024-04-07T19:00:48Z"
+  },
+  {
+    "id": 8240,
+    "sender": "commandiron",
+    "content": "any update?",
+    "createdAt": "2024-05-07T07:20:04Z"
+  },
+  {
+    "id": 8241,
+    "sender": "nialljawad96",
+    "content": "Any news on this guys? @kevmoo @yjbanov \r\n\r\nThis would transform Flutter Web for mobile in a beautiful way ",
+    "createdAt": "2024-05-29T10:32:26Z"
+  },
+  {
+    "id": 8242,
+    "sender": "knottx",
+    "content": "4 years issue 😞",
+    "createdAt": "2024-06-07T18:09:06Z"
+  },
+  {
+    "id": 8243,
+    "sender": "Oct7",
+    "content": "Is there any more important aspect regarding mobile web than this?\r\nHas team tried using Flutter Web for mobile? If they did, they would know that this is the most crucial issue.\r\nDoes anyone know any current workaround for this?",
+    "createdAt": "2024-06-10T00:20:41Z"
+  },
+  {
+    "id": 8244,
+    "sender": "Snifftech",
+    "content": "I stopped using flutter, because of this issue. But seems that I will never get a chance to return. This currently is not the once promised „single code base“.",
+    "createdAt": "2024-06-10T06:05:48Z"
+  },
+  {
+    "id": 8245,
+    "sender": "AndreiMisiukevich",
+    "content": "I'm subscribed to this thread and, therefore, receive a ton of notifications.\r\nFolks, come on! This is an open-source project. I think everyone should understand what this means.\r\nIt’s a little funny to read all these demands and ultimatums to the Flutter team, which already made the best cross-platform framework. Believe me, I know what I'm talking about (you can look at my GitHub profile).\r\n\r\nSo, let's be patient... or fix this problem yourself. This is the meaning of open source, isn't it? :)\r\n\r\nI am sending rays of goodness to everyone.",
+    "createdAt": "2024-06-10T14:38:40Z"
+  },
+  {
+    "id": 8246,
+    "sender": "QoLTech",
+    "content": "> I subscribe to this thread and, therefore, receive a ton of notifications. Folks, come on! This is an open-source project. I think everyone should understand what this means. It’s a little funny to read all these demands and ultimatums to the Flutter team, which already made the best cross-platform framework. Believe me, I know what I'm talking about (you can look at my GitHub profile).\r\n> \r\n> So, let's be patient... or fix this problem yourself. This is the meaning of open source, isn't it? :)\r\n> \r\n> Rays of goodness to everyone.\r\n\r\nFine - I'll do it myself. Just tell me how!",
+    "createdAt": "2024-06-10T17:18:17Z"
+  },
+  {
+    "id": 8247,
+    "sender": "wj-yang-pro",
+    "content": "> > I subscribe to this thread and, therefore, receive a ton of notifications. Folks, come on! This is an open-source project. I think everyone should understand what this means. It’s a little funny to read all these demands and ultimatums to the Flutter team, which already made the best cross-platform framework. Believe me, I know what I'm talking about (you can look at my GitHub profile).\r\n> > So, let's be patient... or fix this problem yourself. This is the meaning of open source, isn't it? :)\r\n> > Rays of goodness to everyone.\r\n> \r\n> Fine - I'll do it myself. Just tell me how!\r\n\r\nhttps://github.com/flutter/flutter/issues/69529#issuecomment-738469664\r\nI would suggest this solution for now. \r\n\r\nThe problem lies in the unique behavior which might be \"only apple can do\"",
+    "createdAt": "2024-06-11T16:18:13Z"
+  },
+  {
+    "id": 8248,
+    "sender": "geronimol",
+    "content": "> I think once we fix #139263, then this functionality can be implemented as a pub package. The only way I know to make this work is to delegate scrolling to the browser, which is currently broken by #139263.\r\n\r\n> Unfortunately, no news on this one. Flutter currently does custom scrolling and the browser is unaware that anything scrolls at all. However, we hope to start making progress on #139263 soon (once we find an owner we'll upgrade to P1). After it is fixed, it should be possible to implement this functionality as a package.\r\n\r\nThat issue has just been marked as completed. Is it possible to fix this? ",
+    "createdAt": "2024-07-18T01:39:56Z"
+  },
+  {
+    "id": 8249,
+    "sender": "Peshawa-k-kamil",
+    "content": "4.5 years of an issue ! 😩",
+    "createdAt": "2024-07-18T22:34:02Z"
+  },
+  {
+    "id": 8250,
+    "sender": "iapicca",
+    "content": "> > I think once we fix #139263, then this functionality can be implemented as a pub package. The only way I know to make this work is to delegate scrolling to the browser, which is currently broken by #139263.\r\n> \r\n> > Unfortunately, no news on this one. Flutter currently does custom scrolling and the browser is unaware that anything scrolls at all. However, we hope to start making progress on #139263 soon (once we find an owner we'll upgrade to P1). After it is fixed, it should be possible to implement this functionality as a package.\r\n> \r\n> That issue has just been marked as completed. Is it possible to fix this?\r\n\r\ngood call @geronimol \r\ncc @huycozy \r\nand @yjbanov for this [comment](https://github.com/flutter/flutter/issues/69529#issuecomment-1970067487)",
+    "createdAt": "2024-07-19T09:38:18Z"
+  },
+  {
+    "id": 8251,
+    "sender": "Blackkadder",
+    "content": "This would be a game changer for flutter on mobile web",
+    "createdAt": "2024-08-02T18:08:22Z"
+  },
+  {
+    "id": 8252,
+    "sender": "nopparatma",
+    "content": "I had a curious thought, so I went to test the Flutter website 'https://flutter.dev/multi-platform/web' on Safari for iPhone and found it works normally. Does this mean that even the Flutter website is not developed with Flutter?",
+    "createdAt": "2024-08-08T19:28:03Z"
+  },
+  {
+    "id": 8253,
+    "sender": "kevmoo",
+    "content": "@nopparatma – FLutter web is designed for apps, not websites.",
+    "createdAt": "2024-08-08T19:29:19Z"
+  },
+  {
+    "id": 8254,
+    "sender": "Peshawa-k-kamil",
+    "content": "it goes to 5 years ! ",
+    "createdAt": "2024-08-31T23:16:32Z"
+  },
+  {
+    "id": 8255,
+    "sender": "commandiron",
+    "content": "I think solution is;\r\n1 - Call Apple safari team, request an api for Safari.\r\n2 - Call Google chrome team, request an api for Chrome.\r\n\r\nIs there a form or something we can use to make a request?\r\n\r\n",
+    "createdAt": "2024-09-02T11:53:09Z"
+  }
+]

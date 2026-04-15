@@ -1,0 +1,386 @@
+[
+  {
+    "id": 7424,
+    "sender": "MaikuB",
+    "content": "I've been looking at how this has been done in the android_alarm_manager plugin and from what I can gather, a Dart code is invoked on the Android by calling [runFromBundle](https://docs.flutter.io/javadoc/io/flutter/view/FlutterNativeView.html#runFromBundle-java.lang.String-java.lang.String-java.lang.String-boolean-). The Dart function invoked is specified by the entrypoint, however what if that function needs information to be passed? Sample use case would a chat app that allows for direct replies via notifications. As per this [link](https://developer.android.com/training/notify-user/build-notification#reply-action), the notification will allow remote input but it does not seem like it would be possible pass the text that has been read over to the Dart function so it can be processed so that the reply can be sent.\r\n\r\nAnother example is an email application that shows a notification when a new email has been received, actions may be presented one of which could be the ability to archive the email, which is done by a Dart function. However, that function would need to know which email needs to be archived.",
+    "createdAt": "2018-05-01T12:23:34Z"
+  },
+  {
+    "id": 7425,
+    "sender": "mainrs",
+    "content": "@MaikuB you could make a PR to allow a dictionary to be passed around that can hold key value pairs. \n\nGenerally speaking though, for my usage example, I would need something similar to androids Service component. And since flutter is not designed to have every single API available that each OS can provide, it might actually be a better idea to write the app in kotlin/java oder swift. ",
+    "createdAt": "2018-05-01T13:43:29Z"
+  },
+  {
+    "id": 7426,
+    "sender": "Hixie",
+    "content": "I believe @bkonyi is currently looking at what we can do on iOS for this issue.",
+    "createdAt": "2018-05-08T23:16:57Z"
+  },
+  {
+    "id": 7427,
+    "sender": "al1b",
+    "content": "This means we cannot have background service with Flutter? For example: A service to popup push notifications from the server.",
+    "createdAt": "2018-05-20T07:34:10Z"
+  },
+  {
+    "id": 7428,
+    "sender": "fmatosqg",
+    "content": "@s-bauer Always running is not a thing for Android, unless maybe foreground notifications, but I didn't find mentions of `startForeground` on your code.\r\n\r\nI'm not sure what are your specs but remember that android phones go to deep sleep after a few hours with the screen off and not being moved. All services (except foreground) are going to be scheduled however the operating system thinks it's best. A push notification coming from FCM or an alarm coming from AlarmManager under a specific set up are maybe the only 2 things under a developer's control that are capable of waking up an android device / app whenever the developer wishes, but not for an indefinite amount of time. There are lots of other methods that depend on whatever the operating system thinks it's best for the battery. See about doze mode for more details. https://developer.android.com/training/monitoring-device-state/doze-standby\r\n\r\nOn iPhone things are much more restricted.\r\n\r\nAlso I don't see why a service or connection must stay alive in order to receive push notifications from FCM or APNS, maybe I'm missing something?",
+    "createdAt": "2018-06-03T07:39:48Z"
+  },
+  {
+    "id": 7429,
+    "sender": "bkonyi",
+    "content": "Quick update: background execution for iOS is implemented and up for review (PR flutter/engine#5539). Once that lands, I'll start on updating the Android background execution to have a consistent interface and publish a sample plugin. This will all *hopefully* be done by end of month.",
+    "createdAt": "2018-06-20T00:48:50Z"
+  },
+  {
+    "id": 7430,
+    "sender": "piotrpalek",
+    "content": "@bkonyi would this also resolve the issue with: https://github.com/flutter/flutter/issues/17566 ?",
+    "createdAt": "2018-06-26T10:16:22Z"
+  },
+  {
+    "id": 7431,
+    "sender": "bkonyi",
+    "content": "@piotrpalek, yes it will, although behavior will likely be a bit different than it previously was as we can no longer share the UI isolate for callbacks for various reasons. Any communication with foreground UI will have to be established over isolate ports, `MethodChannel`s, or any other method that doesn't rely on sharing memory with the main isolate.",
+    "createdAt": "2018-06-26T15:58:55Z"
+  },
+  {
+    "id": 7432,
+    "sender": "bkonyi",
+    "content": "Status update: both iOS and Android background execution changes are up for review and are still being iterated on. I expect the iOS changes in flutter/engine#5539 will be landing in the coming days, absent any requests for major modifications, and the Android changes in flutter/engine#5640 should hopefully be done next week after dealing with comments from the review. Thanks for your patience!",
+    "createdAt": "2018-07-10T20:34:18Z"
+  },
+  {
+    "id": 7433,
+    "sender": "MaikuB",
+    "content": "Awesome. Yeah, I had seen the PRs as they both reference this issue. You mentioned doing a sample plugin and I've seen the iOS one, will there be an Android sample? I'm guessing the [Android alarm manager plugin](https://github.com/flutter/plugins/tree/master/packages/android_alarm_manager) could be updated once the changes go in",
+    "createdAt": "2018-07-10T20:51:00Z"
+  },
+  {
+    "id": 7434,
+    "sender": "bkonyi",
+    "content": "@MaikuB, yes, the AlarmManager plugin will be updated once flutter/engine#5640 lands and flutter/plugins#642 is complete.",
+    "createdAt": "2018-07-11T16:47:51Z"
+  },
+  {
+    "id": 7435,
+    "sender": "ethael",
+    "content": "Hello. Any update regarding this topic? Resolution was delayed to bucket7 milestone. Is it really gonna land there? This is crucial functionality for our project. Thanks for any response.",
+    "createdAt": "2018-07-31T05:52:50Z"
+  },
+  {
+    "id": 7436,
+    "sender": "bkonyi",
+    "content": "I unfortunately had to shift priorities for a few days, but I'm back to working on this now. We're _almost_ there, so thank you for being so patient!",
+    "createdAt": "2018-07-31T15:58:30Z"
+  },
+  {
+    "id": 7437,
+    "sender": "bkonyi",
+    "content": "Now that flutter/engine#5539, flutter/engine#5947, and flutter/engine#5954 have landed, all functionality needed for background execution on Android and iOS is implemented in the engine and should make it into the main Flutter repository during the next engine roll. Documentation and examples are in the works, and the `android_alarm_manager` plugin fix is up for review (flutter/plugins#642).",
+    "createdAt": "2018-08-07T21:54:27Z"
+  },
+  {
+    "id": 7438,
+    "sender": "ianldgs",
+    "content": "@bkonyi will `android_alarm_manager` also work on IOs now? ",
+    "createdAt": "2018-08-07T22:55:29Z"
+  },
+  {
+    "id": 7439,
+    "sender": "bkonyi",
+    "content": "@ianldgs, unfortunately no. iOS doesn't provide any sort of mechanism for executing code on a periodic basis so it's likely not possible to create an iOS implementation (see this [SO post](https://stackoverflow.com/questions/35943191/ios-alternative-for-android-alarmmanager)). Often it's possible to achieve the same goals using one of the limited background execution modes (e.g., significant location changes, push notifications, Bluetooth state change, etc).",
+    "createdAt": "2018-08-07T23:06:24Z"
+  },
+  {
+    "id": 7440,
+    "sender": "AndrewPetrovics",
+    "content": "@bkonyi, will this fix an issue we're currently experiencing with not being able to execute native background tasks for an extended period (3 minutes) on iOS?\r\n\r\nTo clarify, here's our current issue...\r\n\r\n**Background:**\r\nOur app uses Bluetooth beacons to determine how much time someone spends a location. We've written all of our beacon code natively in AppDelegate.swift.\r\n\r\n**Issue:**\r\nFlutter appears to shut down our app after a few seconds when we're executing native code in the background after being woken up by a location event (region enter/exit in this case) even though we are extending our [background execution time](https://developer.apple.com/documentation/uikit/core_app/managing_your_app_s_life_cycle/preparing_your_app_to_run_in_the_background/extending_your_app_s_background_execution_time).\r\n\r\n**Why we think it's Flutter related:**\r\nWe've tested our native beacon code with a native iOS app and have no problem consistently getting 180 seconds of background execution time.\r\n\r\n**What we've tried:**\r\nThe only workaround we've had success with is putting a 30 seconds delay in the main() before runApp() when our app was launched in the background. However, this has been causing other issues.\r\n\r\nApologies, for the lengthy explanation, but this is a huge issue for us and we are trying to release in the next few weeks.\r\n\r\nWe're really hoping this fix will fix our issue as well.\r\n\r\nLastly, to be clear, we don't care so much about executing dart code in the background. Rather, our main concern is just not having Flutter prematurely terminate our app when woken up in the background.\r\n\r\nAny help would be immensely appreciated.\r\n\r\nThanks!",
+    "createdAt": "2018-08-10T13:12:03Z"
+  },
+  {
+    "id": 7441,
+    "sender": "bkonyi",
+    "content": "@AndrewPetrovics unfortunately I don't think this will fix the issues you're seeing as these changes are primarily to allow for running Dart code from the background. I'm not super familiar with iOS background execution policies, but I'm actually working on a geofencing plugin for Android + iOS which sounds similar to your use case, so I'll keep an eye out for the issue you're having once I start the iOS portion today/tomorrow.\r\n\r\n@chinmaygarde, would you happen to know anything about the issues @AndrewPetrovics is experiencing? Maybe this is worth filing a new issue for.",
+    "createdAt": "2018-08-13T17:01:35Z"
+  },
+  {
+    "id": 7442,
+    "sender": "AndrewPetrovics",
+    "content": "@bkonyi, sounds good. We ended up finding a workaround for the time being, but it's very hacky. I will create a separate issue when I get a chance.\r\n\r\nThanks!",
+    "createdAt": "2018-08-14T13:30:05Z"
+  },
+  {
+    "id": 7443,
+    "sender": "ethael",
+    "content": "@bkonyi May I ask, when will android_alarm_manager 0.2.0 be publicly deployed to pub.dartlang.org?",
+    "createdAt": "2018-08-15T07:55:17Z"
+  },
+  {
+    "id": 7444,
+    "sender": "bkonyi",
+    "content": "@ethael it should be available now, was just waiting to get permissions to publish the update.",
+    "createdAt": "2018-08-15T20:33:17Z"
+  },
+  {
+    "id": 7445,
+    "sender": "hajola",
+    "content": "Are there any examples or some documentation of this available? \r\nThanks!",
+    "createdAt": "2018-08-29T10:48:26Z"
+  },
+  {
+    "id": 7446,
+    "sender": "bkonyi",
+    "content": "@Solban there's two examples in the flutter/plugins repository:\r\n\r\n- The [android_alarm_manager plugin](https://github.com/flutter/plugins/tree/master/packages/android_alarm_manager)\r\n- [A plugin for significant location changes on iOS](https://github.com/flutter/plugins/tree/master/packages/android_alarm_manager)\r\n\r\nI've also got a [geofencing plugin in the works](https://github.com/flutter/plugins/pull/741) which has both Android (Kotlin) and iOS (Obj-C) support, but I'm not sure if that's going to live in flutter/plugins or not.\r\n\r\nHere's some useful documentation for background execution related functionality:\r\n- The [PluginUtilities](https://docs.flutter.io/flutter/dart-ui/PluginUtilities-class.html) class for passing callbacks between isolates\r\n- The [IsolateNameServer](https://docs.flutter.io/flutter/dart-ui/IsolateNameServer-class.html) which is useful for registering `SendPort` objects with Flutter for other isolates to lookup (this appears to be missing actual documentation, but the interface is rather straight forward).\r\n- The [FlutterNativeView](https://docs.flutter.io/javadoc/io/flutter/view/FlutterNativeView.html#FlutterNativeView-android.content.Context-boolean-) which is used to spawn the background isolate for the plugin on Android\r\n- The [FlutterHeadlessDartRunner](https://docs.flutter.io/objcdoc/Classes/FlutterHeadlessDartRunner.html) which is used to spawn the background isolate for the plugin on iOS\r\n\r\nCurrently there's no formal documentation on writing plugins with background execution capabilities. However, there should be a Medium post on the Flutter blog popping up in the coming weeks which will walk through the process of designing, implementing, and using plugins which utilize background execution.",
+    "createdAt": "2018-08-29T18:52:13Z"
+  },
+  {
+    "id": 7447,
+    "sender": "audkar",
+    "content": "Is there any solution for continues background work? Only correct way to continuously execute some long running code in Android is `Foreground service`.\r\nUse case example would be continues GPS location tracking.",
+    "createdAt": "2018-08-29T19:08:11Z"
+  },
+  {
+    "id": 7448,
+    "sender": "bkonyi",
+    "content": "@audkar currently there's no plugin that can handle continuous background work, but that doesn't mean it can't be done. A plugin utilizing the functionality I referenced [above](https://github.com/flutter/flutter/issues/3671#issuecomment-417064962) in combination with a foreground service (instead of the `JobIntentService` I used for the geofencing plugin) would work fine.",
+    "createdAt": "2018-08-29T20:53:56Z"
+  },
+  {
+    "id": 7449,
+    "sender": "christocracy",
+    "content": "I'm currently porting my [iOS / Android Background Geolocation / Geofencing SDK](https://github.com/transistorsoft/background-geolocation-lt) to Flutter.  It will be called [`flutter_background_geolocation`](https://github.com/transistorsoft/flutter_background_geolocation).\r\n\r\nI've got about 5 days' experience with Dart / Flutter but I get it.  It should be ready within 2 weeks (though docs will take a bit longer with Dart-specific examples).\r\n\r\nThis SDK is nearly 5 years old and supported full time.  It was originally developed for [Apache Cordova](https://github.com/transistorsoft/cordova-background-geolocation-lt), then later ported to [React Native](https://github.com/transistorsoft/react-native-background-geolocation) and [NativeScript](https://github.com/transistorsoft/nativescript-background-geolocation-lt).  It works in pure native apps as well.  Under the hood, it's the same core Obj-c + Java library used with each development platform.\r\n\r\nThe SDK was originally developed for tracking first-responders in disaster zones (eg: hurricanes, earthquakes) in an environment where the cell-network is likely destroyed.  It had to continue tracking even if app was terminated or device rebooted.  The plugin contains its own SQLite database and HTTP service for automatically uploading locations to your server.  This is particularly important for Android in the case where the app has been terminated, leaving only the SDK's foreground-service running \"headless\". \r\n\r\n:warning: This SDK is not designed for social apps.  it's designed specifically for \"fleet-tracking\" use-cases (eg: taxi, delivery service, emergency response, jogging, etc).\r\n\r\nHere's a brief [demo video](https://youtu.be/aR6r8qV1TI8).\r\n\r\nSee the [Philosophy of Operation](https://github.com/transistorsoft/background-geolocation-lt/wiki/Philosophy-of-Operation).\r\n\r\n**Edit** I'll also be porting another library as `flutter_background_fetch`, which will be included as a dependency of `flutter_background_geolocation`.  This module will awaken an iOS / Android app in the background about every 15 min, providing 30s of background-time for you to perform periodic work.  See the [`react-native`](https://github.com/transistorsoft/react-native-background-fetch) version for more information.\r\n\r\n",
+    "createdAt": "2018-09-05T04:32:26Z"
+  },
+  {
+    "id": 7450,
+    "sender": "christocracy",
+    "content": "Ok, I've published [`flutter_background_geolocation`](https://pub.dartlang.org/packages/flutter_background_geolocation).  There's probably still a few holes to plugin in the facade to the native libs and the examples in docs need to be translated from the React Native version.",
+    "createdAt": "2018-09-13T12:49:50Z"
+  },
+  {
+    "id": 7451,
+    "sender": "ethael",
+    "content": "@christocracy good news. what about background-fetch? any estimations regarding that one?",
+    "createdAt": "2018-09-13T14:15:31Z"
+  },
+  {
+    "id": 7452,
+    "sender": "christocracy",
+    "content": "@ethael Fetch will come in about 2 more weeks.  It's a very simple plugin.",
+    "createdAt": "2018-09-13T14:19:35Z"
+  },
+  {
+    "id": 7453,
+    "sender": "deckerst",
+    "content": "@bkonyi I tried your location change plugin to experiment with background execution. It seems the dart callback executed from the headless runner cannot use other plugins, failing with `MissingPluginException`.\r\n\r\nOn Android, with the android_alarm_manager plugin you solved this issue with `AlarmService.setPluginRegistrant(this);` to internally register the plugins from the background service. But I don't see how to achieve the equivalent for iOS.\r\n\r\nIs it currently possible to call other plugins from a headless runner on iOS? If so, how can we register plugins in that context?",
+    "createdAt": "2018-09-14T07:59:00Z"
+  },
+  {
+    "id": 7454,
+    "sender": "dude8604",
+    "content": "@bkonyi This issue is not resolved and should be reopened. The AlarmManager seems like a workaround at best because it only supports timed events. Flutter needs something more generic, so you can listen for certain events like Bluetooth device in range, for example. And it needs to support iOS better. I understand that iOS is much more restrictive, but Flutter should support the things that are available to native programmers.\r\n\r\nI was excited to start with Flutter, but it seems like there are a lot of issues like this that make it unusable for all but simpler apps. I expected more from Google, and I think it's unfair of them to expect developers to make plugins to fill in the major gaps they left.",
+    "createdAt": "2018-09-15T02:52:49Z"
+  },
+  {
+    "id": 7455,
+    "sender": "christocracy",
+    "content": "@dude8604 Google isn't going to provide *everything* and *yes it is* up to 3rd party plugin developers (like me) to contribute plugins to the ecosystem.  I'm bringing two in currently myself.\r\n\r\nI've spent a lot of time with Cordova, React Native and NativeScript.  After 2 weeks with Flutter, I think it's quite excellent, though there are certainly holes (a cross platform Map component, for example, which I'm sure I'll be contributing to in the near future.)\r\n\r\nI'm a professional plugin developer specializing in background operation of iOS and Android (geolocation & geofencing, in particular) for the last 5 years.  What would you like to know?",
+    "createdAt": "2018-09-15T03:01:45Z"
+  },
+  {
+    "id": 7456,
+    "sender": "dude8604",
+    "content": "@christocracy I agree that there need to be third party plugins, but background execution or at least being able to register callback functions for certain events seems like something an app framework should provide. My issue isn't with having to make plugins to extend the core functionality, but with releasing a framework that's missing basic features and expecting developers to volunteer their time to a for-profit company to fill in the gaps. Anyway, this isn't the right place to discuss this.\r\n\r\nI want to run a background service and read certain events, process and possibly record the data, and if appropriate create a notification which will launch the main app if pressed. Some examples of the events would be: new Bluetooth device in range, incoming data on a socket, incoming data from a USB device, SMS received, GPS location changed, Bluetooth device connection attempt, a certain physical button is pressed, accelerometer data exceeds a specified value, if the main app is terminated, and a lot of other things I'm not thinking of. If someone could make a comprehensive plugin (with a free or open source license) for this that works on iOS and Android, I think this issue could be closed. And I would be eternally grateful that I can start developing with Flutter.",
+    "createdAt": "2018-09-15T23:11:20Z"
+  },
+  {
+    "id": 7457,
+    "sender": "christocracy",
+    "content": "@dude8604 I think I know what you want.  To do much of this obviously requires a foreground-service, with its required persistent notification.  The user is aware of your running service.\r\n\r\nContact me via my github profile.",
+    "createdAt": "2018-09-16T02:20:42Z"
+  },
+  {
+    "id": 7458,
+    "sender": "lukepighetti",
+    "content": "Consider that React Native was basically like \"you get buttons, text fields and a list view, the rest is up to you\" and it grew into what it is now because of the community. Google cannot possibly handle all implementations and its insane to think that the Flutter team will be able to replicate all functionality provided by both Android and iOS when those functions are being added by teams 100x (10,000x?) the size of Flutter.",
+    "createdAt": "2018-09-16T17:43:10Z"
+  },
+  {
+    "id": 7459,
+    "sender": "rupertbulquerin",
+    "content": "The `android_alarm_manager` and `image_picker` doesn't seems to work (if both installed) after implementing it to a new project running `Flutter 0.8.3-pre.47`. The app forces to close. The example is working so I copied everything in the example and setup my firebase but still not working.",
+    "createdAt": "2018-09-17T02:48:05Z"
+  },
+  {
+    "id": 7460,
+    "sender": "MaikuB",
+    "content": "To add the issue @deckerst has raised, I'm not sure that it's appropriate to consider this closed when there isn't parity across Android and iOS with regards to being able to execute code that uses other plugins\r\n\r\nEdit: just noticed there's another issue to track this",
+    "createdAt": "2018-09-20T09:10:50Z"
+  },
+  {
+    "id": 7461,
+    "sender": "slightfoot",
+    "content": "Just so this article is referenced here for those that have not seen it:\r\nhttps://medium.com/flutter-io/executing-dart-in-the-background-with-flutter-plugins-and-geofencing-2b3e40a1a124",
+    "createdAt": "2018-09-20T10:27:24Z"
+  },
+  {
+    "id": 7462,
+    "sender": "MaikuB",
+    "content": "Thanks @slightfoot. Did see that and that's where I found the ticket (#21925) for getting iOS headless execution to work with plugins. Having a reference between these two tickets would've been useful. \r\n\r\n\r\nOn a related note, is there a plan to have headless execution included in the official documentation e.g. as part of the cookbook? I'd assume so but thought it's worth asking given there's likely a larger part of the community out that wouldn't know to check medium",
+    "createdAt": "2018-09-20T10:35:23Z"
+  },
+  {
+    "id": 7463,
+    "sender": "mit-mit",
+    "content": "Good point @MaikuB, added a doc bug for this!",
+    "createdAt": "2018-09-20T10:54:21Z"
+  },
+  {
+    "id": 7464,
+    "sender": "tonka3000",
+    "content": "Background-Support in flutter directly, see https://www.youtube.com/watch?v=_LfjILXswJs",
+    "createdAt": "2018-09-21T10:38:12Z"
+  },
+  {
+    "id": 7465,
+    "sender": "dude8604",
+    "content": "I don't quite understand. If Flutter now supports background execution, why does the tutorial have mostly platform specific code?\n\nGet Outlook for Android<https://aka.ms/ghei36>\n\n________________________________\nFrom: tonka <notifications@github.com>\nSent: Friday, September 21, 2018 3:39:28 AM\nTo: flutter/flutter\nCc: Philip Weiss; Mention\nSubject: Re: [flutter/flutter] Flutter should provide an abstraction for background execution (#3671)\n\n\nBackground-Support in flutter directly, see https://www.youtube.com/watch?v=_LfjILXswJs\n\n—\nYou are receiving this because you were mentioned.\nReply to this email directly, view it on GitHub<https://github.com/flutter/flutter/issues/3671#issuecomment-423490126>, or mute the thread<https://github.com/notifications/unsubscribe-auth/ABWxFrGMGvfFtwkf025Q2Je6lUTZu2aPks5udMHggaJpZM4IVsUk>.\n",
+    "createdAt": "2018-09-23T00:17:20Z"
+  },
+  {
+    "id": 7466,
+    "sender": "christocracy",
+    "content": "@dude8604 the tutorial is for *plugin* developers who wish to developer a plugin to perform some particular background operation.\r\n\r\n*Consumers* of some particular plugin are blind (as much as possible) to the platform-specific implementations.",
+    "createdAt": "2018-09-23T00:42:21Z"
+  },
+  {
+    "id": 7467,
+    "sender": "dude8604",
+    "content": "So as a Consumer is there a way to run arbitrary code in the background, if there isn't a plugin for my specific use case?\n________________________________\nFrom: Chris Scott <notifications@github.com>\nSent: Saturday, September 22, 2018 5:43:16 PM\nTo: flutter/flutter\nCc: Philip Weiss; Mention\nSubject: Re: [flutter/flutter] Flutter should provide an abstraction for background execution (#3671)\n\n\n@dude8604<https://github.com/dude8604> the tutorial is for plugin developers who wish to developer a plugin to perform some particular background operation.\n\nConsumers of some particular plugin are blind (as much as possible) to the platform-specific implementations.\n\n—\nYou are receiving this because you were mentioned.\nReply to this email directly, view it on GitHub<https://github.com/flutter/flutter/issues/3671#issuecomment-423783230>, or mute the thread<https://github.com/notifications/unsubscribe-auth/ABWxFhmlurQ08wWXLmMvE3E6yQ_lYvS1ks5udtkkgaJpZM4IVsUk>.\n",
+    "createdAt": "2018-09-23T01:24:42Z"
+  },
+  {
+    "id": 7468,
+    "sender": "christocracy",
+    "content": "@dude8604 No.\r\n \r\nAs far as I'm currently aware:\r\n- [FlutterGeofencing](https://github.com/bkonyi/FlutterGeofencing)\r\n- [android_alarm_manager](https://github.com/flutter/plugins/tree/master/packages/android_alarm_manager)\r\n- [flutter_background_geolocation](https://github.com/transistorsoft/flutter_background_geolocation)\r\n\r\nYou don't get to \"run arbitrary code in the background\".  [Android is strict now](https://www.youtube.com/watch?v=Pumf_4yjTMc).  iOS always has been.\r\n",
+    "createdAt": "2018-09-23T01:31:36Z"
+  },
+  {
+    "id": 7469,
+    "sender": "bkonyi",
+    "content": "@dude8604, @christocracy is correct. The background execution functionality demonstrated in the Medium article is targeted towards developers who want to create plugins that can execute Dart code in the background. Most Flutter users won't ever have to write platform specific code for background execution unless there isn't an existing plugin that matches their use case as these plugins will abstract away platform specific code behind a Dart interface.",
+    "createdAt": "2018-09-23T02:44:12Z"
+  },
+  {
+    "id": 7470,
+    "sender": "bkonyi",
+    "content": "> The `android_alarm_manager` and `image_picker` doesn't seems to work (if both installed) after implementing it to a new project running `Flutter 0.8.3-pre.47`. The app forces to close. The example is working so I copied everything in the example and setup my firebase but still not working.\r\n\r\n@rupert2133 would you mind filing an issue with more information? Feel free to mention me so I'm notified. This issue was for the broader requirement for background execution of Dart code and is closed, so any additional responses here are likely to get buried.",
+    "createdAt": "2018-09-23T02:46:11Z"
+  },
+  {
+    "id": 7471,
+    "sender": "christocracy",
+    "content": ">The android_alarm_manager and image_picker doesn't seems to work (if both installed) after \r\n\r\nThat reminds me.  Yesterday while implementing Headless Android in my plugin, I had an error coming  from `googlemaps` [here](https://github.com/flutter/plugins/blob/master/packages/google_maps_flutter/android/src/main/java/io/flutter/plugins/googlemaps/GoogleMapsPlugin.java#L30).\r\n\r\nWhen all the plugins are re-registered in the Headless state, `registrar.activity() == null`.\r\n\r\nI had to manually hack that to get my app booting:\r\n```diff\r\npublic static void registerWith(Registrar registrar) {\r\n    final GoogleMapsPlugin plugin = new GoogleMapsPlugin();\r\n+    Activity activity = registrar.activity();\r\n+    if (activity != null) {\r\n      registrar.activity().getApplication().registerActivityLifecycleCallbacks(plugin);\r\n      registrar\r\n              .platformViewRegistry()\r\n              .registerViewFactory(\r\n                      \"plugins.flutter.io/google_maps\", new GoogleMapFactory(plugin.state, registrar));\r\n+    }\r\n  }\r\n```\r\n\r\nThis is going to be a problem with a large number of plugins, I suspect.\r\n\r\n",
+    "createdAt": "2018-09-23T02:55:20Z"
+  },
+  {
+    "id": 7472,
+    "sender": "dude8604",
+    "content": ">I want to run a background service and read certain events, process and possibly record the data, and if appropriate create a notification which will launch the main app if pressed. Some examples of the events would be: new Bluetooth device in range, incoming data on a socket, incoming data from a USB device, SMS received, GPS location changed, Bluetooth device connection attempt, a certain physical button is pressed, accelerometer data exceeds a specified value, if the main app is terminated, and a lot of other things I'm not thinking of. If someone could make a comprehensive plugin (with a free or open source license) for this that works on iOS and Android, I think this issue could be closed. And I would be eternally grateful that I can start developing with Flutter.\r\n\r\n@bkonyi So which of the above things can I currently do with existing plugins? Can I use AlarmManager to poll for these events? But AlarmManager doesn't work on iOS, right?",
+    "createdAt": "2018-09-23T03:02:27Z"
+  },
+  {
+    "id": 7473,
+    "sender": "christocracy",
+    "content": "@dude8604 The best you'll get for periodic events on iOS is via the \"background-fetch\" API.  I'll be porting this plugin to flutter soon.\r\n\r\nThe iOS \"Background Fetch\" API will awaken a sleeping app in the background about every 15min (this is the **fastest possible interval**) providing your app *exactly* 30s of background running time.  However, iOS uses machine-learning (presumably) and will throttle this based upon time-of-day and frequency of device / app usage (eg: at night, when user is presumably sleeping, fetch events might come once / hour.",
+    "createdAt": "2018-09-23T03:07:24Z"
+  },
+  {
+    "id": 7474,
+    "sender": "dude8604",
+    "content": "@christocracy @bkonyi So all of [these](https://developer.apple.com/library/archive/documentation/iPhone/Conceptual/iPhoneOSProgrammingGuide/BackgroundExecution/BackgroundExecution.html#//apple_ref/doc/uid/TP40007072-CH4-SW23) and their Android equivalents could be made into a plugin? How can I make a feature request for this?",
+    "createdAt": "2018-09-23T03:28:50Z"
+  },
+  {
+    "id": 7475,
+    "sender": "christocracy",
+    "content": "@dude8604 You can't just wave a magic wand and `*poof*`.  You go put on your work gloves and make it yourself.  If you can't make it yourself, you find someone who *can* and you pay them tens-of-thousands of dollars.",
+    "createdAt": "2018-09-23T03:50:05Z"
+  },
+  {
+    "id": 7476,
+    "sender": "dude8604",
+    "content": "@christocracy You're right, but I was hoping one of the largest corporations in the world would have the resources to develop a fully featured product and not require its users to spend tens of thousands of dollars to make it usable enough.",
+    "createdAt": "2018-09-23T03:57:11Z"
+  },
+  {
+    "id": 7477,
+    "sender": "refi64",
+    "content": "Well, yeah it's a large corporation. \n\nSaid corporation is also made up of individuals, who are not omnipresent. No framework can ever cover everything out-of-the-box, because if you try your project is going to turn into a pile of burning...well, trash. \nThere are hundreds of platform-specific APIs and no single team is going to cover them. You'll have to bind some yourself. ",
+    "createdAt": "2018-09-23T04:08:39Z"
+  },
+  {
+    "id": 7478,
+    "sender": "lukepighetti",
+    "content": "@dude8604 Consider that your definition of \"fully featured\" is not the same as mine. Their responsibility is to handle the intersection. \r\n\r\n![1 f you write this](https://user-images.githubusercontent.com/666539/46011330-7fb39080-c093-11e8-9256-1a769d39d185.png)\r\n",
+    "createdAt": "2018-09-25T11:20:42Z"
+  },
+  {
+    "id": 7479,
+    "sender": "Pushan-Gupta",
+    "content": "Do we have a clear direction from docs? I saw Release Preview 2 saying that it has support for background execution. Some examples would be good to go.",
+    "createdAt": "2018-10-07T03:23:29Z"
+  },
+  {
+    "id": 7480,
+    "sender": "christocracy",
+    "content": "@Pushan-Gupta background-execution is a plugin-specific thing.\r\n\r\nIt depends what you want to do.  Track location?  Receive push notifications?  Monitor geofences?  Detect BT devices?  Beacons?  Play music?\r\n\r\nThere’s no “one ring to rule them all support for background execution”\r\n\r\n",
+    "createdAt": "2018-10-07T03:56:14Z"
+  },
+  {
+    "id": 7481,
+    "sender": "Pushan-Gupta",
+    "content": "@christocracy Sorry I didn't know that. I was aiming for a specific thing. Say I want to make some posts request from the app. But the connection is off. As soon as the device comes back online, no matter if the app is open or not, the queue of those posts requests must be processed. \r\n\r\nExample: Whatsapp enqueues messages before sending them to the server. If the device is offline it stores the queue and services it as soon as it comes online.",
+    "createdAt": "2018-10-07T18:14:57Z"
+  },
+  {
+    "id": 7482,
+    "sender": "xtelinco",
+    "content": "BTW I have a PR going, discussing plugin registration for background Isolates. If anyone has any thoughts...\r\n\r\nhttps://github.com/flutter/engine/pull/6396\r\n\r\n",
+    "createdAt": "2018-10-10T09:16:01Z"
+  },
+  {
+    "id": 7483,
+    "sender": "rostopira",
+    "content": "What's the point of `FlutterHeadlessDartRunner` currently?\r\nI've implemented background execution on Android currently (no plugin just `FlutterNativeView(ctx, true)`), and that's was somewhat easy to do.\r\nBut on iOS it's just crashing\r\n\r\n    func pushRegistry(_ registry: PKPushRegistry, didReceiveIncomingPushWith payload: PKPushPayload, for type: PKPushType, completion: @escaping () -> Void) {\r\n        let headless = FlutterHeadlessDartRunner.init()\r\n        headless.run(withEntrypoint: \"main\") // just EXC_BAD_ACCESS here\r\n    }",
+    "createdAt": "2018-10-15T16:02:58Z"
+  },
+  {
+    "id": 7484,
+    "sender": "MohdLucky",
+    "content": "Hey,\r\nPlease help in reminder app  in flutter ios",
+    "createdAt": "2018-10-16T11:17:55Z"
+  },
+  {
+    "id": 7485,
+    "sender": "Pushan-Gupta",
+    "content": "@MohdLucky And the help you need is..?",
+    "createdAt": "2018-10-17T04:27:02Z"
+  },
+  {
+    "id": 7486,
+    "sender": "ethael",
+    "content": "@christocracy do you have update on implementation state of background_fetch plugin please?",
+    "createdAt": "2018-10-17T06:18:22Z"
+  },
+  {
+    "id": 7487,
+    "sender": "MohdLucky",
+    "content": "not update on implementation state of background_fetch plugin , please provide some sample code for\r\nrunning background notification.",
+    "createdAt": "2018-10-17T07:54:56Z"
+  }
+]

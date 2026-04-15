@@ -1,0 +1,386 @@
+[
+  {
+    "id": 768,
+    "sender": "feinstein",
+    "content": "Don't know if this helps, but my Android Crashlytics reports 99.9% stability, while the iOS is at 96%.\n\nThe reports are usually very low level, indicating pthreads or kernel errors, if you want I can try to post some here, I don't know if they are related with this issue though.\n\nAll my native code is shared with other apps that have much higher iOS stability metrics and don't use Flutter, so I don't think the reports are related with our native code.\n\nSince we updated Flutter lots of iOS issues disappeared from Crashlytics, but others, like the one reported here, surfaced.\n\nLet me know if we can help with something else.",
+    "createdAt": "2022-05-10T14:48:28Z"
+  },
+  {
+    "id": 769,
+    "sender": "zanderso",
+    "content": "> The reports are usually very low level, indicating pthreads or kernel errors, if you want I can try to post some here, I don't know if they are related with this issue though.\r\n\r\nCrash reports from the field are usually not actionable by the team without an example that can be run locally to reproduce the crash. They'd also go in a new issue so we can triage them separately.\r\n\r\n> reported that he tried to swipe up the home bar to exit the app.\r\n\r\nThanks for this. We'll try to repro, but it would also be useful to know what was happening in the app at the time. Was there anything animating, or were there any platform views on the screen, etc.?",
+    "createdAt": "2022-05-10T16:03:56Z"
+  },
+  {
+    "id": 770,
+    "sender": "Cellaryllis",
+    "content": "Would it be beneficial if all of us, who are experiencing users with crashes, to list all installed packages? Perhaps we all have a common package that does have native widgets somewhere?",
+    "createdAt": "2022-05-10T16:31:47Z"
+  },
+  {
+    "id": 771,
+    "sender": "abdulrehmank7",
+    "content": "> Would it be beneficial if all of us, who are experiencing users with crashes, to list all installed packages? Perhaps we all have a common package that does have native widgets somewhere?\r\n\r\nWe recently added AdMob library to our app. Is that the case with all the user here?",
+    "createdAt": "2022-05-11T05:20:20Z"
+  },
+  {
+    "id": 772,
+    "sender": "Manuito83",
+    "content": "Nope. In my case I didn't change a single package when this started happening, and I don't use AdMob. I'm being reported the exactly the same behaviour by some users on iOS, to the point that the app becomes unusable. Sadly, I've also been unable to reproduce this locally or to identify why it's only happening to some specific users.",
+    "createdAt": "2022-05-11T06:22:41Z"
+  },
+  {
+    "id": 773,
+    "sender": "feinstein",
+    "content": "> Thanks for this. We'll try to repro, but it would also be useful to know what was happening in the app at the time. Was there anything animating, or were there any platform views on the screen, etc.?\n\nMy app is a stock trading app, so we make heavy use of websockets (and I suspect that's where some of the other crashes are coming from). The screen that presented the flickering is the first screen we open after login, which shows the user's balance, gains/losses and stock portfolio in real time.\n\nThere are no platform views, but we have some animations. There are loading animations using the [shimmer](https://pub.dev/packages/shimmer) package and also the text animates as the values change, like changes in text color (green to red and vice versa).\n\nIt's good to mention that in this screen we have a bottom navigation bar with 3 other screens. They are behind the portfolio screen, not visible but active, so it's really fast for the users to switch screens. They would have text, custom paint, images, slivers, animated widgets and styles, but no platform views.\n\nAlso, we don't use AdMob in the app.",
+    "createdAt": "2022-05-12T00:24:04Z"
+  },
+  {
+    "id": 774,
+    "sender": "intelryzen",
+    "content": "> > Thanks for this. We'll try to repro, but it would also be useful to know what was happening in the app at the time. Was there anything animating, or were there any platform views on the screen, etc.?\n> \n> My app is a stock trading app, so we make heavy use of websockets (and I suspect that's where some of the other crashes are coming from). The screen that presented the flickering is the first screen we open after login, which shows the user's balance, gains/losses and stock portfolio in real time.\n> \n> There are no platform views, but we have some animations. There are loading animations using the [shimmer](https://pub.dev/packages/shimmer) package and also the text animates as the values change, like changes in text color (green to red and vice versa).\n> \n> It's good to mention that in this screen we have a bottom navigation bar with 3 other screens. They are behind the portfolio screen, not visible but active, so it's really fast for the users to switch screens. They would have text, custom paint, images, slivers, animated widgets and styles, but no platform views.\n> \n> Also, we don't use AdMob in the app.\n\nI had this bug several times a day in Flutter 2.10.3. However, this problem no longer appeared after I updated Flutter to 3.0.",
+    "createdAt": "2022-05-16T15:22:56Z"
+  },
+  {
+    "id": 775,
+    "sender": "boichuk-oleh",
+    "content": "In my case, this bug is reproduced in Flutter 3.0.0 (iOS). \r\nLog: Execution of the command buffer was aborted due to an error during execution. Ignored (for causing prior/excessive GPU errors) (00000004:kIOGPUCommandBufferCallbackErrorSubmissionsIgnored)",
+    "createdAt": "2022-05-17T12:04:23Z"
+  },
+  {
+    "id": 776,
+    "sender": "zanderso",
+    "content": "At triage @chinmaygarde mentioned going over the reports to try to find common elements, so assigning this to him.",
+    "createdAt": "2022-05-17T23:07:41Z"
+  },
+  {
+    "id": 777,
+    "sender": "jackTang11",
+    "content": "> 就我而言，这个错误在 Flutter 3.0.0 (iOS) 中重现。 日志：由于执行过程中的错误，命令缓冲区的执行被中止。忽略（用于导致先前/过多的 GPU 错误）（00000004:kIOGPUCommandBufferCallbackErrorSubmissionsIgnored）\r\n\r\nHas it happened many times? I haven't dared to upgrade. It's still 2.5.3.",
+    "createdAt": "2022-05-18T00:22:21Z"
+  },
+  {
+    "id": 778,
+    "sender": "Albert221",
+    "content": "Also happens in our app (Flutter 2.10.5). Whole Flutter screen is blinking/flickering/strobing.\r\n\r\nThe native overlay (like time, battery and native push notification popup) don't flicker and responds to gestures normally.\r\n\r\nSome of the affected devices were:\r\n* iPhone 12, iOS 15.5\r\n* iPhone 12 mini, iOS 15.4.1",
+    "createdAt": "2022-05-18T10:56:16Z"
+  },
+  {
+    "id": 779,
+    "sender": "apkuhar",
+    "content": "Got the same on iPhone 13 pro max, ios 15.4.1, Flutter 2.10.5, Xcode 13.4 \r\n\r\nOnly saw it once installed from TestFlight, never saw during development, even in release builds.\r\n\r\nWe are using platform views on this screen. Not sure if it's related.\r\n`\r\n[✓] Flutter (Channel stable, 2.10.5, on macOS 12.0.1 21A559 darwin-arm, locale en-US)\r\n[✓] Android toolchain - develop for Android devices (Android SDK version 31.0.0)\r\n[✓] Xcode - develop for iOS and macOS (Xcode 13.4)\r\n[✓] Chrome - develop for the web\r\n[✓] Android Studio (version 2021.1)\r\n[✓] IntelliJ IDEA Ultimate Edition (version 2021.3)\r\n[✓] VS Code (version 1.67.2)\r\n[✓] Connected device (4 available)\r\n[✓] HTTP Host Availability\r\n`\r\n",
+    "createdAt": "2022-05-20T15:44:10Z"
+  },
+  {
+    "id": 780,
+    "sender": "zanderso",
+    "content": "We have not been able to reproduce this locally. Trying to summarize what is known so far:\r\n* Started in 2.10.0, and still occurs in 3.0.0\r\n* Several iOS 15 versions\r\n* A range of iPhone devices\r\n* Seems to be triggered by swiping up\r\n* Platform views do not flicker\r\n* Some reports that having bitcode disabled may be relevant\r\n\r\nIf anyone who is able to reproduce this locally would be willing to bisect on the flutter/flutter commits in 2.10.0, that would be very helpful. The flutter/flutter commit range is from: https://github.com/flutter/flutter/commit/fb1f8b0e38c9c34d6a1c4072288d1ea45af2bc50 to https://github.com/flutter/flutter/commit/95e555344dc746ad46ada9de9cc475042c63ec55 on the master branch.\r\n\r\n```\r\n$ git log --oneline fb1f8b0e38c9c34d6a1c4072288d1ea45af2bc50..95e555344dc746ad46ada9de9cc475042c63ec55 | wc -l\r\n621\r\n```\r\n\r\nso there should be no more than 10 versions to try. If that narrows things down to an Engine roll, we can then bisect on the Engine commits in the roll or just eyeball it.\r\n\r\n@fbcouch @abdulrehmank7 (and anyone else) - If you haven't already, could you file a separate issue about the trouble you encountered with bitcode and cc me and @jmagman?",
+    "createdAt": "2022-05-20T16:06:32Z"
+  },
+  {
+    "id": 781,
+    "sender": "apkuhar",
+    "content": "@[zanderso](https://github.com/zanderso) I'd add that this is only on production builds. Archive, upload to TestFlight, install. Never saw it installing from xcode or flutter run, even in release. ",
+    "createdAt": "2022-05-20T16:27:07Z"
+  },
+  {
+    "id": 782,
+    "sender": "feinstein",
+    "content": "@zanderso I got more details from the user. He said he was using the app normally and then he blocked the screen. 10 minutes later the unlocked the phone and the app was frozen, unresponsive, he couldn't do anything.\n\nThen he tried several gestures and got to minimize the app. When he came back to the app, the app was flickering.\n\nHe's using our release version from the App Store, not TestFlight.",
+    "createdAt": "2022-05-20T17:31:22Z"
+  },
+  {
+    "id": 783,
+    "sender": "Brazol",
+    "content": "Also happened in our app multiple times (Flutter version 2.10.x, iPhones 12 and 13). It's hard to reproduce, it's definitely not deterministic, but I did manage to repro it locally.\r\n\r\nThis one is from prod build and as you can see it happened when typing, the app thinks the keyboard is there (there is space for it and the app behaves like it is shown) but it's not visible.\r\n\r\nhttps://user-images.githubusercontent.com/5622717/169846747-4d7cb333-5ddf-4f86-83bd-3a6550f2c5ae.MP4\r\n\r\nThis one happened locally and it checks that platform views don't flicker (those are iframes in WebView). Generally, the app is not responding when it happens but this time I could scroll, kind of. I got lots of `Execution of the command buffer was aborted due to an error during execution. Caused GPU Timeout Error` iOS native errors on console then.\r\n\r\nhttps://user-images.githubusercontent.com/5622717/169847611-205b9e32-692d-4e87-914a-84a0827feba6.mov\r\n\r\nAlso in some cases after a few seconds of the flickering app just crashes.\r\n",
+    "createdAt": "2022-05-23T14:57:42Z"
+  },
+  {
+    "id": 784,
+    "sender": "zanderso",
+    "content": "@Brazol if you are able to reproduce this issue with a locally built app, then it would be very helpful if you could bisect on the new commits in the 2.10.0 release. The commits on the master channel are given above in https://github.com/flutter/flutter/issues/100522#issuecomment-1133075980. Thanks!\r\n",
+    "createdAt": "2022-05-23T15:31:40Z"
+  },
+  {
+    "id": 785,
+    "sender": "jackTang11",
+    "content": "Hope to get attention, this is very important to us",
+    "createdAt": "2022-05-23T23:46:16Z"
+  },
+  {
+    "id": 786,
+    "sender": "feinstein",
+    "content": "The Flutter team prioritizes based on how many  thumbs up (👍🏻) the issue has (the first comment).\n\nComments like \"me too\" don't add information and just pollute the thread, if you want this to get more attention, just give the first comment a \"👍🏻\" (although it hardly will as this is already very high priority).",
+    "createdAt": "2022-05-24T00:16:48Z"
+  },
+  {
+    "id": 787,
+    "sender": "mazzonem",
+    "content": "If it helps, I can confirm this is happening with Flutter 3.0.1 too. Same as above, production builds.",
+    "createdAt": "2022-05-24T09:12:43Z"
+  },
+  {
+    "id": 788,
+    "sender": "zanderso",
+    "content": "Hi all. Since we haven't been able to reproduce this locally, we really, really need more help with this one. Please get in touch with me on discord either if this happens for you locally on `flutter run` and you can help do a bisect, or if this happens from TestFlight and you can patch/build your own Engine. Thanks!",
+    "createdAt": "2022-05-24T23:25:14Z"
+  },
+  {
+    "id": 789,
+    "sender": "karelric",
+    "content": "I am having same issue with Flutter 2.10.3 and an iPhone 12 PRO Max.",
+    "createdAt": "2022-05-25T11:58:51Z"
+  },
+  {
+    "id": 790,
+    "sender": "feinstein",
+    "content": "The same user reported he saw the flickering again after opening the app and receiving a notification. But he wasn't 100% sure.",
+    "createdAt": "2022-05-25T15:48:55Z"
+  },
+  {
+    "id": 791,
+    "sender": "wupengbigMarker",
+    "content": "I got this issue on iPhone 11, iOS 15.4.1 with Flutter 2.10.5 too. It happens when app stays in background for a long time without terminate, then you open the app, it will show the flickering screen. After clicked the page, it will be normal. Actually, I reproduced this issue on iOS simulator when I ran code on it and just close my laptop . After serval hours, I opened the laptop. The simulator will happened like this. Here is basic info of flutter doctor:\r\n\r\n[✓] Flutter (Channel stable, 2.10.5, on macOS 11.6 20G165 darwin-x64, locale zh-Hans-CN)\r\n[✓] Android toolchain - develop for Android devices (Android SDK version 30.0.3)\r\n[✓] Xcode - develop for iOS and macOS (Xcode 13.2.1)\r\n[✓] Chrome - develop for the web\r\n[✓] Android Studio (version 4.2)\r\n[✓] VS Code (version 1.67.2)\r\n\r\nhttps://user-images.githubusercontent.com/85327471/170490891-44978419-024a-4e55-8616-2701b351e221.MP4\r\n",
+    "createdAt": "2022-05-26T13:00:45Z"
+  },
+  {
+    "id": 792,
+    "sender": "feinstein",
+    "content": "Can you reproduce it regularly if you wait an amount of time in the background?",
+    "createdAt": "2022-05-26T14:23:22Z"
+  },
+  {
+    "id": 793,
+    "sender": "wangxiaodong1995",
+    "content": "App screen flickers and freezes, when I restart it, it goes away. it doesn't always happen.\r\n\r\nFacing same issue on iOS v15.4.1. Getting similar flickering consistently while using app.\r\n\r\n[✓] Flutter (Channel stable, 2.10.5, on macOS 12.3.1 21E258 darwin-x64, locale\r\nzh-Hans-CN)\r\n[!] Android toolchain - develop for Android devices (Android SDK version\r\n32.1.0-rc1)\r\n! Some Android licenses not accepted. To resolve this, run: flutter doctor\r\n--android-licenses\r\n[✓] Xcode - develop for iOS and macOS (Xcode 13.1)\r\n[✓] Chrome - develop for the web\r\n[✓] Android Studio (version 2021.1)\r\n[✓] VS Code (version 1.51.0)\r\n[✓] Connected device (1 available)\r\n[✓] HTTP Host Availability",
+    "createdAt": "2022-05-27T02:28:33Z"
+  },
+  {
+    "id": 794,
+    "sender": "feinstein",
+    "content": "Can you follow @zanderso comment above to help us narrow down when the bug was first introduced? ",
+    "createdAt": "2022-05-27T02:30:34Z"
+  },
+  {
+    "id": 795,
+    "sender": "wupengbigMarker",
+    "content": "> Can you reproduce it regularly if you wait an amount of time in the background?\r\n\r\nrandomly...",
+    "createdAt": "2022-05-27T07:54:44Z"
+  },
+  {
+    "id": 796,
+    "sender": "abdulrehmank7",
+    "content": "> Update to Flutter 3, this problem is probably already solved, but it is present in version 2.10\r\n\r\nNo, I have also faced this in Flutter 3. It has the same behavior, it randomly pops up, and we are not able to use the app. We are able to see multiple screen overlapped while the screen is flickering.",
+    "createdAt": "2022-05-27T13:31:37Z"
+  },
+  {
+    "id": 797,
+    "sender": "tczesiu",
+    "content": "I have faced a new aspect of this issue. On production build, on iPhone, but from Test Flight my screen have started blinking but not all the widgets. The one that has not been not effected were “alive”. I managed to tap or slide on it and blinking effect vanish on other widgets. No app restart have been required. iOS 15.5, iPhone 12 Pro. ",
+    "createdAt": "2022-05-29T06:31:18Z"
+  },
+  {
+    "id": 798,
+    "sender": "feinstein",
+    "content": "Were the widgets that didn't flicker Platform Views?",
+    "createdAt": "2022-05-29T13:17:05Z"
+  },
+  {
+    "id": 799,
+    "sender": "tczesiu",
+    "content": "> Were the widgets that didn't flicker Platform Views?\r\n\r\nNo. I consider it is a flutter view, not a specyfic, native from  platform, view. ",
+    "createdAt": "2022-05-29T13:25:36Z"
+  },
+  {
+    "id": 800,
+    "sender": "rivella50",
+    "content": "> > Update to Flutter 3, this problem is probably already solved, but it is present in version 2.10\r\n> \r\n> No, I have also faced this in Flutter 3. It has the same behavior, it randomly pops up, and we are not able to use the app. We are able to see multiple screen overlapped while the screen is flickering.\r\n\r\nIt also happens here with Flutter 3.0.1",
+    "createdAt": "2022-06-01T13:19:33Z"
+  },
+  {
+    "id": 801,
+    "sender": "feinstein",
+    "content": "I think this issue's title should be updated since it's not related to a particular version anymore ",
+    "createdAt": "2022-06-01T15:46:37Z"
+  },
+  {
+    "id": 802,
+    "sender": "zanderso",
+    "content": "Hi all, we would love to work on fixing this, but we really need your help. Please see my comment here https://github.com/flutter/flutter/issues/100522#issuecomment-1133075980.",
+    "createdAt": "2022-06-01T16:11:15Z"
+  },
+  {
+    "id": 803,
+    "sender": "wupengbigMarker",
+    "content": "Does anyone have any idea about how to fix this issue? My clients complaint this to me for serval times...",
+    "createdAt": "2022-06-06T15:23:37Z"
+  },
+  {
+    "id": 804,
+    "sender": "rivella50",
+    "content": "> Does anyone have any idea about how to fix this issue? My clients complaint this to me for serval times...\r\n\r\nIf your clients can see a pattern (seems to happen quite often there) when flickering happens post it here so that the Flutter team can reproduce it and start working on this issue.",
+    "createdAt": "2022-06-06T15:38:21Z"
+  },
+  {
+    "id": 805,
+    "sender": "danagbemava-nc",
+    "content": "Removed the waiting label as this issue is still active and we do not want the bot to close it",
+    "createdAt": "2022-06-07T06:11:00Z"
+  },
+  {
+    "id": 806,
+    "sender": "khang-dev",
+    "content": "I also got this issue on iPhone SE 2, iOS 15.5 with Flutter 2.10.5. It happens when app stays in background and then opening the app. My home screen mainly contain an IndexedStack and 4 children views inside (4 tabs).\r\n\r\n[✓]  Flutter (Channel stable, 2.10.5, on macOS 12.4 21F79 darwin-arm, locale en-VN)\r\n[✓] Android toolchain - develop for Android devices (Android SDK version 30.0.3)\r\n[✓] Xcode - develop for iOS and macOS (Xcode 13.3)\r\n[✓] Android Studio (version 2021.2)\r\n[✓] VS Code (version 1.67.2)\r\n",
+    "createdAt": "2022-06-15T11:49:42Z"
+  },
+  {
+    "id": 807,
+    "sender": "ryzizub",
+    "content": "We faced same issue on Flutter 2.10.5, our home screen is mostly sliver lists with app bar. We have updated few days back to Flutter 3.0.2 and havent encoutered same issue yet. But it happens so randomly that I can't say it's thank to the update",
+    "createdAt": "2022-06-15T11:56:11Z"
+  },
+  {
+    "id": 808,
+    "sender": "rivella50",
+    "content": "> We faced same issue on Flutter 2.10.5, our home screen is mostly sliver lists with app bar. We have updated few days back to Flutter 3.0.2 and havent encoutered same issue yet. But it happens so randomly that I can't say it's thank to the update\r\n\r\nWhen i check the release notes for version 3.0.2 i don't see any fix that could be in favor of getting rid of these flickerings. And in version 3.0.1 we still have seen that effect.",
+    "createdAt": "2022-06-15T12:00:59Z"
+  },
+  {
+    "id": 809,
+    "sender": "ShahyarTaheri",
+    "content": "This issue occurs only on iOS for me after the swipe up gesture from the bottom of the screen for switching the app. It results in the following error:\r\n\r\n```\r\n\r\nExecution of the command buffer was aborted due to an error during execution. Caused GPU Timeout Error (00000002:kIOGPUCommandBufferCallbackErrorTimeout)\r\n\r\nExecution of the command buffer was aborted due to an error during execution. Ignored (for causing prior/excessive GPU errors) (00000004:kIOGPUCommandBufferCallbackErrorSubmissionsIgnored)\r\n\r\n```\r\n\r\n`flutter doctor` output:\r\n\r\n```\r\n[✓] Flutter (Channel stable, 3.0.2, on macOS 12.2.1 21D62 darwin-arm, locale en-US)\r\n[✓] Android toolchain - develop for Android devices (Android SDK version 30.0.3)\r\n[✓] Xcode - develop for iOS and macOS (Xcode 13.4.1)\r\n[✓] Chrome - develop for the web\r\n[✓] Android Studio (version 2021.1)\r\n[✓] VS Code (version 1.68.0)\r\n```",
+    "createdAt": "2022-06-16T19:54:40Z"
+  },
+  {
+    "id": 810,
+    "sender": "marnberg",
+    "content": "Could this be related to https://github.com/flutter/flutter/issues/97910?",
+    "createdAt": "2022-06-16T20:00:40Z"
+  },
+  {
+    "id": 811,
+    "sender": "ShahyarTaheri",
+    "content": "> #97910\r\n\r\nIt is related. The issue occurs quite often but the frequency is nonlinear. With the same sequence of interactions with the app, sometime it happens two times in a row and sometimes not at all. The flickering effect when screen freezes is similar to the videos other users posted in this issue. Once the UI freezes and flickering starts, I am still able to perform a hot reload which does not result in any UI updates. The resolution is always to restart the app. ",
+    "createdAt": "2022-06-16T20:11:51Z"
+  },
+  {
+    "id": 812,
+    "sender": "chenqiang-ola",
+    "content": "We have multiple users reporting similar issues. In production builds, only on iPhone. It affects the user experience very much and we couldn't find a useful way to fix it. Currently ,only downgraded the flutter  to 2.2.3 and build to users.\r\n\r\n`flutter doctor` output:\r\n```\r\n[✓] Flutter (Channel unknown, 2.10.5, on macOS 12.4 21F79 darwin-arm, locale\r\n    zh-Hans-CN)\r\n[✓] Android toolchain - develop for Android devices (Android SDK version 29.0.2)\r\n[✓] Xcode - develop for iOS and macOS (Xcode 13.4)\r\n[✓] Chrome - develop for the web\r\n[✓] Android Studio (version 2021.2)\r\n[✓] IntelliJ IDEA Community Edition (version 2020.2.3)\r\n[✓] VS Code (version 1.67.2)\r\n[✓] Connected device (1 available)\r\n```\r\n`User-provided videos` :\r\n\r\nhttps://user-images.githubusercontent.com/84301837/174463573-bf336a28-2276-4c25-8596-9bea957f8b04.mov\r\n\r\n\r\nhttps://user-images.githubusercontent.com/84301837/174463574-dab4fb08-523d-45ca-8fdc-7e2664119cf3.mov\r\n\r\n\r\nhttps://user-images.githubusercontent.com/84301837/174463576-a2e1986a-e0cf-4a76-b3df-4a0ec06e5f3f.mov\r\n\r\n\r\n",
+    "createdAt": "2022-06-19T02:39:56Z"
+  },
+  {
+    "id": 813,
+    "sender": "feinstein",
+    "content": "> > #97910\n> \n> It is related. The issue occurs quite often but the frequency is nonlinear. With the same sequence of interactions with the app, sometime it happens two times in a row and sometimes not at all. The flickering effect when screen freezes is similar to the videos other users posted in this issue. Once the UI freezes and flickering starts, I am still able to perform a hot reload which does not result in any UI updates. The resolution is always to restart the app. \n\n@ShahyarTaheri since you can reproduce this regularly, could you help the Flutter team narrowing down which version of the engine that introduced this problem?\n\nIf yes, please take a look at this comment: https://github.com/flutter/flutter/issues/100522#issuecomment-1133075980 ",
+    "createdAt": "2022-06-19T04:23:29Z"
+  },
+  {
+    "id": 814,
+    "sender": "abdulrehmank7",
+    "content": "Many of our user get this flickering when the app is in **opened state and is in background**.\r\n\r\nWhen they open the app from clicking notification, or they go back to the app manually, they see this flickering. Once flickering start the app is not responsive, it gets stuck, and we have to restart the app to fix the flickering.\r\n\r\nhttps://user-images.githubusercontent.com/57043846/174474139-7ca45c3a-39be-4219-b874-16fdb32ea7cd.mp4\r\n\r\n\r\n",
+    "createdAt": "2022-06-19T09:20:03Z"
+  },
+  {
+    "id": 815,
+    "sender": "knopp",
+    "content": "It would be immensely helpful if anyone could provide a sample project that can be used to reproduce this. It seems to be happening with a very specific circumstances and I so far was unable to reproduce the problem. Also please try posting detailed information about your app. Are there any platform views, video players (can you reproduce this without)? Are there images being loaded? Does this happen during scrolling / animation or also with completely static application? Are you using any native plugins? ",
+    "createdAt": "2022-06-19T13:36:58Z"
+  },
+  {
+    "id": 816,
+    "sender": "abdulrehmank7",
+    "content": "> Many of our user get this flickering when the app is in **opened state and is in background**.\r\n> \r\n> When they open the app from clicking notification, or they go back to the app manually, they see this flickering. Once flickering start the app is not responsive, it gets stuck, and we have to restart the app to fix the flickering.\r\n> \r\n>  RecordIt-1655561719.mp4\r\n\r\nMore and more customer are reporting this issue now. We are receiving 3-4 reports on daily basis. The issue mostly happens in release builds.\r\n\r\nhttps://user-images.githubusercontent.com/57043846/174994808-ec731544-ecb2-4649-a019-d6eff5f202be.mp4\r\n\r\n```\r\nDoctor summary (to see all details, run flutter doctor -v):\r\n[✓] Flutter (Channel stable, 3.0.2, on macOS 12.0.1 21A559 darwin-arm, locale en-IN)                                                                                                     Checking Android licenses is taking an unexpectedly long time...[✓] Android toolchain - develop for Android devices (Android SDK version 30.0.2)\r\n[!] Xcode - develop for iOS and macOS (Xcode 13.3.1)\r\n    ! CocoaPods 1.10.2 out of date (1.11.0 is recommended).\r\n        CocoaPods is used to retrieve the iOS and macOS platform side's plugin code that responds to your plugin usage on the Dart side.\r\n        Without CocoaPods, plugins will not work on iOS or macOS.\r\n        For more info, see https://flutter.dev/platform-plugins\r\n      To upgrade see https://guides.cocoapods.org/using/getting-started.html#installation for instructions.\r\n[✓] Chrome - develop for the web\r\n[✓] Android Studio (version 2021.2)\r\n[✓] IntelliJ IDEA Ultimate Edition (version 2020.3.3)\r\n[✓] Connected device (3 available)\r\n[✓] HTTP Host Availability\r\n```\r\n\r\n\r\n",
+    "createdAt": "2022-06-22T09:30:26Z"
+  },
+  {
+    "id": 817,
+    "sender": "danagbemava-nc",
+    "content": "Hi @abdulrehmank7, can you provide a reduced test case so that we can investigate this?",
+    "createdAt": "2022-06-22T09:58:23Z"
+  },
+  {
+    "id": 818,
+    "sender": "chinmaygarde",
+    "content": "@abdulrehmank7 s [issue](https://github.com/flutter/flutter/issues/100522#issuecomment-1162869743) looks different from the theme in this thread where there are Metal errors. That looks more like only a part of the screen updating (possibly due to dirty region management).",
+    "createdAt": "2022-06-22T17:44:23Z"
+  },
+  {
+    "id": 819,
+    "sender": "knopp",
+    "content": "> @abdulrehmank7 s [issue](https://github.com/flutter/flutter/issues/100522#issuecomment-1162869743) looks different from the theme in this thread where there are Metal errors. That looks more like only a part of the screen updating (possibly due to dirty region management).\r\n\r\nThe one video before from @abdulrehmank7 does look like it belongs here though. Also frame failing to rasterize (due to metal errors) and then sucessfully rasterizing modified part (the images that faded in) would look just like on video. \r\n\r\nSo maybe resterizing whole page (all thumbnails) resulted in metal errors, but then drawing only the 4 animated thumbnails didn't.",
+    "createdAt": "2022-06-22T18:49:01Z"
+  },
+  {
+    "id": 820,
+    "sender": "abdulrehmank7",
+    "content": "> We have not been able to reproduce this locally. Trying to summarize what is known so far:\r\n> \r\n> * Started in 2.10.0, and still occurs in 3.0.0\r\n> * Several iOS 15 versions\r\n> * A range of iPhone devices\r\n> * Seems to be triggered by swiping up\r\n> * Platform views do not flicker\r\n> * Some reports that having bitcode disabled may be relevant\r\n> \r\n> If anyone who is able to reproduce this locally would be willing to bisect on the flutter/flutter commits in 2.10.0, that would be very helpful. The flutter/flutter commit range is from: [fb1f8b0](https://github.com/flutter/flutter/commit/fb1f8b0e38c9c34d6a1c4072288d1ea45af2bc50) to [95e5553](https://github.com/flutter/flutter/commit/95e555344dc746ad46ada9de9cc475042c63ec55) on the master branch.\r\n> \r\n> ```\r\n> $ git log --oneline fb1f8b0e38c9c34d6a1c4072288d1ea45af2bc50..95e555344dc746ad46ada9de9cc475042c63ec55 | wc -l\r\n> 621\r\n> ```\r\n> \r\n> so there should be no more than 10 versions to try. If that narrows things down to an Engine roll, we can then bisect on the Engine commits in the roll or just eyeball it.\r\n> \r\n> @fbcouch @abdulrehmank7 (and anyone else) - If you haven't already, could you file a separate issue about the trouble you encountered with bitcode and cc me and @jmagman?\r\n\r\nAlso, the issue is not related to `bitcode` status. Previously, we had `bitcode` disabled for our app. But now we have enabled it back and still we are facing the issue.",
+    "createdAt": "2022-06-23T04:56:06Z"
+  },
+  {
+    "id": 821,
+    "sender": "alexeylopukh-aloteq",
+    "content": "@zanderso Any updates? Already 3 months have passed. This is very critical because it is dangerous for epileptics.",
+    "createdAt": "2022-06-23T07:29:36Z"
+  },
+  {
+    "id": 822,
+    "sender": "zanderso",
+    "content": "I'm very sorry for the trouble, but since we have not been able to reproduce this issue, we need one or more people who do have a local reproduction to share their project and/or follow the steps that I had @knopp have outlined above.",
+    "createdAt": "2022-06-23T15:34:24Z"
+  },
+  {
+    "id": 823,
+    "sender": "ArmandoJimenezOS",
+    "content": "This happens for me when I open my release app the first time, then I try to slide up in iOS and go home, the phone freezes for a second, and it goes to home, when I go back to the app the flickering starts. Happens randomly and can't reproduce.",
+    "createdAt": "2022-06-23T17:56:53Z"
+  },
+  {
+    "id": 824,
+    "sender": "rivella50",
+    "content": "Has someone tried connecting an app with Crashlytics in order to record an error when the flickering happens?",
+    "createdAt": "2022-06-23T17:59:18Z"
+  },
+  {
+    "id": 825,
+    "sender": "Brazol",
+    "content": "Hi team, happened to me again while debugging the app on the device (iPhone 12). \r\n\r\nFirst, the screen blinked a few times then turned black and was not responding, going from foreground to background and back just added a few lines on the console but the screen was still black, this is what was on the console:\r\n\r\n<img width=\"1455\" alt=\"Screenshot 2022-06-23 at 21 06 33\" src=\"https://user-images.githubusercontent.com/5622717/175380219-7fd7c4ce-2741-413c-94a4-627d06ecf6dc.png\">\r\n\r\nThen I restarted the app (without killing it) and the screen started flickering like crazy and it reflected in the console:\r\n\r\nhttps://user-images.githubusercontent.com/5622717/175380345-29d0b632-fd29-42fa-98a7-16ba88106330.mov\r\n\r\nThis all happened when scrolling `CupertinoDatePicker` inside modal popup shown by `showCupertinoModalPopup`:\r\n\r\n![IMG_0532F546DF6E-1](https://user-images.githubusercontent.com/5622717/175380579-fc914695-0da4-48a5-b807-2a1b16850870.jpeg)\r\n\r\nI hope it helps in any way. Again, this is not reproducible easily. Happened to me first time in this project (personal pet project) and I couldn't make it happen again. So I don't see any chances of me testing it on various Flutter commits to pinpoint the issue :/\r\n",
+    "createdAt": "2022-06-23T19:25:28Z"
+  },
+  {
+    "id": 826,
+    "sender": "feinstein",
+    "content": "@zanderso any chance we could get some insight from Apple on what could be the cause of this?",
+    "createdAt": "2022-06-23T22:35:23Z"
+  },
+  {
+    "id": 827,
+    "sender": "DjordjeMancic97",
+    "content": "Also experiencing this issue randomly when opening app from background state.\r\n\r\nLogs:\r\n```\r\nExecution of the command buffer was aborted due to an error during execution. Caused GPU Timeout Error (00000002:kIOGPUCommandBufferCallbackErrorTimeout)\r\n\r\nExecution of the command buffer was aborted due to an error during execution. Ignored (for causing prior/excessive GPU errors) (00000004:kIOGPUCommandBufferCallbackErrorSubmissionsIgnored)\r\n```\r\n\r\nIn our app, we have overlay created using BackdropFilter which we display for a few seconds when app is opened from background and hide it after. These actions are done inside didChangeAppLifecycleState. ",
+    "createdAt": "2022-06-24T07:14:20Z"
+  },
+  {
+    "id": 828,
+    "sender": "apkuhar",
+    "content": "> Also experiencing this issue randomly when opening app from background state.\n> \n> \n> \n> Logs:\n> \n> ```\n> \n> Execution of the command buffer was aborted due to an error during execution. Caused GPU Timeout Error (00000002:kIOGPUCommandBufferCallbackErrorTimeout)\n> \n> \n> \n> Execution of the command buffer was aborted due to an error during execution. Ignored (for causing prior/excessive GPU errors) (00000004:kIOGPUCommandBufferCallbackErrorSubmissionsIgnored)\n> \n> ```\n> \n> \n> \n> In our app, we have overlay created using BackdropFilter which we display for a few seconds when app is opened from background and hide it after. These actions are done inside didChangeAppLifecycleState. \n\nthis seems similar to our case.\n\nwe use platform views for camera preview. it's a surfaceview. \n\nand we initialize it on lifecycle changes. when returning from background...\n\nthe flickering was on return from background in our case also,  and the platform view(live camera preview) displayed ok, while other parts of the UI flickered and parts of the UI that is composed from Images failed to load. \n\nonly saw it once on a build installed from testflight.\nthe app is not released on the appstore yet, as am waiting to evaluate the stability of flutter. \nit is an update over existing native app though, and i have a feeling this might be a bigger issue if this gets to a million of users.\n",
+    "createdAt": "2022-06-24T09:16:25Z"
+  },
+  {
+    "id": 829,
+    "sender": "chinmaygarde",
+    "content": "From Triage: @iskakaushik is going to add flags to disable compositor features speculatively to see if we can isolate the failures to specific subsystems.",
+    "createdAt": "2022-06-27T17:48:24Z"
+  },
+  {
+    "id": 830,
+    "sender": "zanderso",
+    "content": "GitHub was a little too eager in closing this based on the commit message in https://github.com/flutter/engine/commit/0671bcab03843368f0181ea6e32345e6742af27a",
+    "createdAt": "2022-06-27T20:49:18Z"
+  },
+  {
+    "id": 831,
+    "sender": "iskakaushik",
+    "content": "Hi all, https://github.com/flutter/engine/pull/34328 PR has [rolled into](https://github.com/flutter/flutter/pull/106707) Flutter Framework master. If the following is added to `Info.plist` of the application, it will disable partial repaint:\r\n\r\n```\r\n  <key>FLTDisablePartialRepaint</key>\r\n  <true/>\r\n```\r\n\r\nIt would be great to know if disabling partial repaint resolves this issue. We are not yet sure if it will, but we think the severity of this issue and lack of reproducible case makes it worthwhile to try out a broad fix. It would be great if any of you experiencing this would be able to try out and post here about your findings.",
+    "createdAt": "2022-06-28T15:03:28Z"
+  }
+]

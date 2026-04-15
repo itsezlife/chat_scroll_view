@@ -1,0 +1,386 @@
+[
+  {
+    "id": 8704,
+    "sender": "cbatson",
+    "content": "> You can opt out easily by setting a property in the theme. I cannot search it right now. But you just need to set material 3 to false\r\n\r\nThank you, I am aware, which is why my question included, \"Assuming I don't want to blanket disable Material 3 altogether...\"",
+    "createdAt": "2023-11-18T18:04:43Z"
+  },
+  {
+    "id": 8705,
+    "sender": "Levi-Lesches",
+    "content": "I do find it odd that making `useMaterial3` default to `true` wasn't considered a breaking change in Flutter. I understand Flutter has different deprecation policies but at the end of the day, a simple upgrade to a new _minor_ version of Flutter completely changed my app's colors and design. Can someone on the Flutter team comment on this, and what the policy for visually breaking changes is in general? \r\n\r\nDart also had a similar story by introducing null safety in 2.12 (which didn't break old _dependencies_ but code still had to be migrated manually before it could be compiled again) and then making 3.0 a non-breaking change, even modifying `pub get` logic to treat it as such. But that's a different topic for a different crowd. ",
+    "createdAt": "2023-11-19T20:03:13Z"
+  },
+  {
+    "id": 8706,
+    "sender": "HansMuller",
+    "content": "It's true that in most respects making M3 the default was a breaking change. The [official rule for breaking changes](https://docs.flutter.dev/release/compatibility-policy#:~:text=If%20we%20do%20make%20a,code%20affected%20by%20breaking%20changes.) allows for visual changes that don't break existing customer tests, however this was a _big_ visual change and we apologize for the havoc it may have created. ",
+    "createdAt": "2023-11-20T17:40:28Z"
+  },
+  {
+    "id": 8707,
+    "sender": "rydmike",
+    "content": "@Levi-Lesches, even if it was very nice of @HansMuller to apologize for the potential \"havoc\" 😄 it may have caused, I would like to add that as well known, Flutter SDK does not use semantic versioning, the minor stable releases pretty much always contain some breaking changes.\r\n\r\nThere is always an attempt to list all breaking changes under https://docs.flutter.dev/release/breaking-changes. Sometimes one or two have been missed, it happens, I've certainly been hit by that too. However, in this case the change of defaulting `useMaterial` to **true** instead of **false**, is listed and included as the **2nd breaking change in release 3.16**, see https://docs.flutter.dev/release/breaking-changes/material-3-default#migration-guide.\r\n\r\nIt was even mentioned already in the **previous Flutter 3.13 release notes**, that in the next stable release after it, Material3 would be made the default, see https://medium.com/flutter/whats-new-in-flutter-3-13-479d9b11df4d \r\n\r\n![Screenshot 2023-11-20 at 19 46 44](https://github.com/flutter/flutter/assets/39990307/f3068509-6d14-483d-820c-c2f4d7f2f2af)\r\n\r\nSo this change should not be a big surprise for anybody and the fix is a single flag toggle. \r\n\r\n\r\n## Legacy M2 based themes and styles?\r\n\r\nWhat might become a **much bigger challenge** is when the the flag is deprecated and even later, when the code supporting legacy Material-2 themes and styles are removed. How do we recreate the legacy styles then? This is an interesting question.\r\n\r\nYou **can** however make a theme using Material-3 in Flutter's `useMaterial3: true` mode, that creates an app that looks like it using Material-2, as if is the flag would be set to `useMaterial3: true`. This also means it is possible to replicate custom styles, as they were when made with M2 after enabling M3, that do not break the app so much. This might interest you @cbatson as well.\r\n\r\nIn this tweet https://x.com/RydMike/status/1721535442783236259?s=20 I show an example of a theme changing from using M3, to pretty much look like it is using M2 mode and its defaults, while it is actually using M3 mode all the time. It is only being themed to look like it is using M2. \r\n\r\nHere is a similar recording demoing it:\r\n\r\nhttps://github.com/flutter/flutter/assets/39990307/ebf6f0b9-b608-4b70-b246-6a506d027c77\r\n\r\n\r\n\r\nHow much you have to change in the M3 theme depends on your custom M2 theme and styles. It is currently not possible to for all cases get a 100% match, but probably close enough for most custom designs, for the parts that matters anyway.\r\n\r\nSure the above example use my **FlexColorScheme** package that contains some presets in the **Themes Playground** config app to set it to an M2 look-alike design in M3 mode with one-click. However, the **Themes Playground** is just a visual config tool for the **FlexColorScheme** package API, which in turn is a fancy **ThemeData** factory. So anything it can do, you can do with just vanilla **ThemeData** as well.\r\n\r\nI might write a blog with some general and in-depth guidance on how to go about doing this. Perhaps something will also be written about it by the Flutter team as well. It is certainly a topic that many will ask and wonder about once the `useMaterial3` flag is removed.\r\n\r\nA few quick pointers to get from M3 to an M2 look-a-like app in M3 mode:\r\n\r\n- Use a hand-made `ColorScheme` with legacy style colors. You probably have a custom one for your app already.\r\n- In light mode set `ColorScheme.surfaceTint` to `Colors.transparent`. In dark mode, set it to a neutral grey color that gives a similar dark mode overlay elevation as the one you got in M2 mode, if the dark M2-mode is/was used correctly. Few Flutter apps used M2 dark mode correctly though.\r\n- Map `ColorScheme` colors on component themes as they were in M2, yes \"some\" are different in M3, Buttons, AppBar, FAB etc.\r\n- Set elevations on components themes with elevations, as they were in M2.\r\n- Set `shadowColor` to `Colors.black` for component themes where it defaults to `Colors.transparent`. The `ColorScheme.shadow` color already defaults to `Colors.black`, but some component themes that used it in M2, now set it to `Colors.transparent` in M3 mode. By setting it back to black, you can bring shadows back to such components, e.g. `AppBar`.\r\n- Set `shape` border radius on components as they were in M2, typically 4.\r\n- If the older `typography` is still around (2014=pre-M2 and 2018=M2) when the flag is removed, switch to the one you used, instead of the M3 default one, or of course keep whatever you use in your custom design.\r\n- Set `AppBar` component theme `scrolledUnderElevation` to the same value as `elevation`, so there is no elevation change when scrolling.\r\n\r\nWith these changes in place, you should have no tinted surface colors, no elevation tint and border radius and elevations should be same as before, and you should have a bit lighter grays on elevated surfaces in dark mode. This is needed so they are visible against the background, since the shadow does not really show so sell in dark mode, even if it is there, this is used by M2 as well. \r\n\r\nFor a custom design you might have other minor things not mentioned here that needs tuning in order to not break it a lot visually when you enable M3.\r\n",
+    "createdAt": "2023-11-20T18:47:39Z"
+  },
+  {
+    "id": 8708,
+    "sender": "39499740",
+    "content": "## Occasional mDNS lookup failure on iOS 13\n\nToday, I upgraded iOS13 and found that my project could not be debugged.\r\n\r\n```\r\nAutomatically signing iOS for device deployment using specified development team in Xcode project: 35DV8GEMR8\r\nRunning pod install...\r\nRunning Xcode build...\r\nXcode build done.                                           17.5s\r\nInstalling and launching...\r\nChecking for advertised Dart observatories...\r\n```\r\n\r\nAfter using Flutter run, the project will be stuck here with a black screen on the mobile screen.\r\n\r\nThis project runs well on iOS 12. I didn't find any information in issues. When can iOS 13 be adapted?\r\n\r\niPhone 7 Plus\r\n\r\n## Flutter doctor\r\n```\r\n[✓] Flutter (Channel dev, v1.10.5, on Mac OS X 10.14.6 18G95, locale zh-Hans-CN)\r\n    • Flutter version 1.10.5 at /Users/haoyi/flutter\r\n    • Framework revision 3cf88fed6d (4 days ago), 2019-09-18 23:09:41 -0400\r\n    • Engine revision 33ad6757e8\r\n    • Dart version 2.6.0 (build 2.6.0-dev.0.0 cb80ea7ba9)\r\n\r\n[✓] Android toolchain - develop for Android devices (Android SDK version 28.0.3)\r\n    • Android SDK at /Users/haoyi/Library/Android/sdk\r\n    • Android NDK location not configured (optional; useful for native profiling support)\r\n    • Platform android-28, build-tools 28.0.3\r\n    • Java binary at: /Users/haoyi/Library/Application Support/JetBrains/Toolbox/apps/AndroidStudio/ch-0/191.5791312/Android\r\n      Studio.app/Contents/jre/jdk/Contents/Home/bin/java\r\n    • Java version OpenJDK Runtime Environment (build 1.8.0_202-release-1483-b49-5587405)\r\n    • All Android licenses accepted.\r\n\r\n[✓] Xcode - develop for iOS and macOS (Xcode 11.0)\r\n    • Xcode at /Applications/Xcode.app/Contents/Developer\r\n    • Xcode 11.0, Build version 11A420a\r\n    • CocoaPods version 1.6.1\r\n\r\n[✓] Chrome - develop for the web\r\n    • Chrome at /Applications/Google Chrome.app/Contents/MacOS/Google Chrome\r\n\r\n[✓] Android Studio (version 3.5)\r\n    • Android Studio at /Users/haoyi/Library/Application Support/JetBrains/Toolbox/apps/AndroidStudio/ch-0/191.5791312/Android\r\n      Studio.app/Contents\r\n    • Flutter plugin version 39.0.3\r\n    • Dart plugin version 191.8423\r\n    • Java version OpenJDK Runtime Environment (build 1.8.0_202-release-1483-b49-5587405)\r\n\r\n[!] IntelliJ IDEA Ultimate Edition (version 2019.2.2)\r\n    • IntelliJ at /Users/haoyi/Applications/JetBrains Toolbox/IntelliJ IDEA Ultimate.app\r\n    ✗ Flutter plugin not installed; this adds Flutter specific functionality.\r\n    ✗ Dart plugin not installed; this adds Dart specific functionality.\r\n    • For information about installing plugins, see\r\n      https://flutter.dev/intellij-setup/#installing-the-plugins\r\n\r\n[✓] VS Code (version 1.38.0)\r\n    • VS Code at /Users/haoyi/Applications/Visual Studio Code.app/Contents\r\n    • Flutter extension version 3.4.1\r\n\r\n```\r",
+    "createdAt": "2019-09-23T09:34:13Z"
+  },
+  {
+    "id": 8709,
+    "sender": "escamoteur",
+    "content": "Can you please try it on the master channel? ",
+    "createdAt": "2019-09-23T09:39:28Z"
+  },
+  {
+    "id": 8710,
+    "sender": "akeblom",
+    "content": "> Can you please try it on the master channel?\r\n\r\nI have the exact same problem running on master channel",
+    "createdAt": "2019-09-23T12:22:42Z"
+  },
+  {
+    "id": 8711,
+    "sender": "akeblom",
+    "content": "BTW. The app starts if I am running it from the command line.",
+    "createdAt": "2019-09-23T12:27:28Z"
+  },
+  {
+    "id": 8712,
+    "sender": "akeblom",
+    "content": "Sorry for spamming but found a work around. \r\n\r\n1. Start the app in Android Studio, but do not start in debug mode. \r\n2. Stop the app\r\n3. Start in debug.\r\n\r\n",
+    "createdAt": "2019-09-23T12:32:23Z"
+  },
+  {
+    "id": 8713,
+    "sender": "escamoteur",
+    "content": "@akeblom are you on the latest version of the master branch?",
+    "createdAt": "2019-09-23T13:41:18Z"
+  },
+  {
+    "id": 8714,
+    "sender": "escamoteur",
+    "content": "Have you tried if it works with VS code?",
+    "createdAt": "2019-09-23T13:42:18Z"
+  },
+  {
+    "id": 8715,
+    "sender": "akeblom",
+    "content": "Yes on the latest. Now it works on VSCode. After I did that trick with starting the app without debug mode in Android Studio.\r\n",
+    "createdAt": "2019-09-23T13:44:44Z"
+  },
+  {
+    "id": 8716,
+    "sender": "escamoteur",
+    "content": "If you restart your machine and try directly in VS code what happens then?\r\n\r\nIf it still doesn't work, please run\r\n\r\n`flutter run -debug -v`",
+    "createdAt": "2019-09-23T13:48:16Z"
+  },
+  {
+    "id": 8717,
+    "sender": "escamoteur",
+    "content": "And check if your flutter plugins vor VS code and AS are on the latest version",
+    "createdAt": "2019-09-23T13:48:53Z"
+  },
+  {
+    "id": 8718,
+    "sender": "akeblom",
+    "content": "Yes, latest!\r\n\r\nI did update xcode today. After that the problem appeared.",
+    "createdAt": "2019-09-23T13:52:02Z"
+  },
+  {
+    "id": 8719,
+    "sender": "escamoteur",
+    "content": "Ah, so after update on Xcode 11 good to no",
+    "createdAt": "2019-09-23T13:54:58Z"
+  },
+  {
+    "id": 8720,
+    "sender": "escamoteur",
+    "content": "could you please do\r\n\r\nflutter run -debug -v\r\n\r\nand attach the log here if it again hangs",
+    "createdAt": "2019-09-23T13:55:51Z"
+  },
+  {
+    "id": 8721,
+    "sender": "akeblom",
+    "content": "yeah sure! I will try to restart and go directly to VSCode when I have time!",
+    "createdAt": "2019-09-23T13:58:49Z"
+  },
+  {
+    "id": 8722,
+    "sender": "IRIG",
+    "content": "Same here with iPhone XS. All updates done but still no console output in Android Studio.",
+    "createdAt": "2019-09-23T15:40:13Z"
+  },
+  {
+    "id": 8723,
+    "sender": "christopherfujino",
+    "content": "@akeblom are you saying that this issue only occurs when starting an app from Android Studio? Can you confirm @IRIG & @39499740?",
+    "createdAt": "2019-09-23T20:21:55Z"
+  },
+  {
+    "id": 8724,
+    "sender": "christopherfujino",
+    "content": "@devoncarew I recently changed [`flutter run` to use mDNS](https://github.com/flutter/flutter/pull/40447/files) to discover the flutter application's observatory port--could this have broken the Android Studio plugin?",
+    "createdAt": "2019-09-23T20:29:38Z"
+  },
+  {
+    "id": 8725,
+    "sender": "devoncarew",
+    "content": "It's certainly possible. We rely on the information reported via `flutter run --machine` - the IDE communicates with flutter_tools over stdio via the [daemon](https://github.com/flutter/flutter/blob/master/packages/flutter_tools/doc/daemon.md) protocol. \r\n\r\nIf it breaks Android Studio, it would also effect IntelliJ and VS Code. It should be possible to bisect the breakage - to either use `git bisect`, or to try flutter both before and after your commit, to see if it's the issue. \r\n\r\nThe commit before your's was 431b82fda8fc568cee1bef9ec140f632f9d3529b, so `git checkout 431b82fda8fc568cee1bef9ec140f632f9d3529b` and running any flutter command, then re-starting Android Studio should let us know whether a newer commit introduced an issue.",
+    "createdAt": "2019-09-23T22:32:52Z"
+  },
+  {
+    "id": 8726,
+    "sender": "christopherfujino",
+    "content": "Hmm, I can confirm that (at least for me), on an iPhone Xr with iOS 13 that Android studio works with hot reload...",
+    "createdAt": "2019-09-23T22:52:22Z"
+  },
+  {
+    "id": 8727,
+    "sender": "luizfranca",
+    "content": "So I have an iPhone XS on iOS 13.1 and tried the `flutter run --debug -v`\r\nI'm having the same problem. I'm on master\r\nThis is part of the log because it's really huge.\r\n\r\n```\r\n[        ] Updating files\r\n[ +116 ms] Error writing \"build/flutter_assets/FontManifest.json\" to DevFS: OS Error: Connection reset by peer, errno = 54\r\n[   +1 ms] Could not update files on device: OS Error: Connection reset by peer, errno = 54\r\n[   +2 ms] Syncing files to device Luiz França's iPhone... (completed in 7,275ms, longer than expected)\r\n[   +1 ms] \"flutter run\" took 79,550ms.\r\n\r\n#0      throwToolExit (package:flutter_tools/src/base/common.dart:28:3)\r\ndart-lang/labs#99      RunCommand.runCommand (package:flutter_tools/src/commands/run.dart:485:7)\r\n<asynchronous suspension>\r\ndart-lang/labs#100      FlutterCommand.verifyThenRunCommand (package:flutter_tools/src/runner/flutter_command.dart:527:18)\r\ndart-lang/labs#101      _asyncThenWrapperHelper.<anonymous closure> (dart:async-patch/async_patch.dart:71:64)\r\ndart-lang/labs#102      _rootRunUnary (dart:async/zone.dart:1132:38)\r\ndart-lang/labs#103      _CustomZone.runUnary (dart:async/zone.dart:1029:19)\r\ndart-lang/labs#104      _FutureListener.handleValue (dart:async/future_impl.dart:137:18)\r\ndart-lang/labs#105      Future._propagateToListeners.handleValueCallback (dart:async/future_impl.dart:678:45)\r\ndart-lang/labs#106      Future._propagateToListeners (dart:async/future_impl.dart:707:32)\r\ndart-lang/labs#107      Future._completeWithValue (dart:async/future_impl.dart:522:5)\r\ndart-lang/labs#108     _AsyncAwaitCompleter.complete (dart:async-patch/async_patch.dart:30:15)\r\ndart-lang/labs#109     _completeOnAsyncReturn (dart:async-patch/async_patch.dart:288:13)\r\ndart-lang/appengine#12     RunCommand.usageValues (package:flutter_tools/src/commands/run.dart)\r\ndart-lang/labs#110     _asyncThenWrapperHelper.<anonymous closure> (dart:async-patch/async_patch.dart:71:64)\r\ndart-lang/labs#111     _rootRunUnary (dart:async/zone.dart:1132:38)\r\ndart-lang/labs#112     _CustomZone.runUnary (dart:async/zone.dart:1029:19)\r\ndart-lang/labs#113     _FutureListener.handleValue (dart:async/future_impl.dart:137:18)\r\ndart-lang/labs#114     Future._propagateToListeners.handleValueCallback (dart:async/future_impl.dart:678:45)\r\ndart-lang/labs#115     Future._propagateToListeners (dart:async/future_impl.dart:707:32)\r\ndart-lang/labs#116     Future._completeWithValue (dart:async/future_impl.dart:522:5)\r\ndart-lang/labs#117     _AsyncAwaitCompleter.complete (dart:async-patch/async_patch.dart:30:15)\r\ndart-lang/labs#118     _completeOnAsyncReturn (dart:async-patch/async_patch.dart:288:13)\r\ndart-lang/labs#119     IosProject.isSwift (package:flutter_tools/src/project.dart)\r\ndart-lang/labs#120     _asyncThenWrapperHelper.<anonymous closure> (dart:async-patch/async_patch.dart:71:64)\r\ndart-lang/labs#121     _rootRunUnary (dart:async/zone.dart:1132:38)\r\ndart-lang/labs#122     _CustomZone.runUnary (dart:async/zone.dart:1029:19)\r\ndart-lang/labs#123     _FutureListener.handleValue (dart:async/future_impl.dart:137:18)\r\ndart-lang/labs#124     Future._propagateToListeners.handleValueCallback (dart:async/future_impl.dart:678:45)\r\ndart-lang/labs#125     Future._propagateToListeners (dart:async/future_impl.dart:707:32)\r\ndart-lang/labs#126     Future._completeWithValue (dart:async/future_impl.dart:522:5)\r\ndart-lang/labs#127     _AsyncAwaitCompleter.complete (dart:async-patch/async_patch.dart:30:15)\r\ndart-lang/labs#128     _completeOnAsyncReturn (dart:async-patch/async_patch.dart:288:13)\r\ndart-lang/labs#129     IosProject.buildSettings (package:flutter_tools/src/project.dart)\r\ndart-lang/labs#130     _asyncThenWrapperHelper.<anonymous closure> (dart:async-patch/async_patch.dart:71:64)\r\ndart-lang/labs#131     _rootRunUnary (dart:async/zone.dart:1132:38)\r\ndart-lang/labs#132     _CustomZone.runUnary (dart:async/zone.dart:1029:19)\r\ndart-lang/labs#133     _FutureListener.handleValue (dart:async/future_impl.dart:137:18)\r\ndart-lang/labs#134     Future._propagateToListeners.handleValueCallback (dart:async/future_impl.dart:678:45)\r\ndart-lang/labs#135     Future._propagateToListeners (dart:async/future_impl.dart:707:32)\r\ndart-lang/labs#136     Future._completeWithValue (dart:async/future_impl.dart:522:5)\r\ndart-lang/appengine#40     _AsyncAwaitCompleter.complete (dart:async-patch/async_patch.dart:30:15)\r\ndart-lang/labs#137     _completeOnAsyncReturn (dart:async-patch/async_patch.dart:288:13)\r\ndart-lang/labs#138     XcodeProjectInterpreter.getBuildSettings (package:flutter_tools/src/ios/xcodeproj.dart)\r\ndart-lang/labs#139     _asyncThenWrapperHelper.<anonymous closure> (dart:async-patch/async_patch.dart:71:64)\r\ndart-lang/labs#140     _rootRunUnary (dart:async/zone.dart:1132:38)\r\ndart-lang/labs#141     _CustomZone.runUnary (dart:async/zone.dart:1029:19)\r\ndart-lang/labs#142     _FutureListener.handleValue (dart:async/future_impl.dart:137:18)\r\ndart-lang/labs#143     Future._propagateToListeners.handleValueCallback (dart:async/future_impl.dart:678:45)\r\ndart-lang/appengine#48     Future._propagateToListeners (dart:async/future_impl.dart:707:32)\r\ndart-lang/appengine#49     Future._completeWithValue (dart:async/future_impl.dart:522:5)\r\ndart-lang/appengine#50     _AsyncAwaitCompleter.complete (dart:async-patch/async_patch.dart:30:15)\r\ndart-lang/labs#144     _completeOnAsyncReturn (dart:async-patch/async_patch.dart:288:13)\r\ndart-lang/labs#145     _DefaultProcessUtils.run (package:flutter_tools/src/base/process.dart)\r\ndart-lang/labs#146     _asyncThenWrapperHelper.<anonymous closure> (dart:async-patch/async_patch.dart:71:64)\r\ndart-lang/appengine#54     _rootRunUnary (dart:async/zone.dart:1132:38)\r\ndart-lang/labs#147     _CustomZone.runUnary (dart:async/zone.dart:1029:19)\r\ndart-lang/appengine#56     _FutureListener.handleValue (dart:async/future_impl.dart:137:18)\r\ndart-lang/labs#148     Future._propagateToListeners.handleValueCallback (dart:async/future_impl.dart:678:45)\r\ndart-lang/appengine#58     Future._propagateToListeners (dart:async/future_impl.dart:707:32)\r\ndart-lang/appengine#59     Future._completeWithValue (dart:async/future_impl.dart:522:5)\r\ndart-lang/appengine#60     Future.wait.<anonymous closure> (dart:async/future.dart:400:22)\r\ndart-lang/labs#149     _rootRunUnary (dart:async/zone.dart:1132:38)\r\ndart-lang/appengine#62     _CustomZone.runUnary (dart:async/zone.dart:1029:19)\r\ndart-lang/labs#150     _FutureListener.handleValue (dart:async/future_impl.dart:137:18)\r\ndart-lang/labs#151     Future._propagateToListeners.handleValueCallback (dart:async/future_impl.dart:678:45)\r\ndart-lang/labs#152     Future._propagateToListeners (dart:async/future_impl.dart:707:32)\r\ndart-lang/labs#153     Future._complete (dart:async/future_impl.dart:512:7)\r\ndart-lang/appengine#67     _BufferingStreamSubscription.asFuture.<anonymous closure> (dart:async/stream_impl.dart:204:14)\r\ndart-lang/labs#154     _rootRun (dart:async/zone.dart:1120:38)\r\ndart-lang/appengine#69     _CustomZone.run (dart:async/zone.dart:1021:19)\r\ndart-lang/appengine#70     _CustomZone.runGuarded (dart:async/zone.dart:923:7)\r\ndart-lang/appengine#71     _BufferingStreamSubscription._sendDone.sendDone (dart:async/stream_impl.dart:389:13)\r\ndart-lang/appengine#72     _BufferingStreamSubscription._sendDone (dart:async/stream_impl.dart:399:15)\r\ndart-lang/appengine#73     _BufferingStreamSubscription._close (dart:async/stream_impl.dart:283:7)\r\ndart-lang/appengine#74     _SinkTransformerStreamSubscription._close (dart:async/stream_transformers.dart:96:11)\r\ndart-lang/appengine#75     _EventSinkWrapper.close (dart:async/stream_transformers.dart:23:11)\r\ndart-lang/appengine#76     _StringAdapterSink.close (dart:convert/string_conversion.dart:249:11)\r\ndart-lang/appengine#77     _Utf8ConversionSink.close (dart:convert/string_conversion.dart:300:20)\r\ndart-lang/appengine#78     _ConverterStreamEventSink.close (dart:convert/chunked_conversion.dart:80:18)\r\ndart-lang/appengine#79     _SinkTransformerStreamSubscription._handleDone (dart:async/stream_transformers.dart:141:24)\r\ndart-lang/labs#155     _rootRun (dart:async/zone.dart:1120:38)\r\ndart-lang/appengine#81     _CustomZone.run (dart:async/zone.dart:1021:19)\r\ndart-lang/appengine#82     _CustomZone.runGuarded (dart:async/zone.dart:923:7)\r\ndart-lang/labs#156     _BufferingStreamSubscription._sendDone.sendDone (dart:async/stream_impl.dart:389:13)\r\ndart-lang/appengine#84     _BufferingStreamSubscription._sendDone (dart:async/stream_impl.dart:399:15)\r\ndart-lang/labs#157     _BufferingStreamSubscription._close (dart:async/stream_impl.dart:283:7)\r\ndart-lang/appengine#86     _SyncStreamControllerDispatch._sendDone (dart:async/stream_controller.dart:772:19)\r\ndart-lang/labs#158     _StreamController._closeUnchecked (dart:async/stream_controller.dart:629:7)\r\ndart-lang/labs#159     _StreamController.close (dart:async/stream_controller.dart:622:5)\r\ndart-lang/appengine#89     _Socket._onData (dart:io-patch/socket_patch.dart:1836:21)\r\ndart-lang/labs#160     _rootRunUnary (dart:async/zone.dart:1136:13)\r\ndart-lang/appengine#91     _CustomZone.runUnary (dart:async/zone.dart:1029:19)\r\ndart-lang/appengine#92     _CustomZone.runUnaryGuarded (dart:async/zone.dart:931:7)\r\ndart-lang/appengine#93     _BufferingStreamSubscription._sendData (dart:async/stream_impl.dart:336:11)\r\ndart-lang/appengine#94     _BufferingStreamSubscription._add (dart:async/stream_impl.dart:263:7)\r\ndart-lang/appengine#95     _SyncStreamControllerDispatch._sendData (dart:async/stream_controller.dart:764:19)\r\ndart-lang/appengine#96     _StreamController._add (dart:async/stream_controller.dart:640:7)\r\ndart-lang/appengine#97     _StreamController.add (dart:async/stream_controller.dart:586:5)\r\ndart-lang/appengine#98     new _RawSocket.<anonymous closure> (dart:io-patch/socket_patch.dart:1384:35)\r\ndart-lang/appengine#99     _NativeSocket.issueReadEvent.issue (dart:io-patch/socket_patch.dart:890:18)\r\ndart-lang/appengine#100    _microtaskLoop (dart:async/schedule_microtask.dart:41:21)\r\ndart-lang/appengine#101    _startMicrotaskLoop (dart:async/schedule_microtask.dart:50:5)\r\ndart-lang/appengine#102    _runPendingImmediateCallback (dart:isolate-patch/isolate_patch.dart:116:13)\r\ndart-lang/appengine#103    _RawReceivePortImpl._handleMessage (dart:isolate-patch/isolate_patch.dart:173:5)\r\n\r\n```",
+    "createdAt": "2019-09-24T00:37:55Z"
+  },
+  {
+    "id": 8728,
+    "sender": "39499740",
+    "content": "> @akeblom您是说这个问题仅在从Android Studio启动应用程序时发生吗？您可以确认@IRIG和@ 39499740吗？\r\n\r\n\r\n\r\n> @akeblom您是说这个问题仅在从Android Studio启动应用程序时发生吗？您可以确认@IRIG和@ 39499740吗？\r\n\r\nYes, I had bugs when I was developing with Android Studio.\r\n\r\nXcode11\r\n\r\nAS3.5\r\n\r\nFlutter plugin 39.0.3\r\n\r\nDart pluin 191.8423\r\n\r\nIOS 13\r\n\r\nIPhone 7 Plus",
+    "createdAt": "2019-09-24T00:51:16Z"
+  },
+  {
+    "id": 8729,
+    "sender": "christopherfujino",
+    "content": "@luizfranca that looks like [this](https://github.com/flutter/flutter/issues/41092)\r\n\r\nI wonder if these are the same issue.",
+    "createdAt": "2019-09-24T01:21:50Z"
+  },
+  {
+    "id": 8730,
+    "sender": "akeblom",
+    "content": "> @akeblom are you saying that this issue only occurs when starting an app from Android Studio? Can you confirm @IRIG & @39499740?\r\n\r\nNope. This was in both Android studio and VSCode when running debug mode\r\n",
+    "createdAt": "2019-09-24T11:31:22Z"
+  },
+  {
+    "id": 8731,
+    "sender": "skzwksk",
+    "content": "I faced same problem\r\n`flutter run` on ios13.1 device\r\n\r\n```\r\n[✓] Flutter (Channel unknown, v1.9.1+hotfix.3, on Mac OS X 10.14.6 18G95, locale ja-JP)\r\n    • Flutter version 1.9.1+hotfix.3 at /Users/sekizawakeisuke/github/flutter/flutter\r\n    • Framework revision a72edc2706 (10 hours ago), 2019-09-25 15:41:01 -0700\r\n    • Engine revision b863200c37\r\n    • Dart version 2.5.0\r\n\r\n[✓] Android toolchain - develop for Android devices (Android SDK version 29.0.2)\r\n    • Android SDK at /Users/sekizawakeisuke/Library/Android/sdk\r\n    • Android NDK at /Users/sekizawakeisuke/Library/Android/sdk/ndk-bundle\r\n    • Platform android-29, build-tools 29.0.2\r\n    • Java binary at: /Users/sekizawakeisuke/Library/Application\r\n      Support/JetBrains/Toolbox/apps/AndroidStudio/ch-0/191.5791312/Android Studio.app/Contents/jre/jdk/Contents/Home/bin/java\r\n    • Java version OpenJDK Runtime Environment (build 1.8.0_202-release-1483-b49-5587405)\r\n    • All Android licenses accepted.\r\n\r\n[✓] Xcode - develop for iOS and macOS (Xcode 11.0)\r\n    • Xcode at /Applications/Xcode.app/Contents/Developer\r\n    • Xcode 11.0, Build version 11A420a\r\n    • CocoaPods version 1.8.0\r\n\r\n[✓] Android Studio (version 3.5)\r\n    • Android Studio at /Users/sekizawakeisuke/Library/Application\r\n      Support/JetBrains/Toolbox/apps/AndroidStudio/ch-0/191.5791312/Android Studio.app/Contents\r\n    • Flutter plugin version 39.0.3\r\n    • Dart plugin version 191.8423\r\n    • Java version OpenJDK Runtime Environment (build 1.8.0_202-release-1483-b49-5587405)\r\n\r\n[✓] IntelliJ IDEA Ultimate Edition (version 2019.2.3)\r\n    • IntelliJ at /Users/sekizawakeisuke/Applications/JetBrains Toolbox/IntelliJ IDEA Ultimate.app\r\n    • Flutter plugin version 39.0.5\r\n    • Dart plugin version 192.6262.58\r\n```\r\n",
+    "createdAt": "2019-09-26T09:01:06Z"
+  },
+  {
+    "id": 8732,
+    "sender": "monkingame",
+    "content": "I test the v1.9.1+hotfix.3 (Channel beta) version, but some issues still remained.\r\n\r\nEditor: VSCode\r\n\r\n## steps and issues\r\n1)Created the counter sample project from VSCode.\r\nrun by pressing ‘F5’ key then output waiting at:\r\n```\r\nLaunching lib/main.dart on my-iphone in debug mode...\r\nSigning iOS app for device deployment using developer identity: \"iPhone Developer: my-apple-id\"\r\nXcode build done.                                           15.3s\r\nChecking for advertised Dart observatories...\r\n```\r\nAnd app is blank screen for several minutes.\r\n2)Stopped the app and run 'flutter run —verbose’ from terminal in VSCode.\r\nApp started magically and widgets shown OK,.\r\nand console stay at:\r\n```\r\n[ +117 ms] Process 327 detached\r\n[  +64 ms] Application launched on the device. Waiting for observatory port.\r\n[   +3 ms] Checking for advertised Dart observatories...\r\n[+5020 ms] mDNS lookup failed, attempting fallback to reading device log.\r\n[        ] Waiting for observatory port.\r\n```\r\n3)Then I run by pressing ‘F5’ key again, app shows blank screen again.\r\n\r\n## flutter analyze\r\n```\r\nAnalyzing flutter_hotfix3...\r\nNo issues found! (ran in 1.9s)\r\n```\r\n\r\n## flutter doctor -v\r\n```\r\n[✓] Flutter (Channel beta, v1.9.1+hotfix.3, on Mac OS X 10.14.6 18G95, locale zh-Hans-CN)\r\n• Flutter version 1.9.1+hotfix.3 at /Users/username/tools/flutter\r\n• Framework revision a72edc2 (5 hours ago), 2019-09-25 15:41:01 -0700\r\n• Engine revision b863200c37\r\n• Dart version 2.5.0\r\n\r\n[✓] Android toolchain - develop for Android devices (Android SDK version 28.0.3)\r\n• Android SDK at /Users/username/Library/Android/sdk\r\n• Android NDK location not configured (optional; useful for native profiling support)\r\n• Platform android-28, build-tools 28.0.3\r\n• ANDROID_HOME = /Users/username/Library/Android/sdk\r\n• Java binary at: /Applications/Android Studio.app/Contents/jre/jdk/Contents/Home/bin/java\r\n• Java version OpenJDK Runtime Environment (build 1.8.0_202-release-1483-b49-5587405)\r\n• All Android licenses accepted.\r\n\r\n[✓] Xcode - develop for iOS and macOS (Xcode 11.0)\r\n• Xcode at /Applications/Xcode.app/Contents/Developer\r\n• Xcode 11.0, Build version 11A420a\r\n• CocoaPods version 1.7.5\r\n\r\n[✓] Android Studio (version 3.5)\r\n• Android Studio at /Applications/Android Studio.app/Contents\r\n• Flutter plugin version 39.0.3\r\n• Dart plugin version 191.8423\r\n• Java version OpenJDK Runtime Environment (build 1.8.0_202-release-1483-b49-5587405)\r\n\r\n[✓] VS Code (version 1.38.1)\r\n• VS Code at /Applications/Visual Studio Code.app/Contents\r\n• Flutter extension version 3.4.1\r\n\r\n[✓] Connected device (1 available)\r\n• sun-iphone • xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx • ios • iOS 13.1\r\n\r\n• No issues found!\r\n```\r\n\r\n\r\n\r\nAnd is it related to this?\r\nMy .bash_profile(macOS 10.14.6 (18G95))\r\n```\r\nexport PUB_HOSTED_URL=https://pub.flutter-io.cn\r\nexport FLUTTER_STORAGE_BASE_URL=https://storage.flutter-io.cn\r\n```",
+    "createdAt": "2019-09-26T09:28:45Z"
+  },
+  {
+    "id": 8733,
+    "sender": "vysotsky",
+    "content": "I'm facing the same issue. `flutter run` doesn't work with both Android Studio and terminal. Here is the log:\r\n```\r\n[ +28 ms] (lldb)     command script import\r\n\"/tmp/0E724187-9F09-4179-A41E-32430925E235/fruitstrap_ce0f26bcbaf255e35ccd434298\r\na3344c08bf5f19.py\"\r\n[   +4 ms] (lldb)     command script add -f\r\nfruitstrap_ce0f26bcbaf255e35ccd434298a3344c08bf5f19.connect_command connect\r\n[        ] (lldb)     command script add -s asynchronous -f\r\nfruitstrap_ce0f26bcbaf255e35ccd434298a3344c08bf5f19.run_command run\r\n[        ] (lldb)     command script add -s asynchronous -f\r\nfruitstrap_ce0f26bcbaf255e35ccd434298a3344c08bf5f19.autoexit_command autoexit\r\n[        ] (lldb)     command script add -s asynchronous -f\r\nfruitstrap_ce0f26bcbaf255e35ccd434298a3344c08bf5f19.safequit_command safequit\r\n[        ] (lldb)     connect\r\n[  +28 ms] (lldb)     run\r\n[ +186 ms] success\r\n[        ] (lldb)     safequit\r\n[ +122 ms] Process 372 detached\r\n[  +59 ms] Application launched on the device. Waiting for observatory port.\r\n[   +2 ms] Checking for advertised Dart observatories...\r\n[+5017 ms] mDNS lookup failed, attempting fallback to reading device log.\r\n[   +1 ms] Waiting for observatory port.\r\n```\r\niPad OS 13.1, Xcode 11, Flutter (Channel master, v1.10.7-pre.23)\r\nWaiting for any workaround... ",
+    "createdAt": "2019-09-26T13:03:21Z"
+  },
+  {
+    "id": 8734,
+    "sender": "zanderso",
+    "content": "@christopherfujino It looks like the mDNS lookup is failing for some users, then falling back on log-scraping fails as expected on iOS 13. Is there any way to kick the device or host machine to get the mDNS lookup to work?",
+    "createdAt": "2019-09-26T15:58:35Z"
+  },
+  {
+    "id": 8735,
+    "sender": "zanderso",
+    "content": "/cc @tvolkert @DanTup ",
+    "createdAt": "2019-09-26T15:58:50Z"
+  },
+  {
+    "id": 8736,
+    "sender": "tvolkert",
+    "content": "Is there any instrumentation we could add to a local branch that people could run off of to help track this down?",
+    "createdAt": "2019-09-26T16:06:18Z"
+  },
+  {
+    "id": 8737,
+    "sender": "jerryzhoujw",
+    "content": "`v1.9.1+hotfix.3` (Channel `beta`) version:\r\n\r\nI try to run an example project of [connectivity plugin](https://github.com/flutter/plugins/tree/master/packages/connectivity/example) with `device (iOS 13.1)`\r\n\r\n## 3 way to run the project, there's something strange with VSCode: （`2nd one` is same as this issue here）\r\n* if run with Xcode 11.0, it's fine and can debug well, and the content on device display well.\r\n* if run with VSCode, it's always show `installing and launching...` with log in `DEBUG CONSOLE`:\r\n```\r\nRunning \"flutter pub get\" in example...                             0.6s\r\nLaunching lib/main.dart on iPhone in debug mode...\r\nAutomatically signing iOS for device deployment using specified development team in Xcode project: 793HUB9LD9\r\nXcode build done.                                           16.0s\r\nChecking for advertised Dart observatories...\r\n```\r\nThe device show `whole white screen` without anything.\r\nNot sure what's going on.\r\n* if run with Terminal, `flutter run` with log:\r\n```\r\n$ flutter run\r\nLaunching lib/main.dart on iPhone in debug mode...\r\nAutomatically signing iOS for device deployment using specified development team in Xcode project: 793HUB9LD9\r\nRunning pod install...                                              1.9s\r\nRunning Xcode build...\r\n\r\n ├─Assembling Flutter resources...                           6.7s\r\n └─Compiling, linking and signing...                         5.6s\r\nXcode build done.                                           14.6s\r\nChecking for advertised Dart observatories...\r\nInstalling and launching...\r\n```\r\nThe content on device display well.\r\n\r\n## content bug(feature of connectivity) which may not related to this commit:\r\n\r\nthe Wifi IP is show correct address `192.168.X.X` at first time, but show `error` when close wifi and open wifi again.\r\n\r\n## flutter doctor\r\n```\r\nDoctor summary (to see all details, run flutter doctor -v):\r\n[✓] Flutter (Channel beta, v1.9.1+hotfix.3, on Mac OS X 10.14.6 18G95, locale en-CN)\r\n\r\n[✓] Android toolchain - develop for Android devices (Android SDK version 28.0.3)\r\n[✓] Xcode - develop for iOS and macOS (Xcode 11.0)\r\n[✓] Android Studio (version 3.4)\r\n[✗] Cannot determine if IntelliJ is installed\r\n    ✗ Directory listing failed\r\n[✓] VS Code (version 1.38.1)\r\n[✓] Connected device (1 available)\r\n```\r\n",
+    "createdAt": "2019-09-26T16:19:32Z"
+  },
+  {
+    "id": 8738,
+    "sender": "zanderso",
+    "content": "My suspicion is that package:multicast_dns is not resilient enough against non-utf8 data in query responses.\r\n\r\nI have created a branch of Flutter that will pull a patched version of the package that includes a fallback and instrumentation that should help determine whether this is the case:\r\n\r\nhttps://github.com/zanderso/flutter/tree/use-patched-multicast-dns\r\n\r\n@monkingame @vysotsky if you are able to clone this repo and give it a try that would be very helpful.",
+    "createdAt": "2019-09-26T16:55:02Z"
+  },
+  {
+    "id": 8739,
+    "sender": "tvolkert",
+    "content": "@monkingame @vysotsky the following steps should get you a working copy of @zanderso's local branch:\r\n\r\n```sh\r\ngit clone git@github.com:zanderso/flutter.git flutter-debug\r\ncd flutter-debug\r\ngit checkout use-patched-multicast-dns\r\n./bin/flutter doctor\r\n./bin/flutter run -v\r\n```",
+    "createdAt": "2019-09-26T17:21:47Z"
+  },
+  {
+    "id": 8740,
+    "sender": "monkingame",
+    "content": "@zanderso @tvolkert \r\nI got error when git clone:\r\n```\r\ngit clone git@github.com:zanderso/flutter.git flutter-debug\r\nCloning into 'flutter-debug'...\r\nThe authenticity of host 'github.com (52.74.223.119)' can't be established.\r\nRSA key fingerprint is SHA256:xxxxxxxxxxxxxxxxxxxxxxxxxxx.\r\nAre you sure you want to continue connecting (yes/no)? yes\r\nWarning: Permanently added 'github.com,52.74.223.119' (RSA) to the list of known hosts.\r\ngit@github.com: Permission denied (publickey).\r\nfatal: Could not read from remote repository.\r\n```\r\n\r\nI changed to run :\r\n```\r\ngit clone https://github.com/zanderso/flutter.git flutter-debug\r\n```\r\nNow it is OK.",
+    "createdAt": "2019-09-26T19:54:53Z"
+  },
+  {
+    "id": 8741,
+    "sender": "monkingame",
+    "content": "Here is steps and logs:\r\n\r\n## run steps:\r\n```\r\ncd ~/tmp\r\ngit clone https://github.com/zanderso/flutter.git flutter-debug\r\ncd flutter-debug/\r\ngit checkout use-patched-multicast-dns\r\n./bin/flutter doctor\r\ncd /Users/username/test/flutter_hotfix3\r\n~/tmp/flutter-debug/bin/flutter run -v\r\n```\r\n\r\n## ./bin/flutter doctor\r\n```\r\nDoctor summary (to see all details, run flutter doctor -v):\r\n[✓] Flutter (Channel use-patched-multicast-dns, v0.0.0-unknown, on Mac OS X 10.14.6 18G95, locale zh-Hans-CN)\r\n[✓] Android toolchain - develop for Android devices (Android SDK version 28.0.3)\r\n[✓] Xcode - develop for iOS and macOS (Xcode 11.0)\r\n[✓] Android Studio (version 3.5)\r\n[✓] VS Code (version 1.38.1)\r\n[✓] Connected device (1 available)\r\n```\r\n\r\n## ~/tmp/flutter-debug/bin/flutter run -v\r\n```\r\n\r\n[  +23 ms] Warning! The 'flutter' tool you are currently running is from a different Flutter repository than the one\r\nlast used by\r\n           this package. The repository from which the 'flutter' tool is currently executing will be used instead.\r\n             running Flutter tool: /Users/username/tmp/flutter-debug\r\n             previous reference  : /Users/username/tools/flutter\r\n           This can happen when you have multiple copies of flutter installed. Please check your system path to verify\r\nthat you are\r\n           running the expected version (run 'flutter --version' to see which flutter is on your path).\r\n           \r\n[  +13 ms] executing: [/Users/username/tmp/flutter-debug/] git -c log.showSignature=false log -n 1 --pretty=format:%H\r\n[  +26 ms] Exit code 0 from: git -c log.showSignature=false log -n 1 --pretty=format:%H\r\n[        ] f05a95faca35428aba52a836f1f9ec1c97da4f76\r\n[        ] executing: [/Users/username/tmp/flutter-debug/] git describe --match v*.*.* --first-parent --long --tags\r\n[ +118 ms] Exit code 0 from: git describe --match v*.*.* --first-parent --long --tags\r\n[        ] v0.0.20-alpha-11629-gf05a95fac\r\n[   +2 ms] Could not interpret results of \"git describe\": v0.0.20-alpha-11629-gf05a95fac\r\n[   +3 ms] executing: [/Users/username/tmp/flutter-debug/] git rev-parse --abbrev-ref --symbolic @{u}\r\n[  +11 ms] Exit code 0 from: git rev-parse --abbrev-ref --symbolic @{u}\r\n[        ] origin/use-patched-multicast-dns\r\n[        ] executing: [/Users/username/tmp/flutter-debug/] git ls-remote --get-url origin\r\n[  +11 ms] Exit code 0 from: git ls-remote --get-url origin\r\n[        ] https://github.com/zanderso/flutter.git\r\n[   +9 ms] executing: [/Users/username/tmp/flutter-debug/] git rev-parse --abbrev-ref HEAD\r\n[  +11 ms] Exit code 0 from: git rev-parse --abbrev-ref HEAD\r\n[        ] use-patched-multicast-dns\r\n[  +13 ms] executing: /usr/bin/xcode-select --print-path\r\n[  +11 ms] Exit code 0 from: /usr/bin/xcode-select --print-path\r\n[        ] /Applications/Xcode.app/Contents/Developer\r\n[   +1 ms] executing: /usr/bin/xcodebuild -version\r\n[ +102 ms] Exit code 0 from: /usr/bin/xcodebuild -version\r\n[        ] Xcode 11.0\r\n           Build version 11A420a\r\n[  +54 ms] executing: /Users/username/Library/Android/sdk/platform-tools/adb devices -l\r\n[   +7 ms] Exit code 0 from: /Users/username/Library/Android/sdk/platform-tools/adb devices -l\r\n[        ] List of devices attached\r\n[  +16 ms] executing: /Users/username/tmp/flutter-debug/bin/cache/artifacts/libimobiledevice/idevice_id -h\r\n[ +198 ms] /usr/bin/xcrun simctl list --json devices\r\n[ +150 ms] Artifact Instance of 'AndroidMavenArtifacts' is not required, skipping update.\r\n[        ] Artifact Instance of 'AndroidGenSnapshotArtifacts' is not required, skipping update.\r\n[        ] Artifact Instance of 'AndroidInternalBuildArtifacts' is not required, skipping update.\r\n[   +2 ms] Flutter assets will be downloaded from https://storage.flutter-io.cn. Make sure you trust this source!\r\n[   +5 ms] executing: zip -T\r\n/Users/username/tmp/flutter-debug/bin/cache/downloads/storage.flutter-io.cn/flutter_infra/flutter/1060cfc7daae8121b0ef\r\n1d23df74a7cac98af1af/ios/artifacts.zip\r\n[   +6 ms] Downloading ios tools...\r\n[   +4 ms] Downloading:\r\nhttps://storage.flutter-io.cn/flutter_infra/flutter/1060cfc7daae8121b0ef1d23df74a7cac98af1af/ios/artifacts.zip\r\n[+2578 ms] Received response from server, collecting bytes...\r\n```\r\n\r\nupdate:\r\nThe app started up very well after a long time(almost 20 minutes).\r\nAnd no error occured.\r\n\r\n```\r\n[        ] Updating files\r\n[ +124 ms] DevFS: Sync finished\r\n[        ] Syncing files to device sun-iphone... (completed in 5,480ms, longer than expected)\r\n[        ] Synced 0.9MB.\r\n[   +1 ms] Sending to VM service: _flutter.listViews({})\r\n[   +2 ms] Result: {type: FlutterViewList, views: [{type: FlutterView, id: _flutterView/0x106802620, isolate: {type:\r\n@Isolate, fixedId: true, id: isolates/200361009008459, name: main.dart$main-200361009008459, number: 200361009008459}}]}\r\n[        ] <- accept\r\n[        ] Connected to _flutterView/0x106802620.\r\n[   +2 ms] 🔥  To hot reload changes while running, press \"r\". To hot restart (and rebuild state), press \"R\".\r\n[        ] An Observatory debugger and profiler on sun-iphone is available at: http://127.0.0.1:1040/Y1-ZQXKfjgg=/\r\n[        ] For a more detailed help message, press \"h\". To detach, press \"d\"; to quit, press \"q\".\r\n\r\n```\r\n",
+    "createdAt": "2019-09-26T20:21:24Z"
+  },
+  {
+    "id": 8742,
+    "sender": "zanderso",
+    "content": "It looks like there was a network hiccup while downloading the artifacts, and the additional instrumentation did not run. Maybe try again? Thanks!",
+    "createdAt": "2019-09-26T20:29:01Z"
+  },
+  {
+    "id": 8743,
+    "sender": "monkingame",
+    "content": "Now it is OK.\r\nFor a long long time , app started OK.\r\nEverything is OK.\r\n```\r\n[        ] Updating files\r\n[ +124 ms] DevFS: Sync finished\r\n[        ] Syncing files to device sun-iphone... (completed in 5,480ms, longer than expected)\r\n[        ] Synced 0.9MB.\r\n[   +1 ms] Sending to VM service: _flutter.listViews({})\r\n[   +2 ms] Result: {type: FlutterViewList, views: [{type: FlutterView, id: _flutterView/0x106802620, isolate: {type:\r\n@Isolate, fixedId: true, id: isolates/200361009008459, name: main.dart$main-200361009008459, number: 200361009008459}}]}\r\n[        ] <- accept\r\n[        ] Connected to _flutterView/0x106802620.\r\n[   +2 ms] 🔥  To hot reload changes while running, press \"r\". To hot restart (and rebuild state), press \"R\".\r\n[        ] An Observatory debugger and profiler on sun-iphone is available at: http://127.0.0.1:1040/Y1-ZQXKfjgg=/\r\n[        ] For a more detailed help message, press \"h\". To detach, press \"d\"; to quit, press \"q\".\r\n```\r\n\r\nShould I show all the logs?",
+    "createdAt": "2019-09-26T20:38:58Z"
+  },
+  {
+    "id": 8744,
+    "sender": "zanderso",
+    "content": "@monkingame it would be very helpful if you could post the full verbose logs, thanks!",
+    "createdAt": "2019-09-26T20:39:43Z"
+  },
+  {
+    "id": 8745,
+    "sender": "monkingame",
+    "content": "I piped into a log file.\r\n```\r\n~/tmp/flutter-debug/bin/flutter run -v > logs.txt\r\n```\r\nPlease check the attachment.\r\n[logs.txt](https://github.com/flutter/flutter/files/3659819/logs.txt)\r\n",
+    "createdAt": "2019-09-26T20:43:05Z"
+  },
+  {
+    "id": 8746,
+    "sender": "zanderso",
+    "content": "Hmm. I'm not seeing any of the log messages that would have indicated non-utf8 data in the mdns query response. Were there any other changes to your environment? Can you verify that `flutter run -v` still fails with the unpatched tool? Thanks for all your help!",
+    "createdAt": "2019-09-26T21:10:55Z"
+  },
+  {
+    "id": 8747,
+    "sender": "christopherfujino",
+    "content": "@monkingame if you go back to the regular flutter tool and it works, the cause could be that the first time you try to `flutter run` on a particular version, macOS will prompt you to allow `dart` to accept incoming network connections, and if you don't accept soon enough, the initial mDNS discovery will fail. Once it's been accepted, however, it should connect fine.",
+    "createdAt": "2019-09-26T21:19:05Z"
+  },
+  {
+    "id": 8748,
+    "sender": "monkingame",
+    "content": "@zanderso No environment changed.\r\nHere is the log run by normal flutter tools. App started OK.\r\nI used master channel to run the app.\r\n```\r\nFlutter 1.10.7-pre.22 • channel master • https://github.com/flutter/flutter.git\r\nFramework • revision 17e4ae135d (16 hours ago) • 2019-09-25 22:45:30 -0700\r\nEngine • revision b3f2aad1c6\r\nTools • Dart 2.6.0 (build 2.6.0-dev.0.0 6c81690c3a)\r\n```\r\n \r\n[normal-flutter.log](https://github.com/flutter/flutter/files/3659958/normal-flutter.log)\r\n",
+    "createdAt": "2019-09-26T21:22:00Z"
+  },
+  {
+    "id": 8749,
+    "sender": "monkingame",
+    "content": "Further more, I found a new problem  since upgrade iPhone to iOS13.1 .\r\nMy iPhone reboot frequently when I plug line(from macbook Pro) into the iPhone.\r\nThe probability is 30%, or even higher(plug 10 times, reboot 3 times, or more).\r\nI don't know what happened and what is the reason.\r\nMy iPhone 6S is too old ? My macBook is too old? iOS13.1 ? flutter ? VSCode ? macOS ? Xcode?\r\nIt makes me so mad.\r\nI don't know if anyone else has the problem.\r\n\r\nThe problem didn't appear when using iOS12. I am sure.\r\nAnd if use power adapter to charge , the iPhone works very well. No rebooting occurred.",
+    "createdAt": "2019-09-26T22:26:31Z"
+  },
+  {
+    "id": 8750,
+    "sender": "jerryzhoujw",
+    "content": "@monkingame  same thing for me. iPhone8( iOS13.1)\r\nGet reboot after I debug with flutter. always reboot after few minutes when I debug with the device.\r\n\r\nAfter I manually reboot the device and after that, I only debug with Xcode, then it's never reboot again.\r\n\r\n**Update**: Test it again today, it seems the reboot event is gone now.(Not sure what it related to, maybe because i have switch flutter channel several times ?)",
+    "createdAt": "2019-09-27T02:36:00Z"
+  },
+  {
+    "id": 8751,
+    "sender": "jerryzhoujw",
+    "content": "I find a solution for the problem of mine: stuck at `Checking for advertised Dart observatories...` when debug from `vscode`:\r\n\r\n1. run `flutter run --debug` in console first. it should works with log output as normal.\r\n2. stop the debug from console.\r\n2. then debug with `vscode`, the debug works as normal now.\r\n\r\n## console compare which may help with find the root cause:\r\n1. the console in step 1 above:\r\n```\r\nLaunching lib/main.dart on iPhone in debug mode...\r\nAutomatically signing iOS for device deployment using specified development team in Xcode project: 793HUB9LD9\r\nRunning pod install...                                              1.6s\r\nRunning Xcode build...\r\n ├─Assembling Flutter resources...                           7.2s\r\n └─Compiling, linking and signing...                         5.4s\r\nXcode build done.                                           14.4s\r\nChecking for advertised Dart observatories...\r\nChecking for available port on [bundle id]._dartobservatory._tcp.local\r\nChecking for authentication code for [bundle id]._dartobservatory._tcp.local\r\nInstalling and launching...                                        27.3s\r\nSyncing files to device iPhone...                                1,550ms\r\n\r\n🔥  To hot reload changes while running, press \"r\". To hot restart (and rebuild state), press \"R\".\r\n``` \r\n\r\n2. the console in step 3 above from vscode ternimal:\r\n\r\n```\r\nLaunching lib/main.dart on iPhone in debug mode...\r\nAutomatically signing iOS for device deployment using specified development team in Xcode project: 793HUB9LD9\r\nXcode build done.                                           12.9s\r\nChecking for advertised Dart observatories...\r\nChecking for available port on [bundle id]._dartobservatory._tcp.local\r\nChecking for authentication code for [bundle id]._dartobservatory._tcp.local\r\n```\r\n3. previous case of failed when debug with vscode directly:\r\n```\r\nLaunching lib/main.dart on iPhone in debug mode...\r\nAutomatically signing iOS for device deployment using specified development team in Xcode project: 793HUB9LD9\r\nXcode build done.                                           16.0s\r\nChecking for advertised Dart observatories...\r\n```\r\n\r\n## conclusion(my guess)\r\nI guess it may related the missing console output of `Running Xcode build...`\r\nBut after I fix this by `flutter run --debug` once, I can't reproduce this problem anymore(even with `flutter clean` & remove `DerivedData` & directly run vscode.)\r\n",
+    "createdAt": "2019-09-27T06:27:19Z"
+  },
+  {
+    "id": 8752,
+    "sender": "lookfirst",
+    "content": "Not seeing the output from `print()` statements with 1.9.1hotfix4",
+    "createdAt": "2019-09-30T14:22:27Z"
+  },
+  {
+    "id": 8753,
+    "sender": "christopherfujino",
+    "content": "@lookfirst that's being tracked here https://github.com/flutter/flutter/issues/41133",
+    "createdAt": "2019-09-30T16:25:24Z"
+  },
+  {
+    "id": 8754,
+    "sender": "jcsena",
+    "content": "I have the same problem with the latest version **(channel stable).**\r\n\r\n``` flutter doctor -v ```\r\n```\r\n[✓] Flutter (Channel stable, v1.9.1+hotfix.4, on Mac OS X 10.14.6 18G95, locale en-PA)\r\n    • Flutter version 1.9.1+hotfix.4 at /Users/juliosena/flutter\r\n    • Framework revision cc949a8e8b (4 days ago), 2019-09-27 15:04:59 -0700\r\n    • Engine revision b863200c37\r\n    • Dart version 2.5.0\r\n\r\n[✓] Android toolchain - develop for Android devices (Android SDK version 28.0.3)\r\n    • Android SDK at /Users/juliosena/Library/Android/sdk\r\n    • Android NDK location not configured (optional; useful for native profiling support)\r\n    • Platform android-28, build-tools 28.0.3\r\n    • ANDROID_HOME = /Users/juliosena/Library/Android/sdk\r\n    • Java binary at: /Applications/Android Studio.app/Contents/jre/jdk/Contents/Home/bin/java\r\n    • Java version OpenJDK Runtime Environment (build 1.8.0_202-release-1483-b49-5587405)\r\n    • All Android licenses accepted.\r\n\r\n[✓] Xcode - develop for iOS and macOS (Xcode 11.0)\r\n    • Xcode at /Applications/Xcode.app/Contents/Developer\r\n    • Xcode 11.0, Build version 11A420a\r\n    • CocoaPods version 1.6.2\r\n\r\n[✓] Android Studio (version 3.5)\r\n    • Android Studio at /Applications/Android Studio.app/Contents\r\n    • Flutter plugin version 39.0.3\r\n    • Dart plugin version 191.8423\r\n    • Java version OpenJDK Runtime Environment (build 1.8.0_202-release-1483-b49-5587405)\r\n\r\n[✓] VS Code (version 1.38.1)\r\n    • VS Code at /Applications/Visual Studio Code.app/Contents\r\n    • Flutter extension version 3.5.0\r\n\r\n[✓] Connected device (1 available)\r\n    • iPhone Julio • 5c637a7548a19fc16026637680677d7bb8839a0c • ios • iOS 13.1.2\r\n\r\n    ```\r\n ",
+    "createdAt": "2019-10-01T17:56:56Z"
+  },
+  {
+    "id": 8755,
+    "sender": "tewshi",
+    "content": "I think this is fixed.\r\nI upgraded my iPhone to iOS 13.1.1\r\nUpgraded flutter to latest on master v1.10.7-pre.79\r\nUpdated my flutter plugin for Android Studio to 40.0.2\r\nDart plugin for Android Studio v191.8423\r\n\r\n```bash\r\n$flutter doctor\r\nDoctor summary (to see all details, run flutter doctor -v):\r\n[✓] Flutter (Channel master, v1.10.7-pre.79, on Mac OS X 10.14.6 18G95, locale en-US)\r\n \r\n[✓] Android toolchain - develop for Android devices (Android SDK version 29.0.2)\r\n[✓] Xcode - develop for iOS and macOS (Xcode 11.0)\r\n[✓] Android Studio (version 3.5)\r\n[✓] VS Code (version 1.38.1)\r\n[✓] Connected device (1 available)\r\n\r\n• No issues found!\r\n```",
+    "createdAt": "2019-10-01T19:17:59Z"
+  },
+  {
+    "id": 8756,
+    "sender": "tewshi",
+    "content": "Launching lib/main.dart on iPhone in debug mode...\r\nAutomatically signing iOS for device deployment using specified development team in Xcode project: XXXXXXXXXX\r\nRunning Xcode build...\r\nXcode build done.                                           58.3s\r\nInstalling and launching...\r\nChecking for advertised Dart observatories...\r\nChecking for available port on [APPID]._dartobservatory._tcp.local\r\nChecking for authentication code for [APPID]._dartobservatory._tcp.local\r\nSyncing files to device iPhone...",
+    "createdAt": "2019-10-01T19:29:18Z"
+  },
+  {
+    "id": 8757,
+    "sender": "tewshi",
+    "content": "I just realized that I need to connect both the iPhone and Mac to the same network.\r\nConfirmed for (Unrestricted) Wireless network (with internet access).\r\n\r\nhope these helps",
+    "createdAt": "2019-10-01T22:28:29Z"
+  },
+  {
+    "id": 8758,
+    "sender": "ghost",
+    "content": "I have the same issue with the latest stable build. For me it's happening every time and not occasionally. App is starting fine but flutter cannot connect to it.\r\n\r\nflutter run -v:\r\n```\r\n...\r\n[ +111 ms] Process 417 detached\r\n[  +48 ms] Application launched on the device. Waiting for observatory port.\r\n[   +3 ms] Checking for advertised Dart observatories...\r\n[+5021 ms] mDNS lookup failed, attempting fallback to reading device log.\r\n[        ] Waiting for observatory port.\r\n```\r\n\r\nflutter doctor -v:\r\n```\r\n[✓] Flutter (Channel stable, v1.9.1+hotfix.4, on Mac OS X 10.14.6 18G103, locale en-US)\r\n    • Flutter version 1.9.1+hotfix.4 at /users/dev/flutter\r\n    • Framework revision cc949a8e8b (5 days ago), 2019-09-27 15:04:59 -0700\r\n    • Engine revision b863200c37\r\n    • Dart version 2.5.0\r\n\r\n \r\n[✓] Android toolchain - develop for Android devices (Android SDK version 28.0.3)\r\n    • Android SDK at /users/dev/Library/Android/sdk\r\n    • Android NDK location not configured (optional; useful for native profiling support)\r\n    • Platform android-28, build-tools 28.0.3\r\n    • ANDROID_SDK_ROOT = /users/dev/Library/Android/sdk\r\n    • Java binary at: /Applications/Android Studio.app/Contents/jre/jdk/Contents/Home/bin/java\r\n    • Java version OpenJDK Runtime Environment (build 1.8.0_152-release-1248-b01)\r\n    • All Android licenses accepted.\r\n\r\n[✓] Xcode - develop for iOS and macOS (Xcode 11.0)\r\n    • Xcode at /Applications/Xcode.app/Contents/Developer\r\n    • Xcode 11.0, Build version 11A420a\r\n    • CocoaPods version 1.7.5\r\n\r\n[!] Android Studio (version 3.3)\r\n    • Android Studio at /Applications/Android Studio.app/Contents\r\n    ✗ Flutter plugin not installed; this adds Flutter specific functionality.\r\n    ✗ Dart plugin not installed; this adds Dart specific functionality.\r\n    • Java version OpenJDK Runtime Environment (build 1.8.0_152-release-1248-b01)\r\n\r\n[✓] VS Code (version 1.38.1)\r\n    • VS Code at /Applications/Visual Studio Code.app/Contents\r\n    • Flutter extension version 3.5.1\r\n\r\n[✓] Proxy Configuration\r\n    • HTTP_PROXY is set\r\n    • NO_PROXY is localhost,127.0.0.1,wincor-nixdorf.com,dieboldnixdorf.com\r\n    • NO_PROXY contains 127.0.0.1\r\n    • NO_PROXY contains localhost\r\n\r\n[✓] Connected device (1 available)\r\n    • VSS-iPhone8 • 093e42141efdefbeed6284273b9851a81a6d7e52 • ios • iOS 13.1.2\r\n\r\n! Doctor found issues in 1 category.\r\n```",
+    "createdAt": "2019-10-02T12:58:45Z"
+  },
+  {
+    "id": 8759,
+    "sender": "jaco-pixeldump",
+    "content": "same issue, always same on two different machines, not \"occasionally\", latest lines with flutter run -v\r\n\r\n Checking for advertised Dart observatories...\r\n[  +11 ms] Failed to establish a debug connection with ef0396dda2bb80d5a780985d0bd3f8c0008e2550 using mdns: SocketException:\r\nFailed to\r\n           create datagram socket (OS Error: Address already in use, errno = 48), address = , port = 5353\r\n[   +2 ms] mDNS lookup failed, attempting fallback to reading device log.\r\n[        ] Waiting for observatory port.\r\n\r\nit happens with all channels from stable to master\r\nosx 10.14.1.6\r\nipad 5th gen ios 13.1.2\r\nandroid studio 3.5.1\r\nintellij 2019.2\r\n",
+    "createdAt": "2019-10-03T15:12:21Z"
+  },
+  {
+    "id": 8760,
+    "sender": "zanderso",
+    "content": "@jbnixdorf The way to debug this is likely to capture the mDNS query response packets with wireshark and send them to us. Then we can figure out why our parser doesn't like them.\r\n\r\n@jaco-pixeldump It sounds like the problem you're hitting is a bit different. Would you mind filing a new issue. Thanks!",
+    "createdAt": "2019-10-03T15:49:46Z"
+  },
+  {
+    "id": 8761,
+    "sender": "jaco-pixeldump",
+    "content": "@zanderso , thanks #41911 ",
+    "createdAt": "2019-10-03T16:20:40Z"
+  },
+  {
+    "id": 8762,
+    "sender": "ghost",
+    "content": "@zanderso I captured the packets while starting the app and created a dump, hope it helps.\r\n\r\n[flutter-issue-41085.zip](https://github.com/flutter/flutter/files/3696216/flutter-issue-41085.zip)",
+    "createdAt": "2019-10-07T08:32:43Z"
+  },
+  {
+    "id": 8763,
+    "sender": "zanderso",
+    "content": "DevFS failure in https://github.com/flutter/flutter/issues/41085#issuecomment-534338377 looks the same as https://github.com/flutter/flutter/issues/19772.",
+    "createdAt": "2019-10-08T17:16:54Z"
+  },
+  {
+    "id": 8764,
+    "sender": "esavantsi",
+    "content": "I had similar issue (with iPhone X, iOS 13)\r\n```\r\n[  +56 ms] Application launched on the device. Waiting for observatory port.\r\n[   +3 ms] Checking for advertised Dart observatories...\r\n[+5020 ms] mDNS lookup failed, attempting fallback to reading device log.\r\n[        ] Waiting for observatory port.\r\n```\r\nThe root cause of this for me was that I had WiFi tethering enabled on my iPhone. Disabling it fixed the issue for me for now.",
+    "createdAt": "2019-10-16T08:49:40Z"
+  },
+  {
+    "id": 8765,
+    "sender": "tvolkert",
+    "content": "> The root cause of this for me was that I had WiFi tethering enabled on my iPhone\r\n\r\nThat jogged my memory -- I was once seeing issues with `package:appengine` whenever I used Wifi tethering, and I tracked it down to https://github.com/dart-lang/labs/issues/158.\r\n\r\nPerhaps this happens when the developer is connected to a Wifi endpoint that sets up a proxy that intercepts the TCP requests?",
+    "createdAt": "2019-10-16T14:36:38Z"
+  },
+  {
+    "id": 8766,
+    "sender": "movieator",
+    "content": "Same issue for me too. I opened another case here: #42999\r\nAfter upgrading to macOS Catalina and iOS 13, hot reload stop working.\r\n",
+    "createdAt": "2019-10-19T17:57:42Z"
+  },
+  {
+    "id": 8767,
+    "sender": "readytopark",
+    "content": "> I had similar issue (with iPhone X, iOS 13)\r\n> \r\n> ```\r\n> [  +56 ms] Application launched on the device. Waiting for observatory port.\r\n> [   +3 ms] Checking for advertised Dart observatories...\r\n> [+5020 ms] mDNS lookup failed, attempting fallback to reading device log.\r\n> [        ] Waiting for observatory port.\r\n> ```\r\n> \r\n> The root cause of this for me was that I had WiFi tethering enabled on my iPhone. Disabling it fixed the issue for me for now.\r\n\r\nSame for me. I turned on my personal HotSpot and it started not working",
+    "createdAt": "2019-10-21T12:33:05Z"
+  }
+]

@@ -1,0 +1,386 @@
+[
+  {
+    "id": 1664,
+    "sender": "blasten",
+    "content": "@canewsin looks like this issue was fixed in https://github.com/flutter/engine/pull/9078. In your Flutter tree, update your local master branch, `git fetch upstream` && `git merge upstream/master` ",
+    "createdAt": "2019-05-31T15:26:35Z"
+  },
+  {
+    "id": 1665,
+    "sender": "truongsinh",
+    "content": "After seeing repeated questions, which have already answered in previous comments, I wrote a short article documenting what options we have now https://medium.com/@truongsinh/flutter-android-64-bit-so-what-the-fuss-15da6f8e3a46. Here's the TLDR:\r\n![1_Awm6pB8jR3wGdHMC4DsatQ](https://user-images.githubusercontent.com/358585/58844681-81156e00-86a2-11e9-9516-5f37326c76be.png)\r\n",
+    "createdAt": "2019-06-04T01:27:04Z"
+  },
+  {
+    "id": 1666,
+    "sender": "tvolkert",
+    "content": "@truongsinh, we're also finalizing support for using `flutter build appbundle` to build an app bundle containing both 32 and 64 bit binaries for deployment to the Play Store.  See https://github.com/flutter/flutter/issues/31922 for more info - please try it out and let us know if you encounter any problems.",
+    "createdAt": "2019-06-04T08:09:38Z"
+  },
+  {
+    "id": 1667,
+    "sender": "truongsinh",
+    "content": "> @truongsinh, we're also finalizing support for using `flutter build appbundle` to build an app bundle containing both 32 and 64 bit binaries for deployment to the Play Store. See #31922 for more info - please try it out and let us know if you encounter any problems.\r\n\r\nYep I'm still waiting for `flutter build appbundle` to produce app the does not stuck or crash :D",
+    "createdAt": "2019-06-04T11:17:22Z"
+  },
+  {
+    "id": 1668,
+    "sender": "tvolkert",
+    "content": "> Yep I'm still waiting for flutter build appbundle to produce app the does not stuck or crash :D\r\n\r\nAcknowledged 🙂 .  If you have a reproducible case of this happening that we can take a look at, that'd be great.  If you were willing to build an unsigned .aab file from the 1.7.1 release and send it to me via email (tvolkert@google.com), I'd appreciate it!",
+    "createdAt": "2019-06-04T23:27:05Z"
+  },
+  {
+    "id": 1669,
+    "sender": "tvolkert",
+    "content": "FYI, the following announcement was sent to flutter-announce@googlegroups.com regarding our 64-bit support.\r\n\r\nhttps://groups.google.com/forum/#!topic/flutter-announce/oIzwT9EDczc",
+    "createdAt": "2019-06-04T23:27:43Z"
+  },
+  {
+    "id": 1670,
+    "sender": "BND10706",
+    "content": "I am having this issue too.\r\n\r\nWhen I build app bundle in Android Studios i can load it fine on my simulator, but it crashes the app when I download it from the play store\r\n",
+    "createdAt": "2019-06-07T14:22:18Z"
+  },
+  {
+    "id": 1671,
+    "sender": "canewsin",
+    "content": "Hi Guys people who are using flutter master branch and building app bundles\r\nif you are debugging your app your app runs fine\r\nsome face crashes on downloading from play store if this happens you have check your app bundle whether it is working on your device because debug mode produces JIT binaries and release mode produces AOT binaries currently their placements are also different i think so to test your app correctly\r\nproduce apk from app bundle for only specific configuration based on your device and completely uninstall debug app from your device and install this new output app from app bundle if it crashes it will crash when downloaded from play store or otherwise, hope this will help others..\r\n\r\nRef for Output to APK from your app bundle from cmd line\r\nhttps://developer.android.com/studio/command-line/bundletool",
+    "createdAt": "2019-06-08T06:30:05Z"
+  },
+  {
+    "id": 1672,
+    "sender": "tvolkert",
+    "content": "FYI, the crashes in the app bundles are better tracked in https://github.com/flutter/flutter/issues/31922.  However, cross-posting here:\r\n\r\n> Hi all,\r\n> \r\n> #### TLDR:\r\n> We've identified the problem with the crashes when downloaded from the Play Store and are working on a fix, to be delivered within the same timeframe as outlined above in https://github.com/flutter/flutter/issues/31922#issuecomment-498880614\r\n> \r\n> #### High-level explanation\r\n> For those interested, the somewhat long explanation is that with devices running Android Marshmallow or later, the Play Store will detect apps that are packaged as App Bundles containing multiple ABIs -- and it will install those apps on the device in the form of \"split APKs\".  When it does this, the .so files contained therein are not extracted from the APK zip archive, which is different than the behavior of non-split APKs.  Since Flutter engine's [current mechanism for finding the .so files](https://github.com/flutter/engine/blob/e8ee6acf8de3613fdd9f431fff5c4c37b65c3335/shell/platform/android/io/flutter/view/FlutterMain.java#L364) assumes they've been extracted from the APK, it fails in the case of split APKs.\r\n> \r\n> The solution is just to `dlopen` the libraries, and Android abstracts away where the libraries are located (i.e. within an archive or not).  However, the necessary .so files were never true libraries to begin with - they were just binary blobs of data that we loaded into the Dart VM.  So as part of this, we're making them ELF libraries (e.g. https://github.com/dart-lang/sdk/commit/6d608fb52bc1926a73d986d73ab228b77cfb7ca2 and https://github.com/flutter/flutter/pull/33696).",
+    "createdAt": "2019-06-08T06:56:20Z"
+  },
+  {
+    "id": 1673,
+    "sender": "fritz-playmaker",
+    "content": "> 4\\. flutter build apk --release --target-platform=android-arm64\r\n\r\nI get this error after adding the code snippet to build.gradle \r\n`Gradle build failed to produce an Android package.`",
+    "createdAt": "2019-06-10T16:01:40Z"
+  },
+  {
+    "id": 1674,
+    "sender": "johnmoscoso911",
+    "content": "> > 4. flutter build apk --release --target-platform=android-arm64\r\n> \r\n> I get this error after adding the code snippet to build.gradle\r\n> `Gradle build failed to produce an Android package.`\r\n\r\nhttps://developer.android.com/distribute/best-practices/develop/64-bit",
+    "createdAt": "2019-06-10T16:07:12Z"
+  },
+  {
+    "id": 1675,
+    "sender": "christiangarciareyes",
+    "content": "Could someone solve the problem? I have an app on flutter that only works its 32-bit apk but the 64's do not work or do not install. I'm testing on a 64-bit cell phone",
+    "createdAt": "2019-06-10T16:50:35Z"
+  },
+  {
+    "id": 1676,
+    "sender": "tvolkert",
+    "content": "@CgarciaTC please see https://github.com/flutter/flutter/issues/18494#issuecomment-500101807 for the most recent update",
+    "createdAt": "2019-06-10T18:14:44Z"
+  },
+  {
+    "id": 1677,
+    "sender": "tvolkert",
+    "content": "Hi all,\r\n\r\nWe believe the fixes have all landed on tip-of-tree on the `master` channel.  If you'd like to try them out, here's how:\r\n\r\n* `flutter build appbundle`\r\n\r\n  By default, the App Bundle contains your Dart code and the Flutter runtime compiled for [armeabi-v7a](https://developer.android.com/ndk/guides/abis#v7a) (32-bit) and [arm64-v8a](https://developer.android.com/ndk/guides/abis#arm64-v8a) (64-bit)\r\n\r\n* `flutter build apk --split-per-abi`\r\n\r\n  This command will result in two APKs:\r\n\r\n  `build/app/outputs/apk/release/app-armeabi-v7a-release.apk`\r\n  `build/app/outputs/apk/release/app-arm64-v8a-release.apk`\r\n\r\n* `flutter build apk`\r\n\r\n  This will result in a fat APK that contains your code compiled for all the target ABIs.  Such APKs will be larger in size than their split counterparts, causing the user to download native binaries that are not applicable to their device’s architecture.",
+    "createdAt": "2019-06-13T04:31:36Z"
+  },
+  {
+    "id": 1678,
+    "sender": "angel1st",
+    "content": "> flutter build apk --split-per-abi\r\n> This command will result in two APKs:\r\n> build/app/outputs/apk/release/app-armeabi-v7a-release.apk\r\n> build/app/outputs/apk/release/app-arm64-v8a-release.apk\r\n\r\n@tvolkert - in this particular scenario, what about each release version number? As long as I am aware, they have to differ, so we can upload both into Google Play. Is that part somehow managed, when the apks are built? If not, how is it supposed to be handled?\r\n ",
+    "createdAt": "2019-06-13T07:08:31Z"
+  },
+  {
+    "id": 1679,
+    "sender": "tvolkert",
+    "content": "@angel1st it's managed automatically when the APKs are built, per the guidance in https://developer.android.com/studio/build/configure-apk-splits#configure-APK-versions",
+    "createdAt": "2019-06-13T07:50:43Z"
+  },
+  {
+    "id": 1680,
+    "sender": "ndusart",
+    "content": "@tvolkert is there any information about when this will land in stable channel ?",
+    "createdAt": "2019-06-13T08:14:20Z"
+  },
+  {
+    "id": 1681,
+    "sender": "tvolkert",
+    "content": "@ndusart, yep - see https://github.com/flutter/flutter/issues/18494#issuecomment-498880287",
+    "createdAt": "2019-06-13T08:25:36Z"
+  },
+  {
+    "id": 1682,
+    "sender": "ghost",
+    "content": "Can confirm this is working (After switching to master) on multiple android devices. What a lifesaver, thank you.",
+    "createdAt": "2019-06-13T14:30:13Z"
+  },
+  {
+    "id": 1683,
+    "sender": "harsha973",
+    "content": "@tvolkert Thanks heaps. Any timeline for getting this into Flutter stable?",
+    "createdAt": "2019-06-13T21:38:43Z"
+  },
+  {
+    "id": 1684,
+    "sender": "tvolkert",
+    "content": "@harsha973 see https://github.com/flutter/flutter/issues/18494#issuecomment-498880287",
+    "createdAt": "2019-06-13T21:43:53Z"
+  },
+  {
+    "id": 1685,
+    "sender": "PerLycke",
+    "content": "@harsha973 you are seriously tagging and asking the exact same question that he answered 2 posts above yours. Not only ignorant but on the verge of disrespectful.",
+    "createdAt": "2019-06-13T21:57:44Z"
+  },
+  {
+    "id": 1686,
+    "sender": "harsha973",
+    "content": "@PerLycke sorry about that.",
+    "createdAt": "2019-06-14T05:40:43Z"
+  },
+  {
+    "id": 1687,
+    "sender": "michalsuryntequiqo",
+    "content": "I have checked out the master channel, upgraded flutter and now I can't really build the app, using the command:\r\n`flutter build apk --release --flavor production -t lib/main.dart\r\n`\r\nthe result is: \r\n```\r\n* What went wrong:                                                                                                 \r\nExecution failed for task ':app:transformNativeLibsWithMergeJniLibsForProductionRelease'.                          \r\n> More than one file was found with OS independent path 'lib/armeabi-v7a/libapp.so' \r\n```\r\nSimilar StackOverflow issues' answers do not really help.",
+    "createdAt": "2019-06-14T10:31:12Z"
+  },
+  {
+    "id": 1688,
+    "sender": "ghost",
+    "content": "@MichaelRFairhurst `flutter build apk --release` worked well for me, so maybe the new updates on master also requires an update to your flavor settings.\r\n\r\nI know it's not an answer, sorry, but at least a point in the right direction.",
+    "createdAt": "2019-06-14T10:55:34Z"
+  },
+  {
+    "id": 1689,
+    "sender": "derolf",
+    "content": "When will the fix go beta?",
+    "createdAt": "2019-06-14T14:22:38Z"
+  },
+  {
+    "id": 1690,
+    "sender": "MisterJimson",
+    "content": "@derolf please see https://github.com/flutter/flutter/issues/18494#issuecomment-498880287 as the most recent update with target timelines.",
+    "createdAt": "2019-06-14T14:31:56Z"
+  },
+  {
+    "id": 1691,
+    "sender": "tvolkert",
+    "content": "Hi all,\r\n\r\nThese fixes are now live in the `dev` channel, at the `v1.7.4` release or later.",
+    "createdAt": "2019-06-14T22:56:03Z"
+  },
+  {
+    "id": 1692,
+    "sender": "nate-eisner",
+    "content": "While trying to figure out this 64 bit stuff, I am having the same issue as @michalsuryntequiqo and I cannot build anything now via CLI. It builds and runs fine through Android Studio....\r\nrun `flutter build apk --flavor=dev -t lib/main-dev.dart`\r\n```\r\n[   +3 ms] FAILURE: Build failed with an exception.\r\n[   +1 ms] * What went wrong:\r\n[        ] Execution failed for task ':app:transformNativeLibsWithMergeJniLibsForDevRelease'.\r\n[        ] > More than one file was found with OS independent path 'lib/armeabi-v7a/libapp.so'\r\n[        ] * Try:\r\n[        ] Run with --stacktrace option to get the stack trace. Run with --info or --debug option to get more log output. Run with --scan to get full insights.\r\n[        ] * Get more help at https://help.gradle.org\r\n[        ] BUILD FAILED in 1m 3s\r\n[ +370 ms] Running Gradle task 'assembleDevRelease'... (completed in 64.0s)\r\n[   +4 ms] \"flutter apk\" took 69,789ms.\r\n[        ] \"flutter apk\" took 69,789ms.\r\n```\r\n[doctor](https://gist.github.com/nate-eisner/db7a724cfeeb0631e11f3b0df01d0ff4)\r\n\r\n\r\nEdit:\r\njust tried with the commit right before 8627ff433b4658195e66b9c0034902116f53d580 and it produces the apk with the usual error `Gradle build failed to produce an Android package.` because of https://github.com/flutter/flutter/issues/24106\r\n\r\n@blasten Any idea how to get this working again with your changes?\r\n\r\nEdit 2:\r\nOpened new issue for this: https://github.com/flutter/flutter/issues/34598",
+    "createdAt": "2019-06-17T16:32:06Z"
+  },
+  {
+    "id": 1693,
+    "sender": "eugenio-tesio",
+    "content": "I read flutter documentation today and i found:\r\n\r\n> From the command line:\r\n>\r\n>Enter cd <app dir>\r\n>(Replace <app dir> with your application’s directory.)\r\n>Run flutter build apk --split-per-abi\r\n>(The flutter build command defaults to --release.)\r\n>This command results in two APK files:\r\n>\r\n><app dir>/build/app/outputs/apk/release/app-armeabi-v7a-release.apk\r\n><app dir>/build/app/outputs/apk/release/app-arm64-v8a-release.apk\r\n\r\nhttps://flutter.dev/docs/deployment/android#build-an-apk\r\n\r\n",
+    "createdAt": "2019-06-18T20:21:26Z"
+  },
+  {
+    "id": 1694,
+    "sender": "andretietz",
+    "content": "@eugenio-tesio which versioncodes are used, when using `--split-per-abi`? ",
+    "createdAt": "2019-06-19T09:20:24Z"
+  },
+  {
+    "id": 1695,
+    "sender": "eugenio-tesio",
+    "content": "I saw it in the documentation and i thought to publish it here. I didn't test it.\r\nI'd run the command and didn't work. It says:\r\n\r\n> Could not find an option named \"split-per-abi\".\r\n> \r\n> Run 'flutter -h' (or 'flutter <command> -h') for available flutter commands and options.\r\n\r\n\r\nflutter doctor:\r\n\r\n> Flutter 1.6.3 • channel beta • https://github.com/flutter/flutter.git\r\n> Framework • revision bc7bc94083 (4 weeks ago) • 2019-05-23 10:29:07 -0700\r\n> Engine • revision 8dc3a4cde2\r\n> Tools • Dart 2.3.2 (build 2.3.2-dev.0.0 e3edfd36b2)\r\n> \r\n> Running \"flutter pub upgrade\" in consumos_app...                   19,8s\r\n> \r\n> Running flutter doctor...\r\n> Doctor summary (to see all details, run flutter doctor -v):\r\n> [√] Flutter (Channel beta, v1.6.3, on Microsoft Windows [VersiÃ³n 10.0.17134.829], locale es-AR)\r\n> [√] Android toolchain - develop for Android devices (Android SDK version 28.0.3)\r\n> [√] Android Studio (version 3.4)\r\n> [√] IntelliJ IDEA Ultimate Edition (version 2019.1)\r\n> [√] VS Code (version 1.26.1)\r\n> [√] VS Code, 64-bit edition (version 1.33.1)\r\n> [!] Connected device\r\n>     ! No devices available\r\n\r\nI think this function will be available soon.",
+    "createdAt": "2019-06-19T10:41:32Z"
+  },
+  {
+    "id": 1696,
+    "sender": "truongsinh",
+    "content": "> I saw it in the documentation and i thought to publish it here. I didn't test it.\r\n> I'd run the command and didn't work. It says:\r\n> \r\n> > Could not find an option named \"split-per-abi\".\r\n> > Run 'flutter -h' (or 'flutter  -h') for available flutter commands and options.\r\n> \r\n> flutter doctor:\r\n> \r\n> > Flutter 1.6.3 • channel beta • https://github.com/flutter/flutter.git\r\n> > Framework • revision [bc7bc94](https://github.com/flutter/flutter/commit/bc7bc940836f1f834699625426795fd6f07c18ec) (4 weeks ago) • 2019-05-23 10:29:07 -0700\r\n> > Engine • revision 8dc3a4cde2\r\n> > Tools • Dart 2.3.2 (build 2.3.2-dev.0.0 e3edfd36b2)\r\n> > Running \"flutter pub upgrade\" in consumos_app...                   19,8s\r\n> > Running flutter doctor...\r\n> > Doctor summary (to see all details, run flutter doctor -v):\r\n> > [√] Flutter (Channel beta, v1.6.3, on Microsoft Windows [VersiÃ³n 10.0.17134.829], locale es-AR)\r\n> > [√] Android toolchain - develop for Android devices (Android SDK version 28.0.3)\r\n> > [√] Android Studio (version 3.4)\r\n> > [√] IntelliJ IDEA Ultimate Edition (version 2019.1)\r\n> > [√] VS Code (version 1.26.1)\r\n> > [√] VS Code, 64-bit edition (version 1.33.1)\r\n> > [!] Connected device\r\n> > ! No devices available\r\n> \r\n> I think this function will be available soon.\r\n\r\nPlease be reminded that this is on `dev` channel / version 1.7.4 onward only. You are running `beta` channel / version 1.6.3",
+    "createdAt": "2019-06-19T10:51:18Z"
+  },
+  {
+    "id": 1697,
+    "sender": "nohli",
+    "content": "I just tried it (building and publishing using Codemagic) and it worked really well. Thanks!\r\n\r\nGoogle still complains that I’m not using appbundle though. Given this warning, publishing apks maybe doesn’t make too much sense?\r\n\r\nI would use appbundle - but this stops Google’s automated testing (generating the pre-launch-report) from working. Should I open a new issue for this?",
+    "createdAt": "2019-06-19T18:08:55Z"
+  },
+  {
+    "id": 1698,
+    "sender": "blasten",
+    "content": "@nohli We updated the docs to reflect the latest about app bundles/APKs: https://flutter.dev/docs/deployment/android#building-the-app-for-release. \r\n\r\nFeel free to file the issue about Google’s automated testing.",
+    "createdAt": "2019-06-19T18:29:39Z"
+  },
+  {
+    "id": 1699,
+    "sender": "nimesh1997",
+    "content": "I build my the  app from bundle but after running on 64bit devices says libflutter.so is missing by building app for both 32bit device and 64bit device. How to add libflutter.so for both architecture in single bundle file?",
+    "createdAt": "2019-06-21T16:43:37Z"
+  },
+  {
+    "id": 1700,
+    "sender": "wal33d006",
+    "content": "\r\n\r\n> @nohli We updated the docs to reflect the latest about app bundles/APKs: https://flutter.dev/docs/deployment/android#building-the-app-for-release.\r\n> \r\n> Feel free to file the issue about Google’s automated testing.\r\n\r\n@blasten The procedure given on in the link didn't produce 64-bit APK in the bundle. When I uploaded the bundle, the Google Play store had the same error intact saying your APK is not 64-bit compliant.",
+    "createdAt": "2019-06-21T21:21:19Z"
+  },
+  {
+    "id": 1701,
+    "sender": "tvolkert",
+    "content": "@wal33d006 see the disclaimer at the top of the page - it only applies to `v1.7.4` or later (currently dev or master channels).",
+    "createdAt": "2019-06-21T21:24:23Z"
+  },
+  {
+    "id": 1702,
+    "sender": "wal33d006",
+    "content": "> @wal33d006 see the disclaimer at the top of the page - it only applies to `v1.7.4` or later (currently dev or master channels).\r\n\r\n@tvolkert  I am unable to even build my application through dev or master channels.",
+    "createdAt": "2019-06-21T21:33:47Z"
+  },
+  {
+    "id": 1703,
+    "sender": "wal33d006",
+    "content": "This is my output when I build it on dev or master channels:\r\n\r\nCompiler message:                                                       \r\nfile:///Users/waleed/.pub-cache/hosted/pub.dartlang.org/cached_network_image-0.5.1/lib/cached_network_image.dart:199:38: Error: The argument type 'void Function(ImageInfo, bool)' can't be assigned to the parameter type 'ImageStreamListener'.\r\n - 'ImageInfo' is from 'package:flutter/src/painting/image_stream.dart' ('file:///Users/waleed/Developer/flutter-sdk/flutter/packages/flutter/lib/src/painting/image_stream.dart').\r\n - 'ImageStreamListener' is from 'package:flutter/src/painting/image_stream.dart' ('file:///Users/waleed/Developer/flutter-sdk/flutter/packages/flutter/lib/src/painting/image_stream.dart').\r\nTry changing the type of the parameter, or casting the argument to 'ImageStreamListener'.\r\n      oldImageStream?.removeListener(_handleImageChanged);              \r\n                                     ^                                  \r\nfile:///Users/waleed/.pub-cache/hosted/pub.dartlang.org/cached_network_image-0.5.1/lib/cached_network_image.dart:200:32: Error: The argument type 'void Function(ImageInfo, bool)' can't be assigned to the parameter type 'ImageStreamListener'.\r\n - 'ImageInfo' is from 'package:flutter/src/painting/image_stream.dart' ('file:///Users/waleed/Developer/flutter-sdk/flutter/packages/flutter/lib/src/painting/image_stream.dart').\r\n - 'ImageStreamListener' is from 'package:flutter/src/painting/image_stream.dart' ('file:///Users/waleed/Developer/flutter-sdk/flutter/packages/flutter/lib/src/painting/image_stream.dart').\r\nTry changing the type of the parameter, or casting the argument to 'ImageStreamListener'.\r\n      _imageStream.addListener(_handleImageChanged);                    \r\n                               ^                                        \r\nfile:///Users/waleed/.pub-cache/hosted/pub.dartlang.org/cached_network_image-0.5.1/lib/cached_network_image.dart:210:34: Error: The argument type 'void Function(ImageInfo, bool)' can't be assigned to the parameter type 'ImageStreamListener'.\r\n - 'ImageInfo' is from 'package:flutter/src/painting/image_stream.dart' ('file:///Users/waleed/Developer/flutter-sdk/flutter/packages/flutter/lib/src/painting/image_stream.dart').\r\n - 'ImageStreamListener' is from 'package:flutter/src/painting/image_stream.dart' ('file:///Users/waleed/Developer/flutter-sdk/flutter/packages/flutter/lib/src/painting/image_stream.dart').\r\nTry changing the type of the parameter, or casting the argument to 'ImageStreamListener'.\r\n    _imageStream?.removeListener(_handleImageChanged);                  \r\n                                 ^                                      \r\nfile:///Users/waleed/.pub-cache/hosted/pub.dartlang.org/cached_network_image-0.5.1/lib/cached_network_image.dart:465:31: Error: The argument type 'Null Function(StringBuffer)' can't be assigned to the parameter type 'Iterable<DiagnosticsNode> Function()'.\r\n - 'StringBuffer' is from 'dart:core'.                                  \r\n - 'Iterable' is from 'dart:core'.                                      \r\n - 'DiagnosticsNode' is from 'package:flutter/src/foundation/diagnostics.dart' ('file:///Users/waleed/Developer/flutter-sdk/flutter/packages/flutter/lib/src/foundation/diagnostics.dart').\r\nTry changing the type of the parameter, or casting the argument to 'Iterable<DiagnosticsNode> Function()'.\r\n        informationCollector: (StringBuffer information) {              \r\n                              ^                                         \r\nCompiler terminated unexpectedly.                                       \r\n                                                                        \r\nFAILURE: Build failed with an exception.                                \r\n                                                                        \r\n* Where:                                                                \r\nScript '/Users/waleed/Developer/flutter-sdk/flutter/packages/flutter_tools/gradle/flutter.gradle' line: 638\r\n                                                                        \r\n* What went wrong:                                                      \r\nExecution failed for task ':app:compileflutterBuildReleaseArm'.         \r\n> Process 'command '/Users/waleed/Developer/flutter-sdk/flutter/bin/flutter'' finished with non-zero exit value 1\r\n                                                                        \r\n* Try:                                                                  \r\nRun with --stacktrace option to get the stack trace. Run with --info or --debug option to get more log output. Run with --scan to get full insights.\r\n                                                                        \r\n* Get more help at https://help.gradle.org                              \r\n                                                                        \r\nBUILD FAILED in 14s                                                     \r\nRunning Gradle task 'bundleRelease'...                                  \r\nRunning Gradle task 'bundleRelease'... Done                        15.0s\r\nGradle task bundleRelease failed with exit code 1\r\n",
+    "createdAt": "2019-06-21T21:52:24Z"
+  },
+  {
+    "id": 1704,
+    "sender": "tvolkert",
+    "content": "@wal33d006 `package:cached_network_image` is now version `0.8.0`and you're using `0.5.1` -- it looks like when running against the newer version of Flutter, you need to update your version constraint in your `pubspec.yaml` and `flutter packages upgrade` ",
+    "createdAt": "2019-06-21T22:21:00Z"
+  },
+  {
+    "id": 1705,
+    "sender": "nimesh1997",
+    "content": "@tvolkert you are saying that in **v1.7.4** the file **libflutter.so** is automatically added for 64bit device when we build the bundle using command **flutter build appbundle**?",
+    "createdAt": "2019-06-22T04:22:14Z"
+  },
+  {
+    "id": 1706,
+    "sender": "tvolkert",
+    "content": "@nimesh1997 yep, although the build that makes it to stable will likely be a newer version.",
+    "createdAt": "2019-06-22T04:33:28Z"
+  },
+  {
+    "id": 1707,
+    "sender": "nimesh1997",
+    "content": "@tvolkert I changed my channel to ### master channel and also upgraded the ### package:cached_network_image version to 0.8.0 by changing inside the pubspec.yaml. But when running flutter packages upgrade. Error shows below like this:\r\n**Because cached_network_image >=0.7.0 depends on flutter_cache_manager ^0.3.2 which depends on path_provider ^0.5.0+1, cached_network_image >=0.7.0 requires path_provider ^0.5.0+1.\r\n\r\n",
+    "createdAt": "2019-06-22T04:41:46Z"
+  },
+  {
+    "id": 1708,
+    "sender": "tvolkert",
+    "content": "@nimesh1997 can you file a separate issue and cc me?  There are hundreds of people subscribed to this bug.",
+    "createdAt": "2019-06-22T05:27:54Z"
+  },
+  {
+    "id": 1709,
+    "sender": "nimesh1997",
+    "content": "@tvolkert When will be flutter version 1.7.4 be available in stable channel and when the error mentioned below be resolved in flutter version 1.7.4 because of that error it does not run on 64bit devices (libflutter.so is missing)?\r\n\r\nThis is the output I am getting when I run on flutter v1.7.4 or later:-\r\n\r\n**Compiler message:**                                                       \r\nfile:///home/zunroof-dev-4/package_flutter/flutter/.pub-cache/hosted/pub.dartlang.org/flutter_image-1.0.0/lib/network.dart:75:31: \r\nError: The argument type 'Null Function(StringBuffer)' can't be assigned to the parameter type 'Iterable<DiagnosticsNode> Function()'.\r\n - 'StringBuffer' is from 'dart:core'.                                  \r\n - 'Iterable' is from 'dart:core'.                                      \r\n - 'DiagnosticsNode' is from 'package:flutter/src/foundation/diagnostics.dart' ('file:///home/zunroof-dev-4/package_flutter/flutter/packages/flutter/lib/src/foundation/diagnostics.dart').\r\nTry changing the type of the parameter, or casting the argument to 'Iterable<DiagnosticsNode> Function()'.\r\n        informationCollector: (StringBuffer information) {              \r\n                              ^                                         \r\nfile:///home/zunroof-dev-4/package_flutter/flutter/.pub-cache/hosted/pub.dartlang.org/flutter_image-1.0.0/lib/network.dart:168:65: Error: The argument type 'String' can't be assigned to the parameter type 'DiagnosticsNode'.\r\n - 'DiagnosticsNode' is from 'package:flutter/src/foundation/diagnostics.dart' ('file:///home/zunroof-dev-4/package_flutter/flutter/packages/flutter/lib/src/foundation/diagnostics.dart').\r\nTry changing the type of the parameter, or casting the argument to 'DiagnosticsNode'.\r\n      context: '$runtimeType failed to load ${instructions.uri}',       \r\n                                                                ^       \r\nCompiler terminated unexpectedly.       ",
+    "createdAt": "2019-06-24T12:07:48Z"
+  },
+  {
+    "id": 1710,
+    "sender": "leonardop21",
+    "content": "Error compiling, does not generate logs and flutter doctor -v does not point to errors. what should I do?\r\n\r\nIf you are deploying the app to the Play Store, it's recommended to use app\r\nbundles or split the APK to reduce the APK size.\r\n    To generate an app bundle, run:\r\n        flutter build appbundle --target-platform android-arm,android-arm64\r\n        Learn more on: https://developer.android.com/guide/app-bundle\r\n    To split the APKs per ABI, run:\r\n        flutter build apk --target-platform android-arm,android-arm64\r\n        --split-per-abi\r\n        Learn more on:\r\n        https://developer.android.com/studio/build/configure-apk-splits#configur\r\n        e-abi-split\r\nInitializing gradle...                                              7,4s\r\nResolving dependencies...                                           4,3s\r\nregisterResGeneratingTask is deprecated, use registerGeneratedResFolders(FileCollection)\r\nregisterResGeneratingTask is deprecated, use registerGeneratedResFolders(FileCollection)\r\nregisterResGeneratingTask is deprecated, use registerGeneratedResFolders(FileCollection)\r\nRunning Gradle task 'assembleRelease'...                                \r\nRunning Gradle task 'assembleRelease'... Done                       9,0s\r\n\r\n\r\n**Gradle build failed to produce an Android package.**\r\n",
+    "createdAt": "2019-06-24T13:25:10Z"
+  },
+  {
+    "id": 1711,
+    "sender": "canewsin",
+    "content": "@leonardop21 try with \r\n> flutter run -v",
+    "createdAt": "2019-06-24T14:46:30Z"
+  },
+  {
+    "id": 1712,
+    "sender": "leonardop21",
+    "content": "@canewsin\r\n \r\n\r\nOMG. I have no idea what to do now\r\n\r\nGradle build failed to produce an Android package.\r\n\r\n#0      throwToolExit (package:flutter_tools/src/base/common.dart:28:3)\r\n#1      _buildGradleProjectV2\r\n(package:flutter_tools/src/android/gradle.dart:514:7)\r\n#2      _asyncThenWrapperHelper.<anonymous closure>\r\n(dart:async-patch/async_patch.dart:77:64)\r\n#3      _rootRunUnary (dart:async/zone.dart:1132:38)\r\n#4      _CustomZone.runUnary (dart:async/zone.dart:1029:19)\r\n#5      _FutureListener.handleValue (dart:async/future_impl.dart:126:18)\r\n#6      Future._propagateToListeners.handleValueCallback\r\n(dart:async/future_impl.dart:639:45)\r\n#7      Future._propagateToListeners (dart:async/future_impl.dart:668:32)\r\n#8      Future._complete (dart:async/future_impl.dart:473:7)\r\n#9      _SyncCompleter.complete (dart:async/future_impl.dart:51:12)\r\n#10     _AsyncAwaitCompleter.complete (dart:async-patch/async_patch.dart:28:18)\r\n#11     _completeOnAsyncReturn (dart:async-patch/async_patch.dart:294:13)\r\n#12     runCommandAndStreamOutput (package:flutter_tools/src/base/process.dart)\r\n#13     _asyncThenWrapperHelper.<anonymous closure>\r\n(dart:async-patch/async_patch.dart:77:64)\r\n#14     _rootRunUnary (dart:async/zone.dart:1132:38)\r\n#15     _CustomZone.runUnary (dart:async/zone.dart:1029:19)\r\n#16     _FutureListener.handleValue (dart:async/future_impl.dart:126:18)\r\n#17     Future._propagateToListeners.handleValueCallback\r\n(dart:async/future_impl.dart:639:45)\r\n#18     Future._propagateToListeners (dart:async/future_impl.dart:668:32)\r\n#19     Future._completeWithValue (dart:async/future_impl.dart:483:5)\r\n#20     Future._asyncComplete.<anonymous closure>\r\n(dart:async/future_impl.dart:513:7)\r\n#21     _rootRun (dart:async/zone.dart:1124:13)\r\n#22     _CustomZone.run (dart:async/zone.dart:1021:19)\r\n#23     _CustomZone.runGuarded (dart:async/zone.dart:923:7)\r\n#24     _CustomZone.bindCallbackGuarded.<anonymous closure>\r\n(dart:async/zone.dart:963:23)\r\n#25     _microtaskLoop (dart:async/schedule_microtask.dart:41:21)\r\n#26     _startMicrotaskLoop (dart:async/schedule_microtask.dart:50:5)\r\n#27     _runPendingImmediateCallback\r\n(dart:isolate-patch/isolate_patch.dart:116:13)\r\n#28     _RawReceivePortImpl._handleMessage\r\n(dart:isolate-patch/isolate_patch.dart:173:5)",
+    "createdAt": "2019-06-24T16:51:29Z"
+  },
+  {
+    "id": 1713,
+    "sender": "blasten",
+    "content": "We have updated our docs to indicate how you can build APKs with 32-bit and 64-bit binaries. https://flutter.dev/docs/deployment/android#building-the-app-for-release . \r\n\r\nPlease use the `dev` channel: `v1.7.9` or above.  The team is working to promote the latest changes to beta by this Friday (06/28/2019).",
+    "createdAt": "2019-06-25T22:03:36Z"
+  },
+  {
+    "id": 1714,
+    "sender": "JaeyoungChu",
+    "content": "Compiler message:                                                       \r\nfile:///Users/systemgnk/Desktop/flutter/.pub-cache/hosted/pub.dartlang.org/flare_flutter-1.5.2/lib/flare.dart:1033:18: Error: The argument type 'Int32List' can't be assigned to the parameter type 'Uint16List'.\r\n - 'Int32List' is from 'dart:typed_data'.                               \r\n - 'Uint16List' is from 'dart:typed_data'.                              \r\nTry changing the type of the parameter, or casting the argument to 'Uint16List'.\r\n        indices: _indices, textureCoordinates: _uvBuffer);              \r\n                 ^                                                      \r\nCompiler terminated unexpectedly.                                       \r\n                                                                        \r\nFAILURE: Build failed with an exception.                                \r\n                                                                        \r\n* Where:                                                                \r\nScript '/Users/systemgnk/Desktop/flutter/packages/flutter_tools/gradle/flutter.gradle' line: 631\r\n                                                                        \r\n* What went wrong:                                                      \r\nExecution failed for task ':app:compileflutterBuildReleaseArm'.         \r\n> Process 'command '/Users/systemgnk/Desktop/flutter/bin/flutter'' finished with non-zero exit value 1\r\n                                                                        \r\n* Try:                                                                  \r\nRun with --stacktrace option to get the stack trace. Run with --info or --debug option to get more log output. Run with --scan to get full insights.\r\n                                                                        \r\n* Get more help at https://help.gradle.org                              \r\n                                                                        \r\nBUILD FAILED in 22s                                                     \r\nRunning Gradle task 'assembleRelease'...                                \r\nRunning Gradle task 'assembleRelease'... Done                      23.3s\r\nGradle task assembleRelease failed with exit code 1\r\n\r\n\r\n[✓] Flutter (Channel dev, v1.7.10, on Mac OS X 10.13.6 17G65, locale en-US)\r\n    • Flutter version 1.7.10 at /Users/systemgnk/Desktop/flutter\r\n    • Framework revision 9a3a7490c8 (2 days ago), 2019-06-25 15:59:15 +0200\r\n    • Engine revision ae8e6d9f46\r\n    • Dart version 2.4.0\r\n\r\n \r\n[✓] Android toolchain - develop for Android devices (Android SDK version 28.0.3)\r\n    • Android SDK at /Users/systemgnk/Library/Android/sdk\r\n    • Android NDK location not configured (optional; useful for native profiling support)\r\n    • Platform android-28, build-tools 28.0.3\r\n    • Java binary at: /Applications/Android Studio.app/Contents/jre/jdk/Contents/Home/bin/java\r\n    • Java version OpenJDK Runtime Environment (build 1.8.0_152-release-1248-b01)\r\n    • All Android licenses accepted.\r\n\r\n[✓] Xcode - develop for iOS and macOS (Xcode 10.1)\r\n    • Xcode at /Applications/Xcode.app/Contents/Developer\r\n    • Xcode 10.1, Build version 10B61\r\n    • CocoaPods version 1.6.0\r\n\r\n[✓] iOS tools - develop for iOS devices\r\n    • ios-deploy 1.9.4\r\n\r\n[✓] Chrome - develop for the web\r\n    • Chrome at /Applications/Google Chrome.app/Contents/MacOS/Google Chrome\r\n\r\n[✓] Android Studio (version 3.3)\r\n    • Android Studio at /Applications/Android Studio.app/Contents\r\n    • Flutter plugin version 33.3.1\r\n    • Dart plugin version 182.5215\r\n    • Java version OpenJDK Runtime Environment (build 1.8.0_152-release-1248-b01)\r\n\r\n[✓] Connected device (4 available)\r\n    • Android SDK built for x86 • emulator-5554                            • android-x86    • Android 7.0 (API 24) (emulator)\r\n    • System’s iPhone           • 73145c33ee6d180a2db3d4a96b908ceb4c49065b • ios            • iOS 12.3.1\r\n    • macOS                     • macOS                                    • darwin-x64     • Mac OS X 10.13.6 17G65\r\n    • Chrome                    • chrome                                   • web-javascript • Google Chrome 75.0.3770.100 \r\n\r\n\r\n• No issues found!\r\n\r\n\r\nI am still having issue with building apk.\r\nI was only available to build 32bit apk in stable channel.\r\n\r\nI think I need to wait until flutter team fix this bug rather than use dev or master channel sdk.\r\n\r\nThank you.",
+    "createdAt": "2019-06-27T13:51:05Z"
+  },
+  {
+    "id": 1715,
+    "sender": "ctrysbita",
+    "content": "@JaeyoungChu Refer to 2d-inc/Flare-Flutter#79",
+    "createdAt": "2019-06-27T15:30:02Z"
+  },
+  {
+    "id": 1716,
+    "sender": "JaeyoungChu",
+    "content": "@ctrysbita Thanks for the link. I changed the channel to master and change type of _indices from Int32List to Uint16List.\r\napk which is uploaded on play store does not have warning for 64bit and it is running after installing from play store test page.",
+    "createdAt": "2019-06-27T18:38:23Z"
+  },
+  {
+    "id": 1717,
+    "sender": "JaeyoungChu",
+    "content": "I have other issues with dev channel flutter sdk such as not pop up permission dialog for location and google map does not show in ios and could not show big image file by http(cached network image). Those issues are not sure due to dev channel but when I got back to stable and build again all the issues are gone. I do not have much time for digging in this issues so it is not 100% sure. Sorry about that but perhaps someone get hint from this issues.",
+    "createdAt": "2019-06-28T15:10:52Z"
+  },
+  {
+    "id": 1718,
+    "sender": "ArtfulDodgerB92",
+    "content": "> This was my solution:\r\n> \r\n> 1. in `app gradle`\r\n> \r\n> ```groovy-gradle\r\n> splits {\r\n>         // Configures multiple APKs based on ABI.\r\n>         abi {\r\n>             // Enables building multiple APKs per ABI.\r\n>             enable true\r\n>             // By default all ABIs are included, so use reset() and include to specify that we only\r\n>             // want APKs for armeabi-v7a and arm64-v8a.\r\n> \r\n>             // Resets the list of ABIs that Gradle should create APKs for to none.\r\n>             reset()\r\n> \r\n>             // Specifies a list of ABIs that Gradle should create APKs for.\r\n>             include \"armeabi-v7a\", \"arm64-v8a\"\r\n> \r\n>             // Specifies that we do not want to also generate a universal APK that includes all ABIs.\r\n>             universalApk false\r\n>         }\r\n>     }\r\n> ```\r\n> \r\n> 1. run `flutter build apk --release --target-platform=android-arm`\r\n> 2. upload `app-armeabi-v7a-release.apk` to the play store\r\n> 3. increment `versionCode`\r\n> 4. run `flutter build apk --release --target-platform=android-arm64 `\r\n> 5. upload `app-arm64-v8a-release.apk` to the play store\r\n> \r\n> Google play store will serve App according to device architecture. 32bit devices are happy, 64bit devices are happy and I'm happy knowing that my APK size remains relatively small while still serving both architectures.\r\n> \r\n> If we include support for both architectures in the same APK, expect the size of your app to be 10MB+\r\n\r\nWHERE?  WHERE do we add the splits section to the gradle file??   I added it between flutter {} and dependencies {} and it will not build the first APK as it says:\r\n\r\nPlease review your Gradle project setup in the android/ folder.\r\n\r\nSo clearly this is not right, as this is the only change I have made to the project since my last build.",
+    "createdAt": "2019-06-29T06:28:02Z"
+  },
+  {
+    "id": 1719,
+    "sender": "JaeyoungChu",
+    "content": "@ArtfulDodgerB92 Thanks for the solution. which channel did you user for building apk and version?",
+    "createdAt": "2019-06-29T15:09:38Z"
+  },
+  {
+    "id": 1720,
+    "sender": "iqbalmineraltown",
+    "content": "> WHERE? WHERE do we add the splits section to the gradle file?? I added it between flutter {} and dependencies {} and it will not build the first APK as it says:\r\n> \r\n> Please review your Gradle project setup in the android/ folder.\r\n> \r\n> So clearly this is not right, as this is the only change I have made to the project since my last build.\r\n\r\n@ArtfulDodgerB92 it should be inside `android{}` section, as written here: https://developer.android.com/studio/build/configure-apk-splits.html",
+    "createdAt": "2019-07-01T01:55:43Z"
+  },
+  {
+    "id": 1721,
+    "sender": "nohli",
+    "content": "> FYI, the following announcement was sent to [flutter-announce@googlegroups.com](mailto:flutter-announce@googlegroups.com) regarding our 64-bit support.\r\n> \r\n> https://groups.google.com/forum/#!topic/flutter-announce/oIzwT9EDczc\r\n\r\nany news about an upcoming beta release?",
+    "createdAt": "2019-07-01T10:16:08Z"
+  },
+  {
+    "id": 1722,
+    "sender": "tvolkert",
+    "content": "@nohli we delayed the beta release by a few days to pick up a fix (revert commit) to https://github.com/flutter/flutter/issues/35291.  We're working to get a release out to beta ASAP.",
+    "createdAt": "2019-07-01T17:15:01Z"
+  },
+  {
+    "id": 1723,
+    "sender": "tvolkert",
+    "content": "This is now live on the beta channel, in release `v1.7.8+hotfix.2`",
+    "createdAt": "2019-07-02T17:57:12Z"
+  },
+  {
+    "id": 1724,
+    "sender": "ssghazaryan",
+    "content": "> This is now live on the beta channel, in release `v1.7.8+hotfix.2`\r\n\r\nСool how to generate release apk ?",
+    "createdAt": "2019-07-05T08:51:01Z"
+  },
+  {
+    "id": 1725,
+    "sender": "truongsinh",
+    "content": "> > This is now live on the beta channel, in release `v1.7.8+hotfix.2`\r\n> \r\n> Сool how to generate release apk ?\r\n\r\nHere's the instruction https://flutter.dev/docs/deployment/android",
+    "createdAt": "2019-07-05T09:52:44Z"
+  },
+  {
+    "id": 1726,
+    "sender": "ssghazaryan",
+    "content": "> > > This is now live on the beta channel, in release `v1.7.8+hotfix.2`\r\n> > \r\n> > \r\n> > Сool how to generate release apk ?\r\n> \r\n> Here's the instruction https://flutter.dev/docs/deployment/android\r\n\r\ni tried but not working at 32\r\n",
+    "createdAt": "2019-07-05T11:34:51Z"
+  },
+  {
+    "id": 1727,
+    "sender": "truongsinh",
+    "content": "> i tried but not working at 32\r\n\r\nWhat do you mean by `32`? Like \"I can generate a fat apk, and that apk is working on a 64-bit device, but crashing on 32-bit device\"?\r\n\r\nCan you post the result of `flutter doctor`, your step-by-step (e.g. this is the step 2 of progard https://flutter.dev/docs/deployment/android#step-2---enable-obfuscation-andor-minification), are you generating APK or AAB, and which device are you testing?",
+    "createdAt": "2019-07-05T12:38:06Z"
+  }
+]

@@ -1,0 +1,386 @@
+[
+  {
+    "id": 7104,
+    "sender": "QuncCccccc",
+    "content": "We might also need to fix the errors in linux analyzer:\r\n\r\n<img width=\"1710\" height=\"299\" alt=\"Screenshot 2025-12-01 at 10 42 41 PM\" src=\"https://github.com/user-attachments/assets/b2c28b98-7b29-4ed4-8a1f-bf3ce2c35273\" />\r\n",
+    "createdAt": "2025-12-02T06:43:44Z"
+  },
+  {
+    "id": 7105,
+    "sender": "Mairramer",
+    "content": "> Sorry for the late response. I was OOO last week. I'll make sure we make good progress on this PR! Overall the change looks good, just some details are not accurate.\r\n\r\nNo problem. I’m already taking up more of your PR review time than I should. Thank you for your patience. :)\r\n",
+    "createdAt": "2025-12-02T12:26:33Z"
+  },
+  {
+    "id": 7106,
+    "sender": "Piinks",
+    "content": "@QuncCccccc is OOO right now, but should be back to take a look next week. I did notice this has a months' old base commit, so just as a heads up, this will need to be rebased with the tip of tree to make it mergeable.",
+    "createdAt": "2025-12-10T18:46:27Z"
+  },
+  {
+    "id": 7107,
+    "sender": "Piinks",
+    "content": "In case I was not very helpful - a rebase is different from merge. :)",
+    "createdAt": "2025-12-10T19:22:34Z"
+  },
+  {
+    "id": 7108,
+    "sender": "QuncCccccc",
+    "content": "I pushed a [commit](https://github.com/flutter/flutter/pull/169271/changes/2663f4dcc7920d7aa966eff4a8b97f6caa013640) to show the fix. And now the tests related to CarouselView.weighted should fail. Could you take a look if the change makes sense and help fix the tests if it makes sense:)\r\n\r\nSome more details for tests:\r\nWhen we call `animateToItem` in `CarouselView.weighted` (for example `animateToItem(4, xxx)`), after the animation is done, item 4 should be the item occupying the max weight. So if the flexWeights is [2, 5, 2], we should see [item 3, item 4, item 5] in the view. So the leadingItem in the carousel view should be item 3 because leadingItem simply just means the first item in the view.\r\n\r\nLet me know if there're any questions! The APIs are a bit confusing:)",
+    "createdAt": "2025-12-19T01:24:15Z"
+  },
+  {
+    "id": 7109,
+    "sender": "Mairramer",
+    "content": "> I pushed a [commit](https://github.com/flutter/flutter/pull/169271/changes/2663f4dcc7920d7aa966eff4a8b97f6caa013640) to show the fix. And now the tests related to CarouselView.weighted should fail. Could you take a look if the change makes sense and help fix the tests if it makes sense:)\r\n> \r\n\r\nGot it! Just adjusted a small detail.\r\n\r\n> Some more details for tests: When we call `animateToItem` in `CarouselView.weighted` (for example `animateToItem(4, xxx)`), after the animation is done, item 4 should be the item occupying the max weight. So if the flexWeights is [2, 5, 2], we should see [item 3, item 4, item 5] in the view. So the leadingItem in the carousel view should be item 3 because leadingItem simply just means the first item in the view.\r\n> \r\n> Let me know if there're any questions! The APIs are a bit confusing:)\r\n\r\nAdjusted the tests. There’s just one test with `flexWeights = const [1, 2, 3, 4]` that I’m still unsure about from a usability perspective, but in terms of what was implemented, it’s completely correct.\r\n",
+    "createdAt": "2025-12-19T11:32:47Z"
+  },
+  {
+    "id": 7110,
+    "sender": "Piinks",
+    "content": "@Mairramer I would like to recommend re-opening this in a new PR. As this has been open since May 2025 and has over 140 comments, Github is not able to display all of the feedback from the many review cycles. I cannot approve this with confidence that everything we have discussed over the last couple of months here has been accounted for. Would you mind opening a fresh PR?",
+    "createdAt": "2026-01-07T23:02:25Z"
+  },
+  {
+    "id": 7111,
+    "sender": "Piinks",
+    "content": "> This is still using a scroll notification?\r\n\r\nRe: this comment, I think Github is not reliably displaying code here anymore. 😓 ",
+    "createdAt": "2026-01-07T23:04:09Z"
+  },
+  {
+    "id": 7112,
+    "sender": "Mairramer",
+    "content": "@Piinks @QuncCccccc  Closing this PR and opening this one: [https://github.com/flutter/flutter/pull/180667](https://github.com/flutter/flutter/pull/180667).\r\n",
+    "createdAt": "2026-01-07T23:24:36Z"
+  },
+  {
+    "id": 7113,
+    "sender": "Gustl22",
+    "content": "## Reland: \"Fix how Gradle resolves Android plugin\"\n\nRelands #97823\r\n\r\nWhen the tool migrated to `.flutter-plugins-dependencies`, the Gradle plugin was never changed.\r\nUntil now, the plugin had the heuristic that a plugin with a `android/build.gradle` file supported the Android platform.\r\n\r\nAlso applies schema of `getPluginDependencies` to `getPluginList` which uses a `List` of Object instead of `Properties`.\r\n\r\nFixes #97729\r\nCause of the error: https://github.com/flutter/flutter/blob/5f105a6ca7a5ac7b8bc9b241f4c2d86f4188cf5c/packages/flutter_tools/gradle/flutter.gradle#L421C25-L421C25\r\n\r\nFixes #98048\r\nThe deprecated line `include \":$name\"` in `settings.gradle` (pluginEach) in old projects causes the `project.rootProject.findProject` to also find the plugin \"project\", so it is not failing on the `afterEvaluate` method. But the plugin shouldn't be included in the first place as it fails with `Could not find method implementation() for arguments` error in special cases.\r\n\r\nRelated to #48918, see [_writeFlutterPluginsListLegacy](https://github.com/flutter/flutter/blob/27bc1cf61a5b54bf655062be63050123abb617e4/packages/flutter_tools/lib/src/flutter_plugins.dart#L248).\r\n\r\nCo-authored-by: Emmanuel Garcia <egarciad@google.com>\r\n\r\n## Pre-launch Checklist\r\n\r\n- [x] I read the [Contributor Guide] and followed the process outlined there for submitting PRs.\r\n- [x] I read the [Tree Hygiene] wiki page, which explains my responsibilities.\r\n- [x] I read and followed the [Flutter Style Guide], including [Features we expect every widget to implement].\r\n- [x] I signed the [CLA].\r\n- [x] I listed at least one issue that this PR fixes in the description above.\r\n- [x] I updated/added relevant documentation (doc comments with `///`).\r\n- [x] I added new tests to check the change I am making, or this PR is [test-exempt].\r\n- [x] All existing and new tests are passing.\r\n\r\nIf you need help, consider asking for advice on the #hackers-new channel on [Discord].\r\n\r\n<!-- Links -->\r\n[Contributor Guide]: https://github.com/flutter/flutter/wiki/Tree-hygiene#overview\r\n[Tree Hygiene]: https://github.com/flutter/flutter/wiki/Tree-hygiene\r\n[test-exempt]: https://github.com/flutter/flutter/wiki/Tree-hygiene#tests\r\n[Flutter Style Guide]: https://github.com/flutter/flutter/wiki/Style-guide-for-Flutter-repo\r\n[Features we expect every widget to implement]: https://github.com/flutter/flutter/wiki/Style-guide-for-Flutter-repo#features-we-expect-every-widget-to-implement\r\n[CLA]: https://cla.developers.google.com/\r\n[flutter/tests]: https://github.com/flutter/tests\r\n[breaking change policy]: https://github.com/flutter/flutter/wiki/Tree-hygiene#handling-breaking-changes\r\n[Discord]: https://github.com/flutter/flutter/wiki/Chat\r",
+    "createdAt": "2023-10-24T01:01:57Z"
+  },
+  {
+    "id": 7114,
+    "sender": "Gustl22",
+    "content": "Regarding the missing CLA: I wanted to honor Emmanuel Garcia (blasten) in 965397cfde1165a2735f517d8071f583786ac6a1 as he did the initial MR. Don't know how to circumvent this, without removing the contribution email. \r\n\r\nSee also: https://github.com/flutter/flutter/pull/129095#issuecomment-1756507314",
+    "createdAt": "2023-10-24T01:12:26Z"
+  },
+  {
+    "id": 7115,
+    "sender": "stuartmorgan-g",
+    "content": "> Honestly I don't know how to reproduce the issue described in #98048, which was the reason why #97823 was reverted.\r\n\r\nBased on the discussion there it involved having old versions of Gradle and/or AGP. The [legacy app packages test](https://github.com/flutter/packages/blob/main/.ci/targets/android_build_all_packages.yaml#L14-L25) might be helpful in trying to reproduce it.\r\n\r\n> So it may be fixed, comparing the [old](https://github.com/flutter/flutter/blob/d2b5f34bc47f52b29082586e491aebe8b76766ef/packages/flutter_tools/templates/app_shared/android.tmpl/settings.gradle) and the [new](https://github.com/flutter/flutter/blob/master/packages/flutter_tools/templates/app_shared/android.tmpl/settings.gradle.tmpl) `settings.gradle`.\r\n\r\nTemplate updates can't fix a problem that is caused by the values that are in old templates, because once a project is instantiated it is generally not re-created. If thousands of projects (or more) in the wild still have a version that's incompatible with the change, then the change can't land without some kind of mitigation (e.g., a clear error message with instructions on updating).\r\n\r\n> Don't know how it's handled by the migration tool though.\r\n\r\nThe migration tool was not completed, and is not currently in development.",
+    "createdAt": "2023-10-25T14:41:48Z"
+  },
+  {
+    "id": 7116,
+    "sender": "stuartmorgan-g",
+    "content": "> Regarding the missing CLA: I wanted to honor Emmanuel Garcia (blasten) in [965397c](https://github.com/flutter/flutter/commit/965397cfde1165a2735f517d8071f583786ac6a1) as he did the initial MR. Don't know how to circumvent this, without removing the contribution email.\r\n\r\nIt is far easier to remove the email from the authorship and just reference it in the PR than it is to bypass the CLA check (which requires one of a handful of people to go through a manual process).",
+    "createdAt": "2023-10-25T14:43:26Z"
+  },
+  {
+    "id": 7117,
+    "sender": "Gustl22",
+    "content": "Indeed I found the problem:\r\nThe [mentioned `settings.gradle`](https://github.com/flutter/flutter/blob/9f23866a0a534c750ea3de4a9c4ee7c111aece69/packages/flutter_tools/templates/app/android.tmpl/settings.gradle) is even older than the [one used for testing legacy projects](https://github.com/flutter/packages/blob/29a01642fb1301361a1f118eaca5c6cf236ac516/.ci/legacy_project/all_packages/android/settings.gradle#L1), see:\r\n\r\n```\r\ninclude ':app'\r\n\r\ndef flutterProjectRoot = rootProject.projectDir.parentFile.toPath()\r\n\r\ndef plugins = new Properties()\r\ndef pluginsFile = new File(flutterProjectRoot.toFile(), '.flutter-plugins')\r\nif (pluginsFile.exists()) {\r\n    pluginsFile.withReader('UTF-8') { reader -> plugins.load(reader) }\r\n}\r\n\r\nplugins.each { name, path ->\r\n    def pluginDirectory = flutterProjectRoot.resolve(path).resolve('android').toFile()\r\n    include \":$name\"\r\n    project(\":$name\").projectDir = pluginDirectory\r\n}\r\n\r\n```\r\n\r\nAnd now the problem is more clear: Now plugins are also included from `'.flutter-plugins'`, which do not have a `android/build.gradle` file, which were sorted out with the `doesSupportAndroidPlatform` method.\r\n\r\nWe could either:\r\n- Drop support for this old version of `settings.gradle` file, as it isn't even used for testing against legacy project.\r\n  - Write some warning, to upgrade the settings.gradle file (?) \r\n- Just keep the check with `doesSupportAndroidPlatform` in the `flutter.groovy` file, which works also quite well, without compromises, but\r\n  - Open a new issue, to describe the problem and link it in the code, also deprecate the `doesSupportAndroidPlatform` method.\r\n  - Or even write a test to check this old `settings.gradle` file in a separate PR (e.g. for legacy projects), and if so, need this be done before this one?",
+    "createdAt": "2023-10-25T19:22:13Z"
+  },
+  {
+    "id": 7118,
+    "sender": "stuartmorgan-g",
+    "content": "> Drop support for this old version of `settings.gradle` file, [...]\r\n> * Write some warning, to upgrade the settings.gradle file (?)\r\n\r\nAnything that would drop support for old projects needs at least a warning, if not an automigration. We don't want people with old projects to suddenly be unable to compile without any idea why.\r\n\r\n> as it isn't even used for testing against legacy project.\r\n\r\nThe test I linked to is a specific legacy test based on the constraints of what was relatively straightforward to set up in the flutter/packages CI; it's not comprehensive or authoritative. We should not knowingly break people just because we haven't written a test that would fail in that scenario.",
+    "createdAt": "2023-10-25T20:43:47Z"
+  },
+  {
+    "id": 7119,
+    "sender": "Gustl22",
+    "content": "I now also replaced `dependencyGraph` with `plugins` as stated [here](https://github.com/flutter/flutter/blob/1c90ed8b64d9ed8ce2431afad8bc6e6d9acc4556/packages/flutter_tools/lib/src/flutter_plugins.dart#L212).\r\n\r\nAnd there were some tests regarding the legacy `settings.gradle` (#35217), but they were removed in #86911.",
+    "createdAt": "2023-10-26T08:45:29Z"
+  },
+  {
+    "id": 7120,
+    "sender": "Gustl22",
+    "content": "I added a test for the legacy `settings.gradle` but I think the other stuff such as gradle and agp version aren't compatible as it gives an error before actually running the code in `settings.gradle`.\r\n\r\n\r\n```\r\nBuild file 'C:\\Users\\Gustl\\AppData\\Local\\Temp\\flutter_flutter_plugin_test.6be279f\\test_plugin\\example\\android\\app\\build.gradle' line: 2\r\n```\r\n```\r\nPlugin [id: 'com.android.application'] was not found in any of the following sources:\r\n\r\n- Gradle Core Plugins (plugin is not in 'org.gradle' namespace)\r\n- Plugin Repositories (plugin dependency must include a version number for this source)\r\n```\r\n\r\nCan I somehow use the legacy script `flutter/packages/.ci/scripts/build_all_packages_app_legacy.sh` ? Or should I add a test in the `flutter/packages` repository? Can you help me out on this one? I don't know what else to do... Thank you!",
+    "createdAt": "2023-10-26T11:58:57Z"
+  },
+  {
+    "id": 7121,
+    "sender": "stuartmorgan-g",
+    "content": "> Can I somehow use the legacy script `flutter/packages/.ci/scripts/build_all_packages_app_legacy.sh` ? Or should I add a test in the `flutter/packages` repository?\r\n\r\nflutter/packages tooling is not applicable in this repo, and any tests for changes here should be in this repo. I was just suggesting looking at that test as way to potentially reproduce the problem manually, as a starting point for figuring out how to reproduce it, and thus design a test for it.",
+    "createdAt": "2023-10-26T17:57:24Z"
+  },
+  {
+    "id": 7122,
+    "sender": "Gustl22",
+    "content": "I noticed the `generate_gradle_lockfile` [tool](https://github.com/flutter/flutter/blob/master/dev/tools/bin/generate_gradle_lockfiles.dart) was introduced, which changes the files I'm writing a test about. And every other test also uses the generated files since it was introduced. Even the [gradle tests](https://github.com/flutter/flutter/tree/master/dev/integration_tests/gradle_deprecated_settings) which are supposed to validate this old `settings.gradle` was updated (I think by accident) with #83067. I think these files testing old gradle stuff must be reverted then (?). And there should be added a  possibility to exclude single files from the generate_gradle_lockfile tool or check these files don't change in an extra test (?)",
+    "createdAt": "2023-10-26T21:19:17Z"
+  },
+  {
+    "id": 7123,
+    "sender": "Gustl22",
+    "content": "This should now build successfully, but this does not help with #137040 at all, as it then loads all plugins as before and one cannot decide which plugin to load as long the plugins are imported using `dependencyGraph` from the `.flutter-plugins-dependencies` file. So settings.gradle needs to be migrated non the less (#54566), but only for such a case as #97729 (the other cases don't raise the problem). More explanation is [here](https://github.com/flutter/flutter/pull/137115/commits/6808f3d35790986a21218ed4d75060bc1f1cf5d3#diff-f0cdaf8963c97a175f64fe0fad130260d0614dd6cecd5cbe9580628bd51c5a4cR620).\r\n\r\nAnd what about the [migration scripts](https://github.com/flutter/flutter/tree/master/packages/flutter_tools/lib/src/android/migrations) here, can't we use them, to update non changed deprecated `settings.gradle` files?\r\n\r\nEdit: I try now another solution, by explicitly excluding the packages which are not wanted, which can be easily determined.\r\nEdit2: Exclusion after inclusion of plugins is not possible, but I now only use the old behavior (by adding non supported android plugins as API), if `settings.gradle` doesn't reference the `.flutter-plugins` file.",
+    "createdAt": "2023-10-27T12:33:57Z"
+  },
+  {
+    "id": 7124,
+    "sender": "Gustl22",
+    "content": "@stuartmorgan kindly asking for a review :)",
+    "createdAt": "2023-11-06T11:54:04Z"
+  },
+  {
+    "id": 7125,
+    "sender": "stuartmorgan-g",
+    "content": "The primary review here should be from someone on the Android team with more Gradle expertise.",
+    "createdAt": "2023-11-06T19:46:46Z"
+  },
+  {
+    "id": 7126,
+    "sender": "Gustl22",
+    "content": "@johnmccutchan @reidbaker @bartekpacia If you can afford the time, I kindly ask you to continue the review. I would really appreciate it, as it is kind of blocking continuing the development on our lib 😅 Big thanks :D",
+    "createdAt": "2023-11-20T12:49:00Z"
+  },
+  {
+    "id": 7127,
+    "sender": "johnmccutchan",
+    "content": "> @johnmccutchan @reidbaker @bartekpacia If you can afford the time, I kindly ask you to continue the review. I would really appreciate it, as it is kind of blocking continuing the development on our lib 😅 Big thanks :D\r\n\r\nApologies, but, this week is Thanksgiving and a lot of folks are OOO. I'll give it another review but I'm not the expert in this domain so I can't give final approval :)\r\n\r\n",
+    "createdAt": "2023-11-20T19:01:12Z"
+  },
+  {
+    "id": 7128,
+    "sender": "reidbaker",
+    "content": "I will also give this another review before Thursday. ",
+    "createdAt": "2023-11-20T19:08:16Z"
+  },
+  {
+    "id": 7129,
+    "sender": "bartekpacia",
+    "content": "FYI I created #138756. Unfortunately I don't have time to make a proper review of this PR but I would like to make sure changes made in this PR won't make #138756 harder/impossible (I doubt so but I it'd be great if you took a look).",
+    "createdAt": "2023-11-20T21:54:15Z"
+  },
+  {
+    "id": 7130,
+    "sender": "Gustl22",
+    "content": "> I would like to make sure changes made in this PR won't make https://github.com/flutter/flutter/issues/138756 harder/impossible\r\n\r\n@bartekpacia I don't think it would make things impossible or harder, as I applied the changes also to the other `groovy` files which are already using the declarative style. But due to backwards compatibility we need to still use the imperative `apply` for the `shared.groovy`. If this PR is accepted with these changes, we can open an issue to change these `apply` statements for `shared.groovy` too, once migration guide is complete (#135392). I don't know how else this could be done, except for having duplicated code in all three groovy files.",
+    "createdAt": "2023-11-20T22:41:01Z"
+  },
+  {
+    "id": 7131,
+    "sender": "reidbaker",
+    "content": "I was not able to get to this today. This is near the top of my list next week. Sorry for the delay. ",
+    "createdAt": "2023-11-22T21:29:04Z"
+  },
+  {
+    "id": 7132,
+    "sender": "Gustl22",
+    "content": "@reidbaker Any chance to sneak in a little review before the weekend? Best regards :)",
+    "createdAt": "2023-12-01T07:24:44Z"
+  },
+  {
+    "id": 7133,
+    "sender": "reidbaker",
+    "content": "Sorry I know you are waiting on my review. I am going to check out this code as part of my review and and I should hopefully have a good chunk of time early next week to devote to this. ",
+    "createdAt": "2023-12-04T21:23:10Z"
+  },
+  {
+    "id": 7134,
+    "sender": "Gustl22",
+    "content": "@reidbaker thousand thanks for reviewing!\r\nYou may need to recheck if some of the _hidden conversations_ are now resolved in your perspective, as I force pushed at some point. And may can check them as resolved, if you are fine with the answer. Or comment again, if not.\r\n\r\nFor some cases I still need some small hints, what the preferred solution is.",
+    "createdAt": "2023-12-13T18:10:58Z"
+  },
+  {
+    "id": 7135,
+    "sender": "reidbaker",
+    "content": "OK the last comment I am still looking for some information on is https://github.com/flutter/flutter/pull/137115#discussion_r1425486117. I am not sure it requires a code change. ",
+    "createdAt": "2023-12-18T16:44:27Z"
+  },
+  {
+    "id": 7136,
+    "sender": "Gustl22",
+    "content": "> OK the last comment I am still looking for some information on is https://github.com/flutter/flutter/pull/137115#discussion_r1425486117. I am not sure it requires a code change.\r\n\r\n@reidbaker Thanks, I don't know why Github doesn't show the comments then in the conversation, but they are [hidden](https://github.com/flutter/flutter/pull/137115#discussion_r1425646419) or also available in the [files section](https://github.com/flutter/flutter/pull/137115/files#r1425646419).\r\n\r\nI also hope that [this](https://github.com/flutter/flutter/pull/137115#discussion_r1425837254) is resolved now (?)\r\n",
+    "createdAt": "2023-12-18T17:10:23Z"
+  },
+  {
+    "id": 7137,
+    "sender": "reidbaker",
+    "content": "> > OK the last comment I am still looking for some information on is [#137115 (comment)](https://github.com/flutter/flutter/pull/137115#discussion_r1425486117). I am not sure it requires a code change.\r\n> \r\n> @reidbaker Thanks, I don't know why Github doesn't show the comments then in the conversation, but they are [hidden](https://github.com/flutter/flutter/pull/137115#discussion_r1425646419) or also available in the [files section](https://github.com/flutter/flutter/pull/137115/files#r1425646419).\r\n> \r\n> I also hope that [this](https://github.com/flutter/flutter/pull/137115#discussion_r1425837254) is resolved now (?)\r\n\r\nOK there is nothing you need to do. Let me talk to some folks on the fluter android team about your response. Right now I am leaning towards your implementation because of the tradeoffs you mention but want a second opinion. \r\nNext steps: Either I will ask for a change with an explanation why or I will give an approve and let the second approver set the autosubmit label. \r\n\r\nOnce again thank you for your contribution.",
+    "createdAt": "2023-12-18T18:36:43Z"
+  },
+  {
+    "id": 7138,
+    "sender": "reidbaker",
+    "content": "Github discussion thread. https://discord.com/channels/608014603317936148/846507907876257822/1186378330178601000",
+    "createdAt": "2023-12-18T18:47:14Z"
+  },
+  {
+    "id": 7139,
+    "sender": "reidbaker",
+    "content": "> Github discussion thread. https://discord.com/channels/608014603317936148/846507907876257822/1186378330178601000\r\n\r\nThis resolved to prefer the way this pr was written. ",
+    "createdAt": "2023-12-19T16:19:19Z"
+  },
+  {
+    "id": 7140,
+    "sender": "Gustl22",
+    "content": "@reidbaker Thank you for your effort in time and reviewing. Is there anything left to do, to get this merged (as an approval/review request is missing, maybe) ? See also #140037 .\r\nBest regards :)",
+    "createdAt": "2023-12-20T15:38:51Z"
+  },
+  {
+    "id": 7141,
+    "sender": "reidbaker",
+    "content": "> @reidbaker Thank you for your effort in time and reviewing. Is there anything left to do, to get this merged (as an approval/review request is missing, maybe) ? See also #140037 . Best regards :)\r\n\r\nAutosubmit added to each pr, they should merge when the tree is green. Thank you for your contributions",
+    "createdAt": "2023-12-20T15:44:55Z"
+  },
+  {
+    "id": 7142,
+    "sender": "Gustl22",
+    "content": "@reidbaker sorry to bother you, it seems that I'm not one of the chosen ones to get a merge done with one approving review only :/",
+    "createdAt": "2023-12-20T16:19:35Z"
+  },
+  {
+    "id": 7143,
+    "sender": "reidbaker",
+    "content": "> @reidbaker sorry to bother you, it seems that I'm not one of the chosen ones to get a merge done with one approving review only :/\n\nThen we need someone else on the review to approve. Hopefully they can get to it today or tomorrow ",
+    "createdAt": "2023-12-20T16:20:42Z"
+  },
+  {
+    "id": 7144,
+    "sender": "reidbaker",
+    "content": "Sorry about the conflict, I will hold my next pr until this one lands. ",
+    "createdAt": "2023-12-21T16:38:44Z"
+  },
+  {
+    "id": 7145,
+    "sender": "Gustl22",
+    "content": "Thank you :tada: Fingers crossed that nothing is breaking :D",
+    "createdAt": "2023-12-21T17:51:40Z"
+  },
+  {
+    "id": 7146,
+    "sender": "camsim99",
+    "content": "Reverting due to https://github.com/flutter/flutter/issues/141940.",
+    "createdAt": "2024-01-25T22:09:56Z"
+  },
+  {
+    "id": 7147,
+    "sender": "LongCatIsLooong",
+    "content": "## Replaces `textScaleFactor` with `TextScaler`\n\nDeprecate `textScaleFactor` in favor of `textScaler`, in preparation for Android 14 [Non-linear font scaling to 200%](https://developer.android.com/about/versions/14/features#non-linear-font-scaling). The `TextScaler` class can be moved to `dart:ui` in the future, if we decide to use the Android platform API or AndroidX to get the scaling curve instead of hard coding the curve in the framework.\r\n\r\nI haven't put the Flutter version in the deprecation message so the analyzer checks are failing. Will do so after I finish the migration guide.\r\n\r\n**Why `TextScaler.textScaleFactor`**\r\nThe author of a `TextScaler` subclass should provide a fallback `textScaleFactor`. By making `TextScaler` also contain the `textScaleFactor` information it also makes it easier to migrate: if a widget overrides `MediaQueryData.textScaler` in the tree, for unmigrated widgets in the subtree it would also have to override `MediaQueryData.textScaleFactor`, and that makes it difficult to remove `MediaQueryData.textScaleFactor` in the future.\r\n\r\n## A full list of affected APIs in this PR\r\n\r\nDeprecated: The method/getter/setter/argument is annotated with a `@Deprecated()` annotation in this PR, and the caller should replace it with `textScaler` instead. Unless otherwise specified there will be a Flutter fix available to help with migration but it's still recommended to migrate case-by-case.\r\n**Replaced**:  The method this `textScaleFactor` argument belongs to is rarely called directly by user code and is not overridden by any of the registered custom tests, so the argument is directly replaced by `TextScaler`.\r\n**To Be Deprecated**:  The method/getter/setter/argument can't be deprecated in this PR because a registered customer test depends on it and a Flutter fix isn't available (or the test was run without applying flutter fixes first). This method/getter/setter/argument will be deprecated in a followup PR once the registered test is migrated.\r\n\r\n### `Painting` Library\r\n\r\n| Affected API | State of `textScaleFactor` | Comment | \r\n| --- | --- | --- |\r\n| `InlineSpan.build({ double textScaleFactor = 1.0 })` argument | **Replaced** | | \r\n| `TextStyle.getParagraphStyle({ double TextScaleFactor = 1.0 })` argument | **Replaced** | |\r\n| `TextStyle.getTextStyle({ double TextScaleFactor = 1.0 })`  argument| Deprecated | Can't replace: https://github.com/superlistapp/super_editor/blob/c47fd38dca4b7f43611690913b551a1773c563d7/super_editor/lib/src/infrastructure/super_textfield/desktop/desktop_textfield.dart#L1903-L1905|\r\n| `TextPainter({ double TextScaleFactor = 1.0 })` constructor argument | Deprecated | |\r\n| `TextPainter.textScaleFactor` getter and setter | Deprecated | No Flutter Fix, not expressible yet |\r\n| `TextPainter.computeWidth({ double TextScaleFactor = 1.0 })` argument | Deprecated | |\r\n| `TextPainter.computeMaxIntrinsicWidth({ double TextScaleFactor = 1.0 })` argument | Deprecated | |\r\n\r\n### `Rendering` Library\r\n\r\n| Affected API | State of `textScaleFactor` | Comment | \r\n| --- | --- | --- |\r\n| `RenderEditable({ double TextScaleFactor = 1.0 })` constructor argument | Deprecated | |\r\n| `RenderEditable.textScaleFactor` getter and setter | Deprecated | No Flutter Fix, not expressible yet |\r\n| `RenderParagraph({ double TextScaleFactor = 1.0 })` constructor argument | Deprecated | |\r\n| `RenderParagraph.textScaleFactor` getter and setter | Deprecated | No Flutter Fix, not expressible yet |\r\n\r\n### `Widgets` Library\r\n\r\n| Affected API | State of `textScaleFactor` | Comment | \r\n| --- | --- | --- |\r\n| `MediaQueryData({ double TextScaleFactor = 1.0 })` constructor argument | **To Be Deprecated** | https://github.com/flutter/packages/blob/cd7b93532e5cb605a42735e20f1de70fc00adae7/packages/flutter_markdown/test/text_scale_factor_test.dart#LL39C21-L39C35 |\r\n| `MediaQueryData.textScaleFactor` getter | Deprecated | |\r\n| `MediaQueryData.copyWith({ double? TextScaleFactor })` argument | Deprecated | |\r\n| `MediaQuery.maybeTextScaleFactorOf(BuildContext context)` static method | Deprecated | No Flutter Fix, not expressible yet  |\r\n| `MediaQuery.textScaleFactorOf(BuildContext context)` static method | **To Be Deprecated** | https://github.com/flutter/packages/blob/cd7b93532e5cb605a42735e20f1de70fc00adae7/packages/flutter_markdown/lib/src/_functions_io.dart#L68-L70, No Flutter Fix, not expressible yet |\r\n| `RichText({ double TextScaleFactor = 1.0 })` constructor argument | **To Be Deprecated** | https://github.com/flutter/packages/blob/cd7b93532e5cb605a42735e20f1de70fc00adae7/packages/flutter_markdown/lib/src/builder.dart#L829-L843 |\r\n| `RichText.textScaleFactor` getter | **To Be Deprecated** | A constructor argument can't be deprecated right away|\r\n| `Text({ double? TextScaleFactor = 1.0 })` constructor argument | **To Be Deprecated** | https://github.com/flutter/packages/blob/914d120da12fba458c020210727831c31bd71041/packages/rfw/lib/src/flutter/core_widgets.dart#L647 , No Flutter Fix because of https://github.com/dart-lang/sdk/issues/52664 |\r\n| `Text.rich({ double? TextScaleFactor = 1.0 })` constructor argument | **To Be Deprecated** | The default constructor has an argument that can't be deprecated right away. No Flutter Fix because of https://github.com/dart-lang/sdk/issues/52664 |\r\n| `Text.textScaleFactor` getter | **To Be Deprecated** | A constructor argument can't be deprecated right away |\r\n| `EditableText({ double? TextScaleFactor = 1.0 })` constructor argument | Deprecated | No Flutter Fix because of https://github.com/dart-lang/sdk/issues/52664 |\r\n| `EditableText.textScaleFactor` getter | Deprecated | |\r\n\r\n### `Material` Library\r\n\r\n| Affected API | State of `textScaleFactor` | Comment | \r\n| --- | --- | --- |\r\n| `SelectableText({ double? TextScaleFactor = 1.0 })` constructor argument | **To Be Deprecated** | https://github.com/flutter/packages/blob/cd7b93532e5cb605a42735e20f1de70fc00adae7/packages/flutter_markdown/lib/src/builder.dart#L829-L843, No Flutter Fix because of https://github.com/dart-lang/sdk/issues/52664 |\r\n| `SelectableText.rich({ double? TextScaleFactor = 1.0 })` constructor argument | **To Be Deprecated** | The default constructor has an argument that can't be deprecated right away. No Flutter Fix because of https://github.com/dart-lang/sdk/issues/52664 |\r\n| `SelectableText.textScaleFactor` getter | **To Be Deprecated** | A constructor argument can't be deprecated right away |\r\n\r\nA lot of material widgets (`Slider`, `RangeSlider`, `TimePicker`, and different types of buttons) also change their layout based on `textScaleFactor`. These need to be handled in a case-by-case fashion and will be migrated in follow-up PRs.\r",
+    "createdAt": "2023-06-08T17:50:52Z"
+  },
+  {
+    "id": 7148,
+    "sender": "goderbauer",
+    "content": "lol @ the title of this PR. Isn't this more accurately described as \"Implements TextScaler\" or \"Replaces textScaleFactor with TextScaler\"? 😄 ",
+    "createdAt": "2023-06-12T20:40:48Z"
+  },
+  {
+    "id": 7149,
+    "sender": "LongCatIsLooong",
+    "content": "@justinmc @goderbauer @chunhtai `TextScaler.textScaleFactor` exists because:\r\n\r\n1. It makes more sense to let the `TextScaler` implementer provide a `textScaleFactor` estimate (on Android 14 it's still exposed), instead of letting the caller of the API figure out what would be a good `textScaleFactor` to fallback to.\r\n2. It's easier to use as the source of truth. To keep backward compatibility, apps that override `MediaQuery.textScaler` using `copyWith(textScaler: ...)` would also have to override `textScaleFactor` to make sure if there's unmigrated widgets in the child subtree it will keep working. And unfortunately it can't be made private, since different classes from different layers (e.g., `TextPainter` or `RichText`) also would like to keep their `textScaleFactor` and `textScaler` getters somewhat consistent, so they need to be able to access the `TextScaler.textScaleFactor` getter too.\r\n3. (I was wrong about nonlinear scaling being untestable -- it looks like it went out with [Android 14 Developer Preview 1](https://developer.android.com/about/versions/14/release-notes), people can and probably should test their apps on beta releases, I'll add that to the migration guide.) I found migrating certain UI to adopt nonlinear scaling difficult. For instance, [the material `DatePicker` scales the overall size of the dialog by `textScaleFactor`](https://github.com/flutter/flutter/blob/a5f8b64ef989946fad4411d25f913c938c1c09da/packages/flutter/lib/src/material/date_picker.dart#L646). In cases like this developers may have to redesign the app's UI, or how the UI is implemented, \r\n\r\nAlso if someone develops an app that doesn't target Android U then there's no incentive to go through this migration, then they could keep using `TextScaler.textScaleFactor`.\r\n\r\n",
+    "createdAt": "2023-06-13T22:04:11Z"
+  },
+  {
+    "id": 7150,
+    "sender": "chunhtai",
+    "content": "One concern I would have about having this field is that if we provide this easy migration, will most developer just use TextScaler.textScaleFactor to migrate the app? If so, the user of the app may see some inconsistent scaling. This is just speculation though. An alternative to this is just to ask them to plug some constant, like `12`, into the scaler function and use it as textscalefactor. It is probably as good as provide this estimate\r\n\r\nThe other things is what is the long term goal for this property? Is it going to be removed at some point? or is it permanent?",
+    "createdAt": "2023-06-13T22:29:49Z"
+  },
+  {
+    "id": 7151,
+    "sender": "LongCatIsLooong",
+    "content": "> will most developer just use TextScaler.textScaleFactor to migrate the app\r\n\r\nYeah unfortunately that's probably going to be the case. \r\n\r\n> what is the long term goal for this property\r\n\r\nI think we'll be able to deprecate the property. Apps that target Android U shouldn't use it (although it may take a lot of time and effort to migrate away from it, so I'm not sure what the best time to add the Deprecated annotation for that getter is). Apps that don't target Android U could just assume linear text scaling and do something like this:\r\n\r\n```dart\r\nextension LinearScaling on TextScaler { \r\n  double get textScaleFactor => scale(14.0)/14.0;\r\n} \r\n```\r\n",
+    "createdAt": "2023-06-13T22:46:14Z"
+  },
+  {
+    "id": 7152,
+    "sender": "goderbauer",
+    "content": "> > will most developer just use TextScaler.textScaleFactor to migrate the app\r\n> \r\n> Yeah unfortunately that's probably going to be the case.\r\n\r\nThis has me very worried. What's the point of adding this feature then if we don't commit to it? As I have said in the design document as well, I am concerned about exposing (and keeping for the long term) to separate ways of doing text scaling. It will lead to strange user experiences where some widgets do \"the right thing\" and some just do the \"easy thing\" leading to a messy UI if these are combined. Or if everyone just \"migrates\" to the new easy way, the non-linear a11y experience is just completely broken (i.e. non-existent). I think we have to guide developers here to do the right thing: Fully commit to the text scaler and - in the long term - eliminate escape hatches that bypass it.\r\n\r\nAbout the concerns you list in https://github.com/flutter/flutter/pull/128522#issuecomment-1590087036:\r\n\r\nFor 1) & 2) I wonder, if we could do something like this: Deprecate every single `textScaleFactor` property and argument; replace it with a pure `textScaler` (i.e. without internal textScaleFactor fallback). This is a bit of an assumption, but I think the only place where it really matters to provide a fallback `textScaleFactor` in addition to a `textScaler` is on the `MediaQuery` so existing calls to `MediaQuery.textScaleFactorOf` continue to work. With that, could we add an explicit `fallbackTextScaleFactor` property to MediaQuery and - for the duration of the deprecation period - enforce with asserts that when you set/change `textScaler` you also have to provide a `fallbackTextScaleFactor`. This is the value that the deprecated `MediaQuery.textScaleFactorOf` will return - for backwards compatibility. Once the deprecation period for `textScaleFactor` is over, we will remove it and deprecate the `fallbackTextScaleFactor` argument (providing it now becomes a no-op because there's no way to look it up again). I am going for a new property here instead of reusing `textScaleFactor` to give people using the textScaleFactor property today a proper deprecation notice that they should migrate to `textScaler` (and provide for the time being a `fallbackTextScaleFactor`).\r\n\r\n3) What does Android say about UIs like that in the context of the new text scaling system? One way out here could be to add another method to the TextScaler that - given a font size - provides a scale factor. So, if the date picker usually render with font size 16, it could ask the TextScaler by how much it should scale its UI if the TextScaler scales text of size 16 to something else.",
+    "createdAt": "2023-06-14T18:34:35Z"
+  },
+  {
+    "id": 7153,
+    "sender": "LongCatIsLooong",
+    "content": "> the only place where it really matters to provide a fallback textScaleFactor in addition to a textScaler is on the MediaQuery so existing calls to MediaQuery.textScaleFactorOf continue to work.\r\n\r\nWell at least there're tests that are doing this: `expect(find.byType(RichText).textScaleFactor, 2.0);`. So if you're a widget author and you're using RichText in your widget, you'd have to specify both the fallback text scale factor and the text scaler to use in case some codebase that uses your library is writing their test like that. I think that's much easier if we have a single source of truth (`TextScaler`).\r\n\r\n> With that, could we add an explicit fallbackTextScaleFactor property to MediaQuery and - for the duration of the deprecation period - enforce with asserts that when you set/change textScaler you also have to provide a fallbackTextScaleFactor.\r\n\r\nI'd prefer the current approach (`TextScaler.textScaleFactor`):\r\n\r\n1. The burden will be on the developers that wish to override `MediaQueryData.textScaler` to provide a fallback `textScaleFactor`. While it isn't hard, it doesn't give people compile-time warnings if they don't specify both.\r\n2. `TextScaler.textScaleFactor` is essentially the same thing: it **will be deprecated** when the time comes (see: https://github.com/flutter/flutter/pull/128522#issuecomment-1590151704), but for now I think it probably deserves an extended grace period to allow migration.\r\n\r\n\r\n> What does Android say about UIs like that in the context of the new text scaling system? One way out here could be to add another method to the TextScaler that - given a font size - provides a scale factor. So, if the date picker usually render with font size 16, it could ask the TextScaler by how much it should scale its UI if the TextScaler scales text of size 16 to something else.\r\n\r\nOn Android developers have to specify the unit of measurement to use (`DP` or `SP`). If something is specified in `SP` then it scales with fonts. It doesn't have API for scaling regular UI that's not text, and I haven't found any guidelines in material specs or Android guidelines regarding that (But UIKit does offer something similar: https://developer.apple.com/documentation/uikit/uifontmetrics/2877387-scaledvalue)",
+    "createdAt": "2023-06-14T19:17:47Z"
+  },
+  {
+    "id": 7154,
+    "sender": "goderbauer",
+    "content": "> Well at least there're tests that are doing this: `expect(find.byType(RichText).textScaleFactor, 2.0);`\r\n\r\nWhat should these tests migrate to once `textScaleFactor` is no longer a thing? Are these tests only in our own code base or also in customer code bases?\r\n\r\n> 2\\. `TextScaler.textScaleFactor` is essentially the same thing: it **will be deprecated** when the time comes\r\n\r\nWhen will the time come? What is stopping us from marking it deprecated right away to avoid that people just migrate from `textScaleFactor` to `textScaler.textScaleFactor` (and then have to migrate again to the real `textScaler`)? (Other then it is strange to introduce a new thing as deprecated.) How do you intend to implement `textScaler.textScaleFactor` for the non-linear classes?",
+    "createdAt": "2023-06-14T20:04:19Z"
+  },
+  {
+    "id": 7155,
+    "sender": "LongCatIsLooong",
+    "content": "Looks like the CI checks are passing now with the latest \"flutter/packages\" roll. I think this is ready for a re-review.",
+    "createdAt": "2023-06-20T19:59:44Z"
+  },
+  {
+    "id": 7156,
+    "sender": "goderbauer",
+    "content": "This change deserves a migration guide. Do you have one ready to go live when this change is submitted?",
+    "createdAt": "2023-06-26T17:22:37Z"
+  },
+  {
+    "id": 7157,
+    "sender": "LongCatIsLooong",
+    "content": "Yeah migration guide is here: https://github.com/flutter/website/pull/8903",
+    "createdAt": "2023-06-26T18:16:35Z"
+  },
+  {
+    "id": 7158,
+    "sender": "LongCatIsLooong",
+    "content": "I think the 2 internal test failures are because this PR accidentally fixed a bug in the appbar widget. I'll create a fix for that bug separately to verify. \r\n\r\nUpdate: looks like the test failures were indeed caused by that AppBar bug. Setting google testing status to passing and adding the test from https://github.com/flutter/flutter/pull/130557.",
+    "createdAt": "2023-07-14T02:41:19Z"
+  },
+  {
+    "id": 7159,
+    "sender": "paulobreim",
+    "content": "In all my applications, I use things like:\r\n  child: Text('My Text', textScaleFactor: 1.0),\r\n\r\nThis ensures that even if the user changes the font size in the Android configuration, the text will be presented in the default font, without the risk of \"overflowing\" the screen.\r\n\r\nThe problem is that I haven't found the solution yet, to do the same thing with textScaler.\r\nCould anyone give me an example?\r\n\r\ntks\r\npaulo",
+    "createdAt": "2023-12-15T23:36:02Z"
+  },
+  {
+    "id": 7160,
+    "sender": "joelrose2",
+    "content": "> The problem is that I haven't found the solution yet, to do the same thing with textScaler. Could anyone give me an example?\r\n\r\nSee: https://docs.flutter.dev/release/breaking-changes/deprecate-textscalefactor",
+    "createdAt": "2023-12-22T07:27:19Z"
+  },
+  {
+    "id": 7161,
+    "sender": "dkwingsmt",
+    "content": "## System mouse cursors\n\n## Description\r\n\r\nThis PR adds the basic framework for the mouse cursor system. While only system cursors are supported for now, the APIs are designed with the consideration of asynchronously loaded cursors (image cursors).\r\n\r\nWith this PR:\r\n- Cursors are assigned to regions in a declarative way using data classes.\r\n- `MouseRegion`, `RenderMouseRegion` and `MouseTrackerAnnotation` have a new property `MouseCursor cursor` that can be used to customize mouse cursors of pointers that are hovering over the region.\r\n- `Inkwell` and a few other widgets also have a new parameter `MouseCursor mouseCursor`\r\n- Hidden cursor, uncontrolled cursor, and several system cursors are supported.\r\n\r\nThis PR is only the framework part of the system. Without the upcoming engine change, these changes won't take effect, but will not break existing apps either.\r\n\r\n~~For more information about the design, see https://flutter.dev/go/system-mouse-cursor~~ Edit: this design doc is out of date\r\n\r\n## Related Issues\r\n\r\n- Part of https://github.com/flutter/flutter/issues/31952\r\n\r\n## Tests\r\n\r\nI added the following tests:\r\n\r\n- Many tests to the cursor aspect of `MouseTracker`\r\n- Test the cursor aspect of `MouseRegion`\r\n- Test `MouseCursorController`\r\n\r\n## Checklist\r\n\r\nBefore you create this PR confirm that it meets all requirements listed below by checking the relevant checkboxes (`[x]`). This will ensure a smooth and quick review process.\r\n\r\n- [x] I read the [Contributor Guide] and followed the process outlined there for submitting PRs.\r\n- [x] I signed the [CLA].\r\n- [x] I read and followed the [Flutter Style Guide], including [Features we expect every widget to implement].\r\n- [x] I read the [Tree Hygiene] wiki page, which explains my responsibilities.\r\n- [x] I updated/added relevant documentation (doc comments with `///`).\r\n- [x] All existing and new tests are passing.\r\n- [x] The analyzer (`flutter analyze --flutter-repo`) does not report any problems on my PR.\r\n- [x] I am willing to follow-up on review comments in a timely manner.\r\n\r\n## Breaking Change\r\n\r\nDid any tests fail when you ran them? Please read [Handling breaking changes].\r\n\r\n- [x] No, no existing tests failed, so this is *not* a breaking change.\r\n- [ ] Yes, this is a breaking change. *If not, delete the remainder of this section.*\r\n   - [ ] I wrote a design doc: https://flutter.dev/go/template *Replace this with a link to your design doc's short link*\r\n   - [ ] I got input from the developer relations team, specifically from: *Replace with the names of who gave advice*\r\n   - [ ] I wrote a migration guide: *Replace with a link to your migration guide*\r\n\r\n<!-- Links -->\r\n[issue database]: https://github.com/flutter/flutter/issues\r\n[Contributor Guide]: https://github.com/flutter/flutter/wiki/Tree-hygiene#overview\r\n[Test Coverage]: https://github.com/flutter/flutter/wiki/Test-coverage-for-package%3Aflutter\r\n[Flutter Style Guide]: https://github.com/flutter/flutter/wiki/Style-guide-for-Flutter-repo\r\n[Features we expect every widget to implement]: https://github.com/flutter/flutter/wiki/Style-guide-for-Flutter-repo#features-we-expect-every-widget-to-implement\r\n[CLA]: https://cla.developers.google.com/\r\n[Tree Hygiene]: https://github.com/flutter/flutter/wiki/Tree-hygiene\r\n[Handling breaking changes]: https://github.com/flutter/flutter/wiki/Tree-hygiene#handling-breaking-changes\r",
+    "createdAt": "2020-04-07T05:56:57Z"
+  },
+  {
+    "id": 7162,
+    "sender": "goderbauer",
+    "content": "The analyzer is unhappy.",
+    "createdAt": "2020-04-15T23:21:09Z"
+  },
+  {
+    "id": 7163,
+    "sender": "dkwingsmt",
+    "content": "@Hixie @goderbauer I made some major changes:\r\n\r\n- `PreparedMouseCursor` now has a protected method `performActivate`, which is overridden by subclasses. It replaces the `is` type-checks in `MouseTracker`.\r\n- The method channel calls are split into a `MouseCursorController` class, which only has static methods, such as `activateSystemCursor`, and is to be used by `PreparedMouseCursor.performActivate`.\r\n- The cursor part of `MouseTracker` is split into a mixin `MouseTrackerCursorMixin`. The original `MouseTracker` is renamed to `BaseMouseTracker`, whereas the one with all mixins is the new `MouseTracker`. \r\n\r\nCan you take a look?",
+    "createdAt": "2020-04-22T04:00:01Z"
+  },
+  {
+    "id": 7164,
+    "sender": "goderbauer",
+    "content": "Avoiding the repaint for when cursors change adds a lot of complexibility. I am not sure if that's worth it, TBH. The repaint shouldn't be that expensive and I would image that when you need to change the cursor, you'd also be changing other aspects of the UI to \"justify\" the new cursor. For that, you'd have to do a repaint anyways...",
+    "createdAt": "2020-04-23T21:28:33Z"
+  },
+  {
+    "id": 7165,
+    "sender": "dkwingsmt",
+    "content": "@goderbauer Can you take a look at the new design, which I call \"session-based\":\r\n\r\nOverview of design:\r\n- `MouseCursor` is an immutable class and stores data. Subclasses overrides the method `createSession` to create a `MouseCursorSession` object.\r\n- Every `MouseCursor` has a corresponding `MouseCursorSession` class, which represents the duration when a device displays a cursor, i.e. the tuple `(device, cursor)`.\r\n- `MouseCursorSession` is a mutable class that stores states and provides methods `activate` and `dispose` to override. The `activate` will handle the method calls as well as resource fetching, caching, fallback cursors, etc.\r\n- `MouseTrackerAnnotation` stays const, and doesn't have listeners at all.\r\n- No more `MouseTrackerRenderObjectMixin`.\r\n  - `RenderMouseRegion` implements variable cursor by _implementing_ `MouseTrackerAnnotation`, and pushing itself as the annotation.\r\n\r\nA demo of implementing image cursor can be found at https://github.com/dkwingsmt/flutter/pull/1.",
+    "createdAt": "2020-05-04T08:08:25Z"
+  },
+  {
+    "id": 7166,
+    "sender": "winwisely99",
+    "content": "Just adding myself to this so I can see when it's ready as we need it for our flutter project.\r\n\r\nhttps://github.com/getcouragenow",
+    "createdAt": "2020-05-07T09:29:12Z"
+  },
+  {
+    "id": 7167,
+    "sender": "ja2375",
+    "content": "I think the default behavior for this on web should be the cursor autochanges when it detects you are hovering a button, text, etc. Will this be the behavior for web or will it be necessary to add an extra widget on every clickable, text widget we want to show a different cursor on?\r\n\r\nMany thanks for implementing this!",
+    "createdAt": "2020-05-07T18:57:10Z"
+  }
+]

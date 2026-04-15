@@ -1,0 +1,386 @@
+[
+  {
+    "id": 5696,
+    "sender": "thevikke",
+    "content": "This plugin might be helpful [flutter_isolate ](https://pub.dev/packages/flutter_isolate)",
+    "createdAt": "2020-01-09T21:08:22Z"
+  },
+  {
+    "id": 5697,
+    "sender": "YaredTaddese",
+    "content": "+1 we need this...come on\r\n",
+    "createdAt": "2020-01-10T16:10:49Z"
+  },
+  {
+    "id": 5698,
+    "sender": "lukaszciastko",
+    "content": "+1\r\n\r\nThe biggest problem for me is that fact the communication between Dart and the native platforms happens on the main thread - sending significant chunks of data is impossible without lagging UI or writing cumbersome code to page data.",
+    "createdAt": "2020-01-10T17:44:36Z"
+  },
+  {
+    "id": 5699,
+    "sender": "Sadegnabil",
+    "content": "+1 need this",
+    "createdAt": "2020-01-20T11:41:46Z"
+  },
+  {
+    "id": 5700,
+    "sender": "YaredTaddese",
+    "content": "> writing cumbersome code to page data.\r\n\r\n@lukaszciastko what do you mean by writing code to page data. Is there a way to solve lagging UI when sending significant chunks of data??",
+    "createdAt": "2020-01-21T12:02:55Z"
+  },
+  {
+    "id": 5701,
+    "sender": "MsXam",
+    "content": "@YaredTaddese \r\n\r\nDepending on the complexity of what your ISOLATE does and the inter-communication between your UI and ISOLATE - It is possible to workaround this issue in your UI code by structuring what data the ISOLATE requires to do its job up front prior to invoking the ISOLATE. I have rich PDF generation in my current Flutter app - a user can select multiple PDF's to generate. \r\n\r\nEach can generate from 1 to 10,000 pages . My UI is responsive , when each job completes a TAB is constructed showing the report - the user gets notified when a job completes via a TOAST and the UI does not grind to a halt - the user is unaware that there are services in the background busy generating rich PDF's.\r\n\r\nNote, my PDF generation is an ISOLATE. In the ISOLATE -, I also need to download images from CLOUD FIRESTORE and embed in a PDF - this all happens seamlessly.",
+    "createdAt": "2020-01-21T13:50:11Z"
+  },
+  {
+    "id": 5702,
+    "sender": "YaredTaddese",
+    "content": "@MsXam but I can't call a platform-specific function from another isolate...which makes me call the platform-specific function in the main isolate...which leads to a lagging UI \r\n",
+    "createdAt": "2020-01-24T20:29:49Z"
+  },
+  {
+    "id": 5703,
+    "sender": "conghaonet",
+    "content": "I got the same issue, i think it's very important",
+    "createdAt": "2020-02-15T13:09:30Z"
+  },
+  {
+    "id": 5704,
+    "sender": "a-v-ebrahimi",
+    "content": "> @YaredTaddese\r\n> \r\n> Depending on the complexity of what your ISOLATE does and the inter-communication between your UI and ISOLATE - It is possible to workaround this issue in your UI code by structuring what data the ISOLATE requires to do its job up front prior to invoking the ISOLATE. I have rich PDF generation in my current Flutter app - a user can select multiple PDF's to generate.\r\n> \r\n> Each can generate from 1 to 10,000 pages . My UI is responsive , when each job completes a TAB is constructed showing the report - the user gets notified when a job completes via a TOAST and the UI does not grind to a halt - the user is unaware that there are services in the background busy generating rich PDF's.\r\n> \r\n> Note, my PDF generation is an ISOLATE. In the ISOLATE -, I also need to download images from CLOUD FIRESTORE and embed in a PDF - this all happens seamlessly.\r\n\r\nAre you calling a platform-specific code?",
+    "createdAt": "2020-03-16T09:50:56Z"
+  },
+  {
+    "id": 5705,
+    "sender": "moda20",
+    "content": "Has anyone got a workaround for calling platform channels from an isolate ?it defeats the idea to do so from the UI thread.",
+    "createdAt": "2020-04-11T11:20:40Z"
+  },
+  {
+    "id": 5706,
+    "sender": "klaszlo8207",
+    "content": "I am stucked on the same thing. \r\n\r\nI am calling a methodchannel  with a kotlin code, and getStream.io API, but that is slow as hell, and my Flutter UI freeze, I wanted to add compute to it, but I got the same errors.\r\n\r\nHow can I fix this?\r\n\r\n\r\n",
+    "createdAt": "2020-04-15T06:47:27Z"
+  },
+  {
+    "id": 5707,
+    "sender": "philpowers",
+    "content": "I just ran across this as well. I am prototyping a new app, and really this issue might be a showstopper for me and cause me to look into other non-Flutter solutions, which will make me sad.\r\n\r\nAs the volume of responses to this issue indicates, this is a MAJOR problem and pretty much defeats the main use case of isolates in the context of a Flutter app.\r\n",
+    "createdAt": "2020-04-26T05:36:11Z"
+  },
+  {
+    "id": 5708,
+    "sender": "klaszlo8207",
+    "content": "> \r\n> \r\n> I just ran across this as well. I am prototyping a new app, and really this issue might be a showstopper for me and cause me to look into other non-Flutter solutions, which will make me sad.\r\n> \r\n> As the volume of responses to this issue indicates, this is a MAJOR problem and pretty much defeats the main use case of isolates in the context of a Flutter app.\r\n\r\nyeah this is a huge issue, need to fix ASAP",
+    "createdAt": "2020-04-26T05:57:41Z"
+  },
+  {
+    "id": 5709,
+    "sender": "jpsarda",
+    "content": "I've been learning flutter for 10 days, and I love it so far, but after a while experimenting, you start to come into problems, and see the downsides, and THIS issue, opened since 5 jan 2018, oof...",
+    "createdAt": "2020-04-26T22:27:35Z"
+  },
+  {
+    "id": 5710,
+    "sender": "spiderion",
+    "content": "Please fix this bug.",
+    "createdAt": "2020-05-06T06:29:17Z"
+  },
+  {
+    "id": 5711,
+    "sender": "karedem",
+    "content": "Hope to support soon.",
+    "createdAt": "2020-05-15T04:05:53Z"
+  },
+  {
+    "id": 5712,
+    "sender": "deakjahn",
+    "content": "*@jpsarda, @klaszlo8207 Don't hold your breath. It doesn't seem like a bug, it's a limitation of the system. And yes, there *was* a solution to the problem, until *today:* https://pub.dev/packages/isolate_handler. The programmer had to pull the plug on it today because a very recent change in Flutter (only a few days old) made it impossible to follow that route any more.\r\n\r\nYou have to know, however, that this didn't really mean parallelism. It might have appeared that way and looks are important in mobile apps but the platform code runs on the main thread, anyway, so delegating a long task back from the isolate to the main thread didn't really accomplish anything.",
+    "createdAt": "2020-05-19T15:51:52Z"
+  },
+  {
+    "id": 5713,
+    "sender": "spiderion",
+    "content": "Would be nice to have dart handling the multithreading by default any time you use an async function.",
+    "createdAt": "2020-05-19T16:11:06Z"
+  },
+  {
+    "id": 5714,
+    "sender": "deakjahn",
+    "content": "@spiderion Async was never meant to be multithreading, just like in many other platforms. Don't misunderstand me, I won't say the platform channel limitation is not a big problem because it is (my app had been working with the plugin I mentioned up until yesterday and now I have to look for workarounds), but async/await was never about multithreading from the very first day.",
+    "createdAt": "2020-05-19T16:46:58Z"
+  },
+  {
+    "id": 5715,
+    "sender": "spiderion",
+    "content": "@zoechi We would love to know if there is any update on this issue or if there is any plan to fix it?\r\nThank you.",
+    "createdAt": "2020-05-25T08:42:27Z"
+  },
+  {
+    "id": 5716,
+    "sender": "deakjahn",
+    "content": " @spiderion They can't really fix it, it follows from the way isolates work. They have no UI engine behind them, hence there is no platform channel communication. However, there are two plugins to help you out:\r\n\r\n* https://pub.dev/packages/flutter_isolate provides a replacement isolate that *can* communicate to plugins because it creates its own UI backing (nothing that you see or have to deal with, just technically),\r\n\r\n* https://pub.dev/packages/isolate_handler that we have just modified to rely on the package above because the previous way it used was made impossible by a recent Flutter change. The advantage in using this package rather than `flutter_isolate` itself is that this adds handling capabilities, you can start several isolates, keep track of them and you don't have to set up your own communication between the isolate and the main thread (something you have to do manually with both the original stock `Isolate` and `FlutterIsolate`) because it's abstracted away and readily available.\r\n\r\nI use the second with perfect success. Actually, I have been using it for quite some time and when the Flutter breaking change came, I helped its programmer to move on to the new solution just because my app broke, too. :-)\r\n\r\nSo, I don't think it's reasonable to expect the solution from core, especially that most of the use cases don't call for platform channel communication, so the backing UI engine is not something they would want to add to every isolate. Just use the existing plugins when you need that extra functionality.",
+    "createdAt": "2020-05-25T09:05:45Z"
+  },
+  {
+    "id": 5717,
+    "sender": "spiderion",
+    "content": "Hi @deakjahn  thank you for your quick answer.\r\n\r\nThe solutions you have provided look to be very useful. However, I don't know if it could solve my problem. I currently have a situation in the app where the user creates a story lets say similar to Instagram. The app, in that case, needs to upload on the firebase storage a list of videos and files which might take a very long time to upload (around 15 minutes if the connection is slow) then after the files have been uploaded the app needs create a document on the firebase cloud, Firestore. The problem that I encounter is that if the user kills the app while the files are uploading then the complete task is not fully executed.",
+    "createdAt": "2020-05-27T08:18:52Z"
+  },
+  {
+    "id": 5718,
+    "sender": "deakjahn",
+    "content": "That's not really the responsibility of the isolate, it just does what you tell it to do. Firebase can resume stopped unloads, as far as I can see, although I never used it myself.",
+    "createdAt": "2020-05-27T12:43:41Z"
+  },
+  {
+    "id": 5719,
+    "sender": "sanchitmonga22",
+    "content": "I am trying to run the getBatteryLevel example:\r\nhttps://flutter.dev/docs/development/platform-integration/platform-channels?tab=android-channel-java-tab\r\nand it crashes everytime I try to run it on an android device. Can someone please help? I am not even sure how to check the error, since there are no logs and it just keeps on running in an infinite loop and I am using the exact same code.",
+    "createdAt": "2020-05-29T00:13:08Z"
+  },
+  {
+    "id": 5720,
+    "sender": "Ramesh-X",
+    "content": "Labeling this issue for P5 ??? 🥵",
+    "createdAt": "2020-06-17T11:09:30Z"
+  },
+  {
+    "id": 5721,
+    "sender": "deakjahn",
+    "content": "Please, check out the earlier comments. It seems *very unlikely* that this will be changed in the framework because it requires mechanisms that most isolates don't need, so there's no point in adding that overhead. For the cases when you do need it, there are packages to solve it.",
+    "createdAt": "2020-06-17T11:25:02Z"
+  },
+  {
+    "id": 5722,
+    "sender": "Ramesh-X",
+    "content": "Users don't care about the mechanism; how hard it is or not. They just need results. This might be impossible to do. But if the users need it, Flutter should provide it...\r\n\r\nI understand that the implementation has limitations and might take tons of time to add this feature to the existing isolate or to create a new API with this feature. I just think this should have a higher priority than P5.\r\n\r\nAlso, I read all of your comments and it feels to me like you are just promoting the package you created.",
+    "createdAt": "2020-06-17T12:48:14Z"
+  },
+  {
+    "id": 5723,
+    "sender": "deakjahn",
+    "content": "No, it wasn't me who created it, but I did accept its ownership a few weeks ago, yes. I don't think that was kept secret in this thread. In addition to that, I mentioned *two* packages (in a single post, actually, just once) that are both able to provide what you look for and I have no affiliation with the second one other than relying on its excellent work done so far.\r\n\r\nIf you read it, the only reason I used these in the first place myself was that I needed the very same functionality that you asked for. And my apps have been relying on it for more than a year now, without problems. Besides, becoming more familiar with the inner workings of isolates than an occasional developer just using them would be (plus that I started to work on their counterpart in Flutter Web), makes me think that what I wrote was true: this functionality *will not* be incorporated in the framework because there are quite a few arguments against its inclusion. Not because it would take tons of time, not at all. It would take relatively little time. Simply because it would add a backend complexity to *all* isolates than only a *few* of them would actually need and use.",
+    "createdAt": "2020-06-17T14:53:26Z"
+  },
+  {
+    "id": 5724,
+    "sender": "AhmedbGayess",
+    "content": "@deakjahn thanks for these tips, will using  isolate_handler help me invoke a method and send data to the dart side whenever I get a notification on the native side? (I'm using twilio native sdks and receiving push notifications on the native side)",
+    "createdAt": "2020-06-23T14:10:54Z"
+  },
+  {
+    "id": 5725,
+    "sender": "deakjahn",
+    "content": "If this means you have a patform plugin that you use to communicate through a platform channel, then yes, any of the two packages would help. If it works from regular code, then these packages will make it work from an isolate as well.",
+    "createdAt": "2020-06-23T14:20:10Z"
+  },
+  {
+    "id": 5726,
+    "sender": "AhmedbGayess",
+    "content": "@deakjahn Thanks for the quick response! My problem is that I couldn't do it with a regular platform channel, I'm not sure but I think the twilio sdk handles listening to push notifications in a seperate isolate and not on the main thread, and I think that's my problem. I wanted to know if it would work if I invoked the method each time I get a notification using one of the 2 packages ?thanks a lot. (I'm considering switching to native apps if this isn't possible)",
+    "createdAt": "2020-06-23T14:26:38Z"
+  },
+  {
+    "id": 5727,
+    "sender": "deakjahn",
+    "content": "I don't even know what Twilio is (OK, I googled it :-) ), so I really can't be sure. But at any rate, if you want to interface any native code, you *have to* use a platform channel, anyway. Either you use an already existing plugin somebody made for using this Twilio or you author it yourself (in which case you either create practically the same plugin, just don't publish it and refer to it locally), or you simply copy the relevant plugin code into your own app (it won't be an external dependency but other than that, it will have practically the same code, anyway).\r\n\r\nAnd, if you do have a platform channel, than the previous answer applies: if you already can use the platform channel and the plugin from the main thread of a regular Flutter app, then you can use the same from an isolate using any of the two packages.",
+    "createdAt": "2020-06-23T16:25:05Z"
+  },
+  {
+    "id": 5728,
+    "sender": "Nailik",
+    "content": "So this issue exists Since 5. Jan. 2018 and it's still not possible with extra effort. The solutions provided are nice - but there is nothing working on desktop yet. So for anyone who wants to try how well flutter is working on desktop and see if it's possible for a future product will get totally stuck here.\r\nAlmost any App needs isolates, because there are always some huge computations, how is it possible that there is nothing happening on such important Api design flaws?",
+    "createdAt": "2020-07-06T15:30:05Z"
+  },
+  {
+    "id": 5729,
+    "sender": "pvsvamsi",
+    "content": "I have added a way out for this, in my plugin [System Alert Window](https://pub.dev/packages/system_alert_window)\r\n\r\nThe solution is mentioned here [Isolate communication](https://github.com/pvsvamsi/SystemAlertWindow#isolate-communication).\r\nAlthough the example provided talks specific to the system alert window plugin, it can be easily replicated for other plugins. And it requires no other fancy plugins to make it work!",
+    "createdAt": "2020-07-09T10:45:40Z"
+  },
+  {
+    "id": 5730,
+    "sender": "duck-dev-go",
+    "content": "This can still be quite problematic. It means that there is no way to call a plugin directly from a isolate that is running on the background / foreground, because you would have to send a message to the app scope in order to do anything with a plugin. So if your app isn't running there is no way to do anything with a plugin in the backgroud. \r\n\r\nSo for instance if you would like to do anything with shared preferences in the backgroundMessageHandler of the FCM plugin when the app is closed it will throw a MissingPluginException.\r\n\r\nOr if you wan't to open the app with a system alert window. The alert window is running on a different isolate. So you would have to run the code within your app scope. This is problematic, because the app is currently closed. \r\n\r\nAnd there are probably many other senarios where this is a huge problem.",
+    "createdAt": "2020-07-09T11:57:42Z"
+  },
+  {
+    "id": 5731,
+    "sender": "ryanheise",
+    "content": "@michael-ottink the scenarios you describe are precisely the ones where there shouldn't be a problem. Plugins that execute code in the background generally instantiate a whole new FlutterEngine with its own plugin registry and the isolate that runs within it will be able to directly communicate over platform channels to those plugins.\r\n\r\nIncidentally, that means that if you have a need for an isolate to use plugins, the easy way is to just wrap that isolate in a FlutterEngine and it will magically inherit those powers. This is what the flutter_isolate package does for you on Android and iOS (although I agree it would be better to have a proper fix rather than a workaround. The workarounds available today have bottlenecks, overheads or otherwise may be under-maintained or lack support across all platforms.)",
+    "createdAt": "2020-07-09T13:43:34Z"
+  },
+  {
+    "id": 5732,
+    "sender": "duck-dev-go",
+    "content": "@ryanheise so flutter_isolate does it for me? How I can't really tell from the docs. What do I need to do to make it work for my FCM onBackgroundMessage? So I need to spawn a new isolate in my onBackgroundMessageHandler? But I can't use plugins there so how would I use the flutter_isolate then? ",
+    "createdAt": "2020-07-09T16:35:44Z"
+  },
+  {
+    "id": 5733,
+    "sender": "ryanheise",
+    "content": "Your problem is that firebase_messaging hasn't been updated in a long while and is lagging far behind the latest background execution APIs. If they updated their plugin, you would no longer have this problem. Just to clarify again, the kind of scenario you describe is precisely the one where there shouldn't be a problem because background isolates should already have access to plugins if implemented correctly. the firebase_messaging plugin is not implemented according to the latest APIs and that is why it does not work for you. You can submit a bug report with that project.",
+    "createdAt": "2020-07-09T16:55:30Z"
+  },
+  {
+    "id": 5734,
+    "sender": "duck-dev-go",
+    "content": "I am in dire need for help with this. Is there possibly any way I can do this. I have my first serious dealine tommorow and I just can't figure it out.",
+    "createdAt": "2020-07-09T16:57:07Z"
+  },
+  {
+    "id": 5735,
+    "sender": "ryanheise",
+    "content": "Do everything to ensure that plugins are being loaded. I don't know if you have followed the instructions in the README on how to enable background messages, but you need to create a custom Application class that hooks into the initialisation of the plugin's background FlutterNativeView. If you haven't done that, none of the plugins will be available for you to use. If that's still not working, you can try downgrading your project to the old v1-style plugin architecture (and risk breaking other plugins that require v2).",
+    "createdAt": "2020-07-09T17:05:26Z"
+  },
+  {
+    "id": 5736,
+    "sender": "duck-dev-go",
+    "content": "I setup my Application.kt like this\r\n\r\n```\r\nPACKAGE_NAME\r\n\r\nimport `in`.jvapps.system_alert_window.SystemAlertWindowPlugin\r\nimport io.flutter.app.FlutterApplication\r\nimport io.flutter.plugin.common.PluginRegistry\r\nimport io.flutter.plugin.common.PluginRegistry.PluginRegistrantCallback\r\nimport io.flutter.plugins.firebasemessaging.FlutterFirebaseMessagingService\r\n\r\nimport android.os.Build\r\nimport android.app.NotificationManager\r\nimport android.app.NotificationChannel\r\n\r\npublic class Application: FlutterApplication(), PluginRegistrantCallback {\r\n\r\n   override fun onCreate() {\r\n     super.onCreate()\r\n     FlutterFirebaseMessagingService.setPluginRegistrant(this)\r\n     createNotificationChannels()\r\n     SystemAlertWindowPlugin.setPluginRegistrant(this)\r\n   }\r\n\r\n   override fun registerWith(registry: PluginRegistry) {\r\n     FirebaseCloudMessagingPluginRegistrant.registerWith(registry)\r\n     SystemAlertWindowPlugin.registerWith(registry.registrarFor(\"in.jvapps.system_alert_window\"))\r\n   }\r\n\r\n   fun createNotificationChannels() {\r\n     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {\r\n        val name = \"groupChannel\"\r\n        val descriptionText = \"This is the group channel\"\r\n        val importance = NotificationManager.IMPORTANCE_HIGH\r\n        val mChannel = NotificationChannel(\"59054\", name, importance)\r\n        mChannel.description = descriptionText\r\n        val notificationManager = getSystemService(NOTIFICATION_SERVICE) as NotificationManager\r\n        notificationManager.createNotificationChannel(mChannel)\r\n    }\r\n  }\r\n}\r\n```",
+    "createdAt": "2020-07-09T17:06:59Z"
+  },
+  {
+    "id": 5737,
+    "sender": "ryanheise",
+    "content": "Best to post this on the firebase_messaging issues page because it is unrelated to this issue.",
+    "createdAt": "2020-07-09T17:09:59Z"
+  },
+  {
+    "id": 5738,
+    "sender": "nikitadol",
+    "content": "I can make a PR, which will have a new 'spawnIsolate' method for 'SchedulerBinding'.\r\n\r\nThen it will be possible to call platform methods in this isolate.\r\n\r\nThis will only help you if you need to call a platform method and get a response.\r\n\r\n```dart\r\nimport 'dart:async';\r\nimport 'dart:isolate';\r\n\r\nimport 'package:flutter/scheduler.dart';\r\nimport 'package:flutter/widgets.dart';\r\nimport 'package:path_provider/path_provider.dart';\r\n\r\nFuture<void> _test(SendPort sendPort) async {\r\n  final dir = await getTemporaryDirectory();\r\n  sendPort.send(dir);\r\n}\r\n\r\nvoid main() async {\r\n  WidgetsFlutterBinding.ensureInitialized();\r\n\r\n  final Completer<Object> completer = Completer<Object>();\r\n  final RawReceivePort receivePort = RawReceivePort(completer.complete);\r\n\r\n  final Isolate isolate = await ServicesBinding.instance.spawnIsolate(\r\n    _test,\r\n    receivePort.sendPort,\r\n  );\r\n\r\n  print(await completer.future);\r\n\r\n  receivePort.close();\r\n  isolate.kill();\r\n}\r\n```\r\n\r\nLog\r\n```\r\nPerforming hot restart...\r\nSyncing files to device Pixel 4...\r\nRestarted application in 722ms.\r\nI/flutter (11705): Directory: '/data/user/0/com.example.bug/cache'\r\n```",
+    "createdAt": "2020-07-27T22:28:16Z"
+  },
+  {
+    "id": 5739,
+    "sender": "Nailik",
+    "content": "> I can make a PR, which will have a new 'spawnIsolate' method for 'SchedulerBinding'.\r\n> \r\n> Then it will be possible to call platform methods in this isolate.\r\n> \r\n> This will only help you if you need to call a platform method and get a response.\r\n> \r\n> ```\r\n> SchedulerBinding.instance.spawnIsolate\r\n> ```\r\n\r\nAny chance to test this? If it fits my needs etc .. ",
+    "createdAt": "2020-07-30T20:17:57Z"
+  },
+  {
+    "id": 5740,
+    "sender": "nikitadol",
+    "content": "@Nailik \r\nReplace this file (Actual for version 1.17.5)\r\n<details>\r\n<summary>binding.dart</summary>\r\n\r\n```dart// Copyright 2014 The Flutter Authors. All rights reserved.\r\n// Use of this source code is governed by a BSD-style license that can be\r\n// found in the LICENSE file.\r\n\r\nimport 'dart:async';\r\nimport 'dart:isolate';\r\nimport 'dart:typed_data';\r\nimport 'dart:ui' as ui;\r\n\r\nimport 'package:flutter/foundation.dart';\r\n\r\nimport 'asset_bundle.dart';\r\nimport 'binary_messenger.dart';\r\nimport 'system_channels.dart';\r\n\r\n/// Listens for platform messages and directs them to the [defaultBinaryMessenger].\r\n///\r\n/// The [ServicesBinding] also registers a [LicenseEntryCollector] that exposes\r\n/// the licenses found in the `LICENSE` file stored at the root of the asset\r\n/// bundle, and implements the `ext.flutter.evict` service extension (see\r\n/// [evict]).\r\nmixin ServicesBinding on BindingBase {\r\n  @override\r\n  void initInstances() {\r\n    super.initInstances();\r\n    _instance = this;\r\n    _defaultBinaryMessenger = createBinaryMessenger();\r\n    window.onPlatformMessage = defaultBinaryMessenger.handlePlatformMessage;\r\n    initLicenses();\r\n    SystemChannels.system.setMessageHandler(handleSystemMessage);\r\n  }\r\n\r\n  /// The current [ServicesBinding], if one has been created.\r\n  static ServicesBinding get instance => _instance;\r\n  static ServicesBinding _instance;\r\n\r\n  /// The default instance of [BinaryMessenger].\r\n  ///\r\n  /// This is used to send messages from the application to the platform, and\r\n  /// keeps track of which handlers have been registered on each channel so\r\n  /// it may dispatch incoming messages to the registered handler.\r\n  BinaryMessenger get defaultBinaryMessenger => _defaultBinaryMessenger;\r\n  BinaryMessenger _defaultBinaryMessenger;\r\n\r\n  /// Creates a default [BinaryMessenger] instance that can be used for sending\r\n  /// platform messages.\r\n  @protected\r\n  BinaryMessenger createBinaryMessenger() {\r\n    return const _DefaultBinaryMessenger._();\r\n  }\r\n\r\n  /// Handler called for messages received on the [SystemChannels.system]\r\n  /// message channel.\r\n  ///\r\n  /// Other bindings may override this to respond to incoming system messages.\r\n  @protected\r\n  @mustCallSuper\r\n  Future<void> handleSystemMessage(Object systemMessage) async { }\r\n\r\n  /// Adds relevant licenses to the [LicenseRegistry].\r\n  ///\r\n  /// By default, the [ServicesBinding]'s implementation of [initLicenses] adds\r\n  /// all the licenses collected by the `flutter` tool during compilation.\r\n  @protected\r\n  @mustCallSuper\r\n  void initLicenses() {\r\n    LicenseRegistry.addLicense(_addLicenses);\r\n  }\r\n\r\n  Stream<LicenseEntry> _addLicenses() async* {\r\n    // We use timers here (rather than scheduleTask from the scheduler binding)\r\n    // because the services layer can't use the scheduler binding (the scheduler\r\n    // binding uses the services layer to manage its lifecycle events). Timers\r\n    // are what scheduleTask uses under the hood anyway. The only difference is\r\n    // that these will just run next, instead of being prioritized relative to\r\n    // the other tasks that might be running. Using _something_ here to break\r\n    // this into two parts is important because isolates take a while to copy\r\n    // data at the moment, and if we receive the data in the same event loop\r\n    // iteration as we send the data to the next isolate, we are definitely\r\n    // going to miss frames. Another solution would be to have the work all\r\n    // happen in one isolate, and we may go there eventually, but first we are\r\n    // going to see if isolate communication can be made cheaper.\r\n    // See: https://github.com/dart-lang/sdk/issues/31959\r\n    //      https://github.com/dart-lang/sdk/issues/31960\r\n    // TODO(ianh): Remove this complexity once these bugs are fixed.\r\n    final Completer<String> rawLicenses = Completer<String>();\r\n    Timer.run(() async {\r\n      rawLicenses.complete(rootBundle.loadString('LICENSE', cache: false));\r\n    });\r\n    await rawLicenses.future;\r\n    final Completer<List<LicenseEntry>> parsedLicenses = Completer<List<LicenseEntry>>();\r\n    Timer.run(() async {\r\n      parsedLicenses.complete(compute(_parseLicenses, await rawLicenses.future, debugLabel: 'parseLicenses'));\r\n    });\r\n    await parsedLicenses.future;\r\n    yield* Stream<LicenseEntry>.fromIterable(await parsedLicenses.future);\r\n  }\r\n\r\n  // This is run in another isolate created by _addLicenses above.\r\n  static List<LicenseEntry> _parseLicenses(String rawLicenses) {\r\n    final String _licenseSeparator = '\\n' + ('-' * 80) + '\\n';\r\n    final List<LicenseEntry> result = <LicenseEntry>[];\r\n    final List<String> licenses = rawLicenses.split(_licenseSeparator);\r\n    for (final String license in licenses) {\r\n      final int split = license.indexOf('\\n\\n');\r\n      if (split >= 0) {\r\n        result.add(LicenseEntryWithLineBreaks(\r\n          license.substring(0, split).split('\\n'),\r\n          license.substring(split + 2),\r\n        ));\r\n      } else {\r\n        result.add(LicenseEntryWithLineBreaks(const <String>[], license));\r\n      }\r\n    }\r\n    return result;\r\n  }\r\n\r\n  @override\r\n  void initServiceExtensions() {\r\n    super.initServiceExtensions();\r\n\r\n    assert(() {\r\n      registerStringServiceExtension(\r\n        // ext.flutter.evict value=foo.png will cause foo.png to be evicted from\r\n        // the rootBundle cache and cause the entire image cache to be cleared.\r\n        // This is used by hot reload mode to clear out the cache of resources\r\n        // that have changed.\r\n        name: 'evict',\r\n        getter: () async => '',\r\n        setter: (String value) async {\r\n          evict(value);\r\n        },\r\n      );\r\n      return true;\r\n    }());\r\n  }\r\n\r\n  /// Called in response to the `ext.flutter.evict` service extension.\r\n  ///\r\n  /// This is used by the `flutter` tool during hot reload so that any images\r\n  /// that have changed on disk get cleared from caches.\r\n  @protected\r\n  @mustCallSuper\r\n  void evict(String asset) {\r\n    rootBundle.evict(asset);\r\n  }\r\n\r\n  Future<Isolate> spawnIsolate<T>(\r\n    FutureOr<void> entryPoint(T message),\r\n    T message, {\r\n    bool paused = false,\r\n    bool errorsAreFatal,\r\n    SendPort onExit,\r\n    SendPort onError,\r\n    String debugName,\r\n  }) {\r\n    assert(\r\n      _isMainIsolate,\r\n      'Can\\'t make multiple levels of isolates',\r\n    );\r\n\r\n    final RawReceivePort messageReceiver = RawReceivePort(\r\n      (Object receivedMessage) async {\r\n        if (receivedMessage is SendPort) {\r\n          receivedMessage.send(\r\n            _IsolateStarter<T>(\r\n              ui.PluginUtilities.getCallbackHandle(entryPoint),\r\n              message,\r\n            ),\r\n          );\r\n        } else if (receivedMessage is _Message) {\r\n          final ByteData result = await defaultBinaryMessenger.send(\r\n            receivedMessage.channel,\r\n            receivedMessage.message,\r\n          );\r\n          receivedMessage.sendPort.send(result);\r\n        }\r\n      },\r\n    );\r\n    RawReceivePort onExitReceiver;\r\n    onExitReceiver = RawReceivePort(\r\n      (Object message) {\r\n        onExit?.send(message);\r\n\r\n        onExitReceiver.close();\r\n        messageReceiver.close();\r\n      },\r\n    );\r\n\r\n    return Isolate.spawn(\r\n      _startIsolate,\r\n      messageReceiver.sendPort,\r\n      paused: paused,\r\n      errorsAreFatal: true,\r\n      onExit: onExitReceiver.sendPort,\r\n      onError: onError,\r\n      debugName: debugName,\r\n    );\r\n  }\r\n}\r\n\r\nFuture<void> _startIsolate<T>(SendPort sendPort) async {\r\n  _sendPortToMainIsolate = sendPort;\r\n  _IsolateBinding();\r\n\r\n  final Completer<_IsolateStarter<T>> completer =\r\n      Completer<_IsolateStarter<T>>();\r\n\r\n  final RawReceivePort receivePort = RawReceivePort(\r\n    (Object isolateStarter) {\r\n      assert(isolateStarter is _IsolateStarter<T>);\r\n      completer.complete(isolateStarter as _IsolateStarter<T>);\r\n    },\r\n  );\r\n\r\n  sendPort.send(receivePort.sendPort);\r\n\r\n  final _IsolateStarter<T> isolateStarter = await completer.future;\r\n\r\n  receivePort.close();\r\n\r\n  final Function function =\r\n      ui.PluginUtilities.getCallbackFromHandle(isolateStarter.callbackHandle);\r\n\r\n  await function(isolateStarter.message);\r\n}\r\n\r\nSendPort _sendPortToMainIsolate;\r\n\r\nbool get _isMainIsolate => _sendPortToMainIsolate == null;\r\n\r\nclass _IsolateStarter<T> {\r\n  _IsolateStarter(this.callbackHandle, this.message);\r\n\r\n  final ui.CallbackHandle callbackHandle;\r\n  final T message;\r\n}\r\n\r\nclass _Message {\r\n  _Message(\r\n    this.channel,\r\n    this.message,\r\n    this.sendPort,\r\n  );\r\n\r\n  final String channel;\r\n  final ByteData message;\r\n  final SendPort sendPort;\r\n}\r\n\r\nclass _IsolateBinding extends BindingBase with ServicesBinding {}\r\n\r\n/// The default implementation of [BinaryMessenger].\r\n///\r\n/// This messenger sends messages from the app-side to the platform-side and\r\n/// dispatches incoming messages from the platform-side to the appropriate\r\n/// handler.\r\nclass _DefaultBinaryMessenger extends BinaryMessenger {\r\n  const _DefaultBinaryMessenger._();\r\n\r\n  // Handlers for incoming messages from platform plugins.\r\n  // This is static so that this class can have a const constructor.\r\n  static final Map<String, MessageHandler> _handlers =\r\n      <String, MessageHandler>{};\r\n\r\n  // Mock handlers that intercept and respond to outgoing messages.\r\n  // This is static so that this class can have a const constructor.\r\n  static final Map<String, MessageHandler> _mockHandlers =\r\n      <String, MessageHandler>{};\r\n\r\n  Future<ByteData> _sendPlatformMessage(String channel, ByteData message) {\r\n    final Completer<ByteData> completer = Completer<ByteData>();\r\n\r\n    if (_isMainIsolate) {\r\n      // ui.window is accessed directly instead of using ServicesBinding.instance.window\r\n      // because this method might be invoked before any binding is initialized.\r\n      // This issue was reported in #27541. It is not ideal to statically access\r\n      // ui.window because the Window may be dependency injected elsewhere with\r\n      // a different instance. However, static access at this location seems to be\r\n      // the least bad option.\r\n      ui.window.sendPlatformMessage(channel, message, (ByteData reply) {\r\n        try {\r\n          completer.complete(reply);\r\n        } catch (exception, stack) {\r\n          FlutterError.reportError(FlutterErrorDetails(\r\n            exception: exception,\r\n            stack: stack,\r\n            library: 'services library',\r\n            context:\r\n                ErrorDescription('during a platform message response callback'),\r\n          ));\r\n        }\r\n      });\r\n    } else {\r\n      RawReceivePort receivePort;\r\n      receivePort = RawReceivePort(\r\n        (Object message) async {\r\n          assert(message is ByteData);\r\n          completer.complete(message as ByteData);\r\n          receivePort.close();\r\n        },\r\n      );\r\n      _sendPortToMainIsolate.send(\r\n        _Message(channel, message, receivePort.sendPort),\r\n      );\r\n    }\r\n\r\n    return completer.future;\r\n  }\r\n\r\n  @override\r\n  Future<void> handlePlatformMessage(\r\n    String channel,\r\n    ByteData data,\r\n    ui.PlatformMessageResponseCallback callback,\r\n  ) async {\r\n    ByteData response;\r\n    try {\r\n      final MessageHandler handler = _handlers[channel];\r\n      if (handler != null) {\r\n        response = await handler(data);\r\n      } else {\r\n        ui.channelBuffers.push(channel, data, callback);\r\n        callback = null;\r\n      }\r\n    } catch (exception, stack) {\r\n      FlutterError.reportError(FlutterErrorDetails(\r\n        exception: exception,\r\n        stack: stack,\r\n        library: 'services library',\r\n        context: ErrorDescription('during a platform message callback'),\r\n      ));\r\n    } finally {\r\n      if (callback != null) {\r\n        callback(response);\r\n      }\r\n    }\r\n  }\r\n\r\n  @override\r\n  Future<ByteData> send(String channel, ByteData message) {\r\n    final MessageHandler handler = _mockHandlers[channel];\r\n    if (handler != null)\r\n      return handler(message);\r\n    return _sendPlatformMessage(channel, message);\r\n  }\r\n\r\n  @override\r\n  void setMessageHandler(String channel, MessageHandler handler) {\r\n    if (handler == null)\r\n      _handlers.remove(channel);\r\n    else\r\n      _handlers[channel] = handler;\r\n    ui.channelBuffers.drain(channel, (ByteData data, ui.PlatformMessageResponseCallback callback) async {\r\n      await handlePlatformMessage(channel, data, callback);\r\n    });\r\n  }\r\n\r\n  @override\r\n  void setMockMessageHandler(String channel, MessageHandler handler) {\r\n    if (handler == null)\r\n      _mockHandlers.remove(channel);\r\n    else\r\n      _mockHandlers[channel] = handler;\r\n  }\r\n}\r\n```\r\n\r\n</details>",
+    "createdAt": "2020-07-30T20:50:42Z"
+  },
+  {
+    "id": 5741,
+    "sender": "Nailik",
+    "content": "I have flutter 1.21 so i tried to update all the code to compile.\r\nNow there's one Problem left because _IsolateBinding is missing a lot of implementations of BindingBase Methods... \r\n\r\nI get sth like\r\n```\r\nError: The non-abstract class '_IsolateBinding' is missing implementations for these members:\r\n - BindingBase with ServicesBinding.SchedulerBinding.addPersistentFrameCallback\r\n```\r\naround 30 times.\r\n\r\nAt the end the console prints\r\n```\r\n/C:/flutter/packages/flutter/lib/src/services/binding.dart:341:7: Error: 'BindingBase' doesn't implement 'SchedulerBinding' so it can't be used with 'ServicesBinding'.\r\n - 'BindingBase' is from 'package:flutter/src/foundation/binding.dart' ('/C:/flutter/packages/flutter/lib/src/foundation/binding.dart').\r\n - 'SchedulerBinding' is from 'package:flutter/src/scheduler/binding.dart' ('/C:/flutter/packages/flutter/lib/src/scheduler/binding.dart').\r\n - 'ServicesBinding' is from 'package:flutter/src/services/binding.dart' ('/C:/flutter/packages/flutter/lib/src/services/binding.dart').\r\nclass _IsolateBinding extends BindingBase with ServicesBinding {}\r\n```\r\n\r\nI'm not 100% sure what the call of `_IsolateBinding()` in `_startIsolate` does but without i get the common `ServicesBinding.defaultBinaryMessenger was accessed before the binding was initialized.` error.\r\n\r\nI tried to fix this but i think my knowledge of mixins is not that good yet.\r\nAny idea how to fix it?\r\n\r\n\r\n\r\n<details>\r\n  <summary>The new file looks like this (so far)</summary>\r\n\r\n\r\n```\r\n// Use of this source code is governed by a BSD-style license that can be\r\n// found in the LICENSE file.\r\n\r\n// @dart = 2.8\r\n\r\nimport 'dart:async';\r\nimport 'dart:isolate';\r\nimport 'dart:typed_data';\r\nimport 'dart:ui' as ui;\r\n\r\nimport 'package:flutter/foundation.dart';\r\nimport 'package:flutter/scheduler.dart';\r\n\r\nimport 'asset_bundle.dart';\r\nimport 'binary_messenger.dart';\r\nimport 'restoration.dart';\r\nimport 'system_channels.dart';\r\n\r\n/// Listens for platform messages and directs them to the [defaultBinaryMessenger].\r\n///\r\n/// The [ServicesBinding] also registers a [LicenseEntryCollector] that exposes\r\n/// the licenses found in the `LICENSE` file stored at the root of the asset\r\n/// bundle, and implements the `ext.flutter.evict` service extension (see\r\n/// [evict]).\r\nmixin ServicesBinding on BindingBase, SchedulerBinding {\r\n  @override\r\n  void initInstances() {\r\n    super.initInstances();\r\n    _instance = this;\r\n    _defaultBinaryMessenger = createBinaryMessenger();\r\n    _restorationManager = createRestorationManager();\r\n    window.onPlatformMessage = defaultBinaryMessenger.handlePlatformMessage;\r\n    initLicenses();\r\n    SystemChannels.system.setMessageHandler(handleSystemMessage);\r\n    SystemChannels.lifecycle.setMessageHandler(_handleLifecycleMessage);\r\n    readInitialLifecycleStateFromNativeWindow();\r\n  }\r\n\r\n  /// The current [ServicesBinding], if one has been created.\r\n  static ServicesBinding get instance => _instance;\r\n  static ServicesBinding _instance;\r\n\r\n  /// The default instance of [BinaryMessenger].\r\n  ///\r\n  /// This is used to send messages from the application to the platform, and\r\n  /// keeps track of which handlers have been registered on each channel so\r\n  /// it may dispatch incoming messages to the registered handler.\r\n  BinaryMessenger get defaultBinaryMessenger => _defaultBinaryMessenger;\r\n  BinaryMessenger _defaultBinaryMessenger;\r\n\r\n  /// Creates a default [BinaryMessenger] instance that can be used for sending\r\n  /// platform messages.\r\n  @protected\r\n  BinaryMessenger createBinaryMessenger() {\r\n    return const _DefaultBinaryMessenger._();\r\n  }\r\n\r\n  /// Called when the operating system notifies the application of a memory\r\n  /// pressure situation.\r\n  ///\r\n  /// This method exposes the `memoryPressure` notification from\r\n  /// [SystemChannels.system].\r\n  @protected\r\n  @mustCallSuper\r\n  void handleMemoryPressure() { }\r\n  \r\n  /// Handler called for messages received on the [SystemChannels.system]\r\n  /// message channel.\r\n  ///\r\n  /// Other bindings may override this to respond to incoming system messages.\r\n  @protected\r\n  @mustCallSuper\r\n  Future<void> handleSystemMessage(Object systemMessage) async {\r\n    final Map<String, dynamic> message = systemMessage as Map<String, dynamic>;\r\n    final String type = message['type'] as String;\r\n    switch (type) {\r\n      case 'memoryPressure':\r\n        handleMemoryPressure();\r\n        break;\r\n    }\r\n    return;\r\n  }\r\n\r\n  /// Adds relevant licenses to the [LicenseRegistry].\r\n  ///\r\n  /// By default, the [ServicesBinding]'s implementation of [initLicenses] adds\r\n  /// all the licenses collected by the `flutter` tool during compilation.\r\n  @protected\r\n  @mustCallSuper\r\n  void initLicenses() {\r\n    LicenseRegistry.addLicense(_addLicenses);\r\n  }\r\n\r\n  Stream<LicenseEntry> _addLicenses() async* {\r\n    // We use timers here (rather than scheduleTask from the scheduler binding)\r\n    // because the services layer can't use the scheduler binding (the scheduler\r\n    // binding uses the services layer to manage its lifecycle events). Timers\r\n    // are what scheduleTask uses under the hood anyway. The only difference is\r\n    // that these will just run next, instead of being prioritized relative to\r\n    // the other tasks that might be running. Using _something_ here to break\r\n    // this into two parts is important because isolates take a while to copy\r\n    // data at the moment, and if we receive the data in the same event loop\r\n    // iteration as we send the data to the next isolate, we are definitely\r\n    // going to miss frames. Another solution would be to have the work all\r\n    // happen in one isolate, and we may go there eventually, but first we are\r\n    // going to see if isolate communication can be made cheaper.\r\n    // See: https://github.com/dart-lang/sdk/issues/31959\r\n    //      https://github.com/dart-lang/sdk/issues/31960\r\n    // TODO(ianh): Remove this complexity once these bugs are fixed.\r\n    final Completer<String> rawLicenses = Completer<String>();\r\n    scheduleTask(() async {\r\n      rawLicenses.complete(await rootBundle.loadString('NOTICES', cache: false));\r\n    }, Priority.animation);\r\n    await rawLicenses.future;\r\n    final Completer<List<LicenseEntry>> parsedLicenses = Completer<List<LicenseEntry>>();\r\n    scheduleTask(() async {\r\n      parsedLicenses.complete(compute(_parseLicenses, await rawLicenses.future, debugLabel: 'parseLicenses'));\r\n    }, Priority.animation);\r\n    await parsedLicenses.future;\r\n    yield* Stream<LicenseEntry>.fromIterable(await parsedLicenses.future);\r\n  }\r\n\r\n  // This is run in another isolate created by _addLicenses above.\r\n  static List<LicenseEntry> _parseLicenses(String rawLicenses) {\r\n    final String _licenseSeparator = '\\n' + ('-' * 80) + '\\n';\r\n    final List<LicenseEntry> result = <LicenseEntry>[];\r\n    final List<String> licenses = rawLicenses.split(_licenseSeparator);\r\n    for (final String license in licenses) {\r\n      final int split = license.indexOf('\\n\\n');\r\n      if (split >= 0) {\r\n        result.add(LicenseEntryWithLineBreaks(\r\n          license.substring(0, split).split('\\n'),\r\n          license.substring(split + 2),\r\n        ));\r\n      } else {\r\n        result.add(LicenseEntryWithLineBreaks(const <String>[], license));\r\n      }\r\n    }\r\n    return result;\r\n  }\r\n\r\n  @override\r\n  void initServiceExtensions() {\r\n    super.initServiceExtensions();\r\n\r\n    assert(() {\r\n      registerStringServiceExtension(\r\n        // ext.flutter.evict value=foo.png will cause foo.png to be evicted from\r\n        // the rootBundle cache and cause the entire image cache to be cleared.\r\n        // This is used by hot reload mode to clear out the cache of resources\r\n        // that have changed.\r\n        name: 'evict',\r\n        getter: () async => '',\r\n        setter: (String value) async {\r\n          evict(value);\r\n        },\r\n      );\r\n      return true;\r\n    }());\r\n  }\r\n\r\n  /// Called in response to the `ext.flutter.evict` service extension.\r\n  ///\r\n  /// This is used by the `flutter` tool during hot reload so that any images\r\n  /// that have changed on disk get cleared from caches.\r\n  @protected\r\n  @mustCallSuper\r\n  void evict(String asset) {\r\n    rootBundle.evict(asset);\r\n  }\r\n\r\n  Future<Isolate> spawnIsolate<T>(\r\n      FutureOr<void> entryPoint(T message),\r\n      T message, {\r\n        bool paused = false,\r\n        bool errorsAreFatal,\r\n        SendPort onExit,\r\n        SendPort onError,\r\n        String debugName,\r\n      }) {\r\n    assert(\r\n    _isMainIsolate,\r\n    'Can\\'t make multiple levels of isolates',\r\n    );\r\n\r\n    final RawReceivePort messageReceiver = RawReceivePort(\r\n          (Object receivedMessage) async {\r\n        if (receivedMessage is SendPort) {\r\n          receivedMessage.send(\r\n            _IsolateStarter<T>(\r\n              ui.PluginUtilities.getCallbackHandle(entryPoint),\r\n              message,\r\n            ),\r\n          );\r\n        } else if (receivedMessage is _Message) {\r\n          final ByteData result = await defaultBinaryMessenger.send(\r\n            receivedMessage.channel,\r\n            receivedMessage.message,\r\n          );\r\n          receivedMessage.sendPort.send(result);\r\n        }\r\n      },\r\n    );\r\n    RawReceivePort onExitReceiver;\r\n    onExitReceiver = RawReceivePort(\r\n          (Object message) {\r\n        onExit?.send(message);\r\n\r\n        onExitReceiver.close();\r\n        messageReceiver.close();\r\n      },\r\n    );\r\n\r\n    return Isolate.spawn(\r\n      _startIsolate,\r\n      messageReceiver.sendPort,\r\n      paused: paused,\r\n      errorsAreFatal: true,\r\n      onExit: onExitReceiver.sendPort,\r\n      onError: onError,\r\n      debugName: debugName,\r\n    );\r\n  }\r\n\r\n\r\n\r\n  // App life cycle\r\n\r\n  /// Initializes the [lifecycleState] with the [Window.initialLifecycleState]\r\n  /// from the window.\r\n  ///\r\n  /// Once the [lifecycleState] is populated through any means (including this\r\n  /// method), this method will do nothing. This is because the\r\n  /// [Window.initialLifecycleState] may already be stale and it no longer makes\r\n  /// sense to use the initial state at dart vm startup as the current state\r\n  /// anymore.\r\n  ///\r\n  /// The latest state should be obtained by subscribing to\r\n  /// [WidgetsBindingObserver.didChangeAppLifecycleState].\r\n  @protected\r\n  void readInitialLifecycleStateFromNativeWindow() {\r\n    if (lifecycleState != null) {\r\n      return;\r\n    }\r\n    final AppLifecycleState state = _parseAppLifecycleMessage(window.initialLifecycleState);\r\n    if (state != null) {\r\n      handleAppLifecycleStateChanged(state);\r\n    }\r\n  }\r\n\r\n  Future<String> _handleLifecycleMessage(String message) async {\r\n    handleAppLifecycleStateChanged(_parseAppLifecycleMessage(message));\r\n    return null;\r\n  }\r\n\r\n  static AppLifecycleState _parseAppLifecycleMessage(String message) {\r\n    switch (message) {\r\n      case 'AppLifecycleState.paused':\r\n        return AppLifecycleState.paused;\r\n      case 'AppLifecycleState.resumed':\r\n        return AppLifecycleState.resumed;\r\n      case 'AppLifecycleState.inactive':\r\n        return AppLifecycleState.inactive;\r\n      case 'AppLifecycleState.detached':\r\n        return AppLifecycleState.detached;\r\n    }\r\n    return null;\r\n  }\r\n\r\n  /// The [RestorationManager] synchronizes the restoration data between\r\n  /// engine and framework.\r\n  ///\r\n  /// See the docs for [RestorationManager] for a discussion of restoration\r\n  /// state and how it is organized in Flutter.\r\n  ///\r\n  /// To use a different [RestorationManager] subclasses can override\r\n  /// [createRestorationManager], which is called to create the instance\r\n  /// returned by this getter.\r\n  RestorationManager get restorationManager => _restorationManager;\r\n  RestorationManager _restorationManager;\r\n\r\n  /// Creates the [RestorationManager] instance available via\r\n  /// [restorationManager].\r\n  ///\r\n  /// Can be overriden in subclasses to create a different [RestorationManager].\r\n  @protected\r\n  RestorationManager createRestorationManager() {\r\n    return RestorationManager();\r\n  }\r\n}\r\n\r\nFuture<void> _startIsolate<T>(SendPort sendPort) async {\r\n  _sendPortToMainIsolate = sendPort;\r\n  _IsolateBinding();\r\n\r\n  final Completer<_IsolateStarter<T>> completer =\r\n  Completer<_IsolateStarter<T>>();\r\n\r\n  final RawReceivePort receivePort = RawReceivePort(\r\n        (Object isolateStarter) {\r\n      assert(isolateStarter is _IsolateStarter<T>);\r\n      completer.complete(isolateStarter as _IsolateStarter<T>);\r\n    },\r\n  );\r\n\r\n  sendPort.send(receivePort.sendPort);\r\n\r\n  final _IsolateStarter<T> isolateStarter = await completer.future;\r\n\r\n  receivePort.close();\r\n\r\n  final Function function =\r\n  ui.PluginUtilities.getCallbackFromHandle(isolateStarter.callbackHandle);\r\n\r\n  await function(isolateStarter.message);\r\n}\r\n\r\nSendPort _sendPortToMainIsolate;\r\n\r\nbool get _isMainIsolate => _sendPortToMainIsolate == null;\r\n\r\nclass _IsolateStarter<T> {\r\n  _IsolateStarter(this.callbackHandle, this.message);\r\n\r\n  final ui.CallbackHandle callbackHandle;\r\n  final T message;\r\n}\r\n\r\nclass _Message {\r\n  _Message(\r\n      this.channel,\r\n      this.message,\r\n      this.sendPort,\r\n      );\r\n\r\n  final String channel;\r\n  final ByteData message;\r\n  final SendPort sendPort;\r\n}\r\n\r\n//TODO not working\r\nclass _IsolateBinding extends BindingBase with ServicesBinding {}\r\n\r\n/// The default implementation of [BinaryMessenger].\r\n///\r\n/// This messenger sends messages from the app-side to the platform-side and\r\n/// dispatches incoming messages from the platform-side to the appropriate\r\n/// handler.\r\nclass _DefaultBinaryMessenger extends BinaryMessenger {\r\n  const _DefaultBinaryMessenger._();\r\n\r\n  // Handlers for incoming messages from platform plugins.\r\n  // This is static so that this class can have a const constructor.\r\n  static final Map<String, MessageHandler> _handlers =\r\n  <String, MessageHandler>{};\r\n\r\n  // Mock handlers that intercept and respond to outgoing messages.\r\n  // This is static so that this class can have a const constructor.\r\n  static final Map<String, MessageHandler> _mockHandlers =\r\n  <String, MessageHandler>{};\r\n\r\n  Future<ByteData> _sendPlatformMessage(String channel, ByteData message) {\r\n    final Completer<ByteData> completer = Completer<ByteData>();\r\n\r\n    if (_isMainIsolate) {\r\n      // ui.window is accessed directly instead of using ServicesBinding.instance.window\r\n      // because this method might be invoked before any binding is initialized.\r\n      // This issue was reported in #27541. It is not ideal to statically access\r\n      // ui.window because the Window may be dependency injected elsewhere with\r\n      // a different instance. However, static access at this location seems to be\r\n      // the least bad option.\r\n      ui.window.sendPlatformMessage(channel, message, (ByteData reply) {\r\n        try {\r\n          completer.complete(reply);\r\n        } catch (exception, stack) {\r\n          FlutterError.reportError(FlutterErrorDetails(\r\n            exception: exception,\r\n            stack: stack,\r\n            library: 'services library',\r\n            context:\r\n            ErrorDescription('during a platform message response callback'),\r\n          ));\r\n        }\r\n      });\r\n    } else {\r\n      RawReceivePort receivePort;\r\n      receivePort = RawReceivePort(\r\n            (Object message) async {\r\n          assert(message is ByteData);\r\n          completer.complete(message as ByteData);\r\n          receivePort.close();\r\n        },\r\n      );\r\n      _sendPortToMainIsolate.send(\r\n        _Message(channel, message, receivePort.sendPort),\r\n      );\r\n    }\r\n\r\n    return completer.future;\r\n  }\r\n\r\n  @override\r\n  Future<void> handlePlatformMessage(\r\n      String channel,\r\n      ByteData data,\r\n      ui.PlatformMessageResponseCallback callback,\r\n      ) async {\r\n    ByteData response;\r\n    try {\r\n      final MessageHandler handler = _handlers[channel];\r\n      if (handler != null) {\r\n        response = await handler(data);\r\n      } else {\r\n        ui.channelBuffers.push(channel, data, callback);\r\n        callback = null;\r\n      }\r\n    } catch (exception, stack) {\r\n      FlutterError.reportError(FlutterErrorDetails(\r\n        exception: exception,\r\n        stack: stack,\r\n        library: 'services library',\r\n        context: ErrorDescription('during a platform message callback'),\r\n      ));\r\n    } finally {\r\n      if (callback != null) {\r\n        callback(response);\r\n      }\r\n    }\r\n  }\r\n\r\n  @override\r\n  Future<ByteData> send(String channel, ByteData message) {\r\n    final MessageHandler handler = _mockHandlers[channel];\r\n    if (handler != null)\r\n      return handler(message);\r\n    return _sendPlatformMessage(channel, message);\r\n  }\r\n\r\n  @override\r\n  void setMessageHandler(String channel, MessageHandler handler) {\r\n    if (handler == null)\r\n      _handlers.remove(channel);\r\n    else\r\n      _handlers[channel] = handler;\r\n    ui.channelBuffers.drain(channel, (ByteData data, ui.PlatformMessageResponseCallback callback) async {\r\n      await handlePlatformMessage(channel, data, callback);\r\n    });\r\n  }\r\n\r\n  @override\r\n  void setMockMessageHandler(String channel, MessageHandler handler) {\r\n    if (handler == null)\r\n      _mockHandlers.remove(channel);\r\n    else\r\n      _mockHandlers[channel] = handler;\r\n  }\r\n\r\n  @override\r\n  bool checkMessageHandler(String channel, MessageHandler handler) => _handlers[channel] == handler;\r\n\r\n  @override\r\n  bool checkMockMessageHandler(String channel, MessageHandler handler) => _mockHandlers[channel] == handler;\r\n}\r\n```\r\n\r\n\r\n</details>",
+    "createdAt": "2020-07-30T21:53:03Z"
+  },
+  {
+    "id": 5742,
+    "sender": "nikitadol",
+    "content": "@Nailik \r\nAt the moment, I cannot update flutter to help you",
+    "createdAt": "2020-07-31T05:27:10Z"
+  },
+  {
+    "id": 5743,
+    "sender": "phanirithvij",
+    "content": "I'm wondering why the other flutter tools implemented by the flutter team (like say devtools) never hit this blocker.\r\nThey seem to be fixing bugs only if they get blocked by them.\r\n\r\nThis is not a severe new feature, it's a framework blocker.\r\nSo according to this https://github.com/flutter/flutter/issues/18761#issuecomment-639248761 it should be a P3",
+    "createdAt": "2020-07-31T15:27:57Z"
+  },
+  {
+    "id": 5744,
+    "sender": "hpoul",
+    "content": "> I'm wondering why the other flutter tools implemented by the flutter team (like say devtools) never hit this blocker.\r\n> They seem to be fixing bugs only if they get blocked by them.\r\n\r\nTo be honest, because i think the impact of this issue in real world apps is overrated. I'm just watching the issue because it would make things easier, but there are \"workarounds\". And many apps and plugins in production are using background functionality.\r\n\r\nI'm also not sure if some of the +1s just don't quite understand what the issue is about. (Like https://github.com/flutter/flutter/issues/13937#issuecomment-635683123 ). Imo the official documentation for background isolates & headless runtime (and how to manage it) is still a bit lacking and the firebase messaging stuff is a nightmare, but this has nothing to do with the framework, engine 🤷‍♂️ \r\n\r\nMaybe just stop bashing the flutter team, there is amazing progress, and this is not something which can't be worked around... And if there is a PR, why not just submit it for the flutter team to consider 🤔",
+    "createdAt": "2020-07-31T15:47:29Z"
+  },
+  {
+    "id": 5745,
+    "sender": "nikitadol",
+    "content": "There is a problem with implementing this behavior for isolates.\r\n\r\nExample:\r\n\r\nThere are a main isolate and an engine.\r\nIf the isolate needs something, it asks the engine.\r\nIf the engine needs something, it asks the isolate.\r\n\r\nNow our situation is:\r\nThere are 2 isolates and an engine.\r\nIf the isolate needs something, it asks the engine.\r\nIf the engine needs something, what should it do?\r\nAsk both? Then the whose answer to take?\r\nOr ask just one isolate? Then which one?",
+    "createdAt": "2020-07-31T19:30:58Z"
+  },
+  {
+    "id": 5746,
+    "sender": "phanirithvij",
+    "content": "@hpoul I have to agree to disagree as many people here are beginners to android/ios programming and they chose their first framework for app development to be flutter.\r\n\r\nSo it's important that someone realises this and fixes or suggests an official workaround with an example for these kind of issues where you're blocked and forced by the framework to do complex \"workarounds\" as obviously beginners won't know what to learn or even where to start because there's no well explained workarounds in the comments here or anywhere on stackoverflow or other blogs. There's only stuff pointing to some packages which may or may not have implemented this correctly.\r\n\r\nPeople who have tons of experience working with services, background task queues etc., in **both** android and ios, who can easily work around this are not the target demographic for flutter.\r\n\r\nAnd coming to off topic comments like that I'm sure there are false +1s in every other issue, which doesn't change the order of the issue priorities by much and this issue still remains in top.",
+    "createdAt": "2020-08-01T02:35:51Z"
+  },
+  {
+    "id": 5747,
+    "sender": "ryanheise",
+    "content": "Hi @phanirithvij \r\n\r\nflutter_isolate was linked above and has been around since February of 2019. It is also not complex. I'll copy the README which seems straightforward:\r\n\r\n> FlutterIsolate allows creation of an Isolate in flutter that is able to use flutter plugins. It creates the necessary platform specific bits (FlutterBackgroundView on android & FlutterEngine on iOS) to enable the platform channels to work inside an isolate.\r\n> \r\n> |                  |      Android       |         iOS          |             Description            |\r\n> | :--------------- | :----------------: | :------------------: |  :-------------------------------- |\r\n> | FlutterIsolate.spawn(entryPoint,message)             | :white_check_mark: |  :white_check_mark:  | spawns a new FlutterIsolate        |\r\n> | flutterIsolate.pause()            | :white_check_mark: |  :white_check_mark:  | pauses a running isolate |\r\n> | flutterIsolate.resume()           | :white_check_mark: |  :white_check_mark:  | resumed a paused isoalte |\r\n> | flutterIsolate.kill()             | :white_check_mark: |  :white_check_mark:  | kills a an isolate |\r\n\r\nI say straightforward since these methods have the same names as the ones in the \"original\" `Isolate` class so if you already know how to use isolates from the official documentation, it shouldn't be difficult to understand how to use this as a drop-in replacement, at least for those methods listed above.\r\n\r\n(Note: I, too, would like this issue fixed officially for reasons I have already stated in an earlier comment, some of which I share with you, but I also wouldn't call this workaround \"complex\".)\r\n\r\nIn response to @nikitadol 's comment, flutter_isolate creates a separate engine for each isolate so it doesn't run into the same problem. Of course, it's not ideal to have to create a new engine per isolate, that is one reason why I'm sure the Flutter team could do a better job. Similarly, the alternative solution of piping all plugin method calls through the main isolate would create a bottleneck that runs counter to the goals of isolates in the first place, so I'm sure the Flutter team could do a better job of that, too.\r\n\r\nI agree with those who have said the Flutter team might have higher priority issues to address first, but based on what we have seen before with the plugin architecture, it may also be that fixing this requires a major architectural change, and several other open issues also require a major architectural change, and weighing all of these different requirements could take time before they can even get around to addressing this particular issue.",
+    "createdAt": "2020-08-01T03:11:07Z"
+  },
+  {
+    "id": 5748,
+    "sender": "nikitadol",
+    "content": "@ryanheise \r\n> flutter_isolate creates a separate engine for each isolate\r\n\r\n>so I'm sure the Flutter team could do a better job of that, too.\r\n\r\nYou say the Flutter team can do this, but how?\r\nThe questions I asked above remain valid.\r\nIf the solution is to create a new engine, then you can simply use your plugin",
+    "createdAt": "2020-08-01T05:49:18Z"
+  },
+  {
+    "id": 5749,
+    "sender": "ryanheise",
+    "content": "(Note, flutter_isolate is not my plugin, but since I also needed this feature I decided to contribute to the project.)\r\n\r\nWhat I meant by \"a better job\" is that it is probably not necessary to spin up ALL of the machinery in a FlutterEngine just to communicate with plugins, but at the moment, the necessary infrastructure is all tied to the engine so that's why currently flutter_isolate has to spin up a whole engine just to get access to the plugins.",
+    "createdAt": "2020-08-01T06:15:55Z"
+  },
+  {
+    "id": 5750,
+    "sender": "nikitadol",
+    "content": "> (Note, flutter_isolate is not my plugin, but since I also needed this feature I decided to contribute to the project.)\r\n\r\nSorry, I didn't notice that this is a fork\r\n\r\n> flutter_isolate has to spin up a whole engine just to get access to the plugins.\r\n\r\nIf you specify that 'is_background_view = true', then the engine does not start rendering - which means that the engine does not start completely",
+    "createdAt": "2020-08-01T06:28:25Z"
+  },
+  {
+    "id": 5751,
+    "sender": "ryanheise",
+    "content": "The precise API for running headless is different for iOS and Android v1 and Android v2, but essentially this is what flutter_isolate already does. There's still a difference in overhead between a normal isolate and a FlutterEngine, though, so getting the overheads down further is only something that the Flutter team would be able to do. It's not just an overhead in startup time, it's also an overhead in memory usage.",
+    "createdAt": "2020-08-01T07:05:00Z"
+  },
+  {
+    "id": 5752,
+    "sender": "nikitadol",
+    "content": "So you just suggest optimizing the creation of a new engine to work in the background?\r\n\r\nThen this probably does not apply to this issue",
+    "createdAt": "2020-08-01T07:10:44Z"
+  },
+  {
+    "id": 5753,
+    "sender": "ryanheise",
+    "content": "I'm not suggesting that, I'm just pointing out that the flutter_isolate workaround has this limitation because of the overheads which can't be avoided. I'm not suggesting that the Flutter team should try to make the workaround more efficient, I think that ideally there would be an architectural change to the way that plugins are loaded so that it wouldn't be necessary to instantiate a FlutterEngine.",
+    "createdAt": "2020-08-01T07:14:04Z"
+  },
+  {
+    "id": 5754,
+    "sender": "nikitadol",
+    "content": "If the engine is 1, and isolates are greater than 1, then we return to this question:\r\n\r\nhttps://github.com/flutter/flutter/issues/13937#issuecomment-667314232",
+    "createdAt": "2020-08-01T07:17:39Z"
+  },
+  {
+    "id": 5755,
+    "sender": "ryanheise",
+    "content": "I'm not trying to actually come up with a solution for this new lightweight architecture, but if you're asking me, I can think of two variations of lightweight solution:\r\n\r\n1. Make method channels a bit like server sockets by making them accept connections from multiple clients. So a method channel in the platform side of the plugin could accept connections from multiple isolates, and then once connected could send messages to the right isolate.\r\n2. Create a new plugin registry etc. for each isolate BUT within the same FlutterEngine,",
+    "createdAt": "2020-08-01T07:29:00Z"
+  },
+  {
+    "id": 5756,
+    "sender": "nikitadol",
+    "content": "> if you're asking me\r\n\r\nYes, I ask\r\n\r\n> could send messages to the right isolate.\r\n\r\nI think this is a bad solution since 'to the right isolate' is a relative concept\r\n\r\n> Create a new plugin registry etc. for each isolate BUT within the same FlutterEngine,\r\n\r\nThis could be a good option, but only if the engine always registers plugins by itself.\r\n\r\nBut this only happens if all plugins in the GeneratedPluginRegistrant.\r\nhttps://github.com/flutter/engine/blob/f7d241fd8a889fadf8ab3f9d57918be3d986b4be/shell/platform/android/io/flutter/embedding/engine/FlutterEngine.java#L330-L344\r\n\r\nCreating additional callbacks is not an obvious behavior.",
+    "createdAt": "2020-08-01T08:18:47Z"
+  },
+  {
+    "id": 5757,
+    "sender": "ryanheise",
+    "content": "> I think this is a bad solution since 'to the right isolate' is a relative concept\r\n\r\nIt could be a bad solution, but it can't be bad for that reason. The \"right isolate\" is unambiguous in the same way a server socket handles client connections in an unambiguous way.\r\n\r\n> This could be a good option, but only if the engine always registers plugins by itself.\r\n\r\nWhich would be a good thing to ensure always happens. Currently the mechanism is a bit flaky.",
+    "createdAt": "2020-08-01T08:26:37Z"
+  },
+  {
+    "id": 5758,
+    "sender": "nikitadol",
+    "content": "> It could be a bad solution, but it can't be bad for that reason. The \"right isolate\" is unambiguous in the same way a server socket handles client connections in an unambiguous way.\r\n\r\nThen each plugin must take into account that it can be accessed from different isolates - bad",
+    "createdAt": "2020-08-01T08:30:59Z"
+  },
+  {
+    "id": 5759,
+    "sender": "ryanheise",
+    "content": "Yep.",
+    "createdAt": "2020-08-01T08:34:16Z"
+  }
+]

@@ -1,0 +1,386 @@
+[
+  {
+    "id": 2880,
+    "sender": "jonahwilliams",
+    "content": "See https://github.com/flutter/flutter/pull/34112/files for WIP to separate the NetworkImage implementations. ",
+    "createdAt": "2019-06-10T22:48:02Z"
+  },
+  {
+    "id": 2881,
+    "sender": "yjbanov",
+    "content": "The Web supports [transferables](https://developer.mozilla.org/en-US/docs/Web/API/Transferable), but as @jonahwilliams points out, we can avoid isolates on the Web by providing a different implementation. So we may not need them. We are currently investigating using [HTMLImageElement.decode](https://developer.mozilla.org/en-US/docs/Web/API/HTMLImageElement/decode), which we expect browsers to implement efficiently.",
+    "createdAt": "2019-06-11T15:30:40Z"
+  },
+  {
+    "id": 2882,
+    "sender": "aam",
+    "content": "fyi @a-siva (regarding changes to support mocked http client in image_provider_test)\r\ncc @mkustermann ",
+    "createdAt": "2019-06-24T23:28:51Z"
+  },
+  {
+    "id": 2883,
+    "sender": "dnfield",
+    "content": "/cc @apwilson - you may find this interesting ",
+    "createdAt": "2019-06-26T21:55:16Z"
+  },
+  {
+    "id": 2884,
+    "sender": "tvolkert",
+    "content": "Here's a use I stumbled upon that will be affected by this:\r\n\r\nhttps://github.com/rangaofei/saka_image/blob/8ff26be78c01f6cc020c7bffbafea84c1819d848/example/lib/MyImageProvider.dart#L55\r\n\r\nPerhaps it's worth using @pq's analysis tools to find all call sites of this API in public Pub packages and to send PRs to update them?\r\n\r\nAlso, can you update this PR description to use the template, with a link to the breaking change announcement?",
+    "createdAt": "2019-07-08T01:26:05Z"
+  },
+  {
+    "id": 2885,
+    "sender": "aam",
+    "content": "> Also, can you update this PR description to use the template, with a link to the breaking change announcement?\r\n\r\nDone.",
+    "createdAt": "2019-07-08T15:43:33Z"
+  },
+  {
+    "id": 2886,
+    "sender": "aam",
+    "content": "https://github.com/aam/flutter_svg/commit/3d7eb1f2ba0b759d82886f9ef33632b4dee95242 should fix customer_testing step. Since that lives in it's own repo, not sure how breaking changes are supposed to be landed without breaking tests. @dnfield ?",
+    "createdAt": "2019-07-16T16:19:17Z"
+  },
+  {
+    "id": 2887,
+    "sender": "dnfield",
+    "content": "@aam - this kind of break ends up being very confusing for users.  All of my version constraints assume we're good until Flutter 2.0.  When something like this landed last time, I recieved issues over and over again from users who didn't understand what version of Flutter or flutter_svg to use.\r\n\r\nIs there any way we can avoid making this a breaking change?  Instead of breaking consolidateHttpResponse, could we create a new version that uses the new transferrable typed data, keeping the old version and maybe marking it deprecated?",
+    "createdAt": "2019-07-16T16:30:40Z"
+  },
+  {
+    "id": 2888,
+    "sender": "aam",
+    "content": "@dnfield wrote:\r\n\r\n> @aam - this kind of break ends up being very confusing for users. All of my version constraints assume we're good until Flutter 2.0. \r\n\r\nHmm, why until flutter 2.0? Doesn't flutter constantly announce breaking changes(similarly to how this change was announced), no?\r\n\r\n> When something like this landed last time, I recieved issues over and over again from users who didn't understand what version of Flutter or flutter_svg to use.\r\n\r\nYeah, I think having `flutter: \">=1.5.9-pre.94 <2.0.0\"` constraint in flutter_svg is too optimistic.\r\n\r\n> Is there any way we can avoid making this a breaking change? Instead of breaking consolidateHttpResponse, could we create a new version that uses the new transferrable typed data, keeping the old version and maybe marking it deprecated?\r\n\r\nSure we can do that too.\r\n",
+    "createdAt": "2019-07-16T16:56:39Z"
+  },
+  {
+    "id": 2889,
+    "sender": "tvolkert",
+    "content": "+1 to marking `consolidateHttpClientResponseBytes()` as deprecated and having it still return `Future<Uint8List>` -- and creating a new `getHttpClientResponseBytes()` that returns `Future<TransferableTypedData>`.  The former can be a light wrapper that delegates to the latter.",
+    "createdAt": "2019-07-16T17:00:48Z"
+  },
+  {
+    "id": 2890,
+    "sender": "tvolkert",
+    "content": "Context is that we're getting stricter about requiring soft transitions to our breaking changes where possible.",
+    "createdAt": "2019-07-16T17:01:27Z"
+  },
+  {
+    "id": 2891,
+    "sender": "dnfield",
+    "content": "> Yeah, I think having flutter: \">=1.5.9-pre.94 <2.0.0\" constraint in flutter_svg is too optimistic.\r\n\r\nYou are probably right, but at this point it's too late to undo, and there are a lot of plugins (including all our first party plugins, where I copied this logic from originally, back before anyone talked at all about breaking change policies) that use this method.",
+    "createdAt": "2019-07-16T17:23:33Z"
+  },
+  {
+    "id": 2892,
+    "sender": "goderbauer",
+    "content": "(PR triage): Looks like there hasn't been any activity in a month... Is this PR still active? Or should it be closed?",
+    "createdAt": "2019-08-14T21:34:39Z"
+  },
+  {
+    "id": 2893,
+    "sender": "tvolkert",
+    "content": "afaik this is still active.  I can do another round of review, but if anyone else with fresh eyes wanted to review as well, it wouldn't hurt.",
+    "createdAt": "2019-08-14T21:38:14Z"
+  },
+  {
+    "id": 2894,
+    "sender": "goderbauer",
+    "content": "Actually, I take that back. I don't understand why moving this to a separate isolate increases performance for https connections. The HTTPClient API is asynchronous. Why does it matter for performance where we take the data from the HTTP client (separate isolate or main thread)? Why is the dart side where we take the data determining how fast it can be downloaded/decrypted? Shouldn't the lower layers (e.g. HTTP client and its backing C++ implementation) just transparently handle the encryption?\r\n\r\nI do get that encryption adds some overhead, but I would have expected that to be the same no matter where the data is obtained from the HTTP client. ",
+    "createdAt": "2019-09-04T00:16:32Z"
+  },
+  {
+    "id": 2895,
+    "sender": "aam",
+    "content": "> Actually, I take that back. I don't understand why moving this to a separate isolate increases performance for https connections. \r\n\r\nImagine https handshake requires series of questions asked client by the server. If client is busy doing other things(i.e. isolate's event loop is busy), then time to respond to the server's question will be longer. Once all questions are answered and (https-specific) handshake is completed, then actual bytes are being sent.",
+    "createdAt": "2019-09-04T03:46:31Z"
+  },
+  {
+    "id": 2896,
+    "sender": "goderbauer",
+    "content": "That makes sense. However, I would have expected that the HTTP client abstracts all that away from me. Isn't the actual data downloading already happening \"in the background\" while the event loop is doing other stuff? Why is whatever is running in the background there not also dealing with the handshake stuff? Why does this have to come back to the event loop?",
+    "createdAt": "2019-09-04T16:49:31Z"
+  },
+  {
+    "id": 2897,
+    "sender": "aam",
+    "content": "> That makes sense. However, I would have expected that the HTTP client abstracts all that away from me. Isn't the actual data downloading already happening \"in the background\" while the event loop is doing other stuff? Why is whatever is running in the background there not also dealing with the handshake stuff? Why does this have to come back to the event loop?\r\n\r\nHandshake messages are received and processed in the background, but are handled on event loop. So if server requested first step handshake in 5ms, client event loop was free, then client will respond to the server message right away taking 5ms for this first step complete. However if client event loop was busy for 10ms, then client will be able to respond only in 10ms. If there are multiple steps in this handshake process you accumulate the latency caused by event loop being busy.",
+    "createdAt": "2019-09-04T17:03:50Z"
+  },
+  {
+    "id": 2898,
+    "sender": "aam",
+    "content": "> @goderbauer brought up a good point about whether we could push this down the `HttpClient` layer. Since its API already deals in futures, could it just have a configuration to do its network I/O in a dedicated isolate?\r\n\r\nYes, sure. Only reason it hasn't been done I imagine so far is that isolates haven't been used that  often. cc @lrhn\r\n",
+    "createdAt": "2019-09-12T20:38:57Z"
+  },
+  {
+    "id": 2899,
+    "sender": "aam",
+    "content": "This got reverted because tests that used to manage to get image loaded (for screendiffing) were no longer getting image loaded - running things on a separate isolate introduced more indeterminism as to when the images are ready.\r\nWe need to decide how to proceed with this - this is an existing problem that has been looked at in the past: https://github.com/flutter/flutter/pull/38923#issuecomment-523680601",
+    "createdAt": "2019-09-20T17:25:01Z"
+  },
+  {
+    "id": 2900,
+    "sender": "yjbanov",
+    "content": "## ☂️ Intent to deprecate and remove the HTML renderer in Flutter Web\n\n### Document Link\r\n\r\nhttps://flutter.dev/go/deprecate-html-renderer\r\n\r\n### What problem are you solving?\r\n\r\nThe HTML renderer is complex, underperforming, and limited in graphical expressivity compared to WebGL-based CanvasKit and Skwasm renderers. Flutter Web’s WebGL-based renderers matured to a point where the value provided by the HTML renderer no longer outweighs the maintenance costs, the developer-facing complexity (having to choose between multiple renderers and work around their limitations), and loss of focus on the WebGL renderers.\r\n\r\nSee the [document](https://docs.google.com/document/d/1DGamHsa2lz_Qtgfrfa3j3fRaEopJXc7tCFVM1TQlck8/edit?usp=sharing&resourcekey=0-IjkqrCoo_EcRRS2bPYKI8w) for an expanded problem statement.\r\n\r\n### Tasks\r\n\r\nThe following tasks need to be completed before we begin the deprecation process:\r\n\r\n- [x] https://github.com/flutter/flutter/issues/113713\r\n  - [x] https://github.com/flutter/flutter/issues/151911\r\n- [x] optimized app loading (landed with the new bootstrap API)\r\n- [x] https://github.com/flutter/flutter/issues/149863\r\n- [x] https://github.com/flutter/flutter/issues/149843\r\n- [x] https://github.com/flutter/flutter/issues/154878\r\n- [x] https://github.com/flutter/flutter/issues/154879\r",
+    "createdAt": "2024-03-29T02:46:01Z"
+  },
+  {
+    "id": 2901,
+    "sender": "Juliotati",
+    "content": "The link in \"TBD\" is 404.\nCould it be that it will be available later?",
+    "createdAt": "2024-03-29T05:58:42Z"
+  },
+  {
+    "id": 2902,
+    "sender": "Novined",
+    "content": "Canvas renderer is awful. It's slow, even on high-end devices there are freezes, impossible to copy text even in text fields. Web renderer gives an opportunity to generate, not excellent, but ok-working solution",
+    "createdAt": "2024-03-29T13:04:21Z"
+  },
+  {
+    "id": 2903,
+    "sender": "yjbanov",
+    "content": "@Juliotati The `go/` link is live now.\r\n\r\n@Novined Text fields work identically between HTML and CanvasKit. I'm surprised there's a difference. We'd appreciate if you could file an issue explaining what's not working. Same about slowness. All indicators we have show that CanvasKit is faster in most scenarios. The only scenario where it's slower is in the presence of platform views, which is discussed in the proposal. We plan to focus on platform view optimization between now and the time we remove the HTML renderer.",
+    "createdAt": "2024-03-29T20:30:02Z"
+  },
+  {
+    "id": 2904,
+    "sender": "ImadBouirmane",
+    "content": "I'm not much close to your understanding but can you just give me a brief the dfiferent between **Rendering by HTML or by CanvasKit**.\r\nLook to hear from you. ",
+    "createdAt": "2024-03-29T22:54:04Z"
+  },
+  {
+    "id": 2905,
+    "sender": "yvrez",
+    "content": "Go for it. Webgl rendering + wasm is the way to go & we need the team to focus on a single performant & futur proof renderer. ",
+    "createdAt": "2024-03-29T23:08:22Z"
+  },
+  {
+    "id": 2906,
+    "sender": "ditman",
+    "content": "> I'm not much close to your understanding but can you just give me a brief the dfiferent between **Rendering by HTML or by CanvasKit**. Look to hear from you.\r\n\r\nCheck the document that @yjbanov linked at the beginning of the thread; I think it summarizes well the pros/cons of each renderer.",
+    "createdAt": "2024-03-29T23:32:20Z"
+  },
+  {
+    "id": 2907,
+    "sender": "dxvid-pts",
+    "content": "Sunsetting the html renderer would be very problematic for one of our projects as the canvaskit renderer is still buggy in platform view scenarios. \n\nAn example: https://github.com/flutter/flutter/issues/143747. We also experience various other issues when platform views are present. For example\n- Firefox is flickering until the platform view is removed from the scene \n- Rendering issues on old safari versions (Safari version 14).\n\nThese issues are not present when using the html renderer.",
+    "createdAt": "2024-03-30T00:22:51Z"
+  },
+  {
+    "id": 2908,
+    "sender": "gildaswise",
+    "content": "I'm still not comfortable with the CORS situation. Is the Flutter team really expecting everyone to give up Image.network working with any image and pivot to using platform views with fixed sizes? The proxy solution isn't that good either. \n\nFor context, I'm developing [deck.blue](https://deck.blue), a [Bluesky client](https://techcrunch.com/2024/01/26/deck-blue-brings-a-tweetdeck-experience-to-bluesky-users/) which means that I will never \"own\" the images displayed and would rely on them [turning on CORS](https://github.com/bluesky-social/atproto/issues/1732). And that also wouldn't work 100% due to how federation works and soon there will be media hosted outside of their CDN. What then? Should I just use proxies and have to pay for that?",
+    "createdAt": "2024-03-30T04:55:07Z"
+  },
+  {
+    "id": 2909,
+    "sender": "SaadArdati",
+    "content": "The HTML renderer still performs better than CanvasKit in certain browsers like WebKit (any iOS browser) & Safari.\r\n\r\nMy reference is developing this Flutter website https://hyperzones.hyperdesigned.dev/. It performed extremely poorly under 10fps on CanvasKit, and peforms significantly better (but still not great) on WebKit. So we force-enable HTML when building and deploying it.\r\n\r\nI would not remove HTML Renderer.",
+    "createdAt": "2024-03-30T08:55:35Z"
+  },
+  {
+    "id": 2910,
+    "sender": "r3flow",
+    "content": "If WebGL or Skwasm works well and is stable in the iOS browser, you can remove the HTML renderer. If not, then no.",
+    "createdAt": "2024-03-30T20:56:29Z"
+  },
+  {
+    "id": 2911,
+    "sender": "josiahsrc",
+    "content": "The biggest issue for us is load time. Canvaskit increases load time significantly, so I'm weary of this change unless the speed can be improved.\r\n\r\nFor context, our onboarding site is built using canvas-kit flutter web. We track drop-off and are able to see how many users visit the site and at which point users leave (typical funnel). Using this, we found that 33% of leads drop off during the time it takes to load the app (to be clear, 33% is a lot). The 3 culprits seem to be `dart.main.js 1.6mb`, `canvaskit.wasm 1.5mb`, and the time it takes to spin up the engine. We're going to run an experiment to see how html-renderer improves these stats.\r\n\r\nWe love sharing the same onboarding code between web and mobile, but are considering switching the web portion over to react because of this.\r\n\r\n<img width=\"512\" alt=\"image\" src=\"https://github.com/flutter/flutter/assets/37915005/989c4800-9616-4b23-8c39-11f66157f90d\">",
+    "createdAt": "2024-03-31T13:22:12Z"
+  },
+  {
+    "id": 2912,
+    "sender": "dutsky",
+    "content": "Could you please consider not deprecating the HTML renderer? One significant advantage not mentioned in the documentation is its performance on slower machines, such as terminals. Web applications that run on CanvasKit on machines without a dedicated, decent GPU tend to consume a substantial amount of CPU resources, and the situation on terminal servers is even more challenging. The HTML renderer was a more-or-less suitable solution.\r\n\r\nThanks",
+    "createdAt": "2024-04-01T07:58:52Z"
+  },
+  {
+    "id": 2913,
+    "sender": "slavap",
+    "content": "Instead of deprecating HTML renderer - assign resources to improve it (Google is not poor and can afford to hire five additional developers). It has to be more configurable than it is right now, e.g. \"famous\" hack to force **p** element for showing texts: https://github.com/flutter/flutter/issues/81215#issuecomment-827441516\r\nAlso, this improved and configurable HTML renderer could be later used to \"soften\" SEO problems, and could be used to solve this issue https://github.com/flutter/flutter/issues/139292\r\nUnderstandably, there always be some limitations in html renderer - but in many use cases, it does not matter at all. \r\n\r\nIn any case, please **DO NOT deprecate** html renderer till all major problems (e.g. CORS for images, platform views, ...) are solved in canvaskit. When they are solved, then it will be at least understandable to move to the one 100% better renderer, but currently canvaskit is not obviously better.\r\n\r\nAlso, 10mbit connection is not always the case, on phones it could be much slower, especially in developing countries.",
+    "createdAt": "2024-04-03T00:54:19Z"
+  },
+  {
+    "id": 2914,
+    "sender": "yeras-is",
+    "content": "Hey, glad to hear that, in my project I always force to use Canvas Kit, only problems is on first launch it's still janky and doesn't have smooth animations, and emojies doesn't match theirs colors.\r\nHey @yjbanov can Flutter team integrate with Google Chrome team and add CanvasKit to Chromium so if browser based on Chromium we can load CanvasKit locally ?\r\n",
+    "createdAt": "2024-04-03T06:42:05Z"
+  },
+  {
+    "id": 2915,
+    "sender": "yjbanov",
+    "content": "To summarize the feedback, it seems we should focus on the following:\r\n\r\n- CORS images\r\n- Platform view efficiency\r\n- Platform view bugginess\r\n- Load time\r\n- iOS browsers (i.e. Safari/WebKit)\r\n\r\nWe are actively working on the first three (CORS image fix is related to platform views). For load time, we are launching a new bootstrap design that takes advantage of parallelism when fetching static resources. For example, you should now see `canvaskit.wasm` fetched simultaneously with `main.dart.js` and from separate hosts, so the actual start-up cost of CanvasKit should be much smaller. The bootstrap API also allows creating a plain HTML landing page for the app while loading the Flutter app in the background. By the time the user is done interacting with the landing page most of the Flutter app will be ready. Most of the slowness in iOS is due to lack of `ImageDecoder` API, so we'll need to find a better image decoder fallback than the current single-threaded wasm codec solution.\r\n\r\nUnfortunately, the following would be impractical for us to address:\r\n\r\n- Supporting hardware without GPUs.\r\n  - On the native side Flutter already requires a GPU, and with Impeller that requirement will go even further and require the latest crop of graphics APIs that don't make sense without GPUs at all. I doubt that Flutter Web is positioned to fight that trend or risk putting brakes on Flutter overall. I think if GPU-less hardware is important for your app, Flutter may not be the right choice.\r\n- Hiring more engineers to support the HTML renderer.\r\n  - Hiring is not about cost, but about _opportunity_ cost. It's not that Google can or cannot afford hiring more engineers, but that when it does hire engineers the company needs to decide what projects to assign them to. Unfortunately, the HTML renderer does not present a good case here.\r\n",
+    "createdAt": "2024-04-03T21:02:53Z"
+  },
+  {
+    "id": 2916,
+    "sender": "yjbanov",
+    "content": "@yeras-is We try to participate in the web standards process in a framework vendor capacity. We inform the W3C efforts about Flutter developer needs on the web. For example, we provided early feedback on the WasmGC proposal, and the [Canvas Formatted Text](https://github.com/WICG/canvas-formatted-text). Bundling CanvasKit into Chrome is unlikely to be a scalable solution for several reasons:\r\n\r\n- It would make it Chrome-only.\r\n- We'd have to deal with versioning issues, where the browser gives you one version of CanvasKit but the Flutter SDK moves on to the next.\r\n- We'd have less freedom to improve CanvasKit. Right now we can make large changes to CanvasKit. For example, we reduced its size from 3.2MB down to 1.5MB. Skwasm, which is a from-scratch rewrite of CanvasKit bindings, reduces it down to 1MB. If you make it built into the browser, our hands would be tied.",
+    "createdAt": "2024-04-03T21:12:26Z"
+  },
+  {
+    "id": 2917,
+    "sender": "slavap",
+    "content": "@yjbanov \r\n_Unfortunately, the HTML renderer does not present a good case here._\r\n\r\nI strongly don't agree with that statement - having a \"customizable\" html renderer could solve multiple problems. It could be limited by supported features, but if it works and perhaps able to create \"human readable\" DOM structure - it will be a great help for SEO scenarios and also useful for \"classic\" web testing tools working through the interaction with DOM elements, see https://github.com/flutter/flutter/issues/97455\r\nAlso in real life it is very often necessary to integrate Flutter webapp with an existing website, and html renderer could be more suitable for such cases.\r\n\r\nNobody arguing that canvaskit renderer is better for Flutter overall, but you are trying to ignore the fact that html renderer (even limited) could be very useful for Flutter Web in various scenarios.\r\n \r\n_iOS browsers (i.e. Safari/WebKit)_\r\nAnd for god's sake, please fix this issue https://github.com/flutter/flutter/issues/69529\r\nOn the phones Flutter webapp looks like \"retarded\" because of this :-(\r\n\r\nAnd please don't forget to address Ctrl+F search somehow - you have it in the docs, and it is quite important for webapp.\r\n\r\nAnd the question about SVG support - does canvaskit support it? Or huge flutter_svg package is still required to support it? Because with html renderer SVG support comes \"for free\" from the browser.",
+    "createdAt": "2024-04-03T23:47:50Z"
+  },
+  {
+    "id": 2918,
+    "sender": "dxvid-pts",
+    "content": "@yjbanov good summarization of the issues\n If these will be fixed we don't see any problems not to sunset the html renderer. ",
+    "createdAt": "2024-04-04T09:36:37Z"
+  },
+  {
+    "id": 2919,
+    "sender": "ditman",
+    "content": "Just for completeness, bringing another argument [against deprecating the renderer from `r/FlutterDev`](https://www.reddit.com/r/FlutterDev/comments/1br2n3c/intent_to_deprecate_and_remove_the_html_renderer):\r\n\r\n* [VenkatPerla](https://www.reddit.com/r/FlutterDev/comments/1br2n3c/comment/kx8eaid/): Html renderer works in an environment not connected to the internet. The other renderer(default one), needs internet and usually does an api call to get the renderer. In some of my projects, I need the environment to be not connected to the internet.\r\n\r\n(unsure if the user is more concerned about load time, that additional assets need to be downloaded at all, or maybe that there's no good offline mode)",
+    "createdAt": "2024-04-04T19:09:40Z"
+  },
+  {
+    "id": 2920,
+    "sender": "slavap",
+    "content": "@yjbanov @ditman \r\nI think \"native\" SVG support should be planned for canvaskit (if it is not already implemented), if I understand it correctly, part of Chromium optimizations were based on using \"browser\" image processing functionality.",
+    "createdAt": "2024-04-05T00:36:39Z"
+  },
+  {
+    "id": 2921,
+    "sender": "NeroSong",
+    "content": "Support putting more resources into CanvasKit, but please also keep the HTML Renderer, even if it doesn't get updated much.\r\n\r\nWe've had lots of projects in production using the latter, and they perform well on low-performance phones and load faster, and it's easy to embed some HTML elements.\r\n\r\nRemoving the HTML Renderer would inevitably result in huge migration costs for many older projects 😢",
+    "createdAt": "2024-04-08T01:46:51Z"
+  },
+  {
+    "id": 2922,
+    "sender": "aanari",
+    "content": "> For load time, we are launching a new bootstrap design that takes advantage of parallelism when fetching static resources. For example, you should now see canvaskit.wasm fetched simultaneously with main.dart.js and from separate hosts, so the actual start-up cost of CanvasKit should be much smaller.\r\n\r\nThat's great, please do not deprecate the HTML renderer until CanvasKit's load time is on par with it!",
+    "createdAt": "2024-04-08T05:50:45Z"
+  },
+  {
+    "id": 2923,
+    "sender": "w830207",
+    "content": "放棄Html renderer從長遠來看一定是好的方向！支持！\r\n\r\n> Giving up Html renderer must be a good direction in the long run! support!",
+    "createdAt": "2024-04-08T08:22:07Z"
+  },
+  {
+    "id": 2924,
+    "sender": "Jeremiah-Griffin",
+    "content": ">For load time, we are launching a new bootstrap design that takes advantage of parallelism when fetching static resources.\r\n\r\nI appreciate this, however there remains the problem of sheer bundle size. On my own application, building with canvaskit bloats the compressed size application by a factor of 5 - from ~500kb - 2.5mb.\r\n\r\nTo this end, I strongly disagree with the out of hand rejection of increased bundle size as a valid concern by the linked document (I'll call it the Design Document).\r\n\r\n> Mild: the extra payload needed for WebGL only costs 0.8 seconds on a connection that is now considered 2.5x slower than the [old definition](https://arstechnica.com/tech-policy/2024/03/fcc-scraps-old-speed-benchmark-says-broadband-should-be-at-least-100mbps/) of “broadband”.\r\n\r\nThe citation of this metric is , in my view, improper for a wide variety of reasons\r\n\r\n1.  \r\na. The FCC is not an international regulatory body, but an American one. Making technical decisions predicated upon broadband speeds for a country with [the fifth fastest fixed broadband internet in the world](https://www.speedtest.net/global-index) is an incredible disservice to residents of nations not likewise privileged.  \r\n\r\nNowhere in the copy of Flutter Web is it alleged that the framework is designed only for web apps delivered in America. As such, the impact of technical decisions should not be inferred by calculus done solely for Americans and American policy makers.\r\n\r\nb. What the document asserts as a standard for broadband, the [FCC report](https://docs.fcc.gov/public/attachments/FCC-24-27A1.pdf) on page 41 states the following:\r\n>Consistent with past Commission practice, we decline to set a benchmark for determining\r\nservice availability of advanced telecommunications capability for mobile services (mobile advanced\r\ntelecommunications capability) in this Report.\r\n\r\nConsidering that by default flutter delivers the HTML renderer to mobile browsers, removing a feature seemingly retained for them on the citation of a citation of a document that explicitly refuses to remark upon mobile web services is , in my view, unsound.\r\n\r\nc. The standards set for raw throughput of broadband is only *one* factor of overall quality of service. Packet loss - particuarly when compounded by transport latency and/or signal strength - is another technically relevant metric that is uncited by the document. While many connections may meet the throughput demands to only suffer a \"0.8 second performance hit\", this is seemingly a mathematical approximation divorced from the reality of WiFi, mobile, and Satellite connections which all suffer degredations in QoS wrought by the aforementioned factors with a high degree of regularity; a real-world test is bound derive a significantly poorer result, especially on marginal examples of these connections.\r\n\r\nd. The 0.8 second figure is only for the network download. It does not include the cost due to parsing all that additional WASM. On my machine this is not insignificant. \r\n\r\ne. Bandwidth cost, neither for those hosting flutter web applications nor consumers of them on metered connections, to include the vast majority of mobile users is not considered.\r\n\r\n2. This is a standard used in no small part to regulate marketing terminology. While it is informed by offerings available on the market, the actual FCC release *clearly* states that the proposed standard is not being universally met: \r\n>100/20 Mbps terrestrial fixed broadband service4 has not been physically deployed to approximately 7%\r\nof Americans. Rural areas and Tribal lands significantly trail more urban areas, with approximately 28%\r\nof people living in rural areas and approximately 23% of people living on Tribal lands lacking access to\r\n100/20 Mbps fixed broadband services.\r\n\r\nWhile this statement is rebutted toward the end of the FCC report by commissioner Carry on account of the emerging [satellite internet constellations](https://en.wikipedia.org/wiki/Satellite_internet_constellation) like SpaceX's starlink and Amazon's project kuipier, the findings of the majority consensus itself do not support the claims the Design Document is attempting to assert by transitively citing it.\r\n\r\n3. Even if this standard was suitable for such decision making,  it is an exceptionally recently set one, hence that if it was tied to real world performance, like any other standard technical or no, there must be time allotted for adherence to the standard to become widespread. Less than a month has passed since the publishing of this standard and today, and less than that since the publishing of the Design Document.\r\n\r\n\r\nTo the authors of this Document and the broader flutter team, in your decision making please:\r\n\r\n- incorporate real-world metrics of internet performance, rather than regulatory standards of the same.\r\n- incorporate international, rather than solely American metrics on internet performance.\r\n- incorporate real-world testing or simulation of QoS degredation on the impact of load times\r\n\r\nFinally, while I have not personally been able to test the WASM backend myself due to some bugs presumably with runtime feature detection, it is my understanding that WASM as opposed to delivery of minified JS has benefits regarding compressibility, binary packing, link time optimization between other wasm assets,  and streaming parsing that could potentially produce bundles smaller than using JS as a compilation target, or otherwise ameloriate the penality of large bundle sizes in general. However, being unable to test the WASM backend myself and having not found any concrete metrics on bundle size and network performance of flutter projects compiled to Web Assembly, I would personally - and imagine the community at large would as well - greatly appreciate some metrics on bundle sizes produced by the dart WASM backend in a real world application compared with the JS backend between both CanvasKit and HTML renderers. Only then would I be comfortable with the HTML renderer being deprecated.\r\n",
+    "createdAt": "2024-04-16T00:03:09Z"
+  },
+  {
+    "id": 2925,
+    "sender": "OlehSv",
+    "content": "CanvasKit looks like a future of flutter web, while HTML renderer from my experience is too buggy and can't suggest anything promising.",
+    "createdAt": "2024-04-16T12:06:07Z"
+  },
+  {
+    "id": 2926,
+    "sender": "zsxawerdu",
+    "content": "@OlehSv I agree, I have a few flutter web apps in production and canvas kit is a hard requirement.   I was wondering when they would remove the html renderer.\r\n\r\n",
+    "createdAt": "2024-04-18T03:20:04Z"
+  },
+  {
+    "id": 2927,
+    "sender": "uldall",
+    "content": "> Just for completeness, bringing another argument [against deprecating the renderer from `r/FlutterDev`](https://www.reddit.com/r/FlutterDev/comments/1br2n3c/intent_to_deprecate_and_remove_the_html_renderer):\r\n> \r\n>     * [VenkatPerla](https://www.reddit.com/r/FlutterDev/comments/1br2n3c/comment/kx8eaid/): Html renderer works in an environment not connected to the internet. The other renderer(default one), needs internet and usually does an api call to get the renderer. In some of my projects, I need the environment to be not connected to the internet.\r\n> \r\n> \r\n> (unsure if the user is more concerned about load time, that additional assets need to be downloaded at all, or maybe that there's no good offline mode)\r\n\r\nThe canvaskit URL can be declared with `--dart-define=FLUTTER_WEB_CANVASKIT_URL` such that it is downloaded from a local web server.",
+    "createdAt": "2024-04-18T14:56:08Z"
+  },
+  {
+    "id": 2928,
+    "sender": "yjbanov",
+    "content": "@Jeremiah-Griffin Your concern is valid, and we will continue working on reducing the overall bundle size. As for the choice of 10 mbps as our baseline network speed, according to the [link you shared](https://www.speedtest.net/global-index) the world average is shown to be 52 mbps for mobile. We're targeting 1/5 of that. Of course, there will still be situations where network speeds are too terrible for Flutter Web apps. In that case, perhaps Flutter Web is not the right choice. Perhaps an AOT-compiled app (Android or iOS) is better, which does not require any network to launch the app. However, if web support is absolutely required on very bad connections, then perhaps Flutter is not the right choice for the time being.\r\n\r\n@uldall Yes, you can specify a local CanvasKit and a local source of fallback fonts. If you have both, then the app can run in fully offline mode (if preinstalled as a PWA). Unfortunately, we do not make it easy to bundle our Noto fallback font bundle. You have to find it among our CIPD packages, fetch it manually, and put it on your server. We'd like to make it easier eventually, or even automate it entirely.\r\n",
+    "createdAt": "2024-04-27T00:12:19Z"
+  },
+  {
+    "id": 2929,
+    "sender": "slavap",
+    "content": "@yjbanov and what about SVG support? Is the plan to rely on flutter_svg package or some support will be added CanvasKit?",
+    "createdAt": "2024-04-27T01:49:51Z"
+  },
+  {
+    "id": 2930,
+    "sender": "Jeremiah-Griffin",
+    "content": "> @Jeremiah-Griffin Your concern is valid, ***snip***\r\n\r\nAgreed, but the problem remains that the design document does not accurately depict the costs of the bundle size.\r\n\r\n- multiplying bandwidth costs vs html rendered apps by 5 (in my experience ) times. Considering the prior default was to deploy the smaller build to mobile devices which make up over half of web traffic, this could pose a silent and very sudden increase to hosting costs for those who deploy flutter web applications. This is particuarly notable as the official flutter docs promote firebase hosting as a hosting provider for flutter web app which meters bandwidth.\r\n\r\nPut another way, once the update which deprecates the HTML renderer lands, a developer who used the hosting provider that is recommended by the project, and uses the default settings of the project should expect to see their hosting costs double with an update. That is something that should be conveyed by the document in my view, particuarly for the benefit of the largest, most important users of flutter web (not myself)\r\n\r\n- performance degredation in light of QoS of mobile connections\r\n- Parsing time (particuarly on mobile, chromebooks, older desktops/laptops etc) is not insignificant\r\n\r\nMy gripe is not solely with the citation of what I feel to be an inappropriate resource which minimizes the apparent penalty of the change, it's that the document is not comprehensively noting the penalties - some of which could be quite expensive for scale users of flutter web.\r\n\r\n\r\n\r\n",
+    "createdAt": "2024-04-27T11:51:14Z"
+  },
+  {
+    "id": 2931,
+    "sender": "maggie44",
+    "content": "> The biggest issue for us is load time. Canvaskit increases load time significantly, so I'm weary of this change unless the speed can be improved.\r\n> \r\n> For context, our onboarding site is built using canvas-kit flutter web. We track drop-off and are able to see how many users visit the site and at which point users leave (typical funnel). Using this, we found that 33% of leads drop off during the time it takes to load the app (to be clear, 33% is a lot). The 3 culprits seem to be `dart.main.js 1.6mb`, `canvaskit.wasm 1.5mb`, and the time it takes to spin up the engine. We're going to run an experiment to see how html-renderer improves these stats.\r\n> \r\n> We love sharing the same onboarding code between web and mobile, but are considering switching the web portion over to react because of this.\r\n> \r\n> <img alt=\"image\" width=\"512\" src=\"https://private-user-images.githubusercontent.com/37915005/318270936-989c4800-9616-4b23-8c39-11f66157f90d.png?jwt=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJnaXRodWIuY29tIiwiYXVkIjoicmF3LmdpdGh1YnVzZXJjb250ZW50LmNvbSIsImtleSI6ImtleTUiLCJleHAiOjE3MTQzMjgzNjIsIm5iZiI6MTcxNDMyODA2MiwicGF0aCI6Ii8zNzkxNTAwNS8zMTgyNzA5MzYtOTg5YzQ4MDAtOTYxNi00YjIzLThjMzktMTFmNjYxNTdmOTBkLnBuZz9YLUFtei1BbGdvcml0aG09QVdTNC1ITUFDLVNIQTI1NiZYLUFtei1DcmVkZW50aWFsPUFLSUFWQ09EWUxTQTUzUFFLNFpBJTJGMjAyNDA0MjglMkZ1cy1lYXN0LTElMkZzMyUyRmF3czRfcmVxdWVzdCZYLUFtei1EYXRlPTIwMjQwNDI4VDE4MTQyMlomWC1BbXotRXhwaXJlcz0zMDAmWC1BbXotU2lnbmF0dXJlPTRlMDA2MDY1YzBhZGI2MzRiMzFkZWNmNmY5ZDllMzQwM2MxNTAwNjZlM2EwNDJmNGU1YTE4OTIyNzg2Y2Q1ZGUmWC1BbXotU2lnbmVkSGVhZGVycz1ob3N0JmFjdG9yX2lkPTAma2V5X2lkPTAmcmVwb19pZD0wIn0.SiarcE0tSxgwASlSg8HP37JM6yJwx4JVNNk-XCrJ_MI\">\r\n\r\nI haven't got as far as to experience any issues with CanvasKit, I am doing my due diligence on Flutter and the initial time to first interaction is too long for it to really be viable for web. \r\n\r\nI see some people are hacking together loading pages. A loading page is something that should probably be included in the starter templates, or at least a working model documented. A white screen with no indication of anything going on breaks the most basic product rules, those drop-off rates are no surprise. Rendering as html doesn't completely solve the problem, but at least moves it a little closer to useable. Hopefully a simple solution around time to first interaction could be implemented before deprecating html render. ",
+    "createdAt": "2024-04-28T18:26:37Z"
+  },
+  {
+    "id": 2932,
+    "sender": "ditman",
+    "content": "> A loading page is something that should probably be included in the starter templates, or at least a working model documented.\r\n\r\n@maggie44 there's an example here: https://docs.flutter.dev/platform-integration/web/initialization#example-display-a-progress-indicator",
+    "createdAt": "2024-04-29T20:54:47Z"
+  },
+  {
+    "id": 2933,
+    "sender": "josiahsrc",
+    "content": "@ditman @maggie44 Those stats I mentioned above are from a website that uses a (very fancy) loading indicator. Sadly it doesn't seem to help the funnel drop-off. You can check it out here; The sunrise is the loading indicator. https://start.joinrelay.app/#/onboarding",
+    "createdAt": "2024-04-29T21:41:39Z"
+  },
+  {
+    "id": 2934,
+    "sender": "maggie44",
+    "content": "> @ditman @maggie44 Those stats I mentioned above are from a website that uses a (very fancy) loading indicator. Sadly it doesn't seem to help the funnel drop-off. You can check it out here; The sunrise is the loading indicator. https://start.joinrelay.app/#/onboarding\r\n\r\n@josiahsrc, I happened to open the link to joinrelay from my iPhone (12 Mini), Safari. It has AdGuard adBlocker running on it. The site doesn't open, it just sits on the sunset loading page and never progresses. With AdGuard disabled it loads. May be worth exploring if that or something similar is a chunk of the drop offs. ",
+    "createdAt": "2024-04-30T07:46:36Z"
+  },
+  {
+    "id": 2935,
+    "sender": "josiahsrc",
+    "content": "Wow, great find! I'll look into this. Thanks @maggie44! However our drop-off seems to originate from countries with slower internet speeds. So I believe packet size is at play here.",
+    "createdAt": "2024-04-30T12:39:40Z"
+  },
+  {
+    "id": 2936,
+    "sender": "yjbanov",
+    "content": "@Jeremiah-Griffin by default, if you just run `flutter build web`, you get CanvasKit from the globally shared gstatic.google.com CDN, and the fallback fonts come from fonts.google.com. Both are free to use. But I understand that gstatic may not always be usable, e.g. due to network policy reasons (intranet, firewalls, in-house/geographical hosting requirements), or offline support (installed PWAs), but it does cover a vast majority of use-cases.\r\n\r\n@josiahsrc I think a proper landing page (not just a progress bar) could improve the user experience even further. The page would use `flutter.js` to load the app in the background. I created a [small demo](https://flutter-landing-demo.web.app/) ([sources](https://github.com/yjbanov/flutter-landing-demo)).\r\n\r\n@slavap We aim to have SVG to be as good as on Flutter mobile. Whether it will be _better_ than the browser's SVG engine is a different question (depending on the browser engine we may be sometimes faster, sometimes slower; also it is not a goal to implement the full SVG spec). For complete SVG support, I think platform views will be the appropriate choice, similar to CORS images.",
+    "createdAt": "2024-05-01T23:30:40Z"
+  },
+  {
+    "id": 2937,
+    "sender": "SebAubin",
+    "content": "@yjbanov Have you considered the potential compatibility issues with browser extensions since they can't be in CanvasKit?",
+    "createdAt": "2024-05-16T13:16:21Z"
+  },
+  {
+    "id": 2938,
+    "sender": "xvrh",
+    "content": "@SebAubin my experience is that chrome extension work well with canvaskit.\r\n\r\nWith compilation flags like: \r\n```\r\nflutter build web --csp --web-renderer=canvaskit --no-web-resources-cdn\r\n```\r\n\r\nand a security policy like:\r\n\r\n```\r\n  \"content_security_policy\": {\r\n    \"extension_pages\": \"script-src 'self' 'wasm-unsafe-eval'; object-src 'self';\"\r\n  }\r\n```\r\n\r\nSee my package: [chrome_extension](https://pub.dev/packages/chrome_extension) for more examples",
+    "createdAt": "2024-05-16T13:58:26Z"
+  },
+  {
+    "id": 2939,
+    "sender": "c608345",
+    "content": "@xvrh  It's not  compatibility issues in buiding extension use flutter. It's  compatibility issues in browser extensions and websites build with flutter.",
+    "createdAt": "2024-05-18T11:50:37Z"
+  },
+  {
+    "id": 2940,
+    "sender": "xvrh",
+    "content": "@c608345 can you show an example of what you mean?",
+    "createdAt": "2024-05-18T12:17:07Z"
+  },
+  {
+    "id": 2941,
+    "sender": "c608345",
+    "content": "@xvrh Without HTML renderer generated DOM, browser extensions can't get webpage content with CSS selectors or XPath.",
+    "createdAt": "2024-05-18T14:11:35Z"
+  },
+  {
+    "id": 2942,
+    "sender": "haydus",
+    "content": "Having worked on a similar in-house cross-platform that renders to both Html and canvas, I can share my two cents from experience:\r\n1. Rendering to Html has always out-performed (speed and memory) Canvas when used properly since you don't need to make any image manipulation, and it is rendered natively on all platforms. It's like you're forced to make hula hoops in canvas just to get Html features. In my opinion the flutter html renderer is currently not optimized and can greatly be improved to compete React.\r\n2. On all platforms Html always gets the best and newest support since it is used far more than canvas. This means that it is each platform's top priority when it comes to issues, performance, new features, etc. No matter who is the vendor (Google, Apple, Microsoft), they make a lot of efforts in making Html run the best as they can.\r\n3. From user experience point of view, using canvas doesn't feel native, and features like text selection & copying, text search, are missing. Even the text editors feel crippled, especially on mobile. This is also true for the Html renderer, for some reason it is not implemented properly to feel \"native\" enough.\r\n4. Web tools used for debugging, tracking, analytics, etc. that rely on Html obviously don't work with canvas. They don't work that well with the current implementation of the Html renderer either, again, because of the way it is implemented, but at least they do something.\r\n\r\nIt all boils down to one question:\r\nIs flutter aimed to compete with React or is it just for mobile apps.\r\nIn my opinion, React will always win on web if Flutter doesn't support Html rendering properly, because of the points I mentioned, and as a result will eventually lose the entire battle because React manages to work well on both web and mobile apps, and no one wants to stay with a cross platform framework that supports only apps.",
+    "createdAt": "2024-05-20T15:02:59Z"
+  },
+  {
+    "id": 2943,
+    "sender": "yjbanov",
+    "content": "@SebAubin @xvrh @c608345 For extension compatibility consider enabling semantics. For example, like this:\r\n\r\nhttps://github.com/flutter/flutter/blob/65e30076877046d0f6e552e47d6e1ba21862365d/dev/a11y_assessments/lib/main.dart#L13\r\n\r\nCurrently, there can be performance impact as Flutter's semantics hasn't been sufficiently optimized. You may want to enable it conditionally, e.g. via a user setting, or have the extension enable it programmatically, if possible.\r\n\r\n@haydus Thanks for sharing your experience! It is true that HTML engines are very well optimized for websites. However, Flutter is built for web _apps_. Static websites (sometimes referred to as \"documents\") are predominantly made of long vertically scrolling statically laid out content. As you scroll through it, you rarely invalidate layout, and ultra-optimized sites don't even invalidate painting. Browser heuristics are tuned for this kind of content, and render it near perfectly. However, _app_-like content is more volatile, invalidating layout frequently, and repainting on every frame. Browser heuristics typically break down, and the website becomes janky. Flutter, however, is optimized precisely for app-like UI, which you can observe in lazy-by-default rendering, and programmable layout and painting layers. However, these heuristics do not perfectly match statically laid out content. Flutter has work to do to optimize for it. So as of today, browsers are indeed more efficient at static content. Another aspect is that apps tend to have much richer amount of business and UI logic in them and therefore their sizes are bigger. Therefore, we do not optimize Flutter for absolutely minimal payload sizes. For that, server-side (e.g. PHP, Django) or server-side rendered frameworks (e.g. Next.js) may be a better match (although if you need Dart, I've heard good things about [Jaspr](https://pub.dev/packages/jaspr)). Flutter Web is optimized such that your upfront payload is highly cacheable, and amortizes well as your app grows. That said, we do try to reduce the upfront payload as much as possible.\r\n\r\nIn our FAQ we explain what kinds of scenarios Flutter Web is best suited for: https://docs.flutter.dev/platform-integration/web/faq#what-scenarios-are-ideal-for-flutter-on-the-web. We indeed do not aim to replace HTML. Please, use it when it works better for your use-case.\r\n",
+    "createdAt": "2024-05-29T00:01:50Z"
+  }
+]

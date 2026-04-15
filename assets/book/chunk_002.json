@@ -1,0 +1,386 @@
+[
+  {
+    "id": 128,
+    "sender": "szotp",
+    "content": "> If that's really the case then I guess we should close this bug\r\n\r\n@Hixie Please don't. People care about this issue. I have talked with you on reddit about [the same thing](https://www.reddit.com/r/FlutterDev/comments/dtfxvf/which_parts_of_flutter_do_you_love_which_do_you/f6xe3yu/), but in context of SwiftUI: https://github.com/szotp/SwiftUI_vs_Flutter\r\n\r\nIt's not about hooks, it's about somehow improving stateful widgets. People simply hate writing boilerplate. For devs writing SwiftUI code, who are used to RAII and copy semantics of Views, manually managing disposables seems just off.\r\n\r\nSo I encourage flutter team to at least see this as a problem and think about alternative solutions / improvements. \r\n",
+    "createdAt": "2020-08-07T05:26:59Z"
+  },
+  {
+    "id": 129,
+    "sender": "escamoteur",
+    "content": "> I expect my build methods to only build the layout and nothing else. Setting up and tearing down dependencies definitely doesn't belong in the build method,\r\nThat's an important point. Build methods should be pure. Still I wished we could have the advantages without the difficulties ",
+    "createdAt": "2020-08-07T06:05:13Z"
+  },
+  {
+    "id": 130,
+    "sender": "esDotDev",
+    "content": "I really don't understand the push for more examples here. It's clear on it's face.\r\n\r\nThe problem solved by hooks is simply and obvious, it keeps the code DRY. The benefits of this are the obvious ones, less code == less bugs, maintenance is easier, less places for bugs to hide, lower line count overall increases readability, junior programmers are better insulated etc.\r\n\r\nIf you're talking a real world use case, it's an app where you're setting up and tearing down 12 animator controllers in 12 different views, every single time, leaving open the door to missing a dispose() call, or overriding some other lifecycle method. then apply that to dozens of other stateful instances, and you're easily looking at hundreds or thousands of pointless lines of code.\r\n\r\nFlutter is full of these cases where we need to constantly repeat ourselves, setting up, and tearing down state of little objects, that create all kinds of opportunities for bugs that do not need to exist, but do, because there's currently no elegant approach to sharing this rote setup/teardown/sync logic.\r\n\r\nYou can see this issue in literally _any_ state that has a setup and teardown phase, or has some lifecycle hook that always needs to be tied into to. \r\n\r\nMyself I find using widgets is the best approach, I rarely use AnimatorController for example cause the setup/teardown is so annoying, verbose and bug prone, instead using TweenAnimationBuilder everywhere I can. But this approach has its limitations as you get to a higher number of stateful objects in a given view, forcing nesting and verbosity where really none should be required.  ",
+    "createdAt": "2020-08-07T06:18:41Z"
+  },
+  {
+    "id": 131,
+    "sender": "Hixie",
+    "content": "@szotp I haven't... I would much rather we establish one or more baseline apps that demonstrate the problem so that we can evaluate the solutions. I would do it myself but I don't understand exactly what it is we're trying to solve so I'm the wrong person to do it.\r\n\r\n@escamoteur Baseline apps would help us design solutions that don't have the difficulties.\r\n\r\n@esDotDev We've discussed cases like this in this bug so far, but every time we have, solutions other than Hooks get dismissed because they don't solve some problem that wasn't included in the example that the solution addressed. Hence, simple descriptions of problems don't seem to be sufficient to capture the full extent. For example, the \"12 animator controllers\" case maybe could be solved by an array of animation controllers and the functional features in Dart. TweenAnimationBuilder might be another solution. Neither of those involve Hooks. But I'm sure if I suggest that, someone will point out something I've missed and say \"it doesn't work because...\" and bring up that (new, in the context of the example) problem. Hence the need for a baseline app that we all agree covers the full spread of the problem.\r\n\r\nIf anyone would like to drive this forward I really think the best way to do it is what I described above (https://github.com/flutter/flutter/issues/51752#issuecomment-670249755 and https://github.com/flutter/flutter/issues/51752#issuecomment-670232842). That will give us a starting point that we can all agree represents the extent of the problem we're trying to solve; then, we can design solutions that address those problems in ways that address all the desires (e.g. @rrousselGit's need for reuse, @Rudiksz's need for clean build methods, etc), and most importantly we can evaluate those solutions in the context of the baseline apps.",
+    "createdAt": "2020-08-07T06:22:52Z"
+  },
+  {
+    "id": 132,
+    "sender": "esDotDev",
+    "content": "I think we could all fairly easily agree on he problem: \r\n_There is no elegant way to share the setup/teardown tasks associated with things like Streams, AnimatorControllers etc. This leads to unnecessary verbosity, openings for bugs, and reduced readability._\r\n\r\nDoes anyone not agree with that? Can't we start there and move forward in search of a solution? We have to agree that is a core problem first, which it seems like we still do not. \r\n\r\nAs I write that though, I realized matches exactly the name of the issue, which is open ended and leaves room for discussion: \r\n\"**Reusing state logic is either too verbose or too difficult**\"\r\n\r\nTo me that is a very obvious problem, and we should be quickly moving past the debate stage and into brainstorming about what would work, if not hooks then what. We need micro-states that are re-usable... I'm sure we can figure something out.  It would really clean up a lot of Flutter views at the end of the day and make them more robust.",
+    "createdAt": "2020-08-07T06:29:26Z"
+  },
+  {
+    "id": 133,
+    "sender": "Rudiksz",
+    "content": "> @Hixie Please don't. People care about this issue. I have talked with you on reddit about [the same thing](https://www.reddit.com/r/FlutterDev/comments/dtfxvf/which_parts_of_flutter_do_you_love_which_do_you/f6xe3yu/), but in context of SwiftUI: https://github.com/szotp/SwiftUI_vs_Flutter\r\n\r\nYour SwiftUI example can be replicated in dart in a few lines of code, by simply extending the StatefulWidget class.  \r\n\r\nI have StatefulWidgets that don't subscribe to any notifiers and/or do any external calls, and in fact most of them are like that. I have about 100 custom widgets (although not all Stateful), and maybe 15 of them have any kind of \"common state logic\" as described by the examples here.\r\n\r\nIn the long run, writing a few lines of code (aka boilerplate) is a small tradeoff in order to avoid unnecessary overhead. And again, this issue of having to implement the initState/didUpdate methods seems way overblown. When I create a widget that uses any of the patterns described here,  I maybe spend first 5-10 minutes on \"implementing\" the lifeCycle methods and then a few days actually writing and polishing the widget itself while never touching said lifecycle methods. The amount of time I spend on writing the so called boilerplate setup/teardown code is minuscule compared to my app code.\r\n\r\nAs I said the fact that StatefulWidgets make so few assumptions about what they are used for is what makes them so powerful and efficient. \r\n\r\nAdding a new type of widget to Flutter that subclasses StatefulWidget (or not) for this particular use case would be fine, but let's don't bake it into the StatefulWidget itself. I have a lot of widgets that don't need the overhead that would come with a \"hooks\" system or microstates.",
+    "createdAt": "2020-08-07T06:36:29Z"
+  },
+  {
+    "id": 134,
+    "sender": "Hixie",
+    "content": "@esDotDev I agree that that is a problem some people are facing; I even proposed some solutions earlier in this issue (search for my various versions of a `Property` class, might be buried now since GitHub doesn't like to show all the comments). The difficulty is that those proposals were dismissed because they didn't solve specific issues (e.g. in one case, didn't handle hot reload, in another, didn't handle didUpdateWidget). So then I made more proposals, but then those were again dismissed because they didn't handle something else (I forget what). This is why it's important to have some sort of baseline we agree represents the _entire_ problem so that we can find solutions for that problem.",
+    "createdAt": "2020-08-07T06:44:30Z"
+  },
+  {
+    "id": 135,
+    "sender": "rrousselGit",
+    "content": "The goal has never changed. The criticisms made are that the solutions suggested have a lack in flexibility. None of them continue to work outside of the snippet they were implemented for.\r\n\r\nThis is why the title in this issue mentions \"Difficult\": Because there is currently no flexibility in the way we currently solve problems.\r\n\r\n___\r\n\r\nAnother way to look at it is:\r\n\r\nThis issue is basically arguing that we need to implement a Widget layer, for State logic.\r\nThe solutions suggested are \"But you can do it with RenderObjects\".\r\n\r\n",
+    "createdAt": "2020-08-07T06:53:04Z"
+  },
+  {
+    "id": 136,
+    "sender": "esDotDev",
+    "content": "_In the long run, writing a few lines of code (aka boilerplate) is a small tradeoff in order to avoid unnecessary overhead._ \r\n\r\nCouple nits with this statement:\r\n1. It's not really a few lines, if you take brackets, line spacing @overides, etc into acct, you can be looking at 10-15+ lines for a simple animator controller. That is non-trivial in my mind... like way beyond trivial. 3 lines to do this bugs me (in Unity it's `Thing.DOTween()`). 15 is ridiculous.\r\n\r\n2. It's not about the typing, though that is a pain. It's about the silliness of having 50 line class, where 30 lines of it is rote boilerplate. Its obfuscation. It's about the fact that if you _dont_ write the boilerplate, there's no warnings or anything, you just added a bug.\r\n3. I don't see any overhead worth discussing with something like Hooks. We're talking about an array of objects, with a handful of fxns on each. In Dart, which is very fast. This is a red herring imo.",
+    "createdAt": "2020-08-07T06:57:26Z"
+  },
+  {
+    "id": 137,
+    "sender": "Rudiksz",
+    "content": "@esDotDev \r\n> To me that is a very obvious problem, and we should be quickly moving past the debate stage and into brainstorming about what would work, if not hooks then what.\r\n\r\nExtending widgets. Like the way ValueNotifier extends the ChangeNotifier to simplify a common usage pattern, everybody can write their own flavors of StatelessWidgets for their specific use cases.",
+    "createdAt": "2020-08-07T07:01:02Z"
+  },
+  {
+    "id": 138,
+    "sender": "esDotDev",
+    "content": "Yes I agree that is an effective approach, but it does leave something to be desired.  If I have 1 animator, then I can just use a TweenAnimationBuilder. Cool, it's still like 5 lines of code, but whatever. it works... not TOO bad.  But if I have 2 or 3? Now I'm in nesting hell, if I have a cpl other stateful objects for some reason, well it's all kinda become a mess of indentation, or I'm creating some very specific widget that encapsulates a random collection of setup, update and teardown logic. ",
+    "createdAt": "2020-08-07T07:03:00Z"
+  },
+  {
+    "id": 139,
+    "sender": "rrousselGit",
+    "content": "> Extending widgets. Like the way ValueNotifier extends the ChangeNotifier to simplify a common usage pattern, everybody can write their own flavors of StatelessWidgets for their specific use cases.\r\n\r\nYou can extend only one base-class at a time. That does not scale\r\n\r\nMixins are the next logical attempt. But as the OP mentions, they do not scale either.\r\n",
+    "createdAt": "2020-08-07T07:03:10Z"
+  },
+  {
+    "id": 140,
+    "sender": "Rudiksz",
+    "content": "@esDotDev \r\n> or I'm creating some very specific widget that encapsulates a random collection of setup, update and teardown logic.\r\n\r\nA kind of widget that has to set up 3-4 kind of AnimationControllers does sound a like a very specific use case and supporting random collection of setup/teardown logic definitely shouldn't be part of a framework. In fact that's why the initState/didUpdateWidget methods are exposed int he first place, so you can do your random collection of setup to your heart's desire.\r\n\r\nMy longest initState method is 5 lines of code, my widgets don't suffer of excessive nesting, so we definitely have different needs and use cases. Or a different development style.",
+    "createdAt": "2020-08-07T07:14:54Z"
+  },
+  {
+    "id": 141,
+    "sender": "Rudiksz",
+    "content": "@esDotDev \r\n\r\n> 3\\. I don't see any overhead worth discussing with something like Hooks. We're talking about an array of objects, with a handful of fxns on each. In Dart, which is very fast. This is a red herring imo.\r\n\r\nIf the proposed solution is anything like the flutter_hooks package that's wholy untrue. Yes, conceptually it's an array with functions in it, but the implementation is nowhere near trivial or efficient. \r\n\r\nI mean, I may be wrong, but it seems like the HookElement checks wheather it should rebuild itself in its own build method?! \r\nAlso checking wheather the hooks should be intialized, reinitialized or disposed on every single widget build seems like a significant overhead. It just doesn't feel right, so I hope I'm wrong.",
+    "createdAt": "2020-08-07T08:08:03Z"
+  },
+  {
+    "id": 142,
+    "sender": "escamoteur",
+    "content": "Would it make sense to take one of @brianegan 's architecture examples as base app for a comparison? ",
+    "createdAt": "2020-08-07T08:53:59Z"
+  },
+  {
+    "id": 143,
+    "sender": "Gustash",
+    "content": "If I may interject here, not sure if this was said already. But in React we don't really think of lifecycle with hooks, and that might sound scary if it's how you're used to building Components/Widgets, but here's why lifecycle doesn't really matter. \n\nMost times, when you're building Components/Widgets with state or actions to take based on props, you want something to happen when that state/props change (for example, like I saw mentioned in this thread, you'll want to re-fetch a user's details when the userId prop has changed). It's usually much more natural to think of that as an \"effect\" of the userId changing, rather than something that happens when all the props of the Widget change. \n\nSame thing for cleanup, it's usually much more natural to think \"I need to clean up this state/listener/controller when this prop/state changes\" rather than \"I need to remember to clean up X when all the props/state change or when the entire component gets destroyed\". \n\nI haven't written Flutter in a while, so I'm not trying to sound like I know the current climate or limitations this approach would have on the current Flutter mindset, I am open to differing opinions. I just think that a lot of people not familiar with React hooks are having the same confusion I had when I was introduced to them because my mindset was so ingrained in the lifecycle paradigm. ",
+    "createdAt": "2020-08-07T09:00:33Z"
+  },
+  {
+    "id": 144,
+    "sender": "satvikpendem",
+    "content": "@escamoteur @Rudiksz @Hixie there has been a GitHub project created by @TimWhiting that I've been invited to where we are starting to create these examples. Each person/group can create how they'd solve a predefined problem. They're not full blown apps, more like pages, but we can add apps as well, if they serve to show more complex examples. Then we can discuss problems and create a better API. @TimWhiting can invite anyone interested I presume.\n\nhttps://github.com/TimWhiting/local_widget_state_approaches",
+    "createdAt": "2020-08-07T13:23:46Z"
+  },
+  {
+    "id": 145,
+    "sender": "karthickr95",
+    "content": "Jetpack compose is also has similar to hooks, which was compared with react [here](https://tigeroakes.com/posts/react-to-compose-dictionary/).",
+    "createdAt": "2020-08-07T13:57:39Z"
+  },
+  {
+    "id": 146,
+    "sender": "Hixie",
+    "content": "@satvikpendem @TimWhiting  That's great! Thank you.",
+    "createdAt": "2020-08-07T18:09:38Z"
+  },
+  {
+    "id": 147,
+    "sender": "esDotDev",
+    "content": "> @esDotDev\r\n>  very specific use case and supporting random collection of setup/teardown logic definitely shouldn't be part of a framework.\r\n\r\nThis is the nail that hooks hits on the head. Each type of object is responsible for it's own setup and teardown. Animators know how to create, update and destroy themselves, as do streams, and so on. Hooks specifically solves this issue of 'random collections' of state scaffolding scattered throughout your view. The allows the bulk of the view code to focus on business logic and layout formatting, which is a win. It doesn't force you into creating custom widgets, just to hide some generic boilerplate that is the same in every project.\r\n\r\n> My longest initState method is 5 lines of code, my widgets don't suffer of excessive nesting, so we definitely have different needs and use cases. Or a different development style.\r\n\r\nMine too. But it's initState() + dispose() + didUpdateDependancies(), and missing either of the last 2 can cause bugs. \r\n",
+    "createdAt": "2020-08-07T18:10:43Z"
+  },
+  {
+    "id": 148,
+    "sender": "esDotDev",
+    "content": "I think the canonical example would be something like: Write a view that uses 1 streamcontroller and 2 animator controllers. \r\n\r\nYou have 3 options as far as I can see: \r\n1. Add 30 lines or so of boilerplate to your class, and some mixins. Which is not only verbose, but fairly hard to follow initially. \r\n2. Use 2 TweenAnimationBuilders and a StreamBuilder, for about 15 indentation levels, before you even get to your view code, and you still have lots of boilerplate for the Stream.  \r\n3. Add like 6 lines of non-indented code at the top of build(), to get your 3 stateful sub-objects, and define any custom init/destroy code\r\n\r\nMaybe there's a 4th option which is a SingleStreamBuilderDoubleAnimationWidget, but this is just a make-work thing for developers and pretty annoying in general. \r\n\r\nAlso worth noting that the cognitive load of 3 is significantly lower than the other 2 for a new developer. Most new dev's don't even know that TweenAnimationBuilder exists, and simply learning the concept of SingleTickerProvider is a task in it's own. Just saying, \"Give me an animator please\", is a easier and more robust approach.\r\n\r\nI'll try and code something up today. ",
+    "createdAt": "2020-08-07T18:29:49Z"
+  },
+  {
+    "id": 149,
+    "sender": "Rudiksz",
+    "content": "> 2\\. Use 2 TweenAnimationBuilders and a StreamBuilder, for about 15 indentation levels, before you even get to your view code, and you still have lots of boilerplate for the Stream.\r\n\r\nRight. Show us a real world example of code that uses 15 levels of indentation.\r\n\r\n\r\nHow does replacing 30 lines of code with 6 lines + hundreds of lines in a library reduce cognitive load? Yeah, I can just ignore the \"magic\" the library does, but not its rules. For example the hooks package tels you in no uncertain terms that hooks must be used only in build methods. Now you have an extra constraint to worry about. \r\n\r\nI have probably less than 200 lines of code that involves focusnodes, textcontrollers, singletickerproviders or the various lifecycle methods of my statefulwidgets, in a project with 15k lines of code. What cognitive overload are you talking about?",
+    "createdAt": "2020-08-07T20:00:02Z"
+  },
+  {
+    "id": 150,
+    "sender": "rrousselGit",
+    "content": "@Rudiksz please stop being passive aggressive.\r\nWe can disagree without fighting. \r\n\r\n___\r\n\r\nHooks constraints are the least of my worries.\r\n\r\nWe aren't talking about hooks specifically, but about the problem. \r\nIf we have to, we can come up with a different solution. \r\n\r\nWhat matters is the problem we want to solve. \r\n\r\nFuthermore, Widgets can only be used inside build and unconditionally (or we are otherwise changing the tree depth, which is a no go) \r\n\r\nThat is identical to the hooks constraints, but I don't think people complained about it. ",
+    "createdAt": "2020-08-07T20:11:09Z"
+  },
+  {
+    "id": 151,
+    "sender": "Rudiksz",
+    "content": "> Futhermore, Widgets can only be used inside build and unconditionally (or we are otherwise changing the tree depth, which is a no go)\r\n> \r\n> That is identical to the hooks constraints, but I don't think people complained about it.\r\n\r\nNo ,it's not identical. The problem that is presented here seems to be related to code that _prepares_ widgets _before_ being (re)built. Preparing state, dependencies, streams, controllers, whatnot, and handling changes in the tree structure. None of these should be in the build method, even if it's  hidden behind a single function call. \r\nThe entry point for that logic should never be in the build method.\r\n\r\nForcing me to put initialization logic of any kind into the build method is nowhere the same as \"forcing\" me to compose a widget tree in the build method. The whole reason for the build method is to take an existing state (set of variables) and produce a widget tree that then gets painted.\r\n\r\nConversely, I would also be against forcing me to add code that builds widgets inside the initState/didUpdateWidget methods.\r\n\r\nAs it is now, statefulwidget lifecycle methods have a very clear role and make it very easy and straighforward to separate code with entirely different concerns.\r\n\r\nConceptually I'm starting to understand the problems that are being described here, but I still fail to see it as an actual problem. Maybe some real examples (that are not the counter app) can help me change my mind.\r\n\r\n",
+    "createdAt": "2020-08-07T22:24:39Z"
+  },
+  {
+    "id": 152,
+    "sender": "rrousselGit",
+    "content": "As a side-note, [Riverpod](https://github.com/rrousselgit/river_pod), my latest experiment, has some very hook-like ideas, without the constraints.\r\n\r\n\r\nFor example, it solves the:\r\n\r\n```dart\r\nConsumer(\r\n  provider: provider,\r\n  builder: (context, value) {\r\n    return Consumer(\r\n      provider: provider2,\r\n      builder: (context, value2) {\r\n        return Text('$value $value2');\r\n      },\r\n    );\r\n  },\r\n)\r\n```\r\n\r\nby having:\r\n\r\n\r\n```dart\r\nConsumer(\r\n  builder (context, watch) {\r\n    final value = watch(provider);\r\n    final value2 = watch(provider2);\r\n  },\r\n)\r\n```\r\n\r\nWhere `watch` can be called conditionally:\r\n\r\n```dart\r\nConsumer(\r\n  builder: (context, watch) {\r\n    final value = watch(provider);\r\n    if (something) {\r\n      final value2 = watch(provider2);\r\n    }\r\n  },\r\n)\r\n```\r\n\r\nWe could even get rid of `Consumer` entirely by having a custom `StatelessWidget`/`StatefulWidget` base class:\r\n\r\n```dart\r\nclass Example extends ConsumerStatelessWidget {\r\n  @override\r\n  Widget build(ConsumerBuildContext context) {\r\n    final value = context.watch(provider);\r\n    final value2 = context.watch(provider2);\r\n  }\r\n}\r\n```\r\n\r\nThe main issue is, this is specific to one kind of object, and it works by relying on the fact that the object instance has a consistent hashCode across rebuilds.\r\n\r\n\r\nSo we are still far from the flexibility of hooks",
+    "createdAt": "2020-08-07T23:30:05Z"
+  },
+  {
+    "id": 153,
+    "sender": "sahandevs",
+    "content": "@rrousselGit I think without extending `StatelessWidget`/`StatefulWidget` classes and creating something like ConsumerStatelessWidget, it is possible to have something like `context.watch` by using extension methods on `BuildContext` class and having the provider provide the watch function with InheritedWidgets.\r\n",
+    "createdAt": "2020-08-08T03:15:06Z"
+  },
+  {
+    "id": 154,
+    "sender": "rrousselGit",
+    "content": "That's a different topic. But tl;dr, we can't rely on InheritedWidgets as a solution to this issue: https://github.com/flutter/flutter/issues/30062\r\n\r\nTo solve that issue, using InheritedWidgets would block us because of https://github.com/flutter/flutter/issues/12992 and  https://github.com/flutter/flutter/pull/33213\r\n\r\n",
+    "createdAt": "2020-08-08T03:51:56Z"
+  },
+  {
+    "id": 155,
+    "sender": "szotp",
+    "content": ">Conceptually I'm starting to understand the problems that are being described here, but I still fail to see it as an actual problem.\r\n\r\nComparing Flutter to SwiftUI, to me it's obvious that there is actual problem, or rather - things are not as great as they could be. \r\n\r\nIt may be hard to see, because Flutter & others worked hard around it: we have wrappers for each specific case: AnimatedBuilder, StreamBuilder, Consumer, AnimatedOpacity, etc. StatefulWidget works great for implementing these small reusable utilities, but it's just too low level for non-reusable, domain specific components, where you may have multitude of text controllers, animations, or whatever business logic calls for. The usual solution is to either bite the bullet and write all that boilerplate, or make a carefully constructed tree of providers and listeners. Neither approach is satifying.\r\n\r\nIt's like @rrousselGit says, in the olden days (UIKit) we were forced to manually manage our UIViews (the equivalent of RenderObjects), and remember to copy values from model to view and back, delete unused views, recycle, and so on. This was not a rocket science, and many people did not see this old problem, but I think everyone here would agree that Flutter clearly improved the situation.\r\nWith statefulness, the issue is very similiar: it's boring, error prone work that could be automated.\r\n\r\nAnd, by the way, I don't think hooks solve this at all. It's just that hooks are the only approach that is possible without changing flutter's internals.",
+    "createdAt": "2020-08-08T15:47:05Z"
+  },
+  {
+    "id": 156,
+    "sender": "Rudiksz",
+    "content": "> StatefulWidget works great for implementing these small reusable utilities, but it's just too low level for non-reusable, domain specific components, where you may have multitude of text controllers, animations, or whatever business logic calls for.\r\n\r\nI'm confused when you say that building your non-reusable domain specific  components you need a widget that is high-level. Usually it's the exact opposite. \r\n\r\nAnimatedBuilder, StreamBuilder, Consumer, AnimatedOpacity are all widget that implement a certain use case. When I need a widget that has so specific logic that I can't use any of these **higher** level widgets, that's when I drop down to a lower level api so I can write my own specific use case. The so called boilerplate is implementing how my **unique** widget manages its **unique** combination of streams, network calls, controllers and whatnot.\r\n\r\nAdvocating for hooks, hook like behaviour or even just \"automation\" is like saying that we need a **low level** widget that can handle **high level**, non-reusable logic anybody would ever want to have without having to write the so called boilerplate code.\r\n\r\n> With statefulness, the issue is very similiar: it's boring, error prone work that could be automated.\r\n\r\nAgain. You want to automate __\"non-reusable, domain specific components, where you may have multitude of text controllers, animations, or whatever business logic calls for\"__?!\r\n\r\n\r\n> It's like @rrousselGit says, in the olden days (UIKit) we were forced to manually manage our UIViews (the equivalent of RenderObjects), and remember to copy values from model to view and back, delete unused views, recycle, and so on. This was not a rocket science, and many people did not see this old problem, but I think everyone here would agree that Flutter clearly improved the situation.\r\n\r\nI did ios and android development 6-7  years ago (around the time Android switched to their material design) and I don't remember any of this managing and recycling views being an issue and Flutter doesn't seem better or worse. I can't speak about the current affairs, I quit when Swift and Kotlin were launched.\r\n\r\nThe boilerplate I am forced to write in my StatefulWidgets is about 1% of my code base. Is it error prone? Every line of code is a potential source of bugs, so sure. Is it cumbersome? 200 lines of code ouot of 15000? I really don't think so, but that's just my opinion. Flutter's text/animation controllers, focusnodes all have issues that can be improved upon, but being verbose is not one.\r\n\r\nI'm really curious to see what people are developing that they need so much boilerplate.\r\n\r\nListening to some of the comments here sounds like managing 5 lines of code instead of 1 is like 5 times harder. It's not.",
+    "createdAt": "2020-08-08T16:38:51Z"
+  },
+  {
+    "id": 157,
+    "sender": "satvikpendem",
+    "content": "Wouldn't you agree though that instead of setting up initState and dispose for each AnimationController for example can be more error prone than just doing it once and reusing that logic? Same principle as using functions, reusability. I agree that it is problematic to put hooks in the build function though, there definitely is a better way.",
+    "createdAt": "2020-08-08T16:50:38Z"
+  },
+  {
+    "id": 158,
+    "sender": "satvikpendem",
+    "content": "It really feels like the difference between those who do and do not see the problem here are that the former have used hook like constructs before, such as in React, Swift, and Kotlin, and the latter have not, such as working in pure Java or Android. I think the only way to be convinced, in my experience, is to try hooks and see if you can go back to the standard way. Oftentimes, many people can't, again, in my experience. You know it when you use it.\n\nTo that end, I'd encourage people who are skeptical to use flutter_hooks for a small project and see how it fares, then redo it in the default way. It is not sufficient that we simply create versions of the app for one to read as in @Hixie 's suggestion (although we will do that as well of course), I do believe each person must use hooks themselves to see the difference.",
+    "createdAt": "2020-08-08T16:56:58Z"
+  },
+  {
+    "id": 159,
+    "sender": "Rudiksz",
+    "content": "> It is not sufficient that we simply create versions of the app for one to read as in @Hixie 's suggestion (although we will do that as well of course), I do believe each person must use hooks themselves to see the difference.\r\n\r\nI wasted days trying provider, even more days trying bloc, I didn't find either of them was a good solution. If it works for you, great.\r\n\r\nIn order for me to even try **your** proposed solution to a problem that **you** are having, **you** need to demonstrate its advantages. I looked at examples with flutter hooks and I looked at its implementation. Just no.\r\n\r\nWhatever boilerplate reducing code is added to the framework, I hope the Stateful/StatelessWidgets are left unchaged. There's not much more I can add to this conversation.",
+    "createdAt": "2020-08-08T17:09:11Z"
+  },
+  {
+    "id": 160,
+    "sender": "rrousselGit",
+    "content": "Let's start again, in a hypothetical world where we can change Dart, without talking about hooks.\r\n\r\nThe problem debated is:\r\n\r\n```dart\r\nWidget build(context) {\r\n  return ValueListenableBuilder<String>(\r\n    valueListenable: someValueListenable,\r\n    builder: (context, value, _) {\r\n      return StreamBuilder<int>(\r\n        stream: someStream,\r\n        builder: (context, value2) {\r\n          return TweenAnimationBuilder<double>(\r\n            tween: Tween(...),\r\n            builder: (context, value3) {\r\n              return Text('$value $value2 $value3');\r\n            },\r\n          );\r\n        },\r\n      );\r\n    },\r\n  );\r\n}\r\n```\r\n\r\nThis code is not readable.\r\n\r\nWe could fix the readability issue by introducing a new keyword which changes the syntax into:\r\n\r\n```dart\r\nWidget build(context) {\r\n  final value = keyword ValueListenableBuilder(valueListenable: someValueListenable);\r\n  final value2 = keyword StreamBuilder(stream: someStream);\r\n  final value3 = keyword TweenAnimationBuilder(tween: Tween(...));\r\n\r\n  return Text('$value $value2 $value3');\r\n}\r\n```\r\n\r\nThis code is significantly more readable, is unrelated to hooks, and doesn't suffer from its limitations.\r\nThe readability gain is not much about the number of lines, but the formatting and indentations.\r\n\r\n\r\n____\r\n\r\n\r\n### But what about when the Builder is not the root widget?\r\nExample:\r\n\r\n```dart\r\nWidget build(context) {\r\n  return Scaffold(\r\n    body: StreamBuilder(\r\n      stream: stream,\r\n      builder: (context, value) {\r\n        return Consumer<Value2>(\r\n          builder: (context, value2, child) {\r\n            return Text('${value.data} $value2');\r\n          },\r\n        );\r\n      },\r\n    ),\r\n  );\r\n}\r\n```\r\n\r\n\r\nWe could have:\r\n\r\n\r\n```dart\r\nWidget build(context) {\r\n  return Scaffold(\r\n    body: {\r\n      final value = keyword StreamBuilder(stream: stream);\r\n      final value2 = keyword Consumer<Value2>();\r\n      return Text('${value.data} $value2');\r\n    }\r\n  );\r\n}\r\n```\r\n\r\n\r\n____\r\n\r\n\r\n### But how does this relate to the reusability issue?\r\n\r\n\r\nThe reason why this is related is, Builders are technically a way to reuse state logic. But their issue is, they make the code not very readable if we plan to use _many_ builders, like in this comment https://github.com/flutter/flutter/issues/51752#issuecomment-669626522\r\n\r\nWith this new syntax, we fixed the readability problem. As such, we can extract more things into Builders.\r\n\r\nSo for example, the `useFilter` mentioned in this comment could be:\r\n\r\n\r\n```dart\r\nFilterBuilder(\r\n  debounceDuration: const Duration(seconds: 2),\r\n  builder: (context, filter) {\r\n    return TextField(onChange: (value) => filter.value = value);\r\n  }\r\n)\r\n```\r\n\r\nWhich we can then use with the new keyword:\r\n\r\n```dart\r\nclass ChatScreen extends HookWidget {\r\n  const ChatScreen({Key key}) : super(key: key);\r\n\r\n  @override\r\n  Widget build(BuildContext context) {\r\n    final filter = keyword FilterBuilder(debounceDuration: const Duration(seconds: 2));\r\n    final userId = keyword Consumer(authProvider).userId;\r\n    final chatId = keyword Consumer(selectedChatProvider);\r\n    final chat = keyword QueryBuilder(ChatQuery(userId: userId, chatId: chatId, filter: filter.value));\r\n\r\n    return Column(\r\n      children: [\r\n        Searchbar(onChanged: (value) => filter.value = value),\r\n        Expanded(\r\n          child: ChatList(chat: chat),\r\n        ),\r\n      ],\r\n    );\r\n  }\r\n}\r\n```\r\n\r\n_____\r\n\r\n### What about the \"extract as function\" we talked about with hooks, to create custom hooks/Builders?\r\n\r\nWe could do the same thing with such keyword, by extracting a combination of Builders in a function:\r\n\r\n```dart\r\nBuilder<Chat> ChatBuilder()  {\r\n  final filter = keyword FilterBuilder(debounceDuration: const Duration(seconds: 2));\r\n  final userId = keyword Consumer(authProvider).userId;\r\n  final chatId = keyword Consumer(selectedChatProvider);\r\n  final chat = keyword QueryBuilder(ChatQuery(userId: userId, chatId: chatId, filter: filter.value));\r\n\r\n  return Builder(chat);\r\n}\r\n\r\nclass ChatScreen extends HookWidget {\r\n  const ChatScreen({Key key}) : super(key: key);\r\n\r\n  @override\r\n  Widget build(BuildContext context) {\r\n    final chat = keyword ChatBuilder();\r\n\r\n    return Column(\r\n      children: [\r\n        Searchbar(onChanged: (value) => filter.value = value),\r\n        Expanded(\r\n          child: ChatList(chat: chat),\r\n        ),\r\n      ],\r\n    );\r\n  }\r\n}\r\n```\r\n\r\n\r\nObviously, not much thought was given in all the implications of such syntax. But that's the basic idea.\r\n\r\n\r\n_____\r\n\r\n\r\nHooks are this feature.\r\nThe limitations of hooks exist because they are implemented as a package rather than a language feature.\r\n\r\nAnd the keyword is `use`, such that `keyword StreamBuilder` becomes `use StreamBuilder`, which is ultimately implemented as `useStream`",
+    "createdAt": "2020-08-08T18:28:40Z"
+  },
+  {
+    "id": 161,
+    "sender": "Hixie",
+    "content": "> This code is significantly more readable\r\n\r\nI think this is a matter of opinion. I agree that some people think that versions you describe as more readable are better; personally I prefer the much more explicit magic-less versions. But I have no objection to making the second style possible.\r\n\r\nThat said, the next step is to work on @TimWhiting's app (https://github.com/TimWhiting/local_widget_state_approaches/blob/master/lib/stateful/counter.dart) to make it into something that has all the problems that we want to solve.",
+    "createdAt": "2020-08-08T19:01:00Z"
+  },
+  {
+    "id": 162,
+    "sender": "gaearon",
+    "content": "For what it's worth, https://github.com/flutter/flutter/issues/51752#issuecomment-670959424 pretty much parallels the inspiration for Hooks in React. The Builder pattern seems identical to the Render Props pattern that used to be prevalent in React (but led to similarly deep trees). Later @trueadm suggested [syntax sugar](https://gist.github.com/trueadm/17beb64288e30192f3aa29cad0218067) for Render Props, and later that led to Hooks (to remove unnecessary runtime overhead).",
+    "createdAt": "2020-08-08T19:42:42Z"
+  },
+  {
+    "id": 163,
+    "sender": "Rudiksz",
+    "content": "```\r\n`Widget build(context) {\r\n  return ValueListenableBuilder<String>(\r\n    valueListenable: someValueListenable,\r\n    builder: (context, value, _) {\r\n      return StreamBuilder<int>(\r\n        stream: someStream,\r\n        builder: (context, value2) {\r\n          return TweenAnimationBuilder<double>(\r\n            tween: Tween(...),\r\n            builder: (context, value3) {\r\n              return Text('$value $value2 $value3');\r\n            },\r\n          );\r\n        },\r\n      );\r\n    },\r\n  );\r\n}`\r\n```\r\n\r\nIf readablity and indentation is the issue this can be rewritten as\r\n\r\n```\r\n  @override\r\n  Widget build(context) {\r\n    return ValueListenableBuilder<String>(\r\n      valueListenable: someValueListenable,\r\n      builder: (context, value, _) => buildStreamBuilder(value),\r\n    );\r\n  }\r\n\r\n  StreamBuilder<int> buildStreamBuilder(String value) => StreamBuilder<int>(\r\n        stream: someStream,\r\n        builder: (context, value2) => buildTweenAnimationBuilder(value, value2),\r\n      );\r\n\r\n  Widget buildTweenAnimationBuilder(String value, AsyncSnapshot<int> value2) =>\r\n      TweenAnimationBuilder<double>(\r\n        duration: Duration(milliseconds: 500),\r\n        tween: Tween(),\r\n        builder: (context, value3, _) => Text('$value $value2 $value3'),\r\n      );\r\n```\r\n\r\nIf functions are not your thing, or you need reusability then extract them as widgets\r\n\r\n```\r\nclass NewWidget extends StatelessWidget {\r\n  var someValueListenable;\r\n\r\n  var someStream;\r\n\r\n  @override\r\n  Widget build(context) {\r\n    return ValueListenableBuilder<String>(\r\n      valueListenable: someValueListenable,\r\n      builder: (context, value, _) {\r\n        return MyStreamedWidget(value, someStream);\r\n      },\r\n    );\r\n  }\r\n}\r\n\r\nclass MyStreamedWidget extends StatelessWidget {\r\n  const MyStreamedWidget(\r\n    this.value,\r\n    this.someStream, {\r\n    Key key,\r\n  }) : super(key: key);\r\n\r\n  final String value;\r\n  final Stream someStream;\r\n\r\n  @override\r\n  Widget build(BuildContext context) {\r\n    return StreamBuilder<int>(\r\n      stream: someStream,\r\n      builder: (context, value2) => MyAnimatedWidget(value, value2),\r\n    );\r\n  }\r\n}\r\n\r\nclass MyAnimatedWidget extends StatelessWidget {\r\n  final String value;\r\n  final AsyncSnapshot<int> value2;\r\n\r\n  const MyAnimatedWidget(\r\n    this.value,\r\n    this.value2, {\r\n    Key key,\r\n  }) : super(key: key);\r\n\r\n  @override\r\n  Widget build(BuildContext context) {\r\n    return TweenAnimationBuilder<double>(\r\n      tween: Tween(),\r\n      builder: (context, value3, _) {\r\n        return Text('$value $value2 $value3');\r\n      },\r\n    );\r\n  }\r\n}\r\n```\r\n\r\nThere's nothing in your example that warrants a new keyword or feature.\r\n\r\nI know what you are going to say. The 'value' variable has to be passed through all the widgets/function calls, but that's just a result of how you architect your application. I break up my code using both with \"build\" methods and custom widgets, depending on the use case, and never have to pass the same variable to a chain of three calls.\r\n\r\nReusable code is reusable when it relies as little as possible on external side effects (such as InheritedWidgets, or (semi)global state).",
+    "createdAt": "2020-08-08T19:57:09Z"
+  },
+  {
+    "id": 164,
+    "sender": "esDotDev",
+    "content": "@Rudiksz I don't think you're adding anything to the discussion here. We are aware of strategies to mitigate these issues because we do them all day long. If you don't feel like it's an issue, then you can simply continue to use things as they are and this does not affect you at all. \r\n\r\nClearly there are many many people who do see this as a fundamental pain point, and just cycling back and forth is pointless. You are not going, through various arguments, convince people that they do not want what they want or change anyone's mind here. Everyone in this discussion clearly has hundreds or thousands of hours in Flutter under their belt, and it's not expected that we all should agree on things.\r\n",
+    "createdAt": "2020-08-08T20:15:32Z"
+  },
+  {
+    "id": 165,
+    "sender": "esDotDev",
+    "content": "> \r\n> I think this is a matter of opinion. I agree that some people think that versions you describe as more readable are better; personally I prefer the much more explicit magic-less versions. But I have no objection to making the second style possible.\r\n\r\nIf it is a matter of opinion, I would guess that it is quite lopsided in one direction.\r\n1. Both have magic. I don't necessarily know what any of these builders are doing internally. The non-magic version is writing the actual boilerplate inside these builders. Using a SingleAnimationTIckerProvider mixin is magic too for 95% of Flutter devs.\r\n2. One obfuscates very important variable names that will be used later in the tree, which is `value1` and `value2`, the other has them front and center at top of build. This a clear parsing / maintenance win.\r\n3. One has 6 levels of indendation before the widget tree even begins, the other has 0\r\n4. One is 5 vertical lines, the other is 15\r\n5. One shows the actual content piece prominently (Text()) the other hides it, nested, way down into the tree. Another clear parsing win.\r\n\r\nIn a general sense I could see this maybe being a matter of taste. But Flutter specifically has an issue with line count, indendation and signal:nois ratio in general. While I absolutely _love_ the ability to declaratively form a tree in Dart code, it can lead to some extremely unreadable/verbose code, especially when you rely on multiple layers of wrapped builders. So in the context of Flutter itself, where we are continually fighting this battle, this sort of optimization is a killer feature, because it provides us a really excellent tool to combat this somewhat pervasive issue of general verbosity.\r\n\r\nTL;DR - Anything that significantly reduced indentation and line count in Flutter, is doubly valuable, due to the generally high line counts and indentation inherent in Flutter.",
+    "createdAt": "2020-08-08T20:22:58Z"
+  },
+  {
+    "id": 166,
+    "sender": "Rudiksz",
+    "content": "> @Rudiksz I don't think you're adding anything to the discussion here. We are aware of strategies to mitigate these issues because we do them all day long. If you don't feel like it's an issue, then you can simply continue to use things as they are and this does not affect you at all.\r\n\r\nExcept if it's a change in the core framework then it does affect me, no?\r\n\r\n> Clearly there are many many people who do see this as a fundamental pain point, and just cycling back and forth is pointless. You are not going, through various arguments, convince people that they do not want what they want or change anyone's mind here. Everyone in this discussion clearly has hundreds or thousands of hours in Flutter under their belt, and it's not expected that we all should agree on things.\r\n\r\nRight, this horse was already beaten to death countless times, so I won't fall in the trap of answering any more comments.",
+    "createdAt": "2020-08-08T20:30:20Z"
+  },
+  {
+    "id": 167,
+    "sender": "esDotDev",
+    "content": "> Builders are technically a way to reuse state logic. But their issue is, they make the code not very readable.\r\n\r\nThis states it perfectly. **To think of it in Flutter terms, we need single-line builders.** \r\n\r\nBuilders that do not require dozens of tabs and lines, but still allow some custom boilerplate to be hooked into the widget lifecycle.\r\n\r\nThe \"everything is a widget\" mantra specifically is not a good thing here. The relevant code in a builder is usually just it's setup props, and the stateful thing that it returns which the build fxn needs. Every single line break and tab is basically pointless.",
+    "createdAt": "2020-08-08T20:49:30Z"
+  },
+  {
+    "id": 168,
+    "sender": "TimWhiting",
+    "content": "> Except if it's a change in the core framework then it does affect me, no?\r\n\r\n@Rudiksz  I don't think anyone is proposing that we change Stateful widgets. **You can always use them in their current form if you want.** Whatever solution we might come up with would either use Stateful widgets with no changes, or another type of widget entirely. We aren't saying that Stateful widgets are bad, just that we'd like another type of Widget that allows more composable widget state. Think of it as a Stateful widget that instead of one state object associated with it contains multiple state objects, and one build function that is separate but has access to those state objects. This way, you can reuse bits of common state (along with state logic associated with that state) with their `initState` and `dispose` already implemented for you. Essentially more modular state, that can be composed in different ways in different situations. Again, this is not a concrete proposal, but maybe another way to think of it. Maybe it could turn into a solution that is more `flutter` like, but I don't know.",
+    "createdAt": "2020-08-08T21:02:33Z"
+  },
+  {
+    "id": 169,
+    "sender": "esDotDev",
+    "content": "> That said, the next step is to work on @TimWhiting's app (https://github.com/TimWhiting/local_widget_state_approaches/blob/master/lib/stateful/counter.dart) to make it into something that has all the problems that we want to solve.\r\n\r\nThis is tricky because this problem is inherently one of a death by a thousand cuts. It just adds bloat and decreases readability across the codebase. It's impact is felt worst in small widgets, where the entire class is <100 lines, and half of it is spent managing an animator controller. So I don't know what seeing 30 of these examples will show, that 1 does not.\r\n\r\nIt really is the difference between this:\r\n```\r\n@override\r\n  Widget build(BuildContext context) {\r\n    final controller = get AnimationController(vsync: this, duration: widget.duration);\r\n    //do stuff\r\n  }\r\n```\r\n\r\nAnd this:\r\n```\r\n  AnimationController _controller;\r\n\r\n  @override\r\n  void initState() {\r\n    super.initState();\r\n    _controller = AnimationController(vsync: this, duration: widget.duration);\r\n  }\r\n\r\n  @override\r\n  void didUpdateWidget(Example oldWidget) {\r\n    super.didUpdateWidget(oldWidget);\r\n    if (widget.duration != oldWidget.duration) {\r\n      _controller.duration = widget.duration;\r\n    }\r\n  }\r\n\r\n  @override\r\n  void dispose() {\r\n    _controller.dispose();\r\n    super.dispose();\r\n  }\r\n\r\n  @override\r\n  Widget build(BuildContext context) {\r\n    //Do Stuff\r\n  }\r\n```\r\n\r\nThere simply is no better way to illustrate than this. You can extend this use case to any controller type object. AnimatorController, FocusController and TextEditingController are probably the most common and annoying ones to manage in day to day use. **Now just picture 50, or 100 of these sprinkled all over my code base.** \r\n\r\n- You have about 1000-2000 lines that could just disappear. \r\n- You have probably dozens of bugs and RTE's (at various pts of development) that did not ever need to exist because some override or another was missing. \r\n- You have widgets, that when looked at with cold eyes, are much harder to grok at a glance. I need to read each of these overrides, I can't simply assume they are boilerplate.\r\n\r\nAnd you can of course extend this to custom controllers. The entire concept of using controllers is less appealing in Flutter because you know you will have to bootstrap, manage and destroy them like this, which is annoying and bug prone. It leads you to avoid making your own and instead creating custom StatefulWidgets/Builders. It would be nice if controller type objects were just easier to use and more robust, since builders have readability issues (or at the least, are significantly more verbose and white-space laden).",
+    "createdAt": "2020-08-08T23:51:02Z"
+  },
+  {
+    "id": 170,
+    "sender": "Hixie",
+    "content": "> This is tricky\r\n\r\nYup, API design is tricky. Welcome to my life.\r\n\r\n> So I don't know what seeing 30 of these examples will show, that 1 does not.\r\n\r\nIt's not 30 examples that will help, it's 1 example that's elaborate enough that it can't be simplified in ways that you would then say \"well, sure, for this example that works, but it doesn't for a _real_ example\".",
+    "createdAt": "2020-08-09T01:45:21Z"
+  },
+  {
+    "id": 171,
+    "sender": "rrousselGit",
+    "content": "> It's not 30 examples that will help, it's 1 example that's elaborate enough that it can't be simplified in ways that you would then say \"well, sure, for this example that works, but it doesn't for a real example\".\r\n\r\nI've said it a few times already, but that way of judging hooks is unfair.\r\nHooks aren't about making possible something that was previously impossible. It's about providing a consistent API to solve this sort of problem.\r\n\r\nRequesting an application that shows something which can't be simplified differently is judging a fish by its ability to climb trees.",
+    "createdAt": "2020-08-09T02:52:50Z"
+  },
+  {
+    "id": 172,
+    "sender": "Hixie",
+    "content": "We're not just trying to judge hooks, we're trying to evaluate different solutions to see if there are any that address the needs of everyone.",
+    "createdAt": "2020-08-09T03:11:46Z"
+  },
+  {
+    "id": 173,
+    "sender": "Hixie",
+    "content": "(I'm curious what way you would evaluate different proposals here, if not by actually writing applications in each of the proposals and comparing them. What evaluation metric would you propose instead?)",
+    "createdAt": "2020-08-09T03:12:50Z"
+  },
+  {
+    "id": 174,
+    "sender": "rrousselGit",
+    "content": "A proper way to judge the solution to this problem is not an application (as each individual usage of the API will be dismissed like the examples here were).\r\n\r\nWhat we should judge the proposed solution on is:\r\n- Is the resulting code objectively better than the default syntax?\r\n  - Does it avoid mistakes?\r\n  - Is it more readable?\r\n  - Is it easier to write?\r\n- How reusable is the code produced?\r\n- How many problems can be solved with this API?\r\n  - Do we lose some benefits for some specific problems?\r\n\r\n\r\nWhen evaluated on this grid, the `Property`/`addDispose` proposal may have a good \"is the resulting code better?\" score, but evaluate poorly against both reusability and flexibility.",
+    "createdAt": "2020-08-09T03:16:59Z"
+  },
+  {
+    "id": 175,
+    "sender": "Hixie",
+    "content": "I don't know how to answer those questions without actually seeing each proposal in real use.",
+    "createdAt": "2020-08-09T03:18:01Z"
+  },
+  {
+    "id": 176,
+    "sender": "rrousselGit",
+    "content": "Why?\r\n\r\nI didn't need to make applications using `Property` to know that this proposal will have difficulty with producing truly reusable code and solving many problems.\r\n\r\nWe can take any existing *Builder and try to reimplement them using the proposed solution.\r\nWe can also try and reimplement the hooks listed in this thread, or some hooks made in the React community (there are numerous compilations of hooks available online).",
+    "createdAt": "2020-08-09T03:24:00Z"
+  },
+  {
+    "id": 177,
+    "sender": "Hixie",
+    "content": "> I didn't need to make applications using `Property` to know that this proposal will have difficulty with producing truly reusable code and solving many problems.\r\n\r\nUnfortunately, I do not share your instincts here (as demonstrated by the fact that I thought Property (https://github.com/flutter/flutter/issues/51752#issuecomment-667737471) worked great until you said it had to handle values both from a widget and local state with the same API, which I wasn't aware was a constraint until you brought it up). If I provide a version of Property that solves that problem as well, is it definitely going to be ok, or will there be some new problem that it doesn't cover? Without a target we all agree is the target, I don't know what we're designing solutions for.\r\n\r\n\r\n> We can take any existing *Builder and try to reimplement them using the proposed solution.\r\n\r\nClearly not _any_. For example, you gave one in the OP, and when I made my first Property proposal (https://github.com/flutter/flutter/issues/51752#issuecomment-664787791) you pointed out problems with it that were not illustrated by the original Builder.\r\n\r\n\r\n> We can also try and reimplement the hooks listed in this thread, or some hooks made in the React community (there are numerous compilations of hooks available online).\r\n\r\nI don't mind where we start. If you have a particularly good example that you think illustrates the problem and it uses hooks, then great, let's add that to @TimWhiting's repository. The whole point is to implement the same thing in multiple different ways, I don't mind where the ideas come from.",
+    "createdAt": "2020-08-09T03:33:29Z"
+  },
+  {
+    "id": 178,
+    "sender": "esDotDev",
+    "content": "> It's not 30 examples that will help, it's 1 example that's elaborate enough that it can't be simplified in ways that you would then say \"well, sure, for this example that works, but it doesn't for a _real_ example\".\r\n\r\nThere will never be anything more elaborate than the simple desire to to use an AnimatorController (or any other re-useable stateful component you can think of) without an unreadable builder or a bunch of bug-prone lifecycle boilerplate. \r\n\r\nThere has been no solution proposed that addressed the readability and robustness benefits requested, in a general purpose way. \r\n\r\n",
+    "createdAt": "2020-08-09T03:46:27Z"
+  },
+  {
+    "id": 179,
+    "sender": "rrousselGit",
+    "content": "I do insist on the fact that _any_ builder will do, as this issue could be renamed into \"We need syntax sugar for Builders\" and lead to the same discussion.\r\n\r\nAll other arguments made (such as creating and disposing an `AnimationController`) are made on the basis that they too could be extracted into a builder:\r\n\r\n```dart\r\nWidget build(context) {\r\n  return AnimationControllerBuilder(\r\n    duration: Duration(seconds: 2),\r\n    builder: (context, animationController) {\r\n\r\n    }\r\n  );\r\n}\r\n```\r\n\r\nIn the end, I think the perfect example is trying to reimplement StreamBuilder in its entirety, and test it in different scenarios:\r\n- the stream comes from the `Widget`\r\n- // from an InheritedWidget\r\n- from the local State\r\n\r\nand test each individual case against \"the stream can change over time\", so:\r\n- didUpdateWidget with a new stream\r\n- the InheritedWidget updated\r\n- we called setState\r\n\r\nThis is currently unsolvable with `Property` or `onDispose`",
+    "createdAt": "2020-08-09T03:50:01Z"
+  },
+  {
+    "id": 180,
+    "sender": "Hixie",
+    "content": "@esDotDev Can you enumerate \"the readability and robustness benefits requested\"? If someone makes a proposal that handles AnimationController with those readability and robustness benefits, then we're done here?\r\n\r\n@rrousselGit I'm not advocating Property, as you've said before that it doesn't solve your problems. But if someone were to create a solution that did everything that StreamBuilder does, but without the indentation, would that be it? You'd be happy?",
+    "createdAt": "2020-08-09T03:57:23Z"
+  },
+  {
+    "id": 181,
+    "sender": "rrousselGit",
+    "content": ">  But if someone were to create a solution that did everything that StreamBuilder does, but without the indentation, would that be it? You'd be happy?\r\n\r\nMost likely, yes\r\n\r\nWe'd need to compare this solution to other solutions of course. But that would reach the acceptable level.",
+    "createdAt": "2020-08-09T03:58:35Z"
+  },
+  {
+    "id": 182,
+    "sender": "esDotDev",
+    "content": "> @esDotDev Can you enumerate \"the readability and robustness benefits requested\"?\r\n\r\nRobustness in that it can fully encapsulate the boilerplate around dependencies and lifecycle. ie. I should not have to tell fetchUser every single time, that it should probably rebuild when id changes, it knows to do that internally. Should not have to tell an Animation to dispose itself everytime it's parent Widget is disposed, etc. (I don't fully understand whether Property can do this tbh). This stops developers from making mistakes for rote tasks, all across the code base (one of the main benefits of using Builders currently imo)\r\n\r\nReadability being that we can get the stateful thing with a single line of non-indented code, and the variable for the thing is hoisted and clearly visible.\r\n\r\n> @esDotDev If someone makes a proposal that handles AnimationController with those readability and robustness benefits, then we're done here?\r\n\r\nIf you mean specifically AnimationController no. If you mean any AnimationController/FocusController/TextEdiitingController-like object, then yes. \r\n",
+    "createdAt": "2020-08-09T04:08:40Z"
+  },
+  {
+    "id": 183,
+    "sender": "esDotDev",
+    "content": "> Having a function-like API that returns a value that has a defined life-time that isn't clear is\r\n\r\nI think this is a key mis-understanding. The life-time of a hook is clear, because they are by definition sub-states. They _always_ exist for the lifetime of the State which \"uses\" them. It could not actually be more clear. The syntax is maybe weird and unfamiliar, but it's certainly not lacking clarity.\r\n\r\nSimilar to how the lifetime of a TweenAnimationBuilder() is also clear. It will go away when it's parent goes away. Like a child widget, these are child states. They are fully independent state \"components\", we can assemble and re-use with ease and we explicitly do not manage their lifetime because we want it to naturally be bound to the state in which it's declared, a feature not a bug.",
+    "createdAt": "2020-08-09T04:21:55Z"
+  },
+  {
+    "id": 184,
+    "sender": "Hixie",
+    "content": "@esDotDev \r\n\r\n> etc\r\n\r\nCan you be more specific? (This is why I suggested coming up with a demo application that covered all the bases. I continue to think that's the best way to do this.) Are there features that matter other than only calling the initializer unless the configuration has changed and automatically disposing allocated resources when the host element is disposed?\r\n\r\n> TextEdiitingController-like object\r\n\r\nCan you be more specific? Is TextEditingController more elaborate than AnimationController in some way?\r\n\r\n\r\n----\r\n\r\n@rrousselGit \r\n\r\n> > But if someone were to create a solution that did everything that StreamBuilder does, but without the indentation, would that be it? You'd be happy?\r\n> \r\n> Most likely, yes\r\n\r\nHere is a solution that does everything StreamBuilder does, without any of the indenting:\r\n\r\n```dart\r\nWidget build(context) {\r\n  var result = Text('result:');\r\n  var builder1 = (BuildContext context, AsyncSnapshot<int> snapshot) {\r\n    return Row(children: [result, Text(snapshot.data)]);\r\n  };\r\n  result = StreamBuilder(stream: _stream1, builder: builder1);\r\n  var builder2 = (BuildContext context, AsyncSnapshot<int> snapshot) {\r\n    return Column(children: [result, Text(snapshot.data)]);\r\n  };\r\n  result = StreamBuilder(stream: _stream2, builder: builder2);\r\n}\r\n```\r\n\r\nI'm guessing this violates some other constraint, though. Which is why I would prefer to have something we can all agree is a full description of the problem before we try to solve it.",
+    "createdAt": "2020-08-09T04:24:09Z"
+  },
+  {
+    "id": 185,
+    "sender": "esDotDev",
+    "content": "It is simply the same constraints builders have @Hixie no one is asking for more than that. A builder can tie into widget.whatever, a builder can fully manage whatever internal state is required in the context of the widget tree. That is all a hook can do, and all that anyone is asking for a micro-state or whatever you want to call it.\r\n\r\n>> Can you be more specific? Is TextEditingController more elaborate than AnimationController in some way?\r\n\r\nNo, but it might do different things in init/dispose, or it will bind to different properties, and that I would want to encapsulate that specific boilerplate. ",
+    "createdAt": "2020-08-09T04:29:54Z"
+  },
+  {
+    "id": 186,
+    "sender": "Hixie",
+    "content": "@esDotDev So you want the same thing as a builder, but without the indenting, and on one line (minus the builder callback itself, presumably)? The example I just posted (https://github.com/flutter/flutter/issues/51752#issuecomment-671004483) does that with builders today, so presumably there are additional constraints beyond that?",
+    "createdAt": "2020-08-09T04:32:54Z"
+  },
+  {
+    "id": 187,
+    "sender": "Hixie",
+    "content": "(FWIW, I don't think builders, or something like builders but on one line, are a good solution, because they require that each data type have its own builder created for it; there's no good way to just build one on the fly.)",
+    "createdAt": "2020-08-09T04:34:24Z"
+  },
+  {
+    "id": 188,
+    "sender": "rrousselGit",
+    "content": "> (FWIW, I don't think builders, or something like builders but on one line, are a good solution, because they require that each data type have its own builder created for it; there's no good way to just build one on the fly.)\r\n\r\nI don't understand what this means. Could you rephrase it? 🙏 ",
+    "createdAt": "2020-08-09T04:38:50Z"
+  },
+  {
+    "id": 189,
+    "sender": "Hixie",
+    "content": "You have to create an AnimationBuilder for Animations and a StreamBuilder for Streams and so on. Instead of just having a single Builder and saying \"here's how you get a new one, here's how you dispose it, here's how you get the data out\" etc when you create your StatefulWidget.",
+    "createdAt": "2020-08-09T04:42:11Z"
+  },
+  {
+    "id": 190,
+    "sender": "esDotDev",
+    "content": "> I'm guessing this violates some other constraint, though. Which is why I would prefer to have something we can all agree is a full description of the problem before we try to solve it.\r\n\r\nI think it fairly obviously violates any request for readable code, which is ultimately the goal here, otherwise we'd all just use a million specifically typed-builders, nest em forever, and call it a day. \r\n\r\nI think what is being requested is some thing like (bear with me, I don't, use Streams much):\r\n```\r\nWidget build(context) {\r\n   var snapshot1 = get AsyncSnapshot<int>(stream1);\r\n   var snapshot2 = get AsyncSnapshot<int>(stream2);\r\n   return Column(children: [Text(snapshot1.data), Text(snapshot2.data)]);\r\n}\r\n```\r\n\r\nThis is all the code. There would be nothing more, as the Stream is created for us, the stream is disposed for us, we cant shoot ourselves in the foot AND the code is vastly more readable.  \r\n",
+    "createdAt": "2020-08-09T04:44:13Z"
+  },
+  {
+    "id": 191,
+    "sender": "rrousselGit",
+    "content": "> You have to create an AnimationBuilder for Animations and a StreamBuilder for Streams and so on.\r\n\r\nI don't see that as an issue. We have RestorableInt vs RestorableString vs RestorableDouble already\r\n\r\nAnd generics can solve that:\r\n\r\n```dart\r\nGenericBuilder<Stream<int>>(\r\n  create: (ref) {\r\n    var controller = StreamController<int>();\r\n    ref.onDispose(controller.close);\r\n    return controller.stream;\r\n  }\r\n  builder: (context, Stream<int> stream) {\r\n\r\n  }\r\n)\r\n```\r\n\r\n\r\nSimilarly, Flutter or Dart could include a `Disposable` interface if that really is a problem.",
+    "createdAt": "2020-08-09T04:45:41Z"
+  }
+]

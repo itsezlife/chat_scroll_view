@@ -1,0 +1,386 @@
+[
+  {
+    "id": 8576,
+    "sender": "Hixie",
+    "content": "> These changes will be provided as an opt-in solution for now and the current Material 2 functionality will remain a part of the framework for a while (at least 1 year+). This will give developers to a lot of time to opt-in and move over their projects.\r\n\r\nI don't think that's a lot of time. People maintain projects for a decade or more with minimal investment. We can make minor breaking changes that can be migrated with `dart fix` or flipping a switch, but something of the scale of a whole new library with a new design language and so on is too high an investment for an application in maintenance mode. For example, concretely, I would not expect to ever migrate my Rainbow Monkey app to material3; I just don't have the time to do that work if it's more than a flag flip.",
+    "createdAt": "2021-10-26T19:39:45Z"
+  },
+  {
+    "id": 8577,
+    "sender": "rami-a",
+    "content": "@Hixie the goal is to have a seamless upgrade path (i.e. toggle a flag on ThemeData and all Material widgets adjust appropriately). We're still working through all the details to make this possible.\r\n\r\nOne problem with offering this as a separate library is that as Material continues to evolve, Flutter's packaged material library will become stale and outdated.",
+    "createdAt": "2021-10-26T19:40:48Z"
+  },
+  {
+    "id": 8578,
+    "sender": "Hixie",
+    "content": "It doesn't look like it _can_ be a seamless flag flip, e.g. looking at https://github.com/flutter/flutter/issues/89853 it seems the typography sizes don't match, which is a pretty serious breaking change all on its own.\r\n\r\nI'm also a bit worried about what this will do to the API complexity and performance. Can we add these new features without making the widgets have more complicated APIs? They're already really complicated and confusing as it is, because of having to support material 1 and 2 features (which we'll have to support forever); if we add material 3 features as well it's going to be really hard to pick up the framework. Performance is also an issue since all these widgets are going to be full of branches to handle all the various options, and that's slower than having a dedicated simple library just for one design language.\r\n\r\n> Flutter's packaged material library will become stale and outdated.\r\n\r\nIs that a problem? We can have people import the material3 library instead of the material library in the templates. The idea is just not to break old apps.",
+    "createdAt": "2021-10-26T19:48:21Z"
+  },
+  {
+    "id": 8579,
+    "sender": "rami-a",
+    "content": "The M3 spec is now live at https://m3.material.io/",
+    "createdAt": "2021-10-27T17:15:22Z"
+  },
+  {
+    "id": 8580,
+    "sender": "bernaferrari",
+    "content": "> I'm also a bit worried about what this will do to the API complexity and performance\r\n\r\nThe 'issue' I see is that Flutter is extremely coupled with Material (even the iOS slider depends on Material slider). There are some open issues for decoupling Material, but they never moved on. I am 100% in favor of a Flutter material components library that can be instantly updated and break everything (I was the person that caused TextTheme to be updated to Material 2 😛). I don't want to wait 3 years for Material You changes; It could also help in versioning, as someone could still use RaisedButton (without the deprecation warning) if so wanted. Right now there is not much option, people need to update Flutter (like on Apple Silicon) and sometimes it makes it harder for them.\r\n\r\nMy question is just... how could such a library exist? The imaginary library will probably have ElevatedButton (with some tweaks), but Flutter already has it. Will I as a user suddenly need to figure out which import I want? Or shall Flutter deprecate every material widget and say \"please import the material 2 library\" (so that then switching to material 3 is easy)? Like, this would be nice, but possibly too radical? Or Flutter will somehow import Material 3 and then we will have to deal with conflicts \"you use an unsupported material3 version\" (which could also create trouble when Material 4 reaches).\r\n\r\nI want this, I hope we get this, but how? Is it possible?",
+    "createdAt": "2021-10-27T21:02:57Z"
+  },
+  {
+    "id": 8581,
+    "sender": "byblady",
+    "content": "It is better to update the complete library of material, rather than keep it, since in the long run the components of material 2 will be without maintenance and obsolete, the current version could still be kept and perhaps to use version 3 it is only indicated through of a parameter in the import, that indicates that I want to use version 3 and not 2, or by default in new projects that it is version 3 and be able to use the current version if one wants, but not both at the same time. you see.",
+    "createdAt": "2021-10-27T21:38:02Z"
+  },
+  {
+    "id": 8582,
+    "sender": "Hixie",
+    "content": "> even the iOS slider depends on Material slider\r\n\r\nActually the `cupertino` library doesn't depend on `material`; the dependency is in the other direction.\r\n\r\n> someone could still use RaisedButton\r\n\r\nThere's nothing stopping someone today from just copying the material library and putting it into a package if they want to continue using the older widgets, FWIW.",
+    "createdAt": "2021-10-27T21:58:25Z"
+  },
+  {
+    "id": 8583,
+    "sender": "bernaferrari",
+    "content": "You are right. So the question that remains is: how could we have a material3 library with Flutter's existing material in the same project without conflicts?\r\n\r\n- Convert Flutter's material to material2 library and add a dart fix that adds that import everywhere.\r\n- Somehow add a material flag to pubspec where when >= 3, hides the visibility for Flutter's default material (at least for IDE suggestions; it would still work, just don't suggest/auto-import them). Or maybe just having material in pubspec would trigger the IDE plugin to not auto-import the older material.\r\n\r\nIf you are talking about uncoupling things, we could also remove Material Icons from Flutter and put them into a package. This is a frequent request as it is always breaking something/not updating/the script that updates are private and its changes get in the middle of Flutter releases, so people need to wait for the next stable to have the icons.",
+    "createdAt": "2021-10-28T05:50:18Z"
+  },
+  {
+    "id": 8584,
+    "sender": "Hixie",
+    "content": "The impression I get is that the delta from the current material library to Material 3 is actually pretty minimal, and it would be simplest to just keep adding to the current library. The main complexity seems to be around the typography changes.",
+    "createdAt": "2021-10-28T07:08:51Z"
+  },
+  {
+    "id": 8585,
+    "sender": "rami-a",
+    "content": "@Hixie you're correct that the M2 to M3 delta is pretty minimal.\r\n\r\nThe typography changes are likely the most disruptive:\r\n\r\n- Renaming all the text styles will require folks to familiarize themselves with them again (though `dart fix` can help alleviate some of that complexity).\r\n- The actual changes to the font sizes will be purely opt-in (just like the 2018 font size changes were) using the `Typography` class and named constructors",
+    "createdAt": "2021-10-28T13:22:21Z"
+  },
+  {
+    "id": 8586,
+    "sender": "chgibb",
+    "content": "As a consumer of Flutter, I'd prefer to see separate `package:flutter/material.dart` and `package:flutter/material_you.dart` (or something to that effect).\r\n\r\nMy use case would be to be able to cleanly opt-in or out of Material3 widgets and styles. I recognize that this might not be very straightforward given ancestor themes.",
+    "createdAt": "2021-10-28T15:07:47Z"
+  },
+  {
+    "id": 8587,
+    "sender": "MarcusWichelmann",
+    "content": "This is only a consumer perspective, too, but maybe such a split into a new `material3` package could also be a great chance to risk some breaking changes and throw out all the legacy theming APIs?\r\n\r\nI found the theming system to be very confusing when I started with Flutter and, after heavily working with it for some time, I think it still is. And the updated M3 color scheme (https://github.com/flutter/flutter/issues/89852) will probably not make that situation any better. All these redundancies and complexity could probably only be removed with such a new, fully opt-in package to which developers have to migrate their app code anyway, making the breakage less painful.\r\n\r\nIn the best case, users of the new `material3` package would then find a clean and straight-forwarded theming API without any leftovers from the previous material design revisions, color schemes and theming systems, making it way easier for users to implement theming best practices and understand how things hang together Flutter-internally. Maybe the material library could also be more decoupled along the way, for example by removing all the references to single widgets from the `ThemeData` class to make things more flexible and extensible. But I'm just dreaming. 😉 \r\n\r\nThe downside is, that many breaking changes would probably steepen the effort needed to migrate existing apps to the new Material 3 design.",
+    "createdAt": "2021-10-28T17:09:48Z"
+  },
+  {
+    "id": 8588,
+    "sender": "bernaferrari",
+    "content": "> The actual changes to the font sizes will be purely opt-in (just like the 2018 font size changes were) using the Typography class and named constructors\r\n\r\n2018 style was only implemented in 2020 with `bodyText` (which is nowhere in the official docs but was authorized) to not break the existing `body` and it is still not null-safety. Also, 2014 styles are still the [default in Flutter](https://github.com/flutter/flutter/blob/ca788d8941abc469ee6cac70daff3dfd67d9e47e/packages/flutter/lib/src/material/theme_data.dart#L409). We could say the 2018 migration is not yet complete.\r\n\r\nMaterial3 also revamps how elevation changes (color changes on both dark and light mode, there is a tonalElevation parameter). So now we would have an additional parameter in ThemeData besides `ThemeData.applyElevationOverlay` (which was also only truly implemented in 2020 https://github.com/flutter/flutter/pull/57526).\r\n\r\nFinally, I guess there will be the new `MaterialColors.green90` which is also going to be a duplicate of Flutter's `Colors.green` (from Material 1). A lot of duplications, but nothing impossible. This is the issue of Material 3, there will be additional parameters everywhere, it will be so 'opt-in' that most people will never opt-in because it will be too complex, they will forget or something else. Or ThemeData will get even more verbose.",
+    "createdAt": "2021-10-28T18:23:15Z"
+  },
+  {
+    "id": 8589,
+    "sender": "LasseRosenow",
+    "content": "I myself also think that decoupling the material and also the cupertino library from the flutter framework would be a major benefit for the whole ecosystem. All the libraries get more and more complex just to support legacy m2 styling.. Also things like the m2 snackbar styling are still opt in because of that. \r\n\r\nIt currently is quite painful to create a new flutter app, that uses all widgets in its modern styling, as you have to opt into so many things. And also having to fight with all the old m1 properties and major inconsistencies everywhere.\r\n\r\nI think having a material library, that is versioned independent from flutter, enabling developers to update the flutter version of old maintenance projects without the need to handle breaking changes in the material library, would be a major benefit for everyone, as it not only would make the life of each maintainer much more easy, as breaking changes do happen over time, but also making the life of everyone else, who wants to have the modern styling so much easier, as the material library package could just have breaking changes following semver etc.\r\n\r\nAltogether I would say, especially if we are trying to think long term, the benefits outweigh the costs by far.\r\nSo I would very much recommend to fix this rather soon then late, so that we don't have the same conversation again when materail4 arrives :)",
+    "createdAt": "2021-10-29T12:49:43Z"
+  },
+  {
+    "id": 8590,
+    "sender": "bernaferrari",
+    "content": "MaterialRail is a good example, it was never \"correctly\" implemented in Flutter. The duration and curve was wrong and stayed wrong for years(?). I think it was fixed a few months ago, but it had \"luck\" that almost no one uses the Rail, so the behavior change was fine and no one complained. Officially, if it were a more important component, it would have taken 1 year to deprecate with additional parameters and etc. I like that libraries can move faster.",
+    "createdAt": "2021-10-29T15:25:56Z"
+  },
+  {
+    "id": 8591,
+    "sender": "Hixie",
+    "content": "FWIW, the main reason to _not_ have material be its own package is that we want the out-of-box experience to be quick. That is, people should be able to download Flutter, and immediately start writing an app with pretty buttons.\r\n\r\nI agree with the points that were brought up above, though. It's definitely put us in an awkward situation. I also agree that adding M3 is not going to make it better.",
+    "createdAt": "2021-10-29T18:49:43Z"
+  },
+  {
+    "id": 8592,
+    "sender": "LasseRosenow",
+    "content": "> FWIW, the main reason to _not_ have material be its own package is that we want the out-of-box experience to be quick. That is, people should be able to download Flutter, and immediately start writing an app with pretty buttons.\r\n\r\nThis could easily be solved by adding the new material library package to the pubspec.yaml file of the template for new projects",
+    "createdAt": "2021-10-29T19:22:07Z"
+  },
+  {
+    "id": 8593,
+    "sender": "Hixie",
+    "content": "That ends up being tricky for various reasons, e.g. we would have to pin the dependency which means now you can't upgrade the package without upgrading Flutter. (We have to pin all our internal dependencies, so we try to minimize how many packages we depend on.)\r\n\r\nBut yes, that's one approach we've discussed in the past.",
+    "createdAt": "2021-10-29T19:43:47Z"
+  },
+  {
+    "id": 8594,
+    "sender": "LasseRosenow",
+    "content": "But having material as a dependency in the pubspec template isn't really a flutter dependency. As its only part of a template that is being genrated when a new project is generated just like \"cupertino_icons\" which is added aswell\r\n\r\nBesides that also I still don't see, how \r\n\r\n\"having an easier start (not needing to add material to pubpec)\"\r\n\r\noutweighs\r\n\r\n\"having a very hard time throughout the whole development process by fighting the inconsistent, fragmented and in general weird library that also has a hard time being up to date with modern styling because of backwards compatibility\"",
+    "createdAt": "2021-10-29T20:09:40Z"
+  },
+  {
+    "id": 8595,
+    "sender": "byblady",
+    "content": "> But having material as a dependency in the pubspec template isn't really a flutter dependency. As its only part of a template that is being genrated when a new project is generated just like \"cupertino_icons\" which is added aswell\r\n> \r\n> Besides that also I still don't see, how\r\n> \r\n> \"having an easier start (not needing to add material to pubpec)\"\r\n> \r\n> outweighs\r\n> \r\n> \"having a very hard time throughout the whole development process by fighting the inconsistent, fragmented and in general weird library that also has a hard time being up to date with modern styling because of backwards compatibility\"\r\n\r\nAnd if Flutter were able to use the native libraries, using as a widget and not XML, so the native design libraries would not require any coding to be used in flutter, it is just a dream.",
+    "createdAt": "2021-10-29T20:14:04Z"
+  },
+  {
+    "id": 8596,
+    "sender": "bernaferrari",
+    "content": "> That is, people should be able to download Flutter, and immediately start writing an app with pretty buttons.\r\n\r\nYeah, but Flutter kind of already does that for icons and it works, right? There is `uses-material-design: true` and `cupertino_icons` in every app (because of the template) and you don't see people complaining it is hard to add material icons to Flutter because most use the template.",
+    "createdAt": "2021-10-30T01:04:26Z"
+  },
+  {
+    "id": 8597,
+    "sender": "Hixie",
+    "content": "I'm not saying it's a blocker, just that it's one of the things we need to keep in mind.",
+    "createdAt": "2021-10-30T01:48:18Z"
+  },
+  {
+    "id": 8598,
+    "sender": "bernaferrari",
+    "content": "What would happen if every package imported material2 and you wanted material3? Dependency override? That would be the most common issue.",
+    "createdAt": "2021-10-30T02:11:56Z"
+  },
+  {
+    "id": 8599,
+    "sender": "Hixie",
+    "content": "That's definitely one of the downsides of having a package for material. You'd basically have one ecosystem per material version.",
+    "createdAt": "2021-10-30T06:51:19Z"
+  },
+  {
+    "id": 8600,
+    "sender": "LasseRosenow",
+    "content": "> That's definitely one of the downsides of having a package for material. You'd basically have one ecosystem per material version.\n\nWe would have this issue for the transition to the package yes, but that could be fixed with \"dart fixes\"\n\nIn the future I think the material package could just release a new major version when material 4 comes out containing breaking changes.",
+    "createdAt": "2021-10-30T09:55:24Z"
+  },
+  {
+    "id": 8601,
+    "sender": "ArishSultan",
+    "content": "@bernaferrari i liked your idea of renaming current library to material2 and making the material 3 as materail.dart, and you raised a very valid point that most of the developers do not update their apps accordingly, which they should!\r\n\r\n@rami-a another thing i wanted to ask is that will the new theming be based on the `tokens` like color tokens, design tokens as mentioned in specs. e.g. https://m3.material.io/foundations/design-tokens/overview",
+    "createdAt": "2021-11-10T21:30:49Z"
+  },
+  {
+    "id": 8602,
+    "sender": "rami-a",
+    "content": "> @rami-a another thing i wanted to ask is that will the new theming be based on the `tokens` like color tokens, design tokens as mentioned in specs. e.g. https://m3.material.io/foundations/design-tokens/overview\r\n\r\nThis is a good question. The plan is for us to utilize these design tokens to ensure the components use the correct default values (i.e. default colors, shape, typography). However, theming is not going to change and will continue to be the same system we have in place currently (using `ThemeData`)\r\n\r\n\r\n",
+    "createdAt": "2021-11-11T13:57:18Z"
+  },
+  {
+    "id": 8603,
+    "sender": "LasseRosenow",
+    "content": "I think a good solution would be to write some sort of code generator, that can generate flutter compliant code based on the abstract tokens specified in a yaml file for example\r\n\r\nOr just write a dart wrapper function that takes the tokens as input and gives the corresponding flutter Themes etc. as outputs ",
+    "createdAt": "2021-11-11T14:02:02Z"
+  },
+  {
+    "id": 8604,
+    "sender": "rami-a",
+    "content": "Additionally, the Material team plans to add Flutter support to this new tool: https://material-foundation.github.io/material-theme-builder/\r\n\r\nThis will export dart code that sets up a ThemeData object with your chosen color scheme (you can try it out for jetpack compose or Android xml right now)",
+    "createdAt": "2021-11-11T14:06:46Z"
+  },
+  {
+    "id": 8605,
+    "sender": "bernaferrari",
+    "content": "The way tokens were made (I suppose) is to allow quick theming in JS via the server, in a composable way. ThemeData is not serializable, so it wouldn't be that portable or flexible.\n\nFrom my understanding, you plug that JSON in your app and it works. When people change something, they just update the JSON everywhere. Without a JSON, it gets harder. Does Android have the JSON or it uses the ThemeData?",
+    "createdAt": "2021-11-11T14:13:09Z"
+  },
+  {
+    "id": 8606,
+    "sender": "LasseRosenow",
+    "content": "I think so too @bernaferrari \r\n\r\nCurrently there is a factory to create `ThemeData` from a `colorScheme` like this:\r\n```dart\r\nThemeData.from(colorScheme: myColorScheme).copyWith(\r\n    // Do your component specific theming here...\r\n);\r\n```\r\n\r\nIn my believe something like this could also be done for the new tokens like so:\r\n```dart\r\nThemeData.from(tokens: myTokens).copyWith(\r\n    // Do your component specific theming here...\r\n);\r\n```\r\n\r\n`tokens` being something like a `Material3Tokens` class that can be initialized with JSON\r\n\r\nI would be open to creating a PR implementing this in the future ... what do you think @rami-a",
+    "createdAt": "2021-11-11T14:54:25Z"
+  },
+  {
+    "id": 8607,
+    "sender": "cedvdb",
+    "content": "Inconsistencies and redundencies of some API's due to deprecation is more time consuming than outright breaking changes, that is up to a point. That is if there are some small breaking changes here and there it is usually worth it for the end dev to work a few hours on that. If the application is still not compiling after days then it's a problem. \r\n\r\nRegarding the issue of the fragmented eco system, that will happen with or without external package for material 3. (unmaintained) pub packages will be stuck on an incompatible version of flutter at some point.\r\n\r\nSo the 3 main issues I'm raising:\r\n\r\n  1. API awkwardness due to deprecation\r\n  2. A whole rework of the API ( think angularJS vs angular2) is intrusive\r\n  3. Fragmented eco systems in either cases\r\n    \r\nHave you thought about letting the end dev use multiple version in the same app ? so the app can be divided into parts that can be worked on separately. That would allow the end dev to use \"broken\" outdated packages, in parts of an application, while the transition is being made. This way flutter could rework its API's with breaking changes.\r\n\r\nAlternatively, a transition phase a la null safety",
+    "createdAt": "2021-11-24T00:43:01Z"
+  },
+  {
+    "id": 8608,
+    "sender": "neiljaywarner",
+    "content": "Does anybody have an ETA for any of this stuff as Android 12 is on the rise, people getting new phones for Christmas, etc?\r\n",
+    "createdAt": "2021-12-08T21:10:43Z"
+  },
+  {
+    "id": 8609,
+    "sender": "bernaferrari",
+    "content": "I think half of these changes are already merged and should be in the next flutter stable (which is hopefully in a few days, Dart 2.15 was just released today). But I don't think there is a hurry, Google is not on a hurry, they made the app theme thing restricted to Pixel (or Android 12L). So we will only see the Android 12 from the ad when Android 13 releases.",
+    "createdAt": "2021-12-08T22:27:50Z"
+  },
+  {
+    "id": 8610,
+    "sender": "rami-a",
+    "content": "Yep, we're making progress on all things M3, stay tuned for more updates as we go along",
+    "createdAt": "2021-12-09T14:32:20Z"
+  },
+  {
+    "id": 8611,
+    "sender": "MarlonJD",
+    "content": "Hello I have a question about the _\"Updating all major Material component (button, FAB, chips, dialogs, app bar, etc) default values to use new color scheme, text style, and shapes when opted in to Material 3\"_ Maybe I can create button, chips and others. We will create new named widgets like you did before ? BottomNavigationBar (M2), NavigationBar(M3). Do you have suggestion or rule about the new M3 Major components ?\r\nAs I understand. Button, chips, dialogs using 5 different surface color which these are connected to primaryColor with Opacity. But there is an issue about the elevation and opacity, so should we create these normally with opacity and wait for the change the elevation?",
+    "createdAt": "2022-01-21T19:38:18Z"
+  },
+  {
+    "id": 8612,
+    "sender": "nikitadol",
+    "content": "Is it possible to move the `material` and `cupertino` packages outside of Flutter?\r\n- Components for other platforms are separate from Flutter ([fluent](https://pub.dev/packages/fluent), [macos_ui](https://pub.dev/packages/macos_ui), [yaru](https://pub.dev/packages/yaru), ...)\r\n- You can update packages without updating Flutter",
+    "createdAt": "2022-04-03T12:32:53Z"
+  },
+  {
+    "id": 8613,
+    "sender": "cedvdb",
+    "content": "Moving those packages outside flutter would be nice so you don't import a widget from the wrong package by mistake.",
+    "createdAt": "2022-04-03T15:26:20Z"
+  },
+  {
+    "id": 8614,
+    "sender": "a-eniou-pvotal",
+    "content": "-- off-topic\r\n@Hixie You can see my proposal to help with migration\r\nfor example, MaterialButton will be auto migrated to MaterialButton3 and so on\r\nBy letting contributors make extensions or config templates, everyone will be able to migrate his project to M3 and give it a try\r\n\r\nAdvanced Dart Migration Tool\r\nhttps://github.com/flutter/flutter/issues/78735",
+    "createdAt": "2022-04-20T22:34:54Z"
+  },
+  {
+    "id": 8615,
+    "sender": "ArishSultan",
+    "content": "Will there be a Standard Navigation drawer as described here https://m3.material.io/components/navigation-drawer/overview\r\n",
+    "createdAt": "2022-05-11T21:35:13Z"
+  },
+  {
+    "id": 8616,
+    "sender": "MarlonJD",
+    "content": "> Will there be a Standard Navigation drawer as described here https://m3.material.io/components/navigation-drawer/overview\n> \n\nAre you going to contribute new navigation drawer? I can do it if you won't ",
+    "createdAt": "2022-05-11T21:37:08Z"
+  },
+  {
+    "id": 8617,
+    "sender": "darrenaustin",
+    "content": "> Will there be a Standard Navigation drawer as described here https://m3.material.io/components/navigation-drawer/overview\r\n\r\nWe don't currently have a 'Navigation drawer' per se, but just a bare bones `Drawer` widget that can be populated with anything. I just opened an issue to track a full featured NavigationDrawer feature: #103551.\r\n",
+    "createdAt": "2022-05-12T00:24:57Z"
+  },
+  {
+    "id": 8618,
+    "sender": "ArishSultan",
+    "content": "> > Will there be a Standard Navigation drawer as described here https://m3.material.io/components/navigation-drawer/overview\r\n> \r\n> Are you going to contribute new navigation drawer? I can do it if you won't\r\n\r\n@MarlonJD I would love to, but I am busy with my academic projects and I will stay busy for at least a month, if you want to start working on it please do otherwise if no one works then i will start working on it a month later",
+    "createdAt": "2022-05-12T10:09:06Z"
+  },
+  {
+    "id": 8619,
+    "sender": "MarlonJD",
+    "content": "> > > Will there be a Standard Navigation drawer as described here https://m3.material.io/components/navigation-drawer/overview\n> > \n> > Are you going to contribute new navigation drawer? I can do it if you won't\n> \n> @MarlonJD I would love to, but I am busy with my academic projects and I will stay busy for at least a month, if you want to start working on it please do otherwise if no one works then i will start working on it a month later\n\nOkay, I already did new drawer for my project and I'll try to implement the code to repo, which branch i should base?\n",
+    "createdAt": "2022-05-12T10:11:55Z"
+  },
+  {
+    "id": 8620,
+    "sender": "ArishSultan",
+    "content": "@MarlonJDm continue the discussion on https://github.com/flutter/flutter/issues/103551.",
+    "createdAt": "2022-05-12T10:21:32Z"
+  },
+  {
+    "id": 8621,
+    "sender": "leoshusar",
+    "content": "Are you also planning to add the animation between extended and regular FAB?\r\nI think since Flutter already animates appearing and disappearing, this would be great too.\r\n\r\nhttps://user-images.githubusercontent.com/13891066/169715139-2a19b9af-e5a3-4386-bdeb-5bd7db650a71.mp4\r\n\r\n\r\n",
+    "createdAt": "2022-05-22T20:47:24Z"
+  },
+  {
+    "id": 8622,
+    "sender": "cedvdb",
+    "content": "It seems to me that the checkboxes do not use the color palette ( I tried on dark theme). I think those should have a sensible default.  Currently it is the good old cyan that no one ever understood where it was coming from in dark themes:\r\n\r\n![image](https://user-images.githubusercontent.com/22280985/169817490-fc3db0dd-e94d-4559-a189-2c39ec09fdf0.png)\r\n",
+    "createdAt": "2022-05-23T12:14:32Z"
+  },
+  {
+    "id": 8623,
+    "sender": "darrenaustin",
+    "content": "> It seems to me that the checkboxes do not use the color palette ( I tried on dark theme). I think those should have a sensible default.\r\n\r\nThe checkbox is still using the M2 defaults (there isn't an updated M3 spec for it yet). Please file a separate issue for this and we will look into at least cleaning up the defaults here.",
+    "createdAt": "2022-05-23T18:06:59Z"
+  },
+  {
+    "id": 8624,
+    "sender": "JMS55",
+    "content": "It appears that there is an issue for TextField support (#103537), but I don't see it listed anywhere in this issue. Just wanted to bring attention to this, thanks for the great work! ",
+    "createdAt": "2022-05-24T22:48:56Z"
+  },
+  {
+    "id": 8625,
+    "sender": "darrenaustin",
+    "content": "> It appears that there is an issue for TextField support (#103537), but I don't see it listed anywhere in this issue. Just wanted to bring attention to this, thanks for the great work!\r\n\r\nSorry about that. There was some reorganization that took place and it must have got lost in the shuffle. It is back on the list again. Thx.\r\n",
+    "createdAt": "2022-05-25T18:24:37Z"
+  },
+  {
+    "id": 8626,
+    "sender": "UsamaKarim",
+    "content": "Working link to Material 3 sample app https://flutter.github.io/samples/material_3.html",
+    "createdAt": "2022-06-02T17:37:42Z"
+  },
+  {
+    "id": 8627,
+    "sender": "Levi-Lesches",
+    "content": "I know this part of the issue is an old topic, but I'd like to contribute my thoughts. I agree that the Material and Cupertino widgets should be separated from the main Flutter repo (and included by default in the `pubspec.yaml` from `flutter create`) for several reasons: \r\n- It enables Flutter and Material to have different views on breaking changes. For example, Flutter seems to be very against breaking changes, favoring a time-based deprecation scheme instead of semantic versioning. Dart also uses its own language versioning process. A separate package would allow the widgets to stay in sync with the Material spec, independent of Flutter's policies (not that I disagree with those policies).\r\n- On the same note, if a dev prefers, they can mix and match versions of Flutter and Material (to an extent, probably). For example, if a dev was on Flutter 2, they could easily make the purely technical switch to Flutter 3 and gain all the performance improvements without committing to the stylistic changes of Material 3.\r\n- This platform-agnostic separation would make using other platforms feel less hacky. It's no doubt that Flutter intends for Material to be the \"default\", and for documentation purposes, it still could be. Have all the codelabs follow Material, sure. But today, adding support for other platforms is not straightforward. \r\n  - Some widgets have a `.adaptive` constructor, like [`Switch.adaptive`](https://api.flutter.dev/flutter/material/Switch/Switch.adaptive.html). It is unclear which platforms these constructors support since they are included in the `material` library. Also, it is impossible for these widgets to take advantage of other supported platforms like `fluent_ui` since that's a separate package. \r\n  - Other widgets have platform adaptive behavior, like `Scrollable`. When over scrolled, it sends [`GlowingOverscrollIndicator`](https://api.flutter.dev/flutter/widgets/GlowingOverscrollIndicator-class.html) or [`BouncingScrollPhysics`](https://api.flutter.dev/flutter/widgets/StretchingOverscrollIndicator-class.html) notifications, depending on the platform. It can even send [`StretchingOverscrollIndicator`](https://api.flutter.dev/flutter/widgets/StretchingOverscrollIndicator-class.html) notifications like Material 3. Again, it's unclear which behavior will be chosen. Again, it is also impossible for these widgets to function correctly on platforms with their own package, like `fluent_ui`. \r\n  - Other widgets are split between `material`, `cupertino`, `fluent_ui`, and other libraries and must be chosen manually. Given the range of behaviors listed above, it's unclear when to rely on the default Material widget or find an alternative in these massive libraries. As mentioned, some even have dependencies on others, making them not truly independent. Also, the alternative widgets don't feel official since they're prefixed by their platform. Between `CupertinoTheme` and `Theme`, it feels like `Theme` is the \"correct\" version to use. \r\n- This will make it easier for developers to introduce their own globally themed widgets. Separately from using `ThemeData`, there are cases where one wants every or most Material widget to be replaced with their own. A modular framework allows devs to create their own widgets, hardly interacting with the default Material library. One example would be when porting Flutter to a new platform. Another example is a wiki site for a game that wants to have buttons, text, and displays themed like the game's UI. For an example, see [this page](https://www.factorio.com/blog/) from Factorio's website. Imagine importing `package:factorio` instead of `material` to create that site. \r\n\r\nTL;DR: Separating platform widgets into their own package is useful for breaking changes, but it primarily declares an intent to support a given platform's conventions. While this doesn't have to replace the \"out-of-the-box\" support for a reasonable default like Material, it does allow each platform to take its own spin on Flutter. \r\n\r\n----\r\n\r\nThen there's the problem of easily supporting different platforms' conventions by default, as Flutter currently does. I'm not sure the _best_ way to do this, but taking from my last bullet, one can make an umbrella package that automatically chooses the right widget for the user's platform, and users would import that. So imagine a `mobile_ui` package with its own `AlertDialog` that chooses between a Material dialog on Android or a `CupertinoDialog` on iOS. ",
+    "createdAt": "2022-06-14T00:18:37Z"
+  },
+  {
+    "id": 8628,
+    "sender": "mbfakourii",
+    "content": "@rami-a  When we click on the bottomNavigationBar buttons, it goes to Ripple Square, when it should be Circle or Bayesian ripple. Take a look at the Google Play app.",
+    "createdAt": "2022-08-05T06:03:30Z"
+  },
+  {
+    "id": 8629,
+    "sender": "TahaTesser",
+    "content": "> When we click on the bottomNavigationBar buttons, it goes to Ripple Square\r\n\r\nThat's true, this can also be verified in the `Selection` area under https://m3.material.io/components/navigation-bar/guidelines\r\n\r\nhttps://user-images.githubusercontent.com/48603081/183062010-979e3118-f500-4cf7-b4d6-67cb1a6ca8d9.mp4\r\n\r\n\r\n",
+    "createdAt": "2022-08-05T10:48:52Z"
+  },
+  {
+    "id": 8630,
+    "sender": "bernaferrari",
+    "content": "This is what you mean? \r\n\r\n![Screenshot_20220805-101245_Google Play Store](https://user-images.githubusercontent.com/351125/183084856-22e0884a-7ac2-4356-9f08-3d10a58a76be.png)\r\n",
+    "createdAt": "2022-08-05T13:14:11Z"
+  },
+  {
+    "id": 8631,
+    "sender": "mbfakourii",
+    "content": "> This is what you mean?\r\n\r\n\r\nYes, it should be like this\r\n<img src=\"https://user-images.githubusercontent.com/20955005/183086568-7d76b345-9ead-4ef3-9b71-89fbfdf3f1e6.jpg\" width=400 />\r\n",
+    "createdAt": "2022-08-05T13:25:16Z"
+  },
+  {
+    "id": 8632,
+    "sender": "FeodorFitsner",
+    "content": "After upgrading to \"beta\" Flutter channel `IconButton` in actions section of `AppBar` is not round anymore. Is it according to M3 design?\r\n\r\n![image](https://user-images.githubusercontent.com/5041459/183227021-319becd3-6bfd-4e65-a317-38752893e91e.png)\r\n",
+    "createdAt": "2022-08-06T00:51:28Z"
+  },
+  {
+    "id": 8633,
+    "sender": "iqfareez",
+    "content": "Hi. I wonder if there already an open issue with the **SimpleDialog** widget in material 3 mode. The looks when dark mode is wrong (it changed to material 2 design)\r\n\r\n|Brightness.light|Brightness.dark|\r\n|--|--|\r\n|![light][flutter_03] | ![dark][flutter_02]|\r\n|✔️|❌|\r\n\r\n[flutter_02]: https://user-images.githubusercontent.com/60868965/183285760-2cf776ea-6aff-4478-8a48-d77b0c93e1aa.png\r\n[flutter_03]: https://user-images.githubusercontent.com/60868965/183285762-3243fe9d-f4d1-448a-be2a-849c32dc133e.png\r\n\r\n\r\n",
+    "createdAt": "2022-08-07T10:07:16Z"
+  },
+  {
+    "id": 8634,
+    "sender": "HansMuller",
+    "content": "@FeodorFitsner - IconButton now has its own Material Widget and its size is constrained by the AppBar.actions horizontal layout.  This issue was also reported here: https://github.com/flutter/flutter/issues/64702#issuecomment-1203141210. We're working on restoring the proper circular splash.\r\n\r\nCC @QuncCccccc ",
+    "createdAt": "2022-08-08T15:29:42Z"
+  },
+  {
+    "id": 8635,
+    "sender": "HansMuller",
+    "content": "@iqfareez - that looks like a bug, thanks for pointing it out. CC @TahaTesser \r\n",
+    "createdAt": "2022-08-08T15:34:07Z"
+  },
+  {
+    "id": 8636,
+    "sender": "MaxYablochkin",
+    "content": "![Screenshot_1](https://user-images.githubusercontent.com/102767277/184247641-c3dd3a1c-2591-4405-9455-b251d34be4d6.png)\r\n![Screenshot_2](https://user-images.githubusercontent.com/102767277/184247644-76ff0405-4079-40f0-a6c9-35d2948f33e3.png)\r\n\r\nI noticed that these two buttons known as ElevatedButton in Material 3 style can only be implemented in a separate class, not in MyApp. Otherwise, they will look like the default.",
+    "createdAt": "2022-08-11T21:45:26Z"
+  },
+  {
+    "id": 8637,
+    "sender": "ivirtex",
+    "content": "> ![Screenshot_1](https://user-images.githubusercontent.com/102767277/184247641-c3dd3a1c-2591-4405-9455-b251d34be4d6.png) ![Screenshot_2](https://user-images.githubusercontent.com/102767277/184247644-76ff0405-4079-40f0-a6c9-35d2948f33e3.png)\r\n> \r\n> I noticed that these two buttons known as ElevatedButton in Material 3 style can only be implemented in a separate class, not in MyApp. Otherwise, they will look like the default.\r\n\r\nThis is desired behaviour, if you want to use Filled or Filled Tonal button styles, you have to create your own classes.\r\n```dart\r\n/// | Type         | Flutter implementation  |\r\n/// | :----------- | :---------------------- |\r\n/// | Elevated     | [ElevatedButton]        |\r\n/// | Filled       | Styled [ElevatedButton] |\r\n/// | Filled Tonal | Styled [ElevatedButton] |\r\n/// | Outlined     | [OutlinedButton]        |\r\n/// | Text         | [TextButton]            |\r\n```\r\n\r\nCheck out examples [here](https://github.com/flutter/flutter/blob/master/examples/api/lib/material/button_style/button_style.0.dart).",
+    "createdAt": "2022-08-11T22:16:25Z"
+  },
+  {
+    "id": 8638,
+    "sender": "rydmike",
+    "content": "@MaxYablochkin and @ivirtex the `FilledButton` and `FilleButton.tonal` implementations are coming too. Check out @darrenaustin's awesome open PR about it here https://github.com/flutter/flutter/pull/107382. It has just not landed even in master yet. It was discussed in this proposal https://github.com/flutter/flutter/issues/104357, where it was first not considered to be added, but perhaps the discussion led to a change of heart, which I appreciate. 💙 \r\n\r\n![Screen Shot 2022-08-12 at 21 50 12](https://user-images.githubusercontent.com/39990307/184424414-83ac8b08-f3bc-41ab-98e4-c913e1eb8865.png)\r\n",
+    "createdAt": "2022-08-12T18:56:37Z"
+  },
+  {
+    "id": 8639,
+    "sender": "MaxYablochkin",
+    "content": "![Screenshot_2](https://user-images.githubusercontent.com/102767277/184454792-4165ee6d-dadc-420e-bbe7-6d6048f5ff50.png) ![sparkle native android](https://user-images.githubusercontent.com/102767277/184454788-c46b9188-b777-42cb-a1be-62e4b0131ad6.png) ![sparkle](https://user-images.githubusercontent.com/102767277/184454791-9a4c9085-e36c-48fe-a961-00a33f046b43.png)\r\n\r\nWill it be possible to replicate the solution from Android for InkSparkle with a sparkle effect that spreads around like InkRipple?",
+    "createdAt": "2022-08-12T23:00:26Z"
+  }
+]

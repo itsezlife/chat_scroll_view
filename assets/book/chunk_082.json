@@ -1,0 +1,386 @@
+[
+  {
+    "id": 5248,
+    "sender": "stephanemagnenat",
+    "content": "As an example, from the point of view of my project's needs, having access to `dart_api.h` even without stability guarantee (as an experimental feature for example) would already be good enough. My main concern is to move large blobs of binary data (images) from the Dart side to the `C` side and back without marshalling and ideally copying. Unity/Mono [achieves that](http://www.mono-project.com/docs/advanced/pinvoke/).\r\n\r\nFrom [dart-sdk issue 31960](https://github.com/dart-lang/sdk/issues/31960) I understand that the current implementation of isolates might not allow to pass data without copying (although in theory it should be possible to detect that the buffer created in isolate A is not used any more after being passed to isolate B and therefore its ownership can be transferred, without copying.. any plan on that front?), but if at least within an isolate there is no marshalling to/from `C` it would be good.",
+    "createdAt": "2018-03-31T12:24:21Z"
+  },
+  {
+    "id": 5249,
+    "sender": "negator",
+    "content": "Marshalling could be avoided with flatbuffers which looks to be landing soon: https://github.com/google/flatbuffers/pull/4676\r\nOr with protobuf messages using a single bytes only field. \r\n\r\nOf course, this entails large amounts of byte copying so not great for all use cases.",
+    "createdAt": "2018-03-31T16:48:20Z"
+  },
+  {
+    "id": 5250,
+    "sender": "eseidelGoogle",
+    "content": "I'm hearing at least three different desires presented here:\r\n\r\n1.  Would like a way to easily write a plugin for Flutter using only C/C++ code without having to add a bunch of Java/Obj-C glue (that was my original understanding of this bug and something I definitely think we could/should do).\r\n2.  Would like a way to move large volume of data in/out of Dart quickly/with low latency/etc.  (Presumably from a variety of languages, including C++.  This sounds like a very valid case!  I'd strongly recommend filing a separate bug including an example.)\r\n3.  Would like a way to extend Dart with synchronous calls/objects? (e.g. native extensions or other methods? This is also totally doable.  There are potential difficulties around API stability, and I think we'd want to learn more about the specific use case before taking action.)\r\n\r\nMy feedback from reading the above is that we should consider splitting out some additional bugs.  We definitely need to invest some around C++ inter-op, but it's difficult to determine from this long thread as to which exact use cases we should address and in what order?\r\n\r\nWould interested parties be willing/able to file new bugs with their desired use cases and link them back here?  Happy to leave this issue open to track the general interest in this problem space.\r\n\r\n\r\nWith regards to performance and 2. above:  Although I'm certain that the performance of Flutter's platform_channels could be improved (and that we'll likely need other plugin/inter-op methods to cover all use cases), we will want some concrete use cases (maybe they exist and I haven't seen them?) where the performance of Flutter's platform_channels is a bottleneck before we take action.  My experience with optimizing performance of systems is that my gut instincts are often wrong.  Even though things like JNI or platform_channels feel like potential bottlenecks, we won't actually know until we measure.\r\n\r\nThank you again all for your help and feedback!",
+    "createdAt": "2018-03-31T18:04:03Z"
+  },
+  {
+    "id": 5251,
+    "sender": "charafau",
+    "content": "> Would like a way to easily write a plugin for Flutter using only C/C++ code without having to add a bunch of Java/Obj-C glue (that was my original understanding of this bug and something I definitely think we could/should do).\r\n\r\nthat would also give better sqlite integration for flutter + there are tons of C / Rust libraries for crypto, ssh and other stuff. It would be cool to being able to use that easily.",
+    "createdAt": "2018-04-01T14:28:02Z"
+  },
+  {
+    "id": 5252,
+    "sender": "raygray",
+    "content": "@eseidel \r\n> I'm hearing at least three different desires presented \r\n\r\nMy vote for 1.)",
+    "createdAt": "2018-04-01T20:28:46Z"
+  },
+  {
+    "id": 5253,
+    "sender": "abergmeier",
+    "content": "From reading the Flutter docs it should be fairly \"simple\" to extend the Platform Channels to support C.\r\nThe only novel thing would probably be a way of loading _dynamic shared object_(s) into the current process.\r\n\r\nI would imagine _Android-C_-usage to look something like:\r\n\r\n```c\r\n#include <ndk-version.h>\r\n#include \"methodchannel.h\"\r\n#include \"methodchannels.h\"\r\n\r\nMethodChannel* flutter_channels;\r\n\r\n__attribute__((constructor))\r\nvoid\r\non_library_load() {\r\n\tflutter_channels = NULL;\r\n}\r\n\r\n__attribute__((destructor))\r\nvoid\r\non_library_unload() {\r\n\twhile (MethodChannel* channel = MethodChannels_pop(flutter_channels)) {\r\n\t\tMethodChannel_delete(channel);\r\n\t}\r\n}\r\n\r\n#define str(a) #a\r\n\r\nvoid\r\n{{pluginClass}}_on_method_call(MethodCall* call, Result* result) {\r\n\tif (strcmp(\"getPlatformVersion\", call.method) == 0) {\r\n\t\tResult_success(result, \"Android \" str(__NDK_BUILD__));\r\n\t} else {\r\n\t\tResult_not_implemented();\r\n\t}\r\n}\r\n\r\nvoid\r\n{{pluginClass}}_register_with(Registrar* registrar) {\r\n\tMethodChannel* channel = MethodChannel_new(Registrar_messenger(registrar), \"{{projectName}}\");\r\n\tflutter_channels = MethodChannels_push(flutter_channels, channel);\r\n\tMethodChannel_set_call_handler({{pluginClass}}_on_method_call)\r\n}\r\n```\r\n\r\nConceptually, at least for _Android-C_, you would have to decide how to handle the combination of Java and C.",
+    "createdAt": "2018-04-02T16:35:49Z"
+  },
+  {
+    "id": 5254,
+    "sender": "ghost",
+    "content": "@eseidelGoogle \r\nWe currently expose golang code via the Java and swift wrappers and the latency is an appreciable issue we are hitting. \r\nwhy ?\r\n- We need to share business logic between many platforms.\r\n- For video and image functionality like screen sharing.\r\n- For DB.\r\n\r\nIf your able to add golang  support at the direct level that would make a hug difference !\r\nCompiling golang code for mobile is also very easy without any LDFLags magic, so i think it would be popular.  I know of a few other golang coders that are currently using the Method Channels also.\r\nAs far as serialisation we currently use Protobufs and flatbuffers.\r\n\r\nExample:\r\nhttps://github.com/dnfield/flatbuffers/blob/master/samples/sample_binary.go\r\n\r\n\r\n",
+    "createdAt": "2018-04-23T10:14:45Z"
+  },
+  {
+    "id": 5255,
+    "sender": "ghost",
+    "content": "In fuchsia this is done with FIDL and it has bindings to c, rust and golang.\r\nIts pretty awesome to use and I have been enjoying trying out rust and golang on a embedded board.\r\n\r\nIt should be possible to expose the fidl stuff through iOS and java too.\r\nThat would give a nice onramp between fuchsia and flutter on mobiles and desktop.\r\nJust an idea that I am playing with\r\n\r\n@eseidelGoogle \r\nHiixe told me that FIDL cant be done at Flutter level because FIDL relies on kernel code from zircon in Fuchsia. So the only way to replicate the FIDL IPC style functionality within Flutter would be to write  a FIDL version into the Flutter engine.  But then i was playing aroudn with it and noticed that its quite similar to Flatbuffers. SO why not just use FlatBuffers for the serialisation layer between the Flutter and the cpp or golang or rust layer on Flutter. ?",
+    "createdAt": "2018-05-08T06:36:48Z"
+  },
+  {
+    "id": 5256,
+    "sender": "csga5000",
+    "content": "Just +1 on this, we have a flutter app using a library called Superpowered.  Superpowered is written in C++, we then use java and JNI type stuff to interact with it, which we in turn use platform channels to talk w/ the Java code.  It would certainly be nice if we could skip the middle man.\r\n\r\nThis is additionally with this holding up popular mobile libraries like Realm from making flutter versions because their core is written in C/C++ and they also don't want to deal with a java/objc/swift middleman.\r\n\r\nFor those reasons, aside from general stability I think this issue is one of the most needed changes in flutter at the moment. (More specifically #1 on @eseidelGoogle's list.)",
+    "createdAt": "2018-05-09T21:36:46Z"
+  },
+  {
+    "id": 5257,
+    "sender": "pnico",
+    "content": "If you want to hear an argument for bypassing Java/JNI in platform extensions (ie, not just hiding/automating the Java glue layer for the developer), Superpowered has a lot to say on that topic: https://www.youtube.com/watch?v=LzIuir3r6Co",
+    "createdAt": "2018-05-25T19:54:55Z"
+  },
+  {
+    "id": 5258,
+    "sender": "csga5000",
+    "content": "@pnico Can you explain how this is arguing that Java/JNI should be bipassed?  It seems to be saying little more than your audio processing code should be written in C++.  (Which doesn't mean you can't call it through the JNI or by any other means)",
+    "createdAt": "2018-05-25T20:55:21Z"
+  },
+  {
+    "id": 5259,
+    "sender": "pnico",
+    "content": "@csga5000 you're totally right, that made no sense :D JNI probably isn't going to affect performance really unless you're trying to do more esoteric stuff. I guess it really does come down to convenience/maintainability, and I guess maybe the ability to move more app-specific code out of Java/C++ and into Dart",
+    "createdAt": "2018-06-01T04:33:22Z"
+  },
+  {
+    "id": 5260,
+    "sender": "ghost",
+    "content": "I think @pnico  is saying that he CAN call it through JINI, but that the JINI adds too much latency.\r\nSo the perf is the problem.\r\nyes / no ??",
+    "createdAt": "2018-06-01T11:34:02Z"
+  },
+  {
+    "id": 5261,
+    "sender": "eddywm",
+    "content": "This one might make a huge difference mostly for crypto related work.",
+    "createdAt": "2018-06-09T00:51:50Z"
+  },
+  {
+    "id": 5262,
+    "sender": "fmatosqg",
+    "content": "Also I assume for Android Things, though I haven't seen or made experiments\nand benchmarks for timing sensitive gpio in neither c nor dart for over a\nyear.\n\nOn Sat., 9 Jun. 2018, 10:52 Eddy WM, <notifications@github.com> wrote:\n\n> This one might make a huge difference mostly for crypto related work.\n>\n> —\n> You are receiving this because you are subscribed to this thread.\n> Reply to this email directly, view it on GitHub\n> <https://github.com/flutter/flutter/issues/7053#issuecomment-395927258>,\n> or mute the thread\n> <https://github.com/notifications/unsubscribe-auth/AFHMcSI2JDHbgv3iYrStDN5mlzkQ8XEkks5t6xxMgaJpZM4K-PLw>\n> .\n>\n",
+    "createdAt": "2018-06-09T01:07:14Z"
+  },
+  {
+    "id": 5263,
+    "sender": "be-water-myFriend",
+    "content": "Any progress since then?",
+    "createdAt": "2018-07-09T02:31:58Z"
+  },
+  {
+    "id": 5264,
+    "sender": "mmcc007",
+    "content": "Until this get's resolved, is there a recommendation for an example flutter plugin thats shows how to integrate a c/c++ lib? Is [djinni](https://github.com/dropbox/djinni) a good way to go?",
+    "createdAt": "2018-07-13T16:38:03Z"
+  },
+  {
+    "id": 5265,
+    "sender": "rmtmckenzie",
+    "content": "Until it's resolved, the only way to integrate c/c++ writing native android & ios code, then interfacing to the dart code using [platform channels](https://flutter.io/platform-channels/)",
+    "createdAt": "2018-07-13T17:18:22Z"
+  },
+  {
+    "id": 5266,
+    "sender": "mmcc007",
+    "content": "I've implemented plugins that use platform channels (to jar files and CocoaPods). I'm looking for an example plugin that shows how to integrate to the same c/c++ lib (for both android and ios). Any recommendations?",
+    "createdAt": "2018-07-13T17:53:00Z"
+  },
+  {
+    "id": 5267,
+    "sender": "csga5000",
+    "content": "@mmcc007 It's how you do it in java or swift.\r\n\r\nJava: https://www.google.com/search?client=opera&q=android+java+use+C%2B%2B&sourceid=opera&ie=UTF-8&oe=UTF-8\r\n\r\nSwift: https://www.google.com/search?client=opera&q=swift+use+C%2B%2B&sourceid=opera&ie=UTF-8&oe=UTF-8\r\n\r\nYou can see how superpowered recommends you do it if you really want an example (it's just one I know of): https://github.com/superpoweredSDK/Low-Latency-Android-iOS-Linux-Windows-tvOS-macOS-Interactive-Audio-Platform\r\nSee the examples folders.  Ex, within https://github.com/superpoweredSDK/Low-Latency-Android-iOS-Linux-Windows-tvOS-macOS-Interactive-Audio-Platform/tree/master/Examples_Android/SuperpoweredRecorder/app/src/main there is java/com/superpowered/recorder/MainActivity.java which references code in cpp/RecorderExample.cpp",
+    "createdAt": "2018-07-17T16:24:37Z"
+  },
+  {
+    "id": 5268,
+    "sender": "mmcc007",
+    "content": "@csga5000 It looks as though it would reasonably straight forward.. on first review. Still would be nice to look thru a working flutter plugin. Thanks.",
+    "createdAt": "2018-07-17T16:55:25Z"
+  },
+  {
+    "id": 5269,
+    "sender": "JeffersonBledsoe",
+    "content": "+1 for this. Any **working** examples of a flutter app using c++ would be well received",
+    "createdAt": "2018-07-18T14:49:27Z"
+  },
+  {
+    "id": 5270,
+    "sender": "ghost",
+    "content": "There is a project that does this for golang and I think the same approach\ncan be used for c++ too.\n\nThe golang program uses jsonrpc.\nThen all you need to do is front your own golang code with jsonrpc.\n\nThen everything is very easy.\n\nI think platform channels ONLY supports JSON as the agnostic serialisation\nformat ?\n\nOn Wed, 18 Jul 2018, 16:50 Jefferson Bledsoe, <notifications@github.com>\nwrote:\n\n> +1 for this. Any *working* examples of a flutter app using c++ would be\n> well received\n>\n> —\n> You are receiving this because you commented.\n> Reply to this email directly, view it on GitHub\n> <https://github.com/flutter/flutter/issues/7053#issuecomment-405958345>,\n> or mute the thread\n> <https://github.com/notifications/unsubscribe-auth/ATuCwkPbb9vLdoaEwM-bLhYPZxtyQ5Vjks5uH0sqgaJpZM4K-PLw>\n> .\n>\n",
+    "createdAt": "2018-07-19T06:44:27Z"
+  },
+  {
+    "id": 5271,
+    "sender": "listepo-alterpost",
+    "content": "Hi, any news?",
+    "createdAt": "2018-08-01T01:21:40Z"
+  },
+  {
+    "id": 5272,
+    "sender": "skills-up",
+    "content": "Just want to know if anyone in this thread has managed to integrate Superpowered library directly into a flutter app?",
+    "createdAt": "2018-08-06T07:10:54Z"
+  },
+  {
+    "id": 5273,
+    "sender": "csga5000",
+    "content": "Yes @skills-up we *have* done it.  Just not in an open source project so I can't show.  But if you see my tips earlier, that's how you do it.  You may need to build your flutter app for each CPU architecture though",
+    "createdAt": "2018-08-06T14:25:55Z"
+  },
+  {
+    "id": 5274,
+    "sender": "skills-up",
+    "content": "I understand you have done via JNI/Java and not directly from dart. I was wondering if it's possible to avoid platform specific code altogether.\r\n\r\n> You may need to build your flutter app for each CPU architecture though\r\n\r\nYou mean a separate app for each architecture, or just specifying all the supported architectures?\r\n\r\nBTW, we already have a working app written natively in Java. However, now that we have to create an iOS app too, I was wondering if creating one in flutter (instead of expending efforts on Swift/XCode) would make more sense from future maintainability perspective, with the benefit of a single code base.",
+    "createdAt": "2018-08-06T14:36:04Z"
+  },
+  {
+    "id": 5275,
+    "sender": "timahrentlov",
+    "content": "Well. Realm is waiting for you guys to provide a way: https://github.com/realm/realm-object-server/issues/55\r\n\r\nlukaspili : I guess everyone is still waiting on: flutter/flutter#7053\r\nbmunkholm: @lukaspili Yes that's a prerequisite for sure.\r\n\r\nFor what it is worth, I'm waiting for this as well. Can't really look into replacing XF apps with flutter ditto until you guys get the proper plumbing. As it currently stands, Xamarin blows flutter out of the water in this department.",
+    "createdAt": "2018-08-07T13:00:47Z"
+  },
+  {
+    "id": 5276,
+    "sender": "bytesoftly",
+    "content": "Late to this party but a big +1 for this thread.\r\n\r\nI develop desktop apps, my view as a line of code (for desktop):\r\n\r\n`Flutter - Dart + C++ > Qt ? partyTime() : makeDoWithElectronOrQt()`\r\n\r\nIf Flutter can offer first class support for C++, I think it's general approach could be an absolute winner for cross platform application development, not just a \"mobile first\" but a world first. Qt is pricey for small devs, is opinionated and doesn't embrace modern C++ and nothing really competes, could Flutter eat at least some of it's UI pie?\r\n\r\nP.S: I'm not anti-Dart, it's another new C#/Go/Rust/etc. competing language that may be super productive for a new platform but the world of high performance desktop (my interest here) applications is firmly C++, with extensive OS and library support, a language that is moving forward at a rate of knots itself (it's not C), and I think Flutter deserves it!",
+    "createdAt": "2018-08-10T13:54:12Z"
+  },
+  {
+    "id": 5277,
+    "sender": "csga5000",
+    "content": "I don't think flutter will support C++ at any point in the near future, and it's certainly not possible now.  And I for one tremendously prefer Dart - writing apps in C++ even w/ flutter would take a lot more effort.  And I don't think C++ directly translates to desktop support, they'd still have to write quite a bit of code, and the dart VM should work for desktop anyway.  I think the performance is negligible for most applications.\r\n\r\nI think in the end google wants to support interoperability so you can write flutter apps for any and all platforms using any supported languages or even a combination of said languages.  But I wouldn't expect that until well when or after Fuchsia is released.  For now their goal is to make it easy to write code once.  Dart matches that goal as it's easy to use/learn, efficient, and one of google's languages anyway.  I really see almost no practical advantage for the average user of having first class C++ support.  The performance is negligible in a mobile app, and using platform channels w/ C++ would be convenient for the purpose of interacting w/ existing C++ libraries.  On the bright side, you can be certain they eventually intend for flutter to support desktop (well at the very least Fuchsia's capybara, but I doubt they'd stop there).\r\n\r\nThis thread is about supporting direct integration w/ C++ from dart/flutter, which hopefully could be coming in the near future.",
+    "createdAt": "2018-08-13T17:49:39Z"
+  },
+  {
+    "id": 5278,
+    "sender": "nhachicha",
+    "content": "> I don't think flutter will support C++\r\n> I really see almost no practical advantage for the average user of having first-class C++ support. \r\n\r\nIt's not about how awesome Flutter/Dart is vs C++, it's more about the point/ease of integrations you need in order to fit in the current ecosystem. A long list of libraries exist as shared object (OpenCV to name one) that are the industry standard, you can't expect people to rewrite them in Dart?\r\n\r\n> The performance is negligible in a mobile app, and using platform channels w/ C++ would be convenient for the purpose of interacting w/ existing C++ libraries.\r\n\r\nQuite the opposite, using channels is suboptimal in this context, think about use cases where you need to work with a large binary object on memory (images), you would need either to :\r\n1- Copy these binaries from/to C++ memory\r\n2- Work with JNI to interface with the library (and handle pointers allocated dynamically to these binaries)\r\nnot mentioning the overhead of serialising/deserialising values/parameters cost that you incur by using the channels. \r\n\r\nA good framework is a balance between the new features/paradigms it introduces vs how easy to integrate with the current ecosystem/legacy, which we can't deny C++ is part of.",
+    "createdAt": "2018-08-13T18:18:25Z"
+  },
+  {
+    "id": 5279,
+    "sender": "refi64",
+    "content": "@nhachicha @csga5000 wasn't disagreeing that directly integrating C++ was important; he was replying to a previous comment asking if Flutter could *directly be used from C++*, as in, without needing any Dart code.",
+    "createdAt": "2018-08-13T18:37:55Z"
+  },
+  {
+    "id": 5280,
+    "sender": "bytesoftly",
+    "content": "> The performance is negligible in a mobile app, and using platform channels w/ C++ would be convenient for the purpose of interacting w/ existing C++ libraries.\r\n@nhachicha I couldn't agree more.\r\n\r\nTruth is for applications that don't need tooth biting performance (which is many) then why not swap the hard to master C++ for something more productive, in fact why stop at Dart alone, why not slot in any of these super popular, (many more popular/established than Dart) languages:\r\n\r\n- C#/.Net Core runtime\r\n- Javascript/Typescript V8 runtime (you'd almost have a browser at that point but so what)\r\n- Rust (also fast!)\r\n- GoLang\r\n- Python\r\n- [Insert your favourite here]...\r\n\r\nAnd as much as I personally love and use some of those languages everyday, C and C++ are at the core of Linux therefore Android, iOS, and desktop platforms such as Windows, MacOS and other desktops. Half of the above languages (including Dart) are written in C++. Cutting edge technologies time and again require tuned native performance, such as AI (Tensorflow is C++, Caffe C++, Pytorch is C under Python, etc.), Augmented Reality libraries, AAA game engines and anything that needs to go near a GPU (CUDA, called from C/C++).\r\n\r\nFor the same reason that the **Flutter rendering engine is itself written in C++** (native, high performance, battery/memory/cpu efficient), I think it would be super to unlock the best possible performance, when needed, without going near a managed runtime and simply supporting C++. This would set Flutter apart from other frameworks such as Xamarin and Nativescript, which honestly offer a similar development experience (having used both) just with different languages, why not make flutter special rather than just \"the Dart one\"?\r\n\r\n_As a side note, I'm totally at home with writing everything in C/C++, from form validation through to pixel shaders but I'm not pretending that's the view of many people looking at this repo - and that's because I find C++ a highly productive language - totally a personal choice however._\r\n\r\n",
+    "createdAt": "2018-08-13T19:25:47Z"
+  },
+  {
+    "id": 5281,
+    "sender": "p30arena",
+    "content": "This is one of the main reasons that we need C++ Integration\r\n\r\nhttps://github.com/realm/realm-object-server/issues/55",
+    "createdAt": "2018-08-21T18:23:30Z"
+  },
+  {
+    "id": 5282,
+    "sender": "mraleph",
+    "content": "There are two straightforward ways to go about C/C++ integration: \r\n\r\n* Provide method channel implementation in C++\r\n* Provide Dart VM native extension support \r\n\r\nUnfortunately both of these have major drawbacks that prevent us from pursuing them: \r\n\r\n* Method channels are high overhead abstraction - while C/C++ integration is requested when low overhead interactions are desirable. Meaning that method channels would not actually solve the problem.\r\n* Dart VM native extensions require people to use Dart VM C API - it might not be desirable to introduce too much external dependencies on that, especially given the fact that API did not age well and requires some serious refactoring.\r\n\r\nIt seems that a more desirable alternative is an introduction of `dart:ffi` - a core component of Dart VM that would allow to bind directly to native code enable people to write something like:\r\n\r\n```dart\r\nimport 'dart:ffi' as ffi;\r\n\r\n// Bind foo to symbol _foo from library libxyz.so with signature\r\n// int32_t (int32_t, double, char*).\r\n@ffi.import(\"libxyz.so\", name: '_foo',\r\n            signature: ffi.Signature(ffi.Int32, [ffi.Int32, ffi.Double, ffi.PChar]))\r\nextern int foo(int foo, double x, String foo);\r\n```\r\n\r\nWe had certain amount of interest in implementing an FFI like this for a long time - I would expect us to experiment with it some time in the near future, but I would not commit to any concrete timelines.\r\n",
+    "createdAt": "2018-08-22T20:04:03Z"
+  },
+  {
+    "id": 5283,
+    "sender": "csga5000",
+    "content": "@kirbyfan64 Is exactly right, @nailgilaziev, @bytesoftly I'm not trying to say C++ integration isn't needed, I was just saying I don't think there's that much reason/demand to make flutter support C++ INPLACE of dart - but I'm not saying that integration isn't needed.  What @mraleph is saying sounds smart to me.",
+    "createdAt": "2018-08-22T21:13:19Z"
+  },
+  {
+    "id": 5284,
+    "sender": "listepo",
+    "content": "@mraleph The Dartino had a similar implementation for [FFI](https://github.com/dartino/sdk/tree/aa7aba8473f405dd49b9c81b0faeeebfa6e94fc8/lib/ffi). How difficult it is to resurrect?",
+    "createdAt": "2018-08-22T23:09:33Z"
+  },
+  {
+    "id": 5285,
+    "sender": "mraleph",
+    "content": "@listepo parts of it. Dartino's implementation of FFI was very dynamic - this is not something we want for Dart 2 which is considerably more static than Dart 1.",
+    "createdAt": "2018-08-23T06:39:09Z"
+  },
+  {
+    "id": 5286,
+    "sender": "CryptUser",
+    "content": "Late to the game, but here is another use case: We would like to include c files and methods in dart for cryptographic purposes.\r\n\r\nWhat we would hope for are the following:\r\n1) Identical code for iOS and Android, i.e. no going through ObjC or JNI layers.\r\n2) Hopefully a more efficient implementation than when going through e.g. JNI twice.\r\n3) Possibility to reuse the dart model code in a follow-up Web app e.g. in AngularDart, or follow-up desktop apps using this project: https://github.com/google/flutter-desktop-embedding\r\n\r\nI believe what we want is closest to point 2 @eseidelGoogle mentioned above. As for synchronous support, I consider it a \"nice to have\", since asynchronous functions cannot be used in a constructor, where one might want to perform e.g. a quick hash calculation. But getting used to Darts async way, synchronous support appears less important than the general possibility to achieve points 1)-3) above.",
+    "createdAt": "2018-08-23T07:39:52Z"
+  },
+  {
+    "id": 5287,
+    "sender": "CryptUser",
+    "content": "Using FFI as suggested by @mraleph, would this allow for 1)-3) as in my previous comment, or would it mean that different code is needed on different platforms (Android, iOS, ...)?",
+    "createdAt": "2018-08-24T07:01:45Z"
+  },
+  {
+    "id": 5288,
+    "sender": "mraleph",
+    "content": "@CryptUser if your C/C++ code is the same on all platforms the Dart code for calling it via FFI would also be the same on all platforms.",
+    "createdAt": "2018-08-24T07:04:48Z"
+  },
+  {
+    "id": 5289,
+    "sender": "CryptUser",
+    "content": "@mraleph Sounds great! Given that the original issue has over 200 thumbs up, is there any chance to increase priority on this?",
+    "createdAt": "2018-08-24T07:09:03Z"
+  },
+  {
+    "id": 5290,
+    "sender": "dnfield",
+    "content": "@mraleph is there an open issue for FFI in Dart somewhere?",
+    "createdAt": "2018-09-12T18:05:30Z"
+  },
+  {
+    "id": 5291,
+    "sender": "mraleph",
+    "content": "@dnfield I have filed one just now https://github.com/dart-lang/sdk/issues/34452",
+    "createdAt": "2018-09-12T18:36:18Z"
+  },
+  {
+    "id": 5292,
+    "sender": "expenses",
+    "content": "I would love to be able to write C/C++/Rust code and be able to use it over ffi",
+    "createdAt": "2018-10-01T09:33:18Z"
+  },
+  {
+    "id": 5293,
+    "sender": "Guillaume-Fortin",
+    "content": "Example:\r\n\r\nI test flutter on android tablet (Android 4.4).\r\nflutter run quickly.\r\nBut when i try read 1000 row with sqflite who use platform channel, it's ridiculous slow.\r\nthe reason : i can't use sqlite cursor reader.\r\n\r\nbut if i could use directly the sqlite library, the same query is instant. (tested with xamarin and native android project).",
+    "createdAt": "2018-10-02T09:39:54Z"
+  },
+  {
+    "id": 5294,
+    "sender": "eseidelGoogle",
+    "content": "We're discussing right now how best to approach this.  As noted above in https://github.com/flutter/flutter/issues/7053#issuecomment-377711814 this issue has many parts and probably needs to be split. :)\r\n\r\nBut we have found some engineers interested in exploring an FFI (as noted in https://github.com/flutter/flutter/issues/7053#issuecomment-415161464).  Our focus right now is on getting 1.0 out the door, but once that's done this will be high on the list.  Thanks again for all your continued feedback.  We'll update this issue when we have more progress to share.",
+    "createdAt": "2018-10-02T17:12:17Z"
+  },
+  {
+    "id": 5295,
+    "sender": "develooper1994",
+    "content": "I am also Matlab/Simulink user. I can generate highly optimized cpu specific c/cpp code. I want to integrate my algorithm into flutter. I have lots of image processing algorithm. I need a binding generator for native codes. Otherwise i will forget all my dart-flutter experiences and I will start to learn xamarin or something that fits me.",
+    "createdAt": "2018-10-24T18:33:10Z"
+  },
+  {
+    "id": 5296,
+    "sender": "WoodyGuo",
+    "content": "Can we speed up the progress?\r\n\r\nIt's just such a huge pain to interoperate between Dart and C.",
+    "createdAt": "2018-10-26T09:47:14Z"
+  },
+  {
+    "id": 5297,
+    "sender": "Hixie",
+    "content": "Rushing the process isn't likely to result in a good quality product. It'll be ready when it's ready. :-)",
+    "createdAt": "2018-10-27T21:32:57Z"
+  },
+  {
+    "id": 5298,
+    "sender": "WoodyGuo",
+    "content": "> Rushing the process isn't likely to result in a good quality product. It'll be ready when it's ready. :-)\r\n\r\nWell, what I tried to say was that we might want to increase the priority so that we could put more resource and effort on resolving this. You know that there are 1386 open issues as of now targeting \"Goal\" which will be \"fixing in the coming years\".\r\n\r\nAfter reading the thread once again, I noticed that @eseidelGoogle said that this will get higher priority after Flutter 1.0 is ready. I think that it has addressed my concern well.",
+    "createdAt": "2018-10-29T02:32:53Z"
+  },
+  {
+    "id": 5299,
+    "sender": "eseidelGoogle",
+    "content": "\"Goal\" may be the wrong bucket. :)  @mraleph has someone exploring https://github.com/dart-lang/sdk/issues/34452 as we speak.  That's a part of a solution at least.",
+    "createdAt": "2018-10-29T02:46:19Z"
+  },
+  {
+    "id": 5300,
+    "sender": "mraleph",
+    "content": "Here is [the vision doc](https://gist.github.com/mraleph/2582b57737711da40262fad71215d62e) for the FFI we are currently prototyping on the Dart side.\r\n\r\nPlease take a look and let us know what you think. ",
+    "createdAt": "2018-11-27T07:21:52Z"
+  },
+  {
+    "id": 5301,
+    "sender": "zoechi",
+    "content": "I can't say much about the FFI part because I never used something like that,\r\nbut I'm wondering how pub integration will look like. \r\n\r\nHow would publishing packages be handled that make use of FFI?\r\nHow would consuming packages that use FFI be handled?",
+    "createdAt": "2018-11-27T07:49:01Z"
+  },
+  {
+    "id": 5302,
+    "sender": "mraleph",
+    "content": "@zoechi we have not discussed `pub` integration yet.",
+    "createdAt": "2018-11-27T07:58:40Z"
+  },
+  {
+    "id": 5303,
+    "sender": "dnfield",
+    "content": "They should be able to work similarly to Flutter plugins today - include platform/architecture appropriate sources and/or binaries that can be compiled/linked into the consuming application.  \r\n\r\nFrom a pub perspective, it shouldn't be a big deal - except that there might be larger binary files included in the package.\r\n\r\nThere'd need to be some work done though around the Flutter tooling end of things to integrate them into Flutter projects - they wouldn't really work quite the same as Android/iOS plugins do today.\r\n",
+    "createdAt": "2018-11-27T07:58:52Z"
+  },
+  {
+    "id": 5304,
+    "sender": "zoechi",
+    "content": "Should the pub-integration be moved to a dart-lang/pub issue to keep this issue more focused?",
+    "createdAt": "2018-11-27T08:17:34Z"
+  },
+  {
+    "id": 5305,
+    "sender": "ohir",
+    "content": "I have read 'vision doc' and I at last see shapes through the fog.\r\n\r\nIn meantime I was pondering on something much different.\r\n\r\nNamely of (re)using [Flatbuffers](https://github.com/google/flatbuffers) to make something like NativeChannels. At executing (AOT) time it would boil down to pointer passing, while at dev time it would let me leverage existing tools for the \"native\" side written not only in C/C++ but also written in Go or Rust.\r\n\r\nMessage passing approach is also more in line with current stream based architectures (Bloc, Rx). It voids any concern about memory mangement, too, as the compiler might generate suitable ring buffers where appropriate or assume simple 'callee frees' where a callee needs to hold on data longer.\r\n\r\nBut to be honest I'll applaud any form of ffi if it will be seamlessly integrated into Flutter (Fuchsia) ecosystem and let me use cpu optimized native code from within Dart app.\r\n",
+    "createdAt": "2018-11-27T14:57:00Z"
+  },
+  {
+    "id": 5306,
+    "sender": "eseidelGoogle",
+    "content": "@ohir what you had envisioned would be another solution for some of the problems presented bug.  This bug evolved into a general purpose catch-all for anything C++ related. :/   I suspect (as I've noted in previous comments) we need to break this bug into smaller ones.  The FFI work may not be the only solution we build in this space.",
+    "createdAt": "2018-11-27T15:10:31Z"
+  },
+  {
+    "id": 5307,
+    "sender": "smellbee",
+    "content": "@eseidelGoogle  any progress on this ? right now we have a project needs to implement heavy video processing tasks which might be done via ffmpeg， since the current dart package can not provide a viable solution，we are eagerly waiting for flutter to call ffmpeg lib directly.  \r\n\r\nFor those page-to-page  UI based apps,  now flutter I think is really a good choice  than turning to double coding work on both android and ios， if we were at 5 years ago with such a lovely equipment， the whole Apps industry might be changed. However,  the advantages of flutter right now is not that breathtaking for companies migrating to it，cause they already had done good enough with the old way，but for some non-UI task， dart is way behind the top  requirement. \r\n\r\nit does't mean that dart is not good nor viable for those tasks one day, but in a view of a normal IT company which might be included into the flutter eco-system,  what they need is reducing the cost by using a cross-platform coding method only if  the most top cool features could be achieved, such as client-side data processing, video/audio, AR staff etc as long as some algorithm they already done via c/c++.   it is really hard for them to  re-implement or re-invent it using dart lang.\r\n\r\nand the key solution is  introducing the direct and efficient way for flutter to communicate with c++,  I even think this is of the first priority of a \"cross-platform\" thing,  dart for UI staff  is perfect,  some normal data logic can also be done in dart, but it is much better for flutter to merge into the long but still active and efficient c++ eco-system rather than rebuild a holy new one !  \r\n\r\nthe dream of  a real \"cross-platform\" coding experience is dart UI staff with c++ behind the hood,  no java code at all, no oc code at all.   wahaha, I can't wait to see it happen!",
+    "createdAt": "2018-12-29T18:27:46Z"
+  },
+  {
+    "id": 5308,
+    "sender": "refi64",
+    "content": "@smellbee Can't you use the ffmpeg command line?",
+    "createdAt": "2018-12-29T18:56:20Z"
+  },
+  {
+    "id": 5309,
+    "sender": "escamoteur",
+    "content": "@smellbee  I featr I'm not the right one to answer this.  @eseidelGoogle  any news on this?",
+    "createdAt": "2018-12-30T12:33:15Z"
+  },
+  {
+    "id": 5310,
+    "sender": "smellbee",
+    "content": "> @smellbee Can't you use the ffmpeg command line?\r\n\r\nit's a client side work, using ffmpeg lib to render  video frames to produce instant feed back  stream,  is it possible to use  command line?",
+    "createdAt": "2018-12-30T15:06:04Z"
+  },
+  {
+    "id": 5311,
+    "sender": "smellbee",
+    "content": "> @smellbee I featr I'm not the right one to answer this. @eseidelGoogle any news on this?\r\n\r\nsorry for that,  I typed \"es\" , and it auto completed, I didn't notice it....  hope @eseidelGoogle  can see it",
+    "createdAt": "2018-12-30T15:11:34Z"
+  }
+]

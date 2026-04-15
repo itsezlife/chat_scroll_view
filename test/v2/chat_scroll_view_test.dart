@@ -106,6 +106,7 @@ List<IChatMessage> _generateMessages(int count) {
     for (var i = 0; i < count; i++)
       ChatMessage$User(
         id: i,
+        sender: 'User',
         createdAt: now.add(Duration(minutes: i)),
         updatedAt: now.add(Duration(minutes: i)),
         content:
@@ -239,6 +240,7 @@ void main() {
           for (var i = 0; i < 256; i++)
             ChatMessage$User(
               id: i,
+              sender: 'User',
               createdAt: now.add(Duration(minutes: i)),
               updatedAt: now.add(Duration(minutes: i)),
               content: 'Hi', // very short messages
@@ -299,6 +301,7 @@ void main() {
         dataSource.upsertMessage(
           ChatMessage$User(
             id: 5,
+            sender: 'User',
             createdAt: DateTime.now(),
             updatedAt: DateTime.now(),
             content: 'Updated message',

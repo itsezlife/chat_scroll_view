@@ -1,0 +1,386 @@
+[
+  {
+    "id": 4160,
+    "sender": "tvolkert",
+    "content": "@tomaszpolanski the plan is to get it to beta by the end of June and to stable by early July 🙂 ",
+    "createdAt": "2019-06-13T17:24:14Z"
+  },
+  {
+    "id": 4161,
+    "sender": "josh-burton",
+    "content": "@tvolkert is there a `flutter build appbundle` command flag we can pass to also include x86?",
+    "createdAt": "2019-06-13T19:30:01Z"
+  },
+  {
+    "id": 4162,
+    "sender": "blasten",
+    "content": "@athornz not in release mode atm. See: https://github.com/flutter/flutter/issues/9253.  It will be possible to add AOT snapshots for `x86_64` in the near future though.",
+    "createdAt": "2019-06-13T19:43:55Z"
+  },
+  {
+    "id": 4163,
+    "sender": "xinoxapps",
+    "content": "Switching to the master branch gives me the following error. Stable builds but fails to include 64bit in the release bundle.\r\n\r\n```\r\nRunning flutter doctor...\r\nDoctor summary (to see all details, run flutter doctor -v):\r\n[✓] Flutter (Channel master, v1.7.4-pre.108, on Mac OS X 10.14.5 18F132, locale nl-NL)\r\n[✓] Android toolchain - develop for Android devices (Android SDK version 28.0.3)\r\n[✓] Xcode - develop for iOS and macOS (Xcode 10.2.1)\r\n[✓] iOS tools - develop for iOS devices\r\n[✓] Android Studio (version 3.4)\r\n[✓] IntelliJ IDEA Community Edition (version 2018.2.7)\r\n[✓] Connected device (1 available)\r\n\r\n• No issues found!\r\nMacBook-Pro-van-Wendel:zaira wendel$ flutter build appbundle --build-name=1.0.6 --build-number=6 -t lib/main_prod.dart --flavor=prod\r\nInitializing gradle...                                              0,9s\r\nResolving dependencies...                                           2,2s\r\nregisterResGeneratingTask is deprecated, use registerGeneratedResFolders(FileCollection)\r\nregisterResGeneratingTask is deprecated, use registerGeneratedResFolders(FileCollection)\r\nregisterResGeneratingTask is deprecated, use registerGeneratedResFolders(FileCollection)\r\nregisterResGeneratingTask is deprecated, use registerGeneratedResFolders(FileCollection)\r\nregisterResGeneratingTask is deprecated, use registerGeneratedResFolders(FileCollection)\r\nregisterResGeneratingTask is deprecated, use registerGeneratedResFolders(FileCollection)\r\nregisterResGeneratingTask is deprecated, use registerGeneratedResFolders(FileCollection)\r\nregisterResGeneratingTask is deprecated, use registerGeneratedResFolders(FileCollection)\r\nregisterResGeneratingTask is deprecated, use registerGeneratedResFolders(FileCollection)\r\nregisterResGeneratingTask is deprecated, use registerGeneratedResFolders(FileCollection)\r\nRunning Gradle task 'bundleProdRelease'...                              \r\nRunning Gradle task 'bundleProdRelease'... Done                    78,6s\r\nGradle task bundleProdRelease failed with exit code 1\r\n```\r\n",
+    "createdAt": "2019-06-14T13:50:53Z"
+  },
+  {
+    "id": 4164,
+    "sender": "tvolkert",
+    "content": "@xinoxapps, can you send the full output of `flutter build appbundle -v` (as a gist.github.com link please, for readability of this thread 🙂)?",
+    "createdAt": "2019-06-14T15:06:02Z"
+  },
+  {
+    "id": 4165,
+    "sender": "blasten",
+    "content": "@xinoxapps, I was unable to repro this issue locally. Now, looking at the warnings you are getting, it seems there's some custom `build.gradle` config logic, which may or may not be causing the problem. Would it be possible to get to a minimal repro case? e.g. try removing some of that custom Gradle config until it works, then share what exactly caused the problem. This is how I defined the flavor:\r\n\r\n```gradle\r\nandroid {\r\n  flavorDimensions \"version\"\r\n    productFlavors {\r\n        prod { }\r\n    }\r\n}\r\n```",
+    "createdAt": "2019-06-14T18:21:24Z"
+  },
+  {
+    "id": 4166,
+    "sender": "tvolkert",
+    "content": "Hi all,\r\n\r\nThese fixes are now live in the `dev` channel, at the `v1.7.4` release or later.",
+    "createdAt": "2019-06-14T22:56:14Z"
+  },
+  {
+    "id": 4167,
+    "sender": "matthewlloyd",
+    "content": "I switched to app bundles and pushed to the Play Store, and most users seem happy. However, I have two reports of the app not starting at all on an x86 device which supports ARM emulation, the Asus ZenFone 2 ZE551ML: https://www.gsmarena.com/asus_zenfone_2_ze551ml-6917.php. Unfortunately the users haven't been able to provide adb logcat output. Is the new ELF format intended to work on such devices?\r\n\r\n<img width=\"843\" alt=\"Screen Shot 2019-06-16 at 11 55 54 PM\" src=\"https://user-images.githubusercontent.com/2041996/59570579-65db3300-9092-11e9-8be4-282396522cd7.png\">",
+    "createdAt": "2019-06-16T16:35:28Z"
+  },
+  {
+    "id": 4168,
+    "sender": "darioielardi",
+    "content": "Switching to both `master` and `dev` channels gives me this error with `flutter build appbundle`:\r\n\r\n```\r\n* What went wrong:\r\nExecution failed for task ':app:transformNativeLibsWithMergeJniLibsForProductionRelease'.\r\n> More than one file was found with OS independent path 'lib/armeabi-v7a/libapp.so'\r\n```",
+    "createdAt": "2019-06-16T23:30:51Z"
+  },
+  {
+    "id": 4169,
+    "sender": "tvolkert",
+    "content": "@darioielardi can you include gist.google.com links with the output of `flutter build appbundle -v`, as well as the contents of your `android/build.gradle` and `android/app/build.gradle` files?",
+    "createdAt": "2019-06-16T23:41:40Z"
+  },
+  {
+    "id": 4170,
+    "sender": "darioielardi",
+    "content": "@tvolkert sure, https://gist.github.com/darioielardi/f7497398a39b2c12d4ea1767ca6b6e69",
+    "createdAt": "2019-06-17T00:30:52Z"
+  },
+  {
+    "id": 4171,
+    "sender": "thesmalleyes",
+    "content": "> I switched to app bundles and pushed to the Play Store, and most users seem happy. However, I have two reports of the app not starting at all on an x86 device which supports ARM emulation, the Asus ZenFone 2 ZE551ML: https://www.gsmarena.com/asus_zenfone_2_ze551ml-6917.php. Unfortunately the users haven't been able to provide adb logcat output. Is the new ELF format intended to work on such devices?\r\n> \r\n> <img alt=\"Screen Shot 2019-06-16 at 11 55 54 PM\" width=\"843\" src=\"https://user-images.githubusercontent.com/2041996/59570579-65db3300-9092-11e9-8be4-282396522cd7.png\">\r\n\r\nyeah, i have the same problem. it works with flutter build appbundle and most of devices run my apps well. but not for this asus ",
+    "createdAt": "2019-06-17T05:11:28Z"
+  },
+  {
+    "id": 4172,
+    "sender": "blasten",
+    "content": "re: x86: https://github.com/flutter/flutter/issues/31922#issuecomment-501851721",
+    "createdAt": "2019-06-17T05:17:46Z"
+  },
+  {
+    "id": 4173,
+    "sender": "matthewlloyd",
+    "content": "@blasten Yes I understand that native x86 is not supported, but I think the issue here is that the ARM/ARM64 app bundles are getting installed by Google Play onto x86 devices that advertise support for ARM via translation, but the new appbundles somehow do not work correctly on such devices (perhaps because the new ELF formats confuse the ARM translator). The original ARM (non-ARM64) APKs do seem to work on them, however, as confirmed by reverting to a two-week old master branch (e1a784ae to be specific) and noting that the two users who were seeing issues now have my app running again on their ZenFone 2 devices. This is going to prevent me from upgrading to v1.7.4.",
+    "createdAt": "2019-06-17T08:30:38Z"
+  },
+  {
+    "id": 4174,
+    "sender": "xinoxapps",
+    "content": "> @xinoxapps, can you send the full output of `flutter build appbundle -v` (as a gist.github.com link please, for readability of this thread 🙂)?\r\n\r\nIt works for me now on the dev channel. Do you still need some info?",
+    "createdAt": "2019-06-17T14:12:24Z"
+  },
+  {
+    "id": 4175,
+    "sender": "tvolkert",
+    "content": "@xinoxapps nope - glad to hear it's working for you.",
+    "createdAt": "2019-06-17T15:07:10Z"
+  },
+  {
+    "id": 4176,
+    "sender": "blasten",
+    "content": "@darioielardi the issue is fixed in master now. Please run `flutter upgrade` in the master channel.",
+    "createdAt": "2019-06-18T03:37:08Z"
+  },
+  {
+    "id": 4177,
+    "sender": "julindra",
+    "content": "> @darioielardi the issue is fixed in master now. Please run `flutter upgrade` in the master channel.\r\n\r\n@blasten I've switch to master and got this error when executing `flutter build appbundle`\r\n`Execution failed for task ':app:transformClassesAndResourcesWithProguardForRelease'.`\r\n\r\nthis is my gradle and full output [https://gist.github.com/julindra/80cd2e588cf11bdd0df3f34239b07409](https://gist.github.com/julindra/80cd2e588cf11bdd0df3f34239b07409)",
+    "createdAt": "2019-06-18T06:35:41Z"
+  },
+  {
+    "id": 4178,
+    "sender": "tvolkert",
+    "content": "Hi all,\r\n\r\nWe're aiming to get a few more bug fixes in for add-to-app and flavors - and cut a `v1.7.5` dev release.  As such, we're holding off on promoting to beta to pick up those fixes.  We still expect this in stable in early July.",
+    "createdAt": "2019-06-18T23:09:01Z"
+  },
+  {
+    "id": 4179,
+    "sender": "siyasangab",
+    "content": "`flutter build appbundle` worked for me. Thanks alot @tvolkert .",
+    "createdAt": "2019-06-19T10:00:49Z"
+  },
+  {
+    "id": 4180,
+    "sender": "blasten",
+    "content": "@julindra adding `-ignorewarnings` to `'proguard-rules.pro` fixes that issue. We currently don't include the package android.arch.*.  Another option is to edit your `android/app/build.gradle` and add the following:\r\n\r\n```.gradle\r\ndependencies {\r\n  implementation \"android.arch.lifecycle:common-java8:1.1.1\"\r\n  implementation 'android.arch.lifecycle:extensions:1.1.1'\r\n}\r\n```\r\n\r\ncc @matthew-carroll ",
+    "createdAt": "2019-06-19T21:31:27Z"
+  },
+  {
+    "id": 4181,
+    "sender": "ghost",
+    "content": "I uploaded the bundle `app.aab` to play store. The warning for missing 64 bit was gone but the app just crashed on launch after installing from play store. Any suggestions?\r\n\r\nAlso is it safe to use `flutter build appbundle` to release on production?\r\n",
+    "createdAt": "2019-06-20T12:45:11Z"
+  },
+  {
+    "id": 4182,
+    "sender": "truongsinh",
+    "content": "@sulaysumaria can you post the result of running `flutter doctor`?",
+    "createdAt": "2019-06-20T13:59:15Z"
+  },
+  {
+    "id": 4183,
+    "sender": "ghost",
+    "content": "```bash\r\nDoctor summary (to see all details, run flutter doctor -v):\r\n[✓] Flutter (Channel stable, v1.5.4-hotfix.2, on Mac OS X 10.14.5 18F132, locale en-IN)\r\n \r\n[✓] Android toolchain - develop for Android devices (Android SDK version 28.0.3)\r\n[✗] iOS toolchain - develop for iOS devices\r\n    ✗ Xcode installation is incomplete; a full installation is necessary for iOS development.\r\n      Download at: https://developer.apple.com/xcode/download/\r\n      Or install Xcode via the App Store.\r\n      Once installed, run:\r\n        sudo xcode-select --switch /Applications/Xcode.app/Contents/Developer\r\n    ✗ libimobiledevice and ideviceinstaller are not installed. To install with Brew, run:\r\n        brew update\r\n        brew install --HEAD usbmuxd\r\n        brew link usbmuxd\r\n        brew install --HEAD libimobiledevice\r\n        brew install ideviceinstaller\r\n    ✗ ios-deploy not installed. To install:\r\n        brew install ios-deploy\r\n    ✗ CocoaPods not installed.\r\n        CocoaPods is used to retrieve the iOS platform side's plugin code that responds to your plugin usage on the Dart side.\r\n        Without resolving iOS dependencies with CocoaPods, plugins will not work on iOS.\r\n        For more info, see https://flutter.dev/platform-plugins\r\n      To install:\r\n        brew install cocoapods\r\n        pod setup\r\n[!] Android Studio (version 3.4)\r\n    ✗ Flutter plugin not installed; this adds Flutter specific functionality.\r\n    ✗ Dart plugin not installed; this adds Dart specific functionality.\r\n[✓] VS Code (version 1.35.1)\r\n[✓] Connected device (1 available)\r\n\r\n! Doctor found issues in 2 categories.\r\n```\r\n\r\n@truongsinh ",
+    "createdAt": "2019-06-20T14:04:00Z"
+  },
+  {
+    "id": 4184,
+    "sender": "ghost",
+    "content": "I also tried generating apk from app bundle and installing it. It also crashes on launch.\r\n\r\n```bash\r\n$ bundletool build-apks --bundle=build/app/outputs/bundle/app.aab --output=app.apks\r\n$ bundletool install-apks --apks app.apks\r\n```",
+    "createdAt": "2019-06-20T14:08:34Z"
+  },
+  {
+    "id": 4185,
+    "sender": "bucketclan",
+    "content": "Try switching to `dev` channel and check.",
+    "createdAt": "2019-06-20T14:09:24Z"
+  },
+  {
+    "id": 4186,
+    "sender": "ghost",
+    "content": "I tried to build in `dev` channel but it broke one of my dependencies. I will try commenting it out and building to see if app works.\r\n\r\nAlso is it safe to use `dev` channel for production release?\r\n",
+    "createdAt": "2019-06-20T14:39:10Z"
+  },
+  {
+    "id": 4187,
+    "sender": "bucketclan",
+    "content": "Oops sorry. I would be more careful if it was for production.",
+    "createdAt": "2019-06-20T15:40:59Z"
+  },
+  {
+    "id": 4188,
+    "sender": "ghost",
+    "content": "I am going with building APKs for now. Although Google suggests to upload bundles instead of apks so it will be good if this is fixed in next release on stable branch.",
+    "createdAt": "2019-06-20T15:56:00Z"
+  },
+  {
+    "id": 4189,
+    "sender": "ghost",
+    "content": "I found this using adb logcat:\r\n\r\n```\r\n[FATAL:flutter/runtime/dart_vm.cc(389)] Error while initializing the Dart VM: Snapshot not compatible with the current VM configuration: the snapshot requires 'product use_bare_instructions no-\"asserts\" causal_async_stacks no-bytecode arm-eabi softfp' but the VM has 'product use_bare_instructions no-\"asserts\" causal_async_stacks no-bytecode arm64-sysv'\r\n```\r\n\r\nI am on `stable` channel.\r\n",
+    "createdAt": "2019-06-20T16:25:01Z"
+  },
+  {
+    "id": 4190,
+    "sender": "ghost",
+    "content": "Solution from https://github.com/flutter/flutter/issues/19865 worked.\r\n\r\nI also had to remove `splits` section from build.gradle.\r\n\r\nApp works fine now when installed via bundletool. I will try uploading to playstore and check if everything goes well.\r\n\r\n",
+    "createdAt": "2019-06-20T16:44:13Z"
+  },
+  {
+    "id": 4191,
+    "sender": "pythoneer",
+    "content": "@sulaysumaria the fix is only available on the master branch yet. If you are on stable – as indicated on your `flutter doctor` output\r\n\r\n`[✓] Flutter (Channel stable, v1.5.4-hotfix.2, on Mac OS X 10.14.5 18F132, locale en-IN)`\r\n\r\nthe fix is not applied. You need to wait until the fix is on stable if you want to build with stable. Looks like its somewhere around `1.7.x` until then you need to upload the apk's separately.  ",
+    "createdAt": "2019-06-20T16:48:00Z"
+  },
+  {
+    "id": 4192,
+    "sender": "ghost",
+    "content": "Ohh... Thanks @pythoneer . Do you know when will it be available on stable channel?",
+    "createdAt": "2019-06-20T16:53:24Z"
+  },
+  {
+    "id": 4193,
+    "sender": "pythoneer",
+    "content": "@sulaysumaria no problem. It is mentioned multiple times in this thread \r\n> [We still expect this in stable in early July.](https://github.com/flutter/flutter/issues/31922#issuecomment-503344646)",
+    "createdAt": "2019-06-20T20:27:23Z"
+  },
+  {
+    "id": 4194,
+    "sender": "ghost",
+    "content": "It worked on `dev` channel. I used `flutter build appbundle --target-platform android-arm,android-arm64` and uploaded bundle to play store and it worked perfectly.\r\n",
+    "createdAt": "2019-06-21T02:52:45Z"
+  },
+  {
+    "id": 4195,
+    "sender": "angel1st",
+    "content": "@sulaysumaria - you should use [already prepared instructions](https://flutter.dev/docs/deployment/android#building-the-app-for-release) with either **master** or **dev** channel.",
+    "createdAt": "2019-06-21T14:46:20Z"
+  },
+  {
+    "id": 4196,
+    "sender": "julindra",
+    "content": "> @julindra adding `-ignorewarnings` to `'proguard-rules.pro` fixes that issue. We currently don't include the package android.arch.*. Another option is to edit your `android/app/build.gradle` and add the following:\r\n> \r\n> ```groovy-gradle\r\n> dependencies {\r\n>   implementation \"android.arch.lifecycle:common-java8:1.1.1\"\r\n>   implementation 'android.arch.lifecycle:extensions:1.1.1'\r\n> }\r\n> ```\r\n> \r\n> cc @matthew-carroll\r\n\r\nThanks. I just use dev channel and add `-ignorewarnings`, it works perfect.",
+    "createdAt": "2019-06-21T15:48:45Z"
+  },
+  {
+    "id": 4197,
+    "sender": "minh98",
+    "content": "worked for me with `flutter build appbundle`\r\n[https://github.com/flutter/flutter/issues/18494#issuecomment-489807239](url)",
+    "createdAt": "2019-06-22T08:25:03Z"
+  },
+  {
+    "id": 4198,
+    "sender": "cbracken",
+    "content": "@blasten is this closeable at this point, or is there work remaining?",
+    "createdAt": "2019-06-24T18:24:30Z"
+  },
+  {
+    "id": 4199,
+    "sender": "blasten",
+    "content": "@cbracken, I think this can be closed now or after the next stable release.",
+    "createdAt": "2019-06-24T18:49:22Z"
+  },
+  {
+    "id": 4200,
+    "sender": "matthewlloyd",
+    "content": "Are you still planning to address the incompatibility issue with ZenFone 2 device and similar x86 devices that allow installation of ARM apps from the Play Store and use libhoudini to run them?",
+    "createdAt": "2019-06-24T18:54:31Z"
+  },
+  {
+    "id": 4201,
+    "sender": "ronaldG19",
+    "content": "> I tried to build in `dev` channel but it broke one of my dependencies. I will try commenting it out and building to see if app works.\r\n>\r\n> Also is it safe to use `dev` channel for production release?\r\n\r\nI've never used any branch rather than dev and my apps are working seamlessly. So trust the branch it never disappoints. @sulaysumaria  \r\n",
+    "createdAt": "2019-06-24T22:04:00Z"
+  },
+  {
+    "id": 4202,
+    "sender": "blasten",
+    "content": "@matthewlloyd we heard from the Play Store team that it's better to add an explicit x86 binary than trying to make the our existing binaries work well with the arm->x86 translator. - However, the team recently improved the code that the Dart compiler generates, and I wonder if that perhaps made the translation work. Give it a try and let me know. Otherwise, depending on the situation, you might need to build the JIT version for x86, which is typically used for debugging/profiling in emulators.\r\n",
+    "createdAt": "2019-06-24T22:24:12Z"
+  },
+  {
+    "id": 4203,
+    "sender": "matthewlloyd",
+    "content": "@blasten Thanks for the info. It puts me in a bit of a bind because I don't have one of these devices myself - just two anonymous Play Store reviews from disgruntled ZenFone 2 users - so I have no way to test. The risk of breaking things is too great to push out another appbundle build until somebody confirms the improved code actually works on those devices. Unless there's a way to tell the Play Store to exclude such devices, I will continue releasing builds created with an old version of Flutter (and 32-bit APKs), until it is either tested and confirmed fixed by Google, or confirmed no longer an issue. I guess that won't be until more apps are pushed to the store using the new appbundle/.so format. I will wait...",
+    "createdAt": "2019-06-24T23:03:18Z"
+  },
+  {
+    "id": 4204,
+    "sender": "juliengit2",
+    "content": "for those still looking, here was the solution that worked for me :\r\n\r\nflutter build apk --split-per-abi  \r\ndidn't work,, even after editing build gradle\r\nfrom https://flutter.dev/docs/deployment/android#build-an-apk\r\n\r\ninstead, use : \r\n\r\n1. **flutter build appbundle**\r\n2. and then upload **app.aab**\r\n\r\nissue fixed for both 32 and 64 bits, and the alert 'release is not compliant with the Play 64-bit requirement.\" has gone.\r\n\r\n",
+    "createdAt": "2019-06-27T10:05:06Z"
+  },
+  {
+    "id": 4205,
+    "sender": "PerrchicK",
+    "content": "Thanks @juliengit2, `flutter build appbundle` does work.\r\n\r\nIt's worth mentioning the flutter version as well, because I had v1.5.0 until now and it didn't work.\r\nI had to update (currently to v1.7.9) in order to make it work.\r\n",
+    "createdAt": "2019-06-27T12:30:32Z"
+  },
+  {
+    "id": 4206,
+    "sender": "ghost",
+    "content": "@PerechicK, by latest you meant stable channel or dev channel?",
+    "createdAt": "2019-06-27T14:38:04Z"
+  },
+  {
+    "id": 4207,
+    "sender": "PerrchicK",
+    "content": "DEV channel, as it appears today here: https://flutter.dev/docs/development/tools/sdk/releases?tab=windows\r\n\r\nI still don’t know since which version this issue is fixed.",
+    "createdAt": "2019-06-27T15:42:08Z"
+  },
+  {
+    "id": 4208,
+    "sender": "uj",
+    "content": "When using anything other than the stable branch, I'm running into one of my plugins throwing the error \"Methods marked with @UiThread must be executed on the main thread\", which was introduced with this flutter sdk commit https://github.com/flutter/engine/commit/2c9e37c34e79475bbde7c8163eb5e56cdb9662a1.  \r\n\r\nIs there a way to build the 64-bit appbundle while using the 1.5.4-hotfix.2 stable branch?",
+    "createdAt": "2019-06-28T18:09:03Z"
+  },
+  {
+    "id": 4209,
+    "sender": "Saifallak",
+    "content": "@uj this issue https://github.com/flutter/flutter/issues/33562 might be related to your error if using [firebase_database](https://pub.dev/packages/firebase_database).\r\n\r\nand no 64bit introduced in 1.7.4+ according to [Flutter Docs](https://flutter.dev/docs/deployment/android#build-an-apk)",
+    "createdAt": "2019-06-28T18:39:24Z"
+  },
+  {
+    "id": 4210,
+    "sender": "uj",
+    "content": "No, it's not firebase_database, it's actually OneSignal, but their only solution is to \"use the stable branch of Flutter\"",
+    "createdAt": "2019-06-28T23:57:00Z"
+  },
+  {
+    "id": 4211,
+    "sender": "truongsinh",
+    "content": "> Is there a way to build the 64-bit appbundle while using the 1.5.4-hotfix.2 stable branch?\r\n\r\n@uj even though you cannot build 64-bit appbundle with `1.5.4-hotfix.2`, you can build 2 apks, one with 32-bit, one with 64-bit, upload both apks to Google Store to resolve the warning.",
+    "createdAt": "2019-06-29T13:03:13Z"
+  },
+  {
+    "id": 4212,
+    "sender": "kgoofori",
+    "content": "Flutter 1.5.4-hotfix.2 appbundle currently targets android-arm which builds only 32bit native code (`flutter build appbundle -h`). To change this run `flutter build appbundle --target-platform=android-arm64` to change the default target. ",
+    "createdAt": "2019-07-01T12:39:15Z"
+  },
+  {
+    "id": 4213,
+    "sender": "tvolkert",
+    "content": "This is now live on the beta channel, in release `v1.7.8+hotfix.2`",
+    "createdAt": "2019-07-02T17:56:00Z"
+  },
+  {
+    "id": 4214,
+    "sender": "angel1st",
+    "content": "@tvolkert - excellent news, thanks. Would you be more specific when we might expect the fix live in **stable**, e.g. a date when this will happen?",
+    "createdAt": "2019-07-03T06:22:31Z"
+  },
+  {
+    "id": 4215,
+    "sender": "tvolkert",
+    "content": "@angel1st https://en.wikipedia.org/wiki/Forward-looking_statement 🙂 \r\n\r\n(we're working to make it happen as soon as possible)",
+    "createdAt": "2019-07-03T06:26:50Z"
+  },
+  {
+    "id": 4216,
+    "sender": "angel1st",
+    "content": "@tvolkert - considering the fact we are about three weeks from the Google deadline re 64 bit apks, I would expect a deadline from your side as well. Also we as developers will need some time buffer between your release and the above mentioned deadline so we can build, test and release our apps without disturbing our clients.\r\nOther than that, I really appreciate the efforts and deliverable for the last couple of months, but I hope you would be able to put yourself in our shoes and see how the things look like from that perspective. Thanks for the understanding and all you efforts so far! ",
+    "createdAt": "2019-07-03T06:47:33Z"
+  },
+  {
+    "id": 4217,
+    "sender": "tvolkert",
+    "content": "@angel1st absolutely.  Per the [earlier announcement](https://groups.google.com/forum/#!topic/flutter-announce/oIzwT9EDczc), we're aiming to have this to stable by early July (so very soon) - I just can't predict the exact date.",
+    "createdAt": "2019-07-03T06:51:17Z"
+  },
+  {
+    "id": 4218,
+    "sender": "shah2002",
+    "content": "I have this problem in unity 2017.4.20 or 2019.1.2 , How can I resolve it? this \r\n is in blow link : https://stackoverflow.com/questions/56687339/what-is-this-error-in-build-adroid-and-build-app-bundle-in-unity-2017-4-17   please Help me Because I am in this problem  for 2 month thanks",
+    "createdAt": "2019-07-03T08:31:53Z"
+  },
+  {
+    "id": 4219,
+    "sender": "giovanni-orciuolo",
+    "content": "Hope to see this one solved as soon as possible. The deadline is tight",
+    "createdAt": "2019-07-03T09:42:06Z"
+  },
+  {
+    "id": 4220,
+    "sender": "abc873693",
+    "content": "@DoubleHub you can change to beta channel to solve it.\r\nOr wait to release stable version in 8 July.",
+    "createdAt": "2019-07-03T16:53:34Z"
+  },
+  {
+    "id": 4221,
+    "sender": "giovanni-orciuolo",
+    "content": "@abc873693 I read about it, I think I will wait for stable version. I'm happy that this problem is finally solved officially!",
+    "createdAt": "2019-07-03T17:28:52Z"
+  },
+  {
+    "id": 4222,
+    "sender": "ssalihu",
+    "content": "@abc873693 I experienced issues when attempting to publish android apps to the play store using the _beta_ channel. Pre launch reports showed Warnings for Accessibility. It appears that the app did not go past the Splash Screen. All screen shots for all the devices stayed at the splash screen. \r\n\r\nThe solution for me was to simply switch to the STABLE channel and build the app-bundle using the --target-platform flag. \r\n",
+    "createdAt": "2019-07-05T15:57:02Z"
+  },
+  {
+    "id": 4223,
+    "sender": "tvolkert",
+    "content": "Hi all,\r\n\r\n`v1.7.8+hotfix.2` has been released to the stable channel, so this fix is now available in all channels.  Thanks everyone for your patience and help along the way!",
+    "createdAt": "2019-07-08T17:48:46Z"
+  }
+]

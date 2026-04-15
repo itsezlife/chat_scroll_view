@@ -1,0 +1,386 @@
+[
+  {
+    "id": 4672,
+    "sender": "jerryhamby",
+    "content": "The problem is 99% solved, but there are some strange items appearing in the debug console.\r\nNever seen this before, it could be expected behavior, just not sure.\r\n\r\nI have updated to:\r\n1- IOS 15\r\n2- Flutter 2.5.0\r\n3- Xcode 13.0\r\n======================================\r\n\r\n1- “Exception attempting to connect to the VM Service: SocketException: OS Error: Connection refused, errno =\r\n61, address = 127.0.0.1, port = 51659\r\nThis was attempt #50. Will retry in 0:00:01.600000.”\r\n\r\n2- “Connecting to the VM Service is taking longer than expected...”\r\n\r\n3- Errors found! Invalidating cache...\r\n\r\n4- dialog box pops up:\r\n“iproxy cannot be opened because the developer cannot be verified”",
+    "createdAt": "2021-09-20T23:35:20Z"
+  },
+  {
+    "id": 4673,
+    "sender": "aarajput",
+    "content": "Any update about this issue? I am facing it on my ipad 8. ",
+    "createdAt": "2021-09-23T14:03:11Z"
+  },
+  {
+    "id": 4674,
+    "sender": "BringTheChill",
+    "content": "> Any update about this issue? I am facing it on my ipad 8.\r\n\r\ndid you try to run your app from Xcode first?",
+    "createdAt": "2021-09-23T14:05:21Z"
+  },
+  {
+    "id": 4675,
+    "sender": "aarajput",
+    "content": "Its working on my iphone 7. \r\nI from xcode and android studio both. \r\nBut on my ipad, its working from xcode but not from android studio. ",
+    "createdAt": "2021-09-23T14:19:08Z"
+  },
+  {
+    "id": 4676,
+    "sender": "BringTheChill",
+    "content": "Check if you have the latest Flutter.\nOn Thu, 23 Sep 2021 at 17:19, aarajput ***@***.***> wrote:\n\n> Its working on my iphone 7.\n> I from xcode and android studio both.\n> But on my ipad, its working from xcode but not from android studio.\n>\n> —\n> You are receiving this because you were mentioned.\n> Reply to this email directly, view it on GitHub\n> <https://github.com/flutter/flutter/issues/72161#issuecomment-925860329>,\n> or unsubscribe\n> <https://github.com/notifications/unsubscribe-auth/AJJ7GLF4FE3KVNPVKOSBO4LUDMZO5ANCNFSM4UXLRFYQ>\n> .\n> Triage notifications on the go with GitHub Mobile for iOS\n> <https://apps.apple.com/app/apple-store/id1477376905?ct=notification-email&mt=8&pt=524675>\n> or Android\n> <https://play.google.com/store/apps/details?id=com.github.android&referrer=utm_campaign%3Dnotification-email%26utm_medium%3Demail%26utm_source%3Dgithub>.\n>\n>\n",
+    "createdAt": "2021-09-23T14:22:05Z"
+  },
+  {
+    "id": 4677,
+    "sender": "aarajput",
+    "content": "This is flutter doctor output. I am already on latest version.\r\n\r\n<img width=\"574\" alt=\"Screen Shot 2021-09-23 at 7 32 09 PM\" src=\"https://user-images.githubusercontent.com/16102514/134526885-21daa0e0-a752-4238-9e5e-150ae55d747d.png\">\r\n\r\n\r\n",
+    "createdAt": "2021-09-23T14:33:05Z"
+  },
+  {
+    "id": 4678,
+    "sender": "UlasAkgun",
+    "content": "Having the Observatory timeout issue on a specific iPhone 12 Pro, tried cleaning the Xcode cache, doing flutter clean, reinstalling the Flutter SDK and Xcode, clearing trusted devices on the iPhone, doing a hard reset on iPhone...\r\n\r\nIOS: 14.8\r\nFlutter: 2.5.1\r\nXcode: 13.0\r\n\r\nflutter doctor -v\r\n\r\n<img width=\"767\" alt=\"Screen Shot 2021-09-27 at 6 23 49 PM\" src=\"https://user-images.githubusercontent.com/14229232/134939284-4ab74d4f-61cf-44f8-907b-52d60254df41.png\">\r\n\r\nError message:\r\n\r\niOS Observatory not discovered after 30 seconds. This is taking much longer than expected… \r\nError launching application on iPhone.\r\n\r\n<img width=\"822\" alt=\"Screen Shot 2021-09-27 at 6 26 46 PM\" src=\"https://user-images.githubusercontent.com/14229232/134939319-29afbe0b-588a-4961-ab11-df9f87e8ba9c.png\">\r\n\r\n",
+    "createdAt": "2021-09-27T15:32:03Z"
+  },
+  {
+    "id": 4679,
+    "sender": "UlasAkgun",
+    "content": "If anyone was having the Observatory timeout issue for a specific device and no other solutions worked, try resetting that device to the factory settings. It worked for me.",
+    "createdAt": "2021-09-27T17:23:29Z"
+  },
+  {
+    "id": 4680,
+    "sender": "tegarnugroho",
+    "content": "i have the same problem, I have tried all the solutions written here, but nothing works.\r\n\r\nhere I include the log from my application.\r\n\r\n\r\n\r\n   connect\r\n[  +40 ms] (lldb)     run\r\n[ +556 ms] success\r\n[        ] Application launched on the device. Waiting for observatory port.\r\n[+30025 ms] Installing and launching... (completed in 59.0s)\r\n[   +1 ms] Error launching application on iPad.\r\n[  +11 ms] \"flutter run\" took 190,014ms.\r\n[   +9 ms] \r\n           #0      throwToolExit (package:flutter_tools/src/base/common.dart:10:3)\r\n           #1      RunCommand.runCommand (package:flutter_tools/src/commands/run.dart:663:9)\r\n           <asynchronous suspension>\r\n           #2      FlutterCommand.run.<anonymous closure> (package:flutter_tools/src/runner/flutter_command.dart:1043:27)\r\n           <asynchronous suspension>\r\n           #3      AppContext.run.<anonymous closure> (package:flutter_tools/src/base/context.dart:150:19)\r\n           <asynchronous suspension>\r\n           #4      CommandRunner.runCommand (package:args/command_runner.dart:196:13)\r\n           <asynchronous suspension>\r\n           #5      FlutterCommandRunner.runCommand.<anonymous closure> (package:flutter_tools/src/runner/flutter_command_runner.dart:284:9)\r\n           <asynchronous suspension>\r\n           #6      AppContext.run.<anonymous closure> (package:flutter_tools/src/base/context.dart:150:19)\r\n           <asynchronous suspension>\r\n           #7      FlutterCommandRunner.runCommand (package:flutter_tools/src/runner/flutter_command_runner.dart:232:5)\r\n           <asynchronous suspension>\r\n           #8      run.<anonymous closure>.<anonymous closure> (package:flutter_tools/runner.dart:62:9)\r\n           <asynchronous suspension>\r\n           #9      AppContext.run.<anonymous closure> (package:flutter_tools/src/base/context.dart:150:19)\r\n           <asynchronous suspension>\r\n           #10     main (package:flutter_tools/executable.dart:91:3)\r\n           <asynchronous suspension>\r\n           \r\n           \r\n[  +11 ms] (lldb) process detach\r\n[ +420 ms] ensureAnalyticsSent: 430ms\r\n[   +2 ms] Running shutdown hooks\r\n[        ] Shutdown hooks complete\r\n[        ] exiting with code 1\r\n",
+    "createdAt": "2021-09-28T11:35:19Z"
+  },
+  {
+    "id": 4681,
+    "sender": "matthewrice345",
+    "content": "All of us on our team that have updated to 2.5.1 are experiencing the issue now. Even setup a fresh MacBook with Flutter to rule any personal settings out.\r\n\r\n> iOS Observatory not discovered after 30 seconds. This is taking much longer than expected...\r\n> Error launching application on\r\n\r\n\r\n[✓] Flutter (Channel stable, 2.5.1, on macOS 11.6 20G165 darwin-x64, locale en-US)\r\n    • Flutter version 2.5.1 at /Users/mrice/Development/flutter\r\n    • Upstream repository https://github.com/flutter/flutter.git\r\n    • Framework revision ffb2ecea52 (13 days ago), 2021-09-17 15:26:33 -0400\r\n    • Engine revision b3af521a05\r\n    • Dart version 2.14.2\r\n\r\n[✓] Android toolchain - develop for Android devices (Android SDK version 30.0.3)\r\n    • Android SDK at /Users/mrice/Library/Android/sdk\r\n    • Platform android-30, build-tools 30.0.3\r\n    • ANDROID_HOME = /Users/mrice/Library/Android/sdk\r\n    • Java binary at: /Applications/Android Studio.app/Contents/jre/Contents/Home/bin/java\r\n    • Java version OpenJDK Runtime Environment (build 11.0.10+0-b96-7281165)\r\n    • All Android licenses accepted.\r\n\r\n[✓] Xcode - develop for iOS and macOS\r\n    • Xcode at /Applications/Xcode.app/Contents/Developer\r\n    • Xcode 13.0, Build version 13A233\r\n    • CocoaPods version 1.10.1\r\n\r\n[✓] Chrome - develop for the web\r\n    • Chrome at /Applications/Google Chrome.app/Contents/MacOS/Google Chrome\r\n\r\n[✓] Android Studio (version 2020.3)\r\n    • Android Studio at /Applications/Android Studio.app/Contents\r\n    • Flutter plugin can be installed from:\r\n      🔨 https://plugins.jetbrains.com/plugin/9212-flutter\r\n    • Dart plugin can be installed from:\r\n      🔨 https://plugins.jetbrains.com/plugin/6351-dart\r\n    • Java version OpenJDK Runtime Environment (build 11.0.10+0-b96-7281165)\r\n\r\n[✓] Connected device (3 available)\r\n    • SM G998U1 (mobile)          • R5CR104H72Y               • android-arm64  • Android 12 (API 31)\r\n    • Udo Dev iPhone - A (mobile) • 00008030-0001516C0AD9802E • ios            • iOS 14.8 18H17\r\n    • Chrome (web)                • chrome                    • web-javascript • Google Chrome 94.0.4606.71\r\n\r\n• No issues found!",
+    "createdAt": "2021-09-30T21:41:58Z"
+  },
+  {
+    "id": 4682,
+    "sender": "jerryhamby",
+    "content": "Still causing problems on my test iPhone 7 device. Seems to work OK on my iPhone 11 (15.0.1)\r\n\r\niOS Observatory not discovered after 30 seconds. This is taking much longer than expected...\r\n\r\nFlutter:  2.5.2\r\nXcode  13.0\r\nMac OS : 11.6\r\niPhone 7:  14.8\r\n\r\n[✓] Flutter (Channel stable, 2.5.2, on macOS 11.6 20G165 darwin-x64, locale en-US)\r\n    • Flutter version 2.5.2 at /Users/jerryhamby/Desktop/flutterexamples/flutter\r\n    • Upstream repository https://github.com/flutter/flutter.git\r\n    • Framework revision 3595343e20 (2 days ago), 2021-09-30 12:58:18 -0700\r\n    • Engine revision 6ac856380f\r\n    • Dart version 2.14.3\r\n\r\n[✓] Android toolchain - develop for Android devices (Android SDK version 30.0.3)\r\n    • Android SDK at /Users/jerryhamby/Library/Android/sdk\r\n    • Platform android-30, build-tools 30.0.3\r\n    • Java binary at: /Volumes/Macintosh HD/Applications/Android\r\n      Studio.app/Contents/jre/Contents/Home/bin/java\r\n    • Java version OpenJDK Runtime Environment (build 11.0.10+0-b96-7281165)\r\n    • All Android licenses accepted.\r\n\r\n[✓] Xcode - develop for iOS and macOS\r\n    • Xcode at /Applications/Xcode.app/Contents/Developer\r\n    • Xcode 13.0, Build version 13A233\r\n    • CocoaPods version 1.10.1\r\n\r\n[✓] Chrome - develop for the web\r\n    • Chrome at /Applications/Google Chrome.app/Contents/MacOS/Google Chrome\r\n\r\n[✓] Android Studio (version 2020.3)\r\n    • Android Studio at /Applications/Android Studio.app/Contents\r\n    • Flutter plugin can be installed from:\r\n      🔨 https://plugins.jetbrains.com/plugin/9212-flutter\r\n    • Dart plugin can be installed from:\r\n      🔨 https://plugins.jetbrains.com/plugin/6351-dart\r\n    • Java version OpenJDK Runtime Environment (build 11.0.10+0-b96-7281165)\r\n\r\n[✓] Android Studio (version 2020.3)\r\n    • Android Studio at /Volumes/2TB/Applications/Android Studio.app/Contents\r\n    • Flutter plugin can be installed from:\r\n      🔨 https://plugins.jetbrains.com/plugin/9212-flutter\r\n    • Dart plugin can be installed from:\r\n      🔨 https://plugins.jetbrains.com/plugin/6351-dart\r\n    • Java version OpenJDK Runtime Environment (build 11.0.10+0-b96-7281165)\r\n\r\n[✓] Android Studio (version 2020.3)\r\n    • Android Studio at /Volumes/Macintosh HD/Applications/Android Studio.app/Contents\r\n    • Flutter plugin can be installed from:\r\n      🔨 https://plugins.jetbrains.com/plugin/9212-flutter\r\n    • Dart plugin can be installed from:\r\n      🔨 https://plugins.jetbrains.com/plugin/6351-dart\r\n    • Java version OpenJDK Runtime Environment (build 11.0.10+0-b96-7281165)\r\n\r\n[✓] VS Code (version 1.60.2)\r\n    • VS Code at /Applications/Visual Studio Code.app/Contents\r\n    • Flutter extension version 3.26.0\r\n\r\n[✓] VS Code (version 1.60.2)\r\n    • VS Code at /Volumes/2TB/Applications/Visual Studio Code.app/Contents\r\n    • Flutter extension version 3.26.0\r\n\r\n[✓] VS Code (version 1.60.2)\r\n    • VS Code at /Volumes/Macintosh HD/Applications/Visual Studio Code.app/Contents\r\n    • Flutter extension version 3.26.0\r\n\r\n[✓] Connected device (2 available)\r\n    • Jerry Hamby’s iPhone (mobile) • 456c236df4f6f0d0c0ad79ecea9b9eaa2f94dcd5 • ios            •\r\n      iOS 14.8 18H17\r\n    • Chrome (web)                  • chrome                                   • web-javascript •\r\n      Google Chrome 94.0.4606.71\r\n    ! Error: Jerry Hamby’s iPhone is busy: Fetching debug symbols for Jerry Hamby’s iPhone. Xcode\r\n      will continue when Jerry Hamby’s iPhone is finished. (code -10)",
+    "createdAt": "2021-10-02T23:47:15Z"
+  },
+  {
+    "id": 4683,
+    "sender": "MiguelSOliveira",
+    "content": "Also suffering from this issue. Just gonna share some solutions that I've found to work so far:\r\n\r\n```\r\n> **iOS Observatory not discovered after 30 seconds.**\r\n\r\n**Replace file (~/flutter/packages/flutter_tools/lib/src/ios/devices.dart):**\r\n> final Timer timer = Timer(discoveryTimeout ?? const Duration(seconds: 30), () {\r\n\r\n**To**\r\n> final Timer timer = Timer(discoveryTimeout ?? const Duration(seconds: 60), () {\r\n\r\n**Or**\r\n> flutter pub cache repair\r\n> cd ios && pod cache clean --all && pod deintegrate && pod install\r\n\r\n**Or**\r\n> Run with xcode first and retry.\r\n```",
+    "createdAt": "2021-10-02T23:51:24Z"
+  },
+  {
+    "id": 4684,
+    "sender": "jmagman",
+    "content": "I suspect at least some of these reports are duplicates of https://github.com/flutter/flutter/issues/42969.",
+    "createdAt": "2021-10-06T00:15:07Z"
+  },
+  {
+    "id": 4685,
+    "sender": "MarwanAlsaaidi",
+    "content": "I have same problem ",
+    "createdAt": "2021-10-06T19:37:14Z"
+  },
+  {
+    "id": 4686,
+    "sender": "MingSern",
+    "content": "Solved my problem by running build on XCode first (`Product` -> `build`) then run `flutter run`",
+    "createdAt": "2021-10-12T02:05:53Z"
+  },
+  {
+    "id": 4687,
+    "sender": "jerryhamby",
+    "content": "This last suggestion didn’t work for me on my test iPhone 11 (running 15.0.2), but my test iPhone 7 (running 14.8) seems to work fine. Still waiting for Flutter (or someone) to fix the issue…",
+    "createdAt": "2021-10-12T22:06:58Z"
+  },
+  {
+    "id": 4688,
+    "sender": "XutongGithub",
+    "content": "### I have the same issue\r\nwhen I user Android Studio to run my app,\r\n<img width=\"1680\" alt=\"WeChat142cf608bedacc3749408200001dfefd\" src=\"https://user-images.githubusercontent.com/13117057/137086629-0159ba20-1913-48b2-8071-f3dd824566d3.png\">\r\nThen, I user Xcode to run my app, it's ok.\r\nThen,Android Studio can run my app.\r\nWhy?\r\n\r\n**Logs**\r\n\r\n## flutter doctor -v \r\n`\r\n[✓] Flutter (Channel stable, 2.2.3, on macOS 11.6 20G165 darwin-x64, locale en-CN)\r\n    • Flutter version 2.2.3 at /Users/fjrb/Desktop/FZDev/flutter\r\n    • Framework revision f4abaa0735 (3 months ago), 2021-07-01 12:46:11 -0700\r\n    • Engine revision 241c87ad80\r\n    • Dart version 2.13.4\r\n    • Pub download mirror https://pub.flutter-io.cn\r\n    • Flutter download mirror https://storage.flutter-io.cn\r\n\r\n[✓] Android toolchain - develop for Android devices (Android SDK version 30.0.0-rc1)\r\n    • Android SDK at /Users/fjrb/Library/Android/sdk\r\n    • Platform android-31, build-tools 30.0.0-rc1\r\n    • Java binary at: /Applications/Android Studio.app/Contents/jre/jdk/Contents/Home/bin/java\r\n    • Java version OpenJDK Runtime Environment (build 1.8.0_242-release-1644-b3-6915495)\r\n    • All Android licenses accepted.\r\n\r\n[✓] Xcode - develop for iOS and macOS\r\n    • Xcode at /Applications/Xcode.app/Contents/Developer\r\n    • Xcode 13.0, Build version 13A233\r\n    • CocoaPods version 1.10.2\r\n\r\n[✓] Chrome - develop for the web\r\n    • Chrome at /Applications/Google Chrome.app/Contents/MacOS/Google Chrome\r\n\r\n[✓] Android Studio (version 4.1)\r\n    • Android Studio at /Applications/Android Studio.app/Contents\r\n    • Flutter plugin can be installed from:\r\n      🔨 https://plugins.jetbrains.com/plugin/9212-flutter\r\n    • Dart plugin can be installed from:\r\n      🔨 https://plugins.jetbrains.com/plugin/6351-dart\r\n    • Java version OpenJDK Runtime Environment (build 1.8.0_242-release-1644-b3-6915495)\r\n\r\n[✓] VS Code (version 1.58.2)\r\n    • VS Code at /Applications/Visual Studio Code.app/Contents\r\n    • Flutter extension version 3.24.0\r\n\r\n[✓] Connected device (3 available)\r\n    • iPhone (mobile)            • 00008101-001431222651003A            • ios            • iOS 14.7.1\r\n    • iPhone 12 Pro Max (mobile) • 89FD5074-498F-4EB5-B02B-3E205892F6D5 • ios            • com.apple.CoreSimulator.SimRuntime.iOS-15-0 (simulator)\r\n    • Chrome (web)               • chrome                               • web-javascript • Google Chrome 94.0.4606.81\r\n\r\n• No issues found!\r\n`\r\n",
+    "createdAt": "2021-10-13T07:27:58Z"
+  },
+  {
+    "id": 4689,
+    "sender": "jmagman",
+    "content": "@XutongGithub That's not the same error, please file a new GitHub issue.",
+    "createdAt": "2021-10-13T16:50:29Z"
+  },
+  {
+    "id": 4690,
+    "sender": "vytautas-pranskunas-",
+    "content": "I have same problem... running on XCode works just fien but running from VSCode not.",
+    "createdAt": "2021-10-20T15:28:49Z"
+  },
+  {
+    "id": 4691,
+    "sender": "rubenvereecken",
+    "content": "Increasing the timeout in `${FLUTTER_SDK}/packages/flutter_tools/lib/src/ios/devices.dart` did it for me.\r\n\r\n```dart\r\nfinal Timer timer = Timer(discoveryTimeout ?? const Duration(seconds: 30), () {\r\n```\r\n\r\nchanged to\r\n```dart\r\nfinal Timer timer = Timer(discoveryTimeout ?? const Duration(seconds: 60), () {\r\n```\r\n\r\nIt was on L435 for me but YMMV.",
+    "createdAt": "2021-10-22T10:19:14Z"
+  },
+  {
+    "id": 4692,
+    "sender": "aarajput",
+    "content": "@rubenvereecken can you please tell us line number and which value did you used?",
+    "createdAt": "2021-10-22T10:25:16Z"
+  },
+  {
+    "id": 4693,
+    "sender": "rubenvereecken",
+    "content": "@aarajput added some extra info to my previous comment to keep things together a bit :).",
+    "createdAt": "2021-10-22T10:33:53Z"
+  },
+  {
+    "id": 4694,
+    "sender": "SogoGolf",
+    "content": "We're suddenly seeing this error today too (in a non-trivial project size) via VS Code / debug mode",
+    "createdAt": "2021-10-22T23:16:15Z"
+  },
+  {
+    "id": 4695,
+    "sender": "ElixirMike",
+    "content": "Seeing the same issues...runs fine from Xcode, hangs when running from VSCode. I tried @rubenvereecken  solution of changing timeout to 60 seconds, needed to reboot my computer for different reason, and now it's working.",
+    "createdAt": "2021-10-25T20:26:11Z"
+  },
+  {
+    "id": 4696,
+    "sender": "nzackoya",
+    "content": "in my case the issue happens with firebase packages, especially with **firebase_auth**. With other firebase packages I get the error in logs, but the app starts normally.",
+    "createdAt": "2021-10-25T22:21:16Z"
+  },
+  {
+    "id": 4697,
+    "sender": "nzackoya",
+    "content": "> Increasing the timeout in `${FLUTTER_SDK}/packages/flutter_tools/lib/src/ios/devices.dart` did it for me.\r\n> \r\n> ```dart\r\n> final Timer timer = Timer(discoveryTimeout ?? const Duration(seconds: 30), () {\r\n> ```\r\n> \r\n> changed to\r\n> \r\n> ```dart\r\n> final Timer timer = Timer(discoveryTimeout ?? const Duration(seconds: 60), () {\r\n> ```\r\n> \r\n> It was on L435 for me but YMMV.\r\n\r\nChanging anything in that file doesn't impact anything",
+    "createdAt": "2021-10-26T18:14:39Z"
+  },
+  {
+    "id": 4698,
+    "sender": "SogoGolf",
+    "content": "> > Increasing the timeout in `${FLUTTER_SDK}/packages/flutter_tools/lib/src/ios/devices.dart` did it for me.\r\n> > ```dart\r\n> > final Timer timer = Timer(discoveryTimeout ?? const Duration(seconds: 30), () {\r\n> > ```\r\n> > \r\n> > \r\n> >     \r\n> >       \r\n> >     \r\n> > \r\n> >       \r\n> >     \r\n> > \r\n> >     \r\n> >   \r\n> > changed to\r\n> > ```dart\r\n> > final Timer timer = Timer(discoveryTimeout ?? const Duration(seconds: 60), () {\r\n> > ```\r\n> > \r\n> > \r\n> >     \r\n> >       \r\n> >     \r\n> > \r\n> >       \r\n> >     \r\n> > \r\n> >     \r\n> >   \r\n> > It was on L435 for me but YMMV.\r\n> \r\n> Changing anything in that file doesn't impact anything\r\n\r\nTried this a number of times didn't work. we're using FVM to control flutter versions, and we edited the devices.dart file in the correct FVM directory (that the flutter app is referencing). then quit/restarted VS Code. ran app to iOS device. same timeout error.",
+    "createdAt": "2021-10-26T23:18:55Z"
+  },
+  {
+    "id": 4699,
+    "sender": "jerryhamby",
+    "content": "iOS Observatory not discovered after 30 seconds. This is taking much longer than expected...\r\n\r\nThis is still an issue, even with the latest software.\r\nFlutter: 2.5.3\r\nVS Code: 1.62.1\r\nXcode: 13.1",
+    "createdAt": "2021-11-09T23:31:12Z"
+  },
+  {
+    "id": 4700,
+    "sender": "lyf571321556",
+    "content": "same issue",
+    "createdAt": "2021-11-11T14:28:50Z"
+  },
+  {
+    "id": 4701,
+    "sender": "prasadsunny1",
+    "content": "Running the iOS module using xcode with the connected iPHone as target worked.\r\nI am using \r\nflutter 2.0.6\r\nXcode 13.1",
+    "createdAt": "2021-11-13T11:08:17Z"
+  },
+  {
+    "id": 4702,
+    "sender": "aseem2625",
+    "content": "**Following works for me:**\r\n\r\n**1st issue:** \r\n I upgraded iOS from 14 to 15, and apparently device support for iOS 15 was missing.\r\nThis [answer](https://stackoverflow.com/a/63232598/3241111) resolves the issue\r\n\r\n**2nd issue:** \r\nFlutter project runs fine from Xcode, but from terminal or Android Studio, it sometimes crashes/runs with error \"Observatory port\". Some suggesting changing timeout from 30 to 200ms in `flutter/packages/flutter_tools/lib/src/ios/devices.dart`  but didn't work, so reverted.\r\n```\r\nlocalUri = await observatoryDiscovery.uri.timeout(const Duration(seconds: 200));\r\n```\r\n\r\n\r\n**This isn't best but workable solution** https://github.com/flutter/flutter/issues/51269#issuecomment-851690757\r\n\r\n![image](https://user-images.githubusercontent.com/6055628/141694668-548b5b6a-d745-42ae-a178-d63290d2a209.png)\r\nRun from Xcode, then run following command in terminal.\r\n\r\nInstead of this commend\r\n`flutter attach --debug-url <my-url>`, but looks like debug-url doesn't exist in Flutter v2.2.3.\r\n\r\nthis worked for me\r\n`flutter attach --host-vmservice-port <my-port>`\r\n\r\n-------\r\n\r\nTip 1: Try with new flutter project, so build time is less.\r\n\r\n\r\nThen tried running on our actual project, it threw same Observatory error. Run with `--verbose` , it threw mDNS meta error which was resolved using https://github.com/flutter/flutter/issues/46705\r\n\r\n\r\n",
+    "createdAt": "2021-11-14T19:10:08Z"
+  },
+  {
+    "id": 4703,
+    "sender": "hakanbt-mobil",
+    "content": "final Timer timer = Timer(discoveryTimeout ?? const Duration(seconds: 30), () {\r\n\r\nits just timer to notify me when i increase it to 60 it notify me after 60 second. Problem is why i wait too much ?",
+    "createdAt": "2021-12-07T08:47:17Z"
+  },
+  {
+    "id": 4704,
+    "sender": "XutongGithub",
+    "content": "邮件已收到。谢谢！",
+    "createdAt": "2021-12-07T08:47:47Z"
+  },
+  {
+    "id": 4705,
+    "sender": "sqliang",
+    "content": "亲，来信已收，尽快阅览",
+    "createdAt": "2021-12-07T08:48:50Z"
+  },
+  {
+    "id": 4706,
+    "sender": "lyf571321556",
+    "content": "same issue \r\nFlutter: 2.8.0\r\nXcode: 13.x",
+    "createdAt": "2021-12-09T13:22:08Z"
+  },
+  {
+    "id": 4707,
+    "sender": "jerryhamby",
+    "content": "This is more of an issue now with current upgrades:\r\nFlutter: 2.8.0\r\nVS Code: 1.63.1\r\nXcode: 13.2\r\nMac OS: 12.1\r\n\r\nI have two test devices and the problem appears only on one of them:\r\nI do the same launch process of both (flutter run —profile)\r\n\r\n(iPhone 11 -  15.2): Here is the problem (the app will eventually appear, but no debugging)\r\nXcode build done.                                           160.1s\r\niOS Observatory not discovered after 30 seconds. This is taking much longer than expected...\r\nInstalling and launching...                                        84.2s\r\nError running application on iPhone11.\r\n\r\n(iPhone 7 -  14.8):\r\nNo Problems",
+    "createdAt": "2021-12-14T23:24:42Z"
+  },
+  {
+    "id": 4708,
+    "sender": "gutisalex",
+    "content": "Had the same issue after IOS Update to 15.1 and for me helped this:\r\n\r\n- Deinstall App from device\r\n- Restart iPhone\r\n- flutter clean\r\n- open xcode\r\n- start app\r\n\r\nTried it without using xcode which didn't work... there is something that xcode does at the beginning, fetching some files or so... ",
+    "createdAt": "2021-12-15T08:44:11Z"
+  },
+  {
+    "id": 4709,
+    "sender": "ksilz",
+    "content": "> Tried it without using xcode which didn't work... there is something that xcode does at the beginning, fetching some files or so...\r\n\r\n@gutisalex, you're right: Just **starting Xcode with my iPhone connected** and letting it do its thing **fixed it for me**! \r\n\r\n**Details**\r\nI had updated my iPhone to iOS 15.2, and my watch to watchOS 8.3. Now for each connected device and each OS version, Xcode is fetching debug symbols when they are connected for the first time:\r\n![image](https://user-images.githubusercontent.com/1061209/146170061-849e91cf-04b1-42dc-9070-16126b961cc8.png)\r\n\r\nSo Xcode fetched debug symbols for both my iPhone and my watch. Once that was over, I closed Xcode. And then Flutter ran my app just fine! 😀\r\n",
+    "createdAt": "2021-12-15T10:36:32Z"
+  },
+  {
+    "id": 4710,
+    "sender": "fullflash",
+    "content": "thanks running once with Xcode fixed issue.",
+    "createdAt": "2021-12-17T16:14:08Z"
+  },
+  {
+    "id": 4711,
+    "sender": "davidAg9",
+    "content": "> This is more of an issue now with current upgrades: Flutter: 2.8.0 VS Code: 1.63.1 Xcode: 13.2 Mac OS: 12.1\r\n> \r\n> I have two test devices and the problem appears only on one of them: I do the same launch process of both (flutter run —profile)\r\n> \r\n> (iPhone 11 - 15.2): Here is the problem (the app will eventually appear, but no debugging) Xcode build done. 160.1s iOS Observatory not discovered after 30 seconds. This is taking much longer than expected... Installing and launching... 84.2s Error running application on iPhone11.\r\n> \r\n> (iPhone 7 - 14.8): No Problems\r\n\r\nsame here... ",
+    "createdAt": "2022-01-04T07:00:35Z"
+  },
+  {
+    "id": 4712,
+    "sender": "chrystoffer",
+    "content": "in my case the problem is in the \"connectivity_plus\" package (https://pub.dev/packages/connectivity_plus).\r\nI found out why another application that doesn't use this package compiles normally.\r\nIf I remove the package, the application compiles normally.\r\n\r\nedit: I changed the package version to \"**connectivity_plus: 2.0.3**\" and was able to compile again",
+    "createdAt": "2022-01-18T14:11:49Z"
+  },
+  {
+    "id": 4713,
+    "sender": "jerryhamby",
+    "content": "This is still a problem, even with the latest versions:\r\niOS Observatory not discovered after 30 seconds. This is taking much longer than expected...\r\n\"flutter run --profile\"\r\n\r\nFlutter.: 2.10.1\r\nXcode: 13.2.1\r\nmacOS Monterey: 12.2.1\r\niPhone:  11 - 15.3.1\r\nAlthough the app does seem to load OK after this issue, but it takes a very long time.",
+    "createdAt": "2022-02-15T21:37:10Z"
+  },
+  {
+    "id": 4714,
+    "sender": "YDA93",
+    "content": "> Had the same issue after IOS Update to 15.1 and for me helped this:\r\n> \r\n> * Deinstall App from device\r\n> * Restart iPhone\r\n> * flutter clean\r\n> * open xcode\r\n> * start app\r\n> \r\n> Tried it without using xcode which didn't work... there is something that xcode does at the beginning, fetching some files or so...\r\n\r\nI confirm my app stopped running in flutter debug mode after I upgraded to 15.3.1\r\n\r\nAbove steps worked perfectly!",
+    "createdAt": "2022-02-17T13:07:41Z"
+  },
+  {
+    "id": 4715,
+    "sender": "workerbee22",
+    "content": "Yep still an issue:\r\n\r\nFlutter: 2.10.3\r\nXcode: 13.3\r\nmacOS Monterey: 12.3\r\niPhone 13: iOS 15.4\r\n\r\n\r\n",
+    "createdAt": "2022-03-26T08:21:25Z"
+  },
+  {
+    "id": 4716,
+    "sender": "zeqinjie",
+    "content": "uninstall  app and rebuild to start",
+    "createdAt": "2022-04-20T08:55:02Z"
+  },
+  {
+    "id": 4717,
+    "sender": "jerryhamby",
+    "content": "Again, problem not solved, even with latest version of Flutter 3.0.0 \r\niOS Observatory not discovered after 30 seconds. This is taking much longer than expected... \"flutter run --profile\"\r\nFlutter.: 3.0.0 \r\nXcode: 13.3.1\r\nmacOS Monterey: 12.2.1 \r\niPhone: 11 - 15.4.1 \r\n\r\nSure would be nice if someone (Google) would fix this. This problem was posted 12-2020. It's now 5-2022.",
+    "createdAt": "2022-05-13T00:14:34Z"
+  },
+  {
+    "id": 4718,
+    "sender": "XutongGithub",
+    "content": "邮件已收到。谢谢！",
+    "createdAt": "2022-05-13T00:15:01Z"
+  },
+  {
+    "id": 4719,
+    "sender": "It-Is-Jeremy",
+    "content": "I was running into this issue as well using Simulator.\r\nPreviously I had installed/uninstalled Xcode a number of times. I was running iPhone 12 Pro Max on iOS15. I found that I needed to open Xcode and re-install Simulator for iOS15. This issue then stopped happening for me!",
+    "createdAt": "2022-05-28T04:06:02Z"
+  },
+  {
+    "id": 4720,
+    "sender": "terence-codigo",
+    "content": "Happens randomly for me. ",
+    "createdAt": "2022-05-30T06:54:27Z"
+  },
+  {
+    "id": 4721,
+    "sender": "Siddharth2212",
+    "content": "thanks @[gutisalex](https://github.com/gutisalex)",
+    "createdAt": "2022-06-13T19:22:36Z"
+  },
+  {
+    "id": 4722,
+    "sender": "XutongGithub",
+    "content": "邮件已收到。谢谢！",
+    "createdAt": "2022-06-13T19:22:59Z"
+  },
+  {
+    "id": 4723,
+    "sender": "armandojimenez",
+    "content": "2 years old issue, happens every time... no response or fix...",
+    "createdAt": "2022-06-21T01:42:31Z"
+  },
+  {
+    "id": 4724,
+    "sender": "ksilz",
+    "content": "> 2 years old issue, happens every time... no response or fix...\r\n\r\n@armandojimenez Just starting Xcode with my iPhone connected and letting it do its thing fixed it for me! Somehow, new iOS releases force Xcode to copy \"debug information\" from my iPhone and Apple Watch.",
+    "createdAt": "2022-06-25T07:53:08Z"
+  },
+  {
+    "id": 4725,
+    "sender": "jmagman",
+    "content": "Reposting this yet again:\r\n\r\n1. The flood of reports of this issue usually coincides with the iOS updates.  Long app launch times is a commonly reported problem when there's a pending iOS update on your test device, or when your test device is running a newer OS than the one shipped with Xcode.  It's also commonly reported right after you upgrade your test OS because Xcode can get stuck trying to copy the developer image over to the device.  Many of these reports are that it works on one device and not on another device running the same OS.  Frankly there's not much Flutter can do to work around this when the problem is between the test device and Xcode.\r\n2. Make sure Xcode is updated and your iOS device is updated.  You can also try opening `ios/Runner.xcworkspace` in Xcode and running your app from there to unwedge it.\r\n3. You can also try running `flutter clean` to clean Xcode's build folder (DerivedData).\r\n4. It seems like a cop-out, but swapping your cable may also help.\r\n5. People are also reporting uninstalling the app first may help.  We tried that in our own CI system and added an `--uninstall-first` flag to `run` and `drive`, but it didn't work for us, but maybe it will for you. https://github.com/flutter/flutter/pull/102948\r\n6. You also may be hitting https://github.com/flutter/flutter/issues/42969.  See if there's a pop up under your windows.\r\n\r\nWe've seen the \"busy fetching symbols\" issue in Flutter's own CI system when trying to tether to physical phones https://github.com/flutter/flutter/issues/103511.  The only workaround we've come up after extensive trial and error is to open Xcode, wait awhile, then close Xcode https://github.com/flutter/cocoon/pull/1897.  It's really annoying since we're not in control of this--Xcode handles getting the debug symbols over to the device.  There's nothing for us to \"fix\" here, Xcode has a bug from their command line tooling and we're along for the ride.\r\n\r\nOne thing we could do is to detect the \"busy fetching symbols\" error and tell the user to try opening Xcode until the message goes away from Window > Devices and Simulators so at least users in this state have a way to \"fix\" it without getting stuck.\r\n\r\nI'm going to lock this issue to keep the \"me too\" comments from pushing this out a third time.  Subscribe to the issue to get updates from Flutter contributors.\r\n\r\nIf you are seeing something NOT resolved by the above, please file a new issue so we can track down anything actionable that isn't an Xcode bug.",
+    "createdAt": "2022-06-27T22:08:49Z"
+  },
+  {
+    "id": 4726,
+    "sender": "yangsfang",
+    "content": "I am running into this issue with a real device every time. I have not updated XCode or iOS for a while. Nor is XCode showing any type of syncing of debugging symbols. I will note I'm using an iPhone 6s 64GB as a test device.\r\n\r\nThe iPhone 6s is from 2015, and the performance is not top notch. Single threaded performance is the most important for starting the observatory server in time. In particular, the A9 processor on the iPhone 6s has about 1/3 of the single threaded performance of the A15 processor in an iPhone 13. In my experience, after I manually increased the timeout, it takes around 70 seconds for the observatory service to come up from the moment of app launch on the device (I'm using https://github.com/gskinnerTeam/flutter-wonderous-app as a test).\r\n\r\nSince Flutter can run on many generation of devices for compatibility reasons, it is best not to assume all devices will handle starting up the observatory service in 30 seconds. Currently, Flutter supports iOS 11+, and even older phones (iPhone 5s/6) on iOS 12 are still supported. An option to increase this timeout easily or making the timeout depend on device model could be considered.\r\n\r\nOf course, for the vast majority of people who have new devices, point 1,2, and 4 in https://github.com/flutter/flutter/issues/72161#issuecomment-1167965559 is good advice. That could possibly be added next to https://docs.flutter.dev/add-to-app/ios/project-setup#local-network-privacy-permissions to note that behavior.",
+    "createdAt": "2023-09-01T00:42:06Z"
+  },
+  {
+    "id": 4727,
+    "sender": "darshankawar",
+    "content": "Revisiting this issue to check if the originally reported behavior of observatory port timeout still occurs using latest stable version of the framework.\r\n\r\n\r\n\r\n> The problem is below and the solution is to increase the timeout.\r\n> \r\n> https://github.com/flutter/flutter/blob/44d0e52d2065dbcaa01ac29b4488c7bbd7b1e76c/packages/flutter_tools/lib/src/ios/devices.dart#L430\r\n\r\nI do not this this code implementation anymore in the said file. Rather see below:\r\n\r\nhttps://github.com/flutter/flutter/blob/d2631b552c4a1544f34a2c0d0fa7ecb573114202/packages/flutter_tools/lib/src/ios/devices.dart#L587\r\n\r\nhttps://github.com/flutter/flutter/blob/d2631b552c4a1544f34a2c0d0fa7ecb573114202/packages/flutter_tools/lib/src/ios/devices.dart#L595\r\n\r\nAlso, as mentioned below are some of the takeaways from the issue:\r\n\r\n\r\n\r\n> * The flood of reports of this issue usually coincides with the iOS updates.  Long app launch times is a commonly reported problem when there's a pending iOS update on your test device, or when your test device is running a newer OS than the one shipped with Xcode.  It's also commonly reported right after you upgrade your test OS because Xcode can get stuck trying to copy the developer image over to the device.  Many of these reports are that it works on one device and not on another device running the same OS.  Frankly there's not much Flutter can do to work around this when the problem is between the test device and Xcode.\r\n> * Make sure Xcode is updated and your iOS device is updated.  You can also try opening `ios/Runner.xcworkspace` in Xcode and running your app from there to unwedge it.\r\n> * You can also try running `flutter clean` to clean Xcode's build folder (DerivedData).\r\n> * It seems like a cop-out, but swapping your cable may also help.\r\n> * People are also reporting uninstalling the app first may help.  We tried that in our own CI system and added an `--uninstall-first` flag to `run` and `drive`, but it didn't work for us, but maybe it will for you. [[flutter_tools] add --uninstall-first flag and pipe it through to ios-deploy #102948](https://github.com/flutter/flutter/pull/102948)\r\n> * You also may be hitting [\"iproxy cannot be opened because the developer cannot be verified\" #42969](https://github.com/flutter/flutter/issues/42969).  See if there's a pop up under your windows.\r\n\r\nMoreover, we haven't seen this issue report using latest or recent stable version since a long time.\r\n\r\n@stx or anyone from this thread who reported it earlier, is there a way for you to check and confirm if you are still getting or saw this timeout issue on recent or latest stable version ?\r\n\r\n ",
+    "createdAt": "2024-04-25T11:37:40Z"
+  },
+  {
+    "id": 4728,
+    "sender": "jellynoone",
+    "content": "## [Android] CameraX preview is rotated 90 degrees\n\n### What package does this bug report belong to?\r\n\r\ncamera\r\n\r\n### What target platforms are you seeing this bug on?\r\n\r\nAndroid\r\n\r\n### Have you already upgraded your packages?\r\n\r\nYes\r\n\r\n### Dependency versions\r\n\r\n<details><summary>pubspec.yaml</summary>\r\n\r\n```yaml\r\nname: camera_test\r\ndescription: \"A new Flutter project.\"\r\npublish_to: 'none'\r\nversion: 0.1.0\r\n\r\nenvironment:\r\n  sdk: ^3.5.1\r\n\r\ndependencies:\r\n  flutter:\r\n    sdk: flutter\r\n  camera: ^0.11.0+2\r\n\r\ndev_dependencies:\r\n  flutter_test:\r\n    sdk: flutter\r\n  flutter_lints: ^4.0.0\r\n\r\nflutter:\r\n  uses-material-design: true\r\n```\r\n</details>\r\n\r\n\r\n<details><summary>pubspec.lock</summary>\r\n\r\n```lock\r\n# Generated by pub\r\n# See https://dart.dev/tools/pub/glossary#lockfile\r\npackages:\r\n  async:\r\n    dependency: transitive\r\n    description:\r\n      name: async\r\n      sha256: \"947bfcf187f74dbc5e146c9eb9c0f10c9f8b30743e341481c1e2ed3ecc18c20c\"\r\n      url: \"https://pub.dev\"\r\n    source: hosted\r\n    version: \"2.11.0\"\r\n  boolean_selector:\r\n    dependency: transitive\r\n    description:\r\n      name: boolean_selector\r\n      sha256: \"6cfb5af12253eaf2b368f07bacc5a80d1301a071c73360d746b7f2e32d762c66\"\r\n      url: \"https://pub.dev\"\r\n    source: hosted\r\n    version: \"2.1.1\"\r\n  camera:\r\n    dependency: \"direct main\"\r\n    description:\r\n      name: camera\r\n      sha256: \"26ff41045772153f222ffffecba711a206f670f5834d40ebf5eed3811692f167\"\r\n      url: \"https://pub.dev\"\r\n    source: hosted\r\n    version: \"0.11.0+2\"\r\n  camera_android_camerax:\r\n    dependency: transitive\r\n    description:\r\n      name: camera_android_camerax\r\n      sha256: \"7cd93578ad201dcc6bb5810451fb00d76a86bab9b68dceb68b8cbd7038ac5846\"\r\n      url: \"https://pub.dev\"\r\n    source: hosted\r\n    version: \"0.6.8+3\"\r\n  camera_avfoundation:\r\n    dependency: transitive\r\n    description:\r\n      name: camera_avfoundation\r\n      sha256: \"7c28969a975a7eb2349bc2cb2dfe3ad218a33dba9968ecfb181ce08c87486655\"\r\n      url: \"https://pub.dev\"\r\n    source: hosted\r\n    version: \"0.9.17+3\"\r\n  camera_platform_interface:\r\n    dependency: transitive\r\n    description:\r\n      name: camera_platform_interface\r\n      sha256: b3ede1f171532e0d83111fe0980b46d17f1aa9788a07a2fbed07366bbdbb9061\r\n      url: \"https://pub.dev\"\r\n    source: hosted\r\n    version: \"2.8.0\"\r\n  camera_web:\r\n    dependency: transitive\r\n    description:\r\n      name: camera_web\r\n      sha256: \"595f28c89d1fb62d77c73c633193755b781c6d2e0ebcd8dc25b763b514e6ba8f\"\r\n      url: \"https://pub.dev\"\r\n    source: hosted\r\n    version: \"0.3.5\"\r\n  characters:\r\n    dependency: transitive\r\n    description:\r\n      name: characters\r\n      sha256: \"04a925763edad70e8443c99234dc3328f442e811f1d8fd1a72f1c8ad0f69a605\"\r\n      url: \"https://pub.dev\"\r\n    source: hosted\r\n    version: \"1.3.0\"\r\n  clock:\r\n    dependency: transitive\r\n    description:\r\n      name: clock\r\n      sha256: cb6d7f03e1de671e34607e909a7213e31d7752be4fb66a86d29fe1eb14bfb5cf\r\n      url: \"https://pub.dev\"\r\n    source: hosted\r\n    version: \"1.1.1\"\r\n  collection:\r\n    dependency: transitive\r\n    description:\r\n      name: collection\r\n      sha256: ee67cb0715911d28db6bf4af1026078bd6f0128b07a5f66fb2ed94ec6783c09a\r\n      url: \"https://pub.dev\"\r\n    source: hosted\r\n    version: \"1.18.0\"\r\n  cross_file:\r\n    dependency: transitive\r\n    description:\r\n      name: cross_file\r\n      sha256: \"7caf6a750a0c04effbb52a676dce9a4a592e10ad35c34d6d2d0e4811160d5670\"\r\n      url: \"https://pub.dev\"\r\n    source: hosted\r\n    version: \"0.3.4+2\"\r\n  fake_async:\r\n    dependency: transitive\r\n    description:\r\n      name: fake_async\r\n      sha256: \"511392330127add0b769b75a987850d136345d9227c6b94c96a04cf4a391bf78\"\r\n      url: \"https://pub.dev\"\r\n    source: hosted\r\n    version: \"1.3.1\"\r\n  flutter:\r\n    dependency: \"direct main\"\r\n    description: flutter\r\n    source: sdk\r\n    version: \"0.0.0\"\r\n  flutter_lints:\r\n    dependency: \"direct dev\"\r\n    description:\r\n      name: flutter_lints\r\n      sha256: \"3f41d009ba7172d5ff9be5f6e6e6abb4300e263aab8866d2a0842ed2a70f8f0c\"\r\n      url: \"https://pub.dev\"\r\n    source: hosted\r\n    version: \"4.0.0\"\r\n  flutter_plugin_android_lifecycle:\r\n    dependency: transitive\r\n    description:\r\n      name: flutter_plugin_android_lifecycle\r\n      sha256: \"9ee02950848f61c4129af3d6ec84a1cfc0e47931abc746b03e7a3bc3e8ff6eda\"\r\n      url: \"https://pub.dev\"\r\n    source: hosted\r\n    version: \"2.0.22\"\r\n  flutter_test:\r\n    dependency: \"direct dev\"\r\n    description: flutter\r\n    source: sdk\r\n    version: \"0.0.0\"\r\n  flutter_web_plugins:\r\n    dependency: transitive\r\n    description: flutter\r\n    source: sdk\r\n    version: \"0.0.0\"\r\n  leak_tracker:\r\n    dependency: transitive\r\n    description:\r\n      name: leak_tracker\r\n      sha256: \"3f87a60e8c63aecc975dda1ceedbc8f24de75f09e4856ea27daf8958f2f0ce05\"\r\n      url: \"https://pub.dev\"\r\n    source: hosted\r\n    version: \"10.0.5\"\r\n  leak_tracker_flutter_testing:\r\n    dependency: transitive\r\n    description:\r\n      name: leak_tracker_flutter_testing\r\n      sha256: \"932549fb305594d82d7183ecd9fa93463e9914e1b67cacc34bc40906594a1806\"\r\n      url: \"https://pub.dev\"\r\n    source: hosted\r\n    version: \"3.0.5\"\r\n  leak_tracker_testing:\r\n    dependency: transitive\r\n    description:\r\n      name: leak_tracker_testing\r\n      sha256: \"6ba465d5d76e67ddf503e1161d1f4a6bc42306f9d66ca1e8f079a47290fb06d3\"\r\n      url: \"https://pub.dev\"\r\n    source: hosted\r\n    version: \"3.0.1\"\r\n  lints:\r\n    dependency: transitive\r\n    description:\r\n      name: lints\r\n      sha256: \"976c774dd944a42e83e2467f4cc670daef7eed6295b10b36ae8c85bcbf828235\"\r\n      url: \"https://pub.dev\"\r\n    source: hosted\r\n    version: \"4.0.0\"\r\n  matcher:\r\n    dependency: transitive\r\n    description:\r\n      name: matcher\r\n      sha256: d2323aa2060500f906aa31a895b4030b6da3ebdcc5619d14ce1aada65cd161cb\r\n      url: \"https://pub.dev\"\r\n    source: hosted\r\n    version: \"0.12.16+1\"\r\n  material_color_utilities:\r\n    dependency: transitive\r\n    description:\r\n      name: material_color_utilities\r\n      sha256: f7142bb1154231d7ea5f96bc7bde4bda2a0945d2806bb11670e30b850d56bdec\r\n      url: \"https://pub.dev\"\r\n    source: hosted\r\n    version: \"0.11.1\"\r\n  meta:\r\n    dependency: transitive\r\n    description:\r\n      name: meta\r\n      sha256: bdb68674043280c3428e9ec998512fb681678676b3c54e773629ffe74419f8c7\r\n      url: \"https://pub.dev\"\r\n    source: hosted\r\n    version: \"1.15.0\"\r\n  path:\r\n    dependency: transitive\r\n    description:\r\n      name: path\r\n      sha256: \"087ce49c3f0dc39180befefc60fdb4acd8f8620e5682fe2476afd0b3688bb4af\"\r\n      url: \"https://pub.dev\"\r\n    source: hosted\r\n    version: \"1.9.0\"\r\n  plugin_platform_interface:\r\n    dependency: transitive\r\n    description:\r\n      name: plugin_platform_interface\r\n      sha256: \"4820fbfdb9478b1ebae27888254d445073732dae3d6ea81f0b7e06d5dedc3f02\"\r\n      url: \"https://pub.dev\"\r\n    source: hosted\r\n    version: \"2.1.8\"\r\n  sky_engine:\r\n    dependency: transitive\r\n    description: flutter\r\n    source: sdk\r\n    version: \"0.0.99\"\r\n  source_span:\r\n    dependency: transitive\r\n    description:\r\n      name: source_span\r\n      sha256: \"53e943d4206a5e30df338fd4c6e7a077e02254531b138a15aec3bd143c1a8b3c\"\r\n      url: \"https://pub.dev\"\r\n    source: hosted\r\n    version: \"1.10.0\"\r\n  stack_trace:\r\n    dependency: transitive\r\n    description:\r\n      name: stack_trace\r\n      sha256: \"73713990125a6d93122541237550ee3352a2d84baad52d375a4cad2eb9b7ce0b\"\r\n      url: \"https://pub.dev\"\r\n    source: hosted\r\n    version: \"1.11.1\"\r\n  stream_channel:\r\n    dependency: transitive\r\n    description:\r\n      name: stream_channel\r\n      sha256: ba2aa5d8cc609d96bbb2899c28934f9e1af5cddbd60a827822ea467161eb54e7\r\n      url: \"https://pub.dev\"\r\n    source: hosted\r\n    version: \"2.1.2\"\r\n  stream_transform:\r\n    dependency: transitive\r\n    description:\r\n      name: stream_transform\r\n      sha256: \"14a00e794c7c11aa145a170587321aedce29769c08d7f58b1d141da75e3b1c6f\"\r\n      url: \"https://pub.dev\"\r\n    source: hosted\r\n    version: \"2.1.0\"\r\n  string_scanner:\r\n    dependency: transitive\r\n    description:\r\n      name: string_scanner\r\n      sha256: \"556692adab6cfa87322a115640c11f13cb77b3f076ddcc5d6ae3c20242bedcde\"\r\n      url: \"https://pub.dev\"\r\n    source: hosted\r\n    version: \"1.2.0\"\r\n  term_glyph:\r\n    dependency: transitive\r\n    description:\r\n      name: term_glyph\r\n      sha256: a29248a84fbb7c79282b40b8c72a1209db169a2e0542bce341da992fe1bc7e84\r\n      url: \"https://pub.dev\"\r\n    source: hosted\r\n    version: \"1.2.1\"\r\n  test_api:\r\n    dependency: transitive\r\n    description:\r\n      name: test_api\r\n      sha256: \"5b8a98dafc4d5c4c9c72d8b31ab2b23fc13422348d2997120294d3bac86b4ddb\"\r\n      url: \"https://pub.dev\"\r\n    source: hosted\r\n    version: \"0.7.2\"\r\n  vector_math:\r\n    dependency: transitive\r\n    description:\r\n      name: vector_math\r\n      sha256: \"80b3257d1492ce4d091729e3a67a60407d227c27241d6927be0130c98e741803\"\r\n      url: \"https://pub.dev\"\r\n    source: hosted\r\n    version: \"2.1.4\"\r\n  vm_service:\r\n    dependency: transitive\r\n    description:\r\n      name: vm_service\r\n      sha256: \"5c5f338a667b4c644744b661f309fb8080bb94b18a7e91ef1dbd343bed00ed6d\"\r\n      url: \"https://pub.dev\"\r\n    source: hosted\r\n    version: \"14.2.5\"\r\n  web:\r\n    dependency: transitive\r\n    description:\r\n      name: web\r\n      sha256: d43c1d6b787bf0afad444700ae7f4db8827f701bc61c255ac8d328c6f4d52062\r\n      url: \"https://pub.dev\"\r\n    source: hosted\r\n    version: \"1.0.0\"\r\nsdks:\r\n  dart: \">=3.5.1 <4.0.0\"\r\n  flutter: \">=3.24.0\"\r\n```\r\n\r\n</details>\r\n\r\n\r\n### Steps to reproduce\r\n\r\n1. Open the application\r\n2. Confirm camera permissions\r\n3. See improperly rotated preview\r\n\r\n### Expected results\r\n\r\nThe camera preview should be properly rotated.\r\n\r\n### Actual results\r\n\r\nThe camera preview is rotated 90º.\r\n\r\n### Code sample\r\n\r\n<details open><summary>Code sample</summary>\r\n\r\n```dart\r\nimport 'package:camera/camera.dart';\r\nimport 'package:flutter/foundation.dart';\r\nimport 'package:flutter/material.dart';\r\n\r\nvoid main() async {\r\n  runApp(const MainApp());\r\n}\r\n\r\nclass MainApp extends StatefulWidget {\r\n  const MainApp({super.key});\r\n\r\n  @override\r\n  State<MainApp> createState() => _MainAppState();\r\n}\r\n\r\nclass _MainAppState extends State<MainApp> {\r\n  final _runner = _Runner();\r\n\r\n  @override\r\n  Widget build(BuildContext context) {\r\n    return MaterialApp(\r\n      home: Scaffold(\r\n        body: ValueListenableBuilder(\r\n          valueListenable: _runner,\r\n          builder: _build,\r\n        ),\r\n      ),\r\n    );\r\n  }\r\n\r\n  Widget _build(BuildContext context, _State value, Widget? child) {\r\n    switch (value) {\r\n      case _Loaded():\r\n        return Center(\r\n          child: CameraPreview(value.controller),\r\n        );\r\n\r\n      case _Simple.initializing:\r\n        return const Center(\r\n          child: CircularProgressIndicator(),\r\n        );\r\n\r\n      case _Simple.error:\r\n        return const Center(\r\n          child: Icon(Icons.error),\r\n        );\r\n    }\r\n  }\r\n}\r\n\r\nclass _Runner with ChangeNotifier implements ValueListenable<_State> {\r\n  _Runner() {\r\n    _init();\r\n  }\r\n\r\n  void _init() async {\r\n    final available = await availableCameras();\r\n    if (available.isEmpty) {\r\n      _emit(_Simple.error);\r\n    } else {\r\n      final controller =\r\n          CameraController(available.first, ResolutionPreset.veryHigh);\r\n      try {\r\n        await controller.initialize();\r\n        _emit(_Loaded(\r\n          controller: controller,\r\n          available: available,\r\n        ));\r\n      } catch (e) {\r\n        _emit(_Simple.error);\r\n      }\r\n    }\r\n  }\r\n\r\n  _State _value = _Simple.initializing;\r\n  @override\r\n  _State get value => _value;\r\n  void _emit(_State state) {\r\n    _value = state;\r\n    notifyListeners();\r\n  }\r\n}\r\n\r\nsealed class _State {}\r\n\r\nenum _Simple implements _State {\r\n  initializing,\r\n  error,\r\n}\r\n\r\nclass _Loaded implements _State {\r\n  final CameraController controller;\r\n  final List<CameraDescription> available;\r\n\r\n  const _Loaded({\r\n    required this.controller,\r\n    required this.available,\r\n  });\r\n}\r\n```\r\n\r\n</details>\r\n\r\n\r\n### Screenshots or Videos\r\n\r\n_No response_\r\n\r\n### Logs\r\n\r\n_No response_\r\n\r\n### Flutter Doctor output\r\n\r\n<details open><summary>Doctor output</summary>\r\n\r\n```console\r\n[✓] Flutter (Channel stable, 3.24.1, on macOS 14.6.1 23G93 darwin-arm64, locale en-SI)\r\n    • Flutter version 3.24.1 on channel stable at /Users/.../Development/flutter\r\n    • Upstream repository https://github.com/flutter/flutter.git\r\n    • Framework revision 5874a72aa4 (8 days ago), 2024-08-20 16:46:00 -0500\r\n    • Engine revision c9b9d5780d\r\n    • Dart version 3.5.1\r\n    • DevTools version 2.37.2\r\n\r\n[✓] Android toolchain - develop for Android devices (Android SDK version 34.0.0)\r\n    • Android SDK at /Users/.../Library/Android/sdk\r\n    • Platform android-34, build-tools 34.0.0\r\n    • Java binary at: /Applications/Android Studio.app/Contents/jbr/Contents/Home/bin/java\r\n    • Java version OpenJDK Runtime Environment (build 17.0.10+0-17.0.10b1087.21-11609105)\r\n    • All Android licenses accepted.\r\n\r\n[✓] Xcode - develop for iOS and macOS (Xcode 15.4)\r\n    • Xcode at /Applications/Xcode.app/Contents/Developer\r\n    • Build 15F31d\r\n    • CocoaPods version 1.15.2\r\n\r\n[✓] Chrome - develop for the web\r\n    • Chrome at /Applications/Google Chrome.app/Contents/MacOS/Google Chrome\r\n\r\n[✓] Android Studio (version 2024.1)\r\n    • Android Studio at /Applications/Android Studio.app/Contents\r\n    • Flutter plugin can be installed from:\r\n      🔨 https://plugins.jetbrains.com/plugin/9212-flutter\r\n    • Dart plugin can be installed from:\r\n      🔨 https://plugins.jetbrains.com/plugin/6351-dart\r\n    • Java version OpenJDK Runtime Environment (build 17.0.10+0-17.0.10b1087.21-11609105)\r\n\r\n[✓] VS Code (version 1.93.0-insider)\r\n    • VS Code at /Applications/Visual Studio Code - Insiders.app/Contents\r\n    • Flutter extension version 3.94.0\r\n\r\n[✓] Connected device (4 available)\r\n    • Pixel (mobile)                  • FA76R0301797          • android-arm64  • Android 10 (API 29)\r\n    • macOS (desktop)                 • macos                 • darwin-arm64   • macOS 14.6.1 23G93 darwin-arm64\r\n    • Mac Designed for iPad (desktop) • mac-designed-for-ipad • darwin         • macOS 14.6.1 23G93 darwin-arm64\r\n    • Chrome (web)                    • chrome                • web-javascript • Google Chrome 127.0.6533.122\r\n\r\n[✓] Network resources\r\n    • All expected network resources are available.\r\n\r\n• No issues found!\r\n```\r\n\r\n</details>\r\n\r\n**Additional:**\r\nThis issue reproduces on a Pixel 1 device. I wasn't able to test this on a more capable device.\r\n\r\nThe issue first occurs with the `camera_android_camerax: 0.6.8+2` if I override the dependency to: `camera_android_camerax: 0.6.7+2` everything works as expected.",
+    "createdAt": "2024-08-28T09:41:50Z"
+  },
+  {
+    "id": 4729,
+    "sender": "jellynoone",
+    "content": "An additional note, (while it is probably unrelated to this issue).\r\n\r\nCurrently, `camera_android`s `CameraPlatform.buildPreview` implementation uses a `Texture` directly, a single widget.\r\nhttps://github.com/flutter/packages/blob/cc7b5fc79cd389bd02dba3dc7ee956761103b8b9/packages/camera/camera_android/lib/src/android_camera.dart#L536-L539\r\n\r\nWhile `camera_android_camerax` does some additional preview shifting.\r\nhttps://github.com/flutter/packages/blob/cc7b5fc79cd389bd02dba3dc7ee956761103b8b9/packages/camera/camera_android_camerax/lib/src/android_camera_camerax.dart#L856-L930\r\n\r\nThe concerning bit of potential mistakes is that the way to preview the camera is by using `package:camera/camera.dart#CameraPreview` which properly prepares the preview and further rotates it on Android platforms.\r\n\r\nAre both plugin implementations aware of this? Or would it make more sense to have all plugins handle any potential rotation requirements on their own and the user would expect that `CameraPlatform.buildPreview` always returns the preview in the proper rotation without the need for additional manual corrections?",
+    "createdAt": "2024-08-28T09:59:10Z"
+  },
+  {
+    "id": 4730,
+    "sender": "darshankawar",
+    "content": "@jellynoone \r\nThis seems similar to https://github.com/flutter/flutter/issues/149294 which has been fixed and merged into main, may not be available in stable yet, so try to switch to latest main and re-run your scenario to confirm.\r\nWill close as duplicate for now. If you disagree, write in comments and I'll reopen it.\r\n",
+    "createdAt": "2024-08-28T11:06:07Z"
+  },
+  {
+    "id": 4731,
+    "sender": "jellynoone",
+    "content": "Thank you for a quick response.\r\n\r\nAs far as I can tell, the pull request to the issue you linked was made available in version `0.6.8+1`.\r\nThe issue reproduces for me on versions after `0.6.7+2`.\r\n\r\nPlease note, this issue is produced *after* the fix while running the regular skia engine.\r\n\r\nThe fix was meant for Impeller right? Which doesn't seem like the same issue.\r\n\r\nI suppose the fix for Impeller caused a regression on Android devices running the regular skia engine.\r\nI also tried running the app with impeller enabled. Same results.\r\nPixel 1 doesn't seem to support it.",
+    "createdAt": "2024-08-28T12:27:22Z"
+  },
+  {
+    "id": 4732,
+    "sender": "jellynoone",
+    "content": "@darshankawar Can you please reopen?",
+    "createdAt": "2024-08-28T13:23:08Z"
+  },
+  {
+    "id": 4733,
+    "sender": "darshankawar",
+    "content": "Thanks for feedback. Reopening for further triage.\r\n",
+    "createdAt": "2024-08-28T13:24:04Z"
+  },
+  {
+    "id": 4734,
+    "sender": "darshankawar",
+    "content": "@jellynoone \nAlthough we don't have Pixel 1 device, but we tried on Pixel 7 running Android 14 in which we didn't observe the rotated preview:\n\n<img src=\"https://github.com/user-attachments/assets/bd89e916-36f9-4afd-97c3-f920e7c2bc8e\" width =\"300\"> \n\nThis probably indicates it could be a device specific issue, but can you try on other devices (not pixel) to check if it persists still ?",
+    "createdAt": "2024-08-29T06:33:31Z"
+  },
+  {
+    "id": 4735,
+    "sender": "jellynoone",
+    "content": "I checked on an old Samsung (Android 5.1.1, API 22 (still a Flutter supported platform)) and everything worked as expected.\r\n\r\nRegardless, even if this is a device specific issue, it is a regression that happened between `0.6.7+2` and `0.6.8+2`.\r\n\r\nI will see if I can reproduce the issue on any other device, however, my options are currently limited.",
+    "createdAt": "2024-08-29T07:46:30Z"
+  }
+]

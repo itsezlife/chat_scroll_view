@@ -1,0 +1,386 @@
+[
+  {
+    "id": 4800,
+    "sender": "mohammad-melhem",
+    "content": "@camsim99 yes the orientation is now correct while recording; however, still wrong rotation in video preview after recording (i.e. playing the video) on some devices. I will report under #154696 as suggested for video player. Thanks @camsim99 and @reidbaker",
+    "createdAt": "2024-10-08T11:37:35Z"
+  },
+  {
+    "id": 4801,
+    "sender": "raedabdallah",
+    "content": "Exactly. @camsim99 as @mohammad-melhem described. Thanks both @camsim99 and @reidbaker ",
+    "createdAt": "2024-10-08T11:41:13Z"
+  },
+  {
+    "id": 4802,
+    "sender": "camsim99",
+    "content": "Unless we start receiving reports otherwise, I believe https://github.com/flutter/packages/pull/7714 has addressed most of the reports (those from devices running API 29).\r\n\r\nHowever, to get fully fix the issue here we will need to account for the deny list @matanlurey mentioned in https://github.com/flutter/flutter/issues/154241#issuecomment-2374553638. At the very least, will leave this issue open to track that work that I believe will need to wait until the next stable release.",
+    "createdAt": "2024-10-09T17:10:39Z"
+  },
+  {
+    "id": 4803,
+    "sender": "matanlurey",
+    "content": "> At the very least, will leave this issue open to track that work that I believe will need to wait until the next stable release.\r\n\r\nYup! We're cutting that now, so it will be soon (TM)",
+    "createdAt": "2024-10-09T17:33:16Z"
+  },
+  {
+    "id": 4804,
+    "sender": "oboard",
+    "content": "dependency_overrides:\r\n  camera_android_camerax: ^0.6.10\r\n\r\nThis method works on my RedmiNote7",
+    "createdAt": "2024-10-11T06:05:54Z"
+  },
+  {
+    "id": 4805,
+    "sender": "NiclasLeichsenring",
+    "content": "> dependency_overrides: camera_android_camerax: ^0.6.10\r\n> \r\n> This method works on my RedmiNote7\r\n\r\nthe override does not work on my pixel 5",
+    "createdAt": "2024-10-14T08:10:39Z"
+  },
+  {
+    "id": 4806,
+    "sender": "camsim99",
+    "content": "@NiclasLeichsenring I don't have access to a physical Pixel 5 but I just tried running it on a Pixel 5 with APIs 30, 29, and 28 and saw the correct rotation.\r\n\r\nWhat Android API are your running on? And are there any other repro steps I need to know? Can you also ensure that the newest version of `camera_android_camerax` is used?",
+    "createdAt": "2024-10-14T16:31:40Z"
+  },
+  {
+    "id": 4807,
+    "sender": "NiclasLeichsenring",
+    "content": "> What Android API are your running on?\r\n\r\nThe Pixel 5 is running on Android 14 (API 34) and I was using the example code from OP with `dependency_overrides:\r\n  camera_android_camerax: 0.6.10` `dependencies: camera: 0.11.0+2` using \r\n\r\n```\r\n[✓] Flutter (Channel stable, 3.24.3, on macOS 15.0.1 24A348 darwin-arm64, locale de-DE)\r\n    • Flutter version 3.24.3 on channel stable\r\n    • Upstream repository https://github.com/flutter/flutter.git\r\n    • Framework revision 2663184aa7 (5 weeks ago), 2024-09-11 16:27:48 -0500\r\n    • Engine revision 36335019a8\r\n    • Dart version 3.5.3\r\n    • DevTools version 2.37.3\r\n```\r\n\r\nPlease note that I am rotating the device in landscape mode before starting the app.",
+    "createdAt": "2024-10-15T07:26:04Z"
+  },
+  {
+    "id": 4808,
+    "sender": "camsim99",
+    "content": "> Please note that I am rotating the device in landscape mode before starting the app.\r\n\r\nAh okay this detail helped me repro -- thanks!\r\n\r\n I actually see a rotation that's off by 180 degrees when the app is started while the device is in landscape left and 90 degrees (counter clockwise) when the app is started while the device is in landscape right. This is a different bug than I think most people were seeing here, but I'll track working on this here still.\r\n\r\nI think this has to do with the calculation of the correction. I wonder if the initial device orientation that we use does not account for this case.",
+    "createdAt": "2024-10-16T18:19:32Z"
+  },
+  {
+    "id": 4809,
+    "sender": "jellynoone",
+    "content": "@camsim99 the behavior reported by NiclasLeichsenring seems related to replies from some of the other participants. Since the thread is getting large, I'm attaching links to those comments for easier access.\r\n\r\nBuenaventura-Celine https://github.com/flutter/flutter/issues/154241#issuecomment-2352496980\r\nAndreHaueisen https://github.com/flutter/flutter/issues/154241#issuecomment-2377703700\r\nDario-Maselli https://github.com/flutter/flutter/issues/154241#issuecomment-2382468257",
+    "createdAt": "2024-10-17T07:24:13Z"
+  },
+  {
+    "id": 4810,
+    "sender": "camsim99",
+    "content": "The preview is still incorrectly rotated because I added a fix for https://github.com/flutter/flutter/issues/149177 a while back that was supposed to have the [natural orientation](https://github.com/flutter/packages/blob/5e03bb1da411c99d80727f46e1821c4fdc6ea12c/packages/camera/camera_android_camerax/lib/src/android_camera_camerax.dart#L410) the device (for instance, landscape-oriented tablets vs portrait up phones) be factored into the rotation correction that we calculate, but that value is incorrect; it's just the orientation of the device when the camera is created, not the orientation of the device in its natural state.\r\n\r\nI will need to figure out how to correctly handle devices of any natural orienation.",
+    "createdAt": "2024-10-22T00:29:41Z"
+  },
+  {
+    "id": 4811,
+    "sender": "deepakmedkart",
+    "content": "> @raedabdallah - Add this to your pubspec.yaml until the camera package adopts the change:\r\n> \r\n> ```yaml\r\n> dependency_overrides:\r\n>   camera_android_camerax: 0.6.9\r\n> ```\r\n\r\nIt's working for me",
+    "createdAt": "2024-11-05T12:20:56Z"
+  },
+  {
+    "id": 4812,
+    "sender": "NiclasLeichsenring",
+    "content": "> I will need to figure out how to correctly handle devices of any natural orienation.\r\n\r\nHi, do you have new informations about it?",
+    "createdAt": "2024-11-06T13:56:53Z"
+  },
+  {
+    "id": 4813,
+    "sender": "camsim99",
+    "content": "Hi everyone, I'm still actively working on this. I hit a blocker after seeing some unexpected behavior on emulators and naturally landscape-oriented devices like tablets but working with CameraX knowledgable folks to resolve my confusion. I will update when I get a PR out!",
+    "createdAt": "2024-11-06T18:21:52Z"
+  },
+  {
+    "id": 4814,
+    "sender": "elliotrtd",
+    "content": "@camsim99 Could you maybe summarise what is / isn't expected to be working currently? \r\n\r\nThe above seems to be a combination of different issues it's a little tricky to understand what the current state is and what was resolved and what was not. The temporary fixes above seem related to the rotation of the recorded video? \r\n\r\nFrom what I can gather - using CameraPreview() on naturally landscape-oriented devices is still rotated in some/most cases? This is at least the behaviour I am seeing still using the Pixel Tablet Emulator in Android Studio. \r\n\r\nI'm hoping I can at least answer why this is the case on some devices - and then wait for a fix :) ",
+    "createdAt": "2024-12-04T03:12:56Z"
+  },
+  {
+    "id": 4815,
+    "sender": "camsim99",
+    "content": "@elliotrtd thanks for pinging me! I'm still trying to understand what's going on, but I'll list what I know now and update this issue more actively as I learn things.\r\n\r\nMy understanding is that the behavior of the camera preview rotation is linked to the particular Impeller backend that the device uses. There has been changes recently as to what backend is used which has confused me up until now, but here's what I know now (this info is all of the latest Flutter master and is different on stable at the time of writing):\r\n\r\n- Impeller Vulkan is used on API >= 29. By testing my Pixel 3A and Realme X2 Pro, I see that the camera preview is rotated correctly automatically (this includes the rotation that the plugin itself does to account for device orientation).\r\n-  Impeller Open GL is used on API < 29. I am having trouble getting a camera preview rendering at all on this backend so I will file an issue and follow up on this shortly. (edit: filed https://github.com/flutter/flutter/issues/159851)\r\n- Skia Open GL is used when `--no-enable-impeller` is passed. I see the same behavior as  Impeller Vulkan here but will do some more in depth testing.\r\n\r\nNote that some emulators use an Impeller backend that does not conform to these rules.\r\n\r\n**My open questions:** I have not yet tested tablets, so I will also follow up on that. I also cannot figure why the camera preview is now correct in my testing versus (1) before where the manual correction causing this issue was appearing and (2) when I was testing this up until recently in the last week or so (part of this is because I was testing on stable and not master sometimes, throwing off my results).",
+    "createdAt": "2024-12-05T00:08:37Z"
+  },
+  {
+    "id": 4816,
+    "sender": "elliotrtd",
+    "content": "@camsim99 - thanks for the update, looks like it has been a pretty long process and always fun when you get different behaviour in testing without any immediately obvious reason ;) \r\n\r\nI am assuming that Impeller Vulkan should be >=29 (you wrote both as <29 but Vulkan is newer). \r\n\r\nTablets are where I have the problem (with customers reporting the issue to me as well). As mentioned I am able to reproduce the issue using the Android Emulator Pixel Tablet (API 33) running on my MacBook. For me the preview is rotated 180 degrees using both the Webcam and Virtual Scene, this is consistent with my customers report. \r\n\r\nI also tried to compare sensor orientation and device orientation (printing some debug info to their screen) but I can't see any pattern compared to my physical Pixel 7. \r\n\r\nI appreciate that there are definitely some differences with the emulators as it definitely doesn't respect rotation in quite the same way. \r\n\r\nPlease do let me know if there is anything I can additional do to help testing different scenarios. \r\n\r\nInterestingly the CamerAwesome package does not have the same issue (not sure if that holds any clues) - but they lock the orientation to portrait which is horrible for my use case. ",
+    "createdAt": "2024-12-05T03:06:43Z"
+  },
+  {
+    "id": 4817,
+    "sender": "camsim99",
+    "content": "@elliotrtd thank you for all of this information, it's super helpful!\r\n\r\n> I am assuming that Impeller Vulkan should be >=29 (you wrote both as <29 but Vulkan is newer).\r\n\r\nYes, thank you; I corrected this.\r\n\r\n> Tablets are where I have the problem (with customers reporting the issue to me as well). As mentioned I am able to reproduce the issue using the Android Emulator Pixel Tablet (API 33) running on my MacBook. For me the preview is rotated 180 degrees using both the Webcam and Virtual Scene, this is consistent with my customers report.\r\n\r\n> I also tried to compare sensor orientation and device orientation (printing some debug info to their screen) but I can't see any pattern compared to my physical Pixel 7.\r\n\r\nI also have had trouble finding patterns when comparing physical devices and emulators. I've found on emulators that sometimes the sensor orientation is unexpected which may cause an unexpected rotation, e.g. we expect 90 or 270 degrees for front/back cameras, but this doesn't always hold up I've found.\r\n\r\nOne question: On the tablet you test on, is the preview rotated in 180 degrees in every device orientation?\r\n\r\n> Please do let me know if there is anything I can additional do to help testing different scenarios.\r\n\r\nI will pull together a PR soon removing the rotation correction and I would super appreciate help testing on devices you have if you're open to it since I don't have a tone of variety accessible! I can ping you on it if you/d like.\r\n\r\n> Interestingly the CamerAwesome package does not have the same issue (not sure if that holds any clues) - but they lock the orientation to portrait which is horrible for my use case.\r\n\r\nI'd have to look into it but unless they did [the migration](https://docs.flutter.dev/release/breaking-changes/android-surface-plugins), they may not use Impeller.\r\n",
+    "createdAt": "2024-12-05T18:42:04Z"
+  },
+  {
+    "id": 4818,
+    "sender": "thecodemonk",
+    "content": "@camsim99 I can also test for you as well. I've been quietly waiting for fixes/more info on this as we have the problematic code deployed to a few hundred devices and some customers are a little annoyed at the issue. I've put in a work around so that they can rotate the preview image, but the picture that's taken after is now rotated incorrectly. lol \r\n\r\nI have a Galaxy Tab that exhibits the issue and someone else in our org has a Lenovo m10 tablet that does it as well. \r\n\r\nFor reference, our tablet application is locked into landscape mode. We do not allow portrait mode (yet).",
+    "createdAt": "2024-12-05T20:03:58Z"
+  },
+  {
+    "id": 4819,
+    "sender": "reidbaker",
+    "content": "@camsim99 could the issue be that the sensor and the app have different rotations and we are assuming that they match? ",
+    "createdAt": "2024-12-05T20:37:54Z"
+  },
+  {
+    "id": 4820,
+    "sender": "camsim99",
+    "content": "> @camsim99 could the issue be that the sensor and the app have different rotations and we are assuming that they match?\r\n\r\nNo, we query the sensor rotation to put in the rotation correction, so it shouldn't be that. I did reach out to someone on the CameraX team specifically to check on the emulator issue, and they mentioned that could throw off the results of that correction, but I need to confirm. I assume it would only cause an issue if the emulator reports one sensor orientation but it is not correct for whatever reason.",
+    "createdAt": "2024-12-05T21:13:57Z"
+  },
+  {
+    "id": 4821,
+    "sender": "TheManuz",
+    "content": "> No, we query the sensor rotation to put in the rotation correction [...]\r\n\r\nThis produces wrong results if the Flutter app locks it's orientation, the `CameraPreview` widget rotation would mismatch the layout.\r\n\r\nHappened to me when trying to make a camera with forced **landscape** orientation.\r\nMy app supports all orientations, except for the camera, which is locked in **landscape** with `SystemChrome.setPreferredOrientations` (set on init, restored on dispose).",
+    "createdAt": "2024-12-06T14:30:54Z"
+  },
+  {
+    "id": 4822,
+    "sender": "elliotrtd",
+    "content": "@camsim99 Happy to help where I can. \r\n\r\nYes - the incorrect rotation is the same in every device orientation, on both my emulated tablet and my customers physical devices. Sounds like @thecodemonk has the same device (Samsung Galaxy) that my customer has & reported the issue with. \r\n\r\n",
+    "createdAt": "2024-12-07T09:42:39Z"
+  },
+  {
+    "id": 4823,
+    "sender": "camsim99",
+    "content": "Made a PR to remove logic we previously added concerning the preview rotation: https://github.com/flutter/packages/pull/8256. \r\n\r\nIn my testing, this works for the Impeller Vulkan backend and the Skia Open GL backend (add ` --no-enable-impeller` to run). As I mentioned before, Impeller Open GL is hitting https://github.com/flutter/flutter/issues/159851.\r\n\r\nIf anyone gets different results, please let me know what they are with the backend specified.",
+    "createdAt": "2024-12-10T00:29:04Z"
+  },
+  {
+    "id": 4824,
+    "sender": "thecodemonk",
+    "content": "@camsim99 I just pulled down your branch for testing. I used the sample app, just in case there was something with my project and the camera preview is rotated incorrectly on my Samsung Galaxy tab still. \r\n\r\nThe galaxy tab has the front facing camera on the top of the device when the device is held landscape, not portrait. While it is in landscape mode, the preview is showing up portrait mode. When the device is held in portrait mode, the preview shows up landscaped. \r\n\r\nThe rear camera is also acting this same way.\r\n\r\nIs there anything I can do to help troubleshoot this issue more?",
+    "createdAt": "2024-12-13T21:03:07Z"
+  },
+  {
+    "id": 4825,
+    "sender": "camsim99",
+    "content": "@thecodemonk this is helpful thanks! Are you using the latest Flutter `master`?\r\n\r\nI actually did expect my PR only to fix portrait up devices, but I'll look into adding logic for landscape devices, too.",
+    "createdAt": "2024-12-13T21:11:48Z"
+  },
+  {
+    "id": 4826,
+    "sender": "thecodemonk",
+    "content": "@camsim99 sorry for a little delay in responses..\r\n\r\nI am currently using: Flutter (Channel stable, 3.27.0, on macOS 15.1.1 24B2091 darwin-arm64, locale en-US). \r\n\r\nI also tried the sample app on my Galaxy S23 Ultra and the results are the same there. Everything is rotated incorrectly. Holding the phone in portrait mode, the preview is sideways. All the listed cameras do the same thing as well, front and back. \r\n\r\nI switched to the latest flutter master (this is why there was a delay, I had no idea how to do that haha) and tested on my Galaxy S23 again and it's still the same - rotated incorrectly when starting in portrait mode. \r\n\r\nIt seems that portrait mode is not right either now, unless I'm missing something. Is there anything you want me to try or do to help? ",
+    "createdAt": "2024-12-13T23:45:50Z"
+  },
+  {
+    "id": 4827,
+    "sender": "camsim99",
+    "content": "Thank you for the details @thecodemonk! One more thing (this is also important for future reporters) -- can you check the Flutter logs and see what Impeller backend is used? There should be a message like:\r\n\r\n```\r\nI/flutter (12227): [IMPORTANT:flutter/shell/platform/android/android_context_gl_impeller.cc(79)] Using the Impeller rendering backend (OpenGLES).\r\n```",
+    "createdAt": "2024-12-14T00:15:07Z"
+  },
+  {
+    "id": 4828,
+    "sender": "thecodemonk",
+    "content": "@camsim99 [IMPORTANT:flutter/shell/platform/android/android_context_vk_impeller.cc(60)] Using the Impeller rendering backend (Vulkan).\r\n\r\nSorry for a stupid question as I am not well versed in all this yet --- Is there a way to change between Vulkan and OpenGLES? I've been trying to find a way to test each backend for you..",
+    "createdAt": "2024-12-14T01:04:57Z"
+  },
+  {
+    "id": 4829,
+    "sender": "elliotrtd",
+    "content": "@camsim99 I just tested the above on my physical Pixel 7 which previously was **correctly** oriented but now it's wrongly rotated 90 degrees - would suggest withdrawing the PR. \r\n\r\nRunning latest master channel. \r\n\r\nI/flutter (12772): [IMPORTANT:flutter/shell/platform/android/android_context_vk_impeller.cc(60)] Using the Impeller rendering backend (Vulkan).\r\n",
+    "createdAt": "2024-12-16T05:49:15Z"
+  },
+  {
+    "id": 4830,
+    "sender": "davidmartos96",
+    "content": "Would it be feasible to develop a test that would run in Firebase device test lab?\nThe test would display a static source in the camera, then a screenshot is taken, and then take the 4 corners, which could be 4 different colors to test if it's the correct orientation.",
+    "createdAt": "2024-12-16T07:46:14Z"
+  },
+  {
+    "id": 4831,
+    "sender": "camsim99",
+    "content": "> Sorry for a stupid question as I am not well versed in all this yet --- Is there a way to change between Vulkan and OpenGLES? I've been trying to find a way to test each backend for you..\r\n\r\nNot a stupid question at all! It's kinda confusing. To force **OpenGLES** you can use the following in your manifest:\r\n\r\n```\r\n<meta-data\r\n    android:name=\"io.flutter.embedding.android.ImpellerBackend\"\r\n    android:value=\"opengles\" />\r\n```\r\n\r\n**Vulkan** should be the default if it's available. You can use **Skia OpenGL** by passing the `--no-enable-impeller` flag to your `flutter run` call.",
+    "createdAt": "2024-12-18T18:45:05Z"
+  },
+  {
+    "id": 4832,
+    "sender": "camsim99",
+    "content": "> @camsim99 I just tested the above on my physical Pixel 7 which previously was **correctly** oriented but now it's wrongly rotated 90 degrees - would suggest withdrawing the PR.\r\n> \r\n> Running latest master channel.\r\n> \r\n> I/flutter (12772): [IMPORTANT:flutter/shell/platform/android/android_context_vk_impeller.cc(60)] Using the Impeller rendering backend (Vulkan).\r\n\r\nThanks for letting me know. I see this on the latest master now too 🥲 On API 29+ I've seen consistently this, but the front camera is different, going to investigate, but will push a change to the PR correcting the 90 degree rotation right now.\r\n\r\nEdit: the front camera seems 90 off too except for portrait up.",
+    "createdAt": "2024-12-18T18:46:12Z"
+  },
+  {
+    "id": 4833,
+    "sender": "camsim99",
+    "content": "> Would it be feasible to develop a test that would run in Firebase device test lab? The test would display a static source in the camera, then a screenshot is taken, and then take the 4 corners, which could be 4 different colors to test if it's the correct orientation.\r\n\r\nThis would be ideal and ultimately required to avoid regressions like this. We currently do not have a way to take screenshots on the device and compare them in the way we would need (see https://github.com/flutter/flutter/issues/143299). But we are actively working on this and will push for this to get an integration test similar to this once it can be done.",
+    "createdAt": "2024-12-18T19:02:51Z"
+  },
+  {
+    "id": 4834,
+    "sender": "thecodemonk",
+    "content": "@camsim99 Using the example app, it seems on my Galaxy Tab, regardless of the backend being used, it's now always rotated incorrectly. I've tried the old skia engine, and both Vulkan and OpenGLES. \r\n\r\nIs there anything that I can do to assist or test with this to help out? ",
+    "createdAt": "2024-12-18T23:23:47Z"
+  },
+  {
+    "id": 4835,
+    "sender": "camsim99",
+    "content": "@thecodemonk thanks for trying it. I updated my PR to add a 90 degree clockwise rotation, so feel free to test it and see if it works for you and let me know. It works for me in all cases except portrait up, front camera on API 29+, Vulkan so far. I also am limiting my testing to creating the camera in portrait up for now and I'm still not sure if the backend is relevant.",
+    "createdAt": "2024-12-18T23:37:08Z"
+  },
+  {
+    "id": 4836,
+    "sender": "srappose",
+    "content": "Hi, same issue on my Samsung S20+, portrait up, front camera, flutter 3.27.1, Android 13 (API 33): is there any temporary workaround?",
+    "createdAt": "2024-12-22T18:41:50Z"
+  },
+  {
+    "id": 4837,
+    "sender": "minhtritc97",
+    "content": "> Hi, same issue on my Samsung S20+, portrait up, front camera, flutter 3.27.1, Android 13 (API 33): is there any temporary workaround?\r\n\r\nyou can downgrade to version camera_android_camerax: 0.6.7+2",
+    "createdAt": "2024-12-25T03:02:24Z"
+  },
+  {
+    "id": 4838,
+    "sender": "srappose",
+    "content": "> > Hi, same issue on my Samsung S20+, portrait up, front camera, flutter 3.27.1, Android 13 (API 33): is there any temporary workaround?\r\n> \r\n> you can downgrade to version camera_android_camerax: 0.6.7+2\r\n\r\n@minhtritc97 Thank you for your hint, this fixes the rotation issue.\r\nUnfortunately, I have another issue: when start video recording, the image gets enlarged. Do I need to set any parameter? Following an excerpt of my source code:\r\n\r\n\t...\r\n\t//initialize front camera (default portrait mode)\r\n    final cameras = await availableCameras();\r\n    final front = cameras.firstWhere(\r\n        (camera) => camera.lensDirection == CameraLensDirection.front);\r\n    _cameraController = CameraController(front, ResolutionPreset.max);\r\n\r\n    await _cameraController.initialize();\r\n\t\r\n\t...\r\n\t//start video recording\r\n\tawait _cameraController.prepareForVideoRecording();\r\n    await _cameraController.startVideoRecording();\r\n\t...\r\n",
+    "createdAt": "2024-12-26T12:31:45Z"
+  },
+  {
+    "id": 4839,
+    "sender": "sgoossens",
+    "content": "I am still seeing the issue on my Samsung Galaxy S9 FE+ (images from rear facing camera is rotated 90 degrees counter clockwise and image on front facing camera is 90 degrees clockwise.  Both images are stretched vertically after the rotation)\r\nAndroid Version: 14\r\nFlutter Version 3.24.0\r\ncamera: 0.11.0\r\ncamera_android_camerax: >0.6.5+6\r\n\r\nI can provide specific logs if you'd like.  I did not see any reference as the the status of the impeller nor did I force any version in my manifest.  I can stay pinned at 0.6.5+6 but wanted to provide this as another data point / assist with more testing",
+    "createdAt": "2025-01-02T16:39:09Z"
+  },
+  {
+    "id": 4840,
+    "sender": "Andi1986",
+    "content": "same issue here on my Galaxy A50, preview is rotated 90 degrees (however pictures that i shoot look good)",
+    "createdAt": "2025-01-02T17:45:48Z"
+  },
+  {
+    "id": 4841,
+    "sender": "anshif14",
+    "content": "i have the same issue with my galaxy s10+ ,but no issues in s24 ultra ,i got the issue solved by downgrading the camera pluginversion (camera: ^0.10.1), you can check other versions if you want to.",
+    "createdAt": "2025-01-03T05:28:23Z"
+  },
+  {
+    "id": 4842,
+    "sender": "camsim99",
+    "content": "Landed https://github.com/flutter/packages/pull/8256 which fixes the rotation on devices I test on, but should at least make it easier to debug this for devices we still see this issue on.\r\n\r\nNote that the fix **MAY NOT** work for emulators as my testing has shown issues, but this seems semi-expected because Impeller may have different behavior.",
+    "createdAt": "2025-01-09T23:54:38Z"
+  },
+  {
+    "id": 4843,
+    "sender": "elliotrtd",
+    "content": "@camsim99  I just tested the above with my physical Pixel 7 but the preview is again rotated...\r\nusing \r\ndependency_overrides:\r\n  camera_android_camerax: 0.6.12\r\n\r\nWhat do you need to help debug this further? It's worrying that the above has been merged but breaks devices which previously didn't have any issue. ",
+    "createdAt": "2025-01-10T04:09:43Z"
+  },
+  {
+    "id": 4844,
+    "sender": "elliotrtd",
+    "content": "My Xiaomi Pad5 is also now rotated using CameraPreview\r\n\r\nI'm not applying any rotation within the app itself. \r\n\r\nUnfortunately I can't test on the Samsung Tab which was rotated 180 degrees since it's with my customer - that said I should be visiting them in ~1 month but that might be a bit late. \r\n\r\nInterestingly however their device was reporting a sensor orientation of 90 degrees, and it was rotated 180 degrees from \"normal\". Both my (now incorrect) devices also report a sensor orientation of 90 degrees but are only 90 degrees rotated. Hard to say where the difference is without the tablet in hand though. ",
+    "createdAt": "2025-01-10T04:40:15Z"
+  },
+  {
+    "id": 4845,
+    "sender": "Andi1986",
+    "content": "the new version has fixed the rotation now on my Galaxy A50 !!\r\nbut therefore the preview in android emulator is rotated.\r\n\r\nthis seems to be a cursed issue ...\r\n",
+    "createdAt": "2025-01-10T10:31:06Z"
+  },
+  {
+    "id": 4846,
+    "sender": "Andi1986",
+    "content": "just fyi: video_player flutter package seems to have the same rotation issue. while the preview on my galaxy A50 is now correct, after recording a video, the video_player shows the video rotated 90° again. opening the video with native app, it looks good.\r\nbut its a different issue, the package owners need to fix it, i just wanted to have it mentioned",
+    "createdAt": "2025-01-10T10:47:06Z"
+  },
+  {
+    "id": 4847,
+    "sender": "camsim99",
+    "content": "@Andi1986 this is definitely unrelated but we should take a look. Can you file a separate issue?",
+    "createdAt": "2025-01-10T20:16:10Z"
+  },
+  {
+    "id": 4848,
+    "sender": "camsim99",
+    "content": "In terms of next steps, for me, I need to order new devices to attempt to repro.\r\n\r\nFor anyone else willing to help out, I think we need more general repros of the rotation problem that don't involve camera. https://github.com/flutter/flutter/issues/160480 is a good example of a repro that was more general than https://github.com/flutter/flutter/issues/159851, that helped the Flutter engine folks solve the issue. I'll give some thought into what this may look like.\r\n\r\nBeyond this, the complexity of this issue and the video player ones does make me wonder if disabling Impeller for now may be the right move to unblock future (irrelevant to preview/video rotations) changes to camera and video player. I'll follow up on this thought next week.",
+    "createdAt": "2025-01-10T20:19:25Z"
+  },
+  {
+    "id": 4849,
+    "sender": "Andi1986",
+    "content": "> @Andi1986 this is definitely unrelated but we should take a look. Can you file a separate issue?\r\n\r\nthere is already an issue adressing it for video_player. actually we are having 2 issues there: Wrong scaling and wrong rotation.\r\nhttps://github.com/flutter/flutter/issues/159724",
+    "createdAt": "2025-01-11T16:57:15Z"
+  },
+  {
+    "id": 4850,
+    "sender": "Danilo-Mota",
+    "content": "Just to add my 2 cents.\n\nSame problem using camera version 0.11.0+2 on a Samsung Galaxy A32. Just downgraded to 0.10.6, and it worked.",
+    "createdAt": "2025-01-14T04:41:59Z"
+  },
+  {
+    "id": 4851,
+    "sender": "IbrokhimMirzaev",
+    "content": "Any Updates ? Can somebody use old camera version correctly ? \n\nI cannot use any version of camera in my project. If I use old version, even it is preview rotation is correct, when starting video - it is not changing scale - but after stopping the video recording, video player is showing the video in incorrect zoom. I think it is from the camera recorded file yes ? I think saved video has incorrect zoom or dimensions, am I correct?\n\nSo if there will be big update in camera or camera_android_camerax and everything works fine, I will be very glad !",
+    "createdAt": "2025-01-15T06:26:04Z"
+  },
+  {
+    "id": 4852,
+    "sender": "bibaswan-bhawal",
+    "content": "Using camera_android_camerax: 0.6.13\n\nTested on:\n- pixel 6\n- pixel 9\n- Samsung Galaxy s22 Ultra\n\nThe camera preview is incorrectly rotated when the camera controller orientation is set to portraitUp, setting it to landscapeRight fixes the orientation but the image is rotated when taking the picture and on iOS the preview is rotated\n\nbehavior is correct in camera_android_camerax: 0.6.11",
+    "createdAt": "2025-01-15T22:18:50Z"
+  },
+  {
+    "id": 4853,
+    "sender": "t-m-w",
+    "content": "I have been following this issue for a while without being fully sure that it's related to some problems I've observed [in another project](https://gitlab.com/CalyxOS/calyxos/-/issues/2642#note_2218874787), related to CameraX. I haven't wanted to share something unrelated or unhelpful here, so apologies if that's the case or if this is duplicative info, but the issue is quite long. At this stage, though, after continuing to see so many comments, I want to to share what I've noticed in case it _is_ useful and someone who is reading this has more luck / time to try some things, or can point me in the right direction.\n\nAs I wrote elsewhere:\n> CameraController listens to rotation changes, but it doesn't check what the current rotation is before that, and never sets target rotations *except* when the rotation *changes*. This seems like it *may* be a bug, but I'm not sure. It would explain why the orientation is off when switching cameras, unless you go out of your way to rotate a particular way and back.\n> \n> See: https://cs.android.com/androidx/platform/frameworks/support/+/85c1df12ff3922d950cb00a08533fa66c30f4aa4:camera/camera-view/src/main/java/androidx/camera/view/CameraController.java;l=399-403\n\nBelow is something I have wanted to try as a fix but haven't been able to test due to being unable yet to figure out how to successfully build camerax and include it in anything:\n\n<details><summary>Patch?</summary>\n\nFor androidx-main/frameworks/support:\n```\ndiff --git a/camera/camera-view/src/main/java/androidx/camera/view/CameraController.java b/camera/camera-view/src/main/java/androidx/camera/view/CameraController.java\nindex 7047935b1d7..904db8f9780 100644\n--- a/camera/camera-view/src/main/java/androidx/camera/view/CameraController.java\n+++ b/camera/camera-view/src/main/java/androidx/camera/view/CameraController.java\n@@ -25,24 +25,25 @@ import static androidx.camera.view.internal.ScreenFlashUiInfo.ProviderType.SCREE\n import static androidx.core.content.ContextCompat.getMainExecutor;\n \n import android.Manifest;\n import android.annotation.SuppressLint;\n import android.content.Context;\n import android.graphics.Matrix;\n import android.hardware.camera2.CaptureResult;\n import android.os.Build;\n import android.util.Range;\n import android.util.Rational;\n import android.util.Size;\n import android.view.Window;\n+import android.view.WindowManager;\n \n import androidx.annotation.FloatRange;\n import androidx.annotation.IntDef;\n import androidx.annotation.MainThread;\n import androidx.annotation.NonNull;\n import androidx.annotation.Nullable;\n import androidx.annotation.OptIn;\n import androidx.annotation.RequiresApi;\n import androidx.annotation.RequiresPermission;\n import androidx.annotation.RestrictTo;\n import androidx.annotation.VisibleForTesting;\n import androidx.camera.core.AspectRatio;\n@@ -582,47 +583,52 @@ public abstract class CameraController {\n     @MainThread\n     void attachPreviewSurface(@NonNull Preview.SurfaceProvider surfaceProvider,\n             @NonNull ViewPort viewPort) {\n         checkMainThread();\n         if (mSurfaceProvider != surfaceProvider) {\n             mSurfaceProvider = surfaceProvider;\n             mPreview.setSurfaceProvider(surfaceProvider);\n         }\n         boolean shouldUpdateAspectRatio = mViewPort == null || getViewportAspectRatioStrategy(\n                 viewPort) != getViewportAspectRatioStrategy(mViewPort);\n         mViewPort = viewPort;\n         startListeningToRotationEvents();\n+        updateCurrentTargetRotation(viewPort);\n         if (shouldUpdateAspectRatio) {\n             unbindAllAndRecreate();\n         }\n         startCameraAndTrackStates();\n     }\n \n     /**\n      * Clears {@link PreviewView} to remove the UI reference.\n      */\n     @MainThread\n     void clearPreviewSurface() {\n         checkMainThread();\n         if (mCameraProvider != null) {\n             // Preview is required. Unbind everything if Preview is down.\n             mCameraProvider.unbind(mPreview, mImageCapture, mImageAnalysis, mVideoCapture);\n         }\n         mPreview.setSurfaceProvider(null);\n         mCamera = null;\n         mSurfaceProvider = null;\n         mViewPort = null;\n         stopListeningToRotationEvents();\n     }\n \n+    private void updateCurrentTargetRotation(@NonNull ViewPort viewPort) {\n+        mDeviceRotationListener.onRotationChanged(viewPort.getRotation());\n+    }\n+\n     private void startListeningToRotationEvents() {\n         mRotationProvider.addListener(mainThreadExecutor(),\n                 mDeviceRotationListener);\n     }\n \n     private void stopListeningToRotationEvents() {\n         mRotationProvider.removeListener(mDeviceRotationListener);\n     }\n \n     /**\n      * Sets the intended output size for {@link Preview}.\n      *\n```\n</details>",
+    "createdAt": "2025-01-16T15:00:04Z"
+  },
+  {
+    "id": 4854,
+    "sender": "wantroba",
+    "content": "Same problem here. \nDevice: Motola One Vision.\nlib: camera: ^0.11.0+2\nImpeller: disabled\n\nWorked when i downgraded to:\ncamera: ^0.10.6",
+    "createdAt": "2025-01-20T16:42:33Z"
+  },
+  {
+    "id": 4855,
+    "sender": "RoarGronmo",
+    "content": "I see the same in Samsung S24+, preview tilted 90 degrees.\n\nIs this as a result of the change here ? https://github.com/flutter/flutter/issues/160815#issuecomment-2577142853\n\n",
+    "createdAt": "2025-01-20T19:57:47Z"
+  },
+  {
+    "id": 4856,
+    "sender": "AndreHaueisen",
+    "content": "Any updates or perspective on fixing this issue?\nA client approached me today with a question I struggled to answer: \"Why did you suggest Flutter if this thing can't even get cameras done right? It's 2025, for God's sake.\"\nWhile the tone was a bit aggressive, he does have a point. This issue has been ongoing for nearly six months now, and it’s really frustrating.\n",
+    "createdAt": "2025-01-22T20:04:06Z"
+  },
+  {
+    "id": 4857,
+    "sender": "sharpsan",
+    "content": "> Any updates or perspective on fixing this issue?\n> A client approached me today with a question I struggled to answer: \"Why did you suggest Flutter if this thing can't even get cameras done right? It's 2025, for God's sake.\"\n> While the tone was a bit aggressive, he does have a point. This issue has been ongoing for nearly six months now, and it’s really frustrating.\n> \n\nI just lock the app device orientation, then manually track the native phone orientation and write that data back to the image.  It's hacky but it works since this may never get fixed.",
+    "createdAt": "2025-01-22T20:29:14Z"
+  },
+  {
+    "id": 4858,
+    "sender": "slgobinath",
+    "content": "Had the same problem on Samsung S23 (and some other devices my clients are using) after upgrading to Flutter 3.27.1.\n**Problematic combination:**\nFlutter `3.27.1`\ncamera: `^0.11.0+2`\n\n**Working Combination:**\nFlutter `3.24.5`\ncamera: `^0.11.0+2`\n\nOR\n\nFlutter `3.27.1`\ncamera: `^0.10.6`\n\nI went with the latest flutter and downgraded the camera plugin.",
+    "createdAt": "2025-01-23T13:28:26Z"
+  },
+  {
+    "id": 4859,
+    "sender": "p3pp8",
+    "content": "Someone reported crashes on Samsung devices using camera plugin version 0.10.6.",
+    "createdAt": "2025-01-23T14:20:15Z"
+  },
+  {
+    "id": 4860,
+    "sender": "Dream403",
+    "content": "Flutter 3.27.1\nCamera: ^0.11.0+2\ncamera_android_camerax: 0.6.11\nThis workaround solves the problem; when will the new plugin that can be used solve this problem",
+    "createdAt": "2025-01-24T13:47:47Z"
+  },
+  {
+    "id": 4861,
+    "sender": "thiagobrito91",
+    "content": "Running with the latest version (Flutter 3.27.2) of Flutter, the problem occurs leaving the camera image rotated by 90 degrees.\n\nI downgraded to Flutter 3.24.5 and the problem in question stopped happening, making my application work perfectly.\n\nIn both cases, I used the following latest packages:\n\ncamera: 0.11.0+2\nvideo_player: 2.9.2\n\nThroughout the investigation process, I thought the problem was in the latest package updates. I tested several combinations that even worked, such as:\n\ncamera: 0.11.0+2\ncamera_android_camerax: 0.6.7+2\nvideo_player: 2.8.7\nvideo_player_android: 2.5.0\n\nHowever, on some devices, my application left CameraPreview and VideoPreview with pixel breaks, resulting in a terrible user experience.\n\nI managed to make it perfect after downgrading Flutter and keeping the latest versions of camera and video_player. However, I'm worried that I'm not using the latest version of Flutter, I'm afraid this won't be resolved in the next versions and I'll be stuck with Flutter 3.24.5.",
+    "createdAt": "2025-01-24T19:51:36Z"
+  },
+  {
+    "id": 4862,
+    "sender": "mahmoudsaleh1997",
+    "content": "The issue is reproduce-able on Samsung S24\n\nthis workaround works for me \n```\nFlutter 3.27.1\nCamera: ^0.11.0+2\ncamera_android_camerax: 0.6.11\n```\nThis workaround solves the problem; when will the new plugin that can be used solve this problem\n\nThanks ! @Dream403  ",
+    "createdAt": "2025-01-26T18:44:33Z"
+  },
+  {
+    "id": 4863,
+    "sender": "p3pp8",
+    "content": "With that configuration i've trouble using landscape, i think when camera is initialized with the device already standing in landscape. The only one working for me i Flutter 3.27.1 and camera 0.10.6. No camera_x override!",
+    "createdAt": "2025-01-27T09:28:27Z"
+  }
+]

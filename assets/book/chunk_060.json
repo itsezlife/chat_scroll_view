@@ -1,0 +1,386 @@
+[
+  {
+    "id": 3840,
+    "sender": "lukepighetti",
+    "content": "## Emoji size is off on iOS\n\nEmojis do not render with the correct height or baseline on iOS\n\n![](https://user-images.githubusercontent.com/666539/53957059-620b3e00-40ab-11e9-8fc5-848f4d4e201f.png)\n\nRelated: https://bugs.chromium.org/p/skia/issues/detail?id=9976&q=emoji&can=2\nSkia issue: https://issues.skia.org/issues/40041310\n\nInvestigation: https://github.com/flutter/flutter/issues/28894#issuecomment-1526978974",
+    "createdAt": "2019-03-05T17:04:52Z"
+  },
+  {
+    "id": 3841,
+    "sender": "dnfield",
+    "content": "/cc @GaryQian @goderbauer ",
+    "createdAt": "2019-03-05T19:07:31Z"
+  },
+  {
+    "id": 3842,
+    "sender": "lukepighetti",
+    "content": "For people who are looking for a \"today solution\" try this on for size. Thanks to @Miyoyo for the generous assistance.\r\n\r\n```dart\r\nimport 'package:flutter/gestures.dart';\r\nimport 'package:flutter/rendering.dart';\r\n\r\n/// A \"polyfix\" [TextSpan] that properly renders Emojis at the correct size\r\n/// and vertical-alignment for the given [style].\r\n///\r\n/// See https://github.com/flutter/flutter/issues/28894\r\nclass EmojiTextSpan extends TextSpan {\r\n  EmojiTextSpan({\r\n    TextStyle style,\r\n    String text,\r\n    List<TextSpan> children,\r\n    GestureRecognizer recognizer,\r\n  }) : super(\r\n            style: style,\r\n            children: _parse(style, text)..addAll(children ?? []),\r\n            recognizer: recognizer);\r\n\r\n  static final regex = RegExp(\r\n      r\"((?:[\\u2700-\\u27bf]|(?:\\ud83c[\\udde6-\\uddff]){2}|[\\ud800-\\udbff][\\udc00-\\udfff]|\"\r\n      r\"[\\u0023-\\u0039]\\ufe0f?\\u20e3|\\u3299|\\u3297|\\u303d|\\u3030|\\u24c2|\\ud83c[\\udd70-\\udd71]|\"\r\n      r\"\\ud83c[\\udd7e-\\udd7f]|\\ud83c\\udd8e|\\ud83c[\\udd91-\\udd9a]|\\ud83c[\\udde6-\\uddff]|\"\r\n      r\"[\\ud83c\\ude01-\\ude02]|\\ud83c\\ude1a|\\ud83c\\ude2f|[\\ud83c\\ude32-\\ude3a]|\"\r\n      r\"[\\ud83c\\ude50-\\ude51]|\\u203c|\\u2049|[\\u25aa-\\u25ab]|\\u25b6|\\u25c0|[\\u25fb-\\u25fe]\"\r\n      r\"|\\u00a9|\\u00ae|\\u2122|\\u2139|\\ud83c\\udc04|[\\u2600-\\u26FF]|\\u2b05|\\u2b06|\\u2b07|\\u2b1b\"\r\n      r\"|\\u2b1c|\\u2b50|\\u2b55|\\u231a|\\u231b|\\u2328|\\u23cf|[\\u23e9-\\u23f3]|[\\u23f8-\\u23fa]\"\r\n      r\"|\\ud83c\\udccf|\\u2934|\\u2935|[\\u2190-\\u21ff])+)\");\r\n\r\n  static List<TextSpan> _parse(TextStyle _style, String text) {\r\n    final textStyle = _style ?? TextStyle(fontSize: 14);\r\n\r\n    final emojiStyle = textStyle.copyWith(\r\n      fontSize: (textStyle.fontSize) * 1.30,\r\n      height: 1,\r\n      letterSpacing: 2,\r\n    );\r\n\r\n    final spans = <TextSpan>[];\r\n\r\n    text.splitMapJoin(\r\n      regex,\r\n      onMatch: (m) {\r\n        spans.add(TextSpan(text: m.group(0), style: emojiStyle));\r\n      },\r\n      onNonMatch: (s) {\r\n        spans.add(TextSpan(text: s));\r\n      },\r\n    );\r\n\r\n    return spans;\r\n  }\r\n}\r\n\r\n```",
+    "createdAt": "2019-03-06T02:09:30Z"
+  },
+  {
+    "id": 3843,
+    "sender": "GaryQian",
+    "content": "You can try to use the new feature of 'Strut' to lock line heights. Android/iOS will often times aggressively force line heights to be consistent, whereas Flutter tends to let the lines dynamically adjust.\r\n\r\nIn this case, the emoji font is taller than the alphanumeric font, so we provide it with more vertical space.\r\n\r\nYou should be able to provide a `StrutStyle` to `Text` with the properties of your alphanumeric font and then set `forceStrutHeight: true` to lock all lines to the provided metrics.\r\n\r\nYou will need to be careful with forced strut-line heights however, as this will allow glyphs to overlap if pushed to the extreme.",
+    "createdAt": "2019-03-06T02:13:54Z"
+  },
+  {
+    "id": 3844,
+    "sender": "lukepighetti",
+    "content": "@GaryQian Is this on Master? I don't see it on Dev.",
+    "createdAt": "2019-03-06T02:15:51Z"
+  },
+  {
+    "id": 3845,
+    "sender": "GaryQian",
+    "content": "Yes, this should be on master. It was introduced very recently.\r\n\r\n```dart\r\nText(\r\n  'blah',\r\n  style: TextStyle(...)\r\n  strutStyle: StrutStyle(\r\n    ... // The same as your primary font you wish to lock to.\r\n    forceStrutHeight: true\r\n  ),\r\n)\r\n```",
+    "createdAt": "2019-03-06T02:19:01Z"
+  },
+  {
+    "id": 3846,
+    "sender": "lukepighetti",
+    "content": "@GaryQian that only seems to lock the line height. That's only part of the problem. The more important part is that the emoji's don't render at the appropriate size. When I say \"the appropriate size\" I am using native text components as a reference which render emojis approximately 25% larger fontSize than the surrounding text while lowering the vertical alignment.\r\n\r\nThere are three attributes to Emojis that are not handled by Flutter currently\r\n\r\n1) emoji size 25% greater than text size\r\n2) line heights locked\r\n3) vertical align below center\r\n\r\nforceStrutHeight solves `#2`,\r\n\r\nThe EmojiTextSpan solves `#1` and `#2`.\r\n\r\nI believe something framework level will be required for `#1` ,`#2` and `#3`.",
+    "createdAt": "2019-03-06T02:33:29Z"
+  },
+  {
+    "id": 3847,
+    "sender": "GaryQian",
+    "content": "Ahh I see, I can look into this. We currently do not treat emojis differently than any other text, so it would be interesting to see why android and iOS render emojis significantly larger.",
+    "createdAt": "2019-03-06T02:37:07Z"
+  },
+  {
+    "id": 3848,
+    "sender": "lukepighetti",
+    "content": "I think they handle them as a specific case because its better for user experience and arguably worth the effort. If you pull open your Twitter timeline you'll notice this immediately, especially when compared to Flutter text widgets. Thanks for all the work you do.",
+    "createdAt": "2019-03-06T02:37:36Z"
+  },
+  {
+    "id": 3849,
+    "sender": "lukepighetti",
+    "content": "@GaryQian Is there any way to shift the baseline of a TextSpan down 2-3 points? I am not seeing any tools for this.\r\n\r\nAlso, upon further inspection it looks like iOS is more like 30% instead of 25%. I haven't played around on Android enough to know what they do.",
+    "createdAt": "2019-03-06T13:31:07Z"
+  },
+  {
+    "id": 3850,
+    "sender": "GaryQian",
+    "content": "We were considering adding fine tuned leading control to TextStyle. A potential API would allow custom amounts of top and bottom leading. If the custom top leading was positive and the bottom leading was negative, this would in effect shift it down.\r\n\r\nWe have not yet added such a feature, but could consider it in the future.",
+    "createdAt": "2019-03-06T19:21:17Z"
+  },
+  {
+    "id": 3851,
+    "sender": "GaryQian",
+    "content": "I would be very surprised if the other platforms were applying a hardcoded scaling like 25 or 30%. It is much more likely that they are allowing emoji runs to fully expand as tall as the line they occupy, although that could lead to strange behavior in cases where a line has a span with a significant larger font size than the rest of the line. In all likelihood, the numerical scaling here is simply a symptom of a more dynamic policy based on font metrics.\r\n\r\nIn addition, expanding to line height would require ignoring the textstyle provided for the emoji span itself, and is a type of behavior we would like to avoid as it is inconsistent and to developers not familiar with the issue, would be very unexpected and confusing to have certain spans ignore the styling provided.",
+    "createdAt": "2019-03-06T19:26:07Z"
+  },
+  {
+    "id": 3852,
+    "sender": "lukepighetti",
+    "content": "That all makes sense. My only question is, is that going to block having emojis render properly on Flutter?",
+    "createdAt": "2019-03-06T21:29:20Z"
+  },
+  {
+    "id": 3853,
+    "sender": "dnfield",
+    "content": "@lukepighetti can you help us get some data/screen shots of how emojis render when a single line has multiple font sizes?\r\n\r\nParticularly, what happens when the character before the emoji is of a smaller font size than the character after, and vice versa?",
+    "createdAt": "2019-03-06T21:30:27Z"
+  },
+  {
+    "id": 3854,
+    "sender": "lukepighetti",
+    "content": "I used this HTML in Safari to get Native text rendering on iOS.\r\n\r\n```html\r\n<!DOCTYPE html>\r\n<html lang=\"en\">\r\n  <head>\r\n    <meta charset=\"UTF-8\" />\r\n    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\" />\r\n    <meta http-equiv=\"X-UA-Compatible\" content=\"ie=edge\" />\r\n    <title>Document</title>\r\n  </head>\r\n  <body>\r\n    <div>\r\n      <span style=\"font-size: 8px\">8px jjJJ</span>\r\n      <span style=\"font-size: 16px\">🤔jjJJ 16px</span>\r\n    </div>\r\n    <div>\r\n      <span style=\"font-size: 16px\">16px jjJJ🤔</span>\r\n      <span style=\"font-size: 8px\">jjJJ 8px</span>\r\n    </div>\r\n    <div>\r\n      <span style=\"font-size: 8px\">8px j</span>\r\n      <span style=\"font-size: 12px\">j</span>\r\n      <span style=\"font-size: 16px\">j</span>\r\n      <span style=\"font-size: 20px\">j</span>\r\n      <span style=\"font-size: 24px\">j 24px</span>\r\n    </div>\r\n    <div>\r\n      <span style=\"font-size: 8px\">8px 🤔</span>\r\n      <span style=\"font-size: 12px\">🤔</span>\r\n      <span style=\"font-size: 16px\">🤔</span>\r\n      <span style=\"font-size: 20px\">🤔</span>\r\n      <span style=\"font-size: 24px\">🤔 24px</span>\r\n    </div>\r\n    <div>\r\n      <span style=\"font-size: 8px\">8px jJ🤔</span>\r\n      <span style=\"font-size: 12px\">jJ🤔</span>\r\n      <span style=\"font-size: 16px\">jJ🤔</span>\r\n      <span style=\"font-size: 20px\">jJ🤔</span>\r\n      <span style=\"font-size: 24px\">jJ🤔 24px</span>\r\n    </div>\r\n  </body>\r\n</html>\r\n```\r\n\r\n![img_981cf0371cf4-1](https://user-images.githubusercontent.com/666539/53915750-87a63200-402e-11e9-9b47-5eaf825993fe.jpeg)\r\n",
+    "createdAt": "2019-03-06T21:38:31Z"
+  },
+  {
+    "id": 3855,
+    "sender": "GaryQian",
+    "content": "So you are using a safari view to render this, which uses webkit. Webkit is for browsers and HTML, and the native iOS applications do not make use of webkit to render text.\r\n\r\nTo properly demonstrate this, you should make a bare-bones iOS native app with the desired text. This will properly use the coretext libraries that we are trying to compare to here.",
+    "createdAt": "2019-03-07T01:06:18Z"
+  },
+  {
+    "id": 3856,
+    "sender": "lukepighetti",
+    "content": "Yeah. Should, can, and will are three different things. I have never built a native iOS app in my life so I won't be able to tackle that for a while. I have never noticed a difference between emojis&text rendered in Safari and the same rendered elsewhere on iOS.",
+    "createdAt": "2019-03-07T02:31:55Z"
+  },
+  {
+    "id": 3857,
+    "sender": "jonahwilliams",
+    "content": "@GaryQian we should be able to set up our own comparison of text emojis and share the results here. It might not match exactly what @lukepighetti is seeing, but should still be useful for everyone.",
+    "createdAt": "2019-03-07T02:50:26Z"
+  },
+  {
+    "id": 3858,
+    "sender": "lukepighetti",
+    "content": "Here it is in React Native on iOS 12 (XS Max simulator) and Android 8.1 (Pixel 2 simulator)\r\n\r\n```js\r\nimport React from \"react\";\r\nimport { StyleSheet, Text, View } from \"react-native\";\r\n\r\nexport default class App extends React.Component {\r\n  render() {\r\n    return (\r\n      <View style={styles.container}>\r\n        <Text>\r\n          <Text style={styles.eight}>8px jjJJ</Text>\r\n          <Text style={styles.sixteen}>🤔jjJJ 16px</Text>\r\n        </Text>\r\n        <Text>\r\n          <Text style={styles.sixteen}>16px jjJJ🤔</Text>\r\n          <Text style={styles.eight}>jjJJ 8px</Text>\r\n        </Text>\r\n        <Text>\r\n          <Text style={styles.eight}>8px j</Text>\r\n          <Text style={styles.twelve}>j</Text>\r\n          <Text style={styles.sixteen}>j</Text>\r\n          <Text style={styles.twenty}>j</Text>\r\n          <Text style={styles.twentyFour}>j 24px</Text>\r\n        </Text>\r\n        <Text>\r\n          <Text style={styles.eight}>8px 🤔</Text>\r\n          <Text style={styles.twelve}>🤔</Text>\r\n          <Text style={styles.sixteen}>🤔</Text>\r\n          <Text style={styles.twenty}>🤔</Text>\r\n          <Text style={styles.twentyFour}>🤔 24px</Text>\r\n        </Text>\r\n        <Text>\r\n          <Text style={styles.eight}>8px 🤔jJ</Text>\r\n          <Text style={styles.twelve}>🤔jJ</Text>\r\n          <Text style={styles.sixteen}>🤔jJ</Text>\r\n          <Text style={styles.twenty}>🤔jJ</Text>\r\n          <Text style={styles.twentyFour}>🤔jJ 24px</Text>\r\n        </Text>\r\n      </View>\r\n    );\r\n  }\r\n}\r\n\r\nconst styles = StyleSheet.create({\r\n  container: {\r\n    flex: 1,\r\n    backgroundColor: \"#fff\",\r\n    alignItems: \"center\",\r\n    justifyContent: \"center\"\r\n  },\r\n  eight: {\r\n    fontSize: 8\r\n  },\r\n  twelve: {\r\n    fontSize: 12\r\n  },\r\n  sixteen: {\r\n    fontSize: 16\r\n  },\r\n  twenty: {\r\n    fontSize: 20\r\n  },\r\n  twentyFour: {\r\n    fontSize: 24\r\n  }\r\n});\r\n```\r\n![simulator screen shot - iphone xs - 2019-03-07 at 07 05 09](https://user-images.githubusercontent.com/666539/53955574-62093f00-40a7-11e9-9177-d624e00219b4.png)\r\n\r\n![screenshot_1551960508](https://user-images.githubusercontent.com/666539/53955798-e65bc200-40a7-11e9-95db-3e25b6e2a587.png)\r\n",
+    "createdAt": "2019-03-07T12:04:38Z"
+  },
+  {
+    "id": 3859,
+    "sender": "lukepighetti",
+    "content": "In Flutter on iOS\r\n\r\n```dart\r\nimport 'package:flutter/material.dart';\r\n\r\nvoid main() => runApp(MyApp());\r\n\r\nclass MyApp extends StatelessWidget {\r\n  @override\r\n  Widget build(BuildContext context) {\r\n    return MaterialApp(\r\n      title: 'Emojis',\r\n      theme: ThemeData(\r\n        primarySwatch: Colors.blue,\r\n      ),\r\n      home: Scaffold(\r\n        body: SafeArea(\r\n          child: Center(\r\n            child: _Body(),\r\n          ),\r\n        ),\r\n      ),\r\n    );\r\n  }\r\n}\r\n\r\nclass _Body extends StatelessWidget {\r\n  TextStyle get _base => TextStyle(color: Colors.black);\r\n\r\n  TextStyle get _eight => _base.copyWith(fontSize: 8);\r\n  TextStyle get _twelve => _base.copyWith(fontSize: 12);\r\n  TextStyle get _sixteen => _base.copyWith(fontSize: 16);\r\n  TextStyle get _twenty => _base.copyWith(fontSize: 20);\r\n  TextStyle get _twentyFour => _base.copyWith(fontSize: 24);\r\n\r\n  @override\r\n  Widget build(BuildContext context) {\r\n    return Column(\r\n      mainAxisSize: MainAxisSize.min,\r\n      children: <Widget>[\r\n        ///\r\n        RichText(\r\n          text: TextSpan(\r\n            children: <TextSpan>[\r\n              TextSpan(text: \"8px jjJJ\", style: _eight),\r\n              TextSpan(text: \"🤔jjJJ 16px\", style: _sixteen),\r\n            ],\r\n          ),\r\n        ),\r\n\r\n        ///\r\n        RichText(\r\n          text: TextSpan(\r\n            children: <TextSpan>[\r\n              TextSpan(text: \"16px jjJJ🤔\", style: _sixteen),\r\n              TextSpan(text: \"jjJJ 8px\", style: _eight),\r\n            ],\r\n          ),\r\n        ),\r\n\r\n        ///\r\n        RichText(\r\n          text: TextSpan(\r\n            children: <TextSpan>[\r\n              TextSpan(text: \"8px j\", style: _eight),\r\n              TextSpan(text: \"j\", style: _twelve),\r\n              TextSpan(text: \"j\", style: _sixteen),\r\n              TextSpan(text: \"j\", style: _twenty),\r\n              TextSpan(text: \"j 24px\", style: _twentyFour),\r\n            ],\r\n          ),\r\n        ),\r\n\r\n        ///\r\n        RichText(\r\n          text: TextSpan(\r\n            children: <TextSpan>[\r\n              TextSpan(text: \"8px 🤔\", style: _eight),\r\n              TextSpan(text: \"🤔\", style: _twelve),\r\n              TextSpan(text: \"🤔\", style: _sixteen),\r\n              TextSpan(text: \"🤔\", style: _twenty),\r\n              TextSpan(text: \"🤔 24px\", style: _twentyFour),\r\n            ],\r\n          ),\r\n        ),\r\n\r\n        ///\r\n        RichText(\r\n          text: TextSpan(\r\n            children: <TextSpan>[\r\n              TextSpan(text: \"8px 🤔jJ\", style: _eight),\r\n              TextSpan(text: \"🤔jJ\", style: _twelve),\r\n              TextSpan(text: \"🤔jJ\", style: _sixteen),\r\n              TextSpan(text: \"🤔jJ\", style: _twenty),\r\n              TextSpan(text: \"🤔jJ 24px\", style: _twentyFour),\r\n            ],\r\n          ),\r\n        ),\r\n      ],\r\n    );\r\n  }\r\n}\r\n```\r\n\r\n![simulator screen shot - iphone xs - 2019-03-07 at 07 28 35](https://user-images.githubusercontent.com/666539/53956809-a5b17800-40aa-11e9-9faa-54e7521d76da.png)\r\n",
+    "createdAt": "2019-03-07T12:28:55Z"
+  },
+  {
+    "id": 3860,
+    "sender": "lukepighetti",
+    "content": "Side by side comparison (iOS). No resizing.\r\n\r\n<img width=\"977\" alt=\"screen shot 2019-03-07 at 7 33 51 am\" src=\"https://user-images.githubusercontent.com/666539/53957059-620b3e00-40ab-11e9-8fc5-848f4d4e201f.png\">\r\n",
+    "createdAt": "2019-03-07T12:34:06Z"
+  },
+  {
+    "id": 3861,
+    "sender": "miyoyo",
+    "content": "Looks like emoji scaling is not the same on iOS, it might be logarithmic?\r\n\r\n|Android|iOS|\r\n|---------|---|\r\n|30         |27 |\r\n|45         |40 |\r\n|60         |55 |\r\n|75         |60 |\r\n|90         |65 |\r\n\r\n\r\n![emojisize](https://user-images.githubusercontent.com/3525610/53958841-50915880-40e2-11e9-938f-fdac695ef51a.png)\r\n",
+    "createdAt": "2019-03-07T13:09:07Z"
+  },
+  {
+    "id": 3862,
+    "sender": "GaryQian",
+    "content": "Thanks for the reference images/plots, I'll investigate!\r\n\r\nIt looks like we are rendering emojis at the same size as native Android on Android devices (Tried with pixel 2xl, pocophone). This means the emoji size problem is isolated to iOS. This means we may be incorrectly passing something to coretext, whereas opentype is doing it correctly.",
+    "createdAt": "2019-03-08T00:14:23Z"
+  },
+  {
+    "id": 3863,
+    "sender": "msw333",
+    "content": "Yes, on Android they look much better. Any idea when you release a fix (especially in emoji size on iOS). Highly appreciated.",
+    "createdAt": "2019-03-19T17:12:18Z"
+  },
+  {
+    "id": 3864,
+    "sender": "lukepighetti",
+    "content": "Emoji's are still jacked up on iOS. It makes chat/social apps look horrible. Are there any blockers I can assist with?\r\n\r\n![IMG_F99EAD65BA8A-1](https://user-images.githubusercontent.com/666539/59868765-b3d88b00-935f-11e9-9045-4d64dda1a37f.jpeg)\r\n",
+    "createdAt": "2019-06-20T17:27:52Z"
+  },
+  {
+    "id": 3865,
+    "sender": "GaryQian",
+    "content": "https://github.com/flutter/engine/pull/9406\r\n\r\nCurrently attempting a harfbuzz update (last update was ~11/2018) before looking further, as the bug is likely buried quite deep.",
+    "createdAt": "2019-06-21T00:18:08Z"
+  },
+  {
+    "id": 3866,
+    "sender": "GaryQian",
+    "content": "So it looks like the harfbuzz upgrade did not resolve this (although it resolves some other things).\r\n\r\nI'll have to dig deeper! <shovel emoji here>",
+    "createdAt": "2019-06-22T00:25:48Z"
+  },
+  {
+    "id": 3867,
+    "sender": "MichaelM97",
+    "content": "Any updates on this?",
+    "createdAt": "2019-10-13T19:39:09Z"
+  },
+  {
+    "id": 3868,
+    "sender": "Ivaskuu",
+    "content": "@lukepighetti @miyoyo your solution is great and works, but I've found a problem: gender based emojis are rendered only as one gender, then added another gender modifier symbol.\r\n\r\nHow it should render:\r\n![How it should render](https://user-images.githubusercontent.com/28832159/68479151-f5e06b80-0231-11ea-88b8-ac575e32dee2.png)\r\n\r\nHow it renders\r\n![How it renders](https://user-images.githubusercontent.com/28832159/68479176-04c71e00-0232-11ea-86ea-088b30b41c8f.png)\r\n\r\nIf I comment `style: emojiStyle` at this line\r\n```\r\n      onMatch: (m) {\r\n        spans.add(TextSpan(text: m.group(0), style: emojiStyle));\r\n      },\r\n```\r\nthen emojis are rendered normally, but with the padding. It seems that adding even an empty/default style creates this bug, even default font. It shows correct emojis only when passing null.\r\n\r\nEdit:\r\nThe whole string is printed correctly on the console `I/flutter (32079): 🙇‍♀️.🙇🏼‍♀️.🙇🏿‍♀️.💆‍♂️.🙇🏿‍♂️.🙇🏼‍♂️.💇🏻‍♀️.💇🏻‍♂️.🏃.🏃🏾‍♂️`\r\n\r\nBut when adding `print(m.group(0));` for each letter/regex match, the console prints:\r\n```\r\nI/flutter (32079): 🙇\r\nI/flutter (32079): ♀\r\nI/flutter (32079): 🙇🏼\r\nI/flutter (32079): ♀\r\nI/flutter (32079): 🙇🏿\r\nI/flutter (32079): ♀\r\nI/flutter (32079): 💆\r\nI/flutter (32079): ♂\r\nI/flutter (32079): 🙇🏿\r\nI/flutter (32079): ♂\r\nI/flutter (32079): 🙇🏼\r\nI/flutter (32079): ♂\r\nI/flutter (32079): 💇🏻\r\nI/flutter (32079): ♀\r\nI/flutter (32079): 💇🏻\r\nI/flutter (32079): ♂\r\nI/flutter (32079): 🏃\r\n```",
+    "createdAt": "2019-11-08T13:14:30Z"
+  },
+  {
+    "id": 3869,
+    "sender": "lukepighetti",
+    "content": "The above solution is an impartial shim, non-exhaustive, and the issue should be resolved by Flutter at the framework level. I posted it up as a temporary solution to what I had hoped would be a temporary problem. I won't be able to provide ongoing support for my temporary solution.",
+    "createdAt": "2019-11-08T13:28:42Z"
+  },
+  {
+    "id": 3870,
+    "sender": "Ivaskuu",
+    "content": "For anyone else struggling with this problem, this is the solution I've ended up using, no more need for luke's EmojiTextSpan fix:\r\n```dart\r\nTextField(\r\n  readOnly: true, // Important\r\n  maxLines: null, // Important\r\n  textAlign: TextAlign.center,\r\n  controller: TextEditingController(text: /* Your text */),\r\n  style: TextStyle(\r\n    // Your style\r\n  ),\r\n  decoration: InputDecoration.collapsed(hintText: ''), // Important\r\n),\r\n```",
+    "createdAt": "2019-11-08T18:36:00Z"
+  },
+  {
+    "id": 3871,
+    "sender": "lukepighetti",
+    "content": "So weird that works, but I'm glad you found a solution. That also handles the gender symbols?",
+    "createdAt": "2019-11-10T15:49:36Z"
+  },
+  {
+    "id": 3872,
+    "sender": "GaryQian",
+    "content": "@lvaskuu I am trying to use your solution, except the emojis are still small. Have tried this on multiple versions of iOS on many devices. Does someone who is able to use @Ivaskuu 's workaround mind posting a screenshot comparison between the TextField and Text versions, as well as the code? I would like to use this as a lead to find the problem but need to repro first.\r\n\r\nI would imagine it works since the TextField applies the style as a strut by default, forcing line heights to be consistent across the line. I was unable to repro, but maybe adding a strutStyle to the Text would accomplish a similar thing.",
+    "createdAt": "2019-11-20T00:04:13Z"
+  },
+  {
+    "id": 3873,
+    "sender": "lukepighetti",
+    "content": "This is going to be a blocker on one of our apps that we're building for a client. Requesting internal review of this issue. @Hixie @timsneath ",
+    "createdAt": "2020-02-10T17:14:28Z"
+  },
+  {
+    "id": 3874,
+    "sender": "Hixie",
+    "content": "We should make sure that we're honoring the font metrics precisely. It may be that Android and iOS are doing weird things like bumping the font size for some glyphs or something. We should definitely not do that. That's the kind of decision that leads to continuous bugs and more bugs and hacks upon hacks.",
+    "createdAt": "2020-02-10T18:09:38Z"
+  },
+  {
+    "id": 3875,
+    "sender": "Hixie",
+    "content": "The best way to help us resolve this bug would be to create a test font that verifies that a glyph in the emoji space renders identically to an identical glyph outside the emoji space, and then compare that result in Flutter to Android and iOS with the same font. That would help narrow down the cause of the difference. If it turns out they behave differently for emoji then the problem is with Android and iOS, not Flutter. If with such a font, Android, iOS, and Flutter all do the same thing, then we're probably misinterpreting the actual emoji fonts somehow; we should then investigate exactly what is happening there.",
+    "createdAt": "2020-02-10T18:11:39Z"
+  },
+  {
+    "id": 3876,
+    "sender": "lukef",
+    "content": "\"It may be that Android and iOS are doing weird things like bumping the font size for some glyphs or something. We should definitely not do that.\"\r\n\r\nI think that's great in principle, but the reality is that IF (and I'm not presuming anything) that is what they're doing then they're doing it for a reason.\r\n\r\n_Assuming_ this is an intentional design choice by Apple and Google, by not following what the native platforms are doing it creates a discrepancy between a Flutter app and a native app that would be pretty obvious if the user is using, for example, a native chat app and a chat app made in Flutter with similar UI components.\r\n\r\nIt's simple to rationalize it in technical terms but, from a user experience perspective, it can be pretty jarring. How is that explained to the end user / client if they report that the emojis look off. You can't exactly say \"well .. iOS and android are actually wrong and we're right\" or something to that degree. \r\n",
+    "createdAt": "2020-02-12T19:06:09Z"
+  },
+  {
+    "id": 3877,
+    "sender": "miyoyo",
+    "content": "I think the question here is, is Flutter about being correct, or is it about being accurate?",
+    "createdAt": "2020-02-12T19:07:11Z"
+  },
+  {
+    "id": 3878,
+    "sender": "lukepighetti",
+    "content": "My understanding is that Flutter's goal is to replicate the native platforms at such a degree of accuracy that there is no discernible difference between Flutter and the native platforms.",
+    "createdAt": "2020-02-12T19:12:00Z"
+  },
+  {
+    "id": 3879,
+    "sender": "Hixie",
+    "content": "_If_ it turns out that we're doing what the font standards say is correct, and for some reason Android and iOS are not, then we would address this by having a widget or other mechanism that replicates the Android and iOS behavior at a high level, not in the engine.\r\n\r\nThat's a big _if_ though. We don't know. Maybe we're not doing the right thing per the standards. Hence my earlier comment about how to make progress.",
+    "createdAt": "2020-02-12T19:24:12Z"
+  },
+  {
+    "id": 3880,
+    "sender": "lukef",
+    "content": "I definitely know we won't have time to make a font to demonstrate this issue. That's a pretty tall ask, no? I don't know, I've never made one. Not saying you are asking us to, but we definitely wont be.\r\n\r\n**If someone in the community can't make a font**, can we have it escalated internally to do the validation? Otherwise I foresee this languishing. You can attach whatever priority you want.",
+    "createdAt": "2020-02-12T19:30:05Z"
+  },
+  {
+    "id": 3881,
+    "sender": "Hixie",
+    "content": "I'm not sure what you mean by \"internally\". We're all just one team here. You, me, Gary, everyone. That's what it means for this to be an open source project.\r\n\r\nRe \"validation\", there doesn't seem to be any ambiguity that there's a difference between what iOS does and what Flutter does, that was made clear in your original comment from March last year. This bug is definitely a valid bug.\r\n\r\nRe \"languishing\": We've been trying to address this for almost a year, see e.g. Gary's comments on March 5th, June 20th, or November 19th, and you yourself have been making significant contributions in the form of showing how other frameworks generate different output than we do.\r\n\r\nAs mentioned above, the next step that I think we need to do is probably to experiment with carefully-crafted fonts to see if we can figure out where the difference is happening. For example, if one were to put the smile emoji into the position for \"A\", would iOS render it the same or different than it renders other emoji? Maybe we are rendering emoji differently for some reason; would a font that put the identical \"A\" glyph in the spot for the smiley emoji cause Flutter to render it differently than in the \"A\" position? These are all things to investigate.\r\n\r\nCurrently the person most qualified to look at this (Gary) is focused on much more critical bugs like keyboards crashing on Samsung devices, I assume you would agree that keyboard crashes are more important than emoji sizing. But that doesn't mean this bug is unimportant, and if someone is available to work on it and there's nothing more critical to work on then I would encourage them to take this up and determine the cause.",
+    "createdAt": "2020-02-12T22:49:23Z"
+  },
+  {
+    "id": 3882,
+    "sender": "nicogranuja",
+    "content": "Building on top of previous workarounds mentioned here I wrote a widget to simplify abstraction\r\nJust use it as a widget like this: \r\n\r\n```dart\r\n// Your child widget that will have \r\nchild: EmojiText(\r\n  text: text,\r\n  style: TextStyle(\r\n    fontSize: 16,\r\n  emojiFontMultiplier: 1.3, // Default value to increase emojis size by 30%\r\n  ),\r\n),\r\n```\r\n\r\n```dart\r\nimport 'package:flutter/material.dart';\r\n\r\nclass EmojiText extends StatelessWidget {\r\n  final String text;\r\n  final TextStyle style;\r\n  final double emojiFontMultiplier;\r\n\r\n  const EmojiText({\r\n    @required this.text,\r\n    @required this.style,\r\n    this.emojiFontMultiplier = 1.3, // Increase by 30%\r\n  });\r\n\r\n  // Regex to match emojis\r\n  static final regex = RegExp(\r\n      \"(\\u00a9|\\u00ae|[\\u2000-\\u3300]|\\ud83c[\\ud000-\\udfff]|\\ud83d[\\ud000-\\udfff]|\\ud83e[\\ud000-\\udfff])\");\r\n\r\n  List<TextSpan> generateTextSpans(String text) {\r\n    List<TextSpan> spans = [];\r\n    final TextStyle emojiStyle = style.copyWith(\r\n      fontSize: (style.fontSize * emojiFontMultiplier),\r\n      letterSpacing: 2,\r\n    );\r\n\r\n    text.splitMapJoin(\r\n      regex,\r\n      onMatch: (m) {\r\n        spans.add(\r\n          TextSpan(\r\n            text: m.group(0),\r\n            style: emojiStyle,\r\n          ),\r\n        );\r\n        return \"\";\r\n      },\r\n      onNonMatch: (s) {\r\n        spans.add(TextSpan(text: s));\r\n        return \"\";\r\n      },\r\n    );\r\n    return spans;\r\n  }\r\n\r\n  @override\r\n  Widget build(BuildContext context) {\r\n    return Container(\r\n      child: RichText(\r\n        text: TextSpan(children: generateTextSpans(text), style: style),\r\n      ),\r\n    );\r\n  }\r\n}\r\n\r\n```",
+    "createdAt": "2020-02-21T21:29:22Z"
+  },
+  {
+    "id": 3883,
+    "sender": "edeuss",
+    "content": "> Building on top of previous workarounds mentioned here I wrote a widget to simplify abstraction\r\n> Just use it as a widget like this:\r\n> \r\n> ```dart\r\n> // Your child widget that will have \r\n> child: EmojiText(\r\n>   text: text,\r\n>   style: TextStyle(\r\n>     fontSize: 16,\r\n>   emojiFontMultiplier: 1.3, // Default value to increase emojis size by 30%\r\n>   ),\r\n> ),\r\n> ```\r\n> \r\n> ```dart\r\n> import 'package:flutter/material.dart';\r\n> \r\n> class EmojiText extends StatelessWidget {\r\n>   final String text;\r\n>   final TextStyle style;\r\n>   final double emojiFontMultiplier;\r\n> \r\n>   const EmojiText({\r\n>     @required this.text,\r\n>     @required this.style,\r\n>     this.emojiFontMultiplier = 1.3, // Increase by 30%\r\n>   });\r\n> \r\n>   // Regex to match emojis\r\n>   static final regex = RegExp(\r\n>       \"(\\u00a9|\\u00ae|[\\u2000-\\u3300]|\\ud83c[\\ud000-\\udfff]|\\ud83d[\\ud000-\\udfff]|\\ud83e[\\ud000-\\udfff])\");\r\n> \r\n>   List<TextSpan> generateTextSpans(String text) {\r\n>     List<TextSpan> spans = [];\r\n>     final TextStyle emojiStyle = style.copyWith(\r\n>       fontSize: (style.fontSize * emojiFontMultiplier),\r\n>       letterSpacing: 2,\r\n>     );\r\n> \r\n>     text.splitMapJoin(\r\n>       regex,\r\n>       onMatch: (m) {\r\n>         spans.add(\r\n>           TextSpan(\r\n>             text: m.group(0),\r\n>             style: emojiStyle,\r\n>           ),\r\n>         );\r\n>         return \"\";\r\n>       },\r\n>       onNonMatch: (s) {\r\n>         spans.add(TextSpan(text: s));\r\n>         return \"\";\r\n>       },\r\n>     );\r\n>     return spans;\r\n>   }\r\n> \r\n>   @override\r\n>   Widget build(BuildContext context) {\r\n>     return Container(\r\n>       child: RichText(\r\n>         text: TextSpan(children: generateTextSpans(text), style: style),\r\n>       ),\r\n>     );\r\n>   }\r\n> }\r\n> ```\r\n\r\nThis works but it strips the skin tones and adds the skin tone emoji after it, it also does't work with unicode 13. @nicogranuja",
+    "createdAt": "2020-04-12T08:08:44Z"
+  },
+  {
+    "id": 3884,
+    "sender": "miyoyo",
+    "content": "What if the render details are not because of _emoji_ themselves, but the font used?\r\nApple's Emoji are already using custom extensions to TTF, what if they use one that overrides font size and scaling?\r\nCould someone try to see if, when forcing a different emoji font on native iOS, the emoji size is also off?\r\nIf this is the case, that the font itself is the reason why emoji are differently-sized, maybe a special case could be made in the framework for only glyphs represented by the apple emoji font? (I think there's about 3000?)\r\n\r\nAlso, couldn't help but notice that **chrome itself** gets it wrong, so, that sounds like a problem with harfbuzz itself.\r\n\r\nEdit: I think this is indeed the case, as EmojiOne in TextEdit on MacOS does seem to render at different sizes.\r\nIn red, Apple Color Emoji\r\nIn green, EmojiOne\r\nIn blue, no Emoji.\r\n<img width=\"78\" alt=\"Screenshot 2020-04-13 at 01 23 42\" src=\"https://user-images.githubusercontent.com/3525610/79082345-70537100-7d25-11ea-88eb-231accb15b90.png\">\r\n\r\n\r\nAnd here's an example of chrome (word online) vs textedit\r\n<img width=\"221\" alt=\"Screenshot 2020-04-13 at 01 33 24\" src=\"https://user-images.githubusercontent.com/3525610/79082516-d5f42d00-7d26-11ea-97ca-dbdaa2e9e902.png\">\r\n",
+    "createdAt": "2020-04-12T23:03:17Z"
+  },
+  {
+    "id": 3885,
+    "sender": "droidluv",
+    "content": "Is there a effective hack around it? iOS chat UI is getting screwed up when the users starts using emoji's @nicogranuja 's widget solves some of it but as @EliasDeuss mentioned it doesn't go well with emoji's that have modifier's, the regex would need a way to do grouping with modifier's first if possible and according to the internet the mentioned regex works for emoji's till Dec 2018.\r\n\r\nSlightly depressing this happens, difficult to explain to clients its not really a flutter problem but would happen in flutter apps and not in native or even react native for that matter. Thing's like this makes simpler minded people to go against using such a powerful platform like Flutter.\r\n\r\nThanks for any help and all the work and effort so far!",
+    "createdAt": "2020-04-22T14:21:52Z"
+  },
+  {
+    "id": 3886,
+    "sender": "miyoyo",
+    "content": "Add a plus on the regex and make it match everything both in emoji and what apple's emoji font covers. ",
+    "createdAt": "2020-04-22T14:23:09Z"
+  },
+  {
+    "id": 3887,
+    "sender": "droidluv",
+    "content": "@miyoyo could you elaborate, unicode characters are a bit beyond me, where exactly should I add it here?\r\n\r\n(\\u00a9|\\u00ae|[\\u2000-\\u3300]|\\ud83c[\\ud000-\\udfff]|\\ud83d[\\ud000-\\udfff]|\\ud83e[\\ud000-\\udfff])",
+    "createdAt": "2020-04-22T14:25:30Z"
+  },
+  {
+    "id": 3888,
+    "sender": "miyoyo",
+    "content": "((?:\\u00a9|\\u00ae|[\\u2000-\\u3300]|\\ud83c[\\ud000-\\udfff]|\\ud83d[\\ud000-\\udfff]|\\ud83e[\\ud000-\\udfff])+)\r\n\r\nThis wraps the original part in a non capturing group, and allows for the capture of more than one character per textspan, which should avoid the breakage of some groups you'd expect in unicode\r\n\r\nIf something does not match, can you post an example here (If possible, the exact bytes making up the characters)?\r\n\r\nThere should be 3241 elements that should be inflated (so far, looking on my macbook)",
+    "createdAt": "2020-04-22T14:31:04Z"
+  },
+  {
+    "id": 3889,
+    "sender": "miyoyo",
+    "content": "`((?:\\u00a9|\\u00ae|[\\u2000-\\u3300]|\\ufe0f|[\\ud83c-\\ud83e][\\udc00-\\udfff]|\\udb40[\\udc61-\\udc7f])+)`\r\n\r\nThis is an \"almost perfect\" matcher according to the apple emoji font, every character it supports in the lower ranges, and more than it supports in the higher range\r\nI extracted the supported letters from the apple color emoji font, and converted them into a regex, then did some hand simplification, note the addition of unicode tags `\\udb40[\\udc61-\\udc7f]` as well as the **variation selector**, `\\ufe0f` , which the previous regex does not include.\r\n\r\nReproducible example: ☁️\r\n\r\nThis is a cloud, with an alternative variation (variationless is colorless)\r\n\r\nOn regex101 without the variation selector\r\n![image](https://user-images.githubusercontent.com/3525610/80001935-45081900-84bf-11ea-9c14-ac9a354b3a2c.png)\r\n\r\nOn regex101 **with** the variation selector\r\n\r\n![image](https://user-images.githubusercontent.com/3525610/80001990-55b88f00-84bf-11ea-8856-205d0f9394a0.png)\r\n",
+    "createdAt": "2020-04-22T15:25:42Z"
+  },
+  {
+    "id": 3890,
+    "sender": "droidluv",
+    "content": "@miyoyo this `((?:\\u00a9|\\u00ae|[\\u2000-\\u3300]|\\ud83c[\\ud000-\\udfff]|\\ud83d[\\ud000-\\udfff]|\\ud83e[\\ud000-\\udfff])+) `\r\nby itself saved my day from hours of grief with an adamant client, and this \r\n\r\n`((?:\\u00a9|\\u00ae|[\\u2000-\\u3300]|\\ufe0f|[\\ud83c-\\ud83e][\\udc00-\\udfff]|\\udb40[\\udc61-\\udc7f])+)` is just perfection, I have EmojiText working only for iOS only anyway with a `if(Platform.isIOS)` check so all's fine for now, thank you @miyoyo this COVID 19 lockdown has my MacBook Pro several states away and with the triple lockdown in my country I was having difficulty doing any iOS specific stuff",
+    "createdAt": "2020-04-22T15:37:33Z"
+  },
+  {
+    "id": 3891,
+    "sender": "miyoyo",
+    "content": "I _think_ it's a bug with skia, [track the progress here](https://bugs.chromium.org/p/skia/issues/detail?id=9976&q=emoji&can=2).",
+    "createdAt": "2020-04-22T15:46:48Z"
+  },
+  {
+    "id": 3892,
+    "sender": "lukepighetti",
+    "content": "@droidluv can you post up your latest EmojiTextSpan hack? We need it for a project very soon.",
+    "createdAt": "2020-04-23T11:39:06Z"
+  },
+  {
+    "id": 3893,
+    "sender": "miyoyo",
+    "content": "@lukepighetti If I understand what was done, it's effectively replacing the single character, broken regex with the multi character fixed regex\r\n\r\n```dart\r\nimport 'package:flutter/material.dart';\r\n\r\nclass EmojiText extends StatelessWidget {\r\n  final String text;\r\n  final TextStyle style;\r\n  final double emojiFontMultiplier;\r\n\r\n  const EmojiText({\r\n    @required this.text,\r\n    @required this.style,\r\n    this.emojiFontMultiplier = 1.3, // Increase by 30%\r\n  });\r\n\r\n  // Regex to match emojis\r\n  static final regex = RegExp(\r\n      \"((?:\\u00a9|\\u00ae|[\\u2000-\\u3300]|\\ufe0f|[\\ud83c-\\ud83e][\\udc00-\\udfff]|\\udb40[\\udc61-\\udc7f])+)\");\r\n\r\n  List<TextSpan> generateTextSpans(String text) {\r\n    List<TextSpan> spans = [];\r\n    final TextStyle emojiStyle = style.copyWith(\r\n      fontSize: (style.fontSize * emojiFontMultiplier),\r\n      letterSpacing: 2,\r\n    );\r\n\r\n    text.splitMapJoin(\r\n      regex,\r\n      onMatch: (m) {\r\n        spans.add(\r\n          TextSpan(\r\n            text: m.group(0),\r\n            style: emojiStyle,\r\n          ),\r\n        );\r\n        return \"\";\r\n      },\r\n      onNonMatch: (s) {\r\n        spans.add(TextSpan(text: s));\r\n        return \"\";\r\n      },\r\n    );\r\n    return spans;\r\n  }\r\n\r\n  @override\r\n  Widget build(BuildContext context) {\r\n    return Container(\r\n      child: RichText(\r\n        text: TextSpan(children: generateTextSpans(text), style: style),\r\n      ),\r\n    );\r\n  }\r\n}\r\n```\r\n\r\n(if the regex complains, maybe add a `r` in front of `\"((?:\\u00a9|\\u00ae|[\\u2000-\\u3300]|\\ufe0f|[\\ud83c-\\ud83e][\\udc00-\\udfff]|\\udb40[\\udc61-\\udc7f])+)\"`)",
+    "createdAt": "2020-04-23T12:40:40Z"
+  },
+  {
+    "id": 3894,
+    "sender": "droidluv",
+    "content": "> @droidluv can you post up your latest EmojiTextSpan hack? We need it for a project very soon.\r\n\r\nI did exactly what @miyoyo has said, my chat UI was getting crazy when people started using emoji's and multiple sentence's, my solution was to tweak the emoji's alone so they don't mess with the line height and the emojiFontMultiplier key in EmojiText class should help, the downside is you'll to make a compromise on resizing the emoji's so for me .75 worked, emoji's are 25% tinier but apparently a tiny emoji is acceptable over uneven spacing between multiple lines",
+    "createdAt": "2020-04-23T13:55:43Z"
+  },
+  {
+    "id": 3895,
+    "sender": "lukepighetti",
+    "content": "I always seem to get asked to build chat features and this emoji issue is nearly unforgivable. Our only saving grace on this last project is that our stakeholders all happen to be on Android haha.",
+    "createdAt": "2020-04-24T11:29:31Z"
+  },
+  {
+    "id": 3896,
+    "sender": "miguelpruivo",
+    "content": "@lukaspili did you find any workaround for this?",
+    "createdAt": "2020-06-01T13:42:13Z"
+  },
+  {
+    "id": 3897,
+    "sender": "ventr1x",
+    "content": "Some nicely exposed settings for emoji rendering would be awesome and would elevate Flutter from any other framework.\r\nI built some choose your path chat story apps with e.g. Adobe Air, and let me tell you: adding emoji support was quite the hassle, especially through gpu rendering and custom fonts.\r\n\r\nI tested EmojiTextSpan and think it works quite well.\r\nI added one tweak that renders text vertically centered with the emojis (and added a param for the size multiplication), so the spacings actually look even:\r\n\r\n```\r\nimport 'package:flutter/gestures.dart';\r\nimport 'package:flutter/rendering.dart';\r\nimport 'package:flutter/widgets.dart';\r\n\r\n/// A \"polyfix\" [TextSpan] that properly renders Emojis at the correct size\r\n/// and vertical-alignment for the given [style].\r\n///\r\n/// See https://github.com/flutter/flutter/issues/28894\r\nclass EmojiTextSpan extends TextSpan {\r\n  EmojiTextSpan({\r\n    TextStyle style,\r\n    String text,\r\n    List<TextSpan> children,\r\n    GestureRecognizer recognizer,\r\n    double emojiSizeMultiply\r\n  }) : super(\r\n            style: style,\r\n            children: _parse(style, text, emojiSizeMultiply)..addAll(children ?? []),\r\n            recognizer: recognizer);\r\n\r\n  static final regex = RegExp(\r\n      r\"((?:[\\u2700-\\u27bf]|(?:\\ud83c[\\udde6-\\uddff]){2}|[\\ud800-\\udbff][\\udc00-\\udfff]|\"\r\n      r\"[\\u0023-\\u0039]\\ufe0f?\\u20e3|\\u3299|\\u3297|\\u303d|\\u3030|\\u24c2|\\ud83c[\\udd70-\\udd71]|\"\r\n      r\"\\ud83c[\\udd7e-\\udd7f]|\\ud83c\\udd8e|\\ud83c[\\udd91-\\udd9a]|\\ud83c[\\udde6-\\uddff]|\"\r\n      r\"[\\ud83c\\ude01-\\ude02]|\\ud83c\\ude1a|\\ud83c\\ude2f|[\\ud83c\\ude32-\\ude3a]|\"\r\n      r\"[\\ud83c\\ude50-\\ude51]|\\u203c|\\u2049|[\\u25aa-\\u25ab]|\\u25b6|\\u25c0|[\\u25fb-\\u25fe]\"\r\n      r\"|\\u00a9|\\u00ae|\\u2122|\\u2139|\\ud83c\\udc04|[\\u2600-\\u26FF]|\\u2b05|\\u2b06|\\u2b07|\\u2b1b\"\r\n      r\"|\\u2b1c|\\u2b50|\\u2b55|\\u231a|\\u231b|\\u2328|\\u23cf|[\\u23e9-\\u23f3]|[\\u23f8-\\u23fa]\"\r\n      r\"|\\ud83c\\udccf|\\u2934|\\u2935|[\\u2190-\\u21ff])+)\");\r\n\r\n  static List<TextSpan> _parse(TextStyle _style, String text, double emojiSizeMultiply) {\r\n    final textStyle = _style ?? TextStyle(fontSize: 14);\r\n    final multiplySize = emojiSizeMultiply ?? 1.30;\r\n\r\n    final emojiStyle = textStyle.copyWith(\r\n      fontSize: (textStyle.fontSize) * multiplySize,\r\n      height: 1,\r\n      letterSpacing: 2,\r\n    );\r\n\r\n    final spans = <InlineSpan>[];\r\n\r\n    text.splitMapJoin(\r\n      regex,\r\n      onMatch: (m) {\r\n        spans.add(WidgetSpan(\r\n          alignment: PlaceholderAlignment.middle,\r\n          child: Text(m.group(0), style: emojiStyle),\r\n        ));\r\n        return;\r\n      },\r\n      onNonMatch: (s) {\r\n        spans.add(TextSpan(text: s));\r\n        return;\r\n      },\r\n    );\r\n\r\n    return [\r\n      TextSpan(\r\n        children: spans\r\n      )\r\n    ];\r\n  }\r\n}\r\n\r\n```",
+    "createdAt": "2020-08-12T10:42:57Z"
+  },
+  {
+    "id": 3898,
+    "sender": "TahaTesser",
+    "content": "### Preview\r\n<img width=\"1105\" alt=\"Screenshot 2020-10-22 at 5 45 03 PM\" src=\"https://user-images.githubusercontent.com/48603081/96870403-7a9db700-148e-11eb-9591-0eef6f387176.png\">\r\n\r\n\r\n<details> \r\n<summary>complete code sample</summary> \r\n\r\n```dart\r\nimport 'package:flutter/material.dart';\r\n\r\nvoid main() => runApp(MyApp());\r\n\r\nclass MyApp extends StatelessWidget {\r\n  @override\r\n  Widget build(BuildContext context) {\r\n    return MaterialApp(\r\n      title: 'Material App',\r\n      theme: ThemeData.dark(),\r\n      home: Home(),\r\n    );\r\n  }\r\n}\r\n\r\nclass Home extends StatelessWidget {\r\n  @override\r\n  Widget build(BuildContext context) {\r\n    return Scaffold(\r\n      appBar: AppBar(\r\n        title: Text('Material App Bar'),\r\n      ),\r\n      body: Center(\r\n        child: Container(\r\n          child: Text('Flutter 🤣🤣🤣 Fluter'),\r\n        ),\r\n      ),\r\n      floatingActionButton: FloatingActionButton(\r\n        child: Icon(Icons.add),\r\n        onPressed: () {},\r\n      ),\r\n    );\r\n  }\r\n}\r\n\r\n```\r\n\r\n</details> \r\n\r\n<details> \r\n<summary>flutter doctor -v</summary> \r\n\r\n```bash\r\n[✓] Flutter (Channel master, 1.24.0-2.0.pre.111, on Mac OS X 10.15.7 19H2\r\n    darwin-x64, locale en-GB)\r\n    • Flutter version 1.24.0-2.0.pre.111 at\r\n      /Users/tahatesser/Code/flutter_master\r\n    • Framework revision fe189baf34 (10 hours ago), 2020-10-21 22:25:53 -0400\r\n    • Engine revision f459a86610\r\n    • Dart version 2.11.0 (build 2.11.0-242.0.dev)\r\n\r\n[✓] Android toolchain - develop for Android devices (Android SDK version 30.0.2)\r\n    • Android SDK at /Users/tahatesser/Code/sdk\r\n    • Platform android-30, build-tools 30.0.2\r\n    • ANDROID_HOME = /Users/tahatesser/Code/sdk\r\n    • Java binary at: /Applications/Android\r\n      Studio.app/Contents/jre/jdk/Contents/Home/bin/java\r\n    • Java version OpenJDK Runtime Environment (build\r\n      1.8.0_242-release-1644-b3-6222593)\r\n    • All Android licenses accepted.\r\n\r\n[✓] Xcode - develop for iOS and macOS (Xcode 12.1)\r\n    • Xcode at /Applications/Xcode.app/Contents/Developer\r\n    • Xcode 12.1, Build version 12A7403\r\n    • CocoaPods version 1.10.0.rc.1\r\n\r\n[✓] Chrome - develop for the web\r\n    • Chrome at /Applications/Google Chrome.app/Contents/MacOS/Google Chrome\r\n\r\n[✓] Android Studio (version 4.1)\r\n    • Android Studio at /Applications/Android Studio.app/Contents\r\n    • Flutter plugin can be installed from:\r\n      🔨 https://plugins.jetbrains.com/plugin/9212-flutter\r\n    • Dart plugin can be installed from:\r\n      🔨 https://plugins.jetbrains.com/plugin/6351-dart\r\n    • Java version OpenJDK Runtime Environment (build\r\n      1.8.0_242-release-1644-b3-6222593)\r\n\r\n[✓] VS Code (version 1.50.1)\r\n    • VS Code at /Applications/Visual Studio Code.app/Contents\r\n    • Flutter extension version 3.15.1\r\n\r\n[✓] Connected device (4 available)\r\n    • iPhone 12 (mobile) • 722C6A4C-3FCA-4FC6-9D30-9702A0E784B8 • ios\r\n      • com.apple.CoreSimulator.SimRuntime.iOS-14-1 (simulator)\r\n    • macOS (desktop)    • macos                                • darwin-x64\r\n      • Mac OS X 10.15.7 19H2 darwin-x64\r\n    • Web Server (web)   • web-server                           • web-javascript\r\n      • Flutter Tools\r\n    • Chrome (web)       • chrome                               • web-javascript\r\n      • Google Chrome 86.0.4240.80\r\n\r\n• No issues found!\r\n```\r\n\r\n</details> ",
+    "createdAt": "2020-10-22T12:16:26Z"
+  },
+  {
+    "id": 3899,
+    "sender": "lukepighetti",
+    "content": "This issue is still happening on `Flutter (Channel dev, 1.27.0-1.0.pre)`",
+    "createdAt": "2021-02-14T17:14:15Z"
+  },
+  {
+    "id": 3900,
+    "sender": "edeuss",
+    "content": "> This issue is still happening on `Flutter (Channel dev, 1.27.0-1.0.pre)`\n\n@lukepighetti I don't believe anyone is working on it (also has no milestone).",
+    "createdAt": "2021-02-15T00:49:06Z"
+  },
+  {
+    "id": 3901,
+    "sender": "lukepighetti",
+    "content": "I think you're right, but it is still broken. 😅",
+    "createdAt": "2021-02-15T12:49:32Z"
+  },
+  {
+    "id": 3902,
+    "sender": "lukepighetti",
+    "content": "![IMG_928CCF81BA89-1](https://user-images.githubusercontent.com/666539/108209360-364abc80-70f8-11eb-8b5b-c773e8b3a363.jpeg)\r\n\r\n\r\n\r\nEmojis are also changing baseline on iOS. Haven't tried other platforms.\r\n\r\n```dart\r\nWrap(\r\n  spacing: 15,\r\n  children: [\r\n    for (var e in [\r\n      'Avocado toast 🥑',\r\n      'Asparagus',\r\n      'Broccoli 🥦',\r\n      'Cheese',\r\n      'Chicken',\r\n      'Rice',\r\n      'Pamplemousse La Croix',\r\n      'Spaghetti',\r\n    ])\r\n      ChoiceChip(\r\n        label: Text(e),\r\n        selected: false,\r\n        onSelected: (e) {},\r\n      ),\r\n  ],\r\n),\r\n```\r\n\r\n```\r\n[✓] Flutter (Channel dev, 1.27.0-1.0.pre, on macOS 11.2.1 20D74 darwin-x64, locale en-US)\r\n    • Flutter version 1.27.0-1.0.pre at /Users/lukepighetti/development/flutter\r\n    • Framework revision 68c96f100e (9 days ago), 2021-02-08 16:14:15 -0800\r\n    • Engine revision b04955656c\r\n    • Dart version 2.13.0 (build 2.13.0-0.0.dev)\r\n```",
+    "createdAt": "2021-02-17T13:13:35Z"
+  },
+  {
+    "id": 3903,
+    "sender": "welfvh",
+    "content": "Still not fixed?\r\n<img width=\"293\" alt=\"Screen Shot 2021-06-16 at 16 58 09\" src=\"https://user-images.githubusercontent.com/36489530/122242979-08b62a00-cec4-11eb-9ff9-54baaaf1154c.png\">\r\n",
+    "createdAt": "2021-06-16T14:58:20Z"
+  }
+]

@@ -1,0 +1,386 @@
+[
+  {
+    "id": 3264,
+    "sender": "Gene-Dana",
+    "content": "> Crawlers look **at the HTML**. Flutter is _not SEO friendly_ because none of the content is visible at crawl time.\r\n\r\n@creativecreatorormaybenot I'm no expert. From what I understand, Google has been crawling JS since 2015.\r\n\r\n\r\nAlso, to head off whether or not crawling JS is truly effective, doesn't pre-rendering solve this?\r\n\r\n> Big thing here, is with tools like Netlify, they implement SSR as a static host, and with 1-click pre-render option, your site will be ready for google bots\r\n\r\n",
+    "createdAt": "2021-03-24T16:54:54Z"
+  },
+  {
+    "id": 3265,
+    "sender": "Gene-Dana",
+    "content": "> Imagine usually having a `<p>` element with some text that would be indexed by Google Search. With Flutter, there is _nothing_.\r\n\r\n@creativecreatorormaybenot Does the HTML renderer solve this?  https://flutter.dev/docs/development/tools/web-renderers",
+    "createdAt": "2021-03-24T16:57:51Z"
+  },
+  {
+    "id": 3266,
+    "sender": "HarrisonQi",
+    "content": "> > Imagine usually having a `<p>` element with some text that would be indexed by Google Search. With Flutter, there is _nothing_.\r\n> \r\n> @creativecreatorormaybenot Does the HTML renderer solve this? https://flutter.dev/docs/development/tools/web-renderers\r\n\r\nActually not. Both of them not show the doms of web page. Google cannot get page detail😟😟😟",
+    "createdAt": "2021-03-25T00:57:34Z"
+  },
+  {
+    "id": 3267,
+    "sender": "HarrisonQi",
+    "content": "Maybe the dart language is \"Born to beat js\"? I think this is the best chance... Just my idea, dev speed of Flutter is faster than any js framework(Vue.js, React, Angular.js..). We all hope official can focus on this.",
+    "createdAt": "2021-03-25T01:01:50Z"
+  },
+  {
+    "id": 3268,
+    "sender": "Gene-Dana",
+    "content": "![image](https://user-images.githubusercontent.com/45580241/112403175-51ef4700-8ce4-11eb-8ee0-c178cec17eeb.png)\r\n\r\nI only have one page on this site. I would like to create another site, submit a sitemap, and see what it says",
+    "createdAt": "2021-03-25T01:03:24Z"
+  },
+  {
+    "id": 3269,
+    "sender": "Gene-Dana",
+    "content": "> Actually not. Both of them not show the doms of web page. Google cannot get page detail😟😟😟\r\n\r\nLet's truly test it here. So far, this site does show up on google",
+    "createdAt": "2021-03-25T01:04:17Z"
+  },
+  {
+    "id": 3270,
+    "sender": "HarrisonQi",
+    "content": "> > Actually not. Both of them not show the doms of web page. Google cannot get page detail😟😟😟\r\n> \r\n> Let's truly test it here. So far, this site does show up on google\r\n\r\nAgree with above, I'm not sure you are deep inside seo... Crawler grab the dom of html. For now, Flutter web just support like <iframe>. This's not good for seo. Crawler cannot grab content from a big js file...  \r\n\r\nWe need a solution to make every page like:\r\n```html\r\n<html>\r\n    <body>\r\n        <h1>Flutter web<h1>\r\n        <p>good for seo</p>\r\n        <p>we need flutter web seo!</p>\r\n    </body>\r\n</html>\r\n```\r\nGoogle can get content or keywords like \"Flutter web\"、 \"good for seo\" or \"we need flutter web seo!\". Then people can get result by input keywords.\r\n\r\n---\r\n\r\nbut not:\r\n```html\r\n<html>\r\n    <script src=\"main.dart.js\" type=\"application/javascript\"></script>\r\n    <body>\r\n        <flt-glass-pane>\r\n                <flt-semantics-placeholder></flt-semantics-placeholder>\r\n        </flt-glass-pane>\r\n    </body>\r\n</html>\r\n```\r\n\r\nGoogle get nothing from html ! People can only search website by website title!\r\n\r\n",
+    "createdAt": "2021-03-25T01:46:21Z"
+  },
+  {
+    "id": 3271,
+    "sender": "Gene-Dana",
+    "content": "What do you think about this? https://github.com/johnpryan/tavern\r\n![image](https://user-images.githubusercontent.com/45580241/112993819-9d1bb680-9137-11eb-85e0-2992c38b05b2.png)\r\n",
+    "createdAt": "2021-03-30T13:09:23Z"
+  },
+  {
+    "id": 3272,
+    "sender": "adrianjagielak",
+    "content": "> What do you think about this? https://github.com/johnpryan/tavern\n> \n> ![image](https://user-images.githubusercontent.com/45580241/112993819-9d1bb680-9137-11eb-85e0-2992c38b05b2.png)\n> \n> \n\nThis tool is for legacy Dart web, not Flutter Web.",
+    "createdAt": "2021-03-30T14:02:05Z"
+  },
+  {
+    "id": 3273,
+    "sender": "emmett-deen",
+    "content": "> @esDotDev\r\n> \r\n> > We could sniff user agent and somehow show html text for googles crawler, but when a regular user comes to that route, they get the flutter app?\r\n> \r\n> You could but really shouldn't do that. This practice is known as [cloaking](https://en.wikipedia.org/wiki/Cloaking) and will induce a huge penalty from search engines when detected (if you don't get blacklisted forever).\r\n> \r\n> The only viable approach to SEO for SPAs as of today is:\r\n> \r\n> 1. Having the JS somehow render indexable (i.e. `<img alt=\"...\">`, `<meta>`, `<title>`, `<p>`, no canvas ...), hierarchical (i.e. `<h{1,2,3,...}>` vs `<p>` vs `<ul><li>`, ...) and standard DOM elements for everybody (no only search engines).\r\n> 2. SSR or prerendering to optimize ranking or to support engines that don't render JS (which I don't think are that common anymore).\r\n> 3. Generally, use modern web standards in addition (not in place) of the standards from the early 2000's: avoid hash-based routing, have fast initial page loads, limit the amount of medias and blobs to a minimum (especially if loaded synchronously), serve relevant and consistent content (statically if possible), have metas, have a page title that corresponds to the URL and page content, have a sitemap, a `robots.txt`, …\r\n> \r\n> And you can't really workaround that without taking considerable risks. That's unfortunate. Even relying on `<noscript>` for SEO can sometimes be considered as cloaking (because this tag was abused for tricking search engines in the past). This means SEO support should eventually either be first-class citizen or be deliberately acknowledged as a non-goal by Flutter team (in which case it should be made clear that you should only use Flutter for portals or websites you don't expect to be indexed anyways). Put another way, I don't think it is possible to achieve proper SEO by delegating the whole work to external tools and libraries.\r\n> \r\n> I can barely imagine how much work it is get proper SEO in Flutter Web (the situation is very different from React DOM for instance), and IMHO there are more important issues and features Flutter should address first. However, I also reckon that improving SEO in Flutter could be very beneficial in lots of other aspects, as working on SEO usually leads to improving loading times, rendering times and UX in general.\r\n\r\nFrom this article on [Dynamic Rendering](https://developers.google.com/search/docs/guides/dynamic-rendering#:~:text=Dynamic%20rendering%20means%20switching%20between,content%20for%20specific%20user%20agents.) It doesn't seem like this approach would be considered cloaking as long as the HTML served closely resembles the data actually shown. Does anyone have input on this / could anyone clarify the line? This seems like a big grey area. ",
+    "createdAt": "2021-05-03T19:39:21Z"
+  },
+  {
+    "id": 3274,
+    "sender": "nashihu",
+    "content": " \n> Agree with above, I'm not sure you are deep inside seo... Crawler grab the dom of html. For now, Flutter web just support like <iframe>. This's not good for seo. Crawler cannot grab content from a big js file...  \n> \n> \n> \n> We need a solution to make every page like:\n> \n> ```html\n> \n> <html>\n> \n>     <body>\n> \n>         <h1>Flutter web<h1>\n> \n>         <p>good for seo</p>\n> \n>         <p>we need flutter web seo!</p>\n> \n>     </body>\n> \n> </html>\n> \n> ```\n> \n> Google can get content or keywords like \"Flutter web\"、 \"good for seo\" or \"we need flutter web seo!\". Then people can get result by input keywords.\n> \n> \n> \n> ---\n> \n> \n> \n> but not:\n> \n> ```html\n> \n> <html>\n> \n>     <script src=\"main.dart.js\" type=\"application/javascript\"></script>\n> \n>     <body>\n> \n>         <flt-glass-pane>\n> \n>                 <flt-semantics-placeholder></flt-semantics-placeholder>\n> \n>         </flt-glass-pane>\n> \n>     </body>\n> \n> </html>\n> \n> ```\n> \n> \n> \n> Google get nothing from html ! People can only search website by website title!\n> \n> \n> \n> \n\ni wonder, is it possible to automatically modify the generated html of flutter web to attach all string-user-readable-data into the html? which also will be replaced by the canvas anyway at the runtime. That being said, google can crawl the html data and user can see the same data from canvas",
+    "createdAt": "2021-05-04T23:28:55Z"
+  },
+  {
+    "id": 3275,
+    "sender": "369235109",
+    "content": "In fact, I hope you can share the optimization skills about SEO，This problem has been bothering us for a long time, and there is no good way to solve it. I also want to ask whether the flutter team has an optimization plan",
+    "createdAt": "2021-05-10T02:22:21Z"
+  },
+  {
+    "id": 3276,
+    "sender": "FloPMT",
+    "content": "I've been following this thread for a while and took inspiration from @emmett-deen to look into dynamic rendering. I have a solution for my Flutter Web app now and it only took a few days to implement. While this will not work for every Flutter app and is also not automated or a real solution to the problem, I hope I can help some of you.\r\n\r\nI'm currently supporting two minority founders who have built a Flutter real estate app for their native Honduras, sort of like a simplified Zillow.com. Given the limited resources it's important for them to have just one codebase and thus they're also using Flutter Web. As you can imagine SEO is crucial however since all those properties won't be found organically otherwise.\r\n\r\nThere are 3 main pages for this app that need indexing, the other ones, like seller analytics, uploading a property etc aren't important for SEO. The pages are:\r\n\r\n1. List of properties\r\n2. Property detail page\r\n3. Seller profile with seller properties\r\n\r\nSo I have very few sites that are actually important for SEO. I stumbled across this Google Firebase video:\r\nhttps://www.youtube.com/watch?v=LOeioOKUKI8\r\n\r\nAnd given my setup with Firebase Functions and Firebase Hosting, it inspired me to do the following:\r\n\r\n1. Find an open source html5 real estate template so I don't have to put in time to develop something only bots will see\r\n2. Use [Handlebars](https://handlebarsjs.com/) to generate those 3 pages as shown in the video\r\n3. Use Firebase Functions with Express x Hosting together as shown in the video, with a simple \"if\" check, that supplies regular users with the Flutter Web app and bots with the html5 app. Important here is to make sure all links are actually the same between html5 and Flutter web\r\n4. Basic SEO improvements like caching, metadata, robots.txt, [sitemap.xml](https://github.com/feross/express-sitemap-xml)\r\n5. Afterwards request indexing from Google Search console\r\n\r\nAs @emmett-deen mentioned, by making sure the data is the same, this should not be considered cloaking.\r\n\r\nNow my SEO ranks 95+ on most pages and I can expect good results as Google indexes my site in coming weeks. Again, I understand this won't work for everybody but it took me a weekend to get this result that may help others. Leave a reaction here if you think I should turn this into a proper tutorial.",
+    "createdAt": "2021-05-10T10:52:22Z"
+  },
+  {
+    "id": 3277,
+    "sender": "IchordeDionysos",
+    "content": "@FloPMT from your explanation it does sound like an automated system of the Google search crawler might flag this a cloaking 🤔\r\n\r\nI would highly recommend checking out [this article on cloaking](https://developers.google.com/search/docs/advanced/guidelines/cloaking) to verify if that could be considered cloaking by a human AND more importantly if a bot could also figure out that IT'S NOT CLOAKING 🤔\r\n\r\nDepending on how you set it up either might be true. Just want you to be aware and not surprised that you may get punished by the Google search algorithm for something that you did not intend to do.\r\n\r\nThis may help as well:\r\nhttps://developers.google.com/search/mobile-sites/mobile-seo/dynamic-serving?hl=en",
+    "createdAt": "2021-05-10T13:33:30Z"
+  },
+  {
+    "id": 3278,
+    "sender": "emmett-deen",
+    "content": "> I've been following this thread for a while and took inspiration from @emmett-deen to look into dynamic rendering. I have a solution for my Flutter Web app now and it only took a few days to implement. While this will not work for every Flutter app and is also not automated or a real solution to the problem, I hope I can help some of you.\r\n> \r\n> I'm currently supporting two minority founders who have built a Flutter real estate app for their native Honduras, sort of like a simplified Zillow.com. Given the limited resources it's important for them to have just one codebase and thus they're also using Flutter Web. As you can imagine SEO is crucial however since all those properties won't be found organically otherwise.\r\n> \r\n> There are 3 main pages for this app that need indexing, the other ones, like seller analytics, uploading a property etc aren't important for SEO. The pages are:\r\n> \r\n> 1. List of properties\r\n> 2. Property detail page\r\n> 3. Seller profile with seller properties\r\n> \r\n> So I have very few sites that are actually important for SEO. I stumbled across this Google Firebase video:\r\n> https://www.youtube.com/watch?v=LOeioOKUKI8\r\n> \r\n> And given my setup with Firebase Functions and Firebase Hosting, it inspired me to do the following:\r\n> \r\n> 1. Find an open source html5 real estate template so I don't have to put in time to develop something only bots will see\r\n> 2. Use [Handlebars](https://handlebarsjs.com/) to generate those 3 pages as shown in the video\r\n> 3. Use Firebase Functions with Express x Hosting together as shown in the video, with a simple \"if\" check, that supplies regular users with the Flutter Web app and bots with the html5 app. Important here is to make sure all links are actually the same between html5 and Flutter web\r\n> 4. Basic SEO improvements like caching, metadata, robots.txt, [sitemap.xml](https://github.com/feross/express-sitemap-xml)\r\n> 5. Afterwards request indexing from Google Search console\r\n> \r\n> As @emmett-deen mentioned, by making sure the data is the same, this should not be considered cloaking.\r\n> \r\n> Now my SEO ranks 95+ on most pages and I can expect good results as Google indexes my site in coming weeks. Again, I understand this won't work for everybody but it took me a weekend to get this result that may help others. Leave a reaction here if you think I should turn this into a proper tutorial.\r\n\r\nThis is exactly what I was thinking! Please keep us updated on if this gets flagged as cloaking!",
+    "createdAt": "2021-05-10T13:49:19Z"
+  },
+  {
+    "id": 3279,
+    "sender": "IchordeDionysos",
+    "content": "Yes but for normal users we would serve:\n\n```html\n<script src=\"./main.dart.js\">\n```\n\nFor crawlers we would serve:\n\n```html\n<div class=\"house\" id=\"house1\">\n  <p>Beach house</p>\n  <img>\n</div>\n<div class=\"house\" id=\"house2\">\n  <p>City appartment</p>\n  <img>\n</div>\n```\n\nWhich to a bot is completely different, but to a human obviously is the same visually.",
+    "createdAt": "2021-05-10T17:34:37Z"
+  },
+  {
+    "id": 3280,
+    "sender": "nashihu",
+    "content": "> Yes but for normal users we would serve:\n> \n> ```html\n> <script src=\"./main.dart.js\">\n> ```\n> \n> For crawlers we would serve:\n> \n> ```html\n> <div class=\"house\" id=\"house1\">\n>   <p>Beach house</p>\n>   <img>\n> </div>\n> <div class=\"house\" id=\"house2\">\n>   <p>City appartment</p>\n>   <img>\n> </div>\n> ```\n> \n> Which to a bot is completely different, but to a human obviously is the same visually.\n\n@IchordeDionysos what if we provide both of them inside the html ? like\n```\n   <p>string1</p>\n   <p>string2</p>\n\n   <script src=\"./main.dart.js\">\n```\nso the `string1` and `string2` will be visible for bot, but will be replaced by the dart.js anyway _but_ still `string1` and `string2` will visible for user",
+    "createdAt": "2021-05-11T00:30:39Z"
+  },
+  {
+    "id": 3281,
+    "sender": "IchordeDionysos",
+    "content": "That might work 🤔 \n\nI've also read some suggestions that this could be put into the `<noscript>` tag.\n\n_Disclaimer: Those were suggested like 10 years ago :D So not sure if that still applies?!_ ",
+    "createdAt": "2021-05-11T07:06:46Z"
+  },
+  {
+    "id": 3282,
+    "sender": "emmett-deen",
+    "content": "> > Yes but for normal users we would serve:\r\n> > ```\r\n> > <script src=\"./main.dart.js\">\r\n> > ```\r\n> > \r\n> > \r\n> >   \r\n> >     \r\n> >     \r\n> >   \r\n> > \r\n> > \r\n> > For crawlers we would serve:\r\n> > ```\r\n> > <div class=\"house\" id=\"house1\">\r\n> >   <p>Beach house</p>\r\n> >   <img>\r\n> > </div>\r\n> > <div class=\"house\" id=\"house2\">\r\n> >   <p>City appartment</p>\r\n> >   <img>\r\n> > </div>\r\n> > ```\r\n> > \r\n> > \r\n> >   \r\n> >     \r\n> >     \r\n> >   \r\n> > \r\n> > \r\n> > Which to a bot is completely different, but to a human obviously is the same visually.\r\n> \r\n> @IchordeDionysos what if we provide both of them inside the html ? like\r\n> \r\n> ```\r\n>    <p>string1</p>\r\n>    <p>string2</p>\r\n> \r\n>    <script src=\"./main.dart.js\">\r\n> ```\r\n> \r\n> so the `string1` and `string2` will be visible for bot, but will be replaced by the dart.js anyway _but_ still `string1` and `string2` will visible for user\r\n\r\nI think the issue with this would be during that brief loading period they would see a raw HTML page with those strings which would be a less than ideal experience, however, this would work to at least include metadata tags which would still help some with SEO & would fix the sharability problem.",
+    "createdAt": "2021-05-11T17:12:39Z"
+  },
+  {
+    "id": 3283,
+    "sender": "amr-eniou-3r",
+    "content": "@Hixie I wonder if the Flutter team could increase the priority of this issue, As it is really important for startups who uses Flutter web\r\nThanks a lot",
+    "createdAt": "2021-05-14T10:54:03Z"
+  },
+  {
+    "id": 3284,
+    "sender": "Gene-Dana",
+    "content": "> @Hixie I wonder if the Flutter team could increase the priority of this issue, As it is really important for startups who uses Flutter web\r\n> Thanks a lot\r\n\r\nWhat you see being investigated here is navigation, one the main features that needs to be addressed before SEO can be achieved.\r\n\r\nhttps://github.com/flutter/uxr\r\n\r\nWithout a clear navigation scheme, crawlers will have a problem crawling.\r\n\r\nI would go out on a limb and say that navigation is a top priority, which means SEO is too\r\n",
+    "createdAt": "2021-05-14T13:28:48Z"
+  },
+  {
+    "id": 3285,
+    "sender": "iapicca",
+    "content": "\r\n> What you see being investigated here is navigation, one the main features that needs to be addressed before SEO can be achieved.  https://github.com/flutter/uxr\r\n> Without a clear navigation scheme, crawlers will have a problem crawling. \r\n> I would go out on a limb and say that navigation is a top priority, which means SEO is too\r\n\r\n@Gene-Dana \r\nI hoped the whole web roadmap would have been up to discussion https://github.com/flutter/uxr/issues/52\r\n\r\n\r\n\r\n",
+    "createdAt": "2021-05-14T15:15:08Z"
+  },
+  {
+    "id": 3286,
+    "sender": "esDotDev",
+    "content": "I don't see how router implementations in any way are blockers for discussions on SEO strategies. As long as you can have a path, that leads to a page, then we can at some level implement a \"crawlable\" site, we've been able to do this using `onGenerateRoute` for a long time.\r\n\r\nUXR will recommend some packages to make the declaring of your routes more flexible or readable, but the core problem persists, that has always persisted, of how to show those routes to a search crawler. The semantics widget seems like the obvious path forward, but would be cool to know if the team even sees this as a viable option.",
+    "createdAt": "2021-05-14T16:05:13Z"
+  },
+  {
+    "id": 3287,
+    "sender": "derolf",
+    "content": "I have a kinda hack that seems to work. Visit [coronaflash.com](https://coronaflash.com) and turn your user-agent to “googlebot/“. You see a traditional DOM appearing on top of the app, moving in-sync with the app. Google Search seems to like it.\r\n\r\n![1C5161DC-CC80-44BF-82F7-4ACFCA3E1806](https://user-images.githubusercontent.com/435817/118712293-e972a100-b820-11eb-9cfd-7a2e591984be.jpeg)\r\n\r\nWhat I am doing: If I detect a crawler/bot, I turn the render tree into a text tree at the right positions and add it to the DOM on top of the flutter glass pane.\r\n\r\nSearch yields:\r\n\r\n![76279C9E-5883-4C66-9519-C29F13010BFD](https://user-images.githubusercontent.com/435817/118713026-c7c5e980-b821-11eb-92f8-78eb30b585a4.jpeg)\r\n\r\n![7F1611AD-A651-43C7-896A-C0449262720C](https://user-images.githubusercontent.com/435817/118713030-c98fad00-b821-11eb-90d5-a86699ca7979.jpeg)\r\n\r\n\r\n",
+    "createdAt": "2021-05-18T19:27:33Z"
+  },
+  {
+    "id": 3288,
+    "sender": "limcheekin",
+    "content": "@derolf Looks good. Appreciate if you could share the code.",
+    "createdAt": "2021-05-19T02:55:46Z"
+  },
+  {
+    "id": 3289,
+    "sender": "skiluk",
+    "content": "@derolf I am interested in how you added your text tree to the DOM on top of render tree.",
+    "createdAt": "2021-05-28T05:19:07Z"
+  },
+  {
+    "id": 3290,
+    "sender": "msayed-net",
+    "content": "I really hope Flutter team gives it more time/work to handle soon",
+    "createdAt": "2021-05-30T22:37:34Z"
+  },
+  {
+    "id": 3291,
+    "sender": "nashihu",
+    "content": "> I have a kinda hack that seems to work. Visit [coronaflash.com](https://coronaflash.com) and turn your user-agent to “googlebot/“. You see a traditional DOM appearing on top of the app, moving in-sync with the app. Google Search seems to like it.\n\n@derolf are you using [flutter_html](https://github.com/derolf/flutter_html) ? ",
+    "createdAt": "2021-05-31T00:39:46Z"
+  },
+  {
+    "id": 3292,
+    "sender": "creativecreatorormaybenot",
+    "content": "@derolf I think Google SEO might have punished you because I do not get your site as a search result unless I explicitly include your site name in the query.",
+    "createdAt": "2021-06-02T10:53:51Z"
+  },
+  {
+    "id": 3293,
+    "sender": "vgorloff",
+    "content": "Would be nice to have for Flutter something like Next.js for React.",
+    "createdAt": "2021-06-02T19:30:07Z"
+  },
+  {
+    "id": 3294,
+    "sender": "derolf",
+    "content": "Try Corona vaccine finder Berlin.\r\n\r\n> @derolf I think Google SEO might have punished you because I do not get your site as a search result unless I explicitly include your site name in the query.\r\n\r\n",
+    "createdAt": "2021-06-02T22:04:23Z"
+  },
+  {
+    "id": 3295,
+    "sender": "creativecreatorormaybenot",
+    "content": "@derolf Yeah, no luck unfortunately. From what I can tell, it depends on the user searching, i.e. I am seeing different results being signed in to Google and not being signed in.\r\n\r\nIn a private window, the best I can get is the **main** app (so not the separate route) showing up on position 4. And according to Google, I am even searching _from_ Berlin, so that should not be the issue, I think.",
+    "createdAt": "2021-06-02T22:27:54Z"
+  },
+  {
+    "id": 3296,
+    "sender": "emmett-deen",
+    "content": "@derolf are you able to provide an example of how you did this?",
+    "createdAt": "2021-06-12T00:12:07Z"
+  },
+  {
+    "id": 3297,
+    "sender": "iamSahdeep",
+    "content": "I am not sure how @derolf have achieved this but I tried something and created a temp plugin if anyone want to use it.\r\n\r\nhttps://github.com/iamSahdeep/seo_renderer\r\nhttps://pub.dev/packages/seo_renderer\r\n\r\nBasically just using renderObject to get absolute position and adding DivElement in case navigator have a bot as userAgent using RegEx.\r\n\r\nGot the same results as derolf.\r\n<p align=\"center\">\r\n<img src=\"https://raw.githubusercontent.com/iamSahdeep/seo_renderer/master/assets/1.png\" width=\"410\" height=\"440\">\r\n</p>\r\n\r\nIf it actually works for SEO we can maintain it till Flutter Team creates a concrete solution for us.",
+    "createdAt": "2021-06-24T18:04:18Z"
+  },
+  {
+    "id": 3298,
+    "sender": "Oualitsen",
+    "content": "Hello Guys:\r\nI was wondering if we controlled the index.html via SSR (something like jsp thymeleaf or expressjs) to render seo friendly html that would then be overridden by the main.dart.js.\r\nI for instance developed [https://rapidoc.app](https://rapidoc.app) using flutter. it is basically a website that allows people to book for doctors.\r\nI have a doctor list page that would be nice if it gets indexed (the doctor list page)\r\nI am pretty sure that generating the seo friendly html under the flutter up will work (ui wise) but am not sure if it would work seo wise.,",
+    "createdAt": "2021-08-31T11:29:31Z"
+  },
+  {
+    "id": 3299,
+    "sender": "MorelSerge",
+    "content": "@Oualitsen I believe that's an option and that's called dynamic rendering: https://developers.google.com/search/docs/advanced/javascript/dynamic-rendering\r\n\r\nHowever, it's unsure if this would flag your website for cloaking at this point.",
+    "createdAt": "2021-08-31T11:41:17Z"
+  },
+  {
+    "id": 3300,
+    "sender": "nivla360",
+    "content": "@Oualitsen I noticed your website loads pretty fast. Was it really built with flutter? If so how did you achieve this?",
+    "createdAt": "2021-09-29T08:36:06Z"
+  },
+  {
+    "id": 3301,
+    "sender": "whoizit",
+    "content": "@nivla360 Wappalyzer says it's Svelte JS framework",
+    "createdAt": "2021-09-29T23:10:09Z"
+  },
+  {
+    "id": 3302,
+    "sender": "nashihu",
+    "content": "k guys let's move on from non-flutter-web of @Oualitsen \n\njust focus on finding ideas how to implement SEO in flutter web",
+    "createdAt": "2021-09-29T23:56:59Z"
+  },
+  {
+    "id": 3303,
+    "sender": "Oualitsen",
+    "content": "@nivla360 the website is not written with flutter.\r\nLet me explain:\r\nThe link I shared is a kind of a landing page of a whole project.\r\nThat landing page is basically html 5. But the real work (booking and searching) was made in flutter.\r\nI have a database of doctors that I want to be indexed by Google but keep it under the flutter app. this feature is developed yet so I was wondering if my idea was good.\r\nSo yeah the link I shared is plain html5.",
+    "createdAt": "2021-09-30T12:57:08Z"
+  },
+  {
+    "id": 3304,
+    "sender": "matthewchung74",
+    "content": "just looking at this, there is mention of SEO, but nothing specific.\r\nhttps://medium.com/flutter/flutter-whats-next-on-the-web-e0454bff964",
+    "createdAt": "2021-10-01T18:54:40Z"
+  },
+  {
+    "id": 3305,
+    "sender": "KristianBalaj",
+    "content": "I hope a solution comes from the Flutter team shortly.\r\n\r\nI'm not sure if a hack like https://pub.dev/packages/seo_renderer is a proper solution since it could even hurt the SEO since it is a hack ¯\\_(ツ)_/¯\r\n\r\nLooking forward for official solutions.",
+    "createdAt": "2021-11-05T10:44:52Z"
+  },
+  {
+    "id": 3306,
+    "sender": "sawirricardo",
+    "content": "Any news on this?",
+    "createdAt": "2021-12-30T08:28:23Z"
+  },
+  {
+    "id": 3307,
+    "sender": "Obada2020",
+    "content": "I have e-commerce project and the client want app & website (same requirements exactly)\r\nbuild the web with flutter ??  [ save money and time to share same code ] \r\nor hire a programmer to made web with any other framework node.js || Vue.js\r\nplease help me to choice",
+    "createdAt": "2022-01-02T06:44:26Z"
+  },
+  {
+    "id": 3308,
+    "sender": "ark-tik",
+    "content": "@Obada2020 Hi, I've recently built website, android & ios app with flutter. So in my opinion use flutter to built android and ios app. For website don't use flutter you'll regret later on(as I'm). I'm also going to re-write a website using html-css-js so that it can load fast, have better seo, can integrate facebook messenger, can claim it on pinterest and the list goes on. For website flutter is far from an alternative as of now. And for android and ios apps it is the best thing to use right now.",
+    "createdAt": "2022-01-02T08:17:31Z"
+  },
+  {
+    "id": 3309,
+    "sender": "derolf",
+    "content": "@KartikShrivastava I recently tried Sveltejs in a project. It’s outstanding and also provides built-in SSR. Give it a try!",
+    "createdAt": "2022-01-02T08:31:58Z"
+  },
+  {
+    "id": 3310,
+    "sender": "esDotDev",
+    "content": "Ya, really no point in using Flutter for anything that wants to sell products and also be on the web. Once you have two code bases, the entire value proposition of Flutter goes out the window. \r\n\r\nSvelte + Typescript looks awesome, and bundle that into a native app with Capacitor or something (https://capacitorjs.com/).",
+    "createdAt": "2022-01-02T18:31:35Z"
+  },
+  {
+    "id": 3311,
+    "sender": "derolf",
+    "content": "@esDotDev there is also svelte native. Haven’t tried it yet, but looks good.",
+    "createdAt": "2022-01-02T18:37:38Z"
+  },
+  {
+    "id": 3312,
+    "sender": "davystrong",
+    "content": "Just to confirm (in case I'm missing something): Svelte js isn't actually relevant to Flutter SEO, right?",
+    "createdAt": "2022-01-02T19:06:38Z"
+  },
+  {
+    "id": 3313,
+    "sender": "esDotDev",
+    "content": "It's as relevant as bringing up Kotlin, C# or Swift when discussing dart features, imo. Just a competitor in the same space, that can be looked to for reference.\r\n\r\nAlso, for developers who find this issue, see that the official response is no response, they might want to know of some alternatives.",
+    "createdAt": "2022-01-02T19:12:08Z"
+  },
+  {
+    "id": 3314,
+    "sender": "davystrong",
+    "content": "Ok, makes sense. Just wanted to make sure as I couldn't see any way to use it with Flutter. But yes, if you're thinking of starting a project, it is an interesting option.",
+    "createdAt": "2022-01-02T19:15:52Z"
+  },
+  {
+    "id": 3315,
+    "sender": "federicofazzeri",
+    "content": "I'm really surprised with the performances of Svelte Native... probably not comparable to Flutter for complex projects but for the average app it's such a great choice considering that you can reuse 100% of the app code to deploy it on the web via the awesome SvelteKit..",
+    "createdAt": "2022-01-03T16:35:09Z"
+  },
+  {
+    "id": 3316,
+    "sender": "sawirricardo",
+    "content": "Can this widget help by the way? https://api.flutter.dev/flutter/widgets/Semantics-class.html",
+    "createdAt": "2022-01-04T01:05:52Z"
+  },
+  {
+    "id": 3317,
+    "sender": "CosmicPangolin",
+    "content": "@yjbanov \r\n@mariamhas \r\n@Hixie \r\n\r\nI know you guys downgraded this to P5 last year, and I know that it's been said that indexability is a lot of work but also on the long-term roadmap...has there been any further exploration internally?  It'd be cool to just have some transparency into whether this seems like a tractable problem at this point.",
+    "createdAt": "2022-01-05T21:04:15Z"
+  },
+  {
+    "id": 3318,
+    "sender": "Hixie",
+    "content": "We're really focused on the \"applications\" end of the web spectrum, rather than the \"document\" end, and on the \"application\" end there's not really much to index (since things are typically all behind login screens). So honestly we haven't thought a lot about this, no.\r\n\r\nI'd be curious about specific use cases you have for this. What kind of app have you found Flutter to be otherwise well suited for, where indexability in web search engines is important? Having some concrete examples (i.e. if you have links to actual deployed Flutter web apps) would be really useful in helping design a solution.",
+    "createdAt": "2022-01-06T23:37:21Z"
+  },
+  {
+    "id": 3319,
+    "sender": "rocboronat",
+    "content": "Hello @Hixie 👋 In my humble case, where I don't master any modern web technology, Flutter would be a perfect candidate for me to build my product landing website by myself, in case Flutter supported SEO as any regular web tecnologies did. I know a solution to my problem would be just hiring an actual web developer, but well, it's a bit out of budget 😥 If I could build our own landing page in Flutter, it would be aaawesome. Thanks for Flutter, by the way 😊",
+    "createdAt": "2022-01-07T00:03:22Z"
+  },
+  {
+    "id": 3320,
+    "sender": "davystrong",
+    "content": "For me it's simply that I love Flutter/Dart and haven't enjoyed any of the other web technologies I've found. Though I've only used Flutter mobile professionally and my main use Flutter Web is personal projects so it's probably not the most important use case 😅.",
+    "createdAt": "2022-01-07T00:21:53Z"
+  },
+  {
+    "id": 3321,
+    "sender": "CosmicPangolin",
+    "content": "@Hixie \r\n\r\nI didn't want to blast my dev website to this thread, so I sent you an email with some thoughts and a link.  Thanks for giving this your attention.",
+    "createdAt": "2022-01-07T01:21:44Z"
+  },
+  {
+    "id": 3322,
+    "sender": "sawirricardo",
+    "content": "@Hixie building an ecommerce app right now, we need indexability when user go to product page, where there are meta information needed for google bot.",
+    "createdAt": "2022-01-07T01:35:23Z"
+  },
+  {
+    "id": 3323,
+    "sender": "esDotDev",
+    "content": "> We're really focused on the \"applications\" end of the web spectrum, rather than the \"document\" end, and on the \"application\" end there's not really much to index (since things are typically all behind login screens). So honestly we haven't thought a lot about this, no.\r\n> \r\n> I'd be curious about specific use cases you have for this. What kind of app have you found Flutter to be otherwise well suited for, where indexability in web search engines is important? Having some concrete examples (i.e. if you have links to actual deployed Flutter web apps) would be really useful in helping design a solution.\r\n\r\nThis is a really thin distinction that falls away quickly under any deep analysis. When experienced developers hear this language, trying to create a line between \"apps\" and \"websites\", we really sit here scratching our head because we live in a world that is far more grey than this. This video is a great breakdown of why app developers consider this distinction extremely arbitrary and confusing: https://youtu.be/U-C9w5QSkjw?t=1975\r\n\r\nIf you search for example \"Rolling Stones\" on Google, you will find dozens of \"apps\" (or are they websites?), that deeplink into indexable pages. Whether it's a media site like youtube or spotify, social media like facebook or twitter, a merchandise store like amazon or ebay, walmart, maybe a chat forum of discussion and the list goes on.\r\n\r\nMost social media or e-commerce sites these days do not require everything to be behind login, what they do is expose their content, so it can freely be crawled, and then you can optionally login in order to further interact with the content.\r\n\r\nExamples of no auth-required, but still have indexable browsable content:\r\nhttps://www.youtube.com/therollingstones\r\nhttps://www.facebook.com/therollingstones\r\nhttps://www.ebay.ca/b/Original-Rolling-Stones-Memorabilia/29923/bn_7112673459\r\nhttp://rocksoff.org/cgi-bin/messageboard/YaBB.pl\r\nhttps://www.amazon.ca/rolling-stones/s?k=rolling+stones\r\nhttps://open.spotify.com/artist/22bE4uQ6baNwSHPVcDxLCe\r\nhttps://www.airbnb.ca/oahu-hi/stays\r\nhttps://www.westjet.com/en-ca/best-of-travel/hawaii\r\n\r\nYou can access all of these in incognito mode, all content is available. \r\n\r\nReally any serious app that actually has content to show the world, be it things to watch, read, or buy, absolutely needs SEO or Flutter is not a viable option business-wise.\r\n\r\n\r\n",
+    "createdAt": "2022-01-07T01:38:38Z"
+  },
+  {
+    "id": 3324,
+    "sender": "esDotDev",
+    "content": "It would be so much better messaging if the team was like \"_We take SEO very seriously and understand it is essential for the majority of products on web, but we are not tackling it until we have our fundamental rendering situation figured out._\"\r\n\r\nBut this stance of \"_We don't really see it as a use case for Flutter, because Flutter is for applications_\" is baffling, and also quite worrisome.",
+    "createdAt": "2022-01-07T01:41:20Z"
+  },
+  {
+    "id": 3325,
+    "sender": "meynety",
+    "content": "> I'd be curious about specific use cases you have for this. What kind of app have you found Flutter to be otherwise well suited for, where indexability in web search engines is important? Having some concrete examples (i.e. if you have links to actual deployed Flutter web apps) would be really useful in helping design a solution.\r\n\r\nHi @Hixie , thanks for your answer, as other mentionned above it's quite surprising tho, but here is my use case, It is a similiar situation to @rocboronat : small startup, no firepower to have specific tech for Web and high necessity of SEO. Web app would be a port of : https://play.google.com/store/apps/details?id=fr.autourdesparents.app (Sorry for the lack of English translation, should be self explanatory)",
+    "createdAt": "2022-01-07T06:34:49Z"
+  },
+  {
+    "id": 3326,
+    "sender": "derolf",
+    "content": "@Hixie https://github.com/flutter/flutter/issues/46789#issuecomment-843473790\r\n\r\ncoronaflash.com is built with Flutter and supports web indexing via a “hacky” DOM div overlay if it discovers a web crawler user agent. Plz read the linked comment for details.",
+    "createdAt": "2022-01-07T07:04:38Z"
+  },
+  {
+    "id": 3327,
+    "sender": "MorelSerge",
+    "content": "Same here, we are a startup without many resources which was the immediate incentive to go for Flutter.\r\nWe run a discovery platform for podcasts, so the need for SEO is very definite and is not linked to authentication walls in any way.\r\n\r\nVery happy with the app-side of things, very disappointed about the web. Both SEO and horrible Largest Contentful Paint (have a look at coronaflash.com and how long you see a white page before content shows up ...).",
+    "createdAt": "2022-01-07T13:29:37Z"
+  }
+]

@@ -1,0 +1,386 @@
+[
+  {
+    "id": 3712,
+    "sender": "aliakhtar",
+    "content": "What’s the point of going to all that trouble of filing detailed bugs if\nnothing is going to be done?\n\nOn Sun, 28 Feb 2021 at 3:07 AM, Ian Hickson <notifications@github.com>\nwrote:\n\n> @trixky <https://github.com/trixky> If you're running into a specific\n> case of shader warmup jank, please please file a bug with a little app\n> showing the transition or animation or scene that's having jank issues,\n> along with a short video and a timeline trace, so that we can debug that\n> jank.\n>\n> Have a look at #76180 <https://github.com/flutter/flutter/issues/76180>\n> or #76517 <https://github.com/flutter/flutter/issues/76517> for examples\n> of how to do it.\n>\n> —\n> You are receiving this because you were mentioned.\n> Reply to this email directly, view it on GitHub\n> <https://github.com/flutter/flutter/issues/32170#issuecomment-787194761>,\n> or unsubscribe\n> <https://github.com/notifications/unsubscribe-auth/ABIUCOAW7AX5W5OORQKD2P3TBFUJTANCNFSM4HLDC5TQ>\n> .\n>\n",
+    "createdAt": "2021-02-27T22:45:10Z"
+  },
+  {
+    "id": 3713,
+    "sender": "danReynolds",
+    "content": "> What’s the point of going to all that trouble of filing detailed bugs if\n> nothing is going to be done?\n> \n> On Sun, 28 Feb 2021 at 3:07 AM, Ian Hickson <notifications@github.com>\n> wrote:\n> \n> > @trixky <https://github.com/trixky> If you're running into a specific\n> > case of shader warmup jank, please please file a bug with a little app\n> > showing the transition or animation or scene that's having jank issues,\n> > along with a short video and a timeline trace, so that we can debug that\n> > jank.\n> >\n> > Have a look at #76180 <https://github.com/flutter/flutter/issues/76180>\n> > or #76517 <https://github.com/flutter/flutter/issues/76517> for examples\n> > of how to do it.\n> >\n> > —\n> > You are receiving this because you were mentioned.\n> > Reply to this email directly, view it on GitHub\n> > <https://github.com/flutter/flutter/issues/32170#issuecomment-787194761>,\n> > or unsubscribe\n> > <https://github.com/notifications/unsubscribe-auth/ABIUCOAW7AX5W5OORQKD2P3TBFUJTANCNFSM4HLDC5TQ>\n> > .\n> >\n> \n\nThey're working on it, and with the heightened awareness these issues brought probably more than ever. We can't expect a complex issue like this to be resolved in a week. Looking forward to seeing solutions in the coming months.",
+    "createdAt": "2021-02-27T22:48:21Z"
+  },
+  {
+    "id": 3714,
+    "sender": "theniceboy",
+    "content": "After reading threads and threads of conversation regarding this jank issue, there's just one question that has been bothering me that I hope someone from the flutter team can answer:\n\nEven a simple `navigator.push` would cause significant jank on metal, why would the team be asking for all these \"specific examples?\" It seemed to me that literally anyone flutter team (or not) can just go ahead and create any animation, or just use any existing widget that has an animation, and they will have a reproducible jank issue for metal. Why does it seem like the flutter team is just depending on the crowd to provide the examples?\n\nThanks\n\ncc @Hixie ",
+    "createdAt": "2021-02-28T03:24:35Z"
+  },
+  {
+    "id": 3715,
+    "sender": "Hixie",
+    "content": "There's several reasons.\r\n\r\nOne is that if we optimize for artificial cases we come up with, then we might convince ourselves we've solved the problem when in fact real cases aren't solved at all. (For example, until I saw https://github.com/flutter/flutter/issues/76180 I was pretty sure that https://github.com/flutter/flutter/issues/74630 was going to be a silver bullet that solves these kinds of problems, but once I saw that real-world use case, I saw that actually in some cases we are compiling shaders in multiple frames in a row and that needs a whole different kind of solution.)\r\n\r\nA second is that there are many sources of jank. We know about some, but we might not know about _yours_. (And you may think that yours is the same cause as others, but there's no guarantee that it is.) For example, maybe one person is seeing shader compilation jank, while someone else is seeing some bug with garbage collection, and someone else is seeing some bug with a widget that has a particularly expensive build method.\r\n\r\nA third is that aside from addressing actual jank issues, we also want to create tools to debug jank issues, and to do _that_ we have to see what our tools do with real cases today. As with the first point above, it's easy for us to think we've made our tools easy to use only to find that in reality they are useless except in the most contrived cases, because we just weren't testing with real cases.\r\n\r\nIt's not the case that literally _any_ animation on metal causes jank (for example, as others have pointed out, there are Flutter apps on the iOS store today that are quite smooth). It's not the case that only metal has jank (for example, the bug I cited above shows jank on Android). It's easy to believe, if you've tried a few different animations on iOS and they've all been janky, that the problem must be that all animations on iOS are janky, but the reality is much more subtle.\r\n\r\nI hope this explains why I keep asking for examples.",
+    "createdAt": "2021-02-28T04:08:57Z"
+  },
+  {
+    "id": 3716,
+    "sender": "theniceboy",
+    "content": "Thanks for the explanation, @Hixie!",
+    "createdAt": "2021-02-28T04:43:26Z"
+  },
+  {
+    "id": 3717,
+    "sender": "istornz",
+    "content": "The Reflectly app has a lot of animations but seems to be very smooth even on iOS￼. Maybe it can be helpful to contact them?\n\nThanks for your work Flutter team 🥰",
+    "createdAt": "2021-02-28T09:03:31Z"
+  },
+  {
+    "id": 3718,
+    "sender": "trixky",
+    "content": "I will be honest, since the beginning of the course any basic animation or even a simple change of page is always jank the first time, on my samsung a10. I tried the flutter gallery on ios with my father's iphone 6 or 8 (and my android) and it's the same at the first launch ...\r\n\r\nyour animation capture solution and others don't interest me because either it only works for android and old ios devices, and I don't want to test all devices, and anyway for android there are too many (even if doing it on one help another).\r\n\r\nFlutter is a cross-platform tool, so I'm looking for a generic solution, the goal is to save time. If I would have time to tweak the flutter graphics engine to regress it on opengl, that I had time to capture all the animations on all devices, I might as well learn kotlin and swift ...\r\n\r\nfor me the generic solution would be quite simply:\r\n- detect when there is no more animation cache\r\n- allow a loading screen with a place to play all our animations out of sight, like a video game...\r\n\r\nIt seems to me a simple solution to implement, which has proven itself in any application which uses scenes in a graphics engine such as video games ... why not do the same? This will solve all the problems on any device rather than solving endless specific problems.\r\n\r\nno one is going to die waiting between one and ten seconds at the first launch with little informative messages or a nice logo.\r\n\r\nthat is why I am really interested in @masterlonghorn and @danReynolds's solution with [this](https://pub.dev/packages/warmup_routine) / [this](https://github.com/danReynolds/warmup_routine/blob/master/example.dart), which seems to me to be the most logical thing to do.\r\n\r\nIf someone can do a basic example with a main and a single animation (it doesn't matter which one) which is added behind a loading screen, it would be great because I am new to flutter and I have trouble integrating the example of the link previous.\r\n\r\nthank you very much to the whole team <3",
+    "createdAt": "2021-02-28T09:36:12Z"
+  },
+  {
+    "id": 3719,
+    "sender": "qs-wang",
+    "content": "Hi There,\r\nI am planning to start a new project in 1-2 weeks with Flutter. My fist mobile project with Flutter was really impressed.  I would want to have your comments about if I should use this version of Flutter still for the new project, or may I use the older version, or do we have any work around suggestions?\r\n\r\nI'll try to create a new project for studying this issue next week, but if you guys can provide some suggestion it will be great! This is a very important project which I don't want to take too much risks. \r\n\r\nThanks!",
+    "createdAt": "2021-02-28T09:42:03Z"
+  },
+  {
+    "id": 3720,
+    "sender": "masterlonghorn",
+    "content": "@Hixie I think there is still disconnect from what people are saying. Leave complex animations, garbage collection, expensive builds aside. Even when you create a new project, there is jank in default transitions like navigator push, bottomsheet. If others have experienced the same, they can confirm. Try out your own [navigation tutorial](https://flutter.dev/docs/cookbook/navigation/navigation-basics).\r\n\r\nIn GPay and some other apps, the scrollview also seems janky first time. Not sure if that is because of expensive build or the issue in discussion. As people have mentioned, some apps seem to be running animations smoothly. NuBank, Reflectly, Insight Timer (scrollview janks in this one). Maybe you guys can talk to them and put out a guide on how to deal with first run jank issues temporarily until there is a longterm framework solution. (Maybe that will stop haters from dunking on Flutter and ruining its reputation. There is already lots of negativity because of this issue.)\r\n\r\n@trixky You have already seen @danReynolds solution to warmup animations package which needs multiple runs. We have decided to use minimal animations in our project so not running any complex animations, just dont want the default transitions to jank. To counter navigator push jank, I have a warmup navigator on first run behind the main navigator (code below).\r\n\r\nJust experienced today that it works if the push on main navigator comes from gestureDetector onTap but not from floatingActionButton onPressed. So very quirky and unreliable. See if it works for you. This smooths out the navigator push and pop on tap but the swipe back gesture still lags a bit first time. We were also able to smooth out basic slide and rotation transitions by putting them in stack behind the visible layer and calling `.forward` from a timer 300ms after init. This does not need a fake splash screen, the user will anyway take a few seconds to tap something.\r\n\r\n`Stack(\r\n          children: [\r\n            _firstRun == true\r\n                ? Builder(\r\n                    builder: (context) {\r\n                      _firstRun = false;\r\n                      WidgetsBinding.instance.addPostFrameCallback((_) {\r\n                        NWarmup.of(context).addPage();\r\n                        Timer(Duration(milliseconds: 500), () {\r\n                          NWarmup.of(context).removePage();\r\n                        });\r\n                      });\r\n                      return Consumer<NWarmup>(\r\n                        builder: (context, value, child) {\r\n                          return Navigator(\r\n                            key: value.navigatorKey,\r\n                            pages: value.pageStack,\r\n                            onPopPage: (route, result) {\r\n                              return route.didPop(result);\r\n                            },\r\n                          );\r\n                        },\r\n                      );\r\n                    },\r\n                  )\r\n                : SizedBox(),\r\n            // Main navigator\r\n          ],\r\n        )`",
+    "createdAt": "2021-02-28T16:11:26Z"
+  },
+  {
+    "id": 3721,
+    "sender": "mu-projects",
+    "content": "> There's several reasons.\r\n> \r\n> One is that if we optimize for artificial cases we come up with, then we might convince ourselves we've solved the problem when in fact real cases aren't solved at all. (For example, until I saw #76180 I was pretty sure that #74630 was going to be a silver bullet that solves these kinds of problems, but once I saw that real-world use case, I saw that actually in some cases we are compiling shaders in multiple frames in a row and that needs a whole different kind of solution.)\r\n> \r\n> A second is that there are many sources of jank. We know about some, but we might not know about _yours_. (And you may think that yours is the same cause as others, but there's no guarantee that it is.) For example, maybe one person is seeing shader compilation jank, while someone else is seeing some bug with garbage collection, and someone else is seeing some bug with a widget that has a particularly expensive build method.\r\n> \r\n> A third is that aside from addressing actual jank issues, we also want to create tools to debug jank issues, and to do _that_ we have to see what our tools do with real cases today. As with the first point above, it's easy for us to think we've made our tools easy to use only to find that in reality they are useless except in the most contrived cases, because we just weren't testing with real cases.\r\n> \r\n> It's not the case that literally _any_ animation on metal causes jank (for example, as others have pointed out, there are Flutter apps on the iOS store today that are quite smooth). It's not the case that only metal has jank (for example, the bug I cited above shows jank on Android). It's easy to believe, if you've tried a few different animations on iOS and they've all been janky, that the problem must be that all animations on iOS are janky, but the reality is much more subtle.\r\n> \r\n> I hope this explains why I keep asking for examples.\r\n\r\n@Hixie If the animations work properly after warmup, this is not related to metal?",
+    "createdAt": "2021-02-28T20:19:29Z"
+  },
+  {
+    "id": 3722,
+    "sender": "Hixie",
+    "content": "@masterlonghorn:\r\n> Even when you create a new project, there is jank in default transitions like navigator push, bottomsheet. If others have experienced the same, they can confirm. Try out your own [navigation tutorial](https://flutter.dev/docs/cookbook/navigation/navigation-basics).\r\n\r\nYes. (Incidentally, if someone would like something easy to do to help here, file a bug on the basic navigation case with a video and a timeline trace. It would be great to have a bug to track that case too.)\r\n\r\n> In GPay and some other apps, the scrollview also seems janky first time.\r\n\r\nWe have been working closely with the GPay team and it turns out their causes of jank spanned a wide gamut of issues. Hopefully an updated version with some improvements will be released soon. GPay's experience is a great example of how \"jank\" is not one issue (unfortunately since they're closed source we can't really share details).\r\n\r\n@wfinf:\r\n> If the animations work properly after warmup, this is not related to metal?\r\n\r\nIf you have an animation that works smoothly on all platforms except iOS, and that on iOS works smoothly after one or two runs, then there's a good chance that metal shader compilation is involved. (Not a guarantee, but likely.)\r\n\r\n----\r\n\r\nI feel like a broken record here. I understand that it's frustrating to see jank in one's app and it's tempting to think that jank is a bug with a single cause and therefore the Flutter team should just \"fix the jank bug\". If I could make an analogy though, it's a bit like a bug where the application throws an exception. I hope you all understand that it would be pointless to talk about \"the exception bug\"; that hoping for \"a fix to exceptions\" would be unreasonable. Imagine there was an exception thrown in some basic Flutter tutorial, and that when you experienced an exception in your application you just commented on that one bug saying \"I don't understand why the Flutter team doesn't just fix the exception bug, it's obvious even in their tutorials\". \"Why does Hixie keep asking for people to file bugs for their exceptions, can't they just fix exceptions.\" \"They should have a roadmap to when they will fix their exception problem.\"\r\n\r\nThis is essentially what is happening with \"the jank bug\". There's many causes. One prominent cause is that some shaders take a long time to compile (but that's really many bugs, one for each expensive shader). Another prominent cause is that we have over-specialized some shaders so that we're compiling more shaders than we really need to (but that's really many many bugs, one for each set of over-specialized shader). Another prominent cause is that shader compilation in general is slow on some platforms (but that's really a separate bug per platform). In addition to fixing those problems (each of which can only be fixed if someone files a bug for the specific shader and/or platform affected in their specific case), there are some workarounds we can work on to provide a better experience, tools we can work on to help diagnose these issues, and so on.\r\n\r\n----\r\n\r\nOn another note, it feels like there's a pent-up demand here for a space where people using Flutter can discuss things like this. I had previously hoped that Reddit, Twitter, Stack Overflow, and our Discord could handle this, but maybe a more Flutter-dedicated web-based forum (like GitHub communities) would help. I'll look into this more in the coming weeks (it's tricky because any forum we run will cost us time in moderation, and that time has to come from somewhere, like fixing bugs).",
+    "createdAt": "2021-02-28T20:40:51Z"
+  },
+  {
+    "id": 3723,
+    "sender": "Hixie",
+    "content": "@erf Actually if you have examples where you are creating the exact same animation with both a native SDK and Flutter and you see a performance difference we'd be very interested in seeing that. Having the exact same animation implemented both ways would let us study what is happening in the other SDK. We've tried to do that ourselves for some animations but in some cases we were surprised to see that actually the native SDK also janked, and in some other cases we were unable to actually recreate the animation, and in other cases it seemed that the other SDK was doing what we're considering in #74630. (I'd rather not publicly shame another SDK so I don't want to really talk about that in detail in public but for what it's worth if you're on our Discord there's a recent discussion of one example of this on #hackers-performance from FunkyMonkey.)",
+    "createdAt": "2021-02-28T21:36:06Z"
+  },
+  {
+    "id": 3724,
+    "sender": "MiguelSOliveira",
+    "content": "Hi @Hixie, I think I've done as you requested and opened the following issue which I believe is another occurence of this particular shader problem:\r\nhttps://github.com/flutter/flutter/issues/76957\r\n\r\nWasn't sure on the best way to get your attention, so if this is off topic for this issue, my apologies.",
+    "createdAt": "2021-02-28T21:49:26Z"
+  },
+  {
+    "id": 3725,
+    "sender": "erf",
+    "content": "@Hixie i will do that. I removed my previous comment as i felt it did not help much and and i understand you work really hard to solve this issue and i don't want to sound to critical. Hope to see these issues solved.\r\n\r\nEDIT: but my problem is always yank on the first time navigating to a new page, something i've never experienced on native apps i've worked on.",
+    "createdAt": "2021-02-28T21:57:54Z"
+  },
+  {
+    "id": 3726,
+    "sender": "DavideDessi319",
+    "content": "Is there any way that running app integration/automation tests could solve this?\r\nSorry if the question is not well phrased, it's just out of curiosity. If an automation test could cache the shaders in some way, we as developers will \"just\" need to integrate the tests and the problem could be fixed at least short-term.\r\n\r\nI'm relatively new to Flutter but I'm actively trying to find a way to fix this problem that is impacting my app very badly",
+    "createdAt": "2021-02-28T22:11:03Z"
+  },
+  {
+    "id": 3727,
+    "sender": "Hixie",
+    "content": "@evetechsolutions That can help in some cases but has proved somewhat less than ideally effective on Metal. See https://flutter.dev/docs/perf/rendering/shader (which I'm updating in https://github.com/flutter/website/pull/5351).",
+    "createdAt": "2021-02-28T22:29:22Z"
+  },
+  {
+    "id": 3728,
+    "sender": "DavideDessi319",
+    "content": "@Hixie Thank you for the quick response and the clarification. I'm now trying to implement a logic that runs the animations while the app displays a loading screen. It might not be optimal but it's the only way I found that won't introduce regressions.\r\n\r\nI really hope this problem will be fixed soon, even a short-term solution from the Flutter team like a Widget to run the animations in the background could be really helpful. At least we can have something to make the user experience a bit better while the team works on a long-term solution\r\n",
+    "createdAt": "2021-02-28T23:13:36Z"
+  },
+  {
+    "id": 3729,
+    "sender": "jamesdixon",
+    "content": "If I'm reading correctly, this issue only started when switching from OpenGL to Metal. Can we opt in to using OpenGL instead of Metal? or were there significant issues with using OpenGL that would make that a bad idea?\r\n\r\nApologies if this is a stupid suggestion :)",
+    "createdAt": "2021-03-01T01:42:46Z"
+  },
+  {
+    "id": 3730,
+    "sender": "DavideDessi319",
+    "content": "@jamesdixon This is one of the most suggested options but apparently doing this introduces other problems like OOM and freezing of the app 😕 I didn’t try it myself as I’m close to my due date for the app, but I’ll try for sure once I release and let you know. ",
+    "createdAt": "2021-03-01T07:29:03Z"
+  },
+  {
+    "id": 3731,
+    "sender": "DavideDessi319",
+    "content": "Update: Warming up the animations with a loading screen before displaying the app works great, as expected. I've used the warmup routine package (https://pub.dev/packages/warmup_routine) by @danReynolds (thank you so much Dan) with some little tweaks for my case specifically and it only takes a few seconds from the user's time. It requires a bit of experience with callback functions and programmatically start an animation, but it's worth it in my opinion and it's a valid short term solution.\r\n\r\nIf you're an experienced Flutter developer and you want to help solving this issue short term, I highly recommend helping on making this package work with more types of animations and examples and request a PR with your improvements. I'll do it for sure once I test everything on my end.",
+    "createdAt": "2021-03-01T11:14:52Z"
+  },
+  {
+    "id": 3732,
+    "sender": "jamesdixon",
+    "content": "@evetechsolutions thanks! I figured there was a good reason to move to Metal but just wanted to be sure it wasn't one of those things where the move was made for performance reasons that weren't actually perceived by the user.\r\n\r\nAlso, thanks for the update using @danReynolds package! Nice work, Dan!",
+    "createdAt": "2021-03-01T14:49:47Z"
+  },
+  {
+    "id": 3733,
+    "sender": "ljmatan",
+    "content": "@evetechsolutions \"[When real users have a slow experience on mobile, they're much less likely to find what they are looking for or purchase from you in the future....more than half of visits are abandoned if a mobile page takes over 3 seconds to load. ](https://developers.google.com/web/updates/2018/07/search-ads-speed) \"\r\n\r\nGranted, we're not talking about mobile sites here, but we're also not talking about **only** taking a few seconds of user's time. ",
+    "createdAt": "2021-03-01T18:42:03Z"
+  },
+  {
+    "id": 3734,
+    "sender": "DavideDessi319",
+    "content": "@ljmatan I agree with you and this is not optimal at all long term, but it’s for sure better than nothing, at least better than 1 star reviews for “slow and janky app”. I’ve calculated that in my personal case I’ll have to start 2 types of animations 3 times each and each taking 600ms to complete. So in total it will take ~3.5 or so seconds perform and store the animations, and this is only when the app is launched and not resumed. But of course, this is just a way to save an app from bad user experience waiting for the REAL solution, which hopefully will come soon because this is probably the most important thing to solve. ",
+    "createdAt": "2021-03-01T19:28:10Z"
+  },
+  {
+    "id": 3735,
+    "sender": "derolf",
+    "content": "P1!!!! or even P0!!!",
+    "createdAt": "2021-03-04T12:40:09Z"
+  },
+  {
+    "id": 3736,
+    "sender": "Hixie",
+    "content": "Quick update on this bug: I was going to close it as per my earlier comment (https://github.com/flutter/flutter/issues/32170#issuecomment-785649018) but actually in chasing down more information to update the FAQ (see https://github.com/flutter/website/pull/5351) I discovered that there is still an effort in Skia land to bring shader warm-up to metal (https://bugs.chromium.org/p/skia/issues/detail?id=11392). It's highly speculative and it's quite possible it will not actually bear fruit but since there is still work ongoing here I will leave this open for now. FWIW even if this does bear fruit we would not consider this a long-term solution to [our early-onset jank issues](https://github.com/flutter/flutter/projects/188) since it requires so much involvement of the developer and since it is essentially impossible to precisely predict what shaders will be necessary.\r\n\r\n@derolf Please [see our wiki](https://github.com/flutter/flutter/wiki/Issue-hygiene#priorities) for the meaning of our priority levels. Actually since customer:dream was looking for an OpenGL solution and that exists now, this should technically be P3 not P2. (P3, as described on the aforementioned wiki page, is the highest priority we assign bugs that aren't either causing a tree closure or blocking a [top-tier customer](https://github.com/flutter/flutter/wiki/Issue-hygiene#customers). To put it in context, including this one there are only 9 P0, P1 and P2 bugs total right now once you exclude those in the [infra ticket queue](https://github.com/flutter/flutter/wiki/Infra-Ticket-Queue).)",
+    "createdAt": "2021-03-04T21:03:03Z"
+  },
+  {
+    "id": 3737,
+    "sender": "MiguelSOliveira",
+    "content": "Sorry, but I'm confused by this answer.. Can you clarify?\r\n\r\nYou say that there are efforts in Skia land to bring shader warm up to metal, but even if that's the case we won't consider that a long term solution... so what IS the long term solution? Are we still looking for it, is this still a priority or now we're waiting for skia?\r\n\r\nAlso:\r\n`Actually since customer:dream was looking for an OpenGL solution and that exists now, this should technically be P3 not P2.` \r\n- You mean by this, that they're not using metal at all? Doesn't that bring other problems?\r\n\r\nI mean no disrespect but I don't actually understand the update you're trying to convey with that post.\r\n\r\nThis keeps jumping from priority to priority.. makes it really hard to understand what is going on with this issue..",
+    "createdAt": "2021-03-04T21:13:52Z"
+  },
+  {
+    "id": 3738,
+    "sender": "ljmatan",
+    "content": "@MiguelSOliveira  I think the update is very well summed with fix for this issue being referred to as highly speculative. ",
+    "createdAt": "2021-03-04T21:26:17Z"
+  },
+  {
+    "id": 3739,
+    "sender": "Hixie",
+    "content": "> so what IS the long term solution? Are we still looking for it, is this still a priority or now we're waiting for skia?\r\n\r\nWe are still looking for other solutions, if you look at https://github.com/flutter/flutter/projects/188 you will see the various bugs related to this topic. I update this project each day based on what is currently happening; as new ideas for long-term solutions are considered they get added to that project.\r\n\r\n\r\n> `Actually since customer:dream was looking for an OpenGL solution and that exists now, this should technically be P3 not P2.`\r\n> \r\n> * You mean by this, that they're not using metal at all? Doesn't that bring other problems?\r\n\r\nThat particular customer is not developing for iOS at all, so Metal isn't an issue for them. All the platforms they are targeting use OpenGL and the warmup feature that they desired now exists sufficient for their needs.\r\n\r\n\r\n> This keeps jumping from priority to priority.. makes it really hard to understand what is going on with this issue..\r\n\r\nThis issue is about providing a shader warm-up feature. If that is what you are interested in (e.g. because you know that shader warm-up would resolve your app's issues because your app has a very specific set of required shaders), then this is the bug to follow.\r\n\r\nIf you are interested in resolving early-onset jank for your application specifically and do not have strong evidence that leads you to believe that shader warm-up is the solution to your specific issues, then the next step for you is to file a bug showing the specific jank that you are experiencing, similar to bugs like https://github.com/flutter/flutter/issues/76180 or https://github.com/flutter/flutter/issues/76517. The key is providing clear steps to reproduce the specific jank you are seeing so that we can debug your specific issue. Each set of jank that we have examined so far has had slightly different causes and may result in slightly different fixes. (Much like \"my app has exceptions\", jank is a multifaceted issue with many causes and many solutions, there's no silver bullet that solves all jank issues.)\r\n\r\nWe are treating these early on-set jank issues as a high priority (P3, according to the priority scheme described [on our wiki](https://github.com/flutter/flutter/wiki/Issue-hygiene#priorities), which is the highest level any bug can normally be barring some unusual circumstances which don't apply here).",
+    "createdAt": "2021-03-05T00:23:55Z"
+  },
+  {
+    "id": 3740,
+    "sender": "MiguelSOliveira",
+    "content": "I did open an issue https://github.com/flutter/flutter/issues/76957, and you said there we were waiting for skia to provide a way for us to find out what shaders we're building, which is why i had doubts on the post above regarding skia.\r\n\r\nI think I understand now, thank you for clarifying @Hixie .",
+    "createdAt": "2021-03-05T00:28:51Z"
+  },
+  {
+    "id": 3741,
+    "sender": "Hixie",
+    "content": "> I did open an issue #76957\r\n\r\nAh excellent! Thanks! Sorry I didn't notice that was you. :-) I would recommend following that bug if you want to stay up to date with what we're doing for your specific case.",
+    "createdAt": "2021-03-05T00:39:36Z"
+  },
+  {
+    "id": 3742,
+    "sender": "esDotDev",
+    "content": "Certainly landing the various diagnostics tickets, like logging shader compilation etc, will help us help you. \r\n\r\nWhen you say things like \" _do not have strong evidence that leads you to believe that shader warm-up is the solution to your specific issues,_\" I feel a bit in the dark about how any of the rendering in the engine works, or how I would get such evidence one way or another. And it's not really a corner of the SDK I'm keen to peer into tbh... \r\n\r\nThat sort of requirement probably cuts off 99% of developers right now. We're all kinda in the dark right now about what flutter does under the hood. \r\n\r\nAnytime I've tried to use the \"flame chart\" I can't really make heads or tails of it, and I am quite used to using Profilers, having spent about 5yrs in Unity digging into their hierarchies and flame charts,  but the web interface is quite hard to use and finnicky. ",
+    "createdAt": "2021-03-05T01:28:30Z"
+  },
+  {
+    "id": 3743,
+    "sender": "Hixie",
+    "content": "@esDotDev Right, generally I would assume this wouldn't help you. Some people have specific needs for which they know this is the solution, and for them this bug would be relevant, but for most people this won't solve their issues and the other things being looked at in https://github.com/flutter/flutter/projects/188 are a better guide (especially any bugs they file specifically about jank they are seeing).\r\n\r\n> Anytime I've tried to use the \"flame chart\" I can't really make heads or tails of it\r\n\r\nSorry to hear that. Might be good to have a boring show episode about how to use it, or some such. Can you file a bug? The more details you can include about the questions you have, the more helpful we can make the documentation!",
+    "createdAt": "2021-03-05T18:54:47Z"
+  },
+  {
+    "id": 3744,
+    "sender": "esDotDev",
+    "content": "Sounds good! I'll try and log a bug with something a little more useful than \"hard to use and finnicky\" :) \r\n\r\nYa a lot of those diagnostic tasks look great, they'll help unleash the army of less technical Flutter devs to really start creating good test cases. \r\n\r\nConcretely, a simple counter we can enable that shows dropped frame count, and shader compile count, would be very helpful. With that, I would absolutely go to town writing use cases for you guys :D \r\n\r\nAlso, it would be pretty helpful if we could enable ios-like behavior on desktop ( if it's not already ), so we can drill down on shader compilations easily without needing to be on an actual device. Not sure if this is feasible or not, but it would be nice.",
+    "createdAt": "2021-03-05T19:13:28Z"
+  },
+  {
+    "id": 3745,
+    "sender": "Hixie",
+    "content": "Please do file bugs for such feature requests. You can add them to project 188 under \"Introspection\". Note that we already have missed frames using the performance overlay. Regarding testing on anything but the target device, I would strongly recommend against it; even changing a tiny thing can radically change performance characteristics, and there's no way that going from a phone to a full-on desktop computer will ever just be a tiny thing however hard we try.\r\n\r\n(btw, https://www.youtube.com/watch?v=SQcmrl_NkqY might be helpful in learning about the flame charts)",
+    "createdAt": "2021-03-05T19:41:06Z"
+  },
+  {
+    "id": 3746,
+    "sender": "esDotDev",
+    "content": "I guess I was mainly thinking of use cases like you described in the Q&A that would be pretty much universal, like rebuilding a shader when changing the corners of a BoxDecoration. If those are non cached on desktop, we'd be able to spot them all much quicker, vs them happening once and then hiding (not sure if that's how it works on Windows, just an example).  \r\n\r\nIt's not that we would expect to catch iOS specific bugs on desktop, but there may be a large class of global optimizations that we could more easily spot. ",
+    "createdAt": "2021-03-05T20:02:42Z"
+  },
+  {
+    "id": 3747,
+    "sender": "Hixie",
+    "content": "Running on a device shouldn't really be any harder than running on desktop (in many ways its easier since you can't do multitouch on most desktops, but you may need to to reproduce some of the jank issues), and as mentioned above the performance characteristics are radically different between e.g. a GeForce 3080 with an x64 CPU and an A11 and its GPU, not to mention a raft of additional reasons like memory bandwidth differences, power management differences, etc. That said, if you have a concrete suggestion please file a separate bug since we're way off-topic here.",
+    "createdAt": "2021-03-05T20:11:09Z"
+  },
+  {
+    "id": 3748,
+    "sender": "hypnotic",
+    "content": "Just a suggestion on resolving this issue. Since it is somehow easy to just turn off Metal and enable Open GL, why not implement some parameter to the CLI build and run commands to select which engine to use? This might be an easier fix and still be able to experiment with Metal.",
+    "createdAt": "2021-03-07T00:51:59Z"
+  },
+  {
+    "id": 3749,
+    "sender": "acoutts",
+    "content": "OpenGL is not stable and I don’t suggest anyone uses it. I experienced a lot of OOM crashes during my own testing. They would be random but frequent. ",
+    "createdAt": "2021-03-07T01:05:02Z"
+  },
+  {
+    "id": 3750,
+    "sender": "miguelpruivo",
+    "content": "@acoutts unfortunately Metal performance is quite sluggish when the animations run for the first time (or when app comes from background for example) whereas with OpenGL it runs a lot smoother, even without caching shaders — however, I’ve experienced some random crashes with it, just as you pointed out and reverted to Metal.\r\n\r\nI don’t bother caching the shaders if this is needed to improve performance, but seems that this is a no-op with Metal.\r\n\r\nI know that this could be quite challenging to fix, but I’d say that it should definitely be prioritised over other issues.",
+    "createdAt": "2021-03-07T01:40:07Z"
+  },
+  {
+    "id": 3751,
+    "sender": "Hixie",
+    "content": "@miguelpruivo This bug is P3 which means it is prioritised over other issues (there's only 11 higher priority bugs out of 8462 open issues, and those are things like \"we regressed performance on benchmark X\").",
+    "createdAt": "2021-03-08T22:02:14Z"
+  },
+  {
+    "id": 3752,
+    "sender": "derolf",
+    "content": "We have a goldens pipeline. I am thinking about recording draws to a canvas while running them.\r\n\r\nIs there a list of kinds of draw calls that I should record, i.e. that cover shader compilation?",
+    "createdAt": "2021-03-14T19:35:05Z"
+  },
+  {
+    "id": 3753,
+    "sender": "LockedThread",
+    "content": "Don't you guys think that this should be very high priority? Like come on now; I get it, this is an Open Source project and you don't owe anything to it's users, but at least recognize that this is impairing people from successfully running their apps. I believe that Flutter should stop advertising \"native performance\" as this is obviously not that.",
+    "createdAt": "2021-03-19T02:18:07Z"
+  },
+  {
+    "id": 3754,
+    "sender": "Hixie",
+    "content": "@LockedThread I refer you to the comment two above yours. And to our wiki which describes issue priorities on this project: https://github.com/flutter/flutter/wiki/Issue-hygiene#priorities",
+    "createdAt": "2021-03-19T04:51:47Z"
+  },
+  {
+    "id": 3755,
+    "sender": "istornz",
+    "content": "Hi @Hixie, \"_The P0 label indicates a critically dire issue such as a build break, **regression**, or failure in existing features that keeps us from shipping the current build._\"\n\nThe Jank issue was not existing before metal transition, so it's a regression ?\nThanks for your support 🥰\nThanks to Flutter Team 🥰",
+    "createdAt": "2021-03-19T06:50:03Z"
+  },
+  {
+    "id": 3756,
+    "sender": "FelixMittermeier",
+    "content": "> Hi @Hixie, \"_The P0 label indicates a critically dire issue such as a build break, **regression**, or failure in existing features that keeps us from shipping the current build._\"\r\n> \r\n> The Jank issue was not existing before metal transition, so it's a regression ?\r\n> Thanks for your support 🥰\r\n> Thanks to Flutter Team 🥰\r\n\r\nYou already found the definition and the important part: \"that keeps us from shipping the current build\". It may be a regression but this does not break the build. So as the definition says only \"build errors\" can be tagged with P0, which would prevent you to compile your app at all.",
+    "createdAt": "2021-03-19T07:01:33Z"
+  },
+  {
+    "id": 3757,
+    "sender": "ghost",
+    "content": "> > Hi @Hixie, \"_The P0 label indicates a critically dire issue such as a build break, **regression**, or failure in existing features that keeps us from shipping the current build._\"\r\n> > The Jank issue was not existing before metal transition, so it's a regression ?\r\n> > Thanks for your support 🥰\r\n> > Thanks to Flutter Team 🥰\r\n> \r\n> You already found the definition and the important part: \"that keeps us from shipping the current build\". It may be a regression but this does not break the build. So as the definition says only \"build errors\" can be tagged with P0, which would prevent you to compile your app at all.\r\n\r\nOk thanks for the explanation 👍",
+    "createdAt": "2021-03-19T08:23:07Z"
+  },
+  {
+    "id": 3758,
+    "sender": "ldasilva-net",
+    "content": "I don't know why the \"P\" tag is a recurring discussion as if the developers weren't paying attention to these problems. I think it is not an important thing.\nWhat I really would like to see is more details about the progress of the different approaches that the Flutter team is working on to solve or mitigate the first-run jank.",
+    "createdAt": "2021-03-19T13:40:23Z"
+  },
+  {
+    "id": 3759,
+    "sender": "Hixie",
+    "content": "Sorry I've been so busy collecting status for our leadership team that I totally flaked on providing status in the issues!\r\n\r\nLatest status for Metal shader warmup is that Brian from Skia has implemented precompilation for Metal in Skia. The next step is for us to integrate this API into Flutter. After that, we will probably need to work on making the precompile asynchronous otherwise y'all are going to be rather upset by how long Flutter apps take to start up when using shader precompilation.\r\n\r\nSo, not deployed yet, but work is progressing.",
+    "createdAt": "2021-03-19T22:15:17Z"
+  },
+  {
+    "id": 3760,
+    "sender": "DavideDessi319",
+    "content": "@Hixie This is a great news! Thank you very much for the update Ian 😊",
+    "createdAt": "2021-03-19T22:32:08Z"
+  },
+  {
+    "id": 3761,
+    "sender": "dsrenesanse",
+    "content": "> Sorry I've been so busy collecting status for our leadership team that I totally flaked on providing status in the issues!\n> \n> \n> \n> Latest status for Metal shader warmup is that Brian from Skia has implemented precompilation for Metal in Skia. The next step is for us to integrate this API into Flutter. After that, we will probably need to work on making the precompile asynchronous otherwise y'all are going to be rather upset by how long Flutter apps take to start up when using shader precompilation.\n> \n> \n> \n> So, not deployed yet, but work is progressing.\n\n@Hixie Great news! You are the best! And huge thanks to Brian. You all guys doing amazing stuff.",
+    "createdAt": "2021-03-19T23:19:45Z"
+  },
+  {
+    "id": 3762,
+    "sender": "alectogeek",
+    "content": "> Sorry I've been so busy collecting status for our leadership team that I totally flaked on providing status in the issues!\n> \n> \n> \n> Latest status for Metal shader warmup is that Brian from Skia has implemented precompilation for Metal in Skia. The next step is for us to integrate this API into Flutter. After that, we will probably need to work on making the precompile asynchronous otherwise y'all are going to be rather upset by how long Flutter apps take to start up when using shader precompilation.\n> \n> \n> \n> So, not deployed yet, but work is progressing.\n\nThat is great! What is approximate amount of time required to implement that?",
+    "createdAt": "2021-03-19T23:34:42Z"
+  },
+  {
+    "id": 3763,
+    "sender": "Hixie",
+    "content": "I would hope to see it in one of the next two or three stable releases (i.e. this year), but it's hard to say, and I could not possibly commit one way or the other. It'll be ready when it's ready and there's not really anything we could do to make it ready any sooner.\r\n\r\nI must emphasize that we do not consider shader warm-up to be a solution to early on-set jank. It's a workaround. Our goal is for applications to be jank-free without requiring developers to determine all the codepaths that might execute. See https://github.com/flutter/flutter/projects/188 for some of the bugs I'm tracking on this topic currently, some of which are more general solutions.",
+    "createdAt": "2021-03-20T00:08:57Z"
+  },
+  {
+    "id": 3764,
+    "sender": "BurykinNikolay",
+    "content": "> Sorry I've been so busy collecting status for our leadership team that I totally flaked on providing status in the issues!\r\n> \r\n> Latest status for Metal shader warmup is that Brian from Skia has implemented precompilation for Metal in Skia. The next step is for us to integrate this API into Flutter. After that, we will probably need to work on making the precompile asynchronous otherwise y'all are going to be rather upset by how long Flutter apps take to start up when using shader precompilation.\r\n> \r\n> So, not deployed yet, but work is progressing.\r\n\r\nGreat news!!!",
+    "createdAt": "2021-03-20T08:29:41Z"
+  },
+  {
+    "id": 3765,
+    "sender": "Ahmadre",
+    "content": "Where is the donate Button for the Flutter-Team :D?\n\nPlease don't rush Flutter Team. You're all doing a really great job and I appreciate it soo much! \n\nJust don't forget to take a break, you're also important as humans 💙",
+    "createdAt": "2021-03-23T00:50:08Z"
+  },
+  {
+    "id": 3766,
+    "sender": "Hixie",
+    "content": "Status update: The engine integration for the new Skia code to do warm-up on iOS is being tracked at https://github.com/flutter/flutter/issues/79298. Upon conclusion of that work we will probably consider this metabug resolved.",
+    "createdAt": "2021-04-05T18:29:36Z"
+  },
+  {
+    "id": 3767,
+    "sender": "Timmmm",
+    "content": "> For example, use the CPU backend when GPU backend needs warm-up.\r\n\r\nRather than using the CPU is it not possible to use more generic GPU shaders? As I understand it the problem is that Skia uses compile time specialisation similar to C++ templates to generate really fast shaders. [Basically `#ifdef`](https://github.com/google/skia/blob/f326e4faef66d529904a7b53eb931fd576c82887/src/gpu/effects/GrEllipseEffect.fp#L105):\r\n\r\n```\r\n    @if (medPrecision) {\r\n        approx_dist *= scale.x;\r\n    }\r\n\r\n    half alpha;\r\n    @switch (edgeType) {\r\n        case GrClipEdgeType::kFillBW:\r\n            alpha = approx_dist > 0.0 ? 0.0 : 1.0;\r\n            break;\r\n        case GrClipEdgeType::kFillAA:\r\n            alpha = saturate(0.5 - half(approx_dist));\r\n            break;\r\n...\r\n```\r\n\r\nWhy not just do a dynamic version instead (i.e. use runtime `if`/`switch`)? It'll won't be as fast when warmed up, but presumably not as slow the CPU and the minimum frame rate will be better since it doesn't need to be compiled at runtime.\r\n\r\nI'm sure you've thought of this - I just haven't seen it mentioned anywhere so I was curious.\r\n\r\n",
+    "createdAt": "2021-04-13T19:41:09Z"
+  },
+  {
+    "id": 3768,
+    "sender": "zanderso",
+    "content": "@Timmmm see https://github.com/flutter/flutter/issues/77412",
+    "createdAt": "2021-04-19T23:12:25Z"
+  },
+  {
+    "id": 3769,
+    "sender": "joshbenaron",
+    "content": "Hey,\nThanks for all the great work you're doing. Have these been integrated into a stable release yet? If so what versions have lessened jank?",
+    "createdAt": "2021-05-02T00:14:27Z"
+  },
+  {
+    "id": 3770,
+    "sender": "Hixie",
+    "content": "The Metal backend for this unfortunately missed the window for the next beta but should be in the one after that. If a stable release is cut from the next beta then it won't include it but it would then be in the one after that. It's available in the current dev release, I believe.\r\n\r\nIf anyone has the opportunity to test this out please do and please file bugs on any issues you run into (or to give us any feedback you may have). As noted before, we don't consider shader warm-up to be the long-term solution here, since it requires the app developer to do work to get the performance we think should be always available, but while efforts on a long-term solution continue, we will still look to make the temporary solution as clean as possible.",
+    "createdAt": "2021-05-02T01:20:12Z"
+  },
+  {
+    "id": 3771,
+    "sender": "IvanSyabro",
+    "content": "Hello, I would like to know if there is any way to use [SKSL warmup](https://flutter.dev/docs/perf/rendering/shader#how-to-use-sksl-warmup) when flutter is added as module to main android project, as described here https://flutter.dev/docs/development/add-to-app/android/project-setup. Would be grateful if someone provided a hint. ",
+    "createdAt": "2021-05-05T17:46:17Z"
+  },
+  {
+    "id": 3772,
+    "sender": "Hixie",
+    "content": "@IvanSyabro If the documentation doesn't answer that question for you, please file a new bug so we can track that separately. Thanks! (You can link to the issue here to make sure we see it.)",
+    "createdAt": "2021-05-05T17:49:56Z"
+  },
+  {
+    "id": 3773,
+    "sender": "brianschardt",
+    "content": "looks like flutter 2.2 has this fix in it? https://www.xda-developers.com/flutter-2-2-google-io-2021/",
+    "createdAt": "2021-05-19T12:49:47Z"
+  },
+  {
+    "id": 3774,
+    "sender": "joshbenaron",
+    "content": "It says you can precompile shaders. Are there any docs on how to do this?",
+    "createdAt": "2021-05-19T13:34:57Z"
+  },
+  {
+    "id": 3775,
+    "sender": "daadu",
+    "content": "@joshbenaron I guess [this page](https://flutter.dev/docs/perf/rendering/shader) can help you.",
+    "createdAt": "2021-05-19T15:34:56Z"
+  }
+]

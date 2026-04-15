@@ -1,0 +1,386 @@
+[
+  {
+    "id": 7744,
+    "sender": "marcglasberg",
+    "content": "So keep the ListView class as is, and add a navigateToIndex method that needs to calculate each item size. It can be used with:\r\n1. Lists of any size, with fixed extent items.\r\n2. Small do medium lists, with items in memory.\r\n3. Small lists, with items downloaded from the network (e.g. Firebase).\r\n\r\nThen, we create another class (SkippableListView, or CursorListView, or a better name) with a navigateToIndex that uses pixelOffset+startIndex and can be used with:\r\n\r\n   4. Big lists, with items in memory.\r\n   5. Medium and big lists, with items downloaded from the network (e.g. Firebase).\r\n\r\nA proof of concept for this second list can easily be created using a technique like this: https://stackoverflow.com/questions/44468337/how-can-i-make-a-scrollable-wrapping-view-with-flutter\r\n",
+    "createdAt": "2018-07-01T17:52:49Z"
+  },
+  {
+    "id": 7745,
+    "sender": "marcglasberg",
+    "content": "@rrousselGit What would ScrollController.jumpToKey(Key key) do to solve the problem of scrolling to the 100000th item of a ListView with a builder? You dont know the key of that item. ",
+    "createdAt": "2018-07-01T17:57:25Z"
+  },
+  {
+    "id": 7746,
+    "sender": "marica27",
+    "content": "I would be glad to have a special ListView with its special ScrollController which has method jumpTo(index) and maybe even animateTo(index)\r\n\r\nI was trying myself to implement solution to achieve building ListView from startIndex. And I see that in  a lot of places there is check on `offset >= 0`\r\n\r\n@marcglasberg , what do you mean by pixelOffset in  \"pixelOffset+startIndex\" ?",
+    "createdAt": "2018-07-01T19:25:50Z"
+  },
+  {
+    "id": 7747,
+    "sender": "marcglasberg",
+    "content": "@marica27  Suppose you want to scroll to index 10000. You make pixelOffset = 0, and startIndex=10000. Then, when the builder asks for the item corresponding to some index, you simply return the item of startIndex+index. \r\n\r\nAt first, since we jumped to pixelOffset=0, the list will ask for the item at index = 0, right? But you will \r\nreturn the item at startIndex+0=10000. If that item doesnt fill the screen, the list will ask for the next one, with index=1, and you will return the item at startIndex+1=10001. And so on. \r\n\r\nSo you see it will draw items starting at 10000. Now you just let the user scroll at will, and dont need to change the startIndex again, unless you need to do another jump. Say, that now you want to jump to item 5372. You simple make startIndex=5372 and pixelOffset=0.\r\n\r\nGot it? The list doesnt need to check any items in-between, because it is just moving the ORIGIN. It's saying that pixelOffset=0 correspond to the item with the index you want to jump to. And then you can simply go to pixelOffset=0 to display that item.\r\n\r\nThe reason why you now need the ListView to scroll to negative values is that if pixelOffset=0 corresponds to index 5372, the user may want to scroll back to item 5371, which means a negative pixelOffset.\r\n\r\nSo, to start you need a unbounded ListView which can scroll to negative offsets. This link shows the technique to do just that:  https://stackoverflow.com/questions/44468337/how-can-i-make-a-scrollable-wrapping-view-with-flutter\r\n\r\nI don't think it would take you more than a day to implement this. Let me know if you need me to help you with that. I see that you are also in the Flutter Study Group, and I will say hi to you there if need to contact me.\r\n",
+    "createdAt": "2018-07-01T20:30:02Z"
+  },
+  {
+    "id": 7748,
+    "sender": "rrousselGit",
+    "content": "While I can understand the need for a quick solution; I don't think we should take this approach. \r\n\r\nI mean we're talking about forking `ListView` (and other scrollables too eventually) for just one method. That will be really confusing for users. Especially considering it'd require a custom API, ScrollController and would most likely be incompatible with `CustomScrollView`.\r\n\r\n\r\nI think we should take a step back and see how we can change the current API to make it compatible with such jump.\r\n\r\n\r\nIn the meantime there's an easy workaround :\r\n\r\n```dart\r\n    SingleChildScrollView(\r\n      child: Column(\r\n        children: <Widget>[\r\n          ...\r\n        ],\r\n      ),\r\n    )\r\n```\r\n\r\ncombined with `Scrollable.ensureVisible(context)`.",
+    "createdAt": "2018-07-05T18:03:37Z"
+  },
+  {
+    "id": 7749,
+    "sender": "marcglasberg",
+    "content": "@rrousselGit We are obviously not talking about the same thing here, since `Scrollable.ensureVisible(context)` could not possibly solve the problem of having, say a database with 1 million items, and then jumping to the 100000th item without having to download all of them.\r\n",
+    "createdAt": "2018-07-05T23:00:05Z"
+  },
+  {
+    "id": 7750,
+    "sender": "ozexpert",
+    "content": "Any updates on supporting this feature? I need a solution and is a critical feature to me. ",
+    "createdAt": "2018-07-29T23:35:40Z"
+  },
+  {
+    "id": 7751,
+    "sender": "Hixie",
+    "content": "There is a way to jump to a scroll offset.\r\nIf all your items are the same dimensions, then you can jump to the index * the height of your items to get to the specific item.\r\n\r\nIf your items are not all the same dimensions, then the problem is quite difficult and it's not at all clear how we should solve it. We need to know the scroll offset before we can begin layout, otherwise e.g. the scroll bar won't be able to show reasonable results. We can't find out the scroll offset without building and laying out everything between the current offset and the new one. We can't even know what direction we should be doing that in since the list could be infinite in both directions.",
+    "createdAt": "2018-07-30T22:00:38Z"
+  },
+  {
+    "id": 7752,
+    "sender": "ozexpert",
+    "content": "That is sad. Coming from Ionic framework, this feature is pretty much supported from v1.  And yes, my list has dynamic height. ",
+    "createdAt": "2018-07-30T22:58:05Z"
+  },
+  {
+    "id": 7753,
+    "sender": "SteveAlexander",
+    "content": "I have scroll to item working on my flutter project, even though many items are variable height. The thing is, I can predict the height of each item from its data, without needing to render it. So although it's a little complicated, I can accurately calculate scroll positions.\r\n\r\nBut this would be so much easier if CustomScrollView were to work in a different way. I spent a day or so on this, but I'm afraid the relationship between ViewPort and ScrollPosition and various other collaborating objects got too complex for me in the time I had available. I'll try and describe what I was thinking below.\r\n\r\n1. For all of my needs so far, I don't need a scroll bar. I wonder whether supporting a scroll bar can be made optional in some way?\r\n\r\n2. In many cases we're talking about here (e.g. infinite scroll in both directions, large numbers of items of variable height or height that is only known on render) the scroll-bar dimensions are kind of ambiguous or guesses anyway. Like, if I scroll half way down a large number of variable-height items, and the bottom half of these aren't rendered yet, then what should a scroll-bar look like?\r\n\r\nI wonder if a different kind of scroll view could be made to support this?\r\n\r\nStarting from the idea of a ViewPort, and a particular \"anchor\" sliver being positioned somewhere within the viewport (e.g. top or centre), the ViewPort needs to render that sliver, and to be able to render the surrounding slivers to cover the viewport and whatever area above and below it are needed to enable smooth scrolling. Consider the scroll position as moving positively or negatively relative to the anchor sliver.\r\n\r\nThen delegate the model behind the scrollbar to a specific object that knows how to make a scrollbar make sense for this particular case (it may be different each time), or allow to say \"there is no scroll bar\".\r\n",
+    "createdAt": "2018-07-31T12:39:54Z"
+  },
+  {
+    "id": 7754,
+    "sender": "rrousselGit",
+    "content": "The current scroll api is that complex not only because of scrollbars. Scrollbar is just one example.\r\nA few others would be :\r\n- Parallax\r\n- Stricky Appbar/headers\r\n- scrollview background color change with scroll\r\n\r\n\r\nThe \"anchor\" solution proposed before would make these complicated. ",
+    "createdAt": "2018-07-31T16:28:29Z"
+  },
+  {
+    "id": 7755,
+    "sender": "SteveAlexander",
+    "content": "Thanks @rrousselGit, it makes sense that these features rely on the current way of working.\r\n\r\nI'm not proposing changing the current scrollview to work a different way. Rather, I'm asking what if there were a different (additional) kind of scroll view could be made to support viewport-oriented / anchored working, knowing that this additional kind of scrollview would not necessarily support the other features you mentioned.",
+    "createdAt": "2018-07-31T16:38:53Z"
+  },
+  {
+    "id": 7756,
+    "sender": "marica27",
+    "content": "I've dig in scrolling api twice. Everywhere I see  that offset should be positive `assert(offset >= 0)`. But it's still complicated for me to understand it good.\r\nFirst I decide to make a RenderSliverList with `initialIndex` parameter and in `performLayout` to do what it usually does if ScrollController has `initialOffset` - do `layout` for items until offset is less `initialOffset`. So I do `layout` for items until index is less `initialIndex`. But cons of this solution is it has to `layout` all 1000 items if you need to jump to 1001.  I call it `IndexedListView`.\r\nSecond solution actually was inspired by this [SO](https://stackoverflow.com/questions/44468337/how-can-i-make-a-scrollable-wrapping-view-with-flutter) and with help of @slightfoot. I call `DividedListView`. It divides list by selected index, builds stack with negative list and positive list. When user scrolls, positive scrollController changes offset of negative scrollController.  \r\nYou can find code [here](https://github.com/marica27/flutter_indexed_listview)\r\nI notice a bug in it (negative list is seen behind when after jump), not in the video\r\n![devided_list_view](https://user-images.githubusercontent.com/38860483/43480066-6f06a306-9502-11e8-9be0-0553e1120db5.gif)\r\n",
+    "createdAt": "2018-07-31T18:47:45Z"
+  },
+  {
+    "id": 7757,
+    "sender": "marica27",
+    "content": "I've watched [DartConf 2018 talk](https://youtu.be/4lLI-hZvGg0?t=3h50m28s) \"It’s bigger on the inside: mind-bending scrolling in Flutter\" of Eugenio Marletti @Takhion and my 3rd experiment would be create Viewport to support negative offset, and IndexedScrollController which can `jumpTo(index)`\r\nI would not support other features that usual ListView has. In my app I need only `jumpTo(index)`.  I've tried calculate items height but it became too complicated and I gave it up.\r\n\r\nIt would be nice if somebody who knows scrolling api really good could make simple IndexedScrollView without support features which was mentioned above.\r\n",
+    "createdAt": "2018-07-31T19:01:06Z"
+  },
+  {
+    "id": 7758,
+    "sender": "sroddy",
+    "content": "@Hixie \r\n> We need to know the scroll offset before we can begin layout, otherwise e.g. the scroll bar won't be able to show reasonable results. We can't find out the scroll offset without building and laying out everything between the current offset and the new one. We can't even know what direction we should be doing that in since the list could be infinite in both directions.\r\n\r\nThis is a very complex problem if you want to solve the issue with offsets, but definitely doable, even if not trivial, if you approach the problem considering a `scrollToIndex` API and you introduce a concept of estimated offset, which is something that is stable when the list is not scrolling, but can change and adapt while rendering scrolling animations. Talking high-level:\r\n1) you take note of the current visible indexes to determine the direction for the scrolling and rely on a provided estimate of the item size.\r\n2) you start offstage and lay out the desired widget for the given index at the given position in the viewport.\r\n3) you lay out enough indexes in the right direction in order to achieve the desired scrolling simulation.\r\n4) you go onstage and render a scroll view that starts from the furthest index. the offset here, for what regards the scrollbar etc, would be synthetic and computed from a given estimate of widgets' height (or a computed average of all the now rendered widgets) multiplied by the number of items in the list.\r\n5) you `scrollTo` the desired item offset",
+    "createdAt": "2018-08-06T13:50:16Z"
+  },
+  {
+    "id": 7759,
+    "sender": "rrousselGit",
+    "content": ">  and rely on a provided estimate of the item size.\r\n\r\nInteresting, but what is it used for?",
+    "createdAt": "2018-08-06T14:08:10Z"
+  },
+  {
+    "id": 7760,
+    "sender": "sroddy",
+    "content": "The idea is that the scrollview will consider that to be the size of any non rendered items (and use it e.g. for the offset, the scroll bar and the scroll physics).\r\n\r\nIt's the same approach adopted by Apple with their UICollectionView:\r\nhttps://developer.apple.com/documentation/uikit/uicollectionviewflowlayout/1617709-estimateditemsize",
+    "createdAt": "2018-08-07T07:56:22Z"
+  },
+  {
+    "id": 7761,
+    "sender": "rrousselGit",
+    "content": "But how does that help solving the scroll problem? As you've said for jumps we'd start layout from the destination ",
+    "createdAt": "2018-08-07T08:23:50Z"
+  },
+  {
+    "id": 7762,
+    "sender": "debuggerx01",
+    "content": "I've writen a simple demo to show how I sovle this problem by using my widget named [RectGetter](https://pub.dartlang.org/packages/rect_getter):\r\n![demo](https://user-gold-cdn.xitu.io/2018/8/3/164fc96b7b957602?imageslim)\r\n\r\nsource code:  [JumpToIndexDemo](https://gist.github.com/debuggerx01/b8ef756ee02b3eb82ec3702f14ba94e6)",
+    "createdAt": "2018-08-10T04:00:40Z"
+  },
+  {
+    "id": 7763,
+    "sender": "marcglasberg",
+    "content": "I have just published this:\r\n\r\n   https://pub.dartlang.org/packages/indexed_list_view\r\n\r\nSimilar to a ListView, but lets you programmatically jump to any item, by index. Items may have different sizes, it doesn't matter, the jump is always cheap and it doesn't need to build all widgets between the old and new positions. You can jump millions of items, instantly. Please run the example in the Example tab.\r\n\r\nCurrently, the list is always infinite, both to positive and negative indexes. In other words, it can be scrolled indefinitely both to the top and to the bottom. This is useful for some use cases, but it's a serious limitation for others. I don't understand the scrolling API well enough to allow passing lower and upper bounds as to make the list finite, so I would very much appreciate if someone could help me with that.\r\n\r\nHaving created that package, it's my opinion that solving https://github.com/flutter/flutter/issues/20608 would make it trivial to programmatically scroll to ListView index in both small and big lists.",
+    "createdAt": "2018-08-14T05:57:00Z"
+  },
+  {
+    "id": 7764,
+    "sender": "debasmitasarkar",
+    "content": "@Hixie I am building an chat app..I am getting chat messages from Firebase database..Whch can be of dynamic number,using ListView.builder for messages to display.How can I autoscroll to the end of my list and on adding of message I need to autoscroll again..How can I implement this?Is there any easy way?",
+    "createdAt": "2018-08-27T14:34:59Z"
+  },
+  {
+    "id": 7765,
+    "sender": "rodydavis",
+    "content": "https://stackoverflow.com/questions/46864763/how-to-automatically-scroll-to-end-of-grid-view\nOn Aug 27, 2018, 10:35 AM -0400, debasmitasarkar <notifications@github.com>, wrote:\n> @Hixie I am building an chat app..I am getting chat messages from Firebase database..Whch can be of dynamic number,using ListView.builder for messages to display.How can I autoscroll to the end of my list and on adding of message I need to autoscroll again..How can I implement this?Is there any easy way?\n> —\n> You are receiving this because you commented.\n> Reply to this email directly, view it on GitHub, or mute the thread.\n",
+    "createdAt": "2018-08-27T14:37:03Z"
+  },
+  {
+    "id": 7766,
+    "sender": "debasmitasarkar",
+    "content": "@AppleEducate it helps when I am sending a message.But when I am getting all the messages for the first time , I mean opening Chat app  and getting previous messages, I need something to autoscroll at the end of the current listview. ",
+    "createdAt": "2018-08-28T08:26:35Z"
+  },
+  {
+    "id": 7767,
+    "sender": "zoechi",
+    "content": "@debasmitasarkar  you might want `reverse: true`. With this you get that behavior automatically.",
+    "createdAt": "2018-08-28T08:38:53Z"
+  },
+  {
+    "id": 7768,
+    "sender": "debasmitasarkar",
+    "content": "@zoechi Yes I can do that..But my chat messages are sorted in a timely manner.So it would reverse the logic and show old data at the end and newest at the top\r\n",
+    "createdAt": "2018-08-28T09:15:50Z"
+  },
+  {
+    "id": 7769,
+    "sender": "zoechi",
+    "content": "Sorting the data in reverse order shouldn't cause any difficulty.\r\nUpdating the scroll position will be much less reliable.",
+    "createdAt": "2018-08-28T09:46:17Z"
+  },
+  {
+    "id": 7770,
+    "sender": "debasmitasarkar",
+    "content": "@zoechi Thanks Friend!! I actually solved the issue with your tips 👍 ",
+    "createdAt": "2018-08-28T11:14:10Z"
+  },
+  {
+    "id": 7771,
+    "sender": "ozexpert",
+    "content": "When would we have a feature like scrollToIndex()? Any estimates on when this would be fixed?",
+    "createdAt": "2018-10-23T03:19:15Z"
+  },
+  {
+    "id": 7772,
+    "sender": "rockingdice",
+    "content": "The index is presenting an abstract thing without pixels which could lead to the calculation of the height, so if you want to get a tween animation from one index to another, the calculation is not avoidable.\r\n\r\nFor the best result, we all want a scrollToIndex(), so the ListView(not ScrollView, which doesn't handle indices) should take the responsibility to calculate the offset for the tween animation. \r\n\r\nThe height of a row (widget) can be calculated after the layout is finished. Then the height information is able to be used to do the scrolling. \r\n\r\nHere come two ways to do it:\r\n1. Because there's a tween animation, the calculation could be done during the animation. The animation stops when the desired index is reached. (@debuggerx01 's implementation)\r\n2. Precalculate the offset to the new index. This cannot be done until all the widgets that would be visible during the animation are finished with layouts.\r\n\r\nThe second is better since you know all the information ahead of time, so you can do better curve animations to present to users.\r\n\r\nBut it's easier to do jumpToIndex().\r\n\r\nFollow current design, I think you can change the absolute pixel offset to a relative one, which is relative to an arbitrary start index.\r\n\r\nThe way is simple: \r\nAfter jumpToIndex(), it will change the starting index to a new value and the offset will be reset to 0.0. Then scrolling offset is negative or positive if you scroll up or down. No calculations are needed.\r\n\r\nI agree jumpToIndex() will be much better UX than scollToIndex if the range is very long. On the opposite, scrollToIndex() is better for short range with an animation. But it is still usable and provides a solid way to navigate in the listview which currently lacks.\r\n\r\nscrollToIndex() could lead to serious performance issues, which is normal and necessary because the calculation cannot be avoided.\r\nThe user should take the responsibility to decide whether they use jumpToIndex() or scrollToIndex().\r\n\r\nBut currently, I think jumpToIndex is fundamental to all users and easier to achieve, so I would request it as my first priority.",
+    "createdAt": "2018-10-23T07:29:14Z"
+  },
+  {
+    "id": 7773,
+    "sender": "rrousselGit",
+    "content": "I don't think the difficulty is in `ListView`, but in how to make it compatible with `CustomScrollView`.\r\n\r\nWe have some examples earlier about how to implements this with ListView relatively easily. \r\nThe thing is, `CustomScrollView` is a must too to truly say we solved this problem.\r\n\r\nThe main reason being things like `SliverAppBar`. This kind of appbar is relatively common, and we definitely want to support this in combination with the `jumpToIndex`. \r\n",
+    "createdAt": "2018-10-23T09:14:01Z"
+  },
+  {
+    "id": 7774,
+    "sender": "RonenR",
+    "content": "The functionality of jumpToIndex(index) would be really helpful! \r\n\r\nIf it helps anyone - I can share my idea for a workaround, which I implement for a reader application:\r\nPersist the offset, so I can jumpTo(offset) with the controller next time. Of course, it doesn't replace the need for jumpToIndex, but it's something...",
+    "createdAt": "2018-11-19T10:11:38Z"
+  },
+  {
+    "id": 7775,
+    "sender": "tje3d",
+    "content": "Just developing a chat app, and really miss jumpToIndex/Item and KeepScrollOffset when adding item to top of list (#21541).",
+    "createdAt": "2018-11-19T12:48:49Z"
+  },
+  {
+    "id": 7776,
+    "sender": "zoechi",
+    "content": "@tje3d just use `ListView(reverse: true, ...)` (as already mentioned above)",
+    "createdAt": "2018-11-19T15:08:17Z"
+  },
+  {
+    "id": 7777,
+    "sender": "tje3d",
+    "content": "@zoechi The problem is when you want to add content to top of list, Imagine a two way infinite scroll in a chat app.\r\n\r\nCurrent behavior is when you add a content to top of a list, ListView will maintain the scroll position and the visible area is pushed down (or up in reverse).\r\n\r\nAndroid RecyclerView handle this nicely, And for IOS i see an option in [RN's ScrollView called maintainVisibleContentPosition](https://github.com/facebook/react-native/blob/master/Libraries/Components/ScrollView/ScrollView.js#L173).",
+    "createdAt": "2018-11-19T16:24:28Z"
+  },
+  {
+    "id": 7778,
+    "sender": "pedromorgan",
+    "content": "Was expecting this to be a \"standard feature\".. as per original comment, and a few months later.........\r\n\r\nIn my case, I got a list of 580 items, pre loaded as fundamental part of app/global...\r\n\r\nI just want to scrollTo/focusTo an item.. or am i missing something...\r\n",
+    "createdAt": "2019-01-07T22:31:39Z"
+  },
+  {
+    "id": 7779,
+    "sender": "zoechi",
+    "content": "@pedromorgan https://stackoverflow.com/questions/47367917/how-to-scroll-item-in-listview-so-it-is-visible, https://medium.com/@diegoveloper/flutter-lets-know-the-scrollcontroller-and-scrollnotification-652b2685a4ac",
+    "createdAt": "2019-01-08T06:23:10Z"
+  },
+  {
+    "id": 7780,
+    "sender": "pedromorgan",
+    "content": "@zoechi sigh!.. https://pub.dartlang.org/packages/indexed_list_view\r\n\r\nIts a bit daft IMHO that this issue is even here.... this is a showstopper for my app and experimenting with workarounds.. as a newbie (not an issue on other platforms/frameworks.. sigh)  !!",
+    "createdAt": "2019-01-10T23:41:33Z"
+  },
+  {
+    "id": 7781,
+    "sender": "pedromorgan",
+    "content": "Related is #19941",
+    "createdAt": "2019-02-14T21:33:32Z"
+  },
+  {
+    "id": 7782,
+    "sender": "rajeshzmoke",
+    "content": "i have a ListView with a Column of dynamic widgets and those dynamic widgets can add more dynamic widgets..i'm confused on how to scroll up or down to that specific widget when it is added.",
+    "createdAt": "2019-03-20T13:07:00Z"
+  },
+  {
+    "id": 7783,
+    "sender": "wtoalabi",
+    "content": "Hello @eseidelGoogle @Hixie @maguinis @zoechi @rrousselGit @ozexpert @SteveAlexander \r\nSo, it is 2019...over two years since this issue was raised and still, there is no solution...or is it that I dont know what to ask/look for?\r\nWhile I love the work-around by the community, for instance, the indexed_list_view package, unfortunately, it does not sole my use-case.\r\nI dont want infinite scrolling.\r\nI am building a bible app, so, the verses are loaded within the Chapter list.\r\nI know them.\r\nI know the count within the list, even before the widget builds.\r\nSo, if I want to jump to verse 20 (index 19) within the list, how can I make that happen?\r\n\r\nIt will be disingenuous to ask users to start from the start of the list every time, whenever they are looking for a verse in the middle.\r\nAnd no, I cant have the same height for all the verses.\r\nSome verses span 8 lines, some are just one line only.\r\nThis will look so bad from UI/UX point of view.\r\nThe earlier mentioned work-around seemed to work, it locates the exact index, but then it creates infinite scrolling before and after the list items.\r\nThe reason for this is that the package caters for infinte scrolling...and the author @marcglasberg has no ETA for an alternative: https://github.com/marcglasberg/indexed_list_view/issues/8\r\n\r\nThe other alternative suggested is SingleChildScrollView which sounds great on paper, but it cannot also work for my use-case.\r\n\r\nFor instance, I need to apply a globalKey to each item in the list BEFORE rendering and somehow call the required key with: `Scrollable.ensureVisible(_key);`\r\n\r\nI declared: `Map<dynamic, GlobalKey> _key = {};`\r\nat the top of the class and then \r\n```\r\nmodel.currentChapter.forEach((each){\r\n          _key[each.verseID] = GlobalKey();\r\n        });\r\n```\r\nBut when I asked for `print(\"${_key[15].currentWidget}\");`\r\nIt returns null.\r\nIt seems to be an overkill anyways.\r\nSo, I really need your help to get this off the ground.\r\nThis feature is literary the only thing remaining for the bible reading part of the app to be completed.\r\n\r\nThanks everyone!!!",
+    "createdAt": "2019-04-23T09:55:40Z"
+  },
+  {
+    "id": 7784,
+    "sender": "jerrywell",
+    "content": "HI, we are Quire team and just published the library https://github.com/quire-io/scroll-to-index. you can use it to scroll to the index with fixed or variable row height. Our app uses this mechanism in many buit-in scrollable widget from Flutter. so it may fit many cases of your usage. :)",
+    "createdAt": "2019-04-24T04:57:45Z"
+  },
+  {
+    "id": 7785,
+    "sender": "wtoalabi",
+    "content": "@jerrywell That package looks so detailed and well thought-out.\r\nI am more than happy to take it for a spin and report my feedback!\r\n\r\nThanks.",
+    "createdAt": "2019-04-24T09:38:33Z"
+  },
+  {
+    "id": 7786,
+    "sender": "wtoalabi",
+    "content": "Well I must way, I am really impressed!\r\nIt worked like a charm.\r\nEspecially the highlight part.\r\nWonderful!\r\n\r\nIf I must add anything though, then it would be the example part.\r\nIt was a bit confusing to know which part is the index (as in the index in the array) and which index is the real data you are playing with.\r\n\r\nNot that it would be too hard to figure out eventually, I mean, it took me, a total noob, just about 15 minutes.\r\n\r\nBut it would be much better if we could make it a bit simpler from the get-go.\r\nI am happy to supply a PR that imitates a real world data in the example.\r\n\r\nBut overall...this is it....this is what I have been looking for!\r\n\r\nThanks!\r\n\r\nNB: And cool app by the way!!!",
+    "createdAt": "2019-04-24T14:09:04Z"
+  },
+  {
+    "id": 7787,
+    "sender": "valerybodak",
+    "content": "@jerrywell \r\nHi. Ho to use your library (https://github.com/quire-io/scroll-to-index) for ListView with ExpansionTile items with unknown height?\r\nThanks in advance.",
+    "createdAt": "2019-04-25T07:34:36Z"
+  },
+  {
+    "id": 7788,
+    "sender": "jerrywell",
+    "content": "Sorry, i never used ExpansionTile before. it's a widget based class. so you can wrap it with AutoScrollTag(). in this official [example](https://flutter.dev/docs/catalog/samples/expansion-tile-sample), just replace EntryItem(data[index] with:\r\n\r\n```\r\nAutoScrollTag(\r\n  key: ValueKey(index),\r\n  controller: controller,\r\n  index: index,\r\n  child: EntryItem(data[index])\r\n)\r\n```\r\nand add a AutoScrollController into ListView.\r\n\r\nyou can also combine scroll-to-index's [example](https://github.com/quire-io/scroll-to-index/blob/master/example/lib/main.dart) and ExpansionTile example to see if it works. \r\nBasically, any class extending Flutter widget should work as expected :)\r\n",
+    "createdAt": "2019-04-25T09:30:01Z"
+  },
+  {
+    "id": 7789,
+    "sender": "valerybodak",
+    "content": "@jerrywell \r\nHi, your library works fine with ListView. But it will be very helpful if you will implement scroll to position for **SingleChildScrollView** widget also (https://api.flutter.dev/flutter/widgets/SingleChildScrollView-class.html).",
+    "createdAt": "2019-04-25T14:06:58Z"
+  },
+  {
+    "id": 7790,
+    "sender": "wtoalabi",
+    "content": "Maybe he can...but should he?\r\nI tried using SingleChildScrollView widget for the exact same problem this package solved but it didnt work out...because the use-cases are totally different.\r\n\r\nAside from performance concerns...which is a big factor when considering a fairly large list, SingleChildScrollView works with a list you have to manually input into the `<Widget>[]` list.\r\n\r\nThat way, you can manually input the key into each of them and then call each via its key through: \r\n`Scrollable.ensureVisible(_key);`\r\n\r\nSo, if you already have access to the keys of each or any of the item you need within the list, I wonder why you would need @jerrywell 's library to do that?",
+    "createdAt": "2019-04-25T14:36:00Z"
+  },
+  {
+    "id": 7791,
+    "sender": "oseiasmribeiro",
+    "content": "Wtoalabi could you give me an example of how you used scroll-to-index with the Bible? I want to do something as the image illustrates (Can be with ListView):\r\n![54072966-4dbc7200-4260-11e9-9973-f8ed572a71f3](https://user-images.githubusercontent.com/36827173/56771044-f2046480-678b-11e9-8514-673f03f8a464.jpg)\r\n",
+    "createdAt": "2019-04-25T21:58:28Z"
+  },
+  {
+    "id": 7792,
+    "sender": "wtoalabi",
+    "content": "@oseiasmribeiro gladly!\r\nHere is a gist I created with my code samples and brief descriptions of what I did.\r\nTake a look and maybe discuss further implementation details.\r\nhttps://gist.github.com/wtoalabi/51a045ea6a541a7d6ba2aaca6db3dfad",
+    "createdAt": "2019-04-26T05:01:20Z"
+  },
+  {
+    "id": 7793,
+    "sender": "jerrywell",
+    "content": "@valerybodak there is barely difference between **ListView** and **SingleChildScrollView**. Based on [SingleChildScrollView's example](https://api.flutter.dev/flutter/widgets/SingleChildScrollView-class.html), all you need is putting **AutoScrollController** into the scroll view and wrap **AutoScrollTag** for your section inside the **Column** widget.",
+    "createdAt": "2019-04-26T10:07:41Z"
+  },
+  {
+    "id": 7794,
+    "sender": "lifetin",
+    "content": "必须得提供这个方法呀\r\n\r\n我点击左边,需要跳到对应右边的位置上\r\n\r\n![55](https://user-images.githubusercontent.com/10474968/56846927-ad9dd380-6907-11e9-90a0-fbd2aaacf098.png)\r\n",
+    "createdAt": "2019-04-27T08:15:40Z"
+  },
+  {
+    "id": 7795,
+    "sender": "tarobins",
+    "content": "here's a quick way to create a list that builds with the list scrolled to a particular index \r\n\r\n```\r\nimport 'package:flutter/material.dart';\r\n\r\nfinal topKey = ValueKey('top');\r\n\r\nclass SelectedItemList extends StatelessWidget {\r\n  final List<Widget> items;\r\n  final int initialTopItemIndex;\r\n\r\n  SelectedItemList({@required this.items, @required this.initialTopItemIndex});\r\n\r\n  @override\r\n  Widget build(BuildContext context) =>\r\n      CustomScrollView(center: topKey, slivers: [\r\n        SliverList(\r\n          delegate: SliverChildListDelegate(\r\n            items.sublist(0, initialTopItemIndex).reversed.toList(),\r\n          ),\r\n        ),\r\n        SliverList(\r\n          key: topKey,\r\n          delegate: SliverChildListDelegate(\r\n            items.sublist(initialTopItemIndex, initialTopItemIndex + 1),\r\n          ),\r\n        ),\r\n        SliverList(\r\n          delegate: SliverChildListDelegate(\r\n            items.sublist(initialTopItemIndex + 1),\r\n          ),\r\n        ),\r\n      ]);\r\n}\r\n```\r\nIf you need the item you're interested in at a position other than the top of the view port, you can use CustomScrollView's anchor property.  ",
+    "createdAt": "2019-05-01T01:24:40Z"
+  },
+  {
+    "id": 7796,
+    "sender": "oseiasmribeiro",
+    "content": "> @oseiasmribeiro de bom grado! \r\n> Aqui está uma essência que criei com minhas amostras de código e descrições breves do que fiz. \r\n> Dê uma olhada e talvez discuta mais detalhes sobre a implementação. \r\n> https://gist.github.com/wtoalabi/51a045ea6a541a7d6ba2aaca6db3dfad\r\n\r\nworked fine for me using ListView and expecting a little Delay. Wtoalabi Thank you! Does it work with SliverList?",
+    "createdAt": "2019-05-02T20:44:58Z"
+  },
+  {
+    "id": 7797,
+    "sender": "lifenautjoe",
+    "content": "Nested scroll views are such a pain in Flutter... The scroll-to-index package from quire-io works great with simple ListViews, as soon as there's slivers involved, the whole thing breaks down.\r\n\r\nWith **111 upvotes** is this still part of the \"Goals\" milestone?\r\n\r\n> P2: These are tasks we think are worth fixing in the coming years. It includes issues we've identified that might block fully shipping broad consumer-facing apps, correctness issues, and bugs relating to polish and quality. The date on this milestone is utterly arbitrary and just intended to sort the milestone appropriately.\r\n",
+    "createdAt": "2019-06-11T12:04:26Z"
+  },
+  {
+    "id": 7798,
+    "sender": "eseidelGoogle",
+    "content": "@goderbauer is the right person to comment on proper scheduling.",
+    "createdAt": "2019-06-11T14:34:05Z"
+  },
+  {
+    "id": 7799,
+    "sender": "mzimbres",
+    "content": "Please, implement this.",
+    "createdAt": "2019-06-29T11:03:10Z"
+  },
+  {
+    "id": 7800,
+    "sender": "pedromorgan",
+    "content": "> @Hixie is this a reasonable feature request?\r\n\r\nHow bizzare that `scrollToIndex` is still not implemented, whilst in the native.api's !! ",
+    "createdAt": "2019-06-29T13:01:38Z"
+  },
+  {
+    "id": 7801,
+    "sender": "zhahao",
+    "content": "I have written a libary, see my [homepage](https://github.com/zhahao/list_view_item_builder),it provide like iOS UITableView, provide jumpTo(section,index) and animateTo(section,index,animation) functions.",
+    "createdAt": "2019-07-10T06:31:06Z"
+  },
+  {
+    "id": 7802,
+    "sender": "tomkastek",
+    "content": "I am having the same issues right now. Another idea I had is to add functionality to change if keepScrollOffset in a ScrollController should keep the offset to the end or the start of the list instead of start only so that on creation we are in the correct position already (also jumpTo(index) will show the item at index at top of the list. If we keep the offset we would be able to show the new items and the lowest new item would be viewable on the screen so that the user knows more data was loaded by eye and not by testing).\r\n\r\nI also tried @tarobins solution as workaround. But it crashes if the top sliver is a CupertinoSliverRefreshControl.",
+    "createdAt": "2019-08-13T20:10:15Z"
+  },
+  {
+    "id": 7803,
+    "sender": "tarobins",
+    "content": "@tomkastek \r\n\r\nWhat's the crash you get with the CupertinoSliverRefreshControl?\r\n\r\n",
+    "createdAt": "2019-08-13T20:49:59Z"
+  },
+  {
+    "id": 7804,
+    "sender": "tomkastek",
+    "content": "@tarobins I get the following error output: https://gist.github.com/tomkastek/b63f75adfc735661391d84641764e73c",
+    "createdAt": "2019-08-13T20:55:34Z"
+  },
+  {
+    "id": 7805,
+    "sender": "tarobins",
+    "content": "Just for kicks, I commented out the assert that was causing the problem, but, even though there was no longer a crash, the CupertinoSliverRefreshControl still didn't work when its growthDirection was backwards.  \r\n\r\nCreated https://github.com/flutter/flutter/issues/38492\r\n",
+    "createdAt": "2019-08-13T22:08:58Z"
+  },
+  {
+    "id": 7806,
+    "sender": "marcglasberg",
+    "content": "Hey everyone, I would just like to let you know that https://pub.dev/packages/indexed_list_view has been redesigned, with some code I stole from Simon Lightfoot, and now it's better than ever. I'd say it actually solves the problem here, but only for INFINITE lists at the moment. \r\n\r\nSo if you need to scroll to ListView index in an infinite list, give it a try. Not only you can jump to any item, by index, but the jump happens instantly, no matter if you have millions of items.",
+    "createdAt": "2019-08-26T18:55:28Z"
+  },
+  {
+    "id": 7807,
+    "sender": "jacobaraujo7",
+    "content": "@marcglasberg On behalf of the community of Brazil, we appreciate your efforts in this cause.",
+    "createdAt": "2019-08-26T19:24:04Z"
+  }
+]

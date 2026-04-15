@@ -1,0 +1,386 @@
+[
+  {
+    "id": 8064,
+    "sender": "gitspeaks",
+    "content": "There is a bigger issue here. I had some [back-and-forth](https://github.com/flutter/flutter/issues/21787) with @matthew-carroll two months ago and I'm quite confident this is underway.",
+    "createdAt": "2018-11-14T11:44:51Z"
+  },
+  {
+    "id": 8065,
+    "sender": "lucaslcode",
+    "content": "[I've started making a library that deals with this](https://pub.dartlang.org/packages/ui_state_persist). I wouldn't actually recommend using it but it's one idea of a Dart-only implementation. #6225 made things a bit tricky.",
+    "createdAt": "2018-11-29T00:42:40Z"
+  },
+  {
+    "id": 8066,
+    "sender": "aletorrado",
+    "content": "I've noticed that the Google Ads app, reportedly being made with Flutter, does preserve navigation state after an activity restart. It would be a nice reference to know how is it implemented, even if it's a workaround.",
+    "createdAt": "2018-12-14T19:35:28Z"
+  },
+  {
+    "id": 8067,
+    "sender": "gitspeaks",
+    "content": "@aletorrado Does the Google Ads app preserve the navigation state in case the user has discarded the app from the Android/IOS “task manager” and later on launched it again ?",
+    "createdAt": "2018-12-14T21:39:31Z"
+  },
+  {
+    "id": 8068,
+    "sender": "aletorrado",
+    "content": "@gitspeak No, it only preserves the state if the activity was automatically killed by the OS (maybe using the onSaveInstanceState hook).",
+    "createdAt": "2018-12-14T21:44:19Z"
+  },
+  {
+    "id": 8069,
+    "sender": "gitspeaks",
+    "content": "@aletorrado So y’ep that’s probably the only way...",
+    "createdAt": "2018-12-14T21:55:37Z"
+  },
+  {
+    "id": 8070,
+    "sender": "Zhuinden",
+    "content": "I actually tried to get into the Google Ads app but you need to have an active account to get to any screen beyond the very first one :D I can't test if it really works or not ",
+    "createdAt": "2018-12-15T16:15:58Z"
+  },
+  {
+    "id": 8071,
+    "sender": "aletorrado",
+    "content": "It does. Guaranteed. It also preserves other state like scroll position.",
+    "createdAt": "2018-12-15T21:39:43Z"
+  },
+  {
+    "id": 8072,
+    "sender": "mehmetf",
+    "content": "To clarify some confusion:\r\n\r\n- Yes, Google Ads app is written with Flutter.\r\n- Being one of the early adopters, they had to do something unusual for background execution. They create and maintain their main isolate when the *application* starts (not the activity). Then, they pass this isolate to the Flutter view when it is created.\r\n- What you are observing as \"state keeping\" is a side effect of the methodology described above. When you kill the activity in Google Ads, the \"UI\" of Flutter does not die. It is kept in memory tied to the application context. When the activity is restarted, it loads the same isolate and viola, you get your UI back.\r\n\r\nWe don't recommend this approach for solving this problem because it does not solve the problem at all. If the application process dies, the entire state is still lost. You can try this with Google Ads by going and stopping the process from Settings > Apps. The UI will be lost.\r\n\r\nThere might be a way to save the isolate state locally but it needs more investigation because we are not sure how feasible/safe it is.\r\n\r\nFor now, the solutions described above are the best ones: Hook into native methods and selectively save the state of your app so you can restore it later. An framework supported automatic solution on both iOS and Android is still far away.",
+    "createdAt": "2018-12-17T18:49:29Z"
+  },
+  {
+    "id": 8073,
+    "sender": "Zhuinden",
+    "content": "> You can try this with Google Ads by going and stopping the process from Settings > Apps. The UI will be lost.\r\n\r\nno that is totally ok. Force Stopping an app should lose the state.\r\n\r\nBeing terminated by low memory condition should not.\r\n\r\nEither way, if they keep the state in application as a singleton in-memory without persisting anything to disk/bundle, then it WILL be lost.\r\n\r\nIt is a shame I cannot test the app without an account, as I won't create a Google Ads account just to tinker with the app itself. :thinking_face:\r\n\r\n>  Hook into native methods and selectively save the state of your app so you can restore it later. \r\n\r\nIndeed the best solution would be to persist the active state to disk, and detect process death on Android native side; if you detect process death, reload from disk, otherwise clear it and restart from scratch.\r\n\r\nI don't know enough about Flutter's navigators to tell you if you can reconstruct the navigation history with some kind of `setHistory` or `setBackstack` method like you would with a backstack or Conductor or something like that.\r\n\r\nActivities/Fragments handle this stuff internally with the ActivityRecord/FragmentRecord, so they are not mentioned beyond that.",
+    "createdAt": "2018-12-17T18:57:59Z"
+  },
+  {
+    "id": 8074,
+    "sender": "aletorrado",
+    "content": "Thank you for all those insights @mehmetf. It's sad to hear that support for saving/restoring state is far away from being implemented.\r\n\r\nMaybe flutter_redux could help serializing *some* of the application state.",
+    "createdAt": "2018-12-17T18:59:22Z"
+  },
+  {
+    "id": 8075,
+    "sender": "Zhuinden",
+    "content": "Well, if you persist the Redux store's blob onto disk. Just beware the \"infinite loading dialog after process death\" problem. :thinking_face:",
+    "createdAt": "2018-12-17T19:19:48Z"
+  },
+  {
+    "id": 8076,
+    "sender": "gitspeaks",
+    "content": ">>To clarify some confusion:\r\n\r\nActually, I’m somewhat more confused..\r\n\r\n>>Being one of the early adopters, they had to do something unusual for background execution. They create and maintain their main isolate when the application starts (not the activity). Then, they pass this isolate to the Flutter view when it is created.\r\n\r\nHow does that relate to the issue at hand ? Do Dart isolates run in a separate process ?\r\n\r\n>>What you are observing as \"state keeping\" is a side effect of the methodology described above. When you kill the activity in Google Ads, the \"UI\" of Flutter does not die. It is kept in memory tied to the application context. When the activity is restarted, it loads the same isolate and viola, you get your UI back.\r\n\r\nMy understanding is that @aletorrado observed  “state keeping” after the process was terminated, possibly when the app was moved to the background (a.g pressing the home button).\r\n\r\nFYI: when an  “Activity Dies” at the runtime will it is ALWAYS followed by terminating the process. \r\n\r\n>>We don't recommend this approach for solving this problem because it does not solve the problem at all. If the application process dies, the entire state is still lost. You can try this with Google Ads by going and stopping the process from Settings > Apps. The UI will be lost.\r\n\r\nAs @Zhuinden  mentioned this is not a valid \"state keeping\" scenario, so as discarding the app from the “task manager”\r\n\r\n>>There might be a way to save the isolate state locally but it needs more investigation because we are not sure how feasible/safe it is.\r\n\r\nThat’s not the way to go about it. For Android, you should hook into onSaveInstanceState mechanism as it was made explicitly to save Activity state for those scenarios where \"state keeping\" is required post process termination. I'm not familiar with IOS app life-cycle. \r\n\r\n>>For now, the solutions described above are the best ones: Hook into native methods and selectively save the state of your app so you can restore it later. An framework supported automatic solution on both iOS and Android is still far away.\r\n\r\nNo solution was described rather than acknowledging the appropriate Android facility for retaining state for those cases where the run-time decides to terminate the process.\r\n",
+    "createdAt": "2018-12-17T19:29:22Z"
+  },
+  {
+    "id": 8077,
+    "sender": "Zhuinden",
+    "content": "> No solution was described rather than acknowledging the appropriate Android facility for retaining state for those cases where the run-time decides to terminate the process.\r\n\r\nI kinda did describe what we can do but I do not know enough about Flutter to tell you if it supports what is necessary for it (the ability to set up arbitrary navigation history at any given time 😄 )",
+    "createdAt": "2018-12-17T19:43:13Z"
+  },
+  {
+    "id": 8078,
+    "sender": "gitspeaks",
+    "content": "@Zhuinden there are a \"zillion\" edge cases covered by onSaveInstanceState at is pertains to Activities/Controls ... trust me on this...  but your welcome to investigate as an education exercise.",
+    "createdAt": "2018-12-17T19:46:11Z"
+  },
+  {
+    "id": 8079,
+    "sender": "gitspeaks",
+    "content": "... and just to reiterate my position: Android Tasks/Activities, Services, Application Life-cycle (including onSaveInstanceState) are all part of the *Android Programing Contract* “incidentally\" they are first realized in Java but the key takeaway is that they are means of imposing system-level constraints on the *App Process* and since Flutter code lives within an Android App Process it would be unwise of Flutter to bypass these constraints.",
+    "createdAt": "2018-12-17T20:05:42Z"
+  },
+  {
+    "id": 8080,
+    "sender": "passsy",
+    "content": "Dear Android developers,\r\n\r\nthanks for your passion in delivering the best user experience to your users by saving state not only across configuration changes but also during process death. You might have read in the 200 comments above that Flutter is struggling when it comes to saving application state. **I'd like to tell you why and how to solve it**.\r\n\r\n## Why can't I use `onSavedInstanceState`?\r\n\r\n`onSavedInstanceState` requires developers to synchronously save app state. You have to return immediately. But communication to Flutter is asynchronous by default (`Future`). Therefore you can't request the saved state from your Flutter app when Android asks for it.\r\n_But you could return the saved state if you'd have created it beforehand, couldn't you?_\r\n\r\n\r\nThe problem is not that `onSavedInstanceState` is inaccessible, the problem is the timing. When Android ask to save the state, you don't have to data.\r\n\r\n### Recovery solution A: Your own saved instance state file\r\n\r\nYou could listen to `onSavedInstanceState` and inform your flutter app about this event. Then save your app state and write it in a `file`. When your app gets recovered from process death (you can detect this via `savedInstanceState` on the Android side) load the file from file system, parse it and recover your state. (Hint: Use platform channels, they're easier than you might think).\r\n\r\nYou can even recover state when users killed the app, or dismiss the saved state if it is way too old!\r\n\r\n### Recovery solution B: Continuously save state\r\n\r\nWe could run a timer and continuously save the app state on the platform side in memory. Let's say every 3 seconds. When Android then calls `onSavedInstanceState` we can return the previously saved state. (Yes, we might lose changes happened in the last 3s)\r\n\r\n### Recovery solution C: Save state at key points\r\n\r\nLike solution B the saved state will be kept in memory on the platform side. But instead of saving the state every few seconds, you manually request to save the state after users did some actions. (opened a drawer, entered text in a `TextField`, you name it).\r\n\r\n---\r\n\r\nAll 3 solutions are combinable, use what fits best to your app.\r\n\r\n## But how can I save my app state?\r\n\r\nUnlike Android `View`s, `Widget`s don't have a `onSaveInstanceState` callback. The Widget tree is not saved automatically. And that's a good thing! UI and state are finally separated and there's no reflection magic when restoring View state or instantiating Activities and Fragments.\r\n\r\nTo save state you have to iterate over each screen in your app and save all information which is required to restore them. I like to do this in json but you might choose protobuf for better performance (Measure before you optimize!). \r\n\r\nLooking at our beloved sample counter app this can be super easy: \r\n\r\n```json\r\n// complete app state of sample application\r\n{\r\n  \"counter\": 24,\r\n}\r\n```\r\n\r\nIf you have multiple screen or dialogs you might end up with following app state json:\r\n\r\n```json\r\n{\r\n\t\"currentRoute\": \"/todo-detail/241\",\r\n\t\"routes\": {\r\n\t\t\"todo-detail/241\": {\r\n\t\t\t\"edited\": \"true\",\r\n\t\t\t\"title\": \"Buy bananas\",\r\n\t\t\t\"picture\": \"http://....\",\r\n\t\t\t\"show_confirm_delete_dialog\": \"false\"\r\n\t\t},\r\n\t\t\"todo-list\": {\r\n\t\t\t\"current_scroll_position\": \"365\",\r\n\t\t\t\"filter\": \"Filter.TODAY\"\r\n\t\t}\r\n\t}\r\n}\r\n```\r\n\r\nThe actual implementation depends heavily on your app architecture.\r\n- If you're using Redux you could use a middleware to persist the global app state on the fly.\r\n- If you're using `scoped_model` it might be enough to save the models. Recreating them is fundamentally different than recreating a Redux state.\r\n\r\nThe best tips I can give you: \r\n- Keep a strict separation of your UI and your models.\r\n- Look at each screen, and ask yourself what you really need to recover state. Most of the time it's really not much.\r\n- Talk to your iOS `colleagues` and they will tell you they haven't implemented state restoration via `encodeRestorableState` in years. [Android 1M+](https://github.com/search?q=onSaveInstanceState&type=Code) vs [iOS 974](https://github.com/search?q=encodeRestorableState&type=Code)\r\n\r\n---\r\n\r\nPascal",
+    "createdAt": "2018-12-17T21:26:11Z"
+  },
+  {
+    "id": 8081,
+    "sender": "Zhuinden",
+    "content": "> Turn on \"Don't Keep Activities\" setting.\r\n\r\nNo, this does not properly test against process death. This does not happen EVER unless you explicitly enable that setting. 😞 \r\n\r\n> \r\n> If you have multiple screen or dialogs you might end up with following app state json:\r\n> \r\n>     {\r\n>      \t\"currentRoute\": \"/todo-detail/241\",\r\n>      \t\"routes\": {\r\n>      \t\t\"todo-detail/241\": {\r\n>      \t\t\t\"edited\": \"true\",\r\n>      \t\t\t\"title\": \"Buy bananas\",\r\n>      \t\t\t\"picture\": \"http://....\",\r\n>      \t\t\t\"show_confirm_delete_dialog\": \"false\"\r\n>      \t\t},\r\n>      \t\t\"todo-list\": {\r\n>      \t\t\t\"current_scroll_position\": \"365\",\r\n>      \t\t\t\"filter\": \"Filter.TODAY\"\r\n>      \t\t}\r\n>      \t}\r\n>      }\r\n\r\n\r\nOh boy, we're reaching the \"navigation state is part of application state as the state of a finite state machine\" for this to work, but I like the way it looks 😄 ",
+    "createdAt": "2018-12-17T21:33:52Z"
+  },
+  {
+    "id": 8082,
+    "sender": "passsy",
+    "content": "> Oh boy, we're reaching the \"navigation state is part of application state as the state of a finite state machine\" for this to work\r\n\r\n😂 don't get me started. \r\n\r\nThe rest of the app state should be saved in a database/on the server. The only transient state worth saving in onSaveInstanceState is the navigation stack and some user inputs. That's also what most people are asking for in this thread. ",
+    "createdAt": "2018-12-17T21:50:37Z"
+  },
+  {
+    "id": 8083,
+    "sender": "gitspeaks",
+    "content": ">The rest of the app state should be saved in a database/on the server. The only transient state worth saving in onSaveInstanceState is the navigation stack and some user inputs. That's also what most people are asking for in this thread.\r\n\r\nand thats KEY! (as well as “Android Service” support)",
+    "createdAt": "2018-12-17T21:55:11Z"
+  },
+  {
+    "id": 8084,
+    "sender": "mehmetf",
+    "content": "@gitspeak, the last exchange we had have nothing to do with this issue. I will hide both. If you wish to continue the discussion, please PM me using my github handle @ gmail.com. There's clearly a misunderstanding here that's beyond the scope of this issue.",
+    "createdAt": "2018-12-17T22:40:52Z"
+  },
+  {
+    "id": 8085,
+    "sender": "matthew-carroll",
+    "content": "As one of the developers working on the interface between Flutter and Android, I'd like to thank @passsy for providing a great overview of the issues involved with saving state.\r\n\r\nI would also like to add that I'm interested in understanding any specific use-cases that developers in this thread are dealing with.  Saving state is a concept that likely spans many different goals.  What one app calls state, another does not.  One app absolutely must have guaranteed saved state, while another would simply prefer to save some state but won't break without it.  Some apps are entirely built with Flutter, other apps must synchronize information between traditional Android/iOS UI and Flutter.\r\n\r\nIf any of you would like to describe the particular use-case that your app needs to support with regard to saving state, please feel free to email me at mattcarroll@google.com - I am actively assembling use-cases.",
+    "createdAt": "2018-12-18T01:29:22Z"
+  },
+  {
+    "id": 8086,
+    "sender": "gitspeaks",
+    "content": "@passsy Please consider my comments below as a sincere attempt to provide constructive feedback \r\n\r\n> Recovery solution A: Your own saved instance state file\r\nYou could listen to onSavedInstanceState and inform your flutter app about this event. Then save your app state and write it in a file. When your app gets recovered from process death (you can detect this via savedInstanceState on the Android side) load the file from file system, parse it and recover your state. (Hint: Use platform channels, they're easier than you might think).\r\nYou can even recover state when users killed the app, or dismiss the saved state if it is way too old!\r\n\r\nSeveral issues:\r\n\r\n1) There is an inherent race-condition with this approach. The \"state persisting\" thread may very well outlive the Android app Main thread which invokes the life-cycle events, in which case, the process may be terminated while the file is being written. You may attempt to coordinate the two threads by blocking in a life-cycle method on a completion signal from the “state saving” thread but that, on top of introducing additional synchronization complexity, cannot assure correctness since a long enough delay  can introduce ANR. (https://developer.android.com/topic/performance/vitals/anr)\r\nYou might argue that \"state saving\" to file is so quick that this would unlikely happen but consider actual delays in thread scheduling and storage latency while other processes are running such as background downloads, play store updates, media player, etc… I'm not into debating this, but my personal experience (shared by others) is that apparently Android devices are not immune to the same \"flu\" infecting Windows PC’s  - they also get slower over time. I just recently wiped clean my Nexus 7 and not only it took HOURS to download and install all apps over Wifi, but the device responsiveness is now a complete joke to point where I doubt having patience using it even for looking up recipes.\r\n\r\n2) You can't have a reliable definition of \"way too old\". If I discard the App from the task manager, I expect all state to vanish immediately, while if I switch to another app I expect the state be preserved indefinitely so long as the phone is on. Point being, Android doesn’t provide you a way to distinguish between these two states.\r\n\r\n3) Not all UI controls expose their state through an API which allows the user to configure the control for a particular state. Such API would undoubtedly incurs additional development effort on behalf of the control developer. On android well behaved UI controls are expected to abstract \"state-preserving\" issues from the developer by handling onSave/Restore InstanceState notifications internally thereby controlling what state if any gets preserved. If I recall correctly, the AutoComplete control retains the query term but not the result list.\r\n\r\n\r\n>Recovery solution B: Continuously save state\r\nWe could run a timer and continuously save the app state on the platform side in memory. Let's say every 3 seconds. When Android then calls onSavedInstanceState we can return the previously saved state. (Yes, we might lose changes happened in the last 3s)\r\n\r\nVery much disagree,  besides having the same issues surrounding \"Solution A\", it adds a new risk of opening a can of data duplication worms.\r\n\r\n>Recovery solution C: Save state at key points\r\nLike solution B the saved state will be kept in memory on the platform side. But instead of saving the state every few seconds, you manually request to save the state after users did some actions. (opened a drawer, entered text in a TextField, you name it).\r\n\r\nHaving same issues surrounding \"Solution A\".\r\n\r\n> The Widget tree is not saved automatically. And that's a good thing! UI and state are finally separated and there's no reflection magic when restoring View state or instantiating Activities and Fragments.\r\n\r\nDisagree. Android's automatic retention of the Widget Tree *in those cases where it's state is subject to being tossed* is very helpful!  Why on earth would you want to move this responsibility in it's entire to the app developer??  Why does this stand in contrast to UI-state separation ?? Actually,  this automatic way of saving / restoring the Widget Tree seems like a perfect example of UI/State separation..\r\n",
+    "createdAt": "2018-12-18T15:09:48Z"
+  },
+  {
+    "id": 8087,
+    "sender": "aletorrado",
+    "content": "The \"Solution A\" seems perfectly plausible to me when using appropiate locks, and no ANR should be triggered if the amount of work is reasonable. Also, by embracing the platform's notification mechanism it avoids doing unnecessary serialization work all the time, which may be expensive to do for every single keystroke.\r\n\r\nAbout the possibility to automate this behavior, it seems clear to me that having no reflection mechanism in the Dart runtime, and having no structured way to store the state in memory in Flutter, that's not possible by any means. At the moment, the simplest approach I can think of doing this would be to opt-in to keep state in a single dynamic object (just like `this.props` and `this.state` on React).",
+    "createdAt": "2018-12-19T17:07:23Z"
+  },
+  {
+    "id": 8088,
+    "sender": "gitspeaks",
+    "content": "@aletorrado \r\n\r\n>The \"Solution A\" seems perfectly plausible to me when using appropiate locks, and no ANR should be triggered if the amount of work is reasonable.\r\n\r\nI agree. *when* ... Where the Android Model is far more simple and robust since it does not require the developer to deal with locks, it does not persist transient state to disk and it retains state only for those cases where it's relevant something you (flutter) can't do without  hooking into the Android lifecycle events and the onSaveInstance facility -  to begin with, so what is it good for?\r\n\r\n>Also, by embracing the platform's notification mechanism it avoids doing unnecessary serialization work all the time, which may be expensive to do for every single keystroke.\r\n\r\nThere is  no requirement to persist every key stroke but rather a snapshot consisting of selected  states \r\n\r\n\r\n",
+    "createdAt": "2018-12-19T17:34:43Z"
+  },
+  {
+    "id": 8089,
+    "sender": "LouisCAD",
+    "content": "The data should just be stored in the Bundle as a ByteArray to avoid\ntriggering any ANR or lag caused by I/O on main thread.\n\nOn Wed, Dec 19, 2018, 6:08 PM Alejandro Torrado <notifications@github.com>\nwrote:\n\n> The \"Solution A\" seems perfectly plausible to me when using appropiate\n> locks, and no ANR should be triggered if the amount of work is reasonable.\n> Also, by embracing the platform's notification mechanism it avoids doing\n> unnecessary serialization work all the time, which may be expensive to do\n> for every single keystroke.\n>\n> About the possibility to automate this behavior, it seems clear to me that\n> having no reflection mechanism in the Dart runtime, and having no\n> structured way to store the state in memory in Flutter, that's not possible\n> by any means. At the moment, the simplest approach I can think of doing\n> this would be to opt-in to keep state in a single dynamic object (just like\n> this.props and this.state on React).\n>\n> —\n> You are receiving this because you were mentioned.\n> Reply to this email directly, view it on GitHub\n> <https://github.com/flutter/flutter/issues/6827#issuecomment-448671264>,\n> or mute the thread\n> <https://github.com/notifications/unsubscribe-auth/AGpvBUQk17YOsjLMHTWcdJHL9rR71u6lks5u6nKGgaJpZM4KwSuX>\n> .\n>\n",
+    "createdAt": "2018-12-19T17:36:23Z"
+  },
+  {
+    "id": 8090,
+    "sender": "Zhuinden",
+    "content": "The real trickery is building up this ByteArray you speak of :slightly_smiling_face:",
+    "createdAt": "2018-12-19T17:40:22Z"
+  },
+  {
+    "id": 8091,
+    "sender": "LouisCAD",
+    "content": "I'd rather say that the real trickery is to be able to restore this\nByteArray properly.\n\nOn Wed, Dec 19, 2018, 6:41 PM Gabor Varadi <notifications@github.com> wrote:\n\n> The real trickery is building up this ByteArray you speak of 🙂\n>\n> —\n> You are receiving this because you were mentioned.\n> Reply to this email directly, view it on GitHub\n> <https://github.com/flutter/flutter/issues/6827#issuecomment-448682229>,\n> or mute the thread\n> <https://github.com/notifications/unsubscribe-auth/AGpvBep8AW2xkKECt6uyTjqRGwri9Pmoks5u6npKgaJpZM4KwSuX>\n> .\n>\n",
+    "createdAt": "2018-12-20T01:33:46Z"
+  },
+  {
+    "id": 8092,
+    "sender": "Zhuinden",
+    "content": "No. Once you have the byte array, it is very easy. Just show a loading indicator while you're loading it (assuming you've told yourself with channels that you need to load it).",
+    "createdAt": "2018-12-20T01:42:14Z"
+  },
+  {
+    "id": 8093,
+    "sender": "LouisCAD",
+    "content": "The real issue is Flutter integration, what I call the restore part.\nNavigation should be saved automatically, and user input too, just like on\nnative Android apps.\n\nBecause of this issue, Flutter apps can't integrate correctly in Android as\nthey don't behave correctly when there's RAM pressure and the user switches\napps in these conditions before coming back.\n\nOn Thu, Dec 20, 2018, 2:42 AM Gabor Varadi <notifications@github.com> wrote:\n\n> No. Once you have the byte array, it is very easy. Just show a loading\n> indicator while you're loading it (assuming you've told yourself with\n> channels that you need to load it).\n>\n> —\n> You are receiving this because you were mentioned.\n> Reply to this email directly, view it on GitHub\n> <https://github.com/flutter/flutter/issues/6827#issuecomment-448827537>,\n> or mute the thread\n> <https://github.com/notifications/unsubscribe-auth/AGpvBR4rmSxelodAjZvcQ6kOwPd7yxKPks5u6ushgaJpZM4KwSuX>\n> .\n>\n",
+    "createdAt": "2018-12-20T01:46:26Z"
+  },
+  {
+    "id": 8094,
+    "sender": "mehmetf",
+    "content": "A bunch of us discussed this a bit more here: https://github.com/mehmetf/flutter/issues/1. Relevant points to this issue:\r\n\r\n- To correct (https://github.com/flutter/flutter/issues/6827#issuecomment-447488177): Google Ads was tested with \"Don't Keep Activities\" turned on. The app process does not die in that case so my explanation at (https://github.com/flutter/flutter/issues/6827#issuecomment-447955562) stands. As @gitspeak and @Zhuinden have pointed out, this is not a good way to test for the scenarios we are guarding against as it does not work that way in practice.\r\n\r\n- Whenever the application is backgrounded, [`View.onSaveInstanceState`](https://developer.android.com/reference/android/view/View.html#onSaveInstanceState()) is called on the UI thread for every View in the hierarchy which has save enabled. So, a *good* solution from developer's point of view would be for `FlutterView` to implement this. To prevent race conditions with the UI thread (which you can't/shouldn't block), this method should not reach into the Flutter application as there's no synchronous way to do it.\r\n\r\n- Whatever onSaveInstanceState saves [cannot be larger than 1MB](https://developer.android.com/guide/components/activities/parcelables-and-bundles) so saving the entire isolate state is out of question. Instead, we can possibly come up with a way to split the code, assets and data that is contained in the isolate memory and dump only the data portion serialized into a parcelable.\r\n\r\n- When the view is later restored, FlutterView creates an isolate and unpacks the previously saved data portion if any.\r\n\r\n- When the app is backgrounded, the state should presumably stop changing on the Flutter side. There will always be corner cases so coming up with a list of best practices for Flutter apps would be nice to accompany this solution (considering both [lifecycle](https://docs.flutter.io/flutter/widgets/WidgetsBindingObserver/didChangeAppLifecycleState.html) and [memory pressure](https://docs.flutter.io/flutter/widgets/WidgetsBindingObserver/didHaveMemoryPressure.html)).\r\n\r\n- I would imagine this would be a far more pressing issue when it comes to emerging markets such as India where Flutter is expected to run on low-end phones. [Android Go](https://www.android.com/versions/go-edition/) is also rumored to have a far more aggressive memory management strategy.",
+    "createdAt": "2018-12-20T02:05:54Z"
+  },
+  {
+    "id": 8095,
+    "sender": "ivk1800",
+    "content": "> * They create and maintain their main isolate when the _application_ starts (not the activity). Then, they pass this isolate to the Flutter view when it is created.\r\n\r\ncan you provide an example this code?\r\n",
+    "createdAt": "2018-12-27T07:03:52Z"
+  },
+  {
+    "id": 8096,
+    "sender": "mehmetf",
+    "content": "> > They create and maintain their main isolate when the application starts (not the activity). Then, they pass this isolate to the Flutter view when it is created.\r\n\r\n> can you provide an example this code?\r\n\r\nI can't provide a copy/paste type of example but here's what's happening:\r\n\r\n### Application\r\n- In your `Application.onCreate`, call initialization functions for `FlutterMain`. (`startInitialization` and `ensureInitializationComplete`). You can find references to these in the flutter/engine repo.\r\n- Create a new FlutterNativeView object, pass in the Application instance as context.\r\n- Run your bundle in this native view (Look for examples of `runFromBundle`).\r\n- Implement an interface in this Application that lets you return this native view (something like `FlutterNativeViewProvider`).\r\n\r\n### Activity\r\n- Extend FlutterFragmentActivity and override these two methods: \r\n```java\r\n  @Override\r\n  public FlutterNativeView createFlutterNativeView() {\r\n    FlutterNativeViewProvider provider = (FlutterNativeViewProvider) getApplication();\r\n    return provider.getFlutterNativeView();\r\n  }\r\n\r\n  @Override\r\n  public boolean retainFlutterNativeView() {\r\n    return true;\r\n  }\r\n```\r\n\r\nSomething along these lines should get you going. Note that your Flutter application will start running before an Activity (and thus a window) is available. Therefore you should not be calling `runApp()` in your main function until you receive a signal from Activity that it is ready. You can do that via PlatformChannels and one place to signal that would be in createFlutterNativeView().\r\n\r\n## Disclaimer(s)\r\n\r\n1. As I mentioned above, we don't quite condone this pattern since it does not really solve this particular problem and it is quite messy.\r\n\r\n1. Note that many of these APIs are slated to change. Since add2app use cases are still evolving, the Android and iOS embedding APIs are not quite stable yet. We will announce breaking changes on flutter-dev@ as usual.",
+    "createdAt": "2018-12-27T16:17:20Z"
+  },
+  {
+    "id": 8097,
+    "sender": "jsroest",
+    "content": "@passsy, @gitspeak \r\n> Recovery solution A: Your own saved instance state file\r\n\r\nTo be sure that you have a valid state-file you can write to a .tmp file and then rename when writing is done. If you also keep the previous state file, you always will end up with valid state. Also when the process is killed while saving the state. ",
+    "createdAt": "2018-12-27T20:43:26Z"
+  },
+  {
+    "id": 8098,
+    "sender": "gitspeaks",
+    "content": " @jsroest \r\n\r\n>you always will end up with valid state.\r\n\r\nBut not necessarily the correct state, which is kind of the whole point.. \r\n\r\nThere is also no requirement for persisting state to non-volatile memory to begin with ..  \r\n",
+    "createdAt": "2018-12-27T20:56:39Z"
+  },
+  {
+    "id": 8099,
+    "sender": "jsroest",
+    "content": "@gitspeak \r\n\r\n> > you always will end up with valid state.\r\n> \r\n> But not necessarily the correct state, which is kind of the whole point..\r\n> \r\n> There is also no requirement for persisting state to non-volatile memory to begin with ..\r\n\r\nIn many situations having a consistent state is more important than having 'most of the latest values'. Relational databases used with transactions are an example of that. Which in my opinion is also a great place to store state.\r\n\r\nPersisting to non-volatile memory has some advantages; The process is also killed on 'phone drops', battery changes, hardware failures, os updates, reboots in general etc, so the state does persist when saved to non-volatile memory.",
+    "createdAt": "2018-12-28T07:51:13Z"
+  },
+  {
+    "id": 8100,
+    "sender": "gitspeaks",
+    "content": "@jsroest Your arguments are valid but IMHO not applicable to this particular issue since the \"state\" being alluded to here is *transient UI state* (e.g Scroll position, active selection(s), temporary text input, etc...). Keep in mind that restoring this type of data is only required in those situations where the user has not explicitly discarded the \"Screen\" but user-input can still get lost, like when a user switches to another app.  There is no user-expectation to recover *transient state* upon power-loss much like there is no user expectation that the browser will scroll the last displayed webpage to the exact offset prior to a system power loss. Point being, the nature of the data considered to be \"transient state\" is significant and the discussion here (Android onSaveInsatnceState facility in particular) is about handling that type of data.",
+    "createdAt": "2018-12-28T16:27:20Z"
+  },
+  {
+    "id": 8101,
+    "sender": "jsroest",
+    "content": "@gitspeak \r\nI write programs for the enterprise. For example programs that are used in warehouses by order pickers, or other example in the retail business, where the shop owner scans items to order from his supplier. My customers expect the application to start where they left it, no matter what happened. That includes transient state, but also the navigation-stack. Could you explain why this is not a perfect fit for the OnSaveInstanceState facility as discussed here? Maybe the user expectation in the consumer market is different, but the same logic to save and restore state can be used IMHO.",
+    "createdAt": "2018-12-28T16:50:23Z"
+  },
+  {
+    "id": 8102,
+    "sender": "gitspeaks",
+    "content": "@jsroest\r\n>My customers expect the application to start where they left it, no matter what happened.\r\n\r\nSorry, I don't know how to build applications for such customers, perhaps someone else can help ...",
+    "createdAt": "2018-12-28T17:20:39Z"
+  },
+  {
+    "id": 8103,
+    "sender": "mehmetf",
+    "content": "@jsroest That's a great question but is not within the scope of this issue. Flutter is limited by what the platform itself can do and, as @gitspeak mentions, Android's `onSaveInstanceState` is about saving transient UI state where the data lifecycle is different than what you want. Local storage or remote storage (if you want the state to survive across uninstalls and devices) would give you what you want but it has caveats, which are again outside the scope of this issue.\r\n\r\nFurther recommended reading:\r\n\r\nhttps://developer.android.com/topic/libraries/architecture/saving-states [Note for instance how this article separates local storage from onSaveInstanceState]\r\nhttps://developer.android.com/guide/topics/data/data-storage\r\nhttps://firebase.google.com/docs/firestore/",
+    "createdAt": "2018-12-28T17:43:50Z"
+  },
+  {
+    "id": 8104,
+    "sender": "Zhuinden",
+    "content": "@jsroest if your customers expect the app to return where it was *even if it was force-stopped, task-cleared or the OS was restarted*, then that is something completely custom, and not what people are talking about here.\r\n\r\nonSaveInstanceState was saving the task state for a given task, but it was dropped on task clear or force stop or OS reboot.",
+    "createdAt": "2018-12-28T20:46:40Z"
+  },
+  {
+    "id": 8105,
+    "sender": "gitspeaks",
+    "content": "@mehmetf I think this issue has indeed reached a level of verbosity at which it can be quite challenging to grok. With @LouisCAD blessing, I suggest you close this issue and open a new one which starts with your most recent summary (perhaps somewhat adapted to emphasis the problem statement and scope) along with back references to previous discussions.",
+    "createdAt": "2018-12-28T21:16:53Z"
+  },
+  {
+    "id": 8106,
+    "sender": "mehmetf",
+    "content": "I concur but I will leave that up to @matthew-carroll; he will likely own this issue.",
+    "createdAt": "2018-12-28T22:25:37Z"
+  },
+  {
+    "id": 8107,
+    "sender": "jsroest",
+    "content": "Thanks for the feedback. \r\n\r\nI don’t want to push things, but I think I was not clear enough describing what I am looking for. I am not up to par with all the terminology used here on this thread. I see a lot of similarity between what I would like to see in Flutter and what @LouisCAD and @passsy are describing.\r\n\r\nMy programs usually consist of the following parts:\r\n\r\n- Backend for pushing data from the steady state when the user is done with a job.\r\n- Local sqlite database for the steady state\r\n- In memory data-structure called ‘variables’ for the transient state that can be serialized to non-volatile memory so that it can outlive the process.\r\n\r\nThe ‘variables’ data-structure only has simple classes with properties that are serializable. An important part of this ‘variables’ datastructure is the screenstack. (Simply List<string>). The screen that’s on top, is the last screen the user interacted with. The one below is the one that the user navigates to when pressing 'back'.\r\n\r\nI can imagine that the OnSaveInstanceState can be used on the Android platform to trigger a serialization of this datastructure. Something similar has to be found on the other platforms (iOS, future: win, mac, web), but as @passy suggests other key points also may trigger this and that may be good enough. \r\n\r\nWhen the program starts, it will check if a serialized datastructure is available and if the current version of the program is the same as the version that serialized it. This can be done just by comparing version numbers. We do not want to load a datastructure that is not compatible.\r\n\r\nIf this all adds up then the datastructure is deserialized and available in memory. The program loads the screen that is on top of the stack. The screen itself loads its transient state from the datastructure. Now we have a program that survives process deaths. (Or am I missing something? This definitely works on my past projects on windows mobile, Xamarin forms and asp.net. I think it should also work in Flutter).\r\n\r\nSample application, where SXXX stands for a screen with a number. The number is only used to remind the programmer which screens belongs more or less together.\r\n\r\n```\r\nS100 Main menu\r\n  S200 Order pick\r\n    S210 Select order\r\n      S220 Confirm pick location\r\n        S230 Pick nr of pieces\r\n          S240 Report shortage\r\n        S250 Scan dropoff location\r\n    S300 Cycle count\r\n      S210 XXXXXX\r\n        S220 XXXXXX\r\n      S230 XXXXXX\r\n    S300 Reprint labels\r\n      S310 XXXXXX\r\n```\r\n\r\nSample variables datastructure\r\n\r\n```\r\nClass variables {\r\n\tClass AmbientVariables {\r\n\t\t….\r\n\t}\r\n\t\r\n\tClass ScreenStack{\r\n\t\tList<string> ScreenStack;\r\n\t}\r\n\r\n\tClass Orderpick {\r\n\t\tint selected_order;\r\n\t\tstring comfirmed_location;\r\n\t\tstring nr_picked;\r\n\t\t….\r\n\t}\r\n\r\n\tClass CycleCount {\r\n\t\t….\r\n\t}\r\n\r\n\tClass ReprintLabels {\r\n\t\t….\r\n\t}\r\n}\r\n```\r\n\r\nAll that I would like to see in flutter is probably already there, except the recreation of the screenstack aka navigationstack. I have no idea how to recreate this object tree in memory. I am also not sure if I should want to recreate it. I can also make a navigation stack of my own and implement this in flutter as a single page application. The same as I have done in previous projects. But then I would loose a lot of built-in goodies from the MaterialApp and Scaffold classes, where the back arrow/button is the most obvious one.\r\n\r\nI realize that this does not automatically save all transient state. For example, selected texts, position of lists, position of a specific animation. But as the programmer, you can decide per screen what is needed to save. Although that is exactly what @LouisCAD is trying to prevent because all of the boilerplate code needed.\r\n\r\nShould I make a new issue or does this fit into this thread?\r\n\r\nThanks again for the feedback, I really appreciate it. \r\n",
+    "createdAt": "2018-12-29T11:15:49Z"
+  },
+  {
+    "id": 8108,
+    "sender": "mehmetf",
+    "content": "@jsroest Thank you for the detailed explanation. Please post this on StackOverflow with the flutter tag. You are essentially asking for a recommendation on how to structure and build your routes and how to save the last visited route in the persistent storage.\r\n\r\nYou might think that solving this particular issue solves your problem too but that's not true. You can PM me at my github handle @ gmail.com if you don't understand why.",
+    "createdAt": "2018-12-29T16:24:35Z"
+  },
+  {
+    "id": 8109,
+    "sender": "vanlooverenkoen",
+    "content": "Any progress on this issue?",
+    "createdAt": "2019-06-05T21:43:08Z"
+  },
+  {
+    "id": 8110,
+    "sender": "Zhuinden",
+    "content": "@vanlooverenkoen theoretically if you persist the navigator's route list AND the key hierarchy to a file (and the state of stateful widgets), and clear it out when on Android native side you get `savedInstanceState == null`, then you could potentially make it persistable and restorable, it is just not that easy.",
+    "createdAt": "2019-06-06T10:17:29Z"
+  },
+  {
+    "id": 8111,
+    "sender": "claudiofelber",
+    "content": "@Zhuinden It's actually a lot more complex that just saving the routes and keys. Communication between screens is either done using callbacks or by awaiting a result. You would somehow have to restore these states as well. Otherwise you end up having something that looks correct but does not act as such. You could get around restoring callbacks and such by using a form of communication using data bundles just as you do using native Android (with intents), but that would take away a lot of Flutter's ease of use. As long as there is no real solution to this problem, Flutter is not usable for a lot of apps, mainly those that are used to collect large and complex form-based data. I wonder why this problem is not openly addressed by the Flutter team, because they surely must be aware of it. Maybe it would reveal a serious flaw in Flutter's architecture and show that, beyond flashy presentations to impress management, the system is not a good option for real-life applications.",
+    "createdAt": "2019-06-06T13:09:58Z"
+  },
+  {
+    "id": 8112,
+    "sender": "enguyen",
+    "content": "@jsroest @mehmetf @claudiofelber, does the answer to this StackOverflow question address these issues? https://stackoverflow.com/questions/54015775/what-is-the-best-way-to-pass-data-or-arguments-between-flutter-app-screens/54015932",
+    "createdAt": "2019-06-18T23:14:20Z"
+  },
+  {
+    "id": 8113,
+    "sender": "LouisCAD",
+    "content": "I've been following this from the beginning, but had to re-read a bunch of messages as I lost context.\r\n\r\nIf the Flutter team believes there should be a new, fresh issue, with less flood and clearer plans, I have no problem with that and this one being closed as a result.",
+    "createdAt": "2019-06-19T14:40:27Z"
+  },
+  {
+    "id": 8114,
+    "sender": "hvisser",
+    "content": "I've created the [native_state plugin](https://pub.dev/packages/native_state/versions/1.0.0-rc01) to leverage the Android and iOS mechanisms for saving app state when the process is killed. \r\n\r\nThe `Navigator` can already restore the app routes through the `initialRoute` property as it turns out, _if_ you follow some specific rules, which I have documented and added examples for, and you probably always want to use the plugin in combination with restoring the route (either by using the provided `SavedStateRouteObserver` or some other mechanism).",
+    "createdAt": "2019-08-09T19:15:08Z"
+  },
+  {
+    "id": 8115,
+    "sender": "eseidelGoogle",
+    "content": "Tao just pointed out to me that this was the 4th most requested issue in our survey last fall.  I think there are a mix of user desires expressed here (in the over 100 comments!) and we will need to sit down at some point and tease them out into separate items we can take action on.",
+    "createdAt": "2019-09-04T18:11:24Z"
+  },
+  {
+    "id": 8116,
+    "sender": "gitspeaks",
+    "content": "@eseidelGoogle I disagree with your assessment. IMHO, there are no “mix of user desires expressed” but rather lack of Android platform support which surfaces different programing challenges resulting from the same core issue.\r\n\r\nAndroid applications have two central themes: \r\n\r\n1) Process State machine (a.k.a Lifecycle events).  \r\n2) UI toolkit.\r\n\r\n Flutter does (2) but not (1). It needs to address both.  \r\n",
+    "createdAt": "2019-09-06T08:53:27Z"
+  },
+  {
+    "id": 8117,
+    "sender": "panthe",
+    "content": "3 years...",
+    "createdAt": "2019-10-24T05:06:58Z"
+  },
+  {
+    "id": 8118,
+    "sender": "goderbauer",
+    "content": "Quick update: I am currently actively working on exploring solutions for this problem.",
+    "createdAt": "2019-11-06T22:36:46Z"
+  },
+  {
+    "id": 8119,
+    "sender": "hvisser",
+    "content": "@goderbauer Just to ensure it's clear that this is not just an Android problem, iOS has the same mechanisms in place, though the impact on iOS apps is probably less. I've created a plugin that allows for saving state through the os mechanisms which might be something to look at too: https://github.com/littlerobots/flutter-native-state",
+    "createdAt": "2019-11-07T07:44:07Z"
+  },
+  {
+    "id": 8120,
+    "sender": "Zhuinden",
+    "content": "@hvisser how do you recommend saving navigation state? The Navigator from Flutter doesn't have a `getRoutes` method. ",
+    "createdAt": "2019-11-07T10:08:08Z"
+  },
+  {
+    "id": 8121,
+    "sender": "goderbauer",
+    "content": "@hvisser Yes, I am looking at this for both platforms (and it should be flexible enough to plug into other platforms as well). I removed the platform-android label to make it clear that this is not an Android specific problem.",
+    "createdAt": "2019-11-07T17:34:57Z"
+  },
+  {
+    "id": 8122,
+    "sender": "hvisser",
+    "content": "> @hvisser how do you recommend saving navigation state? The Navigator from Flutter doesn't have a `getRoutes` method.\r\n\r\n@Zhuinden The [navigator already has support for it](https://api.flutter.dev/flutter/widgets/Navigator/initialRoute.html)(though I don't think it's well known). I have an example of how to set it up in the native state project, but TL;DR\r\n\r\n* You must be using named routes\r\n* The routes should be hierarchical, e.g. `/screen1/screen2` follows on `/screen1` follows on `/`\r\n* The routes are pushed to the navigation stack when you set the `initialRoutes` property and your routes are organised that way\r\n* I _think_ you also need a `GlobalKey` for the `navigatorKey` on the `MaterialApp` but that might be specific to my case.\r\n\r\nSo if you set `initialRoutes` to `/screen1/screen2` and you have your routes setup correctly, then restoring navigation will also work.",
+    "createdAt": "2019-11-07T17:46:49Z"
+  },
+  {
+    "id": 8123,
+    "sender": "amreniouinnovent",
+    "content": "One more case on old devices with 2 sim cards when you toggle airplane mode on and off the native youtube and flutter apps will restart #49057 \r\nVideo is attached in my issue",
+    "createdAt": "2020-01-19T10:52:47Z"
+  },
+  {
+    "id": 8124,
+    "sender": "laksithakumara",
+    "content": "Try to disable flutter debug mode. if debug mode is enabled app always restart. \r\n\r\ndebugShowCheckedModeBanner: false,",
+    "createdAt": "2020-01-30T17:08:30Z"
+  },
+  {
+    "id": 8125,
+    "sender": "Aman-Malhotra",
+    "content": "I have been working in flutter since 2018, June/July maybe and came to know this was an issue after 2-3 months. I didn't know it became such a big issue. I was making a music player app and if I pressed back button, flutter used to destroy every state while the music kept playing in the background. To resolve this back then I made this **[system_shortcuts](https://pub.dev/packages/system_shortcuts/)** library .\r\nAdd the plugin to your project in **pubspec.yaml**  _[ For those who are beginners :) ]_ \r\n```\r\ndependencies:\r\n  flutter:\r\n    sdk: flutter\r\n\r\n  # The following adds the Cupertino Icons font to your application.\r\n  # Use with the CupertinoIcons class for iOS style icons.\r\n  cupertino_icons: ^0.1.2\r\n  system_shortcuts:\r\n\r\n```\r\nI have always been using a **workaround that works just fine for me** but there are a few issues in it, mentioned below in this comment but they don't affect me that much. \r\n\r\n### Usage - \r\nWhatever widget you are on and on back button press you know that the app will close(i.e user leaves the app) add **WidgetsBindingObserver** Mixin in the state class like this \r\n```\r\nclass _MusicPlayerState extends State<MusicPlayer>\r\n    with WidgetsBindingObserver{\r\n...\r\n}\r\n```\r\nAfter doing that **override the didPopRoute method** and add the following code in the method\r\n\r\n```\r\n@override\r\n  Future<bool> didPopRoute() async {\r\n    await SystemShortcuts.home();\r\n  return true;\r\n  }\r\n```\r\n\r\n_Lets Understand how this works_ :\r\n**App is running**  >>  **User presses back button**   >>  **Home button is pressed and the back button is not**>>The app goes to the background and the **state is not destroyed ANY OF IT**\r\n\r\n### Working Sample -\r\n\r\n_**EDIT**_\r\n_This app is written using **provider state management** but there is no code used to manage any of the state after closing the app and reopening from the recent. Its just the code that we added working here._ \r\n\r\n![ezgif com-video-to-gif](https://user-images.githubusercontent.com/30658517/73565220-19106500-4487-11ea-8f10-989abc04cb58.gif)\r\n\r\n![ezgif com-video-to-gif (1)](https://user-images.githubusercontent.com/30658517/73565751-3db90c80-4488-11ea-9ccb-76b0d32ba803.gif)\r\n\r\n\r\n### Issues - \r\nIf you have come to your app from another app, whenever you go back from your home widget you'll always go to the home screen and not to that previous app from where you came.\r\nExample :- \r\n**User is in WhatsApp (or any other app)**   >>   **They get a notification from your app**  >>  **They open your app from the notification**  >>  **Now they press back button**  >> **They'll go back to home screen of the phone and not WhatsApp(which should be the default scenario)**\r\n_This issue has not given me any big problem so far and I think all the normal users and developers will be ok with it as it is in rare cases that you come to your app from another app. I am not neglecting that it can happen quiet a few times but it works for me and its just a workaround till it gets any actual help from flutter core team._\r\n",
+    "createdAt": "2020-01-31T18:50:12Z"
+  },
+  {
+    "id": 8126,
+    "sender": "roysprojects",
+    "content": "The fact that this problem is almost 3 and half years old and still nothing is so upsetting. ",
+    "createdAt": "2020-02-04T08:02:30Z"
+  },
+  {
+    "id": 8127,
+    "sender": "LouisCAD",
+    "content": "Apparently, this is set to be worked on by May 2020 judging from the currently set milestone… in time for Google I/O?",
+    "createdAt": "2020-02-04T09:36:23Z"
+  }
+]

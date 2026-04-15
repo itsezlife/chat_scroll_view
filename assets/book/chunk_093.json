@@ -1,0 +1,386 @@
+[
+  {
+    "id": 5952,
+    "sender": "Ashbuhrz",
+    "content": "> I am 99% sure that the problem is due to incompatibilities with other packages. My project was running fine, in several devices, and after adding more stuff, image picker crashes EVERY TIME I try to take a photo or pick a image. I'll continue debugging and will let you know once I figure it out\r\n\r\nany progress??",
+    "createdAt": "2021-04-26T04:05:21Z"
+  },
+  {
+    "id": 5953,
+    "sender": "kari538",
+    "content": "Same problem with `image_picker: ^0.7.4`.\r\n\r\nPhone: Nokia 4.2\r\nOS: Android 10\r\n\r\nAnd it ANNOYS me to see that this package is supposed to have \"popularity 100%\" on pub.dev! 😠 How, when it has this fatal error since 2019, and they don't seem to even be doing anything about it?!!",
+    "createdAt": "2021-04-29T17:21:43Z"
+  },
+  {
+    "id": 5954,
+    "sender": "mauriciofontanadevargas",
+    "content": "> Same problem with `image_picker: ^0.7.4`.\r\n> \r\n> Phone: Nokia 4.2\r\n> OS: Android 10\r\n> \r\n> And it ANNOYS me to see that this package is supposed to have \"popularity 100%\" on pub.dev! 😠 How, when it has this fatal error since 2019, and they don't seem to even be doing anything about it?!!\r\n\r\ncould you please try with 0.6.7+22 ?",
+    "createdAt": "2021-04-30T12:34:03Z"
+  },
+  {
+    "id": 5955,
+    "sender": "yadames",
+    "content": "@mauriciofontanadevargas In this version it is true that it is more stable, but the error still occurs. The probabilities are lower but yes, they happen in the same way 😕",
+    "createdAt": "2021-04-30T12:42:27Z"
+  },
+  {
+    "id": 5956,
+    "sender": "braysonjohn148",
+    "content": "I went to present the app to my clients. I it crushed while picking an image on her phone. I lost some trust on the project. Please fix this issue.\r\n",
+    "createdAt": "2021-05-08T20:02:14Z"
+  },
+  {
+    "id": 5957,
+    "sender": "braysonjohn148",
+    "content": "> apk\r\n\r\nWhat do you mean apk level. Or you ment api level",
+    "createdAt": "2021-05-09T12:45:42Z"
+  },
+  {
+    "id": 5958,
+    "sender": "braysonjohn148",
+    "content": "I tried version image_picker: ^0.6.7+22 on a TECNO Spark 3 KB7j. 2BG RAM.\r\n`I/Choreographer( 6102): Skipped 698 frames!  The application may be doing too much work on its main thread.\r\n`\r\nThen it looses connection,\r\n\r\nI tried version image_picker: ^0.6.7+22 on a TECNO Spark 3 KB7j ANDROID 9. Still do not work. I tried also File picker latest version still do not work.",
+    "createdAt": "2021-05-10T05:52:10Z"
+  },
+  {
+    "id": 5959,
+    "sender": "nombrekeff",
+    "content": "Hey again! \r\n\r\nI mostly fixed this by **clearing the flutter image cache** each time I navigate to the page where the images are picked. This fix has allowed me and my clients to use the app without crashing for a month or so now. So I think this solution works, at least in my case. \r\n\r\n\r\nThis is how I clear the cache:\r\n```dart\r\nimageCache.maximumSize = 0;\r\nimageCache.clear();\r\n```\r\n\r\nSome other considerations:\r\n1. Use the **dev tools memory tab** in profile mode, and search for memory leaks. I had multiple.\r\n  1.2. If there are you will see the memory rise each time you perform the affected action\r\n2. Update all your dependencies\r\n3. Check android permissions\r\n4. Try building an empty app, with image_picker and check if it still happens.\r\n  4.1. If it does not happen you can determine it has something to do with other implementations. \r\n  4.2. If it does happen, you can be certain it has to do with the plugin itself.\r\n5. If nothing works, consider reporting a more official issue.\r\n\r\n\r\nHope this helps, it did for me\r\n\r\nimage_picker Version: `image_picker: ^0.6.7+22`\r\n\r\n",
+    "createdAt": "2021-05-10T08:37:37Z"
+  },
+  {
+    "id": 5960,
+    "sender": "tiagosito",
+    "content": "**First:**\r\nThis edition is already the sixth most commented of all that are open and has already caused a lot of headache!\r\n\r\n**Second:**\r\nWhy for some it works while for others, under the same conditions, it doesn't work? I believe that a more accurate answer from a good investigation by the Flutter team could help us, we already have many cases described here to help in this investigation, even if it is only a guide to solve this problem.\r\n\r\n**Third**\r\nBut I don't know if this is the team's priority at the moment, given the large number of existing problems, I have no idea when, but it's been open since 2019.",
+    "createdAt": "2021-05-11T13:05:46Z"
+  },
+  {
+    "id": 5961,
+    "sender": "phackwer",
+    "content": "Same here: compiling app in debug mode, deployed to real device, open camera, about 2 seconds after that connection is lost.\r\n\r\n![image](https://user-images.githubusercontent.com/4871786/118677758-676c8300-b7f4-11eb-82be-7db8b29dc1cd.png)\r\n",
+    "createdAt": "2021-05-18T15:17:12Z"
+  },
+  {
+    "id": 5962,
+    "sender": "pundlikadav1000",
+    "content": "Hii\r\nI am having the same issue on Android, after I click the tick on Camera to accept the picture, the App crashes with no errors\r\nbut lost to device connection message\r\nDevice:\r\nRedmi note 7 pro \r\nOS Version:\r\nAndroid 10\r\nMIUI-11,12 this problem\r\nPlugin version:\r\nimage_picker: ^0.7.3",
+    "createdAt": "2021-05-21T05:08:17Z"
+  },
+  {
+    "id": 5963,
+    "sender": "pundlikadav1000",
+    "content": "this is my code\r\n\r\n```dart\r\nimport 'dart:io';\r\n\r\nimport 'package:flutter/material.dart';\r\nimport 'package:image_picker/image_picker.dart';\r\n\r\nvoid main() => runApp(MyApp());\r\n\r\nclass MyApp extends StatelessWidget {\r\n  @override\r\n  Widget build(BuildContext context) {\r\n    return MaterialApp(\r\n      home: MyHomePage(),\r\n    );\r\n  }\r\n}\r\n\r\nclass MyHomePage extends StatefulWidget {\r\n  @override\r\n  _MyHomePageState createState() => _MyHomePageState();\r\n}\r\n\r\nclass _MyHomePageState extends State<MyHomePage> {\r\n  File _image;\r\n  final picker = ImagePicker();\r\n\r\n  Future getImage() async {\r\n    imageCache.maximumSize=0;\r\n    imageCache.clear();\r\n    final pickedFile = await picker.getImage(source: ImageSource.camera);\r\n\r\n    setState(() {\r\n      if (pickedFile != null) {\r\n        _image = File(pickedFile.path);\r\n      } else {\r\n        print('No image selected.');\r\n      }\r\n    });\r\n  }\r\n\r\n  @override\r\n  Widget build(BuildContext context) {\r\n    return Scaffold(\r\n      appBar: AppBar(\r\n        title: Text('Image Picker Example'),\r\n      ),\r\n      body: Center(\r\n        child: _image == null\r\n            ? Text('No image selected.')\r\n            : Image.file(_image),\r\n      ),\r\n      floatingActionButton: FloatingActionButton(\r\n        onPressed: getImage,\r\n        tooltip: 'Pick Image',\r\n        child: Icon(Icons.add_a_photo),\r\n      ),\r\n    );\r\n  }\r\n}\r\n```",
+    "createdAt": "2021-05-21T05:10:04Z"
+  },
+  {
+    "id": 5964,
+    "sender": "AgungLaksana",
+    "content": "I use image_picker: ^0.7.5+2 (latest)\r\n\r\nI also have the same error, the app crash on Redmi Note 7 when picking an image from GALLERY in debug mode. \r\nI am not offering a solution here, but I have no issue when taking image using GALLERY in release mode. use `flutter run --release` \r\n\r\nbut If take the image from CAMERA, it will still crash even though I am using release mode\r\n\r\nin Native Android Development, I also have the same issue. my native app will crash only on Redmi/Xiaomi phone. and I can solve it by using latest CameraX Jetpack Library ( I don't use Intent ). a little bit overkill to use CameraX just to take picture. but it works.\r\n",
+    "createdAt": "2021-05-24T07:24:54Z"
+  },
+  {
+    "id": 5965,
+    "sender": "oodavid",
+    "content": "Possibly related\r\n\r\nhttps://github.com/flutter/flutter/issues/70751#issuecomment-846927776",
+    "createdAt": "2021-05-24T09:56:12Z"
+  },
+  {
+    "id": 5966,
+    "sender": "ajaygosh102",
+    "content": "I am using `image_picker: ^0.7.5+3`, it has the same issue If we take the image from CAMERA, it will still crash. Is there any solution?",
+    "createdAt": "2021-05-29T11:00:39Z"
+  },
+  {
+    "id": 5967,
+    "sender": "TuyenNguyenVan",
+    "content": "Try change launch mode to `android:launchMode=\"singleTask\"`. Work for me",
+    "createdAt": "2021-06-06T02:10:23Z"
+  },
+  {
+    "id": 5968,
+    "sender": "LostInDarkMath",
+    "content": "Same issue with image_picke 0.8.0+1 on my Xiaomi Mi A2 Lite.\r\n\r\nIt's interesting because I remember that it works a long time for me before.",
+    "createdAt": "2021-06-06T13:56:05Z"
+  },
+  {
+    "id": 5969,
+    "sender": "kkaun",
+    "content": "Same issue for my team on several Samsung devices and OnePlus 6t.",
+    "createdAt": "2021-06-10T07:36:45Z"
+  },
+  {
+    "id": 5970,
+    "sender": "Yunus-Gedik",
+    "content": "Same issue, I am confused this big error had stayed for years!",
+    "createdAt": "2021-06-23T12:41:45Z"
+  },
+  {
+    "id": 5971,
+    "sender": "maheshj01",
+    "content": "This issue is added to [ Plugin 2021Q2 Hotlist](https://github.com/flutter/flutter/projects/194#card-61908743), I hope we will have an update soon.",
+    "createdAt": "2021-06-23T14:19:05Z"
+  },
+  {
+    "id": 5972,
+    "sender": "WilliansDutra",
+    "content": "Same issue with image_picker: ^0.8.1+3.\r\n\r\nBut I could solve my problem ( almost all, because I'm not able to turn on/off flash yet ) using this: https://flutter.dev/docs/cookbook/plugins/picture-using-camera\r\n\r\nedit: actually I can use the flash, my initializer was wrong\r\n",
+    "createdAt": "2021-07-12T10:14:02Z"
+  },
+  {
+    "id": 5973,
+    "sender": "irdevp",
+    "content": "Same issue\r\n\r\nflutter run --debug\r\nhttps://user-images.githubusercontent.com/47428695/125677525-aa55b9ce-36d7-45c9-b6cb-ddc209daacbe.mp4\r\n\r\nW/ActivityThread(18074): SCHED: br.com.example.app/.MainActivity [66, r=94ms, a=48ms, w=1917ms]\r\nLost connection to device.\r\n\r\nimage_picker: ^0.6.7+22\r\nFlutter 1.22.2 • channel unknown • unknown source\r\nFramework • revision 84f3d28555 (9 months ago) • 2020-10-15 16:26:19 -0700\r\nEngine • revision b8752bbfff\r\nTools • Dart 2.10.2\r\n\r\nLost connection to device.\r\n\r\nDevices:\r\nLG K22 (more often)\r\nRedmi Note 7\r\nSamsung A30",
+    "createdAt": "2021-07-14T19:09:54Z"
+  },
+  {
+    "id": 5974,
+    "sender": "irdevp",
+    "content": "strangely, when it takes time to \"accept a photo\" it works normally.",
+    "createdAt": "2021-07-14T21:07:38Z"
+  },
+  {
+    "id": 5975,
+    "sender": "irdevp",
+    "content": "**Flutter < 2.0**\r\n\r\nimage_picker 0.6.8\r\n\r\ni mix the new version 0.8.1+4, and downgrade no-null safety, did not solve the problem, but it decreased the frequency considerably.\r\n\r\n**in this version multifile dont working**\r\nfor now I don't have time to wait for a pull-request, and I don't know if I'll do it because of the uncertainty, both in the code output and in the commit rules (I don't know if I'm following)\r\n\r\nfor those like me(Jira screaming - \"for yesterday\"(JOKE)), feel free to try it out\r\n\r\n```\r\n  image_picker:\r\n    git:\r\n      url: https://github.com/irdevp/plugins.git\r\n      path: packages/image_picker/image_picker/\r\n      ref: master\r\n```",
+    "createdAt": "2021-07-15T04:47:42Z"
+  },
+  {
+    "id": 5976,
+    "sender": "aidingh",
+    "content": "I also suddenly today have the same issue, only when i use the camera the app loses connection to device. Is there any fix to this? ",
+    "createdAt": "2021-07-15T17:26:17Z"
+  },
+  {
+    "id": 5977,
+    "sender": "phanbaohuy96",
+    "content": "Hi, any solution to this problem yet? I get a lot of reports of problems selecting images from the camera. Also, Crashlytics can't log where the crash is coming from.",
+    "createdAt": "2021-07-20T08:58:41Z"
+  },
+  {
+    "id": 5978,
+    "sender": "kari538",
+    "content": "Use a different package. :( It's the only solution.\n",
+    "createdAt": "2021-07-20T11:35:10Z"
+  },
+  {
+    "id": 5979,
+    "sender": "Werisu",
+    "content": "I tried putting a `<uses-permission android:name=\"android.permission.CAMERA\">` but it didn't work",
+    "createdAt": "2021-07-21T19:56:43Z"
+  },
+  {
+    "id": 5980,
+    "sender": "maheshj01",
+    "content": "Is this issue still valid with the latest [image_picker: ^0.8.2](https://pub.dev/packages/image_picker) ?, I could not reproduce it on k20 Pro, Incase if anyone wants to try here is the sample code with the updated API. https://gist.github.com/maheshmnj/666de97c013a804b8b343966fca0941c \r\n\r\n(Note: No configuration is required for Android for image_picker ^0.8.1 and above, meaning  you can just add the plugin and try the sample code )\r\n\r\n<details>\r\n<summary>flutter doctor -v</summary>\r\n\r\n```\r\n[✓] Flutter (Channel stable, 2.2.3, on macOS 11.4 20F71 darwin-arm, locale en-GB)\r\n    • Flutter version 2.2.3 at /Users/mahesh/Documents/flutter\r\n    • Framework revision f4abaa0735 (3 weeks ago), 2021-07-01 12:46:11 -0700\r\n    • Engine revision 241c87ad80\r\n    • Dart version 2.13.4\r\n\r\n[✓] Android toolchain - develop for Android devices (Android SDK version 30.0.3)\r\n    • Android SDK at /Users/mahesh/Library/Android/sdk\r\n    • Platform android-30, build-tools 30.0.3\r\n    • ANDROID_HOME = /Users/mahesh/Library/Android/sdk\r\n    • Java binary at: /Applications/Android Studio.app/Contents/jre/jdk/Contents/Home/bin/java\r\n    • Java version OpenJDK Runtime Environment (build 11.0.8+10-b944.6916264)\r\n    • All Android licenses accepted.\r\n\r\n[✓] Xcode - develop for iOS and macOS\r\n    • Xcode at /Applications/Xcode.app/Contents/Developer\r\n    • Xcode 12.4, Build version 12D4e\r\n    • CocoaPods version 1.10.1\r\n\r\n[✓] Chrome - develop for the web\r\n    • Chrome at /Applications/Google Chrome.app/Contents/MacOS/Google Chrome\r\n\r\n[✓] Android Studio (version 4.2)\r\n    • Android Studio at /Applications/Android Studio.app/Contents\r\n    • Flutter plugin can be installed from:\r\n      🔨 https://plugins.jetbrains.com/plugin/9212-flutter\r\n    • Dart plugin can be installed from:\r\n      🔨 https://plugins.jetbrains.com/plugin/6351-dart\r\n    • Java version OpenJDK Runtime Environment (build 11.0.8+10-b944.6916264)\r\n\r\n[✓] IntelliJ IDEA Community Edition (version 2021.1.2)\r\n    • IntelliJ at /Applications/IntelliJ IDEA CE.app\r\n    • Flutter plugin version 57.0.5\r\n    • Dart plugin version 211.7233\r\n\r\n[✓] VS Code (version 1.58.0)\r\n    • VS Code at /Applications/Visual Studio Code.app/Contents\r\n    • Flutter extension version 3.24.0\r\n\r\n[✓] Connected device (3 available)\r\n    • iPhone 12 Pro Max (mobile) • 6A434744-B348-4FB3-AB10-131292174456 • ios            •\r\n      com.apple.CoreSimulator.SimRuntime.iOS-14-4 (simulator)\r\n    • macOS (desktop)            • macos                                • darwin-arm64   • macOS\r\n      11.4 20F71 darwin-arm\r\n    • Chrome (web)               • chrome                               • web-javascript • Google\r\n      Chrome 91.0.4472.164\r\n\r\n• No issues found!\r\n```\r\n\r\n```\r\n[✓] Flutter (Channel master, 2.4.0-5.0.pre.166, on macOS 11.4 20F71 darwin-arm, locale en-GB)\r\n    • Flutter version 2.4.0-5.0.pre.166 at /Users/mahesh/Documents/flutter_master\r\n    • Upstream repository https://github.com/flutter/flutter.git\r\n    • Framework revision 2dc11a85ff (4 hours ago), 2021-07-22 17:56:03 -0700\r\n    • Engine revision fbbb3b3f7b\r\n    • Dart version 2.14.0 (build 2.14.0-343.0.dev)\r\n\r\n[✓] Android toolchain - develop for Android devices (Android SDK version 30.0.3)\r\n    • Android SDK at /Users/mahesh/Library/Android/sdk\r\n    • Platform android-30, build-tools 30.0.3\r\n    • ANDROID_HOME = /Users/mahesh/Library/Android/sdk\r\n    • Java binary at: /Applications/Android Studio.app/Contents/jre/jdk/Contents/Home/bin/java\r\n    • Java version OpenJDK Runtime Environment (build 11.0.8+10-b944.6916264)\r\n    • All Android licenses accepted.\r\n\r\n[✓] Xcode - develop for iOS and macOS\r\n    • Xcode at /Applications/Xcode.app/Contents/Developer\r\n    • Xcode 12.4, Build version 12D4e\r\n    • CocoaPods version 1.10.1\r\n\r\n[✓] Chrome - develop for the web\r\n    • Chrome at /Applications/Google Chrome.app/Contents/MacOS/Google Chrome\r\n\r\n[✓] Android Studio (version 4.2)\r\n    • Android Studio at /Applications/Android Studio.app/Contents\r\n    • Flutter plugin can be installed from:\r\n      🔨 https://plugins.jetbrains.com/plugin/9212-flutter\r\n    • Dart plugin can be installed from:\r\n      🔨 https://plugins.jetbrains.com/plugin/6351-dart\r\n    • Java version OpenJDK Runtime Environment (build 11.0.8+10-b944.6916264)\r\n\r\n[✓] IntelliJ IDEA Community Edition (version 2021.1.2)\r\n    • IntelliJ at /Applications/IntelliJ IDEA CE.app\r\n    • Flutter plugin version 57.0.5\r\n    • Dart plugin version 211.7233\r\n\r\n[✓] VS Code (version 1.58.0)\r\n    • VS Code at /Applications/Visual Studio Code.app/Contents\r\n    • Flutter extension version 3.24.0\r\n\r\n[✓] Connected device (4 available)\r\n    • sdk gphone arm64 (mobile)  • emulator-5554                        • android-arm64  • Android 11 (API 30)\r\n      (emulator)\r\n    • iPhone 12 Pro Max (mobile) • 6A434744-B348-4FB3-AB10-131292174456 • ios            •\r\n      com.apple.CoreSimulator.SimRuntime.iOS-14-4 (simulator)\r\n    • macOS (desktop)            • macos                                • darwin-arm64   • macOS 11.4 20F71\r\n      darwin-arm\r\n    • Chrome (web)               • chrome                               • web-javascript • Google Chrome\r\n      91.0.4472.164\r\n\r\n• No issues found!\r\n```\r\n</details>\r\n",
+    "createdAt": "2021-07-23T12:40:13Z"
+  },
+  {
+    "id": 5981,
+    "sender": "moaabid",
+    "content": "Crashes while taking picture using camera. Is there any other solution ?\r\n\r\nShows - Lost connection to device.\r\n\r\nUsing latest image_picker: ^0.8.2.\r\n\r\nDevices:\r\nRedmi 7A (Android 10)\r\n",
+    "createdAt": "2021-07-26T06:32:10Z"
+  },
+  {
+    "id": 5982,
+    "sender": "kadnan0900",
+    "content": "facing same issue while capturing image from camera.\r\ncrash_dump.cpp:460] failed to attach to thread 532: Permission denied\r\n\r\n![WhatsApp Image 2021-08-04 at 12 10 23 PM](https://user-images.githubusercontent.com/51955352/128138792-fcf5b5f8-a6e7-456c-afad-ec79c3a4fccc.jpeg)\r\n",
+    "createdAt": "2021-08-04T07:20:46Z"
+  },
+  {
+    "id": 5983,
+    "sender": "tiagosito",
+    "content": "Lost connection to device.",
+    "createdAt": "2021-08-04T10:08:40Z"
+  },
+  {
+    "id": 5984,
+    "sender": "mangei",
+    "content": "maybe related #87896",
+    "createdAt": "2021-08-08T09:08:40Z"
+  },
+  {
+    "id": 5985,
+    "sender": "MatheusFelix17",
+    "content": "Hello everyone! After countless fails with \"lost connection with device\" while trying to pick an image from gallery, I found a plugin which met my demands: \"photo_manager\" plugin, alone, or used also here: https://pub.dev/packages/wechat_assets_picker\r\n\r\nAlthough it does not directly load the gallery and you pick from it and it goes back to the app, in this case the plugin loads the images of your device as assets, and you can access any image from any folder, and you can choose how to display those images, like a grid view \"emulating\" your gallery.\r\n\r\nI hope it helps you as it helped me! :D ",
+    "createdAt": "2021-08-09T12:52:41Z"
+  },
+  {
+    "id": 5986,
+    "sender": "Vaytrex",
+    "content": "Device: Xiaomi A2 lite (Android One device)\r\n\r\nStep to reproduce: Image picker pick multiple image then app crashed (losing connection with device)\r\nimage_picker version: **0.8.3+2**",
+    "createdAt": "2021-08-13T05:34:06Z"
+  },
+  {
+    "id": 5987,
+    "sender": "OlaleyeJumoke",
+    "content": "Using the image_picker with [image_cropper](https://pub.dev/packages/image_cropper) sorted the issue for me. I can't really explain it, but it did sort it for me.",
+    "createdAt": "2021-08-17T00:51:07Z"
+  },
+  {
+    "id": 5988,
+    "sender": "carman247",
+    "content": "> Using the image_picker with [image_cropper](https://pub.dev/packages/image_cropper) sorted the issue for me. I can't really explain it, but it did sort it for me.\r\n\r\n@OlaleyeJumoke Can you _try_ to explain?",
+    "createdAt": "2021-10-18T14:13:14Z"
+  },
+  {
+    "id": 5989,
+    "sender": "carman247",
+    "content": "Can't find a way to fix this in my app. Will have to use the `camera` plugin for now, which is a shame.",
+    "createdAt": "2021-10-20T13:43:55Z"
+  },
+  {
+    "id": 5990,
+    "sender": "agiletechie",
+    "content": "Still crashes and shows blank screen sometimes. Works fine on emulator though.\r\nUsing latest image_picker: ^0.8.4+4",
+    "createdAt": "2021-11-10T18:22:07Z"
+  },
+  {
+    "id": 5991,
+    "sender": "mothattack",
+    "content": "almost 2 years and many updates later, and this is still broken on a physical android device. I'm over it",
+    "createdAt": "2021-11-11T01:01:55Z"
+  },
+  {
+    "id": 5992,
+    "sender": "Abhijithsp",
+    "content": "I am having same problem when i try to take photo it shows \"Camera Error Unable to connect to the camera\" and also in some devices like xiaomi,some samsung phones after taking photo the app restarts, if i clear cache and data, it will work some time then it happens frequently, I am using \"image_picker: ^0.8.3+2\",i tried the latest version but this still occurs\r\nI tried to debug i didn't get any error messages.\r\nThis is code i used\r\n\r\n```\r\n  Future getImage() async {\r\n    XFile image =\r\n    await Imagepicker.pickImage(source: ImageSource.camera, maxHeight: 600);\r\n    setState(() {\r\n      _image = File(image.path);\r\n      });\r\n    \r\n}\r\n```\r\n",
+    "createdAt": "2021-11-12T04:58:21Z"
+  },
+  {
+    "id": 5993,
+    "sender": "oodavid",
+    "content": "@Abhijithsp we've had very similar reports. Our solution has been to bundle different camera modules into the app and let the user try different plugins via a settings screen. It's been needlessly troublesome - especially since the `camera` package forces 16:9 aspect ratio - #80393 #15953 and #45665. Essentially, we're letting our users choose between `image_picker` (unstable and correct images) or `camera` (more stable, but incorrect images)",
+    "createdAt": "2021-11-12T09:07:13Z"
+  },
+  {
+    "id": 5994,
+    "sender": "stuartmorgan-g",
+    "content": "This is not something that can be fixed in the plugin; it is not technically a bug, although I understand the frustration with the effect it has on the experience. The reason that there aren't any logs or crash reports is that the app isn't crashing, it's being terminated by the OS to free memory, because while the image picker activity is active the Flutter application is technically a background app, and thus subject to collection by the OS when there is memory pressure.\r\n\r\n* For end users, the solution is to implement state restoration in your application, and to use [these instructions from the plugin README](https://pub.dev/packages/image_picker/versions/0.8.4+4#handling-mainactivity-destruction-on-android) to get the results of the image picker activity during restoration.\r\n* For the `flutter run` workflow, I don't see a solution other than re-attaching to the restored application on completion.\r\n\r\nThe only way to avoid this would be to implement a custom, in-application image picker experience from scratch. That's out of scope of this plugin—but is something that interested members of the community could certainly build.\r\n\r\n(The reason this is specific to Android is that on iOS the system model is extremely different; instead of providing a standard set of activities for operations like these, the OS provides components that are displayed within the application, so the application that's doing the image selection is in the foreground the entire time. If at some point Android provides a similar component, `image_picker` could switch to that to resolve this.)\r\n\r\nGiven that this is, within the constrains of the way Android activities work, not something we can change, I'm going to close this. https://github.com/flutter/flutter/issues/93807 tracks improving the README to make this more clear.",
+    "createdAt": "2021-11-17T19:48:40Z"
+  },
+  {
+    "id": 5995,
+    "sender": "oodavid",
+    "content": "@stuartmorgan - this is a most excellent insight! Thank you\r\n\r\nDo you have any articles we can read about how Android chooses which apps to terminate in the background? ie: does it select those using the most memory? If so, it may mean that we may have an undetected memory leak.",
+    "createdAt": "2021-11-19T09:17:48Z"
+  },
+  {
+    "id": 5996,
+    "sender": "stuartmorgan-g",
+    "content": "> Do you have any articles we can read about how Android chooses which apps to terminate in the background? ie: does it select those using the most memory?\r\n\r\nAndroid documentation discusses it at a very high level, but there is (likely by design) not a clearly described set of rules; it's up to the OS to decide when to terminate processes, and which ones.\r\n\r\nGiven that how recently used the process was is called out as one factor that's likely to be considered, it could very well be the case that on some devices the image picker is using so much memory that **all** other non-essential processes are killed.",
+    "createdAt": "2021-11-19T15:50:00Z"
+  },
+  {
+    "id": 5997,
+    "sender": "dcharkes",
+    "content": "## FFI plugin\n\nAdd support for `flutter create --template=plugin_ffi` and `flutter run` support for `ffiPlugin: true` in `pubspec.yaml`.\r\n\r\nThis addresses 2 issues:\r\n\r\n1. Currently, the way to do FFI with Flutter is to use `flutter create --template=plugin`. However, this generates boilerplate for plugin registration and example code for method channels which go unused.\r\n2. We've see dozens of issues with building, linking, and bundling native code. The FFI plugin template should be the sample that works for all platforms for users to reference or use as a starting point.\r\n\r\n[Design doc].\r\n[Internal design doc].\r\n\r\nSome relevant issues:\r\n\r\n* https://github.com/flutter/flutter/issues/78819\r\n* https://github.com/flutter/flutter/issues/77790\r\n\r\nIncluded in this PR:\r\n\r\n* Building shared C source code as part of the native build for platforms Android, iOS, Linux desktop, MacOS desktop, and Windows desktop.\r\n* Sample code doing a synchronous FFI call.\r\n* Sample code doing a long running synchronous FFI call on a helper isolate.\r\n* Use of `package:ffigen` to generate the bindings.\r\n\r\nNot included in this PR:\r\n\r\n* Bundling closed source libraries. (MacOS, iOS, and Android require copying to the right place. Linux and Windows require referencing from CMake files.)\r\n* Building closed source libraries with the right compiler options (most notably rpath and include path).\r\n* Support for `flutter test`. This requires a `bin/setup.dart` to invoke a native build outside `flutter run` or `flutter build`.\r\n* Support for using the generated package as Dart standalone. This requires a `bin/setup.dart` to invoke a native build.\r\n* Linking against `dart_api_dl.h` to be able to invoke functions from `dart_api.h`.\r\n* Sample code doing an asynchronous callback through native ports form `dart_api.h`.\r\n* Compatibility between the `plugin` and `plugin_ffi` templates. The example apps (`example/lib/main.dart`) are different. @stuartmorgan we could change the plugin template to also perform a `sum` operation asynchronously and make them compatible that way.\r\n\r\nTest this PR locally without building Flutter by running the Flutter commands from source (replace platforms for your host OS). \r\n\r\n```sh\r\n$ dart <PATH_TO_FLUTTER_CHECKOUT>/packages/flutter_tools/bin/flutter_tools.dart create -t plugin_ffi --platforms=macos,ios,android my_ffi_plugin\r\n$ cd my_ffi_plugin/example/\r\n$ dart <PATH_TO_FLUTTER_CHECKOUT>/packages/flutter_tools/bin/flutter_tools.dart run -d macos\r\n```\r\n\r\n@mit-mit can you give it a spin and let me know what you think.\r\n\r\n@stuartmorgan do we run `flutter create --template=` + `flutter run` somewhere on CI? I could only find an [Android integration test].\r\n\r\n*If you had to change anything in the [flutter/tests] repo, include a link to the migration guide as per the [breaking change policy].*\r\n\r\n## Pre-launch Checklist\r\n\r\n- [x] I read the [Contributor Guide] and followed the process outlined there for submitting PRs.\r\n- [x] I read the [Tree Hygiene] wiki page, which explains my responsibilities.\r\n- [x] I read and followed the [Flutter Style Guide], including [Features we expect every widget to implement].\r\n- [x] I signed the [CLA].\r\n- [x] I listed at least one issue that this PR fixes in the description above.\r\n- [x] I updated/added relevant documentation (doc comments with `///`).\r\n- [ ] I added new tests to check the change I am making, or this PR is [test-exempt].\r\n- [ ] All existing and new tests are passing.\r\n\r\n<!-- Links -->\r\n[Contributor Guide]: https://github.com/flutter/flutter/wiki/Tree-hygiene#overview\r\n[Tree Hygiene]: https://github.com/flutter/flutter/wiki/Tree-hygiene\r\n[test-exempt]: https://github.com/flutter/flutter/wiki/Tree-hygiene#tests\r\n[Flutter Style Guide]: https://github.com/flutter/flutter/wiki/Style-guide-for-Flutter-repo\r\n[Features we expect every widget to implement]: https://github.com/flutter/flutter/wiki/Style-guide-for-Flutter-repo#features-we-expect-every-widget-to-implement\r\n[CLA]: https://cla.developers.google.com/\r\n[flutter/tests]: https://github.com/flutter/tests\r\n[breaking change policy]: https://github.com/flutter/flutter/wiki/Tree-hygiene#handling-breaking-changes\r\n[Discord]: https://github.com/flutter/flutter/wiki/Chat\r\n[Design doc]: https://docs.google.com/document/d/1vMw-W6L-r-uL1SUgzDh6J5rmtqum7SZdO9khWACrZJI/edit?usp=sharing&resourcekey=0-vvjEK88N-pApyKTPWJ2IZQ\r\n[Internal design doc]: http://go/flutter-dart-ffi-native-libraries\r\n[Android integration test]: https://github.com/flutter/flutter/blob/master/packages/flutter_tools/test/integration.shard/android_plugin_example_app_build_test.dart\r",
+    "createdAt": "2021-11-23T11:18:58Z"
+  },
+  {
+    "id": 5998,
+    "sender": "skia-gold",
+    "content": "Gold has detected about 1 new digest(s) on patchset 1.\nView them at https://flutter-gold.skia.org/cl/github/94101",
+    "createdAt": "2021-11-23T11:29:20Z"
+  },
+  {
+    "id": 5999,
+    "sender": "skia-gold",
+    "content": "Gold has detected about 1 new digest(s) on patchset 2.\nView them at https://flutter-gold.skia.org/cl/github/94101",
+    "createdAt": "2021-11-23T14:14:20Z"
+  },
+  {
+    "id": 6000,
+    "sender": "skia-gold",
+    "content": "Gold has detected about 1 new digest(s) on patchset 3.\nView them at https://flutter-gold.skia.org/cl/github/94101",
+    "createdAt": "2021-11-29T12:09:20Z"
+  },
+  {
+    "id": 6001,
+    "sender": "skia-gold",
+    "content": "Gold has detected about 1 new digest(s) on patchset 4.\nView them at https://flutter-gold.skia.org/cl/github/94101",
+    "createdAt": "2021-11-30T19:37:46Z"
+  },
+  {
+    "id": 6002,
+    "sender": "dnfield",
+    "content": "I've started reviewing this, but before I continue -\r\n\r\n1. It would be good to discuss this in an API review meeting.\r\n2. Have we considered other ways to provide a template for this? For example, a git repository? I'm also under the impression (maybe @craiglabenz knows?) that there's some work on going to make templates more pluggable. Could we do that for this?\r\n\r\nMy main thrust with question 2 is I suspect that people will want to heavily customize these. For example, someone might want to use a special compiler or build system that this doesn't use, or someone will want to use some other language choice that they'll write additional bindings for. It'd be really cool to have this as a stock/recommended/ready to go template for common use cases, but it'd be cool as well to see other templates pop up that support additional paradigms.",
+    "createdAt": "2021-12-02T04:39:41Z"
+  },
+  {
+    "id": 6003,
+    "sender": "dcharkes",
+    "content": "Thanks for the comments!\r\n\r\n> For example, someone might want to use a special compiler or build system that this doesn't use\r\n\r\nPeople can do that in their own app. However, that will not work for reusable plugin packages on pub.dev. For reusable packages we rely on everyone having the same build tools (checked with `flutter doctor`). The benefit of having a predefined set of build tools is that the users of FFI plugin packages do not even have to know native code is involved and need to know nothing about native build tools. They could be ordinary Dart developers.\r\n\r\nFor prebuilt shared libraries, distributed in binary I agree. I noted in the PR description that I think a sample repo might be a better option than a template (and it is not part of this PR).\r\n\r\n> For example, a git repository?\r\n\r\nWe need to land the `pubspec.yaml` support for bundling and building native code without the registry that method-channel plugins use.\r\n\r\nWhether the template lives in the Flutter repo or not does not matter so much. However:\r\n\r\n1. I think a template is better than a sample, renaming things in the boilerplate is notoriously hard.\r\n2. How would people find that template if it's not part of `flutter create`?\r\n\r\n> It'd be really cool to have this as a stock/recommended/ready to go template for common use cases, but it'd be cool as well to see other templates pop up that support additional paradigms.\r\n\r\nI agree that having other templates pop up would be super cool. I'm interested in any work going in that direction.\r\n\r\n> Could we do that for this?\r\n\r\n@mit-mit what is your take on how we should prioritize this?",
+    "createdAt": "2021-12-02T10:56:26Z"
+  },
+  {
+    "id": 6004,
+    "sender": "mit-mit",
+    "content": ">>Could we do that for this?\r\n\r\n> @mit-mit what is your take on how we should prioritize this?\r\n\r\nI'd love to see plugable for Flutter templates in general, but I don't want to hold this work up behind that. When we do plugable templates, let's try and do it across all of them and not just for a single one.",
+    "createdAt": "2021-12-02T11:04:42Z"
+  },
+  {
+    "id": 6005,
+    "sender": "christopherfujino",
+    "content": "> 1. It would be good to discuss this in an API review meeting.\r\n\r\n+1 on this\r\n\r\n> 2. Have we considered other ways to provide a template for this? For example, a git repository? I'm also under the impression (maybe @craiglabenz knows?) that there's some work on going to make templates more pluggable. Could we do that for this?\r\n\r\nI'm planning on working on pluggable templates in Q1 2022. Don't have a design doc written yet, though.",
+    "createdAt": "2021-12-02T18:02:20Z"
+  },
+  {
+    "id": 6006,
+    "sender": "stuartmorgan-g",
+    "content": "> > For example, someone might want to use a special compiler or build system that this doesn't use\r\n> \r\n> People can do that in their own app. However, that will not work for reusable plugin packages on pub.dev. For reusable packages we rely on everyone having the same build tools (checked with `flutter doctor`). The benefit of having a predefined set of build tools is that the users of FFI plugin packages do not even have to know native code is involved and need to know nothing about native build tools. They could be ordinary Dart developers.\r\n\r\nStrong +1 on this. We do not want the ecosystem to become a wild west where every time you add a new package dependency you might have to install an obscure compiler or build system.",
+    "createdAt": "2021-12-04T18:05:45Z"
+  },
+  {
+    "id": 6007,
+    "sender": "Hixie",
+    "content": "I would love if we could make this work using our future pluggable template system rather than adding 3 new types of templates to the tool (we only have 4 today, so this would almost double the number of built-in templates).",
+    "createdAt": "2021-12-06T22:25:37Z"
+  },
+  {
+    "id": 6008,
+    "sender": "Hixie",
+    "content": "Can we make this template also include the steps to compile the C library to Wasm, and link to it from JS, for web plugins? It would be amazing if someone could create a plugin that supported both VMs and web.",
+    "createdAt": "2021-12-07T19:03:27Z"
+  },
+  {
+    "id": 6009,
+    "sender": "Hixie",
+    "content": "Should the plugin include best practices for using ffigen?",
+    "createdAt": "2021-12-07T19:05:13Z"
+  },
+  {
+    "id": 6010,
+    "sender": "dnfield",
+    "content": "> Can we make this template also include the steps to compile the C library to Wasm, and link to it from JS, for web plugins? It would be amazing if someone could create a plugin that supported both VMs and web.\r\n\r\nThat would require emscripten, which is yet another build system constraint to deal with. But yes, it should be possible.",
+    "createdAt": "2021-12-07T19:06:51Z"
+  },
+  {
+    "id": 6011,
+    "sender": "christopherfujino",
+    "content": "> Can we make this template also include the steps to compile the C library to Wasm, and link to it from JS, for web plugins? It would be amazing if someone could create a plugin that supported both VMs and web.\r\n\r\nAs I think was brought up in the design review, this would be really cool, but would have to be a future project, as we would have to consider an official supported C -> WASM for Flutter toolchain, with associated doctor validators.",
+    "createdAt": "2021-12-09T16:46:21Z"
+  },
+  {
+    "id": 6012,
+    "sender": "craiglabenz",
+    "content": "I'm a bit late to the party here, but the generically pluggable templates project is in its very early stages and probably shouldn't impact decision-making here. A day may come when various templates elsewhere get migrated over, but that's not imminent.",
+    "createdAt": "2021-12-10T19:21:51Z"
+  },
+  {
+    "id": 6013,
+    "sender": "dcharkes",
+    "content": "I've updated the PR to:\r\n\r\n* Exclude `dart_api_dl.h` for now. I'll follow up with another PR.\r\n* Include a sample with a helper isolate for longer running native code.\r\n* A lot more comments and documentation.",
+    "createdAt": "2021-12-10T19:25:39Z"
+  },
+  {
+    "id": 6014,
+    "sender": "dnfield",
+    "content": "I think this should be good to go once CI is passing from my POV.\r\n\r\nI'm interested in following up on the issue(s) related to dart_api_dl.h.\r\n\r\nI would like to make sure @blasten has a chance to review the new NDK mechanisms.",
+    "createdAt": "2021-12-13T18:23:02Z"
+  },
+  {
+    "id": 6015,
+    "sender": "dcharkes",
+    "content": "Thanks for the review @stuartmorgan!\r\n\r\nI can't seem to reply to one of your comments.\r\n\r\n> packages/flutter_tools/templates/ffi_plugin/README.md.tmpl\r\n> ```\r\n> {{#no_platforms}}\r\n> The plugin project was generated without specifying the `--platforms` flag, no platforms are currently supported.\r\n> To add platforms, run `flutter create -t plugin_ffi --platforms <platforms> .` under the same\r\n> directory. You can also find a detailed instruction on how to add platforms in the `pubspec.yaml` at https://flutter.dev/docs/development/packages-and-plugins/developing-packages#plugin-platforms.\r\n> ```\r\n> \r\n> This hasn't been changed.\r\n\r\nDid you mean the website hasn't been changed? Or that comment in the readme. The comment in the readme is applicable.",
+    "createdAt": "2021-12-22T16:27:15Z"
+  }
+]

@@ -1,0 +1,386 @@
+[
+  {
+    "id": 9920,
+    "sender": "brianschardt",
+    "content": "Same problem. I am using FCM. Dont want to downgrade",
+    "createdAt": "2020-09-26T23:02:41Z"
+  },
+  {
+    "id": 9921,
+    "sender": "jhubbardsf",
+    "content": "I was getting the same problem on stable but it went away when I switched to the beta channel (1.22.0-12.1.pre). So something in those updates must have fixed it. If anybody else could test that and confirm it goes away after upgrading?\r\n\r\nEdit: And it's still breaking :/. Was nice while it lasted.",
+    "createdAt": "2020-09-27T17:38:55Z"
+  },
+  {
+    "id": 9922,
+    "sender": "DomingoMG",
+    "content": "It was breaking my mind and since I upgraded flutter to beta mode everything worked as expected.\r\nHope the next stable update fixes the problem.",
+    "createdAt": "2020-09-27T23:53:55Z"
+  },
+  {
+    "id": 9923,
+    "sender": "awhitford",
+    "content": "(Was something truly _fixed_, or was the message simply _suppressed_?) 🤔 ",
+    "createdAt": "2020-09-28T04:01:31Z"
+  },
+  {
+    "id": 9924,
+    "sender": "DomingoMG",
+    "content": "@awhitford The message keeps popping up, but my FCM plugins started working.",
+    "createdAt": "2020-09-28T11:00:58Z"
+  },
+  {
+    "id": 9925,
+    "sender": "spareblock",
+    "content": "I still get messages after upgrading from 1.20.0-7.2.pre to 1.22.0-12.1.pre although somewhat less than before...",
+    "createdAt": "2020-09-28T21:10:53Z"
+  },
+  {
+    "id": 9926,
+    "sender": "awhitford",
+    "content": "I am still seeing this after upgrading to Flutter 1.22, running against iPhone simulator.  (Admittedly, this does not seem very serious, but I honestly have no idea.)",
+    "createdAt": "2020-10-02T20:45:48Z"
+  },
+  {
+    "id": 9927,
+    "sender": "congfandi",
+    "content": "i have same issue. xcode 12 simulator 14 and  Flutter (Channel stable, 1.20.4\r\n",
+    "createdAt": "2020-10-03T10:19:39Z"
+  },
+  {
+    "id": 9928,
+    "sender": "shaishalevss",
+    "content": "same issue... any solution?",
+    "createdAt": "2020-10-08T15:26:10Z"
+  },
+  {
+    "id": 9929,
+    "sender": "nwparker",
+    "content": "same issue",
+    "createdAt": "2020-10-09T04:15:29Z"
+  },
+  {
+    "id": 9930,
+    "sender": "Barry0501",
+    "content": "Same issue, any update for this issue? ",
+    "createdAt": "2020-10-09T04:27:58Z"
+  },
+  {
+    "id": 9931,
+    "sender": "TahaTesser",
+    "content": "Everyone please  instead of writing \"same issue\" or \"me too\", add a 👍  reaction to the OP\r\nThank you",
+    "createdAt": "2020-10-09T13:19:26Z"
+  },
+  {
+    "id": 9932,
+    "sender": "eli-front",
+    "content": "still an issue in v: 1.22",
+    "createdAt": "2020-10-10T22:31:02Z"
+  },
+  {
+    "id": 9933,
+    "sender": "HasithaPriyasad",
+    "content": "common still not fixed? I cannot run the app.",
+    "createdAt": "2020-10-12T20:06:12Z"
+  },
+  {
+    "id": 9934,
+    "sender": "jhubbardsf",
+    "content": "@HasithaPriyasad \r\n\r\nThis issue doesn't prevent the app from running. As far as I can tell it doesn't actually effect the app at all, it's just an annoying error we can't get rid of. Your issue might be something else or closely related. Can you go into some more detail or if you feel it's different enough open another ticket for it?",
+    "createdAt": "2020-10-12T20:27:34Z"
+  },
+  {
+    "id": 9935,
+    "sender": "HasithaPriyasad",
+    "content": "> @HasithaPriyasad\r\n> \r\n> This issue doesn't prevent the app from running. As far as I can tell it doesn't actually effect the app at all, it's just an annoying error we can't get rid of. Your issue might be something else or closely related. Can you go into some more detail or if you feel it's different enough open another ticket for it?\r\n\r\n\"error retrieving thread information (ipc/send) invalid destination port\"\r\n\r\nHi, I'm getting this error over and over again and the app is only white screen any idea about it? ",
+    "createdAt": "2020-10-12T21:11:02Z"
+  },
+  {
+    "id": 9936,
+    "sender": "jhubbardsf",
+    "content": "Without seeing the rest of your code it's a little hard to tell. If you upload it to a repo and link to it I'll check it out for you.",
+    "createdAt": "2020-10-12T21:31:06Z"
+  },
+  {
+    "id": 9937,
+    "sender": "gaox-dev",
+    "content": "same issue on 1.20 stable version",
+    "createdAt": "2020-10-19T02:31:46Z"
+  },
+  {
+    "id": 9938,
+    "sender": "diegoporfirio",
+    "content": "Same issue\r\n\r\n[✓] Flutter (Channel master, 1.23.0-19.0.pre.118, on Mac OS X 10.15.7 19H2 darwin-x64, locale pt-BR)\r\n    • Flutter version 1.23.0-19.0.pre.118 at /Users...\r\n    • Framework revision dd9323bdfb (52 minutes ago), 2020-10-19 15:47:04 -0700\r\n    • Engine revision d03b759d04\r\n    • Dart version 2.11.0 (build 2.11.0-229.0.dev)\r\n\r\n[✓] Android toolchain - develop for Android devices (Android SDK version 30.0.2)\r\n    • Android SDK at /Users/...\r\n    • Platform android-30, build-tools 30.0.2\r\n    • Java binary at: /Applications/Android Studio.app/Contents/jre/jdk/Contents/Home/bin/java\r\n    • Java version OpenJDK Runtime Environment (build 1.8.0_242-release-1644-b3-6222593)\r\n    • All Android licenses accepted.\r\n\r\n[✓] Xcode - develop for iOS and macOS (Xcode 12.0.1)\r\n    • Xcode at /Applications/Xcode.app/Contents/Developer\r\n    • Xcode 12.0.1, Build version 12A7300\r\n    • CocoaPods version 1.10.0.rc.1\r\n\r\n[✓] Android Studio (version 4.0)\r\n    • Android Studio at /Applications/Android Studio.app/Contents\r\n    • Flutter plugin version 50.0.1\r\n    • Dart plugin version 193.7547\r\n    • Java version OpenJDK Runtime Environment (build 1.8.0_242-release-1644-b3-6222593)\r\n\r\n[✓] VS Code (version 1.38.1)\r\n    • VS Code at /Applications/Visual Studio Code.app/Contents\r\n    • Flutter extension can be installed from:\r\n      🔨 https://marketplace.visualstudio.com/items?itemName=Dart-Code.flutter\r\n\r\n[✓] Connected device (1 available)\r\n    • iPhone 8 (mobile) • 84CE03FB-304D-426B-8DBD-F22E1E644F68 • ios • com.apple.CoreSimulator.SimRuntime.iOS-14-0 (simulator)\r\n",
+    "createdAt": "2020-10-19T23:40:56Z"
+  },
+  {
+    "id": 9939,
+    "sender": "diegoporfirio",
+    "content": "FIX issue new flutter version =) :\r\n\r\n[✓] Flutter (Channel master, 1.24.0-2.0.pre.86, on Mac OS X 10.15.7 19H2 darwin-x64, locale pt-BR)\r\n    • Flutter version 1.24.0-2.0.pre.86 at /Users/...\r\n    • Framework revision dde20448f7 (7 hours ago), 2020-10-20 00:59:56 -0400\r\n    • Engine revision ea2aea1c61\r\n    • Dart version 2.11.0 (build 2.11.0-234.0.dev)\r\n\r\n[✓] Android toolchain - develop for Android devices (Android SDK version 30.0.2)\r\n    • Android SDK at /Users/...\r\n    • Platform android-30, build-tools 30.0.2\r\n    • Java binary at: /Applications/Android Studio.app/Contents/jre/jdk/Contents/Home/bin/java\r\n    • Java version OpenJDK Runtime Environment (build 1.8.0_242-release-1644-b3-6222593)\r\n    • All Android licenses accepted.\r\n\r\n[✓] Xcode - develop for iOS and macOS (Xcode 12.0.1)\r\n    • Xcode at /Applications/Xcode.app/Contents/Developer\r\n    • Xcode 12.0.1, Build version 12A7300\r\n    • CocoaPods version 1.10.0.rc.1\r\n\r\n[✓] Android Studio (version 4.0)\r\n    • Android Studio at /Applications/Android Studio.app/Contents\r\n    • Flutter plugin version 50.0.1\r\n    • Dart plugin version 193.7547\r\n    • Java version OpenJDK Runtime Environment (build 1.8.0_242-release-1644-b3-6222593)\r\n\r\n[✓] VS Code (version 1.38.1)\r\n    • VS Code at /Applications/Visual Studio Code.app/Contents\r\n    • Flutter extension can be installed from:\r\n      🔨 https://marketplace.visualstudio.com/items?itemName=Dart-Code.flutter\r\n\r\n[✓] Connected device (1 available)\r\n    • iPhone 7 (mobile) • D1223C47-4747-4E7F-B8CC-C85721F90880 • ios • com.apple.CoreSimulator.SimRuntime.iOS-14-0 (simulator)\r\n\r\n• No issues found!\r\nProcess finished with exit code 0\r\n\r\n",
+    "createdAt": "2020-10-20T12:27:03Z"
+  },
+  {
+    "id": 9940,
+    "sender": "ylzgit",
+    "content": "\r\nUse this command to solve the problem of white screen\r\n\r\nflutter run --enable-software-rendering",
+    "createdAt": "2020-10-21T10:05:25Z"
+  },
+  {
+    "id": 9941,
+    "sender": "csacchetti",
+    "content": "The upgrade to Channel stable, 1.22.2 fix the problem. Great thing.",
+    "createdAt": "2020-10-21T14:48:25Z"
+  },
+  {
+    "id": 9942,
+    "sender": "rahulvyas",
+    "content": "> The upgrade to Channel stable, 1.22.2 fix the problem. Great thing.\r\n\r\nI'm still getting this error on master. Should I switch to stable ? The only problem I have with stable channel is it doesn't support web.",
+    "createdAt": "2020-10-23T07:29:13Z"
+  },
+  {
+    "id": 9943,
+    "sender": "rahulvyas",
+    "content": "> Use this command to solve the problem of white screen\r\n> \r\n> flutter run --enable-software-rendering\r\n\r\nWill it work for iOS Simulator ?",
+    "createdAt": "2020-10-23T08:18:01Z"
+  },
+  {
+    "id": 9944,
+    "sender": "awhitford",
+    "content": "@rahulvyas I'm not sure that I would switch channels if I were you because I don't think this issue is that serious. I logged it because it is something that should be fixed, but it does seem to have a low severity.\r\n\r\nI'd rather see you exercise that web support. 😉 ",
+    "createdAt": "2020-10-23T08:54:08Z"
+  },
+  {
+    "id": 9945,
+    "sender": "csacchetti",
+    "content": "PRECISATION!\r\nAs I said above in a new project after updating to version stable 1.22.2 the problem is solved. Today I had to go back to a project started a few months ago to fix a bug and I notice that despite the update the problem remains. So for new projects it is solved but for projects opened a few months ago it is not.",
+    "createdAt": "2020-10-23T09:34:52Z"
+  },
+  {
+    "id": 9946,
+    "sender": "yourshinsuke",
+    "content": "Flutter 1.20.4\r\n```\r\nError retrieving thread information: (ipc/send) invalid destination port\r\n```",
+    "createdAt": "2020-10-26T03:47:37Z"
+  },
+  {
+    "id": 9947,
+    "sender": "yourshinsuke",
+    "content": "Ah, I should use 1.22.2",
+    "createdAt": "2020-10-26T03:49:41Z"
+  },
+  {
+    "id": 9948,
+    "sender": "NarHakobyan",
+    "content": "Any solution? 🤔",
+    "createdAt": "2020-10-26T08:42:00Z"
+  },
+  {
+    "id": 9949,
+    "sender": "ylzgit",
+    "content": "> > Use this command to solve the problem of white screen\r\n> > flutter run --enable-software-rendering\r\n> \r\n> Will it work for iOS Simulator ?\r\n\r\nyes",
+    "createdAt": "2020-10-26T08:46:39Z"
+  },
+  {
+    "id": 9950,
+    "sender": "rahulvyas",
+    "content": "> > > Use this command to solve the problem of white screen\r\n> > > flutter run --enable-software-rendering\r\n> > \r\n> > \r\n> > Will it work for iOS Simulator ?\r\n> \r\n> yes\r\n\r\nSysqure-Mac-Mini-2019s-Mac-mini:woodstock sysquare$ flutter run --enable-software-rendering\r\nMultiple devices found:\r\nSysquare iPhone 6 (mobile) • 6738046e36c4b034575b53705583f06ca5192db2 • ios            • iOS 12.4.6\r\niPhone 11 Pro (mobile)     • CE5AD89F-2EC3-44D7-9D02-778EA9F2ECCD     • ios            •\r\ncom.apple.CoreSimulator.SimRuntime.iOS-14-0 (simulator)\r\nWeb Server (web)           • web-server                               • web-javascript • Flutter Tools\r\nChrome (web)               • chrome                                   • web-javascript • Google Chrome 86.0.4240.111\r\n[0]: Sysquare iPhone 6 (6738046e36c4b034575b53705583f06ca5192db2)\r\n[1]: iPhone 11 Pro (CE5AD89F-2EC3-44D7-9D02-778EA9F2ECCD)\r\n[2]: Web Server (web-server)\r\n[3]: Chrome (chrome)\r\nPlease choose one (To quit, press \"q/Q\"): 1\r\nLaunching lib/main.dart on iPhone 11 Pro in debug mode...\r\nRunning Xcode build...                                                  \r\n └─Compiling, linking and signing...                         8.3s\r\nXcode build done.                                           19.8s\r\n[VERBOSE-2:profiler_metrics_ios.mm(186)] Error retrieving thread information: (ipc/send) invalid destination port\r\n[VERBOSE-2:profiler_metrics_ios.mm(186)] Error retrieving thread information: (ipc/send) invalid destination port\r\n[VERBOSE-2:profiler_metrics_ios.mm(186)] Error retrieving thread information: (ipc/send) invalid destination port\r\n[VERBOSE-2:profiler_metrics_ios.mm(186)] Error retrieving thread information: (ipc/send) invalid destination port\r\n[VERBOSE-2:profiler_metrics_ios.mm(186)] Error retrieving thread information: (ipc/send) invalid destination port\r\n[VERBOSE-2:profiler_metrics_ios.mm(186)] Error retrieving thread information: (ipc/send) invalid destination port\r\n[VERBOSE-2:profiler_metrics_ios.mm(186)] Error retrieving thread information: (ipc/send) invalid destination port\r\n[VERBOSE-2:profiler_metrics_ios.mm(186)] Error retrieving thread information: (ipc/send) invalid destination port\r\n[VERBOSE-2:profiler_metrics_ios.mm(186)] Error retrieving thread information: (ipc/send) invalid destination port\r\nWaiting for iPhone 11 Pro to report its views...                    5.7s\r\nError connecting to the service protocol: _flutter.listViews: (-32000) Bad state: The client closed with pending request\r\n\"_flutter.listViews\".\r\n\r\n\r\n\r\n\r\n\r\n**Still getting error**",
+    "createdAt": "2020-10-27T06:30:30Z"
+  },
+  {
+    "id": 9951,
+    "sender": "sulfy",
+    "content": "I also have the same issue but the app works fine, any fix? \r\n\r\n```\r\n[VERBOSE-2:profiler_metrics_ios.mm(184)] Error retrieving thread information: (ipc/send) invalid destination port\r\n[VERBOSE-2:profiler_metrics_ios.mm(184)] Error retrieving thread information: (ipc/send) invalid destination port\r\n[VERBOSE-2:profiler_metrics_ios.mm(184)] Error retrieving thread information: (ipc/send) invalid destination port\r\n[VERBOSE-2:profiler_metrics_ios.mm(184)] Error retrieving thread information: (ipc/send) invalid destination port\r\n[VERBOSE-2:profiler_metrics_ios.mm(184)] Error retrieving thread information: (ipc/send) invalid destination port\r\n[VERBOSE-2:profiler_metrics_ios.mm(184)] Error retrieving thread information: (ipc/send) invalid destination port\r\n[VERBOSE-2:profiler_metrics_ios.mm(184)] Error retrieving thread information: (ipc/send) invalid destination port\r\n[VERBOSE-2:profiler_metrics_ios.mm(184)] Error retrieving thread information: (ipc/send) invalid destination port\r\n[VERBOSE-2:profiler_metrics_ios.mm(184)] Error retrieving thread information: (ipc/send) invalid destination port\r\n[VERBOSE-2:profiler_metrics_ios.mm(184)] Error retrieving thread information: (ipc/send) invalid destination port\r\n[VERBOSE-2:profiler_metrics_ios.mm(184)] Error retrieving thread information: (ipc/send) invalid destination port\r\n[VERBOSE-2:profiler_metrics_ios.mm(184)] Error retrieving thread information: (ipc/send) invalid destination port\r\n[VERBOSE-2:profiler_metrics_ios.mm(184)] Error retrieving thread information: (ipc/send) invalid destination port\r\n[VERBOSE-2:profiler_metrics_ios.mm(184)] Error retrieving thread information: (ipc/send) invalid destination port\r\n[VERBOSE-2:profiler_metrics_ios.mm(184)] Error retrieving thread information: (ipc/send) invalid destination port\r\n```",
+    "createdAt": "2020-10-28T15:56:18Z"
+  },
+  {
+    "id": 9952,
+    "sender": "iskakaushik",
+    "content": "I wasn't able to reproduce this issue, after some research I think I have an understanding of what might be going on. I have proposed a fix at https://github.com/flutter/engine/pull/22170.",
+    "createdAt": "2020-10-28T19:59:04Z"
+  },
+  {
+    "id": 9953,
+    "sender": "rahulvyas",
+    "content": "> > > Use this command to solve the problem of white screen\r\n> > > flutter run --enable-software-rendering\r\n> > \r\n> > \r\n> > Will it work for iOS Simulator ?\r\n> \r\n> yes\r\n\r\nNow I'm getting the below error\r\n\r\nXcode build done.                                           130.9s\r\n[VERBOSE-2:profiler_metrics_ios.mm(186)] Error retrieving thread information: (ipc/send) invalid destination port\r\n[VERBOSE-2:profiler_metrics_ios.mm(186)] Error retrieving thread information: (ipc/send) invalid destination port\r\n[VERBOSE-2:profiler_metrics_ios.mm(186)] Error retrieving thread information: (ipc/send) invalid destination port\r\n[VERBOSE-2:profiler_metrics_ios.mm(186)] Error retrieving thread information: (ipc/send) invalid destination port\r\n[VERBOSE-2:profiler_metrics_ios.mm(186)] Error retrieving thread information: (ipc/send) invalid destination port\r\nWaiting for iPhone 11 Pro to report its views...                   21.7s\r\nError connecting to the service protocol: _flutter.listViews: (-32000) Bad state: The client closed with pending request\r\n\"_flutter.listViews\".\r\n",
+    "createdAt": "2020-11-11T06:40:22Z"
+  },
+  {
+    "id": 9954,
+    "sender": "fadious",
+    "content": "I'm using `Flutter 1.22.4` and seeing same issue \r\n`[VERBOSE-2:profiler_metrics_ios.mm(184)] Error retrieving thread information: (ipc/send) invalid destination port`",
+    "createdAt": "2020-11-26T17:51:23Z"
+  },
+  {
+    "id": 9955,
+    "sender": "kamilcglr",
+    "content": "> I'm using `Flutter 1.22.4` and seeing same issue\r\n> `[VERBOSE-2:profiler_metrics_ios.mm(184)] Error retrieving thread information: (ipc/send) invalid destination port`\r\n\r\nSame here with Flutter 1.22.4",
+    "createdAt": "2020-11-26T18:10:32Z"
+  },
+  {
+    "id": 9956,
+    "sender": "sine233",
+    "content": "Same issue.\r\nOn macOS Big Sur 11.0.1(Macbook Pro with M1 chipset)  IPhone simulator\r\n[VERBOSE-2:profiler_metrics_ios.mm(184)] Error retrieving thread information: (ipc/send) invalid destination port\r\nBut nothing error with my android phone, it's working good.\r\nIt seems this error in IPhone simulator.\r\nI hope to fix it soon. _(:з」∠)_",
+    "createdAt": "2020-11-27T09:16:19Z"
+  },
+  {
+    "id": 9957,
+    "sender": "gazialankus",
+    "content": "Sorry to sidetrack but this may help some people: If you landed here because you searched for\r\n`Error connecting to the service protocol: _flutter.listViews: (-32000) Bad state: The client closed with pending request \"_flutter.listViews\".`\r\nYou probably have an uncaught exception in your `configureFlutterEngine` function.",
+    "createdAt": "2020-11-27T09:48:21Z"
+  },
+  {
+    "id": 9958,
+    "sender": "GiacomoPignoni",
+    "content": "Same issue with default project, without any edit\r\n\r\n`[VERBOSE-2:profiler_metrics_ios.mm(184)] Error retrieving thread information: (ipc/send) invalid destination port`\r\n\r\nmacOS Big Sur 11.0.1 (M1 chip) iPhone 12 Simulator",
+    "createdAt": "2020-11-27T21:20:46Z"
+  },
+  {
+    "id": 9959,
+    "sender": "gx14ac",
+    "content": ">I'm using Flutter 1.22.4 and seeing same issue\r\n[VERBOSE-2:profiler_metrics_ios.mm(184)] Error retrieving thread information: (ipc/send) invalid destination port\r\n\r\nSame here with Flutter 1.23.0-18.1.pre",
+    "createdAt": "2020-11-29T10:02:33Z"
+  },
+  {
+    "id": 9960,
+    "sender": "jerryzhoujw",
+    "content": "Clean folder of `DerivedData` can solve this issue.",
+    "createdAt": "2020-11-30T07:51:41Z"
+  },
+  {
+    "id": 9961,
+    "sender": "seekcx",
+    "content": "> 默认项目存在相同问题，无需任何编辑\r\n> \r\n> `[VERBOSE-2:profiler_metrics_ios.mm(184)] Error retrieving thread information: (ipc/send) invalid destination port`\r\n> \r\n> macOS Big Sur 11.0.1（M1芯片）iPhone 12模拟器\r\n\r\nExactly the same configuration as you, also encountered this problem.",
+    "createdAt": "2020-11-30T08:45:19Z"
+  },
+  {
+    "id": 9962,
+    "sender": "AntonyLeons",
+    "content": "I also had this issue, however in my case it was because my info.plist was malformed.\r\nI changed the UILaunchStoryboardName to Main to avoid the IOS splash screen, changing this back to launchscreen fixed this.\r\n```\r\n<key>UILaunchStoryboardName</key>\r\n<string>Main</string>\r\n```\r\nto \r\n```\r\n<key>UILaunchStoryboardName</key>\r\n<string>LaunchScreen</string>\r\n```",
+    "createdAt": "2020-11-30T10:52:58Z"
+  },
+  {
+    "id": 9963,
+    "sender": "TahaTesser",
+    "content": "Could everyone who still has this problem please file a new issue with the exact description of what happens, logs, and the output of `flutter doctor -v`.\r\nAll system setups can be slightly different, so it's always better to open new issues and reference related issues.",
+    "createdAt": "2020-11-30T12:02:44Z"
+  },
+  {
+    "id": 9964,
+    "sender": "awhitford",
+    "content": "It looks like this commit should solve the issue: https://github.com/flutter/engine/commit/f81bc371c09f6565a0e7c420732666bc593ac0b5\r\n\r\nHowever, I am unable to tell its status.  I don't think any of us are running this new code yet.",
+    "createdAt": "2020-11-30T19:25:38Z"
+  },
+  {
+    "id": 9965,
+    "sender": "yourideatech",
+    "content": "> I also had this issue, however in my case it was because my info.plist was malformed.\r\n> I changed the UILaunchStoryboardName to Main to avoid the IOS splash screen, changing this back to launchscreen fixed this.\r\n> \r\n> ```\r\n> <key>UILaunchStoryboardName</key>\r\n> <string>Main</string>\r\n> ```\r\n> \r\n> to\r\n> \r\n> ```\r\n> <key>UILaunchStoryboardName</key>\r\n> <string>LaunchScreen</string>\r\n> ```\r\n\r\nsolved by following this\r\nthank you",
+    "createdAt": "2020-12-03T11:59:32Z"
+  },
+  {
+    "id": 9966,
+    "sender": "AaronConlon",
+    "content": "default project\r\nApple M1 environment.\r\nSame issue...\r\n```shell\r\n[VERBOSE-2:profiler_metrics_ios.mm(184)] Error retrieving thread information: (ipc/send) invalid destination port\r\n```\r\nBut,demo project running well...",
+    "createdAt": "2020-12-05T15:15:43Z"
+  },
+  {
+    "id": 9967,
+    "sender": "dariowskii",
+    "content": "Default project, macOS Big Sur 11.0.1 (M1 chip).\r\nFlutter 1.22.4 stable\r\n\r\nInfinite loop of this error only on iPhone 12 Pro Max Simulator:\r\n\r\n`[VERBOSE-2:profiler_metrics_ios.mm(184)] Error retrieving thread information: (ipc/send) invalid destination port`",
+    "createdAt": "2020-12-05T15:42:07Z"
+  },
+  {
+    "id": 9968,
+    "sender": "chornbe",
+    "content": "> Clean folder of `DerivedData` can solve this issue.\r\n\r\nFWIW, I did this manually, and the errors are still there, and at roughly twice the frequency. I don't know if that's a print issue, or whatever is triggering this is doubling up or running twice as quickly, etc. So, beware. ",
+    "createdAt": "2020-12-05T17:32:49Z"
+  },
+  {
+    "id": 9969,
+    "sender": "chornbe",
+    "content": "> Default project, macOS Big Sur 11.0.1 (M1 chip).\r\n> Flutter 1.22.4 stable\r\n> \r\n> Infinite loop of this error only on iPhone 12 Pro Max Simulator:\r\n> \r\n> `[VERBOSE-2:profiler_metrics_ios.mm(184)] Error retrieving thread information: (ipc/send) invalid destination port`\r\n\r\nYep. now it's completely unresponsive in the UI, and banging Q to quit the debugger hangs. Awesome; fire pan to fire. \r\n\r\nEditorial: So much for catching up on lost productivity today because of ferreting out other Flutter related issues all week. This platform is getting more fragile as time goes on. :(  I've been doing this a very long time, and I've seen many of these platforms and \"operating environments\" start off with a great idea and slowly fade (sometimes not so slow and more of a crash and burn than a fade) due to sloppy support :( I hope Flutter gets back on track. If we all bought our dev tools like the \"old days\", there'd be a commercially viable interested in ensuring the tools would be more solid and reliable. Borland Pascal, Borland C++, Microsoft Visual Studio 6.0, Visual Basic 3.0 - these were rock solid products. (sigh) ",
+    "createdAt": "2020-12-05T17:38:43Z"
+  },
+  {
+    "id": 9970,
+    "sender": "stenlee",
+    "content": "Same issue here\r\n[✓] Flutter (Channel stable, 1.22.4, on macOS 11.0.1 20B29 darwin-arm, locale en-CZ)\r\n\r\n[VERBOSE-2:profiler_metrics_ios.mm(184)] Error retrieving thread information: (ipc/send) invalid destination port\r\n\r\nthis issue should be reopen",
+    "createdAt": "2020-12-06T10:12:46Z"
+  },
+  {
+    "id": 9971,
+    "sender": "iskakaushik",
+    "content": "Hi, this problem has been fixed on never versions of the Flutter engine, one quick way to see that you are still on a older version of engine is that if the error happens on line 184 as opposed to 203. (see: https://github.com/flutter/engine/pull/22170/files). Can you see if this problem occurs on master channel? Thanks.\r\n\r\n203 as opposed to 184 as seen in `[VERBOSE-2:profiler_metrics_ios.mm(184)] `\r\n\r\nThere isn't an easy way for me to reproduce this error and the linked change tried to pre-emptively handle this.",
+    "createdAt": "2020-12-07T18:58:55Z"
+  },
+  {
+    "id": 9972,
+    "sender": "chornbe",
+    "content": "I'm on Flutter 1.22.4, Dart 2.10.4, seeing it at 184.",
+    "createdAt": "2020-12-07T19:04:42Z"
+  },
+  {
+    "id": 9973,
+    "sender": "iskakaushik",
+    "content": "Updated my original comment: if you see this error on line 203 that means that this issue needs to be re-opened. If it happens on line: 184, you are on an older version of Flutter, please try the master channel and see if this is still a problem there. Thanks.",
+    "createdAt": "2020-12-07T19:22:18Z"
+  },
+  {
+    "id": 9974,
+    "sender": "chornbe",
+    "content": "I don't recall ever switching channels. Running flutter update shows I'm on Stable. \r\n\r\nCurrent (before switching to master)\r\nchris@chriss-mac-mini diary_app_flutter % flutter upgrade\r\nFlutter is already up to date on channel stable\r\nFlutter 1.22.4 • channel stable • https://github.com/flutter/flutter.git\r\nFramework • revision 1aafb3a8b9 (3 weeks ago) • 2020-11-13 09:59:28 -0800\r\nEngine • revision 2c956a31c0\r\nTools • Dart 2.10.4\r\n\r\nflutter channel master -> Enter\r\nflutter upgrade -> Enter\r\n\r\nchris@chriss-mac-mini diary_app_flutter % flutter upgrade\r\nFlutter is already up to date on channel master\r\nFlutter 1.25.0-5.0.pre.93 • channel master • https://github.com/flutter/flutter.git\r\nFramework • revision d35dd9f8a6 (2 hours ago) • 2020-12-07 09:23:04 -0800\r\nEngine • revision 6491c7518f\r\nTools • Dart 2.12.0 (build 2.12.0-120.0.dev)\r\nchris@chriss-mac-mini diary_app_flutter % \r\n\r\nflutter clean; flutter run -> Enter\r\n\r\nEmits same error, on 184.\r\n\r\nchris@chriss-mac-mini diary_app_flutter % flutter run\r\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\r\nWarning\r\n──────────────────────────────────────────────────────────────────────────────\r\nYour Flutter application is created using an older version of the Android\r\nembedding. It's being deprecated in favor of Android embedding v2. Follow the\r\nsteps at\r\n\r\nhttps://flutter.dev/go/android-project-migration\r\n\r\nto migrate your project.\r\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\r\n\r\nLaunching lib/main.dart on iPhone 12 mini in debug mode...\r\n[VERBOSE-2:profiler_metrics_ios.mm(184)] Error retrieving thread information: (ipc/send) invalid destination port\r\n[VERBOSE-2:profiler_metrics_ios.mm(184)] Error retrieving thread information: (ipc/send) invalid destination port\r\n[VERBOSE-2:profiler_metrics_ios.mm(184)] Error retrieving thread information: (ipc/send) invalid destination port\r\n[VERBOSE-2:profiler_metrics_ios.mm(184)] Error retrieving thread information: (ipc/send) invalid destination port\r\n[VERBOSE-2:profiler_metrics_ios.mm(184)] Error retrieving thread information: (ipc/send) invalid destination port\r\n[VERBOSE-2:profiler_metrics_ios.mm(184)] Error retrieving thread information: (ipc/send) invalid destination port\r\n[VERBOSE-2:profiler_metrics_ios.mm(184)] Error retrieving thread information: (ipc/send) invalid destination port\r\n[VERBOSE-2:profiler_metrics_ios.mm(184)] Error retrieving thread information: (ipc/send) invalid destination port",
+    "createdAt": "2020-12-07T19:31:23Z"
+  },
+  {
+    "id": 9975,
+    "sender": "iskakaushik",
+    "content": "@chornbe you switch channels by doing `flutter channel master`. Can you please see if this error happens on channel master?",
+    "createdAt": "2020-12-07T19:59:49Z"
+  },
+  {
+    "id": 9976,
+    "sender": "chornbe",
+    "content": "Please re-read my whole post. I did.",
+    "createdAt": "2020-12-07T20:10:05Z"
+  },
+  {
+    "id": 9977,
+    "sender": "iskakaushik",
+    "content": "Seems like the older version of engine is being used still, given the errors. I'm not sure what is going on. I noticed that you did do a `flutter clean` and then `flutter run` which I would expect would have cleared any caches by the flutter tool and the new `flutter run` would've linked the project to the latest engine.\r\n\r\nTo me it still looks like the stable engine is being used. I'll reopen this issue.",
+    "createdAt": "2020-12-07T20:18:42Z"
+  },
+  {
+    "id": 9978,
+    "sender": "chornbe",
+    "content": "Cool, thanks. Happy to help with any future specific-version testing, logs, etc. \r\n\r\nThanks!",
+    "createdAt": "2020-12-07T20:27:00Z"
+  },
+  {
+    "id": 9979,
+    "sender": "chornbe",
+    "content": "Interesting to note, and might help debugging... there's a flurry of these things, maybe 3-4 times faster than before, at the very beginning as it's building and deploying to the simulator. I didn't see those before until after the app started on the simulator. All this up-front error reporting is new since switching to the master branch. Not sure if that helps.",
+    "createdAt": "2020-12-07T20:28:33Z"
+  },
+  {
+    "id": 9980,
+    "sender": "hengsoheak",
+    "content": "I can not sleep 4days because of this ",
+    "createdAt": "2020-12-07T21:40:31Z"
+  },
+  {
+    "id": 9981,
+    "sender": "subhassl",
+    "content": "Same issue.\r\nOn macOS Big Sur 11.0.1(Macbook Air with M1 chipset) iPhone simulator\r\n[VERBOSE-2:profiler_metrics_ios.mm(184)] Error retrieving thread information: (ipc/send) invalid destination port",
+    "createdAt": "2020-12-08T15:12:11Z"
+  },
+  {
+    "id": 9982,
+    "sender": "subhassl",
+    "content": "> hI @awhitford\r\n> not able to reproduce, i have run the flutter multiples on `stable` channel all day\r\n> Can you please reproduce it again? please provide your `flutter run --verbose` and a complete reproducible minimal code sample\r\n> Thank you\r\n\r\nTry with M1 Mac.",
+    "createdAt": "2020-12-08T15:14:58Z"
+  },
+  {
+    "id": 9983,
+    "sender": "phx",
+    "content": "No idea if this helps or how it's related, but I was running a new version of XCode and handn't installed the CLI utils yet.  After running `xcode-select --install` and restarting the simulator, I stopped receiving the error message.",
+    "createdAt": "2020-12-08T16:46:37Z"
+  }
+]

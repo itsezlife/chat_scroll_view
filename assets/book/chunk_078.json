@@ -1,0 +1,386 @@
+[
+  {
+    "id": 4992,
+    "sender": "mohammadmdp",
+    "content": "Does this warning help?:\r\n`chromium: [WARNING:autofill_agent.cc(767)] Autofill suggestions are disabled because the document isn't a secure context.`\r\n\r\nWhenever I tap on the text field, it shows this warning in the Logcat and doesn't show the keyboard. \r\n\r\nAnd also there is another warning in the console whenever I tap on a text field:\r\n`W/cr_AwAutofillManager(16131): WebView autofill is disabled because WebView isn't created with activity context.`",
+    "createdAt": "2019-06-01T21:22:31Z"
+  },
+  {
+    "id": 4993,
+    "sender": "mohSalah66",
+    "content": "Any updates on this issue?",
+    "createdAt": "2019-06-01T21:48:57Z"
+  },
+  {
+    "id": 4994,
+    "sender": "humazed",
+    "content": "I switched to master and #32773 doesn't seem to fix the problem.\r\n\r\nthanks, @marcosgallardo your solution works nicely until we have a complete fix.",
+    "createdAt": "2019-06-03T09:53:09Z"
+  },
+  {
+    "id": 4995,
+    "sender": "pravinarr",
+    "content": "@marcosgallardo Thanks for your workaround code. Your code will not work for webpages developed with ReactJS. I had to update the javascript code on onChanged event.\r\n\r\n\r\n  ```\r\n  _controller.evaluateJavascript('''\r\n                    window.lastValue = window.input.value;\r\n                    window.input.value = '$input';\r\n                    // to trigger onchange event on react text input component\r\n                    window.newevent = new Event('input', { bubbles: true });\r\n                    window.newtracker = window.input._valueTracker;\r\n                    if (window.newtracker) {\r\n                      window.newtracker.setValue(window.lastValue);\r\n                    }\r\n                    window.input.dispatchEvent(window.newevent);\r\n                   ''');\r\n          },\r\n``` \r\n\r\n\r\n",
+    "createdAt": "2019-06-03T17:41:00Z"
+  },
+  {
+    "id": 4996,
+    "sender": "ashish173",
+    "content": "Let's stop asking for updates since the Google team has already added this to October 2019 milestone. Please don't expect this before that. \r\n\r\nHaving said that I just wish someone from the Flutter team could understand the severity of this issue. Developers have started porting their apps to different platforms. I think issues like these can be picked up earlier even if other things are in pipeline. \r\n\r\nIf a fix for this issue depends on the work which is already in progress then even Google can't do anything about the timeline for this fix. But a comment above from a team member suggests this as a small fix. Also, since this is a flutter engine fix we are not confident either about fixing it even if we try it. \r\n\r\nI am an admirer of Google and its way of working but it's a bit sad to see no one from the flutter top management actually understanding this kind of critical feedback from their users.\r\n\r\nNow we will have to port our app from flutter to something else since we make heavy use of Web views. We have more than 100k installs on the app store. Management at my company won't wait till October for this issue to get resolved. \r\n\r\nApologies for complaining like this but it is actually hurting us. \r\n\r\nPS: I have read the code of conduct. One is free to say I have not understood it though. ",
+    "createdAt": "2019-06-04T11:53:10Z"
+  },
+  {
+    "id": 4997,
+    "sender": "phanirithvij",
+    "content": "https://github.com/flutter/flutter/pull/33901\r\nPlease merge this as soon as possible.\r\nI've been waiting for this to get fixed as we're planning on using Webviews for login and signup in our application.\r\nAnd this is what's stopping us from using flutter.\r\nI don't think we can wait until October.\r\n\r\nAnd it says \"flutter-build is currently broken. Do not merge request unless it is a fix for the broken build.\"\r\n\r\n![thisisbull](https://user-images.githubusercontent.com/29627898/58950194-cd000a00-87ab-11e9-986d-06e4b4cff7d1.png)\r\n",
+    "createdAt": "2019-06-05T10:30:32Z"
+  },
+  {
+    "id": 4998,
+    "sender": "nicktran29",
+    "content": "We used Webview Flutter and hacked our way through with hidden text fields and jschannels but soon realised it’s just impossible to cover all scenarios so we made a switch to Flutter Webview Plugin as an alternative. Been working like a charm for us. Just make sure to remove the io.flutter.embedded_views_preview in Info.plist if you had it added as per Webview Flutter instruction.",
+    "createdAt": "2019-06-06T06:42:34Z"
+  },
+  {
+    "id": 4999,
+    "sender": "ashish173",
+    "content": "A big thanks to @amirh for prioritising this. 💯 The PR is merged in master. We are going to test things on `master` channel now.  ",
+    "createdAt": "2019-06-07T04:56:32Z"
+  },
+  {
+    "id": 5000,
+    "sender": "amirh",
+    "content": "With #32773 , #33901, and flutter/engine#9203 (not yet rolled as of writing this) Android platform views can use the keyboard.\r\n\r\n**Note that WebViews running on Android versions before N still can't use the keyboard.** This is because the [threaded input connection](https://chromium.googlesource.com/chromium/src/+/master/content/public/android/java/src/org/chromium/content/browser/input/ThreadedInputConnectionFactory.java) mechanism WebView is using prevents us from proxying the connection directly to the webview. My current plan to workaround this issue is to setup our own equivalent mechanism for a non main thread input connection, and proxy the connection from there. I believe that it should work, but I haven't prototyped yet to confirm, and devil is in the details for these kind of things. I do understand that this is important for many use cases and I am treating this as a high priority.",
+    "createdAt": "2019-06-07T05:14:28Z"
+  },
+  {
+    "id": 5001,
+    "sender": "alocher",
+    "content": "Just tried with v1.7.4-pre.23 and doesn't look like anything has changed?\r\n(Android 9, emulated)\r\n\r\n> [√] Flutter (Channel master, v1.7.4-pre.23, on Microsoft Windows [Version 10.0.17763.504], locale en-GB)\r\n>     • Flutter version 1.7.4-pre.23 at x\r\n>     • Framework revision 1a56015169 (49 minutes ago), 2019-06-08 07:04:10 -0700\r\n>     • Engine revision e8ee6acf8d\r\n>     • Dart version 2.3.2 (build 2.3.2-dev.0.1 7f146e431e)",
+    "createdAt": "2019-06-08T14:56:31Z"
+  },
+  {
+    "id": 5002,
+    "sender": "sakinaboriwala",
+    "content": "I have tried with master too. \r\n\r\n`[✓] Flutter (Channel master, v1.7.4-pre.30, on Linux, locale en_GB.UTF-8)`\r\n\r\nGetting the same error.` \"WebView autofill is disabled because WebView isn't created with activity context.\" `\r\n\r\nHas anyone got a successful test?????  This is really disappointing. I am testing on device with Android version 9.",
+    "createdAt": "2019-06-10T04:07:10Z"
+  },
+  {
+    "id": 5003,
+    "sender": "amirh",
+    "content": "The engine change was rolled back as it broke one of the integration tests(#34085). \r\n\r\nI just landed it again with a fix in flutter/engine#9257. You will only see this working on master after the engine change is rolled into the framework(if you really don't want to wait you can build a local engine).\r\n\r\n",
+    "createdAt": "2019-06-10T20:01:56Z"
+  },
+  {
+    "id": 5004,
+    "sender": "amirh",
+    "content": "This was rolled to the framework and is available on master starting 7a877f62d96743033eff5be720de98ba4ac7d3c2.\r\n\r\nI'm reminding that for WebViews the keyboard currently only works starting Android N(see https://github.com/flutter/flutter/issues/19718#issuecomment-499759204).\r\n\r\nFeel free to experiment with it, if you hit any bugs please report them in separate issues.",
+    "createdAt": "2019-06-11T05:12:45Z"
+  },
+  {
+    "id": 5005,
+    "sender": "DreamBuddy",
+    "content": "Flutter 1.7.4-pre.70 • channel master • https://github.com/flutter/flutter.git\r\nI tested ,keyboard is ok after Android N.\r\nBut my app's release version can't run in Android 8.x,but Android 9.0 work well.",
+    "createdAt": "2019-06-12T04:44:10Z"
+  },
+  {
+    "id": 5006,
+    "sender": "madmat",
+    "content": "Thanks @amirh to work on this issue. But it doesn't work in my app.\r\nI'm running Android Pie 9.0.\r\nI've tested on Huawei P30 pro and also various emulators.\r\nThe keyboard is shown only in some rare and erratics case, and once opened there is no way to close it.\r\n\r\nI'm using webview_flutter-0.3.6 to display WebViews.\r\n\r\n[✓] Flutter (Channel master, v1.7.4-pre.71, on Mac OS X 10.14 18A391, locale fr-FR)\r\n \r\n[✓] Android toolchain - develop for Android devices (Android SDK version 28.0.3)\r\n[!] Xcode - develop for iOS and macOS (Xcode 10.1)\r\n    ! CocoaPods out of date (1.6.0 is recommended).\r\n        CocoaPods is used to retrieve the iOS and macOS platform side's plugin code that responds to your\r\n        plugin usage on the Dart side.\r\n        Without CocoaPods, plugins will not work on iOS or macOS.\r\n        For more info, see https://flutter.dev/platform-plugins\r\n      To upgrade:\r\n        brew upgrade cocoapods\r\n        pod setup\r\n[✓] iOS tools - develop for iOS devices\r\n[✓] Android Studio (version 3.3)\r\n[✓] VS Code (version 1.35.0)\r\n[✓] Connected device (3 available)",
+    "createdAt": "2019-06-12T12:40:01Z"
+  },
+  {
+    "id": 5007,
+    "sender": "amirh",
+    "content": "@madmat can you try the webview example app on the same device?",
+    "createdAt": "2019-06-13T00:50:45Z"
+  },
+  {
+    "id": 5008,
+    "sender": "madmat",
+    "content": "> @madmat can you try the webview example app on the same device?\r\n\r\n@amirh Of course I've also tried with the WebViews example and I get the same results than our app.\r\nDid you push something new since v1.7.4-pre.71, and if so do you want me to try again ?",
+    "createdAt": "2019-06-13T05:59:58Z"
+  },
+  {
+    "id": 5009,
+    "sender": "amirh",
+    "content": "Last update was 7a877f6 (`flutter doctor -v` should tell you which commit you're on), I'll try it on an Android P emulator hopefully I could reproduce the same issue you're seeing.",
+    "createdAt": "2019-06-13T06:08:05Z"
+  },
+  {
+    "id": 5010,
+    "sender": "stoconnor",
+    "content": "Tried with the latest didn't work for me on API 28 (Pie) using Nexus 5X and the following Flutter version:\r\n\r\n```\r\n[✓] Flutter (Channel master, v1.7.4-pre.87, on Mac OS X 10.14.4 18E226, locale en-IE)\r\n    • Flutter version 1.7.4-pre.87 at\r\n    • Framework revision f31fc1bd0f (9 hours ago), 2019-06-12 23:12:35 -0700\r\n    • Engine revision 209250da1b\r\n    • Dart version 2.3.3 (build 2.3.3-dev.0.0 3166bbf24b)\r\n```",
+    "createdAt": "2019-06-13T15:18:40Z"
+  },
+  {
+    "id": 5011,
+    "sender": "alocher",
+    "content": "@amirh in my testing I noticed that when I use the keyboard at least once in my Flutter app, before opening  a webview where I expect to use the keyboard, it seems to work. Whenever I don't use the keboard in the app, and directly go to the webview, it won't display. Maybe that helps tracking things down.",
+    "createdAt": "2019-06-16T14:09:22Z"
+  },
+  {
+    "id": 5012,
+    "sender": "Sarthaktydy",
+    "content": "@amirh  Also webview_flutter is unable to open storage (for uploading images and documents), As far as I know, webview_flutter doesn't respond to HTML's input tag, since I'm having \"input type = \"file\"\" for uploading the document on my angular website, There no response comes from webview_flutter to that tag, Also flutter_webview_plugin works with it but it has some its own issue.",
+    "createdAt": "2019-06-18T05:21:22Z"
+  },
+  {
+    "id": 5013,
+    "sender": "bGl5b25nanVu",
+    "content": "@amirh can you fix this issue this month？\r\n",
+    "createdAt": "2019-06-18T13:14:26Z"
+  },
+  {
+    "id": 5014,
+    "sender": "amirh",
+    "content": "Thanks for the reports with API 28, I believe the root cause was that FlutterView wasn't guaranteed to be focused, https://github.com/flutter/engine/pull/9366 should fix that issue.",
+    "createdAt": "2019-06-19T00:54:12Z"
+  },
+  {
+    "id": 5015,
+    "sender": "masewo",
+    "content": "@amirh: It works but I encounter some issues. For example keyboard does not close when I go back to previous view or navigate to next view. When I try to open the view with WebView for a second time (after I had keyboard open once) then app crashes with following error:\r\n```\r\nW/System.err(17879): java.lang.NullPointerException: Attempt to invoke virtual method 'android.view.inputmethod.InputConnection android.view.View.onCreateInputConnection(android.view.inputmethod.EditorInfo)' on a null object reference\r\nW/System.err(17879): \tat io.flutter.plugin.editing.TextInputPlugin.createInputConnection(TextInputPlugin.java:195)\r\nW/System.err(17879): \tat io.flutter.view.FlutterView.onCreateInputConnection(FlutterView.java:397)\r\nW/System.err(17879): \tat android.view.inputmethod.InputMethodManager.startInputInner(InputMethodManager.java:1290)\r\nW/System.err(17879): \tat android.view.inputmethod.InputMethodManager.restartInput(InputMethodManager.java:1237)\r\nW/System.err(17879): \tat org.chromium.content.browser.input.ImeAdapterImpl.p(PG:293)\r\nW/System.err(17879): \tat org.chromium.content.browser.input.ImeAdapterImpl.updateState(PG:185)\r\nW/System.err(17879): \tat android.os.MessageQueue.nativePollOnce(Native Method)\r\nW/System.err(17879): \tat android.os.MessageQueue.next(MessageQueue.java:326)\r\nW/System.err(17879): \tat android.os.Looper.loop(Looper.java:160)\r\nW/System.err(17879): \tat android.app.ActivityThread.main(ActivityThread.java:6669)\r\nW/System.err(17879): \tat java.lang.reflect.Method.invoke(Native Method)\r\nW/System.err(17879): \tat com.android.internal.os.RuntimeInit$MethodAndArgsCaller.run(RuntimeInit.java:493)\r\nW/System.err(17879): \tat com.android.internal.os.ZygoteInit.main(ZygoteInit.java:858)\r\nF/chromium(17879): [FATAL:jni_android.cc(249)] Please include Java exception stack in crash report\r\nF/libc    (17879): Fatal signal 5 (SIGTRAP), code 128 (SI_KERNEL), fault addr 0x0 in tid 17879 (asewo.app), pid 17879 (asewo.app)\r\n*** *** *** *** *** *** *** *** *** *** *** *** *** *** *** ***\r\nBuild fingerprint: 'google/sdk_gphone_x86_64/generic_x86_64:9/PSR1.180720.075/5124027:user/release-keys'\r\nRevision: '0'\r\nABI: 'x86_64'\r\npid: 17879, tid: 17879, name: asewo.app  >>> net.masewo.app <<<\r\nsignal 5 (SIGTRAP), code 128 (SI_KERNEL), fault addr 0x0\r\nAbort message: '[FATAL:jni_android.cc(249)] Please include Java exception stack in crash report\r\n'\r\n    rax 0000000000000000  rbx 00007fffb4712420  rcx 0000000000000000  rdx 0000000000000400\r\n    r8  0000000000000000  r9  0000000000000000  r10 00007ba94b6e7370  r11 0000000000000287\r\n    r12 00007ba8a44244a0  r13 0000000000000000  r14 00007fffb4712430  r15 000000000000004f\r\n    rdi 00007fffb4711fd8  rsi 00007ba8a44244a0\r\n    rbp 00007ba94b7b33c0  rsp 00007fffb4711f80  rip 00007ba8b8e61806\r\nbacktrace:\r\n    #00 pc 0000000001a91806  /data/app/com.android.chrome-_qGtmUzoyYaxMTAIZVblzQ==/base.apk (offset 0x546e000)\r\n```",
+    "createdAt": "2019-06-20T20:39:59Z"
+  },
+  {
+    "id": 5016,
+    "sender": "amirh",
+    "content": "@masewo any chance you can provide a minimal sample app (ideally something you can just paste in a comment here) and repro steps?",
+    "createdAt": "2019-06-20T20:54:38Z"
+  },
+  {
+    "id": 5017,
+    "sender": "mcgreevyd",
+    "content": "Is this the same issue affecting html dropdowns in Android? ",
+    "createdAt": "2019-06-20T21:45:31Z"
+  },
+  {
+    "id": 5018,
+    "sender": "masewo",
+    "content": "@amirh: Sure. This issue only occures for some websites. Flutter and Google are working fine but the one in the example below does not. Click the button. Click into a text field. Go back. Click the button again.\r\n```\r\nimport 'package:flutter/material.dart';\r\nimport 'package:webview_flutter/webview_flutter.dart';\r\n\r\nvoid main() => runApp(MyApp());\r\n\r\nclass MyApp extends StatelessWidget {\r\n  @override\r\n  Widget build(BuildContext context) {\r\n    return MaterialApp(\r\n        title: 'Flutter Demo',\r\n        theme: ThemeData(\r\n          primarySwatch: Colors.blue,\r\n        ),\r\n        home: MyHomePage(title: 'Flutter Demo'),\r\n        routes: {\r\n          '/webview': (context) => WebViewExample(),\r\n        });\r\n  }\r\n}\r\n\r\nclass MyHomePage extends StatefulWidget {\r\n  MyHomePage({Key key, this.title}) : super(key: key);\r\n\r\n  final String title;\r\n\r\n  @override\r\n  _MyHomePageState createState() => _MyHomePageState();\r\n}\r\n\r\nclass _MyHomePageState extends State<MyHomePage> {\r\n  @override\r\n  Widget build(BuildContext context) {\r\n    return Scaffold(\r\n      appBar: AppBar(\r\n        title: Text(widget.title),\r\n      ),\r\n      body: Center(\r\n          child: RaisedButton(\r\n        onPressed: () {\r\n          Navigator.pushNamed(context, '/webview');\r\n        },\r\n        child: const Text('Button'),\r\n      )),\r\n    );\r\n  }\r\n}\r\n\r\nclass WebViewExample extends StatefulWidget {\r\n  @override\r\n  _WebViewExampleState createState() => _WebViewExampleState();\r\n}\r\n\r\nclass _WebViewExampleState extends State<WebViewExample> {\r\n  @override\r\n  Widget build(BuildContext context) {\r\n    return Scaffold(\r\n      appBar: AppBar(\r\n        title: const Text('Flutter WebView example'),\r\n      ),\r\n      body: Builder(builder: (BuildContext context) {\r\n        return WebView(\r\n          initialUrl:\r\n              \"https://dev-396343.oktapreview.com/login/login.htm?fromURI=/oauth2/v1/authorize/redirect?okta_key=qjX_zhus_PECk4DSwi5ro6znzNmbx-rAot1Lz3NlwpI\",\r\n          javascriptMode: JavascriptMode.unrestricted,\r\n          onPageFinished: (String url) {\r\n            print('Page finished loading: $url');\r\n          },\r\n        );\r\n      }),\r\n    );\r\n  }\r\n}\r\n```\r\n",
+    "createdAt": "2019-06-20T22:03:48Z"
+  },
+  {
+    "id": 5019,
+    "sender": "amirh",
+    "content": "Hi, thanks for raising more issues.\r\nThis issue is tracking the keyboard support for embedded Android views, other things should be tracked in separate issues. I'd encourage you to file separate issues and delete unrelated comments from this issue so this thread remains focused on keyboard.",
+    "createdAt": "2019-06-20T23:03:56Z"
+  },
+  {
+    "id": 5020,
+    "sender": "amirh",
+    "content": "Thanks @masewo flutter/engine#9423 should fix that issue.",
+    "createdAt": "2019-06-21T20:20:02Z"
+  },
+  {
+    "id": 5021,
+    "sender": "amirh",
+    "content": "**Progress update on WebView keyboard support prior to Android N**\r\n\r\nWith flutter/engine#9426 I was able to add some hacks to the webview plugin so that we create a `ThreadedInputConnection` and get a handle to it(https://github.com/amirh/plugins/commit/55b573b4c445164ec88453624b7a1cfb3d90cec9).\r\n\r\nRight now that patch just returns the `ThreadedInputConnection` in `onCreateInputConnection` which crashes shortly after as the ThreadedInputConnection code asserts it's on the IME thread.\r\n\r\nThe next step would be to pull the exact same tricks WebView is pulling prior to Android N to set up an input connection on a background thread(we can get a reference to the WebView's IME handler from `ThreadedInputConnectionProxyView`), and then proxy the connection to ThreadedInputConnection on the correct thread.",
+    "createdAt": "2019-06-21T23:24:07Z"
+  },
+  {
+    "id": 5022,
+    "sender": "pythoneer",
+    "content": "@mcgreevyd it looks like [this](https://github.com/flutter/flutter/issues/25767) is the issue you are looking for.",
+    "createdAt": "2019-06-22T04:33:47Z"
+  },
+  {
+    "id": 5023,
+    "sender": "joelbrostrom",
+    "content": "Would it be against the guidelines to set up a little piggy bank for @amirh where everyone can chip in in appreciation of his work and keep him motivated?",
+    "createdAt": "2019-06-24T12:38:50Z"
+  },
+  {
+    "id": 5024,
+    "sender": "amirh",
+    "content": "@joelbrostrom haha thanks 😄  no need for a piggy bank though, I'm (and the other people working on this are) motivated enough, and it does look like we're getting close to solving this issue(technically I'd say that at this point the general keyboard problem for embedded Android views is solved, though I'm assuming most of the thumb ups here are from people interested in webview keyboard so keeping this open for now as we work on getting webview keyboard working before Android N).\r\n\r\nAnd as a reminder - we prioritize issues by the count of 👍 on the issue description(not on comments), so the best way to help us prioritize is to thumb up.",
+    "createdAt": "2019-06-25T16:51:03Z"
+  },
+  {
+    "id": 5025,
+    "sender": "masewo",
+    "content": "@amirh Thank you! [flutter/engine#9423](https://github.com/flutter/engine/pull/9423) fixed the issue with NullPointerException on some websites for me (master channel).\r\n\r\n",
+    "createdAt": "2019-06-25T21:36:22Z"
+  },
+  {
+    "id": 5026,
+    "sender": "FCLongIsBoy",
+    "content": "flutter version V1.7.9 load url 'https://tg.tripg.com/universal/Travel/travelIndex/zh?appToIndex=1' error:\"A parser-blocking, cross site (i.e. different eTLD+1) script, https://www.tripglobal.cn/tripgtest.php?_t=662, is invoked via document.write. The network request for this script MAY be blocked by the browser in this or a future page load due to poor network connectivity. If blocked in this page load, it will be confirmed in a subsequent console message. See https://www.chromestatus.com/feature/5718547946799104 for more details.\", source: https://tg.tripg.com/universal/Travel/travelIndex/zh?appToIndex=1",
+    "createdAt": "2019-06-26T07:32:18Z"
+  },
+  {
+    "id": 5027,
+    "sender": "FCLongIsBoy",
+    "content": "Could you please test this when it is released",
+    "createdAt": "2019-06-26T07:41:52Z"
+  },
+  {
+    "id": 5028,
+    "sender": "amirh",
+    "content": "@FCLongIsBoy pleases see https://github.com/flutter/flutter/issues/19718#issuecomment-504229611",
+    "createdAt": "2019-06-26T16:33:20Z"
+  },
+  {
+    "id": 5029,
+    "sender": "Sarthaktydy",
+    "content": "> Hi, thanks for raising more issues.\r\n> This issue is tracking the keyboard support for embedded Android views, other things should be tracked in separate issues. I'd encourage you to file separate issues and delete unrelated comments from this issue so this thread remains focused on keyboard.\r\n\r\nBut the opening keyboard is related to webview not reading the HTML input tag. Webview doesn't respond to any input tag, this is the primary reason why the keyboard isn't opening.",
+    "createdAt": "2019-06-27T07:08:56Z"
+  },
+  {
+    "id": 5030,
+    "sender": "amirh",
+    "content": "@Sarthaktydy please file a separate issue, the keyboard issue(which is now mostly solved) was due to the Android IMM failing to setup a keyboard input connection. I do not think that is related to the other issues you're raising. FWIW I just tried a bunch of html input fields and the ones I tried did work.\r\n\r\nThank you again for raising other issues, it is important and helpful to do so, but please use separate Github issues for different problems. This issue is about keyboard support.",
+    "createdAt": "2019-06-27T19:04:34Z"
+  },
+  {
+    "id": 5031,
+    "sender": "XHL-study",
+    "content": "webview_flutter bug：\r\n\r\n***\r\n```\r\nFlutter 1.7.10 • channel dev • https://github.com/flutter/flutter.git\r\nFramework • revision 9a3a7490c8 (3 days ago) • 2019-06-25 15:59:15 +0200\r\nEngine • revision ae8e6d9f46\r\nTools • Dart 2.4.0\r\n\r\n```\r\n***\r\n\r\nflutter doctor：\r\n```\r\nDoctor summary (to see all details, run flutter doctor -v):\r\n[√] Flutter (Channel dev, v1.7.10, on Microsoft Windows [Version 10.0.17134.829], locale zh-CN)\r\n\r\n[√] Android toolchain - develop for Android devices (Android SDK version 29.0.0-rc2)\r\n[X] Chrome - develop for the web (Cannot find chrome executable at .\\Google\\Chrome\\Application\\chrome.exe)\r\n    ! CHROME_EXECUTABLE not set\r\n[X] Visual Studio - develop for Windows\r\n    X Visual Studio not installed; this is necessary for Windows development.\r\n      Download at https://visualstudio.microsoft.com/downloads/.\r\n[√] Android Studio (version 3.4)\r\n[!] IntelliJ IDEA Ultimate Edition (version 2019.1)\r\n    X Flutter plugin not installed; this adds Flutter specific functionality.\r\n    X Dart plugin not installed; this adds Dart specific functionality.\r\n[√] Connected device (3 available)\r\n\r\n! Doctor found issues in 3 categories.\r\n```\r\n\r\nthe code\r\n```dart\r\nimport 'dart:async';\r\n\r\nimport 'package:flutter/foundation.dart';\r\nimport 'package:flutter/material.dart';\r\nimport 'package:study_app/routes/entity/my_webview_entity.dart';\r\nimport 'package:webview_flutter/webview_flutter.dart';\r\n\r\nclass DevWebViewFlutter extends StatefulWidget {\r\n  static const String routeName = \"/dev_webview_flutter\";\r\n\r\n  final MyWebViewEntity args;\r\n\r\n  DevWebViewFlutter({this.args});\r\n\r\n  @override\r\n  _DevWebViewFlutterState createState() => _DevWebViewFlutterState();\r\n}\r\n\r\nclass _DevWebViewFlutterState extends State<DevWebViewFlutter> {\r\n  //webView控制器\r\n  WebViewController webViewController;\r\n\r\n  //标题\r\n  String title;\r\n\r\n  //地址\r\n  String url;\r\n\r\n  //获取网页标题\r\n  Future<String> _getTitle() async {\r\n    return await webViewController?.evaluateJavascript('document.title');\r\n  }\r\n\r\n  //js channel\r\n  List<JavascriptChannel> _jsChanelApi(BuildContext context) {\r\n    List<JavascriptChannel> chanelList = [];\r\n    return chanelList;\r\n  }\r\n\r\n  @override\r\n  void dispose() {\r\n    // TODO: implement dispose\r\n    super.dispose();\r\n  }\r\n\r\n  @override\r\n  Widget build(BuildContext context) {\r\n    return WillPopScope(\r\n      onWillPop: () async{\r\n        if (!(await webViewController.canGoBack()))\r\n          Navigator.of(context).pop();\r\n        else\r\n          webViewController?.goBack();\r\n        return Future.value(false);\r\n      },\r\n      child: Scaffold(\r\n        appBar: AppBar(\r\n          title: Text(title ?? widget.args?.title ?? \"test webview_flutter\"),\r\n        ),\r\n        body: Stack(\r\n          children: <Widget>[\r\n            WebView(\r\n              initialUrl: widget.args?.url,\r\n              // 加载的url\r\n              javascriptMode: JavascriptMode.unrestricted,\r\n              javascriptChannels: _jsChanelApi(context).toSet(),\r\n              onWebViewCreated: (WebViewController web) async {\r\n                webViewController = web;\r\n              },\r\n              onPageFinished: (String value) async {\r\n                //网页改变完成调用\r\n                if (null != webViewController) {\r\n                  title = (await _getTitle() ?? \"\").replaceAll('\"', '');\r\n                  url = await webViewController.currentUrl();\r\n\r\n                  //设置标题\r\n                  setState(() {});\r\n                  debugPrint(\" ==> title：$title，url：$url\");\r\n                }\r\n              },\r\n            ),\r\n          ],\r\n        ),\r\n      ),\r\n    );\r\n  }\r\n}\r\n\r\n\r\n```\r\n\r\nin Simulator\r\n![fluter_bug](https://user-images.githubusercontent.com/22956309/60333872-bcb70580-99cc-11e9-90de-1a5450281808.gif)\r\n\r\nin my phone\r\n![1561715521119](https://user-images.githubusercontent.com/22956309/60334232-95146d00-99cd-11e9-9579-bff5f5d1cb67.gif)\r\n\r\n",
+    "createdAt": "2019-06-28T09:59:54Z"
+  },
+  {
+    "id": 5032,
+    "sender": "amirh",
+    "content": "@XHL-study is your device running an Android version older than N ?",
+    "createdAt": "2019-06-28T16:35:17Z"
+  },
+  {
+    "id": 5033,
+    "sender": "XHL-study",
+    "content": "@amirh \r\n```\r\nIs Android 6.0\r\n```\r\nlook this\r\n\r\n![)Y$P64C$ VW39M OZ }J`0Y](https://user-images.githubusercontent.com/22956309/60377789-24f8fc00-9a4c-11e9-8fa9-e2e133e0a453.png)\r\n\r\n![Screenshot_2019-06-29-08-54-45-576_android](https://user-images.githubusercontent.com/22956309/60377805-43f78e00-9a4c-11e9-9222-733cc2651f73.png)\r\n\r\n\r\n\r\n\r\n\r\n",
+    "createdAt": "2019-06-29T01:05:24Z"
+  },
+  {
+    "id": 5034,
+    "sender": "amirh",
+    "content": "@XHL-study as mentioned above webview keyboard is currently only working starting Android N.",
+    "createdAt": "2019-06-29T02:40:45Z"
+  },
+  {
+    "id": 5035,
+    "sender": "ridz0n3",
+    "content": "hi, the keyboard has appeared, but when type seem like no change in focused field.",
+    "createdAt": "2019-06-30T06:38:48Z"
+  },
+  {
+    "id": 5036,
+    "sender": "goevexx",
+    "content": "for me, using webview_flutter: ^0.3.9+1 neither shows up the keyboard focusing inputs nor copy - pastes into inputs work on android 9 using an emulator",
+    "createdAt": "2019-07-01T21:19:49Z"
+  },
+  {
+    "id": 5037,
+    "sender": "amirh",
+    "content": "https://github.com/amirh/plugins/commit/64fe811f8d6861cc87258d5db3df59414be8b49d (prototype mode, this thing needs a cleanup) successfully sets up an input connection on the webview's IME thread, and keyboard is actually working pre Android N.\r\n\r\nStill not working(pre Android N):\r\n  1. *Caching the input connection across webview resizes* - we should probably provide some hooks to allow the plugin to do the caching(as the engine has no reference to the threaded input connection proxy).\r\n 2. *Changing the input target from webview to a Flutter framework client* - when the engine restarts the input, IMM goes directly to the threaded proxy for a new connection leaving the engine no chance to change the connection.",
+    "createdAt": "2019-07-03T00:53:00Z"
+  },
+  {
+    "id": 5038,
+    "sender": "XHL-study",
+    "content": "> [amirh/plugins@64fe811](https://github.com/amirh/plugins/commit/64fe811f8d6861cc87258d5db3df59414be8b49d) (prototype mode, this thing needs a cleanup) successfully sets up an input connection on the webview's IME thread, and keyboard is actually working pre Android N.\r\n> \r\n> Still not working(pre Android N):\r\n> \r\n> 1. _Caching the input connection across webview resizes_ - we should probably provide some hooks to allow the plugin to do the caching(as the engine has no reference to the threaded input connection proxy).\r\n> 2. _Changing the input target from webview to a Flutter framework client_ - when the engine restarts the input, IMM goes directly to the threaded proxy for a new connection leaving the engine no chance to change the connection.\r\n\r\n\r\n\r\nThe following is my test results:\r\n>\r\n>1.Now you can only enter, you can't use the clipboard.\r\n>\r\n>2.This bug does not know where to report.\r\n\r\nwhen  i'm Set ```android:windowSoftInputMode=adjustResize```, the app crashes when the keyboard pops up.\r\n\r\n![键盘弹出——app崩溃](https://user-images.githubusercontent.com/22956309/60558247-13c92b80-9d7b-11e9-82d5-6cfc15ab393d.png)\r\n\r\n![1562120485340](https://user-images.githubusercontent.com/22956309/60558670-98687980-9d7c-11e9-86af-b28892081299.gif)\r\n\r\nconsole log\r\n---\r\n```\r\nV/DartMessenger(15228): Received message from Dart over channel 'flutter/platform_views'\r\nV/DartMessenger(15228): Deferring to registered handler to process message.\r\nV/PlatformViewsChannel(15228): Received 'touch' message.\r\nV/DartMessenger(15228): Received message from Dart over channel 'flutter/platform_views'\r\nV/DartMessenger(15228): Deferring to registered handler to process message.\r\nV/PlatformViewsChannel(15228): Received 'touch' message.\r\nV/DartMessenger(15228): Received message from Dart over channel 'flutter/platform_views'\r\nV/DartMessenger(15228): Deferring to registered handler to process message.\r\nV/PlatformViewsChannel(15228): Received 'touch' message.\r\nD/MALI    (15228): eglCreateImageKHR:511: [Crop] 0 0 1088 384  img[1088 384] \r\nV/DartMessenger(15228): Sending message with callback over channel 'flutter/platform_views'\r\nV/DartMessenger(15228): Received message from Dart over channel 'flutter/textinput'\r\nV/DartMessenger(15228): Deferring to registered handler to process message.\r\nV/TextInputChannel(15228): Received 'TextInput.setPlatformViewClient' message.\r\nD/DEBUG   (15228): no proxy adapter, using default implementation\r\nV/InputMethodManager(15228): START INPUT: io.flutter.view.FlutterView{b39fdf7 VFE...... .F...... 0,0-1080,1920} ic=null tba=android.view.inputmethod.EditorInfo@f99d902 controlFlags=#0\r\nI/BufferQueueProducer(15228): [SurfaceTexture-0-15228-0](this:0x7f83fe6400,id:0,api:1,p:351,c:15228) queueBuffer: slot 0 is dropped, handle=0x7f6fead3c0\r\nI/BufferQueueProducer(15228): [SurfaceTexture-0-15228-0](this:0x7f83fe6400,id:0,api:1,p:351,c:15228) queueBuffer: slot 1 is dropped, handle=0x7f6ce2e280\r\nI/BufferQueueProducer(15228): [SurfaceTexture-0-15228-0](this:0x7f83fe6400,id:0,api:1,p:351,c:15228) queueBuffer: slot 1 is dropped, handle=0x7f6ce2e280\r\nI/BufferQueueProducer(15228): [SurfaceTexture-0-15228-0](this:0x7f83fe6400,id:0,api:1,p:351,c:15228) queueBuffer: slot 1 is dropped, handle=0x7f6ce2e280\r\nI/BufferQueueProducer(15228): [SurfaceTexture-0-15228-0](this:0x7f83fe6400,id:0,api:1,p:351,c:15228) queueBuffer: slot 1 is dropped, handle=0x7f6ce2e280\r\nI/BufferQueueProducer(15228): [SurfaceTexture-0-15228-0](this:0x7f83fe6400,id:0,api:1,p:351,c:15228) queueBuffer: slot 1 is dropped, handle=0x7f6ce2e280\r\nD/DEBUG   (15228): no proxy adapter, using default implementation\r\nV/InputMethodManager(15228): START INPUT: io.flutter.view.FlutterView{b39fdf7 VFE...... .F...... 0,0-1080,1920} ic=null tba=android.view.inputmethod.EditorInfo@dc54c50 controlFlags=#0\r\nV/InputMethodManager(15228): Not IME target window, ignoring\r\nI/BufferQueueProducer(15228): [SurfaceTexture-0-15228-0](this:0x7f83fe6400,id:0,api:1,p:351,c:15228) queueBuffer: slot 1 is dropped, handle=0x7f6ce2e280\r\nD/DEBUG   (15228): restarting input\r\nD/DEBUG   (15228): triggering connection\r\nV/InputMethodManager(15228): START INPUT: io.flutter.view.FlutterView{b39fdf7 VFE...... .F...... 0,0-1080,1920} ic=null tba=android.view.inputmethod.EditorInfo@a9ddc6f controlFlags=#0\r\nV/InputMethodManager(15228): Not IME target window, ignoring\r\nD/DEBUG   (15228): calling isActive\r\nD/DEBUG   (15228): restarting input\r\nD/DEBUG   (15228): proxy onCreateInputConnection on Looper (InputConnectionHandlerThread, tid 3598) {1744605}\r\nD/DEBUG   (15228): proxy target view is org.chromium.content.browser.input.ThreadedInputConnectionProxyView{450834e VFED..... .F....ID 0,0-0,0}\r\nD/DEBUG   (15228): connection creation with no delayed triggering delegating to super\r\nD/DEBUG   (15228): Proxying input connection to : org.chromium.content.browser.input.ThreadedInputConnection@7d5d08b\r\nV/InputMethodManager(15228): START INPUT: io.flutter.plugins.webviewflutter.ThreadedInputConnectionProxyAdapterView{b3add7c VFED..... .F....ID 0,0-0,0} ic=org.chromium.content.browser.input.ThreadedInputConnection@7d5d08b tba=android.view.inputmethod.EditorInfo@2165568 controlFlags=#100\r\nI/BufferQueueProducer(15228): [SurfaceTexture-0-15228-0](this:0x7f83fe6400,id:0,api:1,p:351,c:15228) queueBuffer: slot 1 is dropped, handle=0x7f6ce2e280\r\nD/DEBUG   (15228): proxy onCreateInputConnection on Looper (InputConnectionHandlerThread, tid 3598) {1744605}\r\nD/DEBUG   (15228): proxy target view is org.chromium.content.browser.input.ThreadedInputConnectionProxyView{450834e VFED..... .F....ID 0,0-0,0}\r\nD/DEBUG   (15228): connection creation with no delayed triggering delegating to super\r\nD/DEBUG   (15228): Proxying input connection to : org.chromium.content.browser.input.ThreadedInputConnection@7d5d08b\r\nD/BufferQueueProducer(15228): [SurfaceTexture-0-15228-0](this:0x7f83fe6400,id:0,api:1,p:351,c:15228) cancelBuffer: slot 1\r\nD/MALI    (15228): eglCreateImageKHR:511: [Crop] 0 0 1088 192  img[1088 192] \r\nD/MALI    (15228): eglCreateImageKHR:511: [Crop] 0 0 1088 192  img[1088 192] \r\nD/BufferQueueProducer(15228): [SurfaceTexture-0-15228-0](this:0x7f83fe6400,id:0,api:1,p:351,c:15228) cancelBuffer: slot 1\r\nD/MALI    (15228): eglCreateImageKHR:511: [Crop] 0 0 1088 256  img[1088 256] \r\nI/SurfaceView(15228): updateWindow -- setFrame, this = io.flutter.view.FlutterView{b39fdf7 VFE...... .F....I. 0,0-1080,1920}\r\nI/SurfaceView(15228): updateWindow -- OnPreDrawListener, mHaveFrame = true, this = io.flutter.view.FlutterView{b39fdf7 VFE...... .F....I. 0,0-1080,1920}\r\nD/BufferQueueProducer(15228): [SurfaceTexture-0-15228-0](this:0x7f83fe6400,id:0,api:1,p:351,c:15228) cancelBuffer: slot 2\r\nD/MALI    (15228): eglCreateImageKHR:511: [Crop] 0 0 1088 192  img[1088 192] \r\nD/MALI    (15228): eglCreateImageKHR:511: [Crop] 0 0 1088 192  img[1088 192] \r\nD/MALI    (15228): eglCreateImageKHR:511: [Crop] 0 0 1088 256  img[1088 256] \r\nI/BufferQueueProducer(15228): [SurfaceTexture-0-15228-0](this:0x7f83fe6400,id:0,api:1,p:351,c:15228) queueBuffer: slot 1 is dropped, handle=0x7f6ce2e280\r\nV/DartMessenger(15228): Received message from Dart over channel 'flutter/platform'\r\nV/DartMessenger(15228): Deferring to registered handler to process message.\r\nV/PlatformChannel(15228): Received 'SystemChrome.setApplicationSwitcherDescription' message.\r\nD/BufferQueueProducer(15228): [SurfaceTexture-0-15228-0](this:0x7f83fe6400,id:0,api:1,p:351,c:15228) cancelBuffer: slot 1\r\nV/DartMessenger(15228): Received message from Dart over channel 'flutter/platform_views'\r\nV/DartMessenger(15228): Deferring to registered handler to process message.\r\nV/PlatformViewsChannel(15228): Received 'resize' message.\r\nW/ContentCatcher(15228): Failed to notify a WebView\r\nD/BufferQueueProducer(15228): [SurfaceTexture-0-15228-0](this:0x7f83fe6400,id:0,api:1,p:351,c:15228) cancelBuffer: slot 1\r\nD/DEBUG   (15228): proxy onCreateInputConnection on Looper (InputConnectionHandlerThread, tid 3598) {1744605}\r\nD/DEBUG   (15228): proxy target view is org.chromium.content.browser.input.ThreadedInputConnectionProxyView{450834e VFED..... .F....ID 0,0-0,0}\r\nI/BufferQueueConsumer(15228): [SurfaceTexture-0-15228-0](this:0x7f83fe6400,id:0,api:1,p:351,c:15228) setDefaultBufferSize: width=1080 height=877\r\nD/BufferQueueProducer(15228): [SurfaceTexture-0-15228-0](this:0x7f83fe6400,id:0,api:1,p:351,c:15228) cancelBuffer: slot 1\r\nW/ResourceType(15228): No package identifier when getting name for resource number 0x00000000\r\nI/BufferQueueProducer(15228): [SurfaceTexture-0-15228-0](this:0x7f83fe6400,id:0,api:1,p:-1,c:15228) disconnect(P): api 1\r\nI/BufferQueueConsumer(15228): [SurfaceTexture-0-15228-0](this:0x7f83fe6400,id:0,api:1,p:-1,c:15228) getReleasedBuffers: returning mask 0xfffffffffffffffb\r\nD/GraphicBuffer(15228): unregister, handle(0x7f6ce2e280) (w:1080 h:1650 s:1088 f:0x22 u:0x000900)\r\nI/[MALI][Gralloc](15228): [-]r_hnd(0x7f6ce2e280), client(62), share_fd(139)\r\nI/BufferQueueProducer(15228): [SurfaceTexture-0-15228-0](this:0x7f83fe6400,id:0,api:1,p:-1,c:15228) disconnect(P): api 1\r\nI/BufferQueueProducer(15228): [SurfaceTexture-0-15228-0](this:0x7f83fe6400,id:0,api:1,p:351,c:15228) connect(P): api=1 producer=(351:???) producerControlledByApp=false\r\nI/BufferQueueProducer(15228): [SurfaceTexture-0-15228-0](this:0x7f83fe6400,id:0,api:1,p:351,c:15228) new GraphicBuffer needed\r\nV/DartMessenger(15228): Sending message with callback over channel 'flutter/platform_views'\r\nI/[MALI][Gralloc](15228): [+]r_hnd(0x7f0c8b25a0), client(62), share_fd(139)\r\nD/GraphicBuffer(15228): register, handle(0x7f0c8b25a0) (w:1080 h:877 s:1088 f:0x22 u:0x000900)\r\nD/WindowClient(15228): Add to mViews: com.android.internal.policy.PhoneWindow$DecorView{eaf6014 V.E...... R.....ID 0,0-0,0}, this = android.view.WindowManagerGlobal@81a12c9\r\nD/OpenGLRenderer(15228): CanvasContext() 0x7f0dad3000\r\nD/ViewRootImpl(15228): hardware acceleration is enabled, this = ViewRoot{46bba75 io.flutter.plugins.webviewflutterexample/io.flutter.plugins.webviewflutterexample.MainActivity,ident = 2}\r\nD/BufferQueueProducer(15228): [SurfaceTexture-0-15228-0](this:0x7f83fe6400,id:0,api:1,p:351,c:15228) cancelBuffer: slot 0\r\nD/BufferQueueProducer(15228): [SurfaceTexture-0-15228-0](this:0x7f83fe6400,id:0,api:1,p:351,c:15228) cancelBuffer: slot 0\r\nW/ContentCatcher(15228): Failed to notify a WebView\r\nV/InputMethodManager(15228): Not IME target window, ignoring\r\nD/BufferQueueProducer(15228): [SurfaceTexture-0-15228-0](this:0x7f83fe6400,id:0,api:1,p:351,c:15228) cancelBuffer: slot 0\r\nD/BufferQueueProducer(15228): [SurfaceTexture-0-15228-0](this:0x7f83fe6400,id:0,api:1,p:351,c:15228) cancelBuffer: slot 0\r\nD/BufferQueueProducer(15228): [SurfaceTexture-0-15228-0](this:0x7f83fe6400,id:0,api:1,p:351,c:15228) cancelBuffer: slot 0\r\nD/BufferQueueProducer(15228): [SurfaceTexture-0-15228-0](this:0x7f83fe6400,id:0,api:1,p:351,c:15228) cancelBuffer: slot 0\r\nD/BufferQueueProducer(15228): [SurfaceTexture-0-15228-0](this:0x7f83fe6400,id:0,api:1,p:351,c:15228) cancelBuffer: slot 0\r\nD/OpenGLRenderer(15228): CanvasContext() 0x7f0dad3000 initialize window=0x7f3ffcce10, title=io.flutter.plugins.webviewflutterexample/io.flutter.plugins.webviewflutterexample.MainActivity\r\nD/Surface (15228): Surface::allocateBuffers(this=0x7f3ffcce00)\r\nD/Surface (15228): Surface::connect(this=0x7f3ffcce00,api=1)\r\nW/libEGL  (15228): [ANDROID_RECORDABLE] format: 1\r\nD/mali_winsys(15228): new_window_surface returns 0x3000\r\nD/DEBUG   (15228): connection creation with no delayed triggering delegating to super\r\nD/DEBUG   (15228): Proxying input connection to : null\r\nV/InputMethodManager(15228): START INPUT: io.flutter.plugins.webviewflutter.ThreadedInputConnectionProxyAdapterView{b3add7c VFED..... .F....ID 0,0-0,0} ic=null tba=android.view.inputmethod.EditorInfo@2c3a0a controlFlags=#0\r\nD/BufferQueueProducer(15228): [SurfaceTexture-0-15228-0](this:0x7f83fe6400,id:0,api:1,p:351,c:15228) cancelBuffer: slot 0\r\nD/AndroidRuntime(15228): Shutting down VM\r\nE/AndroidRuntime(15228): FATAL EXCEPTION: main\r\nE/AndroidRuntime(15228): Process: io.flutter.plugins.webviewflutterexample, PID: 15228\r\nE/AndroidRuntime(15228): java.lang.NullPointerException: Attempt to invoke virtual method 'void android.view.Display.getSize(android.graphics.Point)' on a null object reference\r\nE/AndroidRuntime(15228): \tat org.chromium.ui.display.PhysicalDisplayAndroid.updateFromDisplay(PhysicalDisplayAndroid.java:97)\r\nE/AndroidRuntime(15228): \tat org.chromium.ui.display.DisplayAndroidManager$DisplayListenerBackendImpl.onDisplayChanged(DisplayAndroidManager.java:174)\r\nE/AndroidRuntime(15228): \tat android.hardware.display.DisplayManagerGlobal$DisplayListenerDelegate.handleMessage(DisplayManagerGlobal.java:506)\r\nE/AndroidRuntime(15228): \tat android.os.Handler.dispatchMessage(Handler.java:111)\r\nE/AndroidRuntime(15228): \tat android.os.Looper.loop(Looper.java:207)\r\nE/AndroidRuntime(15228): \tat android.app.ActivityThread.main(ActivityThread.java:5845)\r\nE/AndroidRuntime(15228): \tat java.lang.reflect.Method.invoke(Native Method)\r\nE/AndroidRuntime(15228): \tat com.android.internal.os.ZygoteInit$MethodAndArgsCaller.run(ZygoteInit.java:907)\r\nE/AndroidRuntime(15228): \tat com.android.internal.os.ZygoteInit.main(ZygoteInit.java:768)\r\nD/BufferQueueProducer(15228): [SurfaceTexture-0-15228-0](this:0x7f83fe6400,id:0,api:1,p:351,c:15228) cancelBuffer: slot 0\r\nD/BufferQueueProducer(15228): [SurfaceTexture-0-15228-0](this:0x7f83fe6400,id:0,api:1,p:351,c:15228) cancelBuffer: slot 0\r\nI/Process (15228): Sending signal. PID: 15228 SIG: 9\r\nLost connection to device.\r\n```\r\n\r\n---\r\n```\r\nflutter doctor\r\nDoctor summary (to see all details, run flutter doctor -v):\r\n[√] Flutter (Channel beta, v1.7.8+hotfix.2, on Microsoft Windows [Version 10.0.17134.829], locale zh-CN)\r\n\r\n[√] Android toolchain - develop for Android devices (Android SDK version 29.0.0-rc2)\r\n[√] Android Studio (version 3.4)\r\n[!] IntelliJ IDEA Ultimate Edition (version 2019.1)\r\n    X Flutter plugin not installed; this adds Flutter specific functionality.\r\n    X Dart plugin not installed; this adds Dart specific functionality.\r\n[√] Connected device (1 available)\r\n\r\n! Doctor found issues in 1 category.\r\n```\r\n\r\n\r\n",
+    "createdAt": "2019-07-03T02:31:36Z"
+  },
+  {
+    "id": 5039,
+    "sender": "XHL-study",
+    "content": "Look this,\r\nWhen I first open webview_flutter, I can type something. When I close this page and open it again, I can't enter it, even though the keyboard pops up.\r\n\r\n![1562245883474](https://user-images.githubusercontent.com/22956309/60669468-f2faf600-9ea0-11e9-8327-55c5208df381.gif)\r\n\r\n```\r\nflutter doctor\r\nDoctor summary (to see all details, run flutter doctor -v):\r\n[√] Flutter (Channel stable, v1.7.8+hotfix.3, on Microsoft Windows [Version 10.0.17134.829], locale zh-CN)\r\n\r\n[√] Android toolchain - develop for Android devices (Android SDK version 29.0.0-rc2)\r\n[√] Android Studio (version 3.4)\r\n[!] IntelliJ IDEA Ultimate Edition (version 2019.1)\r\n    X Flutter plugin not installed; this adds Flutter specific functionality.\r\n    X Dart plugin not installed; this adds Dart specific functionality.\r\n[√] Connected device (2 available)\r\n\r\n! Doctor found issues in 1 category.\r\n\r\n\r\n```\r\nwebview_flutter: ^0.3.10",
+    "createdAt": "2019-07-04T13:19:25Z"
+  },
+  {
+    "id": 5040,
+    "sender": "tidharnitzan",
+    "content": "hi,\r\nusing Flutter 1.5.4-hotfix.2 • channel stable.\r\nThe issue still exists. the keyboard doesn't pop up. this is a real deal breaker since we host our site with it.\r\nis there any workaround?\r\n\r\n",
+    "createdAt": "2019-07-08T09:47:15Z"
+  },
+  {
+    "id": 5041,
+    "sender": "qiaolin-pan",
+    "content": "is there any progress?",
+    "createdAt": "2019-07-09T06:29:18Z"
+  },
+  {
+    "id": 5042,
+    "sender": "XHL-study",
+    "content": "use flutter channel beta ",
+    "createdAt": "2019-07-09T06:59:17Z"
+  },
+  {
+    "id": 5043,
+    "sender": "jackChauT",
+    "content": "> use flutter channel beta\r\n\r\nyou tried? and it is work? thank you",
+    "createdAt": "2019-07-09T08:34:09Z"
+  },
+  {
+    "id": 5044,
+    "sender": "XHL-study",
+    "content": "> > use flutter channel beta\r\n> \r\n> you tried? and it is work? thank you\r\n\r\nI tested，But it still has bugs\r\nhttps://github.com/flutter/flutter/issues/19718#issuecomment-508479955",
+    "createdAt": "2019-07-09T08:39:35Z"
+  },
+  {
+    "id": 5045,
+    "sender": "jackChauT",
+    "content": "> > > use flutter channel beta\r\n> > \r\n> > \r\n> > you tried? and it is work? thank you\r\n> \r\n> I tested，But it still has bugs\r\n> [#19718 (comment)](https://github.com/flutter/flutter/issues/19718#issuecomment-508479955)\r\n\r\noh... thank you. ",
+    "createdAt": "2019-07-09T09:14:07Z"
+  },
+  {
+    "id": 5046,
+    "sender": "XHL-study",
+    "content": "> > > > use flutter channel beta\r\n> > > \r\n> > > \r\n> > > you tried? and it is work? thank you\r\n> > \r\n> > \r\n> > I tested，But it still has bugs\r\n> > [#19718 (comment)](https://github.com/flutter/flutter/issues/19718#issuecomment-508479955)\r\n> \r\n> oh... thank you.\r\n\r\n😋😋😋\r\nsorry, don't change flutter channel beta.\r\nwebview_flutter use  https://github.com/amirh/plugins/tree/64fe811f8d6861cc87258d5db3df59414be8b49d/packages/webview_flutter ,you should download it in local \r\n\r\npubspec.yaml setting webview_flutter like this\r\n![image](https://user-images.githubusercontent.com/22956309/60876562-bb0ffc00-a26e-11e9-90e0-dc3683d6c005.png)\r\n",
+    "createdAt": "2019-07-09T09:41:59Z"
+  },
+  {
+    "id": 5047,
+    "sender": "tidharnitzan",
+    "content": "@XHL-study - you mean that branch resolve the keyboard issue ?",
+    "createdAt": "2019-07-09T10:12:14Z"
+  },
+  {
+    "id": 5048,
+    "sender": "XHL-study",
+    "content": "> - you mean that branch resolve the keyboard issue ?\r\n\r\nnot,\r\nwebview_flutter use https://github.com/amirh/plugins/tree/64fe811f8d6861cc87258d5db3df59414be8b49d/packages/webview_flutter ,you should download it in local.\r\nand pubspec.yaml setting webview_flutter like this:  \r\n- change your webview_flutter  to  local path \r\n![](https://user-images.githubusercontent.com/22956309/60876562-bb0ffc00-a26e-11e9-90e0-dc3683d6c005.png)\r\n",
+    "createdAt": "2019-07-09T11:22:34Z"
+  },
+  {
+    "id": 5049,
+    "sender": "tidharnitzan",
+    "content": "ok. so I can confirm that didn't solve the issue. @XHL-study thanks anyway. any chance to get it resolved? did somebody manage to get it to show the keyboard?",
+    "createdAt": "2019-07-09T11:54:13Z"
+  },
+  {
+    "id": 5050,
+    "sender": "XHL-study",
+    "content": "> ok. so I can confirm that didn't solve the issue. @XHL-study thanks anyway. any chance to get it resolved? did somebody manage to get it to show the keyboard?\r\n\r\nI think，This person is solving this problem. ``` @amirh ```\r\nthis webview_flutter is  an unpublished preview，I am using this.\r\nhttps://github.com/amirh/plugins/tree/64fe811f8d6861cc87258d5db3df59414be8b49d/packages/webview_flutter\r\n\r\nYou can see its resolution time in the milestone. [in this](https://github.com/flutter/flutter/milestone/46)\r\n\r\n",
+    "createdAt": "2019-07-09T12:12:38Z"
+  },
+  {
+    "id": 5051,
+    "sender": "tidharnitzan",
+    "content": "this version is very old and doesn't include changes made a very long time (like javascriptChannels).\r\nso can't use it at all. \r\nthe official version needs to have the fix. Flutter team ? @FlutterIssues ",
+    "createdAt": "2019-07-09T12:39:20Z"
+  },
+  {
+    "id": 5052,
+    "sender": "XHL-study",
+    "content": "> this version is very old and doesn't include changes made a very long time (like javascriptChannels).\r\n> so can't use it at all.\r\n> the official version needs to have the fix. Flutter team ? @FlutterIssues\r\n\r\nGod, I answered wrong again.\r\nIs this version\r\nhttps://github.com/amirh/plugins/tree/64fe811f8d6861cc87258d5db3df59414be8b49d/packages/webview_flutter",
+    "createdAt": "2019-07-09T12:56:08Z"
+  },
+  {
+    "id": 5053,
+    "sender": "tidharnitzan",
+    "content": "thanks. but it didn't help. I downloaded this version and testing on emulator and Samsung S8. keyboard still not jumping.",
+    "createdAt": "2019-07-09T13:21:51Z"
+  },
+  {
+    "id": 5054,
+    "sender": "XHL-study",
+    "content": "> thanks. but it didn't help. I downloaded this version and testing on emulator and Samsung S8. keyboard still not jumping.\r\n\r\nsorry...\r\n\r\n<details>  \r\n<summary>this is my config, It can pop up the keyboard.</summary>\r\n\r\n1. change webview_flutter config to you download local path\r\n![image](https://user-images.githubusercontent.com/22956309/60892208-53b77380-a291-11e9-9688-13afb0d28a46.png)\r\n\r\n2. ** run ``` flutter pub get ```**\r\n\r\n3.look plugins info\r\n![image](https://user-images.githubusercontent.com/22956309/60892801-56669880-a292-11e9-8570-1a17ea674a06.png)\r\n\r\n```\r\nflutter --version\r\nFlutter 1.7.8+hotfix.2 • channel stable • https://github.com/flutter/flutter.git\r\nFramework • revision 2e540931f7 (7 days ago) • 2019-07-02 09:31:07 -0700\r\nEngine • revision b1cb0d9e9b\r\nTools • Dart 2.4.0\r\n```\r\n</details>\r\n",
+    "createdAt": "2019-07-09T14:00:10Z"
+  },
+  {
+    "id": 5055,
+    "sender": "tidharnitzan",
+    "content": "@XHL-study Thanks for all the help. it now working.\r\nThe issue was with dart and Flutter outdated. upgrade solve the issue now (with the above code downloaded).\r\n",
+    "createdAt": "2019-07-09T14:15:25Z"
+  }
+]

@@ -1,0 +1,386 @@
+[
+  {
+    "id": 832,
+    "sender": "mateusfccp",
+    "content": "@iskakaushik Do we have any potential downsides in disabling partial repaint?",
+    "createdAt": "2022-06-28T18:17:11Z"
+  },
+  {
+    "id": 833,
+    "sender": "iskakaushik",
+    "content": "@mateusfccp , there are some situations in which the performance of the application can regress in terms of the rasterization time. This would be most apparent in scenes where only a small part of the scene is changing. That being said, we would really appreciate if we can isolate this particular issue to partial repaint.",
+    "createdAt": "2022-06-28T18:33:58Z"
+  },
+  {
+    "id": 834,
+    "sender": "apkuhar",
+    "content": "would be nice if this was possible to switch at runtime, so it can be\r\ncontrolled from an AB testing framework.\r\n\r\n\r\n\r\n> @mateusfccp <https://github.com/mateusfccp> , there are some situations\r\n> in which the performance of the application can regress in terms of the\r\n> rasterization time. This would be most apparent in scenes where only a\r\n> small part of the scene is changing. That being said, we would really\r\n> appreciate if we can isolate this particular issue to partial repaint.\r\n",
+    "createdAt": "2022-06-28T21:33:51Z"
+  },
+  {
+    "id": 835,
+    "sender": "feinstein",
+    "content": "If someone adds this flag, please let us know here, so we can follow up later. ",
+    "createdAt": "2022-06-28T22:16:11Z"
+  },
+  {
+    "id": 836,
+    "sender": "DjordjeMancic97",
+    "content": "> If someone adds this flag, please let us know here, so we can follow up later.\r\n\r\nFlag added - will write more once we get some feedback from our testers. \r\n\r\nAnother thing we did is removed BackdropFilter from our app life cycle logic and this version is without the flag, its been a few days, screen flickering did not appear on this version of our app, at least not yet. ",
+    "createdAt": "2022-06-29T09:18:07Z"
+  },
+  {
+    "id": 837,
+    "sender": "q384264619",
+    "content": "My app online has the same bug. \r\nflutter version:3.0.3",
+    "createdAt": "2022-06-30T00:40:34Z"
+  },
+  {
+    "id": 838,
+    "sender": "willphonez",
+    "content": "> > If someone adds this flag, please let us know here, so we can follow up later.\r\n> \r\n> Flag added - will write more once we get some feedback from our testers.\r\n> \r\n> Another thing we did is removed BackdropFilter from our app life cycle logic and this version is without the flag, its been a few days, screen flickering did not appear on this version of our app, at least not yet.\r\n\r\nWhat is your Flutter version?",
+    "createdAt": "2022-07-01T09:22:47Z"
+  },
+  {
+    "id": 839,
+    "sender": "DjordjeMancic97",
+    "content": "> > > If someone adds this flag, please let us know here, so we can follow up later.\r\n> > \r\n> > \r\n> > Flag added - will write more once we get some feedback from our testers.\r\n> > Another thing we did is removed BackdropFilter from our app life cycle logic and this version is without the flag, its been a few days, screen flickering did not appear on this version of our app, at least not yet.\r\n> \r\n> What is your Flutter version?\r\n\r\nThe version where we added the flag is built with Flutter from master channel. The one where we removed BackdropFilter is stable channel 3.0.1/3.0.2 not entirely sure but one of those. However I forgot to mention that we are experiencing this issue for a long time probably since Flutter 2.10 as stated in this issue. ",
+    "createdAt": "2022-07-01T09:27:32Z"
+  },
+  {
+    "id": 840,
+    "sender": "lan2000",
+    "content": "I also have this problem.\r\n\r\n[✓] Flutter (Channel stable, 2.10.5, on macOS 12.3 21E230 darwin-x64, locale zh-Hans-CN)\r\n    • Flutter version 2.10.5 at /Users/admin/flutter\r\n    • Upstream repository https://github.com/flutter/flutter/\r\n    • Framework revision 5464c5bac7 (2 months ago), 2022-04-18 09:55:37 -0700\r\n    • Engine revision 57d3bac3dd\r\n    • Dart version 2.16.2\r\n    • DevTools version 2.9.2\r\n    • Pub download mirror https://pub.flutter-io.cn\r\n    • Flutter download mirror https://storage.flutter-io.cn\r\n\r\n\r\n[✓] Xcode - develop for iOS and macOS (Xcode 13.3)\r\n    • Xcode at /Applications/Xcode.app/Contents/Developer\r\n    • CocoaPods version 1.10.0\r\n\r\n[✓] Connected device (1 available)\r\n    • xxx的iPad (mobile) • xxx • ios • iOS 15.4.1 xxx",
+    "createdAt": "2022-07-01T09:45:45Z"
+  },
+  {
+    "id": 841,
+    "sender": "lan2000",
+    "content": "Execution of the command buffer was aborted due to an error during execution. Caused GPU Address Fault Error (0000000b:kIOGPUCommandBufferCallbackErrorPageFault)\r\nExecution of the command buffer was aborted due to an error during execution. Caused GPU Address Fault Error (0000000b:kIOGPUCommandBufferCallbackErrorPageFault)\r\n\r\nExecution of the command buffer was aborted due to an error during execution. Ignored (for causing prior/excessive GPU errors) (00000004:kIOGPUCommandBufferCallbackErrorSubmissionsIgnored)\r\nExecution of the command buffer was aborted due to an error during execution. Ignored (for causing prior/excessive GPU errors) (00000004:kIOGPUCommandBufferCallbackErrorSubmissionsIgnored)\r\nError submitting command buffer: Ignored (for causing prior/excessive GPU errors) (00000004:kIOGPUCommandBufferCallbackErrorSubmissionsIgnored)\r\nExecution of the command buffer was aborted due to an error during execution. Ignored (for causing prior/excessive GPU errors) (00000004:kIOGPUCommandBufferCallbackErrorSubmissionsIgnored)\r\nExecution of the command buffer was aborted due to an error during execution. Ignored (for causing prior/excessive GPU errors) (00000004:kIOGPUCommandBufferCallbackErrorSubmissionsIgnored)",
+    "createdAt": "2022-07-01T10:14:03Z"
+  },
+  {
+    "id": 842,
+    "sender": "jackTang11",
+    "content": "I wonder if it's because of the image loading causing insufficient memory",
+    "createdAt": "2022-07-01T10:43:14Z"
+  },
+  {
+    "id": 843,
+    "sender": "apkuhar",
+    "content": "Could be related to GPU not being accessible in the background on iOS. Maybe the app tried to access with the GPU while in background. But that usually causes a crash. ",
+    "createdAt": "2022-07-01T11:35:55Z"
+  },
+  {
+    "id": 844,
+    "sender": "ingmferrer",
+    "content": "This is happening to me, while I don't have a way to reproduce it's definitely when the app is in background then going to foreground.\r\n\r\nI'll try disabling partial repaint later.",
+    "createdAt": "2022-07-01T19:37:10Z"
+  },
+  {
+    "id": 845,
+    "sender": "jing-pei",
+    "content": "@iskakaushik This problem still exists after the repair of version 2.10.5, whether the repair of version 2.10 is not supported \r\n\r\nModified as follows-->\r\nhttps://github.com/BuildAndRelease/engine/commit/55aa2f57995394b49ccf31ee61a97c6713ef5aca#diff-94f36bb03816803b4bdc61fa8e259251fd4bc86caa955396f487049eae89e78c",
+    "createdAt": "2022-07-04T03:24:28Z"
+  },
+  {
+    "id": 846,
+    "sender": "jackTang11",
+    "content": "My app online has the same bug.\r\nflutter version:3.0.4",
+    "createdAt": "2022-07-04T06:12:45Z"
+  },
+  {
+    "id": 847,
+    "sender": "acalatrava",
+    "content": "Unfortunately same result… I upgraded to 3.0.3 and added the flag but after a few days the flickering was shown. \r\nI don’t think it’s relevant but it seems to happen more often when I open the app from a notification. ",
+    "createdAt": "2022-07-04T07:07:31Z"
+  },
+  {
+    "id": 848,
+    "sender": "DjordjeMancic97",
+    "content": "> Unfortunately same result… I upgraded to 3.0.3 and added the flag but after a few days the flickering was shown. I don’t think it’s relevant but it seems to happen more often when I open the app from a notification.\r\n\r\nIts been a week for us and we didnt get flickering since adding the flag... but ye I believe that is not the solution then... What I am 100% sure is that this issue is triggered by opening app from background state, do you by any chance use BackdropFilter in your app?",
+    "createdAt": "2022-07-04T07:36:41Z"
+  },
+  {
+    "id": 849,
+    "sender": "apkuhar",
+    "content": "> Unfortunately same result… I upgraded to 3.0.3 and added the flag but after a few days the flickering was shown. I don’t think it’s relevant but it seems to happen more often when I open the app from a notification.\r\n\r\nNot sure of this made it to 3.0.3. Someone from flutter should confirm. \r\n",
+    "createdAt": "2022-07-04T09:28:04Z"
+  },
+  {
+    "id": 850,
+    "sender": "acalatrava",
+    "content": "> Its been a week for us and we didnt get flickering since adding the flag... but ye I believe that is not the solution then... What I am 100% sure is that this issue is triggered by opening app from background state, do you by any chance use BackdropFilter in your app?\r\n\r\nActually, I do...",
+    "createdAt": "2022-07-04T10:13:45Z"
+  },
+  {
+    "id": 851,
+    "sender": "acalatrava",
+    "content": "> > Its been a week for us and we didnt get flickering since adding the flag... but ye I believe that is not the solution then... What I am 100% sure is that this issue is triggered by opening app from background state, do you by any chance use BackdropFilter in your app?\r\n> \r\n> Actually, I do...\r\n\r\nMmm but it's not being used on iOS platform though...\r\n\r\n```\r\nWidget build(BuildContext context) {\r\n    return Stack(\r\n      fit: StackFit.expand,\r\n      children: [\r\n        widget.child,\r\n        _isAppLocked && !Platform.isIOS ? \r\n          BackdropFilter(\r\n            filter: ImageFilter.blur(\r\n              sigmaX: 5,\r\n              sigmaY: 5,\r\n            ),\r\n            child: Container(\r\n              color: Colors.transparent,\r\n            )\r\n          )\r\n        : Container(),\r\n      ],\r\n    );\r\n  }\r\n```",
+    "createdAt": "2022-07-04T10:17:11Z"
+  },
+  {
+    "id": 852,
+    "sender": "DjordjeMancic97",
+    "content": "> > > Its been a week for us and we didnt get flickering since adding the flag... but ye I believe that is not the solution then... What I am 100% sure is that this issue is triggered by opening app from background state, do you by any chance use BackdropFilter in your app?\r\n> > \r\n> > \r\n> > Actually, I do...\r\n> \r\n> Mmm but it's not being used on iOS platform though...\r\n> \r\n> ```\r\n> Widget build(BuildContext context) {\r\n>     return Stack(\r\n>       fit: StackFit.expand,\r\n>       children: [\r\n>         widget.child,\r\n>         _isAppLocked && !Platform.isIOS ? \r\n>           BackdropFilter(\r\n>             filter: ImageFilter.blur(\r\n>               sigmaX: 5,\r\n>               sigmaY: 5,\r\n>             ),\r\n>             child: Container(\r\n>               color: Colors.transparent,\r\n>             )\r\n>           )\r\n>         : Container(),\r\n>       ],\r\n>     );\r\n>   }\r\n> ```\r\n\r\nWeird, if its not being used on iOS then it shouldn't have an impact. But out of curiosity, is this BackdropFilter (in Android case) triggered on app lifecycle state? For example, in our banking app we use BackdropFilter for screen blocking purposes user opens app from background state while his session is alive -> screen is blurred using the BackdropFilter until user passes local authentication -> on successful authentication we hide the BackdropFilter. ",
+    "createdAt": "2022-07-04T10:22:51Z"
+  },
+  {
+    "id": 853,
+    "sender": "jing-pei",
+    "content": "Is it now determined that it is caused by BackdropFilter?",
+    "createdAt": "2022-07-04T11:30:25Z"
+  },
+  {
+    "id": 854,
+    "sender": "DjordjeMancic97",
+    "content": "> Is it now determined that it is caused by BackdropFilter?\r\n\r\nI wouldn't say it's \"determined\" just discussing all the possibilities. I would like us to give as much info as possible instead of just commenting \"this is not working\". So I am just suggesting that if more of us are using BackdropFilter in the same manner, maybe it's related to the issue. ",
+    "createdAt": "2022-07-04T11:32:31Z"
+  },
+  {
+    "id": 855,
+    "sender": "NikosTsesmelis",
+    "content": "> > Is it now determined that it is caused by BackdropFilter?\r\n> \r\n> I wouldn't say it's \"determined\" just discussing all the possibilities. I would like us to give as much info as possible instead of just commenting \"this is not working\". So I am just suggesting that if more of us are using BackdropFilter in the same manner, maybe it's related to the issue.\r\n\r\nWe are not using BackdropFilter and still encounter this issue.",
+    "createdAt": "2022-07-04T11:49:42Z"
+  },
+  {
+    "id": 856,
+    "sender": "feinstein",
+    "content": "Just be aware that even though you might not be using a BackdropFilter, another widget from a third party may be using it internally.",
+    "createdAt": "2022-07-04T11:50:50Z"
+  },
+  {
+    "id": 857,
+    "sender": "DjordjeMancic97",
+    "content": "Ok we can dismiss whole BackdropFilter theory, just got a feedback that flickering occurred in version of our app with BackdropFilter overlay removed.",
+    "createdAt": "2022-07-04T12:26:30Z"
+  },
+  {
+    "id": 858,
+    "sender": "DjordjeMancic97",
+    "content": "> Could be related to GPU not being accessible in the background on iOS. Maybe the app tried to access with the GPU while in background. But that usually causes a crash.\r\n\r\nThis somehow got lost in the comments, I think its a good guess maybe someone with more experience on this topic could elaborate. ",
+    "createdAt": "2022-07-04T12:30:52Z"
+  },
+  {
+    "id": 859,
+    "sender": "jackTang11",
+    "content": "I'll try to remove everything about BackdropFilter, post a version to see if it still happens, in a few days, I'll post the final result here",
+    "createdAt": "2022-07-05T00:50:36Z"
+  },
+  {
+    "id": 860,
+    "sender": "apkuhar",
+    "content": "idea for a workaround. restart the flutter engine after coming from the background. should not be a big deal with proper state restoration. ",
+    "createdAt": "2022-07-05T00:59:46Z"
+  },
+  {
+    "id": 861,
+    "sender": "xhw0525",
+    "content": "Frequent switching to the foreground and background, easy to reproduce",
+    "createdAt": "2022-07-05T08:12:34Z"
+  },
+  {
+    "id": 862,
+    "sender": "abdulrehmank7",
+    "content": "Constantly switching from foreground and background is the culprit here. Users also reported same behavior.",
+    "createdAt": "2022-07-05T08:54:33Z"
+  },
+  {
+    "id": 863,
+    "sender": "feinstein",
+    "content": "I tried going back and forth from background but I can't reproduce on my iPhone 12 Max Pro.\n\nSince you can reproduce it so easily, could you please try the steps the Flutter team posted?\n\nSince they can't reproduce, they can't fix it. Or maybe can you send them your code? ",
+    "createdAt": "2022-07-05T11:40:34Z"
+  },
+  {
+    "id": 864,
+    "sender": "jackTang11",
+    "content": "> I'll try to remove everything about BackdropFilter, post a version to see if it still happens, in a few days, I'll post the final result here\r\n\r\n\r\n\r\n> \r\n\r\nI removed all about BackdropFilter, It doesn't seem to be that often,but it still happens, it seems that it has nothing to do with BackdropFilter, we can consider whether it is caused by GPU,",
+    "createdAt": "2022-07-08T01:08:00Z"
+  },
+  {
+    "id": 865,
+    "sender": "DjordjeMancic97",
+    "content": "Some news, with repainting flag we still got screen flickering.",
+    "createdAt": "2022-07-11T09:03:24Z"
+  },
+  {
+    "id": 866,
+    "sender": "apkuhar",
+    "content": "> Some news, with repainting flag we still got screen flickering.\n\nwhich flutter version?",
+    "createdAt": "2022-07-11T09:24:37Z"
+  },
+  {
+    "id": 867,
+    "sender": "DjordjeMancic97",
+    "content": "> \r\n\r\nsorry dont remember the exact version, its built with flutter master channel from 12 days ago. ",
+    "createdAt": "2022-07-11T09:27:50Z"
+  },
+  {
+    "id": 868,
+    "sender": "knopp",
+    "content": "> Frequent switching to the foreground and background, easy to reproduce\r\n\r\nIt seems to be reproducible only with certain applications. I haven't been able to reproduce it yet.",
+    "createdAt": "2022-07-11T09:58:22Z"
+  },
+  {
+    "id": 869,
+    "sender": "zewsummer",
+    "content": "I have encountered on android, on version 3.0.2, can anyone come up with a solution and this issue has seriously affected our flutter upgrade\r\n\r\n",
+    "createdAt": "2022-07-17T11:09:54Z"
+  },
+  {
+    "id": 870,
+    "sender": "Hixie",
+    "content": "We continue to have not been able to reproduce this. Without a reproduction test case, it will be very hard for us to actually help. If you experience this and can reproduce it (even if it's not reliable, frankly) it would be infinitely helpful if you could attach a test case of demo app to this issue, with steps to reproduce, devices needed to reproduce, etc.",
+    "createdAt": "2022-07-19T23:21:57Z"
+  },
+  {
+    "id": 871,
+    "sender": "maxlapides",
+    "content": "Hey @Hixie, our app also has this issue and we're eager to help the team troubleshoot this issue. But, although I work on this app full-time, I have only been able to reproduce the issue myself one time, completely by accident. I have heard reports from at least four other users that they have also observed the issue, though. The only consistency between these reports is that the user brought the app from the background to the foreground immediately before the issue occurred. Force-quitting and restarting the app resolves the issue. At first, I thought this issue might be related to the video player, but then we saw the issue occur on a screen that doesn't have video.\r\n\r\nYou can download our app directly from the iOS App Store: https://apps.apple.com/us/app/tonal/id1437460744. The current production version of the app is built with Flutter 3.0.4. Feel free to make a new test account within our app. Or, if you want an account with more data so you can access more screens and functionality, please feel free to send me an email at max dot lapides [at] tonal dot com. I'm also happy to share source code or answer any other questions that may help track this down!\r\n\r\nHere are some videos I've collected of this issue:\r\n\r\nhttps://user-images.githubusercontent.com/1874682/179866770-9d45648d-05da-4a3a-8144-908911c990bb.MP4\r\n\r\nhttps://user-images.githubusercontent.com/1874682/179866843-3448df86-df44-4cd9-9458-846967fcb2a4.mp4\r\n\r\nhttps://user-images.githubusercontent.com/1874682/179867605-6f0f22d3-2f0b-407c-a59b-fd150c8344aa.mov",
+    "createdAt": "2022-07-19T23:55:24Z"
+  },
+  {
+    "id": 872,
+    "sender": "apkuhar",
+    "content": "Seams to be related to platforms view. Scrolling through the comments superficially.\r\nI've seen video players, camera preview, webview. All using platform views. \r\n\r\nIn my case it was a camera preview. Which was the only part of the screen not flickering. ",
+    "createdAt": "2022-07-20T09:21:18Z"
+  },
+  {
+    "id": 873,
+    "sender": "mateusfccp",
+    "content": "> Seams to be related to platforms view. Scrolling through the comments superficially.\n> I've seen video players, camera preview, webview. All using platform views. \n> \n> In my case it was a camera preview. Which was the only part of the screen not flickering. \n\nIn our case, it happened in our login screen, which has nothing related to platform view.",
+    "createdAt": "2022-07-20T11:17:17Z"
+  },
+  {
+    "id": 874,
+    "sender": "maxlapides",
+    "content": "Yep, same here in our app. I thought it was related to platform views as well, but I think we've ruled it out at this point.",
+    "createdAt": "2022-07-20T20:10:04Z"
+  },
+  {
+    "id": 875,
+    "sender": "Hixie",
+    "content": "Has anyone seen it on an app that doesn't have platform views at all? (As opposed to an app that has platform views on one screen, but then seeing it on a different screen where the platform views _should_ be gone, but, you know, in software sometimes bugs mean that things linger longer than you expect...)\r\n\r\nAlso, has anyone seen this happen on a screen where there was definitely no animation happening, where no frames were being pumped? Or is it always happening when a frame is pumped? (I notice in some of the videos that there's often nothing apparently happening, but I don't know if that means nothing is being painted, or if maybe there's still some `setState` going on that might be triggering a new frame even if it's identical to the previous one.)",
+    "createdAt": "2022-07-20T20:22:46Z"
+  },
+  {
+    "id": 876,
+    "sender": "Hixie",
+    "content": "Also can I just confirm that multiple people have seen this on both iOS and Android? The comments above have been a bit ambiguous about this. (Whether it's platform-specific or not is a good hint as to where to look.)",
+    "createdAt": "2022-07-20T20:24:45Z"
+  },
+  {
+    "id": 877,
+    "sender": "maxlapides",
+    "content": "@Hixie I have not observed this issue on an app that has _no_ platform views, but I only really work on one app.\r\n\r\nAll of the screen videos I posted above show the flickering issue occurring on screens that _do_ have some sort of animation or moving content. In the first example, you can see there's a video playing. In the second example, you can't see it in the screen video, but there is an animation at the top of the screen that runs continuously. And in the third example, you can't see it in the screen video, but there's also a video playing on this screen.\r\n\r\nI have only observed this issue on iOS. I can't confirm for certain that it doesn't occur on Android, though.",
+    "createdAt": "2022-07-20T20:32:06Z"
+  },
+  {
+    "id": 878,
+    "sender": "DjordjeMancic97",
+    "content": "> Has anyone seen it on an app that doesn't have platform views at all? (As opposed to an app that has platform views on one screen, but then seeing it on a different screen where the platform views _should_ be gone, but, you know, in software sometimes bugs mean that things linger longer than you expect...)\r\n> \r\n> Also, has anyone seen this happen on a screen where there was definitely no animation happening, where no frames were being pumped? Or is it always happening when a frame is pumped? (I notice in some of the videos that there's often nothing apparently happening, but I don't know if that means nothing is being painted, or if maybe there's still some `setState` going on that might be triggering a new frame even if it's identical to the previous one.)\r\n\r\nThis happens only on iOS as far as I know. I work on a banking app so the case is next:\r\n - app in background\r\n - open the app\r\n - screen is blurred with BackdropFilter\r\n - we offer local authentication\r\n - user authorizes\r\n - remove BackdropFilter using setState inside didChangeAppLifecycleState\r\n - flickering happens \r\n\r\n It does not happen always, it happens randomly, for example I myself couldnt reproduce it no matter how much I tried, colleague did. Not sure if this is related to platform views - but we do use local authentication which is platform view I think. \r\n\r\nSo far what we did is, stopped using BackdropFilter and setState to show / hide it. We moved the blur to native Swift and we control it with native method channel... so far flickering has not appear YET. \r\n \r\n",
+    "createdAt": "2022-07-20T20:42:37Z"
+  },
+  {
+    "id": 879,
+    "sender": "feinstein",
+    "content": "@Hixie this is a long shot, but does the Flutter team have some sort of contact with Apple?\n\nMaybe one of their engineers can take a look at the videos and remember previous cases where this happened before, like if someone abused the GPU buffers while the app is in some sort of sleep state.",
+    "createdAt": "2022-07-20T20:53:30Z"
+  },
+  {
+    "id": 880,
+    "sender": "acalatrava",
+    "content": "> Has anyone seen it on an app that doesn't have platform views at all? (As opposed to an app that has platform views on one screen, but then seeing it on a different screen where the platform views _should_ be gone, but, you know, in software sometimes bugs mean that things linger longer than you expect...)\r\n> \r\n> Also, has anyone seen this happen on a screen where there was definitely no animation happening, where no frames were being pumped? Or is it always happening when a frame is pumped? (I notice in some of the videos that there's often nothing apparently happening, but I don't know if that means nothing is being painted, or if maybe there's still some `setState` going on that might be triggering a new frame even if it's identical to the previous one.)\r\n\r\nIn our case this only happen on iOS, the behavior is the same as https://github.com/flutter/flutter/issues/100522#issuecomment-1190737795 but we’re not using BackdropFilter on iOS (we do it on the swift side) and we DON’T have Platform Views…",
+    "createdAt": "2022-07-20T20:54:55Z"
+  },
+  {
+    "id": 881,
+    "sender": "jackTang11",
+    "content": "> Could be related to GPU not being accessible in the background on iOS. Maybe the app tried to access with the GPU while in background. But that usually causes a crash.\r\n\r\n\r\n\r\n@zanderso @feinstein \r\nI tried removing all pictures and videos, sent a version to a few users and they told me it never happened, I think GPU or memory has something to do with it",
+    "createdAt": "2022-07-20T23:11:25Z"
+  },
+  {
+    "id": 882,
+    "sender": "moffatman",
+    "content": "I have seen this in my app with a `PlatformView`, but there are two interesting things:\r\n\r\n1. The `PlatformView` is part of a widget which expands up from the bottom tab bar, so right now it's being built but is clipped by a zero-height `Stack` and should not be visible\r\n2. The `PlatformView` itself shouldn't draw anything (`UIView` with no subviews and `backgroundColor = UIColor.clear`), it's just used as a rectangle to receive drag-and-dropped files. \r\n\r\nDespite that, starting at 0:15 in the following video, it starts showing up as the white rectangle in the bottom-right. That's the correct position and size, but it's not being clipped. \r\n\r\nhttps://user-images.githubusercontent.com/789275/180110871-14cb60cf-1eb6-4f01-9466-fe5314f0d815.mov\r\n\r\nCan't remember if there is `BackdropFilter` here but for sure a large part of the screen is within `ImageFiltered` with a no-op filter. \r\n",
+    "createdAt": "2022-07-21T01:58:55Z"
+  },
+  {
+    "id": 883,
+    "sender": "Bilalmukhtiar",
+    "content": "Actually currently i will working on a project and face the same issue i will add this code and the problem was solved                                       await new Future.delayed(new Duration(days:99999));\r\n",
+    "createdAt": "2022-07-21T14:09:43Z"
+  },
+  {
+    "id": 884,
+    "sender": "Hixie",
+    "content": "@jmagman @chinmaygarde https://github.com/flutter/flutter/issues/108161 may have information that can help",
+    "createdAt": "2022-07-24T19:38:39Z"
+  },
+  {
+    "id": 885,
+    "sender": "jackTang11",
+    "content": "> > Could be related to GPU not being accessible in the background on iOS. Maybe the app tried to access with the GPU while in background. But that usually causes a crash.\r\n> \r\n I tried removing all pictures and videos, sent a version to a few users and they told me it never happened, I think GPU or memory has something to do with it\r\n@jmagman @chinmaygarde\r\nhttps://github.com/flutter/flutter/issues/106945    https://github.com/flutter/flutter/issues/108161   may have information that can help",
+    "createdAt": "2022-07-24T23:01:55Z"
+  },
+  {
+    "id": 886,
+    "sender": "reamal",
+    "content": "I also encountered this problem with flutter 3.0.5",
+    "createdAt": "2022-07-27T11:43:35Z"
+  },
+  {
+    "id": 887,
+    "sender": "zanderso",
+    "content": "Hi all, I'm sorry to report that we have not yet been able to reproduce this issue locally. However, we are currently working with the Skia team on including more debugging code around Metal command buffer encoding, which will hopefully result in getting more actionable information in the device logs when the flickering occurs. When the debugging code is available on Flutter's master channel, I will update this thread. Thanks for your patience, and apologies for the troubles this issue is causing.",
+    "createdAt": "2022-07-27T18:23:46Z"
+  },
+  {
+    "id": 888,
+    "sender": "acalatrava",
+    "content": "Hi everyone! I'm not sure if this is good or bad news... A few days ago happened something to me that leads me to think that this issue may not be related to Flutter itself but that it may happen \"a lot\" in Flutter because of its GPU rendering. \r\n\r\nSo, I was browsing my pictures on the Photos app of the iPhone and started to browse the \"For You\" tab where you see the generated \"Memories\". So I closed the app and after a while I opened it again, so the app was launched from the background state and when I slide up to go back the app freezes SHOWING EXACTLY THE SAME BEHAVIOR WHEN THIS ISSUE HAPPENED ON MY FLUTTER APP. The Photos app freezes for a few seconds and then it went back to the Springboard. I opened it again and no flickering BUT all the memories View was pink, look at this video:\r\n\r\nhttps://user-images.githubusercontent.com/8502129/181479101-e4050c9c-5207-4845-80a9-66e8955cdb01.mov\r\n\r\nSo, somehow the GPU View was crashed following the same behavior as on Flutter except for the flickering... Unfortunately I was on my holidays and I couldn't hook it up to a Mac to get the logs...\r\n",
+    "createdAt": "2022-07-28T10:16:32Z"
+  },
+  {
+    "id": 889,
+    "sender": "zanderso",
+    "content": "@acalatrava Could you share what version of iPhone and iOS you saw this on? Thanks!",
+    "createdAt": "2022-07-28T14:25:29Z"
+  },
+  {
+    "id": 890,
+    "sender": "acalatrava",
+    "content": "> @acalatrava Could you share what version of iPhone and iOS you saw this on? Thanks!\r\n\r\nThis is an iPhone 12 with iOS 15.5",
+    "createdAt": "2022-07-28T14:59:42Z"
+  },
+  {
+    "id": 891,
+    "sender": "ingmferrer",
+    "content": "@zanderso So, today was the second time that this bug happened to the same tester user in the last two months.\r\n\r\nSadly, neither the tester user nor I can reproduce it and I can't share the commercial app code with you guys but I think something it's related to the google map widget.\r\n\r\nThe tester user have an iPhone 11 Pro with iOS 15.5, when this happened the user was interacting with a screen of sliver widgets that have a mini map using google_maps_flutter, the map just have a pin marker for a store, then the user tried to open the search page and this bug ocurred. https://user-images.githubusercontent.com/6753534/181614991-3624af42-e516-4f0c-bf70-2cef3f4fccc3.MP4\r\n\r\nI think it's related to the map widget because it's the only widget that redraws and output logs, everything else is static. Note that when the user opens the search page, the previous page with the map widget is not removed from the stack, the user can go back after searching, so the map widget is not disposed at that moment. Also, this map widget was also present the first time this ocurred. While maybe is not directly related to google map, the fact that the widget redraws and output logs because it's doing things, can be related to the bug.\r\n\r\nI tried to reproduce the bug doing the exact same thing with an iPhone 13 Pro without luck but I noticed that the navigation transition animation from this page with the map widget visible to the search page feels very laggy compared to another page that doesn't have the map widget to the search page which feels fluid.\r\n\r\nI'll keep an eye and maybe either optimize the map or remove it and see what happens.\r\n\r\n```\r\nDoctor summary (to see all details, run flutter doctor -v):\r\n[✓] Flutter (Channel stable, 3.0.5, on macOS 12.3.1 21E258 darwin-x64, locale\r\n    en-US)\r\n[✓] Android toolchain - develop for Android devices (Android SDK version\r\n    32.1.0-rc1)\r\n[✓] Xcode - develop for iOS and macOS (Xcode 13.3.1)\r\n[✓] Chrome - develop for the web\r\n[✓] Android Studio (version 2021.2)\r\n[✓] Connected device (3 available)\r\n[✓] HTTP Host Availability\r\n\r\n• No issues found!\r\n```\r\n\r\n```\r\nFlutter 3.0.5 • channel stable • https://github.com/flutter/flutter.git\r\nFramework • revision f1875d570e (2 weeks ago) • 2022-07-13 11:24:16 -0700\r\nEngine • revision e85ea0e79c\r\nTools • Dart 2.17.6 • DevTools 2.12.2\r\n```",
+    "createdAt": "2022-07-28T19:06:41Z"
+  },
+  {
+    "id": 892,
+    "sender": "sy5075391",
+    "content": "> 如果其他人遇到此问题，请支持对此问题的初步评论。如果 您遇到此问题的任何人都可以提供样本以便我们进行验证，我们也将不胜感激。\r\n> \r\n> 保持此问题开放以跟踪同一问题的未来报告。\r\n> \r\n> 根据我收集到的信息：\r\n> \r\n> * [ 自 Flutter 2.10.0 #100522 (comment)](https://github.com/flutter/flutter/issues/100522#issuecomment-1096446674)[以来，iOS 上的 Android 和 iOS屏幕闪烁](https://github.com/flutter/flutter/issues/100522#issuecomment-1096446674)都存在此问题[](https://github.com/flutter/flutter/issues/100522#issuecomment-1096446674)\r\n> * [从 Flutter 2.10.0 ](https://github.com/flutter/flutter/issues/100522#issuecomment-1090079625)[ #100522](https://github.com/flutter/flutter/issues/100522#issuecomment-1090079625)开始，它似乎不影响平台视图iOS 上的屏幕闪烁（评论）[](https://github.com/flutter/flutter/issues/100522#issuecomment-1090079625)\r\n> * 它的发生是零星的，没有明确的方法来隔离问题\r\n> * 所有报告似乎都表明在升级到颤振 2.10 后发生了这种情况\r\n> \r\n> 再次，如果有人能够重现并找出原因，请提供样本以便我们进行调查。\r\n> \r\n> 可见性标签\r\n\r\nWhen I debug（iphoneXR , iOS15.4.1 , flutter2.10.0）, the freeze screen  occurs when the app returns to the foreground， Here is the output：\r\n```\r\nExecution of the command buffer was aborted due to an error during execution. Ignored (for causing prior/excessive GPU errors) (00000004:kIOGPUCommandBufferCallbackErrorSubmissionsIgnored)\r\n```",
+    "createdAt": "2022-08-02T08:53:06Z"
+  },
+  {
+    "id": 893,
+    "sender": "danagbemava-nc",
+    "content": "I accidentally reproduced this while I was looking into another issue. \r\nThe app was no longer connected to the debugger so I couldn't capture any logs. \r\nThe simulator was running in the background, while I was checking the issue, so I don't know when it started. Just thought I'd share the code sample. \r\n\r\nI'll also leave the simulator for a period of time to see if it reproduces again.\r\n\r\n<details>\r\n<summary>video</summary>\r\n\r\nhttps://user-images.githubusercontent.com/88313112/182579856-95c3399a-1fa1-4087-82d0-c95dec3a0c3e.mp4\r\n</details>\r\n\r\n<details>\r\n<summary>code sample</summary>\r\n\r\n```dart\r\nimport 'package:flutter/material.dart';\r\nimport 'package:video_player/video_player.dart';\r\n\r\nvoid main() {\r\n  runApp(const MyApp());\r\n}\r\n\r\nclass MyApp extends StatelessWidget {\r\n  const MyApp({Key? key}) : super(key: key);\r\n\r\n  @override\r\n  Widget build(BuildContext context) {\r\n    return MaterialApp(\r\n      title: 'Flutter Demo',\r\n      theme: ThemeData(\r\n        primarySwatch: Colors.blue,\r\n      ),\r\n      home: const VideoPlayerWidget(),\r\n    );\r\n  }\r\n}\r\n\r\nclass VideoPlayerWidget extends StatefulWidget {\r\n  const VideoPlayerWidget({super.key});\r\n\r\n  @override\r\n  State<VideoPlayerWidget> createState() => _VideoPlayerWidgetState();\r\n}\r\n\r\nclass _VideoPlayerWidgetState extends State<VideoPlayerWidget> {\r\n  late VideoPlayerController _controller;\r\n\r\n  final url = \"https://amssamples.streaming.mediaservices.windows.net/634cd01c-6822-4630-8444-8dd6279f94c6/CaminandesLlamaDrama4K.ism/manifest(format=m3u8-aapl)\";\r\n  // final url = \"http://devimages.apple.com/iphone/samples/bipbop/bipbopall.m3u8\";\r\n  // final url = \"https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8\";\r\n  // final url = \"https://flutter.github.io/assets-for-api-docs/assets/videos/bee.mp4\";\r\n\r\n  @override\r\n  void initState() {\r\n    super.initState();\r\n    _controller = VideoPlayerController.network(\r\n      url,\r\n      formatHint: VideoFormat.hls,\r\n      videoPlayerOptions: VideoPlayerOptions(mixWithOthers: true),\r\n    );\r\n\r\n    _controller.addListener(() {\r\n      if (_controller.value.isInitialized && _controller.value.position == _controller.value.duration) {\r\n        print('Video Ended');\r\n      }\r\n    });\r\n\r\n    _controller.initialize().then((value) {\r\n      _controller.play();\r\n    });\r\n  }\r\n\r\n  @override\r\n  Widget build(BuildContext context) {\r\n    return Scaffold(\r\n      body: SingleChildScrollView(\r\n        child: Column(\r\n          children: <Widget>[\r\n            Container(padding: const EdgeInsets.only(top: 20.0)),\r\n            const Text('With remote mp4'),\r\n            Container(\r\n              padding: const EdgeInsets.all(20),\r\n              child: AspectRatio(\r\n                aspectRatio: _controller.value.aspectRatio,\r\n                child: Stack(\r\n                  alignment: Alignment.bottomCenter,\r\n                  children: <Widget>[\r\n                    VideoPlayer(_controller),\r\n                    VideoProgressIndicator(_controller, allowScrubbing: true),\r\n                  ],\r\n                ),\r\n              ),\r\n            ),\r\n          ],\r\n        ),\r\n      ),\r\n    );\r\n  }\r\n\r\n  @override\r\n  void dispose() {\r\n    super.dispose();\r\n  }\r\n}\r\n\r\n```\r\n</details>\r\n\r\n<details>\r\n<summary>flutter doctor -v</summary>\r\n\r\n```\r\n[✓] Flutter (Channel stable, 3.0.5, on macOS 12.4 21F79 darwin-arm, locale en-GB)\r\n    • Flutter version 3.0.5 at /Users/nexus/dev/sdks/flutter\r\n    • Upstream repository https://github.com/flutter/flutter.git\r\n    • Framework revision f1875d570e (3 weeks ago), 2022-07-13 11:24:16 -0700\r\n    • Engine revision e85ea0e79c\r\n    • Dart version 2.17.6\r\n    • DevTools version 2.12.2\r\n\r\n[✓] Android toolchain - develop for Android devices (Android SDK version 33.0.0)\r\n    • Android SDK at /Users/nexus/Library/Android/sdk\r\n    • Platform android-33, build-tools 33.0.0\r\n    • Java binary at: /Applications/Android Studio.app/Contents/jre/Contents/Home/bin/java\r\n    • Java version OpenJDK Runtime Environment (build 11.0.12+0-b1504.28-7817840)\r\n    • All Android licenses accepted.\r\n\r\n[✓] Xcode - develop for iOS and macOS (Xcode 13.4.1)\r\n    • Xcode at /Applications/Xcode.app/Contents/Developer\r\n    • CocoaPods version 1.11.3\r\n\r\n[✓] Chrome - develop for the web\r\n    • Chrome at /Applications/Google Chrome.app/Contents/MacOS/Google Chrome\r\n\r\n[✓] Android Studio (version 2021.2)\r\n    • Android Studio at /Applications/Android Studio.app/Contents\r\n    • Flutter plugin can be installed from:\r\n      🔨 https://plugins.jetbrains.com/plugin/9212-flutter\r\n    • Dart plugin can be installed from:\r\n      🔨 https://plugins.jetbrains.com/plugin/6351-dart\r\n    • Java version OpenJDK Runtime Environment (build 11.0.12+0-b1504.28-7817840)\r\n\r\n[✓] VS Code (version 1.69.2)\r\n    • VS Code at /Applications/Visual Studio Code.app/Contents\r\n    • Flutter extension version 3.46.0\r\n\r\n[✓] Connected device (4 available)\r\n    • sdk gphone64 arm64 (mobile) • emulator-5554                        • android-arm64  • Android 13 (API 33) (emulator)\r\n    • iPhone 13 Pro (mobile)      • 6E074BA5-191C-47D4-892F-FD96AFC34148 • ios            • com.apple.CoreSimulator.SimRuntime.iOS-15-5 (simulator)\r\n    • macOS (desktop)             • macos                                • darwin-arm64   • macOS 12.4 21F79 darwin-arm\r\n    • Chrome (web)                • chrome                               • web-javascript • Google Chrome 104.0.5112.79\r\n\r\n[✓] HTTP Host Availability\r\n    • All required HTTP hosts are available\r\n\r\n• No issues found!\r\n```\r\n</details>",
+    "createdAt": "2022-08-03T09:57:44Z"
+  },
+  {
+    "id": 894,
+    "sender": "sy5075391",
+    "content": "> 大家好，很遗憾地报告我们尚未能够在本地重现此问题。但是，我们目前正在与 Skia 团队合作，包括更多关于 Metal 命令缓冲区编码的调试代码，这有望在发生闪烁时在设备日志中获得更多可操作的信息。当 Flutter 的主频道有调试代码可用时，我会更新这个线程。感谢您的耐心等待，对于这个问题造成的麻烦，我们深表歉意。\r\n\r\nWhen I debug（iphoneXR , iOS15.4.1 , flutter2.10.0）, the freeze screen  occurs when the app returns to the foreground， Here is the output：\r\n```\r\nExecution of the command buffer was aborted due to an error during execution. Ignored (for causing prior/excessive GPU errors) (00000004:kIOGPUCommandBufferCallbackErrorSubmissionsIgnored)\r\n```",
+    "createdAt": "2022-08-04T02:08:34Z"
+  },
+  {
+    "id": 895,
+    "sender": "sherrychhabra51",
+    "content": "I am also able to reproduce it on flutter version 3.0.5 and this has started happening only after we upgrade it to 3.0.5. It is working fine on flutter version 2.10.5.\r\n\r\nFor me, this is happening as soon as we clear the navigation stack on logout button and relaunches login screen.\r\n`[✓] Flutter (Channel stable, 3.0.5, on macOS 12.0.1 21A559 darwin-x64, locale en-IN)\r\n    • Flutter version 3.0.5 at /Users/sheeryshashi/Downloads/Softwares/flutter\r\n    • Upstream repository https://github.com/flutter/flutter.git\r\n    • Framework revision f1875d570e (3 weeks ago), 2022-07-13 11:24:16 -0700\r\n    • Engine revision e85ea0e79c\r\n    • Dart version 2.17.6\r\n    • DevTools version 2.12.2\r\n\r\n[✓] Android toolchain - develop for Android devices (Android SDK version 32.1.0-rc1)\r\n    • Android SDK at /Users/sheeryshashi/Library/Android/sdk\r\n    • Platform android-32, build-tools 32.1.0-rc1\r\n    • Java binary at: /Applications/Android Studio.app/Contents/jre/Contents/Home/bin/java\r\n    • Java version OpenJDK Runtime Environment (build 11.0.12+0-b1504.28-7817840)\r\n    • All Android licenses accepted.\r\n\r\n[✓] Xcode - develop for iOS and macOS (Xcode 13.3)\r\n    • Xcode at /Applications/Xcode.app/Contents/Developer\r\n    • CocoaPods version 1.11.3\r\n\r\n[✓] Chrome - develop for the web\r\n    • Chrome at /Applications/Google Chrome.app/Contents/MacOS/Google Chrome\r\n\r\n[✓] Android Studio (version 2021.2)\r\n    • Android Studio at /Applications/Android Studio.app/Contents\r\n    • Flutter plugin can be installed from:\r\n      🔨 https://plugins.jetbrains.com/plugin/9212-flutter\r\n    • Dart plugin can be installed from:\r\n      🔨 https://plugins.jetbrains.com/plugin/6351-dart\r\n    • Java version OpenJDK Runtime Environment (build 11.0.12+0-b1504.28-7817840)\r\n\r\n[✓] VS Code (version 1.69.2)\r\n    • VS Code at /Users/sheeryshashi/Downloads/Softwares/Visual Studio Code.app/Contents\r\n    • Flutter extension can be installed from:\r\n      🔨 https://marketplace.visualstudio.com/items?itemName=Dart-Code.flutter\r\n\r\n[✓] Connected device (3 available)\r\n    • Redmi Note 9 Pro (mobile) • 9256b646 • android-arm64  • Android 11 (API 30)\r\n    • macOS (desktop)           • macos    • darwin-x64     • macOS 12.0.1 21A559 darwin-x64\r\n    • Chrome (web)              • chrome   • web-javascript • Google Chrome 103.0.5060.134\r\n\r\n[✓] HTTP Host Availability\r\n    • All required HTTP hosts are available\r\n\r\n• No issues found!`\r\n\r\nhttps://user-images.githubusercontent.com/12271877/182774921-7df0330b-7418-43b4-92c4-cffed7d6af9d.mp4\r\n\r\n",
+    "createdAt": "2022-08-04T06:09:14Z"
+  }
+]

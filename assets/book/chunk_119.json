@@ -1,0 +1,386 @@
+[
+  {
+    "id": 7616,
+    "sender": "KevinBrendel",
+    "content": "To add to this, on macOS it is common for apps to stay open when all windows are closed, which would also be much easier to implement if Flutter had this capability directly.",
+    "createdAt": "2024-02-22T21:48:13Z"
+  },
+  {
+    "id": 7617,
+    "sender": "stuartmorgan-g",
+    "content": "The desktop embeddings already support headless mode, it's just not used in the standard app template.",
+    "createdAt": "2024-02-22T22:00:46Z"
+  },
+  {
+    "id": 7618,
+    "sender": "wcares",
+    "content": "Will this Support of multiple Windows for desktops be released in 2024 or will take more time? I am anxiously waiting for this feature.\r\nIs there any Flutter GitHub channel to which I can switch so that I can able to use already implemented features regarding this up to this point?",
+    "createdAt": "2024-02-27T09:45:31Z"
+  },
+  {
+    "id": 7619,
+    "sender": "pattobrien",
+    "content": "> The desktop embeddings already support headless mode, it's just not used in the standard app template.\r\n\r\nThanks for this! Not being used in the standard template makes sense for a niche use case, but documentation as a whole is basically non existent. I've been working primarily within the Dart/Flutter ecosystem for 4 years now and this is the first I've explicitly heard of headless mode (and all use cases seem only concerned with Unit tests).\r\n\r\nI think the new multiple-windows feature provides a great opportunity for the team to emphasize that a Flutter app can be represented by **_0 or more active windows_** - i.e. the lifecycle of the app itself vs. the lifecycle of each individual `RenderView`.",
+    "createdAt": "2024-02-27T10:16:17Z"
+  },
+  {
+    "id": 7620,
+    "sender": "loic-sharma",
+    "content": "@wcares Follow https://github.com/flutter/flutter/issues/142845 and the [multi-window project](https://github.com/orgs/flutter/projects/39) for updates. We don't have an ETA for multi-window yet, sorry! We're making deep architectural investments to do this right :)",
+    "createdAt": "2024-02-27T16:41:29Z"
+  },
+  {
+    "id": 7621,
+    "sender": "luwei888",
+    "content": "Will this Support of multiple Windows for desktops be released in 2024 or will take more time? I am anxiously waiting for this feature.\r\nIs there any Flutter GitHub channel to which I can switch so that I can able to use already implemented features regarding this up to this point?",
+    "createdAt": "2024-04-23T07:34:51Z"
+  },
+  {
+    "id": 7622,
+    "sender": "rekire",
+    "content": "Let me quote some people:\r\n>@stuartmorgan [from here](https://github.com/flutter/flutter/issues/144282#issuecomment-1968046867)\r\n> Please see also https://github.com/flutter/flutter/wiki/Issue-hygiene#when-will-my-bug-be-fixed\r\n\r\n>@JHenneberg [from here](https://github.com/flutter/flutter/issues/30701#issuecomment-1851432056)\r\n> You can check https://github.com/orgs/flutter/projects/39/views/1 for status I guess.\r\n\r\nThey are working on it. I am not aware of any clear timelines, but if you really need it soon you should try to contribute or hire some devs to implement that feature. Currently there is just a prototype I am aware of, which is likely quite outdated. (However I don't find the link right now)",
+    "createdAt": "2024-04-23T07:44:16Z"
+  },
+  {
+    "id": 7623,
+    "sender": "goderbauer",
+    "content": "To ensure a stronger focus on our primary goals (as detailed in our [2024 roadmap](https://github.com/flutter/flutter/wiki/Roadmap)), we unfortunately had to pause work on this. The current status of the feature (including necessary future work items) is documented at https://docs.google.com/document/d/13E27tD8_9f6lDgwg3MpGNTV8XIRCZH3ByI-t9kI9IUM/edit?usp=sharing.",
+    "createdAt": "2024-04-30T21:24:48Z"
+  },
+  {
+    "id": 7624,
+    "sender": "Im-Kevin",
+    "content": "When will this task be continued?",
+    "createdAt": "2024-05-06T02:49:14Z"
+  },
+  {
+    "id": 7625,
+    "sender": "wanjm",
+    "content": "When will this task be continued?",
+    "createdAt": "2024-05-08T00:01:54Z"
+  },
+  {
+    "id": 7626,
+    "sender": "wanjm",
+    "content": "Terrible, it is changed to P3. used to be p1",
+    "createdAt": "2024-06-11T06:37:15Z"
+  },
+  {
+    "id": 7627,
+    "sender": "czy-29",
+    "content": "Hope we can see this feature in Flutter 5.0 or 6.0. ╮( •́ω•̀ )╭\r\n> From: ***@***.***>\r\n> Date:  2024年6月11日 (周二) 14:38\r\n> Subject:  Re: [flutter/flutter] Support multiple windows for desktop shells (#30701)\r\n> To: ***@***.***>\r\n> Cc: ***@***.***>, ***@***.***>\r\n> \r\n> \r\n> Terrible, it is changed to P3. used to be p1\r\n> —\r\n> Reply to this email directly, view it on GitHub<https://github.com/flutter/flutter/issues/30701#issuecomment-2159909241>, or unsubscribe<https://github.com/notifications/unsubscribe-auth/AC5ORDOHTVXVT4R25VWG363ZG2LMNAVCNFSM4HEKOMS2U5DIOJSWCZC7NNSXTN2JONZXKZKDN5WW2ZLOOQ5TEMJVHE4TAOJSGQYQ>.\r\n> You are receiving this because you are subscribed to this thread.[image: https://github.com/notifications/beacon/AC5ORDI2FQLIVKC33LSLON3ZG2LMNA5CNFSM4HEKOMS2YY3PNVWWK3TUL52HS4DFVREXG43VMVBW63LNMVXHJKTDN5WW2ZLOORPWSZGOQC6ZS6I.gif]Message ID: ***@***.***>",
+    "createdAt": "2024-06-11T06:46:41Z"
+  },
+  {
+    "id": 7628,
+    "sender": "RossComputerGuy",
+    "content": "Looks like 3.33 will have multi-view stuff included in the embedder so there's progress there.",
+    "createdAt": "2024-06-11T06:51:32Z"
+  },
+  {
+    "id": 7629,
+    "sender": "giaur500",
+    "content": "> The existence of this issue is why people are still making bloated electron apps and melting the polar ice caps with their CPU / ram usage. Like seriously solving this one issue so people can make their apps in flutter would significantly reduce the rate of global warming, it is that crucial. The state of humanity's continued existence depends on the resolution of this one github issue.\r\n\r\nLOL. I guess you said it as a joke but there is something in it.",
+    "createdAt": "2024-06-11T06:55:17Z"
+  },
+  {
+    "id": 7630,
+    "sender": "wanjm",
+    "content": "\r\n\r\n\r\n> Looks like 3.33 will have multi-view stuff included in the embedder so there's progress there.\r\n\r\nit is 3.23 now . do you mean we have to wait for another 10 month?",
+    "createdAt": "2024-06-11T06:57:06Z"
+  },
+  {
+    "id": 7631,
+    "sender": "RossComputerGuy",
+    "content": "@wanjm Typo, 3.23 if I'm looking at this commit's tags right. https://github.com/flutter/engine/commit/de891248eb83ae73ebd9c5a273939fe0ab0ed02c",
+    "createdAt": "2024-06-11T07:05:30Z"
+  },
+  {
+    "id": 7632,
+    "sender": "wanjm",
+    "content": "> @wanjm Typo, 3.23 if I'm looking at this commit's tags right. [flutter/engine@de89124](https://github.com/flutter/engine/commit/de891248eb83ae73ebd9c5a273939fe0ab0ed02c)\r\n\r\nthe commit is on 2024-04-12 and their pausing plan is on 2024-05-01, later than the commit;",
+    "createdAt": "2024-06-11T07:14:05Z"
+  },
+  {
+    "id": 7633,
+    "sender": "xland",
+    "content": "I guess the postponement of this task has something to do with the team layoffs.",
+    "createdAt": "2024-06-11T07:19:51Z"
+  },
+  {
+    "id": 7634,
+    "sender": "wanjm",
+    "content": "> At the beginning of the week we submitted a major milestone: #125003, which enables the framework to generate multiple different scenes (to be rendered into different views) from a single widget tree. The corresponding engine-side work to render these scenes into different backing surfaces (views) provided by the embedder is ongoing (#96531).\r\n> \r\n> If you'd like, you can experiment with this milestone using the examples hosted at https://github.com/goderbauer/mvp. **Please read the readme carefully**, it documents the current limitations as well as the different steps required to get the examples running (it currently requires a custom engine build) on the supported platforms. See the readme for what is currently supported. If you find bugs, please report them here. Please keep in mind that https://github.com/goderbauer/mvp is only an exploratory playground and not an official Flutter offering. It may break without notice as we continue to work on this feature.\r\n> \r\n> This milestone is all about rendering content into multiple views, a prerequisite for multi window support. There is currently no way to create a new view/window from a Flutter app. Defining a windowing API to create and manage windows is going to be one of our next steps. I will update this issue again when there's more to report. Please do not ping this issue asking for updates (or the issue will get locked again). Stay tuned!\r\n\r\nhow happy I was when saw the above information;\r\n\r\nand following is the priority change;\r\nkf6gpe added the P2 label on May 30, 2020\r\ntvolkert added P1 customer: chalk (g3) and removed P2 labels on Apr 19, 2023\r\ngoderbauer added P2 and removed P1 labels on May 1\r\ngoderbauer added P3 triaged-framework and removed P2 labels 10 hours ago\r\n\r\n\r\n",
+    "createdAt": "2024-06-11T07:26:32Z"
+  },
+  {
+    "id": 7635,
+    "sender": "giaur500",
+    "content": "> team layoffs\r\n\r\nAny source?",
+    "createdAt": "2024-06-11T07:26:54Z"
+  },
+  {
+    "id": 7636,
+    "sender": "brandon3343",
+    "content": "It's not going to change the team's mind. stop the email harassment. use QQ instead",
+    "createdAt": "2024-06-11T07:34:35Z"
+  },
+  {
+    "id": 7637,
+    "sender": "giaur500",
+    "content": "What is `QQ`?",
+    "createdAt": "2024-06-11T09:10:34Z"
+  },
+  {
+    "id": 7638,
+    "sender": "stuartmorgan-g",
+    "content": "I would like to once again remind everyone to read https://github.com/flutter/flutter/blob/master/docs/contributing/issue_hygiene/README.md before commenting. In particular:\r\n\r\n> Comments should be reserved for making progress on the issue.\r\n\r\nIf this issue continues to attract a significant number of unproductive comments, we will have to lock the issue.",
+    "createdAt": "2024-06-11T11:08:51Z"
+  },
+  {
+    "id": 7639,
+    "sender": "Im-Kevin",
+    "content": "Can this problem be further improved with the help of the community?",
+    "createdAt": "2024-06-17T09:33:45Z"
+  },
+  {
+    "id": 7640,
+    "sender": "lingg4556",
+    "content": "Please speed up the progress of multi-window. With the update of SDK version, more and more problems with desktop_multi_window occur.",
+    "createdAt": "2024-08-05T15:39:28Z"
+  },
+  {
+    "id": 7641,
+    "sender": "orestesgaolin",
+    "content": "I think it may be worth linking this message from Canonical and subsequent responses\r\n\r\nhttps://github.com/flutter/flutter/issues/142845#issuecomment-2435738214",
+    "createdAt": "2024-10-31T09:34:03Z"
+  },
+  {
+    "id": 7642,
+    "sender": "czy-29",
+    "content": "Are there any plans for this feature in 2025?",
+    "createdAt": "2025-01-24T16:30:09Z"
+  },
+  {
+    "id": 7643,
+    "sender": "Saviq",
+    "content": "@czy-29 we're actively working on this, see:\n\nhttps://docs.flutter.dev/go/multi-window-api\n\nAnd the RFC PR:\n- https://github.com/flutter/flutter/pull/157525\n\n**NB**: this is in big flux, so things may be broken at times, we're planning to put up a PR for proper review in a week or two.",
+    "createdAt": "2025-01-28T09:12:17Z"
+  },
+  {
+    "id": 7644,
+    "sender": "Wanna-Pizza",
+    "content": "> [@czy-29](https://github.com/czy-29) we're actively working on this, see:\n> \n> https://docs.flutter.dev/go/multi-window-api\n> \n> And the RFC PR:\n> \n> * [example: material 3 multi-window demo #157525](https://github.com/flutter/flutter/pull/157525)\n> \n> **NB**: this is in big flux, so things may be broken at times, we're planning to put up a PR for proper review in a week or two.\n\nAyo looks cool. \n\nI look forward to this more than my birthday.",
+    "createdAt": "2025-02-02T13:38:11Z"
+  },
+  {
+    "id": 7645,
+    "sender": "stan-at-work",
+    "content": "Will drag-and-dropping be a feature?  \n\nFor example, if you look at a browser, you can drag tabs out of their place, and a new window spawns with that content in it.  \n\nIs this something that will or can be supported?",
+    "createdAt": "2025-02-04T11:43:03Z"
+  },
+  {
+    "id": 7646,
+    "sender": "stuartmorgan-g",
+    "content": "@stan-at-work What you are describing is not a windowing system feature. Browsers just implement that with a combination of core drag-and-drop features (unrelated to windowing) and the ability to create new windows, so there's nothing about that that's in scope for this feature (other than the basic ability to create a window).",
+    "createdAt": "2025-02-04T12:36:58Z"
+  },
+  {
+    "id": 7647,
+    "sender": "FMorschel",
+    "content": "@stan-at-work, take a look at [Drag and drop - Flutter Build Show](https://youtu.be/c6BPtrU0M7I?si=KOzsnSFRI05Mz3ct) I'm not a desktop dev but maybe the author(s) of the package mentioned on the video know how to help you.",
+    "createdAt": "2025-02-04T12:44:53Z"
+  },
+  {
+    "id": 7648,
+    "sender": "stan-at-work",
+    "content": "Thanks for the reply, i will just wait what comes from this, and maybe like you said in combination with that package that will work.",
+    "createdAt": "2025-02-04T12:46:52Z"
+  },
+  {
+    "id": 7649,
+    "sender": "orestesgaolin",
+    "content": "For anyone getting redirected here from this error message:\n\n```\nThe following UnsupportedError was thrown attaching to the render tree:\nUnsupported operation: Windowing APIs are not enabled.\n\nWindowing APIs are currently experimental. Do not use windowing APIs in\nproduction applications or plugins published to pub.dev.\n\nTo try experimental windowing APIs:\n1. Switch to Flutter's main release channel.\n2. Turn on the windowing feature flag.\n\nSee: https://github.com/flutter/flutter/issues/30701.\n```\n\nThis is how you enable windowing feature flag:\n\n```shell\nflutter config --enable-windowing\n```\n\n<img width=\"2482\" height=\"1806\" alt=\"Image\" src=\"https://github.com/user-attachments/assets/69ae737a-dfd9-4267-b46f-c1e4b446fb88\" />",
+    "createdAt": "2025-10-27T10:49:16Z"
+  },
+  {
+    "id": 7650,
+    "sender": "justinmc",
+    "content": "## LinkedText (Linkify)\n\nOn Android, you can use [Linkify](https://developer.android.com/reference/android/text/util/Linkify) to turn URLs in some text into tappable links.  Swift can also do this with its [link property](https://developer.apple.com/documentation/foundation/nsattributedstring/key/1535719-link) on NSAttributedString.\r\n\r\nThis PR attempts to bring this functionality to Flutter.\r\n\r\n### API\r\n\r\nIn order to avoid an explicitly dependency on [url_launcher](https://pub.dev/packages/url_launcher), the onTap handler is left up to the user.  Otherwise, the API aims to handle the case of URLs by default as easily as possible, while also being as flexible as possible in non-default cases.\r\n\r\n#### Urls (default)\r\n\r\n```dart\r\nLinkedText(\r\n  text: 'Check out flutter.dev.',\r\n  onTap: (String urlString) {\r\n    Uri uri = Uri.parse(urlString);\r\n    if (uri.host.isEmpty) {\r\n      uri = Uri.parse('https://$uriString');\r\n    }\r\n    if (!await launchUrl(uri)) {\r\n      throw 'Could not launch $urlString.';\r\n    }\r\n  },\r\n)\r\n```\r\n\r\n![Screenshot from 2023-05-03 17-16-36](https://user-images.githubusercontent.com/389558/236078014-f6f30f4d-bed0-43fb-962d-e6115e2de8e0.png)\r\n\r\n\r\n#### Twitter handles\r\n\r\n```dart\r\nLinkedText(\r\n  text: 'Check out @FlutterDev on Twitter for the latest.',\r\n  regExp: RegExp(r'@[a-zA-Z0-9]{4,15}'),\r\n  onTap: (String urlString) {\r\n    final String handleWithoutAt = linkText.substring(1);\r\n    Uri uri = Uri.parse('https://www.twitter.com/$handleWithoutAt');\r\n    if (!await launchUrl(uri)) {\r\n      throw 'Could not launch $uri.';\r\n    }\r\n  },\r\n)\r\n```\r\n\r\n![Screenshot from 2023-05-03 17-10-26](https://user-images.githubusercontent.com/389558/236077060-d2413fa7-491b-450c-9572-fe1bb20072b9.png)\r\n\r\n#### Both Urls and Twitter handles at the same time\r\n\r\n```dart\r\nLinkedText.textLinkers(\r\n  text: text,\r\n  textLinkers: <TextLinker>[\r\n    TextLinker(\r\n      rangesFinder: TextLinker.urlRangesFinder,\r\n      linkBuilder: InlineLinkedText.getDefaultLinkBuilder(_onTapUrl),\r\n    ),\r\n    TextLinker(\r\n      rangesFinder: TextLinker.rangesFinderFromRegExp(RegExp(r'@[a-zA-Z0-9]{4,15}')),\r\n      linkBuilder: (String linkText) {\r\n        return InlineLink(\r\n          text: linkText,\r\n          style: const TextStyle(\r\n            color: Color(0xff00aaaa),\r\n          ),\r\n          onTap: _onTapTwitterHandle,\r\n        );\r\n      },\r\n    ),\r\n  ],\r\n),\r\n```\r\n\r\n![Screenshot from 2023-05-03 17-03-16](https://user-images.githubusercontent.com/389558/236077189-39bd137e-f214-48f0-bf2a-e245727a5c35.png)\r\n\r\n#### TextSpan trees\r\n\r\n```dart\r\nLinkedText.spans(\r\n  onTap: _onTapUrl,\r\n  children: <InlineSpan>[\r\n    TextSpan(\r\n      text: 'Check out fl',\r\n      style: DefaultTextStyle.of(context).style,\r\n      children: const <InlineSpan>[\r\n        TextSpan(\r\n          text: 'u',\r\n          children: <InlineSpan>[\r\n            TextSpan(\r\n              style: TextStyle(\r\n                fontWeight: FontWeight.w800,\r\n              ),\r\n              text: 'tt',\r\n            ),\r\n            TextSpan(\r\n              text: 'er',\r\n            ),\r\n          ],\r\n        ),\r\n      ],\r\n    ),\r\n    const TextSpan(\r\n      text: '.dev.',\r\n    ),\r\n  ],\r\n),\r\n```\r\n\r\n![Screenshot from 2023-05-24 10-14-12](https://github.com/flutter/flutter/assets/389558/6ad330a5-54b8-40ad-a9f2-7a9855649739)\r\n\r\n\r\n## Reference\r\n\r\nFixes https://github.com/flutter/flutter/issues/40505\r",
+    "createdAt": "2023-05-03T00:00:45Z"
+  },
+  {
+    "id": 7651,
+    "sender": "guidezpl",
+    "content": "Nice. I wonder if `TextLink` would be a better name, and more discoverable.",
+    "createdAt": "2023-05-03T08:33:58Z"
+  },
+  {
+    "id": 7652,
+    "sender": "justinmc",
+    "content": "@guidezpl Thank you, I was hoping a better name would come to me!  I'll change it to TextLink.",
+    "createdAt": "2023-05-03T16:54:51Z"
+  },
+  {
+    "id": 7653,
+    "sender": "justinmc",
+    "content": "@guidezpl I went back and forth but I've currently got it named `LinkedText`.  There is an inline version called `InlineLinkedText`.  I'm still up for suggestions and might still change things around, though.",
+    "createdAt": "2023-05-04T00:18:16Z"
+  },
+  {
+    "id": 7654,
+    "sender": "guidezpl",
+    "content": "> @guidezpl I went back and forth but I've currently got it named `LinkedText`. There is an inline version called `InlineLinkedText`. I'm still up for suggestions and might still change things around, though.\r\n\r\nAh I see now how this works on the entire text, that makes sense. ",
+    "createdAt": "2023-05-04T09:11:25Z"
+  },
+  {
+    "id": 7655,
+    "sender": "justinmc",
+    "content": "I've filed an issue about the width of TextSpans with `recognizer`s that I discovered in this PR: https://github.com/flutter/flutter/issues/131435",
+    "createdAt": "2023-07-27T20:17:39Z"
+  },
+  {
+    "id": 7656,
+    "sender": "justinmc",
+    "content": "Question for reviewers: By default, this uses a regex for matching URLs (devs are also open to use their own).  The regex is pretty robust, but I could instead be super comprehensive and port Android's [Patterns.java](https://android.googlesource.com/platform/frameworks/base/+/master/core/java/android/util/Patterns.java) file to Dart.\r\n\r\nIs it worth it?  Would I need to get the license approved?  Maybe I'll save this for a later PR if people ask for it.",
+    "createdAt": "2023-08-23T22:49:42Z"
+  },
+  {
+    "id": 7657,
+    "sender": "justinmc",
+    "content": "### Major changes since last time\r\n\r\n  * `InlineLinkedText` is removed publicly and merged with `LinkedText`.  Users don't have to manage disposing `recognizers` any more.\r\n  * The tree walking algorithm is abstracted a bit to make it easier to read and optimized to avoid duplicate computations of text.\r\n  * I added a `builder` parameter and remove `style`, so that users can fully customize the Text.rich instead of relying on me to pipe through parameters.\r\n\r\n<hr />\r\n\r\n### Public API\r\nBesides a few typedefs, the public API has been simplified to:\r\n\r\n#### LinkedText\r\nThe main widget users will interact with.  The only way to linkify text, now that InlineLinkedText is gone.\r\n\r\n#### InlineLinkSpan\r\nJust an extension of TextSpan styled to look like a default link (blue with underline) on each platform.  Public because I'm guessing it will be useful for people writing custom link builders for LinkedText, or not using LinkedText.\r\n\r\n<hr />\r\n\r\n### LinkedText Constructors\r\nThe current constructors are detailed below.  I've removed the option to pass `textRanges` directly in order to simplify things.  If anyone asks for it, I'll probably add it as an additional constructor.\r\n\r\n  1. `LinkedText`: For linking URLs.\r\n  2. `LinkedText.regExp`: For linking any single custom RegExp.\r\n  3. `LinkedText.textLinkers`: The most customizable.  Can build custom links, can match with a function instead of a RegExp, can match multiple different strings independently.\r\n\r\nAll constructors support taking either a string or a list of TextSpans.  Why not split String/TextSpan into different constructors?  Because that multiplies the number of constructors by 2, so we'd have 6.  Or, I also tried having 2 constructors (String and InlineSpan) and making regExp and textLinkers optional, but it seemed more complicated to me.\r\n\r\nI'm guessing that the two most common use cases will be matching URLs (1.) and matching a custom RegExp (2.), hence why I want to give them their own simplified constructors.",
+    "createdAt": "2023-08-30T17:28:30Z"
+  },
+  {
+    "id": 7658,
+    "sender": "LongCatIsLooong",
+    "content": "> All constructors support taking either a string or a list of TextSpans. Why not split String/TextSpan into different constructors? Because that multiplies the number of constructors by 2, so we'd have 6. Or, I also tried having 2 constructors (String and InlineSpan) and making regExp and textLinkers optional, but it seemed more complicated to me.\r\n\r\nInstead of `LinkedText.regExp`, shouldn't we have `TextLinker.regExp`? `TextLinker` is the user-supplied logic that defines links right? Then the convenience constructor should be on `TextLinker` instead imo.",
+    "createdAt": "2023-08-31T02:24:20Z"
+  },
+  {
+    "id": 7659,
+    "sender": "LongCatIsLooong",
+    "content": "Is it possible to further shrink the API surface? My understanding is that everything the widget user has to tell the widget is:\r\n\r\n- How to extract links from the text, and the range of each link (so something like `String -> List<(T, TextRange)>` or `InlineSpan -> List<(T, TextRange>)`, where the `TextRange` is probably only going to be useful for us to apply additional styling to the links, and `T` is the user-defined type that describes a link, a `Uri` for example ).\r\n- What to do when a link is clicked. In the PR this corresponds to a single `TapGestureRecognizer` returned by running a `LinkBuilder`. Do you have plans to extend that to support other gestures / multiple gesture recognizers? If not maybe we can just switch to `onTap` so we don't have to worry about lifecycle problems?\r\n\r\nThe current API seems to be a bit larger than that, for instance the display text vs. link text thing is a bit confusing. I don't think the widget users will be particularly interested in which part of the link is in a different span than the rest part of the link. If anything they have access to the `InlineSpan` tree and that information can be easily retrieved from the span tree given the range of the link. \r\n\r\nAlso \r\n\r\n1. what happens if there are widget spans in the text?  I can't find the code that calls `toPlainText` but I think it should be up to the widget user whether they should be ignored or be considered to break up the text.\r\n~2. what happens if 2 links overlap each other? Under the hood they all use `TapGestureRecognizer` so I'd assume only one of them is going to win but it doesn't seem to be documented. Should we allow overlapping links at all?~  saw the documentation that says no overlapping allowed.",
+    "createdAt": "2023-08-31T03:30:16Z"
+  },
+  {
+    "id": 7660,
+    "sender": "justinmc",
+    "content": "### RegExp constructor\r\nI've moved it to TextLinkers as suggested.  It's a little more verbose now, but you're right that it does feel like it should be on TextLinkers.\r\n\r\nBefore:\r\n\r\n```dart\r\nLinkedText.regExp(\r\n  text: _text,\r\n  regExp: _twitterHandleRegExp,\r\n  onTap: (String urlString) => _handleTapTwitterHandle(context, urlString),\r\n),\r\n```\r\n\r\nAfter:\r\n\r\n```dart\r\nLinkedText.textLinkers(\r\n  text: _text,\r\n  textLinkers: <TextLinker>[\r\n    TextLinker.regExp(\r\n      regExp: _twitterHandleRegExp,\r\n      linkBuilder: LinkedText.getDefaultLinkBuilder((String urlString) {\r\n        _handleTapTwitterHandle(context, urlString);\r\n      }),\r\n    ),\r\n  ],\r\n),\r\n```\r\n\r\n### Shrinking the API\r\nUnfortunately I can't think of a way to totally hide the recognizer thing or get rid of the displayString/linkString thing while also allowing users to be able to build their own TextSpans.  It seems pretty valuable so that I don't have to worry about supporting everything that TextSpan can do.\r\n\r\nCurrently the only time users have to think about either thing is when they're doing just that and building a custom link TextSpan.  Here's my example from linked_text.2.dart:\r\n\r\n```dart\r\n  linkBuilder: (String displayText, String linkText) {\r\n    final TapGestureRecognizer recognizer = TapGestureRecognizer()\r\n        ..onTap = () => _handleTapTwitterHandle(context, linkText);\r\n    return (\r\n      TextSpan(\r\n        text: displayText,\r\n        style: const TextStyle(\r\n          color: Color(0xff00aaaa),\r\n        ),\r\n        recognizer: recognizer,\r\n      ),\r\n      recognizer,\r\n    );\r\n  },\r\n```\r\n\r\nI thought about trying to hack around this by wrapping the TextSpan returned from LinkBuilder in yet another TextSpan that handles the recognizer, but the outer span doesn't seem to receive any taps.\r\n\r\nOne thing I have done is to accept generic GestureRecognizers instead of just taps, so users can support other gestures if they want.\r\n\r\n### WidgetSpans in the text\r\n\r\nCurrently they are ignored, and I don't call toPlainText at all.  I've added a test for this case.\r\n\r\nI could create a boolean parameter to decide whether to ignore them or to disallow links that span them.  I'm not sure what users will want, is that advanced enough?\r\n\r\n```dart\r\nTextSpan(\r\n  style: DefaultTextStyle.of(context).style,\r\n  text: '\\nex',\r\n),\r\nWidgetSpan(\r\n  child: FlutterLogo(),\r\n),\r\nTextSpan(\r\n  style: DefaultTextStyle.of(context).style,\r\n  text: 'ample.com?q=5',\r\n),\r\n```\r\n\r\n![Screenshot from 2023-08-31 13-12-06](https://github.com/flutter/flutter/assets/389558/e787dfb1-904c-45f1-96c4-c5912a867001)",
+    "createdAt": "2023-08-31T20:18:38Z"
+  },
+  {
+    "id": 7661,
+    "sender": "chunhtai",
+    "content": "> Unfortunately I can't think of a way to totally hide the recognizer thing or get rid of the displayString/linkString thing while also allowing users to be able to build their own TextSpans\r\n\r\nI think we can decide not to support complex use cases and ask them to build their own text span by themselves. It may defeat the purpose that if the provided API is not easy to use that they may as well build everything on their own.",
+    "createdAt": "2023-08-31T22:01:19Z"
+  },
+  {
+    "id": 7662,
+    "sender": "chunhtai",
+    "content": "Also we could think about separate the textlinker to its own class. \r\n\r\nThe LinkedText will just support auto url detection and have its own opinionated textlinker hidden inside its state.\r\n\r\nFor more customization, developer will create their own textlinker and build the output InlineSpan with RichText directly.",
+    "createdAt": "2023-08-31T22:07:16Z"
+  },
+  {
+    "id": 7663,
+    "sender": "LongCatIsLooong",
+    "content": "> > Unfortunately I can't think of a way to totally hide the recognizer thing or get rid of the displayString/linkString thing while also allowing users to be able to build their own TextSpans\r\n> \r\n> I think we can decide not to support complex use cases and ask them to build their own text span by themselves. It may defeat the purpose that if the provided API is not easy to use that they may as well build everything on their own.\r\n\r\nI think that's a good point, would it be ok to keep the gesture recognizer stuff private for now? Does the internal customer need the ability to build their own text linkers? \r\n\r\nAlso I wonder if the internal customer also wants to \"linkify\" text in editable fields.",
+    "createdAt": "2023-09-05T16:59:43Z"
+  },
+  {
+    "id": 7664,
+    "sender": "justinmc",
+    "content": "Here's my summary of this round of changes.  Thanks for all of the code review!\r\n\r\n### Recognizer ownership\r\n\r\nI've simplified this so that recognizer management is either totally handled internally by LinkedText, or it's totally on the user to manage it.  The idea of returning generated recognizers is gone.\r\n\r\n#### LinkedText.new\r\nThe main constructor manages all recognizers internally, totally hidden from the user.  It just takes an `onTap` callback.\r\n\r\nIt takes an optional regExp now, and the `.regExp` constructor is gone.\r\n\r\n#### LinkedText.textLinkers\r\nUsing this constructor requires the user to manage any recognizers they might create, in the same way that TextSpan.recognizer does.\r\n\r\nI decided to keep this constructor, but I'm open to removing it.  When I tried to write a simple example without this constructor, it did save me a fair amount of lines.  Compare linked_text.3.dart, which uses this constructor, with text_linker.0.dart, which does the same think without LinkedText at all.\r\n\r\n#### TextLinker\r\nI've separated this into its own file.  It can be used to do the same thing as LinkedText if the user builds their own Text.rich and TextSpans.  This class does nothing at all with recognizers, so it's always on the user to manage any they create.\r\n\r\nCalling `.linkSpans` returns InlineSpans, so it would be possible to use this class to linkify text in an EditableText by overriding TextEditingController.\r\n\r\n### Type parameters and ValueNotifiers\r\nI was unsure about how to approach this and left some comments inline above (https://github.com/flutter/flutter/pull/125927#discussion_r1312226825).",
+    "createdAt": "2023-09-05T17:32:19Z"
+  },
+  {
+    "id": 7665,
+    "sender": "justinmc",
+    "content": "From @chunhtai's suggestion above (https://github.com/flutter/flutter/pull/125927#discussion_r1317596181), I've made the default `LinkedText` constructor work only with Uris, so I can do the Uri parsing automatically.  Then I brought back the `.regExp` constructor to work with generic strings.  The `.textLinker` constructor continues to work with strings as before.\r\n\r\nSo the two modified constructors now look like this:\r\n\r\n```dart\r\n  LinkedText({\r\n    super.key,\r\n    required ValueChanged<Uri> onTapUri,\r\n    this.builder = _defaultBuilder,\r\n    List<InlineSpan>? spans,\r\n    String? text,\r\n  }) : ...\r\n```\r\n\r\n```dart\r\n  LinkedText.regExp({\r\n    super.key,\r\n    required this.onTap,  // ValueChanged<String>\r\n    required this.regExp,\r\n    this.builder = _defaultBuilder,\r\n    List<InlineSpan>? spans,\r\n    String? text,\r\n  }) : ...\r\n```",
+    "createdAt": "2023-09-06T17:12:48Z"
+  },
+  {
+    "id": 7666,
+    "sender": "justinmc",
+    "content": "I don't think anything actually failed in the Google tests, but I've rerun them just in case.",
+    "createdAt": "2023-09-13T16:09:15Z"
+  },
+  {
+    "id": 7667,
+    "sender": "Hixie",
+    "content": "I'm concerned that this PR makes it easier to make links but does not make them work on web, where links are most common and where not matching the platform is the most disruptive and where we have a solution for making links that have high fidelity with the core platform.\r\n\r\nWould it make sense to make this a package instead? It does seem like functionality that does not need to be in the core framework, and our general policy is that we should put things in packages if possible. In particular, would it make sense to put this in url_launcher?",
+    "createdAt": "2023-09-15T22:56:44Z"
+  },
+  {
+    "id": 7668,
+    "sender": "justinmc",
+    "content": "This works on web just like any other platform, unless I'm missing something.  Is the concern with the need to use url_launcher?\r\n\r\n![output](https://github.com/flutter/flutter/assets/389558/d9366d8d-1ad3-4851-ba1c-fa2eac4511f0)\r\n\r\nUsing LinkedText like this:\r\n\r\n```dart\r\nimport 'package:url_launcher/url_launcher.dart';\r\n\r\n...\r\n\r\nLinkedText(\r\n  text: 'example.com',\r\n  onTapUri: (Uri uri) async {\r\n    if (!await launchUrl(uri)) {\r\n      throw 'Could not launch $uri';\r\n    }\r\n  },\r\n),\r\n```\r\n\r\nWhat is the existing high fidelity solution?  I assumed that people were using things like TextSpan.recognizer + url_launcher ([see StackOverflow](https://stackoverflow.com/questions/43583411/how-to-create-a-hyperlink-in-flutter-widget)).  Using TextSpan.recognizer is tricky due to needing to manually manage a TapGestureRecognizer.\r\n\r\nMy concern with putting this inside of url_launcher is that devs might want to do something other than launch a URL when tapped.  Maybe do something in-app when a user taps on a username or something like that?  I'm just guessing though.\r\n\r\nI would definitely be down to move this to its own package if you think that's best.",
+    "createdAt": "2023-09-18T16:35:41Z"
+  },
+  {
+    "id": 7669,
+    "sender": "Hixie",
+    "content": "if i right click on the link, do i get the browser's menu?",
+    "createdAt": "2023-09-18T20:45:21Z"
+  },
+  {
+    "id": 7670,
+    "sender": "justinmc",
+    "content": "Yes, but no link options like \"Open link in new tab\".  Do you know if we have a way to do that on the web now?  Maybe this is a good opportunity to automatically wire that up for people if it's possible.",
+    "createdAt": "2023-09-19T04:20:06Z"
+  },
+  {
+    "id": 7671,
+    "sender": "Hixie",
+    "content": "I believe the `Link` widget in url_opener does that. cc @yjbanov \r\n\r\nHaving it in url_opener wouldn't require that the developer use it to open a URL, it could still allow a callback. The idea would just be to default to the \"right thing\" for links.",
+    "createdAt": "2023-09-19T15:58:09Z"
+  },
+  {
+    "id": 7672,
+    "sender": "LongCatIsLooong",
+    "content": "(It looks like there's an ongoing discussion here and on discord. Please let me know when the PR is ready to reland and I'll get the g3fix CL ready).",
+    "createdAt": "2023-09-19T20:11:00Z"
+  },
+  {
+    "id": 7673,
+    "sender": "justinmc",
+    "content": "Ah I see ([Link docs](https://pub.dev/documentation/url_launcher/latest/link/Link-class.html)).  LinkedText does seem to work with Link on web and the other platforms (example below), but I would have to rethink this as part of url_launcher to make that super slick by default.\r\n\r\n<details>\r\n\r\n<summary>LinkedText + Link example</summary>\r\n\r\n```dart\r\nLinkedText.textLinkers(\r\n  text: 'Hello https://www.example.com world.', // spans seem to work too.\r\n  textLinkers: <TextLinker>[\r\n    TextLinker(\r\n      regExp: LinkedText.defaultUriRegExp,\r\n      linkBuilder: (String displayString, String linkString) {\r\n        return WidgetSpan(\r\n          child: Link(\r\n            uri: Uri.parse(linkString),\r\n            builder: (BuildContext context, FollowLink? followLink) {\r\n              return Text.rich(\r\n                TextSpan(\r\n                  style: const TextStyle(color: Colors.blue),\r\n                  text: displayString,\r\n                  // Omitting lifecycle management for this recognizer for brevity.\r\n                  recognizer: TapGestureRecognizer()..onTap = followLink,\r\n                ),\r\n              );\r\n            },\r\n          ),\r\n        );\r\n      },\r\n    ),\r\n  ],\r\n),\r\n```\r\n\r\n</details>\r\n\r\nIf that's the best option here then I'll probably have to revisit this in January when I return from leave.",
+    "createdAt": "2023-09-20T05:37:06Z"
+  },
+  {
+    "id": 7674,
+    "sender": "benthillerkus",
+    "content": "Maybe it can just be part of `material`?\nThat way it's inside of a package, there's some justification for automatic styling *and* users won't have to go through the trouble of finding and installing the correct package on pub.",
+    "createdAt": "2024-06-18T06:37:53Z"
+  },
+  {
+    "id": 7675,
+    "sender": "justinmc",
+    "content": "@benthillerkus I'm convinced that LinkedText needs to use url_launcher's Link class internally in order to be successful, in which case I can't put it in the framework without also bringing in url_launcher. So my plan is to land it inside of url_launcher (https://github.com/flutter/packages/pull/5862). The reason I need url_launcher is that it's hard to build a good link on Flutter web without using url_launcher's Link (my attempt in this PR did not support right clicking => open in new tab).",
+    "createdAt": "2024-06-18T23:19:57Z"
+  },
+  {
+    "id": 7676,
+    "sender": "pedromassango",
+    "content": "## FormField should autovalidate only if its content was changed (fixed)\n\n## Description\r\n\r\nI propose to auto-validate `FormField` only if its content was changed since its prevents end users to see validation errors even without changing the field's content.\r\n\r\n## Related Issues\r\n\r\nFixes: https://github.com/flutter/flutter/issues/56363\r\nFixes: https://github.com/flutter/flutter/issues/18885\r\nFixes: https://github.com/flutter/flutter/issues/15404\r\nFixes: https://github.com/flutter/flutter/issues/36154\r\nFixes: https://github.com/flutter/flutter/issues/48876\r\n\r\n## Tests\r\n\r\nI added the following test cases:\r\n\r\n\r\n- [x] Do not auto-validate before value changes if widget.autovalidateMode (new) equals to  AutovalidateMode.onUserInteraction;\r\n- [x] auto-validate after value changes if widget.autovalidateMode equals to AutovalidateMode.onUserInteraction;\r\n- [x] Form only validates form fields after one of the form fields changes if widget.autovalidateMode is AutovalidateMode.onUserInteraction;\r\n- [x] auto-validate before value changes if autovalidate is true and widget.autovalidateMode is AutovalidateMode.always;\r\n- [x] Form auto validate form fields even if none of them changes if widget.autovalidateMode is always;\r\nautovalidate parameter is still used if true;\r\n- [x] DropdownButtonFormField passes autoValidateMode to  superclass;\r\n- [x] Form.reset() reset form fields and auto validation will only happen on the next user interaction if autoValidateMode is onUserInteraction;\r\n- [x] autoValidateMode and autovalidate should not be used at the same time for the following widgets: Form, FormField, TextFormField and DropdownButtonFormField.\r\n\r\n## Checklist\r\n\r\nBefore you create this PR confirm that it meets all requirements listed below by checking the relevant checkboxes (`[x]`). This will ensure a smooth and quick review process.\r\n\r\n- [x] I signed the [CLA].\r\n- [x] I read the [Contributor Guide] and followed the process outlined there for submitting PRs.\r\n- [x] I read and followed the [Flutter Style Guide], including [Features we expect every widget to implement].\r\n- [x] I read the [Tree Hygiene] wiki page, which explains my responsibilities.\r\n- [x] I updated/added relevant documentation (doc comments with `///`).\r\n- [x] All existing and new tests are passing.\r\n- [x] The analyzer (`flutter analyze --flutter-repo`) does not report any problems on my PR.\r\n- [x] I am willing to follow-up on review comments in a timely manner.\r\n\r\n## Breaking Change\r\n\r\nDid any tests fail when you ran them? Please read [Handling breaking changes].\r\n\r\n- [x] No, no existing tests failed, so this is *not* a breaking change.\r\n- [x] Yes, this is a breaking change. If not, delete the remainder of this section.\r\n    - [x] I wrote a design doc: https://docs.google.com/document/d/16HAURcOtYAoHntDOEtdGy9KkKSItulG9Ldyjzdaosqo/edit?usp=sharing\r\n    - [x] I got input from the developer relations team, specifically from: @chunhtai.",
+    "createdAt": "2020-06-18T14:50:16Z"
+  },
+  {
+    "id": 7677,
+    "sender": "yumin-chen",
+    "content": "LGTM, good solution! 👍🏻 Looks like this is the way to go here.\r\n\r\nWould like to see more cases being covered and supported natively in the `AutoValidateMode`, -- `onFocus`,  `onFormSave`, etc...\r\n\r\nThanks for the PR!",
+    "createdAt": "2020-06-21T10:07:54Z"
+  },
+  {
+    "id": 7678,
+    "sender": "pedromassango",
+    "content": "> LGTM, good solution! 👍🏻 Looks like this is the way to go here.\r\n> \r\n> Would like to see more cases being covered and supported natively in the `AutoValidateMode`, -- `onFocus`, `onFormSave`, etc...\r\n> \r\n> Thanks for the PR!\r\n\r\nThank you. Those cases cases can be easily configured, I should add more support once this PR lands.",
+    "createdAt": "2020-06-21T11:12:19Z"
+  },
+  {
+    "id": 7679,
+    "sender": "flutter-github-sync",
+    "content": "Google testing passed!",
+    "createdAt": "2020-06-24T00:02:46Z"
+  }
+]

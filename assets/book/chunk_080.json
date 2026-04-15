@@ -1,0 +1,386 @@
+[
+  {
+    "id": 5120,
+    "sender": "amirh",
+    "content": "PTAL",
+    "createdAt": "2017-12-21T21:08:50Z"
+  },
+  {
+    "id": 5121,
+    "sender": "Hixie",
+    "content": "![LGTM](http://junkyard.damowmow.com/577) modulo minor issues",
+    "createdAt": "2017-12-21T22:24:25Z"
+  },
+  {
+    "id": 5122,
+    "sender": "a14n",
+    "content": "## migrate rendering to nullsafety\n\n## Description\r\n\r\nNNBD migration for rendering\r\n\r\n## Related Issues\r\n\r\n* dart-lang/sdk#40146\r\n\r\n## Tests\r\n\r\nI added the following tests:\r\n\r\nNone\r\n\r\n## Checklist\r\n\r\nBefore you create this PR confirm that it meets all requirements listed below by checking the relevant checkboxes (`[x]`). This will ensure a smooth and quick review process.\r\n\r\n- [x] I read the [Contributor Guide] and followed the process outlined there for submitting PRs.\r\n- [x] I signed the [CLA].\r\n- [x] I read and followed the [Flutter Style Guide], including [Features we expect every widget to implement].\r\n- [x] I read the [Tree Hygiene] wiki page, which explains my responsibilities.\r\n- [x] I updated/added relevant documentation (doc comments with `///`).\r\n- [x] All existing and new tests are passing.\r\n- [x] The analyzer (`flutter analyze --flutter-repo`) does not report any problems on my PR.\r\n- [x] I am willing to follow-up on review comments in a timely manner.\r\n\r\n## Breaking Change\r\n\r\nDid any tests fail when you ran them? Please read [Handling breaking changes].\r\n\r\n- [x] No, no existing tests failed, so this is *not* a breaking change.\r\n- [ ] Yes, this is a breaking change. *If not, delete the remainder of this section.*\r\n   - [ ] I wrote a design doc: https://flutter.dev/go/template *Replace this with a link to your design doc's short link*\r\n   - [ ] I got input from the developer relations team, specifically from: *Replace with the names of who gave advice*\r\n   - [ ] I wrote a migration guide: https://flutter.dev/go/breaking-changes-template *Replace this with a link to a pull request that adds the migration guide to https://flutter.dev/docs/release/breaking-changes*\r\n\r\n<!-- Links -->\r\n[issue database]: https://github.com/flutter/flutter/issues\r\n[Contributor Guide]: https://github.com/flutter/flutter/wiki/Tree-hygiene#overview\r\n[Test Coverage]: https://github.com/flutter/flutter/wiki/Test-coverage-for-package%3Aflutter\r\n[Flutter Style Guide]: https://github.com/flutter/flutter/wiki/Style-guide-for-Flutter-repo\r\n[Features we expect every widget to implement]: https://github.com/flutter/flutter/wiki/Style-guide-for-Flutter-repo#features-we-expect-every-widget-to-implement\r\n[CLA]: https://cla.developers.google.com/\r\n[Tree Hygiene]: https://github.com/flutter/flutter/wiki/Tree-hygiene\r\n[Handling breaking changes]: https://github.com/flutter/flutter/wiki/Tree-hygiene#handling-breaking-changes\r",
+    "createdAt": "2020-08-24T12:15:58Z"
+  },
+  {
+    "id": 5123,
+    "sender": "skia-gold",
+    "content": "Gold has detected about 3 untriaged digest(s) on patchset 1.\nView them at https://flutter-gold.skia.org/cl/github/64456",
+    "createdAt": "2020-08-24T12:23:01Z"
+  },
+  {
+    "id": 5124,
+    "sender": "skia-gold",
+    "content": "Gold has detected about 3 untriaged digest(s) on patchset 1.\nView them at https://flutter-gold.skia.org/cl/github/64456",
+    "createdAt": "2020-08-24T13:35:01Z"
+  },
+  {
+    "id": 5125,
+    "sender": "Hixie",
+    "content": "In addition to my comments above, the following changes would also be good to do at the same time (some are required by some of the changes I suggested):\r\n\r\nhttps://github.com/flutter/flutter/pull/64476/files#diff-acd2b473dd8ae3b5cab347ba47c55c94R902 until the end of the PR",
+    "createdAt": "2020-08-24T23:32:48Z"
+  },
+  {
+    "id": 5126,
+    "sender": "Hixie",
+    "content": "I applied the rest of my review comments and uploaded https://github.com/flutter/flutter/pull/64621, please feel free to continue from there if there's more work to be done.",
+    "createdAt": "2020-08-26T07:37:04Z"
+  },
+  {
+    "id": 5127,
+    "sender": "a14n",
+    "content": "Continued in #64621",
+    "createdAt": "2020-08-27T07:21:47Z"
+  },
+  {
+    "id": 5128,
+    "sender": "gspencergoog",
+    "content": "## Implements a PlatformMenuBar widget and associated data structures\n\n## Description\r\n\r\nImplements a `PlatformMenuBar` widget and associated data structures for defining menu bars that use native APIs for rendering.\r\n\r\nThis PR includes:\r\n- A `PlatformMenuBar` class, which is a widget that menu bar data can be attached to for sending to the platform.\r\n- A `PlatformMenuDelegate` base, which is the type taken by a new `WidgetsBinding.platformMenuDelegate`.\r\n-  An implementation of the above in `DefaultPlatformMenuDelegate` that talks to the built-in \"flutter/menu\" channel to talk to the built-in platform implementation. The delegate is so that a plugin could override with its own delegate and provide other platforms with native menu support using the same widgets to define the menus.\r\n\r\nThis is the framework part of the implementation.  The engine part will be in https://github.com/flutter/engine/pull/32080 (and https://github.com/flutter/engine/pull/32358)\r\n\r\nThe design doc for this feature is [here](https://flutter.dev/go/cascading-menus).\r\n\r\n## Related Issues\r\n - https://github.com/flutter/flutter/issues/23600\r\n\r\n## Tests\r\n - Added tests for `PlatformMenuBar` and the items, and test the `PlatformMenuDelegate` through the `PlatformMenuBar` test.",
+    "createdAt": "2022-03-17T03:06:25Z"
+  },
+  {
+    "id": 5129,
+    "sender": "skia-gold",
+    "content": "Gold has detected about 1 new digest(s) on patchset 1.\nView them at https://flutter-gold.skia.org/cl/github/100274",
+    "createdAt": "2022-03-18T02:11:29Z"
+  },
+  {
+    "id": 5130,
+    "sender": "skia-gold",
+    "content": "Gold has detected about 1 new digest(s) on patchset 2.\nView them at https://flutter-gold.skia.org/cl/github/100274",
+    "createdAt": "2022-03-22T05:11:28Z"
+  },
+  {
+    "id": 5131,
+    "sender": "gspencergoog",
+    "content": "@goderbauer OK, I think it's all been addressed. PTAL tomorrow.",
+    "createdAt": "2022-03-31T03:23:45Z"
+  },
+  {
+    "id": 5132,
+    "sender": "goderbauer",
+    "content": "Looks like github put the most interesting comment last. Before considering any of my doc nits, maybe look at the last comment first, which may make some of the doc nits obsolete: https://github.com/flutter/flutter/pull/100274/files/592dcb72d188e4716e27e59e6270c4b14142b7a8#diff-f60cab5e3b72cb444d7041dcfaff6202b720d6dc6218987aecac51e3ae2e3525",
+    "createdAt": "2022-04-01T19:09:20Z"
+  },
+  {
+    "id": 5133,
+    "sender": "chunhtai",
+    "content": "## Rendering errors with root causes in the widget layer should have a reference to the widget\n\n## Description\r\n\r\nThis PR improve the error reporting to include an element chain and the first user created widget that cause the error\r\n\r\n## Related Issues\r\n\r\nhttps://github.com/flutter/flutter/issues/29410\r\n\r\n## Tests\r\n\r\nI added the following tests:\r\n\r\nhttps://github.com/chunhtai/flutter/blob/8dd044b0a560c57f39ce020fa571c96747541d63/packages/flutter/test/widgets/widget_inspector_test.dart#L854\r\n\r\n## Checklist\r\n\r\nBefore you create this PR confirm that it meets all requirements listed below by checking the relevant checkboxes (`[x]`). This will ensure a smooth and quick review process.\r\n\r\n- [x] I read the [Contributor Guide] and followed the process outlined there for submitting PRs.\r\n- [x] I signed the [CLA].\r\n- [x] I read and followed the [Flutter Style Guide], including [Features we expect every widget to implement].\r\n- [x] I updated/added relevant documentation (doc comments with `///`).\r\n- [x] All existing and new tests are passing.\r\n- [x] The analyzer (`flutter analyze --flutter-repo`) does not report any problems on my PR.\r\n- [x] I am willing to follow-up on review comments in a timely manner.\r\n\r\n## Breaking Change\r\n\r\nDoes your PR require Flutter developers to manually update their apps to accommodate your change?\r\n\r\n- [ ] Yes, this is a breaking change (Please read [Handling breaking changes]). *Replace this with a link to the e-mail where you asked for input on this proposed change.*\r\n- [x] No, this is *not* a breaking change.\r\n\r\n<!-- Links -->\r\n[issue database]: https://github.com/flutter/flutter/issues\r\n[Contributor Guide]: https://github.com/flutter/flutter/wiki/Tree-hygiene#overview\r\n[Test Coverage]: https://github.com/flutter/flutter/wiki/Test-coverage-for-package%3Aflutter\r\n[Flutter Style Guide]: https://github.com/flutter/flutter/wiki/Style-guide-for-Flutter-repo\r\n[Features we expect every widget to implement]: https://github.com/flutter/flutter/wiki/Style-guide-for-Flutter-repo#features-we-expect-every-widget-to-implement\r\n[CLA]: https://cla.developers.google.com/\r\n[Handling breaking changes]: https://github.com/flutter/flutter/wiki/Tree-hygiene#handling-breaking-changes\r",
+    "createdAt": "2019-05-10T20:20:02Z"
+  },
+  {
+    "id": 5134,
+    "sender": "chunhtai",
+    "content": "Revised and ready for review",
+    "createdAt": "2019-05-10T23:01:46Z"
+  },
+  {
+    "id": 5135,
+    "sender": "xster",
+    "content": "Can you attach a sample error output from this for illustration?",
+    "createdAt": "2019-05-16T05:13:21Z"
+  },
+  {
+    "id": 5136,
+    "sender": "chunhtai",
+    "content": "> Can you attach a sample error output from this for illustration?\r\n\r\n```\r\nimport 'package:flutter/widgets.dart';\r\n\r\nvoid main() => runApp(\r\n  CustomScrollView(slivers: <Widget>[\r\n    SliverToBoxAdapter(child: Container()),\r\n  ]),\r\n);\r\n```\r\n\r\nfor this example\r\n\r\n```\r\nI/flutter (20439): #61     Element.inflateWidget (package:flutter/src/widgets/framework.dart:3072:14)\r\nI/flutter (20439): #62     Element.updateChild (package:flutter/src/widgets/framework.dart:2875:12)\r\nI/flutter (20439): #63     ComponentElement.performRebuild (package:flutter/src/widgets/framework.dart:3877:16)\r\nI/flutter (20439): #64     Element.rebuild (package:flutter/src/widgets/framework.dart:3676:5)\r\nI/flutter (20439): #65     ComponentElement._firstBuild (package:flutter/src/widgets/framework.dart:3838:5)\r\nI/flutter (20439): #66     StatefulElement._firstBuild (package:flutter/src/widgets/framework.dart:4002:11)\r\nI/flutter (20439): #67     ComponentElement.mount (package:flutter/src/widgets/framework.dart:3833:5)\r\nI/flutter (20439): #68     Element.inflateWidget (package:flutter/src/widgets/framework.dart:3072:14)\r\nI/flutter (20439): #69     Element.updateChild (package:flutter/src/widgets/framework.dart:2875:12)\r\nI/flutter (20439): #70     ComponentElement.performRebuild (package:flutter/src/widgets/framework.dart:3877:16)\r\nI/flutter (20439): #71     Element.rebuild (package:flutter/src/widgets/framework.dart:3676:5)\r\nI/flutter (20439): #72     ComponentElement._firstBuild (package:flutter/src/widgets/framework.dart:3838:5)\r\nI/flutter (20439): #73     ComponentElement.mount (package:flutter/src/widgets/framework.dart:3833:5)\r\nI/flutter (20439): #74     Element.inflateWidget (package:flutter/src/widgets/framework.dart:3072:14)\r\nI/flutter (20439): #75     Element.updateChild (package:flutter/src/widgets/framework.dart:2875:12)\r\nI/flutter (20439): #76     RenderObjectToWidgetElement._rebuild (package:flutter/src/widgets/binding.dart:933:16)\r\nI/flutter (20439): #77     RenderObjectToWidgetElement.mount (package:flutter/src/widgets/binding.dart:904:5)\r\nI/flutter (20439): #78     RenderObjectToWidgetAdapter.attachToRenderTree.<anonymous closure> (package:flutter/src/widgets/binding.dart:850:17)\r\nI/flutter (20439): #79     BuildOwner.buildScope (package:flutter/src/widgets/framework.dart:2295:19)\r\nI/flutter (20439): #80     RenderObjectToWidgetAdapter.attachToRenderTree (package:flutter/src/widgets/binding.dart:849:13)\r\nI/flutter (20439): #81     _WidgetsFlutterBinding&BindingBase&GestureBinding&ServicesBinding&SchedulerBinding&PaintingBinding&SemanticsBinding&RendererBinding&WidgetsBinding.attachRootWidget (package:flutter/src/widgets/binding.dart:736:7)\r\nI/flutter (20439): #82     runApp (package:flutter/src/widgets/binding.dart:780:7)\r\nI/flutter (20439): #83     main (package:exception/main.dart:3:16)      \r\nI/flutter (20439): #84     _runMainZoned.<anonymous closure>.<anonymous closure> (dart:ui/hooks.dart:200:25)\r\nI/flutter (20439): #89     _runMainZoned.<anonymous closure> (dart:ui/hooks.dart:192:5)\r\nI/flutter (20439): #90     _startIsolate.<anonymous closure> (dart:isolate-patch/isolate_patch.dart:300:19)\r\nI/flutter (20439): #91     _RawReceivePortImpl._handleMessage (dart:isolate-patch/isolate_patch.dart:171:12)\r\nI/flutter (20439): (elided 6 frames from class _AssertionError and package dart:async)\r\nI/flutter (20439):                                                      \r\nI/flutter (20439): First user created widget: \"CustomScrollView file:///Users/chtai/apps/exception/lib/main.dart:4:3\"\r\nI/flutter (20439): Widgets chain: \"RawGestureDetector-[LabeledGlobalKey<RawGestureDetectorState>#5c8fb] ← Listener ←\r\nI/flutter (20439):   _ScrollableScope ← _ScrollSemantics-[GlobalKey#6e09d] ← RepaintBoundary ← CustomPaint ←\r\nI/flutter (20439):   RepaintBoundary ← NotificationListener<ScrollNotification> ← GlowingOverscrollIndicator ←\r\nI/flutter (20439):   Scrollable ← CustomScrollView ← [root]\"            \r\nI/flutter (20439): ═════════════════════════════════════════════════════════════════════════════════\r\n```",
+    "createdAt": "2019-05-16T17:18:21Z"
+  },
+  {
+    "id": 5137,
+    "sender": "jacob314",
+    "content": "Fyi @InMatrix  who probably has some good ideas on how that part of the error message should be written to be clearer to users.",
+    "createdAt": "2019-05-16T17:28:53Z"
+  },
+  {
+    "id": 5138,
+    "sender": "jacob314",
+    "content": "Please also add a test that verifies that precisely that error message is generated. The concepts from your test in widget_inspector_test.dart should get you most of the way there.",
+    "createdAt": "2019-05-16T17:30:33Z"
+  },
+  {
+    "id": 5139,
+    "sender": "chunhtai",
+    "content": "> Please also add a test that verifies that precisely that error message is generated. The concepts from your test in widget_inspector_test.dart should get you most of the way there.\r\n\r\nAdded 'Rendering error has correct error message'",
+    "createdAt": "2019-05-16T21:42:38Z"
+  },
+  {
+    "id": 5140,
+    "sender": "InMatrix",
+    "content": "> Fyi @InMatrix who probably has some good ideas on how that part of the error message should be written to be clearer to users.\r\n\r\n@chunhtai Could you clone this [repo](https://github.com/InMatrix/flutter_error_studies) and copy the error output from the renderflex overflown error in the app? We can use this as a concrete example to improve the error message. Thanks.",
+    "createdAt": "2019-05-17T20:54:45Z"
+  },
+  {
+    "id": 5141,
+    "sender": "chunhtai",
+    "content": "> > Fyi @InMatrix who probably has some good ideas on how that part of the error message should be written to be clearer to users.\r\n> \r\n> @chunhtai Could you clone this [repo](https://github.com/InMatrix/flutter_error_studies) and copy the error output from the renderflex overflown error in the app? We can use this as a concrete example to improve the error message. Thanks.\r\n\r\n```\r\nI/flutter ( 5638): ══╡ EXCEPTION CAUGHT BY RENDERING LIBRARY ╞═════════════════════════════════════════════════════════\r\nI/flutter ( 5638): The following assertion was thrown during layout:\r\nI/flutter ( 5638): A RenderFlex overflowed by 1098 pixels on the right.\r\nI/flutter ( 5638): \r\nI/flutter ( 5638): The overflowing RenderFlex has an orientation of Axis.horizontal.\r\nI/flutter ( 5638): The edge of the RenderFlex that is overflowing has been marked in the rendering with a yellow and\r\nI/flutter ( 5638): black striped pattern. This is usually caused by the contents being too big for the RenderFlex.\r\nI/flutter ( 5638): Consider applying a flex factor (e.g. using an Expanded widget) to force the children of the\r\nI/flutter ( 5638): RenderFlex to fit within the available space instead of being sized to their natural size.\r\nI/flutter ( 5638): This is considered an error condition because it indicates that there is content that cannot be\r\nI/flutter ( 5638): seen. If the content is legitimately bigger than the available space, consider clipping it with a\r\nI/flutter ( 5638): ClipRect widget before putting it in the flex, or using a scrollable container rather than a Flex,\r\nI/flutter ( 5638): like a ListView.\r\nI/flutter ( 5638): The specific RenderFlex in question is: RenderFlex#86792 relayoutBoundary=up3 OVERFLOWING:\r\nI/flutter ( 5638):   creator: Row ← DecoratedBox ← ConstrainedBox ← Container ← MediaQuery ←\r\nI/flutter ( 5638):     LayoutId-[<_ScaffoldSlot.body>] ← CustomMultiChildLayout ← AnimatedBuilder ← DefaultTextStyle ←\r\nI/flutter ( 5638):     AnimatedDefaultTextStyle ← _InkFeatures-[GlobalKey#67aa7 ink renderer] ←\r\nI/flutter ( 5638):     NotificationListener<LayoutChangedNotification> ← ⋯\r\nI/flutter ( 5638):   parentData: <none> (can use size)\r\nI/flutter ( 5638):   constraints: BoxConstraints(w=400.0, 0.0<=h<=603.4)\r\nI/flutter ( 5638):   size: Size(400.0, 24.0)\r\nI/flutter ( 5638):   direction: horizontal\r\nI/flutter ( 5638):   mainAxisAlignment: start\r\nI/flutter ( 5638):   mainAxisSize: max\r\nI/flutter ( 5638):   crossAxisAlignment: center\r\nI/flutter ( 5638):   textDirection: ltr\r\nI/flutter ( 5638):   verticalDirection: down\r\nI/flutter ( 5638): First user created widget: \"Row\r\nI/flutter ( 5638):   file:///Users/chtai/apps/flutter_error_studies/lib/renderflex_overflow_error.dart:14:22\"\r\nI/flutter ( 5638): Widgets chain: \"Row ← DecoratedBox ← ConstrainedBox ← Container ← MediaQuery ←\r\nI/flutter ( 5638):   LayoutId-[<_ScaffoldSlot.body>] ← CustomMultiChildLayout ← AnimatedBuilder ← DefaultTextStyle ←\r\nI/flutter ( 5638):   AnimatedDefaultTextStyle ← _InkFeatures-[GlobalKey#67aa7 ink renderer] ←\r\nI/flutter ( 5638):   NotificationListener<LayoutChangedNotification> ← PhysicalModel ← AnimatedPhysicalModel ← Material\r\nI/flutter ( 5638):   ← PrimaryScrollController ← _ScaffoldScope ← Scaffold ← Semantics ← Builder ←\r\nI/flutter ( 5638):   RepaintBoundary-[GlobalKey#ec580] ← IgnorePointer ← FadeTransition ← FractionalTranslation ←\r\nI/flutter ( 5638):   SlideTransition ← _FadeUpwardsPageTransition ← AnimatedBuilder ← RepaintBoundary ← _FocusMarker ←\r\nI/flutter ( 5638):   Semantics ← FocusScope ← PageStorage ← Offstage ← _ModalScopeStatus ←\r\nI/flutter ( 5638):   _ModalScope<dynamic>-[LabeledGlobalKey<_ModalScopeState<dynamic>>#31c94] ←\r\nI/flutter ( 5638):   _OverlayEntry-[LabeledGlobalKey<_OverlayEntryState>#60c80] ← Stack ← _Theatre ←\r\nI/flutter ( 5638):   Overlay-[LabeledGlobalKey<OverlayState>#b8220] ← _FocusMarker ← Semantics ← FocusScope ←\r\nI/flutter ( 5638):   AbsorbPointer ← Listener ← Navigator-[GlobalObjectKey<NavigatorState> _WidgetsAppState#bd543] ←\r\nI/flutter ( 5638):   IconTheme ← IconTheme ← _InheritedCupertinoTheme ← CupertinoTheme ← _InheritedTheme ← ⋯\"\r\nI/flutter ( 5638): ◢◤◢◤◢◤◢◤◢◤◢◤◢◤◢◤◢◤◢◤◢◤◢◤◢◤◢◤◢◤◢◤◢◤◢◤◢◤◢◤◢◤◢◤◢◤◢◤◢◤◢◤◢◤◢◤◢◤◢◤◢◤◢◤◢◤◢◤◢◤◢◤◢◤◢◤◢◤◢◤◢◤◢◤◢◤◢◤◢◤◢◤◢◤◢◤◢◤◢◤\r\nI/flutter ( 5638): ════════════════════════════════════════════════════════════════════════════════════════════════════\r\n\r\n```",
+    "createdAt": "2019-05-17T22:45:03Z"
+  },
+  {
+    "id": 5142,
+    "sender": "InMatrix",
+    "content": "> I/flutter ( 5638): First user created widget: \"Row\r\n\r\nIs the content from this line and below generated by this PR? \r\n\r\nThis is certainly useful, but the information seems to be already available in an earlier line that exists today:\r\n\r\n> I/flutter ( 5638):   creator: Row ← DecoratedBox ← ConstrainedBox ← Container ← MediaQuery ←\r\n\r\nLet me know if I missed something.",
+    "createdAt": "2019-05-18T00:27:04Z"
+  },
+  {
+    "id": 5143,
+    "sender": "jacob314",
+    "content": "We need a slightly more complex example so that the immediate creator is not created by the local project",
+    "createdAt": "2019-05-18T01:02:14Z"
+  },
+  {
+    "id": 5144,
+    "sender": "chunhtai",
+    "content": "> We need a slightly more complex example so that the immediate creator is not created by the local project\r\nHow about this one\r\n```\r\nimport 'package:flutter/widgets.dart';\r\n\r\nvoid main() => runApp(\r\n  CustomScrollView(slivers: <Widget>[\r\n    SliverToBoxAdapter(child: Container()),\r\n  ]),\r\n);\r\n```\r\n\r\n\r\n```\r\nI/flutter (28531): ══╡ EXCEPTION CAUGHT BY WIDGETS LIBRARY ╞═══════════════════════════════════════════════════════════\r\nI/flutter (28531): The following assertion was thrown building          \r\nI/flutter (28531): RawGestureDetector-[LabeledGlobalKey<RawGestureDetectorState>#f8b1f](state:\r\nI/flutter (28531): RawGestureDetectorState#2750a(gestures: <none>, behavior: opaque)):\r\nI/flutter (28531): 'package:flutter/src/painting/basic_types.dart': Failed assertion: line 222 pos 10: 'textDirection\r\nI/flutter (28531): != null': is not true.                               \r\nI/flutter (28531):                                                      \r\nI/flutter (28531): Either the assertion indicates an error in the framework itself, or we should provide substantially\r\nI/flutter (28531): more information in this error message to help you determine and fix the underlying cause.\r\nI/flutter (28531): In either case, please report this assertion by filing a bug on GitHub:\r\nI/flutter (28531):   https://github.com/flutter/flutter/issues/new?template=BUG.md\r\nI/flutter (28531):                                                      \r\nI/flutter (28531): When the exception was thrown, this was the stack:   \r\nI/flutter (28531): #2      textDirectionToAxisDirection (package:flutter/src/painting/basic_types.dart:222:10)\r\nI/flutter (28531): #3      Viewport.getDefaultCrossAxisDirection (package:flutter/src/widgets/viewport.dart:128:16)\r\nI/flutter (28531): #4      Viewport.createRenderObject (package:flutter/src/widgets/viewport.dart:139:58)\r\nI/flutter (28531): #5      RenderObjectElement.mount (package:flutter/src/widgets/framework.dart:4636:28)\r\nI/flutter (28531): #6      MultiChildRenderObjectElement.mount (package:flutter/src/widgets/framework.dart:5116:11)\r\nI/flutter (28531): #7      _ViewportElement.mount (package:flutter/src/widgets/viewport.dart:186:11)\r\nI/flutter (28531): #8      Element.inflateWidget (package:flutter/src/widgets/framework.dart:3072:14)\r\nI/flutter (28531): #9      Element.updateChild (package:flutter/src/widgets/framework.dart:2875:12)\r\nI/flutter (28531): #10     SingleChildRenderObjectElement.mount (package:flutter/src/widgets/framework.dart:5014:14)\r\nI/flutter (28531): #11     Element.inflateWidget (package:flutter/src/widgets/framework.dart:3072:14)\r\nI/flutter (28531): #12     Element.updateChild (package:flutter/src/widgets/framework.dart:2875:12)\r\nI/flutter (28531): #13     SingleChildRenderObjectElement.mount (package:flutter/src/widgets/framework.dart:5014:14)\r\nI/flutter (28531): #14     Element.inflateWidget (package:flutter/src/widgets/framework.dart:3072:14)\r\nI/flutter (28531): #15     Element.updateChild (package:flutter/src/widgets/framework.dart:2875:12)\r\nI/flutter (28531): #16     SingleChildRenderObjectElement.mount (package:flutter/src/widgets/framework.dart:5014:14)\r\nI/flutter (28531): #17     Element.inflateWidget (package:flutter/src/widgets/framework.dart:3072:14)\r\nI/flutter (28531): #18     Element.updateChild (package:flutter/src/widgets/framework.dart:2875:12)\r\nI/flutter (28531): #19     SingleChildRenderObjectElement.mount (package:flutter/src/widgets/framework.dart:5014:14)\r\nI/flutter (28531): #20     Element.inflateWidget (package:flutter/src/widgets/framework.dart:3072:14)\r\nI/flutter (28531): #21     Element.updateChild (package:flutter/src/widgets/framework.dart:2875:12)\r\nI/flutter (28531): #22     ComponentElement.performRebuild (package:flutter/src/widgets/framework.dart:3877:16)\r\nI/flutter (28531): #23     Element.rebuild (package:flutter/src/widgets/framework.dart:3676:5)\r\nI/flutter (28531): #24     ComponentElement._firstBuild (package:flutter/src/widgets/framework.dart:3838:5)\r\nI/flutter (28531): #25     StatefulElement._firstBuild (package:flutter/src/widgets/framework.dart:4002:11)\r\nI/flutter (28531): #26     ComponentElement.mount (package:flutter/src/widgets/framework.dart:3833:5)\r\nI/flutter (28531): #27     Element.inflateWidget (package:flutter/src/widgets/framework.dart:3072:14)\r\nI/flutter (28531): #28     Element.updateChild (package:flutter/src/widgets/framework.dart:2875:12)\r\nI/flutter (28531): #29     SingleChildRenderObjectElement.mount (package:flutter/src/widgets/framework.dart:5014:14)\r\nI/flutter (28531): #30     Element.inflateWidget (package:flutter/src/widgets/framework.dart:3072:14)\r\nI/flutter (28531): #31     Element.updateChild (package:flutter/src/widgets/framework.dart:2875:12)\r\nI/flutter (28531): #32     ComponentElement.performRebuild (package:flutter/src/widgets/framework.dart:3877:16)\r\nI/flutter (28531): #33     Element.rebuild (package:flutter/src/widgets/framework.dart:3676:5)\r\nI/flutter (28531): #34     ComponentElement._firstBuild (package:flutter/src/widgets/framework.dart:3838:5)\r\nI/flutter (28531): #35     ComponentElement.mount (package:flutter/src/widgets/framework.dart:3833:5)\r\nI/flutter (28531): #36     Element.inflateWidget (package:flutter/src/widgets/framework.dart:3072:14)\r\nI/flutter (28531): #37     Element.updateChild (package:flutter/src/widgets/framework.dart:2875:12)\r\nI/flutter (28531): #38     SingleChildRenderObjectElement.mount (package:flutter/src/widgets/framework.dart:5014:14)\r\nI/flutter (28531): #39     Element.inflateWidget (package:flutter/src/widgets/framework.dart:3072:14)\r\nI/flutter (28531): #40     Element.updateChild (package:flutter/src/widgets/framework.dart:2875:12)\r\nI/flutter (28531): #41     SingleChildRenderObjectElement.mount (package:flutter/src/widgets/framework.dart:5014:14)\r\nI/flutter (28531): #42     Element.inflateWidget (package:flutter/src/widgets/framework.dart:3072:14)\r\nI/flutter (28531): #43     Element.updateChild (package:flutter/src/widgets/framework.dart:2875:12)\r\nI/flutter (28531): #44     SingleChildRenderObjectElement.mount (package:flutter/src/widgets/framework.dart:5014:14)\r\nI/flutter (28531): #45     Element.inflateWidget (package:flutter/src/widgets/framework.dart:3072:14)\r\nI/flutter (28531): #46     Element.updateChild (package:flutter/src/widgets/framework.dart:2875:12)\r\nI/flutter (28531): #47     SingleChildRenderObjectElement.mount (package:flutter/src/widgets/framework.dart:5014:14)\r\nI/flutter (28531): #48     Element.inflateWidget (package:flutter/src/widgets/framework.dart:3072:14)\r\nI/flutter (28531): #49     Element.updateChild (package:flutter/src/widgets/framework.dart:2875:12)\r\nI/flutter (28531): #50     ComponentElement.performRebuild (package:flutter/src/widgets/framework.dart:3877:16)\r\nI/flutter (28531): #51     Element.rebuild (package:flutter/src/widgets/framework.dart:3676:5)\r\nI/flutter (28531): #52     ComponentElement._firstBuild (package:flutter/src/widgets/framework.dart:3838:5)\r\nI/flutter (28531): #53     ComponentElement.mount (package:flutter/src/widgets/framework.dart:3833:5)\r\nI/flutter (28531): #54     Element.inflateWidget (package:flutter/src/widgets/framework.dart:3072:14)\r\nI/flutter (28531): #55     Element.updateChild (package:flutter/src/widgets/framework.dart:2875:12)\r\nI/flutter (28531): #56     ComponentElement.performRebuild (package:flutter/src/widgets/framework.dart:3877:16)\r\nI/flutter (28531): #57     Element.rebuild (package:flutter/src/widgets/framework.dart:3676:5)\r\nI/flutter (28531): #58     ComponentElement._firstBuild (package:flutter/src/widgets/framework.dart:3838:5)\r\nI/flutter (28531): #59     StatefulElement._firstBuild (package:flutter/src/widgets/framework.dart:4002:11)\r\nI/flutter (28531): #60     ComponentElement.mount (package:flutter/src/widgets/framework.dart:3833:5)\r\nI/flutter (28531): #61     Element.inflateWidget (package:flutter/src/widgets/framework.dart:3072:14)\r\nI/flutter (28531): #62     Element.updateChild (package:flutter/src/widgets/framework.dart:2875:12)\r\nI/flutter (28531): #63     ComponentElement.performRebuild (package:flutter/src/widgets/framework.dart:3877:16)\r\nI/flutter (28531): #64     Element.rebuild (package:flutter/src/widgets/framework.dart:3676:5)\r\nI/flutter (28531): #65     ComponentElement._firstBuild (package:flutter/src/widgets/framework.dart:3838:5)\r\nI/flutter (28531): #66     StatefulElement._firstBuild (package:flutter/src/widgets/framework.dart:4002:11)\r\nI/flutter (28531): #67     ComponentElement.mount (package:flutter/src/widgets/framework.dart:3833:5)\r\nI/flutter (28531): #68     Element.inflateWidget (package:flutter/src/widgets/framework.dart:3072:14)\r\nI/flutter (28531): #69     Element.updateChild (package:flutter/src/widgets/framework.dart:2875:12)\r\nI/flutter (28531): #70     ComponentElement.performRebuild (package:flutter/src/widgets/framework.dart:3877:16)\r\nI/flutter (28531): #71     Element.rebuild (package:flutter/src/widgets/framework.dart:3676:5)\r\nI/flutter (28531): #72     ComponentElement._firstBuild (package:flutter/src/widgets/framework.dart:3838:5)\r\nI/flutter (28531): #73     ComponentElement.mount (package:flutter/src/widgets/framework.dart:3833:5)\r\nI/flutter (28531): #74     Element.inflateWidget (package:flutter/src/widgets/framework.dart:3072:14)\r\nI/flutter (28531): #75     Element.updateChild (package:flutter/src/widgets/framework.dart:2875:12)\r\nI/flutter (28531): #76     RenderObjectToWidgetElement._rebuild (package:flutter/src/widgets/binding.dart:933:16)\r\nI/flutter (28531): #77     RenderObjectToWidgetElement.mount (package:flutter/src/widgets/binding.dart:904:5)\r\nI/flutter (28531): #78     RenderObjectToWidgetAdapter.attachToRenderTree.<anonymous closure> (package:flutter/src/widgets/binding.dart:850:17)\r\nI/flutter (28531): #79     BuildOwner.buildScope (package:flutter/src/widgets/framework.dart:2295:19)\r\nI/flutter (28531): #80     RenderObjectToWidgetAdapter.attachToRenderTree (package:flutter/src/widgets/binding.dart:849:13)\r\nI/flutter (28531): #81     _WidgetsFlutterBinding&BindingBase&GestureBinding&ServicesBinding&SchedulerBinding&PaintingBinding&SemanticsBinding&RendererBinding&WidgetsBinding.attachRootWidget (package:flutter/src/widgets/binding.dart:736:7)\r\nI/flutter (28531): #82     runApp (package:flutter/src/widgets/binding.dart:780:7)\r\nI/flutter (28531): #83     main (package:exception/main.dart:3:16)      \r\nI/flutter (28531): #84     _runMainZoned.<anonymous closure>.<anonymous closure> (dart:ui/hooks.dart:200:25)\r\nI/flutter (28531): #89     _runMainZoned.<anonymous closure> (dart:ui/hooks.dart:192:5)\r\nI/flutter (28531): #90     _startIsolate.<anonymous closure> (dart:isolate-patch/isolate_patch.dart:300:19)\r\nI/flutter (28531): #91     _RawReceivePortImpl._handleMessage (dart:isolate-patch/isolate_patch.dart:171:12)\r\nI/flutter (28531): (elided 6 frames from class _AssertionError and package dart:async)\r\nI/flutter (28531):                                                      \r\nI/flutter (28531): First user created widget: \"CustomScrollView file:///Users/chtai/apps/exception/lib/main.dart:4:3\"\r\nI/flutter (28531): Widgets chain: \"RawGestureDetector-[LabeledGlobalKey<RawGestureDetectorState>#f8b1f] ← Listener ←\r\nI/flutter (28531):   _ScrollableScope ← _ScrollSemantics-[GlobalKey#6b82c] ← RepaintBoundary ← CustomPaint ←\r\nI/flutter (28531):   RepaintBoundary ← NotificationListener<ScrollNotification> ← GlowingOverscrollIndicator ←\r\nI/flutter (28531):   Scrollable ← CustomScrollView ← [root]\"            \r\n\r\n```",
+    "createdAt": "2019-05-29T23:51:39Z"
+  },
+  {
+    "id": 5145,
+    "sender": "chunhtai",
+    "content": "> > I/flutter ( 5638): First user created widget: \"Row\r\n> \r\n> Is the content from this line and below generated by this PR?\r\n> \r\n> This is certainly useful, but the information seems to be already available in an earlier line that exists today:\r\n> \r\n> > I/flutter ( 5638):   creator: Row ← DecoratedBox ← ConstrainedBox ← Container ← MediaQuery ←\r\n> \r\n> Let me know if I missed something.\r\n\r\nThe creator field is not always there, some part of rendering framework will report the information while others won't. This pr make sure rendering framework always print out this information",
+    "createdAt": "2019-05-30T17:06:40Z"
+  },
+  {
+    "id": 5146,
+    "sender": "InMatrix",
+    "content": "> I/flutter (28531): The following assertion was thrown building          \r\n> I/flutter (28531): RawGestureDetector-[LabeledGlobalKey<RawGestureDetectorState>#f8b1f](state:\r\n> I/flutter (28531): RawGestureDetectorState#2750a(gestures: <none>, behavior: opaque)):\r\n> I/flutter (28531): 'package:flutter/src/painting/basic_types.dart': Failed assertion: line 222 pos 10: 'textDirection\r\n> I/flutter (28531): != null': is not true.                               \r\n> I/flutter (28531):                              \r\n\r\nIs it possible to provide a high-level summary of what was wrong in the beginning of the error?\r\n\r\n> I/flutter (28531): First user created widget: \"CustomScrollView file:///Users/chtai/apps/exception/lib/main.dart:4:3\"\r\n\r\nThis line is very useful. Can we move it above the stack traces and \"I/flutter (28531): Either the assertion indicates an error in the framework itself, or we should provide substantially\"?\r\n",
+    "createdAt": "2019-05-30T19:25:42Z"
+  },
+  {
+    "id": 5147,
+    "sender": "chunhtai",
+    "content": "> > I/flutter (28531): The following assertion was thrown building\r\n> > I/flutter (28531): RawGestureDetector-[LabeledGlobalKey#f8b1f](state:\r\n> > I/flutter (28531): RawGestureDetectorState#2750a(gestures: , behavior: opaque)):\r\n> > I/flutter (28531): 'package:flutter/src/painting/basic_types.dart': Failed assertion: line 222 pos 10: 'textDirection\r\n> > I/flutter (28531): != null': is not true.\r\n> > I/flutter (28531):\r\n> \r\n> Is it possible to provide a high-level summary of what was wrong in the beginning of the error?\r\n> \r\n> > I/flutter (28531): First user created widget: \"CustomScrollView file:///Users/chtai/apps/exception/lib/main.dart:4:3\"\r\n> \r\n> This line is very useful. Can we move it above the stack traces and \"I/flutter (28531): Either the assertion indicates an error in the framework itself, or we should provide substantially\"?\r\n\r\nI agree we should have high-level summary for this kind of message, but that should be a separate issue. This one is focus on reference to the widget.\r\n\r\nThe ordering of the log is depends on the error structure.\r\n1, error description\r\n2, stacktrace\r\n3, additional informations\r\nThe error message is printed from top to down. The user created widget is part of additional information. we cannot move the entire additional informations to the top. If we really want to print out the user created widget first, we will have to update the error structure. @jacob314 do you have suggestion?",
+    "createdAt": "2019-05-30T20:25:40Z"
+  },
+  {
+    "id": 5148,
+    "sender": "Hixie",
+    "content": "Would be nice to have a test that uses the https://github.com/flutter/flutter/tree/master/dev/automated_tests/flutter_test infrastructure to see what the final format is like.\r\n\r\nI think we should probably show the first widget from each package, something like:\r\n\r\n```\r\nThis exception was thrown while ${action}ing this widget:\r\n   FooBar created at file://...../:40:32 by package:flutter\r\n\r\nSome notable ancestors of this widget were:\r\n   FooBar created at file://...../:40:32 by package:flutter\r\n   FooBar created at file://...../:40:32 by package:myplugin\r\n   FooBar created at file://...../:40:32 by package:myapp\r\n```\r\n\r\nI'm not sure exactly which ones we want to show, but something like that.",
+    "createdAt": "2019-06-04T17:05:10Z"
+  },
+  {
+    "id": 5149,
+    "sender": "Hixie",
+    "content": "Another way to refactor this to avoid the references to the widget inspector would be to have foundation/assertions.dart provide a way for code to hook in before reporting errors. For example, have a list of callbacks that take the FlutterErrorDetails or some such. Then, the widget inspector could add a hook to this list of callbacks, and in that hook, it could look at the `context` of the FlutterErrorDetails and add data to the error if it recognised the type -- so if it's an Element, it could show the data we're talking about showing here, and if it's a RenderObject, it could look up that object's `debugCreator` and see if it's an Element and do the same, and so on.",
+    "createdAt": "2019-06-04T17:15:33Z"
+  },
+  {
+    "id": 5150,
+    "sender": "chunhtai",
+    "content": "refactored and ready for review.\r\n\r\nError message now\r\n```\r\nI/flutter (10149): ══╡ EXCEPTION CAUGHT BY WIDGETS LIBRARY ╞═══════════════════════════════════════════════════════════\r\nI/flutter (10149): The following assertion was thrown building          \r\nI/flutter (10149): RawGestureDetector-[LabeledGlobalKey<RawGestureDetectorState>#349b4](state:\r\nI/flutter (10149): RawGestureDetectorState#9c319(gestures: <none>, behavior: opaque)):\r\nI/flutter (10149): 'package:flutter/src/painting/basic_types.dart': Failed assertion: line 223 pos 10: 'textDirection\r\nI/flutter (10149): != null': is not true.                               \r\nI/flutter (10149):                                                      \r\nI/flutter (10149): Either the assertion indicates an error in the framework itself, or we should provide substantially\r\nI/flutter (10149): more information in this error message to help you determine and fix the underlying cause.\r\nI/flutter (10149): In either case, please report this assertion by filing a bug on GitHub:\r\nI/flutter (10149):   https://github.com/flutter/flutter/issues/new?template=BUG.md\r\nI/flutter (10149):                                                      \r\nI/flutter (10149): User created ancestor of the error causing widget was:            \r\nI/flutter (10149):                                                      \r\nI/flutter (10149):   CustomScrollView file:///Users/chtai/apps/exception/lib/main.dart:4:3\r\nI/flutter (10149):                                                      \r\nI/flutter (10149): When the exception was thrown, this was the stack:   \r\nI/flutter (10149): #2      textDirectionToAxisDirection (package:flutter/src/painting/basic_types.dart:223:10)\r\nI/flutter (10149): #3      Viewport.getDefaultCrossAxisDirection (package:flutter/src/widgets/viewport.dart:128:16)\r\nI/flutter (10149): #4      Viewport.createRenderObject (package:flutter/src/widgets/viewport.dart:139:58)\r\nI/flutter (10149): #5      RenderObjectElement.mount (package:flutter/src/widgets/framework.dart:4666:28)\r\nI/flutter (10149): #6      MultiChildRenderObjectElement.mount (package:flutter/src/widgets/framework.dart:5146:11)\r\nI/flutter (10149): #7      _ViewportElement.mount (package:flutter/src/widgets/viewport.dart:186:11)\r\nI/flutter (10149): #8      Element.inflateWidget (package:flutter/src/widgets/framework.dart:3067:14)\r\nI/flutter (10149): #9      Element.updateChild (package:flutter/src/widgets/framework.dart:2870:12)\r\nI/flutter (10149): #10     SingleChildRenderObjectElement.mount (package:flutter/src/widgets/framework.dart:5044:14)\r\nI/flutter (10149): #11     Element.inflateWidget (package:flutter/src/widgets/framework.dart:3067:14)\r\nI/flutter (10149): #12     Element.updateChild (package:flutter/src/widgets/framework.dart:2870:12)\r\n\r\n```\r\n\r\n@Hixie I don't think we can efficiently know the package boundary until we have symbolic link. I fall back to only print out the first widget created in user app. ",
+    "createdAt": "2019-06-18T20:15:33Z"
+  },
+  {
+    "id": 5151,
+    "sender": "Hixie",
+    "content": "We need a way to do this better than a static callback. A static callback means that multiple parts of the framework (or packages providing new features) can't all participate at the same time.",
+    "createdAt": "2019-06-25T23:28:51Z"
+  },
+  {
+    "id": 5152,
+    "sender": "chunhtai",
+    "content": "> We need a way to do this better than a static callback. A static callback means that multiple parts of the framework (or packages providing new features) can't all participate at the same time.\r\n\r\n@Hixie finished refactoring",
+    "createdAt": "2019-06-26T21:22:36Z"
+  },
+  {
+    "id": 5153,
+    "sender": "jacob314",
+    "content": "Here is an idea of how to avoid the tight coupling of `offendingContext` to FlutterErrorDetails` while still letting you display the message before the stack trace.\r\n\r\nSolution summary:\r\nAdd an easily identifiable DiagnosticsProperty to the FlutterErrorDetails using an informationCollector. \r\nAdd a general purpose hook to register FlutterErrorTransformers that transform the DiagnosticsNode objects that a FlutterErrorDetails immediately before they are used to render the FlutterErrorDetails to a String or to json.\r\n\r\nThis would also also provide a hook if developers comfortable with another language wanted to inject some translations for platform error messages or if developers using a specific set of widgets wanted to inject additional error messages or hints into certain errors as there are obvious fixes if you are using their library the correct way.\r\n\r\nImplementation details:\r\n\r\nIn the InformationCollector, add a DiagnosticsProperty for creator with DiagnosticsLevel.hidden or DiagnosticsLevel.fine to ensure that the property does not show up in the text error messages unless it is transformed as the property is not useful unless it has been transformed to have an easily readable output.\r\nhttps://github.com/flutter/flutter/blob/577c2fc48cbdd7d843a15673c6bb65006e4ae1c1/packages/flutter/lib/src/foundation/diagnostics.dart#L24\r\n\r\nYou could define a new DebugCreator Diagnostics node subclass of DiagnosticsProperty or use DiagnosticsProperty directly and match based on the property name 'debugCreator'.\r\n\r\nYou will then register a transformer from the widget library that spots the DebugCreator property and if it is present removes it and adds the property describing the debug creator in full detail that you have already defined.As part of the transformer you have full flexibility where you want to insert the property in the List of DiagnosticsNode objects describing the body of the error. You would want to insert it where the existing DebugCreator property was or before the first StackTraceProperty if one was present as the belief is this information is related to the stack trace but more relevant than it.",
+    "createdAt": "2019-06-27T17:01:11Z"
+  },
+  {
+    "id": 5154,
+    "sender": "Hixie",
+    "content": "Having some way to further annotate the information collected via informationCollector seems very interesting. It would keep the overall API surface of FlutterErrorDetails down, which is nice, while being quite general and allowing for multiple \"offendingContext\"-style objects to be reported.",
+    "createdAt": "2019-06-27T17:15:40Z"
+  },
+  {
+    "id": 5155,
+    "sender": "Hixie",
+    "content": "(BTW, some of my more recent comments still apply. Not sure if that is intentional or not.)",
+    "createdAt": "2019-06-28T22:30:41Z"
+  },
+  {
+    "id": 5156,
+    "sender": "chunhtai",
+    "content": "addressed all comment ready for review!",
+    "createdAt": "2019-07-02T20:00:27Z"
+  },
+  {
+    "id": 5157,
+    "sender": "chunhtai",
+    "content": "addressed all comments.",
+    "createdAt": "2019-07-03T17:35:33Z"
+  },
+  {
+    "id": 5158,
+    "sender": "chunhtai",
+    "content": "@Hixie I merged this pr without much thought. let me know if you have additional comment, I am happy to address it in other pr.",
+    "createdAt": "2019-07-09T19:31:53Z"
+  },
+  {
+    "id": 5159,
+    "sender": "jslavitz",
+    "content": "## Adds Continuous Rectangle and Continuous Stadium shapes\n\nAdds Cupertino \"super ellipse\" rect. Fixes #13914, reverts #26295.",
+    "createdAt": "2019-02-05T03:13:25Z"
+  },
+  {
+    "id": 5160,
+    "sender": "xster",
+    "content": "Please check the CI failure\r\n```\r\nfile:///tmp/flutter%20sdk/packages/flutter/lib/src/painting/cupertino_rounded_rectangle_border.dart:415:22: Error: Can't declare 'maxMultiplier' because it was already used in this scope.\r\n        final double maxMultiplier = ui.lerpDouble(\r\n                     ^^^^^^^^^^^^^\r\n```",
+    "createdAt": "2019-02-05T20:50:34Z"
+  },
+  {
+    "id": 5161,
+    "sender": "Hixie",
+    "content": "We shouldn't say this is Cupertino-related. It's just a shape, it's not platform-specific.\r\n\r\nPlease check all the documentation for mentions of Superellipse, we want to make sure they're all updated (there's at least one that I know of).",
+    "createdAt": "2019-02-05T21:36:13Z"
+  },
+  {
+    "id": 5162,
+    "sender": "Hixie",
+    "content": "@Salby suggested ContinuousCornerBorder, which I think is a better name.",
+    "createdAt": "2019-02-05T21:36:54Z"
+  },
+  {
+    "id": 5163,
+    "sender": "Hixie",
+    "content": "I don't think we should be adding a feature and renaming the class in the same PR, that's a bit confusing (makes it very hard to review). I suggest we let https://github.com/flutter/flutter/pull/27586 take care of the rename.\r\n\r\nIt's not entirely clear to me what the new feature here does? Are there before/after pictures we can see?",
+    "createdAt": "2019-02-07T03:59:46Z"
+  },
+  {
+    "id": 5164,
+    "sender": "jslavitz",
+    "content": "@Hixie Ok that's fair. I think the name 'ContinuousCornerRectangleBorder' makes more sense tho? Given that We have 'RoundedRectangleBorder' and not 'RoundedBorder' ?",
+    "createdAt": "2019-02-13T23:22:56Z"
+  },
+  {
+    "id": 5165,
+    "sender": "Hixie",
+    "content": "The term \"rounded rectangle\" is the name of the shape that \"RoundedRectangleBorder\" creates; search Google for [Rounded Rectangle] and you get millions of hits and all the pictures clearly describe what we're doing; see also RRect and the corresponding methods of the canvas. \r\n\r\nOn the other hand the phrase \"Continuous Corner Rectangle\" doesn't have any hits on Google at all. The phrase \"Continuous Corner\" does have some hits, especially if you search for [ios continuous corner]; indeed there are a number of terms (e.g. continuous curvature, squircle) that are used. None of them, as far as I can tell, have the word \"rectangle\" in them, though.",
+    "createdAt": "2019-02-14T22:41:53Z"
+  },
+  {
+    "id": 5166,
+    "sender": "xster",
+    "content": "There are no changes in the cupertino package in this PR. Are you planning to do it in a separate PR?",
+    "createdAt": "2019-02-25T20:52:33Z"
+  },
+  {
+    "id": 5167,
+    "sender": "xster",
+    "content": "Adjust the title if this PR won't be addressing the Cupertino package.",
+    "createdAt": "2019-02-26T01:41:51Z"
+  },
+  {
+    "id": 5168,
+    "sender": "tvolkert",
+    "content": "@chinmaygarde @liyuqian can you review this with an eye towards performance?",
+    "createdAt": "2019-03-01T18:23:03Z"
+  },
+  {
+    "id": 5169,
+    "sender": "liyuqian",
+    "content": "Just checked perf.skia.org for a comparison between quads and cubics. The results are surprising to me on the GPU side. Maybe need some experts @bsalomon and @csmartdalton to verify the results.\r\n\r\nFirst I checked [path_hairline_big_AA on Moto G4](https://perf.skia.org/e/?num_commits=10&queries=config%3Dgles%26config%3D8888%26extra_config%3DAndroid%26model%3DMotoG4%26name%3Dpath_hairline_big_AA_quad%26name%3Dpath_hairline_big_AA_cubic). On the CPU side (config = 8888), quad is twice as fast as cubic (which is expected). But GPU speed looks the same between cubic and quad, and they're all many times slower than CPU. I thought that Skia would just use CPU path renderer to rasterize the path if the GPU renderer is too slow. Maybe this test is just generating non-sense data for GPU?\r\n\r\nThen I checked [path_hairline_big_AA on Pixel2XL](https://perf.skia.org/e/?formulas=filter(%22config%3Dgles%26config%3D8888%26extra_config%3DAndroid%26model%3DPixel2XL%26name%3Dpath_hairline_big_AA_quad%26name%3Dpath_hairline_big_AA_cubic%22)&num_commits=10) which unfortunately doesn't have CPU (8888) performance data. But the GPU data there is really astonishing. The cubic is about 4x as fast as the quad? I don't understand how that could happen. One possibility is that the GPU falls back to CPU on the cubic, but it uses some very slow GPU renderer on the quad similar to those used on MotoG4?",
+    "createdAt": "2019-03-06T20:39:53Z"
+  },
+  {
+    "id": 5170,
+    "sender": "xster",
+    "content": "@liyuqian what is the actionable item here for this PR?",
+    "createdAt": "2019-03-06T21:05:29Z"
+  },
+  {
+    "id": 5171,
+    "sender": "liyuqian",
+    "content": "Ok, forget about the perf.skia.org data that I put earlier. It's not very helpful to track GPU performance according to the Skia team.\r\n\r\nOur actionable item, if there's time (there's no hurry to land this), should be to add a Flutter driver performance test ourselves to check the performance difference between quadratics and cubics implementation of this widget. That driver test will also be helpful in the future to catch any unexpected performance regression.",
+    "createdAt": "2019-03-06T21:26:33Z"
+  },
+  {
+    "id": 5172,
+    "sender": "xster",
+    "content": "Thanks. @jslavitz, let's add a microbenchmark test to check the performance of a CupertinoButton when you start using this shape in widgets in a next PR. \r\n\r\nSee something like complex_layout_scroll_perf__timeline_summary for example. ",
+    "createdAt": "2019-03-06T21:32:05Z"
+  },
+  {
+    "id": 5173,
+    "sender": "xster",
+    "content": "Same here. We'll pick it up from your branch in a new PR. ",
+    "createdAt": "2019-04-02T21:03:31Z"
+  },
+  {
+    "id": 5174,
+    "sender": "lukepighetti",
+    "content": "@xster and which PR is that?",
+    "createdAt": "2020-03-10T23:39:33Z"
+  },
+  {
+    "id": 5175,
+    "sender": "lukepighetti",
+    "content": "I just pulled down the ContinuousRectangleBorder and ContinuousStadiumBorder classes from this PR and they are fantastic. Nothing else I've been able to find comes close.\r\n\r\n<img width=\"481\" alt=\"Screen Shot 2020-03-10 at 7 47 03 PM\" src=\"https://user-images.githubusercontent.com/666539/76368858-ee2bf300-6307-11ea-91a0-bc93f3548a4c.png\">\r\n",
+    "createdAt": "2020-03-10T23:45:28Z"
+  },
+  {
+    "id": 5176,
+    "sender": "dnfield",
+    "content": "## Bottom sheet scrolling\n\nThis is still a bit rough, but wanted to start getting some eyes on it.\r\n\r\nFixes #497 \r\n\r\nHere's what I know it still needs\r\n\r\n- [x] Tests! Existing tests need to be updated\r\n- [x] Write new tests for some of the new functionality\r\n- [x] ~~Persistent sheets (e.g. setting the `Scaffold.bottomSheet`) need some work.  Right now they're getting dismissed if another sheet gets dismissed.~~ This is resolved by tightening up an existing restriction to ensure that people can't show Standard Bottom Sheets if a persistent Bottom Sheet is already visible (and vice versa).  Existing code had it covered the other way around, this just extends that.  I suspect someone out there might want to do this, but I'm not sure it makes much sense design wise and it makes the code a lot more complicated.\r\n- [x] Settle on how to handle when a child shouldn't scroll to the top of the screen.  ~~Right now, a developer has to pass a few parameters (set `initialTop` to something valid, and set `clampTop` to true).  This is the best I've been able to come up with so far - any attempts to automate that for developers result in some kind of bad result somewhere else.~~ I think the refactor to an `initialHeightPercentage` solves a lot of this.\r\n- [x] Determine whether everything I'm breaking absolutely needs to be broken.  I'm changing some parameters and behavior here, because the existing widget is pretty badly broken in a few ways.\r\n- [x] Make sure this all works with a11y\r\n\r\n----\r\n\r\nWays existing widget is broken:\r\n\r\n- Can't go full screen\r\n- Can't be dragged if it has a list/scrolling content/gesturedetector in its child\r\n- Doesn't hide the FAB if it's given a tall height\r\n- Doesn't differentiate very well between \"Standard Bottom Sheets\" and \"Persistent Bottom Sheets\"\r\n\r\nThis is still WIP, but I think enough is done that it's worth getting some review/feedback.",
+    "createdAt": "2018-09-14T23:44:35Z"
+  },
+  {
+    "id": 5177,
+    "sender": "dnfield",
+    "content": "Here's a playground for it: https://gist.github.com/dnfield/3a524bbbd4ebf4652c3379008469d096",
+    "createdAt": "2018-09-14T23:45:17Z"
+  },
+  {
+    "id": 5178,
+    "sender": "peerwaya",
+    "content": "@dnfield great work, any update on this? Looks like it's almost complete.",
+    "createdAt": "2018-11-10T09:00:57Z"
+  },
+  {
+    "id": 5179,
+    "sender": "dnfield",
+    "content": "@peerwaya thanks!\r\n\r\nThis still has a few problems - it needs to be made more accessibility friendly, and had some bug with the persistent bottom sheet implementation that has to be resolved.\r\n\r\nI do plan to get back to this, but it needs some more work to really be ready.",
+    "createdAt": "2018-11-14T21:41:41Z"
+  },
+  {
+    "id": 5180,
+    "sender": "ThinkDigitalSoftware",
+    "content": "> Here's a playground for it: https://gist.github.com/dnfield/3a524bbbd4ebf4652c3379008469d096\r\n\r\nIs there a way we can test this? We don't have access to the referenced file, `bottom_material.dart`\r\nAlso, we'd like to see if we can contribute as well. \r\nOr, what would be the process for us testing your changes? I didn't see a way to access the branch you're working on, @dnfield ",
+    "createdAt": "2018-11-28T01:02:12Z"
+  },
+  {
+    "id": 5181,
+    "sender": "dnfield",
+    "content": "Ahh sorry, you can just comment that out.  It isn't used",
+    "createdAt": "2018-11-28T01:27:38Z"
+  },
+  {
+    "id": 5182,
+    "sender": "ThinkDigitalSoftware",
+    "content": "Where does the scaffold, or whatever controls it, set the size of the BottomSheet?",
+    "createdAt": "2018-11-28T03:42:02Z"
+  },
+  {
+    "id": 5183,
+    "sender": "dnfield",
+    "content": "Should be initialHeightPercentage or something like that.",
+    "createdAt": "2018-11-28T04:35:07Z"
+  }
+]

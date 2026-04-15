@@ -1,0 +1,386 @@
+[
+  {
+    "id": 1344,
+    "sender": "saawhitelife",
+    "content": "@fidoaf the change mentioned by gmackall is in 3.27.0 \r\nhttps://docs.flutter.dev/release/release-notes/release-notes-3.27.0\r\nReplace System.loadLibrary with ReLinker.loadLibrary() in FlutterJNI.loadLibrary() by @gmackall in [55095](https://github.com/flutter/engine/pull/55095)",
+    "createdAt": "2025-01-10T06:27:38Z"
+  },
+  {
+    "id": 1345,
+    "sender": "CyberWake",
+    "content": "Any updates on this? Our users have been facing this on Flutter version 3.27.1 as well.",
+    "createdAt": "2025-01-13T05:05:54Z"
+  },
+  {
+    "id": 1346,
+    "sender": "asiteandroid",
+    "content": "We are still facing crashes for the same with version 3.27.1.  Any update on this? ",
+    "createdAt": "2025-01-20T10:04:04Z"
+  },
+  {
+    "id": 1347,
+    "sender": "mateenshiekh",
+    "content": "Any updates on this? We have been facing this on Flutter version 3.27.1.\n\n\nDevices\n\n```\nPixel 6 Pro\nOneplus A3010\n``` \n\n```\n# Crashlytics - Stack trace\n\nFatal Exception: java.lang.RuntimeException: Unable to start activity ComponentInfo{com.pk.sasta/com.sasta.MainActivity}: java.lang.RuntimeException: java.util.concurrent.ExecutionException: x6.b: Could not find 'libflutter.so'. Looked for: [x86, armeabi-v7a, armeabi], but only found: [].\n       at android.app.ActivityThread.performLaunchActivity(ActivityThread.java:2683)\n       at android.app.ActivityThread.handleLaunchActivity(ActivityThread.java:2744)\n       at android.app.ActivityThread.-wrap12(ActivityThread.java)\n       at android.app.ActivityThread$H.handleMessage(ActivityThread.java:1495)\n       at android.os.Handler.dispatchMessage(Handler.java:102)\n       at android.os.Looper.loop(Looper.java:154)\n       at android.app.ActivityThread.main(ActivityThread.java:6181)\n       at java.lang.reflect.Method.invoke(Method.java)\n       at com.android.internal.os.ZygoteInit$MethodAndArgsCaller.run(ZygoteInit.java:893)\n       at com.android.internal.os.ZygoteInit.main(ZygoteInit.java:783)\n\nCaused by java.lang.RuntimeException: java.util.concurrent.ExecutionException: x6.b: Could not find 'libflutter.so'. Looked for: [x86, armeabi-v7a, armeabi], but only found: [].\n       at io.flutter.embedding.engine.loader.FlutterLoader.ensureInitializationComplete(FlutterLoader.java)\n       at io.flutter.embedding.engine.FlutterEngineGroup.<init>(SourceFile)\n       at io.flutter.embedding.android.FlutterActivityAndFragmentDelegate.setUpFlutterEngine(SourceFile)\n       at io.flutter.embedding.android.FlutterActivityAndFragmentDelegate.onAttach(SourceFile)\n       at io.flutter.embedding.android.FlutterActivity.onCreate(SourceFile)\n       at android.app.Activity.performCreate(Activity.java:6785)\n       at android.app.Instrumentation.callActivityOnCreate(Instrumentation.java:1148)\n       at android.app.ActivityThread.performLaunchActivity(ActivityThread.java:2636)\n       at android.app.ActivityThread.handleLaunchActivity(ActivityThread.java:2744)\n       at android.app.ActivityThread.-wrap12(ActivityThread.java)\n       at android.app.ActivityThread$H.handleMessage(ActivityThread.java:1495)\n       at android.os.Handler.dispatchMessage(Handler.java:102)\n       at android.os.Looper.loop(Looper.java:154)\n       at android.app.ActivityThread.main(ActivityThread.java:6181)\n       at java.lang.reflect.Method.invoke(Method.java)\n       at com.android.internal.os.ZygoteInit$MethodAndArgsCaller.run(ZygoteInit.java:893)\n       at com.android.internal.os.ZygoteInit.main(ZygoteInit.java:783)\n\nCaused by java.util.concurrent.ExecutionException: x6.b: Could not find 'libflutter.so'. Looked for: [x86, armeabi-v7a, armeabi], but only found: [].\n       at java.util.concurrent.FutureTask.report(FutureTask.java:94)\n       at java.util.concurrent.FutureTask.get(FutureTask.java:164)\n       at io.flutter.embedding.engine.loader.FlutterLoader.ensureInitializationComplete(FlutterLoader.java)\n       at io.flutter.embedding.engine.FlutterEngineGroup.<init>(SourceFile)\n       at io.flutter.embedding.android.FlutterActivityAndFragmentDelegate.setUpFlutterEngine(SourceFile)\n       at io.flutter.embedding.android.FlutterActivityAndFragmentDelegate.onAttach(SourceFile)\n       at io.flutter.embedding.android.FlutterActivity.onCreate(SourceFile)\n       at android.app.Activity.performCreate(Activity.java:6785)\n       at android.app.Instrumentation.callActivityOnCreate(Instrumentation.java:1148)\n       at android.app.ActivityThread.performLaunchActivity(ActivityThread.java:2636)\n       at android.app.ActivityThread.handleLaunchActivity(ActivityThread.java:2744)\n       at android.app.ActivityThread.-wrap12(ActivityThread.java)\n       at android.app.ActivityThread$H.handleMessage(ActivityThread.java:1495)\n       at android.os.Handler.dispatchMessage(Handler.java:102)\n       at android.os.Looper.loop(Looper.java:154)\n       at android.app.ActivityThread.main(ActivityThread.java:6181)\n       at java.lang.reflect.Method.invoke(Method.java)\n       at com.android.internal.os.ZygoteInit$MethodAndArgsCaller.run(ZygoteInit.java:893)\n       at com.android.internal.os.ZygoteInit.main(ZygoteInit.java:783)\n\nCaused by x6.b: Could not find 'libflutter.so'. Looked for: [x86, armeabi-v7a, armeabi], but only found: [].\n       at com.getkeepsafe.relinker.ApkLibraryInstaller.installLibrary(ApkLibraryInstaller.java)\n       at com.getkeepsafe.relinker.ReLinkerInstance.loadLibraryInternal(ReLinkerInstance.java)\n       at com.getkeepsafe.relinker.ReLinkerInstance.loadLibrary(ReLinkerInstance.java)\n       at com.getkeepsafe.relinker.ReLinker.loadLibrary(ReLinker.java)\n       at com.getkeepsafe.relinker.ReLinker.loadLibrary(ReLinker.java)\n       at io.flutter.embedding.engine.FlutterJNI.loadLibrary(FlutterJNI.java)\n       at io.flutter.embedding.engine.loader.FlutterLoader$1.call(FlutterLoader.java)\n       at io.flutter.embedding.engine.loader.FlutterLoader$1.call(FlutterLoader.java)\n       at java.util.concurrent.FutureTask.run(FutureTask.java:237)\n       at java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1133)\n       at java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:607)\n       at java.lang.Thread.run(Thread.java:761)\n\nReferenceQueueDaemon:\n       at java.lang.Object.wait(Object.java)\n       at java.lang.Daemons$ReferenceQueueDaemon.run(Daemons.java:150)\n       at java.lang.Thread.run(Thread.java:761)\n\npool-7-thread-1:\n       at java.lang.Object.wait(Object.java)\n       at java.lang.Thread.parkFor$(Thread.java:2127)\n       at sun.misc.Unsafe.park(Unsafe.java:325)\n       at java.util.concurrent.locks.LockSupport.park(LockSupport.java:161)\n       at java.util.concurrent.locks.AbstractQueuedSynchronizer$ConditionObject.await(AbstractQueuedSynchronizer.java:2035)\n       at java.util.concurrent.LinkedBlockingQueue.take(LinkedBlockingQueue.java:413)\n       at java.util.concurrent.ThreadPoolExecutor.getTask(ThreadPoolExecutor.java:1058)\n       at java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1118)\n       at java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:607)\n       at java.lang.Thread.run(Thread.java:761)\n\npool-18-thread-1:\n       at java.lang.Object.wait(Object.java)\n       at java.lang.Thread.parkFor$(Thread.java:2127)\n       at sun.misc.Unsafe.park(Unsafe.java:325)\n       at java.util.concurrent.locks.LockSupport.park(LockSupport.java:161)\n       at java.util.concurrent.locks.AbstractQueuedSynchronizer$ConditionObject.await(AbstractQueuedSynchronizer.java:2035)\n       at java.util.concurrent.LinkedBlockingQueue.take(LinkedBlockingQueue.java:413)\n       at java.util.concurrent.ThreadPoolExecutor.getTask(ThreadPoolExecutor.java:1058)\n       at java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1118)\n       at java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:607)\n       at java.lang.Thread.run(Thread.java:761)\n\nDefaultDispatcher-worker-1:\n       at java.lang.Object.wait(Object.java)\n       at java.lang.Thread.parkFor$(Thread.java:2127)\n       at sun.misc.Unsafe.park(Unsafe.java:325)\n       at java.util.concurrent.locks.LockSupport.parkNanos(LockSupport.java:324)\n       at kotlinx.coroutines.scheduling.CoroutineScheduler$Worker.park(CoroutineScheduler.java)\n       at kotlinx.coroutines.scheduling.CoroutineScheduler$Worker.tryPark(CoroutineScheduler.java)\n       at kotlinx.coroutines.scheduling.CoroutineScheduler$Worker.runWorker(CoroutineScheduler.java)\n       at kotlinx.coroutines.scheduling.CoroutineScheduler$Worker.run(CoroutineScheduler.java)\n\nAsyncTask #1:\n       at java.lang.Object.wait(Object.java)\n       at java.lang.Thread.parkFor$(Thread.java:2127)\n       at sun.misc.Unsafe.park(Unsafe.java:325)\n       at java.util.concurrent.locks.LockSupport.parkNanos(LockSupport.java:201)\n       at java.util.concurrent.locks.AbstractQueuedSynchronizer$ConditionObject.awaitNanos(AbstractQueuedSynchronizer.java:2077)\n       at java.util.concurrent.LinkedBlockingQueue.poll(LinkedBlockingQueue.java:438)\n       at java.util.concurrent.ThreadPoolExecutor.getTask(ThreadPoolExecutor.java:1057)\n       at java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1118)\n       at java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:607)\n       at java.lang.Thread.run(Thread.java:761)\n\nMessengerIpcClient:\n       at java.lang.Object.wait(Object.java)\n       at java.lang.Thread.parkFor$(Thread.java:2127)\n       at sun.misc.Unsafe.park(Unsafe.java:325)\n       at java.util.concurrent.locks.LockSupport.parkNanos(LockSupport.java:201)\n       at java.util.concurrent.locks.AbstractQueuedSynchronizer$ConditionObject.awaitNanos(AbstractQueuedSynchronizer.java:2077)\n       at java.util.concurrent.ScheduledThreadPoolExecutor$DelayedWorkQueue.take(ScheduledThreadPoolExecutor.java:1103)\n       at java.util.concurrent.ScheduledThreadPoolExecutor$DelayedWorkQueue.take(ScheduledThreadPoolExecutor.java:1084)\n       at java.util.concurrent.ThreadPoolExecutor.getTask(ThreadPoolExecutor.java:1058)\n       at java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1118)\n       at java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:607)\n       at com.google.android.gms.common.util.concurrent.zza.run(zza.java)\n       at java.lang.Thread.run(Thread.java:761)\n\nDefaultDispatcher-worker-5:\n       at java.lang.Object.wait(Object.java)\n       at java.lang.Thread.parkFor$(Thread.java:2127)\n       at sun.misc.Unsafe.park(Unsafe.java:325)\n       at java.util.concurrent.locks.LockSupport.parkNanos(LockSupport.java:324)\n       at kotlinx.coroutines.scheduling.CoroutineScheduler$Worker.park(CoroutineScheduler.java)\n       at kotlinx.coroutines.scheduling.CoroutineScheduler$Worker.tryPark(CoroutineScheduler.java)\n       at kotlinx.coroutines.scheduling.CoroutineScheduler$Worker.runWorker(CoroutineScheduler.java)\n       at kotlinx.coroutines.scheduling.CoroutineScheduler$Worker.run(CoroutineScheduler.java)\n\nOkHttp ConnectionPool:\n       at java.lang.Object.wait(Object.java)\n       at com.android.okhttp.ConnectionPool.performCleanup(ConnectionPool.java:305)\n       at com.android.okhttp.ConnectionPool.runCleanupUntilPoolIsEmpty(ConnectionPool.java:242)\n       at com.android.okhttp.ConnectionPool.-wrap0(ConnectionPool.java)\n       at com.android.okhttp.ConnectionPool$1.run(ConnectionPool.java:97)\n       at java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1133)\n       at java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:607)\n       at java.lang.Thread.run(Thread.java:761)\n\nFirebase Background Thread #3:\n       at dalvik.system.VMStack.getThreadStackTrace(VMStack.java)\n       at java.lang.Thread.getStackTrace(Thread.java:1566)\n       at java.lang.Thread.getAllStackTraces(Thread.java:1616)\n       at com.google.firebase.crashlytics.internal.common.CrashlyticsReportDataCapture.populateThreadsList(SourceFile)\n       at com.google.firebase.crashlytics.internal.common.CrashlyticsReportDataCapture.populateExecutionData(SourceFile)\n       at com.google.firebase.crashlytics.internal.common.CrashlyticsReportDataCapture.populateEventApplicationData(SourceFile)\n       at com.google.firebase.crashlytics.internal.common.CrashlyticsReportDataCapture.captureEventData(SourceFile)\n       at com.google.firebase.crashlytics.internal.common.SessionReportingCoordinator.persistEvent(SessionReportingCoordinator.java)\n       at com.google.firebase.crashlytics.internal.common.SessionReportingCoordinator.persistFatalEvent(SessionReportingCoordinator.java)\n       at com.google.firebase.crashlytics.internal.common.CrashlyticsController$2.call(SourceFile)\n       at com.google.firebase.crashlytics.internal.common.CrashlyticsController$2.call(SourceFile)\n       at com.google.firebase.crashlytics.internal.concurrency.CrashlyticsWorker.lambda$submitTask$2(CrashlyticsWorker.java)\n       at com.google.android.gms.tasks.zze.run(SourceFile)\n       at java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1133)\n       at java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:607)\n       at com.google.firebase.concurrent.CustomThreadFactory.lambda$newThread$0(CustomThreadFactory.java)\n       at java.lang.Thread.run(Thread.java:761)\n\nFirebase Blocking Thread #1:\n       at java.lang.Object.wait(Object.java)\n       at java.lang.Thread.parkFor$(Thread.java:2127)\n       at sun.misc.Unsafe.park(Unsafe.java:325)\n       at java.util.concurrent.locks.LockSupport.parkNanos(LockSupport.java:201)\n       at java.util.concurrent.SynchronousQueue$TransferStack.awaitFulfill(SynchronousQueue.java:432)\n       at java.util.concurrent.SynchronousQueue$TransferStack.transfer(SynchronousQueue.java:333)\n       at java.util.concurrent.SynchronousQueue.poll(SynchronousQueue.java:908)\n       at java.util.concurrent.ThreadPoolExecutor.getTask(ThreadPoolExecutor.java:1057)\n       at java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1118)\n       at java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:607)\n       at com.google.firebase.concurrent.CustomThreadFactory.lambda$newThread$0(CustomThreadFactory.java)\n       at java.lang.Thread.run(Thread.java:761)\n\nFirebase Blocking Thread #2:\n       at java.lang.Object.wait(Object.java)\n       at java.lang.Thread.parkFor$(Thread.java:2127)\n       at sun.misc.Unsafe.park(Unsafe.java:325)\n       at java.util.concurrent.locks.LockSupport.parkNanos(LockSupport.java:201)\n       at java.util.concurrent.SynchronousQueue$TransferStack.awaitFulfill(SynchronousQueue.java:432)\n       at java.util.concurrent.SynchronousQueue$TransferStack.transfer(SynchronousQueue.java:333)\n       at java.util.concurrent.SynchronousQueue.poll(SynchronousQueue.java:908)\n       at java.util.concurrent.ThreadPoolExecutor.getTask(ThreadPoolExecutor.java:1057)\n       at java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1118)\n       at java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:607)\n       at com.google.firebase.concurrent.CustomThreadFactory.lambda$newThread$0(CustomThreadFactory.java)\n       at java.lang.Thread.run(Thread.java:761)\n\nDefaultDispatcher-worker-4:\n       at java.lang.Object.wait(Object.java)\n       at java.lang.Thread.parkFor$(Thread.java:2127)\n       at sun.misc.Unsafe.park(Unsafe.java:325)\n       at java.util.concurrent.locks.LockSupport.parkNanos(LockSupport.java:324)\n       at kotlinx.coroutines.scheduling.CoroutineScheduler$Worker.park(CoroutineScheduler.java)\n       at kotlinx.coroutines.scheduling.CoroutineScheduler$Worker.tryPark(CoroutineScheduler.java)\n       at kotlinx.coroutines.scheduling.CoroutineScheduler$Worker.runWorker(CoroutineScheduler.java)\n       at kotlinx.coroutines.scheduling.CoroutineScheduler$Worker.run(CoroutineScheduler.java)\n\nflutter-worker-0:\n       at java.lang.Object.wait(Object.java)\n       at java.lang.Thread.parkFor$(Thread.java:2127)\n       at sun.misc.Unsafe.park(Unsafe.java:325)\n       at java.util.concurrent.locks.LockSupport.parkNanos(LockSupport.java:201)\n       at java.util.concurrent.SynchronousQueue$TransferStack.awaitFulfill(SynchronousQueue.java:432)\n       at java.util.concurrent.SynchronousQueue$TransferStack.transfer(SynchronousQueue.java:333)\n       at java.util.concurrent.SynchronousQueue.poll(SynchronousQueue.java:908)\n       at java.util.concurrent.ThreadPoolExecutor.getTask(ThreadPoolExecutor.java:1057)\n       at java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1118)\n       at java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:607)\n       at java.lang.Thread.run(Thread.java:761)\n\nFirebase Blocking Thread #4:\n       at java.lang.Object.wait(Object.java)\n       at java.lang.Thread.parkFor$(Thread.java:2127)\n       at sun.misc.Unsafe.park(Unsafe.java:325)\n       at java.util.concurrent.locks.LockSupport.parkNanos(LockSupport.java:201)\n       at java.util.concurrent.SynchronousQueue$TransferStack.awaitFulfill(SynchronousQueue.java:432)\n       at java.util.concurrent.SynchronousQueue$TransferStack.transfer(SynchronousQueue.java:333)\n       at java.util.concurrent.SynchronousQueue.poll(SynchronousQueue.java:908)\n       at java.util.concurrent.ThreadPoolExecutor.getTask(ThreadPoolExecutor.java:1057)\n       at java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1118)\n       at java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:607)\n       at com.google.firebase.concurrent.CustomThreadFactory.lambda$newThread$0(CustomThreadFactory.java)\n       at java.lang.Thread.run(Thread.java:761)\n\nFirebase Background Thread #1:\n       at java.lang.Object.wait(Object.java)\n       at java.lang.Thread.parkFor$(Thread.java:2127)\n       at sun.misc.Unsafe.park(Unsafe.java:325)\n       at java.util.concurrent.locks.LockSupport.park(LockSupport.java:161)\n       at java.util.concurrent.locks.AbstractQueuedSynchronizer$ConditionObject.await(AbstractQueuedSynchronizer.java:2035)\n       at java.util.concurrent.LinkedBlockingQueue.take(LinkedBlockingQueue.java:413)\n       at java.util.concurrent.ThreadPoolExecutor.getTask(ThreadPoolExecutor.java:1058)\n       at java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1118)\n       at java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:607)\n       at com.google.firebase.concurrent.CustomThreadFactory.lambda$newThread$0(CustomThreadFactory.java)\n       at java.lang.Thread.run(Thread.java:761)\n\nHeapTaskDaemon:\n       at dalvik.system.VMRuntime.runHeapTasks(VMRuntime.java)\n       at java.lang.Daemons$HeapTaskDaemon.run(Daemons.java:433)\n       at java.lang.Thread.run(Thread.java:761)\n\npool-2-thread-1:\n       at java.lang.Object.wait(Object.java)\n       at java.lang.Thread.parkFor$(Thread.java:2127)\n       at sun.misc.Unsafe.park(Unsafe.java:325)\n       at java.util.concurrent.locks.LockSupport.park(LockSupport.java:161)\n       at java.util.concurrent.locks.AbstractQueuedSynchronizer$ConditionObject.await(AbstractQueuedSynchronizer.java:2035)\n       at java.util.concurrent.LinkedBlockingQueue.take(LinkedBlockingQueue.java:413)\n       at java.util.concurrent.ThreadPoolExecutor.getTask(ThreadPoolExecutor.java:1058)\n       at java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1118)\n       at java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:607)\n       at java.lang.Thread.run(Thread.java:761)\n\nFirebase Blocking Thread #0:\n       at java.lang.Object.wait(Object.java)\n       at java.lang.Thread.parkFor$(Thread.java:2127)\n       at sun.misc.Unsafe.park(Unsafe.java:325)\n       at java.util.concurrent.locks.LockSupport.parkNanos(LockSupport.java:201)\n       at java.util.concurrent.SynchronousQueue$TransferStack.awaitFulfill(SynchronousQueue.java:432)\n       at java.util.concurrent.SynchronousQueue$TransferStack.transfer(SynchronousQueue.java:333)\n       at java.util.concurrent.SynchronousQueue.poll(SynchronousQueue.java:908)\n       at java.util.concurrent.ThreadPoolExecutor.getTask(ThreadPoolExecutor.java:1057)\n       at java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1118)\n       at java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:607)\n       at com.google.firebase.concurrent.CustomThreadFactory.lambda$newThread$0(CustomThreadFactory.java)\n       at java.lang.Thread.run(Thread.java:761)\n\nDefaultDispatcher-worker-3:\n       at java.lang.Object.wait(Object.java)\n       at java.lang.Thread.parkFor$(Thread.java:2127)\n       at sun.misc.Unsafe.park(Unsafe.java:325)\n       at java.util.concurrent.locks.LockSupport.parkNanos(LockSupport.java:324)\n       at kotlinx.coroutines.scheduling.CoroutineScheduler$Worker.park(CoroutineScheduler.java)\n       at kotlinx.coroutines.scheduling.CoroutineScheduler$Worker.tryPark(CoroutineScheduler.java)\n       at kotlinx.coroutines.scheduling.CoroutineScheduler$Worker.runWorker(CoroutineScheduler.java)\n       at kotlinx.coroutines.scheduling.CoroutineScheduler$Worker.run(CoroutineScheduler.java)\n\nFinalizerDaemon:\n       at java.lang.Object.wait(Object.java)\n       at java.lang.Object.wait(Object.java:407)\n       at java.lang.ref.ReferenceQueue.remove(ReferenceQueue.java:188)\n       at java.lang.ref.ReferenceQueue.remove(ReferenceQueue.java:209)\n       at java.lang.Daemons$FinalizerDaemon.run(Daemons.java:204)\n       at java.lang.Thread.run(Thread.java:761)\n\nFirebase Background Thread #0:\n       at java.lang.Object.wait(Object.java)\n       at java.lang.Thread.parkFor$(Thread.java:2127)\n       at sun.misc.Unsafe.park(Unsafe.java:325)\n       at java.util.concurrent.locks.LockSupport.park(LockSupport.java:161)\n       at java.util.concurrent.locks.AbstractQueuedSynchronizer$ConditionObject.await(AbstractQueuedSynchronizer.java:2035)\n       at java.util.concurrent.LinkedBlockingQueue.take(LinkedBlockingQueue.java:413)\n       at java.util.concurrent.ThreadPoolExecutor.getTask(ThreadPoolExecutor.java:1058)\n       at java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1118)\n       at java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:607)\n       at com.google.firebase.concurrent.CustomThreadFactory.lambda$newThread$0(CustomThreadFactory.java)\n       at java.lang.Thread.run(Thread.java:761)\n\nFirebase-Messaging-Init:\n       at java.lang.Object.wait(Object.java)\n       at java.lang.Thread.parkFor$(Thread.java:2127)\n       at sun.misc.Unsafe.park(Unsafe.java:325)\n       at java.util.concurrent.locks.LockSupport.park(LockSupport.java:161)\n       at java.util.concurrent.locks.AbstractQueuedSynchronizer.parkAndCheckInterrupt(AbstractQueuedSynchronizer.java:840)\n       at java.util.concurrent.locks.AbstractQueuedSynchronizer.doAcquireSharedInterruptibly(AbstractQueuedSynchronizer.java:994)\n       at java.util.concurrent.locks.AbstractQueuedSynchronizer.acquireSharedInterruptibly(AbstractQueuedSynchronizer.java:1303)\n       at java.util.concurrent.CountDownLatch.await(CountDownLatch.java:203)\n       at com.google.android.gms.tasks.zzad.zza(SourceFile)\n       at com.google.android.gms.tasks.Tasks.await(SourceFile)\n       at com.google.firebase.messaging.FirebaseMessaging.blockingGetToken(FirebaseMessaging.java)\n       at com.google.firebase.messaging.FirebaseMessaging.lambda$getToken$7(FirebaseMessaging.java)\n       at java.util.concurrent.Executors$RunnableAdapter.call(Executors.java:428)\n       at java.util.concurrent.FutureTask.run(FutureTask.java:237)\n       at java.util.concurrent.ScheduledThreadPoolExecutor$ScheduledFutureTask.run(ScheduledThreadPoolExecutor.java:272)\n       at java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1133)\n       at java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:607)\n       at com.google.android.gms.common.util.concurrent.zza.run(zza.java)\n       at java.lang.Thread.run(Thread.java:761)\n\nFirebase Blocking Thread #3:\n       at java.lang.Object.wait(Object.java)\n       at java.lang.Thread.parkFor$(Thread.java:2127)\n       at sun.misc.Unsafe.park(Unsafe.java:325)\n       at java.util.concurrent.locks.LockSupport.parkNanos(LockSupport.java:201)\n       at java.util.concurrent.SynchronousQueue$TransferStack.awaitFulfill(SynchronousQueue.java:432)\n       at java.util.concurrent.SynchronousQueue$TransferStack.transfer(SynchronousQueue.java:333)\n       at java.util.concurrent.SynchronousQueue.poll(SynchronousQueue.java:908)\n       at java.util.concurrent.ThreadPoolExecutor.getTask(ThreadPoolExecutor.java:1057)\n       at java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1118)\n       at java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:607)\n       at com.google.firebase.concurrent.CustomThreadFactory.lambda$newThread$0(CustomThreadFactory.java)\n       at java.lang.Thread.run(Thread.java:761)\n\nAsyncTask #2:\n       at com.android.org.conscrypt.NativeCrypto.SSL_read(NativeCrypto.java)\n       at com.android.org.conscrypt.OpenSSLSocketImpl$SSLInputStream.read(OpenSSLSocketImpl.java:758)\n       at com.android.okhttp.okio.Okio$2.read(Okio.java:136)\n       at com.android.okhttp.okio.AsyncTimeout$2.read(AsyncTimeout.java:211)\n       at com.android.okhttp.okio.RealBufferedSource.indexOf(RealBufferedSource.java:306)\n       at com.android.okhttp.okio.RealBufferedSource.indexOf(RealBufferedSource.java:300)\n       at com.android.okhttp.okio.RealBufferedSource.readUtf8LineStrict(RealBufferedSource.java:196)\n       at com.android.okhttp.internal.http.HttpConnection.readResponse(HttpConnection.java:191)\n       at com.android.okhttp.internal.http.HttpTransport.readResponseHeaders(HttpTransport.java:80)\n       at com.android.okhttp.internal.http.HttpEngine.readNetworkResponse(HttpEngine.java:906)\n       at com.android.okhttp.internal.http.HttpEngine.readResponse(HttpEngine.java:782)\n       at com.android.okhttp.internal.huc.HttpURLConnectionImpl.execute(HttpURLConnectionImpl.java:463)\n       at com.android.okhttp.internal.huc.HttpURLConnectionImpl.getResponse(HttpURLConnectionImpl.java:405)\n       at com.android.okhttp.internal.huc.HttpURLConnectionImpl.getResponseCode(HttpURLConnectionImpl.java:521)\n       at com.android.okhttp.internal.huc.DelegatingHttpsURLConnection.getResponseCode(DelegatingHttpsURLConnection.java:105)\n       at com.android.okhttp.internal.huc.HttpsURLConnectionImpl.getResponseCode(HttpsURLConnectionImpl.java)\n       at com.facebook.GraphResponse$Companion.fromHttpConnection$facebook_core_release(GraphResponse.java)\n       at com.facebook.GraphRequest$Companion.executeConnectionAndWait(GraphRequest.java)\n       at com.facebook.GraphRequest$Companion.executeBatchAndWait(GraphRequest.java)\n       at com.facebook.GraphRequest$Companion.executeBatchAndWait(GraphRequest.java)\n       at com.facebook.GraphRequest$Companion.executeBatchAndWait(GraphRequest.java)\n       at com.facebook.GraphRequest$Companion.executeAndWait(GraphRequest.java)\n       at com.facebook.GraphRequest.executeAndWait(GraphRequest.java)\n       at com.facebook.internal.FetchedAppSettingsManager.getAppSettingsQueryResponse(FetchedAppSettingsManager.java)\n       at com.facebook.internal.FetchedAppSettingsManager.loadAppSettingsAsync$lambda-0(FetchedAppSettingsManager.java)\n       at java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1133)\n       at java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:607)\n       at java.lang.Thread.run(Thread.java:761)\n\nTAG:\n       at java.lang.Object.wait(Object.java)\n       at java.lang.Thread.parkFor$(Thread.java:2127)\n       at sun.misc.Unsafe.park(Unsafe.java:325)\n       at java.util.concurrent.locks.LockSupport.park(LockSupport.java:161)\n       at java.util.concurrent.locks.AbstractQueuedSynchronizer.parkAndCheckInterrupt(AbstractQueuedSynchronizer.java:840)\n       at java.util.concurrent.locks.AbstractQueuedSynchronizer.doAcquireSharedInterruptibly(AbstractQueuedSynchronizer.java:994)\n       at java.util.concurrent.locks.AbstractQueuedSynchronizer.acquireSharedInterruptibly(AbstractQueuedSynchronizer.java:1303)\n       at java.util.concurrent.CountDownLatch.await(CountDownLatch.java:203)\n       at com.google.android.gms.tasks.zzad.zza(SourceFile)\n       at com.google.android.gms.tasks.Tasks.await(SourceFile)\n       at com.google.firebase.messaging.FirebaseMessaging.blockingGetToken(FirebaseMessaging.java)\n       at com.google.firebase.messaging.SyncTask.maybeRefreshToken(SourceFile)\n       at com.google.firebase.messaging.SyncTask.run(SourceFile)\n       at java.util.concurrent.Executors$RunnableAdapter.call(Executors.java:428)\n       at java.util.concurrent.FutureTask.run(FutureTask.java:237)\n       at java.util.concurrent.ScheduledThreadPoolExecutor$ScheduledFutureTask.run(ScheduledThreadPoolExecutor.java:272)\n       at java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1133)\n       at java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:607)\n       at com.google.android.gms.common.util.concurrent.zza.run(zza.java)\n       at java.lang.Thread.run(Thread.java:761)\n\nScionFrontendApi:\n       at java.lang.Object.wait(Object.java)\n       at java.lang.Thread.parkFor$(Thread.java:2127)\n       at sun.misc.Unsafe.park(Unsafe.java:325)\n       at java.util.concurrent.locks.LockSupport.parkNanos(LockSupport.java:201)\n       at java.util.concurrent.locks.AbstractQueuedSynchronizer$ConditionObject.awaitNanos(AbstractQueuedSynchronizer.java:2077)\n       at java.util.concurrent.LinkedBlockingQueue.poll(LinkedBlockingQueue.java:438)\n       at java.util.concurrent.ThreadPoolExecutor.getTask(ThreadPoolExecutor.java:1057)\n       at java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1118)\n       at java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:607)\n       at java.lang.Thread.run(Thread.java:761)\n\npool-17-thread-1:\n       at java.lang.Object.wait(Object.java)\n       at java.lang.Thread.parkFor$(Thread.java:2127)\n       at sun.misc.Unsafe.park(Unsafe.java:325)\n       at java.util.concurrent.locks.LockSupport.park(LockSupport.java:161)\n       at java.util.concurrent.locks.AbstractQueuedSynchronizer$ConditionObject.await(AbstractQueuedSynchronizer.java:2035)\n       at java.util.concurrent.ScheduledThreadPoolExecutor$DelayedWorkQueue.take(ScheduledThreadPoolExecutor.java:1091)\n       at java.util.concurrent.ScheduledThreadPoolExecutor$DelayedWorkQueue.take(ScheduledThreadPoolExecutor.java:1084)\n       at java.util.concurrent.ThreadPoolExecutor.getTask(ThreadPoolExecutor.java:1058)\n       at java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1118)\n       at java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:607)\n       at java.lang.Thread.run(Thread.java:761)\n\nFirebase Background Thread #2:\n       at java.lang.Object.wait(Object.java)\n       at java.lang.Thread.parkFor$(Thread.java:2127)\n       at sun.misc.Unsafe.park(Unsafe.java:325)\n       at java.util.concurrent.locks.LockSupport.park(LockSupport.java:161)\n       at java.util.concurrent.locks.AbstractQueuedSynchronizer$ConditionObject.await(AbstractQueuedSynchronizer.java:2035)\n       at java.util.concurrent.LinkedBlockingQueue.take(LinkedBlockingQueue.java:413)\n       at java.util.concurrent.ThreadPoolExecutor.getTask(ThreadPoolExecutor.java:1058)\n       at java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1118)\n       at java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:607)\n       at com.google.firebase.concurrent.CustomThreadFactory.lambda$newThread$0(CustomThreadFactory.java)\n       at java.lang.Thread.run(Thread.java:761)\n\nFinalizerWatchdogDaemon:\n       at java.lang.Thread.sleep(Thread.java)\n       at java.lang.Thread.sleep(Thread.java:371)\n       at java.lang.Thread.sleep(Thread.java:313)\n       at java.lang.Daemons$FinalizerWatchdogDaemon.sleepFor(Daemons.java:314)\n       at java.lang.Daemons$FinalizerWatchdogDaemon.waitForFinalization(Daemons.java:336)\n       at java.lang.Daemons$FinalizerWatchdogDaemon.run(Daemons.java:253)\n       at java.lang.Thread.run(Thread.java:761)\n\nGmsDynamite:\n       at java.lang.Object.wait(Object.java)\n       at com.google.android.gms.dynamite.zza.run(zza.java)\n\nMeasurement Worker:\n       at android.os.BinderProxy.transactNative(Binder.java)\n       at android.os.BinderProxy.transact(Binder.java:617)\n       at com.bluestacks.os.IBstFilterAppsService$Stub$Proxy.getGameDefaultSetting(IBstFilterAppsService.java:2577)\n       at com.bluestacks.os.BstFilterAppsManager.getGameDefaultSetting(BstFilterAppsManager.java:1562)\n       at android.app.SharedPreferencesImpl.setBstGameDefaultSetting(SharedPreferencesImpl.java:284)\n       at android.app.SharedPreferencesImpl.getString(SharedPreferencesImpl.java:255)\n       at com.google.android.gms.measurement.internal.zzha.zzo(zzha.java)\n       at com.google.android.gms.measurement.internal.zzgg.zza(zzgg.java)\n       at com.google.android.gms.measurement.internal.zzls.zzc(zzls.java)\n       at com.google.android.gms.measurement.internal.zzls.zzad(zzls.java)\n       at com.google.android.gms.measurement.internal.zzjq.zzan(zzjq.java)\n       at com.google.android.gms.measurement.internal.zzhy.zza(zzhy.java)\n       at com.google.android.gms.measurement.internal.zzid.run(zzid.java)\n       at java.util.concurrent.Executors$RunnableAdapter.call(Executors.java:428)\n       at java.util.concurrent.FutureTask.run(FutureTask.java:237)\n       at com.google.android.gms.measurement.internal.zzhz.run(zzhz.java)\n\nDefaultDispatcher-worker-2:\n       at java.lang.Object.wait(Object.java)\n       at java.lang.Thread.parkFor$(Thread.java:2127)\n       at sun.misc.Unsafe.park(Unsafe.java:325)\n       at java.util.concurrent.locks.LockSupport.parkNanos(LockSupport.java:324)\n       at kotlinx.coroutines.scheduling.CoroutineScheduler$Worker.park(CoroutineScheduler.java)\n       at kotlinx.coroutines.scheduling.CoroutineScheduler$Worker.tryPark(CoroutineScheduler.java)\n       at kotlinx.coroutines.scheduling.CoroutineScheduler$Worker.runWorker(CoroutineScheduler.java)\n       at kotlinx.coroutines.scheduling.CoroutineScheduler$Worker.run(CoroutineScheduler.java)\n\nFirebase-Messaging-Topics-Io:\n       at java.lang.Object.wait(Object.java)\n       at java.lang.Thread.parkFor$(Thread.java:2127)\n       at sun.misc.Unsafe.park(Unsafe.java:325)\n       at java.util.concurrent.locks.LockSupport.park(LockSupport.java:161)\n       at java.util.concurrent.locks.AbstractQueuedSynchronizer$ConditionObject.await(AbstractQueuedSynchronizer.java:2035)\n       at java.util.concurrent.ScheduledThreadPoolExecutor$DelayedWorkQueue.take(ScheduledThreadPoolExecutor.java:1091)\n       at java.util.concurrent.ScheduledThreadPoolExecutor$DelayedWorkQueue.take(ScheduledThreadPoolExecutor.java:1084)\n       at java.util.concurrent.ThreadPoolExecutor.getTask(ThreadPoolExecutor.java:1058)\n       at java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1118)\n       at java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:607)\n       at com.google.android.gms.common.util.concurrent.zza.run(zza.java)\n       at java.lang.Thread.run(Thread.java:761)\n``` ",
+    "createdAt": "2025-01-24T15:11:09Z"
+  },
+  {
+    "id": 1348,
+    "sender": "Tom3652",
+    "content": "Am i missing something here or there it's the same issue than #151638 or #144291? \n\nThis is still a critical issue in `flutter: 3.27.3` unfortunately, users are complaining to not be able to launch the app despite Google Play allow them to install it.\n\nThe only log that has changed in `flutter: 3.27.3` is : \n\n```\nFatal Exception: java.lang.RuntimeException: Unable to start activity ComponentInfo{com.myappname.mypackagename/com.myappname.MainActivity}: java.lang.RuntimeException: java.util.concurrent.ExecutionException: E0.O: Could not find 'libflutter.so'. Looked for: [x86, armeabi-v7a, armeabi], but only found: [].\n       at android.app.ActivityThread.performLaunchActivity(ActivityThread.java:2668)\n       at android.app.ActivityThread.handleLaunchActivity(ActivityThread.java:2729)\n       at android.app.ActivityThread.-wrap12(ActivityThread.java)\n       at android.app.ActivityThread$H.handleMessage(ActivityThread.java:1480)\n       at android.os.Handler.dispatchMessage(Handler.java:102)\n       at android.os.Looper.loop(Looper.java:154)\n       at android.app.ActivityThread.main(ActivityThread.java:6166)\n       at java.lang.reflect.Method.invoke(Method.java)\n       at com.android.internal.os.ZygoteInit$MethodAndArgsCaller.run(ZygoteInit.java:893)\n       at com.android.internal.os.ZygoteInit.main(ZygoteInit.java:783)\n```\n",
+    "createdAt": "2025-01-24T17:08:36Z"
+  },
+  {
+    "id": 1349,
+    "sender": "Kppro",
+    "content": "We are also having this issue now (Flutter version 3.27.3)\n\nDevices\nPixel 6 Pro",
+    "createdAt": "2025-02-12T08:29:23Z"
+  },
+  {
+    "id": 1350,
+    "sender": "DimaDDM",
+    "content": "![image](https://github.com/user-attachments/assets/65b4fb7b-d8a7-494d-aa65-3a41d3a0de51)\n\nIt's not only flutter problem, it's Android Pixel problem too",
+    "createdAt": "2025-02-12T08:39:06Z"
+  },
+  {
+    "id": 1351,
+    "sender": "rydwan10",
+    "content": "Still occurred on Flutter : 3.27.3 - 3.27.4. is this Flutter issue or just emulator issue? ",
+    "createdAt": "2025-02-12T09:24:42Z"
+  },
+  {
+    "id": 1352,
+    "sender": "Lakshay-00",
+    "content": "Cf\n",
+    "createdAt": "2025-02-27T15:44:23Z"
+  },
+  {
+    "id": 1353,
+    "sender": "Priyantha-Kingslake",
+    "content": "connecting the device to my pc with developer mode enabled and then running `flutter run`  or `flutter run --release` works with no issue. But when I create apk with `flutter build apk --release` and use package installer to install it, The app crashes on launch.\n\n```\nE/FlutterLoader(23194): java.util.concurrent.ExecutionException: f2.a: Could not find 'libflutter.so'. Looked for: [armeabi-v7a, armeabi], but only found: [arm64-v8a].\nE/FlutterLoader(23194):         at java.util.concurrent.FutureTask.report(FutureTask.java:122)\nE/FlutterLoader(23194):         at java.util.concurrent.FutureTask.get(FutureTask.java:191)\nE/FlutterLoader(23194):         at k5.f.a(SourceFile:53)\nE/FlutterLoader(23194):         at h5.g.<init>(SourceFile:32)\nE/FlutterLoader(23194):         at g5.c.onCreate(SourceFile:602)\nE/FlutterLoader(23194):         at android.app.Activity.performCreate(Activity.java:8975)\nE/FlutterLoader(23194):         at android.app.Activity.performCreate(Activity.java:8944)\nE/FlutterLoader(23194):         at android.app.Instrumentation.callActivityOnCreate(Instrumentation.java:1456)\nE/FlutterLoader(23194):         at android.app.ActivityThread.performLaunchActivity(ActivityThread.java:4146)\nE/FlutterLoader(23194):         at android.app.ActivityThread.handleLaunchActivity(ActivityThread.java:4322)\nE/FlutterLoader(23194):         at android.app.servertransaction.LaunchActivityItem.execute(LaunchActivityItem.java:103)\nE/FlutterLoader(23194):         at android.app.servertransaction.TransactionExecutor.executeCallbacks(TransactionExecutor.java:139)\nE/FlutterLoader(23194):         at android.app.servertransaction.TransactionExecutor.execute(TransactionExecutor.java:96)\nE/FlutterLoader(23194):         at android.app.ActivityThread$H.handleMessage(ActivityThread.java:2685)\nE/FlutterLoader(23194):         at android.os.Handler.dispatchMessage(Handler.java:106)\nE/FlutterLoader(23194):         at android.os.Looper.loopOnce(Looper.java:230)\nE/FlutterLoader(23194):         at android.os.Looper.loop(Looper.java:319)\nE/FlutterLoader(23194):         at android.app.ActivityThread.main(ActivityThread.java:8919)\nE/FlutterLoader(23194):         at java.lang.reflect.Method.invoke(Native Method)\nE/FlutterLoader(23194):         at com.android.internal.os.RuntimeInit$MethodAndArgsCaller.run(RuntimeInit.java:578)\nE/FlutterLoader(23194):         at com.android.internal.os.ZygoteInit.main(ZygoteInit.java:1103)\nE/FlutterLoader(23194): Caused by: f2.a: Could not find 'libflutter.so'. Looked for: [armeabi-v7a, armeabi], but only found: [arm64-v8a].        \nE/FlutterLoader(23194):         at f2.c.b(SourceFile:414)\nE/FlutterLoader(23194):         at io.flutter.embedding.engine.FlutterJNI.loadLibrary(SourceFile:33)\nE/FlutterLoader(23194):         at k5.c.call(SourceFile:19)\nE/FlutterLoader(23194):         at java.util.concurrent.FutureTask.run(FutureTask.java:264)\nE/FlutterLoader(23194):         at java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1145)\nE/FlutterLoader(23194):         at java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:644)\nE/FlutterLoader(23194):         at java.lang.Thread.run(Thread.java:1012)\nE/AndroidRuntime(23194): FATAL EXCEPTION: main\nE/AndroidRuntime(23194): Process: com.kingslakeblue.tms_flutter, PID: 23194\nE/AndroidRuntime(23194): java.lang.RuntimeException: Unable to start activity ComponentInfo{com.kingslakeblue.tms_flutter/com.kingslakeblue.tms_flutter.MainActivity}: java.lang.RuntimeException: java.util.concurrent.ExecutionException: f2.a: Could not find 'libflutter.so'. Looked for: [armeabi-v7a, armeabi], but only found: [arm64-v8a].\nE/AndroidRuntime(23194):        at android.app.ActivityThread.performLaunchActivity(ActivityThread.java:4164)\nE/AndroidRuntime(23194):        at android.app.ActivityThread.handleLaunchActivity(ActivityThread.java:4322)\nE/AndroidRuntime(23194):        at android.app.servertransaction.LaunchActivityItem.execute(LaunchActivityItem.java:103)\nE/AndroidRuntime(23194):        at android.app.servertransaction.TransactionExecutor.executeCallbacks(TransactionExecutor.java:139)\nE/AndroidRuntime(23194):        at android.app.servertransaction.TransactionExecutor.execute(TransactionExecutor.java:96)\nE/AndroidRuntime(23194):        at android.app.ActivityThread$H.handleMessage(ActivityThread.java:2685)\nE/AndroidRuntime(23194):        at android.os.Handler.dispatchMessage(Handler.java:106)\nE/AndroidRuntime(23194):        at android.os.Looper.loopOnce(Looper.java:230)\nE/AndroidRuntime(23194):        at android.os.Looper.loop(Looper.java:319)\nE/AndroidRuntime(23194):        at android.app.ActivityThread.main(ActivityThread.java:8919)\nE/AndroidRuntime(23194):        at java.lang.reflect.Method.invoke(Native Method)\nE/AndroidRuntime(23194):        at com.android.internal.os.RuntimeInit$MethodAndArgsCaller.run(RuntimeInit.java:578)\nE/AndroidRuntime(23194):        at com.android.internal.os.ZygoteInit.main(ZygoteInit.java:1103)\nE/AndroidRuntime(23194): Caused by: java.lang.RuntimeException: java.util.concurrent.ExecutionException: f2.a: Could not find 'libflutter.so'. Looked for: [armeabi-v7a, armeabi], but only found: [arm64-v8a].\nE/AndroidRuntime(23194):        at k5.f.a(SourceFile:546)\nE/AndroidRuntime(23194):        at h5.g.<init>(SourceFile:32)\nE/AndroidRuntime(23194):        at g5.c.onCreate(SourceFile:602)\nE/AndroidRuntime(23194):        at android.app.Activity.performCreate(Activity.java:8975)\nE/AndroidRuntime(23194):        at android.app.Instrumentation.callActivityOnCreate(Instrumentation.java:1456)\nE/AndroidRuntime(23194):        at android.app.ActivityThread.performLaunchActivity(ActivityThread.java:4146)\nE/AndroidRuntime(23194):        ... 12 more\nE/AndroidRuntime(23194): Caused by: java.util.concurrent.ExecutionException: f2.a: Could not find 'libflutter.so'. Looked for: [armeabi-v7a, armeabi], but only found: [arm64-v8a].  \nE/AndroidRuntime(23194):        at java.util.concurrent.FutureTask.report(FutureTask.java:122)\nE/AndroidRuntime(23194):        at java.util.concurrent.FutureTask.get(FutureTask.java:191)\nE/AndroidRuntime(23194):        at k5.f.a(SourceFile:53)\nE/AndroidRuntime(23194):        ... 18 more\nE/AndroidRuntime(23194): Caused by: f2.a: Could not find 'libflutter.so'. Looked for: [armeabi-v7a, armeabi], but only found: [arm64-v8a].\nE/AndroidRuntime(23194):        at f2.c.b(SourceFile:414)\nE/AndroidRuntime(23194):        at io.flutter.embedding.engine.FlutterJNI.loadLibrary(SourceFile:33)\nE/AndroidRuntime(23194):        at k5.c.call(SourceFile:19)\nE/AndroidRuntime(23194):        at java.util.concurrent.FutureTask.run(FutureTask.java:264)\nE/AndroidRuntime(23194):        at java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1145)\nE/AndroidRuntime(23194):        at java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:644)\nE/AndroidRuntime(23194):        at java.lang.Thread.run(Thread.java:1012)\n```\n\nSamsung Galaxy A13",
+    "createdAt": "2025-03-04T06:00:29Z"
+  },
+  {
+    "id": 1354,
+    "sender": "Priyantha-Kingslake",
+    "content": "> [@Priyantha-Kingslake](https://github.com/Priyantha-Kingslake) you are the very few who are able to reproduced the issue on a development device, Flutter team [@darshankawar](https://github.com/darshankawar) should work with you to get the reproduction details, e.g. Device exact details, Android version, whether the device is rooted etc, this will immensely help Flutter team to finally fix this never ending issue\n\nI was working on VSCode and had no issues for running on debug mode, only got the issue installing via the apk. I got the stacktrace only once, and after that I couldn't get it again. However, I tried to run again on Android studio and then it showed the error. \n\nI solved the issue by following ChatGPT instructions and adding the following to `android/app/build.gradle`\n```\ndefaultConfig {\n    ...\n    ndk {\n        abiFilters 'armeabi-v7a', 'armeabi', 'arm64-v8a', 'x86_64'\n    }\n}\n```\n\nNote that I had the application running without issue on 4 different devices and only had the issue on a single device. After the fix the issue is now solved on that specific device, But I'm still uncertain that the real issue is solved.\n\nAlso found this article about a fix but I'm reluctant to do that as it seems to build the app as a 32bit even for 64bit capable devices. [Link](https://medium.com/codechai/flutter-app-couldnt-find-libflutter-so-c95ad81cbccd)\n\nWould love to help more if I can.\n\n\n**Device details**\n> Samsung Galaxy A13\n> Android 14\n> Not rooted",
+    "createdAt": "2025-03-04T09:46:38Z"
+  },
+  {
+    "id": 1355,
+    "sender": "DimaDDM",
+    "content": "> > [@Priyantha-Kingslake](https://github.com/Priyantha-Kingslake) \\\n> > Not rooted\n\nDo you think this problem may be related to a lack of internal or external memory on your device, and/or RAM at the time of the crash?\n\n",
+    "createdAt": "2025-03-05T12:14:53Z"
+  },
+  {
+    "id": 1356,
+    "sender": "PriyanthaFdo",
+    "content": "No, I don't think it was a memory issue, because the console output had `java.util.concurrent.ExecutionException: f2.a: Could not find 'libflutter.so'. Looked for: [armeabi-v7a, armeabi], but only found: [arm64-v8a].` which does not seem to be anything related to memory. Also the app did run without issues when using debug mode in vscode.",
+    "createdAt": "2025-03-05T18:25:38Z"
+  },
+  {
+    "id": 1357,
+    "sender": "DimaDDM",
+    "content": "> No, I don't think it was a memory issue, because the console output had `java.util.concurrent.ExecutionException: f2.a: Could not find 'libflutter.so'. Looked for: [armeabi-v7a, armeabi], but only found: [arm64-v8a].` which does not seem to be anything related to memory. Also the app did run without issues when using debug mode in vscode.\n\n`extractNativeLibs` enabled in your manifest?\n\n`android.useDeprecatedNdk=true` in gradle properties?",
+    "createdAt": "2025-03-06T05:41:09Z"
+  },
+  {
+    "id": 1358,
+    "sender": "Priyantha-Kingslake",
+    "content": "> `extractNativeLibs` enabled in your manifest?\n\nNo. Anyway the app is working now even without it. Where should I include this and what does this do?",
+    "createdAt": "2025-03-06T05:44:59Z"
+  },
+  {
+    "id": 1359,
+    "sender": "DimaDDM",
+    "content": "> > `extractNativeLibs` enabled in your manifest?\n> \n> No. Anyway the app is working now even without it. Where should I include this and what does this do?\n\nhttps://developer.android.com/guide/topics/manifest/application-element#extractNativeLibs\n\nhttps://developer.android.com/build/releases/past-releases/agp-4-2-0-release-notes?_gl=1*1rv2aum*_up*MQ..*_ga*MTU4MTgxMzE2LjE3NDEyODczNDc.*_ga_6HH9YJMN9M*MTc0MTI4NzM0Ni4xLjAuMTc0MTI4NzM0Ni4wLjAuMTQ1ODY0NjExNQ..#compress-native-libs-dsl",
+    "createdAt": "2025-03-06T18:59:10Z"
+  },
+  {
+    "id": 1360,
+    "sender": "javiermrz",
+    "content": "Apparently, this is now happening on Pixel 6 Pro devices: https://github.com/flutter/flutter/issues/164426. \n\n**Edit:** on second thought, I also saw some other exception with weird logs (sign in retries in a pretty fast timelapse) from a Pixel 6 Pro, plus the free disk space on device is just 1.6 GB, which makes me think this is actually a Pixel 6 Pro emulator and someone is trying to break the app or something... \n\nAlthough I also have seen Pixel 6 Pro crashes in the link I mentioned, so who knows.",
+    "createdAt": "2025-03-31T07:43:52Z"
+  },
+  {
+    "id": 1361,
+    "sender": "hasanmhallak",
+    "content": "@javiermrz that's weird, I also notice that there is only 1.6GB of free space on Pixel 6 Pro. are you using firebase crash analytics? cause it might be  just a bug. I don't think that someone trying to break my app too :D",
+    "createdAt": "2025-04-07T11:16:52Z"
+  },
+  {
+    "id": 1362,
+    "sender": "javiermrz",
+    "content": "@hasanmhallak yep I'm using Crashlytics. Other devices show more than 1.6GB of free space, so it doesn't seem to be a bug. If it's happening to you too, I think that the most plausible explanation is that Google started testing with a Pixel 6 Pro emulator?",
+    "createdAt": "2025-04-07T11:50:14Z"
+  },
+  {
+    "id": 1363,
+    "sender": "hasanmhallak",
+    "content": "@javiermrz I've just checked our crash analytics, only have 3 crashes all using Pixel 6 Pro on Android 12 with 1.6 GB available spaces and 1.9 GB RAM. But the thing is all the 3 of them was way before google reviewed the app. this is weird TBH",
+    "createdAt": "2025-04-07T12:05:38Z"
+  },
+  {
+    "id": 1364,
+    "sender": "JuliaIncibit",
+    "content": "I get this error on a Pixel 6 Pro with Android 12 in crashlytics\nCould not find 'libflutter.so'. Looked for: [arm64-v8a, armeabi-v7a, armeabi], but only found: []\nOne with 1.88 GB RAM and 1.56 GB available space\nAnd one with 1.9 GB RAM and 1.57 GB available space\n~8 hours after releasing a new version to production\n\nCannot reproduce with an emulator",
+    "createdAt": "2025-04-17T07:34:39Z"
+  },
+  {
+    "id": 1365,
+    "sender": "JakobLichterfeld",
+    "content": "releated: https://github.com/flutter/flutter/pull/168293",
+    "createdAt": "2025-07-02T16:37:19Z"
+  },
+  {
+    "id": 1366,
+    "sender": "hasanmhallak",
+    "content": "still getting this error even with ABI filter.\n\nFlutter version: Channel stable, 3.32.6\nDevice: OnePlus8Pro running on Android 11.\n\n",
+    "createdAt": "2025-07-18T14:38:50Z"
+  },
+  {
+    "id": 1367,
+    "sender": "quyenlv-unicloud",
+    "content": "@hasanmhallak along with ABI filter, you also need https://github.com/flutter/flutter/pull/168293 so you can try 3.35 pre or wait it stable then try again",
+    "createdAt": "2025-08-07T07:33:03Z"
+  },
+  {
+    "id": 1368,
+    "sender": "zanderso",
+    "content": "Hi folks, at 300+ comments this thread has become a bit unmanageable for us. Due to the difficulty of distilling actionable feedback from this issue, and that the team has been making progress on individual instances as in https://github.com/flutter/flutter/pull/168293 noted above, I'm going to close this issue. If you are still experiencing this problem, please file a new issue with full details.",
+    "createdAt": "2026-01-23T16:09:52Z"
+  },
+  {
+    "id": 1369,
+    "sender": "absar",
+    "content": "In the age of Gemini, closing an issue on the grounds that 300+ comments are hard to distill feels unhelpful. Given that both Android and Flutter are maintained by Google, and that neither the suggested workarounds nor the fixes attempted by the Flutter team have addressed the problem, it’s concerning that a five year old issue remains unresolved but closed despite being among top 10 thumbs-upped issue",
+    "createdAt": "2026-01-23T16:26:32Z"
+  },
+  {
+    "id": 1370,
+    "sender": "DimaDDM",
+    "content": "Closed? Really? It's just disgusting.\n\nWho hired you, guys?",
+    "createdAt": "2026-01-23T16:34:53Z"
+  },
+  {
+    "id": 1371,
+    "sender": "matthew-carroll",
+    "content": "## iOS Dialog blur, brightness, and layout\n\nApproximated standard iOS alert blur and brightness. Implemented correct overflow layout behavior for iOS alert content and buttons. Added blend mode to BoxDecoration. (#15431)",
+    "createdAt": "2018-06-12T00:42:45Z"
+  },
+  {
+    "id": 1372,
+    "sender": "matthew-carroll",
+    "content": "@xster @gspencergoog - Here's a PR to look at how the desired iOS alert layout can be implemented.  From here if there are ideas to achieve a significantly less complex layout, and/or a much more performant layout, please chime in.\r\n\r\nThere are still changes to be made: barrier color, 2 button stacking, enter animation, etc.  But the blur, brightness, and layout alone should be a good step in the right direction.",
+    "createdAt": "2018-06-12T00:44:29Z"
+  },
+  {
+    "id": 1373,
+    "sender": "matthew-carroll",
+    "content": "@xster I just pushed the render object implementation.  As mentioned, this is a rough and messy implementation - will clean and test pending your review of the high level structure.",
+    "createdAt": "2018-06-14T21:51:48Z"
+  },
+  {
+    "id": 1374,
+    "sender": "matthew-carroll",
+    "content": "@xster @Hixie - I cleaned up the render object implementation.\r\n\r\nI still need to create the shared super class for LayoutId.",
+    "createdAt": "2018-06-15T21:44:55Z"
+  },
+  {
+    "id": 1375,
+    "sender": "Hixie",
+    "content": "@matthew-carroll can we close this PR while you work on it? (I'm trying to clear out our review queue.)",
+    "createdAt": "2018-07-03T23:28:38Z"
+  },
+  {
+    "id": 1376,
+    "sender": "matthew-carroll",
+    "content": "@Hixie I suppose you can.  But isn't this what the queue is supposed to have? The PR isn't done in any sense, so closing it seems odd.",
+    "createdAt": "2018-07-03T23:31:00Z"
+  },
+  {
+    "id": 1377,
+    "sender": "Hixie",
+    "content": "normally open PRs should be either waiting for review, waiting for bots, or waiting to land. If a PR has substantial work to be done it's generally better to close it, do the work, then open a new one when it's ready for review again. Otherwise the open \"idle\" PRs would drown out the ones waiting review (we have over 100 open PRs).",
+    "createdAt": "2018-07-04T00:08:59Z"
+  },
+  {
+    "id": 1378,
+    "sender": "matthew-carroll",
+    "content": "Ok, I'll close it for now.",
+    "createdAt": "2018-07-04T00:24:50Z"
+  },
+  {
+    "id": 1379,
+    "sender": "matthew-carroll",
+    "content": "@xster @gspencergoog @Hixie - After a series of refactors, test updates, and new test additions, I think this PR is once again ready for a legitimate review.",
+    "createdAt": "2018-07-19T20:23:31Z"
+  },
+  {
+    "id": 1380,
+    "sender": "matthew-carroll",
+    "content": "@Hixie @xster - Please let me know if there's anything else, or if we're good to merge.",
+    "createdAt": "2018-07-24T18:59:52Z"
+  },
+  {
+    "id": 1381,
+    "sender": "matthew-carroll",
+    "content": "@Hixie @xster I pushed another major set of changes to address the comments since the last push.  This push also includes some accessibility considerations regarding the dialog layout and button text wrapping in accessibility mode.",
+    "createdAt": "2018-08-07T00:15:48Z"
+  },
+  {
+    "id": 1382,
+    "sender": "Hixie",
+    "content": "This is an amazing patch. Just some minor nits.\r\n![LGTM](http://junkyard.damowmow.com/578)\r\n![LGTM](http://junkyard.damowmow.com/579)\r\n![LGTM](http://junkyard.damowmow.com/577)\r\n\r\nI recommend adding some golden file tests, just to make sure that we don't regress the beauty that this has achieved.",
+    "createdAt": "2018-08-08T23:31:07Z"
+  },
+  {
+    "id": 1383,
+    "sender": "xster",
+    "content": "LGTM!",
+    "createdAt": "2018-08-09T00:36:10Z"
+  },
+  {
+    "id": 1384,
+    "sender": "eseidelGoogle",
+    "content": "## Code Push / Hot Update / out of band updates\n\n_This is currently not on Flutter's roadmap, for reasons discussed in these comments: https://github.com/flutter/flutter/issues/14330#issuecomment-1279484739, https://github.com/flutter/flutter/issues/14330#issuecomment-485565194_\r\n\r\n_Code push for Flutter is available as a third-party product from shorebird.dev, as discussed in this comment: https://github.com/flutter/flutter/issues/14330#issuecomment-2099442823_\r\n\r\n_This comment gives a brief overview of various kinds of \"hot update\" features, and gives terminology for referring to them, which can help if you wish to communicate unambiguously about this topic: https://github.com/flutter/flutter/issues/14330#issuecomment-442274897_\r\n\r\n----\r\n\r\nOften people ask if Flutter supports \"code push\" or \"hot update\" or other similar names for pushing out-of-store updates to apps.\r\n\r\nCurrently we do not offer such a solution out of the box, but the primary blockers are not technological.  Flutter supports just in time (JIT) or interpreter based execution on both Android and iOS devices.  Currently we remove these libraries during --release builds, however we could easily include them.\r\n\r\nThe primary blockers to this feature resolve around current quirks of the iOS ecosystem which may require apps to use JavaScript for this kind of over-the-air-updates functionality.  Thankfully Dart supports compiling to JavaScript and so one could imagine several ways in which one compile parts of ones application to JavaScript instead of Dart and thus allows replacement of or augmentation with those parts in deployed binaries.\r\n\r\nThis bug tracks adding some supported solution like this.  I'll dupe all the other reports here.",
+    "createdAt": "2018-01-29T20:40:17Z"
+  },
+  {
+    "id": 1385,
+    "sender": "aam",
+    "content": "cc @floitschG ",
+    "createdAt": "2018-01-29T20:49:57Z"
+  },
+  {
+    "id": 1386,
+    "sender": "neiljaywarner",
+    "content": "also see\r\nhttps://groups.google.com/forum/#!msg/flutter-dev/YwzItp1pxJo/7bFGDLvxBAAJ\r\nI would be extremely excited about this. \r\n\r\nI would think this would be fairly important because this is might be one of the only truly distinctive features of react native, and unfortunately some companies might consider this a dealbreaker.\r\n\r\nUse cases\r\n- critical bugs, especially on iOS, especially for VIPs or urgent, time sensitive situations, business critical, and/or users that can't use the app at all for some reason.\r\n- More dynamic testing of features than staged rollouts\r\n- this would be a nice touch preparing for Fuschia, and/or Chromebooks. there could be scenarios where flutter is \"competing\" with web apps not just pwas/Kotlin/Swift/React/Xamarin/other-junkier-hybrid solutions",
+    "createdAt": "2018-02-14T05:44:59Z"
+  },
+  {
+    "id": 1387,
+    "sender": "yaronlevi",
+    "content": "In the epic battle that is Flutter vs React Native, code push is one hell of a tool (:\r\nAs an RN dev I can't stress enough the importance of this feature. Many will pass Flutter just because the absence of hot pushes. Once you get accustomed to quickly fix bug and push new features you can't go back.",
+    "createdAt": "2018-03-05T13:07:48Z"
+  },
+  {
+    "id": 1388,
+    "sender": "badoet",
+    "content": "compiling to javascript path will diminish the dart advantages right?\r\ni found some native app used to be able to have code reload using Rollout.io but it was blocked by Apple: https://news.ycombinator.com/item?id=13817557\r\nlooking at this pattern, seems like flutter will not have a seamless code push feature like what we see on react native. \r\nwould love to get more insight to this feature possibilities from core maintainers (:",
+    "createdAt": "2018-03-14T07:30:10Z"
+  },
+  {
+    "id": 1389,
+    "sender": "zoechi",
+    "content": "> compiling to javascript path will diminish the dart advantages right?\r\n\r\nWhat advantages are you talking about?",
+    "createdAt": "2018-03-14T08:10:15Z"
+  },
+  {
+    "id": 1390,
+    "sender": "ck-vimaljose",
+    "content": "Codepush is very much needed. Love to see the over-the-air upgrade release possibility on Flutter.",
+    "createdAt": "2018-03-15T12:57:14Z"
+  },
+  {
+    "id": 1391,
+    "sender": "neiljaywarner",
+    "content": "we just had a live use case with a production app where we were getting lots of bad reviews for a feature that appeared to be slightly edge case (related to denying location permission in a use case that not every test account had ) but really wasn't.\r\n\r\na codepush feature could push critical fixes for users immediately rather than waiting for them to upgrade; for some reason it seems users are slow to upgrade sometimes :(",
+    "createdAt": "2018-03-16T18:28:18Z"
+  },
+  {
+    "id": 1392,
+    "sender": "rockneverdies55",
+    "content": "No hot code push support is a NO GO :-(",
+    "createdAt": "2018-04-19T03:34:23Z"
+  },
+  {
+    "id": 1393,
+    "sender": "yisding",
+    "content": "Looks like JavascriptCore may no longer be required for interpreted code: https://www.theregister.co.uk/2017/06/07/apple_relaxes_developer_rules/?page=2",
+    "createdAt": "2018-04-25T20:56:58Z"
+  },
+  {
+    "id": 1394,
+    "sender": "thefuzzyorange",
+    "content": "If the IOS ecosystem is a hindrance, why not implement on Android only for now? Something better than nothing and its a starting point.\r\n",
+    "createdAt": "2018-05-11T20:56:37Z"
+  },
+  {
+    "id": 1395,
+    "sender": "ieatbyte",
+    "content": "Much appreciated for team to implement this feature ASAP.",
+    "createdAt": "2018-07-03T06:44:22Z"
+  },
+  {
+    "id": 1396,
+    "sender": "eseidelGoogle",
+    "content": "We've built some basic prototypes here, but don't have anything really to share at this time.  To do this really well will require some work in Dart's compiler toolchain.  I would expect it to be many months before we will have much to share here.  The team is currently focused on stabilization for 1.0.\r\n\r\nAll that said, we hear you. :)  This is clearly a feature many people value and we're interested in providing functionality like this eventually.",
+    "createdAt": "2018-07-03T15:56:22Z"
+  },
+  {
+    "id": 1397,
+    "sender": "yaronlevi",
+    "content": "\"Code Push\" support for Flutter could be the final nail in the coffin regarding React Native.\r\n\r\nWith all my love for RN and the RN community, being the game changer it is, it is no match for Flutter.\r\nFlutter just nails it in any aspect (tooling, performance, language...).\r\n\r\nAfter 1.0 hits and the community grows a little bit more + Code Push support = Can't see any reason to start a new mobile project with anything other the Flutter.",
+    "createdAt": "2018-07-23T18:34:11Z"
+  },
+  {
+    "id": 1398,
+    "sender": "shakil807g",
+    "content": "any progress on \"Code Push\" ??",
+    "createdAt": "2018-08-04T17:41:14Z"
+  },
+  {
+    "id": 1399,
+    "sender": "fmatosqg",
+    "content": "How feasible would be to have a full .so replaced dynamically? The whole compiler toolchain, code shake etc shouldn't be steered to an arguably edge case that people may or may not benefit, given there will always be tickets at the top of the priority list.\r\n\r\nI think there should be room for \"sideloading\" the full .so file, so the build from dart to machine code can still be exactly the same. A small but completely independent component could be assigned the  following \"minimum viable features\": download .so and replace the originally shipped one with it, and restart app with the main launch intent.\r\n\r\nExtra responsibilities: download assets, verify signatures and what not. Update flutter/dart/skia engines and what not.\r\n\r\nIt sounds to me like it violates iOS guidelines, but I'm really not a fan of anything interpreted anyway, or iOS in general. And I'd rather have it in Android than not having it at all, just because it's cool.\r\n\r\nAt least the download part seems doable now that we have some isolate work being allowed in the background, but it would be interesting to see how to swap the original .so with the downloaded one. Maybe an extra .so or java code could do that part, but it's going to be sitting at the code folder, not sure the app itself can modify it so probably it would need some tweaks so the flutter engine loads all app's .so from internal data? \r\n\r\n",
+    "createdAt": "2018-08-05T05:07:25Z"
+  },
+  {
+    "id": 1400,
+    "sender": "vaibhavthapliyal",
+    "content": "Starting to revamp my companies app using flutter. However our key demand to have a hot update feature since we are still in beta and keep testing out new UIs and features rapidly. Would live to have this feature.",
+    "createdAt": "2018-08-05T13:58:39Z"
+  },
+  {
+    "id": 1401,
+    "sender": "yaronlevi",
+    "content": "Any updates?\r\n(I'll bet the feature is already done and will come as a suprise when 1.0 hits)\r\n😁",
+    "createdAt": "2018-09-23T21:22:12Z"
+  },
+  {
+    "id": 1402,
+    "sender": "fisheye-123",
+    "content": "up vote",
+    "createdAt": "2018-09-26T17:53:09Z"
+  },
+  {
+    "id": 1403,
+    "sender": "chufengma",
+    "content": "There is only one reason to prevent us from using Flutter: Code push",
+    "createdAt": "2018-10-12T03:05:28Z"
+  },
+  {
+    "id": 1404,
+    "sender": "minhhung2556",
+    "content": "If you guys can not support Code Push, is there a way to make a Parser to generate from some dictionaries (like json, xml...) to Flutter Widget? Is this impossible or a good idea?",
+    "createdAt": "2018-10-12T08:43:59Z"
+  },
+  {
+    "id": 1405,
+    "sender": "neiljaywarner",
+    "content": "This sounds a bit promising. Firebase remote config to widget if needed.\nAlthough getting companies to have an idea what they want also helps :)\n\n\nOn Fri, Oct 12, 2018, 3:45 AM Hưng Lương Đỗ Minh <notifications@github.com>\nwrote:\n\n> If you guys can not support Code Push, is there a way to make a Parser to\n> generate from some dictionaries (like json, xml...) to Flutter Widget? Is\n> this impossible or a good idea?\n>\n> —\n> You are receiving this because you commented.\n> Reply to this email directly, view it on GitHub\n> <https://github.com/flutter/flutter/issues/14330#issuecomment-429251785>,\n> or mute the thread\n> <https://github.com/notifications/unsubscribe-auth/AC4TYe9qDMi4bt2U5qyyAnJisN3ys_Z5ks5ukFavgaJpZM4RxUZi>\n> .\n>\n",
+    "createdAt": "2018-10-12T12:44:09Z"
+  },
+  {
+    "id": 1406,
+    "sender": "alibitek",
+    "content": "I think at least the UI/View written in Dart can be downloaded via the network from the server.  \r\nFor inspiration see how Qt Quick framework is doing it. \r\n\r\nQtDD12 - Serving QML applications over the network - Jeremy Laine: \r\n- [Video](https://www.youtube.com/watch?v=NESnTYVJxxU)\r\n- [Slides](https://www.kdab.com/wp-content/uploads/stories/slides/DD12/qml_over_the_network.pdf)",
+    "createdAt": "2018-10-12T19:31:32Z"
+  },
+  {
+    "id": 1407,
+    "sender": "genghf",
+    "content": "expect it can be included in the coming 1.0 release!",
+    "createdAt": "2018-10-23T04:01:36Z"
+  }
+]

@@ -1,0 +1,386 @@
+[
+  {
+    "id": 4096,
+    "sender": "eseidelGoogle",
+    "content": "To summarize:\r\n\r\n1) Earlier this year Play communicated to developers that it will require apps uploaded to the store to provide 64-bit versions from August (https://android-developers.googleblog.com/2019/01/get-your-apps-ready-for-64-bit.html). This week, the Play Store has started to display an informational message for apps uploaded to provide a warning of the upcoming requirement. However, the Play Store requirements have not changed at this time.\r\n\r\n2) The 64-bit APK requirement the warning references are possible to comply with now with a little manual effort to modify the gradle files in ones Flutter project: https://github.com/flutter/flutter/issues/18494#issuecomment-489807239 for one example as to how.\r\n\r\n3) We're working on making the default behavior of Flutter comply with the coming updates to the Play guidelines around 64-bit support without any additional effort from users.  I expect that work will be completed in the next few days/weeks, long before the August deadlines.\r\n\r\nIf I've missed something above, please don't hesitate to comment or reach out.  Apologies that we didn't have this updated prior to Play turning on the warning.  Thanks all for your help and feedback!",
+    "createdAt": "2019-05-07T18:00:42Z"
+  },
+  {
+    "id": 4097,
+    "sender": "adriank",
+    "content": "@eseidelGoogle \r\n\r\n1. I can't publish the app created by `flutter build apk`. Play Store doesn't accept 32bit-only builds on my profile.\r\n2. The solution from #18494 (comment) fails on 32bit devices like OnePlus One.\r\n\r\nIn my opinion, it is a showstopper.",
+    "createdAt": "2019-05-07T21:13:46Z"
+  },
+  {
+    "id": 4098,
+    "sender": "adriank",
+    "content": "@eseidelGoogle\r\n\r\n1. Resolved. Google Play doesn't accept any builds if Rating and Countries are not configured. Just the message is misleading.",
+    "createdAt": "2019-05-07T22:11:52Z"
+  },
+  {
+    "id": 4099,
+    "sender": "ciez",
+    "content": "> The 64-bit APK requirement the warning references are possible to comply with now with a little manual effort to modify the gradle files in ones Flutter project: #18494 (comment) for one example as to how.\r\n\r\n\r\nafter a good few hours of trial & error I was __not__ able to produce a signed apk nor appbundle containing a 64-bit libflutter.so\r\n\r\n\r\nthe only libflutter.so included in the bundle is the\r\narmeabi-v7a (32-bit)\r\n, when using \r\nAndroid Studio 3.4\r\nBuild #AI-183.5429.30.34.5452501, built on April 10, 2019\r\n\r\nmenu: Build > Generate Signed Bundle / APK\r\n\r\n_____________________________________\r\n\r\n```\r\nflutter build apk --release --target-platform=android-arm64 -v\r\nflutter build appbundle --release --target-platform=android-arm64 -v\r\n```\r\nboth fail @  > Task :app:validateSigningRelease FAILED\r\n",
+    "createdAt": "2019-05-07T22:27:44Z"
+  },
+  {
+    "id": 4100,
+    "sender": "adriank",
+    "content": "@ciez This produced 64bit only apk for me:\r\n```sh\r\n$ flutter build apk --release --target-platform=android-arm64\r\nInitializing gradle...                                              1.1s\r\nResolving dependencies...                                           1.8s\r\nRunning Gradle task 'assembleRelease'...                                \r\nRunning Gradle task 'assembleRelease'... Done                       9.0s\r\nBuilt build/app/outputs/apk/release/app-release.apk (7.5MB).\r\n```",
+    "createdAt": "2019-05-07T22:51:59Z"
+  },
+  {
+    "id": 4101,
+    "sender": "ciez",
+    "content": "@adriank \r\nyes, it works.\r\nfigured out what the problem was: \"~\" in the path to the keystore.jks needed to be replaced with /home/user\r\n\r\nsorry about the false alarm.\r\n\r\nit appears that each bundle built like this can target only 1 arch at most?",
+    "createdAt": "2019-05-08T11:28:09Z"
+  },
+  {
+    "id": 4102,
+    "sender": "mulderpf",
+    "content": "Waiting for the Flutter update as the workaround just broke my builds.",
+    "createdAt": "2019-05-11T09:24:59Z"
+  },
+  {
+    "id": 4103,
+    "sender": "tvolkert",
+    "content": "@mulderpf which workaround did you apply, and how did your build break?\r\n\r\nSee [this comment](https://github.com/flutter/flutter/issues/31922#issuecomment-490185953) for the latest update from the Flutter team.",
+    "createdAt": "2019-05-12T23:07:06Z"
+  },
+  {
+    "id": 4104,
+    "sender": "blasten",
+    "content": "I got an update: I have this working in my branch! \r\nThe suggestion is to use `flutter build appbundle --release --target-platform=android-arm-all` (recommended to get APK split out of box) or `flutter build apk --release --target-platform=android-arm-all` in a future release.\r\n\r\nIs anyone in the PST time zone willing to try it? If so, please reach out on Gitter or Slack :)\r\n",
+    "createdAt": "2019-05-13T05:47:23Z"
+  },
+  {
+    "id": 4105,
+    "sender": "SPodjasek",
+    "content": "@blasten Sadly I wasn't able to produce appbundle with your branch. Gradle fails on `app:properties` somehow, but looking at the code it looks promising. \r\nHave you managed to verify that `flutter/engine` will load AOT snapshots from `./lib/` directory? Looking at engine code it uses assets everywhere... If this works it will solve the overall App Bundles problem, as for now they lack the support of assets directory targeting by ABI.",
+    "createdAt": "2019-05-13T09:08:45Z"
+  },
+  {
+    "id": 4106,
+    "sender": "blasten",
+    "content": "@SPodjasek correct, it would also need a local build of the engine, so the classes in the APK look for the new snapshots.",
+    "createdAt": "2019-05-13T14:36:55Z"
+  },
+  {
+    "id": 4107,
+    "sender": "SPodjasek",
+    "content": "@blasten I've managed to fix my build tree and now I can successfully build App Bundle that contains AOT snapshots in `base/lib/${abi}/`\r\n\r\n```\r\n  4649616  2019-05-13 20:52   base/lib/arm64-v8a/isolate_snapshot_data.so\r\n  6296768  2019-05-13 20:52   base/lib/arm64-v8a/isolate_snapshot_instr.so\r\n  8472736  2019-05-13 20:52   base/lib/arm64-v8a/libflutter.so\r\n    32352  2019-05-13 20:52   base/lib/arm64-v8a/vm_snapshot_data.so\r\n    19200  2019-05-13 20:52   base/lib/arm64-v8a/vm_snapshot_instr.so\r\n  3700504  2019-05-13 20:52   base/lib/armeabi-v7a/isolate_snapshot_data.so\r\n  6019680  2019-05-13 20:52   base/lib/armeabi-v7a/isolate_snapshot_instr.so\r\n  6036116  2019-05-13 20:52   base/lib/armeabi-v7a/libflutter.so\r\n    23520  2019-05-13 20:52   base/lib/armeabi-v7a/vm_snapshot_data.so\r\n    12640  2019-05-13 20:52   base/lib/armeabi-v7a/vm_snapshot_instr.so\r\n```\r\n\r\nAnd I'm wondering would it be enough to modify this...\r\n\r\nhttps://github.com/flutter/engine/blob/1b649a57d18a8c41ae017d79cf9bdb999a2276ac/shell/platform/android/io/flutter/view/FlutterMain.java#L334-L336\r\n\r\nto something like:\r\n\r\n```\r\ngetContext().getApplicationInfo().nativeLibraryDir;\r\n```\r\n\r\nOf course, it wouldn't be that simple, but to get the general idea...",
+    "createdAt": "2019-05-13T18:59:05Z"
+  },
+  {
+    "id": 4108,
+    "sender": "blasten",
+    "content": "Here's how to try `flutter build appbundle` with  32 and 64 bits support:\r\n\r\n1. Download `flutter.jar` from https://drive.google.com/open?id=1yAkfhPKfhdd8MwW39qfkZDePc66SMA_z and place it under `{flutterInstallationPath}/bin/cache/artifacts/engine/android-arm-release`.  To check the Flutter installation path, use `which flutter`\r\n\r\n> If you want to see the changes to FlutterMain.java see: https://github.com/blasten/engine/commit/b3ab9def28a414ffa53bf10ad6a3249f31ed00e3\r\n\r\n2. Check out the patch from this branch:\r\n```sh\r\n$ cd {flutterInstallationPath}\r\n$ git remote add arm-all https://github.com/blasten/flutter\r\n$ git fetch arm-all apk_defaults\r\n$ git checkout apk_defaults\r\n\r\n$ git build appbundle --release --target-platform=android-arm-all\r\n```\r\n\r\nLet me know what you find. ",
+    "createdAt": "2019-05-14T05:27:03Z"
+  },
+  {
+    "id": 4109,
+    "sender": "danysz",
+    "content": "+1",
+    "createdAt": "2019-05-14T08:25:45Z"
+  },
+  {
+    "id": 4110,
+    "sender": "dark-chocolate",
+    "content": "@danysz Instead of writing +1, if you had upvoted this issue, that would have made more sense (no harsh feelings for you). To others, if they read this message, kindly don't write \"me too\", \"same here\", \"+1\", instead upvote this issue. \r\n\r\nThank you!",
+    "createdAt": "2019-05-14T08:36:03Z"
+  },
+  {
+    "id": 4111,
+    "sender": "SPodjasek",
+    "content": "@blasten Apps are failing to start:\r\n\r\n```\r\n05-14 10:50:35.979  3445 28828 I ActivityManager: Start proc 30019:xxx/u0a262 for activity xxx/com.example.flutterapp.MainActivity\r\n05-14 10:50:36.067 30019 30019 I FirebaseInitProvider: FirebaseApp initialization successful\r\n05-14 10:50:36.108 30019 30019 E flutter : [ERROR:flutter/runtime/dart_vm_data.cc(19)] VM snapshot invalid and could not be inferred from settings.\r\n05-14 10:50:36.108 30019 30019 E flutter : [ERROR:flutter/runtime/dart_vm.cc(241)] Could not setup VM data to bootstrap the VM from.\r\n05-14 10:50:36.108 30019 30019 E flutter : [ERROR:flutter/runtime/dart_vm_lifecycle.cc(89)] Could not create Dart VM instance.\r\n05-14 10:50:36.108 30019 30019 F flutter : [FATAL:flutter/shell/common/shell.cc(218)] Check failed: vm. Must be able to initialize the VM.\r\n05-14 10:50:36.108 30019 30019 F libc    : Fatal signal 6 (SIGABRT), code -6 in tid 30019 (xxx), pid 30019 (xxx)\r\n```\r\n\r\nThis goes to my physical device and 9/10 Test Lab device - we have an inconsistent result for Pixel-Q-beta.",
+    "createdAt": "2019-05-14T08:56:39Z"
+  },
+  {
+    "id": 4112,
+    "sender": "danysz",
+    "content": "> @danysz Instead of writing +1, if you had upvoted this issue, that would have made more sense (no harsh feelings for you). To others, if they read this message, kindly don't write \"me too\", \"same here\", \"+1\", instead upvote this issue.\r\n> \r\n> Thank you!\r\n\r\ndone",
+    "createdAt": "2019-05-14T09:00:13Z"
+  },
+  {
+    "id": 4113,
+    "sender": "SPodjasek",
+    "content": "@blasten Looking through your changes I've found that for existing apps one needs to modify `AndroidManifest.xml`\r\n\r\n```diff\r\ndiff --git a/packages/flutter_tools/templates/app/android.tmpl/app/src/main/AndroidManifest.xml.tmpl b/packages/flutter_tools/templates/\r\napp/android.tmpl/app/src/main/AndroidManifest.xml.tmpl\r\nindex 4778a2080..f3492835e 100644\r\n--- a/packages/flutter_tools/templates/app/android.tmpl/app/src/main/AndroidManifest.xml.tmpl\r\n+++ b/packages/flutter_tools/templates/app/android.tmpl/app/src/main/AndroidManifest.xml.tmpl\r\n@@ -24,6 +24,11 @@\r\n             <meta-data\r\n                 android:name=\"io.flutter.app.android.SplashScreenUntilFirstFrame\"\r\n                 android:value=\"true\" />\r\n+            <!-- If true, the snapshots are read from lib instead of the assets \r\n+                 directory in the APK. -->\r\n+            <meta-data\r\n+                android:name=\"io.flutter.view.FlutterMain.snapshot-in-lib\"\r\n+                android:value=\"${snapshotInLib}\" />\r\n             <intent-filter>\r\n                 <action android:name=\"android.intent.action.MAIN\"/>\r\n                 <category android:name=\"android.intent.category.LAUNCHER\"/>\r\n```\r\n\r\nNevertheless, it still fails...\r\n",
+    "createdAt": "2019-05-14T10:24:34Z"
+  },
+  {
+    "id": 4114,
+    "sender": "MoacirSchmidt",
+    "content": "@blasten \r\n\r\n> ```shell\r\n> git build\r\n> ```\r\n\r\n\r\n\r\n> ```shell\r\n> \r\n> $ git build appbundle --release --target-platform=android-arm-all\r\n> ```\r\n```shell\r\n\"git build\" or \"flutter build\" ? :-)\r\n```\r\nSadly I wasn't able to produce appbundle with your instructions. Gradle fails on app:properties somehow (after a \"Building flutter tool...\" and some downloads of android-arm-*....).\r\n\r\nIt seems that download process overwrote flutter.jar",
+    "createdAt": "2019-05-14T21:21:22Z"
+  },
+  {
+    "id": 4115,
+    "sender": "SPodjasek",
+    "content": "@MoacirSchmidt I've had similar issues but cleaning build dirs (`flutter clean`) and gradle caches (`~/.gradle/caches` & `${projectRoot}/android/.gradle`) helped",
+    "createdAt": "2019-05-15T22:13:34Z"
+  },
+  {
+    "id": 4116,
+    "sender": "bilguun",
+    "content": "For people having an issue building 64-bit apk.\r\nThis setting worked for me.\r\n\r\n[build.gradle](https://gist.github.com/bilguun/4e256c7473a2c108ddf99cb3782f6d77)\r\n\r\n\r\nrun  `flutter build apk --release --target-platform=android-arm\r\n`\r\n\r\nincrement versionCode\r\n\r\nrun `flutter build apk --release --target-platform=android-arm64\r\n`\r\n",
+    "createdAt": "2019-05-16T07:38:19Z"
+  },
+  {
+    "id": 4117,
+    "sender": "truongsinh",
+    "content": "more discussion on https://github.com/flutter/flutter/issues/18494",
+    "createdAt": "2019-05-20T01:02:40Z"
+  },
+  {
+    "id": 4118,
+    "sender": "blasten",
+    "content": "`flutter build appbundle` is now in master, does any voluntary person want to give it try?",
+    "createdAt": "2019-05-20T21:51:33Z"
+  },
+  {
+    "id": 4119,
+    "sender": "divan",
+    "content": "For people, like me, who scared to change gradle files – if you want only 64 bit version, `flutter build apk --release --target-platform=android-arm64` works even without modifying build.gradle.",
+    "createdAt": "2019-05-21T09:47:38Z"
+  },
+  {
+    "id": 4120,
+    "sender": "Kyle-Mendes",
+    "content": "@blasten I tried `flutter build appbundle` in the `beta` channel.  When I try to upload to the play store, I still get the 32 / 64 errror.\r\n\r\nI know you said `master` but I have some errors I am working through on that branch still. Just wanted to give you that info! ",
+    "createdAt": "2019-05-21T19:04:56Z"
+  },
+  {
+    "id": 4121,
+    "sender": "levantu",
+    "content": "I am also getting this warning!",
+    "createdAt": "2019-05-22T17:01:11Z"
+  },
+  {
+    "id": 4122,
+    "sender": "Shiba-Kar",
+    "content": "Is there any way to build an app bundle for all architectures?",
+    "createdAt": "2019-05-23T04:13:31Z"
+  },
+  {
+    "id": 4123,
+    "sender": "davidgalarza",
+    "content": "Any update on how to fix it?\r\n",
+    "createdAt": "2019-05-24T02:39:36Z"
+  },
+  {
+    "id": 4124,
+    "sender": "blasten",
+    "content": "I'm closing this bug since it refers to app bundles. If you switch to the master branch, you can use `flutter build appbundle` to generate app bundles that support 32 and 64-bit CPU architectures.  If you prefer or cannot use app bundles, then follow [this thread ](https://github.com/flutter/flutter/issues/18494) for additional support via fat APKs.",
+    "createdAt": "2019-05-24T06:42:16Z"
+  },
+  {
+    "id": 4125,
+    "sender": "angel1st",
+    "content": "@blasten - could you please provide a kind of instructions how to use it from within Android Studio?\r\nHere is my current flutter config:\r\n> Doctor summary (to see all details, run flutter doctor -v):\r\n[√] Flutter (Channel stable, v1.2.1, on Microsoft Windows [Version 10.0.17763.503], locale en-US)\r\n[√] Android toolchain - develop for Android devices (Android SDK version 28.0.3)\r\n[√] Android Studio (version 3.4)\r\n\r\nWhen this change will go to the `stable` branch? ",
+    "createdAt": "2019-05-24T06:53:33Z"
+  },
+  {
+    "id": 4126,
+    "sender": "truongsinh",
+    "content": "@blasten does it work with Add2App?",
+    "createdAt": "2019-05-24T08:45:56Z"
+  },
+  {
+    "id": 4127,
+    "sender": "adriank",
+    "content": "@blasten how to sign the app bundle created by flutter build appbundle?",
+    "createdAt": "2019-05-24T10:41:59Z"
+  },
+  {
+    "id": 4128,
+    "sender": "dblokhin",
+    "content": "@blasten is it a good way to use master branch for production apps?",
+    "createdAt": "2019-05-27T01:14:16Z"
+  },
+  {
+    "id": 4129,
+    "sender": "tvolkert",
+    "content": "@dblokhin you can use `flutter channel master` to switch to the master channel.  Note that this is now available on the dev channel as well.",
+    "createdAt": "2019-05-27T01:28:13Z"
+  },
+  {
+    "id": 4130,
+    "sender": "angel1st",
+    "content": "@tvolkert - any timeframe when this will be merged to the `stable` branch?",
+    "createdAt": "2019-05-27T12:15:23Z"
+  },
+  {
+    "id": 4131,
+    "sender": "truongsinh",
+    "content": "@angel1st I would guest about 3 months from now.",
+    "createdAt": "2019-05-27T13:52:27Z"
+  },
+  {
+    "id": 4132,
+    "sender": "angel1st",
+    "content": "@truongsinh - considering August, 1st is about two months from now, I would expect much faster adoption, actually... ",
+    "createdAt": "2019-05-27T14:01:40Z"
+  },
+  {
+    "id": 4133,
+    "sender": "blasten",
+    "content": "@angel1st ~~it’s in stable already!~~ I will find out more...",
+    "createdAt": "2019-05-27T14:31:44Z"
+  },
+  {
+    "id": 4134,
+    "sender": "shinayser",
+    "content": "> @angel1st it’s in stable already!\r\n\r\nAre you sure about that? The current stable is 1.5.4-hotfix 2 ant it is not generating bundles with both 32 and 64. Or am I missing something ?",
+    "createdAt": "2019-05-27T14:37:15Z"
+  },
+  {
+    "id": 4135,
+    "sender": "blasten",
+    "content": "@shinayser  it isn't yet, sorry. I will find out more and update the thread. As Todd mentioned, the `master` channel is the only option at this point.",
+    "createdAt": "2019-05-27T16:18:23Z"
+  },
+  {
+    "id": 4136,
+    "sender": "AmitJoki",
+    "content": "I tried the appbundle. I had 1.6.1-pre version of Flutter in the master\r\nchannel.\r\n\r\nThe output of the bundle was around 12 MB which didn't generate the warning\r\nand the individual APK sizes were around 7. So far everything is good.\r\n\r\nBut when I opened the app after updating through Play Store my app got\r\nstuck in the Splash Screen.\r\n\r\nI had no choice to revert to flutter build apk which worked fine, idk how\r\nand why.\r\n\r\nSo I don't think this issue is closed yet, because even though the warning\r\nis gone with the appbundle, so is the app itself. The appbundle is\r\nrendering the app useless as it's stuck in the splash screen.",
+    "createdAt": "2019-05-27T16:25:05Z"
+  },
+  {
+    "id": 4137,
+    "sender": "blasten",
+    "content": "In that case, feel free to reach out to me directly on Gitter: https://gitter.im/flutter/flutter. If possible, it will be helpful if you can send the `.aab` file that the tool generated.",
+    "createdAt": "2019-05-27T16:29:52Z"
+  },
+  {
+    "id": 4138,
+    "sender": "angel1st",
+    "content": "I believe we need the usage [documented](https://github.com/flutter/website/issues/2704) one way or another. Also I believe having this merged to `stable` **prior** the end of June is vital if Flutter team wants to keep developers around.",
+    "createdAt": "2019-05-27T16:35:45Z"
+  },
+  {
+    "id": 4139,
+    "sender": "tvolkert",
+    "content": "@angel1st we're working hard to get this work promoted to `stable` by the end of June.",
+    "createdAt": "2019-05-28T21:30:09Z"
+  },
+  {
+    "id": 4140,
+    "sender": "blasten",
+    "content": "Some updates:\r\n\r\nWe were able to reproduce apps getting stuck in the splash screen after deploying an APK from an app bundle (generated using `flutter build appbundle` from the master channel).\r\n\r\n~~This seems to be caused by our placement of the AOT snapshots (`vm-snapshot-data`, `vm-snapshot-instr`, `isolate-snapshot-data`, `isolate-snapshot-instr`) as libraries within `/lib/{abi}/lib_{snapshot}.so` to get ABI split for app bundles.  After all, the snapshots aren't real libraries and our hack to get this behavior didn't work.~~\r\n\r\n**EDIT**: The root cause turned out to be that code in the Android embedder expects a directory named `flutter_assets` in [this line](https://github.com/flutter/engine/blob/0a0f3305b5f086b3a413c5156bce810e1d6f4a32/shell/platform/android/io/flutter/app/FlutterActivityDelegate.java#L163-L165), but my recent change to support app bundles disabled creating such directory, which caused the app to never start.  This commit by @jason-simmons https://github.com/flutter/engine/compare/7f4f52f95294...e8db5dfd52ee fixes the issue.\r\n\r\n## Conclusion\r\n\r\nThe current plan is to allow the flutter tool to generate ELF shared libraries instead of AOT snapshots. This feature was just added to the Dart SDK in https://github.com/dart-lang/sdk/commit/af93ebcf4cb55ae5f0f39a183ad2d42ca13ae51f. \r\n\r\nWhat this means is that we will get ABI split for app bundles and [fat APKs](https://github.com/flutter/flutter/issues/18494) using real libraries.\r\n\r\nI will update this bug and https://github.com/flutter/flutter/issues/18494 once the issue is fixed. In the meanwhile, passing a `--target-platform` to `build appbundle` will let you build app bundles without moving the AOT snapshots to `lib/`.\r\n\r\n",
+    "createdAt": "2019-05-30T19:35:26Z"
+  },
+  {
+    "id": 4141,
+    "sender": "shinayser",
+    "content": "> Some updates:\r\n> \r\n> We were able to reproduce apps getting stuck in the splash screen after deploying an APK from an app bundle (generated using `flutter build appbundle` from the master channel).\r\n> \r\n> This seems to be caused by our placement of the AOT snapshots (`vm-snapshot-data`, `vm-snapshot-instr`, `isolate-snapshot-data`, `isolate-snapshot-instr`) as libraries within `/lib/{abi}/lib_{snapshot}.so` to get ABI split for app bundles. After all, the snapshots aren't real libraries and our hack to get this behavior didn't work.\r\n> \r\n> The current plan is to allow the flutter tool to generate ELF shared libraries instead of AOT snapshots. This feature was just added to the Dart SDK in [dart-lang/sdk@af93ebc](https://github.com/dart-lang/sdk/commit/af93ebcf4cb55ae5f0f39a183ad2d42ca13ae51f).\r\n> \r\n> What this means is that we will get ABI split for app bundles and [fat APKs](https://github.com/flutter/flutter/issues/18494) using real libraries.\r\n> \r\n> I will update this bug and #18494 once the issue is fixed. In the meanwhile, passing a `--target-platform` to `build appbundle` will let you build app bundles without moving the AOT snapshots to `lib/`.\r\n\r\n@blasten will this work properly when you have another libraries that uses native code as well? For example: VLC. It produces some `.so` when we are building the APK.",
+    "createdAt": "2019-05-30T21:48:49Z"
+  },
+  {
+    "id": 4142,
+    "sender": "jason-simmons",
+    "content": "Yes - you can use other native code libraries within your APK.\r\n\r\nIn the new packaging format a Flutter app will include the `libflutter.so` engine library along with another `.so` containing the AOT snapshot data compiled from your app's Dart code.  The app can add other `.so` libraries unrelated to Flutter if needed.\r\n",
+    "createdAt": "2019-05-31T01:14:02Z"
+  },
+  {
+    "id": 4143,
+    "sender": "tvolkert",
+    "content": "FYI, the fix to the issue of getting stuck on the splash screen should be in the (forthcoming) 1.7.0 dev channel release (https://github.com/flutter/flutter/wiki/Bad-Builds#v161---v167)",
+    "createdAt": "2019-05-31T17:10:47Z"
+  },
+  {
+    "id": 4144,
+    "sender": "tvolkert",
+    "content": "Hi all.  The fix to the issue of getting stuck on the splash screen has landed on the dev channel - you should see it if you `flutter upgrade` to v1.7.0.  Please try it out and let us know if you encounter problems with `flutter build appbundle`.",
+    "createdAt": "2019-06-03T19:59:38Z"
+  },
+  {
+    "id": 4145,
+    "sender": "masewo",
+    "content": "@tvolkert Did not work for me before and does not work for me now. Neither on channel dev (1.7.0) nor on channel master (1.7.1). App build with `flutter build appbundle` crashes after publishing it via Play Store and running it on a real device.\r\nEdit: It works now on channel dev (1.7.0) after deleting the app from the device and reinstalling it from the Play Store.\r\nEdit2: It does NOT work. Play Store was a little bit slower than normal while distribution the correct version. What can I do to help reproducing?",
+    "createdAt": "2019-06-03T20:49:39Z"
+  },
+  {
+    "id": 4146,
+    "sender": "tvolkert",
+    "content": "@masewo can you collect the tombstone from the device, along with what version of Flutter was running on it at the time?\r\n\r\n@jason-simmons @blasten anything else you'd like to help track this down?",
+    "createdAt": "2019-06-03T22:07:06Z"
+  },
+  {
+    "id": 4147,
+    "sender": "masewo",
+    "content": "@tvolkert \r\n\r\ntombstone:\r\n```\r\n2019-06-04 08:32:44.375 8326-8326/? A/DEBUG: *** *** *** *** *** *** *** *** *** *** *** *** *** *** *** ***\r\n2019-06-04 08:32:44.375 8326-8326/? A/DEBUG: Build fingerprint: 'samsung/crownltexx/crownlte:9/PPR1.180610.011/N960FXXS2CSDJ:user/release-keys'\r\n2019-06-04 08:32:44.375 8326-8326/? A/DEBUG: Revision: '28'\r\n2019-06-04 08:32:44.375 8326-8326/? A/DEBUG: ABI: 'arm64'\r\n2019-06-04 08:32:44.375 8326-8326/? A/DEBUG: pid: 8261, tid: 8261, name: asewo.myfirstapp  >>> net.masewo.myfirstapp <<<\r\n2019-06-04 08:32:44.375 8326-8326/? A/DEBUG: signal 6 (SIGABRT), code -6 (SI_TKILL), fault addr --------\r\n2019-06-04 08:32:44.376 8326-8326/? A/DEBUG: Abort message: '[FATAL:flutter/shell/common/shell.cc(218)] Check failed: vm. Must be able to initialize the VM.\r\n    '\r\n2019-06-04 08:32:44.376 8326-8326/? A/DEBUG:     x0  0000000000000000  x1  0000000000002045  x2  0000000000000006  x3  0000000000000008\r\n2019-06-04 08:32:44.376 8326-8326/? A/DEBUG:     x4  0000000000000000  x5  0000000000000000  x6  0000000000000000  x7  0080000000000000\r\n2019-06-04 08:32:44.376 8326-8326/? A/DEBUG:     x8  0000000000000083  x9  000000767c1f9890  x10 fffffff87ffffbdf  x11 0000000000000001\r\n2019-06-04 08:32:44.376 8326-8326/? A/DEBUG:     x12 00000075ded1c000  x13 0000000000000008  x14 ffffffffffffffff  x15 0000402003ff3b02\r\n2019-06-04 08:32:44.376 8326-8326/? A/DEBUG:     x16 000000767c2302b0  x17 000000767c16f958  x18 0000007fdd2251da  x19 0000000000002045\r\n2019-06-04 08:32:44.376 8326-8326/? A/DEBUG:     x20 0000000000002045  x21 0000000000000083  x22 00000075edde02e0  x23 00000075dec79fc0\r\n2019-06-04 08:32:44.376 8326-8326/? A/DEBUG:     x24 00000075de3a6150  x25 0000000000000000  x26 00000075f7614ca0  x27 0000000000000003\r\n2019-06-04 08:32:44.376 8326-8326/? A/DEBUG:     x28 0000000000000000  x29 0000007fdd225b00\r\n2019-06-04 08:32:44.376 8326-8326/? A/DEBUG:     sp  0000007fdd225ac0  lr  000000767c162da0  pc  000000767c162dcc\r\n2019-06-04 08:32:44.377 8326-8326/? A/DEBUG: backtrace:\r\n2019-06-04 08:32:44.377 8326-8326/? A/DEBUG:     #00 pc 0000000000021dcc  /system/lib64/libc.so (abort+124)\r\n2019-06-04 08:32:44.377 8326-8326/? A/DEBUG:     #01 pc 0000000000e4a6a0  /data/app/net.masewo.myfirstapp-J4PFXKn_O2diLnKpCeu2eg==/split_config.arm64_v8a.apk (offset 0xe2d000)\r\n```\r\n\r\nflutter:\r\n\r\n```\r\nD:\\Programme\\Android\\flutter\\bin\\flutter.bat doctor --verbose\r\n[√] Flutter (Channel dev, v1.7.0, on Microsoft Windows [Version 10.0.18362.145], locale de-DE)\r\n    • Flutter version 1.7.0 at D:\\Programme\\Android\\flutter\r\n    • Framework revision f36a35d20a (3 days ago), 2019-05-31 15:27:56 -0400\r\n    • Engine revision a32df2c928\r\n    • Dart version 2.3.2 (build 2.3.2-dev.0.0 445a23a9bc)\r\n\r\n[√] Android toolchain - develop for Android devices (Android SDK version 28.0.3)\r\n    • Android SDK at D:\\Programme\\Android\\sdk\r\n    • Android NDK location not configured (optional; useful for native profiling support)\r\n    • Platform android-28, build-tools 28.0.3\r\n    • Java binary at: D:\\Programme\\Android\\Android Studio Dev\\jre\\bin\\java\r\n    • Java version OpenJDK Runtime Environment (build 1.8.0_202-release-1483-b03)\r\n    • All Android licenses accepted.\r\n\r\n[√] Android Studio (version 3.5)\r\n    • Android Studio at D:\\Programme\\Android\\Android Studio Beta\r\n    • Flutter plugin version 36.0.7\r\n    • Dart plugin version 191.7221\r\n    • Java version OpenJDK Runtime Environment (build 1.8.0_202-release-1483-b02)\r\n\r\n[√] Connected device (1 available)\r\n    • SM N960F • xxxxxxxxxxxxxxxx • android-arm64 • Android 9 (API 28)\r\n```",
+    "createdAt": "2019-06-04T06:38:20Z"
+  },
+  {
+    "id": 4148,
+    "sender": "tvolkert",
+    "content": "@jason-simmons @blasten it's [this assertion](https://github.com/flutter/engine/blob/05365c4c32798005deebc859c1e239bff5a885e4/shell/common/shell.cc#L218) that's causing the crash in @masewo's case",
+    "createdAt": "2019-06-04T06:47:52Z"
+  },
+  {
+    "id": 4149,
+    "sender": "tvolkert",
+    "content": "@masewo we're unable to reproduce the crashing on our side with out apps -- would you be willing to build an unsigned .aab file from the 1.7.1 release that demonstrates this behavior and send it to me via email (tvolkert@google.com)?  If so, that'd be hugely helpful!",
+    "createdAt": "2019-06-04T23:28:54Z"
+  },
+  {
+    "id": 4150,
+    "sender": "tvolkert",
+    "content": "FYI, the following announcement was sent to flutter-announce@googlegroups.com regarding our 64-bit support.\r\n\r\nhttps://groups.google.com/forum/#!topic/flutter-announce/oIzwT9EDczc",
+    "createdAt": "2019-06-04T23:29:05Z"
+  },
+  {
+    "id": 4151,
+    "sender": "truongsinh",
+    "content": "@tvolkert is the team also working on making https://github.com/flutter/flutter/wiki/Add-Flutter-to-existing-apps compatible with all the points you were listing?\r\n> 1. Provide a way (by default) to build an app bundle that supports both 32-bit and 64-bit. (already available to test on the dev channel)\r\n>\r\n> 1. Provide a way (by default) to build an APK that supports both 32-bit and 64-bit. (in progress)",
+    "createdAt": "2019-06-05T04:33:55Z"
+  },
+  {
+    "id": 4152,
+    "sender": "blasten",
+    "content": "@truongsinh Yes, see this comment in the pending PR: https://github.com/flutter/flutter/pull/33696#issuecomment-498934359",
+    "createdAt": "2019-06-05T04:41:35Z"
+  },
+  {
+    "id": 4153,
+    "sender": "tvolkert",
+    "content": "@masewo and everyone else: we've been able to replicate the crash described in https://github.com/flutter/flutter/issues/31922#issuecomment-498541765 and are tracking it down.\r\n\r\ntldr: hang tight - we're on it 🙂 ",
+    "createdAt": "2019-06-05T18:45:18Z"
+  },
+  {
+    "id": 4154,
+    "sender": "tvolkert",
+    "content": "Hi all,\r\n\r\n#### TLDR:\r\nWe've identified the problem with the crashes when downloaded from the Play Store and are working on a fix, to be delivered within the same timeframe as outlined above in https://github.com/flutter/flutter/issues/31922#issuecomment-498880614\r\n\r\n#### High-level explanation\r\nFor those interested, the somewhat long explanation is that with devices running Android Marshmallow or later, the Play Store will detect apps that are packaged as App Bundles containing multiple ABIs -- and it will install those apps on the device in the form of \"split APKs\".  When it does this, the .so files contained therein are not extracted from the APK zip archive, which is different than the behavior of non-split APKs.  Since Flutter engine's [current mechanism for finding the .so files](https://github.com/flutter/engine/blob/e8ee6acf8de3613fdd9f431fff5c4c37b65c3335/shell/platform/android/io/flutter/view/FlutterMain.java#L364) assumes they've been extracted from the APK, it fails in the case of split APKs.\r\n\r\nThe solution is just to `dlopen` the libraries, and Android abstracts away where the libraries are located (i.e. within an archive or not).  However, the necessary .so files were never true libraries to begin with - they were just binary blobs of data that we loaded into the Dart VM.  So as part of this, we're making them ELF libraries (e.g. https://github.com/dart-lang/sdk/commit/6d608fb52bc1926a73d986d73ab228b77cfb7ca2 and https://github.com/flutter/flutter/pull/33696).",
+    "createdAt": "2019-06-08T06:55:43Z"
+  },
+  {
+    "id": 4155,
+    "sender": "tvolkert",
+    "content": "Hi all,\r\n\r\nWe believe the fixes have all landed on tip-of-tree on the `master` channel.  If you'd like to try them out, here's how:\r\n\r\n* `flutter build appbundle`\r\n\r\n  By default, the App Bundle contains your Dart code and the Flutter runtime compiled for [armeabi-v7a](https://developer.android.com/ndk/guides/abis#v7a) (32-bit) and [arm64-v8a](https://developer.android.com/ndk/guides/abis#arm64-v8a) (64-bit)\r\n\r\n* `flutter build apk --split-per-abi`\r\n\r\n  This command will result in two APKs:\r\n\r\n  `build/app/outputs/apk/release/app-armeabi-v7a-release.apk`\r\n  `build/app/outputs/apk/release/app-arm64-v8a-release.apk`\r\n\r\n* `flutter build apk`\r\n\r\n  This will result in a fat APK that contains your code compiled for all the target ABIs.  Such APKs will be larger in size than their split counterparts, causing the user to download native binaries that are not applicable to their device’s architecture.",
+    "createdAt": "2019-06-13T04:31:25Z"
+  },
+  {
+    "id": 4156,
+    "sender": "andokai",
+    "content": "`flutter build appbundle` is now working for me. Thanks @tvolkert !",
+    "createdAt": "2019-06-13T13:58:06Z"
+  },
+  {
+    "id": 4157,
+    "sender": "ghost",
+    "content": "Can confirm this is working (After switching to master) on multiple android devices. What a lifesaver, thank you.",
+    "createdAt": "2019-06-13T14:29:18Z"
+  },
+  {
+    "id": 4158,
+    "sender": "tvolkert",
+    "content": "Great!  Thanks go to @blasten, @jason-simmons, and @rmacnak-google - I'm just the messenger 🙂 ",
+    "createdAt": "2019-06-13T16:38:08Z"
+  },
+  {
+    "id": 4159,
+    "sender": "tomaszpolanski",
+    "content": "Thank you to all of the Flutter team and contributors for such a rapid response. Hopefully, this one get's to the beta channel within 1.5 months :)",
+    "createdAt": "2019-06-13T17:19:26Z"
+  }
+]

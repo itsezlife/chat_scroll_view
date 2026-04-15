@@ -1,0 +1,386 @@
+[
+  {
+    "id": 8256,
+    "sender": "rednikisfun",
+    "content": "Any updates on the issue?",
+    "createdAt": "2024-09-18T12:46:57Z"
+  },
+  {
+    "id": 8257,
+    "sender": "jmagman",
+    "content": "@yjbanov drive-by comment: do Safari 15.4 viewport units help with this problem? https://stackoverflow.com/a/75648985/431116",
+    "createdAt": "2024-09-23T23:16:57Z"
+  },
+  {
+    "id": 8258,
+    "sender": "mncorreia",
+    "content": "\r\nI just added a css on body, like `touch-action: 'none';` and worked. \r\nAnd our flutter web page was injected in a React App, also, that flutter web app use ScrollView on PageWidget.\r\n\r\nw/ @devguusta",
+    "createdAt": "2024-10-03T21:22:54Z"
+  },
+  {
+    "id": 8259,
+    "sender": "Piinks",
+    "content": "> Any updates on the issue?\r\n\r\nAs stated previously on this issue...\r\nPer our wiki on [issue hygiene](https://github.com/flutter/flutter/tree/master/docs/contributing/issue_hygiene#do-not-add-me-too-or-same-or-is-there-an-update-comments-to-issues-or-prs):\r\n\r\n> Do not add \"me too\" or \"same\" or \"is there an update\" comments to issues or PRs\r\n\r\nContinued posts like this are not constructive and will result in restrictions to make further comments in this repository. They also make it hard to find helpful information like above.",
+    "createdAt": "2024-10-03T23:10:42Z"
+  },
+  {
+    "id": 8260,
+    "sender": "1l0",
+    "content": "> I just added a css on body, like touch-action: 'none'; and worked.\r\n\r\nLive examples?",
+    "createdAt": "2024-10-03T23:45:51Z"
+  },
+  {
+    "id": 8261,
+    "sender": "devguusta",
+    "content": "> > I just added a css on body, like touch-action: 'none'; and worked.\r\n> \r\n> Live examples?\r\n\r\n`<div style={{ touchAction: 'none' }}>`",
+    "createdAt": "2024-10-04T12:12:30Z"
+  },
+  {
+    "id": 8262,
+    "sender": "mncorreia",
+    "content": "> > > I just added a css on body, like touch-action: 'none'; and worked.\r\n> > \r\n> > \r\n> > Live examples?\r\n> \r\n> `<div style={{ touchAction: 'none' }}>`\r\n\r\nI had this live example and just switch on/off `touch-action` body styles properties on devtools.\r\n\r\nhttps://hivesey-88262.web.app/#/",
+    "createdAt": "2024-10-04T12:30:56Z"
+  },
+  {
+    "id": 8263,
+    "sender": "1l0",
+    "content": "Thanks but, I don't have devtools on my mobile browser. I just wanted to see the live demo on mobile.",
+    "createdAt": "2024-10-04T13:17:18Z"
+  },
+  {
+    "id": 8264,
+    "sender": "iapicca",
+    "content": "> > > > I just added a css on body, like touch-action: 'none'; and worked.\r\n> > > \r\n> > > \r\n> > > Live examples?\r\n> > \r\n> > \r\n> > `<div style={{ touchAction: 'none' }}>`\r\n> \r\n> I had this live example and just switch on/off `touch-action` body styles properties on devtools.\r\n> \r\n> https://hivesey-88262.web.app/#/\r\n\r\n @mncorreia  it doesn't work on chrome/android\r\n\r\n![scroll](https://github.com/user-attachments/assets/a4c0fa69-824a-4a1c-9753-b413f6d4100c)\r\n\r\n @mncorreia can you give an example?\r\n",
+    "createdAt": "2024-10-04T14:00:38Z"
+  },
+  {
+    "id": 8265,
+    "sender": "mncorreia",
+    "content": "> Thanks but, I don't have devtools on my mobile browser. I just wanted to see the live demo on mobile.\r\n\r\nYou can use remote debug on Chrome on Inspector or turn on Device Mode (is not best scenario but is a very close Android simulation touch).\r\nAndroid: https://developer.chrome.com/docs/devtools/remote-debugging\r\niOS: https://developer.chrome.com/blog/debugging-chrome-on-ios",
+    "createdAt": "2024-10-04T14:09:38Z"
+  },
+  {
+    "id": 8266,
+    "sender": "mncorreia",
+    "content": "> @mncorreia it doesn't work on chrome/android\r\n> \r\n> ![scroll](https://private-user-images.githubusercontent.com/45637986/373668238-a4c0fa69-824a-4a1c-9753-b413f6d4100c.gif?jwt=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJnaXRodWIuY29tIiwiYXVkIjoicmF3LmdpdGh1YnVzZXJjb250ZW50LmNvbSIsImtleSI6ImtleTUiLCJleHAiOjE3MjgwNTA4MzYsIm5iZiI6MTcyODA1MDUzNiwicGF0aCI6Ii80NTYzNzk4Ni8zNzM2NjgyMzgtYTRjMGZhNjktODI0YS00YTFjLTk3NTMtYjQxM2Y2ZDQxMDBjLmdpZj9YLUFtei1BbGdvcml0aG09QVdTNC1ITUFDLVNIQTI1NiZYLUFtei1DcmVkZW50aWFsPUFLSUFWQ09EWUxTQTUzUFFLNFpBJTJGMjAyNDEwMDQlMkZ1cy1lYXN0LTElMkZzMyUyRmF3czRfcmVxdWVzdCZYLUFtei1EYXRlPTIwMjQxMDA0VDE0MDIxNlomWC1BbXotRXhwaXJlcz0zMDAmWC1BbXotU2lnbmF0dXJlPTIxMDhlN2RkMGI0NzY5ZWViYjg1NWQyM2ZmZDkyNzQzNWNhOThkYWVmYzYzYTA3MWRmOGVlODVhNjhhYWE3ZmMmWC1BbXotU2lnbmVkSGVhZGVycz1ob3N0In0.3NNxilXVMRs68QxZfM7TcKP3bx5T2kKmFaW89lU11FI))\r\n> \r\n> @mncorreia can you give an example?\r\n\r\nI don't understand your gif because just worked, alright?! hahaha\r\n\r\nBut, I had put in `<body>` element follow with attribute `style=\"touch-action: 'none';\"` (I just used a class btw but work as the same) or if you can, try this same  `style=\"touch-action: 'none';\"`  in nearest element to your flutter web injection.",
+    "createdAt": "2024-10-04T14:20:37Z"
+  },
+  {
+    "id": 8267,
+    "sender": "1l0",
+    "content": "@mncorreia \r\nOK, I just created a repo, but it doesn't seem to be working using your `style=\"touch-action: none;\"`.\r\nDemo: https://1l0.github.io/scroll_testbed/\r\nSource: https://github.com/1l0/scroll_testbed",
+    "createdAt": "2024-10-05T11:41:28Z"
+  },
+  {
+    "id": 8268,
+    "sender": "iapicca",
+    "content": "> > > <img alt=\"\" height=\"400\" src=\"https://user-images.githubusercontent.com/19904063/97805735-36fa3880-1c58-11eb-92ca-0c7436080c6f.gif\">\t<img alt=\"\" height=\"400\" src=\"https://user-images.githubusercontent.com/19904063/97805757-52654380-1c58-11eb-95a5-8d747c560240.gif\">\r\n> >\r\n> > @mncorreia it doesn't work on chrome/android\r\n> >\r\n> > ![scroll](https://private-user-images.githubusercontent.com/45637986/373668238-a4c0fa69-824a-4a1c-9753-b413f6d4100c.gif?jwt=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJnaXRodWIuY29tIiwiYXVkIjoicmF3LmdpdGh1YnVzZXJjb250ZW50LmNvbSIsImtleSI6ImtleTUiLCJleHAiOjE3MjgyOTg5MjQsIm5iZiI6MTcyODI5ODYyNCwicGF0aCI6Ii80NTYzNzk4Ni8zNzM2NjgyMzgtYTRjMGZhNjktODI0YS00YTFjLTk3NTMtYjQxM2Y2ZDQxMDBjLmdpZj9YLUFtei1BbGdvcml0aG09QVdTNC1ITUFDLVNIQTI1NiZYLUFtei1DcmVkZW50aWFsPUFLSUFWQ09EWUxTQTUzUFFLNFpBJTJGMjAyNDEwMDclMkZ1cy1lYXN0LTElMkZzMyUyRmF3czRfcmVxdWVzdCZYLUFtei1EYXRlPTIwMjQxMDA3VDEwNTcwNFomWC1BbXotRXhwaXJlcz0zMDAmWC1BbXotU2lnbmF0dXJlPTdjOTA4YjZjNzI3ODRlNWM5ZWYwMjY3OGU0NTg0NGFhMDYwNzE3NzNhNmM4YzFjMDg1MDIyZWEzODgzNWQwNTMmWC1BbXotU2lnbmVkSGVhZGVycz1ob3N0In0.zpJV4HjCJHJb902o7D2cESKqd7xsW0_u5tC0G112JXg) \r\n> \r\n> I don't understand your gif because just worked, alright?! hahaha\r\n\r\n@mncorreia no it doesn't\r\nthis is how is supposed to work, focus on chrome's address bar\r\n\r\n![scroll_ok](https://github.com/user-attachments/assets/9264084f-d9fa-4556-9e94-1ba824629b05)\r\n\r\nI don't want to nitpick, \r\nI just want to avoid this issue to be slapped with `label:\"workaround available\"`\r\nand forgot forever (like many other `web` issues)\r\n\r\n\r\n\r\n",
+    "createdAt": "2024-10-05T16:07:11Z"
+  },
+  {
+    "id": 8269,
+    "sender": "QoLTech",
+    "content": "Okay, this thread is getting a little hard to follow recently.\r\n\r\nIs there a workaround that we can add to an app that enables the behavior of the app bars to hide when a Flutter view is being scrolled? How exactly would someone implement this workaround?",
+    "createdAt": "2024-10-07T14:46:21Z"
+  },
+  {
+    "id": 8270,
+    "sender": "iapicca",
+    "content": "> Okay, this thread is getting a little hard to follow recently.\r\n> \r\n> Is there a workaround that we can add to an app that enables the behavior of the app bars to hide when a Flutter view is being scrolled? How exactly would someone implement this workaround?\r\n\r\nthe point is (and always has been afaik) that **_the browser_** doesn't detect the scrolling\r\ntherefore doesn't hide/reveal the address bar (see original [post](https://github.com/flutter/flutter/issues/69529#issue-733984024))\r\nwhat worries me is \r\n-  contributors announcing [non-existing](https://github.com/flutter/flutter/issues/69529#issuecomment-2393782159) workaround \r\n  creating the risk that maintainers may accidentally flag the issue with label:\"workaround available\"\r\n  decreasing the priority of the issue\r\n-  this issue was supposed to be [blocked by](https://github.com/flutter/flutter/issues/69529#issuecomment-1970067487)  [#139263](https://github.com/flutter/flutter/issues/139263) but even if that one has been solved \r\n  this issue doesn't seem to be actively worked on\r\n\r\ncc @huycozy @yjbanov ",
+    "createdAt": "2024-10-08T16:50:49Z"
+  },
+  {
+    "id": 8271,
+    "sender": "jongseokleedev",
+    "content": "Any Update?\r\nI have been suffering from this issue",
+    "createdAt": "2024-11-01T06:53:19Z"
+  },
+  {
+    "id": 8272,
+    "sender": "gusflrnd",
+    "content": "None of the above workarounds (gambiarras) have worked for me as of today's date. I'm in the middle of developing an app that uses Flutter to display high-quality images and videos. I was excited to show it in full screen on mobile devices, but now I'm really frustrated by how long this issue has been open without being addressed. I guess I'll simply use React or another tool that already has this feature easily implemented. This is a HUGE problem in today's modern visual web applications.",
+    "createdAt": "2025-02-27T23:47:22Z"
+  },
+  {
+    "id": 8273,
+    "sender": "fralways",
+    "content": "Flutter mobile web hasn’t been getting much (or any?) love for a long time. this is just one of a few bigger issues which I experienced over past years. and its really strange to me that it is like that considering most of web traffic, in general, goes over mobile.",
+    "createdAt": "2025-02-28T22:41:03Z"
+  },
+  {
+    "id": 8274,
+    "sender": "olof-dev",
+    "content": "Yes, this issue is a frustrating one. But also no: Flutter web has been getting love. They have worked on getting the wasm standards developed to support garbage collection to work better with Dart and Flutter (talk about long-term thinking!), they have implemented building separate framework bundles for different browsers to minimize download times, they've introduced new JS interop features, and I'm sure there's much more (maybe there's a web roadmap somewhere?). My 2 cents are: let's keep these GitHub issues focused on the technical issues (and solutions), let's put thumbs up on the issues we really want to see solved, and let's try to contribute and figure out fixes as best we can.",
+    "createdAt": "2025-03-01T21:26:38Z"
+  },
+  {
+    "id": 8275,
+    "sender": "koji-1009",
+    "content": "I created a proof-of-concept PR that addresses this for iOS and Android: https://github.com/flutter/flutter/pull/184281\n\nIt switches touch input handling from Pointer Events to Touch Events, which allows `touch-action: pan-y` without breaking gestures. The approach is minimal — `pointer_binding.dart` is unchanged.\n\nFeedback on the approach is welcome.",
+    "createdAt": "2026-03-28T13:41:54Z"
+  },
+  {
+    "id": 8276,
+    "sender": "Piinks",
+    "content": "## Closed - Integrating Skia Gold for Golden File Testing\n\n # Closed for transitional plan\r\nSee #33688\r\n## Description\r\nIntegrating Flutter golden file testing with Skia Gold\r\n\r\n## Related Issues\r\n- #17260\r\n- #17259\r\n- #17258\r\n- #16859\r\n\r\n## Tests\r\n\r\nWIP\r\n\r\n## Checklist\r\n\r\nBefore you create this PR confirm that it meets all requirements listed below by checking the relevant checkboxes (`[x]`). This will ensure a smooth and quick review process.\r\n\r\n- [x] I read the [Contributor Guide] and followed the process outlined there for submitting PRs.\r\n- [x] I signed the [CLA].\r\n- [x] I read and followed the [Flutter Style Guide], including [Features we expect every widget to implement].\r\n- [x] I updated/added relevant documentation (doc comments with `///`).\r\n- [ ] All existing and new tests are passing.\r\n- [ ] The analyzer (`flutter analyze --flutter-repo`) does not report any problems on my PR.\r\n- [x] I am willing to follow-up on review comments in a timely manner.\r\n\r\n## Breaking Change\r\n\r\nDoes your PR require Flutter developers to manually update their apps to accommodate your change?\r\n\r\n- [ ] Yes, this is a breaking change (Please read [Handling breaking changes]). *Replace this with a link to the e-mail where you asked for input on this proposed change.*\r\n- [ ] No, this is *not* a breaking change.\r\n\r\n<!-- Links -->\r\n[issue database]: https://github.com/flutter/flutter/issues\r\n[Contributor Guide]: https://github.com/flutter/flutter/wiki/Tree-hygiene#overview\r\n[Test Coverage]: https://github.com/flutter/flutter/wiki/Test-coverage-for-package%3Aflutter\r\n[Flutter Style Guide]: https://github.com/flutter/flutter/wiki/Style-guide-for-Flutter-repo\r\n[Features we expect every widget to implement]: https://github.com/flutter/flutter/wiki/Style-guide-for-Flutter-repo#features-we-expect-every-widget-to-implement\r\n[CLA]: https://cla.developers.google.com/\r\n[Handling breaking changes]: https://github.com/flutter/flutter/wiki/Tree-hygiene#handling-breaking-changes\r",
+    "createdAt": "2019-04-25T22:45:19Z"
+  },
+  {
+    "id": 8277,
+    "sender": "Piinks",
+    "content": "This PR has gotten a bit hard to read against the diff after a bad merge. Closing in favor of opening a new one. Will reference in the new PR to maintain a link. ",
+    "createdAt": "2019-05-17T15:53:05Z"
+  },
+  {
+    "id": 8278,
+    "sender": "markmoskalenko",
+    "content": "## Samsung Keyboard duplicates text when restoring composing regions (restart text input, punctuation)\n\nHello!\r\n\r\nWithin a flutter application that has TextField or TextFormField the text can get duplicated upon first time data entry.\r\n\r\nWhen first entering a keypress, within a field that already has text pre-filled, the text duplicates then your keypress is attached.\r\n\r\nI am experiencing something that exhibits this behavior on my Samsung Galaxy S7, S8 and S9 (only devices I have to test with). This doesn't occur within the emulator (Galaxy Nexus9 and Pixel 2).\r\n\r\nIf I place a space at the end of the field, this problem doesn't happen, however, if I tap in middle of a pre filled field (using controller or initialValue) and press a key it does occur.\r\n\r\n```dart\r\nclass SampleTextFormPage extends StatefulWidget {\r\n    @override\r\n    State<StatefulWidget> createState() => new _SampleTextFormPage();\r\n}\r\n\r\nclass _SampleTextFormPage extends State<SampleTextFormPage> {\r\n    final _scaffoldKey = new GlobalKey<ScaffoldState>();\r\n\r\n    TextEditingController _txtController;\r\n\r\n    @override\r\n    void initState() {\r\n        super.initState();\r\n\r\n        _txtController = TextEditingController(text:'Using Controller');\r\n    }\r\n\r\n    @override\r\n    Widget build(BuildContext context) { Scaffold scaffold = new Scaffold(\r\n        key: _scaffoldKey,\r\n        appBar: new AppBar(\r\n            title: new Text('Text Entry',\r\n                style: const TextStyle(\r\n                    color: Colors.white)\r\n            ),\r\n            backgroundColor: Colors.indigo\r\n        ),\r\n        body:  Column(children: [\r\n            //field 1\r\n            TextField(\r\n                 autocorrect: false,\r\n                 autofocus: true,\r\n                 controller: _txtController,\r\n            ),\r\n\r\n           //field 2\r\n           TextFormField(\r\n               autocorrect: false,\r\n               autofocus: true,\r\n               initialValue: 'Using initialValue',\r\n           )\r\n        ])\r\n    );\r\n\r\n    return scaffold;\r\n    }\r\n}\r\n\r\n```\r\n\r\nhttps://stackoverflow.com/questions/52894507/flutter-texfield-and-textformfield-duplicates-text-when-using-initial-value-or-c\r",
+    "createdAt": "2019-04-23T19:49:34Z"
+  },
+  {
+    "id": 8279,
+    "sender": "markmoskalenko",
+    "content": "Error on any application written flutter. Even on the base with one input field.\r\nPlayback error when entering Russian words / letters",
+    "createdAt": "2019-04-23T20:20:48Z"
+  },
+  {
+    "id": 8280,
+    "sender": "justinmc",
+    "content": "Thanks for submitting this.  I'm unable to reproduce it on a physical Pixel 2 right now.  I think I have an S7 that I can try this on tomorrow.  I'll post back with what happens.",
+    "createdAt": "2019-04-24T23:01:36Z"
+  },
+  {
+    "id": 8281,
+    "sender": "markmoskalenko",
+    "content": "> Thanks for submitting this. I'm unable to reproduce it on a physical Pixel 2 right now. I think I have an S7 that I can try this on tomorrow. I'll post back with what happens.\r\n\r\nI'm testing on galaxy s8 and s9\r\nReproduced only with Russian letters.\r\nScenario\r\n- Enter the word\r\n- Spacebar\r\n- Delete twice (one space and one letter will be removed)\r\n- Enter any letter in Russian\r\n\r\nTotal: duplicates the entire word + letter",
+    "createdAt": "2019-04-25T08:04:18Z"
+  },
+  {
+    "id": 8282,
+    "sender": "markmoskalenko",
+    "content": "The error is reproduced in Google Ad. Installed with play market",
+    "createdAt": "2019-04-25T08:06:48Z"
+  },
+  {
+    "id": 8283,
+    "sender": "justinmc",
+    "content": "Ok I've got an S6 and I just installed a Russian keyboard, but I don't see the bug using the code that you provided above.\r\n\r\nStart your app and delete the existing text:\r\n<img width=\"200\" src=\"https://user-images.githubusercontent.com/389558/56814144-5f97ab80-67f3-11e9-83a7-0a7e3eae6523.png\" />\r\n\r\nType a word in Russian followed by one space:\r\n<img width=\"200\" src=\"https://user-images.githubusercontent.com/389558/56814145-5f97ab80-67f3-11e9-8702-86c589dce0b6.png\" />\r\n\r\nPress backspace twice:\r\n<img width=\"200\" src=\"https://user-images.githubusercontent.com/389558/56814146-5f97ab80-67f3-11e9-9631-e3ace9e5271b.png\" />\r\n\r\nType a letter, but I see no duplication:\r\n<img width=\"200\" src=\"https://user-images.githubusercontent.com/389558/56814147-60304200-67f3-11e9-96a4-70be8bcc608b.png\" />",
+    "createdAt": "2019-04-26T14:22:25Z"
+  },
+  {
+    "id": 8284,
+    "sender": "markmoskalenko",
+    "content": "Take any phone of the galaxy s8 or s9 family.\r\nInstall an empty application with one input and try on a standard keyboard with Russian letters.\r\n\r\nTested on two top Samsung s8/s9.\r\n\r\nhttps://www.youtube.com/watch?v=MVR8lW_tYww",
+    "createdAt": "2019-04-27T06:38:55Z"
+  },
+  {
+    "id": 8285,
+    "sender": "justinmc",
+    "content": "Can you try this in a native app and confirm that you don't see this behavior?",
+    "createdAt": "2019-05-01T22:37:45Z"
+  },
+  {
+    "id": 8286,
+    "sender": "markmoskalenko",
+    "content": "I use the standard firmware Samsung Galaxy S8 and Galaxy S9.\r\nAll applications that are installed on the phone work fine. Native App, react native, telegram, skype, google and so on.\r\n\r\nWe encountered this problem at the release stage of our flutter application",
+    "createdAt": "2019-05-02T06:02:56Z"
+  },
+  {
+    "id": 8287,
+    "sender": "justinmc",
+    "content": "Alright I see, thanks for clarifying.  I tried again with the S6 but with the default keyboard in Russian and couldn't reproduce it still.  I'll try to track down an S8 or S9.",
+    "createdAt": "2019-05-02T14:53:52Z"
+  },
+  {
+    "id": 8288,
+    "sender": "larssn",
+    "content": "Russian keyboard not required.\r\nTested this on an Samsung T580.\r\n\r\nCreate an app with a TextField:\r\n- Enter a few letters.\r\n- Press the 'done' button on the keyboard to close it.\r\n- Click the field again and click a letter.\r\n\r\nSo if you enter 'La', close, open, and press '!'. The TextField will read \"LaLa!\".\r\n\r\n_This was tested on the dev (1.5.8) and stable (1.2.1) branch._\r\n\r\nNote: It is not reproducible on an Samsung S8.\r\nRelated SO: https://stackoverflow.com/questions/52894507/flutter-texfield-and-textformfield-duplicates-text-when-using-initial-value-or-c",
+    "createdAt": "2019-05-03T12:23:08Z"
+  },
+  {
+    "id": 8289,
+    "sender": "justinmc",
+    "content": "I found a Samsung T110 and couldn't reproduce it.  Hope to try it on an S9 or T580 when I can.",
+    "createdAt": "2019-05-03T16:40:43Z"
+  },
+  {
+    "id": 8290,
+    "sender": "justinmc",
+    "content": "The [above issue](https://github.com/flutter/flutter/issues/33255) also reported this same problem on: Samsung Galaxy Tablet 8 A (Android 8.1).  A bunch of good reproduction instructions there too. It seems like this definitely has to do with Samsung's predictive text.\r\n\r\n",
+    "createdAt": "2019-05-30T18:29:20Z"
+  },
+  {
+    "id": 8291,
+    "sender": "markmoskalenko",
+    "content": "> The [above issue](https://github.com/flutter/flutter/issues/33255) also reported this same problem on: Samsung Galaxy Tablet 8 A (Android 8.1). A bunch of good reproduction instructions there too. It seems like this definitely has to do with Samsung's predictive text.\r\n\r\nwhen to expect a solution to the problem?\r\n",
+    "createdAt": "2019-05-31T11:12:20Z"
+  },
+  {
+    "id": 8292,
+    "sender": "justinmc",
+    "content": "This is on my list of things I'd like to fix, though I still haven't come across a device that can reproduce it...\r\n\r\nIf you or anyone else has some time to work on a PR to fix this in the meantime, please do!",
+    "createdAt": "2019-05-31T21:54:11Z"
+  },
+  {
+    "id": 8293,
+    "sender": "charlesokt",
+    "content": "More testing per #33255 showed another interesting behavior @justinmc \r\nI typed in 'abc def' initially.  With space in the middle.\r\nHit done.\r\nTouched the input again, typed 'g'\r\nEdit widget now shows 'abc defdefg'\r\n\r\nWondering if this was looking at the last word, I tried another test case.\r\n\r\nInitial text \r\n\r\n> abc def ghi\r\n\r\nHit Done, touch widget to edit it\r\nInput \r\n\r\n> j\r\n\r\nEdit widget now shows: 'abc def ghighij'",
+    "createdAt": "2019-06-01T06:12:32Z"
+  },
+  {
+    "id": 8294,
+    "sender": "SaltH2OFish",
+    "content": "Flutter v1.5.4-hotfix.2,\r\n\r\n**Stock Keyboard**\r\nIn agreement with @charlesokt. I tested this on Galaxy S9 and S9 Note. Turning off Samsung Keyboard predictive text does prevent the duplication from occurring.\r\n\r\n**Initial Text value / removing all text to smaller caret size**\r\nIf you create a new textfield/textFormField with no initial text value set, the issue doesn't seem to manifest. However, when the initial values are set it will occur. If you have an initial value and press the delete key to 'completely' remove all text, you will notice the Caret size will go from a larger size to a smaller size. When it reaches the smaller size, the duplication issue will not occur even though you have set the initial text value.\r\n\r\n\r\n**Potential related issue**\r\nI ran across this discussion that seems pertinent to this bug. Notice the discussion on duplicated text, predictive text, etc.\r\n\r\nhttps://github.com/flutter/flutter/issues/22828",
+    "createdAt": "2019-06-04T16:32:19Z"
+  },
+  {
+    "id": 8295,
+    "sender": "markmoskalenko",
+    "content": "Help solve the problem! Our release is delayed because of this.\r\n\r\nHere is a similar problem #19743\r\nA year has passed ..",
+    "createdAt": "2019-06-08T23:18:36Z"
+  },
+  {
+    "id": 8296,
+    "sender": "justinmc",
+    "content": "To add another affected device to the list, this issue was seen in https://github.com/flutter/flutter/issues/19743 on a Galaxy Grand Prime with Android 5.1.1.",
+    "createdAt": "2019-06-10T22:03:09Z"
+  },
+  {
+    "id": 8297,
+    "sender": "charlesokt",
+    "content": "I can't make promises, but I compiled the flutter engine and will attempt to diagnose and/or fix this.  \r\n\r\nBelow is more full logs of what I'm seeing with a debug build of the engine running my test scenario as detailed in #33255.  I did a print statement for when the text edit controller receives the message that text has changed, so you'll see a \"new text -> \" log entry when the controller is called from my TextEdit.  For this test, I did the following:\r\n\r\n1. touched the TextEdit\r\n2. hit 'a', done\r\n3. touched TextEdit again\r\n4. hit 'd'.\r\n5. TextEdit widget now shows 'aad'.\r\n\r\nFor sake of completeness, this issue seems to only affect Samsung devices and turning off Predictive Text on the device seems to avoid the issue.\r\n\r\nThe test here was done against SM-T380, Samsung Galaxy Note 8A, Android 8.1.1 using the current Beta 1.6.3.\r\nFramework: bc7bc94083\r\nEngine: 8dc3a4cde2\r\n\r\nDebug logs for anyone else so inclined and interested:\r\n\r\n> **06-10 19:02:23.050  5555  5584 I flutter : new text -> a**\r\n> 06-10 19:02:23.051  1566  1566 V Surface : sf_framedrop debug : 0x4f4c, game : false, logging : 0\r\n> 06-10 19:02:23.051  1566  1566 D ViewRootImpl@6844e5e[InputMethod]: Relayout returned: old=[0,542][800,1280] new=[0,542][800,1280] result=0x7 surface={valid=true 2333847552} changed=true\r\n> 06-10 19:02:23.053  1566  4806 W Adreno-EGL: <qeglDrvAPI_eglGetConfigAttrib:612>: EGL_BAD_ATTRIBUTE\r\n> 06-10 19:02:23.058  1566  4806 D vndksupport: Loading /vendor/lib/hw/gralloc.msm8937.so from current namespace instead of sphal namespace.\r\n> 06-10 19:02:23.059  1566  4806 D OpenGLRenderer: eglCreateWindowSurface = 0xac813f48, 0x8b1bb008\r\n> 06-10 19:02:23.062  1566  1566 I SKBD    : azs getNavigationBarHeight() first use took : 1\r\n> 06-10 19:02:23.071  1566  1566 V InputMethodManager: Not IME target window, ignoring\r\n> 06-10 19:02:23.072  1566  1566 I chatty  : uid=10126(com.sec.android.inputmethod) identical 3 lines\r\n> 06-10 19:02:23.072  1566  1566 V InputMethodManager: Not IME target window, ignoring\r\n> 06-10 19:02:23.073  1566  1566 I SKBD    : ToolBarContainer [PF_OP][updateToolBarPage] 5126562\r\n> 06-10 19:02:23.141  1566  1566 I SKBD    : AbstractKeyboardView drawAllKey nanoTime= 55282031, isOrientationLandscape() = false\r\n> 06-10 19:02:23.141  1566  1566 I SKBD_Performance: AbstractKeyboardView [PF_OP] onDraw 57409948\r\n> 06-10 19:02:23.142  1566  1566 I SKBD_Performance: AbstractKeyboardView [PF_OP] onDraw 44687\r\n> 06-10 19:02:23.150  1094  1121 D WindowManager: finishDrawingWindow: Window{d04c601 u0 InputMethod} mDrawState=DRAW_PENDING\r\n> 06-10 19:02:23.155  1571 16310 D PipManager: onImeVisibilityChanged - imeVisible : true imeHeight:0\r\n> 06-10 19:02:23.155  1571 16310 D PipManager: onMovementBoundsChanged\r\n> 06-10 19:02:23.160  1566  1566 I SKBD    : alf [PF_KL][SIIC] getSelectedText done  6\r\n> 06-10 19:02:23.160  1566  1566 E SKBD    : bbd [USICM][getSelectedText] updated, but null is returned\r\n> 06-10 19:02:23.162  1566  1566 I SKBD    : alf [PF_KL][SIIC] getTextBeforeCursor[ 127 ] done  2\r\n> 06-10 19:02:23.165  1566  1566 I SKBD    : alf [PF_KL][SIIC] getTextAfterCursor[ 127 ] done  2\r\n> 06-10 19:02:23.166  1566  1566 I SKBD_Performance: [IIManager] [PF_KL] IIfo BuildTime - tookTime : 0\r\n> 06-10 19:02:23.168  1571  1908 D PipManager: onImeVisibilityChanged - imeVisible : true imeHeight:494\r\n> 06-10 19:02:23.168  1571  1908 D PipManager: onMovementBoundsChanged\r\n> 06-10 19:02:23.169  5555  5555 D ViewRootImpl@e872005[MainActivity]: MSG_RESIZED: frame=Rect(0, 0 - 800, 1280) ci=Rect(0, 32 - 0, 494) vi=Rect(0, 32 - 0, 494) or=1\r\n> 06-10 19:02:23.171  1566  1566 I SKBD    : azw getNetworkState : 2\r\n> 06-10 19:02:23.172  1566  1566 I SKBD_Performance: [IIManager] [PF_KL] IIfo BuildTime - tookTime : 0\r\n> 06-10 19:02:23.181  1094  6754 V WindowManager: Relayout Window{59011d4 u0 com.keyotech.testflutter/com.keyotech.testflutter.MainActivity}: viewVisibility=0 req=800x1280 WM.LayoutParams{(0,0)(fillxfill) sim=110 ty=1 fl=#81810100 pfl=0x20000 fmt=-3 wanim=0x1030001 vsysui=0x700 needsMenuKey=2 colorMode=0 naviIconColor=0}\r\n> 06-10 19:02:23.196  5555  5555 D ViewRootImpl@e872005[MainActivity]: Relayout returned: old=[0,0][800,1280] new=[0,0][800,1280] result=0x1 surface={valid=true 2382137344} changed=false\r\n> 06-10 19:02:23.197   479   479 I SurfaceFlinger: Display 0 HWC layers:\r\n> 06-10 19:02:23.197   479   479 I SurfaceFlinger:     type    |    handle    | flag |  format   |   source crop (l,t,r,b)    |         frame       | name \r\n> 06-10 19:02:23.197   479   479 I SurfaceFlinger: ------------+--------------+------+-----------+----------------------------+---------------------+------\r\n> 06-10 19:02:23.197   479   479 I SurfaceFlinger:      Device | 0xa90a9100 | 0002 | RGBA_8888 |   0.0    0.0  800.0 1280.0 |    0    0  800 1280 | SurfaceView - com.keyotech.testflutt[...]utter.MainActivity@c5eb781@0[5555]#0\r\n> 06-10 19:02:23.197   479   479 I SurfaceFlinger:      Device | 0xa90a9400 | 0000 | RGBA_8888 |   0.0    0.0  800.0   32.0 |    0    0  800   32 | com.keyotech.testflutter/com.keyotech.testflutter.MainActivity[5555]#0\r\n> 06-10 19:02:23.197   479   479 I SurfaceFlinger:      Device | 0xa90a9080 | 0000 | RGBA_8888 |   0.0    0.0  800.0  631.0 |    0  649  800 1280 | InputMethod[1566]#0\r\n> 06-10 19:02:23.197   479   479 I SurfaceFlinger:      Device | 0xa90a9480 | 0000 | RGBA_8888 |   0.0    0.0  800.0   32.0 |    0    0  800   32 | StatusBar[1571]#0\r\n> 06-10 19:02:23.197   479   479 I SurfaceFlinger: \r\n> 06-10 19:02:23.260  1094  1651 E Watchdog: @Sync 29140 [2019-06-10 19:02:23.260]\r\n> 06-10 19:02:23.319  1094  1121 D CustomFrequencyManagerService: releaseDVFSLockLocked : Getting Lock type frm List : DVFS_MIN_LIMIT  frequency : 1094400  uid : 1000  pid : 1094  tag : com.sec.android.inputmethod@35\r\n> 06-10 19:02:23.797  1824  1824 D io_stats: !@ 179,0 r 554029 22731934 w 1087505 19387128 d 87448 30637640 f 326046 326037 iot 2055220 2348326 th 51200 0 0 pt 0 inp 0 0 874428.354\r\n> 06-10 19:02:28.803  1824  1824 D io_stats: !@ 179,0 r 554029 22731934 w 1087515 19387260 d 87449 30637676 f 326047 326038 iot 2055220 2348340 th 51200 0 0 pt 0 inp 0 0 874433.360\r\n> 06-10 19:02:29.163   683 30287 V APM_AudioPolicyManager: getAudioPolicyConfig: audioParam;outDevice\r\n> 06-10 19:02:29.163   683 30287 V APM_AudioPolicyManager: getNewOutputDevice() selected device 0\r\n> 06-10 19:02:29.163   683 30287 V APM_AudioPolicyManager: ### curdevice : 2\r\n> 06-10 19:02:29.163  1094  4176 D SSRM:i  : AudioType = 2, Vol = 0\r\n> 06-10 19:02:29.271  1094  4176 D TelephonyManager: getAllCellInfo : Caller (PID / UID / TID): 1094 / 1000 / 4176\r\n> 06-10 19:02:29.291  1094  4176 D SSRM:c  : SIOP:: AP:327(331,0) BAT:322(322,0) CHG:0(0,0) ATC:0(0,0) \r\n> 06-10 19:02:32.115  1094  1147 V MARsPolicyManager: updateFromMARsThread\r\n> 06-10 19:02:32.116  1094  1148 D MARsDBManager: updatePkgsToSMDB : begin --size 1\r\n> 06-10 19:02:32.132  1094  1148 D MARsDBManager: updatePkgsToSMDB : end\r\n> 06-10 19:02:32.132  1094  1148 D MARsDBManager: onChange - mSmartManagerObserver! Uri = content://com.samsung.android.sm/AppFreezer?MARs-self=true&MARs=true\r\n> 06-10 19:02:32.287  1094  1257 D SensorService: [SO] 0.002 0.145 10.047\r\n> 06-10 19:02:33.808  1824  1824 D io_stats: !@ 179,0 r 554030 22731938 w 1087527 19387308 d 87449 30637676 f 326047 326038 iot 2055220 2348347 th 51200 0 0 pt 0 inp 0 0 874438.364\r\n> 06-10 19:02:38.813  1824  1824 D io_stats: !@ 179,0 r 554030 22731938 w 1087531 19387336 d 87449 30637676 f 326048 326039 iot 2055220 2348353 th 51200 0 0 pt 0 inp 0 0 874443.369\r\n> 06-10 19:02:39.302   683 30287 V APM_AudioPolicyManager: getAudioPolicyConfig: audioParam;outDevice\r\n> 06-10 19:02:39.302   683 30287 V APM_AudioPolicyManager: getNewOutputDevice() selected device 0\r\n> 06-10 19:02:39.302   683 30287 V APM_AudioPolicyManager: ### curdevice : 2\r\n> 06-10 19:02:39.302  1094  4176 D SSRM:i  : AudioType = 2, Vol = 0\r\n> 06-10 19:02:39.324  1094  4176 D SSRM:c  : SIOP:: AP:327(330,0) BAT:322(322,0) CHG:0(0,0) ATC:0(0,0) \r\n> 06-10 19:02:39.577  1094  1378 D WifiTrafficPoller: TrafficStats TxPkts=145921 RxPkts=212115 TxBytes=49347685 RxBytes=191056925 , Foreground uid=10157 pkgName=com.keyotech.testflutter txBytes=90328121 rxBytes=1114885\r\n> 06-10 19:02:39.799  1094  6592 D BatteryService: !@BatteryListener : batteryPropertiesChanged!\r\n> 06-10 19:02:40.024  1094  1291 D InputReader: Input event(5): value=1 when=874444581494000\r\n> 06-10 19:02:40.024  1094  1291 D InputReader: Input event(5): value=1 when=874444581494000\r\n> 06-10 19:02:40.024  1094  1291 I InputReader: Touch event's action is 0x0 (deviceType=0) [pCnt=1, s=0.789 ] when=874444581494000\r\n> 06-10 19:02:40.024  1094  1290 I InputDispatcher: Delivering touch to (1571): action: 0x4, toolType: 1\r\n> 06-10 19:02:40.024  1094  1290 I InputDispatcher: Delivering touch to (1566): action: 0x0, toolType: 1\r\n> 06-10 19:02:40.025  1566  1566 D ViewRootImpl@6844e5e[InputMethod]: ViewPostIme pointer 0\r\n> 06-10 19:02:40.027  1094  1290 D PowerManagerService: [api] userActivityFromNative : 10 (event: 2 flags: 0) eventTime = 874444581\r\n> 06-10 19:02:40.029  1566  1566 E SKBDC   : SSLanguageModelManager buildContextualCLM()::Word Probability is zero\r\n> 06-10 19:02:40.029  1566  1566 I SKBD    : bnd [PF_KL][getKeyIndexAndNearbyCodes] 411822, In Tyme, getSimpleKeyIndexAndNearbyCodes\r\n> 06-10 19:02:40.033  1566  1566 I SKBD_Performance: AbstractKeyboardView [PF_KL] onTouchEvent  0 5 4 4875312\r\n> 06-10 19:02:40.034  1566  1566 I SKBD_Performance: AbstractKeyboardView [PF_OP] onDraw 36302\r\n> 06-10 19:02:40.064  1094  1291 D InputReader: Input event(5): value=0 when=874444621591000\r\n> 06-10 19:02:40.064  1094  1291 D InputReader: Input event(5): value=0 when=874444621591000\r\n> 06-10 19:02:40.064  1094  1291 I InputReader: Touch event's action is 0x1 (deviceType=0) [pCnt=1, s=] when=874444621591000\r\n> 06-10 19:02:40.064  1094  1290 I InputDispatcher: Delivering touch to (1566): action: 0x1, toolType: 1\r\n> 06-10 19:02:40.065  1566  1566 D ViewRootImpl@6844e5e[InputMethod]: ViewPostIme pointer 1\r\n> 06-10 19:02:40.071  1566  1566 I SKBD    : alf [PF_KL][SIIC] getTextBeforeCursor[ 2 ] done  1\r\n> 06-10 19:02:40.072  1566  1566 I SKBD    : alf [PF_KL][SIIC] getTextBeforeCursor[ 127 ] done  1\r\n> 06-10 19:02:40.073  1566  1566 I SKBD    : alf [PF_KL][SIIC] getTextAfterCursor[ 127 ] done  1\r\n> 06-10 19:02:40.074  1566  1566 I SKBD_Performance: [IIManager] [PF_KL] IIfo BuildTime - tookTime : 0\r\n> 06-10 19:02:40.077  1566  1566 I SKBD    : alf [PF_KL][SIIC] getExtractedText done  2\r\n> **06-10 19:02:40.079  5555  5555 E SpannableStringBuilder: SPAN_EXCLUSIVE_EXCLUSIVE spans cannot have a zero length**\r\n> **06-10 19:02:40.079  5555  5555 E SpannableStringBuilder: SPAN_EXCLUSIVE_EXCLUSIVE spans cannot have a zero length**\r\n> 06-10 19:02:40.079  1566  1566 I SKBD    : [IIManager] IIfo SI [il:0x656e4742] [p:1] [c:1] [t:1] [im:0/0/0/0/0/0] [sC:0] [aC:1] [sS:0] [aS:1] [aP:1] [pW:0] [eM:0] [uR:0] [acI:0] [iT:8001] [iO:2000006] [pID:5555] [pO:null]\r\n> 06-10 19:02:40.079  1566  1566 I SKBD    : [IIManager] IIfo II [ir:0] [rand:b8d870a07e094cc9a48dc5687ec7e6d8] [hC:0] [hI:0] [tr:0] [tc:1] [long:0] [cpl:2] [xyD:0/-2] [xycD:-14/-11] [kWHG:63/75/8] [tD:40] [tP:13] [fil:true] [IC:9/20] [cB:6/1]\r\n> 06-10 19:02:40.080  1566  1566 I SKBD    : alf [SIIC] setComposingText :  true ,  1\r\n> 06-10 19:02:40.080  1566  1566 I SKBD    : [ATIM] [PF_KL][onCharacterKey]  11\r\n> 06-10 19:02:40.080  1566  1566 I SKBD    : apf [PF_KL][onKeyHandleNormalKey::onCharacterKey] 11564479\r\n> 06-10 19:02:40.080  1566  1566 I SKBD    : ako [PF_KL][onKey] 12110468\r\n> 06-10 19:02:40.081  1566  1566 I SKBD_Performance: AbstractKeyboardView [PF_KL] onTouchEvent  1 2 15 15242968\r\n> 06-10 19:02:40.081  1566  1566 I SKBD_Performance: AbstractKeyboardView [PF_OP] onDraw 25365\r\n> 06-10 19:02:40.099  1566  1566 I SKBD    : [ATIM] [updateSelectionForInputModule] oldSelStart : 1, oldSelEnd : 1, newSelStart : 3, newSelEnd : 3, candidatesStart : 1, candidatesEnd : 3, viewClicked : false\r\n> 06-10 19:02:40.099  1566  1566 I SKBD    : [ATIM] [updateSelectionForInputModule] isTyping : true, viewClicked : false, isKBDShown : true\r\n**> 06-10 19:02:40.104  5555  5584 I flutter : new text -> aad**\r\n> 06-10 19:02:40.128  1566  1566 E SKBD    : bbl Dismiss keyPreviewView is null\r\n> ",
+    "createdAt": "2019-06-11T02:23:05Z"
+  },
+  {
+    "id": 8298,
+    "sender": "GaryQian",
+    "content": "If you wanted to explore our android text input handling, you can take a look at shell/platform/android/io/flutter/plugin/editing/InputConnectionAdaptor.java and TextInputPlugin.java\r\n\r\nI could imaging the Samsung predictive text is using the android's text API/callbacks strangely or in an unintended way, causing us to misinterpret predicted words or parts of predicted words as additional input. Nonetheless, we should still find a way to support Samsung keyboards without negatively impacting other platforms.",
+    "createdAt": "2019-06-11T17:42:25Z"
+  },
+  {
+    "id": 8299,
+    "sender": "charlesokt",
+    "content": "So, here's what I've found so far on my affected Samsung device.\r\nMy test case:\r\n1) Touch TextEdit\r\n2) 'abc def'\r\n3) Hit Done\r\n4) 'g'\r\n5) Widget shows 'abd defdefg'\r\n\r\nI've been using a build of the engine to help track down what is happening here and I think I've pinpointed the right area.\r\n\r\nInputConnectionAdaptor, when calling updateEditingState() seems to be reporting the wrong information on the Samsung device - as opposed to my Pixel 3.\r\n\r\nPixel 3 (which works correctly), during the abc def test:\r\n\r\nmImm.updateSelection(mFlutterView,\r\n                             selectionStart, selectionEnd,\r\n                             composingStart, composingEnd);\r\n\r\nselectionStart is = 7\r\nselectionEnd is = 7\r\ncomposingStart is = 4\r\ncomposingEnd is = 7\r\n\r\nUpon hitting g:\r\n\r\nmImm.updateSelection is sent the following parameters:\r\n\r\nselectionStart is = 8\r\nselectionEnd is = 8\r\ncomposingStart is = 4\r\ncomposingEnd is = 8\r\n\r\nResults in the correct \"abc defg\"\r\n\r\n\r\n\r\n\r\nOn my affected Samsung Device, doing this same test 'abc def' is input:\r\n\r\nmImm.updateSelection is sent the following parameters:\r\n\r\nselectionStart is = 7\r\nselectionEnd is = 7\r\ncomposingStart is = -1\r\ncomposingEnd is = -1\r\n\r\nUpon hitting g:\r\n\r\nselectionStart is = 11\r\nselectionEnd is = 11\r\ncomposingStart is = 7\r\ncomposingEnd is = 11\r\n\r\nAnd results in the duplicated text: 'abc defdefg'\r\n\r\nSo, I imagine this has to do with the composing start and end being fed negative numbers.  Will continue to troubleshoot, but that's where I am so far.\r\n",
+    "createdAt": "2019-06-13T04:10:58Z"
+  },
+  {
+    "id": 8300,
+    "sender": "charlesokt",
+    "content": "I'm currently testing some workaround code and thought I'd share more findings for interested parties.\r\n\r\nOn my affected Samsung device beginBatchEdit is apparently called twice whenever an Editable is modified.  Unfortunately, the first call in to Samsung's implementation of that method results in Log.e with message \"SPAN_EXCLUSIVE_EXCLUSIVE spans cannot have a zero length\".  While this may or may not be important, what is important is that this error indicates prevention of whatever other logic is supposed to happen and results in a composing start and end index value of -1 to come back, worse, the Editable's internal CharSequence has now set duplicated text inside of it.  I think what is happening is the current Span is not being removed, and instead the new span, which is supposed to replace it, is just being appended...?\r\n\r\nSo, back in flutter-land, when InputConnectionAdaptor.java calls updateEditingState, we can't trust the .toString() method to return the expected string from the Editable as we send this over to textInputChannel.updateEditingState.\r\n\r\nMy workaround, which is very much a work in progress and needs more testing, is to manually correct the word/span and replace it with the composingText string that is being edited based on cursor positions in the underlying Editable.  Initial work here indicates this works so far, at least on my Samsung device, I also manually correct the composing start and end index (because who knows what else that may affect).  \r\n\r\nI guess this leaves open a couple of questions.  First, is what I'm working around a bug or a feature in Saumsung's implementation (I'm leaning towards bug)... and probably more importantly, even if Samsung fixes this, it's pretty likely this will never be fixed in a large majority of devices that are affected by it.\r\n\r\nSuffice to say, I'm 99% sure this is not a Flutter issue, but rather a manufacturer Android implementation issue.  I think we can work around it, though, I'm not sure to what extent Flutter is supposed to work around things like this?  Of course, this is assuming I correctly understand most/all there is to know with how Flutter interacts with the Input methods and channels of Android correctly; I may have missed something in regards to how we're interacting with the underlying Editable, though, I'm fairly confident in what I've seen so far.\r\n\r\nRegardless, I'll make a work around and get it tested on both Samsung and non-Samsung devices - sharing all the results of course.\r\n\r\n@GaryQian, have any other insights here?",
+    "createdAt": "2019-06-15T16:35:23Z"
+  },
+  {
+    "id": 8301,
+    "sender": "GaryQian",
+    "content": "Thanks for all your work on this. It is indeed a gray area when dealing with hacks to fix specific device bugs. Namely, if the device itself fixes the bug, would we still handle it properly? And in terms of code hygiene, filling our codebase with hacks makes it very unmaintainable and can incur performance hits over time.\r\n\r\nDo you think it is possible for you to get your fix/workaround for this in a plugin form? It would be phenomenal if people could simply install a `Samsung keyboard fix` plugin that would fix this.\r\n\r\nReally appreciate your exploration of this topic!",
+    "createdAt": "2019-06-17T18:18:10Z"
+  },
+  {
+    "id": 8302,
+    "sender": "charlesokt",
+    "content": "I agree with what you say Gary.  Though, it somewhat begs the question, which Samsung devices are affected by this, and which are not?  I mean, there could be quite a prevalence issue here that may need to be weighed carefully.  As I understand it, Samsung devices are quite popular in the Android space and people trying to deploy Flutter apps seeing this weird behavior may get the wrong idea.\r\n\r\nRegardless, I'll formalize my workaround on the engine for review so you guys can better see what's involved.\r\n\r\nI could probably look at making a plugin, though I'm not totally sure how I would override the functionality found in InputConnectionAdaptor?  As it stands right now, I'm adding one new function that overrides the standard behavior in updateEditingState that seems to be working for both Samsung and non-Samsung devices.  I need more testing, but what I have is quite promising -- albeit not super elegant and kind of ugly.",
+    "createdAt": "2019-06-17T18:45:20Z"
+  },
+  {
+    "id": 8303,
+    "sender": "markmoskalenko",
+    "content": "I have a galaxy s8 and galaxy s9 on hand\r\nI think this is the problem of all new Samsung operating systems. At the moment, our metrics show the wide distribution of Samsung among users. This is an important platform.\r\n\r\nHelp please solve this problem. Our programmers can not cope with it (",
+    "createdAt": "2019-06-17T19:02:33Z"
+  },
+  {
+    "id": 8304,
+    "sender": "GaryQian",
+    "content": "Yeah, due to the market share of Samsung devices, if this cannot be applied at engine level, It may be reasonable to go ahead and apply a fix as long as it is compatible with both Samsung's bug and correct versions.\r\n\r\nI'll gather some opinions on this when you post your PR!",
+    "createdAt": "2019-06-17T19:24:57Z"
+  },
+  {
+    "id": 8305,
+    "sender": "charlesokt",
+    "content": "So, I was testing my work around... it's looking pretty good, but, the changes needed are probably not what you'd want to apply at the engine level; as mentioned, we'll probably take on technical debt by doing this.\r\n\r\nOptions?  Well, I'm working instead now on bringing in part of the Android source code for Editable and SpannableStringBuilder, making some changes in that, then incorporating that in to the engine instead.  The idea is to locally patch up, so to speak, the broken parts and use the patched up versions for what Flutter is already expecting.  I know when I made a small game engine many years ago that spanned iOS, Android, Windows, etc, I had to do similar things as I couldn't trust certain platforms half the time to do what they were supposed to do (Android was very guilty of this, though, thankfully, it doesn't seem AS bad today as it was back then).\r\n\r\nI haven't gotten far on this yet as I got tripped up by something trivial -- how to add new .java files to the ninja build scripts?  I keep getting package not found errors for my new java files.  I put the files in the same location as the referencing files and put them in the same package, so they should be visible -- though, maybe, my files aren't being compiled in?\r\n\r\n@GaryQian @justinmc ?  Any pointers here?",
+    "createdAt": "2019-06-19T19:09:00Z"
+  },
+  {
+    "id": 8306,
+    "sender": "justinmc",
+    "content": "I would think that should work for adding a new java file...  Hopefully @GaryQian has some tips :)",
+    "createdAt": "2019-06-20T15:48:48Z"
+  },
+  {
+    "id": 8307,
+    "sender": "GaryQian",
+    "content": "Have you taken a look at shell/platform/android/BUILD.gn?\r\n\r\nWe typically include the files in the various BUILD.gn files scattered about.",
+    "createdAt": "2019-06-21T19:09:32Z"
+  },
+  {
+    "id": 8308,
+    "sender": "charlesokt",
+    "content": "Ok thanks @GaryQian.  I'm still new to how ninja works; I'm still coming from back in the day makefiles and what not.  I'll get this going and present findings, solutions, and a PR soon.",
+    "createdAt": "2019-06-21T19:14:02Z"
+  },
+  {
+    "id": 8309,
+    "sender": "33-Elephants",
+    "content": "Not sure if it helps, but for me the following workaround fixed the issue with text duplication on Samsung S8:\r\n\r\n```\r\n    override fun createFlutterView(context: Context?): FlutterView {\r\n        val flutterView = object: FlutterView(this, null, createFlutterNativeView()) {\r\n\r\n            override fun onCreateInputConnection(outAttrs: EditorInfo?): InputConnection? {\r\n                val connection = super.onCreateInputConnection(outAttrs)\r\n\r\n                outAttrs?.apply {\r\n                    var type = InputType.TYPE_CLASS_TEXT               or\r\n                               InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS or\r\n                               InputType.TYPE_TEXT_VARIATION_PASSWORD\r\n\r\n                    if ((inputType and InputType.TYPE_TEXT_FLAG_MULTI_LINE) != 0) {\r\n                        type = type or InputType.TYPE_TEXT_FLAG_MULTI_LINE\r\n                    }\r\n\r\n                    if ((inputType and InputType.TYPE_TEXT_FLAG_CAP_CHARACTERS) != 0) {\r\n                        type = type or InputType.TYPE_TEXT_FLAG_CAP_CHARACTERS\r\n                    }\r\n\r\n                    if ((inputType and InputType.TYPE_TEXT_FLAG_CAP_WORDS) != 0) {\r\n                        type = type or InputType.TYPE_TEXT_FLAG_CAP_WORDS\r\n                    }\r\n\r\n                    if ((inputType and InputType.TYPE_TEXT_FLAG_CAP_SENTENCES) != 0) {\r\n                        type = type or InputType.TYPE_TEXT_FLAG_CAP_SENTENCES\r\n                    }\r\n\r\n                    inputType = type\r\n                }\r\n\r\n                return connection\r\n            }\r\n\r\n        }\r\n\r\n        setContentView(flutterView, ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT))\r\n\r\n        return flutterView\r\n    }\r\n```\r\n\r\nThis code must be added into main activity",
+    "createdAt": "2019-07-16T18:38:11Z"
+  },
+  {
+    "id": 8310,
+    "sender": "charlesokt",
+    "content": "Thanks for the comment @33-Elephants but it looks like you're programmatically forcing TYPE_TEXT_FLAG_NO_SUGGESTIONS for all inputs (which would affect all devices, not just samsung).  It's been discussed earlier and elsewhere that manually turning off predictive text on the affected Samsung devices sidesteps the problem.  Your solution looks to be doing this without having the user turn this off manually, but, it would also effectively turn off suggestions/predictive text for all users of your app, regardless of device, with no way for them to turn it on.\r\n\r\nAs for me, I got pulled away to work on higher priority issues for a while with my own flutter apps.  Last I was working on this, it came down to pulling in Android OS source code for SpannableStringBuilder (and its dependencies), writing custom code over this, and trying to test fixes at this level -- as expected, this is much more complicated than I originally thought.\r\n\r\nAll in all, it looks like (but not totally proven) the affected samsung devices has some sort of faulty implementation of SpannableStringBuilder from AOS.  \r\n\r\nSo, I have a workaround where I manually correct spannable strings when the text gets to the input widget... but I think the \"right\", but much harder, answer is to manually override the faulty AOS implementation... this is not as small of a task as I'd hoped.  \r\n\r\nI've finally gotten brave enough to look at FlutterJNI because that's where this is going.\r\n@matthew-carroll if you have any pointers for how best to use FlutterJNI in regards to implementing ArrayUtils / unpaddedarray (among other features seemingly mostly found in android.internal.util.*)... all that stuff are dependencies from SpannableStringBuilder... and if I'm rolling a custom implementation...",
+    "createdAt": "2019-07-17T19:05:22Z"
+  },
+  {
+    "id": 8311,
+    "sender": "matthew-carroll",
+    "content": "@charlesokt can you describe the kinds of changes you're trying to make to FlutterJNI? It should be exceedingly rare that any changes are needed for that interface, especially when it comes to adjusting text input behavior. I would expect any such adjustments to occur in `TextInputPlugin` and `InputConnectionAdapter`.",
+    "createdAt": "2019-07-17T22:38:56Z"
+  },
+  {
+    "id": 8312,
+    "sender": "charlesokt",
+    "content": "> @charlesokt can you describe the kinds of changes you're trying to make to FlutterJNI? It should be exceedingly rare that any changes are needed for that interface, especially when it comes to adjusting text input behavior. I would expect any such adjustments to occur in `TextInputPlugin` and `InputConnectionAdapter`.\r\n\r\nYou'll have to forgive my general ignorance on all of this... what started as a \"should be easy to look at\" issue has gone well beyond my initial assumptions... I'm just barely getting started with learning anything about the framework and the engine and never even looked at the engine code before all this, I think I did a deep dive in to the middle of the ocean.  Here's the general short version of what's going on:\r\n\r\nYou're definitely right, FlutterJNI is not something that should be changed; I found my way there trying to answer the question of how I could bring in custom c/c++ code in to the engine, specifically to replace or augment android.internal.util. methods and functions.  Why?  Because the affected Samsung devices per this issue (and linked issues), SpannableStringBuilder is throwing internal errors when text is entered in to an Text Input widget, resulting in TextInputPlugin and/or InputConnectionAdapter receiving and processing incorrect values as becoming part of the Editable object... I think what has happened is while parsing a SpannableString, the afflicted devices error out in the middle of processing, leaving the internal state only half-processed, then the rest of flutter is using bad input.\r\n\r\nMore specifically: TextInputPlugin.java has a private method setTextInputClient where the object mEditable is instantiated, unfortunately, it is this object that depends on SpannableStringBuilder and is the source of the woes in this issue... so, I have to entertain the idea that these devices have a faulty implementation of the Android source... and the odds of Samsung rolling a patch, and applying it to all affected devices are probably slim... given the prevalence of this manufacturer's deployment rate, it's a good chance this bug will affect Flutter apps for some time.\r\n\r\nSo, here we are, I have to entertain the idea of making a custom Editable class for TextInputPlugin using a custom/reliable SpannableStringBuilder which depends on ArrayUtils and other things... the stock classes rely heavily on android.internal.util functions, mostly for array manipulation, but I can't seem to get to those things as it is, and of course, most of this stuff is private, and in java, I can't inherit/override these without writing my own custom code to replace them in the first place...\r\n\r\nI'm looking for guidance for a couple of things:\r\n\r\n1) Does the flutter engine already expose similar functionality to android.internal.util - I'd imagine a lot of this would be JNI/NDK c/c++ code dealing with memory ops.\r\n\r\n2) How would I go about adding new native code in to the engine in support of my new custom SpannableStringBuilder / ArrayUtils java class.  I'm not afraid of C/C++ or using JNI, but I'm not sure the location of where to start adding this type of code.  What are the rules and etiquette in this area, I'd imagine we probably don't want to just start adding in new c files to some random directory and haphazardly try to start running it.\r\n\r\nYes, I could probably make suitable java code to handle a custom ArrayUtils... but considering the stock Android source is calling down to native itself, I'd imagine the performance indicators would be less than ideal.  The Right Way is probably going custom native as well.\r\n\r\n",
+    "createdAt": "2019-07-17T23:38:21Z"
+  },
+  {
+    "id": 8313,
+    "sender": "matthew-carroll",
+    "content": "I'll defer to @jason-simmons and @chinmaygarde with regard to adding C++ code.\r\n\r\nI would also encourage you to investigate every Java-based solution before venturing into C++ territory.\r\n\r\nCC @gspencergoog for deeper knowledge about text input.\r\n\r\nCC @Hixie for any policy positions related to patching broken behavior in a set of devices under a specific OEM.",
+    "createdAt": "2019-07-17T23:57:10Z"
+  },
+  {
+    "id": 8314,
+    "sender": "charlesokt",
+    "content": "Thanks Matthew!  I look forward to further guidance, and, I know all you guys are really busy with all things Flutter, so I appreciate taking time away to hand hold this upstart!",
+    "createdAt": "2019-07-18T00:51:26Z"
+  },
+  {
+    "id": 8315,
+    "sender": "Hixie",
+    "content": "If we can make the Samsung devices work while using the protocol correctly, then let's do it (even if it requires some very specific contortions). If we can't, but we can reliably detect the bad behavior and respond appropriately, let's do that. If we can't do that either, it gets more likely that we should just not do anything.\r\n\r\nWe should definitely not do anything that would lead to bad behavior when the device does everything correctly.\r\n\r\nWhatever we do we should make sure to document and test the behavior in detail, so that someone two years from now can understand it and confidently refactor the code without regressions. ",
+    "createdAt": "2019-07-19T06:37:32Z"
+  },
+  {
+    "id": 8316,
+    "sender": "charlesokt",
+    "content": "Thanks for the insight @Hixie.  Here's the workaround code with explanation.  I'm of the opinion that creating and maintaining a flutter SpannableStringBuilder is probably the better, long-term way to guarantee consistency across devices; but, where is that line drawn of course.  Regardless, here's what I have to handle the incoming, bad input.\r\n\r\n> InputConnectionAdaptor.java\r\n\r\n```\r\n@Override\r\n    public boolean setComposingText(CharSequence text, int newCursorPosition) {\r\n        boolean result;\r\n        if (text.length() == 0) {\r\n            result = super.commitText(text, newCursorPosition);\r\n        } else {\r\n            result = super.setComposingText(text, newCursorPosition);\r\n        }\r\n        updateEditingStateWithComposingText(text);\r\n        return result;\r\n    }\r\n\r\n\r\nprivate void updateEditingStateWithComposingText(CharSequence composedWord) {\r\n        if (composedWord == null) {\r\n            updateEditingState();\r\n            return;\r\n        }\r\n\r\n        int selectionStart = Selection.getSelectionStart(mEditable);\r\n        int selectionEnd = Selection.getSelectionEnd(mEditable);\r\n        \r\n        int composingStart = BaseInputConnection.getComposingSpanStart(mEditable);\r\n        int composingEnd = BaseInputConnection.getComposingSpanEnd(mEditable);\r\n        \r\n        String editableStr = mEditable.toString();\r\n        \r\n        int indexWordBoundary = 0;\r\n        for (int i = selectionStart-1; i > 0; --i) {\r\n            if (editableStr.charAt(i) == ' ') {\r\n                indexWordBoundary = i+1;\r\n                break;\r\n            }\r\n        }\r\n                \r\n        if (composingStart < 0 && composedWord != null)\r\n            composingStart = composedWord.length();\r\n        if (composingEnd < 0)\r\n            composingEnd = selectionStart - composingStart;\r\n        \r\n        if (composedWord.length() == 0) {\r\n            //do nothing, user may have done auto-complete, in which case the editable already did the replacement\r\n        }\r\n        else {\r\n            mEditable.replace(indexWordBoundary, selectionStart, composedWord); //manually correct the word that's being edited\r\n        }\r\n        \r\n        composingEnd = mEditable.toString().length();\r\n        \r\n        mImm.updateSelection(mFlutterView,\r\n                             selectionStart, selectionEnd,\r\n                             composingStart, composingEnd);\r\n                     \r\n        textInputChannel.updateEditingState(\r\n            mClient,\r\n            mEditable.toString(),\r\n            selectionStart,\r\n            selectionEnd,\r\n            composingStart,\r\n            composingEnd\r\n        );\r\n    }\r\n```\r\nI created a duplicate updateEditingState function that accepts the CharSequence of whatever the composed word is and call it from setComposingText.  This is the only place that needs to call this specialized version (all other calls to updateEditingState continue to call the parameter-less version).  \r\n\r\nInside the new updateEditingStateWithComposingText function I attempt to figure out where the word boundary is (I assume word boundaries are only found from space characters, so I may need to augment how to detect word boundaries with characters other than spaces).  From there, it replaces the word from the detected wordboundary.\r\n\r\nEssentially, I cannot trust the incoming charsequence and modify the editable's text manually, based on the incoming word.\r\n\r\nThis is tested with affected and not-affected devices and works as expected with and without predictive text features turned on.  This also works on words in the middle of the input, not just the last word in the text and replaces them in-place.\r\n",
+    "createdAt": "2019-07-19T12:19:30Z"
+  },
+  {
+    "id": 8317,
+    "sender": "dmkerfont",
+    "content": "This is happening with my Galaxy S9. I'm making an email form input and noticed a strange interaction with the **'.'** and **'@'** keys.\r\n\r\n1) type **'a.b'** into text box\r\n2) hit done to collapse keyboard\r\n3) select text box and type **'.c'**\r\nThe result _should be_ **'a.b.c'**, but instead we get **'a.b.a.b.c'**\r\n\r\nHeres my code\r\n\r\n```\r\nWidget buildEmailField(){\r\n\treturn TextFormField(\r\n\t\tkeyboardType: TextInputType.emailAddress,\r\n\t\tautocorrect: false,\r\n\t\tdecoration: InputDecoration(\r\n\t\t\tlabelText: 'Email Address',\r\n\t\t\thintText: 'you@example.com'\r\n\t\t),\r\n\t\tvalidator: (String value){\r\n\t\t\tif (!value.contains(emailRegExp)){\r\n\t\t\t\treturn 'Enter a valid email address.';\r\n\t\t\t}\r\n\t\t\telse{\r\n\t\t\t\treturn null;\r\n\t\t\t}\r\n\t\t}\r\n\t);\r\n}\r\n```",
+    "createdAt": "2019-08-19T19:19:05Z"
+  },
+  {
+    "id": 8318,
+    "sender": "alesido",
+    "content": "@charles,\n\nCould you please give a hint how to integrate your solution into a flutter\nproject. Thanks\n\nOn Fri, Jul 19, 2019 at 3:23 PM charles <notifications@github.com> wrote:\n\n> Thanks for the insight @Hixie <https://github.com/Hixie>. Here's the\n> workaround code with explanation. I'm of the opinion that creating and\n> maintaining a flutter SpannableStringBuilder is probably the better,\n> long-term way to guarantee consistency across devices; but, where is that\n> line drawn of course. Regardless, here's what I have to handle the\n> incoming, bad input.\n>\n> InputConnectionAdaptor.java\n>\n> @Override\n>     public boolean setComposingText(CharSequence text, int newCursorPosition) {\n>         boolean result;\n>         if (text.length() == 0) {\n>             result = super.commitText(text, newCursorPosition);\n>         } else {\n>             result = super.setComposingText(text, newCursorPosition);\n>         }\n>         updateEditingStateWithComposingText(text);\n>         return result;\n>     }\n>\n>\n> private void updateEditingStateWithComposingText(CharSequence composedWord) {\n>         if (composedWord == null) {\n>             updateEditingState();\n>             return;\n>         }\n>\n>         int selectionStart = Selection.getSelectionStart(mEditable);\n>         int selectionEnd = Selection.getSelectionEnd(mEditable);\n>\n>         int composingStart = BaseInputConnection.getComposingSpanStart(mEditable);\n>         int composingEnd = BaseInputConnection.getComposingSpanEnd(mEditable);\n>\n>         String editableStr = mEditable.toString();\n>\n>         int indexWordBoundary = 0;\n>         for (int i = selectionStart-1; i > 0; --i) {\n>             if (editableStr.charAt(i) == ' ') {\n>                 indexWordBoundary = i+1;\n>                 break;\n>             }\n>         }\n>\n>         if (composingStart < 0 && composedWord != null)\n>             composingStart = composedWord.length();\n>         if (composingEnd < 0)\n>             composingEnd = selectionStart - composingStart;\n>\n>         if (composedWord.length() == 0) {\n>             //do nothing, user may have done auto-complete, in which case the editable already did the replacement\n>         }\n>         else {\n>             mEditable.replace(indexWordBoundary, selectionStart, composedWord); //manually correct the word that's being edited\n>         }\n>\n>         composingEnd = mEditable.toString().length();\n>\n>         mImm.updateSelection(mFlutterView,\n>                              selectionStart, selectionEnd,\n>                              composingStart, composingEnd);\n>\n>         textInputChannel.updateEditingState(\n>             mClient,\n>             mEditable.toString(),\n>             selectionStart,\n>             selectionEnd,\n>             composingStart,\n>             composingEnd\n>         );\n>     }\n>\n> I created a duplicate updateEditingState function that accepts the\n> CharSequence of whatever the composed word is and call it from\n> setComposingText. This is the only place that needs to call this\n> specialized version (all other calls to updateEditingState continue to call\n> the parameter-less version).\n>\n> Inside the new updateEditingStateWithComposingText function I attempt to\n> figure out where the word boundary is (I assume word boundaries are only\n> found from space characters, so I may need to augment how to detect word\n> boundaries with characters other than spaces). From there, it replaces the\n> word from the detected wordboundary.\n>\n> Essentially, I cannot trust the incoming charsequence and modify the\n> editable's text manually, based on the incoming word.\n>\n> This is tested with affected and not-affected devices and works as\n> expected with and without predictive text features turned on. This also\n> works on words in the middle of the input, not just the last word in the\n> text and replaces them in-place.\n>\n> —\n> You are receiving this because you are subscribed to this thread.\n> Reply to this email directly, view it on GitHub\n> <https://github.com/flutter/flutter/issues/31512?email_source=notifications&email_token=ABX6UOP624IXGAHQAVVAO6LQAGW23A5CNFSM4HH53UVKYY3PNVWWK3TUL52HS4DFVREXG43VMVBW63LNMVXHJKTDN5WW2ZLOORPWSZGOD2LO5KA#issuecomment-513207976>,\n> or mute the thread\n> <https://github.com/notifications/unsubscribe-auth/ABX6UONDUGS43PIHOVB4YJ3QAGW23ANCNFSM4HH53UVA>\n> .\n>\n",
+    "createdAt": "2019-08-28T13:21:26Z"
+  },
+  {
+    "id": 8319,
+    "sender": "charlesokt",
+    "content": "Hi @alesido.  The solution I described isn't patched in to the engine, so I suppose if you want to use it, you'd need to snag the flutter engine source, apply these changes, and compile your own engine; then use that in your flutter project.  You could probably pull from my repo, but I don't have plans to keep my repo up to date with master, so you're probably better off doing it yourself at this time.\r\n\r\nI do apologize for not working on this for a while again, I got really busy with my own project work again and other life stuff; I really can only work on this when my own flutter projects that make me money aren't being demanding.  When I can get more time, I'd like to pursue more of the native code in the android part of the flutter engine.  I'm at a point where I just need to know more about the engine before I'm super confident in a \"good\" solution to this on-going problem.\r\n\r\nOf course, if there are any other ambitious devs out there wanting to give a solution a go, by all means, I've tried to share as much as I've learned so far in this thread. \r\n\r\nAlso, I think you tagged the wrong charles?",
+    "createdAt": "2019-08-28T19:00:31Z"
+  }
+]

@@ -1,0 +1,386 @@
+[
+  {
+    "id": 7488,
+    "sender": "radvansky-tomas",
+    "content": "Any update on this...I really thought that this is part of flutter :( ..this is than pretty much same issues than other web hybrid solutions have...",
+    "createdAt": "2018-11-02T07:40:03Z"
+  },
+  {
+    "id": 7489,
+    "sender": "mainrs",
+    "content": "@radvansky-tomas I don't know why people just don't get that this is not within flutters responsibility. Even if you have to implement background execution natively you still have the advantage of one single code base. Writing one flutter plugin that does your background work takes merely one or two days of work. I had the same issue, I needed an android service that would be capable of playing music for me. I just wrote it in kotlin, implemented the communication layer using flutter and later on did the same for iOS. \nIt's entirely possible to just use the systems native background systems. \nInstead of whining around here that X is not implemented,you can literally implement it without any problems whatsoever using the ecosystem provided by the team.",
+    "createdAt": "2018-11-02T08:46:18Z"
+  },
+  {
+    "id": 7490,
+    "sender": "radvansky-tomas",
+    "content": "@SirWindfield Unfortunately you dont know what are you talking about. This is essential part of architecture, not plugin itself. \r\n\r\nFlutter is presented as cross-platform solution producing native code, ie there is expectation that it can run code in its language (Dart) everytime when OS allows it. \r\n\r\nSo, if app is running after remote notification is received, and you can place breakpoint in existing native code, you should be able to call your flutter/dart code where are your services, models and finally UI.\r\n\r\nTo make it in your case...lets say that your music is playing in background and then you finish your playlist...after 10mins is your app shutdown. Then you call siri, or use headphones to start playback again of your app, whatever entry point you chose...native code is executed, but not its UI, your flutter code is not initialised and your lost as I am with my notifications.\r\n\r\nSo no its not possible, I can write native plugin catching notification for me, but then I need access to flutter business logic to process data, in my case crypto decrypt and releasing local notification with decrypted content",
+    "createdAt": "2018-11-02T08:56:07Z"
+  },
+  {
+    "id": 7491,
+    "sender": "mainrs",
+    "content": "We'll, I've tested it on my phone extensively and it works without problems whatsoever. \nIt might be that my phone never killed the app though. My bad then.",
+    "createdAt": "2018-11-02T10:19:05Z"
+  },
+  {
+    "id": 7492,
+    "sender": "ethael",
+    "content": "@christocracy any update regarding background_fetch plugin Chris?",
+    "createdAt": "2018-11-02T12:07:01Z"
+  },
+  {
+    "id": 7493,
+    "sender": "christocracy",
+    "content": "@ethael Here's the empty repo for you to watch for updates.\r\nhttps://github.com/transistorsoft/flutter_background_fetch\r\n",
+    "createdAt": "2018-11-02T12:14:22Z"
+  },
+  {
+    "id": 7494,
+    "sender": "bkonyi",
+    "content": "@radvansky-tomas you can handle background events in Dart code by creating a background isolate as described in [this Medium post on background execution](https://medium.com/flutter-io/executing-dart-in-the-background-with-flutter-plugins-and-geofencing-2b3e40a1a124). You'll likely need to write some native code for each platform to suit your particular needs unless there's a plugin that already exists which does what you want (unlikely, since I'm unaware of many plugins which support background execution at the moment).",
+    "createdAt": "2018-11-02T17:58:09Z"
+  },
+  {
+    "id": 7495,
+    "sender": "radvansky-tomas",
+    "content": "@bkonyi Thank you for reply, I started to change firebase_messaging plugin to support background execution...but this issue is more about some generic way to do it. I mean it should be part of template = runner and its dart side where devs can execute such headless code, some rules, pattern standard as now is all over some blogs, suggestions etc.",
+    "createdAt": "2018-11-02T19:46:28Z"
+  },
+  {
+    "id": 7496,
+    "sender": "radvansky-tomas",
+    "content": "Some initial work done: https://github.com/radvansky-tomas/plugins/tree/master/packages/firebase_messaging\r\n\r\nFollowing some guides from https://github.com/bkonyi/FlutterGeofencing\r\n\r\nI should finish it by end of this week, I am only working on iOS bits for now. Example project is using local notification plugin to show that message was received in background (silent notification) and then release new local one, to manifest success. ",
+    "createdAt": "2018-11-04T09:31:14Z"
+  },
+  {
+    "id": 7497,
+    "sender": "bkonyi",
+    "content": "> Some initial work done: https://github.com/radvansky-tomas/plugins/tree/master/packages/firebase_messaging\r\n> \r\n> Following some guides from https://github.com/bkonyi/FlutterGeofencing\r\n> \r\n> I should finish it by end of this week, I am only working on iOS bits for now. Example project is using local notification plugin to show that message was received in background (silent notification) and then release new local one, to manifest success.\r\n\r\n@goderbauer and I were actually looking to add this support, but we would be more than happy to help you out with design and reviews if you plan on making a pull request.",
+    "createdAt": "2018-11-05T18:22:48Z"
+  },
+  {
+    "id": 7498,
+    "sender": "radvansky-tomas",
+    "content": "So I pretty much finished that part, so now I can receive silent push notifications and my callback written in dart is executed while app is in background.\r\n\r\nHowever, I cannot access any other plugin there. Callback has to be root/static method and really dont get how to call anything from there.\r\n\r\nSo I tried to make simple test, to use flutter local notification plugin to send local notification after silent one is received, but plugin seems to be not accessible (not registered?)\r\n\r\nI found similar posts here: https://github.com/flutter/engine/pull/6396\r\n\r\nIs there any other necessary step, which i have to do to load those plugins ? \r\n\r\nMy root level callback:\r\n`void callback(FirebaseMessage m, MessageEvent e) async {\r\n  print('Message $m Event: $e');\r\n  final SendPort send =\r\n  IsolateNameServer.lookupPortByName('messaging_send_port');\r\n  send?.send(e.toString());\r\n}`\r\n\r\nQuestion is not how to access all dart code + plugins from that callback...query firestore, etc",
+    "createdAt": "2018-11-07T09:25:24Z"
+  },
+  {
+    "id": 7499,
+    "sender": "christocracy",
+    "content": "My Background Fetch implementation is finally released.\r\n[background_fetch](https://pub.dartlang.org/packages/background_fetch)",
+    "createdAt": "2018-11-09T19:50:02Z"
+  },
+  {
+    "id": 7500,
+    "sender": "seniorbee",
+    "content": "> @christocracy You're right, but I was hoping one of the largest corporations in the world would have the resources to develop a fully featured product and not require its users to spend tens of thousands of dollars to make it usable enough.\r\n\r\nThat's so true. If you get people's time you should give something back to them. If not then don't make these fancy marketing titles!",
+    "createdAt": "2018-11-13T00:39:57Z"
+  },
+  {
+    "id": 7501,
+    "sender": "eseidelGoogle",
+    "content": "It seems like this issue is still causing folks woes?  It's closed and has a lot of comments, so it's unlikely we're going to make many concrete project changes from this issue. :(  (We'll need to file new ones to make more progress I expect.)\r\n\r\nI would be very interested in us documenting the concrete changes desired here.  Sounds like more background examples are desired? (e.g. https://github.com/flutter/website/issues/9250)\r\n\r\nIn any case, we'd love to have individual issues filed with individual asks.  As others have noted above, Flutter is a large and complex project, and although we have a large (and rapidly expanding) team here at Google, we still just don't have enough engineers working fulltime on Flutter to answer all issues simultaneously.  Flutter is 100% open source and all of our issues are on GitHub.  Patches are always welcome of course. :)\r\n\r\nFor any with issues/changes desired, please file new issues to let all contributors know how we can help further: https://github.com/flutter/flutter/issues/new\r\n\r\nThanks!",
+    "createdAt": "2018-11-13T03:00:22Z"
+  },
+  {
+    "id": 7502,
+    "sender": "ethael",
+    "content": "@eseidel challenge accepted: flutter/flutter#24278",
+    "createdAt": "2018-11-13T07:46:22Z"
+  },
+  {
+    "id": 7503,
+    "sender": "camillo777",
+    "content": "I was hoping to avoid writing device specific code and having a Flutter Dart API implementation maybe based on events that would hide device and os specifications and specific implementation. ",
+    "createdAt": "2019-10-01T11:08:51Z"
+  },
+  {
+    "id": 7504,
+    "sender": "Krunal79-flutter",
+    "content": "already solveda at [here](https://icetutor.com/question/how-do-i-run-code-in-the-background-even-with-the-screen-off/)",
+    "createdAt": "2019-10-19T08:33:16Z"
+  },
+  {
+    "id": 7505,
+    "sender": "rdev-software",
+    "content": "@Krunal79-flutter how exactly, that approach would still have same issues. Thing is that in your scenario is flutter already initialised and its not proper background access then. Issue what I had and have, is when app is actually dead and silent notification (or app extension) will wake up your app and you need perform \"dart\" logic while flutter is not running yet (ie no UI present).",
+    "createdAt": "2019-10-19T09:24:18Z"
+  },
+  {
+    "id": 7506,
+    "sender": "tomoerlemans010",
+    "content": "This really ought to be a much higher priority issue for whoever is managing the Flutter team. Implementing background functionality is a huge pain for the average Flutter developer and it breaks down often an in non-trivial ways. And I am sure that a lot of app developers are currently struggling with this.",
+    "createdAt": "2020-05-26T16:45:41Z"
+  },
+  {
+    "id": 7507,
+    "sender": "a-siva",
+    "content": "@tomoerlemans010 please see the comment in https://github.com/flutter/flutter/issues/3671#issuecomment-438113161.\r\n\r\nThis particular issue is closed, please add comments to other open issues related to background execution or create a new one with the issues that you are facing.",
+    "createdAt": "2020-05-26T17:02:28Z"
+  },
+  {
+    "id": 7508,
+    "sender": "VrundaAgs",
+    "content": "Is there a way, using only Flutter, to detect when the device is unlocked? (password, faceid, fingerprint, doesn't matter)...",
+    "createdAt": "2021-04-21T09:52:39Z"
+  },
+  {
+    "id": 7509,
+    "sender": "zanderso",
+    "content": "@VrundaAgs, that is a good question for stack overflow or one of the other forums related to Flutter listed here https://flutter.dev/community.",
+    "createdAt": "2021-04-21T15:01:32Z"
+  },
+  {
+    "id": 7510,
+    "sender": "stuartmorgan-g",
+    "content": "## Support multiple windows for desktop shells\n\nSee discussion in https://github.com/google/flutter-desktop-embedding/issues/98\r\n\r\nIf we end up supporting multiple root views within one engine instance, this will require embedding API changes. If we don't, we'll need to have a viable strategy to recommend for coordinating between windows that works for cases that require constant synchronization (e.g., a tools palette in one window, with the canvas using those tools in another)",
+    "createdAt": "2019-04-08T16:33:22Z"
+  },
+  {
+    "id": 7511,
+    "sender": "ghost",
+    "content": "IOS 13 will provide a version of multiple windows.\r\n\r\nhttps://9to5mac.com/2019/04/15/ios-13-features-dark-mode/\r\n\r\nIt's important that this is evaluated and the right hooks provided to allow flutter to be a first class framework on iPads.",
+    "createdAt": "2019-04-16T16:29:48Z"
+  },
+  {
+    "id": 7512,
+    "sender": "rodydavis",
+    "content": "Maybe as a proof concept we could start with alert popups that open a separate window and can be dragged.\r\n\r\nMaybe like a Cupertino popover since they carry their own navigation internally on iPads.\r\n\r\n https://gist.github.com/AppleEducate/6f2a1188d6256b0eff79131891ce92f1",
+    "createdAt": "2019-05-02T15:23:26Z"
+  },
+  {
+    "id": 7513,
+    "sender": "stuartmorgan-g",
+    "content": "The place to start is agreement on, and design for, the technical approach that will be used to support multiple windows on desktop. A proof of concept can't come before a decision on what to build.",
+    "createdAt": "2019-05-02T15:53:38Z"
+  },
+  {
+    "id": 7514,
+    "sender": "rodydavis",
+    "content": "Very true. 👍🏼",
+    "createdAt": "2019-05-02T16:11:54Z"
+  },
+  {
+    "id": 7515,
+    "sender": "handicraftsman",
+    "content": "In OpenGL applications there is a need to call a method called like `MakeContextCurrent` (different in every windowing API), thus i think it would be a nice idea to have some keyed contexts whose keys can be sent to the embedder to switch to the context. Although there is a problem with event handling - embedders would need to translate internal window system ids into context keys so flutter understands which window should receive the event. That means that both flutter and embedder must have 1-2 maps to identify the context keys.",
+    "createdAt": "2019-05-11T14:25:18Z"
+  },
+  {
+    "id": 7516,
+    "sender": "GregorySech",
+    "content": "Does this have any implication on how web handles multiple tabs?",
+    "createdAt": "2019-08-26T18:23:13Z"
+  },
+  {
+    "id": 7517,
+    "sender": "stuartmorgan-g",
+    "content": "I think that's a fundamentally different question that multi-view on desktop. It's possible that depending on what decision is made for web there might some internal aspects that would be the same, but without high-level designs for both it's hard to say.\r\n\r\nIt certainly should be tracked as a separate issue from this, since much of the work would not be the same regardless.",
+    "createdAt": "2019-08-26T18:31:30Z"
+  },
+  {
+    "id": 7518,
+    "sender": "pavanpodila",
+    "content": "This is a deal breaker for an app I want to port from Swift to Flutter. Curious to hear if this is a priority for the team ?",
+    "createdAt": "2019-08-28T07:42:49Z"
+  },
+  {
+    "id": 7519,
+    "sender": "rodydavis",
+    "content": "Why not do add to app? You can keep your swift code and slowly migrate over!",
+    "createdAt": "2019-08-28T11:44:25Z"
+  },
+  {
+    "id": 7520,
+    "sender": "pavanpodila",
+    "content": "You mean embed in the Swift app? The app itself is multi window by design. Embedding could be an option if this is going to take time. Also just a side question: does it support transparent windows with click through?",
+    "createdAt": "2019-08-28T11:51:52Z"
+  },
+  {
+    "id": 7521,
+    "sender": "rodydavis",
+    "content": "Not sure, but i know it is a good option for existing apps! https://github.com/flutter/flutter/wiki/Add-Flutter-to-existing-apps\r\n\r\nThat way the UI could be in Flutter and window management done by swift",
+    "createdAt": "2019-08-28T11:55:35Z"
+  },
+  {
+    "id": 7522,
+    "sender": "stuartmorgan-g",
+    "content": "We're aware that this is a critical feature for a category of applications. That said, there are still many critical features not yet implemented for desktop. This is one of many priorities; it's not currently the top priority.",
+    "createdAt": "2019-08-28T12:49:43Z"
+  },
+  {
+    "id": 7523,
+    "sender": "cosmotek",
+    "content": "What about a CSP-like approach? Provide a `spawnWindow` function similar to the existing `runApp` function, and some sort of IPC mechanism. Or better yet, use `runApp` itself (probably with opts).",
+    "createdAt": "2019-09-28T16:50:12Z"
+  },
+  {
+    "id": 7524,
+    "sender": "rodydavis",
+    "content": "Here is a simple example for MacOS I created that modifies the AppDelegate and allows you to create and communicate between windows: https://github.com/rodydavis/multi_window",
+    "createdAt": "2020-01-07T06:13:55Z"
+  },
+  {
+    "id": 7525,
+    "sender": "cyrilOrderoo",
+    "content": "Does anyone have a workaround for Windows apps ?\r\nThank you.",
+    "createdAt": "2020-01-28T14:34:19Z"
+  },
+  {
+    "id": 7526,
+    "sender": "stuartmorgan-g",
+    "content": "Running a separate engine instance for every window and manually wiring up all communication between those engines using custom method channels (which is what the macOS example above does) should work on Windows as well. If you encounter problems doing that on Windows, please file a new issue with details.\r\n\r\nThis issue is tracking having a much less manual approach that doesn't require designing each window as if it were essentially a separate Flutter application.",
+    "createdAt": "2020-01-28T17:21:34Z"
+  },
+  {
+    "id": 7527,
+    "sender": "WalterPurvis",
+    "content": "Is there any work (or even thought) ongoing or scheduled for this?  I'm trying to think of a desktop application I've developed in the last twenty years that didn't require multiple windows, and I don't believe there have been any. It seems pretty important.",
+    "createdAt": "2020-03-04T06:11:58Z"
+  },
+  {
+    "id": 7528,
+    "sender": "bdhb",
+    "content": "From what I understand by reading the docs, every FlutterEngine may have zero or one FlutterViewController at a time.\r\n\r\nWhat if the FlutterEngine would support multiple FlutterViewControllers using the same OpenGL context and each FlutterViewController would be used with glViewport/glScissor to separate between multiple windows?\r\n\r\nEssentially every window would clip a part of the Flutter canvas and draw it.\r\nMouse events would also be redirected to the engine based on the position of that specific window in the Flutter canvas.\r\n\r\nThis way, there would be a single FlutterEngine and communicating between multiple windows would be as easy as communicating between multiple widgets.\r\n\r\nHere is an image that should better explain what I am thinking of.\r\n\r\n<img width=\"683\" alt=\"image\" src=\"https://user-images.githubusercontent.com/6471545/81569855-7da55f00-93a8-11ea-9ba1-626febdb1969.png\">\r\n\r\nHow does this sound?",
+    "createdAt": "2020-05-11T13:59:25Z"
+  },
+  {
+    "id": 7529,
+    "sender": "suwermave",
+    "content": "> How does this sound?\r\n\r\nNon-performant?",
+    "createdAt": "2020-05-22T15:42:10Z"
+  },
+  {
+    "id": 7530,
+    "sender": "giaur500",
+    "content": "What is current status, is there anything to test or not yet?",
+    "createdAt": "2021-02-17T08:54:53Z"
+  },
+  {
+    "id": 7531,
+    "sender": "cosmotek",
+    "content": "Random question: \r\n\r\nWhy not just setup the application to allow the initial route to be passed via the CLI as an argument? Then, with some simple IPC setup (GRPC over localhost for example), you could essentially get the same experience. Just have the primary window/app spawn another instance of the application using the CLI, and use the IPC to implement functionality between the instances.\r\n\r\nAFAIK, this is roughly how Electron works. IMO, It's a bit unreasonable to modify the entire engine for a feature like this when you can just spawn another process. A multi-window support system wouldn't ever really get use on any other platform (right? I can't see how this would work on mobile or web). AFAIK this means embedding features into the engine for android users that will never be utilized (please correct me if I'm wrong here, would love to learn more).",
+    "createdAt": "2021-02-17T15:31:10Z"
+  },
+  {
+    "id": 7532,
+    "sender": "cosmotek",
+    "content": "> Is there any work (or even thought) ongoing or scheduled for this? I'm trying to think of a desktop application I've developed in the last twenty years that didn't require multiple windows, and I don't believe there have been any. It seems pretty important.\r\n\r\nA little late to the game here, but I can't think of a single UI experience that can't be built into a single window. Think about all the web apps we use these days. How many browser apps open another window or tab outside of the page itself. IMO, you can fit most workflows and layouts into a single window with a little organized UX.\r\n\r\nThat being said, I would honestly love to hear some examples... Kinda curious :) @WalterPurvis ",
+    "createdAt": "2021-02-17T15:34:36Z"
+  },
+  {
+    "id": 7533,
+    "sender": "stuartmorgan-g",
+    "content": "> Why not just setup the application to allow the initial route to be passed via the CLI as an argument?\r\n\r\nMultiple processes and a multi-window processes do not have at all the same user experience on some platforms (e.g., macOS). Although it's not clear why you are bringing processes into this given that, as noted above, it's already possible to run multiple engines in the same processes.\r\n\r\n> Then, with some simple IPC setup (GRPC over localhost for example), you could essentially get the same experience.\r\n\r\nAs I said above: \"This issue is tracking having a much less manual approach that doesn't require designing each window as if it were essentially a separate Flutter application.\" You do not get at all the same developer experience from what you are describing as from a multi-window application.\r\n\r\n> A multi-window support system wouldn't ever really get use on any other platform\r\n\r\nThere are potential use cases for separate root drawing contexts on other platforms in add-to-app scenarios. However, that's not actually a key consideration since...\r\n\r\n> AFAIK this means embedding features into the engine for android users that will never be utilized\r\n\r\n... Flutter explicitly strives not to be a lowest-common-denominator development platform; building only things that are useful on every possible platform is not its design philosophy. Windows are a fundamental concept on ~half of the platforms it supports.\r\n\r\n> I can't think of a single UI experience that can't be built into a single window. Think about all the web apps we use these days.\r\n\r\nNobody is going to be forced to use multiple windows if they like single-window UI experiences, but there are many examples of desktop applications that use multiple windows. The developers of every one of those applications had the option of pushing their entire UI into a single window, and chose not to, presumably for a reason.\r\n\r\nConsider that someone could just as easily say \"I can't think of a single UI experience that can't be built into a 3\"x6\" screen. Think about all the mobile apps we use on phones these days.\" That doesn't mean that Flutter would be a good option for desktop application development if the drawing surface were restricted to never be larger than a phone-sized screen.\r\n\r\n> That being said, I would honestly love to hear some examples\r\n\r\nThe [design document](https://flutter.dev/go/desktop-multi-window-support) for multi-window support includes a number of examples of application structures that should be supported.",
+    "createdAt": "2021-02-17T16:13:32Z"
+  },
+  {
+    "id": 7534,
+    "sender": "EriKWDev",
+    "content": "> @cosmotek: That being said, I would honestly love to hear some examples... Kinda curious :)\r\n\r\nSometimes it doesn't have to be more complicated than perhaps having modals, pop-ups and settings in a separate window as is more common on native desktop applications just to have a more native feel rather than having these be \"drawn on \r\n top\" of the application.\r\n\r\nHowever, what I'm personally looking forward to, is applications that I can use over my multiple monitors. I have one vertical monitor and one horizontal, and whenever I use Unity, Blender, Adobe/Affinity products and pretty much anything I love having the same application span both my displays which is impossible if the app only supports one window. Editing a video on the right, having the assets on the left. Shadergraph on the left, sceneview on the right.... Not to mention simple web-browsers where I can drag and drop tabs between the windows.\r\n \r\n I'm eagerly looking forward to this feature! And the design document looks promising and has, as stated above, more use-cases :)\r\n",
+    "createdAt": "2021-03-01T09:41:05Z"
+  },
+  {
+    "id": 7535,
+    "sender": "giaur500",
+    "content": "There's no any serious programming without multi window support. That should be core feature.  Currently, it looks the same as app booted with Android emulator, it has no any integration with my desktop.",
+    "createdAt": "2021-03-01T11:33:46Z"
+  },
+  {
+    "id": 7536,
+    "sender": "Elendiar",
+    "content": "> I can't think of a single UI experience that can't be built into a single window. Think about all the web apps we use these days\r\n\r\nSingle UI experience that i need, is open new window with form from, lets call it small ui with buttons, after submitting form window closed and showed new window, which is transparent overlay without borders and title bar, transparent for clicks, which display updated status.\r\nEven simple autohotkey synchronous script can do this easely, but not flutter. Desktop must have multiwindow support...",
+    "createdAt": "2021-03-27T04:31:26Z"
+  },
+  {
+    "id": 7537,
+    "sender": "RedyAu",
+    "content": "Around the same idea, are you considering adding desktop-native widgets to flutter? I don't think there are any packages for this as of yet.\r\nClassic Windows, UWP, and macOS style widgets should all be considered to be added to avoid creating a mess and make creating native feeling desktop apps straight-forward.\r\nEven if something like classic Windows doesn't get it's own widgets, I think the new Windows look as well as macOS should have.\r\nIf there are any resources I should look into regarding this, please let me know.\r\nAlso, I'm too eagerly waiting for the multi-windows support ;)",
+    "createdAt": "2021-04-07T19:45:52Z"
+  },
+  {
+    "id": 7538,
+    "sender": "dxvid-pts",
+    "content": "> Around the same idea, are you considering adding desktop-native widgets to flutter? I don't think there are any packages for this as of yet.\r\n> Classic Windows, UWP, and macOS style widgets should all be considered to be added to avoid creating a mess and make creating native feeling desktop apps straight-forward.\r\n> Even if something like classic Windows doesn't get it's own widgets, I think the new Windows look as well as macOS should have.\r\n> If there are any resources I should look into regarding this, please let me know.\r\n> Also, I'm too eagerly waiting for the multi-windows support ;)\r\n\r\nWindows styled widget library: [fluent_ui](https://pub.dev/packages/fluent_ui)\r\nMacOS styled winget library: [macos_ui](https://github.com/GroovinChip/macos_ui/issues/2) (work in progress!)\r\nUbuntu: [yaru](https://pub.dev/packages/yaru)",
+    "createdAt": "2021-04-07T20:00:24Z"
+  },
+  {
+    "id": 7539,
+    "sender": "stuartmorgan-g",
+    "content": "Please file new requests for discussion of things unrelated to multi-window support.",
+    "createdAt": "2021-04-07T20:31:31Z"
+  },
+  {
+    "id": 7540,
+    "sender": "bksubhuti",
+    "content": "We are also looking to rewrite a js electron desktop app and J's webview mobile app in flutter.    One of the requirements is to open multiple books at the same time side by side .\r\n\r\nIs there a demo for this.?",
+    "createdAt": "2021-07-19T12:03:13Z"
+  },
+  {
+    "id": 7541,
+    "sender": "gspencergoog",
+    "content": "@bksubhuti No, there is not yet a demo for this feature.",
+    "createdAt": "2021-07-19T15:58:27Z"
+  },
+  {
+    "id": 7542,
+    "sender": "mwdavis84",
+    "content": "> > Is there any work (or even thought) ongoing or scheduled for this? I'm trying to think of a desktop application I've developed in the last twenty years that didn't require multiple windows, and I don't believe there have been any. It seems pretty important.\r\n> \r\n> A little late to the game here, but I can't think of a single UI experience that can't be built into a single window. Think about all the web apps we use these days. How many browser apps open another window or tab outside of the page itself. IMO, you can fit most workflows and layouts into a single window with a little organized UX.\r\n> \r\n> That being said, I would honestly love to hear some examples... Kinda curious :) @WalterPurvis\r\n\r\nThink about a chat app. **Can** you build a chat app into a single window? Of course you can. But being able to pop out an individual chat, or an ongoing call, to its own window is an enormous improvement in the user experience.",
+    "createdAt": "2021-07-23T14:19:38Z"
+  },
+  {
+    "id": 7543,
+    "sender": "hpoul",
+    "content": "> How many browser apps open another window or tab outside of the page itself.\r\n\r\nThat's a very moot point, cmd+alt+t is one of my most used chrome shortcuts to clone a tab so i can have a second window to detach.. right after cmd clicking links to open a new tab.. try to do that in an application. Also there are a few web apps which open multiple windows.. eg gmail... \r\nThere are actually very few web apps which do NOT support multiple windows (WhatsApp 🙄)\r\n",
+    "createdAt": "2021-07-23T17:38:46Z"
+  },
+  {
+    "id": 7544,
+    "sender": "clarkezone",
+    "content": "This project illustrates the potential: https://nativeshell.dev cc @knopp ",
+    "createdAt": "2021-07-28T02:30:21Z"
+  },
+  {
+    "id": 7545,
+    "sender": "allanlaal",
+    "content": "just ran [nativeshell example](https://github.com/nativeshell/examples) on Linux 64bit (Ubuntu Mate 21.04) (using [fvm](https://github.com/leoafarias/fvm/) and [dvm](https://github.com/cbracken/dvm)):\r\n\r\n![Screenshot at 2021-08-01 01-03-28](https://user-images.githubusercontent.com/740826/127753399-e4eff999-8807-4825-a7a7-88eb72d2ce77.png)\r\n\r\nGOOD:\r\n* the windows actually register as separate windows in my window manager (`marco`)\r\n* it uses my systems default file chooser\r\n* it uses my systems default Menu bulding blocks\r\n* activating one window does not affect the desktop/workspace nor the minimized nor active status of other such windows launched from the same app (unlike every IntelliJ IDE :laughing:)\r\n* if you close the main window, the new ones stay open\r\n\r\n\r\nOK:\r\n * windows resize and tile when I change the example code (`canResize: false` → `canResize: true`). filed upstream as https://github.com/nativeshell/examples/issues/16\r\n\r\n\r\n\r\nBAD:\r\n* ~~for some reason the new windows are not resizeable by [quicktile](https://github.com/ssokolow/quicktile) nor by Ubuntu Mate's default tiler nor by `wmctrl -i -r <generated windows id in wmctrl -l> -e  0,0,0,1000,1000`  :: have to investigate. the main Flutter generated window tiles nicely~~\r\n\r\n\r\n\r\n\r\n\r\n",
+    "createdAt": "2021-07-31T22:06:48Z"
+  },
+  {
+    "id": 7546,
+    "sender": "stuartmorgan-g",
+    "content": "@allanlaal  This issue is not the right place for discussions of nativeshell. It has its own project page for that. This is a tracking issue for a feature in Flutter.",
+    "createdAt": "2021-07-31T23:00:26Z"
+  },
+  {
+    "id": 7547,
+    "sender": "stuartmorgan-g",
+    "content": "> my post is not relevant in the context of nativeshell itself.\r\n\r\nAnd the details of exactly what features happen to work in a separate project are not relevant to the implementation of multi-window support in Flutter itself, which is what this issue is for.\r\n\r\n> I was just trying to save other devs time by sharing my testing results\r\n\r\nReviewing other projects to provide information to other developers is great, but it's not what Flutter's issue tracker is for. There are lots of other places that kind of thing can be posted.\r\n\r\nIf you want to have a meta-discussion about how issues are managed, please follow up via Discord, and allow this issue to stay focused on the actual issue that I filed it to track.",
+    "createdAt": "2021-08-02T11:30:42Z"
+  },
+  {
+    "id": 7548,
+    "sender": "renancaraujo",
+    "content": "Another relatively ready to use solution with cross window comms: https://gitlab.com/wolfenrain/multi_window",
+    "createdAt": "2021-08-02T22:16:52Z"
+  },
+  {
+    "id": 7549,
+    "sender": "EbramTawfik",
+    "content": "I was able to open a new window in plugin using this code\r\nhttps://github.com/EbramTawfik/presentation-displays/blob/windows/windows/presentation_displays_plugin.cpp#L68\r\n\r\nBut I am not able to set the InitialRoute\r\n\r\nI am trying to Navigate to a specific route from Native flutter Pugin.\r\nI was able to do that in swift for iOS:\r\n\r\n                let extVC = FlutterViewController()\r\n                extVC.setInitialRoute(routerName)\r\n                window?.rootViewController = extVC\r\n\r\nWhat is the equivelent to `setInitialRoute` in flutter native(c++) plugin for Windows?\r\n\r\n        \r\n    bool FlutterWindow::OnCreate() {\r\n      if (!Win32Window::OnCreate()) {\r\n        return false;\r\n      }\r\n    \r\n      RECT frame = GetClientArea();\r\n    \r\n      // The size here must match the window dimensions to avoid unnecessary surface\r\n      // creation / destruction in the startup path.\r\n      flutter_controller_ = std::make_unique<flutter::FlutterViewController>(\r\n          frame.right - frame.left, frame.bottom - frame.top, project_);\r\n      // Ensure that basic setup of the controller was successful.\r\n      if (!flutter_controller_->engine() || !flutter_controller_->view()) {\r\n        return false;\r\n      }\r\n      run_loop_->RegisterFlutterInstance(flutter_controller_->engine());\r\n      SetChildContent(flutter_controller_->view()->GetNativeWindow());\r\n      return true;\r\n\r\n",
+    "createdAt": "2021-08-20T22:03:19Z"
+  },
+  {
+    "id": 7550,
+    "sender": "stuartmorgan-g",
+    "content": "@EbramTawfik Please file a new issue; your API request is unrelated to framework- and engine-level support for multiple windows, which is what this is tracking.",
+    "createdAt": "2021-08-21T03:43:17Z"
+  },
+  {
+    "id": 7551,
+    "sender": "imiskolee",
+    "content": "I am working on a Music DAW, multi screens is a very basic case in any creator tools(Audio, Video ,... etc).\r\ndid we have any processing for this?",
+    "createdAt": "2021-09-05T06:28:20Z"
+  }
+]

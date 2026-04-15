@@ -1,0 +1,386 @@
+[
+  {
+    "id": 8768,
+    "sender": "superman24-7",
+    "content": "I have the same issue - with no print logs showing as well (iPhone 7, iOS 13, Android Studio, mac OS). Works using XCode on the same device. Also works with the iOS 13 Simulator. I do not have WiFi tethering enabled on the device.\r\n\r\n> /Users/dee/Documents/Software/flutter/bin/flutter doctor --verbose\r\n> [✓] Flutter (Channel master, v1.10.15-pre.188, on Mac OS X 10.15 19A602, locale en-ZA)\r\n>     • Flutter version 1.10.15-pre.188 at /Users/dee/Documents/Software/flutter\r\n>     • Framework revision 584ee10c68 (5 hours ago), 2019-10-21 07:49:28 -0700\r\n>     • Engine revision 8aefcd8575\r\n>     • Dart version 2.6.0 (build 2.6.0-dev.8.0 a61c775db8)\r\n> \r\n> [✓] Android toolchain - develop for Android devices (Android SDK version 28.0.3)\r\n>     • Android SDK at /Users/dee/android-sdk\r\n>     • Android NDK location not configured (optional; useful for native profiling support)\r\n>     • Platform android-29, build-tools 28.0.3\r\n>     • ANDROID_HOME = /Users/dee/android-sdk\r\n>     • ANDROID_SDK_ROOT = /Users/dee/android-sdk\r\n>     • Java binary at: /Applications/Android Studio.app/Contents/jre/jdk/Contents/Home/bin/java\r\n>     • Java version OpenJDK Runtime Environment (build 1.8.0_202-release-1483-b49-5587405)\r\n>     • All Android licenses accepted.\r\n> \r\n> [✓] Xcode - develop for iOS and macOS (Xcode 11.1)\r\n>     • Xcode at /Applications/Xcode.app/Contents/Developer\r\n>     • Xcode 11.1, Build version 11A1027\r\n>     • CocoaPods version 1.8.4\r\n> \r\n> [✓] Android Studio (version 3.5)\r\n>     • Android Studio at /Applications/Android Studio.app/Contents\r\n>     • Flutter plugin version 40.2.2\r\n>     • Dart plugin version 191.8593\r\n>     • Java version OpenJDK Runtime Environment (build 1.8.0_202-release-1483-b49-5587405)\r\n> \r\n> [✓] IntelliJ IDEA Community Edition (version 2018.2.5)\r\n>     • IntelliJ at /Applications/IntelliJ IDEA CE.app\r\n>     • Flutter plugin version 30.0.2\r\n>     • Dart plugin version 182.4892.25\r\n> \r\n> [✓] Connected device (1 available)\r\n>     • 4Dee • 49e980b780f06a4178b5136ddb9dc1e72ed02da3 • ios • iOS 13.1.3\r\n> \r\n> • No issues found!\r\n> Process finished with exit code 0\r\n\r\n> [ +116 ms] Process 3122 detached\r\n> [  +75 ms] Application launched on the device. Waiting for observatory port.\r\n> [   +4 ms] Checking for advertised Dart observatories...\r\n> [+5018 ms] No pointer records found.\r\n> [   +3 ms] mDNS lookup failed, attempting fallback to reading device log.\r\n> [        ] Waiting for observatory port.\r\n\r\nSwitching to channel Stable gives me a different issue:\r\n\r\n> Debug-iphoneos/Runner.app/Frameworks/Flutter.framework: Permission denied\r\n",
+    "createdAt": "2019-10-21T19:44:25Z"
+  },
+  {
+    "id": 8769,
+    "sender": "christopherfujino",
+    "content": "@superman24-7 That's https://github.com/flutter/flutter/issues/41133.",
+    "createdAt": "2019-10-21T20:26:35Z"
+  },
+  {
+    "id": 8770,
+    "sender": "zanderso",
+    "content": "@jbnixdorf Thanks for posting the packet capture. I'm sorry it took so long for me to have a look, but it looks like the mdns query response for the Dart VM Observatory port and authCode query are missing. The queries are in the capture, though. They look like:\r\n```\r\n325\t60.052124\t[source redacted]\t[dest redacted]\tMDNS\t77\tStandard query 0x0000 PTR _dartobservatory._tcp.local, \"QM\" question\r\n```\r\nThe issue here might be that the query is never responded to. On the other hand if there was a response and it just wasn't in the capture for whatever reason, then it would still be useful for us to have a look at that.\r\n\r\nAlso if anyone else is seeing \"mDNS lookup failed, attempting fallback to reading device log.\" in the logs, and is able capture the query response with wireshark, that will help us track this down.\r\n",
+    "createdAt": "2019-10-21T20:30:53Z"
+  },
+  {
+    "id": 8771,
+    "sender": "superman24-7",
+    "content": "Thanks @christopherfujino - but could the mdns failure not also cause #41133 ? From the logs I am definitely seeing the \"mDNS lookup failed...\" error. So, at worst, I could be getting both issues occurring - this one (#41085) as well as #41133 .\r\n\r\nI have attached a tcpdump as requested by @jbnixdorf . Hopefully, this helps.\r\n[mdns.pcapng.zip](https://github.com/flutter/flutter/files/3756086/mdns.pcapng.zip)\r\n",
+    "createdAt": "2019-10-22T14:00:51Z"
+  },
+  {
+    "id": 8772,
+    "sender": "zanderso",
+    "content": "@superman24-7 Thanks for the capture. From the capture and the logs, it looks like the mdns query for the Observatory is timing out. I'll upload a patch that increases the timeout, and then we can see if that helps anything.",
+    "createdAt": "2019-10-22T16:34:56Z"
+  },
+  {
+    "id": 8773,
+    "sender": "zanderso",
+    "content": "[This patch](https://github.com/flutter/flutter/pull/43275) increases the timeout from 5 to 30 seconds. @superman24-7 @jbnixdorf if you are able to patch it in and see if it helps that would be awesome.",
+    "createdAt": "2019-10-22T16:41:30Z"
+  },
+  {
+    "id": 8774,
+    "sender": "ghost",
+    "content": "@zanderso I tested it with 1.9.1+hotfix.5 and iOS 13.1.3 with 30 secs and 5 mins but that doesn't change anything.\r\nBut I observed the following (without the patch): If the Mac Mini is connected to WiFi with Proxy server and the iPhone is connected to LTE, it fails as described before. If I connect both to the WiFi with proxy it partly works: I'm able to do a hot reload, hot restart and to quit via \"q\", but I don't see any other logs/prints (only the hot reload/restart notification line).",
+    "createdAt": "2019-10-23T09:30:42Z"
+  },
+  {
+    "id": 8775,
+    "sender": "aabanaag",
+    "content": "I disabled cellular data so no more wifi tethering but still the problem exist. I'm using 1.9.1+hotfix.4\r\n\r\n![image](https://user-images.githubusercontent.com/2245822/67384449-c25fd900-f5c3-11e9-93d4-e0afcc43e061.png)\r\n\r\n![image](https://user-images.githubusercontent.com/2245822/67384255-67c67d00-f5c3-11e9-9564-d8411a4a4916.png)\r\n",
+    "createdAt": "2019-10-23T10:32:29Z"
+  },
+  {
+    "id": 8776,
+    "sender": "superman24-7",
+    "content": "@zanderso - for some reason my tests do not seem to be picking up the changes in the patch. How best can I update my repo to include the patch so it's picked up by the app?",
+    "createdAt": "2019-10-23T11:11:37Z"
+  },
+  {
+    "id": 8777,
+    "sender": "zanderso",
+    "content": "@superman24-7 You'll need to delete the file `bin/cache/flutter_tools.snapshot` under your flutter directory to see the changes in the patch.",
+    "createdAt": "2019-10-24T15:14:39Z"
+  },
+  {
+    "id": 8778,
+    "sender": "zanderso",
+    "content": "@aabanaag it looks like you might be having a different issue. The application id in the red error message looks suspicious. I believe it should be the actual name of your app there.",
+    "createdAt": "2019-10-24T15:18:44Z"
+  },
+  {
+    "id": 8779,
+    "sender": "zanderso",
+    "content": "@jbnixdorf Thanks for the info. The missing log messages is being tracked in https://github.com/flutter/flutter/issues/41133",
+    "createdAt": "2019-10-24T15:20:32Z"
+  },
+  {
+    "id": 8780,
+    "sender": "aabanaag",
+    "content": "@zanderso I'm running a flavor on iOS so I think that should be fine.  I'm able to run on a simulator without problem just the physical device.",
+    "createdAt": "2019-10-25T04:10:57Z"
+  },
+  {
+    "id": 8781,
+    "sender": "ghost",
+    "content": "@zanderso You are right, the missing log messages are related to #41133.\r\nSo this issue happens if the Mac and the iPhone are not in the same network and perhaps the proxy server of the Mac's Wifi matters. I'm not able to connect to another Wifi without a proxy server to test that.",
+    "createdAt": "2019-10-25T07:07:05Z"
+  },
+  {
+    "id": 8782,
+    "sender": "39499740",
+    "content": "In fact, if the IOS device and MAC are in the same WiFi environment, the application can work normally.\r\n\r\nBut in most cases, the following errors will occur\r\n\r\nError connecting to the service protocol: httpexception:, URI = http: / / 127.0.0.1:1038 / og9uiyld7dy = / WS",
+    "createdAt": "2019-10-25T07:23:34Z"
+  },
+  {
+    "id": 8783,
+    "sender": "superman24-7",
+    "content": "I have tested the patch with the timeouts and as @jbnixdorf mentioned, the issue still persists. @39499740 - unfortunately for me - even when using the same WIFI, the issue occurs every single time.",
+    "createdAt": "2019-10-25T19:28:43Z"
+  },
+  {
+    "id": 8784,
+    "sender": "zanderso",
+    "content": "/cc @dnfield for mDNS debugging advice.",
+    "createdAt": "2019-10-28T16:48:40Z"
+  },
+  {
+    "id": 8785,
+    "sender": "dnfield",
+    "content": "It would be helpful to check the results of:\r\n\r\n```bash\r\ndns-sd -Z _dartobservatory\r\n```\r\n\r\nBoth before and after starting your app.  Unfortunately, `dns-sd` sometimes seems to do things beyond what a normal socket does. It would also be helpful to check using something like https://github.com/jstasiak/python-zeroconf - which is a pure socket implementation. If it's showing up in `dns-sd` _AND_ showing up via python-zeroconf, it's a bug in our mDNS implementation. If it's showing up in `dns-sd` but not via python-zeroconf, there's some strange magic going on and we might need to set some more options ont he way we advertize the port until it shows up where we expect it to.",
+    "createdAt": "2019-10-28T18:01:52Z"
+  },
+  {
+    "id": 8786,
+    "sender": "stx",
+    "content": "@dnfield \r\n\r\nIn case it helps:\r\n\r\n```\r\n➜  ~ dns-sd -Z _dartobservatory\r\nBrowsing for _dartobservatory._tcp\r\nDATE: ---Tue 29 Oct 2019---\r\n ...STARTING...\r\n```\r\n\r\nThis is all that ever happens no matter when dns-sd is run. If you can give a complete example for zeroconf I can help test that, as this is happening 100% of the time in my environment.",
+    "createdAt": "2019-10-29T20:39:11Z"
+  },
+  {
+    "id": 8787,
+    "sender": "llayman",
+    "content": "> Ah, so after update on Xcode 11 good to no\r\n\r\nFor me, this was the triggering event as well. I can build and run from Xcode, but not with flutter. ",
+    "createdAt": "2019-10-30T11:32:04Z"
+  },
+  {
+    "id": 8788,
+    "sender": "dnfield",
+    "content": "That indicates that the Flutter app is not advertising on any network interface that we can see.\r\n\r\nThis thread is a bit long and I've seen different bits of what casuses this - is it Wifi Tethering, or is it being connected to different wifi network, or is it being connected to LTE that's doing this?\r\n\r\nI suspect that if we used the same code path as what we use for the simulator, we could force this to use the right interface all the time. The reason we only do that for simulators is that we can't support below iOS 10.0 in that case (the API was added in iOS 10).",
+    "createdAt": "2019-10-30T16:31:38Z"
+  },
+  {
+    "id": 8789,
+    "sender": "stx",
+    "content": "@dnfield This is happening 100% of the time for me without tethering, with devices on the same WiFi network, on at least 4 different WiFi networks. Xcode 11 was the trigger for me too.",
+    "createdAt": "2019-10-30T17:10:35Z"
+  },
+  {
+    "id": 8790,
+    "sender": "dnfield",
+    "content": "@stx are you by chance using an iPad?  Are you connecting your device for debugging via USB or wifi?",
+    "createdAt": "2019-10-30T17:23:48Z"
+  },
+  {
+    "id": 8791,
+    "sender": "stx",
+    "content": "@dnfield iPhone X + iPhone 11 Pro on iOS 13 via USB. How would I try debugging via WiFi?\r\n\r\niPad Pro works - iOS 13.2 on Xcode 11.2.  `dns-sd -Z _dartobservatory` lights up and everything works accordingly.\r\n\r\nSo looks like this might be specific to phones.\r\n\r\nEdit: The iPad Pro is a WiFI-only model - I tried turning off cellular on the phones but the problem persists there.",
+    "createdAt": "2019-10-30T18:59:25Z"
+  },
+  {
+    "id": 8792,
+    "sender": "dnfield",
+    "content": "Ok.  Running an iPhone 11 with iOS 13, I can reproduce this as well.\r\n\r\nAnd I can validate that if we switch to using the C API, it works - although unlike in the case of the simulator, we have to ask to broadcast on all interfaces.\r\n\r\nI suspect that Apple changed the implementation of NSNetService (either by mistake or for some other intentional reason).\r\n\r\nI think there's some way we can make this work out though.",
+    "createdAt": "2019-10-30T23:05:04Z"
+  },
+  {
+    "id": 8793,
+    "sender": "dnfield",
+    "content": "The fix for this is to use https://developer.apple.com/documentation/dnssd/1804733-dnsserviceregister?language=objc - but that requires at least iOS 9.3, whereas we want to support down to iOS 8.0.  I think I have some code that will still run on that, but I need to try to track down a device running iOS 8.0-9.2 so I can test and make sure.  \r\n\r\nOr maybe we just need to bump our minimum target.  *shrug*",
+    "createdAt": "2019-10-30T23:52:51Z"
+  },
+  {
+    "id": 8794,
+    "sender": "dnfield",
+    "content": "Based on what I've found, it seems like `NSNetService` will no longer automatically select the network bridge created via the USB connection to the host machine. Using the C API still let's you do that - although there's some risk that Apple could break that on us in the future (especially if this was an intentional change to NSNetService, which is hard to say).\r\n\r\nThe linked patch uses the C API and broadcasts on all interfaces. But it's not compatible with iOS < 9.3 - I have some guards in there but I don't currently have access to a < 9.3 device to test to make sure that the ABI I'm including (but not using in that case) doesn't blow things up. That said, it should only affect development on physical devices (this code/ABI doesn't make it at all into release builds, and simulators get this API from the host which is almost certainly running something recent enough).",
+    "createdAt": "2019-10-31T06:11:17Z"
+  },
+  {
+    "id": 8795,
+    "sender": "ferdiamg",
+    "content": "Weird.. just worked 2 days on an Flutter app. No XCode updates, no Flutter updates, no iPhone X updates and suddenly I can't log/print() anything to the terminal anymore... whats up?\r\n\r\nFlutter doctors runs fine, no issues found!\r\n- iOS 13.1.2 on iPhone X\r\n- Xcode Version 11.1 (11A1027)\r\n- v1.9.1+hotfix.6\r\n\r\nEdit: Building from Runner.xcworkspace I can see the debug outputs in the Xcode terminal.",
+    "createdAt": "2019-10-31T16:16:36Z"
+  },
+  {
+    "id": 8796,
+    "sender": "cirediew",
+    "content": "Changed from dev to master channel which does work for me now.\r\n```\r\n[✓] Flutter (Channel master, v1.10.15-pre.368, on Mac OS X 10.15.1 19B88, locale en-NL)\r\n    • Flutter version 1.10.15-pre.368 at /Users/me/development/flutter\r\n    • Framework revision 3cd8c3142c (8 hours ago), 2019-10-31 19:35:52 -0700\r\n    • Engine revision 8ea19b1c76\r\n    • Dart version 2.6.0 (build 2.6.0-dev.8.2 bbe2ac28c9)\r\n\r\n```\r\nBut now I'm also facing issue #41133 ",
+    "createdAt": "2019-11-01T10:30:24Z"
+  },
+  {
+    "id": 8797,
+    "sender": "dnfield",
+    "content": "My fix hasn't rolled into master just yet, and there seem to be some modalities that are still working for people.  At any rate, the fix I just landed in the engine should roll into master sometime in the next day or two, and into dev not too long after that.  We'll keep an eye on it for the next stable release as well.",
+    "createdAt": "2019-11-01T22:30:22Z"
+  },
+  {
+    "id": 8798,
+    "sender": "swesti",
+    "content": "Is this in master yet? I am still getting the \"mDNS lookup failed, attempting fallback to reading device log.\" message on the flutter master channel today.",
+    "createdAt": "2019-11-05T19:41:57Z"
+  },
+  {
+    "id": 8799,
+    "sender": "stx",
+    "content": "@dnfield Did your fix get rolled into master yet? This is still failing over here too. If it's not merged yet do we have any ETA?\r\n",
+    "createdAt": "2019-11-05T22:34:44Z"
+  },
+  {
+    "id": 8800,
+    "sender": "jmagman",
+    "content": "The fix was merged yesterday.\r\nhttps://github.com/flutter/flutter/pull/44150",
+    "createdAt": "2019-11-05T22:42:30Z"
+  },
+  {
+    "id": 8801,
+    "sender": "jmagman",
+    "content": "https://github.com/flutter/engine/pull/13451 no doubt helped, but I'll reopen since it seems mDNS lookup failures are still happening on top of @dnfield's change.  Reopening.\r\n\r\nI remember there was some issue for this with hotspot on.  Is anyone reproducing on current master _without_ hotspot on?\r\n",
+    "createdAt": "2019-11-05T22:46:03Z"
+  },
+  {
+    "id": 8802,
+    "sender": "dnfield",
+    "content": "I did not test with hotspot on",
+    "createdAt": "2019-11-05T22:54:03Z"
+  },
+  {
+    "id": 8803,
+    "sender": "stx",
+    "content": "@jmagman @dnfield \r\n\r\nNo hotspot on. Have a bunch of weird results from experiments, take a look.\r\n\r\nRan `flutter run` a bunch of times on 1.10.15-pre.410.\r\n\r\nmDNS lookup failed\r\nfailed\r\nsuccess\r\nfailed\r\nfailed\r\nfailed\r\n\r\nI went into the OSX firewall and removed dart from the list and tried again:\r\n\r\nfailed\r\nOSX asks to allow dart incoming connections, allow it, mDNS lookup failed\r\nsuccess\r\nsuccess\r\nsuccess\r\nsuccess\r\n\r\nRemoved dart from the firewall again and tried again:\r\n\r\nOSX asks to allow dart incoming connections, allow it, mDNS lookup failed\r\nfailed (with new error, see below)\r\nfailed (with new error, see below)\r\nfailed (with new error, see below)\r\n\r\nRan `flutter clean` and tried again:\r\n\r\nfailed (with new error, see below)\r\nfailed (with new error, see below)\r\nfailed (with new error, see below)\r\n\r\nRebooted, same result.\r\n\r\nTurned firewall off, same result.\r\n\r\n```\r\n[  +66 ms] Application launched on the device. Waiting for observatory port.\r\n[   +2 ms] Checking for advertised Dart observatories...\r\n[+5016 ms] Checking for available port on …\r\n[   +1 ms] Checking for authentication code for …\r\n[   +4 ms] Attempting to forward device port 57743 to host port 1024\r\n[        ] executing: /Users/james/Development/flutter/bin/cache/artifacts/usbmuxd/iproxy 1024 57743 00008030-000848D11EF0802E\r\n[  +20 ms] Attempting to forward device port 57743 to host port 1025\r\n[        ] executing: /Users/james/Development/flutter/bin/cache/artifacts/usbmuxd/iproxy 1025 57743 00008030-000848D11EF0802E\r\n[+1006 ms] Forwarded port ForwardedPort HOST:1025 to DEVICE:57743\r\n[   +3 ms] Installing and launching... (completed in 53.9s)\r\n[   +4 ms] Connecting to service protocol: http://127.0.0.1:1025/491xCF4dUQU=/\r\n[  +90 ms] Error connecting to the service protocol: HttpException: , uri = http://127.0.0.1:1025/491xCF4dUQU=/ws\r\n[   +2 ms] \"flutter run\" took 139,106ms.\r\n\r\n#0      throwToolExit (package:flutter_tools/src/base/common.dart:28:3)\r\ndart-lang/labs#99      RunCommand.runCommand (package:flutter_tools/src/commands/run.dart:500:7)\r\n<asynchronous suspension>\r\ndart-lang/labs#100      FlutterCommand.verifyThenRunCommand (package:flutter_tools/src/runner/flutter_command.dart:556:18)\r\n…\r\n```\r\n\r\nThis is painful. No idea what's going on here but certainly seems like the OSX firewall or network stack might be playing a role.\r\n\r\n```\r\n[✓] Flutter (Channel master, v1.10.15-pre.410, on Mac OS X 10.15.1 19B88, locale en-US)\r\n    • Flutter version 1.10.15-pre.410 at /Users/james/Development/flutter\r\n    • Framework revision 372fe290e4 (5 hours ago), 2019-11-05 10:43:52 -0800\r\n    • Engine revision 7b968ff95f\r\n    • Dart version 2.7.0\r\n\r\n \r\n[✓] Android toolchain - develop for Android devices (Android SDK version 28.0.3)\r\n    • Android SDK at /Users/james/Library/Android/sdk\r\n    • Android NDK location not configured (optional; useful for native profiling support)\r\n    • Platform android-28, build-tools 28.0.3\r\n    • Java binary at: /Applications/Android Studio.app/Contents/jre/jdk/Contents/Home/bin/java\r\n    • Java version OpenJDK Runtime Environment (build 1.8.0_152-release-1343-b01)\r\n    • All Android licenses accepted.\r\n\r\n[✓] Xcode - develop for iOS and macOS (Xcode 11.2)\r\n    • Xcode at /Applications/Xcode-beta.app/Contents/Developer\r\n    • Xcode 11.2, Build version 11B44\r\n    • CocoaPods version 1.8.4\r\n\r\n[✓] Android Studio (version 3.4)\r\n    • Android Studio at /Applications/Android Studio.app/Contents\r\n    • Flutter plugin version 38.2.1\r\n    • Dart plugin version 183.6270\r\n    • Java version OpenJDK Runtime Environment (build 1.8.0_152-release-1343-b01)\r\n\r\n[✓] VS Code (version 1.39.2)\r\n    • VS Code at /Applications/Visual Studio Code.app/Contents\r\n    • Flutter extension version 3.6.0\r\n\r\n[✓] Connected device (1 available)\r\n    • Virgo • 00008030-000848D11EF0802E • ios • iOS 13.2\r\n```",
+    "createdAt": "2019-11-05T23:33:52Z"
+  },
+  {
+    "id": 8804,
+    "sender": "stx",
+    "content": "On the devices that this has been happening on, I think I've found the workarounds:\r\n\r\n* Use the latest flutter master with @dnfield's fix rolled in.\r\n* Remove `dart` from the macOS firewall, click allow when the network connection popup occurs after running flutter run, and then `mDNS lookup failure` seems to stop.\r\n* in Xcode, under `Window > Devices and Simulators`, select the device, check the box `Connect via network` and then uncheck the box, and then `Error connecting to the service protocol` seems to stop.\r\n\r\nIt's possible that this is all luck but this strategy worked on multiple devices.",
+    "createdAt": "2019-11-06T00:03:18Z"
+  },
+  {
+    "id": 8805,
+    "sender": "swesti",
+    "content": "@stx The workarounds work for me also!",
+    "createdAt": "2019-11-06T12:50:10Z"
+  },
+  {
+    "id": 8806,
+    "sender": "swesti",
+    "content": "Btw, I downgraded to the stable channel and debugging still works with @stx workarounds in place.",
+    "createdAt": "2019-11-06T12:51:59Z"
+  },
+  {
+    "id": 8807,
+    "sender": "stx",
+    "content": "Found something else interesting in case it helps. It works on a home WiFi (Eero) but not on Starbucks Google WiFi - Starbucks WiFi has mDNS lookup failures 100% of the time on my environment (yes, both devices are connected to it and have active internet connections) and I found no way to workaround or fix it. It definitely used to work there though.",
+    "createdAt": "2019-11-07T00:55:42Z"
+  },
+  {
+    "id": 8808,
+    "sender": "stx",
+    "content": "More debugging.\r\n\r\nOn Starbucks WiFi:\r\n\r\niPhone X 13.2 - mDNS lookup failure 100% of the time\r\niPhone 11 Pro 13.2 - mDNS lookup failure 100% of the time\r\niPad Pro 9.7\" 13.2 (WiFi only) - succeeds 100% of the time\r\n\r\nOn home WiFi:\r\n\r\niPhone X 13.2 - success 100% of the time after disabling Mac firewall\r\niPhone 11 Pro 13.2 - success 100% of the time after disabling Mac firewall\r\niPad Pro 9.7\" 13.2 (WiFi only) - succeeds 100% of the time",
+    "createdAt": "2019-11-09T20:38:01Z"
+  },
+  {
+    "id": 8809,
+    "sender": "tewshi",
+    "content": "Everything works perfectly well for me now.\r\nLatest master branch, Xcode 11.2.1\r\n\r\nI don’t use hotspot hack anymore... debugging works perfectly well",
+    "createdAt": "2019-11-10T16:26:40Z"
+  },
+  {
+    "id": 8810,
+    "sender": "john-yick",
+    "content": "Can confirm that the latest version on the master channel along with xCode 11.2.1 and iOS 13.1.3 does NOT allow for debugging it hangs while waiting for the 'observatory port'. Do we have an estimate on when this will be fixed?\r\n\r\n> [✓] Flutter (Channel master, v1.11.1-pre.49, on Mac OS X 10.15.1 19B88, locale en-GB)\r\n> [✗] Android toolchain - develop for Android devices\r\n>     ✗ Unable to locate Android SDK.\r\n>       Install Android Studio from: https://developer.android.com/studio/index.html\r\n>       On first launch it will assist you in installing the Android SDK components.\r\n>       (or visit https://flutter.dev/setup/#android-setup for detailed instructions).\r\n>       If the Android SDK has been installed to a custom location, set ANDROID_HOME to that location.\r\n>       You may also want to add it to your PATH environment variable.\r\n> \r\n> [✓] Xcode - develop for iOS and macOS (Xcode 11.2.1)\r\n> [!] Android Studio (not installed)\r\n> [✓] Connected device (1 available)\r\n> \r\n> ! Doctor found issues in 2 categories.\r\n\r\n> [ +108 ms] Process 319 detached\r\n> [  +57 ms] Application launched on the device. Waiting for observatory port.\r\n> [   +3 ms] Checking for advertised Dart observatories...\r\n> [+5014 ms] No pointer records found.\r\n> [   +3 ms] mDNS lookup failed, attempting fallback to reading device log.\r\n> [        ] Waiting for observatory port.",
+    "createdAt": "2019-11-14T10:20:36Z"
+  },
+  {
+    "id": 8811,
+    "sender": "Moncader",
+    "content": "Can this be backported to 1.9.1?\r\nIt's currently impossible to realistically develop for iOS at this point since you can't debug anything.\r\nWe need a backport on the current stable releases.",
+    "createdAt": "2019-11-20T02:16:13Z"
+  },
+  {
+    "id": 8812,
+    "sender": "john-yick",
+    "content": "I can still confirm that the latest master version is still showing the same error. Do we have an ETA on a fix for this as testing anything native on iOS is near enough impossible.",
+    "createdAt": "2019-11-20T07:35:50Z"
+  },
+  {
+    "id": 8813,
+    "sender": "ArditGashi",
+    "content": "I have the same issue. The app loads, but flutter dev tools are not enabled. For example, flutter \"hot reload\" and \"hot restart \"are grayed out and not clickable. I tried reinstall flutter and android studio but still no fix for it. \r\n\r\nFYI. this occurred when I updated my macOS to Catalina. \r\n\r\nAny workaround or updates? ",
+    "createdAt": "2019-11-20T10:24:20Z"
+  },
+  {
+    "id": 8814,
+    "sender": "ArditGashi",
+    "content": "I ended up disabling the firewall and it fixed the issue for me. \r\nIn `Preferences > Security and privacy  > Firewall > Disable the firewall`",
+    "createdAt": "2019-11-20T10:40:29Z"
+  },
+  {
+    "id": 8815,
+    "sender": "nashfive",
+    "content": "I have the issue on stable and beta even if my firewall has always been disabled (Xcode 11, iOS 13).\r\nI can't switch to master for obvious reasons.",
+    "createdAt": "2019-11-20T15:20:37Z"
+  },
+  {
+    "id": 8816,
+    "sender": "stx",
+    "content": "I've tested this extensively on master and found two failure points for iPhone debugging: Mac settings and WiFi settings.\r\n\r\nThere are 3 workarounds I've found to address the different failure modes:\r\n\r\n1. **Disable MacOS firewall.** Having the macOS firewall turned on eventually makes mDNS lookup fail, for whatever reason. Deleting dart from the firewall and re-adding it when prompted will alleviate this problem temporarily, but it will eventually return. Might be happening after `flutter upgrade`.\r\n\r\n2. **Use a different WiFi network.** Certain WiFi networks result in mDNS lookup failures 100% of the time. This never used to happen, and as far as I can tell was a problem introduced at the same time. Seems to happen most often on public WiFi.\r\n\r\n3. **Use an iPad for iOS debugging.** My 9.7\" WiFi-only iPad Pro magically avoids the above two issues for some reason, but all of my iPhones experience them.",
+    "createdAt": "2019-11-20T15:40:15Z"
+  },
+  {
+    "id": 8817,
+    "sender": "nashfive",
+    "content": "@stx Thanks for the workarounds, but unfortunately, switching to master is not possible right now.\r\nIn my case, apart the fact that I am using the stable (same results in the beta channel):\r\n- my firewall is disabled (it has no entries for the Dart binary)\r\n- I've tried to enable the firewall just to add the rule and remove it as someone advised as a workaround\r\n- I tried on different wifi network (work and home) & also on ethernet (enabling only one service at a time),\r\n- Xcode 11, Catalina, iOS 13.x (I don't have iPad devices)\r\n- No hotspot set on any devices\r\n\r\nIt's still not working :/ \r\nI will try in master tonight, and if it works, I really hope it will land on stable asap. It should have been pushed as a hotfix as iOS debugging on a real device is impossible ! \r\n  \r\n\r\n",
+    "createdAt": "2019-11-20T16:11:59Z"
+  },
+  {
+    "id": 8818,
+    "sender": "39499740",
+    "content": "@nashfive \r\nMy version is channel stable, v1.9.1 + hotfix. 6\r\nI found that when the iPhone and MAC are not in the same network segment, this problem can be solved\r\nNow when I developed it, the iPhone and MAC were not in the same network segment, and dart devtools was used for debugging, because now the console can't print any valid information\r\n\r\nReply from translation software\r\n\r\n\r\n",
+    "createdAt": "2019-11-20T16:29:56Z"
+  },
+  {
+    "id": 8819,
+    "sender": "john-yick",
+    "content": "I can confirm that at least on master turning off the wifi on our iPhones allows us to debug within VSCode on our mac's.\r\n\r\nWould be good still to understand when these fixes will be rolled into stable so that we can use move back to that branch.",
+    "createdAt": "2019-11-21T03:42:06Z"
+  },
+  {
+    "id": 8820,
+    "sender": "39499740",
+    "content": "@john-yick \r\n\r\nJust make sure that the Mac and iPhone are not in the same IP address segment\r\n\r\nAfter the WiFi is turned off, sometimes the card will appear in the\r\n\r\nChecking for advertised Dart observatories...\r\n\r\nBlack screen in the future\r\n\r\n\r\nReply from translation software\r\n\r\n",
+    "createdAt": "2019-11-21T03:44:43Z"
+  },
+  {
+    "id": 8821,
+    "sender": "john-yick",
+    "content": "@39499740 \r\n\r\nCorrect I think that would work too if we had separate VLANS, but since our macbook's are on the same wifi as our phones they are all within the same ip block range. \r\n\r\nTurning off the wifi is fine as a temporary fix, but the root cause does still need to be fixed.",
+    "createdAt": "2019-11-21T03:47:48Z"
+  },
+  {
+    "id": 8822,
+    "sender": "stx",
+    "content": "I'm kind of astonished this isn't a bigger deal... it has made debugging on iPhones impossible in many different network environments and I've found no workaround for that. Used different devices, computers, OS, etc.\r\n\r\nTurning off WiFi on the iPhones didn't solve anything for me.\r\n\r\nIs this still on track for November?",
+    "createdAt": "2019-11-26T00:52:41Z"
+  },
+  {
+    "id": 8823,
+    "sender": "john-yick",
+    "content": "@stx  so the only way we got it to work is by using the latest version of Catalina/xCode/iOS or we also got it working on Mojave as well but only on iOS 12. In either instance we needed to use the master branch and turn off the wifi on our iPhones to get the code running.\r\n\r\nIs there any word from the core development team on how this can be fixed as this does seem to be a long standing issue that affects iOS.",
+    "createdAt": "2019-11-26T01:16:35Z"
+  },
+  {
+    "id": 8824,
+    "sender": "39499740",
+    "content": "@stx  @john-yick \r\nPut the iPhone and MAC in different network segments and you can debug them\r\n\r\nThe way I use now is to manually set the IP for Mac, manually set the WAN port IP with a router, and then connect the router with my mobile phone.\r\n\r\nNow my mobile IP is 192.168.1.105\r\n\r\nMac IP is 192.168.0.234",
+    "createdAt": "2019-11-26T01:20:28Z"
+  },
+  {
+    "id": 8825,
+    "sender": "stx",
+    "content": "@john-yick Thanks! For some reason, that isn't working for me.\r\n\r\n@39499740 Appreciated, but doesn't work on network environments that you don't control.\r\n\r\nBut I just found a new bizarre workaround, that I think works everywhere: disable WiFi on Mac, enable iPhone tethering, and make sure that the iPhone USB network interface is active. See below:\r\n\r\n<img width=\"780\" alt=\"image\" src=\"https://user-images.githubusercontent.com/1284134/69591767-f6f2f600-0fb0-11ea-9dea-bc10812f0d1c.png\">\r\n\r\niPhone can be connected to WiFi or not, this strategy has been working with every debug run.",
+    "createdAt": "2019-11-26T01:27:45Z"
+  },
+  {
+    "id": 8826,
+    "sender": "john-yick",
+    "content": "@stx also forgot to mention disable the wifi sync for iTunes as that used to cause issues as well.",
+    "createdAt": "2019-11-26T01:29:15Z"
+  },
+  {
+    "id": 8827,
+    "sender": "stx",
+    "content": "Simpler workaround: prioritize the iPhone USB connection. See below.\r\n\r\n<img width=\"780\" alt=\"image\" src=\"https://user-images.githubusercontent.com/1284134/69592127-3a019900-0fb2-11ea-9d26-cc3c1c0a7123.png\">\r\n\r\nThis also seems to completely avoid this problem... so far!",
+    "createdAt": "2019-11-26T01:36:42Z"
+  },
+  {
+    "id": 8828,
+    "sender": "superman24-7",
+    "content": "Unfortunately, none of the mentioned workarounds seem to work for me.\r\n\r\n    Channel master, v1.12.14-pre.11, on Mac OS X 10.15.1 19B88\r\n    Framework revision 92b0ceaaa6 (38 minutes ago), 2019-11-26 01:19:51 -0500\r\n    Engine revision 05f8c8b24b\r\n    Dart version 2.7.0",
+    "createdAt": "2019-11-26T07:02:59Z"
+  },
+  {
+    "id": 8829,
+    "sender": "ArditGashi",
+    "content": "[✓] Flutter (Channel stable, v1.9.1+hotfix.6, on Mac OS X 10.15.1 19B88, locale da-DK)\r\n    • Flutter version 1.9.1+hotfix.6 at /Users/myUser/Desktop/flutter\r\n    • Framework revision 68587a0916 (3 months ago), 2019-09-13 19:46:58 -0700\r\n    • Engine revision b863200c37\r\n    • Dart version 2.5.0\r\n\r\n \r\n[✓] Android toolchain - develop for Android devices (Android SDK version 29.0.2)\r\n    • Android SDK at /Users/arditgashi/Library/Android/sdk\r\n    • Android NDK location not configured (optional; useful for native profiling support)\r\n    • Platform android-29, build-tools 29.0.2\r\n    • Java binary at: /Applications/Android Studio.app/Contents/jre/jdk/Contents/Home/bin/java\r\n    • Java version OpenJDK Runtime Environment (build 1.8.0_202-release-1483-b49-5587405)\r\n    • All Android licenses accepted.\r\n\r\n[✓] Xcode - develop for iOS and macOS (Xcode 11.2.1)\r\n    • Xcode at /Applications/Xcode.app/Contents/Developer\r\n    • Xcode 11.2.1, Build version 11B500\r\n    • CocoaPods version 1.8.4\r\n\r\n[✓] Android Studio (version 3.5)\r\n    • Android Studio at /Applications/Android Studio.app/Contents\r\n    • Flutter plugin version 41.1.2\r\n    • Dart plugin version 191.8593\r\n    • Java version OpenJDK Runtime Environment (build 1.8.0_202-release-1483-b49-5587405)\r\n\r\nWhat ended up working for me was reinstalling flutter, dart and android studio.\r\nAfter that, I gave full permissions in the disk (sorry for the danish language):\r\n![image](https://user-images.githubusercontent.com/23475140/69759341-285ef380-1162-11ea-90ab-c4c6d70d6dd0.png)\r\n After that, I made sure my SDK was set up correctly for Flutter and Dart.\r\nWhat worked for me was then disabling the firewall as mentioned before. I hope this helps a bit.\r\n\r\nMy iPhone runs on 13.1.3, and my mac has the newest Catalina update.",
+    "createdAt": "2019-11-27T21:11:37Z"
+  },
+  {
+    "id": 8830,
+    "sender": "nashfive",
+    "content": "It is clearly not related to the install of Android Studio, Dart of Flutter, so no need to waste time to reinstall all your environment.\r\n\r\nIt seems that both Apple & Flutter have done changes on the network level, and depending on your current network setup, you'll get the error.\r\n\r\nWith *exactly* the same setup, I can now debug iOS apps on iOS 13 devices from the stable channel when I am on my home network. But, when I try to do the same on the corporate network, it fails 100% of the time. I haven't figured out what is blocking the discovery and will investigate it more once the stable channel will get the changes from master. ",
+    "createdAt": "2019-12-03T10:02:28Z"
+  },
+  {
+    "id": 8831,
+    "sender": "TheFedex87",
+    "content": "Did you solve this problem? I'm using a virtual machine with macOs, and an iPhone 11 with ios 13.2.3 and Xcode 11.2.1 but I'm facing with this problem. Every time I start with VSCode with or without debug it stuck in a white screen and console says Checking for advertised Dart observatories...",
+    "createdAt": "2019-12-06T08:54:35Z"
+  }
+]

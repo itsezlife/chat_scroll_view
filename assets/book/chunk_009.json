@@ -1,0 +1,386 @@
+[
+  {
+    "id": 576,
+    "sender": "chunhtai",
+    "content": "regarding the linux gesture, does it have different behavior when right click on a native web page text vs native web page textfield?\r\n\r\nIf we want the unify behavior between textfield and global selection, @Renzo-Olivares 's inherited text gesture recognizer can solve this issue. Once it is in, I can also make global selection to grab the text gesture recognizer from the inherited widget.",
+    "createdAt": "2022-05-19T23:30:21Z"
+  },
+  {
+    "id": 577,
+    "sender": "justinmc",
+    "content": "Here's the behavior that I'm seeing on Linux Chrome:\r\n\r\n  * Right clicking in a <textarea> always selects the word.\r\n  * Right clicking on an <input> when focused selects the word.\r\n  * Right clicking on an <input> when not focused sets the cursor.\r\n  * Right clicking on some non-editable text doesn't select the word.\r\n\r\nPutting this off for now sounds good to me.",
+    "createdAt": "2022-05-19T23:45:42Z"
+  },
+  {
+    "id": 578,
+    "sender": "nilsreichardt",
+    "content": "> Right clicking a word selects the word, but I think it shouldn't. In a TextField, right clicking just sets the cursor.\r\n\r\nFrom https://github.com/flutter/flutter/pull/95226#pullrequestreview-976138900\r\n\r\n@justinmc On macOS this not true for web (I don't know how Windows it handels):\r\n\r\nhttps://user-images.githubusercontent.com/24459435/170144319-1ee2bad2-50ea-476d-8b1c-6104699d2f29.mov\r\n\r\n(I used the [flutter.dev](https://flutter.dev) website)",
+    "createdAt": "2022-05-24T22:48:30Z"
+  },
+  {
+    "id": 579,
+    "sender": "justinmc",
+    "content": "@nilsreichardt Good catch.  I think we're doing those gestures in another PR so we'll have to get this right there.",
+    "createdAt": "2022-05-24T22:52:25Z"
+  },
+  {
+    "id": 580,
+    "sender": "nilsreichardt",
+    "content": "@justinmc Yes, I also opened a few issue for the `SelectionArea` widget which can be implemented in separated PRs 👍  My intention with the comment was the current selection behavior of `SelectionArea` is correct (right click and the word becomes selected) ✅",
+    "createdAt": "2022-05-24T23:07:28Z"
+  },
+  {
+    "id": 581,
+    "sender": "gspencergoog",
+    "content": "## Implement Material MenuBar\n\n## Description\r\n\r\nThis implements a `MenuBar` widget that can render a Material menu bar, and a `createMaterialMenu` function to create a cascading menu anywhere. The menus are drawn in the overlay, while the menu bar itself is in the regular widget tree. Keyboard traversal works between the two.\r\n\r\nThis implementation of the `MenuBar` uses the public global function `createMaterialMenu` to create a cascading menu that contains widgets representing the menu items. These menu items can be any kind of widget, but are typically `SubmenuButton`s that host submenus, or `MenuItemButton`s that have shortcut hints (but don't actually activate the shortcuts) and don't host submenus.\r\n\r\nCascading menus can be created outside of a `MenuBar` by calling `createMaterialMenu`. They can be either given a specific location to appear (global coordinate), or they can be located by a new `MenuAnchor` widget that wraps the control that opens them.\r\n\r\nThe developer may also create a `MenuController` to pass to the various menu primitives (`MenuBar` or `createMaterialMenu`) to associate menus so that they can be traversed together and closed together. Creating a controller is not required.\r\n\r\nThings that are not implemented in this PR, but will need to be:\r\n- Accelerators\r\n- Showing the \"selection trail\" for selected menus. Parent menus should show as selected when a child is highlighted.\r\n- Creating a horizontal menu bar that isn't a `MenuBar`. This is technically possible in the API, but `_MenuPanel` isn't public, and to write your own requires access to an internal type to set the orientation. Easy solution is to make `_MenuPanel` public, but I want to wait until there's a use case.\r\n- A checkbox menu item that automatically shows and manages its own checkbox. You can technically do it right now with the prefix icon, but it's not very clean.\r\n- Opening the menu initially with the keyboard (e.g. the Alt key on Linux/Windows, Ctrl-F2 on macOS).\r\n\r\n## Related Issues\r\n - https://github.com/flutter/flutter/issues/23600\r\n\r\n## Tests\r\n - Many tests for all of the menu operations and configurations\r\n\r\n## Design Doc\r\n- https://flutter.dev/go/cascading-menus",
+    "createdAt": "2022-08-08T21:30:18Z"
+  },
+  {
+    "id": 582,
+    "sender": "gspencergoog",
+    "content": "Not yet ready to continue the review: still working on the ButtonStyleButton changes.",
+    "createdAt": "2022-08-19T20:03:38Z"
+  },
+  {
+    "id": 583,
+    "sender": "gspencergoog",
+    "content": "@HansMuller @goderbauer OK, I think it's safe to proceed with reviewing this some more.\r\n\r\nI've converted the button classes to use ButtonStyleButton styles, and converted the `MenuButton` widget and `createMaterialMenu` function to take a new `MenuStyle` class that acts a lot like `ButtonStyle`, but for menus.  I've separated the themes into three themes (`MenuTheme`, `MenuBarTheme`, and `MenuButtonTheme`), and also into separate files.\r\n\r\nThe only thing I have left to do is to write copious tests for the new `MenuStyle` attributes, and their support in the menu classes. So, as long as you don't make it all the way down to the tests, I'm OK. :-)\r\n\r\nMainly I want to see if you want more large structural changes so I don't go down the test writing road too far if I need to rearrange still.",
+    "createdAt": "2022-08-23T02:51:15Z"
+  },
+  {
+    "id": 584,
+    "sender": "gspencergoog",
+    "content": "OK, I think I have added all the tests I'm going to add for now.",
+    "createdAt": "2022-08-24T19:23:26Z"
+  },
+  {
+    "id": 585,
+    "sender": "gspencergoog",
+    "content": "Okay, @goderbauer and @HansMuller, I think this is ready again.\r\n\r\nUpdates made include:\r\n- Merged `MenuEntry` and `_MenuNode` trees into `MenuHandle`\r\n    - There's still a private base class (`_MenuHandleBase`) for the menu nodes that has the tree handling functions in it.\r\n- Made `MenuController` also act as the root of the menu tree (and is also a `_MenuHandleBase`).\r\n- Eliminated the need to give a `GlobalKey` to `createMaterialMenu` by creating `MenuAnchor` widget.\r\n    - There now must either be a `MenuAnchor` in the ancestors when you call `MenuHandle.open`, or you must supply a menu position.\r\n- `MenuAnchor` provides the box for alignment, as well as having a `TapRegion` to add the anchor to the menu tap region.\r\n    - It also adds an `ExcludeFocus` that is excluding if there are no menus currently open (but I'm not sure that is a good idea for general use: it might need to be optional).\r\n- Added a `BuildContext` argument to `MenuHandle.open`.\r\n\r\nI tried to split `MenuBar`, `MenuButton` and `MenuItemButton` into a separate file to prove that someone could build a menu system of their own without them and not need access to private data, but they would, and making it work would make a lot of things public that I wasn't ready to do that with.  Perhaps we can revisit that in another PR, but I don't think it's critical.",
+    "createdAt": "2022-09-08T16:02:41Z"
+  },
+  {
+    "id": 586,
+    "sender": "gspencergoog",
+    "content": "> One thing that isn't clear to me (I probably just missed it in the 8000+ lines 😝): Why do we still need the button rect to position the menu? I thought the LayerLink stuff would take care of most of that...\r\n\r\nWe still need the button rect because the custom layout needs to be able to position the menu by looking at the global coordinates of the menu button: it needs to know if the menu is too close to the edge of the view or not. The `LayerLink` takes care of when the view is resized or scrolled after it is positioned, but it doesn't know if the menu is near an edge or not.  If you have a menu up and scroll and get the menu too close to an edge, it won't relocate the menu (it'll just scroll off the edge), but that's an edge case that we probably don't need to worry about.",
+    "createdAt": "2022-09-14T02:18:45Z"
+  },
+  {
+    "id": 587,
+    "sender": "goderbauer",
+    "content": "> We still need the button rect because the custom layout needs to be able to position the menu by looking at the global coordinates of the menu button: it needs to know if the menu is too close to the edge of the view or not. The LayerLink takes care of when the view is resized or scrolled after it is positioned, but it doesn't know if the menu is near an edge or not. If you have a menu up and scroll and get the menu too close to an edge, it won't relocate the menu (it'll just scroll off the edge), but that's an edge case that we probably don't need to worry about.\r\n\r\nCan you document this (and the limitation you describe) in the code somewhere? This may be useful for a future reader.",
+    "createdAt": "2022-09-14T22:22:22Z"
+  },
+  {
+    "id": 588,
+    "sender": "goderbauer",
+    "content": "Just as I stamped this LGTM I actually had one more idea that may improve the API and may make it easier to integrate this with OverlayPortal and/or multi window in the future. I think it would do away with MenuHandle and createMaterialMenu altogether and would avoid passing contexts around. Rough API sketch:\r\n\r\n```dart\r\nfinal MenuController controller = MenuController();\r\n\r\n@override\r\nWidget build(BuildContext context) {\r\n  return MenuAnchor(\r\n    controller: controller,\r\n    // ... other config options that would have been passed to createMaterialMenu before\r\n    menuBuilder: (BuildContext context) {\r\n      return <Widget>[\r\n        MenuItemButton(...),\r\n        SubMenuButton(...),\r\n        // ...\r\n      ],\r\n    },\r\n    child: TextButton(\r\n     onPressed: () {\r\n       if (!controller.isOpen) {\r\n         // maybe open needs to take an optional offset param to allow specifying where within the MenuAnchor's bounding box the menu should be shown...\r\n         controller.open();\r\n       } else {\r\n         controller.close();\r\n       }\r\n     },\r\n     child: Text('Toggle menu'),\r\n    )\r\n  );\r\n}\r\n```\r\n\r\nBasically, the menu is always anchored at the MenuAnchor. It's context is used for positioning (so you want to wrap it tightly e.g. around a button or whatever UI element is supposed to be aligned with the menu). Now the widgets that make up the menu entries actually look like they are part of the widget tree and when we move menues over to OverlayPortal or multi window it is immediately obvious that they can access all inherited widgets above the MenuAnchor, because that's where they are anchored. \r\n\r\nAlso, I think this will make it easier to move to OverlayPortal later (and multi window as well) because for both you kinda need an anchor in the widget tree.\r\n\r\nIt also simplifies the API by removing concepts like MenuHandle and createMaterialMenu from the public API.\r\n\r\nThis is similar to how Tooltips already work today (except that you get a controller to decide when to bring up the menu) and parallels the API we are designing for OverlayPortal and multi window.\r\n\r\nCurious to hear what you think...",
+    "createdAt": "2022-09-15T18:48:54Z"
+  },
+  {
+    "id": 589,
+    "sender": "gspencergoog",
+    "content": "> Curious to hear what you think...\r\n\r\nThis might make it easier to integrate, but it disables one of the use cases that we can currently allow: creating context menus that are placed with a global position (often from a pointer position, not a widget position), which is what the `create_material_menu.1.dart` example shows.\r\n\r\nAlso, unless you need the global positioning use case, we already have most of what you're talking about: you don't need to use `createMaterialMenu` or a `MenuAnchor` if you use `MenuBar` or `SubmenuButton` directly. The only time you need the lower level API is if you want to have a menu on something other than a plain button, or want to specify the opening location yourself.\r\n\r\nHowever, we might be able to change the `MenuAnchor` so that it has an API closer to what you propose, because I do like that the menu description appears to be part of the widget tree in the same way as `MenuBar`. I worry a little that there will be ways in which it won't act the same, and thus be surprising, since it's actually drawn in the `Overlay`, at least until we get `OverlayPortal` (I'm mainly thinking of cases where they begin invalidating the widgets at the wrong time in the build).\r\n\r\nIf we eliminate `createMaterialMenu` and move its attributes to `MenuAnchor`, but still allow an optional global position to be specified by the `open()`, maybe that is sufficient?\r\n\r\nI am a bit sad about not committing this yet...but I also don't want to remove API mere days after introducing it.",
+    "createdAt": "2022-09-15T19:48:52Z"
+  },
+  {
+    "id": 590,
+    "sender": "goderbauer",
+    "content": "> This might make it easier to integrate, but it disables one of the use cases that we can currently allow: creating context menus that are placed with a global position (often from a pointer position, not a widget position), which is what the create_material_menu.1.dart example shows.\r\n\r\nFor that my thinking was that you'd wrap the entire area in which you want the context menu to appear in the MenuAnchor and then the `.open` call could take an optional offset into the boundingbox defined by the MenuAnchor to position it based on a PointerEvent.",
+    "createdAt": "2022-09-15T20:14:05Z"
+  },
+  {
+    "id": 591,
+    "sender": "gspencergoog",
+    "content": "Michael and I talked about this, and I'm going to give it a try and see if I can refine the API surface to match his idea more closely.",
+    "createdAt": "2022-09-15T23:46:27Z"
+  },
+  {
+    "id": 592,
+    "sender": "gspencergoog",
+    "content": "Closing in favor of https://github.com/flutter/flutter/pull/112239 since GitHub is just getting too slow to be able to handle this PR with more comments.  Moving to a new PR in the hope that it'll be faster without the history, and also to preserve this iteration.",
+    "createdAt": "2022-09-23T00:13:06Z"
+  },
+  {
+    "id": 593,
+    "sender": "LongCatIsLooong",
+    "content": "## `OverlayPortal` \n\n# Inspired by the [flutter_portal](https://pub.dev/packages/flutter_portal) package. \r\nThe flutter_portal package is created by @rrousselGit and is currently maintained by @fzyzcjy \r\n\r\nThis PR resolves many of the issues raised in https://github.com/flutter/flutter/issues/36220.\r\n\r\n## What the Render Tree Looks like:\r\n\r\n<img src=\"https://user-images.githubusercontent.com/31859944/171971838-62ed3975-4b5d-4733-a9c9-f79e263b8fcc.jpg\" width=\"600\">\r\n\r\n### Layout Order\r\n`_RenderDeferredLayoutBox` needs to do layout after `_RenderLayoutSurrogateProxyBox`, but should also update its layout when `_RenderTheatre` gives it a set of different constraints. Additionally, `RenderObject`s below a `_RenderDeferredLayoutBox` should only perform layout after the `_RenderDeferredLayoutBox` is updated.\r\n\r\nSo the layout order has to be `_RenderTheatre` -> `_RenderLayoutSurrogateProxyBox` -> `_RenderDeferredLayoutBox` -> `overlayChild`, otherwise something may have to do layout twice.\r\n\r\n- `_RenderTheatre` is the common ancestor of the 3 other `RenderObject`s so it will be laid out first. It's ok to re-dirty it since it's `sizedByParent`, and all that matters to the descendants is the constraints, which won't change even when re-dirtied.\r\n- `_RenderLayoutSurrogateProxyBox` -> `_RenderDeferredLayoutBox`: `_RenderDeferredLayoutBox` has a greater depth than `_RenderLayoutSurrogateProxyBox` and it can't be tree walked from `_RenderTheatre`. \r\n- `_RenderLayoutSurrogateProxyBox` -> `overlayChild`: because `_RenderDeferredLayoutBox` -> `overlayChild`. When `_RenderDeferredLayoutBox` is not dirty, `overlayChild` is guaranteed to have a greater depth than `_RenderLayoutSurrogateProxyBox`.\r\n- `_RenderDeferredLayoutBox` -> `overlayChild`: `overlayChild` can only be tree walked from `_RenderDeferredLayoutBox` and has a greater depth than `_RenderDeferredLayoutBox`. \r\n\r\nHowever since `_RenderDeferredLayoutBox`  actually depends on both `_RenderLayoutSurrogateProxyBox` and `_RenderTheatre`, it can be dirtied by `_RenderTheatre` when `_RenderLayoutSurrogateProxyBox` is clean. When that happens `_RenderTheatre` needs to call `_RenderDeferredLayoutBox.markNeedsLayout` in an `invokeLayoutCallback` to merge the node back to the dirty list in case `overlayChild` is dirty too, so `overlayChild` doesn't perform layout before `_RenderDeferredLayoutBox`.\r\n\r\n### Why placing the `RenderObject` under `_RenderTheatre` instead of `_RenderLayoutSurrogateProxyBox`\r\nIt takes some extra lines of code to manage the render tree properly, and `_RenderLayoutSurrogateProxyBox` has to redepth the `overlayChild` branch, but:\r\n\r\n1. It generates the same render tree as the `OverlayEntry` API would and that could make it easier for people to migrate from the `OverlayEntry` API.\r\n2. If `overlayChild` needs to repaint it doesn't have to mark `_RenderLayoutSurrogateProxyBox` as needing repaint too (we have `markParentNeedsLayout` but not `markParentNeedsPaint`). `overlayChild` paints on `_RenderTheatre`'s `PaintContext` so there's little point in marking `_RenderLayoutSurrogateProxyBox` dirty. Also during compositing bits update, it could set `_needsCompositing` to true on some nodes that actually don't need compositing.\r\n\r\n### TODOs to be addressed in future pull requests\r\n1. Currently when an `OverlayPortal` widget reparents, the overlay child will be moved to the top of the Overlay (in terms of the z-index, for painting and hit-testing), and that's pretty strange for a declarative API. `OverlayInfo` currently knows which `OverlayEntry` an `OverlayPortal` belongs to (for nested `OverlayPortal` it shouldn't be difficult to get the closest ancestor `OverlayPortal` too), so it shouldn't be difficult to add additional information to the parent data to specify the desired z-index (in relation to the parent `OverlayEntry` or `PortalEntry`).\r\n\r\n## Pre-launch Checklist\r\n\r\n- [ ] I read the [Contributor Guide] and followed the process outlined there for submitting PRs.\r\n- [ ] I read the [Tree Hygiene] wiki page, which explains my responsibilities.\r\n- [ ] I read and followed the [Flutter Style Guide], including [Features we expect every widget to implement].\r\n- [ ] I signed the [CLA].\r\n- [ ] I listed at least one issue that this PR fixes in the description above.\r\n- [ ] I updated/added relevant documentation (doc comments with `///`).\r\n- [ ] I added new tests to check the change I am making, or this PR is [test-exempt].\r\n- [ ] All existing and new tests are passing.\r\n\r\nIf you need help, consider asking for advice on the #hackers-new channel on [Discord].\r\n\r\n<!-- Links -->\r\n[Contributor Guide]: https://github.com/flutter/flutter/wiki/Tree-hygiene#overview\r\n[Tree Hygiene]: https://github.com/flutter/flutter/wiki/Tree-hygiene\r\n[test-exempt]: https://github.com/flutter/flutter/wiki/Tree-hygiene#tests\r\n[Flutter Style Guide]: https://github.com/flutter/flutter/wiki/Style-guide-for-Flutter-repo\r\n[Features we expect every widget to implement]: https://github.com/flutter/flutter/wiki/Style-guide-for-Flutter-repo#features-we-expect-every-widget-to-implement\r\n[CLA]: https://cla.developers.google.com/\r\n[flutter/tests]: https://github.com/flutter/tests\r\n[breaking change policy]: https://github.com/flutter/flutter/wiki/Tree-hygiene#handling-breaking-changes\r\n[Discord]: https://github.com/flutter/flutter/wiki/Chat\r",
+    "createdAt": "2022-06-03T20:48:46Z"
+  },
+  {
+    "id": 594,
+    "sender": "LongCatIsLooong",
+    "content": "Also on a different note, @rrousselGit @fzyzcjy how would like to receive the due credit? I can add a code comment before the `OverlayPortal` class and say \"this is Inspired by the [flutter_portal](https://pub.dev/packages/flutter_portal) package\"? If that works for you, do you want your github handles added to the comment as well?",
+    "createdAt": "2022-06-07T19:01:34Z"
+  },
+  {
+    "id": 595,
+    "sender": "rrousselGit",
+    "content": "> \"this is Inspired by the [flutter_portal](https://pub.dev/packages/flutter_portal) package\"? If that works for you, do you want your github handles added to the comment as well?\r\n\r\nThat's fine by me :) ",
+    "createdAt": "2022-06-07T19:24:52Z"
+  },
+  {
+    "id": 596,
+    "sender": "fzyzcjy",
+    "content": "> \"this is Inspired by the [flutter_portal](https://pub.dev/packages/flutter_portal) package\"? If that works for you, do you want your github handles added to the comment as well?\r\n\r\nAlso fine for me :)",
+    "createdAt": "2022-06-07T23:12:53Z"
+  },
+  {
+    "id": 597,
+    "sender": "Hixie",
+    "content": "This seems almost guaranteed to cause some unexpected interaction, but I admit I cannot think what it might be...\r\n\r\nWe should have tests for at least all of the following:\r\n\r\n* GlobalKey reparenting between a regular overlay entry and a portal entry, both forwards and backwards, and in both orders (i.e. four tests).\r\n* GlobalKey reparenting between a two portal entries, both forwards and backwards, and in both orders.\r\n* GlobalKey reparenting between a portal entry and the regular child of the surrogate, in both directions and both orders.\r\n* Something that only causes the portal to rebuild, the portal child to rebuild, the proxy to rebuild, the proxy's regular child to rebuild.\r\n* Every test again, but with a layout builder between the overlay and the proxy.\r\n* Nested overlays with nested portals (overlays inside portals, inside proxies, etc).",
+    "createdAt": "2022-06-08T18:07:37Z"
+  },
+  {
+    "id": 598,
+    "sender": "nilsreichardt",
+    "content": "cc: @creativecreatorormaybenot ",
+    "createdAt": "2022-06-08T18:36:53Z"
+  },
+  {
+    "id": 599,
+    "sender": "LongCatIsLooong",
+    "content": "Started working on adding more test, @Hixie by proxy you mean the `PortalOverlay` widget right? ",
+    "createdAt": "2022-06-10T01:12:20Z"
+  },
+  {
+    "id": 600,
+    "sender": "Hixie",
+    "content": "> Started working on adding more test, @Hixie by proxy you mean the `PortalOverlay` widget right?\r\n\r\nI meant the `addDeferredChild` API, but I guess that's the same thing since it's private.\r\n\r\n(It'd be interesting to see if there was a way to implement this so that `Overlay` and `_Theatre` itself was agnostic about all this, so that other people could create their own interesting variants.)",
+    "createdAt": "2022-06-10T17:52:50Z"
+  },
+  {
+    "id": 601,
+    "sender": "LongCatIsLooong",
+    "content": "> (It'd be interesting to see if there was a way to implement this so that Overlay and _Theatre itself was agnostic about all this, so that other people could create their own interesting variants.)\r\n\r\nSomething like https://github.com/flutter/flutter/pull/39104? The `addDeferredChild` thing is only safe on a render parent whose children are independently sized, and independently positioned, in case it's called inside of a LayoutBuilder, so it can adopt render children during layout and finish everything in one frame. So I guess the only thing that qualifies is an Overlay/_RenderTheatre? ",
+    "createdAt": "2022-06-10T20:41:02Z"
+  },
+  {
+    "id": 602,
+    "sender": "Hixie",
+    "content": "@LongCatIsLooong I tried checking this out to play with it but it had a lot of conflicts (and many commits so it was hard to figure out how to resolve them) -- any chance you could merge this to tip of tree?",
+    "createdAt": "2022-07-07T20:31:35Z"
+  },
+  {
+    "id": 603,
+    "sender": "Hixie",
+    "content": "I found a problem with this approach. It breaks the invariant that Material relies on, namely that if it can find a `Material.of` during build, that guarantees that it can find the corresponding `Material` widget's render object during paint.\r\n\r\nYou can reproduce this problem by putting an InkWell inside an `OverlayPortal`'s `overlayChild` and then tapping it.",
+    "createdAt": "2022-07-08T22:02:07Z"
+  },
+  {
+    "id": 604,
+    "sender": "Hixie",
+    "content": "Another issue I ran into is that the logic that toggles the presence of the DebugBanner when you take a screenshot from the command line (hit `s` in the `flutter run` console) causes the whole thing to fall over (screen goes red with an assertion error deep in the framework) so long as you have a portal active.",
+    "createdAt": "2022-07-08T22:25:13Z"
+  },
+  {
+    "id": 605,
+    "sender": "Hixie",
+    "content": "I suspect it's the same as the DebugBanner issue, but for what it's worth, selecting \"Select Widget Mode\" in the devtools also causes the framework to throw an assertion that turns the screen red.",
+    "createdAt": "2022-07-08T22:51:26Z"
+  },
+  {
+    "id": 606,
+    "sender": "LongCatIsLooong",
+    "content": "Regarding `material`, I made some changes to how material computes the paint transform to each `InkFeature` so it stops throwing (but if the `InkFeature` extends outside of the `material` it'll still get clipped to `material`s bounding rect). But since this pull request doesn't actually break anything by itself, should I move the fix and the test to another PR?\r\nAlso I messed up something in `activate` and `deactivate`, now taking screenshots should be working.",
+    "createdAt": "2022-07-19T22:21:58Z"
+  },
+  {
+    "id": 607,
+    "sender": "goderbauer",
+    "content": "I think I broke it: The code below crashes when clicking the button with the exception shown below. \r\n\r\n```\r\n══╡ EXCEPTION CAUGHT BY WIDGETS LIBRARY ╞═══════════════════════════════════════════════════════════\r\nThe following assertion was thrown building LayoutBuilder:\r\nA _RenderTheatre was mutated in _RenderLayoutBuilder.performLayout.\r\nThe RenderObject was mutated when none of its ancestors is actively performing layout.\r\nThe RenderObject being mutated was:\r\n  _RenderTheatre#1ccf4 NEEDS-PAINT NEEDS-COMPOSITING-BITS-UPDATE\r\nThe RenderObject that was mutating the said _RenderTheatre was:\r\n  _RenderLayoutBuilder#ef4b9 NEEDS-LAYOUT NEEDS-PAINT NEEDS-COMPOSITING-BITS-UPDATE\r\n\r\nThe relevant error-causing widget was:\r\n  LayoutBuilder LayoutBuilder:file:///Users/goderbauer/dev/playground/lib/main.dart:60:12\r\n\r\nWhen the exception was thrown, this was the stack:\r\n#0      RenderObject._debugCanPerformMutations.<anonymous closure> (package:flutter/src/rendering/object.dart:1630:9)\r\n#1      RenderObject._debugCanPerformMutations (package:flutter/src/rendering/object.dart:1691:6)\r\n#2      RenderObject.adoptChild (package:flutter/src/rendering/object.dart:1477:12)\r\n#3      ContainerRenderObjectMixin.insert (package:flutter/src/rendering/object.dart:3761:5)\r\n#4      ContainerRenderObjectMixin.add (package:flutter/src/rendering/object.dart:3767:5)\r\n#5      _RenderTheatre.addDeferredChild (package:flutter/src/widgets/overlay.dart:783:5)\r\n#6      _OverlayPortalElement.insertRenderObjectChild (package:flutter/src/widgets/overlay.dart:1184:33)\r\n#7      RenderObjectElement.attachRenderObject (package:flutter/src/widgets/framework.dart:6067:35)\r\n#8      RenderObjectElement.mount (package:flutter/src/widgets/framework.dart:5739:5)\r\n#9      SingleChildRenderObjectElement.mount (package:flutter/src/widgets/framework.dart:6287:11)\r\n#10     Element.inflateWidget (package:flutter/src/widgets/framework.dart:3850:16)\r\n#11     Element.updateChild (package:flutter/src/widgets/framework.dart:3579:18)\r\n#12     _OverlayPortalElement.updateOverlayChild (package:flutter/src/widgets/overlay.dart:1128:12)\r\n#13     _OverlayPortalElement.mount (package:flutter/src/widgets/overlay.dart:1103:21)\r\n#14     Element.inflateWidget (package:flutter/src/widgets/framework.dart:3850:16)\r\n#15     Element.updateChild (package:flutter/src/widgets/framework.dart:3579:18)\r\n#16     _LayoutBuilderElement._layout.layoutCallback (package:flutter/src/widgets/layout_builder.dart:135:18)\r\n#17     BuildOwner.buildScope (package:flutter/src/widgets/framework.dart:2605:19)\r\n#18     _LayoutBuilderElement._layout (package:flutter/src/widgets/layout_builder.dart:153:12)\r\n#19     RenderObject.invokeLayoutCallback.<anonymous closure> (package:flutter/src/rendering/object.dart:2268:59)\r\n#20     PipelineOwner._enableMutationsToDirtySubtrees (package:flutter/src/rendering/object.dart:1035:15)\r\n#21     RenderObject.invokeLayoutCallback (package:flutter/src/rendering/object.dart:2268:14)\r\n#22     RenderConstrainedLayoutBuilder.rebuildIfNecessary (package:flutter/src/widgets/layout_builder.dart:228:7)\r\n#23     _RenderLayoutBuilder.performLayout (package:flutter/src/widgets/layout_builder.dart:316:5)\r\n#24     RenderObject.layout (package:flutter/src/rendering/object.dart:2157:7)\r\n#25     RenderBox.layout (package:flutter/src/rendering/box.dart:2418:11)\r\n#26     _RenderDeferredLayoutBox.performLayout (package:flutter/src/widgets/overlay.dart:1364:13)\r\n#27     RenderObject._layoutWithoutResize (package:flutter/src/rendering/object.dart:1995:7)\r\n#28     PipelineOwner.flushLayout (package:flutter/src/rendering/object.dart:999:18)\r\n#29     RendererBinding.drawFrame (package:flutter/src/rendering/binding.dart:513:19)\r\n#30     WidgetsBinding.drawFrame (package:flutter/src/widgets/binding.dart:884:13)\r\n#31     RendererBinding._handlePersistentFrameCallback (package:flutter/src/rendering/binding.dart:378:5)\r\n#32     SchedulerBinding._invokeFrameCallback (package:flutter/src/scheduler/binding.dart:1175:15)\r\n#33     SchedulerBinding.handleDrawFrame (package:flutter/src/scheduler/binding.dart:1104:9)\r\n#34     SchedulerBinding._handleDrawFrame (package:flutter/src/scheduler/binding.dart:1015:5)\r\n#35     _invoke (dart:ui/hooks.dart:148:13)\r\n#36     PlatformDispatcher._drawFrame (dart:ui/platform_dispatcher.dart:318:5)\r\n#37     _drawFrame (dart:ui/hooks.dart:115:31)\r\n```\r\n\r\n```dart\r\nimport 'package:flutter/material.dart';\r\n\r\nvoid main() => runApp(const MyApp());\r\n\r\nclass MyApp extends StatelessWidget {\r\n  const MyApp({super.key});\r\n\r\n  static const String _title = 'Flutter Code Sample';\r\n\r\n  @override\r\n  Widget build(BuildContext context) {\r\n    return MaterialApp(\r\n      title: _title,\r\n      home: Scaffold(\r\n        appBar: AppBar(title: const Text('OverlayPortal Example')),\r\n        body: const Center(child: ClickableTooltipWidget()),\r\n      ),\r\n    );\r\n  }\r\n}\r\n\r\nclass ClickableTooltipWidget extends StatefulWidget {\r\n  const ClickableTooltipWidget({super.key});\r\n\r\n  @override\r\n  State<StatefulWidget> createState() => ClickableTooltipWidgetState();\r\n}\r\n\r\nclass ClickableTooltipWidgetState extends State<ClickableTooltipWidget> {\r\n  bool shouldShowTooltip = false;\r\n\r\n  void _onTap() {\r\n    setState(() {\r\n      shouldShowTooltip = !shouldShowTooltip;\r\n    });\r\n  }\r\n\r\n  @override\r\n  Widget build(BuildContext context) {\r\n    return DefaultTextStyle(\r\n      style: DefaultTextStyle.of(context).style.copyWith(fontSize: 50),\r\n      child: GestureDetector(\r\n        onTap: _onTap,\r\n        child: OverlayPortal(\r\n          overlayInfo: OverlayInfo.of(context),\r\n          overlayChild: !shouldShowTooltip ? null : const ChildWidget(),\r\n          child: const Text('Press to show/hide tooltip'),\r\n        ),\r\n      ),\r\n    );\r\n  }\r\n}\r\n\r\nclass ChildWidget extends StatelessWidget {\r\n  const ChildWidget({Key? key}) : super(key: key);\r\n\r\n  @override\r\n  Widget build(BuildContext context) {\r\n    return LayoutBuilder(\r\n      builder: (BuildContext context, BoxConstraints constraints) {\r\n        return OverlayPortal(\r\n          overlayInfo: OverlayInfo.of(context),\r\n          overlayChild: Align(\r\n            alignment: Alignment.topLeft,\r\n            child: Container(\r\n              height: 50,\r\n              width: 50,\r\n              color: Colors.green,\r\n            ),\r\n          ),\r\n          child: const Center(\r\n            child: ColoredBox(\r\n              color: Colors.amberAccent,\r\n              child: Text('tooltip'),\r\n            ),\r\n          ),\r\n        );\r\n      },\r\n    );\r\n  }\r\n}\r\n```\r\n\r\n",
+    "createdAt": "2022-07-22T18:38:48Z"
+  },
+  {
+    "id": 608,
+    "sender": "goderbauer",
+    "content": "There is also some stack ordering strangeness in the overlay if you have multiple items in the overlay and a subtree with an OverlayPortal is moved with a global key. In the example below press in order: Button1, Button2, Button3, and finally reparent. Notice how the blue square jumps to the top.\r\n\r\nThis is likely related to how the items in the overlay are removed and re-added on deactivate and activate.\r\n\r\n_EDIT: Just saw, this limitation is already mentioned in the PR description..._\r\n\r\n```dart\r\nimport 'package:flutter/material.dart';\r\n\r\nvoid main() => runApp(const MyApp());\r\n\r\nclass MyApp extends StatelessWidget {\r\n  const MyApp({super.key});\r\n\r\n  static const String _title = 'Flutter Code Sample';\r\n\r\n  @override\r\n  Widget build(BuildContext context) {\r\n    return const MaterialApp(\r\n      title: _title,\r\n      home: ClickableTooltipWidget(),\r\n    );\r\n  }\r\n}\r\n\r\nclass ClickableTooltipWidget extends StatefulWidget {\r\n  const ClickableTooltipWidget({super.key});\r\n\r\n  @override\r\n  State<StatefulWidget> createState() => ClickableTooltipWidgetState();\r\n}\r\n\r\nclass ClickableTooltipWidgetState extends State<ClickableTooltipWidget> {\r\n  bool nest = false;\r\n  final Key key = GlobalKey();\r\n\r\n  @override\r\n  Widget build(BuildContext context) {\r\n    final Widget button2 = TooltipButton(key: key, index: 2);\r\n    return Scaffold(\r\n      body: Center(\r\n        child: Row(\r\n          mainAxisSize: MainAxisSize.min,\r\n          children: [\r\n            const TooltipButton(index: 1),\r\n            if (nest)\r\n              SizedBox(child: button2)\r\n            else\r\n              button2,\r\n            const TooltipButton(index: 3),\r\n            TextButton(\r\n              onPressed: () {\r\n                setState(() {\r\n                  nest = !nest;\r\n                });\r\n              },\r\n              child: const Text('reparent'),\r\n            ),\r\n          ],\r\n        ),\r\n      ),\r\n    );\r\n  }\r\n}\r\n\r\nclass TooltipButton extends StatefulWidget {\r\n  const TooltipButton({required this.index, Key? key}) : super(key: key);\r\n\r\n  final int index;\r\n\r\n  @override\r\n  State<TooltipButton> createState() => _TooltipButtonState();\r\n}\r\n\r\nclass _TooltipButtonState extends State<TooltipButton> {\r\n  bool show = false;\r\n\r\n  static final List<Color> _colors = [Colors.green, Colors.blue, Colors.yellow];\r\n\r\n  @override\r\n  Widget build(BuildContext context) {\r\n    return OverlayPortal(\r\n      overlayInfo: OverlayInfo.of(context),\r\n      overlayChild: !show\r\n          ? null\r\n          : Positioned(\r\n              top: 10.0 * widget.index,\r\n              left: 10.0 * widget.index,\r\n              child: Container(\r\n                color: _colors[widget.index - 1],\r\n                height: 50,\r\n                width: 50,\r\n                child: Text('${widget.index}'),\r\n              ),\r\n            ),\r\n      child: TextButton(\r\n        child: Text('Button${widget.index}'),\r\n        onPressed: () {\r\n          setState(() {\r\n            show = !show;\r\n          });\r\n        },\r\n      ),\r\n    );\r\n  }\r\n}\r\n```",
+    "createdAt": "2022-07-22T19:49:47Z"
+  },
+  {
+    "id": 609,
+    "sender": "Hixie",
+    "content": "One issue with the current API is that it doesn't provide an intuitive order for the overlayChildren. In general I would expect tree order to be respected as the paint order: if I have a column with two children, the second one paints on top of the first.\r\n\r\nHowever, with this API the paint order is actually chronological by order of when the portals were created. For example, in this code the \"BOTTOM\" (earlier) child ends up on top of the \"TOP\" (later) child because the LayoutBuilder changes the order in which we walk the tree:\r\n\r\n```dart\r\nimport 'package:flutter/material.dart';\r\n\r\nvoid main() {\r\n  runApp(const MyApp());\r\n}\r\n\r\nclass MyApp extends StatelessWidget {\r\n  const MyApp({super.key});\r\n\r\n  @override\r\n  Widget build(BuildContext context) {\r\n    return const MaterialApp(\r\n      title: 'Flutter Demo',\r\n      home: MyHomePage(),\r\n    );\r\n  }\r\n}\r\n\r\nclass MyHomePage extends StatefulWidget {\r\n  const MyHomePage({super.key});\r\n\r\n  @override\r\n  State<MyHomePage> createState() => _MyHomePageState();\r\n}\r\n\r\nclass _MyHomePageState extends State<MyHomePage> {\r\n  @override\r\n  Widget build(BuildContext context) {\r\n    return Scaffold(\r\n      body: Center(\r\n        child: Column(\r\n          mainAxisAlignment: MainAxisAlignment.center,\r\n          children: <Widget>[\r\n            LayoutBuilder(\r\n              builder: (BuildContext context, BoxConstraints constraints) => OverlayPortal(\r\n                overlayInfo: OverlayInfo.of(context),\r\n                overlayChild: Positioned(\r\n                  top: 50.0,\r\n                  left: 50.0,\r\n                  width: 200.0,\r\n                  height: 100.0,\r\n                  child: Container(\r\n                    color: Colors.yellow,\r\n                    child: Text('BOTTOM'),\r\n                  ),\r\n                ),\r\n                child: Container(\r\n                  color: Colors.orange,\r\n                  child: Text('first source'),\r\n                ),\r\n              ),\r\n            ),\r\n            OverlayPortal(\r\n              overlayInfo: OverlayInfo.of(context),\r\n              overlayChild: Positioned(\r\n                top: 75.0,\r\n                left: 75.0,\r\n                width: 200.0,\r\n                height: 100.0,\r\n                child: Container(\r\n                  color: Colors.teal,\r\n                  child: Text('TOP'),\r\n                ),\r\n              ),\r\n              child: Container(\r\n                color: Colors.blue,\r\n                child: Text('second source'),\r\n              ),\r\n            ),\r\n          ],\r\n        ),\r\n      ),\r\n    );\r\n  }\r\n}\r\n```",
+    "createdAt": "2022-07-22T20:22:36Z"
+  },
+  {
+    "id": 610,
+    "sender": "Hixie",
+    "content": "The test in https://github.com/flutter/flutter/pull/105335#issuecomment-1192888019 is actually really good at showing this bug. Double tap each button, and the corresponding container just moves to the top of the rendering, even though the tree order hasn't changed.",
+    "createdAt": "2022-07-22T20:25:08Z"
+  },
+  {
+    "id": 611,
+    "sender": "LongCatIsLooong",
+    "content": "I initially thought I could just put `addChild` in an `invokeLayoutCallback` to workaround the `_debugCanPerformMutations` assert but that didn't work. \r\n\r\n@Hixie yeah I'm planning to add that as a separate feature. Shouldn't be very difficult to implement the correct paint order once we figured out the right API for that I think (see PR description).",
+    "createdAt": "2022-07-22T22:55:13Z"
+  },
+  {
+    "id": 612,
+    "sender": "Hixie",
+    "content": "I think if we want to use this with Overlay then getting the z-index right is actually pretty critical. There's no way to know when a random widget one uses happens to use LayoutBuilder, and that would mean developers could not get predictable results.\r\n\r\nI can imagine a world where we use this for multiwindow rather than Overlay and in that world the z-index issue wouldn't matter much (since the windowing system is then in charge of z-index issues).",
+    "createdAt": "2022-07-23T00:06:24Z"
+  },
+  {
+    "id": 613,
+    "sender": "LongCatIsLooong",
+    "content": "@Hixie @goderbauer do you think the following API would be expressive enough for specifying the z-index/paint order? \r\n```dart\r\n// OverlayInfo renamed. You should not retain an `OverlayLocation` between rebuilds as it can go stale.\r\nclass OverlayLocation implements Comparable {  \r\n  // Get the overlay location above this location in terms of paint order. \r\n  OverlayLocation get locationAbove; \r\n\r\n  // Get the OverlayLocation of the given BuildContext\r\n  // Each OverlayEntry and overlayChild provides an OverlayLocation via an inherited widget.\r\n  static OverlayLocation? of({ required BuildContext above }) => above.dependOnInheritedWidgetOfExactType()!;\r\n\r\n  static int compare(lhs, rhs) => ... // throws if on different Overlays\r\n}\r\n\r\nclass OverlayPortal { \r\n  // Just the existing named constructor renamed. No actual API changes.\r\n  OverlayPortal.after({\r\n     OverlayLocation location,\r\n     // .. child, overlayChild,\r\n  });\r\n}\r\n```\r\n\r\nTo force certain paint order when there may be layout builders:\r\n```dart \r\nWidget build(context) { \r\n  final child1Location = OverlayLocation.above(context);\r\n  final child2Location = child1Location.locationAbove;\r\n  final child3Location = child2Location.locationAbove;\r\n\r\n  return Column([\r\n    OverlayPortal.after(child1Location), \r\n    LayoutBuilder((_, _) =>  OverlayPortal.after(child2Location), \r\n    OverlayPortal.after(child3Location), \r\n  ]);\r\n}\r\n```\r\n\r\nTo express that a widget needs to be painted above both A and B\r\n```dart \r\nWidget build(context) { \r\n  return A(builder: (contextA) { \r\n     B(builder: (contextB) { \r\n       final locationA = OverlayLocation.of(contextA);\r\n       final locationB = OverlayLocation.of(contextB);\r\n       return OverlayPortal.after(\r\n           location: locationA > locationB ? locationA : locationB,\r\n          //... \r\n       );\r\n     });\r\n  });\r\n}\r\n```\r\n\r\nSo basically as an overlayChild you can specify that you want to be painted after another OverlayEntry/OverlayChild as long as you can see their buildcontext. Didn't expose an int z-index  in the public API since then you kinda have to stick to the number you initially choose.",
+    "createdAt": "2022-07-30T01:06:18Z"
+  },
+  {
+    "id": 614,
+    "sender": "LongCatIsLooong",
+    "content": "Looking at the `OverlayEntry` usages in the framework that could potentially be ported to OverlayPortal, most of them are just some sort of prompts that show at the top of the theatre, and go away/yield once the user interacts with something else so  I feel the current \"chronological\" paint order works well enough as the default. @Hixie would you be ok with only exposing the default constructor that just paints children in the order they were added for now? I'm not super confident that I'll be able to come up with something in a vacuum that addresses the paint order problem and covers all use cases.",
+    "createdAt": "2022-07-30T01:36:49Z"
+  },
+  {
+    "id": 615,
+    "sender": "goderbauer",
+    "content": "> do you think the following API would be expressive enough for specifying the z-index/paint order?\r\n\r\nWhat happens if two OverlayPortals that get inserted in the same frame specify the same `after` location?\r\n\r\n> Looking at the OverlayEntry usages in the framework that could potentially be ported to OverlayPortal, most of them are just some sort of prompts that show at the top of the theatre\r\n\r\nFor these, proper z-ordering probably doesn't matter as much as long as you only put up one OverlayPortal per frame. But I am not sure if we can guarantee that? What is somebody starts building a Navigator implementation where all the routes are OverlayPortals? In that world you could potentially put more then one route on the stack per frame and you need to guarantee ordering somehow. OverlayPortals could in the future also be used to animate multiple parts of a UI to a new position when e.g. the window size changes. Here, z ordering between the elements as they are in motion could also matter... Solving this (or having a plan for it) could enable some interesting use cases in the future.\r\n\r\nI am actually also still concerned about keeping the order stable when you move an OverlayPortal via a GlobalKey. Here, it will be very visible when Overlays suddenly start changing their z order somewhat unpredictably. And GlobalKey moves are not that uncommon...",
+    "createdAt": "2022-08-02T17:52:32Z"
+  },
+  {
+    "id": 616,
+    "sender": "goderbauer",
+    "content": "One thing that came up in in-person discussion: How do you use this system to place an OverlayPortal into the root overlay? We do this in the framework in a couple of places where things should be placed in the largest Overlay available to avoid that they get cut off by the bounds of sub overlays. ",
+    "createdAt": "2022-08-02T18:27:58Z"
+  },
+  {
+    "id": 617,
+    "sender": "Hixie",
+    "content": "It's hard for me to evaluate the OverlayLocation API because I don't really know what the use case is for me to use it.\r\n\r\nMy concern with z-index ordering is around the default behaviour, e.g. the way that having different ancestors (LayoutBuilder or not, for example, or SliverList or not) changes the z-index. For example, if you have something in a SliverList that shows an overlay, then something in a LayoutBuilder that shows one, the second will be above the first, but then if you scroll the list so that the item is dropped then scroll back so it comes back, suddenly the one in the list is on top... this seems fundamentally wrong to me, because as a developer it is unpredictable.",
+    "createdAt": "2022-08-02T23:39:57Z"
+  },
+  {
+    "id": 618,
+    "sender": "Hixie",
+    "content": "(BTW, I don't want to make all my comments sound negative. I find this PR to be astoundingly clever and much, much more reliable than one might expect from something that messes with the tree in this way. Even if we never land it, it's an achievement and shows a really solid understanding of the internals of our trees and my hat is off to you.)",
+    "createdAt": "2022-08-02T23:41:27Z"
+  },
+  {
+    "id": 619,
+    "sender": "goderbauer",
+    "content": "Here's another actual use case where overlay order would likely matter: https://github.com/flutter/flutter/issues/50763\r\n\r\nAlso +1 to what Hixie said about the cleverness of this PR. When I first read it I was amazed by how this uses depth manipulation to achieve its goal. And when I tried it out, I was surprised (in a good way) how robust the mechanism is.",
+    "createdAt": "2022-08-03T16:45:55Z"
+  },
+  {
+    "id": 620,
+    "sender": "HansMuller",
+    "content": "@goderbauer - I don't think that https://github.com/flutter/flutter/issues/50763 could be resolved by OverlayPortal, even given tight control over z-indices.  To avoid the flash that occurs when the Hero moves from the overlay to it's final location, you'd need to snake it through the non-overlay UI at the right overall z-index. That doesn't seem possible, since each Renderer defines the stacking order of it's children (and only its children).",
+    "createdAt": "2022-08-04T20:08:47Z"
+  },
+  {
+    "id": 621,
+    "sender": "Hixie",
+    "content": "I was describing this problem to someone just now and it struck me that one way we could turn the weakness of this PR (the z-index looking like it should be predictable based on tree order but where it is actually based on insertion order) into a strength would be to actually use something similar to the current Overlay API: make adding the portal child imperative. Maybe have a controller, or have the State be how you trigger the child being visible? Not as clean an API, but more predictable...",
+    "createdAt": "2022-08-07T16:38:22Z"
+  },
+  {
+    "id": 622,
+    "sender": "fzyzcjy",
+    "content": "> the z-index looking like it should be predictable based on tree order but where it is actually based on insertion order\r\n\r\nCan we add a `zIndex` argument in the portals, and allow the user to explicitly provide it, just like what they did with web technology. Then, we can use something like a `TreeMap<int, OurObject>` (where key is z-index and value is the object we are interested) to replace `List<OurObject>` to obtain \"render by z-index\" easily.\r\n\r\nBtw, one of the core improvements of portal is its declarativeness, thus IMHO making it declarative will be quite helpful for the users.",
+    "createdAt": "2022-08-07T22:23:57Z"
+  },
+  {
+    "id": 623,
+    "sender": "Hixie",
+    "content": "The way z-index works in CSS is a constant source of problems (with people one-upping themselves with bigger and bigger numbers to be \"on top\"). We should definitely not use the CSS style. (Also it doesn't solve this problem because you still have to determine how to disambiguate identical values.)",
+    "createdAt": "2022-08-08T07:29:57Z"
+  },
+  {
+    "id": 624,
+    "sender": "Hixie",
+    "content": "One thing we could do is make `key` a required parameter of type `ZIndex`, a new class which has an interface like this:\r\n\r\n```\r\nclass ZIndex extends GlobalObjectKey<_OverlayPortalState> implements Comparable<ZIndex> {\r\n  // some constants such that anything minted from top is above anything minted from\r\n  // default is above anything minted from bottom\r\n  static const SZindex default = ...;\r\n  static const SZindex top = ...;\r\n  static const SZindex bottom = ...;\r\n\r\n  ZIndex below() { ... } // mints a new instance that is just below this one (and above any earlier instances created this way)\r\n  ZIndex above() { ... } // the opposite\r\n\r\n  void dispose() { ... } // makes the ZIndex unusable\r\n  ...\r\n}\r\n```\r\n\r\nBecause it implements GlobalObjectKey and is used as a key you can never have two widgets with the same z-index. Because any ZIndex always has a defined relationship to all others, you can never have two instances that are equal. Because the way to mint them is to specify the relationship to an existing ZIndex, you can always predict the order.\r\n\r\nImplementing this would be tricky, you'd probably want to maintain a linked list where each ZIndex has a number representing its position in the sort order, and when you mint a new one you mint it with a number between the two ZIndex instances defining it, and if you ever run out of numbers you renumber the entire list...",
+    "createdAt": "2022-08-09T21:30:07Z"
+  },
+  {
+    "id": 625,
+    "sender": "fzyzcjy",
+    "content": "That sounds interesting, but I am a bit confused:\r\n\r\nIf ZIndex is implemented completely by the user (not flutter), then we rely on user to do the tricky below/above. This is very error-proone, because users may accidentially provide, e.g., circular or wrong below/above. We may add `assert` checks to runtime check it, but the risk still exists in release build (and no check at all).\r\n\r\nIf it is implemented in Flutter (since it is not an abstract class), not sure how users should use it. If users are going to maintain a linked list by themselves, maybe we can provide a ZIndexLinkedList directly for them, then even no need for above/below but we can directly utilize the order in the ZIndexLinkedList.",
+    "createdAt": "2022-08-09T22:14:38Z"
+  },
+  {
+    "id": 626,
+    "sender": "LongCatIsLooong",
+    "content": "@Hixie I'm trying to implement your \"bring-your-controller\" idea and so far it turns out to be pretty clean, and I don't have to worry about not being able to depend on the root overlay because the API is imperative. What I have right now:\r\n\r\n```dart\r\nclass TopmostOverlayLocation extends OverlayLocation { \r\n  bool get targetsRootOverlay;\r\n  void show(); \r\n  void hide();\r\n} \r\n```\r\n\r\nto use it \r\n```dart\r\nclass SomeState { \r\n  final overlayChildController = TopmostOverlayLocation(targetsRootOverlay: true);\r\n\r\n  void _onTap() { \r\n   overlayChildController.toggle();\r\n   setState(() { });\r\n }\r\n\r\n  Widget build() { \r\n    return widget(\r\n      ...\r\n       child: OverlayPortal(\r\n           location: overlayChildController, \r\n           overlayChild: overlayChild,\r\n           child: child,\r\n       );\r\n    );\r\n  }\r\n}\r\n```\r\nThe only complain I have for this would be `overlayChild` has to be non-null in the next `build` after a `show` call, and the developer has to call setState explicitly.",
+    "createdAt": "2022-08-09T22:15:17Z"
+  },
+  {
+    "id": 627,
+    "sender": "LongCatIsLooong",
+    "content": "The `ZIndex` class seems to be pretty close to the other `OverlayLocation` interface I have right now. But what are the benefits of requiring a total order `<` on `ZIndex`? It doesn't seem to make the order more predictable, as `above()` or `below()` will be typically called in `build` so it still reflects the build order?\r\n\r\nThe other inconvenience `ZIndex` and `OverlayLocation` both have is that they both are relative and in some cases it's difficult to get the base `ZIndex` from the widget tree, as in theory it could be created by a descendant widget",
+    "createdAt": "2022-08-09T22:56:23Z"
+  },
+  {
+    "id": 628,
+    "sender": "Hixie",
+    "content": "@fzyzcjy \r\n> If it is implemented in Flutter (since it is not an abstract class), not sure how users should use it.\r\n\r\nThey would have to set up a ZIndex instance ahead of time (e.g. in initState), for example by calling `ZIndex.top.above()`, and then pass it to the OverlayPortal.\r\n\r\n@LongCatIsLooong \r\n> The only complain I have for this would be `overlayChild` has to be non-null in the next `build` after a `show` call, and the developer has to call setState explicitly.\r\n\r\nYeah. We could require overlayChild to always be non-null, that would solve those two issues. There's other problems, like you can't put anything in the overlay in the same frame as you get created (but maybe that's true anyway? I guess it must be since the overlay has to finish building before we get to build?).\r\n\r\n> But what are the benefits of requiring a total order `<` on `ZIndex`?\r\n\r\nWell the key is that it's impossible to have two OverlayPortals with an ambiguous position. Since no two portals can be given the same key, and all keys are different, it's always unambiguous what order they go in.\r\n\r\n> as `above()` or `below()` will be typically called in `build` so it still reflects the build order?\r\n\r\nCertainly the API can be misused, yes. Doing that would be akin to creating a Future in the `build` method for an `AsyncBuilder`, which is not uncommon. We could try to lint our way out of it but I agree that it's not ideal.\r\n\r\nI agree that the controller idea is probably better.\r\n\r\n> The other inconvenience `ZIndex` and `OverlayLocation` both have is that they both are relative and in some cases it's difficult to get the base `ZIndex` from the widget tree, as in theory it could be created by a descendant widget\r\n\r\nI don't really follow. Can you elaborate?",
+    "createdAt": "2022-08-10T00:03:28Z"
+  },
+  {
+    "id": 629,
+    "sender": "Hixie",
+    "content": "Here's what a ZIndex implementation could look like: [zindex.zip](https://github.com/flutter/flutter/files/9295445/zindex.zip)\r\nI do agree the controller idea is less bug-prone though.\r\n",
+    "createdAt": "2022-08-10T00:14:17Z"
+  },
+  {
+    "id": 630,
+    "sender": "LongCatIsLooong",
+    "content": "Nevermind I got a bit too excited about the controller approach, it won't allow `OverlayPortal` to target the root `Overlay` because the initial root `Overlay` may have a shorter lifespan than the `OverlayPortal`.\r\n\r\n\r\n>  you can't put anything in the overlay in the same frame as you get created (but maybe that's true anyway? I guess it must be since the overlay has to finish building before we get to build?).\r\n\r\nNot the best practice but I'd expect `show` `hide` to be safe to call in the `build` method that builds the `OverlayPortal`. The implementation of `show` basically just grabs the current timestamp for sorting during paint, and `hide` tells the Element to treat `overlayChild` as null. It's still built on top of the declarative API.\r\n\r\nAs an example of the inconvenience, say I want to build a generic Magnifier widget that places a magnifier at a desired z-index. Then that widget would have to pass down a box to get the Z-index from its descendant (in the case of a text field, there're times the magnifier should be put under/above the selection handle).",
+    "createdAt": "2022-08-10T02:30:50Z"
+  },
+  {
+    "id": 631,
+    "sender": "LongCatIsLooong",
+    "content": "Ready for review. \r\n\r\nThe current implementation can only target the closest Overlay and the overlay child will be painted between the closest `OverlayEntry` and the next `OverlayEntry` in that `Overlay`.\r\n```dart\r\nOverlayPortal(\r\n  controller: _tooltipController,\r\n  overlayChildBuilder: (BuildContext context) {\r\n    return const Positioned(\r\n      right: 50,\r\n      bottom: 50,\r\n      child: ColoredBox(\r\n        color: Colors.amberAccent,\r\n        child: Text('tooltip'),\r\n      ),\r\n    );\r\n  },\r\n  child: const Text('Press to show/hide tooltip'),\r\n  ),\r\n);\r\n```",
+    "createdAt": "2022-08-19T17:47:42Z"
+  },
+  {
+    "id": 632,
+    "sender": "fzyzcjy",
+    "content": "Looks like the \"This API is inspired by ...\" comment disappears (searched through overlay.dart) 👀 Or do I miss something",
+    "createdAt": "2022-08-19T23:22:57Z"
+  },
+  {
+    "id": 633,
+    "sender": "LongCatIsLooong",
+    "content": "> Looks like the \"This API is inspired by ...\" comment disappears (searched through overlay.dart) eyes Or do I miss something\r\n\r\nAdded that as a code comment",
+    "createdAt": "2022-08-26T00:02:37Z"
+  },
+  {
+    "id": 634,
+    "sender": "goderbauer",
+    "content": "Overall this is looking pretty good. I wonder if we can reduce the complexity in _OverlayEntryLocation and _RenderTheatreChildModel a little bit by removing some of the abstractions that are currently unused. Also, instead of introducing this new childIterator paradigm, could _RenderTheatreChildModel use one of the existing paradims (e.g. visitChildren or exposing firstChild/lastChild with a field to get to the next/previous one) to avoid introducing a new concept?",
+    "createdAt": "2022-09-09T21:59:32Z"
+  },
+  {
+    "id": 635,
+    "sender": "LongCatIsLooong",
+    "content": "`visitChildren` traversal is not lazy I think. You'll have to go through the entire child list so it's not optimal for hit testing.",
+    "createdAt": "2022-09-09T23:18:56Z"
+  },
+  {
+    "id": 636,
+    "sender": "AlexV525",
+    "content": "👀 Still actively working on it? @LongCatIsLooong ",
+    "createdAt": "2022-10-22T06:32:32Z"
+  },
+  {
+    "id": 637,
+    "sender": "LongCatIsLooong",
+    "content": "This is ready for another round of review",
+    "createdAt": "2022-10-24T17:15:02Z"
+  },
+  {
+    "id": 638,
+    "sender": "LongCatIsLooong",
+    "content": "TODO: @gspencergoog pointed out `Scrollable.ensureVisible` may throw because `Scrollable.of` uses the Element tree to find the closest render viewport.",
+    "createdAt": "2022-10-29T00:24:50Z"
+  },
+  {
+    "id": 639,
+    "sender": "LongCatIsLooong",
+    "content": "> remove some of the additional layers of abstraction that the implementation doesn't appear to take advantage of, but make following the code harder\r\n\r\nremoved the child model abstract class. As for the OverlayLocation class I'd like to keep that for now since I'm planning to make that public in the future.\r\n\r\n> sticking to Flutter's more traditional models of iterating over children instead of inventing a new iterator model\r\n\r\nSwitched to using Iterable & generator functions, hopefully the latter isn't banned?\r\n\r\n> clearer ownership of pieces of data (e.g. the \"timestamp\")\r\n\r\nThe OverlayLocation owns the timestamp. But I don't want to create OverlayLocations early so other things will have to hold them  \r\n\r\n> clearer API boundaries (e.g. the child model feels like an implementation detail of the OverlayEntry (or the RenderTheater?) but it appears to be passed around everywhere\r\n\r\nI think we want the child model to reflect the z-index and to make the z-index somewhat customizable the overlay location needs to have access to the target child model. But in the future I think it will mostly be the OverlayLocation that's getting passed around.\r\n\r\n> some terminology clean-up (e.g. timestamp)\r\n\r\nany suggestions? alternatively I could do a typedef `_Time = int` and make timestamp a `_Time`?",
+    "createdAt": "2022-11-01T21:03:59Z"
+  }
+]

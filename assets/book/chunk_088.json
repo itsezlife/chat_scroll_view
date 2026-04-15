@@ -1,0 +1,386 @@
+[
+  {
+    "id": 5632,
+    "sender": "MaherSafadii",
+    "content": "> > When is nested scrolling going to be added? I have tried all scrolling hacks. In the provided picture, I should be able to scroll to a third color.\r\n> \r\n> Created an issue: #161623. It's a quick fix to enable nested scrolling. Getting the nested scrolling to smoothly interact with the drag dismiss gesture will be a longer effort.\r\n> \r\n> > Also-- I had to create my own appbar to exist in a stack above the modal sheet.\r\n> \r\n> We don't currently have anything on the backlog for adding a sheet specific app bar. Could you create an issue?\r\n> \r\n> In general we're looking for issues for improvements to be made to the sheet.\r\n\r\nI dont think new appbar is needed, the current CupertinoNavigationBar & CupertinoSliverNavigationBar are fine, all that's needed is change to their code to check if they're in a sheets context, if yes, change padding values and other small tweaks that make it match native iOS.",
+    "createdAt": "2025-01-15T10:44:26Z"
+  },
+  {
+    "id": 5633,
+    "sender": "MaherSafadii",
+    "content": "> > > When is nested scrolling going to be added? I have tried all scrolling hacks. In the provided picture, I should be able to scroll to a third color.\r\n> > \r\n> > \r\n> > Created an issue: #161623. It's a quick fix to enable nested scrolling. Getting the nested scrolling to smoothly interact with the drag dismiss gesture will be a longer effort.\r\n> > > Also-- I had to create my own appbar to exist in a stack above the modal sheet.\r\n> > \r\n> > \r\n> > We don't currently have anything on the backlog for adding a sheet specific app bar. Could you create an issue?\r\n> > In general we're looking for issues for improvements to be made to the sheet.\r\n> \r\n> I dont think new appbar is needed, the current CupertinoNavigationBar & CupertinoSliverNavigationBar are fine, all that's needed is change to their code to check if they're in a sheets context, if yes, change padding values and other small tweaks that make it match native iOS.\r\n\r\nfor example, I tried modifying Flutter's CupertinoNavigationBar to check if the current context in in a sheet or not, if yes it should remove the top SaveArea padding, here are pics of the before and after, also the transition on push glitches the nav bar, you have to explicitly set the set transitionBetweenRoutes to false in the sheets nav bar, it should  automatically tell if its in a sheet and disable it.\r\n\r\n<img width=\"1512\" alt=\"Screenshot 2025-01-15 at 1 48 51 PM\" src=\"https://github.com/user-attachments/assets/78088200-44b0-4fe7-8fb2-1d8f4c9da20e\" />\r\n\r\n<img width=\"1512\" alt=\"Screenshot 2025-01-15 at 1 49 05 PM\" src=\"https://github.com/user-attachments/assets/ac457088-a4ae-4665-84d1-5a3feb6e60b5\" />\r\n\r\n",
+    "createdAt": "2025-01-15T11:55:52Z"
+  },
+  {
+    "id": 5634,
+    "sender": "masal9pse",
+    "content": "From which version of Flutter will CupertinoSheetRoute be available?",
+    "createdAt": "2025-01-17T12:40:19Z"
+  },
+  {
+    "id": 5635,
+    "sender": "MaherSafadii",
+    "content": "> From which version of Flutter will CupertinoSheetRoute be available?\r\n\r\nThe next stable version I think, you can try it now by switching to the main channel, if you want to try it without switching channels, you can copy the sheet code from this PR and directly add it to your flutter project which I did and works fine.",
+    "createdAt": "2025-01-17T13:44:46Z"
+  },
+  {
+    "id": 5636,
+    "sender": "sroddy",
+    "content": "## Unable to call a platform channel method from another isolate\n\n## Status\r\n9/9/22: Work- in-progress\r\n\r\n## Description\r\nWhen I try to invoke a platform channel method from a custom spawned isolate, the app crashes badly (both on iOS and Android). I'm trying to figure out whether this is expected or not.\r\n\r\nIf it's not, it's probably worth to mention that somewhere.\r\n\r\nAnyways I think that this can potentially be a strong limitation. Is there a way to be able to call platform plugins from a secondary isolate?\r\n\r\n## PRs\r\n - [x] iOS Engine - https://github.com/flutter/engine/pull/35174\r\n - [x] iOS Framework - https://github.com/flutter/flutter/pull/109005\r\n - [x] Reland iOS Framework - https://github.com/flutter/flutter/pull/111320\r\n - [x] Android Engine - https://github.com/flutter/engine/pull/35804\r\n - [x] Android Framework - https://github.com/flutter/flutter/pull/111279\r\n - [x] Add macOS platform channel integration tests - https://github.com/flutter/flutter/pull/110606\r\n - [x] Desktop Engine - https://github.com/flutter/engine/pull/35893\r\n - [x] Desktop Framework - https://github.com/flutter/flutter/pull/110882\r\n - [ ] Add samplecode - https://github.com/flutter/flutter/issues/112235\r\n - [ ] Update website documentation - https://github.com/flutter/website/pull/7592\r\n - [x] Make it work with plugins that require a dart plugin registrant - https://github.com/flutter/flutter/issues/112240",
+    "createdAt": "2018-01-05T18:45:23Z"
+  },
+  {
+    "id": 5637,
+    "sender": "Hixie",
+    "content": "cc @mravn-google for triage",
+    "createdAt": "2018-01-08T22:58:14Z"
+  },
+  {
+    "id": 5638,
+    "sender": "mravn-google",
+    "content": "The engine code dereferences null and crashes when attempting to send a platform message from the secondary isolate. I haven't pinpointed exactly where yet; I get a tombstone, but need to learn how to interpret such a thing.\r\n\r\nAs a (clumsy) workaround, the secondary isolate could ask the primary one to send the message.\r\n\r\n@sroddy Might I ask what you are trying to accomplish with the secondary isolate?",
+    "createdAt": "2018-01-11T11:59:49Z"
+  },
+  {
+    "id": 5639,
+    "sender": "sroddy",
+    "content": "I have various use cases, e.g.:\r\n- Download and parse a huge chunk of data (dart:convert methods are not async) , then store it to a sqlite db using sqflite plugin (which uses platform bindings);\r\n- Prefetch and parse data before serving it to the ui;\r\n- Encrypt/decrypt and read/write data from/to a file (crypto stuff is done through a method channel in order to use platform security libs);\r\n\r\nIn general it can happen that you use dependencies that declare some public methods which you don't really know if eventually will use platform-specific code to accomplish their stuff (I'm thinking about flutterfire for example); using them imho should be more an implementation detail that can change with time instead of something written in stone.\r\n\r\nYour workaround seems ok for the moment and relatively painless to implement, as data is already encoded in a way to be passed to method channel, and for this reason will pass easily also via an isolate port, however my guess is that performances would be suboptimal.\r\n\r\nHowever I got a bit stuck during implementation: can you provide an example of an easy way to invoke a static method on the main isolate from a secondary one?\r\n\r\nThanks\r\n",
+    "createdAt": "2018-01-12T00:57:09Z"
+  },
+  {
+    "id": 5640,
+    "sender": "mravn-google",
+    "content": "@sroddy Thanks for the providing the background information.\r\n\r\nAbout invoking static methods on the main isolate: it is not directly supported and has to be implemented using ports. [This package](https://pub.dartlang.org/packages/isolate) may provide that functionality, e.g. [here](https://www.dartdocs.org/documentation/isolate/1.1.0/isolate.runner/Runner/run.html). Haven't tried it myself though.\r\n\r\nBut we should look for a more general solution here, one that works also when platform channel communication is done as part of the implementation of a plugin or other library.\r\n\r\nWe don't quite have the hooks for this yet, but if we can assume for a moment that you have a **known set of channel names** that are to be used from the secondary isolate and not the main one, you should be able to generically reconfigure platform message handling yourself for those channels, transparently implementing the necessary forwarding of binary messages and replies between your two isolates. Plugins would never know the difference.\r\n\r\nSolution sketched below.\r\n\r\nSuppose you set up ports M1 and R1 on your main isolate and M2, R2 on your secondary isolate. M for message, R for reply.\r\n\r\n* In your secondary isolate,  use `BinaryMessages.setMockMessageHandler` for each channel to forward messages for the platform to M1 (transparently to the plugin that uses BinaryMessage.send with that channel). Store reply callbacks and configure R2 with a handler that invokes the correct one on receipt of the reply for the message. Configure M2 with a handler that forwards to `BinaryMessages.handlePlatformMessage`. Implement the reply callback there to forward replies to R1.\r\n* Symmetrically in your main isolate. Configure M1 with a handler that forwards messages for the platform to `BinaryMessages.send`. Set a reply callback that forwards replies from the platform to R2. Also call `BinaryMessages.setMessageHandler` for each of the channels to setup a handler of incoming messages from the platform that forwards to M2. Store the reply callbacks and configure R1 with a handler that invokes the correct one on receipt of a reply from the secondary isolate.",
+    "createdAt": "2018-01-12T10:11:40Z"
+  },
+  {
+    "id": 5641,
+    "sender": "mravn-google",
+    "content": "@Hixie I suggest moving to next milestone. A workaround seems to exist. A good solution will require some API design work and iteration.",
+    "createdAt": "2018-01-12T12:19:10Z"
+  },
+  {
+    "id": 5642,
+    "sender": "xuexin",
+    "content": "I got the same problem, any news about this issue?",
+    "createdAt": "2018-05-22T03:33:27Z"
+  },
+  {
+    "id": 5643,
+    "sender": "realvotum",
+    "content": "@mravn-google Do you have any update on this? I ran across the same problem ( I'm in a need of generating e.g. RSA 2048 key pair on the platform side which takes a while on older devices or crypt/decrypt data). I'd rather avoid creating threads or services as that would double my work on the platform side since it is to be implemented for both Android and iOS platforms. Do we have any easy way to run those platform specific operations asynchronously from Dart? Your workaround seems to be fine, however it seems that I have some issues with implementing that as I am quite new to Flutter and Dart (I'm not sure how to configure a handler that forwards messages for an Isolate and so on), sorry about that.",
+    "createdAt": "2018-08-23T08:11:37Z"
+  },
+  {
+    "id": 5644,
+    "sender": "herrytco",
+    "content": "I got the same issue.\r\n\r\nI need to generate a PDF on the Android/iOS side which takes a while and the compute(...) method crashes the app if i run call from there.\r\n",
+    "createdAt": "2018-12-07T21:31:53Z"
+  },
+  {
+    "id": 5645,
+    "sender": "aungmawjj",
+    "content": "I got this issue, and now i'm stuck.\r\n\r\nI want to read accessToken, from shared preferences, in the background isolate, even though the app is not in the foreground (main isolate may not be running, i'm not very sure).\r\n\r\nSo, can someone tell me a solution to read persisted data from background isolate.\r\nI'm really in trouble now.",
+    "createdAt": "2019-01-05T08:25:37Z"
+  },
+  {
+    "id": 5646,
+    "sender": "goderbauer",
+    "content": "/cc @bkonyi This seems related to something you are working on.",
+    "createdAt": "2019-01-23T22:55:58Z"
+  },
+  {
+    "id": 5647,
+    "sender": "Thomson-Tsui",
+    "content": "I got the same issue. our product base on CPU-bound. we need to use platform method in isolate. Could you please tell us another way to solve this problem？",
+    "createdAt": "2019-02-01T16:59:34Z"
+  },
+  {
+    "id": 5648,
+    "sender": "rmawatson",
+    "content": "@Thomson-Tsui I had a similar problem, and based on a distillation of the work by @bkonyi and his FlutterGeofencing sample I managed to get [something](https://pub.dartlang.org/packages/flutter_isolate/versions/1.0.0+6) to work in an isolate that I am using with flutter_blue and other plugins. Its pretty untested but please give it a try.",
+    "createdAt": "2019-02-20T04:06:05Z"
+  },
+  {
+    "id": 5649,
+    "sender": "windrunner414",
+    "content": "I got the same issue, i think it's important",
+    "createdAt": "2019-04-09T05:19:00Z"
+  },
+  {
+    "id": 5650,
+    "sender": "bluajack",
+    "content": "Has anyone solved this problem?",
+    "createdAt": "2019-04-17T09:53:39Z"
+  },
+  {
+    "id": 5651,
+    "sender": "bobmoff",
+    "content": "I am using https://pub.dartlang.org/packages/flutter_isolate",
+    "createdAt": "2019-04-17T10:24:13Z"
+  },
+  {
+    "id": 5652,
+    "sender": "adam-mcdaniel",
+    "content": "I need to play audio at varying intervals in the background. The simplest way to do that would be to have a separate Isolate managing the audio, but without this feature it will take some really weird work around with ports",
+    "createdAt": "2019-04-20T06:30:25Z"
+  },
+  {
+    "id": 5653,
+    "sender": "nikitadol",
+    "content": "I have an assumption that when you run an isolate from dart, the native libraries do not link.\r\n\r\nFor example, when running flutter code from java, this method is called:\r\n```java\r\n   private native void nativeRunBundleAndSnapshotFromLibrary (\r\n       long nativePlatformViewId,\r\n       @NonNull String [] prioritizedBundlePaths,\r\n       @Nullable String entrypointFunctionName,\r\n       @Nullable String pathToEntrypointFunction,\r\n       @NonNull AssetManager manager\r\n   );\r\n```\r\nIn which all the magic happens)\r\n\r\nThis is verified by the fact that if you create several FlutterNativeView, and in each run:\r\n```java\r\n  public void runFromBundle (FlutterRunArguments args)\r\n```\r\nthen we get a few \"dart isolates\"",
+    "createdAt": "2019-04-29T06:10:25Z"
+  },
+  {
+    "id": 5654,
+    "sender": "bardram",
+    "content": "We also face this issue. We need to collect data from background isolates (e.g. location, noise, etc.) which all rely on platform channels. @mravn-google -- any news on an update to the API which could address this?",
+    "createdAt": "2019-05-17T11:42:04Z"
+  },
+  {
+    "id": 5655,
+    "sender": "vy12021",
+    "content": "It's really a serious problem in tool or media apps.\r\nPlatform thread isn't an easy way.",
+    "createdAt": "2019-05-20T07:37:18Z"
+  },
+  {
+    "id": 5656,
+    "sender": "t1m-l",
+    "content": "I have also faced the similar issue and stuck right now.",
+    "createdAt": "2019-05-24T21:46:53Z"
+  },
+  {
+    "id": 5657,
+    "sender": "dkashkin",
+    "content": "+1 (my project also badly needs platform channels in isolates)",
+    "createdAt": "2019-05-28T17:34:04Z"
+  },
+  {
+    "id": 5658,
+    "sender": "mikes222",
+    "content": "I need to render images in background. It have to be done in an isolate because each image takes a few seconds and blocks ui if done in the main thread. I am stuck at the first native call of dart:ui.PictureRecorder and assume each and every graphical call (which uses native functions) will not work either. Since I am using a lot of functions in the canvas it would be a pain to work with callback ports. \r\n\r\nA solution is highly appreciated. ",
+    "createdAt": "2019-06-08T20:49:00Z"
+  },
+  {
+    "id": 5659,
+    "sender": "daoluan",
+    "content": "+1 I got this issue",
+    "createdAt": "2019-06-11T05:18:42Z"
+  },
+  {
+    "id": 5660,
+    "sender": "bardram",
+    "content": "It seems like @mravn-google has stopped working for Google in Aarhus. I wonder if there are anyone else from the Google Flutter team who is looking into this. IMO, this is a major show stopper for serious use of Flutter for building resilient and robust Flutter applications....\r\n\r\nMaybe @sethladd can give a status?",
+    "createdAt": "2019-06-11T16:46:43Z"
+  },
+  {
+    "id": 5661,
+    "sender": "hetian9288",
+    "content": "+1",
+    "createdAt": "2019-06-14T03:25:48Z"
+  },
+  {
+    "id": 5662,
+    "sender": "kingwill101",
+    "content": "any updates on this?",
+    "createdAt": "2019-07-16T15:25:34Z"
+  },
+  {
+    "id": 5663,
+    "sender": "alenca",
+    "content": "+1",
+    "createdAt": "2019-07-20T15:46:13Z"
+  },
+  {
+    "id": 5664,
+    "sender": "sooxt98",
+    "content": "The day you met a bug that you do know how to solve by your own but only wait is the last hope till I become flutter engineer.",
+    "createdAt": "2019-08-12T16:02:20Z"
+  },
+  {
+    "id": 5665,
+    "sender": "austenstrine",
+    "content": "We need a more detailed explanation of the workaround for new flutter/dart users. I only started using isolates two days ago, and flutter/dart last week, and it's looking like I'm going to have to use the main thread for some seriously labor-intensive tasks, which makes learning flutter a bad solution. Without usable multithreading, I'm better off learning Kotlin and building my apps twice. I hope y'all can get something together that is intelligible for beginners, I'd really like to be able to justify learning flutter to my employers so I can use it at work.\r\nIf not here, perhaps on StackOverflow, I've posted a question here: https://stackoverflow.com/q/57466952/6047611",
+    "createdAt": "2019-08-12T18:14:01Z"
+  },
+  {
+    "id": 5666,
+    "sender": "irpankusuma",
+    "content": "+1 semoga cepet beres ",
+    "createdAt": "2019-08-19T04:08:25Z"
+  },
+  {
+    "id": 5667,
+    "sender": "wangzhenyan12",
+    "content": "+1 My project needs platform channels in isolates.",
+    "createdAt": "2019-08-21T02:00:11Z"
+  },
+  {
+    "id": 5668,
+    "sender": "raccoons-are-goofy",
+    "content": "I ran into this same issue and made a package ([Isolate Handler](https://pub.dev/packages/isolate_handler)) using a workaround similar to the one posted by @mravn-google. However, Isolate Handler does allow you to use channels both from the main isolate alongside other isolates. It supports direct `MethodChannel` calls from within isolates, but currently `EventChannel` streams are not supported. I will look into adding support for them if it turns out to be something people need.\r\n\r\nOne downside of the workaround is the need to supply the isolate handler with channel names. It is not a problem in my project as I am writing my native code myself, but otherwise you have to look through the source code of any plugin you are using to find them.\r\n\r\nAnother option that was already posted above is [FlutterIsolate](https://pub.dev/packages/flutter_isolate), which uses a different approach and is also worth looking into.\r\n\r\nHopefully the Flutter devs will provide a full and proper solution to this problem soon.\r\n\r\nEdit:\r\n\r\nI eventually solved my issue more cleanly by starting the isolate from the native side instead using an approach similar to the Flutter first-party [Android Alarm Manager](https://pub.dev/packages/android_alarm_manager) plugin.\r\n\r\nThe only thing I had to do was convert my native code into plugins so they could be registered with the native application, which was a relatively painless migration. If you use plugins from pub.dev it is even simpler as they should work seamlessly.",
+    "createdAt": "2019-08-26T20:12:17Z"
+  },
+  {
+    "id": 5669,
+    "sender": "minh98",
+    "content": "+1 any update here ?",
+    "createdAt": "2019-09-08T15:09:38Z"
+  },
+  {
+    "id": 5670,
+    "sender": "hanabi1224",
+    "content": "+1",
+    "createdAt": "2019-09-09T18:36:08Z"
+  },
+  {
+    "id": 5671,
+    "sender": "AndruByrne",
+    "content": "Interesting thing I am noticing here:\r\nSeveral plugins seem to be written with the assumption that the method channel call is passing messages from Dart to a background thread; relatedly, there are some mightily confused people who followed that bg geofencing example and now are wondering how to get back on the main thread...\r\nThat plugin code will not cause \"jank\" if they are performing a short task, but they are by default running on the [platform thread](https://github.com/flutter/flutter/wiki/The-Engine-architecture#platform-task-runner), what used to be called \"the UI thread\" on android; this can absolutely cause gestures to be dropped during high workload, and I understand it would block all other message channels as well.\r\nYou then are at the mercy of the plugin author's engineering; only if they moved their heavy work to another thread in the native code will you be running code that waits on method channels; those message channels *have* to run on the platform thread.\r\nWhile I do understand the rationale the good chinmaygarde [relates here](https://github.com/flutter/flutter/issues/22024#issuecomment-470677255), agreeing that:\r\n  - most platform API calls are fast and often need to be made on the main thread; \r\n  - it makes more sense to account for threads in the native code\r\n  - finding one's way back to the \"main thread\" in a framework method override is obviously confusing to people used to Android Java\r\n    - I can only imagine how that would multiply when making their first platform-thread-only API calls.\r\n\r\nI feel that the resulting architecture opened up a significant anti-pattern as a default for plugin authors; on first glance, I think even the firebase ml plugin uses the platform thread for its processing.\r\nSo I wish there was some sort of strong warning that would given to the people doing heavy lifting; perhaps something in the default example app that generates on-screen errors if the message channel calls take longer than ~20 ms to return, perhaps something more in-everyone's-face; honestly, whatever convinces those people making db calls &c. to go get a thread already.\r\n\r\nOi, there's no free lunch, that is for sure...",
+    "createdAt": "2019-09-10T04:24:11Z"
+  },
+  {
+    "id": 5672,
+    "sender": "realvotum",
+    "content": "I ended up implementing heavy workload with the native platform threads using Java and Swift. Found no workaround.",
+    "createdAt": "2019-09-11T19:14:25Z"
+  },
+  {
+    "id": 5673,
+    "sender": "raccoons-are-goofy",
+    "content": "@AndruByrne This is indeed very interesting information and I was unaware of it, as obvious as it now seems in hindsight. I already have one issue related to my plugin where a user was trying to use it as a way to perform a heavy lifting task in the background and it locked up the UI.\r\n\r\nI agree that there should be a warning and I will add one to my plugin.",
+    "createdAt": "2019-09-12T09:59:35Z"
+  },
+  {
+    "id": 5674,
+    "sender": "idaWHALE",
+    "content": "+1 need this",
+    "createdAt": "2019-10-03T22:33:23Z"
+  },
+  {
+    "id": 5675,
+    "sender": "therealjohnsummer",
+    "content": "Unfortunately - Flutter is not ready for primetime for it to lack something so very basic yet so very critical. Not all Flutter apps can get away with simple async/await. For the heavy lifting Isolates are essential and plugins that cannot allow platform channel method calls from another Isolate make them pointless and redundant. Xamarin had this  built into the framework from day 1 - surely this should be up voted for a solution now.",
+    "createdAt": "2019-10-04T17:42:55Z"
+  },
+  {
+    "id": 5676,
+    "sender": "goodgoodbigbig",
+    "content": "+1 need this",
+    "createdAt": "2019-10-17T13:43:27Z"
+  },
+  {
+    "id": 5677,
+    "sender": "ping996",
+    "content": "+1 ",
+    "createdAt": "2019-10-18T03:21:20Z"
+  },
+  {
+    "id": 5678,
+    "sender": "baolinxuava",
+    "content": "I need to call a platform channel method from another isolate too!",
+    "createdAt": "2019-10-18T03:28:05Z"
+  },
+  {
+    "id": 5679,
+    "sender": "BakerSmithA",
+    "content": "+1",
+    "createdAt": "2019-10-19T12:41:52Z"
+  },
+  {
+    "id": 5680,
+    "sender": "devibrahimkarahan",
+    "content": "+1",
+    "createdAt": "2019-10-22T15:12:06Z"
+  },
+  {
+    "id": 5681,
+    "sender": "DimitarPetrov",
+    "content": "+1",
+    "createdAt": "2019-10-27T15:14:43Z"
+  },
+  {
+    "id": 5682,
+    "sender": "v0l",
+    "content": "+1 This is a must have",
+    "createdAt": "2019-11-04T10:47:10Z"
+  },
+  {
+    "id": 5683,
+    "sender": "LaurentiuSimionescu",
+    "content": "+1\r\nI have a native SDK that I must call. It would be a nice thing to have something like `BackgroundFlutterMethodChannel`.",
+    "createdAt": "2019-11-04T11:01:24Z"
+  },
+  {
+    "id": 5684,
+    "sender": "billymahmood",
+    "content": "+1",
+    "createdAt": "2019-11-12T09:02:49Z"
+  },
+  {
+    "id": 5685,
+    "sender": "winwisely99",
+    "content": "+1",
+    "createdAt": "2019-11-12T10:59:43Z"
+  },
+  {
+    "id": 5686,
+    "sender": "cybrox",
+    "content": "Does anyone have any information on what _crashes badly_ actually describes? I'm working on a proof-of-concept that implements a native library and I'm running into watchdog timeouts (0x8badf00d) and other weird errors when sending messages back and forth via a method channel.\r\n\r\nI suspect this is caused by some methods [and results] being invoked from other threads but I have not been able to make any progress in pinpointing the exact issue. ",
+    "createdAt": "2019-11-13T11:55:57Z"
+  },
+  {
+    "id": 5687,
+    "sender": "xlfdyzcs",
+    "content": "+1",
+    "createdAt": "2019-11-22T04:18:59Z"
+  },
+  {
+    "id": 5688,
+    "sender": "mariusbloemhof",
+    "content": "+1",
+    "createdAt": "2019-11-28T09:35:59Z"
+  },
+  {
+    "id": 5689,
+    "sender": "qiangubafang",
+    "content": "+1   ",
+    "createdAt": "2019-12-04T01:41:11Z"
+  },
+  {
+    "id": 5690,
+    "sender": "alexkharech",
+    "content": "+1",
+    "createdAt": "2019-12-06T14:34:01Z"
+  },
+  {
+    "id": 5691,
+    "sender": "DjarjoMaster",
+    "content": "+1 need this",
+    "createdAt": "2019-12-08T19:34:21Z"
+  },
+  {
+    "id": 5692,
+    "sender": "bluelogoapps",
+    "content": "+1 need this also!",
+    "createdAt": "2019-12-11T04:00:05Z"
+  },
+  {
+    "id": 5693,
+    "sender": "phanirithvij",
+    "content": "I think this issue should be prioritized as at least P2.\r\nThe uses of the platform channels that I can think of are\r\n- To call platform-specific APIs\r\n- To run platform-specific heavy tasks in the background and report when done\r\n\r\nAnd this is a major blocker.",
+    "createdAt": "2019-12-15T09:53:12Z"
+  },
+  {
+    "id": 5694,
+    "sender": "phanirithvij",
+    "content": "The [flutter_downloader](https://github.com/fluttercommunity/flutter_downloader/blob/master/android/src/main/java/vn/hunghd/flutterdownloader/DownloadWorker.java) plugin handles background isolate code. I think it's worth looking at it.\r\n",
+    "createdAt": "2019-12-15T10:10:58Z"
+  },
+  {
+    "id": 5695,
+    "sender": "masoudy",
+    "content": "i was hoping this to be resolved in the upcoming version, but the bug still remains in 1.12 version!\r\n\r\nour client side code is heavily on the other side of channel and is written in kotlin and the app almost stucks for each single http connection\r\n\r\nGooooooooooooooogle?!!!!!!!!!!!!?!?!?!?",
+    "createdAt": "2019-12-17T04:12:10Z"
+  }
+]

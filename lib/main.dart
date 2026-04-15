@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:ui' as ui;
 
+import 'package:chatscrollview/src/book_data_source.dart';
 import 'package:chatscrollview/src/chat_message.dart';
 import 'package:chatscrollview/src/chat_scroll/chat_data_source.dart';
 import 'package:chatscrollview/src/chat_scroll/chat_message_render.dart';
@@ -47,38 +48,63 @@ class ChatScreen extends StatefulWidget {
 }
 
 class _ChatScreenState extends State<ChatScreen> {
-  late final _DemoDataSource _dataSource;
+  ChatDataSource? _dataSource;
   late final ChatScrollController _scrollController;
   late final ChatSelectionController _selectionController;
-
-  static const int _messageCount = 4000;
+  bool _loading = true;
 
   @override
   void initState() {
     super.initState();
-    _dataSource = _DemoDataSource(messageCount: _messageCount);
     _scrollController = ChatScrollController();
     _selectionController = ChatSelectionController();
-    _scrollController.oldestKnownId = 0;
-    _scrollController.newestKnownId = _messageCount - 1;
-    _scrollController.reachedOldest = true;
-    _scrollController.reachedNewest = true;
-    _scrollController.jumpTo(_messageCount - 1);
+    _initDataSource();
+  }
+
+  Future<void> _initDataSource() async {
+    try {
+      final book = await BookDataSource.load();
+      final count = book.manifest.totalMessages;
+      _dataSource = book;
+      _scrollController.oldestKnownId = 0;
+      _scrollController.newestKnownId = count - 1;
+      _scrollController.reachedOldest = true;
+      _scrollController.reachedNewest = true;
+      _scrollController.jumpTo(count - 1);
+    } on Object catch (e) {
+      l.w('BookDataSource failed, falling back to demo: $e');
+      const messageCount = 4000;
+      _dataSource = _DemoDataSource(messageCount: messageCount);
+      _scrollController.oldestKnownId = 0;
+      _scrollController.newestKnownId = messageCount - 1;
+      _scrollController.reachedOldest = true;
+      _scrollController.reachedNewest = true;
+      _scrollController.jumpTo(messageCount - 1);
+    }
+    if (mounted) setState(() => _loading = false);
   }
 
   @override
-  Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(title: const Text('Chat Scroll View')),
-    body: SafeArea(
-      child: ChatScrollView(
-        dataSource: _dataSource,
-        controller: _scrollController,
-        selectionController: _selectionController,
-        shimmer: _DemoShimmerRender(),
-        builder: _DemoMessageRender.new,
+  Widget build(BuildContext context) {
+    if (_loading || _dataSource == null) {
+      return Scaffold(
+        appBar: AppBar(title: const Text('Chat Scroll View')),
+        body: const Center(child: CircularProgressIndicator()),
+      );
+    }
+    return Scaffold(
+      /* appBar: AppBar(title: const Text('Chat Scroll View')), */
+      body: SafeArea(
+        child: ChatScrollView(
+          dataSource: _dataSource!,
+          controller: _scrollController,
+          selectionController: _selectionController,
+          shimmer: _DemoShimmerRender(),
+          builder: _DemoMessageRender.new,
+        ),
       ),
-    ),
-  );
+    );
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -105,6 +131,7 @@ class _DemoDataSource extends ChatDataSource {
       for (var i = lo; i <= hi; i++)
         ChatMessage$User(
           id: i,
+          sender: 'User',
           createdAt: _baseTime.subtract(Duration(minutes: messageCount - i)),
           updatedAt: _baseTime.subtract(Duration(minutes: messageCount - i)),
           content:
@@ -160,7 +187,27 @@ class _DemoShimmerRender extends ChatShimmerRender {
 }
 
 // ---------------------------------------------------------------------------
-// Demo message render — simple bubble with text
+// Sender color palette — deterministic color per username
+// ---------------------------------------------------------------------------
+
+const _senderColors = <Color>[
+  Color(0xFF42A5F5), // blue
+  Color(0xFF66BB6A), // green
+  Color(0xFFEF5350), // red
+  Color(0xFFAB47BC), // purple
+  Color(0xFFFF7043), // deep orange
+  Color(0xFF26C6DA), // cyan
+  Color(0xFFFFCA28), // amber
+  Color(0xFFEC407A), // pink
+  Color(0xFF8D6E63), // brown
+  Color(0xFF78909C), // blue grey
+];
+
+Color _colorForSender(String sender) =>
+    _senderColors[sender.hashCode.abs() % _senderColors.length];
+
+// ---------------------------------------------------------------------------
+// Demo message render — bubble with sender name and text
 // ---------------------------------------------------------------------------
 
 class _DemoMessageRender extends ChatMessageRender {
@@ -172,16 +219,53 @@ class _DemoMessageRender extends ChatMessageRender {
   static const double _bubblePadding = 16.0;
   static const double _bubbleRadius = 12.0;
   static const double _indicatorSpace = 40.0;
+  static const double _senderHeight = 20.0;
 
   IChatMessage? _message;
   ui.Paragraph? _paragraph;
+  ui.Paragraph? _senderParagraph;
   double _layoutWidth = 0;
+
+  static const Set<String> _teamMembers = {
+    'Hixie',
+    'justinmc',
+    'jonahwilliams',
+    'chunhtai',
+    'tvolkert',
+    'goderbauer',
+    'zanderso',
+    'liyuqian',
+    'aam',
+    'gspencergoog',
+    'mit-mit',
+    'xster',
+    'AlexV525',
+    'maheshj01',
+    'darshankawar',
+    'gaaclarke',
+    'knopp',
+    'mraleph',
+    'jmagman',
+    'danagbemava-nc',
+    'huycozy',
+    'slightfoot',
+    'guidezpl',
+    'pedromassango',
+    'abarth',
+    'gnprice',
+    'cbracken',
+    'exaby73',
+    'loic-sharma',
+    'nt4f04uNd',
+    'jason-simmons',
+    'ColdPaleLight',
+  };
 
   void _updateText(IChatMessage message) {
     _message = message;
-    alignment = message.id.isEven
-        ? ChatMessageAlignment.left
-        : ChatMessageAlignment.right;
+    alignment = _teamMembers.contains(message.sender)
+        ? ChatMessageAlignment.right
+        : ChatMessageAlignment.left;
     dirty = true;
   }
 
@@ -191,6 +275,7 @@ class _DemoMessageRender extends ChatMessageRender {
     if (message is! IChatMessage) {
       _message = null;
       _paragraph = null;
+      _senderParagraph = null;
       dirty = true;
       return;
     }
@@ -211,6 +296,24 @@ class _DemoMessageRender extends ChatMessageRender {
     };
 
     final textWidth = availableWidth - _bubblePadding * 2 - _padding * 2;
+
+    // Build sender label.
+    final senderColor = _colorForSender(message.sender);
+    final senderBuilder =
+        ui.ParagraphBuilder(
+            ui.ParagraphStyle(
+              fontSize: 13.0,
+              fontFamily: '.AppleSystemUIFont',
+              fontWeight: FontWeight.w600,
+            ),
+          )
+          ..pushStyle(ui.TextStyle(color: senderColor))
+          ..addText(message.sender)
+          ..pop();
+    _senderParagraph = senderBuilder.build()
+      ..layout(ui.ParagraphConstraints(width: textWidth));
+
+    // Build content text.
     final builder =
         ui.ParagraphBuilder(
             ui.ParagraphStyle(
@@ -226,7 +329,7 @@ class _DemoMessageRender extends ChatMessageRender {
     _paragraph = builder.build()
       ..layout(ui.ParagraphConstraints(width: textWidth));
 
-    return _paragraph!.height + _bubblePadding * 2 + _padding;
+    return _senderHeight + _paragraph!.height + _bubblePadding * 2 + _padding;
   }
 
   @override
@@ -251,19 +354,28 @@ class _DemoMessageRender extends ChatMessageRender {
       const Radius.circular(_bubbleRadius),
     );
 
-    // Alternate bubble color by message ID.
-    final isEven = (_message?.id ?? 0).isEven;
-    final bgColor = isEven ? const Color(0xFF1A237E) : const Color(0xFF2C2C2C);
+    // Team members get a distinct bubble color.
+    final isTeam = _teamMembers.contains(_message?.sender);
+    final bgColor = isTeam ? const Color(0xFF1A237E) : const Color(0xFF2C2C2C);
 
     canvas.drawRRect(bubbleRect, Paint()..color = bgColor);
     if (selected) {
       canvas.drawRRect(bubbleRect, Paint()..color = const Color(0x4042A5F5));
     }
+
     canvas.save();
     canvas.translate(
       bubbleLeft + _bubblePadding,
       _padding / 2 + _bubblePadding,
     );
+
+    // Draw sender name.
+    if (_senderParagraph != null) {
+      canvas.drawParagraph(_senderParagraph!, Offset.zero);
+    }
+
+    // Draw content below sender.
+    canvas.translate(0, _senderHeight);
     canvas.drawParagraph(paragraph, Offset.zero);
     canvas.restore();
   }
@@ -271,6 +383,7 @@ class _DemoMessageRender extends ChatMessageRender {
   @override
   void dispose() {
     _paragraph = null;
+    _senderParagraph = null;
     super.dispose();
   }
 }

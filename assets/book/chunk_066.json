@@ -1,0 +1,386 @@
+[
+  {
+    "id": 4224,
+    "sender": "ssalihu",
+    "content": "@tvolkert Thank you! I just confirmed that the observation that I mentioned [here](https://github.com/flutter/flutter/issues/31922#issuecomment-508802174) is no longer there with the stable channel!\r\n",
+    "createdAt": "2019-07-09T02:25:03Z"
+  },
+  {
+    "id": 4225,
+    "sender": "jaasaria",
+    "content": "@tvolkert  how to apply this `v1.7.8+hotfix.2`  on existing project? Do i need to recreate all over again? ",
+    "createdAt": "2019-07-09T04:43:59Z"
+  },
+  {
+    "id": 4226,
+    "sender": "MaikuB",
+    "content": "@jaasaria this issue is around building your app for release. if you're on stable, you'd need to upgrade your flutter installation. the issue reported here is around building an app bundle as per [this link](https://flutter.dev/docs/deployment/android#build-an-app-bundle)",
+    "createdAt": "2019-07-09T04:52:41Z"
+  },
+  {
+    "id": 4227,
+    "sender": "dblokhin",
+    "content": "@jaasaria just execute: `$ flutter channel stable && flutter upgrade`",
+    "createdAt": "2019-07-09T04:55:44Z"
+  },
+  {
+    "id": 4228,
+    "sender": "jaasaria",
+    "content": "@MaikuB I created my src file a month ago and everytime i build my project i need to execute `flutter build appbundle --target-platform=android-arm64` command instead of `flutter build appbundle` to avoid playstore x64 error. \r\n\r\n@dblokhin Just got upgraded and luckily my project didn't break. :) thanks you",
+    "createdAt": "2019-07-09T17:16:11Z"
+  },
+  {
+    "id": 4229,
+    "sender": "summer-zhoujie",
+    "content": "> Thanks @juliengit2, `flutter build appbundle` does work.\r\n> \r\n> It's worth mentioning the flutter version as well, because I had v1.5.0 until now and it didn't work.\r\n> I had to update (currently to v1.7.9) in order to make it work.\r\n\r\nThanks for the warning! ",
+    "createdAt": "2019-07-10T08:36:22Z"
+  },
+  {
+    "id": 4230,
+    "sender": "Sarthaktydy",
+    "content": "I've flutter version 1.7.8+hotfix.3 will \"flutter build appbundle\" will result with app.aab with 32 & 64 bit both?",
+    "createdAt": "2019-07-10T08:42:20Z"
+  },
+  {
+    "id": 4231,
+    "sender": "juliengit2",
+    "content": "strange I tried with 1.7.8+hotfix.3 with channel stable and I get again the playstore warning:\r\n\r\n\"This release is not compliant with the Google Play 64-bit requirement...\"  \r\n\r\nwhen uploading a bundle after : _flutter build appbundle_\r\n\r\nI tried also to upgrade flutter but same result.\r\nand with a new Flutter install : same result\r\n\r\nHere is my conf:\r\n![m](https://user-images.githubusercontent.com/35921399/60955408-0ffc5280-a301-11e9-8cb0-fc5a1d60910f.png)\r\n\r\nAny idea??",
+    "createdAt": "2019-07-10T08:48:16Z"
+  },
+  {
+    "id": 4232,
+    "sender": "tomaszpolanski",
+    "content": "@juliengit2  Open `.aab` file as a normal zip, go into `base/lib` folder and check if there are `armeabi-v7a` and `arm64-v8a` folders",
+    "createdAt": "2019-07-10T09:03:03Z"
+  },
+  {
+    "id": 4233,
+    "sender": "Sarthaktydy",
+    "content": "Tried doing it with my app \"flutter build appbundle\" lib folder contains v8a & v7a both. Can I push the update now, I don't want another warning coming to my head's email.",
+    "createdAt": "2019-07-10T09:15:27Z"
+  },
+  {
+    "id": 4234,
+    "sender": "truongsinh",
+    "content": "Another similar case of a far APK receiving warning https://github.com/flutter/flutter/issues/18494#issuecomment-509937209",
+    "createdAt": "2019-07-10T11:03:08Z"
+  },
+  {
+    "id": 4235,
+    "sender": "juliengit2",
+    "content": "for those with the same issue, I removed in build.gradle :\r\n\r\n```\r\nndk {\r\n    abiFilters \"armeabi-v7a\", \"x86\", \"armeabi\", \"mips\"\r\n}\r\n```\r\nand the warning disappeared.\r\n\r\n(if you keep the abifilters, you will still get \"release is not compliant\" even with _flutter build appbundle_ ",
+    "createdAt": "2019-07-10T12:06:47Z"
+  },
+  {
+    "id": 4236,
+    "sender": "oaacelasu",
+    "content": "Hi i built my appbundle with success, but when i try to upload it to the play store i received this error... \r\nTo upload an Android App Bundle you must be enrolled in App Signing by Google Play.\r\nExport your key from Android Studio. From the Build menu, select Generate Signed Bundle/APK. Select the Bundle option and press Next. Select Export the encrypted key and press Next.\r\n\r\ni try to export the encrypted key like that, directly from the android module but i coudn't finish the process because i get this error\r\n\r\nProcess 'command '/Users/oaacelasu/Documents/flutter/bin/flutter'' finished with non-zero exit value 1\r\n\r\nbref i supposed that is not the correct way... Is there another workaround to get the encrypted key for enrolling the app directly from the flutter build appbundle command?\r\n",
+    "createdAt": "2019-07-10T18:55:57Z"
+  },
+  {
+    "id": 4237,
+    "sender": "thesmalleyes",
+    "content": "I tried to use appbundle in playstore, \r\nbut in android 6.0 arm 64, it was crashed on startup because of libflutter.so could not be found, and after i checked the libflutter.so was included in aab arm 64",
+    "createdAt": "2019-07-12T06:39:54Z"
+  },
+  {
+    "id": 4238,
+    "sender": "wreppun",
+    "content": "@matthewlloyd , I've reproduced this with a local chromebook (although that chromebook might be leaving on a trip for three weeks on Monday.  I have to check).  I think that it _should_ reproduce against most x86 chromebooks -- I think there are likely more of these than there are x86 phones.\r\n\r\n> the team recently improved the code that the Dart compiler generates, and I wonder if that perhaps made the translation work. Give it a try and let me know. Otherwise, depending on the situation, you might need to build the JIT version for x86, which is typically used for debugging/profiling in emulators.\r\n\r\n@blasten , is there a particular version of Dart you were thinking of?  I reproduced with 2.3.1 (with flutter 1.7.8+hotfix.2)  Shall I test with 2.4.0?\r\n\r\nAlso, I reproduced when we released an alpha build.  I still need to look into how to test an appbundle without going through the play store.",
+    "createdAt": "2019-07-13T07:01:22Z"
+  },
+  {
+    "id": 4239,
+    "sender": "matthewlloyd",
+    "content": "@wreppun Thanks for the heads up, I will hold off releasing a new-style AAB to my users for now since it seems the issue is not yet fixed (or even acknowledged by Google!). Can you share more information about the specific Chromebook, and is there a way to capture a crash log?",
+    "createdAt": "2019-07-16T02:29:28Z"
+  },
+  {
+    "id": 4240,
+    "sender": "wreppun",
+    "content": "@matthewlloyd This is what showed up in the Play Store crash log:\r\n\r\n```\r\njava.lang.UnsatisfiedLinkError: \r\n  at java.lang.Runtime.loadLibrary0 (Runtime.java:984)\r\n  at java.lang.System.loadLibrary (System.java:1530)\r\n  at io.flutter.view.FlutterMain.startInitialization (FlutterMain.java:122)\r\n  at io.flutter.view.FlutterMain.startInitialization (FlutterMain.java:99)\r\n  at io.flutter.app.FlutterApplication.onCreate (FlutterApplication.java:22)\r\n  at android.app.Instrumentation.callApplicationOnCreate (Instrumentation.java:1024)\r\n  at android.app.ActivityThread.handleBindApplication (ActivityThread.java:5549)\r\n  at android.app.ActivityThread.-wrap2 (ActivityThread.java)\r\n  at android.app.ActivityThread$H.handleMessage (ActivityThread.java:1595)\r\n  at android.os.Handler.dispatchMessage (Handler.java:102)\r\n  at android.os.Looper.loop (Looper.java:154)\r\n  at android.app.ActivityThread.main (ActivityThread.java:6320)\r\n  at java.lang.reflect.Method.invoke (Native Method)\r\n  at com.android.internal.os.ZygoteInit$MethodAndArgsCaller.run (ZygoteInit.java:891)\r\n  at com.android.internal.os.ZygoteInit.main (ZygoteInit.java:781)\r\n```\r\n\r\nThat might show up in some of your (old) crash logs if any of your users opted in to sharing stats.\r\n\r\nThe device was an HP Chromebook x360.",
+    "createdAt": "2019-07-16T05:03:00Z"
+  },
+  {
+    "id": 4241,
+    "sender": "blasten",
+    "content": "I'm sorry this isn't working on 100% of the configurations. We are working to get better test coverage on a variety of SDKs and devices. In the meanwhile, I'm going to set up some tests on Firebase test lab.",
+    "createdAt": "2019-07-16T05:33:25Z"
+  },
+  {
+    "id": 4242,
+    "sender": "eseidelGoogle",
+    "content": "At this point I think the most effective way for us to get all these fixed is probably to file new issues and link back to this one.  @tvolkert and I will make sure each gets looked at, but it would help us if we could sort these into separate buckets and track their fixes individually.\r\n\r\nIt's very possible we need to make small adjustments to the Dart compiler, we have in the past for CPUs or emulators which have have specific processor quirks.  Without testing on an x86 Chromebook myself (which I haven't yet) I can't say for sure.\r\n\r\nWould those experiencing issues please help us sort out the remaining troubles by filing new issues for each?  That would be of great help to making sure we address each one.  Thank you!",
+    "createdAt": "2019-07-16T15:53:58Z"
+  },
+  {
+    "id": 4243,
+    "sender": "matthewlloyd",
+    "content": "@wreppun Thanks - I checked my app's crash reports and neither of the affected Asus ZenFone 2 users sent anything.\r\n\r\n@blasten No worries, that's great. If someone can show the new appbundles work on an Asus ZenFone 2 device that would be enough to get me moving forward. Unfortunately I don't have access to one, but I'm hoping Google's mobile testing labs do.",
+    "createdAt": "2019-07-16T18:54:07Z"
+  },
+  {
+    "id": 4244,
+    "sender": "blasten",
+    "content": "@matthewlloyd no \"Asus ZenFone\" on Firebase test lab. What SDK version? Most of the time, the issue can be reproduced by just running a specific version of the Android SDK.",
+    "createdAt": "2019-07-16T19:34:30Z"
+  },
+  {
+    "id": 4245,
+    "sender": "truongsinh",
+    "content": "> What SDK version? Most of the time, the issue can be reproduced by just running a specific version of the Android SDK.\r\n\r\n😂",
+    "createdAt": "2019-07-17T01:09:57Z"
+  },
+  {
+    "id": 4246,
+    "sender": "angel1st",
+    "content": "Hello Flutter team,\r\nI would like to stress on this topic status. From my standing point, there are two severe issues:\r\n\r\n- Current **stable** flutter version `1.7.8+hotfix.3` does not build stable apks - at least `split-per-abi` does not work as it should - arm32 has a regression issue and [cannot run on some arm32 devices](https://github.com/flutter/flutter/issues/35838). It is not clear yet when this will be fixed;\r\n- August 1st deadline - in about a week we as developers won't be able to neither update nor release new flutter apps to Google Play Store - as simple as that. Considering the current flutter version issue (as mentioned above) and the remaining time, I don't think it is feasible to expect having the fix in **stable** channel prior the end of the month (unless someone of you guys has a magic wand :-))\r\n\r\nConsidering the above two issues, I would like to suggest following contingency plan, which IMO would best serve us as developers:\r\n\r\n- Rollback flutter **stable** channel to its version prior the `hotfix.2`\r\n- Postpone August 1st deadline for couple of months - I understand this will require some escalation on the issue, but I hope you guys would understand how serious impact might have if the developers cannot release **reliable** flutter app after August 1st because of flutter framework issues.\r\n\r\nI can speak on my behalf only, but I have clients with contracts and I decided to move from React Native to Flutter, since I believed, Google would provide better support for their own products. I have projects in progress and applications to support.\r\nNow I find myself in an absurd case, when Google forces me to release 64 bit apk version and at the same time Google does not provide me with the tool to do that (and yes, I know Flutter team is not the same as Google Play team but where I stand from - you are the same business entity). \r\nIf Google fails to deliver on time, this will lead to strong push back from Flutter, since each day after August 1st will shrink framework's credibility.\r\nI apologize if my words sound a bit stronger, I only hope you can put yourself in my shoes for the moment. \r\n\r\nAnyone - **please vote on this, and hopefully we will have our voice heard!**",
+    "createdAt": "2019-07-17T06:29:45Z"
+  },
+  {
+    "id": 4247,
+    "sender": "ghost",
+    "content": "I also agree to this... But as a contingency plan I would suggest not to rollback to previous release, but rather switch to `dev` channel....\r\n\r\nFrom my personal experience, I was also not comfortable using `dev` channel i initially. I thought of sticking to `stable` channel, because you know, its stable!... But now I have been using `dev` channel and releasing apps using app bundles on play store without any issue....\r\n\r\nThe situation is something which shouldn't occur as both are Google product...\r\n\r\nWhat I presented is just a simpler workaround, because you can start pushing updates using `aab`s and not `apk`s, which is suggested by Google...",
+    "createdAt": "2019-07-17T06:48:13Z"
+  },
+  {
+    "id": 4248,
+    "sender": "campioncino",
+    "content": "@angel1st same issue, same problems, same shoes \r\n@sulaysumaria if we switch to dev channel, will the libapp.so problem be solved? \r\nBecause neither the master channel seems to work",
+    "createdAt": "2019-07-17T06:54:00Z"
+  },
+  {
+    "id": 4249,
+    "sender": "angel1st",
+    "content": "> What I presented is just a simpler workaround, because you can start pushing updates using aabs and not apks, which is suggested by Google...\r\n\r\n@sulaysumaria - it is not as simple as it looks, believe me... Also re switching to **dev** channel seems to lead to some complications with third party packages and plugins which will lead to different set of issues.",
+    "createdAt": "2019-07-17T06:54:34Z"
+  },
+  {
+    "id": 4250,
+    "sender": "ghost",
+    "content": "@campioncino I think yes because I have never faced that issue.... I simply build the release appbundle and upload it to play store... It never shows any warnings.... and app works fine when installed from play store (at least what my client is using so far...)\r\n\r\n@angel1st, I can understand..  in that case rolling back is the only option... But that dependencies need to be upgraded or else you can never upgrade to a newer version... I also faced that kind of issue with one plugin I was using, fortunately they released a newer version in beta to support newer version of flutter... Maybe if the plugin is not maintained, we should not use it..",
+    "createdAt": "2019-07-17T07:01:58Z"
+  },
+  {
+    "id": 4251,
+    "sender": "campioncino",
+    "content": "@sulaysumaria I have never faced this problem too ... up to the last build.\r\nI'll try but it's not so simple to test, because it only happens on some devices.\r\n\r\nFor example on Samsung Galaxy Tab 2 7.0 P3110, Android 4.2.2, and on some other old tablet with android 4.1.2\r\n",
+    "createdAt": "2019-07-17T07:12:16Z"
+  },
+  {
+    "id": 4252,
+    "sender": "ghost",
+    "content": "Ohhh... My app is not for tablets thats for sure... It would be better if you test it once...",
+    "createdAt": "2019-07-17T07:19:51Z"
+  },
+  {
+    "id": 4253,
+    "sender": "tvolkert",
+    "content": "Hi all,\r\n\r\nHere's the current status:\r\n\r\n1. Indications are that https://github.com/flutter/flutter/issues/35838 affects Android 4.2 and earlier, meaning that it affects [~3% of Android phones](https://developer.android.com/about/dashboards).  We're working with affected people on that bug to identify the scope of the fix and track down possible ancillary issues that likely only affect some apps (such as a possible unrelated bug in the [Dart VM](https://github.com/flutter/flutter/issues/35838#issuecomment-511919684) that doesn't manifest on all apps).  Based on that investigation and its conclusion, we'll decide whether it's better to patch the current stable release or to push a new release through the channels to stable.\r\n\r\n1. If anyone would prefer to build from an earlier Flutter version and manually build 32 and 64-bit APKs, they can do so by downloading an earlier version of Flutter [here](https://flutter.dev/docs/development/tools/sdk/releases).  Reverting our stable release is not an option -- doing so would cause far more problems than it would solve.\r\n\r\n1. If anyone is experiencing problems building for Android _other_ than https://github.com/flutter/flutter/issues/35838, please file a separate issue and cc me, as we very much want to track any such problems down.\r\n\r\n1. Separately, we're actively working on increasing our test matrix to better detect issues on a wider variety of devices / Android versions earlier in the process (so that bug reports aren't our first line of defense).",
+    "createdAt": "2019-07-17T07:24:39Z"
+  },
+  {
+    "id": 4254,
+    "sender": "angel1st",
+    "content": "@tvolkert - thanks for the feedback. Just to make sure we are on the same page - rolling back to previous Flutter version does not make sense until **August 1st deadline is postponed**, since Google Play won't allow me to upload 32 app version only after August 1st.",
+    "createdAt": "2019-07-17T07:29:02Z"
+  },
+  {
+    "id": 4255,
+    "sender": "truongsinh",
+    "content": "@angel1st would this option be suitable for your case?\r\n1. Revert flutter SDK to v1.5.4-hotfix.2 (`flutter version v1.5.4-hotfix.2`)\r\n1. Build 2 separate APKs (one on 32-bit `flutter build apk --target-platform android-arm` and one on 64-bit `flutter build apk --target-platform android-arm64`)\r\n1. Upload both of these APKs on Google Play Store\r\n\r\nI know it's a workaround, but at least it solves both the stability problem and \"warning\" one.",
+    "createdAt": "2019-07-17T10:22:18Z"
+  },
+  {
+    "id": 4256,
+    "sender": "angel1st",
+    "content": "@truongsinh - thanks for the suggestion - it is worth to consider. Would you be so kind to confirm step 2 from your suggestion above will not require [changes as in previous suggestion](https://github.com/flutter/flutter/issues/18494#issuecomment-495972649) e.g. `app gradle` amendments?",
+    "createdAt": "2019-07-17T10:27:29Z"
+  },
+  {
+    "id": 4257,
+    "sender": "truongsinh",
+    "content": "@angel1st as long as you have the whole app in flutter (i.e. not https://github.com/flutter/flutter/wiki/Add-Flutter-to-existing-apps), and you haven't modify any thing in Gradle files (i.e. vanilla files from `flutter create`), I believe we don't have to do anything.\r\n\r\nYou can do the quick check yourself (assuming version \"3.4.5\", following https://github.com/flutter/flutter/issues/31922#issuecomment-512292798, my personal choice of format for \"build number\" is `bbxxyyzz`, in which `bb` is just the to identify 32- or 64-bit, `xx` is major, `yy` is minor, `zz` is patch , but there are other recommended format as well, see https://developer.android.com/google/play/publishing/multiple-apks#using-a-version-code-scheme):\r\n- `flutter create hello_world`\r\n- `flutter build apk --target-platform android-arm --build-number 32030405 --build-name=3.4.5`\r\n- `mv build/app/outputs/apk/release/app-release.apk build/app/outputs/apk/release/app-release-32.apk`\r\n- `flutter build apk --target-platform android-arm64 --build-number 64030405 --build-name=3.4.5`\r\n- `mv build/app/outputs/apk/release/app-release.apk build/app/outputs/apk/release/app-release-64.apk`\r\n\r\nI include the 2 APKs here. They work with my Pixel 2. Also looking at the APK analysis, we can clearly see that each APK has different `libflutter.so` and 4 snapshot/aot files\r\n\r\n<img width=\"555\" alt=\"Screen Shot 2019-07-17 at 1855 27\" src=\"https://user-images.githubusercontent.com/358585/61373719-b7125880-a8c4-11e9-8ea2-98bf664bae59.png\">\r\n\r\n[app-release-32.apk.zip](https://github.com/flutter/flutter/files/3402709/app-release-32.apk.zip)\r\n[app-release-64.apk.zip](https://github.com/flutter/flutter/files/3402710/app-release-64.apk.zip)\r\n\r\n\r\n",
+    "createdAt": "2019-07-17T11:58:01Z"
+  },
+  {
+    "id": 4258,
+    "sender": "ghost",
+    "content": "Just a note for when uploading two apks... Google does not allow to upload multiple files having same build number, so you might want to change the build number before creating apk for 64 bit.",
+    "createdAt": "2019-07-17T14:57:31Z"
+  },
+  {
+    "id": 4259,
+    "sender": "truongsinh",
+    "content": "> Just a note for when uploading two apks... Google does not allow to upload multiple files having same build number, so you might want to change the build number before creating apk for 64 bit.\r\n\r\nAh, true that (ref https://developer.android.com/google/play/publishing/multiple-apks#Rules) . Just make sure for every version, build number of 64-bit is higher than 32-bit (I updated my previous example https://github.com/flutter/flutter/issues/31922#issuecomment-512223030).",
+    "createdAt": "2019-07-17T15:47:52Z"
+  },
+  {
+    "id": 4260,
+    "sender": "tomkastek",
+    "content": "Hey, I get an error message when I try to build with `appbundle`. `flutter build apk` works fine but I want to publish a new version to play store. Can someone help me what the reason could be?\r\n\r\nThe output of running `flutter build appbundle --target-platform android-arm,android-arm64 --flavor my_flavor --release -t \"bin/main.dart` is the following:\r\n\r\n```\r\nInitializing gradle...                                              0,6s\r\nResolving dependencies...                                           2,0s\r\nRunning Gradle task 'bundleMy_AppRelease'...                   \r\nRunning Gradle task 'bundleMy_AppRelease'... Done          1,9s\r\nGradle build failed to produce an Android bundle package.\r\n```\r\nSadly the error message is not really helpful. Also the output of flutter doctor:\r\n\r\n```\r\n[✓] Flutter (Channel stable, v1.7.8+hotfix.3, on Mac OS X 10.14.5 18F132, locale de-DE)\r\n    • Flutter version 1.7.8+hotfix.3 at /Users/tom/development/flutter\r\n    • Framework revision b712a172f9 (2 weeks ago), 2019-07-09 13:14:38 -0700\r\n    • Engine revision 54ad777fd2\r\n    • Dart version 2.4.0\r\n\r\n[✓] Android toolchain - develop for Android devices (Android SDK version 28.0.3)\r\n    • Android SDK at /Users/tom/Library/Android/sdk\r\n    • Android NDK location not configured (optional; useful for native profiling support)\r\n    • Platform android-28, build-tools 28.0.3\r\n    • Java binary at: /Applications/Android Studio.app/Contents/jre/jdk/Contents/Home/bin/java\r\n    • Java version OpenJDK Runtime Environment (build 1.8.0_152-release-1343-b01)\r\n    • All Android licenses accepted.\r\n\r\n[✓] Xcode - develop for iOS and macOS (Xcode 10.3)\r\n    • Xcode at /Applications/Xcode.app/Contents/Developer\r\n    • Xcode 10.3, Build version 10G8\r\n    • CocoaPods version 1.6.1\r\n\r\n[✓] iOS tools - develop for iOS devices\r\n    • ios-deploy 1.9.4\r\n\r\n[✓] Android Studio (version 3.4)\r\n    • Android Studio at /Applications/Android Studio.app/Contents\r\n    • Flutter plugin version 36.1.1\r\n    • Dart plugin version 183.6270\r\n    • Java version OpenJDK Runtime Environment (build 1.8.0_152-release-1343-b01)\r\n\r\n[✓] Connected device (1 available)\r\n    • iPhone Xʀ • 095B1A07-E138-4A80-9783-8CA36DC8049A • ios • com.apple.CoreSimulator.SimRuntime.iOS-12-4 (simulator)\r\n\r\n• No issues found!\r\n```\r\n\r\n**Edit**\r\nIf I try to use `--split-per abi` the building fails with `flutter build apk` as well.",
+    "createdAt": "2019-07-24T15:19:10Z"
+  },
+  {
+    "id": 4261,
+    "sender": "lab-nit-s",
+    "content": "\r\n> @wreppun Thanks - I checked my app's crash reports and neither of the affected Asus ZenFone 2 users sent anything.\r\n> \r\n> @blasten No worries, that's great. If someone can show the new appbundles work on an Asus ZenFone 2 device that would be enough to get me moving forward. Unfortunately I don't have access to one, but I'm hoping Google's mobile testing labs do.\r\n\r\nEven I am facing issue wit Asus Zenfone. When I am running using `flutter build apk` the app runs on the phone. But when I upload it to the App Store using appbundle, it doesn't move ahead of splash screen. \r\n\r\nAny solution ??\r\n",
+    "createdAt": "2019-10-15T19:32:26Z"
+  },
+  {
+    "id": 4262,
+    "sender": "Tigerclaw1980",
+    "content": "I tryed to compile and release one new version of one of my application (app) in \"Play Store\", but i had some troublems.\r\n\r\n1-) When i upload 32 and 64 bits, the site recuses, becouse of 32 bits version.\r\n\r\n2-) When i upload just 32 bits, the site recuses, becouse i need the 64 bits.\r\n\r\n3-) When i upload just 64 bits, the site works, but my customers maybe don't have the 64 bits Android. In my cellphone by example, i use this same app, but in my cellphone just works when i use the apk 32 bits. When i intall the apk 64 bits in my cellphone it stop in splash screen.\r\n\r\nHow i must to do now to release??",
+    "createdAt": "2019-10-17T15:34:16Z"
+  },
+  {
+    "id": 4263,
+    "sender": "MoacirSchmidt",
+    "content": "\r\n Tigerclaw1980 use flutter appbundle option",
+    "createdAt": "2019-10-17T16:09:59Z"
+  },
+  {
+    "id": 4264,
+    "sender": "Tigerclaw1980",
+    "content": "> Tigerclaw1980 use flutter appbundle option @MoacirSchmidt \r\n\r\nI used Delphi Beta to make apk files for 32 and 64 bits. I don't know if this option is available",
+    "createdAt": "2019-10-17T17:02:20Z"
+  },
+  {
+    "id": 4265,
+    "sender": "sicnet",
+    "content": "> I tryed to compile and release one new version of one of my application (app) in \"Play Store\", but i had some troublems.\r\n> \r\n> 1-) When i upload 32 and 64 bits, the site recuses, becouse of 32 bits version.\r\n> \r\n> 2-) When i upload just 32 bits, the site recuses, becouse i need the 64 bits.\r\n> \r\n> 3-) When i upload just 64 bits, the site works, but my customers maybe don't have the 64 bits Android. In my cellphone by example, i use this same app, but in my cellphone just works when i use the apk 32 bits. When i intall the apk 64 bits in my cellphone it stop in splash screen.\r\n> \r\n> How i must to do now to release??\r\n\r\n@Tigerclaw1980 did you fix this error?",
+    "createdAt": "2020-02-03T21:59:50Z"
+  },
+  {
+    "id": 4266,
+    "sender": "MitchellGoodwin",
+    "content": "## Allow mixing route transitions in one app.\n\nFixes #33799\r\n\r\nAllows for a route to inform the route below it in the navigation stack how to animate when the topmost route enters are leaves the stack.\r\n\r\nIt does this by making a `DelegatedTransition` available for the previous route to look up and use. If available, the route lower in the stack will wrap it's transition builders with that delegated transition and use it instead of it's default secondary transition.\r\n\r\nThis is what the sample code in this PR shows an app that is able to use both a Material zoom transition and a Cupertino slide transition in one app. It also includes a custom vertical transition. Every page animates off the screen in a way to match up with the incoming page's transition. When popped, the correct transitions play in reverse.\r\n\r\nhttps://github.com/user-attachments/assets/1fc910fa-8cde-4e05-898e-daad8ff4a697\r\n\r\nThe below video shows this logic making a pseudo iOS styled sheet transition.\r\n\r\nhttps://github.com/flutter/flutter/assets/58190796/207163d8-d87f-48b1-aad9-7e770d1d96c5\r\n\r\nAll existing page transitions in Flutter will be overwritten by the incoming route if a `delegatedTransition` is provided. This can be opted out of through `canTransitionTo` for a new route widget. Of Flutter's existing page transitions, this PR only adds a `DelegatedTransition` for the Zoom and Cupertino transitions. The other transitions possible in Material will get delegated transitions in a later PR.",
+    "createdAt": "2024-06-11T04:49:50Z"
+  },
+  {
+    "id": 4267,
+    "sender": "MitchellGoodwin",
+    "content": "@justinmc this one has the refactor of route animation logic so that the prior route does not need to opt in to get it's transition overwritten, it will always happen. So `DelegatedTransition` is gone. There's documentation missing, but could you take a look and see if I'm on the right track? The switch happens in `ModalRoute` now. If this is fine, then I'll start moving this into a non-draft PR by adding a non MBS example, get the documentation solid, write tests etc.",
+    "createdAt": "2024-07-03T23:04:16Z"
+  },
+  {
+    "id": 4268,
+    "sender": "justinmc",
+    "content": "Here's my example of a custom non-MBS delegated transition:\r\n\r\nhttps://github.com/user-attachments/assets/74410b50-0014-4338-85ef-5c2721a243e4\r\n\r\n<details>\r\n\r\n<summary>Code</summary>\r\n\r\n```dart\r\n\r\nimport 'package:flutter/cupertino.dart';\r\nimport 'package:flutter/material.dart';\r\n\r\nvoid main() {\r\n  runApp(const MyApp());\r\n}\r\n\r\nclass MyApp extends StatelessWidget {\r\n  const MyApp({super.key});\r\n\r\n  @override\r\n  Widget build(BuildContext context) {\r\n    return MaterialApp(\r\n      title: 'Mixing Routes',\r\n      theme: ThemeData(\r\n        colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),\r\n        pageTransitionsTheme: const PageTransitionsTheme(\r\n          builders: <TargetPlatform, PageTransitionsBuilder>{\r\n            TargetPlatform.iOS: ZoomPageTransitionsBuilder(),\r\n          },\r\n        ),\r\n        useMaterial3: true,\r\n      ),\r\n      home: const MyHomePage(title: 'Zoom Transition'),\r\n    );\r\n  }\r\n}\r\n\r\nclass MyHomePage extends StatelessWidget {\r\n  const MyHomePage({super.key, required this.title});\r\n\r\n  final String title;\r\n\r\n  @override\r\n  Widget build(BuildContext context) {\r\n    return Scaffold(\r\n        appBar: AppBar(\r\n          backgroundColor: Theme.of(context).colorScheme.inversePrimary,\r\n          title: Text(title),\r\n        ),\r\n        body: Center(\r\n          child: Column(\r\n            mainAxisAlignment: MainAxisAlignment.center,\r\n            children: <Widget>[\r\n              TextButton(\r\n                onPressed: () {\r\n                  Navigator.of(context).push(\r\n                    VerticalTransitionPageRoute(\r\n                      context: context,\r\n                      builder: (BuildContext context) {\r\n                        return  const MyHomePage(title: 'Crazy Vertical Transition');\r\n                      },\r\n                    ),\r\n                  );\r\n                },\r\n                child: const Text('Crazy Vertical Transition'),\r\n              ),\r\n              TextButton(\r\n                onPressed: () {\r\n                  Navigator.of(context).push(\r\n                    MaterialPageRoute(\r\n                      builder: (BuildContext context) {\r\n                        return  const MyHomePage(title: 'Zoom Transition');\r\n                      },\r\n                    ),\r\n                  );\r\n                },\r\n                child: const Text('Zoom Transition'),\r\n              ),\r\n              TextButton(\r\n                onPressed: () {\r\n                  CupertinoPageRoute route = CupertinoPageRoute(\r\n                    builder: (BuildContext context) {\r\n                      return  const MyHomePage(title: 'Cupertino Transition');\r\n                    }\r\n                  );\r\n                  Navigator.of(context).push(route);\r\n                },\r\n                child: const Text('Cupertino Transition'),\r\n              ),\r\n            ],\r\n          ),\r\n        ),\r\n    );\r\n  }\r\n}\r\n\r\nclass VerticalTransitionPageRoute<T> extends PageRoute<T> with FlexibleTransitionRouteMixin<T> {\r\n  /// Creates a page route for use in an iOS designed app.\r\n  VerticalTransitionPageRoute({\r\n    required this.builder,\r\n    required BuildContext context,\r\n  });\r\n\r\n  final WidgetBuilder builder;\r\n\r\n  @override\r\n  DelegatedTransitionBuilder? get delegatedTransition => VerticalPageTransition._delegatedTransition;\r\n\r\n  @override\r\n  Color? get barrierColor => const Color(0x00000000);\r\n\r\n  @override\r\n  bool get barrierDismissible => false;\r\n\r\n  @override\r\n  String? get barrierLabel => 'Should be no visible barrier...';\r\n\r\n  @override\r\n  bool get maintainState => true;\r\n\r\n  @override\r\n  bool get opaque => false;\r\n\r\n  // Begin PageRoute.\r\n\r\n  @override\r\n  Duration get transitionDuration => const Duration(milliseconds: 2000);\r\n\r\n  @override\r\n  Widget buildPage(BuildContext context, Animation<double> animation, Animation<double> secondaryAnimation) {\r\n    return builder(context);\r\n  }\r\n\r\n  static Widget buildPageTransitions<T>(\r\n    ModalRoute<T> route,\r\n    BuildContext context,\r\n    Animation<double> animation,\r\n    Animation<double> secondaryAnimation,\r\n    Widget child,\r\n  ) {\r\n    return VerticalPageTransition(\r\n      primaryRouteAnimation: animation,\r\n      secondaryRouteAnimation: secondaryAnimation,\r\n      child: child,\r\n    );\r\n  }\r\n\r\n  // TODO(justinmc): No canTransitionTo needed? I want to be able to have\r\n  // back-to-back VerticalPageTransitions.\r\n\r\n  @override\r\n  Widget buildTransitions(BuildContext context, Animation<double> animation, Animation<double> secondaryAnimation, Widget child) {\r\n    return buildPageTransitions<T>(this, context, animation, secondaryAnimation, child);\r\n  }\r\n\r\n  // End PageRoute.\r\n}\r\n\r\nclass VerticalPageTransition extends StatelessWidget {\r\n  VerticalPageTransition({\r\n    super.key,\r\n    required Animation<double> primaryRouteAnimation,\r\n    required this.secondaryRouteAnimation,\r\n    required this.child,\r\n  }) : _primaryPositionAnimation =\r\n           CurvedAnimation(\r\n                 parent: primaryRouteAnimation,\r\n                 curve: curve,\r\n                 reverseCurve: curve,\r\n               ).drive(_kBottomUpTween),\r\n      _secondaryPositionAnimation =\r\n           CurvedAnimation(\r\n                 parent: secondaryRouteAnimation,\r\n                 curve: curve,\r\n                 reverseCurve: curve,\r\n               )\r\n           .drive(_kTopDownTween);\r\n\r\n  // When this page is coming in to cover another page.\r\n  final Animation<Offset> _primaryPositionAnimation;\r\n\r\n  // When this page is being coverd by another page.\r\n  final Animation<Offset> _secondaryPositionAnimation;\r\n\r\n  /// Animation\r\n  final Animation<double> secondaryRouteAnimation;\r\n\r\n  /// The widget below this widget in the tree.\r\n  final Widget child;\r\n\r\n  static const Curve curve = Curves.decelerate;\r\n\r\n  static final Animatable<Offset> _kBottomUpTween = Tween<Offset>(\r\n    begin: const Offset(0.0, 1.0),\r\n    end: Offset.zero,\r\n  );\r\n\r\n  static final Animatable<Offset> _kTopDownTween = Tween<Offset>(\r\n    begin: Offset.zero,\r\n    end: const Offset(0.0, -1.0),\r\n  );\r\n\r\n  static Widget _delegatedTransition(BuildContext context, Animation<double> animation, Animation<double> secondaryAnimation, Widget? child) {\r\n    final Animatable<Offset> tween = Tween<Offset>(\r\n      begin: Offset.zero,\r\n      end: const Offset(0.0, -1.0),\r\n    ).chain(CurveTween(curve: curve));\r\n\r\n    return SlideTransition(\r\n      position: secondaryAnimation.drive(tween),\r\n      child: child,\r\n    );\r\n  }\r\n\r\n  @override\r\n  Widget build(BuildContext context) {\r\n    assert(debugCheckHasDirectionality(context));\r\n    final TextDirection textDirection = Directionality.of(context);\r\n    return SlideTransition(\r\n      position: _secondaryPositionAnimation,\r\n      textDirection: textDirection,\r\n      transformHitTests: false,\r\n      child:  SlideTransition(\r\n        position: _primaryPositionAnimation,\r\n        textDirection: textDirection,\r\n        child: ClipRRect(\r\n          borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),\r\n          child: child,\r\n        )\r\n      ),\r\n    );\r\n  }\r\n}\r\n\r\n```\r\n\r\n</details>",
+    "createdAt": "2024-07-30T23:34:09Z"
+  },
+  {
+    "id": 4269,
+    "sender": "justinmc",
+    "content": "Also random thought: Any concerns about how the drag-to-close interaction will work with MBS? Seems like it should be fine with this API but I wanted to bring it up.",
+    "createdAt": "2024-07-31T00:42:01Z"
+  },
+  {
+    "id": 4270,
+    "sender": "MitchellGoodwin",
+    "content": "> Also random thought: Any concerns about how the drag-to-close interaction will work with MBS? Seems like it should be fine with this API but I wanted to bring it up.\r\n\r\nAs in dragging it to partially close the animation, like the Cupertino transition does? It should work fine. The Cupertino transition works correctly when dragging back to a non-Cupertino page with this PR.",
+    "createdAt": "2024-07-31T17:01:24Z"
+  },
+  {
+    "id": 4271,
+    "sender": "justinmc",
+    "content": "I mean when the MBS is open, dragging it down to close it and dismiss all of its routes.",
+    "createdAt": "2024-07-31T20:04:08Z"
+  },
+  {
+    "id": 4272,
+    "sender": "MitchellGoodwin",
+    "content": "Yes, I believe that shouldn't be affected.",
+    "createdAt": "2024-07-31T20:05:06Z"
+  },
+  {
+    "id": 4273,
+    "sender": "MitchellGoodwin",
+    "content": "> Ideally these subclasses would be const so you can just do a normal equality check, but if not you could do a type check.\r\n\r\n@justinmc I went with a type check, because with the Zoom transition snapshotting behavior we talked about offline, there are cases were the builder may be different, but you would want to not overwrite the previous pages transition. If you do want to make two or more delegates that do override the previous one, you would make a class type for each variation.",
+    "createdAt": "2024-08-28T22:18:19Z"
+  },
+  {
+    "id": 4274,
+    "sender": "MitchellGoodwin",
+    "content": "Hey @jamesblasco. This PR is nearing completion for allowing mixing different route transitions. If you are able to take a look and see if how this looks from the perspective of enabling adding a Cupertino modal bottom sheet, that would be helpful.",
+    "createdAt": "2024-09-03T21:48:05Z"
+  },
+  {
+    "id": 4275,
+    "sender": "brian-superlist",
+    "content": "Is there a quick and easy way to opt out of this change? It's breaking tests in our app where I'm trying to upgrade to the master branch to add WASM Support (I need master branch as it has a few important fixes for WASM). I'm already introducing so many changes to support the new js_interop/html and upgrading a bunch of our packages to support web 1.0, I'd really rather not refactor our routing stack to support this one change as well.\r\n\r\nI've pinpointed this commit as the failure point.",
+    "createdAt": "2024-11-17T17:07:17Z"
+  },
+  {
+    "id": 4276,
+    "sender": "brian-superlist",
+    "content": "For those who hit this same issue, I found overriding the `MaterialApp.pageTransitionsTheme` with custom versions that do not include these new transitions fixes the issue for me.",
+    "createdAt": "2024-11-17T17:30:14Z"
+  },
+  {
+    "id": 4277,
+    "sender": "MitchellGoodwin",
+    "content": "@brian-superlist could you file an issue with more info on what got broken? This was intended to not be a breaking change.",
+    "createdAt": "2024-11-17T17:49:08Z"
+  },
+  {
+    "id": 4278,
+    "sender": "brian-superlist",
+    "content": "@MitchellGoodwin I'll try to boil it down -- our tests that failed are broad integration tests that cover many widgets together and I'm unsure how long it will take to create a minimal repro. I'll see if I can do so in a reasonable timeframe.",
+    "createdAt": "2024-11-18T09:28:27Z"
+  },
+  {
+    "id": 4279,
+    "sender": "Piinks",
+    "content": "@brian-superlist are these tests registered in flutter/tests? We run all of the tests registered there on every pull request before landing a change in flutter/flutter.",
+    "createdAt": "2024-11-19T17:19:38Z"
+  },
+  {
+    "id": 4280,
+    "sender": "brian-superlist",
+    "content": "@Piinks Nope, we have many of our open source projects on there, but this particular failure was against our closed source app. As far as I understand, that violates the first criterion:\r\n\r\n> All the code must be available publicly on GitHub under a license compatible with this effort.\r\n",
+    "createdAt": "2024-11-19T17:23:11Z"
+  },
+  {
+    "id": 4281,
+    "sender": "kuhnroyal",
+    "content": "I have an app where the transition is broken after this change.\r\nFrom a route built via `PageRouteBuilder` to a `MaterialPageRoute(fullscreenDialog: true)`.\r\nBefore this commit, there was NO outgoing transition for the underlying `PageRouteBuilder`, now there is an outgoing animation which seems wrong. This is mainly noticeable on iOS where the underlying page is transitioned out to the left while the fullscreen page slides up from the bottom.",
+    "createdAt": "2024-11-21T18:30:07Z"
+  },
+  {
+    "id": 4282,
+    "sender": "Piinks",
+    "content": "Please file an issue with a code sample that reproduces the problem. We cannot triage and address issues in closed PRs. Thanks!",
+    "createdAt": "2024-11-21T18:35:38Z"
+  },
+  {
+    "id": 4283,
+    "sender": "kuhnroyal",
+    "content": "Done!",
+    "createdAt": "2024-11-21T20:17:40Z"
+  },
+  {
+    "id": 4284,
+    "sender": "maRci002",
+    "content": "## Predictive back support for routes\n\nThis pull request introduces Android's predictive back feature for routes. By leveraging the [OnBackAnimationCallback](https://developer.android.com/reference/android/window/OnBackAnimationCallback) API, this implementation gathers real-time information about back gestures, enabling the framework to dynamically update route transition animations. The callbacks for this feature are forwarded to the framework as detailed in flutter/engine#49093 PR.\r\n\r\nHere's a brief video demo showcasing the Back Preview animation.\r\n\r\nhttps://github.com/flutter/flutter/assets/8436039/96b6dc20-89c9-45db-b8b4-aec7e996477b\r\n\r\n<details><summary>Code sample</summary>\r\n\r\n```dart\r\nimport 'package:flutter/material.dart';\r\n\r\nvoid main() {\r\n  runApp(const MainApp());\r\n}\r\n\r\nclass MainApp extends StatelessWidget {\r\n  const MainApp({super.key});\r\n\r\n  @override\r\n  Widget build(BuildContext context) {\r\n    return MaterialApp(\r\n      theme: ThemeData(\r\n        brightness: Brightness.light,\r\n        pageTransitionsTheme: const PageTransitionsTheme(\r\n          builders: {\r\n            TargetPlatform.android: PredictiveBackPageTransitionsBuilder(),\r\n          },\r\n        ),\r\n      ),\r\n      home: const FirstScreen(),\r\n    );\r\n  }\r\n}\r\n\r\nclass FirstScreen extends StatelessWidget {\r\n  const FirstScreen({super.key});\r\n\r\n  @override\r\n  Widget build(BuildContext context) {\r\n    return Scaffold(\r\n      appBar: AppBar(\r\n        title: const Text('First Screen'),\r\n      ),\r\n      body: Center(\r\n        child: ElevatedButton(\r\n          onPressed: () {\r\n            Navigator.of(context).push(\r\n              MaterialPageRoute(builder: (_) => const SecondScreen()),\r\n            );\r\n          },\r\n          child: const Text('Go to Second Screen'),\r\n        ),\r\n      ),\r\n    );\r\n  }\r\n}\r\n\r\nclass SecondScreen extends StatelessWidget {\r\n  const SecondScreen({super.key});\r\n\r\n  @override\r\n  Widget build(BuildContext context) {\r\n    return Theme(\r\n      data: ThemeData(brightness: Brightness.dark),\r\n      child: Scaffold(\r\n        appBar: AppBar(\r\n          title: const Text('Second Screen'),\r\n        ),\r\n        body: const Center(\r\n          child: Text('Hello, Predictive back!'),\r\n        ),\r\n      ),\r\n    );\r\n  }\r\n}\r\n```\r\n\r\n</details>\r\n\r\n### Resources\r\n\r\nCloses #131961\r\nDepends on engine PR flutter/engine#49093\r\n\r\n## Pre-launch Checklist\r\n\r\n- [x] I read the [Contributor Guide] and followed the process outlined there for submitting PRs.\r\n- [x] I read the [Tree Hygiene] wiki page, which explains my responsibilities.\r\n- [x] I read and followed the [Flutter Style Guide], including [Features we expect every widget to implement].\r\n- [x] I signed the [CLA].\r\n- [x] I listed at least one issue that this PR fixes in the description above.\r\n- [x] I updated/added relevant documentation (doc comments with `///`).\r\n- [x] I added new tests to check the change I am making, or this PR is [test-exempt].\r\n- [x] All existing and new tests are passing.\r\n\r\nIf you need help, consider asking for advice on the #hackers-new channel on [Discord].\r\n\r\n<!-- Links -->\r\n[Contributor Guide]: https://github.com/flutter/flutter/wiki/Tree-hygiene#overview\r\n[Tree Hygiene]: https://github.com/flutter/flutter/wiki/Tree-hygiene\r\n[test-exempt]: https://github.com/flutter/flutter/wiki/Tree-hygiene#tests\r\n[Flutter Style Guide]: https://github.com/flutter/flutter/wiki/Style-guide-for-Flutter-repo\r\n[Features we expect every widget to implement]: https://github.com/flutter/flutter/wiki/Style-guide-for-Flutter-repo#features-we-expect-every-widget-to-implement\r\n[CLA]: https://cla.developers.google.com/\r\n[flutter/tests]: https://github.com/flutter/tests\r\n[breaking change policy]: https://github.com/flutter/flutter/wiki/Tree-hygiene#handling-breaking-changes\r\n[Discord]: https://github.com/flutter/flutter/wiki/Chat\r",
+    "createdAt": "2024-01-11T14:26:17Z"
+  },
+  {
+    "id": 4285,
+    "sender": "maRci002",
+    "content": "One aspect I'm considering is how to best align with the [Predictive Back design](https://developer.android.com/design/ui/mobile/guides/patterns/predictive-back), specifically the \"Back Preview\" experience.\r\n\r\nThe gesture-controlled route should incorporate two types of transitions. One type of transition would occur when the route is controlled programmatically, such as through the use of `Navigator.pop` / `Navigator.push`. Additionally, there should be a distinct transition tailored for the _Back Preview_ when the route is controlled by a gesture.\r\n\r\nConsidering that various Material components like [Bottom sheets](https://m3.material.io/components/bottom-sheets/guidelines#3d7735e2-73ea-4f3e-bd42-e70161fc1085), [Side sheets](https://m3.material.io/components/side-sheets/guidelines#d77245e3-1013-48f8-a9d7-76f484e1be13), and [Search](https://m3.material.io/components/search/guidelines#3f2d4e47-2cf5-4c33-b6e1-5368ceaade55) include back gesture animations, it is advisable to develop a generic, reusable component for managing these transitions.\r\n\r\nDefinitely needed the two different transitions; otherwise, this happens:\r\n\r\n[predictive_back_single_animation.webm](https://github.com/flutter/flutter/assets/8436039/dc57cbb4-f9ab-412a-982c-728b44b4048f)\r\n",
+    "createdAt": "2024-01-11T15:14:09Z"
+  },
+  {
+    "id": 4286,
+    "sender": "maRci002",
+    "content": "This pull request seems prepared for review.\r\n\r\nCurrently, it lacks documentation and tests, which I plan to add once we confirm that the API is satisfactory. This also applies to the engine part flutter/engine#49093",
+    "createdAt": "2024-01-12T16:45:30Z"
+  },
+  {
+    "id": 4287,
+    "sender": "maRci002",
+    "content": "> Currently, a user has to explicitly use AndroidBackGesturePageTransitionsBuilder in order to get the predictive back transition, right? I wonder if it should be built into any of the existing route transitions. That's probably beyond the scope of this PR, though.\r\n\r\nYes, to enable predictive back transitions, developers should explicitly use `AndroidBackGesturePageTransitionsBuilder`. This approach ensures compatibility with Android versions below API 34 as well. For these older Android versions or in cases where the back gesture transition is not applicable (_e.g., the Android platform is not in use, the Android version is below API 34, or navigation is triggered programmatically through methods like `Navigator.pop` or `Navigator.push`_), the transition logic falls back to the `final PageTransitionsBuilder parent;` field. This field, by default, is set to use `ZoomPageTransitionsBuilder` for transitions which might change in the future #142352.\r\n\r\n> Do you know if this kind of predictive back transition is the default in native Android?\r\n\r\nI don't really know the predictive back transitions, as recommended by [Android's Material Design guidelines](https://developer.android.com/design/ui/mobile/guides/patterns/predictive-back#motion-specs), have been incorporated in my implementation. However, effects like fading or barrier colors for better visual appeal haven't been added. In my demo, I cheated by applying a high contrast, using a dark page on top of a light page.\r\n\r\n> What if someone wants to make a route transition that animates itself into some UI element on the parent route? Such as in the [predictive back spec](https://developer.android.com/design/ui/mobile/guides/patterns/predictive-back#full-screen-surfaces) (video below). Maybe you should include an example of doing something like that in the examples directory and link it in your docs.\r\n\r\nThese kinds of animations should be implemented using the package available at [https://pub.dev/packages/animations](https://pub.dev/packages/animations). I've made every effort to ensure the solution is as modular and flexible as possible. For instance, there's the `AndroidBackGesturePageTransitionsBuilder`, which supports parent transitions in the absence of a linear transition. Additionally, we have the `AndroidBackGestureDetector` for listening to predictive back events, and the `AndroidBackGestureTransition` which executes the actual transition. In the video referenced from the predictive back spec, the `AndroidBackGestureTransition` is utilized during an ongoing linear transition. However, a specific technique is required when a commit occurs, at which point the parent transition should be invoked. This means that [NavigatorState.didStopUserGesture](https://api.flutter.dev/flutter/widgets/NavigatorState/didStopUserGesture.html) should be called immediately and using the parent animation to end the transition. Alternatively, the `AndroidBackGestureDetectorWidgetBuilder` could include an additional parameter indicating the current status (`none`, `start`, `inProgress`, `cancel`, `commit`);  the latter approach is, I believe, better since it makes it easier to determine whether to use the `AndroidBackGestureTransition`, the parent transition, or even a secondary transition.",
+    "createdAt": "2024-02-06T14:14:02Z"
+  }
+]

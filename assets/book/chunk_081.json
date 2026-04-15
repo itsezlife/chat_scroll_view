@@ -1,0 +1,386 @@
+[
+  {
+    "id": 5184,
+    "sender": "ThinkDigitalSoftware",
+    "content": "I'm interested in getting this widget with custom heights, including full\nscreen\n\nOn Tue, Nov 27, 2018, 8:36 PM Dan Field <notifications@github.com wrote:\n\n> Should be initialHeightPercentage or something like that.\n>\n> —\n> You are receiving this because you are subscribed to this thread.\n> Reply to this email directly, view it on GitHub\n> <https://github.com/flutter/flutter/pull/21896#issuecomment-442316670>,\n> or mute the thread\n> <https://github.com/notifications/unsubscribe-auth/AV-HfWeVu37OfH-M8FTqJinNmz4EOGSTks5uzhLAgaJpZM4WqFpJ>\n> .\n>\n",
+    "createdAt": "2018-11-28T05:51:46Z"
+  },
+  {
+    "id": 5185,
+    "sender": "sh0umik",
+    "content": "any updates on the merge ? ",
+    "createdAt": "2019-01-12T10:08:39Z"
+  },
+  {
+    "id": 5186,
+    "sender": "dnfield",
+    "content": "I still have to update the tests that are now failing.\r\n\r\nOne thing I'm not clear on is how A11y should behave here.  It looks like it's almost working, but how should an A11y user be able to get the sheet \"dragged back down\" if it takes over full screen? A sighted user would simply drag the sheet down.  A vision impaired user using TalkBack or Voiceover doesn't seem to have a way to get out.  This is probably a problem in our existing bottom sheet as well for non-persistant ones.  How does a vision-impaired user \"swipe a bottom sheet down\" off the screen?",
+    "createdAt": "2019-01-21T05:33:56Z"
+  },
+  {
+    "id": 5187,
+    "sender": "dnfield",
+    "content": "Latest thought for A11y on persistent bottom sheets - make them work like non-persistent bottom sheets if they end up scrolling above their initial position.  That way, the back button will work and TalkBack will give a dialog notice.",
+    "createdAt": "2019-01-23T06:56:26Z"
+  },
+  {
+    "id": 5188,
+    "sender": "layou1989",
+    "content": "can the bottom sheet transparent? that i have a easy way to have a border-radius bottom sheet .",
+    "createdAt": "2019-01-23T08:02:45Z"
+  },
+  {
+    "id": 5189,
+    "sender": "dnfield",
+    "content": "@layou1989 I'm not sure I understand - can you give an example of what you're looking for?\r\n\r\nEither way it sounds like that might be a separate issue from what this PR is trying to address.",
+    "createdAt": "2019-01-28T19:15:02Z"
+  },
+  {
+    "id": 5190,
+    "sender": "stevenspiel",
+    "content": "Good work on this! I'm really looking forward to implementing it!",
+    "createdAt": "2019-02-04T19:26:26Z"
+  },
+  {
+    "id": 5191,
+    "sender": "dnfield",
+    "content": "Sorry again for the long wait - I'm to the point where I think I just need to add some tests for this and it'll be ready for review.",
+    "createdAt": "2019-02-04T23:40:11Z"
+  },
+  {
+    "id": 5192,
+    "sender": "ThinkDigitalSoftware",
+    "content": "Yeah, thank you, Dan!\n\nOn Mon, Feb 4, 2019, 3:40 PM Dan Field <notifications@github.com> wrote:\n\n> Sorry again for the long wait - I'm to the point where I think I just need\n> to add some tests for this and it'll be ready for review.\n>\n> —\n> You are receiving this because you are subscribed to this thread.\n> Reply to this email directly, view it on GitHub\n> <https://github.com/flutter/flutter/pull/21896#issuecomment-460457665>,\n> or mute the thread\n> <https://github.com/notifications/unsubscribe-auth/AV-Hfa6xr86fXyHoYCHZVksRsvTZ-Nmrks5vKMUIgaJpZM4WqFpJ>\n> .\n>\n",
+    "createdAt": "2019-02-05T06:50:44Z"
+  },
+  {
+    "id": 5193,
+    "sender": "dnfield",
+    "content": "@HansMuller @goderbauer this is ready for review.",
+    "createdAt": "2019-02-11T04:07:15Z"
+  },
+  {
+    "id": 5194,
+    "sender": "dnfield",
+    "content": "After discussing a bit more with Hans and goderbauer, I believe I can make this be non-breaking (default to old behavior, opt in for new behavior).  Stay tuned...",
+    "createdAt": "2019-02-13T19:18:39Z"
+  },
+  {
+    "id": 5195,
+    "sender": "layou1989",
+    "content": "can also provider the ability when the bottom scroll more than half it close,less than half it go to top,just like old",
+    "createdAt": "2019-02-22T01:20:29Z"
+  },
+  {
+    "id": 5196,
+    "sender": "dnfield",
+    "content": "This is no longer an API break.  I've reverted the tests I updated (and/or forked them into specific tests for the new functionality).\r\n\r\nThe new API adds an explicit boolean parameter to tell the bottom sheet whether it should expect to be controlled by a `BottomSheetScrollController` (in which case there needs to be a `ScrollView` child with `primary: true`), or using the legacy method with a GestureDetector/AnimationController.\r\n\r\n@HansMuller @goderbauer this is ready for review again.",
+    "createdAt": "2019-02-25T23:36:06Z"
+  },
+  {
+    "id": 5197,
+    "sender": "IhorKlimov",
+    "content": "@dnfield PersistentBottomSheetController#close() doesn't work for me when __isScrollControlled__  set to both true or false",
+    "createdAt": "2019-02-26T10:04:27Z"
+  },
+  {
+    "id": 5198,
+    "sender": "dnfield",
+    "content": "@IhorKlimov - can you share an sample with what you're trying to do that isn't working?",
+    "createdAt": "2019-02-26T17:05:48Z"
+  },
+  {
+    "id": 5199,
+    "sender": "layou1989",
+    "content": "@dnfield can also provider the ability when the bottom scroll more than half it close,less than half it go to top,just like old",
+    "createdAt": "2019-02-27T01:15:11Z"
+  },
+  {
+    "id": 5200,
+    "sender": "IhorKlimov",
+    "content": "@dnfield Here it is https://gist.github.com/IhorKlimov/908be06e2229ac9f4c0e4e0edc23e59b\r\n\r\nBottom sheet isn't closed, no error logs. I know that I can use *Navigator.pop()*, but *PersistentBottomSheetController#close()* was working before",
+    "createdAt": "2019-02-27T07:25:13Z"
+  },
+  {
+    "id": 5201,
+    "sender": "dnfield",
+    "content": "@IhorKlimov thanks for the small repro! I've added a test for this and it should be working now.",
+    "createdAt": "2019-02-27T07:57:31Z"
+  },
+  {
+    "id": 5202,
+    "sender": "maciejczechowski",
+    "content": "@dnfield clampTop is not working for me if using isScrollControlled = true. The BottomSheet can still be swiped down, regardless of how I set the clampTop property.\r\nLooking at showBottomSheet method, it always passes false as persistent to _buildBottomSheet. Changing it to true disables swipe-to-dismiss, but again regardless to clampTop setting ;)",
+    "createdAt": "2019-03-07T15:46:32Z"
+  },
+  {
+    "id": 5203,
+    "sender": "dnfield",
+    "content": "If you want a bottom sheet that can't be dismissed, you need to use the bottomSheet property on Scaffold",
+    "createdAt": "2019-03-07T15:50:21Z"
+  },
+  {
+    "id": 5204,
+    "sender": "maciejczechowski",
+    "content": "But this is then inconsistent with added documentation:\r\n  /// the sheet should take at the start.  The `clampTop` parameter specifies\r\n  /// whether to force the bottom sheet to always be at least that height, and\r\n  /// setting it to true will disable swipe down dismissal of the bottom sheet. ",
+    "createdAt": "2019-03-07T20:47:34Z"
+  },
+  {
+    "id": 5205,
+    "sender": "dnfield",
+    "content": "Ahhhh ok.  I'll take a look.",
+    "createdAt": "2019-03-07T20:53:09Z"
+  },
+  {
+    "id": 5206,
+    "sender": "dnfield",
+    "content": "I think this is a mistake in the doc.  In fact, at this point I think I should just get rid of the `clampTop` parameter entirely - it was there before I had a better way to control whether the sheet was going to be persistent or not.\r\n\r\nThe problem is that once you introduce a non-dismissable bottom sheet, you really should not be introducing any more bottom sheets unless they're modal.  It causes weird problems with trying to figure out which sheets to leave open or close or to show hte user.  The right way to show a persistent bottom sheet is to set it as a property on the Scaffold, where we can manage things better.\r\n\r\nWhat do you think of that idea?",
+    "createdAt": "2019-03-07T21:01:18Z"
+  },
+  {
+    "id": 5207,
+    "sender": "maciejczechowski",
+    "content": "That actually makes sense  - and using bottomSheet property it works just fine with ListView :)",
+    "createdAt": "2019-03-08T12:12:33Z"
+  },
+  {
+    "id": 5208,
+    "sender": "dnfield",
+    "content": "@HansMuller - Everything that's public in `BottomSheetScrollController` is used somewhere else in the framework - I don't think anything that's currently public could be made private easily.  As I mentioned in another response, my original goal with it was to create a more generic controller that could be used for other widgets, but I lost confidence as I worked along that I understood other use cases enough to keep it generic and still useful for bottom sheets.  \r\n\r\nI'll have to investigate using the route height.",
+    "createdAt": "2019-03-19T23:18:10Z"
+  },
+  {
+    "id": 5209,
+    "sender": "dnfield",
+    "content": "Mainly writing this down now so I don't forget - there are three \"larger\" items from this review so far I'm hoping to get greater clarity on:\r\n\r\n1. I'm not sure how to avoid using the screen height.  I agree route height would be better, but we can't access that or even the constraints at build time, which is when we need it. I think the Scaffold layout delegate could _maybe_ expose it back to us, but I'm worried about that getting very messy.\r\n2. Right now I'm using 2 pixels as \"close enough\" to just treat things like we've reached the top as far as hiding the FAB goes.  I suspect there's a better way to handle this, but I'm not quite sure what.\r\n3. I moved the PostFrameCallback to a (hopefully) more sensible location (didChangeDependencies on BottomSheetState) - however, I can't come up with a good and safe way to visit the children to see if we're ok instead of just asserting the scroll controller got a client after a frame.",
+    "createdAt": "2019-03-21T04:37:36Z"
+  },
+  {
+    "id": 5210,
+    "sender": "dnfield",
+    "content": "I've split out a lot of the bottom sheet widget specific logic into another PR (#30058) - once we can get squared away on that I'll merge it into this, which should simplify this PR a bit.",
+    "createdAt": "2019-03-27T19:58:12Z"
+  },
+  {
+    "id": 5211,
+    "sender": "dnfield",
+    "content": "Just some notes from offline discussion - going to try to make the downards notification API surface a bit smaller by exposing a smaller, simpler widget to use (that will likely just use the new ones as private API).",
+    "createdAt": "2019-04-10T23:55:23Z"
+  },
+  {
+    "id": 5212,
+    "sender": "rami-a",
+    "content": "Hey @dnfield I'm currently working on some overlapping BottomSheet changes in https://github.com/flutter/flutter/pull/31318\r\n\r\nI just wanted you to be aware of that. Looks like we both had a similar idea (and implementation) regarding exposing color.",
+    "createdAt": "2019-04-22T20:43:46Z"
+  },
+  {
+    "id": 5213,
+    "sender": "ThinkDigitalSoftware",
+    "content": "Thanks, @dnfield for sticking with this! Are any of the issues mentioned in the original post or other comments still existing?",
+    "createdAt": "2019-04-26T21:45:53Z"
+  },
+  {
+    "id": 5214,
+    "sender": "dnfield",
+    "content": "If there are, please file a bug.  This should be good though.",
+    "createdAt": "2019-04-26T22:22:29Z"
+  },
+  {
+    "id": 5215,
+    "sender": "ThinkDigitalSoftware",
+    "content": "@dnfield Shouldn't this be DraggableScrollable**Bottom**Sheet? and shouldn't the name of the parameter be initialChildSizeRatio, not size? since 1 isn't a size, but a ratio. Same with the other parameters. Also, could we match the params of the other bottom sheets? Like the shape. Does this need to be a new issue?\r\n",
+    "createdAt": "2019-05-24T22:45:32Z"
+  },
+  {
+    "id": 5216,
+    "sender": "dnfield",
+    "content": "This initially was implemented to support horizontal scrolling as well, but was removed due to complexity and lack of solid use cases.  It would be possible to reimplement",
+    "createdAt": "2019-05-24T23:02:11Z"
+  },
+  {
+    "id": 5217,
+    "sender": "dnfield",
+    "content": "And in general it's probably a bad idea to specify absolute heights for this wide, since it will show up on different screens and form factors.\r\n\r\nE.g. what if the phone is in landscape mode, or what if you're on a desktop or larger tablet",
+    "createdAt": "2019-05-24T23:03:32Z"
+  },
+  {
+    "id": 5218,
+    "sender": "ThinkDigitalSoftware",
+    "content": "Wouldn't that be our business to control? For example, I want a widget that works exactly like a bottomsheet that will cover most of my screen except the appbar. ",
+    "createdAt": "2019-05-24T23:07:59Z"
+  },
+  {
+    "id": 5219,
+    "sender": "dnfield",
+    "content": "You can just specify it as a percentage of the available space",
+    "createdAt": "2019-05-25T00:21:53Z"
+  },
+  {
+    "id": 5220,
+    "sender": "ThinkDigitalSoftware",
+    "content": "I think it's because I thought this was a bottomsheet\r\n",
+    "createdAt": "2019-05-25T00:55:49Z"
+  },
+  {
+    "id": 5221,
+    "sender": "jtrunick",
+    "content": "## Support integrating with C/C++ in plugin framework\n\nIt would be nice to have an example of calling C/C++ code, or at least how to build native code along with a Flutter app. This may purely a Gradle question, but its not clear to someone that's not an expert on Gradle (for example, me), how to pull this off.\r\n\r\n---\r\n\r\nAdmin comment: Please see https://github.com/dart-lang/sdk/issues/34452 for current status and additional information",
+    "createdAt": "2016-11-28T20:40:43Z"
+  },
+  {
+    "id": 5222,
+    "sender": "chinmaygarde",
+    "content": "@jason-simmons knows the most about Gradle. Once we have an .so, I can definitely help getting it loaded.",
+    "createdAt": "2016-11-30T00:00:27Z"
+  },
+  {
+    "id": 5223,
+    "sender": "jtrunick",
+    "content": "I did find that under buildSrc there is another property for setting the gradle build version. After updating to 2.2.2 I've progressed, and was able to verify the .so loads, and is callable from Java.",
+    "createdAt": "2016-12-02T22:03:45Z"
+  },
+  {
+    "id": 5224,
+    "sender": "eseidelGoogle",
+    "content": "Presumably we would also need to add a C API for sending HostMessages from C/C++ code to Dart.",
+    "createdAt": "2016-12-06T04:51:13Z"
+  },
+  {
+    "id": 5225,
+    "sender": "jtrunick",
+    "content": "Yes please. I have a suspicion that the C->Java callback may not be cheap. ",
+    "createdAt": "2016-12-06T20:44:22Z"
+  },
+  {
+    "id": 5226,
+    "sender": "ijustlovemath",
+    "content": "Any update on this? Considering Flutter for building a cross platform app that calls C++ code compiled into a shared library, and this is the only major stopping point.",
+    "createdAt": "2017-05-20T21:47:44Z"
+  },
+  {
+    "id": 5227,
+    "sender": "eseidelGoogle",
+    "content": "This is possible today (and @jtrunick did so in his shipping app), but you have to bounce through Java or Obj-C first.\r\n\r\ni.e. you can use https://flutter.io/platform-channels/ to talk from Dart to Obj-C/Java and then from Obj-C/Java call into your C++ code.  This bug covers adding more direct support for this, and potentially avoiding the Obj-C/Java passthrough.",
+    "createdAt": "2017-05-21T17:56:29Z"
+  },
+  {
+    "id": 5228,
+    "sender": "timotheecour",
+    "content": "Since Dart VM is implemented in C++ shouldn't there be an easier (if less safe) way to call C shared libraries directly (say via dlopen) ? How much change would be required for basic (unsafe/experimental) support?\r\n\r\nIs something like this: https://www.dartlang.org/articles/dart-vm/native-extensions available on android or ios?",
+    "createdAt": "2017-09-20T23:18:51Z"
+  },
+  {
+    "id": 5229,
+    "sender": "mehmetf",
+    "content": "We have heard this requirement from a couple of Google apps:\r\n\r\n- One such app wrote their own C++ libraries for operating the camera to reduce latency. These libraries are platform specific and optimized to work as quickly as possible. Invoking these libraries with the lowest possible latency is critical for such apps. Forcing them to go through PlatformChannel + JNI will not achieve that on Android.\r\n\r\n- There are advanced mobile teams out there who write business logic components in C++ to be able to share it between their Android and iOS implementations. Flutter supporting direct integration with those libraries would further cement its position of being the best cross-platform framework out there.\r\n\r\nI don't think this is a _must have_. However, this is one area that Flutter can further differentiate itself from other cross-platform solutions.",
+    "createdAt": "2017-10-02T21:51:03Z"
+  },
+  {
+    "id": 5230,
+    "sender": "Hixie",
+    "content": "> One such app wrote their own C++ libraries for operating the camera to reduce latency. [...] Forcing them to go through PlatformChannel + JNI will not achieve that on Android.\r\n\r\nWhat was their solution on Android for getting from C++ to Java and back?",
+    "createdAt": "2017-10-02T21:58:40Z"
+  },
+  {
+    "id": 5231,
+    "sender": "chinmaygarde",
+    "content": "If it is really necessary, we can allow Dart native extensions on the mobile platforms. Right now, we don't expose the symbols in `dart_api.h`. We will need to decide on the following before we can flip the switch:\r\n\r\n* Figure out how to make the AOT compiler aware of Dart code whose sole entry point is from a method that may not be in the main Flutter engine dynamic library. Otherwise, the tree shaking pass may get rid of the code.\r\n* Provide guidance on building and packaging native extensions (Gradle & Xcode for Android & iOS respectively).\r\n* Provide some ABI stability guarantees for the routines in `dart_api.h`. Though it is mostly stable, I believe it is still evolving to account for the various modes.\r\n\r\nSo far, the platforms channels mechanism seems to have been adequate for the simpler use cases.",
+    "createdAt": "2017-10-02T22:18:57Z"
+  },
+  {
+    "id": 5232,
+    "sender": "mehmetf",
+    "content": "> What was their solution on Android for getting from C++ to Java and back?\r\n\r\nI have not looked deeply into their use case. It seemed that they have written all the bits that need very low-latency communication in C++. I will ask whether they use any JNI for performance-critical use cases (my gut feeling is no).\r\n\r\nIt really depends on what we can do on Flutter side. If we can supply an interop that's significantly faster than JNI, it would be a big win for these teams. They can shrink their C++ codebase and shift more to the app side. If our interop performance is comparable to JNI then I don't see a big win here. They could probably continue what they are doing now and use PlatformChannel.\r\n\r\nThis is about giving such teams an extra reason to switch to Flutter. I have not heard of this being a blocker, so prioritize accordingly.",
+    "createdAt": "2017-10-03T15:19:11Z"
+  },
+  {
+    "id": 5233,
+    "sender": "Hixie",
+    "content": "If I understand what you're saying correctly, you're saying current solutions are to have all the logic (camera+UI) in C++ with minimal logic in Java, and the desire is to move the UI part of this logic to Dart, without losing the low-latency UI<->camera interactivity.",
+    "createdAt": "2017-10-03T16:07:06Z"
+  },
+  {
+    "id": 5234,
+    "sender": "Hixie",
+    "content": "Can you talk about what their threading situation is like? Do they just have the one thread for camera+UI?",
+    "createdAt": "2017-10-03T16:07:38Z"
+  },
+  {
+    "id": 5235,
+    "sender": "eseidelGoogle",
+    "content": "@chinmaygarde might move us closer to solving this with his current work on the embedder API.",
+    "createdAt": "2017-11-06T15:49:41Z"
+  },
+  {
+    "id": 5236,
+    "sender": "binoypatel",
+    "content": "+1",
+    "createdAt": "2017-11-11T20:24:29Z"
+  },
+  {
+    "id": 5237,
+    "sender": "WoodyGuo",
+    "content": "Any progress with this issue?\r\n\r\nWe've already been using [djinni](https://github.com/dropbox/djinni) to share logics across different platforms. It would be great if we can have interop between Dart and C++, rather than having to go back and forth through Java/Objc-C.",
+    "createdAt": "2017-12-28T03:14:30Z"
+  },
+  {
+    "id": 5238,
+    "sender": "loint",
+    "content": "If Dart can integrate with C/C++ I think it's a great idea for mobile to re-use a ton of native library and no need binding to a specific platform using JNI or Objective C++.",
+    "createdAt": "2018-01-23T04:23:52Z"
+  },
+  {
+    "id": 5239,
+    "sender": "nielsenko",
+    "content": "Have you considered https://github.com/mono/CppSharp? They already have the parsing and AST in place for c++, as well as support for multiple target languages. Perhaps you could create a Dart generator for CppSharp?",
+    "createdAt": "2018-03-01T16:19:24Z"
+  },
+  {
+    "id": 5240,
+    "sender": "bmunkholm",
+    "content": "Integrating a C++ based database like Realm directly in C++ would achieve significant performance and developer productivity boost :-) Going up/down through JNI would be such a waste.",
+    "createdAt": "2018-03-02T10:27:33Z"
+  },
+  {
+    "id": 5241,
+    "sender": "stephanemagnenat",
+    "content": "I am considering Flutter for an AR app doing computer vision (probably using OpenCV), and an efficient and direct Dart-C++ interop would be a major positive point. I imagine many other people doing challenging apps in term of computation might share this need.",
+    "createdAt": "2018-03-30T20:46:57Z"
+  },
+  {
+    "id": 5242,
+    "sender": "tofutim",
+    "content": "Can you someone confirm that C++ interop is still not available? Can it be done using packages?",
+    "createdAt": "2018-03-31T00:33:53Z"
+  },
+  {
+    "id": 5243,
+    "sender": "mwalcott3",
+    "content": "@tofutim Direct c/c++ interop is still not available hence why this issue is still open. However, you can use [platform channels](https://flutter.io/platform-channels/) and then use Obj-C/Java to interact with your C++ code. Its not great but its all we have at the moment.",
+    "createdAt": "2018-03-31T01:21:16Z"
+  },
+  {
+    "id": 5244,
+    "sender": "chinmaygarde",
+    "content": "> Can you someone confirm that C++ interop is still not available? Can it be done using packages?\r\n\r\nTo interoperate with platform libraries, the [platform channels](https://flutter.io/platform-channels/) mechanism is still the current recommendation.\r\n\r\nA more performant mechanism described in the [native extensions document](https://www.dartlang.org/articles/dart-vm/native-extensions) can be added trivially. However, I am not aware of any ABI stability guarantees for the symbols exposed from [dart_api.h](https://github.com/dart-lang/sdk/blob/9858ea1f8d13f8aed8ce1632e0f2fb4d9a80c4c9/runtime/include/dart_api.h). If @a-siva and @eseidelGoogle can confirm that such guarantees exist, I can start exposing those symbols ASAP. Optionally, we can then carve out a subset of [Tonic](https://fuchsia.googlesource.com/tonic/) as convenient wrappers around the C API for ease of use from C++.",
+    "createdAt": "2018-03-31T01:31:55Z"
+  },
+  {
+    "id": 5245,
+    "sender": "eseidelGoogle",
+    "content": "My understanding is that this bug is about providing a C-API and tooling hooks to make it easy to have a wholly C/C++ plugin (no Obj-C/Java shimming required, but still async through platform_channels).\r\n\r\nI don't think we should consider synchronous methods like native extensions at this time.  (But honestly I defer that to @Hixie or @cbracken).",
+    "createdAt": "2018-03-31T02:50:12Z"
+  },
+  {
+    "id": 5246,
+    "sender": "zoechi",
+    "content": "@eseidel \r\n\r\n> I don't think we should consider synchronous methods like native extensions at this time\r\n\r\nwhy is that?",
+    "createdAt": "2018-03-31T11:12:28Z"
+  },
+  {
+    "id": 5247,
+    "sender": "nailgilaziev",
+    "content": "Current approach to call `C` code is `Dart`->`Java`->`C`\r\nWe cross **JNI** twice, right? \r\nfirst time: `dart` to `Java` via platform channels (under the hood **JNI** call used, right?)\r\nsecond time: `Java` -> `C` via **JNI**",
+    "createdAt": "2018-03-31T11:47:21Z"
+  }
+]

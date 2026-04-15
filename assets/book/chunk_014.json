@@ -1,0 +1,386 @@
+[
+  {
+    "id": 896,
+    "sender": "rqrk",
+    "content": "Hello,\r\n\r\nProblem encountered with on 3.0.5 on iOS (last stable). The thing is that I use a Webview with a isSecureTextEntry added in Swift to prevent screenshot... I don't knowif the problem can come from the webview OR/AND the securetextfield (I don't think so imho), but maybe that can help.\r\n\r\n`/Users/pierrelenoble/flutter/bin/flutter doctor --verbose\r\n[✓] Flutter (Channel stable, 3.0.5, on macOS 12.4 21F79 darwin-arm, locale en-FR)\r\n    • Flutter version 3.0.5 at /Users/pierrelenoble/flutter\r\n    • Upstream repository https://github.com/flutter/flutter.git\r\n    • Framework revision f1875d570e (3 weeks ago), 2022-07-13 11:24:16 -0700\r\n    • Engine revision e85ea0e79c\r\n    • Dart version 2.17.6\r\n    • DevTools version 2.12.2\r\n\r\n[!] Android toolchain - develop for Android devices (Android SDK version 32.1.0-rc1)\r\n    • Android SDK at /Users/pierrelenoble/Library/Android/sdk\r\n    • Platform android-32, build-tools 32.1.0-rc1\r\n    • Java binary at: /Applications/Android Studio.app/Contents/jre/Contents/Home/bin/java\r\n    • Java version OpenJDK Runtime Environment (build 11.0.12+0-b1504.28-7817840)\r\n    ! Some Android licenses not accepted.  To resolve this, run: flutter doctor --android-licenses\r\n\r\n[✓] Xcode - develop for iOS and macOS (Xcode 13.4)\r\n    • Xcode at /Applications/Xcode.app/Contents/Developer\r\n    • CocoaPods version 1.11.2\r\n\r\n[✗] Chrome - develop for the web (Cannot find Chrome executable at /Applications/Google Chrome.app/Contents/MacOS/Google Chrome)\r\n    ! Cannot find Chrome. Try setting CHROME_EXECUTABLE to a Chrome executable.\r\n\r\n[✓] Android Studio (version 2021.2)\r\n    • Android Studio at /Applications/Android Studio.app/Contents\r\n    • Flutter plugin can be installed from:\r\n      🔨 https://plugins.jetbrains.com/plugin/9212-flutter\r\n    • Dart plugin can be installed from:\r\n      🔨 https://plugins.jetbrains.com/plugin/6351-dart\r\n    • Java version OpenJDK Runtime Environment (build 11.0.12+0-b1504.28-7817840)\r\n\r\n[✓] Connected device (2 available)\r\n    • Pierre’s iPhone (mobile) • 00008101-001C74213CA0001E • ios          • iOS 15.5 19F77\r\n    • macOS (desktop)          • macos                     • darwin-arm64 • macOS 12.4 21F79 darwin-arm\r\n    ! Error: Pierre’s iPhone is busy: Preparing the watch for development via Pierre’s iPhone. Xcode will continue when Pierre’s iPhone is finished. (code -10)\r\n\r\n[✓] HTTP Host Availability\r\n    • All required HTTP hosts are available\r\n\r\n! Doctor found issues in 2 categories.\r\n`",
+    "createdAt": "2022-08-04T10:21:10Z"
+  },
+  {
+    "id": 897,
+    "sender": "neophob",
+    "content": "We observed the flickering too, hard to reproduce but it definitive happens. Tried all v3.0.x releases (up to v3.0.5) - all show the same flickering issue (using google play releases). On the video one flickering is visible - but all parts of the application can flicker.\r\n\r\nhttps://user-images.githubusercontent.com/837347/183376511-58bc6766-4020-441f-8673-1bfc327e1982.mp4\r\n\r\n\r\n```\r\n[✓] Flutter (Channel stable, 3.0.5, on macOS 12.5 21G72 darwin-x64, locale de-CH)\r\n[✓] Android toolchain - develop for Android devices (Android SDK version 30.0.3)\r\n[✓] Xcode - develop for iOS and macOS (Xcode 13.4.1)\r\n[✓] Chrome - develop for the web\r\n[✓] Android Studio (version 2021.2)\r\n[✓] VS Code (version 1.68.1)\r\n[✓] Connected device (2 available)\r\n[✓] HTTP Host Availability\r\n```\r\n",
+    "createdAt": "2022-08-08T08:44:09Z"
+  },
+  {
+    "id": 898,
+    "sender": "apkuhar",
+    "content": "> We observed the flickering too, hard to reproduce but it definitive happens. Tried all v3.0.x releases (up to v3.0.5) - all show the same flickering issue (using google play releases). On the video one flickering is visible - but all parts of the application can flicker.\n> \n> \n> \n> https://user-images.githubusercontent.com/837347/183376511-58bc6766-4020-441f-8673-1bfc327e1982.mp4\n> \n> \n> \n> \n> \n> ```\n> \n> [✓] Flutter (Channel stable, 3.0.5, on macOS 12.5 21G72 darwin-x64, locale de-CH)\n> \n> [✓] Android toolchain - develop for Android devices (Android SDK version 30.0.3)\n> \n> [✓] Xcode - develop for iOS and macOS (Xcode 13.4.1)\n> \n> [✓] Chrome - develop for the web\n> \n> [✓] Android Studio (version 2021.2)\n> \n> [✓] VS Code (version 1.68.1)\n> \n> [✓] Connected device (2 available)\n> \n> [✓] HTTP Host Availability\n> \n> ```\n> \n> \n\nyou issue is unrelated. the flickering in your case is due to fast changing text with different width glyphs. \n",
+    "createdAt": "2022-08-08T10:27:56Z"
+  },
+  {
+    "id": 899,
+    "sender": "neophob",
+    "content": "> you issue is unrelated. the flickering in your case is due to fast changing text with different width glyphs.\r\n\r\nThe fast changing text is just one effect, sometimes the background color is flickering too. This happens rarely and after switching screens pause/resume app the issue gone. \r\n\r\nEdit: I update the code, I'm pretty sure Flutter shows for some reason and old buffer that contains an old time (using `print` and seconds in the time to trigger the issue much more). It is definitive triggered when I wake up my Android phone.\r\n\r\nEdit2: When I add `key: UniqueKey()` to the text widget, I cannot reproduce the error anymore!",
+    "createdAt": "2022-08-08T12:56:48Z"
+  },
+  {
+    "id": 900,
+    "sender": "neophob",
+    "content": "We use a custom `MainActivity.java` file, in the `onCreate` function we use this code to get a transparent background:\r\n\r\n`getIntent().putExtra(INTENT_EXTRA_BACKGROUND_MODE, transparent.toString());` \r\n\r\n-> when we remove this line, no flickering is visible. does anyone else use a transparent background of the main window?",
+    "createdAt": "2022-08-09T13:24:18Z"
+  },
+  {
+    "id": 901,
+    "sender": "danagbemava-nc",
+    "content": "Hi @neophob, this issue is happening mainly on iOS. If you're experiencing an issue on android, kindly file a new issue. ",
+    "createdAt": "2022-08-09T13:26:55Z"
+  },
+  {
+    "id": 902,
+    "sender": "wds1181977",
+    "content": "This is the Log when I reproduce  ios App Crash & Screen flickering Caused GPU Timeout #108161\r\n\r\n<details>\r\n<summary>Log</summary>\r\n\r\n```\r\n[connection] nw_resolver_start_query_timer_block_invoke [C32] Query fired: did not receive all answers in time for app-measurement.com:443\r\nExecution of the command buffer was aborted due to an error during execution. Caused GPU Timeout Error (00000002:kIOGPUCommandBufferCallbackErrorTimeout)\r\nExecution of the command buffer was aborted due to an error during execution. Caused GPU Timeout Error (00000002:kIOGPUCommandBufferCallbackErrorTimeout)\r\nExecution of the command buffer was aborted due to an error during execution. Caused GPU Timeout Error (00000002:kIOGPUCommandBufferCallbackErrorTimeout)\r\nExecution of the command buffer was aborted due to an error during execution. Caused GPU Timeout Error (00000002:kIOGPUCommandBufferCallbackErrorTimeout)\r\nExecution of the command buffer was aborted due to an error during execution. Caused GPU Timeout Error (00000002:kIOGPUCommandBufferCallbackErrorTimeout)\r\nExecution of the command buffer was aborted due to an error during execution. Caused GPU Timeout Error (00000002:kIOGPUCommandBufferCallbackErrorTimeout)\r\nExecution of the command buffer was aborted due to an error during execution. Caused GPU Timeout Error (00000002:kIOGPUCommandBufferCallbackErrorTimeout)\r\nExecution of the command buffer was aborted due to an error during execution. Caused GPU Timeout Error (00000002:kIOGPUCommandBufferCallbackErrorTimeout)\r\nExecution of the command buffer was aborted due to an error during execution. Caused GPU Timeout Error (00000002:kIOGPUCommandBufferCallbackErrorTimeout)\r\n\r\ncausing prior/excessive GPU errors) (00000004:kIOGPUCommandBufferCallbackErrorSubmissionsIgnored)\r\nExecution of the command buffer was aborted due to an error during execution. \r\nIgnored (for causing prior/excessive GPU errors) (00000004:kIOGPUCommandBufferCallbackErrorSubmissionsIgnored)\r\n\r\n\r\n\r\n* thread #12, name = 'io.flutter.1.profiler', stop reason = EXC_BAD_ACCESS (code=1, address=0x10)\r\n    frame #0: 0x000000010a4536a0 Flutter`Dart_TimelineEvent + 500\r\nFlutter`Dart_TimelineEvent:\r\n->  0x10a4536a0 <+500>: str    x25, [x8, x24]\r\n    0x10a4536a4 <+504>: ldr    x8, [x23]\r\n    0x10a4536a8 <+508>: add    x8, x8, x24\r\n    0x10a4536ac <+512>: str    x0, [x8, #0x8]\r\nTarget 0: (Runner) stopped.\r\n\r\n/../third_party/dart/runtime/vm/object.cc: 19944: error: unreachable code\r\nversion=2.17.5 (stable) (Tue Jun 21 11:05:10 2022 +0200) on \"ios_arm64\"\r\npid=8553, thread=43267, isolate_group=main(0x14052a200), isolate=main(0x1403d5c00)\r\nisolate_instructions=10b84f8a0, vm_instructions=10b84f8a0\r\n  pc 0x000000010c1c77f8 fp 0x000000016b4a7620 Dart_DumpNativeStackTrace+0x18\r\n  pc 0x000000010bdb0dd4 fp 0x000000016b4a7640 dart::Assert::Fail(char const*, ...) const+0x30\r\n  pc 0x000000010be885bc fp 0x000000016b4a7660 dart::AbstractType::Equals(dart::Instance const&) const+0x0\r\n  pc 0x000000010bfbb86c fp 0x000000016b4a76a0 dart::SubtypeChecksForClass(dart::Zone*, dart::Type const&, dart::Class const&, dart::Class const&)+0x164\r\n  pc 0x000000010bfb91a4 fp 0x000000016b4a78f0 dart::TypeTestingStubGenerator::BuildOptimizedSubclassRangeCheckWithTypeArguments(dart::compiler::Assembler*, dart::HierarchyInfo*, dart::Type const&, dart::Class const&)+0x2f8\r\n  pc 0x000000010bfb7f08 fp 0x000000016b4a7a10 std::__1::__function::__func<dart::TypeTestingStubGenerator::BuildCodeForType(dart::Type const&)::$_0, std::__1::allocator<dart::TypeTestingStubGenerator::BuildCodeForType(dart::Type const&)::$_0>, dart::CodePtr (dart::compiler::Assembler&)>::operator()(dart::compiler::Assembler&)+0x2a0\r\n  pc 0x000000010bfb7ab8 fp 0x000000016b4a7c40 dart::RetryCompilationWithFarBranches(dart::Thread*, std::__1::function<dart::CodePtr (dart::compiler::Assembler&)>)+0x130\r\n  pc 0x000000010bfb75c0 fp 0x000000016b4a7d60 dart::TypeTestingStubGenerator::SpecializeStubFor(dart::Thread*, dart::AbstractType const&)+0x2b0\r\n  pc 0x000000010bf65f94 fp 0x000000016b4a7f20 dart::DRT_TypeCheck(dart::NativeArguments)+0x2ac\r\n  pc 0x000000010f082a4c fp 0x000000016b4a7f68 Unknown symbol\r\n  pc 0x000000010f0857d8 fp 0x000000016b4a7fc8 Unknown symbol\r\n  pc 0x000000011eb6ff50 fp 0x000000016b4a8008 Unknown symbol\r\n  pc 0x000000013c1c519c fp 0x000000016b4a8058 Unknown symbol\r\n  pc 0x000000011d9601fc fp 0x000000016b4a80e8 Unknown symbol\r\n  pc 0x0000000119a33acc fp 0x000000016b4a8130 Unknown symbol\r\n  pc 0x00000001431ea508 fp 0x000000016b4a81c8 Unknown symbol\r\n  pc 0x0000000119a3de7c fp 0x000000016b4a8230 Unknown symbol\r\n  pc 0x0000000119a3da24 fp 0x000000016b4a82c8 Unknown symbol\r\n  pc 0x0000000119a3343c fp 0x000000016b4a8318 Unknown symbol\r\n  pc 0x0000000119a3304c fp 0x000000016b4a8378 Unknown symbol\r\n  pc 0x0000000119a320f0 fp 0x000000016b4a83f8 Unknown symbol\r\n  pc 0x0000000119a36ac0 fp 0x000000016b4a8440 Unknown symbol\r\n  pc 0x0000000119a36794 fp 0x000000016b4a8480 Unknown symbol\r\n  pc 0x000000014c82f110 fp 0x000000016b4a8510 Unknown symbol\r\n  pc 0x000000010f1bfef4 fp 0x000000016b4a8570 Unknown symbol\r\n  pc 0x000000010f1bf60c fp 0x000000016b4a8600 Unknown symbol\r\n  pc 0x0000000119a22914 fp 0x000000016b4a8670 Unknown symbol\r\n  pc 0x0000000119a227c4 fp 0x000000016b4a86b0 Unknown symbol\r\n  pc 0x0000000119a224a4 fp 0x000000016b4a86f8 Unknown symbol\r\n  pc 0x0000000119a22034 fp 0x000000016b4a8738 Unknown symbol\r\n  pc 0x0000000119a21f2c fp 0x000000016b4a8760 Unknown symbol\r\n  pc 0x000000010f082fc8 fp 0x000000016b4a8830 Unknown symbol\r\n  pc 0x000000010be07660 fp 0x000000016b4a8cd0 dart::DartEntry::InvokeFunction(dart::Function const&, dart::Array const&, dart::Array const&, unsigned long)+0x2a4\r\n  pc 0x000000010c1c0bc4 fp 0x000000016b4a8df0 Dart_InvokeClosure+0x618\r\n  pc 0x000000010bc4d0e0 fp 0x000000016b4a8e80 tonic::DartMicrotaskQueue::RunMicrotasks()+0x8c\r\n  pc 0x000000010bb4e1e8 fp 0x000000016b4a8fd0 fml::MessageLoopImpl::FlushTasks(fml::FlushType)+0x80c\r\n  pc 0x000000010bb51b2c fp 0x000000016b4a8ff0 fml::MessageLoopDarwin::OnTimerFire(__CFRunLoopTimer*, fml::MessageLoopDarwin*)+0x20\r\n  pc 0x0000000193b9e678 fp 0x000000016b4a9000 <redacted>+0x20\r\n  pc 0xf17ae78193b22654 fp 0x000000016b4aa0d0 <redacted>+0xf17ae78000000428\r\n  pc 0x00762a0193b1ce00 fp 0x000000016b4aa130 <redacted>+0x762a0000000140\r\n  pc 0xec5ad70193afb4b0 fp 0x000000016b4aae90 <redacted>+0xec5ad70000000790\r\n  pc 0xf1493d0193b0ebc8 fp 0x000000016b4aaf40 CFRunLoopRunSpecific+0xf1493d0000000258\r\n  pc 0xe866d9810bb519fc fp 0x000000016b4aaf80 fml::MessageLoopDarwin::Run()+0xe866d98000000058\r\n  pc 0x000000010bb50ab8 fp 0x000000016b4aafc0 void* std::__1::__thread_proxy<std::__1::tuple<std::__1::unique_ptr<std::__1::__thread_struct, std::__1::default_delete<std::__1::__thread_struct> >, fml::Thread::Thread(std::__1::function<void (fml::Thread::ThreadConfig const&)> const&, fml::Thread::ThreadConfig const&)::$_0> >(void*)+0xd0\r\n  pc 0x000000020544c9ac fp 0x000000016b4aafe0 _pthread_start+0x94\r\n-- End of DumpStackTrace\r\n  pc 0x0000000000000000 fp 0x000000016b4a7f68 sp 0x0000000000000000 [Stub] CallToRuntime\r\n  pc 0x000000010f0857d8 fp 0x000000016b4a7fc8 sp 0x000000016b4a7f78 [Stub] LazySpecializeTypeTest\r\n  pc 0x000000011eb6ff50 fp 0x000000016b4a8008 sp 0x000000016b4a7fd8 [Unoptimized] Stream.transform\r\n  pc 0x000000013c1c519c fp 0x000000016b4a8058 sp 0x000000016b4a8018 [Unoptimized] addProgress\r\n  pc 0x000000011d9601fc fp 0x000000016b4a80e8 sp 0x000000016b4a8068 [Unoptimized] _DioForNative&Object&DioMixin@3145406766._transformData@3134263083\r\n  pc 0x0000000119a33acc fp 0x000000016b4a8130 sp 0x000000016b4a80f8 [Unoptimized] _asyncThenWrapperHelper@4048458.thenWrapper\r\n  pc 0x00000001431ea508 fp 0x000000016b4a81c8 sp 0x000000016b4a8140 [Optimized] _rootRunUnary@4048458\r\n  pc 0x0000000119a3de7c fp 0x000000016b4a8230 sp 0x000000016b4a81d8 [Unoptimized] _rootRunUnary@4048458\r\n  pc 0x0000000119a3da24 fp 0x000000016b4a82c8 sp 0x000000016b4a8240 [Unoptimized] _CustomZone@4048458.runUnary\r\n  pc 0x0000000119a3343c fp 0x000000016b4a8318 sp 0x000000016b4a82d8 [Unoptimized] _FutureListener@4048458.handleValue\r\n  pc 0x0000000119a3304c fp 0x000000016b4a8378 sp 0x000000016b4a8328 [Unoptimized] _Future@4048458._propagateToListeners@4048458.handleValueCallback\r\n  pc 0x0000000119a320f0 fp 0x000000016b4a83f8 sp 0x000000016b4a8388 [Unoptimized] _Future@4048458._propagateToListeners@4048458\r\n  pc 0x0000000119a36ac0 fp 0x000000016b4a8440 sp 0x000000016b4a8408 [Unoptimized] _Future@4048458._completeWithValue@4048458\r\n  pc 0x0000000119a36794 fp 0x000000016b4a8480 sp 0x000000016b4a8450 [Unoptimized] _Future@4048458._asyncCompleteWithValue@4048458.<anonymous closure>\r\n  pc 0x000000014c82f110 fp 0x000000016b4a8510 sp 0x000000016b4a8490 [Optimized] _rootRun@4048458\r\n  pc 0x000000010f1bfef4 fp 0x000000016b4a8570 sp 0x000000016b4a8520 [Unoptimized] _rootRun@4048458\r\n  pc 0x000000010f1bf60c fp 0x000000016b4a8600 sp 0x000000016b4a8580 [Unoptimized] _CustomZone@4048458.run\r\n  pc 0x0000000119a22914 fp 0x000000016b4a8670 sp 0x000000016b4a8610 [Unoptimized] _CustomZone@4048458.runGuarded\r\n  pc 0x0000000119a227c4 fp 0x000000016b4a86b0 sp 0x000000016b4a8680 [Unoptimized] _CustomZone@4048458.bindCallbackGuarded.<anonymous closure>\r\n  pc 0x0000000119a224a4 fp 0x000000016b4a86f8 sp 0x000000016b4a86c0 [Unoptimized] _microtaskLoop@4048458\r\n  pc 0x0000000119a22034 fp 0x000000016b4a8738 sp 0x000000016b4a8708 [Unoptimized] _startMicrotaskLoop@4048458\r\n  pc 0x0000000119a21f2c fp 0x000000016b4a8760 sp 0x000000016b4a8748 [Unoptimized] _startMicrotaskLoop@4048458\r\n  pc 0x000000010f082fc8 fp 0x000000016b4a8830 sp 0x000000016b4a8770 [Stub] InvokeDartCode\r\n[log]  d | getListData\r\n* thread #8, name = 'io.flutter.1.ui', stop reason = signal SIGABRT\r\n    frame #0: 0x00000001cb71eb38 libsystem_kernel.dylib`__pthread_kill + 8\r\nlibsystem_kernel.dylib`__pthread_kill:\r\n->  0x1cb71eb38 <+8>:  b.lo   0x1cb71eb58               ; <+40>\r\n    0x1cb71eb3c <+12>: pacibsp \r\n    0x1cb71eb40 <+16>: stp    x29, x30, [sp, #-0x10]!\r\n    0x1cb71eb44 <+20>: mov    x29, sp\r\nTarget 0: (Runner) stopped.\r\n[log] null\r\n[log] null\r\n[log] null\r\n[log] null\r\n\r\n\r\n[Snapshotting] Snapshotting a view (0x1619d2e00, UIKeyboardImpl) that is not in a visible window requires afterScreenUpdates:YES.\r\n[connection] nw_resolver_start_query_timer_block_invoke [C140.1] Query fired: did not receive all answers in time for app-measurement.com:443\r\n[connection] nw_resolver_start_query_timer_block_invoke [C140.2] Query fired: did not receive all answers in time for app-measurement.com:443\r\n[Common] Snapshot request 0x2807d65b0 complete with error: <NSError: 0x2807df660; domain: BSActionErrorDomain; code: 6>\r\nExecution of the command buffer was aborted due to an error during execution. Caused GPU Timeout Error (00000002:kIOGPUCommandBufferCallbackErrorTimeout)\r\nExecution of the command buffer was aborted due to an error during execution. Caused GPU Timeout Error (00000002:kIOGPUCommandBufferCallbackErrorTimeout)\r\nExecution of the command buffer was aborted due to an error during execution. Caused GPU Timeout Error (00000002:kIOGPUCommandBufferCallbackErrorTimeout)\r\nExecution of the command buffer was aborted due to an error during execution. Caused GPU Timeout Error (00000002:kIOGPUCommandBufferCallbackErrorTimeout)\r\n[tcp] tcp_input [C140.2.1:3] flags=[R] seq=848682789, ack=0, win=0 state=TIME_WAIT rcv_nxt=848682789, snd_una=4190893457\r\n[tcp] tcp_input [C135.1.1:3] flags=[R] seq=4220942979, ack=1533235707, win=0 state=TIME_WAIT rcv_nxt=4220942979, snd_una=295170549\r\n[] nw_resolver_start_query_timer_block_invoke [R29] Query fired: did not receive all answers in time for thinkingdata.cn:0\r\nLost connection to device.\r\n\r\n```\r\n</details>",
+    "createdAt": "2022-08-11T09:11:39Z"
+  },
+  {
+    "id": 903,
+    "sender": "feinstein",
+    "content": "Hi guys, I just want to confirm some behaviors we have seen before:\n\nAn user reported he opened the app from the background and then he tried to go to the iPhone's home screen swiping up, but then the app started to flicker and when the flickering stopped the app was frozen.\n\nIt seems to me that the key here is something happening when the app was back from background and then going back to background.",
+    "createdAt": "2022-08-11T13:02:49Z"
+  },
+  {
+    "id": 904,
+    "sender": "rqrk",
+    "content": "> It seems to me that the key here is something happening when the app was back from background and then going back to background.\r\n\r\nI forgot to mention that but yes, from our side, we reproduced this issue only twice, and it was always when I goes back to my app from the background, and navigate a little bit before the flickering happens, every time on iOS.\r\n\r\nI tried to reproduce this bug in debug mode, with no success...",
+    "createdAt": "2022-08-11T14:09:17Z"
+  },
+  {
+    "id": 905,
+    "sender": "jackTang11",
+    "content": "> Hi guys, I just want to confirm some behaviors we have seen before:\r\n> \r\n> An user reported he opened the app from the background and then he tried to go to the iPhone's home screen swiping up, but then the app started to flicker and when the flickering stopped the app was frozen.\r\n> \r\n> It seems to me that the key here is something happening when the app was back from background and then going back to background.\r\n\r\nThere are two situations on my side, which should be related to the ios version, 1. Open the app, swipe up, then get stuck, the app flicker, 2. Return to the app from the background and start flicker",
+    "createdAt": "2022-08-11T14:29:32Z"
+  },
+  {
+    "id": 906,
+    "sender": "562937459",
+    "content": "这个问题我们也遇到过多次，通常是在应用进入后台后，过几分钟再唤醒过出现的。有一次是连着Xcode调试时出现的，Xcode打出的错误是GPU卡死，希望可以尽快修复。",
+    "createdAt": "2022-08-15T03:22:40Z"
+  },
+  {
+    "id": 907,
+    "sender": "ostk0069",
+    "content": "This is the research summary of our app's flickering matter.\r\nThis summary is only from our developers team, not from users.\r\n\r\n**Summary (last month):**\r\n|  Number of Repetitions  | Devices |  iOS version | Xcode version | Flutter version | \r\n| ---- | ---- |---- |---- |---- |\r\n|  15 | in most iPhones |  15.x, 16  | 13.4.1 | 3.0.4 or more |\r\n\r\n**Matching of Device & iOS version:**\r\n\r\n|  Device |  iOS version |\r\n| ---- | ---- |\r\n|   iPhone 12 mini | 15.5  | \r\n|   iPhone 13 Pro | 15.4.1  | \r\n|   iPhone 12 Pro | 16 | \r\n|   iPhone SE 2nd | 15.1 | \r\n|  iPhone XR | 15.5 |  \r\n| iPhone 12 pro | 15.4.1 | \r\n| iPhone 11 | 15.6 | \r\n\r\n\r\n**Actions just before flickering occured:**\r\n\r\n|  Event | Number of Repetitions  |\r\n| ---- | ---- |\r\n|  showing webView by using flutter_inappwebview | 5  | \r\n|   launch app from background | 6  | \r\n|   other (just using app normally) | 4  | \r\n|  Total | 15 | \r\n\r\nWe have not found exact way to reproduce the matter yet :cry:\r\n\r\n**Package Dependency:**\r\nalmost all firebase packages, video_player, audio_service, flutter_inappwebview, and more...\r\n\r\n**Console log when flickering happened:**\r\n\r\n```\r\nExecution of the command buffer was aborted due to an error during execution.\r\n```\r\n<img width=\"1430\" alt=\"スクリーンショット 2022-08-15 15 59 20\" src=\"https://user-images.githubusercontent.com/27538852/184590403-65391783-de00-491d-b62d-8f9cace569d2.png\">\r\n\r\nlogs looks quite same with:\r\nhttps://github.com/flutter/flutter/issues/100522#issuecomment-1109688949\r\nhttps://github.com/flutter/flutter/issues/100522#issuecomment-1134784299\r\nhttps://github.com/flutter/flutter/issues/97910",
+    "createdAt": "2022-08-15T08:12:29Z"
+  },
+  {
+    "id": 908,
+    "sender": "chinmaygarde",
+    "content": "We continue to have conversations with the Skia team on how to debug and fix this. After https://skia-review.googlesource.com/c/skia/+/566883, we should have more intelligence on what kind of command buffer errors are encountered. We are also reviewing the logic around backgrounding and interaction with command submission. In the meanwhile, I am going to review @ostk0069 s [excellent summary](https://github.com/flutter/flutter/issues/100522#issuecomment-1214737544) to see if we can use use that information to add to what we know about this bug. More to come.",
+    "createdAt": "2022-08-15T20:58:53Z"
+  },
+  {
+    "id": 909,
+    "sender": "ostk0069",
+    "content": "**Here is our additional Info about research**\r\n\r\nWe've customized our app with high load on\r\n- CPU\r\n- Rendering\r\n- Memory\r\n\r\nand monkey test the app. However, any of them did not reproduce the flickering😭 \r\n\r\nBy looking at our summary this is the high probability way to reproduce the flickering:\r\n1. app slowdowns for some reason\r\n2. freeze\r\n3. make the app to background\r\n4. make the app to foreground\r\n\r\n> We are also reviewing the logic around backgrounding and interaction with command submission.\r\n\r\nJust notice that our app does not have any background logic except for audio_service.\r\n\r\nIf it is possible, we would like to share the instruments log when the flickering appeared.\r\nFrom a privacy point of view, could we send it by DM in twitter or something else?\r\n\r\nThis problem is the main cause of blocking our application release. \r\nIf theres anything we could do, please let us know.",
+    "createdAt": "2022-08-16T04:53:36Z"
+  },
+  {
+    "id": 910,
+    "sender": "ostk0069",
+    "content": "@chinmaygarde \r\nIs there any way to send event log or error when flickering occurred on customer's devices?\r\nWe would like to measure flickering occurrence probability if possible.",
+    "createdAt": "2022-08-17T06:03:04Z"
+  },
+  {
+    "id": 911,
+    "sender": "liu731",
+    "content": "Reproduced in 3.0.5(iOS 15.6.1 iPhone13 Pro Max), hard to trigger this bug.",
+    "createdAt": "2022-08-31T11:58:17Z"
+  },
+  {
+    "id": 912,
+    "sender": "b055man",
+    "content": "@chinmaygarde This issue reproduces fairly easily in our app when using an older iPhone (5s / 6), when playing back an HLS video (using the video_player package). The simplest trigger in our case is to switch between fullscreen/landscape a couple of times and back and wait for the show to start.. ;)\r\nHappens both with a version that was built using Flutter 2.10.5 and 3.0.5.\r\niPhone 5s, iOS 12.5.5\r\n[Edit] as others noted: the playback looks nice, it's everything but the player widget that flickers",
+    "createdAt": "2022-08-31T17:31:24Z"
+  },
+  {
+    "id": 913,
+    "sender": "feinstein",
+    "content": "Can you provide a code sample? Maybe provide private access to your repo to some key persons in the Flutter team?",
+    "createdAt": "2022-08-31T19:17:10Z"
+  },
+  {
+    "id": 914,
+    "sender": "simplenotezy",
+    "content": "> @chinmaygarde Is there any way to send event log or error when flickering occurred on customer's devices? We would like to measure flickering occurrence probability if possible.\r\n\r\nWe reviewed our Crashalytics logs for when it happened, an nothing was to be found in the logs, unfortunately.",
+    "createdAt": "2022-09-04T22:30:11Z"
+  },
+  {
+    "id": 915,
+    "sender": "demoYang",
+    "content": "how fix it ?",
+    "createdAt": "2022-09-05T06:49:25Z"
+  },
+  {
+    "id": 916,
+    "sender": "Albert221",
+    "content": "Hi, Flutter 3.3 no longer uses Skia but Impeller. Does this potentially mitigate the flickering? Has anyone reporting issues here faced the same on Flutter 3.3?",
+    "createdAt": "2022-09-05T07:47:35Z"
+  },
+  {
+    "id": 917,
+    "sender": "ryzizub",
+    "content": "> Hi, Flutter 3.3 no longer uses Skia but Impeller. Does this potentially mitigate the flickering? Has anyone reporting issues here faced the same on Flutter 3.3?\r\n\r\nI was telling myself this morning same thing. We will be updating to 3.3 in production soon, hopefull that solves the issue\r\n",
+    "createdAt": "2022-09-05T07:51:16Z"
+  },
+  {
+    "id": 918,
+    "sender": "PiotrMitkowski",
+    "content": "> Hi, Flutter 3.3 no longer uses Skia but Impeller. Does this potentially mitigate the flickering? Has anyone reporting issues here faced the same on Flutter 3.3?\r\n\r\nFlutter 3.3 still uses Skia by default, Impeller can be used only as a \"feature preview\", by setting some flags as mentioned [here](https://github.com/flutter/flutter/wiki/Impeller). Updating to 3.3 only didn't fix the issue in my project, but there's a possibility that enabling Impeller will do the thing.",
+    "createdAt": "2022-09-05T07:56:01Z"
+  },
+  {
+    "id": 919,
+    "sender": "akihisasengoku",
+    "content": "> Updating to 3.3 only didn't fix the issue in my project\r\n\r\nHow did you check the issue doesn't occur in Flutter 3.3.0?\r\n\r\nWe also need to reproduce this issue locally to be sure it hasn't been fixed in 3.3. but we don't know how to reproduce or measure the issue. ",
+    "createdAt": "2022-09-05T10:29:20Z"
+  },
+  {
+    "id": 920,
+    "sender": "PiotrMitkowski",
+    "content": "> > Updating to 3.3 only didn't fix the issue in my project\r\n> \r\n> How did you check the issue doesn't occur in Flutter 3.3.0?\r\n> \r\n> We also need to reproduce this issue locally to be sure it hasn't been fixed in 3.3. but we don't know how to reproduce or measure the issue.\r\n\r\nIn my case, it's a mobile application with a `GoogleMap` and it occasionally uses `InAppWebView` from [this package](https://pub.dev/packages/flutter_inappwebview). The flickering occurs on some iOS devices and in some cases if the user:\r\n1. opens the map\r\n2. goes to menu (that is displayed over the map) and selects an option, that opens the webview\r\n3. closes the webview\r\n\r\nI can try extracting a code sample from my app, but I won't be able to confirm if it allows reproducing the issue, because I can't reproduce it on my end. ",
+    "createdAt": "2022-09-05T10:35:49Z"
+  },
+  {
+    "id": 921,
+    "sender": "b055man",
+    "content": "> Can you provide a code sample? Maybe provide private access to your repo to some key persons in the Flutter team?\r\n\r\nI'll see what I can do.. no promises though, the team is fully loaded at the moment.",
+    "createdAt": "2022-09-05T11:26:58Z"
+  },
+  {
+    "id": 922,
+    "sender": "jackTang11",
+    "content": " Has anyone reporting issues here faced the same on Flutter 3.3?",
+    "createdAt": "2022-09-06T01:39:26Z"
+  },
+  {
+    "id": 923,
+    "sender": "rqrk",
+    "content": "A QA member of my team has reproduce the issue twice. Just to contextualize, we use a webview on part of our app, and here is what he does to get the flickering wonderful effect : \r\n\r\n- Launch a webview\r\n- Drop the phone for at least 10 minutes without doing anything\r\n- Grab the phone again, unlock, and go back to the app\r\n- ...and the phone starts the nightclub effect.\r\n\r\nHe was using an iPhone XR, iOS 15.6.1. I hope it can help you. Tomorrow, I'll try to trigger the bug with that scenario with the device plugged in with a debug session but I suppose there will be no log...",
+    "createdAt": "2022-09-06T21:29:33Z"
+  },
+  {
+    "id": 924,
+    "sender": "Hixie",
+    "content": "@talarecc That's amazing! any chance you would be able to create a minimal test case (a program whose source you can upload here)? I understand if that's too much work. It would be hugely helpful in helping people track down the issue.",
+    "createdAt": "2022-09-06T23:19:36Z"
+  },
+  {
+    "id": 925,
+    "sender": "rqrk",
+    "content": "@Hixie Of course, I'll do that today or tomorrow but I need to double check before.\r\n\r\n**UPDATE:** We reproduced the problem a third time in the same way that I mentioned before. I'll try on a fresh project and upload it in a public repo if the scenario is verified.\r\n",
+    "createdAt": "2022-09-07T05:16:56Z"
+  },
+  {
+    "id": 926,
+    "sender": "zanderso",
+    "content": "Hi all,\r\n\r\nThere are a couple of changes to Skia that are now available on the master channel, and which we expect to be in the 3.4 beta of Flutter.\r\n\r\nhttps://skia-review.googlesource.com/c/skia/+/575667 <- We suspect that this may fix a race in command buffer submission when going into the background.\r\n\r\nhttps://skia-review.googlesource.com/c/skia/+/566883 <- If that change does not fix the flickering issue, then this change will give more verbose logs when command buffers fail.\r\n\r\n@talarecc Not sure what version of Flutter you were using, but if your repro is reliable on 3.0 or 3.3 on the stable channel, it would be a big help if you could give it a shot on master channel. If you still see flickering on master channel, then if you can share the full device logs starting from slightly before the flickering starts to happen, that would be incredibly useful.\r\n\r\nThanks everyone for your patience on this issue. Hopefully we're getting close.",
+    "createdAt": "2022-09-07T17:02:09Z"
+  },
+  {
+    "id": 927,
+    "sender": "rqrk",
+    "content": "Hello @zanderso \r\n\r\nThe app is currently running on version 3.0.\r\n\r\nI'm sorry, I tried to reproduce the issue on a fresh 3.0 install on an iPhone 12 (15.6.1), but nothing... \r\nThe \"good\" news is that QA members of my team can reproduce it 100% (see scenario from previous comment) from DEV build (on 3.0) BUT it seems that the bug occurs from our use of the inappwebview [package](https://pub.dev/packages/flutter_inappwebview) because I can't get it on a new flutter project.\r\n\r\nAlso, sorry but I can't provide the project I am working on. It is a commercial app (in production) of a big european company. ☹️\r\n\r\nI only can show this... but I don't think it could help, and it looks like crashlytics doesn't catch any logs from this issue...\r\n\r\n```\r\nInAppWebView(\r\n                key: _key,\r\n                initialOptions: state.options,\r\n                onWebViewCreated: onWebViewCreated,\r\n                onUpdateVisitedHistory: controller.historyChange,\r\n                onLoadStart: (_, uri) => controller.onLoadStart(uri),\r\n                onLoadStop: (_, uri) => controller.onLoadStop(uri),\r\n                onLoadError: (_, uri, code, message) => controller.onLoadError(uri, code, message),\r\n                androidOnPermissionRequest: (controller, origin, resources) async {\r\n                  return PermissionRequestResponse(resources: resources, action: PermissionRequestResponseAction.GRANT);\r\n                },\r\n                shouldOverrideUrlLoading: (controller, navigationAction) async {\r\n                  return NavigationActionPolicy.ALLOW;\r\n                },\r\n                onConsoleMessage: (_, message) {\r\n                  if (kDebugMode) {\r\n                    print(message);\r\n                  }\r\n                },\r\n              )\r\n```",
+    "createdAt": "2022-09-07T17:20:13Z"
+  },
+  {
+    "id": 928,
+    "sender": "Hixie",
+    "content": "If you can make a flutter project that uses inappwebview that would still be useful, doesn't have to be just the fresh template. Doesn't have to be pretty code, either. Just whatever tickles the bug, so that we can figure out what's going on in the background.",
+    "createdAt": "2022-09-07T17:41:22Z"
+  },
+  {
+    "id": 929,
+    "sender": "jackTang11",
+    "content": "> Hi all,\r\n> \r\n> There are a couple of changes to Skia that are now available on the master channel, and which we expect to be in the 3.4 beta of Flutter.\r\n> \r\n> https://skia-review.googlesource.com/c/skia/+/575667 <- We suspect that this may fix a race in command buffer submission when going into the background.\r\n> \r\n> https://skia-review.googlesource.com/c/skia/+/566883 <- If that change does not fix the flickering issue, then this change will give more verbose logs when command buffers fail.\r\n> \r\n> @talarecc Not sure what version of Flutter you were using, but if your repro is reliable on 3.0 or 3.3 on the stable channel, it would be a big help if you could give it a shot on master channel. If you still see flickering on master channel, then if you can share the full device logs starting from slightly before the flickering starts to happen, that would be incredibly useful.\r\n> \r\n> Thanks everyone for your patience on this issue. Hopefully we're getting close.\r\n\r\nhttps://github.com/flutter/flutter/releases/tag/3.4.0-18.0.pre ? Has it been merged?",
+    "createdAt": "2022-09-08T02:57:51Z"
+  },
+  {
+    "id": 930,
+    "sender": "Tom3652",
+    "content": "I still have this issue in my app, i had made #97910 this year when i thought it was related to the call of several methods when the app becomes in `inactive` state. \r\n\r\nThe pattern i had from my beta testers was : \r\n\r\n1. Use the app \r\n2. On iOS swipe up to go back to the home screen, on Android use the `backstack`\r\n3. On iOS the app made the phone frozen few seconds (like i got with the error in the linked issue, with some GPU buffer error)\r\n4. Then the app disappeared like during a crash but was not in terminated state\r\n5. The user opens back the app from the phone's home screen \r\n6. Resuming the app after that was causing the flickering (as shown in the first comment of this issue) \"forever\" in this \"app session\"\r\n7. Kill the app and launch it again fixes the flickering  until the next GPU error\r\n\r\nNote : This was reproductible 1 time over a hundred and my app doesn't have any  webviews inside. \r\nI will attach a video next time i experience it (because i still do on `flutter 3.3`)",
+    "createdAt": "2022-09-08T19:45:47Z"
+  },
+  {
+    "id": 931,
+    "sender": "zanderso",
+    "content": "To reiterate, we're interesting in knowing whether this issue reproduces on the master channel, and if it does reproduce, the critical piece of information we need is logs from the device starting from just before the flickering starts.",
+    "createdAt": "2022-09-08T19:53:07Z"
+  },
+  {
+    "id": 932,
+    "sender": "b055man",
+    "content": "@zanderso it reproduces when I rebuilt the app with Flutter 3.4.0-19.0.pre.151 :/ \r\nBtw, not sure if that matters, but this app is not migrated to null-safety yet (only portions of it).\r\n\r\nWhat are the exact logs you're interested with? Console logs, of the 'Runner'? Any particular message to look for?\r\n\r\n[Edit] I checked the commit you referred earlier - I can't find any buffer-related messages in the Console that could be related to this issue. \r\nAlso, a note: in my case there's no relation with going into background or anything like that. It's likely a matter of poor phone's performance (iPhone 5s) and the issue can be triggered with the app opened, without changing its state.",
+    "createdAt": "2022-09-08T23:11:22Z"
+  },
+  {
+    "id": 933,
+    "sender": "zanderso",
+    "content": "@b055man if the issue you are seeing isn't triggered by going into or coming from the background, then the changes in Skia wouldn't have been exercised. It's possible you are seeing a different issue entirely, one that potentially only affects the older devices. If possible, could you file a new issue with a video and cc me? Thanks! (Apologies if you've already posted something like this upthread. Unfortunately, there are a lot of comments on this issue, and the GitHub interface is not very helpful in this situation.)",
+    "createdAt": "2022-09-09T01:49:13Z"
+  },
+  {
+    "id": 934,
+    "sender": "wangyan-png",
+    "content": "I also encountered this problem. Flutter version 2.10.0 found that it occasionally appeared when using videoplayer to play the m3u8 application and cut the background. Hope to solve it",
+    "createdAt": "2022-09-09T07:15:55Z"
+  },
+  {
+    "id": 935,
+    "sender": "b055man",
+    "content": "@zanderso you're right, it may be a different issue. \r\nOne extra info though, I mentioned earlier, that in the case of this app the trigger of the problem is toggling video player between portrait and landscape mode (by calling SystemChrome.setEnabledSystemUIMode / SystemChrome.setPreferredOrientations). Any chance that calling these methods is similar in a way to the 'going from background' case?",
+    "createdAt": "2022-09-09T07:56:42Z"
+  },
+  {
+    "id": 936,
+    "sender": "knaeckeKami",
+    "content": "Is there a way for us to check which releases have the skia fixes? Is it only master right now or does the [3.4.0-18.0.pre](https://github.com/flutter/flutter/releases/tag/3.4.0-18.0.pre) release also have it already?\r\n\r\nEdit: followed the trail, it does not, we have to use master for now",
+    "createdAt": "2022-09-09T09:16:43Z"
+  },
+  {
+    "id": 937,
+    "sender": "Hixie",
+    "content": "@knaeckeKami Were you able to test this on the master branch by any chance? Has the issue been resolved, or did you still see it?",
+    "createdAt": "2022-09-13T23:11:23Z"
+  },
+  {
+    "id": 938,
+    "sender": "knaeckeKami",
+    "content": "We are testing this right now. We did not see it yet with a build on the master branch, but we also don't have a reliable way of triggering it, and it happened only very rarely. So it might take 2-3 weeks until we can say with some confidence that it is really gone.",
+    "createdAt": "2022-09-13T23:48:28Z"
+  },
+  {
+    "id": 939,
+    "sender": "moffatman",
+    "content": "If I ever see this while running in debug mode, are there any buttons I should press or things to do to capture useful data? Seems like console output is not helpful, and I would need to have been running with --trace-skia already?",
+    "createdAt": "2022-09-14T00:31:51Z"
+  },
+  {
+    "id": 940,
+    "sender": "simonpham",
+    "content": "I am able to reproduce it with one of my app by quickly swipe up to go back to the home screen after doing 1 action (not sure, but can reproduce 100 out of 100 times). ~I will verify it on master branch later and give you guys updates.~\r\nUpdated: mission abort. I cannot reproducce it on my latest code & master branch of Flutter. Using my old code takes time for the migration to make it running on master branch of Flutter.",
+    "createdAt": "2022-09-14T09:21:14Z"
+  },
+  {
+    "id": 941,
+    "sender": "mohamedsidique94",
+    "content": "I also getting the same flickering issue. Intermittently happening. \r\nWill post video and more details if I can find.\r\n\r\nOnly details with which I can contribute is\r\n\r\niOS version - 15.6.1\r\nModel - Iphone 13\r\n",
+    "createdAt": "2022-09-14T13:14:36Z"
+  },
+  {
+    "id": 942,
+    "sender": "knaeckeKami",
+    "content": "@simonpham any chance you got to try it out already?",
+    "createdAt": "2022-09-18T17:03:27Z"
+  },
+  {
+    "id": 943,
+    "sender": "simonpham",
+    "content": "> @simonpham any chance you got to try it out already?\r\n\r\nSorry. I cannot do it.\r\n\r\n> Updated: mission abort. I cannot reproducce it on my latest code & master branch of Flutter. Using my old code takes time for the migration to make it running on master branch of Flutter.\r\n\r\nHere's what happened when I was able to reproduce the issue:\r\n- Push a new Scaffold.\r\n- I quickly swipe up.\r\n- This Scaffold show a CircularProgressIndicator (loading).\r\n- I quickly go back to the app.\r\n- The Scaffold finished loading, main UI appear.\r\n- Main UI freeze & flickering.",
+    "createdAt": "2022-09-20T15:35:54Z"
+  },
+  {
+    "id": 944,
+    "sender": "Hixie",
+    "content": "@talarecc You had mentioned you had a QA person who could reproduce this reliably — any chance you've been able to test this on the latest master build? Does it still happen? If yes, can you post the logs they get now on master (if any)?",
+    "createdAt": "2022-09-20T23:09:34Z"
+  },
+  {
+    "id": 945,
+    "sender": "boichuk-oleh",
+    "content": "Maybe it will be useful.\r\nCrash on flutter 3.3.2\r\niOS version - 14.8.1\r\nModel - Iphone 7\r\nProfile mode\r\n\r\n```\r\nRunner(534,0x16bbf7000) malloc: *** error for object 0xa203: pointer being freed was not allocated\r\nRunner(534,0x16bbf7000) malloc: *** set a breakpoint in malloc_error_break to debug\r\n* thread #9, name = 'io.flutter.1.raster', stop reason = signal SIGABRT\r\n    frame #0: 0x00000001d296b7b0 libsystem_kernel.dylib`__pthread_kill + 8\r\nlibsystem_kernel.dylib`:\r\n->  0x1d296b7b0 <+8>:  b.lo   0x1d296b7cc               ; <+36>\r\n    0x1d296b7b4 <+12>: stp    x29, x30, [sp, #-0x10]!\r\n    0x1d296b7b8 <+16>: mov    x29, sp\r\n    0x1d296b7bc <+20>: bl     0x1d29481fc               ; cerror_nocancel\r\nTarget 0: (Runner) stopped.\r\nLost connection to device.\r\n```\r\n",
+    "createdAt": "2022-09-22T13:49:34Z"
+  },
+  {
+    "id": 946,
+    "sender": "zanderso",
+    "content": "@boichuk-oleh That crash appears to be unrelated to this issue. Could you please file a new issue with full details including a  backtrace for the crash? Thanks!",
+    "createdAt": "2022-09-22T15:24:03Z"
+  },
+  {
+    "id": 947,
+    "sender": "Hixie",
+    "content": "@mohamedsidique94 were you able to make a video? did you figure out steps to reproduce by any chance?",
+    "createdAt": "2022-09-27T23:05:36Z"
+  },
+  {
+    "id": 948,
+    "sender": "zanderso",
+    "content": "@jackTang11 You are seeing a different issue. Please file a new issue with full details. Thanks!",
+    "createdAt": "2022-09-28T01:09:14Z"
+  },
+  {
+    "id": 949,
+    "sender": "337240552",
+    "content": "We have encountered the same issue.  Flutter SDK 3.0.5 on Anddroid platform.\r\n\r\n> I have experienced the same problem (both IOS and Android) in two of my apps since the upgrade from 2.8 to 2.10. But the issue happens randomly. so far I cannot isolate and replicate the bug. It happens when the screen either has a lot of images or playing video.\r\n\r\nhttps://user-images.githubusercontent.com/329210/192924901-9f567319-2c90-4725-9d22-53acc881b365.mp4\r\n",
+    "createdAt": "2022-09-29T02:31:52Z"
+  },
+  {
+    "id": 950,
+    "sender": "mohamedsidique94",
+    "content": "@Hixie. It appeared only once on the testing build few days back. Unfortunately I am not able to capture the video of it\r\n.",
+    "createdAt": "2022-09-29T08:11:40Z"
+  },
+  {
+    "id": 951,
+    "sender": "serhatuysal",
+    "content": "\r\nhttps://user-images.githubusercontent.com/5434174/193032154-ba5eb24b-e5fe-4407-9113-7793e167a807.mp4\r\n\r\n",
+    "createdAt": "2022-09-29T12:33:00Z"
+  },
+  {
+    "id": 952,
+    "sender": "giovanniguarino",
+    "content": "Hello, I have the same issue in iOS. My app is a web view and I use Flutter 3.3.2 and webview_flutter 3.0.4.\r\n\r\n[✓] Flutter (Channel stable, 3.3.2, on macOS 12.6 21G115 darwin-arm, locale en-MX)\r\n    • Flutter version 3.3.2 on channel stable at /Users/giovanni/flutter\r\n    • Upstream repository https://github.com/flutter/flutter.git\r\n    • Framework revision e3c29ec00c (2 weeks ago), 2022-09-14 08:46:55 -0500\r\n    • Engine revision a4ff2c53d8\r\n    • Dart version 2.18.1\r\n    • DevTools version 2.15.0\r\n\r\n[✓] Android toolchain - develop for Android devices (Android SDK version 32.1.0-rc1)\r\n    • Android SDK at /Users/giovanni/Library/Android/sdk\r\n    • Platform android-32, build-tools 32.1.0-rc1\r\n    • ANDROID_HOME = /Users/giovanni/Library/Android/sdk\r\n    • Java binary at: /Applications/Android Studio.app/Contents/jre/Contents/Home/bin/java\r\n    • Java version OpenJDK Runtime Environment (build 11.0.11+0-b60-7772763)\r\n    • All Android licenses accepted.\r\n\r\n[✓] Xcode - develop for iOS and macOS (Xcode 14.0.1)\r\n    • Xcode at /Applications/Xcode.app/Contents/Developer\r\n    • Build 14A400\r\n    • CocoaPods version 1.11.3\r\n\r\n[✓] Chrome - develop for the web\r\n    • Chrome at /Applications/Google Chrome.app/Contents/MacOS/Google Chrome\r\n\r\n[✓] Android Studio (version 2021.1)\r\n    • Android Studio at /Applications/Android Studio.app/Contents\r\n    • Flutter plugin can be installed from:\r\n      🔨 https://plugins.jetbrains.com/plugin/9212-flutter\r\n    • Dart plugin can be installed from:\r\n      🔨 https://plugins.jetbrains.com/plugin/6351-dart\r\n    • Java version OpenJDK Runtime Environment (build 11.0.11+0-b60-7772763)\r\n\r\n[✓] VS Code (version 1.71.2)\r\n    • VS Code at /Applications/Visual Studio Code.app/Contents\r\n    • Flutter extension version 3.48.0\r\n\r\n[✓] Connected device (2 available)\r\n    • macOS (desktop) • macos  • darwin-arm64   • macOS 12.6 21G115 darwin-arm\r\n    • Chrome (web)    • chrome • web-javascript • Google Chrome 105.0.5195.125\r\n\r\n[✓] HTTP Host Availability\r\n    • All required HTTP hosts are available\r\n\r\n• No issues found!",
+    "createdAt": "2022-09-29T14:12:45Z"
+  },
+  {
+    "id": 953,
+    "sender": "jackTang11",
+    "content": "> I still have this issue in my app, i had made #97910 this year when i thought it was related to the call of several methods when the app becomes in `inactive` state.\r\n> \r\n> The pattern i had from my beta testers was :\r\n> \r\n> 1. Use the app\r\n> 2. On iOS swipe up to go back to the home screen, on Android use the `backstack`\r\n> 3. On iOS the app made the phone frozen few seconds (like i got with the error in the linked issue, with some GPU buffer error)\r\n> 4. Then the app disappeared like during a crash but was not in terminated state\r\n> 5. The user opens back the app from the phone's home screen\r\n> 6. Resuming the app after that was causing the flickering (as shown in the first comment of this issue) \"forever\" in this \"app session\"\r\n> 7. Kill the app and launch it again fixes the flickering  until the next GPU error\r\n> \r\n> Note : This was reproductible 1 time over a hundred and my app doesn't have any webviews inside. I will attach a video next time i experience it (because i still do on `flutter 3.3`)\r\n\r\nI think he's right,GPU working error, can you tell me how to capture the log,thanks, My app happens many times a day, but it can't happen in debug mode,  @zanderso  ",
+    "createdAt": "2022-09-29T22:33:01Z"
+  },
+  {
+    "id": 954,
+    "sender": "jmagman",
+    "content": "If you're only able to reproduce on a release version of your app, the Skia changes added os logging which we should be able to see if you reproduce, note the time it happened, then collect a sysdiagnose from the device and send it to us.  \r\n\r\nI haven't been able to reliably collect a sysdiagnose from pressing physical buttons in a few iOS releases.  The \"easiest\" way I've found is to:\r\n1. Settings > Accessibility > Touch > AssistiveTouch > Toggle on, then Single-Tap > Analytics.  When the white button appears on the screen, tap it.  You should see a notification at the top that analytics are being collected.  At that point you can turn AssistiveTouch back off.  \r\n2. Wait ~5 minutes\r\n3. Settings > Privacy & Security > Analytics & Improvements > Analytics Data.  Find the sysdiagnose_2022... with the matching timestamp.  Select it, choose the Share button in the top right corner.  You can Airdrop it to your Mac, or email it to yourself.  \r\n4. Once you have the sysdiagnose on your Mac, you can peek in the logs.  Inside the sysdiagnose there is a bundle called `system_logs.logarchive`.  On the command line, run (this assumes your process is the default \"Runner\":\r\n```\r\n$ /usr/bin/log show /path/to/sysdiagnose_2022.../system_logs.logarchive --predicate \"process = 'Runner'\" > ~/Desktop/flutter_log.txt\r\n```\r\n5. Open `~/Desktop/flutter_log.txt` and confirm it contains some logging (columns with timestamps, etc), then attach it to this GitHub issue.  Make sure to also share the time you reproduced the flickering so we can narrow down where in the logs to look.\r\n\r\n**Note sysdiagnoses contain personally identifiable information.  Be cautious sharing them.  Unless you are reproducing on a test device do not send the link to the full sysdiagnose in GitHub.**  You can reach out to us on Discord to coordinate sharing, if needed https://discord.gg/BS8KZyg.  \r\n\r\nThank you!",
+    "createdAt": "2022-10-04T23:35:04Z"
+  },
+  {
+    "id": 955,
+    "sender": "mafanwei",
+    "content": "I have the same problem with flutter 3.3.2.",
+    "createdAt": "2022-10-11T07:13:41Z"
+  },
+  {
+    "id": 956,
+    "sender": "hmbadhon",
+    "content": "App screen flickers and freezes, when I restart it, it goes away. This happened on my latest version flutter 3.3.3, it occur very rarely.\r\n\r\nhttps://user-images.githubusercontent.com/24831033/195241862-5cdb491b-3c81-4541-8e9f-cbbe35c6296a.mp4\r\n\r\n",
+    "createdAt": "2022-10-12T03:18:38Z"
+  },
+  {
+    "id": 957,
+    "sender": "Hixie",
+    "content": "@mafanwei @hmbadhon are you able to get logs as per https://github.com/flutter/flutter/issues/100522#issuecomment-1267721681 ? Without logs we cannot make progress here.",
+    "createdAt": "2022-10-18T23:24:43Z"
+  },
+  {
+    "id": 958,
+    "sender": "trueb2",
+    "content": "I’ve experienced this flickering several times this week on 3.3.2. I have an iOS app that stays running the background all the time because it stays connected with CoreBluetooth. It also uses the GPU/Neural Engine periodically to inference on data received over Bluetooth. CoreML will automatically use CPU while in the background and GPU/Neural Engine in the foreground. I don’t have any platform views, but since I have experienced the flickering, I am interested in the race condition fix on master.\r\n\r\nI last experienced the flickering while confirming CPU and energy usage in Xcode while alternating between foreground and background over various periods of time while periodically receiving and inferencing. \r\n\r\nI have reproduced with release builds installed (and actively logging) with Xcode but didn’t see any error logs … I would like to run with the fix from last month. At this point, is the beta or master build the build to test?",
+    "createdAt": "2022-10-21T00:58:00Z"
+  },
+  {
+    "id": 959,
+    "sender": "Hixie",
+    "content": "I recommend testing on master to be sure.",
+    "createdAt": "2022-10-25T23:03:30Z"
+  }
+]

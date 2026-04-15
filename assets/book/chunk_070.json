@@ -1,0 +1,386 @@
+[
+  {
+    "id": 4480,
+    "sender": "stuartmorgan-g",
+    "content": "> still no fix from google maps team\r\n\r\nThat is not correct; see https://issuetracker.google.com/issues/237380999#comment22.\r\n\r\nFor anyone still seeing this crash, please provide all of:\r\n- The maps renderer you are using. This is the **return value** from `mapsImplementation.initializeWithRenderer`, not just the value you are passing, since not all devices support the latest renderer.\r\n- Your Google Play Services version. This is listed in the details for that application in the apps list in Settings.\r\n- The exception details for the crash, to ensure it's the same underlying issue.",
+    "createdAt": "2023-05-14T11:22:36Z"
+  },
+  {
+    "id": 4481,
+    "sender": "mohammadshahmorady",
+    "content": "> \r\n\r\nI haven't still published my app. On my real device I get the latest renderer and I get no crash. But on Google Pixel 4 Emulator which supports Google play services I get legacy renderer and app crashes sometimes.",
+    "createdAt": "2023-05-15T18:12:18Z"
+  },
+  {
+    "id": 4482,
+    "sender": "nzkn",
+    "content": "Any updates?",
+    "createdAt": "2023-05-25T14:03:34Z"
+  },
+  {
+    "id": 4483,
+    "sender": "Musfick",
+    "content": "> Facing the same issue. Finally I have resolved it by using **google_maps_flutter 2.1.8**, **google_maps_flutter_android 2.4.3**, **flutter 3.3.10** and the below code in main():\r\n> \r\n> ```\r\n> final GoogleMapsFlutterPlatform mapsImplementation = GoogleMapsFlutterPlatform.instance;\r\n> if (mapsImplementation is GoogleMapsFlutterAndroid) {\r\n>   mapsImplementation.useAndroidViewSurface = false;\r\n>   mapsImplementation.initializeWithRenderer(AndroidMapRenderer.latest);\r\n> }\r\n> ```\r\n\r\nafter using this, marker start flickering. when i place a new marker on map, it stay invisible but when i move the map little bit the marker get visible.",
+    "createdAt": "2023-05-28T08:37:06Z"
+  },
+  {
+    "id": 4484,
+    "sender": "rsillador",
+    "content": "Hope this can help, on my case I migrate my implementation to **Google Map JS API** and use the package below to load the map via webview.\r\n\r\nhttps://pub.dev/packages/flutter_inappwebview\r\n\r\n`InAppWebView(\r\n        initialData: InAppWebViewInitialData(data: \"\"\"\r\n            <html>\r\n            <style>\r\n            body {\r\n              font-family :Arial;\r\n            }\r\n            #map-layer {\r\n              margin: 20px 0px;\r\n              max-width: 100%;\r\n              min-height: 100%;\r\n            }\r\n            </style>\r\n            <body>\r\n            <div id=\"map-layer\"></div>\r\n            \r\n            <script\r\n                    src=\"https://maps.googleapis.com/maps/api/js?key=<MAP_ID>&callback=initMap\"\r\n                    async defer></script>\r\n            <script type=\"text/javascript\">\r\n              var map;\r\n              function initMap() {\r\n                var mapLayer = document.getElementById(\"map-layer\");\r\n                var centerCoordinates = new google.maps.LatLng(${_center!.latitude}, ${_center!.longitude});\r\n                var defaultOptions = { center: centerCoordinates, zoom:17 , disableDefaultUI: true, }\r\n            \r\n                map = new google.maps.Map(mapLayer, defaultOptions);\r\n                \r\n                map.addListener(\"center_changed\", () => {\r\n                  console.log(\"Camera Moved\")\r\n                });\r\n              }\r\n            \r\n              function locate(){\r\n                  console.log(map.center.lat(), map.center.lng())\r\n                    return [map.center.lat(), map.center.lng()];\r\n              }\r\n            \r\n            \r\n              </script>\r\n            </body>\r\n          </html>\"\"\"),\r\n      onWebViewCreated: (InAppWebViewController controller) {\r\n        webViewController = controller;\r\n        setState(() {\r\n          isLoading = false;\r\n        });\r\n      },\r\n      onConsoleMessage: (InAppWebViewController controller, ConsoleMessage consoleMessage) {\r\n          print(\"Console messag : $consoleMessage\")\r\n        });\r\n      },\r\n    );`\r\n\r\n",
+    "createdAt": "2023-05-31T07:39:31Z"
+  },
+  {
+    "id": 4485,
+    "sender": "stuartmorgan-g",
+    "content": "Please do not comment here without reading:\r\n- [this comment](https://github.com/flutter/flutter/issues/105965#issuecomment-1354678187), which explains how to opt into the new Google Maps renderer that fixed this crash a while ago,\r\n- [this comment](https://github.com/flutter/flutter/issues/105965#issuecomment-1503396988), which explains that the code many comments above have (without explanation) suggested adding is almost certainly not a good idea and should not be necessary, and\r\n- [this comment](https://github.com/flutter/flutter/issues/105965#issuecomment-1546876220), which links to information about where the crash was fixed in the old renderer (in Google Play services 22.39.15), and explains how to provide actionable information to determine if there is still anything unresolved here.\r\n\r\nAny comments which aren't responsive to those will be hidden as off-topic to keep remaining discussion focused on remaining work, and to avoid this issue being increasingly confusing as to the state and the solutions.\r\n\r\nSince the Google Maps team has indicated that this is fixed in both the new and old renderers, the Flutter team's current understanding is that this should now be resolved. Absent concrete evidence (per the third comment listed above) that this isn't the case, this issue will be closed.",
+    "createdAt": "2023-05-31T11:09:06Z"
+  },
+  {
+    "id": 4486,
+    "sender": "PritamPathak",
+    "content": "The latest renderer has some serious issues it is flickering if we move it constantly and the old renderer crashes the app. \r\nShould I share a video about what both renderers are doing?",
+    "createdAt": "2023-06-08T07:18:28Z"
+  },
+  {
+    "id": 4487,
+    "sender": "stuartmorgan-g",
+    "content": "> Should I share a video about what both renderers are doing?\r\n\r\nIf you can reproduce this crash with the old renderer, please provide the details requested in my comment above.\r\n\r\nAnything that's not related to this crash should be filed as a new issue.",
+    "createdAt": "2023-06-08T12:11:57Z"
+  },
+  {
+    "id": 4488,
+    "sender": "PritamPathak",
+    "content": "- I am using google_maps_flutter: ^2.2.3 \r\n\r\n- Flutter 3.10.3 • channel stable • https://github.com/flutter/flutter.git\r\nFramework • revision f92f44110e (7 days ago) • 2023-06-01 18:17:33 -0500\r\nEngine • revision 2a3401c9bb\r\nTools • Dart 3.0.3 • DevTools 2.23.1\r\n\r\n\r\n- [https://drive.google.com/file/d/1-ZTVX5agLWkYM-N3jjr8y70_Ly3pH6KJ/view?usp=sharing](url)\r\n\r\nThe above URL video is a legacy URL see how it crashed\r\n\r\n- This is the error I am getting while the app crash\r\n\r\n E/gralloc4(12679): Empty SMPTE 2094-40 data\r\n  I/Process (12679): Process is going to kill itself!\r\n  I/Process (12679): java.lang.Exception\r\n  I/Process (12679): \tat android.os.Process.killProcess(Process.java:1330)\r\n  I/Process (12679): \tat com.android.internal.os.RuntimeInit$KillApplicationHandler.uncaughtException(RuntimeInit.java:202)\r\n  I/Process (12679): \tat java.lang.ThreadGroup.uncaughtException(ThreadGroup.java:1073)\r\n  I/Process (12679): \tat java.lang.ThreadGroup.uncaughtException(ThreadGroup.java:1068)\r\n  I/Process (12679): \tat java.lang.Thread.dispatchUncaughtException(Thread.java:2306)\r\n  I/Process (12679): Sending signal. PID: 12679 SIG: 9\r\n\r\n- Google Play service version is - 23.17.15\r\n- I am using Redmi K50i its mid-range phone\r\n\r\n- [https://drive.google.com/file/d/1-Sz11lSBdcBNgThLD9xQbD7U9vQ-07Ao/view?usp=sharing](url)\r\n\r\nNow this URL video is using the latest renderer and it is flickering\r\n\r\n\r\nWe are a GPS provider company our whole application is dependent upon tracking vehicles and the application is crashing every time.\r\n\r\n@stuartmorgan If you need any other detail please tell me",
+    "createdAt": "2023-06-09T05:54:20Z"
+  },
+  {
+    "id": 4489,
+    "sender": "bdezso",
+    "content": "@PritamPathak we experienced same flickering like you with the latest renderer. \r\n\r\nThe new renderer not stable. 😏",
+    "createdAt": "2023-06-09T08:30:08Z"
+  },
+  {
+    "id": 4490,
+    "sender": "stuartmorgan-g",
+    "content": "@PritamPathak if that is the entire crash log, then it's not this issue; it does not have the NPE exception stack that this issue was about. Please file a new issue for that.",
+    "createdAt": "2023-06-09T10:11:32Z"
+  },
+  {
+    "id": 4491,
+    "sender": "Musfick",
+    "content": "> The latest renderer has some serious issues it is flickering if we move it constantly and the old renderer crashes the app.\r\n> Should I share a video about what both renderers are doing?\r\n\r\ni was facing same issue and my comment was marked as off-topic 😔",
+    "createdAt": "2023-06-11T07:13:26Z"
+  },
+  {
+    "id": 4492,
+    "sender": "NikosTsesmelis",
+    "content": "It still happens with my pixel 4a.\r\n\r\n```\r\n[✓] Flutter (Channel stable, 3.10.4, on macOS 13.1 22C65 darwin-arm64, locale en-GR)\r\n    • Flutter version 3.10.4 on channel stable at /Users/nikostsesmelis/Tools/flutter/flutter\r\n    • Upstream repository https://github.com/flutter/flutter.git\r\n    • Framework revision 682aa387cf (7 days ago), 2023-06-05 18:04:56 -0500\r\n    • Engine revision 2a3401c9bb\r\n    • Dart version 3.0.3\r\n    • DevTools version 2.23.1\r\n\r\ngoogle_maps_flutter: 2.3.0\r\nGoogle Play services version: 23.18.19\r\n\r\n```\r\n\r\nIs seems to be worse when disposing map to counter this bug -> https://github.com/flutter/flutter/issues/118498#issuecomment-1384797734\r\n\r\n```\r\nMaterialApp(\r\n  ...\r\n  navigatorObservers: [AltScreen.routeObserver]\r\n);\r\n```\r\n\r\n```\r\nclass AltScreen extends StatefulWidget {\r\n  static final RouteObserver<ModalRoute> routeObserver = RouteObserver<ModalRoute>();\r\n\r\n  const AltScreen({super.key});\r\n\r\n  @override\r\n  State<AltScreen> createState() => _AltScreenState();\r\n}\r\n\r\nclass _AltScreenState extends State<AltScreen> {\r\n  @override\r\n  Widget build(BuildContext context) {\r\n    return Scaffold(\r\n      appBar: AppBar(\r\n        title: const Text('Alt screen'),\r\n      ),\r\n      body: Center(\r\n        child: ElevatedButton(\r\n          child: const Text('Push map'),\r\n          onPressed: () => Navigator.of(context, rootNavigator: true).push(\r\n            MaterialPageRoute(\r\n              builder: (ctx) => MapScreen(),\r\n            ),\r\n          ),\r\n        ),\r\n      ),\r\n    );\r\n  }\r\n}\r\n\r\nclass MapScreen extends StatefulWidget {\r\n  const MapScreen({Key? key}) : super(key: key);\r\n\r\n  @override\r\n  _MapScreenState createState() => _MapScreenState();\r\n}\r\n\r\nclass _MapScreenState extends State<MapScreen> with RouteAware {\r\n  bool _disableMap = false;\r\n\r\n  @override\r\n  void initState() {\r\n    super.initState();\r\n    WidgetsBinding.instance.addPostFrameCallback((timeStamp) {\r\n      AltScreen.routeObserver.subscribe(this, ModalRoute.of(context)!);\r\n    });\r\n  }\r\n\r\n  @override\r\n  void didPop() {\r\n    super.didPop();\r\n    AltScreen.routeObserver.unsubscribe(this);\r\n    if (mounted) {\r\n      setState(() => _disableMap = true);\r\n    }\r\n  }\r\n\r\n  @override\r\n  Widget build(BuildContext context) {\r\n    return Scaffold(\r\n      appBar: AppBar(\r\n        actions: [\r\n          IconButton(\r\n            onPressed: Navigator.of(context, rootNavigator: true).pop,\r\n            icon: const Icon(Icons.close),\r\n          ),\r\n        ],\r\n      ),\r\n      body: _disableMap\r\n          ? const SizedBox()\r\n          : const GoogleMap(\r\n              initialCameraPosition: CameraPosition(\r\n                target: LatLng(41.9, 12.5),\r\n                zoom: 17,\r\n              ),\r\n              compassEnabled: false,\r\n              myLocationButtonEnabled: false,\r\n              myLocationEnabled: false,\r\n              scrollGesturesEnabled: true,\r\n              zoomGesturesEnabled: true,\r\n              rotateGesturesEnabled: false,\r\n              zoomControlsEnabled: false,\r\n              mapToolbarEnabled: false,\r\n            ),\r\n    );\r\n  }\r\n}\r\n```\r\n\r\n```\r\nE/AndroidRuntime( 4683): FATAL EXCEPTION: GLThread 390\r\nE/AndroidRuntime( 4683): Process: com.parkingd2.debug, PID: 4683\r\nE/AndroidRuntime( 4683): java.lang.NullPointerException: Attempt to get length of null array\r\nE/AndroidRuntime( 4683): \tat java.nio.ByteBufferAsIntBuffer.put(ByteBufferAsIntBuffer.java:122)\r\nE/AndroidRuntime( 4683): \tat com.google.maps.api.android.lib6.gmm6.vector.gl.buffer.n.i(:com.google.android.gms.dynamite_mapsdynamite@231819044@23.18.19 (190400-0):2)\r\nE/AndroidRuntime( 4683): \tat com.google.maps.api.android.lib6.gmm6.vector.gl.buffer.n.d(:com.google.android.gms.dynamite_mapsdynamite@231819044@23.18.19 (190400-0):3)\r\nE/AndroidRuntime( 4683): \tat com.google.maps.api.android.lib6.gmm6.vector.gl.drawable.g.s(:com.google.android.gms.dynamite_mapsdynamite@231819044@23.18.19 (190400-0):1)\r\nE/AndroidRuntime( 4683): \tat com.google.maps.api.android.lib6.gmm6.vector.gl.drawable.ao.s(:com.google.android.gms.dynamite_mapsdynamite@231819044@23.18.19 (190400-0):7)\r\nE/AndroidRuntime( 4683): \tat com.google.maps.api.android.lib6.gmm6.vector.bx.s(:com.google.android.gms.dynamite_mapsdynamite@231819044@23.18.19 (190400-0):29)\r\nE/AndroidRuntime( 4683): \tat com.google.maps.api.android.lib6.gmm6.vector.h.s(:com.google.android.gms.dynamite_mapsdynamite@231819044@23.18.19 (190400-0):4)\r\nE/AndroidRuntime( 4683): \tat com.google.maps.api.android.lib6.gmm6.vector.bq.b(:com.google.android.gms.dynamite_mapsdynamite@231819044@23.18.19 (190400-0):157)\r\nE/AndroidRuntime( 4683): \tat com.google.maps.api.android.lib6.gmm6.vector.at.run(:com.google.android.gms.dynamite_mapsdynamite@231819044@23.18.19 (190400-0):49)\r\n\r\n```",
+    "createdAt": "2023-06-12T13:32:30Z"
+  },
+  {
+    "id": 4493,
+    "sender": "panko4545",
+    "content": "I think you use bottomNavigationBar and google map,\r\nit's not good,\r\nif you use bottomNavigationBar  , you MUST use IndexedStack,\r\nthen Everything OK,\r\n",
+    "createdAt": "2023-06-21T04:09:03Z"
+  },
+  {
+    "id": 4494,
+    "sender": "PritamPathak",
+    "content": "\r\n\r\n\r\n\r\n> I think you use bottomNavigationBar and google map,\r\n> it's not good,\r\n> if you use bottomNavigationBar , you MUST use IndexedStack,\r\n> then Everything OK,\r\n\r\nThanks for your suggestion but it doesn't resolve the issue I tried IndexedStack @panko4545 \r\n",
+    "createdAt": "2023-06-21T05:07:15Z"
+  },
+  {
+    "id": 4495,
+    "sender": "mohammadshahmorady",
+    "content": "google play services version: 22.50.14\r\n\r\n D/MapsInitializer( 7308): loadedRenderer: LEGACY\r\n\r\nE/AndroidRuntime( 7308): FATAL EXCEPTION: GLThread 148\r\nE/AndroidRuntime( 7308): Process: com.example.tehran_metro, PID: 7308\r\nE/AndroidRuntime( 7308): java.lang.NullPointerException: Attempt to get length of null array\r\nE/AndroidRuntime( 7308): \tat java.nio.ByteBufferAsIntBuffer.put(ByteBufferAsIntBuffer.java:122)\r\nE/AndroidRuntime( 7308): \tat com.google.maps.api.android.lib6.gmm6.vector.gl.buffer.j.l(:com.google.android.gms.dynamite_mapsdynamite@225014047@22.50.14 (190800-0):5)\r\nE/AndroidRuntime( 7308): \tat com.google.maps.api.android.lib6.gmm6.vector.gl.buffer.j.o(:com.google.android.gms.dynamite_mapsdynamite@225014047@22.50.14 (190800-0):1)\r\nE/AndroidRuntime( 7308): \tat com.google.maps.api.android.lib6.gmm6.vector.gl.buffer.j.g(:com.google.android.gms.dynamite_mapsdynamite@225014047@22.50.14 (190800-0):3)\r\nE/AndroidRuntime( 7308): \tat com.google.maps.api.android.lib6.gmm6.vector.gl.drawable.ai.s(:com.google.android.gms.dynamite_mapsdynamite@225014047@22.50.14 (190800-0):30)\r\nE/AndroidRuntime( 7308): \tat com.google.maps.api.android.lib6.gmm6.vector.gl.drawable.ao.s(:com.google.android.gms.dynamite_mapsdynamite@225014047@22.50.14 (190800-0):10)\r\nE/AndroidRuntime( 7308): \tat com.google.maps.api.android.lib6.gmm6.vector.bz.s(:com.google.android.gms.dynamite_mapsdynamite@225014047@22.50.14 (190800-0):29)\r\nE/AndroidRuntime( 7308): \tat com.google.maps.api.android.lib6.gmm6.vector.bs.b(:com.google.android.gms.dynamite_mapsdynamite@225014047@22.50.14 (190800-0):151)\r\nE/AndroidRuntime( 7308): \tat com.google.maps.api.android.lib6.gmm6.vector.av.run(:com.google.android.gms.dynamite_mapsdynamite@225014047@22.50.14 (190800-0):48)\r\nD/EGL_emulation( 7308): app_time_stats: avg=89.41ms min=7.43ms max=706.27ms count=13\r\nE/Surface ( 7308): freeAllBuffers: 1 buffers were freed while being dequeued!\r\nE/Surface ( 7308): getSlotFromBufferLocked: unknown buffer: 0x7efb8dae7940\r\n \r\n@stuartmorgan \r\n",
+    "createdAt": "2023-06-24T13:35:48Z"
+  },
+  {
+    "id": 4496,
+    "sender": "D2Wirexia",
+    "content": "It's not necessary to quickly open-close the map, it occurs even with slow use for android 11 and less...\r\n\r\n```\r\nFlutter 3.10.4 • channel stable • https://github.com/flutter/flutter.git \r\nFramework • revision 682aa387cf (3 weeks ago) • 2023-06-05 18:04:56 -0500\r\nEngine • revision 2a3401c9bb\r\nTools • Dart 3.0.3 • DevTools 2.23.1\r\n\r\ngoogle_maps_flutter: ^2.3.1\r\n```\r\n\r\n\r\n```\r\nE/AndroidRuntime(  529): FATAL EXCEPTION: GLThread 187149\r\nE/AndroidRuntime(  529): Process: me.app.name, PID: 529\r\nE/AndroidRuntime(  529): java.lang.NullPointerException: Attempt to get length of null array\r\nE/AndroidRuntime(  529): \tat java.nio.ByteBufferAsIntBuffer.put(ByteBufferAsIntBuffer.java:122)\r\nE/AndroidRuntime(  529): \tat com.google.maps.api.android.lib6.gmm6.vector.gl.buffer.n.i(:com.google.android.gms.dynamite_mapsdynamite@232316037@23.23.16 (150400-0):2)\r\nE/AndroidRuntime(  529): \tat com.google.maps.api.android.lib6.gmm6.vector.gl.buffer.n.d(:com.google.android.gms.dynamite_mapsdynamite@232316037@23.23.16 (150400-0):3)\r\nE/AndroidRuntime(  529): \tat com.google.maps.api.android.lib6.gmm6.vector.gl.drawable.ai.s(:com.google.android.gms.dynamite_mapsdynamite@232316037@23.23.16 (150400-0):30)\r\nE/AndroidRuntime(  529): \tat com.google.maps.api.android.lib6.gmm6.vector.gl.drawable.ao.s(:com.google.android.gms.dynamite_mapsdynamite@232316037@23.23.16 (150400-0):10)\r\nE/AndroidRuntime(  529): \tat com.google.maps.api.android.lib6.gmm6.vector.bx.s(:com.google.android.gms.dynamite_mapsdynamite@232316037@23.23.16 (150400-0):29)\r\nE/AndroidRuntime(  529): \tat com.google.maps.api.android.lib6.gmm6.vector.bq.b(:com.google.android.gms.dynamite_mapsdynamite@232316037@23.23.16 (150400-0):157)\r\nE/AndroidRuntime(  529): \tat com.google.maps.api.android.lib6.gmm6.vector.at.run(:com.google.android.gms.dynamite_mapsdynamite@232316037@23.23.16 (150400-0):48)\r\nI/Process (  529): Sending signal. PID: 529 SIG: 9\r\nLost connection to device.\r\n\r\n```\r\n\r\n```\r\nF/flutter (30199): [FATAL:flutter/shell/platform/android/platform_view_android_jni_impl.cc(1486)] Check failed: fml::jni::CheckException(env). \r\nF/libc    (30199): Fatal signal 6 (SIGABRT), code -1 (SI_QUEUE) in tid 30199 (lingbank.name), pid 30199 (lingbank.name)\r\n*** *** *** *** *** *** *** *** *** *** *** *** *** *** *** ***\r\nBuild fingerprint: 'xiaomi/willow_eea/willow:11/RKQ1.201004.002/V12.5.5.0.RCXEUXM:user/release-keys'\r\nRevision: '0'\r\nABI: 'arm64'\r\nTimestamp: 2023-06-26 14:32:05+0300\r\npid: 30199, tid: 30199, name: lingbank.name  >>> me.app.name <<<\r\nuid: 10591\r\nsignal 6 (SIGABRT), code -1 (SI_QUEUE), fault addr --------\r\nAbort message: '[FATAL:flutter/shell/platform/android/platform_view_android_jni_impl.cc(1486)] Check failed: fml::jni::CheckException(env). \r\n'\r\n    x0  0000000000000000  x1  00000000000075f7  x2  0000000000000006  x3  0000007fcdcef410\r\n    x4  0000007011c91000  x5  0000007011c91000  x6  0000007011c91000  x7  0000000002d07f9c\r\n    x8  00000000000000f0  x9  d3a3f8c2982fb761  x10 0000000000000000  x11 ffffffc0fffffbdf\r\n    x12 0000000000000001  x13 0000000000000001  x14 000000700bd03be2  x15 0000000008000000\r\n    x16 000000700bcff948  x17 000000700bcde490  x18 000000701183a000  x19 00000000000075f7\r\n    x20 00000000000075f7  x21 00000000ffffffff  x22 b400006df0875898  x23 00000000000001e7\r\n    x24 b4000070106d83c0  x25 0000000000000468  x26 0000000000000007  x27 0000000000000085\r\n    x28 0000007fcdcef718  x29 0000007fcdcef490\r\n    lr  000000700bc91ba0  sp  0000007fcdcef3f0  pc  000000700bc91bcc  pst 0000000000000000\r\nbacktrace:\r\n      #00 pc 0000000000089bcc  /apex/com.android.runtime/lib64/bionic/libc.so (abort+164) (BuildId: 4ba2121e6580a7f88bce586ed966851c)\r\n      #01 pc 000000000162514c  /data/app/~~-4gcz8aR-N-P7iTKm9Id5Q==/me.app.name-s8rI_WoICGTPaT7Ue656KA==/lib/arm64/libflutter.so (BuildId: 58dc8375047fa5d0234c1f5b3879a05467383fd1)\r\n      #02 pc 000000000164bc44  /data/app/~~-4gcz8aR-N-P7iTKm9Id5Q==/me.app.name-s8rI_WoICGTPaT7Ue656KA==/lib/arm64/libflutter.so (BuildId: 58dc8375047fa5d0234c1f5b3879a05467383fd1)\r\n      #03 pc 000000000163214c  /data/app/~~-4gcz8aR-N-P7iTKm9Id5Q==/me.app.name-s8rI_WoICGTPaT7Ue656KA==/lib/arm64/libflutter.so (BuildId: 58dc8375047fa5d0234c1f5b3879a05467383fd1)\r\n      #04 pc 0000000001d95918  /data/app/~~-4gcz8aR-N-P7iTKm9Id5Q==/me.app.name-s8rI_WoICGTPaT7Ue656KA==/lib/arm64/libflutter.so (BuildId: 58dc8375047fa5d0234c1f5b3879a05467383fd1)\r\n      #05 pc 0000000001979400  /data/app/~~-4gcz8aR-N-P7iTKm9Id5Q==/me.app.name-s8rI_WoICGTPaT7Ue656KA==/lib/arm64/libflutter.so (BuildId: 58dc8375047fa5d0234c1f5b3879a05467383fd1)\r\n      #06 pc 00000000019781e0  /data/app/~~-4gcz8aR-N-P7iTKm9Id5Q==/me.app.name-s8rI_WoICGTPaT7Ue656KA==/lib/arm64/libflutter.so (BuildId: 58dc8375047fa5d0234c1f5b3879a05467383fd1)\r\n      #07 pc 0000000001978a1c  /data/app/~~-4gcz8aR-N-P7iTKm9Id5Q==/me.app.name-s8rI_WoICGTPaT7Ue656KA==/lib/arm64/libflutter.so (BuildId: 58dc8375047fa5d0234c1f5b3879a05467383fd1)\r\n      #08 pc 0000000001979aa8  /data/app/~~-4gcz8aR-N-P7iTKm9Id5Q==/me.app.name-s8rI_WoICGTPaT7Ue656KA==/lib/arm64/libflutter.so (BuildId: 58dc8375047fa5d0234c1f5b3879a05467383fd1)\r\n      #09 pc 00000000019785d8  /data/app/~~-4gcz8aR-N-P7iTKm9Id5Q==/me.app.name-s8rI_WoICGTPaT7Ue656KA==/lib/arm64/libflutter.so (BuildId: 58dc8375047fa5d0234c1f5b3879a05467383fd1)\r\n      #10 pc 000000000197834c  /data/app/~~-4gcz8aR-N-P7iTKm9Id5Q==/me.app.name-s8rI_WoICGTPaT7Ue656KA==/lib/arm64/libflutter.so (BuildId: 58dc8375047fa5d0234c1f5b3879a05467383fd1)\r\n      #11 pc 0000000001979d98  /data/app/~~-4gcz8aR-N-P7iTKm9Id5Q==/me.app.name-s8rI_WoICGTPaT7Ue656KA==/lib/arm64/libflutter.so (BuildId: 58dc8375047fa5d0234c1f5b3879a05467383fd1)\r\n      #12 pc 000000000164c7f0  /data/app/~~-4gcz8aR-N-P7iTKm9Id5Q==/me.app.name-s8rI_WoICGTPaT7Ue656KA==/lib/arm64/libflutter.so (BuildId: 58dc8375047fa5d0234c1f5b3879a05467383fd1)\r\n      #13 pc 0000000001651d58  /data/app/~~-4gcz8aR-N-P7iTKm9Id5Q==/me.app.name-s8rI_WoICGTPaT7Ue656KA==/lib/arm64/libflutter.so (BuildId: 58dc8375047fa5d0234c1f5b3879a05467383fd1)\r\n      #14 pc 0000000000019da8  /system/lib64/libutils.so (android::Looper::pollInner(int)+916) (BuildId: 4e69b93bf70ed592f0029dbd1097529e)\r\n      #15 pc 00000000000199ac  /system/lib64/libutils.so (android::Looper::pollOnce(int, int*, int*, void**)+112) (BuildId: 4e69b93bf70ed592f0029dbd1097529e)\r\n      #16 pc 00000000001182fc  /system/lib64/libandroid_runtime.so (android::android_os_MessageQueue_nativePollOnce(_JNIEnv*, _jobject*, long, int)+44) (BuildId: cbc0a08d6fcd9477e02f865f7931233d)\r\n      #17 pc 000000000021cadc  /system/framework/arm64/boot-framework.oat (art_jni_trampoline+140) (BuildId: 65c16ad0db904613257b36054e19b253a2ef4de2)\r\n      #18 pc 00000000020028f4  /memfd:jit-cache (deleted) (offset 0x2000000) (android.os.MessageQueue.next+180)\r\n      #19 pc 0000000000133564  /apex/com.android.art/lib64/libart.so (art_quick_invoke_stub+548) (BuildId: 06dffab2a21982e2bd2effff0158c7cf)\r\n      #20 pc 00000000001a8a78  /apex/com.android.art/lib64/libart.so (art::ArtMethod::Invoke(art::Thread*, unsigned int*, unsigned int, art::JValue*, char const*)+200) (BuildId: 06dffab2a21982e2bd2effff0158c7cf)\r\n      #21 pc 0000000000318768  /apex/com.android.art/lib64/libart.so (art::interpreter::ArtInterpreterToCompiledCodeBridge(art::Thread*, art::ArtMethod*, art::ShadowFrame*, unsigned short, art::JValue*)+376) (BuildId: 06dffab2a21982e2bd2effff0158c7cf)\r\n      #22 pc 000000000030ea94  /apex/com.android.art/lib64/libart.so (bool art::interpreter::DoCall<false, false>(art::ArtMethod*, art::Thread*, art::ShadowFrame&, art::Instruction const*, unsigned short, art::JValue*)+996) (BuildId: 06dffab2a21982e2bd2effff0158c7cf)\r\n      #23 pc 000000000067c6bc  /apex/com.android.art/lib64/libart.so (MterpInvokeVirtual+848) (BuildId: 06dffab2a21982e2bd2effff0158c7cf)\r\n      #24 pc 000000000012d814  /apex/com.android.art/lib64/libart.so (mterp_op_invoke_virtual+20) (BuildId: 06dffab2a21982e2bd2effff0158c7cf)\r\n      #25 pc 00000000003c849a  /system/framework/framework.jar (offset 0x934000) (android.os.Looper.loop+154)\r\n      #26 pc 0000000000306090  /apex/com.android.art/lib64/libart.so (art::interpreter::Execute(art::Thread*, art::CodeItemDataAccessor const&, art::ShadowFrame&, art::JValue, bool, bool) (.llvm.829997668608136289)+268) (BuildId: 06dffab2a21982e2bd2effff0158c7cf)\r\n      #27 pc 000000000030e080  /apex/com.android.art/lib64/libart.so (art::interpreter::ArtInterpreterToInterpreterBridge(art::Thread*, art::CodeItemDataAccessor const&, art::ShadowFrame*, art::JValue*)+200) (BuildId: 06dffab2a21982e2bd2effff0158c7cf)\r\n      #28 pc 000000000030f468  /apex/com.android.art/lib64/libart.so (bool art::interpreter::DoCall<false, true>(art::ArtMethod*, art::Thread*, art::ShadowFrame&, art::Instruction const*, unsigned short, art::JValue*)+1772) (BuildId: 06dffab2a21982e2bd2effff0158c7cf)\r\n      #29 pc 0000000000177f40  /apex/com.android.art/lib64/libart.so (void art::interpreter::ExecuteSwitchImplCpp<true, false>(art::interpreter::SwitchImplContext*)+57848) (BuildId: 06dffab2a21982e2bd2effff0158c7cf)\r\n      #30 pc 000000000013f7d8  /apex/com.android.art/lib64/libart.so (ExecuteSwitchImplAsm+8) (BuildId: 06dffab2a21982e2bd2effff0158c7cf)\r\n      #31 pc 00000000001a9950  /system/framework/framework.jar (android.app.ActivityThread.main)\r\n      #32 pc 0000000000306198  /apex/com.android.art/lib64/libart.so (art::interpreter::Execute(art::Thread*, art::CodeItemDataAccessor const&, art::ShadowFrame&, art::JValue, bool, bool) (.llvm.829997668608136289)+532) (BuildId: 06dffab2a21982e2bd2effff0158c7cf)\r\n      #33 pc 000000000066b3c4  /apex/com.android.art/lib64/libart.so (artQuickToInterpreterBridge+780) (BuildId: 06dffab2a21982e2bd2effff0158c7cf)\r\n      #34 pc 000000000013cff8  /apex/com.android.art/lib64/libart.so (art_quick_to_interpreter_bridge+88) (BuildId: 06dffab2a21982e2bd2effff0158c7cf)\r\n      #35 pc 00000000001337e8  /apex/com.android.art/lib64/libart.so (art_quick_invoke_static_stub+568) (BuildId: 06dffab2a21982e2bd2effff0158c7cf)\r\n      #36 pc 00000000001a8a94  /apex/com.android.art/lib64/libart.so (art::ArtMethod::Invoke(art::Thread*, unsigned int*, unsigned int, art::JValue*, char const*)+228) (BuildId: 06dffab2a21982e2bd2effff0158c7cf)\r\n      #37 pc 00000000005558c0  /apex/com.android.art/lib64/libart.so (art::InvokeMethod(art::ScopedObjectAccessAlreadyRunnable const&, _jobject*, _jobject*, _jobject*, unsigned long)+1364) (BuildId: 06dffab2a21982e2bd2effff0158c7cf)\r\n      #38 pc 00000000004d5170  /apex/com.android.art/lib64/libart.so (art::Method_invoke(_JNIEnv*, _jobject*, _jobject*, _jobjectArray*)+52) (BuildId: 06dffab2a21982e2bd2effff0158c7cf)\r\n      #39 pc 00000000000896f4  /apex/com.android.art/javalib/arm64/boot.oat (art_jni_trampoline+180) (BuildId: 96a2ad2581099975b8c7bb4ab40fb39a7086a166)\r\n      #40 pc 0000000000133564  /apex/com.android.art/lib64/libart.so (art_quick_invoke_stub+548) (BuildId: 06dffab2a21982e2bd2effff0158c7cf)\r\n      #41 pc 00000000001a8a78  /apex/com.android.art/lib64/libart.so (art::ArtMethod::Invoke(art::Thread*, unsigned int*, unsigned int, art::JValue*, char const*)+200) (BuildId: 06dffab2a21982e2bd2effff0158c7cf)\r\n      #42 pc 0000000000318768  /apex/com.android.art/lib64/libart.so (art::interpreter::ArtInterpreterToCompiledCodeBridge(art::Thread*, art::ArtMethod*, art::ShadowFrame*, unsigned short, art::JValue*)+376) (BuildId: 06dffab2a21982e2bd2effff0158c7cf)\r\n      #43 pc 000000000030ea94  /apex/com.android.art/lib64/libart.so (bool art::interpreter::DoCall<false, false>(art::ArtMethod*, art::Thread*, art::ShadowFrame&, art::Instruction const*, unsigned short, art::JValue*)+996) (BuildId: 06dffab2a21982e2bd2effff0158c7cf)\r\n      #44 pc 000000000067c6bc  /apex/com.android.art/lib64/libart.so (MterpInvokeVirtual+848) (BuildId: 06dffab2a21982e2bd2effff0158c7cf)\r\n      #45 pc 000000000012d814  /apex/com.android.art/lib64/libart.so (mterp_op_invoke_virtual+20) (BuildId: 06dffab2a21982e2bd2effff0158c7cf)\r\n      #46 pc 000000000050237a  /system/framework/framework.jar (offset 0x1248000) (com.android.internal.os.RuntimeInit$MethodAndArgsCaller.run+22)\r\n      #47 pc 0000000000306090  /apex/com.android.art/lib64/libart.so (art::interpreter::Execute(art::Thread*, art::CodeItemDataAccessor const&, art::ShadowFrame&, art::JValue, bool, bool) (.llvm.829997668608136289)+268) (BuildId: 06dffab2a21982e2bd2effff0158c7cf)\r\n      #48 pc 000000000066b3c4  /apex/com.android.art/lib64/libart.so (artQuickToInterpreterBridge+780) (BuildId: 06dffab2a21982e2bd2effff0158c7cf)\r\n      #49 pc 000000000013cff8  /apex/com.android.art/lib64/libart.so (art_quick_to_interpreter_bridge+88) (BuildId: 06dffab2a21982e2bd2effff0158c7cf)\r\n      #50 pc 000000000089027c  /system/framework/arm64/boot-framework.oat (com.android.internal.os.ZygoteInit.main+2316) (BuildId: 65c16ad0db904613257b36054e19b253a2ef4de2)\r\n      #51 pc 00000000001337e8  /apex/com.android.art/lib64/libart.so (art_quick_invoke_static_stub+568) (BuildId: 06dffab2a21982e2bd2effff0158c7cf)\r\n      #52 pc 00000000001a8a94  /apex/com.android.art/lib64/libart.so (art::ArtMethod::Invoke(art::Thread*, unsigned int*, unsigned int, art::JValue*, char const*)+228) (BuildId: 06dffab2a21982e2bd2effff0158c7cf)\r\n      #53 pc 00000000005542fc  /apex/com.android.art/lib64/libart.so (art::JValue art::InvokeWithVarArgs<art::ArtMethod*>(art::ScopedObjectAccessAlreadyRunnable const&, _jobject*, art::ArtMethod*, std::__va_list)+448) (BuildId: 06dffab2a21982e2bd2effff0158c7cf)\r\n      #54 pc 00000000005547b0  /apex/com.android.art/lib64/libart.so (art::JValue art::InvokeWithVarArgs<_jmethodID*>(art::ScopedObjectAccessAlreadyRunnable const&, _jobject*, _jmethodID*, std::__va_list)+92) (BuildId: 06dffab2a21982e2bd2effff0158c7cf)\r\n      #55 pc 0000000000438f54  /apex/com.android.art/lib64/libart.so (art::JNI<true>::CallStaticVoidMethodV(_JNIEnv*, _jclass*, _jmethodID*, std::__va_list)+656) (BuildId: 06dffab2a21982e2bd2effff0158c7cf)\r\n      #56 pc 000000000009d424  /system/lib64/libandroid_runtime.so (_JNIEnv::CallStaticVoidMethod(_jclass*, _jmethodID*, ...)+124) (BuildId: cbc0a08d6fcd9477e02f865f7931233d)\r\n      #57 pc 00000000000a5364  /system/lib64/libandroid_runtime.so (android::AndroidRuntime::start(char const*, android::Vector<android::String8> const&, bool)+916) (BuildId: cbc0a08d6fcd9477e02f865f7931233d)\r\n      #58 pc 0000000000003680  /system/bin/app_process64 (main+1592) (BuildId: 1ffa62ce1e071ff696118eca58ad6849)\r\n      #59 pc 0000000000085190  /apex/com.android.runtime/lib64/bionic/libc.so (__libc_init+108) (BuildId: 4ba2121e6580a7f88bce586ed966851c)\r\nLost connection to device.\r\n\r\n```\r\n\r\n",
+    "createdAt": "2023-06-26T13:11:56Z"
+  },
+  {
+    "id": 4497,
+    "sender": "mohammadshahmorady",
+    "content": "so still no real fix from google maps team!",
+    "createdAt": "2023-07-11T08:53:03Z"
+  },
+  {
+    "id": 4498,
+    "sender": "RjMakwana2660",
+    "content": "```\r\nFATAL EXCEPTION: GLThread 5388\r\nE/AndroidRuntime(30618): Process: com.example.map, PID: 30618\r\nE/AndroidRuntime(30618): java.lang.NullPointerException: Attempt to get length of null array\r\n```\r\n\r\nStill the error persist tried different version of package google_maps_flutter but issue not resolved yet!\r\n\r\nFlutter version: 3.7.7",
+    "createdAt": "2023-07-12T07:18:27Z"
+  },
+  {
+    "id": 4499,
+    "sender": "guagnelz",
+    "content": "`E/AndroidRuntime(30618): java.lang.NullPointerException: Attempt to get length of null array`\r\nFlutter: 3.10.5\r\ngoogle_maps_flutter: ^2.3.1\r\n\r\nIt gives this error on older devices, with poor memory.\r\nSo for devices <= Android 10 I put flag \r\n`liteModeEnabled: true`\r\nNow seems to work good.\r\nWarning: is a workaround, not a solution.",
+    "createdAt": "2023-07-12T14:15:03Z"
+  },
+  {
+    "id": 4500,
+    "sender": "mohammadshahmorady",
+    "content": "> `E/AndroidRuntime(30618): java.lang.NullPointerException: Attempt to get length of null array` Flutter: 3.10.5 google_maps_flutter: ^2.3.1\r\n> \r\n> It gives this error on older devices, with poor memory. So for devices <= Android 10 I put flag `liteModeEnabled: true` Now seems to work good. Warning: is a workaround, not a solution.\r\n\r\nYes, this workaround seems to work",
+    "createdAt": "2023-07-14T08:57:58Z"
+  },
+  {
+    "id": 4501,
+    "sender": "thiagotalma",
+    "content": "Unfortunately no, this is not a problem with old Androids. All my logged errors are from versions 12 and 13.\r\n\r\n--\r\n\r\n![](https://i.imgur.com/CojAyz0.png)\r\n\r\n--\r\n\r\n![](https://i.imgur.com/jJYoNKq.png)\r\n\r\n\r\n\r\n",
+    "createdAt": "2023-07-14T17:54:14Z"
+  },
+  {
+    "id": 4502,
+    "sender": "johnmccutchan",
+    "content": "@thiagotalma do you see the error when \"liteModeEnabled: true\" is specified?",
+    "createdAt": "2023-07-14T20:37:53Z"
+  },
+  {
+    "id": 4503,
+    "sender": "thiagotalma",
+    "content": "> @thiagotalma do you see the error when \"liteModeEnabled: true\" is specified?\r\n\r\nhttps://developers.google.com/maps/documentation/android-sdk/lite\r\n\r\nThe lite mode has many restrictions that I cannot give up.",
+    "createdAt": "2023-07-17T00:03:16Z"
+  },
+  {
+    "id": 4504,
+    "sender": "johnmccutchan",
+    "content": "> > @thiagotalma do you see the error when \"liteModeEnabled: true\" is specified?\r\n> \r\n> https://developers.google.com/maps/documentation/android-sdk/lite\r\n> \r\n> The lite mode has many restrictions that I cannot give up.\r\n\r\nSure, that is fine. I am trying to figure out if liteModeEnabled is a workaround for this bug.",
+    "createdAt": "2023-07-17T17:40:07Z"
+  },
+  {
+    "id": 4505,
+    "sender": "PatrickKuijpers",
+    "content": "This might not be Flutter related.\r\nI've got a very similar stacktrace, however, not using Flutter but native Android Google Map in compose:\r\n[`com.google.maps.android:maps-compose:2.11.4`](https://github.com/googlemaps/android-maps-compose)\r\n\r\nAlso happens on Android 12 & 13 only. I don't see any relationship with specific Android device types.\r\n\r\nI haven't been able to reproduce it myself, but notice that roughly 0,1% of our daily user encounters this issue. It might be triggered in a similar way as well. The map in our app can be scrolled in/out of the screen, so quick (re)loading could trigger it (or increase the chance of triggering it).\r\n\r\nStacktrace:\r\n> java.lang.NullPointerException - Attempt to get length of null array\r\n> java.nio.ByteBufferAsIntBuffer.put (ByteBufferAsIntBuffer.java:122)\r\n> com.google.maps.api.android.lib6.gmm6.vector.gl.buffer.g.l (:com.google.android.gms.dynamite_mapsdynamite@232414044@23.24.14 (190400-0):6)\r\n> com.google.maps.api.android.lib6.gmm6.vector.gl.buffer.g.g (:com.google.android.gms.dynamite_mapsdynamite@232414044@23.24.14 (190400-0):1)\r\n> com.google.maps.api.android.lib6.gmm6.vector.gl.drawable.af.s (:com.google.android.gms.dynamite_mapsdynamite@232414044@23.24.14 (190400-0):8)\r\n> com.google.maps.api.android.lib6.gmm6.vector.gl.drawable.ao.s (:com.google.android.gms.dynamite_mapsdynamite@232414044@23.24.14 (190400-0):14)\r\n> com.google.maps.api.android.lib6.gmm6.vector.bx.s (:com.google.android.gms.dynamite_mapsdynamite@232414044@23.24.14 (190400-0):29)\r\n> com.google.maps.api.android.lib6.gmm6.vector.bq.b (:com.google.android.gms.dynamite_mapsdynamite@232414044@23.24.14 (190400-0):157)\r\n> com.google.maps.api.android.lib6.gmm6.vector.at.run (:com.google.android.gms.dynamite_mapsdynamite@232414044@23.24.14 (190400-0):48)",
+    "createdAt": "2023-07-19T10:16:06Z"
+  },
+  {
+    "id": 4506,
+    "sender": "johnmccutchan",
+    "content": "@PatrickKuijpers Some follow on questions:\r\n\r\n- Could you provide the Google Play Services version that you're seeing these pure-Android crashes on?\r\n- What is the reported configuration from Google Maps (e.g. rendering mode, is lite mode enabled) note that this may be different than your requested configuration.",
+    "createdAt": "2023-07-19T15:40:34Z"
+  },
+  {
+    "id": 4507,
+    "sender": "stuartmorgan-g",
+    "content": "Also, for anyone still seeing this in Fluter: is this still happening as frequently on the latest master as it is on stable? A recent change on master may have resolved the problem of Flutter 3.0 making this much more common.",
+    "createdAt": "2023-07-19T15:46:15Z"
+  },
+  {
+    "id": 4508,
+    "sender": "PatrickKuijpers",
+    "content": "> * Could you provide the Google Play Services version that you're seeing these pure-Android crashes on?\r\n\r\nI guess you don't mean an SDK in the app, but Play Services version installed on the mobiles where the crashes appear? Like I said I cannot reproduce them myself, just a small group of users for which this is occurring. I see these crashes appearing in Firebase Crashlytics. As far as I know I cannot see what Google Play Services version these users have installed. If you mean something else, could you please elaborate on this?\r\n\r\n> * What is the reported configuration from Google Maps (e.g. rendering mode, is lite mode enabled) note that this may be different than your requested configuration.\r\n\r\nI guess this is (sort-of?) what you're asking for?\r\n\r\nOur composable GoogleMap implementation:\r\n```\r\n        GoogleMap(\r\n            modifier = Modifier.fillMaxSize(),\r\n            cameraPositionState = cameraPositionState,\r\n            properties = MapProperties(\r\n                mapStyleOptions = MapStyleOptions.loadRawResourceStyle(context, R.raw.map_style),\r\n            ),\r\n            uiSettings = MapUiSettings(\r\n                compassEnabled = false,\r\n                indoorLevelPickerEnabled = false,\r\n                mapToolbarEnabled = false,\r\n                myLocationButtonEnabled = false/true, // configurable\r\n                rotationGesturesEnabled = false,\r\n                scrollGesturesEnabled = false,\r\n                scrollGesturesEnabledDuringRotateOrZoom = false,\r\n                tiltGesturesEnabled = false,\r\n                zoomControlsEnabled = false,\r\n                zoomGesturesEnabled = false,\r\n            ),\r\n        )\r\n```\r\n        \r\n`map_style` looks like this (light mode, I suppose the dark mode variant isn't relevant anyway):\r\n```\r\n[\r\n  {\r\n    \"featureType\": \"administrative\",\r\n    \"elementType\": \"geometry.fill\",\r\n    \"stylers\": [\r\n      {\r\n        \"color\": \"#a0a0a0\"\r\n      },\r\n      {\r\n        \"visibility\": \"on\"\r\n      }\r\n    ]\r\n  },\r\n  {\r\n    \"featureType\": \"administrative.country\",\r\n    \"elementType\": \"geometry.fill\",\r\n    \"stylers\": [\r\n      {\r\n        \"color\": \"#a0a0a0\"\r\n      }\r\n    ]\r\n  },\r\n  {\r\n    \"featureType\": \"administrative.country\",\r\n    \"elementType\": \"labels.text.fill\",\r\n    \"stylers\": [\r\n      {\r\n        \"color\": \"#656565\"\r\n      },\r\n      {\r\n        \"weight\": 0.5\r\n      }\r\n    ]\r\n  },\r\n  {\r\n    \"featureType\": \"administrative.locality\",\r\n    \"elementType\": \"labels.text.fill\",\r\n    \"stylers\": [\r\n      {\r\n        \"color\": \"#656565\"\r\n      }\r\n    ]\r\n  },\r\n  {\r\n    \"featureType\": \"administrative.locality\",\r\n    \"elementType\": \"labels.text.stroke\",\r\n    \"stylers\": [\r\n      {\r\n        \"color\": \"#f0f0f0\"\r\n      }\r\n    ]\r\n  },\r\n  {\r\n    \"featureType\": \"administrative.province\",\r\n    \"elementType\": \"labels.text.fill\",\r\n    \"stylers\": [\r\n      {\r\n        \"color\": \"#656565\"\r\n      }\r\n    ]\r\n  },\r\n  {\r\n    \"featureType\": \"administrative.province\",\r\n    \"elementType\": \"labels.text.stroke\",\r\n    \"stylers\": [\r\n      {\r\n        \"color\": \"#f0f0f0\"\r\n      }\r\n    ]\r\n  },\r\n  {\r\n    \"featureType\": \"landscape.man_made\",\r\n    \"elementType\": \"geometry.fill\",\r\n    \"stylers\": [\r\n      {\r\n        \"color\": \"#e6e6e6\"\r\n      }\r\n    ]\r\n  },\r\n  {\r\n    \"featureType\": \"landscape.natural\",\r\n    \"elementType\": \"geometry.fill\",\r\n    \"stylers\": [\r\n      {\r\n        \"color\": \"#f0f0f0\"\r\n      }\r\n    ]\r\n  },\r\n  {\r\n    \"featureType\": \"poi.park\",\r\n    \"elementType\": \"geometry.fill\",\r\n    \"stylers\": [\r\n      {\r\n        \"color\": \"#caeebb\"\r\n      }\r\n    ]\r\n  },\r\n  {\r\n    \"featureType\": \"road.highway\",\r\n    \"stylers\": [\r\n      {\r\n        \"visibility\": \"on\"\r\n      }\r\n    ]\r\n  },\r\n  {\r\n    \"featureType\": \"road.highway\",\r\n    \"elementType\": \"geometry.fill\",\r\n    \"stylers\": [\r\n      {\r\n        \"color\": \"#ffffff\"\r\n      }\r\n    ]\r\n  },\r\n  {\r\n    \"featureType\": \"road.highway\",\r\n    \"elementType\": \"geometry.stroke\",\r\n    \"stylers\": [\r\n      {\r\n        \"color\": \"#e6e6e6\"\r\n      }\r\n    ]\r\n  },\r\n  {\r\n    \"featureType\": \"road.highway\",\r\n    \"elementType\": \"labels\",\r\n    \"stylers\": [\r\n      {\r\n        \"visibility\": \"off\"\r\n      }\r\n    ]\r\n  },\r\n  {\r\n    \"featureType\": \"road.highway\",\r\n    \"elementType\": \"labels.text\",\r\n    \"stylers\": [\r\n      {\r\n        \"color\": \"#333b3c\"\r\n      },\r\n      {\r\n        \"visibility\": \"off\"\r\n      }\r\n    ]\r\n  },\r\n  {\r\n    \"featureType\": \"road.highway.controlled_access\",\r\n    \"elementType\": \"labels\",\r\n    \"stylers\": [\r\n      {\r\n        \"visibility\": \"off\"\r\n      }\r\n    ]\r\n  },\r\n  {\r\n    \"featureType\": \"transit\",\r\n    \"elementType\": \"geometry.stroke\",\r\n    \"stylers\": [\r\n      {\r\n        \"color\": \"#d2d2d2\"\r\n      }\r\n    ]\r\n  },\r\n  {\r\n    \"featureType\": \"water\",\r\n    \"elementType\": \"geometry.fill\",\r\n    \"stylers\": [\r\n      {\r\n        \"color\": \"#bae4f8\"\r\n      }\r\n    ]\r\n  },\r\n  {\r\n    \"featureType\": \"water\",\r\n    \"elementType\": \"labels.text\",\r\n    \"stylers\": [\r\n      {\r\n        \"color\": \"#0099e3\"\r\n      }\r\n    ]\r\n  }\r\n]\r\n```\r\n\r\n",
+    "createdAt": "2023-07-20T08:06:40Z"
+  },
+  {
+    "id": 4509,
+    "sender": "michaelsof47",
+    "content": "is there this issue have solved? i want to help us to say it into flutter team directly..",
+    "createdAt": "2023-07-29T08:16:08Z"
+  },
+  {
+    "id": 4510,
+    "sender": "guagnelz",
+    "content": "> Unfortunately no, this is not a problem with old Androids. All my logged errors are from versions 12 and 13.\r\n> \r\n\r\nThis is true, I think the problem occurs when memory available is low; so I tried to make a methodchannel call in order to detect that data in this way:\r\n```\r\n\"memory\" -> {\r\n    // Declaring and Initializing the ActivityManager\r\n    val actManager = getSystemService(ACTIVITY_SERVICE) as ActivityManager\r\n\r\n    // Declaring MemoryInfo object\r\n    val memInfo = ActivityManager.MemoryInfo()\r\n\r\n    // Fetching the data from the ActivityManager\r\n    actManager.getMemoryInfo(memInfo)\r\n\r\n    // Fetching the available and total memory and converting into Giga Bytes\r\n    val availMemory = memInfo.availMem.toDouble()/(1024*1024*1024)\r\n    //val totalMemory= memInfo.totalMem.toDouble()/(1024*1024*1024)\r\n    result.success(availMemory);\r\n}\r\n```\r\nI assume if availMemory is < 1 (GB) so liteMode is true.\r\nIs ever a workaround, and it's true that lite mode haven't same functionalieties; but maybe this prevent to crash.\r\n\r\nI assume that because I have a device with 2GB of ram (an old device with android 7.1.2) and with this I can replicate ever the issue with memory available of 0.8 GB.",
+    "createdAt": "2023-07-31T06:50:10Z"
+  },
+  {
+    "id": 4511,
+    "sender": "BaherAlsaqa",
+    "content": "This solution is very excellent\r\n\r\nhttps://stackoverflow.com/questions/58367663/google-maps-api-gets-fatal-exception-java-lang-nullpointerexception-attempt-to/76567494#76567494",
+    "createdAt": "2023-08-03T07:26:57Z"
+  },
+  {
+    "id": 4512,
+    "sender": "guagnelz",
+    "content": "> This solution is very excellent\r\n> \r\n> https://stackoverflow.com/questions/58367663/google-maps-api-gets-fatal-exception-java-lang-nullpointerexception-attempt-to/76567494#76567494\r\n\r\nI tried with my old device with 2Gb of ram and crashed after a while.",
+    "createdAt": "2023-08-03T09:28:47Z"
+  },
+  {
+    "id": 4513,
+    "sender": "johnmccutchan",
+    "content": "I've heard back from the Google Maps team that they are no longer fixing bugs in GMM6 (aka LEGACY) renderer. The crashes in this bug all seem related to GMM6/Legacy renderer and are not in code that the Flutter team owns. Therefore, I am closing this bug as we have no meaningful way of addressing it. I highly encourage you to move off of the LEGACY renderer and if you encounter bugs using the new renderer, please file them and we can (hopefully) address them.",
+    "createdAt": "2023-08-15T21:21:51Z"
+  },
+  {
+    "id": 4514,
+    "sender": "mohammadshahmorady",
+    "content": "> I've heard back from the Google Maps team that they are no longer fixing bugs in GMM6 (aka LEGACY) renderer. The crashes in this bug all seem related to GMM6/Legacy renderer and are not in code that the Flutter team owns. Therefore, I am closing this bug as we have no meaningful way of addressing it. I highly encourage you to move off of the LEGACY renderer and if you encounter bugs using the new renderer, please file them and we can (hopefully) address them.\r\n\r\nThey should at least make the new renderer available on more devices, some newer devices still get the LEGACY renderer when the new renderer is requested",
+    "createdAt": "2023-08-18T08:07:57Z"
+  },
+  {
+    "id": 4515,
+    "sender": "thiagotalma",
+    "content": "@johnmccutchan \r\nI agree with the @mohammadshahmorady\r\nIt would already be a good help.\r\n\r\nThis is my situation:\r\n\r\n![](https://i.imgur.com/SbMThek.png)",
+    "createdAt": "2023-08-18T17:24:21Z"
+  },
+  {
+    "id": 4516,
+    "sender": "stuartmorgan-g",
+    "content": "For those of you still seeing this frequently, have you tried with `master`, per [my comment above](https://github.com/flutter/flutter/issues/105965#issuecomment-1642336815)?",
+    "createdAt": "2023-08-18T18:19:22Z"
+  },
+  {
+    "id": 4517,
+    "sender": "johnmccutchan",
+    "content": "@thiagotalma Unfortunately I can't control the Google Maps team's priorities and complaining about it here on GitHub won't have any impact on their priorities either.",
+    "createdAt": "2023-08-18T19:17:31Z"
+  },
+  {
+    "id": 4518,
+    "sender": "a14n",
+    "content": "## Nnbd widgets\n\n## Description\r\n\r\nNNBD migration for widget\r\n\r\n## Related Issues\r\n\r\n* dart-lang/sdk#40146\r\n\r\n## Tests\r\n\r\nI added the following tests:\r\n\r\nNone\r\n\r\n## Checklist\r\n\r\nBefore you create this PR confirm that it meets all requirements listed below by checking the relevant checkboxes (`[x]`). This will ensure a smooth and quick review process.\r\n\r\n- [x] I read the [Contributor Guide] and followed the process outlined there for submitting PRs.\r\n- [x] I signed the [CLA].\r\n- [x] I read and followed the [Flutter Style Guide], including [Features we expect every widget to implement].\r\n- [x] I read the [Tree Hygiene] wiki page, which explains my responsibilities.\r\n- [x] I updated/added relevant documentation (doc comments with `///`).\r\n- [x] All existing and new tests are passing.\r\n- [x] The analyzer (`flutter analyze --flutter-repo`) does not report any problems on my PR.\r\n- [x] I am willing to follow-up on review comments in a timely manner.\r\n\r\n## Breaking Change\r\n\r\nDid any tests fail when you ran them? Please read [Handling breaking changes].\r\n\r\n- [x] No, no existing tests failed, so this is *not* a breaking change.\r\n- [ ] Yes, this is a breaking change. *If not, delete the remainder of this section.*\r\n   - [ ] I wrote a design doc: https://flutter.dev/go/template *Replace this with a link to your design doc's short link*\r\n   - [ ] I got input from the developer relations team, specifically from: *Replace with the names of who gave advice*\r\n   - [ ] I wrote a migration guide: https://flutter.dev/go/breaking-changes-template *Replace this with a link to a pull request that adds the migration guide to https://flutter.dev/docs/release/breaking-changes*\r\n\r\n<!-- Links -->\r\n[issue database]: https://github.com/flutter/flutter/issues\r\n[Contributor Guide]: https://github.com/flutter/flutter/wiki/Tree-hygiene#overview\r\n[Test Coverage]: https://github.com/flutter/flutter/wiki/Test-coverage-for-package%3Aflutter\r\n[Flutter Style Guide]: https://github.com/flutter/flutter/wiki/Style-guide-for-Flutter-repo\r\n[Features we expect every widget to implement]: https://github.com/flutter/flutter/wiki/Style-guide-for-Flutter-repo#features-we-expect-every-widget-to-implement\r\n[CLA]: https://cla.developers.google.com/\r\n[Tree Hygiene]: https://github.com/flutter/flutter/wiki/Tree-hygiene\r\n[Handling breaking changes]: https://github.com/flutter/flutter/wiki/Tree-hygiene#handling-breaking-changes\r",
+    "createdAt": "2020-08-26T22:05:04Z"
+  },
+  {
+    "id": 4519,
+    "sender": "lisa-liao",
+    "content": "## Add PopupMenuTheme to enable theming color, shape, elevation, text style of Menu\n\n## Description\r\n\r\nThis change introduces a PopupMenuEntryTheme that allows you to theme the color, shape, elevation, and text style of a menu. This can be done at the theme level and at call time of showMenu. See the following image for an example:\r\n\r\n<img width=\"155\" alt=\"Screen Shot 2019-07-12 at 11 54 11 AM\" src=\"https://user-images.githubusercontent.com/29531945/61152247-bd579d80-a49c-11e9-9be5-81e05376498d.png\">\r\n\r\nA gist showing how to generate this menu is [here](https://gist.github.com/lisa-liao/abcd2b51ed688b8221edf17d85eca958).\r\n\r\n## Related Issues\r\n\r\nCloses #36076\r\n\r\n## Tests\r\n\r\nI added the following tests:\r\n\r\n*Tests for the theme and modifying the color/shape/elevation/text style of a menu\r\n\r\n## Checklist\r\n\r\nBefore you create this PR confirm that it meets all requirements listed below by checking the relevant checkboxes (`[x]`). This will ensure a smooth and quick review process.\r\n\r\n- [x] I read the [Contributor Guide] and followed the process outlined there for submitting PRs.\r\n- [x] I signed the [CLA].\r\n- [x] I read and followed the [Flutter Style Guide], including [Features we expect every widget to implement].\r\n- [x] I updated/added relevant documentation (doc comments with `///`).\r\n- [x] All existing and new tests are passing.\r\n- [x] The analyzer (`flutter analyze --flutter-repo`) does not report any problems on my PR.\r\n- [x] I am willing to follow-up on review comments in a timely manner.\r\n\r\n## Breaking Change\r\n\r\nDoes your PR require Flutter developers to manually update their apps to accommodate your change?\r\n\r\n- [ ] Yes, this is a breaking change (Please read [Handling breaking changes]). *Replace this with a link to the e-mail where you asked for input on this proposed change.*\r\n- [x] No, this is *not* a breaking change.\r\n\r\n<!-- Links -->\r\n[issue database]: https://github.com/flutter/flutter/issues\r\n[Contributor Guide]: https://github.com/flutter/flutter/wiki/Tree-hygiene#overview\r\n[Test Coverage]: https://github.com/flutter/flutter/wiki/Test-coverage-for-package%3Aflutter\r\n[Flutter Style Guide]: https://github.com/flutter/flutter/wiki/Style-guide-for-Flutter-repo\r\n[Features we expect every widget to implement]: https://github.com/flutter/flutter/wiki/Style-guide-for-Flutter-repo#features-we-expect-every-widget-to-implement\r\n[CLA]: https://cla.developers.google.com/\r\n[Handling breaking changes]: https://github.com/flutter/flutter/wiki/Tree-hygiene#handling-breaking-changes\r",
+    "createdAt": "2019-07-12T19:08:36Z"
+  },
+  {
+    "id": 4520,
+    "sender": "shihaohong",
+    "content": "I'm manually updating the CLA since the PR contributor is a Googler",
+    "createdAt": "2019-07-24T22:34:50Z"
+  },
+  {
+    "id": 4521,
+    "sender": "rami-a",
+    "content": "Overriding CLA as @lisa-liao is a googler",
+    "createdAt": "2019-07-26T17:07:03Z"
+  },
+  {
+    "id": 4522,
+    "sender": "mattkae",
+    "content": "## Implement Regular Windows for the win32 framework + add an example application for regular windows\n\n## What's new?\r\n- Implement and test `_window_win32.dart`, the Win32 implementation of `_window.dart` :tada: \r\n- Wrote a bunch of tests in `window_win32_test.dart` which uses a mock API barrier to mock the native Win32 layer\r\n- Update `BaseWindowController` to extend `ChangeNotifier` and use it to inform the `WindowScope` of when things change\r\n- Made `RegularWindowController.empty()` a non-internal constructor, as it is needed by implementations\r\n- Added a _large_ example application for windowing where users can test out different windowing concepts and see how they work!\r\n\r\nTo test, simply run the tests or try out the example app!\r\n\r\n## Pre-launch Checklist\r\n\r\n- [x] I read the [Contributor Guide] and followed the process outlined there for submitting PRs.\r\n- [x] I read the [Tree Hygiene] wiki page, which explains my responsibilities.\r\n- [x] I read and followed the [Flutter Style Guide], including [Features we expect every widget to implement].\r\n- [x] I signed the [CLA].\r\n- [x] I listed at least one issue that this PR fixes in the description above.\r\n- [x] I updated/added relevant documentation (doc comments with `///`).\r\n- [x] I added new tests to check the change I am making, or this PR is [test-exempt].\r\n- [x] I followed the [breaking change policy] and added [Data Driven Fixes] where supported.\r\n- [x] All existing and new tests are passing.\r",
+    "createdAt": "2025-08-13T15:50:31Z"
+  },
+  {
+    "id": 4523,
+    "sender": "justinmc",
+    "content": "I'm working on getting setup to run this on my Windows machine and then I'll send a full review.",
+    "createdAt": "2025-08-14T18:45:21Z"
+  },
+  {
+    "id": 4524,
+    "sender": "mattkae",
+    "content": "> I'm working on getting setup to run this on my Windows machine and then I'll send a full review.\r\n\r\nThanks! I think I wrote decent integration tests, so feel free to check those out too! Not sure how to set them up in CI though.",
+    "createdAt": "2025-08-14T20:20:23Z"
+  },
+  {
+    "id": 4525,
+    "sender": "mattkae",
+    "content": "> I'm working on getting setup to run this on my Windows machine and then I'll send a full review.\r\n\r\nBy the way, I was able to remove the dependency on the ffi package by bringing in just the bits that we need",
+    "createdAt": "2025-08-14T20:27:11Z"
+  },
+  {
+    "id": 4526,
+    "sender": "justinmc",
+    "content": "I'm still struggling to get setup running locally on Windows. I will review this again before we talk next week at the latest.",
+    "createdAt": "2025-08-22T21:11:57Z"
+  },
+  {
+    "id": 4527,
+    "sender": "mattkae",
+    "content": "> I'm still struggling to get setup running locally on Windows. I will review this again before we talk next week at the latest.\r\n\r\nLet me know if you need any help!",
+    "createdAt": "2025-08-25T12:31:11Z"
+  },
+  {
+    "id": 4528,
+    "sender": "rkishan516",
+    "content": "@mattkae Was just trying `RegularWindow` and found a issue i.e. if we do setSize even though window size changes but content inside doesn't update based on that. If you want, I can provide sample code for this.",
+    "createdAt": "2025-09-11T12:10:49Z"
+  },
+  {
+    "id": 4529,
+    "sender": "mattkae",
+    "content": "> @mattkae Was just trying `RegularWindow` and found a issue i.e. if we do setSize even though window size changes but content inside doesn't update based on that. If you want, I can provide sample code for this.\r\n\r\nHi, sorry for getting back to this late. Could you provide an example app where you're seeing this?",
+    "createdAt": "2025-09-16T13:53:32Z"
+  },
+  {
+    "id": 4530,
+    "sender": "rkishan516",
+    "content": "> Hi, sorry for getting back to this late. Could you provide an example app where you're seeing this?\r\n\r\nHey, sorry I forgot to tell that I did some investigation and it was happening because i called win32 ShowWindow method. All good on Regular window side.",
+    "createdAt": "2025-09-16T14:42:30Z"
+  },
+  {
+    "id": 4531,
+    "sender": "rkishan516",
+    "content": "May be not for this PR but I feel we should have all the functionalities in Regular window given by [window_manager](https://pub.dev/packages/window_manager). WDYT?",
+    "createdAt": "2025-09-16T14:45:35Z"
+  },
+  {
+    "id": 4532,
+    "sender": "mattkae",
+    "content": "> May be not for this PR but I feel we should have all the functionalities in Regular window given by [window_manager](https://pub.dev/packages/window_manager). WDYT?\r\n\r\nYes after we get all of the initial archetypes completed (regular, dialog, popups, etc.), we're going to look to expand on the core capabilities :) We just don't want to get too bogged down all at once",
+    "createdAt": "2025-09-16T18:58:49Z"
+  },
+  {
+    "id": 4533,
+    "sender": "mattkae",
+    "content": "@justinmc @loic-sharma This should be ready for your viewing pleasure once again :movie_camera: ",
+    "createdAt": "2025-09-18T19:28:39Z"
+  },
+  {
+    "id": 4534,
+    "sender": "wanjm",
+    "content": "how to run  flutter/examples/multiple_windows;\r\nthe window didn't show up when i run directly;",
+    "createdAt": "2025-09-24T13:24:21Z"
+  },
+  {
+    "id": 4535,
+    "sender": "justinmc",
+    "content": "@wanjm Did you set the feature flag? `flutter config --enable-windowing`",
+    "createdAt": "2025-09-24T18:54:17Z"
+  },
+  {
+    "id": 4536,
+    "sender": "wanjm",
+    "content": "> @wanjm Did you set the feature flag? `flutter config --enable-windowing`\r\n\r\noh，yes ,thanks. I remembered there was a document talking about this, but failed to find it;",
+    "createdAt": "2025-09-25T00:53:09Z"
+  },
+  {
+    "id": 4537,
+    "sender": "mattkae",
+    "content": "> ### Example QA\r\n> \r\n> In the example, after putting a window into fullscreen mode, either I'm very bad at using Windows or it's a kind of tricky experience. I tried to alt-tab back to the main window, but that didn't work for some reason. After pressing \"Create Regular Window\" and seeing another little window pop up, I was able to alt-tab to the main window. From there I could edit the fullscreen window and make it not fullscreen (or delete it).\r\n\r\nGood catch! Fixed 🔧 \r\n\r\n> ### Example code\r\n> \r\n> I wonder if there is anything from the example that would be worth including in the framework to make it simpler for users who are building multiwindow apps. As it is, there is a lot of boilerplate in that example, but it provides a lot of helpful stuff. I don't think there's anything to do for this PR, but this is just a question for us to think about in the long term I guess.\r\n\r\nI agree that we may want some of it later too. This will be part of the discovery process as we use this API more and more :)\r\n\r\n",
+    "createdAt": "2025-09-25T19:04:38Z"
+  },
+  {
+    "id": 4538,
+    "sender": "mattkae",
+    "content": "@justinmc Should be ready for you again 🎉 ",
+    "createdAt": "2025-09-25T19:04:58Z"
+  },
+  {
+    "id": 4539,
+    "sender": "wanjm",
+    "content": "where can i find all the multi-view related document; thanks \r\n",
+    "createdAt": "2025-09-26T12:04:07Z"
+  },
+  {
+    "id": 4540,
+    "sender": "rohanjariwala03",
+    "content": "> where can i find all the multi-view related document; thanks\r\n\r\nYou can find detailed explanation of multi-window experimental api here\r\n\r\nhttps://docs.google.com/document/d/1Muakcdx8Ktg72G5GiieRP-9swxl_5Uum1oEI89aBLSM/edit?tab=t.0",
+    "createdAt": "2025-09-26T14:07:54Z"
+  },
+  {
+    "id": 4541,
+    "sender": "MominRaza",
+    "content": "Example app is giving below error\r\n```shell\r\nflutter run\r\nLaunching lib\\main.dart on Windows in debug mode...\r\nBuilding Windows application...                                     9.1s\r\n✓ Built build\\windows\\x64\\runner\\Debug\\multiple_windows.exe\r\n[ERROR:flutter/runtime/dart_vm_initializer.cc(40)] Unhandled Exception: 'package:flutter/src/widgets/binding.dart': Failed assertion: line 1752 pos 12: '_child != null': is not true.\r\n#0      _AssertionError._doThrowNew (dart:core-patch/errors_patch.dart:67:4)\r\n#1      _AssertionError._throwNew (dart:core-patch/errors_patch.dart:49:5)\r\n#2      RootElement.mount (package:flutter/src/widgets/binding.dart:1752:12)\r\n#3      RootWidget.attach.<anonymous closure> (package:flutter/src/widgets/binding.dart:1704:18)\r\n#4      BuildOwner.buildScope (package:flutter/src/widgets/framework.dart:3101:19)\r\n#5      RootWidget.attach (package:flutter/src/widgets/binding.dart:1703:13)\r\n#6      WidgetsBinding.attachToBuildOwner (package:flutter/src/widgets/binding.dart:1379:27)\r\n#7      WidgetsBinding.attachRootWidget (package:flutter/src/widgets/binding.dart:1364:5)\r\n#8      WidgetsBinding.scheduleAttachRootWidget.<anonymous closure> (package:flutter/src/widgets/binding.dart:1350:7)\r\n#9      Timer._createTimer.<anonymous closure> (dart:async-patch/timer_patch.dart:18:15)\r\n#10     _Timer._runTimers (dart:isolate-patch/timer_impl.dart:423:19)\r\n#11     _Timer._handleMessage (dart:isolate-patch/timer_impl.dart:454:5)\r\n#12     _RawReceivePort._handleMessage (dart:isolate-patch/isolate_patch.dart:193:12)\r\n\r\nSyncing files to device Windows...                                 101ms\r\n```",
+    "createdAt": "2025-10-05T02:36:16Z"
+  },
+  {
+    "id": 4542,
+    "sender": "mattkae",
+    "content": "> Example app is giving below error\r\n> \r\n> ```shell\r\n> flutter run\r\n> Launching lib\\main.dart on Windows in debug mode...\r\n> Building Windows application...                                     9.1s\r\n> ✓ Built build\\windows\\x64\\runner\\Debug\\multiple_windows.exe\r\n> [ERROR:flutter/runtime/dart_vm_initializer.cc(40)] Unhandled Exception: 'package:flutter/src/widgets/binding.dart': Failed assertion: line 1752 pos 12: '_child != null': is not true.\r\n> #0      _AssertionError._doThrowNew (dart:core-patch/errors_patch.dart:67:4)\r\n> #1      _AssertionError._throwNew (dart:core-patch/errors_patch.dart:49:5)\r\n> #2      RootElement.mount (package:flutter/src/widgets/binding.dart:1752:12)\r\n> #3      RootWidget.attach.<anonymous closure> (package:flutter/src/widgets/binding.dart:1704:18)\r\n> #4      BuildOwner.buildScope (package:flutter/src/widgets/framework.dart:3101:19)\r\n> #5      RootWidget.attach (package:flutter/src/widgets/binding.dart:1703:13)\r\n> #6      WidgetsBinding.attachToBuildOwner (package:flutter/src/widgets/binding.dart:1379:27)\r\n> #7      WidgetsBinding.attachRootWidget (package:flutter/src/widgets/binding.dart:1364:5)\r\n> #8      WidgetsBinding.scheduleAttachRootWidget.<anonymous closure> (package:flutter/src/widgets/binding.dart:1350:7)\r\n> #9      Timer._createTimer.<anonymous closure> (dart:async-patch/timer_patch.dart:18:15)\r\n> #10     _Timer._runTimers (dart:isolate-patch/timer_impl.dart:423:19)\r\n> #11     _Timer._handleMessage (dart:isolate-patch/timer_impl.dart:454:5)\r\n> #12     _RawReceivePort._handleMessage (dart:isolate-patch/isolate_patch.dart:193:12)\r\n> \r\n> Syncing files to device Windows...                                 101ms\r\n> ```\r\n\r\nYou will have to run this against the locally built engine and pass the feature.\r\n\r\nDid you do `flutter config --enable-windowing` on your machine?",
+    "createdAt": "2025-10-10T13:51:34Z"
+  },
+  {
+    "id": 4543,
+    "sender": "stx",
+    "content": "##  Observatory port timeout on iOS\n\nI'm unable to debug a freshly created app on physical iOS devices when pubspec dependencies reach a certain size, because it causes the \"waiting for observatory port\" step to timeout after 30 seconds.\r\n\r\nDevices tested:\r\niPhone 8\r\niPhone 12\r\niPhone 12 Pro\r\n\r\niOS versions tested:\r\n14.2\r\n14.2.1\r\n14.3\r\n\r\nXcode versions tested:\r\n12.2\r\n12.3\r\n\r\nTests run using MacOS Catalina 10.15.7 on a late 2019 MBP 16\".\r\n\r\nSimply commenting out random pubspec dependencies from the below, cleaning and rebuilding allows debugging to attach - sometimes just barely, at the 28 second or 29 second mark.\r\n\r\nHere's a triggering pubspec:\r\n\r\n```\r\ndependencies:\r\n  flutter:\r\n    sdk: flutter\r\n  flutter_localizations:\r\n    sdk: flutter\r\n  http: ^0.12.2\r\n  in_app_review: ^1.0.2\r\n  local_auth: ^0.6.3\r\n  location: ^3.0.2\r\n  logger: ^0.9.4\r\n  modal_bottom_sheet: ^1.0.0+1\r\n  moor: ^3.4.0\r\n  moor_db_viewer: ^2.0.3\r\n  moor_flutter: ^3.1.0\r\n  overlay_support: ^1.0.5\r\n  package_info: ^0.4.3+2\r\n  path: ^1.7.0\r\n  path_provider: ^1.6.24\r\n  pinput: ^0.2.0\r\n  purchases_flutter: ^1.4.3\r\n  recase: ^3.0.0\r\n  rxdart: ^0.24.1\r\n  shared_preferences: ^0.5.8\r\n  sqlite3_flutter_libs: ^0.2.0\r\n  syncfusion_flutter_charts: 18.2.59\r\n  timeago: ^2.0.28\r\n  universal_platform: ^0.1.3\r\n  url_launcher: ^5.7.8\r\n  vibrate: ^0.0.4\r\n  video_player: ^1.0.0\r\n  webview_flutter: ^1.0.7\r\n```",
+    "createdAt": "2020-12-11T22:42:48Z"
+  }
+]

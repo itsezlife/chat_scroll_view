@@ -1,0 +1,386 @@
+[
+  {
+    "id": 5888,
+    "sender": "kusuma093",
+    "content": "Same issue on Readm 8  with image_picker 0.6.7+17",
+    "createdAt": "2020-12-22T15:14:58Z"
+  },
+  {
+    "id": 5889,
+    "sender": "alex9153",
+    "content": "Same issue in image_picker: ^0.6.7+17 (Asus Zen phone max pro) \r\nMy app uses landscape mode. Maybe this is the reason ?",
+    "createdAt": "2020-12-27T14:07:15Z"
+  },
+  {
+    "id": 5890,
+    "sender": "tiagosito",
+    "content": "@xster We have already made several attempts to correct this problem, the Flutter team has also made several attempts, both to no avail.\r\n\r\nAfter a long time without answers and to alert the Flutter team about the seriousness of the problem that the community has been facing, we try to mark the names of some people who are always going through git and certainly helping us, but unfortunately also without answers.\r\n\r\nSeeing that the bug has been open and unanswered for a long time, could you tell us if this bug will be corrected by the flutter team and, if so, the prediction of when it might happen?\r\n\r\nWe will be happy if you can answer us, thanks!\r\n",
+    "createdAt": "2021-01-04T09:52:33Z"
+  },
+  {
+    "id": 5891,
+    "sender": "kaichun831",
+    "content": "Hey  guys: \r\nI solve it  but  I don't know that principle\r\n\r\njust  add this before your action\r\n\r\n\r\nExample:\r\n```\r\nIconButton(icon: Icon(Icons.camera_alt_outlined), onPressed:(){\r\n\r\n                      FocusScope.of(context).requestFocus(FocusNode());    //Here is point\r\n                      getImageFromCamera();\r\n                      \r\n})\r\n```\r\n\r\nHope can help u\r\n\r\n",
+    "createdAt": "2021-01-06T01:42:25Z"
+  },
+  {
+    "id": 5892,
+    "sender": "lorenzorovida",
+    "content": "Tried it but it doesn't change anything.",
+    "createdAt": "2021-01-06T12:32:50Z"
+  },
+  {
+    "id": 5893,
+    "sender": "Tauqeer26",
+    "content": "Same Camera problem with realme c11",
+    "createdAt": "2021-01-17T17:43:28Z"
+  },
+  {
+    "id": 5894,
+    "sender": "feriyalsusanto",
+    "content": "It doesn't occur in virtual device, but always lost connection with real device.",
+    "createdAt": "2021-01-18T13:36:14Z"
+  },
+  {
+    "id": 5895,
+    "sender": "hdavidmb",
+    "content": "Same issue on iOS simulator. The device loses connection the SECOND time I prompt the image picker.",
+    "createdAt": "2021-02-03T01:41:47Z"
+  },
+  {
+    "id": 5896,
+    "sender": "shinglunwong",
+    "content": "> Same issue on iOS simulator. The device loses connection the SECOND time I prompt the image picker.\r\n\r\nSame here",
+    "createdAt": "2021-02-03T18:32:10Z"
+  },
+  {
+    "id": 5897,
+    "sender": "hdavidmb",
+    "content": "Also tried `FocusScope.of(context).requestFocus(FocusNode());` but it didn't work.\r\nBut what I've noticed is if I manually tap any TextField between the image picker calls the app works with no errors. But the moment  I call the picker without manually changing the focus to any TextField, the error appears again.",
+    "createdAt": "2021-02-04T14:51:55Z"
+  },
+  {
+    "id": 5898,
+    "sender": "II11II",
+    "content": "I also have this issue on Redmi 9s\r\n But in Samsung s9 it works fine",
+    "createdAt": "2021-02-04T16:50:07Z"
+  },
+  {
+    "id": 5899,
+    "sender": "II11II",
+    "content": "This problem can be appeared in any time. \r\nThe reason for this is Android OS can kill restart your app in its demand.\r\n\r\nProbably, the most best way to tackle this problem can be to save selected images by user to directory and get images from this temporary if app is restarted (killed by OS and restart by it).  ",
+    "createdAt": "2021-02-05T08:02:34Z"
+  },
+  {
+    "id": 5900,
+    "sender": "tiagosito",
+    "content": "I understand, but that would be just accepting to live with this problem.\r\n\r\nI believe that the best way to solve this is with the correction of the plugin, it is causing the application to break.\r\n\r\nIf your application terminates unexpectedly, what is the user's feeling for the product?\r\n\r\nRecovering a temporary image after the application is unexpectedly terminated, is just saying that, we accept this behavior.",
+    "createdAt": "2021-02-05T10:23:20Z"
+  },
+  {
+    "id": 5901,
+    "sender": "lorenzorovida",
+    "content": "Amazing that we still have this problem since 2019. \r\n\r\nHas anyone found an alternative to image_picker?",
+    "createdAt": "2021-02-05T11:04:24Z"
+  },
+  {
+    "id": 5902,
+    "sender": "tiagosito",
+    "content": "> É incrível que ainda tenhamos esse problema desde 2019.\r\n> \r\n> Alguém encontrou uma alternativa para image_picker?\r\n\r\n**[file_picker](https://pub.dev/packages/file_picker)**",
+    "createdAt": "2021-02-05T11:07:07Z"
+  },
+  {
+    "id": 5903,
+    "sender": "lorenzorovida",
+    "content": "> > É incrível que ainda tenhamos esse problema desde 2019.\r\n> > Alguém encontrou uma alternativa para image_picker?\r\n> \r\n> **[file_picker](https://pub.dev/packages/file_picker)**\r\n\r\nThank you! Gonna check it out",
+    "createdAt": "2021-02-05T11:09:36Z"
+  },
+  {
+    "id": 5904,
+    "sender": "darshankawar",
+    "content": "Verified this issue using latest stable version and [latest](https://pub.dev/packages/image_picker) plugin version. I was able to replicate the `lost connection with device` while testing on Samsung Android 8.1.0 device, but not with Samsung S10 device. Also, the issue isn't replicable straight-away, occurred 3 out of 4 times I tried.\r\nSteps I carried out were:\r\n\r\n1. Tap camera icon.\r\n2. Take picture (preferably rear camera).\r\n3. Tap on Retry and repeat step 2.\r\n4. Repeat step 3 few times ( approximately 5 or 6 times, may vary).\r\n5. Tap on OK button after repeating step 4.\r\n6. App shows black screen and `lost connection with device` in console.\r\n\r\n\r\nhttps://user-images.githubusercontent.com/67046386/107516168-01a7a400-6bd2-11eb-8fa2-712f808ddcbc.mp4\r\n\r\n```\r\nLaunching lib/main.dart on SM A260G in debug mode...\r\nRunning Gradle task 'assembleDebug'...\r\n✓ Built build/app/outputs/flutter-apk/app-debug.apk.\r\nWaiting for SM A260G to report its views...\r\nDebug service listening on ws://127.0.0.1:57572/8uB5jpKR_Ag=/ws\r\nSyncing files to device SM A260G...\r\nW/libEGL  ( 9922): EGLNativeWindowType 0xd58d4008 disconnect failed\r\nW/libEGL  ( 9922): EGLNativeWindowType 0xe6455808 disconnect failed\r\nI/OpenGLRenderer( 9922): Initialized EGL, version 1.4\r\nD/OpenGLRenderer( 9922): Swap behavior 2\r\nD/mali_winsys( 9922): EGLint new_window_surface(egl_winsys_display *, void *, EGLSurface, EGLConfig, egl_winsys_surface **, egl_color_buffer_format *, EGLBoolean) returns 0x3000,  [540x960]-format:1\r\nD/mali_winsys( 9922): EGLint new_window_surface(egl_winsys_display *, void *, EGLSurface, EGLConfig, egl_winsys_surface **, egl_color_buffer_format *, EGLBoolean) returns 0x3000,  [540x888]-format:1\r\nW/libEGL  ( 9922): EGLNativeWindowType 0xd3ef5008 disconnect failed\r\nW/libEGL  ( 9922): EGLNativeWindowType 0xe6455808 disconnect failed\r\nLost connection to device.\r\n```\r\n\r\n<details>\r\n<summary>flutter doctor -v</summary>\r\n\r\n```\r\n[✓] Flutter (Channel stable, 1.22.6, on Mac OS X 10.15.4 19E2269 darwin-x64, locale\r\n    en-IN)\r\n    • Flutter version 1.22.6 at /Users/dhs/documents/Fluttersdk/flutter\r\n    • Framework revision 9b2d32b605 (3 weeks ago), 2021-01-22 14:36:39 -0800\r\n    • Engine revision 2f0af37152\r\n    • Dart version 2.10.5\r\n\r\n \r\n[✓] Android toolchain - develop for Android devices (Android SDK version 30.0.0)\r\n    • Android SDK at /Users/dhs/Library/Android/sdk\r\n    • Platform android-30, build-tools 30.0.0\r\n    • Java binary at: /Applications/Android\r\n      Studio.app/Contents/jre/jdk/Contents/Home/bin/java\r\n    • Java version OpenJDK Runtime Environment (build 1.8.0_242-release-1644-b3-6915495)\r\n    • All Android licenses accepted.\r\n\r\n[✓] Xcode - develop for iOS and macOS (Xcode 12.3)\r\n    • Xcode at /Applications/Xcode.app/Contents/Developer\r\n    • Xcode 12.3, Build version 12C33\r\n    • CocoaPods version 1.9.3\r\n\r\n[!] Android Studio (version 4.1)\r\n    • Android Studio at /Applications/Android Studio.app/Contents\r\n    ✗ Flutter plugin not installed; this adds Flutter specific functionality.\r\n    ✗ Dart plugin not installed; this adds Dart specific functionality.\r\n    • Java version OpenJDK Runtime Environment (build 1.8.0_242-release-1644-b3-6915495)\r\n\r\n[✓] VS Code (version 1.53.0)\r\n    • VS Code at /Applications/Visual Studio Code.app/Contents\r\n    • Flutter extension version 3.18.1\r\n\r\n[✓] Connected device (1 available)\r\n    • SM A260G (mobile) • 5200763ebcfa861f • android-arm • Android 8.1.0 (API 27)\r\n\r\n! Doctor found issues in 1 category.\r\n\r\n\r\n```\r\n\r\n</details>\r\n\r\nKeeping this issue open, as it replicates on not all devices, but some. Looking at the comments in the thread above, Redmi, Xiaomi are mostly affected (including Samsung).\r\n",
+    "createdAt": "2021-02-10T13:33:15Z"
+  },
+  {
+    "id": 5905,
+    "sender": "tiagosito",
+    "content": "@darshankawar iOS also has the same problem",
+    "createdAt": "2021-02-10T20:27:40Z"
+  },
+  {
+    "id": 5906,
+    "sender": "clearnetinc",
+    "content": "Tested on Huawei Y5, Tecno Pourvior3 and Samsung S3 also have the same\nissue. The common thing on all 3 is they all have 1Gig memory\n\n\n\n\n\nOn Wed, Feb 10, 2021 at 10:28 PM Tiagosito <notifications@github.com> wrote:\n\n> @darshankawar <https://github.com/darshankawar> iOS also has the same\n> problem\n>\n> —\n> You are receiving this because you commented.\n> Reply to this email directly, view it on GitHub\n> <https://github.com/flutter/flutter/issues/48016#issuecomment-777007451>,\n> or unsubscribe\n> <https://github.com/notifications/unsubscribe-auth/ARDUTUBSLZ3YFUP4DSPWVCTS6LT5DANCNFSM4KBU6E6A>\n> .\n>\n",
+    "createdAt": "2021-02-16T22:07:20Z"
+  },
+  {
+    "id": 5907,
+    "sender": "guilhermeagostinelli",
+    "content": "Same issue on Motorola One Hyper.\r\n\r\nIn more \"complex\" apps, if you navigate to some screens with relatively heavy memory usage before navigating to the image picker screen, then the crash happens right after opening the camera for the first time.",
+    "createdAt": "2021-02-17T12:40:05Z"
+  },
+  {
+    "id": 5908,
+    "sender": "ThiagoFontes",
+    "content": "I received some reports of crashes in different devices, and I'm also receiving crashes on a Moto X4, I verified the memory consumption of the app and its just a little bit over 100Mb with used + external on profile mode, so it doesn't look to me that the problem is related to memory in my case.\r\n\r\nFlutter version: 1.22.6",
+    "createdAt": "2021-02-22T13:53:06Z"
+  },
+  {
+    "id": 5909,
+    "sender": "Gperez88",
+    "content": "i have same issue on version  ^0.6.7+22 and flutter 1.22.6",
+    "createdAt": "2021-03-04T06:31:23Z"
+  },
+  {
+    "id": 5910,
+    "sender": "mauriciofontanadevargas",
+    "content": "same issue (device immediatly lost connection) on ios simulator. Same app works perfectly on all android devices I've tested (2 samsungs, 2 pixels)",
+    "createdAt": "2021-03-09T00:32:20Z"
+  },
+  {
+    "id": 5911,
+    "sender": "nombrekeff",
+    "content": "> this issue is in debug mode only, if you build the app in release mode, it works perfectly fine.\r\n\r\nI'm afraid this is not true, It happened more in debug, but also in release build....\r\n\r\nAt least with my app in Samsung a10 devices.",
+    "createdAt": "2021-03-11T09:16:21Z"
+  },
+  {
+    "id": 5912,
+    "sender": "lorenzorovida",
+    "content": "I confirm that happens in release mode too.",
+    "createdAt": "2021-03-12T09:25:32Z"
+  },
+  {
+    "id": 5913,
+    "sender": "Hopheylalal",
+    "content": "same bug",
+    "createdAt": "2021-03-18T11:28:39Z"
+  },
+  {
+    "id": 5914,
+    "sender": "nombrekeff",
+    "content": "Hey, I kinda fixed the issue in some ways. After much profiling, searching through comments and issues, and not finding any solution y gave up. \r\n\r\nBut then I thought it might have something to do with flutter caching images that did not need to be cached. Making use of image cache I could prevent caching of images, and the issue disappeared, at least in my application using Samsung A10.\r\n\r\nHope this helps in some way.",
+    "createdAt": "2021-03-18T11:33:33Z"
+  },
+  {
+    "id": 5915,
+    "sender": "Hopheylalal",
+    "content": "> Hey, I kinda fixed the issue in some ways. After much profiling, searching through comments and issues, and not finding any solution y gave up.\r\n> \r\n> But then I thought it might have something to do with flutter caching images that did not need to be cached. Making use of image cache I could prevent caching of images, and the issue disappeared, at least in my application using Samsung A10.\r\n> \r\n> Hope this helps in some way.\r\n\r\nHello. Please explane. What i need to do?",
+    "createdAt": "2021-03-18T11:43:13Z"
+  },
+  {
+    "id": 5916,
+    "sender": "nombrekeff",
+    "content": "Look into Flutter [ImageCache](https://api.flutter.dev/flutter/painting/ImageCache/ImageCache.html) class, it is exposed globally via `imageCache`\r\n\r\nIn my case I just told image cache that I did not want to cache any image (just to test if it fixed the issue), you should cache only stuff you need to cache.",
+    "createdAt": "2021-03-18T12:33:28Z"
+  },
+  {
+    "id": 5917,
+    "sender": "Hopheylalal",
+    "content": "> Look into Flutter [ImageCache](https://api.flutter.dev/flutter/painting/ImageCache/ImageCache.html) class, it is exposed globally via `imageCache`\r\n> \r\n> In my case I just told image cache that I did not want to cache any image (just to test if it fixed the issue), you should cache only stuff you need to cache.\r\n\r\nSome like this?\r\n\r\nclass MyImageCache extends ImageCache {\r\n  @override\r\n  void clear() {\r\n    print(\"Clearing cache!\");\r\n    super.clear();\r\n  }\r\n}\r\nclass MyWidgetsBinding extends WidgetsFlutterBinding {\r\n  @override\r\n  ImageCache createImageCache() {\r\n    MyImageCache myImageCache = MyImageCache();\r\n    myImageCache.maximumSize = 0;\r\n    return myImageCache;\r\n  }\r\n}\r\n\r\nvoid main() {\r\n  runApp(MyApp());\r\n  MyWidgetsBinding();\r\n\r\n}",
+    "createdAt": "2021-03-19T06:36:31Z"
+  },
+  {
+    "id": 5918,
+    "sender": "code-RK",
+    "content": "i am trying to upgrade the version on image picker but as my app is an e-commerce app and the imagepicker dependencies are going further..it is suggesting me to update on plugin then other and it goes on...and when i do these ..my app does work it crashes...so i turned again to my previous version....pls suggest some alternatives....",
+    "createdAt": "2021-03-22T13:00:56Z"
+  },
+  {
+    "id": 5919,
+    "sender": "guigzp",
+    "content": "I was having this issue in version 0.6.7+22.\r\nIn version 0.6.7+12 this issue apparently does not happen, if someone can confirm this :)",
+    "createdAt": "2021-03-22T14:56:11Z"
+  },
+  {
+    "id": 5920,
+    "sender": "aravindhkumar23",
+    "content": "@guigzp I'm using v-0.6.7+12, the same issues occurs randomly. Tested in device Redmi Note 7 Pro.",
+    "createdAt": "2021-03-29T10:06:55Z"
+  },
+  {
+    "id": 5921,
+    "sender": "krutarth-h-dave",
+    "content": "Facing the issue in 0.6.7+22, For Redmi Note 7 Pro. For Oneplus, iPhone, and other Android devices, App works fine. \r\nThis is really a serious issue. Do anyone know what to do with this? ",
+    "createdAt": "2021-03-31T07:35:51Z"
+  },
+  {
+    "id": 5922,
+    "sender": "maheshj01",
+    "content": "I have used image picker in many of the apps I have built and it worked well, Sometimes I did notice the crash on the second attempt but the logs did not really mention the exact cause of the crash but later on the next build after doing\r\n```flutter clean``` it just worked fine.\r\nEven with multiple attempts to select the image,I have tested it on these  devices  Redmi k20 pro, mi4i, Redmi6a, iPhone 6,iPhone 11, emulator and simulator and it worked pretty well both in debug and release mode.\r\n\r\nAs of today, I am using ```image picker 0.6.7+7``` without any issues hope this helps someone\r\n",
+    "createdAt": "2021-04-08T13:40:43Z"
+  },
+  {
+    "id": 5923,
+    "sender": "tiagosito",
+    "content": "@maheshmnj \r\nEvident that the problem exists, but, I believe there is a flow that makes this problem happen, if you can, post your code here, we can see the difference between yours and our code, it is possible?",
+    "createdAt": "2021-04-08T17:45:12Z"
+  },
+  {
+    "id": 5924,
+    "sender": "maheshj01",
+    "content": "sure this is the image picker code I am using nothing different from the docs\r\n```\r\n  final _picker = ImagePicker();\r\n\r\n  Future<PickedFile> pickImage(ImageSource source) async {\r\n    final PickedFile image = await _picker.getImage(\r\n        source: source, maxWidth: 800, maxHeight: 800, imageQuality: 80);\r\n    return image;\r\n  }\r\n```",
+    "createdAt": "2021-04-09T01:26:36Z"
+  },
+  {
+    "id": 5925,
+    "sender": "tiagosito",
+    "content": "@maheshmnj in my thoughts I would like to see a complete example to be able to analyze the flow you are doing inside the page, just like the examples above went wrong, I believe they are somehow linked to forms/cache.\r\n\r\nIf possible post a **main.dart** with the complete code, preferably using some form fields.",
+    "createdAt": "2021-04-09T10:20:23Z"
+  },
+  {
+    "id": 5926,
+    "sender": "mauriciofontanadevargas",
+    "content": "I am 99% sure that the problem is due to incompatibilities with other packages.  My project was running fine, in several devices, and after adding more stuff, image picker crashes EVERY TIME I try to take a photo or pick a image. I'll continue debugging and will let you know once I figure it out\r\n\r\nEDIT: The problem was something else I had messed up (extra space in the info.pls string asking for permission). \r\nThe library (0.6.7 + 22) is working perfectly so far in all devices tested (not an extensive list, but quite a few different models like galaxies and iphones)",
+    "createdAt": "2021-04-09T10:23:20Z"
+  },
+  {
+    "id": 5927,
+    "sender": "maheshj01",
+    "content": "Even I believe the issue isn't directly with the imagePicker ",
+    "createdAt": "2021-04-09T10:30:35Z"
+  },
+  {
+    "id": 5928,
+    "sender": "tiagosito",
+    "content": "@mauriciofontanadevargas I already performed the test only with the imagePicker plugin to check this incompatibility, however, unfortunately I find myself here in this issue with identical problems reported by others",
+    "createdAt": "2021-04-09T10:34:25Z"
+  },
+  {
+    "id": 5929,
+    "sender": "maheshj01",
+    "content": "> @mauriciofontanadevargas I already performed the test only with the imagePicker plugin to check this incompatibility, however, unfortunately I find myself here in this issue with identical problems reported by others\r\n\r\nso when you tested only with image picker did that work for you?",
+    "createdAt": "2021-04-09T11:10:47Z"
+  },
+  {
+    "id": 5930,
+    "sender": "maheshj01",
+    "content": "by the way here's a [sample code to try](https://gist.github.com/maheshmnj/666de97c013a804b8b343966fca0941c) if anyone thinks there's an issue with the image picker plugin itself. This example was run using ```image_picker: ^0.6.7+7``` ",
+    "createdAt": "2021-04-10T02:11:11Z"
+  },
+  {
+    "id": 5931,
+    "sender": "krutarth-h-dave",
+    "content": "Update: \r\nI upgraded the repository to Flutter 2.0 and upgraded to ` image_picker: ^0.7.4`. And still I am facing the issue with Redmi devices. \r\nWhat exactly happens is, App opens the Camera Intent and destroys the current Activity of Main App. Clicking picture takes the use back to the MainActivity which was destroyed and App starts afresh. ",
+    "createdAt": "2021-04-10T04:40:07Z"
+  },
+  {
+    "id": 5932,
+    "sender": "Hopheylalal",
+    "content": "Yes, many of Redmi divices do not working with this plugin.",
+    "createdAt": "2021-04-10T16:40:46Z"
+  },
+  {
+    "id": 5933,
+    "sender": "clearnetinc",
+    "content": "To those suggesting that it is because of a conflict with other packages I\ndont think that's right.\n\nI created an app with Image picker alone to test it out but it does the\nsame. It crashes with no defined error. I tried on Huawei, Tecno and\nSamsung.\n\nI suspect it conflicts with either:\n- Device type\n- Memory size\n- Android API\n\nThose running it successfully kindly share the 3 details above of the\ndevice you are testing on.\n\n\n\n\nOn Sat, Apr 10, 2021 at 6:41 PM Hopheylalal ***@***.***>\nwrote:\n\n> Yes, many of Redmi divices do not working with this plugin.\n>\n> —\n> You are receiving this because you commented.\n> Reply to this email directly, view it on GitHub\n> <https://github.com/flutter/flutter/issues/48016#issuecomment-817168305>,\n> or unsubscribe\n> <https://github.com/notifications/unsubscribe-auth/ARDUTUCH2SLFBIJYUMYETE3TIB5R3ANCNFSM4KBU6E6A>\n> .\n>\n",
+    "createdAt": "2021-04-10T19:23:03Z"
+  },
+  {
+    "id": 5934,
+    "sender": "blisssan",
+    "content": "> To those suggesting that it is because of a conflict with other packages I dont think that's right. I created an app with Image picker alone to test it out but it does the same. It crashes with no defined error. I tried on Huawei, Tecno and Samsung. I suspect it conflicts with either: - Device type - Memory size - Android API Those running it successfully kindly share the 3 details above of the device you are testing on.\r\n> […](#)\r\n\r\nCrash happens in my Oppo device 2GB Ram running Android 9.\r\nBut it doesn't crash on Samsung device 4GB Ram running android 9. ",
+    "createdAt": "2021-04-11T13:12:43Z"
+  },
+  {
+    "id": 5935,
+    "sender": "mauriciofontanadevargas",
+    "content": "I had problems related to permissions that were my fault.\r\n\r\nNow, my app is working perfectly on all devices I've tested so far. :\r\n\r\na) Galaxy S9, Android 10, 4gb RAM\r\nb) Galaxy S6, Android 7, 3gb RAM\r\nc) Nexus 9 tablet, Android 7.1.1,  2 gb RAM\r\nd) iPad 4th gen, iOS 10,  1gb RAM\r\ne) iPhone X, . iOS 14.4.2, 3gb RAM\r\n\r\nFlutter 1.22.6  stable\r\nDart 2.10.5 stable\r\nimage_picker 0.6.7+22\r\n\r\nother packages related to camera/gallery used in the same project: gallery_saver, flutter_better_camera, image, ",
+    "createdAt": "2021-04-11T13:34:03Z"
+  },
+  {
+    "id": 5936,
+    "sender": "Hopheylalal",
+    "content": "I have two redmi phones. first 2gb - working good, second(Redmi 8a, miui 12, android 10) 2gb - do not working ",
+    "createdAt": "2021-04-11T17:07:00Z"
+  },
+  {
+    "id": 5937,
+    "sender": "tiagosito",
+    "content": "@maheshmnj look at [complete video](https://github.com/tiagosito/image_picker_crash/tree/master/video) or [source code](https://github.com/tiagosito/image_picker_crash)\r\n\r\n**Using** your code, with just the ```image_picker: ^ 0.6.7 + 7``` in ```pubspec.yaml```\r\n\r\n**I used the resources of the gallery and the camera**\r\n\r\n**Crash**\r\nOn the iOS 14.4.1 physical device\r\nOn the iOS 14.4 emulator\r\n\r\n**In Andoid breaks the same on several devices**\r\n\r\nhttps://user-images.githubusercontent.com/17324575/114405888-7ae55800-9b7d-11eb-92f4-016f7a59c596.mov\r\n\r\n\r\n",
+    "createdAt": "2021-04-12T14:09:35Z"
+  },
+  {
+    "id": 5938,
+    "sender": "maheshj01",
+    "content": "Thanks, @tiagosito  for confirmation.",
+    "createdAt": "2021-04-12T15:50:47Z"
+  },
+  {
+    "id": 5939,
+    "sender": "maheshj01",
+    "content": "I would suggest everyone to upvote the main post 👍 to bring it to flutter teams notice",
+    "createdAt": "2021-04-13T09:18:29Z"
+  },
+  {
+    "id": 5940,
+    "sender": "mauriciofontanadevargas",
+    "content": "@maheshmnj @tiagosito may I ask you why are you trying with 0.6.7 + 7 rather than + 22? ",
+    "createdAt": "2021-04-13T13:40:36Z"
+  },
+  {
+    "id": 5941,
+    "sender": "maheshj01",
+    "content": "@mauriciofontanadevargas  Nothing specific It's just working fine for me, last time I saw a crash on ```0.6.1+11```  and after a few upgrades and trials I felt  ```0.6.7+7``` to be more stable for me and never saw a crash,  so I use this version in every project and I upgrade the versions very rarely. ",
+    "createdAt": "2021-04-13T13:55:41Z"
+  },
+  {
+    "id": 5942,
+    "sender": "android404base",
+    "content": "https://github.com/flutter/flutter/issues/48016#issuecomment-817844024\r\n\r\nI reproduced the issue here. The privacy descriptions were missing!\r\n\r\nFor IOS, it seems like you should add privacy descriptions into **Info.plist** for both camera usage and photo library access. The descriptions must be defined according to your usage reason. You can see an example below : \r\n\r\n<img width=\"866\" alt=\"Screenshot 2021-04-14 at 15 58 25\" src=\"https://user-images.githubusercontent.com/50708947/114724238-a44be280-9d3b-11eb-9fe1-a6d1649799da.png\">\r\n\r\n\r\n\r\n\r\n",
+    "createdAt": "2021-04-14T14:09:27Z"
+  },
+  {
+    "id": 5943,
+    "sender": "yadames",
+    "content": "I have the same problem.\r\nI am using Flutter 2.0.1 (on Windows), with image_picker: ^ 0.7.4.\r\nRun the application on a Redmi Note 7 (4GB ram, Android 10)\r\nFrom what I see, there is still no solution 😐",
+    "createdAt": "2021-04-16T18:50:24Z"
+  },
+  {
+    "id": 5944,
+    "sender": "yadames",
+    "content": "> por cierto, aquí hay un [código de muestra para probar](https://gist.github.com/maheshmnj/666de97c013a804b8b343966fca0941c) si alguien piensa que hay un problema con el complemento del selector de imágenes. Este ejemplo se ejecutó usando`image_picker: ^0.6.7+7`\r\n\r\nI tried this code and the same thing happens.\r\nClean project with just image_picker: ^ 0.6.7 + 7 in pubspec.\r\nRedmi Note 7 device with Android 10\r\nIt's random, sometimes it happens to the first and sometimes to the sixth or tenth time, but it happens, at least to me. \r\n\r\nCould you share more information about the code ?, AndroidManifest or info.plis files to see if there is any other difference?\r\n\r\n![image](https://user-images.githubusercontent.com/47356433/115087608-7356e380-9edc-11eb-82bd-025ceb721a37.png)\r\n",
+    "createdAt": "2021-04-16T21:52:28Z"
+  },
+  {
+    "id": 5945,
+    "sender": "rshrc",
+    "content": "> > por cierto, aquí hay un [código de muestra para probar](https://gist.github.com/maheshmnj/666de97c013a804b8b343966fca0941c) si alguien piensa que hay un problema con el complemento del selector de imágenes. Este ejemplo se ejecutó usando`image_picker: ^0.6.7+7`\r\n> \r\n> I tried this code and the same thing happens.\r\n> Clean project with just image_picker: ^ 0.6.7 + 7 in pubspec.\r\n> Redmi Note 7 device with Android 10\r\n> It's random, sometimes it happens to the first and sometimes to the sixth or tenth time, but it happens, at least to me.\r\n> \r\n> Could you share more information about the code ?, AndroidManifest or info.plis files to see if there is any other difference?\r\n> \r\n> ![image](https://user-images.githubusercontent.com/47356433/115087608-7356e380-9edc-11eb-82bd-025ceb721a37.png)\r\n\r\nYupp, Using Redmi Note 7 Pro, after going through the entire conversation logs, I was confident it would atleast work on release mode. But alas, it even crashes on release. PAIN.",
+    "createdAt": "2021-04-17T06:17:19Z"
+  },
+  {
+    "id": 5946,
+    "sender": "yadames",
+    "content": "Some help? 🙏\r\nI need to develop an app in which this function is crucial 😕 ",
+    "createdAt": "2021-04-17T14:46:05Z"
+  },
+  {
+    "id": 5947,
+    "sender": "yadames",
+    "content": "> Tuve problemas relacionados con los permisos que fueron culpa mía.\r\n> \r\n> Ahora, mi aplicación funciona perfectamente en todos los dispositivos que he probado hasta ahora. :\r\n> \r\n> a) Galaxy S9, Android 10, 4 gb de RAM\r\n> b) Galaxy S6, Android 7\r\n> , 3 gb de RAM c) Tableta Nexus 9, Android 7.1.1, 2 gb de RAM\r\n> d) iPad de cuarta generación, iOS 10, 1 gb de RAM\r\n> e) iPhone X . iOS 14.4.2, 3 GB de RAM\r\n> \r\n> Flutter 1.22.6 estable\r\n> Dart 2.10.5 estable\r\n> image_picker 0.6.7 + 22\r\n> \r\n> otros paquetes relacionados con la cámara / galería utilizados en el mismo proyecto: gallery_saver, flutter_better_camera, image,\r\n\r\nCould you show us what permissions are you using or what other settings did you have to add or modify? AndroidManifest, info.plis, gradle or others?\r\nThanks",
+    "createdAt": "2021-04-17T14:48:30Z"
+  },
+  {
+    "id": 5948,
+    "sender": "mauriciofontanadevargas",
+    "content": "@yadames I just did what is instructed in their pub.dev : \r\n\r\n> iOS #\r\nAdd the following keys to your Info.plist file, located in <project root>/ios/Runner/Info.plist:\r\n\r\n`<key>NSCameraUsageDescription</key>\r\n    <string>This app needs camera access for generating vocabulary</string>\r\n    <key>NSPhotoLibraryUsageDescription</key>\r\n    <string>This app  needs access to save your photos in the gallery</string>`\r\n    \r\n\r\n> Android \r\n> API < 29\r\n> No configuration required - the plugin should work out of the box.\r\n> \r\n\r\n> API 29+\r\n> Add android:requestLegacyExternalStorage=\"true\" as an attribute to the <application> tag in AndroidManifest.xml. The attribute is false by default on apps targeting Android Q.\r\n> \r\n\r\n@yadames and @rshrc could you please try with image_picker 0.6.7 + 22 ?",
+    "createdAt": "2021-04-17T16:29:30Z"
+  },
+  {
+    "id": 5949,
+    "sender": "yadames",
+    "content": "@mauriciofontanadevargas Ok, I'll try it and tell them\r\nIn pub.dev they explain this problem and say how to \"fix it\" but it still doesn't work for me, I have tried versions 0.6.7 + 7 and 0.7.4 \r\n\r\n![image](https://user-images.githubusercontent.com/47356433/115120433-7e148580-9f7b-11eb-8059-ee363eea9214.png)\r\n",
+    "createdAt": "2021-04-17T16:52:06Z"
+  },
+  {
+    "id": 5950,
+    "sender": "yadames",
+    "content": "@mauriciofontanadevargas I just tried version 0.6.7+22 and it works quite stable, at least I tested on the same device (redmi note 7), about 20 times and the problem did not happen",
+    "createdAt": "2021-04-18T03:09:22Z"
+  },
+  {
+    "id": 5951,
+    "sender": "Manjunath99",
+    "content": "guys try changing apk level i think i might work",
+    "createdAt": "2021-04-18T07:56:41Z"
+  }
+]

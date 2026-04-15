@@ -1,0 +1,386 @@
+[
+  {
+    "id": 7552,
+    "sender": "clarkezone",
+    "content": "@imiskolee did you look at native shell linked above?",
+    "createdAt": "2021-09-08T01:16:44Z"
+  },
+  {
+    "id": 7553,
+    "sender": "imiskolee",
+    "content": "@clarkezone  yes, I tried native shell and multi_window. the root cause for me is:\r\ncan not sharing objects between windows, requires the use of event channels for communication. \r\nThis makes it difficult for us to keep the code consistent between mobiles and desktops.\r\n In my idea, I want to just replace the native window container to overlay widget to work directly in the mobile platform.\r\n",
+    "createdAt": "2021-09-09T10:48:56Z"
+  },
+  {
+    "id": 7554,
+    "sender": "knopp",
+    "content": "One window per isolate is not something that is NativeShell specific. The embedder API and much of framework currently assume one window per isolate. The communication is quite heavyweight right now, though I think eventually we might be able to at least share UI and raster threads between isolates and allow passing complex objects (the work being done on lightweight isolates)/",
+    "createdAt": "2021-09-09T19:06:37Z"
+  },
+  {
+    "id": 7555,
+    "sender": "ColdPaleLight",
+    "content": "> One window per isolate is not something that is NativeShell specific. The embedder API and much of framework currently assume one window per isolate. The communication is quite heavyweight right now, though I think eventually we might be able to at least share UI and raster threads between isolates and allow passing complex objects (the work being done on lightweight isolates)/\r\n\r\nCan we consider letting desktop platform also support lightweight engine, just like mobile's `FlutterEngineGroup`? In this way, lightweight isolates can be used. In addition, I am also exploring how multiple lightweight engines can run in the same root isolate https://github.com/flutter/flutter/issues/94995 . I believe this can also benefit the desktop platform.\r\n\r\n",
+    "createdAt": "2021-12-10T14:09:07Z"
+  },
+  {
+    "id": 7556,
+    "sender": "knopp",
+    "content": "> > One window per isolate is not something that is NativeShell specific. The embedder API and much of framework currently assume one window per isolate. The communication is quite heavyweight right now, though I think eventually we might be able to at least share UI and raster threads between isolates and allow passing complex objects (the work being done on lightweight isolates)/\r\n> \r\n> Can we consider letting desktop platform also support lightweight engine, just like mobile's `FlutterEngineGroup`? In this way, lightweight isolates can be used. In addition, I am also exploring how multiple lightweight engines can run in the same root isolate #94995 . I believe this can also benefit the desktop platform.\r\n\r\n`FlutterEngineGroup` for desktop would be great. But I do think it's a stop-gap measure. The ideal outcome by far would be having multiple `FlutterView`s in one isolate.",
+    "createdAt": "2021-12-10T14:20:16Z"
+  },
+  {
+    "id": 7557,
+    "sender": "stuartmorgan-g",
+    "content": "> Can we consider letting desktop platform also support lightweight engine\r\n\r\nPlease file new issues for new feature requests.",
+    "createdAt": "2021-12-10T14:33:15Z"
+  },
+  {
+    "id": 7558,
+    "sender": "krll-kov",
+    "content": "Any progress?",
+    "createdAt": "2021-12-11T20:07:17Z"
+  },
+  {
+    "id": 7559,
+    "sender": "rtorr",
+    "content": "> timsneath removed this from the March Beta Release (1.28) milestone 17 hours ago\r\n\r\n@timsneath what is the new plan?",
+    "createdAt": "2022-01-27T18:28:22Z"
+  },
+  {
+    "id": 7560,
+    "sender": "giaur500",
+    "content": "There's some 3rd party plugins for multi window, like this one: https://pub.dev/packages/multi_window it works just fine, but only Linux/MacOs is supported",
+    "createdAt": "2022-01-28T08:27:39Z"
+  },
+  {
+    "id": 7561,
+    "sender": "DomingoMG",
+    "content": "Any progress on multiple windows on the desktop?",
+    "createdAt": "2022-02-10T22:25:53Z"
+  },
+  {
+    "id": 7562,
+    "sender": "maheini",
+    "content": "New progress for Windows, Linux and Mac: https://pub.dev/packages/desktop_multi_window\r\nIt does look very promising, with new Flutter engine for every window.",
+    "createdAt": "2022-02-15T10:05:28Z"
+  },
+  {
+    "id": 7563,
+    "sender": "giaur500",
+    "content": "If you mean the same approach as https://pub.dev/packages/multi_window uses, it means Flutter engine intialization for each window (basically the same as new app start). Thus, there is noticeable lag before new window starts. It looks really bad, especially on slower machines, without ssd and causes bad user experience\r\n\r\nMore than nothing, but still not what's expected for production apps",
+    "createdAt": "2022-02-15T10:49:25Z"
+  },
+  {
+    "id": 7564,
+    "sender": "abdulrehmananwar",
+    "content": "i found a solution below solution\r\nhttps://itnext.io/desktop-gui-implementation-using-flutter-web-part-3-draggable-resizable-windows-46ea26049605\r\nhow to restrict to move in avalable area. cause if i move it to not visible area i cannot move it back",
+    "createdAt": "2022-04-20T16:38:49Z"
+  },
+  {
+    "id": 7565,
+    "sender": "stuartmorgan-g",
+    "content": "@abdulrehmananwar This issue is about actual multi-window support in the desktop embeddings, not simulating window-like UI elements in Flutter.",
+    "createdAt": "2022-04-20T16:55:20Z"
+  },
+  {
+    "id": 7566,
+    "sender": "bochelie1000",
+    "content": "I want to port a C# app to flutter. However without multi window support there is no point for me in doing it. Yet I believe that once this is possible Flutter will be my main development framework.\r\n\r\nI also want to build a new app. This will be more focused on the web and thus multi window support is not a deal breaker. Yet I ask myself if multi window support for a web app will improve the app.\r\n\r\nI have been waiting more than 8 months already, hope this feature comes soon.",
+    "createdAt": "2022-05-15T19:15:44Z"
+  },
+  {
+    "id": 7567,
+    "sender": "khainke",
+    "content": "Can you maybe re-evaluate the priority for this? This blocks development for many desktop scenarios ... ",
+    "createdAt": "2022-05-15T19:27:14Z"
+  },
+  {
+    "id": 7568,
+    "sender": "gspencergoog",
+    "content": "P4 is already an elevated priority for a new feature (they are usually P5). This is a feature we're very interested in having, and are actively working on.  If bumping the priority would get it finished sooner, we would have done it already. :-) It's just a very involved feature with many, many moving parts, so it's going to take a while.",
+    "createdAt": "2022-05-16T16:17:48Z"
+  },
+  {
+    "id": 7569,
+    "sender": "krll-kov",
+    "content": "Agreed, @khainke, waiting for 6 month to implement a feature to my app that requires additional screen to draw some UI on",
+    "createdAt": "2022-05-17T15:50:33Z"
+  },
+  {
+    "id": 7570,
+    "sender": "yuhaya",
+    "content": "Looking forward to this feature",
+    "createdAt": "2022-06-27T02:26:45Z"
+  },
+  {
+    "id": 7571,
+    "sender": "Alcly",
+    "content": "Is there any progress here? Or could you tell me your development plan about this issues?",
+    "createdAt": "2022-06-27T13:27:29Z"
+  },
+  {
+    "id": 7572,
+    "sender": "Arkenar",
+    "content": "After waiting for many months to see this feature in a new Flutter release, and hoping to see it in the v3.0 release, i must say i am very disappointed. This should be a core feature for any desktop SDK. I am now considering either Sciter or Compose Multiplatform as an alternative despite my love for Flutter. \r\n\r\nBased on what i read, such a change does not seem to be on the list of priorities for the Flutter team, yet **it is one of the major deal breakers that makes it look like a glorified mobile app that happens to run on a desktop environment rather than a proper desktop SDK.**\r\n\r\nSoo many people have asked for this feature since 2018 and yet here we are, in mid 2022, and still nothing. No feedback on when or IF it will ever be implemented. Nothing.",
+    "createdAt": "2022-07-09T19:11:58Z"
+  },
+  {
+    "id": 7573,
+    "sender": "Eerey",
+    "content": "Yes, I also want it, but I don't think it is an easy task. Also, @Arkenar you're wrong about having \"nothing\", @gspencergoog said:\r\n> [gspencergoog](https://github.com/gspencergoog) commented [on 16 May](https://github.com/flutter/flutter/issues/30701#issuecomment-1127871137)\r\n> This is a feature we're very interested in having, and are actively working on (...)\r\n\r\nI totally agree that we could view it as a feature for a \"proper desktop SDK\", but there are so many things that we take *for granted* and often don't understand how difficult they are to implement (yet we ourselves are developers).\r\n\r\nChanges require many thoughts, so please flutter-team take your time and we can expect a sound solution.\r\n",
+    "createdAt": "2022-08-02T07:45:31Z"
+  },
+  {
+    "id": 7574,
+    "sender": "bochelie1000",
+    "content": "This is a nice insight Eerey. This will help me in keeping my patience. I will be waiting.",
+    "createdAt": "2022-08-02T11:25:31Z"
+  },
+  {
+    "id": 7575,
+    "sender": "pattobrien",
+    "content": "Agreed with @Eerey here completely. I'm subscribed to this issue, so needless to say I too have a lot of interest in this feature for my own project. But we should continue to be understanding of the thousands of feature requests and other issues coming from different types of developers and applications before expressing dissatisfaction with the Flutter projects prioritization as a whole.\r\n\r\nYes this issue has been requested by 200+ developers, but it is an extraordinarily complex task (i.e. re-architecting Flutter to allow running multiple view instances within one single app). I think many of us agree that it's nice that when Flutter adds a feature, 9 times out of 10 that feature has been so well thought out and meets use cases beyond what we initially saw use for, and we should be happy that such due diligence is being done here especially.\r\n\r\n> it is one of the major deal breakers that makes it look like a glorified mobile app that happens to run on a desktop environment rather than a proper desktop SDK.\r\n\r\nKeep in mind that there are many very popular desktop apps that have made use of just a singular window. On MacOS, the utilization of tabs in VSCode and Chrome are realistically what 90% of users NEED for usability, while multi window has some added benefits but not as much as tabs. Other desktop apps like Todoist, Docker Desktop and Discord open Settings/Preferences in a pop up dialog and dim the background of the main view, similar to how Flutter works out of the box with dialogs and Backdrop Filters. Maybe this doesn't cut it for your use case, but it's possible that a UX workaround exists that most users would not be lesser-off without (FWIW I probably still require multiple windows myself).\r\n\r\nI'm not condoning a lack of transparency on issue progress, and **I'm absolutely not dismissing anyone's particular use case or necessity for this feature**... it's just that sometimes our \"must have\" features are \"don't care\" features or have workarounds for most other developers and apps in the community. \r\n\r\nAs of recently, the team has given us some proof of progress, and we should try our best to be encouraging of that effort. I believe that despite our occasional impatience and with clients breathing down our necks, many of us are actually very grateful to be a part of a community that spends their professional and/or personal time on open sourcing a project that benefit us greatly, so let's try to remember to convey that sentiment even when features take longer than usual :)",
+    "createdAt": "2022-08-02T20:12:17Z"
+  },
+  {
+    "id": 7576,
+    "sender": "strongwill01",
+    "content": "It's not far away.\r\nflutter~",
+    "createdAt": "2022-08-13T07:17:47Z"
+  },
+  {
+    "id": 7577,
+    "sender": "cgzcgb",
+    "content": "Eagerly waiting for this 🙏",
+    "createdAt": "2022-10-25T10:04:28Z"
+  },
+  {
+    "id": 7578,
+    "sender": "bmitc",
+    "content": "Is there any comment from the Flutter team as to the difficulties of adding this? I am creating my own GUI framework, mainly for learning but also to suit my particular needs, and it has not been hard at all to support multiple windows from the start. So I am curious what the blockers are in Flutter.\r\n\r\nIs there some history or technical challenges that explains why this wasn’t in Flutter from the beginning? (Other than: mobile and web don’t have multiple windows so it wasn’t even considered.) And what are the technical challenges now that prevent it from being added?\r\n\r\nI’m not seeing any design discussion from the Flutter team or something that is going to prioritize it, so I think it would be nice to understand why. Otherwise, I would almost suggest closing this as “not going to implement” rather than just leaving it open indefinitely. Almost half a decade is a bit long in the tooth for a feature request to sit idle. (I believe the request predates this particular GitHub issue.)\r\n\r\nFor me, it is the number one reason why I cannot adopt Flutter.",
+    "createdAt": "2022-11-10T04:28:51Z"
+  },
+  {
+    "id": 7579,
+    "sender": "FlafyDev",
+    "content": "> Is there any comment from the Flutter team as to the difficulties of adding this? I am creating my own GUI framework, mainly for learning but also to suit my particular needs, and it has not been hard at all to support multiple windows from the start. So I am curious what the blockers are in Flutter.\n> \n> Is there some history or technical challenges that explains why this wasn’t in Flutter from the beginning? (Other than: mobile and web don’t have multiple windows so it wasn’t even considered.) And what are the technical challenges now that prevent it from being added?\n> \n> I’m not seeing any design discussion from the Flutter team or something that is going to prioritize it, so I think it would be nice to understand why. Otherwise, I would almost suggest closing this as “not going to implement” rather than just leaving it open indefinitely. Almost half a decade is a bit long in the tooth for a feature request to sit idle. (I believe the request predates this particular GitHub issue.)\n> \n> For me, it is the number one reason why I cannot adopt Flutter.\n\nIs that what you're looking for?\nhttps://docs.google.com/document/d/11_4wntz_9IJTQOo_Qhp7QF4RfpIMTfVygtOTxQ4OGHY/edit?usp=drivesdk",
+    "createdAt": "2022-11-10T05:50:06Z"
+  },
+  {
+    "id": 7580,
+    "sender": "hlwhl",
+    "content": "> Is there any comment from the Flutter team as to the difficulties of adding this? I am creating my own GUI framework, mainly for learning but also to suit my particular needs, and it has not been hard at all to support multiple windows from the start. So I am curious what the blockers are in Flutter.\r\n> \r\n> Is there some history or technical challenges that explains why this wasn’t in Flutter from the beginning? (Other than: mobile and web don’t have multiple windows so it wasn’t even considered.) And what are the technical challenges now that prevent it from being added?\r\n> \r\n> I’m not seeing any design discussion from the Flutter team or something that is going to prioritize it, so I think it would be nice to understand why. Otherwise, I would almost suggest closing this as “not going to implement” rather than just leaving it open indefinitely. Almost half a decade is a bit long in the tooth for a feature request to sit idle. (I believe the request predates this particular GitHub issue.)\r\n> \r\n> For me, it is the number one reason why I cannot adopt Flutter.\r\n\r\nSee https://github.com/orgs/flutter/projects/39. Multi-Window project is under active developing, you can track the progress there.",
+    "createdAt": "2022-11-10T06:05:12Z"
+  },
+  {
+    "id": 7581,
+    "sender": "gspencergoog",
+    "content": "@bmitc I'm not sure how I could be clearer than I was in https://github.com/flutter/flutter/issues/30701#issuecomment-1127871137 but we're actively working on it, and we absolutely intend to finish implementing it.\r\n\r\nI agree that engineering something to handle multiple windows from the beginning isn't especially challenging as a concept (although this is an application framework, and not a window manager: two very different things). What makes it complicated is the legacy of APIs that we need to continue to support without breaking them (when possible: there will be some breakage required where concepts crash into each other).\r\n\r\nAlso, as you guessed, Flutter started as a mobile-only framework, and our roots are showing here: multiple windows wasn't engineered in from the beginning because at the time we were focused exclusively on mobile, and as a small team we had plenty to do to just finish it for the one platform. Retrofitting the concept many years later onto seven different platforms is naturally complicated and involved, and we also want to do it correctly, so we're being careful.",
+    "createdAt": "2022-11-10T16:53:41Z"
+  },
+  {
+    "id": 7582,
+    "sender": "bmitc",
+    "content": "@FlafyDev Thank you for the design document. That will be helpful to read.\r\n\r\n@hlwhl Thank you for the link to the multi-window tasks. That is definitely something I was looking for. This particular issue is not marked as in progress, so that is helpful to be posted here.\r\n\r\n@gspencergoog Thank you for the response. I had read that comment, but I was looking for something more than \"we're working on it\". It's a long-standing issue, so that type of response unfortunately doesn't hold very strongly when just reading it, although it does seem clear now that you mean it! 🙂 The same issue actually holds in .NET MAUI and Xamarin Forms before that, with similar responses and similar years of waiting. However, your elaboration here does help as do the other links that were provided. I do wish it was considered from the beginning, but I'm sure the team is now wishing that too. 🙂\r\n\r\nI'm sure the concern can be understood for desktop developers wanting to develop desktop applications with Flutter. There is already built-in concern of a cross-platform app framework being spread too thin across effectively thinly overlapping targets (mobile, web, and desktop and others), and so there's a lot of hesitation when there isn't visible progress on a primary desktop feature.\r\n\r\nThank you again for the links and reiteration!",
+    "createdAt": "2022-11-11T03:02:09Z"
+  },
+  {
+    "id": 7583,
+    "sender": "aneeskA",
+    "content": "@gspencergoog Would you be confident in saying that this feature will be ready for wide use in time for Google I/O 2023? :) ",
+    "createdAt": "2022-11-13T12:58:59Z"
+  },
+  {
+    "id": 7584,
+    "sender": "Kupferbart",
+    "content": "Will we also be able to customize the window title bars? It would be great if they would fit in with the app's theme (think IntelliJ) or to use the area for some extra functionality (such as tabs on Chrome)",
+    "createdAt": "2022-12-14T09:47:52Z"
+  },
+  {
+    "id": 7585,
+    "sender": "chentianxin",
+    "content": "> Will we also be able to customize the window title bars? It would be great if they would fit in with the app's theme (think IntelliJ) or to use the area for some extra functionality (such as tabs on Chrome)\r\n\r\nyou can try [window_manager](https://pub.dev/packages/window_manager)",
+    "createdAt": "2022-12-14T09:50:41Z"
+  },
+  {
+    "id": 7586,
+    "sender": "nabil6391",
+    "content": "https://www.youtube.com/watch?v=vtB-teu57vw/\r\n\r\nAt least there is some progress here",
+    "createdAt": "2023-01-25T18:36:45Z"
+  },
+  {
+    "id": 7587,
+    "sender": "giaur500",
+    "content": "> https://www.youtube.com/watch?v=vtB-teu57vw/\r\n> \r\n> At least there is some progress here\r\n\r\nWhere? Is it merged to Flutter?",
+    "createdAt": "2023-01-26T08:55:19Z"
+  },
+  {
+    "id": 7588,
+    "sender": "Eerey",
+    "content": "> > https://www.youtube.com/watch?v=vtB-teu57vw/\r\n> > At least there is some progress here\r\n> \r\n> Where? Is it merged to Flutter?\r\n\r\nHey @giaur500 , the video that answers your question is right in your `own citation`.\r\nBecause some don't have time to watch it, here is a small summary of the video:\r\n\r\n- @goderbauer Michael Goderbauer explains that the current showcase is a tech-demo and might change later\r\n- motivation for the usage of multiple windows is showcased\r\n- the demonstrated three open windows share same unified `widget-tree`\r\n- e.g. InheritedWidgets placed in the root of the `widget-tree` are accessible from all descendant `window widgets`. A simple theme-styling is demonstrated across all open `window widgets`.\r\n- technically, the `window widgets` are grouped into different `View`-widgets. There is one `render tree` per window. A `layer tree` is derived from each `render tree`. A single engine rasterizes each `layer tree`.\r\n- **this is just a prototype**, not quite ready for production yet. However, Michael can't wait to see us exploring the upcoming feature.",
+    "createdAt": "2023-01-26T09:08:05Z"
+  },
+  {
+    "id": 7589,
+    "sender": "giaur500",
+    "content": "> * **this is just a prototype**, not quite ready for production yet. However, Michael can't wait to see us exploring the upcoming feature.\r\n\r\nOk, is it available anywhere? Or not yet?",
+    "createdAt": "2023-01-26T09:34:09Z"
+  },
+  {
+    "id": 7590,
+    "sender": "AminBhst",
+    "content": "> > * **this is just a prototype**, not quite ready for production yet. However, Michael can't wait to see us exploring the upcoming feature.\r\n> \r\n> Ok, is it available anywhere? Or not yet?\r\n\r\nIt obviously isn't yet since he mentioned it is not ready for production. This video was just a preview for this upcoming feature",
+    "createdAt": "2023-01-26T09:36:33Z"
+  },
+  {
+    "id": 7591,
+    "sender": "0xNF",
+    "content": "Very happy to see some concrete progress being showed of. Really looking forward to this.",
+    "createdAt": "2023-01-26T10:33:42Z"
+  },
+  {
+    "id": 7592,
+    "sender": "arc41t3ct",
+    "content": "> https://www.youtube.com/watch?v=vtB-teu57vw/\n> \n> \n> \n> At least there is some progress here\n\nThis is so awesome and I cannot wait for this to be included. Thank you to all who are involved in this. ♥️",
+    "createdAt": "2023-01-27T10:21:28Z"
+  },
+  {
+    "id": 7593,
+    "sender": "luwei888",
+    "content": "Did any version update the multiwindow feature?",
+    "createdAt": "2023-02-24T09:55:32Z"
+  },
+  {
+    "id": 7594,
+    "sender": "luisotavio-dev",
+    "content": "Are there any plans for us testing this feature? I checked on the dev channel and i wasn't able to test yet.",
+    "createdAt": "2023-03-01T13:33:35Z"
+  },
+  {
+    "id": 7595,
+    "sender": "rohanjariwala03",
+    "content": "Are there any channels where we can test this multi-window functionality? If not then are there any release dates?",
+    "createdAt": "2023-03-27T15:57:09Z"
+  },
+  {
+    "id": 7596,
+    "sender": "goderbauer",
+    "content": "We continue to make progress on this, the work is tracked in https://github.com/orgs/flutter/projects/39/views/1.\r\n\r\nWe just finished the deprecation of the window singleton (https://github.com/flutter/flutter/issues/116929) and removed all dependencies on it from the framework. If you're an app/package developer, you may want to consider doing the same thing by following our migration guide: https://docs.flutter.dev/release/breaking-changes/window-singleton\r\n\r\nWork is also progressing on being able to manage multiple render trees in the framework. Each render tree will power a different view. As part of that we are also updating the engine so it can actually render these scenes produces from these render trees into different views.",
+    "createdAt": "2023-03-27T23:23:47Z"
+  },
+  {
+    "id": 7597,
+    "sender": "giaur500",
+    "content": "Is there any demo/test app to compile or not yet? From what I see, your work is merged to master channel",
+    "createdAt": "2023-03-28T06:31:55Z"
+  },
+  {
+    "id": 7598,
+    "sender": "Im-Kevin",
+    "content": "May I ask what the situation is now",
+    "createdAt": "2023-04-11T06:46:23Z"
+  },
+  {
+    "id": 7599,
+    "sender": "YarosMallorca",
+    "content": "Google I/O 2023 is behind and nothing new to this? \n\nWhen could we expect this feature to be in stable?",
+    "createdAt": "2023-05-12T08:46:50Z"
+  },
+  {
+    "id": 7600,
+    "sender": "Eerey",
+    "content": "> Google I/O 2023 is behind and nothing new to this?\r\n> \r\n> When could we expect this feature to be in stable?\r\n\r\nYou can follow the current state here:\r\nhttps://github.com/orgs/flutter/projects/39/views/1\r\n\r\nMany PR are already merged, but, as you can see, there's a lot to do.\r\n\r\nEdit: Please don't respond with single line messages about the update, just react to the initial post with emotes to indicate public demand.",
+    "createdAt": "2023-05-12T08:56:45Z"
+  },
+  {
+    "id": 7601,
+    "sender": "ahdyt",
+    "content": "Nice one, i'm following the updates.",
+    "createdAt": "2023-06-14T13:42:34Z"
+  },
+  {
+    "id": 7602,
+    "sender": "junko2013",
+    "content": "👀",
+    "createdAt": "2023-06-18T00:58:14Z"
+  },
+  {
+    "id": 7603,
+    "sender": "Im-Kevin",
+    "content": "Can you announce the current situation?",
+    "createdAt": "2023-06-20T07:49:55Z"
+  },
+  {
+    "id": 7604,
+    "sender": "giaur500",
+    "content": "Not metioned on latest Google IO, so I guess there's nothing new to announce yet",
+    "createdAt": "2023-06-20T08:33:27Z"
+  },
+  {
+    "id": 7605,
+    "sender": "evgfilim1",
+    "content": "> Can you announce the current situation?\r\n\r\nYou can track it yourself as described in https://github.com/flutter/flutter/issues/30701#issuecomment-1545410036 above",
+    "createdAt": "2023-06-20T10:07:30Z"
+  },
+  {
+    "id": 7606,
+    "sender": "cgzcgb",
+    "content": "Has development stopped yet?",
+    "createdAt": "2023-07-05T07:43:22Z"
+  },
+  {
+    "id": 7607,
+    "sender": "goderbauer",
+    "content": "At the beginning of the week we submitted a major milestone: https://github.com/flutter/flutter/pull/125003, which enables the framework to generate multiple different scenes (to be rendered into different views) from a single widget tree. The corresponding engine-side work to render these scenes into different backing surfaces (views) provided by the embedder is ongoing (https://github.com/flutter/flutter/issues/96531).\r\n\r\nIf you'd like, you can experiment with this milestone using the examples hosted at https://github.com/goderbauer/mvp. **Please read the readme carefully**, it documents the current limitations as well as the different steps required to get the examples running (it currently requires a custom engine build) on the supported platforms. See the readme for what is currently supported. If you find bugs, please report them here. Please keep in mind that https://github.com/goderbauer/mvp is only an exploratory playground and not an official Flutter offering. It may break without notice as we continue to work on this feature.\r\n\r\nThis milestone is all about rendering content into multiple views, a prerequisite for multi window support. There is currently no way to create a new view/window from a Flutter app. Defining a windowing API to create and manage windows is going to be one of our next steps. I will update this issue again when there's more to report. Please do not ping this issue asking for updates (or the issue will get locked again). Stay tuned!",
+    "createdAt": "2023-07-21T22:52:41Z"
+  },
+  {
+    "id": 7608,
+    "sender": "rekire",
+    "content": "What is the current status for Android with multiple displays? The last comment just mentions Windows and MacOS. I have a usecase where I need to show differnt things on one Android device with multiple displays. I just ask because I want to evaluate if I can help out.",
+    "createdAt": "2023-09-07T19:04:41Z"
+  },
+  {
+    "id": 7609,
+    "sender": "giaur500",
+    "content": "I don't think your question is related to this thread. You'd rather need to create new ticket for that. In my opinion, most Android apps (even native ones) are not able to do what you said, are you sure it's even possible?",
+    "createdAt": "2023-09-08T07:15:21Z"
+  },
+  {
+    "id": 7610,
+    "sender": "rekire",
+    "content": "I missed the small detail that the title of this ticket contains \"for desktop\". You are right I'm wrong here.\r\nJust FYI: Here is a part of the Android Documentation regarding this: https://source.android.com/docs/core/display/multi_display/testing-dev-environment",
+    "createdAt": "2023-09-08T08:35:25Z"
+  },
+  {
+    "id": 7611,
+    "sender": "moshOntong-IT",
+    "content": "what is the status of this issue?",
+    "createdAt": "2023-09-11T09:02:58Z"
+  },
+  {
+    "id": 7612,
+    "sender": "JHenneberg",
+    "content": "You can check https://github.com/orgs/flutter/projects/39/views/1 for status I guess. ",
+    "createdAt": "2023-12-12T07:22:51Z"
+  },
+  {
+    "id": 7613,
+    "sender": "mahop-net",
+    "content": "> You can check https://github.com/orgs/flutter/projects/39/views/1 for status I guess.\r\n\r\nThis is a nice board. Can I see the roadmap behind this board somewhere or can I already test some alpha demos like the one mentioned here? https://github.com/orgs/flutter/projects/39/views/1?pane=issue&itemId=21297895 Where to find the code? (I'm new to flutter...)",
+    "createdAt": "2023-12-27T12:59:11Z"
+  },
+  {
+    "id": 7614,
+    "sender": "KristijanZic",
+    "content": "Is there any updates on this? Is there at least a workaround? It has been 5 years... :)",
+    "createdAt": "2024-02-06T18:09:11Z"
+  },
+  {
+    "id": 7615,
+    "sender": "pattobrien",
+    "content": "Does the multi-window spec include running a Flutter app with zero or more windows? Or will a Flutter app still require at least one window to be active at one time?\r\n\r\nContext: after installing / removing a new extension in VSCode, you can \"reload the window\" which restarts the VSCode GUI, without killing the underlying state of the application. Obviously this is a very useful feature, as you don't need to restart very expensive processes, like LSP analyzers, integrated terminal processes, etc. \r\n\r\nHaving a root Dart process that is detached from any Flutter window would be a super useful feature for performance-intensive Flutter applications, possibly other categories of apps.",
+    "createdAt": "2024-02-22T20:31:09Z"
+  }
+]

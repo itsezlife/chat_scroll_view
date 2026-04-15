@@ -1,0 +1,386 @@
+[
+  {
+    "id": 7680,
+    "sender": "flutter-github-sync",
+    "content": "Google testing passed!",
+    "createdAt": "2020-06-24T00:02:47Z"
+  },
+  {
+    "id": 7681,
+    "sender": "sjosegarcia",
+    "content": "Excited to see this change merged into master.",
+    "createdAt": "2020-06-24T19:52:55Z"
+  },
+  {
+    "id": 7682,
+    "sender": "flutter-github-sync",
+    "content": "Started Google testing for this PR",
+    "createdAt": "2020-06-25T01:24:05Z"
+  },
+  {
+    "id": 7683,
+    "sender": "flutter-github-sync",
+    "content": "Google testing passed!",
+    "createdAt": "2020-06-25T01:56:54Z"
+  },
+  {
+    "id": 7684,
+    "sender": "flutter-github-sync",
+    "content": "Started Google testing for this PR",
+    "createdAt": "2020-06-25T02:11:48Z"
+  },
+  {
+    "id": 7685,
+    "sender": "flutter-github-sync",
+    "content": "Started Google testing for this PR",
+    "createdAt": "2020-06-25T04:19:29Z"
+  },
+  {
+    "id": 7686,
+    "sender": "flutter-github-sync",
+    "content": "Google testing passed!",
+    "createdAt": "2020-06-25T05:06:43Z"
+  },
+  {
+    "id": 7687,
+    "sender": "pumuckelo",
+    "content": "I just spend 20 minutes reading the whole discussions from end of 2019 until now. @pedromassango @chunhtai @justinmc . Thanks for putting in all the time and effort to find a solution, this is awesome! ",
+    "createdAt": "2020-07-10T20:46:40Z"
+  },
+  {
+    "id": 7688,
+    "sender": "pedromassango",
+    "content": "@chunhtai I want to know if the next PR to improve this one should be documented in another File or in the same File as this one.",
+    "createdAt": "2020-07-15T19:53:55Z"
+  },
+  {
+    "id": 7689,
+    "sender": "chunhtai",
+    "content": "> @chunhtai I want to know if the next PR to improve this one should be documented in another File or in the same File as this one.\r\n\r\nWe should create an issue to track it.",
+    "createdAt": "2020-07-15T19:56:04Z"
+  },
+  {
+    "id": 7690,
+    "sender": "pedromassango",
+    "content": "> > @chunhtai I want to know if the next PR to improve this one should be documented in another File or in the same File as this one.\r\n> \r\n> We should create an issue to track it.\r\n\r\nI will do this.\r\n\r\nEdit: \r\nHere is the issue: https://github.com/flutter/flutter/issues/61803",
+    "createdAt": "2020-07-15T19:58:03Z"
+  },
+  {
+    "id": 7691,
+    "sender": "chunhtai",
+    "content": "It looks like the branch may still out of date, are you sure you have the latest from the master?",
+    "createdAt": "2020-07-15T21:07:33Z"
+  },
+  {
+    "id": 7692,
+    "sender": "pedromassango",
+    "content": "> It looks like the branch may still out of date, are you sure you have the latest from the master?\r\n\r\nThere is new updates. Let me update this branch again.",
+    "createdAt": "2020-07-15T21:33:35Z"
+  },
+  {
+    "id": 7693,
+    "sender": "justinmc",
+    "content": "🎉  Congrats!\r\n\r\nThanks again for all the persistence in getting this PR ready.  An API like this is tricky to get right.  Let's keep an eye on how Flutter developers are using it as it rolls out.",
+    "createdAt": "2020-07-16T16:33:22Z"
+  },
+  {
+    "id": 7694,
+    "sender": "pedromassango",
+    "content": "> 🎉 Congrats!\r\n> \r\n> Thanks again for all the persistence in getting this PR ready. An API like this is tricky to get right. Let's keep an eye on how Flutter developers are using it as it rolls out.\r\n\r\nThank you. I still interested in improve this feature. And I will do that.",
+    "createdAt": "2020-07-16T16:47:18Z"
+  },
+  {
+    "id": 7695,
+    "sender": "normancarcamo",
+    "content": "Hi there!, thank you for the effort on this project, I have a few questions about TextFormField class and the version of these changes:\r\n\r\n**1. Has the property:`autovalidateMode` in the TextFormField class not available anymore?**\r\n\r\nI did the mistake of upgrade the version I had because the notification on the IDE was really annoying (currently I can't remember the previous version, but after updating the `autovalidateMode` is not available)...\r\n\r\n<img width=\"818\" alt=\"Screen Shot 2020-09-02 at 10 51 40\" src=\"https://user-images.githubusercontent.com/2402579/92012955-5c2b0300-ed0a-11ea-88ef-1bba34904e97.png\">\r\n\r\nThe current version of flutter I have is the following:\r\n\r\n`flutter --version`\r\n```sh\r\nFlutter 1.20.2 • channel stable • https://github.com/flutter/flutter.git\r\nFramework • revision bbfbf1770c (3 weeks ago) • 2020-08-13 08:33:09 -0700\r\nEngine • revision 9d5b21729f\r\nTools • Dart 2.9.1\r\n```\r\n\r\n`flutter doctor`\r\n```sh\r\nDoctor summary (to see all details, run flutter doctor -v):\r\n[✓] Flutter (Channel stable, 1.20.2, on Mac OS X 10.15.6 19G2021, locale en-HN)\r\n \r\n[✓] Android toolchain - develop for Android devices (Android SDK version 30.0.1)\r\n[✓] Xcode - develop for iOS and macOS (Xcode 11.5)\r\n[✓] Android Studio (version 4.0)\r\n[✓] IntelliJ IDEA Community Edition (version 2020.2.1)\r\n[✓] VS Code (version 1.48.2)\r\n[✓] Connected device (1 available)\r\n\r\n• No issues found!\r\n```\r\n**2. Which version of flutter were these changes merged?**\r\n\r\nIn the changed files I can see that the property `autovalidateMode` is still present, but in the stable channel using the sdk release: 1.20.2 is not.\r\n\r\nCould you give a hand to know what can I do because if not I will refactor the logic of some features already done.\r\n\r\nThanks!",
+    "createdAt": "2020-09-02T17:00:17Z"
+  },
+  {
+    "id": 7696,
+    "sender": "chunhtai",
+    "content": "It is not release to stable yet, you can switch to master channel and will be able to use this new API",
+    "createdAt": "2020-09-02T17:13:16Z"
+  },
+  {
+    "id": 7697,
+    "sender": "normancarcamo",
+    "content": "Oh!, understand it. \r\nok, thanks.",
+    "createdAt": "2020-09-02T17:25:01Z"
+  },
+  {
+    "id": 7698,
+    "sender": "EffyCoder",
+    "content": "I couldn't find this autovalidatemode field in the TextFormField.\r\n\r\nFollowing is my flutter doctor output:\r\n\r\n`\r\n[√] Flutter (Channel stable, 1.20.4, on Microsoft Windows [Version 10.0.18363.1082], locale en-IN)\r\n    • Flutter version 1.20.4 at D:\\flutter_windows_1.20.2-stable\\flutter\r\n    • Framework revision fba99f6cf9 (9 days ago), 2020-09-14 15:32:52 -0700\r\n    • Engine revision d1bc06f032\r\n    • Dart version 2.9.2\r\n\r\n\r\n[√] Android toolchain - develop for Android devices (Android SDK version 30.0.2)\r\n    • Android SDK at D:\\AndroidWork\\sdk\r\n    • Platform android-30, build-tools 30.0.2\r\n    • ANDROID_HOME = D:\\AndroidWork\\sdk\r\n    • Java binary at: C:\\Program Files\\Android\\Android Studio\\jre\\bin\\java\r\n    • Java version OpenJDK Runtime Environment (build 1.8.0_242-release-1644-b01)\r\n    • All Android licenses accepted.\r\n\r\n[√] Android Studio (version 4.0)\r\n    • Android Studio at C:\\Program Files\\Android\\Android Studio\r\n    • Flutter plugin version 46.0.2\r\n    • Dart plugin version 193.7361\r\n    • Java version OpenJDK Runtime Environment (build 1.8.0_242-release-1644-b01)\r\n\r\n[√] VS Code, 64-bit edition (version 1.48.2)\r\n    • VS Code at C:\\Program Files\\Microsoft VS Code\r\n    • Flutter extension version 3.14.1\r\n\r\n[√] Connected device (1 available)\r\n    • Android SDK built for x86 (mobile) • emulator-5554 • android-x86 • Android 8.1.0 (API 27) (emulator)\r\n\r\n• No issues found!\r\n`\r\n\r\nWhen it will be added to stable release?\r\n",
+    "createdAt": "2020-09-23T13:59:38Z"
+  },
+  {
+    "id": 7699,
+    "sender": "pedromassango",
+    "content": "It is not yet on stable!\r\nI don't know when it will land on stable release.",
+    "createdAt": "2020-09-23T14:39:50Z"
+  },
+  {
+    "id": 7700,
+    "sender": "normancarcamo",
+    "content": "@EffyCoder & @pedromassango I fixed my issue using `autovalidate` option, for example, only when the input has focus:\r\n\r\n```dart\r\nbuild(BuildContext context) {\r\n  return Container(\r\n    TextFormField(\r\n      autovalidate: focusNode.hasFocus,\r\n    )\r\n  );\r\n}\r\n```\r\n\r\nYou can do more stuffs with this approach, and it's working in the same way before it was.",
+    "createdAt": "2020-09-23T20:09:25Z"
+  },
+  {
+    "id": 7701,
+    "sender": "pedromassango",
+    "content": "> @EffyCoder & @pedromassango I fixed my issue using `autovalidate` option, for example, only when the input has focus:\n> \n> ```dart\n> build(BuildContext context) {\n>   return Container(\n>     TextFormField(\n>       autovalidate: focusNode.hasFocus,\n>     )\n>   );\n> }\n> ```\n> \n> You can do more stuffs with this approach, and it's working in the same way before it was.\n\nLast week I was thinking of adding this feature. \n\n@chunhtai @justinmc My only concern it just that autovalidateMode.hasFocus will only be used on single form fields (FormField, TextFormField, etc..) and not on the Form widget.\n\nWe have make it clear that it will have no effect on the Form widget, but this may not be the best thing to do.\n\nDo you have any thing in mind about this?",
+    "createdAt": "2020-09-23T20:25:55Z"
+  },
+  {
+    "id": 7702,
+    "sender": "chunhtai",
+    "content": "They can achieve the same result with\r\n```dart\r\nreturn Container(\r\n    TextFormField(\r\n      autovalidateMode: focusNode.hasFocus ?? AutovalidateMode.always :AutovalidateMode.disabled\r\n    )\r\n  );\r\n```\r\nWe should not expend the mode unless there is a mode that cannot be achieve with current API and/or we have a lot of use cases.",
+    "createdAt": "2020-09-23T20:43:28Z"
+  },
+  {
+    "id": 7703,
+    "sender": "pumuckelo",
+    "content": "I just updated my flutter_form_builder package.\r\n\r\nFirst off, thank you for implementing this feature!!\r\n\r\nWhy is the type of autovalidateMode dynamic though? Also, my IDE can't find \"AutovalidateMode.always\" etc\r\n\r\n\r\n**EDIT:** \r\nSorry, just needed to restart my VS CODE ",
+    "createdAt": "2020-10-17T14:03:10Z"
+  },
+  {
+    "id": 7704,
+    "sender": "jonahwilliams",
+    "content": "## Add initial implementation of flutter assemble\n\n## Description\r\n\r\nA re-imagining of how we structure and describe builds for the flutter tool\r\n\r\n### Target build/system API\r\n```\r\n/// Assemble the assets used in the application into a build directory.\r\nconst Target copyAssets = Target(\r\n  name: 'copy_assets',\r\n  inputs: <Object>[\r\n    '{PROJECT_DIR}/pubspec.yaml',\r\n    listAssets, // <- parses pubspec file and outputs file paths.\r\n  ],\r\n  outputs: <Object>[\r\n    '{BUILD_DIR}/flutter_assets/AssetManifest.json',\r\n    '{BUILD_DIR}/flutter_assets/FontManifest.json',\r\n    '{BUILD_DIR}/flutter_assets/LICENSE',\r\n    listOutputAssets,\r\n  ],\r\n  dependencies: <Target>[],\r\n  invocation: copyAssetsInvocation,\r\n);\r\n```\r\n\r\nAll files and directories are specified as file URIs relative to some \"magic environment variable\" defined below. This keeps us sane in the face of Windows. The {PROJECT_DIR}, {CACHE_DIR}, {BUILD_DIR} are automatically substituted variables that can be configured.\r\n\r\nlistAssets and listOutputAssets are top level or static functions which take a configuration object and return a list of files. These are used for dependency analysis when executing a target.\r\n\r\ncopyAssetsInvocation is a top level or static function which takes a configuration object. The tooling will verify that it produces the expected outputs. Placing all of the relevant configuration on single object (instead of providing some ambiently) makes it easier for the system to correctly invalidate and for authors and reviewers to identify whether the implementation is correct.\r\n\r\n### assemble command line API\r\n\r\nThe ability to inspect and execute targets is provided via a command line API. This is intended to be much lower level than the build APIs for integrating with external build systems. This is intended to initially replace the xcode_backend and desktop specific shell scripts with an API that can be directly embedded in the host build system.\r\n\r\nExample: invoke a particular target\r\n```\r\nflutter assemble run -dbuildMode=debug  -dFlavor=cheese android_apk\r\n```\r\n\r\nExample: list the inputs for the macOS target\r\n```\r\nflutter assemble inputs macos_debug\r\n> lib/main.dart\r\n> pubspec.yaml\r\n> assets/foo.png\r\n```\r\n\r\nExample: Direct integration into a makefile\r\n```\r\n$(FLUTTER_ROOT/bin/flutter assemble inputs linux_debug): flutter\r\nflutter: $(FLUTTER_ROOT/bin/flutter assemble run linux_debug \\ \r\n                --target-platform=linux-x64 \\\r\n                --build=mode=$(MODE) \r\n```\r\n\r\n## Related Issues\r\n\r\nhttps://github.com/flutter/flutter/issues/27720\r\nhttps://github.com/flutter/flutter/issues/28415\r\nhttps://github.com/flutter/flutter/issues/16604\r\n\r\n## Tests\r\n\r\nI added the following tests: Several\r\n\r\n## Checklist\r\n\r\nBefore you create this PR confirm that it meets all requirements listed below by checking the relevant checkboxes (`[x]`). This will ensure a smooth and quick review process.\r\n\r\n- [x] I read the [Contributor Guide] and followed the process outlined there for submitting PRs.\r\n- [x] I signed the [CLA].\r\n- [x] I read and followed the [Flutter Style Guide], including [Features we expect every widget to implement].\r\n- [x] I updated/added relevant documentation (doc comments with `///`).\r\n- [x] All existing and new tests are passing.\r\n- [x] The analyzer (`flutter analyze --flutter-repo`) does not report any problems on my PR.\r\n- [x] I am willing to follow-up on review comments in a timely manner.\r\n\r\n## Breaking Change\r\n\r\nDoes your PR require Flutter developers to manually update their apps to accommodate your change?\r\n\r\n- [ ] Yes, this is a breaking change (Please read [Handling breaking changes]). *Replace this with a link to the e-mail where you asked for input on this proposed change.*\r\n- [x] No, this is *not* a breaking change.\r\n\r\n<!-- Links -->\r\n[issue database]: https://github.com/flutter/flutter/issues\r\n[Contributor Guide]: https://github.com/flutter/flutter/wiki/Tree-hygiene#overview\r\n[Test Coverage]: https://github.com/flutter/flutter/wiki/Test-coverage-for-package%3Aflutter\r\n[Flutter Style Guide]: https://github.com/flutter/flutter/wiki/Style-guide-for-Flutter-repo\r\n[Features we expect every widget to implement]: https://github.com/flutter/flutter/wiki/Style-guide-for-Flutter-repo#features-we-expect-every-widget-to-implement\r\n[CLA]: https://cla.developers.google.com/\r\n[Handling breaking changes]: https://github.com/flutter/flutter/wiki/Tree-hygiene#handling-breaking-changes\r",
+    "createdAt": "2019-05-16T15:24:30Z"
+  },
+  {
+    "id": 7705,
+    "sender": "jonahwilliams",
+    "content": "From discussion, this is currently missing a way to specify tool inputs.",
+    "createdAt": "2019-05-18T17:27:04Z"
+  },
+  {
+    "id": 7706,
+    "sender": "jonahwilliams",
+    "content": "Need to fix my File/Uri logic",
+    "createdAt": "2019-05-23T21:55:45Z"
+  },
+  {
+    "id": 7707,
+    "sender": "jonahwilliams",
+    "content": "Some updates based on what we discussed last week. Still needs more tests, and some cleanup to some of the methods.",
+    "createdAt": "2019-06-03T18:13:18Z"
+  },
+  {
+    "id": 7708,
+    "sender": "jonahwilliams",
+    "content": "Okay, I'm actually feeling a bit more confident about this change. There is still more follow up work to do that will be discovered when we kick the tires with desktop, but that should be okay.\r\n\r\n@zanderso  PTAL when you have some time",
+    "createdAt": "2019-06-03T22:33:28Z"
+  },
+  {
+    "id": 7709,
+    "sender": "jonahwilliams",
+    "content": "In the process of updating this to allow passing configuration to each target in safe way.",
+    "createdAt": "2019-06-20T01:32:39Z"
+  },
+  {
+    "id": 7710,
+    "sender": "jonahwilliams",
+    "content": "Based on the relative convenience and safety of build directory per config, I'm removing the mode, flavor, and platform substitution and variables. This will now be handled automagically as passing different values to these defines will result in a unique build directory.",
+    "createdAt": "2019-06-20T15:07:31Z"
+  },
+  {
+    "id": 7711,
+    "sender": "jonahwilliams",
+    "content": "This should be ready for review again.",
+    "createdAt": "2019-06-21T00:31:53Z"
+  },
+  {
+    "id": 7712,
+    "sender": "jonahwilliams",
+    "content": "Still working on this. I don't think we'll be able to escape tracking output file hashes as well, so I'm adding that now and expand the suite of rules a bit to verify that everything is copacetic ",
+    "createdAt": "2019-06-26T18:07:51Z"
+  },
+  {
+    "id": 7713,
+    "sender": "jonahwilliams",
+    "content": "Looks like coverage is a little flaky, I've opened https://github.com/flutter/flutter/pull/35188 to attempt to address that",
+    "createdAt": "2019-06-27T15:13:49Z"
+  },
+  {
+    "id": 7714,
+    "sender": "jonahwilliams",
+    "content": "My incorrect assumption about how file paths on windows aside (I'll debug when I get home), this is ready for review again",
+    "createdAt": "2019-06-27T20:12:39Z"
+  },
+  {
+    "id": 7715,
+    "sender": "jonahwilliams",
+    "content": "I'll need to create an artifacts class which can correctly delegate to the environment.cacheDir value for testing purposes",
+    "createdAt": "2019-06-28T21:01:05Z"
+  },
+  {
+    "id": 7716,
+    "sender": "jonahwilliams",
+    "content": "Update with an artifact source, which can map to cache or local engine.",
+    "createdAt": "2019-07-08T19:39:35Z"
+  },
+  {
+    "id": 7717,
+    "sender": "ariejdl",
+    "content": "## Provide method and/or config to programmatically scroll to ListView index\n\nThe ListView is successful at displaying large lists, however in some circumstances, such as a reader application it is useful to be able to focus to a certain list item offset, the iOS `UITableView` has `- (void)scrollToRowAtIndexPath:(NSIndexPath *)indexPath atScrollPosition:(UITableViewScrollPosition)scrollPosition animated:(BOOL)animated` and on Android the `ListView` has either `setSelection(index);` or `smoothScrollToPosition(index)`.  Please can you add this feature?",
+    "createdAt": "2017-09-29T14:52:46Z"
+  },
+  {
+    "id": 7718,
+    "sender": "ariejdl",
+    "content": "@Hixie is this a reasonable feature request?",
+    "createdAt": "2017-10-03T09:10:30Z"
+  },
+  {
+    "id": 7719,
+    "sender": "Hixie",
+    "content": "It's certainly a reasonable request... how easy it is to implement is a different matter. :-)\r\n\r\nFor fixed-item-height list views it's easy to work around (just jump to the index * the height). For variable-height list views, it's really difficult in the current setup (because we don't know how far to scroll). It's the same thing that's blocking https://github.com/flutter/flutter/issues/10826.",
+    "createdAt": "2017-10-03T16:15:33Z"
+  },
+  {
+    "id": 7720,
+    "sender": "ariejdl",
+    "content": "@Hixie please forgive my ignorance, but does it have to do with `endScrollOffset < scrollOffset` in `performLayout` in https://github.com/flutter/flutter/blob/master/packages/flutter/lib/src/rendering/sliver_list.dart#L213 ?",
+    "createdAt": "2017-10-03T20:10:55Z"
+  },
+  {
+    "id": 7721,
+    "sender": "Hixie",
+    "content": "That's part of the code that makes sure that widgets that aren't visible aren't laid out, yes. And that's the reason we don't know the offset for the widgets that aren't visible.",
+    "createdAt": "2017-10-03T22:45:16Z"
+  },
+  {
+    "id": 7722,
+    "sender": "sroddy",
+    "content": "I have to add that I spent quite a few time in the past to figure out the fact that this feature is missing as I consider it being a critical requirement for a lot of common scenarios (chats, readers, contact lists just to name a few...) and for sure at least a couple of our apps.\r\n\r\nWhile I understand the complexity of an animated version of this feature, I thought that a non-animated `jumpToIndex(int index, {double position})` method shouldn't be that hard to implement, as it would require to just trigger a brand new render/layout of the visible area of the list starting from the element at the index we need to make visible (instead of index 0) and then walk up and down to fill the holes.",
+    "createdAt": "2017-11-25T17:07:58Z"
+  },
+  {
+    "id": 7723,
+    "sender": "sroddy",
+    "content": "another possible approach would be to be able to correctly estimate the height of the rows upfront and provide a correct offset to the `jumpTo` method. In one my specific use-cases the only variable part of the equation was to figure out how many rows a text label would have occupied when being rendered on the specific container. iOS has a method to achieve this (https://developer.apple.com/documentation/foundation/nsattributedstring/1529154-boundingrectwithsize), I''m wondering how to achieve the same goal with Flutter.  ",
+    "createdAt": "2017-11-25T17:15:49Z"
+  },
+  {
+    "id": 7724,
+    "sender": "GRouslan",
+    "content": "In case of smooth scrolling, if it is 1 element visible and 1001 is requested, no need to scroll through all 1000 elements.",
+    "createdAt": "2017-11-26T21:44:13Z"
+  },
+  {
+    "id": 7725,
+    "sender": "Hixie",
+    "content": "This is definitely something we want to offer, we just haven't implemented it yet. The general case (animating to an item selected by index) is non-trivial, but we sort of need to know what our approach for that will be before we can design the API for the simpler cases as well.",
+    "createdAt": "2017-11-28T01:18:32Z"
+  },
+  {
+    "id": 7726,
+    "sender": "DmitryIvanitskiy",
+    "content": "I made a small test app implementing ScrollToLine functionality, it should work also with mixed (different lineHeight) lists. The source: https://github.com/DmitryIvanitskiy/Animation/blob/master/main.dart\r\nMy approach is:  ScrollToLine  renders list twice: \r\n1. Render list truncated from start to target line (so ScrollController.position.maxScrollExtent is  offset of the last line - save it).\r\n2. Render full list and animateTo offset we get on step 1. \r\nI encountered the following problem - ScrollController.position.maxScrollExtent didn't changes instantly after setState, but only after some (random, but short) time, solution made code extremely ugly... \r\nIs there a way to set a listener/callback directly to ScrollController.position.maxScrollExtent ?",
+    "createdAt": "2018-03-02T10:47:04Z"
+  },
+  {
+    "id": 7727,
+    "sender": "eseidelGoogle",
+    "content": "This was brought up in https://proandroiddev.com/quire-building-a-sophisticated-mobile-app-with-googles-flutter-2770065284d6 (from quire) just now.",
+    "createdAt": "2018-03-29T15:30:45Z"
+  },
+  {
+    "id": 7728,
+    "sender": "volgin",
+    "content": "In many use cases jumpTo(_index) is critical, while scrollTo(_index) is unnecessary or even undesirable.\r\n\r\nIf a user is in the middle of a long list, tapping to see the details and then coming back, scrolling all the way from the top to the desired position is a bad UX, whether it's manual or programmatic. I believe that jumpTo() is a major UX improvement in 100% of \"coming back\" use cases, while scrollTo is applicable only to a small subset of use cases.",
+    "createdAt": "2018-04-11T16:51:39Z"
+  },
+  {
+    "id": 7729,
+    "sender": "rodydavis",
+    "content": "I am currently running into this. Working with Lists from a REST API and up to 500-100 items in each list and every time more are added future builder gets called and it scrolls to the top. then you have to scroll all the way to the bottom.",
+    "createdAt": "2018-04-23T13:21:25Z"
+  },
+  {
+    "id": 7730,
+    "sender": "seenickcode",
+    "content": "This would be great for `PageView` as well.",
+    "createdAt": "2018-05-17T17:05:09Z"
+  },
+  {
+    "id": 7731,
+    "sender": "marica27",
+    "content": "I'm implementing gallery of photos and have a button \"scroll to chosen date when photo was made\". So scrollToPosition also important for me.  \r\n\r\nCalculating offset is not very accurate and on the long amount of data (2-4k photos) it's not right. And I could change the layout, so I would have to rewrite logic for calculating offset, especially to support changing orientation.",
+    "createdAt": "2018-05-20T14:35:29Z"
+  },
+  {
+    "id": 7732,
+    "sender": "CyanBlob",
+    "content": "I would also love to have this feature. As it stands, I'm not really sure of a great way to implement a chat app where the message list starts scrolled to the latest message, especially since not all rows will have the same height",
+    "createdAt": "2018-06-15T01:05:54Z"
+  },
+  {
+    "id": 7733,
+    "sender": "zoechi",
+    "content": "@CyanBlob set https://docs.flutter.io/flutter/dart-core/bool-class.html to `true` and be done.",
+    "createdAt": "2018-06-15T08:46:43Z"
+  },
+  {
+    "id": 7734,
+    "sender": "zoechi",
+    "content": "@marica27 does the scroll position really need to reflect the exact position over **all** photos?\r\nYou can query for a date in the database and just show the returned data with some extra length in front and after the shown images to make the ListView (or whatever you are using) scrollable. \r\nYou can show some short blurry scroll effect (up or down) without caring how far exactly the list would need to scroll. I don't think the users care if the scroll effect matches exactly 300 or 3000 images that might have scrolled by. ",
+    "createdAt": "2018-06-15T08:52:23Z"
+  },
+  {
+    "id": 7735,
+    "sender": "marica27",
+    "content": "@zoechi Along with datePicker feature I have a draggable scrollbar showing date next to it. Have you seen Google Photos app or in Samsung Gallery App? So I want the same. \r\nAnd now I'm realising that for this anyway I need to know the exact offset of all item. So scroll to position will not help me with it. And as i know offset for all items I can use it to scroll or jump to selected date.",
+    "createdAt": "2018-06-15T09:31:36Z"
+  },
+  {
+    "id": 7736,
+    "sender": "zoechi",
+    "content": "> I need to know the exact offset of all item. So scroll to position will not help me with it.\r\n\r\nI don't follow. If you know the offset, then you can just scroll there like `_scrollController.animateTo(1500.0,\r\n          duration: const Duration(milliseconds: 100),\r\n          curve: Curves.easeOut);`",
+    "createdAt": "2018-06-15T09:52:26Z"
+  },
+  {
+    "id": 7737,
+    "sender": "marica27",
+    "content": "sorry for pure explanation. My list has 2 features. One is scroll to item with selected date and other is draggable scrollbar with label showing date for current position (as in google photos app). \r\nWhen I wrote comment here first time I did not implement yet a draggable scrollbar so I did not know I need to know anyway offset for every item. \r\nSo, I'm going to calculate height of every item and it will resolve  2 my  features.",
+    "createdAt": "2018-06-15T11:38:40Z"
+  },
+  {
+    "id": 7738,
+    "sender": "CyanBlob",
+    "content": "@zoechi I had tried setting `reverse: true`, but that caused the newest messages to be on the top, which isn't what you want for a messaging window. As it turns out, I just wasn't thinking about the problem properly. The simple solution was to reverse the order in which I pull data from the server, along with reversing the render direction of the ListView",
+    "createdAt": "2018-06-15T15:06:31Z"
+  },
+  {
+    "id": 7739,
+    "sender": "marcglasberg",
+    "content": "@Hixie @zoechi The core of this problem is that `ListView`s use a pixel offset, only. It will all be solved if you could use a `pixelOffset`+`startIndex`. At present, `startIndex` is implicitly always 0. So, if you want to start displaying item 1000, it has to calculate the size of all items from 0 to 999, just to know the pixel offset. Instead, to move to item 1000, some `navigateToItem(1000)` method could set `pixelOffset` to 0, and `startIndex` to 1000. Then, if you scroll to list to previous items you would have a negative pixelOffset. In other words, you just move the \"origin\" around. \r\n",
+    "createdAt": "2018-06-30T21:41:07Z"
+  },
+  {
+    "id": 7740,
+    "sender": "rrousselGit",
+    "content": "@marcglasberg `Viewport`,  a lower layer of `ListView`, is already able to have a start index different from 0.  \r\n\r\nThe biggest difficulty is what comes around such feature. Like scrollbars, animated scroll and slivers.",
+    "createdAt": "2018-06-30T22:33:21Z"
+  },
+  {
+    "id": 7741,
+    "sender": "rrousselGit",
+    "content": "And then we have things like `CustomScrollView` or `SingleChildScrollView`.\r\n\r\nWhat would `jumpToIndex` do when associated to these ? And since `Scrollable` and `ScrollController` don't even have a notion of index to begin with, where would we put such method ?\r\n\r\n\r\n\r\n\r\nSomehow I think the best solution we can have is a `ScrollController.jumpToKey(Key key)`. ",
+    "createdAt": "2018-06-30T22:50:05Z"
+  },
+  {
+    "id": 7742,
+    "sender": "marcglasberg",
+    "content": "@rrousselGit This is an easy solution for the ListView. Isn't the present issue is about the ListView? ScrollController.jumpToKey(Key key) is more generic, yes, but it then needs to calculate the height of all items in between (that are not even going to be displayed) and that's not going to work for ListViews with thousands of items (and maybe these items have to be download from the network). \r\n",
+    "createdAt": "2018-06-30T23:16:23Z"
+  },
+  {
+    "id": 7743,
+    "sender": "rrousselGit",
+    "content": "@marcglasberg The problem is, the scroll ecosystem is so much more complex than that.\r\n\r\nFor example you can do the following :\r\n\r\n```dart\r\nNotificationListener<ScrollNotification>(\r\n  onNotification: (scrollNotification) {\r\n    print('''\r\n${scrollNotification.metrics.extentBefore}\r\n${scrollNotification.metrics.extentAfter}\r\n''');\r\n  },\r\n  child: ListView.builder(\r\n    itemBuilder: (context, index) {\r\n      return ListTile(\r\n        title: Text(\"Hello World\"),\r\n      );\r\n    },\r\n  ),\r\n),\r\n```\r\n\r\nThis simple code snippet implies that any widget can get notified of scroll events ; as long as they have a Scrollable somewhere in their children.\r\n\r\nSuch change means we'd have to go through all existing `ScrollNotification` listeners and make sure they are compatible with the new API.",
+    "createdAt": "2018-07-01T00:47:20Z"
+  }
+]

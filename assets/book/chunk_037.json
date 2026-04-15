@@ -1,0 +1,386 @@
+[
+  {
+    "id": 2368,
+    "sender": "tenhobi",
+    "content": "I still think, as a newcomer to Flutter with some experience with Angular, React, etc., that the regular Dart way, and more in the Dart 2.0, is better than this DSX. It just makes more sense than some XML and CSS-ish parameters. 🤷‍♂️ ",
+    "createdAt": "2018-02-12T13:30:48Z"
+  },
+  {
+    "id": 2369,
+    "sender": "b-strauss",
+    "content": "@cbazza your second demo example has 466 chars compared to dart's 391 (both without spaces). To me it looks visually bloated. I would have to learn it's semantics, which I don't have to with normal Dart code. And I have no idea how to use general purpose programming paradigms with it (if, forEach, etc.).\r\n\r\nIf I had the choice, I would stick with the present model.",
+    "createdAt": "2018-02-12T15:41:00Z"
+  },
+  {
+    "id": 2370,
+    "sender": "lukaspili",
+    "content": "Everyone is just giving its own subjective opinion on comparing both syntaxes, but we have to agree on one fact: it's a very controversial feature. There is love and hate, but most opinion diverge on the usefulness of JSX over plain Dart.\r\n\r\nIn any case I think it's totally unreasonable to ask the Flutter team to commit to support this feature before the 1.0 release. While the current way of building UI may not seem great for everyone - it works (and it works great in some opinions). \r\n\r\nIf people really want a JSX-like syntax now, a community driven effort seems like the way to go. And it would help make the case (or not) when the Flutter team considers it in post 1.0 release. \r\n\r\nPersonally I strongly agree with the following argument: it's not because JSX works for React (where you are already building the UI using a markup language) that it automatically works for Flutter.\r\n\r\n",
+    "createdAt": "2018-02-12T16:05:58Z"
+  },
+  {
+    "id": 2371,
+    "sender": "b-strauss",
+    "content": "@tehfailsafe \r\n\r\n> The great news is that even is this was adopted by the Flutter team (which isn't likely based on this thread) no one would be FORCED to use it. It's an OPTION. I don't understand why it's so emotionally charged that some people might like writing code with a syntax you don't like...\r\n\r\nI don't care what other people like or don't like. But I care about features that help me progress with my application. Resources are limited, and I would rather have a proper video/stream player, native child views, and some vector graphics format.\r\n\r\n> For example, right now in React and React Native you can write your whole application without JSX, it's just an option. Here's what React looks like without JSX:\r\n> [...]\r\n> It's a lot messier than the JSX version, and almost no one uses it. That's probably why some of us who are coming from React would appreciate the possibility to avoid having to do it this style again.\r\n\r\nThat's because the web was not designed for a system like that. If you have a static markup language like HTML and want to \"dynamise\" it, you have to invent a system that needs to work ontop of that. What you will end up with is some construct that is constrained by the underlying platform.\r\n(see: https://gbracha.blogspot.de/2014/09/a-domain-of-shadows.html)\r\n\r\nFlutter on the other hand has no markup language. I have yet to see a reason to invest resources into something that is less dynamic and less expressive.",
+    "createdAt": "2018-02-12T16:14:37Z"
+  },
+  {
+    "id": 2372,
+    "sender": "yuriy-manifold",
+    "content": "I would like to know if people who disagree with it have used React with and without JSX. I encourage everyone to try it, so this discussion would be less theoretical. After the initial shallow learning curve, it becomes very natural (and it's not all about the number of characters, because the closing tags allow you to read it easier). It's not different from learning anything else that's new, like Flutter, which in the long run boosts productivity. And I agree that it's not for everyone, which is why it would be optional.\r\nI think it's important to keep in mind that we have one another's best interests in mind - making it easier to build stuff. I think this transpiler would help, and it would be easier to adopt if it had official support.\r\n\r\nAlso, Thank you @cbazza :)",
+    "createdAt": "2018-02-12T18:41:55Z"
+  },
+  {
+    "id": 2373,
+    "sender": "b-strauss",
+    "content": "@yuriy-manifold \r\n\r\nI don't think anybody here doubts that JSX React is an improvement over classic React. But like I said, that solution was created because of problems related to properties of the underlying platform. Flutter doesn't have these properties.\r\n\r\nThe question is not 'is JSX helpful for React?' the question is 'is something like JSX helpful for Flutter?'.\r\n\r\nI think the answer is no.",
+    "createdAt": "2018-02-12T19:47:15Z"
+  },
+  {
+    "id": 2374,
+    "sender": "alexkrolick",
+    "content": "There are a few other things to consider:\r\n\r\n- Separating layout specification from app code can make code more future-proof; e.g. this Dart 2 syntax proposal would not affect `build` methods if they were transformed according to an upgradeable pragma into Dart code from an agnostic format like JSX.\r\n- Defining the layout as markup makes it possible to separate the render engine from the (stateful/virtualized) widget engine ala React's relationship with ReactDOM and React Native, potentially making it easier to port widgets to new platforms.\r\n- Defining the markup format makes it easier to port existing layouts to Flutter, for example from Sketch or other design tools",
+    "createdAt": "2018-02-12T20:26:16Z"
+  },
+  {
+    "id": 2375,
+    "sender": "cbazza",
+    "content": "> Nice job with the transpiler cbazza\r\n\r\n@Rockvole, thank you.\r\n\r\n>  I appreciate your work for the community and the people who want to build UIs that way, but I really hope I'm never forced to use anything like that in Flutter :-(((\r\n\r\n@zoechi, thank you. Yes, it's just another option for people who love JSX to use. If that's not your thing cool continue doing as you are doing, nothing changes there.\r\n\r\n> I don't think it's necessary to invent new JSX syntax to support Flutter patterns.\r\n\r\n@alexkrolick, yes you can use render props for the named parameters but there is nothing you can do about the positional parameters. The key was that I didn't want to hard code anything in the transpiler so that it would work for everything.\r\n\r\n> I still think, as a newcomer to Flutter with some experience with Angular, React, etc., that the regular Dart way, and more in the Dart 2.0, is better than this DSX. It just makes more sense than some XML and CSS-ish parameters. \r\n\r\n@tenhobi, great use that then, obviously DSX is not for everyone. \r\n\r\n> If I had the choice, I would stick with the present model.\r\n\r\n@b-strauss, this is not a replacement, it's an option for people that like JSX.\r\n\r\n> There is love and hate, but most opinion diverge on the usefulness of JSX over plain Dart.\r\n\r\n@lukaspili, DSX is for React Native people that love JSX, if you don't see its benefits, don't use it. It's not DSX versus plain Dart. It's DSX vs. JSX, the closer the 2 are the better.\r\n\r\n> The great news is that even is this was adopted by the Flutter team (which isn't likely based on this thread) no one would be FORCED to use it. It's an OPTION. I don't understand why it's so emotionally charged that some people might like writing code with a syntax you don't like...\r\n\r\n@tehfailsafe, thank you for listening !!! You hit the nail on the head why such huge resistance to something that will make React Native people really happy.\r\n\r\n> I don't care what other people like or don't like. But I care about features that help me progress with my application. Resources are limited, and I would rather have a proper video/stream player, native child views, and some vector graphics format.\r\n\r\n@b-strauss, Once React Native fans move to Flutter there will be tonnes of people to help out on these other needed things. Priority 1 is to steal mind share from React Native and make it as simple as possible for React Native people to move over.\r\n\r\n> Flutter on the other hand has no markup language. I have yet to see a reason to invest resources into something that is less dynamic and less expressive.\r\n\r\n@b-strauss, How is DSX 'less dynamic' and 'less expressive' than plain Dart? DSX is Dart didn't you try the transpiler.\r\n\r\n@yuriy-manifold, thank you.\r\n\r\n> The question is not 'is JSX helpful for React?' the question is 'is something like JSX helpful for Flutter?'.\r\n\r\n@b-strauss, off course it is. it is not helpful for current Flutter devs but it is very helpful for designers that can output CSS from their tools, it is very helpful for people vested in the React Native platform. \r\n\r\n@alexkrolick, very good observations.\r\n\r\n",
+    "createdAt": "2018-02-13T01:49:15Z"
+  },
+  {
+    "id": 2376,
+    "sender": "b-strauss",
+    "content": "@cbazza \r\n\r\n> this is not a replacement, it's an option for people that like JSX.\r\n\r\nI get that... It wouldn't affect me in that way, but as I said before, there are missing features right now that I need to create a flutter app.\r\n\r\n> Once React Native fans move to Flutter there will be tonnes of people to help out on these other needed things. Priority 1 is to steal mind share from React Native and make it as simple as possible for React Native people to move over.\r\n\r\nSo you propose the flutter team should put features on hold for something that is questionable and may or may not attract a fraction of a specific subset of web developers?\r\n\r\n> How is DSX 'less dynamic' and 'less expressive' than plain Dart? DSX is Dart didn't you try the transpiler.\r\n\r\nEvery DSL is by definition less expressive than a GPL. With DSX how do I conditionally hide a widget? How do I iterate over a collection and map every element to a widget? How do I use a switch? You now have to make up syntax and semantics for constructs that you already have in your GPL. So why invent the DSL in the first place?\r\n\r\n> off course it is. it is not helpful for current Flutter devs but it is very helpful for designers that can output CSS from their tools, it is very helpful for people vested in the React Native platform.\r\n\r\nThat wasn't the question... What problems would a DSL solve that you can't solve right now? You keep saying it's better, why is it better? I have no doubt DSX would attract some JSX people. I know people don't like things that are different. And familiarity seems to be the only argument. So why not use CSS?\r\n Why not use JavaScript? More people know how to use these than Dart.\r\n\r\nIf you design your system based on some other thing for the sole purpose of being familiar, you're not really innovating.",
+    "createdAt": "2018-02-13T10:16:21Z"
+  },
+  {
+    "id": 2377,
+    "sender": "alexkrolick",
+    "content": "@b-strauss to be clear, JSX compiles to function calls (in React calls to `createElement(ComponentClass)`, in Dart it should be constructors).\r\n\r\n```jsx\r\n<A property=\"a\" />\r\nnew A(property: a)\r\n```\r\n\r\n```jsx\r\n<A property=\"a\">\r\n  <B />\r\n  <C />\r\n</A>\r\nnew A(property: a, children: <Widget>[new B(), new C()])\r\n```\r\n\r\nThe only constructs are the transforms between the element names+attributes and the function calls+arguments, and escaped expressions (`{...}`). \r\n\r\n- With DSX how do I conditionally hide a widget?\r\n\r\n```jsx\r\n(JS)\r\n  { condition && <A /> }\r\n  { condition ? <A /> : <B /> }\r\n```\r\n- How do I iterate over a collection and map every element to a widget?\r\n\r\n```jsx\r\n(JS)\r\n  { ['a', 'b'].map(i => <A property={i} />) }\r\n```\r\n\r\n- How do I use a switch?\r\nAs far as I know in Dart as in JS, you can't use a switch inline as it is not an expression. If you are outside of the widget tree you can just use a switch normally.\r\n\r\n\r\n\r\n",
+    "createdAt": "2018-02-13T10:30:39Z"
+  },
+  {
+    "id": 2378,
+    "sender": "cbazza",
+    "content": "\r\n> So you propose the flutter team should put features on hold for something that is questionable and may or may not attract a fraction of a specific subset of web developers?\r\n\r\n@b-strauss, React Native is not web development, it's cross platform mobile development that is the main competitor to Flutter; and yes JSX is like a light source, it will attract lots of React Native devs. I asked for this feature in Aug 2017, too much talking too little action.\r\n\r\n> Every DSL is by definition less expressive than a GPL. With DSX how do I conditionally hide a widget? How do I iterate over a collection and map every element to a widget? How do I use a switch? You now have to make up syntax and semantics for constructs that you already have in your GPL. So why invent the DSL in the first place?\r\n\r\nYou are completely wrong. The good news is that I was once wrong too. Most (but not all) DSLs try to recreate programming constructs in markup (and that is not very powerful), JSX brings markup into programming (taking full advantage of the host language). The difference is transformational. The answer to all your questions is basically use the way you do it in Dart because it is Dart. Everything in between '{}' is Dart code with the exception of the spread operator. It's all dart expressions but you can also use anonymous functions that returns an expression. As you see in the transpiler a tag (\\<Text>) is just a new on a widget (new Text()). \r\n\r\n> What problems would a DSL solve that you can't solve right now? \r\n\r\nWhy use Dart when you can use zeros and ones, isn't that all that is necessary to solve any computing problem?\r\n\r\n> You keep saying it's better, why is it better? \r\n\r\nI gave my reasons before and won't repeat them here. JSX people will agree with me but 'to each their own'.\r\n\r\n> I have no doubt DSX would attract some JSX people. I know people don't like things that are different. And familiarity seems to be the only argument. So why not use CSS?\r\nWhy not use JavaScript? More people know how to use these than Dart.\r\n\r\nYes, using CSS makes sense to ease the designer-developer workflow. DSX supports that. The advantage of Dart over Javascript is execution speed (performance).   \r\n\r\n> If you design your system based on some other thing for the sole purpose of being familiar, you're not really innovating.\r\n\r\nYou are so full of wrong biases that are most likely preventing you from reaching your full potential. Open your mind, try different things. \r\n",
+    "createdAt": "2018-02-13T12:18:34Z"
+  },
+  {
+    "id": 2379,
+    "sender": "cbazza",
+    "content": "@alexkrolick , thank you for the details. ",
+    "createdAt": "2018-02-13T12:21:40Z"
+  },
+  {
+    "id": 2380,
+    "sender": "b-strauss",
+    "content": "@cbazza \r\n\r\n> You are so full of wrong biases that are most likely preventing you from reaching your full potential. Open your mind, try different things.\r\n\r\nI will unsubscribe from this issue now. Please never mention me here or anywhere again, thx.",
+    "createdAt": "2018-02-13T13:23:07Z"
+  },
+  {
+    "id": 2381,
+    "sender": "cbazza",
+    "content": "@b-strauss \r\n\r\nSorry guy, I didn't mean to hurt your feelings... I was just trying to gently guide you while trying to manage my own frustrations. We are all humans after all.\r\n",
+    "createdAt": "2018-02-13T15:59:28Z"
+  },
+  {
+    "id": 2382,
+    "sender": "Hixie",
+    "content": "@cbazza Can you send me an email please? ian@hixie.ch",
+    "createdAt": "2018-02-13T16:33:52Z"
+  },
+  {
+    "id": 2383,
+    "sender": "escamoteur",
+    "content": "Already made this proposal in the old thread but I still think that's an important point\r\n\r\nIMHO removing the need to use `new/const` already helped a lot. I have real difficulties in the way dart format formats the trees. it does not emphasis enough the tree structure IMHO compared to:\r\n\r\n```dart\r\n    return Scaffold(\r\n      appBar: AppBar(title: Text(\"WeatherDemo\")),\r\n      resizeToAvoidBottomPadding: false,\r\n      body: \r\n        Column(children: <Widget>\r\n        [\r\n          Padding(\r\n            padding: const EdgeInsets.all(16.0),\r\n            child: \r\n            TextField(\r\n                    key: AppKeys.textField,\r\n                    autocorrect: false,\r\n                    controller: _controller,\r\n                    decoration: InputDecoration(hintText: \"Filter cities\",),\r\n                    style:  TextStyle(fontSize: 20.0,),\r\n                    onChanged: ModelProvider.of(context).textChangedCommand,\r\n                    ),\r\n          ),\r\n```\r\n",
+    "createdAt": "2018-04-25T20:33:54Z"
+  },
+  {
+    "id": 2384,
+    "sender": "woodstream",
+    "content": "I agree for the purpose to make flutter simple that don’t want to use JSX-like syntax, and I also support the concept of split into multiple widgets, but now it let me feels like the MVC era is back in jquery. Such a scenario that there was a simple widget, with padding,border and center layout for it later, many  \"} \" symbol seriously affect the readability.However, it is a integral widget, I don't want to split it, any useful solution? Though my english is poor,I try hard to express my thoughts.",
+    "createdAt": "2018-04-26T02:37:01Z"
+  },
+  {
+    "id": 2385,
+    "sender": "ghost",
+    "content": "Lord help us all.\r\n\r\nOk, this is going nowhere. It doesn't look like anyone's about to switch sides anytime soon. We definitely need to reach some sort of compromise here. Of course \"pro-DSX\" vs \"anti-DSX\" doesn't really have a remotely satisfying compromise, which is a frustrating realization. Could we possibly reframe our positions so that they could be more compatible?",
+    "createdAt": "2018-04-26T03:14:43Z"
+  },
+  {
+    "id": 2386,
+    "sender": "zoechi",
+    "content": "@naiveaiguy \"they\" can have their DSX. \r\nIf the Flutter team doesn't implement it, it can be an open source initiative. \r\nThat doesn't mean the pure-Dart approach like it is now won't work anymore.\r\nBoth worlds can co-exist.",
+    "createdAt": "2018-04-26T06:47:07Z"
+  },
+  {
+    "id": 2387,
+    "sender": "MichaelSowah",
+    "content": "I agree so much with @zoechi that they can co-exist...thats it and I thought this had been settled on the old thread",
+    "createdAt": "2018-04-26T07:28:08Z"
+  },
+  {
+    "id": 2388,
+    "sender": "cbazza",
+    "content": "@lrhn\r\n\r\n> Please everybody, be civil and constructive. We are discussing style here, something very subjective, so no matter how much everyone likes their own preference, it is unlikely to be inherently superior to everybody else's. Do list the advantages and disadvantages that you see with existing and proposed syntaxes, but remember that not everybody sees it the same way, and that's perfectly fine.\r\n\r\nBravo, that's absolutely it.\r\n\r\nIn React you can do it 4 ways (and I just found out about the other 2 ways today !!!)\r\n\r\n(1) You can use JSX (which is what I like)\r\nhttps://reactjs.org/docs/introducing-jsx.html\r\n\r\n(2) You can use the original way (which is similar to Flutter)\r\nhttps://reactjs.org/docs/react-without-jsx.html\r\n\r\nAt the end of the link above they even mention 2 promising community projects\r\n\r\n(3) Hyperscript syntax for React.js markup\r\nhttps://github.com/mlmorg/react-hyperscript\r\n\r\n(4) Terse syntax for hyperscript.\r\nhttps://github.com/ohanhi/hyperscript-helpers\r\n\r\n\r\nHaving alternatives is a good thing, gone are the days where you could get a Ford in any color you liked as long as it's black :)\r\n\r\n",
+    "createdAt": "2018-04-26T14:25:45Z"
+  },
+  {
+    "id": 2389,
+    "sender": "zoechi",
+    "content": "@naiveaiguy why is it an issue for you if there is the current approach **and** DSX?\r\n(that's what I derive from your downvotes)",
+    "createdAt": "2018-04-26T14:56:12Z"
+  },
+  {
+    "id": 2390,
+    "sender": "SpicyCactuar",
+    "content": "> @naiveaiguy \"they\" can have their DSX.\r\n> If the Flutter team doesn't implement it, it can be an open source initiative.\r\n> That doesn't mean the pure-Dart approach like it is now won't work anymore.\r\n> Both worlds can co-exist.\r\n\r\nI fully agree with this. Though i think it should be a pluggable rather than an out-of-the-box solution. Having one standard that works but being able to customize the experience with extra things is a great paradigm. That way the Flutter team can keep its focus on (what i believe are) more relevant issues, the community can experiment with different tools/solutions and then we can have a discussion with more data and experience with DSX or any other alternatives to the current meta.\r\n\r\n> Having alternatives is a good thing, gone are the days where you could get a Ford in any color you\r\n> liked as long as it's black :)\r\n\r\nTrue that. However, i think we can all agree we don't want Dart/Flutter to become another JS/Web Frontend ecosystem. Flutter isn't even out of beta yet and we're already want it to have 2 standards for something kinda subjective.\r\n\r\n> In React you can do it 4 ways (and I just found out about the other 2 ways today !!!)\r\n\r\nMost are community driven though React refers to them. Good midway. Now, only 2 of them are officially supported: the `React.createElement` and the JSX way, which is a wrapper over the other one. The value of JSX is notorious in that context but it is not that clear over here. With this in mind, can we meet midway by having only one official standard and the docs referencing DSX whenever relevant?\r\n\r\nI believe the Flutter team should be focusing on the lacking features that truly prevent developers from building apps. I can't recommend Flutter to my managers if we can't even add Maps support and developing a Camera features takes 2 weeks.\r\n\r\nBear in mind, I'm not closing the door on DSX forever. Maybe it will become the solution for UI building but we need the community experimenting with it to make that decision.\r\n",
+    "createdAt": "2018-04-27T15:44:16Z"
+  },
+  {
+    "id": 2391,
+    "sender": "ghost",
+    "content": "@zoechi Personally I don't believe the two ideas can coexist in the current state of Flutter - we really shouldn't be encouraging a split of this nature this early - but at this point it looks like the only compromise.",
+    "createdAt": "2018-04-27T16:43:08Z"
+  },
+  {
+    "id": 2392,
+    "sender": "cbazza",
+    "content": "@naiveaiguy \r\n \r\n> Personally I don't believe the two ideas can coexist in the current state of Flutter - we really shouldn't be encouraging a split of this nature this early\r\n\r\nCould you be more specific as to why they can't coexist ? (given the fact that DSX is just syntatic sugar; or as @emalamela says \"just a wrapper of the current way\").\r\n \r\nAlso why is it too early to provide a different syntax to exactly the same thing? I am basically asking why is there a need to delay this, what would be different in the future that is not there yet right now?\r\n\r\n@emalamela\r\n\r\n> However, i think we can all agree we don't want Dart/Flutter to become another JS/Web Frontend ecosystem.\r\n\r\nPersonally I rather not put any limits on what people can do with Dart/Flutter. Let the market/community decide. Basically if what is created doesn't add value, people won't use it and it will die. If it becomes popular, it is because the community found it useful and valued it. No need to pick winners and losers right now.\r\n\r\n",
+    "createdAt": "2018-04-29T13:47:00Z"
+  },
+  {
+    "id": 2393,
+    "sender": "edaloicaro18",
+    "content": "The only thing that is stopping me from giving Flutter a try is the fact that they chose not to use JSX.\r\nIMHO JSX is the best choice to express component hierarchy ",
+    "createdAt": "2018-05-01T03:06:39Z"
+  },
+  {
+    "id": 2394,
+    "sender": "sonaye",
+    "content": "Heard about Flutter, wanted to give it a try, immediately stopped even considering that the minute I saw the syntax, which is a shame because chances are that this a great piece of tech. to build products.\r\n\r\nI've been doing React/React Native development for the past 2.5 years, sacrificing the productivity leverage the JSX syntax offers when it comes to describing UI is a lot to ask. I would seriously consider spending the time to learn all about Flutter and study whether it's worth switching to when such a feature is supported out of the box.\r\n\r\nI can't even imagine the numbers of potential adopters/users/devs Flutter is losing because of this, will revisit in the next months.",
+    "createdAt": "2018-05-09T08:32:09Z"
+  },
+  {
+    "id": 2395,
+    "sender": "zoechi",
+    "content": "> I can't even imagine the numbers of potential adopters/users/devs Flutter is losing because of this, will revisit in the next months.\r\n\r\nYeah, 44 <strike>Mio</strike> found it even important enough to upvote :D\r\n\r\n",
+    "createdAt": "2018-05-09T12:11:18Z"
+  },
+  {
+    "id": 2396,
+    "sender": "cbazza",
+    "content": "> Yeah, 44 found it even important enough to upvote :D\r\n\r\nWhen sorted by 'upvote', this feature request is listed 7th on the list of 3131 opened tickets though.\r\n\r\nhttps://github.com/flutter/flutter/issues?q=is%3Aissue+is%3Aopen+sort%3Areactions-%2B1-desc\r\n\r\n",
+    "createdAt": "2018-05-09T13:54:17Z"
+  },
+  {
+    "id": 2397,
+    "sender": "zoechi",
+    "content": "@cbazza I don't want to argue against the feature but comments like \"if you don't do x then horribly y will happen\" are just ridiculous.",
+    "createdAt": "2018-05-09T14:12:42Z"
+  },
+  {
+    "id": 2398,
+    "sender": "SpicyCactuar",
+    "content": "> I've been doing React/React Native development for the past 2.5 years, sacrificing the productivity leverage the JSX syntax offers when it comes to describing UI is a lot to ask. I would seriously consider spending the time to learn all about Flutter and study whether it's worth switching to when such a feature is supported out of the box.\r\n\r\n@sonaye \r\n\r\nSince you mentioned productivity, can you provide an example that clearly showcases the productivity loss of using Flutter's Pattern instead of JSX? The example should be built with the basis of knowing enough JS **and** Dart to be able to code said example. I believe that if we don't take that into account then we are also comparing programming languages, which is not the same discussion.\r\n\r\n> When sorted by 'upvote', this feature request is listed 7th on the list of 3131 opened tickets though.\r\n\r\n@cbazza\r\n\r\nIt is also the most downvoted one. It's quite controversial.\r\n\r\n",
+    "createdAt": "2018-05-09T19:58:47Z"
+  },
+  {
+    "id": 2399,
+    "sender": "cbazza",
+    "content": "@emalamela,\r\n> It is also the most downvoted one. It's quite controversial.\r\n\r\nSince this feature request is an alternative to the current way and it doesn't change the current way, there shouldn't be any controversy at all; if you don't like JSX/DSX continue programming as you do today. \r\n\r\nThe so called controversy only exists because the Flutter team needs to do work to enable the community to do DSX properly. If the Flutter tools (compiler, analyzer, ide support, etc) supported pre-processing with source maps, DSX would had been done long ago, and most likely other language innovations/ideas, from 3rd party developers, would had happened too.\r\n\r\n\r\n",
+    "createdAt": "2018-05-09T20:22:08Z"
+  },
+  {
+    "id": 2400,
+    "sender": "sonaye",
+    "content": "```js\r\nnew Card(\r\n  child: Column(\r\n    crossAxisAlignment: CrossAxisAlignment.start,\r\n    children: <Widget>[\r\n      AspectRatio(\r\n        aspectRatio: 18 / 11,\r\n        child: Image.asset('assets/diamond.png'),\r\n      ),\r\n      new Padding(\r\n        padding: EdgeInsets.fromLTRB(16, 12, 16, 8),\r\n        child: Column(\r\n          crossAxisAlignment: CrossAxisAlignment.start,\r\n          children: <Widget>[\r\n            Text('Title'),\r\n            SizedBox(height: 8),\r\n            Text('Secondary Text'),\r\n          ],\r\n        ),\r\n      ),\r\n    ],\r\n  ),\r\n)\r\n```\r\n\r\nBecomes:\r\n\r\n```js\r\n<Card>\r\n  <Column crossAxisAlignment={CrossAxisAlignment.start}>\r\n    <AspectRatio aspectRatio={18 / 11}>\r\n      <Image src={asset('assets/diamond.png')} />\r\n    </AspectRatio>\r\n\r\n    <Padding padding={EdgeInsets.fromLTRB(16, 12, 16, 8)}>\r\n      <Column crossAxisAlignment={CrossAxisAlignment.start}>\r\n        <Text>Title</Text>\r\n        <SizedBox height={8} />\r\n        <Text>Secondary Text</Text>\r\n      </Column>\r\n    </Padding>\r\n  </Column>\r\n</Card>\r\n```\r\n\r\n@emalamela The argument for and against JSX has been exhausted by discussion, there is plenty of material that you can look up. I'm only sharing my personal opinion.\r\n\r\nFirst, code readability. I can immediately get a crisp clear idea about the structure of the UI in JSX (takes seconds), the mental modal is very visual. Second, usability. I would argue that JSX can be used even without knowing JS/Dart or anything about underlying API. This is very suitable for someone who is just learning programming, or for some one who is a part of my team, designers now can [code](https://airbnb.design/painting-with-code/) the UI. \r\n\r\nThe description of the application is completely declarative (not just expressive), when you work on a large project with hundreds of components, this way of describing UI makes a huge difference (you have to try it to really appreciate it). I didn't like JSX when I first saw it too, once I used it just felt right, this how I want to describe UI from now on, it was a clear breakthrough in the way I approach building interfaces.\r\n\r\nIt's not about writing less lines of code, it's not about having a \"syntax sugar\", it's about building tools for humans. I'm also against the argument that everyone should use JSX, this is ridiculous. You use the tool that let's you get your work done faster with less confusion, in the case of many (including myself), it would be JSX (or DSX in the case of Flutter), that's all.",
+    "createdAt": "2018-05-10T09:18:58Z"
+  },
+  {
+    "id": 2401,
+    "sender": "rajaraodv",
+    "content": "I'm coming from React, and first time trying out Flutter. It's really odd that flutter team doesn't have JSX syntax, I mean seriously! In JS world, JSX is extremely prevalent in every React-alternatives now a days! JSX is super friendly for developers. Please implement this ASAP, so you can help grow the community.",
+    "createdAt": "2018-05-10T23:16:44Z"
+  },
+  {
+    "id": 2402,
+    "sender": "flasd",
+    "content": "You can tell JSX (or DSX in this case) is a big deal just by looking for the amount of comments in this issue. \r\n\r\nJSX is something that you don't know you love until you try it. It's weird at first to have markup in your code but then it becomes awesome.\r\n\r\nIt seems unnecessary for guys that already know flutter/dart, I get it. But for someone that never touched dart (like myself), JSX is way easier to start with and that's the point. If you guys want more people to come by and start building a lot more awesome stuff, the tooling needs to be easier.\r\n\r\nAnd, as @eseidelGoogle (https://youtu.be/h7HOt3Jb1Ts?t=2m41s) told the other guy \"Flutter is a way to write to iOS and Android in a single codebase. We try to make that **fast and easy** [...] Flutter talks all the way down to the hardware [...] We have a very layered approach, so you can take as little or as much as you want. [...] We have a bunch of investment in **tooling**.\"\r\n\r\nImplement JSX, pretty please.",
+    "createdAt": "2018-05-11T01:21:32Z"
+  },
+  {
+    "id": 2403,
+    "sender": "jarontai",
+    "content": "I'm a fan of Dart and also a heavy user of react. I always find Dart terser and more maintainable than JSX. So, I think JSX/DSX could and maybe should implemented in a community way.",
+    "createdAt": "2018-05-11T03:35:55Z"
+  },
+  {
+    "id": 2404,
+    "sender": "zoechi",
+    "content": "@rajaraodv Just because Flutter is promoted as reactive style framework doesn't mean it's just a Flavor of ReactJS.\r\nFrom most comments I get the impression people just have troubles accepting that something new isn't the same as what they already know.\r\n\r\nYou could try to work with Flutter for a while how it currently is and then provide proper arguments why you think JSX/DSX would be better then plain Dart **in a factual way** instead of just \"because of personal preference\" or \"because it's better\".",
+    "createdAt": "2018-05-11T06:08:51Z"
+  },
+  {
+    "id": 2405,
+    "sender": "AliceSum",
+    "content": "@zoechi, you are missing something: flutter was inspired from React, according to the Flutter doc.\r\nMaybe it is only my issue. I really feel that I have a hard time to read the UI code, even it is in Dart 2 syntax.  \r\n",
+    "createdAt": "2018-05-11T06:26:34Z"
+  },
+  {
+    "id": 2406,
+    "sender": "zoechi",
+    "content": "> flutter was inspired from React Native\r\n\r\nI don't see how that says \"everything is the same except the language is called Flutter instead of JS\".\r\n\r\n> I really feel that I have a hard time to read the UI code\r\n\r\nand you claim the only imaginable solution to that is DSX?\r\n\r\nHave you considered that Flutter is not even 1.0 and that IDE support can improve over time?\r\n\r\nThere were only the first tiny steps taken recently to get better Flutter IDE support in the code editor like quick fixes (\"wrap xxx\") and closing labels.\r\n\r\nThere are unlimited possibilities to improve developer experience and most in this discussion is like\r\n\"Flutter is not yet perfect and therefore we need DSX\" \r\nusually without concrete arguments about how or why DSX would solve or improve that. ",
+    "createdAt": "2018-05-11T07:30:17Z"
+  },
+  {
+    "id": 2407,
+    "sender": "cbazza",
+    "content": "@zoechi ,\r\n\r\n> You could try to work with Flutter for a while how it currently is and then provide proper arguments why you think JSX/DSX would be better then plain Dart in a factual way instead of just \"because of personal preference\" or \"because it's better\".\r\n\r\nOnce again Plain Dart or DSX is simply a matter of style, no point arguing which is better. It is just a personal preference and people have their reasons for picking one or the other. \r\n\r\nWhat has happened in the React World is that once you go with JSX, you simply don't go back. As others have stated above you get hooked on JSX after using for awhile. JSX has been adopted by others outside React's World (Typescript, Vue) and it is a great fit for Flutter.\r\n\r\n> and you claim the only imaginable solution to that is DSX?\r\n\r\nWhat the community needs is generic pre-processing capabilities with source map support built in the Dart tools (compiler, analyser, IDE, etc) so that DSX or anything better can be developed by the community and fully integrated into Flutter (debugger, auto-complete, etc).\r\n\r\n> There are unlimited possibilities to improve developer experience and most in this discussion is like\r\n\"Flutter is not yet perfect and therefore we need DSX\"\r\nusually without concrete arguments about how or why DSX would solve or improve that.\r\n\r\nSure, thing is this ticket is not about a generic 'improving the developer experience' thing. It is very specific and it is about getting JSX support in Flutter. The community wants DSX as an alternative to the plain Dart way. \r\n\r\n\r\n\r\n\r\n\r\n",
+    "createdAt": "2018-05-11T14:06:40Z"
+  },
+  {
+    "id": 2408,
+    "sender": "Rockvole",
+    "content": "I cannot see myself using this (but I'm willing to give it a try). I dont think this is a silver bullet, but there is so much enthusiasm that its worthwhile doing.\r\n\r\nI think google should remove the language obstacles to allow the community to build what they want.\r\n",
+    "createdAt": "2018-05-11T19:11:17Z"
+  },
+  {
+    "id": 2409,
+    "sender": "eseidelGoogle",
+    "content": "I'm not aware of any obstacles preventing someone outside Google's Flutter/Dart teams from writing a JSX-like thing for Dart/Flutter.  I would *love* to see bugs on those if someone is trying.  (It's also possible that I've missed them in the comments above, since I admit not to having read every word of this very long bug.) :)\r\n\r\nThanks!  Glad to see such enthusiasm!",
+    "createdAt": "2018-05-11T19:37:12Z"
+  },
+  {
+    "id": 2410,
+    "sender": "cbazza",
+    "content": "@eseidelGoogle,\r\n\r\nHow would Intellij and/or VS Code (with Dart-Code) be able to set breakpoints and step through code from a .dsx file ? (I mean this is not a .dart file). How about auto-complete functionality from the .dsx file  (as with a .dart file) ?\r\n\r\nYou have invested a lot on the tooling but the tooling does not support pre-processing (with source maps) of a new language (like DSX) that transpiles into Dart/Flutter seamlessly.\r\n\r\nA transpiler is available but there is no easy way to fully integrate it:\r\nhttps://spark-heroku-dsx.herokuapp.com/index.html\r\n\r\nP.S. This ticket is only half of the comments !!!\r\nhttps://github.com/flutter/flutter/issues/15922\r\n",
+    "createdAt": "2018-05-11T21:02:02Z"
+  },
+  {
+    "id": 2411,
+    "sender": "jonahwilliams",
+    "content": "@cbazza is there a repo with that compiler somewhere? It would be great to share the code and get the community involved on hacking on it, even if it isn't perfect.  ",
+    "createdAt": "2018-05-11T21:31:32Z"
+  },
+  {
+    "id": 2412,
+    "sender": "cbazza",
+    "content": "@jonahwilliams, no the DSX transpiler code has not been released because it is way too early for that.\r\nYou can simply use 2 hand written equivalent files (.dsx and .dart) to test out pre-processing capabilities like breakpoints, stepping, auto-complete, etc.\r\n\r\nOnce the tools support pre-processing with some sort of source maps, I can add that to the transpiler and be unblocked. This would also enable others to experiment to their hearts desires.\r\n\r\n",
+    "createdAt": "2018-05-11T21:42:31Z"
+  },
+  {
+    "id": 2413,
+    "sender": "matanlurey",
+    "content": "I don't work on Flutter, but it seems sort of unreasonable to demand certain tooling to benefit others, but then also refuse to release any early source code or examples of what you want the tooling to integrate with.\r\n\r\nFor what it's worth, I don't know of any language or toolkit that provides pre-processing hooks of any kind - probably because it's just plain not easy, there are a lot of corner cases and assumptions around the language and syntax.\r\n\r\nIf you generated source maps (https://pub.dartlang.org/packages/source_maps), I imagine getting at least some basic support in an IDE is pretty trivial, independent of Dart/Flutter. But again, this is all conjecture without knowing what your tooling does and how you'd expect it to work.",
+    "createdAt": "2018-05-11T21:47:27Z"
+  },
+  {
+    "id": 2414,
+    "sender": "cbazza",
+    "content": "@matanlurey, supporting pre-processing via source maps is a generic mechanism that does not depend on any specific transpiler. It is functionality that is meant to support any future imaginable language. The Chrome browser/debugger supports it quite nicely and I can debug any language that transpiles to JS.\r\n\r\nFor testing you can come up with any simple kind of transpiler to show how to use source maps. For example write a trivial transpiler that generates Dart/Flutter code with a blank line between every line on the original file. (.d2 => .dart, .d2 is Dart/Flutter file, out .dart file will contain a blank line between every line in the original file).\r\n\r\nYes, I can work on generating source map for a testfile.\r\n",
+    "createdAt": "2018-05-11T22:00:23Z"
+  },
+  {
+    "id": 2415,
+    "sender": "woodstream",
+    "content": "Flutter is currently reluctant to try to please NativeScript, ReactNative, Android, Web, and other developers who accustomed to similar XML layouts. They have more important things to do, so let's disband and go to sleep.",
+    "createdAt": "2018-05-12T01:26:55Z"
+  },
+  {
+    "id": 2416,
+    "sender": "escamoteur",
+    "content": "I wished Amy proponent of JSX Syntax just to spend some days really working with Flutter before continuing lamenting. I came from an Xaml based systembut quickly got used to it. Just give it a real try. ",
+    "createdAt": "2018-05-12T06:43:43Z"
+  },
+  {
+    "id": 2417,
+    "sender": "AliceSum",
+    "content": "@escamoteur\r\nHey, escamoteur. Do you think that I have not spent a lot of time learning flutter?\r\nIn the flutter.io/tutorials/layout/, at the end of \"Packing widgets\" section, the code that the tutorial gave does not work.\r\n**I mentioned the issue under the flutter issue block, but no one wants to care about this.**\r\n\r\n- Dart code: main.dart\r\nhttps://raw.githubusercontent.com/flutter/website/master/_includes/code/layout/pavlova/main.dart\r\n\r\n\r\n\r\n- Pubspec: pubspec.yaml\r\nhttps://raw.githubusercontent.com/flutter/website/master/_includes/code/layout/pavlova/pubspec.yaml\r\n\r\n\r\n- https://flutter.io/tutorials/layout/\r\n",
+    "createdAt": "2018-05-12T08:14:20Z"
+  },
+  {
+    "id": 2418,
+    "sender": "zoechi",
+    "content": "@JonathanSum is there any connection from your comment to the topic of this issue?",
+    "createdAt": "2018-05-12T09:40:52Z"
+  },
+  {
+    "id": 2419,
+    "sender": "AliceSum",
+    "content": "@zoechi \r\nescamoteur said he hopes proponent of JSX Syntax just to spend some days really working with Flutter before continuing lamenting. \r\nThis comment shows we really have spent a lot of days working with Flutter, and the request of JSX is really our feeling from our heart. ",
+    "createdAt": "2018-05-12T10:22:51Z"
+  },
+  {
+    "id": 2420,
+    "sender": "jstansbe",
+    "content": "**Group Dart:** \"Dart syntax is way better and JSX/DSX is just not good\"\r\n**Group JSX/DSX:** \"JSX/DSX syntax is way better and Dart is just not good\"\r\n\r\nI can't be the only person to see this? Both sides make valid points in favor and against their position.  I think what is lost here is that @cbazza not only had criticism BUT ALSO DID SOMETHING ABOUT IT. Trying to bridge the gap of web devs/react/react-native and flutter in order to benefit Flutter.\r\n\r\nAnd my 2 cents... As a full stack dev I have exp with a wide array of languages and approaches... JSX is one of my favorite ways to write code and I do hope there will be an alternative syntax to Darts... And i'm not saying the current syntax is bad, it's just that I prefer JSX style.\r\n\r\n \r\n\r\n",
+    "createdAt": "2018-05-17T18:30:12Z"
+  },
+  {
+    "id": 2421,
+    "sender": "birkir",
+    "content": "I have to disagree with this quote from the **Group JSX/DSX**\r\n\r\n> Dart is just not good\r\n\r\nDart is very good and robust language, nobody is dissing the language. The discussion is not about Dart, but a synthetic layer on top of it that most UI developers already use today, and we are proposing that Flutter incorporates something like that.\r\n\r\n- Android has XML Layouts.\r\n- iOS has Storyboard XIB (XML)\r\n- GTK+ has XML for Pango etc.\r\n- Qt has QML (YAML like)\r\n- Xamarin has XAML\r\n\r\nMost of these frameworks and languages have UI markup languages that separate the View from the Controller logic. Then React comes along with different approach (that we are proposing here) and I think we have to agree that RN is flying right now in terms of user growth and popularity, and I may be wrong, but mainly because of JSX.\r\n\r\n...\r\n\r\n**Is it really so crazy proposal that we have to get this kind of feedback from Flutter team/users?**\r\n",
+    "createdAt": "2018-05-18T19:12:57Z"
+  },
+  {
+    "id": 2422,
+    "sender": "zoechi",
+    "content": "@birkir and all of them bring a host of troubles Flutter does not have \\o/\r\nThere is no need for another language. \r\nYou can separate the view in Flutter as well, even with the same language.",
+    "createdAt": "2018-05-18T19:27:56Z"
+  },
+  {
+    "id": 2423,
+    "sender": "jstansbe",
+    "content": "@birkir this thread is 100% about Dart and syntax.\r\n\r\n> The discussion is not about Dart, but a synthetic layer on top of it that most UI developers already use today, and we are proposing that Flutter incorporates something like that.\r\n\r\nSo it's not about Dart... but Flutter needs to use something besides Dart for layouts? Seems like your saying Dart isn't good enough while also claiming this has nothing to do with Dart?\r\n\r\nI don't think it matters at this point, the Flutter team has seen this feedback (on requesting a JSX/DSX approach) and they want to continue down their original path. I do think it could be handled better but it doesn't seem like they're opposed to the community creating solutions. \r\n\r\nI'm happy there is another cross platform option... will Apple be the next to offer something up? And maybe they will see what so many of us like about react/react-native? IDK if they have anything cooking.",
+    "createdAt": "2018-05-18T20:14:29Z"
+  },
+  {
+    "id": 2424,
+    "sender": "Hixie",
+    "content": "> the Flutter team has seen this feedback (on requesting a JSX/DSX approach) and they\r\n\r\nThis bug is still open because we haven't figured out what we want to do here. We're eagerly looking at the experiments (e.g. cbazza's) to see how people use them. We're planning, at some point, to provide a hook in the build system for codegen tools such as this, though this isn't something we're likely to do in the near future. On the long term we hope to use what we learn here to influence Dart's development as  a language. This could mean adding something like E4X/H4X/JSX/DSX to Dart itself. Or maybe we'll learn that nobody really ends up using it so we will do nothing. Or maybe everyone needs something different so codegen hooks and custom packages like cbazza's are the answer. We don't yet know.",
+    "createdAt": "2018-05-18T20:56:57Z"
+  },
+  {
+    "id": 2425,
+    "sender": "Rockvole",
+    "content": "@jstansbe - Apple thinks that cross platform means IPhone, IPad & Mac OS. They are more likely to add turrets on top of the walled garden than build something cross platform :)",
+    "createdAt": "2018-05-18T21:56:05Z"
+  },
+  {
+    "id": 2426,
+    "sender": "cocodrino",
+    "content": "I think than if would be possible indent and format the widget in other way would be more similar to jsx and friendly for users who have experience with xml and html (almost all the android devs)...check this code in [codelab](https://codelabs.developers.google.com/codelabs/flutter/#4) \r\n\r\n```dart\r\nreturn new Container(\r\n    margin: const EdgeInsets.symmetric(horizontal: 8.0),\r\n    child: new Row(\r\n      children: <Widget>[\r\n        new Flexible(\r\n          child: new TextField(\r\n            controller: _textController,\r\n            onSubmitted: _handleSubmitted,\r\n            decoration: new InputDecoration.collapsed(\r\n              hintText: \"Send a message\"),\r\n          ),\r\n        ),\r\n        new Container(                                                 //new\r\n          margin: new EdgeInsets.symmetric(horizontal: 4.0),           //new\r\n          child: new IconButton(                                       //new\r\n            icon: new Icon(Icons.send),                                //new\r\n            onPressed: () => _handleSubmitted(_textController.text)),  //new\r\n        ),                                                             //new\r\n      ],\r\n    ),\r\n  );\r\n\r\n```\r\n\r\ncheck this dart to jsx code\r\n\r\n```jsx\r\n\r\n<Container margin=\"\">\r\n   <Row>\r\n       <Flexible>\r\n            <TextField   controller=\"\"\r\n                                onSubmitted=\"\"\r\n                                decoration=\"\">\r\n                 <OtherWidget></OtherWidget>\r\n               \r\n            </TextField>\r\n        </Flexible>\r\n   </Row>\r\n</Container>\r\n\r\n```\r\n\r\nand compare with this other format more htmlish\r\n\r\n```dart\r\n\r\n  return Container(margin: const EdgeInsets.symmetric(horizontal: 8.0), child:\r\n            Row(children: <Widget>[\r\n                Flexible(child:\r\n                    TextField(controller: _textController,\r\n                              onSubmitted: _handleSubmit,\r\n                              decoration: new InputDecoration.collapsed(hintText: \"manda un mensaje\"),),\r\n                    ),\r\n                Container(margin: const EdgeInsets.symmetric(horizontal: 4.0),child:\r\n                     IconButton(icon: Icon(Icons.send),\r\n                               onPressed: ()=>_handleSubmit(_textController.text),),)\r\n              ],\r\n            )\r\n    );\r\n\r\n```\r\n\r\nthis is a bit more similar and now you only need view from left to right to notice the different widgets similar to html/xml/jsx\r\n\r\nthe element (widget) attributes has more indentation than the new widgets, so this makes more clear could understand and check the code\r\n\r\nwould be great if I could have automatic indentation for this format on the different ides, right now I do this by hand....",
+    "createdAt": "2018-05-21T02:21:46Z"
+  },
+  {
+    "id": 2427,
+    "sender": "hooluupog",
+    "content": "After reading all of the comments here and privately discussing with my friends(native mobile apps developers,java/kotlin/objective-c/swift guys),My observation:\r\n\r\nPeople are asking for two things,\r\n*  __Better readability and easier writting__. Deep nesting mixed with some syntax noises(parentheses, semicolon, `new`, `child`, `children`) is annoying in current way of coding.\r\n*  __Seperate style/design from code__.  Visual seperation is good for reading(Differentiating the style from imperative code by a glance)  and a real seperation is good for tooling(e.g, IDE with Layout Editor) .\r\n\r\nThere are also mainly two groups with different opinions,\r\n* Improving current syntax without introducing another complexity to solve the problem. \r\nThere have already been  some improvements in this direction.For instance,optional `new`,`const` in Dart 2.0 and proposed `virtual \"closing tag\" comments` feature.\r\n* Introducing extra markup languages(JSX like or XML like) to solve the problem. \r\n\r\nYou can not easily conclude which one is better at present. So just let the community do their experiments first and make the final decision(accept or reject) later.\r\n",
+    "createdAt": "2018-05-21T05:33:37Z"
+  },
+  {
+    "id": 2428,
+    "sender": "zoechi",
+    "content": "@hooluupog virtual closing tag comments already work in IntelliJ, AS, VSCode since a while",
+    "createdAt": "2018-05-21T16:56:18Z"
+  },
+  {
+    "id": 2429,
+    "sender": "cbazza",
+    "content": "@Hixie \r\n\r\n> This bug is still open because we haven't figured out what we want to do here. We're eagerly looking at the experiments (e.g. cbazza's) to see how people use them. \r\n\r\nPeople can't use my experiments because it can't be seamlessly embedded right now into Flutter; so it remains an outside/online experiment where people can only see the potential.\r\n\r\n> We're planning, at some point, to provide a hook in the build system for codegen tools such as this, though this isn't something we're likely to do in the near future. On the long term we hope to use what we learn here to influence Dart's development as a language. \r\n\r\nCan you be more specific timewise for when can we expect some movement on the build system changes to support preprocessing? Are we talking a month, a quarter, six month, a year, 2 years, a decade, a jubilee, etc\r\n\r\n> This could mean adding something like E4X/H4X/JSX/DSX to Dart itself. \r\n\r\nPlease read the top paragraphs of the JSX spec to see that there is no need to change the Dart language since JSX/DSX has no semantics, and it is not meant to be implemented by engines or incorporated into languages. It is intended to be used in a preprocessor (transpiler). DSX could be used with Flutter & on Web to make React-Dart exactly like React.js but with the Dart language.\r\n\r\nhttps://facebook.github.io/jsx/\r\n\r\n> Or maybe we'll learn that nobody really ends up using it so we will do nothing. \r\n\r\nHow can people use something that is not available for them to use in the first place and then conclude that nothing needs to be done because people are not using it ? This reminds me so much of Melissa McCarthy's Sean Spicer impersonation on SNL about the 'travel ban'... 'circular using of the word' :)\r\n\r\nhttps://www.youtube.com/watch?v=1Dvo6EHEJQE&t=48s\r\n\r\n> Or maybe everyone needs something different so codegen hooks and custom packages like cbazza's are the answer. We don't yet know.\r\n\r\nPreprocessing capabilities are badly needed to enable experimentation. Without it nothing moves forward and you won't learn anything new.\r\n\r\n",
+    "createdAt": "2018-05-24T17:35:34Z"
+  },
+  {
+    "id": 2430,
+    "sender": "Hixie",
+    "content": "> People can't use my experiments \r\n\r\nI think you underestimate how willing people are to try things, even when they're not fully polished. For example, someone could easily write a shell script that wraps `flutter run` to do the preprocessing first, then call `flutter run`. I have a script myself that wraps hot reload to do something similar (I run the analyzer first, then only if it passes do I send the hot reload signal to the `flutter` script).\r\n\r\n> Can you be more specific timewise for when can we expect some movement on the build system changes \r\n\r\nNot really (see e.g. <https://en.wikipedia.org/wiki/Forward-looking_statement> for why it might be difficult to make such statements), but probably not in the coming weeks.\r\n\r\n> there is no need to change the Dart language \r\n\r\nThat's quite possible, indeed. I'm just saying that based on these experiments, we may reach any number of conclusions, all the way from \"do nothing\" to \"add radical new features to the language syntax\" and anything in between. The point being, we haven't made any decisions yet, and are very open to learning what needs to be done based on all these discussions and experiments.",
+    "createdAt": "2018-05-25T20:54:28Z"
+  },
+  {
+    "id": 2431,
+    "sender": "jules15",
+    "content": "Add JSX to backlog and let it compete, gladiator-style, with the million-plus-one other urgent requirements?",
+    "createdAt": "2018-06-06T03:25:11Z"
+  }
+]

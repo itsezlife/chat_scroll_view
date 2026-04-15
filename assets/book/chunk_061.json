@@ -1,0 +1,386 @@
+[
+  {
+    "id": 3904,
+    "sender": "MilanObrenovic",
+    "content": "Bump. Why is this still not fixed? It is obviously needed by a lot of developers and apps...",
+    "createdAt": "2021-07-25T18:19:28Z"
+  },
+  {
+    "id": 3905,
+    "sender": "MilanObrenovic",
+    "content": "> For people who are looking for a \"today solution\" try this on for size. Thanks to @miyoyo for the generous assistance.\r\n> \r\n> ```dart\r\n> import 'package:flutter/gestures.dart';\r\n> import 'package:flutter/rendering.dart';\r\n> \r\n> /// A \"polyfix\" [TextSpan] that properly renders Emojis at the correct size\r\n> /// and vertical-alignment for the given [style].\r\n> ///\r\n> /// See https://github.com/flutter/flutter/issues/28894\r\n> class EmojiTextSpan extends TextSpan {\r\n>   EmojiTextSpan({\r\n>     TextStyle style,\r\n>     String text,\r\n>     List<TextSpan> children,\r\n>     GestureRecognizer recognizer,\r\n>   }) : super(\r\n>             style: style,\r\n>             children: _parse(style, text)..addAll(children ?? []),\r\n>             recognizer: recognizer);\r\n> \r\n>   static final regex = RegExp(\r\n>       r\"((?:[\\u2700-\\u27bf]|(?:\\ud83c[\\udde6-\\uddff]){2}|[\\ud800-\\udbff][\\udc00-\\udfff]|\"\r\n>       r\"[\\u0023-\\u0039]\\ufe0f?\\u20e3|\\u3299|\\u3297|\\u303d|\\u3030|\\u24c2|\\ud83c[\\udd70-\\udd71]|\"\r\n>       r\"\\ud83c[\\udd7e-\\udd7f]|\\ud83c\\udd8e|\\ud83c[\\udd91-\\udd9a]|\\ud83c[\\udde6-\\uddff]|\"\r\n>       r\"[\\ud83c\\ude01-\\ude02]|\\ud83c\\ude1a|\\ud83c\\ude2f|[\\ud83c\\ude32-\\ude3a]|\"\r\n>       r\"[\\ud83c\\ude50-\\ude51]|\\u203c|\\u2049|[\\u25aa-\\u25ab]|\\u25b6|\\u25c0|[\\u25fb-\\u25fe]\"\r\n>       r\"|\\u00a9|\\u00ae|\\u2122|\\u2139|\\ud83c\\udc04|[\\u2600-\\u26FF]|\\u2b05|\\u2b06|\\u2b07|\\u2b1b\"\r\n>       r\"|\\u2b1c|\\u2b50|\\u2b55|\\u231a|\\u231b|\\u2328|\\u23cf|[\\u23e9-\\u23f3]|[\\u23f8-\\u23fa]\"\r\n>       r\"|\\ud83c\\udccf|\\u2934|\\u2935|[\\u2190-\\u21ff])+)\");\r\n> \r\n>   static List<TextSpan> _parse(TextStyle _style, String text) {\r\n>     final textStyle = _style ?? TextStyle(fontSize: 14);\r\n> \r\n>     final emojiStyle = textStyle.copyWith(\r\n>       fontSize: (textStyle.fontSize) * 1.30,\r\n>       height: 1,\r\n>       letterSpacing: 2,\r\n>     );\r\n> \r\n>     final spans = <TextSpan>[];\r\n> \r\n>     text.splitMapJoin(\r\n>       regex,\r\n>       onMatch: (m) {\r\n>         spans.add(TextSpan(text: m.group(0), style: emojiStyle));\r\n>       },\r\n>       onNonMatch: (s) {\r\n>         spans.add(TextSpan(text: s));\r\n>       },\r\n>     );\r\n> \r\n>     return spans;\r\n>   }\r\n> }\r\n> ```\r\n\r\ncan you show an example usage of this?",
+    "createdAt": "2021-07-25T18:37:03Z"
+  },
+  {
+    "id": 3906,
+    "sender": "iosephmagno",
+    "content": "Is there any news about this bug? Noticed it is P4 while it should be P2. P4 reads like we cannot really build chat and social media apps in flutter. I attach a pic below. As properly reported in the thread, emojis render tiny and it also changes height line (see red mark)\r\n\r\nAny help with this would be much appreciated!\r\n\r\n![65C3F9D8-0460-43E3-8CA4-0F2BBF06DCC2](https://user-images.githubusercontent.com/83366073/133408375-20f284ba-1094-4286-b6f7-67df04862d0b.jpeg)\r\n",
+    "createdAt": "2021-09-15T09:34:23Z"
+  },
+  {
+    "id": 3907,
+    "sender": "edeuss",
+    "content": "> Is there any news about this bug? Noticed it is P4 while it should be P2. P4 reads like we cannot really build chat and social media apps in flutter. I attach a pic below. As properly reported in the thread, emojis render tiny and it also changes height line (see red mark)\r\n> \r\n> \r\n> \r\n> Any help with this would be much appreciated!\r\n> \r\n> \r\n> \r\n> ![65C3F9D8-0460-43E3-8CA4-0F2BBF06DCC2](https://user-images.githubusercontent.com/83366073/133408375-20f284ba-1094-4286-b6f7-67df04862d0b.jpeg)\r\n> \r\n> \r\n\r\nI have had my eye on this issue for the past 3 years, about a year ago they add it to p4 but nothing has really come of it. @ \r\niosephmagno ",
+    "createdAt": "2021-09-16T05:24:24Z"
+  },
+  {
+    "id": 3908,
+    "sender": "kenNg1",
+    "content": "@lukepighetti - 👏  thanks for raising this issue, we've received a lot of comments from people who know how to change the size of emojis in `TextSpan` widgets.  \r\n\r\n@justinmc @darrenaustin - 🙏 The solutions mentioned here do not solve small emojis inside `TextField`. When you look at apps like WhatsApp and Messenger, the emojis appear almost 2️⃣❎ the size of normal text and really 'pop' out. End users feel more engaged when the emojis are bigger and sharper, and it would help to propel apps made with Flutter.\r\n\r\n⭐️ It's the joint 26th highest commented open issue, we would all love to see the flutter team takes this to the next level by allowing users to pass in an optional property that would enable emojis to be rendered bigger. \r\n\r\nExamples - see how much bigger the emoji is compared to the 'e':\r\nNon-flutter app 1: https://user-images.githubusercontent.com/25297786/141166925-fca4919c-2c30-41c6-9ed9-c197ad075896.png\r\n\r\nNon-flutter app 2: https://user-images.githubusercontent.com/25297786/141167419-e751bf9d-6ca6-4a54-8d2f-abf25cde95f3.png\r\n\r\nMy flutter app: https://user-images.githubusercontent.com/25297786/141167617-9d5cfd56-2c38-419c-8e1b-e33f9e7bf0b9.png\r\n",
+    "createdAt": "2021-11-10T18:03:22Z"
+  },
+  {
+    "id": 3909,
+    "sender": "lukepighetti",
+    "content": "My stance is this should be P3, but if someone like @GetStream felt this was an issue, P2. cc @imtoori @Nash0x7e2 @GroovinChip ",
+    "createdAt": "2021-11-12T13:55:52Z"
+  },
+  {
+    "id": 3910,
+    "sender": "imtoori",
+    "content": "we felt this issue, but I'd be ok with P3",
+    "createdAt": "2021-11-12T14:04:15Z"
+  },
+  {
+    "id": 3911,
+    "sender": "iosephmagno",
+    "content": "@lukepighetti this should be P2 of course. You can never build a premium app in messaging and social media if emojis don’t look native. The issue is 2yrs old, so we would much appreaciate if you could speed things up. \r\n\r\nAlso, it is not just a matter or emojis size. If you guys look closer, apple/google apply a custom margin between emoji and text.",
+    "createdAt": "2021-11-16T14:14:31Z"
+  },
+  {
+    "id": 3912,
+    "sender": "iosephmagno",
+    "content": "Is there a workaround to avoid issue mentioned by @kenNg1 ? We have been able to increase emojis size in Texspan widget. But we still have small emoji in textfield. I attach 2pics (flutter vs ios). @lukepighetti please notice margin between emoji and text, in ios is 1-2px bigger.\r\n\r\n![14BD2E42-801A-435A-98EA-EC0AA70CDA63](https://user-images.githubusercontent.com/83366073/142002747-c3df7550-ae95-4de0-b1dd-6b83ee68f8cd.jpeg)\r\n\r\n![AA21783E-C88D-4F50-B0D6-5954C2B39BCD](https://user-images.githubusercontent.com/83366073/142002764-c49290f5-7615-4165-80c2-57c40106fbcd.png)\r\n",
+    "createdAt": "2021-11-16T14:23:47Z"
+  },
+  {
+    "id": 3913,
+    "sender": "lukepighetti",
+    "content": "I wish this was higher priority, but looking at the [priority docs](https://github.com/flutter/flutter/wiki/Issue-hygiene#priorities) I think P3 is accurate unless its blocking a large consumer. Feel free to justify a higher priority if I missed something.",
+    "createdAt": "2021-11-16T15:11:41Z"
+  },
+  {
+    "id": 3914,
+    "sender": "ken-ng-esotec",
+    "content": "I'm not sure how issues are prioritised by the Flutter team but this issue appears to have been raised for 2 years 8 months. Given we are all rooting for this product it would be good to see it escalated further, or given some time frames.",
+    "createdAt": "2021-11-16T15:23:37Z"
+  },
+  {
+    "id": 3915,
+    "sender": "iosephmagno",
+    "content": "It’s a chicken-egg problem. There won’t be any large consumer on flutter untill flutter is not ready to build a premium app on top of it.\r\n\r\nAs you suggest, P3 should be fine. But #15953 camera issue is P3 and still unfixed after 3yrs. We have a workaround for that popular camera issue, but no workaround for emojis",
+    "createdAt": "2021-11-16T15:24:18Z"
+  },
+  {
+    "id": 3916,
+    "sender": "lukepighetti",
+    "content": "Yeah, there don't appear to be any provisions for giving something more 'priority' because it's been sitting so long. Would be nice, though.",
+    "createdAt": "2021-11-16T15:26:36Z"
+  },
+  {
+    "id": 3917,
+    "sender": "iosephmagno",
+    "content": "Yeah I recall the acceleration after “Flutter exposed…” video from that guy TechLead? It is sad not to have instruments to take action on time, nor being able to provide a deadline. As a company we would have gone native in hindsight. Now we are stuck into this after the investment. \r\n\r\nHope you guys will report this situation to whom it may concern.",
+    "createdAt": "2021-11-16T15:52:47Z"
+  },
+  {
+    "id": 3918,
+    "sender": "iosephmagno",
+    "content": "For those who are struggling with this issue, a possible workaround is to combine the textspan trick with native textfield https://pub.dev/packages/flutter_native_text_input\r\n\r\nBelow a pic showing the differences in emojii size. However, there are other features of native textfield that flutter missed to implement. As for the mentioned package, it seems it is affected by a few minor bugs. Everyone is welcome to contribute to fix them. I conclude remarking that is both unbeliveable and unacceptable not having bug-free camera and textfield in flutter. It is like building the roof when the house still misses the walls.\r\n\r\n![C0FFE59A-6BE6-4192-83E7-BABF6FA4657A](https://user-images.githubusercontent.com/83366073/142221274-251334f8-6a98-4b33-8ae7-47ace9f38f86.png)\r\n\r\n",
+    "createdAt": "2021-11-17T14:51:33Z"
+  },
+  {
+    "id": 3919,
+    "sender": "ken-ng-esotec",
+    "content": "Thanks for this suggestion @iosephmagno the package you shared seems to only cover iOS for now. Despite all of this recent activity in this thread - it's disheartening to see no-one from Flutter is providing any comments",
+    "createdAt": "2021-11-27T09:22:05Z"
+  },
+  {
+    "id": 3920,
+    "sender": "ken-ng-esotec",
+    "content": "@lukepighetti could you please rename the issue to \"Enable Emoji resize in TextField on iOS and Android\" - so that we can get to the crux of the issue? The sizing in regular text spans is not an issue from my perspective because we have sufficiently good workarounds, however, emoji sizes cannot be altered in TextFields as is. ",
+    "createdAt": "2021-11-27T09:24:04Z"
+  },
+  {
+    "id": 3921,
+    "sender": "iosephmagno",
+    "content": "@ken-ng-esotec emojis size should be fine on android. However, we and Henry are fixing this issue by wrapping native. We will cover android as well if it is needed.\r\n\r\nFrom our first-hand experience, flutter still needs serious improvements (eg. camera) but can be used as alternative for kotlin. For ios we will problably go native as soon as possible. In a nutshell it is cross platform only on paper or for tiny undemanding projects.",
+    "createdAt": "2021-11-27T09:44:13Z"
+  },
+  {
+    "id": 3922,
+    "sender": "ken-ng-esotec",
+    "content": "Hello again. On further investigation I'd like to take back what I said about Android (I agree that Flutter TextField for Android is on par with standard Android Native sizing of emojis). However, what I am looking for is summarised in the below image where emojis are clearly bigger than text. Once again, thanks for the package!\r\n\r\n![image](https://user-images.githubusercontent.com/57630713/143677225-849f8a12-eebd-45ae-8843-116d4b1eef13.png)\r\n\r\n",
+    "createdAt": "2021-11-27T10:18:34Z"
+  },
+  {
+    "id": 3923,
+    "sender": "malikdoksoz",
+    "content": "This problem still persists",
+    "createdAt": "2021-12-22T03:24:13Z"
+  },
+  {
+    "id": 3924,
+    "sender": "Tom3652",
+    "content": "Is there any plan to fix this soon ?  \r\n\r\nIt is really problematic for chat applications because ```flutter_native_text_input``` has other issues regarding the focus.",
+    "createdAt": "2022-01-02T18:21:26Z"
+  },
+  {
+    "id": 3925,
+    "sender": "henryleunghk",
+    "content": "> Is there any plan to fix this soon ?\r\n> \r\n> It is really problematic for chat applications because `flutter_native_text_input` has other issues regarding the focus.\r\n\r\nHi Tom, may you check again on focus issues with latest 1.2.4 release?\r\nAnd let me know if there are still issues with that. Thanks:)",
+    "createdAt": "2022-01-03T07:26:11Z"
+  },
+  {
+    "id": 3926,
+    "sender": "Tom3652",
+    "content": "Thanks for your package @henryleunghk by the way ! \r\nHowever the focus is still an issue as the keyboard is dismissed and then re-pushed. \r\nI think we will continue this discussion in your repo :)  ",
+    "createdAt": "2022-01-03T16:28:14Z"
+  },
+  {
+    "id": 3927,
+    "sender": "henryleunghk",
+    "content": "> Thanks for your package @henryleunghk by the way !\r\n> However the focus is still an issue as the keyboard is dismissed and then re-pushed.\r\n> I think we will continue this discussion in your repo :)\r\n\r\nThanks for reporting this.\r\nPlease check for version 1.3.0🙌🏻",
+    "createdAt": "2022-01-04T03:23:39Z"
+  },
+  {
+    "id": 3928,
+    "sender": "GaryQian",
+    "content": "@jason-simmons is this resolved with skparagraph? ",
+    "createdAt": "2022-02-17T17:13:12Z"
+  },
+  {
+    "id": 3929,
+    "sender": "jason-simmons",
+    "content": "SkParagraph does not change how emojis are rendered",
+    "createdAt": "2022-02-18T00:08:47Z"
+  },
+  {
+    "id": 3930,
+    "sender": "iosephmagno",
+    "content": "[important] Ongoing attempt to provide ios community with a workaround is happening via plugin flutter_native_text_input. The plugin is almost done but a couple of pesky bugs still prevent its adoption in production.\r\n\r\nIt would be great if someone from the flutter team could give a hand with it. \r\nhttps://github.com/henryleunghk/flutter-native-text-input\r\n\r\nCurrently flutter ios keyboard is “not usable” for any apps that involve serious text composition such as social media, messaging and text editors. Due to the internal policy mentioned by @lukepighetti  this is still p4 and nobody’s really on it. However, this fix is as important as the one done for shader warmup. Hope we can together come up with a workaround. Our company is doing its part by supporting Henry’s work and providing a solid use case scenario to test the plugin.",
+    "createdAt": "2022-02-18T07:51:16Z"
+  },
+  {
+    "id": 3931,
+    "sender": "iosephmagno",
+    "content": "It is worth noting that above mentioned plugin would not only fix the emojis rendering issue but also a number of other pending issues related to ios keyboard such as wrong behaviors on tapping gestures and the likes.",
+    "createdAt": "2022-02-18T07:56:47Z"
+  },
+  {
+    "id": 3932,
+    "sender": "fatadel",
+    "content": "@iosephmagno But the plugin solves the issues only for the text input, right? There is also a problem with handling emojis on iOS in regular `Text` widgets as well. I understand that the plugin can be used to create read-only text inputs to imitate `Text` but that would create unnecessary controllers for those fields. Or did I go wrong somewhere?",
+    "createdAt": "2022-02-19T18:36:20Z"
+  },
+  {
+    "id": 3933,
+    "sender": "lukepighetti",
+    "content": "cc @TahaTesser is there anyone who needs to be made aware of this issue?",
+    "createdAt": "2022-02-22T14:29:55Z"
+  },
+  {
+    "id": 3934,
+    "sender": "iosephmagno",
+    "content": "@lukepighetti thanks for revitalizing the discussion. Also, it would be much appreciated if you guys could change priority. #12920 is P3 but #28894 is even more urgent.\r\n",
+    "createdAt": "2022-02-27T07:29:34Z"
+  },
+  {
+    "id": 3935,
+    "sender": "iosephmagno",
+    "content": "@fatadel there is a good workaround for that mentioned in this thread. Also, @henryleunghk  is wrapping Text as well, you can follow his work and donate if you guys cannot contribute in other way.",
+    "createdAt": "2022-02-27T07:34:37Z"
+  },
+  {
+    "id": 3936,
+    "sender": "iosephmagno",
+    "content": "Let me extend the invite to everyone here. \r\n\r\nHope flutter team will fix this soon. Meanwhile community is invited to help with above mentioned wrapper by both coding and donating.\r\n\r\nWrapper would fix #12920, #28894 and #48434 at once.",
+    "createdAt": "2022-02-27T07:42:23Z"
+  },
+  {
+    "id": 3937,
+    "sender": "fatadel",
+    "content": "> @fatadel there is a good workaround for that mentioned in this thread. Also, @henryleunghk is wrapping Text as well, you can follow his work and donate if you guys cannot contribute in other way.\r\n\r\n@iosephmagno By \"good workaround\" do you mean the one that uses large regular expressions to produce text spans?\r\nIf so, I don't think it's a good solution since checking for such large regexps is quite heavy + you do it for every single text view and every single build (unless the text is constant). Please correct me, if I am wrong.",
+    "createdAt": "2022-03-13T22:06:56Z"
+  },
+  {
+    "id": 3938,
+    "sender": "fatadel",
+    "content": "> For people who are looking for a \"today solution\" try this on for size. Thanks to @miyoyo for the generous assistance.\r\n> \r\n> ```dart\r\n> import 'package:flutter/gestures.dart';\r\n> import 'package:flutter/rendering.dart';\r\n> \r\n> /// A \"polyfix\" [TextSpan] that properly renders Emojis at the correct size\r\n> /// and vertical-alignment for the given [style].\r\n> ///\r\n> /// See https://github.com/flutter/flutter/issues/28894\r\n> class EmojiTextSpan extends TextSpan {\r\n>   EmojiTextSpan({\r\n>     TextStyle style,\r\n>     String text,\r\n>     List<TextSpan> children,\r\n>     GestureRecognizer recognizer,\r\n>   }) : super(\r\n>             style: style,\r\n>             children: _parse(style, text)..addAll(children ?? []),\r\n>             recognizer: recognizer);\r\n> \r\n>   static final regex = RegExp(\r\n>       r\"((?:[\\u2700-\\u27bf]|(?:\\ud83c[\\udde6-\\uddff]){2}|[\\ud800-\\udbff][\\udc00-\\udfff]|\"\r\n>       r\"[\\u0023-\\u0039]\\ufe0f?\\u20e3|\\u3299|\\u3297|\\u303d|\\u3030|\\u24c2|\\ud83c[\\udd70-\\udd71]|\"\r\n>       r\"\\ud83c[\\udd7e-\\udd7f]|\\ud83c\\udd8e|\\ud83c[\\udd91-\\udd9a]|\\ud83c[\\udde6-\\uddff]|\"\r\n>       r\"[\\ud83c\\ude01-\\ude02]|\\ud83c\\ude1a|\\ud83c\\ude2f|[\\ud83c\\ude32-\\ude3a]|\"\r\n>       r\"[\\ud83c\\ude50-\\ude51]|\\u203c|\\u2049|[\\u25aa-\\u25ab]|\\u25b6|\\u25c0|[\\u25fb-\\u25fe]\"\r\n>       r\"|\\u00a9|\\u00ae|\\u2122|\\u2139|\\ud83c\\udc04|[\\u2600-\\u26FF]|\\u2b05|\\u2b06|\\u2b07|\\u2b1b\"\r\n>       r\"|\\u2b1c|\\u2b50|\\u2b55|\\u231a|\\u231b|\\u2328|\\u23cf|[\\u23e9-\\u23f3]|[\\u23f8-\\u23fa]\"\r\n>       r\"|\\ud83c\\udccf|\\u2934|\\u2935|[\\u2190-\\u21ff])+)\");\r\n> \r\n>   static List<TextSpan> _parse(TextStyle _style, String text) {\r\n>     final textStyle = _style ?? TextStyle(fontSize: 14);\r\n> \r\n>     final emojiStyle = textStyle.copyWith(\r\n>       fontSize: (textStyle.fontSize) * 1.30,\r\n>       height: 1,\r\n>       letterSpacing: 2,\r\n>     );\r\n> \r\n>     final spans = <TextSpan>[];\r\n> \r\n>     text.splitMapJoin(\r\n>       regex,\r\n>       onMatch: (m) {\r\n>         spans.add(TextSpan(text: m.group(0), style: emojiStyle));\r\n>       },\r\n>       onNonMatch: (s) {\r\n>         spans.add(TextSpan(text: s));\r\n>       },\r\n>     );\r\n> \r\n>     return spans;\r\n>   }\r\n> }\r\n> ```\r\n\r\n@lukepighetti Thanks a lot for your workaround! Works quite nice, but I've encountered an issue that it doesn't render some emojis properly. Try for example these ones - 👷🏻‍♀️👳🏼‍♂️🧑🏻‍⚕️👩‍👩‍👧👨‍👩‍👦. Flutter natively renders them as expected, so I guess something is wrong with the regex.",
+    "createdAt": "2022-04-16T02:40:19Z"
+  },
+  {
+    "id": 3939,
+    "sender": "iosephmagno",
+    "content": "@fatadel Please test with these ones and report here your results:\r\n\r\nhttps://stackoverflow.com/questions/24840667/what-is-the-regex-to-extract-all-the-emojis-from-a-string/50026845#50026845\r\n\r\nhttps://stackoverflow.com/questions/24070515/rendering-or-deleting-emoji/25437515#25437515",
+    "createdAt": "2022-04-16T06:42:48Z"
+  },
+  {
+    "id": 3940,
+    "sender": "iosephmagno",
+    "content": "As for the native textfield plugin, we have made huge progress with it (eg. fixing focus issue, etc).",
+    "createdAt": "2022-04-16T06:45:07Z"
+  },
+  {
+    "id": 3941,
+    "sender": "iosephmagno",
+    "content": "@lukepighetti @TahaTesser can we please set this issue to P2? It is so much sensitive we cannot understand why it is P4. From our extensive tests, it is fair to say flutter textfield for ios is not usable for any typing intensive app (social media, chat and text editor apps) due to #28894 #48434 and #12920. We are trying to workaround issues with a native wrapper, by real solution should be getting a fix from you guys.\r\n\r\nThx for any help you could provide 🙏",
+    "createdAt": "2022-04-16T06:54:57Z"
+  },
+  {
+    "id": 3942,
+    "sender": "fatadel",
+    "content": "@lukepighetti @iosephmagno \r\n\r\nThe regex from https://www.regextester.com/106421 seems to be a much better alternative - \r\n\r\n```\r\nr'((\\u00a9|\\u00ae|[\\u2000-\\u3300]|\\ud83c[\\ud000-\\udfff]|\\ud83d[\\ud000-\\udfff]|\\ud83e[\\ud000-\\udfff])+)'\r\n```\r\n\r\nAt least it parses correctly the ones I have reported (apart from others). ",
+    "createdAt": "2022-04-16T13:02:37Z"
+  },
+  {
+    "id": 3943,
+    "sender": "fatadel",
+    "content": "> @lukepighetti @iosephmagno\r\n> \r\n> The regex from https://www.regextester.com/106421 seems to be a much better alternative -\r\n> \r\n> ```\r\n> r'((\\u00a9|\\u00ae|[\\u2000-\\u3300]|\\ud83c[\\ud000-\\udfff]|\\ud83d[\\ud000-\\udfff]|\\ud83e[\\ud000-\\udfff])+)'\r\n> ```\r\n> \r\n> At least it parses correctly the ones I have reported (apart from others).\r\n\r\nOr even more thorough approach - https://raw.githubusercontent.com/mathiasbynens/emoji-test-regex-pattern/main/dist/latest/javascript.txt, but it's quite massive.",
+    "createdAt": "2022-04-16T13:32:30Z"
+  },
+  {
+    "id": 3944,
+    "sender": "iosephmagno",
+    "content": "@fatadel 👍 this looks promising. Please keep testing and let us know. Desire formula would cover the most emojis but still be computationally light",
+    "createdAt": "2022-04-16T17:32:25Z"
+  },
+  {
+    "id": 3945,
+    "sender": "lukepighetti",
+    "content": "@fatadel That shim I posted above is not a good one. If you come up with a better one please post the complete version in here, and I will link it in my original comment.",
+    "createdAt": "2022-04-17T17:32:00Z"
+  },
+  {
+    "id": 3946,
+    "sender": "iosephmagno",
+    "content": "Guys, can you get emoji baseline rendered properly with textspan workaround? In our sample, emoji is not vertical aligned, pic below.\r\nAny help with this would be much appreciated.\r\n\r\n![EB02144F-9367-4365-9EA7-A43F81251E49](https://user-images.githubusercontent.com/83366073/165190081-469cbcc0-b1f5-4d9c-bbe1-d4de334544e5.jpeg)\r\n",
+    "createdAt": "2022-04-25T23:22:51Z"
+  },
+  {
+    "id": 3947,
+    "sender": "iosephmagno",
+    "content": "@fatadel are you experience same above issue?",
+    "createdAt": "2022-04-27T11:02:05Z"
+  },
+  {
+    "id": 3948,
+    "sender": "iosephmagno",
+    "content": "@lukepighetti @TahaTesser Any idea on this baseline issue? I attach below two pics, one from native and one from flutter regex workaround. As you can see, in our case (indrajit sharma tile) the emoji is not vertical aligned to text.\r\n\r\n\r\n![E8D55D85-762C-447A-95B4-92E0465E5F81](https://user-images.githubusercontent.com/83366073/165521408-f3cb646a-f996-45dd-a925-0c4fdfa40944.jpeg)\r\n\r\n\r\n![C18DE9B6-9283-4613-B8D2-71E362DC87CC](https://user-images.githubusercontent.com/83366073/165521395-481334e2-e42d-4e30-aebd-835958cb464d.jpeg)\r\n",
+    "createdAt": "2022-04-27T12:50:24Z"
+  },
+  {
+    "id": 3949,
+    "sender": "lukepighetti",
+    "content": "Please see this comment: https://github.com/flutter/flutter/issues/28894#issuecomment-1100920604",
+    "createdAt": "2022-04-27T13:44:40Z"
+  },
+  {
+    "id": 3950,
+    "sender": "iosephmagno",
+    "content": "We have an idea but would be like a code mess. Or we can wrap UILabel as done with textfield. If anyone has fixed this somehow, is invited to share 🤦‍♂️😊",
+    "createdAt": "2022-04-27T14:15:30Z"
+  },
+  {
+    "id": 3951,
+    "sender": "lukepighetti",
+    "content": "Unfortunately I don't think this is an easy problem to solve downstream of flutter/flutter",
+    "createdAt": "2022-04-27T14:38:47Z"
+  },
+  {
+    "id": 3952,
+    "sender": "iosephmagno",
+    "content": "This is from Collin. What you guys think?\r\n\r\nhttps://github.com/collinjackson/flutter_native_label\r\n\r\n\r\n",
+    "createdAt": "2022-04-27T15:05:43Z"
+  },
+  {
+    "id": 3953,
+    "sender": "iosephmagno",
+    "content": "We tested in a common usage scenario of a chat screen and it works like a charm",
+    "createdAt": "2022-04-27T15:13:11Z"
+  },
+  {
+    "id": 3954,
+    "sender": "collinjackson",
+    "content": "The [flutter_native_label plugin](https://github.com/collinjackson/flutter_native_label) is now [published to pub.dev](https://pub.dev/packages/flutter_native_label).\r\n\r\nIt is a workaround for this issue. Feedback/patches welcome!",
+    "createdAt": "2022-05-08T20:58:05Z"
+  },
+  {
+    "id": 3955,
+    "sender": "iosephmagno",
+    "content": "Please notice that unlike UITextView you cannot select and copy text of a label, but you dont need this feature in a chat app context (bubbles, etc). Pros is that UILabel consumes less resources and performs well. To recap, Native InputField + Flutter_native_label hopefully fix following flutter’s text issues on ios: #28894 #48434 and #12920",
+    "createdAt": "2022-05-09T08:00:33Z"
+  },
+  {
+    "id": 3956,
+    "sender": "collinjackson",
+    "content": "> Please notice that unlike UITextView you cannot select and copy text of a label, but you dont need this feature in a chat app context (bubbles, etc). Pros is that UILabel consumes less resources and performs well. To recap, Native InputField + Flutter_native_label hopefully fix following flutter’s text issues on ios: #28894 #48434 and #12920\r\n\r\nSupport for copying is now implemented as of version 0.0.2. (You have to set `copyable: true`)",
+    "createdAt": "2022-05-09T19:39:22Z"
+  },
+  {
+    "id": 3957,
+    "sender": "huycozy",
+    "content": "Hi, I tried on latest `stable`, `master` and `beta` channel and I find them similar between Flutter and iOS native app\r\n\r\n<details>\r\n<summary>Demo</summary>\r\n\r\n| Flutter | iOS native | iOS native\r\n| --------------- | --------------- | --------------- |\r\n<img width=\"300\" src=\"https://user-images.githubusercontent.com/104349824/168011943-0eb4ac3c-3740-4932-b8db-d6c54f72c252.png\"> | <img width=\"300\" src=\"https://user-images.githubusercontent.com/104349824/168011952-628506a2-94f0-4ebe-a4f9-8967a52b7fed.png\"> | <img width=\"300\" src=\"https://user-images.githubusercontent.com/104349824/168011973-ad5cadfd-5fc5-4640-8f2d-b6108dbc5b0a.png\">\r\n\r\n</details>\r\n\r\n<details>\r\n<summary>Sample code</summary>\r\n\r\n```dart\r\nimport 'package:flutter/material.dart';\r\n\r\nvoid main() => runApp(MyApp());\r\n\r\nclass MyApp extends StatelessWidget {\r\n  @override\r\n  Widget build(BuildContext context) {\r\n    return MaterialApp(\r\n      title: 'Material App',\r\n      theme: ThemeData.dark(),\r\n      home: Home(),\r\n    );\r\n  }\r\n}\r\n\r\nclass Home extends StatelessWidget {\r\n  @override\r\n  Widget build(BuildContext context) {\r\n    return Scaffold(\r\n      resizeToAvoidBottomInset: false,\r\n      backgroundColor: Colors.white,\r\n      body: SafeArea(\r\n        child: GestureDetector(\r\n          onTap: () {\r\n            FocusScope.of(context).unfocus();\r\n          },\r\n          child: Center(\r\n            child: SingleChildScrollView(\r\n              child: Column(\r\n                children: [\r\n                  Text('Flutter',\r\n                    style: TextStyle(color: Colors.black, fontSize: 24),\r\n                  ),\r\n                  SizedBox(height: 50,),\r\n                  Text(\r\n                    'Flutter 🤣😅😅 Fluter Flutter 🙏 🙏 🙏  Fluter Flutter ⭐️⭐️⭐️ ',\r\n                    style: TextStyle(color: Colors.black, fontSize: 24),\r\n                  ),\r\n                  SizedBox(height: 50,),\r\n                  Container(\r\n                    margin: EdgeInsets.symmetric(horizontal: 12),\r\n                    child: TextField(\r\n                      maxLines: 5,\r\n                        textAlign: TextAlign.center,\r\n                        controller: TextEditingController()..text = 'Flutter 🤣😅😅 Fluter Flutter 🙏 🙏 🙏  Fluter Flutter ⭐️⭐️⭐️ ',\r\n                        decoration: InputDecoration(\r\n                            isDense: true,\r\n                            contentPadding: EdgeInsets.symmetric(horizontal: 4, vertical: 4),\r\n                            border: OutlineInputBorder(\r\n                              borderSide: BorderSide(color: Colors.grey, width: 1.0),\r\n                            ),\r\n                            enabledBorder: OutlineInputBorder(\r\n                              borderSide: BorderSide(color: Colors.grey, width: 1.0),\r\n                            )),\r\n\r\n                        style: TextStyle(color: Colors.black, fontSize: 24)),\r\n                  )\r\n                ],\r\n              ),\r\n            ),\r\n          ),\r\n        ),\r\n      ),\r\n    );\r\n  }\r\n}\r\n\r\n```\r\n</details>\r\n\r\n<details>\r\n<summary>flutter doctor -v</summary>\r\n\r\n```bash\r\n[✓] Flutter (Channel stable, 3.0.0, on macOS 12.2.1 21D62 darwin-x64, locale en-VN)\r\n    • Flutter version 3.0.0 at /Users/huynq/Documents/GitHub/flutter\r\n    • Upstream repository https://github.com/flutter/flutter.git\r\n    • Framework revision ee4e09cce0 (2 days ago), 2022-05-09 16:45:18 -0700\r\n    • Engine revision d1b9a6938a\r\n    • Dart version 2.17.0\r\n    • DevTools version 2.12.2\r\n\r\n[✓] Android toolchain - develop for Android devices (Android SDK version 31.0.0)\r\n    • Android SDK at /Users/huynq/Library/Android/sdk\r\n    • Platform android-31, build-tools 31.0.0\r\n    • ANDROID_HOME = /Users/huynq/Library/Android/sdk\r\n    • Java binary at: /Applications/Android Studio.app/Contents/jre/Contents/Home/bin/java\r\n    • Java version OpenJDK Runtime Environment (build 11.0.12+0-b1504.28-7817840)\r\n    • All Android licenses accepted.\r\n\r\n[✓] Xcode - develop for iOS and macOS (Xcode 13.2.1)\r\n    • Xcode at /Applications/Xcode.app/Contents/Developer\r\n    • CocoaPods version 1.11.3\r\n\r\n[✓] Chrome - develop for the web\r\n    • Chrome at /Applications/Google Chrome.app/Contents/MacOS/Google Chrome\r\n\r\n[✓] Android Studio (version 2021.2)\r\n    • Android Studio at /Applications/Android Studio.app/Contents\r\n    • Flutter plugin can be installed from:\r\n      🔨 https://plugins.jetbrains.com/plugin/9212-flutter\r\n    • Dart plugin can be installed from:\r\n      🔨 https://plugins.jetbrains.com/plugin/6351-dart\r\n    • Java version OpenJDK Runtime Environment (build 11.0.12+0-b1504.28-7817840)\r\n\r\n[✓] Android Studio (version 4.1)\r\n    • Android Studio at /Users/huynq/Library/Application Support/JetBrains/Toolbox/apps/AndroidStudio/ch-0/201.7042882/Android Studio.app/Contents\r\n    • Flutter plugin can be installed from:\r\n      🔨 https://plugins.jetbrains.com/plugin/9212-flutter\r\n    • Dart plugin can be installed from:\r\n      🔨 https://plugins.jetbrains.com/plugin/6351-dart\r\n    • Java version OpenJDK Runtime Environment (build 1.8.0_242-release-1644-b3-6915495)\r\n\r\n[✓] Android Studio\r\n    • Android Studio at /Users/huynq/Library/Application Support/JetBrains/Toolbox/apps/AndroidStudio/ch-1/203.7185775/Android Studio Preview.app/Contents\r\n    • Flutter plugin can be installed from:\r\n      🔨 https://plugins.jetbrains.com/plugin/9212-flutter\r\n    • Dart plugin can be installed from:\r\n      🔨 https://plugins.jetbrains.com/plugin/6351-dart\r\n    • Java version OpenJDK Runtime Environment (build 11.0.8+10-b944.6842174)\r\n\r\n[✓] IntelliJ IDEA Community Edition (version 2020.3.3)\r\n    • IntelliJ at /Applications/IntelliJ IDEA CE.app\r\n    • Flutter plugin can be installed from:\r\n      🔨 https://plugins.jetbrains.com/plugin/9212-flutter\r\n    • Dart plugin can be installed from:\r\n      🔨 https://plugins.jetbrains.com/plugin/6351-dart\r\n\r\n[✓] VS Code (version 1.67.0)\r\n    • VS Code at /Applications/Visual Studio Code.app/Contents\r\n    • Flutter extension version 3.40.0\r\n\r\n[✓] Connected device (3 available)\r\n    • iPhone 13 (mobile) • 5F5D609C-3B0B-4C48-872C-961928157361 • ios            • com.apple.CoreSimulator.SimRuntime.iOS-15-2 (simulator)\r\n    • macOS (desktop)    • macos                                • darwin-x64     • macOS 12.2.1 21D62 darwin-x64\r\n    • Chrome (web)       • chrome                               • web-javascript • Google Chrome 101.0.4951.54\r\n\r\n[✓] HTTP Host Availability\r\n    • All required HTTP hosts are available\r\n\r\n• No issues found!\r\n```\r\n\r\n```bash\r\n[✓] Flutter (Channel master, 3.1.0-0.0.pre.666, on macOS 12.2.1 21D62 darwin-x64, locale en-VN)\r\n    • Flutter version 3.1.0-0.0.pre.666 at /Users/huynq/Documents/GitHub/flutter_master\r\n    • Upstream repository https://github.com/flutter/flutter.git\r\n    • Framework revision 496049263e (36 minutes ago), 2022-05-11 23:14:11 -0700\r\n    • Engine revision b8ca6a5e0e\r\n    • Dart version 2.18.0 (build 2.18.0-106.0.dev)\r\n    • DevTools version 2.13.1\r\n\r\n[✓] Android toolchain - develop for Android devices (Android SDK version 31.0.0)\r\n    • Android SDK at /Users/huynq/Library/Android/sdk\r\n    • Platform android-31, build-tools 31.0.0\r\n    • ANDROID_HOME = /Users/huynq/Library/Android/sdk\r\n    • Java binary at: /Applications/Android Studio.app/Contents/jre/Contents/Home/bin/java\r\n    • Java version OpenJDK Runtime Environment (build 11.0.12+0-b1504.28-7817840)\r\n    • All Android licenses accepted.\r\n\r\n[✓] Xcode - develop for iOS and macOS (Xcode 13.2.1)\r\n    • Xcode at /Applications/Xcode.app/Contents/Developer\r\n    • CocoaPods version 1.11.3\r\n\r\n[✓] Chrome - develop for the web\r\n    • Chrome at /Applications/Google Chrome.app/Contents/MacOS/Google Chrome\r\n\r\n[✓] Android Studio (version 2021.2)\r\n    • Android Studio at /Applications/Android Studio.app/Contents\r\n    • Flutter plugin can be installed from:\r\n      🔨 https://plugins.jetbrains.com/plugin/9212-flutter\r\n    • Dart plugin can be installed from:\r\n      🔨 https://plugins.jetbrains.com/plugin/6351-dart\r\n    • Java version OpenJDK Runtime Environment (build 11.0.12+0-b1504.28-7817840)\r\n\r\n[✓] Android Studio (version 4.1)\r\n    • Android Studio at /Users/huynq/Library/Application Support/JetBrains/Toolbox/apps/AndroidStudio/ch-0/201.7042882/Android Studio.app/Contents\r\n    • Flutter plugin can be installed from:\r\n      🔨 https://plugins.jetbrains.com/plugin/9212-flutter\r\n    • Dart plugin can be installed from:\r\n      🔨 https://plugins.jetbrains.com/plugin/6351-dart\r\n    • Java version OpenJDK Runtime Environment (build 1.8.0_242-release-1644-b3-6915495)\r\n\r\n[!] Android Studio\r\n    • Android Studio at /Users/huynq/Library/Application Support/JetBrains/Toolbox/apps/AndroidStudio/ch-1/203.7185775/Android Studio Preview.app/Contents\r\n    • Flutter plugin can be installed from:\r\n      🔨 https://plugins.jetbrains.com/plugin/9212-flutter\r\n    • Dart plugin can be installed from:\r\n      🔨 https://plugins.jetbrains.com/plugin/6351-dart\r\n    ✗ Unable to find bundled Java version.\r\n    • Try updating or re-installing Android Studio.\r\n\r\n[✓] IntelliJ IDEA Community Edition (version 2020.3.3)\r\n    • IntelliJ at /Applications/IntelliJ IDEA CE.app\r\n    • Flutter plugin can be installed from:\r\n      🔨 https://plugins.jetbrains.com/plugin/9212-flutter\r\n    • Dart plugin can be installed from:\r\n      🔨 https://plugins.jetbrains.com/plugin/6351-dart\r\n\r\n[✓] VS Code (version 1.67.0)\r\n    • VS Code at /Applications/Visual Studio Code.app/Contents\r\n    • Flutter extension version 3.40.0\r\n\r\n[✓] Connected device (3 available)\r\n    • iPhone 13 (mobile) • 5F5D609C-3B0B-4C48-872C-961928157361 • ios            • com.apple.CoreSimulator.SimRuntime.iOS-15-2 (simulator)\r\n    • macOS (desktop)    • macos                                • darwin-x64     • macOS 12.2.1 21D62 darwin-x64\r\n    • Chrome (web)       • chrome                               • web-javascript • Google Chrome 101.0.4951.54\r\n\r\n[✓] HTTP Host Availability\r\n    • All required HTTP hosts are available\r\n\r\n! Doctor found issues in 1 category.\r\n\r\n```\r\n\r\n```bash\r\n[✓] Flutter (Channel beta, 2.13.0-0.4.pre, on macOS 12.2.1 21D62 darwin-x64, locale en-VN)\r\n    • Flutter version 2.13.0-0.4.pre at /Users/huynq/Documents/GitHub/flutter_beta\r\n    • Upstream repository https://github.com/flutter/flutter.git\r\n    • Framework revision 25caf1461b (6 days ago), 2022-05-05 14:23:09 -0700\r\n    • Engine revision c5caf749fe\r\n    • Dart version 2.17.0 (build 2.17.0-266.8.beta)\r\n    • DevTools version 2.12.2\r\n\r\n[✓] Android toolchain - develop for Android devices (Android SDK version 31.0.0)\r\n    • Android SDK at /Users/huynq/Library/Android/sdk\r\n    • Platform android-31, build-tools 31.0.0\r\n    • ANDROID_HOME = /Users/huynq/Library/Android/sdk\r\n    • Java binary at: /Applications/Android Studio.app/Contents/jre/Contents/Home/bin/java\r\n    • Java version OpenJDK Runtime Environment (build 11.0.12+0-b1504.28-7817840)\r\n    • All Android licenses accepted.\r\n\r\n[✓] Xcode - develop for iOS and macOS (Xcode 13.2.1)\r\n    • Xcode at /Applications/Xcode.app/Contents/Developer\r\n    • CocoaPods version 1.11.3\r\n\r\n[✓] Chrome - develop for the web\r\n    • Chrome at /Applications/Google Chrome.app/Contents/MacOS/Google Chrome\r\n\r\n[✓] Android Studio (version 2021.2)\r\n    • Android Studio at /Applications/Android Studio.app/Contents\r\n    • Flutter plugin can be installed from:\r\n      🔨 https://plugins.jetbrains.com/plugin/9212-flutter\r\n    • Dart plugin can be installed from:\r\n      🔨 https://plugins.jetbrains.com/plugin/6351-dart\r\n    • Java version OpenJDK Runtime Environment (build 11.0.12+0-b1504.28-7817840)\r\n\r\n[✓] Android Studio (version 4.1)\r\n    • Android Studio at /Users/huynq/Library/Application Support/JetBrains/Toolbox/apps/AndroidStudio/ch-0/201.7042882/Android Studio.app/Contents\r\n    • Flutter plugin can be installed from:\r\n      🔨 https://plugins.jetbrains.com/plugin/9212-flutter\r\n    • Dart plugin can be installed from:\r\n      🔨 https://plugins.jetbrains.com/plugin/6351-dart\r\n    • Java version OpenJDK Runtime Environment (build 1.8.0_242-release-1644-b3-6915495)\r\n\r\n[✓] Android Studio\r\n    • Android Studio at /Users/huynq/Library/Application Support/JetBrains/Toolbox/apps/AndroidStudio/ch-1/203.7185775/Android Studio Preview.app/Contents\r\n    • Flutter plugin can be installed from:\r\n      🔨 https://plugins.jetbrains.com/plugin/9212-flutter\r\n    • Dart plugin can be installed from:\r\n      🔨 https://plugins.jetbrains.com/plugin/6351-dart\r\n    • Java version OpenJDK Runtime Environment (build 11.0.8+10-b944.6842174)\r\n\r\n[✓] IntelliJ IDEA Community Edition (version 2020.3.3)\r\n    • IntelliJ at /Applications/IntelliJ IDEA CE.app\r\n    • Flutter plugin can be installed from:\r\n      🔨 https://plugins.jetbrains.com/plugin/9212-flutter\r\n    • Dart plugin can be installed from:\r\n      🔨 https://plugins.jetbrains.com/plugin/6351-dart\r\n\r\n[✓] VS Code (version 1.67.0)\r\n    • VS Code at /Applications/Visual Studio Code.app/Contents\r\n    • Flutter extension version 3.40.0\r\n\r\n[✓] Connected device (3 available)\r\n    • iPhone 13 (mobile) • 5F5D609C-3B0B-4C48-872C-961928157361 • ios            • com.apple.CoreSimulator.SimRuntime.iOS-15-2 (simulator)\r\n    • macOS (desktop)    • macos                                • darwin-x64     • macOS 12.2.1 21D62 darwin-x64\r\n    • Chrome (web)       • chrome                               • web-javascript • Google Chrome 101.0.4951.54\r\n\r\n[✓] HTTP Host Availability\r\n    • All required HTTP hosts are available\r\n\r\n• No issues found!\r\n\r\n```\r\n</details>\r\n\r\n@lukepighetti Can you pls try again and update here your result?",
+    "createdAt": "2022-05-12T07:16:50Z"
+  },
+  {
+    "id": 3958,
+    "sender": "iosephmagno",
+    "content": "@huycozy native on the right side, your image. Letter spacing and size are different.\r\n\r\n![972A1398-709D-45B9-9E81-F81BFFC73998](https://user-images.githubusercontent.com/83366073/168016114-afcc1b00-b3ef-438e-a4e2-1d67cee8eeea.jpeg)\r\n\r\n\r\n",
+    "createdAt": "2022-05-12T07:30:08Z"
+  },
+  {
+    "id": 3959,
+    "sender": "lukepighetti",
+    "content": "> Hi, I tried on latest `stable`, `master` and `beta` channel and I find them similar between Flutter and iOS native app\r\n> \r\n> Demo\r\n> Sample code\r\n> flutter doctor -v\r\n> @lukepighetti Can you pls try again and update here your result?\r\n\r\nLooks good to me on 3.0.0 on stable. If there are other issues I think we should open a new ticket.\r\n\r\n<img width=\"1408\" alt=\"Screen Shot 2022-05-12 at 7 13 40 AM\" src=\"https://user-images.githubusercontent.com/666539/168061413-1c942a91-cc69-4837-984d-0be67024e50d.png\">\r\n",
+    "createdAt": "2022-05-12T11:13:52Z"
+  },
+  {
+    "id": 3960,
+    "sender": "dnfield",
+    "content": "It'd be interesting to know what commit fixed this, or whether it's a particular iOS version. It's great that this looks better, but it'd also be good to have some kind of regression test for it.",
+    "createdAt": "2022-05-12T14:17:11Z"
+  },
+  {
+    "id": 3961,
+    "sender": "lukepighetti",
+    "content": "I have no clue which commit fixed this, I would also like to know.",
+    "createdAt": "2022-05-12T14:18:32Z"
+  },
+  {
+    "id": 3962,
+    "sender": "dnfield",
+    "content": "https://github.com/flutter/flutter/issues/28894#issuecomment-470507172 doesn't look like it's changed at all to me on master.",
+    "createdAt": "2022-05-12T18:29:29Z"
+  },
+  {
+    "id": 3963,
+    "sender": "TahaTesser",
+    "content": "reopened as @lukepighetti couldn't comment on the locked thread and remove `r: fixed`, to be applied back if the issue is confirmed fixed.",
+    "createdAt": "2022-05-27T13:59:38Z"
+  },
+  {
+    "id": 3964,
+    "sender": "iosephmagno",
+    "content": "Nice to hear that. We would appreciate if the fix would guarantee also correct VA (letter spacing). The feeling is that focus is mostly on the emojis size issue, but that’s just a part of it",
+    "createdAt": "2022-05-27T17:15:47Z"
+  },
+  {
+    "id": 3965,
+    "sender": "iosephmagno",
+    "content": "Surely not a P4. This should be urgent.\r\n\r\n![E9ED9618-5606-4182-8FEF-CB58499AC9EC](https://user-images.githubusercontent.com/83366073/173871889-eb098c0a-7dc0-43e1-a433-4746ceacbc23.png)\r\n",
+    "createdAt": "2022-06-15T16:01:28Z"
+  },
+  {
+    "id": 3966,
+    "sender": "lukepighetti",
+    "content": "I doubt the priority is going to change anytime soon. If we can document more issues maybe it will help put some heat under it.",
+    "createdAt": "2022-06-15T16:46:27Z"
+  },
+  {
+    "id": 3967,
+    "sender": "iosephmagno",
+    "content": "If you mean comments, I doubt we’ll get more heat than this. People are disheartened.",
+    "createdAt": "2022-06-15T17:18:40Z"
+  }
+]

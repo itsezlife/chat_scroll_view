@@ -1,0 +1,386 @@
+[
+  {
+    "id": 704,
+    "sender": "camsim99",
+    "content": "@chunhtai I need to do some minor cleanup + add comments, but if you want to take a look tomorrow and give another review PTAL :)",
+    "createdAt": "2025-03-20T01:37:10Z"
+  },
+  {
+    "id": 705,
+    "sender": "camsim99",
+    "content": "My understanding from the reviews and an offline discussion earlier was that this is ready to land. There's some cleanup and significant comments here, so I'm not sure I agree anymore.\r\n\r\nI'll be OOO starting midday tomorrow, so I will try to address these comments, but will likely not land it. @reidbaker if I get it to a place where I feel confident that the reviews are addressed, I'll let you know in case you can land this while I'm out. Thank you everyone for the feedback and helping push this forward!",
+    "createdAt": "2025-03-21T00:04:39Z"
+  },
+  {
+    "id": 706,
+    "sender": "chunhtai",
+    "content": "Tangential to this pr.  for detecting visibility, looks like we already have this widget https://github.com/google/flutter.widgets/blob/master/packages/visibility_detector/lib/src/render_visibility_detector.dart#L17 ",
+    "createdAt": "2025-04-01T21:37:53Z"
+  },
+  {
+    "id": 707,
+    "sender": "camsim99",
+    "content": "> Tangential to this pr. for detecting visibility, looks like we already have this widget https://github.com/google/flutter.widgets/blob/master/packages/visibility_detector/lib/src/render_visibility_detector.dart#L17\r\n\r\nNoted this in https://github.com/flutter/flutter/issues/160051",
+    "createdAt": "2025-04-11T19:09:22Z"
+  },
+  {
+    "id": 708,
+    "sender": "camsim99",
+    "content": "This is ready for another look!",
+    "createdAt": "2025-04-14T18:45:43Z"
+  },
+  {
+    "id": 709,
+    "sender": "camsim99",
+    "content": "> ### Timeline\r\n> \r\n> #### Required for feature shipping\r\n> -  Land this PR with the method channel implementation of content sensitivity.\r\n> \r\n> #### Short-term follow up tasks\r\n> - Ensure every `FlutterView` has a unique ID for the native `SensitiveContentPlugin` to identify them by: https://github.com/flutter/flutter/pull/162685\r\n> - Add `SensitiveContent` widget to relevant Flutter widgets: https://github.com/flutter/flutter/issues/167302\r\n> \r\n> #### Long-term follow up tasks\r\n> - Convert this PR to use JNIgen: https://github.com/flutter/flutter/issues/160050. Verify no frames are dropped, revealing sensitive content during media projection: https://github.com/flutter/flutter/issues/164820.\r\n> \r\n> #### Stretch goals\r\n> - Make the `SensitiveContent` widget sensitive to the visibility of child widgets: https://github.com/flutter/flutter/issues/160051\r\n> - Implement `autoSensitivity` mode: https://github.com/flutter/flutter/issues/160879\r\n> - Investigate backwards compatibility for APIs < 35: https://github.com/flutter/flutter/issues/159208\r\n\r\nUpdate: Had an offline @reidbaker and @jmagman, and we have decided that this feature is ok to ship into master without implementing it without JNIgen (ensuring  https://github.com/flutter/flutter/issues/164820 is fixed), primarily because landing this as-is will only improve things from a security perspective, even with the frame drop possibility. By ship, I mean exposing the `SensitiveContent` widget to users in the widgets library and noting the security vulnerability in the `SensitiveContent` widget documentation in this PR, then landing it. I'll follow up with these changes shortly.\r\n\r\nAfter this lands, I'll work on the short term tasks listed above, including implementing relevant Flutter widgets with `SensitiveContent`.\r\n\r\nIn the long term, I'll plan to return to the JNIgen work, though this would have to follow the architectural work of determining how we (Flutter) plans for JNI/FFI gen to work in the embedder for all platforms. This will require significant time and effort to do it right, which was a significant factor for making the decision to ship this feature as-is. When the work of determining how to use JNI/FFI gen in the embedder is picked up, the sensitive content feature will be a concrete example that can be used to demonstrate a proof of concept.",
+    "createdAt": "2025-04-16T20:20:41Z"
+  },
+  {
+    "id": 710,
+    "sender": "camsim99",
+    "content": ">  Lets assume that we add this widget to a password field in the material library. How does a user turn off sensitive content for an integration test they have already built after updating to this version of flutter and the new version of material.\r\n\r\nI assume we would add a field to `TextField` that would act as a switch for setting the sensitivity of the wrapper `SensitiveContent` widget in its implementation. By default, we can set it to `notSensitive` to not break people. Even if we don't, though, they can then just use the field to `notSensitive` to fix any other breakages.",
+    "createdAt": "2025-04-17T20:06:09Z"
+  },
+  {
+    "id": 711,
+    "sender": "reidbaker",
+    "content": "> > Lets assume that we add this widget to a password field in the material library. How does a user turn off sensitive content for an integration test they have already built after updating to this version of flutter and the new version of material.\r\n> \r\n> I assume we would add a field to `TextField` that would act as a switch for setting the sensitivity of the wrapper `SensitiveContent` widget in its implementation. By default, we can set it to `notSensitive` to not break people. Even if we don't, though, they can then just use the field to `notSensitive` to fix any other breakages.\r\n\r\nThat would mean that in test runs they would need to build a way to override the value.\r\n\r\nThis value is sensitive and they want to protect their users but they dont want the protection during debug mode during testing. \r\n\r\nI think this user journey, the one where you want it off during testing is the one that I am the most worried about. \r\n",
+    "createdAt": "2025-04-17T20:12:14Z"
+  },
+  {
+    "id": 712,
+    "sender": "camsim99",
+    "content": "If the `TextField` is baked deep into their implementation, then yes, they would need to expose a way to override the field we add from a test. Maybe I have to think deeper, but I think that's unavoidable; the only other alternative is to not bake it into Flutter widgets like `TextField` to begin with.\r\n\r\nI think it's fair to ask developers to build that functionality, and I don't think that making them do so is a good enough reason to decide against baking `SensitiveContent` into relevant Flutter widgets. Building that functionality is likely not super difficult and certainly wouldn't outweigh the added security benefits.",
+    "createdAt": "2025-04-17T20:33:07Z"
+  },
+  {
+    "id": 713,
+    "sender": "reidbaker",
+    "content": "> I think I caught a place where errors can be silently swallowed, see comment below.\r\n> \r\n> About the integration test discussion [above](https://github.com/flutter/flutter/pull/158473#pullrequestreview-2776484926), does that situation only apply to integration tests that are actually testing sharing their screen to another device?\r\n\r\nYes it only applies to integration tests where the output of the screen is streamed. ",
+    "createdAt": "2025-04-18T14:10:32Z"
+  },
+  {
+    "id": 714,
+    "sender": "camsim99",
+    "content": "> Would it be possible to mock isSupported and fake that sensitive content is not supported at all? It's easy to do this in a unit test ([example](https://github.com/flutter/flutter/blob/457e98a1e70b74b27a209721484c28e73a80caef/packages/flutter/test/services/text_input_test.dart#L232-L236)) but I'm not sure about in an integration test.\r\n\r\nThat's what I'm thinking! For integration tests, developers would just need to expose a way to change their widget in an integration test to turn sensitive content sensitivity off.",
+    "createdAt": "2025-04-18T19:06:09Z"
+  },
+  {
+    "id": 715,
+    "sender": "reidbaker",
+    "content": "My force push was after running `git rebase --onto main HEAD`\r\n",
+    "createdAt": "2025-04-25T13:57:51Z"
+  },
+  {
+    "id": 716,
+    "sender": "reidbaker",
+    "content": "Well @camsim99 I messed this up. Now that the pr is closed I cant push to this branch anymore. \r\n",
+    "createdAt": "2025-04-25T14:00:48Z"
+  },
+  {
+    "id": 717,
+    "sender": "sy5075391",
+    "content": "## Screen flickering on iOS since Flutter 2.10.0\n\nApp screen flickers and freezes, when I restart it, it goes away. This happened after upgrading to flutter 2.10.0, it doesn't always happen.\r\n\r\nhttps://user-images.githubusercontent.com/19810700/159396407-ea553089-e4c3-4f0e-b709-d169cbefed7f.MOV\r\n\r\n```\r\nDoctor summary (to see all details, run flutter doctor -v):\r\n[✓] Flutter (Channel stable, 2.10.0, on macOS 11.6.1 20G224 darwin-x64, locale zh-Hans-CN)\r\n[✓] Android toolchain - develop for Android devices (Android SDK version 32.0.0)\r\n[✓] Xcode - develop for iOS and macOS (Xcode 13.2)\r\n[✓] Chrome - develop for the web\r\n[✓] Android Studio (version 2021.1)\r\n\r\n```",
+    "createdAt": "2022-03-22T02:41:25Z"
+  },
+  {
+    "id": 718,
+    "sender": "danagbemava-nc",
+    "content": "Hi @sy5075391, can you upgrade to stable 2.10.3 to see if you still experience this issue? \r\n\r\nIf you do, please provide the updated `flutter doctor -v` as well as a complete minimal reproducible code sample that we can use to replicate this. \r\n\r\nThank you",
+    "createdAt": "2022-03-22T07:33:49Z"
+  },
+  {
+    "id": 719,
+    "sender": "fbcouch",
+    "content": "@sy5075391 If you have a reproducible example of this, I would love to take a look at it. We have a handful of reports of a similar flickering in our production app. Unfortunately, I haven't been able to reproduce it myself, and we've only gotten like 4 reports over the course of 2 months. Still, it would be nice to figure out. Here's what it looks like for us (very similar–I added the black box just to obscure personal details from the user):\r\n\r\nhttps://user-images.githubusercontent.com/3249979/159985572-3e3dbb2f-e752-4e4a-8987-c5f95e93ddf9.mp4\r\n\r\nWe're still on a 2.10.2-based version, so I'll see about updating to 2.10.3 as well (we have a few extra crash fixes and undo support built in). This PR in 2.10.3 seems like the most likely thing to be relevant: https://github.com/flutter/engine/pull/31656\r\n\r\nWe've only seen this on iOS (15.2.1 and 15.3.1), but not iPadOS.\r\n\r\nHere's the `flutter doctor -v` from our build agent:\r\n```\r\n[✓] Flutter (Channel feature/scribble+2.10.2, 2.10.3-0.0.pre.1, on macOS 11.6.3 20G415 darwin-x64, locale en-US)\r\n    • Flutter version 2.10.3-0.0.pre.1 at /Users/build/flutter\r\n    • Upstream repository git@github.com:twinsunllc/flutter.git\r\n    • Framework revision 197aeac420 (3 months ago), 2021-12-14 16:29:34 -0600\r\n    • Engine revision a83ed0e5e3\r\n    • Dart version 2.16.1\r\n    • DevTools version 2.9.2\r\n\r\n[!] Android toolchain - develop for Android devices (Android SDK version 30.0.2)\r\n    • Android SDK at /Users/build/Library/Android/sdk\r\n    ✗ cmdline-tools component is missing\r\n      Run `path/to/sdkmanager --install \"cmdline-tools;latest\"`\r\n      See https://developer.android.com/studio/command-line for more details.\r\n    ✗ Android license status unknown.\r\n      Run `flutter doctor --android-licenses` to accept the SDK licenses.\r\n      See https://flutter.dev/docs/get-started/install/macos#android-setup for more details.\r\n\r\n[✓] Xcode - develop for iOS and macOS (Xcode 13.2)\r\n    • Xcode at /Applications/Xcode.app/Contents/Developer\r\n    • CocoaPods version 1.11.2\r\n\r\n[✓] Chrome - develop for the web\r\n    • Chrome at /Applications/Google Chrome.app/Contents/MacOS/Google Chrome\r\n\r\n[✓] Android Studio (version 2020.3)\r\n    • Android Studio at /Applications/Android Studio.app/Contents\r\n    • Flutter plugin can be installed from:\r\n      🔨 https://plugins.jetbrains.com/plugin/9212-flutter\r\n    • Dart plugin can be installed from:\r\n      🔨 https://plugins.jetbrains.com/plugin/6351-dart\r\n    • Java version OpenJDK Runtime Environment (build 11.0.10+0-b96-7281165)\r\n\r\n[✓] Connected device (1 available)\r\n    • Chrome (web) • chrome • web-javascript • Google Chrome 99.0.4844.83\r\n\r\n[✓] HTTP Host Availability\r\n    • All required HTTP hosts are available\r\n```\r\n\r\nOur current engine version (3 commits ahead of 2.10.2): https://github.com/twinsunllc/engine/commits/2.10.2+fixes\r\n",
+    "createdAt": "2022-03-24T18:46:51Z"
+  },
+  {
+    "id": 720,
+    "sender": "abdulrehmank7",
+    "content": "Facing same issue on iOS v15.2.1. Getting similar flickering consistently while using app.\r\n\r\n[✓] Flutter (Channel stable, 2.10.3, on macOS 12.0.1 21A559 darwin-arm, locale en-IN)\r\n[✓] Android toolchain - develop for Android devices (Android SDK version 30.0.2)\r\n[✓] Xcode - develop for iOS and macOS (Xcode 13.3)\r\n[✓] Chrome - develop for the web\r\n[✓] Android Studio (version 2021.1)\r\n[✓] IntelliJ IDEA Ultimate Edition (version 2020.3.3)\r\n[✓] Connected device (2 available)\r\n[✓] HTTP Host Availability\r\n\r\nhttps://user-images.githubusercontent.com/57043846/161044681-7256b0cc-50f5-42cc-8b64-b3ac8b620227.mp4\r\n\r\n\r\n",
+    "createdAt": "2022-03-31T11:09:26Z"
+  },
+  {
+    "id": 721,
+    "sender": "danagbemava-nc",
+    "content": "Hi @abdulrehmank7, can you provide a complete minimal reproducible code sample?",
+    "createdAt": "2022-03-31T11:10:29Z"
+  },
+  {
+    "id": 722,
+    "sender": "abdulrehmank7",
+    "content": "> Hi @abdulrehmank7, can you provide a complete minimal reproducible code sample?\r\n\r\nThe issue happens randomly. We cannot isolate and replicate the bug. \r\nMy hunch is that, this is related to latest Xcode release. In that update we were forced to disable Bitcode as the app was crashing on iOS v13 device. In Xcode official changelog, they said to disable Bitcode to fix the bug. After disabling Bitcode we are seeing the flickering issue regularly.",
+    "createdAt": "2022-03-31T11:40:19Z"
+  },
+  {
+    "id": 723,
+    "sender": "danagbemava-nc",
+    "content": "Without a reproducible sample, it's going to be difficult for us to act on this issue",
+    "createdAt": "2022-03-31T12:13:27Z"
+  },
+  {
+    "id": 724,
+    "sender": "abdulrehmank7",
+    "content": "> Without a reproducible sample, it's going to be difficult for us to act on this issue\r\n\r\nNot sure how can help you here. But definitely more people will report this issue soon.\r\n",
+    "createdAt": "2022-03-31T12:22:15Z"
+  },
+  {
+    "id": 725,
+    "sender": "fbcouch",
+    "content": "@abdulrehmank7 That's interesting...we _also_ have bitcode disabled...I tried to enable it recently and had issues linking with our custom engine, unfortunately. That would be really strange if that's the issue, but who knows...\r\n\r\nI assume your app is not open source, so I can't test it out myself, but are you able to see the issue yourself with any reasonable frequency? (We've only had reports from customers, unfortunately, haven't been able to see the issue ourselves).\r\n\r\nI'm hopeful that it will kinda just go away in a future release...if you're able to make it happen at all, it might be worth testing out the `beta` and `master` branches...my hunch is that it's a skia issue (or related to flutter and skia interacting). I just patched in a skia commit to our latest custom engine build to fix a relatively infrequent crash down in the GrMtlCommandBuffer when there's an error submitting the buffer or something...I'm hoping that just fixes the flashing issue too 🤷‍♂️ ",
+    "createdAt": "2022-03-31T14:44:19Z"
+  },
+  {
+    "id": 726,
+    "sender": "fbcouch",
+    "content": "An update here – unfortunately we're still having reports of the issue on our latest build (based on flutter 2.10.4)",
+    "createdAt": "2022-04-01T20:55:50Z"
+  },
+  {
+    "id": 727,
+    "sender": "akindone",
+    "content": "I got the same issue after upgrade to flutter 2.10.3. The issue happens randomly. the device is iOS 15.0.1. This page has a webview which is not flickering, but the appbar is flickering\r\n\r\nhttps://user-images.githubusercontent.com/17843738/161948750-4e8d9f72-2dfc-452a-b9c4-c3f366e43c78.mp4\r\n",
+    "createdAt": "2022-04-06T09:54:28Z"
+  },
+  {
+    "id": 728,
+    "sender": "danagbemava-nc",
+    "content": "Hi @akindone, can you provide a small sample that reproduces the issue?",
+    "createdAt": "2022-04-06T10:05:47Z"
+  },
+  {
+    "id": 729,
+    "sender": "akindone",
+    "content": "> Hi @akindone, can you provide a small sample that reproduces the issue?\r\n\r\nI will provide a sample if I can reproduce this issue",
+    "createdAt": "2022-04-06T10:11:19Z"
+  },
+  {
+    "id": 730,
+    "sender": "henrychiu",
+    "content": "I have experienced the same problem (both IOS and Android) in two of my apps since the upgrade from 2.8 to 2.10.  But the issue happens randomly. so far I cannot isolate and replicate the bug. It happens when the screen either has a lot of images or playing video.",
+    "createdAt": "2022-04-12T09:32:32Z"
+  },
+  {
+    "id": 731,
+    "sender": "danagbemava-nc",
+    "content": "If anyone else is experiencing this issue, kindly upvote the initial comment on this issue. We would also appreciate it if any \r\nof you experiencing this issue can provide a sample so that we can verify this. \r\n\r\nKeeping this issue open to track future reports of the same issue. \r\n\r\nBased on what I've gathered: \r\n\r\n- This issue is on both android and iOS https://github.com/flutter/flutter/issues/100522#issuecomment-1096446674\r\n- It doesn't seem to affect platform views https://github.com/flutter/flutter/issues/100522#issuecomment-1090079625\r\n- Its occurrence is sporadic and there isn't a clear way to isolate the issue\r\n- All reports seem to indicate this happening after upgrading to flutter 2.10\r\n\r\nOnce again, if anyone is able to reproduce and isolate the cause, kindly provide a sample so that we can investigate this. \r\n\r\nLabeling for visibilty",
+    "createdAt": "2022-04-12T13:30:17Z"
+  },
+  {
+    "id": 732,
+    "sender": "zanderso",
+    "content": "@knopp @iskakaushik does this look related to DRM?",
+    "createdAt": "2022-04-13T21:51:58Z"
+  },
+  {
+    "id": 733,
+    "sender": "zanderso",
+    "content": "Removing priority so that this will surface in Engine triage.",
+    "createdAt": "2022-04-13T21:52:18Z"
+  },
+  {
+    "id": 734,
+    "sender": "knopp",
+    "content": "I looks like it might be related to partial repaint (one of the back buffers seem to be having invalid content), but it's also quite strange that most of these videos are showing static scene without any animation and yet the screen keeps repainting. \r\n\r\nA reproducible example would be great to have.\r\n\r\nAlso, if it happens, does it get fixed by scrolling (or similar action that triggers repaint of large portion of screen)?",
+    "createdAt": "2022-04-13T22:21:55Z"
+  },
+  {
+    "id": 735,
+    "sender": "abdulrehmank7",
+    "content": "> I looks like it might be related to partial repaint (one of the back buffers seem to be having invalid content), but it's also quite strange that most of these videos are showing static scene without any animation and yet the screen keeps repainting.\r\n> \r\n> A reproducible example would be great to have.\r\n> \r\n> Also, if it happens, does it get fixed by scrolling (or similar action that triggers repaint of large portion of screen)?\r\n\r\nI reported this flicker above for our app. The screen is having video player and even on changing tabs and scrolling, the issue persists.",
+    "createdAt": "2022-04-14T09:03:38Z"
+  },
+  {
+    "id": 736,
+    "sender": "jveryspace",
+    "content": "I got the same issue after upgrade to flutter 2.10.3 (IOS)",
+    "createdAt": "2022-04-15T11:13:09Z"
+  },
+  {
+    "id": 737,
+    "sender": "knopp",
+    "content": "> I got the same issue after upgrade to flutter 2.10.3 (IOS)\r\n\r\nDo you have any video player in your app? (or anything else using external textures)?",
+    "createdAt": "2022-04-15T11:17:11Z"
+  },
+  {
+    "id": 738,
+    "sender": "jveryspace",
+    "content": "> > I got the same issue after upgrade to flutter 2.10.3 (IOS)\r\n> \r\n> Do you have any video player in your app? (or anything else using external textures)?\r\n\r\nHave a WebView with size(0, 0)",
+    "createdAt": "2022-04-15T11:21:51Z"
+  },
+  {
+    "id": 739,
+    "sender": "knopp",
+    "content": "> > > I got the same issue after upgrade to flutter 2.10.3 (IOS)\r\n> > \r\n> > \r\n> > Do you have any video player in your app? (or anything else using external textures)?\r\n> \r\n> Have a WebView with size(0, 0)\r\n\r\nIs it consistently reproducible? Also partial repaint should be disable with platform views present.",
+    "createdAt": "2022-04-15T11:24:25Z"
+  },
+  {
+    "id": 740,
+    "sender": "jveryspace",
+    "content": "> > > > I got the same issue after upgrade to flutter 2.10.3 (IOS)\r\n> > > \r\n> > > \r\n> > > Do you have any video player in your app? (or anything else using external textures)?\r\n> > \r\n> > \r\n> > Have a WebView with size(0, 0)\r\n> \r\n> Is it consistently reproducible? Also partial repaint should be disable with platform views present.\r\n\r\nThe issue happens randomly. Thank you.",
+    "createdAt": "2022-04-15T11:34:22Z"
+  },
+  {
+    "id": 741,
+    "sender": "EArminjon",
+    "content": "Need reproductible code. Got a similar problem but was code related.\r\n",
+    "createdAt": "2022-04-18T07:15:50Z"
+  },
+  {
+    "id": 742,
+    "sender": "chinmaygarde",
+    "content": "Since there is no sample reproducible test case yet, perhaps we need a flag exposed to toggle partial repaint. Even if its on a branch off of 2.10.3, we could build custom engines to see if users can reproduce this issue.\r\n\r\nMarking this as a P2 as the regression seems pretty serious.",
+    "createdAt": "2022-04-18T17:42:14Z"
+  },
+  {
+    "id": 743,
+    "sender": "akindone",
+    "content": "> Hi @akindone, can you provide a small sample that reproduces the issue?\r\n\r\nthis [flutter_flickering_issue_sample](https://github.com/akindone/flutter_flickering_issue_sample) reproduces this issue.\r\n\r\nhttps://user-images.githubusercontent.com/17843738/163949578-356220c4-abd0-46fa-bcfb-eccff953a371.MP4\r\n\r\n\r\n",
+    "createdAt": "2022-04-19T07:32:28Z"
+  },
+  {
+    "id": 744,
+    "sender": "knopp",
+    "content": "@akindone, thank you for the sample! I've been able to reproduce this on stable, but not on master, which would seem that maybe some of the PRs were not cherry-picked.",
+    "createdAt": "2022-04-19T08:27:21Z"
+  },
+  {
+    "id": 745,
+    "sender": "intelryzen",
+    "content": "\r\nhttps://user-images.githubusercontent.com/66426612/164210599-aa447ae8-3e6e-48c5-b76d-86a927465793.MP4\r\n\r\nThe symptom is an occasional issue and occurred when I swiped the iPhone home bar up. If symptoms occur, the app must be forced to shut down.",
+    "createdAt": "2022-04-20T10:28:24Z"
+  },
+  {
+    "id": 746,
+    "sender": "knopp",
+    "content": "@intelryzen, can you reproduce this with current master?",
+    "createdAt": "2022-04-20T10:45:38Z"
+  },
+  {
+    "id": 747,
+    "sender": "fbcouch",
+    "content": "> > Hi @akindone, can you provide a small sample that reproduces the issue?\r\n> \r\n> this [flutter_flickering_issue_sample](https://github.com/akindone/flutter_flickering_issue_sample) reproduces this issue.\r\n> \r\n>  RPReplay_Final1650350856.MP4\r\n\r\nThanks for providing this...that definitely looks like an issue...how sure are you that this is the same issue as the others? The flickering there seems far less pronounced than in the other videos posted where the entire screen flickers between completely black and normal painting. That said, I am definitely hopeful that it's the same, so that it will be fixed from changes already on master :smile:",
+    "createdAt": "2022-04-20T14:46:51Z"
+  },
+  {
+    "id": 748,
+    "sender": "akindone",
+    "content": "> \r\n\r\n\r\n\r\n> > > Hi @akindone, can you provide a small sample that reproduces the issue?\r\n> > \r\n> > \r\n> > this [flutter_flickering_issue_sample](https://github.com/akindone/flutter_flickering_issue_sample) reproduces this issue.\r\n> > RPReplay_Final1650350856.MP4\r\n> \r\n> Thanks for providing this...that definitely looks like an issue...how sure are you that this is the same issue as the others? The flickering there seems far less pronounced than in the other videos posted where the entire screen flickers between completely black and normal painting. That said, I am definitely hopeful that it's the same, so that it will be fixed from changes already on master 😄\r\n\r\nI am not sure actually. If I can reproduce the entire screen flickers issue, I will post sample code here.",
+    "createdAt": "2022-04-21T06:42:09Z"
+  },
+  {
+    "id": 749,
+    "sender": "chinmaygarde",
+    "content": "I believe @akindone s issues is unrelated to the full screen flickering reported here.\r\n\r\nPerhaps we can also get timeline traces of instances where the flickering happens. Not sure we dump partial repaint related trace events to the timeline but those might be good to add anyway.",
+    "createdAt": "2022-04-25T17:46:54Z"
+  },
+  {
+    "id": 750,
+    "sender": "Szymon-Gesicki",
+    "content": "Hi, I have the same problem and I managed to catch it in debug. When apllication enters the \"flickering\" state I started getting thousands of logs: \r\n```\r\nExecution of the command buffer was aborted due to an error during execution. Ignored (for causing prior/excessive GPU errors) (00000004:kIOGPUCommandBufferCallbackErrorSubmissionsIgnored)\r\nError submitting command buffer: Ignored (for causing prior/excessive GPU errors) (00000004:kIOGPUCommandBufferCallbackErrorSubmissionsIgnored)\r\n7666\r\nExecution of the command buffer was aborted due to an error during execution. Ignored (for causing prior/excessive GPU errors) (00000004:kIOGPUCommandBufferCallbackErrorSubmissionsIgnored)\r\nflutter: FLUTTER_LOGGER DEBUG - Session synchronization tick\r\n1574\r\nExecution of the command buffer was aborted due to an error during execution. Ignored (for causing prior/excessive GPU errors) (00000004:kIOGPUCommandBufferCallbackErrorSubmissionsIgnored)\r\nError submitting command buffer: Ignored (for causing prior/excessive GPU errors) (00000004:kIOGPUCommandBufferCallbackErrorSubmissionsIgnored)\r\n1848\r\nExecution of the command buffer was aborted due to an error during execution. Ignored (for causing prior/excessive GPU errors) (00000004:kIOGPUCommandBufferCallbackErrorSubmissionsIgnored)\r\nError submitting command buffer: Ignored (for causing prior/excessive GPU errors) (00000004:kIOGPUCommandBufferCallbackErrorSubmissionsIgnored)\r\n5951\r\nExecution of the command buffer was aborted due to an error during execution. Ignored (for causing prior/excessive GPU errors) (00000004:kIOGPUCommandBufferCallbackErrorSubmissionsIgnored)\r\nError submitting command buffer: Ignored (for causing prior/excessive GPU errors) (00000004:kIOGPUCommandBufferCallbackErrorSubmissionsIgnored)\r\n3199\r\nExecution of the command buffer was aborted due to an error during execution. Ignored (for causing prior/excessive GPU errors) (00000004:kIOGPUCommandBufferCallbackErrorSubmissionsIgnored)\r\n```\r\n\r\nI use flutter 2.10.5",
+    "createdAt": "2022-04-26T11:38:04Z"
+  },
+  {
+    "id": 751,
+    "sender": "knopp",
+    "content": "This doesn't seem to be related to partial repaint, at least not directly. But if even one frame fails to rasterize like this it will cause flicker when flipping buffers since one of the buffers will have stale data.",
+    "createdAt": "2022-04-26T11:45:46Z"
+  },
+  {
+    "id": 752,
+    "sender": "cijianzy",
+    "content": "when flickering, there is some logs maybe can help deal with this problem.\r\n\r\nI use flutter 2.10\r\n\r\n```\r\nExecution of the command buffer was aborted due to an error during execution. Ignored (for causing prior/excessive GPU errors) (00000004:kIOGPUCommandBufferCallbackErrorSubmissionsIgnored)\r\nError submitting command buffer: Ignored (for causing prior/excessive GPU errors) (00000004:kIOGPUCommandBufferCallbackErrorSubmissionsIgnored)\r\nExecution of the command buffer was aborted due to an error during execution. Ignored (for causing prior/excessive GPU errors) (00000004:kIOGPUCommandBufferCallbackErrorSubmissionsIgnored)\r\nExecution of the command buffer was aborted due to an error during execution. Ignored (for causing prior/excessive GPU errors) (00000004:kIOGPUCommandBufferCallbackErrorSubmissionsIgnored)\r\n```\r\n",
+    "createdAt": "2022-04-29T13:19:13Z"
+  },
+  {
+    "id": 753,
+    "sender": "zanderso",
+    "content": "@knopp Is there a more graceful way to recover if a frame fails to render?",
+    "createdAt": "2022-04-29T14:48:59Z"
+  },
+  {
+    "id": 754,
+    "sender": "knopp",
+    "content": "I'm not sure, but why does it matter? Are these errors to be expected?",
+    "createdAt": "2022-04-29T17:13:52Z"
+  },
+  {
+    "id": 755,
+    "sender": "chinmaygarde",
+    "content": "I agree with @knopp that the errors are not expected. We recently wired up enhanced command buffer debugger in [a different renderer](https://github.com/flutter/engine/blob/cafc4eb02659e3cf5f6b695ecc8ae820fdcc0cee/impeller/renderer/backend/metal/command_buffer_mtl.mm#L79). I wonder if the Skia renderer command buffers have similar instrumentation in place. Usually, by the time you see \"for causing prior/excessive GPU errors\" in the logs the instigating failure has happened a long time ago and we need the first instance of the failure.",
+    "createdAt": "2022-05-02T17:43:57Z"
+  },
+  {
+    "id": 756,
+    "sender": "chinmaygarde",
+    "content": "@knopp What made use suspect it was partial repaint was that this happening on both iOS and Android. But it could totally be something rendering related on all backends.",
+    "createdAt": "2022-05-02T17:45:01Z"
+  },
+  {
+    "id": 757,
+    "sender": "mateusfccp",
+    "content": "Some clients also reported this in our production app, but we couldn't reproduce it locally. Until now, we only got occurrences from iOS.",
+    "createdAt": "2022-05-04T13:08:46Z"
+  },
+  {
+    "id": 758,
+    "sender": "chinmaygarde",
+    "content": "Are any of these issues happening only on an iPhone 13 (with ProMotion displays) and/or with a platform view in the scene? We still need additional information about how and when this happens. The following would be good to know:\r\n\r\n1. Does this happen on iOS or Android or both?\r\n2. Does the application have a platform view in the scene when this happens?\r\n3. Does this happen on devices with higher refresh rates?",
+    "createdAt": "2022-05-09T17:49:15Z"
+  },
+  {
+    "id": 759,
+    "sender": "intelryzen",
+    "content": "In my case, it only happened on the iPhone. This has happened not only in debugging but also in released apps. My iPhone model is iPhone XS MAX and it occurs from the flutter version 2.10.0 or higher. It always happens suddenly when the iPhone home bar is swiped upward. I'm sorry, but I can't provide you with the video. It also occurs too in static app (pages), regardless of whether the app is refreshed or not.",
+    "createdAt": "2022-05-09T21:13:12Z"
+  },
+  {
+    "id": 760,
+    "sender": "feinstein",
+    "content": "We just got one report about this, on an iPhone 12 mini. The screen didn't have a platform view.",
+    "createdAt": "2022-05-09T23:18:44Z"
+  },
+  {
+    "id": 761,
+    "sender": "acalatrava",
+    "content": "I’m also facing this issue randomly. We’re still on the beta-testing phase but this only happens on iOS. We had reports happening on iPhone 12 so no ProMotion. \r\n\r\nI’m not able to reproduce it but it seems it starts when trying to exit the app when dragging the white bar. \r\n\r\nWhen the app enters on this flickering state it’s unresponsive and you have to force quit. ",
+    "createdAt": "2022-05-10T07:07:08Z"
+  },
+  {
+    "id": 762,
+    "sender": "acalatrava",
+    "content": "> Are any of these issues happening only on an iPhone 13 (with ProMotion displays) and/or with a platform view in the scene? We still need additional information about how and when this happens. The following would be good to know:\r\n> \r\n> 1. Does this happen on iOS or Android or both?\r\n\r\nAFAIK only iOS\r\n\r\n> 2. Does the application have a platform view in the scene when this happens?\r\n\r\nNo\r\n\r\n> 3. Does this happen on devices with higher refresh rates?\r\n\r\nNo, in fact we didn’t have any report from users with ProMotion displays. \r\n\r\n",
+    "createdAt": "2022-05-10T07:29:10Z"
+  },
+  {
+    "id": 763,
+    "sender": "Cellaryllis",
+    "content": "> 1. Does this happen on iOS or Android or both?\r\nWe only have reports on IOS.\r\n> 2. Does the application have a platform view in the scene when this happens?\r\nIf you mean native widgets, no not that we're aware of.\r\n> 3. Does this happen on devices with higher refresh rates?\r\nI can't confirm as we're not sure which devices it appears on. Only device we have confirmed is iPhone 11.\r\n\r\nWe have two videos of it happenening on our public bug tracker: \r\nhttps://apparyllis.atlassian.net/browse/SP-2292\r\nhttps://apparyllis.atlassian.net/browse/SP-2307\r\n\r\nVideo urls: https://cdn.discordapp.com/attachments/812607019504500736/969226148380831834/RPReplay_Final1651151902.mp4\r\nhttps://cdn.discordapp.com/attachments/861623218481397761/954466867123212308/RPReplay_Final1647632965.mp4\r\n\r\nWe can get more information on the affected users if wanted, and possibly more videos. \r\n",
+    "createdAt": "2022-05-10T08:10:02Z"
+  },
+  {
+    "id": 764,
+    "sender": "skindhu",
+    "content": "mark",
+    "createdAt": "2022-05-10T12:07:43Z"
+  },
+  {
+    "id": 765,
+    "sender": "lvfen",
+    "content": "mark",
+    "createdAt": "2022-05-10T12:09:50Z"
+  },
+  {
+    "id": 766,
+    "sender": "feinstein",
+    "content": "> I’m also facing this issue randomly. We’re still on the beta-testing phase but this only happens on iOS. We had reports happening on iPhone 12 so no ProMotion. \n> \n> I’m not able to reproduce it but it seems it starts when trying to exit the app when dragging the white bar. \n> \n> When the app enters on this flickering state it’s unresponsive and you have to force quit. \n\nThe user (an executive director of the company unfortunately) reported that he tried to swipe up the home bar to exit the app, but it didn't work, the whole screen was unresponsive.",
+    "createdAt": "2022-05-10T13:42:45Z"
+  },
+  {
+    "id": 767,
+    "sender": "fbcouch",
+    "content": "> 1. Does this happen on iOS or Android or both?\r\n\r\nSo far, we only have reports on iOS, for the following devices:\r\niPhone10,3 (iPhone X)\r\niPhone10,6 (iPhone X)\r\niPhone12,5 (iPhone 11 Pro Max)\r\n\r\nI think there was one report further up this thread on Android. So far, we haven't seen it there, but our userbase is highly slanted toward iOS.\r\n\r\n> 2. Does the application have a platform view in the scene when this happens?\r\n\r\nNot that I'm aware of.",
+    "createdAt": "2022-05-10T14:28:10Z"
+  }
+]
