@@ -27,7 +27,12 @@ class App extends StatelessWidget {
   @override
   Widget build(BuildContext context) => MaterialApp(
     title: 'Chat Scroll View',
-    theme: ThemeData(colorScheme: ColorScheme.fromSeed(seedColor: Colors.blue)),
+    theme: ThemeData(
+      colorScheme: ColorScheme.fromSeed(
+        seedColor: Colors.blue,
+        brightness: Brightness.dark,
+      ),
+    ),
     debugShowCheckedModeBanner: false,
     showPerformanceOverlay: false,
     home: const ChatScreen(),
@@ -136,9 +141,9 @@ class _DemoShimmerRender extends ChatShimmerRender {
       ),
       const Radius.circular(_bubbleRadius),
     );
-    canvas.drawRRect(bubbleRect, Paint()..color = const Color(0xFFE0E0E0));
+    canvas.drawRRect(bubbleRect, Paint()..color = const Color(0xFF2C2C2C));
 
-    final linePaint = Paint()..color = const Color(0xFFBDBDBD);
+    final linePaint = Paint()..color = const Color(0xFF424242);
     final lineTop = _padding / 2 + _bubblePadding;
     for (var i = 0; i < 2; i++) {
       final y = lineTop + i * 20.0;
@@ -214,7 +219,7 @@ class _DemoMessageRender extends ChatMessageRender {
               height: 1.4,
             ),
           )
-          ..pushStyle(ui.TextStyle(color: const Color(0xFF1A1A1A)))
+          ..pushStyle(ui.TextStyle(color: const Color(0xFFE0E0E0)))
           ..addText(content)
           ..pop();
 
@@ -248,11 +253,11 @@ class _DemoMessageRender extends ChatMessageRender {
 
     // Alternate bubble color by message ID.
     final isEven = (_message?.id ?? 0).isEven;
-    final bgColor = isEven ? const Color(0xFFE3F2FD) : const Color(0xFFF5F5F5);
+    final bgColor = isEven ? const Color(0xFF1A237E) : const Color(0xFF2C2C2C);
 
     canvas.drawRRect(bubbleRect, Paint()..color = bgColor);
     if (selected) {
-      canvas.drawRRect(bubbleRect, Paint()..color = const Color(0x300D47A1));
+      canvas.drawRRect(bubbleRect, Paint()..color = const Color(0x4042A5F5));
     }
     canvas.save();
     canvas.translate(
