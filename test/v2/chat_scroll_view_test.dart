@@ -168,7 +168,7 @@ void main() {
 
           // Scroll UP (see older messages) — positive delta moves anchor down,
           // revealing content above.
-          for (var i = 0; i < 80; i++) {
+          for (var i = 0; i < 120; i++) {
             controller.applyScrollDelta(200.0);
             renderObject.markNeedsLayout();
             await tester.pump();
@@ -178,7 +178,7 @@ void main() {
           expect(renderObject.debugLayoutMinChunk, lessThanOrEqualTo(1));
 
           // Now scroll back DOWN (see newer messages) — negative delta.
-          for (var i = 0; i < 80; i++) {
+          for (var i = 0; i < 120; i++) {
             controller.applyScrollDelta(-200.0);
             renderObject.markNeedsLayout();
             await tester.pump();
