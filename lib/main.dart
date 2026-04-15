@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'dart:ui' as ui;
 
-import 'package:chatscrollview/src/comments_data_source.dart';
 import 'package:chatscrollview/src/chat_message.dart';
 import 'package:chatscrollview/src/chat_scroll/chat_data_source.dart';
 import 'package:chatscrollview/src/chat_scroll/chat_message_render.dart';
@@ -10,6 +9,7 @@ import 'package:chatscrollview/src/chat_scroll/chat_scroll_controller.dart';
 import 'package:chatscrollview/src/chat_scroll/chat_scroll_view.dart';
 import 'package:chatscrollview/src/chat_scroll/chat_selection_controller.dart';
 import 'package:chatscrollview/src/chat_scroll/chat_shimmer_render.dart';
+import 'package:chatscrollview/src/comments_data_source.dart';
 import 'package:flutter/material.dart';
 import 'package:l/l.dart';
 
