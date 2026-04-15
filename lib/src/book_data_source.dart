@@ -5,7 +5,9 @@ import 'package:chatscrollview/src/chat_message.dart';
 import 'package:chatscrollview/src/chat_scroll/chat_data_source.dart';
 import 'package:chatscrollview/src/chat_scroll/chat_scroll_chunk.dart';
 import 'package:chatscrollview/src/chat_scroll/chat_scroll_common.dart';
-import 'package:flutter/services.dart';
+import 'package:chatscrollview/src/load_asset.dart'
+    if (dart.library.js_interop) 'package:chatscrollview/src/load_asset_web.dart'
+    if (dart.library.io) 'package:chatscrollview/src/load_asset_native.dart';
 
 /// Manifest for asset-based chat data.
 class BookManifest {
@@ -50,7 +52,7 @@ class BookDataSource extends ChatDataSource {
     String assetPrefix = 'assets/book',
     Duration fetchDelay = const Duration(milliseconds: 120),
   }) async {
-    final raw = await rootBundle.loadString('$assetPrefix/manifest.json');
+    final raw = await _loadString('$assetPrefix/manifest.json');
     final json = jsonDecode(raw) as Map<String, Object?>;
     final manifest = BookManifest.fromJson(json);
     return BookDataSource._(
@@ -59,6 +61,11 @@ class BookDataSource extends ChatDataSource {
       fetchDelay: fetchDelay,
     );
   }
+
+  /// On native — loads from bundled assets via rootBundle.
+  /// On web — fetches on demand via HTTP (assets excluded from service worker).
+  static Future<String> _loadString(String assetPath) =>
+      loadAsset(assetPath);
 
   final BookManifest manifest;
   final String assetPrefix;
@@ -103,7 +110,7 @@ class BookDataSource extends ChatDataSource {
     if (assetChunkIndex >= manifest.chunks.length) return const [];
 
     final fileName = manifest.chunks[assetChunkIndex];
-    final raw = await rootBundle.loadString('$assetPrefix/$fileName');
+    final raw = await _loadString('$assetPrefix/$fileName');
     final list = (jsonDecode(raw) as List<Object?>).cast<Map<String, Object?>>();
 
     final baseTime = DateTime.now();

@@ -22,4 +22,10 @@ dev_dependencies:
 flutter:
   uses-material-design: true
   assets:
-    - assets/book/
+    - path: assets/book/
+      platforms:
+        - android
+        - ios
+        - macos
+        - linux
+        - windows
