@@ -2,7 +2,7 @@
 set -euo pipefail
 
 REPO="flutter/flutter"
-OUT_DIR="assets/book"
+OUT_DIR="assets/comments"
 CHUNK_SIZE=64
 TARGET_MESSAGES=10000
 TMP_FILE=$(mktemp)

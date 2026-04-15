@@ -22,7 +22,7 @@ dev_dependencies:
 flutter:
   uses-material-design: true
   assets:
-    - path: assets/book/
+    - path: assets/comments/
       platforms:
         - android
         - ios

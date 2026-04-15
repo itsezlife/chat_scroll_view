@@ -1,7 +1,7 @@
 import 'dart:async';
 import 'dart:ui' as ui;
 
-import 'package:chatscrollview/src/book_data_source.dart';
+import 'package:chatscrollview/src/comments_data_source.dart';
 import 'package:chatscrollview/src/chat_message.dart';
 import 'package:chatscrollview/src/chat_scroll/chat_data_source.dart';
 import 'package:chatscrollview/src/chat_scroll/chat_message_render.dart';
@@ -63,16 +63,16 @@ class _ChatScreenState extends State<ChatScreen> {
 
   Future<void> _initDataSource() async {
     try {
-      final book = await BookDataSource.load();
-      final count = book.manifest.totalMessages;
-      _dataSource = book;
+      final comments = await CommentsDataSource.load();
+      final count = comments.manifest.totalMessages;
+      _dataSource = comments;
       _scrollController.oldestKnownId = 0;
       _scrollController.newestKnownId = count - 1;
       _scrollController.reachedOldest = true;
       _scrollController.reachedNewest = true;
       _scrollController.jumpTo(count - 1);
     } on Object catch (e) {
-      l.w('BookDataSource failed, falling back to demo: $e');
+      l.w('CommentsDataSource failed, falling back to demo: $e');
       const messageCount = 4000;
       _dataSource = _DemoDataSource(messageCount: messageCount);
       _scrollController.oldestKnownId = 0;

@@ -10,8 +10,8 @@ import 'package:chatscrollview/src/load_asset.dart'
     if (dart.library.io) 'package:chatscrollview/src/load_asset_native.dart';
 
 /// Manifest for asset-based chat data.
-class BookManifest {
-  BookManifest._({
+class CommentsManifest {
+  CommentsManifest._({
     required this.title,
     required this.totalMessages,
     required this.chunkSize,
@@ -19,7 +19,7 @@ class BookManifest {
     required this.senders,
   });
 
-  factory BookManifest.fromJson(Map<String, Object?> json) => BookManifest._(
+  factory CommentsManifest.fromJson(Map<String, Object?> json) => CommentsManifest._(
     title: json['title']! as String,
     totalMessages: json['totalMessages']! as int,
     chunkSize: json['chunkSize']! as int,
@@ -40,22 +40,22 @@ class BookManifest {
 /// ```json
 /// [{"id": 0, "sender": "user", "content": "...", "createdAt": "..."}]
 /// ```
-class BookDataSource extends ChatDataSource {
-  BookDataSource._({
+class CommentsDataSource extends ChatDataSource {
+  CommentsDataSource._({
     required this.manifest,
     required this.assetPrefix,
     required this.fetchDelay,
   });
 
   /// Load manifest and return a ready-to-use data source.
-  static Future<BookDataSource> load({
-    String assetPrefix = 'assets/book',
+  static Future<CommentsDataSource> load({
+    String assetPrefix = 'assets/comments',
     Duration fetchDelay = const Duration(milliseconds: 120),
   }) async {
     final raw = await _loadString('$assetPrefix/manifest.json');
     final json = jsonDecode(raw) as Map<String, Object?>;
-    final manifest = BookManifest.fromJson(json);
-    return BookDataSource._(
+    final manifest = CommentsManifest.fromJson(json);
+    return CommentsDataSource._(
       manifest: manifest,
       assetPrefix: assetPrefix,
       fetchDelay: fetchDelay,
@@ -67,7 +67,7 @@ class BookDataSource extends ChatDataSource {
   static Future<String> _loadString(String assetPath) =>
       loadAsset(assetPath);
 
-  final BookManifest manifest;
+  final CommentsManifest manifest;
   final String assetPrefix;
   final Duration fetchDelay;
 
