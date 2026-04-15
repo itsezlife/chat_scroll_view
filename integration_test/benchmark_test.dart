@@ -1,17 +1,25 @@
 // Integration benchmark: runs on real macOS with GPU compositing.
-// Run: flutter test integration_test/benchmark_test.dart -d macos
 //
-// Baseline results (2026-04-09, macOS, M-series, debug mode):
+// Debug:   flutter test integration_test/benchmark_test.dart -d macos
+// Profile: flutter drive --driver=test_driver/integration_test.dart \
+//            --target=integration_test/benchmark_test.dart -d macos --profile
+//
+// Baseline results (2026-04-15, macOS, M-series, profile mode):
 //
 //   Drag scroll (200 frames, 15px/frame):
-//     256 msgs:   Build mean=327µs  Raster mean=167µs  Jank 0.0%
-//     6000 msgs:  Build mean=302µs  Raster mean=159µs  Jank 0.0%
-//     20000 msgs: Build mean=264µs  Raster mean=149µs  Jank 0.0%
+//     256 msgs:   Build mean=356µs  Raster mean=961µs  Jank 0.5%
+//     6000 msgs:  Build mean=334µs  Raster mean=818µs  Jank 0.0%
+//     20000 msgs: Build mean=338µs  Raster mean=857µs  Jank 0.5%
 //
 //   Fling (300 frames):
-//     256 msgs:   Build mean=197µs  Raster mean=171µs  Jank 0.0%
-//     6000 msgs:  Build mean=195µs  Raster mean=161µs  Jank 0.0%
-//     20000 msgs: Build mean=184µs  Raster mean=155µs  Jank 0.0%
+//     256 msgs:   Build mean=235µs  Raster mean=878µs  Jank 0.0%
+//     6000 msgs:  Build mean=210µs  Raster mean=832µs  Jank 0.0%
+//     20000 msgs: Build mean=216µs  Raster mean=871µs  Jank 0.0%
+//
+//   Theoretical max FPS (profile):
+//     256 msgs:   815 FPS (p95: 545 FPS)
+//     6000 msgs:  882 FPS (p95: 605 FPS)
+//     20000 msgs: 940 FPS (p95: 624 FPS)
 //
 //   Memory stability (6000 msgs, 3 traversals):
 //     Chunks stay ≤16 across all passes (no growth)
