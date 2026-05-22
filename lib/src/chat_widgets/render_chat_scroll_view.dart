@@ -1,21 +1,29 @@
 import 'dart:async';
 import 'dart:collection';
-import 'dart:math' as math;
 
 import 'package:chatscrollview/src/chat_scroll/chat_data_source.dart';
 import 'package:chatscrollview/src/chat_scroll/chat_scroll_chunk.dart';
+import 'package:chatscrollview/src/chat_scroll/chat_scroll_common.dart';
 import 'package:chatscrollview/src/chat_scroll/chat_scroll_controller.dart';
+import 'package:chatscrollview/src/chat_widgets/chat_scrollbar.dart';
 import 'package:flutter/foundation.dart' show ValueListenable;
 import 'package:flutter/gestures.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/widgets.dart' show ClampingScrollSimulation;
 
-/// Parent data for a message child: its message [id] and the [offset] of its
-/// top edge within the viewport (viewport-local Y, may be negative).
+/// Parent data for a viewport child.
+///
+/// For a message: its [id], the [offset] of its top edge within the viewport
+/// (viewport-local Y, may be negative), whether it [startsDay] (carries an
+/// inline date divider), and its [dayBucket] (day-grouping key, `null` until
+/// the message loads). The floating day header reuses this type — only
+/// [offset] is meaningful for it.
 class ChatMessageParentData extends ParentData {
   int id = 0;
   double offset = 0.0;
+  bool startsDay = false;
+  int? dayBucket;
 }
 
 /// Contract the render object uses to lazily inflate / dispose message widgets.
@@ -25,10 +33,15 @@ class ChatMessageParentData extends ParentData {
 /// [removeChildren] to garbage-collect children outside the build range.
 abstract interface class ChatChildManager {
   /// Inflate or update the widget for message [id]; returns its render box.
-  RenderBox? buildChild(int id);
+  /// [startsNewDay] asks the element to prepend an inline date separator.
+  RenderBox? buildChild(int id, {required bool startsNewDay});
 
   /// Deactivate the elements for [ids] that are no longer needed.
   void removeChildren(List<int> ids);
+
+  /// Inflate / update / remove the floating day header for [date] (`null`
+  /// removes it). Called during layout, the same channel as [buildChild].
+  RenderBox? buildFloatingHeader(DateTime? date);
 }
 
 /// Widget-based endless chat viewport render object.
@@ -44,13 +57,19 @@ class RenderChatScrollView extends RenderBox {
     required ChatDataSource dataSource,
     required ChatScrollController controller,
     required double cacheExtent,
-    double keepAliveExtent = 0.0,
+    double extraBuildExtent = 0.0,
+    bool ticking = true,
     ValueListenable<double>? bottomPadding,
+    ValueListenable<double>? topPadding,
+    int Function(IChatMessage)? dayBucketOf,
   }) : _dataSource = dataSource,
        _controller = controller,
        _cacheExtent = cacheExtent,
-       _keepAliveExtent = keepAliveExtent,
-       _bottomPadding = bottomPadding;
+       _extraBuildExtent = extraBuildExtent,
+       _ticking = ticking,
+       _bottomPadding = bottomPadding,
+       _topPadding = topPadding,
+       _dayBucketOf = dayBucketOf;
 
   /// Set by `ChatScrollElement` in `mount`. Drives lazy child inflation.
   ChatChildManager? childManager;
@@ -93,13 +112,24 @@ class RenderChatScrollView extends RenderBox {
     markNeedsLayout();
   }
 
-  /// Extra pixels beyond [cacheExtent] where message children stay mounted —
-  /// off-screen, paint-culled, but their elements (and any `State`) survive.
-  double _keepAliveExtent;
-  set keepAliveExtent(double value) {
-    if (_keepAliveExtent == value) return;
-    _keepAliveExtent = value;
+  /// Extra pixels beyond [cacheExtent] that are still built — off-screen and
+  /// paint-culled, but their elements (and any `State`) survive. Distance-based
+  /// only; unrelated to the `KeepAlive` widget.
+  double _extraBuildExtent;
+  set extraBuildExtent(double value) {
+    if (_extraBuildExtent == value) return;
+    _extraBuildExtent = value;
     markNeedsLayout();
+  }
+
+  /// Whether the scroll [Ticker] is allowed to tick. Driven by `TickerMode`,
+  /// so a viewport on an inactive route does not animate a fling off-screen.
+  bool _ticking;
+  set ticking(bool value) {
+    if (_ticking == value) return;
+    _ticking = value;
+    _ticker?.muted = !value;
+    if (!value) _cancelFling();
   }
 
   /// Empty space reserved after the newest message — compensation for bottom
@@ -121,11 +151,27 @@ class RenderChatScrollView extends RenderBox {
   /// to re-pin the newest message when the viewport was sitting at the bottom.
   bool _bottomPaddingDirty = false;
 
-  // --- Content geometry ------------------------------------------------------
+  /// Empty space reserved at the *top* of the viewport — compensation for top
+  /// chrome (an app bar). The floating day header rests just below it.
+  ValueListenable<double>? _topPadding;
+  set topPadding(ValueListenable<double>? value) {
+    if (identical(_topPadding, value)) return;
+    if (attached) _topPadding?.removeListener(_onTopPaddingChanged);
+    _topPadding = value;
+    if (attached) _topPadding?.addListener(_onTopPaddingChanged);
+    markNeedsLayout();
+  }
 
-  static const double _maxContentWidth = 620.0;
-  double get _contentWidth => math.min(size.width, _maxContentWidth);
-  double get _contentX => (size.width - _contentWidth) / 2;
+  double get _topPad => _topPadding?.value ?? 0.0;
+
+  /// Groups messages into days for the date separators / floating header.
+  /// `null` turns the day-separator feature off entirely.
+  int Function(IChatMessage)? _dayBucketOf;
+  set dayBucketOf(int Function(IChatMessage)? value) {
+    if (identical(_dayBucketOf, value)) return;
+    _dayBucketOf = value;
+    markNeedsLayout();
+  }
 
   // --- Layout state ----------------------------------------------------------
 
@@ -144,7 +190,11 @@ class RenderChatScrollView extends RenderBox {
   Ticker? _ticker;
   double _pendingScrollDelta = 0.0;
   ClampingScrollSimulation? _simulation;
-  Duration _flingStartTime = Duration.zero;
+
+  /// Ticker `elapsed` at the first tick of the current fling, or `null`
+  /// between flings. Nullable on purpose — a [Ticker]'s very first `elapsed`
+  /// is exactly [Duration.zero], so zero cannot double as "unset".
+  Duration? _flingStartTime;
   double _lastFlingValue = 0.0;
 
   VerticalDragGestureRecognizer? _drag;
@@ -157,13 +207,42 @@ class RenderChatScrollView extends RenderBox {
 
   // --- Scrollbar -------------------------------------------------------------
 
-  static const double _sbHitWidth = 32.0;
-  static const double _sbTrackWidth = 4.0;
-  static const double _sbActiveTrackWidth = 6.0;
-  static const double _sbThumbHeight = 48.0;
-  static const double _sbPad = 8.0;
-  static const double _sbRight = 4.0;
-  int? _scrollbarPointer;
+  final ChatScrollbar _scrollbar = ChatScrollbar();
+
+  /// Retained clip layer — reused across repaints via `oldLayer`.
+  final LayerHandle<ClipRectLayer> _clipLayer = LayerHandle<ClipRectLayer>();
+
+  // --- Day separators --------------------------------------------------------
+
+  /// The floating day header, pinned to the top — one extra child render box
+  /// beyond the id-keyed messages. Built lazily during layout (like a message)
+  /// by `ChatScrollElement`. `null` when day separators are off, or no day is
+  /// known yet.
+  RenderBox? _floatingHeader;
+  set floatingHeader(RenderBox? value) {
+    if (identical(_floatingHeader, value)) return;
+    if (_floatingHeader != null) dropChild(_floatingHeader!);
+    _floatingHeader = value;
+    if (value != null) adoptChild(value);
+  }
+
+  /// Day bucket the floating header was last built for; `null` = none. The
+  /// header is rebuilt only when the topmost visible day leaves this bucket.
+  int? _headerBucket;
+
+  /// Date the header currently shows — for debugging / introspection.
+  DateTime? _headerDate;
+
+  /// Set when the header must rebuild regardless of the day (its builder
+  /// reference changed). Consumed by the next [performLayout].
+  bool _headerDirty = false;
+
+  /// Force the floating header to rebuild on the next layout — used when its
+  /// builder reference changes, which the day-bucket gate cannot detect.
+  void invalidateFloatingHeader() {
+    _headerDirty = true;
+    markNeedsLayout();
+  }
 
   // --- Scroll semantics state -----------------------------------------------
 
@@ -184,6 +263,10 @@ class RenderChatScrollView extends RenderBox {
   int get debugLayoutMaxChunk => _layoutMaxChunk;
   int? get debugFirstId => _children.isEmpty ? null : _children.firstKey();
   int? get debugLastId => _children.isEmpty ? null : _children.lastKey();
+  bool get debugHasFloatingHeader => _floatingHeader != null;
+  double? get debugFloatingHeaderOffset =>
+      _floatingHeader == null ? null : _parentData(_floatingHeader!).offset;
+  DateTime? get debugHeaderDate => _headerDate;
 
   // --- RenderBox configuration ----------------------------------------------
 
@@ -230,13 +313,14 @@ class RenderChatScrollView extends RenderBox {
     for (final child in _children.values) {
       child.attach(owner);
     }
-    _ticker = Ticker(_onTick);
-    _pollTimer = Timer.periodic(_pollInterval, _onPollTick);
+    _floatingHeader?.attach(owner);
+    _ticker = Ticker(_onTick)..muted = !_ticking;
     _dataSource.addDataListener(_onDataChanged);
     _controller
       ..addJumpListener(_onJump)
       ..addBoundaryListener(_onBoundaryChanged);
     _bottomPadding?.addListener(_onBottomPaddingChanged);
+    _topPadding?.addListener(_onTopPaddingChanged);
     _drag = VerticalDragGestureRecognizer()
       ..onStart = _onDragStart
       ..onUpdate = _onDragUpdate
@@ -256,6 +340,7 @@ class RenderChatScrollView extends RenderBox {
       ..removeJumpListener(_onJump)
       ..removeBoundaryListener(_onBoundaryChanged);
     _bottomPadding?.removeListener(_onBottomPaddingChanged);
+    _topPadding?.removeListener(_onTopPaddingChanged);
     _drag?.dispose();
     _drag = null;
     super.detach();
@@ -264,6 +349,7 @@ class RenderChatScrollView extends RenderBox {
     for (final child in _children.values) {
       child.detach();
     }
+    _floatingHeader?.detach();
   }
 
   @override
@@ -271,6 +357,8 @@ class RenderChatScrollView extends RenderBox {
     for (final child in _children.values) {
       redepthChild(child);
     }
+    final header = _floatingHeader;
+    if (header != null) redepthChild(header);
   }
 
   @override
@@ -278,12 +366,14 @@ class RenderChatScrollView extends RenderBox {
     for (final child in _children.values) {
       visitor(child);
     }
+    final header = _floatingHeader;
+    if (header != null) visitor(header);
   }
 
   @override
   void applyPaintTransform(RenderObject child, Matrix4 transform) {
     final pd = child.parentData! as ChatMessageParentData;
-    transform.translateByDouble(_contentX, pd.offset, 0, 1);
+    transform.translateByDouble(0, pd.offset, 0, 1);
   }
 
   // --- Typed listeners -------------------------------------------------------
@@ -294,6 +384,8 @@ class RenderChatScrollView extends RenderBox {
     _bottomPaddingDirty = true;
     markNeedsLayout();
   }
+
+  void _onTopPaddingChanged() => markNeedsLayout();
 
   void _onJump(int messageId) {
     _cancelFling();
@@ -316,12 +408,17 @@ class RenderChatScrollView extends RenderBox {
       return true;
     }());
     assert(childManager != null, 'childManager not wired by ChatScrollElement');
-
-    final contentWidth = _contentWidth;
-    final childConstraints = BoxConstraints(
-      minWidth: contentWidth,
-      maxWidth: contentWidth,
+    assert(
+      constraints.hasBoundedHeight && constraints.hasBoundedWidth,
+      'RenderChatScrollView needs bounded constraints; got $constraints. '
+      'Give it a finite size — wrap it in an Expanded, a sized SizedBox, or '
+      'Positioned.fill.',
     );
+
+    // Children span the full viewport width; each message widget centers its
+    // own content column. A full-width child lets selection chrome tint the
+    // whole row without bleeding past a narrower content box.
+    final childConstraints = BoxConstraints.tightFor(width: size.width);
 
     final built = <int>{};
     _layoutFromAnchor(childConstraints, built);
@@ -366,6 +463,8 @@ class RenderChatScrollView extends RenderBox {
     }
     _evictChunks();
     _updateScrollSemantics();
+    _scheduleFetchPoll();
+    _updateFloatingHeader();
 
     assert(() {
       debugLastLayoutDuration = _debugSw.elapsed;
@@ -389,17 +488,15 @@ class RenderChatScrollView extends RenderBox {
 
     // Build zone = cacheExtent + keep-alive band, plus a directional lead
     // biased toward travel so a fast fling does not outrun the built range.
-    final base = _cacheExtent + _keepAliveExtent;
+    final base = _cacheExtent + _extraBuildExtent;
     final lead = (_scrollVelocity.abs() * _leadFrames).clamp(0.0, size.height);
     final topExtent = base + (_scrollVelocity > 0 ? lead : 0.0);
     final bottomExtent = base + (_scrollVelocity < 0 ? lead : 0.0);
     final lowerBound = size.height + bottomExtent;
     final topBound = -topExtent;
 
-    final anchor = childManager!.buildChild(anchorId);
+    final anchor = _buildMessage(anchorId, cc);
     if (anchor == null) return;
-    anchor.layout(cc, parentUsesSize: true);
-    _touchChunk(anchorId);
     final anchorTop = _controller.anchorPixelOffset;
     _parentData(anchor).offset = anchorTop;
     built.add(anchorId);
@@ -408,10 +505,8 @@ class RenderChatScrollView extends RenderBox {
     var y = anchorTop + anchor.size.height;
     var id = anchorId + 1;
     while (y < lowerBound && (newest == null || id <= newest)) {
-      final child = childManager!.buildChild(id);
+      final child = _buildMessage(id, cc);
       if (child == null) break;
-      child.layout(cc, parentUsesSize: true);
-      _touchChunk(id);
       _parentData(child).offset = y;
       built.add(id);
       y += child.size.height;
@@ -422,15 +517,52 @@ class RenderChatScrollView extends RenderBox {
     y = anchorTop;
     id = anchorId - 1;
     while (y > topBound && (oldest == null || id >= oldest)) {
-      final child = childManager!.buildChild(id);
+      final child = _buildMessage(id, cc);
       if (child == null) break;
-      child.layout(cc, parentUsesSize: true);
-      _touchChunk(id);
       y -= child.size.height;
       _parentData(child).offset = y;
       built.add(id);
       id--;
     }
+  }
+
+  /// Build, lay out, and tag one message child. Stores its day-grouping info
+  /// (`startsDay` / `dayBucket`) in parent data so the per-frame header walk is
+  /// a pure field read. The caller sets [ChatMessageParentData.offset].
+  RenderBox? _buildMessage(int id, BoxConstraints cc) {
+    final bucket = _bucketOf(id);
+    final startsDay = _startsDay(id, bucket);
+    final child = childManager!.buildChild(id, startsNewDay: startsDay);
+    if (child == null) return null;
+    child.layout(cc, parentUsesSize: true);
+    _touchChunk(id);
+    _parentData(child)
+      ..startsDay = startsDay
+      ..dayBucket = bucket;
+    return child;
+  }
+
+  /// Day-grouping key for [id], or `null` when its message is not loaded (or
+  /// day separators are disabled).
+  int? _bucketOf(int id) {
+    final bucketOf = _dayBucketOf;
+    if (bucketOf == null) return null;
+    final message = _dataSource.getMessage(id);
+    return message == null ? null : bucketOf(message);
+  }
+
+  /// Whether message [id] is the first of its day — and so carries an inline
+  /// date separator. Needs [id] and its predecessor loaded; until then returns
+  /// `false`, so the separator appears once the data arrives.
+  bool _startsDay(int id, int? bucket) {
+    if (bucket == null) return false;
+    final oldest = _controller.oldestKnownId;
+    if (_controller.reachedOldest && oldest != null && id <= oldest) {
+      return true; // the very first message of the conversation
+    }
+    final prevBucket = _bucketOf(id - 1);
+    if (prevBucket == null) return false;
+    return prevBucket != bucket;
   }
 
   void _touchChunk(int id) {
@@ -545,6 +677,88 @@ class RenderChatScrollView extends RenderBox {
     }
   }
 
+  // --- Day separators --------------------------------------------------------
+
+  /// Scan the visible children once: the topmost day's bucket + message id,
+  /// and the Y of the next day's inline divider (`infinity` if none below).
+  /// O(visible children) of pure parent-data reads.
+  ({int? bucket, int? id, double nextDividerY}) _scanTopDay() {
+    final topEdge = _topPad;
+    final viewportHeight = size.height;
+    int? topBucket;
+    int? topId;
+    var nextDividerY = double.infinity;
+    for (final entry in _children.entries) {
+      final child = entry.value;
+      final pd = _parentData(child);
+      if (pd.offset + child.size.height <= topEdge) continue; // above the top
+      if (pd.offset >= viewportHeight) break; // below the viewport
+      if (topBucket == null) {
+        if (pd.dayBucket == null) continue; // a shimmer at the top — skip on
+        topBucket = pd.dayBucket;
+        topId = entry.key;
+      } else if (pd.startsDay && pd.dayBucket != topBucket) {
+        nextDividerY = pd.offset;
+        break;
+      }
+    }
+    return (bucket: topBucket, id: topId, nextDividerY: nextDividerY);
+  }
+
+  /// Rebuild (only on a day change), lay out, and place the floating header.
+  /// Called from [performLayout].
+  void _updateFloatingHeader() {
+    final scan = _scanTopDay();
+    final targetBucket = _dayBucketOf == null ? null : scan.bucket;
+
+    // Rebuild the header widget only when the day it shows changes (or its
+    // builder changed). Building during layout is legal inside a callback.
+    if (targetBucket != _headerBucket || _headerDirty) {
+      _headerBucket = targetBucket;
+      _headerDirty = false;
+      _headerDate = (targetBucket == null || scan.id == null)
+          ? null
+          : _dataSource.getMessage(scan.id!)?.createdAt;
+      final date = _headerDate;
+      invokeLayoutCallback<BoxConstraints>((_) {
+        childManager!.buildFloatingHeader(date);
+      });
+    }
+
+    final header = _floatingHeader;
+    if (header == null) return;
+    header.layout(
+      BoxConstraints.tightFor(width: size.width),
+      parentUsesSize: true,
+    );
+    _placeFloatingHeader(scan.nextDividerY);
+  }
+
+  /// During a Tier-1 scroll: reposition the header and report whether the
+  /// topmost day changed — the caller then relayouts to rebuild the header.
+  bool _tickFloatingHeader() {
+    if (_floatingHeader == null && _dayBucketOf == null) return false;
+    final scan = _scanTopDay();
+    _placeFloatingHeader(scan.nextDividerY);
+    final targetBucket = _dayBucketOf == null ? null : scan.bucket;
+    return targetBucket != _headerBucket;
+  }
+
+  /// Place the already-laid-out header: at rest just below the top inset,
+  /// pushed up by the next day's divider as it rises into the header zone.
+  /// Pure offset work — Tier-1.
+  void _placeFloatingHeader(double nextDividerY) {
+    final header = _floatingHeader;
+    if (header == null || !header.hasSize) return;
+    final topEdge = _topPad;
+    final headerHeight = header.size.height;
+    var y = topEdge;
+    if (nextDividerY < topEdge + headerHeight) {
+      y = nextDividerY - headerHeight;
+    }
+    _parentData(header).offset = y;
+  }
+
   // --- Scroll ----------------------------------------------------------------
 
   void _markScrollActive() =>
@@ -571,7 +785,7 @@ class RenderChatScrollView extends RenderBox {
     _cancelFling();
     _simulation = ClampingScrollSimulation(position: 0.0, velocity: velocity);
     _lastFlingValue = 0.0;
-    _flingStartTime = Duration.zero;
+    _flingStartTime = null;
     _ensureTicker();
   }
 
@@ -587,9 +801,9 @@ class RenderChatScrollView extends RenderBox {
 
     final simulation = _simulation;
     if (simulation != null) {
-      if (_flingStartTime == Duration.zero) _flingStartTime = elapsed;
+      final startTime = _flingStartTime ??= elapsed;
       final seconds =
-          (elapsed - _flingStartTime).inMicroseconds /
+          (elapsed - startTime).inMicroseconds /
           Duration.microsecondsPerSecond;
       if (simulation.isDone(seconds)) {
         _cancelFling();
@@ -609,8 +823,11 @@ class RenderChatScrollView extends RenderBox {
     _renormalizeAnchor();
     if (_clampBoundaries()) _cancelFling();
     _updateScrollSemantics();
+    // Reposition the header (Tier-1); a day crossing needs a relayout to
+    // rebuild its text.
+    final headerDayChanged = _tickFloatingHeader();
 
-    if (_rangeNoLongerCovers()) {
+    if (_rangeNoLongerCovers() || headerDayChanged) {
       markNeedsLayout();
     } else {
       markNeedsPaint();
@@ -644,11 +861,35 @@ class RenderChatScrollView extends RenderBox {
 
   // --- Fetch poll ------------------------------------------------------------
 
-  void _onPollTick(Timer _) {
+  /// Arm the one-shot fetch poll, but only while the laid-out range still has
+  /// a missing or dirty chunk. A fully-loaded, idle viewport arms nothing —
+  /// no periodic wake-ups.
+  void _scheduleFetchPoll() {
+    if (_pollTimer != null || !_rangeHasPendingChunks()) return;
+    _pollTimer = Timer(_pollInterval, _onPollTick);
+  }
+
+  void _onPollTick() {
+    _pollTimer = null;
     final now = DateTime.now().millisecondsSinceEpoch;
-    if (now - _lastScrollTs < 150) return; // light debounce while scrolling
-    if (_layoutMaxChunk < _layoutMinChunk) return;
-    _dataSource.requestChunks(_layoutMinChunk, _layoutMaxChunk);
+    // Skip the fetch while a scroll is still in flight (light debounce); the
+    // re-arm below keeps re-checking until it settles.
+    if (now - _lastScrollTs >= _pollInterval.inMilliseconds &&
+        _layoutMaxChunk >= _layoutMinChunk) {
+      _dataSource.requestChunks(_layoutMinChunk, _layoutMaxChunk);
+    }
+    // Keep polling until everything in range has loaded, then go idle.
+    _scheduleFetchPoll();
+  }
+
+  /// Whether the laid-out chunk range has any missing or dirty chunk.
+  bool _rangeHasPendingChunks() {
+    if (_layoutMaxChunk < _layoutMinChunk) return false;
+    for (var ci = _layoutMinChunk; ci <= _layoutMaxChunk; ci++) {
+      final chunk = _dataSource.chunks[ci];
+      if (chunk == null || chunk.status.isDirty) return true;
+    }
+    return false;
   }
 
   // --- Gestures --------------------------------------------------------------
@@ -678,14 +919,14 @@ class RenderChatScrollView extends RenderBox {
     assert(debugHandleEvent(event, entry));
 
     // Scrollbar drag in progress — consume move/up/cancel.
-    if (_scrollbarPointer != null) {
-      if (event is PointerMoveEvent && event.pointer == _scrollbarPointer) {
-        _jumpToScrollbar(event.localPosition.dy);
+    if (_scrollbar.isDragging) {
+      if (event is PointerMoveEvent && _scrollbar.ownsPointer(event)) {
+        _jumpToScrollbar(_scrollbar.progressFromY(event.localPosition.dy, size));
         return;
       }
       if ((event is PointerUpEvent || event is PointerCancelEvent) &&
-          event.pointer == _scrollbarPointer) {
-        _scrollbarPointer = null;
+          _scrollbar.ownsPointer(event)) {
+        _scrollbar.endDrag();
         markNeedsPaint();
         return;
       }
@@ -693,11 +934,10 @@ class RenderChatScrollView extends RenderBox {
 
     if (event is PointerDownEvent) {
       if (_controller.newestKnownId != null &&
-          _inScrollbarHitArea(event.localPosition.dx)) {
+          _scrollbar.tryStartDrag(event, size)) {
         _cancelFling();
-        _scrollbarPointer = event.pointer;
         markNeedsPaint();
-        _jumpToScrollbar(event.localPosition.dy);
+        _jumpToScrollbar(_scrollbar.progressFromY(event.localPosition.dy, size));
         return;
       }
       _drag?.addPointer(event);
@@ -717,17 +957,16 @@ class RenderChatScrollView extends RenderBox {
 
   @override
   bool hitTestChildren(BoxHitTestResult result, {required Offset position}) {
-    final contentX = _contentX;
     final viewportHeight = size.height;
     for (final child in _children.values) {
       final pd = _parentData(child);
-      // Only on-screen children are hit-testable — keep-alive children may
-      // hold a stale offset.
+      // Only on-screen children are hit-testable — off-screen build-extent
+      // children may hold a stale offset.
       if (pd.offset >= viewportHeight || pd.offset + child.size.height <= 0) {
         continue;
       }
       final hit = result.addWithPaintOffset(
-        offset: Offset(contentX, pd.offset),
+        offset: Offset(0, pd.offset),
         position: position,
         hitTest: (BoxHitTestResult innerResult, Offset transformed) =>
             child.hitTest(innerResult, position: transformed),
@@ -804,21 +1043,13 @@ class RenderChatScrollView extends RenderBox {
     return true;
   }
 
-  // --- Scrollbar geometry ----------------------------------------------------
+  // --- Scrollbar -------------------------------------------------------------
 
-  bool _inScrollbarHitArea(double localX) => localX >= size.width - _sbHitWidth;
-
-  double _scrollbarProgressFromY(double localY) {
-    final travel = size.height - _sbPad * 2 - _sbThumbHeight;
-    if (travel <= 0) return 0.0;
-    return ((localY - _sbPad - _sbThumbHeight / 2) / travel).clamp(0.0, 1.0);
-  }
-
-  void _jumpToScrollbar(double localY) {
+  /// Map a 0..1 scrollbar [progress] to a message id and teleport there.
+  void _jumpToScrollbar(double progress) {
     final newest = _controller.newestKnownId;
     final oldest = _controller.oldestKnownId;
     if (newest == null || oldest == null || newest <= oldest) return;
-    final progress = _scrollbarProgressFromY(localY);
     final targetId = (oldest + progress * (newest - oldest)).round();
     if (targetId != _controller.anchorMessageId) {
       _controller.jumpTo(targetId);
@@ -854,14 +1085,16 @@ class RenderChatScrollView extends RenderBox {
       return true;
     }());
 
-    // A fresh ClipRectLayer per paint: as a repaint boundary, the framework
-    // clears this render object's layer children on every repaint anyway, so
-    // there is no retained layer to reuse via `oldLayer`.
-    context.pushClipRect(
+    // Reuse the clip layer across repaints — the framework idiom. Even though
+    // this object is a repaint boundary (so its layer children are re-added on
+    // every repaint), holding the ClipRectLayer in a LayerHandle and passing
+    // it back as `oldLayer` keeps a stable layer identity for the engine.
+    _clipLayer.layer = context.pushClipRect(
       needsCompositing,
       offset,
       Offset.zero & size,
       _paintContents,
+      oldLayer: _clipLayer.layer,
     );
 
     assert(() {
@@ -873,16 +1106,24 @@ class RenderChatScrollView extends RenderBox {
   }
 
   void _paintContents(PaintingContext context, Offset offset) {
-    final contentX = _contentX;
     final viewportHeight = size.height;
     for (final child in _children.values) {
       final pd = _parentData(child);
-      // Cull children fully outside the viewport — keep-alive / cache-extent
+      // Cull children fully outside the viewport — off-screen build-extent
       // children stay built but are not composited until they scroll in.
       if (pd.offset >= viewportHeight || pd.offset + child.size.height <= 0) {
         continue;
       }
-      context.paintChild(child, offset + Offset(contentX, pd.offset));
+      context.paintChild(child, offset + Offset(0, pd.offset));
+    }
+    // The floating day header paints above the messages (below the scrollbar);
+    // culled once the push has slid it fully off the top.
+    final header = _floatingHeader;
+    if (header != null) {
+      final headerY = _parentData(header).offset;
+      if (headerY + header.size.height > 0 && headerY < viewportHeight) {
+        context.paintChild(header, offset + Offset(0, headerY));
+      }
     }
     _paintScrollbar(context, offset);
   }
@@ -890,33 +1131,7 @@ class RenderChatScrollView extends RenderBox {
   void _paintScrollbar(PaintingContext context, Offset offset) {
     final progress = _scrollbarProgress();
     if (progress == null) return;
-
-    final active = _scrollbarPointer != null;
-    final trackWidth = active ? _sbActiveTrackWidth : _sbTrackWidth;
-    final canvas = context.canvas;
-    final trackX = offset.dx + size.width - _sbRight - trackWidth;
-    final trackY = offset.dy + _sbPad;
-    final trackHeight = size.height - _sbPad * 2;
-    if (trackHeight <= 0) return;
-
-    canvas.drawRRect(
-      RRect.fromRectAndRadius(
-        Rect.fromLTWH(trackX, trackY, trackWidth, trackHeight),
-        Radius.circular(trackWidth / 2),
-      ),
-      Paint()..color = const Color(0x1A000000),
-    );
-
-    final travel = trackHeight - _sbThumbHeight;
-    if (travel <= 0) return;
-    final thumbY = trackY + travel * progress;
-    canvas.drawRRect(
-      RRect.fromRectAndRadius(
-        Rect.fromLTWH(trackX, thumbY, trackWidth, _sbThumbHeight),
-        Radius.circular(trackWidth / 2),
-      ),
-      Paint()..color = Color(active ? 0x99000000 : 0x66000000),
-    );
+    _scrollbar.paint(context.canvas, offset, size, progress);
   }
 
   @override
@@ -928,6 +1143,7 @@ class RenderChatScrollView extends RenderBox {
     _pollTimer = null;
     _drag?.dispose();
     _drag = null;
+    _clipLayer.layer = null;
     super.dispose();
   }
 }

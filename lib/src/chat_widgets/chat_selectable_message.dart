@@ -136,24 +136,16 @@ class _SelectableMessageState extends State<SelectableMessage>
     final m = _modeCurve.value.clamp(0.0, 1.0);
     final s = _select.value.clamp(0.0, 1.0);
     final accent = Theme.of(context).colorScheme.primary;
-    // The viewport centers messages in a max-width column; the selection tint
-    // must still span the whole viewport, so it bleeds past this child width.
-    final viewportWidth = MediaQuery.sizeOf(context).width;
 
     return Stack(
-      // Let the full-width tint paint past the centered content column — the
-      // viewport clips to its own bounds anyway.
-      clipBehavior: Clip.none,
       children: <Widget>[
-        // Full-row selection tint, bled out to the full viewport width
-        // (transparent — and a no-op paint — when the message is not selected).
+        // Full-row selection tint — a no-op paint while the message is not
+        // selected. The viewport lays every message out at the full viewport
+        // width (each message centers its own content column), so this spans
+        // the whole row without bleeding past a narrower box.
         Positioned.fill(
           child: IgnorePointer(
-            child: OverflowBox(
-              minWidth: viewportWidth,
-              maxWidth: viewportWidth,
-              child: ColoredBox(color: accent.withValues(alpha: 0.13 * s)),
-            ),
+            child: ColoredBox(color: accent.withValues(alpha: 0.13 * s)),
           ),
         ),
         Row(

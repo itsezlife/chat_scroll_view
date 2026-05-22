@@ -68,7 +68,7 @@ Widget _harness({
   required ChatDataSource dataSource,
   required ChatScrollController controller,
   double cacheExtent = 250,
-  double keepAliveExtent = 0,
+  double extraBuildExtent = 0,
   ValueListenable<double>? bottomPadding,
 }) => MaterialApp(
   home: Scaffold(
@@ -80,7 +80,7 @@ Widget _harness({
           dataSource: dataSource,
           controller: controller,
           cacheExtent: cacheExtent,
-          keepAliveExtent: keepAliveExtent,
+          extraBuildExtent: extraBuildExtent,
           bottomPadding: bottomPadding,
           messageBuilder: (context, id, message, status) => SizedBox(
             height: 60,
@@ -175,6 +175,100 @@ void main() {
       expect(find.text('msg-255'), findsNothing);
     });
 
+    testWidgets('a fling keeps revealing messages after the finger lifts', (
+      tester,
+    ) async {
+      const count = 256;
+      final controller = _boundedController(count)..jumpTo(count - 1);
+      await tester.pumpWidget(
+        _harness(
+          dataSource: _PreloadedDataSource(_generate(count)),
+          controller: controller,
+        ),
+      );
+      await tester.pump();
+      final ro = _render(tester);
+
+      // A downward fling reveals older messages: the finger lifts, inertia
+      // carries the viewport onward on its own.
+      await tester.fling(
+        find.byType(ChatScrollView),
+        const Offset(0, 600),
+        4000,
+      );
+      await tester.pump();
+      final afterThrow = ro.debugFirstId!;
+      await tester.pump(const Duration(milliseconds: 300));
+      expect(
+        ro.debugFirstId,
+        lessThan(afterThrow),
+        reason: 'inertia should keep revealing older messages',
+      );
+      await tester.pumpAndSettle();
+    });
+
+    testWidgets('a scroll repaints far more often than it relayouts (Tier-1)', (
+      tester,
+    ) async {
+      const count = 256;
+      final controller = _boundedController(count)..jumpTo(count ~/ 2);
+      await tester.pumpWidget(
+        _harness(
+          dataSource: _PreloadedDataSource(_generate(count)),
+          controller: controller,
+        ),
+      );
+      await tester.pumpAndSettle();
+      final ro = _render(tester);
+
+      final layoutBefore = ro.debugLayoutFrameId;
+      final paintBefore = ro.debugPaintFrameId;
+
+      // The ticker repositions cached children and repaints; layout only
+      // re-runs on the rare frame where the built range stops covering.
+      await tester.fling(
+        find.byType(ChatScrollView),
+        const Offset(0, -200),
+        800,
+      );
+      await tester.pumpAndSettle();
+
+      final layoutFrames = ro.debugLayoutFrameId - layoutBefore;
+      final paintFrames = ro.debugPaintFrameId - paintBefore;
+      expect(paintFrames, greaterThan(0));
+      expect(
+        paintFrames,
+        greaterThan(layoutFrames),
+        reason: 'scrolling should repaint far more than it relayouts',
+      );
+    });
+
+    testWidgets('dragging the scrollbar teleports through the conversation', (
+      tester,
+    ) async {
+      const count = 1000;
+      final controller = _boundedController(count)..jumpTo(count - 1);
+      await tester.pumpWidget(
+        _harness(
+          dataSource: _PreloadedDataSource(_generate(count)),
+          controller: controller,
+        ),
+      );
+      await tester.pump();
+      expect(controller.anchorMessageId, count - 1);
+
+      // Press near the top of the right-edge scrollbar strip.
+      final box = tester.getRect(find.byType(ChatScrollView));
+      await tester.tapAt(Offset(box.right - 6, box.top + 24));
+      await tester.pump();
+
+      expect(
+        controller.anchorMessageId,
+        lessThan(count - 1),
+        reason: 'a scrollbar tap near the top jumps toward older messages',
+      );
+    });
+
     testWidgets('jumpTo teleports to an arbitrary message', (tester) async {
       const count = 256;
       final controller = _boundedController(count)..jumpTo(count - 1);
@@ -215,6 +309,27 @@ void main() {
       expect(find.text('msg-255'), findsOneWidget);
     });
 
+    testWidgets('evicts data chunks beyond maxChunks', (tester) async {
+      const count = 4000; // ~63 chunks of 64 messages
+      final ds = _PreloadedDataSource(_generate(count));
+      final controller = _boundedController(count)..jumpTo(count - 1);
+      await tester.pumpWidget(
+        _harness(dataSource: ds, controller: controller),
+      );
+      await tester.pump();
+      final ro = _render(tester);
+
+      // The data source created ~63 chunks up front; the first layout's LRU
+      // pass trims live chunks down to ChatDataSource.maxChunks.
+      expect(ro.debugChunkCount, lessThanOrEqualTo(ds.maxChunks));
+      expect(ro.debugChunkCount, lessThan(63), reason: 'eviction must run');
+
+      // Teleporting elsewhere keeps the live set bounded.
+      controller.jumpTo(count ~/ 2);
+      await tester.pump();
+      expect(ro.debugChunkCount, lessThanOrEqualTo(ds.maxChunks));
+    });
+
     testWidgets('exposes scroll-action semantics that track position', (
       tester,
     ) async {
@@ -248,7 +363,7 @@ void main() {
       handle.dispose();
     });
 
-    testWidgets('keepAliveExtent keeps extra children mounted', (tester) async {
+    testWidgets('extraBuildExtent keeps extra children mounted', (tester) async {
       const count = 256;
 
       final base = _boundedController(count)..jumpTo(count ~/ 2);
@@ -260,7 +375,7 @@ void main() {
         ),
       );
       await tester.pumpAndSettle();
-      final withoutKeepAlive = _render(tester).debugChildCount;
+      final withoutExtra = _render(tester).debugChildCount;
 
       final kept = _boundedController(count)..jumpTo(count ~/ 2);
       await tester.pumpWidget(
@@ -268,13 +383,13 @@ void main() {
           dataSource: _PreloadedDataSource(_generate(count)),
           controller: kept,
           cacheExtent: 100,
-          keepAliveExtent: 1200,
+          extraBuildExtent: 1200,
         ),
       );
       await tester.pumpAndSettle();
-      final withKeepAlive = _render(tester).debugChildCount;
+      final withExtra = _render(tester).debugChildCount;
 
-      expect(withKeepAlive, greaterThan(withoutKeepAlive));
+      expect(withExtra, greaterThan(withoutExtra));
     });
 
     testWidgets('bottomPadding reserves space after the newest message', (

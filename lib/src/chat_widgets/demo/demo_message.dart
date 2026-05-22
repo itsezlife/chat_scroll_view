@@ -16,6 +16,10 @@ Widget buildDemoMessage(
   return DemoMessageBubble(message: message);
 }
 
+/// Max width of a message's content column. The viewport lays every message
+/// out at the full viewport width; wider viewports center the column within.
+const double _kContentMaxWidth = 620.0;
+
 /// Senders treated as "team members" — right-aligned, distinct bubble color.
 const Set<String> _teamMembers = {
   'Hixie', 'justinmc', 'jonahwilliams', 'chunhtai', 'tvolkert', 'goderbauer',
@@ -54,43 +58,52 @@ class DemoMessageBubble extends StatelessWidget {
     final isTeam = _teamMembers.contains(message.sender);
     final bg = isTeam ? const Color(0xFF1A237E) : const Color(0xFF2C2C2C);
 
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-      child: Align(
-        alignment: isTeam ? Alignment.centerRight : Alignment.centerLeft,
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 464),
-          child: DecoratedBox(
-            decoration: BoxDecoration(
-              color: bg,
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    message.sender,
-                    style: TextStyle(
-                      color: _colorForSender(message.sender),
-                      fontWeight: FontWeight.w600,
-                      fontSize: 13,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    content,
-                    style: const TextStyle(
-                      color: Color(0xFFE0E0E0),
-                      fontSize: 15,
-                      height: 1.4,
-                    ),
-                  ),
-                ],
+    final bubble = ConstrainedBox(
+      constraints: const BoxConstraints(maxWidth: 464),
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          color: bg,
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                message.sender,
+                style: TextStyle(
+                  color: _colorForSender(message.sender),
+                  fontWeight: FontWeight.w600,
+                  fontSize: 13,
+                ),
               ),
-            ),
+              const SizedBox(height: 4),
+              Text(
+                content,
+                style: const TextStyle(
+                  color: Color(0xFFE0E0E0),
+                  fontSize: 15,
+                  height: 1.4,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+
+    // The viewport hands each message the full viewport width; center a
+    // max-width content column within it, then align the bubble left/right.
+    return Center(
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: _kContentMaxWidth),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+          child: Align(
+            alignment: isTeam ? Alignment.centerRight : Alignment.centerLeft,
+            child: bubble,
           ),
         ),
       ),
@@ -103,17 +116,24 @@ class DemoShimmerBubble extends StatelessWidget {
   const DemoShimmerBubble({super.key});
 
   @override
-  Widget build(BuildContext context) => const Padding(
-    padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-    child: Align(
-      alignment: Alignment.centerLeft,
-      child: SizedBox(
-        width: 280,
-        height: 56,
-        child: DecoratedBox(
-          decoration: BoxDecoration(
-            color: Color(0xFF2C2C2C),
-            borderRadius: BorderRadius.all(Radius.circular(12)),
+  Widget build(BuildContext context) => const Center(
+    // SizedBox(width:) clamps to the viewport when it is narrower, so this
+    // behaves as a max-width column — and stays const, unlike ConstrainedBox.
+    child: SizedBox(
+      width: _kContentMaxWidth,
+      child: Padding(
+        padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        child: Align(
+          alignment: Alignment.centerLeft,
+          child: SizedBox(
+            width: 280,
+            height: 56,
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                color: Color(0xFF2C2C2C),
+                borderRadius: BorderRadius.all(Radius.circular(12)),
+              ),
+            ),
           ),
         ),
       ),

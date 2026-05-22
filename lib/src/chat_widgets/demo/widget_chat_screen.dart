@@ -5,16 +5,15 @@ import 'package:chatscrollview/src/chat_scroll/chat_scroll_controller.dart';
 import 'package:chatscrollview/src/chat_scroll/chat_selection_controller.dart';
 import 'package:chatscrollview/src/chat_widgets/chat_scroll_view.dart';
 import 'package:chatscrollview/src/chat_widgets/demo/chat_composer.dart';
+import 'package:chatscrollview/src/chat_widgets/demo/date_separator.dart';
 import 'package:chatscrollview/src/chat_widgets/demo/demo_message.dart';
 import 'package:chatscrollview/src/chat_widgets/demo/measure_size.dart';
 import 'package:chatscrollview/src/chat_widgets/demo/selection_app_bar.dart';
 import 'package:chatscrollview/src/comments_data_source.dart';
 import 'package:flutter/material.dart';
 
-/// Demo screen for the widget-based [ChatScrollView].
-///
-/// Drop-in replacement for `main.dart`'s `ChatScreen` — swap `home:` to
-/// `const WidgetChatScreen()` to feel the widget implementation.
+/// Demo screen for the widget-based [ChatScrollView] — the chat viewport,
+/// a bottom composer, and a contextual selection bar, wired together.
 class WidgetChatScreen extends StatefulWidget {
   const WidgetChatScreen({super.key});
 
@@ -86,6 +85,8 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
                 selectionController: _selection,
                 bottomPadding: _bottomInset,
                 messageBuilder: buildDemoMessage,
+                dateSeparatorBuilder: (context, date) =>
+                    DateSeparator(date: date),
               ),
             ),
           ),
@@ -140,8 +141,14 @@ class _DemoDataSource extends ChatDataSource {
         ChatMessage$User(
           id: i,
           sender: 'User',
-          createdAt: _baseTime.subtract(Duration(minutes: messageCount - i)),
-          updatedAt: _baseTime.subtract(Duration(minutes: messageCount - i)),
+          // Spread messages across days so the date separators have something
+          // to mark — roughly 21 minutes apart.
+          createdAt: _baseTime.subtract(
+            Duration(minutes: (messageCount - i) * 21),
+          ),
+          updatedAt: _baseTime.subtract(
+            Duration(minutes: (messageCount - i) * 21),
+          ),
           content:
               'Message #$i — The first rule of Fight Club is: '
               'you do not talk about Fight Club. The second rule of Fight '

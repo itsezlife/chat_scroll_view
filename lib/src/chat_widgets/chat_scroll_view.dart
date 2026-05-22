@@ -20,6 +20,19 @@ typedef ChatMessageBuilder =
       ChatMessageStatus status,
     );
 
+/// Builds a day separator for [date].
+///
+/// The same builder produces both the inline divider above the first message
+/// of each day and the floating header pinned to the top of the viewport.
+typedef ChatDateSeparatorBuilder =
+    Widget Function(BuildContext context, DateTime date);
+
+/// Default day grouping — the local calendar day as a comparable int.
+int _defaultDayBucket(IChatMessage message) {
+  final d = message.createdAt.toLocal();
+  return d.year * 10000 + d.month * 100 + d.day;
+}
+
 /// Widget-based endless chat viewport.
 ///
 /// Anchor-based (id-relative) layout: messages are positioned around
@@ -27,6 +40,10 @@ typedef ChatMessageBuilder =
 /// height. Children are real widgets — built lazily during layout via a
 /// custom [ChatScrollElement] and wrapped in [RepaintBoundary] for picture +
 /// layer caching. Scrolling repositions cached layers without re-layout.
+///
+/// Pass [dateSeparatorBuilder] to group messages by day — an inline separator
+/// above the first message of each day plus a floating header pinned to the
+/// top showing the topmost day.
 class ChatScrollView extends RenderObjectWidget {
   const ChatScrollView({
     required this.dataSource,
@@ -34,8 +51,11 @@ class ChatScrollView extends RenderObjectWidget {
     required this.messageBuilder,
     this.selectionController,
     this.bottomPadding,
+    this.topPadding,
+    this.dateSeparatorBuilder,
+    this.dayBucketOf,
     this.cacheExtent = 250.0,
-    this.keepAliveExtent = 0.0,
+    this.extraBuildExtent = 0.0,
     super.key,
   });
 
@@ -64,14 +84,45 @@ class ChatScrollView extends RenderObjectWidget {
   /// and shrink (e.g. a multi-line input field) without a jump.
   final ValueListenable<double>? bottomPadding;
 
+  /// Empty space reserved at the top of the viewport — for chrome stacked over
+  /// the viewport top (an app bar). The floating day header rests just below
+  /// this inset.
+  final ValueListenable<double>? topPadding;
+
+  /// Builds a day separator. When non-null the viewport groups messages by
+  /// day: the first message of each day carries an inline separator, and a
+  /// floating copy is pinned to the top showing the topmost visible day. When
+  /// null the day-separator feature is off and costs nothing.
+  ///
+  /// The inline and floating copies are laid out identically, so the inline
+  /// one scrolls cleanly *behind* the floating one. Keep empty space above the
+  /// separator's visible content out of the builder (no top padding/margin) —
+  /// let the surrounding message layout provide it, or the inline copy peeks
+  /// above the floating header during the handoff.
+  ///
+  /// Pass a stable reference, like [messageBuilder].
+  final ChatDateSeparatorBuilder? dateSeparatorBuilder;
+
+  /// Groups messages into days: messages with an equal returned key share a
+  /// day. Consulted only when [dateSeparatorBuilder] is set; defaults to the
+  /// local calendar day. Pass a stable reference.
+  final int Function(IChatMessage message)? dayBucketOf;
+
   /// Pixels above and below the viewport to keep built.
   final double cacheExtent;
 
-  /// Extra pixels beyond [cacheExtent] where message widgets stay mounted
-  /// while off-screen (paint-culled), so their `State` survives a scroll out
-  /// and back. `0` (the default) collects children as soon as they leave the
+  /// Extra pixels beyond [cacheExtent] that stay built while off-screen
+  /// (paint-culled), so a message's `State` survives a short scroll out and
+  /// back. `0` (the default) collects children as soon as they leave the
   /// cache extent.
-  final double keepAliveExtent;
+  ///
+  /// Distance-based only — unrelated to the `KeepAlive` widget, which retains
+  /// specific children regardless of how far they scroll away.
+  final double extraBuildExtent;
+
+  /// The effective day-bucket function, or `null` when day separators are off.
+  int Function(IChatMessage)? get _effectiveDayBucketOf =>
+      dateSeparatorBuilder == null ? null : (dayBucketOf ?? _defaultDayBucket);
 
   @override
   RenderObjectElement createElement() => ChatScrollElement(this);
@@ -82,8 +133,11 @@ class ChatScrollView extends RenderObjectWidget {
         dataSource: dataSource,
         controller: controller,
         cacheExtent: cacheExtent,
-        keepAliveExtent: keepAliveExtent,
+        extraBuildExtent: extraBuildExtent,
+        ticking: TickerMode.valuesOf(context).enabled,
         bottomPadding: bottomPadding,
+        topPadding: topPadding,
+        dayBucketOf: _effectiveDayBucketOf,
       );
 
   @override
@@ -95,7 +149,10 @@ class ChatScrollView extends RenderObjectWidget {
       ..dataSource = dataSource
       ..controller = controller
       ..cacheExtent = cacheExtent
-      ..keepAliveExtent = keepAliveExtent
-      ..bottomPadding = bottomPadding;
+      ..extraBuildExtent = extraBuildExtent
+      ..ticking = TickerMode.valuesOf(context).enabled
+      ..bottomPadding = bottomPadding
+      ..topPadding = topPadding
+      ..dayBucketOf = _effectiveDayBucketOf;
   }
 }
