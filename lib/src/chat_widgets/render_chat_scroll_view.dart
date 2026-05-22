@@ -5,6 +5,7 @@ import 'dart:math' as math;
 import 'package:chatscrollview/src/chat_scroll/chat_data_source.dart';
 import 'package:chatscrollview/src/chat_scroll/chat_scroll_chunk.dart';
 import 'package:chatscrollview/src/chat_scroll/chat_scroll_controller.dart';
+import 'package:flutter/foundation.dart' show ValueListenable;
 import 'package:flutter/gestures.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/scheduler.dart';
@@ -44,10 +45,12 @@ class RenderChatScrollView extends RenderBox {
     required ChatScrollController controller,
     required double cacheExtent,
     double keepAliveExtent = 0.0,
+    ValueListenable<double>? bottomPadding,
   }) : _dataSource = dataSource,
        _controller = controller,
        _cacheExtent = cacheExtent,
-       _keepAliveExtent = keepAliveExtent;
+       _keepAliveExtent = keepAliveExtent,
+       _bottomPadding = bottomPadding;
 
   /// Set by `ChatScrollElement` in `mount`. Drives lazy child inflation.
   ChatChildManager? childManager;
@@ -98,6 +101,25 @@ class RenderChatScrollView extends RenderBox {
     _keepAliveExtent = value;
     markNeedsLayout();
   }
+
+  /// Empty space reserved after the newest message — compensation for bottom
+  /// chrome stacked over the viewport (the composer, attachment previews,
+  /// status strips). Reactive: when its value changes the viewport relayouts
+  /// so the newest message keeps clearing whatever sits on top of it.
+  ValueListenable<double>? _bottomPadding;
+  set bottomPadding(ValueListenable<double>? value) {
+    if (identical(_bottomPadding, value)) return;
+    if (attached) _bottomPadding?.removeListener(_onBottomPaddingChanged);
+    _bottomPadding = value;
+    if (attached) _bottomPadding?.addListener(_onBottomPaddingChanged);
+    markNeedsLayout();
+  }
+
+  double get _bottomPad => _bottomPadding?.value ?? 0.0;
+
+  /// Set when [bottomPadding] changed; consumed by the next [performLayout]
+  /// to re-pin the newest message when the viewport was sitting at the bottom.
+  bool _bottomPaddingDirty = false;
 
   // --- Content geometry ------------------------------------------------------
 
@@ -214,6 +236,7 @@ class RenderChatScrollView extends RenderBox {
     _controller
       ..addJumpListener(_onJump)
       ..addBoundaryListener(_onBoundaryChanged);
+    _bottomPadding?.addListener(_onBottomPaddingChanged);
     _drag = VerticalDragGestureRecognizer()
       ..onStart = _onDragStart
       ..onUpdate = _onDragUpdate
@@ -232,6 +255,7 @@ class RenderChatScrollView extends RenderBox {
     _controller
       ..removeJumpListener(_onJump)
       ..removeBoundaryListener(_onBoundaryChanged);
+    _bottomPadding?.removeListener(_onBottomPaddingChanged);
     _drag?.dispose();
     _drag = null;
     super.detach();
@@ -266,6 +290,11 @@ class RenderChatScrollView extends RenderBox {
 
   void _onDataChanged() => markNeedsLayout();
 
+  void _onBottomPaddingChanged() {
+    _bottomPaddingDirty = true;
+    markNeedsLayout();
+  }
+
   void _onJump(int messageId) {
     _cancelFling();
     markNeedsLayout();
@@ -299,7 +328,12 @@ class RenderChatScrollView extends RenderBox {
 
     final anchorBefore = _controller.anchorMessageId;
     _renormalizeAnchor();
-    final clamped = _clampBoundaries();
+    // When the bottom inset changed while the viewport was pinned at the
+    // newest message, let the clamp carry the content along with the inset.
+    final repinBottom =
+        _bottomPaddingDirty && _controller.reachedNewest && !_canRevealNewer;
+    _bottomPaddingDirty = false;
+    final clamped = _clampBoundaries(repinBottom: repinBottom);
     if (clamped) _cancelFling();
 
     // Re-fan from the corrected anchor. When pass 1 ran with the anchor far
@@ -426,7 +460,11 @@ class RenderChatScrollView extends RenderBox {
 
   /// Pin content to the viewport edges at conversation boundaries.
   /// Returns `true` if a boundary was hit (fling should cancel).
-  bool _clampBoundaries() {
+  ///
+  /// [repinBottom] also pulls the newest message *up* onto the bottom edge —
+  /// used when the reserved bottom inset grew while the viewport was pinned
+  /// there, so the message follows the inset instead of being covered.
+  bool _clampBoundaries({bool repinBottom = false}) {
     var cancelFling = false;
 
     final newest = _controller.newestKnownId;
@@ -434,8 +472,11 @@ class RenderChatScrollView extends RenderBox {
       final last = _children[newest];
       if (last != null) {
         final bottom = _parentData(last).offset + last.size.height;
-        if (bottom < size.height) {
-          _controller.applyScrollDelta(size.height - bottom);
+        // Pin the newest message above the reserved bottom inset (composer,
+        // attachment previews, …) instead of against the viewport edge.
+        final bottomEdge = size.height - _bottomPad;
+        if (bottom < bottomEdge || (repinBottom && bottom > bottomEdge)) {
+          _controller.applyScrollDelta(bottomEdge - bottom);
           _repositionFromAnchor();
           cancelFling = true;
         }
@@ -755,7 +796,8 @@ class RenderChatScrollView extends RenderBox {
     if (newest != null && _controller.reachedNewest) {
       final last = _children[newest];
       if (last != null &&
-          _parentData(last).offset + last.size.height <= size.height + 0.5) {
+          _parentData(last).offset + last.size.height <=
+              size.height - _bottomPad + 0.5) {
         return false;
       }
     }
@@ -764,8 +806,7 @@ class RenderChatScrollView extends RenderBox {
 
   // --- Scrollbar geometry ----------------------------------------------------
 
-  bool _inScrollbarHitArea(double localX) =>
-      localX >= size.width - _sbHitWidth;
+  bool _inScrollbarHitArea(double localX) => localX >= size.width - _sbHitWidth;
 
   double _scrollbarProgressFromY(double localY) {
     final travel = size.height - _sbPad * 2 - _sbThumbHeight;
@@ -798,8 +839,7 @@ class RenderChatScrollView extends RenderBox {
     final slotHeight = (anchor != null && anchor.size.height > 0)
         ? anchor.size.height
         : 60.0;
-    final fractionalId =
-        anchorId - _controller.anchorPixelOffset / slotHeight;
+    final fractionalId = anchorId - _controller.anchorPixelOffset / slotHeight;
     return ((fractionalId - oldest) / range).clamp(0.0, 1.0);
   }
 

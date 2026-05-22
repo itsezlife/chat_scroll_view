@@ -3,6 +3,7 @@ import 'dart:collection';
 import 'package:chatscrollview/src/chat_scroll/chat_scroll_common.dart';
 import 'package:chatscrollview/src/chat_widgets/chat_data_source_ext.dart';
 import 'package:chatscrollview/src/chat_widgets/chat_scroll_view.dart';
+import 'package:chatscrollview/src/chat_widgets/chat_selectable_message.dart';
 import 'package:chatscrollview/src/chat_widgets/render_chat_scroll_view.dart';
 import 'package:flutter/widgets.dart';
 
@@ -41,10 +42,14 @@ class ChatScrollElement extends RenderObjectElement
   @override
   void update(ChatScrollView newWidget) {
     final old = _widget;
-    super.update(newWidget); // -> updateRenderObject (dataSource/controller/...)
-    // The builder is not handed to the render object; if it changed, drop the
-    // skip-cache and force a layout so every active child re-inflates.
-    if (!identical(old.messageBuilder, newWidget.messageBuilder)) {
+    super.update(
+      newWidget,
+    ); // -> updateRenderObject (dataSource/controller/...)
+    // Neither the builder nor the selection controller is handed to the render
+    // object; if either changed, drop the skip-cache and force a layout so
+    // every active child re-inflates with the new wrapping.
+    if (!identical(old.messageBuilder, newWidget.messageBuilder) ||
+        !identical(old.selectionController, newWidget.selectionController)) {
       _builtMessage.clear();
       _builtStatus.clear();
       renderObject.markNeedsLayout();
@@ -52,11 +57,23 @@ class ChatScrollElement extends RenderObjectElement
   }
 
   /// Inflate the [RepaintBoundary]-wrapped widget for message [id].
-  Widget _buildWidget(int id, IChatMessage? message, ChatMessageStatus status) =>
-      RepaintBoundary(
-        key: ValueKey<int>(id),
-        child: _widget.messageBuilder(this, id, message, status),
+  ///
+  /// When a selection controller is wired the content is wrapped in
+  /// [SelectableMessage] (checkbox gutter + row tint). The [RepaintBoundary]
+  /// stays the outermost widget so each message remains its own paint /
+  /// compositing layer regardless of selection.
+  Widget _buildWidget(int id, IChatMessage? message, ChatMessageStatus status) {
+    Widget content = _widget.messageBuilder(this, id, message, status);
+    final selection = _widget.selectionController;
+    if (selection != null) {
+      content = SelectableMessage(
+        id: id,
+        controller: selection,
+        child: content,
       );
+    }
+    return RepaintBoundary(key: ValueKey<int>(id), child: content);
+  }
 
   // --- ChatChildManager (driven by RenderChatScrollView.performLayout) ------
 
@@ -80,7 +97,11 @@ class ChatScrollElement extends RenderObjectElement
 
     RenderBox? result;
     owner!.buildScope(this, () {
-      final updated = updateChild(existing, _buildWidget(id, message, status), id);
+      final updated = updateChild(
+        existing,
+        _buildWidget(id, message, status),
+        id,
+      );
       if (updated != null) {
         _children[id] = updated;
         _builtMessage[id] = message;

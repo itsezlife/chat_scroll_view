@@ -2,8 +2,12 @@ import 'package:chatscrollview/src/chat_message.dart';
 import 'package:chatscrollview/src/chat_scroll/chat_data_source.dart';
 import 'package:chatscrollview/src/chat_scroll/chat_scroll_common.dart';
 import 'package:chatscrollview/src/chat_scroll/chat_scroll_controller.dart';
+import 'package:chatscrollview/src/chat_scroll/chat_selection_controller.dart';
 import 'package:chatscrollview/src/chat_widgets/chat_scroll_view.dart';
+import 'package:chatscrollview/src/chat_widgets/demo/chat_composer.dart';
 import 'package:chatscrollview/src/chat_widgets/demo/demo_message.dart';
+import 'package:chatscrollview/src/chat_widgets/demo/measure_size.dart';
+import 'package:chatscrollview/src/chat_widgets/demo/selection_app_bar.dart';
 import 'package:chatscrollview/src/comments_data_source.dart';
 import 'package:flutter/material.dart';
 
@@ -21,13 +25,25 @@ class WidgetChatScreen extends StatefulWidget {
 class _WidgetChatScreenState extends State<WidgetChatScreen> {
   ChatDataSource? _dataSource;
   late final ChatScrollController _controller;
+  late final ChatSelectionController _selection;
+
+  /// Bottom inset reserved inside the viewport — kept in sync with the
+  /// composer's measured height so the newest message clears it.
+  final ValueNotifier<double> _bottomInset = ValueNotifier<double>(96);
   bool _loading = true;
 
   @override
   void initState() {
     super.initState();
     _controller = ChatScrollController();
+    _selection = ChatSelectionController();
     _init();
+  }
+
+  @override
+  void dispose() {
+    _bottomInset.dispose();
+    super.dispose();
   }
 
   Future<void> _init() async {
@@ -58,12 +74,45 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
     return Scaffold(
-      body: SafeArea(
-        child: ChatScrollView(
-          dataSource: _dataSource!,
-          controller: _controller,
-          messageBuilder: buildDemoMessage,
-        ),
+      body: Stack(
+        children: <Widget>[
+          // Chat fills the screen; the composer is stacked over its bottom.
+          Positioned.fill(
+            child: SafeArea(
+              bottom: false,
+              child: ChatScrollView(
+                dataSource: _dataSource!,
+                controller: _controller,
+                selectionController: _selection,
+                bottomPadding: _bottomInset,
+                messageBuilder: buildDemoMessage,
+              ),
+            ),
+          ),
+          // Bottom composer — overlaid, not a column sibling. Its measured
+          // height feeds the viewport's bottom inset so the newest message
+          // always clears it (and any future attachment previews).
+          Positioned(
+            left: 0,
+            right: 0,
+            bottom: 0,
+            child: MeasureSize(
+              onChange: (size) => _bottomInset.value = size.height,
+              child: ChatComposer(
+                selection: _selection,
+                dataSource: _dataSource!,
+              ),
+            ),
+          ),
+          // Contextual selection bar — overlays the top, so the chat never
+          // resizes when selection mode toggles.
+          Positioned(
+            top: 0,
+            left: 0,
+            right: 0,
+            child: SelectionAppBar(selection: _selection),
+          ),
+        ],
       ),
     );
   }
@@ -78,7 +127,11 @@ class _DemoDataSource extends ChatDataSource {
   final DateTime _baseTime = DateTime.now();
 
   @override
-  Future<List<IChatMessage>> fetch({int? from, int? to, DateTime? after}) async {
+  Future<List<IChatMessage>> fetch({
+    int? from,
+    int? to,
+    DateTime? after,
+  }) async {
     await Future<void>.delayed(const Duration(milliseconds: 150));
     final lo = (from ?? 0).clamp(0, messageCount - 1);
     final hi = (to ?? messageCount - 1).clamp(0, messageCount - 1);

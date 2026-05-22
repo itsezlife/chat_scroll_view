@@ -1,8 +1,10 @@
 import 'package:chatscrollview/src/chat_scroll/chat_data_source.dart';
 import 'package:chatscrollview/src/chat_scroll/chat_scroll_common.dart';
 import 'package:chatscrollview/src/chat_scroll/chat_scroll_controller.dart';
+import 'package:chatscrollview/src/chat_scroll/chat_selection_controller.dart';
 import 'package:chatscrollview/src/chat_widgets/chat_scroll_element.dart';
 import 'package:chatscrollview/src/chat_widgets/render_chat_scroll_view.dart';
+import 'package:flutter/foundation.dart' show ValueListenable;
 import 'package:flutter/widgets.dart';
 
 /// Builds the widget for message [id].
@@ -30,6 +32,8 @@ class ChatScrollView extends RenderObjectWidget {
     required this.dataSource,
     required this.controller,
     required this.messageBuilder,
+    this.selectionController,
+    this.bottomPadding,
     this.cacheExtent = 250.0,
     this.keepAliveExtent = 0.0,
     super.key,
@@ -45,6 +49,20 @@ class ChatScrollView extends RenderObjectWidget {
   /// top-level function or a cached closure) — a new closure each parent
   /// rebuild forces every visible message to re-inflate.
   final ChatMessageBuilder messageBuilder;
+
+  /// Optional whole-message selection. When non-null every message is wrapped
+  /// in selection chrome (a checkbox gutter + row tint) and long-press / tap
+  /// drive the [controller]. When null the viewport adds no selection wrapper
+  /// and costs nothing.
+  final ChatSelectionController? selectionController;
+
+  /// Empty space reserved inside the viewport after the newest message.
+  ///
+  /// Use it to keep the newest message clear of chrome stacked on top of the
+  /// viewport — the composer, attachment previews, status strips. The viewport
+  /// listens to it and relayouts when the value changes, so the inset can grow
+  /// and shrink (e.g. a multi-line input field) without a jump.
+  final ValueListenable<double>? bottomPadding;
 
   /// Pixels above and below the viewport to keep built.
   final double cacheExtent;
@@ -65,6 +83,7 @@ class ChatScrollView extends RenderObjectWidget {
         controller: controller,
         cacheExtent: cacheExtent,
         keepAliveExtent: keepAliveExtent,
+        bottomPadding: bottomPadding,
       );
 
   @override
@@ -76,6 +95,7 @@ class ChatScrollView extends RenderObjectWidget {
       ..dataSource = dataSource
       ..controller = controller
       ..cacheExtent = cacheExtent
-      ..keepAliveExtent = keepAliveExtent;
+      ..keepAliveExtent = keepAliveExtent
+      ..bottomPadding = bottomPadding;
   }
 }

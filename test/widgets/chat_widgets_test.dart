@@ -4,6 +4,7 @@ import 'package:chatscrollview/src/chat_scroll/chat_scroll_common.dart';
 import 'package:chatscrollview/src/chat_scroll/chat_scroll_controller.dart';
 import 'package:chatscrollview/src/chat_widgets/chat_scroll_view.dart';
 import 'package:chatscrollview/src/chat_widgets/render_chat_scroll_view.dart';
+import 'package:flutter/foundation.dart' show ValueListenable, ValueNotifier;
 import 'package:flutter/material.dart';
 import 'package:flutter/semantics.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -19,8 +20,11 @@ class _PreloadedDataSource extends ChatDataSource {
   }
 
   @override
-  Future<List<IChatMessage>> fetch({int? from, int? to, DateTime? after}) async =>
-      const <IChatMessage>[];
+  Future<List<IChatMessage>> fetch({
+    int? from,
+    int? to,
+    DateTime? after,
+  }) async => const <IChatMessage>[];
 }
 
 /// Empty until [fetch] resolves (after a delay) — exercises the shimmer path.
@@ -30,7 +34,11 @@ class _AsyncDataSource extends ChatDataSource {
   final int count;
 
   @override
-  Future<List<IChatMessage>> fetch({int? from, int? to, DateTime? after}) async {
+  Future<List<IChatMessage>> fetch({
+    int? from,
+    int? to,
+    DateTime? after,
+  }) async {
     await Future<void>.delayed(const Duration(milliseconds: 100));
     final lo = (from ?? 0).clamp(0, count - 1);
     final hi = (to ?? count - 1).clamp(0, count - 1);
@@ -61,6 +69,7 @@ Widget _harness({
   required ChatScrollController controller,
   double cacheExtent = 250,
   double keepAliveExtent = 0,
+  ValueListenable<double>? bottomPadding,
 }) => MaterialApp(
   home: Scaffold(
     body: Center(
@@ -72,6 +81,7 @@ Widget _harness({
           controller: controller,
           cacheExtent: cacheExtent,
           keepAliveExtent: keepAliveExtent,
+          bottomPadding: bottomPadding,
           messageBuilder: (context, id, message, status) => SizedBox(
             height: 60,
             child: Text(message == null ? 'shimmer-$id' : 'msg-$id'),
@@ -189,10 +199,7 @@ void main() {
       const count = 256;
       final controller = _boundedController(count)..jumpTo(count - 1);
       await tester.pumpWidget(
-        _harness(
-          dataSource: _AsyncDataSource(count),
-          controller: controller,
-        ),
+        _harness(dataSource: _AsyncDataSource(count), controller: controller),
       );
       await tester.pump();
 
@@ -268,6 +275,38 @@ void main() {
       final withKeepAlive = _render(tester).debugChildCount;
 
       expect(withKeepAlive, greaterThan(withoutKeepAlive));
+    });
+
+    testWidgets('bottomPadding reserves space after the newest message', (
+      tester,
+    ) async {
+      const count = 256;
+      final controller = _boundedController(count)..jumpTo(count - 1);
+      final inset = ValueNotifier<double>(150);
+      addTearDown(inset.dispose);
+      await tester.pumpWidget(
+        _harness(
+          dataSource: _PreloadedDataSource(_generate(count)),
+          controller: controller,
+          bottomPadding: inset,
+        ),
+      );
+      await tester.pump();
+
+      // Viewport is 600 tall, messages 60 tall: the newest message is pinned
+      // so its bottom sits `inset` pixels above the viewport bottom.
+      expect(
+        tester.getTopLeft(find.text('msg-255')).dy,
+        closeTo(600 - 150 - 60, 1),
+      );
+
+      // Growing the inset while pinned at the bottom carries the message up.
+      inset.value = 260;
+      await tester.pump();
+      expect(
+        tester.getTopLeft(find.text('msg-255')).dy,
+        closeTo(600 - 260 - 60, 1),
+      );
     });
   });
 }
