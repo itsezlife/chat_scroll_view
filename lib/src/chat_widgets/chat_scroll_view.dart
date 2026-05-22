@@ -31,6 +31,7 @@ class ChatScrollView extends RenderObjectWidget {
     required this.controller,
     required this.messageBuilder,
     this.cacheExtent = 250.0,
+    this.keepAliveExtent = 0.0,
     super.key,
   });
 
@@ -40,11 +41,19 @@ class ChatScrollView extends RenderObjectWidget {
   /// Owns anchor state, conversation boundaries, and jumps.
   final ChatScrollController controller;
 
-  /// Builds the widget for each message id.
+  /// Builds the widget for each message id. Pass a stable reference (a
+  /// top-level function or a cached closure) — a new closure each parent
+  /// rebuild forces every visible message to re-inflate.
   final ChatMessageBuilder messageBuilder;
 
   /// Pixels above and below the viewport to keep built.
   final double cacheExtent;
+
+  /// Extra pixels beyond [cacheExtent] where message widgets stay mounted
+  /// while off-screen (paint-culled), so their `State` survives a scroll out
+  /// and back. `0` (the default) collects children as soon as they leave the
+  /// cache extent.
+  final double keepAliveExtent;
 
   @override
   RenderObjectElement createElement() => ChatScrollElement(this);
@@ -55,6 +64,7 @@ class ChatScrollView extends RenderObjectWidget {
         dataSource: dataSource,
         controller: controller,
         cacheExtent: cacheExtent,
+        keepAliveExtent: keepAliveExtent,
       );
 
   @override
@@ -65,6 +75,7 @@ class ChatScrollView extends RenderObjectWidget {
     renderObject
       ..dataSource = dataSource
       ..controller = controller
-      ..cacheExtent = cacheExtent;
+      ..cacheExtent = cacheExtent
+      ..keepAliveExtent = keepAliveExtent;
   }
 }

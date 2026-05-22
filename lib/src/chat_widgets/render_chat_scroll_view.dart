@@ -43,9 +43,11 @@ class RenderChatScrollView extends RenderBox {
     required ChatDataSource dataSource,
     required ChatScrollController controller,
     required double cacheExtent,
+    double keepAliveExtent = 0.0,
   }) : _dataSource = dataSource,
        _controller = controller,
-       _cacheExtent = cacheExtent;
+       _cacheExtent = cacheExtent,
+       _keepAliveExtent = keepAliveExtent;
 
   /// Set by `ChatScrollElement` in `mount`. Drives lazy child inflation.
   ChatChildManager? childManager;
@@ -88,6 +90,15 @@ class RenderChatScrollView extends RenderBox {
     markNeedsLayout();
   }
 
+  /// Extra pixels beyond [cacheExtent] where message children stay mounted —
+  /// off-screen, paint-culled, but their elements (and any `State`) survive.
+  double _keepAliveExtent;
+  set keepAliveExtent(double value) {
+    if (_keepAliveExtent == value) return;
+    _keepAliveExtent = value;
+    markNeedsLayout();
+  }
+
   // --- Content geometry ------------------------------------------------------
 
   static const double _maxContentWidth = 620.0;
@@ -99,6 +110,12 @@ class RenderChatScrollView extends RenderBox {
   int _accessTick = 0;
   int _layoutMinChunk = 0;
   int _layoutMaxChunk = -1;
+
+  /// Exponential moving average of the per-frame scroll delta (px/frame,
+  /// signed). Positive = anchor moving down = revealing older messages.
+  /// Drives the directional build-ahead lead.
+  double _scrollVelocity = 0.0;
+  static const double _leadFrames = 4.0;
 
   // --- Ticker / scroll physics ----------------------------------------------
 
@@ -126,6 +143,11 @@ class RenderChatScrollView extends RenderBox {
   static const double _sbRight = 4.0;
   int? _scrollbarPointer;
 
+  // --- Scroll semantics state -----------------------------------------------
+
+  bool _canRevealOlder = false;
+  bool _canRevealNewer = false;
+
   // --- Debug instrumentation (zero-cost in release via assert) --------------
 
   final Stopwatch _debugSw = Stopwatch();
@@ -133,7 +155,6 @@ class RenderChatScrollView extends RenderBox {
   Duration debugLastPaintDuration = Duration.zero;
   int debugLayoutFrameId = 0;
   int debugPaintFrameId = 0;
-  int debugBuildCount = 0;
 
   int get debugChildCount => _children.length;
   int get debugChunkCount => _dataSource.chunks.length;
@@ -250,7 +271,10 @@ class RenderChatScrollView extends RenderBox {
     markNeedsLayout();
   }
 
-  void _onBoundaryChanged() => markNeedsLayout();
+  void _onBoundaryChanged() {
+    markNeedsLayout();
+    markNeedsSemanticsUpdate();
+  }
 
   // --- Layout ----------------------------------------------------------------
 
@@ -307,6 +331,7 @@ class RenderChatScrollView extends RenderBox {
       _layoutMaxChunk = ChatScrollChunk.chunkOf(_children.lastKey()!);
     }
     _evictChunks();
+    _updateScrollSemantics();
 
     assert(() {
       debugLastLayoutDuration = _debugSw.elapsed;
@@ -316,16 +341,28 @@ class RenderChatScrollView extends RenderBox {
     }());
   }
 
-  /// Build + lay out + position children fanning out from the anchor message,
-  /// until the viewport + [_cacheExtent] is covered (or a boundary is hit).
+  /// Build + lay out + position children fanning out from the anchor, in a
+  /// single `invokeLayoutCallback` (lazy inflation is legal during layout
+  /// only inside such a callback).
   void _layoutFromAnchor(BoxConstraints cc, Set<int> built) {
+    invokeLayoutCallback<BoxConstraints>((_) => _fanOutFromAnchor(cc, built));
+  }
+
+  void _fanOutFromAnchor(BoxConstraints cc, Set<int> built) {
     final anchorId = _controller.anchorMessageId;
     final oldest = _controller.oldestKnownId;
     final newest = _controller.newestKnownId;
-    final lower = size.height + _cacheExtent;
-    final topBound = -_cacheExtent;
 
-    final anchor = _obtainChild(anchorId);
+    // Build zone = cacheExtent + keep-alive band, plus a directional lead
+    // biased toward travel so a fast fling does not outrun the built range.
+    final base = _cacheExtent + _keepAliveExtent;
+    final lead = (_scrollVelocity.abs() * _leadFrames).clamp(0.0, size.height);
+    final topExtent = base + (_scrollVelocity > 0 ? lead : 0.0);
+    final bottomExtent = base + (_scrollVelocity < 0 ? lead : 0.0);
+    final lowerBound = size.height + bottomExtent;
+    final topBound = -topExtent;
+
+    final anchor = childManager!.buildChild(anchorId);
     if (anchor == null) return;
     anchor.layout(cc, parentUsesSize: true);
     _touchChunk(anchorId);
@@ -333,11 +370,11 @@ class RenderChatScrollView extends RenderBox {
     _parentData(anchor).offset = anchorTop;
     built.add(anchorId);
 
-    // Fan downward.
+    // Fan downward (newer messages).
     var y = anchorTop + anchor.size.height;
     var id = anchorId + 1;
-    while (y < lower && (newest == null || id <= newest)) {
-      final child = _obtainChild(id);
+    while (y < lowerBound && (newest == null || id <= newest)) {
+      final child = childManager!.buildChild(id);
       if (child == null) break;
       child.layout(cc, parentUsesSize: true);
       _touchChunk(id);
@@ -347,11 +384,11 @@ class RenderChatScrollView extends RenderBox {
       id++;
     }
 
-    // Fan upward.
+    // Fan upward (older messages).
     y = anchorTop;
     id = anchorId - 1;
     while (y > topBound && (oldest == null || id >= oldest)) {
-      final child = _obtainChild(id);
+      final child = childManager!.buildChild(id);
       if (child == null) break;
       child.layout(cc, parentUsesSize: true);
       _touchChunk(id);
@@ -360,19 +397,6 @@ class RenderChatScrollView extends RenderBox {
       built.add(id);
       id--;
     }
-  }
-
-  /// Build (or fetch a cached) child render box for [id].
-  RenderBox? _obtainChild(int id) {
-    RenderBox? child;
-    invokeLayoutCallback<BoxConstraints>((_) {
-      child = childManager!.buildChild(id);
-      assert(() {
-        debugBuildCount++;
-        return true;
-      }());
-    });
-    return child;
   }
 
   void _touchChunk(int id) {
@@ -491,7 +515,15 @@ class RenderChatScrollView extends RenderBox {
   }
 
   void _stopTickerIfIdle() {
-    if (_simulation == null && _pendingScrollDelta == 0.0) _ticker?.stop();
+    if (_simulation == null && _pendingScrollDelta == 0.0) {
+      _ticker?.stop();
+      // Scroll ended — drop the directional lead so the next layout re-fans
+      // a symmetric range and collects the now-unneeded lead children.
+      if (_scrollVelocity != 0.0) {
+        _scrollVelocity = 0.0;
+        markNeedsLayout();
+      }
+    }
   }
 
   void _startFling(double velocity) {
@@ -528,11 +560,14 @@ class RenderChatScrollView extends RenderBox {
     }
 
     if (delta != 0.0) _controller.applyScrollDelta(delta);
+    // Smooth the per-frame scroll delta; biases the next fan-out lead.
+    _scrollVelocity = _scrollVelocity * 0.7 + delta * 0.3;
     _repositionFromAnchor();
     // Keep the anchor on a visible message so the next layout fans out a
     // tight range rather than rebuilding everything back to a drifted anchor.
     _renormalizeAnchor();
     if (_clampBoundaries()) _cancelFling();
+    _updateScrollSemantics();
 
     if (_rangeNoLongerCovers()) {
       markNeedsLayout();
@@ -642,8 +677,14 @@ class RenderChatScrollView extends RenderBox {
   @override
   bool hitTestChildren(BoxHitTestResult result, {required Offset position}) {
     final contentX = _contentX;
+    final viewportHeight = size.height;
     for (final child in _children.values) {
       final pd = _parentData(child);
+      // Only on-screen children are hit-testable — keep-alive children may
+      // hold a stale offset.
+      if (pd.offset >= viewportHeight || pd.offset + child.size.height <= 0) {
+        continue;
+      }
       final hit = result.addWithPaintOffset(
         offset: Offset(contentX, pd.offset),
         position: position,
@@ -653,6 +694,72 @@ class RenderChatScrollView extends RenderBox {
       if (hit) return true;
     }
     return false;
+  }
+
+  // --- Scroll semantics ------------------------------------------------------
+
+  @override
+  void describeSemanticsConfiguration(SemanticsConfiguration config) {
+    super.describeSemanticsConfiguration(config);
+    config
+      ..isSemanticBoundary = true
+      ..explicitChildNodes = true
+      ..hasImplicitScrolling = true;
+    // scrollUp moves content up -> reveals newer; scrollDown reveals older.
+    if (_canRevealNewer) config.onScrollUp = _semanticRevealNewer;
+    if (_canRevealOlder) config.onScrollDown = _semanticRevealOlder;
+  }
+
+  // Note: `visitChildrenForSemantics` is intentionally NOT overridden to filter
+  // by on-screen position. The semantic-child set must only change when
+  // children are created/collected (both mark semantics dirty); filtering by
+  // scroll position would let a child cross the viewport edge during a Tier-1
+  // paint-only frame and become a visible semantic node with stale (null)
+  // parent data. Off-screen cache-extent children therefore contribute
+  // semantics — the same trade-off `ListView`'s cache extent makes.
+
+  void _semanticRevealNewer() => _semanticScroll(-size.height * 0.8);
+  void _semanticRevealOlder() => _semanticScroll(size.height * 0.8);
+
+  void _semanticScroll(double delta) {
+    _cancelFling();
+    _controller.applyScrollDelta(delta);
+    markNeedsLayout();
+  }
+
+  /// Recompute the scroll-action availability and request a semantics update
+  /// only when it actually changed.
+  void _updateScrollSemantics() {
+    final canOlder = _computeCanRevealOlder();
+    final canNewer = _computeCanRevealNewer();
+    if (canOlder != _canRevealOlder || canNewer != _canRevealNewer) {
+      _canRevealOlder = canOlder;
+      _canRevealNewer = canNewer;
+      markNeedsSemanticsUpdate();
+    }
+  }
+
+  bool _computeCanRevealOlder() {
+    if (_children.isEmpty) return false;
+    final oldest = _controller.oldestKnownId;
+    if (oldest != null && _controller.reachedOldest) {
+      final first = _children[oldest];
+      if (first != null && _parentData(first).offset >= -0.5) return false;
+    }
+    return true;
+  }
+
+  bool _computeCanRevealNewer() {
+    if (_children.isEmpty) return false;
+    final newest = _controller.newestKnownId;
+    if (newest != null && _controller.reachedNewest) {
+      final last = _children[newest];
+      if (last != null &&
+          _parentData(last).offset + last.size.height <= size.height + 0.5) {
+        return false;
+      }
+    }
+    return true;
   }
 
   // --- Scrollbar geometry ----------------------------------------------------
@@ -727,8 +834,14 @@ class RenderChatScrollView extends RenderBox {
 
   void _paintContents(PaintingContext context, Offset offset) {
     final contentX = _contentX;
+    final viewportHeight = size.height;
     for (final child in _children.values) {
       final pd = _parentData(child);
+      // Cull children fully outside the viewport — keep-alive / cache-extent
+      // children stay built but are not composited until they scroll in.
+      if (pd.offset >= viewportHeight || pd.offset + child.size.height <= 0) {
+        continue;
+      }
       context.paintChild(child, offset + Offset(contentX, pd.offset));
     }
     _paintScrollbar(context, offset);

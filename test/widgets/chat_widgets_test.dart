@@ -5,6 +5,7 @@ import 'package:chatscrollview/src/chat_scroll/chat_scroll_controller.dart';
 import 'package:chatscrollview/src/chat_widgets/chat_scroll_view.dart';
 import 'package:chatscrollview/src/chat_widgets/render_chat_scroll_view.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/semantics.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 // ---------------------------------------------------------------------------
@@ -58,6 +59,8 @@ ChatScrollController _boundedController(int count) => ChatScrollController()
 Widget _harness({
   required ChatDataSource dataSource,
   required ChatScrollController controller,
+  double cacheExtent = 250,
+  double keepAliveExtent = 0,
 }) => MaterialApp(
   home: Scaffold(
     body: Center(
@@ -67,6 +70,8 @@ Widget _harness({
         child: ChatScrollView(
           dataSource: dataSource,
           controller: controller,
+          cacheExtent: cacheExtent,
+          keepAliveExtent: keepAliveExtent,
           messageBuilder: (context, id, message, status) => SizedBox(
             height: 60,
             child: Text(message == null ? 'shimmer-$id' : 'msg-$id'),
@@ -201,6 +206,68 @@ void main() {
       await tester.pump();
 
       expect(find.text('msg-255'), findsOneWidget);
+    });
+
+    testWidgets('exposes scroll-action semantics that track position', (
+      tester,
+    ) async {
+      final handle = tester.ensureSemantics();
+      const count = 256;
+      final controller = _boundedController(count)..jumpTo(count - 1);
+      await tester.pumpWidget(
+        _harness(
+          dataSource: _PreloadedDataSource(_generate(count)),
+          controller: controller,
+        ),
+      );
+      await tester.pump();
+
+      // Pinned at the bottom — can reveal older (scrollDown), not newer.
+      final bottom = tester
+          .getSemantics(find.byType(ChatScrollView))
+          .getSemanticsData();
+      expect(bottom.hasAction(SemanticsAction.scrollDown), isTrue);
+      expect(bottom.hasAction(SemanticsAction.scrollUp), isFalse);
+
+      // Mid-conversation — both directions available.
+      controller.jumpTo(count ~/ 2);
+      await tester.pump();
+      final middle = tester
+          .getSemantics(find.byType(ChatScrollView))
+          .getSemanticsData();
+      expect(middle.hasAction(SemanticsAction.scrollUp), isTrue);
+      expect(middle.hasAction(SemanticsAction.scrollDown), isTrue);
+
+      handle.dispose();
+    });
+
+    testWidgets('keepAliveExtent keeps extra children mounted', (tester) async {
+      const count = 256;
+
+      final base = _boundedController(count)..jumpTo(count ~/ 2);
+      await tester.pumpWidget(
+        _harness(
+          dataSource: _PreloadedDataSource(_generate(count)),
+          controller: base,
+          cacheExtent: 100,
+        ),
+      );
+      await tester.pumpAndSettle();
+      final withoutKeepAlive = _render(tester).debugChildCount;
+
+      final kept = _boundedController(count)..jumpTo(count ~/ 2);
+      await tester.pumpWidget(
+        _harness(
+          dataSource: _PreloadedDataSource(_generate(count)),
+          controller: kept,
+          cacheExtent: 100,
+          keepAliveExtent: 1200,
+        ),
+      );
+      await tester.pumpAndSettle();
+      final withKeepAlive = _render(tester).debugChildCount;
+
+      expect(withKeepAlive, greaterThan(withoutKeepAlive));
     });
   });
 }

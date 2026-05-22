@@ -1,5 +1,6 @@
 import 'dart:collection';
 
+import 'package:chatscrollview/src/chat_scroll/chat_scroll_common.dart';
 import 'package:chatscrollview/src/chat_widgets/chat_data_source_ext.dart';
 import 'package:chatscrollview/src/chat_widgets/chat_scroll_view.dart';
 import 'package:chatscrollview/src/chat_widgets/render_chat_scroll_view.dart';
@@ -18,6 +19,13 @@ class ChatScrollElement extends RenderObjectElement
   /// messageId -> child element, sorted so iteration is top-to-bottom.
   final SplayTreeMap<int, Element> _children = SplayTreeMap<int, Element>();
 
+  /// Skip-rebuild cache: the message instance and status each child was last
+  /// built with. When [buildChild] is asked for an id whose message instance
+  /// and status are unchanged, the existing child is reused without running
+  /// `updateChild` / the message widget's `build()` again.
+  final Map<int, IChatMessage?> _builtMessage = <int, IChatMessage?>{};
+  final Map<int, ChatMessageStatus> _builtStatus = <int, ChatMessageStatus>{};
+
   ChatScrollView get _widget => widget as ChatScrollView;
 
   @override
@@ -34,34 +42,54 @@ class ChatScrollElement extends RenderObjectElement
   void update(ChatScrollView newWidget) {
     final old = _widget;
     super.update(newWidget); // -> updateRenderObject (dataSource/controller/...)
-    // The builder is not handed to the render object; if it changed, force a
-    // layout so every active child is re-inflated through buildChild.
+    // The builder is not handed to the render object; if it changed, drop the
+    // skip-cache and force a layout so every active child re-inflates.
     if (!identical(old.messageBuilder, newWidget.messageBuilder)) {
+      _builtMessage.clear();
+      _builtStatus.clear();
       renderObject.markNeedsLayout();
     }
   }
 
   /// Inflate the [RepaintBoundary]-wrapped widget for message [id].
-  Widget _build(int id) {
-    final ds = _widget.dataSource;
-    return RepaintBoundary(
-      key: ValueKey<int>(id),
-      child: _widget.messageBuilder(this, id, ds.getMessage(id), ds.statusOf(id)),
-    );
-  }
+  Widget _buildWidget(int id, IChatMessage? message, ChatMessageStatus status) =>
+      RepaintBoundary(
+        key: ValueKey<int>(id),
+        child: _widget.messageBuilder(this, id, message, status),
+      );
 
   // --- ChatChildManager (driven by RenderChatScrollView.performLayout) ------
 
   @override
   RenderBox? buildChild(int id) {
+    final ds = _widget.dataSource;
+    final message = ds.getMessage(id);
+    final status = ds.statusOf(id);
+    final existing = _children[id];
+
+    // Fast path: the message instance and status are unchanged since this
+    // child was last built — reuse it without rebuilding. Inherited-widget
+    // changes (Theme, MediaQuery, ...) still rebuild the child through the
+    // normal dependency mechanism, and width changes are handled by the
+    // subsequent `child.layout()`, so this only skips redundant data rebuilds.
+    if (existing != null &&
+        _builtStatus[id] == status &&
+        identical(_builtMessage[id], message)) {
+      return existing.renderObject as RenderBox?;
+    }
+
     RenderBox? result;
     owner!.buildScope(this, () {
-      final updated = updateChild(_children[id], _build(id), id);
+      final updated = updateChild(existing, _buildWidget(id, message, status), id);
       if (updated != null) {
         _children[id] = updated;
+        _builtMessage[id] = message;
+        _builtStatus[id] = status;
         result = updated.renderObject as RenderBox?;
       } else {
         _children.remove(id);
+        _builtMessage.remove(id);
+        _builtStatus.remove(id);
       }
     });
     return result;
@@ -75,6 +103,8 @@ class ChatScrollElement extends RenderObjectElement
         final removed = updateChild(_children[id], null, id);
         assert(removed == null);
         _children.remove(id);
+        _builtMessage.remove(id);
+        _builtStatus.remove(id);
       }
     });
   }
@@ -111,7 +141,10 @@ class ChatScrollElement extends RenderObjectElement
   void forgetChild(Element child) {
     assert(child.slot is int);
     assert(_children.containsKey(child.slot));
-    _children.remove(child.slot as int);
+    final id = child.slot! as int;
+    _children.remove(id);
+    _builtMessage.remove(id);
+    _builtStatus.remove(id);
     super.forgetChild(child);
   }
 }
