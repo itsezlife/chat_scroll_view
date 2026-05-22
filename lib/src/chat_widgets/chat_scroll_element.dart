@@ -2,6 +2,7 @@ import 'dart:collection';
 
 import 'package:chatscrollview/src/chat_scroll/chat_scroll_common.dart';
 import 'package:chatscrollview/src/chat_widgets/chat_data_source_ext.dart';
+import 'package:chatscrollview/src/chat_widgets/chat_dated_message.dart';
 import 'package:chatscrollview/src/chat_widgets/chat_scroll_view.dart';
 import 'package:chatscrollview/src/chat_widgets/chat_selectable_message.dart';
 import 'package:chatscrollview/src/chat_widgets/render_chat_scroll_view.dart';
@@ -71,14 +72,14 @@ class ChatScrollElement extends RenderObjectElement
     }
   }
 
-  /// Inflate the [RepaintBoundary]-wrapped widget for message [id].
+  /// Inflate the widget for message [id].
   ///
   /// When a selection controller is wired the content is wrapped in
   /// [SelectableMessage] (checkbox gutter + row tint). When [startsNewDay] is
-  /// set, an inline date separator is prepended in a [Column] — placed
-  /// *outside* [SelectableMessage] so selection chrome never tints the date.
-  /// The [RepaintBoundary] stays outermost so each message remains its own
-  /// paint / compositing layer.
+  /// set, the message is built as a [DatedMessage] — an inline date separator
+  /// stacked above the body, *outside* [SelectableMessage] so selection chrome
+  /// never tints the date. Plain messages are wrapped in a [RepaintBoundary]
+  /// for picture / layer caching; [DatedMessage] does its own wrapping.
   Widget _buildWidget(
     int id,
     IChatMessage? message,
@@ -96,10 +97,10 @@ class ChatScrollElement extends RenderObjectElement
     }
     final separator = _widget.dateSeparatorBuilder;
     if (startsNewDay && separator != null && message != null) {
-      content = Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: <Widget>[separator(this, message.createdAt), content],
+      return DatedMessage(
+        key: ValueKey<int>(id),
+        separator: separator(this, message.createdAt),
+        body: content,
       );
     }
     return RepaintBoundary(key: ValueKey<int>(id), child: content);

@@ -94,11 +94,13 @@ class ChatScrollView extends RenderObjectWidget {
   /// floating copy is pinned to the top showing the topmost visible day. When
   /// null the day-separator feature is off and costs nothing.
   ///
-  /// The inline and floating copies are laid out identically, so the inline
-  /// one scrolls cleanly *behind* the floating one. Keep empty space above the
-  /// separator's visible content out of the builder (no top padding/margin) —
-  /// let the surrounding message layout provide it, or the inline copy peeks
-  /// above the floating header during the handoff.
+  /// The inline separator fades out as it scrolls up toward the floating
+  /// header, so the two are never both visible — the builder is free to style
+  /// and pad the separator however it likes.
+  ///
+  /// Format the date in the same day notion as [dayBucketOf] (both default to
+  /// the local calendar day) — otherwise a label can disagree with the
+  /// grouping near midnight, e.g. printing UTC dates while grouping by local.
   ///
   /// Pass a stable reference, like [messageBuilder].
   final ChatDateSeparatorBuilder? dateSeparatorBuilder;

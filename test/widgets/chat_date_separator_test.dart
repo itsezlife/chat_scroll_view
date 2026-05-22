@@ -142,7 +142,7 @@ void main() {
       expect(ro.debugHeaderDate!.day, 11);
     });
 
-    testWidgets('the next day divider pushes the floating header up', (
+    testWidgets('the inline date separator fades out as it nears the top', (
       tester,
     ) async {
       const count = 256;
@@ -156,22 +156,26 @@ void main() {
       await tester.pump();
       final ro = _render(tester);
 
-      // At rest the header sits at the top inset (0 in this harness).
+      // jumpTo(8): msg-8 (first of day 2) sits at the very top, inside the
+      // floating header's zone — its inline separator is faded out.
+      expect(ro.debugDividerOpacity(8), isNotNull);
+      expect(ro.debugDividerOpacity(8), lessThan(0.5));
+
+      // msg-16 (first of day 3) is far below — its separator is fully opaque.
+      expect(ro.debugDividerOpacity(16), closeTo(1.0, 0.01));
+
+      // The floating header stays pinned — it is never pushed.
       expect(ro.debugFloatingHeaderOffset, closeTo(0, 1));
 
-      // Scroll toward newer messages until the next day's divider rises into
-      // the header zone — the header is then pushed to a negative offset.
-      var pushed = false;
-      for (var i = 0; i < 120; i++) {
-        controller.applyScrollDelta(-8);
-        ro.markNeedsLayout();
-        await tester.pump();
-        if ((ro.debugFloatingHeaderOffset ?? 0) < -0.5) {
-          pushed = true;
-          break;
-        }
-      }
-      expect(pushed, isTrue, reason: 'the rising divider should push the header');
+      // Scroll msg-16's separator up into the fade band near the top edge:
+      // it is then partially transparent.
+      controller.applyScrollDelta(-490);
+      ro.markNeedsLayout();
+      await tester.pump();
+      final fading = ro.debugDividerOpacity(16);
+      expect(fading, isNotNull);
+      expect(fading, greaterThan(0.1));
+      expect(fading, lessThan(0.9));
     });
 
     testWidgets('several day separators can be visible at once', (

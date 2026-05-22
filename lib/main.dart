@@ -28,7 +28,7 @@ class ChatDemoApp extends StatelessWidget {
       ),
     ),
     debugShowCheckedModeBanner: false,
-    showPerformanceOverlay: true,
+    showPerformanceOverlay: false,
     home: const WidgetChatScreen(),
   );
 }

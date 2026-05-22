@@ -16,14 +16,20 @@ import 'package:flutter/widgets.dart' show ClampingScrollSimulation;
 ///
 /// For a message: its [id], the [offset] of its top edge within the viewport
 /// (viewport-local Y, may be negative), whether it [startsDay] (carries an
-/// inline date divider), and its [dayBucket] (day-grouping key, `null` until
-/// the message loads). The floating day header reuses this type — only
-/// [offset] is meaningful for it.
+/// inline date divider), its [dayBucket] (day-grouping key, `null` until the
+/// message loads), and the [dividerOpacity] of its inline date separator. The
+/// floating day header reuses this type — only [offset] is meaningful for it.
 class ChatMessageParentData extends ParentData {
   int id = 0;
   double offset = 0.0;
   bool startsDay = false;
   int? dayBucket;
+
+  /// Fade opacity (0..1) for this message's inline date separator — set by
+  /// `RenderChatScrollView` from [offset] so the separator fades out as it
+  /// rises into the floating day header's zone. Only meaningful when
+  /// [startsDay] is `true`; read by `RenderDatedMessage`.
+  double dividerOpacity = 1.0;
 }
 
 /// Contract the render object uses to lazily inflate / dispose message widgets.
@@ -185,6 +191,15 @@ class RenderChatScrollView extends RenderBox {
   double _scrollVelocity = 0.0;
   static const double _leadFrames = 4.0;
 
+  /// Floating-header height assumed for the inline-divider fade before the
+  /// real header has been laid out (first frame only).
+  static const double _kHeaderFallbackHeight = 32.0;
+
+  /// Travel distance over which an inline date separator fades in / out near
+  /// the floating header — short, so it reaches full opacity almost as soon as
+  /// it clears the header.
+  static const double _kDividerFadeBand = 20.0;
+
   // --- Ticker / scroll physics ----------------------------------------------
 
   Ticker? _ticker;
@@ -267,6 +282,13 @@ class RenderChatScrollView extends RenderBox {
   double? get debugFloatingHeaderOffset =>
       _floatingHeader == null ? null : _parentData(_floatingHeader!).offset;
   DateTime? get debugHeaderDate => _headerDate;
+
+  /// Inline-divider fade opacity (0..1) of the built child [id], or `null`
+  /// when [id] is not currently built.
+  double? debugDividerOpacity(int id) {
+    final child = _children[id];
+    return child == null ? null : _parentData(child).dividerOpacity;
+  }
 
   // --- RenderBox configuration ----------------------------------------------
 
@@ -498,7 +520,7 @@ class RenderChatScrollView extends RenderBox {
     final anchor = _buildMessage(anchorId, cc);
     if (anchor == null) return;
     final anchorTop = _controller.anchorPixelOffset;
-    _parentData(anchor).offset = anchorTop;
+    _setOffset(anchor, anchorTop);
     built.add(anchorId);
 
     // Fan downward (newer messages).
@@ -507,7 +529,7 @@ class RenderChatScrollView extends RenderBox {
     while (y < lowerBound && (newest == null || id <= newest)) {
       final child = _buildMessage(id, cc);
       if (child == null) break;
-      _parentData(child).offset = y;
+      _setOffset(child, y);
       built.add(id);
       y += child.size.height;
       id++;
@@ -520,7 +542,7 @@ class RenderChatScrollView extends RenderBox {
       final child = _buildMessage(id, cc);
       if (child == null) break;
       y -= child.size.height;
-      _parentData(child).offset = y;
+      _setOffset(child, y);
       built.add(id);
       id--;
     }
@@ -639,13 +661,13 @@ class RenderChatScrollView extends RenderBox {
     if (anchor == null) return;
 
     var y = _controller.anchorPixelOffset;
-    _parentData(anchor).offset = y;
+    _setOffset(anchor, y);
 
     y += anchor.size.height;
     for (var id = anchorId + 1; ; id++) {
       final child = _children[id];
       if (child == null) break;
-      _parentData(child).offset = y;
+      _setOffset(child, y);
       y += child.size.height;
     }
 
@@ -654,7 +676,7 @@ class RenderChatScrollView extends RenderBox {
       final child = _children[id];
       if (child == null) break;
       y -= child.size.height;
-      _parentData(child).offset = y;
+      _setOffset(child, y);
     }
   }
 
@@ -679,33 +701,49 @@ class RenderChatScrollView extends RenderBox {
 
   // --- Day separators --------------------------------------------------------
 
-  /// Scan the visible children once: the topmost day's bucket + message id,
-  /// and the Y of the next day's inline divider (`infinity` if none below).
-  /// O(visible children) of pure parent-data reads.
-  ({int? bucket, int? id, double nextDividerY}) _scanTopDay() {
+  /// Set a child's viewport [offset]. For a day-starting message it also
+  /// refreshes the inline separator's fade opacity from the new position —
+  /// pure parent-data writes, so this stays on the Tier-1 path.
+  void _setOffset(RenderBox child, double offset) {
+    final pd = _parentData(child);
+    pd.offset = offset;
+    if (pd.startsDay) pd.dividerOpacity = _dividerOpacityFor(offset);
+  }
+
+  /// Height of the floating header — its laid-out size, or a fallback before
+  /// it has first laid out.
+  double get _floatingHeaderHeight {
+    final header = _floatingHeader;
+    return (header != null && header.hasSize)
+        ? header.size.height
+        : _kHeaderFallbackHeight;
+  }
+
+  /// Fade opacity for an inline date separator whose top edge sits at
+  /// viewport-Y [topY]. Reaches full as soon as the separator clears the
+  /// floating header's bottom edge, fading over a short [_kDividerFadeBand] as
+  /// it rises into the header's zone — so the two never both show.
+  double _dividerOpacityFor(double topY) {
+    final fadeEnd = _topPad + _floatingHeaderHeight;
+    return ((topY - fadeEnd) / _kDividerFadeBand + 1.0).clamp(0.0, 1.0);
+  }
+
+  /// The topmost visible day — the bucket + message id of the first child
+  /// crossing the top edge. O(visible children) of pure parent-data reads.
+  ({int? bucket, int? id}) _scanTopDay() {
     final topEdge = _topPad;
     final viewportHeight = size.height;
-    int? topBucket;
-    int? topId;
-    var nextDividerY = double.infinity;
     for (final entry in _children.entries) {
       final child = entry.value;
       final pd = _parentData(child);
       if (pd.offset + child.size.height <= topEdge) continue; // above the top
       if (pd.offset >= viewportHeight) break; // below the viewport
-      if (topBucket == null) {
-        if (pd.dayBucket == null) continue; // a shimmer at the top — skip on
-        topBucket = pd.dayBucket;
-        topId = entry.key;
-      } else if (pd.startsDay && pd.dayBucket != topBucket) {
-        nextDividerY = pd.offset;
-        break;
-      }
+      if (pd.dayBucket != null) return (bucket: pd.dayBucket, id: entry.key);
     }
-    return (bucket: topBucket, id: topId, nextDividerY: nextDividerY);
+    return (bucket: null, id: null);
   }
 
-  /// Rebuild (only on a day change), lay out, and place the floating header.
+  /// Rebuild (only on a day change), lay out, and pin the floating header.
   /// Called from [performLayout].
   void _updateFloatingHeader() {
     final scan = _scanTopDay();
@@ -731,32 +769,25 @@ class RenderChatScrollView extends RenderBox {
       BoxConstraints.tightFor(width: size.width),
       parentUsesSize: true,
     );
-    _placeFloatingHeader(scan.nextDividerY);
+    _placeFloatingHeader();
   }
 
-  /// During a Tier-1 scroll: reposition the header and report whether the
-  /// topmost day changed — the caller then relayouts to rebuild the header.
+  /// During a Tier-1 scroll: re-pin the header and report whether the topmost
+  /// day changed — the caller then relayouts to rebuild the header text.
   bool _tickFloatingHeader() {
     if (_floatingHeader == null && _dayBucketOf == null) return false;
     final scan = _scanTopDay();
-    _placeFloatingHeader(scan.nextDividerY);
+    _placeFloatingHeader();
     final targetBucket = _dayBucketOf == null ? null : scan.bucket;
     return targetBucket != _headerBucket;
   }
 
-  /// Place the already-laid-out header: at rest just below the top inset,
-  /// pushed up by the next day's divider as it rises into the header zone.
-  /// Pure offset work — Tier-1.
-  void _placeFloatingHeader(double nextDividerY) {
+  /// Pin the floating header just below the top inset. It never moves with the
+  /// scroll — inline separators fade out before they reach it, so there is
+  /// nothing to push it.
+  void _placeFloatingHeader() {
     final header = _floatingHeader;
-    if (header == null || !header.hasSize) return;
-    final topEdge = _topPad;
-    final headerHeight = header.size.height;
-    var y = topEdge;
-    if (nextDividerY < topEdge + headerHeight) {
-      y = nextDividerY - headerHeight;
-    }
-    _parentData(header).offset = y;
+    if (header != null) _parentData(header).offset = _topPad;
   }
 
   // --- Scroll ----------------------------------------------------------------
@@ -803,8 +834,7 @@ class RenderChatScrollView extends RenderBox {
     if (simulation != null) {
       final startTime = _flingStartTime ??= elapsed;
       final seconds =
-          (elapsed - startTime).inMicroseconds /
-          Duration.microsecondsPerSecond;
+          (elapsed - startTime).inMicroseconds / Duration.microsecondsPerSecond;
       if (simulation.isDone(seconds)) {
         _cancelFling();
       } else {
@@ -921,7 +951,9 @@ class RenderChatScrollView extends RenderBox {
     // Scrollbar drag in progress — consume move/up/cancel.
     if (_scrollbar.isDragging) {
       if (event is PointerMoveEvent && _scrollbar.ownsPointer(event)) {
-        _jumpToScrollbar(_scrollbar.progressFromY(event.localPosition.dy, size));
+        _jumpToScrollbar(
+          _scrollbar.progressFromY(event.localPosition.dy, size),
+        );
         return;
       }
       if ((event is PointerUpEvent || event is PointerCancelEvent) &&
@@ -937,7 +969,9 @@ class RenderChatScrollView extends RenderBox {
           _scrollbar.tryStartDrag(event, size)) {
         _cancelFling();
         markNeedsPaint();
-        _jumpToScrollbar(_scrollbar.progressFromY(event.localPosition.dy, size));
+        _jumpToScrollbar(
+          _scrollbar.progressFromY(event.localPosition.dy, size),
+        );
         return;
       }
       _drag?.addPointer(event);
@@ -1116,14 +1150,13 @@ class RenderChatScrollView extends RenderBox {
       }
       context.paintChild(child, offset + Offset(0, pd.offset));
     }
-    // The floating day header paints above the messages (below the scrollbar);
-    // culled once the push has slid it fully off the top.
+    // The floating day header — above the messages, below the scrollbar.
     final header = _floatingHeader;
     if (header != null) {
-      final headerY = _parentData(header).offset;
-      if (headerY + header.size.height > 0 && headerY < viewportHeight) {
-        context.paintChild(header, offset + Offset(0, headerY));
-      }
+      context.paintChild(
+        header,
+        offset + Offset(0, _parentData(header).offset),
+      );
     }
     _paintScrollbar(context, offset);
   }
