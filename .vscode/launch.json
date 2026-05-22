@@ -20,6 +20,26 @@
       "type": "dart",
       "program": "lib/main.dart",
       "flutterMode": "release"
+    },
+    {
+      "name": "main_widgets.dart",
+      "request": "launch",
+      "type": "dart",
+      "program": "lib/main_widgets.dart"
+    },
+    {
+      "name": "main_widgets.dart (profile mode)",
+      "request": "launch",
+      "type": "dart",
+      "program": "lib/main_widgets.dart",
+      "flutterMode": "profile"
+    },
+    {
+      "name": "main_widgets.dart (release mode)",
+      "request": "launch",
+      "type": "dart",
+      "program": "lib/main_widgets.dart",
+      "flutterMode": "release"
     }
   ]
 }

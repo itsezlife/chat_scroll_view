@@ -35,7 +35,7 @@ class App extends StatelessWidget {
       ),
     ),
     debugShowCheckedModeBanner: false,
-    showPerformanceOverlay: false,
+    showPerformanceOverlay: true,
     home: const ChatScreen(),
   );
 }
