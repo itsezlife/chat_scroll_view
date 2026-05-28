@@ -116,6 +116,15 @@ abstract class ChatDataSource {
   void cancelFetch() => _cancelFetch();
 
   void _cancelFetch() {
+    // Clear the `fetching` flag from chunks that were part of the in-flight
+    // range so they don't get stuck in an indeterminate state.
+    if (_fetchToken != null && _fetchingMaxChunk >= _fetchingMinChunk) {
+      for (var ci = _fetchingMinChunk; ci <= _fetchingMaxChunk; ci++) {
+        final chunk = _chunks[ci];
+        if (chunk == null) continue;
+        chunk.status = chunk.status.remove(ChatMessageStatus.fetching);
+      }
+    }
     _fetchToken = null;
     _retryTimer?.cancel();
     _retryTimer = null;
@@ -124,6 +133,17 @@ abstract class ChatDataSource {
   void _executeFetch() {
     final token = Object();
     _fetchToken = token;
+
+    // Pre-create chunks in the requested range and mark them as fetching.
+    // Pre-creation ensures empty responses leave chunks in a deterministic
+    // `valid` (or `error`) state instead of `null` forever.
+    for (var ci = _fetchingMinChunk; ci <= _fetchingMaxChunk; ci++) {
+      final chunk = _chunks.putIfAbsent(ci, () => ChatScrollChunk(index: ci));
+      chunk.status = chunk.status
+          .remove(ChatMessageStatus.error)
+          .add(ChatMessageStatus.fetching);
+    }
+    notifyDataChanged();
 
     final fromId = ChatScrollChunk.firstIdOf(_fetchingMinChunk);
     final toId =
@@ -154,6 +174,16 @@ abstract class ChatDataSource {
         if (_fetchToken != token) return; // cancelled or replaced
         _fetchToken = null;
 
+        // Clear fetching, mark error so UI can react.
+        for (var ci = _fetchingMinChunk; ci <= _fetchingMaxChunk; ci++) {
+          final chunk = _chunks[ci];
+          if (chunk == null) continue;
+          chunk.status = chunk.status
+              .remove(ChatMessageStatus.fetching)
+              .add(ChatMessageStatus.error);
+        }
+        notifyDataChanged();
+
         // Retry with backoff.
         final delay = _nextDelay(_fetchRetryStep, 500, 30000);
         _fetchRetryStep++;
@@ -181,9 +211,12 @@ abstract class ChatDataSource {
       _dataListeners.remove(callback);
 
   /// Notify all listeners that message data has changed.
+  ///
+  /// Iterates over a snapshot to remain safe if a listener adds or removes
+  /// listeners (including itself) during dispatch.
   @protected
   void notifyDataChanged() {
-    for (final cb in _dataListeners) {
+    for (final cb in List<VoidCallback>.of(_dataListeners, growable: false)) {
       cb();
     }
   }

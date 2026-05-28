@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:collection';
 import 'dart:convert';
 
 import 'package:chatscrollview/src/chat_message.dart';
@@ -45,12 +46,14 @@ class CommentsDataSource extends ChatDataSource {
     required this.manifest,
     required this.assetPrefix,
     required this.fetchDelay,
+    required this.maxCachedChunks,
   });
 
   /// Load manifest and return a ready-to-use data source.
   static Future<CommentsDataSource> load({
     String assetPrefix = 'assets/comments',
     Duration fetchDelay = const Duration(milliseconds: 120),
+    int maxCachedChunks = 32,
   }) async {
     final raw = await _loadString('$assetPrefix/manifest.json');
     final json = jsonDecode(raw) as Map<String, Object?>;
@@ -59,6 +62,7 @@ class CommentsDataSource extends ChatDataSource {
       manifest: manifest,
       assetPrefix: assetPrefix,
       fetchDelay: fetchDelay,
+      maxCachedChunks: maxCachedChunks,
     );
   }
 
@@ -71,7 +75,13 @@ class CommentsDataSource extends ChatDataSource {
   final String assetPrefix;
   final Duration fetchDelay;
 
-  final Map<int, List<IChatMessage>> _chunkCache = <int, List<IChatMessage>>{};
+  /// Upper bound on retained parsed chunks. Excess entries are evicted in
+  /// least-recently-used order so the cache cannot grow unbounded.
+  final int maxCachedChunks;
+
+  /// LRU cache of parsed asset chunks (insertion order = access order).
+  final LinkedHashMap<int, List<IChatMessage>> _chunkCache =
+      LinkedHashMap<int, List<IChatMessage>>();
 
   @override
   Future<List<IChatMessage>> fetch({
@@ -81,6 +91,9 @@ class CommentsDataSource extends ChatDataSource {
   }) async {
     // Simulate network delay.
     await Future<void>.delayed(fetchDelay);
+
+    // Empty manifest — no messages to serve.
+    if (manifest.totalMessages <= 0) return const [];
 
     final lo = (from ?? 0).clamp(0, manifest.totalMessages - 1);
     final hi = (to ?? manifest.totalMessages - 1)
@@ -103,8 +116,11 @@ class CommentsDataSource extends ChatDataSource {
   }
 
   Future<List<IChatMessage>> _loadAssetChunk(int assetChunkIndex) async {
-    if (_chunkCache.containsKey(assetChunkIndex)) {
-      return _chunkCache[assetChunkIndex]!;
+    // Cache hit — re-promote to most-recently-used.
+    final cached = _chunkCache.remove(assetChunkIndex);
+    if (cached != null) {
+      _chunkCache[assetChunkIndex] = cached;
+      return cached;
     }
 
     if (assetChunkIndex >= manifest.chunks.length) return const [];
@@ -128,6 +144,10 @@ class CommentsDataSource extends ChatDataSource {
     ];
 
     _chunkCache[assetChunkIndex] = messages;
+    // Evict least-recently-used entries until within bound.
+    while (_chunkCache.length > maxCachedChunks) {
+      _chunkCache.remove(_chunkCache.keys.first);
+    }
     return messages;
   }
 }

@@ -5,12 +5,17 @@ REPO="flutter/flutter"
 OUT_DIR="assets/comments"
 CHUNK_SIZE=64
 TARGET_MESSAGES=10000
-TMP_FILE=$(mktemp)
+
+# NDJSON collection file — one JSON object per line. Appending is O(1) so the
+# growth phase is linear in total messages (the previous full-array rewrite
+# inside the loop was O(n^2)).
+NDJSON_FILE=$(mktemp)
+trap 'rm -f "$NDJSON_FILE" "${NDJSON_FILE}.array"' EXIT
 
 mkdir -p "$OUT_DIR"
 
 echo "Fetching top issues by comment count from $REPO..."
-echo '[]' > "$TMP_FILE"
+: > "$NDJSON_FILE"
 
 MSG_COUNT=0
 ISSUES_PAGE=1
@@ -55,32 +60,36 @@ while [ "$MSG_COUNT" -lt "$TARGET_MESSAGES" ]; do
 
 $BODY"
 
-    # Append issue body as first message
-    jq --arg s "$SENDER" --arg c "$ISSUE_CONTENT" --arg d "$CREATED" \
-      '. + [{"sender": $s, "content": $c, "createdAt": $d}]' "$TMP_FILE" > "${TMP_FILE}.new"
-    mv "${TMP_FILE}.new" "$TMP_FILE"
+    # Append issue body as a single NDJSON line (O(1) append).
+    jq -nc --arg s "$SENDER" --arg c "$ISSUE_CONTENT" --arg d "$CREATED" \
+      '{sender: $s, content: $c, createdAt: $d}' >> "$NDJSON_FILE"
     MSG_COUNT=$((MSG_COUNT + 1))
 
     # Fetch all comments (paginate)
     PAGE=1
     while true; do
-      COMMENTS=$(gh api "repos/$REPO/issues/$ISSUE_NUM/comments?per_page=100&page=$PAGE" --jq '[.[] | select(.body != null and .body != "" and (.user.login | test("bot$|\\[bot\\]"; "i") | not)) | {
-        sender: .user.login,
-        content: .body,
-        createdAt: .created_at
-      }]')
-
-      COUNT=$(echo "$COMMENTS" | jq 'length')
-      if [ "$COUNT" -eq 0 ]; then
+      RAW=$(gh api "repos/$REPO/issues/$ISSUE_NUM/comments?per_page=100&page=$PAGE")
+      RAW_COUNT=$(echo "$RAW" | jq 'length')
+      if [ "$RAW_COUNT" -eq 0 ]; then
         break
       fi
 
-      jq --argjson c "$COMMENTS" '. + $c' "$TMP_FILE" > "${TMP_FILE}.new"
-      mv "${TMP_FILE}.new" "$TMP_FILE"
-      MSG_COUNT=$((MSG_COUNT + COUNT))
-      echo "  Page $PAGE: +$COUNT comments (total: $MSG_COUNT)"
+      # Filter + stream as NDJSON, append directly (O(1) per comment).
+      COUNT_BEFORE="$MSG_COUNT"
+      while IFS= read -r LINE; do
+        [ -n "$LINE" ] || continue
+        echo "$LINE" >> "$NDJSON_FILE"
+        MSG_COUNT=$((MSG_COUNT + 1))
+      done < <(echo "$RAW" | jq -c '.[] | select(.body != null and .body != "" and (.user.login | test("bot$|\\[bot\\]"; "i") | not)) | {
+        sender: .user.login,
+        content: .body,
+        createdAt: .created_at
+      }')
 
-      if [ "$COUNT" -lt 100 ]; then
+      ADDED=$((MSG_COUNT - COUNT_BEFORE))
+      echo "  Page $PAGE: +$ADDED comments (total: $MSG_COUNT)"
+
+      if [ "$RAW_COUNT" -lt 100 ]; then
         break
       fi
       PAGE=$((PAGE + 1))
@@ -92,11 +101,15 @@ done
 
 echo "Total messages: $MSG_COUNT"
 
+# Slurp NDJSON into a single JSON array once. Subsequent chunk slicing reads
+# this file (small and bounded), not the growing collection file.
+jq -s '.' "$NDJSON_FILE" > "${NDJSON_FILE}.array"
+
 # Clean old chunks
 rm -f "$OUT_DIR"/chunk_*.json
 
 # Collect unique senders
-SENDERS=$(jq '[.[].sender] | unique' "$TMP_FILE")
+SENDERS=$(jq '[.[].sender] | unique' "${NDJSON_FILE}.array")
 
 # Split into chunks
 CHUNK_INDEX=0
@@ -112,7 +125,7 @@ while [ "$OFFSET" -lt "$MSG_COUNT" ]; do
       sender: .value.sender,
       content: .value.content,
       createdAt: .value.createdAt
-    }]' "$TMP_FILE" > "$OUT_DIR/$CHUNK_FILE"
+    }]' "${NDJSON_FILE}.array" > "$OUT_DIR/$CHUNK_FILE"
 
   CHUNK_FILES=$(echo "$CHUNK_FILES" | jq --arg f "$CHUNK_FILE" '. + [$f]')
 
@@ -134,8 +147,6 @@ jq -n \
     chunks: $chunks,
     senders: $senders
   }' > "$OUT_DIR/manifest.json"
-
-rm -f "$TMP_FILE"
 
 echo "Done! Generated $CHUNK_INDEX chunks in $OUT_DIR/"
 echo "Manifest: $OUT_DIR/manifest.json"
