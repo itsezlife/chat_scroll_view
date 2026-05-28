@@ -1,0 +1,386 @@
+[
+  {
+    "id": 1088,
+    "sender": "fgatti675",
+    "content": "We are getting flooded with bad reviews because of this and I am surprised there is no fix, or even a workaround since May 2021",
+    "createdAt": "2022-02-08T10:22:52Z"
+  },
+  {
+    "id": 1089,
+    "sender": "magnuswikhog",
+    "content": "Is this the same issue as this one? https://github.com/flutter/flutter/issues/32756\r\n\r\nPersonally I've only seen it coming from GCE phones (Google Cloud Engine), some kind of automated Google test probably. \r\n\r\nFor those experiencing this on real devices, perhaps this Medium article might help: https://medium.com/codechai/flutter-app-couldnt-find-libflutter-so-c95ad81cbccd",
+    "createdAt": "2022-02-08T12:31:38Z"
+  },
+  {
+    "id": 1090,
+    "sender": "EArminjon",
+    "content": "Same issue flutter 2.10.1, detected by my users and crashlytics :\r\n\r\n![image](https://user-images.githubusercontent.com/37028599/154852833-0ed291b8-705e-4977-bea2-e9d0b2c9aa00.png)\r\n\r\n```\r\nFatal Exception: java.lang.RuntimeException: Unable to create service com.ryanheise.audioservice.AudioService: java.lang.RuntimeException: java.util.concurrent.ExecutionException: java.lang.UnsatisfiedLinkError: dalvik.system.PathClassLoader[DexPathList[[zip file \"/data/app/my-app-name-censored-for-github-vSLAysYevjiHMhLvckBtpA==/base.apk\", zip file \"/data/app/my-app-name-censored-for-github-vSLAysYevjiHMhLvckBtpA==/split_config.arm64_v8a.apk\", zip file \"/data/app/my-app-name-censored-for-github-vSLAysYevjiHMhLvckBtpA==/split_config.en.apk\", zip file \"/data/app/my-app-name-censored-for-github-vSLAysYevjiHMhLvckBtpA==/split_config.xhdpi.apk\", zip file \"/data/app/my-app-name-censored-for-github-vSLAysYevjiHMhLvckBtpA==/split_config.zh.apk\"],nativeLibraryDirectories=[/data/app/my-app-name-censored-for-github-vSLAysYevjiHMhLvckBtpA==/lib/arm64, /data/app/my-app-name-censored-for-github-vSLAysYevjiHMhLvckBtpA==/base.apk!/lib/arm64-v8a, /data/app/my-app-name-censored-for-github-vSLAysYevjiHMhLvckBtpA==/split_config.arm64_v8a.apk!/lib/arm64-v8a, /data/app/my-app-name-censored-for-github-vSLAysYevjiHMhLvckBtpA==/split_config.en.apk!/lib/arm64-v8a, /data/app/my-app-name-censored-for-github-vSLAysYevjiHMhLvckBtpA==/split_config.xhdpi.apk!/lib/arm64-v8a, /data/app/my-app-name-censored-for-github-vSLAysYevjiHMhLvckBtpA==/split_config.zh.apk!/lib/arm64-v8a, /system/lib64, /vendor/lib64, /product/lib64, /preas/lib64]]] couldn't find \"libflutter.so\"\r\n       at android.app.ActivityThread.handleCreateService(ActivityThread.java:3987)\r\n       at android.app.ActivityThread.-wrap5(ActivityThread.java)\r\n       at android.app.ActivityThread$H.handleMessage(ActivityThread.java:2092)\r\n       at android.os.Handler.dispatchMessage(Handler.java:108)\r\n       at android.os.Looper.loop(Looper.java:166)\r\n       at android.app.ActivityThread.main(ActivityThread.java:7529)\r\n       at java.lang.reflect.Method.invoke(Method.java)\r\n       at com.android.internal.os.Zygote$MethodAndArgsCaller.run(Zygote.java:245)\r\n       at com.android.internal.os.ZygoteInit.main(ZygoteInit.java:921)\r\n```\r\n\r\n```\r\nCaused by java.lang.RuntimeException: java.util.concurrent.ExecutionException: java.lang.UnsatisfiedLinkError: dalvik.system.PathClassLoader[DexPathList[[zip file \"/data/app/my-app-name-censored-for-github-vSLAysYevjiHMhLvckBtpA==/base.apk\", zip file \"/data/app/my-app-name-censored-for-github-vSLAysYevjiHMhLvckBtpA==/split_config.arm64_v8a.apk\", zip file \"/data/app/my-app-name-censored-for-github-vSLAysYevjiHMhLvckBtpA==/split_config.en.apk\", zip file \"/data/app/my-app-name-censored-for-github-vSLAysYevjiHMhLvckBtpA==/split_config.xhdpi.apk\", zip file \"/data/app/my-app-name-censored-for-github-vSLAysYevjiHMhLvckBtpA==/split_config.zh.apk\"],nativeLibraryDirectories=[/data/app/my-app-name-censored-for-github-vSLAysYevjiHMhLvckBtpA==/lib/arm64, /data/app/my-app-name-censored-for-github-vSLAysYevjiHMhLvckBtpA==/base.apk!/lib/arm64-v8a, /data/app/my-app-name-censored-for-github-vSLAysYevjiHMhLvckBtpA==/split_config.arm64_v8a.apk!/lib/arm64-v8a, /data/app/my-app-name-censored-for-github-vSLAysYevjiHMhLvckBtpA==/split_config.en.apk!/lib/arm64-v8a, /data/app/my-app-name-censored-for-github-vSLAysYevjiHMhLvckBtpA==/split_config.xhdpi.apk!/lib/arm64-v8a, /data/app/my-app-name-censored-for-github-vSLAysYevjiHMhLvckBtpA==/split_config.zh.apk!/lib/arm64-v8a, /system/lib64, /vendor/lib64, /product/lib64, /preas/lib64]]] couldn't find \"libflutter.so\"\r\n       at io.flutter.embedding.engine.loader.FlutterLoader.ensureInitializationComplete(FlutterLoader.java:369)\r\n       at io.flutter.embedding.engine.FlutterEngine.<init>(FlutterEngine.java:184)\r\n       at io.flutter.embedding.engine.FlutterEngine.<init>(FlutterEngine.java:8)\r\n       at io.flutter.embedding.engine.FlutterEngine.<init>(FlutterEngine.java:11)\r\n       at io.flutter.embedding.engine.FlutterEngine.<init>(FlutterEngine.java:6)\r\n       at io.flutter.embedding.engine.FlutterEngine.<init>(FlutterEngine.java:1)\r\n       at com.ryanheise.audioservice.AudioServicePlugin.getFlutterEngine(AudioServicePlugin.java:21)\r\n       at com.ryanheise.audioservice.AudioService.onCreate(AudioService.java:136)\r\n       at android.app.ActivityThread.handleCreateService(ActivityThread.java:3967)\r\n       at android.app.ActivityThread.-wrap5(ActivityThread.java)\r\n       at android.app.ActivityThread$H.handleMessage(ActivityThread.java:2092)\r\n       at android.os.Handler.dispatchMessage(Handler.java:108)\r\n       at android.os.Looper.loop(Looper.java:166)\r\n       at android.app.ActivityThread.main(ActivityThread.java:7529)\r\n       at java.lang.reflect.Method.invoke(Method.java)\r\n       at com.android.internal.os.Zygote$MethodAndArgsCaller.run(Zygote.java:245)\r\n       at com.android.internal.os.ZygoteInit.main(ZygoteInit.java:921)\r\n```\r\n\r\n```\r\nCaused by java.util.concurrent.ExecutionException: java.lang.UnsatisfiedLinkError: dalvik.system.PathClassLoader[DexPathList[[zip file \"/data/app/my-app-name-censored-for-github-vSLAysYevjiHMhLvckBtpA==/base.apk\", zip file \"/data/app/my-app-name-censored-for-github-vSLAysYevjiHMhLvckBtpA==/split_config.arm64_v8a.apk\", zip file \"/data/app/my-app-name-censored-for-github-vSLAysYevjiHMhLvckBtpA==/split_config.en.apk\", zip file \"/data/app/my-app-name-censored-for-github-vSLAysYevjiHMhLvckBtpA==/split_config.xhdpi.apk\", zip file \"/data/app/my-app-name-censored-for-github-vSLAysYevjiHMhLvckBtpA==/split_config.zh.apk\"],nativeLibraryDirectories=[/data/app/my-app-name-censored-for-github-vSLAysYevjiHMhLvckBtpA==/lib/arm64, /data/app/my-app-name-censored-for-github-vSLAysYevjiHMhLvckBtpA==/base.apk!/lib/arm64-v8a, /data/app/my-app-name-censored-for-github-vSLAysYevjiHMhLvckBtpA==/split_config.arm64_v8a.apk!/lib/arm64-v8a, /data/app/my-app-name-censored-for-github-vSLAysYevjiHMhLvckBtpA==/split_config.en.apk!/lib/arm64-v8a, /data/app/my-app-name-censored-for-github-vSLAysYevjiHMhLvckBtpA==/split_config.xhdpi.apk!/lib/arm64-v8a, /data/app/my-app-name-censored-for-github-vSLAysYevjiHMhLvckBtpA==/split_config.zh.apk!/lib/arm64-v8a, /system/lib64, /vendor/lib64, /product/lib64, /preas/lib64]]] couldn't find \"libflutter.so\"\r\n       at java.util.concurrent.FutureTask.report(FutureTask.java:123)\r\n       at java.util.concurrent.FutureTask.get(FutureTask.java:193)\r\n       at io.flutter.embedding.engine.loader.FlutterLoader.ensureInitializationComplete(FlutterLoader.java:28)\r\n       at io.flutter.embedding.engine.FlutterEngine.<init>(FlutterEngine.java:184)\r\n       at io.flutter.embedding.engine.FlutterEngine.<init>(FlutterEngine.java:8)\r\n       at io.flutter.embedding.engine.FlutterEngine.<init>(FlutterEngine.java:11)\r\n       at io.flutter.embedding.engine.FlutterEngine.<init>(FlutterEngine.java:6)\r\n       at io.flutter.embedding.engine.FlutterEngine.<init>(FlutterEngine.java:1)\r\n       at com.ryanheise.audioservice.AudioServicePlugin.getFlutterEngine(AudioServicePlugin.java:21)\r\n       at com.ryanheise.audioservice.AudioService.onCreate(AudioService.java:136)\r\n       at android.app.ActivityThread.handleCreateService(ActivityThread.java:3967)\r\n       at android.app.ActivityThread.-wrap5(ActivityThread.java)\r\n       at android.app.ActivityThread$H.handleMessage(ActivityThread.java:2092)\r\n       at android.os.Handler.dispatchMessage(Handler.java:108)\r\n       at android.os.Looper.loop(Looper.java:166)\r\n       at android.app.ActivityThread.main(ActivityThread.java:7529)\r\n       at java.lang.reflect.Method.invoke(Method.java)\r\n       at com.android.internal.os.Zygote$MethodAndArgsCaller.run(Zygote.java:245)\r\n       at com.android.internal.os.ZygoteInit.main(ZygoteInit.java:921)\r\n```\r\n\r\n```\r\nCaused by java.lang.UnsatisfiedLinkError: dalvik.system.PathClassLoader[DexPathList[[zip file \"/data/app/my-app-name-censored-for-github-vSLAysYevjiHMhLvckBtpA==/base.apk\", zip file \"/data/app/my-app-name-censored-for-github-vSLAysYevjiHMhLvckBtpA==/split_config.arm64_v8a.apk\", zip file \"/data/app/my-app-name-censored-for-github-vSLAysYevjiHMhLvckBtpA==/split_config.en.apk\", zip file \"/data/app/my-app-name-censored-for-github-vSLAysYevjiHMhLvckBtpA==/split_config.xhdpi.apk\", zip file \"/data/app/my-app-name-censored-for-github-vSLAysYevjiHMhLvckBtpA==/split_config.zh.apk\"],nativeLibraryDirectories=[/data/app/my-app-name-censored-for-github-vSLAysYevjiHMhLvckBtpA==/lib/arm64, /data/app/my-app-name-censored-for-github-vSLAysYevjiHMhLvckBtpA==/base.apk!/lib/arm64-v8a, /data/app/my-app-name-censored-for-github-vSLAysYevjiHMhLvckBtpA==/split_config.arm64_v8a.apk!/lib/arm64-v8a, /data/app/my-app-name-censored-for-github-vSLAysYevjiHMhLvckBtpA==/split_config.en.apk!/lib/arm64-v8a, /data/app/my-app-name-censored-for-github-vSLAysYevjiHMhLvckBtpA==/split_config.xhdpi.apk!/lib/arm64-v8a, /data/app/my-app-name-censored-for-github-vSLAysYevjiHMhLvckBtpA==/split_config.zh.apk!/lib/arm64-v8a, /system/lib64, /vendor/lib64, /product/lib64, /preas/lib64]]] couldn't find \"libflutter.so\"\r\n       at java.lang.Runtime.loadLibrary0(Runtime.java:1011)\r\n       at java.lang.System.loadLibrary(System.java:1660)\r\n       at io.flutter.embedding.engine.FlutterJNI.loadLibrary(FlutterJNI.java:13)\r\n       at io.flutter.embedding.engine.loader.FlutterLoader$1.call(FlutterLoader.java:19)\r\n       at io.flutter.embedding.engine.loader.FlutterLoader$1.call(FlutterLoader.java)\r\n       at java.util.concurrent.FutureTask.run(FutureTask.java:266)\r\n       at java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1162)\r\n       at java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:636)\r\n       at java.lang.Thread.run(Thread.java:784)\r\n```",
+    "createdAt": "2022-02-20T16:24:40Z"
+  },
+  {
+    "id": 1091,
+    "sender": "armandojimenez",
+    "content": "Wow still no fix for this? ",
+    "createdAt": "2022-03-11T02:00:21Z"
+  },
+  {
+    "id": 1092,
+    "sender": "subzero911",
+    "content": "![image](https://user-images.githubusercontent.com/12999702/157902490-c7cea7b2-243d-4e87-85a2-b57e4b9979d4.png)\r\n\r\n```\r\nFatal Exception: java.lang.RuntimeException: Unable to start activity ComponentInfo{ru.gosuslugi.culture/ru.notamedia.pushka.pushka.MainActivity}: java.lang.RuntimeException: java.util.concurrent.ExecutionException: java.lang.UnsatisfiedLinkError: dalvik.system.PathClassLoader[DexPathList[[zip file \"/data/app/ru.gosuslugi.culture-k5eiNIpRHIhGteidPzFN1w==/base.apk\"],nativeLibraryDirectories=[/data/app/ru.gosuslugi.culture-k5eiNIpRHIhGteidPzFN1w==/lib/arm64, /system/lib64, /vendor/lib64]]] couldn't find \"libflutter.so\"\r\n       at android.app.ActivityThread.performLaunchActivity(ActivityThread.java:2969)\r\n       at android.app.ActivityThread.handleLaunchActivity(ActivityThread.java:3047)\r\n       at android.app.ActivityThread.-wrap11(ActivityThread.java)\r\n       at android.app.ActivityThread$H.handleMessage(ActivityThread.java:1777)\r\n       at android.os.Handler.dispatchMessage(Handler.java:106)\r\n       at android.os.Looper.loop(Looper.java:166)\r\n       at android.app.ActivityThread.main(ActivityThread.java:6861)\r\n       at java.lang.reflect.Method.invoke(Method.java)\r\n       at com.android.internal.os.RuntimeInit$MethodAndArgsCaller.run(RuntimeInit.java:450)\r\n       at com.android.internal.os.ZygoteInit.main(ZygoteInit.java:936)\r\n```\r\n\r\n```\r\nCaused by java.lang.RuntimeException: java.util.concurrent.ExecutionException: java.lang.UnsatisfiedLinkError: dalvik.system.PathClassLoader[DexPathList[[zip file \"/data/app/ru.gosuslugi.culture-k5eiNIpRHIhGteidPzFN1w==/base.apk\"],nativeLibraryDirectories=[/data/app/ru.gosuslugi.culture-k5eiNIpRHIhGteidPzFN1w==/lib/arm64, /system/lib64, /vendor/lib64]]] couldn't find \"libflutter.so\"\r\n       at io.flutter.embedding.engine.loader.FlutterLoader.ensureInitializationComplete(FlutterLoader.java:315)\r\n       at io.flutter.embedding.engine.FlutterEngine.<init>(FlutterEngine.java:326)\r\n       at io.flutter.embedding.engine.FlutterEngine.<init>(FlutterEngine.java:206)\r\n       at io.flutter.embedding.android.FlutterActivityAndFragmentDelegate.setupFlutterEngine(FlutterActivityAndFragmentDelegate.java:256)\r\n       at io.flutter.embedding.android.FlutterActivityAndFragmentDelegate.onAttach(FlutterActivityAndFragmentDelegate.java:166)\r\n       at io.flutter.embedding.android.FlutterActivity.onCreate(FlutterActivity.java:459)\r\n       at android.app.Activity.performCreate(Activity.java:7110)\r\n       at android.app.Activity.performCreate(Activity.java:7101)\r\n       at android.app.Instrumentation.callActivityOnCreate(Instrumentation.java:1214)\r\n       at android.app.ActivityThread.performLaunchActivity(ActivityThread.java:2922)\r\n       at android.app.ActivityThread.handleLaunchActivity(ActivityThread.java:3047)\r\n       at android.app.ActivityThread.-wrap11(ActivityThread.java)\r\n       at android.app.ActivityThread$H.handleMessage(ActivityThread.java:1777)\r\n       at android.os.Handler.dispatchMessage(Handler.java:106)\r\n       at android.os.Looper.loop(Looper.java:166)\r\n       at android.app.ActivityThread.main(ActivityThread.java:6861)\r\n       at java.lang.reflect.Method.invoke(Method.java)\r\n       at com.android.internal.os.RuntimeInit$MethodAndArgsCaller.run(RuntimeInit.java:450)\r\n       at com.android.internal.os.ZygoteInit.main(ZygoteInit.java:936)\r\n```\r\n\r\n```\r\nCaused by java.util.concurrent.ExecutionException: java.lang.UnsatisfiedLinkError: dalvik.system.PathClassLoader[DexPathList[[zip file \"/data/app/ru.gosuslugi.culture-k5eiNIpRHIhGteidPzFN1w==/base.apk\"],nativeLibraryDirectories=[/data/app/ru.gosuslugi.culture-k5eiNIpRHIhGteidPzFN1w==/lib/arm64, /system/lib64, /vendor/lib64]]] couldn't find \"libflutter.so\"\r\n       at java.util.concurrent.FutureTask.report(FutureTask.java:123)\r\n       at java.util.concurrent.FutureTask.get(FutureTask.java:193)\r\n       at io.flutter.embedding.engine.loader.FlutterLoader.ensureInitializationComplete(FlutterLoader.java:223)\r\n       at io.flutter.embedding.engine.FlutterEngine.<init>(FlutterEngine.java:326)\r\n       at io.flutter.embedding.engine.FlutterEngine.<init>(FlutterEngine.java:206)\r\n       at io.flutter.embedding.android.FlutterActivityAndFragmentDelegate.setupFlutterEngine(FlutterActivityAndFragmentDelegate.java:256)\r\n       at io.flutter.embedding.android.FlutterActivityAndFragmentDelegate.onAttach(FlutterActivityAndFragmentDelegate.java:166)\r\n       at io.flutter.embedding.android.FlutterActivity.onCreate(FlutterActivity.java:459)\r\n       at android.app.Activity.performCreate(Activity.java:7110)\r\n       at android.app.Activity.performCreate(Activity.java:7101)\r\n       at android.app.Instrumentation.callActivityOnCreate(Instrumentation.java:1214)\r\n       at android.app.ActivityThread.performLaunchActivity(ActivityThread.java:2922)\r\n       at android.app.ActivityThread.handleLaunchActivity(ActivityThread.java:3047)\r\n       at android.app.ActivityThread.-wrap11(ActivityThread.java)\r\n       at android.app.ActivityThread$H.handleMessage(ActivityThread.java:1777)\r\n       at android.os.Handler.dispatchMessage(Handler.java:106)\r\n       at android.os.Looper.loop(Looper.java:166)\r\n       at android.app.ActivityThread.main(ActivityThread.java:6861)\r\n       at java.lang.reflect.Method.invoke(Method.java)\r\n       at com.android.internal.os.RuntimeInit$MethodAndArgsCaller.run(RuntimeInit.java:450)\r\n       at com.android.internal.os.ZygoteInit.main(ZygoteInit.java:936)\r\n```\r\n\r\n```\r\nCaused by java.lang.UnsatisfiedLinkError: dalvik.system.PathClassLoader[DexPathList[[zip file \"/data/app/ru.gosuslugi.culture-k5eiNIpRHIhGteidPzFN1w==/base.apk\"],nativeLibraryDirectories=[/data/app/ru.gosuslugi.culture-k5eiNIpRHIhGteidPzFN1w==/lib/arm64, /system/lib64, /vendor/lib64]]] couldn't find \"libflutter.so\"\r\n       at java.lang.Runtime.loadLibrary0(Runtime.java:1011)\r\n       at java.lang.System.loadLibrary(System.java:1661)\r\n       at io.flutter.embedding.engine.FlutterJNI.loadLibrary(FlutterJNI.java:123)\r\n       at io.flutter.embedding.engine.loader.FlutterLoader$1.call(FlutterLoader.java:174)\r\n       at io.flutter.embedding.engine.loader.FlutterLoader$1.call(FlutterLoader.java:166)\r\n       at java.util.concurrent.FutureTask.run(FutureTask.java:266)\r\n       at java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1162)\r\n       at java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:636)\r\n       at java.lang.Thread.run(Thread.java:780)\r\n```\r\n\r\n<!-- Thank you for using Flutter!\r\n\r\n     If you are looking for support, please check out our documentation\r\n     or consider asking a question on Stack Overflow:\r\n      * https://flutter.dev/\r\n      * https://api.flutter.dev/\r\n      * https://stackoverflow.com/questions/tagged/flutter?sort=frequent\r\n\r\n     If you have found a bug or if our documentation doesn't have an answer\r\n     to what you're looking for, then fill out the template below. Please read\r\n     our guide to filing a bug first: https://flutter.dev/docs/resources/bug-reports\r\n-->\r\n\r\n\r\n<details>\r\n  <summary>flutter doctor -v</summary>\r\n\r\n[√] Flutter (Channel unknown, 2.8.1, on Microsoft Windows [Version 10.0.19043.1586], locale ru-RU)\r\n    • Flutter version 2.8.1 at C:\\Users\\subze\\AppData\\Roaming\\fvm\\current\r\n    • Upstream repository unknown\r\n    • Framework revision 77d935af4d (3 months ago), 2021-12-16 08:37:33 -0800\r\n    • Engine revision 890a5fca2e\r\n    • Dart version 2.15.1\r\n\r\n[√] Android toolchain - develop for Android devices (Android SDK version 31.0.0)\r\n    • Android SDK at D:\\Android_SDK\r\n    • Platform android-31, build-tools 31.0.0\r\n    • Java binary at: C:\\Program Files\\Android\\Android Studio\\jre\\bin\\java\r\n    • Java version OpenJDK Runtime Environment (build 11.0.10+0-b96-7249189)\r\n    • All Android licenses accepted.\r\n\r\n[√] Chrome - develop for the web\r\n    • Chrome at C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe\r\n\r\n[√] Visual Studio - develop for Windows (Visual Studio Community 2019 16.11.5)\r\n    • Visual Studio at D:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Community\r\n    • Visual Studio Community 2019 version 16.11.31729.503\r\n    • Windows 10 SDK version 10.0.18362.0\r\n\r\n[√] Android Studio (version 2020.3)\r\n    • Android Studio at C:\\Program Files\\Android\\Android Studio\r\n    • Flutter plugin can be installed from:\r\n       https://plugins.jetbrains.com/plugin/9212-flutter\r\n    • Dart plugin can be installed from:\r\n       https://plugins.jetbrains.com/plugin/6351-dart\r\n    • Java version OpenJDK Runtime Environment (build 11.0.10+0-b96-7249189)\r\n\r\n[√] IntelliJ IDEA Community Edition (version 2020.1)\r\n    • IntelliJ at D:\\Program Files\\JetBrains\\IntelliJ IDEA Community Edition 2019.3.3\r\n    • Flutter plugin version 45.1.3\r\n    • Dart plugin version 201.7223.43\r\n\r\n[√] Connected device (4 available)\r\n    • M2101K9AG (mobile) • cc706425 • android-arm64  • Android 11 (API 30)\r\n    • Windows (desktop)  • windows  • windows-x64    • Microsoft Windows [Version 10.0.19043.1586]\r\n    • Chrome (web)       • chrome   • web-javascript • Google Chrome 99.0.4844.51\r\n    • Edge (web)         • edge     • web-javascript • Microsoft Edge 97.0.1072.55\r\n• No issues found!\r\n</details>",
+    "createdAt": "2022-03-14T07:23:42Z"
+  },
+  {
+    "id": 1093,
+    "sender": "gcostaapps",
+    "content": "Crashlytics reporting this error to me also, there's no workaround yet?",
+    "createdAt": "2022-03-15T01:02:51Z"
+  },
+  {
+    "id": 1094,
+    "sender": "fabianogadenz",
+    "content": "we have the same issue. Any updates?\r\nI will try this https://medium.com/codechai/flutter-app-couldnt-find-libflutter-so-c95ad81cbccd has anyone tried?",
+    "createdAt": "2022-03-23T17:40:46Z"
+  },
+  {
+    "id": 1095,
+    "sender": "YDA93",
+    "content": "> we have the same issue. Any updates? I will try this https://medium.com/codechai/flutter-app-couldnt-find-libflutter-so-c95ad81cbccd has anyone tried?\r\n\r\nDid not work for me, I still got the same crashes.",
+    "createdAt": "2022-03-23T19:47:11Z"
+  },
+  {
+    "id": 1096,
+    "sender": "hpoul",
+    "content": "The [add-to-app documentation](https://docs.flutter.dev/development/add-to-app/android/project-setup) specifies that it makes sense to set `abiFilters` (\"Doing this avoids a missing libflutter.so runtime crash\") - I wonder if it wouldn't make sense to also add this to the [default app template](https://github.com/flutter/flutter/blob/master/packages/flutter_tools/templates/app_shared/android-kotlin.tmpl/app/build.gradle.tmpl) of flutter itself? Are there any downsides to use this `abiFilters` for standard flutter apps?\r\n\r\n```gradle\r\nandroid {\r\n  //...\r\n  defaultConfig {\r\n    ndk {\r\n      // Filter for architectures supported by Flutter.\r\n      abiFilters 'armeabi-v7a', 'arm64-v8a', 'x86_64'\r\n    }\r\n  }\r\n}\r\n```",
+    "createdAt": "2022-03-30T08:30:10Z"
+  },
+  {
+    "id": 1097,
+    "sender": "Abacaxi-Nelson",
+    "content": "@hpoul \r\nDoes it reduce crash for you ?",
+    "createdAt": "2022-03-30T12:32:36Z"
+  },
+  {
+    "id": 1098,
+    "sender": "hpoul",
+    "content": "@Abacaxi-Nelson it looks like it 🤷‍♂️\r\n![Screenshot_20220404-130641_Chrome](https://user-images.githubusercontent.com/313066/161531627-d968b51d-5359-4012-9bca-d93f273f6c85.jpg)\r\n",
+    "createdAt": "2022-04-04T11:08:20Z"
+  },
+  {
+    "id": 1099,
+    "sender": "Abacaxi-Nelson",
+    "content": "hey @hpoul \r\nthanks for your return.\r\ni try as well on my side, but we remove it, cause one of our developer just cant run the app after that.. thats weird",
+    "createdAt": "2022-04-04T11:46:11Z"
+  },
+  {
+    "id": 1100,
+    "sender": "EArminjon",
+    "content": "abiFilters will ban some device, be careful.",
+    "createdAt": "2022-04-04T11:52:40Z"
+  },
+  {
+    "id": 1101,
+    "sender": "maitycyrus",
+    "content": "same issue here",
+    "createdAt": "2022-04-05T11:49:08Z"
+  },
+  {
+    "id": 1102,
+    "sender": "bamakant",
+    "content": "> The [add-to-app documentation](https://docs.flutter.dev/development/add-to-app/android/project-setup) specifies that it makes sense to set `abiFilters` (\"Doing this avoids a missing libflutter.so runtime crash\") - I wonder if it wouldn't make sense to also add this to the [default app template](https://github.com/flutter/flutter/blob/master/packages/flutter_tools/templates/app_shared/android-kotlin.tmpl/app/build.gradle.tmpl) of flutter itself? Are there any downsides to use this `abiFilters` for standard flutter apps?\r\n> \r\n> ```groovy-gradle\r\n> android {\r\n>   //...\r\n>   defaultConfig {\r\n>     ndk {\r\n>       // Filter for architectures supported by Flutter.\r\n>       abiFilters 'armeabi-v7a', 'arm64-v8a', 'x86_64'\r\n>     }\r\n>   }\r\n> }\r\n> ```\r\n\r\nThis is not solving the issue with armeabi-v7a devices.",
+    "createdAt": "2022-04-06T05:18:44Z"
+  },
+  {
+    "id": 1103,
+    "sender": "utkudenis",
+    "content": "I'm following ",
+    "createdAt": "2022-04-08T14:36:01Z"
+  },
+  {
+    "id": 1104,
+    "sender": "vluizflavio",
+    "content": "Try this workaround.\r\n\r\nAdd lines below to the end of file `settings.gradle`: \r\n\r\n```\r\ngradle.beforeProject({ project->\r\n    if (project.hasProperty(\"target-platform\") &&\r\n            !project.getProperty(\"target-platform\").split(\",\").contains(\"android-arm\")) {\r\n        project.setProperty(\"target-platform\", \"android-arm,android-arm64\")\r\n    }\r\n})\r\n```\r\n\r\nThis will generate file `libflutter.so` on folders `x86_64`, `arm64-v8a` and `armeabi-v7a`. And for devices `x86`, them emulate arm.",
+    "createdAt": "2022-04-11T12:44:07Z"
+  },
+  {
+    "id": 1105,
+    "sender": "bamakant",
+    "content": "The above workaround is abled to generate the libflutter.so file on the folders mentioned and I am able to install the app on emulator as well but again it blocking the app on some devices to install.",
+    "createdAt": "2022-04-18T07:40:48Z"
+  },
+  {
+    "id": 1106,
+    "sender": "vluizflavio",
+    "content": "> The above workaround is abled to generate the libflutter.so file on the folders mentioned and I am able to install the app on emulator as well but again it blocking the app on some devices to install.\r\n\r\n@bamakant you know what devices or specs of them?",
+    "createdAt": "2022-04-18T12:34:10Z"
+  },
+  {
+    "id": 1107,
+    "sender": "bamakant",
+    "content": "@vluizflavio Yes, Below 3 devices on which I have tried.\r\nMI Note 10 and OnePlus Nord --------- Not able to install the app.\r\nRedmi Note 6 pro -------Abled to install and working fine.\r\n",
+    "createdAt": "2022-04-18T12:53:16Z"
+  },
+  {
+    "id": 1108,
+    "sender": "vadrian89",
+    "content": "> \r\n\r\n\r\n\r\n> Try this workaround.\r\n> \r\n> Add lines below to the end of file `settings.gradle`:\r\n> \r\n> ```\r\n> gradle.beforeProject({ project->\r\n>     if (project.hasProperty(\"target-platform\") &&\r\n>             !project.getProperty(\"target-platform\").split(\",\").contains(\"android-arm\")) {\r\n>         project.setProperty(\"target-platform\", \"android-arm,android-arm64\")\r\n>     }\r\n> })\r\n> ```\r\n> \r\n> This will generate file `libflutter.so` on folders `x86_64`, `arm64-v8a` and `armeabi-v7a`. And for devices `x86`, them emulate arm.\r\n\r\nThanks for this workaround, I am curious, do we still need to have abiFilters in build.gradle if we set this?\r\n\r\n",
+    "createdAt": "2022-05-03T14:49:30Z"
+  },
+  {
+    "id": 1109,
+    "sender": "vluizflavio",
+    "content": "> > Try this workaround.\r\n> > Add lines below to the end of file `settings.gradle`:\r\n> > ```\r\n> > gradle.beforeProject({ project->\r\n> >     if (project.hasProperty(\"target-platform\") &&\r\n> >             !project.getProperty(\"target-platform\").split(\",\").contains(\"android-arm\")) {\r\n> >         project.setProperty(\"target-platform\", \"android-arm,android-arm64\")\r\n> >     }\r\n> > })\r\n> > ```\r\n> > \r\n> > \r\n> >     \r\n> >       \r\n> >     \r\n> > \r\n> >       \r\n> >     \r\n> > \r\n> >     \r\n> >   \r\n> > This will generate file `libflutter.so` on folders `x86_64`, `arm64-v8a` and `armeabi-v7a`. And for devices `x86`, them emulate arm.\r\n> \r\n> Thanks for this workaround, I am curious, do we still need to have abiFilters in build.gradle if we set this?\r\n\r\n@vadrian89 you brought a good question. Not informing `abiFilters`, the folder `x86` is kept on build without `libflutter.so`, and possibly can trigger the error. But when we use both, the folder `x86` no longer appears and anothers continue with the file `libflutter.so`, and maybe forcing the device to load from `arm` folder.\r\n\r\nCan anyone who has a real device that still with the problem test this theory?\r\n\r\nThe workaround and `abiFilters` below:\r\n\r\n```\r\nndk {\r\n  abiFilters 'armeabi-v7a', 'arm64-v8a', 'x86_64'\r\n}\r\n```\r\n\r\nCC: @bamakant ",
+    "createdAt": "2022-05-04T22:04:40Z"
+  },
+  {
+    "id": 1110,
+    "sender": "vadrian89",
+    "content": "@vluizflavio \r\nIt doesn't work on emulator if I add the filter. So I am guessing if it doesn't work on emulator it doesn't work on real device either.\r\n\r\nThe device emulated is a a Nexus 5X with Android 8.1, the device I have reports of crashing.",
+    "createdAt": "2022-05-05T05:26:43Z"
+  },
+  {
+    "id": 1111,
+    "sender": "vluizflavio",
+    "content": "> @vluizflavio It doesn't work on emulator if I add the filter. So I am guessing if it doesn't work on emulator it doesn't work on real device either.\r\n> \r\n> The device emulated is a a Nexus 5X with Android 8.1, the device I have reports of crashing.\r\n\r\n@vadrian89 Understood. I thought about it just as a way to try further filter the problem and find something in common, because the problem happen on specific devices. But can probably a useless test like you said :|\r\n\r\nSome points below\r\n\r\nThe most of devices with the problem has:\r\nCPU: Snapdragon\r\nArchitecture: 64-bit - ARMv8-A\r\nGPU: Adreno\r\n\r\nand a smaller percentage has:\r\nCPU: MediaTek\r\nArchitecture: 64-bit - ARMv8-A\r\nGPU: Mali\r\n\r\nI made tests on devices with the same specs (architecture, CPU, GPU) and worked well on them. \r\n\r\nThe OS version varies a lot on real devices, so I think this isn't related with the problem.",
+    "createdAt": "2022-05-05T13:13:03Z"
+  },
+  {
+    "id": 1112,
+    "sender": "msarkrish",
+    "content": "@vluizflavio @vadrian89 @bamakant @Abacaxi-Nelson @acoutts \r\nAnyone found solution for this problem?\r\n![image](https://user-images.githubusercontent.com/45334931/167562476-6fbf9437-5e32-4a15-add7-66b768eec2c6.png)\r\n\r\nFatal Exception: java.lang.RuntimeException\r\njava.util.concurrent.ExecutionException: java.lang.UnsatisfiedLinkError: dalvik.system.PathClassLoader[DexPathList[[zip file \"/data/app/com.tt.fm123-ys8zPLGveiOVpN34ApbtKg==/base.apk\", zip file \"/data/app/com.thirantech.fm959-ys8zPLGveiOVpN34ApbtKg==/split_config.en.apk\", zip file \"/data/app/com.tt.fm123-ys8zPLGveiOVpN34ApbtKg==/split_config.es.apk\", zip file \"/data/app/com.tt.fm123-ys8zPLGveiOVpN34ApbtKg==/split_config.mdpi.apk\", zip file \"/data/app/com.tt.fm123-ys8zPLGveiOVpN34ApbtKg==/split_config.x86.apk\"],nativeLibraryDirectories=[/data/app/com.tt.fm123-ys8zPLGveiOVpN34ApbtKg==/lib/x86, /data/app/com.tt.fm123-ys8zPLGveiOVpN34ApbtKg==/base.apk!/lib/x86, /data/app/com.tt.fm123-ys8zPLGveiOVpN34ApbtKg==/split_config.en.apk!/lib/x86, /data/app/com.tt.fm123-ys8zPLGveiOVpN34ApbtKg==/split_config.es.apk!/lib/x86, /data/app/com.tt.fm123-ys8zPLGveiOVpN34ApbtKg==/split_config.mdpi.apk!/lib/x86, /data/app/com.tt.fm123-ys8zPLGveiOVpN34ApbtKg==/split_config.x86.apk!/lib/x86, /system/lib, /system/vendor/lib]]] couldn't find \"libflutter.so\"",
+    "createdAt": "2022-05-10T06:28:33Z"
+  },
+  {
+    "id": 1113,
+    "sender": "vadrian89",
+    "content": "@msarkrish , nope, sadly, didn't found any solutions to it.",
+    "createdAt": "2022-05-10T06:30:48Z"
+  },
+  {
+    "id": 1114,
+    "sender": "msarkrish",
+    "content": "> The [add-to-app documentation](https://docs.flutter.dev/development/add-to-app/android/project-setup) specifies that it makes sense to set `abiFilters` (\"Doing this avoids a missing libflutter.so runtime crash\") - I wonder if it wouldn't make sense to also add this to the [default app template](https://github.com/flutter/flutter/blob/master/packages/flutter_tools/templates/app_shared/android-kotlin.tmpl/app/build.gradle.tmpl) of flutter itself? Are there any downsides to use this `abiFilters` for standard flutter apps?\r\n> \r\n> ```groovy-gradle\r\n> android {\r\n>   //...\r\n>   defaultConfig {\r\n>     ndk {\r\n>       // Filter for architectures supported by Flutter.\r\n>       abiFilters 'armeabi-v7a', 'arm64-v8a', 'x86_64'\r\n>     }\r\n>   }\r\n> }\r\n> ```\r\n\r\nThis solution solved the issue in emulator.",
+    "createdAt": "2022-05-10T09:11:08Z"
+  },
+  {
+    "id": 1115,
+    "sender": "empiresdev",
+    "content": "I'm facing the same issue but the `ndk abiFilters` solution is not working. In my case, I'm using a dependency in a Flutter plugin, so I added `abiFilters` even in plugin's `build.gradle` and the app `build.gradle` and nothing worked. I can build on x86 devices but I can't run on my Xiaomi Mi 9 Lite device.",
+    "createdAt": "2022-07-07T18:10:27Z"
+  },
+  {
+    "id": 1116,
+    "sender": "maitycyrus",
+    "content": "Same and ndk filters are not working",
+    "createdAt": "2022-08-09T09:21:39Z"
+  },
+  {
+    "id": 1117,
+    "sender": "maitycyrus",
+    "content": "Why are people always closing those issues without providing a fix. Those workarounds are not even working. Total ostrich effect",
+    "createdAt": "2022-08-09T09:29:36Z"
+  },
+  {
+    "id": 1118,
+    "sender": "vadrian89",
+    "content": "Same error uccured in an arm64 device:\r\n`Fatal Exception: java.lang.RuntimeException: Unable to start activity ComponentInfo{com.smarthuts.application/com.smarthuts.application.MainActivity}: java.lang.RuntimeException: java.util.concurrent.ExecutionException: java.lang.UnsatisfiedLinkError: dalvik.system.PathClassLoader[DexPathList[[zip file \"/data/app/com.smarthuts.application-prqrpRkIo3ggxc8RPlyubg==/base.apk\"],nativeLibraryDirectories=[/data/app/com.smarthuts.application-prqrpRkIo3ggxc8RPlyubg==/lib/arm64, /system/lib64]]] couldn't find \"libflutter.so\"`\r\n\r\nDevice: Samsung Galaxy Note8, Android 9",
+    "createdAt": "2022-08-11T09:41:29Z"
+  },
+  {
+    "id": 1119,
+    "sender": "brightchip",
+    "content": "How to fix this ?",
+    "createdAt": "2022-08-12T00:41:28Z"
+  },
+  {
+    "id": 1120,
+    "sender": "tattivitorino",
+    "content": "same problem here.. reports flying around my crashlytics.. and i'm surprised this is still an issue after such a long time.. (seen reports from 2019)\r\n",
+    "createdAt": "2022-08-23T12:05:52Z"
+  },
+  {
+    "id": 1121,
+    "sender": "Samuelincoom",
+    "content": "Same.  And I dont get why people are closing the flutter issue without a full fix for almost a year.. Whats the motivation?\r\n\r\nAnyways, This abifilters solution solved the issue on emulator blue stacks emulating an LG phone for me..  \r\n\r\n> android {\r\n>   //...\r\n>   defaultConfig {\r\n>     ndk {\r\n>       // Filter for architectures supported by Flutter.\r\n>       abiFilters 'armeabi-v7a', 'arm64-v8a', 'x86_64'\r\n>     }\r\n>   }\r\n> }\r\n\r\n\r\n Dont know if has drawbacks on other phones, but i will be updating this thread as we rollout and see which phones our customer's who get same issues again are getting it on ",
+    "createdAt": "2022-08-24T00:41:14Z"
+  },
+  {
+    "id": 1122,
+    "sender": "uzumaki258",
+    "content": "Not only x86:\r\n`Caused by java.util.concurrent.ExecutionException\r\njava.lang.UnsatisfiedLinkError: dalvik.system.PathClassLoader[DexPathList[[zip file \"/data/app/com.bundle.id-LcIu_KjcCAds1UmQMslVuw==/base.apk\"],nativeLibraryDirectories=[/data/app/com.bundle.id-LcIu_KjcCAds1UmQMslVuw==/lib/arm64, /system/lib64]]] couldn't find \"libflutter.so\"`\r\nI have added `abiFilters 'armeabi-v7a', 'arm64-v8a', 'x86_64'`\r\nI tested on Google Pixel 3 XL",
+    "createdAt": "2022-08-25T16:06:37Z"
+  },
+  {
+    "id": 1123,
+    "sender": "arefrafei92",
+    "content": "Does anyone found a solution? I was about to publish a new version and I faced this issue.\r\n\r\n▶️ app/build.gradle\r\n```\r\ndefaultConfig {\r\n        applicationId \"*************l\"\r\n        minSdkVersion 21\r\n        versionCode flutterVersionCode.toInteger()\r\n        versionName flutterVersionName\r\n        multiDexEnabled true\r\n        ndk {\r\n            abiFilters 'armeabi-v7a', 'arm64-v8a', 'x86_64'\r\n        }\r\n    }\r\n```\r\n\r\n\r\n\r\n▶️ settings.gradle\r\n```\r\ninclude ':app'\r\n\r\ndef flutterProjectRoot = rootProject.projectDir.parentFile.toPath()\r\n\r\ndef plugins = new Properties()\r\ndef pluginsFile = new File(flutterProjectRoot.toFile(), '.flutter-plugins')\r\nif (pluginsFile.exists()) {\r\n    pluginsFile.withReader('UTF-8') { reader -> plugins.load(reader) }\r\n}\r\n\r\nplugins.each { name, path ->\r\n    def pluginDirectory = flutterProjectRoot.resolve(path).resolve('android').toFile()\r\n    include \":$name\"\r\n    project(\":$name\").projectDir = pluginDirectory\r\n}\r\n\r\ngradle.beforeProject({ project->\r\n    if (project.hasProperty(\"target-platform\") &&\r\n            !project.getProperty(\"target-platform\").split(\",\").contains(\"android-arm\")) {\r\n        project.setProperty(\"target-platform\", \"android-arm,android-arm64\")\r\n    }\r\n})\r\n\r\n```\r\n\r\n<img width=\"656\" alt=\"image\" src=\"https://user-images.githubusercontent.com/8364557/188286096-e1af2107-2895-4ff9-96eb-d07aee436110.png\">\r\n\r\nStill not working on the emulator.\r\nI've seen some mentions that release version won't work on emulators, but I'm not sure if I need to publish it or not.\r\nI can't test on real devices with x86 architecture.\r\n",
+    "createdAt": "2022-09-03T20:01:37Z"
+  },
+  {
+    "id": 1124,
+    "sender": "fabianogadenz",
+    "content": "we have same bug been 10 months or more. Anyone have updates? We tried all above attempts ",
+    "createdAt": "2022-09-05T12:16:01Z"
+  },
+  {
+    "id": 1125,
+    "sender": "arefrafei92",
+    "content": "> we have same bug been 10 months or more. Anyone have updates? We tried all above attempts\r\n\r\nI recently found this: Normally Flutter runs in JIT for faster compilation/debugging support in debug mode and AOT mode for better performance in profile and release mode. For platforms that Flutter cannot produce AOT artifacts for, such as Android x86 (32 bit), a JIT release build may be used instead. \r\n\r\nBut I don't know if it can be useful or not.\r\n\r\nand I found in documentation : When building your application in release mode, Flutter apps can be compiled for [armeabi-v7a](https://developer.android.com/ndk/guides/abis#v7a) (ARM 32-bit), [arm64-v8a](https://developer.android.com/ndk/guides/abis#arm64-v8a) (ARM 64-bit), and [x86-64](https://developer.android.com/ndk/guides/abis#86-64) (x86 64-bit). Flutter does not currently support building for x86 Android.\r\n",
+    "createdAt": "2022-09-06T02:07:10Z"
+  },
+  {
+    "id": 1126,
+    "sender": "tmaihoff",
+    "content": "Same problem, this error popped up on my crashlytics. Nexus 5X Android 8.1.0",
+    "createdAt": "2022-09-18T19:15:49Z"
+  },
+  {
+    "id": 1127,
+    "sender": "DennisKragekjaer",
+    "content": "This is a severe scandal, disaster. Wtf is going on?",
+    "createdAt": "2022-09-19T08:21:09Z"
+  },
+  {
+    "id": 1128,
+    "sender": "hunghoang",
+    "content": "Any update on this serious issue?",
+    "createdAt": "2022-09-25T14:18:02Z"
+  },
+  {
+    "id": 1129,
+    "sender": "Samuelincoom",
+    "content": "> Same. And I dont get why people are closing the flutter issue without a full fix for almost a year.. Whats the motivation?\r\n> \r\n> Anyways, This abifilters solution solved the issue on emulator blue stacks emulating an LG phone for me..\r\n> \r\n> > android {\r\n> > //...\r\n> > defaultConfig {\r\n> > ndk {\r\n> > // Filter for architectures supported by Flutter.\r\n> > abiFilters 'armeabi-v7a', 'arm64-v8a', 'x86_64'\r\n> > }\r\n> > }\r\n> > }\r\n> \r\n> Dont know if has drawbacks on other physical phones, but i will be updating this thread as we rollout and see which phones our customer's who get same issues again are getting it on\r\n\r\n### Good news guys, so far after i published with both solutions , no customer of the company has received that error in our analytics so far.. A CLEAN Sweep,,\r\n\r\n100.000+ people are using our app, so lets wait and see.. But so far, so very good for me combining both solutions..\r\n\r\nBy \"second solution I've combined\"\r\nI mean a code that will generate file **libflutter.so** on folders x86_64, arm64-v8a and armeabi-v7a. And for devices x86, then emulate arm which are the devices with the problems..\r\nInside your **settings.gradle** file\r\n\r\n> gradle.beforeProject({ project->\r\n>     if (project.hasProperty(\"target-platform\") &&\r\n>             !project.getProperty(\"target-platform\").split(\",\").contains(\"android-arm\")) {\r\n>         project.setProperty(\"target-platform\", \"android-arm,android-arm64\")\r\n>     }\r\n> })\r\n\r\n\r\n**Like earlier said, its all about Real devices.. so i could be having a \"false positive\" here..  But so far, so very good for 100,000+ physical phones with the app on playstore**  also its just been a month",
+    "createdAt": "2022-09-25T14:36:45Z"
+  },
+  {
+    "id": 1130,
+    "sender": "ldasilva-net",
+    "content": "@Samuelincoom it's wonderful, thanks for sharing!\nHas anyone else tried Samuel's fix?\n",
+    "createdAt": "2022-10-13T17:57:08Z"
+  },
+  {
+    "id": 1131,
+    "sender": "spirifoxy",
+    "content": "Can confirm Samuel's solution seems to fix it for me.\r\nI was getting the following error from google testing device with every new version released:\r\n\r\n```\r\nFatal Exception: java.lang.RuntimeException: Unable to start activity\r\nComponentInfo{com.noisyfoxy.app/com.ryanheise.audioservice.AudioServiceActivity}: java.lang.RuntimeException:\r\njava.util.concurrent.ExecutionException:\r\njava.lang.UnsatisfiedLinkError:\r\ndalvik.system.PathClassLoader[DexPathList[[zip file \"/system/framework/android.test.runner.jar\",\r\nzip file \"/system/framework/org.apache.http.legacy.boot.jar\",\r\nzip file \"/system/framework/android.test.mock.jar\",\r\n...\r\n==/split_config.xxhdpi.apk!/lib/x86, /system/lib]]] couldn't find \"libflutter.so\"\r\n```\r\n\r\nAfter building a new version with both ndk.abiFilters and gradle.beforeProject configs added the error seems to be gone from crashlytics ",
+    "createdAt": "2022-11-29T20:13:23Z"
+  },
+  {
+    "id": 1132,
+    "sender": "EArminjon",
+    "content": "Still got the issue despite the double solution above : \r\n(flutter 3.3.4)\r\nCrashlytics : \r\n\r\nDevices : \r\nAndroid 7.1.2 : Galaxy Tab A\r\nAndroid 8.1.0 : Nexus 5X, Samsung Galaxy A70\r\nAndroid 12 :  Galaxy S20 FE 5G\r\n```\r\nFatal Exception: java.lang.RuntimeException: Unable to start activity ComponentInfo{app.censored.for.github/com.ryanheise.audioservice.AudioServiceActivity}: java.lang.RuntimeException: java.util.concurrent.ExecutionException: java.lang.UnsatisfiedLinkError: dalvik.system.PathClassLoader[DexPathList[[zip file \"/data/app/app.censored.for.github-1/base.apk\"],nativeLibraryDirectories=[/data/app/app.censored.for.github-1/lib/x86_64, /system/lib64, /vendor/lib64]]] couldn't find \"libflutter.so\"\r\n       at android.app.ActivityThread.performLaunchActivity(ActivityThread.java:2666)\r\n       at android.app.ActivityThread.handleLaunchActivity(ActivityThread.java:2727)\r\n       at android.app.ActivityThread.-wrap12(ActivityThread.java)\r\n       at android.app.ActivityThread$H.handleMessage(ActivityThread.java:1478)\r\n       at android.os.Handler.dispatchMessage(Handler.java:102)\r\n       at android.os.Looper.loop(Looper.java:154)\r\n       at android.app.ActivityThread.main(ActivityThread.java:6124)\r\n       at java.lang.reflect.Method.invoke(Method.java)\r\n       at com.android.internal.os.ZygoteInit$MethodAndArgsCaller.run(ZygoteInit.java:890)\r\n       at com.android.internal.os.ZygoteInit.main(ZygoteInit.java:780)\r\n```\r\n\r\n```\r\nCaused by java.lang.RuntimeException: java.util.concurrent.ExecutionException: java.lang.UnsatisfiedLinkError: dalvik.system.PathClassLoader[DexPathList[[zip file \"/data/app/app.censored.for.github-1/base.apk\"],nativeLibraryDirectories=[/data/app/app.censored.for.github-1/lib/x86_64, /system/lib64, /vendor/lib64]]] couldn't find \"libflutter.so\"\r\n       at io.flutter.embedding.engine.loader.FlutterLoader.ensureInitializationComplete(FlutterLoader.java)\r\n       at io.flutter.embedding.engine.FlutterEngine.<init>(FlutterEngine.java)\r\n       at io.flutter.embedding.engine.FlutterEngine.<init>(FlutterEngine.java)\r\n       at io.flutter.embedding.engine.FlutterEngine.<init>(FlutterEngine.java)\r\n       at io.flutter.embedding.engine.FlutterEngine.<init>(FlutterEngine.java)\r\n       at io.flutter.embedding.engine.FlutterEngine.<init>(FlutterEngine.java)\r\n       at com.ryanheise.audioservice.AudioServicePlugin.getFlutterEngine(AudioServicePlugin.java)\r\n       at com.ryanheise.audioservice.AudioServiceActivity.provideFlutterEngine(AudioServiceActivity.java)\r\n       at io.flutter.embedding.android.FlutterActivityAndFragmentDelegate.setupFlutterEngine(FlutterActivityAndFragmentDelegate.java)\r\n       at io.flutter.embedding.android.FlutterActivityAndFragmentDelegate.onAttach(FlutterActivityAndFragmentDelegate.java)\r\n       at io.flutter.embedding.android.FlutterActivity.onCreate(FlutterActivity.java)\r\n       at android.app.Activity.performCreate(Activity.java:6699)\r\n       at android.app.Instrumentation.callActivityOnCreate(Instrumentation.java:1118)\r\n       at android.app.ActivityThread.performLaunchActivity(ActivityThread.java:2619)\r\n       at android.app.ActivityThread.handleLaunchActivity(ActivityThread.java:2727)\r\n       at android.app.ActivityThread.-wrap12(ActivityThread.java)\r\n       at android.app.ActivityThread$H.handleMessage(ActivityThread.java:1478)\r\n       at android.os.Handler.dispatchMessage(Handler.java:102)\r\n       at android.os.Looper.loop(Looper.java:154)\r\n       at android.app.ActivityThread.main(ActivityThread.java:6124)\r\n       at java.lang.reflect.Method.invoke(Method.java)\r\n       at com.android.internal.os.ZygoteInit$MethodAndArgsCaller.run(ZygoteInit.java:890)\r\n       at com.android.internal.os.ZygoteInit.main(ZygoteInit.java:780)\r\n```\r\n\r\n```\r\nCaused by java.util.concurrent.ExecutionException: java.lang.UnsatisfiedLinkError: dalvik.system.PathClassLoader[DexPathList[[zip file \"/data/app/app.censored.for.github-1/base.apk\"],nativeLibraryDirectories=[/data/app/app.censored.for.github-1/lib/x86_64, /system/lib64, /vendor/lib64]]] couldn't find \"libflutter.so\"\r\n       at java.util.concurrent.FutureTask.report(FutureTask.java:94)\r\n       at java.util.concurrent.FutureTask.get(FutureTask.java:164)\r\n       at io.flutter.embedding.engine.loader.FlutterLoader.ensureInitializationComplete(FlutterLoader.java)\r\n       at io.flutter.embedding.engine.FlutterEngine.<init>(FlutterEngine.java)\r\n       at io.flutter.embedding.engine.FlutterEngine.<init>(FlutterEngine.java)\r\n       at io.flutter.embedding.engine.FlutterEngine.<init>(FlutterEngine.java)\r\n       at io.flutter.embedding.engine.FlutterEngine.<init>(FlutterEngine.java)\r\n       at io.flutter.embedding.engine.FlutterEngine.<init>(FlutterEngine.java)\r\n       at com.ryanheise.audioservice.AudioServicePlugin.getFlutterEngine(AudioServicePlugin.java)\r\n       at com.ryanheise.audioservice.AudioServiceActivity.provideFlutterEngine(AudioServiceActivity.java)\r\n       at io.flutter.embedding.android.FlutterActivityAndFragmentDelegate.setupFlutterEngine(FlutterActivityAndFragmentDelegate.java)\r\n       at io.flutter.embedding.android.FlutterActivityAndFragmentDelegate.onAttach(FlutterActivityAndFragmentDelegate.java)\r\n       at io.flutter.embedding.android.FlutterActivity.onCreate(FlutterActivity.java)\r\n       at android.app.Activity.performCreate(Activity.java:6699)\r\n       at android.app.Instrumentation.callActivityOnCreate(Instrumentation.java:1118)\r\n       at android.app.ActivityThread.performLaunchActivity(ActivityThread.java:2619)\r\n       at android.app.ActivityThread.handleLaunchActivity(ActivityThread.java:2727)\r\n       at android.app.ActivityThread.-wrap12(ActivityThread.java)\r\n       at android.app.ActivityThread$H.handleMessage(ActivityThread.java:1478)\r\n       at android.os.Handler.dispatchMessage(Handler.java:102)\r\n       at android.os.Looper.loop(Looper.java:154)\r\n       at android.app.ActivityThread.main(ActivityThread.java:6124)\r\n       at java.lang.reflect.Method.invoke(Method.java)\r\n       at com.android.internal.os.ZygoteInit$MethodAndArgsCaller.run(ZygoteInit.java:890)\r\n       at com.android.internal.os.ZygoteInit.main(ZygoteInit.java:780)\r\n```\r\n\r\n```\r\nCaused by java.lang.UnsatisfiedLinkError: dalvik.system.PathClassLoader[DexPathList[[zip file \"/data/app/app.censored.for.github-1/base.apk\"],nativeLibraryDirectories=[/data/app/app.censored.for.github-1/lib/x86_64, /system/lib64, /vendor/lib64]]] couldn't find \"libflutter.so\"\r\n       at java.lang.Runtime.loadLibrary0(Runtime.java:1001)\r\n       at java.lang.System.loadLibrary(System.java:1562)\r\n       at io.flutter.embedding.engine.FlutterJNI.loadLibrary(FlutterJNI.java)\r\n       at io.flutter.embedding.engine.loader.FlutterLoader$1.call(FlutterLoader.java)\r\n       at io.flutter.embedding.engine.loader.FlutterLoader$1.call(FlutterLoader.java)\r\n       at java.util.concurrent.FutureTask.run(FutureTask.java:237)\r\n       at java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1133)\r\n       at java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:607)\r\n       at java.lang.Thread.run(Thread.java:761)\r\n```",
+    "createdAt": "2022-11-30T19:05:36Z"
+  },
+  {
+    "id": 1133,
+    "sender": "hiperiumlw",
+    "content": "Any news on this? Really interested if anyone have tried the solution above!",
+    "createdAt": "2022-12-07T18:00:43Z"
+  },
+  {
+    "id": 1134,
+    "sender": "EArminjon",
+    "content": "> Any news on this? Really interested if anyone have tried the solution above!\r\n\r\nTested and still got the issue.",
+    "createdAt": "2022-12-07T18:23:04Z"
+  },
+  {
+    "id": 1135,
+    "sender": "vishwanath-patil-tdl",
+    "content": "We are currently adding flutter as lib to existing native app. Followed this [add-to-app](https://docs.flutter.dev/development/add-to-app) link for the same.\r\n\r\nCan somebody please let me know above code will be part of grade file of native app or flutter module?\r\n",
+    "createdAt": "2022-12-08T07:01:52Z"
+  },
+  {
+    "id": 1136,
+    "sender": "uzumaki258",
+    "content": "> > we have same bug been 10 months or more. Anyone have updates? We tried all above attempts\r\n> \r\n> I recently found this: Normally Flutter runs in JIT for faster compilation/debugging support in debug mode and AOT mode for better performance in profile and release mode. For platforms that Flutter cannot produce AOT artifacts for, such as Android x86 (32 bit), a JIT release build may be used instead.\r\n> \r\n> But I don't know if it can be useful or not.\r\n> \r\n> and I found in documentation : When building your application in release mode, Flutter apps can be compiled for [armeabi-v7a](https://developer.android.com/ndk/guides/abis#v7a) (ARM 32-bit), [arm64-v8a](https://developer.android.com/ndk/guides/abis#arm64-v8a) (ARM 64-bit), and [x86-64](https://developer.android.com/ndk/guides/abis#86-64) (x86 64-bit). Flutter does not currently support building for x86 Android.\r\n\r\nI can see the crash for not x86  \r\n/lib/arm64, /system/lib64, /product/lib64]]] couldn't find \"libflutter.so\" \r\nI got 100+ users affected per month.\r\n\r\n<img width=\"766\" alt=\"image\" src=\"https://user-images.githubusercontent.com/26773292/206405457-1784bfe7-f7e6-4423-a3c4-89da0c7f9636.png\">\r\n\r\nHere is the list of devices that have this crash:\r\nFlutter: 3.3.8\r\n\r\nGalaxy A31 Android 10\r\nPixel 4 Android 10\r\nGalaxy S22 Android 12\r\nRealme 9 Pro+ Android 12\r\nRedmi Note 10 Android 11\r\nGalaxy S22 Ultra Android 13\r\nRedmi 9 Android 11\r\nGalaxy A52 Android 12\r\nGalaxy S10e Android 12\r\nGalaxy A20s Android 11\r\nRedmi Note 9S Android 11\r\nRedmi Note 10 Android 11\r\nGalaxy A51 Android 12\r\n\r\nIt happens very commonly on armeabi-v7a, arm64-v8a  devices\r\nBut I can't reproduce it on some devices above. I thought it was an aab issue [mention here](https://stackoverflow.com/questions/52595535/using-an-app-bundle-i-get-unsatisfiedlinkerror-for-1-of-users)\r\nBut the number of this issue is increasing. ",
+    "createdAt": "2022-12-08T09:55:27Z"
+  },
+  {
+    "id": 1137,
+    "sender": "mhassan772",
+    "content": "We are seeing too, any solutions?",
+    "createdAt": "2022-12-15T00:00:14Z"
+  },
+  {
+    "id": 1138,
+    "sender": "thapld",
+    "content": "Any solutions?",
+    "createdAt": "2022-12-22T07:51:53Z"
+  },
+  {
+    "id": 1139,
+    "sender": "Dev-Paccore",
+    "content": "facing the same issue :|",
+    "createdAt": "2022-12-28T21:25:15Z"
+  },
+  {
+    "id": 1140,
+    "sender": "wolru",
+    "content": "facing the same issue ",
+    "createdAt": "2023-01-04T15:10:21Z"
+  },
+  {
+    "id": 1141,
+    "sender": "thapld",
+    "content": "Solved!\r\nproguard-rules.pro\r\n`\r\n#Flutter Wrapper\r\n-keep class io.flutter.app.** { *; }\r\n-keep class io.flutter.plugin.**  { *; }\r\n-keep class io.flutter.util.**  { *; }\r\n-keep class io.flutter.view.**  { *; }\r\n-keep class io.flutter.**  { *; }\r\n-keep class io.flutter.plugins.**  { *; }\r\n-keep class org.videolan.libvlc.** { *; } // I used vlc player\r\n`\r\n\r\napp\\build.gradle\r\n`\r\nbuildTypes {\r\n        release {\r\n            // TODO: Add your own signing config for the release build.\r\n            // Signing with the debug keys for now, so `flutter run --release` works.\r\n//             signingConfig signingConfigs.debug\r\n            signingConfig signingConfigs.release\r\n            minifyEnabled true\r\n            shrinkResources true\r\n            debuggable false\r\n            proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'\r\n            ndk {\r\n                abiFilters 'armeabi-v7a','arm64-v8a','x86_64'\r\n            }\r\n        }\r\n    }\r\n`\r\n\r\n",
+    "createdAt": "2023-01-04T15:17:12Z"
+  },
+  {
+    "id": 1142,
+    "sender": "martindanailov94",
+    "content": "\r\n\r\n\r\n> Solved! proguard-rules.pro `#Flutter Wrapper -keep class io.flutter.app.** { *; } -keep class io.flutter.plugin.** { *; } -keep class io.flutter.util.** { *; } -keep class io.flutter.view.** { *; } -keep class io.flutter.** { *; } -keep class io.flutter.plugins.** { *; } -keep class org.videolan.libvlc.** { *; } // I used vlc player`\r\n> \r\n> app\\build.gradle `buildTypes { release { // TODO: Add your own signing config for the release build. // Signing with the debug keys for now, so`flutter run --release`works. // signingConfig signingConfigs.debug signingConfig signingConfigs.release minifyEnabled true shrinkResources true debuggable false proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro' ndk { abiFilters 'armeabi-v7a','arm64-v8a','x86_64' } } }`\r\n\r\nWhat did you do exactly?",
+    "createdAt": "2023-01-04T16:15:32Z"
+  },
+  {
+    "id": 1143,
+    "sender": "thapld",
+    "content": "> > Solved! proguard-rules.pro `#Flutter Wrapper -keep class io.flutter.app.** { *; } -keep class io.flutter.plugin.** { *; } -keep class io.flutter.util.** { *; } -keep class io.flutter.view.** { *; } -keep class io.flutter.** { *; } -keep class io.flutter.plugins.** { *; } -keep class org.videolan.libvlc.** { *; } // I used vlc player`\r\n> > app\\build.gradle `buildTypes { release { // TODO: Add your own signing config for the release build. // Signing with the debug keys for now, so`flutter run --release`works. // signingConfig signingConfigs.debug signingConfig signingConfigs.release minifyEnabled true shrinkResources true debuggable false proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro' ndk { abiFilters 'armeabi-v7a','arm64-v8a','x86_64' } } }`\r\n> \r\n> What did you do exactly?\r\n\r\nBecause of lost something when build. Add proguard rules to keep and filter ndk to avoid crash when release. Hope help.",
+    "createdAt": "2023-01-04T16:53:39Z"
+  },
+  {
+    "id": 1144,
+    "sender": "alexandereverett92",
+    "content": "> Solved! proguard-rules.pro `#Flutter Wrapper -keep class io.flutter.app.** { *; } -keep class io.flutter.plugin.** { *; } -keep class io.flutter.util.** { *; } -keep class io.flutter.view.** { *; } -keep class io.flutter.** { *; } -keep class io.flutter.plugins.** { *; } -keep class org.videolan.libvlc.** { *; } // I used vlc player`\r\n> \r\n> app\\build.gradle `buildTypes { release { // TODO: Add your own signing config for the release build. // Signing with the debug keys for now, so`flutter run --release`works. // signingConfig signingConfigs.debug signingConfig signingConfigs.release minifyEnabled true shrinkResources true debuggable false proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro' ndk { abiFilters 'armeabi-v7a','arm64-v8a','x86_64' } } }`\r\n\r\nDoes this actually solve the issue? For me it seemed to just exclude the generic x86 device google play uses for the automated tests that had the issue in the pre-launch report",
+    "createdAt": "2023-01-04T20:57:27Z"
+  },
+  {
+    "id": 1145,
+    "sender": "uzumaki258",
+    "content": "> > > Solved! proguard-rules.pro `#Flutter Wrapper -keep class io.flutter.app.** { *; } -keep class io.flutter.plugin.** { *; } -keep class io.flutter.util.** { *; } -keep class io.flutter.view.** { *; } -keep class io.flutter.** { *; } -keep class io.flutter.plugins.** { *; } -keep class org.videolan.libvlc.** { *; } // I used vlc player`\r\n> > > app\\build.gradle `buildTypes { release { // TODO: Add your own signing config for the release build. // Signing with the debug keys for now, so`flutter run --release`works. // signingConfig signingConfigs.debug signingConfig signingConfigs.release minifyEnabled true shrinkResources true debuggable false proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro' ndk { abiFilters 'armeabi-v7a','arm64-v8a','x86_64' } } }`\r\n> > \r\n> > \r\n> > What did you do exactly?\r\n> \r\n> Because of lost something when build. Add proguard rules to keep and filter ndk to avoid crash when release. Hope help.\r\n\r\nDid you try this on the real device with this issue before the fix? \r\nI see the reported crash on Firebase crashlytic, and then I buy that the devices have crashed. But I can't reproduce it on my side. I can't explain why. Is the .abb file on Google Play when the user download different from .abb we build from Android Studio?",
+    "createdAt": "2023-01-05T01:06:03Z"
+  },
+  {
+    "id": 1146,
+    "sender": "thapld",
+    "content": "> > > > Solved! proguard-rules.pro `#Flutter Wrapper -keep class io.flutter.app.** { *; } -keep class io.flutter.plugin.** { *; } -keep class io.flutter.util.** { *; } -keep class io.flutter.view.** { *; } -keep class io.flutter.** { *; } -keep class io.flutter.plugins.** { *; } -keep class org.videolan.libvlc.** { *; } // I used vlc player`\r\n> > > > app\\build.gradle `buildTypes { release { // TODO: Add your own signing config for the release build. // Signing with the debug keys for now, so`flutter run --release`works. // signingConfig signingConfigs.debug signingConfig signingConfigs.release minifyEnabled true shrinkResources true debuggable false proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro' ndk { abiFilters 'armeabi-v7a','arm64-v8a','x86_64' } } }`\r\n> > > \r\n> > > \r\n> > > What did you do exactly?\r\n> > \r\n> > \r\n> > Because of lost something when build. Add proguard rules to keep and filter ndk to avoid crash when release. Hope help.\r\n> \r\n> Did you try this on the real device with this issue before the fix? I see the reported crash on Firebase crashlytic, and then I buy that the devices have crashed. But I can't reproduce it on my side. I can't explain why. Is the .abb file on Google Play when the user download different from .abb we build from Android Studio?\r\nYes. My app work well on emulator but crash on real device.\r\n\r\n> > > > Solved! proguard-rules.pro `#Flutter Wrapper -keep class io.flutter.app.** { *; } -keep class io.flutter.plugin.** { *; } -keep class io.flutter.util.** { *; } -keep class io.flutter.view.** { *; } -keep class io.flutter.** { *; } -keep class io.flutter.plugins.** { *; } -keep class org.videolan.libvlc.** { *; } // I used vlc player`\r\n> > > > app\\build.gradle `buildTypes { release { // TODO: Add your own signing config for the release build. // Signing with the debug keys for now, so`flutter run --release`works. // signingConfig signingConfigs.debug signingConfig signingConfigs.release minifyEnabled true shrinkResources true debuggable false proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro' ndk { abiFilters 'armeabi-v7a','arm64-v8a','x86_64' } } }`\r\n> > > \r\n> > > \r\n> > > What did you do exactly?\r\n> > \r\n> > \r\n> > Because of lost something when build. Add proguard rules to keep and filter ndk to avoid crash when release. Hope help.\r\n> \r\n> Did you try this on the real device with this issue before the fix? I see the reported crash on Firebase crashlytic, and then I buy that the devices have crashed. But I can't reproduce it on my side. I can't explain why. Is the .abb file on Google Play when the user download different from .abb we build from Android Studio?\r\n\r\nYes. My app work well on emulator but JNI crash on real device. Even it happens with same real device with difference build debug and release, debug work and release crash. I find out the problem in vlc player library then I read carefully guide of library again. And I miss a proguard rule for vlc player. ",
+    "createdAt": "2023-01-05T02:35:37Z"
+  },
+  {
+    "id": 1147,
+    "sender": "uzumaki258",
+    "content": "> > > > > Solved! proguard-rules.pro `#Flutter Wrapper -keep class io.flutter.app.** { *; } -keep class io.flutter.plugin.** { *; } -keep class io.flutter.util.** { *; } -keep class io.flutter.view.** { *; } -keep class io.flutter.** { *; } -keep class io.flutter.plugins.** { *; } -keep class org.videolan.libvlc.** { *; } // I used vlc player`\r\n> > > > > app\\build.gradle `buildTypes { release { // TODO: Add your own signing config for the release build. // Signing with the debug keys for now, so`flutter run --release`works. // signingConfig signingConfigs.debug signingConfig signingConfigs.release minifyEnabled true shrinkResources true debuggable false proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro' ndk { abiFilters 'armeabi-v7a','arm64-v8a','x86_64' } } }`\r\n> > > > \r\n> > > > \r\n> > > > What did you do exactly?\r\n> > > \r\n> > > \r\n> > > Because of lost something when build. Add proguard rules to keep and filter ndk to avoid crash when release. Hope help.\r\n> > \r\n> > \r\n> > Did you try this on the real device with this issue before the fix? I see the reported crash on Firebase crashlytic, and then I buy that the devices have crashed. But I can't reproduce it on my side. I can't explain why. Is the .abb file on Google Play when the user download different from .abb we build from Android Studio?\r\n> > Yes. My app work well on emulator but crash on real device.\r\n> \r\n> > > > > Solved! proguard-rules.pro `#Flutter Wrapper -keep class io.flutter.app.** { *; } -keep class io.flutter.plugin.** { *; } -keep class io.flutter.util.** { *; } -keep class io.flutter.view.** { *; } -keep class io.flutter.** { *; } -keep class io.flutter.plugins.** { *; } -keep class org.videolan.libvlc.** { *; } // I used vlc player`\r\n> > > > > app\\build.gradle `buildTypes { release { // TODO: Add your own signing config for the release build. // Signing with the debug keys for now, so`flutter run --release`works. // signingConfig signingConfigs.debug signingConfig signingConfigs.release minifyEnabled true shrinkResources true debuggable false proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro' ndk { abiFilters 'armeabi-v7a','arm64-v8a','x86_64' } } }`\r\n> > > > \r\n> > > > \r\n> > > > What did you do exactly?\r\n> > > \r\n> > > \r\n> > > Because of lost something when build. Add proguard rules to keep and filter ndk to avoid crash when release. Hope help.\r\n> > \r\n> > \r\n> > Did you try this on the real device with this issue before the fix? I see the reported crash on Firebase crashlytic, and then I buy that the devices have crashed. But I can't reproduce it on my side. I can't explain why. Is the .abb file on Google Play when the user download different from .abb we build from Android Studio?\r\n> \r\n> Yes. My app work well on emulator but JNI crash on real device. Even it happens with same real device with difference build debug and release, debug work and release crash. I find out the problem in vlc player library then I read carefully guide of library again. And I miss a proguard rule for vlc player.\r\n\r\nI have proguard rules same as you, but I confirm the crash still appears on Firebase:\r\nMy app have 5M+ user\r\n<img width=\"737\" alt=\"image\" src=\"https://user-images.githubusercontent.com/26773292/210690433-a6b7bb03-d445-4121-a46d-75935c898df8.png\">\r\n",
+    "createdAt": "2023-01-05T02:51:02Z"
+  },
+  {
+    "id": 1148,
+    "sender": "ngodings",
+    "content": "so what is the solution, my app got same issue too :(",
+    "createdAt": "2023-01-05T06:51:49Z"
+  },
+  {
+    "id": 1149,
+    "sender": "thapld",
+    "content": "Follow steps:\r\n1. Add NDK filter \r\n2. Check all libraries in your app by removing one by one out of your project and check again. I believe the problem will be solved.",
+    "createdAt": "2023-01-05T06:56:34Z"
+  },
+  {
+    "id": 1150,
+    "sender": "eslamfaisal",
+    "content": "we still have the issue\r\nsolved?\r\n![image](https://user-images.githubusercontent.com/33801510/212470288-eed6c0d4-fba0-4606-8695-ed1029bb60f5.png)\r\n",
+    "createdAt": "2023-01-14T11:48:06Z"
+  },
+  {
+    "id": 1151,
+    "sender": "ChargerMc",
+    "content": "So, any fix?",
+    "createdAt": "2023-01-15T06:25:46Z"
+  }
+]

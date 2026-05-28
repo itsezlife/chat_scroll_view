@@ -1,0 +1,386 @@
+[
+  {
+    "id": 1536,
+    "sender": "edTheGuy00",
+    "content": "This was my solution:\r\n\r\n1. in `app gradle`\r\n\r\n```gradle\r\nsplits {\r\n        // Configures multiple APKs based on ABI.\r\n        abi {\r\n            // Enables building multiple APKs per ABI.\r\n            enable true\r\n            // By default all ABIs are included, so use reset() and include to specify that we only\r\n            // want APKs for armeabi-v7a and arm64-v8a.\r\n\r\n            // Resets the list of ABIs that Gradle should create APKs for to none.\r\n            reset()\r\n\r\n            // Specifies a list of ABIs that Gradle should create APKs for.\r\n            include \"armeabi-v7a\", \"arm64-v8a\"\r\n\r\n            // Specifies that we do not want to also generate a universal APK that includes all ABIs.\r\n            universalApk false\r\n        }\r\n    }\r\n```\r\n\r\n2. run `flutter build apk --release --target-platform=android-arm`\r\n\r\n3. upload `app-armeabi-v7a-release.apk` to the play store\r\n\r\n4. increment `versionCode`\r\n\r\n5. run `flutter build apk --release --target-platform=android-arm64 `\r\n\r\n6. upload `app-arm64-v8a-release.apk` to the play store\r\n\r\nGoogle play store will serve App according to device architecture. 32bit devices are happy, 64bit devices are happy and I'm happy knowing that my APK size remains relatively small while still serving both architectures. \r\n\r\nIf we include support for both architectures in the same APK, expect the size of your app to be  10MB+",
+    "createdAt": "2019-03-28T08:44:41Z"
+  },
+  {
+    "id": 1537,
+    "sender": "MarcelEdward2",
+    "content": "@edTheGuy00  I doubt it is interesting how big the upload to the play store is. The android phones will ask for a 125+ temporay free space anyhow and wil refuse to use external storage for unpacking. That is all users will know about the app size, It does not really matter how much an app uses after installing. It will ask for the 125mb+ free space for installing.\r\n\r\nPlease make it possible to include all possible architectures. I don\"t care if the upload to the play store will be 250mb. \r\n\r\nIt would be nice if flutter would use the gigabites space on the external storage for installling on an android phone. That is if flutter can influence the installation on an android phone ",
+    "createdAt": "2019-03-28T09:02:03Z"
+  },
+  {
+    "id": 1538,
+    "sender": "slightfoot",
+    "content": "I think the `flutter.gradle` script should include all ABIs into the final APK (Universal APK) and then default turn split APKs on. The android tools will select the right APK to upload to the connected device and all is well. The final universal APK can then be uploaded to the play-store, or either the split APKs for each ABI.\r\n\r\nIn the meantime as a solution you can add this to the bottom of your `build.gradle` in your `android\\app` directory.\r\n```groovy\r\n// Include both 32bit and 64bit arm libflutter.so files into your APK\r\nproject.afterEvaluate {\r\n\tassembleRelease.doLast {\r\n\t\tString src\r\n\t\tif(project.hasProperty('target-platform') &&\r\n\t\t\tproject.property('target-platform') == 'android-arm64') {\r\n\t\t\t// If we are building the 64bit then we also want to add the 32bit libflutter.so\r\n\t\t\tsrc = \"$flutterRoot/bin/cache/artifacts/engine/android-arm-release/flutter.jar\"\r\n\t\t}else{\r\n\t\t\t// If we are building the opposite (32bit), we include the 64bit libflutter.so\r\n\t\t\tsrc = \"$flutterRoot/bin/cache/artifacts/engine/android-arm64-release/flutter.jar\"\r\n\t\t}\r\n\t\tcopy {\r\n\t\t\tfrom zipTree(src)\r\n\t\t\tinclude 'lib/*/libflutter.so'\r\n\t\t\tinto \"$buildDir/intermediates/jniLibs/release/0/\"\r\n\t\t}\r\n\t}\r\n}\r\n```\r\n\r\nI also recommend adding this to your `buildTypes > release` section. This will ensure your release APK contains both ABIs.\r\n```groovy\r\nndk {\r\n    abiFilters 'armeabi-v7a', 'arm64-v8a'\r\n}\r\n```\r\n",
+    "createdAt": "2019-03-28T11:09:44Z"
+  },
+  {
+    "id": 1539,
+    "sender": "gerryhigh",
+    "content": "After a collab with @slightfoot we came up with this but it's still not quite right as you have to build twice initially to pick up the libs that get inserted into your src directory.\r\n```\r\nproject.afterEvaluate {\r\n    assembleRelease.doFirst {\r\n\r\n        String src\r\n        if(project.hasProperty('target-platform') &&\r\n                project.property('target-platform') == 'android-arm64') {\r\n            // If we are building the 64bit then we also want to add the 32bit libflutter.so\r\n            src = \"$flutterRoot/bin/cache/artifacts/engine/android-arm-release/flutter.jar\"\r\n        }else{\r\n            // If we are building the opposite (32bit), we include the 64bit libflutter.so\r\n            src = \"$flutterRoot/bin/cache/artifacts/engine/android-arm64-release/flutter.jar\"\r\n        }\r\n        copy {\r\n            from zipTree(src)\r\n            include 'lib/*/libflutter.so'\r\n            into \"src/main/jniLibs/\"\r\n            eachFile {\r\n                it.path = it.path.replaceFirst(\"lib/\", \"\")\r\n            }\r\n        }\r\n    }\r\n}\r\n\r\n```\r\nUpdate: After trying to run this APK on the device it fails and thus is not a viable solution. The error is \"Error while initializing the Dart VM: Snapshot not compatible with the current VM configuration:\r\nthe snapshot requires 'product use_bare_instructions no-\"asserts\" causal_async_stacks arm-eabi softfp'\r\nbut the VM has 'product use_bare_instructions no-\"asserts\" causal_async_stacks arm64-sysv'\"\r\n",
+    "createdAt": "2019-03-30T20:42:07Z"
+  },
+  {
+    "id": 1540,
+    "sender": "ened",
+    "content": "> Ahh I see. It's because we'd need to potentially include the AOT snapshot for the target arch as well. And right now we just put that under assets, we don't put a per-architecture version under `libs`. If we could put the AOT snapshot into the architecture specific libs folder that might work, otherwise we'd want to use the .aab format for that reason.\r\n> \r\n> We want to do this anyway to support building .AARs for add2app use cases. I'll poke at it.\r\n\r\n@dnfield did you have some success at this, yet?",
+    "createdAt": "2019-03-31T15:07:02Z"
+  },
+  {
+    "id": 1541,
+    "sender": "dnfield",
+    "content": "Working through the plug-in piece at the moment.  We've been trying to get parts of it prioritized to fix the Android X issues but should see some more come out of that.",
+    "createdAt": "2019-03-31T15:27:50Z"
+  },
+  {
+    "id": 1542,
+    "sender": "slightfoot",
+    "content": "@gerryhigh and myself were looking into this. Please ignore my last replies. The problem is just the fact that libflutter.so is not included for 64bit but for AOT you have to run the build process twice, once for 32bit and again for 64bit. You then get two sets of compiled Dart code in your application assets as well as two versions of libflutter.so. I think the eventual goal would be to setup compilation tasks for Flutter so that it runs the two separate build steps and have split APKs setup automatically.\r\n\r\nBut for the moment, the only solution is to run the build twice and uploading multiple-APKs to the Play Store. \r\n```\r\nflutter build apk --release --target-platform=android-arm\r\nflutter build apk --release --target-platform=android-arm64\r\n```\r\nThis can be better be achieved with enabling split-APKs. More details can be found here: https://developer.android.com/studio/build/configure-apk-splits\r\n",
+    "createdAt": "2019-04-01T16:22:21Z"
+  },
+  {
+    "id": 1543,
+    "sender": "edTheGuy00",
+    "content": "@slightfoot yes this is the best solution I have found so far as mentioned in my comment up there https://github.com/flutter/flutter/issues/18494#issuecomment-477502287",
+    "createdAt": "2019-04-01T16:30:03Z"
+  },
+  {
+    "id": 1544,
+    "sender": "ndusart",
+    "content": "@slightfoot if I understand correctly, it would not be possible to build an universal APK as some code are located in the assets folder which does not allow to split files according to targeted archtecture as the lib folder ?\r\n",
+    "createdAt": "2019-04-02T08:14:48Z"
+  },
+  {
+    "id": 1545,
+    "sender": "ctrysbita",
+    "content": "The snapshot built for each architecture is different. Simply copy the engine `libflutter.so` will cause the snapshot cannot be loaded if the architecture of snapshot doesn't match the architecture of flutter engine.\r\nSo currently there is no way for us to build a universal apk that contains all architectures unless separate the snapshot files and include the snapshot file for every architecture.",
+    "createdAt": "2019-04-02T08:27:22Z"
+  },
+  {
+    "id": 1546,
+    "sender": "josh-burton",
+    "content": "I'm a bit confused as to why this is even a problem.\r\n\r\nDebug builds create libflutter.so in x86_64, x86, armeabi-v7a, and arm64-v8a.\r\n\r\nRelease builds should do exactly the same.\r\n\r\nAGP (Android Gradle Plugin) already includes the functionality to filter out architectures, so if a user wishes to do that for a release build they can modify their build.gradle.\r\n\r\n@eseidel @dnfield I don't really think this is solved by Android App Bundles - they are not the default Android output yet and when running from the IDE apks will be used for quite a while yet I'm sure.\r\n\r\nAABs are another reason why Flutter should include all architectures of libflutter.so as the Play Store can filter out which architecture it delivers to devices.",
+    "createdAt": "2019-04-13T09:18:43Z"
+  },
+  {
+    "id": 1547,
+    "sender": "edTheGuy00",
+    "content": "@athornz the problem is  not with `libflutter.so` but with your dart code compiling down to a `AOT snapshot ` debug builds include the Dart VM so all your dart code just runs `JIT` on the VM, but release builds compile your dart code into a snapshot and place that snapshot into an assets folder. Ideally the snapshot should be compiled for each architecture and placed alongside `libflutter.so` but that is not the case at the moment. So while you can include `libflutter.so` for all the architectures, the snapshot will only work for whatever architecture it was compiled for. ",
+    "createdAt": "2019-04-13T10:01:21Z"
+  },
+  {
+    "id": 1548,
+    "sender": "trevorwang",
+    "content": "Any plan to fix this issue?\r\n\r\nGoogle Play store ask developer to provide 64-bit support after  August 1, 2019.\r\n\r\n\r\nhttps://android-developers.googleblog.com/2019/01/get-your-apps-ready-for-64-bit.html\r\n\r\n> The 64-bit requirement: what it means for developers\r\n**Starting August 1, 2019:**\r\n_All new apps and app updates that include native code are required to provide 64-bit versions in addition to 32-bit versions when publishing to Google Play._\r\nExtension: Google Play will continue to accept 32-bit only updates to existing games that use Unity 5.6.6 or older until August 2021.\r\n**Starting August 1, 2021:**\r\nGoogle Play will stop serving apps without 64-bit versions on 64-bit capable devices, meaning they will no longer be available in the Play Store on those devices.\r\nThis will include games built with Unity 5.6.6 or older.\r\n",
+    "createdAt": "2019-04-18T06:55:00Z"
+  },
+  {
+    "id": 1549,
+    "sender": "slightfoot",
+    "content": "@trevorwang we can already build 64bit and upload them along with 32bit to the Play Store. So that isn't a problem.",
+    "createdAt": "2019-04-18T07:27:06Z"
+  },
+  {
+    "id": 1550,
+    "sender": "trevorwang",
+    "content": " @slightfoot Do you mean I have to build another 64-bit APK and upload it to Google Play?\r\n\r\nAs you know, Google Play is not available in China mainland. We prefer a universal APK to support all platforms.",
+    "createdAt": "2019-04-18T07:34:19Z"
+  },
+  {
+    "id": 1551,
+    "sender": "edTheGuy00",
+    "content": "@trevorwang pretty much. This is how I do it  https://github.com/flutter/flutter/issues/18494#issuecomment-477502287 ",
+    "createdAt": "2019-04-18T07:36:40Z"
+  },
+  {
+    "id": 1552,
+    "sender": "MarcelEdward2",
+    "content": "The split thing does not work in the gradfle file.  You have to do something with one of the build.gradle files so flutter knows how to compile different architectures. Or google play will reject the second compile. \r\n\r\n",
+    "createdAt": "2019-04-18T07:42:07Z"
+  },
+  {
+    "id": 1553,
+    "sender": "trevorwang",
+    "content": "Thanks @edTheGuy00 \r\n\r\nBut we really need a universal APK including all abis  for China Market.",
+    "createdAt": "2019-04-18T07:43:18Z"
+  },
+  {
+    "id": 1554,
+    "sender": "ndusart",
+    "content": "@trevorwang you can build for each targets and explicitely state for which architecture each APK is for. This is how it is done for a lot majority of APK mirror sites.\r\n\r\nThe 64bit limitation is just a limitation of the Google Play Store. You can still deploy the armeabi-v7a only APK and everyone would be able to run your app.",
+    "createdAt": "2019-04-18T07:49:52Z"
+  },
+  {
+    "id": 1555,
+    "sender": "josh-burton",
+    "content": "Building separate APKs per architecture is a workaround and definitely not a solution for everyone.\r\n\r\nOnce the Google Play 64bit limitation comes into effect this issue will impact most Flutter developers so we really do need a solution that allows for multiple architectures within one apk/bundle.\r\n\r\n",
+    "createdAt": "2019-04-18T09:32:28Z"
+  },
+  {
+    "id": 1556,
+    "sender": "edTheGuy00",
+    "content": "Just a quick reminder \n\nThe Flutter team uses the number of \"Thumbs-up\" on a GitHub issue as a guide to its priority.\n\nI think this issue should be high up in priority. ",
+    "createdAt": "2019-04-19T03:35:14Z"
+  },
+  {
+    "id": 1557,
+    "sender": "trevorwang",
+    "content": "Thanks for the work of  @gerryhigh  and @slightfoot \r\n\r\nI have added flutter to an existed app and fixed this issue by the following workaround.\r\n**_Please add this to your app module of the host project._** \r\n\r\n> **This is the script for Debug mode, please change accordingly for release.**\r\n\r\n```\r\nproject.afterEvaluate {\r\n    assembleDebug.doLast {\r\n        def flutterRoot = System.getenv(\"FLUTTER_HOME\")\r\n        def archTypes = [\"arm\", \"arm64\"]\r\n        archTypes.forEach { item ->\r\n            copy {\r\n                from zipTree(\"$flutterRoot/bin/cache/artifacts/engine/android-$item/flutter.jar\")\r\n                include 'lib/*/libflutter.so'\r\n                into \"$buildDir/intermediates/jniLibs/debug/\"\r\n                eachFile {\r\n                    it.path = it.path.replaceFirst(\"lib/\", \"\")\r\n                }\r\n            }\r\n        }\r\n    }\r\n}\r\n\r\n```\r\n\r\n\r\n",
+    "createdAt": "2019-04-28T10:36:37Z"
+  },
+  {
+    "id": 1558,
+    "sender": "zhancheng",
+    "content": "Any recent developments?",
+    "createdAt": "2019-04-30T11:27:00Z"
+  },
+  {
+    "id": 1559,
+    "sender": "andreidiaconu",
+    "content": "What I ended up doing, since I wanted \r\n\r\n- separate apks for each architecture\r\n- not to have to modify the versionCode manually\r\n- run a single command to produce the apks\r\n\r\n1. Added this to gradle. It adds `1` or `2` at the end of the versionCode, so version `1004` becomes `10041` for arm and `10042` for arm64.\r\n```\r\next.platformCodes = ['android-arm': 1, 'android-arm64' : 2]\r\nandroid.applicationVariants.all { variant ->\r\n    variant.outputs.each { output ->\r\n        int code = 0\r\n        if (project.hasProperty('target-platform')) {\r\n            code = project.ext.platformCodes.get(project.property('target-platform'))\r\n        }\r\n        output.versionCodeOverride = variant.versionCode * 10 + code\r\n    }\r\n}\r\n```\r\n\r\n2. To produce the apks I use a longer terminal command (which you can put in a script). It runs the build twice and creates copies of the apks at the end:\r\n\r\n```\r\nflutter clean; flutter build apk --release --target-platform=android-arm; mv build/app/outputs/apk/release/app-release.apk build/app/outputs/apk/release/app-release-arm32.apk; flutter build apk --release --target-platform=android-arm64; mv build/app/outputs/apk/release/app-release.apk build/app/outputs/apk/release/app-release-arm64.apk;\r\n```\r\n\r\nHope this helps.",
+    "createdAt": "2019-05-02T09:17:21Z"
+  },
+  {
+    "id": 1560,
+    "sender": "BND10706",
+    "content": "So this is an issue that I am having as well.. I have building an app bundle instead of an apk and when i have been uploading it to google it gives me the warning and wont let me alpha test it.\r\n\r\nIve been using codemagic to do it, is there a way to sign it and put it in a bundle? or use codemagic to dot it?",
+    "createdAt": "2019-05-02T10:56:43Z"
+  },
+  {
+    "id": 1561,
+    "sender": "PandaGeek1024",
+    "content": "Im facing the same issue which I thought shouldn't exist at all.",
+    "createdAt": "2019-05-02T11:22:02Z"
+  },
+  {
+    "id": 1562,
+    "sender": "lifenautjoe",
+    "content": "How come this is on the Milestone \"Goals\".\r\n\r\n\r\n> P2: These are tasks we think are worth fixing in the coming years. It includes issues we've identified that might block fully shipping broad consumer-facing apps, correctness issues, and bugs relating to polish and quality. The date on this milestone is utterly arbitrary and just intended to sort the milestone appropriately.\r\n\r\nIt's a critical issue already and will become a full blown show-stopper later this year once Google enforces the 64bit limitation.",
+    "createdAt": "2019-05-02T21:12:26Z"
+  },
+  {
+    "id": 1563,
+    "sender": "dnfield",
+    "content": "I've bumped the milestone on this.  No solid date yet.\r\n\r\nTo be clear: it is possible, but difficult, to comply with the new guidelines today.  We want to make that easier.",
+    "createdAt": "2019-05-02T22:12:54Z"
+  },
+  {
+    "id": 1564,
+    "sender": "BND10706",
+    "content": "So @andreidiaconu method worked for me as long as I manually build the app.\r\n\r\nBut I have been using codemagic to build and deploy.\r\n\r\nSo this is a waste, Flutter needs to get this built it.",
+    "createdAt": "2019-05-03T01:55:25Z"
+  },
+  {
+    "id": 1565,
+    "sender": "masewo",
+    "content": "At the moment I personally do not really care if it is complicated. If it is complicated it will get automated by a script. The question is if it is possible and how because Google Play Console warns me:\r\n\r\n> This release is not compliant with the Google Play 64-bit requirement\r\n> The following APKs or App Bundles are available to 64-bit devices, but they only have 32-bit native code: 6.\r\n> From 1. August 2019 all releases must be compliant with the Google Play 64-bit requirement.\r\n> Include 64-bit and 32-bit native code in your app. Use the Android App Bundle publishing format to automatically ensure that each device architecture receives only the native code it needs. This avoids increasing the overall size of your app.\r\n\r\nI do not want a solution that needs different version codes and I want a solution that works with Android App Bundles (AAB).",
+    "createdAt": "2019-05-04T10:55:49Z"
+  },
+  {
+    "id": 1566,
+    "sender": "mcjons",
+    "content": "Warning\r\nThis release is not compliant with the Google Play 64-bit requirement\r\n\r\nThe following APKs or App Bundles are available to 64-bit devices, but they only have 32-bit native code: 3.",
+    "createdAt": "2019-05-05T09:20:50Z"
+  },
+  {
+    "id": 1567,
+    "sender": "mcjons",
+    "content": "Any solution?",
+    "createdAt": "2019-05-05T09:21:08Z"
+  },
+  {
+    "id": 1568,
+    "sender": "pablote",
+    "content": "> I've bumped the milestone on this. No solid date yet.\r\n> \r\n> To be clear: it is possible, but difficult, to comply with the new guidelines today. We want to make that easier.\r\n\r\nShould the docs be updated with instructions on how to do this for both apk and app bundles? All I’ve seen so far are bunchs of code and config which I’m not exactly sure where to put. I could probably figure it out with some trial and error, but it’s less than ideal.",
+    "createdAt": "2019-05-05T22:20:51Z"
+  },
+  {
+    "id": 1569,
+    "sender": "ana-sher",
+    "content": "same issue",
+    "createdAt": "2019-05-06T07:56:46Z"
+  },
+  {
+    "id": 1570,
+    "sender": "noinskit",
+    "content": "> Thanks for the work of @gerryhigh and @slightfoot\r\n> \r\n> I have added flutter to an existed app and fixed this issue by the following workaround.\r\n> **_Please add this to your app module of the host project._**\r\n> \r\n> > **This is the script for Debug mode, please change accordingly for release.**\r\n> \r\n> ```\r\n> project.afterEvaluate {\r\n>     assembleDebug.doLast {\r\n>         def flutterRoot = System.getenv(\"FLUTTER_HOME\")\r\n>         def archTypes = [\"arm\", \"arm64\"]\r\n>         archTypes.forEach { item ->\r\n>             copy {\r\n>                 from zipTree(\"$flutterRoot/bin/cache/artifacts/engine/android-$item/flutter.jar\")\r\n>                 include 'lib/*/libflutter.so'\r\n>                 into \"$buildDir/intermediates/jniLibs/debug/\"\r\n>                 eachFile {\r\n>                     it.path = it.path.replaceFirst(\"lib/\", \"\")\r\n>                 }\r\n>             }\r\n>         }\r\n>     }\r\n> }\r\n> ```\r\n\r\nThis solution/workaround looks most promising, thanks @trevorwang ! I do have problems implementing this in an existing flutter project, though. Do you have an example build.gradle file or something equivalent that would demo this?",
+    "createdAt": "2019-05-06T14:34:52Z"
+  },
+  {
+    "id": 1571,
+    "sender": "SPodjasek",
+    "content": "**PLEASE NOTE THAT THIS PROBABLY WON'T SOLVE YOUR PROBLEM - SEE BELOW**\r\n\r\nThanks to @trevorwang answer & @noinskit suggestion I've managed to include 64bit native libs in release builds with a small addition to `./android/app/build.gradle` shown below. \r\nYou can also view the whole file [here](https://gist.github.com/SPodjasek/0a93fed9ca038169c5afe962f10a5d18).\r\n\r\n```groovy\r\nafterEvaluate {\r\n    mergeReleaseJniLibFolders.doLast {\r\n        def archTypes = [\"arm-release\", \"arm64-release\"]\r\n        archTypes.forEach { item ->\r\n            copy {\r\n                from zipTree(\"$flutterRoot/bin/cache/artifacts/engine/android-$item/flutter.jar\")\r\n                include 'lib/*/libflutter.so'\r\n                into \"$buildDir/intermediates/jniLibs/release/\"\r\n                eachFile {\r\n                    it.path = it.path.replaceFirst(\"lib/\", \"\")\r\n                }\r\n            }\r\n        }\r\n    }\r\n}\r\n```\r\n",
+    "createdAt": "2019-05-06T22:29:50Z"
+  },
+  {
+    "id": 1572,
+    "sender": "noinskit",
+    "content": "@SPodjasek thanks! I arrived at something similar. In my case, I need to change `assembleRelease` in your snippet to `mergeReleaseJniLibFolders`, otherwise the extra *.so file ends up under \"intermediates/...\", but not in the final apk.",
+    "createdAt": "2019-05-06T23:11:09Z"
+  },
+  {
+    "id": 1573,
+    "sender": "SPodjasek",
+    "content": "@noinskit It seems that my previous solution was error prone. After running `flutter clean` it generated aab's with just 32bit libs. Replacing `assembleRelease` with `mergeReleaseJniLibFolders` seems to work also after cleaning of the build true.",
+    "createdAt": "2019-05-07T10:15:11Z"
+  },
+  {
+    "id": 1574,
+    "sender": "function1983",
+    "content": "@SPodjasek do you have to tweak any other options?\r\n\r\nHere is my **app.gradle**\r\n```\r\ndef flutterRoot = localProperties.getProperty('flutter.sdk')\r\nif (flutterRoot == null) {\r\n    throw new GradleException(\"Flutter SDK not found. Define location with flutter.sdk in the local.properties file.\")\r\n}\r\n\r\nafterEvaluate {\r\n    mergeReleaseJniLibFolders.doLast {\r\n        def archTypes = [\"arm-release\", \"arm64-release\"]\r\n        archTypes.forEach { item ->\r\n            copy {\r\n                from zipTree(\"$flutterRoot/bin/cache/artifacts/engine/android-$item/flutter.jar\")\r\n                include 'lib/*/libflutter.so'\r\n                into \"$buildDir/intermediates/jniLibs/release/\"\r\n                eachFile {\r\n                    it.path = it.path.replaceFirst(\"lib/\", \"\")\r\n                }\r\n            }\r\n        }\r\n    }\r\n}\r\n```\r\nBoth of my intermediates/jniLibs/release/**arm64-v8a** and **armeabi-v7a** directories have **libflutter.so** as expected but the final release APK still missing libflutter.so in arm64-v8a.\r\n\r\nHere is the screenshot\r\n\r\n![flutter](https://user-images.githubusercontent.com/3862078/57294408-c3727c00-70f1-11e9-8351-5313e4b1c7c0.png)\r\n",
+    "createdAt": "2019-05-07T11:01:32Z"
+  },
+  {
+    "id": 1575,
+    "sender": "SPodjasek",
+    "content": "@function1983 You can see my complete `build.gradle` [here](https://gist.github.com/SPodjasek/0a93fed9ca038169c5afe962f10a5d18).\r\nAs of my flutter version:\r\n```\r\n[✓] Flutter (Channel beta, v1.5.4, on Linux, locale pl_PL.UTF-8)\r\n    • Flutter version 1.5.4 at .../development/flutter\r\n    • Framework revision b593f5167b (2 weeks ago), 2019-04-22 07:51:33 -0700\r\n    • Engine revision ca31a7c57b\r\n    • Dart version 2.3.0 (build 2.3.0-dev.0.1 cf4444b803)\r\n\r\n[✓] Android toolchain - develop for Android devices (Android SDK version 28.0.3)\r\n    • Android SDK at .../Android/Sdk\r\n    • Android NDK location not configured (optional; useful for native profiling support)\r\n    • Platform android-28, build-tools 28.0.3\r\n    • Java binary at: .../development/android-studio/jre/bin/java\r\n    • Java version OpenJDK Runtime Environment (build 1.8.0_152-release-1343-b16-5323222)\r\n    • All Android licenses accepted.\r\n\r\n[✓] Android Studio (version 3.4)\r\n    • Android Studio at .../development/android-studio\r\n    • Flutter plugin version 35.2.1\r\n    • Dart plugin version 183.6270\r\n    • Java version OpenJDK Runtime Environment (build 1.8.0_152-release-1343-b16-5323222)\r\n```",
+    "createdAt": "2019-05-07T11:47:25Z"
+  },
+  {
+    "id": 1576,
+    "sender": "Torrunt",
+    "content": "I've been trying to use @SPodjasek's solution to build an appbundle that includes both 64 and 32 bit versions. It successfully builds, I can upload it to Google Play Console and I can install it on both 32 and 64 bit phones. But the app crashes when launched on an android-arm64 device for some reason (seems to work on an old 32bit android phone I was testing with though).\r\n\r\nHere is the error I get on the 64bit device:\r\n> Abort message: '[FATAL:flutter/runtime/dart_vm.cc(416)] Error while initializing the Dart VM: Snapshot not compatible with the current VM configuration: the snapshot requires 'product use_bare_instructions no-\"asserts\" causal_async_stacks arm-eabi softfp' but the VM has 'product use_bare_instructions no-\"asserts\" causal_async_stacks arm64-sysv' \r\n\r\nNot sure what I can do... Might have to stick with only supporting 64bit devices for now.",
+    "createdAt": "2019-05-08T02:37:23Z"
+  },
+  {
+    "id": 1577,
+    "sender": "dnfield",
+    "content": "@Torrunt that error is because the Engine is trying to loat the AOT snapshot for 32bit and finding one for 64.\r\n\r\nWe're working on being able to produce an AAB that has both so that the store can correctly split these out.",
+    "createdAt": "2019-05-08T02:53:29Z"
+  },
+  {
+    "id": 1578,
+    "sender": "dark-chocolate",
+    "content": "@SPodjasek Using [this](https://github.com/flutter/flutter/issues/18494#issuecomment-489807239) increased my app-release.apk file size from 11.1 MB to 15.7 MB",
+    "createdAt": "2019-05-09T12:48:23Z"
+  },
+  {
+    "id": 1579,
+    "sender": "SPodjasek",
+    "content": "> @SPodjasek Using [this](https://github.com/flutter/flutter/issues/18494#issuecomment-489807239) increased my app-release.apk file size from 11.1 MB to 15.7 MB\r\n\r\nYes, as it forcefully includes `libflutter.so` for 32 & 64bit. If you don't need that, stick with current default to include 32bit only and wait for flutter team to deal with this properly.",
+    "createdAt": "2019-05-09T13:07:14Z"
+  },
+  {
+    "id": 1580,
+    "sender": "MarcelEdward2",
+    "content": "looks like there are a few possibilities:\r\n\r\n- wait till the flutter team resolves the 32 vs 64 architecture thing making google play store accept the flutter builds again\r\n- we have to limit the android devices used to 32 bit only, so flutter apps will only run on 32 bit devices\r\n- we have to somehow convice google not to enforce 64 bit on the play store. (I wonder what the difference is between 32 and 64 bit, somthing like bigger numbers ?)\r\n- install the 32 apps somehow on 64 bit devices but not in the play store ...",
+    "createdAt": "2019-05-09T14:16:12Z"
+  },
+  {
+    "id": 1581,
+    "sender": "ndusart",
+    "content": "Note for people using `--target-platform` to build for `android-arm` and `android-arm64` separately and upload two APK.\r\nPay attention that some plugins use native libraries that may target both, and flutter does not filter the libraries folders so your \"32 bits\" APK will actually still target arm64 as well and it will crash as libflutter.so is not present and AOT snapshots are built for armv7.\r\n\r\nSo, you'll need to actually explicitely filter the target abi in your build.gradle file.\r\n\r\nI think the `flutter build apk --target-platform ...` should logically do this filtering.",
+    "createdAt": "2019-05-09T14:30:05Z"
+  },
+  {
+    "id": 1582,
+    "sender": "CoreyCole",
+    "content": "Using @SPodjasek's solution, I got an error about matching `arm-eabi` versus `arm64-sysv`. I think the best solution, that worked for me, is just building for 32 bit for the time being until this is all sorted out (@swavkulinski's solution [here](https://github.com/flutter/flutter/issues/18494#issuecomment-399155013)):\r\n\r\nIn your `app` level `build.gradle`:\r\n```gradle\r\nandroid {\r\n    // ...\r\n    buildTypes {\r\n        release {\r\n            // ...\r\n            ndk {\r\n                abiFilters \"armeabi-v7a\"\r\n            }\r\n        }\r\n    }\r\n}\r\n```",
+    "createdAt": "2019-05-14T17:16:35Z"
+  },
+  {
+    "id": 1583,
+    "sender": "SPodjasek",
+    "content": "Summarising issue from the subject - it won't be possible to build such APK for both armeabi-v7a and arm64-v8a. Flutter uses AOT snapshots which are ABI dependant, so with APK only possible solution would be to use multiple APK builds.\r\n~~The solution would be to use App Bundles, which, as for now also has some issues (#31922).~~\r\n**After #32787 got merged it's now possible to use App Bundles.**",
+    "createdAt": "2019-05-14T20:29:11Z"
+  },
+  {
+    "id": 1584,
+    "sender": "shinayser",
+    "content": "How do I set the flavor and my target file (-t lib/another_main.dart, for example) when generating an Android app Bundle via Android Studio? o.o",
+    "createdAt": "2019-05-14T21:12:01Z"
+  },
+  {
+    "id": 1585,
+    "sender": "blasten",
+    "content": "This will be supported via `flutter build appbundle` after https://github.com/flutter/flutter/pull/32787 is merged! ",
+    "createdAt": "2019-05-20T01:17:50Z"
+  },
+  {
+    "id": 1586,
+    "sender": "swavkulinski",
+    "content": "> @swavkulinski how would you release the to apks to the playstore?\r\n\r\nIt was still possible back then. Now you have to limit to 64bit. We were lockdown by the third party NDK library which was 32bit only. ",
+    "createdAt": "2019-05-20T14:22:24Z"
+  },
+  {
+    "id": 1587,
+    "sender": "zimmi",
+    "content": "@blasten\r\nWill this also add support for `flutter build apk --release`? Or is it planned to phase out support for  APKs in favor of app bundles in the long term? I quite like the relative simplicity of the fat APK.",
+    "createdAt": "2019-05-20T18:11:19Z"
+  },
+  {
+    "id": 1588,
+    "sender": "blasten",
+    "content": "@zimmi Correct. App bundles should be the way going forward. You can still use `flutter build apk --release` when necessary. What is simpler in a fat APK compared to AAB? ",
+    "createdAt": "2019-05-20T18:22:04Z"
+  },
+  {
+    "id": 1589,
+    "sender": "audkar",
+    "content": "> What is simpler in a fat APK compared to AAB?\r\n\r\nAAB is not installation file. Android itself can't use it. It's file format for Google Play store only. So need apk when:\r\n- Installing directly to device.\r\n- Directly distributing app.\r\n- Distributing via any other app market except Google Play store. (amazon & all China).",
+    "createdAt": "2019-05-20T18:45:09Z"
+  },
+  {
+    "id": 1590,
+    "sender": "blasten",
+    "content": "I see. Thanks for the background.\r\n\r\nAlso, you can extract the APKs from the AAB using [bundletool](https://developer.android.com/studio/command-line/bundletool).",
+    "createdAt": "2019-05-20T18:53:30Z"
+  },
+  {
+    "id": 1591,
+    "sender": "zimmi",
+    "content": "@blasten\r\nThank you for confirming!\r\nRegarding the simplicity comment: What @audkar said. Also with AABs, the developer has to think about potential failure scenarios caused by missing assets. Testing on all possible device configurations is hard, so if those failures occur, it's likely in production.\r\n\r\nApp size might be a price some are willing to pay for that peace of mind.\r\n\r\nI'm sure there are better places to discuss the merits of each approach than this issue though, I don't want to derail it.",
+    "createdAt": "2019-05-20T19:40:21Z"
+  },
+  {
+    "id": 1592,
+    "sender": "blasten",
+    "content": "/cc @jonahwilliams  we may need to support fat APKs in `build apk`.\r\n Should we also change the default for `build apk`?",
+    "createdAt": "2019-05-20T20:06:15Z"
+  },
+  {
+    "id": 1593,
+    "sender": "josh-burton",
+    "content": "Fat apk support is definitely needed. There a lots of tools (beta distribution etc) that don't yet work with app bundles.",
+    "createdAt": "2019-05-20T20:35:50Z"
+  },
+  {
+    "id": 1594,
+    "sender": "blasten",
+    "content": "`flutter build appbundle` is now in master, does any voluntary person want to give it try?\r\n\r\nWe had some discussion to support a list of platforms in `build apk`, so you could do something like this:  `flutter build apk --target-platform android-arm,android-arm64 `",
+    "createdAt": "2019-05-20T21:49:58Z"
+  },
+  {
+    "id": 1595,
+    "sender": "mattetti",
+    "content": "@blasten I switched to the master channel, upgraded and build the appbundle, it worked well. Then uploaded it to the play console and all warnings are gone. (macOS 10.14.4)",
+    "createdAt": "2019-05-21T00:12:54Z"
+  },
+  {
+    "id": 1596,
+    "sender": "BND10706",
+    "content": "Awesome! I will compile my build tonight after I make my changes.",
+    "createdAt": "2019-05-21T00:35:06Z"
+  },
+  {
+    "id": 1597,
+    "sender": "mattetti",
+    "content": "The bundle doesn't to seem to work tho, the app crashes when being downloaded.\r\n\r\n```\r\nIssue: java.lang.RuntimeException: Unable to instantiate activity ComponentInfo{com.mattetti.sounds/com.mattetti.sounds.MainActivity}: java.lang.ClassNotFoundException: Didn't find class \"com.mattetti.sounds.MainActivity\" on path: DexPathList[[zip file \"/data/app/com.mattetti.sounds-ewwlQg0QphABpwu8t14HWA==/base.apk\", zip file \"/data/app/com.mattetti.sounds-ewwlQg0QphABpwu8t14HWA==/split_config.arm64_v8a.apk\", zip file \"/data/app/com.mattetti.sounds-ewwlQg0QphABpwu8t14HWA==/split_config.xxhdpi.apk\"],nativeLibraryDirectories=[/data/app/com.mattetti.sounds-ewwlQg0QphABpwu8t14HWA==/lib/arm64, /data/app/com.mattetti.sounds-ewwlQg0QphABpwu8t14HWA==/base.apk!/lib/arm64-v8a, /data/app/com.mattetti.sounds-ewwlQg0QphABpwu8t14HWA==/split_config.arm64_v8a.apk!/lib/arm64-v8a, /data/app/com.mattetti.sounds-ewwlQg0QphABpwu8t14HWA==/split_config.xxhdpi.apk!/lib/arm64-v8a, /system/lib64]]\r\n```",
+    "createdAt": "2019-05-21T01:16:47Z"
+  },
+  {
+    "id": 1598,
+    "sender": "blasten",
+    "content": "It seems like `com.mattetti.sounds.MainActivity` isn't in the bundle?",
+    "createdAt": "2019-05-21T01:21:07Z"
+  },
+  {
+    "id": 1599,
+    "sender": "mattetti",
+    "content": "Not sure why, how can I check why it's removed?",
+    "createdAt": "2019-05-21T01:29:39Z"
+  }
+]

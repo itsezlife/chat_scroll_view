@@ -1,0 +1,386 @@
+[
+  {
+    "id": 3584,
+    "sender": "rrousselGit",
+    "content": "> Hi lukepighetti , have you used react native with JSX for one to two month? If so, you must understand why building an app with JSX AND React native (or React, I know they are different) framework style is simple and well structure.\r\n\r\nI can't speak for lukepighetti, but I've been working professionally with React for two years, now doing some Vue. So I'm quite well versed when it comes to JSX.\r\n\r\nSimilarly, I've been using Flutter for about 2 years too. At first, I also thought that Flutter needed some sort of JSX.\r\nBut Flutter improved quite a lot in that period, and I changed my mind.\r\n\r\n- JSX is horrible to write by hand. It requires a lot of tooling to make it bearable, including auto-closing tags, auto renaming tags & emmet. And even then it's nowhere near as simple as Flutter's syntax.\r\n\r\nFor instance, refactoring `Foo()` to `Foo(child: Bar())` is easy.\r\nBut refactoring `<Foo />` to `<Foo><Bar /></Foo>` is not.\r\n\r\n- Flutter offers a lot of refactoring options that makes manipulating parenthesis even easier\r\n\r\n- Virtual closing tags that Flutter offers makes up for the lack of ending tags. \r\n_But they don't show up in code-reviews!_\r\nThey actually do! You can do your code-reviews from your IDE. See https://code.visualstudio.com/blogs/2018/09/10/introducing-github-pullrequests\r\n\r\n - JSX doesn't translate well for the Flutter model.\r\n\r\nWhat if a widget take both a `child` and `children`? Do we get:\r\n\r\n```jsx\r\n<Foo\r\n  child={<Bar />}\r\n>\r\n  <Bar />\r\n</Foo>\r\n```\r\n?\r\n\r\nIn that case, it means that for consistency purpose `child`  should always be treated as a named argument instead of using the `children` slot. \r\n\r\nThe thing is, very few widgets takes a `children`. The vast majority is either a single `child`, or a combination of custom named parameters (like `Scaffold`). \r\n\r\nWhich means the vast majority of widgets using JSX will look like:\r\n\r\n```jsx\r\n<Container\r\n  child={<Bar />}\r\n/>\r\n```\r\n\r\nWhich is _worse_ then:\r\n\r\n```dart\r\nContainer(\r\n  child: Bar(),\r\n)\r\n```\r\n\r\n\r\nAll summed up, I think Flutter is fine. And even if JSX were available, I doubt it'd actually improve things.",
+    "createdAt": "2019-03-16T18:24:46Z"
+  },
+  {
+    "id": 3585,
+    "sender": "filleduchaos",
+    "content": "Like I said upthread I think there is a lot of conflation between what are actually JS/ECMAScript/general web features (object spreading, destructuring, interchangeability of objects/hashmaps, all DOM* nodes having a highly similar interface, the flexibility of HTML in general, etc) with what are JSX features. The former IMO are what make JSX pleasant to write. Without them, you're just writing XML, and most people I know who actually have a choice don't like writing XML.\r\n\r\n*Worth noting that this above everything is my major opposition to trying to retrofit Flutter to XML. I don't think there is any real point trying to deny that JSX/React has deep roots in the web, and DOM elements have a longstanding standard of every node having _attributes_ and _children_. On the other hand Flutter doesn't bind devs to name a custom widget's slot for other widgets `children` or even `child` and I see zero reason why it should start doing that.",
+    "createdAt": "2019-03-16T19:15:54Z"
+  },
+  {
+    "id": 3586,
+    "sender": "lukepighetti",
+    "content": "I can see why the other JSX thread was locked. I shouldn't have to defend my skills/experience in GitHub comments for explaining why I think JSX doesn't benefit Flutter. I could easily say \"You don't have enough experience with Flutter to have any opinion about Flutter.\" Doesn't feel good, does it. Y'all enjoy your keyboard warrior tribe.",
+    "createdAt": "2019-03-16T20:59:30Z"
+  },
+  {
+    "id": 3587,
+    "sender": "woodstream",
+    "content": "> What if a widget take both a `child` and `children`? Do we get:\r\n\r\nWhy  a widget need to have both `child` and `children`? It's either this or that。\r\nAnother topic，Flutter‘s some widgets use `children`, and the others use `child` , nobody thinks it's complicated and easy to confuse？`children` contains `child`, so no matter how many `child` you have，one or more then one，just use `children` to get the job done.",
+    "createdAt": "2019-03-16T21:46:34Z"
+  },
+  {
+    "id": 3588,
+    "sender": "cbazza",
+    "content": "@rrousselGit\r\n\r\n> JSX is horrible to write by hand. It requires a lot of tooling to make it bearable,\r\n\r\nNot just the whole React world disagrees with you but also the whole HTML world and XML world. \r\n\r\n> Flutter offers a lot of refactoring options that makes manipulating parenthesis even easier\r\n\r\nSo you are saying Flutter 'requires a lot of tooling' too but since you are biased you feel the need to trash the other side. FYI: best thing to do is accept that there are more than one way of doing something and that some people will prefer the other way of doing it.\r\n\r\n> They actually do! You can do your code-reviews from your IDE. \r\n\r\nThat doesn't solve the problem for all other online code review tools used by teams. These tools manipulate the source code and if it is not in the source code, it doesn't exist.\r\n\r\n> JSX doesn't translate well for the Flutter model.\r\n\r\nThat's just your bad opinion, anyone can see that DSX adds enhancements to JSX that fits perfectly with Flutter. \r\nhttps://spark-heroku-dsx.herokuapp.com/index.html\r\n\r\n",
+    "createdAt": "2019-03-17T13:01:53Z"
+  },
+  {
+    "id": 3589,
+    "sender": "rrousselGit",
+    "content": "> So you are saying Flutter 'requires a lot of tooling' \r\n\r\nNo, I said \"even easier\" not \"bearable\".\r\n\r\nI happen to answer to StackOverflow/Slack often, and sometimes even from my phone.\r\nAnd I clearly have a bad time when answering html related question – but Flutter is fine.\r\n\r\n>  best thing to do is accept that there is more than one way of doing something and that some people will prefer the other way of doing it.\r\n\r\nThat works the other way around. You should see that clearly, the community isn't 100% fans of JSX. The number of downvotes on both this issue and the previous one proves it. \r\n\r\n> That's just your bad opinion, anyone can see that DSX adds enhancements to JSX that fits perfectly with Flutter.\r\n\r\nI disagree. The syntax contains a lot of complex characters that on many keyboard layouts are hard to access.\r\nIt contains tons of repetition too. \r\n\r\n____\r\n\r\nIn any case, I don't understand why you're permanently so aggressive. We're all trying to make Flutter better. \r\nThere's no point in being harsh and making this discussion closed **again**.",
+    "createdAt": "2019-03-17T13:41:24Z"
+  },
+  {
+    "id": 3590,
+    "sender": "yisar",
+    "content": "If JSX does not work well in flutter, I can accept not joining JSX, but we should consider nested hell.\r\n\r\nAnother side story is the semicolon of dart language. It's really annoying.",
+    "createdAt": "2019-03-17T13:46:01Z"
+  },
+  {
+    "id": 3591,
+    "sender": "rrousselGit",
+    "content": "> Another side story is the semicolon of dart language. It's really annoying.\r\n\r\nThere's a request for this on dart-lang/language: https://github.com/dart-lang/language/issues/69\r\nGo give it a 👍 \r\n",
+    "createdAt": "2019-03-17T13:50:57Z"
+  },
+  {
+    "id": 3592,
+    "sender": "ivnsch",
+    "content": "This long discussion is about being able to use this:\r\n```xml\r\n<A property=\"a\">\r\n  <B/>\r\n  <C/>\r\n</A>\r\n```\r\nInstead of this:\r\n```dart\r\nA(property: a, children: [\r\n   B(), \r\n   C()\r\n])\r\n```\r\nEven if one agrees with the former syntax to be superior, something I personally don't do, this comes with ongoing maintenance costs, higher complexity and new possible error sources, not only in the language / framework but also the surrounding tooling like IDEs, debugger, linter, etc. It also increases build times. And it requires developers to learn a new syntax and occupy themselves with the internals of the transpiler, to understand when and how instances are being created. All this pretty much with the only goal of React & co. developers feeling at home.\r\n\r\nBefore of starting with new languages, I'd rather focus on improving Dart, which is far from ideal, missing important features like [pattern matching](https://github.com/dart-lang/sdk/issues/2949), [data classes](https://github.com/dart-lang/sdk/issues/31253), [ADTs](https://github.com/dart-lang/sdk/issues/4938), [destructuring](https://github.com/dart-archive/dart_enhancement_proposals/issues/24), [proper optionals](https://github.com/dart-lang/sdk/issues/22), etc. Some of these PRs are open already 5+ years. This, opposed to adding a cosmetic and unnecessary markup layer to create widgets, has a huge impact on architecture, safety and overall code quality.\r\n\r\nEven if this is relegated to \"community driven\", it's still time the community could spend working on something meaningful. But of course everyone can do with their time what they want. Just stop putting this disproportional amount of pressure on the Flutter team, please.",
+    "createdAt": "2019-03-17T14:05:29Z"
+  },
+  {
+    "id": 3593,
+    "sender": "ivnsch",
+    "content": "<img width=\"633\" alt=\"Screen Shot 2019-03-23 at 16 20 33\" src=\"https://user-images.githubusercontent.com/1381744/54867985-bee34580-4d87-11e9-9de0-6d1fb55179ea.png\">\r\n\r\n<img width=\"531\" alt=\"Screen Shot 2019-03-23 at 16 26 39\" src=\"https://user-images.githubusercontent.com/1381744/54868051-8e4fdb80-4d88-11e9-8257-4297821ac614.png\">\r\n\r\nhttps://twitter.com/mattly/status/1109464147782074373\r\nhttps://twitter.com/orta/status/1109467814862172160",
+    "createdAt": "2019-03-23T15:23:01Z"
+  },
+  {
+    "id": 3594,
+    "sender": "AliceSum",
+    "content": "Hey i-Schuetz.\r\n**there is a reply section.** \r\n\r\n![image](https://user-images.githubusercontent.com/21982975/54872596-95281f80-4d83-11e9-870c-d039cf6f7649.png)\r\n\r\n\r\n\r\n\r\nThis is what I have been saying in this long post. JSX fixed the \"spaghetti problem of HTML and XML\" (unreadable and complicated UI code). In my personal opinion after using flutter, it is more complicated than JSX or worst. \r\n\r\nIn these years, I have been seeing people said Flutter cannot capture some of the advantages from React, for example, the true idea of everything is components.\r\n",
+    "createdAt": "2019-03-23T23:05:08Z"
+  },
+  {
+    "id": 3595,
+    "sender": "ivnsch",
+    "content": "Not sure I follow. In the text you highlighted, the user is saying that he found JSX easier to learn because he was familiar with HTML and it has a similar syntax. I don't see how this justifies the existence of JSX and even less an imitation for Flutter in any way.\r\n\r\nI didn't add the replies to the screenshots simply because the images would take too much space. They seemed rather supportive of what I posted, so also redundant. I posted links.",
+    "createdAt": "2019-03-23T23:50:05Z"
+  },
+  {
+    "id": 3596,
+    "sender": "filleduchaos",
+    "content": "@JonathanSum is Flutter more complicated than JSX, or is Flutter different from _React_ and that's causing friction from you? It's more verbose in some cases, yes, and quite arguably less readable without virtual closing tags in an IDE, but I'm not quite sure how using constructors is more _complicated_ than writing an XML-like DSL and I'm still not quite sure why so many people seem to think said XML-like DSL would be a silver bullet that would make using Flutter easier to _understand_. Especially considering that Flutter has no prior history with the problems that React/JSX was created to solve - React makes DOM manipulation easier and cleaner, and that's nice, but what exactly does that have to do with Flutter again?\r\n\r\n> In these years, I have been seeing people said Flutter cannot capture some of the advantages from React, for example, the true idea of everything is components.\r\n\r\nWithout touching the notion that React has some \"true\" idea of everything being components that Flutter does not, there are also some advantages of Flutter/Dart's design that React/JS cannot capture. And you can say the same (and vice versa) for most decent UI SDKs/frameworks/libraries. Incredibly, different projects are in fact different; perhaps people coming to one project might be better served if they don't start out expecting it to be [insert project they've used in the past]. 🙂",
+    "createdAt": "2019-03-24T00:21:45Z"
+  },
+  {
+    "id": 3597,
+    "sender": "rrousselGit",
+    "content": "There are some interesting ideas out there https://github.com/munificent/ui-as-code\r\n\r\n",
+    "createdAt": "2019-03-24T00:30:24Z"
+  },
+  {
+    "id": 3598,
+    "sender": "filleduchaos",
+    "content": "It would most likely be quite the breaking change, but the parameter freedom proposal got me thinking how much more concise build methods could be if Dart had e.g. [Crystal's method arguments spec](https://crystal-lang.org/reference/syntax_and_semantics/default_values_named_arguments_splats_tuples_and_overloading.html).\r\n\r\nOf course, Crystal's compiler would come last in a race against a slug and a tortoise, so there's that 😅 ",
+    "createdAt": "2019-03-24T00:49:59Z"
+  },
+  {
+    "id": 3599,
+    "sender": "yisar",
+    "content": "I now agree not to add JSX and not to put extra pressure on flutter.\r\n\r\nBut as far as dart is concerned, it's far less elegant than JS or TS. I feel helpless",
+    "createdAt": "2019-03-24T01:50:44Z"
+  },
+  {
+    "id": 3600,
+    "sender": "woodstream",
+    "content": "For instance, the development route of Microsoft UI technology is WinForm to WPF，and now in Flutter，abandon WPF and use WinForm instead。In response to developer‘s complaints, the Flutter team worked hard to implement the WinForm‘s visual window and property editor。",
+    "createdAt": "2019-03-29T22:40:38Z"
+  },
+  {
+    "id": 3601,
+    "sender": "elMuso",
+    "content": "As a newcomer in flutter i must say thet this should be in the roadmap. If not jsx, a more human readable way of laying down widgets.\r\n\r\nI can see a react class render function and and image of the rendered class and associate at the moment.\r\n\r\nI can see a dart file and the rendered content and i will take 5-6 minutes to figure out how it works ...\r\n\r\nI can make a semi-complex react class in 5 minutes in an plain text editor , because it's intuitive\r\n\r\nI can't do that in flutter. Without autocompletion i'm done as a developer. I don't like to be dependent in a extension for developing something -.-\r\n\r\nHowever. It's gonna be interesting how dart developers deal with this \"problem\" . In dart 2 they made it more readable . I don't know how they are gonna improve the readability in dart 3 -4 -5 . but i think a refactoring of the components build function is gonna be needed sooner or later.\r\n\r\nEDIT:\r\nNevermind, just tried React Native again , and i hated jsx , the props system , the fact that everything was dynamic was really scary concept again , i guess it's just a personal opinion then. Leave flutter as it is....   ",
+    "createdAt": "2019-04-19T14:49:57Z"
+  },
+  {
+    "id": 3602,
+    "sender": "chhornponleu",
+    "content": "They requested DSX, not only because they love JSX. They want Flutter.",
+    "createdAt": "2019-04-29T03:45:22Z"
+  },
+  {
+    "id": 3603,
+    "sender": "aerozavr",
+    "content": "UI declaration should be visually separated in the code for better code readability and support. Especially in large teams with lots of juniors/middles. Coming from Adobe Flex I can say that reading Flutter's UI declarations reduce productivity badly. \r\nIf not DSX(which would be awesome IMO) but something should be done with current situation at least on IDE level.  \r\nAll of the former UI development frameworks had this feature and we should have it too.\r\n",
+    "createdAt": "2019-05-13T10:40:23Z"
+  },
+  {
+    "id": 3604,
+    "sender": "cbazza",
+    "content": "> UI declaration should be visually separated in the code for better code readability and support.\r\n\r\nand for better integration with other tools like 'gui builders' for example.\r\n",
+    "createdAt": "2019-05-13T15:21:07Z"
+  },
+  {
+    "id": 3605,
+    "sender": "leossmith",
+    "content": "> Coming from Adobe Flex I can say that reading Flutter's UI declarations reduce productivity badly.\r\n\r\nImagine a UI declaration like MXML with Flutters power! I can only dream!\r\n\r\n",
+    "createdAt": "2019-05-13T15:45:05Z"
+  },
+  {
+    "id": 3606,
+    "sender": "Hixie",
+    "content": "Now that we have codegen support, the best way to get something like this into the product is to create a package that enables it and show that it is hugely popular. ",
+    "createdAt": "2019-05-13T15:47:16Z"
+  },
+  {
+    "id": 3607,
+    "sender": "a14n",
+    "content": "@Hixie is there any pointer to doc for codegen?",
+    "createdAt": "2019-05-13T15:49:52Z"
+  },
+  {
+    "id": 3608,
+    "sender": "cbazza",
+    "content": "> Now that we have codegen support, the best way to get something like this into the product is to create a package that enables it and show that it is hugely popular.\r\n\r\nIt looks to me like codegen is just for .dart -> .dart, the input file must be valid .dart file. That is not very useful for .dsx files since it is a superset of dart. I still need support for cross-compiling into .dart with source maps like features for debugging, etc.",
+    "createdAt": "2019-05-13T18:32:57Z"
+  },
+  {
+    "id": 3609,
+    "sender": "ivnsch",
+    "content": "Please give SwiftUI, which was released yesterday, a look. This seems to be what Flutter should be aiming to, instead of React-like markup.",
+    "createdAt": "2019-06-04T07:18:45Z"
+  },
+  {
+    "id": 3610,
+    "sender": "filleduchaos",
+    "content": "Swift's implicit member expressions alone would be so amazing",
+    "createdAt": "2019-06-04T09:09:56Z"
+  },
+  {
+    "id": 3611,
+    "sender": "rrousselGit",
+    "content": "I'm mixed about SwiftUI syntax. It's lite for sure, but some aspects look magical.\r\n\r\nBut we can technically have something relatively similar already:\r\n\r\n```dart\r\nColumn(mainAxisSize: MainAxisSize.min)([\r\n  if (foo) Text('foo'),\r\n  Text('bar'),\r\n]);\r\n```\r\n\r\nThat's valid dart code, where `Column` is _still_ a class. \r\n\r\nHere's a stateless widget showcasing it:\r\n\r\n```dart\r\nclass Foo extends StatelessWidget {\r\n  const Foo({Key key}) : this._(key: key);\r\n  const Foo._({Key key, this.children}) : super(key: key);\r\n\r\n  final List<Widget> children;\r\n\r\n  @override\r\n  Widget build(BuildContext context) {\r\n    return Column(children: children);\r\n  }\r\n\r\n  Foo call(List<Widget> children) {\r\n    return Foo._(key: key, children: children);\r\n  }\r\n}\r\n```\r\n\r\nIt's boilerplat-ish, but a code-generator can help – especially with the upcoming extension members.\r\n\r\n\r\n____\r\n\r\n\r\nThe only issue about this approach is that we're both losing const constructors (since it uses a function to specify children) and instantiate the widget class _twice_.\r\n\r\n\r\nIf that syntax is desired, ideally instead of a `call` method, it should be implemented using constructor currying. ",
+    "createdAt": "2019-06-04T09:43:40Z"
+  },
+  {
+    "id": 3612,
+    "sender": "filleduchaos",
+    "content": "@rrousselGit I'm curious about what aspects of SwiftUI look magical to you - it seems like pretty straightforward extension of Swift syntax to me.",
+    "createdAt": "2019-06-04T10:56:09Z"
+  },
+  {
+    "id": 3613,
+    "sender": "rrousselGit",
+    "content": "On their code example from [here](https://developer.apple.com/xcode/swiftui/):\r\n\r\n- `Content` is mutable? Does that mean they have a built-in Mobx / Vue store?\r\n- What's that `@State`?\r\n- Why is `body` a variable? Is that a getter? If so, when is the getter called again?\r\n- is `body` part of an interface, or many similar variables inside `Content`?\r\n- What does that `item in` _exactly_ do? Why is the right operand of `in` not something iterable, but the \"result\" instead?\r\n- Why is the `Image` aligned left to the title/subtitle when there's no `HStack`?\r\n\r\nI can't remember for certain, but I'm pretty sure I didn't have such questions when picking up Flutter.\r\n ",
+    "createdAt": "2019-06-04T12:41:24Z"
+  },
+  {
+    "id": 3614,
+    "sender": "filleduchaos",
+    "content": "@rrousselGit That might be because of your background, not because Flutter syntax or semantics is inherently obvious (I've met plenty of people who were quite stumped by it). And the points you've raised seem to be a weird junction of overanalysing a 14-line code snippet for faults while not actually knowing the language it's written in. \r\n\r\n- It's not really mutable (in the Dart or JS sense) though? It's a struct. Also MobX/Vue-style stores (i.e. papering over pretty limited language support) are not the only way to handle mutability\r\n\r\n- `@State` is an attribute, otherwise known as an annotation in some languages (e.g. Dart), otherwise known as a very common thing in Swift code. If you mean what it does, even without looking at the docs it most likely marks a property as state that will change over time.\r\n\r\n- `body` is a computed property, which is readily apparent to Swift developers. As for when it's recomputed, does `Widget build(BuildContext context)` also inherently tell you when it's called again?\r\n\r\n- `Content` (again quite clearly to Swift developers) extends/implements `View`, which is where you'd look for answers to your question (it actually has a very nice API reference page).\r\n\r\n- This is pretty much \"why is the keyword in this language not the same thing as the keyword in the language I use\", not anything particularly \"magical\". The `in` keyword here is not the same thing as a `for...in` construct - it indicates that the body of a closure is about to begin. `{ item in ... }` is a function block passed to the `List` constructor; a `ListView`'s `itemBuilder`, if you will.\r\n\r\n- Are you legitimately asking why a view has its own encapsulated layout rules?",
+    "createdAt": "2019-06-04T15:54:59Z"
+  },
+  {
+    "id": 3615,
+    "sender": "cbazza",
+    "content": "On SwiftUI:\r\n\r\n1-Nice to see state declared in the View and not as a side appendage.\r\n\r\n2-Nice individual methods to set things instead of having to pass everything on the constructor (methods enable actions to take in effect instead of just data being passed in).\r\n\r\n3-Very nice to see declarative vector graphics mixed in with everything else that is declarative (like I suggested in the past with declarative SVG like widgets) !!!\r\nhttps://developer.apple.com/tutorials/swiftui/drawing-paths-and-shapes\r\n\r\n4-Very simple animation & transition constructs\r\nhttps://developer.apple.com/tutorials/swiftui/animating-views-and-transitions\r\n\r\n5-Drag&Drop design tools in synch with code editor both ways. \r\n\r\nThere are warts as everything else but I rather focus on what they did very nicely.",
+    "createdAt": "2019-06-04T16:03:06Z"
+  },
+  {
+    "id": 3616,
+    "sender": "rrousselGit",
+    "content": "These \"questions\" exists just to showcase potentially confusing points. These are not _actual questions_. \r\n\r\n> That might be because of your backgroung\r\n\r\nLikely. I'm not saying that their approach is bad or anything. I'm saying it didn't feel natural to me as it did with Flutter.\r\nFlutter widgets use almost no \"fancy language feature\" and could be implemented on nearly any languages (although the recent if/for for collections change that).\r\nWhile their showcase of SwiftUI extensively uses Swift specific features.\r\n\r\n> As for when it's recomputed, does Widget build(BuildContext context) also inherently tell you when it's called again?\r\n\r\nMy point here is the lack of relationship between `State` and the act of recomputing `body`.\r\nReact and Flutter are very explicit on that matter: setState. \r\nVue/Mobx are \"magical\", using the same `@State` feature.\r\n\r\n\r\nIt's fine really, but that's a different pattern.\r\n\r\n> Are you legitimately asking why a view has its own encapsulated layout rules?\r\n\r\nNo, it's more of an \"explicit\" vs \"implicit\".\r\nIt seems that they really focused on \"doing as much as possible in as little code as possible\", even if it hides some of the logic (in that case, the `ltr` vs `rtl` logic)\r\n\r\nFlutter would ask you to use a `Row`.\r\n",
+    "createdAt": "2019-06-04T16:06:57Z"
+  },
+  {
+    "id": 3617,
+    "sender": "filleduchaos",
+    "content": "Flutter uses and relies on *plenty* of \"fancy language features\" (read: language features that whoever the speaker is isn't used to and/or does not agree with). Just off the top of my head, constant constructors (and Dart's style of naming constructors in general), operator overloading, classes being implicit interfaces, `@covariant`, and mixins are features that would draw reactions from confusion to outright labeling as a code smell depending on a developer's background. I could probably come up with a longer list given an hour's thought. And that's not an indictment of Flutter any more than it's an indictment of SwiftUI - I don't see why one would think it's a virtue to write software in a particular language so that it could be written the same way in any language - what's the point of different languages if we're supposed to pretend like differences between them don't exist?\r\n\r\nBesides, I completely disagree that either of `setState` or `@State` is explicit about its relationship with the act of rebuilding a view. In both cases you're simply told that if you change something that's been marked as state the framework will sort out what to build. In both cases the dev still has no explicit control over what's going on or when exactly. *You* find a function call more familiar, people who work in some other languages find decorators more familiar. But calling a function doesn't make things not magic.\r\n\r\n> Flutter would ask you to use a `Row`\r\n\r\nI take it you've never used `ListTile`, which has the same behaviour shown here but with named parameters? Should we also ask why a `Scaffold` \"magically\" puts a menu button in the left of your appbar when you didn't ask it to?",
+    "createdAt": "2019-06-04T17:28:20Z"
+  },
+  {
+    "id": 3618,
+    "sender": "rrousselGit",
+    "content": "The difference is that in the current state of Dart is very similar to most mainstream languages.\r\n\r\nThat's important. \r\nThe question \"Do I need to learn Dart, or can I just start learning Flutter?\" comes up quite often.\r\nAt the moment, the answer is \"just learn Flutter. You can write effective dart after a single day\". \r\nThat's not guaranteed to stay this way forever, but I do think that this is one of the strength of Flutter. \r\n\r\n\r\nThe rest of the discussion is a bit off-topic. If you want we can continue that part by mail (my github mail works). ",
+    "createdAt": "2019-06-04T17:54:24Z"
+  },
+  {
+    "id": 3619,
+    "sender": "naiveai",
+    "content": "Why is this not locked? This is already devolving badly, and it's exactly the same as a locked issue earlier.",
+    "createdAt": "2019-06-19T18:40:38Z"
+  },
+  {
+    "id": 3620,
+    "sender": "danialdezfouli",
+    "content": "I have made a simple one here:\r\nhttps://github.com/danialdezfouli/flutterjsx\r\nhttps://www.npmjs.com/package/flutterjsx\r\nhttps://www.youtube.com/watch?v=Oj1JMSurphA",
+    "createdAt": "2020-04-11T18:06:52Z"
+  },
+  {
+    "id": 3621,
+    "sender": "liyuqian",
+    "content": "## Automatic/scalable shader warm-up\n\nCurrent status: https://github.com/flutter/flutter/issues/32170#issuecomment-1016927129\r\n\r\n---- \r\n\r\nAlthough Flutter's current [shader warm-up][1] process is theoretically able to eliminate all shader compilation jank, it requires too much expertise and time to find all draw operations for such process.\r\n\r\nWe shall find a more automatic and scalable way of finding those draw operations to compose a custom warm-up process. That should allow average developers without much Skia knowledge to eliminate the shader compilation on their own. That should also save Flutter engineers a lot of time as they'll no longer have to manually analyze the janky frame.\r\n\r\nNote that this issue affects iOS devices more significantly than Android devices because Android has binary shader persistent cache while iOS doesn't.\r\n\r\nWe have a [staged plan](https://github.com/flutter/flutter/issues/32170#issuecomment-524397047) to roll this out, and we're actively working on it.\r\n- [x] [SkSL-based shader warmup](https://github.com/flutter/flutter/issues/53607)\r\n- [ ] [Test-based shader warmup](https://github.com/flutter/flutter/issues/53609)\r\n- [ ] In the long term, we'd like to create a solution that requires 0 extra effort from developers, and handles all cases that may have never been encountered during any tests or warmups. For example, use the CPU backend when GPU backend needs warm-up.\r\n\r\nRelated issue: flutter/flutter#813, flutter/flutter#31881\r\n\r\n[1]: https://api.flutter.dev/flutter/painting/ShaderWarmUp-class.html",
+    "createdAt": "2019-05-06T20:19:41Z"
+  },
+  {
+    "id": 3622,
+    "sender": "eseidelGoogle",
+    "content": "My understanding is that customer: dream is requesting a solution for their setup by end of November at least.  I'm not sure if this is the right bug to track that or not?",
+    "createdAt": "2019-08-22T21:37:49Z"
+  },
+  {
+    "id": 3623,
+    "sender": "liyuqian",
+    "content": "@eseidelGoogle : Yes, we just had a meeting this week with customer: dream and Skia. Here's the plan that we've discussed (please \"goto\" flutter-compile-janks internal doc for more details):\r\n\r\n1. In the very short term, we’ll still use the old `PaintingBinding.shaderWarmUp`. However, we’ll not spend more sources on SKP based tools or solutions because the SKP capture itself is quite problematic:\r\n    - SKP screenshots doesn't capture all widgets / sub-pictures #38563\r\n    - SKP screenshot doesn't capture blur #35899\r\n    - SKP screenshots doesn't record images in real devices #21237\r\n2. In the short term, we’ll work on SkSL to handle the request from customer: dream.They have only a very limited set of devices and drivers, so the variance of SkSL may already be small without any work from Skia. This solution require some work from Flutter, but it should free up a lot of our time later compared to manual `PaintingBinding.shaderWarmUp`.\r\n    - [x] [SkSL-based shader warmup](https://github.com/flutter/flutter/issues/53607)\r\n3. In the medium term, we’ll work on driver tests. Currently, this work is blocked by “Make driver test work without a host #38329”. This solution would utilize a lot of work (on driver tests) that Flutter has to do anyway, so the marginal cost for Flutter/Skia is low. This solution also has relatively low developer cost and feasibility risk. And this solution is applicable to most platforms and devices, with little maintenance work due to Skia upgrade.\r\n    - [ ] [Test-based shader warmup](https://github.com/flutter/flutter/issues/53609)\r\n4. In the long term, we’ll use the CPU backend when GPU backend needs warm-up.\r\n",
+    "createdAt": "2019-08-23T17:26:19Z"
+  },
+  {
+    "id": 3624,
+    "sender": "eseidelGoogle",
+    "content": "Question: Do we need a 4 stage plan, or can we trade some short/medium term pain for doing fewer stages and skip one or more of these and earlier achieve the desired end result?  FYI @Hixie \r\n\r\nOr maybe all of these stages are just separate parts of the desired end result and not throw-away work?",
+    "createdAt": "2019-08-26T21:09:40Z"
+  },
+  {
+    "id": 3625,
+    "sender": "liyuqian",
+    "content": "Quick update: stage 1 might be a past stage as we learnt that it may not be able to satisfy our clients next workload (at least 18 new shaders) in time. I'm now mainly investigating stage 2, which might not be re-usable in the long term but I really don't think stage 3 is possible before the deadline of customer: dream in September: I still don't see any estimation when stage 3's first blocker https://github.com/flutter/flutter/issues/38329 could be resolved.\r\n\r\n",
+    "createdAt": "2019-08-26T21:41:10Z"
+  },
+  {
+    "id": 3626,
+    "sender": "liyuqian",
+    "content": "Skia has estimated that their work on stage 2 SkSL will take about 0.5 to 1 week. They're checking priorities to see when this could happen.",
+    "createdAt": "2019-08-28T18:19:49Z"
+  },
+  {
+    "id": 3627,
+    "sender": "eseidelGoogle",
+    "content": "@liyuqian Do we have any updates here to share with customer: dream?",
+    "createdAt": "2019-09-03T22:51:52Z"
+  },
+  {
+    "id": 3628,
+    "sender": "liyuqian",
+    "content": "The last update is on an email sent out last Friday (08/30) that CC'ed flutter-team and \"customer: dream\":\r\n\r\nBrian Osman is going to do the Skia change this week. I'll follow on that to give a proof of concept probably by next week.\r\n",
+    "createdAt": "2019-09-04T17:32:31Z"
+  },
+  {
+    "id": 3629,
+    "sender": "liyuqian",
+    "content": "Update: Skia has added the API (https://skia-review.googlesource.com/c/skia/+/239438). I'm going to prototype the Flutter change this week.",
+    "createdAt": "2019-09-09T21:27:36Z"
+  },
+  {
+    "id": 3630,
+    "sender": "liyuqian",
+    "content": "Update: I've hooked up Skia's new SkSL precompile API in Flutter in my prototype, but there seems to be some issue of that API on mobile devices. I've reported the issue to Skia and they're investigating. They've confirmed that they can reproduce the issue, but they haven't found the cause and solution yet.",
+    "createdAt": "2019-09-13T21:29:35Z"
+  },
+  {
+    "id": 3631,
+    "sender": "liyuqian",
+    "content": "Update: Skia has fixed the bug and I've successfully prototyped a solution that sees a 90% decrease in compile time (from 10ms per shader to about 1ms per shader). Hence our stage 2 solution SkSL seems to be valid, and we will continue to work on it and track the progress in https://github.com/flutter/flutter/issues/40686",
+    "createdAt": "2019-09-17T22:30:31Z"
+  },
+  {
+    "id": 3632,
+    "sender": "liyuqian",
+    "content": "Skia has later made a patch to save even more compile time (probably 99% saved): https://skia-review.googlesource.com/c/skia/+/243739\r\n\r\nNow SkSL has been adopted by our internal client to quickly fix all shader compilation jank (b/140174804). I'm working on flutter_tools changes to make it also easy to use in iOS/Android (e.g., https://github.com/flutter/flutter/pull/42353)",
+    "createdAt": "2019-10-22T23:42:24Z"
+  },
+  {
+    "id": 3633,
+    "sender": "acoutts",
+    "content": "Will this help iOS metal?",
+    "createdAt": "2020-07-14T00:05:22Z"
+  },
+  {
+    "id": 3634,
+    "sender": "liyuqian",
+    "content": "@acoutts : Test-based shader warmup #53609 would help. SkSL-based shader warmup #53607 currently doesn't help iOS metal without further work from Skia.",
+    "createdAt": "2020-07-16T18:47:00Z"
+  },
+  {
+    "id": 3635,
+    "sender": "acoutts",
+    "content": "> @acoutts : Test-based shader warmup #53609 would help. SkSL-based shader warmup #53607 currently doesn't help iOS metal without further work from Skia.\r\n\r\nThanks. I have been having a big issue with the warmup jank on ios, and as you can see in my gifs here it is very noticeable:\r\nhttps://github.com/flutter/flutter/issues/61450\r\n\r\n* Would reverting to not using metal help this?\r\n* Is it feasible / worth it to not use metal if it could help this?",
+    "createdAt": "2020-07-16T18:55:10Z"
+  },
+  {
+    "id": 3636,
+    "sender": "liyuqian",
+    "content": "> * Would reverting to not using metal help this?\r\n> * Is it feasible / worth it to not use metal if it could help this?\r\n\r\nYes to the first question. I guess the second question is already answered by https://github.com/flutter/flutter/issues/61045#issuecomment-668609516\r\n\r\n",
+    "createdAt": "2020-08-05T20:00:59Z"
+  },
+  {
+    "id": 3637,
+    "sender": "kf6gpe",
+    "content": "@liyuqian Have we spoken to the Skia team about what APIs we'd need to do this for Metal? Maybe we should consider estimating this as part of our Q4 planning work?",
+    "createdAt": "2020-08-31T21:47:45Z"
+  },
+  {
+    "id": 3638,
+    "sender": "ghenry",
+    "content": "Hi,\r\n\r\nIs it possible to do this and put the resulting skia file in an appbundle? The flutter docs show an apk. \r\n\r\nThanks. ",
+    "createdAt": "2020-10-04T21:47:39Z"
+  },
+  {
+    "id": 3639,
+    "sender": "liyuqian",
+    "content": "Yes, the ` --bundle-sksl-path` is supported by `flutter build appbundle`. I'll update the doc to reflect that.",
+    "createdAt": "2020-10-06T23:55:57Z"
+  },
+  {
+    "id": 3640,
+    "sender": "ghenry",
+    "content": "Excellent! ",
+    "createdAt": "2020-10-07T07:55:58Z"
+  },
+  {
+    "id": 3641,
+    "sender": "kf6gpe",
+    "content": "See also https://github.com/flutter/flutter/issues/61450.",
+    "createdAt": "2020-10-19T21:47:11Z"
+  },
+  {
+    "id": 3642,
+    "sender": "ghenry",
+    "content": "Hi all,\r\n\r\nDoes this need to be done on a physical device for Android and iOS? I've only done it on Android and use that for my iOS build, but notice jank still on iOS.\r\n\r\nThanks.",
+    "createdAt": "2020-10-21T09:42:57Z"
+  },
+  {
+    "id": 3643,
+    "sender": "liyuqian",
+    "content": "@ghenry : our ultimate goal of fixing this issue is having a device independent solution. So far, however, the intermediate solution we provided through https://github.com/flutter/flutter/issues/53607 is device dependent so generating SkSL shaders on actual iOS devices is recommended. Using SkSLs from emulators or across iOS and Android is feasible and may work in some cases (see, e.g., https://github.com/flutter/flutter/issues/53607#issuecomment-608587484), but it's not guaranteed to provide good results.",
+    "createdAt": "2020-10-21T18:06:23Z"
+  },
+  {
+    "id": 3644,
+    "sender": "ghenry",
+    "content": "Thanks. That makes sense. Time for a new App Store release then :-)\n\nI use the OpenContainer animation to go from a FAB to the Keypad screen in\nour app:\n\nhttps://apps.apple.com/us/app/surevoip/id1518887036\nhttps://pub.dev/packages/animations#container-transform (item 3)\n\nI just noticed the iOS version jank as I generated the SkSL on a Samsung\nS10e.\n",
+    "createdAt": "2020-10-21T18:59:50Z"
+  },
+  {
+    "id": 3645,
+    "sender": "MiguelSOliveira",
+    "content": "What is the best way to track this specific shader problem for iOS? Is it this issue here?\r\n\r\nMy app on android runs perfect and on iOS, it is just really bad and I don't really understand what you mean by intermediate solution here: https://github.com/flutter/flutter/issues/53607, @liyuqian .. \r\nCan you point to the specific comment that posts the solution you mean? \r\n\r\nI've also tried disabling metal but I hear from others that that causes other issues that metal fixes?\r\n\r\nThis is also a P3 ? Should it not be higher up in the priorities? isn't it affecting every single iOS app ?",
+    "createdAt": "2020-11-03T23:57:57Z"
+  },
+  {
+    "id": 3646,
+    "sender": "liyuqian",
+    "content": "Please check https://flutter.dev/docs/perf/rendering/shader on how to use the solution provided by #53607. For iOS, you may need to disable Metal. The easiest way to disable it might be to follow https://github.com/flutter/flutter/issues/61045#issuecomment-699044134.\r\n\r\nP3 is our highest priority that's not breaking our build or 1st party customers. So this issue is definitely our top priority after breakages.",
+    "createdAt": "2020-11-04T00:51:58Z"
+  },
+  {
+    "id": 3647,
+    "sender": "ghenry",
+    "content": "I know you advised (https://github.com/flutter/flutter/issues/32170#issuecomment-713764870) me to do the warm up on an iOS device, but it doesn't seem to make a difference. Android is fine warm up is fine. I think https://flutter.dev/docs/perf/rendering/shader#how-to-use-sksl-warmup should say this needs to be done on both an Android physical device and iOS physical device.\r\n\r\nYou can try the animations if you like:\r\nhttps://play.google.com/store/apps/details?id=com.surevoip.talk\r\nvs\r\nhttps://apps.apple.com/us/app/surevoip/id1518887036 which is still janky in the latest build I released.\r\n\r\nThanks.",
+    "createdAt": "2020-11-04T09:18:44Z"
+  }
+]

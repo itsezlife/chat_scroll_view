@@ -1,0 +1,386 @@
+[
+  {
+    "id": 7936,
+    "sender": "RobertRautenbach",
+    "content": "This is causing crashes for me when compiled for release on Android on the current stable channel 1.22.6.\r\nThe second a user taps the input it crashes. \r\n\r\nAny work arounds? It's a very straightforward widget. Just a TextField and a button to return the text as a route argument..\r\n\r\nEDIT:\r\nSetting autofocus to true fixes it for now...\r\nEDIT 2:\r\nScratch that just causes app to crash instantly upon navigating to route. No debug errors though.\r\n\r\nIs there another widget to capture text input that I can use? Or can I not use flutter until this is fixed?",
+    "createdAt": "2021-02-19T23:56:08Z"
+  },
+  {
+    "id": 7937,
+    "sender": "azorychta",
+    "content": "I have the _exact same_ issue as @FlashChaser\r\n\r\n> This is causing crashes for me when compiled for release on Android on the current stable channel 1.22.6.\r\n> The second a user taps the input it crashes.\r\n> \r\n> Any work arounds? It's a very straightforward widget. Just a TextField and a button to return the text as a route argument..\r\n> \r\n> EDIT:\r\n> Setting autofocus to true fixes it for now...\r\n> EDIT 2:\r\n> Scratch that just causes app to crash instantly upon navigating to route. No debug errors though.\r\n> \r\n> Is there another widget to capture text input that I can use? Or can I not use flutter until this is fixed?\r\n\r\n",
+    "createdAt": "2021-02-20T18:41:18Z"
+  },
+  {
+    "id": 7938,
+    "sender": "buttersquad",
+    "content": "May be the TextField element/widget is marked for rebuild or set state, then removed and a new one comes in but the focus is still on the one marked for rebuild?\r\n\r\nFor context started an app on the dev channel with firebase core 0.5.0 last year. A couple days ago I switched over everything to the 'null safety' firebase libraries and switched to the newest stable flutter version 2.0.3. I think I had the bachEdit errors back then, but now it seems to rebuild my entire material route tree. I tried Navigator.of(context).[pushName & push] and Navigator.push() and tried both with and without the schedulerbinding.instance.addPostFrameCallback method. I also tried to have them push either MaterialPageRoute or ModalRoute. I removed all keys, changed my app to try to not pass data with the offending classes (just a more isolated firebase bloc pattern for the classes). I tried changing 'controller:' and using a controller within onChange, i even removed the controller altogether. But it still seems to rebuild everything from the 'home:' of Material App when ever the TextField is selected.\r\n\r\nIn debugging (with Android studio) I set a break points all over (from main.dart to the TextField) and it seems that maybe when the TextField or TextFormField is clicked or focused on, it rebuilds or changes state but the focus continuously stays on it during the rebuild. I dont know enough about dirty elements/trees and rebuilds to really make a claim but:\r\nmay be the TextField element/widget is removed and a new one comes in but the focus is still on the one marked for rebuild? The error then comes in between the rebuild or new state of the textfeild? Maybe then the focus during the rebuild also causes a mark for rebuild during the rebuild/set state creating a loop that causes more issues?\r\n\r\nMaybe a related issue, i started getting a new error 'setState() or markNeedsBuild() called during build.' in another area which i did not have before, I'll post some where else. But the issues may be related in a far back change in rebuild logic from a stable/dev channel in the past. But what do i know\r\n\r\nEdit: dev 1.26.0-12.0.pre ( a706cd2  1/21/2021) was the last sdk that didnt cause rebuilding problems from the TextField",
+    "createdAt": "2021-03-28T08:41:55Z"
+  },
+  {
+    "id": 7939,
+    "sender": "RobertRautenbach",
+    "content": "Oddly enough I just installed the flutter demo from the google play store. It crashes for me as well when clicking on text input... not ideal.",
+    "createdAt": "2021-03-29T10:41:41Z"
+  },
+  {
+    "id": 7940,
+    "sender": "gilhotmail",
+    "content": "Is this never going to be solved? what's the point of having a whole develop framework that doesn't work with form fields? so many hours spent to develop a useless framework.",
+    "createdAt": "2021-05-07T10:51:20Z"
+  },
+  {
+    "id": 7941,
+    "sender": "davidgaspardev",
+    "content": "I'm with this problem. I can't use the `addListener`, but `onChanged` works normally.\r\n\r\n```\r\nW/TextInputPlugin(20229): Changing the content within the the composing region may cause the input method to behave strangely, and is therefore discouraged. See https://github.com/flutter/flutter/issues/78827 for more details\r\nW/IInputConnectionWrapper(20229): getTextBeforeCursor on inactive InputConnection\r\nW/IInputConnectionWrapper(20229): getSelectedText on inactive InputConnection\r\nW/IInputConnectionWrapper(20229): getTextAfterCursor on inactive InputConnection\r\nW/IInputConnectionWrapper(20229): beginBatchEdit on inactive InputConnection\r\nW/IInputConnectionWrapper(20229): endBatchEdit on inactive InputConnection\r\n\r\n```\r\n\r\n<details>\r\n\r\n  <summary>flutter doctor -v</summary>\r\n\r\n```\r\n[✓] Flutter (Channel stable, 2.2.1, on macOS 11.4 20F71 darwin-x64, locale en-BR)\r\n    • Flutter version 2.2.1 at /Library/Developer/Flutter\r\n    • Framework revision 02c026b03c (4 days ago), 2021-05-27 12:24:44 -0700\r\n    • Engine revision 0fdb562ac8\r\n    • Dart version 2.13.1\r\n\r\n[✓] Android toolchain - develop for Android devices (Android SDK version 29.0.2)\r\n    • Android SDK at /Users/davidgaspardev/Library/Android/sdk\r\n    • Platform android-30, build-tools 29.0.2\r\n    • ANDROID_SDK_ROOT = /Users/davidgaspardev/Library/Android/sdk\r\n    • Java binary at: /Applications/Android Studio.app/Contents/jre/jdk/Contents/Home/bin/java\r\n    • Java version OpenJDK Runtime Environment (build 1.8.0_242-release-1644-b3-6222593)\r\n    • All Android licenses accepted.\r\n\r\n[✓] Xcode - develop for iOS and macOS\r\n    • Xcode at /Applications/Xcode.app/Contents/Developer\r\n    • Xcode 12.5, Build version 12E262\r\n    • CocoaPods version 1.10.1\r\n\r\n[✓] Android Studio (version 4.0)\r\n    • Android Studio at /Applications/Android Studio.app/Contents\r\n    • Flutter plugin version 51.0.1\r\n    • Dart plugin version 193.7547\r\n    • Java version OpenJDK Runtime Environment (build 1.8.0_242-release-1644-b3-6222593)\r\n\r\n[✓] VS Code (version 1.56.2)\r\n    • VS Code at /Applications/Visual Studio Code.app/Contents\r\n    • Flutter extension version 3.22.0\r\n\r\n[✓] Connected device (1 available)\r\n    • moto e5 plus (mobile) • ZL5223RBBS • android-arm • Android 8.0.0 (API 26)\r\n\r\n• No issues found!\r\n```\r\n<details>",
+    "createdAt": "2021-05-31T15:24:05Z"
+  },
+  {
+    "id": 7942,
+    "sender": "Veltee",
+    "content": "Legit can't find the fix :(\r\nplease fix this TextField problem flutter team :'(",
+    "createdAt": "2021-06-05T10:12:37Z"
+  },
+  {
+    "id": 7943,
+    "sender": "Vignesh2508",
+    "content": "I am also facing the same problem. My issue is that this issue occurs only when I use the computer keyboard instead of the app keyboard. If I am using the app keyboard no issues, but it is really problematic to click each letter on the app board.\r\n\r\nAlthough the app is not crashing it is annoying. Please fix this flutter team\r\n\r\n`W/IInputConnectionWrapper( 5277): getSelectedText on inactive InputConnection\r\nW/IInputConnectionWrapper( 5277): getTextAfterCursor on inactive InputConnection\r\nW/IInputConnectionWrapper( 5277): beginBatchEdit on inactive InputConnection\r\nW/IInputConnectionWrapper( 5277): endBatchEdit on inactive InputConnection`",
+    "createdAt": "2021-06-08T05:27:53Z"
+  },
+  {
+    "id": 7944,
+    "sender": "sl1depengwyn",
+    "content": "Can you guys move cursor when facing this issue? In my case cursor moves several characters and then disappears",
+    "createdAt": "2021-06-10T20:54:37Z"
+  },
+  {
+    "id": 7945,
+    "sender": "bbudhiana",
+    "content": "i am now facing some problem here. Here my error message : \r\n`W/IInputConnectionWrapper( 8528): beginBatchEdit on inactive InputConnection\r\nW/IInputConnectionWrapper( 8528): endBatchEdit on inactive InputConnection\r\nW/IInputConnectionWrapper( 8528): getSelectedText on inactive InputConnection\r\n`",
+    "createdAt": "2021-06-12T12:15:15Z"
+  },
+  {
+    "id": 7946,
+    "sender": "AhmetMelihSerter",
+    "content": "> I am also facing the same problem. My issue is that this issue occurs only when I use the computer keyboard instead of the app keyboard. If I am using the app keyboard no issues, but it is really problematic to click each letter on the app board.\r\n> \r\n> Although the app is not crashing it is annoying. Please fix this flutter team\r\n> \r\n> `W/IInputConnectionWrapper( 5277): getSelectedText on inactive InputConnection W/IInputConnectionWrapper( 5277): getTextAfterCursor on inactive InputConnection W/IInputConnectionWrapper( 5277): beginBatchEdit on inactive InputConnection W/IInputConnectionWrapper( 5277): endBatchEdit on inactive InputConnection`\r\n\r\nThe problem continues. Computer Keyboard.",
+    "createdAt": "2021-06-12T12:21:05Z"
+  },
+  {
+    "id": 7947,
+    "sender": "AmanMulani",
+    "content": "So okay I have found a solution for this in my use case.\r\nMy keyboard used to disappear as soon as it appeared on my screen. This not the bug in the framework, let us understand what happens in the background.\r\nWhen the keyboard pops up, the screen needs to rebuild its components accordingly, so it forces a rebuild. Therefore the entire widgets are re-rendered including the TextFormField or TextField, which closes the Keyboard.\r\nTo solve this problem, we have to find a way to uniquely identify our widget which is rebuilding, and stop flutter from recreating that widget.\r\nThis can be done by using keys, first find the parent widget under which our TextFormField/TextField falls, and provide a unique key to it. Remember NOT to initialize the key on the key parameter of the widget. Instead declare it outside the build method and then use it. This makes sure that the unique does not change every time the build method is called.\r\nI hope that this helps.\r\nThank You!",
+    "createdAt": "2021-06-19T04:11:53Z"
+  },
+  {
+    "id": 7948,
+    "sender": "coder-with-a-bushido",
+    "content": "> So okay I have found a solution for this in my use case.\r\n> My keyboard used to disappear as soon as it appeared on my screen. This not the bug in the framework, let us understand what happens in the background.\r\n> When the keyboard pops up, the screen needs to rebuild its components accordingly, so it forces a rebuild. Therefore the entire widgets are re-rendered including the TextFormField or TextField, which closes the Keyboard.\r\n> To solve this problem, we have to find a way to uniquely identify our widget which is rebuilding, and stop flutter from recreating that widget.\r\n> This can be done by using keys, first find the parent widget under which our TextFormField/TextField falls, and provide a unique key to it. Remember NOT to initialize the key on the key parameter of the widget. Instead declare it outside the build method and then use it. This makes sure that the unique does not change every time the build method is called.\r\n> I hope that this helps.\r\n> Thank You!\r\n\r\nI actually did this. But I also had to replace TextField with TextFormField and set a key for that widget outside build and also its parent widget(like set the key of that stateless widget from its parent as an argument). \r\nIt worked, thanks!",
+    "createdAt": "2021-06-20T06:26:42Z"
+  },
+  {
+    "id": 7949,
+    "sender": "AmanMulani",
+    "content": "> > So okay I have found a solution for this in my use case.\r\n> > My keyboard used to disappear as soon as it appeared on my screen. This not the bug in the framework, let us understand what happens in the background.\r\n> > When the keyboard pops up, the screen needs to rebuild its components accordingly, so it forces a rebuild. Therefore the entire widgets are re-rendered including the TextFormField or TextField, which closes the Keyboard.\r\n> > To solve this problem, we have to find a way to uniquely identify our widget which is rebuilding, and stop flutter from recreating that widget.\r\n> > This can be done by using keys, first find the parent widget under which our TextFormField/TextField falls, and provide a unique key to it. Remember NOT to initialize the key on the key parameter of the widget. Instead declare it outside the build method and then use it. This makes sure that the unique does not change every time the build method is called.\r\n> > I hope that this helps.\r\n> > Thank You!\r\n> \r\n> I actually did this. But I also had to replace TextField with TextFormField and set a key for that widget outside build and also its parent widget(like set the key of that stateless widget from its parent as an argument).\r\n> It worked, thanks!\r\n\r\nMost welcome! Yes, it's all about understanding how flutter works and then making the changes to your use cases accordingly!",
+    "createdAt": "2021-06-21T11:11:12Z"
+  },
+  {
+    "id": 7950,
+    "sender": "DarkMikey",
+    "content": "I see this problem when using [`SearchDelegate`](https://api.flutter.dev/flutter/material/SearchDelegate-class.html) and entering text using my physical keyboard with [Vysor](https://www.vysor.io/). Pressing the keyboard keys on screen or with the mouse on the mirrored keyboard on the computer works. \r\n\r\nThe problem is, that the input after the messages are shown gets completely stuck. No input neither with the physical nor virtual keyboard is possible until the screen is reloaded. \r\n\r\n```\r\nW/TextInputPlugin(14022): Changing the content within the the composing region may cause the input method to behave strangely, and is therefore discouraged. See https://github.com/flutter/flutter/issues/78827 for more details\r\nW/ListenableEditingState(14022): a listener was added to EditingState while a batch edit was in progress\r\nW/IInputConnectionWrapper(14022): getTextAfterCursor on inactive InputConnection\r\nW/IInputConnectionWrapper(14022): getSelectedText on inactive InputConnection\r\nW/IInputConnectionWrapper(14022): endBatchEdit on inactive InputConnection\r\n```\r\n\r\nExample code\r\n```dart\r\nimport 'package:flutter/material.dart';\r\n\r\nvoid main() => runApp(MyApp());\r\n\r\nclass MyApp extends StatelessWidget {\r\n  @override\r\n  Widget build(BuildContext context) {\r\n    return MaterialApp(home: MyHomePage());\r\n  }\r\n}\r\n\r\nclass MyHomePage extends StatelessWidget {\r\n  MyHomePage({Key? key}) : super(key: key);\r\n\r\n  @override\r\n  Widget build(BuildContext context) {\r\n    return Scaffold(\r\n      floatingActionButton: FloatingActionButton(\r\n        onPressed: () => showSearch(context: context, delegate: MySearchDelegate()),\r\n      ),\r\n    );\r\n  }\r\n}\r\n\r\nclass MySearchDelegate extends SearchDelegate<void> {\r\n  @override\r\n  Widget buildLeading(BuildContext context) => Container();\r\n\r\n  @override\r\n  List<Widget> buildActions(BuildContext context) => [];\r\n\r\n  @override\r\n  Widget buildSuggestions(BuildContext context) => Container();\r\n\r\n  @override\r\n  Widget buildResults(BuildContext context) => Container();\r\n}\r\n```",
+    "createdAt": "2021-06-23T08:10:04Z"
+  },
+  {
+    "id": 7951,
+    "sender": "alizera",
+    "content": "Does this nightmare bug exist on Flutter 2.x ?\r\nDoes anybody check?",
+    "createdAt": "2021-06-27T06:06:26Z"
+  },
+  {
+    "id": 7952,
+    "sender": "devHamza",
+    "content": "> Does this nightmare bug exist on Flutter 2.x ?\r\n> Does anybody check?\r\n\r\nYes ! I can reproduce it on my Flutter 2 app :( :( ",
+    "createdAt": "2021-06-28T22:57:13Z"
+  },
+  {
+    "id": 7953,
+    "sender": "Djihanegh",
+    "content": "> Does this nightmare bug exist on Flutter 2.x ?\r\n> Does anybody check?\r\n\r\nYes, i'm having the same issue on Flutter 2.2.1",
+    "createdAt": "2021-07-05T12:47:25Z"
+  },
+  {
+    "id": 7954,
+    "sender": "AhmetMelihSerter",
+    "content": "**Workaround for vscode users**\r\n\r\n![image](https://user-images.githubusercontent.com/23049819/124476914-14528d80-ddac-11eb-9a04-20e8901f73b5.png)\r\n\r\nMy own solution is to write flutter in the field.\r\n",
+    "createdAt": "2021-07-05T13:18:44Z"
+  },
+  {
+    "id": 7955,
+    "sender": "xrayian",
+    "content": "I have the same issue but It only happens when I type with my keyboard, if I use the emulator's keyboard it works fine\r\n",
+    "createdAt": "2021-07-09T19:30:28Z"
+  },
+  {
+    "id": 7956,
+    "sender": "berkanaslan",
+    "content": "I've same issue but when i disabled the onChanged property of TextField it works fine.",
+    "createdAt": "2021-07-09T20:17:21Z"
+  },
+  {
+    "id": 7957,
+    "sender": "lohhans",
+    "content": "This error/warning persists on Flutter 2.2.3, any solution?\r\n\r\n![Captura de tela de 2021-07-16 19-28-23](https://user-images.githubusercontent.com/30741312/126014297-9f6c38ce-fa2f-4afa-8c5e-18b975c2edf8.png)\r\n",
+    "createdAt": "2021-07-16T22:28:55Z"
+  },
+  {
+    "id": 7958,
+    "sender": "ItsThareesh",
+    "content": "If this bug persists only on debug mode, then there wouldn't be any problem when the app is in release profile. Worrying about it is of no use, since emulators cannot be compared to actual devices in any way possible.",
+    "createdAt": "2021-07-18T08:48:24Z"
+  },
+  {
+    "id": 7959,
+    "sender": "stereo-type",
+    "content": "> I have the same issue but It only happens when I type with my keyboard, if I use the emulator's keyboard it works fine\r\n\r\nsame issue",
+    "createdAt": "2021-07-23T10:18:14Z"
+  },
+  {
+    "id": 7960,
+    "sender": "ericaig",
+    "content": "For anyone having this same problem, this solved it for me:\r\n\r\n`WidgetsBinding.instance.addPostFrameCallback((_) => _textFieldController.clear());`\r\n\r\nFrom:\r\n[StackOverflow: Unhandled Exception: PlatformException(error, invalid selection start: 24, null, java.lang.IndexOutOfBoundsException: invalid selection start: 24](https://stackoverflow.com/questions/66985005/unhandled-exception-platformexceptionerror-invalid-selection-start-24-null)",
+    "createdAt": "2021-07-26T13:11:54Z"
+  },
+  {
+    "id": 7961,
+    "sender": "swisscheesy",
+    "content": "This has always plagued me, and unfortunately, I've come to get used to it since I like having a more responsive emulator;  but if you change your emulator graphics from Hardware to Software it prevents the log spam (for me at least).",
+    "createdAt": "2021-07-30T07:12:28Z"
+  },
+  {
+    "id": 7962,
+    "sender": "cstmth",
+    "content": "This is still a thing as of 08/08/21.",
+    "createdAt": "2021-08-08T21:49:55Z"
+  },
+  {
+    "id": 7963,
+    "sender": "yulkin2002",
+    "content": "I am having this issue even after releasing the app via Google Play Store. Get same warnings in the log panel, but the bigger issue is that keyboard disappears and screen gets re-rendered as soon as user clicks on the TextFormField to edit it - tried all the solutions mentioned above and nothing works\r\n\r\nEDIT: my issue with screen reloading was caused by having the TextField inside FutureBuilder. In case anyone is experiencing the same issue, the fix is to call the future from inside the initState method and only reference it in the FutureBuilder as described here: https://stackoverflow.com/questions/51224420/flutter-switching-to-tab-reloads-widgets-and-runs-futurebuilder\r\n\r\nwarnings are still there, but at least the field is working",
+    "createdAt": "2021-08-26T16:37:03Z"
+  },
+  {
+    "id": 7964,
+    "sender": "Lawati97",
+    "content": "Same here whenever i click on any of the textField in the app am getting this\r\n\r\nW/IInputConnectionWrapper(20969): beginBatchEdit on inactive InputConnection\r\nW/IInputConnectionWrapper(20969): getTextBeforeCursor on inactive InputConnection\r\nW/IInputConnectionWrapper(20969): getTextAfterCursor on inactive InputConnection\r\nW/IInputConnectionWrapper(20969): getSelectedText on inactive InputConnection\r\nW/IInputConnectionWrapper(20969): endBatchEdit on inactive InputConnection\r\n",
+    "createdAt": "2021-08-29T09:32:30Z"
+  },
+  {
+    "id": 7965,
+    "sender": "ghost",
+    "content": "Still an issue as of 09/10/2021. Still figuring out what's actually wrong. Please look into it flutter team.",
+    "createdAt": "2021-09-10T16:45:50Z"
+  },
+  {
+    "id": 7966,
+    "sender": "pavelmalai",
+    "content": "This happens on both emulator and real phone.\r\nenvironment:\r\n  sdk: \">=2.12.0 <3.0.0\"",
+    "createdAt": "2021-09-10T19:16:34Z"
+  },
+  {
+    "id": 7967,
+    "sender": "MostafaSaadSalih",
+    "content": "9/15/2021\r\nsame here \r\nstill no fix yet :( \r\ncome on flutter team you can at less push this fix with the next patch 💯 ",
+    "createdAt": "2021-09-15T07:49:56Z"
+  },
+  {
+    "id": 7968,
+    "sender": "berkanaslan",
+    "content": "> I've same issue but when i disabled the onChanged property of TextField it works fine.\r\n\r\nCan someone with the same situation correct me? Are you assigning the text controller within the onChanged() method? Like this:\r\n\r\nonChanged(String newValue) {\r\ntextController.text = newValue;\r\n}\r\n\r\nIf so, can you remove the assignment and determine if the problem is fixed?\r\n\r\nText assignment is unnecessary. My problem fixed like that.",
+    "createdAt": "2021-09-16T06:08:48Z"
+  },
+  {
+    "id": 7969,
+    "sender": "ji6czd",
+    "content": "Do you think this issue can cause accessibility issues?\r\nTalkBack(Android screen reader) does not announce the character to edit when move the cursor.",
+    "createdAt": "2021-10-10T17:25:13Z"
+  },
+  {
+    "id": 7970,
+    "sender": "Aubuga",
+    "content": "Anyone knows how to fix the example code:\r\nhttps://flutter.dev/docs/cookbook/forms/validation\r\nand want to share it?",
+    "createdAt": "2021-11-11T16:01:19Z"
+  },
+  {
+    "id": 7971,
+    "sender": "AhmetMelihSerter",
+    "content": "The problem is caused by the android emulator. This issue only occurs when typing from the computer keyboard.",
+    "createdAt": "2021-11-11T16:08:56Z"
+  },
+  {
+    "id": 7972,
+    "sender": "Aubuga",
+    "content": "> The problem is caused by the android emulator. This issue only occurs when typing from the computer keyboard.\r\n\r\nThis is not the case for many of us",
+    "createdAt": "2021-11-11T16:47:38Z"
+  },
+  {
+    "id": 7973,
+    "sender": "AndyWhiteTGCS",
+    "content": "We have a typical login page with two text fields (username/password).  So this is the first page we hit for every single one of our Integration Tests.  So in the output for every single test we see:\r\n\r\n![image](https://user-images.githubusercontent.com/81358982/143912978-952bdf71-c443-4907-8f00-0e90a4e65394.png)\r\n\r\nAbsolutely infuriating as this is polluting the logs making it hard to pick out test results (not to mention Integration Test reporting <still> doesn't work for Flutter).  \r\n",
+    "createdAt": "2021-11-29T17:16:37Z"
+  },
+  {
+    "id": 7974,
+    "sender": "AbirAhsan",
+    "content": "> I have the same issue but It only happens when I type with my keyboard, if I use the emulator's keyboard it works fine\r\n\r\nsame problem here\r\n",
+    "createdAt": "2021-12-27T11:53:30Z"
+  },
+  {
+    "id": 7975,
+    "sender": "georonathan47",
+    "content": "I also have the same problem... Anytime the `TextField` or `TextFormField` is active (or has focus), this error or bug or whatever prints in the debug console until the particular widget's scope is inactive.\r\nI'm using flutter version 2.8.0 stable release\r\n\r\nThis is the sample code:\r\n```\r\n\r\nclass SearchScreen extends StatefulWidget {\r\n  const SearchScreen({Key key}) : super(key: key);\r\n\r\n  @override\r\n  _SearchScreenState createState() => _SearchScreenState();\r\n}\r\n\r\nclass _SearchScreenState extends State<SearchScreen> {\r\n  final Database _database = Database();\r\n  final TextEditingController searchUsernameController =\r\n      TextEditingController();\r\n\r\n  Widget searchTile({\r\n    String userName,\r\n    String userEmail,\r\n    BuildContext context,\r\n  }) {\r\n    return Container(\r\n      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),\r\n      child: Row(\r\n        children: [\r\n          Column(\r\n            crossAxisAlignment: CrossAxisAlignment.start,\r\n            children: [\r\n              Text(\r\n                userName,\r\n                style: const TextStyle(overflow: TextOverflow.ellipsis),\r\n              ),\r\n              addVertical(6.5),\r\n              SizedBox(\r\n                width: 250,\r\n                child: Text(\r\n                  userEmail,\r\n                  style: const TextStyle(overflow: TextOverflow.ellipsis),\r\n                ),\r\n              ),\r\n            ],\r\n          ),\r\n          const Spacer(),\r\n          ElevatedButton(\r\n            onPressed: () {\r\n              createChatRoom(userName: userName);\r\n            },\r\n            child: const Text(\"Message\"),\r\n            style: ElevatedButton.styleFrom(\r\n              padding: const EdgeInsets.symmetric(\r\n                horizontal: 16.0,\r\n                vertical: 8.0,\r\n              ),\r\n              shape: RoundedRectangleBorder(\r\n                borderRadius: BorderRadius.circular(25),\r\n              ),\r\n              primary: Colors.blue,\r\n            ),\r\n          ),\r\n        ],\r\n      ),\r\n    );\r\n  }\r\n\r\n  @override\r\n  void initState() {\r\n    super.initState();\r\n    initiateSearch();\r\n    searchUsernameController.addListener(() {\r\n      final String message = searchUsernameController.text;\r\n      searchUsernameController.value = searchUsernameController.value.copyWith(\r\n        text: message,\r\n        selection: TextSelection(\r\n          baseOffset: message.length,\r\n          extentOffset: message.length,\r\n        ),\r\n        composing: TextRange.empty,\r\n      );\r\n    });\r\n  }\r\n\r\n  @override\r\n  void dispose() {\r\n    searchUsernameController.dispose();\r\n    initiateSearch();\r\n    super.dispose();\r\n  }\r\n\r\n  QuerySnapshot searchSnapshot;\r\n\r\n  initiateSearch() {\r\n    _database\r\n        .getUsersByUsername(searchUsernameController.text)\r\n        .then((val) => {searchSnapshot = val});\r\n  }\r\n\r\n  createChatRoom({String userName}) {\r\n    Future<dynamic> otherUser = HelperFunctions.getUserName();\r\n    if (userName != otherUser) {\r\n      String chatRoomID = getChatRoomId(userName, otherUser);\r\n      List<dynamic> users = [userName, otherUser];\r\n\r\n      Map<String, dynamic> chatRoomMap = {\r\n        \"users\": users,\r\n        \"chatRoomID\": chatRoomID,\r\n      };\r\n      _database.createChatRoom(chatRoomID, chatRoomMap);\r\n      Navigator.push(\r\n        context,\r\n        MaterialPageRoute(\r\n          builder: (context) => ChatDetail(\r\n            userName: userName,\r\n          ),\r\n        ),\r\n      );\r\n    } else {\r\n      return null;\r\n    }\r\n  }\r\n\r\n  Widget searchList() {\r\n    return searchSnapshot != null\r\n        ? ListView.builder(\r\n            itemCount: searchSnapshot.docChanges.length,\r\n            shrinkWrap: true,\r\n            itemBuilder: (BuildContext context, int index) {\r\n              return searchTile(\r\n                userEmail: searchSnapshot.docs[index].get(\"email\"),\r\n                userName: searchSnapshot.docs[index].get(\"name\"),\r\n              );\r\n            },\r\n          )\r\n        : Container(\r\n            child: const Center(\r\n                child: Text(\"No result...\", style: TextStyle(color: black))));\r\n  }\r\n\r\n  @override\r\n  Widget build(BuildContext context) {\r\n    final ThemeData themeData = Theme.of(context);\r\n    return Scaffold(\r\n      appBar: AppBar(\r\n        elevation: 0.0,\r\n        centerTitle: true,\r\n        leading: IconButton(\r\n          onPressed: () async {\r\n            Navigator.pop(context);\r\n          },\r\n          icon: const Icon(\r\n            Icons.arrow_back_ios_outlined,\r\n            size: 23,\r\n            color: Colors.white,\r\n          ),\r\n        ),\r\n        actions: [\r\n          IconButton(\r\n            icon: const Icon(Icons.wb_sunny_rounded),\r\n            onPressed: () {},\r\n          ),\r\n        ],\r\n        title: Text(\r\n          \"Search...\",\r\n          style: GoogleFonts.lato(\r\n              fontSize: 20, fontWeight: FontWeight.w600, color: Colors.white),\r\n        ),\r\n      ),\r\n      body: Column(\r\n        children: [\r\n          Expanded(\r\n            child: Container(\r\n              decoration: BoxDecoration(\r\n                color: white.withAlpha(150),\r\n              ),\r\n              child: SingleChildScrollView(\r\n                child: Column(\r\n                  mainAxisSize: MainAxisSize.max,\r\n                  children: [\r\n                    ClipRRect(\r\n                      child: SizedBox(\r\n                        child: Padding(\r\n                          padding: const EdgeInsets.symmetric(\r\n                            horizontal: 9,\r\n                            // vertical: 10,\r\n                          ),\r\n                          child: Container(\r\n                            height: 44,\r\n                            margin: const EdgeInsets.all(9),\r\n                            padding: const EdgeInsets.only(left: 5),\r\n                            decoration: const BoxDecoration(\r\n                              borderRadius: BorderRadius.all(\r\n                                Radius.circular(10.0),\r\n                              ), // set rounded corner radius\r\n                            ),\r\n                            child: Center(\r\n                              child: TextField(\r\n                                controller: searchUsernameController,\r\n                                onChanged: (val) {\r\n                                  setState(() {\r\n                                    searchUsernameController.text = val;\r\n                                    if (kDebugMode) {\r\n                                      print(val);\r\n                                    }\r\n                                  });\r\n                                },\r\n                                style: const TextStyle(color: Colors.black54),\r\n                                decoration: InputDecoration(\r\n                                  enabledBorder: OutlineInputBorder(\r\n                                    borderRadius: BorderRadius.circular(10),\r\n                                    borderSide: const BorderSide(\r\n                                        color: Colors.black87, width: 0.0),\r\n                                  ),\r\n                                  focusedBorder: const OutlineInputBorder(\r\n                                    borderRadius:\r\n                                        BorderRadius.all(Radius.circular(10)),\r\n                                    borderSide: BorderSide(\r\n                                        color: Colors.blueAccent, width: 0.7),\r\n                                  ),\r\n                                  hintText: 'Search Username...',\r\n                                  hintStyle: const TextStyle(\r\n                                      fontSize: 17, color: Colors.black54),\r\n                                  suffixIcon: IconButton(\r\n                                    onPressed: () {\r\n                                      initiateSearch();\r\n                                    },\r\n                                    icon: const Icon(Icons.search),\r\n                                  ),\r\n                                ),\r\n                              ),\r\n                            ),\r\n                          ),\r\n                        ),\r\n                      ),\r\n                    ),\r\n                    searchList(),\r\n                  ],\r\n                ),\r\n              ),\r\n            ),\r\n          ),\r\n        ],\r\n      ),\r\n    );\r\n  }\r\n}\r\n\r\n```\r\n \r\nAny particular reason why this problem persists?",
+    "createdAt": "2022-01-04T18:50:52Z"
+  },
+  {
+    "id": 7976,
+    "sender": "georonathan47",
+    "content": "> > I have the same issue but It only happens when I type with my keyboard, if I use the emulator's keyboard it works fine\r\n> \r\n> same problem here\r\n\r\nFor me, whether I use the keyboard or the emulator's keyboard, the value is still the same!",
+    "createdAt": "2022-01-04T18:51:53Z"
+  },
+  {
+    "id": 7977,
+    "sender": "aboutmydreams",
+    "content": "same problem, only in android",
+    "createdAt": "2022-01-11T14:39:09Z"
+  },
+  {
+    "id": 7978,
+    "sender": "SimpleTracker",
+    "content": "Same problem, and my users are complaining about the keyboard error -- this seems to be not just an emulator only problem. \r\n",
+    "createdAt": "2022-01-25T13:32:07Z"
+  },
+  {
+    "id": 7979,
+    "sender": "denys-rebikov",
+    "content": "Hello guys, had the same issue and solved it, but in my case it was a bit more related to BLoC rebuilding the TextField than to the TextField itself. The issue also haven't affected the field visually much: incorrect cursor position and micro-stutter when the messages drop to console.  \r\n\r\nSo, I had the BlocBuilder with a buildWhen set up. In the build I had the TextField and some simple logic that changed controller's initial value depending on the state. Really simple, something like this:\r\n```\r\nbuildWhen: (previous, current) => previous.runtimeType != current.runtimeType,\r\nbuilder: (context, state) {\r\n  if (state is ReadSuccessExampleStorageState) _controller.text = state.value;\r\n  if (state is ErrorExampleStorageState) _controller.text = state.error;\r\n  if (state is DeleteSuccessExampleStorageState) _controller.text = 'value deleted';\r\n\r\n  return CustomTextFormField(\r\n  ...\r\n```\r\nI didn't use listener at first since builder should not have any undesired builds in this particular case. After some investigations I found out that build actually WAS happening when _unfocused_ field being tapped. I guess that happened because MediaQuery/Scaffold rebuilt on keyboard opening and invoked didChangeDependencies somewhere, since the buildWhen wasn't triggered during that parasitic build at all. \r\nReworked it using BlocConsumer's listener, now the errors/warnings do not appear anymore.\r\nProbably something like this could be reproduced with other state management or even with vanilla setState.\r\nHope my comment will help someone. This issue is pretty unobvious.\r\n\r\nBtw this comment should not be treated as a solution - it's dealing with the consequence, not with the cause. Some undesired controller.text assignments should not be breaking the controller/textField like this.",
+    "createdAt": "2022-02-18T13:56:23Z"
+  },
+  {
+    "id": 7980,
+    "sender": "swap-10",
+    "content": "Still seems to be an issue; March 5 2022 - Flutter 2.10.2\r\nOn testing with code from the Material Components Basics - 101 demo, I observe the following behavior on Android emulator:\r\n\r\n## Switching Focus\r\nWhen tapping on a TextField to focus and start typing and\r\n* Both Username and Password fields are empty, when switching from/to either field:\r\n`I/AssistStructure( 5007): Flattened final assist data: 404 bytes, containing 1 windows, 3 views`\r\n\r\n* Username field has content and Password field is empty:\r\n    - Shifting focus from username field to password field by tapping:\r\n    `W/IInputConnectionWrapper( 5007): getSelectedText on inactive InputConnection`\r\n`W/IInputConnectionWrapper( 5007): getTextAfterCursor on inactive InputConnection`\r\n    - Shifting focus from password field to username field by tapping:\r\n    `I/AssistStructure( 5007): Flattened final assist data: 404 bytes, containing 1 windows, 3 views`\r\n\r\n* Username field is empty and password field has content:\r\n    - Shifting focus from username field to password field by tapping:\r\n    `I/AssistStructure( 5007): Flattened final assist data: 404 bytes, containing 1 windows, 3 views`\r\n    - Shifting focus from password field to username field by tapping:\r\n    `\r\nE/SpannableStringBuilder( 5007): SPAN_EXCLUSIVE_EXCLUSIVE spans cannot have a zero length`\r\nsometimes followed by:\r\n`I/AssistStructure( 5007): Flattened final assist data: 400 bytes, containing 1 windows, 3 views`\r\n\r\n* Both Username and password fields have some text:\r\n    - Shifting focus from username field to password field by tapping:\r\n    `W/IInputConnectionWrapper( 5007): getSelectedText on inactive InputConnection`\r\n`W/IInputConnectionWrapper( 5007): getTextAfterCursor on inactive InputConnection`\r\n    - Shifting focus from password field to username field by tapping:\r\n    `I/AssistStructure( 5007): Flattened final assist data: 404 bytes, containing 1 windows, 3 views`\r\n\r\n## Typing\r\nUsing the emulator's keyboard seems to not give warnings when typing in either the Username or Password fields, atleast in my case.\r\n\r\nHowever on each character typed (or deleted) using my PCs physical keyboard, in the Username field, the following warnings show up:\r\n\r\n`I/TextInputPlugin( 5007): Composing region changed by the framework. Restarting the input method.`\r\n`W/IInputConnectionWrapper( 5007): getTextAfterCursor on inactive InputConnection`\r\n`W/IInputConnectionWrapper( 5007): getTextBeforeCursor on inactive InputConnection`\r\n`W/IInputConnectionWrapper( 5007): getSelectedText on inactive InputConnection`\r\n`W/IInputConnectionWrapper( 5007): getTextAfterCursor on inactive InputConnection`\r\n`W/IInputConnectionWrapper( 5007): beginBatchEdit on inactive InputConnection`\r\n`W/IInputConnectionWrapper( 5007): getTextBeforeCursor on inactive InputConnection`\r\n`W/IInputConnectionWrapper( 5007): endBatchEdit on inactive InputConnection`\r\n`\r\n\r\nUsing the Physical keyboard to type in the password field does not generate any warnings\r\n\r\n## Submitting\r\nPressing submit after typing in the Username field generates the following errors for both emulator keyboard and physical keyboard\r\nEDIT: 'Pressing submit' meaning the submit button on the emulator keyboard or the 'Enter' key on PC's physical keyboard:\r\n\r\n`I/TextInputPlugin( 5007): Composing region changed by the framework. Restarting the input method.`\r\n`W/IInputConnectionWrapper( 5007): getTextBeforeCursor on inactive InputConnection`\r\n`W/IInputConnectionWrapper( 5007): getSelectedText on inactive InputConnection`\r\n`W/IInputConnectionWrapper( 5007): getTextAfterCursor on inactive InputConnection`\r\n`\r\nNo warnings are thrown on doing the same with the Password field.\r\n\r\n\r\n## Appendix\r\nThe code defining the Username and Password fields:\r\n`\r\nconst TextField(\r\n            decoration: InputDecoration(\r\n              filled: true,\r\n              labelText: 'Username',\r\n            ),\r\n          ),\r\n`\r\n`const TextField(\r\n            decoration: InputDecoration(\r\n              filled: true,\r\n              labelText: 'Password',\r\n            ),\r\n            obscureText: true,\r\n          ),\r\n`\r\n\r\nI couldn't arrive at a solution or identify the cause.\r\nI'm not sure if any of this is consequential, but it's more data and could be helpful.\r\nMore power to the Flutter Team! Hope this gets fixed soon!",
+    "createdAt": "2022-03-05T17:12:50Z"
+  },
+  {
+    "id": 7981,
+    "sender": "youssef999",
+    "content": "final GlobalKey<FormState> _formKey = GlobalKey<FormState>();\r\n\r\nmake the globalkey varaible before\r\n\r\n  @override\r\n  Widget build(BuildContext context)",
+    "createdAt": "2022-04-15T12:06:45Z"
+  },
+  {
+    "id": 7982,
+    "sender": "dinpran",
+    "content": "This is just \r\ndisgusting i came her 6 months before i had the same error now i cam 6 months after i again had same issue so did anyone find the answer i have tried everything\r\n",
+    "createdAt": "2022-05-28T20:48:31Z"
+  },
+  {
+    "id": 7983,
+    "sender": "dinpran",
+    "content": "> Still seems to be an issue; March 5 2022 - Flutter 2.10.2 On testing with code from the Material Components Basics - 101 demo, I observe the following behavior on Android emulator:\r\n> \r\n> ## Switching Focus\r\n> When tapping on a TextField to focus and start typing and\r\n> \r\n> * Both Username and Password fields are empty, when switching from/to either field:\r\n>   `I/AssistStructure( 5007): Flattened final assist data: 404 bytes, containing 1 windows, 3 views`\r\n> * Username field has content and Password field is empty:\r\n>   \r\n>   * Shifting focus from username field to password field by tapping:\r\n>     `W/IInputConnectionWrapper( 5007): getSelectedText on inactive InputConnection`\r\n>     `W/IInputConnectionWrapper( 5007): getTextAfterCursor on inactive InputConnection`\r\n>   * Shifting focus from password field to username field by tapping:\r\n>     `I/AssistStructure( 5007): Flattened final assist data: 404 bytes, containing 1 windows, 3 views`\r\n> * Username field is empty and password field has content:\r\n>   \r\n>   * Shifting focus from username field to password field by tapping:\r\n>     `I/AssistStructure( 5007): Flattened final assist data: 404 bytes, containing 1 windows, 3 views`\r\n>   * Shifting focus from password field to username field by tapping:\r\n>     ` E/SpannableStringBuilder( 5007): SPAN_EXCLUSIVE_EXCLUSIVE spans cannot have a zero length`\r\n>     sometimes followed by:\r\n>     `I/AssistStructure( 5007): Flattened final assist data: 400 bytes, containing 1 windows, 3 views`\r\n> * Both Username and password fields have some text:\r\n>   \r\n>   * Shifting focus from username field to password field by tapping:\r\n>     `W/IInputConnectionWrapper( 5007): getSelectedText on inactive InputConnection`\r\n>     `W/IInputConnectionWrapper( 5007): getTextAfterCursor on inactive InputConnection`\r\n>   * Shifting focus from password field to username field by tapping:\r\n>     `I/AssistStructure( 5007): Flattened final assist data: 404 bytes, containing 1 windows, 3 views`\r\n> \r\n> ## Typing\r\n> Using the emulator's keyboard seems to not give warnings when typing in either the Username or Password fields, atleast in my case.\r\n> \r\n> However on each character typed (or deleted) using my PCs physical keyboard, in the Username field, the following warnings show up:\r\n> \r\n> `I/TextInputPlugin( 5007): Composing region changed by the framework. Restarting the input method.` `W/IInputConnectionWrapper( 5007): getTextAfterCursor on inactive InputConnection` `W/IInputConnectionWrapper( 5007): getTextBeforeCursor on inactive InputConnection` `W/IInputConnectionWrapper( 5007): getSelectedText on inactive InputConnection` `W/IInputConnectionWrapper( 5007): getTextAfterCursor on inactive InputConnection` `W/IInputConnectionWrapper( 5007): beginBatchEdit on inactive InputConnection` `W/IInputConnectionWrapper( 5007): getTextBeforeCursor on inactive InputConnection` `W/IInputConnectionWrapper( 5007): endBatchEdit on inactive InputConnection` `\r\n> \r\n> Using the Physical keyboard to type in the password field does not generate any warnings\r\n> \r\n> ## Submitting\r\n> Pressing submit after typing in the Username field generates the following errors for both emulator keyboard and physical keyboard EDIT: 'Pressing submit' meaning the submit button on the emulator keyboard or the 'Enter' key on PC's physical keyboard:\r\n> \r\n> `I/TextInputPlugin( 5007): Composing region changed by the framework. Restarting the input method.` `W/IInputConnectionWrapper( 5007): getTextBeforeCursor on inactive InputConnection` `W/IInputConnectionWrapper( 5007): getSelectedText on inactive InputConnection` `W/IInputConnectionWrapper( 5007): getTextAfterCursor on inactive InputConnection` ` No warnings are thrown on doing the same with the Password field.\r\n> \r\n> ## Appendix\r\n> The code defining the Username and Password fields: `const TextField( decoration: InputDecoration( filled: true, labelText: 'Username', ), ),` `const TextField( decoration: InputDecoration( filled: true, labelText: 'Password', ), obscureText: true, ), `\r\n> \r\n> I couldn't arrive at a solution or identify the cause. I'm not sure if any of this is consequential, but it's more data and could be helpful. More power to the Flutter Team! Hope this gets fixed soon!\r\ni did that adding const but it did not work\r\n\r\n",
+    "createdAt": "2022-05-29T08:56:39Z"
+  },
+  {
+    "id": 7984,
+    "sender": "dinpran",
+    "content": "> For anyone having this same problem, this solved it for me:\r\n> \r\n> `WidgetsBinding.instance.addPostFrameCallback((_) => _textFieldController.clear());`\r\n> \r\n> From: [StackOverflow: Unhandled Exception: PlatformException(error, invalid selection start: 24, null, java.lang.IndexOutOfBoundsException: invalid selection start: 24](https://stackoverflow.com/questions/66985005/unhandled-exception-platformexceptionerror-invalid-selection-start-24-null)\r\n\r\ncan you please eloborate i did not understand YA THANKYOU!",
+    "createdAt": "2022-05-29T08:58:29Z"
+  },
+  {
+    "id": 7985,
+    "sender": "Junama",
+    "content": "same problem. I´m using bloc, but an old version",
+    "createdAt": "2022-06-09T18:39:44Z"
+  },
+  {
+    "id": 7986,
+    "sender": "willyhystor",
+    "content": "I also met with this log problem and I think I found the solution.\r\n\r\nI already posted my solution in here https://stackoverflow.com/a/72733029/10627111.\r\n\r\nHope it helps.",
+    "createdAt": "2022-06-23T15:47:24Z"
+  },
+  {
+    "id": 7987,
+    "sender": "iscbddrdc",
+    "content": "I'm new to developing mobile apps with Flutter. After creating my app, I can't save data with the app. Only in backend.\r\nWhen I save the data, this is the output from my debug console:\r\nW/IInputConnectionWrapper(25576): getTextBeforeCursor on inactive InputConnection\r\nW/IInputConnectionWrapper(25576): getTextAfterCursor on inactive InputConnection\r\nW/IInputConnectionWrapper(25576): getSelectedText on inactive InputConnection\r\nW/IInputConnectionWrapper(25576): getTextBeforeCursor on inactive InputConnection\r\n\r\nHere the codes of application:\r\n\r\nimport 'dart:convert';\r\nimport 'package:flutter/material.dart';\r\nimport 'package:http/http.dart' as http;\r\n\r\nvoid main() => runApp(const MyApp());\r\n\r\nclass MyApp extends StatefulWidget {\r\n  const MyApp({Key? key}) : super(key: key);\r\n\r\n  @override\r\n  State<MyApp> createState() => _MyAppState();\r\n}\r\nclass _MyAppState extends State<MyApp> {\r\n  TextEditingController name = TextEditingController();\r\n  TextEditingController email = TextEditingController();\r\n  TextEditingController password = TextEditingController();\r\n\r\n  Future<void> insertrecord() async {\r\n    if (name.text != \"\" || email.text != \"\" || password.text != \"\") {\r\n      try {\r\n        String uri = \"http://10.0.2.2./pratice_api/insert_record.php\";\r\n        var res = await http.post(Uri.parse(uri), body: {\r\n          \"name\": name.text,\r\n          \"email\": email.text,\r\n          \"password\": password.text\r\n        });\r\n        var response = jsonDecode(res.body);\r\n        if (response[\"succes\"] == \"true\") {\r\n          print(\"ajout reussi !\");\r\n          name.text = \"\";\r\n          email.text = \"\";\r\n          password.text = \"\";\r\n        } else {\r\n          print(\"aucune donnee disponible\");\r\n        }\r\n      } catch (e) {\r\n        print(e);\r\n      }\r\n    } else {\r\n      print(\"un champ obligatoire omis\");\r\n    }\r\n  }\r\n\r\n  @override\r\n  Widget build(BuildContext context) {\r\n    return MaterialApp(\r\n      debugShowCheckedModeBanner:\r\n          false, //Pour enlever l'icône de debug flutter automatique\r\n      home: Scaffold(\r\n        appBar: AppBar(\r\n          title: const Text('Insert Record'),\r\n        ),\r\n        body: Column(\r\n          children: [\r\n            Container(\r\n              margin: EdgeInsets.all(10),\r\n              child: TextFormField(\r\n                controller: name,\r\n                decoration: InputDecoration(\r\n                    border: OutlineInputBorder(),\r\n                    label: Text('Inter your name')),\r\n              ),\r\n            ),\r\n            Container(\r\n              margin: EdgeInsets.all(10),\r\n              child: TextFormField(\r\n                controller: email,\r\n                decoration: InputDecoration(\r\n                    border: OutlineInputBorder(),\r\n                    label: Text('Inter your Email')),\r\n              ),\r\n            ),\r\n            Container(\r\n              margin: EdgeInsets.all(10),\r\n              child: TextFormField(\r\n                controller: password,\r\n                decoration: InputDecoration(\r\n                    border: OutlineInputBorder(),\r\n                    label: Text('Inter your password')),\r\n              ),\r\n            ),\r\n            Container(\r\n              margin: EdgeInsets.all(10),\r\n              child: ElevatedButton(\r\n                onPressed: () {\r\n                  insertrecord();\r\n                },\r\n                child: Text('Envoyer'),\r\n              ),\r\n            ),\r\n            Container(\r\n              margin: EdgeInsets.all(10),\r\n              child: Builder(\r\n                builder: (context) {\r\n                  return ElevatedButton(\r\n                      onPressed: () {}, child: Text(\"View data\"));\r\n                },\r\n              ),\r\n            ),\r\n          ],\r\n        ),\r\n      ),\r\n    );\r\n  }\r\n}\r\n",
+    "createdAt": "2022-07-11T23:51:09Z"
+  },
+  {
+    "id": 7988,
+    "sender": "lybur",
+    "content": "Still facing this issue, when I'm selecting an option from drop down list or switching from TextFormField, it will caused this error. It's a problem because sometimes it won't update my bloc change value. Any idea on this?",
+    "createdAt": "2022-09-29T02:51:47Z"
+  },
+  {
+    "id": 7989,
+    "sender": "MixronRak",
+    "content": "This is my solution.\r\n\r\nhttps://github.com/siqwin/mask_text_input_formatter/issues/64#issuecomment-1327205058\r\n\r\n",
+    "createdAt": "2022-11-25T09:28:28Z"
+  },
+  {
+    "id": 7990,
+    "sender": "mikyll",
+    "content": "> Still facing this issue, when I'm selecting an option from drop down list or switching from TextFormField, it will caused this error. It's a problem because sometimes it won't update my bloc change value. Any idea on this?\r\n\r\nI'm facing the issue while entering data in `TextFormField`, but not when selecting entries from a `DropdownButtonFormField`, are you sure about that? 👀\r\n\r\n",
+    "createdAt": "2023-01-07T00:44:41Z"
+  },
+  {
+    "id": 7991,
+    "sender": "shamilkeheliya",
+    "content": "This issue comes when TextFiled is used in another Widget (outside the Scaffold Widget).\r\n\r\nAs a solution,\r\n\r\nWe can take \"TextEditingController\" as a parameter. And \"TextEditingController\" should be defined inside the Scaffold Widget.\r\n\r\n![Screenshot 2023-01-25 044328](https://user-images.githubusercontent.com/62515133/214442135-89daa1df-7abd-49c4-a181-0e12fc2ab438.jpg)\r\n",
+    "createdAt": "2023-01-24T23:15:22Z"
+  },
+  {
+    "id": 7992,
+    "sender": "vlastachu",
+    "content": "`keyboardType: TextInputType.visiblePassword` solves problems with changing the keyboard type (generally speaking, the logs will also become cleaner, but I didn’t care about them)",
+    "createdAt": "2023-08-30T12:10:54Z"
+  },
+  {
+    "id": 7993,
+    "sender": "huycozy",
+    "content": "I checked this on two Android devices (Realme 6, Android 11, Galaxy Tab A7 Lite (Android 14)) but couldn't see the warning/error as reported. I'm on the latest Flutter stable 3.19.5.\r\n\r\n@justinmc Is this safe to close or should we still keep it open for further investigation?\r\n\r\n(Update) Kindly cc @Renzo-Olivares for thoughts as well.\r\n\r\n<details>\r\n<summary>Output log</summary>\r\n\r\n```console\r\nLaunching lib/main_tf.dart on RMX2001 in debug mode...\r\n✓  Built build/app/outputs/flutter-apk/app-debug.apk.\r\nConnecting to VM Service at ws://127.0.0.1:51408/QizwDU4j91c=/ws\r\nI/eproduce_issue(16355): Compiler allocated 4670KB to compile void android.view.ViewRootImpl.performTraversals()\r\nE/ion     (16355): ioctl c0044901 failed with code -1: Invalid argument\r\nD/ViewRootImpl(16355): enqueueInputEventMotionEvent { action=ACTION_DOWN, actionButton=0, id[0]=0, x[0]=868.0, y[0]=1157.0, toolType[0]=TOOL_TYPE_FINGER, buttonState=0, classification=NONE, metaState=0, flags=0x0, edgeFlags=0x0, pointerCount=1, historySize=0, eventTime=41683042, downTime=41683042, deviceId=3, source=0x1002, displayId=0 }\r\nD/ViewRootImpl[MainActivity](16355): processMotionEvent MotionEvent { action=ACTION_DOWN, actionButton=0, id[0]=0, x[0]=868.0, y[0]=1157.0, toolType[0]=TOOL_TYPE_FINGER, buttonState=0, classification=NONE, metaState=0, flags=0x0, edgeFlags=0x0, pointerCount=1, historySize=0, eventTime=41683042, downTime=41683042, deviceId=3, source=0x1002, displayId=0 }\r\nD/ViewRootImpl[MainActivity](16355): dispatchPointerEvent handled=true, event=MotionEvent { action=ACTION_DOWN, actionButton=0, id[0]=0, x[0]=868.0, y[0]=1157.0, toolType[0]=TOOL_TYPE_FINGER, buttonState=0, classification=NONE, metaState=0, flags=0x0, edgeFlags=0x0, pointerCount=1, historySize=0, eventTime=41683042, downTime=41683042, deviceId=3, source=0x1002, displayId=0 }\r\nD/ViewRootImpl[MainActivity](16355): processMotionEvent MotionEvent { action=ACTION_UP, actionButton=0, id[0]=0, x[0]=868.0, y[0]=1157.0, toolType[0]=TOOL_TYPE_FINGER, buttonState=0, classification=NONE, metaState=0, flags=0x0, edgeFlags=0x0, pointerCount=1, historySize=0, eventTime=41683107, downTime=41683042, deviceId=3, source=0x1002, displayId=0 }\r\nD/ViewRootImpl[MainActivity](16355): dispatchPointerEvent handled=true, event=MotionEvent { action=ACTION_UP, actionButton=0, id[0]=0, x[0]=868.0, y[0]=1157.0, toolType[0]=TOOL_TYPE_FINGER, buttonState=0, classification=NONE, metaState=0, flags=0x0, edgeFlags=0x0, pointerCount=1, historySize=0, eventTime=41683107, downTime=41683042, deviceId=3, source=0x1002, displayId=0 }\r\nI/AssistStructure(16355): Flattened final assist data: 404 bytes, containing 1 windows, 3 views\r\nD/InputConnectionAdaptor(16355): The input method toggled cursor monitoring on\r\nD/ProfileInstaller(16355): Installing profile for com.example.reproduce_issues\r\nD/ViewRootImpl(16355): enqueueInputEventMotionEvent { action=ACTION_DOWN, actionButton=0, id[0]=0, x[0]=832.0, y[0]=785.0, toolType[0]=TOOL_TYPE_FINGER, buttonState=0, classification=NONE, metaState=0, flags=0x0, edgeFlags=0x0, pointerCount=1, historySize=0, eventTime=41695416, downTime=41695416, deviceId=3, source=0x1002, displayId=0 }\r\nD/ViewRootImpl[MainActivity](16355): processMotionEvent MotionEvent { action=ACTION_DOWN, actionButton=0, id[0]=0, x[0]=832.0, y[0]=785.0, toolType[0]=TOOL_TYPE_FINGER, buttonState=0, classification=NONE, metaState=0, flags=0x0, edgeFlags=0x0, pointerCount=1, historySize=0, eventTime=41695416, downTime=41695416, deviceId=3, source=0x1002, displayId=0 }\r\nD/ViewRootImpl[MainActivity](16355): dispatchPointerEvent handled=true, event=MotionEvent { action=ACTION_DOWN, actionButton=0, id[0]=0, x[0]=832.0, y[0]=785.0, toolType[0]=TOOL_TYPE_FINGER, buttonState=0, classification=NONE, metaState=0, flags=0x0, edgeFlags=0x0, pointerCount=1, historySize=0, eventTime=41695416, downTime=41695416, deviceId=3, source=0x1002, displayId=0 }\r\nD/ViewRootImpl[MainActivity](16355): processMotionEvent MotionEvent { action=ACTION_UP, actionButton=0, id[0]=0, x[0]=832.0, y[0]=785.0, toolType[0]=TOOL_TYPE_FINGER, buttonState=0, classification=NONE, metaState=0, flags=0x0, edgeFlags=0x0, pointerCount=1, historySize=0, eventTime=41695565, downTime=41695416, deviceId=3, source=0x1002, displayId=0 }\r\nD/ViewRootImpl[MainActivity](16355): dispatchPointerEvent handled=true, event=MotionEvent { action=ACTION_UP, actionButton=0, id[0]=0, x[0]=832.0, y[0]=785.0, toolType[0]=TOOL_TYPE_FINGER, buttonState=0, classification=NONE, metaState=0, flags=0x0, edgeFlags=0x0, pointerCount=1, historySize=0, eventTime=41695565, downTime=41695416, deviceId=3, source=0x1002, displayId=0 }\r\n\r\n```\r\n</details>\r\n\r\n<details>\r\n<summary>flutter doctor -v (stable and master)</summary>\r\n\r\n```bash\r\n[✓] Flutter (Channel stable, 3.19.5, on macOS 14.1 23B74 darwin-x64, locale en-VN)\r\n    • Flutter version 3.19.5 on channel stable at /Users/huynq/Documents/GitHub/flutter\r\n    • Upstream repository https://github.com/flutter/flutter.git\r\n    • Framework revision 300451adae (8 days ago), 2024-03-27 21:54:07 -0500\r\n    • Engine revision e76c956498\r\n    • Dart version 3.3.3\r\n    • DevTools version 2.31.1\r\n\r\n[✓] Android toolchain - develop for Android devices (Android SDK version 34.0.0)\r\n    • Android SDK at /Users/huynq/Library/Android/sdk\r\n    • Platform android-34, build-tools 34.0.0\r\n    • ANDROID_HOME = /Users/huynq/Library/Android/sdk\r\n    • Java binary at: /Applications/Android Studio.app/Contents/jbr/Contents/Home/bin/java\r\n    • Java version OpenJDK Runtime Environment (build 17.0.9+0-17.0.9b1087.7-11185874)\r\n    • All Android licenses accepted.\r\n\r\n[✓] Xcode - develop for iOS and macOS (Xcode 15.2)\r\n    • Xcode at /Applications/Xcode.app/Contents/Developer\r\n    • Build 15C500b\r\n    • CocoaPods version 1.15.2\r\n\r\n[✓] Chrome - develop for the web\r\n    • Chrome at /Applications/Google Chrome.app/Contents/MacOS/Google Chrome\r\n\r\n[✓] Android Studio (version 2023.2)\r\n    • Android Studio at /Applications/Android Studio.app/Contents\r\n    • Flutter plugin can be installed from:\r\n      🔨 https://plugins.jetbrains.com/plugin/9212-flutter\r\n    • Dart plugin can be installed from:\r\n      🔨 https://plugins.jetbrains.com/plugin/6351-dart\r\n    • android-studio-dir = /Applications/Android Studio.app/\r\n    • Java version OpenJDK Runtime Environment (build 17.0.9+0-17.0.9b1087.7-11185874)\r\n\r\n[✓] VS Code (version 1.87.2)\r\n    • VS Code at /Applications/Visual Studio Code.app/Contents\r\n    • Flutter extension version 3.84.0\r\n\r\n[✓] Connected device (2 available)\r\n    • macOS (desktop) • macos  • darwin-x64     • macOS 14.1 23B74 darwin-x64\r\n    • Chrome (web)    • chrome • web-javascript • Google Chrome 123.0.6312.106\r\n\r\n[✓] Network resources\r\n    • All expected network resources are available.\r\n\r\n• No issues found!\r\n```\r\n\r\n```bash\r\n[!] Flutter (Channel master, 3.22.0-11.0.pre.14, on macOS 14.1 23B74 darwin-x64, locale en-VN)\r\n    • Flutter version 3.22.0-11.0.pre.14 on channel master at /Users/huynq/Documents/GitHub/flutter_master\r\n    ! Warning: `flutter` on your path resolves to /Users/huynq/Documents/GitHub/flutter/bin/flutter, which is not inside your current Flutter SDK checkout at /Users/huynq/Documents/GitHub/flutter_master. Consider adding /Users/huynq/Documents/GitHub/flutter_master/bin to the front of your path.\r\n    ! Warning: `dart` on your path resolves to /Users/huynq/Documents/GitHub/flutter/bin/dart, which is not inside your current Flutter SDK checkout at /Users/huynq/Documents/GitHub/flutter_master. Consider adding /Users/huynq/Documents/GitHub/flutter_master/bin to the front of your path.\r\n    • Upstream repository https://github.com/flutter/flutter.git\r\n    • Framework revision 817630ccf1 (51 minutes ago), 2024-04-15 22:56:25 -0400\r\n    • Engine revision 76fbe31a96\r\n    • Dart version 3.5.0 (build 3.5.0-61.0.dev)\r\n    • DevTools version 2.35.0-dev.8\r\n    • If those were intentional, you can disregard the above warnings; however it is recommended to use \"git\" directly to perform update checks and upgrades.\r\n\r\n[✓] Android toolchain - develop for Android devices (Android SDK version 34.0.0)\r\n    • Android SDK at /Users/huynq/Library/Android/sdk\r\n    • Platform android-34, build-tools 34.0.0\r\n    • ANDROID_HOME = /Users/huynq/Library/Android/sdk\r\n    • Java binary at: /Applications/Android Studio.app/Contents/jbr/Contents/Home/bin/java\r\n    • Java version OpenJDK Runtime Environment (build 17.0.9+0-17.0.9b1087.7-11185874)\r\n    • All Android licenses accepted.\r\n\r\n[✓] Xcode - develop for iOS and macOS (Xcode 15.3)\r\n    • Xcode at /Applications/Xcode15.3.app/Contents/Developer\r\n    • Build 15E204a\r\n    • CocoaPods version 1.15.2\r\n\r\n[✓] Chrome - develop for the web\r\n    • Chrome at /Applications/Google Chrome.app/Contents/MacOS/Google Chrome\r\n\r\n[✓] Android Studio (version 2023.2)\r\n    • Android Studio at /Applications/Android Studio.app/Contents\r\n    • Flutter plugin can be installed from:\r\n      🔨 https://plugins.jetbrains.com/plugin/9212-flutter\r\n    • Dart plugin can be installed from:\r\n      🔨 https://plugins.jetbrains.com/plugin/6351-dart\r\n    • android-studio-dir = /Applications/Android Studio.app/\r\n    • Java version OpenJDK Runtime Environment (build 17.0.9+0-17.0.9b1087.7-11185874)\r\n\r\n[✓] VS Code (version 1.88.0)\r\n    • VS Code at /Applications/Visual Studio Code.app/Contents\r\n    • Flutter extension version 3.86.0\r\n\r\n[✓] Connected device (4 available)\r\n    • RMX2001 (mobile) • EUYTFEUSQSRGDA6D                         • android-arm64  • Android 11 (API 30)\r\n    • iPhone (mobile)  • d9a94afe2b649fef56ba0bfeb052f0f2a7dae95e • ios            • iOS 15.8 19H370\r\n    • macOS (desktop)  • macos                                    • darwin-x64     • macOS 14.1 23B74 darwin-x64\r\n    • Chrome (web)     • chrome                                   • web-javascript • Google Chrome 123.0.6312.124\r\n\r\n[✓] Network resources\r\n    • All expected network resources are available.\r\n\r\n! Doctor found issues in 1 category.\r\n```\r\n</details>",
+    "createdAt": "2024-04-16T10:43:56Z"
+  },
+  {
+    "id": 7994,
+    "sender": "DarenF-20C",
+    "content": "> This is my solution.\r\n> \r\n> [siqwin/mask_text_input_formatter#64 (comment)](https://github.com/siqwin/mask_text_input_formatter/issues/64#issuecomment-1327205058)\r\n\r\n\r\n\r\nseems the keyboard auto-correction make the logs prints. but now sure is it an issue.\r\nit stop print out when I disable the emulator's Gboard auto-correction.",
+    "createdAt": "2024-05-10T06:50:09Z"
+  },
+  {
+    "id": 7995,
+    "sender": "huycozy",
+    "content": "If anyone still experiences this issue on the latest Flutter release, please file a new issue with device info (OS, model) and all other information indicated in the issue template (See bug issue template [here](https://github.com/flutter/flutter/issues/new?assignees=&labels=&projects=&template=2_bug.yml)). Thanks!",
+    "createdAt": "2024-05-23T06:03:41Z"
+  },
+  {
+    "id": 7996,
+    "sender": "LouisCAD",
+    "content": "## Instance state not saved when app is killed by OS\n\n## What is instance state, and why it exists\r\nOn Android, an [Activity](https://developer.android.com/reference/android/app/Activity.html) can be killed at any time by the system. This happens usually when Android needs memory when your Activity is not in the foreground, or because of a non-handled configuration change, such as a locale change.\r\nTo avoid the user having to restart what he did from scratch when Android killed the Activity, the system calls `onSaveInstanceState(…)` when the Activity is paused, where the app is supposed to save it's data in a [`Bundle`](https://developer.android.com/reference/android/os/Bundle.html), and passes the saved bundle in both `onCreate(…)` and `onRestoreInstanceState(…)` when the task is resumed if the activity has been killed by the system.\r\n\r\n## The issue about it in flutter\r\nIn the flutter apps I tried (Flutter Gallery, and the base project with the FAB tap counter), if I open enough apps to make Android kill the flutter app's Activity, all the state is lost when I come back to the flutter activity (while not having remove the task from recents).\r\n\r\n## Steps to Reproduce\r\n\r\n1. Install [Flutter Gallery](https://play.google.com/store/apps/details?id=io.flutter.gallery&hl=en)\r\n2. Open the device's settings, and in developer options, switch \"Don't keep activities\" on. (see the screenshot)\r\n![dev_option](https://pbs.twimg.com/media/Cw6qdhfWQAAKo_J.jpg:small)\r\nThis will allow to simulate when Android kills Activities because it lacks memory and you're not in the foreground.\r\n3. Open the Flutter Gallery app and go anywhere other than the main screen.\r\n4. Go to the launcher by pressing the device's home button.\r\n5. Press the overview button and return to Flutter Gallery. Here's the bug.\r\n\r\n**What's expected:** The app is in the same state that where we left off, with untouched UI.\r\n**What happens:** The activity is restarted from scratch, losing all the UI state, even really really long forms.\r",
+    "createdAt": "2016-11-12T01:50:34Z"
+  },
+  {
+    "id": 7997,
+    "sender": "eseidelGoogle",
+    "content": "https://github.com/flutter/flutter/issues/3427 is also likely related.\n",
+    "createdAt": "2016-11-12T01:52:55Z"
+  },
+  {
+    "id": 7998,
+    "sender": "LouisCAD",
+    "content": "@eseidelGoogle That's right. In which format could the flutter Activity state be saved, if it can be at all as of the current version?\n",
+    "createdAt": "2016-11-12T02:10:23Z"
+  },
+  {
+    "id": 7999,
+    "sender": "Hixie",
+    "content": "Right now we don't do anything to save anything.\n\nThe framework itself has very little state worth saving -- it's all animation and stuff like that -- so it may be that we always leave this up to the app to do. We should probably expose it at the Dart level though. (Right now it's only exposed at the Java level.)\n",
+    "createdAt": "2016-11-12T02:49:13Z"
+  }
+]

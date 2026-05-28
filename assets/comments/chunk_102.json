@@ -1,0 +1,386 @@
+[
+  {
+    "id": 6528,
+    "sender": "camsim99",
+    "content": "Ran this on a Samsung Galaxy S7 running Android 8.1.0/API 26 and only saw the error I mentioned [before](https://github.com/flutter/flutter/issues/153075#issuecomment-2334629512).",
+    "createdAt": "2024-09-10T22:33:02Z"
+  },
+  {
+    "id": 6529,
+    "sender": "sanchan",
+    "content": "I can reproduce this bug with Android API 35, it works just fine with API <= 34.",
+    "createdAt": "2024-09-11T06:53:22Z"
+  },
+  {
+    "id": 6530,
+    "sender": "song011794",
+    "content": "I solved it by adding **android.enableR8.fullMode=false** in **gradle.properties**.",
+    "createdAt": "2024-09-11T07:55:14Z"
+  },
+  {
+    "id": 6531,
+    "sender": "camsim99",
+    "content": "> I can reproduce this bug with Android API 35, it works just fine with API <= 34.\r\n\r\nI couldn't reproduce this error (only the one I saw [before](https://github.com/flutter/flutter/issues/153075#issuecomment-2334629512)) with API 35 in debug or release mode.",
+    "createdAt": "2024-09-11T16:40:18Z"
+  },
+  {
+    "id": 6532,
+    "sender": "rekire",
+    "content": "I noticed something interesting: `SharedPreferencesPlugin.onAttachedToEngine(...)` is not called when I run into that bug.\r\n\r\nMy workaround is currently to invoke that method in my `MainActivity` myself. My `MainActivity.kt` looks now more or less like this:\r\n```kotlin\r\nclass MainActivity : FlutterFragmentActivity() {\r\n  override fun configureFlutterEngine(flutterEngine: FlutterEngine) {\r\n    GeneratedPluginRegistrant.registerWith(flutterEngine)\r\n  }\r\n} \r\n```",
+    "createdAt": "2024-09-15T10:53:28Z"
+  },
+  {
+    "id": 6533,
+    "sender": "derjohng",
+    "content": "In my case, it can be solved while I downgrade to com.android.tools.build:gradle:8.1.4.\r\nOther versions (8.6.1, 8.5.2, 8.4.2, 8.3.2) will cause this error. ",
+    "createdAt": "2024-09-22T06:46:43Z"
+  },
+  {
+    "id": 6534,
+    "sender": "Eimji",
+    "content": "Hello, \r\n\r\nI have the same issue with others packages as described here : https://github.com/flutter/flutter/issues/154723#issuecomment-2369356508",
+    "createdAt": "2024-09-23T20:56:16Z"
+  },
+  {
+    "id": 6535,
+    "sender": "kuhnroyal",
+    "content": "For me this happens on any API 35 simulator, no matter if debug or release build.",
+    "createdAt": "2024-09-25T13:43:33Z"
+  },
+  {
+    "id": 6536,
+    "sender": "kuhnroyal",
+    "content": "@stuartmorgan I am using the new `WithCache` API, it has the same problem.\r\n\r\n```dart\r\nSharedPreferencesWithCache.create(\r\n  cacheOptions: const SharedPreferencesWithCacheOptions(\r\n    allowList: SomeKeysHere,\r\n ),\r\n);\r\n```\r\n\r\nThis does not work in any API 35 simulator. There is no R8 involved, the debugger is attached, so this is in debug mode.\r\nWorks fine on API 34.\r\n\r\n<img width=\"1345\" alt=\"Bildschirmfoto 2024-09-25 um 16 01 30\" src=\"https://github.com/user-attachments/assets/29afbec5-46e2-420a-b696-368f6647184d\">\r\n<img width=\"1127\" alt=\"Bildschirmfoto 2024-09-25 um 16 02 05\" src=\"https://github.com/user-attachments/assets/c6bdc08f-37c5-4394-b5dc-f7e5f0668770\">\r\n\r\n",
+    "createdAt": "2024-09-25T14:04:39Z"
+  },
+  {
+    "id": 6537,
+    "sender": "studiogaram",
+    "content": "I've same problem.\r\n\r\n```\r\nE/flutter ( 7159): [ERROR:flutter/runtime/dart_vm_initializer.cc(41)] Unhandled Exception: PlatformException(channel-error, Unable to establish connection on channel: \"dev.flutter.pigeon.shared_preferences_android.SharedPreferencesAsyncApi.getAll\"., null, null)\r\nE/flutter ( 7159): #0      SharedPreferencesAsyncApi.getAll (package:shared_preferences_android/src/messages_async.g.dart:376:7)\r\nE/flutter ( 7159): <asynchronous suspension>\r\nE/flutter ( 7159): #1      SharedPreferencesAsyncAndroid.getPreferences (package:shared_preferences_android/src/shared_preferences_async_android.dart:184:40)\r\nE/flutter ( 7159): <asynchronous suspension>\r\nE/flutter ( 7159): #2      SharedPreferencesWithCache.reloadCache (package:shared_preferences/src/shared_preferences_async.dart:225:9)\r\nE/flutter ( 7159): <asynchronous suspension>\r\nE/flutter ( 7159): #3      SharedPreferencesWithCache.create (package:shared_preferences/src/shared_preferences_async.dart:200:5)\r\nE/flutter ( 7159): <asynchronous suspension>\r\nE/flutter ( 7159): #4      CachedSharedPreferences.create (package:airpremia_lua/utils/CachedSharedPreferences.dart:14:17)\r\nE/flutter ( 7159): <asynchronous suspension>\r\nE/flutter ( 7159): #5      initializeDefault (package:airpremia_lua/main.dart:47:3)\r\nE/flutter ( 7159): <asynchronous suspension>\r\nE/flutter ( 7159): #6      main (package:airpremia_lua/main.dart:26:3)\r\nE/flutter ( 7159): <asynchronous suspension>\r\nE/flutter ( 7159): \r\n```\r\n",
+    "createdAt": "2024-09-26T04:46:18Z"
+  },
+  {
+    "id": 6538,
+    "sender": "camsim99",
+    "content": "Inspired by recent comments, I tested https://github.com/rekire/flutter_issue_153075 on a Pixel 7 API 35 emulator and only saw the same error that I reproduced [before](https://github.com/flutter/flutter/issues/153075#issuecomment-2334629512) with a more specific error message.\r\n\r\n@kuhnroyal @studiogaram or anyone else seeing the message currently, do you get the same error you are currently getting when running https://github.com/rekire/flutter_issue_153075/? Knowing this would help me deduce if there is an issue with my methods of reproduction or if there's other factors we're not considering.",
+    "createdAt": "2024-09-26T11:14:45Z"
+  },
+  {
+    "id": 6539,
+    "sender": "kuhnroyal",
+    "content": "Thanks @camsim99 for the repo.\r\n\r\nI managed to reproduce the issue by adding all my app dependencies which directly failed.\r\n\r\nI then removed them step by step, boiling it down to the `jni: 0.10.1` dependency.\r\nAs soon as this is part of the project, the shared preference initialization fails on an API 35 device.\r\n\r\nReproduction: https://github.com/kuhnroyal/flutter_issue_153075/commit/d479caced753f1b239e9090ccbb9fd0dbeb34e36\r\n\r\n@HosseinYousefi You seem to be very active on the JNI front, do you have any insights?\r\nIf I update to `jni: 011.0` the app directly crashes.\r\n",
+    "createdAt": "2024-09-26T13:29:52Z"
+  },
+  {
+    "id": 6540,
+    "sender": "HosseinYousefi",
+    "content": "> Thanks @camsim99 for the repo.\n> \n> \n> \n> I managed to reproduce the issue by adding all my app dependencies which directly failed.\n> \n> \n> \n> I then removed them step by step, boiling it down to the `jni: 0.10.1` dependency.\n> \n> As soon as this is part of the project, the shared preference initialization fails on an API 35 device.\n> \n> \n> \n> Reproduction: https://github.com/kuhnroyal/flutter_issue_153075/commit/d479caced753f1b239e9090ccbb9fd0dbeb34e36\n> \n> \n> \n> @HosseinYousefi You seem to be very active on the JNI front, do you have any insights?\n> \n> If I update to `jni: 011.0` the app directly crashes.\n> \n> \n\nI don't have enough context into this issue but it seems that it's an issue with SharedPreferences which does not use `package:jni`. Can you elaborate?\n",
+    "createdAt": "2024-09-26T13:37:59Z"
+  },
+  {
+    "id": 6541,
+    "sender": "kuhnroyal",
+    "content": "Sure, I can try to add my current train of thought.\r\n\r\nThe issue is surfacing as a SharedPreferences initialization problem on Android API 35 but I don't think this is the actual problem.\r\n\r\nThis only happens if `jni: 0.10.1` is added to the app, otherwise SharedPreferences works fine.\r\n\r\nSince `shared_preferences` is not using `jni`, my assumption is that something during the `JniPlugin` registration is failing before the `SharedPreferencesPlugin` can be registered.\r\n\r\n.... and after finishing that last thought I took a look at the Logcat output:\r\n\r\n```\r\n2024-09-26 16:02:08.141 15202-15202 GeneratedP...nsRegister eu....ssue153075.shared_prefs_issue  E  Tried to automatically register plugins with FlutterEngine (io.flutter.embedding.engine.FlutterEngine@3e9702c) but could not find or invoke the GeneratedPluginRegistrant.\r\n2024-09-26 16:02:08.142 15202-15202 GeneratedP...nsRegister eu....ssue153075.shared_prefs_issue  E  Received exception while registering\r\n                                                                                                    java.lang.reflect.InvocationTargetException\r\n                                                                                                    \tat java.lang.reflect.Method.invoke(Native Method)\r\n                                                                                                    \tat io.flutter.embedding.engine.plugins.util.GeneratedPluginRegister.registerGeneratedPlugins(GeneratedPluginRegister.java:80)\r\n                                                                                                    \tat io.flutter.embedding.android.FlutterActivity.configureFlutterEngine(FlutterActivity.java:1336)\r\n                                                                                                    \tat io.flutter.embedding.android.FlutterActivityAndFragmentDelegate.onAttach(FlutterActivityAndFragmentDelegate.java:219)\r\n                                                                                                    \tat io.flutter.embedding.android.FlutterActivity.onCreate(FlutterActivity.java:638)\r\n                                                                                                    \tat android.app.Activity.performCreate(Activity.java:9002)\r\n                                                                                                    \tat android.app.Activity.performCreate(Activity.java:8980)\r\n                                                                                                    \tat android.app.Instrumentation.callActivityOnCreate(Instrumentation.java:1526)\r\n                                                                                                    \tat android.app.ActivityThread.performLaunchActivity(ActivityThread.java:4030)\r\n                                                                                                    \tat android.app.ActivityThread.handleLaunchActivity(ActivityThread.java:4235)\r\n                                                                                                    \tat android.app.servertransaction.LaunchActivityItem.execute(LaunchActivityItem.java:112)\r\n                                                                                                    \tat android.app.servertransaction.TransactionExecutor.executeNonLifecycleItem(TransactionExecutor.java:174)\r\n                                                                                                    \tat android.app.servertransaction.TransactionExecutor.executeTransactionItems(TransactionExecutor.java:109)\r\n                                                                                                    \tat android.app.servertransaction.TransactionExecutor.execute(TransactionExecutor.java:81)\r\n                                                                                                    \tat android.app.ActivityThread$H.handleMessage(ActivityThread.java:2636)\r\n                                                                                                    \tat android.os.Handler.dispatchMessage(Handler.java:107)\r\n                                                                                                    \tat android.os.Looper.loopOnce(Looper.java:232)\r\n                                                                                                    \tat android.os.Looper.loop(Looper.java:317)\r\n                                                                                                    \tat android.app.ActivityThread.main(ActivityThread.java:8705)\r\n                                                                                                    \tat java.lang.reflect.Method.invoke(Native Method)\r\n                                                                                                    \tat com.android.internal.os.RuntimeInit$MethodAndArgsCaller.run(RuntimeInit.java:580)\r\n                                                                                                    \tat com.android.internal.os.ZygoteInit.main(ZygoteInit.java:886)\r\n                                                                                                    Caused by: java.lang.UnsatisfiedLinkError: dlopen failed: empty/missing DT_STRTAB in \"/data/app/~~RVkrALZcww5pW8tkeVgAeg==/eu.rekisoft.flutter.issue153075.shared_prefs_issue-hPJ0FgN8X8hC2whkPKcVuA==/lib/arm64/libdartjni.so\"\r\n                                                                                                    \tat java.lang.Runtime.loadLibrary0(Runtime.java:1081)\r\n                                                                                                    \tat java.lang.Runtime.loadLibrary0(Runtime.java:1003)\r\n                                                                                                    \tat java.lang.System.loadLibrary(System.java:1765)\r\n                                                                                                    \tat com.github.dart_lang.jni.JniPlugin.<clinit>(JniPlugin.java:52)\r\n                                                                                                    \tat io.flutter.plugins.GeneratedPluginRegistrant.registerWith(GeneratedPluginRegistrant.java:19)\r\n                                                                                                    \t... 22 more\r\n```\r\n\r\nSo thats why I think this is actually a JNI problem on Android API 35.",
+    "createdAt": "2024-09-26T14:04:11Z"
+  },
+  {
+    "id": 6542,
+    "sender": "HosseinYousefi",
+    "content": "> This only happens if `jni: 0.10.1` is added to the app, otherwise SharedPreferences works fine.\r\n\r\nI see, is everyone else is having the same issue? I don't think that everyone here is depending on `package:jni`.\r\n\r\n> .... and after finishing that last thought I took a look at the Logcat output:\r\n> ```\r\n> Caused by: java.lang.UnsatisfiedLinkError: dlopen failed: empty/missing DT_STRTAB in \"/data/app/~~RVkrALZcww5pW8tkeVgAeg==/eu.rekisoft.flutter.issue153075.shared_prefs_issue-hPJ0FgN8X8hC2whkPKcVuA==/lib/arm64/libdartjni.so\"\r\n>```\r\n\r\nThis seems to be a problem with 16 KB page sizes, I opened an issue to reproduce and fix it: https://github.com/dart-lang/native/issues/1608\r\n\r\n> If I update to `jni: 011.0` the app directly crashes.\r\n\r\nPlease open an issue with more details about the crash here: https://github.com/dart-lang/native",
+    "createdAt": "2024-09-26T14:33:05Z"
+  },
+  {
+    "id": 6543,
+    "sender": "HosseinYousefi",
+    "content": "@reidbaker @gmackall You also might want to look into https://developer.android.com/guide/practices/page-sizes. Maybe it makes sense to increase the NDK version.",
+    "createdAt": "2024-09-26T14:42:29Z"
+  },
+  {
+    "id": 6544,
+    "sender": "kuhnroyal",
+    "content": "For me `jni` was pulled in via `native_dio_adapter` -> `cronet_http`.",
+    "createdAt": "2024-09-26T14:55:13Z"
+  },
+  {
+    "id": 6545,
+    "sender": "WenHao1223",
+    "content": "> **@stuartmorgan said:**\r\n> \r\n> > The question is whether `SharedPreferencesWithCache.create` works in the same builds where `SharedPreferences.getInstance` fails (which would potentially indicate that R8 is stripping out the secondary Java class, but not the primary one).\r\n> \r\n> I forked the library locally and replaced ([my diff](https://github.com/rekire/easy_localization_fork/commit/7d49612e0321f62ae88dbe3f3ad0eb910b4dbd3a)):\r\n> \r\n> ```dart\r\n> final preferences = await SharedPreferences.getInstance();\r\n> ```\r\n> \r\n> by:\r\n> \r\n> ```dart\r\n> final preferences = await SharedPreferencesWithCache.create(\r\n>   cacheOptions: const SharedPreferencesWithCacheOptions(allowList: null),\r\n> );\r\n> ```\r\n> \r\n> then I still get the same exception:\r\n> \r\n> > E/flutter (27050): [ERROR:flutter/runtime/dart_vm_initializer.cc(41)] Unhandled Exception: PlatformException(channel-error, Unable to establish connection on channel: \"dev.flutter.pigeon.shared_preferences_android.SharedPreferencesAsyncApi.getAll\"., null, null)\r\n> > E/flutter (27050): #0      SharedPreferencesAsyncApi.getAll (package:shared_preferences_android/src/messages_async.g.dart:376:7)\r\n> > E/flutter (27050): \r\n> > E/flutter (27050): #1      SharedPreferencesAsyncAndroid.getPreferences (package:shared_preferences_android/src/shared_preferences_async_android.dart:184:40)\r\n> > E/flutter (27050): \r\n> > E/flutter (27050): #2      SharedPreferencesWithCache.reloadCache (package:shared_preferences/src/shared_preferences_async.dart:225:9)\r\n> > E/flutter (27050): \r\n> > E/flutter (27050): #3      SharedPreferencesWithCache.create (package:shared_preferences/src/shared_preferences_async.dart:200:5)\r\n> > E/flutter (27050): \r\n> > E/flutter (27050): #4      EasyLocalizationController.initEasyLocation (package:easy_localization/src/easy_localization_controller.dart:212:25)\r\n> > E/flutter (27050): \r\n> > E/flutter (27050): #5      EasyLocalization.ensureInitialized (package:easy_localization/src/easy_localization_app.dart:163:7)\r\n> > E/flutter (27050):\r\n> \r\n> In my test project are minification and r8 disabled. Edit: This also happens on a clean build, just to sort this out.\r\n\r\n\r\n> I did a `flutter clean` I ran the app again, and issue was fixed. This is `shared_preferences: ^2.3.2`\r\n\r\nThese worked for me. I replaced\r\n```dart\r\nfinal prefs = await SharedPreferences.getInstance();\r\n```\r\nwith\r\n```dart\r\nfinal prefs= await SharedPreferencesWithCache.create(\r\n  cacheOptions: const SharedPreferencesWithCacheOptions(allowList: null),\r\n);\r\n```\r\nand did a \r\n```bash\r\nflutter clean\r\nflutter pub get\r\n```\r\n\r\nfor\r\n```yaml\r\nshared_preferences: ^2.3.2\r\n```",
+    "createdAt": "2024-10-02T08:10:51Z"
+  },
+  {
+    "id": 6546,
+    "sender": "KnowScratcher",
+    "content": "I ran into the same error,too. I'm sure my installations are correct. and I tried following the steps.\r\n> > **@stuartmorgan said:**\r\n> > > The question is whether `SharedPreferencesWithCache.create` works in the same builds where `SharedPreferences.getInstance` fails (which would potentially indicate that R8 is stripping out the secondary Java class, but not the primary one).\r\n> > \r\n> > \r\n> > I forked the library locally and replaced ([my diff](https://github.com/rekire/easy_localization_fork/commit/7d49612e0321f62ae88dbe3f3ad0eb910b4dbd3a)):\r\n> > ```dart\r\n> > final preferences = await SharedPreferences.getInstance();\r\n> > ```\r\n> > \r\n> > \r\n> >     \r\n> >       \r\n> >     \r\n> > \r\n> >       \r\n> >     \r\n> > \r\n> >     \r\n> >   \r\n> > by:\r\n> > ```dart\r\n> > final preferences = await SharedPreferencesWithCache.create(\r\n> >   cacheOptions: const SharedPreferencesWithCacheOptions(allowList: null),\r\n> > );\r\n> > ```\r\n> > \r\n> > \r\n> >     \r\n> >       \r\n> >     \r\n> > \r\n> >       \r\n> >     \r\n> > \r\n> >     \r\n> >   \r\n> > then I still get the same exception:\r\n> > > E/flutter (27050): [ERROR:flutter/runtime/dart_vm_initializer.cc(41)] Unhandled Exception: PlatformException(channel-error, Unable to establish connection on channel: \"dev.flutter.pigeon.shared_preferences_android.SharedPreferencesAsyncApi.getAll\"., null, null)\r\n> > > E/flutter (27050): #0      SharedPreferencesAsyncApi.getAll (package:shared_preferences_android/src/messages_async.g.dart:376:7)\r\n> > > E/flutter (27050):\r\n> > > E/flutter (27050): #1      SharedPreferencesAsyncAndroid.getPreferences (package:shared_preferences_android/src/shared_preferences_async_android.dart:184:40)\r\n> > > E/flutter (27050):\r\n> > > E/flutter (27050): #2      SharedPreferencesWithCache.reloadCache (package:shared_preferences/src/shared_preferences_async.dart:225:9)\r\n> > > E/flutter (27050):\r\n> > > E/flutter (27050): #3      SharedPreferencesWithCache.create (package:shared_preferences/src/shared_preferences_async.dart:200:5)\r\n> > > E/flutter (27050):\r\n> > > E/flutter (27050): #4      EasyLocalizationController.initEasyLocation (package:easy_localization/src/easy_localization_controller.dart:212:25)\r\n> > > E/flutter (27050):\r\n> > > E/flutter (27050): #5      EasyLocalization.ensureInitialized (package:easy_localization/src/easy_localization_app.dart:163:7)\r\n> > > E/flutter (27050):\r\n> > \r\n> > \r\n> > In my test project are minification and r8 disabled. Edit: This also happens on a clean build, just to sort this out.\r\n> \r\n> > I did a `flutter clean` I ran the app again, and issue was fixed. This is `shared_preferences: ^2.3.2`\r\n> \r\n> These worked for me. I replaced\r\n> \r\n> ```dart\r\n> final prefs = await SharedPreferences.getInstance();\r\n> ```\r\n> \r\n> with\r\n> \r\n> ```dart\r\n> final prefs= await SharedPreferencesWithCache.create(\r\n>   cacheOptions: const SharedPreferencesWithCacheOptions(allowList: null),\r\n> );\r\n> ```\r\n> \r\n> and did a\r\n> \r\n> ```shell\r\n> flutter clean\r\n> flutter pub get\r\n> ```\r\n> \r\n> for\r\n> \r\n> ```yaml\r\n> shared_preferences: ^2.3.2\r\n> ```\r\n\r\nbut it didn't work for me.\r\nBut here's my code\r\n```dart\r\nreturn FutureBuilder(\r\n        future: SharedPreferencesWithCache.create(\r\n          cacheOptions: const SharedPreferencesWithCacheOptions(allowList: null),\r\n        ),\r\n        builder: (context, snapshot) {\r\n          if (snapshot.connectionState == ConnectionState.waiting) {\r\n            return CircularProgressIndicator();\r\n          } else if (snapshot.hasError) {\r\n            print(snapshot.error.toString());\r\n            return SafeArea(child: Text(snapshot.error.toString()));\r\n          } else {\r\n            setting = snapshot.data!;\r\n            if (RegExp(\r\n                    \"s[0-9][0-9][0-9][0-9][0-9][0-9]@student[.]cysh[.]cy[.]edu[.]tw\")\r\n                .hasMatch(user.email!)) {\r\n              var mqttState = context.watch<MQTT>();\r\n              if (!mqttState.connected) {\r\n                mqttState.mqttSetup();\r\n              }\r\n              ColoredBox alertBox;\r\n              Icon connectIcon;\r\n              if (mqttState.connected) {\r\n                connectIcon = Icon(Icons.wifi);\r\n              } else {\r\n                connectIcon = Icon(Icons.wifi_off);\r\n              }\r\n\r\n              ColoredBox alert;\r\n              if (mqttState.topic == \"report/report\") {\r\n                var difference =\r\n                    DateTime.now().difference(mqttState.time).inDays;\r\n                var lastAlertDifference = DateTime.now()\r\n                    .difference(DateTime.parse(setting.getString(\"lastAlert\")!))\r\n                    .inDays;\r\n                ......\r\n```",
+    "createdAt": "2024-10-02T09:54:59Z"
+  },
+  {
+    "id": 6547,
+    "sender": "camsim99",
+    "content": "Trying to summarize the reports here,\r\n\r\n- This issue is not related to R8/minification nor debug vs release mode\r\n- Replacing `final prefs = await SharedPreferences.getInstance()` with `await SharedPreferencesWithCache.create(...)` has worked for some and not all\r\n- https://github.com/rekire/flutter_issue_153075 has reproduced the issue for some but not all (I have not been able to reproduce the issue with it)\r\n- ITO my attempts to repro: adding a `final prefs = await SharedPreferences.getInstance()` call to a counter app did not reproduce it\r\n- https://github.com/dart-lang/native/issues/1608 has appeared but seems unrelated to this issue\r\n\r\nTo move forward, a minimal reproduction would be super helpful here. I suspect there are differences within the reproductions that are yielding the inconsistent results.",
+    "createdAt": "2024-10-02T13:12:05Z"
+  },
+  {
+    "id": 6548,
+    "sender": "bigr00",
+    "content": "The issue is not a proguard rules issue, as it happens in debug mode as well. Current fix is to downgrade to version 2.3.0.",
+    "createdAt": "2024-10-18T11:00:34Z"
+  },
+  {
+    "id": 6549,
+    "sender": "MachariaK",
+    "content": "I had run flutter pub clean severally with no success. I changed from emulator to physical device and it now runs. ",
+    "createdAt": "2024-10-23T13:14:02Z"
+  },
+  {
+    "id": 6550,
+    "sender": "kuhnroyal",
+    "content": "> I had run flutter pub clean severally with no success. I changed from emulator to physical device and it now runs. \n\nDid you by chance use an emulator image with 16kb page size? Try one without.",
+    "createdAt": "2024-10-23T20:09:16Z"
+  },
+  {
+    "id": 6551,
+    "sender": "reidbaker",
+    "content": "FWIW 16kb pages sizes should be supported. I forget when the support landed but it was at least in 3.27 ",
+    "createdAt": "2024-10-23T20:32:45Z"
+  },
+  {
+    "id": 6552,
+    "sender": "techdatas",
+    "content": "i think not just shared preferences got this issue i try to change the shared preferences to Get Storage same issue when turn on android:extractNativeLibs=\"true\" in my app ",
+    "createdAt": "2024-10-30T13:17:11Z"
+  },
+  {
+    "id": 6553,
+    "sender": "techdatas",
+    "content": "all the solutions above advanced was not working ",
+    "createdAt": "2024-10-30T13:17:45Z"
+  },
+  {
+    "id": 6554,
+    "sender": "johnzhu123",
+    "content": "all the solutions above advanced was not working",
+    "createdAt": "2024-10-31T05:51:42Z"
+  },
+  {
+    "id": 6555,
+    "sender": "chris-gunawardena",
+    "content": "i have this happening in iOS as well. Tried cache flush,  deleting the app etc without any luck.",
+    "createdAt": "2024-10-31T19:35:37Z"
+  },
+  {
+    "id": 6556,
+    "sender": "stuartmorgan-g",
+    "content": "@chris-gunawardena Please file a new issue for your case; this issue is tracking an error that is specific to Android.",
+    "createdAt": "2024-10-31T19:37:58Z"
+  },
+  {
+    "id": 6557,
+    "sender": "Shunt22",
+    "content": "This is still happening after switching from Flutter Stable 3.24.3 to Flutter beta 3.26.0-0.1.pre.\r\n\r\n`SharedPreferencesWithCache.create(\r\n    cacheOptions: const SharedPreferencesWithCacheOptions(),\r\n  );` not helping.\r\n\r\nDevice: Samsung SM-T220.\r\nAndroid: 13\r\n\r\n> In my case, it can be solved while I downgrade to com.android.tools.build:gradle:8.1.4. Other versions (8.6.1, 8.5.2, 8.4.2, 8.3.2) will cause this error.\r\n\r\nThis helps.",
+    "createdAt": "2024-11-09T11:02:25Z"
+  },
+  {
+    "id": 6558,
+    "sender": "jacesimons14",
+    "content": "To supplement @Shunt22's comment above, this is still happening on:\r\n\r\nDart SDK 3.5.4 and flutter 3.24.4.\r\nAndroid SDK 35 (15)\r\nalso tried on\r\nAndroid SDK 34 and 33\r\n\r\nFull error log:\r\n[https://pastebin.com/RpJse0Ad](url)\r\n\r\nFlutter Doctor:\r\n![image](https://github.com/user-attachments/assets/85101058-f578-4f6e-b4da-b781c9ff570a)\r\n\r\nSomething to note is that when I install the dependency while the app is running, I get the \"could not establish connection\" as discussed previously in this thread, but when you close and reopen the app with the dep installed, you get this full error. It claims an error is happening in gradle cache but invalidating android studio caches, deleting gradle/caches folder, flutter clean and ./gradlew clean have no effect.\r\n",
+    "createdAt": "2024-11-11T15:47:40Z"
+  },
+  {
+    "id": 6559,
+    "sender": "OneXeor",
+    "content": "Have the same issue, only in release version of the app. Tried a lot of things. But only changing version of the `com.android.application` gradle plugin to 8.3.2 helped (tried with 8.5.2, 8.7). ",
+    "createdAt": "2024-12-05T19:42:21Z"
+  },
+  {
+    "id": 6560,
+    "sender": "xingcorp",
+    "content": "I got the same error when running on Windows but when running on MacOS everything is normal. It has been 4 months now and this error is still not fixed?",
+    "createdAt": "2024-12-09T11:39:59Z"
+  },
+  {
+    "id": 6561,
+    "sender": "stuartmorgan-g",
+    "content": "@xingcorp This issue is specifically about Android. If you see a similar error message when running on another platform, please file a new issue with details.",
+    "createdAt": "2024-12-09T16:26:40Z"
+  },
+  {
+    "id": 6562,
+    "sender": "xingcorp",
+    "content": "> @xingcorp This issue is specifically about Android. If you see a similar error message when running on another platform, please file a new issue with details.\r\n\r\nI run the app on Android device from Android Studio on Windows and get this error, but running on MacOS I don't get the error.",
+    "createdAt": "2024-12-10T03:17:13Z"
+  },
+  {
+    "id": 6563,
+    "sender": "tungdevpro",
+    "content": "I got this error on shared_preferences 2.3.4. Any fix? \r\n```\r\n[ERROR:flutter/runtime/dart_vm_initializer.cc(41)] Unhandled Exception: PlatformException(channel-error, Unable to establish connection on channel: \"dev.flutter.pigeon.shared_preferences_android.SharedPreferencesAsyncApi.getAll.data_store\"., null, null)\r\n```",
+    "createdAt": "2024-12-27T03:19:31Z"
+  },
+  {
+    "id": 6564,
+    "sender": "VladislavRUS",
+    "content": "> I got this error on shared_preferences 2.3.4. Any fix?\r\n> \r\n> ```\r\n> [ERROR:flutter/runtime/dart_vm_initializer.cc(41)] Unhandled Exception: PlatformException(channel-error, Unable to establish connection on channel: \"dev.flutter.pigeon.shared_preferences_android.SharedPreferencesAsyncApi.getAll.data_store\"., null, null)\r\n> ```\r\n\r\nGot the same issue, for me it helped to create a new android virtual device API 35 that is NOT Page Size 16KB. With such emulator it works fine",
+    "createdAt": "2024-12-27T18:37:37Z"
+  },
+  {
+    "id": 6565,
+    "sender": "AbdulBasitab",
+    "content": "Any updates on this?",
+    "createdAt": "2025-01-07T07:05:36Z"
+  },
+  {
+    "id": 6566,
+    "sender": "lampian",
+    "content": "Following  @Shunt22's comment above and @jacesimons14 , \r\nUsing:\r\nDart SDK 3.6.8 and flutter 3.27.1.\r\nAndroid SDK 35 (15)\r\nAndroid Emulator and device both giving the same issue.\r\niOS platform using the same flutter code base is working as expected.\r\n\r\nCreating fresh simple counter application  using SharedPreference works.\r\nUsing a application that was migrated from 2.19.1 to 3.27.1 is giving the following exception: \r\nPlatformException(channel-error, Unable to establish connection on channel: \"dev.flutter.pigeon.shared_preferences_android.SharedPreferencesApi.getAll\"., null, null)\r\n\r\nNot sure if the migration missed something.\r\nReally stuck on this one.\r\n\r\nFurther debugging indicated that when getString in shared_preferences_async.dart line 79 is called, the _dataStoreApi and _sharedPreferencesApi fields: pigeonVar_binaryMessenger is null. \r\n\r\nIs this perhaps an indication of the flutter channel not being setup correctly?\r\nAnd how to remedy the situation?\r\n\r\nUpdate for reference: \r\nIssue resolved when a dependency on another PlatForm channel was removed. \r\nI suspect that the removed implementation was using a fairly old pigeon package to create the channel.\r\n",
+    "createdAt": "2025-01-08T08:37:23Z"
+  },
+  {
+    "id": 6567,
+    "sender": "laurisvan",
+    "content": "> Update for reference: Issue resolved when a dependency on another PlatForm channel was removed. I suspect that the removed implementation was using a fairly old pigeon package to create the channel.\n\nHi @lampian It sounds that we have exactly the same problem (it surfaced when upgrading from 2.x version to 3.27.x. Can you be more specific on how you solved the problem, so that I could try repeat the same/similar steps?",
+    "createdAt": "2025-01-14T06:45:24Z"
+  },
+  {
+    "id": 6568,
+    "sender": "lampian",
+    "content": "Hi @laurisvan ,\n\nIn my case, after updating to flutter 3.27.x the issue surfaced. My application was using a custom plugin that somehow broke the method channels used in shared_preferences and other plugins dependent on method channels. \n\nOnce I removed the offending plugin, shared_preferences and other started working again. \n\nThe offending plugin was using outdated flutter version, gradle and pigeons. \n\nOnce that was corrected, the offending plugin could be added back to the project without affecting shared_preference and the ithers that failed. \n\nHope the approach could help you in identifying the source of the exception.\n\n",
+    "createdAt": "2025-01-14T11:02:10Z"
+  },
+  {
+    "id": 6569,
+    "sender": "sth0409",
+    "content": "> I noticed something interesting: `SharedPreferencesPlugin.onAttachedToEngine(...)` is not called when I run into that bug.\n> \n> My workaround is currently to invoke that method in my `MainActivity` myself. My `MainActivity.kt` looks now more or less like this:\n> \n> class MainActivity : FlutterFragmentActivity() {\n>   override fun configureFlutterEngine(flutterEngine: FlutterEngine) {\n>     GeneratedPluginRegistrant.registerWith(flutterEngine)\n>   }\n> }\n\nsuccessfully solve ！！\n-------------\n\n\nimport io.flutter.embedding.android.FlutterFragmentActivity\nimport io.flutter.embedding.engine.FlutterEngine\nimport io.flutter.plugins.GeneratedPluginRegistrant\n\nclass MainActivity : FlutterFragmentActivity() {\n    override fun configureFlutterEngine(flutterEngine: FlutterEngine) {\n        GeneratedPluginRegistrant.registerWith(flutterEngine)\n    }\n}",
+    "createdAt": "2025-01-15T10:43:58Z"
+  },
+  {
+    "id": 6570,
+    "sender": "wotanut",
+    "content": "I was having this issue, the above didn't fix my issue. What did was marking the original SharedPreferences variable as late\n\n```dart\nclass _OptsState extends State<Opts> {\n  late SharedPreferences? prefs; // Originally wasn't marked as late\n  bool timings = false;\n\n  @override\n  void initState() {\n    super.initState();\n    _loadPreferences();\n  }\n\n  Future<void> _loadPreferences() async {\n    prefs = await SharedPreferences.getInstance();\n    setState(() {\n      timings = prefs!.getBool('timings') ?? false;\n    });\n  }\n}\n```\n",
+    "createdAt": "2025-01-15T12:04:52Z"
+  },
+  {
+    "id": 6571,
+    "sender": "ductridev",
+    "content": "I'm facing the same problem while working on android with flutter v3.24.4. This is my `flutter doctor -v`:\n```\n[√] Flutter (Channel stable, 3.24.4, on Microsoft Windows [Version 10.0.19045.5371], locale en-US)\n    • Flutter version 3.24.4 on channel stable at G:\\flutter\n    • Upstream repository https://github.com/flutter/flutter.git\n    • Framework revision 603104015d (3 months ago), 2024-10-24 08:01:25 -0700\n    • Engine revision db49896cf2\n    • Dart version 3.5.4\n    • DevTools version 2.37.3\n\n[√] Windows Version (Installed version of Windows is version 10 or higher)\n\n[√] Android toolchain - develop for Android devices (Android SDK version 35.0.0)\n    • Android SDK at G:\\AndroidStudioSDK\n    • Platform android-35, build-tools 35.0.0\n    • ANDROID_HOME = G:\\AndroidStudioSDK\n    • Java binary at: G:\\Android Studio\\jbr\\bin\\java\n    • Java version OpenJDK Runtime Environment (build 21.0.3+-12282718-b509.11)\n    • All Android licenses accepted.\n\n[√] Chrome - develop for the web\n    • CHROME_EXECUTABLE = C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe\n\n[√] Visual Studio - develop Windows apps (Visual Studio Community 2022 17.12.4)\n    • Visual Studio at D:\\VisualStudioIDE\n    • Visual Studio Community 2022 version 17.12.35707.178\n    • Windows 10 SDK version 10.0.26100.0\n\n[√] Android Studio (version 2024.2)\n    • Android Studio at G:\\Android Studio\n    • Flutter plugin can be installed from:\n       https://plugins.jetbrains.com/plugin/9212-flutter\n    • Dart plugin can be installed from:\n       https://plugins.jetbrains.com/plugin/6351-dart\n    • Java version OpenJDK Runtime Environment (build 21.0.3+-12282718-b509.11)\n\n[√] Connected device (4 available)\n    • sdk gphone64 x86 64 (mobile) • emulator-5554 • android-x64    • Android 15 (API 35) (emulator)\n    • Windows (desktop)            • windows       • windows-x64    • Microsoft Windows [Version 10.0.19045.5371]\n    • Chrome (web)                 • chrome        • web-javascript • Google Chrome 132.0.6834.83\n    • Edge (web)                   • edge          • web-javascript • Microsoft Edge 131.0.2903.146\n\n[√] Network resources\n    • All expected network resources are available.\n\n• No issues found!\n```\n\nWith the same `pubspec.lock`, flutter's version and dart's version , iOS app works well:\n```\nshared_preferences:\n    dependency: \"direct main\"\n    description:\n      name: shared_preferences\n      sha256: a752ce92ea7540fc35a0d19722816e04d0e72828a4200e83a98cf1a1eb524c9a\n      url: \"https://pub.dev\"\n    source: hosted\n    version: \"2.3.5\"\n  shared_preferences_android:\n    dependency: transitive\n    description:\n      name: shared_preferences_android\n      sha256: \"138b7bbbc7f59c56236e426c37afb8f78cbc57b094ac64c440e0bb90e380a4f5\"\n      url: \"https://pub.dev\"\n    source: hosted\n    version: \"2.4.2\"\n  shared_preferences_foundation:\n    dependency: transitive\n    description:\n      name: shared_preferences_foundation\n      sha256: \"6a52cfcdaeac77cad8c97b539ff688ccfc458c007b4db12be584fbe5c0e49e03\"\n      url: \"https://pub.dev\"\n    source: hosted\n    version: \"2.5.4\"\n```\n\nMy log while running `flutter run --release -v`:\n```\n[ +129 ms] Starting: Intent { act=android.intent.action.MAIN cat=[android.intent.category.LAUNCHER] flg=0x20000000 cmp=io.appname.app/.MainActivity (has extras) }\n[   +2 ms] Application running.\n[   +1 ms] Flutter run key commands.\n[        ] h List all available interactive commands.\n[        ] c Clear the screen\n[        ] q Quit (terminate the application on the device).\n[ +887 ms] W/FlutterEngineCxnRegstry( 9337): Attempted to register plugin (I8.a@59a8941) but it was already registered with this FlutterEngine (m8.c@1e46ee6).\n[   +1 ms] W/FlutterEngineCxnRegstry( 9337): Attempted to register plugin (V8.a@3f17c27) but it was already registered with this FlutterEngine (m8.c@1e46ee6).\n[        ] W/FlutterEngineCxnRegstry( 9337): Attempted to register plugin (N8.h@fb61f79) but it was already registered with this FlutterEngine (m8.c@1e46ee6).\n[        ] W/FlutterEngineCxnRegstry( 9337): Attempted to register plugin (V8.a@ffa446c) but it was already registered with this FlutterEngine (m8.c@1e46ee6).\n[        ] W/FlutterEngineCxnRegstry( 9337): Attempted to register plugin (V8.a@5f1d83b) but it was already registered with this FlutterEngine (m8.c@1e46ee6).\n[        ] W/FlutterEngineCxnRegstry( 9337): Attempted to register plugin (M8.g@7d3b58) but it was already registered with this FlutterEngine (m8.c@1e46ee6).\n[        ] W/FlutterEngineCxnRegstry( 9337): Attempted to register plugin (M8.g@e8a7aed) but it was already registered with this FlutterEngine (m8.c@1e46ee6).\n[        ] W/FlutterEngineCxnRegstry( 9337): Attempted to register plugin (P7.f@2b8bd22) but it was already registered with this FlutterEngine (m8.c@1e46ee6).\n[        ] W/FlutterEngineCxnRegstry( 9337): Attempted to register plugin (O8.a@f4da09c) but it was already registered with this FlutterEngine (m8.c@1e46ee6).\n[        ] W/FlutterEngineCxnRegstry( 9337): Attempted to register plugin (P7.f@fa51aa5) but it was already registered with this FlutterEngine (m8.c@1e46ee6).\n[        ] W/FlutterEngineCxnRegstry( 9337): Attempted to register plugin (P7.f@808ce7a) but it was already registered with this FlutterEngine (m8.c@1e46ee6).\n[        ] W/FlutterEngineCxnRegstry( 9337): Attempted to register plugin (O8.a@705462b) but it was already registered with this FlutterEngine (m8.c@1e46ee6).\n[+1449 ms] E/flutter ( 9337): [ERROR:flutter/runtime/dart_vm_initializer.cc(41)] Unhandled Exception: PlatformException(channel-error, Unable to establish connection on channel:\n\"dev.flutter.pigeon.shared_preferences_android.SharedPreferencesApi.getAll\"., null, null)\n[   +2 ms] E/flutter ( 9337):\n[+211541 ms] executing: G:\\AndroidStudioSDK\\platform-tools\\adb.exe -s emulator-5554 shell am force-stop io.appname.app\n[  +64 ms] Application finished.\n[   +3 ms] \"flutter run\" took 304,610ms.\n[ +123 ms] ensureAnalyticsSent: 124ms\n[   +1 ms] Running 2 shutdown hooks\n[        ] Shutdown hooks complete\n[ +111 ms] exiting with code 0\n```",
+    "createdAt": "2025-01-18T14:29:17Z"
+  },
+  {
+    "id": 6572,
+    "sender": "ductridev",
+    "content": "I just got logs which I think it's similar but more details:\n```\n[+2909 ms] E/flutter (12170): [ERROR:flutter/runtime/dart_vm_initializer.cc(41)] Unhandled Exception: Null check operator used on a null value\n[        ] E/flutter (12170): #0      BindingBase.checkInstance (package:flutter/src/foundation/binding.dart:391)\n[        ] E/flutter (12170): #1      ServicesBinding.instance (package:flutter/src/services/binding.dart:68)\n[        ] E/flutter (12170): #2      _findBinaryMessenger (package:flutter/src/services/platform_channel.dart:158)\n[        ] E/flutter (12170): #3      BasicMessageChannel.binaryMessenger (package:flutter/src/services/platform_channel.dart:204)\n[        ] E/flutter (12170): #4      BasicMessageChannel.send (package:flutter/src/services/platform_channel.dart:218)\n[        ] E/flutter (12170): #5      SharedPreferencesAsyncApi.getAll (package:shared_preferences_android/src/messages_async.g.dart:386)\n[        ] E/flutter (12170): #6      SharedPreferencesAsyncAndroid.getPreferences (package:shared_preferences_android/src/shared_preferences_async_android.dart:235)\n[        ] E/flutter (12170): #7      SharedPreferencesAsync.getAll (package:shared_preferences/src/shared_preferences_async.dart:55)\n[        ] E/flutter (12170): #8      SharedPreferencesWithCache.reloadCache (package:shared_preferences/src/shared_preferences_async.dart:225)\n[        ] E/flutter (12170): #9      SharedPreferencesWithCache.create (package:shared_preferences/src/shared_preferences_async.dart:200)\n[        ] E/flutter (12170): #10     SessionManager.initPref (package:bubbly/utils/session_manager.dart:15)\n[        ] E/flutter (12170): #11     main (package:bubbly/main.dart:32)\n[        ] E/flutter (12170): #12     _runMain.<anonymous closure> (dart:ui/hooks.dart:301)\n[        ] E/flutter (12170): #13     _delayEntrypointInvocation.<anonymous closure> (dart:isolate-patch/isolate_patch.dart:297)\n[        ] E/flutter (12170): #14     _RawReceivePort._handleMessage (dart:isolate-patch/isolate_patch.dart:184)\n[        ] E/flutter (12170):\n```",
+    "createdAt": "2025-01-19T17:16:50Z"
+  },
+  {
+    "id": 6573,
+    "sender": "stuartmorgan-g",
+    "content": "@ductridev Please file a new issue with details; that's not this issue.",
+    "createdAt": "2025-01-19T20:41:11Z"
+  },
+  {
+    "id": 6574,
+    "sender": "ductridev",
+    "content": "@stuartmorgan That's my fault.\nBut finally, I have fixed it, I created new project, move my code from old from to the new one and it works.",
+    "createdAt": "2025-01-20T09:57:04Z"
+  },
+  {
+    "id": 6575,
+    "sender": "Jeel8120",
+    "content": "Open android project of flutter project in new tab in android studio.\nthen go to app's `MainActivity.class`\n\npast below code in `MainActivity.class`\n\n```\n  override fun configureFlutterEngine(flutterEngine: FlutterEngine) {\n        super.configureFlutterEngine(flutterEngine)\n\n        flutterEngine.plugins.add(SharedPreferencesPlugin())\n\n    }\n```",
+    "createdAt": "2025-03-03T03:24:07Z"
+  },
+  {
+    "id": 6576,
+    "sender": "MohamadMercury",
+    "content": "This is what worked for me:\n\nin `MainActivity`:\n\n```\noverride fun configureFlutterEngine(flutterEngine: FlutterEngine) {\n        super.configureFlutterEngine(flutterEngine)\n\n        flutterEngine.plugins.add(LegacySharedPreferencesPlugin())\n\n    }\n```\n\njust add `Legacy` to SharedPreferences.",
+    "createdAt": "2025-03-25T17:37:07Z"
+  },
+  {
+    "id": 6577,
+    "sender": "narzullayev0772",
+    "content": "```\n    buildTypes {\n        release {\n            minifyEnabled false // this\n            shrinkResources false // this\n            signingConfig signingConfigs.release\n        }\n    }\n```\n\nadd it to android/app/build.gradle and it works",
+    "createdAt": "2025-03-27T11:51:58Z"
+  },
+  {
+    "id": 6578,
+    "sender": "abhinovpankaj",
+    "content": "> ```\n>     buildTypes {\n>         release {\n>             minifyEnabled false // this\n>             shrinkResources false // this\n>             signingConfig signingConfigs.release\n>         }\n>     }\n> ```\n> \n> add it to android/app/build.gradle and it works\n\nI tried this but is not working, I just upgraded my app and stumbled on this issue",
+    "createdAt": "2025-03-27T13:20:44Z"
+  },
+  {
+    "id": 6579,
+    "sender": "haodong404",
+    "content": "> ```\n>     buildTypes {\n>         release {\n>             minifyEnabled false // this\n>             shrinkResources false // this\n>             signingConfig signingConfigs.release\n>         }\n>     }\n> ```\n> \n> add it to android/app/build.gradle and it works\n\nIt's working for me but I NEED minify in release mode.",
+    "createdAt": "2025-04-03T07:29:15Z"
+  },
+  {
+    "id": 6580,
+    "sender": "rekire",
+    "content": "Just a request from the off: I had that problem in the past too (this is why I am still observing this issue). Can you all confirm that this happens with the latest dependencies and the latest flutter version?\n\nI don't have this issue anymore at all, but I cannot recall what fixed it. So please upgrade to the latest versions of Flutter and `shared_preferences`. Clean your project with `flutter clean`, if it is still broken please report your flutter version and `shared_preferences` version to help the Flutter team to get this issue fixed.",
+    "createdAt": "2025-04-03T07:35:20Z"
+  },
+  {
+    "id": 6581,
+    "sender": "fusionconsulting",
+    "content": "This is still happening on Flutter 3.29.2 with shared_preferences 2.5.3 in Android release builds.\n\nFlutter 3.29.2 • channel stable • https://github.com/flutter/flutter.git\nFramework • revision c236373904 (3 weeks ago) • 2025-03-13 16:17:06 -0400\nEngine • revision 18b71d647a\nTools • Dart 3.7.2 • DevTools 2.42.3\n\nshared_preferences: ^2.5.3",
+    "createdAt": "2025-04-04T07:36:17Z"
+  },
+  {
+    "id": 6582,
+    "sender": "KurtZone",
+    "content": "This issue happened 20 mins ago and I just solved it by close app(macOS ver.) and Android Studio, then reopen them all.\n\nBut I don't know how it worked, just for your reference.\n\n-----\nAndroid Studio Meerkat | 2024.3.1 Patch 2\nBuild #AI-243.24978.46.2431.13363775, built on April 16, 2025\n\n[✓] Flutter (Channel stable, 3.24.3)\n[✓] Android toolchain - develop for Android devices (Android SDK version 30.0.3)\n[✓] Xcode - develop for iOS and macOS (Xcode 16.3)\n[✓] Chrome - develop for the web\n[✓] Android Studio (version 2024.3)\n\nshared_preferences: ^2.5.3",
+    "createdAt": "2025-04-28T15:44:53Z"
+  },
+  {
+    "id": 6583,
+    "sender": "Lucho3",
+    "content": "Hi all, hope that I'm not too late.\n\nInitial configuration:\nKotlin: 2.1.20\nFlutter SDK 3.29.3\nDart SDK 3.7.2\nAGP: 8.9.0\n\nSo, after one painful day of debugging here are my findings, based on some of the inputs here and my own:\n\nIt seems like the issue is not only related to shared_preferences, other plugins suffer as well, for example, I also had problems with\nthe permission_handler, but only in release mode.\n\nFor the shared_preferences, I have tried different configurations. Firstly, no matter if I use SharedPreferences,  SharedPreferencesAsync or SharedPreferencesWithCache, the result is the same.\n\nUnfortunatelly, \n\nminifyEnabled false // this\nshrinkResources false // this\n\ndidn't solve anything. Tried a variety of different **proguard rules,** the result was always the same.\n\nThe only thing that worked for me was lowering AGP to 8.3.2 as @OneXeor suggested. This triggered a diffrent chain of problems for\nme => Kotlin version related, but the important part is that shared shared_preferences and permission_handler began working once again.\n\nAfter switching to 8.4, everything fell apart once again. I took a quick glimpse at the release notes of [AGP 8.9.1](https://developer.android.com/build/releases/gradle-plugin) and they had fixed a really interesting [issue](https://issuetracker.google.com/issues/389737060) in it, not sure if this could be related though.\n\n\n**Update:**\n\nAfter returning eveything at the state of the beginning and adding:\n\nimport io.flutter.embedding.android.FlutterFragmentActivity\nimport io.flutter.embedding.engine.FlutterEngine\nimport io.flutter.plugins.sharedpreferences.SharedPreferencesPlugin\n\nclass MainActivity : FlutterFragmentActivity() {\n  override fun configureFlutterEngine(flutterEngine: FlutterEngine) {\n        super.configureFlutterEngine(flutterEngine)\n        flutterEngine.plugins.add(SharedPreferencesPlugin())\n    }\n}\n\nIn the main activity, shared_preferences work, but now I see a lot of other errors such:\n[ERROR:flutter/runtime/dart_vm_initializer.cc(40)] Unhandled Exception: MissingPluginException(No implementation found for method checkPermissionStatus on channel flutter.baseflow.com/permissions/methods)\n[ERROR:flutter/runtime/dart_vm_initializer.cc(40)] Unhandled Exception: PlatformException(channel-error, Unable to establish connection on channel: \"dev.flutter.pigeon.path_provider_android.PathProviderApi.getApplicationSupportPath\"., null, null)\n\n**Update 2: Managed to fire it up only with proguard rules.**\n\nSo, one of the solutions that I found was to add each plugin like in \"Update 1\". After reading this [stack](https://stackoverflow.com/questions/76800185/how-to-keep-some-com-google-android-play-core-classes-reported-missing-by-r8-d) I have created 3 super simple proguard rules taht have fixed my issue, without the need of modifying the MainActivity. Steps that I have followed:\n\n1. Crete proguard-rules.pro file in the android/app dir\n2. Add the needed keeps, in it in my case:\n      -keep class com.baseflow.permissionhandler.** { *; }\n      -keep class io.flutter.plugins.pathprovider.** { *; }\n      -keep class io.flutter.plugins.sharedpreferences.** { *; }\n\n3. In your build.gradle under release add:\n     minifyEnabled true\n     shrinkResources true\n     proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'\n\nNote: During my testing I have changed my SharedPreferences to SharedPreferencesAsync, but I think this shouldn't matter.\n\nHope, this blob of text would help someone.\n\n\n\n\n\n",
+    "createdAt": "2025-04-28T19:35:46Z"
+  },
+  {
+    "id": 6584,
+    "sender": "zlshames",
+    "content": "I'm also receiving this error on iOS when I try to use Shared Preferences. In my case, I have a HomeWidget that's trying to invoke the app via a deeplink, goes through my `vm:entry-point`, but errors out when trying to send the method channel message\n\n```\nPlatformException(channel-error, Unable to establish connection on channel: \"dev.flutter.pigeon.shared_preferences_foundation.UserDefaultsApi.set\"., null, null)\n```\n\nThe good news is, when I used SharedPreferences normally in my app, it works. It just doesn't seem to work when entering the app through a headless vm entry point\n\nEDIT: I was able to get it all working by having a Receive Port open on my main entry point and having the vm:entry-point function send a message over the SendPort to execute the main chunk of code (with Shared preferences usage)",
+    "createdAt": "2025-04-30T12:19:00Z"
+  },
+  {
+    "id": 6585,
+    "sender": "KishoreCreativeAppLap",
+    "content": "i still face this issue in debug mode it's working fine but in release mode shared_preferences: ^2.5.3 as well as permission_handler: ^12.0.0+1 not work I tried @Lucho3 all methods even though it's not working",
+    "createdAt": "2025-05-21T02:31:50Z"
+  },
+  {
+    "id": 6586,
+    "sender": "dzero1",
+    "content": "After update to 3.32.0 this start to happen. None of the above solutions worked for me and struggled to deploy good build for 3 days. Finally I created a new flutter project, copy lib folder and add all dependencies. I used firebase, so config it with flutterfire. All good for now.",
+    "createdAt": "2025-05-22T01:38:08Z"
+  },
+  {
+    "id": 6587,
+    "sender": "balint-kada",
+    "content": "this came up for us after upgrading flutter version to 3.32 recently, never happened before",
+    "createdAt": "2025-05-22T08:32:55Z"
+  },
+  {
+    "id": 6588,
+    "sender": "abhishekbbbbbb",
+    "content": "yes, encountering same issue from yesterday",
+    "createdAt": "2025-05-23T07:32:09Z"
+  },
+  {
+    "id": 6589,
+    "sender": "Numanshakir",
+    "content": "I am experiencing the same problem too on my end too after updating to 3.32.0. I switch from SharedPreferences to SharedPreferencesWithCached and also followed the steps provided by @Lucho3. The problem still exists.  Downgrading flutter version make it works again.",
+    "createdAt": "2025-05-23T11:28:29Z"
+  },
+  {
+    "id": 6590,
+    "sender": "jeroen-meijer",
+    "content": "## \"Flutter/Flutter.h not found.\" on iOS.\n\n## Steps to Reproduce\r\n\r\n## Preface:\r\nI'm on the flutter `master` channel and have run `upgrade` half an hour ago.\r\nI've reinstalled flutter and cocoapods completely before and tried the fixes provided in #15437, #15532 and all other issues on GitHub looking like the problem I have. _\r\n\r\n`flutter create --template=plugin -i swift health_stats`\r\n`cd health_stats/example`\r\n\r\n[health_stats.zip](https://github.com/flutter/flutter/files/1857340/health_stats.zip)\r\n\r\n## Logs\r\n\r\n_Run your application with `flutter run` and attach all the log output._\r\n```\r\nLaunching lib/main.dart on iPhone 6 in debug mode...\r\nRunning Xcode clean...                                       0,9s\r\nStarting Xcode build...\r\nXcode build done                                             1,1s\r\nFailed to build iOS app\r\nError output from Xcode build:\r\n↳\r\n    ** BUILD FAILED **\r\n\r\nXcode's output:\r\n↳\r\n    === BUILD TARGET health_stats OF PROJECT Pods WITH CONFIGURATION Debug ===\r\n    <module-includes>:1:9: note: in file included from <module-includes>:1:\r\n    #import \"Headers/health_stats-umbrella.h\"\r\n            ^\r\n    /Users/jeroen/Projects/_flutter_experiments/health_stats/example/ios/Pods/Target Support Files/health_stats/health_stats-umbrella.h:13:9: note: in file included from /Users/jeroen/Projects/_flutter_experiments/health_stats/example/ios/Pods/Target Support Files/health_stats/health_stats-umbrella.h:13:\r\n    #import \"HealthStatsPlugin.h\"\r\n            ^\r\n    /Users/jeroen/Projects/_flutter_experiments/health_stats/ios/Classes/HealthStatsPlugin.h:1:9: error: 'Flutter/Flutter.h' file not found\r\n    #import <Flutter/Flutter.h>\r\n            ^\r\n    <unknown>:0: error: could not build Objective-C module 'health_stats'\r\nCould not build the application for the simulator.\r\nError launching application on iPhone 6.\r\n```\r\n\r\n_Run `flutter analyze` and attach any output of that command also._\r\n```\r\nAnalyzing /Users/jeroen/Projects/_flutter_experiments/health_stats/example...\r\nNo issues found!\r\nRan in 5.7s\r\n```\r\n\r\n## Flutter Doctor\r\n\r\n_Paste the output of running `flutter doctor -v` here._\r\n```\r\n[✓] Flutter (Channel master, v0.2.5-pre.60, on Mac OS X 10.13.3 17D102, locale nl-NL)\r\n    • Flutter version 0.2.5-pre.60 at /Users/Jeroen/flutter\r\n    • Framework revision 31049a5a73 (64 minutes ago), 2018-03-28 10:58:48 -0700\r\n    • Engine revision dd6f46c485\r\n    • Dart version 2.0.0-dev.41.0.flutter-2f68e82526\r\n\r\n[✓] Android toolchain - develop for Android devices (Android SDK 26.0.3)\r\n    • Android SDK at /Users/jeroen/Library/Developer/Xamarin/android-sdk-macosx\r\n    • Android NDK location not configured (optional; useful for native profiling support)\r\n    • Platform android-27, build-tools 26.0.3\r\n    • ANDROID_HOME = /Users/jeroen/Library/Developer/Xamarin/android-sdk-macosx\r\n    • Java binary at: /Applications/Android Studio.app/Contents/jre/jdk/Contents/Home/bin/java\r\n    • Java version OpenJDK Runtime Environment (build 1.8.0_152-release-915-b08)\r\n    • All Android licenses accepted.\r\n\r\n[✓] iOS toolchain - develop for iOS devices (Xcode 9.3)\r\n    • Xcode at /Applications/Xcode-beta.app/Contents/Developer\r\n    • Xcode 9.3, Build version 9Q127n\r\n    • ios-deploy 1.9.2\r\n    • CocoaPods version 1.5.0.beta.1\r\n\r\n[✓] Android Studio (version 3.0)\r\n    • Android Studio at /Applications/Android Studio.app/Contents\r\n    • Java version OpenJDK Runtime Environment (build 1.8.0_152-release-915-b08)\r\n\r\n[✓] VS Code (version 1.21.1)\r\n    • VS Code at /Applications/Visual Studio Code.app/Contents\r\n    • Dart Code extension version 2.11.1\r\n\r\n[✓] Connected devices (1 available)\r\n    • iPhone 6 • B93E29EC-05E0-4948-B369-BB8B2347823D • ios • iOS 11.3 (simulator)\r\n\r\n• No issues found!\r\n```\r\n\r\n## Additional information\r\n\r\nCreating and running a normal project works fine:\r\n`flutter create regular`\r\n`cd regular`\r\n`flutter run`\r\n```\r\nLaunching lib/main.dart on iPhone 6 in debug mode...\r\nRunning Xcode clean...                                       0,9s\r\nStarting Xcode build...\r\n ├─Assembling Flutter resources...                    3,4s\r\n └─Compiling, linking and signing...                  5,1s\r\nXcode build done                                             9,7s\r\nSyncing files to device iPhone 6...                          2,0s\r\n\r\n🔥  To hot reload your app on the fly, press \"r\". To restart the app entirely, press \"R\".\r\nAn Observatory debugger and profiler on iPhone 6 is available at: http://127.0.0.1:8100/\r\nFor a more detailed help message, press \"h\". To quit, press \"q\".\r\n```\r\n\r\n**However** when adding a dependency like `path_provider`:\r\n```\r\n...\r\ndependencies:\r\n  flutter:\r\n    sdk: flutter\r\n  path_provider: ^0.4.0 [ADDED THIS LINE]\r\n...\r\n```\r\nand then `flutter packages get`,\r\n```\r\n[regular] flutter packages get\r\nRunning \"flutter packages get\" in regular...\r\nexit code 0\r\n```\r\n\r\n`flutter run` produces this:\r\n```\r\nLaunching lib/main.dart on iPhone 6 in debug mode...\r\nRunning pod install...                                       1,0s\r\nRunning Xcode clean...                                       0,9s\r\nStarting Xcode build...\r\nXcode build done                                             1,4s\r\nFailed to build iOS app\r\nError output from Xcode build:\r\n↳\r\n    ** BUILD FAILED **\r\n\r\nXcode's output:\r\n↳\r\n    === BUILD TARGET path_provider OF PROJECT Pods WITH CONFIGURATION Debug ===\r\n    In file included from /Users/jeroen/.pub-cache/hosted/pub.dartlang.org/path_provider-0.4.0/ios/Classes/PathProviderPlugin.m:5:\r\n    /Users/jeroen/.pub-cache/hosted/pub.dartlang.org/path_provider-0.4.0/ios/Classes/PathProviderPlugin.h:5:9: fatal error: 'Flutter/Flutter.h' file not found\r\n    #import <Flutter/Flutter.h>\r\n            ^~~~~~~~~~~~~~~~~~~\r\n    1 error generated.\r\nCould not build the application for the simulator.\r\nError launching application on iPhone 6.\r\n```\r\n\r\nI did not have `path_provider` version `0.4.0` in my dart packages folder before running the app, so it's a fresh copy.\r\n\r\nI need to get this working a.s.a.p. since I need to make an app for our company soon.",
+    "createdAt": "2018-03-28T19:10:50Z"
+  },
+  {
+    "id": 6591,
+    "sender": "mravn-google",
+    "content": "In the `health_stats` project, your `example/ios/Podfile` appears to be almost full day older than `example/ios/Podfile.lock`. Perhaps the former has been copied from somewhere? I believe the consequence of a `Podfile` older than `Podfile.lock` is that `pod install` isn't executed as part of `flutter run`. This is consistent with the log output at the start of your Logs section.\r\n\r\nCan I ask you to remove `example/ios/Podfile.lock` and retry `flutter run` in `health_stats`?\r\n\r\n(Meanwhile, I'll be trying to reproduce the error of the `regular` project.)",
+    "createdAt": "2018-03-28T19:34:15Z"
+  }
+]

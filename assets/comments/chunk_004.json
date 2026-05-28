@@ -1,0 +1,386 @@
+[
+  {
+    "id": 256,
+    "sender": "TimWhiting",
+    "content": "\r\n> Suppose you had this code:\r\n> \r\n> ```dart\r\n> Widget build(BuildContext context) {\r\n>   return ExpensiveParent(\r\n>     child: ValueListenableBuilder(\r\n>       valueListenable: foo,\r\n>       child: ExpensiveChild(),\r\n>       builder: (BuildContext context, value, Widget child) {\r\n>         return SomethingInTheMiddle(\r\n>           value: value,\r\n>           child: child,\r\n>         );\r\n>       }\r\n>     ),\r\n>   );\r\n> }\r\n> ```\r\n> \r\n> ...how would you convert that?\r\n```dart\r\nclass _ExampleSimpleState extends State<ExampleSimple> with StatefulPropertyManager {\r\n  StatefulValueListenableBuilder _fooBuilder;\r\n\r\n  @override\r\n  void initStatefulProperties({bool firstRun = false}) {\r\n    _fooBuilder = initProperty(StatefulValueListenableProperty(valueListenable: widget.foo)); \r\n    super.initStatefulProperties(firstRun: firstRun);\r\n  }\r\n\r\n  @override\r\n  Widget build(BuildContext context) {\r\n    return ExpensiveParent(\r\n      child: SomethingInTheMiddle(\r\n        _fooBuilder.value,\r\n        _fooBuilder.builder(childBuilder: () => ExpensiveChild()),\r\n      ),\r\n    );\r\n  }\r\n}\r\n```\r\n\r\n@Hixie \r\nThanks for the example. I gave it my best shot. I might have missed something.\r\n\r\nImportant to note would be that the builder caches the child. The question would be when does it need to actually rebuild the child? I think that was the question you were trying to raise..",
+    "createdAt": "2020-08-10T18:53:16Z"
+  },
+  {
+    "id": 257,
+    "sender": "escamoteur",
+    "content": "@Hixie have you seen https://github.com/flutter/flutter/issues/51752#issuecomment-671104377\r\nI think there are some really good points. \r\nI build today something with a lot of ValueListenableBuilder and I can only say its not nice to read. ",
+    "createdAt": "2020-08-10T19:40:24Z"
+  },
+  {
+    "id": 258,
+    "sender": "esDotDev",
+    "content": "> @Hixie\r\n> Thanks for the example. I gave it my best shot. I might have missed something.\r\n\r\nI don't think this works because the Property binds to the state it is defined in, so ExpensiveParent is always getting rebuilt here. Then I think the caching of the child is also problematic, as in the Builder example it would know to only rebuild the child when the parent state is built, but in this method the Property does not know when to invalidate it's cache (but maybe this is solvable?)\r\n\r\nBut tbh, this is the perfect use case for builders, when you want to introduce a new context. I think it's quite elegant to just have the context of StatefulProperties (pure state) and StatefulWidgets (mix of state and layout). \r\n\r\nAnytime you are intentionally creating a sub-context, you will by definition be doing it further down your tree, which helps combat one of the main drawbacks to builders (forced nesting across the entire tree)\r\n",
+    "createdAt": "2020-08-10T19:51:04Z"
+  },
+  {
+    "id": 259,
+    "sender": "Hixie",
+    "content": "@escamoteur (and @sahandevs who wrote that comment) yeah I was studying that earlier. I think it certainly helps show the kind of logic that people want to remove. I think, though, that the example itself is a bit dubious in that I would expect most of the logic (e.g. everything around caching) to be in the app state business logic, and nowhere near the widgets. I also can't see a good way to get the syntax as brief as proposed in that comment without breaking hot reload (e.g. if you change the number of hooks you're using, it's not clear how they could be kept stateful across a reload).\r\n\r\nThat said, I think the work @esDotDev and @TimWhiting show above is very interesting and could solve these problems. It's not as brief as Hooks, but it is more reliable. I think it would make perfect sense to package something like that up, it could even be a Flutter Favorite if it works well. I'm not sure it makes sense as a core framework feature because the improvement is not _that_ substantial once you take into account the complexity around building properties and the performance impact, and how different people would prefer different styles. At the end of the day, it should be fine for different people to use different styles, but we wouldn't want the core framework to have multiple styles, that's just misleading for new developers.\r\n\r\nThere's also an argument to be made that the right way to learn Flutter is to first understand widgets, and then learn the tools that abstract them away (Hooks or whatever), rather than jumping right to abstract syntax. Otherwise you are missing a key component of how the system works which is likely to lead you astray in terms of writing performant code.",
+    "createdAt": "2020-08-10T19:55:34Z"
+  },
+  {
+    "id": 260,
+    "sender": "rrousselGit",
+    "content": "> I also can't see a good way to get the syntax as brief as proposed in that comment without breaking hot reload (e.g. if you change the number of hooks you're using, it's not clear how they could be kept stateful across a reload).\r\n\r\nHooks do work with hot-reload without issue.\r\nThe first hook with a non-matching runtimeType cause all the subsequent hooks to be destroyed. \r\n\r\nThis supports adding, removing and reordering.",
+    "createdAt": "2020-08-10T19:57:37Z"
+  },
+  {
+    "id": 261,
+    "sender": "esDotDev",
+    "content": "I think there is an argument that full abstraction is preferable to partial which exists currently.\r\n\r\nIf I want to understand how Animator works in the context of a Property, I either ignore it totally, or jump in, and it is all right there, self contained and coherent.  \r\n\r\nIf I want to understand how AnimatorController works in context of a StatefulWidget, I need (am forced) to understand the basic lifecycle hooks, but then spared from understanding how the underlying tick mechanism works. This is worst of both worlds in some sense. Not enough magic to make it 'just work', but just enough to confuse new users and force them to just trust blindly in some mixin (which in itself is a new concept for most) and a magical vsync property.\r\n\r\nI'm not sure of other examples in the code base, but this would apply to any situation where some helper mixins have been provided for StatefulWidget, but there is still some other bootstrapping that must always be performed. Dev's will learn the bootstraping (the boring part) and ignore the Mixin (the interesting/complex bit)",
+    "createdAt": "2020-08-10T20:02:37Z"
+  },
+  {
+    "id": 262,
+    "sender": "rrousselGit",
+    "content": "> That said, I think the work @esDotDev and @TimWhiting show above is very interesting and could solve these problems. It's not as brief as Hooks, but it is more reliable\r\n\r\nHow is this more reliable?\r\n\r\nWe still can't create/update properties conditionally or outside of its life-cycle as we could enter a bad state. For example, calling a property conditionally will not dispose of the property when the condition is false.\r\nAnd all properties are still re-evaluated on every rebuild.\r\n\r\nBut it causes multiple issues, such as forcing users to use `!` everywhere after NNBD or potentially allowing users to access a property before it is updated.\r\n\r\nFor example, what if someone reads a property inside `didUpdateWidget`?\r\n- Did `initProperties` execute before the life-cycle? But then that means we may have to update properties multiple times per build.\r\n- Did `initProperties` get executed after didUpdateWidget? Then using properties inside didUpdateWidget may lead to an outdated state\r\n\r\n\r\nSo in the end, we have all the issues of hooks but:\r\n- we can't use Properties inside `StatelessWidget. So the readability of StreamBuilder/ValueListenableBuilder/... is still an issue – which was the main concern.\r\n- there are numerous edge-cases\r\n- it's harder to create custom properties (we can't just extract a bunch of properties into a function)\r\n- it's harder to optimize rebuilds\r\n\r\n____\r\n\r\n\r\nIn the end, the example given is no different in behavior from:\r\n\r\n\r\n```dart\r\nclass Example extends StatelessWidget {\r\n  @override\r\n  Widget build(context) {\r\n    final value1 = keyword TweenAnimationBuilder(tween: Tween(begin: 0, end: 1));\r\n    final value2 = keyword TweenAnimationBuilder(tween: Tween(begin: 0, end: 1));\r\n    final value3 = keyword TweenAnimationBuilder(tween: Tween(begin: 0, end: 1));\r\n\r\n    return Container(\r\n     margin: EdgeInsets.symmetric(vertical: value2 * 20, horizontal: value3 * 30),\r\n     color: Colors.red.withOpacity(value1),\r\n      child: _anim2(child: SomeChildWidget()),\r\n    );\r\n  }\r\n}\r\n```\r\n\r\nBut this syntax supports a lot more things, such as:\r\n\r\n\r\n### Early returns:\r\n\r\n\r\n```dart\r\nclass Example extends StatelessWidget {\r\n  @override\r\n  Widget build(context) {\r\n    final value1 = keyword TweenAnimationBuilder(tween: Tween(begin: 0, end: 1));\r\n\r\n    if (condition) {\r\n      return Container();\r\n    }\r\n\r\n    final value2 = keyword TweenAnimationBuilder(tween: Tween(begin: 0, end: 1));\r\n\r\n    ...\r\n  }\r\n}\r\n```\r\n\r\n\r\nwhich would dispose of `value2` when `condition` switches to false\r\n\r\n\r\n### Extracting bundles of builders into a function:\r\n\r\n```dart\r\nWidget build(context) {\r\n  final foo = keyword FooBuilder();\r\n  final bar = keyword BarBuilder();\r\n \r\n  return Text('$foo $bar');\r\n}\r\n```\r\n\r\ncan be changed into:\r\n\r\n```dart\r\nBuilder<String> LabelBuilder() builder* {\r\n  final foo = keyword FooBuilder();\r\n  final bar = keyword BarBuilder();\r\n\r\n  return '$foo $bar';\r\n}\r\n\r\nWidget build(context) {\r\n  final label = keyword LabelBuilder();\r\n \r\n  return Text(label);\r\n}\r\n```\r\n\r\n\r\n### Optimize rebuilds\r\n\r\n\r\nThe `child` parameter is still feasible:\r\n\r\n\r\n```dart\r\nWidget build(context) {\r\n  final value = keyword StreamBuilder();\r\n \r\n  return Builder(\r\n    builder: (context, child) {\r\n      final value2 = keyword TweenAnimationBuilder();\r\n      final value = keyword ValueListenableBuilder();\r\n \r\n      return Whatever(child: child);\r\n    },\r\n    child: ExpensiveChild()\r\n  );\r\n}\r\n```\r\n\r\nAs part of the language, we could even have syntax sugar for this:\r\n\r\n```dart\r\nWidget build(context) {\r\n  return Scaffold(\r\n    body: {\r\n      final value = keyword TweenAnimationBuilder();\r\n      final value2 = keyword ValueListenableBuilder();\r\n\r\n      return Text();\r\n    },\r\n  );\r\n}\r\n```\r\n\r\n### Bonus: As a language feature, conditional calls are supported\r\n\r\nAs part of the language, we can support such scenario:\r\n\r\n\r\n```dart\r\nWidget build(context) {\r\n  String label;\r\n\r\n  if (condition) {\r\n    label = keyword LabelBuilder();\r\n  } else {\r\n    label = keyword AnotherBuilder();\r\n  }\r\n\r\n  final value2 = keyword WhateverBuilder();\r\n \r\n  return ...\r\n}\r\n```\r\n\r\nIt's not very useful, but supported – as since the syntax is compiled, it is able to differentiate each usage of `keyword` by relying on metadata that is not available otherwise.\r\n",
+    "createdAt": "2020-08-10T20:10:00Z"
+  },
+  {
+    "id": 263,
+    "sender": "esDotDev",
+    "content": "Regarding readability of builders, here is the previous example, but done with builders. It solves all of the reliability and code-use needs, but look what it has done to my poor widget tree :'( \r\n\r\n```\r\nclass _ExampleSimpleBuilderState extends State<ExampleSimpleBuilder> {\r\n  @override\r\n  Widget build(BuildContext context) {\r\n    return TweenAnimationBuilder<double>(\r\n        tween: Tween(begin: 0, end: 1),\r\n        duration: widget.duration1,\r\n        builder: (_, value1, __) {\r\n          return TweenAnimationBuilder<double>(\r\n              tween: Tween(begin: 0, end: 1),\r\n              duration: widget.duration2,\r\n              builder: (_, value2, __) {\r\n                return TweenAnimationBuilder<double>(\r\n                    tween: Tween(begin: 0, end: 1),\r\n                    duration: widget.duration3,\r\n                    builder: (_, value3, __) {\r\n                      return Container(\r\n                        margin: EdgeInsets.symmetric(vertical: value2 * 20, horizontal: value3 * 30),\r\n                        color: Colors.red.withOpacity(value1),\r\n                      );\r\n                    });\r\n              });\r\n        });\r\n  }\r\n}\r\n```\r\n\r\nIt's much much harder (for my eye at least) to spot the code that matters.  Also, fwiw, I had to start over like 3 times when writing this, as I continually got confused as to which bracket belonged where, where my semi-colans should go etc. Nested builders are just no fun to write or work inside of.  One wrong semicolon and dartfmt bails completely crushing the whole thing.",
+    "createdAt": "2020-08-10T20:16:58Z"
+  },
+  {
+    "id": 264,
+    "sender": "esDotDev",
+    "content": "> How is this more reliable?\r\n\r\nThis is a perfect example of why this _should_ be a core plugin imo. The domain knowledge required here is _deep_. I have the scripting knowledge to implement a simple caching system like this, I do not even have close to the domain knowledge to know every edge case that can happen, or bad states we can get into. Other than Remi, I think there is like 4 developers in the world outside the Flutter team that know this stuff! (exaggerating obviously). \r\n\r\n",
+    "createdAt": "2020-08-10T20:25:03Z"
+  },
+  {
+    "id": 265,
+    "sender": "esDotDev",
+    "content": "The issue of supporting Stateless Widgets is a good one. On one hand I get it, StatefulWidgets's are oddly verbose. On the other hand, here we truly are talking about pure verbosity. There are no bugs that can happen from having to define 2 classes, there is no way you can mess it up, compiler doesn't let you, there is never anything interesting I want to do in the StatelessWidget. So I'm not sold on this being a major issue... CERTAINLY would be nice to have, but it's the last 5% imo, not something to get stuck on. \r\n\r\nOn the other other hand... that syntax from remi with keyword support is absolutely beautiful and insanely flexible/powerful. And if it gives you StatelessWidget support for free, then that's just extra 🔥 ",
+    "createdAt": "2020-08-10T20:31:18Z"
+  },
+  {
+    "id": 266,
+    "sender": "rrousselGit",
+    "content": "Supporting StatelessWidget is a big deal IMO. Optional, but still very cool.\r\n\r\nWhile I agree that it is not critical, people are already fighting over using functions instead of StatelessWidget.\r\nRequiring people to use a StatefulWidget to use Builders (as most Builders would likely have a Property equivalent) would only deepen the conflict.\r\n\r\n\r\nNot only that but, in a world where we can create higher-order functions in dart (https://github.com/dart-lang/language/issues/418), we could get rid of classes altogether:\r\n\r\n\r\n```dart\r\n@StatelessWidget\r\nWidget Example(BuildContext context, {Key key, String param}) {\r\n  final value = keyword StreamBuilder();\r\n\r\n  return Text('$value');\r\n}\r\n```\r\n\r\nthen used as:\r\n\r\n```dart\r\nWidget build(context) {\r\n  // BuildContext and Key are automatically injected\r\n  return Example(param: 'hello');\r\n}\r\n```\r\n\r\n\r\nThis is something that is supported by [functional_widget](https://github.com/rrousselGit/functional_widget) – which is a code-generator where you write a function and it generates a class for you – which also supports `HookWidget`.\r\n\r\nThe difference being, having support for higher-order functions in Dart would remove the need for code-generation to support such syntax.\r\n\r\n",
+    "createdAt": "2020-08-10T20:52:32Z"
+  },
+  {
+    "id": 267,
+    "sender": "esDotDev",
+    "content": "I'm guessing what @Hixie meant by more reliable, is it doesn't suffer from the order of operations / conditional issue that hooks has, as that is very 'unreliable' from an architectural POV (though I realize it's an easy rule to learn and not violate once learned). \r\n\r\nBut neither does your proposal with the keyword. I think the case for new keyword is quite strong: \r\n* More flexible and composable than grafting onto State\r\n* Even more succint syntax\r\n* Works in Stateless which is a very nice option to have\r\n\r\nWhat I don't like about it, is we're worrying about the cost of setting properties on some simple object multiple times/build, but then advocating a solution that basically will create a million levels of context and a bunch of layout cost. Am I misunderstanding?\r\n\r\nThe other downside is this idea of magic. But if you're going to do something magical, a new keyword is an effective way to get it done I think, as it makes it easy to highlight and call out to the community, and explain what it is and how it works. It would basically be all anyone talks about for the next yr in Flutter and I'm sure we would see an explosion of cool plugins that spawn out of it.",
+    "createdAt": "2020-08-10T21:33:17Z"
+  },
+  {
+    "id": 268,
+    "sender": "rrousselGit",
+    "content": "> I'm guessing what @Hixie meant by more reliable, is it doesn't suffer from the order of operations / conditional issue that hooks has, as that is very 'unreliable' from an architectural POV (though I realize it's an easy rule to learn and not violate once learned).\r\n\r\nBut hooks don't suffer from such issue either, as they are statically analyzable, and we can therefore have a compilation error when they are misused.\r\n\r\nThis is a non-problem\r\n\r\n\r\nSimilarly if custom errors are a no-go, then as I mentioned previously,  Property suffers from the exact same problem.\r\nWe can't reasonably write:\r\n\r\n```dart\r\nProperty property;\r\n\r\n@override\r\nvoid initProperties() {\r\n  if (condition) {\r\n    property = init(property, MyProperty());\r\n  }\r\n}\r\n```\r\n\r\nas switching `condition` from true to false will not dispose of the property.\r\n\r\nWe can't really call it in a loop either. It doesn't really make sense, since it's a single-time assignment. What is the use-case of running the property in a loop?\r\n\r\nAnd the fact that we can read properties in any order sounds dangerous\r\nFor example we could write:\r\n\r\n```dart\r\nProperty first;\r\nProperty second;\r\n\r\n@override\r\nvoid initProperties() {\r\n  // The state of first depends on second, but second is updated after first\r\n  // So we could end up in a bad state, similar to how the build method of a Widget should depend\r\n  // on the context.size\r\n  first = init(property, MyProperty(second?.value));\r\n\r\n  second = init(property, Whatever());\r\n}\r\n```\r\n",
+    "createdAt": "2020-08-10T21:45:49Z"
+  },
+  {
+    "id": 269,
+    "sender": "Rudiksz",
+    "content": "```\r\n> class _ExampleSimpleBuilderState extends State<ExampleSimpleBuilder> {\r\n>   @override\r\n>   Widget build(BuildContext context) {\r\n>     return TweenAnimationBuilder<double>(\r\n>         tween: Tween(begin: 0, end: 1),\r\n>         duration: widget.duration1,\r\n>         builder: (_, value1, __) {\r\n>           return TweenAnimationBuilder<double>(\r\n>               tween: Tween(begin: 0, end: 1),\r\n>               duration: widget.duration2,\r\n>               builder: (_, value2, __) {\r\n>                 return TweenAnimationBuilder<double>(\r\n>                     tween: Tween(begin: 0, end: 1),\r\n>                     duration: widget.duration3,\r\n>                     builder: (_, value3, __) {\r\n>                       return Container(\r\n>                         margin: EdgeInsets.symmetric(vertical: value2 * 20, horizontal: value3 * 30),\r\n>                         color: Colors.red.withOpacity(value1),\r\n>                       );\r\n>                     });\r\n>               });\r\n>         });\r\n>   }\r\n> }\r\n```\r\n\r\nThis is such a weird example. Are you sure AnimatedContainer can't already do this?",
+    "createdAt": "2020-08-10T21:47:54Z"
+  },
+  {
+    "id": 270,
+    "sender": "esDotDev",
+    "content": "Of course. The example here is to utilize 3 animations in some widget to do \"X\". The X is intentionally simplified in the example to highlight the amount of boilerplate. \r\n\r\nDon't focus on how I'm using them. In a real example, the widget \"core\" would be a hundred lines or something, the animated properties would not be so simple, and we'd have multiple handlers and other functions defined. Assume I'm doing something not handled by one of the implicit widgets (not hard since other than AnimatedContainer, they are extremely single-purpose).\r\n\r\nThe point is that when building something like this, builders don't work great, as they stick you in a readability (and writability) hole to begin with, as such they are well suited for simple use cases, they do no \"compose\" well. Compose being the composition of 2 or more more things.",
+    "createdAt": "2020-08-10T21:53:39Z"
+  },
+  {
+    "id": 271,
+    "sender": "Rudiksz",
+    "content": "> Don't focus on how I'm using them. In a real example, ...\r\n\r\n...and back to square one. Why don't you bring a **real** example? ",
+    "createdAt": "2020-08-10T21:59:44Z"
+  },
+  {
+    "id": 272,
+    "sender": "esDotDev",
+    "content": "You need a real example of using complex animations?\r\nhttps://github.com/gskinnerTeam/flutter_vignettes\r\n\r\nShowing some arbitrary complex animation would do nothing but obfuscate the example. Sufficed to say, there are plenty of use cases for using multiple animators (or any other stateful object you can imagine) inside some widget",
+    "createdAt": "2020-08-10T22:02:15Z"
+  },
+  {
+    "id": 273,
+    "sender": "Rudiksz",
+    "content": "> Of course. The example here is to utilize 3 animations in some widget to do \"X\". The X is intentionally simplified in the example to highlight the amount of boilerplate.\r\n\r\n>the widget \"core\" would be a hundred lines or something\r\n\r\nIn another post you posted an example with boilerplate that obscures the \"core\", but now you tell us that the core would be hundreds of lines? So in reality, the boilerplate would be minuscule compared to the core?  You can;t have it both ways.\r\nYou are constantly changing your arguments.",
+    "createdAt": "2020-08-10T22:05:23Z"
+  },
+  {
+    "id": 274,
+    "sender": "satvikpendem",
+    "content": "> > Don't focus on how I'm using them. In a real example, ...\n> \n> ...and back to square one. Why don't you bring a **real** example? \n\nProbably because it takes a lot of time to create a real example when just playing around with various idea. The intent is for the reader to imagine how it could be used in a real situation, not mention that there are ways around it. Of course one can use an animated container, but what if they couldn't? What if it were too complex to make with just an animated container.\n\nNow, that the writers do not use truly real examples, that can be shown to be either good or bad, I have no opinion on that, I'm only commenting on the tendency in this thread to bring up ameliorations to problems which do not fully solve the problem at hand. This seems to be a major source of confusion between hooks proponents and opponents, as each seem to be talking past another to some extent, so I support Hixie's proposal to create some real apps such that an opponent cannot say that a \"real\" example was not shown and a proponent cannot say that one should merely imagine a real world scenario.",
+    "createdAt": "2020-08-10T22:07:20Z"
+  },
+  {
+    "id": 275,
+    "sender": "esDotDev",
+    "content": "I think I said was it would be silly to have class that is 100lines, where half of it is boilerplate. Which is exactly what I'm describing here. The core, however large, should not be obfuscated by a bunch of noise, which it certainly is when using multiple builders. \r\n\r\nAnd the reason is scan-ability, readability and maintenance across a large codebase. Its not the writing of the lines, although writing in builders is a productivity loser imo due to the tendancy to get into curly bracket hell.",
+    "createdAt": "2020-08-10T22:07:29Z"
+  },
+  {
+    "id": 276,
+    "sender": "rrousselGit",
+    "content": "> In another post you posted an example with boilerplate that obscures the \"core\", but now you tell us that the core would be hundreds of lines? So in reality, the boilerplate would be minuscule compared to the core? You can;t have it both ways.\r\nYou are constantly changing your arguments.\r\n\r\n\r\nAgain, this issue is not about boilerplate but readability and reusability.\r\nIt doesn't matter if we have 100 lines.\r\nWhat matters is how readable/maintainable/reusable these lines are.\r\n\r\n\r\n",
+    "createdAt": "2020-08-10T22:07:49Z"
+  },
+  {
+    "id": 277,
+    "sender": "satvikpendem",
+    "content": "Even if the argument were about boilerplate, why should I, the user, tolerate such boilerplate in any case, given a sufficiently equivalent way of expressing the same thing? Programming is all about creating abstractions and automating labor, I don't really see the point of redoing the same thing over and over again in various classes and files.",
+    "createdAt": "2020-08-10T22:11:20Z"
+  },
+  {
+    "id": 278,
+    "sender": "Rudiksz",
+    "content": "> You need a real example of using complex animations?\r\n> https://github.com/gskinnerTeam/flutter_vignettes\r\n> \r\n\r\nSurely, you can't expect me to dig through your whole project. Which file exactly should I look at?\r\n\r\n> Showing some arbitrary complex animation would do nothing but obfuscate the example. \r\n\r\nThe exact opposite. Showing some arbitrary complex animation that **cannot** be solved by any existing solution would **be** the example, and that's what Hixie keeps asking, I believe.",
+    "createdAt": "2020-08-10T22:12:46Z"
+  },
+  {
+    "id": 279,
+    "sender": "esDotDev",
+    "content": "Just scan the gifs and begin to imagine how you might build some of that stuff. That repo is actually 17 standalone apps. You also can't expect me to write you some arbitrary animation just to prove to you that complex animations can exist. I've been building them for 20 years starting in Flash, every single one different than the last. And it's not specific to Animations anyways, they are just the simplest most familiar API to illustrate a larger point.\r\n\r\nLike you know how, when you use an animator, there's like 6 things you need to do everytime, but it also needs lifecycle hooks?? Ok, so now extend that to ANYTHING that has 6 steps you have to do everytime... And you need to use it in 2 places. Or you need to use 3 of them at once.  It's so obviously an issue on it's face, I don't know what else I can add to explain it.",
+    "createdAt": "2020-08-10T22:15:53Z"
+  },
+  {
+    "id": 280,
+    "sender": "Rudiksz",
+    "content": ">Programming is all about creating abstractions and automating labor, I don't really see the point of redoing the same thing over and over again in various classes and files.\r\n\r\n__All__? So performance, maintainability is not relevant?\r\n\r\nThere comes a point when \"automating\" a labor and \"doing\" a labor is the same.",
+    "createdAt": "2020-08-10T22:19:06Z"
+  },
+  {
+    "id": 281,
+    "sender": "Hixie",
+    "content": "Folks, it's fine if you don't have the time or inclination to create real examples, but please, if you are not interested in creating examples to explain the problem, you should also not expect people to then feel compelled to solve the problem (which is a lot more work than creating examples to show the problem). Nobody here is required to do anything for anyone, it's an open source project where we're all trying to help each other.\r\n\r\n@TimWhiting would you mind putting a license file in your https://github.com/TimWhiting/local_widget_state_approaches repo? Some people are unable to contribute without an applicable license (BSD, MIT, or similar ideally).",
+    "createdAt": "2020-08-10T22:22:42Z"
+  },
+  {
+    "id": 282,
+    "sender": "satvikpendem",
+    "content": ">why should I, the user, tolerate such boilerplate in any case, given a **sufficiently equivalent** way of expressing the same thing?\n\nYes, maintainability and performance do matter of course. I mean when there is an equivalent solution, we should pick the one that has less boilerplate, is easier to read, is more reusable, and so on. That is not to say that hooks are the answer, as I have not measured their performance for example, but they are more maintainable in my experience. I am still unsure about your argument as to how it affects your work if a hook-like construct were put into the Flutter core.",
+    "createdAt": "2020-08-10T22:22:50Z"
+  },
+  {
+    "id": 283,
+    "sender": "Rudiksz",
+    "content": "> Just scan the gifs and begin to imagine how you might build some of that stuff. \r\n\r\nI scanned the gifs. I wouldn't use builder widgets. \r\nMany of the animations are so complex that if I knew you implemented them using the higher level builders, I probably wouldn't use your package.",
+    "createdAt": "2020-08-10T22:23:04Z"
+  },
+  {
+    "id": 284,
+    "sender": "satvikpendem",
+    "content": "Anyway this discussion seems to be getting out of hand with more personal disagreements. We should focus on the main task at hand. I am not sure how hook proponents can show smaller examples if opponents will, as I said earlier, find ameliorations that don't truly solve the problem posed. I think we should contribute to @TimWhiting's repository for now.",
+    "createdAt": "2020-08-10T22:24:53Z"
+  },
+  {
+    "id": 285,
+    "sender": "rrousselGit",
+    "content": ">  Showing some arbitrary complex animation that cannot be solved by any existing solution would be the example, and that's what Hixie keeps asking, I believe.\r\n\r\nShowing examples of something that is not possible today is out of the scope of this issue.\r\nThis issue is about improving the syntax of what is already feasible, not unblocking some things that are not possible today.\r\n\r\nAny request at providing something that is not possible today is off-topic.",
+    "createdAt": "2020-08-10T22:25:18Z"
+  },
+  {
+    "id": 286,
+    "sender": "TimWhiting",
+    "content": "> @TimWhiting would you mind putting a license file in your https://github.com/TimWhiting/local_widget_state_approaches repo? Some people are unable to contribute without an applicable license (BSD, MIT, or similar ideally).\r\n\r\nDone. Sorry, I haven't had much time to work on the examples, but I'll probably get to that sometime this week.\r\n\r\n",
+    "createdAt": "2020-08-10T22:28:33Z"
+  },
+  {
+    "id": 287,
+    "sender": "Rudiksz",
+    "content": "> > Showing some arbitrary complex animation that cannot be solved by any existing solution would be the example, and that's what Hixie keeps asking, I believe.\r\n> \r\n> Showing examples of something that is not possible today is out of the scope of this issue.\r\n> This issue is about improving the syntax of what is already feasible, not unblocking some things that are not possible today.\r\n> \r\n> Any request at providing something that is not possible today is off-topic.\r\n\r\nLet me rephrase what I said.\r\n\r\n> Showing some arbitrary complex **use case involving animations, states, etc** that are **difficult to write** and that can be improved **significanlty without impacting performance** would be the example, and that's what Hixie keeps asking, I believe.\r\n\r\nI understand the push for less boilerplate, more reusability, more magic. I like having to write less code too, and the language/framework doing more work is quite appetizing.\r\nUntil now none of the examples/solution combos presented here would drastically improve code. That is, if we care about more than just how many lines of codes we have to write.",
+    "createdAt": "2020-08-10T22:38:44Z"
+  },
+  {
+    "id": 288,
+    "sender": "esDotDev",
+    "content": "> Folks, it's fine if you don't have the time or inclination to create real examples, but please, if you are not interested in creating examples to explain the problem, you should also not expect people to then feel compelled to solve the problem (which is a lot more work than creating examples to show the problem). Nobody here is required to do anything for anyone, it's an open source project where we're all trying to help each other.\r\n> \r\n> @TimWhiting would you mind putting a license file in your https://github.com/TimWhiting/local_widget_state_approaches repo? Some people are unable to contribute without an applicable license (BSD, MIT, or similar ideally).\r\n\r\nI spent about 6 hours creating these various examples and code snippets. But I see really no point in providing concrete examples of complex animations just to prove that they can exist.\r\n\r\nThe request is to basically turn this into something that can not be handled by AnimatedContainer:\r\n```\r\nContainer(margin: EdgeInsets.symmetric(vertical: value2 * 20, horizontal: value3 * 30), color: Colors.red.withOpacity(value1));\r\n```\r\n\r\nThis is so trivial to the point of being almost intentionally obtuse to the issue. Is it so hard to imagine I might have a couple pulsing buttons, some particles moving, maybe a few text fields that fade in while scaling, or some cards that flip? Maybe I'm making a soundbar with 15 independant bars, maybe I'm sliding a menu in but also need the ability to slide individual items back out. And on, and on, and on. And this is just for Animations. It applies to any use case that is burdensome in the context of a widget.\r\n\r\nI think I provided excellent cananonical examples of the problem with both builders, and vanilla state-reuse: \r\nhttps://github.com/flutter/flutter/issues/51752#issuecomment-671566814\r\nhttps://github.com/flutter/flutter/issues/51752#issuecomment-671489384\r\n\r\nYou simply have to imagine many of these instances (pick your poison), spread far and wide across a project of 1000+ class files, and you get the perfect picture of the readability and maintainability issues we're trying to avoid. ",
+    "createdAt": "2020-08-10T22:42:00Z"
+  },
+  {
+    "id": 289,
+    "sender": "satvikpendem",
+    "content": "Would the example images that @esDotDev provided, showing how the nesting makes code harder to read, not be sufficient for you, @Rudiksz ? What is lacking from them? I suppose there are no performance metrics there but @rrousselGit sure they're not less performant than builders.",
+    "createdAt": "2020-08-10T22:44:46Z"
+  },
+  {
+    "id": 290,
+    "sender": "satvikpendem",
+    "content": "@esDotDev I think the point is to have a singular canonical example from which all life cycle management solutions can be compared against (not just hooks but others in the future as well). It's the same principle as TodoMVC, you wouldn't necessarily point to various other  implementations in React, Vue, Svelte, etc as showing the difference between them, you'd want them all to be implementing the same application, _then_ you can compare. ",
+    "createdAt": "2020-08-10T22:48:52Z"
+  },
+  {
+    "id": 291,
+    "sender": "esDotDev",
+    "content": "That makes sense to me, but I don't understand why it needs to be any bigger than a single page. \r\n\r\nManaging multiple animations is the perfect example of something that is common, requires a bunch of boilerplate, is error prone, and has no good solution currently. If that's not making the point, if people are going to say that they don't even understand how animations can be complex, then clearly any use-case will get knocked down for the context of the use case, and not the architectural issue we're trying to illustrate.",
+    "createdAt": "2020-08-10T22:53:40Z"
+  },
+  {
+    "id": 292,
+    "sender": "satvikpendem",
+    "content": "Sure, the repository from @TimWhiting doesn't have a full blown app, it has singular pages as examples as you say, if you can make a canonical example of animation for that repository from which others could implement their solution, that would work.\n\nI also don't think we need a huge app or anything, but there should be sufficient complexity similar to that of TodoMVC. Basically it needs to be enough such that your opponents couldn't be able to say \"well I could do this better in such and such way\". ",
+    "createdAt": "2020-08-10T22:56:53Z"
+  },
+  {
+    "id": 293,
+    "sender": "rrousselGit",
+    "content": "@Hixie The request for real apps to compare approaches is flawed.\r\n\r\nThere are two flaws:\r\n- We don't yet agree on the problem, as you said yourself you do not understand it\r\n- We cannot implement examples in real production conditions, as we will have missing pieces.\r\n\r\nFor example, we can't write an application using:\r\n\r\n```dart\r\nfinal snapshot = keyword StreamBuilder();\r\n```\r\n\r\nas this is not implemented.\r\n\r\nWe can't judge performances either, as this is comparing a POC vs production code.\r\n\r\nWe can't evaluate if something like \"hooks can't be called conditionally\" is error-prone either, as there is no compiler integration to point out errors when there is a misuse.\r\n",
+    "createdAt": "2020-08-10T23:08:38Z"
+  },
+  {
+    "id": 294,
+    "sender": "Hixie",
+    "content": "Judging performance of designs, evaluating API usability, implementing things before we have implementations... those are all part of API design. Welcome to my job. :-) (Flutter trivia: did you know that the first few thousand lines of RenderObject and RenderBox et al were implemented before we created dart:ui?)",
+    "createdAt": "2020-08-10T23:13:44Z"
+  },
+  {
+    "id": 295,
+    "sender": "rrousselGit",
+    "content": "That does not change the fact that you are requesting the impossible.\r\n\r\nSome of the proposals made here are part of the language or the analyzer. It is impossible for the community to implement that.",
+    "createdAt": "2020-08-10T23:17:35Z"
+  },
+  {
+    "id": 296,
+    "sender": "satvikpendem",
+    "content": "I'm not so sure, other frameworks and languages do API design all the time, I don't think it's too different here, or that Flutter has some overwhelming differences or difficulties for API design than other languages. As in, they do it without having compiler or analyzer support, they're just proofs of concept.",
+    "createdAt": "2020-08-11T00:32:32Z"
+  },
+  {
+    "id": 297,
+    "sender": "esDotDev",
+    "content": "I've put together an example of a 'complex' animation scenario that makes good use of 3 animations and it fairly loaded with boilerplate and cruft.\r\n\r\nImportant to note that I could have just done any animation that needs a hard snap back to starting position (eliminating all implicit widgets), or rotation on z axis, or scale on a single axis, or any other use case not covered by IW's. I worried those might not be taken seriously (though my designers will hand me this stuff all day long) so I built something more 'real world'. \r\n\r\nSo here is a simple scaffold, it has 3 panels that slide open and closed. It uses 3 animators with discrete states. In this case I don't really need the full control of AnimatorController, TweenAnimationBuilder would do ok, but the resulting nesting in my tree would be very undesireable. I can't nest the TAB's down the tree, as the panels have dependancies on eachothers values. AnimatedContainer is no option here as each panel needs to slide off screen, they do not \"squish\".\r\nhttps://i.imgur.com/BW6M3uM.gif\r\n![image](https://user-images.githubusercontent.com/736973/89852130-6a429500-db4b-11ea-9421-325844ddc2eb.png)\r\n\r\n```dart\r\nclass _SlidingPanelViewState extends State<SlidingPanelView> with TickerProviderStateMixin {\r\n  AnimationController leftMenuAnim;\r\n  AnimationController btmMenuAnim;\r\n  AnimationController rightMenuAnim;\r\n\r\n  @override\r\n  void initState() {\r\n    // Here I have to pass vsync to AnimationController, so I have to include a SingleTickerProviderMixin and somewhat magically pass 'this' as vsync.\r\n    leftMenuAnim = AnimationController(duration: widget.slideDuration, vsync: this);\r\n    btmMenuAnim = AnimationController(duration: widget.slideDuration, vsync: this);\r\n    rightMenuAnim = AnimationController(duration: widget.slideDuration, vsync: this);\r\n    // Here I have to call forward 3 times, cause there's no way to automate this common setup behavior\r\n    leftMenuAnim.forward();\r\n    btmMenuAnim.forward();\r\n    rightMenuAnim.forward();\r\n    // Here I have to manually bind to build, cause there is encapsulate this common setup behavior\r\n    leftMenuAnim.addListener(() => setState(() {}));\r\n    btmMenuAnim.addListener(() => setState(() {}));\r\n    rightMenuAnim.addListener(() => setState(() {}));\r\n    super.initState();\r\n  }\r\n\r\n  // Following 2 fxn are a blind spot as far as compiler is concerned.\r\n  // Things may, or may not be implemented correctly, no warnings, no errors.\r\n  @override\r\n  void dispose() {\r\n    btmMenuAnim.dispose();\r\n    leftMenuAnim.dispose();\r\n    rightMenuAnim.dispose();\r\n    super.dispose();\r\n  }\r\n\r\n  @override\r\n  void didUpdateWidget(SlidingPanelView oldWidget) {\r\n    if (leftMenuAnim.duration != widget.slideDuration) {\r\n      leftMenuAnim.duration = widget.slideDuration;\r\n      btmMenuAnim.duration = widget.slideDuration;\r\n      rightMenuAnim.duration = widget.slideDuration;\r\n    }\r\n    super.didUpdateWidget(oldWidget);\r\n  }\r\n\r\n  // End error-prone blind spot without a single line of unique code\r\n  // ~50 lines in we can start to see some unique code\r\n\r\n  void _toggleMenu(AnimationController anim) {\r\n    bool isOpen = anim.status == AnimationStatus.forward || anim.value == 1;\r\n    isOpen ? anim.reverse() : anim.forward();\r\n  }\r\n\r\n  @override\r\n  Widget build(BuildContext context) {\r\n    double leftPanelSize = 320;\r\n    double leftPanelPos = -leftPanelSize * (1 - leftMenuAnim.value);\r\n    double rightPanelSize = 230;\r\n    double rightPanelPos = -rightPanelSize * (1 - rightMenuAnim.value);\r\n    double bottomPanelSize = 80;\r\n    double bottomPanelPos = -bottomPanelSize * (1 - btmMenuAnim.value);\r\n    return Stack(\r\n      children: [\r\n        //Bg\r\n        Container(color: Colors.white),\r\n        //Content Panel\r\n        Positioned(\r\n          top: 0,\r\n          left: leftPanelPos + leftPanelSize,\r\n          bottom: bottomPanelPos + bottomPanelSize,\r\n          right: rightPanelPos + rightPanelSize,\r\n          child: ChannelInfoView(),\r\n        ),\r\n        //Left Panel\r\n        Positioned(\r\n          top: 0,\r\n          left: leftPanelPos,\r\n          bottom: bottomPanelPos + bottomPanelSize,\r\n          width: leftPanelSize,\r\n          child: ChannelMenu(),\r\n        ),\r\n        //Bottom Panel\r\n        Positioned(\r\n          left: 0,\r\n          right: 0,\r\n          bottom: bottomPanelPos,\r\n          height: bottomPanelSize,\r\n          child: NotificationsBar(),\r\n        ),\r\n        //Right Panel\r\n        Positioned(\r\n          top: 0,\r\n          right: rightPanelPos,\r\n          bottom: bottomPanelPos + bottomPanelSize,\r\n          width: rightPanelSize,\r\n          child: SettingsMenu(),\r\n        ),\r\n        // Buttons\r\n        Row(\r\n          children: [\r\n            Button(\"left\", ()=>_toggleMenu(leftMenuAnim)),\r\n            Button(\"btm\", ()=>_toggleMenu(btmMenuAnim)),\r\n            Button(\"right\", ()=>_toggleMenu(rightMenuAnim)),\r\n          ],\r\n        )\r\n      ],\r\n    );\r\n  }\r\n}\r\n\r\n//Demo helpers\r\nWidget Button(String lbl, VoidCallback action) => FlatButton(child: Text(lbl), onPressed: action, color: Colors.grey);\r\nWidget ChannelInfoView() => _buildPanel(Colors.red);\r\nWidget ChannelMenu() => _buildPanel(Colors.pink);\r\nWidget SettingsMenu() => _buildPanel(Colors.blue);\r\nWidget NotificationsBar() => _buildPanel(Colors.grey);\r\nWidget _buildPanel(Color c) => Container(color: c, child: Container(color: Colors.white.withOpacity(.5)), padding: EdgeInsets.all(10));\r\n\r\n```\r\n\r\nSo, of the 100 lines or so in that body, roughly 40% or so is pure boilerplate. 15 lines in particular, where anything missing or mis-typed, could cause hard-to-spot bugs.\r\n\r\nIf we use something like StatefulProperty, it would reduce the boilerplate to 15% or so (saves about 25 lines). Critically, this would completely resolve the issue of sneaky bugs and duplicate business logic, but it's still a little verbose especially as it requires StatefulWidget, which is a 10line hit right off the top.\r\n\r\nIf we use something like 'keyword' we reduce the boilerplate lines to essentially 0%. The entire focus of the class could be on the (unique) business logic and the visual tree elements. We make usage of StatefulWIdgets much more rare in general, the vast majority of the views become 10 or 20% less verbose and more focused.",
+    "createdAt": "2020-08-11T02:38:35Z"
+  },
+  {
+    "id": 298,
+    "sender": "esDotDev",
+    "content": "Also, worth noting that the Panel scenario above is real world, and in real world obviously this approach is really not nice, so we didn't use it, and you would not see it in the code base. Nor would we use nested builders, cause those look gross so you won't see that either.\r\n\r\nWe built a dedicated SlidingPanel widget, which takes an IsOpen property, and opens and closes itself. This is generally the solution in every single one of these use cases where you need some specific behavior, you move the stateful logic down into some ultra-specific widget, and you use that. You basically write your own ImplicitlyAnimatedWidget. \r\n\r\nThis does generally work ok, but it's still time and effort, and literally the ONLY reason it exists is because using Animations is so hard (which exists cause re-using stateful components in general is so hard). In Unity or AIR for example, I would not create a dedicate class simply to move a panel on a single axis, it would just be a single line of code to open or close, there would be nothing for a dedicated-widget to do. In Flutter we have to create a dedicated widget, cause it's literally the only reasonable way to encapsulate the bootstraping and teardown of AnimatorController (unless we want to nest,nest,nest with TAB)\r\n\r\nMy main point here is this type of thing is why real-world examples are so hard to find. As developers we can't let these things exist in our codebases too much, so we work around them with less-than-ideal-but-effective workarounds. Then when you look at the codebase, you just see these workarounds in effect and everything seems fine, but it might not be what the team wanted to make, it may have taken them 20% longer to get there, it may have been a total pain to debug, none of this is evident glancing at code.",
+    "createdAt": "2020-08-11T02:48:55Z"
+  },
+  {
+    "id": 299,
+    "sender": "esDotDev",
+    "content": "For completeness, here is the same use case, made with builders.  Line count is heavily reduced, there is no chance for bugs, no need to learn foreign concept RE TickerProviderMixin...but that nesting is sadness, and the way the various variables are sprinkled throughout the tree (dynamic end values, value1, value2 etc) makes the business logic much harder to read than it needs to be.\r\n\r\n```dart\r\nclass _SlidingPanelViewState extends State<SlidingPanelView> {\r\n  bool isLeftMenuOpen = true;\r\n  bool isRightMenuOpen = true;\r\n  bool isBtmMenuOpen = true;\r\n\r\n  @override\r\n  Widget build(BuildContext context) {\r\n    return TweenAnimationBuilder<double>(\r\n      tween: Tween(begin: 0, end: isLeftMenuOpen ? 1 : 0),\r\n      duration: widget.slideDuration,\r\n      builder: (_, leftAnimValue, __) {\r\n        return TweenAnimationBuilder<double>(\r\n          tween: Tween(begin: 0, end: isRightMenuOpen ? 1 : 0),\r\n          duration: widget.slideDuration,\r\n          builder: (_, rightAnimValue, __) {\r\n            return TweenAnimationBuilder<double>(\r\n              tween: Tween(begin: 0, end: isBtmMenuOpen ? 1 : 0),\r\n              duration: widget.slideDuration,\r\n              builder: (_, btmAnimValue, __) {\r\n                double leftPanelSize = 320;\r\n                double leftPanelPos = -leftPanelSize * (1 - leftAnimValue);\r\n                double rightPanelSize = 230;\r\n                double rightPanelPos = -rightPanelSize * (1 - rightAnimValue);\r\n                double bottomPanelSize = 80;\r\n                double bottomPanelPos = -bottomPanelSize * (1 - btmAnimValue);\r\n                return Stack(\r\n                  children: [\r\n                    //Bg\r\n                    Container(color: Colors.white),\r\n                    //Main content area\r\n                    Positioned(\r\n                      top: 0,\r\n                      left: leftPanelPos + leftPanelSize,\r\n                      bottom: bottomPanelPos + bottomPanelSize,\r\n                      right: rightPanelPos + rightPanelSize,\r\n                      child: ChannelInfoView(),\r\n                    ),\r\n                    //Left Panel\r\n                    Positioned(\r\n                      top: 0,\r\n                      left: leftPanelPos,\r\n                      bottom: bottomPanelPos + bottomPanelSize,\r\n                      width: leftPanelSize,\r\n                      child: ChannelMenu(),\r\n                    ),\r\n                    //Bottom Panel\r\n                    Positioned(\r\n                      left: 0,\r\n                      right: 0,\r\n                      bottom: bottomPanelPos,\r\n                      height: bottomPanelSize,\r\n                      child: NotificationsBar(),\r\n                    ),\r\n                    //Right Panel\r\n                    Positioned(\r\n                      top: 0,\r\n                      right: rightPanelPos,\r\n                      bottom: bottomPanelPos + bottomPanelSize,\r\n                      width: rightPanelSize,\r\n                      child: SettingsMenu(),\r\n                    ),\r\n                    // Buttons\r\n                    Row(\r\n                      children: [\r\n                        Button(\"left\", () => setState(() => isLeftMenuOpen = !isLeftMenuOpen)),\r\n                        Button(\"btm\", () => setState(() => isBtmMenuOpen = !isBtmMenuOpen)),\r\n                        Button(\"right\", () => setState(() => isRightMenuOpen = !isRightMenuOpen)),\r\n                      ],\r\n                    )\r\n                  ],\r\n                );\r\n              },\r\n            );\r\n          },\r\n        );\r\n      },\r\n    );\r\n  }\r\n}",
+    "createdAt": "2020-08-11T03:23:06Z"
+  },
+  {
+    "id": 300,
+    "sender": "Hixie",
+    "content": "That last one is interesting... I originally was going to suggest that the builders should be around the Positioned widgets rather than the Stack (and I would still suggest that for the left and right panels) but then I realised that the bottom one affects all three, and I realised that the builder just giving you one `child` argument actually isn't enough, because you really want to keep both the `Container` and the `Row` constant across builds. I suppose you can just create them above the first builder.",
+    "createdAt": "2020-08-11T04:13:43Z"
+  },
+  {
+    "id": 301,
+    "sender": "Hixie",
+    "content": "> My main point here is this type of thing is why real-world examples are so hard to find. As developers we can't let these things exist in our codebases too much, so we work around them with less-than-ideal-but-effective workarounds. Then when you look at the codebase, you just see these workarounds in effect and everything seems fine, but it might not be what the team wanted to make, it may have taken them 20% longer to get there, it may have been a total pain to debug, none of this is evident glancing at code.\r\n\r\nFor the record, this is not an accident. This is very much by design. Having these widgets be their own widgets improves performance. We very much intended for this to be how people used Flutter. This is what I was referring to above when I mentioned \"a big part of Flutter's design philosophy is to guide people towards the right choice\".",
+    "createdAt": "2020-08-11T04:17:00Z"
+  },
+  {
+    "id": 302,
+    "sender": "esDotDev",
+    "content": "> I originally was going to suggest that the builders should be around the Positioned widgets rather than the Stack (and I would still suggest that for the left and right panels) \r\n\r\nI actually ommitted it for the sake of succintness, but normally I would likely want a Content container here, and it would use the sizes from all 3 menus to define it's own position. Meaning all 3 need to be at the top of the tree, and if any rebuild, I need the entire view to rebuild, no getting around it. This is basically your classic desktop-style scaffold.\r\n\r\nOf course we could begin tearing apart the tree, always an option, we use it a lot for larger widgets, but I've never once seen that actually improve grokability at a glance, there's an extra cognitive step the reader needs to do at that point. The second you break the tree apart, I am suddenly following a bread crumb trail of variable assignments to figure out what is being passed here and how the whole thing fits together becomes occluded. Presenting the tree as a digestible tree is always easier to reason about from my experience.",
+    "createdAt": "2020-08-11T04:40:05Z"
+  },
+  {
+    "id": 303,
+    "sender": "Hixie",
+    "content": "Probably a good use case for a dedicated RenderObject.",
+    "createdAt": "2020-08-11T04:44:03Z"
+  },
+  {
+    "id": 304,
+    "sender": "esDotDev",
+    "content": "Or 3 easily managed AnimatorObjects that can hook themselves into the widget lifecycle :D",
+    "createdAt": "2020-08-11T04:44:31Z"
+  },
+  {
+    "id": 305,
+    "sender": "esDotDev",
+    "content": "> Having these widgets be their own widgets improves performance. \r\n\r\nSince we getting concrete here: In this case because this is a scaffold, every sub-view is already it's own widget, this guy is responsible for just laying out and translating children. The childen would be BottomMenu(), ChannelMenu(), SettingsView(), MainContent() etc\r\n\r\nIn this case we are wrapping a bunch of self-contained widgets, with another layer of self-contained widgets, simply to manage the boilerplate around moving them. I don't believe this is a performance win? In this case we are being pushed into what the framework _thinks_ we want to do, and not what we actually want to do, which is to write an equally performant view in a more succint and coherent way.\r\n\r\n[Edit] I'll update the examples to add this context",
+    "createdAt": "2020-08-11T05:03:03Z"
+  },
+  {
+    "id": 306,
+    "sender": "Hixie",
+    "content": "The reason I suggest a dedicated RenderObject is that it would make the layout better. I agree that the animation aspect would be in a stateful widget, it would just pass down the three 0..1 doubles (value1, value2, value3) down to the render object instead of having the Stack math. But that's mostly a sideshow for this discussion; at the point where you're doing this, you'd still want to do the simplification afforded by Hooks or something similar in that stateful widget.\r\n\r\nOn a more relevant note, I had a crack at creating a demo for @TimWhiting's project: https://github.com/TimWhiting/local_widget_state_approaches/pull/1\r\nI'm curious what a Hooks version would look like. I'm not sure I can see a good way to make it simpler, especially maintaining the performance characteristics (or improving them; there's a comment in there showing a place where it's currently suboptimal).",
+    "createdAt": "2020-08-11T05:12:32Z"
+  },
+  {
+    "id": 307,
+    "sender": "Hixie",
+    "content": "(I'm also very curious if this is the kind of thing where if we found a way to simplify it, we would be done here, or if it's missing critical things that we would need to solve before we were done.)",
+    "createdAt": "2020-08-11T05:14:57Z"
+  },
+  {
+    "id": 308,
+    "sender": "esDotDev",
+    "content": "Is the restoration stuff critical to this example? I'm having a hard time following because of it, and do not really know what RestorationMixin even does. I assume it is... going to take a bit to understand this for me. I'm sure Remi will crank out the hooks version in 4 seconds flat :)",
+    "createdAt": "2020-08-11T05:58:13Z"
+  },
+  {
+    "id": 309,
+    "sender": "rrousselGit",
+    "content": "Using the restoration API using `HookWidget` rather than `StatefulHookWidget` is not supported at the moment.\r\n\r\nIdeally we should be able to change\r\n\r\n```dart\r\nfinal value = useState(42);\r\n```\r\n\r\ninto:\r\n\r\n```dart\r\nfinal value = useRestorableInt(42);\r\n```\r\n\r\nBut it needs some thinking, as the current restoration API wasn't really designed with hooks in mind.",
+    "createdAt": "2020-08-11T10:33:02Z"
+  },
+  {
+    "id": 310,
+    "sender": "rrousselGit",
+    "content": "As a side note, React hooks comes with a \"key\" feature, usually used like so:\r\n\r\n```dart\r\nint userId;\r\n\r\nFuture<User> user = useMemo(() => fetchUser(id), [id]);\r\n```\r\n\r\nwhere this code means \"cache the result of the callback, and re-evaluate the callback whenever anything inside the array changes\"\r\n\r\n\r\nFlutter_hooks have made a 1to1 reimplementation of this (as it's just a port), but I don't think that's what we would want to do for a Flutter optimized code.\r\n\r\nWe'd probably want:\r\n\r\n```dart\r\nint userId;\r\n\r\nFuture<User> user = useMemo1(id, (id) => fetchUser(id));\r\n```\r\n\r\nwhich would do the same thing, but remove the memory pressure by avoiding a list allocation and using a function tear-off \r\n\r\n\r\nIt's not critical at this stage, but worth mentioning if we're planning to use `flutter_hooks` for examples.",
+    "createdAt": "2020-08-11T11:15:19Z"
+  },
+  {
+    "id": 311,
+    "sender": "rrousselGit",
+    "content": "@Hixie I ported your animation example to hooks\r\n\r\nIt was an interesting example, kudos for thinking about it!\r\nIt's a good example in that, by default, the implementation of \"active\" and \"duration\" is all over the place (and depend on each other at that). \r\nTo the point were there are numerous \"if (active)\" / \"controller.repeat\" calls\r\n\r\nWhereas with hooks, all the logic is handled declaratively and concentrated in a single place, with no duplicate.\r\n\r\n\r\n\r\nThe example also shows how hooks can be used to easily cache objects — which fixed the issue of ExpensiveWidget rebuilding too often.\r\nWe get the benefits of const constructors, but it works with dynamic parameters.\r\n\r\nWe also get a better hot-reload. We can change the Timer.periodic duration for the background color and immediately see the changes in effect.",
+    "createdAt": "2020-08-11T13:47:59Z"
+  },
+  {
+    "id": 312,
+    "sender": "satvikpendem",
+    "content": "@rrousselGit do you have a link? I didn't see anything new in @TimWhiting's repository.",
+    "createdAt": "2020-08-11T16:56:13Z"
+  },
+  {
+    "id": 313,
+    "sender": "Hixie",
+    "content": "> Using the restoration API using `HookWidget` rather than `StatefulHookWidget` is not supported at the moment.\r\n\r\nWhatever solution we come up with, we need to make sure it doesn't need to know about every last mixin. If someone wants to use our solution in combination with some other package that introduces a mixin just like TickerProviderStateMixin or RestorationMixin, they should be able to do so.",
+    "createdAt": "2020-08-11T17:56:31Z"
+  },
+  {
+    "id": 314,
+    "sender": "rrousselGit",
+    "content": "https://github.com/TimWhiting/local_widget_state_approaches/pull/3\r\n\r\nAgreed, but I'm not worried about that. useAnimationController doesn't require users to care about SingleTickerProvider for example.\r\n\r\nAutomaritKeepAlive could benefit from the same treatment. \r\nOne of the thing I was thinking is to have a \"useKeepAlive(bool)\" hook\r\n\r\nThat avoids both the mixin and the \"super.build(context)\" (the latter being quite confusing) \r\n\r\n",
+    "createdAt": "2020-08-11T21:47:00Z"
+  },
+  {
+    "id": 315,
+    "sender": "rrousselGit",
+    "content": "Another interesting point is the changes required during refactoring.\r\n\r\nFor example, we can compare the diff between the changes necessary to implement `TickerMode` for the raw approach vs hooks:\r\n- StatefulWidget https://github.com/TimWhiting/local_widget_state_approaches/pull/2/commits/0cb7bf60143ead59131b5729044cb51344ffd3fb\r\n- hooks https://github.com/TimWhiting/local_widget_state_approaches/pull/3/commits/b955aab9e5fb02736106732dac9d2398579515ad\r\n\r\nSome other things are mixed up in the diff, but we can see from it that:\r\n- StatefulWidget required to move the logic to a completely different life-cycle\r\n- Hooks changes are purely additive. Existing lines were not edited/moved.",
+    "createdAt": "2020-08-11T22:40:57Z"
+  },
+  {
+    "id": 316,
+    "sender": "esDotDev",
+    "content": "Imo this is very important and a key win from this style of self contained state objects. Having everything based on nested contexts in a tree is fundamentally harder and more convoluted to refactor and change, which over the course of a project has an invisible but definite effect on the end quality of the codebase.",
+    "createdAt": "2020-08-11T23:57:54Z"
+  },
+  {
+    "id": 317,
+    "sender": "rrousselGit",
+    "content": "Agreed!\r\nThat also makes code-reviews a lot easier to read:\r\n\r\n```diff\r\nfinal value = useSomething();\r\n+ final value2 = useSomethingElse();\r\n\r\nreturn Container(\r\n  color: value.color,\r\n-  child: Text('${value.name}'),\r\n+  child: Text('${value.name} $value2'),\r\n);\r\n```\r\n\r\nvs:\r\n\r\n```diff\r\nreturn SomethingBuilder(\r\n  builder: (context, value) {\r\n-    return Container(\r\n-      color: value.color,\r\n-      child: Text('$value'),\r\n+    return SomethingElseBuilder(\r\n+      builder: (context, value2) {\r\n+        return Container(\r\n+          color: value.color,\r\n+          child: Text('${value.name} $value2'),\r\n+        );\r\n+      }\r\n    );\r\n  },\r\n);\r\n```\r\n\r\nIt's not clear in the second diff that `Container` is unchanged and that only the `Text` changed",
+    "createdAt": "2020-08-12T00:15:16Z"
+  },
+  {
+    "id": 318,
+    "sender": "esDotDev",
+    "content": "@rrousselGit Do you think it makes sense to try and do a version representing how it could look with keyword support? Is it substantially similar to hooks with just a dedicated 'use' keyword, or does it become even easier to follow? Its hard to compare the hook approach on a even footing cause it has so many foreign concepts like useEffect, useMemo etc which I think make it look more magical than it is?",
+    "createdAt": "2020-08-12T00:21:07Z"
+  },
+  {
+    "id": 319,
+    "sender": "esDotDev",
+    "content": "Another thing to note, is that where this all really would hit home, is if you had multiple widgets, that all needed to share this 'color-stepping' logic, but used the resulting color in totally different ways. With hooks-style approach, we just bundle up whatever logic makes sense to re-use, and we simply use it. There are no architectural corners we are forced into, it's truly agnostic and flexible.\r\n\r\nIn the Stateful approach, we are forced into \r\n* copy and pasting the logic (very un-maintainable)\r\n* using a builder (not super readable, especially when using nesting)\r\n* mixing (doesn't compose well, very easy for different mixins to conflict in their shared state)\r\n\r\nThe key thing I think is that in the latter, you are immediately have an architectural problem, where should I put this in my tree, how can I best encapsulate this, should it be a builder, or maybe a custom widget? With the former the only decision is in which file to save this chunk of re-used logic, there is no impact to your tree at all. This is very nice architecturally when you want to use a few of these logic encapsulations together, move them up and down in your hierarchy or move to a sibling widget, etc\r\n",
+    "createdAt": "2020-08-12T02:49:21Z"
+  }
+]

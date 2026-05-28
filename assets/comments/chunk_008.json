@@ -1,0 +1,386 @@
+[
+  {
+    "id": 512,
+    "sender": "esDotDev",
+    "content": "fwiw, my `stateful_props` is at 1.0 and addresses some of these problems.\r\nhttps://pub.dev/packages/stateful_props\r\n\r\nIt doesn't deal with changing dependencies as well as hooks, but it does mostly solve the issue with redundant logic across state. I ended up taking a similar approach to `reactives` which seems to have been discontinued.",
+    "createdAt": "2022-12-05T02:59:10Z"
+  },
+  {
+    "id": 513,
+    "sender": "jacobaraujo7",
+    "content": "Please don't give up on this thread.\r\nMake hooks wait anxiously for a native response.",
+    "createdAt": "2023-07-02T21:21:05Z"
+  },
+  {
+    "id": 514,
+    "sender": "Hixie",
+    "content": "Current plan contains to be to rely on Dart macros to begin to address this, but we are a long way from macros being available.",
+    "createdAt": "2023-08-07T20:53:20Z"
+  },
+  {
+    "id": 515,
+    "sender": "jacobaraujo7",
+    "content": "I'm also looking forward Dart Macros @Hixie ! But I need to share that I'm a little worried about it. \r\nOne of the things that most confuse newbies is the overuse of approaches to state management, and I strongly believe, as stated above, that this would mitigate this problem. \r\n\r\nSorry if what I said didn't help with a topic. I just wanted to expose what I believe to improve the framework <3",
+    "createdAt": "2023-08-08T06:13:58Z"
+  },
+  {
+    "id": 516,
+    "sender": "lucavenir",
+    "content": "Hello there! 👋🏼 \r\nGoing back at this after some time because of my curiosity.\r\n\r\nSay we'll have macros / comptime / augmentations / etc. in the next few years.\r\nHow is Flutter going to exploit those to address this issue?\r\n\r\nLately, almost every client-side framework is using / considering signals (e.g. Vue3's composables, Svelte's runes, Solid' signals, etc.) to reuse stateful logic in their application.\r\n\r\nWhat about Flutter? Can / do you want to follow a similar path? Is there a clear, official stance or vision for this framework?",
+    "createdAt": "2023-09-24T20:52:13Z"
+  },
+  {
+    "id": 517,
+    "sender": "rrousselGit",
+    "content": "From my understanding of previous discussions, the plan was to evolve metaprogramming after its initial release to handle code-generation _inside functions_",
+    "createdAt": "2023-09-24T20:58:46Z"
+  },
+  {
+    "id": 518,
+    "sender": "yyliveyy",
+    "content": "The first preview version of macros seems to have been released. How will this impact state management?\r\n`CommunityToolkit.Mvvm` of dotnet also seems to be a good solution.",
+    "createdAt": "2024-03-29T02:53:17Z"
+  },
+  {
+    "id": 519,
+    "sender": "bernaferrari",
+    "content": "AFAIK you could replace stateful widget with a macros simpler solution. But you can't do hooks or more advanced things with macros (yet?).",
+    "createdAt": "2024-03-29T03:02:41Z"
+  },
+  {
+    "id": 520,
+    "sender": "lucavenir",
+    "content": "I don't want to add noise to this conversation (the questions have been asked already), but since my [last comment](https://github.com/flutter/flutter/issues/51752#issuecomment-1732666738), even Angular adopted [signals](https://angular.io/guide/signals). This increments the amount of (major) frameworks that adopted KnockoutJs's approach towards reactivity to **4** (Vue, Solid, Svelte, Angular).\r\n\r\nI think I see a pattern in the client-side community, in general; most of the modern frameworks are proposing an API that:\r\n- abstracts away logic from the UI, more clearly, giving the developer some sort of \"guidance\" on how to organize code (good for beginners, and good for cutting [this long list](https://docs.flutter.dev/data-and-backend/state-mgmt/options) quite a bit)\r\n- makes reactivity explicit and _granular_ (less burden on the developer's mind, e.g. \"oh no, this widget unexpectedly rebuilt, [why did this happen..?](https://stackoverflow.com/questions/52249578/how-to-deal-with-unwanted-widget-build)\")\r\n- better tests: instead of _widget testing_ a UI to verify logic and updates, one could test their signals in isolation, instead ([example](https://vuejs.org/guide/scaling-up/testing#testing-composables))\r\n\r\nIn 2024, imho, these are not just classifiable as a \"ephemeral trend\" or as a [dubious pattern](https://github.com/flutter/flutter/issues/25280#issuecomment-455846788) anymore.\r\n\r\nCan macros bring us there (or somewhere close), somehow?",
+    "createdAt": "2024-03-29T08:51:50Z"
+  },
+  {
+    "id": 521,
+    "sender": "rrousselGit",
+    "content": "Vue moved away from signals. It was an early adopter, but now uses something closer to ValueNotifiers & Riverpod than signals.\r\n\r\nI don't like signals. In particular I don't like the idea of \"magically track all getters used inside a function\" combined with how it's very common for folks to make signals \"global\".\r\n\r\n\r\nUltimately, macros don't really help us here. For signals specifically, we don't need macros.\r\nAnd for the things discussed in this thread, the initial release of macros won't do much.\r\n\r\nA game changer would be \"statement/expression macros\", were we can apply macros inside a function instead of on the whole function.",
+    "createdAt": "2024-03-29T13:25:04Z"
+  },
+  {
+    "id": 522,
+    "sender": "lucavenir",
+    "content": "@rrousselGit I think you misunderstood, or I used the wrong nouns. I agree with signals \"hiding too much\".\r\n\r\nWhen I cited \"signals\", above, I didn't praise an API with \"hidden reactivity nature\" (e.g. see Svelte v<5, which gave their users quite the DX papercuts).\r\nInstead, I praised a reactive API with *explicit*, *testable* and *granular* nature. In this sense, both [Vue](https://vuejs.org/guide/reusability/composables.html#composables) and [Svelte](https://svelte-5-preview.vercel.app/docs/runes) are fully embracing this approach. Solid's signals are [_slightly less_ explicit](https://docs.solidjs.com/concepts/signals). Angular [does something similar](https://angular.io/guide/signals).\r\n\r\nThis is quite the opposite of e.g. `useState`.\r\n```ts\r\nconst [ a, setA ] = useState(0);\r\nconst b = a + 1;  // on rebuilds, b is implicitly updated\r\n```\r\nThis leads to even weirder apis, e.g. `useEffect` (to date, I didn't understand if its api [is encouraged or not](https://react.dev/learn/you-might-not-need-an-effect)).\r\n\r\nWhat I wanted to say is: maybe, in retrospect, the fact that Flutter didn't \"hastily adopt\" a react-hooks-like-api _might_ have been a \"good\" choice (we basically \"skipped\" one whole set of innovations); nonetheless, given the problem above, a solution space should be explored. The rest of the world kept exploring. Even Angular settled for these patterns.\r\n\r\n> Ultimately, macros don't really help us here. For signals specifically, we don't need macros.\r\n> And for the things discussed in this thread, the initial release of macros won't do much.\r\n\r\nI tried and failed to write something that looked similar to Vue's composable APIs. I ended up realizing I'm not smart enough to ship this one ([skill issue btw](https://youtu.be/K5YtQzD40II?si=UkxuIQvtqjVjDcXC)). Jokes aside, I'm blown away at the fact that these APIs are not [inherently offered by Flutter](https://pbs.twimg.com/media/FqDmZvHWcAAdRLq?format=png&name=900x900).\r\n\r\nAt the end of day, this doesn't matter; what I'm concerned of is that this discussion is becoming \"stale\", with no real updates from people with a bigger brain than mine (we pointed out that macros wont help this one out specifically [a while ago](https://github.com/flutter/flutter/issues/51752#issuecomment-1176584067)).",
+    "createdAt": "2024-03-29T17:32:11Z"
+  },
+  {
+    "id": 523,
+    "sender": "rrousselGit",
+    "content": "There's not really a difference between useState from React and what Swelte/Vue offer in that regard IMO.\r\n\r\nThe difference is IMO mainly about the component system having completely different lifecycles\r\n\r\nVue/Swelte/Angular don't really have a \"render\"/\"build\" method. They instead have a single \"initState\"-like method, and rely on observable objects.\r\n\r\n\r\n\r\nIf we want to compare React to other modern approaches, I'd look at Jetpack Compose.\r\nIt too has a \"build\" method. It faces problems much closer to the ones Flutter face, and offers unique solutions.\r\n\r\nCompose has various interesting solutions to \"useState\" and \"StreamBuilder\" using custom language features.",
+    "createdAt": "2024-03-29T18:53:57Z"
+  },
+  {
+    "id": 524,
+    "sender": "benthillerkus",
+    "content": "> Current plan contains to be to rely on Dart macros to begin to address this, but we are a long way from macros being available.\n\nSoooo, what's the current plan?",
+    "createdAt": "2025-02-02T22:51:37Z"
+  },
+  {
+    "id": 525,
+    "sender": "lucavenir",
+    "content": "It's been a while since this issue was open, and three months after macros' death.\n\nI've read on the [2025 roadmap](https://github.com/flutter/flutter/blob/master/docs%2Froadmap%2FRoadmap.md) that there'll be a focus on widgets' verbosity.\n\nIt's a surprising take with regard to this issue. Is this issue really _just_ about verbosity, or is this about isolating and reusing ephemeral state from the UI code, [like some others do](https://vuejs.org/guide/reusability/composables.html)?\n\nIs there anything you can share with us atm?",
+    "createdAt": "2025-04-30T17:24:59Z"
+  },
+  {
+    "id": 526,
+    "sender": "esDotDev",
+    "content": "It's definitely not just about verbosity, it's about an inability to keep your widgets DRY and robust. \n\nSpecifically you have to duplicate a lot of boilerplate code over and over, when it comes to dependency-binding, intialization and disposal. The problem isn't that this code is too verbose, it's that we can not define it in one place, we have to type it over and over.\n\nRobustness is hurt as a lot of this code is optional, but your app will just have hard to spot bugs if you don't implement it. Specifically disposing of things or properly injecting dependencies when they change.",
+    "createdAt": "2025-04-30T17:48:54Z"
+  },
+  {
+    "id": 527,
+    "sender": "bernaferrari",
+    "content": "AFAIK (and I really don't know anything) the 'verbosity plan' is mostly decorator (`widget.padding()`) and making widgets less painful, but it is not touching stateful widgets or logic (which, again, I could be wrong)",
+    "createdAt": "2025-04-30T18:03:34Z"
+  },
+  {
+    "id": 528,
+    "sender": "escamoteur",
+    "content": "This is already an absolut monster thread and I honestly have lot track what we are discussion about. Maybe we should start a new one from the current state of the Flutter framework and add the core issues from here?",
+    "createdAt": "2025-04-30T18:31:52Z"
+  },
+  {
+    "id": 529,
+    "sender": "benthillerkus",
+    "content": "> This is already an absolut monster thread and I honestly have lot track what we are discussion about. Maybe we should start a new one from the current state of the Flutter framework and add the core issues from here?\n\nback 5 years ago when this thread was started it was already the third thread or so.\nI don't think there's really anything new to say besides that Hooks have proven themselves in React and flutter_hooks?",
+    "createdAt": "2025-05-01T12:53:27Z"
+  },
+  {
+    "id": 530,
+    "sender": "escamoteur",
+    "content": "@benthillerkus if it's just that we want to integrate hooks or hook like behavior that we should probably make a new issue for that. \nI totally agree that the it is an amazing concept although flawed because of its not directly supported by the framework therefore needs the hack of counting `useXCalls` my package watch_it uses the same principle although with a more opinionated API.\n\nI filed a request on the dart repo https://github.com/dart-lang/language/issues/1427 which would make implementing hook like packages way easier without the need of changing the framework. \n\nMy point was the the scope of this issue is too broad to say what actions should derive now from it",
+    "createdAt": "2025-05-01T13:05:09Z"
+  },
+  {
+    "id": 531,
+    "sender": "benthillerkus",
+    "content": "> @benthillerkus if it's just that we want to integrate hooks or hook like behavior that we should probably make a new issue for that. \n> I totally agree that the it is an amazing concept although flawed because of its not directly supported by the framework therefore needs the hack of counting `useXCalls` my package watch_it uses the same principle although with a more opinionated API.\n> \n> I filed a request on the dart repo https://github.com/dart-lang/language/issues/1427 which would make implementing hook like packages way easier without the need of changing the framework. \n> \n> My point was the the scope of this issue is too broad to say what actions should derive now from it\n\nit doesn't really make sense to argue further if the position of the framework team is still \"everything is fine, actually\" ",
+    "createdAt": "2025-05-01T13:21:37Z"
+  },
+  {
+    "id": 532,
+    "sender": "escamoteur",
+    "content": "@benthillerkus then at least voting or leaving a comment on my linked issue would help because with that we could remove the hooks limitation that you can't have conditionals and that hooks have to be called always in the same order",
+    "createdAt": "2025-05-01T13:44:06Z"
+  },
+  {
+    "id": 533,
+    "sender": "benthillerkus",
+    "content": "@escamoteur honestly it's just not a problem in practice.",
+    "createdAt": "2025-05-01T13:58:21Z"
+  },
+  {
+    "id": 534,
+    "sender": "lucavenir",
+    "content": "> Hooks have proven themselves in React and flutter_hooks\n\nI kindly disagree.\nI also strongly disagree on closing this issue.\n\nAFAIK React regretted some parts of the hooks API, particularly `useEffect`. AFAIK some folks are questioning the framework itself lately, because of the reactive model itself and because of the last changes in hope of fixing these APIs.\n\nFlutter wouldn't have the latter problem, but my personal DX with `flutter_hooks` is still \"bad\". It's hardly worth to learn these APIs. It's still quite easy to mess it up.\nSkill issues? Sure, but `useEffect` still feels like a foot gun, even in Flutter. The only viable hook I end up writing is a \"side effect hook\", to get rid of `FutureBuilder` or similar APIs. But that's about it.\n\nThe problem (first comment) is still here. Literally every mature framework/ecosystem sorted this problem out. Flutter didn't.\n\nA side note, Flutter distinguishes clearly between ephemeral and app state (see docs). App state is usually handled by battle tested state managers (folks hardly use custom inherited widgets - they use providers or cubits, and the docs suggest them as well). But what about ephemeral state?\n\nI commented here just to understand what's the roadmap for this issue specifically, hearing from the team itself.",
+    "createdAt": "2025-05-01T16:45:56Z"
+  },
+  {
+    "id": 535,
+    "sender": "escamoteur",
+    "content": "@lucavenir did you check out watch_its API ? I think it offers most of hooks simplicity but has a way more intuitive API",
+    "createdAt": "2025-05-01T17:07:06Z"
+  },
+  {
+    "id": 536,
+    "sender": "lumyxel",
+    "content": "Flutter needs a major architectural evolution: transitioning from Class-based Widgets to Functional Widgets with robust compiler support to perfectly align with the Hooks pattern. Forcing Hooks into the current OOP-heavy system via libraries like flutter_hooks is a \"leaky abstraction\" that doesn't solve the root problem.\n\nMixing Flutter Hooks with explicit Widget callbacks creates a paradigm clash. It forces developers to manage both OOP Class structures and Functional Hook logic simultaneously, resulting in a \"neither here nor there\" codebase that is significantly harder to maintain. You should either embrace functional purity or stay with OOP—mixing them is inherently messy.\n\nFurthermore, \"code logic reuse\" and \"boilerplate reduction\" have become pseudo-problems by 2025.\n\nLogic Reuse: Established patterns like Android's LifecycleObserver or Dart's Mixins are more than capable of handling reuse explicitly.\n\nBoilerplate: AI can now effortlessly review, fill in, and manage boilerplate code, removing the DX (Developer Experience) friction.\n\nThe ultimate goal is clear and predictable logic. Hooks introduce high cognitive overhead and \"hidden rules\"—such as the inability to use hooks inside if statements—which are essentially maintenance time bombs. We shouldn't trade code transparency for a superficial reduction in line count.",
+    "createdAt": "2025-12-24T15:43:24Z"
+  },
+  {
+    "id": 537,
+    "sender": "lucavenir",
+    "content": "Don't get mad at me - just my two cents.\n\n> Flutter needs a major architectural evolution\n\n.. \"needs\"? huh? if you mean it needs something, like Vue did back in 2020 with composables, well, I highly doubt the team will walk that path; it's a gargantuan amount of work (Flutter is currently actually laying down an \"architectural evolution\", [right now](https://www.youtube.com/watch?v=W4olXg91iX8)) and probably that's an enormous breaking change (go ahead and ask vue devs how much they enjoyed their \"architectural evolution\", when transitioning from v2 to v3 😄)\n\n> ... to perfectly align with the Hooks pattern\n\n.. go ahead and ask react devs how many times they shot themselves in the foot with `useEffect`; in retrospective, I'm glad hixie didn't give up to hooks hype back in 2018, and stood its ground.\n\n> Mixing Flutter Hooks with explicit Widget callbacks\n\n.. then don't. I was an avid `flutter_hooks` user; now, I realize we don't really *need* that. sure, there's pain at times, but that's the point of this issue, isn't it\n\n> AI can now effortlessly...\n\n.. AI can't \"effortlessly\" do *anything* in that regard; and in any case, just because an AI can output code at a faster pace, doesn't mean there's _less_ code to read and reason about (if anything, AI _worsen_ this fact). even if AI was an actual solution, I wouldn't personally rely on AI (aka: slot machines) to solve a intrinsic, deterministic problem. no, thank you.\n\n> The ultimate goal is clear and predictable logic. \n\n.. if that's the _actual_ \"ultimate goal\", then Flutter's more than fine: Flutter _is_ predictable, explicit, performant. it comes at the cost of a more verbose syntax, and a language that has its empty spots, but that is also evolving fast towards something really great, and new! I have quite some expectations from this team 😄 \n\n> Hooks introduce high cognitive overhead [...]\n\n.. then why did you suggest moving towards a hook implementation, but for Flutter? just for the functional approach? I'm also a FP enjoyer, but classes don't bite, you know. after all, Dart is an OO-first language 😁\n\n---\n\nTo be clear: don't get me wrong, this issue is open for a reason. This is *the* most commented issue of all time in this repo. I'm pretty sure most of us write ephemeral logic every now and then, and stumbles upon this problem. Most of us do know patterns from other frameworks, but they're not Flutter's. I do think \"oh, why don't I have this or that\" at times. But I'd rather wait for a well thought (and compatible) solution, than to just adopt \"patterns\" from other frameworks.\n\nI know [I've asked this already](https://github.com/flutter/flutter/issues/51752#issuecomment-2842751817), but I'll do it again since I've got no \"official reply\" from the team: is this going anywhere, since macros are dead now?\n\nHappy holidays everyone 🥳🎄",
+    "createdAt": "2025-12-24T16:51:55Z"
+  },
+  {
+    "id": 538,
+    "sender": "lumyxel",
+    "content": "my solution：Observermixin\n\n1. The Abstract LifecycleObserver\nThe generic S ensures the observer has access to the State, and thus the latest widget.\n\n```\nimport 'package:flutter/widgets.dart';\n\n/// [V] is the type of the managed value (e.g., AnimationController).\n/// [S] is the type of the State that owns this observer.\nabstract class LifecycleObserver<V, S extends State> {\n  late V value;\n  late S _state;\n\n  /// Helper to get the current widget instance.\n  dynamic get widget => _state.widget;\n\n  /// Internal initialization called by the Mixin.\n  void init(S state) {\n    _state = state;\n    onInit();\n  }\n\n  /// Lifecycle hooks for subclasses to override.\n  void onInit() {}\n  void onUpdate(covariant StatefulWidget oldWidget) {}\n  void onBuild(BuildContext context) {}\n  void onDispose() {}\n```\n\n2. The Logic Reuse: AnimControllerObserver\nThis class encapsulates the entire logic of creating, updating, and disposing of an AnimationController.\n\n```\nclass AnimControllerObserver<S extends State> extends LifecycleObserver<AnimationController, S> {\n  final TickerProvider vsync;\n  \n  /// A closure to retrieve the latest duration from the widget.\n  final Duration Function() durationPicker;\n\n  AnimControllerObserver({\n    required this.vsync,\n    required this.durationPicker,\n  });\n\n  @override\n  void onInit() {\n    // Initialize the controller with the initial duration.\n    value = AnimationController(\n      vsync: vsync,\n      duration: durationPicker(),\n    );\n  }\n\n  @override\n  void onUpdate(covariant StatefulWidget oldWidget) {\n    // Sync logic: Compare current controller duration with the latest picker value.\n    final latestDuration = durationPicker();\n    if (value.duration != latestDuration) {\n      value.duration = latestDuration;\n      debugPrint(\"AnimationController synced to new duration: $latestDuration\");\n    }\n  }\n\n  @override\n  void onDispose() {\n    value.dispose();\n  }\n}\n```\n3. The Orchestrator: ObserverMixin\nThe mixin manages the lifecycle. It ensures that when the widget is updated, all observers are notified to check for changes.\n\n```\nmixin ObserverMixin<T extends StatefulWidget> on State<T> {\n  final List<LifecycleObserver<dynamic, State<T>>> _observers = [];\n\n  /// Registers an observer and returns its value.\n  V addObserver<V>(LifecycleObserver<V, State<T>> observer) {\n    _observers.add(observer);\n    observer.init(this);\n    return observer.value;\n  }\n\n  @override\n  void didUpdateWidget(T oldWidget) {\n    super.didUpdateWidget(oldWidget);\n    // Automatically trigger sync logic in all observers.\n    for (var observer in _observers) {\n      observer.onUpdate(oldWidget);\n    }\n  }\n\n  @override\n  void dispose() {\n    for (var observer in _observers) {\n      observer.onDispose();\n    }\n    _observers.clear();\n    super.dispose();\n  }\n\n  /// Call this in the build method to enable build-time observation.\n  void build(BuildContext context) {\n    for (var observer in _observers) {\n      observer.onBuild(context);\n    }\n  }\n}\n```\n\n4. Clean Usage (Logic Reuse)\nThe UI developer now only needs to know how to map the widget properties to the observer.\n```\nclass MyLogo extends StatefulWidget {\n  final Duration speed;\n  const MyLogo({super.key, required this.speed});\n\n  @override\n  State<MyLogo> createState() => _MyLogoState();\n}\n\nclass _MyLogoState extends State<MyLogo> \n    with TickerProviderStateMixin, ObserverMixin<MyLogo> {\n  \n  late AnimationController _anim;\n\n  @override\n  void initState() {\n    super.initState();\n\n    // LOGIC REUSE: Pass a closure '() => widget.speed'. \n    // The observer will call this whenever it needs to sync.\n    _anim = addObserver(AnimControllerObserver(\n      vsync: this,\n      durationPicker: () => widget.speed,\n    ));\n\n    _anim.repeat(reverse: true);\n  }\n\n  @override\n  Widget build(BuildContext context) {\n    super.build(context);\n    return ScaleTransition(scale: _anim, child: const FlutterLogo());\n  }\n}\n```\n\nWhy this achieves Logic Reuse:\n * Zero Boilerplate in State: No dispose(), no manual didUpdateWidget checks.\n * Encapsulated Synchronization: The \"how to sync a duration\" logic lives inside AnimControllerObserver, not in your UI.\n ",
+    "createdAt": "2025-12-24T18:12:22Z"
+  },
+  {
+    "id": 539,
+    "sender": "esDotDev",
+    "content": "Yep, that's really all we need. What hooks does right is encapsulate life-cycle methods together in one tight bundle of code, and this is the one bit that we do not have right now in Flutter.\n\nSimply we just need a \"stateful thing\" that can hook into life-cycle methods and dependency changes, doesn't mean we need to move over completely to stuffing everything inside the build method.",
+    "createdAt": "2025-12-24T18:19:58Z"
+  },
+  {
+    "id": 540,
+    "sender": "benthillerkus",
+    "content": "I'm sympathetic to any criticism of Hooks, because they are so ugly conceptually. However as of right now they are the simplest and most flexible solution.\n\nAnything using inheritance, mixins etc inevitably makes having / using multiple things of the same type difficult / impossible and often creeps into your API in the form of overly complicated & verbose types.\n\nIn the future - since we won't be getting macros or any sort of compiler trickery, (static) dependency tracking for local state like in SwiftUI / Svelte /Jetpack Compose / React Compiler etc. is out of the question. And then hooks is basically the only real path forward as far as I can tell.",
+    "createdAt": "2025-12-24T23:49:21Z"
+  },
+  {
+    "id": 541,
+    "sender": "lumyxel",
+    "content": "ObserverMix also simple: https://github.com/lwj1994/state_lifecycle_observer\n\n<img width=\"1412\" height=\"2038\" alt=\"Image\" src=\"https://github.com/user-attachments/assets/4c143dd5-d2a6-4966-8a1a-dd1ad8e2da8d\" />",
+    "createdAt": "2025-12-25T04:11:12Z"
+  },
+  {
+    "id": 542,
+    "sender": "benthillerkus",
+    "content": "I regularly have multiple animation controllers for different aspects.\nThis is easy with hooks.\n```dart\nfinal enterAnimation = useAnimationController();\nfinal swapAnimation = useAnimationController();\nfinal removeAnimation = useAnimationController();\n```\n\nHow are you going to do that with mixins?",
+    "createdAt": "2025-12-25T16:34:59Z"
+  },
+  {
+    "id": 543,
+    "sender": "rrousselGit",
+    "content": "Mixins to solve such thing have always been flawed in that:\n- they can only be used once, so no \"creating two AnimationControllers'\n- they conflict with each other on names. You can't have two mixins for respectively TextEditingController and AnimationContoller both expose a `controller` property.",
+    "createdAt": "2025-12-25T22:12:58Z"
+  },
+  {
+    "id": 544,
+    "sender": "lwj1994",
+    "content": "Please take a closer look at LifecycleObserverMixin implementation before replying. By using LifecycleObserverMixin, we can write code like the example below, which avoids the issues mentioned above. @bernaferrari \n```dart\n\n\nclass MyState with LifecycleObserverMixin{\n  late final animCon1 = AnimControllerObserver(this);\n  late final animCon2 = AnimControllerObserver(this);\n  late final animCon3 = AnimControllerObserver(this);\n  late final textCon1 = TextControllerObserver(this);\n  late final textCon2 = TextControllerObserver(this); \n  Widget build(BuildContext context){\n       final animController1 = animCon1.target;\n       final animController2 = animCon2.target;\n  }\n\n}\n```",
+    "createdAt": "2025-12-26T04:02:23Z"
+  },
+  {
+    "id": 545,
+    "sender": "iapicca",
+    "content": "> \n> class MyState with LifecycleObserverMixin{\n>   late final animCon1 = AnimControllerObserver(this);\n>   late final animCon2 = AnimControllerObserver(this);\n>   late final animCon3 = AnimControllerObserver(this);\n>   late final textCon1 = TextControllerObserver(this);\n>   late final textCon2 = TextControllerObserver(this); \n>   Widget build(BuildContext context){\n>        final animController1 = animCon1.target;\n>        final animController2 = animCon2.target;\n>   }\n> \n> }\n\n@lwj1994 \nthis doesn't strike me as \"reusable\", the narrow is the use case the more \"variations\" of this/similar mixin you are going to end up with, (+ tests, maintenance etc)\n\nthis point was made by Remi in the very first post\n",
+    "createdAt": "2025-12-26T10:08:02Z"
+  },
+  {
+    "id": 546,
+    "sender": "lwj1994",
+    "content": "@iapicca \n\nI think there's a misunderstanding here. You're referencing Remi's point about mixins from the original post, but `state_lifecycle_observer` doesn't use the mixin pattern that Remi criticized.\n\n**What Remi criticized:**\n- Mixins can only be used once per class\n- Multiple mixins cause naming conflicts\n- You can't reuse the same mixin for multiple controllers\n\n**What [state_lifecycle_observer](https://pub.dev/packages/state_lifecycle_observer) does differently:**\n- `LifecycleObserverMixin` is a **single, generic mixin** that you apply once\n- You instantiate **multiple observers** within that mixin (**not multiple mixins, only 1 mixin**)\n- Each observer manages its own controller independently\n\n```dart\nclass MyState with LifecycleObserverMixin {\n  late final anim1 = AnimControllerObserver(this);  // Observer 1\n  late final anim2 = AnimControllerObserver(this);  // Observer 2\n  late final text1 = TextControllerObserver(this);  // Observer 3\n  // All using the SAME mixin, no conflicts\n}\n```\n\nYou're not creating \"variations of the mixin\" for different use cases. The mixin itself is generic and reusable. What you're reusing is the **lifecycle management logic** encapsulated in each observer type.\n\nThe concern about \"narrow use cases requiring more variations\" would apply if you needed a different mixin for each controller type. But that's not how this library works — you use one mixin and compose different observers within it.\n",
+    "createdAt": "2025-12-26T11:47:50Z"
+  },
+  {
+    "id": 547,
+    "sender": "rrousselGit",
+    "content": "@lwj1994 It's not a mixin that implements your logic. It's whatever AnimControllerObserver is, and that object is _not_ a mixin :)",
+    "createdAt": "2025-12-26T12:08:31Z"
+  },
+  {
+    "id": 548,
+    "sender": "lumyxel",
+    "content": "What I’m trying to say is that this experimental way of combining observers isn't anything strange. In fact, React Hooks are essentially based on the combination of Observers, just elevated to the level of 'Hooks.' As an Android developer, this is a very common pattern in our world. When I saw this issue, 'Observer' was the first thing that came to mind, so I don't really get why it has sparked thousands of comments. If you want to write a Hooks library, go for it; there's no need to use 'solving state reuse' as a pretext to justify it.",
+    "createdAt": "2025-12-26T12:42:37Z"
+  },
+  {
+    "id": 549,
+    "sender": "rrousselGit",
+    "content": "Most non-hook proposals tend to struggle when it comes to passing values that can change at runtime.\n\n\nSay you make a \"fetch HTTP GET and cache it\" util (likely with extra work, such as \"close the connection if we don't need the response anymore\" and co).   \nYou'll want the util to handle cases where the fetch URI changes.\n\n\nWith hooks you can do something like:\n\n```dart\nclass BookDetailPage extends StatelessWidget {\n  final int bookId;\n\n  @override\n  Widget build(context) {\n    AsyncSnapshot<Response> response = useFetch('https://my-api/books/$bookId\");\n  }\n}\n```\n\nAnd this would fetch the new book when `bookId` changes (and will abort the previous network request if still pending)\n\nThis is difficult to solve with most other proposals, as they tend to be one-off creations due to relying on `late final` or other similar ideas. You'd have to either use funky closure-based APIs or override `didUpdateWidget` to send the updated values, Both of which aren't ideal.",
+    "createdAt": "2025-12-26T13:35:52Z"
+  },
+  {
+    "id": 550,
+    "sender": "benthillerkus",
+    "content": "As far as I can tell this isn't (conceptually) an issue with the design @lw1994 proposed -- because they basically also implemented hooks, just with (what's essentially) a different syntax for accessing and without using Element as the backend.",
+    "createdAt": "2025-12-26T16:04:05Z"
+  },
+  {
+    "id": 551,
+    "sender": "lumyxel",
+    "content": "The `key` parameter accepts a `Function()` that is evaluated during [onBuild](cci:1://file:///Volumes/mac-ext-ssd/document/GitHub/state_lifecycle_observer/lib/src/owner_mixin.dart:159:2-162:3). When the returned value changes, the observer automatically:\n1. Calls [onDisposeTarget()](cci:1://file:///Volumes/mac-ext-ssd/document/GitHub/state_lifecycle_observer/test/lifecycle_sync_test.dart:20:2-22:3) to clean up (cancel the old request)\n2. Calls [buildTarget()](cci:1://file:///Volumes/mac-ext-ssd/document/GitHub/state_lifecycle_observer/test/lifecycle_observer_test.dart:317:2-319:3) to create a new resource\n\n```dart\nclass FetchObserver extends LifecycleObserver<AsyncSnapshot<Response>> {\n  final int Function() bookId;\n  \n  FetchObserver(\n    super.state, {\n    required this.bookId,\n  }) : super(key: bookId);  // Key for detecting changes\n  \n  @override\n  AsyncSnapshot<Response> buildTarget() {\n    http.get(Uri.parse('https://my-api/books/${bookId()}')).then((response) {\n      target = AsyncSnapshot.withData(ConnectionState.done, response);\n      safeSetState(() {});\n    });\n    return const AsyncSnapshot.waiting();\n  }\n  \n  @override\n  void onDisposeTarget(AsyncSnapshot<Response> target) {\n    // Cleanup if needed\n  }\n}\n\n// Usage - fetch restarts when bookId changes\nclass _BookDetailState extends State<BookDetailPage> with LifecycleOwnerMixin {\n  FetchObserver? fetchObserver;\n  \n  @override\n  Widget build(BuildContext context) {\n    super.build(context);\n    fetchObserver ??= FetchObserver(\n      this,\n      bookId: () => widget.bookId,\n    );\n    final snapshot = fetchObserver!.target;\n    return Text('${snapshot.data}');\n  }\n}\n```\n\nWhen `widget.bookId` changes:\n1. [build()](cci:1://file:///Volumes/mac-ext-ssd/document/GitHub/state_lifecycle_observer/lib/src/owner_mixin.dart:108:2-120:3) calls `super.build(context)` → triggers [onBuild()](cci:1://file:///Volumes/mac-ext-ssd/document/GitHub/state_lifecycle_observer/lib/src/owner_mixin.dart:159:2-162:3)\n2. [onBuild()](cci:1://file:///Volumes/mac-ext-ssd/document/GitHub/state_lifecycle_observer/lib/src/owner_mixin.dart:159:2-162:3) detects `key()` value changed\n3. [onDisposeTarget()](cci:1://file:///Volumes/mac-ext-ssd/document/GitHub/state_lifecycle_observer/test/lifecycle_sync_test.dart:20:2-22:3) is called → cleanup\n4. [buildTarget()](cci:1://file:///Volumes/mac-ext-ssd/document/GitHub/state_lifecycle_observer/test/lifecycle_observer_test.dart:317:2-319:3) is called → starts a new HTTP request with the new bookId",
+    "createdAt": "2025-12-28T05:09:40Z"
+  },
+  {
+    "id": 552,
+    "sender": "lumyxel",
+    "content": "and i disagree  'implemented hooks'  :  \n\n| Technology | Year | Notes |\n|:-----------|:-----|:------|\n| **Observer Pattern (GoF)** | 1994 | Classic design pattern |\n| **Android LifecycleObserver** | 2017 | Architecture Components 1.0 |\n| **React Hooks** | 2018/2019 | Proposed Oct 2018, stable Feb 2019 |\n",
+    "createdAt": "2025-12-28T09:39:42Z"
+  },
+  {
+    "id": 553,
+    "sender": "lucavenir",
+    "content": "I propose we leave out AI generated comments, as it clearly clutters the discussion side.\n\nI also propose to just wait the dart/flutter team feedback, as we clearly are not adding that much value as of now.",
+    "createdAt": "2025-12-28T13:36:18Z"
+  },
+  {
+    "id": 554,
+    "sender": "lumyxel",
+    "content": "This isn't about AI at all. I simply have limited English proficiency, yet my ideas are the driving force throughout. I've provided ample evidence, and I have no issue with you trying to evade the core problem.\n",
+    "createdAt": "2025-12-28T13:48:48Z"
+  },
+  {
+    "id": 555,
+    "sender": "chunhtai",
+    "content": "## Supports global selection for all devices\n\nSupport for mouse drag selection and mobile selection\r\n\r\nhttps://github.com/flutter/flutter/issues/81839\r\n\r\ndesign doc: http://flutter.dev/go/global-selection\r\n\r\n## Pre-launch Checklist\r\n\r\n- [ ] I read the [Contributor Guide] and followed the process outlined there for submitting PRs.\r\n- [ ] I read the [Tree Hygiene] wiki page, which explains my responsibilities.\r\n- [ ] I read and followed the [Flutter Style Guide], including [Features we expect every widget to implement].\r\n- [ ] I signed the [CLA].\r\n- [ ] I listed at least one issue that this PR fixes in the description above.\r\n- [ ] I updated/added relevant documentation (doc comments with `///`).\r\n- [ ] I added new tests to check the change I am making, or this PR is [test-exempt].\r\n- [ ] All existing and new tests are passing.\r\n\r\nIf you need help, consider asking for advice on the #hackers-new channel on [Discord].\r\n\r\n<!-- Links -->\r\n[Contributor Guide]: https://github.com/flutter/flutter/wiki/Tree-hygiene#overview\r\n[Tree Hygiene]: https://github.com/flutter/flutter/wiki/Tree-hygiene\r\n[test-exempt]: https://github.com/flutter/flutter/wiki/Tree-hygiene#tests\r\n[Flutter Style Guide]: https://github.com/flutter/flutter/wiki/Style-guide-for-Flutter-repo\r\n[Features we expect every widget to implement]: https://github.com/flutter/flutter/wiki/Style-guide-for-Flutter-repo#features-we-expect-every-widget-to-implement\r\n[CLA]: https://cla.developers.google.com/\r\n[flutter/tests]: https://github.com/flutter/tests\r\n[breaking change policy]: https://github.com/flutter/flutter/wiki/Tree-hygiene#handling-breaking-changes\r\n[Discord]: https://github.com/flutter/flutter/wiki/Chat\r",
+    "createdAt": "2021-12-14T00:54:55Z"
+  },
+  {
+    "id": 556,
+    "sender": "goderbauer",
+    "content": "This looks pretty interesting. It's nice to see that we can do this without adding things to RenderObject.\r\n\r\nWhat wasn't clear to me from my initial read-through is why we need `SelectionResult.next`/`SelectionResult.previous`. Why can that not just be determined based on the rect of a Selectable?",
+    "createdAt": "2021-12-14T23:29:36Z"
+  },
+  {
+    "id": 557,
+    "sender": "chunhtai",
+    "content": "> This looks pretty interesting. It's nice to see that we can do this without adding things to RenderObject.\r\n> \r\n> What wasn't clear to me from my initial read-through is why we need `SelectionResult.next`/`SelectionResult.previous`. Why can that not just be determined based on the rect of a Selectable?\r\n\r\nThe biggest concern is select to scroll. Imagine a container with 3 child [A, B, C]. If B is scrollable and the drag selection goes to C,  IMO we can't send update event to C until B finishes scrolling. We can also makes B returns some kind of flag to tell the container not to proceed and get rid of SelectionResult, but I think the current implementation is more systematic since there maybe more cases where selectable itself has opinion on the selection order.\r\n\r\nThe other concern is keyboard selection. Imagine developer press shit+ down, how does the container know which selectable should be the new selection edge. With SelectionResult, the selectable itself can tell the container whether the shift down should reach the next selectable or not.",
+    "createdAt": "2021-12-14T23:57:15Z"
+  },
+  {
+    "id": 558,
+    "sender": "skia-gold",
+    "content": "Gold has detected about 1 new digest(s) on patchset 9.\nView them at https://flutter-gold.skia.org/cl/github/95226",
+    "createdAt": "2021-12-30T21:07:46Z"
+  },
+  {
+    "id": 559,
+    "sender": "skia-gold",
+    "content": "Gold has detected about 2 new digest(s) on patchset 10.\nView them at https://flutter-gold.skia.org/cl/github/95226",
+    "createdAt": "2022-01-04T21:07:24Z"
+  },
+  {
+    "id": 560,
+    "sender": "skia-gold",
+    "content": "Gold has detected about 1 new digest(s) on patchset 11.\nView them at https://flutter-gold.skia.org/cl/github/95226",
+    "createdAt": "2022-01-06T17:57:24Z"
+  },
+  {
+    "id": 561,
+    "sender": "skia-gold",
+    "content": "Gold has detected about 1 new digest(s) on patchset 12.\nView them at https://flutter-gold.skia.org/cl/github/95226",
+    "createdAt": "2022-01-07T20:22:24Z"
+  },
+  {
+    "id": 562,
+    "sender": "chunhtai",
+    "content": "please ignore the failing test for now, It is because I want to hide the selection specific logic in RenderParagraph by making a private subclass of it, and it failed the describe node test. I am thinking whether there is way around it or i will have to expose the API",
+    "createdAt": "2022-01-27T01:16:12Z"
+  },
+  {
+    "id": 563,
+    "sender": "chunhtai",
+    "content": "I will add more tests. This PR now supports both mouse selection and mobile selection. I figure i may need to tear up bunch of API in Selectable to separate both them into two PR, which may make it hard to comprehend.  So I keep them in the same PR.",
+    "createdAt": "2022-01-27T01:21:27Z"
+  },
+  {
+    "id": 564,
+    "sender": "chunhtai",
+    "content": "also cc @jonahwilliams",
+    "createdAt": "2022-01-27T01:22:48Z"
+  },
+  {
+    "id": 565,
+    "sender": "chunhtai",
+    "content": "> Question that came up: Do we have a plan for the future of SelectableText? Should we deprecate it in favor of Text in a SelectionArea?\r\n\r\nI think we don't need to deprecate it, we can make it build a Text widget and wrap it with its own SelectionArea if there isn't one above the widget",
+    "createdAt": "2022-01-29T00:48:04Z"
+  },
+  {
+    "id": 566,
+    "sender": "jonahwilliams",
+    "content": "Just a drive by response to the above: I don't think selectable text should exist. It was an efficient shortcut to leverage the existing edit text capabilties to give folks _something_, but Ideally we would deprecate and remove it.",
+    "createdAt": "2022-02-03T23:55:49Z"
+  },
+  {
+    "id": 567,
+    "sender": "chunhtai",
+    "content": "> Just a drive by response to the above: I don't think selectable text should exist. It was an efficient shortcut to leverage the existing edit text capabilties to give folks _something_, but Ideally we would deprecate and remove it.\r\n\r\nYes, that sounds good. I take my previous response back",
+    "createdAt": "2022-02-04T00:19:26Z"
+  },
+  {
+    "id": 568,
+    "sender": "goderbauer",
+    "content": "Some questions that should be answered somewhere in the doc:\r\n* For global selection, what pieces does an app developer need to care about?\r\n* What do I need to do to enable/disable global selection for my app? What do I do to enable it on some platforms (e.g. web) but not others (mobile, some desktop platforms, I assume).\r\n* Some kind of overview of how all these pieces fit together.",
+    "createdAt": "2022-02-04T19:52:39Z"
+  },
+  {
+    "id": 569,
+    "sender": "skia-gold",
+    "content": "Gold has detected about 1 new digest(s) on patchset 17.\nView them at https://flutter-gold.skia.org/cl/github/95226",
+    "createdAt": "2022-03-08T18:18:05Z"
+  },
+  {
+    "id": 570,
+    "sender": "chunhtai",
+    "content": "> Unintuitive selection order? I think I would expect it to select first to the bottom of the first column, then top to bottom of the second column. Here is a codepen of how it looks on the web: https://codepen.io/justinmc/pen/bGaZwXV\r\n\r\nI have not enforce selection order on column and row yet, right now everything is in screen order. This can be fixed by wrapping every child in the Row widget with a SelectionContainer, so that it enforce every selectable in one child is selected before moving on to the next. but i plan to do that in a later pr.",
+    "createdAt": "2022-04-21T19:01:48Z"
+  },
+  {
+    "id": 571,
+    "sender": "chunhtai",
+    "content": "> It's possible to display two selections at once by selecting something in a SelectionArea, and then pressing tab to move to a TextField:\r\n\r\nyes I think that is something we should do, and it is probably can be fixed once textfield is converted to use global selection?\r\n\r\nI can fix it right now, but it will further complex the API, my plan is to handle it once i refactor textfield. WDYT?",
+    "createdAt": "2022-04-22T20:46:15Z"
+  },
+  {
+    "id": 572,
+    "sender": "chunhtai",
+    "content": "> I addressed most of the comments.\r\n> \r\n> What is still missing:\r\n> \r\n> 1. adding an example for selection area\r\n> 2. adding an example for selection container\r\n> 3. figure out what to do with private desktop selectionControls.\r\n\r\n3, It looks like people can still use https://api.flutter.dev/flutter/material/desktopTextSelectionControls.html, so i think there should be no problem?",
+    "createdAt": "2022-05-02T18:50:50Z"
+  },
+  {
+    "id": 573,
+    "sender": "chunhtai",
+    "content": "Added example and fix the multiple selection area cases.\r\n\r\n>The positioning of the menu seems off here:\r\n![image](https://user-images.githubusercontent.com/47866232/167211409-09fcd4e9-5495-4e6b-941b-f1cc1bf3cf32.png)\r\n\r\nThis is due to the calculation logic in the buildToolbar, whenever there is multi line selection the toolbar will be put into the middle, I was thinking this may be fixable after the context menu refactor.",
+    "createdAt": "2022-05-06T20:24:39Z"
+  },
+  {
+    "id": 574,
+    "sender": "chunhtai",
+    "content": "@goderbauer @justinmc This pr is ready for another looks. Some highlights from latest commit\r\n\r\n1. I moved gestures back to SelectableRegion, and makes all the selection APIs private.\r\n2. Updated SelectionContainer to automatically grab SelectionRegister from context if not provided\r\n3. Not sure whether I should change SelectionRegisterScope.disabled. Should continue discussion on https://github.com/flutter/flutter/pull/95226#discussion_r868476047\r\n4. Not sure if there is action item in https://github.com/flutter/flutter/pull/95226#discussion_r868620538",
+    "createdAt": "2022-05-12T23:37:18Z"
+  },
+  {
+    "id": 575,
+    "sender": "chunhtai",
+    "content": "@justinmc The shortcuts issues are fixed by using the _NonOverrideAction introduced in the last commit. I addressed all of the comments except the following \r\n\r\n>Should the arrow keys work in this PR? They aren't working for me.\r\n\r\nNo, I plan to add this in the follow up PR.\r\n\r\n>Right clicking a word selects the word, but I think it shouldn't. In a TextField, right clicking just sets the cursor.\r\n\r\nI couldn't reproduce it. I tested on macOS and it select the whole word in textfield.\r\n\r\n>Double-click to select a word doesn't work.\r\n\r\nNo, I will add that in the follow up. There is already a lot of code in the PR, I think think this may be a good cut-off between milestones.\r\n",
+    "createdAt": "2022-05-19T20:09:40Z"
+  }
+]

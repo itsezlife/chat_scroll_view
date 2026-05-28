@@ -1,0 +1,386 @@
+[
+  {
+    "id": 7808,
+    "sender": "oseiasmribeiro",
+    "content": "@marcglasberg Does it work at different heights?",
+    "createdAt": "2019-08-26T21:25:38Z"
+  },
+  {
+    "id": 7809,
+    "sender": "marcglasberg",
+    "content": "Yes, it does. Please run the provided example, it has items of different heights.",
+    "createdAt": "2019-08-27T01:07:04Z"
+  },
+  {
+    "id": 7810,
+    "sender": "slightfoot",
+    "content": "@marcglasberg your welcome 😃",
+    "createdAt": "2019-08-27T15:51:51Z"
+  },
+  {
+    "id": 7811,
+    "sender": "oseiasmribeiro",
+    "content": "@marcglasberg Thanks",
+    "createdAt": "2019-08-28T11:35:29Z"
+  },
+  {
+    "id": 7812,
+    "sender": "uwemeier-sclable",
+    "content": "@marcglasberg Your package does NOT work, if you have to use Slivers (inside a CustomScrollView), right?",
+    "createdAt": "2019-09-04T09:26:38Z"
+  },
+  {
+    "id": 7813,
+    "sender": "marcglasberg",
+    "content": "@uwemeier-sclable The idea itself works, but I would have to make a different version for CustomScrollView/Slivers, and it's non trivial.",
+    "createdAt": "2019-09-04T15:56:38Z"
+  },
+  {
+    "id": 7814,
+    "sender": "charleshan",
+    "content": "@uwemeier-sclable I think this might be what you're looking for. I found a bug while using this method though (#39715). Let me know this is the solution you're looking for and if you happened to find a solution for the bug 😁\r\n\r\n> here's a quick way to create a list that builds with the list scrolled to a particular index\r\n> \r\n> ```\r\n> import 'package:flutter/material.dart';\r\n> \r\n> final topKey = ValueKey('top');\r\n> \r\n> class SelectedItemList extends StatelessWidget {\r\n>   final List<Widget> items;\r\n>   final int initialTopItemIndex;\r\n> \r\n>   SelectedItemList({@required this.items, @required this.initialTopItemIndex});\r\n> \r\n>   @override\r\n>   Widget build(BuildContext context) =>\r\n>       CustomScrollView(center: topKey, slivers: [\r\n>         SliverList(\r\n>           delegate: SliverChildListDelegate(\r\n>             items.sublist(0, initialTopItemIndex).reversed.toList(),\r\n>           ),\r\n>         ),\r\n>         SliverList(\r\n>           key: topKey,\r\n>           delegate: SliverChildListDelegate(\r\n>             items.sublist(initialTopItemIndex, initialTopItemIndex + 1),\r\n>           ),\r\n>         ),\r\n>         SliverList(\r\n>           delegate: SliverChildListDelegate(\r\n>             items.sublist(initialTopItemIndex + 1),\r\n>           ),\r\n>         ),\r\n>       ]);\r\n> }\r\n> ```\r\n> \r\n> If you need the item you're interested in at a position other than the top of the view port, you can use CustomScrollView's anchor property.\r\n\r\n",
+    "createdAt": "2019-09-04T20:27:31Z"
+  },
+  {
+    "id": 7815,
+    "sender": "tarobins",
+    "content": "Thanks @marcglasberg !  I've been slowly working on a solution as well.  \r\n\r\nI've created a new widget, `ScrollablePositionedList`, that can be found [here](https://github.com/google/flutter.widgets/tree/master/lib/src/scrollable_positioned_list).  \r\n\r\nThe ScrollablePositionedList allows one to set an initial item, specified with `initialScrollIndex` to be positioned at the top of the viewport, or at another location in the viewport by using `initialAlignment`.  The ScrollablePositionedList also takes an `itemScrollController` that has  `jumpTo` and `scrollTo` methods.  The latter allows one to do an animated scroll to an arbitrary item in the list over some given duration and curve.  \r\n\r\nThe ScrollablePositionedList also accepts a `ItemPositionsListener` that tracks what items are currently visible as the user scrolls.\r\n\r\nThe list can be tried by using the gallery app included in the same package as ScrollablePositionedList and found [here](https://github.com/google/flutter.widgets/tree/master/gallery).  The currently last example in the gallery demos the ScrollablePositionedList.\r\n\r\nA video of the list being scrolled can be found [here](https://drive.google.com/open?id=11UTjHc0R9WjFN8ipS2Z1HGopVWTK8ObY) and of some jumping and scrolling [here](https://drive.google.com/open?id=1X_Xe718XwYUr-1nxSQexIgmRdJVvuv_b).  Additionally, this [video](https://drive.google.com/open?id=1hBLfxtciTdJzFp7i2oNCliUleuf4duga) shows the first and last item fields at the bottom of the screen tracking the visible items as the user scrolls.\r\n\r\nThe ScrollablePositionedList is also available in [this dev release of the flutter.widgets library on pub](https://pub.dev/packages/flutter_widgets/versions/0.1.6-dev.1).  The widget required flutter 1.9.1, because that version of Flutter has some necessary bug fixes, so one must use the master channel of flutter until that version of Flutter makes its way to the other channels.  \r\n\r\nScrollablePositionedList is an early version. Please let me know what additional features would be useful, or post bugs and feature requests [here](https://github.com/google/flutter.widgets/issues) in flutter.widgets' issue page.  The widget has some shortcomings, and I'd appreciate feedback on what the most important things to work on are.  ",
+    "createdAt": "2019-09-07T19:49:52Z"
+  },
+  {
+    "id": 7816,
+    "sender": "marcglasberg",
+    "content": "@tarobins That's great, but is there a reason you are not publishing each widget in a separate pub package? Are all these widgets connected and cannot work without one another? You maybe could publish them separately, it would help their use by the community.\r\n\r\nLet me ask you a few questions about your list:\r\n1) Only finite lists? Only infinite lists? Both finite and infinite lists?\r\n2) Can you jump to any index instantly, or does it need to search and download/display all items (while scrolling from start-index to end-index)?\r\n",
+    "createdAt": "2019-09-07T21:13:24Z"
+  },
+  {
+    "id": 7817,
+    "sender": "tarobins",
+    "content": "I'll have to get back to you on the separate library issue.\r\n\r\n1.  At the moment only finite lists.  I hope to remove that restriction at some point.  I'm not sure how hard that will be.\r\n\r\n2. It can jump instantly.   It can also scroll 'instantly' in that it doesn't layout every item for long scrolls.   Obviously, it lays out enough items for the scroll effect and some extras to do scrolling smoothly for shorter scrolls.",
+    "createdAt": "2019-09-07T23:01:42Z"
+  },
+  {
+    "id": 7818,
+    "sender": "oseiasmribeiro",
+    "content": "@tarobins, sorry for my innocent question. Can I use the SliverPersistentHeader type along with ScrollablePositionList?",
+    "createdAt": "2019-09-07T23:13:50Z"
+  },
+  {
+    "id": 7819,
+    "sender": "tarobins",
+    "content": "@oseiasmribeiro \r\n\r\nNo, at the moment, ScrollablePositionedList is basically the equivalent of ListView but with positioning based on items rather than pixel position.\r\n\r\nScrollablePositionedList is roughly based on the solution from [here](https://github.com/flutter/flutter/issues/12319#issuecomment-488170337) and at the moment, SliverPersistentHeader won't work properly above the centered sliver.  Beyond that, ScrollablePositionedList, actually is two list that are faded between to give the illusion of scrolling long distances (I can explain more if anyone wants), and I suspect we'd need to do some fidgeting to get floating slivered to appear as expected as we fade between lists.\r\n\r\nIt's possible that NestedScrollView could be used to solve this problem, but  NestedScrollView is complex, and someone would need to work on that for a bit.  ",
+    "createdAt": "2019-09-08T01:30:11Z"
+  },
+  {
+    "id": 7820,
+    "sender": "oseiasmribeiro",
+    "content": "Ok @tarobins. Thanks!",
+    "createdAt": "2019-09-08T01:35:18Z"
+  },
+  {
+    "id": 7821,
+    "sender": "marcglasberg",
+    "content": "@tarobins Seems you're on the path of finally solving this. If you want/accept contributions I'd be glad to help with the infinite part and documentation. Then if you publish it as a standalone library I can deprecate my package, and I believe this long standing issue can be closed once and for all.",
+    "createdAt": "2019-09-08T18:35:18Z"
+  },
+  {
+    "id": 7822,
+    "sender": "tarobins",
+    "content": "@marcglasberg  will send you email.",
+    "createdAt": "2019-09-08T20:48:39Z"
+  },
+  {
+    "id": 7823,
+    "sender": "rockingdice",
+    "content": "@tarobins Thanks for your great work! \r\n~~Are the other libraries are necessary to use the list? I'm planning to move the codes into my project.~~\r\nConfirmed. They are not necessary.\r\n\r\nAnd I posted an issue there. It does not bounce when jumping to the end of the list. https://github.com/google/flutter.widgets/issues/23",
+    "createdAt": "2019-09-09T08:41:45Z"
+  },
+  {
+    "id": 7824,
+    "sender": "tarobins",
+    "content": "@marcglasberg and anyone else interested, we can accept PRs.  When you submit one, and once the review is done, I'll need to manually merge your change into Google's internal code repo and then push it back to flutter.widgets.  I'll try to put your github userid in the description for credit-giving purposes.  \r\n\r\nThe widget will have to stay in the repo it's in for the time being, but as @rockingdice confirmed, the other widgets in that repo are not needed.\r\n\r\n@rockingdice  thanks for posting the issue.",
+    "createdAt": "2019-09-09T15:19:18Z"
+  },
+  {
+    "id": 7825,
+    "sender": "droidluv",
+    "content": "@tarobins Yup would love if [this](https://github.com/google/flutter.widgets/issues/31) was fixed, right now using trailing edge for initialAlignment is causing an exception when its outside the asserted range, though just working with itemPositionListener and itemScrollIndex is more than what I could've asked for, thanks for the highly useful widget though, it can be used to enhance user experience greatly when working with modals and lists.\r\n\r\nSo just in case does this have any special caveats like performance constraints or some gotcha's which I have to be careful about? I might be cribbing at this point now but can you also add a separated builder method as well like the ListView (though not really a concern)\r\n\r\nlol @ the annoyance tag, Is there any particular reason why this widget is not a part of the framework or adopt some of its capabilities, seems like a pretty standard feature to me.",
+    "createdAt": "2019-09-29T06:59:59Z"
+  },
+  {
+    "id": 7826,
+    "sender": "sooxt98",
+    "content": "@lifetin 抱歉离题一下，能教我怎么实现你截图的那个界面吗？",
+    "createdAt": "2019-10-06T20:51:24Z"
+  },
+  {
+    "id": 7827,
+    "sender": "tarobins",
+    "content": "@droidluv  \r\nI've submitted a fix for https://github.com/google/flutter.widgets/issues/31 to the internal google review system.  Will take a bit to filter to public repo.  ",
+    "createdAt": "2019-10-13T21:04:24Z"
+  },
+  {
+    "id": 7828,
+    "sender": "gaaclarke",
+    "content": "Wow, there's been a lot of great discussion around this.  I'll try to resolve this issue.  I'll first show you how to accomplish what you want, then explain why the issue is ambiguous, then explain what we might change in the Flutter framework.\r\n\r\n**The Solution**\r\nMany people have suggested this in one form or another but the gist is you want to do the following things:\r\n1) Create an object that represents the data model for your ListView.\r\n1) Make your ListView build its contents based on that data model.\r\n1) Query the data model to find the offset of the item you are interested in.\r\n\r\nHere is a helper interface that accomplishes this:\r\n```dart\r\n/// An interface for representing the contents of a ListView.\r\nclass ListViewDataSource {\r\n  /// The number of items that will be displayed in the ListView.\r\n  int get numItems => 0;\r\n\r\n  /// The height of the widget at [index].\r\n  double itemHeight(int index) => 0;\r\n\r\n  /// Generate the widget at [index].\r\n  Widget build(BuildContext context, int index) => null;\r\n\r\n  /// Calculates the offset of a widget at [index].  If you scroll to that\r\n  /// index, that item will be at the top of the ListView.\r\n  static double itemOffset(ListViewDataSource dataSource, int index) {\r\n    if (index >= dataSource.numItems) {\r\n      throw new RangeError(\"index out of range\");\r\n    }\r\n    double result = 0.0;\r\n    for (int i = 0; i < index; ++i) {\r\n      result += dataSource.itemHeight(i);\r\n    }\r\n    return result;\r\n  }\r\n\r\n  /// A factory function that makes a [ListView] that displays the contents of a\r\n  /// [ListViewDataSource].\r\n  static ListView makeListView(\r\n      {ScrollController controller,\r\n      EdgeInsetsGeometry padding,\r\n      @required ListViewDataSource dataSource}) {\r\n    return ListView.builder(\r\n      controller: controller,\r\n      padding: padding,\r\n      itemCount: dataSource.numItems,\r\n      itemBuilder: dataSource.build,\r\n    );\r\n  }\r\n}\r\n```\r\nYou'll find a gist that shows how to use this with ScrollerController [here](https://gist.github.com/gaaclarke/4200741c4413707f0f73a887bf5d9b39).\r\n\r\n**Why the problem is ambiguous**\r\nWhen you say you want to scroll to an item at index, do you want to scroll so that that item is at the top of the ListView?  or do you want to scroll so that it is in the center or bottom of the ListView?  Maybe something slightly different?\r\n\r\nThe better API would give you the offset of an item at index which would allow the user to decide exactly how they want to scroll to that item.\r\n\r\n**Gaaclarke's recommendation**\r\nNow the question about what, if anything, we should add to the Flutter API.\r\n\r\nIf I had been around for when ListView had been designed, I would have suggested the `ListView.builder` API matched more what I showed in the solution section, one that takes in a data model instead of a builder function.  We could add yet another factory function that takes in a data model.  I have concerns that that would confuse users by having two similar ways of creating a ListView, and we aren't going to remove `ListView.builder`.\r\n\r\nSo, my recommendation is that we don't change or add anything to the Flutter API.  Instead we should update the [documentation on ListView](https://api.flutter.dev/flutter/widgets/ListView-class.html) to include at a minimum a usage of ScrollerController.  Maybe we could add an example of using a data source as well, I feel less strongly about that.",
+    "createdAt": "2019-10-24T18:12:08Z"
+  },
+  {
+    "id": 7829,
+    "sender": "pedromorgan",
+    "content": "All it needs to do is \"select\" and item in the list and make it visible if its off screen. Simple as that. The workaround etc seem a mess",
+    "createdAt": "2019-10-24T18:18:33Z"
+  },
+  {
+    "id": 7830,
+    "sender": "Hixie",
+    "content": "@gaaclarke The problems with that approach are that implementing `itemHeight` is essentially impossible (edit: or at least prohibitively expensive), and `index` might be very large (such that walking through all the items from zero to index is prohibitively expensive), and the viewport might contain more than just a sliver list, it could contain a grid plus a list plus some headings plus an appbar plus another list.\r\n\r\nA more efficient implementation for the simple case of a single ListView is something where you split the list in two at the point you want to jump to, put the first list at negative indices and the second list at positive indices, and jump to zero. However, that fails a major use case which is animating to the index, and of course doesn't handle more subtle cases like mixed viewports as described above.",
+    "createdAt": "2019-10-24T20:43:42Z"
+  },
+  {
+    "id": 7831,
+    "sender": "gaaclarke",
+    "content": "@Hixie thanks for the response.\r\n\r\n> implementing `itemHeight` is essentially impossible (edit: or at least prohibitively expensive)\r\n\r\nWhy?  I did it just fine in the sample code.  If you have a data model, it is the definition of itemHeight, no calculation needed.\r\n\r\n> viewport might contain more than just a sliver list\r\n\r\nThat should be represented in your data model so you can query it as well.\r\n\r\n> A more efficient implementation for the simple case\r\n\r\nWhy is that more efficient?  What is the inefficiency in the proposed data model approach?\r\n",
+    "createdAt": "2019-10-24T22:03:43Z"
+  },
+  {
+    "id": 7832,
+    "sender": "tarobins",
+    "content": "> @Hixie thanks for the response.\r\n> \r\n> > implementing `itemHeight` is essentially impossible (edit: or at least prohibitively expensive)\r\n> \r\n> Why? I did it just fine in the sample code. If you have a data model, it is the definition of itemHeight, no calculation needed.\r\n\r\nIn some cases you can't know what the height of an item is until you perform a layout of the item and take into account issues such as the space used for a particular font, line breaking of text, and the size of images, the latter of which might need to be downloaded from some remote source.  Having your data source return the height of a item would mean the data source will need to do this layout (and would consequently need to know something about the dimensions of the viewport, such as needing to know the width of the viewport to work out line breaking).  In the case of a long list, you could need to do the layout for thousands of items to compute the position of some items, leading to the expensive computations @Hixie refers to.  ",
+    "createdAt": "2019-10-24T23:28:03Z"
+  },
+  {
+    "id": 7833,
+    "sender": "gaaclarke",
+    "content": "@tarobins That would only be the case if you are displaying content that isn't known at build time and is in a form factor that isn't defined at build time and can't be spatially compressed.  For example, showing user submitted images but you refuse to display them resized.\r\n\r\nEven in your text situation, the height of a widget is deterministic and should be able to be calculated.  I don't know if we've surfaced the logic to the framework but there is definitely code in the engine that given a string and a font and a width, it will tell you the height of the space needed to render it completely.  It isn't the slickest solution, but I don't think the problem is all that common either.  A chat room app might be the only thing I could think of.   Most people can determine the height of their widgets or design their widgets to render in a specified height.\r\n\r\nI know this because the original post asks why we can't do something that UITableView does, and that's because [UITableView has a data model](https://developer.apple.com/documentation/uikit/uitableviewdelegate/1614998-tableview) that looks similar to what I'm proposing.  Without a data model, I dare say it's impossible to efficiently jump to a given item in a situation with heterogeneous children heights.  The only solution there is to build and throw away all the proceeding widgets, which is almost in all cases going to be unacceptable.",
+    "createdAt": "2019-10-25T00:27:12Z"
+  },
+  {
+    "id": 7834,
+    "sender": "tarobins",
+    "content": "> Without a data model, I dare say it's impossible to efficiently jump to a given item in a situation with heterogeneous children heights. The only solution there is to build and throw away all the proceeding widgets, which is almost in all cases going to be unacceptable.\r\n\r\nI'm not quite sure exactly what you mean by data model in this context.  Do you mean a model that provides heights for the items or just a model of the data to be displayed?\r\n\r\nWe've solved the jumping case without knowing the heights of the items in a data model and without building all the widgets by using the method @Hixie described.  And example can be found here https://github.com/flutter/flutter/issues/12319#issuecomment-488170337\r\n\r\nSmooth scrolling is a bit more complicated.  There's one solution here https://github.com/google/flutter.widgets/tree/master/lib/src/scrollable_positioned_list",
+    "createdAt": "2019-10-25T00:57:32Z"
+  },
+  {
+    "id": 7835,
+    "sender": "gaaclarke",
+    "content": "> I'm not quite sure exactly what you mean by data model in this context. Do you mean a model that provides heights for the items or just a model of the data to be displayed?\r\n\r\nFor a ListView you want to display some state `s[n]`.  `s[n]` is the data model.  There also has to be a function `f(s[x]) -> itemHeight`.  I used data model to mean `s` and `f`.\r\n\r\n> We've solved the jumping case without knowing the heights of the items in a data model and without building all the widgets by using the method @Hixie described. And example can be found here [#12319 (comment)](https://github.com/flutter/flutter/issues/12319#issuecomment-488170337)\r\n\r\nThat's an interesting approach but I think a solution that doesn't involve ScrollerController is kind of hacky in my opinion.  Controlling where you are scrolled is raison-d-etre of ScrollerController.\r\n\r\n> Smooth scrolling is a bit more complicated. There's one solution here https://github.com/google/flutter.widgets/tree/master/lib/src/scrollable_positioned_list\r\n\r\nIt looks like this is caching the size of widgets, introspecting into the offset as widgets are created?  It's a lot of code to accomplish something similar to what I did in 100 lines of code, just to avoid defining `f(s[x])`.  It would not perform as well in non-scrolling case but I can see how it is easier to use for some data.  I'll give it a more thorough read tomorrow.",
+    "createdAt": "2019-10-25T01:19:06Z"
+  },
+  {
+    "id": 7836,
+    "sender": "tarobins",
+    "content": "\r\n> That's an interesting approach but I think a solution that doesn't involve ScrollerController is kind of hacky in my opinion. Controlling where you are scrolled is raison-d-etre of ScrollerController.\r\n\r\nEven if you know what  pixel offset to start the ScrollController at, or jump to, the current implementation of ListView will build and layout everything between the 0 offset and your desired offset in order to know what to put at the scroll offset your asked for, so, for long lists, using the ScrollController to position the list can be inefficient.  ",
+    "createdAt": "2019-10-25T03:13:02Z"
+  },
+  {
+    "id": 7837,
+    "sender": "knuesel",
+    "content": "@gaaclarke for an example where the ListView items are generated in such a way that the dimensions cannot be known statically: I'm working on an application that shows a list of tasks in a ListView. Each task has dynamic elements (mainly text widgets) that the user can configure, so I rely on Flutter's layout engine to determine the dimensions of the ListView items. I'm using a horizontal list view, where dynamic dimensions along the main axis are probably more common, but the same problem could arise for a vertical list of user-editable tasks.",
+    "createdAt": "2019-10-25T08:38:31Z"
+  },
+  {
+    "id": 7838,
+    "sender": "tarobins",
+    "content": "https://github.com/google/flutter.widgets/issues/31\r\nand https://github.com/google/flutter.widgets/issues/23 should be fixed now.  ",
+    "createdAt": "2019-11-12T01:38:29Z"
+  },
+  {
+    "id": 7839,
+    "sender": "oseiasmribeiro",
+    "content": "Tarobins, ScrollablePositionedList worked beautifully. Help me now add a header that appears when scrolling down and disappears when scrolling up. This is very useful for showing details of a certain book, as in the Bible.",
+    "createdAt": "2019-11-29T16:42:08Z"
+  },
+  {
+    "id": 7840,
+    "sender": "tarobins",
+    "content": "Yeah, SliverPersistentHeader doesn't work with ScrollablePositionedList nor the method from https://github.com/flutter/flutter/issues/12319#issuecomment-488170337. \r\n\r\nIt's possible SliverPersistentHeader might work with one of those when used within NestedScrollView, but I haven't tried yet.  I'll give it a try today, but no promises I'll get anywhere.\r\n\r\nhttps://github.com/google/flutter.widgets/issues/32 is the relevant issue, though a subset solution of that issue might be more tractable in the short term.\r\n\r\nOn Fri, Nov 29, 2019 at 8:42 AM oseiasmribeiro <notifications@github.com>\r\nwrote:\r\n\r\n> Tarobins, ScrollablePositionedList worked beautifully. Help me now add a\r\n> header that appears when scrolling down and disappears when scrolling up.\r\n> This is very useful for showing details of a certain book, as in the Bible.\r\n>\r\n> —\r\n> You are receiving this because you were mentioned.\r\n> Reply to this email directly, view it on GitHub\r\n> <https://github.com/flutter/flutter/issues/12319?email_source=notifications&email_token=ABFFHOO73V5GJQREQJA4ZHTQWFA6PA5CNFSM4D5DEY52YY3PNVWWK3TUL52HS4DFVREXG43VMVBW63LNMVXHJKTDN5WW2ZLOORPWSZGOEFPIA6Q#issuecomment-559841402>,\r\n> or unsubscribe\r\n> <https://github.com/notifications/unsubscribe-auth/ABFFHOIHHZ6JVKK5SN3QZ33QWFA6PANCNFSM4D5DEY5Q>\r\n> .\r\n>\r\n",
+    "createdAt": "2019-11-29T17:12:07Z"
+  },
+  {
+    "id": 7841,
+    "sender": "oseiasmribeiro",
+    "content": "Thanks a lot already Tarobins. ScrollablePositionedList is working very well. Congratulations!",
+    "createdAt": "2019-11-29T17:16:13Z"
+  },
+  {
+    "id": 7842,
+    "sender": "oseiasmribeiro",
+    "content": "![Captura de Tela 2019-11-29 às 14 31 21](https://user-images.githubusercontent.com/36827173/69884040-628cda00-12b5-11ea-9be4-35c724d85f45.png)\r\n\r\nTarobins, with NestedScrollView I have managed to add the header, but Pinned and Floating don't seem to work. I can't make the Header it disappear by rolling up and appear by rolling down.",
+    "createdAt": "2019-11-29T17:39:00Z"
+  },
+  {
+    "id": 7843,
+    "sender": "tarobins",
+    "content": "I'm not super surprised.  I'm just creating my experiment app, so I'll play around with it for a bit and see what's going on.  ",
+    "createdAt": "2019-11-29T17:42:37Z"
+  },
+  {
+    "id": 7844,
+    "sender": "oseiasmribeiro",
+    "content": "Ok thanks. Please let me know if I succeed!",
+    "createdAt": "2019-11-29T18:00:56Z"
+  },
+  {
+    "id": 7845,
+    "sender": "tarobins",
+    "content": "So, first, I noticed that in general floating doesn't seem to work as I expected for NestedScrollView.  I tried setting in the example from https://api.flutter.dev/flutter/widgets/NestedScrollView-class.html and the SliverAppBar didn't float as shown in SliverAppBar's docs.\r\n\r\nI didn't have high hopes to ScrollablePositionedList to work out of the box within a NestedScrollView, and in particular because in the example for NestedScrollView it is noted for its CustomScrollView\r\n```\r\n// The \"controller\" and \"primary\" members should be left\r\n// unset, so that the NestedScrollView can control this\r\n// inner scroll view.\r\n```\r\nand that's not true of ScrollablePositionedList's internal CustomScrollView.  Furthermore, ScrollablePositionedList does some magic with switching what CustomScrollView is displayed sometimes, which is likely to confuse NestedScrollView.\r\n\r\nSome work will be needed to support SliverAppBar within ScrollablePositionedList\r\n\r\nHowever, if all you care about is positioning an item at the top of the list when you display it, this worked surprisingly well:\r\n\r\n```\r\nimport 'package:flutter/material.dart';\r\n\r\nvoid main() => runApp(MyApp());\r\n\r\nfinal topKey = ValueKey('top');\r\n\r\nclass MyApp extends StatelessWidget {\r\n  // This widget is the root of your application.\r\n  @override\r\n  Widget build(BuildContext context) {\r\n    return MaterialApp(\r\n      title: 'Flutter Demo',\r\n      theme: ThemeData(\r\n        primarySwatch: Colors.blue,\r\n      ),\r\n      home: Material(\r\n        child: SafeArea(\r\n          child: body,\r\n        ),\r\n      ),\r\n    );\r\n  }\r\n}\r\n\r\nWidget get body => NestedScrollView(\r\n      headerSliverBuilder: (BuildContext context, bool innerBoxIsScrolled) {\r\n        return <Widget>[\r\n          SliverAppBar(\r\n            title: const Text('Books'),\r\n            // This is the title in the app bar.\r\n            pinned: true,\r\n            expandedHeight: 200.0,\r\n            forceElevated: true,\r\n          ),\r\n        ];\r\n      },\r\n      body: SafeArea(\r\n        top: false,\r\n        bottom: false,\r\n        child: CustomScrollView(\r\n          center: topKey,\r\n          slivers: <Widget>[\r\n            SliverFixedExtentList(\r\n              itemExtent: 48.0,\r\n              delegate: SliverChildBuilderDelegate(\r\n                (BuildContext context, int index) {\r\n                  return ListTile(\r\n                    title: Text('Item ${14 - index}'),\r\n                  );\r\n                },\r\n                childCount: 15,\r\n              ),\r\n            ),\r\n            SliverFixedExtentList(\r\n              key: topKey,\r\n              itemExtent: 48.0,\r\n              delegate: SliverChildBuilderDelegate(\r\n                (BuildContext context, int index) {\r\n                  return ListTile(\r\n                    title: Text('Item 15'),\r\n                  );\r\n                },\r\n                childCount: 1,\r\n              ),\r\n            ),\r\n            SliverFixedExtentList(\r\n              itemExtent: 48.0,\r\n              delegate: SliverChildBuilderDelegate(\r\n                (BuildContext context, int index) {\r\n                  return ListTile(\r\n                    title: Text('Item ${index + 16}'),\r\n                  );\r\n                },\r\n                childCount: 15,\r\n              ),\r\n            ),\r\n          ],\r\n        ),\r\n      ),\r\n    );\r\n```\r\n\r\n",
+    "createdAt": "2019-11-29T19:15:27Z"
+  },
+  {
+    "id": 7846,
+    "sender": "oseiasmribeiro",
+    "content": "Great! Thanks. This way I how get the index of scroll? I save him to back read the book where he left off.",
+    "createdAt": "2019-11-29T19:26:58Z"
+  },
+  {
+    "id": 7847,
+    "sender": "tarobins",
+    "content": "oh. that's can't be done with the above.  hmmm.  \r\n\r\nIf the size of your content and screen never changes, you could just store the scroll offset https://api.flutter.dev/flutter/widgets/ScrollController/offset.html\r\n\r\nIf you can do without a collapsing app bar, then you can just have a statically sized widget with your header above the ScrollablePositionedList, all laid out in a column.  Then use the ScrollablePositionedList's itemPositionsListener to get the position of items in the list.\r\n\r\notherwise, it's trickier.  \r\n\r\nI really should try to support a SliverAppBar on ScrollablePositionedList.  I've had that request a couple times.  I'll try to find some time to work on it.  There's a few non-obvious behaviours we need to spec out though, such as does using ItemScrollController.scrollTo and ItemScrollController.jumpTo affect the size of the app bar and how so.  ",
+    "createdAt": "2019-11-29T19:37:35Z"
+  },
+  {
+    "id": 7848,
+    "sender": "oseiasmribeiro",
+    "content": "Ok. For now I go use Fixed Header, until you implement something similar in ScrollablePositionedList. Thank you so much for everything.",
+    "createdAt": "2019-11-29T19:43:22Z"
+  },
+  {
+    "id": 7849,
+    "sender": "tarobins",
+    "content": "I'm going to close this issue with ScrollablePositionedList https://github.com/google/flutter.widgets/tree/master/lib/src/scrollable_positioned_list available.  I am still working on the library and there are some fixes already submitted to the internal google repo that should be pushed to the github repo soon.  Please file additional bugs and feature requests here: https://github.com/google/flutter.widgets/issues",
+    "createdAt": "2019-12-27T15:58:27Z"
+  },
+  {
+    "id": 7850,
+    "sender": "duzenko",
+    "content": "Why is it closed with an external link to a no-doc repo? Are you not going to fix this with standard ListView at all?",
+    "createdAt": "2020-03-05T16:26:11Z"
+  },
+  {
+    "id": 7851,
+    "sender": "tarobins",
+    "content": "I don't see a solution that can be used on ListView itself without making a mess of the API because there's a conflict between pixel-based and item-based scrolling.  When we jump or scroll to a item that's far down a list, if we want to keep the pixel-based and item-based indices consistent, we'd need to layout every item before the desired item, which can be prohibitively expensive.  ",
+    "createdAt": "2020-03-05T20:38:52Z"
+  },
+  {
+    "id": 7852,
+    "sender": "duzenko",
+    "content": "Please let us decide if we can live with the 'expenses'.\r\nOtherwise consider backporting the widget you linked to above in flutter core.\r\nPlease do not close critical functionality holes with a no-fix.",
+    "createdAt": "2020-03-05T20:48:58Z"
+  },
+  {
+    "id": 7853,
+    "sender": "tarobins",
+    "content": "I can understand that one would want a solution integrated with the existing ListView; however, I wasn't able to think of one that I thought would be workable and at the same time that I thought would be an acceptable change to the core ListView. I did create a solution that I thought got to the core of what was originally asked for in this issue. \r\n\r\nI know there are still some desired features.  For example, I have seen the requests to have the ScrollablePositionedList work with a collapsible appbar, unfortunately I haven't had time to explore a solution to that use case.  (More requests can be seen or added at https://github.com/google/flutter.widgets/issues, and people are encouraged to fork my solution and submit PRs, or just create new solutions based on mine or from scratch).  If you have use cases not covered, please open a new issue (perhaps with a linking comment from here so people interested see the new issue), with an exact explanation of not-yet-covered needs and use cases.  Doing so will help someone provide solutions that meet the use cases you have.  Also, if more documentation is needed for the solution I provided, please let me know, and I’ll work on providing updates, as I do want people to be able to use it. \r\n\r\nAs for this issue, given that I am the current assignee of the issue, I didn’t want to leave the issue open, and give the impression that I was still working on the issue past the solution I was able to come up with. However, if someone does want to continue to work on integrating a solution with ListView, I'm happy to hand over this issue and they can reopen it. However, if no one has a feasible change to ListView in mind, I'm not sure leaving this issue open is useful, as doing so might give people an incorrect impression that a change to ListView is being worked on, or eventually will be worked on at some point in the reasonable future.  If such a change is not foreseeable, it might be best to direct energies to coming up with new widgets that meet peoples’ use cases, which, personally, I think is the more obtainable path.\r\n",
+    "createdAt": "2020-03-06T15:50:59Z"
+  },
+  {
+    "id": 7854,
+    "sender": "marcglasberg",
+    "content": "@tarobins However, it would be great if this widget could have its own package in pub/dev, instead of being bundled with other widgets. That's totally non-standard. I am guilty of doing that myself (https://pub.dev/packages/assorted_layout_widgets) but I think ScrollablePositionedList is just too important to be buried into a package called flutter.widgets. ",
+    "createdAt": "2020-03-06T18:15:44Z"
+  },
+  {
+    "id": 7855,
+    "sender": "tarobins",
+    "content": "exciting news!  ScrollablePositionedList is now available in its own package on pub:  https://pub.dev/packages/scrollable_positioned_list\r\n\r\nPlease start pointing to that package.",
+    "createdAt": "2020-04-01T04:08:32Z"
+  },
+  {
+    "id": 7856,
+    "sender": "tarobins",
+    "content": "Thanks particularly to @mehmetf ",
+    "createdAt": "2020-04-01T04:10:00Z"
+  },
+  {
+    "id": 7857,
+    "sender": "HansMuller",
+    "content": "## TextFields generate many warning/error messages in debug mode\n\nWhile running in debug mode, tapping text fields in the gallery text fields demo (or any of the demos that feature text fields) produces loads of warning/error messages.\r\n\r\n```\r\nE/SpannableStringBuilder(  856): SPAN_EXCLUSIVE_EXCLUSIVE spans cannot have a zero length\r\nE/SpannableStringBuilder(  856): SPAN_EXCLUSIVE_EXCLUSIVE spans cannot have a zero length\r\nE/SpannableStringBuilder(  856): SPAN_EXCLUSIVE_EXCLUSIVE spans cannot have a zero length\r\nE/SpannableStringBuilder(  856): SPAN_EXCLUSIVE_EXCLUSIVE spans cannot have a zero length\r\nW/IInputConnectionWrapper(  856): beginBatchEdit on inactive InputConnection\r\nW/IInputConnectionWrapper(  856): getTextBeforeCursor on inactive InputConnection\r\nW/IInputConnectionWrapper(  856): getTextAfterCursor on inactive InputConnection\r\nW/IInputConnectionWrapper(  856): getSelectedText on inactive InputConnection\r\nW/IInputConnectionWrapper(  856): endBatchEdit on inactive InputConnection\r\nW/IInputConnectionWrapper(  856): beginBatchEdit on inactive InputConnection\r\nW/IInputConnectionWrapper(  856): getTextBeforeCursor on inactive InputConnection\r\nW/IInputConnectionWrapper(  856): getTextAfterCursor on inactive InputConnection\r\nW/IInputConnectionWrapper(  856): getSelectedText on inactive InputConnection\r\nW/IInputConnectionWrapper(  856): endBatchEdit on inactive InputConnection\r\n```\r",
+    "createdAt": "2017-04-19T18:09:41Z"
+  },
+  {
+    "id": 7858,
+    "sender": "HansMuller",
+    "content": "This issue was also noted here: https://github.com/flutter/flutter/issues/9221\r\n",
+    "createdAt": "2017-04-19T18:10:08Z"
+  },
+  {
+    "id": 7859,
+    "sender": "cbracken",
+    "content": "Notes for the person who looks into this: tagged as Android-specific based on the logs and engine code that's doing the logging. That said, I haven't yet looked into whether the underlying issue triggering the logging is an issue in the engine or triggered by a bug in the framework.",
+    "createdAt": "2017-04-21T21:12:51Z"
+  },
+  {
+    "id": 7860,
+    "sender": "HansMuller",
+    "content": "This is still a bug, as of 10/25/2018.\r\n",
+    "createdAt": "2018-10-25T18:54:12Z"
+  },
+  {
+    "id": 7861,
+    "sender": "goderbauer",
+    "content": "Is this still happening for anybody? I think I haven't seen it in a while.",
+    "createdAt": "2019-06-12T21:42:10Z"
+  },
+  {
+    "id": 7862,
+    "sender": "PerLycke",
+    "content": "> Is this still happening for anybody? I think I haven't seen it in a while.\r\n\r\nStill have these error messages yes:\r\n\r\nW/IInputConnectionWrapper(29232): getTextBeforeCursor on inactive InputConnection\r\nW/IInputConnectionWrapper(29232): getSelectedText on inactive InputConnection\r\nW/IInputConnectionWrapper(29232): getTextAfterCursor on inactive InputConnection",
+    "createdAt": "2019-06-18T13:55:25Z"
+  },
+  {
+    "id": 7863,
+    "sender": "HansMuller",
+    "content": "I just tried the gallery Cupertino textfield demo (just happened to try that first).  With very little effort I produced:\r\n\r\n```\r\nW/IInputConnectionWrapper(20059): getTextBeforeCursor on inactive InputConnection\r\nW/IInputConnectionWrapper(20059): getSelectedText on inactive InputConnection\r\nW/IInputConnectionWrapper(20059): getTextAfterCursor on inactive InputConnection\r\nW/IInputConnectionWrapper(20059): getCursorCapsMode on inactive InputConnection\r\nW/IInputConnectionWrapper(20059): getTextBeforeCursor on inactive InputConnection\r\nW/IInputConnectionWrapper(20059): getSelectedText on inactive InputConnection\r\nW/IInputConnectionWrapper(20059): getTextAfterCursor on inactive InputConnection\r\nW/IInputConnectionWrapper(20059): getCursorCapsMode on inactive InputConnection\r\n```\r\n\r\nThe messages appeared after entering a few characters in the initially focused textfield and then moving the focus to the textfield whose initial value was \"Montreal Canada\".",
+    "createdAt": "2019-06-18T21:49:08Z"
+  },
+  {
+    "id": 7864,
+    "sender": "goderbauer",
+    "content": "I did a little bit of digging. It looks like Android is generating these warnings because we are holding the InputConnection incorrectly in the Engine's TextInputPlugin. I haven't really figured out what we're doing wrong, though.",
+    "createdAt": "2019-06-18T22:56:52Z"
+  },
+  {
+    "id": 7865,
+    "sender": "austenstrine",
+    "content": "> I did a little bit of digging. It looks like Android is generating these warnings because we are holding the InputConnection incorrectly in the Engine's TextInputPlugin. I haven't really figured out what we're doing wrong, though.\r\n\r\nAny update? This bug is causing trouble for a barcode scanning app I'm writing designed for a bluetooth barcode scanner. I can't automatically submit without it submitting 6 times (or however many times the bug happens), regardless of flutter/dart logic, and regardless of whether the keyboard is visible or not. I have to manually select the submit button after every scan as a workaround.",
+    "createdAt": "2019-08-21T16:38:30Z"
+  },
+  {
+    "id": 7866,
+    "sender": "Minituff",
+    "content": "From my understanding, this happens because you try to change the Textfield in the build method (or setState). \r\n\r\nHere is the flutter document annotation for clearing the text in a TextField \r\n\r\n>After calling this function, [text] will be the empty string and the selection will be invalid.\r\nCalling this will notify all the listeners of this [TextEditingController] that they need to update (it calls [notifyListeners]). For this reason, this method should only be called between frames, e.g. in response to user actions, not during the build, layout, or paint phases\r\n\r\nBased on that information I can only avoid the errors if I clear or update the text field on a didUpdateWidget or didChangeDependencies.\r\n\r\nHowever, on the app I am working on there is no way to change the text field outside of the setState, so I don't see a way around these errors. Does anyone know if these are just warnings, or do they actually cause errors? Has anyone found a fix?",
+    "createdAt": "2019-10-12T00:38:19Z"
+  },
+  {
+    "id": 7867,
+    "sender": "Reprevise",
+    "content": "I can confirm, at least in my case when switching between different keyboard types (I'm switching from text to number, and vice versa). Each time I do that, I get these three warnings/errors while in debug mode. \r\n\r\n```\r\nW/IInputConnectionWrapper( 6807): getTextBeforeCursor on inactive InputConnection\r\nW/IInputConnectionWrapper( 6807): getSelectedText on inactive InputConnection\r\nW/IInputConnectionWrapper( 6807): getTextAfterCursor on inactive InputConnection\r\n```\r\n\r\nMy code (located inside a build method):\r\n```\r\n    Widget roomTextField = CustomFormField(\r\n      focusNode: roomTextFocus,\r\n      controller: widget.roomTextCont,\r\n      hintText: \"Room\",\r\n      prefixIcon: Icons.location_on,\r\n      keyboardType: TextInputType.text,\r\n      suffix: IconButton(\r\n        icon: Icon(Icons.keyboard,\r\n            color: Theme.of(context).primaryIconTheme.color),\r\n        splashColor: Colors.transparent,\r\n        color: Colors.transparent,\r\n        onPressed: () {\r\n          setState(() {\r\n            changeRoomFocus(context);\r\n          });\r\n        },\r\n      ),\r\n    );\r\n    Widget roomNumberField = CustomFormField(\r\n      focusNode: roomNumberFocus,\r\n      controller: widget.roomNumCont,\r\n      hintText: \"Room\",\r\n      prefixIcon: Icons.location_on,\r\n      keyboardType: TextInputType.number,\r\n      suffix: IconButton(\r\n        icon: Icon(Icons.keyboard,\r\n            color: Theme.of(context).primaryIconTheme.color),\r\n        splashColor: Colors.transparent,\r\n        color: Colors.transparent,\r\n        onPressed: () => setState(\r\n          () => changeRoomFocus(context),\r\n        ),\r\n      ),\r\n    );\r\n    Widget buildStackedFields(BuildContext context) {\r\n      return IndexedStack(\r\n        index: roomFieldIndex,\r\n        children: <Widget>[\r\n          roomTextField,\r\n          roomNumberField,\r\n        ],\r\n      );\r\n    }\r\n```\r\nIt seems to have something to do with the keyboard being open and the state of the widget itself.\r\nAll my code does is when the user presses a suffix icon inside a form field, it unfocuses that form field and focuses on another one using IndexedStack. When I do that, I get the errors mentioned above.\r\n\r\nEDIT: Also, inside of my changeRoomFocus() method, I am using the .clear() method provided by the controllers. I also get the warnings when I directly set the value to an empty string. ",
+    "createdAt": "2019-10-16T01:12:12Z"
+  },
+  {
+    "id": 7868,
+    "sender": "SebastienMelki",
+    "content": "This is still happening to me every time I clear the text box, any advice on how to get rid of the warnings? I have a single text field that has a suffix icon that I use to clear the text field (I tried both controller.clear and controller.text = \"\" I get the same warnings). \r\n\r\nHere are the warnings that I get \r\n`W/IInputConnectionWrapper(21921): getTextBeforeCursor on inactive InputConnection\r\nW/IInputConnectionWrapper(21921): getSelectedText on inactive InputConnection\r\nW/IInputConnectionWrapper(21921): getTextAfterCursor on inactive InputConnection`\r\n\r\n\r\nAnd here is the simple textbox \r\n\r\n```\r\nfinal searchField = TextField(\r\n      controller: searchFieldController,\r\n      textInputAction: TextInputAction.search,\r\n      onSubmitted: (val) {\r\n        viewModel.search(val);\r\n      },\r\n      decoration: InputDecoration(\r\n          suffixIcon: searchFieldController.text.isNotEmpty ? IconButton(\r\n              icon: Icon(Icons.clear),\r\n              onPressed: () => WidgetsBinding.instance\r\n                  .addPostFrameCallback((_) => searchFieldController.clear())) : null,\r\n    );\r\n```\r\n\r\n\r\nApart from the warnings, do they actually impact anything negatively in the app? \r\nDo I have to call the clear differently to get rid of them or something, or is this still an active bug?\r\n\r\nThanks",
+    "createdAt": "2019-10-27T13:47:00Z"
+  },
+  {
+    "id": 7869,
+    "sender": "Peng-Qian",
+    "content": "> I did a little bit of digging. It looks like Android is generating these warnings because we are holding the InputConnection incorrectly in the Engine's TextInputPlugin. I haven't really figured out what we're doing wrong, though.\r\n\r\nHi goderbauer,\r\n\r\nDo you still following this problem, it really generates many warnings to seriously affect the functionality of logs when debugging.\r\n\r\nMany thanks @goderbauer ",
+    "createdAt": "2020-01-08T11:15:59Z"
+  },
+  {
+    "id": 7870,
+    "sender": "cbracken",
+    "content": "/cc @GaryQian who has been looking into loads of keyboard-related issues on Android and may have ideas.",
+    "createdAt": "2020-02-10T19:22:46Z"
+  },
+  {
+    "id": 7871,
+    "sender": "zigang93",
+    "content": "hotfix version 7 never show this warning..\r\nbut after upgrade to hotfix version 8..\r\nI keep getting 'getTextAfterCursor on inactive InputConnection' warning messages",
+    "createdAt": "2020-02-13T07:20:22Z"
+  }
+]

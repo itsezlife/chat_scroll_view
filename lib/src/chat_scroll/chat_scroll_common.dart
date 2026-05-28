@@ -7,6 +7,9 @@ abstract interface class IChatMessage {
   /// should be ordered by their `id` in ascending order.
   abstract final int id;
 
+  /// The sender name of the message.
+  abstract final String sender;
+
   /// The time the message was created.
   abstract final DateTime createdAt;
 

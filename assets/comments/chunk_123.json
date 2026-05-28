@@ -1,0 +1,386 @@
+[
+  {
+    "id": 7872,
+    "sender": "tbm98",
+    "content": "warning still show when run demo code in [here](https://flutter.dev/docs/cookbook/forms/validation)\r\n```\r\n[✓] Flutter (Channel dev, v1.15.3, on Mac OS X 10.15.2 19C57, locale\r\n    en-US)\r\n    • Flutter version 1.15.3 at /Users/tbm/dev/flutter_sdk/flutter\r\n    • Framework revision 67826bdce5 (10 days ago), 2020-02-10 14:59:32\r\n      -0800\r\n    • Engine revision 6158f03ef5\r\n    • Dart version 2.8.0 (build 2.8.0-dev.8.0 514a8d4c84)\r\n```",
+    "createdAt": "2020-02-21T03:22:56Z"
+  },
+  {
+    "id": 7873,
+    "sender": "9thwall",
+    "content": "Seems like this issue started for me after last upgrade. 1.12.13+hotfix8. \r\nI have a form with multiple TextFormFields  with different keyboardTypes. Not sure where and how it all started but I know I wasn't seeing any of these errors before the upgrade. \r\nI'm just concerned if this will cause build issues.  I'm assuming it will not because they are just warnings... \r\n",
+    "createdAt": "2020-02-28T19:00:17Z"
+  },
+  {
+    "id": 7874,
+    "sender": "codekrafter",
+    "content": "I am having the same problem on 1.12.13+hotfix8 on multiple TextFormFields.",
+    "createdAt": "2020-03-19T20:27:35Z"
+  },
+  {
+    "id": 7875,
+    "sender": "tegkev",
+    "content": "I have the same problem to on 1.12.13+hotfix8 on multiple TextFormFields and it make the Navigator requestFocus after a push.",
+    "createdAt": "2020-03-21T10:14:34Z"
+  },
+  {
+    "id": 7876,
+    "sender": "ElMopendor",
+    "content": "I have this issue with Flutter Version v1.12.13+hotfix.8. I think the update brought this error because the following code didn't work in Debugging mode too: \r\nhttps://flutter.dev/docs/cookbook/forms/validation",
+    "createdAt": "2020-03-21T23:00:29Z"
+  },
+  {
+    "id": 7877,
+    "sender": "Mehrdad-Davoudi",
+    "content": "I have the same problem on 1.12.13+hotfix8 on TextFormFields.",
+    "createdAt": "2020-03-22T17:37:10Z"
+  },
+  {
+    "id": 7878,
+    "sender": "ElMopendor",
+    "content": "> I have this issue with Flutter Version v1.12.13+hotfix.8. I think the update brought this error because the following code didn't work in Debugging mode too:\r\n> https://flutter.dev/docs/cookbook/forms/validation\r\n\r\n\r\nWorks for me with this configuration:\r\n\r\n> `Doctor summary (to see all details, run flutter doctor -v):\r\n[√] Flutter (Channel unknown, v1.7.8+hotfix.4, on Microsoft Windows [Version 10.0.18362.720]\r\n[√] Android toolchain - develop for Android devices (Android SDK version 29.0.2)\r\n[√] Chrome - develop for the web\r\n[√] Visual Studio - develop for Windows (Visual Studio Professional 2019 16.3.9)\r\n[√] Android Studio (version 3.5)\r\n[√] VS Code (version 1.43.1)\r\n[√] Connected device (2 available)\r\n\r\n> • No issues found!`",
+    "createdAt": "2020-03-22T23:42:23Z"
+  },
+  {
+    "id": 7879,
+    "sender": "BabkenM",
+    "content": "I have almost the same problem on channel master v1.16.3. In my case the app crashes due to infinite warnings \"getExtractedText on inactive InputConnection\" after a one tap or couple of taps on the TextField. Even if Im not closing the keyboard programmatically. I think I tried everything but can't get it work.",
+    "createdAt": "2020-03-31T09:07:40Z"
+  },
+  {
+    "id": 7880,
+    "sender": "BabkenM",
+    "content": "Just tried new update from channel master, v1.16.4-pre.34. \r\n\r\n`Starting input: tba=com.ekey.resta ic=io.flutter.plugin.editing.InputConnectionAdaptor@d7bb8a2 mNaviBarColor -16777216 mIsGetNaviBarColorSuccess true , NavVisible : true , NavTrans : false\r\nD/InputMethodManager( 5669): startInputInner - Id : 0\r\nI/InputMethodManager( 5669): startInputInner - mService.startInputOrWindowGainedFocus\r\nD/InputTransport( 5669): Input channel constructed: fd=99\r\nD/InputTransport( 5669): Input channel destroyed: fd=102\r\nD/InputMethodManager( 5669): prepareNavigationBarInfo() DecorView@318d93[MainActivity]\r\nD/InputMethodManager( 5669): getNavigationBarColor() -16777216\r\nV/InputMethodManager( 5669): Starting input: tba=com.ekey.resta ic=io.flutter.plugin.editing.InputConnectionAdaptor@33044f0 mNaviBarColor -16777216 mIsGetNaviBarColorSuccess true , NavVisible : true , NavTrans : false\r\nD/InputMethodManager( 5669): startInputInner - Id : 0\r\nI/InputMethodManager( 5669): startInputInner - mService.startInputOrWindowGainedFocus\r\nD/InputTransport( 5669): Input channel constructed: fd=102\r\nD/InputTransport( 5669): Input channel destroyed: fd=99\r\nD/InputMethodManager( 5669): prepareNavigationBarInfo() DecorView@318d93[MainActivity]\r\nD/InputMethodManager( 5669): getNavigationBarColor() -16777216\r\nV/InputMethodManager( 5669): Starting input: tba=com.ekey.resta ic=io.flutter.plugin.editing.InputConnectionAdaptor@c00bcee mNaviBarColor -16777216 mIsGetNaviBarColorSuccess true , NavVisible : true , NavTrans : false\r\nD/InputMethodManager( 5669): startInputInner - Id : 0\r\nI/InputMethodManager( 5669): startInputInner - mService.startInputOrWindowGainedFocus\r\nD/InputTransport( 5669): Input channel constructed: fd=99\r\nD/InputTransport( 5669): Input channel destroyed: fd=102\r\nD/InputMethodManager( 5669): prepareNavigationBarInfo() DecorView@318d93[MainActivity]\r\nD/InputMethodManager( 5669): getNavigationBarColor() -16777216`\r\n\r\nGood news , changing focus between TextFields is working as expected, but when Im taping the TextField twice it's gives infinite logs  and of course app is crashed. ",
+    "createdAt": "2020-03-31T09:41:36Z"
+  },
+  {
+    "id": 7881,
+    "sender": "thibaultrousset",
+    "content": "> Just tried new update from channel master, v1.16.4-pre.34.\r\n> \r\n> `Starting input: tba=com.ekey.resta ic=io.flutter.plugin.editing.InputConnectionAdaptor@d7bb8a2 mNaviBarColor -16777216 mIsGetNaviBarColorSuccess true , NavVisible : true , NavTrans : false D/InputMethodManager( 5669): startInputInner - Id : 0 I/InputMethodManager( 5669): startInputInner - mService.startInputOrWindowGainedFocus D/InputTransport( 5669): Input channel constructed: fd=99 D/InputTransport( 5669): Input channel destroyed: fd=102 D/InputMethodManager( 5669): prepareNavigationBarInfo() DecorView@318d93[MainActivity] D/InputMethodManager( 5669): getNavigationBarColor() -16777216 V/InputMethodManager( 5669): Starting input: tba=com.ekey.resta ic=io.flutter.plugin.editing.InputConnectionAdaptor@33044f0 mNaviBarColor -16777216 mIsGetNaviBarColorSuccess true , NavVisible : true , NavTrans : false D/InputMethodManager( 5669): startInputInner - Id : 0 I/InputMethodManager( 5669): startInputInner - mService.startInputOrWindowGainedFocus D/InputTransport( 5669): Input channel constructed: fd=102 D/InputTransport( 5669): Input channel destroyed: fd=99 D/InputMethodManager( 5669): prepareNavigationBarInfo() DecorView@318d93[MainActivity] D/InputMethodManager( 5669): getNavigationBarColor() -16777216 V/InputMethodManager( 5669): Starting input: tba=com.ekey.resta ic=io.flutter.plugin.editing.InputConnectionAdaptor@c00bcee mNaviBarColor -16777216 mIsGetNaviBarColorSuccess true , NavVisible : true , NavTrans : false D/InputMethodManager( 5669): startInputInner - Id : 0 I/InputMethodManager( 5669): startInputInner - mService.startInputOrWindowGainedFocus D/InputTransport( 5669): Input channel constructed: fd=99 D/InputTransport( 5669): Input channel destroyed: fd=102 D/InputMethodManager( 5669): prepareNavigationBarInfo() DecorView@318d93[MainActivity] D/InputMethodManager( 5669): getNavigationBarColor() -16777216`\r\n> \r\n> Good news , changing focus between TextFields is working as expected, but when Im taping the TextField twice it's gives infinite logs and of course app is crashed.\r\n\r\nSame here ",
+    "createdAt": "2020-04-08T08:55:48Z"
+  },
+  {
+    "id": 7882,
+    "sender": "BabkenM",
+    "content": "Sorry for delay answer guys, Im now on channel master v1.18.1-pre.20 and everything works",
+    "createdAt": "2020-04-09T12:04:41Z"
+  },
+  {
+    "id": 7883,
+    "sender": "CrispinPowers",
+    "content": "I get a similar warning when implementing a custom SearchDelegate.\r\n\r\nThis is my config:\r\n```\r\n[√] Flutter (Channel stable, v1.12.13+hotfix.9, on Microsoft Windows [Version 10.0.18363.720], locale de-DE)\r\n    • Flutter version 1.12.13+hotfix.9 at C:\\src\\flutter\r\n    • Framework revision f139b11009 (2 weeks ago), 2020-03-30 13:57:30 -0700\r\n    • Engine revision af51afceb8\r\n    • Dart version 2.7.2\r\n[√] Android toolchain - develop for Android devices (Android SDK version 28.0.3)\r\n    • Android SDK at C:\\Users\\tgrah\\AppData\\Local\\Android\\sdk\r\n    • Android NDK location not configured (optional; useful for native profiling support)\r\n    • Platform android-28, build-tools 28.0.3\r\n    • Java binary at: C:\\Program Files\\Android\\Android Studio\\jre\\bin\\java\r\n    • Java version OpenJDK Runtime Environment (build 1.8.0_212-release-1586-b04)\r\n    • All Android licenses accepted.\r\n[!] Android Studio (version 3.6)\r\n    • Android Studio at C:\\Program Files\\Android\\Android Studio\r\n    X Flutter plugin not installed; this adds Flutter specific functionality.\r\n    X Dart plugin not installed; this adds Dart specific functionality.\r\n    • Java version OpenJDK Runtime Environment (build 1.8.0_212-release-1586-b04)\r\n[√] VS Code (version 1.41.1)\r\n    • VS Code at C:\\Users\\tgrah\\AppData\\Local\\Programs\\Microsoft VS Code\r\n    • Flutter extension version 3.8.1\r\n[√] Connected device (1 available)\r\n    • Android SDK built for x86 • emulator-5554 • android-x86 • Android 10 (API 29) (emulator)\r\n```\r\n\r\nThese are the warnings I get when the TextField (searchField) gets focus:\r\n\r\n```\r\nW/IInputConnectionWrapper(31570): getTextBeforeCursor on inactive InputConnection\r\nW/IInputConnectionWrapper(31570): getSelectedText on inactive InputConnection\r\nW/IInputConnectionWrapper(31570): getTextAfterCursor on inactive InputConnection\r\nW/IInputConnectionWrapper(31570): beginBatchEdit on inactive InputConnection\r\nW/IInputConnectionWrapper(31570): endBatchEdit on inactive InputConnection\r\n```",
+    "createdAt": "2020-04-13T14:23:43Z"
+  },
+  {
+    "id": 7884,
+    "sender": "oguzhanbahadir",
+    "content": "I get same problem too, i dont know what should i do\r\n\r\n`W/IInputConnectionWrapper( 2018): getTextBeforeCursor on inactive InputConnection\r\nW/IInputConnectionWrapper( 2018): getTextBeforeCursor on inactive InputConnection`",
+    "createdAt": "2020-04-28T21:52:19Z"
+  },
+  {
+    "id": 7885,
+    "sender": "allenymt",
+    "content": "I am having the same problem on 1.12.13+hotfix8 on multiple TextFormFields ， Android 10",
+    "createdAt": "2020-05-07T06:17:55Z"
+  },
+  {
+    "id": 7886,
+    "sender": "bgoncharuck",
+    "content": "I have same problem, will link my app issue to here.",
+    "createdAt": "2020-05-07T18:14:58Z"
+  },
+  {
+    "id": 7887,
+    "sender": "guccisekspir",
+    "content": "I have some problem in Android. iOS works perfectly but android dont.... Please fix this.",
+    "createdAt": "2020-05-08T13:27:49Z"
+  },
+  {
+    "id": 7888,
+    "sender": "oliverbytes",
+    "content": "I'm getting the same bug and logs. Can't remember anymore which beta version I was using that worked",
+    "createdAt": "2020-05-10T10:56:44Z"
+  },
+  {
+    "id": 7889,
+    "sender": "TahaTesser",
+    "content": "```\r\nW/IInputConnectionWrapper( 7660): getTextBeforeCursor on inactive InputConnection\r\nW/IInputConnectionWrapper( 7660): getSelectedText on inactive InputConnection\r\nW/IInputConnectionWrapper( 7660): getTextAfterCursor on inactive InputConnection\r\nW/IInputConnectionWrapper( 7660): beginBatchEdit on inactive InputConnection\r\nW/IInputConnectionWrapper( 7660): endBatchEdit on inactive InputConnection\r\n```\r\n\r\n<details> \r\n<summary>flutter doctor -v</summary> \r\n\r\n``` \r\n[✓] Flutter (Channel stable, v1.17.1, on Mac OS X 10.15.4 19E287, locale en-GB)\r\n    • Flutter version 1.17.1 at /Users/tahatesser/Code/flutter_stable\r\n    • Framework revision f7a6a7906b (13 days ago), 2020-05-12 18:39:00 -0700\r\n    • Engine revision 6bc433c6b6\r\n    • Dart version 2.8.2\r\n\r\n \r\n[✓] Android toolchain - develop for Android devices (Android SDK version 29.0.3)\r\n    • Android SDK at /Users/tahatesser/Code/SDK\r\n    • Platform android-29, build-tools 29.0.3\r\n    • ANDROID_HOME = /Users/tahatesser/Code/SDK\r\n    • Java binary at: /Applications/Android\r\n      Studio.app/Contents/jre/jdk/Contents/Home/bin/java\r\n    • Java version OpenJDK Runtime Environment (build\r\n      1.8.0_212-release-1586-b4-5784211)\r\n    • All Android licenses accepted.\r\n\r\n[✓] Xcode - develop for iOS and macOS (Xcode 11.5)\r\n    • Xcode at /Applications/Xcode.app/Contents/Developer\r\n    • Xcode 11.5, Build version 11E608c\r\n    • CocoaPods version 1.9.1\r\n\r\n[✓] Android Studio (version 3.6)\r\n    • Android Studio at /Applications/Android Studio.app/Contents\r\n    • Flutter plugin version 45.1.1\r\n    • Dart plugin version 192.8052\r\n    • Java version OpenJDK Runtime Environment (build\r\n      1.8.0_212-release-1586-b4-5784211)\r\n\r\n[✓] VS Code (version 1.45.1)\r\n    • VS Code at /Applications/Visual Studio Code.app/Contents\r\n    • Flutter extension version 3.10.2\r\n\r\n[✓] Connected device (1 available)\r\n    • SM M305F • 32003c30dc19668f • android-arm64 • Android 10 (API 29)\r\n\r\n• No issues found!\r\n\r\n``` \r\n\r\n</details> ",
+    "createdAt": "2020-05-27T11:20:36Z"
+  },
+  {
+    "id": 7890,
+    "sender": "Aljabri-Salman",
+    "content": "Hello guys. This issue is causing a lot of problems for me. my users are unable to find search results due to the double character when typing space. When you type space in the textfield it is typed twice and effects the search results!. after that the user is not able to delete character. aand the shown error is \r\n`SPAN_EXCLUSIVE_EXCLUSIVE spans cannot have a zero length`\r\n\r\nIs there any temporary work around? It used to work fine in 1.12 version",
+    "createdAt": "2020-05-30T00:14:03Z"
+  },
+  {
+    "id": 7891,
+    "sender": "HansMuller",
+    "content": "@Aljabri-Salman - what you're describing sounds like a regression that's unrelated to this issue. Please create a new issue with a test case that demonstrates the problem and we'll look into it.\r\n",
+    "createdAt": "2020-05-30T00:16:54Z"
+  },
+  {
+    "id": 7892,
+    "sender": "Aljabri-Salman",
+    "content": "@HansMuller  This is the issue. It was closed. and referenced above due to dublicate:\r\n[56514](https://github.com/flutter/flutter/issues/56514) ",
+    "createdAt": "2020-05-30T00:24:11Z"
+  },
+  {
+    "id": 7893,
+    "sender": "HansMuller",
+    "content": "@Aljabri-Salman I've reopened #56514",
+    "createdAt": "2020-05-30T01:31:15Z"
+  },
+  {
+    "id": 7894,
+    "sender": "HansMuller",
+    "content": "I've removed the regression label because, after over 3 years, it really (really) doesn't apply anymore.",
+    "createdAt": "2020-06-25T18:21:56Z"
+  },
+  {
+    "id": 7895,
+    "sender": "Murtazak6",
+    "content": "I m facing the same problem. Is there any way to solve this??\r\n\r\nI have tried to clear the controller. But Still, the warning occurs.\r\nFlutter Version 1.19.0\r\n\r\nW/IInputConnectionWrapper(11500): getSelectedText on inactive InputConnection\r\nW/IInputConnectionWrapper(11500): getTextAfterCursor on inactive InputConnection\r\nW/IInputConnectionWrapper(11500): beginBatchEdit on inactive InputConnection\r\nW/IInputConnectionWrapper(11500): endBatchEdit on inactive InputConnection\r\n",
+    "createdAt": "2020-06-27T04:54:20Z"
+  },
+  {
+    "id": 7896,
+    "sender": "baskar007",
+    "content": "Same issue....\r\n\r\n\r\nW/IInputConnectionWrapper(22959): getTextBeforeCursor on inactive InputConnection\r\nW/IInputConnectionWrapper(22959): getSelectedText on inactive InputConnection\r\nW/IInputConnectionWrapper(22959): getTextAfterCursor on inactive InputConnection\r\nW/IInputConnectionWrapper(22959): beginBatchEdit on inactive InputConnection\r\nW/IInputConnectionWrapper(22959): endBatchEdit on inactive InputConnection\r\n\r\n\r\n[✓] Flutter (Channel beta, 1.19.0-4.2.pre, on Mac OS X 10.15.5 19F101, locale en-IN)\r\n    • Flutter version 1.19.0-4.2.pre at /Users/baskar/Projects/flutter-sdk/flutter\r\n    • Framework revision 9b9b543d92 (5 days ago), 2020-06-22 12:19:28 -0700\r\n    • Engine revision 9a28c3bcf4\r\n    • Dart version 2.9.0 (build 2.9.0-14.1.beta)\r\n\r\n[✓] Android toolchain - develop for Android devices (Android SDK version 29.0.3)\r\n    • Android SDK at /Users/baskar/Library/Android/sdk\r\n    • Platform android-29, build-tools 29.0.3\r\n    • Java binary at: /Applications/Android Studio.app/Contents/jre/jdk/Contents/Home/bin/java\r\n    • Java version OpenJDK Runtime Environment (build 1.8.0_242-release-1644-b3-6222593)\r\n    • All Android licenses accepted.\r\n\r\n[!] Xcode - develop for iOS and macOS (Xcode 11.5)\r\n    • Xcode at /Applications/Xcode.app/Contents/Developer\r\n    • Xcode 11.5, Build version 11E608c\r\n    ✗ CocoaPods installed but not working.\r\n        You appear to have CocoaPods installed but it is not working.\r\n        This can happen if the version of Ruby that CocoaPods was installed with is different from the one being used to invoke it.\r\n        This can usually be fixed by re-installing CocoaPods. For more info, see https://github.com/flutter/flutter/issues/14293.\r\n      To re-install CocoaPods, run:\r\n        sudo gem install cocoapods\r\n\r\n[✓] Android Studio (version 4.0)\r\n    • Android Studio at /Applications/Android Studio.app/Contents\r\n    • Flutter plugin version 46.0.2\r\n    • Dart plugin version 193.7361\r\n    • Java version OpenJDK Runtime Environment (build 1.8.0_242-release-1644-b3-6222593)\r\n\r\n[✓] VS Code (version 1.46.0)\r\n    • VS Code at /Applications/Visual Studio Code.app/Contents\r\n    • Flutter extension version 3.11.0\r\n\r\n! Doctor found issues in 1 category.\r\nProcess finished with exit code 0",
+    "createdAt": "2020-06-27T10:34:55Z"
+  },
+  {
+    "id": 7897,
+    "sender": "baskar007",
+    "content": "Okay, I have solved this issue. \r\n\r\nin my case, by mistake I had... \r\n\r\n`final _scaffoldKey = GlobalKey<ScaffoldState>(); ` **inside build method.**\r\n\r\nonce I moved out from build to class property, Things were good!\r\n\r\nHope this may help some one.\r\n\r\n> Same issue....\r\n> \r\n> W/IInputConnectionWrapper(22959): getTextBeforeCursor on inactive InputConnection\r\n> W/IInputConnectionWrapper(22959): getSelectedText on inactive InputConnection\r\n> W/IInputConnectionWrapper(22959): getTextAfterCursor on inactive InputConnection\r\n> W/IInputConnectionWrapper(22959): beginBatchEdit on inactive InputConnection\r\n> W/IInputConnectionWrapper(22959): endBatchEdit on inactive InputConnection\r\n> \r\n> [✓] Flutter (Channel beta, 1.19.0-4.2.pre, on Mac OS X 10.15.5 19F101, locale en-IN)\r\n> • Flutter version 1.19.0-4.2.pre at /Users/baskar/Projects/flutter-sdk/flutter\r\n> • Framework revision [9b9b543](https://github.com/flutter/flutter/commit/9b9b543d9265484132c798adaab6caca52055b08) (5 days ago), 2020-06-22 12:19:28 -0700\r\n> • Engine revision 9a28c3bcf4\r\n> • Dart version 2.9.0 (build 2.9.0-14.1.beta)\r\n> \r\n> [✓] Android toolchain - develop for Android devices (Android SDK version 29.0.3)\r\n> • Android SDK at /Users/baskar/Library/Android/sdk\r\n> • Platform android-29, build-tools 29.0.3\r\n> • Java binary at: /Applications/Android Studio.app/Contents/jre/jdk/Contents/Home/bin/java\r\n> • Java version OpenJDK Runtime Environment (build 1.8.0_242-release-1644-b3-6222593)\r\n> • All Android licenses accepted.\r\n> \r\n> [!] Xcode - develop for iOS and macOS (Xcode 11.5)\r\n> • Xcode at /Applications/Xcode.app/Contents/Developer\r\n> • Xcode 11.5, Build version 11E608c\r\n> ✗ CocoaPods installed but not working.\r\n> You appear to have CocoaPods installed but it is not working.\r\n> This can happen if the version of Ruby that CocoaPods was installed with is different from the one being used to invoke it.\r\n> This can usually be fixed by re-installing CocoaPods. For more info, see #14293.\r\n> To re-install CocoaPods, run:\r\n> sudo gem install cocoapods\r\n> \r\n> [✓] Android Studio (version 4.0)\r\n> • Android Studio at /Applications/Android Studio.app/Contents\r\n> • Flutter plugin version 46.0.2\r\n> • Dart plugin version 193.7361\r\n> • Java version OpenJDK Runtime Environment (build 1.8.0_242-release-1644-b3-6222593)\r\n> \r\n> [✓] VS Code (version 1.46.0)\r\n> • VS Code at /Applications/Visual Studio Code.app/Contents\r\n> • Flutter extension version 3.11.0\r\n> \r\n> ! Doctor found issues in 1 category.\r\n> Process finished with exit code 0\r\n\r\n",
+    "createdAt": "2020-06-27T11:22:18Z"
+  },
+  {
+    "id": 7898,
+    "sender": "zigang93",
+    "content": "@\r\n\r\n> Okay, I have solved this issue.\r\n> \r\n> in my case, by mistake I had...\r\n> \r\n> `final _scaffoldKey = GlobalKey<ScaffoldState>(); ` **inside build method.**\r\n> \r\n> once I moved out from build to class property, Things were good!\r\n> \r\n> Hope this may help some one.\r\n> \r\n> > Same issue....\r\n> > W/IInputConnectionWrapper(22959): getTextBeforeCursor on inactive InputConnection\r\n> > W/IInputConnectionWrapper(22959): getSelectedText on inactive InputConnection\r\n> > W/IInputConnectionWrapper(22959): getTextAfterCursor on inactive InputConnection\r\n> > W/IInputConnectionWrapper(22959): beginBatchEdit on inactive InputConnection\r\n> > W/IInputConnectionWrapper(22959): endBatchEdit on inactive InputConnection\r\n> > [✓] Flutter (Channel beta, 1.19.0-4.2.pre, on Mac OS X 10.15.5 19F101, locale en-IN)\r\n> > • Flutter version 1.19.0-4.2.pre at /Users/baskar/Projects/flutter-sdk/flutter\r\n> > • Framework revision [9b9b543](https://github.com/flutter/flutter/commit/9b9b543d9265484132c798adaab6caca52055b08) (5 days ago), 2020-06-22 12:19:28 -0700\r\n> > • Engine revision 9a28c3bcf4\r\n> > • Dart version 2.9.0 (build 2.9.0-14.1.beta)\r\n> > [✓] Android toolchain - develop for Android devices (Android SDK version 29.0.3)\r\n> > • Android SDK at /Users/baskar/Library/Android/sdk\r\n> > • Platform android-29, build-tools 29.0.3\r\n> > • Java binary at: /Applications/Android Studio.app/Contents/jre/jdk/Contents/Home/bin/java\r\n> > • Java version OpenJDK Runtime Environment (build 1.8.0_242-release-1644-b3-6222593)\r\n> > • All Android licenses accepted.\r\n> > [!] Xcode - develop for iOS and macOS (Xcode 11.5)\r\n> > • Xcode at /Applications/Xcode.app/Contents/Developer\r\n> > • Xcode 11.5, Build version 11E608c\r\n> > ✗ CocoaPods installed but not working.\r\n> > You appear to have CocoaPods installed but it is not working.\r\n> > This can happen if the version of Ruby that CocoaPods was installed with is different from the one being used to invoke it.\r\n> > This can usually be fixed by re-installing CocoaPods. For more info, see #14293.\r\n> > To re-install CocoaPods, run:\r\n> > sudo gem install cocoapods\r\n> > [✓] Android Studio (version 4.0)\r\n> > • Android Studio at /Applications/Android Studio.app/Contents\r\n> > • Flutter plugin version 46.0.2\r\n> > • Dart plugin version 193.7361\r\n> > • Java version OpenJDK Runtime Environment (build 1.8.0_242-release-1644-b3-6222593)\r\n> > [✓] VS Code (version 1.46.0)\r\n> > • VS Code at /Applications/Visual Studio Code.app/Contents\r\n> > • Flutter extension version 3.11.0\r\n> > ! Doctor found issues in 1 category.\r\n> > Process finished with exit code 0\r\n\r\nNah.. this is not the solution. ",
+    "createdAt": "2020-07-06T02:38:47Z"
+  },
+  {
+    "id": 7899,
+    "sender": "A7medMaher",
+    "content": "Same issue on Flutter (Channel stable, v1.17.5, on Microsoft Windows [Version 10.0.18363.959], locale en-US)",
+    "createdAt": "2020-07-23T21:33:34Z"
+  },
+  {
+    "id": 7900,
+    "sender": "vapaternina",
+    "content": "Same issue (Channel stable, v1.20, on Microsoft Windows 10)",
+    "createdAt": "2020-08-07T19:49:48Z"
+  },
+  {
+    "id": 7901,
+    "sender": "ComplexCarbos",
+    "content": "Same issue  (Channel stable, 1.20.1, on Linux, locale en_US.UTF-8)\r\n\r\nVery easy to reproduce from the [TextField class sample code](https://api.flutter.dev/flutter/material/TextField-class.html). Run the sample and simply click the TextField. The Debug console immediately prints:\r\n\r\n```\r\nW/IInputConnectionWrapper(11942): getTextBeforeCursor on inactive InputConnection\r\nW/IInputConnectionWrapper(11942): getSelectedText on inactive InputConnection\r\nW/IInputConnectionWrapper(11942): getTextAfterCursor on inactive InputConnection\r\nW/IInputConnectionWrapper(11942): beginBatchEdit on inactive InputConnection\r\nW/IInputConnectionWrapper(11942): endBatchEdit on inactive InputConnection\r\n```",
+    "createdAt": "2020-08-07T22:48:12Z"
+  },
+  {
+    "id": 7902,
+    "sender": "petermusembi69",
+    "content": "Am also getting this error from a form in showDialog widget. After popping the Showdialog the previous screen loads with the wrong data.\r\n```\r\nW/IInputConnectionWrapper(20652): getTextBeforeCursor on inactive InputConnection\r\nW/IInputConnectionWrapper(20652): requestCursorAnchorInfo on inactive InputConnection\r\nW/IInputConnectionWrapper(20652): getTextBeforeCursor on inactive InputConnection\r\nW/IInputConnectionWrapper(20652): getTextBeforeCursor on inactive InputConnection\r\n```\r\n\r\n",
+    "createdAt": "2020-08-25T08:43:19Z"
+  },
+  {
+    "id": 7903,
+    "sender": "bikashKatwal",
+    "content": "W/IInputConnectionWrapper(26584): getSelectedText on inactive InputConnection\r\nW/IInputConnectionWrapper(26584): requestCursorAnchorInfo on inactive InputConnection\r\nW/IInputConnectionWrapper(26584): getTextBeforeCursor on inactive InputConnection\r\nI/flutter (26584): \r\nW/IInputConnectionWrapper(26584): getTextBeforeCursor on inactive InputConnection\r\nI/flutter (26584): \r\n\r\nThe  issue still persists in [√] Flutter (Channel stable, 1.20.2, on Microsoft Windows [Version 10.0.18363.1016], locale en-AU)\r\n",
+    "createdAt": "2020-09-05T12:33:29Z"
+  },
+  {
+    "id": 7904,
+    "sender": "moda20",
+    "content": "> Okay, I have solved this issue.\r\n> \r\n> in my case, by mistake I had...\r\n> \r\n> `final _scaffoldKey = GlobalKey<ScaffoldState>(); ` **inside build method.**\r\n> \r\n> once I moved out from build to class property, Things were good!\r\n> \r\n> Hope this may help some one.\r\n> \r\n> > Same issue....\r\n> > W/IInputConnectionWrapper(22959): getTextBeforeCursor on inactive InputConnection\r\n> > W/IInputConnectionWrapper(22959): getSelectedText on inactive InputConnection\r\n> > W/IInputConnectionWrapper(22959): getTextAfterCursor on inactive InputConnection\r\n> > W/IInputConnectionWrapper(22959): beginBatchEdit on inactive InputConnection\r\n> > W/IInputConnectionWrapper(22959): endBatchEdit on inactive InputConnection\r\n> > [✓] Flutter (Channel beta, 1.19.0-4.2.pre, on Mac OS X 10.15.5 19F101, locale en-IN)\r\n> > • Flutter version 1.19.0-4.2.pre at /Users/baskar/Projects/flutter-sdk/flutter\r\n> > • Framework revision [9b9b543](https://github.com/flutter/flutter/commit/9b9b543d9265484132c798adaab6caca52055b08) (5 days ago), 2020-06-22 12:19:28 -0700\r\n> > • Engine revision 9a28c3bcf4\r\n> > • Dart version 2.9.0 (build 2.9.0-14.1.beta)\r\n> > [✓] Android toolchain - develop for Android devices (Android SDK version 29.0.3)\r\n> > • Android SDK at /Users/baskar/Library/Android/sdk\r\n> > • Platform android-29, build-tools 29.0.3\r\n> > • Java binary at: /Applications/Android Studio.app/Contents/jre/jdk/Contents/Home/bin/java\r\n> > • Java version OpenJDK Runtime Environment (build 1.8.0_242-release-1644-b3-6222593)\r\n> > • All Android licenses accepted.\r\n> > [!] Xcode - develop for iOS and macOS (Xcode 11.5)\r\n> > • Xcode at /Applications/Xcode.app/Contents/Developer\r\n> > • Xcode 11.5, Build version 11E608c\r\n> > ✗ CocoaPods installed but not working.\r\n> > You appear to have CocoaPods installed but it is not working.\r\n> > This can happen if the version of Ruby that CocoaPods was installed with is different from the one being used to invoke it.\r\n> > This can usually be fixed by re-installing CocoaPods. For more info, see #14293.\r\n> > To re-install CocoaPods, run:\r\n> > sudo gem install cocoapods\r\n> > [✓] Android Studio (version 4.0)\r\n> > • Android Studio at /Applications/Android Studio.app/Contents\r\n> > • Flutter plugin version 46.0.2\r\n> > • Dart plugin version 193.7361\r\n> > • Java version OpenJDK Runtime Environment (build 1.8.0_242-release-1644-b3-6222593)\r\n> > [✓] VS Code (version 1.46.0)\r\n> > • VS Code at /Applications/Visual Studio Code.app/Contents\r\n> > • Flutter extension version 3.11.0\r\n> > ! Doctor found issues in 1 category.\r\n> > Process finished with exit code 0\r\n\r\nThanks a lot, mate. This worked for me.",
+    "createdAt": "2020-09-15T18:01:59Z"
+  },
+  {
+    "id": 7905,
+    "sender": "bikashKatwal",
+    "content": "  _searchTextFieldController.clear(); fixed the issue.\r\nIn my case, I had a text field to search with a close button on the suffix. So clicking the suffix was creating this issue, because I was trying to clear the text field by    _searchTextFieldController.text='', Now, instead I replaced the code with _searchTextFieldController.clear(); which fixed my issue.",
+    "createdAt": "2020-09-16T10:34:20Z"
+  },
+  {
+    "id": 7906,
+    "sender": "cverond",
+    "content": "I have very same problem when screen goes off.",
+    "createdAt": "2020-09-16T18:39:12Z"
+  },
+  {
+    "id": 7907,
+    "sender": "HamzaAyada",
+    "content": "My problem is that when I put a form for example directly in the ```main.dart``` it works correctly\r\nbut when I use the routers to navigate from page to another I cannot use the ```TextFormFields```\r\n\r\n```flutter doctor -v```\r\n\r\n```console\r\n[√] Flutter (Channel stable, 1.20.4, on Microsoft Windows [version 10.0.19041.508], locale fr-FR)\r\n    • Flutter version 1.20.4 at C:\\flutter\r\n    • Framework revision fba99f6cf9 (6 days ago), 2020-09-14 15:32:52 -0700\r\n    • Engine revision d1bc06f032\r\n    • Dart version 2.9.2\r\n\r\n\r\n[√] Android toolchain - develop for Android devices (Android SDK version 30.0.0)\r\n    • Android SDK at C:\\Users\\HAMZA TEK'NOLOGY IT\\AppData\\Local\\Android\\sdk\r\n    • Platform android-30, build-tools 30.0.0\r\n    • Java binary at: C:\\Program Files\\Android\\Android Studio\\jre\\bin\\java\r\n    • Java version OpenJDK Runtime Environment (build 1.8.0_242-release-1644-b01)\r\n    • All Android licenses accepted.\r\n\r\n[√] Android Studio (version 4.0)\r\n    • Android Studio at C:\\Program Files\\Android\\Android Studio\r\n    • Flutter plugin version 47.1.2\r\n    • Dart plugin version 193.7361\r\n    • Java version OpenJDK Runtime Environment (build 1.8.0_242-release-1644-b01)\r\n\r\n[√] IntelliJ IDEA Ultimate Edition (version 2019.2)\r\n    • IntelliJ at C:\\Program Files\\JetBrains\\IntelliJ IDEA 2019.2.3\r\n    • Flutter plugin version 43.0.2\r\n    • Dart plugin version 192.8052\r\n\r\n[√] VS Code (version 1.47.3)\r\n    • VS Code at C:\\Users\\HAMZA TEK'NOLOGY IT\\AppData\\Local\\Programs\\Microsoft VS Code\r\n    • Flutter extension version 3.13.1\r\n\r\n[√] Connected device (1 available)\r\n    • JAT L29 (mobile) • 9EHNW20303000604 • android-arm • Android 9 (API 28)\r\n\r\n• No issues found!\r\n\r\n```\r\n\r\n- main.dart (the TextFormField Work)\r\n```dart\r\nvoid main() => runApp(MyApp());\r\n\r\nclass MyApp extends StatelessWidget {\r\n  @override\r\n  Widget build(BuildContext context) {\r\n    SystemChrome.setPreferredOrientations([\r\n      DeviceOrientation.portraitUp,\r\n    ]);\r\n    return MaterialApp(\r\n      title: 'YourCab Client',\r\n      debugShowCheckedModeBanner: false,\r\n      home: RegisterPage(),\r\n      // ignore: missing_return\r\n\r\n    );\r\n  }\r\n}\r\n```\r\n\r\n- main.dart (the TextFormField dosn't Work)\r\n``` dart\r\nimport 'package:flutter/material.dart';\r\nimport 'package:flutter/services.dart';\r\nimport 'package:yourcab_client/routes/routes.dart';\r\nimport 'package:yourcab_client/ui/register.dart';\r\n\r\n\r\nvoid main() => runApp(MyApp());\r\n\r\nclass MyApp extends StatelessWidget {\r\n  @override\r\n  Widget build(BuildContext context) {\r\n    SystemChrome.setPreferredOrientations([\r\n      DeviceOrientation.portraitUp,\r\n    ]);\r\n    return MaterialApp(\r\n      title: 'YourCab Client',\r\n      debugShowCheckedModeBanner: false,\r\n      routes: routes,\r\n      // ignore: missing_return\r\n\r\n    );\r\n  }\r\n}\r\n```\r\n\r\n- routes.dart\r\n```dart\r\n\r\nimport 'package:flutter/cupertino.dart';\r\nimport 'package:yourcab_client/ui/about.dart';\r\nimport 'package:yourcab_client/ui/historique.dart';\r\nimport 'package:yourcab_client/ui/home.dart';\r\nimport 'package:yourcab_client/ui/login.dart';\r\nimport 'package:yourcab_client/ui/packs.dart';\r\nimport 'package:yourcab_client/ui/promotion.dart';\r\nimport 'package:yourcab_client/ui/register.dart';\r\nimport 'package:yourcab_client/ui/resetePassword.dart';\r\nimport 'package:yourcab_client/ui/setting.dart';\r\nimport 'package:yourcab_client/ui/splashScreen.dart';\r\nimport 'package:yourcab_client/ui/support.dart';\r\n\r\n\r\nfinal routes = {\r\n  '/register': (BuildContext context) => RegisterPage(),\r\n};\r\n```\r\n\r\n- Form\r\n\r\n```dart\r\nclass RegisterPage extends StatefulWidget {\r\n  @override\r\n  _RegisterPageState createState() => _RegisterPageState();\r\n}\r\n\r\nclass _RegisterPageState extends State<RegisterPage> {\r\n  final _formRegisterKey = GlobalKey<FormState>();\r\n  String _firstName, _lastName, _email, _telephone, _sexe, _password = \"\";\r\n  @override\r\n  Widget build(BuildContext context) {\r\n    SizeConfig().init(context);\r\n    return Scaffold(\r\n      body: Container(\r\n        height: SizeConfig.safeBlockVertical * 110,\r\n        width: SizeConfig.safeBlockVertical * 100,\r\n        child: ListView(\r\n          padding: EdgeInsets.only(left: 20, right: 20),\r\n          children: [\r\n            Container(\r\n              height: SizeConfig.safeBlockVertical * 15, //10 for example\r\n              width: SizeConfig.safeBlockHorizontal * 20,\r\n              margin: EdgeInsets.fromLTRB(50, 5, 50, 5),\r\n              child: Image(\r\n                alignment: Alignment.bottomCenter,\r\n                image: AssetImage('assets/logo_bleu.png'),\r\n              ),\r\n            ),\r\n            Form(\r\n                key: _formRegisterKey,\r\n                child: Column(\r\n                  crossAxisAlignment: CrossAxisAlignment.start,\r\n                  children: [\r\n                    Text(\r\n                      'Nom',\r\n                      style: TextStyle(\r\n                        textBaseline: TextBaseline.alphabetic,\r\n                        fontWeight: FontWeight.w500,\r\n                        fontSize: 20,\r\n                        color: const Color(0xff454545),\r\n                      ),\r\n                      textAlign: TextAlign.start,\r\n                    ),\r\n                    SizedBox(\r\n                      height: SizeConfig.blockSizeVertical * 1,\r\n                    ),\r\n                    TextFormField(\r\n                      textInputAction: TextInputAction.next,\r\n                      keyboardType: TextInputType.text,\r\n                      onSaved: (login) => _firstName = login,\r\n                      validator: (value) =>\r\n                      value.isEmpty ? \"Nom est obligatoire!\" : null,\r\n                      decoration: InputDecoration(\r\n                        errorStyle: TextStyle(\r\n                          color: Colors.red,\r\n                          wordSpacing: 5.0,\r\n                        ),\r\n                        hintText: 'Nom',\r\n                        border: OutlineInputBorder(\r\n                          borderRadius: BorderRadius.circular(20),\r\n                        ),\r\n                        counter: Text(''),\r\n                      ),\r\n                      style: TextStyle(\r\n                        fontSize: 20,\r\n                        color: const Color(0xff454545),\r\n                      ),\r\n                    ),\r\n                    Text(\r\n                      'Prènom',\r\n                      style: TextStyle(\r\n                        textBaseline: TextBaseline.alphabetic,\r\n                        fontWeight: FontWeight.w500,\r\n                        fontSize: 20,\r\n                        color: const Color(0xff454545),\r\n                      ),\r\n                      textAlign: TextAlign.start,\r\n                    ),\r\n                    SizedBox(\r\n                      height: SizeConfig.blockSizeVertical * 1,\r\n                    ),\r\n                    TextFormField(\r\n                      textInputAction: TextInputAction.next,\r\n                      keyboardType: TextInputType.text,\r\n                      onSaved: (login) => _lastName = login,\r\n                      validator: (value) =>\r\n                      value.isEmpty ? \"Prènom est obligatoire!\" : null,\r\n                      decoration: InputDecoration(\r\n                        errorStyle: TextStyle(\r\n                          color: Colors.red,\r\n                          wordSpacing: 5.0,\r\n                        ),\r\n                        hintText: 'Prènom',\r\n                        border: OutlineInputBorder(\r\n                          borderRadius: BorderRadius.circular(20),\r\n                        ),\r\n                        counter: Text(''),\r\n                      ),\r\n                      style: TextStyle(\r\n                        fontSize: 20,\r\n                        color: const Color(0xff454545),\r\n                      ),\r\n                    ),\r\n                    Text(\r\n                      'E-mail',\r\n                      style: TextStyle(\r\n                        textBaseline: TextBaseline.alphabetic,\r\n                        fontWeight: FontWeight.w500,\r\n                        fontSize: 20,\r\n                        color: const Color(0xff454545),\r\n                      ),\r\n                      textAlign: TextAlign.start,\r\n                    ),\r\n                    SizedBox(\r\n                      height: SizeConfig.blockSizeVertical * 1,\r\n                    ),\r\n                    TextFormField(\r\n                      textInputAction: TextInputAction.next,\r\n                      keyboardType: TextInputType.emailAddress,\r\n                      onSaved: (email) => _email = email,\r\n                      validator: (value) =>\r\n                      value.isEmpty ? \"E-mail est obligatoire!\" : null,\r\n                      decoration: InputDecoration(\r\n                        errorStyle: TextStyle(\r\n                          color: Colors.red,\r\n                          wordSpacing: 5.0,\r\n                        ),\r\n                        hintText: 'nom-prénom@yourcab.fr',\r\n                        border: OutlineInputBorder(\r\n                          borderRadius: BorderRadius.circular(20),\r\n                        ),\r\n                        counter: Text(''),\r\n                      ),\r\n                      style: TextStyle(\r\n                        fontSize: 20,\r\n                        color: const Color(0xff454545),\r\n                      ),\r\n                    ),\r\n                    Text(\r\n                      'Mobile',\r\n                      style: TextStyle(\r\n                        textBaseline: TextBaseline.alphabetic,\r\n                        fontWeight: FontWeight.w500,\r\n                        fontSize: 20,\r\n                        color: const Color(0xff454545),\r\n                      ),\r\n                      textAlign: TextAlign.start,\r\n                    ),\r\n                    SizedBox(\r\n                      height: SizeConfig.blockSizeVertical * 1,\r\n                    ),\r\n                    TextFormField(\r\n                      textInputAction: TextInputAction.next,\r\n                      keyboardType: TextInputType.emailAddress,\r\n                      onSaved: (login) => _telephone = login,\r\n                      validator: (value) =>\r\n                      value.isEmpty ? \"Mobile est obligatoire!\" : null,\r\n                      decoration: InputDecoration(\r\n                        errorStyle: TextStyle(\r\n                          color: Colors.red,\r\n                          wordSpacing: 5.0,\r\n                        ),\r\n                        hintText: 'Numéro de Mobile'\r\n                            '',\r\n                        border: OutlineInputBorder(\r\n                          borderRadius: BorderRadius.circular(20),\r\n                        ),\r\n                        counter: Text(''),\r\n                      ),\r\n                      style: TextStyle(\r\n                        fontSize: 20,\r\n                        color: const Color(0xff454545),\r\n                      ),\r\n                    ),\r\n                    Text(\r\n                      'Mot de Passe',\r\n                      style: TextStyle(\r\n                        textBaseline: TextBaseline.alphabetic,\r\n                        fontWeight: FontWeight.w500,\r\n                        fontSize: 20,\r\n                        color: const Color(0xff454545),\r\n                      ),\r\n                      textAlign: TextAlign.start,\r\n                    ),\r\n                    SizedBox(\r\n                      height: SizeConfig.blockSizeVertical * 1,\r\n                    ),\r\n                    TextFormField(\r\n                      textInputAction: TextInputAction.done,\r\n                      keyboardType: TextInputType.text,\r\n                      obscureText: true,\r\n                      onSaved: (password) => _password = password,\r\n                      validator: (value) => value.isEmpty\r\n                          ? \"Mot de Passe est obligatoire!\"\r\n                          : null,\r\n                      decoration: InputDecoration(\r\n                        errorStyle: TextStyle(\r\n                          color: Colors.red,\r\n                          wordSpacing: 5.0,\r\n                        ),\r\n                        hintText: 'xxxxxxxxx',\r\n                        border: OutlineInputBorder(\r\n                          borderRadius: BorderRadius.circular(20),\r\n                        ),\r\n                        counter: Text(''),\r\n                      ),\r\n                      style: TextStyle(\r\n                        fontSize: 20,\r\n                        color: const Color(0xff454545),\r\n                      ),\r\n                    ),\r\n                    Center(\r\n                      child: RaisedButton(\r\n                        shape: RoundedRectangleBorder(\r\n                            borderRadius: BorderRadius.circular(38.0),\r\n                            side:\r\n                            BorderSide(color: const Color(0xff203B7A))),\r\n                        onPressed: () {\r\n                          MaterialPageRoute(builder: (context)=>HomePage());\r\n                          //print(_identifier);\r\n                          if (_formRegisterKey.currentState.validate()) {\r\n                            _formRegisterKey.currentState.save();\r\n                            //signIn(_login, _password);\r\n                            //saveUser(_login, _identifier);\r\n                          }\r\n                        },\r\n                        color: const Color(0xff203B7A),\r\n                        //padding: EdgeInsets.fromLTRB(135, 10, 100, 20),\r\n                        child: Image(\r\n                          height: 20,\r\n                          image: const AssetImage('assets/arrow.png'),\r\n                          fit: BoxFit.fitWidth,\r\n                        ),\r\n                      ),\r\n                    ),\r\n                  ],\r\n                ))\r\n            /*Padding(\r\n                child: ,\r\n                padding: EdgeInsets.all(10))*/\r\n          ],\r\n        ),\r\n      ),\r\n    );\r\n  }\r\n}\r\n```\r\n\r\n",
+    "createdAt": "2020-09-21T01:34:34Z"
+  },
+  {
+    "id": 7908,
+    "sender": "mrafsyam",
+    "content": "Hi, faced the same exact issue, did you resolve it?\r\n",
+    "createdAt": "2020-09-23T06:40:55Z"
+  },
+  {
+    "id": 7909,
+    "sender": "HamzaAyada",
+    "content": "@TahaTesser  any suggestion ???",
+    "createdAt": "2020-09-23T18:19:08Z"
+  },
+  {
+    "id": 7910,
+    "sender": "shinriyo",
+    "content": "Why??\r\n\r\n`1.22.0-12.0.pre`\r\nGoogle tech can't fix it?",
+    "createdAt": "2020-09-24T14:12:18Z"
+  },
+  {
+    "id": 7911,
+    "sender": "shinriyo",
+    "content": "```\r\nW/IInputConnectionWrapper( 1673): getSelectedText on inactive InputConnection\r\nW/IInputConnectionWrapper( 1673): getTextAfterCursor on inactive InputConnection\r\nW/IInputConnectionWrapper( 1673): getTextBeforeCursor on inactive InputConnection\r\nW/IInputConnectionWrapper( 1673): getSelectedText on inactive InputConnection\r\nW/IInputConnectionWrapper( 1673): getTextAfterCursor on inactive InputConnection\r\nW/IInputConnectionWrapper( 1673): getSelectedText on inactive InputConnection\r\nW/IInputConnectionWrapper( 1673): getTextAfterCursor on inactive InputConnection\r\nW/IInputConnectionWrapper( 1673): getTextBeforeCursor on inactive InputConnection\r\nW/IInputConnectionWrapper( 1673): getSelectedText on inactive InputConnection\r\nW/IInputConnectionWrapper( 1673): getTextAfterCursor on inactive InputConnection\r\nW/IInputConnectionWrapper( 1673): getTextBeforeCursor on inactive InputConnection\r\nW/IInputConnectionWrapper( 1673): getSelectedText on inactive InputConnection\r\nW/IInputConnectionWrapper( 1673): getTextAfterCursor on inactive InputConnection\r\nW/IInputConnectionWrapper( 1673): getTextBeforeCursor on inactive InputConnection\r\nW/IInputConnectionWrapper( 1673): getSelectedText on inactive InputConnection\r\nW/IInputConnectionWrapper( 1673): getTextAfterCursor on inactive InputConnection\r\nW/IInputConnectionWrapper( 1673): getTextBeforeCursor on inactive InputConnection\r\nW/IInputConnectionWrapper( 1673): getSelectedText on inactive InputConnection\r\nW/IInputConnectionWrapper( 1673): getTextAfterCursor on inactive InputConnection\r\nW/IInputConnectionWrapper( 1673): getTextBeforeCursor on inactive InputConnection\r\nW/IInputConnectionWrapper( 1673): getSelectedText on inactive InputConnection\r\nW/IInputConnectionWrapper( 1673): getTextAfterCursor on inactive InputConnection\r\nW/IInputConnectionWrapper( 1673): getSelectedText on inactive InputConnection\r\nW/IInputConnectionWrapper( 1673): getTextAfterCursor on inactive InputConnection\r\n```",
+    "createdAt": "2020-09-24T14:14:05Z"
+  },
+  {
+    "id": 7912,
+    "sender": "shinriyo",
+    "content": "it happned 2017??? but not yet?",
+    "createdAt": "2020-09-24T14:14:23Z"
+  },
+  {
+    "id": 7913,
+    "sender": "shinriyo",
+    "content": "same issue in \r\n```\r\nFlutter 1.22.0-12.0.pre • channel unknown • unknown source\r\nFramework • revision a27c242b0e (13 days ago) • 2020-09-11 17:46:57 -0400\r\nEngine • revision fee6f9e533\r\nTools • Dart 2.10.0 (build 2.10.0-110.0.dev)\r\n```\r\n\r\nAndroid PIXEL 3a(it also google products)\r\n\r\nGoogle products have a lot of bugs?\r\n\r\nDart & Flutter & Android Device ...",
+    "createdAt": "2020-09-24T14:16:15Z"
+  },
+  {
+    "id": 7914,
+    "sender": "nukeolay",
+    "content": "Have same issue here:\r\n```\r\nW/IInputConnectionWrapper( 6441): beginBatchEdit on inactive InputConnection\r\nW/IInputConnectionWrapper( 6441): getTextBeforeCursor on inactive InputConnection\r\nW/IInputConnectionWrapper( 6441): getTextAfterCursor on inactive InputConnection\r\nW/IInputConnectionWrapper( 6441): getSelectedText on inactive InputConnection\r\nW/IInputConnectionWrapper( 6441): endBatchEdit on inactive InputConnection\r\n```\r\nI have AlertDialog and a TextFormField in it.\r\nIve figured out that if I set autofocus in TextFormField to false, error W/IInputConnectionWrapper not appearing, until I click on text field and virtual keyboard popups, then `W/IInputConnectionWrapper( 6441): beginBatchEdit on inactive InputConnection`... appers again. But if I hide keyboard and click text field, keyboard appears again and no error messages appears.\r\nSo I think that this errors appears only when virtual keyboard popups for the first time/\r\nBut I dont know how to solve this problem\r\n",
+    "createdAt": "2020-10-07T19:57:27Z"
+  },
+  {
+    "id": 7915,
+    "sender": "shinriyo",
+    "content": "I hope we get\r\nAndroid Security Rewards",
+    "createdAt": "2020-10-09T01:05:51Z"
+  },
+  {
+    "id": 7916,
+    "sender": "harrykc",
+    "content": "same problem\r\n\r\nFlutter 1.22.1 • channel stable • https://github.com/flutter/flutter.git\r\nFramework • revision f30b7f4db9 (2 days ago) • 2020-10-08 10:06:30 -0700\r\nEngine • revision 75bef9f6c8\r\nTools • Dart 2.10.1",
+    "createdAt": "2020-10-10T18:37:24Z"
+  },
+  {
+    "id": 7917,
+    "sender": "siberiawolf",
+    "content": "每次都弹出警告⚠️好烦人。\r\n```\r\nW/IInputConnectionWrapper(32699): getTextBeforeCursor on inactive InputConnection\r\nW/IInputConnectionWrapper(32699): getSelectedText on inactive InputConnection\r\nW/IInputConnectionWrapper(32699): getTextAfterCursor on inactive InputConnection\r\nW/IInputConnectionWrapper(32699): getTextBeforeCursor on inactive InputConnection\r\nW/IInputConnectionWrapper(32699): getSelectedText on inactive InputConnection\r\nW/IInputConnectionWrapper(32699): getTextAfterCursor on inactive InputConnection\r\n```\r\n\r\n```\r\nDoctor summary (to see all details, run flutter doctor -v):\r\n[✓] Flutter (Channel master, 1.24.0-4.0.pre.32, on Mac OS X 10.15.7 19H2\r\n    darwin-x64, locale zh-Hans-CN)\r\n[✓] Android toolchain - develop for Android devices (Android SDK version 29.0.2)\r\n[✓] Xcode - develop for iOS and macOS (Xcode 11.7)\r\n[✓] Android Studio (version 3.6)\r\n[✓] VS Code (version 1.50.1)\r\n[✓] Connected device (2 available)\r\n\r\n• No issues found!\r\n```\r\n",
+    "createdAt": "2020-10-23T06:30:07Z"
+  },
+  {
+    "id": 7918,
+    "sender": "allanwolski",
+    "content": "Almost four years later, we still have the same problem.\r\n\r\n```\r\nW/IInputConnectionWrapper(27962): getTextBeforeCursor on inactive InputConnection\r\nW/IInputConnectionWrapper(27962): getSelectedText on inactive InputConnection\r\nW/IInputConnectionWrapper(27962): getTextAfterCursor on inactive InputConnection\r\nW/IInputConnectionWrapper(27962): beginBatchEdit on inactive InputConnection\r\nW/IInputConnectionWrapper(27962): endBatchEdit on inactive InputConnection\r\n```\r\n\r\n```\r\nDoctor summary (to see all details, run flutter doctor -v):\r\n[√] Flutter (Channel stable, 1.22.4, on Microsoft Windows [versão 10.0.19041.630], locale pt-BR)\r\n[√] Android toolchain - develop for Android devices (Android SDK version 29.0.3)\r\n[√] Android Studio (version 4.1.0)\r\n[√] VS Code (version 1.50.1)\r\n[√] Connected device (1 available)\r\n\r\n```",
+    "createdAt": "2020-11-17T19:30:20Z"
+  },
+  {
+    "id": 7919,
+    "sender": "shinriyo",
+    "content": "google neglected the bug yet?",
+    "createdAt": "2020-11-18T00:13:14Z"
+  },
+  {
+    "id": 7920,
+    "sender": "JHBitencourt",
+    "content": "@shinriyo No need to spam the thread. Just give it a thumbs up, I'm quite sure they are well aware of it. \r\nApart of that, this warning doesn't prevent the TextField from working.",
+    "createdAt": "2020-11-20T18:05:57Z"
+  },
+  {
+    "id": 7921,
+    "sender": "shabeenabarde",
+    "content": "> @shinriyo No need to spam the thread. Just give it a thumbs up, I'm quite sure they are well aware of it.\r\n> Apart of that, this warning doesn't prevent the TextField from working.\r\n\r\nIt does Glitch sometimes and doesn't allow the user to input text.",
+    "createdAt": "2020-11-30T08:16:23Z"
+  },
+  {
+    "id": 7922,
+    "sender": "Luffys6",
+    "content": "```dart\r\nFlutter 1.24.0-8.0.pre.149 • channel master • https://github.com/flutter/flutter.git\r\nFramework • revision 8e7748e74c (4 weeks ago) • 2020-11-08 20:32:04 -0800\r\nEngine • revision 0f7cdca65f\r\nTools • Dart 2.12.0 (build 2.12.0-27.0.dev)\r\n```\r\nsame problem\r\n\r\n",
+    "createdAt": "2020-12-09T02:33:53Z"
+  },
+  {
+    "id": 7923,
+    "sender": "virskor",
+    "content": "I HATE THIS BUG\r\n\r\n\r\n\r\nic=io.flutter.plugin.editing.InputConnectionAdaptor@c02e797 mNaviBarColor -16777216 mIsGetNaviBarColorSuccess true , NavVisible : true , NavTrans : false\r\nD/InputMethodManager(20780): startInputInner - Id : 0\r\nI/InputMethodManager(20780): startInputInner - mService.startInputOrWindowGainedFocus\r\nD/InputTransport(20780): Input channel constructed: fd=92\r\nD/InputTransport(20780): Input channel destroyed: fd=102\r\nW/IInputConnectionWrapper(20780): getExtractedText on inactive InputConnection\r\n\r\n\r\n\r\nflutter doctor -v\r\n[✓] Flutter (Channel stable, 1.22.4, on Mac OS X 10.15.7 19H2 darwin-x64, locale zh-Hans)\r\n    • Flutter version 1.22.4 at /Users/virs/.fvm/versions/1.22.4-stable\r\n    • Framework revision 1aafb3a8b9 (4 周前), 2020-11-13 09:59:28 -0800\r\n    • Engine revision 2c956a31c0\r\n    • Dart version 2.10.4\r\n\r\n \r\n[✓] Android toolchain - develop for Android devices (Android SDK version 30.0.2)\r\n    • Android SDK at /Users/virs/Library/Android/sdk\r\n    • Platform android-30, build-tools 30.0.2\r\n    • ANDROID_HOME = /Users/virs/Library/Android/sdk\r\n    • Java binary at: /Applications/Android Studio.app/Contents/jre/jdk/Contents/Home/bin/java\r\n    • Java version OpenJDK Runtime Environment (build 1.8.0_242-release-1644-b3-6915495)\r\n    • All Android licenses accepted.\r\n\r\n[✓] Xcode - develop for iOS and macOS (Xcode 12.2)\r\n    • Xcode at /Applications/Xcode-beta.app/Contents/Developer\r\n    • Xcode 12.2, Build version 12B5044c\r\n    • CocoaPods version 1.9.1\r\n\r\n[!] Android Studio (version 4.1)\r\n    • Android Studio at /Applications/Android Studio.app/Contents\r\n    ✗ Flutter plugin not installed; this adds Flutter specific functionality.\r\n    ✗ Dart plugin not installed; this adds Dart specific functionality.\r\n    • Java version OpenJDK Runtime Environment (build 1.8.0_242-release-1644-b3-6915495)\r\n\r\n[!] IntelliJ IDEA Ultimate Edition (version 2019.3)\r\n    • IntelliJ at /Applications/IntelliJ IDEA.app\r\n    ✗ Flutter plugin not installed; this adds Flutter specific functionality.\r\n    ✗ Dart plugin not installed; this adds Dart specific functionality.\r\n    • For information about installing plugins, see\r\n      https://flutter.dev/intellij-setup/#installing-the-plugins\r\n\r\n[✓] VS Code (version 1.51.1)\r\n    • VS Code at /Applications/Visual Studio Code.app/Contents\r\n    • Flutter extension version 3.17.0\r\n\r\n[✓] Connected device (1 available)\r\n    • SM N9500 (mobile) • ce10171a3bade8f50c7e • android-arm64 • Android 9 (API 28)\r\n\r\n",
+    "createdAt": "2020-12-10T06:25:01Z"
+  },
+  {
+    "id": 7924,
+    "sender": "Okladnoj",
+    "content": "> @shinriyo Не нужно спамить ветку . Просто поднимите палец вверх, я совершенно уверен, что они это прекрасно понимают.\r\n> Кроме того, это предупреждение не мешает работе TextField.\r\n\r\nМне мешает работать! поле ввода прячется за клавиатуру",
+    "createdAt": "2020-12-15T20:14:46Z"
+  },
+  {
+    "id": 7925,
+    "sender": "virskor",
+    "content": "Repeat this problem by adding maxLength 1",
+    "createdAt": "2020-12-18T05:49:31Z"
+  },
+  {
+    "id": 7926,
+    "sender": "darshankawar",
+    "content": "Issue replicable with latest stable and master version.\r\n\r\n```\r\nSyncing files to device sdk gphone x86 arm...\r\nW/IInputConnectionWrapper( 6784): getTextBeforeCursor on inactive InputConnection\r\nW/IInputConnectionWrapper( 6784): getSelectedText on inactive InputConnection\r\nW/IInputConnectionWrapper( 6784): getTextAfterCursor on inactive InputConnection\r\nW/IInputConnectionWrapper( 6784): beginBatchEdit on inactive InputConnection\r\nW/IInputConnectionWrapper( 6784): endBatchEdit on inactive InputConnection\r\n```\r\n\r\n<details>\r\n<summary>stable and master flutter doctor -v</summary>\r\n\r\n```\r\n[✓] Flutter (Channel stable, 1.22.5, on Mac OS X 10.15.4 19E2269 darwin-x64,\r\n    locale en-IN)\r\n    • Flutter version 1.22.5 at /Users/dhs/documents/Fluttersdk/flutter\r\n    • Framework revision 7891006299 (7 days ago), 2020-12-10 11:54:40 -0800\r\n    • Engine revision ae90085a84\r\n    • Dart version 2.10.4\r\n\r\n \r\n[✓] Android toolchain - develop for Android devices (Android SDK version 30.0.0)\r\n    • Android SDK at /Users/dhs/Library/Android/sdk\r\n    • Platform android-30, build-tools 30.0.0\r\n    • Java binary at: /Applications/Android\r\n      Studio.app/Contents/jre/jdk/Contents/Home/bin/java\r\n    • Java version OpenJDK Runtime Environment (build\r\n      1.8.0_242-release-1644-b3-6222593)\r\n    • All Android licenses accepted.\r\n\r\n[✓] Xcode - develop for iOS and macOS (Xcode 12.0.1)\r\n    • Xcode at /Applications/Xcode.app/Contents/Developer\r\n    • Xcode 12.0.1, Build version 12A7300\r\n    • CocoaPods version 1.9.3\r\n\r\n[✓] Android Studio (version 4.0)\r\n    • Android Studio at /Applications/Android Studio.app/Contents\r\n    • Flutter plugin version 46.0.2\r\n    • Dart plugin version 193.7361\r\n    • Java version OpenJDK Runtime Environment (build\r\n      1.8.0_242-release-1644-b3-6222593)\r\n\r\n[✓] VS Code (version 1.51.1)\r\n    • VS Code at /Applications/Visual Studio Code.app/Contents\r\n    • Flutter extension version 3.16.0\r\n\r\n[✓] Connected device (1 available)\r\n    • SM G975F (mobile) • RZ8M802WY0X • android-arm64 • Android 10 (API 29)\r\n\r\n• No issues found!\r\n\r\n[✓] Flutter (Channel master, 1.26.0-2.0.pre.64, on Mac OS X 10.15.4 19E2269\r\n    darwin-x64, locale en-IN)\r\n    • Flutter version 1.26.0-2.0.pre.64 at\r\n      /Users/dhs/documents/Fluttersdk/flutter\r\n    • Framework revision 9ff4326e1f (26 hours ago), 2020-12-17 06:19:05 +0000\r\n    • Engine revision 6edb402ee4\r\n    • Dart version 2.12.0 (build 2.12.0-157.0.dev)\r\n\r\n[✓] Android toolchain - develop for Android devices (Android SDK version 30.0.0)\r\n    • Android SDK at /Users/dhs/Library/Android/sdk\r\n    • Platform android-30, build-tools 30.0.0\r\n    • Java binary at: /Applications/Android\r\n      Studio.app/Contents/jre/jdk/Contents/Home/bin/java\r\n    • Java version OpenJDK Runtime Environment (build\r\n      1.8.0_242-release-1644-b3-6222593)\r\n    • All Android licenses accepted.\r\n\r\n[✓] Xcode - develop for iOS and macOS (Xcode 12.0.1)\r\n    • Xcode at /Applications/Xcode.app/Contents/Developer\r\n    • Xcode 12.0.1, Build version 12A7300\r\n    • CocoaPods version 1.9.3\r\n\r\n[✓] Chrome - develop for the web\r\n    • Chrome at /Applications/Google Chrome.app/Contents/MacOS/Google Chrome\r\n\r\n[✓] Android Studio (version 4.0)\r\n    • Android Studio at /Applications/Android Studio.app/Contents\r\n    • Flutter plugin version 46.0.2\r\n    • Dart plugin version 193.7361\r\n    • Java version OpenJDK Runtime Environment (build\r\n      1.8.0_242-release-1644-b3-6222593)\r\n\r\n[✓] VS Code (version 1.51.1)\r\n    • VS Code at /Applications/Visual Studio Code.app/Contents\r\n    • Flutter extension version 3.16.0\r\n\r\n[✓] Connected device (3 available)\r\n    • sdk gphone x86 arm (mobile) • emulator-5554 • android-x86    • Android 11\r\n      (API 30) (emulator)\r\n    • macOS (desktop)             • macos         • darwin-x64     • Mac OS X\r\n      10.15.4 19E2269 darwin-x64\r\n    • Chrome (web)                • chrome        • web-javascript • Google\r\n      Chrome 87.0.4280.88\r\n\r\n• No issues found!\r\n\r\n\r\n\r\n```\r\n\r\n</details>\r\n\r\n<details>\r\n<summary>code sample</summary>\r\n\r\n```\r\n\r\nreturn Scaffold(\r\n      appBar: AppBar(),\r\n      body: Center(\r\n        child: TextField(\r\n          decoration: InputDecoration(\r\n            hintText: 'Enter here'\r\n          ),\r\n        )\r\n      ),\r\n    );\r\n\r\n\r\n```\r\n\r\n</details>",
+    "createdAt": "2020-12-18T12:30:05Z"
+  },
+  {
+    "id": 7927,
+    "sender": "aravind816",
+    "content": "Issue still exists\r\n\r\n```\r\nW/IInputConnectionWrapper(17132): getTextBeforeCursor on inactive InputConnection\r\nW/IInputConnectionWrapper(17132): getSelectedText on inactive InputConnection\r\nW/IInputConnectionWrapper(17132): getTextAfterCursor on inactive InputConnection\r\nW/IInputConnectionWrapper(17132): beginBatchEdit on inactive InputConnection\r\nW/IInputConnectionWrapper(17132): getTextBeforeCursor on inactive InputConnection\r\nW/IInputConnectionWrapper(17132): endBatchEdit on inactive InputConnection\r\nW/IInputConnectionWrapper(17132): getTextBeforeCursor on inactive InputConnection\r\nW/IInputConnectionWrapper(17132): getSelectedText on inactive InputConnection\r\nW/IInputConnectionWrapper(17132): getTextAfterCursor on inactive InputConnection\r\n```",
+    "createdAt": "2020-12-29T12:43:03Z"
+  },
+  {
+    "id": 7928,
+    "sender": "Marcus0086",
+    "content": "So the issue was quite irritating but after some digging here and there I found out a simple working solution. Just check if you are using any \"GlobalKey<......anythingState>\" like this in the build method or not if yes then remove it from there and put it somewhere else. Then hot restart the app.\r\nHope this work for someone.",
+    "createdAt": "2020-12-30T16:46:54Z"
+  },
+  {
+    "id": 7929,
+    "sender": "Vextrov",
+    "content": "I have the same problem. I get the following errors:\r\n\r\n> W/IInputConnectionWrapper( 6371): getTextBeforeCursor on inactive InputConnection\r\n> W/IInputConnectionWrapper( 6371): getSelectedText on inactive InputConnection\r\n> W/IInputConnectionWrapper( 6371): getTextAfterCursor on inactive InputConnection\r\n\r\nThis error happens to me on Android 11 simulator (Android R - API level 30) only but not on any lower versions of android. \r\nI have tried both master and stable channel, I tried moving GlobalKey around, I tried changing autofocus, initial value, onchanged, onsaved and ontap. Nothing seems to fix it. I am getting the initial value from shared preferences library and the error occurs when I click on the textfield (when keyboard pops up).\r\n\r\n<details>\r\n  <summary> My TextFormFieldCode </summary>\r\n\r\n```\r\nclass _CounterPageState extends State<CounterPage>\r\n    with SingleTickerProviderStateMixin {\r\n  final _formKey = GlobalKey<FormState>();\r\n  TextEditingController amountController = TextEditingController();\r\n        .....\r\n        .....\r\n```\r\n\r\n\r\n```\r\nGestureDetector(\r\n                            onTap: () {\r\n                              return showDialog(\r\n                                context: context,\r\n                                builder: (context) {\r\n                                  return AlertDialog(\r\n                                    content: Form(\r\n                                      key: _formKey,\r\n                                      child: Column(\r\n                                        mainAxisSize: MainAxisSize.min,\r\n                                        children: [\r\n                                          TextFormField(\r\n                                            autofocus: true,\r\n                                            initialValue: store\r\n                                                .normalUnitsUnloaded\r\n                                                .toString(),\r\n                                            onChanged: (newValue) {\r\n                                              amountController.text =\r\n                                                  newValue.toString();\r\n                                            },\r\n                                            onSaved: (_) {\r\n                                              store.setNormalLineNumber(\r\n                                                  int.parse(\r\n                                                      amountController.text));\r\n                                            },\r\n                                            style: kTSAdjustable(context,\r\n                                                FontStyle.normal, null, 0),\r\n                                            cursorRadius: Radius.circular(2.0),\r\n                                            cursorWidth: 8.0,\r\n                                            keyboardType: TextInputType.number,\r\n                                            validator: (input) {\r\n                                              final isDigitsOnly =\r\n                                                  int.tryParse(input);\r\n                                              if (isDigitsOnly == null)\r\n                                                return 'Please Enter Number';\r\n                                              else if (isDigitsOnly < 0)\r\n                                                return 'Number must be higher than 0';\r\n                                              else\r\n                                                return null;\r\n                                            },\r\n                                            decoration: InputDecoration(\r\n                                              labelText: 'Units Unloaded',\r\n                                              hintText:\r\n                                                  \"Enter Number of Units Unloaded\",\r\n                                            ),\r\n                                          ),\r\n                                          FlatButton(\r\n                                            color: Colors.blue,\r\n                                            onPressed: () {\r\n                                              _formKey.currentState.save();\r\n\r\n                                              Navigator.pop(context);\r\n                                              amountController.clear();\r\n                                              store.saveListsPrefs();\r\n                                            },\r\n                                            child: Text('Save'),\r\n                                          ),\r\n                                        ],\r\n                                      ),\r\n                                    ),\r\n                                  );\r\n                                },\r\n                              );\r\n                            },\r\n                            child: Text(\r\n                              \"${store.normalUnitsUnloaded}\",\r\n                              style: kTSHeadline2(context),\r\n                            ),\r\n                          ),\r\n```\r\n\r\n</details>\r\n\r\n\r\n<details>\r\n  <summary>flutter doctor -v</summary>\r\n  \r\n\r\n> $ flutter doctor -v\r\n> [✓] Flutter (Channel stable, 1.22.5, on macOS 11.1 20C69 darwin-x64, locale en-AU)\r\n>     • Flutter version 1.22.5 at /Users/fa/Developer/flutter\r\n>     • Framework revision 7891006299 (4 weeks ago), 2020-12-10 11:54:40 -0800\r\n>     • Engine revision ae90085a84\r\n>     • Dart version 2.10.4\r\n> \r\n>  \r\n> [✓] Android toolchain - develop for Android devices (Android SDK version 30.0.3)\r\n>     • Android SDK at /Users/fa/Library/Android/sdk\r\n>     • Platform android-30, build-tools 30.0.3\r\n>     • Java binary at: /Applications/Android Studio.app/Contents/jre/jdk/Contents/Home/bin/java\r\n>     • Java version OpenJDK Runtime Environment (build 1.8.0_242-release-1644-b3-6915495)\r\n>     • All Android licenses accepted.\r\n> \r\n> [✓] Xcode - develop for iOS and macOS (Xcode 12.3)\r\n>     • Xcode at /Applications/Xcode.app/Contents/Developer\r\n>     • Xcode 12.3, Build version 12C33\r\n>     • CocoaPods version 1.10.0\r\n> \r\n> [✓] Android Studio (version 4.1)\r\n>     • Android Studio at /Applications/Android Studio.app/Contents\r\n>     • Flutter plugin installed\r\n>     • Dart plugin version 201.9317\r\n>     • Java version OpenJDK Runtime Environment (build 1.8.0_242-release-1644-b3-6915495)\r\n> \r\n> [✓] Android Studio (version 4.1)\r\n>     • Android Studio at /Applications/Android Studio 2.app/Contents\r\n>     • Flutter plugin installed\r\n>     • Dart plugin version 201.9317\r\n>     • Java version OpenJDK Runtime Environment (build 1.8.0_242-release-1644-b3-6915495)\r\n> \r\n> [✓] VS Code (version 1.45.0)\r\n>     • VS Code at /Applications/Visual Studio Code.app/Contents\r\n>     • Flutter extension version 3.10.1\r\n> \r\n> [✓] Connected device (1 available)\r\n>     • sdk gphone x86 (mobile) • emulator-5554 • android-x86 • Android 11 (API 30) (emulator)\r\n> \r\n> • No issues found!\r\n\r\n</details>\r\n\r\n\r\n",
+    "createdAt": "2021-01-07T22:12:27Z"
+  },
+  {
+    "id": 7930,
+    "sender": "qcuong97",
+    "content": "I have the same problem.\r\nW/IInputConnectionWrapper(14685): beginBatchEdit on inactive InputConnection\r\nW/IInputConnectionWrapper(14685): getTextBeforeCursor on inactive InputConnection\r\nW/IInputConnectionWrapper(14685): endBatchEdit on inactive InputConnection",
+    "createdAt": "2021-01-08T03:57:45Z"
+  },
+  {
+    "id": 7931,
+    "sender": "hariysu",
+    "content": "I think the issue was not solved yet. My problem is:\r\n\r\nW/IInputConnectionWrapper( 3013): beginBatchEdit on inactive InputConnection\r\nW/IInputConnectionWrapper( 3013): getTextBeforeCursor on inactive InputConnection\r\nW/IInputConnectionWrapper( 3013): getTextAfterCursor on inactive InputConnection\r\nW/IInputConnectionWrapper( 3013): getSelectedText on inactive InputConnection\r\nW/IInputConnectionWrapper( 3013): endBatchEdit on inactive InputConnection\r\nW/IInputConnectionWrapper( 3013): beginBatchEdit on inactive InputConnection\r\nW/IInputConnectionWrapper( 3013): getTextBeforeCursor on inactive InputConnection\r\nW/IInputConnectionWrapper( 3013): getTextAfterCursor on inactive InputConnection\r\nW/IInputConnectionWrapper( 3013): getSelectedText on inactive InputConnection\r\nW/IInputConnectionWrapper( 3013): endBatchEdit on inactive InputConnection",
+    "createdAt": "2021-01-09T09:54:28Z"
+  },
+  {
+    "id": 7932,
+    "sender": "gaurav1903",
+    "content": "I am experiencing the same issue too.\r\n",
+    "createdAt": "2021-02-04T10:16:24Z"
+  },
+  {
+    "id": 7933,
+    "sender": "youwuxiangsheng",
+    "content": "I am experiencing the same issue too.\r\n\r\n",
+    "createdAt": "2021-02-07T03:55:18Z"
+  },
+  {
+    "id": 7934,
+    "sender": "pasrot943",
+    "content": "Please, let me know when this bug is fixed.",
+    "createdAt": "2021-02-13T14:11:15Z"
+  },
+  {
+    "id": 7935,
+    "sender": "ggichure",
+    "content": "check this SO answer https://stackoverflow.com/a/63911657/10409567\r\nTLDR \r\nif you have UniqueKeys in your widget remove them.",
+    "createdAt": "2021-02-18T03:01:05Z"
+  }
+]

@@ -1,0 +1,386 @@
+[
+  {
+    "id": 9216,
+    "sender": "Reprevise",
+    "content": "It's been a month and a half, any update?",
+    "createdAt": "2020-04-10T12:53:00Z"
+  },
+  {
+    "id": 9217,
+    "sender": "chunhtai",
+    "content": "@zoeyfan can you provide some insight on why this become customer critical. The current plan is still waiting for the skia migration i mentioned in https://github.com/flutter/flutter/issues/18761#issuecomment-567599627",
+    "createdAt": "2020-04-17T18:54:39Z"
+  },
+  {
+    "id": 9218,
+    "sender": "zoeyfan",
+    "content": "@chunhtai, this was brought to my attention from my one of our top customers and they indicated that this issue was quite urgent on their side. Can we follow up with Skia to get an ETA from them? ",
+    "createdAt": "2020-04-21T21:57:58Z"
+  },
+  {
+    "id": 9219,
+    "sender": "chunhtai",
+    "content": "@zoeyfan the migration is taken care by the engine team. Can you also update the tracking issue https://github.com/flutter/flutter/issues/39420 to be custom critical and we can continue the discussion there?",
+    "createdAt": "2020-04-21T23:18:45Z"
+  },
+  {
+    "id": 9220,
+    "sender": "zoeyfan",
+    "content": "Connected with the customer (BD), and suggested to turn on --enable-skshaper flag to see if the issue can be resolved. Customer is verifying the workaround, and will respond once they have progress to report. ",
+    "createdAt": "2020-05-12T17:49:28Z"
+  },
+  {
+    "id": 9221,
+    "sender": "rodi189",
+    "content": "Hello anybody have news about this issue? i have this problem with words like \"AB CDEFGHIJK LMNO\" is showing like \"AB...\" is annoying.\r\nEDIT: I use https://pub.dev/packages/assorted_layout_widgets of @marcglasberg",
+    "createdAt": "2020-06-02T03:43:34Z"
+  },
+  {
+    "id": 9222,
+    "sender": "Hixie",
+    "content": "We're going to lower the priority to P3 since we haven't heard back from our customers on this one despite reaching out. Please let us know if it is blocking you! The reality is that this is something we're unlikely to fix until after we've done the SkParagraph migration (#39420), which probably won't be any time soon since we want to make sure we do it carefully without regressing anything. Thanks for your understanding.",
+    "createdAt": "2020-06-02T23:37:48Z"
+  },
+  {
+    "id": 9223,
+    "sender": "benPesso",
+    "content": "Hey @Hixie. This isssue is a big pain for many developers, not just the reporter. We've all been waiting for this to be resolved, and have resorted to ugly workarounds in our apps because of this.\r\n\r\nIf anything, priority should go up, not down.",
+    "createdAt": "2020-06-03T08:15:21Z"
+  },
+  {
+    "id": 9224,
+    "sender": "marcglasberg",
+    "content": "@benPesso I agree the priority should go up, but for the moment, at least for one-line texts, you can use my **TextOneLine** widget from https://pub.dev/packages/assorted_layout_widgets",
+    "createdAt": "2020-06-03T14:31:12Z"
+  },
+  {
+    "id": 9225,
+    "sender": "Hixie",
+    "content": "Don't get me wrong, we agree it's important. According to our [priority levels](https://github.com/flutter/flutter/wiki/Issue-hygiene#priorities), P3 is the highest priority level that isn't in the top 30 or so bugs. This is important, but I hope you agree that it isn't a top-30 bug. :-)",
+    "createdAt": "2020-06-03T18:09:59Z"
+  },
+  {
+    "id": 9226,
+    "sender": "benPesso",
+    "content": "@marcglasberg Yeah, I'm familiar with your widget. It's a great workaround (and I almost went through the trouble of modifying it to work with two-line text) but in the end I decided it was better to change the UI than use a workaround.\r\n\r\n@Hixie I completely understand. Though, as far as I'm concerned, there are no other bugs that are more important. (Well, except for #55061, maybe. 😄)",
+    "createdAt": "2020-06-03T18:48:19Z"
+  },
+  {
+    "id": 9227,
+    "sender": "pph7",
+    "content": "@Hixie this is still a very important bug, it should have the highest possible priority. Text rendering is ugly in many cases because of that bug. Especially in languages with longer words. Hope you reconsider the P3 placement. Thank you!",
+    "createdAt": "2020-06-04T07:40:20Z"
+  },
+  {
+    "id": 9228,
+    "sender": "Hixie",
+    "content": "The highest possible priority (P0) is what we reserve for bugs like \"The Flutter framework won't compile\" or \"All Flutter apps crash when installed from the play store\" or \"We have regressed the performance of all Flutter apps by 50%\". The next two levels (P1 and P2) are for bugs that a contributor has to work on because their employer depends on it. This bug's priority (P3) is the highest possible priority for all other kinds of bugs.",
+    "createdAt": "2020-06-05T04:19:02Z"
+  },
+  {
+    "id": 9229,
+    "sender": "Pe-te",
+    "content": "`.replaceAll(\"\", \"\\u{200B}\")`\r\n\r\nmuahahaha! 😜\r\n\r\nno guarantee if it works with weird languages or multiline.\r\n\r\n",
+    "createdAt": "2020-07-22T15:08:41Z"
+  },
+  {
+    "id": 9230,
+    "sender": "Eerey",
+    "content": "> .replaceAll(\"\", \"\\u{200B}\")\r\n\r\nthank you. this is actually a good workaround",
+    "createdAt": "2020-07-27T15:06:09Z"
+  },
+  {
+    "id": 9231,
+    "sender": "Mervin1024",
+    "content": "> `.replaceAll(\"\", \"\\u{200B}\")`\r\n> \r\n> muahahaha! 😜\r\n> \r\n> no guarantee if it works with weird languages or multiline.\r\n\r\nThanks，It's worked for me.",
+    "createdAt": "2020-07-28T08:07:35Z"
+  },
+  {
+    "id": 9232,
+    "sender": "strifel",
+    "content": "Worked for me, too. (Even in german)\r\nThanks.\r\n",
+    "createdAt": "2020-08-01T19:14:30Z"
+  },
+  {
+    "id": 9233,
+    "sender": "kkizlaitis",
+    "content": "> `.replaceAll(\"\", \"\\u{200B}\")`\r\n> \r\n> muahahaha! 😜\r\n> \r\n> no guarantee if it works with weird languages or multiline.\r\n\r\nUnfortunately, that does not work with multiline text, when `maxLines` is not defined. 😞 ",
+    "createdAt": "2020-08-10T09:24:30Z"
+  },
+  {
+    "id": 9234,
+    "sender": "tvolkert",
+    "content": "FYI, this is blocked on https://github.com/flutter/flutter/issues/39420, which is actively being worked on.",
+    "createdAt": "2020-08-21T16:53:33Z"
+  },
+  {
+    "id": 9235,
+    "sender": "derChris77",
+    "content": ".replaceAll(\"\", \"\\u{200B}\") works fine for maxLines = 1 but when there are more lines the line breaks are in the middle of a word which gets really ugly...\r\nIs there a solution for this problem??",
+    "createdAt": "2020-08-28T13:24:24Z"
+  },
+  {
+    "id": 9236,
+    "sender": "pedromassangocode",
+    "content": "Still valid on latest master channel.\r\n\r\n<details><summary>sample code</summary>\r\n\r\n```\r\nimport 'package:flutter/cupertino.dart';\r\nimport 'package:flutter/material.dart';\r\nimport 'package:flutter/rendering.dart';\r\n\r\nvoid main() => runApp(MyApp());\r\n\r\nclass MyApp extends StatelessWidget {\r\n  @override\r\n  Widget build(BuildContext context) {\r\n    return MaterialApp(\r\n      title: 'Flutter Demo',\r\n      theme: ThemeData(\r\n        primarySwatch: Colors.blue,\r\n        visualDensity: VisualDensity.adaptivePlatformDensity,\r\n      ),\r\n      home: Scaffold(\r\n          appBar: AppBar(title: Text('Test'),),\r\n          body:Container(\r\n            padding: EdgeInsets.all(20),\r\n            child: Column(\r\n              children: [\r\n                Container(\r\n                    color: Colors.red,\r\n                    child: Text('哈哈134567891234561124444123456112441234561451241345',maxLines: 1,overflow: TextOverflow.ellipsis)),\r\n                SizedBox(height: 10,),\r\n                Container(\r\n                    color: Colors.teal,\r\n                    child: Text('word134567891234561124444123456112441234561451241345',maxLines: 1,overflow: TextOverflow.ellipsis)),\r\n              ],\r\n            ),\r\n          )\r\n\r\n      ),\r\n    );\r\n  }\r\n}\r\n```\r\n</details>\r\n\r\n<details><summary>flutter doctor -v</summary>\r\n\r\n```\r\n[✓] Flutter (Channel master, 1.22.0-10.0.pre.87, on Mac OS X 10.15.6 19G2021, locale en)\r\n    • Flutter version 1.22.0-10.0.pre.87 at /Users/pedromassango/dev/SDKs/flutter_master\r\n    • Framework revision 4732a214a7 (3 days ago), 2020-09-04 21:05:02 -0400\r\n    • Engine revision ac8b9c4c52\r\n    • Dart version 2.10.0 (build 2.10.0-86.0.dev)\r\n\r\n \r\n[✓] Android toolchain - develop for Android devices (Android SDK version 30.0.1)\r\n    • Android SDK at /Users/pedromassango/Library/Android/sdk\r\n    • Platform android-30, build-tools 30.0.1\r\n    • Java binary at: /Applications/Android Studio.app/Contents/jre/jdk/Contents/Home/bin/java\r\n    • Java version OpenJDK Runtime Environment (build 1.8.0_242-release-1644-b3-6222593)\r\n    • All Android licenses accepted.\r\n\r\n[✓] Xcode - develop for iOS and macOS (Xcode 11.7)\r\n    • Xcode at /Applications/Xcode.app/Contents/Developer\r\n    • Xcode 11.7, Build version 11E801a\r\n    • CocoaPods version 1.9.3\r\n\r\n[✓] Chrome - develop for the web\r\n    • Chrome at /Applications/Google Chrome.app/Contents/MacOS/Google Chrome\r\n\r\n[!] Android Studio (version 4.0)\r\n    • Android Studio at /Applications/Android Studio.app/Contents\r\n    ✗ Flutter plugin not installed; this adds Flutter specific functionality.\r\n    ✗ Dart plugin not installed; this adds Dart specific functionality.\r\n    • Java version OpenJDK Runtime Environment (build 1.8.0_242-release-1644-b3-6222593)\r\n\r\n[✓] IntelliJ IDEA Community Edition (version 2020.2.1)\r\n    • IntelliJ at /Applications/IntelliJ IDEA CE.app\r\n    • Flutter plugin version 48.1.4\r\n    • Dart plugin version 202.7206\r\n\r\n[✓] VS Code (version 1.48.2)\r\n    • VS Code at /Applications/Visual Studio Code.app/Contents\r\n    • Flutter extension version 3.13.2\r\n\r\n[✓] Connected device (4 available)\r\n    • iPhone 11 Pro Max (mobile) • 3DA251B5-C982-48C8-8FF5-C4D1DB21ED89 • ios            •\r\n      com.apple.CoreSimulator.SimRuntime.iOS-13-7 (simulator)\r\n    • macOS (desktop)            • macos                                • darwin-x64     • Mac OS X 10.15.6 19G2021\r\n    • Web Server (web)           • web-server                           • web-javascript • Flutter Tools\r\n    • Chrome (web)               • chrome                               • web-javascript • Google Chrome 85.0.4183.83\r\n\r\n! Doctor found issues in 1 category.\r\n\r\n```\r\n</details>",
+    "createdAt": "2020-09-07T13:57:38Z"
+  },
+  {
+    "id": 9237,
+    "sender": "lifelikejuly",
+    "content": "> `.replaceAll(\"\", \"\\u{200B}\")`\r\n> \r\n> muahahaha! 😜\r\n> \r\n> no guarantee if it works with weird languages or multiline.\r\n\r\nBut my text is \"橙美童🍊\" will crash.\r\nInvalid argument(s): string is not well-formed UTF-16",
+    "createdAt": "2020-09-21T02:00:34Z"
+  },
+  {
+    "id": 9238,
+    "sender": "Oklahomawhore",
+    "content": "Please fix ASAP. Thank you.  It is an unbelievable miss. ",
+    "createdAt": "2020-09-21T10:47:15Z"
+  },
+  {
+    "id": 9239,
+    "sender": "lifelikejuly",
+    "content": "Finally I use regular expression  to deal  problem. But I hope Flutter would fix this issue.\r\n```Dart\r\n String message = \"橙美童kkkk🍊\";\r\n message = \"哈哈哈ssssddfgggllllllllkjjljljkl\";\r\n final exp = new RegExp('[\\u4e00-\\u9fa5]');\r\n String text = message.replaceAllMapped(exp,\r\n            (Match m) => \"${m[0]}\\u2060\");\r\n```",
+    "createdAt": "2020-09-22T04:46:54Z"
+  },
+  {
+    "id": 9240,
+    "sender": "lifelikejuly",
+    "content": "> Finally I use regular expression to deal problem. But I hope Flutter would fix this issue.\r\n> \r\n> ```dart\r\n>  String message = \"橙美童kkkk🍊\";\r\n>  message = \"哈哈哈ssssddfgggllllllllkjjljljkl\";\r\n>  final exp = new RegExp('[\\u4e00-\\u9fa5]');\r\n>  String text = message.replaceAllMapped(exp,\r\n>             (Match m) => \"${m[0]}\\u2060\");\r\n> ```\r\n\r\nBut if String is \"哈🀂🀁🀄︎🀖哈🀂🀁🀄︎🀖哈ssssddfgggllllllllkjjljljkl🀂🀁🀄︎🀖🀠＠@㏒∮ΡΟㄇㄈㄞㄞㄝ\" still failed",
+    "createdAt": "2020-09-22T04:57:23Z"
+  },
+  {
+    "id": 9241,
+    "sender": "PiN73",
+    "content": "Just noticed that Flutter actually _does_ put ellipsis in the middle of word sometimes (blue \"v\"s).\r\n\r\nBut sometimes it doesn't while definitely could (red \"x\"s).\r\n\r\nI can't figure out what it depends on. Flutter 1.20.4, [source code](https://github.com/PiN73/test_ellipsis/blob/79bb5818a2dcadead6392c040d802e05913a4b4e/lib/main.dart)\r\n\r\n![screenshot](https://user-images.githubusercontent.com/18294052/93946935-37431200-fd43-11ea-99fb-f9b99df30834.png)\r\n",
+    "createdAt": "2020-09-22T23:29:24Z"
+  },
+  {
+    "id": 9242,
+    "sender": "marcglasberg",
+    "content": "@PiN73 To solve your mystery, it puts correct ellipsis when the word being cut would fit the available space, but there are more words. If the word being cut would not fit the available space, it cuts the whole word out.\r\n\r\n",
+    "createdAt": "2020-09-23T00:15:50Z"
+  },
+  {
+    "id": 9243,
+    "sender": "marcglasberg",
+    "content": "Also I'd say this doesn't work because char 32 (space) can be a part of an Unicode char that takes more than one byte.:\r\n\r\n```dart\r\n.replaceAll(\" \", \"\\u{200B}\")\r\n```\r\n\r\nAlso this doesn't work because you'd be adding non-break spaces between chars of an Unicode char that takes more than one byte:\r\n\r\n```dart\r\n.replaceAll(\"\", \"\\u{200B}\")\r\n```\r\n\r\n\r\nI'd suggest 3 workarounds:\r\n\r\n1) Once again, my `TextOneLine` widget from https://pub.dev/packages/assorted_layout_widgets\r\n\r\n2) Using the Characters package (https://pub.dev/packages/characters), you can remove spaces and add non-break spaces. I haven't tested, but something along these lines should work:\r\n\r\n   ```dart\r\n   var text = \"My original text\";\r\n   var safeText = Characters(text).replaceAll(Characters(\" \"), Characters(\"\\u{200B}\").toString();\r\n\r\n   // And the use it:\r\n   Text(safeText);\r\n   ```\r\n\r\n3) Using the Characters package again to add non-break spaces between REAL chars (respecting Unicode chars that take up multiple bytes). Something along the lines of (not tested):\r\n\r\n   ```dart\r\n   var text = \"My original text\";\r\n   var safeText = Characters(text).toList().join(\"\\u{200B}\");\r\n\r\n   // And the use it:\r\n   Text(safeText);\r\n   ```\r\n\r\nHowever, all these workarounds only work for fixing 1 line texts.",
+    "createdAt": "2020-09-23T00:17:38Z"
+  },
+  {
+    "id": 9244,
+    "sender": "lifelikejuly",
+    "content": "> Also I'd say this doesn't work because char 32 (space) can be a part of an Unicode char that takes more than one byte.:\r\n> \r\n> ```dart\r\n> .replaceAll(\" \", \"\\u{200B}\")\r\n> ```\r\n> \r\n> Also this doesn't work because you'd be adding non-break spaces between chars of an Unicode char that takes more than one byte:\r\n> \r\n> ```dart\r\n> .replaceAll(\"\", \"\\u{200B}\")\r\n> ```\r\n> \r\n> I'd suggest 3 solutions:\r\n> \r\n> 1. Once again, my `TextOneLine` widget from https://pub.dev/packages/assorted_layout_widgets\r\n> 2. Using the Characters package (https://pub.dev/packages/characters), you can remove spaces and add non-break spaces. I haven't tested, but something along these lines should work:\r\n>    ```dart\r\n>    var text = \"My original text\";\r\n>    var safeText = Characters(text).replaceAll(Characters(\" \"), Characters(\"\\u{200B}\").toString();\r\n>    \r\n>    // And the use it:\r\n>    Text(safeText);\r\n>    ```\r\n> 3. Using the Characters package again to add non-break spaces between REAL chars (respecting Unicode chars that take up multiple bytes). Something along the lines of (not tested):\r\n>    ```dart\r\n>    var text = \"My original text\";\r\n>    var safeText = Characters(text).toList().join(\"\\u{200B}\");\r\n>    \r\n>    // And the use it:\r\n>    Text(safeText);\r\n>    ```\r\n> \r\n> However, all these solutions only work for fixing 1 line texts.\r\n\r\nTextOneLine cant solve the fundamental problem. In UI effect we only need ellipsis no TextOverflow.fade.\r\nBut Characters can make me help,Thanks!",
+    "createdAt": "2020-09-23T01:16:03Z"
+  },
+  {
+    "id": 9245,
+    "sender": "marcglasberg",
+    "content": "@yuhaocan `TextOneLine` and the `Characters` solutions are just workarounds to help us wait until the real solution comes from the Flutter team. None of these workarounds work for multiline anyway.",
+    "createdAt": "2020-09-23T02:52:38Z"
+  },
+  {
+    "id": 9246,
+    "sender": "acoutts",
+    "content": "I find it's really hard to make text behave correctly with overflows while in one line. Hoping for a fix soon.",
+    "createdAt": "2020-10-30T18:06:51Z"
+  },
+  {
+    "id": 9247,
+    "sender": "marcglasberg",
+    "content": "Please vote/give your opinion about a change in Flutter's non-breaking policy: https://github.com/flutter/flutter/issues/70613\r\n\r\nIf this policy I propose were in place when they made the change to the text overflow, we wouldn't have had this ellipsis problem to start with. ",
+    "createdAt": "2020-11-16T14:32:29Z"
+  },
+  {
+    "id": 9248,
+    "sender": "pushpendraKh",
+    "content": "Any update on this? Is this going to be resolved or we need to apply some hack from our code side only? \r\ncc: @chunhtai ",
+    "createdAt": "2021-01-08T06:38:37Z"
+  },
+  {
+    "id": 9249,
+    "sender": "SilkeNL",
+    "content": "the `.replaceAll(\"\", \"\\u{200B}\")` fix worked for me with the code:\r\n`Text(\r\n                  textString.replaceAll(\"\", \"\\u{200B}\"),\r\n                  style: TextStyle(color: Colors.grey[600]),\r\n                  maxLines: 1,\r\n                  overflow: TextOverflow.ellipsis,\r\n                  softWrap: false,\r\n                )`",
+    "createdAt": "2021-04-01T11:43:43Z"
+  },
+  {
+    "id": 9250,
+    "sender": "The-Redhat",
+    "content": "> the `.replaceAll(\"\", \"\\u{200B}\")` fix worked for me with the code:\r\n> `Text( textString.replaceAll(\"\", \"\\u{200B}\"), style: TextStyle(color: Colors.grey[600]), maxLines: 1, overflow: TextOverflow.ellipsis, softWrap: false, )`\r\n\r\nYou have to be careful with this solution because it breaks when you use emojis or other special characters. You should use the `characters` package instead.\r\n\r\nI created an extension in my project\r\n```\r\nextension StringX on String {\r\n  String get overflow => Characters(this)\r\n      .replaceAll(Characters(''), Characters('\\u{200B}'))\r\n      .toString();\r\n}\r\n```\r\n\r\nWhich then can be used the following way:\r\n```\r\nText(\r\n     textString.overflow,\r\n     overflow: TextOverflow.ellipsis,\r\n     maxLines: 1,\r\n)\r\n```\r\n",
+    "createdAt": "2021-04-02T07:36:45Z"
+  },
+  {
+    "id": 9251,
+    "sender": "marcglasberg",
+    "content": "This is the current code I am currently using for the `TextOneLine` widget in the https://pub.dev/packages/assorted_layout_widgets:\r\n\r\n```\r\nclass TextOneLine extends Text {\r\n  const TextOneLine(\r\n    String data, {\r\n    Key? key,\r\n    TextStyle? style,\r\n    StrutStyle? strutStyle,\r\n    TextAlign? textAlign,\r\n    TextDirection? textDirection,\r\n    Locale? locale,\r\n    TextOverflow? overflow = TextOverflow.ellipsis,\r\n    double? textScaleFactor,\r\n    String? semanticsLabel,\r\n    TextWidthBasis textWidthBasis = TextWidthBasis.parent,\r\n    TextHeightBehavior? textHeightBehavior,\r\n  }) : super(\r\n          data,\r\n          key: key,\r\n          style: style,\r\n          strutStyle: strutStyle,\r\n          textAlign: textAlign,\r\n          textDirection: textDirection,\r\n          locale: locale,\r\n          softWrap: false,\r\n          overflow: overflow,\r\n          textScaleFactor: textScaleFactor,\r\n          maxLines: 1,\r\n          semanticsLabel: semanticsLabel,\r\n          textWidthBasis: textWidthBasis,\r\n          textHeightBehavior: textHeightBehavior,\r\n        );\r\n\r\n  @override\r\n  String? get data => super.data == null ? null : Characters(super.data!).toList().join(\"\\u{200B}\");\r\n}\r\n```",
+    "createdAt": "2021-07-16T19:21:38Z"
+  },
+  {
+    "id": 9252,
+    "sender": "nxcco",
+    "content": "This little feature was requested in 2018 and there is still no real progress? What's the problem?",
+    "createdAt": "2021-08-16T18:09:03Z"
+  },
+  {
+    "id": 9253,
+    "sender": "dawid-niedzwiecki",
+    "content": "Come on, why is this still open? ",
+    "createdAt": "2021-09-21T18:34:16Z"
+  },
+  {
+    "id": 9254,
+    "sender": "kira2015",
+    "content": "The problem still exists!",
+    "createdAt": "2021-12-22T08:12:52Z"
+  },
+  {
+    "id": 9255,
+    "sender": "pph7",
+    "content": "Indeed it does.. More than 3 years later. I mean, I love flutter and the development team is doing a great job. But I am starting to think they don't care much about any languages than english.",
+    "createdAt": "2021-12-22T08:38:16Z"
+  },
+  {
+    "id": 9256,
+    "sender": "RaymondBakker",
+    "content": "Curious to see this is still not resolved.",
+    "createdAt": "2021-12-26T11:24:11Z"
+  },
+  {
+    "id": 9257,
+    "sender": "tvolkert",
+    "content": "/cc @justinmc ",
+    "createdAt": "2021-12-26T15:49:53Z"
+  },
+  {
+    "id": 9258,
+    "sender": "chunhtai",
+    "content": "last time i check we still do not fully opt in to skia https://github.com/flutter/engine/blob/90424212a3d6839ca7552b84f6d1108042bd0d94/common/config.gni#L18\r\n\r\nThis feature requires changes to skia typographic API.",
+    "createdAt": "2021-12-28T21:13:55Z"
+  },
+  {
+    "id": 9259,
+    "sender": "feinstein",
+    "content": "@chunhtai should we open an issue about that API change? Or is it open already and we just need to upvote it?",
+    "createdAt": "2021-12-29T04:47:42Z"
+  },
+  {
+    "id": 9260,
+    "sender": "chunhtai",
+    "content": "This is the skia migration https://github.com/flutter/flutter/issues/39420, which is also pretty old too. I am not entirely sure what is the current progress on that issue neither. We may not get an update until people come back from vacation.\r\n\r\nOnce that is done, we can use this issue to track the progress of API change.",
+    "createdAt": "2021-12-29T17:21:44Z"
+  },
+  {
+    "id": 9261,
+    "sender": "ventr1x",
+    "content": "This is attrocious, like so much from the Flutter team.\r\nfade is NOT an alternative, my clients constantly complain about this and EVERYONE finds fade out weird and actually thinks it is a bug. Ellipsis is not working like anyone ever woud expect. Cutting off entire sentences because they might not fit? Makes no sense and has never been done that way.\r\nBut we all know this will never be fixed. Nothing new at all.\r\n\r\nSame as soft wrap is wrapping full words without any option to it, literally creating grammatically wrong texts.",
+    "createdAt": "2022-01-11T08:54:16Z"
+  },
+  {
+    "id": 9262,
+    "sender": "tvolkert",
+    "content": "> But we all know this will never be fixed. Nothing new at all.\r\n\r\n@ventr1x per our [code of conduct](https://github.com/flutter/flutter/blob/master/CODE_OF_CONDUCT.md), we ask that people \"Be kind. Be courteous. Be welcoming.\"  Moreover, you can see from the comment immediately preceding yours that this issue is blocked by another issue that is actively being worked on.",
+    "createdAt": "2022-01-18T18:31:13Z"
+  },
+  {
+    "id": 9263,
+    "sender": "duzenko",
+    "content": "You can't reasonably expect to ignore community needs for years and not get any backlash, can you?",
+    "createdAt": "2022-01-19T07:50:03Z"
+  },
+  {
+    "id": 9264,
+    "sender": "ventr1x",
+    "content": "Besides that this should've been implemented correctly in the first place, \"actively being worked on\" does not really sit well after 4 years \"actively being worked on\". \r\nSuch issues, that people often find too late in their development and clients refusing payments because of it, are quite common with Flutter. A simple recent example are the emoji issues, also \"actively being worked on\" for years. They might seem smaller issues but are very disruptive and time consuming for hundreds of devs.\r\nAs this is often an underlying architectural issue because the Flutter team did not have the proper education in the beginning (your Lead Engineer confirmed this on reddit), we can't even contribute to it properly.",
+    "createdAt": "2022-01-19T08:15:50Z"
+  },
+  {
+    "id": 9265,
+    "sender": "Kavantix",
+    "content": "@chunhtai is there anything we can do to help?\r\nThe issue you linked seems to not have had any actual activity since november 2020, but it sounds like this is pretty much implemented and just needs testing\r\nSo perhaps we can help test?",
+    "createdAt": "2022-01-20T17:56:52Z"
+  },
+  {
+    "id": 9266,
+    "sender": "chunhtai",
+    "content": "@Kavantix To test the skparagaph, you need to build custom engine with additional flag.\r\n\r\n```\r\nflutter/tools/gn. .... --enable_skshaper --always_use_skshaper\r\n```\r\n\r\nThere is a PR to that should switch to use Skia paragraph by default https://github.com/flutter/engine/pull/28912/files\r\nOnce that land, we should be able to start progress on this issue",
+    "createdAt": "2022-01-20T18:50:27Z"
+  },
+  {
+    "id": 9267,
+    "sender": "Kavantix",
+    "content": "I’ve done some testing using the skia pragraph.\r\nSo far it seems to behave exactly the same as the old paragraph implemention.\r\nIncluding the weird behavior when using the ellipsis as discussed in this issue.\r\n\r\nSo I’ve also done some digging where the root cause of this is, and as was said before it is indeed because the long word is moved to the next line and the ellipsis is simply added because it is exceeding the maximum number of lines.\r\nAll of this is determined inside skparagraph, so to resolve this issue, it needs to be changed inside skia.\r\n\r\nOne way of fixing the issue would be to never break the last line when the maximum is reached.\r\nI tested simply handling the last line as one that does not allow soft breaks with a small change in skia and it did keep the word but not yet the ellipsis.",
+    "createdAt": "2022-01-21T00:22:45Z"
+  },
+  {
+    "id": 9268,
+    "sender": "chunhtai",
+    "content": "> So I’ve also done some digging where the root cause of this is, and as was said before it is indeed because the long word is moved to the next line and the ellipsis is simply added because it is exceeding the maximum number of lines. All of this is determined inside skparagraph, so to resolve this issue, it needs to be changed inside skia.\r\n\r\nThat is exactly the reason why we need to wait for the migration, since the fix will be on the library side\r\n\r\n\r\n",
+    "createdAt": "2022-01-21T00:46:12Z"
+  },
+  {
+    "id": 9269,
+    "sender": "chunhtai",
+    "content": "Since this is unblocked, I am curious about how community feel about the current behavior. Is there a use case where the current behavior is preferred? Should there be an option to toggle between the proposed behavior and the existing behavior ",
+    "createdAt": "2022-03-03T19:53:10Z"
+  },
+  {
+    "id": 9270,
+    "sender": "jsroest",
+    "content": "I would just introduce an ellipsis2, just not to break things.",
+    "createdAt": "2022-03-03T19:58:54Z"
+  },
+  {
+    "id": 9271,
+    "sender": "benPesso",
+    "content": "> Since this is unblocked, I am curious about how community feel about the current behavior. Is there a use case where the current behavior is preferred? Should there be an option to toggle between the proposed behavior and the existing behavior\r\n\r\n@chunhtai Personally, I don't see why anyone would find the current implementation preferable. It's an issue that has been outstanding since day one of Flutter, and probably no one is happy with the way it currently works. But if we're worried about breaking stuff, I recommend adding a `clip` property (similar to the [`softWrap` property](https://api.flutter.dev/flutter/widgets/Text/softWrap.html), but an `enum`) which would allow the user to set the clipping mode of the text (`syllable`, `word`, `linebreak?`):\r\n```dart\r\nText(\r\n  'Some text',\r\n  clip: TextClip.syllable,\r\n)\r\n```\r\n\r\n---\r\n\r\n> I would just introduce an ellipsis2, just not to break things.\r\n\r\n@jsroest The ellipses is about how the clipped text should be indicated (visualized); not about the clipping behavior. So there's no need for a second `ellipses` property.",
+    "createdAt": "2022-03-03T21:22:02Z"
+  },
+  {
+    "id": 9272,
+    "sender": "ookami-kb",
+    "content": "> But if we're worried about breaking stuff, I recommend adding a clip property (similar to the [softWrap property](https://api.flutter.dev/flutter/widgets/Text/softWrap.html), but an enum) which would allow the user to set the clipping mode of the text (syllable, word, linebreak?)\r\n\r\nIf it would default to `syllable`, it would still be a breaking change. If it would default to a `word`, it means that everybody who thinks this is a bug (including me) will have to add an explicit clip option to every `Text` widget.",
+    "createdAt": "2022-03-04T00:11:43Z"
+  },
+  {
+    "id": 9273,
+    "sender": "marcglasberg",
+    "content": "@chunhtai Please see the original issue. It seems Arabic and other eastern languages have use for the current behavior. I have suggested the current behavior could be kept, like so:\r\n\r\n```\r\nenum TestOverflow {clip, fade, ellipsisWords, ellipsisLetters, ellipsisAutodetect}.\r\n```\r\n\r\n",
+    "createdAt": "2022-03-04T01:43:07Z"
+  },
+  {
+    "id": 9274,
+    "sender": "Pe-te",
+    "content": "> If it would default to `syllable`, it would still be a breaking change. If it would default to a `word`, it means that everybody who thinks this is a bug (including me) will have to add an explicit clip option to every `Text` widget.\r\n\r\nI would consider the current state \"broken\" and the new state \"fixed\", so it's not really a breaking change but a fixing one? :)\r\n\r\nMaybe there is some way to make the option high level? So whoever needs it can define \"all textfields in my project need the old way\" with a simple toggle?",
+    "createdAt": "2022-03-04T09:52:50Z"
+  },
+  {
+    "id": 9275,
+    "sender": "ookami-kb",
+    "content": "> I would consider the current state \"broken\" and the new state \"fixed\", so it's not really a breaking change but a fixing one? :)\r\n\r\nYes, exactly my point of view as well.\r\n\r\n> Maybe there is some way to make the option high level? So whoever needs it can define \"all textfields in my project need the old way\" with a simple toggle?\r\n\r\nAdding it to `TextStyle`, probably?",
+    "createdAt": "2022-03-04T09:56:30Z"
+  },
+  {
+    "id": 9276,
+    "sender": "benPesso",
+    "content": "> @chunhtai Please see the original issue. It seems Arabic and other eastern languages have use for the current behavior. I have suggested the current behavior could be kept, like so:\r\n> \r\n> ```\r\n> enum TestOverflow {clip, fade, ellipsisWords, ellipsisLetters, ellipsisAutodetect}.\r\n> ```\r\n\r\nArabic and other languages with varying glyph sizes at the end don't \"need\" the current behavior. They need it to properly  detect what the final width of the word is going to be, and do more iterations of the clipping logic, to determine where to correctly trim the word.\r\nClipping a word in the middle should not convert the (now final) glyph to a final one. In Hebrew, for example, you might have this word: `נכון`. Clipped in the middle, it would turn into `נכ`, not `נך`. The same should be true in Arabic and languages where glyphs are comprised of more than one letter - the singular version of the letter should be used.",
+    "createdAt": "2022-03-04T10:26:10Z"
+  },
+  {
+    "id": 9277,
+    "sender": "benPesso",
+    "content": "> > But if we're worried about breaking stuff, I recommend adding a clip property (similar to the [softWrap property](https://api.flutter.dev/flutter/widgets/Text/softWrap.html), but an enum) which would allow the user to set the clipping mode of the text (syllable, word, linebreak?)\r\n> \r\n> If it would default to `syllable`, it would still be a breaking change. If it would default to a `word`, it means that everybody who thinks this is a bug (including me) will have to add an explicit clip option to every `Text` widget.\r\n\r\nThere's no argument that this is a bug. If anything, this solves just one bug, and uncovers another: the proper clipping of script-based languages. So I would consider this a bug fix.\r\n\r\nHowever, since Flutter already has native support for locales, I don't see why this can't be handled internally based on the locale used for the string. It shouldn't be something the user has to configure (override) manually.\r\n\r\nThat said, I do suggest adding the `clip` property for those who wish to use this functionality in locales that don't natively require it. This way, locales that have it \"on\" by default (English, etc.) can use `TextClip.word` to achieve the old behavior, and locales that don't (Arabic, etc.) can use the `TextClip.syllable` property.",
+    "createdAt": "2022-03-04T10:32:46Z"
+  },
+  {
+    "id": 9278,
+    "sender": "benPesso",
+    "content": "> > I would consider the current state \"broken\" and the new state \"fixed\", so it's not really a breaking change but a fixing one? :)\r\n> \r\n> Yes, exactly my point of view as well.\r\n> \r\n> > Maybe there is some way to make the option high level? So whoever needs it can define \"all textfields in my project need the old way\" with a simple toggle?\r\n> \r\n> Adding it to `TextStyle`, probably?\r\n\r\n`TextStyle` is for styling, not formatting. I remember seeing a discussion a long while back about why stylings are grouped into a`TextStyle` and formattings are not, but that's a discussion for another day. 😄",
+    "createdAt": "2022-03-04T10:35:41Z"
+  },
+  {
+    "id": 9279,
+    "sender": "marcglasberg",
+    "content": "I mentioned Arabic because that was the justification for the current behavior, here: https://github.com/flutter/flutter/issues/4478\r\n\r\nIf that makes sense or not, I don't know, but that should be decided by a group of people with a good understanding of all those languages.",
+    "createdAt": "2022-03-04T18:12:56Z"
+  }
+]

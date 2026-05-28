@@ -1,0 +1,386 @@
+[
+  {
+    "id": 3136,
+    "sender": "AlexV525",
+    "content": "> There is one analyzer error now\r\n\r\nYou mean the one in gallery's test? I've filed a PR and wait until this lands.",
+    "createdAt": "2020-11-04T00:29:40Z"
+  },
+  {
+    "id": 3137,
+    "sender": "justinmc",
+    "content": "I think it's an old usage of `maxLengthEnforced` in lib/demos/material/text_field_demo.dart that you can update now, but let me know if I'm wrong.\r\n\r\nAlso, there are some conflicts now FYI.",
+    "createdAt": "2020-11-04T01:13:20Z"
+  },
+  {
+    "id": 3138,
+    "sender": "AlexV525",
+    "content": "> I think it's an old usage of `maxLengthEnforced` in lib/demos/material/text_field_demo.dart that you can update now, but let me know if I'm wrong.\r\n\r\nI'm pretty sure this is the fix you're looking for. 😄 https://github.com/flutter/gallery/pull/358\r\n\r\nI'll solve those conflicts again once the doc is good to go.",
+    "createdAt": "2020-11-04T01:25:26Z"
+  },
+  {
+    "id": 3139,
+    "sender": "justinmc",
+    "content": "Ah sorry you're right, I didn't realize those tests were in the gallery repo.",
+    "createdAt": "2020-11-04T16:44:11Z"
+  },
+  {
+    "id": 3140,
+    "sender": "justinmc",
+    "content": "Hey @AlexV525, I'm checking back in on this after being on leave for awhile.  Is there anything blocking you here, or are you able to fix the conflicts and move forward with the PR?",
+    "createdAt": "2020-11-30T18:57:02Z"
+  },
+  {
+    "id": 3141,
+    "sender": "AlexV525",
+    "content": "> Hey @AlexV525, I'm checking back in on this after being on leave for awhile. Is there anything blocking you here, or are you able to fix the conflicts and move forward with the PR?\r\n\r\nJust seeking for potential solutions. :D",
+    "createdAt": "2020-12-01T13:11:14Z"
+  },
+  {
+    "id": 3142,
+    "sender": "justinmc",
+    "content": "Sorry, I was missing so much context after being out.  Let's continue the discussion in the issue.  I've made a proposal: https://github.com/flutter/flutter/issues/67898#issuecomment-737546617",
+    "createdAt": "2020-12-02T23:00:00Z"
+  },
+  {
+    "id": 3143,
+    "sender": "AlexV525",
+    "content": "The implementation has been updated according to @justinmc 's suggestion, provide behavior according to platforms by default. Those behaviors are added to the description, and will be updated to the doc and the migration guide.\r\n\r\n\r\n* Android, Windows: `MaxLengthEnforcement.enforced`. The native behavior of these platforms is enforced. The composing will be handled by the IME while users are entering CJK characters.\r\n* iOS: `MaxLengthEnforcement.truncateAfterCompositionEnds`. iOS has no default behavior and it requires users implement the behavior themselves. Allow the composition exceed to avoid breaking CJK input.\r\n* Web / macOS / linux / fuchsia: `MaxLengthEnforcement.truncateAfterCompositionEnds`. These platforms allow the composition exceed by default.",
+    "createdAt": "2020-12-04T10:37:02Z"
+  },
+  {
+    "id": 3144,
+    "sender": "AlexV525",
+    "content": "One thing needs to point out is Windows have different behaviors when you're using different IMEs. For example _Microsoft PinYin IME_ cannot exceed the limit when it's composing, but _Sogou PinYin_ can while it holds the composition inside itself like Gboard with CJK's on Android.",
+    "createdAt": "2020-12-04T10:40:58Z"
+  },
+  {
+    "id": 3145,
+    "sender": "justinmc",
+    "content": "Also I think there may be a legitimate test failure due to a deprecated use of maxLengthEnforced at: lib/demos/material/text_field_demo.dart:218:19.",
+    "createdAt": "2020-12-04T18:15:09Z"
+  },
+  {
+    "id": 3146,
+    "sender": "justinmc",
+    "content": "In order to get around the customer test failures (which are coming from the gallery), this is what we'll have to do:\r\n\r\n  1. Remove the `@Deprecated` flags from this PR, then merge it when it goes green.\r\n  1. Submit a PR in the Flutter gallery to migrate from maxLengthEnforced to maxLengthEnforcement [here](https://github.com/flutter/gallery/blob/86b2ac2f3491ab1d10236da73588f2250bacc274/lib/demos/material/text_field_demo.dart#L217).\r\n  1. Submit another PR here to add back the deprecation.",
+    "createdAt": "2020-12-07T18:12:04Z"
+  },
+  {
+    "id": 3147,
+    "sender": "AlexV525",
+    "content": "There is another serious issue with characters calculation when I was testing \"Composing range handled correctly when it's overflowed\" in editable text tests.\r\n\r\n![image](https://user-images.githubusercontent.com/15884415/101442612-a8639000-3956-11eb-9465-254a56192859.png?)\r\n\r\nThe calculation of `newValue.text` is resulting a wrong length, which should be *6*. This will cause the test fail but not related to the current PR. /cc @LongCatIsLooong @justinmc \r\n\r\nPreviously the test won't failed because the range is completely overflowed, but when I tried with a shorter text this happened. So I'm going to keep the current working test and separate this to another issue or PR.",
+    "createdAt": "2020-12-08T05:11:48Z"
+  },
+  {
+    "id": 3148,
+    "sender": "justinmc",
+    "content": "Which test is it that fails like that?  I don't follow exactly why it's failing now.\r\n\r\nIn general though I think that's a good plan, if this is unrelated.  You should create a new issue and then add a TODO in the code with a link to the issue.",
+    "createdAt": "2020-12-08T05:53:54Z"
+  },
+  {
+    "id": 3149,
+    "sender": "AlexV525",
+    "content": "> Which test is it that fails like that? I don't follow exactly why it's failing now.\r\n> \r\n> In general though I think that's a good plan, if this is unrelated. You should create a new issue and then add a TODO in the code with a link to the issue.\r\n\r\n\"Composing range handled correctly when it's overflowed\" in `editable_text_tests`. I've saw some related issues before, I'll file a new one if it doesn't exist.",
+    "createdAt": "2020-12-08T05:55:26Z"
+  },
+  {
+    "id": 3150,
+    "sender": "AlexV525",
+    "content": "Thanks for everyone that make efforts to this PR to make it solid! It's a huge change and hope it can truly solve composing issues.",
+    "createdAt": "2020-12-09T23:30:23Z"
+  },
+  {
+    "id": 3151,
+    "sender": "Piinks",
+    "content": "## TwoDimensional scrolling foundation\n\nFrom the 2D scrolling proposal: [flutter.dev/go/2D-Foundation](https://flutter.dev/go/2D-Foundation) ✅  updated 4/25\r\n\r\nFixes https://github.com/flutter/flutter/issues/125505\r\n\r\nFollow up issues:\r\n- https://github.com/flutter/flutter/issues/126297\r\n- https://github.com/flutter/flutter/issues/126298\r\n- https://github.com/flutter/flutter/issues/126299\r\n-  https://github.com/flutter/flutter/issues/122348\r\n\r\nThis adds a mostly abstract foundation for 2D scrolling in Flutter.\r\n\r\nWith these base classes, developers will be able to construct widgets that scroll in both dimensions and can lazily load their children for the best performance. This implementation is meant to be flexible in order to support different kinds of 2D compositions, from tables to scatter plots. \r\n\r\nThe upcoming TableView, TreeView, etc widgets (coming soon in flutter/packages) are built on top of this foundation.\r\n\r\n\r\n## Pre-launch Checklist\r\n\r\n- [x] I read the [Contributor Guide] and followed the process outlined there for submitting PRs.\r\n- [x] I read the [Tree Hygiene] wiki page, which explains my responsibilities.\r\n- [x] I read and followed the [Flutter Style Guide], including [Features we expect every widget to implement].\r\n- [x] I signed the [CLA].\r\n- [x] I listed at least one issue that this PR fixes in the description above.\r\n- [x] I updated/added relevant documentation (doc comments with `///`).\r\n- [x] I added new tests to check the change I am making, or this PR is [test-exempt].\r\n- [x] All existing and new tests are passing.\r\n\r\nIf you need help, consider asking for advice on the #hackers-new channel on [Discord].\r\n\r\n<!-- Links -->\r\n[Contributor Guide]: https://github.com/flutter/flutter/wiki/Tree-hygiene#overview\r\n[Tree Hygiene]: https://github.com/flutter/flutter/wiki/Tree-hygiene\r\n[test-exempt]: https://github.com/flutter/flutter/wiki/Tree-hygiene#tests\r\n[Flutter Style Guide]: https://github.com/flutter/flutter/wiki/Style-guide-for-Flutter-repo\r\n[Features we expect every widget to implement]: https://github.com/flutter/flutter/wiki/Style-guide-for-Flutter-repo#features-we-expect-every-widget-to-implement\r\n[CLA]: https://cla.developers.google.com/\r\n[flutter/tests]: https://github.com/flutter/tests\r\n[breaking change policy]: https://github.com/flutter/flutter/wiki/Tree-hygiene#handling-breaking-changes\r\n[Discord]: https://github.com/flutter/flutter/wiki/Chat\r",
+    "createdAt": "2023-04-24T20:45:27Z"
+  },
+  {
+    "id": 3152,
+    "sender": "goderbauer",
+    "content": "I'll have to block some time to look at this. In the meantime, can you make the checks pass?",
+    "createdAt": "2023-04-25T08:30:50Z"
+  },
+  {
+    "id": 3153,
+    "sender": "Piinks",
+    "content": "> I'll have to block some time to look at this.\r\n\r\nOf course! Take your time. :)\r\n\r\n> In the meantime, can you make the checks pass?\r\n\r\nOof sorry! I thought I caught all of them. On it!",
+    "createdAt": "2023-04-25T16:04:58Z"
+  },
+  {
+    "id": 3154,
+    "sender": "Piinks",
+    "content": "I am having branch issues. I really do not want to close this, but the Github UI is not updating with the code.",
+    "createdAt": "2023-05-01T22:00:22Z"
+  },
+  {
+    "id": 3155,
+    "sender": "Piinks",
+    "content": "Ok I think my branch issues are behind me. I responded to the last review and left a few questions for feedback. I will push tests next now that I have everything fixed.",
+    "createdAt": "2023-05-01T23:09:45Z"
+  },
+  {
+    "id": 3156,
+    "sender": "Piinks",
+    "content": "> Overall, this LGTM. It is missing some test coverage, though. :)\r\n\r\nWoohoo! Let's ship it. Kidding. 😜 \r\n\r\nAdded the next block of tests, I had a question for you on one of them, I'll put a comment on it.\r\nToday I filed all follow up issues and notated them in TODOs. The render viewport tests are the only ones left to bring over, I will complete that tomorrow.",
+    "createdAt": "2023-05-09T00:51:16Z"
+  },
+  {
+    "id": 3157,
+    "sender": "Piinks",
+    "content": "> The render viewport tests are the only ones left to bring over, I will complete that tomorrow.\r\n\r\nI don't know why I say this on Mondays when I know full well Tuesdays are meeting days. 🙃 ",
+    "createdAt": "2023-05-10T00:15:19Z"
+  },
+  {
+    "id": 3158,
+    "sender": "Piinks",
+    "content": "Still need to fill in a few more tests, the changes to the render viewport broke some of the tests I already had, or the APIs became private. Which I expected, which is why they weren't here to begin with. Should finish having them cleaned up tomorrow barring any hot potatoes. 🥔 🔥 ",
+    "createdAt": "2023-05-17T22:41:21Z"
+  },
+  {
+    "id": 3159,
+    "sender": "Piinks",
+    "content": "This is ready for review, all tests are now accounted for. :)",
+    "createdAt": "2023-05-19T18:24:25Z"
+  },
+  {
+    "id": 3160,
+    "sender": "x4080",
+    "content": "hello, how can I use this ? is there any example ?\r\n\r\nThanks",
+    "createdAt": "2023-08-10T22:20:20Z"
+  },
+  {
+    "id": 3161,
+    "sender": "chunhtai",
+    "content": "## Implement Router widget and widgets app api\n\n## Description\r\n\r\nIntroduce router widget and widgets app api, I will include the stock app rewrite in a separate pr once we agree on the api details\r\n\r\nstock app rewrite draft https://github.com/chunhtai/flutter/pull/2\r\n\r\n## Related Issues\r\n\r\nhttps://github.com/flutter/flutter/issues/45938\r\n\r\n## Tests\r\n\r\nI added the following tests:\r\n\r\nSee files\r\n\r\n## Checklist\r\n\r\nBefore you create this PR confirm that it meets all requirements listed below by checking the relevant checkboxes (`[x]`). This will ensure a smooth and quick review process.\r\n\r\n- [ ] I read the [Contributor Guide] and followed the process outlined there for submitting PRs.\r\n- [ ] I signed the [CLA].\r\n- [ ] I read and followed the [Flutter Style Guide], including [Features we expect every widget to implement].\r\n- [ ] I read the [Tree Hygiene] wiki page, which explains my responsibilities.\r\n- [ ] I updated/added relevant documentation (doc comments with `///`).\r\n- [ ] All existing and new tests are passing.\r\n- [ ] The analyzer (`flutter analyze --flutter-repo`) does not report any problems on my PR.\r\n- [ ] I am willing to follow-up on review comments in a timely manner.\r\n\r\n## Breaking Change\r\n\r\nDid any tests fail when you ran them? Please read [Handling breaking changes].\r\n\r\n- [ ] No, no existing tests failed, so this is *not* a breaking change.\r\n- [ ] Yes, this is a breaking change. *If not, delete the remainder of this section.*\r\n   - [ ] I wrote a design doc: https://flutter.dev/go/template *Replace this with a link to your design doc's short link*\r\n   - [ ] I got input from the developer relations team, specifically from: *Replace with the names of who gave advice*\r\n   - [ ] I wrote a migration guide: https://flutter.dev/go/breaking-changes-template *Replace this with a link to a pull request that adds the migration guide to https://flutter.dev/docs/release/breaking-changes*\r\n\r\n<!-- Links -->\r\n[issue database]: https://github.com/flutter/flutter/issues\r\n[Contributor Guide]: https://github.com/flutter/flutter/wiki/Tree-hygiene#overview\r\n[Test Coverage]: https://github.com/flutter/flutter/wiki/Test-coverage-for-package%3Aflutter\r\n[Flutter Style Guide]: https://github.com/flutter/flutter/wiki/Style-guide-for-Flutter-repo\r\n[Features we expect every widget to implement]: https://github.com/flutter/flutter/wiki/Style-guide-for-Flutter-repo#features-we-expect-every-widget-to-implement\r\n[CLA]: https://cla.developers.google.com/\r\n[Tree Hygiene]: https://github.com/flutter/flutter/wiki/Tree-hygiene\r\n[Handling breaking changes]: https://github.com/flutter/flutter/wiki/Tree-hygiene#handling-breaking-changes\r",
+    "createdAt": "2020-06-25T18:08:26Z"
+  },
+  {
+    "id": 3162,
+    "sender": "chunhtai",
+    "content": "a friendly bump",
+    "createdAt": "2020-07-13T16:53:35Z"
+  },
+  {
+    "id": 3163,
+    "sender": "Hixie",
+    "content": "FWIW, it's hard for me to evaluate the API really without the stocks app migration as well.",
+    "createdAt": "2020-07-14T17:04:44Z"
+  },
+  {
+    "id": 3164,
+    "sender": "chunhtai",
+    "content": "> FWIW, it's hard for me to evaluate the API really without the stocks app migration as well.\r\n\r\nCheck out this link https://github.com/chunhtai/flutter/pull/2",
+    "createdAt": "2020-07-14T17:06:38Z"
+  },
+  {
+    "id": 3165,
+    "sender": "Hixie",
+    "content": "Can you talk about the RouteInformation stuff and how it corresponds to what was in the original design? I'm trying to understand how the old design maps to this one.",
+    "createdAt": "2020-07-16T18:24:45Z"
+  },
+  {
+    "id": 3166,
+    "sender": "chunhtai",
+    "content": "The RouteInformation is trying to support the browser history entry(which contains both url and a state object), https://docs.google.com/document/d/1QodTFmwVr1yk8dyQvoqkeILxvm92oikB1bVhHTtp6R4/edit#heading=h.4bauy8cp70w0\r\n\r\nThe reason why we don't want to use the url alone is that something like scroll offset and textfield value do not usually store into query parameter. They are commonly stored into the state of a browser history.\r\n\r\nThere are also discussions about how do we utilize state restoration. https://docs.google.com/document/d/1d25VJmHJIqoh5Hw4PyvCcl9R4GYdF4AmBRUy-UwB2dQ/edit#heading=h.4qsx9pjitde1\r\nfor the lake of a better name, i changed the name RoutePackage in the document into RouteInformation",
+    "createdAt": "2020-07-16T18:36:30Z"
+  },
+  {
+    "id": 3167,
+    "sender": "chunhtai",
+    "content": "ready for another look @goderbauer @Hixie @mdebbar \r\n\r\nI moved the serialization method into route information provider, and makes the router only report the route information back if the **RouteInformation.location** has changed. The changes to RouteInformation.configuration alone will not trigger the reporting.",
+    "createdAt": "2020-07-24T20:27:41Z"
+  },
+  {
+    "id": 3168,
+    "sender": "chunhtai",
+    "content": "I had to squash all previous commits to resolve merge conflict otherwise it is a nightmare to try to reapply all commits. The changes that aim to address the last review comments from @goderbauer are in the last commit. Beside that, i also choose to rename RouteInformation.configuration back to `state` because we are already using the name `configuration` in the route information parser and router delegate. This pr is ready for another look.",
+    "createdAt": "2020-07-29T22:32:32Z"
+  },
+  {
+    "id": 3169,
+    "sender": "Hixie",
+    "content": "This is looking great. My comments are mere minor nits.",
+    "createdAt": "2020-07-30T16:52:03Z"
+  },
+  {
+    "id": 3170,
+    "sender": "chunhtai",
+    "content": "This is ready for another look. @goderbauer  changes are in the last commit",
+    "createdAt": "2020-08-05T21:28:54Z"
+  },
+  {
+    "id": 3171,
+    "sender": "Hixie",
+    "content": "Some of my earlier comments, in particular for example the one about how we should not be using JSON, do not seem to yet have been taken into account.",
+    "createdAt": "2020-08-06T17:13:16Z"
+  },
+  {
+    "id": 3172,
+    "sender": "chunhtai",
+    "content": "> Some of my earlier comments, in particular for example the one about how we should not be using JSON, do not seem to yet have been taken into account.\r\n\r\nI didn't use any json encode or decode in the router, the only place that uses it is navigation system channel that use json codec. If we want to get rid of it, we can either convert navigation channel to use standard codec or create a different channel.\r\n\r\nI am not sure which is more desirable. also cc @goderbauer ",
+    "createdAt": "2020-08-06T17:19:03Z"
+  },
+  {
+    "id": 3173,
+    "sender": "Hixie",
+    "content": "We should convert it to use the standard codec, if we can. I just don't want to be adding any more places where we're converting data to JSON, it's highly inefficient.",
+    "createdAt": "2020-08-06T17:22:56Z"
+  },
+  {
+    "id": 3174,
+    "sender": "chunhtai",
+    "content": "@Hixie I opened a separate issue about converting navigation channel https://github.com/flutter/flutter/issues/63121\r\nI would not do it as part of this pr because it may involve multiple stage migration and this pr is already massive\r\n\r\nin the meanwhile, I addressed all other comments. This pr is ready for another look @goderbauer and @Hixie ",
+    "createdAt": "2020-08-06T20:54:39Z"
+  },
+  {
+    "id": 3175,
+    "sender": "goderbauer",
+    "content": "Looks like there are some doc errors.\r\n\r\nThe StandartMessageCodec/JSON question aside, this LGTM.",
+    "createdAt": "2020-08-07T19:41:52Z"
+  },
+  {
+    "id": 3176,
+    "sender": "chunhtai",
+    "content": "addressed all comments, and also updated the stock app rewrite pr https://github.com/chunhtai/flutter/pull/2/files",
+    "createdAt": "2020-08-07T22:08:40Z"
+  },
+  {
+    "id": 3177,
+    "sender": "fbcouch",
+    "content": "## Support Scribble Handwriting\n\nEngine PR: https://github.com/flutter/engine/pull/24224\r\n\r\nThis PR is the framework side of adding scribble handwriting support. I still need to add some tests, but looking for feedback on the overall approach. I incorporated some feedback from @LongCatIsLooong on a previous draft, moving most of the logic of this into the framework and adding a widget (`_ScribbleElement`) to handle most of the scribble-specific logic.\r\n\r\nThe one remaining issue here (that I could use some ideas on how to solve) is that the UIIndirectScribbleInteraction can always be triggered, regardless of whether the text input in question is obscured by another element or otherwise non-interactive (e.g. behind something else in a stack).\r\n\r\nhttps://github.com/flutter/flutter/issues/61278\r\n\r\nDesign doc: https://docs.google.com/document/d/1mjQbsSRQnHuAgMNdouaSgTS-Xv-w57fdKfOUUafWpRo\r\n\r\n*If you had to change anything in the [flutter/tests] repo, include a link to the migration guide as per the [breaking change policy].*\r\n\r\n## Pre-launch Checklist\r\n\r\n- [x] I read the [Contributor Guide] and followed the process outlined there for submitting PRs.\r\n- [x] I read the [Tree Hygiene] wiki page, which explains my responsibilities.\r\n- [x] I read and followed the [Flutter Style Guide], including [Features we expect every widget to implement].\r\n- [x] I listed at least one issue that this PR fixes in the description above.\r\n- [x] I added new tests to check the change I am making or feature I am adding, or Hixie said the PR is test exempt.\r\n- [x] I updated/added relevant documentation (doc comments with `///`).\r\n- [x] I signed the [CLA].\r\n- [x] All existing and new tests are passing.\r\n\r\nIf you need help, consider asking for advice on the #hackers-new channel on [Discord].\r\n\r\n<!-- Links -->\r\n[Contributor Guide]: https://github.com/flutter/flutter/wiki/Tree-hygiene#overview\r\n[Tree Hygiene]: https://github.com/flutter/flutter/wiki/Tree-hygiene\r\n[Flutter Style Guide]: https://github.com/flutter/flutter/wiki/Style-guide-for-Flutter-repo\r\n[Features we expect every widget to implement]: https://github.com/flutter/flutter/wiki/Style-guide-for-Flutter-repo#features-we-expect-every-widget-to-implement\r\n[CLA]: https://cla.developers.google.com/\r\n[flutter/tests]: https://github.com/flutter/tests\r\n[breaking change policy]: https://github.com/flutter/flutter/wiki/Tree-hygiene#handling-breaking-changes\r\n[Discord]: https://github.com/flutter/flutter/wiki/Chat\r",
+    "createdAt": "2021-02-05T02:46:57Z"
+  },
+  {
+    "id": 3178,
+    "sender": "fbcouch",
+    "content": "> Thank you for the PR and great work! Left some initial feedback and questions.\r\n> \r\n> An additional question regarding the `UIIndirectScribbleInteractionDelegate` protocol:\r\n> when does UIKit call `func indirectScribbleInteraction(UIInteraction, frameForElement: Self.ElementIdentifier) -> CGRect`? Is it always immediately after one of the async calls (`func indirectScribbleInteraction(UIInteraction, requestElementsIn: CGRect, completion: ([Self.ElementIdentifier]) -> Void)` or `func indirectScribbleInteraction(UIInteraction, focusElementIfNeeded: Self.ElementIdentifier, referencePoint: CGPoint, completion: ((UIResponder & UITextInput)?) -> Void)`)? I'd like to understand how much information we would have to send to the engine every frame.\r\n\r\nI believe UIKit calls `func indirectScribbleInteraction(UIInteraction, requestElementsIn: CGRect, completion: ([Self.ElementIdentifier]) -> Void)` and waits for the completion handler. Then it calls `func indirectScribbleInteraction(UIInteraction, frameForElement: Self.ElementIdentifier) -> CGRect`. Since I have `func indirectScribbleInteraction(UIInteraction, shouldDelayFocusForElement: Self.ElementIdentifier) -> Bool` always returning true, it waits for a pause in the user input before calling `func indirectScribbleInteraction(_ interaction: UIInteraction, focusElementIfNeeded elementIdentifier: Self.ElementIdentifier, referencePoint focusReferencePoint: CGPoint, completion: @escaping ((UIResponder & UITextInput)?) -> Void)`\r\n\r\nI don't think we're sending info to the engine on every frame during the indirect interaction now that I moved that to the framework side. Once the input is focused, we do calculate the selection boxes every frame, but we also cache those on the framework side so that they only actually get sent to the engine when changed.",
+    "createdAt": "2021-02-11T20:19:34Z"
+  },
+  {
+    "id": 3179,
+    "sender": "LongCatIsLooong",
+    "content": "Sorry for the delay I'll take a look tonight.",
+    "createdAt": "2021-02-23T00:16:39Z"
+  },
+  {
+    "id": 3180,
+    "sender": "fbcouch",
+    "content": "No problem! I actually have an idea for how to do the hit testing thing, just haven't had a chance to cherry pick that into the PR branch. That's here: https://github.com/twinsunllc/flutter/commit/0dfa712f079c1f308c75ab6a7c840ca6095750ac#diff-f5f93c879cef9a102adbf148583de9f3d9a05f9678fdcad7bde106f62200bb34R2947",
+    "createdAt": "2021-02-23T04:30:30Z"
+  },
+  {
+    "id": 3181,
+    "sender": "fbcouch",
+    "content": "@LongCatIsLooong I think I have addressed your feedback except for a couple of items:\r\n\r\n- https://github.com/flutter/flutter/pull/75472#discussion_r584234318 - not sure what to do here\r\n- https://github.com/flutter/flutter/pull/75472#discussion_r584235087 - is there a way to test this? I believe Scribble only supports English and Chinese, so I'm not sure if we would run into those things\r\n\r\nI also added an implementation for `insertTextPlaceholder` and `removeTextPlaceholder` coming from the engine side. PencilKit uses those to accomplish the Insert scribble method where you can long press with the pencil to get some extra space to write in.\r\n\r\nLet me know your thoughts there. I have some merge conflicts now – I'm hoping this is close, but I'll wait to get your thumbs up before rebasing this onto the current master (or perhaps the last green commit on master?) and marking it as ready for review.",
+    "createdAt": "2021-03-10T22:02:01Z"
+  },
+  {
+    "id": 3182,
+    "sender": "fbcouch",
+    "content": "@LongCatIsLooong @justinmc @goderbauer I believe I've addressed all of the comments here, let me know if you see anything else! Thanks!",
+    "createdAt": "2021-06-04T18:52:43Z"
+  },
+  {
+    "id": 3183,
+    "sender": "fbcouch",
+    "content": "@LongCatIsLooong @justinmc @goderbauer Just checking in here if there are any more changes needed. It looks like there are some merge conflicts now, so if everything looks good, I can clean those up and hopefully we can get this merged 😄 ",
+    "createdAt": "2021-06-28T15:01:19Z"
+  },
+  {
+    "id": 3184,
+    "sender": "fbcouch",
+    "content": "@justinmc Thanks for your comments, I'll take a look through those individually – I have some memory management stuff to clean up on the engine side as well.\r\n\r\nYes, unfortunately there's no simulator support, so you will need a physical iPad with iPadOS 14 and a Pencil.",
+    "createdAt": "2021-07-01T02:14:18Z"
+  },
+  {
+    "id": 3185,
+    "sender": "fbcouch",
+    "content": "@justinmc I think I made all the changes you requested / responded to questions. Let me know if I missed anything",
+    "createdAt": "2021-07-01T20:50:43Z"
+  },
+  {
+    "id": 3186,
+    "sender": "blasten",
+    "content": "@fbcouch Awesome work! I was wondering if there's a design doc that provides an overview of this feature?  framework <-> engine interactions, etc...",
+    "createdAt": "2021-07-01T22:59:08Z"
+  },
+  {
+    "id": 3187,
+    "sender": "fbcouch",
+    "content": "@blasten There isn't that I know of, but I can try to put one together if that would be helpful",
+    "createdAt": "2021-07-02T03:07:00Z"
+  },
+  {
+    "id": 3188,
+    "sender": "blasten",
+    "content": "It would definitely help for future considerations. We have a template on https://flutter.dev/go/template",
+    "createdAt": "2021-07-02T04:22:10Z"
+  },
+  {
+    "id": 3189,
+    "sender": "fbcouch",
+    "content": "@blasten \r\n> It would definitely help for future considerations. We have a template on https://flutter.dev/go/template\r\n\r\nAll right, I have a first draft of that here: https://docs.google.com/document/d/1mjQbsSRQnHuAgMNdouaSgTS-Xv-w57fdKfOUUafWpRo",
+    "createdAt": "2021-07-12T14:56:31Z"
+  },
+  {
+    "id": 3190,
+    "sender": "blasten",
+    "content": "Awesome! Thanks for sharing",
+    "createdAt": "2021-07-12T18:51:32Z"
+  },
+  {
+    "id": 3191,
+    "sender": "fbcouch",
+    "content": "@justinmc I merged in master, looks like customer_testing-linux is failing with a different problem now, looks to be something to do with version resolving...do you have any idea why that would break here but not on master (I _assume_ it is working on master)?",
+    "createdAt": "2021-08-19T21:35:21Z"
+  },
+  {
+    "id": 3192,
+    "sender": "justinmc",
+    "content": "@fbcouch That failure seems to have nothing to do with the PR...  I tried rerunning it.  If it doesn't go green, could you try merging in master again?  Maybe you just got a bad commit or something.",
+    "createdAt": "2021-08-23T22:30:08Z"
+  },
+  {
+    "id": 3193,
+    "sender": "fbcouch",
+    "content": "@justinmc I am at a loss for what that customer_testing-linux failure is about. I tried merging master a couple times, and still no luck",
+    "createdAt": "2021-08-30T21:43:59Z"
+  },
+  {
+    "id": 3194,
+    "sender": "justinmc",
+    "content": "@fbcouch FYI there is a conflict now.\r\n\r\nI've posted on hackers-infra on Discord to try to get some help with this failure.  I've seen similar failures, I don't think it's due to anything in this PR.  I have fixed similar failures by squashing all commits into one, but I don't want to make you do that unless we have to.",
+    "createdAt": "2021-09-15T00:26:46Z"
+  },
+  {
+    "id": 3195,
+    "sender": "justinmc",
+    "content": "From Discord, it seems like the best solution here is to rebase with master.  That should get customer_testing-linux to pass.  Merge commits won't fix it.",
+    "createdAt": "2021-09-15T16:40:33Z"
+  },
+  {
+    "id": 3196,
+    "sender": "fbcouch",
+    "content": "@justinmc Thanks, that fixed the customer_testing-linux step! Unfortunately now some web tests are failing 😩 ...looks like some timeouts on dragging stuff, so not sure what that's about.",
+    "createdAt": "2021-09-16T03:06:44Z"
+  },
+  {
+    "id": 3197,
+    "sender": "justinmc",
+    "content": "Everything is green now!  You've got some conflicts to fix though.",
+    "createdAt": "2021-09-22T21:44:28Z"
+  },
+  {
+    "id": 3198,
+    "sender": "skia-gold",
+    "content": "Gold has detected about 3 new digest(s) on patchset 43.\nView them at https://flutter-gold.skia.org/cl/github/75472",
+    "createdAt": "2021-10-18T19:51:15Z"
+  },
+  {
+    "id": 3199,
+    "sender": "justinmc",
+    "content": "@fbcouch Can you try merging master into here?  I'm not sure why skia-gold is saying that there are changes to the goldens.  When I click the link it's empty, so maybe just a bug.",
+    "createdAt": "2021-10-25T17:09:18Z"
+  }
+]

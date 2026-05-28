@@ -1,0 +1,386 @@
+[
+  {
+    "id": 8896,
+    "sender": "LazyDave76",
+    "content": "we're seeing this too with 1.9.1+hotfix.4 in stable channel.  :(",
+    "createdAt": "2019-10-04T13:49:10Z"
+  },
+  {
+    "id": 8897,
+    "sender": "BondarenkoStas",
+    "content": "@LazyDave76 It's available in v1.10.0, which is in Dev since September 6, but not yet on stable/beta. I'm going to close the issue as it should be already fixed. Please try, if you encounter it using any v1.10.0+, comment here and I will re-open it right away.",
+    "createdAt": "2019-10-04T15:10:06Z"
+  },
+  {
+    "id": 8898,
+    "sender": "26shruti",
+    "content": "@BondarenkoStas Still getting it on v1.10.1",
+    "createdAt": "2019-10-09T10:04:58Z"
+  },
+  {
+    "id": 8899,
+    "sender": "catalin260",
+    "content": "Still getting it on the latest version v1.10.15. Please fix this issue as soon as possible. \r\nThis is happening on many devices",
+    "createdAt": "2019-10-11T09:34:31Z"
+  },
+  {
+    "id": 8900,
+    "sender": "rymesaint",
+    "content": "i have the same problem with their phone who have samsung j4 plus and samsung j6 plus, any progress on this problem?",
+    "createdAt": "2019-10-12T11:23:48Z"
+  },
+  {
+    "id": 8901,
+    "sender": "marcocondrache",
+    "content": "Same issue for me i resolved it using the last version of master.\nIn stable the problem persist",
+    "createdAt": "2019-10-12T11:31:43Z"
+  },
+  {
+    "id": 8902,
+    "sender": "VladimirRychlitskiy",
+    "content": "Encountered the same issue on Galaxy J4+ (j4primelte)",
+    "createdAt": "2019-10-14T07:23:27Z"
+  },
+  {
+    "id": 8903,
+    "sender": "nerder",
+    "content": "~Same problem with Samsung xj6~\r\n\r\nEDIT: \r\nThis issue should be closed in favor of #36130 ,\r\nThe fix seems to be in the `beta` channel for now, not in stable yet.\r\n\r\nhttps://github.com/flutter/flutter/issues/36130#issuecomment-540838755",
+    "createdAt": "2019-10-14T08:43:40Z"
+  },
+  {
+    "id": 8904,
+    "sender": "BondarenkoStas",
+    "content": "I reopened it because @26shruti and @catalin260 encountered it in the after fix versions.",
+    "createdAt": "2019-10-14T10:52:17Z"
+  },
+  {
+    "id": 8905,
+    "sender": "akeblom",
+    "content": "Our customer did see this case of stuck black screen on app start . One iPhone 8 running 10.3.3 and one relatively new Samsung. So the problem seems to occur on both platforms. I cannot reproduce myself though.",
+    "createdAt": "2019-10-15T08:36:47Z"
+  },
+  {
+    "id": 8906,
+    "sender": "huergomartin",
+    "content": "Hi, yesterday I added internal testers with J6+ and J4+ in beta channel 1.10.7 and the black screen still appears. The bad comments on the store keep growing.",
+    "createdAt": "2019-10-18T13:44:51Z"
+  },
+  {
+    "id": 8907,
+    "sender": "liyuqian",
+    "content": "I can run flutter_gallery in release mode on my Galaxy J6+ without any black screens. Here's my version\r\n- Galaxy J6+ Model number: SM-j610G/DS\r\n- One UI version 1.0\r\n- Android version 9\r\n- Flutter version 440753bae8f324b7a9a2dd03516d9a12f1d9c761\r\n\r\nDo you have a minimal Flutter app (single-file, hopefully less than 200 lines of code) that can reproduce the black screen in the master branch tip-of-tree Flutter?\r\n\r\nAlso loop in Skia engineer @brianosman early to see if he has some insights.",
+    "createdAt": "2019-10-18T17:36:18Z"
+  },
+  {
+    "id": 8908,
+    "sender": "sroddy",
+    "content": "this problem is serious: we are getting dozens of bad reviews coming from J4+ and J6+ users (which account for a total 1% of our user base (roughly 1000 installs).\r\n\r\nI still didn't understand if the problem is fixed on current master or not, as We don't have access to that devices for testing them",
+    "createdAt": "2019-10-22T16:53:34Z"
+  },
+  {
+    "id": 8909,
+    "sender": "sroddy",
+    "content": "@liyuqian I see that you are not experiencing this issue on your J6+ device running on a commit that is still not released in a dev build. \r\n\r\nCan you please try to run the same on latest stable/beta/dev and check if you are able to reproduce this issue? If this is the case we can assume that a roll of the engine that is subsequent to the latest dev build has actually solved this issue.\r\n\r\nThanks a lot.",
+    "createdAt": "2019-10-22T23:06:35Z"
+  },
+  {
+    "id": 8910,
+    "sender": "liyuqian",
+    "content": "@sroddy : I just tested flutter_gallery on the dev branch 1946fc4da0f80c522d7e3ae7d4f7309908ed86f2 (v1.10.14) and there's no black screen with `flutter run --release`: https://photos.app.goo.gl/5HWDHArutiuiNFxU9\r\n\r\n",
+    "createdAt": "2019-10-22T23:52:45Z"
+  },
+  {
+    "id": 8911,
+    "sender": "sroddy",
+    "content": "@liyuqian thank you very much!\r\nwhat about current stable? If you see the black screen we can assume it's fixed. If you don't see it then there might be some OS-specific (or widget-specific) stuff that is causing it",
+    "createdAt": "2019-10-22T23:59:21Z"
+  },
+  {
+    "id": 8912,
+    "sender": "liyuqian",
+    "content": "@sroddy : I reproduced the black screen on the stable branch 1aedbb1835bd6eb44550293d57d4d124f19901f0 (v1.9.1+hotfix.5). So this seems to be fixed between stable and dev.",
+    "createdAt": "2019-10-23T00:14:24Z"
+  },
+  {
+    "id": 8913,
+    "sender": "sroddy",
+    "content": "Amazing news, thank you again @liyuqian \r\nI think it would be important to make sure that at least the beta channel (if it's impossible to back port the fix to the current stable channel), has the fix.\r\n@huergomartin said that the issue was still present in beta, so it would be nice to understand which version (or even commit) effectively solved the issue",
+    "createdAt": "2019-10-23T01:28:58Z"
+  },
+  {
+    "id": 8914,
+    "sender": "AndersonSMed",
+    "content": "Hey guys, I just found that in version v1.10.7, currently on beta channel, the black screen problem was solved. I've tested it on my J6 plus.",
+    "createdAt": "2019-10-24T17:49:54Z"
+  },
+  {
+    "id": 8915,
+    "sender": "huergomartin",
+    "content": "@liyuqian perfect !!! @AndersonSantosMedeiros that's a surprise, I'm going to retest with users on the beta channel and I will give you feedback. Thanks to everyone.\r\n",
+    "createdAt": "2019-10-24T18:36:31Z"
+  },
+  {
+    "id": 8916,
+    "sender": "icfilho",
+    "content": "I used the beta 1.10.7 and still remained the black screen on the Samsung J6. Has anyone got any solution for this? Thanks if you can help.",
+    "createdAt": "2019-10-24T21:03:54Z"
+  },
+  {
+    "id": 8917,
+    "sender": "liyuqian",
+    "content": "@icfilho : I think we were all testing on J6+ so it's possible that there's a different issue for J6. If it turns out that 1.10.7 is Ok for J6+, maybe you can create a new issue just for J6 and we can follow on that.",
+    "createdAt": "2019-10-24T21:39:41Z"
+  },
+  {
+    "id": 8918,
+    "sender": "icfilho",
+    "content": "> @icfilho : I think we were all testing on J6+ so it's possible that there's a different issue for J6. If it turns out that 1.10.7 is Ok for J6+, maybe you can create a new issue just for J6 and we can follow on that.\r\n\r\nSorry. The device is J6+",
+    "createdAt": "2019-10-24T21:48:49Z"
+  },
+  {
+    "id": 8919,
+    "sender": "dxfrankowicz",
+    "content": "What about the latest stable version (v1.9.1+hotfix.6) ? Is it solved for Galaxy J6+ ?",
+    "createdAt": "2019-10-25T14:39:19Z"
+  },
+  {
+    "id": 8920,
+    "sender": "liyuqian",
+    "content": "@icfilho : I just tested flutter_gallery on J6+ with v1.10.7 without the black screen. Can you share us more information of how you reproduced the black screen? (What app are you using, can you share a screenshot, etc.)\r\n\r\n@dxfrankowicz : I don't think the v1.9.1+hotfix.6 is fixing this issue...",
+    "createdAt": "2019-10-25T23:39:05Z"
+  },
+  {
+    "id": 8921,
+    "sender": "Lobosque",
+    "content": "I still have clients using J4 and J6+ having this issue. Our latest release is under 1.9.1+hotfix.6",
+    "createdAt": "2019-10-29T14:02:09Z"
+  },
+  {
+    "id": 8922,
+    "sender": "fillipetardelli",
+    "content": "Hi guys,\r\n\r\nBased on this thread we updated our app to the flutter 1.9.1+hotfix.6 thinking that the problem was solved.\r\nBut we still getting negative user reviews facing the black screen problem.\r\n\r\nThe issue was already fixed? We need this fix ASAP plz.",
+    "createdAt": "2019-10-29T18:23:55Z"
+  },
+  {
+    "id": 8923,
+    "sender": "liyuqian",
+    "content": "@Lobosque @fillipetardelli : I don't think it's fixed in 1.9.1+hotfix.6 (see the [earlier comment](https://github.com/flutter/flutter/issues/37155#issuecomment-546544986)). The earliest version that I tested without showing the black screen is the beta v1.10.7 version.",
+    "createdAt": "2019-10-29T18:29:03Z"
+  },
+  {
+    "id": 8924,
+    "sender": "fillipetardelli",
+    "content": "@liyuqian are you already using this beta version in the production environment?",
+    "createdAt": "2019-10-29T20:42:12Z"
+  },
+  {
+    "id": 8925,
+    "sender": "kasonde",
+    "content": "Hi, I'm currently still experiencing this despite following this thread quietly. Can anyone recommend a flutter version that will at least get this issue out of our hands? We have a live app and it's affecting at least 10% of our users.",
+    "createdAt": "2019-10-31T05:46:03Z"
+  },
+  {
+    "id": 8926,
+    "sender": "akeblom",
+    "content": "> Hi, I'm currently still experiencing this despite following this thread quietly. Can anyone recommend a flutter version that will at least get this issue out of our hands? We have a live app and it's affecting at least 10% of our users.\r\n\r\nWhat version are you running? As I understand the latest version on the beta channel is suppose to work.",
+    "createdAt": "2019-10-31T12:14:34Z"
+  },
+  {
+    "id": 8927,
+    "sender": "dxfrankowicz",
+    "content": "Latest beta version is working fine on J6+. Got feedback from my clients ",
+    "createdAt": "2019-10-31T12:21:25Z"
+  },
+  {
+    "id": 8928,
+    "sender": "icfilho",
+    "content": "> @icfilho : I just tested flutter_gallery on J6+ with v1.10.7 without the black screen. Can you share us more information of how you reproduced the black screen? (What app are you using, can you share a screenshot, etc.)\r\n> \r\n> @dxfrankowicz : I don't think the v1.9.1+hotfix.6 is fixing this issue...\r\n\r\n@liyuqian thanks!!! Thats works now.",
+    "createdAt": "2019-10-31T12:45:30Z"
+  },
+  {
+    "id": 8929,
+    "sender": "kasonde",
+    "content": "Okay thanks. I tried it earlier but i wasn’t able to compile it. For some reason only stable channel can compile an app on Android. ",
+    "createdAt": "2019-10-31T12:51:35Z"
+  },
+  {
+    "id": 8930,
+    "sender": "liyuqian",
+    "content": "No problem. Glad to hear your clients to confirm the fix on the beta channel! Because of that, I'm going to close this issue. For other problems like the Android app won't compile with beta, maybe open a new issue to track it separately?",
+    "createdAt": "2019-10-31T17:03:38Z"
+  },
+  {
+    "id": 8931,
+    "sender": "kasonde",
+    "content": "@liyuqian I've done just that, it's here [#43895](https://github.com/flutter/flutter/issues/43895)",
+    "createdAt": "2019-10-31T17:23:05Z"
+  },
+  {
+    "id": 8932,
+    "sender": "Lobosque",
+    "content": "@liyuqian so there will be no backporting of the fix for 1.9.x?",
+    "createdAt": "2019-10-31T18:12:31Z"
+  },
+  {
+    "id": 8933,
+    "sender": "liyuqian",
+    "content": "If there were, it would be a hotfix. CC @tvolkert to evaluate if this needs a hot fix.",
+    "createdAt": "2019-10-31T18:27:03Z"
+  },
+  {
+    "id": 8934,
+    "sender": "tvolkert",
+    "content": "We're in the process of revamping our release process for the future, but in the meantime, hot-fixes are very painful for a number of reasons, so we generally avoid them.  @liyuqian what is the PR that fixed this?",
+    "createdAt": "2019-10-31T18:41:04Z"
+  },
+  {
+    "id": 8935,
+    "sender": "Lobosque",
+    "content": "I understand that the process for releasing a hotfix is not easy, but this\nissue affects up to 4% of the user base of many apps, ours included.\nUnless 1.10 stable is going to be released this week, please take the time\nneeded to push this hotfix.\n\n\nOn Thu, Oct 31, 2019, 3:43 PM Todd Volkert <notifications@github.com> wrote:\n\n> We're in the process of revamping our release process for the future, but\n> in the meantime, hot-fixes are very painful for a number of reasons, so we\n> generally avoid them. @liyuqian <https://github.com/liyuqian> what is the\n> PR that fixed this?\n>\n> —\n> You are receiving this because you were mentioned.\n> Reply to this email directly, view it on GitHub\n> <https://github.com/flutter/flutter/issues/37155?email_source=notifications&email_token=AAHMQXQSVKMXYEKLYIZPE5DQRMRL3A5CNFSM4IHPXRL2YY3PNVWWK3TUL52HS4DFVREXG43VMVBW63LNMVXHJKTDN5WW2ZLOORPWSZGOECY2YLI#issuecomment-548514861>,\n> or unsubscribe\n> <https://github.com/notifications/unsubscribe-auth/AAHMQXUIQIIF4VXIDDXU2TTQRMRL3ANCNFSM4IHPXRLQ>\n> .\n>\n",
+    "createdAt": "2019-10-31T22:04:41Z"
+  },
+  {
+    "id": 8936,
+    "sender": "fillipetardelli",
+    "content": "@liyuqian why the issue was closed? what's the solution here?\r\n\r\nThe stable channel has no fix and we are facing erros triyng to compile the beta channel.\r\nEven if the beta channel works, I think that the stable channel can't be named stable if there is a bug on it.",
+    "createdAt": "2019-11-01T14:20:14Z"
+  },
+  {
+    "id": 8937,
+    "sender": "rsacacio",
+    "content": "Hi @liyuqian , I have the same problem in my production app. I am getting bad ratings because of this. Do you have any plans to release the fixed version on the stable channel?",
+    "createdAt": "2019-11-01T16:53:12Z"
+  },
+  {
+    "id": 8938,
+    "sender": "liyuqian",
+    "content": "@tvolkert @Lobosque @rsacacio : I bisected the fix to https://github.com/flutter/flutter/commit/9769754d2, and I'll start our hotfix **evaluation** process.\r\n\r\n@fillipetardelli : I closed this issue because it's confirmed to be fixed in our beta channel. But since now we're **evaluating** pushing it as a hotfix into the stable channel, I'm going to reopen it.",
+    "createdAt": "2019-11-01T17:44:47Z"
+  },
+  {
+    "id": 8939,
+    "sender": "liyuqian",
+    "content": "To make it clear, I started the hotfix **evaluation** process. I was told that such process does not always guarantee a hotfix (because there are many other issues that are competing our resources). We're working hard to satisfy everyone as much as possible.\r\n\r\nFor those who really want a quick fix, please feel free to cherry-pick https://github.com/flutter/flutter/commit/9769754d2 into your local stable Flutter checkout and test it.",
+    "createdAt": "2019-11-01T18:25:07Z"
+  },
+  {
+    "id": 8940,
+    "sender": "opensourcegps",
+    "content": "Please issue a hotfix. Flutter apps stopped working for thousands of devices (J6+ / J4+), thousands of live flutter apps affected. This is a major production problem affecting not only users, but also developers who get constant 1 star reviews because their app stopped working with black screen.\r\n\r\nWith hotfix5 not fixing any production issues, one would think this production problem would be hotfixed 2 weeks ago:  https://github.com/flutter/flutter/releases \r\n \r\n ",
+    "createdAt": "2019-11-02T16:33:52Z"
+  },
+  {
+    "id": 8941,
+    "sender": "JCKodel",
+    "content": "At least on Samsung J4+ (I had to buy one 😒): it works ONLY on beta channel, upgraded to 1.10.x:\r\n\r\n`Flutter (Channel beta, v1.10.7, on Microsoft Windows [Version 10.0.18362.418], locale en-GB)`",
+    "createdAt": "2019-11-04T20:19:30Z"
+  },
+  {
+    "id": 8942,
+    "sender": "codxse",
+    "content": "> At least on Samsung J4+ (I had to buy one 😒): it works ONLY on beta channel, upgraded to 1.10.x:\r\n> \r\n> `Flutter (Channel beta, v1.10.7, on Microsoft Windows [Version 10.0.18362.418], locale en-GB)`\r\n\r\nyes, but do successfully compile it? I can't compile it actually.",
+    "createdAt": "2019-11-05T02:45:53Z"
+  },
+  {
+    "id": 8943,
+    "sender": "JCKodel",
+    "content": "@codxse  If it works, it compiles =P Yes. Everything works fine (except the usual Flutter bugs - and there are plenty of them). The problem is that is not stable enough =\\ Google Ads, for instance, crashes some devices =\\ ",
+    "createdAt": "2019-11-05T03:00:51Z"
+  },
+  {
+    "id": 8944,
+    "sender": "ianrumac",
+    "content": "I wouldn't close this until it's in the `stable` channel. An issue like this needs a standalone hotfix instead of the solution being `update to beta or dev` which in itself brings another swat of changes we need to apply.\r\n",
+    "createdAt": "2019-11-05T11:16:08Z"
+  },
+  {
+    "id": 8945,
+    "sender": "Lobosque",
+    "content": "While I fully understand and accept all the risks that comes with depending on Open Source Software, and despite understanding the positive intent of the core team, I am disapointed that there is so much bureoucracy involved in releasing a fix for such a blocker, no matter how painful the release process is... Its been 3 months since the issue was opened.\r\n@liyuqian is there any ETA on the evaluation process?",
+    "createdAt": "2019-11-05T13:36:25Z"
+  },
+  {
+    "id": 8946,
+    "sender": "liyuqian",
+    "content": "@tvolkert or @Hixie may have a more precise ETA. My ETA is that the fix will  be landed to the stable channel no more than 1.5 months.",
+    "createdAt": "2019-11-05T17:51:11Z"
+  },
+  {
+    "id": 8947,
+    "sender": "ianrumac",
+    "content": "Any idea what would be the blocker behind releasing the hotfix on the stable channel? Is it just review and testing process or?\r\nThanks for the hotfix, cherry-picked it!",
+    "createdAt": "2019-11-06T11:44:05Z"
+  },
+  {
+    "id": 8948,
+    "sender": "rsfarias",
+    "content": "> Thanks for the hotfix, cherry-picked it!\r\n\r\n@ianrumac Sorry for the beginner's question, but would you mind telling me the command you used to cherry-pick the fix?\r\n\r\nIs it `git cherry-pick -x 9769754d2` from the stable channel?",
+    "createdAt": "2019-11-07T21:28:01Z"
+  },
+  {
+    "id": 8949,
+    "sender": "Xgamefactory",
+    "content": "> \r\n> \r\n> While I fully understand and accept all the risks that comes with depending on Open Source Software, and despite understanding the positive intent of the core team, I am disapointed that there is so much bureoucracy involved in releasing a fix for such a blocker, no matter how painful the release process is... Its been 3 months since the issue was opened.\r\n> @liyuqian is there any ETA on the evaluation process?\r\n\r\nTotally agree. We have same situation and many users encountered with black screen issue.\r\nFlutter developers became so lazy. instead of working on useless features fixing such bug must be high priority otherwise in a short period flutter will became unreliable and good reason to switch back to facebook react.",
+    "createdAt": "2019-11-11T00:03:57Z"
+  },
+  {
+    "id": 8950,
+    "sender": "Hixie",
+    "content": "We make stable channel releases every 3 or 4 months, and beta channel releases, which are the same level of quality, every month (the only difference is that stable releases are usually released as part of an event). We do not generally intend to cherry pick fixes like this onto previous releases, for several reasons: 1. cherry picks are very risky (we do not have the ability to run all our tests on branches like we do for releases), and we don't want to make things worse; 2. if we did make cherry picks, the number of fixes we would cherry pick would be very high, at which point we might as well just release master as stable every day; and 3. cherry picking is an expensive process and we would rather spend our effort on making the next beta/stable release better.\r\n\r\nI would encourage you to use whatever toolkit is best for your needs. While I hope Flutter is the best way for you to develop your apps, your needs may well be such that another SDK, such as React, is better for you, in which case that is what I would encourage you to use.\r\n\r\nCalling people lazy in a derogatory sense is unacceptable behavior. Please consider our code of conduct before further posting on Flutter fora. Thanks. ",
+    "createdAt": "2019-11-11T02:20:57Z"
+  },
+  {
+    "id": 8951,
+    "sender": "Xgamefactory",
+    "content": "Not everone using flutter for homeworks or simple project.\r\nInstead of urgent hotfix for such big issue you just offer developers to wait for standard monthly stable release que.\r\n@liyuqian expressed it very well\r\n>  is so much bureoucracy involved in releasing a fix for such a blocker",
+    "createdAt": "2019-11-11T09:54:00Z"
+  },
+  {
+    "id": 8952,
+    "sender": "shinayser",
+    "content": "My clients started reporting black screens on both J6+ and J4 also =(",
+    "createdAt": "2019-11-11T17:57:14Z"
+  },
+  {
+    "id": 8953,
+    "sender": "Hixie",
+    "content": "@Xgamefactory you are continuing to not follow our [code of conduct](https://github.com/flutter/flutter/blob/master/CODE_OF_CONDUCT.md), which requires being kind and respectful (your last comment was neither). Please avoid posting here or on other issues for the next few weeks.",
+    "createdAt": "2019-11-11T19:09:11Z"
+  },
+  {
+    "id": 8954,
+    "sender": "yuzurihaaa",
+    "content": ">We make stable channel releases every 3 or 4 months, and beta channel releases, which are the same level of quality, every month (the only difference is that stable releases are usually released as part of an event)\r\n\r\n@Hixie With this, means that channel is good for production use right? We have this problem too at this point. I want to suggest to my development team to change to beta channel but I need your assurance to notify the team :)\r\n\r\nthank you.",
+    "createdAt": "2019-11-12T07:33:48Z"
+  },
+  {
+    "id": 8955,
+    "sender": "j4nk3e",
+    "content": " @zaralockheart we switched to beta to solve the issue. The released versions seem to be fine for iOS and Android, but since then I have lots of issues with hot reload in debug mode. Your developers might not like that :(",
+    "createdAt": "2019-11-12T07:53:58Z"
+  },
+  {
+    "id": 8956,
+    "sender": "raviganwal",
+    "content": "I come to this thread every day just to if there is any hotfix for this issue. My app is going to be live in a few weeks, but due to this issue, I am scared already.",
+    "createdAt": "2019-11-12T08:50:15Z"
+  },
+  {
+    "id": 8957,
+    "sender": "yuzurihaaa",
+    "content": "@juumixx Thanks for quick reply. If beta is good to go then I can set our CI to use beta while stay with stable for development. My only concern is if there's problem that stable don't have this issue but beta do and vice versa.\r\n\r\n@raviganwal maybe for release you can use beta too!",
+    "createdAt": "2019-11-12T08:50:46Z"
+  },
+  {
+    "id": 8958,
+    "sender": "ogrenichv",
+    "content": "We are using beta (1.10.7), no issues mentioned by @juumixx (at least on Android platform). Seems pretty stable for us.\r\nThe only thing we have to put up with is https://github.com/flutter/flutter/issues/43853 but I'm not sure that there is no such issue in current stable release.",
+    "createdAt": "2019-11-12T10:53:47Z"
+  },
+  {
+    "id": 8959,
+    "sender": "rsfarias",
+    "content": "@zaralockheart Unfortunately I can not say the same as the other guys. \r\n\r\nI've switched to beta 1.10.7 and started experiencing bugs in the camera plugin and strange behaviors with textfields (keyboard type changing and locking input). Camera and textfields work properly in stable channel, but not in beta channel. I've filed an issue for the [camera bug](https://github.com/flutter/flutter/issues/44436) already, which can be reproduced. I might have done something wrong, but do test your app thoroughly before using the beta channel. ",
+    "createdAt": "2019-11-12T14:47:14Z"
+  }
+]

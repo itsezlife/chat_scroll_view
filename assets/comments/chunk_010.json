@@ -1,0 +1,386 @@
+[
+  {
+    "id": 640,
+    "sender": "goderbauer",
+    "content": "> TODO: @gspencergoog pointed out Scrollable.ensureVisible may throw because Scrollable.of uses the Element tree to find the closest render viewport.\r\n\r\nIs there maybe a general problem that certain inherited widgets should not propagate to the portaled widget? I think I am running into the same problem with the multi view design. While some inherited widgets should be available (think themes and data models) others are more questionable, like Scrollable.of or Navigator.of. I wonder if we need to design something to tag certain inherited widgets as \"these don't travel across view/portal boundaries\".",
+    "createdAt": "2022-11-02T17:28:57Z"
+  },
+  {
+    "id": 641,
+    "sender": "goderbauer",
+    "content": "MediaQuery is another interesting case. Technically, I think the portaled widget should see the MediaQuery of the location they were portaled to, not the one from the location they were portaled from. (I was just thinking about this for the mutli view case.",
+    "createdAt": "2022-11-02T17:49:51Z"
+  },
+  {
+    "id": 642,
+    "sender": "rrousselGit",
+    "content": "About the InheritedWidget question: What about adding a `builder` on the entry widget that receives the portal's `BuildContext` ?\r\n\r\nThen, it'd be up to the entry to decide whether to use the entry's context or the portal's context.\r\n\r\nAs for Navigator/Scrollable/..., maybe a solution would be to have a `MaterialOverlayEntry` or something like that, which would use `builder` to override those InheritedWidgets, making them use the Portal's value instead of the local one\r\n\r\nA raw implementation could be:\r\n\r\n\r\n```dart\r\nclass MaterialOverlayEntry extends StatelessWidget {\r\n  final Widget child;\r\n  \r\n  @override\r\n  Widget build(context) {\r\n    return OverlayEntry(\r\n      builder: (context, portalContext) {\r\n        final _ScrollableScope? portalScrollableScope = portalContext.dependOnInheritedWidgetOfExactType<_ScrollableScope>();\r\n        \r\n        return _ScrollableScope(\r\n            scrollable: portalScrollableScope.scrollable,\r\n            position: portalScrollableScope.position,\r\n            child: child,\r\n        );\r\n      },\r\n    );\r\n  }\r\n}\r\n```",
+    "createdAt": "2022-11-02T18:04:58Z"
+  },
+  {
+    "id": 643,
+    "sender": "zuct",
+    "content": "Why is it called portal? I doubt it's the most suitable word. Any other reason than because it was inspired by flutter_portal?",
+    "createdAt": "2022-11-02T20:47:11Z"
+  },
+  {
+    "id": 644,
+    "sender": "creativecreatorormaybenot",
+    "content": "@zuct https://reactjs.org/docs/portals.html",
+    "createdAt": "2022-11-02T22:52:28Z"
+  },
+  {
+    "id": 645,
+    "sender": "zuct",
+    "content": "I know flutter_portal was named after that. Is it the only reason? I don't get why Flutter has to follow React. Why not use a non-React term more closely related to overlay?",
+    "createdAt": "2022-11-03T00:05:19Z"
+  },
+  {
+    "id": 646,
+    "sender": "goderbauer",
+    "content": "> About the InheritedWidget question: What about adding a builder on the entry widget that receives the portal's BuildContext ?\r\n>\r\n> Then, it'd be up to the entry to decide whether to use the entry's context or the portal's context.\r\n\r\nThis would mean existing widgets may not work correctly in the overlay if you re-use them there because they will look up on their context and not the injected one.",
+    "createdAt": "2022-11-03T16:11:38Z"
+  },
+  {
+    "id": 647,
+    "sender": "goderbauer",
+    "content": "@dnfield \r\n\r\n> Looks like sync* has improved, and iteration can result in modifications to the tree between steps, which fits here.\r\n\r\nDo we need to update our current policy in the style guide [1] in light of this?\r\n[1] https://github.com/flutter/flutter/wiki/Style-guide-for-Flutter-repo#avoid-syncasync",
+    "createdAt": "2022-11-03T16:14:23Z"
+  },
+  {
+    "id": 648,
+    "sender": "LongCatIsLooong",
+    "content": "Regarding the name of the class, yeah it's from the package `flutter_portal`. But I don't feel strongly about that so if you have any suggestions I'm all ears.",
+    "createdAt": "2022-11-03T16:18:32Z"
+  },
+  {
+    "id": 649,
+    "sender": "dnfield",
+    "content": "> @dnfield\r\n> \r\n> > Looks like sync* has improved, and iteration can result in modifications to the tree between steps, which fits here.\r\n> \r\n> Do we need to update our current policy in the style guide [1] in light of this? [1] https://github.com/flutter/flutter/wiki/Style-guide-for-Flutter-repo#avoid-syncasync\r\n\r\nWe could probably tone it down slightly, although there is still some overhead for this that can add up the more it is used, and the repo has a history of using it in strange ways that aren't necessary :\\",
+    "createdAt": "2022-11-03T16:53:17Z"
+  },
+  {
+    "id": 650,
+    "sender": "goderbauer",
+    "content": "> As for the OverlayLocation class I'd like to keep that for now since I'm planning to make that public in the future.\r\n\r\nhttps://github.com/flutter/flutter/wiki/Style-guide-for-Flutter-repo#lazy-programming\r\n\r\n> The OverlayLocation owns the timestamp. But I don't want to create OverlayLocations early so other things will have to hold them\r\n\r\nIf the OverlayLocation needs to be created anyways, what's the harm in creating it right away?\r\n\r\n> I think we want the child model to reflect the z-index and to make the z-index somewhat customizable the overlay location needs to have access to the target child model. But in the future I think it will mostly be the OverlayLocation that's getting passed around.\r\n\r\nAgain, let's build what we need today and do that right.\r\n\r\n> any suggestions? alternatively I could do a typedef _Time = int and make timestamp a _Time?\r\n\r\nPlease, no! There was another thread on here with lots of good suggestions around calling this an orderIndex or something like that. The PR has so many comments, I can't find it right now. But it had some good suggestions.",
+    "createdAt": "2022-11-03T17:37:50Z"
+  },
+  {
+    "id": 651,
+    "sender": "LongCatIsLooong",
+    "content": "wrt InheritedWidgets, I think for the most part it's just some inherit widgets making assumptions that may no longer be true so that should be fixed from the InheritedWidget side? \r\n\r\n- `Scrollable`:\r\n  Are there places where `Scrollable.ensureVisible` should be used over `RenderObject.showOnScreen`? The former seems to make more assumptions and may break when \"widget a is an ancestor of widget b\" doesn't imply \"renderObject a is an ancestor of renderObject b\".\r\n\r\n- `MediaQuery`\r\n The `MediaQueryData` class provides information about the surface (e.g. paddings and insets), and on the other hand it has some other things like `textScaleFactor` that it should probably inherit from its owner's widget tree. OverlayPortal probably should have its own MediaQuery.\r\n\r\nI'm not sure how `Navigator.of` can be problematic. Calling `Navigator.of` in the overlay child should give you it's owner's (the one that created the overlay portal) NavigatorState?",
+    "createdAt": "2022-11-03T17:58:08Z"
+  },
+  {
+    "id": 652,
+    "sender": "LongCatIsLooong",
+    "content": "> If the OverlayLocation needs to be created anyways, what's the harm in creating it right away?\r\n\r\nThat way you can create multiple locations in the same frame, none of them will be used except for the last one. OverlayLocation is used as Slot and has a lifecycle, so I think it's easier to reason about if we only create when needed.",
+    "createdAt": "2022-11-03T21:08:43Z"
+  },
+  {
+    "id": 653,
+    "sender": "goderbauer",
+    "content": "From a discussion with @LongCatIsLooong \r\n\r\nFor Views I have come to the conclusion that we need inheritance boundaries. There are certain widgets that should not flow into the View. One example is the Material widget. If you use a button in a subview, it should not see the Material widget in the main view because it doesn't make sense to draw the sparkles of the subview button into the main view. Instead, it should require that there is a Material widget in the subview itself.\r\n\r\nI think it is the same for portals.\r\n\r\nAlso, we should make sure that OverlayPortals are a drop-in replacement for Views. Basically, OverlayPortals simulate sub-windows. We should probably hold off on this until the View stuff is a little further along. Fitting in Overlay Boundaries retro-actively doesn't sound like a good idea.\r\n",
+    "createdAt": "2022-11-03T22:13:53Z"
+  },
+  {
+    "id": 654,
+    "sender": "goderbauer",
+    "content": "Having said that, it may be useful to draw a diagram of this implementation that visualizes how all the concepts used work together (e.g. who creates/owns/interacts with what). Maybe something like an extended UML diagram. That diagram could help with identifying potential simplifications and also document how the entire implementation works.",
+    "createdAt": "2022-11-03T22:17:15Z"
+  },
+  {
+    "id": 655,
+    "sender": "fzyzcjy",
+    "content": "P.S. Looks like https://github.com/flutter/flutter/issues/114921 can be solved more easily if OverlayPortal (or flutter_portal) is available? Because then we seem to be able to control overlays more easily",
+    "createdAt": "2022-11-12T03:26:36Z"
+  },
+  {
+    "id": 656,
+    "sender": "LongCatIsLooong",
+    "content": "updated UML, removed the child model class:\r\n\r\n![OverlayPortal 0](https://user-images.githubusercontent.com/31859944/201816380-5bdd2a27-a5d8-425b-b846-4e1e8b1a4833.png)\r\n\r\n@fzyzcjy i'm not sure what the use case is. Typically you wouldn't want to block the selection handles when they're active?",
+    "createdAt": "2022-11-14T19:57:15Z"
+  },
+  {
+    "id": 657,
+    "sender": "fzyzcjy",
+    "content": "> i'm not sure what the use case is. Typically you wouldn't want to block the selection handles when they're active?\r\n\r\n@LongCatIsLooong Sorry I did not get notifications about your reply... (maybe get buried in those new commit notifications). The use case is that, for example in the demo, imagine the green box is a (custom) popup or alert or menu or something. Then surely we do not want a selection handle to be above it which is confusing.",
+    "createdAt": "2023-01-27T23:47:01Z"
+  },
+  {
+    "id": 658,
+    "sender": "LongCatIsLooong",
+    "content": "Thanks everyone for your input! ",
+    "createdAt": "2023-03-02T17:36:39Z"
+  },
+  {
+    "id": 659,
+    "sender": "fzyzcjy",
+    "content": "What a long journey! Congratulations 🎉",
+    "createdAt": "2023-03-02T23:28:35Z"
+  },
+  {
+    "id": 660,
+    "sender": "creativecreatorormaybenot",
+    "content": "🥳 ",
+    "createdAt": "2023-03-03T10:34:44Z"
+  },
+  {
+    "id": 661,
+    "sender": "chunhtai",
+    "content": "## Fix 25807: implement move in sliver multibox widget\n\n## Description\r\n\r\nThe sliver child currently does not have way to handle child reordering. It does not have a move functionality in its rendering class as well. This mean if children is reordered, it will treat every child as a new widget, reinitialize it and dispose the old one. This will be inefficient and will pose some problem with keep alive widget.\r\n\r\nThis pr implement the functionality to check and remap its children after reordering, and implement the logic to move its children rendering objects.\r\n\r\n## Related Issues\r\n\r\nhttps://github.com/flutter/flutter/issues/25807\r\n\r\n## Checklist\r\n\r\nBefore you create this PR confirm that it meets all requirements listed below by checking the relevant checkboxes (`[x]`). This will ensure a smooth and quick review process.\r\n\r\n- [x] I read the [Contributor Guide] and followed the process outlined there for submitting PRs.\r\n- [x] My PR includes tests for *all* changed/updated/fixed behaviors (See [Test Coverage]).\r\n- [x] All existing and new tests are passing.\r\n- [x] I updated/added relevant documentation (doc comments with `///`).\r\n- [x] The analyzer (`flutter analyze --flutter-repo`) does not report any problems on my PR.\r\n- [x] I read and followed the [Flutter Style Guide], including [Features we expect every widget to implement].\r\n- [x] I signed the [CLA].\r\n- [x] I am willing to follow-up on review comments in a timely manner.\r\n\r\n## Breaking Change\r\n\r\nDoes your PR require Flutter developers to manually update their apps to accommodate your change?\r\n\r\n- [ x] Yes, this is a breaking change (Please read [Handling breaking changes]).\r\nSliverChildListDelegator will default use non const constructor. Apps that use SliverChildListDelegator, or any widget that using SliverChildListDelegator and have initialized as a constant widget will break\r\n- [ ] No, this is *not* a breaking change.\r\n\r\n<!-- Links -->\r\n[issue database]: https://github.com/flutter/flutter/issues\r\n[Contributor Guide]: https://github.com/flutter/flutter/wiki/Tree-hygiene#overview\r\n[Test Coverage]: https://github.com/flutter/flutter/wiki/Test-coverage-for-package%3Aflutter\r\n[Flutter Style Guide]: https://github.com/flutter/flutter/wiki/Style-guide-for-Flutter-repo\r\n[Features we expect every widget to implement]: https://github.com/flutter/flutter/wiki/Style-guide-for-Flutter-repo#features-we-expect-every-widget-to-implement\r\n[CLA]: https://cla.developers.google.com/\r\n[Handling breaking changes]: https://github.com/flutter/flutter/wiki/Tree-hygiene#handling-breaking-changes\r",
+    "createdAt": "2019-03-12T00:07:22Z"
+  },
+  {
+    "id": 662,
+    "sender": "chunhtai",
+    "content": "I have not written the tests yet, this will require a big numbers of tests. I would like to get some feedback on this implementation first before I proceed to write tests.\r\n\r\nI added a new callback to pageview and sliverchildelegator api called getChildIndex, this callback will take in a key and return index, -1 if not found. If not provided, the keepalive will not work if reordering the children.",
+    "createdAt": "2019-03-22T17:12:11Z"
+  },
+  {
+    "id": 663,
+    "sender": "goderbauer",
+    "content": "Please also take a look at the complains the analyzer has on this change (https://cirrus-ci.com/task/6257872051634176) and it looks like some existing tests are failing.",
+    "createdAt": "2019-03-25T03:54:44Z"
+  },
+  {
+    "id": 664,
+    "sender": "chunhtai",
+    "content": "addressed all comments, ready for re-review\r\n\r\nwithout tests tho",
+    "createdAt": "2019-03-25T23:17:43Z"
+  },
+  {
+    "id": 665,
+    "sender": "chunhtai",
+    "content": "Refactored, and addressed all comments, ready for review",
+    "createdAt": "2019-03-27T00:00:48Z"
+  },
+  {
+    "id": 666,
+    "sender": "chunhtai",
+    "content": "addressed all comments! ready for review!",
+    "createdAt": "2019-03-27T22:05:08Z"
+  },
+  {
+    "id": 667,
+    "sender": "goderbauer",
+    "content": "Also, please take a look at the analyzer complains: https://cirrus-ci.com/task/5949177652576256 and the failing tests on cirrus. ",
+    "createdAt": "2019-03-28T18:16:43Z"
+  },
+  {
+    "id": 668,
+    "sender": "chunhtai",
+    "content": "fixed existing tests and addressed all comments",
+    "createdAt": "2019-03-29T01:23:09Z"
+  },
+  {
+    "id": 669,
+    "sender": "chunhtai",
+    "content": "All unit tests added, ready for review!",
+    "createdAt": "2019-04-03T17:19:40Z"
+  },
+  {
+    "id": 670,
+    "sender": "chunhtai",
+    "content": "all test passed @goderbauer @Hixie let me know when should i merge this, the breaking change email sent two days ago, haven't receive any objection yet",
+    "createdAt": "2019-04-18T21:16:51Z"
+  },
+  {
+    "id": 671,
+    "sender": "gspencergoog",
+    "content": "## Implement Material MenuBar\n\n## Description\r\n\r\nThis implements a prototype of `MenuBar` widgets that can both render a Material menu bar, and speak to a bundled plugin on the engine that will create and manage system generated menu bars on macOS, Windows, and Linux (a.k.a. `PlatformMenuBar`, submitted already).\r\n\r\nThis implementation of the `MenuBar` uses a `MenuBarController` to manage most of the communication between widgets that need to occur to implement the menu bar. The `MenuBar` uses a hierarchy of `MenuBarItem` widgets which extend `MenuItem` so that they are also useful for configuring a platform provided menu.\r\n\r\nFor the Material `MenuBar`, `MenuBarItem` widgets have an internal `_MenuNode` assigned by looking for a wrapping `_MenuNodeWrapper`, and then they register attributes with that node (things like the focus node associated with the button, and the menu builder function for the submenus). The `MenuBarItem`s update their metadata with the `MenuBarController` when they are rebuilt so that it knows enough to be able to render the correct menu widgets in the overlay. Widgets don't exist unless they are currently visible, but the nodes always exist.\r\n\r\nI've tried eliminating it, but there are some cases where dirtying the controller from the widget tree can affect things on the overlay, so those updates have to happen in a post frame callback.\r\n\r\n## Related Issues\r\n - https://github.com/flutter/flutter/issues/23600\r\n\r\n## Tests\r\n - Many tests for all of the `MenuBar` operations and configuration.\r\n\r\n## Design Doc\r\n- https://flutter.dev/go/cascading-menus",
+    "createdAt": "2022-05-26T00:13:36Z"
+  },
+  {
+    "id": 672,
+    "sender": "gspencergoog",
+    "content": "Looks like I started to implement the tests in `menu_bar_theme_test.dart`, but didn't actually finish. Don't let that hold up the review, but I'm going to write those and add them.",
+    "createdAt": "2022-05-27T16:44:19Z"
+  },
+  {
+    "id": 673,
+    "sender": "goderbauer",
+    "content": "(There's a lot of unhappiness with the checks)",
+    "createdAt": "2022-06-01T17:07:28Z"
+  },
+  {
+    "id": 674,
+    "sender": "gspencergoog",
+    "content": "Closing in favor of https://github.com/flutter/flutter/pull/109179",
+    "createdAt": "2022-08-08T21:30:46Z"
+  },
+  {
+    "id": 675,
+    "sender": "antholeole",
+    "content": "## Loupe Android + iOS\n\nLoupe! Design doc: https://flutter.dev/go/text-editing-magnifying-glass\r\n\r\n*List which issues are fixed by this PR. You must list at least one issue.*\r\n\r\n- #17617\r\n- #9507\r\n- #104555\r\n\r\n## architecture in depth:\r\n\r\n### Prelude\r\nThis section is pretty long winded, but hopefully it acts as a future paper trail for architecture decisions made in this PR. Everything is a tradeoff, and this section is meant to hopefully allow future interested parties to be able to understand why certain sections were implemented the way they were. \r\n\r\nI'm proud to say there are no dark corners in this PR and implementation; I'm happy with how every API turned out and am able to advocate for all decisions made here.\r\n\r\n### Why `SelectionOverlay` for the loupe entrypoint?\r\n`SelectionOverlay` is the \"entrypoint\" for the loupe; it holds a `MagnifierController` and proxies calls to `MagnifierController.show/hide` in order to be able to orchestrate with the toolbar. Any consumers of `SelectionOverlay` need to tell `SelectionOverlay` when it should show/hide/update the loupe, to avoid coupling `SelectionOverlay` with gesture detectors and selection logic; it is almost uniquely a presentation class, and remains that way after this PR. \r\n\r\n### Motivation behind `MagnifierOverlayInfoBearer` and a `ValueNotifier`?\r\nA helpful data class, `MagnifierOverlayInfoBearer`, was put in place to bundle all the data that a loupe needs to be able to position itself and its focal point. Consumers who choose to position a `SelectionOverlay`'s magnifier must pass it a `MagnifierOverlayInfoBearer`. `MagnifierOverlayInfoBearer` also gets passed to the magnifier itself in a unique (to the current implementation of all the text selection overlay entries) way: it is wrapped with a `ValueNotifier`, and the magnifier listens to updates on that `ValueNotifier`. This solves two problems that would be very apparent with something that needs to be reactive: \r\n- the way we were passing data to `Overlay` prior was to repass to the `OverlayEntry`, and then call `markNeedsBuild` on the `OverlayEntry`. this means every action is one frame late, which would be unacceptable for a loupe.\r\n- This also means that any data passed needs to be proxied through some controller, adding a middleman (and complexity) because somewhere, `markNeedsBuild` must be called. This can lead to a class of bugs where an update has happened, but the call to `markNeedsBuild` happened too early/never happened and the UI skips the update.\r\n\r\n### `MagnifierController`\r\nThe `MagnifierController` is a helpful utility which eliminates another class of bugs where an `OverlayEntry` is removed without satisfying all preconditions (this mostly materializes as removing the overlayEntry before out animation is complete, which is a known bug for context menus). `magnifierController.hide` is asynchronous, and returns a future that completes when the hide is complete.\r\n\r\nAs a side note, this could have been generalized as a helpful controller for all overlay entries, not just magnifiers; it's a very useful and general API. This refactor was not done because @LongCatIsLooong work with portals is an even more useful and general API 😄 .\r\n \r\n### Who positions a `Magnifier`?\r\nThe magnifiers themselves are completely responsible for their own positioning; this eliminates coupling between the `magnifierController` and positioning. Each `Magnifier` implementation can position itself based on the data passed to it through `MagnifierOverlayInfoBearer`. This is the only feasible way to do positioning since Android + iOS handle positioning rules so differently.\r\n\r\n### How would a user build their own magnifier?\r\n`TextMagnifierConfiguration` is passed in through the user-friendly text field API's. They have sensible defaults (building the right magnifier based on the platform), but in the Flutter spirit, can be fully disabled or customized. A configuration object was put into place for three reasons: \r\n1. If more configuration parameters will be needed in the future, spamming the text field constructor with these will pollute an already very heavy constructor. Instead, parameters can be added to the configuration object, acting as a sort of pseudo name-spacing.\r\n2. We can create a very user friendly, readable API through the use of a static constructor. If a user wants to disable their loupe, they would write: \r\n```dart\r\nTextField(\r\n  loupeConfiguration: LoupeConfiguration.disabled\r\n)\r\n```\r\nThis also has the second bonus of being able to be used as a default parameter, for nested libraries with no access to the loupe implementations.\r\n\r\nFinally, `RawMagnifier` is exposed through `widgets.dart`. The intention of `RawMagnifier` was to allow users to be able to create their own magnifiers, but also abstract all the footguns `BackdropFilter` adds. \r\n\r\nNOTE: To see the Cupertino entry animations, you must have an engine with (this pull)[https://github.com/flutter/engine/pull/34435]. Otherwise, the Lens in the CupertinoLoupe will abruptly appear at the end of the animation.\r\n\r\n*TODOs*:\r\n- [x] Tests\r\n- [x] SelectionArea & SelectableText\r\n- [x] Make sure that we don't get loupe on floating cursor\r\n- [x] Rename all loupe -> MagnifyingGlass? \r\n\r\n*Things to still do after this PR:*\r\n- [ ] [This](https://discord.com/channels/608014603317936148/608021010377080866/994390327567855657) issue might come back. Not sure what causes it, but currently unable to repro. Keeping my eyes peeled\r\n- [ ] https://github.com/flutter/flutter/issues/108041 Enrich doc comments\r\n- [ ] Long press to show will be done in a second PR, since this one is already massive\r\n- [ ] Long press to select word on Android needs to show loupe\r\n- [ ] Dragging off the edge of a text field past a threshold should dismiss the magnifier on android\r\n\r\n*If you had to change anything in the [flutter/tests] repo, include a link to the migration guide as per the [breaking change policy].*\r\n\r\n## Pre-launch Checklist\r\n\r\n- [x] I read the [Contributor Guide] and followed the process outlined there for submitting PRs.\r\n- [x] I read the [Tree Hygiene] wiki page, which explains my responsibilities.\r\n- [x] I read and followed the [Flutter Style Guide], including [Features we expect every widget to implement].\r\n- [x] I signed the [CLA].\r\n- [x] I listed at least one issue that this PR fixes in the description above.\r\n- [x] I updated/added relevant documentation (doc comments with `///`).\r\n- [x] I added new tests to check the change I am making, or this PR is [test-exempt].\r\n- [x] All existing and new tests are passing.\r",
+    "createdAt": "2022-07-12T16:25:51Z"
+  },
+  {
+    "id": 676,
+    "sender": "antholeole",
+    "content": "@matthew-carroll I see you're active in the text editing part of Flutter - I'd love if you took a quick look at this PR! make sure it's up to snuff, hopefully if there are any issues we can catch them now before they cause you headaches in super_editor :). if you don't have the time, no worries. \r\n\r\nI left the door open for overriding the loupe if you decide you want to keep the one you have in super_editor, or for removing the loupe entirely (loupeBuilder = null). ",
+    "createdAt": "2022-07-16T00:20:18Z"
+  },
+  {
+    "id": 677,
+    "sender": "matthew-carroll",
+    "content": "Thanks for tagging me.\r\n\r\nI left some comments in the proposal.\r\n\r\nI don't think I have any opinions about the code, because we already built our own magnifiers in super_editor. I think the only outstanding request I have is: please don't make any changes to `RenderParagraph`. So far I don't think I saw any, so that's good.\r\n\r\nBroadly, I'd recommend putting more thought into why we essentially need a backdrop filter hack to make this happen. I'd ask if better shader support might significantly improve the logistics for magnification. I might then look at prioritizing those changes alongside the shader work that's being done for Android's overscroll stretching.\r\n\r\nI'd also make an attempt to predict some of the crazy ways that developers might want/need to operate with magnifiers. Right now you're probably hearing devs clamor for the obvious stuff, because currently there isn't any solution at all. As soon as you ship the obvious stuff, developers will quickly move into the unusual and non-obvious stuff. If you'd like to avoid quickly receiving tickets for even more things that aren't possible with the new implementation, you may want to give that some thought. I know it's popular to just say YAGNI to such things, but then again, what if you will need them? I'll throw one possible use-case out: what if a developer has custom collision bounds that they need to support for the loupe? I assume that you've built in screen-edge avoidance, but what if those aren't the edges that an app needs to avoid? What if the app is on a foldable device? What if the app is on a tablet with a menu open on the left and the developer doesn't want the loupe to slide into the menu's space? That's just one thought off the top of my head...",
+    "createdAt": "2022-07-16T00:54:31Z"
+  },
+  {
+    "id": 678,
+    "sender": "antholeole",
+    "content": "Thanks for responding so quickly! I’ll look much deeper on Monday, but re:\n“unsupported use cases”:\n\nIt’s literally impossible to ever account for anything anyone would ever\nwant to do. If we did that, we would be better off telling the users to use\ndart:ui! I can’t reasonably predict every use case, but my philosophy while\ndesigning this is:\n\n- cater to the 99.9% of devs who just want the loupe to work like it would\non native.\n- give to the other 0.1% of developers who’d like to override / extend\nbehavior the ability to do so.\n\nWe spent lots of time trying to make sure that the loupe completely\noverridable if necessary. The goal was to not expose a loupe API, but to\nachieve native fidelity. I think super_editor is a prime example: the\nmaintainers (your team) didn’t like flutters default loupe implementation\n(none!), but they had the tools necessary to create their own (and did). I\nwouldn’t say YAGNI here, but YCPTFSTMBWE: “you can’t predict the future, so\ntrying might be wasted effort.” In general though, both use cases you\nmentioned are supported.\n\nOn Monday, I’ll make sure to pull super_editor into a demo project and use\nit along with my loupe, and see if it breaks anything. If it does, I’ll\neither update my implementation or submit a PR to super_editor :).\n\nThanks for taking a look!\n\nAlso re: shaders, I explored that route, but I think it might be worth\ntaking another look over. Because you’re right - I’m not satisfied with the\nmatrix transform just yet.\n\nOn Fri, Jul 15, 2022 at 5:54 PM Matt Carroll ***@***.***>\nwrote:\n\n> Thanks for tagging me.\n>\n> I left some comments in the proposal.\n>\n> I don't think I have any opinions about the code, because we already built\n> our own magnifiers in super_editor. I think the only outstanding request I\n> have is: please don't make any changes to RenderParagraph. So far I don't\n> think I saw any, so that's good.\n>\n> Broadly, I'd recommend putting more thought into why we essentially need a\n> backdrop filter hack to make this happen. I'd ask if better shader support\n> might significantly improve the logistics for magnification. I might then\n> look at prioritizing those changes alongside the shader work that's being\n> done for Android's overscroll stretching.\n>\n> I'd also make an attempt to predict some of the crazy ways that developers\n> might want/need to operate with magnifiers. Right now you're probably\n> hearing devs clamor for the obvious stuff, because currently there isn't\n> any solution at all. As soon as you ship the obvious stuff, developers will\n> quickly move into the unusual and non-obvious stuff. If you'd like to avoid\n> quickly receiving tickets for even more things that aren't possible with\n> the new implementation, you may want to give that some thought. I know it's\n> popular to just say YAGNI to such things, but then again, what if you will\n> need them? I'll throw one possible use-case out: what if a developer has\n> custom collision bounds that they need to support for the loupe? I assume\n> that you've built in screen-edge avoidance, but what if those aren't the\n> edges that an app needs to avoid? What if the app is on a foldable device?\n> What if the app is on a tablet with a menu open on the left and the\n> developer doesn't want the loupe to slide into the menu's space? That's\n> just one thought off the top of my head...\n>\n> —\n> Reply to this email directly, view it on GitHub\n> <https://github.com/flutter/flutter/pull/107477#issuecomment-1186042604>,\n> or unsubscribe\n> <https://github.com/notifications/unsubscribe-auth/ALUM2ZPEQECTCJOIHG5YLMLVUIB5HANCNFSM53LUBC4Q>\n> .\n> You are receiving this because you authored the thread.Message ID:\n> ***@***.***>\n>\n",
+    "createdAt": "2022-07-16T01:23:27Z"
+  },
+  {
+    "id": 679,
+    "sender": "matthew-carroll",
+    "content": "> - cater to the 99.9% of devs who just want the loupe to work like it would\r\n> on native.\r\n> - give to the other 0.1% of developers who’d like to override / extend\r\n> behavior the ability to do so.\r\n\r\nIt's up to you to judge the situation. I think those numbers are probably quite optimistic. I don't think there's much of anything that applies to 99.9% of use-cases. But I guess we'll see what happens.",
+    "createdAt": "2022-07-16T01:25:58Z"
+  },
+  {
+    "id": 680,
+    "sender": "nilsreichardt",
+    "content": "@antholeole Is it correct that the PR description does not mention #104555?",
+    "createdAt": "2022-07-16T15:14:05Z"
+  },
+  {
+    "id": 681,
+    "sender": "antholeole",
+    "content": "@nilsreichardt Good catch! Adding it on right now, thank you.",
+    "createdAt": "2022-07-18T15:47:43Z"
+  },
+  {
+    "id": 682,
+    "sender": "antholeole",
+    "content": "how do we feel about configuration objects? Currently I’m just passing around a raw WidgetBuilder as a loupeBuilder, but there may be additional configuration to the loupe down the line that may be added (for instance, currently it’s hard coded that on android the loupe should see the handles but on iOS it shouldn’t - someone who god forbid wants to build their own loupe may want control over that). TextField already has 54 parameters, spamming it with loupe parameters does not feel ideal. Would it be flutter-y to create a LoupeConfiguration object that, for now, holds a small amount of parameters for a little bit of future proofing? Or does it hurt discoverability too much?\r\n\r\nMostly cc @justinmc but also cc @Renzo-Olivares @LongCatIsLooong (again, because I posted it in the wrong place last time)",
+    "createdAt": "2022-07-26T16:24:53Z"
+  },
+  {
+    "id": 683,
+    "sender": "justinmc",
+    "content": "### QA report\r\n\r\n#### Selection handle appears over the loupe\r\n\r\n<img height=\"150\" src=\"https://user-images.githubusercontent.com/389558/181394308-1cb7b28b-a031-4a69-b41a-e32173d0065b.png\" />\r\n\r\n#### Stuck loupe\r\n\r\nDragging the collapsed caret around, the loupe suddenly froze in place and didn't dismiss itself when I lifted my finger.  Continuing to tap didn't dismiss or move it either.  I think this happened when I dragged out of the area of the TextField, so maybe the drag ended up canceled instead of ending normally.  Not sure though.  There was no error in the console.\r\n\r\n<img height=\"150\" src=\"https://user-images.githubusercontent.com/389558/181392382-8d529adc-eeae-4500-a042-ce14529cd52c.png\" />\r\n\r\n\r\n#### SelectionArea error\r\nI think this is not due to your PR, but I'm including it here just in case.  I just had 2 Texts inside of a SelectionArea and was tapping and dragging around and I got this error:\r\n\r\n<details>\r\n\r\n<summary>Error message</summary>\r\n\r\n```\r\n══╡ EXCEPTION CAUGHT BY GESTURE ╞═══════════════════════════════════════════════════════════════════\r\nThe following assertion was thrown while handling a gesture:\r\n'package:flutter/src/widgets/selectable_region.dart': Failed assertion: line 498 pos 12:\r\n'_selectionDelegate.value.endSelectionPoint != null': is not true.\r\n\r\nEither the assertion indicates an error in the framework itself, or we should provide substantially\r\nmore information in this error message to help you determine and fix the underlying cause.\r\nIn either case, please report this assertion by filing a bug on GitHub:\r\n  https://github.com/flutter/flutter/issues/new?template=2_bug.md\r\n\r\nWhen the exception was thrown, this was the stack:\r\n#2      _SelectableRegionState._handleSelectionEndHandleDragStart (package:flutter/src/widgets/selectable_region.dart:498:12)\r\n#3      DragGestureRecognizer._checkStart.<anonymous closure> (package:flutter/src/gestures/monodrag.dart:463:53)\r\n#4      GestureRecognizer.invokeCallback (package:flutter/src/gestures/recognizer.dart:253:24)\r\n#5      DragGestureRecognizer._checkStart (package:flutter/src/gestures/monodrag.dart:463:7)\r\n#6      DragGestureRecognizer.acceptGesture (package:flutter/src/gestures/monodrag.dart:382:7)\r\n#7      GestureArenaManager._resolveByDefault (package:flutter/src/gestures/arena.dart:264:25)\r\n#8      GestureArenaManager._tryToResolveArena.<anonymous closure> (package:flutter/src/gestures/arena.dart:244:31)\r\n(elided 4 frames from class _AssertionError and dart:async)\r\n\r\nHandler: \"onStart\"\r\nRecognizer:\r\n  PanGestureRecognizer#5f5a0\r\n```\r\n\r\n</details>",
+    "createdAt": "2022-07-28T01:08:37Z"
+  },
+  {
+    "id": 684,
+    "sender": "justinmc",
+    "content": "One more QA thing I forgot to post: on native Android, moving the selection past the end of the field by about 1 handle length makes the loupe disappear.\r\n\r\n| single line | multi line |\r\n| --- | --- |\r\n| <video src=\"https://user-images.githubusercontent.com/389558/181596695-d389533e-5d5a-4a63-9050-ca55c206cfac.mp4\" /> | <video src=\"https://user-images.githubusercontent.com/389558/181596703-975091eb-87d5-49c4-9d3d-5d19c96646e9.mp4\" /> |\r\n\r\n\r\n",
+    "createdAt": "2022-07-28T17:07:47Z"
+  },
+  {
+    "id": 685,
+    "sender": "antholeole",
+    "content": "> One more QA thing I forgot to post: on native Android, moving the selection past the end of the field by about 1 handle length makes the loupe disappear.\r\n> \r\n> single line\tmulti line\r\n>  screen-20220727-164639.mp4 \r\n>  screen-20220727-164729.mp4\r\n\r\nI'll add this to the list of things to fix in another PR. \r\n\r\nThe first issue in the other comment is a \"won't fix\" for now because it's super tricky. Native handles it by hiding the handle that would go over the loupe. Unfortunately since the selectionOverlay has no knowledge of the loupe position, we'd have to relay from the loupe to the selection overlay that we want to hide the handle. A lot of plumping would be required.\r\n\r\nThe other issue listed in the first QA is hard to repro... maybe I accidentally fixed it? either way (talked offline) we need to come up with a set of reproducible steps.\r\n\r\nThird issue in the first comment: Yeah probably not this PR since all I did was tap into that handler, never changed the triggers. ",
+    "createdAt": "2022-07-28T18:26:50Z"
+  },
+  {
+    "id": 686,
+    "sender": "justinmc",
+    "content": "A round of iOS QA:\r\n\r\n  1. Mayybe, when the loupe goes off the screen at the top, it is blocked and doesn't go far enough off screen.  This is very subtle and not a big deal.  We talked offline.\r\n  2. Longpress + dragging the collapsed cursor doesn't show the loupe, as discussed offline.\r\n  3. The native iOS loupe seems to disappear whenever your drag goes below its starting point, but this loupe disappears only when dragged below the end of the field.\r\n\r\n| Native iOS Notes app | Flutter (this PR) |\r\n| --- | --- |\r\n| <video src=\"https://user-images.githubusercontent.com/389558/181826444-04080a25-12ee-453f-9977-4f0a4f67f1da.MP4\" /> | <video src=\"https://user-images.githubusercontent.com/389558/181828490-b125c45e-f06f-48f3-a87a-70cec11bea06.MP4\" /> |\r\n| <video src=\"https://user-images.githubusercontent.com/389558/181828762-44d87e7e-fdfd-43d8-baec-0cbd35f2caea.MP4\" /> | |\r\n\r\n\r\n",
+    "createdAt": "2022-07-29T19:14:48Z"
+  },
+  {
+    "id": 687,
+    "sender": "camsim99",
+    "content": "## [Android] Implement setting content sensitivity on Android\n\n> [!IMPORTANT]  \r\n> Messed up this branch :')  Landed in https://github.com/flutter/flutter/pull/167815.\r\n\r\n### Overview\r\nImplements setting content sensitivity on Android via a new widget called `SensitiveContent` that currently will only function on Android.\r\n\r\n### How it's implemented\r\nThere are three different content sensitivity levels: [`autoSensitive`](https://developer.android.com/reference/android/view/View#CONTENT_SENSITIVITY_AUTO), [`sensitive`](https://developer.android.com/reference/android/view/View#CONTENT_SENSITIVITY_SENSITIVE), [`notSensitive`](https://developer.android.com/reference/android/view/View#CONTENT_SENSITIVITY_NOT_SENSITIVE). All except `autoSensitive` behave as their Android counterpart level behaves (see links on the levels); for Flutter, `autoSensitive` will behave the same as `notSensitive` though it is implemented as if it works (see https://github.com/flutter/flutter/issues/160879 for more details.\r\n\r\nIn any given Flutter view, each `SensitiveContent` widget sets a content sensitivity level and there may be multiple `SensitiveContent` widgets in the widget tree at a time, but only the most severe content sensitivity level in the tree will be maintained in order to ensure secure content remains obscured during screen projection. This means that even widgets that are not visible may still impact the overall content sensitivity of the entire Flutter view (see https://github.com/flutter/flutter/issues/160051 for more details).\r\n\r\nUnder the hood, the implementation uses method channels. Theoretically, this could cause a delay in setting the content sensitivity level and a Flutter view being obscured during screen projection on time, so we will investigate using JNIgen in the future (see https://github.com/flutter/flutter/issues/160050 for more details). Over the method channel, the framework will send a Flutter view ID and content sensitivity level to the engine to set the expected content sensitivity level for the view.\r\n\r\n### Timeline\r\n\r\n#### Required for feature shipping\r\n-  Land this PR with the method channel implementation of content sensitivity.\r\n\r\n#### Short-term follow up tasks\r\n- Ensure every `FlutterView` has a unique ID for the native `SensitiveContentPlugin` to identify them by: https://github.com/flutter/flutter/pull/162685\r\n- Add `SensitiveContent` widget to relevant Flutter widgets: https://github.com/flutter/flutter/issues/167302\r\n\r\n#### Long-term follow up tasks\r\n- Convert this PR to use JNIgen: https://github.com/flutter/flutter/issues/160050. Verify no frames are dropped, revealing sensitive content during media projection: https://github.com/flutter/flutter/issues/164820.\r\n\r\n#### Stretch goals\r\n- Make the `SensitiveContent` widget sensitive to the visibility of child widgets: https://github.com/flutter/flutter/issues/160051\r\n- Implement `autoSensitivity` mode: https://github.com/flutter/flutter/issues/160879\r\n- Investigate backwards compatibility for APIs < 35: https://github.com/flutter/flutter/issues/159208\r\n\r\n### Open questions\r\n- ~Is it okay to hard-code the `FlutterActivity` and `FlutterFragment` view IDs? Does this impact add-to-app in any way? I assume we would need extenders of those classes to use a different view ID than the hardcoded one.~ Approach not used.\r\n- ~Should we expose `autoSensitive` for now? If so, what behavior should it have?~ Exposing `autoSensitive` as if it works.\r\n\r\n### One way to test this PR (rough steps)\r\n1. Create a Flutter app that has some number of `SensitiveContent` widgets.\r\n9. Run the app on an emulator/device that runs API 35 and has the Google meets app downloaded.\r\n10. Start a Google meets meeting and screen share (works with full screen and single app mode).\r\n11. Join the Google meets meeting from another device and witness a blacked out screen if content has been marked sensitive.\r\n\r\n## Pre-launch Checklist\r\n\r\n- [x] I read the [Contributor Guide] and followed the process outlined there for submitting PRs.\r\n- [x] I read the [Tree Hygiene] wiki page, which explains my responsibilities.\r\n- [x] I read and followed the [Flutter Style Guide], including [Features we expect every widget to implement].\r\n- [x] I signed the [CLA].\r\n- [ ] I listed at least one issue that this PR fixes in the description above.\r\n- [x] I updated/added relevant documentation (doc comments with `///`).\r\n- [x] I added new tests to check the change I am making, or this PR is [test-exempt].\r\n- [x] I followed the [breaking change policy] and added [Data Driven Fixes] where supported.\r\n- [x] All existing and new tests are passing.\r\n\r\n<!-- Links -->\r\n[Contributor Guide]: https://github.com/flutter/flutter/blob/main/docs/contributing/Tree-hygiene.md#overview\r\n[Tree Hygiene]: https://github.com/flutter/flutter/blob/main/docs/contributing/Tree-hygiene.md\r\n[test-exempt]: https://github.com/flutter/flutter/blob/main/docs/contributing/Tree-hygiene.md#tests\r\n[Flutter Style Guide]: https://github.com/flutter/flutter/blob/main/docs/contributing/Style-guide-for-Flutter-repo.md\r\n[Features we expect every widget to implement]: https://github.com/flutter/flutter/blob/main/docs/contributing/Style-guide-for-Flutter-repo.md#features-we-expect-every-widget-to-implement\r\n[CLA]: https://cla.developers.google.com/\r\n[flutter/tests]: https://github.com/flutter/tests\r\n[breaking change policy]: https://github.com/flutter/flutter/blob/main/docs/contributing/Tree-hygiene.md#handling-breaking-changes\r\n[Discord]: https://github.com/flutter/flutter/blob/main/docs/contributing/Chat.md\r\n[Data Driven Fixes]: https://github.com/flutter/flutter/blob/main/docs/contributing/Data-driven-Fixes.md\r",
+    "createdAt": "2024-11-11T19:44:27Z"
+  },
+  {
+    "id": 688,
+    "sender": "camsim99",
+    "content": "Looking for feedback on the approach presented in this PR and the open questions I have before writing tests. Looks like there are some linting issues, but this should run, though I've been testing with the non-monorepo engine up until this point.",
+    "createdAt": "2025-01-07T20:52:24Z"
+  },
+  {
+    "id": 689,
+    "sender": "reidbaker",
+    "content": "\"so we will investigate using JNIgen in the future\" I believe we should say that we do not plan to release the feature without evaluating if frame drops can occur. ",
+    "createdAt": "2025-01-10T15:48:12Z"
+  },
+  {
+    "id": 690,
+    "sender": "reidbaker",
+    "content": "\"Implements setting content sensitivity on Android via a new plugin called SensitiveContent\" \r\n\r\nMost flutter users would view plugin in this context as something that should probably be in flutter/packages. \r\nMaybe call it a FrameworkPlugin or just say we are adding a new way to mark content sensitive without mentioning the implementation detail of a plugin. ",
+    "createdAt": "2025-01-10T15:51:09Z"
+  },
+  {
+    "id": 691,
+    "sender": "reidbaker",
+    "content": "In the pr description consider trying to more cleanly describe what is work that needs to happen in this pr but has intentionally  not happened. What work is future work but still required before we ship the feature and what is work that is future work that is unplanned. ",
+    "createdAt": "2025-01-10T15:52:20Z"
+  },
+  {
+    "id": 692,
+    "sender": "camsim99",
+    "content": "> \"Implements setting content sensitivity on Android via a new plugin called SensitiveContent\"\r\n> \r\n> Most flutter users would view plugin in this context as something that should probably be in flutter/packages. Maybe call it a FrameworkPlugin or just say we are adding a new way to mark content sensitive without mentioning the implementation detail of a plugin.\r\n\r\nOops I meant widget not plugin :)",
+    "createdAt": "2025-01-13T21:37:16Z"
+  },
+  {
+    "id": 693,
+    "sender": "camsim99",
+    "content": "@justinmc @reidbaker This is ready for a full review! I know this PR is getting lengthy but I tried to address all your feedback + added tests + updated the PR description.",
+    "createdAt": "2025-02-24T19:03:28Z"
+  },
+  {
+    "id": 694,
+    "sender": "camsim99",
+    "content": "Just found a small refactor I'd like to make while working on something else -- still ready for review!",
+    "createdAt": "2025-02-28T15:57:04Z"
+  },
+  {
+    "id": 695,
+    "sender": "camsim99",
+    "content": "To address the multiwindow/multiview concerns:\r\n\r\n> I know we talked about mutliwindow already but I keep forgetting how that will work, is there something you can link me to that explains that?\r\n\r\nI chatted a bit about this with reidbaker@ offline, and we concluded that we don't need to plan ahead for an unplanned feature; that is, multiwindow won't work with this PR out of the box.\r\n\r\nThat is because multiwindow would involve multiple native Android `FlutterView`s and as of today, they do not have unique IDs such that the `SensitiveContentPlugin` could differentiate which `View` set content sensitivity for. This is a problem because this ID is most likely what someone would need to link native `FlutterView`s to the Dart ones to implement multiwindow.\r\n\r\nI am making a PR to fix this, though, because this impacts the add-to-app multi-`FlutterView` use case as well, so it'd be nice to land as part of this feature work: https://github.com/flutter/flutter/pull/162685.",
+    "createdAt": "2025-03-04T01:14:32Z"
+  },
+  {
+    "id": 696,
+    "sender": "camsim99",
+    "content": "@justinmc @reidbaker This is ready for another look!",
+    "createdAt": "2025-03-05T18:45:12Z"
+  },
+  {
+    "id": 697,
+    "sender": "camsim99",
+    "content": "@reidbaker there were todos because I am in the middle of addressing another review :) once that and your review is addressed, I'll re-request review. Might be easier to review the tests in that state.",
+    "createdAt": "2025-03-07T16:23:06Z"
+  },
+  {
+    "id": 698,
+    "sender": "reidbaker",
+    "content": "> @reidbaker there were todos because I am in the middle of addressing another review :) once that and your review is addressed, I'll re-request review. Might be easier to review the tests in that state.\r\n\r\nThat makes sense, Part of what I was checking was that they were not left over from more than a month ago. That is the type of mistake I make when authoring prs over a long timeframe. ",
+    "createdAt": "2025-03-07T16:46:30Z"
+  },
+  {
+    "id": 699,
+    "sender": "camsim99",
+    "content": "Note to reviewers: There's a lot of comments to get through, so I'm resolving comments and commenting as I fix locally, but this PR may not reflect those changes. I'll re-request review when this is ready.\r\n\r\ncc @justinmc because I requested your review earlier this week, but I'll ping when I'm actually ready!",
+    "createdAt": "2025-03-07T23:33:08Z"
+  },
+  {
+    "id": 700,
+    "sender": "camsim99",
+    "content": "> I think the most important thing is to be predictable and to document what we will and wont do in the corner cases. I think the code as written has a bunch of if A==B dont do any more work. That look like they are for efficiency reasons but might be to enforce some predictability. Consider doing a pass on each and adding documentation. FWIW I think there are too many places in code where we have the if A==B and that reducing the number of them would make the code easier to read. That said if it was easy I would have pointed them out so it may be that you are already in the minimal number of conditions.\r\n\r\nI did a pass and I don't see anything that can easily be refactored for readability purposes. The only one maybe is what you commented on which is that we could perhaps tell the platform to set a content sensitivity setting already set instead of having a check for it to avoid that situation, but like I said above, I think removing it sorta relies on our assumption that our embedder will be used. Besides that point, I don't have strong feelings.",
+    "createdAt": "2025-03-10T23:12:47Z"
+  },
+  {
+    "id": 701,
+    "sender": "camsim99",
+    "content": "Not sure what's going on with the Android linter yet (it's complaining about a lint I believe I added, but I'll work on this) but this is otherwise ready for review! @justinmc @chunhtai @reidbaker\r\n\r\nHoping to get this landed before I go on vacation next Friday, but I'll make a call on that later this week.",
+    "createdAt": "2025-03-11T15:48:27Z"
+  },
+  {
+    "id": 702,
+    "sender": "reidbaker",
+    "content": "I do think handling unknown values is something that needs to be addressed\r\nin this pr.\r\n\r\nOn Wed, Mar 12, 2025 at 12:02 PM Camille Simon ***@***.***>\r\nwrote:\r\n\r\n> ***@***.**** commented on this pull request.\r\n> ------------------------------\r\n>\r\n> In\r\n> engine/src/flutter/shell/platform/android/io/flutter/embedding/engine/systemchannels/SensitiveContentChannel.java\r\n> <https://github.com/flutter/flutter/pull/158473#discussion_r1991822834>:\r\n>\r\n> > +            \"contentSensitivityName \"\r\n> +                + contentSensitivityName\r\n> +                + \" not known to the SensitiveContentChannel.\");\r\n> +    }\r\n> +  }\r\n> +\r\n> +  private String serializeContentSensitivity(int contentSensitivityValue) {\r\n> +    switch (contentSensitivityValue) {\r\n> +      case View.CONTENT_SENSITIVITY_AUTO:\r\n> +        return AUTO_SENSITIVE_CONTENT_SENSITIVITY;\r\n> +      case View.CONTENT_SENSITIVITY_NOT_SENSITIVE:\r\n> +        return SENSITIVE_CONTENT_SENSITIVITY;\r\n> +      case View.CONTENT_SENSITIVITY_SENSITIVE:\r\n> +        return NOT_SENSITIVE_CONTENT_SENSITIVITY;\r\n> +      default:\r\n> +        throw new IllegalArgumentException(\r\n>\r\n> Oh wait I misunderstood your comment. I was addressing\r\n> setContentSensitivity not getContentSensitivity. I'm open to adding the\r\n> unknown value for this case, but I don't think that should block this PR.\r\n> Happy to file and issue and address this later.\r\n>\r\n> —\r\n> Reply to this email directly, view it on GitHub\r\n> <https://github.com/flutter/flutter/pull/158473#discussion_r1991822834>,\r\n> or unsubscribe\r\n> <https://github.com/notifications/unsubscribe-auth/AAIDVLA3Z4ZB3RDS4NKKA5T2UBK73AVCNFSM6AAAAABRSQIL5CVHI2DSMVQWIX3LMV43YUDVNRWFEZLROVSXG5CSMV3GSZLXHMZDMNZZGA2TSNRQGA>\r\n> .\r\n> You are receiving this because you were mentioned.Message ID:\r\n> <flutter/flutter/pull/158473/review/2679059600 ***@***.***\r\n> com>\r\n>\r\n",
+    "createdAt": "2025-03-12T17:22:02Z"
+  },
+  {
+    "id": 703,
+    "sender": "camsim99",
+    "content": "> I do think handling unknown values is something that needs to be addressed in this pr.\r\n\r\nCan't find the original comment for implementing an unknown value, but consider it done :)",
+    "createdAt": "2025-03-12T22:29:36Z"
+  }
+]

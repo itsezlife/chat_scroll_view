@@ -1,0 +1,386 @@
+[
+  {
+    "id": 9344,
+    "sender": "fischerscode",
+    "content": "I just had a look at the merge conflicts, and it's looking pretty bad. **I'd really appreciate it, if someone from flutter would tell me whether this PR has some chance of being merged.**\r\nI think it's a create feature that makes `Wrap` more versatile and I see no disadvantages, but since this PR got almost no attention since I've created it over half a year ago, I feel like the feature is not wanted, or there is something I'm not aware of. I always thought flutter welcomes contributions like this one.\r\n\r\nIf I'll get some kind of go, then I'm obviously fine with resolving the merge conflicts and probably even adding the feature requested in https://github.com/fischerscode/pub.packages/issues/3. But at the moment I feel like it's just gonna be wasted time, since there will be other heavy merge conflicts eventually.",
+    "createdAt": "2024-05-15T22:44:29Z"
+  },
+  {
+    "id": 9345,
+    "sender": "nate-thegrate",
+    "content": "**from triage:** @fischerscode do you have plans to take a look at the feedback above?",
+    "createdAt": "2024-07-30T22:09:16Z"
+  },
+  {
+    "id": 9346,
+    "sender": "fischerscode",
+    "content": "Sorry for the silence, I found no time.\r\n\r\nI hope to be able to revisit this on Sunday and finish a PR by Monday.\r\n\r\nA while ago, I experimented with [this](https://github.com/fischerscode/pub.packages/pull/4) feature, since it was requested [here](https://github.com/fischerscode/pub.packages/issues/3). Should I include it in my changes?",
+    "createdAt": "2024-08-02T23:02:29Z"
+  },
+  {
+    "id": 9347,
+    "sender": "nate-thegrate",
+    "content": "No worries—and yes, I think adding `WrapFit.runMaybeTight` would be great!\r\n\r\nFeel free to incorporate that (and perhaps [other feedback](https://github.com/flutter/flutter/pull/136161#pullrequestreview-2131695761)) into this PR when you have some time :)",
+    "createdAt": "2024-08-02T23:19:00Z"
+  },
+  {
+    "id": 9348,
+    "sender": "fischerscode",
+    "content": "I've now resolved the merge conflicts. 🥳 \r\n\r\nThe steps are documented here:\r\n1. Merged master by replacing rendering/wrap.dart with one from master\r\n2. Use _computeRuns for computeDryLayout (e43cca32d4) (I think this was missed in #146260)\r\n3. Reimplement WrapFit (d1d6f86306)\r\n4. Remove unused methods (993f37e5cd)\r\n5. Ported runMaybeTight implementation from https://github.com/fischerscode/pub.packages/pull/4 (f732dd194c)\r\n6. Test runMaybeTight (b76e4ba8ef)\r\n7. Address feedback from @nate-thegrate (See the feedback chat for details)\r\n\r\nThere are still some todos:\r\n- [x] Make sure the docs are good. (See [this chat](https://github.com/flutter/flutter/pull/136161#discussion_r1649464191).)\r\n- [x] Rework the example. ([Chat](https://github.com/flutter/flutter/pull/136161#discussion_r1649437043), add runMaybeTight) **(review pending)**\r\n- [x] Make sure the names of the WrapFit enum values are good. ([suggestion](https://github.com/flutter/flutter/pull/136161#discussion_r1703400788))\r\n- [x] Make fit parameter nullable. ([Chat](https://github.com/flutter/flutter/pull/136161#discussion_r1703334691))",
+    "createdAt": "2024-08-04T17:13:09Z"
+  },
+  {
+    "id": 9349,
+    "sender": "fischerscode",
+    "content": "@nate-thegrate Since you seem to like my summarizing comment, I've decided to track new stuff (since [this](https://github.com/flutter/flutter/pull/136161#pullrequestreview-2217797397)) here.\r\n- [Remove loose?](https://github.com/flutter/flutter/pull/136161#discussion_r1703379397)\r\n- [new example](https://github.com/flutter/flutter/pull/136161#discussion_r1703397427)\r\n- [Alternative names](https://github.com/flutter/flutter/pull/136161#discussion_r1703400788)\r\n- [Your docs](https://github.com/flutter/flutter/pull/136161#discussion_r1703401859)\r\n- [Readability](https://github.com/flutter/flutter/pull/136161#discussion_r1703406453)",
+    "createdAt": "2024-08-04T21:49:47Z"
+  },
+  {
+    "id": 9350,
+    "sender": "nate-thegrate",
+    "content": "Sweet! I'll be away from my desk until tomorrow evening but will review when I get back. Thank you!",
+    "createdAt": "2024-08-04T23:26:06Z"
+  },
+  {
+    "id": 9351,
+    "sender": "fischerscode",
+    "content": "@nate-thegrate I'm sorry for the delay.\r\n\r\n- I've now deleted (the explicit) `WrapFit.loose` (fc8793561e81cf39b4559eb181027e140b020156)\r\n- The monster switch assignment is now gone (ce86932fd8)\r\n- I'd love to hear your thought about [my name suggestions](https://github.com/flutter/flutter/pull/136161#discussion_r1703400788).\r\n- We could hide [this](https://github.com/flutter/flutter/pull/136161#discussion_r1710388166) variable from the user.",
+    "createdAt": "2024-08-08T23:02:47Z"
+  },
+  {
+    "id": 9352,
+    "sender": "fischerscode",
+    "content": "> Thanks again for the consistent work here.\r\n\r\nThanks for your work, as well. 😃 \r\n\r\n> I think we're in the home stretch! 😃\r\n\r\nI think so, too. 🚀 \r\nEverything from my [checklist](https://github.com/flutter/flutter/pull/136161#issuecomment-2267609311) is now solved.\r\n\r\n---\r\n\r\nI think I've addressed everything remaining. 3611c0a3f7 is the most ambitious change since your last review.",
+    "createdAt": "2024-08-09T10:24:11Z"
+  },
+  {
+    "id": 9353,
+    "sender": "nate-thegrate",
+    "content": "Thanks @fischerscode! Will review tomorrow evening.\r\n\r\nEdit: apologies, got mixed up about my schedule! 😅",
+    "createdAt": "2024-08-09T16:28:43Z"
+  },
+  {
+    "id": 9354,
+    "sender": "fischerscode",
+    "content": "@nate-thegrate Thanks for your reviews. 😃 \r\n(I've committed all of your suggestions.)",
+    "createdAt": "2024-08-12T10:42:26Z"
+  },
+  {
+    "id": 9355,
+    "sender": "goderbauer",
+    "content": "Sorry for taking so incredibly long to get back to this one. 🙁\r\n\r\nAfter reviewing this, my main open question is whether this is actually the right direction for this or whether this should be more closely following what Flexible does (see my last comment in the review above). ",
+    "createdAt": "2024-09-09T23:20:38Z"
+  },
+  {
+    "id": 9356,
+    "sender": "VittorioParagallo",
+    "content": "any eta[^1] about the merge this pull request?\r\n\r\n\r\n[^1]: This comment has been hidden, per [issue hygiene](https://github.com/flutter/flutter/blob/master/docs/contributing/issue_hygiene/README.md#do-not-add-me-too-or-same-or-is-there-an-update-comments-to-issues-or-prs) rules.",
+    "createdAt": "2024-09-25T12:34:50Z"
+  },
+  {
+    "id": 9357,
+    "sender": "chunhtai",
+    "content": "(triage) Hi @fischerscode , are you still planning on coming back to this pr?",
+    "createdAt": "2024-10-01T22:21:08Z"
+  },
+  {
+    "id": 9358,
+    "sender": "chunhtai",
+    "content": "(triage) I am going to close this as inactive, feel free to reopen once you have time.",
+    "createdAt": "2024-10-30T18:22:17Z"
+  },
+  {
+    "id": 9359,
+    "sender": "VittorioParagallo",
+    "content": "Any news on this? it was almost done... it's such a shame. No one able to take over?",
+    "createdAt": "2025-01-20T13:43:24Z"
+  },
+  {
+    "id": 9360,
+    "sender": "Marci599",
+    "content": "LGTM!! (please continue)",
+    "createdAt": "2025-08-12T21:25:19Z"
+  },
+  {
+    "id": 9361,
+    "sender": "fzyzcjy",
+    "content": "## [Proposal]Let Flutter run animations at 60fps even if there are heavy widgets, possibly using React Fiber-like or suspend-like algorithm?\n\nEDIT: Design proposal https://docs.google.com/document/d/1FuNcBvAPghUyjeqQCOYxSt6lGDAQ1YxsNlOvrUx0Gko/edit?usp=sharing\r\n\r\n---\r\n\r\nBelow (folded) are the initial proposal. However, I have realized the initial proposal has many drawbacks, and have raised new proposals. For example, [the dual isolate](https://github.com/flutter/flutter/issues/101227#issuecomment-1249005541) (click to view that comment).\r\n\r\n<details>\r\n\r\nHi thanks for the framework! As we all know, React Fiber improves the performance and smoothness of React. Currently I am also observing some jank for Flutter app even after optimizing it using the tooltips in official doc, and I do hope there can be something similar to Fiber in Flutter side.\r\n\r\np.s. Some doc about react fiber: https://github.com/acdlite/react-fiber-architecture\r\n\r\nI am interested in making contribution when having time as well.\r\n\r\n</details>",
+    "createdAt": "2022-04-02T05:45:54Z"
+  },
+  {
+    "id": 9362,
+    "sender": "iapicca",
+    "content": "@fzyzcjy \r\n\r\n> [...] Currently I am also observing some jank for Flutter app [...]\r\n\r\ncan you provide more details: on what platform, performing what, maybe a code sample\r\n\r\nI'm not sure  the assumption \r\n\"if my app is junky implementing an algoritm meant for an entirely different framework will fix the issue\" \r\nis well founded",
+    "createdAt": "2022-04-02T06:21:36Z"
+  },
+  {
+    "id": 9363,
+    "sender": "fzyzcjy",
+    "content": "@iapicca Hi thanks for the reply\r\n\r\n> can you provide more details: on what platform, performing what, maybe a code sample\r\n\r\nThat is another story. On low-end android phones, opening a page containing complex `Path`s and images.\r\nAnyway, that sounds inevitable, since my app really needs complex images and CustomPainters.\r\n\r\n> \"if my app is junky implementing an algoritm meant for an entirely different framework will fix the issue\"\r\n\r\nWell that is not my assumption. The main idea is not about \"my app is junky\", but \"the React Fiber seems so promising and should address the jank problem for a large portion of cases\".",
+    "createdAt": "2022-04-02T06:25:33Z"
+  },
+  {
+    "id": 9364,
+    "sender": "iapicca",
+    "content": "@fzyzcjy \r\n\r\n> the React Fiber seems so promising and should address the jank problem for a large portion of cases\r\n\r\nI contest the assumption that an algoritm that works for react will \"just work\"  on completely different framework that use a completely different programming language and with other very significant differences (DOM vs skia, jit vs aot ...)\r\nit seems to me asking Elon Mush to make a Tesla \"turbo\" it's just... not how it works",
+    "createdAt": "2022-04-02T06:33:57Z"
+  },
+  {
+    "id": 9365,
+    "sender": "fzyzcjy",
+    "content": "> I contest the assumption that an algoritm that works for react will \"just work\" on completely different framework that use a completely different programming language and with other very significant differences (DOM vs skia, jit vs aot ...)\r\nit seems to me asking Elon Mush to make a Tesla \"turbo\" it's just... not how it works\r\n\r\nThanks for the reply. Well maybe firstly have a look at the React Fiber? From my understanding, Fiber is an algorithm as follows (using Flutter terms): Sometimes your build/layout/paint may be too heavy to be done within 16ms, so the user will feel jank (e.g. when entering a complex page or adding complex scenario). Then, with Fiber, it splits the work into multiple frames. For example, say you have 3 complex widgets on your page. Then maybe the first frame it just renders/updates the first complex widget and left a placeholder/old state for the rest two, and for the next frame it deals with the second, etc. Then the user will feel the app is smooth as their touching events / animations are 60fps.",
+    "createdAt": "2022-04-02T06:36:50Z"
+  },
+  {
+    "id": 9366,
+    "sender": "iapicca",
+    "content": "I think I see your point, \r\nif I understand correctly you compare reconciling DOMs to rebuilding the elements in a widget tree\r\nand you are proposing to rebuild only certain elements the same way react-fiber prioritize \r\nI'm not sure how well will this work with tickers and \"post frame callbacks\"\r\n\r\nmaybe an alternative could be \r\n`give the developer the ability to set a widgets to low rendering priority`\r\nfor example when you are scrolling a list of loading images, \r\nyou don't really care if the circular progress indicator is rendering at 60fps",
+    "createdAt": "2022-04-02T07:50:43Z"
+  },
+  {
+    "id": 9367,
+    "sender": "fzyzcjy",
+    "content": "> if I understand correctly you compare reconciling DOMs to rebuilding the elements in a widget tree\r\nand you are proposing to rebuild only certain elements the same way react-fiber prioritize\r\n\r\nPossibly not only Widget build, but also layout, paint, etc. Since it is often the case that the layout/paint cost time.\r\n\r\n> give the developer the ability to set a widgets to low rendering priority\r\n\r\nSounds reasonable.",
+    "createdAt": "2022-04-02T08:22:05Z"
+  },
+  {
+    "id": 9368,
+    "sender": "maheshj01",
+    "content": "Hi @fzyzcjy, Thanks for filing the issue. I am quite not sure about the algorithm and its effectiveness. Labeling this issue for further insights from the team.\r\n\r\ncc: @dnfield  ",
+    "createdAt": "2022-04-04T07:48:34Z"
+  },
+  {
+    "id": 9369,
+    "sender": "fzyzcjy",
+    "content": "@maheshmnj Hi thanks for the reply.\r\n\r\nI have made an attempt about doing async rendering *without modifying* Flutter framework: https://github.com/fzyzcjy/flutter_smooth_render But the result is not very interesting - seems that we really need to dig into the framework itself instead of making a wrapper layer around it.",
+    "createdAt": "2022-04-04T08:07:41Z"
+  },
+  {
+    "id": 9370,
+    "sender": "dnfield",
+    "content": "I've been talking about something somewhat like this on the #hackers-framework channel in the past, but it's not a trivial problem to solve. I'd be interested in seeing more details about your designproposal and/or discussing on discord.",
+    "createdAt": "2022-04-04T14:56:51Z"
+  },
+  {
+    "id": 9371,
+    "sender": "dnfield",
+    "content": "And FWIW, this is likely a pretty significant amount of work to do, but there are some people who have already started looking at parts of it @hixie @goderbauer ",
+    "createdAt": "2022-04-04T16:37:22Z"
+  },
+  {
+    "id": 9372,
+    "sender": "fzyzcjy",
+    "content": "@dnfield Hi thanks for the reply! \r\n\r\n> but there are some people who have already started looking at parts of it @Hixie @goderbauer\r\n\r\nTo avoid reinventing the wheel, I hope to listen to the parts before thinking about what to do next",
+    "createdAt": "2022-04-05T00:31:09Z"
+  },
+  {
+    "id": 9373,
+    "sender": "wangying3426",
+    "content": "@fzyzcjy Any update please? We are also interested in this feature.\r\n\r\n",
+    "createdAt": "2022-09-08T02:57:10Z"
+  },
+  {
+    "id": 9374,
+    "sender": "fzyzcjy",
+    "content": "@wangying3426 Well, no updates from me since I want to firstly listen to the \"who have already started looking at parts of it @Hixie @goderbauer\"",
+    "createdAt": "2022-09-08T03:06:09Z"
+  },
+  {
+    "id": 9375,
+    "sender": "JsouLiang",
+    "content": "@Hixie @goderbauer @dnfield How do you think about this fiber proposal?",
+    "createdAt": "2022-09-14T07:04:33Z"
+  },
+  {
+    "id": 9376,
+    "sender": "dnfield",
+    "content": "No one has come up with a workable proposal at this point in time. I think it's worth doing but it's not my top priority at the moment.",
+    "createdAt": "2022-09-14T16:21:36Z"
+  },
+  {
+    "id": 9377,
+    "sender": "fzyzcjy",
+    "content": "> but it's not my top priority at the moment.\r\n\r\nAs mentioned earlier, I am willing to PR and contribute. But surely need some suggestions and discussions prior to start implementing :)\r\n\r\nBtw I am not thinking about strictly implementing Fiber, since web model is not the same as Flutter model, but something inspired by it that can make our animations smoother.",
+    "createdAt": "2022-09-14T23:11:50Z"
+  },
+  {
+    "id": 9378,
+    "sender": "JsouLiang",
+    "content": "> > but it's not my top priority at the moment.\r\n> \r\n> \r\n> \r\n> As mentioned earlier, I am willing to PR and contribute. But surely need some suggestions and discussions prior to start implementing :)\r\n> \r\n> \r\n> \r\n> Btw I am not thinking about strictly implementing Fiber, since web model is not the same as Flutter model, but something inspired by it that can make our animations smoother.\r\n\r\nI think so. Maybe we can create a document and then a detailed description\r\n- the fiber node archive and it can be interrupted by reconciler\r\n- how does the Fiber reconciler work\r\n- how does the flutter framework need to do and how to design\r\n\r\nHow do you think about it? @fzyzcjy ",
+    "createdAt": "2022-09-15T02:56:03Z"
+  },
+  {
+    "id": 9379,
+    "sender": "fzyzcjy",
+    "content": "> @JsouLiang Maybe we can create a document and then a detailed description\r\n\r\nSure! Maybe we can firstly discuss about it (maybe just here? - just like how I have seen many Dart/Flutter design discussions happen) and a detailed doc after we draw a (draft) conclusion\r\n\r\n> how does the flutter framework need to do and how to design\r\n\r\nBtw, fiber can make animations smoother, but if I understand correctly, the smoothness is because that specific animation is driven by css, not js. This is contrary to flutter. For example, a CircularProgressIndicator, or even a scrolling of ListView, is driven by Dart code. Thus, we cannot easily say \"let's give control to flutter engine / android / ios / whatever once in a while when we are doing build/layout/paint/whatever\". If we simply do so, we will not get a smooth animation automatically. Instead, we may need to find out a more sophisticated approach.",
+    "createdAt": "2022-09-15T03:01:06Z"
+  },
+  {
+    "id": 9380,
+    "sender": "JsouLiang",
+    "content": "> but if I understand correctly, the smoothness is because that specific animation is driven by css, not js.\r\n\r\nYes, the CSS animation is driven by css, not through js\r\nThat mean, the CSS associated with the HTML element can calculate the animation difference directly, without going through JS. @fzyzcjy \r\n\r\n",
+    "createdAt": "2022-09-15T03:27:32Z"
+  },
+  {
+    "id": 9381,
+    "sender": "fzyzcjy",
+    "content": "Yes, that is why fiber is so useful. Indeed it is like, the web ui is driven by two things - the JS and CSS. Fiber pause JS once in a while so CSS things can come in and animate.",
+    "createdAt": "2022-09-15T03:28:45Z"
+  },
+  {
+    "id": 9382,
+    "sender": "xanahopper",
+    "content": "> @fzyzcjy Btw, fiber can make animations smoother, but if I understand correctly, the smoothness is because that specific animation is driven by css, not js. This is contrary to flutter. For example, a CircularProgressIndicator, or even a scrolling of ListView, is driven by Dart code. Thus, we cannot easily say \"let's give control to flutter engine / android / ios / whatever once in a while when we are doing build/layout/paint/whatever\". If we simply do so, we will not get a smooth animation automatically. Instead, we may need to find out a more sophisticated approach.\r\n\r\nAs you say, Web animation like css animate, Android ViewPropertyAnimator (maybe iOS also has similar animate mechanism), they all are driven by browser/system, but in Flutter it is driven by ourselves with all other business logic.\r\n\r\nfor more, Android's window transition animation is driven by WindowService seperately",
+    "createdAt": "2022-09-15T03:28:53Z"
+  },
+  {
+    "id": 9383,
+    "sender": "fzyzcjy",
+    "content": "@JsouLiang @xanahopper \r\n\r\nSo, it is possible we come up with something slightly different?\r\n\r\nFor example, if we want to make some animations faster, like CircularProgressIndicator and ListView-scrolling, is it possible to do the following: We give CircularProgressIndicator high priority, and it must be layout/paint at 60fps. In the meanwhile, all other widgets will run one layout/paint across multiple frames with suspending just like what Fiber does. In other words, when vsync comes, CircularProgressIndicator will do all the layout/paint job, while other widgets will continue working on its layout/paint but will pause once it is near 16ms. Then, we can see CircularProgressIndicator smooth at 60fps, while other widgets having similar rendering speed as before.\r\n\r\nBtw, some side remarks that is less like Fiber: Here is a tool that defers Widgets from being built https://github.com/LianjiaTech/keframe. But I guess we can make it more fine-grained and with more improvements since we are going to modify the flutter framework itself. For example, (very rough draft idea), can we modify the layout phase (or paint, or others), such that it pauses layouting the remainder (and will do it in the next frame), and let painting and other phases go first?",
+    "createdAt": "2022-09-15T03:38:50Z"
+  },
+  {
+    "id": 9384,
+    "sender": "dnfield",
+    "content": "The hard part of all of this is to figure out how to do it without breaking existing Framework code.\r\n\r\nI think it's probably possible, but it's not easy.",
+    "createdAt": "2022-09-15T03:44:07Z"
+  },
+  {
+    "id": 9385,
+    "sender": "fzyzcjy",
+    "content": "> @dnfield without breaking existing Framework code\r\n\r\nWe are allowed to modify anything in Flutter, don't we :) Just not allowed to break existing API that is used by flutter users.\r\n\r\nThen, maybe we can have a feature flag?",
+    "createdAt": "2022-09-15T03:44:58Z"
+  },
+  {
+    "id": 9386,
+    "sender": "xanahopper",
+    "content": "@fzyzcjy Yes, we all farmilar with KeFrame and has already applied some optimize like it.\r\n> I guess we can make it more fine-grained and with more improvements since we are going to modify the flutter framework itself.\r\n\r\nI think this may the point we are going to discuss.\r\n\r\n\r\n> The hard part of all of this is to figure out how to do it without breaking existing Framework code.\r\n> \r\n> I think it's probably possible, but it's not easy.\r\n@dnfield we cannot just stop because is not easy. if it is a right way to improve it.\r\n",
+    "createdAt": "2022-09-15T03:45:53Z"
+  },
+  {
+    "id": 9387,
+    "sender": "fzyzcjy",
+    "content": "> we cannot just stop because is not easy. if it is a right way to improve it.\r\n\r\nSame here :) I like challenging, i.e. exciting, work!",
+    "createdAt": "2022-09-15T03:46:35Z"
+  },
+  {
+    "id": 9388,
+    "sender": "Nayuta403",
+    "content": "@fzyzcjy I'm interested in this topic and have been trying to go in a direction where Keframe can make the best use of each 16.7ms, since now each item will take the full 16.7ms (even though it may only take 1ms on some good devices). I'm trying to count the time taken by individual items to determine how many items should be rendered in the next frame.\r\n",
+    "createdAt": "2022-09-15T03:50:41Z"
+  },
+  {
+    "id": 9389,
+    "sender": "fzyzcjy",
+    "content": "Continue from the animation proposal above, with @dnfield's \"without breaking existing Framework code\":\r\n\r\nMaybe we can have a global flag, say, `bool enableFiber = false`. By default it is false, so users can use existing API freely without any change. When user manually set it to true, our new feature runs.\r\n\r\nThe API may be as simple as a Widget, say, `HighPrioritySubTree(builder: (context, child) => build_your_subtree_here, child: put_static_child_here)`, just like animation builder widgets. That builder should wrap the CircularProgressIndicator in the example above. We may also add a `CancelHighPrioritySubTree` if needed. For example, when scrolling ListView, we may want the scrolling animation be at 60fps, while we have to accept that a big widget in ListView is slow to build. Then, we may wrap ListView with HighPrioritySubTree, and each child of ListView with CancelHighPrioritySubTree. By doing so, our ListView will be forcefully built at each frame, while its contents will be stale for a few frames.",
+    "createdAt": "2022-09-15T03:52:19Z"
+  },
+  {
+    "id": 9390,
+    "sender": "fzyzcjy",
+    "content": "@Nayuta403 I have had similar thoughts before. The problem is, `build` phase is not the most costly one. There are `layout` and `paint` phase, etc, as well. What's worse, Flutter has C++ engine code which rasterizes and flush to the screen. That one can take a long time in some cases (for example, in my own app, when there is a ton of bezier curves). A widget may, for example, have very short `build` phase time but very long C++ rasterize time.",
+    "createdAt": "2022-09-15T03:54:47Z"
+  },
+  {
+    "id": 9391,
+    "sender": "xanahopper",
+    "content": "> The API may be as simple as a Widget, say, `HighPrioritySubTree(builder: (context, child) => build_your_subtree_here, child: put_static_child_here)`, just like animation builder widgets. That builder should wrap the CircularProgressIndicator in the example above. We may also add a `CancelHighPrioritySubTree` if needed. For example, when scrolling ListView, we may want the scrolling animation be at 60fps, while we have to accept that a big widget in ListView is slow to build. Then, we may wrap ListView with HighPrioritySubTree, and each child of ListView with CancelHighPrioritySubTree. By doing so, our ListView will be forcefully built at each frame, while its contents will be stale for a few frames.\r\n\r\n@fzyzcjy I agree with switch flag, but some individual widget may still look verbose. I'd rather like to add a optional parameter to base class `Widget` to specify it's build/layout/render priority.\r\nThan change default page transition widget, scrollable container to high priority and wrap its content to low priority.\r\n",
+    "createdAt": "2022-09-15T04:00:38Z"
+  },
+  {
+    "id": 9392,
+    "sender": "xanahopper",
+    "content": "And here is another case may need to be consider: the list.\r\n in general container such as page, content size has no effect with container and other siblings, but things are different in list.\r\nif we have different size of different item, we cannot just show placeholder with same size, scrolling when and after content item is building/layouting may cause a sudden change in list.",
+    "createdAt": "2022-09-15T04:06:56Z"
+  },
+  {
+    "id": 9393,
+    "sender": "fzyzcjy",
+    "content": ">  I'd rather like to add a optional parameter to base class Widget to specify it's build/layout/render priority.\r\n\r\nThat sounds good to me. With that flag, we can also very easily create the widgets I mention. Just like the repaintBoundary is a flag and we create a widget to set it.",
+    "createdAt": "2022-09-15T04:09:32Z"
+  },
+  {
+    "id": 9394,
+    "sender": "fzyzcjy",
+    "content": "> if we have different size of different item, we cannot just show placeholder with same size, scrolling when and after content item is building/layouting may cause a sudden change in list.\r\n\r\nThat's true. `keframe` workaround by letting the developer specify a placeholder size *manually*. But surely, for complex list items, we can never predict the size in advance so it still \"jumps\" when real content loads.\r\n\r\nMaybe this is inevitable, and we have to live with it? Or, maybe we just place background color on those non-built entries?",
+    "createdAt": "2022-09-15T04:12:13Z"
+  },
+  {
+    "id": 9395,
+    "sender": "xanahopper",
+    "content": "we have to live with it, but we can give some different solutions, such like allow jumps, background color or some other...\r\n\r\nI remember that iOS has very high priority with scrolling. If we can get item's size before build, this may not be a problem.\r\n\r\npre-measure for many things is possible but we have two considerations:\r\n- it cannot block UI/main thread otherwise it means nothing\r\n- it should has slice cost for developer to do that\r\n\r\nthis may conflict with principle of Flutter for single pass measure……but I think it has already has many cases in practice against that, it may not be a big deal.",
+    "createdAt": "2022-09-15T04:25:56Z"
+  },
+  {
+    "id": 9396,
+    "sender": "fzyzcjy",
+    "content": "@xanahopper I am not sure whether that is another isolated problem, or we can directly solve it within our proposal about this issue. For example, if we are to add a pre-measure phase, we may add computeSomething in addition to existing computeLayout, computeDryLayout etc, and that may be orthogonal to this issue.\r\n\r\nBtw, I suspect whether pre-measure can happen before `build` phase, since we even do not know the widget tree then. Maybe it can happen before `layout` phase?",
+    "createdAt": "2022-09-15T05:20:21Z"
+  },
+  {
+    "id": 9397,
+    "sender": "fzyzcjy",
+    "content": "> @fzyzcjy reply to @Nayuta403  I have had similar thoughts before. The problem is, build phase is not the most costly one. There are layout and paint phase, etc, as well. What's worse, Flutter has C++ engine code which rasterizes and flush to the screen. That one can take a long time in some cases (for example, in my own app, when there is a ton of bezier curves). A widget may, for example, have very short build phase time but very long C++ rasterize time.\r\n\r\nJust to make it a little bit more detailed: On the contrary, if my proposal above works, the following may happen -\r\n\r\n1. Animations are in perfect 60fps, since low-priority job auto pause when near timeout. If we use keframe or similar solution, and give too many widgets in one frame, our animation will stuck.\r\n2. No cpu cycles are wasted, because we will never early-pause but will only pause when near timeout. For example, suppose widget A needs 160ms to build+layout+paint+raster, then it will be done in (roughly) 10 frames. If we use keframe or similar solution, and give too little widgets in one frame, we are wasting cpu cycles.\r\n3. It avoids our need to measure, or guess, the time needed for a widget in build/layout/paint/raster phase. Just as I mentioned above, I personally find it hard to guess how long a widget will need in those phases, especially raster phase which is C++ and varies greatly on different CPU/GPUs (different phones).\r\n4. It is OK to have a non-separable widget that is heavy in one phase.\r\n5. It is automatic and declarative. Programmers only need to specify priorities and that's all.\r\n\r\nBtw I also like your (@Nayuta403) keframe solution :) Just trying to propose something that we can make flutter even better",
+    "createdAt": "2022-09-15T05:47:02Z"
+  },
+  {
+    "id": 9398,
+    "sender": "Nayuta403",
+    "content": "@fzyzcjy  Thank you, I think we all want to make Flutter better. ❤️\r\n\r\nSo I think of a few problems we might have to solve: \r\n1. How to get the current UI cost, I think we still need to know this information even if we put the animation in the high priority queue, so that we can determine when the low priority task should end. \r\n2. How does the ListVIew item handle sliding when there is no width and height information \r\n3. How Fiber builds interruptible. It might be a little easier for a ListVIew, because its items are siblings. But what about parent-child nodes like Container?",
+    "createdAt": "2022-09-15T06:09:38Z"
+  },
+  {
+    "id": 9399,
+    "sender": "fzyzcjy",
+    "content": "More thoughts here.\r\n\r\n#### 1. For CircularProgressIndicator, or high-priority widgets without low-priority children\r\n\r\nA very draft idea:\r\n\r\nWe may have multiple sub-trees, i.e. have a forest, in flutter. In this example, CircularProgressIndicator may be subtree 1, and everything else may be subtree 2. The subtree 1 goes through build/layout/paint/raster etc for each frame, and subtree 2 may go slowly, i.e. suspend.\r\n\r\nSuppose it needs 10 frames for subtree 2 to finish the whole build/layout/paint/raster process. Then, we just allow all inconsistent and dirty states to exist during that 10 frames. For example, a node may have several layouted children and several un-layouted children. Same goes for rasterizing etc. We also need to ensure nobody can mutate the state accidentally when they are dirty.\r\n\r\nIn addition, I think we may not need to add this suspend feature to the `build` phase, but only add to layout/paint/raster if possible, contrary to React. This is because, if the time-consuming operation is only at build phase, keframe or similar solutions should already work. It may be deep in the rendering pipeline that makes this proposed method more interesting.\r\n\r\nSurely this is just a draft and brainstorm, and I am willing to hear any thoughts!\r\n\r\n#### 2. For ListView scrolling problem, or high-priority widgets with low-priority children\r\n\r\nThe problem is, those big low-priority children may need a lot of frames (say 10 frames) to build/layout/paint/rasterize, and during those 10 frames, their internal data structure are not ready for use. For example, we cannot let it to paint at 5th frame, because its layout tree (or layer tree or something like that) may have a child that has been layouted and another child that has not yet been layouted.\r\n\r\nHowever, we are doing nothing but scrolling. Then what about simply *raster cache* the screen, and scrolling is nothing but shifting this `ui.Image`. More details can mimic this PR: https://github.com/flutter/flutter/pull/106621 In that PR, during a \"zoom page transition\", no real widgets are built in each frame. Instead, a `ui.Image` snapshot is taken in the first frame, and during the whole transition we are just zooming that Image. Our solution is different from #106621, though. In that PR, no work is done during the whole page transition, but in our case, we can perform useful build/layout/paint/raster in the remaining time of each frame.\r\n\r\nThis solution also has some spirit similar to React Fiber: In Fiber, our JS-driven DOM elements are freezed indeed, and it is the CSS animation that still works. In our case, the \"scrolling ui.Image\" is a bit mimic a scrolling CSS animation.",
+    "createdAt": "2022-09-15T06:10:03Z"
+  },
+  {
+    "id": 9400,
+    "sender": "fzyzcjy",
+    "content": "> How to get the current UI cost, I think we still need to know this information even if we put the animation in the high priority queue, so that we can determine when the low priority task should end.\r\n\r\nSeems we do not need? We just blindly run whatever should be done next, and suspend when we are near 16ms.\r\n\r\nWe do need to let the the high priority job (say CircularProgressIndicator or ListView-scrolling) finish within the totally 16ms though.\r\n\r\nMy first thought is that, it would be best if we execute *all phases* of *this subtree* first, and then execute (and suspend when timeout) all phases of the second subtree in whatever time remain. Then we never need to get the cost.\r\n\r\nIf that is impossible, I wonder whether we can use some heuristics. We all know a CircularProgressIndicator should be very lightweight, so is a ListView-scrolling (if using the ui.Image approach above). We may also learn from the history.",
+    "createdAt": "2022-09-15T06:13:41Z"
+  },
+  {
+    "id": 9401,
+    "sender": "fzyzcjy",
+    "content": "> How does the ListVIew item handle sliding when there is no width and height information\r\n\r\nIf using the approach mentioned above, it will just be blank. But not blank whenever there is a scrolling! Because we know Flutter has some cache extent for ListViews, we can also capture those cached extents in our `ui.Image` snapshot. Then, only if the following happens, we will see blank:\r\n\r\n1. The user scrolls so much that all cache extent are used up\r\n2. Our heavy widgets are so heavy that it even does not finish one frame up to now",
+    "createdAt": "2022-09-15T06:15:32Z"
+  },
+  {
+    "id": 9402,
+    "sender": "fzyzcjy",
+    "content": "> How Fiber builds interruptible. It might be a little easier for a ListVIew, because its items are siblings. But what about parent-child nodes like Container?\r\n\r\nAs a very rough draft, I am considering `yield`. For example:\r\n\r\n```dart\r\nIterable<void> performLayout() sync* {\r\n  yield* myFirstChild.layout();\r\n  some_computation_here;\r\n  yield* mySecondChild.layout();\r\n}\r\n```\r\n\r\nEach yield point is suspendable.\r\n\r\nIIRC, Redux Saga https://redux-saga.js.org/docs/introduction/BeginnerTutorial/ uses something similar to this.\r\n\r\nHave not digged into React Fiber's source code yet. Have you checked it, how does it implement it?\r\n\r\nBut as I am not an expert in Dart compiler implementation, I am not sure about the performance penalty. (Hope it to be tiny!)",
+    "createdAt": "2022-09-15T06:18:41Z"
+  },
+  {
+    "id": 9403,
+    "sender": "dnfield",
+    "content": "A few pointers:\r\n\r\n- We cannot use sync generators, they create code that is large and slow. \r\n- A good canonical case here would be something like https://github.com/flutter/flutter/blob/master/dev/benchmarks/macrobenchmarks/lib/src/list_text_layout.dart. This ends up being janky because layout gets expensive for all that text (on a lower end phone it can easily take 20-30+ms just to layout all the text there, and the ListTile is a little deceptive because Material introduces expense - this is the kind of thing we want to figure out how to break up \"automatically\").\r\n- We should probably worry about prioritization of jobs until after we figure out how to sensibly budget and interrupt layout/painting/compositing. It doesn't matter what priority we'd want to give things if we can't do that, and it will probably be hard to come up with a good/fair prioritization scheme.\r\n",
+    "createdAt": "2022-09-15T06:31:44Z"
+  },
+  {
+    "id": 9404,
+    "sender": "fzyzcjy",
+    "content": "@dnfield Thanks for the ideas!\r\n\r\n> how to sensibly budget and interrupt layout/painting/compositing.\r\n\r\nQuick answer to budget: As suggested in my comments above, we may not need to budget things (unlike the keframe-like solution). We just run the high-priority subtree (one with animation) until it finishes, and then run low-priority heavy subtree until whenever timeouts.",
+    "createdAt": "2022-09-15T06:40:01Z"
+  },
+  {
+    "id": 9405,
+    "sender": "dnfield",
+    "content": "Animations might not ever finish.",
+    "createdAt": "2022-09-15T06:42:05Z"
+  },
+  {
+    "id": 9406,
+    "sender": "dnfield",
+    "content": "And you might be animating the entire screen, e.g. for a route transition",
+    "createdAt": "2022-09-15T06:42:34Z"
+  },
+  {
+    "id": 9407,
+    "sender": "fzyzcjy",
+    "content": "> Animations might not ever finish.\r\n\r\nWell, I mean, run its build+layout+paint+raster fully instead of partially, not wait until there is no animations at all. For a CircularProgressIndicator it may take, say, <1ms. The rest 16.66-1=15.66ms will be given to low-priority subtree.",
+    "createdAt": "2022-09-15T06:43:27Z"
+  }
+]

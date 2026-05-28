@@ -1,0 +1,386 @@
+[
+  {
+    "id": 9088,
+    "sender": "huvi8161",
+    "content": "@dnfield  If Skia resolves cache for compiled shaders(jvanverth) on iOS, would it be possible to provide us a manual solution that would allow us to manually go through the app and after that include all the shaders in final ipa file that Skia could recompile on app start the way it is doing now on Android and iOS(where Open GL is used)?",
+    "createdAt": "2020-12-08T18:34:34Z"
+  },
+  {
+    "id": 9089,
+    "sender": "dnfield",
+    "content": "(Side note - I was wrong, Flutter may have a little bit of work to do to make sure the cache gets saved at the right times, but it should be a relatively trivial amount of effort since we already do things like this - it will still not require any updates for app developers.)\r\n\r\nThe problem with shipping pre-built shaders is that shaders can have GPU specific features, and may not work on devices with even slightly different physical hardware compared to the hardware they were built for. However, there are \"warmup\" routines you can add - see https://flutter.dev/docs/perf/rendering/shader. Once persistent cache for Metal is wired up it should make it possible to do those using Metal (the docs currently say it's not possible on Metal, which is true today).",
+    "createdAt": "2020-12-08T18:48:14Z"
+  },
+  {
+    "id": 9090,
+    "sender": "huvi8161",
+    "content": "Ok, so this solution from jvanvarth is going to help with caching of shaders during runtime, but for shipping pre-build shaders we have to wait for persistent cache, do you have some deadlines for this?",
+    "createdAt": "2020-12-08T19:03:08Z"
+  },
+  {
+    "id": 9091,
+    "sender": "dnfield",
+    "content": "Once the work in Skia is done, we can add the persistent cache changes to the engine side. I don't have an estimate of that right now, but it should be fairly trivial since we already have relevant code for it in place that just will need to be turned on.",
+    "createdAt": "2020-12-08T19:05:08Z"
+  },
+  {
+    "id": 9092,
+    "sender": "erf",
+    "content": "@dnfield are you saying we need to do manual \"warmup\" on all the devices we'd like to support to avoid yank?\r\n\r\n> The problem with shipping pre-built shaders is that shaders can have GPU specific features, and may not work on devices with even slightly different physical hardware compared to the hardware they were built for. However, there are \"warmup\" routines you can add - see https://flutter.dev/docs/perf/rendering/shader. Once persistent cache for Metal is wired up it should make it possible to do those using Metal (the docs currently say it's not possible on Metal, which is true today).",
+    "createdAt": "2020-12-08T19:10:49Z"
+  },
+  {
+    "id": 9093,
+    "sender": "dsrenesanse",
+    "content": "> An update from the Skia side: I started looking into adding MTLBinaryArchive support last week, and at this point it doesn't look like it will be difficult to drop it in as a side cache to our already existing persistent shader cache. I don't want to make a hard promise on completion as I have a lot of demands on my time, but I expect I should be able to get it done in the next few weeks, conservatively before the December break.\r\n\r\nSounds great!",
+    "createdAt": "2020-12-12T15:08:26Z"
+  },
+  {
+    "id": 9094,
+    "sender": "vukhacbiet",
+    "content": "I hope the update about this issue will come before December break",
+    "createdAt": "2020-12-16T08:07:30Z"
+  },
+  {
+    "id": 9095,
+    "sender": "qingweiSun",
+    "content": "Take a look every day\r\n",
+    "createdAt": "2020-12-18T10:34:10Z"
+  },
+  {
+    "id": 9096,
+    "sender": "arturfornal",
+    "content": "@qingweiSun I think all of us are waiting for a fix. ",
+    "createdAt": "2020-12-18T12:21:39Z"
+  },
+  {
+    "id": 9097,
+    "sender": "theniceboy",
+    "content": "I think we'd all appreciate this from the Flutter team as a holiday gift haha",
+    "createdAt": "2020-12-18T12:26:36Z"
+  },
+  {
+    "id": 9098,
+    "sender": "lukepighetti",
+    "content": "I hope Google celebrates Chrismahanukwanzikastice.",
+    "createdAt": "2020-12-18T17:56:32Z"
+  },
+  {
+    "id": 9099,
+    "sender": "easazade",
+    "content": " Ok, I came here from this [reddit page](https://www.reddit.com/r/FlutterDev/comments/jwmepu/very_poor_performance_of_new_google_pay_app/) about the poor performance of the new Google pay app written in Flutter . and now I'm just trying not to freak out. I have clients that have been promised great performance from Flutter. besides, I hate even thinking about going back to native android development. it's just bad and boring. and I did it for 3.5 years. And there is no other portable UI kit framework out there.",
+    "createdAt": "2020-12-22T03:20:45Z"
+  },
+  {
+    "id": 9100,
+    "sender": "kbokarius",
+    "content": "Suffice it to say, it is certainly troubling that Google itself is unable to release a performant app. Nevertheless, since we have neither the time nor the resources to completely rewrite our app, we'll continue to be cautiously optimistic about the solution to startup jank, general UI performance improvements, and the overall long-term viability of Flutter.",
+    "createdAt": "2020-12-22T03:39:00Z"
+  },
+  {
+    "id": 9101,
+    "sender": "alectogeek",
+    "content": "I still cannot understand why did they move to Metal? Yes, OpenGL is deprecated by Apple, but it was deprecated for a long time. Did not they see these awful janks? Did not the community start complaining about performance when the framework moved to Metal? I'm asking because I do not understand is there any valuable reason why we had to tolerate these changes and disadvantages of Metal?",
+    "createdAt": "2020-12-22T09:25:52Z"
+  },
+  {
+    "id": 9102,
+    "sender": "furkansarihan",
+    "content": "@alectogeek This migration would be made one way or another. Obviously the process could not handled perfectly but I believe we will get a warm metal app soon.",
+    "createdAt": "2020-12-22T09:42:33Z"
+  },
+  {
+    "id": 9103,
+    "sender": "lukepighetti",
+    "content": "My only complaint here is that it feels like metal was released against a deadline, not against a reasonable quality standard.",
+    "createdAt": "2020-12-22T11:09:49Z"
+  },
+  {
+    "id": 9104,
+    "sender": "alectogeek",
+    "content": "@furkansarihan Yeah, you're right. I know that it is a complicated process and I really appreciate the Flutter team's work, but let us be honest at the same time and say that it was the wrong decision to migrate the stable branch to Metal. Also, It was awful management of the project because the migration to Metal was in Spring, but we still do not have the solution. The applications written on Flutter are unusable on iOS. Our company loses (and still losing) money because of that. My reputation is damaged because it was my decision to invest in Flutter. I have no reason to be understanding now.\r\n\r\nP.S. My offer to provide additional information about the current progress and problems on the Flutter.dev page was also rejected. (#70571) It could help to avoid the same problems as I did for new users.",
+    "createdAt": "2020-12-22T20:07:19Z"
+  },
+  {
+    "id": 9105,
+    "sender": "dsrenesanse",
+    "content": "Hello @arturfornal, such a sad story, but did you try flutter engine without Metal support? I solved the same problem by using a workaround  from repo, on most of iOS devices it is stable solution. Tried on iPhone 7, XS, 11 and iPad pro. https://github.com/acoutts/flutter-engines-no-metal\r\n",
+    "createdAt": "2020-12-22T20:45:59Z"
+  },
+  {
+    "id": 9106,
+    "sender": "kbokarius",
+    "content": "@Renesanse make sure you do a lot of testing across a number of devices to see if your app is truly stable. It appeared stable to us when we first tested with those OpenGL frameworks, but after our QA team repeatedly used features that had animations (especially on older 12.X devices), it became clear that the build was not as stable as it first appeared to be. We eventually saw intermittent crashes on even the newest iOS devices.",
+    "createdAt": "2020-12-22T21:04:21Z"
+  },
+  {
+    "id": 9107,
+    "sender": "LCS567",
+    "content": "We have an enterprise-level app that we are building in flutter, and the first launch performance is horrible on iOS. This is especially bad due to onboarding -- new users will get a very bad impression, even though we use correct coding practices on our end. New users aren't going to manually warm up the animations by pressing them several times until they smooth out, they will simply go to the app store and leave a 1 star review for poor performance (which is exactly what other flutter devs reported happening to their production apps).\r\n\r\nFurthermore, the flutter landing page falsely advertises \"native performance\", when due to the shader compilation issues, it is worse than react native and even web-view tools. This issue has been active for over a year now, and the flutter team inadequately addresses it with low priority, when it should be **imperative**.\r\n\r\nWe have invested a lot of time and money into this project, and we hope that this issue will be fixed by the time we release (1-2 months from now). This is not a hobby project, while many of these indie/hobby devs don't mind and pretend this is a minor issue, this is extremely important to us and our stakeholders (we have a responsibility to them and to our users as well).\r\n\r\nI see the moderation team here loves closing similar threads that are straightforward and don't shower flutter with praise. Pretending it's tolerable and whatnot. This should not be a P3 issue, this should be P1.\r\n\r\nOur investors are not happy with the current situation at all, and I will proceed with legal action if I have to, because I have a fiduciary duty to them in regards to their invested capital. Flutter made a misleading, deceptive statement about its performance, and if this is not fixed, it will cost my company time, money, and reputation.\r\n\r\nFix this issue immediately. ",
+    "createdAt": "2020-12-22T22:34:41Z"
+  },
+  {
+    "id": 9108,
+    "sender": "dsrenesanse",
+    "content": "Totally agree, to be honest, big company where I work is making decision to use flutter or not. The situation right now is that budget xiaomi device for 50 bucks has better performance then iPhone 11.",
+    "createdAt": "2020-12-22T23:05:18Z"
+  },
+  {
+    "id": 9109,
+    "sender": "lukepighetti",
+    "content": "@dnfield @Hixie I think bumping the priority on this would go a long way...",
+    "createdAt": "2020-12-22T23:22:46Z"
+  },
+  {
+    "id": 9110,
+    "sender": "b3nni97",
+    "content": "Even the iPhone 12 Pro Max has a very poor performance on first launch.",
+    "createdAt": "2020-12-22T23:24:22Z"
+  },
+  {
+    "id": 9111,
+    "sender": "easazade",
+    "content": "Right now I'm negotiating on a project that has a great design with lots of animations. should I accept the project and hope this issue will be resolved by the next 2 month or that is a false hope? ANYONE? ",
+    "createdAt": "2020-12-23T00:09:42Z"
+  },
+  {
+    "id": 9112,
+    "sender": "stx",
+    "content": "We have a fully-animated (as in using full-screen animations during literally 100% of the app runtime) paid subscription app with thousands of users and not a single complaint about performance has been registered on iOS or Android.",
+    "createdAt": "2020-12-23T00:12:49Z"
+  },
+  {
+    "id": 9113,
+    "sender": "dsrenesanse",
+    "content": "> We have a fully-animated (as in using full-screen animations during literally 100% of the app runtime) paid subscription app with thousands of users and not a single complaint about performance has been registered on iOS or Android.\n\nI hope it is sarcasm, just create an app and call Cupertino dialog. You will notice huge FPS drop on any iOS device at first time. Can you provide a link to your application?",
+    "createdAt": "2020-12-23T00:17:06Z"
+  },
+  {
+    "id": 9114,
+    "sender": "stx",
+    "content": "> > We have a fully-animated (as in using full-screen animations during literally 100% of the app runtime) paid subscription app with thousands of users and not a single complaint about performance has been registered on iOS or Android.\r\n> \r\n> I hope it is sarcasm, just create an app and call Cupertino dialog. You will notice huge FPS drop on any iOS device at first time. Can you provide a link to your application?\r\n\r\nI never said there weren't noticeable FPS drops. I said no customers have registered a complaint. Are you able to consciously recognize that these are two different things?",
+    "createdAt": "2020-12-23T00:19:52Z"
+  },
+  {
+    "id": 9115,
+    "sender": "lukepighetti",
+    "content": "I think it's important to not make an assumption about how critical this is to different teams. For some projects it may be more critical than others. And of course being civil, especially in a thread that is emotionally charged, is of utmost importance.",
+    "createdAt": "2020-12-23T00:20:50Z"
+  },
+  {
+    "id": 9116,
+    "sender": "erf",
+    "content": "Although i do agree with some of the critique here, this is an issue tracker for solving a specific problem and not a discussion forum AFAIK. Try keep it relevant guys.",
+    "createdAt": "2020-12-23T00:25:15Z"
+  },
+  {
+    "id": 9117,
+    "sender": "dsrenesanse",
+    "content": "> > > We have a fully-animated (as in using full-screen animations during literally 100% of the app runtime) paid subscription app with thousands of users and not a single complaint about performance has been registered on iOS or Android.\n> \n> > \n> \n> > I hope it is sarcasm, just create an app and call Cupertino dialog. You will notice huge FPS drop on any iOS device at first time. Can you provide a link to your application?\n> \n> \n> \n> I never said there weren't noticeable FPS drops. I said no customers have registered a complaint. Are you able to consciously recognize that these are two different things?\n\nI can't believe in it. How iOS users didn't notice junks and animation lags. How is it possible that users didn't hit 1 star at review and didn't write something like \"laggy app, don't like it\". It is sounds like a joke and pushes me to think, you talking about you have not any problems with performance. Btw, sorry for misunderstanding.",
+    "createdAt": "2020-12-23T00:27:09Z"
+  },
+  {
+    "id": 9118,
+    "sender": "dsrenesanse",
+    "content": "> I think it's important to not make an assumption about how critical this is to different teams. For some projects it may be more critical than others. And of course being civil, especially in a thread that is emotionally charged, is of utmost importance.\n\nTruly enough, if you are not losing money and reputation as a developer. I understand people who disappointed about flutter right now. And I am ok if some one will write something like a \"what the hack are you guys did with my great app during your updates\" =)",
+    "createdAt": "2020-12-23T00:33:30Z"
+  },
+  {
+    "id": 9119,
+    "sender": "stx",
+    "content": "I haven't seen this strategy mentioned anywhere on GitHub, Reddit or Medium yet, so I'll post it in case it helps other companies or individuals in a similar situation.\r\n\r\nAn important thing to recognize is that, at least on the many iOS devices we've tested, across many different apps, is that the **the first-run jank is not on every animation, it's on every \"unique\" animation** - the threshold of what makes an animation/shader unique isn't clear, but for example, it isn't on every popup, or every screen transition, but usually only on the first instance of it.\r\n\r\nAs a result, the perceptual issue varies dramatically based on how often new \"unique\" shaders are introduced in the UX flow. I've found that a good temporary workaround is to reduce the variation in animations, and reuse existing ones as often as possible.\r\n\r\nSome specific examples of what we've implemented to help with this issue:\r\n\r\n**1. Use the same routing transition as often as possible.** \r\n\r\nIn our experience, if you're able to use just one routing animation, the jank will only occur on the first route, even if the route contents change. Perhaps a user sees a routing jank once before signing in, and that's it. This one change alone can make a big perceptual difference, as opposed to seeing jank at minute 0, minute 3, minute 5, minute 6 and so on.\r\n\r\n**2. Reduce the number of unique modal elements.**\r\n\r\nIt's ideal to have many different types of modals in different parts of the UI, based on context, like alerts, confirmation dialogs, tooltips, toasts, bottom sheets, and so on. But each of these will have first-run jank and it can look particularly bad. However, if you're able to temporarily consolidate those at all, and move the differences to the content itself, rather than the screen animation or container, you've reduced jank from possibly 6-7 times, spread out throughout the UX flow, to a single time, early on and more forgettable.\r\n\r\nFor example, instead of having a confirmation dialog, and an alert popup, and a tooltip, you use the same container and animation, and just change the content.\r\n\r\n**3. Reuse the same animation effects where possible, rather than making subtly different ones based on context.**\r\n\r\nAgain, ideally you use context-specific animations and effects, but that comes at a performance cost right now. Moving to more generic animations and effects that can be used on many screens and many elements can help.\r\n\r\n**4. Change fluid animations to be short or instant.**\r\n\r\nEach \"fluid\" animation is more likely to need a shader warmup. This is hard to describe, so here are visual examples.\r\n\r\nAnimations like this will incur jank much more often:\r\n\r\n![menu](https://cdn.dribbble.com/users/108183/screenshots/4800174/fluid_tab_bar_interaction_dribbble_shot_by_volorf_2.gif)\r\n\r\nAnimations like this won't incur jank nearly as often and often perceptibly not at all:\r\n\r\n![menu](https://miro.medium.com/max/1410/1*_aNaM5-G9nSxAju7yYbROA.gif)\r\n\r\nLittle things like this can add up to a noticeable real-world difference while this is being resolved, and have a real impact on end-user perception of the app.\r\n\r\nYour mileage and ability to do this will vary dramatically, of course, but I hope this helps someone.",
+    "createdAt": "2020-12-23T01:20:47Z"
+  },
+  {
+    "id": 9120,
+    "sender": "Hixie",
+    "content": "First let me say that the whole team is also concerned about our performance on Metal, and we completely agree that it is unacceptable as is; our architecture very much assumes that shaders will be cached. We empathize deeply with anyone whose application on iOS is suffering from jank because of this issue.\r\n\r\nWe have marked this P3 because that is the appropriate priority level in Flutter's priority scheme for something that we are actively working on which is of high priority. You can read more about our prioritization scheme on the wiki (https://github.com/flutter/flutter/wiki/Issue-hygiene#priorities). In short, however, P0-P2 levels are reserved for critical issues that are even more dire than this bug, and P3 is what we use for this kind of issue.\r\n\r\nThis issue is non-trivial and work is actively happening to address it. It is our intent to have this addressed by our next stable release, but we make no promises, because that's not how engineering works.",
+    "createdAt": "2020-12-23T06:59:57Z"
+  },
+  {
+    "id": 9121,
+    "sender": "huvi8161",
+    "content": "@Hixie when is the next stable release planned?",
+    "createdAt": "2020-12-23T07:21:42Z"
+  },
+  {
+    "id": 9122,
+    "sender": "arturfornal",
+    "content": "@Renesanse Hi, I played with both flutter versions, the worst situation I (or my boss) saw, was on his iPhone Xr on build with Metal support, on OpenGL it's a little better but only a little. When I started using cached shaders then on e.g. iPhone 6s (the slowest device I have) app works well and on iPhone 7, iPhone 12 Max Pro there are lags. After few reinstals (without changes in code!) app looks ok on random devices, or on all - strange and funny.\r\n\r\n@stx I agree with your steps to improve iOS performance, but they're not fixing lags, only reducing them.\r\n\r\nI decided to investigate Flutter as a replacement for native app development for some projects in my company but after around 3 months I have Android version of app, QA and customers will not accept that performance on iOS. It's not big problem because as I said it was investigation but now, I'm not sure if I should propose Flutter as stable framework for some serious development.\r\n\r\nWhen some guy said that Flutter documentation should inform potential new devs about that problem AT THE BEGINNING where they mention about NATIVE performance - I totally agree with him.",
+    "createdAt": "2020-12-23T10:11:51Z"
+  },
+  {
+    "id": 9123,
+    "sender": "lukepighetti",
+    "content": "@Hixie Thanks for the explanation. Looking at the priority rules, it sounds like this would be a P1 issue if it was blocking someone with representation (\"top-tier customer\"), but if it's blocking someone without representation (small project or large project that does not have a formal relationship with Google) it's P3.\r\n\r\nI would suggest that there should be situations where P3 can be bumped to P2 or P1 that doesn't hinge solely on their \"relationship status\" with Google, as a sum effect of a blocker, especially one that appears to be reputation threatening, would arguably exceed the negative impact of blocking one top-tier customer.\r\n\r\nAs a slightly humorous indicator of the seriousness of this issue, it has been reported that this is spawning conspiracy theory videos saying Apple has hamstrung Flutter intentionally by forcing migration to Metal. Maybe P1 could also be for issues that are breeding conspiracy theories. 😅",
+    "createdAt": "2020-12-23T10:34:23Z"
+  },
+  {
+    "id": 9124,
+    "sender": "joniaiuser",
+    "content": "> @Hixie Thanks for the explanation. Looking at the priority rules, it sounds like this would be a P1 issue if it was blocking someone with representation (\"top-tier customer\"), but if it's blocking someone without representation (small project or large project that does not have a formal relationship with Google) it's P3.\r\n> \r\n> I would suggest that there should be situations where P3 can be bumped to P2 or P1 that doesn't hinge solely on their \"relationship status\" with Google, as a sum effect of a blocker, especially one that appears to be reputation threatening, would arguably exceed the negative impact of blocking one top-tier customer.\r\n> \r\n> As a slightly humorous indicator of the seriousness of this issue, it has been reported that this is spawning conspiracy theory videos saying Apple has hamstrung Flutter intentionally by forcing migration to Metal. Maybe P1 could also be for issues that are breeding conspiracy theories. 😅\r\n\r\nI do agree, perhaps you could create a separate issue for this suggestion and the discussion for that can continue there.",
+    "createdAt": "2020-12-23T11:02:56Z"
+  },
+  {
+    "id": 9125,
+    "sender": "adeolaex",
+    "content": ">The discussion continued day after day, and I don't expect that there will be a warm Christmas holiday, no update, no planing for this issue, I've always thought user experience was what helped me choose Flutter, lol.\r\n\r\n@vukhacbiet While I am upset at the effects this issue causes, it's not fair saying this.\r\n\r\n> First let me say that the whole team is also concerned about our performance on Metal, and we completely agree that it is unacceptable as is; our architecture very much assumes that shaders will be cached. We empathize deeply with anyone whose application on iOS is suffering from jank because of this issue.\r\n> We have marked this P3 because that is the appropriate priority level in Flutter's priority scheme for something that we are actively working on which is of high priority. You can read more about our prioritization scheme on the wiki (https://github.com/flutter/flutter/wiki/Issue-hygiene#priorities). In short, however, P0-P2 levels are reserved for critical issues that are even more dire than this bug, and P3 is what we use for this kind of issue.\r\n> \r\n> This issue is non-trivial and work is actively happening to address it. It is our intent to have this addressed by our next stable release, but we make no promises, because that's not how engineering works.\r\n\r\n You can literally see a partial update and/or plan addressing this issue.\r\n\r\n",
+    "createdAt": "2020-12-23T15:01:18Z"
+  },
+  {
+    "id": 9126,
+    "sender": "huvi8161",
+    "content": "Does anybody know when is the new stable release planned, is that information available? @Hixie, @dnfield ??",
+    "createdAt": "2020-12-23T15:04:26Z"
+  },
+  {
+    "id": 9127,
+    "sender": "meowofficial",
+    "content": "As I said above, I downgraded to flutter 1.12.13 and it's way better on ios. I think this is the best option if you need to release right now.",
+    "createdAt": "2020-12-23T15:13:54Z"
+  },
+  {
+    "id": 9128,
+    "sender": "dsrenesanse",
+    "content": "> As I said above, I downgraded to flutter 1.12.13 and it's way better on ios. I think this is the best option if you need to release right now.\r\n\r\nDo you have any problems with iOS 14?",
+    "createdAt": "2020-12-23T15:16:25Z"
+  },
+  {
+    "id": 9129,
+    "sender": "meowofficial",
+    "content": "@Renesanse Nothing critical for me: status bar brightness is always as in system, scroll to top by status bar tap doesn't work. I had to fork some packages, recreate project ios folder. Someone mentioned font issue on iOS 14.",
+    "createdAt": "2020-12-23T15:25:14Z"
+  },
+  {
+    "id": 9130,
+    "sender": "tapizquent",
+    "content": "Since this seems to be a very critical issue, is there anything that we, the open source community, can do? Or maybe start looking at? I would love to help but don't know where to start or what to look at to familiarize myself with the cause of this issues",
+    "createdAt": "2020-12-23T20:21:16Z"
+  },
+  {
+    "id": 9131,
+    "sender": "bobmoff",
+    "content": "Is there any way to detect if a shader compilation just happened? I know I can watch the spike in frame loss but tht could also happen for other reasons, so it would be nice to just print in the console when a shader is being compiled.\r\n\r\nI am experimentibg with a custom shader warmup loading screen that goes through some transitions in the beginning of the app to warm them up. Perhaps its possible to trigger these compilations but use a very short duration and keep them hidden behind a loading screen.\r\n\r\nWhat exactly determines if an animation needs a new shader?\r\n\r\nI tried some but cant be certain that its working, but if it does, it could be a viable temporary solution.\r\n\r\nAny feedback is welcome!",
+    "createdAt": "2020-12-23T20:36:15Z"
+  },
+  {
+    "id": 9132,
+    "sender": "Hixie",
+    "content": "For those asking about when the release schedule, please see: https://github.com/flutter/flutter/wiki/Flutter-build-release-channels\r\n\r\n@tapizquent Contributions are certainly welcome. I would encourage you to see our contributor guide, join our chat channels, see if folks on the engine team have any advice for how you can participate in resolving this issue. Unfortunately, since this is a period where much of the team (including me) is on vacation, it may not be easy to get immediate replies.",
+    "createdAt": "2020-12-23T21:08:25Z"
+  },
+  {
+    "id": 9133,
+    "sender": "mu-projects",
+    "content": "As I understand there is no solution soon. I think it will take at least 4 months to release the first solutions.",
+    "createdAt": "2020-12-24T14:02:53Z"
+  },
+  {
+    "id": 9134,
+    "sender": "joniaiuser",
+    "content": "> As I understand there is no solution soon. I think it will take at least 4 months to release the first solutions.\r\n\r\nThat's not what was suggested in this thread I believe. I think all things point towards a solution in the next stable release, which should be due by end-Jan. ",
+    "createdAt": "2020-12-24T23:12:19Z"
+  },
+  {
+    "id": 9135,
+    "sender": "easazade",
+    "content": "> As I understand there is no solution soon. I think it will take at least 4 months to release the first solutions.\r\n\r\nand based on what reason you believe that?",
+    "createdAt": "2020-12-25T02:32:28Z"
+  },
+  {
+    "id": 9136,
+    "sender": "mu-projects",
+    "content": "> > As I understand there is no solution soon. I think it will take at least 4 months to release the first solutions.\r\n> \r\n> and based on what reason you believe that?\r\n\r\nIs there any progress in dev or beta before next stable release?",
+    "createdAt": "2020-12-25T12:15:32Z"
+  },
+  {
+    "id": 9137,
+    "sender": "alectogeek",
+    "content": "Hello everyone!\r\nIs there a way to run animations on stack behind the splash screen or smth like that?\r\nI would like to run my onboarding screen transition animations while the user sees some mock splash screen. Would it work?",
+    "createdAt": "2020-12-26T10:09:53Z"
+  },
+  {
+    "id": 9138,
+    "sender": "aguilaair",
+    "content": "@wfinf nope, but that is to be expected, I guess they'll fast-track the fix once it's ready.",
+    "createdAt": "2020-12-26T11:12:14Z"
+  },
+  {
+    "id": 9139,
+    "sender": "acoutts",
+    "content": "> Hello everyone!\r\n> Is there a way to run animations on stack behind the splash screen or smth like that?\r\n> I would like to run my onboarding screen transition animations while the user sees some mock splash screen. Would it work?\r\n\r\nI tried this and it had no effect on the first run jank. I think it needs to be visible to work. ",
+    "createdAt": "2020-12-26T11:54:55Z"
+  },
+  {
+    "id": 9140,
+    "sender": "lukepighetti",
+    "content": "> > Hello everyone!\r\n> > Is there a way to run animations on stack behind the splash screen or smth like that?\r\n> > I would like to run my onboarding screen transition animations while the user sees some mock splash screen. Would it work?\r\n> \r\n> I tried this and it had no effect on the first run jank. I think it needs to be visible to work.\r\n\r\nOpacity 0.00001 😅",
+    "createdAt": "2020-12-26T14:11:35Z"
+  },
+  {
+    "id": 9141,
+    "sender": "mu-projects",
+    "content": "> Hello everyone!\r\n> Is there a way to run animations on stack behind the splash screen or smth like that?\r\n> I would like to run my onboarding screen transition animations while the user sees some mock splash screen. Would it work?\r\n\r\nHow do we know if it's warm enough?",
+    "createdAt": "2020-12-26T14:35:46Z"
+  },
+  {
+    "id": 9142,
+    "sender": "alectogeek",
+    "content": "@wfinf it is definitely better than nothing. \r\nI'm trying to find ANY solutions that would save my project from disaster.\r\nAny hack/trick that would decrease the janks is useful.\r\nThere are janks even in page transitions and PageView widgets. On the simulator everything is ok",
+    "createdAt": "2020-12-26T14:39:16Z"
+  },
+  {
+    "id": 9143,
+    "sender": "Pilaba",
+    "content": "> Hello everyone!\r\n> Is there a way to run animations on stack behind the splash screen or smth like that?\r\n> I would like to run my onboarding screen transition animations while the user sees some mock splash screen. Would it work?\r\n\r\nI used this trick in a couple of widgets (ExpansionTile, and other) just to check, and it works.\r\nI just have to put the laggy widget on a Stack (behind the scenes) and trigger the animation.\r\n\r\n",
+    "createdAt": "2020-12-26T20:27:38Z"
+  },
+  {
+    "id": 9144,
+    "sender": "alectogeek",
+    "content": "> > Hello everyone!\r\n> > Is there a way to run animations on stack behind the splash screen or smth like that?\r\n> > I would like to run my onboarding screen transition animations while the user sees some mock splash screen. Would it work?\r\n> \r\n> I used this trick in a couple of widgets (ExpansionTile, and other) just to check, and it works.\r\n> I just have to put the laggy widget on a Stack (behind the scenes) and trigger the animation.\r\n\r\n@Pilaba thanks for sharing your experience! \r\nHaven't you tried to do the same with page transitions? Idn if it possible\r\n",
+    "createdAt": "2020-12-26T20:31:40Z"
+  },
+  {
+    "id": 9145,
+    "sender": "easazade",
+    "content": "> \r\n> \r\n> > > Hello everyone!\r\n> > > Is there a way to run animations on stack behind the splash screen or smth like that?\r\n> > > I would like to run my onboarding screen transition animations while the user sees some mock splash screen. Would it work?\r\n> > \r\n> > \r\n> > I used this trick in a couple of widgets (ExpansionTile, and other) just to check, and it works.\r\n> > I just have to put the laggy widget on a Stack (behind the scenes) and trigger the animation.\r\n> \r\n> @Pilaba thanks for sharing your experience!\r\n> Haven't you tried to do the same with page transitions? Idn if it possible\r\n\r\nif this trick works. can we like put a different instance of bunch of our app's lagy animations behind the scene like in splash screen and run them together for warmup? or does the warmup has to happen separately for different instances of the same widget",
+    "createdAt": "2020-12-26T20:35:31Z"
+  },
+  {
+    "id": 9146,
+    "sender": "Hixie",
+    "content": "Folks, this is not a support forum, please keep comments specifically to the topic of helping with the shader compilation caching with Metal on iOS. Thanks.",
+    "createdAt": "2020-12-26T20:51:36Z"
+  },
+  {
+    "id": 9147,
+    "sender": "lukepighetti",
+    "content": "Since when is it unacceptable to talk about patches and shims that alleviate the issue at hand while a more permanent solution is in flight?",
+    "createdAt": "2020-12-27T12:20:34Z"
+  },
+  {
+    "id": 9148,
+    "sender": "escamoteur",
+    "content": "May I recommend opening a separate issue to discuss posible pataches/workarounds so that this issue can stay focused on its topic?",
+    "createdAt": "2020-12-27T12:30:38Z"
+  },
+  {
+    "id": 9149,
+    "sender": "dnfield",
+    "content": "It might be better to start a Google doc people can collaborate on. Github issues have a way of getting tough to navigate as more comments are added, and it becomes unclear who you're responding to.",
+    "createdAt": "2020-12-27T18:59:25Z"
+  },
+  {
+    "id": 9150,
+    "sender": "lukepighetti",
+    "content": "TBH it's not even really clear what this issue is supposed to be tracking. Is it tracking \"investigating\" wiring up metal binary archives? Either way, maybe it's time to turn on GitHub discussions on this repo. I don't think a Google Doc is going to get anywhere good in a public context.",
+    "createdAt": "2020-12-27T23:45:03Z"
+  },
+  {
+    "id": 9151,
+    "sender": "dsrenesanse",
+    "content": "Man, just try old flutter or no metal engine, pushing people in solving problems do nothing well, just be tolerant.",
+    "createdAt": "2020-12-28T12:03:34Z"
+  }
+]

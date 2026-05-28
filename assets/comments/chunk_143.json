@@ -1,0 +1,386 @@
+[
+  {
+    "id": 9152,
+    "sender": "dnfield",
+    "content": "I've created https://stackoverflow.com/q/65485696/3293914 - please feel free to add new answers there or comments/edits as appropriate. That is a better area for collaboration on community support for this issue, since here good comments will likely just get burried (this issue already has about 100 comments, most of which get hidden when first coming to this page).\r\n\r\nIn the interest of not spamming the many subscribers of this issue, and keeping things on topic, I'm locking this issue to collaborators. I started hiding some of the off-topic conversation, but there's just a lot of it and I'm going to mainly leave it as is :) \r\n\r\nIf you'd like to discuss this further, please feel free to hop on the [Discord](https://github.com/flutter/flutter/wiki/Chat).",
+    "createdAt": "2020-12-29T00:12:49Z"
+  },
+  {
+    "id": 9153,
+    "sender": "escamoteur",
+    "content": "Do I understand this correct, that so far we aren't using compiled shaders?",
+    "createdAt": "2021-01-01T16:04:05Z"
+  },
+  {
+    "id": 9154,
+    "sender": "dnfield",
+    "content": "It's that the binary output of compilation is not getting cached and reused",
+    "createdAt": "2021-01-01T16:08:11Z"
+  },
+  {
+    "id": 9155,
+    "sender": "escamoteur",
+    "content": "But it would be possible to link the binary versions of into the executable, right?\r\nWhat does SwiftUI make different to not get into this problems? And why isn't it a problem on Android?",
+    "createdAt": "2021-01-01T17:09:57Z"
+  },
+  {
+    "id": 9156,
+    "sender": "dnfield",
+    "content": "These are not the kind of binary you would link together with your program, since they can be highly device/gpu/driver specific. \r\n\r\nOn Android you only get this problem on the very first time a new shader is compiled, after which they get cached.\r\n\r\nSwiftUI benefits from boiling down to UIKit, which doesn't need shaders in the same way that Metal/OpenGL based applications do.",
+    "createdAt": "2021-01-02T06:05:15Z"
+  },
+  {
+    "id": 9157,
+    "sender": "escamoteur",
+    "content": "While investigating how to realize a WebGPU plugin for Flutter I met two of the developers of Google's WebGPU implementation  @senorblanco and  @kainino0x  and they told me that the topic of Shader problems with Metal is one that they are very familiar with.\r\n\r\nMaybe  it could make sense to discuss this with them to see if they have some additional ideas.\r\n\r\nThey also told me that there is an experimental WebGPU backend for Skia. Could that possibly be another approach to Flutter Web rendering? \r\n\r\ncc: @timsneath I hope its ok that I encourage this communucation here.\r\n",
+    "createdAt": "2021-01-04T14:46:43Z"
+  },
+  {
+    "id": 9158,
+    "sender": "zanderso",
+    "content": "Promoting to P2 and marking 'customer:product' to help ensure adequate progress is tracked ahead of the next release.",
+    "createdAt": "2021-01-05T22:50:53Z"
+  },
+  {
+    "id": 9159,
+    "sender": "chinmaygarde",
+    "content": "Update: A prototype with the caches in place should be out for review this week.",
+    "createdAt": "2021-01-11T18:37:52Z"
+  },
+  {
+    "id": 9160,
+    "sender": "escamoteur",
+    "content": "Awesome!",
+    "createdAt": "2021-01-11T19:05:24Z"
+  },
+  {
+    "id": 9161,
+    "sender": "chinmaygarde",
+    "content": "## Findings From The Prototype\r\n\r\nSome [concerns were raised in the original Skia issue](https://bugs.chromium.org/p/skia/issues/detail?id=10804#c14) regarding the way in which the archives will be wired up. I haven't been able to successfully address all these concerns. Specifically, the concerns are mentioned in the header for `MTLBinaryArchive` instead of the documentation on [Apple's developer portal](https://developer.apple.com/documentation/metal/mtlbinaryarchive?language=objc) (which is rather sparse). I am pasting the relevant lines from the header here so its easier to reference:\r\n\r\n```\r\nUpdating a MTLBinaryArchive at runtime in a shipping app configuration is not\r\nrecommended; such a scenario requires corruption resiliency, careful storage\r\nspace management and may cache hard-to-reproduce errors. These kind of issues\r\nare handled transparently by the Metal maintained cache, therefore we recommend\r\nthat MTLBinaryArchive is populated during development time and shipped as an\r\nasset.\r\n```\r\n\r\nThis recommendation does **not** work for Flutter. Flutter cannot recommend developers generate an archive at development time and ship as an asset. It requires platform (iOS/Mac) and device (per GPU family) specific training runs, increases binary size, and is of limited use unless the entire set of pipeline state objects used in the application at runtime are captured in the training run (not to mention the archive becomes stale as soon as the application code is updated). In that regard, the answer to [my original call](https://github.com/flutter/flutter/issues/60267#issue-645181255) to \"Investigate persisting these archives ... shipping them if possible in the application bundle\" is a definite **no**. Apple's actual recommendation in the same header is as follows:\r\n\r\n```\r\nOnce all desired pipeline state descriptors have been added, use\r\nserializeToURL:error: to write the contents for the current device to disk.\r\nMTLBinaryArchive files generated for multiple different devices can be combined\r\nusing the \"lipo\" tool into a single archive, which can then be shipped with the\r\napplication. It is possible to maintain different archive files for different\r\ncontexts; for example each level in a game may use a different cache object.\r\n\r\nThis cache will automatically accelerate pipeline state creation after a\r\npipeline is created for the first time. Use MTLBinaryArchive to augment that\r\ncache by accelerating pipeline state creation even on the first run of an app.\r\n```\r\n\r\nInstead of that, the use-case addressed in the prototype is to maintain an archive of the last run of the application. This will not affect first run performance but will help with subsequent launches. Since this use-case is different from the Apple's recommendations, I have been trying to reason about the aforementioned \"corruption resiliency, careful storage space management and possibility of caching hard-to-reproduce errors\".\r\n* On corruption resiliency related to disk I/O: I believe we are fine on this front with careful error handling. We already have the GrPersistentCache in place and the issues related to disk I/O are already well understood and handled.\r\n* On corruption resiliency related to thread safety: Flutter does work with Metal on multiple threads. Neither the docs nor the header mentions threading at all. Assuming the worst, I only gave the onscreen GrContext an archive since we only access that on the `raster` thread. The IO thread does no rendering and should not have any render pipeline functions to cache. In the case of multiple engines, where there will be multiple raster threads, my approach was to give each engine its own separate archive. In the case of multiple engine having previous runs, give an array of these archives to each engine instance. This API does not exist in Skia today but we can request the team to add such an affordance. In the meantime, secondary engine launches will get just the one archive.\r\n* On storage space management: Disk usage should not grow indefinitely as archives for runs other than the last run will be collected.\r\n* On caching hard-to-reproduce errors: I suppose this is still a concern theoretically but it is not something I have explored in detail as pipeline state object management is internal to Skia. I can followup.\r\n\r\n## Clarifications on OpenGL\r\nIn my original call to investigate binary archives, I did not mention OpenGL at all. Metal binary archives are unrelated to any feature of the OpenGL backend on iOS. The same causes of jank I described in this issue exist in the OpenGL backend as well. For developers using training runs already to cache SKPs and seed them at runtime, it is likely that the increase in the number of unique pipeline state objects in the Metal backend gives more benefit to an OpenGL application than to one using Metal (the SKP cache is wired up for both OpenGL and Metal). But, just switching to OpenGL without SKP training runs is not expected to change much. However, I do realize that **the discussions in this thread reference multiple real issues** we need to make progress on and my attempt to deconflate the various potential issues is as follows:\r\n* Without training runs, the Metal backend is alleged to be constructing more pipelines state objects than OpenGL.\r\n* Without training runs, the Metal backend is alleged to be taking more time to construct a pipeline state object than OpenGL.\r\n* After training runs, the Metal backend is alleged to demonstrate less benefits over the OpenGL backend.\r\n* Pipeline state objects are constructed in a frame workload.\r\n\r\nBesides the last point, which I believe is the long term solution to jank due to shader compilation, we can work in parallel to answer the other narrowly scoped questions and deploy improvements as necessary. However, unlike as suggested by some in this thread, I highly recommend against switching to the OpenGL backend via custom engine builds. There are stability, performance and correctness issues in that backend that the team can no longer fix.\r\n\r\n## Next Steps\r\n* Specific issues are filed for the investigating work items I described in the last section and we go chase each one down.\r\n* Given the more qualified scope of the prototype, I get guidance from release management on how to prioritize this issue and the timelines. If we do decide to productionize the archive usage as described, the limitations must be made clear upfront.\r\n* As a team, we need to figure out how to better communicate with the community on these sorts of performance issues. I know I was really overwhelmed with the numerous threads that (to me) were tangential to the original issue describing the need to investigate wiring up the binary archives. And I am pretty sure most folks here in centithread were dissatisfied with the answers they got (or didn't).\r\n* We fast track the design work to move creation of pipeline state objects outside the frame workload. That is the only way to fix jank of this sort without resorting to training runs and such.",
+    "createdAt": "2021-01-19T11:36:47Z"
+  },
+  {
+    "id": 9162,
+    "sender": "zanderso",
+    "content": "Following @chinmaygarde’s detailed analysis above, I’d like to close the loop on this issue. The issue as stated was to “Investigate wiring up Metal Binary Archives on iOS”, and that work has been completed. Unfortunately, the results of that investigation were not what we had hoped for. \r\n\r\nAs described above, we encountered two main problems. First, integrating this feature of Metal into the Flutter Engine entails off-label uses of Apple’s APIs, with no guarantees that the off-label uses will continue to work going forward. Second, the performance improvements were extremely modest as Metal shader library construction and not pipeline state object creation was [found to be the bottleneck](https://github.com/flutter/engine/pull/23914#issue-560981583). Taken together, these two problems would mean accepting a large risk in exchange for a limited benefit. For that reason, we have decided not to do this.\r\n\r\nHowever, though it covered several different topics, the discussion in this thread has shed light on a few different areas for improvement being [tracked](https://github.com/flutter/flutter/issues/74630) [here](https://github.com/flutter/flutter/issues/74631). We will continue to be hard at work on solving first-run shader compilation jank on both iOS and Android, as we currently view it as one of the most serious performance issues facing Flutter. We are focusing our efforts on a long-term, maintainable solution to this problem outlined by the linked issues.\r\n\r\nJank has many causes outside of shader compilation and pipeline setup, so in the meantime, please see the good general advice from @stx above about optimizing animations [here](https://github.com/flutter/flutter/issues/60267#issuecomment-749864631), [stackoverflow](https://stackoverflow.com/questions/tagged/flutter) for queries about other strategies for working around this issue, starting with @dnfield’s thread [here](https://stackoverflow.com/questions/65485696/flutter-ios-animations-are-janky-on-first-run), as well as other [documents](https://flutter.dev/docs/perf/rendering), [videos](https://www.youtube.com/watch?v=vVg9It7cOfY), and [tools](https://flutter.dev/docs/development/tools/devtools/timeline) for performance optimization generally. Thanks!",
+    "createdAt": "2021-01-25T17:00:41Z"
+  },
+  {
+    "id": 9163,
+    "sender": "escamoteur",
+    "content": "@zanderso I read die analysis in the PR and added this question https://github.com/flutter/engine/pull/23914#issuecomment-767452135\r\n\r\n",
+    "createdAt": "2021-01-28T15:20:34Z"
+  },
+  {
+    "id": 9164,
+    "sender": "chunhtai",
+    "content": "## fix issue 14014 read only text field\n\n## Description\r\n\r\nThis PR implement read only editable text by disable keyboard pop up, context menu only show select and copy, disable text value update.\r\n\r\nHere is [design doc](https://docs.google.com/document/d/1jw75an-qdyyVVqA_6SNPTly3MWnFrZ_gnTWXJc8-rIw/edit#)\r\n\r\n## Related Issues\r\n\r\nhttps://github.com/flutter/flutter/issues/14014\r\nFixing this issue is also a step toward https://github.com/flutter/flutter/issues/5422\r\naccording to this design [doc](https://docs.google.com/document/d/1GF4GGXirJimHMcgy3RQOeXW5MnqTn6eMrRcZFWnTLmY/edit?ts=5ccb51cb#) \r\n## Tests\r\n\r\nI added the following tests:\r\n\r\n\"Read only text field\" in both cupertino text field test and material\r\n\r\n## Checklist\r\n\r\nBefore you create this PR confirm that it meets all requirements listed below by checking the relevant checkboxes (`[x]`). This will ensure a smooth and quick review process.\r\n\r\n- [x] I read the [Contributor Guide] and followed the process outlined there for submitting PRs.\r\n- [x] I signed the [CLA].\r\n- [x] I read and followed the [Flutter Style Guide], including [Features we expect every widget to implement].\r\n- [x] I updated/added relevant documentation (doc comments with `///`).\r\n- [x] All existing and new tests are passing.\r\n- [x] The analyzer (`flutter analyze --flutter-repo`) does not report any problems on my PR.\r\n- [x] I am willing to follow-up on review comments in a timely manner.\r\n\r\n## Breaking Change\r\n\r\nDoes your PR require Flutter developers to manually update their apps to accommodate your change?\r\n- [x] Yes, this is a breaking change.\r\n\r\n<!-- Links -->\r\n[issue database]: https://github.com/flutter/flutter/issues\r\n[Contributor Guide]: https://github.com/flutter/flutter/wiki/Tree-hygiene#overview\r\n[Test Coverage]: https://github.com/flutter/flutter/wiki/Test-coverage-for-package%3Aflutter\r\n[Flutter Style Guide]: https://github.com/flutter/flutter/wiki/Style-guide-for-Flutter-repo\r\n[Features we expect every widget to implement]: https://github.com/flutter/flutter/wiki/Style-guide-for-Flutter-repo#features-we-expect-every-widget-to-implement\r\n[CLA]: https://cla.developers.google.com/\r\n[Handling breaking changes]: https://github.com/flutter/flutter/wiki/Tree-hygiene#handling-breaking-changes\r",
+    "createdAt": "2019-05-03T21:01:11Z"
+  },
+  {
+    "id": 9165,
+    "sender": "goderbauer",
+    "content": "From the analyzer cirrus check: \r\n\r\n```\r\nerror • Missing concrete implementations of getter TextSelectionDelegate.copyEnabled, getter TextSelectionDelegate.cutEnabled, getter TextSelectionDelegate.pasteEnabled and getter TextSelectionDelegate.selectAllEnabled • packages/flutter/test/rendering/editable_test.dart:15:7 • non_abstract_class_inherits_abstract_member_four\r\n```",
+    "createdAt": "2019-05-06T11:33:26Z"
+  },
+  {
+    "id": 9166,
+    "sender": "xster",
+    "content": "You probably want to touch some combination of `focusNode`, `autofocus`, `_hasFocus` etc in this PR. ",
+    "createdAt": "2019-05-06T19:20:14Z"
+  },
+  {
+    "id": 9167,
+    "sender": "chunhtai",
+    "content": "> autofocus\r\n\r\nCurrently the focus logic make sure we can select the text or use keyboard select when the widget is focus. Is there other use case we might want to handle?",
+    "createdAt": "2019-05-06T20:02:15Z"
+  },
+  {
+    "id": 9168,
+    "sender": "xster",
+    "content": "I meant should we prevent some impossible API interactions? Such as creating a focusNode, passing it to a readOnly text field and then requesting focus on the focus node etc. \r\n\r\nIf some things can't be done, let the users fail early.",
+    "createdAt": "2019-05-06T21:24:48Z"
+  },
+  {
+    "id": 9169,
+    "sender": "chunhtai",
+    "content": "> I meant should we prevent some impossible API interactions? Such as creating a focusNode, passing it to a readOnly text field and then requesting focus on the focus node etc.\r\n> \r\n> If some things can't be done, let the users fail early.\r\n\r\nAfter our discussion offline, I verify the auto focus work as expected. It will be auto focus and ready to be select when page load.",
+    "createdAt": "2019-05-07T17:22:45Z"
+  },
+  {
+    "id": 9170,
+    "sender": "chunhtai",
+    "content": "I will need to make more editing to this pr, I will notify when this pr is ready, and I will have a design doc up as readonly mode might require more functionality than jus prevent user from editing.",
+    "createdAt": "2019-05-08T20:19:33Z"
+  },
+  {
+    "id": 9171,
+    "sender": "chunhtai",
+    "content": "Finished update, ready for review, the [design doc](https://docs.google.com/document/d/1jw75an-qdyyVVqA_6SNPTly3MWnFrZ_gnTWXJc8-rIw/edit#)",
+    "createdAt": "2019-05-08T22:13:36Z"
+  },
+  {
+    "id": 9172,
+    "sender": "chunhtai",
+    "content": "updated the following:\r\nHide cursor if read only by default.\r\ndoes not paint collapsed selection in readonly mode.",
+    "createdAt": "2019-05-17T20:41:43Z"
+  },
+  {
+    "id": 9173,
+    "sender": "chunhtai",
+    "content": "Addressed all comments,\r\n@HansMuller @justinmc Since you are more familiar with text input, would you review this pr a second time?",
+    "createdAt": "2019-05-21T21:27:41Z"
+  },
+  {
+    "id": 9174,
+    "sender": "chunhtai",
+    "content": "> Just making sure, is it intentional that we show the blue selection state and animations when the user taps on a readonly input, rather than keeping it grey?\r\n> \r\n> ![readonly_tap](https://user-images.githubusercontent.com/389558/58197891-13b91480-7c82-11e9-90c9-39e4b56c6bbc.gif)\r\n> \r\n> Also, is there a difference between caret and cursor in Flutter? Are we sure we want this property to be `showCursor` instead of `showCaret`? I'm just wondering for my own sake because I often see both names tossed around.\r\n> \r\n> Overall this looks good! The only real unknown is the `addPostFrameCallback` that I posted about below.\r\n\r\nabout the splash, @justinmc and I have verified it is the same behavior in html5. but I am always open to suggestion.\r\n\r\nI think they are referring the same thing the EditableText, I choose showCursor because renderEditable also use showCursor flag to show and hide the cursor",
+    "createdAt": "2019-05-22T21:39:02Z"
+  },
+  {
+    "id": 9175,
+    "sender": "chunhtai",
+    "content": "@HansMuller All comments addressed.\r\nThe showhandles refactor is in the last commit.\r\n\r\nSome design decision I made.\r\nI can either reuse the show and hide logic of selectionoverlay, or i can use opacity.\r\n\r\nI still cannot avoid the the post frame trick, because the update can happen during build and the overlay logic prevent it from update directly. The trick can either be in opacity update if we use opacity or in selection handle build if we use original show and show logic.\r\n \r\nI decide to use opacity, but I actually not sure which one is cleaner",
+    "createdAt": "2019-05-29T19:48:12Z"
+  },
+  {
+    "id": 9176,
+    "sender": "xster",
+    "content": "## Adds CupertinoTheme\n\nFixes #18037\r\n\r\n- Add CupertinoTheme ~~using InheritedModel~~\r\n- Remove material from cupertino gallery demos and use cupertino scaffolds\r\n- Collect fonts and styles from various Cupertino widgets to the theme\r\n- Refer to the them from various Cupertino widgets\r\n- Move CupertinoThemeData to a model where derivation of dependent properties are done at read time rather than construction time\r\n- Let the CupertinoThemeData's copyWith etc allow unspecified downstream properties be re-derived when upstream overrides change\r\n- Add a new constructor to CupertinoButton to use the color of the theme instead of any particular color or null which means no color\r\n- Add a dark mode to most Cupertino widgets\r\n- Let Cupertino widgets demos in the gallery also respect the top level Material dark mode toggle\r\n- There are no AnimatedCupertinoTheme or lerping because iOS is very non-visual-mutating-animation styled\r\n- Create a MaterialBasedCupertinoThemeData that derives upwards from Material ThemeData rather than iOS defaults when upstream is unspecified\r\n- ~~MaterialBasedCupertinoThemeData is also based on InheritedModels where dependency is only created on individual properties read~~\r\n- Material Theme also creates a CupertinoTheme and all Cupertino widgets only have dependencies on CupertinoTheme\r\n- MaterialBasedCupertinoThemeData can also be copiedWith (and reused in a CupertinoTheme) and only specified properties rather than Material or iOS based derivations\r\n- Let InheritedModel.inheritFrom not crash when no InheritedModels exist in the ancestry tree\r\n- There's a single input API (CupertinoThemeData constructor) and a single output API regardless of if it's constructed and read right away (in which case no dependencies get created) or read via inheritance from CupertinoTheme or Material Theme. This is probably the most debatable point. \r\n\r\n# Upgrade Flow\r\nStarting this PR, Cupertino widgets under a Material Theme will somewhat adapt to that Material Theme (such as the primaryColor, brightness etc). \r\n\r\nTo avoid Material adaptations and to let Cupertino widgets use a default blank CupertinoTheme, insert a `CupertinoTheme` under the Material `Theme` such as via \r\n\r\n```dart\r\nMaterial(\r\n  data: ...,\r\n  child: CupertinoTheme(\r\n    data: ...,\r\n    child: child,\r\n  ),\r\n);\r\n```\r\n\r\nor\r\n\r\n```dart\r\nMaterialApp(\r\n  theme: ...,\r\n  builder: (BuildContext context, Widget child) {\r\n    return CupertinoTheme(\r\n      data: ...,\r\n      child: child,\r\n    );\r\n  },\r\n  home: ...,\r\n);\r\n```\r\nin case the Material Theme comes from the MaterialApp.",
+    "createdAt": "2018-10-31T03:59:46Z"
+  },
+  {
+    "id": 9177,
+    "sender": "xster",
+    "content": "cc @HansMuller this is what I have in mind so far. The InheritedModel stuff and the deferring to Material Theme parts still need work.",
+    "createdAt": "2018-10-31T04:01:15Z"
+  },
+  {
+    "id": 9178,
+    "sender": "xster",
+    "content": "@HansMuller sorry, this thing is a bit long but it's ready for a look. Should be based on the same ideas as your PR. \r\n\r\nI think we're going to want something different than the _CupertinoThemeInheritedData thing but the rest should be mostly unaffected. ",
+    "createdAt": "2018-11-02T23:50:06Z"
+  },
+  {
+    "id": 9179,
+    "sender": "xster",
+    "content": "Ah crap, actual English fail https://willyac.wordpress.com/2009/11/07/descendant-or-descendent/",
+    "createdAt": "2018-11-08T23:30:06Z"
+  },
+  {
+    "id": 9180,
+    "sender": "xster",
+    "content": "Since it seems to be getting closer, adding Matt as well",
+    "createdAt": "2018-11-09T00:20:23Z"
+  },
+  {
+    "id": 9181,
+    "sender": "xster",
+    "content": "Rebased post-1.0. Could use another review. Will update the goldens once there are LGTMs.",
+    "createdAt": "2018-12-12T03:23:46Z"
+  },
+  {
+    "id": 9182,
+    "sender": "matthew-carroll",
+    "content": "@xster do you think we could go over this together?  I can probably do a better review on something of this size if you can help guide me through what you did and what you were thinking.",
+    "createdAt": "2018-12-14T08:11:42Z"
+  },
+  {
+    "id": 9183,
+    "sender": "xster",
+    "content": "Sure, if you're in tomorrow, let's walk through it together.",
+    "createdAt": "2018-12-14T10:41:31Z"
+  },
+  {
+    "id": 9184,
+    "sender": "matthew-carroll",
+    "content": "Generally LGTM - I had some comments.",
+    "createdAt": "2018-12-15T05:27:01Z"
+  },
+  {
+    "id": 9185,
+    "sender": "marcglasberg",
+    "content": "## Text overflow with ellipsis is weird and ugly by design\n\n_Latest update: https://github.com/flutter/flutter/issues/18761#issuecomment-1513592402_ <!-- previously: https://github.com/flutter/flutter/issues/18761#issuecomment-1404207970 -->\r\n\r\n----\r\n\r\nInternal: b/137284394\r\n\r\nHere (https://github.com/flutter/flutter/issues/4478) Hixie commented:\r\n\r\n   *\"Ok the plan is that rather than truncating individual characters until it fit, we will truncate entire atomic positioned glyph sequences (e.g. whole ligatures or shaped words) until the ellipsis fits. That would have the advantage of being much more performant. It would have the disadvantage of truncating the entire word if the whole line was one ligature (e.g. if your line was the word \"Zapfino\" in the Zapfino font, and it overflowed at the \"o\", we would replace the whole thing with a \"...\", rather than just the \"no\".)\"*\r\n\r\nAlthough the above comment talks about ligatures, it seems to me this is being ignored, and whole words are simply being removed.\r\n\r\nNow suppose the text `\"Laboris nisi ut aliquip ex ea commodo\"` gets cut right before word `\"ex\"`. Since the previous word fits, it may cut some letters of that last word to fit the ellipsis, resulting in:\r\n\r\n`\"Laboris nisi ut aliqu...\"`\r\n\r\nHowever, if the horizontal space is a litter smaller, than the letter `\"p\"` from `\"aliquip\"` won't fit, and it will cut the whole word, resulting in:\r\n\r\n`\"Laboris nisi ut ...          \"`\r\n\r\nBut that's not how overflow works for other platforms, and it makes no sense to remove whole words. The obvious result, if \"p\" doesn't fit should be, just as before:\r\n\r\n`\"Laboris nisi ut aliqu...\"`\r\n\r\nAs things are now, we tend to see a lot of words cut in their last 1 or 2 chars, and a lot of words completely removed, leaving a lot of weird white space. That gets particularly nasty in one line texts like titles.\r\n\r\nPlease, don't create weird behaviors for things with time-honored traditions like ellipsizing. Stick to what everybody else does. If you want, let the devs choose between both behaviors: `enum TestOverflow {clip, fade, ellipsisWords, ellipsisLetters}`.\r\n\r\nIf Arabic and other eastern languages have problems with that (as per issue 4478), you can even do some autodetection for characters of those languages, by adding the enum `TestOverflow.ellipsisAutodetect`. ",
+    "createdAt": "2018-06-23T20:37:33Z"
+  },
+  {
+    "id": 9186,
+    "sender": "sir-boformer",
+    "content": "I agree with you, the current ellipsis often looks out of place, especially in languages like German with long words:\r\n\r\n``E-Mail an das Straßenverkehrsbundesamt schicken`` --> ``Email an das ...``",
+    "createdAt": "2018-06-25T08:06:53Z"
+  },
+  {
+    "id": 9187,
+    "sender": "HannoOttens",
+    "content": "This is an issue for me aswell.\r\nI have some right-aligned text that frequently overflows, resulting in a large white gap between the ellepsis and the right side of screen. This looks _very_ odd.",
+    "createdAt": "2018-08-29T14:45:59Z"
+  },
+  {
+    "id": 9188,
+    "sender": "josvos",
+    "content": "+1 here... ellipsis on just word boundaries and leaving (much) space unused after the ellipsis is not the right way, IMHO, at least not for small texts (e.g. labels in buttons, etc.).  Please change this, optionally by adding `ellipisChars` or so to let devs choose (not needed for me, but if the word boundary is needed too).",
+    "createdAt": "2018-10-04T09:10:30Z"
+  },
+  {
+    "id": 9189,
+    "sender": "ConProgramming",
+    "content": "Yeah I have an email in A Text widget and the entire email gets cut out",
+    "createdAt": "2018-12-04T00:53:20Z"
+  },
+  {
+    "id": 9190,
+    "sender": "sir-boformer",
+    "content": "You can try this as a workaround. Not sure if it also works with ellipsis.\r\n```dart\r\n      Text(\r\n        email,\r\n        maxLines: 1,\r\n        overflow: TextOverflow.fade,\r\n        softWrap: false,\r\n      );\r\n```",
+    "createdAt": "2018-12-04T09:19:55Z"
+  },
+  {
+    "id": 9191,
+    "sender": "JonasJW",
+    "content": "@sir-boformer sadly `TextOverflow.ellipsis` doesn't work like this but that is the way it should work in my opinion. Just replace the letters which are fading with '...'.",
+    "createdAt": "2019-01-09T21:35:22Z"
+  },
+  {
+    "id": 9192,
+    "sender": "Hixie",
+    "content": "cc @GaryQian ",
+    "createdAt": "2019-05-01T00:00:11Z"
+  },
+  {
+    "id": 9193,
+    "sender": "lukepighetti",
+    "content": "`TextOverflow.ellipsis` should work on vertical overflow, cut off the last word(s) and replace with `...`\r\n\r\nedit: I found out later that if you set maxlines it overflows appropriately, but it would be nice if it sensed maxlines based on it's parent container",
+    "createdAt": "2019-07-10T01:08:31Z"
+  },
+  {
+    "id": 9194,
+    "sender": "1343",
+    "content": "Some issue I am also facing, if some word is fitting it's replacing the complete word \r\n```dart\r\nText(  \r\n 'Sachin Ramesh Tendulkar ',\r\n   softWrap: false,\r\n   maxLines: 1,\r\n   overflow: TextOverflow.ellipsis,\r\n   style: new TextStyle(\r\n     fontSize: 13.0,\r\n     fontFamily: 'Roboto',\r\n     color: new Color(0xFF212121),\r\n     fontWeight: FontWeight.bold,\r\n   ),\r\n )\r\n```\r\nIf **er** is not wraping it's removing complete tendulkar word and putting ... final text **Sachin ramesh ..**",
+    "createdAt": "2019-07-12T18:08:21Z"
+  },
+  {
+    "id": 9195,
+    "sender": "chunhtai",
+    "content": "~I also saw some weird behavior with the maxLines and overflow.\r\nit seems like maxLines is ignored the if the overflow is set.~\r\n\r\nit seems this is by design\r\n",
+    "createdAt": "2019-07-23T17:07:03Z"
+  },
+  {
+    "id": 9196,
+    "sender": "chunhtai",
+    "content": "Current ellipsis is based on soft line break that automatically inserted in paragraph builder. When the word can't fit in to the line, it will get pushed to next line, and that cause it to truncate the whole word if part of it cannot fit. I will come up with a new overflow enum that will truncate the line differently.",
+    "createdAt": "2019-07-23T22:58:01Z"
+  },
+  {
+    "id": 9197,
+    "sender": "Moncader",
+    "content": "@chunhtai \r\nBeen a while since an update.\r\nAny word on progress?\r\n\r\nIn languages where there are no spaces built in to the language like Japanese, this problem is extremely visible when you mix an alphanumeric sequence with a Japanese string of characters.\r\nThis is extremely common for business names, project names, or movie titles, which is exactly the kind of string you don't want to cut as much.",
+    "createdAt": "2019-09-10T05:46:33Z"
+  },
+  {
+    "id": 9198,
+    "sender": "chunhtai",
+    "content": "@Moncader We had some discussions on this issue and came up with way to fix it. However, the fix will be on engine side code which will be migrated to skia library in one or two months. We are waiting for that to happen first.",
+    "createdAt": "2019-09-10T16:22:17Z"
+  },
+  {
+    "id": 9199,
+    "sender": "duzenko",
+    "content": "How does it work in regards to hyphens? E.g. I have a string `'Franc Krona - Food stand - #09-12-2019-#011'`\r\nIt seems to cut at a spaced hyphen leaving huge empty space while I would actually like it to cut an any hyphen, spaced or not.",
+    "createdAt": "2019-09-13T12:03:54Z"
+  },
+  {
+    "id": 9200,
+    "sender": "vanlooverenkoen",
+    "content": "Any progress on this issue?",
+    "createdAt": "2019-11-04T10:55:09Z"
+  },
+  {
+    "id": 9201,
+    "sender": "chunhtai",
+    "content": "@jason-simmons Do you know what is the status of txt skia migration?",
+    "createdAt": "2019-11-04T17:46:59Z"
+  },
+  {
+    "id": 9202,
+    "sender": "sparcsaswat",
+    "content": "DropdownMenuItem(\r\n                          value: value.r_value,\r\n                          child: Text(\r\n                            value.r_text,\r\n                            overflow: TextOverflow.fade,\r\n                            softWrap: true,\r\n                          ),\r\n                        )\r\n\r\nIn my case it is not working",
+    "createdAt": "2019-11-16T12:16:48Z"
+  },
+  {
+    "id": 9203,
+    "sender": "jagandeepbrar",
+    "content": "Any updates at all?\r\n\r\n@chunhtai mentioned 1-2 months at the beginning of September and we are getting close to 3 months now.",
+    "createdAt": "2019-11-20T17:46:20Z"
+  },
+  {
+    "id": 9204,
+    "sender": "Reprevise",
+    "content": "To demonstrate the _awkward_ space that a TextOverflow brings, here:\r\n\r\nThere's a large amount of text here and with an overflow, it leaves a huge space as @HannoOttens stated. In this case, I'm using a `Column` inside of a `Row`. Surrounding the `Column` is a `Container` that has a set width and its parent is a `Flexible` widget which itself is located in the aforementioned `Row`. With `softWrap` enabled for both of the `Text` widgets and both of them using `TextOverflow.fade`.\r\n![flutter text overflow issue](https://user-images.githubusercontent.com/25782944/69288633-23c99680-0bc8-11ea-982f-bbb64ec91b84.png)\r\n\r\nSidenote: How will languages like Arabic be affected by text overflows? Their characters can't just be cut off like English ones. ",
+    "createdAt": "2019-11-21T00:09:46Z"
+  },
+  {
+    "id": 9205,
+    "sender": "de4db33f",
+    "content": "Any update?",
+    "createdAt": "2019-12-04T13:17:33Z"
+  },
+  {
+    "id": 9206,
+    "sender": "marcglasberg",
+    "content": "Hello everyone, I'm publishing a workaround to this issue (for a single line at least) in this package: \r\n\r\n   https://pub.dev/packages/assorted_layout_widgets\r\n\r\n## TextOneLine\r\n\r\n`TextOneLine` is a substitute for `Text` when `maxLines: 1`. It uses a special fade-with-ellipsis, which is\r\nmuch better than the current buggy and ugly-looking ellipsis-that-cuts-the-whole-word.\r\n\r\nFor example, this:\r\n\r\n```dart\r\nText(\"This isAVeryLongWordToDemonstrateAProblem\", maxLines: 1, softWrap: false);  \r\n```\r\n\r\nWill print this in the screen:\r\n```\r\nThis ...  \r\n```\r\n\r\nWhile this:\r\n\r\n```dart\r\nTextOneLine(\"This isAVeryLongWordToDemonstrateAProblem\");  \r\n```\r\n\r\nWill print this:\r\n```\r\nThis isAVeryLongWordToDemonst...  \r\n```\r\n\r\nI created this widget a long time ago, right after I filled this issue, but never published it. Since the new Flutter version is now out without a fix, I decided to publish it now. To maintain it is a pain, since it breaks every time Flutter upgrades. So I still hope this issue is fixed and I can deprecate this widget once and for all. \r\n\r\nMaybe one of you people could do a PR to Flutter with this code?... I'd suggest `TextOverflow` could have an extra value `TextOverflow.fadeWithEllipsis` that adds this effect.\r\n\r\n",
+    "createdAt": "2019-12-11T21:56:43Z"
+  },
+  {
+    "id": 9207,
+    "sender": "benPesso",
+    "content": "@marcglasberg Would be nice if you had a workaround for multi-line text as well.",
+    "createdAt": "2019-12-19T17:34:00Z"
+  },
+  {
+    "id": 9208,
+    "sender": "chunhtai",
+    "content": "This is currently blocked on skia migration. https://github.com/flutter/flutter/issues/39420.",
+    "createdAt": "2019-12-19T18:07:32Z"
+  },
+  {
+    "id": 9209,
+    "sender": "marcglasberg",
+    "content": "@benPesso Sure it would, but I don't have it, because I don't need it in my project.\r\n\r\n@chunhtai Any ETA?",
+    "createdAt": "2019-12-19T20:40:23Z"
+  },
+  {
+    "id": 9210,
+    "sender": "chunhtai",
+    "content": "@marcglasberg we currently still do not have ETA because the migration is causing a lot of test breakages due to small pixel to pixel change. I will update this issue as soon as we have a target date",
+    "createdAt": "2019-12-19T20:50:29Z"
+  },
+  {
+    "id": 9211,
+    "sender": "feinstein",
+    "content": "I just want to add my current issue with this to illustrate how bad this is.\r\n\r\nI have a button that should say:\r\n\r\n![image](https://user-images.githubusercontent.com/8120472/71288775-2dbaf280-234a-11ea-866f-c966ef10692d.png)\r\n\r\nBut if your email is too long, it just shows:\r\n\r\n![image](https://user-images.githubusercontent.com/8120472/71288800-43301c80-234a-11ea-9481-39d929ce9260.png)\r\n\r\nWhich is completely frustrating, as not only it lacks any information to the user, it also wastes all that space at the right, as if the text is there somehow taking up the space in that line, forcing the remainder text to the left.\r\n\r\nThanks @marcglasberg for your workaround package. ",
+    "createdAt": "2019-12-20T20:02:15Z"
+  },
+  {
+    "id": 9212,
+    "sender": "marcglasberg",
+    "content": "@feinstein Put the `TextOneLine` inside of a `FitHorizontally` widget of that same `assorted_layout_widgets` package, and you'll gain 50% more space before it even has to use ellipsis.",
+    "createdAt": "2019-12-22T00:21:58Z"
+  },
+  {
+    "id": 9213,
+    "sender": "pdefuns",
+    "content": "Any update on this?",
+    "createdAt": "2020-01-20T10:03:32Z"
+  },
+  {
+    "id": 9214,
+    "sender": "ldelafuente",
+    "content": "It's been more than a year and a half since the issue was opened. Do you need help in any way so we can get a fix for this? ",
+    "createdAt": "2020-02-19T07:17:39Z"
+  },
+  {
+    "id": 9215,
+    "sender": "chunhtai",
+    "content": "There is still no update at this point.",
+    "createdAt": "2020-02-24T19:02:07Z"
+  }
+]

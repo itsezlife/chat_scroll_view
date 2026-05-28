@@ -1,0 +1,386 @@
+[
+  {
+    "id": 8320,
+    "sender": "GaryQian",
+    "content": "https://github.com/flutter/flutter/issues/29341 Describes a more general case, and I believe I have a rough cause figured out. Now I am looking at the best way to fix it.",
+    "createdAt": "2019-09-05T22:06:04Z"
+  },
+  {
+    "id": 8321,
+    "sender": "gianmariacastagna",
+    "content": "I had the same problem with a Samsung Tab s5e. I solved by installing Google keyboard. I know that is not a real solution but at least you can freely test the device.",
+    "createdAt": "2019-09-24T08:13:26Z"
+  },
+  {
+    "id": 8322,
+    "sender": "GaryQian",
+    "content": "It is highly likely that https://github.com/flutter/engine/pull/12432 will fix this, though I have not checked directly yet.",
+    "createdAt": "2019-09-25T18:09:21Z"
+  },
+  {
+    "id": 8323,
+    "sender": "justinmc",
+    "content": "I tried to verify but I couldn't reproduce this issue!  I tried on an S6 and on a Galaxy Note 9.\r\n\r\nThat engine fix is not on the master channel yet, but when it is, please post if anyone can confirm if this is still happening or not!",
+    "createdAt": "2019-09-25T18:36:03Z"
+  },
+  {
+    "id": 8324,
+    "sender": "mklim",
+    "content": "@seritaApp reported detailed reproduction steps at https://github.com/flutter/flutter/issues/41315#issue-498470521. I haven't personally tested the steps but for them this reproduces consistently on all Flutter channels (including master with flutter/engine#12432). I think the Tab S4 may be the important part of testing this.\r\n\r\n> Tested with flutter gallery app on Samsung Galaxy Tab S4\r\n> \r\n> 1. Begin to type a word\r\n> 2. Leave keyboard mode\r\n> 3. Refocus and continue typing\r\n>    Instead of adding the new characters, the previous word gets repeated again\r\n>    Happens even on the gallery app so it's not related to my code.\r\n> \r\n> Edit: I was trying to type \"words\" here\r\n> ![ezgif-4-241b62f05f83](https://user-images.githubusercontent.com/55809519/65631923-d1f5fd00-dfd8-11e9-84ca-47715927cbf2.gif)\r\n\r\n",
+    "createdAt": "2019-09-25T22:02:32Z"
+  },
+  {
+    "id": 8325,
+    "sender": "GaryQian",
+    "content": "Since your fix filters explicitly for korean, it may skip cases where it is actually useful, though it is still unconfirmed this bug is the same.",
+    "createdAt": "2019-09-25T22:34:53Z"
+  },
+  {
+    "id": 8326,
+    "sender": "seritaApp",
+    "content": "I have just tested this on master and switched to korean in the keyboard settings. The issue still persists.\r\nI also realized it only happens if auto-completion is turned on.\r\n\r\n![ezgif-4-34131cbd10cf](https://user-images.githubusercontent.com/55809519/65645525-252b7800-dff8-11e9-9478-a50b9b32748d.gif)\r\n",
+    "createdAt": "2019-09-25T22:56:27Z"
+  },
+  {
+    "id": 8327,
+    "sender": "justinmc",
+    "content": "I just double checked with the exact reproduction steps in https://github.com/flutter/flutter/issues/41315#issue-498470521 on master with the Note 9 and I couldn't reproduce it.  I agree it's probably a few specific devices like the Tab S4.",
+    "createdAt": "2019-09-27T20:32:07Z"
+  },
+  {
+    "id": 8328,
+    "sender": "futterer",
+    "content": "Can you check whether you can reproduce #30656 ? It probably has the same root cause as this.",
+    "createdAt": "2019-09-27T22:23:41Z"
+  },
+  {
+    "id": 8329,
+    "sender": "SaltH2OFish",
+    "content": "I have also experienced this on the Galaxy S8 and S9\n\nOn Fri, Sep 27, 2019 at 4:34 PM Justin McCandless <notifications@github.com>\nwrote:\n\n> I just double checked with the exact reproduction steps in #41315\n> (comment)\n> <https://github.com/flutter/flutter/issues/41315#issue-498470521> on\n> master with the Note 9 and I couldn't reproduce it. I agree it's probably a\n> few specific devices like the Tab S4.\n>\n> —\n> You are receiving this because you are subscribed to this thread.\n> Reply to this email directly, view it on GitHub\n> <https://github.com/flutter/flutter/issues/31512?email_source=notifications&email_token=ACONGQDRM5KGH3LEZNHBUGLQLZU45A5CNFSM4HH53UVKYY3PNVWWK3TUL52HS4DFVREXG43VMVBW63LNMVXHJKTDN5WW2ZLOORPWSZGOD72AR5I#issuecomment-536086773>,\n> or mute the thread\n> <https://github.com/notifications/unsubscribe-auth/ACONGQHG4ZJP7BMUJWISZIDQLZU45ANCNFSM4HH53UVA>\n> .\n>\n",
+    "createdAt": "2019-09-30T22:21:16Z"
+  },
+  {
+    "id": 8330,
+    "sender": "TypicalDarkness",
+    "content": "So is anyone working on a fix? If I was an App developer, this would already be a reason not to use flutter. Samsung is a pretty big manufacturer and this bug seems to be on all new devices",
+    "createdAt": "2019-10-02T20:14:56Z"
+  },
+  {
+    "id": 8331,
+    "sender": "GaryQian",
+    "content": "As a result of fixing https://github.com/flutter/flutter/issues/29341, we have determined that the root cause is improper usage/integration of the android API by the samsung keyboard itself. Samsung has been notified of the issue, but it is ambiguous if it is possible to ship a fix to existing devices easily.\r\n\r\nI will take another look at this later this week to see if we can repro this and come up with additional workarounds/hacks to ensure this doesn't happen. If anyone has more thorough information on what devices repros this, please let us know!",
+    "createdAt": "2019-10-02T21:58:48Z"
+  },
+  {
+    "id": 8332,
+    "sender": "TypicalDarkness",
+    "content": "Unlike #29341 I haven't found this bug in any other app, so there is definitely something that Flutter is doing differently.\r\nI tried installing different Samsung keyboards to find out in which version the issue first occurred.\r\nhttps://www.apkmirror.com/apk/samsung-electronics-co-ltd/samsung-keyboard-neural-beta/\r\nhttps://www.apkmirror.com/apk/samsung-electronics-co-ltd/samsung-keyboard/\r\nHowever, I'm only able to install versions that are newer than the default version of my device and since I already have the latest version this wasn't really useful, but maybe someone else has more luck.\r\nP.S: I Also tried to install it on non-Samsung devices, without any luck so far\r\n\r\nEdit: The lowest version I was able to install is \"Neural Beta 3.2.02.1\" released on December 24, 2018. The bug is reproducible there.",
+    "createdAt": "2019-10-03T01:51:18Z"
+  },
+  {
+    "id": 8333,
+    "sender": "GaryQian",
+    "content": "I have created a PR to extend the workaround to cover all samsung devices and locales/languages android lollipop and later using the samsung keyboard. This seems to be effective in working around the issue.\r\n\r\nhttps://github.com/flutter/engine/pull/12780",
+    "createdAt": "2019-10-04T00:37:03Z"
+  },
+  {
+    "id": 8334,
+    "sender": "GaryQian",
+    "content": "This bug should be temporarily resolved by the workaround. Please let me know if anyone is still experiencing this!",
+    "createdAt": "2019-10-04T20:59:50Z"
+  },
+  {
+    "id": 8335,
+    "sender": "charlesokt",
+    "content": "Just did a flutter upgrade on master channel.  Text duplication is still an issue as described in this thread.  Tested on Galaxy Tab 8A (SM T380).  @GaryQian \r\n\r\nflutter doctor -v\r\n\r\n[√] Flutter (Channel master, v1.10.12-pre.7, on Microsoft Windows [Version 10.0.18362.356], locale en-US)\r\n    • Flutter version 1.10.12-pre.7 at c:\\dev\\fluttersdk\\flutter\r\n    • Framework revision 71497367ef (3 hours ago), 2019-10-04 16:13:43 -0400\r\n    • Engine revision 7d90779bb6\r\n    • Dart version 2.6.0 (build 2.6.0-dev.5.0 d6c6d12ebf)\r\n",
+    "createdAt": "2019-10-04T23:08:30Z"
+  },
+  {
+    "id": 8336,
+    "sender": "seritaApp",
+    "content": "I think the change hasn't been rolled to master yet. I switched to version 1d62160fdb manually, but it's still not fixed\r\n\r\n```\r\n[✓] Flutter (Channel master, v1.10.12-pre.5, on Linux, locale de_DE.UTF-8)\r\n \r\n[✓] Android toolchain - develop for Android devices (Android SDK version 28.0.3)\r\n[✓] Android Studio (version 3.5)\r\n[!] IntelliJ IDEA Community Edition (version 2019.2)\r\n    ✗ Flutter plugin not installed; this adds Flutter specific functionality.\r\n    ✗ Dart plugin not installed; this adds Dart specific functionality.\r\n[✓] Connected device (1 available)\r\n\r\n! Doctor found issues in 1 category.\r\n[jofu@jofu-pc flutter_gallery]$ flutter doctor -v\r\n[✓] Flutter (Channel master, v1.10.12-pre.5, on Linux, locale de_DE.UTF-8)\r\n    • Flutter version 1.10.12-pre.5 at /opt/flutter\r\n    • Framework revision 3024053c82 (vor 6 Stunden), 2019-10-04 12:13:36 -0700\r\n    • Engine revision 1d62160fdb\r\n    • Dart version 2.6.0 (build 2.6.0-dev.5.0 7a7dcd1ed9)\r\n\r\n[✓] Android toolchain - develop for Android devices (Android SDK version 28.0.3)\r\n    • Android SDK at /home/jofu/Android/Sdk\r\n    • Android NDK location not configured (optional; useful for native profiling support)\r\n    • Platform android-28, build-tools 28.0.3\r\n    • Java binary at: /opt/android-studio/jre/bin/java\r\n    • Java version OpenJDK Runtime Environment (build 1.8.0_202-release-1483-b49-5587405)\r\n    • All Android licenses accepted.\r\n\r\n[✓] Android Studio (version 3.5)\r\n    • Android Studio at /opt/android-studio\r\n    • Flutter plugin version 39.0.3\r\n    • Dart plugin version 191.8423\r\n    • Java version OpenJDK Runtime Environment (build 1.8.0_202-release-1483-b49-5587405)\r\n\r\n[!] IntelliJ IDEA Community Edition (version 2019.2)\r\n    • IntelliJ at /usr/share/idea\r\n    ✗ Flutter plugin not installed; this adds Flutter specific functionality.\r\n    ✗ Dart plugin not installed; this adds Dart specific functionality.\r\n    • For information about installing plugins, see\r\n      https://flutter.dev/intellij-setup/#installing-the-plugins\r\n\r\n[✓] Connected device (1 available)\r\n    • SM T835 • ce03182369165611017e • android-arm64 • Android 9 (API 28)\r\n\r\n! Doctor found issues in 1 category.\r\n```",
+    "createdAt": "2019-10-05T01:12:03Z"
+  },
+  {
+    "id": 8337,
+    "sender": "seritaApp",
+    "content": "@GaryQian Maybe this should be re-opened",
+    "createdAt": "2019-10-06T18:38:30Z"
+  },
+  {
+    "id": 8338,
+    "sender": "GaryQian",
+    "content": "Try now. The change only just rolled into master https://github.com/flutter/flutter/commit/43a6626c0c222e55c1d44180c5bceb947e828329\r\nas of about 1 hour ago (~Oct 7 10am PST)\r\n\r\nIf it is still reproducing, can you please let me know the exact configuration/device/OS/keyboard/procedure you are seeing this on? I was unable to repro this anymore on my devices, but it could still impact others.",
+    "createdAt": "2019-10-07T18:03:15Z"
+  },
+  {
+    "id": 8339,
+    "sender": "charlesokt",
+    "content": "Just did a master channel upgrade, text duplication still happens.  You may wish to cross reference my related other thread as that's the test I re-ran after upgrading (https://github.com/flutter/flutter/issues/33255).\r\n\r\n> [√] Flutter (Channel master, v1.10.13-pre.19, on Microsoft Windows [Version 10.0.18362.356], locale en-US)\r\n>     • Flutter version 1.10.13-pre.19 at c:\\dev\\fluttersdk\\flutter\r\n>     • Framework revision 2d642e95e1 (64 minutes ago), 2019-10-07 11:02:29 -0700\r\n>     • Engine revision 1d62160fdb\r\n>     • Dart version 2.6.0 (build 2.6.0-dev.5.0 d6c6d12ebf)\r\n\r\nTested on Original Device:\r\n```\r\nGalaxy Tab 8A (2017)\r\nModel Number: SM-T380\r\nAndroid OS: 8.1.0\r\nKernel Version: 3.18.71-15756985 (Tue Apr 2 2019)\r\nBuild Number: M1AJQ.T380DXU3BSD1\r\nSecurity Release: Apr-2019\r\nUsing stock Samsung Keyboard (not sure how to check it's version)\r\n\r\n```\r\nI updated the device and the issue still exists on this as well.  Updated device information:\r\n```\r\nGalaxy Tab 8A (2017)\r\nModel Number: SM-T380\r\nAndroid OS: 9\r\nOne UI Version: 1.1\r\nKernel Version: 3.18.120-16521006 (Sat Aug 24 2019)\r\nBuild Number: PPR1.180610.011.T380DXU3CSHC\r\nSecurity Release: Jun-2019\r\nSamsung Keyboard version 3.3.31.14\r\n\r\n```",
+    "createdAt": "2019-10-07T19:17:45Z"
+  },
+  {
+    "id": 8340,
+    "sender": "seritaApp",
+    "content": "```\r\n[✓] Flutter (Channel master, v1.10.14-pre.12, on Linux, locale de_DE.UTF-8)\r\n    • Flutter version 1.10.14-pre.12 at /opt/flutter\r\n    • Framework revision cdc2d9901d (5 hours ago), 2019-10-07 16:43:04 -0700\r\n    • Engine revision 1d62160fdb\r\n    • Dart version 2.6.0 (build 2.6.0-dev.5.0 d6c6d12ebf)\r\n```\r\n```\r\nGalaxy Tab S4\r\nModel Number: SM-T835\r\nAndroid OS: 9\r\nOne UI Version: 1.1\r\nKernel Version: 4.4.153-16555495\r\nBuild Number: PPR1.180610.011.T835XXU3BSG4\r\nSecurity Release: Jul-2019\r\nSamsung Keyboard version 3.3.21.24\r\n```\r\nProcedure:\r\n* Make sure auto-completion is enabled in the keyboard settings\r\n* Focus on textfield and type a letter (normal letter, not a digit)\r\n* Unfocus textfield by pressing back (the keyboard needs to disappear, focusing a different textfield won't repro the issue)\r\n* Focus on the original text again, continue typing",
+    "createdAt": "2019-10-08T04:25:35Z"
+  },
+  {
+    "id": 8341,
+    "sender": "Endebert",
+    "content": "First of all, thank you for investigating and trying to fix this issue.\r\n\r\nI just tested it as well on a Galaxy Tab A (SM-T510). As the others reported, the issue is unfortunately still not fixed.\r\n\r\nI want to point out that on my device, I do not have to focus-unfocus-focus the text field. The issue is present on initial focus and input.\r\n\r\nHere is a video of me trying to input `foo@bar.com` into a login form:\r\n\r\n![](https://media.giphy.com/media/hsmp0OKD296xOaQ7OT/giphy.gif)\r\n\r\nAs you can see, the duplication happens only after entering something following `@` or `.`.\r\n\r\nThe `TextFormField` has `autocorrect: false`.\r\n\r\nThe issue is not present if _Smart typing > Predictive text_ has been disabled in the keyboard settings.\r\n\r\n\r\nMore info:\r\n```\r\nGalaxy Tab A (2019)\r\nModel Number: SM-T510\r\nAndroid OS: 9\r\nOne UI Version: 1.0\r\nKernel Version: 4.4.111-15874928\r\nBuild Number: PPR1.180610.011.T510XXU1ASEF\r\nSecurity Release: May-2019\r\nSamsung Keyboard version 3.3.30.68\r\nDevice Language: German\r\n```\r\n\r\nI've also tested it with a Galaxy A5 (2017) phone, where the issue is not present.",
+    "createdAt": "2019-10-08T09:13:32Z"
+  },
+  {
+    "id": 8342,
+    "sender": "charlesokt",
+    "content": "Thanks @Endebert , your test also triggers on my Galaxy Tab 8A.  The crux of the problem goes back to what I mentioned earlier, buried in the comments above, that it seems ANY text \"word boundary\" triggers the glitch.  I guess in this case, @ and . are also word boundaries, of sorts (that aren't actual whitespace).",
+    "createdAt": "2019-10-08T14:46:45Z"
+  },
+  {
+    "id": 8343,
+    "sender": "seritaApp",
+    "content": "Opening and closing the keyboard also triggers it. The root problem (or one of the root problems) might be that the Samsung keyboard can't read the text of the textfield under certain circumstances.I think this can best be seen in #30656 where normally the handwriting area should contain the text (\"Test\") but it's just empty.\r\nIn case of the auto-completion the keyboard tries to read the text after certain special characters but it just gets an empty string and thus thinks the textfield is empty and just adds the entire suggested string again",
+    "createdAt": "2019-10-08T16:42:46Z"
+  },
+  {
+    "id": 8344,
+    "sender": "GaryQian",
+    "content": "Related issue, possible root issue/cause: https://github.com/flutter/flutter/issues/41990",
+    "createdAt": "2019-10-08T19:38:18Z"
+  },
+  {
+    "id": 8345,
+    "sender": "GaryQian",
+    "content": "I suspect the bug I fixed with the earlier patch was actually slightly different than the one being reported here. In any case, I'll try to repro this exact bug this time.",
+    "createdAt": "2019-10-08T19:47:26Z"
+  },
+  {
+    "id": 8346,
+    "sender": "GaryQian",
+    "content": "We currently lack the above listed devices able to repro this. I have placed orders for the hardware needed to repro, and will update a bit later this week with additional info!",
+    "createdAt": "2019-10-08T21:20:27Z"
+  },
+  {
+    "id": 8347,
+    "sender": "PerLycke",
+    "content": "We experience this issue too. Tested on S9 & S10 with Samsung Keyboard. Tested with Swedish and English.\r\n\r\nReproduce:\r\n\r\n• On Samsung S9 or S10 (the ones we tested) set Swedish as device language, use Samsung Keyboard, turn on Predictive Text in Samsung Keyboard settings.\r\n• Open a Flutter app. Type helloworld@g, and you'll notice how the initial h got duplicated.\r\n\r\nConclusions:\r\n\r\n• No issue if English is set, only when Swedish is set.\r\n• Works with predictive text OFF.\r\n\r\n**This is a huge issue in regards of users registering accounts**. We've been debugging account issues and finally found out the problem is users having unwanted repeated first letters in their email addresses, and this is the root cause. For bigger production apps with registration processes this can be considered a serious issue. Please escalate and label it accordingly @GaryQian @eseidelGoogle if possible",
+    "createdAt": "2019-10-11T11:15:09Z"
+  },
+  {
+    "id": 8348,
+    "sender": "GaryQian",
+    "content": "Update: Devices arrived. Was able to repro the exact bug.\r\n\r\nThe root of this bug is already labeled customer critical, but I'll add it here too.",
+    "createdAt": "2019-10-11T22:11:38Z"
+  },
+  {
+    "id": 8349,
+    "sender": "Hixie",
+    "content": "I assume this is a subbug of https://github.com/flutter/flutter/issues/42273.",
+    "createdAt": "2019-10-15T23:44:28Z"
+  },
+  {
+    "id": 8350,
+    "sender": "CoreyCole",
+    "content": "I have a workaround that will only help a subset of developers:\r\n\r\nIf you can control the scope of the content the user is entering, you can restrict that content to only numbers. This bug doesn't seem to be happening on my S8 when the I'm only entering numbers using flutter's numpad keyboard (`keyboardType: TextInputType.number`).",
+    "createdAt": "2019-10-22T18:01:49Z"
+  },
+  {
+    "id": 8351,
+    "sender": "GaryQian",
+    "content": "I have implemented https://github.com/flutter/flutter/pull/43865 as suggested by Samsung, but it seems to be uneffective at resolving this specific issue.\r\n\r\nSamsung is claiming to be working on a fix on their side, but I will continue to pursue a solution on the Flutter side as well.",
+    "createdAt": "2019-10-31T23:35:42Z"
+  },
+  {
+    "id": 8352,
+    "sender": "efreibe",
+    "content": "I'm trying Flutter (Channel master, v1.10.16-pre.114, on Mac OS X 10.15.1 19B88, locale en-AR) on my Samsung S9 right now. (Android version 9)\r\n\r\nThis is the code:\r\n\r\n```dart\r\nreturn TextFormField(\r\n      autocorrect: false,\r\n      keyboardType: TextInputType.text,\r\n      decoration: InputDecoration(hintText: 'e-mail'),\r\n    );\r\n```\r\n\r\nI start writing some letters, so far it's ok, then I press @, when I'm going to type the next letter it duplicates the text and add the letter at the end. \r\n\r\nExample: I type the word user@ when I type h, the field is updated with user@user@h\r\n\r\nNote that:\r\n* It happens regardless the language you use. (I've used english, spanish and portuguese).\r\n* It only happens when predictive text is ON.\r\n",
+    "createdAt": "2019-11-12T15:11:53Z"
+  },
+  {
+    "id": 8353,
+    "sender": "markmoskalenko",
+    "content": "Is there any news to solve this problem? We are in a complete stupor. Our project is tied to creating text notes and because of this problem we are losing a huge part of the Samsung audience",
+    "createdAt": "2019-11-13T10:39:26Z"
+  },
+  {
+    "id": 8354,
+    "sender": "markmoskalenko",
+    "content": "Developers, respond, help to finally release. This is the basic thing .. text input .. I've been writing to everyone on this issue for half a year now.",
+    "createdAt": "2019-11-14T10:45:59Z"
+  },
+  {
+    "id": 8355,
+    "sender": "johnhouston00",
+    "content": "I can repro this on the beta channel\r\n[✓] Flutter (Channel beta, v1.10.7, on Mac OS X 10.14.6 18G1012, locale en-US)\r\n\r\nUsing a Samsung Galaxy Note 9 \r\nSM N960U1  • android-arm64 • Android 9 (API 28)\r\n\r\nLanguage : English\r\nDefault Keyboard : Samsung Keyboard English( US )\r\n\r\nusing a TextFormField that is initially populated with data, this case 4 characters of Alphabetical characters : \"Test\"\r\n\r\nSteps: ( quotes are not shown in app )\r\n1) Click on the text field so the caret is at the end of the text : \"Test\"\r\n2) hit the backspace erasing the t: \"Tes\"\r\n3) enter '6' : \"Tes6\"\r\n4) enter 'h' : \"Tes6Tes6h\"\r\n\r\nExpected: Final string should be \"Tes6h\" not \"Tes6Tes6h\".\r\n\r\nThis example here will display the issue, using the steps above.( so awesome that's the entire code for an app )\r\n```\r\nimport 'package:flutter/material.dart';\r\n\r\nvoid main() => runApp(MyApp());\r\n\r\nclass MyApp extends StatelessWidget {\r\n  @override\r\n  Widget build(BuildContext context) {\r\n    return MaterialApp(\r\n      title: 'Flutter Demo',\r\n      theme: ThemeData(\r\n        primarySwatch: Colors.blue,\r\n      ),\r\n      home: MyHomePage(title: 'Flutter Demo Home Page'),\r\n    );\r\n  }\r\n}\r\n\r\nclass MyHomePage extends StatefulWidget {\r\n  MyHomePage({Key key, this.title}) : super(key: key);\r\n  final String title;\r\n\r\n  @override\r\n  _MyHomePageState createState() => _MyHomePageState();\r\n}\r\n\r\nclass _MyHomePageState extends State<MyHomePage> {\r\n  String _userName = 'Test';\r\n\r\n  @override\r\n  Widget build(BuildContext context) {\r\n    return Scaffold(\r\n      appBar: AppBar(\r\n        title: Text(widget.title),\r\n      ),\r\n      body: Center(\r\n        child: Column(\r\n          mainAxisAlignment: MainAxisAlignment.center,\r\n          children: <Widget>[\r\n            Text('Demonstrating Github Issue'),\r\n            Text('https://github.com/flutter/flutter/issues/31512'),\r\n            Text('Issue with repeating text, on Samsung devices'),\r\n            TextFormField(\r\n              decoration: InputDecoration(\r\n                labelText: 'User Name',\r\n              ),\r\n              initialValue: _userName,\r\n              onChanged: (value) {\r\n                print('On Changed ${value.toString()}');\r\n              },\r\n              onSaved: (value) {\r\n                setState(() {\r\n                  _userName = value;\r\n                });\r\n              },\r\n              validator: (value) {\r\n                if (value.trim().isNotEmpty) {\r\n                  return null;\r\n                } else {\r\n                  return 'invalid';\r\n                }\r\n              },\r\n            ),\r\n          ],\r\n        ),\r\n      ),\r\n    );\r\n  }\r\n}\r\n```\r\n\r\nI/flutter (23321): On Changed \r\nI/flutter (23321): On Changed Test\r\nI/flutter (23321): On Changed Tes\r\nI/flutter (23321): On Changed Tes6\r\nE/SpannableStringBuilder(23321): SPAN_EXCLUSIVE_EXCLUSIVE spans cannot have a zero length\r\nE/SpannableStringBuilder(23321): SPAN_EXCLUSIVE_EXCLUSIVE spans cannot have a zero length\r\nI/flutter (23321): On Changed Tes6Tes6h\r\n\r\n\r\n**Note:** using keyboardType: **TextInputType.visiblePassword** was a valid workaround for our text inputs.",
+    "createdAt": "2019-11-14T17:01:30Z"
+  },
+  {
+    "id": 8356,
+    "sender": "justinmc",
+    "content": "No word from Samsung about this yet, unfortunately.  Flutter may be able to work around the problem similar to how we did fora  Samsung Korean input bug in https://github.com/flutter/engine/pull/12432.",
+    "createdAt": "2019-11-14T18:33:19Z"
+  },
+  {
+    "id": 8357,
+    "sender": "efreibe",
+    "content": "I do not know anything about flutter internals but why a native app does not have this problem on samsung devices?",
+    "createdAt": "2019-11-14T19:04:05Z"
+  },
+  {
+    "id": 8358,
+    "sender": "GaryQian",
+    "content": "@efreibe Native apps directly use Android's keyboard input API, whereas Flutter has to access this through the IMM (input method manager) and extending BaseInputConnection. Long story short, Samsung's keyboard makes assumptions about the IMM and performs internal caching of contents. Somewhere there is a discrepancy between what was assumed and what Flutter/Samsung are seeing.",
+    "createdAt": "2019-11-15T01:41:19Z"
+  },
+  {
+    "id": 8359,
+    "sender": "markmoskalenko",
+    "content": "> No word from Samsung about this yet, unfortunately. Flutter may be able to work around the problem similar to how we did fora Samsung Korean input bug in [flutter/engine#12432](https://github.com/flutter/engine/pull/12432).\r\n\r\nHow do we apply this in our project ?? We have Russian language. To use is simply not real ...",
+    "createdAt": "2019-11-15T06:45:51Z"
+  },
+  {
+    "id": 8360,
+    "sender": "Endebert",
+    "content": "> **Note:** using keyboardType: **TextInputType.visiblePassword** was a valid workaround for our text inputs.\r\n\r\nThanks so much for mentioning this, it works for us as well! Now we can release our app :tada: ",
+    "createdAt": "2019-11-15T10:35:53Z"
+  },
+  {
+    "id": 8361,
+    "sender": "efreibe",
+    "content": "Thanks @GaryQian for the clarification.",
+    "createdAt": "2019-11-15T18:20:51Z"
+  },
+  {
+    "id": 8362,
+    "sender": "GaryQian",
+    "content": " `keyboardType: TextInputType.visiblePassword` works because it disables the autocorrect, which is where the bug lies.",
+    "createdAt": "2019-11-15T18:51:53Z"
+  },
+  {
+    "id": 8363,
+    "sender": "markmoskalenko",
+    "content": "> No word from Samsung about this yet, unfortunately. Flutter may be able to work around the problem similar to how we did fora Samsung Korean input bug in flutter/engine#12432.\r\n\r\nWhy don’t you add a detour for the Russian language to the assembly?\r\nThis idea will solve the problem at least temporarily ..!",
+    "createdAt": "2019-11-19T08:36:32Z"
+  },
+  {
+    "id": 8364,
+    "sender": "bobatsar",
+    "content": "> `keyboardType: TextInputType.visiblePassword` works because it disables the autocorrect, which is where the bug lies.\r\n\r\n@GaryQian thanks for pointing this out. Good workaraound.",
+    "createdAt": "2019-11-20T06:00:14Z"
+  },
+  {
+    "id": 8365,
+    "sender": "chulwoo-park",
+    "content": "> **Note:** using keyboardType: **TextInputType.visiblePassword** was a valid workaround for our text inputs.\r\n\r\n**TextInputType.visiblePassword** can't write Korean😢. (maybe many other asian languages, too)",
+    "createdAt": "2019-11-25T10:20:31Z"
+  },
+  {
+    "id": 8366,
+    "sender": "markmoskalenko",
+    "content": "What is the news on this issue? This is a critical bug, this problem casts doubt on the advisability of using flutter in production.",
+    "createdAt": "2019-12-01T17:00:03Z"
+  },
+  {
+    "id": 8367,
+    "sender": "Hixie",
+    "content": "We consider this a critical bug also. It is high on our priority list but the main engineer who works in this area is currently busy with an even more important project. We hope to look at this before the end of the year or, failing that, very early next year.\r\n\r\nIn the meantime we are happy to review any fixes that anyone else would like to propose; this is an open source project and everyone is welcome to contribute and join the team!",
+    "createdAt": "2019-12-04T00:50:27Z"
+  },
+  {
+    "id": 8368,
+    "sender": "GaryQian",
+    "content": "Working on a workaround/hack for this issue. The duplication happens when the IMM sets the composing text to be the entire contents of the textfield. This is not a problem when typing, as the whole word is set to be the composing region, and setting composing text replaces the entire composing region. However, when the keyboard is hidden, the region is cleared to a collapsed region, so now when the text is set, the entire contents is being appended on to the end, causing duplication.\r\n\r\nA clean solution would be to notify the IMM that the composing region has been closed, or otherwise not set the entire composing contents when typing. Exploring how to achieve this.",
+    "createdAt": "2019-12-13T22:15:29Z"
+  },
+  {
+    "id": 8369,
+    "sender": "33-Elephants",
+    "content": "Gary, thanks for starting working on this.\r\nJust want to note that duplication appears in other cases as well when keyboard is visible.\r\nFor example, when typing \"Text.\" with the dot at the end and then start typing without adding a space, duplication appears as well.",
+    "createdAt": "2019-12-14T06:48:02Z"
+  },
+  {
+    "id": 8370,
+    "sender": "shreeve",
+    "content": "![screencast 2019-12-16 14-55-00](https://user-images.githubusercontent.com/142875/70946277-275c0c00-2014-11ea-979d-b1d7e5d829a0.gif)\r\n\r\nYou'll see text duplicated as new text is typed",
+    "createdAt": "2019-12-16T21:56:12Z"
+  },
+  {
+    "id": 8371,
+    "sender": "GaryQian",
+    "content": "Logging efforts show that when starting to type in a box with non-committed contents, Gboard will set the entire contents (or rather, whatever was not yet committed) as the composing region, whereas Samsung is setting a composing region of (0,0).\r\n\r\nSince I am unable to modify what/how the IMM calls the API, I may have to implement a hack, maybe by tracking the contents manually on Samsung only. That would definitely not be clean though. Am still looking for a more preferred way of notifying the IMM about the text commit/whatever it needs.",
+    "createdAt": "2019-12-17T22:18:52Z"
+  },
+  {
+    "id": 8372,
+    "sender": "GaryQian",
+    "content": "So the behavior of entering punctuation like `.` and it duplicating seems to be separate from the bug where hiding keyboard and typing causes duplication. Although they are likely related, on a Galaxy S9, only the punctuation bug occurs while on a Galaxy Tab T380, only the keyboard-hide bug occurs.",
+    "createdAt": "2019-12-19T23:01:57Z"
+  },
+  {
+    "id": 8373,
+    "sender": "markmoskalenko",
+    "content": "Is there any progress in solving the problem? We have completed the application and are waiting for a solution to this problem ((\r\n@GaryQian  @Hixie ",
+    "createdAt": "2019-12-25T09:15:11Z"
+  },
+  {
+    "id": 8374,
+    "sender": "keitheyre",
+    "content": "I have come across this issue when entering in an email address with the following:\r\n\r\n`TextFormField(\r\n            autocorrect: false,\r\n            keyboardType: TextInputType.emailAddress,\r\n            textInputAction: TextInputAction.done,\r\n...),`\r\n\r\nAs soon as I enter anything after the @ symbol, it duplicates the previous text with the new text appended...\r\n\r\nThis is present on the Samsung Tab A 10.1\" (2019)\r\n\r\n",
+    "createdAt": "2020-01-02T10:18:21Z"
+  },
+  {
+    "id": 8375,
+    "sender": "escamoteur",
+    "content": "I stumbled upon the same problem on a Samsung Fold too. ",
+    "createdAt": "2020-01-05T11:03:02Z"
+  },
+  {
+    "id": 8376,
+    "sender": "MilesAdamson",
+    "content": "\r\n![ezgif-6-5b5717cd0b38](https://user-images.githubusercontent.com/29047682/72007589-4020a180-320f-11ea-87fc-4393229842e8.gif)\r\n",
+    "createdAt": "2020-01-08T19:06:29Z"
+  },
+  {
+    "id": 8377,
+    "sender": "CoreyCole",
+    "content": "How are flutter customers like realtor.com, tencent, alibaba, ebay, capitalone working around this in their production flutter applications? Combined, these companies probably have hundreds of millions of users with samsung phone that would be impacted by this text input bug.\r\n\r\nDid they design their own text inputs from the ground up?",
+    "createdAt": "2020-01-08T19:20:40Z"
+  },
+  {
+    "id": 8378,
+    "sender": "MilesAdamson",
+    "content": "> How are flutter customers like realtor.com, tencent, alibaba, ebay, capitalone working around this in their production flutter applications? Combined, these companies probably have hundreds of millions of users with samsung phone that would be impacted by this text input bug.\r\n> \r\n> Did they design their own text inputs from the ground up?\r\n\r\nNo idea what they are doing, but I have all email fields as a stateful widget which use a device info package to check if it's samsung. Add this to email entry text fields:\r\n\r\n```\r\nkeyboardType: samsungKeyboard ? TextInputType.visiblePassword : TextInputType.emailAddress,\r\nautoFocus: false,\r\n```\r\n\r\nAutofocus usually needs to be off. If the keyboard goes up before the `setState` to make `samsungKeyboard` is true, it won't actually change the keyboard type until it's closed and open again\r\n\r\nIf they try to type anything with a website, email, or anything with a special character then letters into other plain text fields, the text duplicates and it's horrible",
+    "createdAt": "2020-01-08T22:45:24Z"
+  },
+  {
+    "id": 8379,
+    "sender": "Kiboom",
+    "content": "Is there any progress on the issue?\r\n\r\nMost of the complaints from our users are related to this issue.\r\nHuge number of our users use Samsung devices and are suffering from just writing the text.\r\nWriting text is the most basic function of the app.\r\nIf it doesn't function well, it can adversely affect not only our app, but also the reputation of Flutter.\r\n\r\nI know you're working on it, but please resolve this issue as soon as possible.\r\nNumber of developers and users are waiting.",
+    "createdAt": "2020-01-15T10:50:31Z"
+  },
+  {
+    "id": 8380,
+    "sender": "GaryQian",
+    "content": "@Kiboom Yes, completely understand. Apologize for any blockages/delays/pain this is causing. Trying my best to get this sorted out, but it is one of those problems where all I can do is poke at a black box that is Samsung's keyboard implementation, which is caching certain values differently than every other keyboard. I can only control the way Flutter handles Samsung's invocation of the keyboard API so there is a very limited set of tools/places I can work with. Right now, the key issue is that on Samsung, we are missing an invocation of setComposingRegion, and there is no reliable way that I can see (yet) to obtain that piece of information. It also varies greatly between versions, so different fixes/workarounds only work for a subset of devices.\r\n\r\nJust as a note here for reference, the punctuation duplication occurs on a S9 but not on Galaxy Tab.",
+    "createdAt": "2020-01-15T23:05:43Z"
+  },
+  {
+    "id": 8381,
+    "sender": "GaryQian",
+    "content": "The punctuation duplication part of this bug is caused by Samsung not resetting their internally cached composing region after calling `finishComposingText()`, which is a method that commits and resets the composing region. I was able to work around it by manually sending an empty composing region in an overridden `finishComposingText()` back to the keyboard. https://github.com/flutter/engine/pull/15701 implements this.",
+    "createdAt": "2020-01-17T01:09:41Z"
+  },
+  {
+    "id": 8382,
+    "sender": "GaryQian",
+    "content": "Have confirmed text no longer duplicates on punctuation. The change has made it into master channel via https://github.com/flutter/flutter/commit/fbb2f07497868a2b63c23abaa31aed02fc13d057\r\n\r\nThere is still the second half of the bug where text duplicates when the keyboard is hidden+unhidden+type. This does not pass through the `finishComposingText` codepath and requires a different workaround.",
+    "createdAt": "2020-01-21T19:11:31Z"
+  },
+  {
+    "id": 8383,
+    "sender": "markmoskalenko",
+    "content": "Are there any news?",
+    "createdAt": "2020-01-30T13:53:07Z"
+  }
+]

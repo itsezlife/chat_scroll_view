@@ -1,0 +1,386 @@
+[
+  {
+    "id": 6720,
+    "sender": "pujyzx",
+    "content": "it works",
+    "createdAt": "2018-05-28T08:07:52Z"
+  },
+  {
+    "id": 6721,
+    "sender": "iltumio",
+    "content": "I had the same problem and I solved in that way:\r\n  1. Create a new app through 'flutter create testProject'\r\n  2. Remove 'ios' folder in your old project\r\n  3. Copy the ios folder from the new project to your old one (move 'testProject/ios' to 'oldProject/ios')\r\nThen with 'flutter run' everything worked well.\r\n\r\nHope that this solution could help\r\n",
+    "createdAt": "2018-05-31T12:50:32Z"
+  },
+  {
+    "id": 6722,
+    "sender": "jmrboosties",
+    "content": "So I tried the suggestion by @mravn-google and got the missing Flutter.h error to go away, however it introduced another issue. All of the plugins were moved in `ios/.symlinks/plugins` and xcode can't find them. \r\n\r\nIs there a way I can set the directory where the plugins should be looked for? The failing lines in xcode just look like this:\r\n\r\n#import <cloud_firestore/CloudFirestorePlugin.h>\r\n\r\n(along with other package imports).\r\n\r\nThanks!",
+    "createdAt": "2018-06-03T02:42:41Z"
+  },
+  {
+    "id": 6723,
+    "sender": "mravn-google",
+    "content": "There should be no need for auxiliary configuration to use plugins, beyond the `Podfile` that is distributed with Flutter. If you are having problems based on the project templates of the Flutter beta or master branches, please help us resolve it by filing a new issue, including the output of `flutter doctor -v`.",
+    "createdAt": "2018-06-03T18:01:54Z"
+  },
+  {
+    "id": 6724,
+    "sender": "jmrboosties",
+    "content": "Sure thing, I'll file another issue now.",
+    "createdAt": "2018-06-03T23:11:08Z"
+  },
+  {
+    "id": 6725,
+    "sender": "acidjazz",
+    "content": "I don't see why this has been closed when we still have to copy a Podfile from master, shouldn't this stay  open until `flutter upgrade` fixes it?",
+    "createdAt": "2018-06-12T23:02:03Z"
+  },
+  {
+    "id": 6726,
+    "sender": "mravn-google",
+    "content": "@acidjazz `flutter upgrade` does not change your Flutter projects, it only updates your Flutter installation. \r\n\r\nSpecifically, once a `Podfile` exists in your Flutter project, Flutter tooling does not attempt to overwrite it, as you may have custom settings in there. As you note, this is unfortunate, because the `Podfile` was likely written by an earlier version of Flutter tooling using a template that does not work with newer CocoaPods versions and/or with Swift projects.\r\n\r\nWe are working on a project template with a clearer separation of the files Flutter tooling create and depend on (specifically, for plugins) and those that the app author is supposed to own.",
+    "createdAt": "2018-06-13T06:06:45Z"
+  },
+  {
+    "id": 6727,
+    "sender": "chrisopal",
+    "content": "I met same problem, replace the ios/Podfile with one specified [https://github.com/flutter/flutter/blob/master/packages/flutter_tools/templates/cocoapods/Podfile-objc](url) worked. Thanks",
+    "createdAt": "2018-07-08T03:44:57Z"
+  },
+  {
+    "id": 6728,
+    "sender": "deju",
+    "content": "@chrisopal  works for me. thanks",
+    "createdAt": "2018-07-26T14:13:04Z"
+  },
+  {
+    "id": 6729,
+    "sender": "vankhoa01",
+    "content": "> I had the same problem and I solved in that way:\r\n> \r\n> 1. Create a new app through 'flutter create testProject'\r\n> 2. Remove 'ios' folder in your old project\r\n> 3. Copy the ios folder from the new project to your old one (move 'testProject/ios' to 'oldProject/ios')\r\n>    Then with 'flutter run' everything worked well.\r\n> \r\n> Hope that this solution could help\r\n\r\nthe best solution for me. Thanks a lot",
+    "createdAt": "2018-11-09T07:28:27Z"
+  },
+  {
+    "id": 6730,
+    "sender": "zoechi",
+    "content": "@vankhoa01 you can also just delete `ios/` and run `flutter create .`",
+    "createdAt": "2018-11-09T08:31:57Z"
+  },
+  {
+    "id": 6731,
+    "sender": "Jartz",
+    "content": "I had the same problem. solve it by downloading v0.11.3. Dev Channel https://flutter.io/docs/development/tools/sdk/archive#macos\r\nThe version Beta flutter dont work with Beta xcode",
+    "createdAt": "2018-11-12T14:27:47Z"
+  },
+  {
+    "id": 6732,
+    "sender": "kw3ku",
+    "content": "I solved my problem by updating the pod setup. To update the CocoaPods for ios. Try it works like charm :)",
+    "createdAt": "2018-11-12T21:27:17Z"
+  },
+  {
+    "id": 6733,
+    "sender": "Pergius",
+    "content": "Hi, I am not sure, But I think that I've tried all solutions I can find on this issue. I am totally new to Flutter and just running the basic test projects. Everything worked as a charm until i tried to start the app on my iPhone and had to enter information in the \"xcode Runner\". Before that on an Android device and in the simulator it worked fine.\r\n\r\nNow it produces different errors but mostly I end up with the \"Flutter/flutter.h\" not found problem. (Only thing that works now is to run on Android phone) Please help me with this error, I've put more than a day of work to sort this problem out. Deleted all projects, uninstalling cocoapods and reinstalling it, trying different versions and so on.. Nothing helps, And oh, Flutter doctor is happy as always. ",
+    "createdAt": "2018-12-05T06:38:23Z"
+  },
+  {
+    "id": 6734,
+    "sender": "AlanSGC",
+    "content": "Hi, @Pergius , the workaround that worked for me was also described at this link (https://github.com/flutter/flutter/issues/24428#issue-381497805).\r\nWhen copying the files to the ios-release folder, flutter build ios worked.\r\nHowever, I believe there is a bug that needs to be fixed.",
+    "createdAt": "2018-12-07T22:36:27Z"
+  },
+  {
+    "id": 6735,
+    "sender": "malibayram",
+    "content": "this is the best solution \r\nhttps://github.com/flutter/flutter/issues/24428",
+    "createdAt": "2018-12-21T22:06:39Z"
+  },
+  {
+    "id": 6736,
+    "sender": "azhagarsparks",
+    "content": "I had a same problem. Esys-share.h file not found.. please help me to resolve this iisue",
+    "createdAt": "2019-03-28T01:29:26Z"
+  },
+  {
+    "id": 6737,
+    "sender": "meems1996",
+    "content": "For anyone who also has issues with the Flutter.h not found, check your Flutter version. I had the 1.4 Flutter version and uninstalled it and then installed the stable version (1.2) and it worked.",
+    "createdAt": "2019-04-13T18:43:47Z"
+  },
+  {
+    "id": 6738,
+    "sender": "JustDoI",
+    "content": "> For anyone who also has issues with the Flutter.h not found, check your Flutter version. I had the 1.4 Flutter version and uninstalled it and then installed the stable version (1.2) and it worked.\r\n\r\nThanks,this works for me.",
+    "createdAt": "2019-05-08T09:46:08Z"
+  },
+  {
+    "id": 6739,
+    "sender": "chris-wickens",
+    "content": "I'm experiencing this on one of our build machines. I've tried reinstalling Flutter, switching to the stable channel, making sure cocoapods is the same version as on the working machines and pretty much every other solution suggested. The only temporary success I've had is with yxfmlbb's fix in https://github.com/flutter/flutter/issues/24428. The Flutter.framework header files are replaced with aliases that lead nowhere when I run build --release, and after that the iOS build fails with Flutter.h file not found.\r\n\r\nI can only assume I haven't reinstalled Flutter completely. What else should I be doing besides deleting the Flutter installation directory?\r\n\r\nEdit: this appears to be some weird Jenkins issue as running the same commands from terminal does not overwrite the header files with shortcuts.",
+    "createdAt": "2019-05-08T11:26:35Z"
+  },
+  {
+    "id": 6740,
+    "sender": "ghost",
+    "content": "Hopefully this helps someone->\r\n\r\nI fixed this by doing pod install in my iOS project.\r\n\r\nIt seemed it was caused by updating flutter and then the podspec for flutter being out of date.",
+    "createdAt": "2019-05-24T23:34:45Z"
+  },
+  {
+    "id": 6741,
+    "sender": "corymalcolmtaylor",
+    "content": "I started getting this error after doing a flutter update and adding shared_preferences to my project.  I just tried deleting all the shared_preferences stuff, even from pubspec.yaml,  and deleting the ios folder and running \"flutter create .\"  and now when I try to build/run on the ios simulator I get:\r\n\r\n```\r\nError output from Xcode build:\r\n↳\r\n    ** BUILD FAILED **\r\nXcode's output:\r\n↳\r\n    In file included from /Users/me/Dev/flutter_projects/flutter_course/ios/Runner/GeneratedPluginRegistrant.m:5:\r\n    /Users/me/Dev/flutter_projects/flutter_course/ios/Runner/GeneratedPluginRegistrant.h:8:9: fatal error: 'Flutter/Flutter.h' file not found\r\n    #import <Flutter/Flutter.h>\r\n            ^~~~~~~~~~~~~~~~~~~\r\n    1 error generated.\r\nCould not build the application for the simulator.\r\nError launching application on iPhone Xʀ.\r\nExited (sigterm)\r\n```\r\n\r\n\r\nand in case it helps:\r\n```\r\nflutter doctor -v\r\n[✓] Flutter (Channel stable, v1.5.4-hotfix.2, on Mac OS X 10.14.5 18F132, locale en-CA)\r\n    • Flutter version 1.5.4-hotfix.2 at /Users/me/dev/flutter\r\n    • Framework revision 7a4c33425d (6 weeks ago), 2019-04-29 11:05:24 -0700\r\n    • Engine revision 52c7a1e849\r\n    • Dart version 2.3.0 (build 2.3.0-dev.0.5 a1668566e5)\r\n\r\n \r\n[✓] Android toolchain - develop for Android devices (Android SDK version 28.0.3)\r\n    • Android SDK at /Volumes/macex/androidSDK\r\n    • Android NDK location not configured (optional; useful for native profiling support)\r\n    • Platform android-28, build-tools 28.0.3\r\n    • Java binary at: /Applications/Android Studio.app/Contents/jre/jdk/Contents/Home/bin/java\r\n    • Java version OpenJDK Runtime Environment (build 1.8.0_152-release-1343-b01)\r\n    • All Android licenses accepted.\r\n\r\n[✓] iOS toolchain - develop for iOS devices (Xcode 10.2.1)\r\n    • Xcode at /Applications/Xcode.app/Contents/Developer\r\n    • Xcode 10.2.1, Build version 10E1001\r\n    • ios-deploy 1.9.4\r\n    • CocoaPods version 1.7.1\r\n```\r\n",
+    "createdAt": "2019-06-07T16:15:41Z"
+  },
+  {
+    "id": 6742,
+    "sender": "haneensaadeh1994",
+    "content": "uncheck these two checkboxes when you create a new flutter project, it works for me.\r\n![WhatsApp Image 2019-09-16 at 5 56 16 AM](https://user-images.githubusercontent.com/41123514/64932352-fddde980-d846-11e9-9d03-ad086ddd20ce.jpeg)\r\n\r\n\r\n",
+    "createdAt": "2019-09-16T02:58:31Z"
+  },
+  {
+    "id": 6743,
+    "sender": "jeantuffier",
+    "content": "Just run into the same problem. I removed the current pod files and pod folder I had, re-installed cocoapods, re run the app, and the issue was solved",
+    "createdAt": "2019-12-20T06:41:51Z"
+  },
+  {
+    "id": 6744,
+    "sender": "kavinda1995",
+    "content": "For me this was solved by editing podfile as mentioned by this [https://github.com/flutter/flutter/issues/10654#issuecomment-389034245][1] and change the xcode's build system to legacy.\r\n\r\n\r\n  [1]: https://github.com/flutter/flutter/issues/10654#issuecomment-389034245",
+    "createdAt": "2019-12-23T13:19:51Z"
+  },
+  {
+    "id": 6745,
+    "sender": "anysunflower",
+    "content": "I solved the problem by `flutter create` an new project and copy the key code.\r\n\r\nmy`pod --version`is 1.6.0\r\n\r\nI use the flutter channel stable v1.12.13+hotfix.6",
+    "createdAt": "2020-03-16T10:59:04Z"
+  },
+  {
+    "id": 6746,
+    "sender": "radiKal07",
+    "content": "I created a new app with `flutter create my_app`, deleted everything from `ios/Flutter` in my own app and copied everything from `my_app/ios/Flutter` back again in my own app. It worked :/\r\n",
+    "createdAt": "2020-03-17T08:03:10Z"
+  },
+  {
+    "id": 6747,
+    "sender": "dcharkes",
+    "content": "## Native assets support for MacOS and iOS\n\nSupport for FFI calls with `@Native external` functions through Native assets on MacOS and iOS. This enables bundling native code without any build-system boilerplate code.\r\n\r\nFor more info see:\r\n\r\n* https://github.com/flutter/flutter/issues/129757\r\n\r\n### Implementation details for MacOS and iOS.\r\n\r\nDylibs are bundled by (1) making them fat binaries if multiple architectures are targeted, (2) code signing these, and (3) copying them to the frameworks folder. These steps are done manual rather than via CocoaPods. CocoaPods would have done the same steps, but (a) needs the dylibs to be there before the `xcodebuild` invocation (we could trick it, by having a minimal dylib in the place and replace it during the build process, that works), and (b) can't deal with having no dylibs to be bundled (we'd have to bundle a dummy dylib or include some dummy C code in the build file).\r\n\r\nThe dylibs are build as a new target inside flutter assemble, as that is the moment we know what build-mode and architecture to target.\r\n\r\nThe mapping from asset id to dylib-path is passed in to every kernel compilation path. The interesting case is hot-restart where the initial kernel file is compiled by the \"inner\" flutter assemble, while after hot restart the \"outer\" flutter run compiled kernel file is pushed to the device. Both kernel files need to contain the mapping. The \"inner\" flutter assemble gets its mapping from the NativeAssets target which builds the native assets. The \"outer\" flutter run get its mapping from a dry-run invocation. Since this hot restart can be used for multiple target devices (`flutter run -d all`) it contains the mapping for all known targets.\r\n\r\n### Example vs template\r\n\r\nThe PR includes a new template that uses the new native assets in a package and has an app importing that. Separate discussion in: https://github.com/flutter/flutter/issues/131209.\r\n\r\n### Tests\r\n\r\nThis PR adds new tests to cover the various use cases.\r\n\r\n* dev/devicelab/bin/tasks/native_assets_ios.dart\r\n  * Runs an example app with native assets in all build modes, doing hot reload and hot restart in debug mode.\r\n* dev/devicelab/bin/tasks/native_assets_ios_simulator.dart\r\n  * Runs an example app with native assets, doing hot reload and hot restart.\r\n* packages/flutter_tools/test/integration.shard/native_assets_test.dart\r\n  * Runs (incl hot reload/hot restart), builds, builds frameworks for iOS, MacOS and flutter-tester.\r\n* packages/flutter_tools/test/general.shard/build_system/targets/native_assets_test.dart\r\n  * Unit tests the new Target in the backend.\r\n* packages/flutter_tools/test/general.shard/ios/native_assets_test.dart\r\n* packages/flutter_tools/test/general.shard/macos/native_assets_test.dart\r\n  * Unit tests the native assets being packaged on a iOS/MacOS build.\r\n\r\nIt also extends various existing tests:\r\n\r\n* dev/devicelab/bin/tasks/module_test_ios.dart\r\n   * Exercises the add2app scenario.\r\n* packages/flutter_tools/test/general.shard/features_test.dart\r\n   * Unit test the new feature flag.\r\n\r\n## Pre-launch Checklist\r\n\r\n- [x] I read the [Contributor Guide] and followed the process outlined there for submitting PRs.\r\n- [x] I read the [Tree Hygiene] wiki page, which explains my responsibilities.\r\n- [x] I read and followed the [Flutter Style Guide], including [Features we expect every widget to implement].\r\n- [x] I signed the [CLA].\r\n- [x] I listed at least one issue that this PR fixes in the description above.\r\n- [x] I updated/added relevant documentation (doc comments with `///`).\r\n- [x] I added new tests to check the change I am making, or this PR is [test-exempt].\r\n- [x] All existing and new tests are passing.\r\n\r\n<!-- Links -->\r\n[Contributor Guide]: https://github.com/flutter/flutter/wiki/Tree-hygiene#overview\r\n[Tree Hygiene]: https://github.com/flutter/flutter/wiki/Tree-hygiene\r\n[test-exempt]: https://github.com/flutter/flutter/wiki/Tree-hygiene#tests\r\n[Flutter Style Guide]: https://github.com/flutter/flutter/wiki/Style-guide-for-Flutter-repo\r\n[Features we expect every widget to implement]: https://github.com/flutter/flutter/wiki/Style-guide-for-Flutter-repo#features-we-expect-every-widget-to-implement\r\n[CLA]: https://cla.developers.google.com/\r\n[flutter/tests]: https://github.com/flutter/tests\r\n[breaking change policy]: https://github.com/flutter/flutter/wiki/Tree-hygiene#handling-breaking-changes\r\n[Discord]: https://github.com/flutter/flutter/wiki/Chat\r",
+    "createdAt": "2023-07-13T13:32:34Z"
+  },
+  {
+    "id": 6748,
+    "sender": "dcharkes",
+    "content": "Thanks @vashworth !\r\n\r\nSome high level replies to your questions below.\r\n\r\n> Question: Is the template meant to be used by users or just added added for the sake of testing?\r\n\r\nI'd like either a sample project or a template.\r\n\r\nA template is more discoverable than a sample project. I worry that we will push users towards using the old (and when native assets are no longer experimental) FFI plugin template if we don't have a new template.\r\n\r\n(A sample project could be in https://github.com/dart-lang/native/tree/main/pkgs/native_assets_cli/example, however having the Flutter app also there would mean we cannot unit test it on the CI of that repo.)\r\n\r\nMaybe we can somehow get all the benefits of a template without all the machinery? Suggestions?\r\n\r\n> Seems to be this will only work with [Option B for Add to App](https://docs.flutter.dev/add-to-app/ios/project-setup#option-b---embed-frameworks-in-xcode). Is this going to be a known limitation that you can only use native assets with Add to App if you do Option B?\r\n\r\nI wasn't aware of the other options.\r\n\r\nMaybe we can make the `podhelper.rb` also do copying. I had that in an earlier prototype I believe. (Though I'm not so fluent in Ruby so that was crashing when there were no native assets. And it requires us to pass some information somewhere.)\r\n\r\n> I didn’t see any macOS devicelab tests. Any reason why not? If not, add them?\r\n\r\nAll the MacOS tests are in test/integration.shard/native_assets_test.dart\r\n\r\nMaybe that is the wrong place for tests that run a MacOS application? Should they be in a different place?\r\n\r\nAlso, currently that test also runs `flutter build ios`, but it [fails on the CI](https://logs.chromium.org/logs/flutter/buildbucket/cr-buildbucket/8774707149105331809/+/u/run_test.dart_for_tool_integration_tests_shard_and_subshard_3_4/test_stdout):\r\n\r\n```\r\n02:57 +26 -1: test/integration.shard/native_assets_test.dart: flutter build ios with native assets release [E]                                                                                         \r\n  Exception: flutter build failed: 1\r\n  Error (Xcode): No signing certificate \"iOS Development\" found: No \"iOS Development\" signing certificate matching team ID \"S8QB4VV633\" with a private key was found.\r\n```\r\n\r\nMaybe this is also a result of running a test on the wrong shard/bot? Should building ios apps also happen in the iOS device lab instead of on an ordinary MacOS machine?",
+    "createdAt": "2023-07-24T12:43:36Z"
+  },
+  {
+    "id": 6749,
+    "sender": "vashworth",
+    "content": "@dcharkes I looked over the App to App solutions again, and I think it should work with your design actually. [Option A](https://docs.flutter.dev/add-to-app/ios/project-setup#option-a---embed-with-cocoapods-and-the-flutter-sdk) adds script phases which call xcode_backend.sh, like a normal flutter project, so your code should be fine.\r\n\r\nhttps://github.com/flutter/flutter/blob/master/packages/flutter_tools/templates/module/ios/library/Flutter.tmpl/podhelper.rb.tmpl#L92-L100\r\n\r\nAnd looking closer at [Option C](https://docs.flutter.dev/add-to-app/ios/project-setup#option-c---embed-application-and-plugin-frameworks-in-xcode-and-flutter-framework-with-cocoapods), plugins still need to be embedded manually so the same would be true for native assets, so that also should be fine.\r\n\r\nTherefore, I believe all three options should be compatible. \r\n\r\nAlso, here's an integration tests used in the tool for add to app (Looks like it uses Option A): https://github.com/flutter/flutter/tree/master/dev/integration_tests/ios_add2app_life_cycle \r\nhttps://github.com/flutter/flutter/blob/5554b0eeb3780d3fac90370d75dc57893733ae71/dev/bots/test.dart#L762-L773\r\n\r\nLooks like Option B is only tested by ensuring the frameworks are created and exist (https://github.com/flutter/flutter/blob/master/dev/devicelab/bin/tasks/build_ios_framework_module_test.dart)\r\n\r\n",
+    "createdAt": "2023-07-24T19:38:00Z"
+  },
+  {
+    "id": 6750,
+    "sender": "dcharkes",
+    "content": "> Therefore, I believe all three options should be compatible.\r\n\r\nGreat!\r\n\r\n> Also, here's an integration tests used in the tool for add to app (Looks like it uses Option A): https://github.com/flutter/flutter/tree/master/dev/integration_tests/ios_add2app_life_cycle\r\n\r\nI'm not sure that this test is actually run, as it is broken for me locally. I've filed https://github.com/flutter/flutter/issues/131261 to follow up.\r\n\r\n> Looks like Option B is only tested by ensuring the frameworks are created and exist (https://github.com/flutter/flutter/blob/master/dev/devicelab/bin/tasks/build_ios_framework_module_test.dart)\r\n\r\nThe PR has a test similar to that in test/integration.shard/native_assets_test.dart, see `expectDylibIsBundledWithFrameworks`.\r\n",
+    "createdAt": "2023-07-25T14:55:46Z"
+  },
+  {
+    "id": 6751,
+    "sender": "dcharkes",
+    "content": "> Add tests to ensure dry run happens in the following tests:\r\n> packages/flutter_tools/test/general.shard/ios/mac_test.dart\r\n> packages/flutter_tools/test/commands.shard/hermetic/build_macos_test.dart\r\n> packages/flutter_tools/test/general.shard/hot_test.dart\r\n\r\nWhat does dry-run mean in this context @vashworth? Tests which run with the memory file system and mock process run?\r\n\r\nI believe I would need to either (1) address https://github.com/dart-lang/native/issues/90, or (2) make the code in packages/flutter_tools/lib/src/macos/native_assets.dart and packages/flutter_tools/lib/src/ios/native_assets.dart sit inside a class, and create mocks for that class and add that class as a field to `class BuildCommand` and a bunch of other places.\r\n\r\nI believe approach (1) might be better, because we'd actually be testing that `flutter_tools` invokes the `dart path/to/some/build.dart` of the various packages that have native assets that need to be build. With approach (2) we'd just be returning some boolean or a path to a native_assets.yaml which would not be catching many errors.",
+    "createdAt": "2023-07-25T15:55:12Z"
+  },
+  {
+    "id": 6752,
+    "sender": "dcharkes",
+    "content": "> I believe approach (1) might be better, because we'd actually be testing that flutter_tools invokes the dart path/to/some/build.dart of the various packages that have native assets that need to be build. With approach (2) we'd just be returning some boolean or a path to a native_assets.yaml which would not be catching many errors.\r\n\r\nWith approach (1) we'd have to mock a variety of process calls and create a bunch of files on these process calls (https://github.com/dart-lang/native/issues/90#issuecomment-1651352057). That would make these tests rather involved,  mimicking pub and other tools.\r\n\r\nI'm not entirely sure where to put the mock boundary with approach (2). We could wrap both `NativeAssetsBuilder` and `PackageConfig` and make mocks for those. But that would also mean these would have to be passed around everywhere or be dependency injected through `Environment`. Passing around seems like a bad idea. But I also don't see any other examples of dependencies of flutter_tools being dependency injected. Do we have an example of mocking a dependency somewhere in flutter_tools? @stuartmorgan @vashworth.\r\n\r\nWithout mocking, the unit testing as requested is rather limited:\r\n\r\n> Add tests to ensure dry run happens in the following tests:\r\n> * packages/flutter_tools/test/general.shard/ios/mac_test.dart\r\n> * packages/flutter_tools/test/commands.shard/hermetic/build_macos_test.dart\r\n> * packages/flutter_tools/test/general.shard/hot_test.dart\r\n\r\nThese tests already cover the paths where there are no native assets, and all the extra code (a path to a yaml, a xcode property etc.) is null in that case.\r\n\r\n> Also, add unit tests for\r\n>\r\n> * packages/flutter_tools/lib/src/build_system/targets/native_assets.dart \r\n> * packages/flutter_tools/lib/src/ios/native_assets.dart\r\n> * packages/flutter_tools/lib/src/macos/native_assets.dart\r\n\r\nI've added unit tests for these, but they can only unit test the behavior that does not actually invoke the `package:native_assets_builder` dependency, so the unit tests are rather limited.  (The integration tests for MacOS and iOS should cover all this behavior.)\r\n\r\nFor the add2app test alternative I've run into another existing issue. https://github.com/flutter/flutter/issues/112033\r\n\r\nThe three remaining things before this PR can be merged:\r\n\r\n1. Unit tests - Blocked by how to mock `package:native_assets_builder`. I need some guidance/example of how to do this in flutter_tools.\r\n2. Add2app integration test actually exercising the bundled libraries - blocked by https://github.com/flutter/flutter/issues/112033 and https://github.com/flutter/flutter/issues/80807. I'm not sure I know how to make progress here.\r\n3. Code formatting - I'd rather do this as the final step.\r\n",
+    "createdAt": "2023-07-26T12:09:07Z"
+  },
+  {
+    "id": 6753,
+    "sender": "vashworth",
+    "content": "> I'm not entirely sure where to put the mock boundary with approach (2). We could wrap both `NativeAssetsBuilder` and `PackageConfig` and make mocks for those. But that would also mean these would have to be passed around everywhere or be dependency injected through `Environment`. Passing around seems like a bad idea. But I also don't see any other examples of dependencies of flutter_tools being dependency injected. Do we have an example of mocking a dependency somewhere in flutter_tools?\r\n\r\nI'm not sure of any examples of mocking a dependency. @christopherfujino Do you know of any?",
+    "createdAt": "2023-07-26T18:47:33Z"
+  },
+  {
+    "id": 6754,
+    "sender": "christopherfujino",
+    "content": "> > Add tests to ensure dry run happens in the following tests:\r\n> > packages/flutter_tools/test/general.shard/ios/mac_test.dart\r\n> > packages/flutter_tools/test/commands.shard/hermetic/build_macos_test.dart\r\n> > packages/flutter_tools/test/general.shard/hot_test.dart\r\n> \r\n> What does dry-run mean in this context @vashworth? Tests which run with the memory file system and mock process run?\r\n> \r\n> I believe I would need to either (1) address [dart-lang/native#90](https://github.com/dart-lang/native/issues/90), or (2) make the code in packages/flutter_tools/lib/src/macos/native_assets.dart and packages/flutter_tools/lib/src/ios/native_assets.dart sit inside a class, and create mocks for that class and add that class as a field to `class BuildCommand` and a bunch of other places.\r\n\r\nCould we create a fake `NativeAssetsBuildRunner` that we pass to the command?\r\n\r\nAlso, I think you should create a wrapper class anyway that you pass in the logger, processManager, and fileSystem, so that for tests we can pass test instances. We're migrating the codebase off of using any more `globals.*` getters, and introducing new invocations is not allowed.",
+    "createdAt": "2023-07-26T20:06:34Z"
+  },
+  {
+    "id": 6755,
+    "sender": "dcharkes",
+    "content": "> > > Add tests to ensure dry run happens in the following tests:\r\n> > > packages/flutter_tools/test/general.shard/ios/mac_test.dart\r\n> > > packages/flutter_tools/test/commands.shard/hermetic/build_macos_test.dart\r\n> > > packages/flutter_tools/test/general.shard/hot_test.dart\r\n> > \r\n> > \r\n> > What does dry-run mean in this context @vashworth? Tests which run with the memory file system and mock process run?\r\n> > I believe I would need to either (1) address [dart-lang/native#90](https://github.com/dart-lang/native/issues/90), or (2) make the code in packages/flutter_tools/lib/src/macos/native_assets.dart and packages/flutter_tools/lib/src/ios/native_assets.dart sit inside a class, and create mocks for that class and add that class as a field to `class BuildCommand` and a bunch of other places.\r\n> \r\n> Could we create a fake `NativeAssetsBuildRunner` that we pass to the command?\r\n> \r\n> Also, I think you should create a wrapper class anyway that you pass in the logger, processManager, and fileSystem, so that for tests we can pass test instances. We're migrating the codebase off of using any more `globals.*` getters, and introducing new invocations is not allowed.\r\n\r\nOkay, I'll give this a spin tomorrow. It does mean we have to add a `NativeAssetsBuildRunner` to every class/function (e.g. all the `Command`s for example) from `main` and where we pass it in tests and we want to exercise the mock. Without some kind of dependency injection (a la globals) that might be a lot of threading.\r\n\r\nThinking of it, the `FakeResidentCompiler` is a mock of an external dependency. This one is passed as a field of `FlutterDevice`.",
+    "createdAt": "2023-07-26T20:40:05Z"
+  },
+  {
+    "id": 6756,
+    "sender": "dcharkes",
+    "content": "> Could we create a fake `NativeAssetsBuildRunner` that we pass to the command?\r\n> \r\n> Also, I think you should create a wrapper class anyway that you pass in the logger, processManager, and fileSystem, so that for tests we can pass test instances. We're migrating the codebase off of using any more `globals.*` getters, and introducing new invocations is not allowed.\r\n\r\nDone. This is a bit verbose though adding fields and arguments in methods/constructor calls. @christopherfujino is this the preferred way of doing this?\r\n\r\nThis does not enable testing the `NativeAssets` `Target`. The targets all have const constructors and all use the dependency injection through globals. The documentation on `Target` reads:\r\n\r\n```dart\r\n/// ## Unit testing\r\n///\r\n/// Most targets will invoke an external binary which makes unit testing\r\n/// trickier. It is recommend that for unit testing that a Fake is used and\r\n/// provided via the dependency injection system. a [Testbed] may be used to\r\n/// set up the environment before the test is run. Unit tests should fully\r\n/// exercise the rule, ensuring that the existing input and output verification\r\n/// logic can run, as well as verifying it correctly handles provided defines\r\n/// and meets any additional contracts present in the target.\r\n```\r\n\r\nIf I'm not mistaken the only way to use those overrides from a `context` are through `globals` such as `ProcessManager get processManager => context.get<ProcessManager>() ?? _kLocalProcessManager;`. Any suggestions @christopherfujino on how to add unit tests for a target that needs to mock its dependencies?\r\n\r\n> packages/flutter_tools/test/general.shard/ios/mac_test.dart\r\n\r\nI believe the tests should be in test/commands.shard/hermetic/build_ios_test.dart instead, no invocations of `buildXcodeProject` are tested in packages/flutter_tools/test/general.shard/ios/mac_test.dart. I've added a test in test/commands.shard/hermetic/build_ios_test.dart.\r\n\r\n> packages/flutter_tools/test/commands.shard/hermetic/build_macos_test.dart\r\n\r\nDone.\r\n\r\n> packages/flutter_tools/test/general.shard/hot_test.dart\r\n\r\nI could only figure out how to do a hot restart in here. `run` isn't implemented in the fake\r\n\r\nI also tried add a test to test/general.shard/resident_runner_test.dart (another place where `HotRunner` is constructed and run). I could only figure out how to `run`. For `restart` and `reload` I can't figure out what the `fakeVmServiceHost` expects. Maybe this test has the wrong fakes for just testing native assets. @vashworth what exactly would you like to seen unit tested for the hot runner? Is there already a similar test?\r\n\r\n> Also, add unit tests for\r\n> \r\n> packages/flutter_tools/lib/src/build_system/targets/native_assets.dart\r\n\r\nSee discussion above about dependency injection.\r\n\r\n> packages/flutter_tools/lib/src/ios/native_assets.dart\r\n> packages/flutter_tools/lib/src/macos/native_assets.dart\r\n\r\nDone.",
+    "createdAt": "2023-07-27T15:52:23Z"
+  },
+  {
+    "id": 6757,
+    "sender": "dcharkes",
+    "content": "> @dcharkes If you want to try and add this, you can go for it. Alternatively, it looks like `ios_host_app` is also an Add to App integration test (used in `module_test_ios.dart`). Perhaps use that?\r\n\r\n_Originally posted in https://github.com/flutter/flutter/issues/131261#issuecomment-1650058595_\r\n\r\nIt seems that we lose the `NATIVE_ASSETS` env var setting the path to `native_assets.yaml` for the kernel compilation in `Build iOS Objective-C host app`. This is seen by the `flutter assemble` call having `-dNativeAssets= ` and no `NATIVE_ASSETS = ...` in the preceding lines. It looks like there is no xcconfig because the  `PACKAGE_CONFIG = ` in the log lines of these non-flutter originated invocations is missing (which is ones of the other defines in the xcconfig file). Is it a constraint for add2app that it should work without our generated xcconfig? @vashworth\r\n\r\n> @dcharkes I looked over the App to App solutions again, and I think it should work with your design actually. [Option A](https://docs.flutter.dev/add-to-app/ios/project-setup#option-a---embed-with-cocoapods-and-the-flutter-sdk) adds script phases which call xcode_backend.sh, like a normal flutter project, so your code should be fine.\r\n\r\nIt doesn't seem entirely true. I believe there is no xcconfig which would set the right environment variables.\r\n\r\nIf we can't pass information through `xcconfig`, we have some options:\r\n\r\n1. Do a dry-run invocation inside `KernelSnapshot` to produce a native_assets.yaml there. The downdside of this is that a `flutter run` invocation will now do a dry run both in the \"outer\" run and \"inner\" assemble invocation. Also it does a non-dry-run in the \"inner\" invocation.\r\n   1.b. In addition keep passing native_assets.yaml in the xcconfig, and skip running in the `KernelSnapshot` if we already have one. (This requires us to pass an empty native_assets.yaml in projects without any native assets, instead of no native_assets.yaml that we do now.)\r\n2. Make the `KernelSnapshot` target depend on the `NativeAssets` target and use the non-dry-run native_assets.yaml. The downside of this is that now `KernelSnapshot` caching doesn't work anymore. `NativeAssets` targets don't have caching.\r\n\r\nEdit: A second issue seems to be that `flutter clean` removes the `build` folder which contains `\\build/native_assets/ios/native_assets.yaml`. So it seems we should not rely on anything an \"outer\" flutter invocation leaves on the file system for an \"inner\" assemble invocation.",
+    "createdAt": "2023-07-28T11:18:59Z"
+  },
+  {
+    "id": 6758,
+    "sender": "vashworth",
+    "content": "> I also tried add a test to test/general.shard/resident_runner_test.dart (another place where HotRunner is constructed and run). I could only figure out how to run. For restart and reload I can't figure out what the fakeVmServiceHost expects. Maybe this test has the wrong fakes for just testing native assets. @vashworth what exactly would you like to seen unit tested for the hot runner? Is there already a similar test?\r\n\r\nYeah, looks like resident_runner_test.dart is the right place. I was thinking test to ensure it's called and throws errors when expected. Looks like you already added a test that ensures it's called, but still need tests for when errors are thrown.\r\n\r\n> Is it a constraint for add2app that it should work without our generated xcconfig?\r\n\r\nOof, yes, add2app doesn't use a generated xcconfig. \r\n\r\n> Do a dry-run invocation inside KernelSnapshot to produce a native_assets.yaml there. \r\n\r\nSo I'm a little confused. With add2app (Option A), there is no \"outer\" run. Apps are built and run through Xcode/Cocoapods. There is only the \"inner\" assemble command. Am I misunderstanding something?\r\n\r\nPerhaps, in the \"inner\" assemble command, if `NATIVE_ASSETS` is not provided, it's does a dry run and non-dry-run if applicable? And then for non-add2app scenarios, we always set `NATIVE_ASSETS` in the xcconfig and if there are none, we set to the a value like `FALSE` or `NA` and skip if it's that value.\r\n\r\n> Edit: A second issue seems to be that flutter clean removes the build folder\r\n\r\nHow does `flutter clean` come into play?",
+    "createdAt": "2023-08-02T16:02:52Z"
+  },
+  {
+    "id": 6759,
+    "sender": "dcharkes",
+    "content": "> > Edit: A second issue seems to be that flutter clean removes the build folder\r\n> \r\n> How does `flutter clean` come into play?\r\n\r\nThat is the location the `native_assets.yaml` was in. So it's both deleted and the path is not being passed through xcconfig.\r\n\r\n> > Is it a constraint for add2app that it should work without our generated xcconfig?\r\n> \r\n> Oof, yes, add2app doesn't use a generated xcconfig.\r\n\r\nGotcha, yet another requirement gathered. 🙊 \r\n\r\n> > Do a dry-run invocation inside KernelSnapshot to produce a native_assets.yaml there.\r\n> \r\n> So I'm a little confused. With add2app (Option A), there is no \"outer\" run. Apps are built and run through Xcode/Cocoapods. There is only the \"inner\" assemble command. Am I misunderstanding something?\r\n\r\nCorrect, we only have an \"inner\" assemble command.\r\n\r\n> Perhaps, in the \"inner\" assemble command, if `NATIVE_ASSETS` is not provided, it's does a dry run and non-dry-run if applicable? And then for non-add2app scenarios, we always set `NATIVE_ASSETS` in the xcconfig and if there are none, we set to the a value like `FALSE` or `NA` and skip if it's that value.\r\n\r\nThe approach I'm working on right now is\r\n\r\n>> 2. Make the KernelSnapshot target depend on the NativeAssets target and use the non-dry-run native_assets.yaml. The downside of this is that now KernelSnapshot caching doesn't work anymore. NativeAssets targets don't have caching.\r\n\r\nThis seems to work as intended almost all tests pass. As you can see in the latest failures on the CI there's one thing not working. Build caching does no longer work because the `NativeAssets` target hasn't implemented that.\r\n\r\nI believe the right solution is to write out a deps file with the files that were read during compilation of native assets, so that the Flutter build system can skip the `NativeAssets` target if none of the files were changed. We already have tracking of which files were read during builds, but we need to make this list of files available to flutter_tools (https://github.com/dart-lang/native/issues/105).",
+    "createdAt": "2023-08-02T16:23:54Z"
+  },
+  {
+    "id": 6760,
+    "sender": "dcharkes",
+    "content": "~~@stuartmorgan @vashworth ~~\r\n\r\n~~The caching test seems to fail on the CI:~~\r\n\r\n```\r\n▌06:54:32▐ Testing macOS cache for dev/integration_tests/flutter_gallery...\r\nRUNNING: cd dev/integration_tests/flutter_gallery; ../../../bin/flutter build macos --performance-measurement-file=perf.json --debug -v\r\n[...]\r\nELAPSED TIME: 6.085s for ../../../bin/flutter build macos --performance-measurement-file=perf.json --debug -v in dev/integration_tests/flutter_gallery\r\n╔═╡ERROR╞═══════════════════════════════════════════════════════════════════════\r\n║ Not all build targets cached after second run.\r\n║ The target performance data was: {\"targets\":[{\"name\":\"gen_localizations\",\"skipped\":true,\"succeeded\":true,\"elapsedMilliseconds\":0},\r\n║ {\"name\":\"gen_dart_plugin_registrant\",\"skipped\":true,\"succeeded\":true,\"elapsedMilliseconds\":0},\r\n║ {\"name\":\"debug_macos_framework\",\"skipped\":true,\"succeeded\":true,\"elapsedMilliseconds\":0},\r\n║ {\"name\":\"debug_unpack_macos\",\"skipped\":true,\"succeeded\":true,\"elapsedMilliseconds\":263},\r\n║ {\"name\":\"native_assets\",\"skipped\":false,\"succeeded\":true,\"elapsedMilliseconds\":282},\r\n║ {\"name\":\"kernel_snapshot\",\"skipped\":false,\"succeeded\":true,\"elapsedMilliseconds\":1205},\r\n║ {\"name\":\"debug_macos_bundle_flutter_assets\",\"skipped\":true,\"succeeded\":true,\"elapsedMilliseconds\":658}]}\r\n╚═══════════════════════════════════════════════════════════════════════════════\r\n```\r\n\r\n~~[full log](https://logs.chromium.org/logs/flutter/buildbucket/cr-buildbucket/8773325147804101297/+/u/run_test.dart_for_build_tests_shard_and_subshard_3_4/test_stdout)~~\r\n\r\n~~However, locally these tests succeed:~~\r\n\r\n```\r\n$ cd /Users/dacoharkes/flt/engine/flutter  && SHARD=build_tests SUBSHARD=18_24 dart dev/bots/test.dart\r\n▌11:01:05▐ STARTING ANALYSIS\r\n▌11:01:05▐ SHARD=build_tests\r\n▌11:01:05▐ SUBSHARD=18_24\r\n▌11:01:05▐ Testing APK debug build for dev/integration_tests/flutter_gallery...\r\n▌11:01:25▐ Testing APK cache for dev/integration_tests/flutter_gallery...\r\n▌11:01:35▐ Testing APK release build for dev/integration_tests/flutter_gallery...\r\n▌11:02:17▐ Testing APK cache for dev/integration_tests/flutter_gallery...\r\n▌11:02:27▐ Testing IPA debug build for dev/integration_tests/flutter_gallery...\r\n▌11:02:59▐ Testing IPA cache for dev/integration_tests/flutter_gallery...\r\n▌11:03:07▐ Testing IPA release build for dev/integration_tests/flutter_gallery...\r\n▌11:03:42▐ Testing IPA cache for dev/integration_tests/flutter_gallery...\r\n▌11:03:49▐ Testing macOS debug build for dev/integration_tests/flutter_gallery...\r\n▌11:04:15▐ Testing macOS cache for dev/integration_tests/flutter_gallery...\r\n▌11:04:22▐ Testing macOS release build for dev/integration_tests/flutter_gallery...\r\n▌11:05:06▐ Testing macOS cache for dev/integration_tests/flutter_gallery...\r\n▌11:05:13▐ Test successful.\r\n```\r\n\r\n~~Any ideas or suggestions?~~\r\n\r\nedit: The issue was not writing a `native_assets.yaml` if the experiment was not enabled 🙈 ",
+    "createdAt": "2023-08-09T09:08:29Z"
+  },
+  {
+    "id": 6761,
+    "sender": "dcharkes",
+    "content": "Add2app is now also fully supported and tested. (Using the `native_assets.yaml` that is created inside `flutter assemble`.) This also removed a bunch of code for `flutter build` because it now doesn't have to know about native assets at all. Only the backend `flutter assemble`+wrapper scripts and `flutter run` (for hot restart support) need to know about native assets. @vashworth could you review the PR again?",
+    "createdAt": "2023-08-10T11:49:11Z"
+  },
+  {
+    "id": 6762,
+    "sender": "eliasyishak",
+    "content": "friendly ping @christopherfujino @vashworth @stuartmorgan ",
+    "createdAt": "2023-08-24T20:16:44Z"
+  },
+  {
+    "id": 6763,
+    "sender": "dcharkes",
+    "content": "> Have you looked into how to fix with G3 yet?\r\n\r\n@iinozemtsev was so kind to make one! cl/563109654\r\nI've added it in the FROB UI, but I didn't see anything happening. Should it show up in the UI?",
+    "createdAt": "2023-09-06T15:27:13Z"
+  },
+  {
+    "id": 6764,
+    "sender": "vashworth",
+    "content": "> > Have you looked into how to fix with G3 yet?\r\n> \r\n> @iinozemtsev was so kind to make one! cl/563109654 I've added it in the FROB UI, but I didn't see anything happening. Should it show up in the UI?\r\n\r\nI see it in the FROB UI now, let's see if it passes this time",
+    "createdAt": "2023-09-06T15:56:22Z"
+  },
+  {
+    "id": 6765,
+    "sender": "dcharkes",
+    "content": "> > > Have you looked into how to fix with G3 yet?\r\n> > \r\n> > \r\n> > @iinozemtsev was so kind to make one! cl/563109654 I've added it in the FROB UI, but I didn't see anything happening. Should it show up in the UI?\r\n> \r\n> I see it in the FROB UI now, let's see if it passes this time\r\n\r\n```\r\nUnusedValueUtils.kt:433:42: error: cannot find a parameter with this name: allowErrorTypes\r\n        samType.asPsiType(psiTypeParent, allowErrorTypes = true) as? PsiClassType\r\n```\r\n\r\nThe remaining g3 errors seem unrelated to this PR. Should be fixed in g3 by cl/563117968. We just need to retrigger it.",
+    "createdAt": "2023-09-06T16:39:17Z"
+  },
+  {
+    "id": 6766,
+    "sender": "dcharkes",
+    "content": "@vashworth Should the google testing take 2 hours to run?",
+    "createdAt": "2023-09-06T19:18:20Z"
+  },
+  {
+    "id": 6767,
+    "sender": "vashworth",
+    "content": "> @vashworth Should the google testing take 2 hours to run?\r\n\r\nIn FRoB, it says \"Rebase required\" - I've never seen that before but maybe try rebasing?",
+    "createdAt": "2023-09-06T19:27:44Z"
+  },
+  {
+    "id": 6768,
+    "sender": "christopherfujino",
+    "content": "I merged in master, let's see what FRoB does next",
+    "createdAt": "2023-09-06T20:11:54Z"
+  },
+  {
+    "id": 6769,
+    "sender": "dcharkes",
+    "content": "I would usually think that merging is not rebasing. I can try to just squash all commits, rebase on master as single commit and force push to \"rebase\". (But I believe force pushing to PRs under review is frowned upon as the diff is no longer visible.)",
+    "createdAt": "2023-09-06T20:16:44Z"
+  },
+  {
+    "id": 6770,
+    "sender": "dcharkes",
+    "content": "> G3Fix failed to apply\r\n\r\ncl/563109654 probably needs to be rebased as well.",
+    "createdAt": "2023-09-06T20:30:16Z"
+  },
+  {
+    "id": 6771,
+    "sender": "christopherfujino",
+    "content": "> I would usually think that merging is not rebasing. I can try to just squash all commits, rebase on master as single commit and force push to \"rebase\". (But I believe force pushing to PRs under review is frowned upon as the diff is no longer visible.)\r\n\r\nYou're right they're different, but in terms of FRoB, the difference doesn't matter.",
+    "createdAt": "2023-09-06T20:37:14Z"
+  },
+  {
+    "id": 6772,
+    "sender": "dcharkes",
+    "content": "Woohoo, all green!\r\n\r\n@stuartmorgan waiting on approval from your side.\r\n",
+    "createdAt": "2023-09-07T07:48:57Z"
+  },
+  {
+    "id": 6773,
+    "sender": "justinmc",
+    "content": "## Predictive back support for root routes\n\nThis PR aims to support Android's predictive back gesture when popping the entire Flutter app.  Predictive route transitions between routes inside of a Flutter app will come later.\r\n\r\n<img width=\"200\" src=\"https://user-images.githubusercontent.com/389558/217918109-945febaa-9086-41cc-a476-1a189c7831d8.gif\" />\r\n\r\n### Trying it out\r\n\r\nIf you want to try this feature yourself, here are the necessary steps:\r\n\r\n  1. Run Android 33 or above.\r\n  1. Enable the feature flag for predictive back on the device under \"Developer\r\n     options\".\r\n  1. Create a Flutter project, or clone [my example project](https://github.com/justinmc/flutter_predictive_back_examples).\r\n  1. Set `android:enableOnBackInvokedCallback=\"true\"` in\r\n     android/app/src/main/AndroidManifest.xml (already done in the example project).\r\n  1. Check out this branch.\r\n  1. Run the app. Perform a back gesture (swipe from the left side of the\r\n     screen).\r\n\r\nYou should see the predictive back animation like in the animation above and be able to commit or cancel it.\r\n\r\n### go_router support\r\n\r\ngo_router works with predictive back out of the box because it uses a Navigator internally that dispatches NavigationNotifications!\r\n\r\n~~go_router can be supported by adding a listener to the router and updating SystemNavigator.setFrameworkHandlesBack.~~\r\n\r\nSimilar to with nested Navigators, nested go_routers is supported by using a PopScope widget.\r\n\r\n<details>\r\n\r\n<summary>Full example of nested go_routers</summary>\r\n\r\n```dart\r\n// Copyright 2014 The Flutter Authors. All rights reserved.\r\n// Use of this source code is governed by a BSD-style license that can be\r\n// found in the LICENSE file.\r\n\r\nimport 'package:go_router/go_router.dart';\r\n\r\nimport 'package:flutter/material.dart';\r\nimport 'package:flutter/scheduler.dart';\r\n\r\nvoid main() => runApp(_MyApp());\r\n\r\nclass _MyApp extends StatelessWidget {\r\n  final GoRouter router = GoRouter(\r\n    routes: <RouteBase>[\r\n      GoRoute(\r\n        path: '/',\r\n        builder: (BuildContext context, GoRouterState state) => _HomePage(),\r\n      ),\r\n      GoRoute(\r\n        path: '/nested_navigators',\r\n        builder: (BuildContext context, GoRouterState state) => _NestedGoRoutersPage(),\r\n      ),\r\n    ],\r\n  );\r\n\r\n  @override\r\n  Widget build(BuildContext context) {\r\n    return MaterialApp.router(\r\n      routerConfig: router,\r\n    );\r\n  }\r\n}\r\n\r\nclass _HomePage extends StatelessWidget {\r\n  @override\r\n  Widget build(BuildContext context) {\r\n    return Scaffold(\r\n      appBar: AppBar(\r\n        title: const Text('Nested Navigators Example'),\r\n      ),\r\n      body: Center(\r\n        child: Column(\r\n          mainAxisAlignment: MainAxisAlignment.center,\r\n          children: <Widget>[\r\n            const Text('Home Page'),\r\n            const Text('A system back gesture here will exit the app.'),\r\n            const SizedBox(height: 20.0),\r\n            ListTile(\r\n              title: const Text('Nested go_router route'),\r\n              subtitle: const Text('This route has another go_router in addition to the one used with MaterialApp above.'),\r\n              onTap: () {\r\n                context.push('/nested_navigators');\r\n              },\r\n            ),\r\n          ],\r\n        ),\r\n      ),\r\n    );\r\n  }\r\n}\r\n\r\nclass _NestedGoRoutersPage extends StatefulWidget {\r\n  @override\r\n  State<_NestedGoRoutersPage> createState() => _NestedGoRoutersPageState();\r\n}\r\n\r\nclass _NestedGoRoutersPageState extends State<_NestedGoRoutersPage> {\r\n  late final GoRouter _router;\r\n  final GlobalKey<NavigatorState> _nestedNavigatorKey = GlobalKey<NavigatorState>();\r\n\r\n  // If the nested navigator has routes that can be popped, then we want to\r\n  // block the root navigator from handling the pop so that the nested navigator\r\n  // can handle it instead.\r\n  bool get _popEnabled {\r\n    // canPop will throw an error if called before build. Is this the best way\r\n    // to avoid that?\r\n    return _nestedNavigatorKey.currentState == null ? true : !_router.canPop();\r\n  }\r\n\r\n  void _onRouterChanged() {\r\n    // Here the _router reports the location correctly, but canPop is still out\r\n    // of date.  Hence the post frame callback.\r\n    SchedulerBinding.instance.addPostFrameCallback((Duration duration) {\r\n      setState(() {});\r\n    });\r\n  }\r\n\r\n  @override\r\n  void initState() {\r\n    super.initState();\r\n\r\n    final BuildContext rootContext = context;\r\n    _router = GoRouter(\r\n      navigatorKey: _nestedNavigatorKey,\r\n      routes: [\r\n        GoRoute(\r\n          path: '/',\r\n          builder: (BuildContext context, GoRouterState state) => _LinksPage(\r\n            title: 'Nested once - home route',\r\n            backgroundColor: Colors.indigo,\r\n            onBack: () {\r\n              rootContext.pop();\r\n            },\r\n            buttons: <Widget>[\r\n              TextButton(\r\n                onPressed: () {\r\n                  context.push('/two');\r\n                },\r\n                child: const Text('Go to another route in this nested Navigator'),\r\n              ),\r\n            ],\r\n          ),\r\n        ),\r\n        GoRoute(\r\n          path: '/two',\r\n          builder: (BuildContext context, GoRouterState state) => _LinksPage(\r\n            backgroundColor: Colors.indigo.withBlue(255),\r\n            title: 'Nested once - page two',\r\n          ),\r\n        ),\r\n      ],\r\n    );\r\n\r\n    _router.addListener(_onRouterChanged);\r\n  }\r\n\r\n  @override\r\n  void dispose() {\r\n    _router.removeListener(_onRouterChanged);\r\n    super.dispose();\r\n  }\r\n\r\n  @override\r\n  Widget build(BuildContext context) {\r\n    return PopScope(\r\n      popEnabled: _popEnabled,\r\n      onPopped: (bool success) {\r\n        if (success) {\r\n          return;\r\n        }\r\n        _router.pop();\r\n      },\r\n      child: Router<Object>.withConfig(\r\n        restorationScopeId: 'router-2',\r\n        config: _router,\r\n      ),\r\n    );\r\n  }\r\n}\r\n\r\nclass _LinksPage extends StatelessWidget {\r\n  const _LinksPage ({\r\n    required this.backgroundColor,\r\n    this.buttons = const <Widget>[],\r\n    this.onBack,\r\n    required this.title,\r\n  });\r\n\r\n  final Color backgroundColor;\r\n  final List<Widget> buttons;\r\n  final VoidCallback? onBack;\r\n  final String title;\r\n\r\n  @override\r\n  Widget build(BuildContext context) {\r\n    return Scaffold(\r\n      backgroundColor: backgroundColor,\r\n      body: Center(\r\n        child: Column(\r\n          mainAxisAlignment: MainAxisAlignment.center,\r\n          children: <Widget>[\r\n            Text(title),\r\n            //const Text('A system back here will go back to Nested Navigators Page One'),\r\n            ...buttons,\r\n            TextButton(\r\n              onPressed: onBack ?? () {\r\n                context.pop();\r\n              },\r\n              child: const Text('Go back'),\r\n            ),\r\n          ],\r\n        ),\r\n      ),\r\n    );\r\n  }\r\n}\r\n```\r\n\r\n</details>\r\n\r\n### Resources\r\n\r\nFixes https://github.com/flutter/flutter/issues/109513\r\nDepends on engine PR https://github.com/flutter/engine/pull/39208 :heavy_check_mark: \r\nDesign doc: https://docs.google.com/document/d/1BGCWy1_LRrXEB6qeqTAKlk-U2CZlKJ5xI97g45U7azk/edit#\r\nMigration guide: https://github.com/flutter/website/pull/8952",
+    "createdAt": "2023-02-09T19:04:03Z"
+  },
+  {
+    "id": 6774,
+    "sender": "justinmc",
+    "content": "@chunhtai You're right about go_router, it does seem to work out of the box! I guess because it's using Navigator internally.\r\n\r\n\r\nhttps://github.com/flutter/flutter/assets/389558/146bac20-7fcb-4a9a-b849-7ad8c37fd1ab\r\n\r\n\r\n\r\n<details>\r\n\r\n<summary>Code I used to test go_router</summary>\r\n\r\n```dart\r\n// Copyright 2014 The Flutter Authors. All rights reserved.\r\n// Use of this source code is governed by a BSD-style license that can be\r\n// found in the LICENSE file.\r\n\r\nimport 'package:go_router/go_router.dart';\r\n\r\nimport 'package:flutter/material.dart';\r\n\r\nvoid main() => runApp(_MyApp());\r\n\r\nclass _MyApp extends StatefulWidget {\r\n\r\n  @override\r\n  State<_MyApp> createState() => _MyAppState();\r\n}\r\n\r\nclass _MyAppState extends State<_MyApp> {\r\n  final GoRouter _router = GoRouter(\r\n    routes: <RouteBase>[\r\n      GoRoute(\r\n        path: '/',\r\n        builder: (BuildContext context, GoRouterState state) => _LinksPage(\r\n          title: 'Home page',\r\n          backgroundColor: Colors.indigo,\r\n          buttons: <Widget>[\r\n            TextButton(\r\n              onPressed: () {\r\n                context.push('/one');\r\n              },\r\n              child: const Text('Go to one'),\r\n            ),\r\n          ],\r\n        ),\r\n      ),\r\n      GoRoute(\r\n        path: '/one',\r\n        builder: (BuildContext context, GoRouterState state) => _LinksPage(\r\n          title: 'Page one',\r\n          backgroundColor: Colors.indigo.withRed(255),\r\n          buttons: <Widget>[\r\n            TextButton(\r\n              onPressed: () {\r\n                context.push('/one/two');\r\n              },\r\n              child: const Text('Go to one/two'),\r\n            ),\r\n          ],\r\n        ),\r\n      ),\r\n      GoRoute(\r\n        path: '/one/two',\r\n        builder: (BuildContext context, GoRouterState state) => _LinksPage(\r\n          title: 'Page one/two',\r\n          backgroundColor: Colors.indigo.withBlue(255),\r\n        ),\r\n      ),\r\n    ],\r\n  );\r\n\r\n  @override\r\n  Widget build(BuildContext context) {\r\n    return MaterialApp.router(\r\n      routerConfig: _router,\r\n    );\r\n  }\r\n}\r\n\r\nclass _LinksPage extends StatelessWidget {\r\n  const _LinksPage ({\r\n    required this.backgroundColor,\r\n    this.buttons = const <Widget>[],\r\n    required this.title,\r\n  });\r\n\r\n  final Color backgroundColor;\r\n  final List<Widget> buttons;\r\n  final String title;\r\n\r\n  @override\r\n  Widget build(BuildContext context) {\r\n    return Scaffold(\r\n      backgroundColor: backgroundColor,\r\n      body: Center(\r\n        child: Column(\r\n          mainAxisAlignment: MainAxisAlignment.center,\r\n          children: <Widget>[\r\n            Text(title),\r\n            ...buttons,\r\n            if (GoRouter.of(context).canPop())\r\n              TextButton(\r\n                onPressed: () {\r\n                  context.pop();\r\n                },\r\n                child: const Text('Go back'),\r\n              ),\r\n          ],\r\n        ),\r\n      ),\r\n    );\r\n  }\r\n}\r\n```\r\n\r\n</details>",
+    "createdAt": "2023-06-22T18:49:33Z"
+  },
+  {
+    "id": 6775,
+    "sender": "justinmc",
+    "content": "@chunhtai @goderbauer Humble nag for review :pray: ",
+    "createdAt": "2023-06-29T17:35:42Z"
+  },
+  {
+    "id": 6776,
+    "sender": "parthpatel-simbiotik",
+    "content": "This may've caused issues in new flutter app supposed to run on android 7.\r\n\r\nIssues are as below\r\n\r\n2024-02-13 13:28:31.588  7001-7001  art                     pid-7001                             I  Rejecting re-init on previously-failed class java.lang.Class<io.flutter.embedding.android.f$a>: java.lang.NoClassDefFoundError: Failed resolution of: Landroid/window/OnBackInvokedCallback;\r\n2024-02-13 13:28:31.589  7001-7001  art                     pid-7001                             I    at java.lang.Object java.lang.Class.newInstance!() (Class.java:-2)\r\n2024-02-13 13:28:31.589  7001-7001  art                     pid-7001                             I    at android.app.Activity android.app.Instrumentation.newActivity(java.lang.ClassLoader, java.lang.String, android.content.Intent) (Instrumentation.java:1078)\r\n2024-02-13 13:28:31.589  7001-7001  art                     pid-7001                             I    at android.app.Activity android.app.ActivityThread.performLaunchActivity(android.app.ActivityThread$ActivityClientRecord, android.content.Intent) (ActivityThread.java:2557)\r\n2024-02-13 13:28:31.589  7001-7001  art                     pid-7001                             I    at void android.app.ActivityThread.handleLaunchActivity(android.app.ActivityThread$ActivityClientRecord, android.content.Intent, java.lang.String) (ActivityThread.java:2726)\r\n2024-02-13 13:28:31.589  7001-7001  art                     pid-7001                             I    at void android.app.ActivityThread.-wrap12(android.app.ActivityThread, android.app.ActivityThread$ActivityClientRecord, android.content.Intent, java.lang.String) (ActivityThread.java:-1)\r\n2024-02-13 13:28:31.589  7001-7001  art                     pid-7001                             I    at void android.app.ActivityThread$H.handleMessage(android.os.Message) (ActivityThread.java:1477)\r\n2024-02-13 13:28:31.589  7001-7001  art                     pid-7001                             I    at void android.os.Handler.dispatchMessage(android.os.Message) (Handler.java:102)\r\n2024-02-13 13:28:31.589  7001-7001  art                     pid-7001                             I    at void android.os.Looper.loop() (Looper.java:154)\r\n2024-02-13 13:28:31.589  7001-7001  art                     pid-7001                             I    at void android.app.ActivityThread.main(java.lang.String[]) (ActivityThread.java:6119)\r\n2024-02-13 13:28:31.589  7001-7001  art                     pid-7001                             I    at java.lang.Object java.lang.reflect.Method.invoke!(java.lang.Object, java.lang.Object[]) (Method.java:-2)\r\n2024-02-13 13:28:31.589  7001-7001  art                     pid-7001                             I    at void com.android.internal.os.ZygoteInit$MethodAndArgsCaller.run() (ZygoteInit.java:886)\r\n2024-02-13 13:28:31.589  7001-7001  art                     pid-7001                             I    at void com.android.internal.os.ZygoteInit.main(java.lang.String[]) (ZygoteInit.java:776)\r\n2024-02-13 13:28:31.589  7001-7001  art                     pid-7001                             I  Caused by: java.lang.ClassNotFoundException: Didn't find class \"android.window.OnBackInvokedCallback\" on path: DexPathList[[zip file \"/data/app/com.dashparking.displayapp-2/base.apk\"],nativeLibraryDirectories=[/data/app/com.dashparking.displayapp-2/lib/arm64, /data/app/com.dashparking.displayapp-2/base.apk!/lib/arm64-v8a, /system/lib64, /vendor/lib64]]\r\n2024-02-13 13:28:31.589  7001-7001  art                     pid-7001                             I    at java.lang.Class dalvik.system.BaseDexClassLoader.findClass(java.lang.String) (BaseDexClassLoader.java:56)\r\n2024-02-13 13:28:31.589  7001-7001  art                     pid-7001                             I    at java.lang.Class java.lang.ClassLoader.loadClass(java.lang.String, boolean) (ClassLoader.java:380)\r\n2024-02-13 13:28:31.589  7001-7001  art                     pid-7001                             I    at java.lang.Class java.lang.ClassLoader.loadClass(java.lang.String) (ClassLoader.java:312)\r\n2024-02-13 13:28:31.589  7001-7001  art                     pid-7001                             I    at java.lang.Object java.lang.Class.newInstance!() (Class.java:-2)\r\n2024-02-13 13:28:31.589  7001-7001  art                     pid-7001                             I    at android.app.Activity android.app.Instrumentation.newActivity(java.lang.ClassLoader, java.lang.String, android.content.Intent) (Instrumentation.java:1078)\r\n2024-02-13 13:28:31.589  7001-7001  art                     pid-7001                             I    at android.app.Activity android.app.ActivityThread.performLaunchActivity(android.app.ActivityThread$ActivityClientRecord, android.content.Intent) (ActivityThread.java:2557)\r\n2024-02-13 13:28:31.589  7001-7001  art                     pid-7001                             I    at void android.app.ActivityThread.handleLaunchActivity(android.app.ActivityThread$ActivityClientRecord, android.content.Intent, java.lang.String) (ActivityThread.java:2726)\r\n2024-02-13 13:28:31.589  7001-7001  art                     pid-7001                             I    at void android.app.ActivityThread.-wrap12(android.app.ActivityThread, android.app.ActivityThread$ActivityClientRecord, android.content.Intent, java.lang.String) (ActivityThread.java:-1)\r\n2024-02-13 13:28:31.589  7001-7001  art                     pid-7001                             I    at void android.app.ActivityThread$H.handleMessage(android.os.Message) (ActivityThread.java:1477)\r\n2024-02-13 13:28:31.589  7001-7001  art                     pid-7001                             I    at void android.os.Handler.dispatchMessage(android.os.Message) (Handler.java:102)\r\n2024-02-13 13:28:31.589  7001-7001  art                     pid-7001                             I    at void android.os.Looper.loop() (Looper.java:154)\r\n2024-02-13 13:28:31.589  7001-7001  art                     pid-7001                             I    at void android.app.ActivityThread.main(java.lang.String[]) (ActivityThread.java:6119)\r\n2024-02-13 13:28:31.589  7001-7001  art                     pid-7001                             I    at java.lang.Object java.lang.reflect.Method.invoke!(java.lang.Object, java.lang.Object[]) (Method.java:-2)\r\n2024-02-13 13:28:31.589  7001-7001  art                     pid-7001                             I    at void com.android.internal.os.ZygoteInit$MethodAndArgsCaller.run() (ZygoteInit.java:886)\r\n2024-02-13 13:28:31.589  7001-7001  art                     pid-7001                             I    at void com.android.internal.os.ZygoteInit.main(java.lang.String[]) (ZygoteInit.java:776)\r\n2024-02-13 13:28:31.589  7001-7001  art                     pid-7001                             I  \r\n",
+    "createdAt": "2024-02-13T08:01:27Z"
+  },
+  {
+    "id": 6777,
+    "sender": "justinmc",
+    "content": "@parthpatel-simbiotik Can you file a new issue for that?",
+    "createdAt": "2024-02-14T20:21:33Z"
+  },
+  {
+    "id": 6778,
+    "sender": "luckysmg",
+    "content": "## [framework] Add textField OCR support for framework side\n\n## Preview\r\n\r\nhttps://user-images.githubusercontent.com/49340347/209536902-eb8434c0-ffa7-438c-b344-9a8f5dc3e817.mp4\r\n\r\n### **Related PR in flutter engine (merged):**\r\n- https://github.com/flutter/engine/pull/34751\r\n\r\n*List which issues are fixed by this PR. You must list at least one issue.*\r\nhttps://github.com/flutter/flutter/issues/91896\r\n\r\n## Pre-launch Checklist\r\n\r\n- [x] I read the [Contributor Guide] and followed the process outlined there for submitting PRs.\r\n- [x] I read the [Tree Hygiene] wiki page, which explains my responsibilities.\r\n- [x] I read and followed the [Flutter Style Guide], including [Features we expect every widget to implement].\r\n- [x] I signed the [CLA].\r\n- [x] I listed at least one issue that this PR fixes in the description above.\r\n- [x] I updated/added relevant documentation (doc comments with `///`).\r\n- [x] I added new tests to check the change I am making, or this PR is [test-exempt].\r\n- [x] All existing and new tests are passing.\r",
+    "createdAt": "2022-01-14T01:43:30Z"
+  },
+  {
+    "id": 6779,
+    "sender": "Hixie",
+    "content": "@luckysmg Is this still something you are working on? I'm just asking because I'm trying to clean out our review queue.",
+    "createdAt": "2022-05-24T23:26:37Z"
+  },
+  {
+    "id": 6780,
+    "sender": "luckysmg",
+    "content": "Yes，this is still working on, but maybe will not update the progress recently…..I will continue this later😄\r\n\r\n\r\n\r\n发自我的iPhone\r\n\r\n\r\n------------------ Original ------------------\r\nFrom: Ian Hickson ***@***.***&gt;\r\nDate: Wed,May 25,2022 7:26 AM\r\nTo: flutter/flutter ***@***.***&gt;\r\nCc: WenJingRui ***@***.***&gt;, Mention ***@***.***&gt;\r\nSubject: Re: [flutter/flutter] [WIP] Support ios text ocr (PR #96637)\r\n\r\n\r\n\r\n\r\n\r\n \r\n@luckysmg Is this still something you are working on? I'm just asking because I'm trying to clean out our review queue.\r\n \r\n—\r\nReply to this email directly, view it on GitHub, or unsubscribe.\r\nYou are receiving this because you were mentioned.Message ID: ***@***.***&gt;",
+    "createdAt": "2022-05-25T00:50:09Z"
+  },
+  {
+    "id": 6781,
+    "sender": "luckysmg",
+    "content": "The engine side is working around and ready for review.\r\nhttps://github.com/flutter/engine/pull/34751\r\n\r\n After engine side PR merged, work in framework side(here) will start.",
+    "createdAt": "2022-06-01T01:02:28Z"
+  },
+  {
+    "id": 6782,
+    "sender": "Hixie",
+    "content": "@luckysmg Are you still working on this? Looks like you did good progress since the last time I asked. :-)",
+    "createdAt": "2022-12-14T00:17:49Z"
+  },
+  {
+    "id": 6783,
+    "sender": "luckysmg",
+    "content": "Hi @Hixie  Very apologize on this.Before I was thinking to work after https://github.com/flutter/flutter/pull/107193 merged, because with that code will be more clear and easier. Now, it has been merged and I will continue this work. (*^▽^*)",
+    "createdAt": "2022-12-14T02:04:22Z"
+  }
+]

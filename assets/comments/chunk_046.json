@@ -1,0 +1,386 @@
+[
+  {
+    "id": 2944,
+    "sender": "gugadev",
+    "content": "What about QA automation tests relying on XPath? Is this removal are gonna break these scenarios?",
+    "createdAt": "2024-05-29T19:15:27Z"
+  },
+  {
+    "id": 2945,
+    "sender": "yjbanov",
+    "content": "@gugadev Semantics is the more robust way to do this kind of testing. Even with HTML renderer we would frequently create canvases when something is not expressible using plain HTML DOM, so it will look volatile w.r.t. XPath expressions. Also, the render tree loses a lot of information that's useful for this kind of testing. For example, a rounded rectangle with some text in the middle may be a button or a dialog. The HTML renderer will not convey this information, but the semantics tree will.\r\n\r\nMore generally, whenever you want a program to interact with a Flutter Web app (instead of a human), semantics is the way to do it. Examples of such programs include:\r\n\r\n- Screen readers\r\n- Browser extensions\r\n- Web crawlers\r\n- Automation tools\r\n- Maybe even AI?\r\n\r\nOne common aspect of all these use-cases is that they all need some standard and structured way to scan and understand the UI, then perform actions on it. On the web that standard is the HTML DOM, which is what we use to render semantics.",
+    "createdAt": "2024-05-29T23:37:01Z"
+  },
+  {
+    "id": 2946,
+    "sender": "slavap",
+    "content": "@yjbanov \r\nsemantics are kind of working for testing purposes, but tend to be \"broken\" from one release to another :-(\r\nprobably test case based on using semantics should be covered by Flutter release preparation tests.\r\nSee the latest comments in  https://github.com/flutter/flutter/issues/97455\r\n",
+    "createdAt": "2024-05-30T01:58:13Z"
+  },
+  {
+    "id": 2947,
+    "sender": "yjbanov",
+    "content": "@slavap\r\n\r\nUnfortunately the HTML renderer is not a solution for these kinds of breakages. Renderer output would also be broken in the same way as the rendering is being optimized in the engine or in the framework. For example, the framework can easily take a few layers and combine them into a single picture, breaking the DOM structure.\r\n\r\nI think there's two ways to improve the stability of testing through semantics:\r\n\r\n1. As our semantics story stabilizes, the churn will hopefully become smaller. It is still under heavy development, so the churn will likely continue for some time.\r\n2. Perhaps there could be a test package that wraps Flutter's HTML DOM semantics tree in a stable API surface. The package would be hard-linked to the Flutter SDK version, so changes in the semantics tree won't break it.\r\n\r\nI agree, we need to fix issues like https://github.com/flutter/flutter/issues/97455.",
+    "createdAt": "2024-05-30T22:29:12Z"
+  },
+  {
+    "id": 2948,
+    "sender": "guihackmann",
+    "content": "The only reason I use web renderer HTML is because this is the only way you can load images from web. In canvas renderer it doesn't work. So please don't deprecate HTML, unless there's been a solution to load network images in canvas rendered that I`m not aware of.",
+    "createdAt": "2024-06-06T16:45:37Z"
+  },
+  {
+    "id": 2949,
+    "sender": "LimaneGaya",
+    "content": "> The only reason I use web renderer HTML is because this is the only way you can load images from web. In canvas renderer it doesn't work. So please don't deprecate HTML, unless there's been a solution to load network images in canvas rendered that I`m not aware of.\n\n\nI'm in the same situation, images from firebase storage don't load when i'm testing, so i have to use the html renderer. I think It's a CORS issue, as i had the same issue when i tried wasm  and firebase hosting and i solved it by adding \n\n```\n\"headers\": [ {\n            \"source\": \"**/*\",\n            \"headers\": [ {\n              \"key\": \"Cross-Origin-Opener-Policy\",\n              \"value\": \"same-origin\"\n            },\n            {\"key\": \"Cross-Origin-Embedder-Policy\",\n            \"value\": \"credentialless\"} ]\n          } ],\n``` \n\nto firebase.json.\nI haven't figured out storage yet.",
+    "createdAt": "2024-06-06T17:03:03Z"
+  },
+  {
+    "id": 2950,
+    "sender": "ditman",
+    "content": "This incoming change is relevant to this issue /cc @mdebbar:\r\n\r\n* https://github.com/flutter/flutter/issues/149826",
+    "createdAt": "2024-06-06T22:40:49Z"
+  },
+  {
+    "id": 2951,
+    "sender": "mtallenca",
+    "content": "We default to canvaskit on our site - but allow a query flag to choose the html renderer.  We have some web users with older equipment / OSs that are unable to run the canvaskit version.  We are only using telling users about this flag if they contact support and have the older set up - so far under a hundred but they are long time users. The web site has been around for 10+ years and was updated to flutter web last year.  ",
+    "createdAt": "2024-06-07T05:44:43Z"
+  },
+  {
+    "id": 2952,
+    "sender": "kevmoo",
+    "content": "@LimaneGaya – have you looked at https://firebase.google.com/docs/storage/web/download-files#cors_configuration ?",
+    "createdAt": "2024-06-10T23:13:51Z"
+  },
+  {
+    "id": 2953,
+    "sender": "zambetpentru",
+    "content": "The biggest challenge we have is that the Canvaskit reliably crashes (tab freezes and no further action is possible) in our application which uses the pdf_render plugin (I'm not saying it is plugin related). The same code has never crashed once on HTML or Native. Sentry also doesn't report the crash.\r\n\r\nCanvaskit on Desktop browsers is rock solid for us.",
+    "createdAt": "2024-06-14T18:24:13Z"
+  },
+  {
+    "id": 2954,
+    "sender": "zambetpentru",
+    "content": "The other challenge is the big loss in image quality as outlined here: https://github.com/flutter/flutter/issues/135655",
+    "createdAt": "2024-06-14T18:24:18Z"
+  },
+  {
+    "id": 2955,
+    "sender": "iapicca",
+    "content": "I'm all in for focusing resources on `canvaskit` (or `impeller`, no?) for web\r\nin this regard would be great if there some quality standard would be set, eg:\r\n- https://github.com/flutter/flutter/issues/118883",
+    "createdAt": "2024-06-15T08:25:16Z"
+  },
+  {
+    "id": 2956,
+    "sender": "IchordeDionysos",
+    "content": "@yjbanov, there is one additional (similar to CORS but distinct) issue with credentials / Cookies.\r\n\r\nIf you have cookies on a website, the cookie will be sent with each `<img>` request being made, while if you use `Image.network()`, no cookies will ever be sent (it's also not configurable).\r\n\r\nIf you HAVE TO rely on cookies, e.g. for authentication of the image, CanvasKit makes it impossible to achieve this.\r\n\r\nI believe the easy fix would be to add the following line:\r\n\r\n```dart\r\nrequest.withCredentials = true;\r\n```\r\n\r\nhere: https://github.com/flutter/flutter/blob/5187cab7bdd434ca74abb45895d17e9fa553678a/packages/flutter/lib/src/painting/_network_image_web.dart#L126\r\n\r\n> **Note:**\r\n> Haven't thought about security implications yet.\r\n> Maybe there is a need to make this configurable by a flag?!",
+    "createdAt": "2024-06-16T00:03:45Z"
+  },
+  {
+    "id": 2957,
+    "sender": "IchordeDionysos",
+    "content": "@yjbanov opened an issue for this:\r\nhttps://github.com/flutter/flutter/issues/150351",
+    "createdAt": "2024-06-17T13:29:54Z"
+  },
+  {
+    "id": 2958,
+    "sender": "tolotrasamuel",
+    "content": "Please, please don't deprecate the HTML Renderer! Our entire business hinges on it for server-side rendering, which is absolutely critical for our SEO optimization. If you take this away from us, our SEO score will completely collapse, and our website will lose all its visibility. We will lose traffic, customers, and ultimately, our website will die. This isn't just a minor inconvenience—this is an existential threat to our business.\r\n\r\nWe are desperately using Puppeteer as a stopgap solution for server-side rendering, but it's a hack that barely keeps us afloat. If the HTML Renderer is deprecated, we will have no viable path forward. Please, instead of deprecating it, consider converting it into a server-side renderer specifically for SEO purposes. Major frameworks like Angular, Vercel, and React offer robust solutions for server-side rendering and SEO. Despite our hack, we've stuck with Flutter because we love it, but this change would force us to abandon it, which we really don't want to do.\r\n\r\nPlease, for the sake of our business and countless others who rely on this feature, reconsider this decision. Enhance the HTML Renderer for SEO purposes and save us from this impending disaster. Our livelihoods depend on it.  https://github.com/flutter/flutter/issues/139292 https://github.com/flutter/flutter/issues/46789",
+    "createdAt": "2024-07-22T05:14:41Z"
+  },
+  {
+    "id": 2959,
+    "sender": "kevmoo",
+    "content": "@tolotrasamuel – how does the HTML renderer help you with SEO? The HTML it generates is NOT good for a search engine. Have you tried the CanvasKit renderer?",
+    "createdAt": "2024-07-22T21:31:14Z"
+  },
+  {
+    "id": 2960,
+    "sender": "yjbanov",
+    "content": "@tolotrasamuel Could you please explain how you use Puppeteer + HTML renderer for server-side rendering? This is not a use-case we support today. If it's working, it is likely by accident. We could easily break it without realizing it, unless we have a good understanding of how it works. For indexing we output the semantics tree, which is rendered as a plain HTML DOM tree. We do plan to continue supporting it for the foreseeable future. The only thing we're replacing is the technology used to render the pixels of the UI. The semantics will stay as is.",
+    "createdAt": "2024-07-22T21:36:28Z"
+  },
+  {
+    "id": 2961,
+    "sender": "RodXander",
+    "content": "@yjbanov - For me, the main reason I oppose deprecating the HTML renderer is **initial loading times**. With Canvaskit, in Chrome, simulating a Slow3G connection it took **75 seconds** to initially load the app; HTML, **45 seconds**. I recommend your team perform some tests on initial loading times using a throttle connection to grasp the enormous difference in loading times.\r\n\r\nTBH, I'd recommend doing the opposite and fixing some of the issues that have been around forever. For example, tinting hasn't worked for SVGs in Webkit browsers since 2021! See issue ([here](https://github.com/flutter/flutter/issues/90105))\r\n",
+    "createdAt": "2024-07-24T00:06:10Z"
+  },
+  {
+    "id": 2962,
+    "sender": "ditman",
+    "content": "> simulating a Slow3G connection it took 75 seconds to initially load the app; HTML, 45 seconds. \r\n\r\nCould you please link to the app, if available publicly, @RodXander?",
+    "createdAt": "2024-07-24T01:09:37Z"
+  },
+  {
+    "id": 2963,
+    "sender": "slavap",
+    "content": "@RodXander \r\nThough I'm really disappointed about html renderer deprecation, your loading times look quite strange.\r\n\r\n>> Slow3G connection it took 75 seconds to initially load the app; HTML, 45 seconds.\r\n\r\nLet's say we have a total bundle with canvas kit **gzipped** or better **brotlied** as 10mb. If connection speed even around 3-5mbit, the loading time will be less than 30 seconds.",
+    "createdAt": "2024-07-24T04:34:03Z"
+  },
+  {
+    "id": 2964,
+    "sender": "ditman",
+    "content": "> If connection speed even around 3-5mbit, the loading time will be less than 30 seconds.\r\n\r\n@slavap note that [Slow 3G seems to introduce a latency of ~2s per request](https://www.debugbear.com/blog/chrome-devtools-network-throttling#what-do-slow-3g-and-fast-3g-mean-in-devtools), so depending on the number of files that are part of their bundle (imagine they also use font assets), those 2 extra seconds can add up quite a bit.\r\n\r\n(Not defending OP in this, I'd love to take a look at the app and see where the time is going)",
+    "createdAt": "2024-07-25T01:16:19Z"
+  },
+  {
+    "id": 2965,
+    "sender": "yjbanov",
+    "content": "@RodXander That sounds about right. On Slow3G it will be very slow. That said, even with the HTML renderer 45 seconds is already very slow. If supporting Slow3G is important, you might want to use a strategy where your landing page is plain HTML/CSS that loads quickly, and loads Flutter in the background.\r\n\r\nHere's a prototype: https://github.com/yjbanov/flutter-landing-demo\r\nLive demo: https://flutter-landing-demo.web.app/\r\n",
+    "createdAt": "2024-07-25T02:31:02Z"
+  },
+  {
+    "id": 2966,
+    "sender": "amrgetment",
+    "content": "Or using deferred, Flutter supports deferred, or \"lazy\", loading on Android and the web\r\nhttps://docs.flutter.dev/perf/deferred-components",
+    "createdAt": "2024-07-25T10:02:59Z"
+  },
+  {
+    "id": 2967,
+    "sender": "hmbenhaim",
+    "content": "Hi, I'm using clarity for my website and it's working only for html renderer, Does anyone know if it's something to be fixed for canvaskit till the deprecation or anyone knows any clarity like  system that tracks user action that works for canvaskit? Thanks",
+    "createdAt": "2024-08-20T17:58:39Z"
+  },
+  {
+    "id": 2968,
+    "sender": "kevmoo",
+    "content": "What is \"clarity\"? Can you provide a link/reference?",
+    "createdAt": "2024-08-20T18:05:50Z"
+  },
+  {
+    "id": 2969,
+    "sender": "hmbenhaim",
+    "content": "> What is \"clarity\"? Can you provide a link/reference?\n\nSure, clarity is an analytics tool to track mouse clicks on screen, there are a lot of tools all of them works only when using html renderer \nA link to clarify: https://clarity.microsoft.com/\n\n",
+    "createdAt": "2024-08-20T18:11:44Z"
+  },
+  {
+    "id": 2970,
+    "sender": "yjbanov",
+    "content": "@hmbenhaim I can't tell how the HTML renderer helps here. When you render, say, a button, the HTML renderer will not generate a `<button>` tag but some mishmash of divs and 2D canvases. To Clarity it probably looks like gibberish. I'm surprised that it doesn't work with CanvasKit. Having said that, if Clarity needs to see some HTML under the mouse cursor, consider enabling semantics by doing this:\r\n\r\n```dart\r\nvoid main() {\r\n  runApp(const App());\r\n  if (kIsWeb) {\r\n    SemanticsBinding.instance.ensureSemantics();\r\n  }\r\n}\r\n```\r\n\r\nWith this Flutter will generate meaningful HTML. We have no plans to remove semantic HTML support in Flutter. Instead, we plan to improve it further.",
+    "createdAt": "2024-08-20T19:54:58Z"
+  },
+  {
+    "id": 2971,
+    "sender": "hmbenhaim",
+    "content": "@yjbanov thanks for your reply, clarity (and others) works by downloading the js and HTML code into their server and recording only the location of the click then when you want to see the heatmap and clicks they render the website of their server and you can see that, it happens that they can render their website when it runs canvaskit renderer but only when it's HTML so when it's canvaskit it will show black (but) still show mouse clicks when it's HTML I can see where I actually I clicked as it's able to run the code on their side \n\nEdit: I tried adding show semantics it's very cool and it will help me with other things but it's not helping to render the website on the clarity side ",
+    "createdAt": "2024-08-20T20:26:03Z"
+  },
+  {
+    "id": 2972,
+    "sender": "yjbanov",
+    "content": "@hmbenhaim I see. The Flutter project is not setup to test on esoteric environments such as Clarity. I think Clarity should strive to ensure their server-side browser environment is fully featured enough to support all web features. To that end I would recommend filing an issue with Clarity to fix the issue on their end. However, I see value in a mode where Flutter does not require WebGL for the app to function. We can render just the semantic HTML without WebGL, which should still be good enough for such use-cases. I filed an [issue for that](https://github.com/flutter/flutter/issues/153790).\r\n\r\nEdit: I should note though, that keeping the HTML renderer - which is a large component that shares nothing with the main renderers and requires a huge amount of maintenance - just for use-cases such as Clarity is not practical for us. Hence I'm looking for other solutions for this use-case.",
+    "createdAt": "2024-08-20T21:20:11Z"
+  },
+  {
+    "id": 2973,
+    "sender": "hmbenhaim",
+    "content": "@yjbanov thanks for opening the issue for supporting semantic-only mode. I now understand why it doesn't run in certain environments, as it requires WebGL. I tested several tools, and while they couldn't get Canvaskit running, they did work with the HTML renderer. From my experience, Canvaskit performs much better, especially with animations, and it's more consistent across different browsers. I would absolutely prefer to use it. That said, I had to go with the HTML renderer because a tracking tool like Clarity was a must-have requirement, which a lot of websites use. It would be great if there were a way to run Canvaskit without WebGL for scenarios like this.\r\n",
+    "createdAt": "2024-08-20T22:11:20Z"
+  },
+  {
+    "id": 2974,
+    "sender": "LuisReyes98",
+    "content": "My biggest concern is that issues like this one are still open https://github.com/flutter/flutter/issues/108983 ,  and this issue causes the web app to be unusable on Safari iPhone unless the renderer is set to HTML.\r\nIf this change fixes the issue that flutter web canvas kit doesn't work on Safari for iPhone I would accept it, otherwise it is a problem that has no other workarounds. ",
+    "createdAt": "2024-08-21T18:34:37Z"
+  },
+  {
+    "id": 2975,
+    "sender": "yjbanov",
+    "content": "@LuisReyes98 What's the use-case for running the app in CPU mode on an iPhone? iPhones have had GPUs for many years. We have the CPU fallback mainly for Windows 7/8 era PCs but those are [no longer supported](https://support.microsoft.com/en-us/windows/windows-8-1-support-ended-on-january-10-2023-3cfd4cde-f611-496a-8057-923fba401e93). We will probably remove the CPU fallback too.",
+    "createdAt": "2024-08-21T22:00:38Z"
+  },
+  {
+    "id": 2976,
+    "sender": "tainanfochesatto",
+    "content": "The primary reason I use the html renderer instead of canvaskit is due to the low quality of images when downscaling. This issue has already been documented in issue [#135655 ](https://github.com/flutter/flutter/issues/135655#issuecomment-2167089370)\r\n\r\nUsing platform views wasn't an option for me due to the significant performance loss, as I render a large list of images in a table.",
+    "createdAt": "2024-08-22T18:04:01Z"
+  },
+  {
+    "id": 2977,
+    "sender": "zambetpentru",
+    "content": "Agreed the image scaling remains problematic and thanks for bubbling it up as it's not on the checklist at the top of this ticket.\n\nThe top of my concern list is a repeatable out of memory crash with Canvaskit mobile web that doesn't ever happen with HTML. Desktop Web and Native are stable with the same codebase, I need to get a repo created for it.",
+    "createdAt": "2024-08-22T18:09:26Z"
+  },
+  {
+    "id": 2978,
+    "sender": "cjgonzbright",
+    "content": "> @LuisReyes98 What's the use-case for running the app in CPU mode on an iPhone? iPhones have had GPUs for many years. We have the CPU fallback mainly for Windows 7/8 era PCs but those are [no longer supported](https://support.microsoft.com/en-us/windows/windows-8-1-support-ended-on-january-10-2023-3cfd4cde-f611-496a-8057-923fba401e93). We will probably remove the CPU fallback too.\r\n\r\nI am not the OP but we support a Flutter web app that is loaded into a health provider's Electron app via iframe and we are running into the same issue found in https://github.com/flutter/flutter/issues/108983 \r\n\r\nWe have had to force HTML rendering to support it, and removing HTML rendering and then CPU rendering from CanvasKit altogether without fixing 108983 could possibly break our ability to support this critical use-case completely",
+    "createdAt": "2024-08-22T19:14:45Z"
+  },
+  {
+    "id": 2979,
+    "sender": "mycalls",
+    "content": "> Agreed the image scaling remains problematic and thanks for bubbling it up as it's not on the checklist at the top of this ticket.\r\n> \r\n> The top of my concern list is a repeatable out of memory crash with Canvaskit mobile web that doesn't ever happen with HTML. Desktop Web and Native are stable with the same codebase, I need to get a repo created for it.\r\n\r\nI totally agree with zambetpentru's opinion. When using Canvaskit, out-of-memory errors occur frequently, especially in Mobile Safari.",
+    "createdAt": "2024-08-26T06:33:21Z"
+  },
+  {
+    "id": 2980,
+    "sender": "zambetpentru",
+    "content": "Interesting, I thought it may be due to using the pdf_render library (which is normally 100% stable). Have you any idea how to provoke the crash? Or a guide on how to monitor the memory use in mobile safari?",
+    "createdAt": "2024-08-26T06:57:54Z"
+  },
+  {
+    "id": 2981,
+    "sender": "iapicca",
+    "content": "> Agreed the image scaling remains problematic and thanks for bubbling it up as it's not on the checklist at the top of this ticket.\r\n\r\nthe issue is tracked here\r\n- https://github.com/flutter/flutter/issues/153974\r\n\r\n> > We have had to force HTML rendering to support it, and removing HTML rendering and then CPU rendering from CanvasKit altogether without fixing 108983 could possibly break our ability to support this critical use-case completely\r\n>\r\n> I totally agree with zambetpentru's opinion. When using Canvaskit, out-of-memory errors occur frequently, especially in Mobile Safari.\r\n\r\n@zambetpentru  @mycalls \r\nthis should definitely be tracked, I suggest to open an issue for this error\r\nproviding a `minimal reproducible code sample`, `pubspec.yaml` and `flutter doctor`",
+    "createdAt": "2024-08-26T09:10:56Z"
+  },
+  {
+    "id": 2982,
+    "sender": "zambetpentru",
+    "content": "Do you have this one on your list as well, the one with a green line at the bottom of the image?\r\n\r\nhttps://github.com/flutter/flutter/issues/129548",
+    "createdAt": "2024-08-26T21:35:00Z"
+  },
+  {
+    "id": 2983,
+    "sender": "mycalls",
+    "content": "> Interesting, I thought it may be due to using the pdf_render library (which is normally 100% stable). Have you any idea how to provoke the crash? Or a guide on how to monitor the memory use in mobile safari?\r\n\r\n@zambetpentru @iapicca \r\nI'm sorry for the late reply. For the high memory usage issue in Safari, please refer to this issue:\r\n* [Safari high memory usage #93404](https://github.com/flutter/flutter/issues/93404#top)\r\n\r\nHere are some web apps that use CanvasKit:\r\n[Wonderous](https://wonderous.app/web/)\r\n[My test app](https://applimode-type-b.web.app/)\r\n\r\nWonderous ([repo](https://github.com/gskinnerTeam/flutter-wonderous-app)) is an app often cited as a reference app for Flutter, and Applimode Dev ([repo](https://github.com/mycalls/applimode)) was built with CanvasKit by me for testing.\r\n\r\nI opened the apps in Chrome and Safari, navigated through them, and monitored the memory usage on my Mac's Activity Monitor. Chrome managed memory well, but Safari's memory usage continued to increase. When opening the apps in Safari on my iPhone 12, both apps froze and refreshed.",
+    "createdAt": "2024-08-29T08:16:13Z"
+  },
+  {
+    "id": 2984,
+    "sender": "bymoye",
+    "content": "Before abandoning HTML rendering, can this problem be solved first? Because I found that this problem does not occur in HTML rendering, so I have been using HTML rendering.\r\n#77023",
+    "createdAt": "2024-09-15T04:54:40Z"
+  },
+  {
+    "id": 2985,
+    "sender": "yjbanov",
+    "content": "@zambetpentru https://github.com/flutter/flutter/issues/129548#issuecomment-2372439809\r\n\r\n@mycalls There have been a number of memory-related issues fixed recently, such as:\r\n\r\n- https://github.com/flutter/engine/pull/53201\r\n- https://github.com/flutter/engine/pull/54878\r\n- https://github.com/flutter/engine/pull/54818\r\n\r\nWe will continue working on memory improvements. Specific issues and repros, such as https://github.com/flutter/flutter/issues/153678, help a lot in fixing this.\r\n\r\n@bymoye Although the font issue is listed in the post-deprecation tasks, we'll do our best to fix it before removing the HTML renderer 🤞 ",
+    "createdAt": "2024-09-24T21:49:26Z"
+  },
+  {
+    "id": 2986,
+    "sender": "olof-dev",
+    "content": "I'd like to highlight an instance of the issue \"HTML has access to local fallback fonts\" from the design document that I think will be quite common (and affects us, in particular): color emoji fonts. As noted in https://github.com/flutter/flutter/issues/119536, the download sizes of various color emoji fonts are rather large (e.g. 23 mb for Noto Color Emoji), and I think I read somewhere that the Apple emoji font is something like 180 mb (if one wanted to go platform-faithful). Being able to use the platform-provided emoji sets is thus highly desirable.",
+    "createdAt": "2024-09-30T20:45:21Z"
+  },
+  {
+    "id": 2987,
+    "sender": "yjbanov",
+    "content": "@olof-dev Understood. We're actually prioritizing fixing the CJK and emoji font size issue. Work is underway. I'm quite optimistic that we'll land it before removing the HTML renderer. The initial fix will only include cross-platform emojis. Platform-faithful emojis will need to be fixed in a follow-up. We have ideas there (e.g. use a 2D canvas for emoji rendering, which can use browser built-in fallbacks), but we still need to investigate how to best design it.",
+    "createdAt": "2024-10-05T19:14:56Z"
+  },
+  {
+    "id": 2988,
+    "sender": "marianhlavac",
+    "content": "I'd like to bring more attention to https://github.com/flutter/flutter/issues/143747\r\n\r\nPlatform views on web are still not perfect and should be resolved before deprecating HTML renderer.\r\n\r\nIn the [intent document](https://docs.google.com/document/d/1DGamHsa2lz_Qtgfrfa3j3fRaEopJXc7tCFVM1TQlck8/edit?resourcekey=0-IjkqrCoo_EcRRS2bPYKI8w), there is question \"Do we need to close the gap between WebGL and HTML before starting the deprecation process?\", listing only \"mild\" and \"non-cross platform\" issues, but issues such as the one I've linked should be categorized as major and mentioned in the document. @yjbanov ",
+    "createdAt": "2024-10-28T08:06:48Z"
+  },
+  {
+    "id": 2989,
+    "sender": "higaski",
+    "content": "> Fast-forward to 2024. After many optimizations, CanvasKit payload size shrunk to 1.5MB, and the new renderer - Skwasm - shrinks it even further to 1MB.\r\n\r\nUsing Flutter 3.24.4 the default counter app compiled with just `flutter build web` still produces a\r\n- 6.4MB `canvaskit.wasm` and a\r\n- 3.1MB `skwasm.wasm` file\r\n\r\nHow does one shrink those to 1.5 and 1MB?",
+    "createdAt": "2024-11-08T13:21:22Z"
+  },
+  {
+    "id": 2990,
+    "sender": "kevmoo",
+    "content": "@higaski – make sure you have content encoding enabled on your host.\r\nLook at the size delta for the wasm files used by dartpad.dev\r\n\r\n![image](https://github.com/user-attachments/assets/a3cb3b3f-b13a-437f-803d-75a70b779915)\r\n\r\nBoth of these files are compressed with br. `main.dart.wasm` is almost 4x smaller. `skwasm.wasm` is almost 3x smaller.\r\n",
+    "createdAt": "2024-11-12T00:58:20Z"
+  },
+  {
+    "id": 2991,
+    "sender": "higaski",
+    "content": "@kevmoo \r\nI see, so those are the compressed sizes. Thanks!",
+    "createdAt": "2024-11-12T07:56:05Z"
+  },
+  {
+    "id": 2992,
+    "sender": "slavap",
+    "content": "@kevmoo \r\nBy the way - why there is no skwasm.wasm for chromium like we have with canvaskit?",
+    "createdAt": "2024-11-12T10:06:33Z"
+  },
+  {
+    "id": 2993,
+    "sender": "yjbanov",
+    "content": "@marianhlavac I added the backdrop filter issue to the list of post-deprecation tasks https://github.com/flutter/flutter/issues/153974.\r\n\r\n@slavap skwasm only works in Chromium-based browsers at the moment. We're working on the fallbacks needed to run it in other browsers.",
+    "createdAt": "2024-11-12T17:36:44Z"
+  },
+  {
+    "id": 2994,
+    "sender": "mattmoskal",
+    "content": "Just saw this intent to deprecate and remove HTML renderer.  We use the HTML renderer to run a Flutter app as a Chrome extension.  I don't believe the CanvasKit render can be used for Chrome extensions.   \r\n\r\nflutter run -d chrome --web-renderer html\r\nI am not aware of another way to build a Chrome extension with Flutter.\r\n\r\nIs this being addressed before deprecating the HTML renderer?? ",
+    "createdAt": "2024-11-19T03:32:30Z"
+  },
+  {
+    "id": 2995,
+    "sender": "mattmoskal",
+    "content": "Here is a little more information regarding using Flutter to build a Chrome Extension.\r\n\r\nRenderer Compatibility:\r\nThe CanvasKit renderer is not compatible with Chrome extensions due to Content Security Policy (CSP) restrictions. This is primarily because the CanvasKit builds include dynamically generated code that violates CSP rules set by Chrome extensions.\r\n\r\nHTML Renderer Requirement:\r\nTo create a Chrome extension, you must specifically use the HTML renderer. \r\n\r\nBuild Command:\r\nWhen building your Flutter web project for a Chrome extension, use the following command to ensure it uses the HTML renderer and complies with CSP:\r\n\r\nflutter build web --web-renderer html --csp\r\n\r\nThe --csp flag disables dynamically generated code in the output, which is essential for meeting Chrome's security requirements. ",
+    "createdAt": "2024-11-19T15:44:32Z"
+  },
+  {
+    "id": 2996,
+    "sender": "SlowGen",
+    "content": "@mattmoskal Hey! I gave a talk about this at Fluttercon this year, I think you'll find it useful:\r\nhttps://www.droidcon.com/2024/10/17/browser-extensions-with-flutter/\r\n\r\nYou can also find an example repo here: https://github.com/SlowGen/bookmarks-demo\r\n\r\nNote: The removal of html does exclude Safari. Will update if/when there is a solution for that. Otherwise, my solution should work just fine for you in Chrome",
+    "createdAt": "2024-11-19T16:17:57Z"
+  },
+  {
+    "id": 2997,
+    "sender": "harryterkelsen",
+    "content": "@mattmoskal \r\n\r\nBy default, the CanvasKit renderer uses `canvaskit.js` and `canvaskit.wasm` hosted on gstatic, which violates CSP. You can force the build to use local `canvaskit.js` and `canvaskit.wasm` by running:\r\n\r\n```\r\nflutter build web --web-renderer=canvaskit --csp --no-web-resources-cdn\r\n```\r\n\r\nIt's a bug that `--csp` doesn't imply `--no-web-resources-cdn`. I'll fix that.\r\n",
+    "createdAt": "2024-11-20T01:00:48Z"
+  },
+  {
+    "id": 2998,
+    "sender": "ditman",
+    "content": "> @mattmoskal Hey! I gave a talk about this at Fluttercon this year, I think you'll find it useful: https://www.droidcon.com/2024/10/17/browser-extensions-with-flutter/\r\n\r\n@SlowGen would you be interested in turning this into a blog post? I think this is a great topic that we don't have any documentation on! /cc @johnpryan 👀‼️",
+    "createdAt": "2024-11-20T22:54:00Z"
+  },
+  {
+    "id": 2999,
+    "sender": "SlowGen",
+    "content": "@ditman Absolutely! I am also working with Brett to get a Code Lab up (prob won't be released until next year), but I'm down with doing more!",
+    "createdAt": "2024-11-21T16:14:39Z"
+  },
+  {
+    "id": 3000,
+    "sender": "johnpryan",
+    "content": "A codelab sounds great, thanks for offering to write it!",
+    "createdAt": "2024-11-21T18:00:16Z"
+  },
+  {
+    "id": 3001,
+    "sender": "iapicca",
+    "content": "> Here is a little more information regarding using Flutter to build a Chrome Extension.\r\n> \r\n> Renderer Compatibility: The CanvasKit renderer is not compatible with Chrome extensions due to Content Security Policy (CSP) restrictions. This is primarily because the CanvasKit builds include dynamically generated code that violates CSP rules set by Chrome extensions.\r\n> \r\n> HTML Renderer Requirement: To create a Chrome extension, you must specifically use the HTML renderer.\r\n> \r\n> Build Command: When building your Flutter web project for a Chrome extension, use the following command to ensure it uses the HTML renderer and complies with CSP:\r\n> \r\n> flutter build web --web-renderer html --csp\r\n> \r\n> The --csp flag disables dynamically generated code in the output, which is essential for meeting Chrome's security requirements.\r\n\r\nthis is the only valid reason I've heard against html renderer deprecation,\r\nthe question is:\r\n\r\n#### is this reason enough not to deprecate it?\r\n",
+    "createdAt": "2024-11-23T15:16:50Z"
+  },
+  {
+    "id": 3002,
+    "sender": "ditman",
+    "content": ">> The CanvasKit renderer is not compatible with Chrome extensions due to Content Security Policy (CSP) restrictions.\r\n>\r\n> this is the only valid reason I've heard against html renderer deprecation...\r\n\r\n@iapicca It seems this is not really true? See @SlowGen's [comment](https://github.com/flutter/flutter/issues/145954#issuecomment-2486162109). It's got an example of an extension rendering with canvaskit (I haven't tried it though!)\r\n",
+    "createdAt": "2024-12-02T19:04:24Z"
+  },
+  {
+    "id": 3003,
+    "sender": "SlowGen",
+    "content": "@ditman @iapicca \r\nCorrect, the Flutter builds always create a local version of canvaskit, it just doesn't use it. Mine uses a different bootstrap that calls it locally",
+    "createdAt": "2024-12-02T19:20:22Z"
+  },
+  {
+    "id": 3004,
+    "sender": "SlowGen",
+    "content": "As far as extensions go, the only argument not to deprecate the html render is that Safari extensions won't work (because WASM) ... and maybe that's being solved / worked on, idk, I haven't checked in awhile",
+    "createdAt": "2024-12-02T19:22:30Z"
+  },
+  {
+    "id": 3005,
+    "sender": "yjbanov",
+    "content": "## Final update\r\n\r\nWell, this has been a long journey! We've completed all the prerequisite work, and even fixed two items from the [post-deprecation list](https://github.com/flutter/flutter/issues/153974).\r\n\r\nStarting with the upcoming Flutter SDK beta release (probably some time in December 2024 🤞), the `--web-renderer` option will no longer be available, and with that no way to pick \"html\" or \"auto\" (it's already gone in the master channel). The only remaining options will be:\r\n\r\n- **The default**: uses CanvasKit as the only renderer.\r\n- **--wasm**: uses Skwasm when possible, and falls back to CanvasKit when the browser cannot run Skwasm.\r\n\r\nYou will find more details on our [updated page about web renderers](https://docs.flutter.dev/platform-integration/web/renderers).\r\n\r\n## Future work\r\n\r\nWhile the removal of the HTML renderer will make Flutter no longer suitable for some web use-cases, based on feedback we've been getting CanvasKit and Skwasm are capable of satisfying the vast majority of apps. We will use these renderers as the foundation to expand Flutter's applicability on the web, perhaps including covering use-cases that the HTML renderer has been traditionally used for (for example, we will continue working hard on reducing payload size).\r\n\r\n## How to adapt to this change\r\n\r\nWe recommend all users to switch their apps to the new renderers. In most cases apps should continue working normally. However, if you encounter significant issues with the transition, please file issues. Improving our renderers will continue to be our top priority. If the app must stay on the HTML renderer until we address an issue in the supported renderers, you have the option to not upgrade to the new Flutter SDK, and skip a release or two.\r\n\r\nEdit: fixed link to post-deprecation issue (thanks @olof-dev!)",
+    "createdAt": "2024-12-05T20:57:02Z"
+  },
+  {
+    "id": 3006,
+    "sender": "slavap",
+    "content": "@yjbanov \r\n>> we will continue working hard on reducing payload size\r\n\r\nPlease please continue reducing payload size, it is still quite big.\r\n",
+    "createdAt": "2024-12-06T00:09:21Z"
+  },
+  {
+    "id": 3007,
+    "sender": "koji-1009",
+    "content": "@yjbanov \r\nThank you for your excellent work. I'm excited to start using SkWasm.\r\n\r\nI have a question regarding a specific issue we've encountered.\r\nWill the Safari crash issue on iPhone, as described in #93404, be addressed in a future update?\r\n\r\nDue to this issue, we're currently using the HTML renderer for our application. When we attempt to launch our application with CanvasKit, it starts successfully but unfortunately crashes after some time.\r\n\r\nThis crash behavior has also been observed on Wonderous Web, suggesting it might be a more widespread issue. This crash can be reproduced on iPhones by navigating through multiple pages .\r\n\r\nhttps://wonderous.app/web/#/home\r\n\r\nFor example, the steps are as follows:\r\n`/home` → `/home/wonder/greatWall?t=0` → `/home/wonder/greatWall?t=1` → Scroll in the screen → `/home` → `/home/wonder/petra?t=0` → `/home/wonder/petra?t=1` → Scroll in the screen",
+    "createdAt": "2024-12-06T00:44:59Z"
+  }
+]

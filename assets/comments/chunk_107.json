@@ -1,0 +1,386 @@
+[
+  {
+    "id": 6848,
+    "sender": "Klazyo",
+    "content": "got the same issue , got bored really  .",
+    "createdAt": "2019-06-06T08:46:41Z"
+  },
+  {
+    "id": 6849,
+    "sender": "pratik037",
+    "content": "Faced same issue on 28.0.3\r\nSame work around for that too?\r\n```\r\nflutter doctor -v\r\n[√] Flutter (Channel beta, v1.6.3, on Microsoft Windows [Version 10.0.17763.529], locale en-IN)\r\n    • Flutter version 1.6.3 at C:\\flutter\r\n    • Framework revision bc7bc94083 (2 weeks ago), 2019-05-23 10:29:07 -0700\r\n    • Engine revision 8dc3a4cde2\r\n    • Dart version 2.3.2 (build 2.3.2-dev.0.0 e3edfd36b2)\r\n\r\n\r\n[√] Android toolchain - develop for Android devices (Android SDK version 28.0.3)\r\n    • Android SDK at D:\\Android SDK\r\n    • Android NDK location not configured (optional; useful for native profiling support)\r\n    • Platform android-28, build-tools 28.0.3\r\n    • ANDROID_HOME = D:\\Android SDK\r\n    • Java binary at: D:\\Android Studio\\jre\\bin\\java\r\n    • Java version OpenJDK Runtime Environment (build 1.8.0_152-release-1343-b01)\r\n    • All Android licenses accepted.\r\n\r\n[√] Android Studio (version 3.4)\r\n    • Android Studio at D:\\Android Studio\r\n    • Flutter plugin version 36.0.1\r\n    • Dart plugin version 183.6270\r\n    • Java version OpenJDK Runtime Environment (build 1.8.0_152-release-1343-b01)\r\n\r\n[√] IntelliJ IDEA Community Edition (version 2018.2)\r\n    • IntelliJ at C:\\Program Files\\JetBrains\\IntelliJ IDEA Community Edition 2018.1.6\r\n    • Flutter plugin version 33.1.1\r\n    • Dart plugin version 182.5215\r\n\r\n[√] VS Code (version 1.35.0)\r\n    • VS Code at C:\\Users\\Pratik Singhal\\AppData\\Local\\Programs\\Microsoft VS Code\r\n    • Flutter extension version 3.1.0\r\n\r\n[!] Connected device\r\n    ! No devices available\r\n\r\n! Doctor found issues in 1 category.\r\n\r\n```",
+    "createdAt": "2019-06-06T08:53:39Z"
+  },
+  {
+    "id": 6850,
+    "sender": "vanlooverenkoen",
+    "content": "@pratik037\r\n\r\n> Faced same issue on 28.0.3\r\n> Same work around for that too?\r\n> \r\n> ```\r\n> flutter doctor -v\r\n> [√] Flutter (Channel beta, v1.6.3, on Microsoft Windows [Version 10.0.17763.529], locale en-IN)\r\n>     • Flutter version 1.6.3 at C:\\flutter\r\n>     • Framework revision bc7bc94083 (2 weeks ago), 2019-05-23 10:29:07 -0700\r\n>     • Engine revision 8dc3a4cde2\r\n>     • Dart version 2.3.2 (build 2.3.2-dev.0.0 e3edfd36b2)\r\n> \r\n> \r\n> [√] Android toolchain - develop for Android devices (Android SDK version 28.0.3)\r\n>     • Android SDK at D:\\Android SDK\r\n>     • Android NDK location not configured (optional; useful for native profiling support)\r\n>     • Platform android-28, build-tools 28.0.3\r\n>     • ANDROID_HOME = D:\\Android SDK\r\n>     • Java binary at: D:\\Android Studio\\jre\\bin\\java\r\n>     • Java version OpenJDK Runtime Environment (build 1.8.0_152-release-1343-b01)\r\n>     • All Android licenses accepted.\r\n> \r\n> [√] Android Studio (version 3.4)\r\n>     • Android Studio at D:\\Android Studio\r\n>     • Flutter plugin version 36.0.1\r\n>     • Dart plugin version 183.6270\r\n>     • Java version OpenJDK Runtime Environment (build 1.8.0_152-release-1343-b01)\r\n> \r\n> [√] IntelliJ IDEA Community Edition (version 2018.2)\r\n>     • IntelliJ at C:\\Program Files\\JetBrains\\IntelliJ IDEA Community Edition 2018.1.6\r\n>     • Flutter plugin version 33.1.1\r\n>     • Dart plugin version 182.5215\r\n> \r\n> [√] VS Code (version 1.35.0)\r\n>     • VS Code at C:\\Users\\Pratik Singhal\\AppData\\Local\\Programs\\Microsoft VS Code\r\n>     • Flutter extension version 3.1.0\r\n> \r\n> [!] Connected device\r\n>     ! No devices available\r\n> \r\n> ! Doctor found issues in 1 category.\r\n> ```\r\n\r\ntry this -> https://github.com/flutter/flutter/issues/16865#issuecomment-494164445\r\n",
+    "createdAt": "2019-06-06T09:28:22Z"
+  },
+  {
+    "id": 6851,
+    "sender": "akshay512",
+    "content": "Even \"flutter build apk\" is also crashing.",
+    "createdAt": "2019-06-06T11:23:55Z"
+  },
+  {
+    "id": 6852,
+    "sender": "pratik037",
+    "content": "> @pratik037\r\n> \r\n> > Faced same issue on 28.0.3\r\n> > Same work around for that too?\r\n> > ```\r\n> > flutter doctor -v\r\n> > [√] Flutter (Channel beta, v1.6.3, on Microsoft Windows [Version 10.0.17763.529], locale en-IN)\r\n> >     • Flutter version 1.6.3 at C:\\flutter\r\n> >     • Framework revision bc7bc94083 (2 weeks ago), 2019-05-23 10:29:07 -0700\r\n> >     • Engine revision 8dc3a4cde2\r\n> >     • Dart version 2.3.2 (build 2.3.2-dev.0.0 e3edfd36b2)\r\n> > \r\n> > \r\n> > [√] Android toolchain - develop for Android devices (Android SDK version 28.0.3)\r\n> >     • Android SDK at D:\\Android SDK\r\n> >     • Android NDK location not configured (optional; useful for native profiling support)\r\n> >     • Platform android-28, build-tools 28.0.3\r\n> >     • ANDROID_HOME = D:\\Android SDK\r\n> >     • Java binary at: D:\\Android Studio\\jre\\bin\\java\r\n> >     • Java version OpenJDK Runtime Environment (build 1.8.0_152-release-1343-b01)\r\n> >     • All Android licenses accepted.\r\n> > \r\n> > [√] Android Studio (version 3.4)\r\n> >     • Android Studio at D:\\Android Studio\r\n> >     • Flutter plugin version 36.0.1\r\n> >     • Dart plugin version 183.6270\r\n> >     • Java version OpenJDK Runtime Environment (build 1.8.0_152-release-1343-b01)\r\n> > \r\n> > [√] IntelliJ IDEA Community Edition (version 2018.2)\r\n> >     • IntelliJ at C:\\Program Files\\JetBrains\\IntelliJ IDEA Community Edition 2018.1.6\r\n> >     • Flutter plugin version 33.1.1\r\n> >     • Dart plugin version 182.5215\r\n> > \r\n> > [√] VS Code (version 1.35.0)\r\n> >     • VS Code at C:\\Users\\Pratik Singhal\\AppData\\Local\\Programs\\Microsoft VS Code\r\n> >     • Flutter extension version 3.1.0\r\n> > \r\n> > [!] Connected device\r\n> >     ! No devices available\r\n> > \r\n> > ! Doctor found issues in 1 category.\r\n> > ```\r\n> \r\n> try this -> [#16865 (comment)](https://github.com/flutter/flutter/issues/16865#issuecomment-494164445)\r\n\r\n*Sadly* That solution didn't work.",
+    "createdAt": "2019-06-06T12:41:32Z"
+  },
+  {
+    "id": 6853,
+    "sender": "hybrayhem",
+    "content": "> I found a temporary fix while we wait for a solution provided by the Flutter team\r\n> \r\n> Windows: http://dl-ssl.google.com/android/repository/platform-tools_r28.0.2-windows.zip\r\n> macOS: http://dl-ssl.google.com/android/repository/platform-tools_r28.0.2-darwin.zip\r\n> Linux: http://dl-ssl.google.com/android/repository/platform-tools_r28.0.2-linux.zip\r\n> \r\n> this download contains the platform tools for 28.0.1\r\n> \r\n> if you back up your platform-tools folder and place the content of the zip in the platform-tools folder.\r\n> ![image](https://user-images.githubusercontent.com/21172855/58989489-4f0c2500-87e4-11e9-8b72-6a9b8ebf0e5f.png)\r\n> \r\n> this should be in your platform-tools folder\r\n> ![image](https://user-images.githubusercontent.com/21172855/58989511-59c6ba00-87e4-11e9-8e9d-e2d055416863.png)\r\n> \r\n> **THIS IS A TEMPORARY FIX, NOT A SOLUTION**\r\n\r\ni downgraded using this link but there is no .bat files in platform-tools folder",
+    "createdAt": "2019-06-06T12:42:20Z"
+  },
+  {
+    "id": 6854,
+    "sender": "samuelg123",
+    "content": "I also encountered this problem.",
+    "createdAt": "2019-06-06T12:46:06Z"
+  },
+  {
+    "id": 6855,
+    "sender": "vanlooverenkoen",
+    "content": "hybrayhem38 -> This was indeed another download link. If you just replace the content with your download it should work\r\n",
+    "createdAt": "2019-06-06T12:46:12Z"
+  },
+  {
+    "id": 6856,
+    "sender": "hybrayhem",
+    "content": "> hybrayhem38 -> This was indeed another download link. If you just replace the content with your download it should work\r\n\r\nI downloaded rar and its files:\r\n\r\n![Ekran Alıntısı](https://user-images.githubusercontent.com/47319650/59034849-b671b580-8874-11e9-9483-54901a60dc9b.PNG)\r\n\r\nwhat is wrong? where is bat files?\r\n",
+    "createdAt": "2019-06-06T13:04:50Z"
+  },
+  {
+    "id": 6857,
+    "sender": "hybrayhem",
+    "content": "> I found a temporary fix while we wait for a solution provided by the Flutter team\r\n> \r\n> Windows: http://dl-ssl.google.com/android/repository/platform-tools_r28.0.2-windows.zip\r\n> macOS: http://dl-ssl.google.com/android/repository/platform-tools_r28.0.2-darwin.zip\r\n> Linux: http://dl-ssl.google.com/android/repository/platform-tools_r28.0.2-linux.zip\r\n> \r\n> this download contains the platform tools for 28.0.1\r\n> \r\n> if you back up your platform-tools folder and place the content of the zip in the platform-tools folder.\r\n> ![image](https://user-images.githubusercontent.com/21172855/58989489-4f0c2500-87e4-11e9-8b72-6a9b8ebf0e5f.png)\r\n> \r\n> this should be in your platform-tools folder\r\n> ![image](https://user-images.githubusercontent.com/21172855/58989511-59c6ba00-87e4-11e9-8e9d-e2d055416863.png)\r\n> \r\n> **THIS IS A TEMPORARY FIX, NOT A SOLUTION**\r\n\r\nCan you upload your \"platform-files\" folder to google drive or etc.?",
+    "createdAt": "2019-06-06T13:11:24Z"
+  },
+  {
+    "id": 6858,
+    "sender": "samuelg123",
+    "content": "@hybrayhem38 \r\nTry this (if you using windows). \r\n1. Download  http://dl-ssl.google.com/android/repository/platform-tools_r28.0.2-windows.zip\r\n2. Close Android Studio\r\n3. Open command prompt & run this >> taskkill /f /im adb.exe \r\n4. Move old platform-tools folder somewhere else (as a backup).\r\n5. Extract platform-tools_r28.0.2-windows.zip to old path\r\n6. Open Android Studio and it should work again\r\n\r\n@vanlooverenkoen \r\nThank you for your fix. It works!",
+    "createdAt": "2019-06-06T13:40:44Z"
+  },
+  {
+    "id": 6859,
+    "sender": "hybrayhem",
+    "content": "> @hybrayhem38\r\n> Try this (if you using windows).\r\n> \r\n> 1. Download  http://dl-ssl.google.com/android/repository/platform-tools_r28.0.2-windows.zip\r\n> 2. Close Android Studio\r\n> 3. Open command prompt & run this >> taskkill /f /im adb.exe\r\n> 4. Move old platform-tools folder somewhere else (as a backup).\r\n> 5. Extract platform-tools_r28.0.2-windows.zip to old path\r\n> 6. Open Android Studio and it should work again\r\n> \r\n> @vanlooverenkoen\r\n> Thank you for your fix. It works!\r\n\r\nThanks, I didnt do step 3 at first. Now it works!",
+    "createdAt": "2019-06-06T14:04:05Z"
+  },
+  {
+    "id": 6860,
+    "sender": "mukhtarhussainbaloch",
+    "content": "I also have the same issue.",
+    "createdAt": "2019-06-06T14:05:01Z"
+  },
+  {
+    "id": 6861,
+    "sender": "tkez",
+    "content": "@vanlooverenkoen Thanks for bringing up! While waiting for flutter team fix, temporary fix works well!",
+    "createdAt": "2019-06-06T14:44:35Z"
+  },
+  {
+    "id": 6862,
+    "sender": "ErnestoCuesy",
+    "content": "Workaround worked... thank you!",
+    "createdAt": "2019-06-06T15:01:07Z"
+  },
+  {
+    "id": 6863,
+    "sender": "Klazyo",
+    "content": "Tank you for da tamporary Fix brada ",
+    "createdAt": "2019-06-06T15:01:58Z"
+  },
+  {
+    "id": 6864,
+    "sender": "K41t0uK1dd0",
+    "content": "Same issue. Huge thanks!",
+    "createdAt": "2019-06-06T15:06:18Z"
+  },
+  {
+    "id": 6865,
+    "sender": "pcdavis",
+    "content": "I don't know if I'm the only one, but I find myself spending an extraordinary amount of time getting Flutter and Android Studio emulator to work on a fairly regular basis. It's really killing the productivity promise of Flutter.",
+    "createdAt": "2019-06-06T15:16:15Z"
+  },
+  {
+    "id": 6866,
+    "sender": "attawit",
+    "content": "> Have you already tested it with AndroidX?\r\n\r\nAndroidX also got this problems",
+    "createdAt": "2019-06-06T15:20:02Z"
+  },
+  {
+    "id": 6867,
+    "sender": "Alfie-AD",
+    "content": "> I don't know if I'm the only one, but I find myself spending an extraordinary amount of time getting Flutter and Android Studio emulator to work on a fairly regular basis. It's really killing the productivity promise of Flutter.\r\n\r\nVery true. But i guess flutter is still fairly new and these bugs can be forgiven. Future still bright.",
+    "createdAt": "2019-06-06T15:43:08Z"
+  },
+  {
+    "id": 6868,
+    "sender": "LuHang0315",
+    "content": "唉~无语了...",
+    "createdAt": "2019-06-06T15:52:06Z"
+  },
+  {
+    "id": 6869,
+    "sender": "LuHang0315",
+    "content": "本来正写的好好的，莫名其妙的就出现这个问题，突然就不能运行了....Error retrieving device properties for ro.product.cpu.abi:  而且在中文网站上现在还找不到解决方案....",
+    "createdAt": "2019-06-06T15:53:13Z"
+  },
+  {
+    "id": 6870,
+    "sender": "LuHang0315",
+    "content": "> I don't know if I'm the only one, but I find myself spending an extraordinary amount of time getting Flutter and Android Studio emulator to work on a fairly regular basis. It's really killing the productivity promise of Flutter.\r\n\r\n我也这样认为的....但是我仍然很看好Flutter",
+    "createdAt": "2019-06-06T15:55:37Z"
+  },
+  {
+    "id": 6871,
+    "sender": "vivek7374",
+    "content": "since yesterday i got this problem and until now  i'm unable to fix. here is my flutter doctor -v\r\n\r\n`[√] Flutter (Channel beta, v1.6.3, on Microsoft Windows [Version 10.0.17134.765], locale en-US)\r\n    • Flutter version 1.6.3 at E:\\flutter\r\n    • Framework revision bc7bc94083 (2 weeks ago), 2019-05-23 10:29:07 -0700\r\n    • Engine revision 8dc3a4cde2\r\n    • Dart version 2.3.2 (build 2.3.2-dev.0.0 e3edfd36b2)\r\n\r\n\r\nChecking Android licenses is taking an unexpectedly long time...\\Error retrieving device properties for ro.product.cpu.abi:\r\n                                                                                                  [√] Android toolchain - develop for Android devices (Android SDK\r\nversion 28.0.3)\r\n    • Android SDK at C:\\Users\\Vivek\\AppData\\Local\\Andriod\\sdk\\\r\n    • Android NDK location not configured (optional; useful for native profiling support)\r\n    • Platform android-28, build-tools 28.0.3\r\n    • ANDROID_HOME = C:\\Users\\Vivek\\AppData\\Local\\Andriod\\sdk\\\r\n    • Java binary at: C:\\Program Files\\Android\\Android Studio\\jre\\bin\\java\r\n    • Java version OpenJDK Runtime Environment (build 1.8.0_152-release-1343-b01)\r\n    • All Android licenses accepted.\r\n\r\n[√] Android Studio (version 3.4)\r\n    • Android Studio at C:\\Program Files\\Android\\Android Studio\r\n    • Flutter plugin version 36.0.1\r\n    • Dart plugin version 183.6270\r\n    • Java version OpenJDK Runtime Environment (build 1.8.0_152-release-1343-b01)\r\n\r\n[√] VS Code, 64-bit edition (version 1.34.0)\r\n    • VS Code at C:\\Program Files\\Microsoft VS Code\r\n    • Flutter extension version 2.23.0\r\n\r\n[√] Connected device (1 available)\r\n    • MI MAX 2 • 192.168.1.100:5555 • android-arm • Android null (API null)\r\n\r\n• No issues found!\r\n`",
+    "createdAt": "2019-06-06T17:59:15Z"
+  },
+  {
+    "id": 6872,
+    "sender": "wesetiawan",
+    "content": "> > @hybrayhem38\r\n> > Try this (if you using windows).\r\n> > \r\n> > 1. Download  http://dl-ssl.google.com/android/repository/platform-tools_r28.0.2-windows.zip\r\n> > 2. Close Android Studio\r\n> > 3. Open command prompt & run this >> taskkill /f /im adb.exe\r\n> > 4. Move old platform-tools folder somewhere else (as a backup).\r\n> > 5. Extract platform-tools_r28.0.2-windows.zip to old path\r\n> > 6. Open Android Studio and it should work again\r\n> > \r\n> > @vanlooverenkoen\r\n> > Thank you for your fix. It works!\r\n>\r\n>\r\n>\r\n Work on me thx ",
+    "createdAt": "2019-06-06T18:14:02Z"
+  },
+  {
+    "id": 6873,
+    "sender": "kavinraju",
+    "content": "**Error retrieving device properties for ro.product.cpu.abi:**\r\nHow to fix this issue?\r\n![Capture](https://user-images.githubusercontent.com/24537737/59059055-aaf5ad00-88bb-11e9-9e5d-174ae36dffba.JPG)\r\n",
+    "createdAt": "2019-06-06T19:02:32Z"
+  },
+  {
+    "id": 6874,
+    "sender": "kavinraju",
+    "content": "> @hybrayhem38\r\n> Try this (if you using windows).\r\n> \r\n> 1. Download  http://dl-ssl.google.com/android/repository/platform-tools_r28.0.2-windows.zip\r\n> 2. Close Android Studio\r\n> 3. Open command prompt & run this >> taskkill /f /im adb.exe\r\n> 4. Move old platform-tools folder somewhere else (as a backup).\r\n> 5. Extract platform-tools_r28.0.2-windows.zip to old path\r\n> 6. Open Android Studio and it should work again\r\n> \r\n> @vanlooverenkoen\r\n> Thank you for your fix. It works!\r\n\r\nIs this a permanent and actually solution?",
+    "createdAt": "2019-06-06T19:05:34Z"
+  },
+  {
+    "id": 6875,
+    "sender": "vanlooverenkoen",
+    "content": "@kavinraju the sollution is located in one of the first comments. And @aam has merged a pr",
+    "createdAt": "2019-06-06T19:05:59Z"
+  },
+  {
+    "id": 6876,
+    "sender": "PhilParisot",
+    "content": "Will the fix be pushed on the Stable branch?",
+    "createdAt": "2019-06-06T19:07:38Z"
+  },
+  {
+    "id": 6877,
+    "sender": "kavinraju",
+    "content": "Thanks a lot, the issue is fixed. :)",
+    "createdAt": "2019-06-06T19:24:33Z"
+  },
+  {
+    "id": 6878,
+    "sender": "vvinogradsky",
+    "content": "After the upgrade adb.exe would keep crashing non stop.\r\nDowngrading platform tools to 28.0.2 saved me! What a scare!",
+    "createdAt": "2019-06-06T19:28:54Z"
+  },
+  {
+    "id": 6879,
+    "sender": "genX-flutter",
+    "content": "Thanks, was suffering from this since morning. finally resolved. Big thanks :)",
+    "createdAt": "2019-06-06T19:53:52Z"
+  },
+  {
+    "id": 6880,
+    "sender": "jotisa",
+    "content": "Hi! Did anyone try adb.exe v 28.0.3?",
+    "createdAt": "2019-06-06T20:08:56Z"
+  },
+  {
+    "id": 6881,
+    "sender": "bhurlbert",
+    "content": "I just ran into this.  Thanks for the solutions above!  Fortunately, I didn't have to spend much time on it thanks to the  solutions and comments here in the last 24 hours.\r\n\r\nOne comment regarding emulator performance caught my eye, because i had some performance issues in the beginning too. I am using _Windows_ and I was developing with _Flutter_ on a beefy laptop, but it wasn't enough.  I experienced difficulty keeping the emulators running, rebooting etc.  \r\n\r\nMy unsolicited advice? Get a **powerful** workstation if you can and you will love developing in _Flutter_ again. This is what I replaced my laptop with a month ago and it changed my Flutter dev life immediately. :) \r\n\r\n**Intel(R) Core(TM) i7-8700 CPU @ 3.20GHz, 3192 Mhz, 6 Core(s), 12 Logical Processor(s)**\r\n_Installed Physical Memory (RAM)\t32.0 GB\r\nTotal Physical Memory\t31.8 GB\r\nAvailable Physical Memory\t20.3 GB\r\nTotal Virtual Memory\t57.9 GB\r\nAvailable Virtual Memory\t41.9 GB\r\nPage File Space\t26.1 GB_\r\n_Hyper-V - VM Monitor Mode Extensions\tYes\r\nHyper-V - Second Level Address Translation Extensions\tYes\r\nHyper-V - Virtualization Enabled in Firmware\tYes\r\nHyper-V - Data Execution Protection\tYes_\r\n\r\n",
+    "createdAt": "2019-06-06T20:19:09Z"
+  },
+  {
+    "id": 6882,
+    "sender": "shariful2011",
+    "content": "Same here, flutter doctor shows the issue:\r\nDoctor summary (to see all details, run flutter doctor -v):\r\n[√] Flutter (Channel stable, v1.5.4-hotfix.2, on Microsoft Windows [Version 10.0.17763.503], locale en-GB)\r\n\r\nChecking Android licenses is taking an unexpectedly long time...\\**Error retrieving device properties for ro.product.cpu.abi:**\r\n\r\n[√] Android toolchain - develop for Android devices (Android SDK version 28.0.3)\r\n[√] Android Studio (version 3.4)\r\n[√] VS Code (version 1.35.0)\r\n[√] Connected device (1 available)\r\n\r\n• No issues found!",
+    "createdAt": "2019-06-06T21:06:18Z"
+  },
+  {
+    "id": 6883,
+    "sender": "aam",
+    "content": "@shariful2011 wrote:\r\n\r\n> Same here, flutter doctor shows the issue:\r\n> [√] Flutter (Channel stable, v1.5.4-hotfix.2, on Microsoft Windows [Version 10.0.17763.503], locale en-GB)\r\n\r\nThe fix for this landed on master branch of flutter only at this point, will take time to percolate through the (dev/beta/stable) channels per https://github.com/flutter/flutter/wiki/Release-process.\r\nYour options as things stand right now are either to switch to master channel of flutter or go back to 28.0.2 of android platform tools as folks suggested above (https://github.com/flutter/flutter/issues/33938#issuecomment-499250288)\r\n",
+    "createdAt": "2019-06-06T21:14:44Z"
+  },
+  {
+    "id": 6884,
+    "sender": "shariful2011",
+    "content": "thanks @aam, after I changed my channel the issue solved. Now I have 1.7.3-pre31",
+    "createdAt": "2019-06-06T21:41:40Z"
+  },
+  {
+    "id": 6885,
+    "sender": "cgarrido8102",
+    "content": "![flutter doctor](https://user-images.githubusercontent.com/45719703/59074208-78868880-8898-11e9-8388-ae2df359edbe.PNG)\r\n\r\n\r\nError I am getting when running flutter doctor",
+    "createdAt": "2019-06-07T00:20:29Z"
+  },
+  {
+    "id": 6886,
+    "sender": "langaro",
+    "content": "Just had the same problem. Downgrading to 28 fix it.",
+    "createdAt": "2019-06-07T00:20:47Z"
+  },
+  {
+    "id": 6887,
+    "sender": "garyng",
+    "content": "So, to sum up (https://github.com/flutter/flutter/issues/33938#issuecomment-499670279):\r\n1. downgrade platform tools to v28 (https://github.com/flutter/flutter/issues/33938#issuecomment-499250288)\r\n2. switch to master channel of flutter:\r\n```\r\nflutter channel master\r\nflutter doctor\r\n```\r\n🎉 ",
+    "createdAt": "2019-06-07T02:08:04Z"
+  },
+  {
+    "id": 6888,
+    "sender": "vivek7374",
+    "content": "it works thanks to all.",
+    "createdAt": "2019-06-07T02:46:40Z"
+  },
+  {
+    "id": 6889,
+    "sender": "aam",
+    "content": "Here are some more details on the issue and the fix that landed:\r\n\r\nUnderlying problem is that in recently released platform-tools 29.0.0 `adb.exe shell ...`, that flutter uses on Windows, returns \"heap corruption\"  -1073740940 (0xc0000374) exit code on every invocation.\r\nNormally flutter expect 0 exit code indicating successful completion of the `adb.exe shell` command, so non-zero exit code stops flutter tools early on in application compilation/deployment process.\r\n\r\nThe fix https://github.com/flutter/flutter/pull/33951 makes flutter to ignore this error code as adb.exe seems to be doing all the right things(except of the setting exit code to 0).",
+    "createdAt": "2019-06-07T03:06:34Z"
+  },
+  {
+    "id": 6890,
+    "sender": "sarahpoehler4",
+    "content": "Switching to master did not work. Downgrade sdk did not work. Problems over problems.",
+    "createdAt": "2019-06-07T09:56:36Z"
+  },
+  {
+    "id": 6891,
+    "sender": "GustavoContreiras",
+    "content": "> \r\n> \r\n> Switching to master did not work. Downgrade sdk did not work. Problems over problems.\r\n\r\nGot this problem just now. Solved by downloading `http://dl-ssl.google.com/android/repository/platform-tools_r28.0.2-windows.zip` and replacing\r\n\r\n![image](https://user-images.githubusercontent.com/38460351/59099194-e19de880-88f8-11e9-8294-5e09d6ace4c6.png)\r\n\r\nMake sure you restarted vscode / command prompt",
+    "createdAt": "2019-06-07T10:50:46Z"
+  },
+  {
+    "id": 6892,
+    "sender": "sarahpoehler4",
+    "content": "I tried to replace platform tools. Nothing changed. I am using Android Studio.",
+    "createdAt": "2019-06-07T11:02:47Z"
+  },
+  {
+    "id": 6893,
+    "sender": "francyfre",
+    "content": "i replace platform tools: 28.0.1, 28.0.2 and 28.0.3... try to restart ADB:   adb kill-server    and    adb start-server\r\n\r\nNOTHING IS CHANGE! flutter run dont GO for the first problem here up!!! flutter doctor tell me:\r\n\"Checking Android licenses is taking an unexpectedly long time...-Error retrieving device properties for ro.product.cpu.abi:\"\r\n\r\nNOW I finish all my idea! \r\n\r\nthank\r\nFrancyfre",
+    "createdAt": "2019-06-07T11:09:38Z"
+  },
+  {
+    "id": 6894,
+    "sender": "GustavoContreiras",
+    "content": "@sarahpoehler4 try run through command prompt/terminal with flutter doctor -v and flutter run on your project folder. If that solves, try clean generated files/folder from your project with flutter clean or deleting .gradle folder",
+    "createdAt": "2019-06-07T11:12:39Z"
+  },
+  {
+    "id": 6895,
+    "sender": "Alfie-AD",
+    "content": "> I tried to replace platform tools. Nothing changed. I am using Android Studio.\r\n\r\nIf this was the only error you a having then the solutions should fix it.\r\nAre you still getting THE SAME error?\r\nDid you close android studio before replacing the platform tools folder, or atleast restart after?\r\nRunning flutter clean in terminal helps.\r\nPost your error report\r\n",
+    "createdAt": "2019-06-07T11:19:16Z"
+  },
+  {
+    "id": 6896,
+    "sender": "francyfre",
+    "content": "when i run project, from flutter run on CMD... system give me this error:Error retrieving device properties for ro.product.cpu.abi:\r\n\r\nafter finish with same error upstairs here!",
+    "createdAt": "2019-06-07T11:22:48Z"
+  },
+  {
+    "id": 6897,
+    "sender": "shariful2011",
+    "content": "I did git pull(if you are far behind from version), flutter channel master and flutter doctor, problem solved. Try these 3.",
+    "createdAt": "2019-06-07T11:27:20Z"
+  },
+  {
+    "id": 6898,
+    "sender": "francyfre",
+    "content": "probably yess... why is need to change branch?",
+    "createdAt": "2019-06-07T11:30:43Z"
+  },
+  {
+    "id": 6899,
+    "sender": "shariful2011",
+    "content": "because stable branch needs some times so that's why change to latest master.",
+    "createdAt": "2019-06-07T11:38:28Z"
+  },
+  {
+    "id": 6900,
+    "sender": "francyfre",
+    "content": "@shariful2011  you HAVE REASON... i solve my problem!!\r\n\r\nrepeat for all:\r\n_cmd on Flutter folder\r\n_git pull\r\n_flutter channel master\r\n_flucter doctor\r\n\r\nand all problem is solved!! thankSoMuch @shariful2011 ",
+    "createdAt": "2019-06-07T11:43:01Z"
+  },
+  {
+    "id": 6901,
+    "sender": "sarahpoehler4",
+    "content": "after switching to flutter master I get this error: \r\nbash: /c/Users/flutter/bin/flutter: No such file or directory\r\n\r\n\r\n\r\n",
+    "createdAt": "2019-06-07T12:13:33Z"
+  },
+  {
+    "id": 6902,
+    "sender": "AnthonyMansour",
+    "content": "https://github.com/flutter/flutter/issues/33938#issuecomment-499841930 worked for me. Thanks!",
+    "createdAt": "2019-06-07T13:35:29Z"
+  },
+  {
+    "id": 6903,
+    "sender": "kleinstein",
+    "content": "i had the same problem. \r\nAfter i only changed the channel to master without downgrading platform tools to v28, it also works fine.\r\n(the default channel was origin, i think...)\r\n",
+    "createdAt": "2019-06-07T14:30:35Z"
+  },
+  {
+    "id": 6904,
+    "sender": "sarahpoehler4",
+    "content": "after switching to master the flutter directory isnt ascertainable.",
+    "createdAt": "2019-06-07T15:04:32Z"
+  },
+  {
+    "id": 6905,
+    "sender": "kleinstein",
+    "content": "> \r\n> \r\n> after switching to master the flutter directory isnt ascertainable.\r\n\r\n-> well.. you can change it again from master to stable..",
+    "createdAt": "2019-06-07T15:30:10Z"
+  },
+  {
+    "id": 6906,
+    "sender": "sarahpoehler4",
+    "content": "no I can't. bash: /c/Users/flutter/bin/flutter: No such file or directory\r\nAfter the webview issue now this issue...",
+    "createdAt": "2019-06-07T16:20:03Z"
+  },
+  {
+    "id": 6907,
+    "sender": "TikoZiko",
+    "content": "Thank you guys 👍 for saving me.\r\nI was about to go crazy, tried everything from upgrading Platform to reinstalling Android Studio.... \r\n\r\nNow, I receive a msg that Android SDK Platform-tools are ready to be upgraded. :)  Guess we should ignore this until further notice from the flutter team about the permanent fix.\r\n",
+    "createdAt": "2019-06-07T16:53:46Z"
+  },
+  {
+    "id": 6908,
+    "sender": "rubenmarcuspaschoarelli",
+    "content": "Its worked ! I am used platform-tools_r28.0.2-windows\r\nThanks!",
+    "createdAt": "2019-06-07T19:29:40Z"
+  },
+  {
+    "id": 6909,
+    "sender": "aaugmentum",
+    "content": "Thanks a lot)",
+    "createdAt": "2019-06-07T20:48:38Z"
+  },
+  {
+    "id": 6910,
+    "sender": "ahmetozde",
+    "content": "Downgrading to r28.0.2 fixed my problem. Thanks a lot..",
+    "createdAt": "2019-06-07T23:32:19Z"
+  },
+  {
+    "id": 6911,
+    "sender": "Delfin333",
+    "content": "> i had the same problem.\r\n> After i only changed the channel to master without downgrading platform tools to v28, it also works fine.\r\n> (the default channel was origin, i think...)\r\n\r\nThanks.. It's works for me too..",
+    "createdAt": "2019-06-08T01:14:17Z"
+  }
+]

@@ -1,0 +1,386 @@
+[
+  {
+    "id": 1920,
+    "sender": "bleroux",
+    "content": "Totally in favor of `RawMenuPanel` proposal for the reasons you mentioned:\r\n\r\n> This would provide the semantics and positioning used by the default menu, while allowing the panel to be customized. It would also simplify the creation of a custom animated menu using the default positioning.",
+    "createdAt": "2024-12-20T08:03:43Z"
+  },
+  {
+    "id": 1921,
+    "sender": "davidhicks980",
+    "content": "> For now I'm focusing on API design (instead of implementation) and I'm not convinced that the current design, where `RawMenuAnchor` has 3 variations is the way to go.\r\n> \r\n> My proposal is:\r\n> \r\n> * Separate `.node` out as an individual widget\r\n> * Make `RawMenuAnchor.overlayBuilder` the primary, or even the only, constructor.\r\n> * Make the current default constructor delegate to `.overlayBuilder`.\r\n\r\nSeparating out the .node class makes sense to me. The only reason it's kept is to make it less confusing (all RawMenuAnchors can be found in the same class), but if that's more confusing then we can separate it out.\r\n\r\nMy push back to 2 and 3:\r\n\r\nSay you want to make a menu, but something about the Material menu isn't adequate. Maybe you want to customize animations, or the backdrop, or you want to use a CustomScrollView rather than a SingleChildScrollView to enable sliver usage in your menu panel.\r\n\r\nExample:\r\n\r\nhttps://github.com/user-attachments/assets/7b48a7f6-87b0-4f44-96f4-c88e82ed44e7\r\n\r\nThe RawMenuAnchor default constructor allows you to achieve this with only a few lines of code:\r\n<details><summary>With default constructor</summary>\r\n\r\n```dart\r\nRawMenuAnchor(\r\n  controller: controller,\r\n  panel: ConstrainedBox(\r\n    constraints: const BoxConstraints(maxWidth: 120, maxHeight: 200),\r\n    child: Material(\r\n      borderRadius: BorderRadius.circular(8),\r\n      clipBehavior: Clip.antiAlias,\r\n      elevation: 8,\r\n      color: Colors.white,\r\n      child: CustomScrollView(\r\n        slivers: <Widget>[\r\n          for (int i = 0; i < 10; i++)\r\n            SliverMainAxisGroup(\r\n              slivers: <Widget>[\r\n                PinnedHeaderSliver(\r\n                  child: Container(\r\n                    padding: const EdgeInsets.all(8),\r\n                    decoration: BoxDecoration(\r\n                      color: Colors.grey[100],\r\n                      border: Border(\r\n                        bottom: BorderSide(\r\n                          color: Colors.grey[300]!,\r\n                        ),\r\n                      ),\r\n                    ),\r\n                    child: Text(\r\n                      'Header $i',\r\n                      style: Theme.of(context).textTheme.labelSmall,\r\n                    ),\r\n                  ),\r\n                ),\r\n                SliverList(\r\n                  delegate: SliverChildListDelegate(\r\n                    <Widget>[\r\n                      for (int j = 0; j < 10; j++)\r\n                        MenuItemButton(\r\n                          onPressed: () => _handlePressed('Item ${i * 10 + j}'),\r\n                          child: Text('Item ${i * 10 + j}'),\r\n                        ),\r\n                    ],\r\n                  ),\r\n                ),\r\n              ],\r\n            ),\r\n        ],\r\n      ),\r\n    ),\r\n  ),\r\n  builder: (\r\n    BuildContext context,\r\n    MenuController controller,\r\n    Widget? child,\r\n  ) {\r\n    return TextButton(\r\n      onPressed: () {\r\n        if (controller.isOpen) {\r\n          controller.close();\r\n        } else {\r\n          controller.open();\r\n        }\r\n      },\r\n      child: const Text('Edit'),\r\n    );\r\n  },\r\n);\r\n```\r\n\r\n</details>\r\n\r\nUsers don't have to worry about accessibility, positioning, or any implementation details that go into building a menu fit for production. In all of my own projects, I use this constructor.\r\n\r\nTo achieve the same thing without the default constructor would look more like this:\r\n(Note - I actually left out focus management because it was getting to be too long)\r\n\r\n<details><summary>With overlayBuilder</summary>\r\n\r\n```dart\r\n  RawMenuAnchor.overlayBuilder(\r\n  controller: controller,\r\n  builder: (\r\n    BuildContext context,\r\n    MenuController controller,\r\n    Widget? child,\r\n  ) {\r\n    return TextButton(\r\n      onPressed: () {\r\n        if (controller.isOpen) {\r\n          controller.close();\r\n        } else {\r\n          controller.open();\r\n        }\r\n      },\r\n      child: const Text('Edit'),\r\n    );\r\n  },\r\n  overlayBuilder: (BuildContext context, RawMenuAnchorOverlayPosition position) {\r\n    final MenuController menuController = MenuController.maybeOf(context)!;\r\n    final Widget panel = Semantics.fromProperties(\r\n      explicitChildNodes: true,\r\n      properties: const SemanticsProperties(\r\n        scopesRoute: true,\r\n        label: 'Menu overlay',\r\n      ),\r\n      child: TapRegion(\r\n        groupId: position.tapRegionGroupId,\r\n        consumeOutsideTaps: true,\r\n        onTapOutside: (PointerDownEvent event) {\r\n          menuController.close();\r\n        },\r\n        child: FocusScope(\r\n          skipTraversal: true,\r\n          descendantsAreFocusable: true,\r\n          child: Actions(\r\n            actions: const <Type, Action<Intent>>{\r\n              // Focus management\r\n            },\r\n            child: Shortcuts(\r\n              shortcuts: const <ShortcutActivator, Intent>{\r\n                SingleActivator(LogicalKeyboardKey.gameButtonA): ActivateIntent(),\r\n                SingleActivator(LogicalKeyboardKey.escape): DismissIntent(),\r\n                SingleActivator(LogicalKeyboardKey.arrowDown):\r\n                    DirectionalFocusIntent(TraversalDirection.down),\r\n                SingleActivator(LogicalKeyboardKey.arrowUp):\r\n                    DirectionalFocusIntent(TraversalDirection.up),\r\n                SingleActivator(LogicalKeyboardKey.arrowLeft):\r\n                    DirectionalFocusIntent(TraversalDirection.left),\r\n                SingleActivator(LogicalKeyboardKey.arrowRight):\r\n                    DirectionalFocusIntent(TraversalDirection.right),\r\n              },\r\n              child: ConstrainedBox(\r\n                constraints: const BoxConstraints(maxWidth: 120, maxHeight: 200),\r\n                child: Material(\r\n                  borderRadius: BorderRadius.circular(8),\r\n                  clipBehavior: Clip.antiAlias,\r\n                  elevation: 8,\r\n                  color: Colors.white,\r\n                  child: CustomScrollView(\r\n                    slivers: <Widget>[\r\n                      for (int i = 0; i < 10; i++)\r\n                        SliverMainAxisGroup(\r\n                          slivers: <Widget>[\r\n                            PinnedHeaderSliver(\r\n                              child: Container(\r\n                                padding: const EdgeInsets.all(8),\r\n                                decoration: BoxDecoration(\r\n                                  color: Colors.grey[100],\r\n                                  border: Border(\r\n                                    bottom: BorderSide(\r\n                                      color: Colors.grey[300]!,\r\n                                    ),\r\n                                  ),\r\n                                ),\r\n                                child: Text(\r\n                                  'Header $i',\r\n                                  style: Theme.of(context).textTheme.labelSmall,\r\n                                ),\r\n                              ),\r\n                            ),\r\n                            SliverList(\r\n                              delegate: SliverChildListDelegate(\r\n                                <Widget>[\r\n                                  for (int j = 0; j < 10; j++)\r\n                                    MenuItemButton(\r\n                                      onPressed: () =>\r\n                                          _handlePressed('Item ${i * 10 + j}'),\r\n                                      child: Text('Item ${i * 10 + j}'),\r\n                                    ),\r\n                                ],\r\n                              ),\r\n                            ),\r\n                          ],\r\n                        ),\r\n                    ],\r\n                  ),\r\n                ),\r\n              ),\r\n            ),\r\n          ),\r\n        ),\r\n      ),\r\n    );\r\n\r\n    return ConstrainedBox(\r\n      constraints: BoxConstraints.loose(position.overlaySize),\r\n      child: Builder(\r\n        builder: (BuildContext context) {\r\n          final MediaQueryData mediaQuery = MediaQuery.of(context);\r\n          final TextDirection textDirection = Directionality.of(context);\r\n          return CustomSingleChildLayout(\r\n            delegate: _MenuLayout(\r\n              screenPadding: mediaQuery.padding,\r\n              padding: EdgeInsets.zero,\r\n              avoidBounds: DisplayFeatureSubScreen.avoidBounds(mediaQuery).toSet(),\r\n              textDirection: textDirection,\r\n              anchorRect: position.anchorRect,\r\n              alignmentOffset: Offset.zero,\r\n              menuPosition: position.position,\r\n              menuAlignment: AlignmentDirectional.topStart,\r\n              alignment: AlignmentDirectional.bottomStart,\r\n            ),\r\n            child: panel,\r\n          );\r\n        },\r\n      ),\r\n    );\r\n  },\r\n);\r\n\r\nclass _MenuLayout extends SingleChildLayoutDelegate {\r\n  const _MenuLayout({\r\n    required this.alignmentOffset,\r\n    required this.anchorRect,\r\n    required this.screenPadding,\r\n    required this.avoidBounds,\r\n    required this.alignment,\r\n    required this.menuAlignment,\r\n    required this.textDirection,\r\n    required EdgeInsetsGeometry? padding,\r\n    this.menuPosition,\r\n  }) : menuPadding = padding;\r\n\r\n  final ui.Rect anchorRect;\r\n  final ui.Offset alignmentOffset;\r\n  final ui.Offset? menuPosition;\r\n  final EdgeInsets screenPadding;\r\n  final EdgeInsetsGeometry? menuPadding;\r\n  final Set<Rect> avoidBounds;\r\n  final AlignmentGeometry alignment;\r\n  final AlignmentGeometry menuAlignment;\r\n  final ui.TextDirection textDirection;\r\n\r\n  Rect _findClosestScreen(Size parentSize, Offset point, Set<Rect> avoidBounds) {\r\n    final Iterable<ui.Rect> screens = DisplayFeatureSubScreen.subScreensInBounds(\r\n      Offset.zero & parentSize,\r\n      avoidBounds,\r\n    );\r\n\r\n    Rect closest = screens.first;\r\n    for (final ui.Rect screen in screens.skip(1)) {\r\n      if ((screen.center - point).distanceSquared < (closest.center - point).distanceSquared) {\r\n        closest = screen;\r\n      }\r\n    }\r\n\r\n    return closest;\r\n  }\r\n\r\n  Offset _fitInsideScreen(\r\n    Rect screen,\r\n    Size childSize,\r\n    Offset position,\r\n    Offset anchorPosition,\r\n  ) {\r\n    final EdgeInsets? padding = menuPadding?.resolve(textDirection);\r\n    final Rect anchor = menuPosition == null ? anchorRect : anchorPosition & Size.zero;\r\n\r\n    double x = position.dx;\r\n    double y = position.dy;\r\n\r\n    bool overLeftEdge(double x) => x < screen.left;\r\n    bool overRightEdge(double x) => x > screen.right - childSize.width;\r\n    bool overTopEdge(double y) => y < screen.top;\r\n    bool overBottomEdge(double y) => y > screen.bottom - childSize.height;\r\n\r\n    bool hasHorizontalAnchorOverlap = childSize.width >= screen.width;\r\n    if (hasHorizontalAnchorOverlap) {\r\n      x = screen.left;\r\n    } else {\r\n      double? shiftX;\r\n      if (padding != null && padding.horizontal > 0) {\r\n        double ratio = (x - anchorPosition.dx) / childSize.width;\r\n        ratio = ui.clampDouble(ratio, -1, 0);\r\n        shiftX = padding.right * ratio + padding.left * (ratio + 1);\r\n        x -= shiftX;\r\n      }\r\n\r\n      if (overLeftEdge(x)) {\r\n        double flipX = anchor.center.dx * 2 - position.dx - childSize.width;\r\n        if (shiftX != null) {\r\n          flipX -= padding!.horizontal + shiftX;\r\n        }\r\n\r\n        hasHorizontalAnchorOverlap = overRightEdge(flipX);\r\n        if (hasHorizontalAnchorOverlap || overLeftEdge(flipX)) {\r\n          x = screen.left;\r\n        } else {\r\n          x = flipX;\r\n        }\r\n      } else if (overRightEdge(x)) {\r\n        double flipX = anchor.center.dx * 2 - position.dx - childSize.width;\r\n        if (shiftX != null) {\r\n          flipX += padding!.horizontal - shiftX;\r\n        }\r\n\r\n        hasHorizontalAnchorOverlap = overLeftEdge(flipX);\r\n        if (hasHorizontalAnchorOverlap || overRightEdge(flipX)) {\r\n          x = screen.right - childSize.width;\r\n        } else {\r\n          x = flipX;\r\n        }\r\n      }\r\n    }\r\n\r\n    if (childSize.height >= screen.height) {\r\n      return Offset(x, screen.top);\r\n    }\r\n\r\n    if (hasHorizontalAnchorOverlap && !anchor.isEmpty) {\r\n      final double below = anchor.bottom - y;\r\n      final double above = y + childSize.height - anchor.top;\r\n      if (below > 0 && above > 0) {\r\n        if (below > above) {\r\n          y = anchor.top - childSize.height;\r\n        } else {\r\n          y = anchor.bottom;\r\n        }\r\n      }\r\n    }\r\n\r\n    double? shiftY;\r\n    if (padding != null && padding.vertical > 0) {\r\n      double ratio = (y - anchorPosition.dy) / childSize.height;\r\n      ratio = ui.clampDouble(ratio, -1, 0);\r\n      shiftY = padding.bottom * ratio + padding.top * (ratio + 1);\r\n      y -= shiftY;\r\n    }\r\n\r\n    if (overTopEdge(y)) {\r\n      double flipY = anchor.center.dy * 2 - position.dy - childSize.height;\r\n      if (shiftY != null) {\r\n        flipY -= padding!.vertical + shiftY;\r\n      }\r\n\r\n      if (overTopEdge(flipY) || overBottomEdge(flipY)) {\r\n        y = screen.top;\r\n      } else {\r\n        y = flipY;\r\n      }\r\n    } else if (overBottomEdge(y)) {\r\n      double flipY = anchor.center.dy * 2 - position.dy - childSize.height;\r\n      if (shiftY != null) {\r\n        flipY += padding!.vertical - shiftY;\r\n      }\r\n\r\n      if (overTopEdge(flipY) || overBottomEdge(flipY)) {\r\n        y = screen.bottom - childSize.height;\r\n      } else {\r\n        y = flipY;\r\n      }\r\n    }\r\n\r\n    return Offset(x, y);\r\n  }\r\n\r\n  @override\r\n  BoxConstraints getConstraintsForChild(BoxConstraints constraints) {\r\n    return BoxConstraints.loose(constraints.biggest).deflate(screenPadding);\r\n  }\r\n\r\n  @override\r\n  Offset getPositionForChild(Size size, Size childSize) {\r\n    Offset anchorOffset;\r\n    if (menuPosition == null) {\r\n      anchorOffset = alignment.resolve(textDirection).withinRect(anchorRect);\r\n      anchorOffset += switch (textDirection) {\r\n        ui.TextDirection.ltr => alignmentOffset,\r\n        ui.TextDirection.rtl => alignment is AlignmentDirectional\r\n            ? Offset(-alignmentOffset.dx, alignmentOffset.dy)\r\n            : alignmentOffset,\r\n      };\r\n    } else {\r\n      anchorOffset = anchorRect.topLeft + menuPosition!;\r\n    }\r\n\r\n    final ui.Offset position =\r\n        anchorOffset - menuAlignment.resolve(textDirection).alongSize(childSize);\r\n\r\n    final Rect screen = _findClosestScreen(\r\n      size,\r\n      anchorRect.center,\r\n      avoidBounds,\r\n    );\r\n\r\n    return _fitInsideScreen(\r\n      screenPadding.deflateRect(screen),\r\n      childSize,\r\n      position,\r\n      anchorOffset,\r\n    );\r\n  }\r\n\r\n  @override\r\n  bool shouldRelayout(_MenuLayout oldDelegate) {\r\n    return anchorRect != oldDelegate.anchorRect ||\r\n        alignment != oldDelegate.alignment ||\r\n        alignmentOffset != oldDelegate.alignmentOffset ||\r\n        menuAlignment != oldDelegate.menuAlignment ||\r\n        menuPosition != oldDelegate.menuPosition ||\r\n        menuPadding != oldDelegate.menuPadding ||\r\n        screenPadding != oldDelegate.screenPadding ||\r\n        textDirection != oldDelegate.textDirection ||\r\n        !setEquals(avoidBounds, oldDelegate.avoidBounds);\r\n  }\r\n}\r\n```\r\n\r\n</details>\r\n\r\nSo, the reason why a default constructor exists is because its overkill for most users. Similar to how users use Widgets instead of RenderObjects, except in rare cases. \r\n  - The MenuAnchor() is out-of-the-box.\r\n  - RawMenuAnchor() is white label.\r\n  - RawMenuAnchor.overlayBuilder() is fully custom.\r\n",
+    "createdAt": "2025-01-15T08:26:03Z"
+  },
+  {
+    "id": 1922,
+    "sender": "dkwingsmt",
+    "content": "I can see that using the overlay builder requires a lot more code than the default constructor, but just like you providing `RawMenuAnchorPanel` for a \"default panel\", why don't we also quick default classes for the overlay and the other parts of the content (a11y, actions, etc)?\r\n\r\nIn fact, currently the `RawMenuAnchorPanel` class is kind of in a weird state. It's not needed for the default constructor, but not useful enough for the `overlayBuilder` constructor, which requires a ton of extra code besides it.\r\n\r\nDo you think it'd be useful and practical to do the follows?\r\n* Make a class for the default overlay, which contains positioning options available for the current default constructor\r\n* Either make a class for the non-displaying parts of the content (a11y, actions, etc) or merge them into `RawMenuAnchorPanel`\r\n\r\nThe intended result is that the current default constructor doesn't take many lines of code to implement using the `overlayBuilder` constructor.",
+    "createdAt": "2025-01-16T02:28:03Z"
+  },
+  {
+    "id": 1923,
+    "sender": "davidhicks980",
+    "content": "<details>\r\n<summary> \r\n> I can see that using the overlay builder requires a lot more code than the default constructor... </summary>\r\n\r\n> but just like you providing `RawMenuAnchorPanel` for a \"default panel\", why don't we also quick default classes for the overlay and the other parts of the content (a11y, actions, etc)?\r\n> In fact, currently the `RawMenuAnchorPanel` class is kind of in a weird state. It's not needed for the default constructor, but not useful enough for the `overlayBuilder` constructor, which requires a ton of extra code besides it.\r\n> \r\n> Do you think it'd be useful and practical to do the follows?\r\n> \r\n> * Make a class for the default overlay, which contains positioning options available for the current default constructor\r\n> * Either make a class for the non-displaying parts of the content (a11y, actions, etc) or merge them into `RawMenuAnchorPanel`\r\n> \r\n> The intended result is that the current default constructor doesn't take many lines of code to implement using the `overlayBuilder` constructor.\r\n</details>\r\n\r\nThat's actually similar with what the initial codebase looked like. It definitely would work. I was concerned with whether the Flutter team is okay with adding additional widgets to the widgets library, but if that's okay then something like this would be easy to implement:\r\n\r\n```dart\r\nRawMenuAnchor.overlayBuilder(\r\n  controller: controller,\r\n  overlayBuilder: (BuildContext context, RawMenuAnchorOverlayPosition position) {\r\n    return RawMenuOverlay(\r\n      position: position,\r\n      alignment: Alignment.topLeft,\r\n      menuAlignment: Alignment.topRight,\r\n      child: RawMenuSemantics(\r\n        semanticLabel: 'Menu',\r\n        consumeOutsideTaps: true,\r\n        tapRegionGroupId: position.tapRegionGroupId,\r\n        child: RawMenuPanel(\r\n          menuChildren: <Widget>[\r\n            MenuItemButton(\r\n              onPressed: () => _handlePressed('Cut'),\r\n              child: const Text('Cut'),\r\n            ),\r\n          ],\r\n        ),\r\n      ),\r\n    );\r\n  },\r\n),\r\n```\r\n\r\nThe only real annoyance is that a builder has to be provided rather than a widget, but, unless a delegate was provided or the position was resolved with an inherited widget, it'd be difficult to avoid the builder.\r\n\r\nI do still think there should be a default constructor that merges everything, because that's what I've reached for the most in practice. That said, I also understand if you'd prefer for it to be removed.\r\n\r\n```dart\r\nRawMenuAnchor(\r\n    controller: controller,\r\n    panel: RawMenuPanel(\r\n      menuChildren: <Widget>[\r\n        MenuItemButton(\r\n          onPressed: () => _handlePressed('Cut'),\r\n          child: const Text('Cut'),\r\n        ),\r\n      ],\r\n    ),\r\n  ),\r\n```\r\n\r\nAlso, I wish we could remove the \"Raw\" keyword but that'd mess with the Material menu anchor. Not sure if there's an alternative solution to that.\r\n ",
+    "createdAt": "2025-01-16T14:46:31Z"
+  },
+  {
+    "id": 1924,
+    "sender": "dkwingsmt",
+    "content": "> That's actually similar with what the initial codebase looked like. It definitely would work. I was concerned with whether the Flutter team is okay with adding additional widgets to the widgets library, but if that's okay then something like this would be easy to implement:\r\n\r\nThe snippet looks absolutely awesome! I don't mind adding more widgets at all (look at all the tiny widgets in `basic.dart` that does one thing), especially since the RawMenuAnchor series is a foundational module for themes to customize (or choose which part to write their own for), and therefore it's critical that it is modularized in a proper granularity, and this is exactly what I hoped for. (If there are more cases like this where splitting out another widget will allow better customizability and fewer private field referencing we should totally do it.)\r\n\r\n> I do still think there should be a default constructor that merges everything, because that's what I've reached for the most in practice.\r\n\r\nI'm not strong on the constructors now that the modularized widgets are provided. Although I still want a bit more discussion, specifically to confirm on the capability of the default constructor. I know you've prototyped the iOS drop down menu, so did you manage to do it with the default constructor? (In other words I think the iOS drop down menu is the extent of customizability that `RawMenuAnchor` should aim for.)",
+    "createdAt": "2025-01-16T21:18:56Z"
+  },
+  {
+    "id": 1925,
+    "sender": "dkwingsmt",
+    "content": "> unless a delegate was provided or the position was resolved with an inherited widget, it'd be difficult to avoid the builder.\r\n\r\nCan you briefly explain why the default constructor & panel solution managed to avoid relying on the position argument that's only available during building?",
+    "createdAt": "2025-01-16T21:25:03Z"
+  },
+  {
+    "id": 1926,
+    "sender": "davidhicks980",
+    "content": "> > unless a delegate was provided or the position was resolved with an inherited widget, it'd be difficult to avoid the builder.\r\n> \r\n> Can you briefly explain why the default constructor & panel solution managed to avoid relying on the position argument that's only available during building?\r\n\r\nIt doesn't avoid the position argument -- the builder is defined internally by defaultOverlayBuilder.",
+    "createdAt": "2025-01-16T23:47:47Z"
+  },
+  {
+    "id": 1927,
+    "sender": "davidhicks980",
+    "content": "> I'm not strong on the constructors now that the modularized widgets are provided. Although I still want a bit more discussion, specifically to confirm on the capability of the default constructor. I know you've prototyped the iOS drop down menu, so did you manage to do it with the default constructor? (In other words I think the iOS drop down menu is the extent of customizability that `RawMenuAnchor` should aim for.)\r\n\r\nNo, and I also couldn't use RawMenuOverlay or RawMenuSemantics. The Cupertino menu has strange behavior --  multiple tap regions are used and two layout passes are required. It can't use CustomSingleChildLayout for the same reason. I'm not sure if any solution outside of using layers directly (which is what it does) would work because there's a delay between anchor movement and overlay movement, so it can't even use the position parameter. But it's also the most complicated menu I've ever encountered, and Flutter is designed to make it challenging to implement (i.e. single pass layout). The overlayBuilder exists for people who want to write 5000 loc for a dropdown menu, which is very few people.\r\n\r\nSomething like a menu bar (https://menu-anchor.web.app/#/node) or a context menu (https://menu-anchor.web.app/#/context_menu) can be implemented with the default constructor, and with far less code than nested builders. When only providing the builder, users would either have to create an additional widget, or have to define a builder for each layer with RawMenuOverlay/RawMenuSemantics, which seems like a lot of additional code for a simple menu.\r\n\r\n",
+    "createdAt": "2025-01-17T01:11:14Z"
+  },
+  {
+    "id": 1928,
+    "sender": "dkwingsmt",
+    "content": "> No, and I also couldn't use RawMenuOverlay or RawMenuSemantics. The Cupertino menu has strange behavior -- multiple tap regions are used and two layout passes are required. It can't use CustomSingleChildLayout for the same reason. I'm not sure if any solution outside of using layers directly (which is what it does) would work because there's a delay between anchor movement and overlay movement, so it can't even use the position parameter. But it's also the most complicated menu I've ever encountered, and Flutter is designed to make it challenging to implement (i.e. single pass layout). The overlayBuilder exists for people who want to write 5000 loc for a dropdown menu, which is very few people.\r\n> \r\n> Something like a menu bar (https://menu-anchor.web.app/#/node) or a context menu (https://menu-anchor.web.app/#/context_menu) can be implemented with the default constructor, and with far less code than nested builders. When only providing the builder, users would either have to create an additional widget, or have to define a builder for each layer with RawMenuOverlay/RawMenuSemantics, which seems like a lot of additional code for a simple menu.\r\n\r\nNot being able to use RawMenuOverlay or RawMenuSemantics is expectable, since these basic widgets are meant for replacement in more complicated designs. As I said I'm mostly trying to understand the capability of the default constructor. I noticed that the material menu anchor has to use `.overlayBuilder` as well (it might be helpful if you can illustrate the reason.)\r\n\r\nIs it correct to think that the default constructor is adequate for basic menus, but is not sufficient for more established design languages?\r\n\r\nIf so, I'd like to insist that the first priority of `RawMenuAnchor` should not to be directly used for building the basic menus, but to serve as building blocks of theme libraries. App developers (not library developers) should be unlikely to use `RawMenuAnchor` directly, but use themed widgets such as material menu anchor or the iOS drop down menus, which should indeed provide a simple basic version. \r\n\r\nStill I think there can be a better balance between them. Do you think keeping the `defaultOverlayBuilder` public (possibly with even more customization options) will help with the LOC for a basic menu? Can you evaluate it?",
+    "createdAt": "2025-01-17T03:13:57Z"
+  },
+  {
+    "id": 1929,
+    "sender": "davidhicks980",
+    "content": "> Not being able to use RawMenuOverlay or RawMenuSemantics is expectable, since these basic widgets are meant for replacement in more complicated designs. As I said I'm mostly trying to understand the capability of the default constructor. I noticed that the material menu anchor has to use `.overlayBuilder` as well (it might be helpful if you can illustrate the reason.)\r\n> \r\n> Is it correct to think that the default constructor is adequate for basic menus, but is not sufficient for more established design languages?\r\n\r\n<details><summary>Response</summary>\r\nElaborate on established design systems? The default constructor doesn't define any appearance, only positioning and behavior, and behavior can be modified by adding a shortcuts widget around the panel. The RawMenuPanel is what is giving the examples an appearance, but it's optional and I wouldn't mind removing it completely.\r\n\r\nFor the MenuAnchor, we actually could use the default constructor. There are a few things preventing me from doing so on this commit:\r\n1. The commit is already huge, and I didn't want to add more changes.\r\n2. The RawMenuAnchor used to take a list of children instead of a panel.\r\n4. The MenuAnchor has a placement \"bug\" (it doesn't actually degrade function, but submenus can appear slightly misaligned when applying padding) because overflow flip handling doesn't account for padding or alignment.\r\n    - RawMenuAnchor handles padding by flipping over the anchor midpoint, which solves the problem for any conventional layout I've come across (https://menu-anchor.web.app/#/padding).\r\n    - This would require changing tests \r\n\r\nHonestly, it's mostly because this commit is so big. In fact, we could land the overlayBuilder then add the RawMenuPanel in later on, if that'd be simpler. Most tests use the default constructor because it basically just redirects to the overlayBuilder, but I could create a default constructor that only exists in RawMenuAnchorTest.dart.\r\n\r\nThere are also features that should probably be added to MenuAnchor from RawMenuAnchor to make it more more accessible/customizable, but I would need to add additional tests:\r\n- There is no way to align a menu based on a point relative to the menu surface, which RawMenuAnchor implements (menuAlignment).\r\n- Home/End don't focus the first/last menu items\r\n- Down/Up don't consistently focus the first/last menu items\r\n- There is no way to provide a semantic label around the menu's overlay\r\n- I _think_ MenuAnchor/Submenu could be merged into a single widget, but this is something that I need to investigate further.\r\n- MenuAnchor uses an optional CompositedTransformFollower? I think there's a plan to remove it due to a few bugs it caused. \r\n\r\nWhen using the OverlayBuilder, you have to manage all focus handling, so up/down do not always focus the first/last menu item when focusing from the anchor. Also, I just realized users would have to provide a flag regarding whether they want to handle their own focus, or have it be managed by the menu, even when providing a RawMenuSemantics widget. MenuAnchor already defined its own FocusScope, positioning, and tap region, so I left things as they were. That's also why there's duplicated logic between the two -- I don't want to mess with anything that can't be cleanly reverted.\r\n\r\n</details>\r\n\r\n> If so, I'd like to insist that the first priority of `RawMenuAnchor` should not to be directly used for building the basic menus, but to serve as building blocks of theme libraries. App developers (not library developers) should be unlikely to use `RawMenuAnchor` directly, but use themed widgets such as material menu anchor or the iOS drop down menus, which should indeed provide a simple basic version.\r\n\r\n\r\n<details><summary>Response</summary>\r\n\r\nFrom what I've observed, developers (and companies) explicitly ask for white label components to make it easier to implement their own design language. Some that I can think of:\r\n- React-aria (https://react-spectrum.adobe.com/react-aria/Menu.html#menu-1)\r\n- Angular CDK (https://material.angular.io/cdk/menu/examples#cdk-menu-menubar)\r\n- Lion (https://lion.js.org/components/select-rich/overview/)\r\n- Polymer Iron Components (https://www.webcomponents.org/element/@polymer/iron-dropdown/demo/demo/index.html)\r\n- Base UI (https://mui.com/base-ui/react-menu/)\r\n- Qt (https://doc.qt.io/qt-6/qtquickcontrols-menus.html)\r\n\r\nI intend for users to use the default constructor as a fully-featured, accessible base whose appearance can be fully customized by providing a custom panel. The RawMenuPanel widget itself (the panel widget used in examples) probably doesn't need to exist, but it provides an easy template that users can copy. It could be removed though.\r\n\r\n> Still I think there can be a better balance between them. Do you think keeping the `defaultOverlayBuilder` public (possibly with even more customization options) will help with the LOC for a basic menu? Can you evaluate it?\r\n> \r\nElaborate on this a bit. Right now, defaultOverlayBuilder is the default constructor's overlay builder, similar to AnimatedSwitcher.defaultTransitionBuilder, except that it can't be static since it relies on instance properties (i.e. the panel). It's basically a way of creating a redirecting constructor without losing parameter documentation. But I'm not sure how we could customize the defaultOverlayBuilder?\r\n\r\n</details>\r\n\r\nEdit: \r\n\r\nHere is the RawMenuAnchor overlay compared to the MenuAnchor overlay. I removed the menu style resolution because styles can be resolved above or below the RawMenuAnchor() widget. The only material-specific bit is the padding offset, which makes sure submenus align with their parents. This can be resolved in _MenuAnchorState and passed to RawMenuAnchor, which handles the offset). I'm pretty sure it can be completely replaced with the default constructor.\r\n\r\n<details><summary>RawMenuAnchor overlay</summary>\r\n\r\n```dart\r\nclass _MenuOverlay extends StatelessWidget {\r\n  const _MenuOverlay({\r\n    required this.alignmentOffset,\r\n    required this.alignment,\r\n    required this.menuAlignment,\r\n    required this.position,\r\n    required this.padding,\r\n    this.semanticLabel,\r\n    this.consumeOutsideTaps = true,\r\n    required this.child,\r\n  });\r\n\r\n  final Offset alignmentOffset;\r\n  final RawMenuAnchorOverlayPosition position;\r\n  final Widget child;\r\n  final EdgeInsetsGeometry? padding;\r\n  final bool consumeOutsideTaps;\r\n  final AlignmentGeometry? alignment;\r\n  final AlignmentGeometry? menuAlignment;\r\n  final String? semanticLabel;\r\n\r\n  static final Map<Type, Action<Intent>> _defaultOverlayActions = <Type, Action<Intent>>{\r\n    DirectionalFocusIntent: _OverlayDirectionalFocusAction(), // Focus nested menus\r\n    _FocusFirstMenuItemIntent: _FocusFirstMenuItemAction(),   // Focus first on home\r\n    _FocusLastMenuItemIntent: _FocusLastMenuItemAction(),     // Focus last on end\r\n  };\r\n\r\n  @override\r\n  Widget build(BuildContext context) {\r\n    final MenuController menuController = MenuController.maybeOf(context)!;\r\n    final _RawMenuAnchorOverlayState anchor = menuController._anchor! as _RawMenuAnchorOverlayState;\r\n\r\n    final Widget panel = Semantics.fromProperties(\r\n      explicitChildNodes: true,\r\n      properties: SemanticsProperties(\r\n        scopesRoute: true,\r\n        label: semanticLabel,\r\n      ),\r\n      // Mouse region is deliberately not included here because users can add it\r\n      // to their panel if they want to change the cursor.\r\n      child: TapRegion(\r\n        groupId: position.tapRegionGroupId,\r\n        consumeOutsideTaps: consumeOutsideTaps,\r\n        onTapOutside: (PointerDownEvent event) {\r\n          menuController.close();\r\n        },\r\n        child: FocusScope(\r\n          node: anchor._menuScopeNode,\r\n          skipTraversal: true,\r\n          descendantsAreFocusable: true,\r\n          child: Actions(\r\n            actions: _defaultOverlayActions,\r\n            child: Shortcuts(\r\n              shortcuts: <ShortcutActivator, Intent>{\r\n                SingleActivator(LogicalKeyboardKey.gameButtonA): ActivateIntent(),\r\n                SingleActivator(LogicalKeyboardKey.escape): DismissIntent(),\r\n                SingleActivator(LogicalKeyboardKey.tab): NextFocusIntent(),\r\n                SingleActivator(LogicalKeyboardKey.tab, shift: true): PreviousFocusIntent(),\r\n                SingleActivator(LogicalKeyboardKey.arrowDown):\r\n                    DirectionalFocusIntent(TraversalDirection.down),\r\n                SingleActivator(LogicalKeyboardKey.arrowUp):\r\n                    DirectionalFocusIntent(TraversalDirection.up),\r\n                // No left/right handling, but this can be added by children.\r\n              },\r\n              child: child,\r\n            ),\r\n          ),\r\n        ),\r\n      ),\r\n    );\r\n\r\n    return ConstrainedBox(\r\n      constraints: BoxConstraints.loose(position.overlaySize),\r\n      child: Builder(\r\n        builder: (BuildContext context) {\r\n          final MediaQueryData mediaQuery = MediaQuery.of(context);\r\n          final TextDirection textDirection = Directionality.of(context);\r\n          // Resolve fallback alignment here so that alignmentOffset defaults to\r\n          // being directionally-agnostic.\r\n          final AlignmentGeometry anchorAlignment = alignment ??\r\n              (anchor._isRootAnchor\r\n                      ? AlignmentDirectional.bottomStart\r\n                      : AlignmentDirectional.topEnd)\r\n                  .resolve(textDirection);\r\n          return CustomSingleChildLayout(\r\n            delegate: _MenuLayout(\r\n              screenPadding: mediaQuery.padding,\r\n              padding: padding,\r\n              avoidBounds: DisplayFeatureSubScreen.avoidBounds(mediaQuery).toSet(),\r\n              textDirection: textDirection,\r\n              anchorRect: position.anchorRect,\r\n              alignmentOffset: alignmentOffset,\r\n              menuPosition: position.position,\r\n              menuAlignment: menuAlignment ?? AlignmentDirectional.topStart,\r\n              alignment: anchorAlignment,\r\n            ),\r\n            child: panel,\r\n          );\r\n        },\r\n      ),\r\n    );\r\n  }\r\n}\r\n```\r\n\r\n</details>\r\n\r\n\r\n<details><summary>MenuAnchor</summary> \r\n\r\n```dart\r\nclass _Submenu extends StatelessWidget {\r\n  const _Submenu({\r\n    required this.anchor,\r\n    required this.layerLink,\r\n    required this.menuStyle,\r\n    required this.menuPosition,\r\n    required this.alignmentOffset,\r\n    required this.consumeOutsideTaps,\r\n    required this.clipBehavior,\r\n    this.crossAxisUnconstrained = true,\r\n    required this.menuChildren,\r\n    required this.menuScopeNode,\r\n  });\r\n\r\n  final FocusScopeNode menuScopeNode;\r\n  final RawMenuAnchorOverlayPosition menuPosition;\r\n  final _MenuAnchorState anchor;\r\n  final MouseCursor mouseCursor;\r\n  final LayerLink? layerLink;\r\n  final bool consumeOutsideTaps;\r\n  final Offset alignmentOffset;\r\n  final Clip clipBehavior;\r\n  final bool crossAxisUnconstrained;\r\n  final List<Widget> menuChildren;\r\n\r\n  @override\r\n  Widget build(BuildContext context) {\r\n    final Widget menuPanel = TapRegion(\r\n      groupId: menuPosition.tapRegionGroupId,\r\n      // Not sure why _menuController.isOpen is being checked, because the tap\r\n      // region shouldn't be active if it's been unmounted.\r\n      consumeOutsideTaps: anchor._root._menuController.isOpen && anchor.widget.consumeOutsideTap,\r\n      onTapOutside: (PointerDownEvent event) {\r\n        anchor._menuController.close();\r\n      },\r\n      child: MouseRegion(\r\n        cursor: mouseCursor,\r\n        hitTestBehavior: HitTestBehavior.deferToChild,\r\n        child: FocusScope(\r\n          node: anchor._menuScopeNode,\r\n          skipTraversal: true,\r\n          child: Actions(\r\n            actions: <Type, Action<Intent>>{\r\n              DismissIntent: DismissMenuAction(controller: anchor._menuController),\r\n            },\r\n            child: Shortcuts(\r\n              shortcuts: <ShortcutActivator, Intent>{\r\n                SingleActivator(LogicalKeyboardKey.gameButtonA): ActivateIntent(),\r\n                SingleActivator(LogicalKeyboardKey.escape): DismissIntent(),\r\n                SingleActivator(LogicalKeyboardKey.tab): NextFocusIntent(),\r\n                SingleActivator(LogicalKeyboardKey.tab, shift: true): PreviousFocusIntent(),\r\n                SingleActivator(LogicalKeyboardKey.arrowDown):\r\n                    DirectionalFocusIntent(TraversalDirection.down),\r\n                SingleActivator(LogicalKeyboardKey.arrowUp):\r\n                    DirectionalFocusIntent(TraversalDirection.up),\r\n                SingleActivator(LogicalKeyboardKey.arrowLeft):\r\n                    DirectionalFocusIntent(TraversalDirection.left),\r\n                SingleActivator(LogicalKeyboardKey.arrowRight):\r\n                    DirectionalFocusIntent(TraversalDirection.right),\r\n              },\r\n              child: child,\r\n            ),\r\n          ),\r\n        ),\r\n      ),\r\n    );\r\n\r\n    // I think the theme should be applied to the menu panel, not the overlay,\r\n    // but I'm leaving it here just in case.\r\n    final Widget layout = Theme(\r\n      data: Theme.of(context).copyWith(visualDensity: visualDensity),\r\n      child: ConstrainedBox(\r\n        constraints: BoxConstraints.loose(menuPosition.overlaySize),\r\n        child: Builder(builder: (BuildContext context) {\r\n          final MediaQueryData mediaQuery = MediaQuery.of(context);\r\n          return CustomSingleChildLayout(\r\n            delegate: _MenuLayout(\r\n              anchorRect: menuPosition.anchorRect,\r\n              textDirection: Directionality.of(context),\r\n              avoidBounds: DisplayFeatureSubScreen.avoidBounds(mediaQuery).toSet(),\r\n              menuPadding: resolvedPadding,\r\n              alignment: alignment,\r\n              alignmentOffset: alignmentOffset,\r\n              menuPosition: menuPosition.position,\r\n              orientation:\r\n                  anchor._orientation, // Unnecessary because of RawMenuAnchor layout handling.\r\n              parentOrientation: anchor._parent?._orientation ??\r\n                  Axis.horizontal, // Unnecessary because of RawMenuAnchor layout handling.\r\n            ),\r\n            child: menuPanel,\r\n          );\r\n        }),\r\n      ),\r\n    );\r\n\r\n    if (layerLink == null) {\r\n      return layout;\r\n    }\r\n    // I believe this is going to be removed.\r\n    return CompositedTransformFollower(\r\n      link: layerLink!,\r\n      targetAnchor: Alignment.bottomLeft,\r\n      child: layout,\r\n    );\r\n  }\r\n}\r\n```\r\n</details>",
+    "createdAt": "2025-01-17T07:36:19Z"
+  },
+  {
+    "id": 1930,
+    "sender": "dkwingsmt",
+    "content": "Ok, in that case I think you made a good point. Thank you for the explanation. In conclusion:\r\n* Let's keep the current API design of constructors.\r\n* All work of additional widgets can be postponed to after this PR, including `RawMenuOverlay`, `RawMenuSemantics` or even `RawMenuPanel` if you'd like to.\r\n\r\nThat leaves no major comments from me. Feel free to close any comments related to the two points above. There are still a few comments regard documentations, which you can omit if you'd like to since they're all minor, and I agree that this PR is already huge that bikeshedding on these nits is not worth it.\r\n\r\nThe only thing possibly worth discussing is naming, including:\r\n* You said you were not very satisfied with the class name `RawMenuAnchor`. I guess we could go something like `BlankMenuAnchor` giving its themeless nature or `OverlayAnchor` since it's no longer strictly restricted to menus, but none of them is a clear win.\r\n* I also said I was not a fan of the constructor names `RawMenuAnchor.node` and `RawMenuAnchor.overlayBuilder`. I think these constructor names are not readable at first glance and I prefer something with clearer meanings such as `.staticGroup` and `.fromBuilder`.\r\n\r\nBut I don't feel strong on these either (I brought them up just in case any of them interest you) and honestly we can still change them after the PR as long as they land before the next release.",
+    "createdAt": "2025-01-17T08:08:33Z"
+  },
+  {
+    "id": 1931,
+    "sender": "davidhicks980",
+    "content": "> Ok, in that case I think you made a good point. Thank you for the explanation. In conclusion:\r\n> \r\n> * Let's keep the current API design of constructors.\r\n> * All work of additional widgets can be postponed to after this PR, including `RawMenuOverlay`, `RawMenuSemantics` or even `RawMenuPanel` if you'd like to.\r\n> \r\n> That leaves no major comments from me. Feel free to close any comments related to the two points above. There are still a few comments regard documentations, which you can omit if you'd like to since they're all minor, and I agree that this PR is already huge that bikeshedding on these nits is not worth it.\r\n> \r\n> The only thing possibly worth discussing is naming, including:\r\n> \r\n> * You said you were not very satisfied with the class name `RawMenuAnchor`. I guess we could go something like `BlankMenuAnchor` giving its themeless nature or `OverlayAnchor` since it's no longer strictly restricted to menus, but none of them is a clear win.\r\n> * I also said I was not a fan of the constructor names `RawMenuAnchor.node` and `RawMenuAnchor.overlayBuilder`. I think these constructor names are not readable at first glance and I prefer something with clearer meanings such as `.staticGroup` and `.fromBuilder`.\r\n> \r\n> But I don't feel strong on these as well, and honestly we can still change them after the PR as long as there are no new releases.\r\n\r\nYeah, the nomenclature question is hard. Should I just ask the Flutter groupchat? I like .fromBuilder but there's already a builder parameter which may confuse people. \"static\" is a bit ambigious. Do any of anchorGroup / visibleGroup / visible / menuBar / alwaysVisible for node, and withPositionBuilder / withCustomOverlay / withCustomOverlayBuilder for the overlayBuilder work? We could use fromBuilder with the builder param renamed to childBuilder or anchorBuilder. Also, I took a look at other basic components and I think Raw is what others have been using (RawKeyboardListener/RawGestureDetector). Although it makes me think of salmonella, it may be the best choice. I would've preferred Blank/Core/BaseMenuAnchor, but it's best to stick with convention. \r\n\r\nAlso, should I still split off RawMenuAnchor.node (or what it evolves into) into a separate constructor? We could just call it RawMenuGroup, seeing as it isn't actually an anchor. \r\n\r\nOtherwise, I'll implement your other suggestions this weekend and proofread again. Thanks for the feedback! Nothing wrong with bikeshedding -- this component will be used by a lot of devs, so it's good to focus on the details. I'd rather rewrite than ship something that people dread using.",
+    "createdAt": "2025-01-17T09:06:15Z"
+  },
+  {
+    "id": 1932,
+    "sender": "davidhicks980",
+    "content": "Okay, just FYI for reviewers: fromOverlayBuilder has been changed to the default constructor, no simple menu is included. If we need to add one, we can always do so in the future. \r\n\r\n@bleroux @nate-thegrate @dkwingsmt @chunhtai ",
+    "createdAt": "2025-01-27T15:11:15Z"
+  },
+  {
+    "id": 1933,
+    "sender": "davidhicks980",
+    "content": "@chunhtai I converted _RawMenuAnchorState to _RawMenuAnchorBaseMixin. Let me know your thoughts.",
+    "createdAt": "2025-01-28T06:28:03Z"
+  },
+  {
+    "id": 1934,
+    "sender": "chunhtai",
+    "content": "Thanks for keeping up with the pr, these are my last concerns before i can give a LGTM.\r\n\r\n1. inherited widgets, _MenuAnchorScope and _RawMenuAnchorScope\r\n2. making menuController required in RawMenuAnchor",
+    "createdAt": "2025-01-29T18:25:29Z"
+  },
+  {
+    "id": 1935,
+    "sender": "davidhicks980",
+    "content": "> Thanks for keeping up with the pr, these are my last concerns before i can give a LGTM.\r\n> \r\n> 1. inherited widgets, _MenuAnchorScope and _RawMenuAnchorScope\r\n> 2. making menuController required in RawMenuAnchor\r\n\r\nThese should be addressed with updated tests. Let me know if there are any other issues.",
+    "createdAt": "2025-01-31T06:49:03Z"
+  },
+  {
+    "id": 1936,
+    "sender": "davidhicks980",
+    "content": "> LGTM, just one minor comment\r\n\r\nSweet, should be ready. Not sure how to merge though...",
+    "createdAt": "2025-02-01T04:28:54Z"
+  },
+  {
+    "id": 1937,
+    "sender": "chunhtai",
+    "content": "g3 failure is not related and should be resolved now, rebase again to see if it pass this time",
+    "createdAt": "2025-02-03T19:53:17Z"
+  },
+  {
+    "id": 1938,
+    "sender": "GaryQian",
+    "content": "## Text inline widgets, TextSpan rework\n\nThis PR implements the capability of embedding widgets inline into paragraphs.\r\n\r\nNew TextSpan inheritance structure is the following:\r\n```\r\nInlineSpan --> TextSpan\r\n         |\r\n         ----> PlaceholderSpan ---> WidgetSpan\r\n```\r\nWrap widgets to embed in `WidgetSpan(widget: <yourwidgethere>)`\r\n\r\nThe TextSpan changes make this a breaking change, although existing code passing `<TextSpan>[]` into `RichText` or `TextPainter` should still work as expected. Only code directly modifying a InlineSpan tree will be affected.\r\n\r\nFix/Addition for https://github.com/flutter/flutter/issues/2022\r\n\r\nDependent on the engine/LibTxt side PR: https://github.com/flutter/engine/pull/8207\r\n\r\nWork continued in https://github.com/flutter/flutter/pull/33946",
+    "createdAt": "2019-03-27T22:27:16Z"
+  },
+  {
+    "id": 1939,
+    "sender": "jonahwilliams",
+    "content": "@GaryQian lets make that widgets placed as inline text widgets can also contribute semantics",
+    "createdAt": "2019-03-29T17:36:26Z"
+  },
+  {
+    "id": 1940,
+    "sender": "GaryQian",
+    "content": "Have checked that semantics are being correctly built up and passed through, although I will verify with some people who are more familiar with semantics if it is indeed the full behavior",
+    "createdAt": "2019-03-30T00:34:56Z"
+  },
+  {
+    "id": 1941,
+    "sender": "GaryQian",
+    "content": "This change is dependent on an engine roll with https://github.com/flutter/engine/pull/8207",
+    "createdAt": "2019-04-11T20:59:14Z"
+  },
+  {
+    "id": 1942,
+    "sender": "GaryQian",
+    "content": "Ready for review. @Hixie ",
+    "createdAt": "2019-04-11T23:33:02Z"
+  },
+  {
+    "id": 1943,
+    "sender": "hetian9288",
+    "content": "Are there any new developments?  ",
+    "createdAt": "2019-04-16T13:19:26Z"
+  },
+  {
+    "id": 1944,
+    "sender": "goderbauer",
+    "content": "Also: The analyzer on cirrus is pretty unhappy :) ",
+    "createdAt": "2019-05-29T21:15:26Z"
+  },
+  {
+    "id": 1945,
+    "sender": "GaryQian",
+    "content": "Analyzer is going to need the engine changes to land to be happy, although the good part is that the engine changes should be able to land without a manual roll.",
+    "createdAt": "2019-05-30T00:24:13Z"
+  },
+  {
+    "id": 1946,
+    "sender": "GaryQian",
+    "content": "Due to versioning calculation, https://github.com/flutter/flutter/pull/33794 squashes this PR on top of master. Further changes can be seen there.",
+    "createdAt": "2019-06-03T23:48:59Z"
+  },
+  {
+    "id": 1947,
+    "sender": "GaryQian",
+    "content": "Closing this, will be landing the other version.",
+    "createdAt": "2019-06-04T17:59:32Z"
+  },
+  {
+    "id": 1948,
+    "sender": "krisgiesing",
+    "content": "## Design a new vector file format\n\nLatest update: https://github.com/flutter/flutter/issues/1831#issuecomment-1012654670\r\n\r\n----\r\n\r\nFrom earlier discussion, some important considerations are:\r\n- We don't want full SVG support.  There is too much in the spec that is expensive, heavyweight, and/or duplicates what we already have in Flutter.\r\n- We should emphasize in our supported format those operations are effective/efficient/optimized in our graphics engine (Skia).\r\n- We may want to process the format at build time rather than support a full run-time interpreter.\r",
+    "createdAt": "2016-02-12T22:08:41Z"
+  },
+  {
+    "id": 1949,
+    "sender": "Hixie",
+    "content": "Other random thoughts (not all mine):\n- We really want to avoid supporting a format where there's a preexisting expectation of implementing features that are not going to be performant. For example, implementing SVG will lead people to expect full SVG support including scripting, HTML, SMIL, etc.\n- We should design our format explicitly very closely aligned to performance features in Skia, e.g. drawAtlas.\n",
+    "createdAt": "2016-02-12T22:13:58Z"
+  },
+  {
+    "id": 1950,
+    "sender": "appsforartists",
+    "content": "Vector support seems crucial for an app framework that supports various screen sizes and densities.  Otherwise you end up with icons that look like this:\n\n![flutter-send-icon](https://cloud.githubusercontent.com/assets/926648/13446980/a92f1358-dfcc-11e5-8513-b1a78c76ce02.png)\n\nInstead of this:\n\n![material-send-icon](https://storage.googleapis.com/icons.google.com.a.appspot.com/google-assets/system_icons/quantum/content/res-export/ic_send_48px.svg)\n",
+    "createdAt": "2016-03-02T00:45:03Z"
+  },
+  {
+    "id": 1951,
+    "sender": "appsforartists",
+    "content": "@HansMuller \n",
+    "createdAt": "2016-03-02T00:45:12Z"
+  },
+  {
+    "id": 1952,
+    "sender": "HansMuller",
+    "content": "Kris mentioned this as well: we could do some limited SVG processing at build time. For example we might generate MD icon Widgets based on the SVG descriptions. If done carefully that might save space and increase fidelity to the original designs.\n",
+    "createdAt": "2016-03-02T01:02:50Z"
+  },
+  {
+    "id": 1953,
+    "sender": "abarth",
+    "content": "For material design icons specifically, we should investigate using the material design icon font.\n\n@appsforartists For what it's worth, neither Cocoa nor android.view use vector formats for icons.\n",
+    "createdAt": "2016-03-02T02:39:06Z"
+  },
+  {
+    "id": 1954,
+    "sender": "appsforartists",
+    "content": "@abarth Doesn't surprise me about iOS - seems like they started with a hardcoded 3.5\" screen and have tried pretty hard to keep that mental model/simplicity of supported resolutions ever since (see: the width of each iPhone being the same, or the original iPad and iPad mini having the same resolution).  I don't know much about mobile development, but that's slightly surprising about Android not being vector-based.\n\nIn any case, the icons should not look aliased like they do in the above screenshot, and vectors are a nice solution for resolution independence.  How you guys choose to implement to solve for pretty icons is up to you. :smiley: \n",
+    "createdAt": "2016-03-02T03:10:55Z"
+  },
+  {
+    "id": 1955,
+    "sender": "abarth",
+    "content": "> How you guys choose to implement to solve for pretty icons is up to you.\n\nWould you be willing to file a separate issue about the resolution issue you were seeing with icons?  @krisgiesing implemented a resolution-aware asset resolver that handles many cases.  It would be valuable to learn about the cases that it doesn't handle.\n",
+    "createdAt": "2016-03-02T03:31:50Z"
+  },
+  {
+    "id": 1956,
+    "sender": "krisgiesing",
+    "content": "I'm looking at adding some tests for the current resolution awareness support, so now would be a great time to understand if something's not working right.\n",
+    "createdAt": "2016-03-02T18:25:39Z"
+  },
+  {
+    "id": 1957,
+    "sender": "abarth",
+    "content": "It looks like the 3x has a device pixel ratio of `2.6`, which we probably don't have an asset for.\n",
+    "createdAt": "2016-03-02T18:27:17Z"
+  },
+  {
+    "id": 1958,
+    "sender": "krisgiesing",
+    "content": "I'm looking at this specific case now. The device pixel ratio is 2.625; we're choosing the 3.0x asset, which is expected. However, something seems to be going on during the rendering that is causing some kind of extra aliasing artifacts. So although @abarth fixed the case of the Material Design icons by switching to a font, I'm still investigating on behalf of other types of image assets that need resolution dependent scaling.\n",
+    "createdAt": "2016-03-02T21:07:54Z"
+  },
+  {
+    "id": 1959,
+    "sender": "krisgiesing",
+    "content": "I'll open another bug to track this since it's is tangential to support of a vector format.\n",
+    "createdAt": "2016-03-02T21:08:47Z"
+  },
+  {
+    "id": 1960,
+    "sender": "krisgiesing",
+    "content": "See #2337\n",
+    "createdAt": "2016-03-02T21:12:50Z"
+  },
+  {
+    "id": 1961,
+    "sender": "themacguffinman",
+    "content": "Android supports the \"VectorDrawable\" format which is just a well-performing subset of SVG. I hope you consider using the same format, given that it already has some community support and the Android team has apparently deemed its performance adequate.\n",
+    "createdAt": "2016-08-24T07:06:19Z"
+  },
+  {
+    "id": 1962,
+    "sender": "Hixie",
+    "content": "VectorDrawable is certainly influenced by SVG but it's not a subset. Also it uses XML, which pretty much guarantees that it's not going to be the most performant vector format one could come up with. :-)\n",
+    "createdAt": "2016-08-24T21:09:30Z"
+  },
+  {
+    "id": 1963,
+    "sender": "themacguffinman",
+    "content": "It was wrong to describe VectorDrawable as a strict subset, but it still seems to be a balanced compromise between ensuring good _render_ performance and ease of use. The VectorDrawable specification frequently defers to the SVG specification for key areas like path data syntax, making it much easier to convert SVG assets that many developers already use and share VectorDrawables that existing Android apps already contain.\n\nI can't imagine that XML is a significant performance blocker because it only affects parsing. It seems to me that _render_ performance - the kind of performance that affects Flutter's goal of 60fps apps - is more dependent on the set of vector operations that Skia will have to draw, not a parsing step that can be done once and cached.\n\nI don't want to belabour the point but I can't help feeling that the work for this has already been done and therefore doesn't need to be shelved in the \"after 2.0 release\" milestone.\n",
+    "createdAt": "2016-08-24T23:39:06Z"
+  },
+  {
+    "id": 1964,
+    "sender": "eseidelGoogle",
+    "content": "We ended up using the Material Design font for the Material Design Icons.  I'm not aware of any obstacles stopping someone from building this on top of Flutter today using direct `dart:ui` calls or a CustomPaint widget: https://docs.flutter.io/flutter/widgets/CustomPaint-class.html.  We have no immediate plans to build such at this time.",
+    "createdAt": "2017-01-26T22:56:58Z"
+  },
+  {
+    "id": 1965,
+    "sender": "deborah-ufw",
+    "content": "$.02 - even janky browsers (~~and competitor framework React Native~~ never mind, their solution is hacky) can render SVG. The image export option requires creating a minimum of 3 files for each icon or art asset for my team. That's a poor practice compared to one SVG file can be displayed at any resolution.\r\n\r\nFor the above comment by Hixie, pre-existing expectations shouldn't inhibit implementing a worthwhile feature. I'd much rather be able to have basic support for SVG display (which solves many problems for me and my team) and find out extended options aren't available than rely on an ever-increasing number of PNGs to accommodate the ever-increasing number of screen resolutions.\r\n\r\nI'm falling back to making a font for my team but that's not as good as native SVG support because the font format adds extra formatting for line-height and letter spacing that has to be adjusted in the app. Also, fonts want to be displayed at fixed resolutions (12px, 16px, 20px, 36px...) which is also limiting.\r\n\r\nThank you for cool Flutter framework. :)  ",
+    "createdAt": "2017-06-04T01:28:10Z"
+  },
+  {
+    "id": 1966,
+    "sender": "Hixie",
+    "content": "I would encourage anyone who wants SVG support to implement SVG support as a Dart package for Flutter.",
+    "createdAt": "2017-06-04T03:46:59Z"
+  },
+  {
+    "id": 1967,
+    "sender": "sethladd",
+    "content": "For those interested, I'd point to https://docs.flutter.io/flutter/dart-ui/dart-ui-library.html which is the low-level library for drawing.",
+    "createdAt": "2017-06-05T15:22:40Z"
+  },
+  {
+    "id": 1968,
+    "sender": "deborah-ufw",
+    "content": "From team: Dart library not good enough solution. Just passing it on.",
+    "createdAt": "2017-06-05T17:23:55Z"
+  },
+  {
+    "id": 1969,
+    "sender": "Hixie",
+    "content": "Can you elaborate on that? The whole of Flutter's framework is a Dart library; anything we implement here will likely be a Dart library. What are the requirements for \"good enough\"?",
+    "createdAt": "2017-06-05T17:32:49Z"
+  },
+  {
+    "id": 1970,
+    "sender": "matanlurey",
+    "content": "Case in point, I implemented a (simple, non-exhaustive) SVG parser in pure-Dart a while back:\r\n\r\nhttps://github.com/matanlurey/svg\r\n\r\nIt would likely be somewhat trivial to either:\r\n\r\na. Create a runtime SVG -> `SvgRenderElement`, which uses `dart:ui` under-the-hood.\r\nb. Create a build-time compile step that converts an SVG into something like:\r\n\r\n```dart\r\n// compiled from star.svg\r\nvoid drawStarSvg(canvas, width, height) { ... }\r\n```",
+    "createdAt": "2017-06-05T17:38:42Z"
+  },
+  {
+    "id": 1971,
+    "sender": "sethladd",
+    "content": "@deborah-ufw if you're interested, we'd love to chat to learn more. Can you email me?",
+    "createdAt": "2017-06-05T18:43:16Z"
+  },
+  {
+    "id": 1972,
+    "sender": "deborah-ufw",
+    "content": "Hi Seth, matanlurey and Hixie - thank you very much for the response. I'm probably not the right person to talk to in depth, since it was our lead engineers who rejected the Dart plugin solution (thus leading to generation of a huge library of png's for our app, which makes most of us cringe also).\r\n\r\nI would like to pass the link for this Github issue on to them and ask them to contribute technical reasons for their comment (which was made rather more colorfully than I passed on) - I will do that just as soon as I finish typing. ",
+    "createdAt": "2017-06-07T04:27:37Z"
+  },
+  {
+    "id": 1973,
+    "sender": "eseidelGoogle",
+    "content": "They're also able to chat with our engineers directly via http://gitter.im/flutter/flutter as well as other contact methods listed https://flutter.io/support/ if needed. :)",
+    "createdAt": "2017-06-07T04:36:01Z"
+  },
+  {
+    "id": 1974,
+    "sender": "deborah-ufw",
+    "content": "I will add that in. Thank you!  :D",
+    "createdAt": "2017-06-07T04:36:46Z"
+  },
+  {
+    "id": 1975,
+    "sender": "gavindoughtie",
+    "content": "Another approach is to integrate something like http://svgpp.org/ at the native level and use the Flutter plugin system to communicate with it. This would probably give you the best size/performance characteristics for full SVG support, but at the expense of maintaining a dependency.",
+    "createdAt": "2017-06-12T19:06:20Z"
+  },
+  {
+    "id": 1976,
+    "sender": "dnfield",
+    "content": "What about looking for SVG support at the engine level?  I don't think it's reasonable or desirable to expect full support of the standard, but part of the appeal is support for cross functional teams and existing tooling.",
+    "createdAt": "2018-01-24T12:58:53Z"
+  },
+  {
+    "id": 1977,
+    "sender": "zoechi",
+    "content": "I got the impression Skia provides some basic SVG support. Is there no way to make this available to Flutter?",
+    "createdAt": "2018-01-25T12:42:06Z"
+  },
+  {
+    "id": 1978,
+    "sender": "dnfield",
+    "content": "From what I can tell, it's only been experimental and partial.  There's an issue open here https://bugs.chromium.org/p/skia/issues/detail?id=5596 bit it's over a year old.  They're also listing it in their roadmap but again not clear what priority.",
+    "createdAt": "2018-01-25T13:25:35Z"
+  },
+  {
+    "id": 1979,
+    "sender": "Hixie",
+    "content": "It wouldn't make sense to support SVG at the engine level because that wouldn't expose the SVG document model, which is a core part of SVG support.\r\n\r\nIf Flutter supports SVG, it's going to be with the eventual goal of actually truly supporting real SVG. It's against Flutter's philosophy to have half-hearted implementations of features.",
+    "createdAt": "2018-01-25T17:27:55Z"
+  },
+  {
+    "id": 1980,
+    "sender": "dnfield",
+    "content": "I don't see exposing the SVG document model as a core part of SVG support.  That'd be a nice to have but not a must have for the use cases that I have in mind.\r\n\r\nYes, library level support would enable more features - but if the engine itself was capable of rendering (a significant subset of) SVG data, that'd presumably be enough to allow rendering vector image assets defined by that subset of SVG.\r\n\r\nThis issue is clearly bigger than that, but I'd be happy to take existing SVG assets and render them properly at different resolutions without converting them all to bulky raster images.",
+    "createdAt": "2018-01-25T18:00:01Z"
+  },
+  {
+    "id": 1981,
+    "sender": "cbazza",
+    "content": "Yeah, SVG asset file import would be really nice but the spec for SVG is over 800 pages long. Having said that to just import static files to render on Skia (which is a vector graphics library) shouldn't be a problem. So I am taking it on; as always I can only do work part time on weekends so you won't see stuff right away. Also I have a tonne of SVG files but they all use the same stuff (icon collections from flaticon) so I would appreciate sample SVG files from people that want this feature.\r\n\r\nCarlos.",
+    "createdAt": "2018-02-27T01:27:42Z"
+  },
+  {
+    "id": 1982,
+    "sender": "dnfield",
+    "content": "I've been noodling on this a bit over time as well.  Here's what I've come up with:\r\n\r\n## Engine Level implementation\r\nThis seems attractive for the following reasons:\r\n1. In theory supports something like `image: new AssetImage('graphics/background.svg')` to have some C/C++ code parse and translate the SVG data to Skia rendering commands\r\n1. At least one good candidate out there that should be able to plug into Skia fairly easily (https://github.com/svgpp/svgpp) at the engine level\r\n1. WebKit's SVG logic would be awesome but seems to have far too many dependencies\r\n1. I don't think librsvg would port too well (tightly coupled to Cairo, transitioning to Rust as a primary language - would need to work out way to get to Skia as a backend at the least)\r\n\r\nBut it has at least a few difficulties:\r\n- Properly handling text\r\n- Properly handling CSS (if at all? but adding it is no simple task)\r\n- Extending support for additional features (or allowing users to more gracefully add support for features) is challenging.\r\n- Seems like it's be very difficult to handle animations\r\n\r\n## Dart level implementation\r\n1. Flutter's `dart:ui` offers a lot of the primitives from Skia that SVG needs already\r\n1. I suspect text rendering would be much more easily handled at this level than at the engine level\r\n1. Should be easier for more of community to maintain/extend\r\n1. Should be able to more cheaply handle direct interaction with the parsing logic (perhaps to handle exceptions and/or animations?)\r\n\r\nBut has a few difficulties:\r\n- May not do much better supporting CSS\r\n- May not do much better supporting animations\r\n- Would likely be slower (but perhaps not by enough to matter, and could potentially be offset by AOT compiled SVG to Dart code)\r\n\r\n## Test data\r\n\r\nAs far as sample SVGs go, it'd probably be most useful to identify what SVGs are supported from the 1.1 test suite (or, if partially supported, what about them is partially supported).  Those can be found here:\r\nhttps://github.com/w3c/web-platform-tests/tree/master/svg/import\r\n\r\nOr here with some PNG comparisons: https://www.w3.org/Graphics/SVG/Test/20110816/\r\n\r\n----\r\n@cbazza, which way are you thinking of implementing this?  At this point, I'm leaning more towards a Dart package level implementation.\r\n",
+    "createdAt": "2018-02-27T03:58:01Z"
+  },
+  {
+    "id": 1983,
+    "sender": "dnfield",
+    "content": "Also, I think icon type support is probably ly easily handled with something like IconData.  It might be best to treat that separately, as it'd likely only have to support a single path per codepoint",
+    "createdAt": "2018-02-27T04:12:08Z"
+  }
+]

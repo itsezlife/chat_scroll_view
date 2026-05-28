@@ -1,0 +1,386 @@
+[
+  {
+    "id": 2688,
+    "sender": "staadecker",
+    "content": "@aam  Seems like removing the spaces fixed it! Thank you!",
+    "createdAt": "2018-10-18T22:16:39Z"
+  },
+  {
+    "id": 2689,
+    "sender": "aam",
+    "content": "With #23268(ios simulator fix) and #23273(spaces in path fix) landed in master branch, please give master channel a try if you can and see if you are still able to reproduce the problem. Thanks!",
+    "createdAt": "2018-10-19T04:54:40Z"
+  },
+  {
+    "id": 2690,
+    "sender": "szotp",
+    "content": "@aam Now it works, thanks.",
+    "createdAt": "2018-10-19T15:33:57Z"
+  },
+  {
+    "id": 2691,
+    "sender": "BANG88",
+    "content": "I have try `flutter channel master` and the problem still there.  Give up for now  😢 . I created an ubuntu machine and setup a new dev env there and everything works as expected. ",
+    "createdAt": "2018-10-22T06:04:21Z"
+  },
+  {
+    "id": 2692,
+    "sender": "aam",
+    "content": "@bang88, not sure if you can run flutter from command line, but any chance you can do `flutter run --verbose` after making a change and share the output of that via gist.github.com?",
+    "createdAt": "2018-10-22T13:50:58Z"
+  },
+  {
+    "id": 2693,
+    "sender": "BANG88",
+    "content": "@aam The logs:  https://gist.github.com/bang88/9b2d69d43b2cb95f008a35ae399159b8 \r\n\r\nand flutter versions\r\n\r\n```sh\r\n~/Desktop/my_new_app 3m 34s\r\n$ flutter doctor -v\r\n[✓] Flutter (Channel master, v0.10.2-pre.21, on Mac OS X 10.14 18A389, locale\r\n    en-CN)\r\n    • Flutter version 0.10.2-pre.21 at /Users/bang/development/flutter\r\n    • Framework revision 7aeb539da9 (34 hours ago), 2018-10-21 05:47:10 +0200\r\n    • Engine revision 58cdd53f90\r\n    • Dart version 2.1.0-dev.7.1.flutter-b99bcfd309\r\n\r\n[✓] Android toolchain - develop for Android devices (Android SDK 27.0.3)\r\n    • Android SDK at /Users/bang/Library/Android/Sdk\r\n    • Android NDK at /Users/bang/Library/Android/Sdk/ndk-bundle\r\n    • Platform android-27, build-tools 27.0.3\r\n    • ANDROID_HOME = /Users/bang/Library/Android/Sdk\r\n    • Java binary at: /Applications/Android\r\n      Studio.app/Contents/jre/jdk/Contents/Home/bin/java\r\n    • Java version OpenJDK Runtime Environment (build 1.8.0_152-release-915-b08)\r\n    • All Android licenses accepted.\r\n\r\n[✓] iOS toolchain - develop for iOS devices (Xcode 10.0)\r\n    • Xcode at /Applications/Xcode.app/Contents/Developer\r\n    • Xcode 10.0, Build version 10A255\r\n    • ios-deploy 2.0.0\r\n    • CocoaPods version 1.5.0\r\n\r\n[✓] Android Studio (version 3.0)\r\n    • Android Studio at /Applications/Android Studio.app/Contents\r\n    • Flutter plugin version 23.2.1\r\n    • Dart plugin version 171.4424\r\n    • Java version OpenJDK Runtime Environment (build 1.8.0_152-release-915-b08)\r\n\r\n[✓] VS Code (version 1.28.2)\r\n    • VS Code at /Applications/Visual Studio Code.app/Contents\r\n    • Flutter extension version 2.19.0\r\n\r\n[✓] Connected device (1 available)\r\n    • iPhone X • 57906EE0-7FEB-487A-8698-85E91AF8B004 • ios • iOS 12.0\r\n      (simulator)\r\n\r\n• No issues found!\r\n\r\n```",
+    "createdAt": "2018-10-22T14:02:53Z"
+  },
+  {
+    "id": 2694,
+    "sender": "aam",
+    "content": "> @aam The logs: https://gist.github.com/bang88/9b2d69d43b2cb95f008a35ae399159b8\r\n\r\n@bang88 , I'm getting 404 error for this url. ",
+    "createdAt": "2018-10-22T14:31:11Z"
+  },
+  {
+    "id": 2695,
+    "sender": "BANG88",
+    "content": "@aam Github is down ? \r\n\r\nCan i send you an email with the gists. or waiting Github fixes the server issues",
+    "createdAt": "2018-10-22T14:35:50Z"
+  },
+  {
+    "id": 2696,
+    "sender": "aam",
+    "content": "@bang88 , refreshing that link and was able to see the gist, thanks!\r\n\r\nWhat file are you editing (when you do `flutter run -v`)? Is that one of the dart files in your project or in one of the packages you import? Do you see the file you are editing in `build/snapshot_blob.bin.d`\r\n`Fingerprint match` message in the log indicates that we didn't see the change for some reason.\r\n```\r\n[  +20 ms] Building Runner.app for ...\r\n...\r\n[ +371 ms] Skipping kernel compilation. Fingerprint match.\r\n[ +545 ms] Building bundle\r\n```",
+    "createdAt": "2018-10-22T14:52:31Z"
+  },
+  {
+    "id": 2697,
+    "sender": "bickycheese",
+    "content": "Any news on this issue?<br> I have had this issue right after I switched from emulator (windows) to a real device (android).\r\n`flutter clean` deletes `.build` but I still get the old app. Only after reinstalling the app on the device everything works as expected.",
+    "createdAt": "2019-01-05T16:12:17Z"
+  },
+  {
+    "id": 2698,
+    "sender": "DanTup",
+    "content": "@stannynuytkens What version of flutter are you on? Can you repro from the command line?\r\n\r\nIf so, could you try following @aam's instructions in the previous few messages?\r\n\r\n- Uninstall the app from phone\r\n- Delete the build folder\r\n- Run the app from the console\r\n- Once loaded, quit the app (with `q`)\r\n- Make a change to a file (note which file you change)\r\n- Run `flutter run -verbose`\r\n\r\nAssuming this repros the problem, providing the output of the final `flutter run -verbose` in a gist, as well as info on what file you modified may be useful. Also check if the file you modified shows up in `build/snapshot_blob.bin.d`/",
+    "createdAt": "2019-01-07T17:00:50Z"
+  },
+  {
+    "id": 2699,
+    "sender": "tvolkert",
+    "content": "Update: results from the survey are viewable at https://docs.google.com/spreadsheets/d/1xCzx-Xwx0Qiv3U5GqnjwkyLlzVmcxEZ73hzQszyzhkY/preview\r\n\r\nThere doesn't seem to be any smoking gun 😞 ",
+    "createdAt": "2019-01-30T05:25:36Z"
+  },
+  {
+    "id": 2700,
+    "sender": "jonahwilliams",
+    "content": "If you're working on dev or master and running into issues frequently, I've added the ability to disable all of our build caching (this won't slow down hot reload or hot restart). This can be done by settings the environment variable `DISABLE_FLUTTER_BUILD_CACHE=true`.\r\n\r\nIf this improves/doesn't improve the situation I would love to know, but keep in mind this will only take effect in v1.5.3 and above.",
+    "createdAt": "2019-04-20T01:36:07Z"
+  },
+  {
+    "id": 2701,
+    "sender": "jonahwilliams",
+    "content": "We've confirmed that this fixes the case of stale assets referenced in #27720 and similar bugs. To proceed here, we're going to disable build caching by default. These build caches will be individually re-enabled once we have better integration test coverage to prove correctness.\r\n\r\nThis change will likely not be a stable release for some time, and ideally by the time the next stable release is available we will have turned all build caching back on. In the meantime, if users that are on dev or master could report whether or not they still see this issue it would be extremely helpful in shaking out all of the loose ends.",
+    "createdAt": "2019-04-23T00:10:24Z"
+  },
+  {
+    "id": 2702,
+    "sender": "molundb",
+    "content": "I am having this issue and so is my colleague. We've had this problem for more than a week now.\r\n\r\nEvery time I run the app in an iOS simulator an old version of the code is run. If I hot restart the latest code is run. Flutter clean does not change anything. I get the same problem on every simulator I've tried and regardless of whether I run from Android Studio, the terminal or XCode. I haven't tried running from another IDE.\r\n\r\nflutter doctor -v output:\r\n[✓] Flutter (Channel stable, v1.2.1, on Mac OS X 10.14.4 18E226, locale en-SE)\r\n    • Flutter version 1.2.1 at /Users/martinlundberg/Dev/flutter\r\n    • Framework revision 8661d8aecd (2 months ago), 2019-02-14 19:19:53 -0800\r\n    • Engine revision 3757390fa4\r\n    • Dart version 2.1.2 (build 2.1.2-dev.0.0 0a7dcf17eb)\r\n\r\n[✓] Android toolchain - develop for Android devices (Android SDK version 28.0.3)\r\n    • Android SDK at /Users/martinlundberg/Library/Android/sdk\r\n    • Android NDK location not configured (optional; useful for native profiling support)\r\n    • Platform android-28, build-tools 28.0.3\r\n    • Java binary at: /Applications/Android Studio.app/Contents/jre/jdk/Contents/Home/bin/java\r\n    • Java version OpenJDK Runtime Environment (build 1.8.0_152-release-1248-b01)\r\n    • All Android licenses accepted.\r\n\r\n[✓] iOS toolchain - develop for iOS devices (Xcode 10.2.1)\r\n    • Xcode at /Applications/Xcode.app/Contents/Developer\r\n    • Xcode 10.2.1, Build version 10E1001\r\n    • ios-deploy 1.9.4\r\n    • CocoaPods version 1.5.3\r\n\r\n[✓] Android Studio (version 3.3)\r\n    • Android Studio at /Applications/Android Studio.app/Contents\r\n    • Flutter plugin version 33.3.1\r\n    • Dart plugin version 182.5215\r\n    • Java version OpenJDK Runtime Environment (build 1.8.0_152-release-1248-b01)\r\n\r\n[✓] IntelliJ IDEA Ultimate Edition (version 2018.1.3)\r\n    • IntelliJ at /Applications/IntelliJ IDEA.app\r\n    • Flutter plugin version 29.0.2\r\n    • Dart plugin version 181.4892.1\r\n\r\n[✓] IntelliJ IDEA Community Edition (version 2018.1.6)\r\n    • IntelliJ at /Applications/IntelliJ IDEA CE.app\r\n    • Flutter plugin version 29.0.2\r\n    • Dart plugin version 181.5540.11\r\n\r\n[✓] VS Code (version 1.33.1)\r\n    • VS Code at /Applications/Visual Studio Code.app/Contents\r\n    • Flutter extension version 2.25.1\r\n\r\n[✓] Connected device (2 available)\r\n    • Android SDK built for x86 • emulator-5554                        • android-x86 • Android 9 (API 28) (emulator)\r\n    • iPhone 6                  • 63E1705F-F8E7-4916-8C58-D2307D217DCD • ios         • com.apple.CoreSimulator.SimRuntime.iOS-12-2 (simulator)\r\n\r\n• No issues found!",
+    "createdAt": "2019-04-29T15:00:10Z"
+  },
+  {
+    "id": 2703,
+    "sender": "jonahwilliams",
+    "content": "These fixes are only in ~ 1.5 and later so I would expect there to still be issues in 1.2.1. I'm surprised that flutter clean has no effect though - in this case I would try restarting the simulator.",
+    "createdAt": "2019-04-29T15:08:04Z"
+  },
+  {
+    "id": 2704,
+    "sender": "molundb",
+    "content": "Yeah it surprises me too. \r\n\r\nRestarting the simulator changes nothing unfortunately. The only way to fix it is to hot restart; that makes the latest code run. The problem is that that doesn't change the environment settings we set up before runApp :/ \r\n\r\nSo do you recommend to change to ~1.5 to fix the issue?",
+    "createdAt": "2019-04-29T15:39:55Z"
+  },
+  {
+    "id": 2705,
+    "sender": "jonahwilliams",
+    "content": "Do you have a differently configured build directory? Specifically if `foo/` is the root of your flutter project is there a `foo/build` directory? If so can you manually delete that and try again?",
+    "createdAt": "2019-04-29T15:42:14Z"
+  },
+  {
+    "id": 2706,
+    "sender": "jonahwilliams",
+    "content": "Also, it appears that the fix I landed was tagged as v1.5.8 ",
+    "createdAt": "2019-04-29T15:42:56Z"
+  },
+  {
+    "id": 2707,
+    "sender": "molundb",
+    "content": "Yeah flutter clean deletes the build folder and then I get the same problem when I build and run again.",
+    "createdAt": "2019-04-29T15:47:34Z"
+  },
+  {
+    "id": 2708,
+    "sender": "aam",
+    "content": "@molundb wrote\r\n> I am having this issue and so is my colleague. We've had this problem for more than a week now.\r\n\r\nDo you know when did it start? Did you run older version of flutter before that or something else changed a week ago?\r\n\r\n> Every time I run the app in an iOS simulator an old version of the code is run. I\r\n\r\nDoes it only happen for iOS simulator? Or you are also experiencing this on physical iOS device or Android sim/device?\r\n\r\nAre you able to reproduce this when running from command line `flutter run -v`? If so, can you copy'n'paste `flutter run -v` output to https://gist.github.com/ and post a link to that here? Basically if you can clean build folder, `flutter run -v` the app, make a change, do hot reload, confirm no changes showed up, the log for that would be very helpful.",
+    "createdAt": "2019-04-29T15:48:22Z"
+  },
+  {
+    "id": 2709,
+    "sender": "ChizuNoYama",
+    "content": "@molundb \r\nDeleting the app from the simulator worked for me. This usually happens when I hit an uncaught exception",
+    "createdAt": "2019-04-29T15:50:29Z"
+  },
+  {
+    "id": 2710,
+    "sender": "molundb",
+    "content": "@titonton \r\nThanks for the tip but I have done Hardware -> Erase all Content and Settings... for the simulator and still have the same problem.",
+    "createdAt": "2019-04-29T15:53:27Z"
+  },
+  {
+    "id": 2711,
+    "sender": "molundb",
+    "content": "@aam \r\n\r\n> Do you know when did it start? Did you run older version of flutter before that or something else changed a week ago?\r\n\r\nIt was so long ago that I can't say when it started happening or what caused it unfortunately. I have updated flutter at least once after it started happening.\r\n\r\n> Does it only happen for iOS simulator? Or you are also experiencing this on physical iOS device or Android sim/device?\r\n\r\nIt doesn't happen on android sim or device. I am charging an iOS device now to test it.\r\n\r\n>Basically if you can clean build folder, flutter run -v the app, make a change, do hot reload, confirm no changes showed up, the log for that would be very helpful.\r\n\r\nhttps://gist.github.com/molundb/cda4caa4e90288568db16ba9a0e962d6",
+    "createdAt": "2019-04-29T16:05:15Z"
+  },
+  {
+    "id": 2712,
+    "sender": "molundb",
+    "content": "Can't answer your question right now about iOS device since it seems like I can't run on this iOS device for some reason:\r\n\r\nLaunching lib/main_dev.dart on Iphone 7s iPhone in debug mode...\r\nAutomatically signing iOS for device deployment using specified development team in Xcode project: 2NJ74JJ92A\r\nRunning Xcode build...\r\nXcode build done.                                            6.9s\r\nFailed to build iOS app\r\nError output from Xcode build:\r\n↳\r\n    ** BUILD FAILED **\r\n\r\n\r\nXcode's output:\r\n↳\r\n    === BUILD TARGET Runner OF PROJECT Runner WITH CONFIGURATION Debug ===\r\n    The use of Swift 3 @objc inference in Swift 4 mode is deprecated. Please address deprecated @objc inference warnings, test your code with “Use of deprecated Swift 3 @objc inference” logging enabled, and then disable inference by changing the \"Swift 3 @objc Inference\" build setting to \"Default\" for the \"Runner\" target.\r\n    === BUILD TARGET Runner OF PROJECT Runner WITH CONFIGURATION Debug ===\r\n    ld: warning: ignoring file /Users/martinlundberg/AndroidStudioProjects/tlycs_flutter/ios/Flutter/App.framework/App, file was built for x86_64 which is not the architecture being linked (arm64): /Users/martinlundberg/AndroidStudioProjects/tlycs_flutter/ios/Flutter/App.framework/App\r\n    === BUILD TARGET Runner OF PROJECT Runner WITH CONFIGURATION Debug ===\r\n    Non-fat binary /Users/martinlundberg/AndroidStudioProjects/tlycs_flutter/build/ios/Debug-iphoneos/Runner.app/Frameworks/App.framework/App is not arm64. Running lipo -info:\r\n    Non-fat file: /Users/martinlundberg/AndroidStudioProjects/tlycs_flutter/build/ios/Debug-iphoneos/Runner.app/Frameworks/App.framework/App is architecture: x86_64\r\n    Command /bin/sh failed with exit code 1\r\n\r\nCould not build the precompiled application for the device.\r\n\r\nError launching application on Iphone 7s iPhone.\r\n ",
+    "createdAt": "2019-04-29T16:19:32Z"
+  },
+  {
+    "id": 2713,
+    "sender": "aam",
+    "content": "@molundb  wrote\r\n> \r\n> > Basically if you can clean build folder, flutter run -v the app, make a change, do hot reload, confirm no changes showed up, the log for that would be very helpful.\r\n> https://gist.github.com/molundb/cda4caa4e90288568db16ba9a0e962d6\r\n\r\nThanks! So hot reload/restart works as expected, but then when you stop the app and run it again, you see old app shown? Can you please post a gist of `flutter run -v` of that(second `flutter run -v` that shows stale app)?\r\n\r\n",
+    "createdAt": "2019-04-29T16:45:53Z"
+  },
+  {
+    "id": 2714,
+    "sender": "ride4sun",
+    "content": "I have the same problem and my productivity is basically 30% of normal because of that. I see that at least 3 to 4 weeks no evidence of any changes to the better. I can only hope somebody makes that a real high priority. -  It's killing me right now!!!\r\n\r\nA normal turnaround now looks like.\r\n1.  delete all the breakpoints \r\n2. call flutter clean\r\n3. cold restart\r\n4. enable breakpoint again\r\n5. work a bit\r\n\r\nI se also tons of these console messages:\r\n'''16:07:17.994 289 info flutter.tools [        ] -> org-dartlang-debug:synthetic_debug_expression:1:1: Error: Method not found: 'toStringDeep'.\r\n16:07:17.994 290 info flutter.tools [        ] -> toStringDeep()\r\n'''\r\ndata output in my console. \r\n\r\n\r\nHere is my version which is latest on master:\r\n\r\nC:\\Projects\\obdchk>flutter doctor -v\r\n[√] Flutter (Channel master, v1.5.9-pre.62, on Microsoft Windows [Version 10.0.17763.437], locale en-US)\r\n    • Flutter version 1.5.9-pre.62 at c:\\sdks\\flutter\r\n    • Framework revision 8fd7fa492a (3 hours ago), 2019-04-29 12:59:30 -0700\r\n    • Engine revision 1ecf924ff8\r\n    • Dart version 2.3.0 (build 2.3.0-dev.0.3 c46deebfb6)\r\n\r\n\r\n\r\n\r\n\r\n16:07:17.942 252 info flutter.tools [ +965 ms] -> result 16e00721-c286-43e9-9460-70182643e449\r\n16:07:17.944 253 info flutter.tools [        ] -> org-dartlang-debug:synthetic_debug_expression:1:1: Error: Getter not found: 'snapshot'.\r\n16:07:17.944 254 info flutter.tools [        ] -> snapshot.data\r\n16:07:17.944 255 info flutter.tools [        ] -> ^^^^^^^^\r\n16:07:17.944 256 info flutter.tools [        ] -> org-dartlang-debug:synthetic_debug_expression:1:1: Error: The getter 'snapshot' isn't defined for the class '_HomeScreenState'.\r\n16:07:17.944 257 info flutter.tools [        ] ->  - '_HomeScreenState' is from 'package:obdchk/screens/home_screen.dart' ('lib/screens/home_screen.dart').\r\n16:07:17.944 258 info flutter.tools [        ] -> Try correcting the name to the name of an existing getter, or defining a getter or field named 'snapshot'.\r\n16:07:17.944 259 info flutter.tools [        ] -> snapshot.data\r\n16:07:17.944 260 info flutter.tools [        ] -> ^^^^^^^^\r\n16:07:17.952 261 info flutter.tools [   +3 ms] -> 16e00721-c286-43e9-9460-70182643e449 build\\app.dill.track.dill.incremental.dill 16\r\n16:07:17.952 262 info flutter.tools [   +2 ms] -> result 1bae7b85-0d7d-48c6-a4c2-e199a261f77e\r\n16:07:17.954 263 info flutter.tools [   +3 ms] -> 1bae7b85-0d7d-48c6-a4c2-e199a261f77e build\\app.dill.track.dill.incremental.dill 16\r\n16:07:17.955 264 info flutter.tools [   +2 ms] -> result 853ea583-b3e8-47a7-ae8f-6921d5f98593\r\n16:07:17.963 265 info flutter.tools [   +2 ms] -> 853ea583-b3e8-47a7-ae8f-6921d5f98593 build\\app.dill.track.dill.incremental.dill 16\r\n16:07:17.963 266 info flutter.tools [   +1 ms] -> result d79513ca-38d5-4354-a47f-88ddd91741fb\r\n16:07:17.963 267 info flutter.tools [   +3 ms] -> d79513ca-38d5-4354-a47f-88ddd91741fb build\\app.dill.track.dill.incremental.dill 16\r\n16:07:17.971 268 info flutter.tools [   +4 ms] -> result 2adf58bf-63cc-4eb8-b6c4-4952c2262bc3\r\n16:07:17.971 269 info flutter.tools [   +2 ms] -> org-dartlang-debug:synthetic_debug_expression:1:1: Error: Getter not found: '_value'.\r\n16:07:17.971 270 info flutter.tools [        ] -> _value\r\n16:07:17.971 271 info flutter.tools [        ] -> ^^^^^^\r\n16:07:17.971 272 info flutter.tools [        ] -> org-dartlang-debug:synthetic_debug_expression:1:1: Error: The getter '_value' isn't defined for the class '_HomeScreenState'.\r\n16:07:17.971 273 info flutter.tools [        ] ->  - '_HomeScreenState' is from 'package:obdchk/screens/home_screen.dart' ('lib/screens/home_screen.dart').\r\n16:07:17.971 274 info flutter.tools [        ] -> Try correcting the name to the name of an existing getter, or defining a getter or field named '_value'.\r\n16:07:17.971 275 info flutter.tools [        ] -> _value\r\n16:07:17.971 276 info flutter.tools [        ] -> ^^^^^^\r\n16:07:17.985 277 info flutter.tools [   +8 ms] -> 2adf58bf-63cc-4eb8-b6c4-4952c2262bc3 build\\app.dill.track.dill.incremental.dill 18\r\n16:07:17.985 278 info flutter.tools [   +4 ms] -> result 4379cbc9-98a6-4540-865a-c6c0a09aba5e\r\n16:07:17.987 279 info flutter.tools [   +2 ms] -> org-dartlang-debug:synthetic_debug_expression:1:1: Error: Getter not found: 'newValue'.\r\n16:07:17.987 280 info flutter.tools [        ] -> newValue\r\n16:07:17.987 281 info flutter.tools [        ] -> ^^^^^^^^\r\n16:07:17.987 282 info flutter.tools [        ] -> org-dartlang-debug:synthetic_debug_expression:1:1: Error: The getter 'newValue' isn't defined for the class '_HomeScreenState'.\r\n16:07:17.987 283 info flutter.tools [        ] ->  - '_HomeScreenState' is from 'package:obdchk/screens/home_screen.dart' ('lib/screens/home_screen.dart').\r\n16:07:17.987 284 info flutter.tools [        ] -> Try correcting the name to the name of an existing getter, or defining a getter or field named 'newValue'.\r\n16:07:17.987 285 info flutter.tools [        ] -> newValue\r\n16:07:17.987 286 info flutter.tools [        ] -> ^^^^^^^^\r\n16:07:17.994 287 info flutter.tools [   +3 ms] -> 4379cbc9-98a6-4540-865a-c6c0a09aba5e build\\app.dill.track.dill.incremental.dill 20\r\n16:07:17.994 288 info flutter.tools [   +1 ms] -> result 16915064-96cf-4c0c-9277-a36139fb4487\r\n16:07:17.994 289 info flutter.tools [        ] -> org-dartlang-debug:synthetic_debug_expression:1:1: Error: Method not found: 'toStringDeep'.\r\n16:07:17.994 290 info flutter.tools [        ] -> toStringDeep()\r\n16:07:17.994 291 info flutter.tools [        ] -> ^^^^^^^^^^^^\r\n16:07:17.994 292 info flutter.tools [        ] -> org-dartlang-debug:synthetic_debug_expression:1:1: Error: The method 'toStringDeep' isn't defined for the class 'StreamValue<T>'.\r\n16:07:17.995 293 info flutter.tools [        ] ->  - 'StreamValue' is from 'package:utilities/stream/stream_value.dart' ('utilities/lib/stream/stream_value.dart').\r\n16:07:17.995 294 info flutter.tools [        ] -> Try correcting the name to the name of an existing method, or defining a method named 'toStringDeep'.\r\n16:07:17.995 295 info flutter.tools [        ] -> toStringDeep()\r\n16:07:17.995 296 info flutter.tools [        ] -> ^^^^^^^^^^^^\r\n16:07:18.003 297 info flutter.tools [   +4 ms] -> 16915064-96cf-4c0c-9277-a36139fb4487 build\\app.dill.track.dill.incremental.dill 22\r\n16:07:18.017 298 info flutter.tools [  +15 ms] -> result 098efd6c-f435-42a8-8ed5-cc3e79a5562f\r\n16:07:18.017 299 info flutter.tools [        ] -> org-dartlang-debug:synthetic_debug_expression:1:1: Error: Method not found: 'toStringDeep'.\r\n16:07:18.017 300 info flutter.tools [        ] -> toStringDeep()\r\n16:07:18.017 301 info flutter.tools [        ] -> ^^^^^^^^^^^^\r\n16:07:18.017 302 info flutter.tools [        ] -> org-dartlang-debug:synthetic_debug_expression:1:1: Error: The method 'toStringDeep' isn't defined for the class '_HomeScreenState'.\r\n16:07:18.017 303 info flutter.tools [        ] ->  - '_HomeScreenState' is from 'package:obdchk/screens/home_screen.dart' ('lib/screens/home_screen.dart').\r\n16:07:18.017 304 info flutter.tools [        ] -> Try correcting the name to the name of an existing method, or defining a method named 'toStringDeep'.\r\n16:07:18.017 305 info flutter.tools [        ] -> toStringDeep()\r\n16:07:18.017 306 info flutter.tools [        ] -> ^^^^^^^^^^^^\r\n16:07:18.025 307 info flutter.tools [   +3 ms] -> 098efd6c-f435-42a8-8ed5-cc3e79a5562f build\\app.dill.track.dill.incremental.dill 24\r\n16:07:18.032 308 info flutter.tools [  +11 ms] -> result da8399f4-db8d-4390-956d-107016a6ea59\r\n16:07:18.040 309 info flutter.tools [   +6 ms] -> da8399f4-db8d-4390-956d-107016a6ea59 build\\app.dill.track.dill.incremental.dill 24\r\n16:07:18.040 310 info flutter.tools [   +1 ms] -> result 542a3647-5840-4c9b-9588-d9f441879e12\r\n16:07:18.040 311 info flutter.tools [        ] -> org-dartlang-debug:synthetic_debug_expression:1:1: Error: Method not found: 'toStringDeep'.\r\n16:07:18.040 312 info flutter.tools [        ] -> toStringDeep()\r\n16:07:18.040 313 info flutter.tools [        ] -> ^^^^^^^^^^^^\r\n16:07:18.040 314 info flutter.tools [        ] -> org-dartlang-debug:synthetic_debug_expression:1:1: Error: The method 'toStringDeep' isn't defined for the class '_StateLifecycle'.\r\n16:07:18.040 315 info flutter.tools [        ] ->  - '_StateLifecycle' is from 'package:flutter/src/widgets/framework.dart' ('file:///c:/sdks/flutter/packages/flutter/lib/src/widgets/framework.dart').\r\n16:07:18.040 316 info flutter.tools [        ] -> Try correcting the name to the name of an existing method, or defining a method named 'toStringDeep'.\r\n16:07:18.040 317 info flutter.tools [        ] -> toStringDeep()\r\n16:07:18.040 318 info flutter.tools [        ] -> ^^^^^^^^^^^^\r\n16:07:18.047 319 info flutter.tools [   +3 ms] -> 542a3647-5840-4c9b-9588-d9f441879e12 build\\app.dill.track.dill.incremental.dill 26\r\n16:07:18.048 320 info flutter.tools [   +1 ms] -> result 62d95968-c129-4d39-a840-8bdeabef1218\r\n16:07:18.056 321 info flutter.tools [   +6 ms] -> 62d95968-c129-4d39-a840-8bdeabef1218 build\\app.dill.track.dill.incremental.dill 26\r\n16:07:18.066 322 info flutter.tools [   +2 ms] -> result b5818d24-c116-4f43-a769-59904f0120de\r\n16:07:18.066 323 info flutter.tools [        ] -> org-dartlang-debug:synthetic_debug_expression:1:1: Error: Method not found: 'toStringDeep'.\r\n16:07:18.066 324 info flutter.tools [        ] -> toStringDeep()\r\n16:07:18.066 325 info flutter.tools [        ] -> ^^^^^^^^^^^^\r\n16:07:18.066 326 info flutter.tools [        ] -> org-dartlang-debug:synthetic_debug_expression:1:1: Error: The method 'toStringDeep' isn't defined for the class 'AppBloc'.\r\n16:07:18.067 327 info flutter.tools [        ] ->  - 'AppBloc' is from 'package:elm_bluetooth_bloc/bloc/app_bloc.dart' ('elm_bluetooth_bloc/lib/bloc/app_bloc.dart').\r\n16:07:18.067 328 info flutter.tools [        ] -> Try correcting the name to the name of an existing method, or defining a method named 'toStringDeep'.\r\n16:07:18.067 329 info flutter.tools [        ] -> toStringDeep()\r\n16:07:18.067 330 info flutter.tools [        ] -> ^^^^^^^^^^^^\r\n16:07:18.067 331 info flutter.tools [   +2 ms] -> b5818d24-c116-4f43-a769-59904f0120de build\\app.dill.track.dill.incremental.dill 28\r\n16:07:18.179 332 info runtime.gc collection time 229ms • 46.5MB used of 54.7MB • isolates/867114562\r\n16:07:18.250 333 info runtime.gc collection time 235ms • 51.5MB used of 54.7MB • isolates/867114562\r\n16:07:31.262 334 info flutter.tools [+13198 ms] -> result 00e09141-41b9-43e3-806d-d4725fedf81e\r\n16:07:31.262 335 info flutter.tools [   +2 ms] -> org-dartlang-debug:synthetic_debug_expression:1:18: Error: Expected an identifier, but got ''.\r\n16:07:31.262 336 info flutter.tools [        ] -> onData != null &&\r\n16:07:31.262 337 info flutter.tools [        ] ->                  ^...\r\n16:07:31.270 338 info flutter.tools [   +6 ms] -> 00e09141-41b9-43e3-806d-d4725fedf81e build\\app.dill.track.dill.incremental.dill 29\r\n16:07:33.060 339 info flutter.tools [+1792 ms] -> result a180ce8f-8940-46e2-b814-0e24d138f935\r\n16:07:33.067 340 info flutter.tools [   +2 ms] -> a180ce8f-8940-46e2-b814-0e24d138f935 build\\app.dill.track.dill.incremental.dill 29\r\n16:07:38.919 341 info flutter.tools [+5854 ms] -> result 95d4434d-929d-4504-8653-b98921661dd8\r\n16:07:38.926 342 info flutter.tools [   +5 ms] -> 95d4434d-929d-4504-8653-b98921661dd8 build\\app.dill.track.dill.incremental.dill 29\r\n16:07:38.938 343 info flutter.tools [  +14 ms] -> result b183ab8e-99a6-4db0-be44-310e20c62eac\r\n16:07:38.938 344 info flutter.tools [   +1 ms] -> org-dartlang-debug:synthetic_debug_expression:1:1: Error: Method not found: 'toStringDeep'.\r\n16:07:38.938 345 info flutter.tools [        ] -> toStringDeep()\r\n16:07:38.938 346 info flutter.tools [        ] -> ^^^^^^^^^^^^\r\n16:07:38.938 347 info flutter.tools [        ] -> org-dartlang-debug:synthetic_debug_expression:1:1: Error: The method 'toStringDeep' isn't defined for the class '_Closure'.\r\n16:07:38.938 348 info flutter.tools [        ] ->  - '_Closure' is from 'dart:core'.\r\n16:07:38.938 349 info flutter.tools [        ] -> Try correcting the name to the name of an existing method, or defining a method named 'toStringDeep'.\r\n16:07:38.938 350 info flutter.tools [        ] -> toStringDeep()\r\n16:07:38.938 351 info flutter.tools [        ] -> ^^^^^^^^^^^^\r\n16:07:38.946 352 info flutter.tools [   +3 ms] -> b183ab8e-99a6-4db0-be44-310e20c62eac build\\app.dill.track.dill.incremental.dill 31\r\n16:07:42.213 353 info flutter.tools [+3268 ms] I/flutter (16546): 26 2019-04-29 16:06:34.931965 FINE ui.main.dart: initial route = null\r\n16:07:42.232 354 info runtime.gc collection time 250ms • 53.1MB used of 60.0MB • isolates/867114562\r\n16:07:42.239 355 info flutter.tools [  +25 ms] I/flutter (16546): 27 2019-04-29 16:06:34.957641 FINE home_screen.dart: build Home Screen\r\n16:07:42.355 356 info flutter.tools [ +114 ms] I/flutter (16546): 28 2019-04-29 16:06:35.071358 FINE ui.main.dart: initial route = null\r\n16:07:42.421 357 info flutter.tools [  +65 ms] I/flutter (16546): 29 2019-04-29 16:06:35.136896 FINE home_screen.dart: build Home Screen\r\n16:07:42.496 358 info runtime.gc collection time 256ms • 54.5MB used of 62.7MB • isolates/867114562\r\n16:07:42.787 359 info runtime.gc collection time 323ms • 41.6MB used of 52.5MB • isolates/867114562\r\n16:08:17.778 360 info flutter.tools [+35360 ms] DevFS: Deleting filesystem on the device (file:///data/user/0/com.cobd.obdchk/code_cache/obdchkUCQMHL/obdchk/)\r\n16:08:17.778 361 info flutter.tools [        ] Sending to VM service: _deleteDevFS({fsName: obdchk})\r\n16:08:17.827 362 info flutter.tools [  +46 ms] Result: {type: Success}\r\n16:08:17.827 363 info flutter.tools [        ] DevFS: Deleted filesystem on the device (file:///data/user/0/com.cobd.obdchk/code_cache/obdchkUCQMHL/obdchk/)\r\n16:08:17.827 364 info flutter.tools [   +1 ms] Sending to VM service: ext.flutter.exit({isolateId: isolates/867114562})\r\n16:08:18.194 365 info flutter.tools [ +363 ms] Service protocol connection closed.\r\n16:08:19.832 366 info flutter.tools [+1639 ms] Application finished.\r\n16:08:19.841 367 info flutter.tools [   +7 ms] \"flutter run\" took 4,203,976ms.\r\n16:08:19.841 368 info flutter.tools [        ] \"flutter run\" took 4,203,976ms.\r\n\r\n",
+    "createdAt": "2019-04-29T23:18:48Z"
+  },
+  {
+    "id": 2715,
+    "sender": "aam",
+    "content": "@ride4sun wrote\r\n\r\n> I have the same problem\r\n\r\nJust to confirm - you are able to hot-reload/hot-restart app and see the changes, but as soon as you stop the app and start it again, you don't see the changes? If you can post log(gist) of `flutter run -v` issued from the command line window once the app gets in this state that should help.\r\n\r\n> I se also tons of these console messages:\r\n'''16:07:17.994 289 info flutter.tools [ ] -> org-dartlang-debug:synthetic_debug_expression:1:1: Error: Method not found: 'toStringDeep'.\r\n16:07:17.994 290 info flutter.tools [ ] -> toStringDeep()\r\n'''\r\n\r\nWhat IDE do you use? You seem to be running flutter/ide in verbose mode which dumps all on-demand compilation expression requests that IDE issues to evaluate various expressions as you navigate through your source code. Verbose mode being so verbose is as expected, not sure why it is turned on in your configuration though.\r\n\r\n",
+    "createdAt": "2019-04-29T23:39:59Z"
+  },
+  {
+    "id": 2716,
+    "sender": "ride4sun",
+    "content": "> Just to confirm - you are able to hot-reload/hot-restart app and see the changes, but as soon as you stop \r\n> the app and start it again, you don't see the changes? \r\n\r\nI think that is correct - I have to pay more attention to that\r\n\r\n> If you can post log(gist) of flutter run -v issued from > the command line window once the app gets in > this state that should help.\r\n\r\nok - will do\r\n\r\n\r\n>What IDE do you use? \r\n\r\nAndroid Studio \r\n\r\n>You seem to be running flutter/ide in verbose mode which dumps all on-demand \r\n>compilation expression requests that IDE issues to evaluate various expressions as you navigate through >your source code. Verbose mode being so verbose is as expected, not sure why it is turned on in your >configuration though.\r\n\r\nI switched the verbose on after I seen all these problems. I think there is a correlation between when these 'toStringDeep' messages show up.\r\n\r\n>                                                                  toStringDeep()\r\n> 16:07:38.938 346 info flutter.tools [ ] -> ^^^^^^^^^^^^\r\n> ",
+    "createdAt": "2019-04-29T23:50:32Z"
+  },
+  {
+    "id": 2717,
+    "sender": "molundb",
+    "content": "@aam \r\n\r\n> Thanks! So hot reload/restart works as expected, but then when you stop the app and run it again, you see old app shown? Can you please post a gist of `flutter run -v` of that(second `flutter run -v` that shows stale app)?\r\n\r\nWhenever I start the app old code runs. Hot reloading changes nothing. The only way that I've found to get the current code to run is to hot restart. After that hot reloading works as usual. If I stop and start the app again the old code runs again.\r\n\r\nhttps://gist.github.com/molundb/7020ff1e43e28fd3e2d0326cd0b957ae\r\n",
+    "createdAt": "2019-04-30T08:44:40Z"
+  },
+  {
+    "id": 2718,
+    "sender": "aam",
+    "content": "@molundb wrote\r\n> Whenever I start the app old code runs\r\n\r\nWhat happens if before starting the app you edit some file? What if you delete the app from simulator before starting it again?\r\n\r\nI think it be easier to troubleshoot the problem if you also move up to the latest beta or dev.\r\n\r\nAlso if you could see whether sample (flutter gallery) exhibits same problem as you edit and reload it, stop and start it, ideally from command line where you can capture logs.",
+    "createdAt": "2019-04-30T14:36:36Z"
+  },
+  {
+    "id": 2719,
+    "sender": "molundb",
+    "content": " @aam  wrote\r\n\r\n> What happens if before starting the app you edit some file? \r\n\r\nTried it, no difference. The same old code still runs.\r\n\r\n> What if you delete the app from simulator before starting it again?\r\n\r\nTried it, no difference. The same old code still runs.\r\n\r\n\r\n> I think it be easier to troubleshoot the problem if you also move up to the latest beta or dev.\r\n\r\nOk, I changed to beta.\r\n\r\n> Also if you could see whether sample (flutter gallery) exhibits same problem as you edit and reload it, stop and start it, ideally from command line where you can capture logs.\r\n\r\nRunning the flutter gallery app worked as it should; no old code was being run.\r\nhttps://gist.github.com/molundb/075ba9d05e0516b7787a0570a97d05ef\r\n",
+    "createdAt": "2019-04-30T15:41:44Z"
+  },
+  {
+    "id": 2720,
+    "sender": "aam",
+    "content": "@molundb wrote\r\n> > What happens if before starting the app you edit some file?\r\n\r\n> Tried it, no difference. The same old code still runs.\r\n\r\nCan you post a log of a run after some source code change? If there is `Skipping kernel compilation. Fingerprint match.` in the log on initial application launch even if you edit the source code, somehow filesystem then doesn't report file system changes or flutter and you are looking at different sources. Can you confirm that the file that you edit has updated timestamp? `beta`/`dev` version should report list of sources it used for compilation - can you confirm that file you edit is listed there?\r\nWhat if you do `flutter clean` (or remove `build/` folder) - next time you run the app, does it have the changes? If it does, how do you get into broken state? You stop the app, change the source, start the app and don't see the change at that point?\r\n\r\n> Running the flutter gallery app worked as it should; no old code was being run.\r\n\r\nOkay, that at least establishes some reasonable base. Perhaps comparing your application setup on your machine against flutter gallery example could provide some insights as to why it doesn't work for your app? Are both hosted on the same disk/filesystem?",
+    "createdAt": "2019-04-30T20:14:50Z"
+  },
+  {
+    "id": 2721,
+    "sender": "jonahwilliams",
+    "content": "> Skipping kernel compilation. Fingerprint match\r\n\r\nThat should never show up if you're passed this fix, because I've disabled all of the fingerprinters",
+    "createdAt": "2019-04-30T20:17:42Z"
+  },
+  {
+    "id": 2722,
+    "sender": "molundb",
+    "content": "@aam \r\n\r\n>Can you post a log of a run after some source code change? If there is Skipping kernel compilation. Fingerprint match. in the log on initial application launch even if you edit the source code, somehow filesystem then doesn't report file system changes or flutter and you are looking at different sources. \r\n\r\nI could not find a Skipping kernel compilation. Fingerprint match. \r\n\r\n>Can you confirm that the file that you edit has updated timestamp? beta/dev version should report list of sources it used for compilation - can you confirm that file you edit is listed there?\r\n\r\nWhere can I see this timestamp? In the output I can see the file I edited listed two times, but a lot of other files that weren't edited are also listed.\r\n\r\nI edited this file: /Users/martinlundberg/AndroidStudioProjects/tlycs_flutter/lib/screens/settings_page/SettingsPage.dart\r\n\r\nHere is the output:\r\nhttps://gist.github.com/molundb/146a46aa7c2e1a6fc81071b4d23561d1\r\n\r\n>What if you do flutter clean (or remove build/ folder) - next time you run the app, does it have the changes? If it does, how do you get into broken state? You stop the app, change the source, start the app and don't see the change at that point?\r\n\r\nNo, flutter clean changes nothing. The old code is still run. We get into broken state whenever the app is stopped and then run. Doing a hot restart fixes the broken state.\r\n\r\n> Okay, that at least establishes some reasonable base. Perhaps comparing your application setup on your machine against flutter gallery example could provide some insights as to why it doesn't work for your app? Are both hosted on the same disk/filesystem?\r\n\r\nYes, they are both hosted on the same disk. I don't know what other differences to look at, \r\ndo you have any ideas?",
+    "createdAt": "2019-05-02T09:06:58Z"
+  },
+  {
+    "id": 2723,
+    "sender": "aam",
+    "content": "> Where can I see this timestamp? In the output I can see the file I edited listed two times, but a lot of other files that weren't edited are also listed.\r\n\r\nI mean timestamp you get in `ls -al {filename}` Terminal Shell for example.\r\nList of files is useful to confirm that the file you are editing is the one that is being compiled.\r\n\r\n> No, flutter clean changes nothing. The old code is still run. We get into broken state whenever the app is stopped and then run. Doing a hot restart fixes the broken state.\r\n\r\nSo you start app in state A(let's say background color is grey) - you do `flutter run -v`. You edit the flutter source code(state B) (so the background color is red for example), you hot-reload('r' in flutter command line terminal session), do you see the change? You stop the app (quit `flutter run`) and restart it(`flutter run -v`, do you see state A or state B? If you still see A, what if you remove the app from iphone simulator, do `flutter clean`, do `flutter run` again? Still A?",
+    "createdAt": "2019-05-06T20:26:16Z"
+  },
+  {
+    "id": 2724,
+    "sender": "molundb",
+    "content": "@aam \r\n\r\n> I mean timestamp you get in ls -al {filename} Terminal Shell for example.\r\nList of files is useful to confirm that the file you are editing is the one that is being compiled.\r\n\r\nOh! I didn't know about that command before. I tried it and it indeed seems to notice when a file is updated. The issue is still the same, however; old code is being run unless I hot restart. Here is the output from the terminal:\r\n\r\n```\r\nSebastians-MacBook-Pro-Retina-2016:tlycs_flutter martinlundberg$ ls -al lib/widgets/FeedbackButton.dart \r\n-rw-r--r--  1 martinlundberg  staff  1051 May  6 09:33 lib/widgets/FeedbackButton.dart\r\nSebastians-MacBook-Pro-Retina-2016:tlycs_flutter martinlundberg$ ls -al lib/widgets/FeedbackButton.dart \r\n-rw-r--r--  1 martinlundberg  staff  1053 May  7 11:00 lib/widgets/FeedbackButton.dart\r\n```\r\n\r\n>So you start app in state A(let's say background color is grey) - you do flutter run -v. \r\n\r\nDone.\r\n\r\n> You edit the flutter source code(state B) (so the background color is red for example), you hot-reload('r' in flutter command line terminal session), do you see the change? \r\n\r\nNo change.\r\n\r\n> You stop the app (quit flutter run) and restart it(flutter run -v, do you see state A or state B? \r\n\r\nA.\r\n\r\n> If you still see A, what if you remove the app from iphone simulator, do flutter clean, do flutter run again? Still A?\r\n\r\nInterestingly, this time, after running the last flutter run -v, the app crashed and didn't build. Then I tried to run it again without changing anything and it built state A again. Then I hot reloaded, still A. Then I hot restarted, and got state B. Check out the output of everything here:\r\n\r\nhttps://gist.github.com/molundb/ddfd07e7fd1691f8b3992c207b7ac80f\r\n\r\nThanks a lot for all your help so far, this issue is still a major problem for us here.",
+    "createdAt": "2019-05-07T09:15:50Z"
+  },
+  {
+    "id": 2725,
+    "sender": "aam",
+    "content": "@molundb wrote\r\n\r\n> > If you still see A, what if you remove the app from iphone simulator, do flutter clean, do flutter run again? Still A?\r\n> \r\n> Interestingly, this time, after running the last flutter run -v, the app crashed and didn't build. Then I tried to run it again without changing anything and it built state A again. Then I hot reloaded, still A. Then I hot restarted, and got state B. Check out the output of everything here:\r\n\r\nSo it sounds like you are permanently stuck in state A, is that right? There is no change that you can make to the app that takes effect unless you start in state A, then hot-restart the app, but those changes disappear after you stop the app. It sounds like xcodeproject setup issue. Would it be possible for you to create new flutter project via `flutter create myproject`, then copy your flutter/dart code over into that `myproject` and see if things are work in `myproject`?",
+    "createdAt": "2019-05-08T14:28:40Z"
+  },
+  {
+    "id": 2726,
+    "sender": "tvolkert",
+    "content": "@aam @molundb it's been a while since it's been used, so it may have gone stale, but it's possible that `flutter run --bug-report` would prove useful here.  You'd have to quit the app pretty quickly to keep the bug report zip file to a somewhat sane size 😄 ",
+    "createdAt": "2019-05-08T15:09:20Z"
+  },
+  {
+    "id": 2727,
+    "sender": "molundb",
+    "content": "@aam \r\n\r\n>So it sounds like you are permanently stuck in state A, is that right? There is no change that you can make to the app that takes effect unless you start in state A, then hot-restart the app, but those changes disappear after you stop the app. \r\n\r\nExactly.\r\n\r\n>It sounds like xcodeproject setup issue. Would it be possible for you to create new flutter project via flutter create myproject, then copy your flutter/dart code over into that myproject and see if things are work in myproject?\r\n\r\nOk, first I created a new project and then I copied lib, assets, pubspec.yaml, pubspec.lock, package-lock.json and GoogleService-Info.plist into the project. Then whenever I tried to run I got this error which I wasn't able to solve:\r\n\r\n```\r\n\r\n5.20.0 - [Firebase/Core][I-COR000004] App with name __FIRAPP_DEFAULT does not exist.\r\nConfiguring the default Firebase app...\r\n5.20.0 - [Firebase/Core][I-COR000012] Could not locate configuration file: 'GoogleService-Info.plist'.\r\n5.20.0 - [Firebase/Core][I-COR000005] No app has been configured yet.\r\n5.20.0 - [Firebase/Core][I-COR000005] No app has been configured yet.\r\n*** First throw call stack:\r\n(\r\n\t0   CoreFoundation                      0x00000001116846fb __exceptionPreprocess + 331\r\n\t1   libobjc.A.dylib                     0x0000000110c28ac5 objc_exception_throw + 48\r\n\t2   CoreFoundation                      0x0000000111684555 +[NSException raise:format:] + 197\r\n\t3   Runner                              0x000000010a44b462 +[FIRApp configure] + 562\r\n\t4   Runner                              0x000000010aa2bf16 -[FLTCloudFirestorePlugin init] + 214\r\n\t5   Runner                              0x000000010aa2bda9 +[FLTCloudFirestorePlugin registerWithRegistrar:] + 297\r\n\t6   Runner                              0x000000010a2a9123 +[GeneratedPluginRegistrant registerWithRegistry:] + 115\r\n\t7   Runner                        <…>\r\n```\r\nThen I copied the ios folder into the new project and it built, but I got the bug again. Always state A except if I hot restarted. Any idea how I could solve the bug above?\r\n\r\n@tvolkert \r\n\r\nI ran `flutter run --bug-report` on the original project and got two zip files? I'm not sure why there are two. Here they are:\r\n[bugreport_01.zip](https://github.com/flutter/flutter/files/3162945/bugreport_01.zip)\r\n[bugreport_02.zip](https://github.com/flutter/flutter/files/3162946/bugreport_02.zip)\r\n\r\n",
+    "createdAt": "2019-05-09T16:03:53Z"
+  },
+  {
+    "id": 2728,
+    "sender": "molundb",
+    "content": "@aam \r\n\r\nI re-did the first try and was able to not get the __FIREAPP_DEFAULT problem by moving the GoogleService_Info.plist into xcode instead of into my folder. Now it built state B! No old code. Now I just need to figure out how to make sure I copy over everything that's necessary into the new project.\r\n\r\nThanks!",
+    "createdAt": "2019-05-10T08:35:29Z"
+  },
+  {
+    "id": 2729,
+    "sender": "TheDeepEffect",
+    "content": "i was having a same problem and according to me my problem was i didn't set class name as MyApp\r\nand as soon as i changed my class name to MyApp....its again working\r\nand because of diffrent name then MyApp a file in test folder named widget_test.dart was having an error......\r\nPS: I am at very early stage of learning flutter this might be not the solution for you😅\r\n",
+    "createdAt": "2019-06-04T17:27:10Z"
+  },
+  {
+    "id": 2730,
+    "sender": "kaina404",
+    "content": "Good",
+    "createdAt": "2019-10-23T13:42:43Z"
+  },
+  {
+    "id": 2731,
+    "sender": "jonahwilliams",
+    "content": "With https://github.com/flutter/flutter/commit/df3505c1f389031895a459cb2831f38a76119ea2 I believe this is completely fixed on Android.",
+    "createdAt": "2019-11-19T22:45:51Z"
+  },
+  {
+    "id": 2732,
+    "sender": "droidluv",
+    "content": "Yes it is, I don't have this annoying issue anymore and it's been fixed for quite a while",
+    "createdAt": "2019-11-20T06:16:38Z"
+  },
+  {
+    "id": 2733,
+    "sender": "Reprevise",
+    "content": "I'm still facing this issue. I'm on the beta channel running version 1.12.13+hotfix.3. I'm using Android Studio and I have already fixed an error on startup in my app but every time I cold restart my app, I still get the big red error message and the only way to fix it is to hot restart every time.",
+    "createdAt": "2019-12-09T22:51:08Z"
+  },
+  {
+    "id": 2734,
+    "sender": "jonahwilliams",
+    "content": "@Reprevise can you elaborate a bit? cold restart = re-run application?",
+    "createdAt": "2019-12-09T22:53:11Z"
+  },
+  {
+    "id": 2735,
+    "sender": "Reprevise",
+    "content": "Yes, like completely stop the app and start it up again.",
+    "createdAt": "2019-12-09T22:53:39Z"
+  },
+  {
+    "id": 2736,
+    "sender": "jonahwilliams",
+    "content": "Can you provide verbose logs from the rerun (example: flutter run -v) and share the error message on startup?",
+    "createdAt": "2019-12-09T22:54:23Z"
+  },
+  {
+    "id": 2737,
+    "sender": "Reprevise",
+    "content": "https://pastebin.com/UDzpwQKm",
+    "createdAt": "2019-12-09T22:57:57Z"
+  },
+  {
+    "id": 2738,
+    "sender": "jonahwilliams",
+    "content": "@Reprevise it just looks like you're running a different flutter application in the background and getting logs from it while building (definitely annoying). If you restart your phone and run again can you confirm first if the error is still happening and then if it is still happening if the error goes away if you flutter clean?",
+    "createdAt": "2019-12-09T23:03:40Z"
+  },
+  {
+    "id": 2739,
+    "sender": "Reprevise",
+    "content": "I have wiped all of the data from all of my emulators and ran my Flutter application. It showed the error (which it's not supposed to have since it's already been fixed). After I ran `flutter clean`, the error still showed up on startup.\r\n\r\nCORRECTION: It DOES NOT show the error on startup anymore after flutter clean. However, it does show the error in the logs.",
+    "createdAt": "2019-12-09T23:12:24Z"
+  },
+  {
+    "id": 2740,
+    "sender": "jonahwilliams",
+    "content": "I don't think this is related. It seems like your application is up to date but naturally has this bug. If you can file a new issue with a minimal reproduction that would help determine the root cause",
+    "createdAt": "2019-12-09T23:15:08Z"
+  },
+  {
+    "id": 2741,
+    "sender": "starlight173",
+    "content": "v1.12 on the stable channel seems caching the obsolete error console log. Clean/remove doesnt solve the problem. The error keeps displaying until sometimes then vanish for no reason. It confused me a lot.",
+    "createdAt": "2019-12-16T09:32:23Z"
+  },
+  {
+    "id": 2742,
+    "sender": "jonahwilliams",
+    "content": "@gloryluu that has nothing to do with build/clean, I recommend filling a new bug",
+    "createdAt": "2019-12-16T18:32:28Z"
+  },
+  {
+    "id": 2743,
+    "sender": "bhallaramdhatarwal",
+    "content": "I have facing some problem in flutter project can any one help me\r\n\r\nC:\\flutter\\bin\\flutter.bat doctor --verbose\r\n[√] Flutter (Channel master, v1.13.6-pre.38, on Microsoft Windows [Version 10.0.14393], locale en-US)\r\n    • Flutter version 1.13.6-pre.38 at C:\\flutter\r\n    • Framework revision b28dd0c296 (7 days ago), 2019-12-28 10:33:01 +0800\r\n    • Engine revision 5a730c60d3\r\n    • Dart version 2.8.0 (build 2.8.0-dev.0.0 1db1a837f8)\r\n\r\n[!] Android toolchain - develop for Android devices (Android SDK version 29.0.2)\r\n    • Android SDK at E:\\Android Meterial\\AndroidSDK\r\n    • Android NDK location not configured (optional; useful for native profiling support)\r\n    • Platform android-29, build-tools 29.0.2\r\n    • ANDROID_HOME = E:\\Android Meterial\\AndroidSDK\r\n    • Java binary at: C:\\Program Files\\Android\\Android Studio\\jre\\bin\\java\r\n    • Java version OpenJDK Runtime Environment (build 1.8.0_202-release-1483-b03)\r\n    X Android license status unknown.\r\n      Try re-installing or updating your Android SDK Manager.\r\n      See https://developer.android.com/studio/#downloads or visit https://flutter.dev/setup/#android-setup for detailed instructions.\r\n\r\n[√] Android Studio (version 3.5)\r\n    • Android Studio at C:\\Program Files\\Android\\Android Studio\r\n    • Flutter plugin version 42.1.1\r\n    • Dart plugin version 191.8593\r\n    • Java version OpenJDK Runtime Environment (build 1.8.0_202-release-1483-b03)\r\n\r\n[√] Connected device (1 available)\r\n    • SM M105F • 5200ebb94a0346f7 • android-arm • Android 9 (API 28)\r\n\r\n! Doctor found issues in 1 category.\r\nProcess finished with exit code 0\r\n\r\nHow to solve these problem in Windows 10 64 bit\r\n\r\n\"[!] Android toolchain - develop for Android devices (Android SDK version 29.0.2)\r\n• Android SDK at E:\\Android Meterial\\AndroidSDK\r\n• Android NDK location not configured (optional; useful for native profiling support)\r\n• Platform android-29, build-tools 29.0.2\r\n• ANDROID_HOME = E:\\Android Meterial\\AndroidSDK\r\n• Java binary at: C:\\Program Files\\Android\\Android Studio\\jre\\bin\\java\r\n• Java version OpenJDK Runtime Environment (build 1.8.0_202-release-1483-b03)\r\nX Android license status unknown.\r\nTry re-installing or updating your Android SDK Manager.\r\nSee https://developer.android.com/studio/#downloads or visit https://flutter.dev/setup/#android-setup for detailed instructions.\"",
+    "createdAt": "2020-01-04T12:29:54Z"
+  },
+  {
+    "id": 2744,
+    "sender": "arminrasoulian",
+    "content": "I have the same issue.\r\n\r\n[flutter] flutter doctor -v\r\n[√] Flutter (Channel stable, v1.12.13+hotfix.5, on Microsoft Windows [Version 10.0.18363.535], locale en-US)\r\n    • Flutter version 1.12.13+hotfix.5 at D:\\flutter\r\n    • Framework revision 27321ebbad (5 weeks ago), 2019-12-10 18:15:01 -0800\r\n    • Engine revision 2994f7e1e6\r\n    • Dart version 2.7.0\r\n\r\n[√] Android toolchain - develop for Android devices (Android SDK version 28.0.3)\r\n    • Android SDK at D:\\android-sdk\r\n    • Android NDK location not configured (optional; useful for native profiling support)\r\n    • Platform android-28, build-tools 28.0.3\r\n    • ANDROID_HOME = D:\\android-sdk\r\n    • Java binary at: C:\\Program Files\\Android\\Android Studio\\jre\\bin\\java\r\n    • Java version OpenJDK Runtime Environment (build 1.8.0_152-release-1343-b01)\r\n    • All Android licenses accepted.\r\n\r\n[!] Android Studio (version 3.4)\r\n    • Android Studio at C:\\Program Files\\Android\\Android Studio\r\n    X Flutter plugin not installed; this adds Flutter specific functionality.\r\n    X Dart plugin not installed; this adds Dart specific functionality.\r\n    • Java version OpenJDK Runtime Environment (build 1.8.0_152-release-1343-b01)\r\n\r\n[√] VS Code (version 1.41.1)\r\n    • VS Code at C:\\Users\\Armin\\AppData\\Local\\Programs\\Microsoft VS Code\r\n    • Flutter extension version 3.7.1\r\n\r\n[√] Connected device (1 available)\r\n    • Android SDK built for x86 • emulator-5554 • android-x86 • Android 9 (API 28) (emulator)\r\n\r\n! Doctor found issues in 1 category.",
+    "createdAt": "2020-01-12T09:52:50Z"
+  },
+  {
+    "id": 2745,
+    "sender": "zanderso",
+    "content": "@jonahwilliams we should probably inventory which parts of the tool still need to be converted to use the new build system, file separate issues for those parts, and close this issue.",
+    "createdAt": "2020-01-15T22:53:33Z"
+  },
+  {
+    "id": 2746,
+    "sender": "Reprevise",
+    "content": "Reproducible steps:\r\n\r\n1. Create new Flutter project\r\n2. To get an error that causes that infamous error screen, call `MediaQuery.of(context)` in `MyApp`'s `build` method.\r\n3. You get the error screen.\r\n4. Stop debugging (in VSCode & Android Studio, click the red square)\r\n5. Fix the error (in this case remove the line calling `MediaQuery.of(context)`.\r\n6. Restart debugging\r\n7. You get the error screen even though the error was fixed.\r\n8. Restart the app (in VSCode, press the green refresh icon and in Android Studio, press the \"play\" button with the little green circle) and notice the error screen is gone.\r\n\r\nI'm on Flutter 1.13.6 (latest beta channel version).\r\n\r\n**UPDATE:** Still applies to the latest beta version (1.14.6).",
+    "createdAt": "2020-01-19T20:42:47Z"
+  },
+  {
+    "id": 2747,
+    "sender": "qng5150",
+    "content": "> v1.12 on the stable channel seems caching the obsolete error console log. Clean/remove doesnt solve the problem. The error keeps displaying until sometimes then vanish for no reason. It confused me a lot.\r\n\r\nGetting the same issue as well.\r\n Flutter (Channel stable, v1.12.13+hotfix.7, on Mac OS X 10.15.2 19C57, locale en-AU)\r\n",
+    "createdAt": "2020-02-10T11:14:55Z"
+  },
+  {
+    "id": 2748,
+    "sender": "jonahwilliams",
+    "content": "@shinta5150 The console log issue is a separate regression.\r\n\r\n@Reprevise this sounds like a change that isn't hot reloadable, not a build error",
+    "createdAt": "2020-02-10T15:49:10Z"
+  },
+  {
+    "id": 2749,
+    "sender": "Reprevise",
+    "content": "@jonahwilliams I never said I hot reloaded. I stopped debugging and restarted it and still got the screen after the error was fixed.",
+    "createdAt": "2020-02-10T15:52:11Z"
+  },
+  {
+    "id": 2750,
+    "sender": "jonahwilliams",
+    "content": "@Reprevise in your project directory there will be a generated file that should contain all of your project's dependencies, something like `build/app/intermediates/flutter/debug/flutter_build.d`. Could you verify that it contains the name of the file you are changing?",
+    "createdAt": "2020-02-10T16:17:10Z"
+  },
+  {
+    "id": 2751,
+    "sender": "Reprevise",
+    "content": "> @Reprevise in your project directory there will be a generated file that should contain all of your project's dependencies, something like `build/app/intermediates/flutter/debug/flutter_build.d`. Could you verify that it contains the name of the file you are changing?\r\n\r\nIt does contain the name of the file that I am editing.",
+    "createdAt": "2020-02-10T20:26:23Z"
+  }
+]

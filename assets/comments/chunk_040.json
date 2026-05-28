@@ -1,0 +1,386 @@
+[
+  {
+    "id": 2560,
+    "sender": "tvolkert",
+    "content": "Just chatted with @cbracken - sounds like this was fixed on master 3 days ago in https://github.com/flutter/flutter/pull/17175\r\n\r\n@ratsey if you `flutter upgrade`, you should pick up the fix.  Please let us know if you still see it happening when you're synced to a commit after 752906498ae9961008e9336a1c88aa14f8ac068f\r\n\r\n@dedeswim this fix may not land on the beta channel for several weeks.  You can see it sooner by running `flutter channel dev` or right away with `flutter channel master` 😄 ",
+    "createdAt": "2018-05-04T14:38:59Z"
+  },
+  {
+    "id": 2561,
+    "sender": "iampawan",
+    "content": "@volkert i have upgraded flutter today itself 8 hours ago in master channel\nand it is not yet fixed for me.\n\nOn Fri, 4 May 2018 at 8:09 PM, Todd Volkert <notifications@github.com>\nwrote:\n\n> Just chatted with @cbracken <https://github.com/cbracken> - sounds like\n> this was fixed on master 3 days ago in #17175\n> <https://github.com/flutter/flutter/pull/17175>\n>\n> @ratsey <https://github.com/ratsey> if you flutter upgrade, you should\n> pick up the fix. Please let us know if you still see it happening when\n> you're synced to a commit after 7529064\n> <https://github.com/flutter/flutter/commit/752906498ae9961008e9336a1c88aa14f8ac068f>\n>\n> @dedeswim <https://github.com/dedeswim> this fix may not land on the beta\n> channel for several weeks. You can see it sooner by running flutter\n> channel dev or right away with flutter channel master 😄\n>\n> —\n> You are receiving this because you commented.\n> Reply to this email directly, view it on GitHub\n> <https://github.com/flutter/flutter/issues/16604#issuecomment-386622251>,\n> or mute the thread\n> <https://github.com/notifications/unsubscribe-auth/AMCOnJCY9QCtdFuMdaU2xTt6fFPvVQpcks5tvGgkgaJpZM4TVhip>\n> .\n>\n",
+    "createdAt": "2018-05-04T14:42:00Z"
+  },
+  {
+    "id": 2562,
+    "sender": "tvolkert",
+    "content": "@iampawan good to know - we'll certainly have a look today.  This is on Android debug builds?",
+    "createdAt": "2018-05-04T14:45:29Z"
+  },
+  {
+    "id": 2563,
+    "sender": "iampawan",
+    "content": "Yes I have only tried the debug build.. I was using ios simulator and even\nflutter clean was not working for me . I had to delete the app . But then\nanother thing i noticed was that if i run my app again and again 2-3 times\nthen changes reflects.. still don’t know how to fix this but this happens\nwhen app freezes during hot reload\n\nOn Fri, 4 May 2018 at 8:15 PM, Todd Volkert <notifications@github.com>\nwrote:\n\n> @iampawan <https://github.com/iampawan> good to know - we'll certainly\n> have a look today. This is on Android debug builds?\n>\n> —\n> You are receiving this because you were mentioned.\n>\n>\n> Reply to this email directly, view it on GitHub\n> <https://github.com/flutter/flutter/issues/16604#issuecomment-386624223>,\n> or mute the thread\n> <https://github.com/notifications/unsubscribe-auth/AMCOnNxuo-c8uFwQkrw0C1BBXMqAGcd4ks5tvGmhgaJpZM4TVhip>\n> .\n>\n",
+    "createdAt": "2018-05-04T14:48:45Z"
+  },
+  {
+    "id": 2564,
+    "sender": "tvolkert",
+    "content": "Quick poll for those following along in case it helps identify a pattern where this is happening (sounds like OS has already been ruled out since we have reports from both Windows and MacOS): which of the following apply to you:\r\n\r\n* Android vs iOS\r\n* physical device vs emulator/simulator\r\n* debug, profile, or release build\r\n",
+    "createdAt": "2018-05-04T14:50:34Z"
+  },
+  {
+    "id": 2565,
+    "sender": "escamoteur",
+    "content": "* Android build \r\n* Windows machine \r\n* emulator. & device\r\n*  Updated this morning. \r\n* Debug only tested yet\r\n\r\nIt is even weirder, I make a change and an Instant Reload and the change shows up. I quit and restart the app without Flutter clean and I get the old version. ",
+    "createdAt": "2018-05-04T14:52:43Z"
+  },
+  {
+    "id": 2566,
+    "sender": "iampawan",
+    "content": "1. Android and iOS both .. i just verified it\n2. Physical as well as emulator device\n3. I have tried debug only\n4. For me it happens lesser in android studio but more when i use vscode (\nmay be this is irrelevant because i don’t know )\n\nOn Fri, 4 May 2018 at 8:20 PM, Todd Volkert <notifications@github.com>\nwrote:\n\n> Quick poll for those following along in case it helps identify a pattern\n> where this is happening (sounds like OS has already been ruled out since we\n> have reports from both Windows and MacOS): which of the following apply to\n> you:\n>\n>    - Android vs iOS\n>    - physical device vs emulator/simulator\n>    - debug, profile, or release build\n>\n> —\n> You are receiving this because you were mentioned.\n> Reply to this email directly, view it on GitHub\n> <https://github.com/flutter/flutter/issues/16604#issuecomment-386625760>,\n> or mute the thread\n> <https://github.com/notifications/unsubscribe-auth/AMCOnP1SMbNrtH7hn11XZOR7SVxFyTtaks5tvGrRgaJpZM4TVhip>\n> .\n>\n",
+    "createdAt": "2018-05-04T14:53:51Z"
+  },
+  {
+    "id": 2567,
+    "sender": "devoncarew",
+    "content": "> It is even weirder, I make a change and an Instant Reload and the change shows up. I quit and restart the app without Flutter clean and I get the old version.\r\n\r\nThat sounds like an issue rebuilding the kernel file for the app (`build/app.dill`). The initial app run build a kernel file and starts the app from it; the first hot reload populates all the app's (kernel) source into an in-memory on device devfs file system and reloads from there; subsequent reloads populates file deltas into that memory file system.\r\n\r\n/cc @aam \r\n",
+    "createdAt": "2018-05-04T16:56:21Z"
+  },
+  {
+    "id": 2568,
+    "sender": "cbracken",
+    "content": "#17175 should only have fixed an invalidation issue for profile/release builds. Debug builds use a different code path. \r\n\r\nI'm not able to reproduce this bug with simple code changes to the gallery demo testing with iOS debug simulator on master, using just the command-line tools. I'll give a go through an IDE, which uses the daemon and keep poking at it till we sort out what's up.\r\n\r\n@iampawan @escamoteur were you seeing the bad behaviour with code changes or asset changes (or both)?",
+    "createdAt": "2018-05-04T16:58:26Z"
+  },
+  {
+    "id": 2569,
+    "sender": "tvolkert",
+    "content": "> were you seeing the bad behaviour with code changes or ...\r\n\r\nAnd if code changes, was it Dart code, or Java/ObjC code?\r\n\r\nAlso, has anyone reproduced this at the command-line, or always in an IDE?",
+    "createdAt": "2018-05-04T17:00:05Z"
+  },
+  {
+    "id": 2570,
+    "sender": "aam",
+    "content": "I'm not able to repro this neither from IJ, nor from command line(on physical Android device).\r\nI'm starting Flutter Gallery, making simple change(lib/gallery/app.dart:128 'Flutter Gallery' -> 'Updated Flutter Gallery'), hot-reload, confirm I see the change(title of the app changes), stop the app, start it again, still see the change.\r\n\r\nThis is on 24.0.1 of Flutter IJ plugin, `master` branch of Flutter:\r\n```\r\nFlutter 0.3.6-pre.113 • channel master • git@github.com:aam/flutter.git Framework • revision d820e5f3b1 (12 hours ago) • 2018-05-03 22:27:29 -0700 Engine • revision e976be13c5 Tools • Dart 2.0.0-dev.53.0.flutter-e6d7d67f4b\r\n```",
+    "createdAt": "2018-05-04T17:08:07Z"
+  },
+  {
+    "id": 2571,
+    "sender": "aam",
+    "content": "@devoncarew wrote\r\n\r\n> That sounds like an issue rebuilding the kernel file for the app (build/app.dill).\r\n\r\nNext time you start the app, `build/app.dill` should be rebuilt because sources are newer than the dill file.",
+    "createdAt": "2018-05-04T17:11:36Z"
+  },
+  {
+    "id": 2572,
+    "sender": "escamoteur",
+    "content": "@cbracken have only tried with Dart code changes yet. If we can help with log files if there are, let us know.\r\nSorry for the delay, but timezones make it difficult.\r\n\r\nI m using VS code if that makes a difference ",
+    "createdAt": "2018-05-05T06:45:51Z"
+  },
+  {
+    "id": 2573,
+    "sender": "cbracken",
+    "content": "@escamoteur log files would be great. If you run `flutter -v run ...` with the usual flutter run arguments, you’ll get more detailed output. From Android Studio you can edit your run configuration to specify `—verbose` in the additional options field. ",
+    "createdAt": "2018-05-05T14:58:58Z"
+  },
+  {
+    "id": 2574,
+    "sender": "escamoteur",
+    "content": "This log is after  `flutter clean`\r\n[afterflutterclean.txt](https://github.com/flutter/flutter/files/1977002/afterflutterclean.txt)\r\n\r\n\r\nThen I modified something and run it without the change taking affect\r\n\r\n[afterchange.txt](https://github.com/flutter/flutter/files/1977004/afterchange.txt)\r\n\r\nThen after another `flutter clean`\r\n\r\n[afterfluttercleanafterchange.txt](https://github.com/flutter/flutter/files/1977007/afterfluttercleanafterchange.txt)\r\n\r\nI zipped the whole project. The button in the App should after the change be blue but isn't \r\nDon't know if you can reproduce it from the zip file\r\n\r\nhttps://drive.google.com/open?id=1r2lQPVW3TgJpK4RH_kyrRXyePIyw7_UY\r\n\r\n\r\nPS C:\\Entwicklung\\Blog\\Two way binding in Flutter\\two_way_binding> flutter -v doctor\r\n[√] Flutter (Channel master, v0.3.7-pre.9, on Microsoft Windows [Version 10.0.17134.1], locale de-DE)\r\n    • Flutter version 0.3.7-pre.9 at C:\\Entwicklung\\Flutter\r\n    • Framework revision b2b4665926 (19 hours ago), 2018-05-04 18:17:35 -0700\r\n    • Engine revision e976be13c5\r\n    • Dart version 2.0.0-dev.53.0.flutter-e6d7d67f4b\r\n\r\n[√] Android toolchain - develop for Android devices (Android SDK 27.0.3)\r\n    • Android SDK at C:\\Users\\escam\\AppData\\Local\\Android\\sdk\r\n    • Android NDK location not configured (optional; useful for native profiling support)\r\n    • Platform android-27, build-tools 27.0.3\r\n    • Java binary at: C:\\Program Files\\Android\\Android Studio\\jre\\bin\\java\r\n    • Java version OpenJDK Runtime Environment (build 1.8.0_152-release-1024-b02)\r\n    • All Android licenses accepted.\r\n\r\n[√] Android Studio (version 3.1)\r\n    • Android Studio at C:\\Program Files\\Android\\Android Studio\r\n    • Flutter plugin version 23.2.2\r\n    • Dart plugin version 173.4700\r\n    • Java version OpenJDK Runtime Environment (build 1.8.0_152-release-1024-b02)\r\n\r\n[√] VS Code, 32-bit edition (version 1.22.2)\r\n    • VS Code at C:\\Program Files (x86)\\Microsoft VS Code\r\n    • Dart Code extension version 2.12.1\r\n\r\n[√] Connected devices (1 available)\r\n    • Android SDK built for x86 • emulator-5554 • android-x86 • Android 6.0 (API 23) (emulator)\r\n\r\n• No issues found!\r\n\r\nUnfortunately I will be on the road till Tuesday,",
+    "createdAt": "2018-05-05T19:46:47Z"
+  },
+  {
+    "id": 2575,
+    "sender": "ratsey",
+    "content": "I had to change the min SDK and SDK location, and my Flutter did upgrade to get @escamoteur 's zip to run on my setup.\r\n\r\nI am able to change the button colour in Debug with a hot-reload, and also change the colour between debug runs.  Bottom line - @escamoteur 's project is working for me. \r\n\r\nI'll try with my code again later this evening with this Flutter upgrade.",
+    "createdAt": "2018-05-07T14:11:36Z"
+  },
+  {
+    "id": 2576,
+    "sender": "escamoteur",
+    "content": "Any insights  through the logs? @cbracken ",
+    "createdAt": "2018-05-07T14:54:56Z"
+  },
+  {
+    "id": 2577,
+    "sender": "iampawan",
+    "content": "@cbracken @tvolkert I am using the latest flutter version and today the freeze thing has increased while using vscode but i didn't face any issue like latest changes in the app is now reflecting which was not earlier .. But app freezes while changing something in stateful classes and i think it's less or not happening when i am using terminal for hot reload",
+    "createdAt": "2018-05-08T10:57:22Z"
+  },
+  {
+    "id": 2578,
+    "sender": "DanTup",
+    "content": "> I am using the latest flutter version and today the freeze thing has increased while using vscode \r\n\r\nAre you on Windows? There seems to be a major bug in the April update that's causing freezing with Chrome-based apps:\r\n\r\nhttps://www.engadget.com/2018/05/03/microsoft-windows-10-chrome-cortana-freeze-fix/",
+    "createdAt": "2018-05-08T12:21:08Z"
+  },
+  {
+    "id": 2579,
+    "sender": "iampawan",
+    "content": "No , I'm using Macosx latest version\n\nOn Tue, May 8, 2018, 5:51 PM Danny Tuppeny <notifications@github.com> wrote:\n\n> I am using the latest flutter version and today the freeze thing has\n> increased while using vscode\n>\n> Are you on Windows? There seems to be a major bug in the April update\n> that's causing freezing with Chrome-based apps:\n>\n>\n> https://www.engadget.com/2018/05/03/microsoft-windows-10-chrome-cortana-freeze-fix/\n>\n> —\n> You are receiving this because you were mentioned.\n> Reply to this email directly, view it on GitHub\n> <https://github.com/flutter/flutter/issues/16604#issuecomment-387383846>,\n> or mute the thread\n> <https://github.com/notifications/unsubscribe-auth/AMCOnDF0oDTkjXNK1ZasxOD9jVuZP8TSks5twY3KgaJpZM4TVhip>\n> .\n>\n",
+    "createdAt": "2018-05-08T13:05:50Z"
+  },
+  {
+    "id": 2580,
+    "sender": "DanTup",
+    "content": "Ok, not that then. When you say \"the app freezes\", do you mean the mobile app on the device (or the VS Code app)? I think that's probably a different issue to not-rebuilding-properly so it may be worth opening another issue. If you're using VS Code I'd be interested in seeing [Flutter Run](https://dartcode.org/docs/logging/#flutter-run) and [Observatory](https://dartcode.org/docs/logging/#observatory) logfiles for the period when you're seeing freezes.",
+    "createdAt": "2018-05-08T13:42:08Z"
+  },
+  {
+    "id": 2581,
+    "sender": "iampawan",
+    "content": "@DanTup Here in the Step1 see the bottom Appbar color and also the app freezes when the 'Performing hot reload' notification takes time - say more than 5 secs.  Now step 2 is when i rebuild the app now changes are gone and if i will make some change and perform hot reload then all changes will be reflected .. now let's do hot reloading 3 to 4 times and again app freezes .. Some files are attached\r\n<img width=\"1440\" alt=\"step1\" src=\"https://user-images.githubusercontent.com/12619420/39799849-633a0c40-5383-11e8-89bb-0320013c832e.png\">\r\n<img width=\"1440\" alt=\"step2\" src=\"https://user-images.githubusercontent.com/12619420/39799852-65c0c774-5383-11e8-93a0-8bde3e7c50bf.png\">\r\n[observatory.txt](https://github.com/flutter/flutter/files/1986680/observatory.txt)\r\n",
+    "createdAt": "2018-05-09T07:02:26Z"
+  },
+  {
+    "id": 2582,
+    "sender": "DanTup",
+    "content": "@iampawan I think this is a different issue; could you open a new issue about it to avoid confusing things with the not-rebuilding-when-it-should issue? Also, can you include the [Flutter Run](https://dartcode.org/docs/logging/#flutter-run) log as well as Observatory one, since that one includes the instructions for hot reloading. Thanks!",
+    "createdAt": "2018-05-09T09:15:56Z"
+  },
+  {
+    "id": 2583,
+    "sender": "iampawan",
+    "content": "\r\n[flutter_run.txt](https://github.com/flutter/flutter/files/1987456/flutter_run.txt)\r\n",
+    "createdAt": "2018-05-09T10:42:42Z"
+  },
+  {
+    "id": 2584,
+    "sender": "DanTup",
+    "content": "@iampawan That log doesn't seem to include any requests to hot reload, the last line is when the app finishes launching. Could you try again, but also attach it to a new issue - I don't these issues hot reloading are the same as the app not rebuilding/deploying when it should and it's a bit confusing to have parallel conversations in the same issue.",
+    "createdAt": "2018-05-09T12:48:01Z"
+  },
+  {
+    "id": 2585,
+    "sender": "iampawan",
+    "content": "@DanTup Ok I will open a new issue for this tomorrow but for the time being let me give you the log file which I could generate ( the updated one ) . Also while making this video - https://youtu.be/q-GtMerSNuY , I faced the issue in the end so you can watch the end portion for more understanding . Thanks \r\n[flutter_run.txt](https://github.com/flutter/flutter/files/1988183/flutter_run.txt)  I don't know if the file hasn't something which you expect but I'm uploading whatever was generated\r\n",
+    "createdAt": "2018-05-09T14:28:14Z"
+  },
+  {
+    "id": 2586,
+    "sender": "DanTup",
+    "content": "@iampawan Thanks; that log has it. It actually has what I feared might be in it:\r\n\r\n```\r\nTimeoutException: Request to Dart VM Service timed out: _flutter.listViews({})\r\n```\r\n\r\nPlease do open an issue for it; I've seen other reports of it recently too.",
+    "createdAt": "2018-05-09T15:48:13Z"
+  },
+  {
+    "id": 2587,
+    "sender": "escamoteur",
+    "content": "@cbracken Did my logs help somehow?",
+    "createdAt": "2018-05-14T10:44:04Z"
+  },
+  {
+    "id": 2588,
+    "sender": "ratsey",
+    "content": "To the original issue on this thread, I can confirm that the hot reload **does** now look to take into consideration code changes between runs and so does not need a manual 'flutter clean' operation.\r\n\r\nHowever, if switching from a Debug run to a Non-Debug run after a number of change/hot reload operations, that Flutter Clean does still need to be made.",
+    "createdAt": "2018-05-14T14:54:25Z"
+  },
+  {
+    "id": 2589,
+    "sender": "jason-codeheroes",
+    "content": "I started experiencing problems with this today (on both an emulator and a real device) on Windows with the hot reload breaking while I was changing around values in flutter's animation tutorial code. (https://flutter.io/tutorials/animation/). \r\n\r\nI was able to fix the hot reloading issue by removing the spaces in the directory structure that contained the code. Seems silly, but it worked for me.\r\n\r\nE.g. I changed `C:\\Dev\\Flutter Apps\\hello_world\\animation_examples`\r\n\r\nto `C:\\Dev\\Flutter_Apps\\hello_world\\animation_examples`\r\n\r\nFlutter doctor: \r\n\r\n```\r\n[√] Flutter (Channel dev, v0.5.5, on Microsoft Windows [Version 10.0.17134.112], locale en-AU)\r\n    • Flutter version 0.5.5 at C:\\Dev\\flutter-sdk\r\n    • Framework revision 020e0ef55c (12 days ago), 2018-06-14 13:17:08 -0700\r\n    • Engine revision c3976b3c71\r\n    • Dart version 2.0.0-dev.61.0.flutter-c95617b19c\r\n\r\n[√] Android toolchain - develop for Android devices (Android SDK 27.0.3)\r\n    • Android SDK at C:\\Users\\Jason\\AppData\\Local\\Android\\sdk\r\n    • Android NDK location not configured (optional; useful for native profiling support)\r\n    • Platform android-27, build-tools 27.0.3\r\n    • Java binary at: C:\\Program Files\\Android\\Android Studio\\jre\\bin\\java\r\n    • Java version OpenJDK Runtime Environment (build 1.8.0_152-release-1024-b02)\r\n    • All Android licenses accepted.\r\n\r\n[√] Android Studio (version 3.1)\r\n    • Android Studio at C:\\Program Files\\Android\\Android Studio\r\n    • Flutter plugin version 25.0.1\r\n    • Dart plugin version 173.4700\r\n    • Java version OpenJDK Runtime Environment (build 1.8.0_152-release-1024-b02)\r\n\r\n[!] VS Code, 64-bit edition (version 1.24.1)\r\n    • VS Code at C:\\Program Files\\Microsoft VS Code\r\n    • Flutter extension not installed; install from\r\n      https://marketplace.visualstudio.com/items?itemName=Dart-Code.flutter\r\n\r\n[√] Connected devices (1 available)\r\n    • Android SDK built for x86 • emulator-5554 • android-x86 • Android 8.1.0 (API 27) (emulator)\r\n\r\n! Doctor found issues in 1 category.\r\n```\r\n\r\nI was also experiencing this issue on the `beta` and `master` branches of Flutter.",
+    "createdAt": "2018-06-27T05:14:45Z"
+  },
+  {
+    "id": 2590,
+    "sender": "mohith7548",
+    "content": "I'm also facing the same issues with flutter since last month. Hope Flutter Team considers this issue and fix it soon. Because We love #Flutter.",
+    "createdAt": "2018-07-03T12:49:49Z"
+  },
+  {
+    "id": 2591,
+    "sender": "eseidelGoogle",
+    "content": "A lot of the team is out of the office right now but it sounds like the next step here is for @cbracken to review the logs from @escamoteur above.",
+    "createdAt": "2018-07-03T15:48:34Z"
+  },
+  {
+    "id": 2592,
+    "sender": "coleweinman",
+    "content": "I have multiple that I'm using to develop flutter apps and I've had this same problem where the app doesn't update even after completely rebuilding the app. I have to do a hot restart for the changes to occur after each time i do `flutter run`.",
+    "createdAt": "2018-07-04T02:49:52Z"
+  },
+  {
+    "id": 2593,
+    "sender": "mohith7548",
+    "content": "Any improvement? the problem still persists. Please fix it. We love \r\n#Flutter",
+    "createdAt": "2018-07-08T05:05:26Z"
+  },
+  {
+    "id": 2594,
+    "sender": "escamoteur",
+    "content": "I honestly cannot report that I still have problem. Have you tried switching to dev or master channel? ",
+    "createdAt": "2018-07-08T06:23:11Z"
+  },
+  {
+    "id": 2595,
+    "sender": "jmwatte",
+    "content": "I can confirm the problem. If I change something in my code and start debugging, I'm never sure if I got 'the latest version'. If I debug with step through... I can see it sometimes stepping through code in comments... Now just to be sure, I do a flutter run and  try again. \r\n\r\n[√] Flutter (Channel master, v0.5.7-pre.62, on Microsoft Windows [Version 10.0.17134.112], locale en-US)\r\n    • Flutter version 0.5.7-pre.62 at C:\\flutter\r\n    • Framework revision 7ac183794b (2 days ago), 2018-07-06 15:21:29 -0700\r\n    • Engine revision 6fe748490d\r\n    • Dart version 2.0.0-dev.63.0.flutter-4c9689c1d2\r\n\r\n[√] Android toolchain - develop for Android devices (Android SDK 27.0.3)\r\n    • Android SDK at C:\\Android\\android-sdk\r\n    • Android NDK location not configured (optional; useful for native profiling support)\r\n    • Platform android-27, build-tools 27.0.3\r\n    • ANDROID_HOME = C:\\Android\\android-sdk\r\n    • Java binary at: C:\\Program Files\\Android\\Android Studio\\jre\\bin\\java\r\n    • Java version OpenJDK Runtime Environment (build 1.8.0_152-release-1024-b02)\r\n    • All Android licenses accepted.\r\n\r\n[√] Android Studio (version 3.1)\r\n    • Android Studio at C:\\Program Files\\Android\\Android Studio\r\n    • Flutter plugin version 25.0.1\r\n    • Dart plugin version 173.4700\r\n    • Java version OpenJDK Runtime Environment (build 1.8.0_152-release-1024-b02)\r\n\r\n[√] VS Code, 64-bit edition (version 1.25.0)\r\n    • VS Code at C:\\Program Files\\Microsoft VS Code\r\n    • Flutter extension version 2.15.0",
+    "createdAt": "2018-07-09T09:36:33Z"
+  },
+  {
+    "id": 2596,
+    "sender": "escamoteur",
+    "content": "So it would be interesting what's the difference on our systems ",
+    "createdAt": "2018-07-09T10:07:36Z"
+  },
+  {
+    "id": 2597,
+    "sender": "DanTup",
+    "content": "@gspencergoog I'm told you may be looking at some issues like this; not sure if you'd seen this one?",
+    "createdAt": "2018-07-10T16:49:06Z"
+  },
+  {
+    "id": 2598,
+    "sender": "gspencergoog",
+    "content": "@DanTup I have seen it, but I think @cbracken is in a better position to fix it.",
+    "createdAt": "2018-07-10T17:29:42Z"
+  },
+  {
+    "id": 2599,
+    "sender": "zoechi",
+    "content": "Can anyone reproduce that explicitly saving before hot-reload/hot-restart \r\nimproves the situation? (with hot-reload on save disabled)\r\nSee also flutter/flutter-intellij#2472",
+    "createdAt": "2018-07-10T19:35:41Z"
+  },
+  {
+    "id": 2600,
+    "sender": "escamoteur",
+    "content": "Only thing I obersved yesterday is that if I make a change to a package file while debugging that is not part of my project I have to hot reload explicitly after saving to take effect",
+    "createdAt": "2018-07-11T07:43:47Z"
+  },
+  {
+    "id": 2601,
+    "sender": "zoechi",
+    "content": "@escamoteur Thanks for the feedback. That sounds like #15879",
+    "createdAt": "2018-07-11T08:01:59Z"
+  },
+  {
+    "id": 2602,
+    "sender": "escamoteur",
+    "content": "Nope not chanching the package just make a small code change in a referenced package for debugging\r\n",
+    "createdAt": "2018-07-11T08:17:21Z"
+  },
+  {
+    "id": 2603,
+    "sender": "zoechi",
+    "content": "You mean a path dependency?",
+    "createdAt": "2018-07-11T08:24:52Z"
+  },
+  {
+    "id": 2604,
+    "sender": "escamoteur",
+    "content": "No a package dependency. But maybe that's too much to expect.",
+    "createdAt": "2018-07-11T10:16:19Z"
+  },
+  {
+    "id": 2605,
+    "sender": "zoechi",
+    "content": "Are you modifying files in `~/.pub-cache/hosted/...`. I strongly doubt you'll get any support for that use case. That's strongly discouraged. Otherwise there is no way to get a hosted package code to change without the `.packages` file to change.",
+    "createdAt": "2018-07-11T10:49:36Z"
+  },
+  {
+    "id": 2606,
+    "sender": "escamoteur",
+    "content": "OK I plee guilty 😁",
+    "createdAt": "2018-07-11T11:30:29Z"
+  },
+  {
+    "id": 2607,
+    "sender": "DanTup",
+    "content": "@escamoteur I don't know if it makes a difference here (and you may already know this), but you can override paths for imported packages if you want a \"less unsupported\" way to modify files in packages:\r\n\r\n```\r\ndependency_overrides:\r\n  vm_service_client:\r\n    path: ../../../vm_service_client\r\n```",
+    "createdAt": "2018-07-11T12:09:32Z"
+  },
+  {
+    "id": 2608,
+    "sender": "cbracken",
+    "content": "@escamoteur I'd have to look at our hot reload code, but I definitely remember that when `pub serve` existed (for the web), it was an intentional design decision to watch the app project and the transitive closure of `path:` dependencies, but *not* to watch anything in the pub cache (that code is not intended to be user-modifiable), or git dependencies. I'd very much suspect that remains the case with flutter.",
+    "createdAt": "2018-07-11T20:55:17Z"
+  },
+  {
+    "id": 2609,
+    "sender": "escamoteur",
+    "content": "@cbracken thanks for clarification. Sorry when I lead a bit away from the original issue ",
+    "createdAt": "2018-07-12T07:37:23Z"
+  },
+  {
+    "id": 2610,
+    "sender": "mohith7548",
+    "content": "The problem still persists. Any Fixes?? Please throw out some information.",
+    "createdAt": "2018-07-18T03:22:40Z"
+  },
+  {
+    "id": 2611,
+    "sender": "escamoteur",
+    "content": "@cbracken This got workt with today version:\r\n\r\nFlutter 0.5.8-pre.61 • channel master • https://github.com/flutter/flutter\r\nFramework • revision b8b6d41 (7 hours ago) • 2018-07-17 18:07:54 -0700\r\nEngine • revision 5557e3006e\r\nTools • Dart 2.0.0-dev.67.0.flutter-84ca27a09e\r\n\r\nI was only able to debug changes after Hot reload. Even a Flutter clean didn't help anymore.\r\nI rolled back to `git reset --hard e22f99743b4f0bea4a9b8e7703ce5ffbfda37a04`\r\nSolved the problem works again now",
+    "createdAt": "2018-07-18T10:09:26Z"
+  },
+  {
+    "id": 2612,
+    "sender": "eseidelGoogle",
+    "content": "I'm unsure of the status of this bug. :/\r\n\r\nIt sounds like the original issue might have been resolved, but then there are related reports which have also been added here?\r\n\r\nIt sounds like @escamoteur most recent comment suggests that debugging is busted in the latest master, but that seems unrelated to the original issue?\r\n\r\nI'd recommend that users still experiencing issues in this space file new, separate bugs (which you're welcome to link to from here) so we can make sure to diagnose and solve each one?",
+    "createdAt": "2018-07-18T17:34:04Z"
+  },
+  {
+    "id": 2613,
+    "sender": "escamoteur",
+    "content": "Not really. Debugging works but it just does not always push the latest version of the App to the device when starting a new debug session. All changes done via hot reload are pushed and can be debugged.",
+    "createdAt": "2018-07-18T17:37:19Z"
+  },
+  {
+    "id": 2614,
+    "sender": "eseidelGoogle",
+    "content": "@escamoteur would you be willing to file a new bug about that specific issue?  I'd be happy to pull in the right folks to make sure we get it fixed.  Thanks!",
+    "createdAt": "2018-07-18T17:52:00Z"
+  },
+  {
+    "id": 2615,
+    "sender": "escamoteur",
+    "content": "@eseidel ok, but will be tomorrow. ",
+    "createdAt": "2018-07-18T17:54:04Z"
+  },
+  {
+    "id": 2616,
+    "sender": "DanTup",
+    "content": "I think the issue @escamoteur is having may be the same as the original report here - stale apps being launched on the device?\r\n\r\nI think the statement above was a little confusing because it mentioned debugging but when I asked to clarify on Gitter he said:\r\n\r\n> I started the app made some changes and did a hot reload => changes appeared. Stopped the App and started new => got old app version\r\n\r\nIf I understand the original report correctly, I think these may be the same.",
+    "createdAt": "2018-07-18T19:15:11Z"
+  },
+  {
+    "id": 2617,
+    "sender": "mohith7548",
+    "content": "@escamoteur, did you file new issue? If so share the link here!\r\n",
+    "createdAt": "2018-07-22T03:01:20Z"
+  },
+  {
+    "id": 2618,
+    "sender": "escamoteur",
+    "content": "Not yet I have to reproduce it again which means changing my currently working setup and I had to do some real development the last days ",
+    "createdAt": "2018-07-22T06:01:42Z"
+  },
+  {
+    "id": 2619,
+    "sender": "droidluv",
+    "content": "Yup, I can confirm I am also facing this issue, I am working from VS Code and was just starting with flutter, and working on the \"Startup Name Generator\" example app, and was surprised to see that the app on a restart showed an old piece of code, making a change and doing a hot reload, immediately updated the entire UI to the current code, so deduced the apk was never getting updated with the new changes, came here and found that doing a flutter clean resolved my issue temporarily, but this is very much an annoying issue, we need a clean and build option.",
+    "createdAt": "2018-08-13T14:19:28Z"
+  },
+  {
+    "id": 2620,
+    "sender": "escamoteur",
+    "content": "Could you please add your Flutter doctor output here so that we know which version you are using? ",
+    "createdAt": "2018-08-13T18:20:34Z"
+  },
+  {
+    "id": 2621,
+    "sender": "droidluv",
+    "content": "I used the zip file in the website but it seems I have an upgrade available I will update the status on how it is after upgrade\r\n\r\n[flutter] flutter doctor\r\n  ╔════════════════════════════════════════════════════════════════════════════╗\r\n  ║ WARNING: your installation of Flutter is 77 days old.                      ║\r\n  ║                                                                            ║\r\n  ║ To update to the latest version, run \"flutter upgrade\".                    ║\r\n  ╚════════════════════════════════════════════════════════════════════════════╝\r\n\r\nDoctor summary (to see all details, run flutter doctor -v):\r\n[✓] Flutter (Channel beta, v0.5.1, on Mac OS X 10.12.6 16G1408, locale en-IN)\r\n[✓] Android toolchain - develop for Android devices (Android SDK 28.0.2)\r\n[✓] iOS toolchain - develop for iOS devices (Xcode 9.2)\r\n[✓] Android Studio (version 3.1)\r\n    ✗ Flutter plugin not installed; this adds Flutter specific functionality.\r\n    ✗ Dart plugin not installed; this adds Dart specific functionality.\r\n[!] VS Code (version 1.26.0)\r\n[✓] Connected devices (1 available)\r\n\r\n! Doctor found issues in 1 category.\r\nexit code 0",
+    "createdAt": "2018-08-15T11:15:16Z"
+  },
+  {
+    "id": 2622,
+    "sender": "escamoteur",
+    "content": "Yes please try that. Also you could try to switch to dev or master branch",
+    "createdAt": "2018-08-15T11:54:05Z"
+  },
+  {
+    "id": 2623,
+    "sender": "droidluv",
+    "content": "Well its fixed I suppose, I can disconnect and reconnect and I can see a new build is being properly generated and installed, is there anyway I can ensure a rebuild with all the code at a certain point of time like before I am done with work, because now hot reload is working almost like instant run in Android Studio, the changes apply only as long as the session is connected, on a disconnect and reconnect it does a full build if I run again(is there an easier way to do this for VS Code?)",
+    "createdAt": "2018-08-15T20:49:51Z"
+  }
+]

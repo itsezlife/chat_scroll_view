@@ -1,0 +1,386 @@
+[
+  {
+    "id": 5312,
+    "sender": "mraleph",
+    "content": "The work is in progress on the Dart side - we hope to have something ready Q1 2019. \r\n\r\nIt is a big feature and we would like to get it right: as we want to get it working great across different execution modes for Dart, so please bear with us as we work out the details. \r\n\r\nYou can follow dart-lang/sdk#34452 which tracks the work on the Dart side.",
+    "createdAt": "2018-12-31T12:09:29Z"
+  },
+  {
+    "id": 5313,
+    "sender": "t-artikov",
+    "content": "Dart FFI will allow to call C functions from Dart.\r\nBut what about the C++ features - classes, std containers, smart pointers, exceptions?\r\nCan we expect the possibility to export C++ classes to Dart with minimum boilerplate?\r\n\r\nAnother quite important feature is asynchronous support - the ability to run C++ code on a separate thread and return Future/Stream from methods.\r\n",
+    "createdAt": "2019-01-07T19:34:13Z"
+  },
+  {
+    "id": 5314,
+    "sender": "mraleph",
+    "content": "@t-artikov There are no current plans to support C++ interoperability directly. This is too complicated. The only thing that can ergonomically interop with C++ is C++. \r\n\r\nIf you are interested in high-level interop with C++ then you will need to build your own interop layer that exposes your C++ API through C like API.\r\n\r\n> Another quite important feature is asynchronous support - the ability to run C++ code on a separate thread and return Future/Stream from methods.\r\n\r\nI think this can be built as a package. We should just ensure that we provide right primitives so that this could be built.",
+    "createdAt": "2019-01-08T16:47:09Z"
+  },
+  {
+    "id": 5315,
+    "sender": "smellbee",
+    "content": "> Dart FFI will allow to call C functions from Dart.\r\n> But what about the C++ features - classes, std containers, smart pointers, exceptions?\r\n> Can we expect the possibility to export C++ classes to Dart with minimum boilerplate?\r\n\r\nSo long as if there is a way for C++ to  call  dart， I  think those things are possible， C++ takes care of what C++ worrying about，and communicates with dart by being called or calling,  no need to expose any low-level manipulation to dart which will destroy the ease of use of dart.\r\n\r\n> \r\n> Another quite important feature is asynchronous support - the ability to run C++ code on a separate thread and return Future/Stream from methods.\r\n\r\nAnd dart already has its asynchronous mechanism， so， whether a thread is C++ oriented or not makes no difference，as long as  the C++ part can call dart whenever needed, and an \"Isolate\" can do the job.\r\n\r\nThat's what I think @mraleph ,   correct me if I am wrong ;)",
+    "createdAt": "2019-01-08T17:22:56Z"
+  },
+  {
+    "id": 5316,
+    "sender": "t-artikov",
+    "content": "@mraleph\r\nIn fact, there are examples of great C++ interop with other languages.\r\nhttps://github.com/boostorg/python\r\nhttps://github.com/ThePhD/sol2\r\nhttps://github.com/dropbox/djinni\r\nI hope Dart/Flutter will provide a similar mechanism out of the box.\r\n\r\n> If you are interested in high-level interop with C++ then you will need to build your own interop layer that exposes your C++ API through C like API.\r\n\r\nTo make it clear how this approach is applicable, could you please demonstrate it using the following С++ classes as an example:\r\n\r\n```\r\nstruct MyObject\r\n{\r\n    std::string name;\r\n    std::vector<int> data;\r\n};\r\n\r\nclass MyService\r\n{\r\n    // Can throw std::exception\r\n    std::shared_ptr<MyObject> createObject(std::string name, std::vector<int> data);\r\n};\r\n```\r\n\r\nSo that it can be used from Dart\r\n```\r\nvar service = MyService();\r\nvar object = service.createObject(\"foo\", [1, 2, 3]);\r\nassert(object.name == \"foo\");\r\nassert(object.data[0] == 1);\r\n```\r\n",
+    "createdAt": "2019-01-08T19:06:41Z"
+  },
+  {
+    "id": 5317,
+    "sender": "mraleph",
+    "content": "@t-artikov both `boostorg::python` and `sol2` actually illustrate my point very well. Notice that this is C++ libraries for interoperating with other languages, not the other way around. Dart FFI is a Dart centric way of calling C APIs, not a C++ centric way of calling Dart.\r\n\r\n> To make it clear how this approach is applicable, could you please demonstrate it using the following С++ classes as an example:\r\n\r\nYou would have to write (or generate by some tool) something like this. \r\n\r\n```cpp\r\n// To be compiled together with your code.\r\ntypedef std::shared_ptr<MyObject>* MyObjectPtr;\r\n\r\nMyService* MyService_create() {\r\n  return new MyService();\r\n}\r\n\r\nvoid MyService_destroy(MyService* ptr) {\r\n  delete ptr;\r\n}\r\n\r\nMyObjectPtr MyService_createObject(MyService* ptr, const char* name, int* data, size_t size) {\r\n  try {\r\n    return new std::shared_ptr<MyObject>(createObject());\r\n  } catch (...) {\r\n    return nullptr;\r\n  }\r\n}\r\n\r\nconst char* MyObject_getName(MyObjectPtr obj) {\r\n  return (*obj)->name.c_str();\r\n}\r\n\r\nint* MyObject_data(MyObjectPtr obj) {\r\n  return (*obj)->data.data();\r\n} \r\n\r\nvoid MyObject_destroy(MyObjectPtr obj) {\r\n  delete obj;\r\n}\r\n```\r\n\r\n```dart\r\n// To be included on the Dart side.\r\n@ffi.External()\r\nexternal Pointer<Void> MyService_create();\r\n@ffi.External()\r\nexternal void MyService_destroy(Pointer<Void> ptr);\r\n@ffi.External<Pointer<Void> Function(Pointer<Void>, Pointer<Void>, Pointer<Void>, Int32)>()\r\nexternal Pointer<Void> MyService_createObject(Pointer<Void> service, String name, Int32List data, int size);\r\n@ffi.External()\r\nexternal String MyObject_getName(Pointer<Void> obj);\r\n@ffi.External()\r\nexternal Pointer<Int32> MyObject_data(Pointer<Void> obj);\r\n@ffi.External()\r\nexternal void MyObject_destroy(Pointer<Void> ptr);\r\n\r\nclass MyService {\r\n  final Pointer<Void> _impl;\r\n  MyService() : _impl = ffi.anchor(MyService_create(), MyService_destroy);\r\n\r\n  MyObject create(String name, List<int> values) {\r\n    final Int32List data = Int32List.fromList(values);\r\n    return MyObject._(MyService_createObject(_impl, name, data, data.length));\r\n  }\r\n\r\n  static _destroy(Pointer<Void> ptr) {\r\n    return MyService_destroy(ptr);\r\n  }\r\n}\r\n\r\nclass MyObject {\r\n  final Pointer<Void> _impl;\r\n\r\n  MyObject._(Pointer<Void> impl) : _impl = anchor(impl, MyObject.destroy);\r\n\r\n  String get name => MyObject_getName(_impl);\r\n  Int32List data => MyObject_data(_impl).as<Int32List>();\r\n\r\n  static void destroy(Pointer<Void> ptr) { MyObject_destroy(ptr); }\r\n}\r\n```\r\n\r\n",
+    "createdAt": "2019-01-08T20:47:19Z"
+  },
+  {
+    "id": 5318,
+    "sender": "t-artikov",
+    "content": "> Notice that this is C++ libraries for interoperating with other languages, not the other way around.\r\n\r\nYou are mistaken, they allow to expose C++ classes to other languages.\r\nhttps://www.boost.org/doc/libs/1_68_0/libs/python/doc/html/tutorial/tutorial/exposing.html\r\n\r\nThanks for your Dart FFI example.\r\nThere are some flaws: the C++ exception should be passed to the Dart side; and the MyObject.data will not work this way (it gets only the pointer, but not the data size).\r\nBut the idea is clear.\r\n\r\nIn my opinion, such code is too verbose to write it manually.\r\nI look forward to see whether this process will be automated for the new Dart FFI Flutter Engine bindings.\r\n",
+    "createdAt": "2019-01-09T15:53:59Z"
+  },
+  {
+    "id": 5319,
+    "sender": "atsushieno",
+    "content": "Run-time binding for C++ interoperability is nearly impossible (how do you deal with generics, multiple inheritance, operator overloads, mangled names, etc...). There had been many tough attempts (BridJ, CppSharp, etc), and to my understanding people find C interop as the most viable option.\r\n\r\nThere is unlikely very generic solution that official interoperability developer people can achieve for C++. Kotlin/Native does not offer that. scala-native iether. .NET either (Microsoft C++ interop is always either weird or static). JNI supports C++ interop only where static compilation is involved. Something like python boost glue needs to be written manually. Any third party group can develop things like JNAerator (i.e. YOU can do it, no need to expect Dart/Flutter teams to achieve that).",
+    "createdAt": "2019-01-10T05:42:07Z"
+  },
+  {
+    "id": 5320,
+    "sender": "aqmappdesigners",
+    "content": "Following this conversation with no real answer I think I will stick to Qt which is Cross-Plattform and has full C++ Support. I was just thinking to give Flutter a try for my next project but now I wont, thanks a lot !",
+    "createdAt": "2019-02-21T13:35:12Z"
+  },
+  {
+    "id": 5321,
+    "sender": "bhauj",
+    "content": "It could have been better if flutter would have been written in C++, with which interop with any other language would have been easily possible. Is there any attempt to rewrite flutter in C++?",
+    "createdAt": "2019-02-25T17:20:36Z"
+  },
+  {
+    "id": 5322,
+    "sender": "skills-up",
+    "content": "I think the discussion is getting unnecessarily stretched now.\n\nWe know what is (or is not) on the development roadmap of flutter.\nAccordingly, we can decide to use (or not use) it for specifics use cases.\n\nI don't see any utility in trying to change the development agenda, or\ndemanding specific architectural implementation, beyond this point.\n\nThanks,\nGaurav\n\nOn Mon 25 Feb, 2019, 10:51 PM bhauj, <notifications@github.com> wrote:\n\n> It could have been better if flutter would have been written in C++, with\n> which interop with any other language would have been easily possible. Is\n> there any attempt to rewrite flutter in C++?\n>\n> —\n> You are receiving this because you were mentioned.\n> Reply to this email directly, view it on GitHub\n> <https://github.com/flutter/flutter/issues/7053#issuecomment-467098455>,\n> or mute the thread\n> <https://github.com/notifications/unsubscribe-auth/AZ86acDpZgNeyezx40uxe_c5E2xZHWxaks5vRBumgaJpZM4K-PLw>\n> .\n>\n",
+    "createdAt": "2019-02-25T17:35:53Z"
+  },
+  {
+    "id": 5323,
+    "sender": "aqmappdesigners",
+    "content": "Actually Flutter is as I know written in C++ but for programming in Flutter can only be done with the interpreter Language Dart which runs in a VM. But you dont have any chance yet to get from Dart to the C++ Part of Flutter...\r\n\r\nSo whoever reads this and has the common use case in Appdevelopment of good Cross-Platform Development, Flutter wont allow direct use of C++ if you need it then use another Cross-Platform Framework like Qt C++.\r\n\r\nFor me C++ is essential for Cross-Plattform-Development because its the lowest common denominator in almost every tech.",
+    "createdAt": "2019-02-26T12:20:42Z"
+  },
+  {
+    "id": 5324,
+    "sender": "zoechi",
+    "content": "@aqmappdesigners \r\n\r\n> interpreter Language Dart which runs in a VM\r\n\r\nThat's not accurate.\r\n\r\nFlutter uses the Dart VM in debug mode, which also makes hot-reload possible.\r\nIn release builds Dart is compiled to binary code like C++.",
+    "createdAt": "2019-02-26T12:52:38Z"
+  },
+  {
+    "id": 5325,
+    "sender": "aqmappdesigners",
+    "content": "@zoechi Thank you, I did not know this. Thats sounds good for the performance",
+    "createdAt": "2019-02-26T12:55:14Z"
+  },
+  {
+    "id": 5326,
+    "sender": "zoechi",
+    "content": "> Thats sounds good for the performance\r\n\r\nand is a requirement for Apples App Store. ",
+    "createdAt": "2019-02-26T13:15:32Z"
+  },
+  {
+    "id": 5327,
+    "sender": "dcharkes",
+    "content": "The `dart:ffi` prototype has progressed to the point where we are deciding on API decisions. (Some design decisions are discussed [here](https://github.com/dart-lang/sdk/issues/35764).)\r\n\r\nTo make informed design decisions, we would like more examples on what C APIs you would like to bind. So far this issue mentions SQLite, Realm, OpenCV, Superpowered, and ffmpeg. Any other APIs we should consider?",
+    "createdAt": "2019-03-05T11:08:59Z"
+  },
+  {
+    "id": 5328,
+    "sender": "havaliza",
+    "content": "@dcharkes I don't know if it helps, but Telegram in Android does networking in C++ via JNI:\r\nhttps://github.com/DrKLO/Telegram/blob/master/TMessagesProj/jni/TgNetWrapper.cpp\r\nIt also handles GIF playback with ffmpeg, directly writing on Android Bitmaps:\r\nhttps://github.com/DrKLO/Telegram/blob/master/TMessagesProj/jni/gifvideo.cpp",
+    "createdAt": "2019-03-05T12:08:00Z"
+  },
+  {
+    "id": 5329,
+    "sender": "sachaarbonel",
+    "content": "It could be interesting to have a way to parse phones and adresses through [libphonenumber](https://github.com/googlei18n/libphonenumber) and [libpostal](https://github.com/openvenues/libpostal) for registration forms. Also [glfw](https://github.com/glfw/glfw) + [flutter-embedder](https://github.com/flutter/engine/blob/master/shell/platform/embedder/embedder.h) and maybe one day we'll see a desktop app entirely written in dart.",
+    "createdAt": "2019-03-05T12:27:16Z"
+  },
+  {
+    "id": 5330,
+    "sender": "martinrybak",
+    "content": "+1 for SQLite and Realm. Please also look at [Couchbase](https://www.couchbase.com/products/mobile), they have a common C++ core with a C SDK.",
+    "createdAt": "2019-03-05T14:20:42Z"
+  },
+  {
+    "id": 5331,
+    "sender": "brianegan",
+    "content": "Would the Firebase C++ apis be interesting? https://firebase.google.com/docs/reference/cpp/\r\n\r\nNot looked into it much, but was thinking that might be able to replace the iOS and Android plugins with a single plugin that talks to C++ directly.",
+    "createdAt": "2019-03-05T14:36:13Z"
+  },
+  {
+    "id": 5332,
+    "sender": "charafau",
+    "content": "Some crypto libraries should get some love like ring from rust - https://github.com/briansmith/ring",
+    "createdAt": "2019-03-05T14:42:48Z"
+  },
+  {
+    "id": 5333,
+    "sender": "mrmitew",
+    "content": "+1 for OpenCV, Realm, SqlCipher (https://github.com/sqlcipher/sqlcipher)",
+    "createdAt": "2019-03-05T14:52:12Z"
+  },
+  {
+    "id": 5334,
+    "sender": "stevesea",
+    "content": "cryptography libraries. Particularly libsodium or tink.\r\n\r\nhttps://github.com/google/tink\r\n\r\nhttps://libsodium.gitbook.io/doc/\r\n\r\nThere's a flutter-sodium library already, it talks through platform channels to libsodium wrappers on each platform, then to native. \r\n",
+    "createdAt": "2019-03-05T15:07:20Z"
+  },
+  {
+    "id": 5335,
+    "sender": "stevesea",
+    "content": "Custom mapping libraries such as mapbox-gl https://github.com/mapbox/mapbox-gl-native",
+    "createdAt": "2019-03-05T15:12:49Z"
+  },
+  {
+    "id": 5336,
+    "sender": "Boehrsi",
+    "content": "SMTP / IMAP handling (for chat-over-email) for Flutter via https://github.com/deltachat/deltachat-core is something I would love to use directly.",
+    "createdAt": "2019-03-06T08:02:35Z"
+  },
+  {
+    "id": 5337,
+    "sender": "skills-up",
+    "content": "If I may be so bold as to paraphrase, common use cases are as below:\n\n   1. Low latency audio/video hardware access (such as, Superpowered)\n   2. Hardware assisted a/v processing (such as, ffmpeg)\n   3. TCP based socket access, for XMPP/other network oriented protocols\n   (for chat, push notifications)\n   4. Process level upgrades (root access) / spawning threads in\n   cross-platform compatible manner (for system apps, multitasking, emulators)\n\nThere may be more use cases, but these are the primary ones that come to my\nmind.\n",
+    "createdAt": "2019-03-06T08:19:17Z"
+  },
+  {
+    "id": 5338,
+    "sender": "mraleph",
+    "content": "Thank you everybody for providing examples! This is very helpful. \r\n\r\n@skills-up note that we are much more interested in concrete examples, rather than abstract classification. That's because we want to assess the ergonomics of FFI on concrete examples.",
+    "createdAt": "2019-03-06T08:35:44Z"
+  },
+  {
+    "id": 5339,
+    "sender": "bwalter",
+    "content": "Strangely enough, one of the languages which offers the best interface from/to C++ is Rust, via its powerfull macro + build system, despites having a completly different approach to OO.",
+    "createdAt": "2019-03-06T08:48:34Z"
+  },
+  {
+    "id": 5340,
+    "sender": "shaxxx",
+    "content": "I would say OpenSSL, since we need to digitaly sign soap requests and xml files (XMLDSig, Xades l) using client certificates. \r\nDart itself has BoringSSL, but only part of it is exposed trough Dart. So next best thing is calling native openssl libs from flutter",
+    "createdAt": "2019-03-06T10:57:43Z"
+  },
+  {
+    "id": 5341,
+    "sender": "charafau",
+    "content": "Hope I'm not spamming, but I would also like to have better integration with tensorflow lite, not going through JNI, that would be great for video operations",
+    "createdAt": "2019-03-08T14:55:33Z"
+  },
+  {
+    "id": 5342,
+    "sender": "archanpaul",
+    "content": "> Not looked into it much, but was thinking that might be able to replace the iOS and Android plugins > with a single plugin that talks to C++ directly.\r\n\r\nApart from supporting C++, it will be awesome if there is a plugin which can talk to Go directly. Right now we are talking to Go through gomobile & flutter platform channels which slows down UI responsiveness. Having native support of Go and C++ in Flutter will also help us to maintain uniform code-base (business-logic/algorithm) for multiple platforms.",
+    "createdAt": "2019-03-15T08:23:43Z"
+  },
+  {
+    "id": 5343,
+    "sender": "Noxoreos",
+    "content": "+1 for native library access.\r\n\r\nI'd like to access Vulkan/MoltenVK without having to create platform channels for Android/iOS and maintain two plugins (which would be huge as well). That would allow building 3D applications and render into a Texture widget, whilst only developing in Dart. The platform channels just seem like a hacky workaround. I'd rather like to access native libraries without having to write a wrapper for each platform and maintain them whenever there is a new version for that library.\r\nI think this feature would attract a lot more developers.",
+    "createdAt": "2019-03-19T22:26:33Z"
+  },
+  {
+    "id": 5344,
+    "sender": "KaungZawHtet",
+    "content": "Yes, plz direct native library access from flutter.\r\nI would like to use some c++ library at flutter.",
+    "createdAt": "2019-04-05T02:20:59Z"
+  },
+  {
+    "id": 5345,
+    "sender": "wanjm",
+    "content": "Yes, plz direct native library access from flutter.\r\nI would like to use some c++ library at flutter.",
+    "createdAt": "2019-04-09T08:56:15Z"
+  },
+  {
+    "id": 5346,
+    "sender": "mit-mit",
+    "content": "We are now at a point where we would like to offer an early preview to get some feedback. \r\n\r\nFor details, please see the [update in the Dart tracking bug](https://github.com/dart-lang/sdk/issues/34452#issuecomment-482136759).",
+    "createdAt": "2019-04-11T14:26:55Z"
+  },
+  {
+    "id": 5347,
+    "sender": "kiwi0fruit",
+    "content": "@mit-mit Will this help with this issue: [*can I call or use python library with flutter*](https://github.com/flutter/flutter/issues/25020)?",
+    "createdAt": "2019-04-12T09:05:15Z"
+  },
+  {
+    "id": 5348,
+    "sender": "doc-rj",
+    "content": "Late to the party, but +1 for SQLCipher @dcharkes @mraleph ",
+    "createdAt": "2019-04-29T18:18:06Z"
+  },
+  {
+    "id": 5349,
+    "sender": "mraleph",
+    "content": "@doc-rj we are now at the stage where you should be able to experiment with binding SQLCipher and give us feedback on your experience. See [this comment](https://github.com/dart-lang/sdk/issues/34452#issuecomment-482136759).\r\n\r\nI would like to stress that we are not really aiming to provide any specific library bindings ourselves - because requests are extremely diverse, but we aim to make it possible for everybody and anybody to bind to any library with a C API. ",
+    "createdAt": "2019-04-29T19:04:57Z"
+  },
+  {
+    "id": 5350,
+    "sender": "felemedeiros",
+    "content": "I guess the need for this increases now that multi-platform has been announced.\r\n\r\nIs this part of any roadmap?",
+    "createdAt": "2019-05-09T15:12:18Z"
+  },
+  {
+    "id": 5351,
+    "sender": "mraleph",
+    "content": "@felemedeiros the work is in progress - if you have a library you want to bind to using FFI I strongly suggest to start working on the bindings to provide us feedback. See [this comment](https://github.com/dart-lang/sdk/issues/34452#issuecomment-482136759) for for info.",
+    "createdAt": "2019-05-11T20:54:46Z"
+  },
+  {
+    "id": 5352,
+    "sender": "archanpaul",
+    "content": "> > Not looked into it much, but was thinking that might be able to replace the iOS and Android plugins > with a single plugin that talks to C++ directly.\r\n> \r\n> Apart from supporting C++, it will be awesome if there is a plugin which can talk to Go directly. Right now we are talking to Go through gomobile & flutter platform channels which slows down UI responsiveness. Having native support of Go and C++ in Flutter will also help us to maintain uniform code-base (business-logic/algorithm) for multiple platforms.\r\n\r\nI wrote an article on how we are currently calling Go library API from Flutter. It might be useful for someone interested. https://medium.com/@archan.paul/using-go-library-in-flutter-a04e3496aa05",
+    "createdAt": "2019-05-15T07:10:43Z"
+  },
+  {
+    "id": 5353,
+    "sender": "ikangming2017",
+    "content": "How can I add c++ code on Flutter app?",
+    "createdAt": "2019-05-16T13:46:17Z"
+  },
+  {
+    "id": 5354,
+    "sender": "archanpaul",
+    "content": "> How can I add c++ code on Flutter app?\r\n\r\nI guess right now only option is to take C++ -> JNI (for Android) -> PlatformChannel way till we have more elegant way to do the same!!",
+    "createdAt": "2019-05-17T07:22:22Z"
+  },
+  {
+    "id": 5355,
+    "sender": "paulocoutinhox",
+    "content": "I created a project called ezored (http://ezored.com). Will be nice if i can pass complex objects to Flutter without need convert to other thing, since it is already in java and objc. Anyone can use ezored to generate the SDK (or download prebuilt) to test Flutter integration between native and Dart. It has requests, parsing, crud using database and lot of things in demo SDK already implemented.\r\n\r\nI search in flutter groups but don't have any way to pass the objects and list of objects to Flutter direct.\r\n\r\nThanks in any help.",
+    "createdAt": "2019-05-18T06:17:00Z"
+  },
+  {
+    "id": 5356,
+    "sender": "fzyzcjy",
+    "content": "Any new progress? It seems that more than 2.5 years have passed...",
+    "createdAt": "2019-05-21T07:24:37Z"
+  },
+  {
+    "id": 5357,
+    "sender": "dcharkes",
+    "content": "@fzyzcjy we're working on it. We've released an early preview. See https://github.com/dart-lang/sdk/issues/34452#issuecomment-482136759 on how to get involved.\r\n\r\nSince this early preview we've added support for Intel 32, Arm 64, and Arm 32. These platforms are not yet released on stable or dev, they are only available on the master branch of the Dart sdk. Progress is being tracked [here](https://github.com/dart-lang/sdk/projects/13).",
+    "createdAt": "2019-05-21T07:54:55Z"
+  },
+  {
+    "id": 5358,
+    "sender": "fzyzcjy",
+    "content": "@dcharkes So happy to hear that! Thanks for your great work!",
+    "createdAt": "2019-05-22T01:54:07Z"
+  },
+  {
+    "id": 5359,
+    "sender": "naveenkumardot25",
+    "content": "Any Progress?",
+    "createdAt": "2019-05-27T13:54:47Z"
+  },
+  {
+    "id": 5360,
+    "sender": "mit-mit",
+    "content": "For status updates and additional information, please see https://github.com/dart-lang/sdk/issues/34452. The top-most comment there has the most recent update.",
+    "createdAt": "2019-05-27T14:17:17Z"
+  },
+  {
+    "id": 5361,
+    "sender": "luca992",
+    "content": "When using flutter to create a web app, will using ffi with a c library be possible?",
+    "createdAt": "2019-05-29T06:18:53Z"
+  },
+  {
+    "id": 5362,
+    "sender": "mit-mit",
+    "content": "> When using flutter to create a web app, will using ffi with a c library be possible?\r\n\r\nThat is not likely. Theoretically longer-term it could be supported using WebAssembly, but that is not something we are currently working on.",
+    "createdAt": "2019-05-29T07:31:45Z"
+  },
+  {
+    "id": 5363,
+    "sender": "buuug7",
+    "content": "@mit-mit  really ？",
+    "createdAt": "2019-07-22T00:16:35Z"
+  },
+  {
+    "id": 5364,
+    "sender": "nic-hartley",
+    "content": "> > When using flutter to create a web app, will using ffi with a c library be possible?\r\n> \r\n> That is not likely. Theoretically longer-term it could be supported using WebAssembly, but that is not something we are currently working on.\r\n\r\nWhy would it require WebAssembly? If you can ask people to rebuild to WebAssembly in the future, you can ask them to rebuild to ASM.js now.",
+    "createdAt": "2019-07-29T01:06:49Z"
+  },
+  {
+    "id": 5365,
+    "sender": "sjindel-google",
+    "content": "@nic-hartley It's good idea, but the challenge is not how to compile the native code, it's in creating the bridge between Dart (compiled as JS) and the native code, whatever form it takes.\r\n\r\nThe native FFI is very low-level for performance reasons and cannot easily be translated into asm.js or WebAssembly.",
+    "createdAt": "2019-07-29T09:03:17Z"
+  },
+  {
+    "id": 5366,
+    "sender": "sjindel-google",
+    "content": "To clarify, I mean that our implementation is very low-level -- it's certainly an interesting feature, but it would take considerable work to deliver.",
+    "createdAt": "2019-07-29T11:43:00Z"
+  },
+  {
+    "id": 5367,
+    "sender": "microcai",
+    "content": "flutter is only a toy until  it supports c++",
+    "createdAt": "2019-08-07T09:40:11Z"
+  },
+  {
+    "id": 5368,
+    "sender": "MarkIngramUK",
+    "content": "I've come here to echo the same points by others, that until Flutter can easily interop with C++ (with no bridge library, and no performance penalty) it will never be adopted by large scale applications with investments in existing native libraries, or applications where performance is the highest priority.",
+    "createdAt": "2019-08-09T10:34:52Z"
+  },
+  {
+    "id": 5369,
+    "sender": "Hixie",
+    "content": "> I'll note that even React Native uses a bridge currently, so it appears that Flutter is actually ahead-of-the-curve in terms of trying to implement a FFI.\r\n\r\nIntegration with C++ is trivial on iOS with AppKit. That's what we should be comparing against, not React Native.",
+    "createdAt": "2019-08-11T20:51:50Z"
+  },
+  {
+    "id": 5370,
+    "sender": "MarkIngramUK",
+    "content": "UWP & C++ is trivial too. ",
+    "createdAt": "2019-08-11T21:36:26Z"
+  },
+  {
+    "id": 5371,
+    "sender": "atsushieno",
+    "content": "I'm in general for \"support Dart FFI effort\" party too, though...\r\n\r\n> Xamarin might be a more appropriate comparison than UWP, but Xamarin's cross platform views weren't nearly as customizable as Flutter's  and often required a lot of native code to get looking decent.\r\n\r\nThis is not true. Unlike Flutter, Xamarin has platform bindings to native API (i.e. Xamarin.iOS and Xamarin.Android), and it's easy for app developers to write platform-specific implementation in its own language (C#/.NET). This issue is about language feature and should not be mixed with UI widget API design.\r\n\r\nThere is a lot of native **API** uses, but no native code invocation, where Flutter would be on the same boat (although Xamarin does not require writing Java or ObjC there, with no reflection hack in app code). For native **code**, even at Xamarin.Android itself (one of the backend platform backends) the use of native code is very little, and app developers write no native code.\r\n\r\nAnd unlike React Native or Xamarin, Flutter is to provide its complete framework, so it is entirely fair point of view that we compare the entire Flutter framework with things like AppKit.",
+    "createdAt": "2019-08-12T03:48:50Z"
+  },
+  {
+    "id": 5372,
+    "sender": "vladest",
+    "content": "its weird that noone even mention Qt framework which is far ahead everything else regarding C++ integration",
+    "createdAt": "2019-08-12T04:39:00Z"
+  },
+  {
+    "id": 5373,
+    "sender": "srmncnk",
+    "content": "QT is C++. And has an unfavorable license to begin with.\n\nOn Mon, 12 Aug 2019, 06:41 Vladyslav Stelmakhovskyi, <\nnotifications@github.com> wrote:\n\n> its weird that noone even mention Qt framework which is far ahead\n> everything else regarding C++ integration\n>\n> —\n> You are receiving this because you are subscribed to this thread.\n> Reply to this email directly, view it on GitHub\n> <https://github.com/flutter/flutter/issues/7053?email_source=notifications&email_token=AGDYMWXHTJUBUW64LEOO27TQEDSWNA5CNFSM4CXY6LYKYY3PNVWWK3TUL52HS4DFVREXG43VMVBW63LNMVXHJKTDN5WW2ZLOORPWSZGOD4BRVYA#issuecomment-520297184>,\n> or mute the thread\n> <https://github.com/notifications/unsubscribe-auth/AGDYMWTNMTM7QUOY2BEIPM3QEDSWNANCNFSM4CXY6LYA>\n> .\n>\n",
+    "createdAt": "2019-08-12T04:49:01Z"
+  },
+  {
+    "id": 5374,
+    "sender": "vladest",
+    "content": "Qt is C++ and QML (JS engine)\r\nWhat license? LGPL? GPL? what is wrong with it?",
+    "createdAt": "2019-08-12T06:03:34Z"
+  },
+  {
+    "id": 5375,
+    "sender": "rmtmckenzie",
+    "content": "First off IANAL, but as I understand it most of Qt is LGPL (the IDE etc are GPL), which means that it has language that while not expressly forbidding static linking, makes it difficult to do while still adhering to the licence if your application is closed-source. \r\n\r\nTechnically, if you use only LGPL and provide your object files (and probably instructions) so that users could potentially re-link against a different version of the library, you're satisfying the requirements of the LGPL. But I'm pretty sure the Qt Company doesn't advertise that fact, so the common conception is that you can't deploy static libraries which means you can't get your app released on the app store without paying their extortionate licensing fees. And I may be wrong about providing object files, that's just my understanding of it, and I don't know if any companies are doing that.\r\n\r\nAndroid is easier because it does allow dynamically loaded libraries which are more explicitly allowed under the LGPL, but in all honestly static linking would probably be preferable there too to keep the app size down which means running into the same issue.",
+    "createdAt": "2019-08-12T09:48:05Z"
+  }
+]

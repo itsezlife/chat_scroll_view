@@ -1,0 +1,386 @@
+[
+  {
+    "id": 4608,
+    "sender": "LastMonopoly",
+    "content": "> I tried every solutions above but still failed to fix it. However after cleaning `Derived Data` in Xcode, it magically worked...\r\n> In `XCode -> Preference -> Locations -> Derived Data`, click the little arrow to open the path in finder and clean the folder. Then `flutter run` resume working normally.\r\n\r\nDude, you rock!",
+    "createdAt": "2021-04-28T13:47:03Z"
+  },
+  {
+    "id": 4609,
+    "sender": "jmagman",
+    "content": "This issue has completely run away with \"me too\"s, so I'll try cleaning it up a bit.\r\n\r\n1. The flood of reports of this issue coincided with the iOS 14.4.* updates.  Long app launch times is a commonly reported problem when there's a pending iOS update on your test device, or when your test device is running a newer OS than the one shipped with Xcode.  It's also commonly reported right after you upgrade your test OS because Xcode can get stuck trying to copy the developer image over to the device.  Many of these reports are that it works on one device and not on another device running the same OS.  Frankly there's not much Flutter can do to work around this when the problem is between the test device and Xcode.  \r\n1. Make sure Xcode is updated and your iOS device is updated.  You can also try opening `ios/Runner.xcworkspace` in Xcode and running your app from there to unwedge it.  \r\n1. You can also try running `flutter clean` to clean Xcode's build folder (DerivedData).\r\n1. If you \"fixed\" this by editing the Flutter SDK app launch timeout (which at 30 seconds is already very generous if it wasn't for the iOS/Xcode issue), https://github.com/flutter/flutter/pull/81229 PR will resolve your issue so you don't need to do this manually.\r\n1. Additionally @stx notes switching which port your device is tethered to can make the app launch much faster.\r\n> I disconnected and reconnected the same USB-C to Lightning cable to the same port on a MBP and rebuilt over and over with the same observatory error, but the moment I changed to a different port, debugging succeeded because the install/launch process completed much more quickly.\r\n> \r\n> Either way, I would strongly recommend trying other ports.\r\n\r\n6. It seems like a cop-out, but swapping your cable may also help.\r\n",
+    "createdAt": "2021-04-28T18:25:42Z"
+  },
+  {
+    "id": 4610,
+    "sender": "jmagman",
+    "content": "> Funny, when the app launched again i got printed [this](https://flutter.dev/docs/development/add-to-app/ios/project-setup#local-network-privacy-permissions) Link, that no one from the Flutter/Google Team posted before. After Reading it, i did not had the _dartobservatory._tcp value added in the info.plist, that may have been the Problem.\r\n\r\nThose instructions are for add-to-app.  You don't need to manually edit anything if you are running from a `flutter create`d app.",
+    "createdAt": "2021-04-28T18:27:07Z"
+  },
+  {
+    "id": 4611,
+    "sender": "lleoserrano",
+    "content": "This worked for me.\r\nOpen `ios/Runner.xcworkspace` in Xcode.\r\nXcode should detect that it needs to download some updates.\r\nAfter downloading everything works normally.\r\nDevice: iPhone 11 iOS 14.5.1\r\nMacOS : 11.3.1\r\nXcode: 12.5",
+    "createdAt": "2021-05-10T10:41:48Z"
+  },
+  {
+    "id": 4612,
+    "sender": "TheGlorySaint",
+    "content": "@BringTheChill\r\n\r\nI had the Same issue after updating to 14.5.1, i fixed it with:\r\n`In XCode -> Preference -> Locations -> Derived Data, click the little arrow to open the path in finder and clean the folder. Then flutter run resume working normally.`",
+    "createdAt": "2021-05-10T15:40:11Z"
+  },
+  {
+    "id": 4613,
+    "sender": "BringTheChill",
+    "content": "> @BringTheChill\r\n> \r\n> I had the Same issue after updating to 14.5.1, i fixed it with:\r\n> `In XCode -> Preference -> Locations -> Derived Data, click the little arrow to open the path in finder and clean the folder. Then flutter run resume working normally.`\r\n\r\nThank you. I fixed. ",
+    "createdAt": "2021-05-10T15:42:12Z"
+  },
+  {
+    "id": 4614,
+    "sender": "sstadtl",
+    "content": "> `In XCode -> Preference -> Locations -> Derived Data, click the little arrow to open the path in finder and clean the folder. Then flutter run resume working normally.`\r\n\r\ndoes not fix it for me. \r\nreinstalling XCode did not either \r\n",
+    "createdAt": "2021-05-14T15:19:07Z"
+  },
+  {
+    "id": 4615,
+    "sender": "BringTheChill",
+    "content": "Try to run on Xcode first\n\nOn Fri, 14 May 2021 at 18:19, Sebastian ***@***.***> wrote:\n\n> In XCode -> Preference -> Locations -> Derived Data, click the little\n> arrow to open the path in finder and clean the folder. Then flutter run\n> resume working normally.\n>\n> does not fix it for me.\n> reinstalling XCode did not either\n>\n> —\n> You are receiving this because you were mentioned.\n> Reply to this email directly, view it on GitHub\n> <https://github.com/flutter/flutter/issues/72161#issuecomment-841309594>,\n> or unsubscribe\n> <https://github.com/notifications/unsubscribe-auth/AJJ7GLEZMEBU4JVVJHZN7ETTNU5QDANCNFSM4UXLRFYQ>\n> .\n>\n",
+    "createdAt": "2021-05-14T15:21:19Z"
+  },
+  {
+    "id": 4616,
+    "sender": "TheGlorySaint",
+    "content": "> > `In XCode -> Preference -> Locations -> Derived Data, click the little arrow to open the path in finder and clean the folder. Then flutter run resume working normally.`\r\n> \r\n> does not fix it for me.\r\n> reinstalling XCode did not either\r\n\r\nCould you please run code with `flutter run --verbose`, post your output and post your output when you ran `flutter doctor --verbose`?!",
+    "createdAt": "2021-05-14T15:22:54Z"
+  },
+  {
+    "id": 4617,
+    "sender": "sstadtl",
+    "content": "running from Xcode works, but neither from vscode or command line\r\n\r\nflutter run --verbose &> runverbose.log\r\n[https://gist.github.com/sstadtl/e4e0adf54913a5cc66e1f4d7c8cff8e9](https://gist.github.com/sstadtl/e4e0adf54913a5cc66e1f4d7c8cff8e9)\r\n(too long for a comment here)\r\n\r\n<details>\r\n  <summary>flutter doctor --verbose &> doctorverbose.log</summary>\r\n\r\n```  \r\n\r\n[✓] Flutter (Channel stable, 2.0.6, on macOS 11.3.1 20E241 darwin-x64, locale en-DE)\r\n    • Flutter version 2.0.6 at /Users/sebastian/fvm/versions/stable\r\n    • Framework revision 1d9032c7e1 (2 weeks ago), 2021-04-29 17:37:58 -0700\r\n    • Engine revision 05e680e202\r\n    • Dart version 2.12.3\r\n\r\n[✓] Android toolchain - develop for Android devices (Android SDK version 29.0.2)\r\n    • Android SDK at /Users/sebastian/Library/Android/sdk\r\n    • Platform android-30, build-tools 29.0.2\r\n    • Java binary at: /Applications/Android Studio.app/Contents/jre/jdk/Contents/Home/bin/java\r\n    • Java version OpenJDK Runtime Environment (build 1.8.0_242-release-1644-b3-6915495)\r\n    • All Android licenses accepted.\r\n\r\n[✓] Xcode - develop for iOS and macOS\r\n    • Xcode at /Applications/Xcode.app/Contents/Developer\r\n    • Xcode 12.5, Build version 12E262\r\n    • CocoaPods version 1.10.1\r\n\r\n[✓] Chrome - develop for the web\r\n    • Chrome at /Applications/Google Chrome.app/Contents/MacOS/Google Chrome\r\n\r\n[✓] Android Studio (version 4.1)\r\n    • Android Studio at /Applications/Android Studio.app/Contents\r\n    • Flutter plugin can be installed from:\r\n      🔨 https://plugins.jetbrains.com/plugin/9212-flutter\r\n    • Dart plugin can be installed from:\r\n      🔨 https://plugins.jetbrains.com/plugin/6351-dart\r\n    • Java version OpenJDK Runtime Environment (build 1.8.0_242-release-1644-b3-6915495)\r\n\r\n[✓] VS Code (version 1.56.2)\r\n    • VS Code at /Applications/Visual Studio Code.app/Contents\r\n    • Flutter extension version 3.22.0\r\n\r\n[✓] Connected device (2 available)\r\n    • Sebastian12 (mobile) • 00008101-000868302401401E • ios            • iOS 14.5.1\r\n    • Chrome (web)         • chrome                    • web-javascript • Google Chrome 91.0.4472.57 beta\r\n\r\n• No issues found!\r\n\r\n```\r\n\r\n</details>\r\n\r\ntested with 3 different cables on all four MBP16 ports\r\n\r\n\r\nall working fine with an old iPhone 7 \r\n\r\n\r\n\r\n",
+    "createdAt": "2021-05-14T16:07:36Z"
+  },
+  {
+    "id": 4618,
+    "sender": "TheGlorySaint",
+    "content": "> running from Xcode works, but neither from vscode or command line\r\n> \r\n> flutter run --verbose &> runverbose.log\r\n> https://gist.github.com/sstadtl/e4e0adf54913a5cc66e1f4d7c8cff8e9\r\n> (too long for a comment here)\r\n> \r\n> flutter doctor --verbose &> doctorverbose.log\r\n> ```\r\n> \r\n> [✓] Flutter (Channel stable, 2.0.6, on macOS 11.3.1 20E241 darwin-x64, locale en-DE)\r\n>     • Flutter version 2.0.6 at /Users/sebastian/fvm/versions/stable\r\n>     • Framework revision 1d9032c7e1 (2 weeks ago), 2021-04-29 17:37:58 -0700\r\n>     • Engine revision 05e680e202\r\n>     • Dart version 2.12.3\r\n> \r\n> [✓] Android toolchain - develop for Android devices (Android SDK version 29.0.2)\r\n>     • Android SDK at /Users/sebastian/Library/Android/sdk\r\n>     • Platform android-30, build-tools 29.0.2\r\n>     • Java binary at: /Applications/Android Studio.app/Contents/jre/jdk/Contents/Home/bin/java\r\n>     • Java version OpenJDK Runtime Environment (build 1.8.0_242-release-1644-b3-6915495)\r\n>     • All Android licenses accepted.\r\n> \r\n> [✓] Xcode - develop for iOS and macOS\r\n>     • Xcode at /Applications/Xcode.app/Contents/Developer\r\n>     • Xcode 12.5, Build version 12E262\r\n>     • CocoaPods version 1.10.1\r\n> \r\n> [✓] Chrome - develop for the web\r\n>     • Chrome at /Applications/Google Chrome.app/Contents/MacOS/Google Chrome\r\n> \r\n> [✓] Android Studio (version 4.1)\r\n>     • Android Studio at /Applications/Android Studio.app/Contents\r\n>     • Flutter plugin can be installed from:\r\n>       🔨 https://plugins.jetbrains.com/plugin/9212-flutter\r\n>     • Dart plugin can be installed from:\r\n>       🔨 https://plugins.jetbrains.com/plugin/6351-dart\r\n>     • Java version OpenJDK Runtime Environment (build 1.8.0_242-release-1644-b3-6915495)\r\n> \r\n> [✓] VS Code (version 1.56.2)\r\n>     • VS Code at /Applications/Visual Studio Code.app/Contents\r\n>     • Flutter extension version 3.22.0\r\n> \r\n> [✓] Connected device (2 available)\r\n>     • Sebastian12 (mobile) • 00008101-000868302401401E • ios            • iOS 14.5.1\r\n>     • Chrome (web)         • chrome                    • web-javascript • Google Chrome 91.0.4472.57 beta\r\n> \r\n> • No issues found!\r\n> ```\r\n> \r\n> tested with 3 different cables on all four MBP16 ports\r\n> \r\n> all working fine with an old iPhone 7\r\n\r\nIs the run log, you posted, all you get? from that was you posted, there i can't find the point where it crashes, as well as the Error.",
+    "createdAt": "2021-05-14T16:53:59Z"
+  },
+  {
+    "id": 4619,
+    "sender": "sstadtl",
+    "content": "you have to click \"view full file\":\r\nhttps://gist.githubusercontent.com/sstadtl/e4e0adf54913a5cc66e1f4d7c8cff8e9/raw/e4fa88a8d747b65e925a2fa3c827ab414e1121ed/gistfile1.txt\r\n\r\nends with:\r\n\r\n```\r\n[  +57 ms] [100%] Installed package build/ios/iphoneos/Runner.app\r\n[ +170 ms] ------ Debug phase ------\r\n[        ] Starting debug of 00008101-000868302401401E (D53gAP, D53gAP, uknownos, unkarch) a.k.a. 'Sebastian12' connected through USB...\r\n[ +532 ms] [  0%] Looking up developer disk image\r\n[   +9 ms] [ 95%] Developer disk image mounted successfully\r\n[ +439 ms] [100%] Connecting to remote debug server\r\n[        ] -------------------------\r\n[  +34 ms] (lldb) command source -s 0 '/tmp/82146923-1981-4CAF-B301-239228F2BEB1/fruitstrap-lldb-prep-cmds-00008101_000868302401401E'\r\n[        ] Executing commands in '/tmp/82146923-1981-4CAF-B301-239228F2BEB1/fruitstrap-lldb-prep-cmds-00008101_000868302401401E'.\r\n[        ] (lldb)     platform select remote-ios --sysroot '/Users/sebastian/Library/Developer/Xcode/iOS DeviceSupport/14.5.1 (18E212)/Symbols'\r\n[        ]   Platform: remote-ios\r\n[        ]  Connected: no\r\n[        ]   SDK Path: \"/Users/sebastian/Library/Developer/Xcode/iOS DeviceSupport/14.5.1 (18E212)/Symbols\"\r\n[        ] (lldb)     target create \"/Users/sebastian/devtest/fluttertests/freepip/build/ios/iphoneos/Runner.app\"\r\n[+7778 ms] Current executable set to '/Users/sebastian/devtest/fluttertests/freepip/build/ios/iphoneos/Runner.app' (arm64).\r\n[        ] (lldb)     script fruitstrap_device_app=\"/private/var/containers/Bundle/Application/EA9B649A-DAC0-46B2-91FE-7074DC25E8E9/Runner.app\"\r\n[ +282 ms] (lldb)     script fruitstrap_connect_url=\"connect://127.0.0.1:57207\"\r\n[        ] (lldb)     script fruitstrap_output_path=\"\"\r\n[        ] (lldb)     script fruitstrap_error_path=\"\"\r\n[        ] (lldb)     target modules search-paths add /usr \"/Users/sebastian/Library/Developer/Xcode/iOS DeviceSupport/14.5.1 (18E212)/Symbols/usr\" /System \"/Users/sebastian/Library/Developer/Xcode/iOS DeviceSupport/14.5.1 (18E212)/Symbols/System\" \"/private/var/containers/Bundle/Application/EA9B649A-DAC0-46B2-91FE-7074DC25E8E9\" \"/Users/sebastian/devtest/fluttertests/freepip/build/ios/iphoneos\" \"/var/containers/Bundle/Application/EA9B649A-DAC0-46B2-91FE-7074DC25E8E9\" \"/Users/sebastian/devtest/fluttertests/freepip/build/ios/iphoneos\" /Developer \"/Users/sebastian/Library/Developer/Xcode/iOS DeviceSupport/14.5.1 (18E212)/Symbols/Developer\"\r\n[  +36 ms] (lldb)     command script import \"/tmp/82146923-1981-4CAF-B301-239228F2BEB1/fruitstrap_00008101_000868302401401E.py\"\r\n[   +3 ms] (lldb)     command script add -f fruitstrap_00008101_000868302401401E.connect_command connect\r\n[        ] (lldb)     command script add -s asynchronous -f fruitstrap_00008101_000868302401401E.run_command run\r\n[        ] (lldb)     command script add -s asynchronous -f fruitstrap_00008101_000868302401401E.autoexit_command autoexit\r\n[        ] (lldb)     command script add -s asynchronous -f fruitstrap_00008101_000868302401401E.safequit_command safequit\r\n[        ] (lldb)     connect\r\n[  +30 ms] (lldb)     run\r\n[ +263 ms] success\r\n[        ] Application launched on the device. Waiting for observatory port.\r\n[+30014 ms] Installing and launching... (completed in 45.8s)\r\n[        ] Error launching application on Sebastian12.\r\n[   +3 ms] \"flutter run\" took 81,795ms.\r\n[   +3 ms] \r\n           #0      throwToolExit (package:flutter_tools/src/base/common.dart:10:3)\r\n           #1      RunCommand.runCommand (package:flutter_tools/src/commands/run.dart:644:9)\r\n           <asynchronous suspension>\r\n           #2      FlutterCommand.verifyThenRunCommand (package:flutter_tools/src/runner/flutter_command.dart:1157:12)\r\n           <asynchronous suspension>\r\n           #3      FlutterCommand.run.<anonymous closure> (package:flutter_tools/src/runner/flutter_command.dart:1009:27)\r\n           <asynchronous suspension>\r\n           #4      AppContext.run.<anonymous closure> (package:flutter_tools/src/base/context.dart:150:19)\r\n           <asynchronous suspension>\r\n           #5      AppContext.run (package:flutter_tools/src/base/context.dart:149:12)\r\n           <asynchronous suspension>\r\n           #6      CommandRunner.runCommand (package:args/command_runner.dart:197:13)\r\n           <asynchronous suspension>\r\n           #7      FlutterCommandRunner.runCommand.<anonymous closure> (package:flutter_tools/src/runner/flutter_command_runner.dart:278:9)\r\n           <asynchronous suspension>\r\n           #8      AppContext.run.<anonymous closure> (package:flutter_tools/src/base/context.dart:150:19)\r\n           <asynchronous suspension>\r\n           #9      AppContext.run (package:flutter_tools/src/base/context.dart:149:12)\r\n           <asynchronous suspension>\r\n           #10     FlutterCommandRunner.runCommand (package:flutter_tools/src/runner/flutter_command_runner.dart:234:5)\r\n           <asynchronous suspension>\r\n           #11     run.<anonymous closure>.<anonymous closure> (package:flutter_tools/runner.dart:64:9)\r\n           <asynchronous suspension>\r\n           #12     run.<anonymous closure> (package:flutter_tools/runner.dart:62:12)\r\n           <asynchronous suspension>\r\n           #13     AppContext.run.<anonymous closure> (package:flutter_tools/src/base/context.dart:150:19)\r\n           <asynchronous suspension>\r\n           #14     AppContext.run (package:flutter_tools/src/base/context.dart:149:12)\r\n           <asynchronous suspension>\r\n           #15     runInContext (package:flutter_tools/src/context_runner.dart:73:10)\r\n           <asynchronous suspension>\r\n           #16     main (package:flutter_tools/executable.dart:90:3)\r\n           <asynchronous suspension>\r\n\r\n\r\n[   +1 ms] Running shutdown hooks\r\n[        ] Shutdown hook priority 4\r\n[   +2 ms] Shutdown hooks complete\r\n[        ] (lldb) process detach\r\n[        ] exiting with code 1\r\n\r\n```\r\n\r\nor is that not what you were asking?\r\n",
+    "createdAt": "2021-05-14T16:58:44Z"
+  },
+  {
+    "id": 4620,
+    "sender": "Jethro87",
+    "content": "**For anyone still seeing this issue and using VS Code, try Android Studio**. \r\n\r\nI've had this issue for months in VS Code and have tried every solution listed above to no avail. Not only was Android Studio much faster, which itself surprised me, but I was also able to debug on my physical iPhone 12 on the first try. My entire dev experience has gotten much better.",
+    "createdAt": "2021-05-22T00:18:27Z"
+  },
+  {
+    "id": 4621,
+    "sender": "ceojazzy",
+    "content": "Hi have the exact same issue changing timout or deleting the derived folder didnt work for me any workaround for this i am able to run the project from xcode though but i am not able to debug the app from the android studio or vscode Thanks in advance",
+    "createdAt": "2021-05-26T07:23:38Z"
+  },
+  {
+    "id": 4622,
+    "sender": "demetrio812",
+    "content": "Hello,\r\nI tried the different method none helped, I have event set the timeout to 90 seconds. This is what I see with `--verbose`:\r\n\r\n```\r\n[  +42 ms] Installing and launching... (completed in 86.4s)\r\n[   +2 ms] Error launching application on DemPhoneX12.\r\n[  +20 ms] \"flutter run\" took 285,932ms.\r\n[  +22 ms] \r\n           #0      throwToolExit (package:flutter_tools/src/base/common.dart:10:3)\r\n           #1      RunCommand.runCommand (package:flutter_tools/src/commands/run.dart:663:9)\r\n           <asynchronous suspension>\r\n           #2      FlutterCommand.run.<anonymous closure> (package:flutter_tools/src/runner/flutter_command.dart:1043:27)\r\n           <asynchronous suspension>\r\n           #3      AppContext.run.<anonymous closure> (package:flutter_tools/src/base/context.dart:150:19)\r\n           <asynchronous suspension>\r\n           #4      CommandRunner.runCommand (package:args/command_runner.dart:196:13)\r\n           <asynchronous suspension>\r\n           #5      FlutterCommandRunner.runCommand.<anonymous closure> (package:flutter_tools/src/runner/flutter_command_runner.dart:284:9)\r\n           <asynchronous suspension>\r\n           #6      AppContext.run.<anonymous closure> (package:flutter_tools/src/base/context.dart:150:19)\r\n           <asynchronous suspension>\r\n           #7      FlutterCommandRunner.runCommand (package:flutter_tools/src/runner/flutter_command_runner.dart:232:5)\r\n           <asynchronous suspension>\r\n           #8      run.<anonymous closure>.<anonymous closure> (package:flutter_tools/runner.dart:62:9)\r\n           <asynchronous suspension>\r\n           #9      AppContext.run.<anonymous closure> (package:flutter_tools/src/base/context.dart:150:19)\r\n           <asynchronous suspension>\r\n           #10     main (package:flutter_tools/executable.dart:91:3)\r\n           <asynchronous suspension>\r\n```\r\n\r\nUsing IntelliJ Idea but also tried VSCode. If I do `flutter run --release` it works and it also works if I run it from XCode.\r\n\r\nI'm on a M1 if that can help.\r\n\r\nAnything else I should try? This is now becoming a big issue, I'm trying to debug a push notification issue and it's being a complete nightmare.\r\n\r\nThanks\r\nAny help would be appreciated.\r\n\r\nThanks,\r\nDem",
+    "createdAt": "2021-05-26T09:57:33Z"
+  },
+  {
+    "id": 4623,
+    "sender": "javadou",
+    "content": "what's the root cause of the issue? I am having this issue for my two iphone 12 physical phones for more than a month.\r\nI tried everything I can find.\r\n@FlutterIssues anyone from flutter team can help?",
+    "createdAt": "2021-05-27T20:50:43Z"
+  },
+  {
+    "id": 4624,
+    "sender": "DameAri",
+    "content": "I have the issue on iPhone 12 also for more than a month and it is frustrating that works perfect on iPhone 6, always on fails on \"Waiting for observatory port\", tried all the solutions above",
+    "createdAt": "2021-05-28T21:10:17Z"
+  },
+  {
+    "id": 4625,
+    "sender": "javadou",
+    "content": "same for me on my iPhone 12. But works on iPhone 6plus\r\n\r\n> I have the issue on iPhone 12 also for more than a month and it is frustrating that works perfect on iPhone 6, always on fails on \"Waiting for observatory port\", tried all the solutions above\r\n\r\n",
+    "createdAt": "2021-05-29T20:20:14Z"
+  },
+  {
+    "id": 4626,
+    "sender": "ghost",
+    "content": "Same issue for me. I've spent a huge amount of time trying to find a solution but nothing helped. Figured out that after I deinstalled Xcode and reinstalled it worked a handful times but the issue appears again and again.",
+    "createdAt": "2021-06-01T08:56:30Z"
+  },
+  {
+    "id": 4627,
+    "sender": "mattialorenzutti",
+    "content": "Same problem here since months (after updating to 14.5), on both iPad 2019 and iPhone 12 Pro max, after \"installing and launching\" on vscode I got the message \"Error launching application on....\" and nothing to do",
+    "createdAt": "2021-06-02T16:01:51Z"
+  },
+  {
+    "id": 4628,
+    "sender": "jonbhanson",
+    "content": "I followed @jmagman's advice and found that there was a pending update on my iPhone.  Once I installed, it stopped timing out.  Thanks @jmagman! ",
+    "createdAt": "2021-06-03T16:21:48Z"
+  },
+  {
+    "id": 4629,
+    "sender": "javadou",
+    "content": "I just upgraded my iPhone12 to ios 14.6 and the issue is gone.",
+    "createdAt": "2021-06-04T20:16:26Z"
+  },
+  {
+    "id": 4630,
+    "sender": "timcreatedit",
+    "content": "I'm experiencing this issue on my iPhone 8, iOS 14.6\r\n\r\nNone of the suggested fixes helped me unfortunately.",
+    "createdAt": "2021-06-08T09:13:08Z"
+  },
+  {
+    "id": 4631,
+    "sender": "TheGlorySaint",
+    "content": "I'm experiencing the issue again on my 12 Pro Max.\r\n\r\nNone of the fixes, even the one from myself, doesn't helped me unfortunately.",
+    "createdAt": "2021-06-12T18:49:55Z"
+  },
+  {
+    "id": 4632,
+    "sender": "erf",
+    "content": "I had the same problem. I got it working after running it in XCode",
+    "createdAt": "2021-06-30T12:43:18Z"
+  },
+  {
+    "id": 4633,
+    "sender": "bretmh",
+    "content": "Is there any progress on this issue? From anyone? If you have some direction on solving the issue share your ideas. I do not see any obvious issue from my logs.",
+    "createdAt": "2021-06-30T22:01:09Z"
+  },
+  {
+    "id": 4634,
+    "sender": "armankhalid",
+    "content": "I'm also facing the same issues on my Macbook M1 for iPhone 12 pro-Max simulator. If anybody finds solution, Please share.",
+    "createdAt": "2021-07-06T07:55:05Z"
+  },
+  {
+    "id": 4635,
+    "sender": "armandojimenez",
+    "content": "Any found a fix for this? suddenly started happening on my iPhone 11 Pro Max with iOS 15 beta, on my M1 Mac",
+    "createdAt": "2021-07-07T22:29:00Z"
+  },
+  {
+    "id": 4636,
+    "sender": "MaekawaTakahiro",
+    "content": "I had the same problem, but once I initialized the MAC and built it again, the MAC got angry with the iproxy permissions.\r\n(MacOS: BigSur 11.4)\r\nThe following actions are said to be deprecated, but may be buildable.\r\n\r\n$ cd ~/development/flutter/bin/cache/artifacts/libimobiledevice\r\n$ sudo xattr -d com.apple.quarantine idevicesyslog\r\n$ cd ~/development/flutter/bin/cache/artifacts/usbmuxd\r\n$ sudo xattr -d com.apple.quarantine iproxy\r\n\r\nI hope this helps a little.",
+    "createdAt": "2021-07-12T09:31:15Z"
+  },
+  {
+    "id": 4637,
+    "sender": "Gastrolize",
+    "content": "Anyone has a fix now? It is happening on my iPhone 12 Pro Max and iPad 8th Generation but on my iPad Pro it works. \r\nCould it be the Cocoapods? \r\n",
+    "createdAt": "2021-07-14T18:42:35Z"
+  },
+  {
+    "id": 4638,
+    "sender": "bretmh",
+    "content": "> I had the same problem, but once I initialized the MAC and built it again, the MAC got angry with the iproxy permissions.\r\n> (MacOS: BigSur 11.4)\r\n> The following actions are said to be deprecated, but may be buildable.\r\n> \r\n> $ cd ~/development/flutter/bin/cache/artifacts/libimobiledevice\r\n> $ sudo xattr -d com.apple.quarantine idevicesyslog\r\n> $ cd ~/development/flutter/bin/cache/artifacts/usbmuxd\r\n> $ sudo xattr -d com.apple.quarantine iproxy\r\n> \r\n> I hope this helps a little.\r\n\r\nThis fix seems specific to you.\r\n\r\nThere should probably be a more general issue opened. I'm 100% unable to build on my iPhone now for any project. A freshly created project with no dependencies will not build because of the waiting for observatory port timeout.\r\n\r\nLooking at the code the only reasonable change I can think of is increasing the timeout. But this seems hacky. Have not tested this yet.\r\n\r\n",
+    "createdAt": "2021-07-14T19:48:03Z"
+  },
+  {
+    "id": 4639,
+    "sender": "Gastrolize",
+    "content": "Hey guys I have the solution!!\r\n\r\nI cannot say if the issue is on the side of Xcode for the remote package timeout or if its our phones. I tested ALL Solutions every related to these threads and had no success. Now I found a workaround:\r\n\r\nStep 1: Disconnect your Device\r\nStep 2: Close Xcode\r\nStep 3: In the Developer Settings of you Device -> Clear trusted Computers\r\nStep 4: Delete all Apps you ever debugged on your Device \r\n\r\nStep 5: In  \r\n``` \r\n/Library/Developer/Xcode/iOS\\ DeviceSupport \r\n```\r\n-> delete the Folder your IOS Version of your device, mine was 14.6\r\n\r\nStep 6: Create in your home directory a file called \r\n```.lldbinit``` \r\nand enter this code:\r\n```\r\nsettings set plugin.process.gdb-remote.packet-timeout 300\r\n```\r\n\r\nStep 7:\r\nOpen the Flutter SDK File \r\n```\r\n/flutter/packages/flutter_tools/lib/src/ios/devices.dart \r\n```\r\n\r\nEdit this Code to:\r\n\r\nFrom \r\n```\r\nlocalUri = await observatoryDiscovery.uri.timeout(const Duration(seconds: 30));\r\n```\r\nTo:\r\n```\r\nlocalUri = await observatoryDiscovery.uri.timeout(const Duration(seconds: 300));\r\n```\r\n\r\nEdit this Code in the same file from:\r\n```\r\nstatic const Duration _kiProxyPortForwardTimeout = Duration(seconds: 1);\r\n```\r\n\r\nTo:\r\n\r\n```\r\nstatic const Duration _kiProxyPortForwardTimeout = Duration(seconds: 5);\r\n```\r\n\r\nDelete then this file to rebuild the Flutter Tools later:\r\n\r\n```\r\nflutter/bin/cache/flutter_tools.snapshot\r\n```\r\nand \r\n\r\n```\r\nflutter/bin/cache/flutter_tools.stamp\r\n```\r\n\r\nStep 8:\r\n\r\nOpen Xcode\r\n\r\nStep 9:\r\n\r\nConnect your Device, a new folder in with your Device Version which we deleted once will be created in:\r\n```\r\n/Library/Developer/Xcode/iOS\\ DeviceSupport \r\n```\r\n\r\n\r\nStep 10:\r\n\r\nRun your App from Flutter (not necessary to run it from Xcode!) (also run in verbose to see the same logs as me now)\r\n\r\nYou will see when its coming to:\r\n```\r\nApplication launched on the device. Waiting for observatory port\r\n```\r\n\r\nThese Logs appears:\r\n```\r\n(lldb) 2021-07-17 17:14:44.974661+0200 Runner[7493:2479838] fopen\r\nfailed for data file: errno = 2 (No such file or directory)\r\n[   +1 ms] Errors found! Invalidating cache...\r\n[ +137 ms] Warning: Unable to create restoration in progress marker file\r\n[  +52 ms] Observatory URL on device: http://127.0.0.1:61991/\r\n[   +4 ms] Attempting to forward device port 61991 to host port 54465\r\n[        ] executing:\r\n/Users/sobhihammoud/flutter/bin/cache/artifacts/usbmuxd/iproxy 54465:61991\r\n--udid 00008101-001E4DA20A29003A\r\n[ +282 ms] fopen failed for data file: errno = 2 (No such file or directory)\r\n[   +1 ms] Errors found! Invalidating cache...\r\n[+4728 ms] Forwarded port ForwardedPort HOST:54465 to DEVICE:61991\r\n[        ] Forwarded host port 54465 to device port 61991 for Observatory\r\n[   +2 ms] Installing and launching... (completed in 25,7s)\r\n[   +1 ms] Caching compiled dill\r\n[  +53 ms] Connecting to service protocol: http://127.0.0.1:54465/\r\n[  +99 ms] Launching a Dart Developer Service (DDS) instance at\r\nhttp://127.0.0.1:0, connecting to VM service at http://127.0.0.1:54465/.\r\n[  +50 ms] DDS is listening at http://127.0.0.1:54480/0-VfJ5GKeGg=/.\r\n[  +44 ms] Successfully connected to service protocol: http://127.0.0.1:54465/\r\n[  +15 ms] DevFS: Creating new filesystem on the device (null)\r\n[  +19 ms] DevFS: Created new filesystem on the device\r\n(file:///private/var/mobile/Containers/Data/Application/2E6D9616-1022-4D30-8832-\r\n66E940999CB1/tmp/testt0Ij8KP/testt/)\r\n[   +2 ms] Updating assets\r\n[  +61 ms] Syncing files to device iPhone...\r\n[   +1 ms] <- reset\r\n[        ] Compiling dart to kernel with 0 updated files\r\n[   +2 ms] <- recompile package:testt/main.dart\r\nab13bcf8-6e22-490c-9149-1e35b3d2f5bc\r\n[        ] <- ab13bcf8-6e22-490c-9149-1e35b3d2f5bc\r\n[  +46 ms] Updating files.\r\n[        ] DevFS: Sync finished\r\n[        ] Syncing files to device iPhone... (completed in 50ms)\r\n[        ] Synced 0.0MB.\r\n[        ] <- accept\r\n[   +7 ms] Connected to _flutterView/0x10c822220.\r\n[   +1 ms] Flutter run key commands.\r\n[   +1 ms] r Hot reload. 🔥🔥🔥\r\n[        ] R Hot restart.\r\n[        ] h Repeat this help message.\r\n[        ] d Detach (terminate \"flutter run\" but leave application running).\r\n[        ] c Clear the screen\r\n[        ] q Quit (terminate the application on the device).\r\n[        ] 💪 Running with sound null safety 💪\r\n[        ] An Observatory debugger and profiler on iPhone is available at:\r\n           http://127.0.0.1:54480/0-VfJ5GKeGg=/\r\n[ +604 ms] The Flutter DevTools debugger and profiler on iPhone is available at:\r\n\r\n```\r\n\r\nThen it works!!!\r\n\r\nFor the Flutter Team:\r\n\r\nI don't know, if the issue is with the iProxy Timeout, the Remote packages from Xcode Timeout or just the IOS Device Support.\r\nBut this Solution worked for me really good!\r\n\r\nI hope this helps you guys\r\n",
+    "createdAt": "2021-07-17T15:30:10Z"
+  },
+  {
+    "id": 4640,
+    "sender": "Gastrolize",
+    "content": "The weird thing is I created a completely new project with Flutter. Following my steps above worked with the empty project but It took 65 Seconds to create the observatory. So basically when your Project with many dependencies does not run on your Device you have to increase the timeout.. (still testing)\r\n\r\n```\r\n[+64877 ms] Observatory URL on device: http://127.0.0.1:50521/\r\n[   +4 ms] Attempting to forward device port 50521 to host port 50459\r\n[        ] executing: /Users/sobhihammoud/flutter/bin/cache/artifacts/usbmuxd/iproxy 50459:50521 --udid 00008020-000528943CF1402E\r\n[+5009 ms] Forwarded port ForwardedPort HOST:50802 to DEVICE:50730\r\n[        ] Forwarded host port 50802 to device port 50730 for Observatory\r\n[   +2 ms] Installing and launching... (completed in 76,6s)\r\n[   +1 ms] Caching compiled dill\r\n[  +49 ms] Connecting to service protocol: http://127.0.0.1:50802/\r\n[ +142 ms] Launching a Dart Developer Service (DDS) instance at http://127.0.0.1:0, connecting to VM service at http://127.0.0.1:50802/.\r\n[  +58 ms] DDS is listening at http://127.0.0.1:50813/zgBisOT5Fro=/.\r\n[  +47 ms] Successfully connected to service protocol: http://127.0.0.1:50802/\r\n[  +14 ms] DevFS: Creating new filesystem on the device (null)\r\n[  +14 ms] DevFS: Created new filesystem on the device\r\n(file:///private/var/mobile/Containers/Data/Application/9B7B56C4-9775-4C53-839E-06E9BB9A0446/tmp/testtzv1FAg/testt/)\r\n[   +2 ms] Updating assets\r\n[  +47 ms] Syncing files to device iPad Small...\r\n[   +1 ms] <- reset\r\n[        ] Compiling dart to kernel with 0 updated files\r\n[   +1 ms] <- recompile package:testt/main.dart 29774a57-4d71-4a30-96a3-da0d625fefc8\r\n[        ] <- 29774a57-4d71-4a30-96a3-da0d625fefc8\r\n[  +44 ms] Updating files.\r\n[        ] DevFS: Sync finished\r\n[        ] Syncing files to device iPad Small... (completed in 48ms)\r\n[        ] Synced 0.0MB.\r\n[        ] <- accept\r\n[  +11 ms] Connected to _flutterView/0x10802ce20.\r\n[   +2 ms] Flutter run key commands.\r\n[   +1 ms] r Hot reload. 🔥🔥🔥\r\n[        ] R Hot restart.\r\n[        ] h Repeat this help message.\r\n[        ] d Detach (terminate \"flutter run\" but leave application running).\r\n[        ] c Clear the screen\r\n[        ] q Quit (terminate the application on the device).\r\n[        ] 💪 Running with sound null safety 💪\r\n[        ] An Observatory debugger and profiler on iPad Small is available at: http://127.0.0.1:50813/zgBisOT5Fro=/\r\n[ +653 ms] The Flutter DevTools debugger and profiler on iPad Small is available at:\r\nhttp://127.0.0.1:9102?uri=http%3A%2F%2F127.0.0.1%3A50813%2FzgBisOT5Fro%3D%2F\r\n```",
+    "createdAt": "2021-07-18T02:09:20Z"
+  },
+  {
+    "id": 4641,
+    "sender": "jerryhamby",
+    "content": "Running Flutter 2.2.3 and VS Code 1.58.2 and this issue is still not addressed. Is there a timeline?\r\nThe issue was originally posted ion Dec 2020.",
+    "createdAt": "2021-07-18T23:22:39Z"
+  },
+  {
+    "id": 4642,
+    "sender": "Gastrolize",
+    "content": "Updating on Xcode 13 Beta 3 and followed these steps: https://dzone.com/articles/how-to-completely-uninstall-xcode-from-mac, reinstalled flutter stable fixed the issue on ALL Devices @jerryhamby ",
+    "createdAt": "2021-07-19T00:26:11Z"
+  },
+  {
+    "id": 4643,
+    "sender": "daniil-shumko",
+    "content": "@Gastrolize did not work for me. I am using iPhone 12 mini.",
+    "createdAt": "2021-07-19T07:29:19Z"
+  },
+  {
+    "id": 4644,
+    "sender": "fralways",
+    "content": "getting the same issue on (real device) iPhone 12, iOS 14.4.2, xcode 12.5.1:\r\n```\r\n ------ Debug phase ------\r\n[        ] Starting debug of 00008101-00181529340A001E (D53gAP, D53gAP, uknownos, unkarch) a.k.a. 'Filip's iPhone 12' connected through\r\nUSB...\r\n[+1346 ms] [  0%] Looking up developer disk image\r\n[  +16 ms] [ 95%] Developer disk image mounted successfully\r\n[+1621 ms] [100%] Connecting to remote debug server\r\n[        ] -------------------------\r\n[  +42 ms] (lldb) command source -s 0 '/tmp/C6862295-0CBD-4C8A-9EF9-8D1086F3D64B/fruitstrap-lldb-prep-cmds-00008101_00181529340A001E'\r\n[        ] Executing commands in '/tmp/C6862295-0CBD-4C8A-9EF9-8D1086F3D64B/fruitstrap-lldb-prep-cmds-00008101_00181529340A001E'.\r\n[        ] (lldb)     platform select remote-ios --sysroot '/Users/filiprajicic/Library/Developer/Xcode/iOS DeviceSupport/14.4\r\n(18D52)/Symbols'\r\n[        ]   Platform: remote-ios\r\n[        ]  Connected: no\r\n[        ]   SDK Path: \"/Users/filiprajicic/Library/Developer/Xcode/iOS DeviceSupport/14.4 (18D52)/Symbols\"\r\n[        ] (lldb)     target create\r\n\"/***r/build/ios/iphoneos/Runner.app\"\r\n[+10790 ms] Current executable set to\r\n'/***/build/ios/iphoneos/Runner.app' (arm64).\r\n[        ] (lldb)     script\r\nfruitstrap_device_app=\"/private/var/containers/Bundle/Application/F2B2F2B8-4D50-4F9C-A13E-15C944C8C384/Runner.app\"\r\n[ +385 ms] (lldb)     script fruitstrap_connect_url=\"connect://127.0.0.1:55320\"\r\n[        ] (lldb)     script fruitstrap_output_path=\"\"\r\n[        ] (lldb)     script fruitstrap_error_path=\"\"\r\n[        ] (lldb)     target modules search-paths add /usr \"/Users/filiprajicic/Library/Developer/Xcode/iOS DeviceSupport/14.4\r\n(18D52)/Symbols/usr\" /System \"/Users/filiprajicic/Library/Developer/Xcode/iOS DeviceSupport/14.4 (18D52)/Symbols/System\"\r\n\"/private/var/containers/Bundle/Application/F2B2F2B8-4D50-4F9C-A13E-15C944C8C384\"\r\n\"/Users/filiprajicic/Documents/***/build/ios/iphoneos\"\r\n\"/var/containers/Bundle/Application/F2B2F2B8-4D50-4F9C-A13E-15C944C8C384\"\r\n\"/Users/filiprajicic/Documents/***/build/ios/iphoneos\" /Developer\r\n\"/Users/filiprajicic/Library/Developer/Xcode/iOS DeviceSupport/14.4 (18D52)/Symbols/Developer\"\r\n[  +41 ms] (lldb)     command script import \"/tmp/C6862295-0CBD-4C8A-9EF9-8D1086F3D64B/fruitstrap_00008101_00181529340A001E.py\"\r\n[   +4 ms] (lldb)     command script add -f fruitstrap_00008101_00181529340A001E.connect_command connect\r\n[        ] (lldb)     command script add -s asynchronous -f fruitstrap_00008101_00181529340A001E.run_command run\r\n[        ] (lldb)     command script add -s asynchronous -f fruitstrap_00008101_00181529340A001E.autoexit_command autoexit\r\n[        ] (lldb)     command script add -s asynchronous -f fruitstrap_00008101_00181529340A001E.safequit_command safequit\r\n[        ] (lldb)     connect\r\n[  +33 ms] (lldb)     run\r\n[ +334 ms] success\r\n[        ] Application launched on the device. Waiting for observatory port.\r\n[+30017 ms] Installing and launching... (completed in 54.5s)\r\n[   +1 ms] Error launching application on Filip's iPhone 12.\r\n[   +9 ms] \"flutter run\" took 126,642ms.\r\n[   +7 ms] \r\n           #0      throwToolExit (package:flutter_tools/src/base/common.dart:10:3)\r\n           #1      RunCommand.runCommand (package:flutter_tools/src/commands/run.dart:663:9)\r\n           <asynchronous suspension>\r\n           #2      FlutterCommand.run.<anonymous closure> (package:flutter_tools/src/runner/flutter_command.dart:1043:27)\r\n           <asynchronous suspension>\r\n           #3      AppContext.run.<anonymous closure> (package:flutter_tools/src/base/context.dart:150:19)\r\n           <asynchronous suspension>\r\n           #4      CommandRunner.runCommand (package:args/command_runner.dart:196:13)\r\n           <asynchronous suspension>\r\n           #5      FlutterCommandRunner.runCommand.<anonymous closure>\r\n(package:flutter_tools/src/runner/flutter_command_runner.dart:284:9)\r\n           <asynchronous suspension>\r\n           #6      AppContext.run.<anonymous closure> (package:flutter_tools/src/base/context.dart:150:19)\r\n           <asynchronous suspension>\r\n           #7      FlutterCommandRunner.runCommand (package:flutter_tools/src/runner/flutter_command_runner.dart:232:5)\r\n           <asynchronous suspension>\r\n           #8      run.<anonymous closure>.<anonymous closure> (package:flutter_tools/runner.dart:62:9)\r\n           <asynchronous suspension>\r\n           #9      AppContext.run.<anonymous closure> (package:flutter_tools/src/base/context.dart:150:19)\r\n           <asynchronous suspension>\r\n           #10     main (package:flutter_tools/executable.dart:91:3)\r\n           <asynchronous suspension>\r\n           \r\n           \r\n[   +3 ms] (lldb) process detach\r\n[ +251 ms] ensureAnalyticsSent: 253ms\r\n[   +2 ms] Running shutdown hooks\r\n\r\n```\r\n\r\nNote: running app from xCode directly is working\r\nNote 2: this started after I upgraded to 2.2.3 from 1.22.6",
+    "createdAt": "2021-07-19T10:12:21Z"
+  },
+  {
+    "id": 4645,
+    "sender": "Gastrolize",
+    "content": "@daniil-shumko yes I noticed it. Nothing works anymore on my devices.. even upgrading on Xcode beta helped for one day now it returning same error..\r\nno one of the flutter team has a clue why this error appears..?",
+    "createdAt": "2021-07-19T22:29:09Z"
+  },
+  {
+    "id": 4646,
+    "sender": "jmagman",
+    "content": "Reposting this since it was buried in the \"me too\" comments.  Unfortunately GitHub doesn't let us pin comments.  Note #81229 fix referenced is available in 2.3.0-1.0.pre which is [currently available](https://flutter.dev/docs/development/tools/sdk/releases?tab=macos) on the [beta channel](https://github.com/flutter/flutter/wiki/Flutter-build-release-channels#how-to-change-channels).\r\n\r\n> 1. The flood of reports of this issue coincided with the iOS 14.4.* updates.  Long app launch times is a commonly reported problem when there's a pending iOS update on your test device, or when your test device is running a newer OS than the one shipped with Xcode.  It's also commonly reported right after you upgrade your test OS because Xcode can get stuck trying to copy the developer image over to the device.  Many of these reports are that it works on one device and not on another device running the same OS.  Frankly there's not much Flutter can do to work around this when the problem is between the test device and Xcode.\r\n> 2. Make sure Xcode is updated and your iOS device is updated.  You can also try opening `ios/Runner.xcworkspace` in Xcode and running your app from there to unwedge it.\r\n> 3. You can also try running `flutter clean` to clean Xcode's build folder (DerivedData).\r\n> 4. If you \"fixed\" this by editing the Flutter SDK app launch timeout (which at 30 seconds is already very generous if it wasn't for the iOS/Xcode issue), [[flutter_tools] remove timeout from iOS device startup #81229](https://github.com/flutter/flutter/pull/81229) PR will resolve your issue so you don't need to do this manually.\r\n> 5. Additionally @stx notes switching which port your device is tethered to can make the app launch much faster.\r\n> \r\n> > I disconnected and reconnected the same USB-C to Lightning cable to the same port on a MBP and rebuilt over and over with the same observatory error, but the moment I changed to a different port, debugging succeeded because the install/launch process completed much more quickly.\r\n> > Either way, I would strongly recommend trying other ports.\r\n> \r\n> 6. It seems like a cop-out, but swapping your cable may also help.\r\n\r\n\r\n\r\n",
+    "createdAt": "2021-07-19T23:37:58Z"
+  },
+  {
+    "id": 4647,
+    "sender": "daniil-shumko",
+    "content": "Just updated my iPhone 12 mini to iOS 14.7 and it started working again. I also have that timeout fix added to flutter. I will update if it stops working.",
+    "createdAt": "2021-07-20T08:48:07Z"
+  },
+  {
+    "id": 4648,
+    "sender": "fralways",
+    "content": "> Reposting this since it was buried in the \"me too\" comments. Unfortunately GitHub doesn't let us pin comments. Note #81229 fix referenced is available in 2.3.0-1.0.pre which is [currently available](https://flutter.dev/docs/development/tools/sdk/releases?tab=macos) on the [beta channel](https://github.com/flutter/flutter/wiki/Flutter-build-release-channels#how-to-change-channels).\r\n> \r\n> > 1. The flood of reports of this issue coincided with the iOS 14.4.* updates.  Long app launch times is a commonly reported problem when there's a pending iOS update on your test device, or when your test device is running a newer OS than the one shipped with Xcode.  It's also commonly reported right after you upgrade your test OS because Xcode can get stuck trying to copy the developer image over to the device.  Many of these reports are that it works on one device and not on another device running the same OS.  Frankly there's not much Flutter can do to work around this when the problem is between the test device and Xcode.\r\n> > 2. Make sure Xcode is updated and your iOS device is updated.  You can also try opening `ios/Runner.xcworkspace` in Xcode and running your app from there to unwedge it.\r\n> > 3. You can also try running `flutter clean` to clean Xcode's build folder (DerivedData).\r\n> > 4. If you \"fixed\" this by editing the Flutter SDK app launch timeout (which at 30 seconds is already very generous if it wasn't for the iOS/Xcode issue), [[flutter_tools] remove timeout from iOS device startup #81229](https://github.com/flutter/flutter/pull/81229) PR will resolve your issue so you don't need to do this manually.\r\n> > 5. Additionally @stx notes switching which port your device is tethered to can make the app launch much faster.\r\n> > \r\n> > > I disconnected and reconnected the same USB-C to Lightning cable to the same port on a MBP and rebuilt over and over with the same observatory error, but the moment I changed to a different port, debugging succeeded because the install/launch process completed much more quickly.\r\n> > > Either way, I would strongly recommend trying other ports.\r\n> > \r\n> > \r\n> > \r\n> > 1. It seems like a cop-out, but swapping your cable may also help.\r\n\r\nas i stated in my post (which is minimised), running app from xcode works fine, but it fails when running from android studio.",
+    "createdAt": "2021-07-20T08:53:41Z"
+  },
+  {
+    "id": 4649,
+    "sender": "cpthooch",
+    "content": "@fralways \r\n> as i stated in my post (which is minimised), running app from xcode works fine, but it fails when running from android studio.\r\n\r\nHi. Not so long ago I had same symptoms. Adding \"--no-sound-null-safety\" parameter into Android Studio run configuration fixed the issue. Give it a try.\r\n\r\n<img width=\"429\" alt=\"Screenshot 2021-07-20 at 16 26 10\" src=\"https://user-images.githubusercontent.com/1440284/126332796-957ac89d-c271-4b4b-9fec-ac6d619a217b.png\">\r\n",
+    "createdAt": "2021-07-20T13:32:20Z"
+  },
+  {
+    "id": 4650,
+    "sender": "Gastrolize",
+    "content": "@daniil-shumko yes worked for me now perfectly. I am waiting for how long the issues reappears😂",
+    "createdAt": "2021-07-20T16:16:40Z"
+  },
+  {
+    "id": 4651,
+    "sender": "jerryhamby",
+    "content": "Updated to IOS 14.7 with Flutter 2.2.3, VS Code 1.58.2 and Xcode 12.5.1. Same old problem still exists. Only testing on my iPhone 11 and 7. I run just the stable versions, so we’ll see if it’s solved when Xcode 13 appears as an upgrade. @jmagman ",
+    "createdAt": "2021-07-20T23:05:47Z"
+  },
+  {
+    "id": 4652,
+    "sender": "Gastrolize",
+    "content": "@jerryhamby try the Xcode 13 Beta and run on master channel that worked for me",
+    "createdAt": "2021-07-21T10:27:17Z"
+  },
+  {
+    "id": 4653,
+    "sender": "TheGlorySaint",
+    "content": "@TahaTesser This Issue now exists a long Time without any fix. Could you please provide us with an estimated Date when this Issue will be fixed?",
+    "createdAt": "2021-08-04T08:20:54Z"
+  },
+  {
+    "id": 4654,
+    "sender": "moejbl",
+    "content": "Try to delete and reinstall Xcode and flutter. It helped me to fix this.",
+    "createdAt": "2021-08-04T11:08:44Z"
+  },
+  {
+    "id": 4655,
+    "sender": "TheGlorySaint",
+    "content": "> Try to delete and reinstall Xcode and flutter. It helped me to fix this.\r\n\r\nI already tried that, but it didn't helped me.",
+    "createdAt": "2021-08-04T11:12:07Z"
+  },
+  {
+    "id": 4656,
+    "sender": "zenkog",
+    "content": "I got the same issue. \r\nI have followed the solutions offered by @stx and @Gastrolize and have tried to reinstall Xcode and Flutter altogether but none works. Strange thing is that it works when I run directly with Xcode but doesn't work when I run by using Flutter.\r\n\r\nHELP!",
+    "createdAt": "2021-08-06T12:27:20Z"
+  },
+  {
+    "id": 4657,
+    "sender": "Gastrolize",
+    "content": "@zenkog make sure that your updated on 14.7 and have xcode 13 beta",
+    "createdAt": "2021-08-06T12:30:29Z"
+  },
+  {
+    "id": 4658,
+    "sender": "zenkog",
+    "content": "@Gastrolize as I have said, I have reinstalled Xcode. I reinstalled the latest version which is 13 beta 4. My iOS is 14.6 but this shouldn't be a problem, right? Because when I run using Xcode it is working fine.",
+    "createdAt": "2021-08-06T14:29:50Z"
+  },
+  {
+    "id": 4659,
+    "sender": "Gastrolize",
+    "content": "@zenkog i know what you mean.. the weird thing is that it works on some specific devices on different ios versions. I have an ipad where it works on 14.5.1 and one with 14.7 which don‘t work. But the ipad pro on 14.7 works fine. \r\n\r\nWhen reinstalling, did you make a full clean uninstall? All directorys from Xcode and everything which is connected to it?",
+    "createdAt": "2021-08-06T14:51:11Z"
+  },
+  {
+    "id": 4660,
+    "sender": "Gastrolize",
+    "content": "@zenkog the last chance is really to run it from xcode and run flutter attach to work on it",
+    "createdAt": "2021-08-06T14:51:43Z"
+  },
+  {
+    "id": 4661,
+    "sender": "kuhnroyal",
+    "content": "Also having random devices that don't work.\r\nBut managed to get it working with these steps:\r\n\r\n* follow https://stackoverflow.com/a/40327522/2553215 and clear all XCode caches, data, DeviceSupport and so on\r\n* run `flutter clean`\r\n* on the device go to developer tools and \"Clear Trusted Computers\"\r\n* re-connect device and try again\r\n* a dialog should show up \"Do you want to allow Flutter Tools to.....\" -> accept it\r\n",
+    "createdAt": "2021-08-09T14:31:49Z"
+  },
+  {
+    "id": 4662,
+    "sender": "zenkog",
+    "content": "> Also having random devices that don't work.\r\n> But managed to get it working with these steps:\r\n> \r\n> * follow https://stackoverflow.com/a/40327522/2553215 and clear all XCode caches, data, DeviceSupport and so on\r\n> * run `flutter clean`\r\n> * on the device go to developer tools and \"Clear Trusted Computers\"\r\n> * re-connect device and try again\r\n> * a dialog should show up \"Do you want to allow Flutter Tools to.....\" -> accept it\r\n\r\nThanks. This works for me!",
+    "createdAt": "2021-08-10T04:00:59Z"
+  },
+  {
+    "id": 4663,
+    "sender": "sstadtl",
+    "content": "following the instructions from @kuhnroyal it is working again my dev phone (ip 7, 14.7.1), but still not working on my current phone (ip 12, 14.7.1) 😭\r\n",
+    "createdAt": "2021-08-10T09:01:06Z"
+  },
+  {
+    "id": 4664,
+    "sender": "kuhnroyal",
+    "content": "Maybe this is related, I started seeing some warning messages: https://flutter.dev/docs/development/add-to-app/ios/project-setup#local-network-privacy-permissions",
+    "createdAt": "2021-08-11T11:42:17Z"
+  },
+  {
+    "id": 4665,
+    "sender": "altafkhan8719",
+    "content": "getting the same issue\r\n\r\n> Also having random devices that don't work.\r\n> But managed to get it working with these steps:\r\n> \r\n> * follow https://stackoverflow.com/a/40327522/2553215 and clear all XCode caches, data, DeviceSupport and so on\r\n> * run `flutter clean`\r\n> * on the device go to developer tools and \"Clear Trusted Computers\"\r\n> * re-connect device and try again\r\n> * a dialog should show up \"Do you want to allow Flutter Tools to.....\" -> accept it\r\n\r\nI tried but did not get success",
+    "createdAt": "2021-08-11T12:43:46Z"
+  },
+  {
+    "id": 4666,
+    "sender": "garyodonoghue",
+    "content": "I had this on iOS 14.7.0, on flutter stable channel. Switching to the beta channel and upgrading to iOS 14.7.1 has resolved the issue for me. I switched back to the stable channel and it stopped working again, so it seems it was the switch to the beta channel which did the trick, hopefully this helps some folks!",
+    "createdAt": "2021-08-11T15:19:49Z"
+  },
+  {
+    "id": 4667,
+    "sender": "nzackoya",
+    "content": "I've tried all the above solutions and none of them is working!!! This issue is happening already more than 6 months. This is really frustrating!!! And why are you closing this issue without even investigating it?!\r\nIphone 12 iOS 14\r\n```\r\n[        ] Application launched on the device. Waiting for observatory port.\r\n[+30013 ms] Installing and launching... (completed in 40.7s)\r\n[        ] Error launching application on iPhone 12.\r\n[   +4 ms] \"flutter run\" took 83,645ms.\r\n[   +4 ms] \r\n           #0      throwToolExit (package:flutter_tools/src/base/common.dart:10:3)\r\n           #1      RunCommand.runCommand (package:flutter_tools/src/commands/run.dart:663:9)\r\n           <asynchronous suspension>\r\n           #2      FlutterCommand.run.<anonymous closure> (package:flutter_tools/src/runner/flutter_command.dart:1043:27)\r\n           <asynchronous suspension>\r\n           #3      AppContext.run.<anonymous closure> (package:flutter_tools/src/base/context.dart:150:19)\r\n           <asynchronous suspension>\r\n           #4      CommandRunner.runCommand (package:args/command_runner.dart:196:13)\r\n           <asynchronous suspension>\r\n           #5      FlutterCommandRunner.runCommand.<anonymous closure> (package:flutter_tools/src/runner/flutter_command_runner.dart:284:9)\r\n           <asynchronous suspension>\r\n           #6      AppContext.run.<anonymous closure> (package:flutter_tools/src/base/context.dart:150:19)\r\n           <asynchronous suspension>\r\n           #7      FlutterCommandRunner.runCommand (package:flutter_tools/src/runner/flutter_command_runner.dart:232:5)\r\n           <asynchronous suspension>\r\n           #8      run.<anonymous closure>.<anonymous closure> (package:flutter_tools/runner.dart:62:9)\r\n           <asynchronous suspension>\r\n           #9      AppContext.run.<anonymous closure> (package:flutter_tools/src/base/context.dart:150:19)\r\n           <asynchronous suspension>\r\n           #10     main (package:flutter_tools/executable.dart:91:3)\r\n           <asynchronous suspension>\r\n```",
+    "createdAt": "2021-08-14T19:02:24Z"
+  },
+  {
+    "id": 4668,
+    "sender": "cmdbbang",
+    "content": "> @BringTheChill\r\n> \r\n> I had the Same issue after updating to 14.5.1, i fixed it with:\r\n> `In XCode -> Preference -> Locations -> Derived Data, click the little arrow to open the path in finder and clean the folder. Then flutter run resume working normally.`\r\n\r\nThis works for me!. @TheGlorySaint  You saved my hairs!",
+    "createdAt": "2021-08-14T20:59:31Z"
+  },
+  {
+    "id": 4669,
+    "sender": "seanghay",
+    "content": "I got the same issue!\r\n\r\n**Build Device**: 16 inch MacBook Pro (BigSur 11.5.2) \r\n**Physical Device**: iPhone 12 Pro Max (iOS 14.7.1)\r\n\r\n## Issue\r\n\r\n- `flutter run`  / (Clicking the ▶️ in Android Studio) takes too long to attach the debugging port until eventually timeout and the app crashed.\r\n- It worked perfectly fine if we run it directly from **Xcode** (12.5.1)\r\n- It worked perfectly fine with iPhone 7s (iOS 14.7.1)\r\n- It worked perfectly fine with iPhone 11 Pro Max (iOS 14.7.1)\r\n- Also worked fine on any device if I use `flutter run --release`\r\n\r\n\r\n## Workaround\r\n\r\n1. Open the iOS project in Xcode.\r\n2. Click run normally and wait until the app successfully launched and do not close the app.\r\n3. Open the terminal inside your Flutter project.\r\n4. Run command `flutter attach --app-id com.example.myapp` (replace `com.example.myapp` with your app bundle ID)\r\n5. Done. However, you may need to manually reload the app by pressing `r`\r\n\r\n## Information\r\n\r\n<details>\r\n  <summary>\r\n  <strong>Flutter Doctor Result</strong>\r\n</summary>\r\n\r\n```\r\n[✓] Flutter (Channel stable, 2.2.3, on macOS 11.5.2 20G95 darwin-x64, locale en)\r\n    • Flutter version 2.2.3 at /Users/seanghay/fluttersdk\r\n    • Framework revision f4abaa0735 (9 weeks ago), 2021-07-01 12:46:11 -0700\r\n    • Engine revision 241c87ad80\r\n    • Dart version 2.13.4\r\n\r\n[✓] Android toolchain - develop for Android devices (Android SDK version 30.0.3)\r\n    • Android SDK at /Users/seanghay/Library/Android/sdk\r\n    • Platform android-S, build-tools 30.0.3\r\n    • Java binary at: /Applications/Android Studio.app/Contents/jre/jdk/Contents/Home/bin/java\r\n    • Java version OpenJDK Runtime Environment (build 11.0.10+0-b96-7281165)\r\n    • All Android licenses accepted.\r\n\r\n[✓] Xcode - develop for iOS and macOS\r\n    • Xcode at /Applications/Xcode.app/Contents/Developer\r\n    • Xcode 12.5.1, Build version 12E507\r\n    • CocoaPods version 1.10.2\r\n\r\n[✓] Chrome - develop for the web\r\n    • Chrome at /Applications/Google Chrome.app/Contents/MacOS/Google Chrome\r\n\r\n[✓] Android Studio (version 2020.3)\r\n    • Android Studio at /Applications/Android Studio.app/Contents\r\n    • Flutter plugin can be installed from:\r\n      🔨 https://plugins.jetbrains.com/plugin/9212-flutter\r\n    • Dart plugin can be installed from:\r\n      🔨 https://plugins.jetbrains.com/plugin/6351-dart\r\n    • Java version OpenJDK Runtime Environment (build 11.0.10+0-b96-7281165)\r\n\r\n[✓] IntelliJ IDEA Community Edition (version 2021.1.3)\r\n    • IntelliJ at /Applications/IntelliJ IDEA CE.app\r\n    • Flutter plugin can be installed from:\r\n      🔨 https://plugins.jetbrains.com/plugin/9212-flutter\r\n    • Dart plugin can be installed from:\r\n      🔨 https://plugins.jetbrains.com/plugin/6351-dart\r\n\r\n[✓] VS Code (version 1.59.1)\r\n    • VS Code at /Applications/Visual Studio Code.app/Contents\r\n    • Flutter extension version 3.25.0\r\n\r\n[✓] Connected device (2 available)\r\n    • Seanghay’s iPhone (mobile) • 00008101-<redacted>01E • ios            • iOS 14.7.1\r\n    • Chrome (web)               • chrome                    • web-javascript • Google Chrome 93.0.4577.63\r\n\r\n• No issues found!\r\n```\r\n</details>\r\n\r\n---\r\n<details>\r\n <summary>\r\n  Logs of <code>flutter run -v</code>\r\n</summary>\r\n\r\n\r\n```\r\n[        ] Starting debug of 00008101-001D2D822103001E (D54pAP, D54pAP, uknownos, unkarch) a.k.a. 'Seanghay’s iPhone' connected through USB...\r\n[+1486 ms] [  0%] Looking up developer disk image\r\n[  +15 ms] [ 95%] Developer disk image mounted successfully\r\n[ +283 ms] [100%] Connecting to remote debug server\r\n[        ] -------------------------\r\n[  +56 ms] (lldb) command source -s 0 '/tmp/80A261CB-0C33-43F8-A00B-FD6845389B25/fruitstrap-lldb-prep-cmds-00008101_001D2D822103001E'\r\n[        ] Executing commands in '/tmp/80A261CB-0C33-43F8-A00B-FD6845389B25/fruitstrap-lldb-prep-cmds-00008101_001D2D822103001E'.\r\n[        ] (lldb)     platform select remote-ios --sysroot '/Users/seanghay/Library/Developer/Xcode/iOS DeviceSupport/14.7.1 (18G82)/Symbols'\r\n[        ]   Platform: remote-ios\r\n[        ]  Connected: no\r\n[        ]   SDK Path: \"/Users/seanghay/Library/Developer/Xcode/iOS DeviceSupport/14.7.1 (18G82)/Symbols\"\r\n[        ] (lldb)     target create \"/Users/seanghay/AndroidStudioProjects/redacted/build/ios/iphoneos/Runner.app\"\r\n[+9094 ms] Current executable set to '/Users/seanghay/AndroidStudioProjects/redacted/build/ios/iphoneos/Runner.app' (arm64).\r\n[        ] (lldb)     script fruitstrap_device_app=\"/private/var/containers/Bundle/Application/0E8CB96B-EFF5-48FE-A572-F830A3A9CBCF/Runner.app\"\r\n[ +377 ms] (lldb)     script fruitstrap_connect_url=\"connect://127.0.0.1:59364\"\r\n[        ] (lldb)     script fruitstrap_output_path=\"\"\r\n[        ] (lldb)     script fruitstrap_error_path=\"\"\r\n[        ] (lldb)     target modules search-paths add /usr \"/Users/seanghay/Library/Developer/Xcode/iOS DeviceSupport/14.7.1 (18G82)/Symbols/usr\" /System \"/Users/seanghay/Library/Developer/Xcode/iOS DeviceSupport/14.7.1 (18G82)/Symbols/System\"\r\n\"/private/var/containers/Bundle/Application/0E8CB96B-EFF5-48FE-A572-F830A3A9CBCF\" \"/Users/seanghay/AndroidStudioProjects/redacted/build/ios/iphoneos\" \"/var/containers/Bundle/Application/0E8CB96B-EFF5-48FE-A572-F830A3A9CBCF\" \"/Users/seanghay/AndroidStudioProjects/redacted/build/ios/iphoneos\"\r\n/Developer \"/Users/seanghay/Library/Developer/Xcode/iOS DeviceSupport/14.7.1 (18G82)/Symbols/Developer\"\r\n[  +33 ms] (lldb)     command script import \"/tmp/80A261CB-0C33-43F8-A00B-FD6845389B25/fruitstrap_00008101_001D2D822103001E.py\"\r\n[   +5 ms] (lldb)     command script add -f fruitstrap_00008101_001D2D822103001E.connect_command connect\r\n[        ] (lldb)     command script add -s asynchronous -f fruitstrap_00008101_001D2D822103001E.run_command run\r\n[        ] (lldb)     command script add -s asynchronous -f fruitstrap_00008101_001D2D822103001E.autoexit_command autoexit\r\n[        ] (lldb)     command script add -s asynchronous -f fruitstrap_00008101_001D2D822103001E.safequit_command safequit\r\n[        ] (lldb)     connect\r\n[  +30 ms] (lldb)     run\r\n[ +227 ms] success\r\n[        ] Application launched on the device. Waiting for observatory port.\r\n[+30013 ms] Installing and launching... (completed in 42.7s)\r\n[        ] Error launching application on Seanghay’s iPhone.\r\n[   +3 ms] \"flutter run\" took 66,349ms.\r\n[   +3 ms] \r\n           #0      throwToolExit (package:flutter_tools/src/base/common.dart:10:3)\r\n           #1      RunCommand.runCommand (package:flutter_tools/src/commands/run.dart:663:9)\r\n           <asynchronous suspension>\r\n           #2      FlutterCommand.run.<anonymous closure> (package:flutter_tools/src/runner/flutter_command.dart:1043:27)\r\n           <asynchronous suspension>\r\n           #3      AppContext.run.<anonymous closure> (package:flutter_tools/src/base/context.dart:150:19)\r\n           <asynchronous suspension>\r\n           #4      CommandRunner.runCommand (package:args/command_runner.dart:196:13)\r\n           <asynchronous suspension>\r\n           #5      FlutterCommandRunner.runCommand.<anonymous closure> (package:flutter_tools/src/runner/flutter_command_runner.dart:284:9)\r\n           <asynchronous suspension>\r\n           #6      AppContext.run.<anonymous closure> (package:flutter_tools/src/base/context.dart:150:19)\r\n           <asynchronous suspension>\r\n           #7      FlutterCommandRunner.runCommand (package:flutter_tools/src/runner/flutter_command_runner.dart:232:5)\r\n           <asynchronous suspension>\r\n           #8      run.<anonymous closure>.<anonymous closure> (package:flutter_tools/runner.dart:62:9)\r\n           <asynchronous suspension>\r\n           #9      AppContext.run.<anonymous closure> (package:flutter_tools/src/base/context.dart:150:19)\r\n           <asynchronous suspension>\r\n           #10     main (package:flutter_tools/executable.dart:91:3)\r\n           <asynchronous suspension>\r\n           \r\n           \r\n[   +1 ms] (lldb) process detach\r\n[ +222 ms] ensureAnalyticsSent: 223ms\r\n[   +1 ms] Running shutdown hooks\r\n[        ] Shutdown hooks complete\r\n[        ] exiting with code 1\r\n\r\n```\r\n\r\n</details>\r\n\r\n---\r\n\r\n> I have tried everything I found here, and it didn't work. The issue took me a week already.\r\n\r\n\r\n### EDIT:\r\n\r\nWorking fine if I commented out `url_launcher` package.\r\n\r\n```yaml\r\ndependencies:\r\n  flutter:\r\n    sdk: flutter\r\n  easy_localization: ^3.0.0\r\n  cupertino_icons: ^1.0.2\r\n  flutter_svg: ^0.22.0\r\n  shared_preferences: ^2.0.6\r\n  permission_handler: ^8.1.4+2\r\n  qr_code_scanner: ^0.5.2\r\n  uuid: ^3.0.4\r\n  dio: ^4.0.0\r\n  provider: ^5.0.0\r\n  #url_launcher: 6.0.0\r\n  flutter_countdown_timer: ^4.1.0\r\n  connectivity_plus: ^1.1.0\r\n\r\n\r\ndev_dependencies:\r\n  flutter_test:\r\n    sdk: flutter\r\n  build_runner: ^2.1.1\r\n  json_serializable: ^4.1.2\r\n  json_annotation: ^4.0.1\r\n```",
+    "createdAt": "2021-09-01T18:15:33Z"
+  },
+  {
+    "id": 4670,
+    "sender": "jmagman",
+    "content": "Reposting this again since it was buried in the \"me too\" comments.  Unfortunately GitHub doesn't let us pin comments, and I don't want to lock this issue.  PLEASE do not comment on this issue to suggest the same thing as this list, or to say one of them worked.  You're just adding noise to this issue and pushing up actually helpful suggestions.\r\n\r\n#81229 is available in Flutter 2.5, so you may see \"iOS Observatory not discovered after 30 seconds. This is taking much longer than expected...\" but it won't actually time out.  Upgrading Flutter to 2.5 or higher should be the first thing you try when you see this issue.\r\n\r\n1. The flood of reports of this issue coincided with an iOS update.  Long app launch times is a commonly reported problem when there's a pending iOS update on your test device, or when your test device is running a newer OS than the one shipped with Xcode.  It's also commonly reported right after you upgrade your test OS because Xcode can get stuck trying to copy the developer image over to the device.  Many of these reports are that it works on one device and not on another device running the same OS.  Frankly there's not much Flutter can do to work around this when the problem is between the test device and Xcode.\r\n2. Make sure Xcode is updated and your iOS device is updated.  You can also try opening `ios/Runner.xcworkspace` in Xcode and running your app from there to unwedge it.\r\n3. You can also try running `flutter clean` to clean Xcode's build folder (DerivedData).\r\n4. Additionally switching which port your device is tethered to can make the app launch much faster.  It seems like a cop-out, but swapping your cable may also help.\r\n5. Unpair the device and re-pair it by navigating on the device to Settings > Developer > \"Clear Trusted Computers\", then re-pair your device.\r\n\r\nTo reiterate, PLEASE do not add a comment unless it's something different from what's has already been said in this issue.",
+    "createdAt": "2021-09-09T17:18:45Z"
+  },
+  {
+    "id": 4671,
+    "sender": "mikekosulin",
+    "content": "@jmagman, THANKS!\r\n I tried all the methods described above, but the only thing that solved this issue:\r\n\r\n>You can also try opening ios/Runner.xcworkspace in Xcode and running your app from there to unwedge it.\r\n\r\n<details>\r\n  <summary>Doctor summary</summary>\r\n\r\n  [✓] Flutter (Channel stable, 2.5.0, on macOS 11.4 20F5055c darwin-x64, locale en-GB)\r\n  [✓] Android toolchain - develop for Android devices (Android SDK version 30.0.1)\r\n  [✓] Xcode - develop for iOS and macOS\r\n  [✓] Android Studio (version 4.0)\r\n  [✓] VS Code (version 1.60.0)\r\n  [✓] Connected device (1 available)\r\n</details>\r\n\r\n\r\n\r\n",
+    "createdAt": "2021-09-10T18:59:52Z"
+  }
+]

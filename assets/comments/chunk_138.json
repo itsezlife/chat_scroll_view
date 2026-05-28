@@ -1,0 +1,386 @@
+[
+  {
+    "id": 8832,
+    "sender": "nashfive",
+    "content": "@TheFedex87 Nope. Problem is still there for me and it's very annoying. I can't debug anymore with any iOS 13 devices. None of the _workarounds_ listed here has fixed the issue (no observatories found using mdns)... ",
+    "createdAt": "2019-12-06T09:11:40Z"
+  },
+  {
+    "id": 8833,
+    "sender": "nashfive",
+    "content": "The only workaround that works for me is debugging on iOS 12 devices. Hopefully, this still works!",
+    "createdAt": "2019-12-06T09:19:05Z"
+  },
+  {
+    "id": 8834,
+    "sender": "TheFedex87",
+    "content": "But I have only this iPhone 11 with ios 13 :(",
+    "createdAt": "2019-12-06T09:20:30Z"
+  },
+  {
+    "id": 8835,
+    "sender": "nashfive",
+    "content": "@christopherfujino I've noticed that debugging on an iOS 11 device works (the app is installed, launched and I can see debug logs), even though I have the error:\r\n\r\n`Checking for advertised Dart observatories...\r\nFailed to establish a debug connection with b2c9e055f27e90fbe8cfd39f2276ef5ddfd2765d using mdns: Exception: Did not find a observatory port advertised for $(APP_ID).\r\nSyncing files to device iPhone8...\r\n[main] (10:15:51) Initialize app with VAL environment`\r\n\r\nSwitching to an iOS 13 device, the debug launch is stuck after the error, the app is launched but stuck forever. No debug log, nor timeout... ",
+    "createdAt": "2019-12-06T09:25:00Z"
+  },
+  {
+    "id": 8836,
+    "sender": "TheFedex87",
+    "content": "I tried to install Catalina, and here it seems to work. Or to be precise it doesn't stuck in the blank screen and \"Checking for advertised Dart observatories\" after it run, but I don't have the print in the debug console...But at least I'm able to debug and add breakpoints to it.",
+    "createdAt": "2019-12-06T15:25:19Z"
+  },
+  {
+    "id": 8837,
+    "sender": "dnfield",
+    "content": "I am, unfortunately, no longer clear on the status of this bug. It seems like something that can come up in a number of different ways (e.g. different network configurations, different device types, different iOS versions, macOS versions, etc).\r\n\r\nI'm also not reproducing this issue locally anymore.",
+    "createdAt": "2019-12-06T22:35:50Z"
+  },
+  {
+    "id": 8838,
+    "sender": "nashfive",
+    "content": "@dnfield Indeed, this is getting messy :/ \r\n\r\n@TheFedex87 \r\nYeah, I checked on Catalina and it's working *almost* correctly (Xcode 11/iOS 13/flutter stable). SImple `print()` statements don't output anything though. \r\nBut you can circumvent that by using the `logging` package along with the `log()` method from `dart:developer`.\r\n",
+    "createdAt": "2019-12-07T12:28:00Z"
+  },
+  {
+    "id": 8839,
+    "sender": "TheFedex87",
+    "content": "@nashfive OMG I tried again with Catalina in another PC and it doesn't work, same error. So I tried again in the PC where it worked and now it doesn't work anymore ;( ... this is annoying!!!\r\n\r\nEDIT: maybe it was not working since I had activated hotspot when I run it",
+    "createdAt": "2019-12-09T13:25:03Z"
+  },
+  {
+    "id": 8840,
+    "sender": "rockingdice",
+    "content": "@TheFedex87 Thanks for the info. I turned off the hotspot on the iPhone X and it's working now!\r\nStatus:\r\niOS 13.1.3\r\nWifi on (using the same LAN with my Mac)\r\nCellular on\r\nHotspot off\r\n\r\nEDIT: more details.\r\n1. Turning on/off of the hotspot will instantly break the connection to the device. Logs:\r\n```Lost connection to device.```\r\n2. Turning on the hotspot, the app can run, but the console hangs at \r\n```Syncing files to device ***```\r\nNo logs after that even the app is running. The run/hot reload buttons from the IDE are greyed out. (Using Intellij Idea)\r\n3. Turning off the hotspot, the app can run and the console does not hang at all, logging is working!\r\n",
+    "createdAt": "2019-12-10T01:10:46Z"
+  },
+  {
+    "id": 8841,
+    "sender": "tvolkert",
+    "content": "My hunch is that there are multiple factors that affect this, which is muddying the waters of tracking the issue(s) down.\r\n\r\n@dnfield @christopherfujino @zanderso is there any extra info gathering we could put in the tool (perhaps behind a flag... or a separate flutter command?) that would help us find a smoking gun when people run into this?",
+    "createdAt": "2019-12-10T02:50:33Z"
+  },
+  {
+    "id": 8842,
+    "sender": "wuchao110",
+    "content": "Could not update files on device: OS Error: Connection reset by peer, errno = 54\r\nMay I ask why I keep reporting this error when I use VS to debug iOS iPhone?",
+    "createdAt": "2019-12-10T07:09:54Z"
+  },
+  {
+    "id": 8843,
+    "sender": "zanderso",
+    "content": "@wuchao110 I've hidden your comment because it appears to be an unrelated issue. Feel free to file a new issue, though.",
+    "createdAt": "2019-12-10T16:25:30Z"
+  },
+  {
+    "id": 8844,
+    "sender": "zanderso",
+    "content": "This issue has gotten a bit crowded. I'm going to close this, and we can track at the subissues I've filed under the meta-issue here: https://github.com/flutter/flutter/issues/46705.",
+    "createdAt": "2019-12-10T17:54:47Z"
+  },
+  {
+    "id": 8845,
+    "sender": "justinmc",
+    "content": "## InteractiveViewer Widget\n\n## Description\r\n\r\nThis PR introduces a new widget called InteractiveViewer.  Any widget tree passed as its child will be able to be panned and zoomed by user gestures.\r\n\r\nCloses https://github.com/flutter/flutter/issues/8272\r\nCloses https://github.com/flutter/flutter/issues/12878\r\nCloses https://github.com/flutter/flutter/issues/20175\r\n\r\nFuture: rotation https://github.com/flutter/flutter/issues/57698\r\nFuture: overscroll https://github.com/flutter/flutter/issues/58042\r\nFuture: direction locking: https://github.com/flutter/flutter/issues/58043\r\nFuture: builder https://github.com/flutter/flutter/issues/58603\r\n\r\n### Table Example\r\n\r\n<img width=\"200\" src=\"https://user-images.githubusercontent.com/389558/81755563-f8847d80-946d-11ea-99d6-21c4ee593287.gif\" />\r\n\r\n```dart\r\nInteractiveViewer(\r\n  scaleEnabled: false,\r\n  child: Table(\r\n    columnWidths: <int, TableColumnWidth>{\r\n      for (int column = 0; column < columnCount; column++)\r\n        column: const FixedColumnWidth(300.0),\r\n    },\r\n    children: <TableRow>[\r\n      for (int row = 0; row < rowCount; row++)\r\n        TableRow(\r\n          children: <Widget>[\r\n            for (int column = 0; column < columnCount; column++)\r\n              Container(\r\n                height: 100,\r\n                color: row % 2 + column % 2 == 1 ? Colors.red.withOpacity(0.5) : Colors.green.withOpacity(0.5),\r\n              ),\r\n          ],\r\n        ),\r\n    ],\r\n  );\r\n),\r\n```\r\n\r\n### Image viewer example\r\nThis example was modified from the Flutter gallery.\r\n\r\n<img width=\"200\" src=\"https://user-images.githubusercontent.com/389558/81758465-be6ba980-9476-11ea-82e8-84e1d660c18f.gif\" />\r\n\r\n```dart\r\nInteractiveViewer(\r\n  child: Center(\r\n    child: Image.asset(\r\n      photo.assetName,\r\n      fit: BoxFit.cover,\r\n      package: photo.assetPackage,\r\n    ),\r\n  ),\r\n),\r\n```\r\n\r\n### Game board example\r\nThis example was also modified from the Flutter gallery.\r\n\r\n![one_what optimized](https://user-images.githubusercontent.com/389558/81758605-2d490280-9477-11ea-8980-b5872446ece4.gif)\r\n\r\n\r\n```dart\r\nreturn InteractiveViewer(\r\n  // The transformationController is used to animate back to the \"home\"\r\n  // position, as seen in the gif.\r\n  transformationController: _transformationController,\r\n  minScale: 0.1,\r\n  onScaleStart: _onScaleStart,\r\n  onTapUp: _onTapUp,\r\n  child: CustomPaint(\r\n    size: _board.size,\r\n    painter: _BoardPainter(\r\n      board: _board,\r\n    ),\r\n  ),\r\n);\r\n```\r\n\r\n### API Details\r\n\r\n#### boundaryMargin\r\nThe boundary is the invisible perimeter around the child that prevents the viewport from viewing beyond it.  It's specified with `EdgeInsets`.  The default is `EdgeInsets.zero`, which prevents the viewport from viewing beyond the child.  A positive value extends the boundary by the given amount.  The example below allows the viewport to move 20px beyond the edge of the child in all directions.\r\n\r\n```dart\r\n  boundaryMargin: EdgeInsets.all(20.0),\r\n```\r\n\r\nI used this API because I anticipate that users will most often want the boundary to perfectly frame the child, and otherwise will want to specify it in relation to the edges of the child.  In these cases, the user doesn't have to know the size of the child or the current constraints in order to specify the boundary.\r\n\r\n#### transformationController\r\ntransformationController is a ValueNotifier on the Matrix4 that defines the current transformation.  It enables both listening to changes and setting the value of the matrix.  This provides a generic way of implementing lots of new capabilities, like:\r\n\r\n  * Set an initial position/orientation for the child by setting the initial value.\r\n  * Listen for and respond to certain transformations.\r\n  * Animate a transformation, such as the \"undo\" button in the game board demo above.\r\n\r\n#### pan/zoom/(rotate)Enabled\r\nBooleans that enable/disable their corresponding interaction.\r\n\r\n#### min/maxScale\r\nDoubles that limit zoom.  Defaults to 0.8 and 2.5, respectively, just because I thought those values worked out well.\r\n\r\n**Question**: Should I default them both to 1.0 so that it doesn't zoom at all, or is that unnecessarily difficult for the user?\r\n\r\n#### GestureDetector listeners\r\nI have passed through all callbacks for GestureDetector events, like onDoubleTap, etc. so that the user can receive events transformed back to the original child's coordinates. For example, without this, tapping the top left corner of the child is detected as 0,0 and translating the child to the bottom right of the viewport at tapping the child's top left corner is detected as viewportWidth,viewportHeight.  My built-in onTapUp will do the inverse transform and return 0,0 for both taps.\r\n\r\n~~**Question**: Should I remove all of these listeners and document that the user needs to handle this themselves?  They could use a transformationController to get the current matrix and do the inverse transform themselves.~~ Done, and added `toScene` helper method on transformationController.\r\n\r\n## Tests\r\n\r\n  * A bunch of unit tests for my math util functions.\r\n  * Test pan and zoom on a child that's the same size as the boundary, smaller, and larger.\r\n  * Test inertia panning.\r\n  * Test sliding boundaries.\r\n  * Test zooming adjusts translation to stay in boundaries.\r\n  * Test zooming adjusts translation to keep the focal point in the same location in the viewport.\r\n\r\n## More questions\r\n  * ~~Mouse zoom support? (PointerScrollEvent)~~ Done\r\n  * ~~Drag targets inside of the child don't work if they are initially outside of the viewport.~~ Fixed\r\n    * Update: I've decided to not add further support for this in this PR. Original notes follow.\r\n    * Flutter's hit testing purposely excludes events outside of the original widget. This has come up before with the Transform widget. The solution was to make the Transform widget bigger. See https://github.com/flutter/flutter/issues/27587.\r\n    * Users of InteractiveViewer may not be able to just make InteractiveViewer big enough.\r\n    * I can fix this inside of InteractiveViewer by wrapping everything in SingleChildScrollViews, which allows the child to be as big as it wants (even bigger than the screen), so drop targets work anywhere.  However, this means the child is sized with no constraints, which is usually not what users will want.\r\n    * I can't leave it to the users to wrap their child in SingleChildScrollViews because then InteractiveViewer can't know the size of the viewport.\r\n    * Should I add a parameter to conditionally add the SingleChildScrollViews?",
+    "createdAt": "2020-05-05T23:57:35Z"
+  },
+  {
+    "id": 8846,
+    "sender": "justinmc",
+    "content": "Notes for reviewers at this time:\r\n\r\n  * I'm still adding tests.\r\n  * ~~I'm also investigating if it's possible to add mouse scrollwheel zooming at this time.~~ Added.\r\n  * Rotation is currently disabled. I did this by asserting that disableRotation is set to true in order to avoid API changes in the future.  The reason is that I likely need some time to get boundaries correct after rotation (there is a TODO in the code with more about this).\r\n  * ~~My API decision to pass-through all the GestureDetector listeners is very verbose. Is there a more concise way to achieve the same? Document for the user how to transform the coordinates themselves?  I wrote some notes about this in the PR description above.~~ Hans helped me improve this API. See onInteraction.\r\n  * There is an underlying Flutter problem with using drag targets inside of InteractiveViewer, see the PR description above.\r\n  * ~~I think the tests are failing due to the weird version error, and I need to squash all the commits. Will do that soon.~~ Done and fixed.\r\n  * Let me know if the API could be improved at all!",
+    "createdAt": "2020-05-18T19:00:29Z"
+  },
+  {
+    "id": 8847,
+    "sender": "HansMuller",
+    "content": "@justinmc - please assume that I've inserted \"IMHO\" below\r\n\r\n> Question: Should I default them both to 1.0 so that it doesn't zoom at all, or is that unnecessarily difficult for the user?\r\n\r\nMaking the \"out of the box\" use case work nicely sounds like the right way to go.\r\n\r\n> Question: Should I remove all of these listeners and document that the user needs to handle this themselves? They could use a transformationController to get the current matrix and do the inverse transform themselves.\r\n\r\nAlthough I'm a big fan of low-cal APIs, providing these listeners seems like a useful convenience. On the other hand, they don't seem necessary for most apps? If they're typically not needed, since the InteractiveViewer's child will handle events directly, I think it would be best to just provide an easy way to do the transforms with the transformationController.\r\n\r\n",
+    "createdAt": "2020-05-19T15:50:05Z"
+  },
+  {
+    "id": 8848,
+    "sender": "HansMuller",
+    "content": "> Rotation is currently disabled. I did this by asserting that disableRotation is set to true in order to avoid API changes in the future. The reason is that I likely need some time to get boundaries correct after rotation (there is a TODO in the code with more about this).\r\n\r\nI think it would be reasonable to ship the first version of this widget without rotation support. The docs will need to be updated to reflect that.",
+    "createdAt": "2020-05-19T15:53:21Z"
+  },
+  {
+    "id": 8849,
+    "sender": "justinmc",
+    "content": "Ready for full review!",
+    "createdAt": "2020-05-21T23:51:32Z"
+  },
+  {
+    "id": 8850,
+    "sender": "justinmc",
+    "content": "@goderbauer Thanks for the review, I've made the requested changes.  I think the only thing I didn't directly change was the nested scroll view thing.  See my comment https://github.com/flutter/flutter/pull/56409#discussion_r433511991 and let me know if you have any other ideas.",
+    "createdAt": "2020-06-02T00:03:23Z"
+  },
+  {
+    "id": 8851,
+    "sender": "goderbauer",
+    "content": "> See my comment https://github.com/flutter/flutter/pull/56409#discussion_r433511991 and let me know if you have any other ideas.\r\n\r\nI posted my thoughts on that a few minutes ago here: https://github.com/flutter/flutter/pull/56409#discussion_r433546984 :)",
+    "createdAt": "2020-06-02T00:05:23Z"
+  },
+  {
+    "id": 8852,
+    "sender": "xster",
+    "content": "Food for thought for another feature follow-up: this may want to support physics too. e.g. see a fling in a zoomed in iOS photos app photo. There's ballistic movement.",
+    "createdAt": "2020-06-03T01:07:48Z"
+  },
+  {
+    "id": 8853,
+    "sender": "justinmc",
+    "content": "@xster Thanks for the idea, I'll add a note about that in https://github.com/flutter/flutter/issues/58042.  Right now I do some inertial animation after the user releases a fling, but the physics involved is not configurable, and it doesn't allow overscroll.",
+    "createdAt": "2020-06-03T15:16:20Z"
+  },
+  {
+    "id": 8854,
+    "sender": "MichealReed",
+    "content": "Great feature! I ran into a problem with scrolling on web using the provided examples. I can use the developer tools to view as a mobile device and the scrolling works correctly, but the mouse pointer rarely works. Happy to open another issue and cc if you would like.",
+    "createdAt": "2020-06-08T14:50:20Z"
+  },
+  {
+    "id": 8855,
+    "sender": "justinmc",
+    "content": "@MichealReed Yes would you mind opening another issue with the code you're using?  It should work on desktop web with a mouse, including zooming with the scrollwheel.  I admit I had mobile screen sizes in mind when I wrote those examples though.  The boundaryMargin might prevent them from panning when the screen size is big enough.",
+    "createdAt": "2020-06-08T15:58:36Z"
+  },
+  {
+    "id": 8856,
+    "sender": "MichealReed",
+    "content": "It seems it had more to do with web performance on the table example. I switched to a custom painter and am now able to use it without issue. Great widget, going to do some cool things with it, thank you.\r\n\r\nedit: for a future update it might be cool to have configurable coordinate systems instead of locking it to showing 0,0 as bottom left. In my usecase I will transpose the coordinates to a Cartesian system.\r\n\r\nAlso a bool to change scroll direction would be great.",
+    "createdAt": "2020-06-08T18:47:36Z"
+  },
+  {
+    "id": 8857,
+    "sender": "justinmc",
+    "content": "Nice, I'm glad it's working!  I'll keep those two ideas in mind.  If anyone else has a need for those, please post a comment/issue so I can keep track of demand.",
+    "createdAt": "2020-06-08T21:40:37Z"
+  },
+  {
+    "id": 8858,
+    "sender": "MichealReed",
+    "content": "Any reason the `_matrixScale` method is private? Could be useful when trying to scale the view but keep position outside of scroll.",
+    "createdAt": "2020-06-09T00:00:01Z"
+  },
+  {
+    "id": 8859,
+    "sender": "justinmc",
+    "content": "Just trying to keep the API minimal.  I see how it could be useful though...\r\n\r\nMaybe any changes to transformationController should get validated based on min/maxScale and boundary.  Then users could update transformationController and still be confident that they aren't doing anything invalid.",
+    "createdAt": "2020-06-09T00:07:29Z"
+  },
+  {
+    "id": 8860,
+    "sender": "MichealReed",
+    "content": "Validation would be very helpful, I've had the view end up in some strange places. How would you recommend setting the scale of the view/\"zoom\"? Maybe a simple scale update API for the controller that keeps the view position would make sense over revealing _matrixScale on the widget.\r\n\r\nedit: Any example/workaround in the mean time to modify the scale without affecting the view position?",
+    "createdAt": "2020-06-09T00:17:00Z"
+  },
+  {
+    "id": 8861,
+    "sender": "justinmc",
+    "content": "Putting it on the controller is a great idea actually.  What is your use case for wanting to programmatically zoom?  Are you zooming in on a specific point on your child or something like that?\r\n\r\nSee how InteractiveViewer handles a scale gesture [here](https://github.com/flutter/flutter/blob/9ed3e5bea6c36d4b4a25ebed26e4db8ebeee04f8/packages/flutter/lib/src/widgets/interactive_viewer.dart#L734). It's actually a scale plus a translate in order to keep the focal point of the gesture at the same place on the screen.  That's why it appears to zoom in on the point where you pinch (or where the mouse cursor is).",
+    "createdAt": "2020-06-09T00:30:42Z"
+  },
+  {
+    "id": 8862,
+    "sender": "MichealReed",
+    "content": "I'm going to persist the user's view/scale on a board and restore it upon return. May also include a spectator style experience in the future which would require spectators to follow updates from the host. \r\n\r\nI was looking at that section earlier and noticed that I would have to reimplement `_matrixScale` and `_matrixTranslate` among other things to use in conjunction with the widget. Understand if it's the only workaround until a scale API can be added.",
+    "createdAt": "2020-06-09T00:46:25Z"
+  },
+  {
+    "id": 8863,
+    "sender": "justinmc",
+    "content": "Restoring an existing state sounds like something you could use transformationController directly for.  You could get the Matrix4 to save the state and then set it again to restore it.  See the example in the [transformationController docs](https://master-api.flutter.dev/flutter/widgets/InteractiveViewer/transformationController.html) which shows something similar, including an animation.",
+    "createdAt": "2020-06-10T21:57:14Z"
+  },
+  {
+    "id": 8864,
+    "sender": "not-holar",
+    "content": "I think mouse scrollwheel zoom directions should be reversed so that scrolling up zooms in and scrolling down zooms out. Most applications do it this way so it's more intuitive for users.",
+    "createdAt": "2020-06-28T18:08:56Z"
+  },
+  {
+    "id": 8865,
+    "sender": "not-holar",
+    "content": "Also it doesn't seem to respond well to constraint changes (At least when resizing the window on Windows).",
+    "createdAt": "2020-06-28T18:27:46Z"
+  },
+  {
+    "id": 8866,
+    "sender": "justinmc",
+    "content": "@not-holar You seem to be right about both of these.\r\n\r\nHere's a PR to reverse scroll zoom direction: https://github.com/flutter/flutter/pull/60523\r\n\r\nAnd here's a PR to update the boundaries when child size changes: https://github.com/flutter/flutter/pull/60532\r\n\r\nThat second PR seems to greatly improve behavior after the screen size changes.  I imagine there could still be edge cases that don't feel right though.  Let me know if you see anything else.\r\n",
+    "createdAt": "2020-06-29T17:29:32Z"
+  },
+  {
+    "id": 8867,
+    "sender": "MichealReed",
+    "content": "@justinmc would you mind taking a look at scale and pan performance on web / mobile web, especially when text is used? May even be an opportunity for a test/benchmark. I used statsfl (https://pub.dev/packages/statsfl) (to easily benchmark across mobile and desktop web browsers), your above column/row example, and added an appbar to increase the row/column count and disable/enable text. \r\n\r\nOn chrome mobile, LG G7 ThinQ, issues are immediately apparent with text enabled and a crash can instantly be induced by scaling. FPS issues with scroll and scale start around 75x75 if text is disabled, jank is severe around 150x150, and crash prone around 300x300.\r\n\r\nOn chrome with my decently specced PC, an FPS drop can be seen immediately when scrolling with text enable, but scaling can maintain 60fps. At 10x10 scaling performance is impacted, severe at 20x20, and crash prone on anything above 30x30. Without text performance issues start at 20x20, but the issue does not become severe until over 100x100.\r\n\r\n`bool _text = true`\r\n\r\n```\r\nappBar: AppBar(\r\n        actions: [\r\n          IconButton(\r\n              icon: Icon(Icons.add),\r\n              onPressed: () {\r\n                setState(() {\r\n                  _rowCount += 5;\r\n                  _columnCount += 5;\r\n                });\r\n              }),\r\n          IconButton(\r\n              icon: Icon(Icons.text_fields),\r\n              onPressed: () {\r\n                setState(() {\r\n                  _text = !_text;\r\n                });\r\n              })\r\n        ],\r\n        // Here we take the value from the MyHomePage object that was created by\r\n        // the App.build method, and use it to set our appbar title.\r\n        title: Text(widget.title),\r\n      ),\r\n```\r\n```\r\n                      Container(\r\n                        child: _text\r\n                            ? Text(\"Column: $_columnCount\\nRow: $_rowCount\")\r\n                            : null,\r\n                        height: 100,\r\n                        color: row % 2 + column % 2 == 1\r\n                            ? Colors.red.withOpacity(0.5)\r\n                            : Colors.green.withOpacity(0.5),\r\n                      ),\r\n```\r\n\r\nThis may be related to deeper issues with web, but even testing this with skia, you will still notice performance issues. If it is a deeper issue with web, maybe InteractiveViewer can be a better window to diagnose than previous widgets.\r\n",
+    "createdAt": "2020-06-29T18:56:12Z"
+  },
+  {
+    "id": 8868,
+    "sender": "justinmc",
+    "content": "@MichaelReed Would you be able to open a separate issue with these details and the full code for your example?\r\n\r\nI appreciate you taking the time to dig into the performance.  I haven't done much optimization for web so there could be some easy improvements to make.  Long term though, I think we're going to need something like and `InteractiveViewer.builder` constructor (similar to [ListView.builder](https://master-api.flutter.dev/flutter/widgets/ListView/ListView.builder.html)) that builds visible content on demand.  That will be the only way to handle very large tables.\r\n\r\nEdit: Or maybe this is covered by https://github.com/flutter/flutter/issues/59775",
+    "createdAt": "2020-06-29T20:16:19Z"
+  },
+  {
+    "id": 8869,
+    "sender": "MichealReed",
+    "content": "Opened https://github.com/flutter/flutter/issues/60550 to cover.\r\n\r\nThe planned builder will help when the user is zoomed, the general concept of a builder here reminds me of Occlusion Culling (https://docs.unity3d.com/Manual/OcclusionCulling.html). It may not help when the user is completely zoomed out though as it will still need to render a significant number of cells and the viewer can be customized to allow for large views, but prevent max scale thus still allowing scroll/pan. ListViews and GridViews have it easier and don't have to tackle the scale aspect.\r\n\r\nAlthough skia fixes the crashing related to text and increases performance significantly, I am still seeing fps drop and jank when using it, especially on mobile. If there's anything low hanging for performance on the widget side that you could change, that would be awesome.\r\n\r\nusing \r\n`flutter run -d chrome --web-hostname=lanIP --web-port=8080 --dart-define=FLUTTER_WEB_USE_SKIA=true --release`\r\nto deploy and access via mobile browsers. \r\n\r\nedit: I believe the repaint issue to be separate. I can't think of any other widget that impacts scale like the InteractiveViewer, and it may have uncovered/be connected to issues with how flutter handles scaling. A bit over my head currently, but I have a hunch.",
+    "createdAt": "2020-06-29T20:47:21Z"
+  },
+  {
+    "id": 8870,
+    "sender": "justinmc",
+    "content": "Thanks for opening that issue, I'll try to see if there are any quick improvements to make.\r\n\r\nOne thing I've been thinking about recently related to the scale problem.  Currently, as a user of InteractiveViewer, you could listen to the current zoom level by adding a listener to transformationController and looking at `transformationController.value.getMainScaleOnAxis()`.  If the zoom level is below a certain value (meaning zoomed out), you could pass a simplified version of your child to InteractiveViewer.  I wrote a demo sort of like that recently.\r\n\r\n\r\n![iv_detail_small](https://user-images.githubusercontent.com/389558/86175220-cb506500-bad7-11ea-860c-249aa327bca2.gif)\r\n",
+    "createdAt": "2020-06-30T20:45:15Z"
+  },
+  {
+    "id": 8871,
+    "sender": "MichealReed",
+    "content": "Ah very cool, I can use that to pause animations. I could also implement an LOD system based on this to downscale assets. Great idea, let me know if any others come to mind.",
+    "createdAt": "2020-07-01T13:23:46Z"
+  },
+  {
+    "id": 8872,
+    "sender": "czaku",
+    "content": "I am really looking forward to using this widget in one of my projects, do you know when it would be available in beta or stable?",
+    "createdAt": "2020-07-01T18:25:19Z"
+  },
+  {
+    "id": 8873,
+    "sender": "justinmc",
+    "content": "This made it into v1.19.0-5.0.pre, so it's only in master right now. It looks like it should be in the next beta release, though.",
+    "createdAt": "2020-07-01T22:12:22Z"
+  },
+  {
+    "id": 8874,
+    "sender": "TheOneWithTheBraid",
+    "content": "Is it somehow possible to set the *current* scale or offset of the InteractiveViewer from outside the widget? Eg. by a GlobalKey etc.\r\n\r\nThis is useful if you would like to implement a scroll bar or a zoom slider outside of the widget.",
+    "createdAt": "2020-08-06T13:18:23Z"
+  },
+  {
+    "id": 8875,
+    "sender": "justinmc",
+    "content": "Yes, using [transformationController](https://master-api.flutter.dev/flutter/widgets/InteractiveViewer/transformationController.html).  There's an example in the docs there that should get you started, but you can set the matrix like `transformationController.value = myMatrix`. The [Matrix4 class](https://master-api.flutter.dev/flutter/vector_math/Matrix4-class.html) has some useful methods for working with the matrix.",
+    "createdAt": "2020-08-06T15:51:57Z"
+  },
+  {
+    "id": 8876,
+    "sender": "TheOneWithTheBraid",
+    "content": "Thank you, @justinmc. For future people having the same issue:\r\n\r\n```dart\r\ntransformationController.value = transformationController.value.scaled(myCustomScale);\r\n```",
+    "createdAt": "2020-08-06T17:03:22Z"
+  },
+  {
+    "id": 8877,
+    "sender": "aytunch",
+    "content": "Will there be a way to allow other widgets to stay on top of the `InteractiveViewer` widget while it is being interacted with? What I mean is something like a z-index. A boolean property named `isAboveRest` which defaults to true could solve this. If it is set to false by the dev, the `InteractiveViewer` widget's z-index does not get changed. If it was inside of a `Stack`, it would still behave same way in terms of z-index while being interacted with.",
+    "createdAt": "2020-08-07T15:57:47Z"
+  },
+  {
+    "id": 8878,
+    "sender": "justinmc",
+    "content": "@aytunch What do you mean exactly?  Here I can put something on top of InteractiveViewer using a Stack, but I think you're asking for something more complicated: https://dartpad.dartlang.org/fc0095e229e2ea1f8df7d06cd8e76dbe",
+    "createdAt": "2020-08-07T23:31:21Z"
+  },
+  {
+    "id": 8879,
+    "sender": "aytunch",
+    "content": "@justinmc I thought that once the `InteractiveViewer` widget is interacted with, it comes to the front most z index. But from your example I see that it keeps it place z-wise even while interacted with. Thanks for the example (btw dartpad gives an error regarding Stack)\r\n\r\nEdit: One confusion I have with naming is why do we have only `ScaleStartDetails` for `onInteractionStart`? \r\nAfaik there are 3 gestures/interaction that are allowed: Scale, Pan, Rotate(in the future). If we have only one callback for all 3 of them, why is the name ScaleXXXDetails instead of InteractionXXXDetails? Am I missing something?\r\n```\r\n              onInteractionStart: (ScaleStartDetails det){\r\n                print(det.focalPoint.dx);\r\n              },\r\n              onInteractionUpdate: (ScaleUpdateDetails det){\r\n                print(det.scale);\r\n              },\r\n```\r\nAlso this example does not print anything when I am pinch zooming on the dartweb by the touchpad. ",
+    "createdAt": "2020-08-08T18:19:22Z"
+  },
+  {
+    "id": 8880,
+    "sender": "justinmc",
+    "content": "@aytunch Glad that helped.  I'm not sure about the error, hopefully it's just a problem with dartpad. I don't get the error when running locally in Chrome.\r\n\r\nInternally, scale, pan, and rotation are all implemented using GestureDetector's onScale callbacks.  The given `details` should provide all the information you need about the gesture (though you may need to do a little bit of calculation, see https://github.com/flutter/flutter/issues/43833).\r\n\r\nPinch to zoom on a trackpad doesn't work right now, see https://github.com/flutter/flutter/issues/63060.  Two finger scroll to zoom should work.",
+    "createdAt": "2020-08-10T16:03:14Z"
+  },
+  {
+    "id": 8881,
+    "sender": "TerrenceAddison",
+    "content": "@justinmc Hello! so I filed a bug issue regarding InteractiveViewer see [#64852 ](https://github.com/flutter/flutter/issues/64852).  I was planning on attempting to solve the bug issue if it's possible and I wonder if you have any lead or guide I can follow to start of? Thank you!",
+    "createdAt": "2020-09-03T05:05:04Z"
+  },
+  {
+    "id": 8882,
+    "sender": "justinmc",
+    "content": "@TerrenceAddison Thank you for the issue!  I will respond over there.",
+    "createdAt": "2020-09-03T22:38:12Z"
+  },
+  {
+    "id": 8883,
+    "sender": "devteam-tchs",
+    "content": "I think a method for panning to a certain point is going to be required if you're making a game like myself. If I have a large map and start panning around, how do I get back to where let's say my character is currently standing? I don't see any way of currently doing this in the widget's API. @justinmc ",
+    "createdAt": "2020-09-21T12:27:19Z"
+  },
+  {
+    "id": 8884,
+    "sender": "MichealReed",
+    "content": "@devteam-tchs just assign a new, or update the existing transformation controller.\r\n\r\n```dart\r\n    _transformController = new TransformationController(\r\n        Matrix4.translation(vm.Vector3(-2200, -500, 0)));```",
+    "createdAt": "2020-09-21T14:03:54Z"
+  },
+  {
+    "id": 8885,
+    "sender": "justinmc",
+    "content": "+1 to @MichealReed's answer. You can also animate that by using Flutter's existing animation framework, which I have an [example of in the gallery](https://github.com/flutter/gallery/blob/460dd20802b8ed92246b75d334cf0ad6520999b5/lib/demos/reference/transformations_demo.dart#L57).",
+    "createdAt": "2020-09-21T17:10:08Z"
+  },
+  {
+    "id": 8886,
+    "sender": "devteam-tchs",
+    "content": "@justinmc Where can I find the source code for your demos? The snippets provided aren't very useful without their full context. I've been trying to get the `Table` version to pan but it's just stuck, zooming works however. ",
+    "createdAt": "2020-10-04T11:57:39Z"
+  },
+  {
+    "id": 8887,
+    "sender": "MichealReed",
+    "content": "> \r\n> \r\n> @justinmc Where can I find the source code for your demos? The snippets provided aren't very useful without their full context. I've been trying to get the `Table` version to pan but it's just stuck, zooming works however.\r\n\r\n`constrained: false` should fix your pan issue. Docs might need to be updated to show this argument, the example might have been made before the parameter was introduced.",
+    "createdAt": "2020-10-04T19:28:03Z"
+  },
+  {
+    "id": 8888,
+    "sender": "devteam-tchs",
+    "content": "@MichealReed That seemed to have done it. Weird I thought I added that argument yesterday when I copied over this example https://github.com/justinmc/flutter-interactive-viewer-demos/blob/master/lib/table/table_page.dart. You are right that it needs to be added to the docs.",
+    "createdAt": "2020-10-05T08:29:58Z"
+  },
+  {
+    "id": 8889,
+    "sender": "justinmc",
+    "content": "I've opened a PR to improve the docs a bit around this, let me know what you guys think: https://github.com/flutter/flutter/pull/67314\r\n\r\nAnd it seems like you've found my [examples repository](https://github.com/justinmc/flutter-interactive-viewer-demos).  I did a little bit of clean up and modernization there as well just now.",
+    "createdAt": "2020-10-05T16:30:00Z"
+  },
+  {
+    "id": 8890,
+    "sender": "leovu",
+    "content": "## Flutter application black screen in release mode when run only on Samsung J6+  \n\n<!-- Thank you for using Flutter!\r\n\r\n     If you are looking for support, please check out our documentation\r\n     or consider asking a question on Stack Overflow:\r\n      * https://flutter.dev/\r\n      * https://api.flutter.dev/\r\n      * https://stackoverflow.com/questions/tagged/flutter?sort=frequent\r\n\r\n     If you have found a bug or if our documentation doesn't have an answer\r\n     to what you're looking for, then fill our the template below. Please read\r\n     our guide to filing a bug first: https://flutter.dev/docs/resources/bug-reports\r\n-->\r\n\r\n## Steps to Reproduce\r\n\r\n<!--\r\n     Please tell us exactly how to reproduce the problem you are running into.\r\n\r\n     Please attach a small application (ideally just one main.dart file) that\r\n     reproduces the problem. You could use https://gist.github.com/ for this.\r\n\r\n     If the problem is with your application's rendering, then please attach\r\n     a screenshot and explain what the problem is.\r\n-->\r\n\r\nI tried to build an apk in release mode, it work ok on other device , but only on SS J6+ , OS 9.0, when open the app , the app run shows black screen and cannot do anything. \r\nI downgraded to Flutter v1.7.9 dev , it works perfectly. This bug happens with any apk in release mode run with this device (only happens when Flutter version is higher than v1.7.9) . I cannot show the log because when I tried to debug this bug, the phone run normally without black screen. \r\nThese are the device's info' screenshots: \r\n\r\n![Screenshot_20190729-145630_Settings](https://user-images.githubusercontent.com/44394323/62031280-2bc48b80-b211-11e9-955b-014522f4cad5.jpg)\r\n![Screenshot_20190729-143103_Settings](https://user-images.githubusercontent.com/44394323/62031207-08014580-b211-11e9-85dd-94158bf3bc4b.jpg)\r\n\r",
+    "createdAt": "2019-07-29T07:57:43Z"
+  },
+  {
+    "id": 8891,
+    "sender": "diego-develop",
+    "content": "You could check issue #36130, I'm still testing the fix they suggested there, but it is a very similar problem with a J6+.",
+    "createdAt": "2019-07-30T17:23:17Z"
+  },
+  {
+    "id": 8892,
+    "sender": "agueroveraalvaro",
+    "content": "Yes, that is the solution\r\n\r\n> I downgraded to Flutter v1.7.9 dev , it works perfectly.\r\n\r\nrun `flutter version 1.7.9`",
+    "createdAt": "2019-09-04T18:11:56Z"
+  },
+  {
+    "id": 8893,
+    "sender": "BondarenkoStas",
+    "content": "@leovu Please check the updates at #36130. The fix is landed on master, but not yet included to stable or beta. Could you please check if it's reproducible using `master` channel?",
+    "createdAt": "2019-09-20T22:31:08Z"
+  },
+  {
+    "id": 8894,
+    "sender": "thesmalleyes",
+    "content": "is the new beta updates has included this fix?",
+    "createdAt": "2019-09-29T04:24:30Z"
+  },
+  {
+    "id": 8895,
+    "sender": "duduf15",
+    "content": "Same problem (J4+) for me with my latest release, many bad reviews on Play Store. I will not release my application from the master channel to get other bugs. It's not possible to doing an hotfix ? thx",
+    "createdAt": "2019-09-30T11:23:34Z"
+  }
+]

@@ -5,12 +5,16 @@ import 'package:meta/meta.dart';
 sealed class ChatMessage implements IChatMessage {
   const ChatMessage({
     required this.id,
+    required this.sender,
     required this.updatedAt,
     required this.createdAt,
   });
 
   @override
   final int id;
+
+  @override
+  final String sender;
 
   @override
   final DateTime createdAt;
@@ -22,6 +26,7 @@ sealed class ChatMessage implements IChatMessage {
 class ChatMessage$System extends ChatMessage {
   const ChatMessage$System({
     required super.id,
+    required super.sender,
     required super.createdAt,
     required super.updatedAt,
     required this.content,
@@ -34,6 +39,7 @@ class ChatMessage$System extends ChatMessage {
 class ChatMessage$User extends ChatMessage {
   const ChatMessage$User({
     required super.id,
+    required super.sender,
     required super.createdAt,
     required super.updatedAt,
     required this.content,

@@ -1,0 +1,386 @@
+[
+  {
+    "id": 9280,
+    "sender": "davidsdearaujo",
+    "content": "Hey, look this workaround. Maybe it can help to solve hide \"letter by letter\" on overflow before the correct solution:\r\n\r\n## Steps to do\r\n1. Create a `Text` to each letter;\r\n2. Include all the `Text` in a `Row`;\r\n3. Get the `Row` rect;\r\n4. Get each `Text` rect;\r\n5. Validate if the `Text` rect is in the `Row` rect and, case isn't in the rect, hide it;\r\n\r\n## I found this problems\r\n1. The character spacing is little bigger comparing with simple `Text` widget;\r\n2. The `Row` is duplicated to get the row size after the first frame is rendered;\r\n\r\nI tried to implement it in this package: [text_helpers](https://pub.dev/packages/text_helpers)\r\n",
+    "createdAt": "2022-03-11T19:32:00Z"
+  },
+  {
+    "id": 9281,
+    "sender": "benPesso",
+    "content": "> Hey, look this workaround. Maybe it can help to solve hide \"letter by letter\" on overflow before the correct solution:\r\n> \r\n> ## Steps to do\r\n> 1. Create a `Text` to each letter;\r\n> 2. Include all the `Text` in a `Row`;\r\n> 3. Get the `Row` rect;\r\n> 4. Get each `Text` rect;\r\n> 5. Validate if the `Text` rect is in the `Row` rect and, case isn't in the rect, hide it;\r\n> \r\n> ## I found this problems\r\n> 1. The character spacing is little bigger comparing with simple `Text` widget;\r\n> 2. The `Row` is duplicated to get the row size after the first frame is rendered;\r\n> \r\n> I tried to implement it in this package: [text_helpers](https://pub.dev/packages/text_helpers)\r\n\r\nThat's a terribly inefficient way of doing things. Just have a look at the [underlying code for the `Text` widget](https://github.com/flutter/flutter/blob/2f73173c36f806c7f30e705a90722082f85a2c8b/packages/flutter/lib/src/widgets/text.dart#L520), and you'll see why.",
+    "createdAt": "2022-03-11T23:40:53Z"
+  },
+  {
+    "id": 9282,
+    "sender": "davidsdearaujo",
+    "content": "> That's a terribly inefficient way of doing things. Just have a look at the [underlying code for the `Text` widget](https://github.com/flutter/flutter/blob/2f73173c36f806c7f30e705a90722082f85a2c8b/packages/flutter/lib/src/widgets/text.dart#L520), and you'll see why.\r\n\r\nThank you for your feedback.\r\n\r\nYes, terribly inefficient way, but it works.\r\nI'm waiting for an oficial solution or another that works and is more efficient.\r\n\r\nIn the meantime, I'll try to make a more efficient solution.",
+    "createdAt": "2022-03-12T21:33:10Z"
+  },
+  {
+    "id": 9283,
+    "sender": "MatrixDev",
+    "content": "@davidsdearaujo , if you want at least somewhat more efficient solution, look here - https://itnext.io/writing-custom-widgets-in-flutter-part-1-ellipsizedtext-a0efdc1368a8. Using TextPainter is much more efficient that widget-per-character.",
+    "createdAt": "2022-03-13T12:21:39Z"
+  },
+  {
+    "id": 9284,
+    "sender": "m-schmailzl",
+    "content": "Instead of using a Text-Widget for every letter, I am using this workaround for quite a while:\r\n\r\n`Characters('your string').replaceAll(Characters(''), Characters('\\u{200B}')).toString();`\r\n\r\nYou need the [characters](https://pub.dev/packages/characters) library.\r\n\r\nI am using this approach in production for half a year and didn't have any problems. It even works with emojis.",
+    "createdAt": "2022-03-13T13:52:59Z"
+  },
+  {
+    "id": 9285,
+    "sender": "Linloir",
+    "content": "> Instead of using a Text-Widget for every letter, I am using this workaround for quite a while:\r\n> \r\n> `Characters('your string').replaceAll(Characters(''), Characters('\\u{200B}')).toString();`\r\n> \r\n> You need the [characters](https://pub.dev/packages/characters) library.\r\n> \r\n> I am using this approach in production for half a year and didn't have any problems. It even works with emojis.\r\n\r\nThank goodness this is what I'm looking for\r\n\r\nBrilliant solution",
+    "createdAt": "2022-03-19T07:51:54Z"
+  },
+  {
+    "id": 9286,
+    "sender": "davidsdearaujo",
+    "content": "> Instead of using a Text-Widget for every letter, I am using this workaround for quite a while:\r\n> \r\n> `Characters('your string').replaceAll(Characters(''), Characters('\\u{200B}')).toString();`\r\n> \r\n> You need the [characters](https://pub.dev/packages/characters) library.\r\n> \r\n> I am using this approach in production for half a year and didn't have any problems. It even works with emojis.\r\n\r\nNice solution!\r\n\r\nWe can also use it without the `Character` class:\r\n\r\n`'Lorem Ipsum is simply dummy text'.replaceAll('', '\\u{200B}')`",
+    "createdAt": "2022-03-22T15:00:42Z"
+  },
+  {
+    "id": 9287,
+    "sender": "m-schmailzl",
+    "content": "> > Instead of using a Text-Widget for every letter, I am using this workaround for quite a while:\r\n> > `Characters('your string').replaceAll(Characters(''), Characters('\\u{200B}')).toString();`\r\n> > You need the [characters](https://pub.dev/packages/characters) library.\r\n> > I am using this approach in production for half a year and didn't have any problems. It even works with emojis.\r\n> \r\n> Nice solution!\r\n> \r\n> We can also use it without the `Character` class:\r\n> \r\n> `'Lorem Ipsum is simply dummy text'.replaceAll('', '\\u{200B}')`\r\n\r\nThis solution breaks when users are using emojis. That's why I use characters.\r\n\r\nIf you display only your own Strings there should be no problem.",
+    "createdAt": "2022-03-22T15:02:53Z"
+  },
+  {
+    "id": 9288,
+    "sender": "davidsdearaujo",
+    "content": "> This solution breaks when users are using emojis. That's why I use characters.\r\n\r\nOh, understood.\r\nThe `character` package is already in Flutter. Now we have an extension to get the characters from `String`:\r\n```dart\r\n'Lorem Ipsum is simply dummy text'\r\n    .characters\r\n    .replaceAll(Characters(''), Characters('\\u{200B}'))\r\n    .toString()\r\n```\r\n\r\nThanks you for your contribution!",
+    "createdAt": "2022-03-22T15:10:44Z"
+  },
+  {
+    "id": 9289,
+    "sender": "kamilpowalowski",
+    "content": "It is not a solution. It's a workaround. Be very cautious with using it. It changes how characters are displayed. Differences are subtle, but overall, letters are a bit wider.",
+    "createdAt": "2022-03-22T15:26:00Z"
+  },
+  {
+    "id": 9290,
+    "sender": "davidsdearaujo",
+    "content": "> It is not a solution. It's a workaround. Be very cautious with using it. It changes how characters are displayed. Differences are subtle, but overall, letters are a bit wider.\r\n\r\nIt's true, this issue cannot be closed!",
+    "createdAt": "2022-03-31T20:47:20Z"
+  },
+  {
+    "id": 9291,
+    "sender": "jaded0",
+    "content": "It's really weird that this is till a problem. I feel like the solution is a probably a simple one.",
+    "createdAt": "2022-04-01T19:24:39Z"
+  },
+  {
+    "id": 9292,
+    "sender": "SShayashi",
+    "content": "The workaround does not seem to work for multi-byte characters. I tried Chinese characters but the text has white space at the end. You can try the following sample code.\r\n\r\nSome text does not have white space at the end (You can see it at the bottom of the text in the following sample). I believe this is the expected behavior.\r\n\r\nAre there any solutions?\r\n\r\n<details>\r\n<summary>  Sample code </summary>\r\n\r\n```dart\r\nimport 'package:assorted_layout_widgets/assorted_layout_widgets.dart';\r\nimport 'package:flutter/material.dart';\r\n\r\nvoid main() {\r\n  runApp(const MyApp());\r\n}\r\n\r\nclass MyApp extends StatelessWidget {\r\n  const MyApp({Key? key}) : super(key: key);\r\n\r\n  @override\r\n  Widget build(BuildContext context) {\r\n    return MaterialApp(\r\n      title: 'Flutter Demo',\r\n      theme: ThemeData(\r\n        primarySwatch: Colors.blue,\r\n      ),\r\n      home: const HomePage(),\r\n    );\r\n  }\r\n}\r\n\r\nclass HomePage extends StatelessWidget {\r\n  const HomePage({Key? key}) : super(key: key);\r\n  @override\r\n  Widget build(BuildContext context) {\r\n    const chineseCharacters = '漢字一漢字二漢字三漢字四漢字五漢字六漢字七漢字八';\r\n    return Scaffold(\r\n      appBar: AppBar(\r\n        title: const Text('Home Page'),\r\n      ),\r\n      body: Center(\r\n        child: SizedBox(\r\n          width: 300,\r\n          child: Column(\r\n            children: [\r\n              const Text(\r\n                'The following Chinese characters have white space at the end.',\r\n              ),\r\n              Container(\r\n                color: Colors.green,\r\n                child: const Text(\r\n                  chineseCharacters,\r\n                  overflow: TextOverflow.ellipsis,\r\n                  maxLines: 1,\r\n                ),\r\n              ),\r\n              const Text('The workaround does not work.'),\r\n              Container(\r\n                color: Colors.green,\r\n                child: const TextOneLine(chineseCharacters),\r\n              ),\r\n              Container(\r\n                color: Colors.green,\r\n                child: Text(\r\n                  chineseCharacters.characters.toList().join('\\u{200B}'),\r\n                  overflow: TextOverflow.ellipsis,\r\n                  maxLines: 1,\r\n                ),\r\n              ),\r\n              Container(\r\n                color: Colors.green,\r\n                child: Text(\r\n                  chineseCharacters.characters\r\n                      .replaceAll(\r\n                        Characters(''),\r\n                        Characters('\\u{200B}'),\r\n                      )\r\n                      .toString(),\r\n                  overflow: TextOverflow.ellipsis,\r\n                  maxLines: 1,\r\n                ),\r\n              ),\r\n              const Text('The following text shows \\'...\\' properly.'),\r\n              Container(\r\n                color: Colors.green,\r\n                child: const Text(\r\n                  '漢字一 漢字二 漢字三 漢字四 漢字五 漢字六漢字七',\r\n                  overflow: TextOverflow.ellipsis,\r\n                  maxLines: 1,\r\n                ),\r\n              ),\r\n            ],\r\n          ),\r\n        ),\r\n      ),\r\n    );\r\n  }\r\n}\r\n\r\n```\r\n</details>\r\n\r\nSample code result:\r\n<img src=\"https://user-images.githubusercontent.com/12263798/168417471-d816d4c9-1522-4cf8-a70a-99b9ad56468b.png\" width=\"320\">\r\n",
+    "createdAt": "2022-05-14T06:36:50Z"
+  },
+  {
+    "id": 9293,
+    "sender": "chunhtai",
+    "content": "Added upstream issue https://bugs.chromium.org/p/skia/issues/detail?id=13325",
+    "createdAt": "2022-05-16T22:15:25Z"
+  },
+  {
+    "id": 9294,
+    "sender": "mack-at-pieces",
+    "content": "+1 here. This workaround has proven to be the best, but agreed this is an inconvenient issue that has been around far too long.\r\n\r\n`Text(\r\n  'Text',\r\n  style: Styles.font.caption(),\r\n  maxLines: 1,\r\n  overflow: TextOverflow.fade,\r\n  softWrap: false,\r\n),`",
+    "createdAt": "2022-06-29T16:00:27Z"
+  },
+  {
+    "id": 9295,
+    "sender": "shahbazhashmi",
+    "content": "Try this to get ellipsis text for dynamic width container\r\n\r\nhttps://gist.github.com/shahbazhashmi/6b1823922b587144ebb180a89af995a9",
+    "createdAt": "2022-06-29T16:39:05Z"
+  },
+  {
+    "id": 9296,
+    "sender": "roman-petrov",
+    "content": "> It is not a solution. It's a workaround. Be very cautious with using it. It changes how characters are displayed. Differences are subtle, but overall, letters are a bit wider.\r\n\r\nYes, this workaround increases letter spacing so it is not suitable for us. I just found another workaround which I not see in this thread:\r\n\r\n```dart\r\n text.replaceAll(' ', '\\u{000A0}')\r\n```\r\n\r\nWe started to use it and it seems that it \"just works\" for all our use cases. It just replaces all spaces in text with Unicode [No-Break Space](https://unicode-table.com/en/00A0/) character.\r\n\r\nHope it may help someone :)",
+    "createdAt": "2022-09-16T06:54:46Z"
+  },
+  {
+    "id": 9297,
+    "sender": "SShayashi",
+    "content": "> Yes, this workaround increases letter spacing so it is not suitable for us. I just found another workaround which I not see in this thread:\r\n>  `text.replaceAll(' ', '\\u{000A0}')`\r\nWe started to use it and it seems that it \"just works\" for all our use cases. It just replaces all spaces in text with Unicode [No-Break Space](https://unicode-table.com/en/00A0/) character.\r\n\r\nRegarding Chinese characters, this workaround did not work too🥲\r\n\r\n<details>\r\n<summary> Sample Code </summary>\r\n\r\n```dart\r\nimport 'package:flutter/material.dart';\r\n\r\nvoid main() {\r\n  runApp(const MyApp());\r\n}\r\n\r\nclass MyApp extends StatelessWidget {\r\n  const MyApp({Key? key}) : super(key: key);\r\n\r\n  @override\r\n  Widget build(BuildContext context) {\r\n    return MaterialApp(\r\n      title: 'Flutter Demo',\r\n      theme: ThemeData(\r\n        primarySwatch: Colors.blue,\r\n      ),\r\n      home: const HomePage(),\r\n    );\r\n  }\r\n}\r\n\r\nclass HomePage extends StatelessWidget {\r\n  const HomePage({Key? key}) : super(key: key);\r\n  @override\r\n  Widget build(BuildContext context) {\r\n    const chineseCharacters = '漢字一漢字二漢字三漢字四漢字五漢字六漢字七漢字八';\r\n    return Scaffold(\r\n      appBar: AppBar(\r\n        title: const Text('Home Page'),\r\n      ),\r\n      body: Center(\r\n        child: SizedBox(\r\n          width: 300,\r\n          child: Column(\r\n            children: [\r\n              const Text(\r\n                'The following Chinese characters have white space at the end.',\r\n              ),\r\n              Container(\r\n                color: Colors.green,\r\n                child: const Text(\r\n                  chineseCharacters,\r\n                  overflow: TextOverflow.ellipsis,\r\n                  maxLines: 1,\r\n                ),\r\n              ),\r\n              const Text('The workaround does not work.'),\r\n              Container(\r\n                color: Colors.green,\r\n                child: Text(\r\n                  chineseCharacters.replaceAll(' ', '\\u{000A0}'),\r\n                  overflow: TextOverflow.ellipsis,\r\n                  maxLines: 1,\r\n                ),\r\n              ),\r\n              const Text('The following text shows \\'...\\' properly.'),\r\n              Container(\r\n                color: Colors.green,\r\n                child: const Text(\r\n                  '漢字一 漢字二 漢字三 漢字四 漢字五 漢字六漢字七',\r\n                  overflow: TextOverflow.ellipsis,\r\n                  maxLines: 1,\r\n                ),\r\n              ),\r\n            ],\r\n          ),\r\n        ),\r\n      ),\r\n    );\r\n  }\r\n}\r\n\r\n```\r\n\r\n\r\n</details>\r\n\r\n\r\n<details>\r\n<summary> Result Image </summary>\r\n\r\n<img src=\"https://user-images.githubusercontent.com/12263798/200107721-393b89c8-aecf-4a4e-9a46-1edb6778011a.png\" width=\"320\">\r\n\r\n\r\n</details>\r\n\r\n<details>\r\n<summary>  flutter doctor -v </summary>\r\n\r\n```\r\n$ flutter doctor -v\r\n[✓] Flutter (Channel stable, 2.5.2, on macOS 12.6 21G115 darwin-arm, locale ja-JP)\r\n    • Flutter version 2.5.2 at /Users/rls01036096/fvm/versions/2.5.2\r\n    • Upstream repository https://github.com/flutter/flutter.git\r\n    • Framework revision 3595343e20 (1 year, 1 month ago), 2021-09-30 12:58:18 -0700\r\n    • Engine revision 6ac856380f\r\n    • Dart version 2.14.3\r\n\r\n[✓] Android toolchain - develop for Android devices (Android SDK version 31.0.0)\r\n    • Android SDK at /Users/rls01036096/Library/Android/sdk\r\n    • Platform android-31, build-tools 31.0.0\r\n    • ANDROID_HOME = /Users/rls01036096/Library/Android/sdk\r\n    • Java binary at: /Applications/Android Studio.app/Contents/jre/Contents/Home/bin/java\r\n    • Java version OpenJDK Runtime Environment (build 11.0.10+0-b96-7249189)\r\n    • All Android licenses accepted.\r\n\r\n[✓] Xcode - develop for iOS and macOS\r\n    • Xcode at /Applications/Xcode13.4.1.app/Contents/Developer\r\n    • Xcode 13.4.1, Build version 13F100\r\n    • CocoaPods version 1.10.1\r\n\r\n[✓] Chrome - develop for the web\r\n    • Chrome at /Applications/Google Chrome.app/Contents/MacOS/Google Chrome\r\n\r\n[✓] Android Studio (version 2020.3)\r\n    • Android Studio at /Applications/Android Studio.app/Contents\r\n    • Flutter plugin can be installed from:\r\n      🔨 https://plugins.jetbrains.com/plugin/9212-flutter\r\n    • Dart plugin can be installed from:\r\n      🔨 https://plugins.jetbrains.com/plugin/6351-dart\r\n    • Java version OpenJDK Runtime Environment (build 11.0.10+0-b96-7249189)\r\n\r\n[✓] VS Code (version 1.72.0)\r\n    • VS Code at /Applications/Visual Studio Code.app/Contents\r\n    • Flutter extension version 3.52.0\r\n\r\n[✓] Connected device (3 available)\r\n    • iPhone 11 (mobile)                   • 12C240B7-596E-4563-BE11-7C533353F189 • ios            •\r\n      com.apple.CoreSimulator.SimRuntime.iOS-15-5 (simulator)\r\n    • iPod touch (7th generation) (mobile) • DA40B225-2EBB-4A39-81BF-6A544B884DDF • ios            •\r\n      com.apple.CoreSimulator.SimRuntime.iOS-15-5 (simulator)\r\n    • Chrome (web)                         • chrome                               • web-javascript • Google Chrome 107.0.5304.87\r\n\r\n• No issues found!\r\n\r\n```\r\n\r\n</details>",
+    "createdAt": "2022-11-05T07:18:49Z"
+  },
+  {
+    "id": 9298,
+    "sender": "mminhlequang",
+    "content": "![image](https://user-images.githubusercontent.com/46816270/209114444-65da107f-9d96-4737-849b-0ffec3a7685e.png)\r\nI want ask about this, i used `overflow: TextOverflow.ellipsis,` with font `outfit` flutter web",
+    "createdAt": "2022-12-22T10:28:45Z"
+  },
+  {
+    "id": 9299,
+    "sender": "thailocnexle",
+    "content": "> > It is not a solution. It's a workaround. Be very cautious with using it. It changes how characters are displayed. Differences are subtle, but overall, letters are a bit wider.\r\n> \r\n> Yes, this workaround increases letter spacing so it is not suitable for us. I just found another workaround which I not see in this thread:\r\n> \r\n> ```dart\r\n>  text.replaceAll(' ', '\\u{000A0}')\r\n> ```\r\n> \r\n> We started to use it and it seems that it \"just works\" for all our use cases. It just replaces all spaces in text with Unicode [No-Break Space](https://unicode-table.com/en/00A0/) character.\r\n> \r\n> Hope it may help someone :)\r\n\r\nthis workaround make some Arab character broken (الماس =>  ا  ل م ا س). need fix by Flutter team.",
+    "createdAt": "2022-12-27T07:51:20Z"
+  },
+  {
+    "id": 9300,
+    "sender": "dev-mahmoud-elshenawy",
+    "content": "Use this extension \r\n```\r\nextension StringEllipsis on String {\r\n  String tight() {\r\n    return Characters(this)\r\n        .replaceAll(Characters(' '), Characters('\\u{000A0}'))\r\n        .toString();\r\n  }\r\n}\r\n```\r\nthen use it as the following\r\n```\r\nRow(\r\n         children: [\r\n                              Flexible(\r\n                                child: Text(\r\n                                 value.tight(),\r\n                                  maxLines: 1,\r\n                                  overflow: TextOverflow.ellipsis,\r\n                                ),\r\n                              ),\r\n                         ],\r\n ),\r\n\r\n```\r\n\r\nWorking fine with Arabic\r\n",
+    "createdAt": "2022-12-27T11:03:04Z"
+  },
+  {
+    "id": 9301,
+    "sender": "Lonyless",
+    "content": "Will this get fixed?",
+    "createdAt": "2023-01-12T16:31:54Z"
+  },
+  {
+    "id": 9302,
+    "sender": "RaymondBakker",
+    "content": "> Will this be fixed?\r\n\r\nNo, this won't get fixed.",
+    "createdAt": "2023-01-12T17:25:02Z"
+  },
+  {
+    "id": 9303,
+    "sender": "mack-at-pieces",
+    "content": "A viable and just as elegant solution is to simply use `TextOverflow.fade` instead @RaymondBakker @Lonyless. That is what we've done for our products and its been just fine.",
+    "createdAt": "2023-01-12T20:39:58Z"
+  },
+  {
+    "id": 9304,
+    "sender": "dawid-niedzwiecki",
+    "content": "> > Will this be fixed?\r\n> \r\n> No, this won't get fixed.\r\n\r\nwhy not",
+    "createdAt": "2023-01-12T21:54:01Z"
+  },
+  {
+    "id": 9305,
+    "sender": "Lonyless",
+    "content": "@mack-at-pieces thanks for the tip, but unfortunately it wont for for my use case.",
+    "createdAt": "2023-01-12T23:14:03Z"
+  },
+  {
+    "id": 9306,
+    "sender": "Hixie",
+    "content": "Status update: Fixing this issue requires changes in Skia. We're working with the Skia team to get them an up to date list of issues people would like fixed, and this will be at the top of the list.",
+    "createdAt": "2023-01-25T20:51:27Z"
+  },
+  {
+    "id": 9307,
+    "sender": "feinstein",
+    "content": "Great to know! Will this be a problem in Impeller as well or is it already working there? ",
+    "createdAt": "2023-01-25T22:57:42Z"
+  },
+  {
+    "id": 9308,
+    "sender": "tvolkert",
+    "content": "Great question @feinstein.  We still use Skia for text layout, so Impeller won't affect this.",
+    "createdAt": "2023-01-26T01:37:47Z"
+  },
+  {
+    "id": 9309,
+    "sender": "anthonymoretti",
+    "content": "> Yes, this workaround increases letter spacing so it is not suitable for us. I just found another workaround which I not see in this thread:\r\n> \r\n> ```dart\r\n>  text.replaceAll(' ', '\\u{000A0}')\r\n> ```\r\n> \r\n> We started to use it and it seems that it \"just works\" for all our use cases. It just replaces all spaces in text with Unicode [No-Break Space](https://unicode-table.com/en/00A0/) character.\r\n> \r\n> Hope it may help someone :)\r\n\r\n@roman-petrov that's a good fix. If you make one more modification it also replaces hyphens with non-breaking hyphens:\r\n\r\n```dart\r\n'UFC 284 - Makhachev vs Volkanovski'\r\n    .characters\r\n    .replaceAll(Characters(' '), Characters('\\u{00A0}'))\r\n    .replaceAll(Characters('-'), Characters('\\u{2011}'))\r\n    .toString()\r\n```\r\n\r\nWithout the second `replaceAll` the text looks like this:\r\n\r\n\"UFC 284 -...\"\r\n\r\nInstead of this:\r\n\r\n\"UFC 284 - Makhachev vs V...\"",
+    "createdAt": "2023-02-03T06:15:17Z"
+  },
+  {
+    "id": 9310,
+    "sender": "fullflash",
+    "content": "my current workaround is to replace.\r\n\r\n`str.replaceAll('', '\\u200B')`\r\n\r\n",
+    "createdAt": "2023-02-15T17:38:18Z"
+  },
+  {
+    "id": 9311,
+    "sender": "anthonymoretti",
+    "content": "Hi @fullflash, if you do it that way just be wary of issues with letter spacing, emojis and hyphens.",
+    "createdAt": "2023-02-17T01:00:54Z"
+  },
+  {
+    "id": 9312,
+    "sender": "luckjjh",
+    "content": "Any status update for this issue?",
+    "createdAt": "2023-03-29T08:18:25Z"
+  },
+  {
+    "id": 9313,
+    "sender": "fullflash",
+    "content": "> ```dart\r\n>  .characters\r\n>     .replaceAll(Characters(' '), Characters('\\u{00A0}'))\r\n>     .replaceAll(Characters('-'), Characters('\\u{2011}'))\r\n>     .toString()\r\n> ```\r\n\r\nYes but this solutions also results incorrect breaking chars like \"u\" letter in word \"you\" as you can see in the screenshot\r\n\r\n![image](https://user-images.githubusercontent.com/19576508/228672077-969c3c2e-ccce-4f46-a0ba-32961827230e.png)\r\n",
+    "createdAt": "2023-03-29T21:29:51Z"
+  },
+  {
+    "id": 9314,
+    "sender": "tvolkert",
+    "content": "/cc @rusino @jason-simmons @dnfield \r\n\r\nThe Skia team is about to start looking into this.  Rough plan is something like:\r\n\r\n* Run the line breaking/word wrap algorithm as we currently do\r\n* If there is overflow beyond maxLines and ellipsizing is enabled, then ignore the last line break and shape the entire rest of the text as one line\r\n* Truncate clusters in the last line until the ellipsis fits\r\n\r\nAlso, from discussion:\r\n\r\n> In the following example, _none_ of the \"bbb\" word is rendered.  The goal is to instead render as much of the \"bbb\" word as will fit.\r\n> \r\n> Or if you replace the string with \"http://www.google.com\", the current algorithm only renders the \"http://\" because that point is considered to be a soft line break.\r\n>\r\n> ```dart\r\n> import 'package:flutter/material.dart';\r\n> \r\n> void main() {\r\n>   runApp(\r\n>     Center(\r\n>       child: SizedBox(\r\n>         width: 200,\r\n>         height: 100,\r\n>         child: Text(\r\n>           'aaaaa bbbbbbb',\r\n>           style: TextStyle(fontSize: 30.0, color: Colors.white, backgroundColor: Colors.blue),\r\n>           maxLines: 1,\r\n>           overflow: TextOverflow.ellipsis,\r\n>           textDirection: TextDirection.ltr,\r\n>         ),\r\n>       ),\r\n>     ),\r\n>   );\r\n> }\r\n```\r\n",
+    "createdAt": "2023-03-30T17:15:46Z"
+  },
+  {
+    "id": 9315,
+    "sender": "zanderso",
+    "content": "Closing as presumed fixed by https://skia.googlesource.com/skia.git/+log/0d31aa1f49cb8cfd790c44d92a9a023839524865",
+    "createdAt": "2023-04-18T18:06:14Z"
+  },
+  {
+    "id": 9316,
+    "sender": "MisterLight",
+    "content": "This fix was added in version 3.7.12? Looks like nothing changed ",
+    "createdAt": "2023-04-21T15:22:46Z"
+  },
+  {
+    "id": 9317,
+    "sender": "polczak-itt",
+    "content": "@MisterLight The [changelog](https://github.com/flutter/flutter/wiki/Hotfixes-to-the-Stable-Channel#3712-apr-19-2023) for 3.7.12 doesn't mention any changes related to this problem. The fix must be a part of some upcoming release",
+    "createdAt": "2023-04-21T15:34:28Z"
+  },
+  {
+    "id": 9318,
+    "sender": "zanderso",
+    "content": "This will not be backported to 3.7. I have requested a CP into the 3.10 beta here https://github.com/flutter/flutter/issues/125308.",
+    "createdAt": "2023-04-21T15:54:08Z"
+  },
+  {
+    "id": 9319,
+    "sender": "nate-thegrate",
+    "content": "## pattern-matching refactor\n\nThis pull request aims to improve code readability, based on feedback gathered in a recent design doc.\r\n\r\n<br>\r\n\r\nThere are two factors that hugely impact how easy it is to understand a piece of code: **verbosity** and **complexity**.\r\n\r\nReducing **verbosity** is important, because boilerplate makes a project more difficult to navigate. It also has a tendency to make one's eyes gloss over, and subtle typos/bugs become more likely to slip through.\r\n\r\nReducing **complexity** makes the code more accessible to more people. This is especially important for open-source projects like Flutter, where the code is read by those who make contributions, as well as others who read through source code as they debug their own projects.\r\n\r\n<hr>\r\n\r\n<br>\r\n\r\nThe following examples show how pattern-matching might affect these two factors:\r\n\r\n<details> <summary><h3>Example 1 (GOOD)</h3> [click to expand]</summary>\r\n\r\n```dart\r\nif (ancestor case InheritedElement(:final InheritedTheme widget)) {\r\n  themes.add(widget);\r\n}\r\n```\r\n\r\nWithout using patterns, this might expand to\r\n\r\n```dart\r\nif (ancestor is InheritedElement) {\r\n  final InheritedWidget widget = ancestor.widget;\r\n  if (widget is InheritedTheme) {\r\n    themes.add(widget);\r\n  }\r\n}\r\n```\r\n\r\nHad `ancestor` been a non-local variable, it would need to be \"converted\" as well:\r\n\r\n```dart\r\nfinal Element ancestor = this.ancestor;\r\nif (ancestor is InheritedElement) {\r\n  final InheritedWidget inheritedWidget = ancestor.widget;\r\n  if (widget is InheritedTheme) {\r\n    themes.add(theme);\r\n  }\r\n}\r\n```\r\n\r\n</details>\r\n\r\n<details> <summary><h3>Example 2 (BAD) </h3> [click to expand]</summary>\r\n\r\n```dart\r\nif (widget case PreferredSizeWidget(preferredSize: Size(:final double height))) {\r\n  return height;\r\n}\r\n```\r\n\r\nAssuming `widget` is a non-local variable, this would expand to:\r\n\r\n```dart\r\nfinal Widget widget = this.widget;\r\nif (widget is PreferredSizeWidget) {\r\n  return widget.preferredSize.height;\r\n}\r\n```\r\n\r\n<br>\r\n\r\n</details>\r\n\r\nIn both of the examples above, an `if-case` statement simultaneously verifies that an object meets the specified criteria and performs a variable assignment accordingly.\r\n\r\nBut there are some differences: Example 2 uses a more deeply-nested pattern than Example 1 but makes fewer useful checks.\r\n\r\n**Example 1:**\r\n- checks that `ancestor` is an `InheritedElement`\r\n- checks that the inherited element's `widget` is an `InheritedTheme`\r\n\r\n**Example 2:**\r\n- checks that `widget` is a `PreferredSizeWidget`\r\n(every `PreferredSizeWidget` has a `size` field, and every `Size` has a `height` field)\r\n\r\n<br>\r\n\r\n<hr>\r\n\r\nI feel hesitant to try presenting a set of cut-and-dry rules as to which scenarios should/shouldn't use pattern-matching, since there are an abundance of different types of patterns, and an abundance of different places where they might be used.\r\n\r\nBut hopefully the conversations we've had recently will help us converge toward a common intuition of how pattern-matching can best be utilized for improved readability.\r\n\r\n<br><br>\r\n\r\n- resolves https://github.com/flutter/flutter/issues/152313\r\n- Design Doc: [flutter.dev/go/dart-patterns](https://flutter.dev/go/dart-patterns)",
+    "createdAt": "2024-09-06T22:06:40Z"
+  },
+  {
+    "id": 9320,
+    "sender": "matanlurey",
+    "content": "I took a cursory glance (it's EOD Friday here so I'll have to look again next week) and in general this seems like an improvement, and in the couple of places where code owners might prefer the legacy style I suspect you could make 1-off adjustments.\r\n\r\nThat being said, I'm having a hard time understanding the state of the proposal; [the original design]([flutter.dev/go/dart-patterns](https://flutter.dev/go/dart-patterns)) has a combination of positive and negative comments, and the only other (public?) [comment I see from @goderbauer](https://github.com/flutter/flutter/issues/150942#issuecomment-2238677144) implies not a strong amount of support.\r\n\r\nIf there were other outcomes or conversations you can share to explain this change, that would be great.",
+    "createdAt": "2024-09-07T00:47:41Z"
+  },
+  {
+    "id": 9321,
+    "sender": "nate-thegrate",
+    "content": "Sure! I'd be happy to give an overview of what I've learned.\r\n\r\n<hr>\r\n\r\n<br>\r\n\r\nHixie engaged with the doc the most, and also was the most strongly opposed to pattern-matching out of the people who responded.\r\n\r\nHis negative responses (e.g. [here](https://docs.google.com/document/d/1p6JV-pvr8_45qI5fumv6Ir60wEeagKCceTngYOXt_U4/edit?resourcekey=0-jGJyRsTPSIpGPN0xgvzSwg&disco=AAABSmXEl5s), [here](https://docs.google.com/document/d/1p6JV-pvr8_45qI5fumv6Ir60wEeagKCceTngYOXt_U4/edit?resourcekey=0-jGJyRsTPSIpGPN0xgvzSwg&disco=AAABR2UHvJA), [here](https://docs.google.com/document/d/1p6JV-pvr8_45qI5fumv6Ir60wEeagKCceTngYOXt_U4/edit?resourcekey=0-jGJyRsTPSIpGPN0xgvzSwg&disco=AAABR2UHvJM), and [here](https://docs.google.com/document/d/1p6JV-pvr8_45qI5fumv6Ir60wEeagKCceTngYOXt_U4/edit?resourcekey=0-jGJyRsTPSIpGPN0xgvzSwg&disco=AAABR2UHvJU)) are summarized really well by a comment he made [at the top](https://docs.google.com/document/d/1p6JV-pvr8_45qI5fumv6Ir60wEeagKCceTngYOXt_U4/edit?resourcekey=0-jGJyRsTPSIpGPN0xgvzSwg&disco=AAABSmXEl5c): simplicity is more important than concision.\r\n\r\nThere were other spots where he gave a more neutral response ([here](https://docs.google.com/document/d/1p6JV-pvr8_45qI5fumv6Ir60wEeagKCceTngYOXt_U4/edit?resourcekey=0-jGJyRsTPSIpGPN0xgvzSwg&disco=AAABR2UHvIg), [here](https://docs.google.com/document/d/1p6JV-pvr8_45qI5fumv6Ir60wEeagKCceTngYOXt_U4/edit?resourcekey=0-jGJyRsTPSIpGPN0xgvzSwg&disco=AAABSeHEHEs), [here](https://docs.google.com/document/d/1p6JV-pvr8_45qI5fumv6Ir60wEeagKCceTngYOXt_U4/edit?resourcekey=0-jGJyRsTPSIpGPN0xgvzSwg&disco=AAABR2UHvI8), and [here](https://docs.google.com/document/d/1p6JV-pvr8_45qI5fumv6Ir60wEeagKCceTngYOXt_U4/edit?resourcekey=0-jGJyRsTPSIpGPN0xgvzSwg&disco=AAABR2UHvJE)) along the lines of \"neither one is very readable.\"\r\n\r\nAs far as his supportive feedback, one comment in particular stuck out:\r\n> i think non-pattern switch is probably simpler than a long if chain, because the reader can immediately see \"ok we're going to just be comparing this one value against a bunch of other values\" whereas with the if chain you have to check \"is every condition the same form? are they actually chained with 'else' properly?\" etc. When we start adding patterns to the switch though I think it can quickly get more complicated.\r\n>\r\n> That said, I think there are cases where even pattern switch is better than an if chain. For example if you have a sealed class hierarchy and you're checking against every option and matching every field, that's probably clearer than a bunch of ifs and casts.\r\n\r\n<br>\r\n\r\nMylo Fawcett also engaged quite a bit and showed more support overall for implementing patterns.\r\nBut one notable exception that I found surprising was the [firm disapproval](https://docs.google.com/document/d/1p6JV-pvr8_45qI5fumv6Ir60wEeagKCceTngYOXt_U4/edit?resourcekey=0-jGJyRsTPSIpGPN0xgvzSwg&disco=AAABSuZ9RFA) of doing an `Offset` object pattern assignment.\r\n\r\n<br>\r\n\r\nI was also interested to hear from Bob Nystrom that Dart pattern-matching has a lot in common with Swift syntax.\r\n\r\n<br>\r\n\r\n<hr>\r\n\r\n<br>\r\n\r\nIt's definitely not cut-and-dry whether pattern-matching is overall \"better\" or \"worse\" than the alternative (there are some situations where whether the pattern is more readable depends on how long the variable names are). There's a lot of variety, both with regards to how patterns would apply to a particular code snippet, and also pertaining to the individual reactions and overall opinions that different people have.\r\n\r\nThat being said, there was one huge takeaway that hadn't occurred to me until I started talking with people and gathering feedback: **map patterns are far more readable than object patterns**.\r\n\r\n```dart\r\nif (someMap case {'key': final Object value}) {\r\n  // ...\r\n}\r\n```\r\n\r\nIt's distinct, concise, and expressive: the `key` being directly adjacent to the `value` is huge.\r\n\r\n<br>\r\n\r\nBy comparison, object patterns are often not as great, especially with the leading colon:\r\n- Multiple people have mentioned that `Size(:final double height)` looks wonky.\r\n- And `Size(height: final double height)` is more verbose and not much less confusing.\r\n\r\n<br><br>\r\n\r\nTo decide what went into this PR, I basically just included all the map patterns, and then some other things that I thought looked nice.\r\n\r\n> in the couple of places where code owners might prefer the legacy style I suspect you could make 1-off adjustments.\r\n\r\nSounds like a great plan!",
+    "createdAt": "2024-09-07T03:39:57Z"
+  },
+  {
+    "id": 9322,
+    "sender": "Piinks",
+    "content": "> I'll leave a 48 hour window to allow for further discussion before throwing on autosubmit.\r\n\r\n@nate-thegrate for this one I'd like to ask not to do this. There are code owners I am still getting feedback from as this touches a lot of different areas of the framework. Please wait for a final confirmation on this one since it has such a large impact. Thanks!",
+    "createdAt": "2024-10-02T15:57:45Z"
+  },
+  {
+    "id": 9323,
+    "sender": "reidbaker",
+    "content": "@nate-thegrate can you update your design doc to highlight the items you are going to include or at a minimum close down the design doc so that people who contributed there know it is no longer taking feedback and the pr is the right place for feedback. ",
+    "createdAt": "2024-10-02T16:04:22Z"
+  },
+  {
+    "id": 9324,
+    "sender": "reidbaker",
+    "content": "> @nate-thegrate can you update your design doc to highlight the items you are going to include or at a minimum close down the design doc so that people who contributed there know it is no longer taking feedback and the pr is the right place for feedback.\r\n\r\nAlso if the doc is not going to be updated with what patterns you did decide to follow then please update the pr description with each pattern similar to the design doc proposal. ",
+    "createdAt": "2024-10-02T16:06:21Z"
+  },
+  {
+    "id": 9325,
+    "sender": "nate-thegrate",
+    "content": "> > @nate-thegrate can you update your design doc to highlight the items you are going to include or at a minimum close down the design doc so that people who contributed there know it is no longer taking feedback and the pr is the right place for feedback.\r\n> \r\n> Also if the doc is not going to be updated with what patterns you did decide to follow then please update the pr description with each pattern similar to the design doc proposal.\r\n\r\nDesign doc has been updated to highlight the items included here, and to direct any additional feedback to this PR.",
+    "createdAt": "2024-10-02T16:52:54Z"
+  },
+  {
+    "id": 9326,
+    "sender": "Hixie",
+    "content": "FWIW (since I was asked to comment), I find a lot of these changes make the code less clear to me and would probably discourage me from attempting bug fixes that I otherwise might do (just because the extra overhead of trying to understand the code would make it less fun), but given that I haven't had the bandwidth to make fixes recently anyway, you should probably disregard my opinion.",
+    "createdAt": "2024-10-02T19:39:23Z"
+  },
+  {
+    "id": 9327,
+    "sender": "reidbaker",
+    "content": "> > @nate-thegrate can you update your design doc to highlight the items you are going to include or at a minimum close down the design doc so that people who contributed there know it is no longer taking feedback and the pr is the right place for feedback.\r\n> \r\n> Also if the doc is not going to be updated with what patterns you did decide to follow then please update the pr description with each pattern similar to the design doc proposal.\r\n\r\n@nate-thegrate I am still looking for this. To help out here is a mini example of what I am looking for. \r\n\r\n```\r\nThis pr adopts the following newer dart language features [\"switch expressions\"](https://dart.dev/language/branches#switch-expressions),  [\"if case\"](https://dart.dev/language/branches#if-case), ... \r\n\r\nApart from migrating the code here are some situations where though code review and pr feedback we should or should not use these new language features. \r\n\r\nWe should use switch expressions to collapse long if else statements. [example 1](https://github.com/flutter/flutter/blob/b327787d9bbacfd3c5c1bf2e5b130c3b7b38b6bd/dev/manual_tests/lib/focus.dart#L111) [example 2](https://github.com/flutter/flutter/blob/b327787d9bbacfd3c5c1bf2e5b130c3b7b38b6bd/packages/flutter/lib/src/foundation/assertions.dart#L679)\r\nShould not use switch expressions instead of an if when dealing with and object and its sub fields simultaneously\r\n[Example](https://github.com/flutter/flutter/pull/154753#discussion_r1784839751)\r\n\r\n```\r\n\r\nI am thinking of this pr as an implementation of style guide advice that has yet to be written. Additionally for reviewers that do not want to read the entire diff this is a preview of what is being approved. This pr will most likely be linked as evidence for or against style changes in the future lets make it easy to follow.  ",
+    "createdAt": "2024-10-03T14:36:24Z"
+  },
+  {
+    "id": 9328,
+    "sender": "nate-thegrate",
+    "content": "Thank you @reidbaker! I've updated the PR description and am interested to hear your thoughts.",
+    "createdAt": "2024-10-03T16:57:57Z"
+  },
+  {
+    "id": 9329,
+    "sender": "nate-thegrate",
+    "content": "Awesome!\r\n\r\nI will wait to merge until this PR has an approval from @matanlurey or @Piinks.",
+    "createdAt": "2024-10-03T17:21:49Z"
+  },
+  {
+    "id": 9330,
+    "sender": "matanlurey",
+    "content": "You don't need my LGTM, but you can have it anyway for your patience and diligence.",
+    "createdAt": "2024-10-03T18:08:03Z"
+  },
+  {
+    "id": 9331,
+    "sender": "fischerscode",
+    "content": "## feat: Introduce WrapFit\n\nAs a potential solution for #136154 and #135301, I've added a `WrapFit` as a property of the `WrapParentData`. `Wrap` respects the `fit` during layout. One can wrap a child of `Wrap` with `Wrapped` in order to set change the `fit`. (Inspired by `Flex`)\r\n\r\nThe new algorithm checks if the child has either `WrapFit.runTight` or `WrapFit.runLoose`. If it has, wrap checks, whether the child's min axis size (depending on the direction) fits in the current run. If it does, the child is layout with constraints, that fit in the current run. If it doesn't, the child will receive constraints that fit in the next run.\r\n\r\nPlease have a look at the new docs, for the effect of the different values of `WrapFit`.\r\n\r\nDemonstration of `WrapFit.runLoose`:\r\n![wrapfit](https://github.com/flutter/flutter/assets/45403027/186a2734-5a05-4e24-8933-2046506230aa)\r\n\r\n*I'm no native speaker. Please make sure the docs are adequate.*\r\n\r\nFix #136154 \r\nFix #135301\r\n\r\n## Pre-launch Checklist\r\n\r\n- [x] I read the [Contributor Guide] and followed the process outlined there for submitting PRs.\r\n- [x] I read the [Tree Hygiene] wiki page, which explains my responsibilities.\r\n- [x] I read and followed the [Flutter Style Guide], including [Features we expect every widget to implement].\r\n- [x] I signed the [CLA].\r\n- [x] I listed at least one issue that this PR fixes in the description above.\r\n- [x] I updated/added relevant documentation (doc comments with `///`).\r\n- [x] I added new tests to check the change I am making, or this PR is [test-exempt].\r\n- [x] All existing and new tests are passing.\r\n\r\nIf you need help, consider asking for advice on the #hackers-new channel on [Discord].\r\n\r\n<!-- Links -->\r\n[Contributor Guide]: https://github.com/flutter/flutter/wiki/Tree-hygiene#overview\r\n[Tree Hygiene]: https://github.com/flutter/flutter/wiki/Tree-hygiene\r\n[test-exempt]: https://github.com/flutter/flutter/wiki/Tree-hygiene#tests\r\n[Flutter Style Guide]: https://github.com/flutter/flutter/wiki/Style-guide-for-Flutter-repo\r\n[Features we expect every widget to implement]: https://github.com/flutter/flutter/wiki/Style-guide-for-Flutter-repo#features-we-expect-every-widget-to-implement\r\n[CLA]: https://cla.developers.google.com/\r\n[flutter/tests]: https://github.com/flutter/tests\r\n[breaking change policy]: https://github.com/flutter/flutter/wiki/Tree-hygiene#handling-breaking-changes\r\n[Discord]: https://github.com/flutter/flutter/wiki/Chat\r",
+    "createdAt": "2023-10-08T20:36:59Z"
+  },
+  {
+    "id": 9332,
+    "sender": "Sumit258000",
+    "content": "@goderbauer any updates[^1] on this PR?\r\n\r\n\r\n[^1]: This comment has been hidden, per [issue hygiene](https://github.com/flutter/flutter/blob/master/docs/contributing/issue_hygiene/README.md#do-not-add-me-too-or-same-or-is-there-an-update-comments-to-issues-or-prs) rules.",
+    "createdAt": "2023-11-16T10:46:43Z"
+  },
+  {
+    "id": 9333,
+    "sender": "goderbauer",
+    "content": "(triage) @fischerscode Do you still have plans to follow up on the feedback given above?",
+    "createdAt": "2024-01-09T23:06:19Z"
+  },
+  {
+    "id": 9334,
+    "sender": "fischerscode",
+    "content": "@goderbauer I'm sorry for the delay, all the points from your feedback should now be fixed. I've linked you the individual commits for an easier review process. Thanks!",
+    "createdAt": "2024-01-26T03:16:16Z"
+  },
+  {
+    "id": 9335,
+    "sender": "angjelkom",
+    "content": "Any updates[^1] on this?\r\n\r\n[^1]: This comment has been hidden, per [issue hygiene](https://github.com/flutter/flutter/blob/master/docs/contributing/issue_hygiene/README.md#do-not-add-me-too-or-same-or-is-there-an-update-comments-to-issues-or-prs) rules.",
+    "createdAt": "2024-02-01T10:22:19Z"
+  },
+  {
+    "id": 9336,
+    "sender": "markbeij",
+    "content": "Any updates[^1] on this?\r\n@goderbauer \r\n\r\nThis would work really great on the web!\r\n\r\n[^1]: This comment has been hidden, per [issue hygiene](https://github.com/flutter/flutter/blob/master/docs/contributing/issue_hygiene/README.md#do-not-add-me-too-or-same-or-is-there-an-update-comments-to-issues-or-prs) rules.",
+    "createdAt": "2024-02-26T09:24:53Z"
+  },
+  {
+    "id": 9337,
+    "sender": "fischerscode",
+    "content": "I consider creating a package for `WrapFit`, till it's available in the stable release.\nWould there be any interest?",
+    "createdAt": "2024-02-26T10:05:24Z"
+  },
+  {
+    "id": 9338,
+    "sender": "markbeij",
+    "content": "> I consider creating a package for `WrapFit`, till it's available in the stable release. Would there be any interest?\r\n\r\nThat would be awesome! 🙏",
+    "createdAt": "2024-02-26T10:07:00Z"
+  },
+  {
+    "id": 9339,
+    "sender": "fischerscode",
+    "content": "I've published the `wrapfit` package to [pub.dev](https://pub.dev/packages/wrapfit) for everyone who needs the `WrapFit` feature right now. *I just copied most of the code.*\r\n\r\nSimply add the package and use `Wrap2` instead of `Wrap`.\r\n\r\n**Please DO NOT report issues regarding the wrapfit package here.** *Use [my repo](https://github.com/fischerscode/pub.packages/issues) instead.*\r\n\r\n(It's still my goal to get this PR merged.)",
+    "createdAt": "2024-02-26T13:48:24Z"
+  },
+  {
+    "id": 9340,
+    "sender": "goderbauer",
+    "content": "I love that this is now a package which can be independently updated and maintained by the awesome Flutter community. Since using the package in an app is pretty straightforward, what do you think about closing this PR and directing folks who want this feature to your cool new package?",
+    "createdAt": "2024-03-15T18:16:10Z"
+  },
+  {
+    "id": 9341,
+    "sender": "fischerscode",
+    "content": "**TLDR; I think this should be a part of flutter and not an extra package.**\r\n\r\nThe package is just a copy of the entire `Wrap` implementation. I did especially just copy the `RenderWrap` class. I didn't manage to implement it on top of the current `Wrap` implementation. Therefore  the package is not easy to maintain, since every change to `Wrap` would have to be cherry picked.\r\n\r\nSince the feature seems to be a common request when working with a `Wrap`, I think it should be a part of flutter and not a separate package. I just published the package, since I'm using the new `Wrap` in a few projects since October and using a custom flutter version all the time is not pretty and there was no ETA.\r\n\r\nIf the flutter developers decide that this is not something that should be a part of flutter, then, even though I would not agree, I am fine with closing this PR, but I don't think maintaining the package will be feasible in the long run.",
+    "createdAt": "2024-03-15T18:34:55Z"
+  },
+  {
+    "id": 9342,
+    "sender": "fischerscode",
+    "content": "Furthermore, this PR actually simplifies the `RenderWrap` class by avoiding duplicate code. (9b67d01660c3e6fc68dccb9fa0f3d5110488430f)\r\n\r\nTherefore this PR\r\n1. adds something the developers want\r\n2. improves the code quality\r\n\r\nMaybe I'm biased, but I don't see why this PR shouldn't be merged.",
+    "createdAt": "2024-03-15T18:44:52Z"
+  },
+  {
+    "id": 9343,
+    "sender": "matiasilveiro",
+    "content": "Any updates[^1] on this PR? 🤔 \r\n\r\n[^1]: This comment has been hidden, per [issue hygiene](https://github.com/flutter/flutter/blob/master/docs/contributing/issue_hygiene/README.md#do-not-add-me-too-or-same-or-is-there-an-update-comments-to-issues-or-prs) rules.",
+    "createdAt": "2024-04-05T17:00:29Z"
+  }
+]

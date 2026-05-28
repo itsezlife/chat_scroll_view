@@ -1,0 +1,386 @@
+[
+  {
+    "id": 8640,
+    "sender": "cedvdb",
+    "content": "I find the sparkle effect a bit odd in colors too, there will / is a parameter app wide to change the color so it goes from grey to a color that's more in line with the theme ?",
+    "createdAt": "2022-08-14T08:20:32Z"
+  },
+  {
+    "id": 8641,
+    "sender": "MaxYablochkin",
+    "content": "\r\nhttps://user-images.githubusercontent.com/102767277/184979626-77c227d3-ccfc-4f8c-a28e-b72afe999227.mp4\r\n\r\nWhen text is selected, the pointers and menus overlap the bottom navigation bar.",
+    "createdAt": "2022-08-16T20:34:55Z"
+  },
+  {
+    "id": 8642,
+    "sender": "cedvdb",
+    "content": "> When text is selected, the pointers and menus overlap the bottom navigation bar.\r\n\r\nImo that's worth it's own issue ticket",
+    "createdAt": "2022-08-16T23:23:31Z"
+  },
+  {
+    "id": 8643,
+    "sender": "iqfareez",
+    "content": "> Hi. I wonder if there already an open issue with the **SimpleDialog** widget in material 3 mode. The looks when dark mode is wrong (it changed to material 2 design)\r\nhttps://github.com/flutter/flutter/issues/91605#issuecomment-1207373317\r\n\r\nSorry, I think I was mistaken.\r\n\r\nBy adding the `useMaterial3` in the `darkTheme`, it shows correctly for light & dark mode.\r\n```diff\r\ntitle: 'System Cursor Demo',\r\n      theme: ThemeData(\r\n        primarySwatch: Colors.green,\r\n        useMaterial3: true,\r\n      ),\r\n-      darkTheme: ThemeData.dark(),\r\n+      darkTheme: ThemeData.dark().copyWith(useMaterial3: true),\r\n      themeMode: ThemeMode.system,\r\n```\r\n\r\nNevertheless, it would be nice if the changes opted in automatically for both brightness if the main theme is already opted in to material3\r\n\r\nhttps://github.com/flutter/flutter/issues/109158",
+    "createdAt": "2022-08-21T03:12:02Z"
+  },
+  {
+    "id": 8644,
+    "sender": "TahaTesser",
+    "content": "> Nevertheless, it would be nice if the changes opted in automatically for both brightness if the main theme is already opted in to material3\r\n\r\n\r\n`theme` and `darkTheme` are separate and you have to enable `useMaterial3` on both themes. \r\n\r\nLooks like there is no migration needed for `SimpleDialog`, It uses `Dialog` which already supports Material 3. \r\n",
+    "createdAt": "2022-08-23T10:35:40Z"
+  },
+  {
+    "id": 8645,
+    "sender": "dimstr",
+    "content": "> Screenrecorder-2022-08-11-03-43-39-883.mp4 \r\n> When text is selected, the pointers and menus overlap the bottom navigation bar.\r\n\r\nWhat is the name of this app? \r\n",
+    "createdAt": "2022-08-28T08:01:08Z"
+  },
+  {
+    "id": 8646,
+    "sender": "Zohenn",
+    "content": "> @rami-a When we click on the bottomNavigationBar buttons, it goes to Ripple Square, when it should be Circle or Bayesian ripple. Take a look at the Google Play app.\r\n\r\nIs there any issue for this, that I could track? And if there isn't, do you mind creating it?",
+    "createdAt": "2022-09-02T11:49:56Z"
+  },
+  {
+    "id": 8647,
+    "sender": "MaxYablochkin",
+    "content": "> Запись экрана-2022-08-11-03-43-39-883.mp4 \r\n> Когда текст выделен, указатели и меню перекрывают нижнюю панель навигации.\r\n\r\n@rami-a ",
+    "createdAt": "2022-09-02T20:10:23Z"
+  },
+  {
+    "id": 8648,
+    "sender": "nikitadol",
+    "content": "@MaxYablochkin, I think you are using an old version of the app\r\n\r\n\r\nhttps://user-images.githubusercontent.com/16593680/188392374-abfce9b7-656b-4b6c-b081-c043338a4a36.mp4\r\n\r\n",
+    "createdAt": "2022-09-05T07:27:11Z"
+  },
+  {
+    "id": 8649,
+    "sender": "MaxYablochkin",
+    "content": "@rami-a \r\nThe new iPhone 14 Pro has a new screen cutout and additional islands called dynamic island, but will Flutter be adapted to the new bangs, and will it be implemented in the new widget or in the existing SafeArea?\r\n![apple-iphone-14-pro-dynamic-island-render-official](https://user-images.githubusercontent.com/102767277/189167739-b2c67276-be5c-464c-9cbd-e5982191746a.png)\r\n",
+    "createdAt": "2022-09-08T15:50:43Z"
+  },
+  {
+    "id": 8650,
+    "sender": "bernaferrari",
+    "content": "I guess there will be a separate issue for this, as it is not in Material specs and I don't even know if iOS specs are already available.",
+    "createdAt": "2022-09-08T15:52:55Z"
+  },
+  {
+    "id": 8651,
+    "sender": "MaxYablochkin",
+    "content": "> Я предполагаю, что для этого будет отдельная проблема, так как этого нет в спецификациях материалов, и я даже не знаю, доступны ли уже спецификации iOS.\r\n\r\nThe first thing you can see is that the icons in the statusBar can be hidden or moved to the edges of the screen, crowding out the current ones.",
+    "createdAt": "2022-09-08T16:08:03Z"
+  },
+  {
+    "id": 8652,
+    "sender": "guidezpl",
+    "content": "In the interest of everyone subscribed to this thread, let's move discussions on particular aspects of Material 3 to new issues to have better in-depth discussions. Please mention this issue (#91605) such that it appears in the issue feed. I'm going to hide non-M3 comments as off-topic for now.\r\n\r\nIf you're about to comment, ask yourself: \"does this relate to Material 3 in the broadest sense?\"",
+    "createdAt": "2022-09-08T16:33:58Z"
+  },
+  {
+    "id": 8653,
+    "sender": "MaxYablochkin",
+    "content": "In Flutter, will this implementation of a floating window with a projection of some area for simplified text input correspond to the native one? Is it possible to somehow interact with this window?\r\n\r\n![Screenshot](https://user-images.githubusercontent.com/102767277/190864009-985672d3-85c5-4787-9a2f-0af7f05262ad.jpg)\r\n![Screenshot_1663424556](https://user-images.githubusercontent.com/102767277/190864016-434b993a-820e-4838-a14c-3aa85e1c1c05.png)\r\n",
+    "createdAt": "2022-09-17T15:16:46Z"
+  },
+  {
+    "id": 8654,
+    "sender": "peter100u",
+    "content": "I want to remove the ripple effect of NavigationBar, but I did not see the relevant local API, can be removed, I looked at the source code of NavigationBar, found that it is implemented with InkWell, but did not provide the parameters of splashFactory, please ask whether you can provide this parameter externally, delete his ripple effect\r\n\r\n![image](https://user-images.githubusercontent.com/14010579/191919883-2b230cd4-78a1-46de-a11b-472bd228a2ac.png)\r\n",
+    "createdAt": "2022-09-23T08:21:59Z"
+  },
+  {
+    "id": 8655,
+    "sender": "yuenzp",
+    "content": "> I want to remove the ripple effect of NavigationBar, but I did not see the relevant local API, can be removed, I looked at the source code of NavigationBar, found that it is implemented with InkWell, but did not provide the parameters of splashFactory, please ask whether you can provide this parameter externally, delete his ripple effect\r\n> \r\n> ![image](https://user-images.githubusercontent.com/14010579/191919883-2b230cd4-78a1-46de-a11b-472bd228a2ac.png)\r\n\r\nWrap Navigation Bar with Theme Widget and set splash factory to NoSplash.splashFactory, highlight color to Colors.transparent",
+    "createdAt": "2022-10-03T06:32:57Z"
+  },
+  {
+    "id": 8656,
+    "sender": "guplem",
+    "content": "I am using Material 3 and I found that the cards do not have \"inner padding\" as described in the [material 3 specs](https://m3.material.io/components/cards/specs#038b4a49-3a7f-4fce-be8c-89c1155b4c82).\r\n\r\nThis is how the card looks (with the content inside)\r\n![CardWithoutInnerPadding](https://user-images.githubusercontent.com/11029629/193825666-36608a4d-1e8e-4dc9-9fc4-fb4b7f1d4c85.png)\r\n\r\nThis is how I believe it should look (achieved with a padding widget inside the card):\r\n![image](https://user-images.githubusercontent.com/11029629/193825864-dd3e31ed-73b3-46af-90f9-4d3b6370ade9.png)\r\n\r\nIn seek of consistency and a proper implementation of Material 3 I do believe spacing/paddings/etc. should be implemented into the widgets themselves facilitating a way to override it if needed.",
+    "createdAt": "2022-10-04T13:01:51Z"
+  },
+  {
+    "id": 8657,
+    "sender": "MaxYablochkin",
+    "content": "Is it possible to increase the size of the sequins as in native?\r\n![Screenshot_10](https://user-images.githubusercontent.com/102767277/193865089-852afe66-861a-4c43-87bb-2b9ac06b9843.png)\r\n",
+    "createdAt": "2022-10-04T15:45:45Z"
+  },
+  {
+    "id": 8658,
+    "sender": "guidezpl",
+    "content": "To reiterate https://github.com/flutter/flutter/issues/91605#issuecomment-1240952485:\r\n\r\n**If you have an issue with Material 3, please [file a new issue](https://github.com/flutter/flutter/issues/new/choose) and mention \"#91605\" its description.**",
+    "createdAt": "2022-10-04T17:41:31Z"
+  },
+  {
+    "id": 8659,
+    "sender": "iapicca",
+    "content": "A bunch of stuff has been redesigned\r\nhttps://material.io/blog/material-io-redesign",
+    "createdAt": "2022-10-19T12:06:01Z"
+  },
+  {
+    "id": 8660,
+    "sender": "Patrick386",
+    "content": "> A bunch of stuff has been redesigned https://material.io/blog/material-io-redesign\r\n\r\nWhen will these cool things be available?\r\nThere seems to be little support for the web.",
+    "createdAt": "2022-10-19T12:21:15Z"
+  },
+  {
+    "id": 8661,
+    "sender": "guidezpl",
+    "content": "Indeed, great stuff by the material.io team! Please check out new guidelines (including updated components), dark mode, and a new [Flutter landing page](https://m3.material.io/develop/flutter). \r\n\r\n> When will these cool things be available?\r\n\r\nStay tuned, we'll have more to share before the end of the year.",
+    "createdAt": "2022-10-19T16:48:19Z"
+  },
+  {
+    "id": 8662,
+    "sender": "MaxYablochkin",
+    "content": "I wanted to ask why the color of the thumb changes on hover on the web, but not on android?\r\n\r\n![Screenshot_11](https://user-images.githubusercontent.com/102767277/199056467-26787e2c-b630-4098-b57d-9d207fcd4178.png)\r\n![Screenshot_1667232718](https://user-images.githubusercontent.com/102767277/199056464-bd1b5c6a-29bd-4cdb-8912-157a0b7eb9d3.png)",
+    "createdAt": "2022-10-31T16:16:24Z"
+  },
+  {
+    "id": 8663,
+    "sender": "darrenaustin",
+    "content": "> I wanted to ask why the color of the thumb changes on hover on the web, but not on android?\r\n\r\nThis is off-topic for this issue, as we are trying to keep the conversation about general M3 issues and not specific components. You could try asking this on discord, the [Switch issue](https://github.com/flutter/flutter/issues/103536), or file a new issue.",
+    "createdAt": "2022-11-01T07:14:22Z"
+  },
+  {
+    "id": 8664,
+    "sender": "QuncCccccc",
+    "content": "> Is it an analogue of ComboBox or something else?\r\n> \r\n>  Screenrecorder-2022-11-10-00-31-10-324.mp4\r\n\r\nNo, the ComboBox is basically an outlined text field with a trailing icon button that drops down a menu. It's one of the [configurations for menus](https://m3.material.io/components/menus/specs#14846245-f9f0-433f-8105-09f0515d86e4).",
+    "createdAt": "2022-11-09T22:47:22Z"
+  },
+  {
+    "id": 8665,
+    "sender": "HansMuller",
+    "content": "@MaxYablochkin - Please move this discussion to https://github.com/flutter/flutter/issues/115005. ",
+    "createdAt": "2022-11-09T22:59:48Z"
+  },
+  {
+    "id": 8666,
+    "sender": "peter100u",
+    "content": "It feels like progress is too slow, Compose Material 3 stable version has been released, and flutter Material 3 has not yet been developed",
+    "createdAt": "2022-11-25T16:23:24Z"
+  },
+  {
+    "id": 8667,
+    "sender": "MaxYablochkin",
+    "content": "> It feels like progress is too slow, Compose Material 3 stable version has been released, and flutter Material 3 has not yet been developed\n\n@peter100u \nTo be honest, I also follow Compose, and Compose has a slow progress of Material 3, and it is quite raw, because it lags behind in time and implementation (spec mismatch) relative to Flutter and XML.  It feels like Compose's M3 will be finished when Material 4 comes out. Flutter just doesn't say as much about M3 as Compose does, I think, but it's better in line with the spec.  But what I love about Compose is the integration with Figma.  I really hope that Flutter will have this powerful tool.",
+    "createdAt": "2022-11-25T18:33:58Z"
+  },
+  {
+    "id": 8668,
+    "sender": "rydmike",
+    "content": "@peter100u I don't have any official insights on what is planned to be included in the next stable release of Flutter and when, but Material 3 is pretty far along in the master channel. \r\n\r\nVery few, if any, blockers, for mobile usage left there. On desktop side there are still some new components missing, and yes some new components we have not had before on mobile, were still missing last time I checked, but I would not call those showstoppers.\r\n\r\nFlutter 3.3.x has a bunch of M3 showstopper issues though, so don't use it for production yet. You can develop with M3 on master to be ready when next stable comes out, which I think and hope will be close enough that I can also recommend it and say, yes using it is fine for 95% of mobile use cases.\r\n\r\nDo I wish it would have been ready faster? Yes, but progress has picked up in speed after v3.3. Clearly more focus and efforts have been put into M3 and many devs on the team have been doing fabulous work with M3 implementations. Hopefully next stable version will surprise us 🙂💙",
+    "createdAt": "2022-11-25T20:24:34Z"
+  },
+  {
+    "id": 8669,
+    "sender": "applegrew",
+    "content": "I am using Flutter 3.3.10 but still says `outlineVariant` and `scrim` are not defined in ColorScheme. As per the note above it should be in Flutter 3.3 but not for me why?",
+    "createdAt": "2022-12-19T18:49:42Z"
+  },
+  {
+    "id": 8670,
+    "sender": "rydmike",
+    "content": "@applegrew For some reason those two new colors in ColorScheme did not land in Flutter 3.3 and are only available in master channel, and in latest beta (I did not verify beta status, but I think they are also there). \n\nTheoretically they could have landed in 3.3 already, but for some reason they did not. My expectation is that they will land in next stable release that will probably be released Jan 25, 2023. This is just my expectation, I have no actual insight into what will be released when. However, based on public info, I think it is a reasonable assumption.",
+    "createdAt": "2022-12-19T20:02:00Z"
+  },
+  {
+    "id": 8671,
+    "sender": "realitymolder",
+    "content": "> \r\n\r\nSame goes for filled and tonal buttons. Might be other widgets that are missing.\r\n",
+    "createdAt": "2023-01-24T00:40:51Z"
+  },
+  {
+    "id": 8672,
+    "sender": "guplem",
+    "content": "> > \r\n> \r\n> Same goes for filled and tonal buttons. Might be other widgets that are missing.\r\n\r\nFilled and tonal buttons are now part of Flutter 3.7",
+    "createdAt": "2023-01-26T07:05:11Z"
+  },
+  {
+    "id": 8673,
+    "sender": "guplem",
+    "content": "What is the point of not having dedicated constructors for Elevated, Outlined and Filled cards? They are [part of M3](https://m3.material.io/components/cards/overview), and in the [m3 sample/demo](https://flutter.github.io/samples/material_3.html) they are still coded modifying the default card.\r\n\r\nThe same goes for the IconButton and other widgets... \r\n\r\nI am creating classes like this for each of the material 3 widgets that are not supported natively:\r\n\r\n```\r\nimport 'package:flutter/material.dart';\r\n\r\n// https://m3.material.io/components/icon-buttons/specs#c2ca424b-2ad7-40e6-8946-47fb1918060a\r\nclass IconButtonFilledTonal extends StatelessWidget {\r\n  IconButtonFilledTonal({Key? key, required this.onPressed, required this.icon}) : super(key: key);\r\n\r\n  final void Function()? onPressed;\r\n  Widget icon;\r\n\r\n  ButtonStyle getStyle(context) {\r\n    ColorScheme colorScheme = Theme.of(context).colorScheme;\r\n\r\n    if (onPressed == null) {\r\n      return IconButton.styleFrom(\r\n        disabledForegroundColor: colorScheme.onSurface.withOpacity(0.38),\r\n        disabledBackgroundColor: colorScheme.onSurface.withOpacity(0.12),\r\n      );\r\n    }\r\n\r\n    return IconButton.styleFrom(\r\n      foregroundColor: colorScheme.onSecondaryContainer,\r\n      backgroundColor: colorScheme.secondaryContainer,\r\n      hoverColor: colorScheme.onSecondaryContainer.withOpacity(0.08),\r\n      focusColor: colorScheme.onSecondaryContainer.withOpacity(0.12),\r\n      highlightColor: colorScheme.onSecondaryContainer.withOpacity(0.12),\r\n    );\r\n  }\r\n\r\n  @override\r\n  Widget build(BuildContext context) {\r\n    return IconButton(\r\n      style: getStyle(context),\r\n      onPressed: onPressed,\r\n      icon: icon,\r\n    );\r\n  }\r\n}\r\n\r\n```",
+    "createdAt": "2023-01-26T07:10:16Z"
+  },
+  {
+    "id": 8674,
+    "sender": "guidezpl",
+    "content": "> What is the point of not having dedicated constructors for Elevated, Outlined and Filled cards? They are [part of M3](https://m3.material.io/components/cards/overview), and in the [m3 sample/demo](https://flutter.github.io/samples/material_3.html) they are still coded modifying the default card.\r\n> \r\n> The same goes for the IconButton and other widgets...\r\n\r\nPlease follow https://github.com/flutter/flutter/issues/111800 for icon buttons and file a new issue for `Cards`, mentioning this issue (#91605) in the description.",
+    "createdAt": "2023-01-27T17:37:24Z"
+  },
+  {
+    "id": 8675,
+    "sender": "guidezpl",
+    "content": "\r\n<img width=\"1728\" alt=\"image\" src=\"https://user-images.githubusercontent.com/6655696/216366963-1181b335-1cdc-40ab-8e60-22c95b4d1db8.png\">\r\n\r\n## Flutter 3.7 Update\r\nAs you probably know, [Flutter 3.7](https://medium.com/flutter/whats-new-in-flutter-3-7-38cbea71133c) was released last week, just prior to [Flutter Forward](https://www.youtube.com/playlist?list=PLjxrf2q8roU3LvrdR8Hv_phLrTj0xmjnD). Leading up to the event, many Flutter Medium posts worth reading were published, and I want to highlight [Material 3 for Flutter](https://medium.com/flutter/material-3-for-flutter-d417a8a65564) by @esouthren.\r\n\r\n3.7 was a big release, with as many Material 3 issues closed in this one as in the first two releases combined! A big thank you to all contributors, early adopters, and issue filers!\r\n\r\n<img width=\"945\" alt=\"image\" src=\"https://user-images.githubusercontent.com/6655696/216364045-9bb18ce0-eb8a-4607-80e6-25ea09efc9b7.png\">\r\n\r\n## Remaining work\r\nWe're working on the next stable release, and we've highlighted the most important items under \"Remaining work\" in this issue's description. These include highly requested features like Material Symbols and updated motion. \r\n\r\nIf you'd like to help, there are many opportunities, including improving API documentation and sample code. Please get in touch on [Discord](https://discord.com/channels/608014603317936148/608021234516754444). Opting-in and filing issues is also helpful. As always, prefer to file separate issues and mention this one (#91605), and use 👍 to help prioritise work.\r\n",
+    "createdAt": "2023-02-02T15:31:44Z"
+  },
+  {
+    "id": 8676,
+    "sender": "slonik923",
+    "content": "Shouldn't [Add Dropdown support to FilterChip](https://github.com/flutter/flutter/issues/108683) also be included here?\r\nSince [Update chips to support Material 3](https://github.com/flutter/flutter/issues/99024) is already marked as done.",
+    "createdAt": "2023-02-02T15:53:31Z"
+  },
+  {
+    "id": 8677,
+    "sender": "guidezpl",
+    "content": "> Shouldn't [Add Dropdown support to FilterChip](https://github.com/flutter/flutter/issues/108683) also be included here?\r\n\r\nGood question. It's not an exhaustive list of everything planned to be worked on, that's in the [project](https://github.com/orgs/flutter/projects/19/views/10). Generally speaking, 👍 get issues on that list.",
+    "createdAt": "2023-02-02T16:06:36Z"
+  },
+  {
+    "id": 8678,
+    "sender": "And96",
+    "content": "Am i wrong or Padding space change when switch from light mode to dark mode (In Material Design 3)\r\nIs dark mode similar to MD2 or not completed yes ?",
+    "createdAt": "2023-02-04T13:11:11Z"
+  },
+  {
+    "id": 8679,
+    "sender": "Emtee100",
+    "content": "Please bring Material You to Flutter ",
+    "createdAt": "2023-03-12T17:50:19Z"
+  },
+  {
+    "id": 8680,
+    "sender": "peter100u",
+    "content": "Recently, I used Material 3 Design Kit (https://www.figma.com/community/file/1035203688168086460) to design application software, but I found that the component token in the design draft and the color scheme in flutter development do not correspond to the attributes Token and development of one-to-one token restoration\r\n\r\nDo you have any related tutorials or information, what experience do you have to share, thank you",
+    "createdAt": "2023-03-24T02:21:50Z"
+  },
+  {
+    "id": 8681,
+    "sender": "luohao123",
+    "content": "@peter100u Do u know how to set the systemNavigationBarColor to same as bottom navigatiobar?",
+    "createdAt": "2023-04-02T13:21:18Z"
+  },
+  {
+    "id": 8682,
+    "sender": "peter100u",
+    "content": "The following interactive effect, please ask whether material 3 is built-in support, I hope the official can support this effect\r\n\r\nhttps://github.com/flutter/flutter/assets/14010579/373d9324-c495-41de-ba9c-6cf70975d783\r\n\r\n",
+    "createdAt": "2023-06-21T02:19:40Z"
+  },
+  {
+    "id": 8683,
+    "sender": "lokesh-krishna",
+    "content": "Underlines used to inherit the color of the text but with Material 3 enabled, it instead defaults to black. Is this change intentional?",
+    "createdAt": "2023-06-21T09:02:25Z"
+  },
+  {
+    "id": 8684,
+    "sender": "luohao123",
+    "content": "@peter100u this looks nice, can u share the code of this?",
+    "createdAt": "2023-06-21T14:21:24Z"
+  },
+  {
+    "id": 8685,
+    "sender": "peter100u",
+    "content": "> @peter100u这看起来不错，你可以分享这个代码吗？\r\n\r\nNot my project, but a video example I saw, I was sure it was the design style of Material 3, and I didn't know how to implement it, I would like to consult the official how to do it or if they can support this kind of animation interaction",
+    "createdAt": "2023-06-23T03:15:40Z"
+  },
+  {
+    "id": 8686,
+    "sender": "lokesh-krishna",
+    "content": "> Underlines used to inherit the color of the text but with Material 3 enabled, it instead defaults to black. Is this change intentional?\r\n\r\nAlso, noticed that the underline straight up disappears when switching to dark theme. Is this issue the right place to be reporting this or should it be an issue of its own?",
+    "createdAt": "2023-06-26T07:37:08Z"
+  },
+  {
+    "id": 8687,
+    "sender": "guidezpl",
+    "content": "> Also, noticed that the underline straight up disappears when switching to dark theme. Is this issue the right place to be reporting this or should it be an issue of its own?\r\n\r\nPlease file a separate issue and mention this one in the description.",
+    "createdAt": "2023-06-26T09:28:25Z"
+  },
+  {
+    "id": 8688,
+    "sender": "luohao123",
+    "content": "@peter100u can u share what the app name is?",
+    "createdAt": "2023-06-26T14:39:29Z"
+  },
+  {
+    "id": 8689,
+    "sender": "peter100u",
+    "content": "> @peter100u can u share what the app name is?\r\n\r\nhttps://apps.apple.com/cn/app/cookie-%E8%AE%B0%E8%B4%A6/id1559943673",
+    "createdAt": "2023-06-27T06:18:23Z"
+  },
+  {
+    "id": 8690,
+    "sender": "nidegen",
+    "content": "Has progress kinda halted here?",
+    "createdAt": "2023-10-30T09:18:16Z"
+  },
+  {
+    "id": 8691,
+    "sender": "HansMuller",
+    "content": "@nidegen - not at all. Flutter has been migrated to Material 3 which will be the default in the next stable release. Of course there's still work to do, for example we're still migrating some tests per https://github.com/flutter/flutter/issues/127064, but the lion's share of the work to migrate Flutter to Material 3 has been completed.  Our focus has shifted a little, towards simplifying the theming system, improving the support for platform-specific adaptation, making the existing components more flexible, paying down technical debt, and of course resolving issues. ",
+    "createdAt": "2023-10-31T17:50:31Z"
+  },
+  {
+    "id": 8692,
+    "sender": "HansMuller",
+    "content": "As of Flutter [3.16](https://medium.com/flutter/whats-new-in-flutter-3-16-dba6cb1015d1), we're calling this project done and closing the issue. ",
+    "createdAt": "2023-11-15T21:56:19Z"
+  },
+  {
+    "id": 8693,
+    "sender": "MaxYablochkin",
+    "content": "> As of Flutter [3.16](https://medium.com/flutter/whats-new-in-flutter-3-16-dba6cb1015d1), we're calling this project done and closing the issue. \n\nReally",
+    "createdAt": "2023-11-15T22:05:00Z"
+  },
+  {
+    "id": 8694,
+    "sender": "MarlonJD",
+    "content": "> As of Flutter [3.16](https://medium.com/flutter/whats-new-in-flutter-3-16-dba6cb1015d1), we're calling this project done and closing the issue.\r\n\r\nThere are important missing parts #119328, #126069 ",
+    "createdAt": "2023-11-16T11:07:07Z"
+  },
+  {
+    "id": 8695,
+    "sender": "iapicca",
+    "content": "> As of Flutter [3.16](https://medium.com/flutter/whats-new-in-flutter-3-16-dba6cb1015d1), we're calling this project done and closing the issue.\r\n\r\nit's a bit confusing to me how a project can be [called \"done\"](https://github.com/flutter/flutter/issues/91605#issuecomment-1813324885) with so many outstanding issues\r\nsounds like pulling a \"navigator 2.0\"\r\n\r\n<img width=\"560\" alt=\"image\" src=\"https://github.com/flutter/flutter/assets/45637986/6b415c09-886d-4b4c-a14e-81067a5483de\">\r\n\r\n",
+    "createdAt": "2023-11-16T16:35:10Z"
+  },
+  {
+    "id": 8696,
+    "sender": "HansMuller",
+    "content": "@iapicca - you are correct, there's still work to be done (there will always be work to be done).  It's no longer useful to have such a broad based umbrella issue now that we've made Material 3 the default. The open subordinate issues will remain open.",
+    "createdAt": "2023-11-16T18:28:35Z"
+  },
+  {
+    "id": 8697,
+    "sender": "realitymolder",
+    "content": "> @iapicca - you are correct, there's still work to be done (there will always be work to be done). It's no longer useful to have such a broad based umbrella issue now that we've made Material 3 the default. The open subordinate issues will remain open.\r\n\r\nBut I think that it is fair to say that material 3 is not fully implemented",
+    "createdAt": "2023-11-16T18:47:58Z"
+  },
+  {
+    "id": 8698,
+    "sender": "HansMuller",
+    "content": "There are Material 3 specification changes (small color diffs for example) rolling out even now, so you could say that the spec isn't fully implemented. This umbrella issue was about the main effort to upgrade all of the components and themes and I think it's fair to close it. We'll continue to track the smaller stuff in separate issues.",
+    "createdAt": "2023-11-16T19:06:19Z"
+  },
+  {
+    "id": 8699,
+    "sender": "jwinarske",
+    "content": "Having an umbrella issue (epic) allows easier tracking and provides a single point to check.  The alternative is to tag the issues correctly, so one can easily query the current status",
+    "createdAt": "2023-11-16T19:14:44Z"
+  },
+  {
+    "id": 8700,
+    "sender": "rydmike",
+    "content": "Thanks @HansMuller for the clarifications. \n\nWhile it might feel odd to call it done, since there are parts not yet implemented, I agree that it does not make sense to keep this umbrella issue open forever.\n\nThe Material3 spec continues to evolve, it has done so a lot during this project. If we look at its original scope and spec when it was published, the original target has even been exceeded in the 3.16 release!\n\nNew changes to ColorScheme and surface colors and contrasts have been published, as has a new nice Carousel component. These new features and side sheet, plus many date picker variations are not yet supported. Some motion designs are also not quite there yet, along with many minor details. M3 is a moving target, the implementation in Flutter is ready enough to no longer need this umbrella issue, it has served its purpose well. \n\nYes there are still issues, there will always be more and new issues, that needs to be tracked and solved. The normal process supports that well.\n\nThank you all for the work done to bring Material3 to Flutter. It has been interesting to track its progress, test use it and provide feedback during the journey 🙂💙",
+    "createdAt": "2023-11-17T21:37:42Z"
+  },
+  {
+    "id": 8701,
+    "sender": "MaxYablochkin",
+    "content": "> Спасибо@HansMullerза разъяснения.\r\n> \r\n> Хотя может показаться странным называть это завершенным, поскольку некоторые части еще не реализованы, я согласен, что нет смысла оставлять этот зонтичный вопрос открытым навсегда.\r\n> \r\n> Спецификация Material3 продолжает развиваться, и за время этого проекта она уже много раз развивалась. Если мы посмотрим на его первоначальный объем и характеристики на момент публикации, то в версии 3.16 первоначальная цель была даже превышена!\r\n> \r\n> Опубликованы новые изменения в ColorScheme, цветах и ​​контрастах поверхности, а также новый приятный компонент Carousel. Эти новые функции и дополнительный лист, а также многие варианты выбора даты пока не поддерживаются. Некоторые анимационные проекты еще не совсем готовы, как и множество мелких деталей. M3 — это движущаяся цель, реализация во Flutter достаточно готова, чтобы больше не нуждаться в этой зонтичной проблеме, она хорошо выполнила свою задачу.\r\n> \r\n> Да, проблемы все еще есть, всегда будут новые и новые проблемы, которые необходимо отслеживать и решать. Обычный процесс хорошо это поддерживает.\r\n> \r\n> Спасибо всем за проделанную работу по внедрению Material3 во Flutter. Было интересно следить за его прогрессом, тестировать его использование и оставлять отзывы во время путешествия 🙂💙\r\n\r\nHello with Ukraine💙💛\r\nВ цілому я з вами згоден ",
+    "createdAt": "2023-11-17T21:56:38Z"
+  },
+  {
+    "id": 8702,
+    "sender": "cbatson",
+    "content": "Just updated Flutter and several UI elements in my iiOS app have changed color, shape, etc. Reading this thread, this is apparently expected behavior for this update. **Assuming I don't want to blanket disable Material 3 altogether**, is there a migration guide that will help me get things back to the way they were with minimal effort? I.e. what UI elements are likely to be different now and what arguments are needed to replicate prior appearance. Thank you.",
+    "createdAt": "2023-11-18T17:56:20Z"
+  },
+  {
+    "id": 8703,
+    "sender": "rekire",
+    "content": "You can opt out easily by setting a property in the theme. I cannot search it right now. But you just need to set material 3 to false ",
+    "createdAt": "2023-11-18T18:00:07Z"
+  }
+]

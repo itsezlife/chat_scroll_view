@@ -1,0 +1,386 @@
+[
+  {
+    "id": 6272,
+    "sender": "HidenoriMatsubayashi",
+    "content": "Thank you for your comments.\r\n\r\n@christopherfujino \r\nI tried to run Flutter for web on Raspberry Pi4 with Chromium. But I got the following error.\r\n\r\n```\r\nOops; flutter has exited unexpectedly: \"FileSystemException: Cannot open file, path =\r\n'/home/hidenori/workspace/flutter/bin/cache/dart-sdk/lib/dev_compiler/kernel/amd/require.js' (OS Error:\r\nNo such file or directory, errno = 2)\".\r\n```\r\n<details>\r\n  <summary>Detailed log</summary>\r\n\r\n```\r\n$ export CHROME_EXECUTABLE=/usr/bin/chromium-browser\r\n$ flutter run -d chrome\r\nLaunching lib/main.dart on Chrome in debug mode...\r\nWaiting for connection from debug service on Chrome...                 ⣽\r\nOops; flutter has exited unexpectedly: \"FileSystemException: Cannot open file, path =\r\n'/home/hidenori/workspace/flutter/bin/cache/dart-sdk/lib/dev_compiler/kernel/amd/require.js' (OS Error:\r\nNo such file or directory, errno = 2)\".\r\nA crash report has been written to /home/hidenori/workspace/sample/flutter_02.log.\r\nThis crash may already be reported. Check GitHub for similar crashes.   \r\nhttps://github.com/flutter/flutter/issues?q=is%3Aissue+FileSystemException%3A+Cannot+open+file%2C+path+%3D+%27%2Fhome%2Fhidenori%2Fworkspace%2Fflutter%2Fbin%2Fcache%2Fdart-sdk%2Flib%2Fdev_compiler%2Fkernel%2Famd%2Frequire.js%27+%28OS+Error%3A+No+such+file+or+directory%2C+errno+%3D+2%29\r\n\r\nTo report your crash to the Flutter team, first read the guide to filing a bug.\r\nhttps://flutter.dev/docs/resources/bug-reports                          \r\n\r\nCreate a new GitHub issue by pasting this link into your browser and completing the issue template.\r\nThank you!\r\nhttps://git.io/JLxA2                                                    \r\n\r\nWaiting for connection from debug service on Chrome...\r\n```\r\n\r\n</details>\r\n\r\nThe cause is that  [dart-sdk-linux-arm64.zip](https://storage.googleapis.com/flutter_infra/flutter/1eb28331ba6d3abcc83867ab11e2a38ff87f2067/dart-sdk-linux-arm64.zip) does not contain the files under the `dev_compiler` directory. In addition, the dart-sdk for Linux arm64 in [Dart SDK archive](https://dart.dev/tools/sdk/archive) also does not contain these files. On the other hand, [dart-sdk-linux-x64.zip](https://storage.googleapis.com/flutter_infra/flutter/1eb28331ba6d3abcc83867ab11e2a38ff87f2067/dart-sdk-linux-x64.zip) contains these files.\r\n\r\nIt seems to be included only for x64 architectures and I think this is a dart-sdk issue. https://github.com/dart-lang/sdk/issues/39312\r\n\r\nFor the moment, I copied the files contained in `dart-sdk-linux-x64.zip` to the local cache and I confirmed that a sample app works onRaspberry Pi4.",
+    "createdAt": "2021-01-08T06:08:44Z"
+  },
+  {
+    "id": 6273,
+    "sender": "christopherfujino",
+    "content": "> Thank you for your comments.\r\n> \r\n> @christopherfujino\r\n> I tried to run Flutter for web on Raspberry Pi4 with Chromium. But I got the following error.\r\n> \r\n> ```\r\n> Oops; flutter has exited unexpectedly: \"FileSystemException: Cannot open file, path =\r\n> '/home/hidenori/workspace/flutter/bin/cache/dart-sdk/lib/dev_compiler/kernel/amd/require.js' (OS Error:\r\n> No such file or directory, errno = 2)\".\r\n> ```\r\n> \r\n> Detailed log\r\n> The cause is that [dart-sdk-linux-arm64.zip](https://storage.googleapis.com/flutter_infra/flutter/1eb28331ba6d3abcc83867ab11e2a38ff87f2067/dart-sdk-linux-arm64.zip) does not contain the files under the `dev_compiler` directory. In addition, the dart-sdk for Linux arm64 in [Dart SDK archive](https://dart.dev/tools/sdk/archive) also does not contain these files. On the other hand, [dart-sdk-linux-x64.zip](https://storage.googleapis.com/flutter_infra/flutter/1eb28331ba6d3abcc83867ab11e2a38ff87f2067/dart-sdk-linux-x64.zip) contains these files.\r\n> \r\n> It seems to be included only for x64 architectures and I think this is a dart-sdk issue. [dart-lang/sdk#39312](https://github.com/dart-lang/sdk/issues/39312)\r\n> \r\n> For the moment, I copied the files contained in `dart-sdk-linux-x64.zip` to the local cache and I confirmed that a sample app works onRaspberry Pi4.\r\n\r\nThanks for investigating. We'll have to either upstream the fix, or apply a hack in the tool...\r\n\r\nFor posterity, this is the tracking issue https://github.com/dart-lang/sdk/issues/43776",
+    "createdAt": "2021-01-08T22:28:03Z"
+  },
+  {
+    "id": 6274,
+    "sender": "jonahwilliams",
+    "content": "Getting web working on arm64 linux seems like a nice-to-have for now.",
+    "createdAt": "2021-01-08T22:31:21Z"
+  },
+  {
+    "id": 6275,
+    "sender": "christopherfujino",
+    "content": "> Getting web working on arm64 linux seems like a nice-to-have for now.\r\n\r\nAgreed, I'm just wondering how to land this PR. Is it ok to have the tool fail with a filesystem exception when trying to cache the web sdk?",
+    "createdAt": "2021-01-08T22:32:32Z"
+  },
+  {
+    "id": 6276,
+    "sender": "jonahwilliams",
+    "content": "no, but the tool should know its running in arm64 and not try to cache it. Running specifically on web could fail with a runtime exception for now.",
+    "createdAt": "2021-01-08T22:33:52Z"
+  },
+  {
+    "id": 6277,
+    "sender": "christopherfujino",
+    "content": "> no, but the tool should know its running in arm64 and not try to cache it. Running specifically on web could fail with a runtime exception for now.\r\n\r\nSGTM, with a TODO linking to https://github.com/dart-lang/sdk/issues/43776",
+    "createdAt": "2021-01-08T22:42:21Z"
+  },
+  {
+    "id": 6278,
+    "sender": "saurik",
+    "content": "> Getting web working on arm64 linux seems like a nice-to-have for now.\r\n\r\nFWIW, just to provide some feedback on interest: I have been eagerly tracking this issue all week specifically because I want to be doing Flutter Web builds on ARM. I have been wanting to use cheaper ARM servers for deployment of my web sites and use cheaper ARM machines for my parallel CI on deployment and build, and even have a specific driving use case this week building a web interface on some ARM routers--on which I have been hoping to build the code in addition to just deploy it, as they have more than enough RAM, and I imagine a lot of my downstream users will find this to be the easiest way to prove the binary reproduction--and I couldn't honestly care less about native app stuff working on Linux ARM hosts as it isn't like I really ever see ARM machines locally / in real life that are running Linux (so discounting the Surface or an new Apple MacBook) except for the occasional Raspberry Pi attached to a monitor temporarily.\r\n\r\nRegardless, I am definitely excited to see progress is at least being made on this front!",
+    "createdAt": "2021-01-09T00:11:51Z"
+  },
+  {
+    "id": 6279,
+    "sender": "HidenoriMatsubayashi",
+    "content": "I see. Anyway, can I request a review after fixing the remaining test/CI errors and confirming the operation of Flutter Linux desktop app on arm64. It is ok for me to merge this PR after the web issue will be resolved.",
+    "createdAt": "2021-01-09T00:12:06Z"
+  },
+  {
+    "id": 6280,
+    "sender": "christopherfujino",
+    "content": "> I see. Anyway, can I request a review after fixing the remaining test/CI errors and confirming the operation of Flutter Linux desktop app on arm64. It is ok for me to merge this PR after the web issue will be resolved.\r\n\r\nLet me know when you want me to review. My recipe PR to add the gtk artifacts is blocked at the moment, however on a failure I'm not sure how to fix: https://flutter-review.googlesource.com/c/recipes/+/9640",
+    "createdAt": "2021-01-09T00:15:29Z"
+  },
+  {
+    "id": 6281,
+    "sender": "christopherfujino",
+    "content": "> > Getting web working on arm64 linux seems like a nice-to-have for now.\r\n> \r\n> FWIW, just to provide some feedback on interest\r\n\r\nAcknowledged. However, just getting linux host support has been a lot of work (look at the size of this PR). I am not saying that it isn't important to support it, but that the lack of support for it should not block this PR.\r\n\r\nIt looks like the dart2js issue is going to be fixed upstream, and when it is it should be a fairly easy fix to support it in the tool.",
+    "createdAt": "2021-01-09T01:22:31Z"
+  },
+  {
+    "id": 6282,
+    "sender": "christopherfujino",
+    "content": "The last engine build successfully uploaded the linux arm desktop artifacts, so once that rolls to the framework, this PR should be unblocked:\r\n\r\nhttps://ci.chromium.org/p/flutter/builders/prod/Linux%20Arm%20Host%20Engine/182\r\n\r\nat this commit: https://github.com/flutter/engine/commit/3073402ae484487e52b8f09d04f3e1d382e697ea",
+    "createdAt": "2021-01-15T20:55:01Z"
+  },
+  {
+    "id": 6283,
+    "sender": "HidenoriMatsubayashi",
+    "content": "@christopherfujino \r\n\r\nThank you. But I got the following error message. I think that the upload destination path is wrong. Could you check it?\r\n\r\n![image](https://user-images.githubusercontent.com/62131389/104860455-11372280-596f-11eb-9ba5-f6fa0cab761e.png)\r\nhttps://ci.chromium.org/ui/p/flutter/builders/prod/Linux%20Arm%20Host%20Engine/182/steps?succeeded=true&debug=false\r\n\r\n```\r\n$ flutter run -d linux\r\nDownloading linux-arm64/linux-arm64-flutter-gtk tools...           599ms\r\nDownloading linux-arm64/linux-arm64-flutter-gtk tools...           301ms\r\nFailed to download\r\nhttps://storage.googleapis.com/flutter_infra/flutter/3073402ae484487e52b8f09d04f3e1d382e697ea/l\r\ninux-arm64/linux-arm64-flutter-gtk.zip. Ensure you have network connectivity and then try\r\nagain.\r\nException: 404\r\n```",
+    "createdAt": "2021-01-18T00:29:32Z"
+  },
+  {
+    "id": 6284,
+    "sender": "christopherfujino",
+    "content": "> @christopherfujino\r\n> \r\n> Thank you. But I got the following error message. I think that the upload destination path is wrong. Could you check it?\r\n> \r\n> ![image](https://user-images.githubusercontent.com/62131389/104860455-11372280-596f-11eb-9ba5-f6fa0cab761e.png)\r\n> https://ci.chromium.org/ui/p/flutter/builders/prod/Linux%20Arm%20Host%20Engine/182/steps?succeeded=true&debug=false\r\n> \r\n> ```\r\n> $ flutter run -d linux\r\n> Downloading linux-arm64/linux-arm64-flutter-gtk tools...           599ms\r\n> Downloading linux-arm64/linux-arm64-flutter-gtk tools...           301ms\r\n> Failed to download\r\n> https://storage.googleapis.com/flutter_infra/flutter/3073402ae484487e52b8f09d04f3e1d382e697ea/l\r\n> inux-arm64/linux-arm64-flutter-gtk.zip. Ensure you have network connectivity and then try\r\n> again.\r\n> Exception: 404\r\n> ```\r\n\r\nSorry about that, I updated the recipe again. Could you try rebasing upstream?",
+    "createdAt": "2021-01-20T20:30:39Z"
+  },
+  {
+    "id": 6285,
+    "sender": "HidenoriMatsubayashi",
+    "content": "@christopherfujino\r\nSorry for the late response. I confirmed the operation on Raspberry Pi4, and there was no problems except for flutter web. The issue of dart2js on arm64 was resolved (https://github.com/dart-lang/sdk/issues/43776), so I think flutter for web on arm64 will work fine soon.\r\n\r\nBy the way, there's something I'd like to discuss. I've proposed a cross-building option like Android in [the design document](https://docs.google.com/document/d/19tzWySgtgtTA99XQsjx5Pg0SFJeZKXyUlYavR0EXv8c/edit?usp=sharing). Today, I just added the additional description about cross-building to the document. We need to add gen_snapshot for cross-building additionally into the Engine artifacts in order to add a cross-building option for arm64 targets on x64 hosts. I'm sorry for my lack of consideration. Could you see \"7. gen_snapshot for cross-building\" section in the document? I'd like to hear your opinion.",
+    "createdAt": "2021-01-26T12:08:22Z"
+  },
+  {
+    "id": 6286,
+    "sender": "christopherfujino",
+    "content": "> @christopherfujino\r\n> Sorry for the late response. I confirmed the operation on Raspberry Pi4, and there was no problems except for flutter web. The issue of dart2js on arm64 was resolved ([dart-lang/sdk#43776](https://github.com/dart-lang/sdk/issues/43776)), so I think flutter for web on arm64 will work fine soon.\r\n> \r\n> By the way, there's something I'd like to discuss. I've proposed a cross-building option like Android in [the design document](https://docs.google.com/document/d/19tzWySgtgtTA99XQsjx5Pg0SFJeZKXyUlYavR0EXv8c/edit?usp=sharing). Today, I just added the additional description about cross-building to the document. We need to add gen_snapshot for cross-building additionally into the Engine artifacts in order to add a cross-building option for arm64 targets on x64 hosts. I'm sorry for my lack of consideration. Could you see \"7. gen_snapshot for cross-building\" section in the document? I'd like to hear your opinion.\r\n\r\nI understand.\r\n\r\nWill this current PR support the development of arm64 targets from arm64 hosts? If so, I think we should merge this PR once I finish code review.\r\n\r\nI created https://github.com/flutter/flutter/issues/74928 and https://github.com/flutter/flutter/issues/74929 to track building and caching additional binaries to unblock Linux arm64 host/web target and Linux x64 host/Linux arm64 target respectively.\r\n\r\nだいじょうぶですか?",
+    "createdAt": "2021-01-28T21:01:27Z"
+  },
+  {
+    "id": 6287,
+    "sender": "HidenoriMatsubayashi",
+    "content": "@christopherfujino \r\n\r\nありがとう。日本語は出来ますか？ / Thank you. Can you speak Japanese?\r\n\r\n> Will this current PR support the development of arm64 targets from arm64 hosts?\r\n\r\nYes, of course. May I request you to review?\r\nNotes:\r\n - Flutter for web on arm64 isn't functionally disabled.\r\n - I haven't added any new unit tests for adding Linux arm64 support yet. Because I'd like you to review first if my source code modifications are appropriate.",
+    "createdAt": "2021-01-29T15:14:25Z"
+  },
+  {
+    "id": 6288,
+    "sender": "christopherfujino",
+    "content": "> ありがとう。日本語は出来ますか？ / Thank you. Can you speak Japanese?\r\n\r\nちょっと。\r\n\r\n> Yes, of course. May I request you to review?\r\n\r\nYes, I will do that now!",
+    "createdAt": "2021-01-29T18:45:28Z"
+  },
+  {
+    "id": 6289,
+    "sender": "christopherfujino",
+    "content": "First, I tested this on a raspberry pi host, and everything works great, that's really exciting!\r\n\r\nHowever, I also did a linux build from linux x64 host -> linux x64 target, and I got this warning:\r\n\r\n```\r\nCMake Warning:\r\n  Manually-specified variables were not used by the project:\r\n\r\n    FLUTTER_TARGET_PLATFORM\r\n```\r\n\r\nI think that it would be undesirable to always see this warning on otherwise good linux x64 builds.",
+    "createdAt": "2021-01-29T21:05:06Z"
+  },
+  {
+    "id": 6290,
+    "sender": "HidenoriMatsubayashi",
+    "content": "@christopherfujino \r\nThank you. I've just updated the PR. Please have a look.",
+    "createdAt": "2021-02-01T07:46:16Z"
+  },
+  {
+    "id": 6291,
+    "sender": "duskygloom",
+    "content": "> @nikiask\r\n> I'm a bit busy. But I'm still working.\r\n> \r\n> @stuartmorgan\r\n> Thank you for your reply.\r\n> \r\n> @christopherfujino\r\n> FYI. Here is the procedure for cross-build and running dart-sdk I tried. Basically cross-build procedure is as per [the official wiki](https://github.com/dart-lang/sdk/wiki/Building-Dart-SDK-for-ARM-processors).\r\n> \r\n> 1. Build dart-sdk on Host PC (Ubuntu x64)\r\n> \r\n> ```\r\n> $ mkdir dart-sdk\r\n> $ cd dart-sdk\r\n> $ git clone https://chromium.googlesource.com/chromium/tools/depot_tools.git\r\n> $ export PATH=\"$PATH:$PWD/depot_tools\"\r\n> $ fetch dart\r\n> $ cd dart\r\n> $ ./tools/build.py --no-goma -m release -a arm64\r\n> $ cd out/ReleaseXARM64/\r\n> $ tar zcf /tmp/dart-sdk.tar.gz dart-sdk\r\n> ```\r\n> \r\n> 1. run Flutte SDK on Jetson Nano (Ubuntu arm64)\r\n> \r\n> ```\r\n> $ git clone https://github.com/flutter/flutter.git\r\n> $ export PATH=$PATH:./flutter/bin\r\n> $ tar xf dart-sdk.tar.gz\r\n> ```\r\n> \r\n> Replace dart-sdk after the error.\r\n> \r\n> ```\r\n> $ flutter doctor\r\n>   build error!!\r\n> \r\n> $ rm -rf flutter/bin/cache/dart-sdk\r\n> $ cp -rf dart-sdk flutter/bin/cache\r\n> ```\r\n> \r\n> ```\r\n> $ flutter doctor\r\n> Building flutter tool...\r\n> \r\n>   ╔════════════════════════════════════════════════════════════════════════════╗\r\n>   ║                 Welcome to Flutter! - https://flutter.dev                  ║\r\n>   ║                                                                            ║\r\n>   ║ The Flutter tool uses Google Analytics to anonymously report feature usage ║\r\n>   ║ statistics and basic crash reports. This data is used to help improve      ║\r\n>   ║ Flutter tools over time.                                                   ║\r\n>   ║                                                                            ║\r\n>   ║ Flutter tool analytics are not sent on the very first run. To disable      ║\r\n>   ║ reporting, type 'flutter config --no-analytics'. To display the current    ║\r\n>   ║ setting, type 'flutter config'. If you opt out of analytics, an opt-out    ║\r\n>   ║ event will be sent, and then no further information will be sent by the    ║\r\n>   ║ Flutter tool.                                                              ║\r\n>   ║                                                                            ║\r\n>   ║ By downloading the Flutter SDK, you agree to the Google Terms of Service.  ║\r\n>   ║ Note: The Google Privacy Policy describes how data is handled in this      ║\r\n>   ║ service.                                                                   ║\r\n>   ║                                                                            ║\r\n>   ║ Moreover, Flutter includes the Dart SDK, which may send usage metrics and  ║\r\n>   ║ crash reports to Google.                                                   ║\r\n>   ║                                                                            ║\r\n>   ║ Read about data we send with crash reports:                                ║\r\n>   ║ https://flutter.dev/docs/reference/crash-reporting                         ║\r\n>   ║                                                                            ║\r\n>   ║ See Google's privacy policy:                                               ║\r\n>   ║ https://policies.google.com/privacy                                        ║\r\n>   ╚════════════════════════════════════════════════════════════════════════════╝\r\n> \r\n> \r\n> Downloading Material fonts...                                       1.3s\r\n> Downloading Gradle Wrapper...                                       0.2s\r\n> Downloading package sky_engine...                                   0.5s\r\n> Downloading flutter_patched_sdk tools...                            1.5s\r\n> Downloading flutter_patched_sdk_product tools...                    1.3s\r\n> Downloading linux-x64 tools...                                      2.4s\r\n> Downloading linux-x64/font-subset tools...                          0.6s\r\n> Downloading android-arm-profile/linux-x64 tools...                  0.6s\r\n> Downloading android-arm-release/linux-x64 tools...                  0.6s\r\n> Downloading android-arm64-profile/linux-x64 tools...                0.7s\r\n> Downloading android-arm64-release/linux-x64 tools...                0.6s\r\n> Downloading android-x64-profile/linux-x64 tools...                  0.6s\r\n> Downloading android-x64-release/linux-x64 tools...                  0.6s\r\n> Doctor summary (to see all details, run flutter doctor -v):\r\n> [!] Flutter (Channel master, 1.21.0-6.0.pre.129, on Linux, locale en_US.UTF-8)\r\n>     ✗ Downloaded executables cannot execute on host.\r\n>       See https://github.com/flutter/flutter/issues/6207 for more information\r\n>       On Debian/Ubuntu/Mint: sudo apt-get install lib32stdc++6\r\n>       On Fedora: dnf install libstdc++.i686\r\n>       On Arch: pacman -S lib32-gcc-libs\r\n> \r\n> [✗] Android toolchain - develop for Android devices\r\n>     ✗ Unable to locate Android SDK.\r\n>       Install Android Studio from: https://developer.android.com/studio/index.html\r\n>       On first launch it will assist you in installing the Android SDK components.\r\n>       (or visit https://flutter.dev/docs/get-started/install/linux#android-setup for detailed instructions).\r\n>       If the Android SDK has been installed to a custom location, set ANDROID_SDK_ROOT to that location.\r\n>       You may also want to add it to your PATH environment variable.\r\n> \r\n> [!] Android Studio (not installed)\r\n> [!] Connected device\r\n>     ! No devices available\r\n> \r\n> ! Doctor found issues in 4 categories.\r\n> ```\r\n\r\nThis is the exact place where I'm stuck at... I replaced the default dart-sdk with the dark-sdk for arm64. But then what about the executables? Can I program in vscode without the executables?",
+    "createdAt": "2021-02-05T12:41:35Z"
+  },
+  {
+    "id": 6292,
+    "sender": "christopherfujino",
+    "content": "@HidenoriMatsubayashi if you add unit tests for Linux arm64 support @jonahwilliams and I will give a final review. I think we are almost there!",
+    "createdAt": "2021-02-05T21:20:26Z"
+  },
+  {
+    "id": 6293,
+    "sender": "HidenoriMatsubayashi",
+    "content": "@christopherfujino @jonahwilliams \r\n> if you add unit tests for Linux arm64 support\r\n\r\nYes, I'll do that as soon as the beginning of next week. Wait a moment please.",
+    "createdAt": "2021-02-05T22:43:42Z"
+  },
+  {
+    "id": 6294,
+    "sender": "HidenoriMatsubayashi",
+    "content": "@jonahwilliams @christopherfujino \r\nI added the unit tests. May I ask you to review again?\r\nNote that cross-building for arm64 on x64 doesn't work yet. After this PR, I will work on https://github.com/flutter/flutter/issues/74929 in cooperation with @christopherfujino :)",
+    "createdAt": "2021-02-09T02:32:44Z"
+  },
+  {
+    "id": 6295,
+    "sender": "flukejones",
+    "content": "@HidenoriMatsubayashi is the work you're doing also able to be used for ARM (32bit)?",
+    "createdAt": "2021-02-10T21:14:27Z"
+  },
+  {
+    "id": 6296,
+    "sender": "HidenoriMatsubayashi",
+    "content": "@flukejones \r\nNo, this PR doesn't support ARMv7 (32bit, armhf). This PR only focus ARMv8 (64bit, aarch64).",
+    "createdAt": "2021-02-11T00:07:06Z"
+  },
+  {
+    "id": 6297,
+    "sender": "flukejones",
+    "content": "@HidenoriMatsubayashi would it be very hard at all for you to add the required parts to support ARMv7? I would be willing to share some of the burden but that means I'm switching to an unfamiliar domain.",
+    "createdAt": "2021-02-11T00:11:38Z"
+  },
+  {
+    "id": 6298,
+    "sender": "HidenoriMatsubayashi",
+    "content": "In my opinion, I don't think it' hard. However, I have no authority to decide to do that (We can propose additional ARM 32bit support). In addition, I think currently most of the actual products that run Linux are ARM 64bit. Naturally, there are also ARM 32bit Linux systems.",
+    "createdAt": "2021-02-11T00:30:34Z"
+  },
+  {
+    "id": 6299,
+    "sender": "flukejones",
+    "content": "I think it would be a good idea to include ARMv7 support at the same time. Currently the changes being introduced or merged so far break existing 32bit builds. I can test this as I am trying to get a flutter build layer running for yocto linux on an stm32mp1 dev board.",
+    "createdAt": "2021-02-11T01:56:58Z"
+  },
+  {
+    "id": 6300,
+    "sender": "jonahwilliams",
+    "content": "Building the artifacts for a new platform is a substantial effort. The cost for doing so should be discussed in a new issue and not done as a part of this PR.\r\n\r\nWhat workflows do these changes break? We don't currently support 32bit arm as either a host or target platform on Linux, but if something was working by accident before that would be great to know.",
+    "createdAt": "2021-02-11T02:16:47Z"
+  },
+  {
+    "id": 6301,
+    "sender": "flukejones",
+    "content": "@jonahwilliams I mention it here because these changes touch much of what is required for 32bit support and it would be good to have these changes allow for adding 32bit instead of assuming it will never be used. There are a number of issues that I've tracked down:\r\n- https://github.com/flutter/flutter/issues/74322\r\n- [maintainer of meta-flutter for yocto, used with stm32mp1](https://github.com/flutter/flutter/issues/56213)\r\n- [flutter-rs engine builds needed to be disabled](https://github.com/flutter-rs/engine-builds)\r\n- [article where ARM was used, no-longer working](https://blog.basyskom.com/2020/how-to-run-flutter-on-an-embedded-device/)\r\n\r\nI will create an issue to track this.",
+    "createdAt": "2021-02-11T02:23:43Z"
+  },
+  {
+    "id": 6302,
+    "sender": "HidenoriMatsubayashi",
+    "content": "@jonahwilliams (cc: @christopherfujino)\r\nI fixed all unit tests that were pointed out. In addition, I refactored [packages/flutter_tools/lib/src/build_system/targets/linux.dart ](https://github.com/flutter/flutter/pull/61221/commits/d11dc9330969997f235b30492ddba13adfd0261a) a little.",
+    "createdAt": "2021-02-11T04:55:55Z"
+  },
+  {
+    "id": 6303,
+    "sender": "camsim99",
+    "content": "## Add Spell Check to EditableText\n\nThis PR is intended to add the APIs used to support spell check for `EditableText`, as part of Issue [#34688](https://github.com/flutter/flutter/issues/34688).\r\n\r\nTo understand this PR in fuller context, please see [this proof of concept PR](https://github.com/flutter/flutter/pull/96629). Note that this PR will not be landed on its own.\r\n\r\n## Pre-launch Checklist\r\n\r\n- [x] I read the [Contributor Guide] and followed the process outlined there for submitting PRs.\r\n- [x] I read the [Tree Hygiene] wiki page, which explains my responsibilities.\r\n- [x] I read and followed the [Flutter Style Guide], including [Features we expect every widget to implement].\r\n- [x] I signed the [CLA].\r\n- [x] I listed at least one issue that this PR fixes in the description above.\r\n- [x] I updated/added relevant documentation (doc comments with `///`).\r\n- [ ] I added new tests to check the change I am making, or this PR is [test-exempt].\r\n- [x] All existing and new tests are passing.\r\n\r\nIf you need help, consider asking for advice on the #hackers-new channel on [Discord].\r\n\r\n<!-- Links -->\r\n[Contributor Guide]: https://github.com/flutter/flutter/wiki/Tree-hygiene#overview\r\n[Tree Hygiene]: https://github.com/flutter/flutter/wiki/Tree-hygiene\r\n[test-exempt]: https://github.com/flutter/flutter/wiki/Tree-hygiene#tests\r\n[Flutter Style Guide]: https://github.com/flutter/flutter/wiki/Style-guide-for-Flutter-repo\r\n[Features we expect every widget to implement]: https://github.com/flutter/flutter/wiki/Style-guide-for-Flutter-repo#features-we-expect-every-widget-to-implement\r\n[CLA]: https://cla.developers.google.com/\r\n[flutter/tests]: https://github.com/flutter/tests\r\n[breaking change policy]: https://github.com/flutter/flutter/wiki/Tree-hygiene#handling-breaking-changes\r\n[Discord]: https://github.com/flutter/flutter/wiki/Chat\r",
+    "createdAt": "2022-05-23T23:49:16Z"
+  },
+  {
+    "id": 6304,
+    "sender": "sarbagyastha",
+    "content": "## Added properties in DropdownButtonFormField to match DropdownButton\n\n## Description\r\n\r\n- Added properties available in **_DropdownButton_** to **_DropdownButtonFormField_**. \r\n- Added dart docs for each properties of DropdownFormField.\r\n\r\n This PR also solves the problem where DropdownButtonFormField overflows when **_DropdownMenuItem_**'s child is larger than the viewport as shown below:\r\n\r\n### Before\r\n![Before](https://user-images.githubusercontent.com/9782008/61933023-8efdb600-afa4-11e9-8946-5d22bc55cbf4.png)\r\n```Dart\r\nDropdownButtonFormField(\r\n              value: _selectedCompany,\r\n              hint: Text('Select a company'),\r\n              onChanged: (value) => setState(\r\n                () => _selectedCompany = value,\r\n              ),\r\n              items: [\r\n                'ADBL (Agriculture Development Bank Limited)',\r\n                'CORBL (Corporate Development Bank Limited)',\r\n                'GMFIL (Guheshowori Merchant Bank & Finance Co. Ltd.)',\r\n              ]\r\n                  .map(\r\n                    (company) => DropdownMenuItem(\r\n                      value: company,\r\n                      child: Text(company),\r\n                    ),\r\n                  )\r\n                  .toList(),\r\n            ),\r\n```\r\n\r\n### After\r\n![After](https://user-images.githubusercontent.com/9782008/61933057-a2108600-afa4-11e9-9ff8-740f49e6c798.png)\r\n```Dart\r\nDropdownButtonFormField(\r\n              isExpanded: true,\r\n              isDense: true,\r\n              icon: Icon(Icons.ac_unit),\r\n              style: TextStyle(color: Colors.blue),\r\n              elevation: 24,\r\n              autovalidate: true,\r\n              value: _selectedCompany,\r\n              hint: Text('Select a company'),\r\n              onChanged: (value) => setState(\r\n                () => _selectedCompany = value,\r\n              ),\r\n              items: [\r\n                'ADBL (Agriculture Development Bank Limited)',\r\n                'CORBL (Corporate Development Bank Limited)',\r\n                'GMFIL (Guheshowori Merchant Bank & Finance Co. Ltd.)',\r\n              ]\r\n                  .map(\r\n                    (company) => DropdownMenuItem(\r\n                      value: company,\r\n                      child: Text(company),\r\n                    ),\r\n                  )\r\n                  .toList(),\r\n            ),\r\n```\r\n\r\n\r\n## Tests\r\n\r\nI added the following tests:\r\n- _autoValidate_ test in dropdown_test.dart\r\n- Tests for other changes are covered by DropdownButton's test itself.\r\n\r\n## Checklist\r\n\r\nBefore you create this PR confirm that it meets all requirements listed below by checking the relevant checkboxes (`[x]`). This will ensure a smooth and quick review process.\r\n\r\n- [x] I read the [Contributor Guide] and followed the process outlined there for submitting PRs.\r\n- [x] I signed the [CLA].\r\n- [x] I read and followed the [Flutter Style Guide], including [Features we expect every widget to implement].\r\n- [x] I updated/added relevant documentation (doc comments with `///`).\r\n- [x] All existing and new tests are passing.\r\n- [x] The analyzer (`flutter analyze --flutter-repo`) does not report any problems on my PR.\r\n- [x] I am willing to follow-up on review comments in a timely manner.\r\n\r\n## Breaking Change\r\n\r\nDoes your PR require Flutter developers to manually update their apps to accommodate your change?\r\n\r\n- [ ] Yes, this is a breaking change (Please read [Handling breaking changes]). *Replace this with a link to the e-mail where you asked for input on this proposed change.*\r\n- [x] No, this is *not* a breaking change.\r\n\r",
+    "createdAt": "2019-07-26T07:20:58Z"
+  },
+  {
+    "id": 6305,
+    "sender": "sarbagyastha",
+    "content": "@googlebot CLA checked.",
+    "createdAt": "2019-07-26T15:08:06Z"
+  },
+  {
+    "id": 6306,
+    "sender": "sarbagyastha",
+    "content": "@shihaohong I have already added dart docs for isExpanded and isDense. Since DropdownButtonFormField is actually wrapping DropdownButton, so the test for DropdownButton should cover DropdownButtonFormField too as all those newly added properties are actually passed into inner DropdownButton.",
+    "createdAt": "2019-07-30T03:21:54Z"
+  },
+  {
+    "id": 6307,
+    "sender": "shihaohong",
+    "content": "@sarbagyastha Right, but let's say I forget to pass down `isDense` to `DropdownButton` in the `DropdownFormField` implementation, aka a future developer accidentally removes your line that passes it down into `DropdownButton`. Then, even though I'm correctly calling: \r\n```\r\nDrowdownFormField(\r\n  ...\r\n  isDense: true\r\n  ...\r\n),\r\n```\r\nthe result is a non-dense widget. It's still appropriate to include tests for `DropdownButtonFormField` for the new parameters you've introduced.",
+    "createdAt": "2019-07-30T03:50:06Z"
+  },
+  {
+    "id": 6308,
+    "sender": "sarbagyastha",
+    "content": "@shihaohong Added tests for isExpanded and isDense. ",
+    "createdAt": "2019-07-30T13:20:16Z"
+  },
+  {
+    "id": 6309,
+    "sender": "sarbagyastha",
+    "content": "@shihaohong Added more tests and formatted as you suggested.",
+    "createdAt": "2019-07-31T03:24:21Z"
+  },
+  {
+    "id": 6310,
+    "sender": "sarbagyastha",
+    "content": "@shihaohong couldn't write test for elevation. Since the elevation is actually a BoxShadow painted using BoxPainter. I couldn't find which RenderObject to test. ",
+    "createdAt": "2019-08-01T11:53:40Z"
+  },
+  {
+    "id": 6311,
+    "sender": "shihaohong",
+    "content": "@sarbagyastha If you look at `/packages/flutter/test/material/chip_test.dart`, there are examples of elevation tests in there. See the test \"Chip elevation and shadow color work correctly\".",
+    "createdAt": "2019-08-01T15:57:59Z"
+  },
+  {
+    "id": 6312,
+    "sender": "sarbagyastha",
+    "content": "@shihaohong the elevation used there is different from the one in this PR. In chip_test, it was actually a material widget so finding Material was not a problem. But in dropdownbutton, It's using integer elevation which is being mapped into BoxShadows(using [kElevationToShadow](https://api.flutter.dev/flutter/material/kElevationToShadow-constant.html)) and is implemented using BoxPainter. :confused: ",
+    "createdAt": "2019-08-01T16:38:04Z"
+  },
+  {
+    "id": 6313,
+    "sender": "sarbagyastha",
+    "content": "@shihaohong What shall i do now? I guess we can skip the test for elevation. ",
+    "createdAt": "2019-08-02T05:00:37Z"
+  },
+  {
+    "id": 6314,
+    "sender": "shihaohong",
+    "content": "I think @HansMuller might have a pointer for how to test for elevation",
+    "createdAt": "2019-08-02T05:25:32Z"
+  },
+  {
+    "id": 6315,
+    "sender": "HansMuller",
+    "content": "It's a little tricky, but you can verify that the menu is painting a shadow. Here's an example of doing this: https://github.com/flutter/flutter/blob/master/packages/flutter/test/material/mergeable_material_test.dart#L226",
+    "createdAt": "2019-08-02T15:03:46Z"
+  },
+  {
+    "id": 6316,
+    "sender": "sarbagyastha",
+    "content": "@shihaohong  @HansMuller I tried everything but couldn't create the test for elevation. :tired_face:",
+    "createdAt": "2019-08-03T02:55:03Z"
+  },
+  {
+    "id": 6317,
+    "sender": "shihaohong",
+    "content": "@sarbagyastha What seems to be the blocker? What happens when you try to implement it in a similar way with the example that Hans provided?",
+    "createdAt": "2019-08-06T05:26:14Z"
+  },
+  {
+    "id": 6318,
+    "sender": "sarbagyastha",
+    "content": "@shihaohong couldn't get how rrect boundaries could be defined. ",
+    "createdAt": "2019-08-06T05:32:11Z"
+  },
+  {
+    "id": 6319,
+    "sender": "shihaohong",
+    "content": "I'll try to see if I can come up with something in the next day! In the meantime, you can continue trying to get something working :) ",
+    "createdAt": "2019-08-07T17:05:54Z"
+  },
+  {
+    "id": 6320,
+    "sender": "shihaohong",
+    "content": "I figured out how to do it:\r\n```\r\n  testWidgets('Dropdown form field - default elevation', (WidgetTester tester) async {\r\n    final Key buttonKey = UniqueKey();\r\n    debugDisableShadows = false;\r\n    await tester.pumpWidget(buildFormFrame(\r\n      buttonKey: buttonKey,\r\n      items: menuItems,\r\n    ));\r\n    await tester.tap(find.byKey(buttonKey));\r\n    await tester.pumpAndSettle();\r\n\r\n    final BoxShadow boxShadowOne = kElevationToShadow[8][0];\r\n    final BoxShadow boxShadowTwo = kElevationToShadow[8][1];\r\n    final BoxShadow boxShadowThree = kElevationToShadow[8][2];\r\n\r\n    const Rect originalRectangle = Rect.fromLTRB(0.0, 0.0, 800, 208.0);\r\n    final RRect rrectOne = RRect.fromRectAndRadius(\r\n      originalRectangle.shift(\r\n        boxShadowOne.offset\r\n      ).inflate(boxShadowOne.spreadRadius),\r\n      const Radius.circular(2.0),\r\n    );\r\n    final RRect rrectTwo = RRect.fromRectAndRadius(\r\n      originalRectangle.shift(\r\n        boxShadowTwo.offset\r\n      ).inflate(boxShadowTwo.spreadRadius),\r\n      const Radius.circular(2.0),\r\n    );\r\n    final RRect rrectThree = RRect.fromRectAndRadius(\r\n      originalRectangle.shift(\r\n        boxShadowThree.offset\r\n      ).inflate(boxShadowThree.spreadRadius),\r\n      const Radius.circular(2.0),\r\n    );\r\n\r\n    final Finder customPaint = find.ancestor(\r\n      of: find.text('one').last,\r\n      matching: find.byType(CustomPaint),\r\n    ).last;\r\n\r\n    expect(\r\n      customPaint,\r\n      paints\r\n        ..save()\r\n        ..rrect(rrect: rrectOne, color: boxShadowOne.color, hasMaskFilter: true)\r\n        ..rrect(rrect: rrectTwo, color: boxShadowTwo.color, hasMaskFilter: true)\r\n        ..rrect(rrect: rrectThree, color: boxShadowThree.color, hasMaskFilter: true),\r\n    );\r\n    debugDisableShadows = true;\r\n  });\r\n```\r\n\r\nPlease make a test for custom elevation as well. If you can, see if you can simplify the logic as well.",
+    "createdAt": "2019-08-09T04:15:32Z"
+  },
+  {
+    "id": 6321,
+    "sender": "sarbagyastha",
+    "content": "Great @shihaohong ! Added tests for default and custom elevations.",
+    "createdAt": "2019-08-09T10:40:50Z"
+  },
+  {
+    "id": 6322,
+    "sender": "sarbagyastha",
+    "content": "@shihaohong Thanks to you too for coming up with the tests and guiding. I got to learn a lot regrading tests and style guides",
+    "createdAt": "2019-08-09T16:27:19Z"
+  },
+  {
+    "id": 6323,
+    "sender": "sarbagyastha",
+    "content": "@shihaohong I guess it's ready to get merged now.",
+    "createdAt": "2019-08-12T11:40:24Z"
+  },
+  {
+    "id": 6324,
+    "sender": "sarbagyastha",
+    "content": "@shihaohong @HansMuller What shall be done next?",
+    "createdAt": "2019-08-16T06:21:47Z"
+  },
+  {
+    "id": 6325,
+    "sender": "shihaohong",
+    "content": "@sarbagyastha This looks fine to me, but let's wait until @HansMuller finishes his review. He should be back at the start of next week :) ",
+    "createdAt": "2019-08-16T15:48:25Z"
+  },
+  {
+    "id": 6326,
+    "sender": "sarbagyastha",
+    "content": "@HansMuller ",
+    "createdAt": "2019-08-26T00:31:49Z"
+  },
+  {
+    "id": 6327,
+    "sender": "sarbagyastha",
+    "content": "@HansMuller Cloud you please review the changes. 😁",
+    "createdAt": "2019-08-30T01:48:22Z"
+  },
+  {
+    "id": 6328,
+    "sender": "HansMuller",
+    "content": "The changes LGTM. We should be able to land this when the build is green.",
+    "createdAt": "2019-09-09T17:06:55Z"
+  },
+  {
+    "id": 6329,
+    "sender": "jakobwgnr",
+    "content": "## Enable \"hot reload\" (not just \"hot restart\") for Flutter Web\n\nLatest update: https://github.com/flutter/flutter/issues/53041#issuecomment-1367615679\r\n\r\n----\r\n\r\nHello! \r\nTrying the web development currently in beta version. actually quite satisfied as the browser reloads very quick. Only annoying thing is that the hot restart doesn't work properly, imho.\r\nPlease check on this.\r\nBest Regards,\r\nJakob\r\nP.S.: Hope this is enough information - First time opening an issue here :)\r\n\r\n# Steps to Reproduce\r\n\r\n1. Setup flutter project for web development\r\n2. Run `flutter run -d Chrome`\r\n3. Navigate to a view != main view\r\n4. hot restart (small 'r') without browser refresh (like it should do with capital 'R')\r\n\r\n**Expected results:** \r\nBrowser should reload, but stay on the same view\r\n\r\n**Actual results:** \r\nBrowser fully restarts the app --> Again at the main view",
+    "createdAt": "2020-03-22T09:27:31Z"
+  },
+  {
+    "id": 6330,
+    "sender": "jakobwgnr",
+    "content": "not 100% sure if this is a similar issue like #50517, though...",
+    "createdAt": "2020-03-22T09:28:03Z"
+  },
+  {
+    "id": 6331,
+    "sender": "jonahwilliams",
+    "content": "Do you mean the entire browser is doing a hard refresh? or that it is doing a hot restart?\r\n\r\nSee https://flutter.dev/docs/development/platform-integration/web#does-hot-reload-work-with-a-web-app ",
+    "createdAt": "2020-03-22T16:56:49Z"
+  },
+  {
+    "id": 6332,
+    "sender": "jakobwgnr",
+    "content": "Hi @jonahwilliams \r\nit does a hot restart, what I wanted to have is hot reload... I was quite confused on how this is explained in the CLI.\r\n![image](https://user-images.githubusercontent.com/18501893/77300488-64f4c300-6cee-11ea-9bc1-f8be1a0c7043.png)\r\nSo the simple \"No.\" in the FAQ is actually the answer for my problem.\r\n\r\nMay I turn this into a feature-request either to:\r\nsupport hot reload for web (preferred) \r\nOR \r\nto add an info in the CLI for web that 'r' and 'R' are actually doing the same, as this is not the case right now.\r\n\r\n",
+    "createdAt": "2020-03-23T09:16:47Z"
+  },
+  {
+    "id": 6333,
+    "sender": "iapicca",
+    "content": "https://github.com/flutter/flutter/issues/50517",
+    "createdAt": "2020-03-23T11:52:06Z"
+  },
+  {
+    "id": 6334,
+    "sender": "yjbanov",
+    "content": "The full stateful hot-reload is not yet supported on the web. The app's state is lost between hot restarts. The reason you end up on another route could be a navigator bug. /cc @mdebbar ",
+    "createdAt": "2020-03-26T22:00:06Z"
+  },
+  {
+    "id": 6335,
+    "sender": "mdebbar",
+    "content": "I see no mention of routes or urls in the issue.\r\n\r\nLike @yjbanov said, we don't yet support stateful hot reload on the web. We only do hot restart (which loses state as you described), but we do keep url. Try using a `Navigator` with named routes. Once you navigate to a named route, you can do a hot restart and you'll stay on the same page.",
+    "createdAt": "2020-03-26T23:04:58Z"
+  }
+]

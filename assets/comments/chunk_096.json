@@ -1,0 +1,386 @@
+[
+  {
+    "id": 6144,
+    "sender": "danagbemava-nc",
+    "content": "The issue is reproducible on the latest version of `webview_flutter: ^2.0.10` with the latest `master 2.5.0-6.0.pre.21` and `stable 2.2.3`.\r\n\r\n<details>\r\n<summary>flutter doctor -v</summary>\r\n\r\n```\r\n[✓] Flutter (Channel master, 2.5.0-6.0.pre.21, on macOS 11.5.1 20G80 darwin-arm, locale en-GH)\r\n    • Flutter version 2.5.0-6.0.pre.21 at /Users/nexus/dev/sdks/flutters\r\n    • Upstream repository https://github.com/flutter/flutter.git\r\n    • Framework revision 40e8620a27 (5 hours ago), 2021-08-06 09:14:50 +0430\r\n    • Engine revision 431ac604da\r\n    • Dart version 2.14.0 (build 2.14.0-383.0.dev)\r\n\r\n[✓] Android toolchain - develop for Android devices (Android SDK version 31.0.0)\r\n    • Android SDK at /Users/nexus/Library/Android/sdk\r\n    • Platform android-31, build-tools 31.0.0\r\n    • Java binary at: /Applications/Android Studio.app/Contents/jre/Contents/Home/bin/java\r\n    • Java version OpenJDK Runtime Environment (build 11.0.10+0-b96-7249189)\r\n    • All Android licenses accepted.\r\n\r\n[✓] Xcode - develop for iOS and macOS\r\n    • Xcode at /Applications/Xcode.app/Contents/Developer\r\n    • Xcode 12.5.1, Build version 12E507\r\n    • CocoaPods version 1.10.2\r\n\r\n[✓] Chrome - develop for the web\r\n    • Chrome at /Applications/Google Chrome.app/Contents/MacOS/Google Chrome\r\n\r\n[✓] Android Studio (version 2020.3)\r\n    • Android Studio at /Applications/Android Studio.app/Contents\r\n    • Flutter plugin can be installed from:\r\n      🔨 https://plugins.jetbrains.com/plugin/9212-flutter\r\n    • Dart plugin can be installed from:\r\n      🔨 https://plugins.jetbrains.com/plugin/6351-dart\r\n    • Java version OpenJDK Runtime Environment (build 11.0.10+0-b96-7249189)\r\n\r\n[✓] VS Code (version 1.58.2)\r\n    • VS Code at /Applications/Visual Studio Code.app/Contents\r\n    • Flutter extension version 3.24.0\r\n\r\n[✓] Connected device (3 available)\r\n    • sdk gphone64 arm64 (mobile) • emulator-5554                        • android-arm64  • Android\r\n      12 (API 31) (emulator)\r\n    • iPhone 12 (mobile)          • F2592D43-5FE3-46BB-8A2B-A38BA468DCE9 • ios            •\r\n      com.apple.CoreSimulator.SimRuntime.iOS-14-5 (simulator)\r\n    • Chrome (web)                • chrome                               • web-javascript • Google\r\n      Chrome 92.0.4515.131\r\n\r\n• No issues found!\r\n```\r\n\r\n```\r\n[✓] Flutter (Channel stable, 2.2.3, on macOS 11.5.1 20G80 darwin-arm, locale en-GH)\r\n    • Flutter version 2.2.3 at /Users/nexus/dev/sdks/flutter\r\n    • Framework revision f4abaa0735 (5 weeks ago), 2021-07-01 12:46:11 -0700\r\n    • Engine revision 241c87ad80\r\n    • Dart version 2.13.4\r\n\r\n[✓] Android toolchain - develop for Android devices (Android SDK version 31.0.0)\r\n    • Android SDK at /Users/nexus/Library/Android/sdk\r\n    • Platform android-31, build-tools 31.0.0\r\n    • Java binary at: /Applications/Android Studio.app/Contents/jre/jdk/Contents/Home/bin/java\r\n    • Java version OpenJDK Runtime Environment (build 11.0.10+0-b96-7249189)\r\n    • All Android licenses accepted.\r\n\r\n[✓] Xcode - develop for iOS and macOS\r\n    • Xcode at /Applications/Xcode.app/Contents/Developer\r\n    • Xcode 12.5.1, Build version 12E507\r\n    • CocoaPods version 1.10.2\r\n\r\n[✓] Chrome - develop for the web\r\n    • Chrome at /Applications/Google Chrome.app/Contents/MacOS/Google Chrome\r\n\r\n[✓] Android Studio (version 2020.3)\r\n    • Android Studio at /Applications/Android Studio.app/Contents\r\n    • Flutter plugin can be installed from:\r\n      🔨 https://plugins.jetbrains.com/plugin/9212-flutter\r\n    • Dart plugin can be installed from:\r\n      🔨 https://plugins.jetbrains.com/plugin/6351-dart\r\n    • Java version OpenJDK Runtime Environment (build 11.0.10+0-b96-7249189)\r\n\r\n[✓] VS Code (version 1.58.2)\r\n    • VS Code at /Applications/Visual Studio Code.app/Contents\r\n    • Flutter extension version 3.24.0\r\n\r\n[✓] Connected device (3 available)\r\n    • sdk gphone64 arm64 (mobile) • emulator-5554                        • android-arm64  • Android\r\n      12 (API 31) (emulator)\r\n    • iPhone 12 (mobile)          • F2592D43-5FE3-46BB-8A2B-A38BA468DCE9 • ios            •\r\n      com.apple.CoreSimulator.SimRuntime.iOS-14-5 (simulator)\r\n    • Chrome (web)                • chrome                               • web-javascript • Google\r\n      Chrome 92.0.4515.131\r\n\r\n• No issues found!\r\n```\r\n</details> \r\n\r\n<details>\r\n<summary> code sample</summary>\r\n\r\n```dart\r\nimport 'dart:io';\r\n\r\nimport 'package:flutter/material.dart';\r\nimport 'package:webview_flutter/webview_flutter.dart';\r\n\r\nvoid main() {\r\n  runApp(const MyApp());\r\n}\r\n\r\nclass MyApp extends StatelessWidget {\r\n  const MyApp({Key? key}) : super(key: key);\r\n\r\n  @override\r\n  Widget build(BuildContext context) {\r\n    return MaterialApp(\r\n      title: 'Flutter Demo',\r\n      theme: ThemeData(\r\n        primarySwatch: Colors.blue,\r\n      ),\r\n      home: const MyHomePage(title: 'Flutter Demo Home Page'),\r\n    );\r\n  }\r\n}\r\n\r\nclass MyHomePage extends StatefulWidget {\r\n  const MyHomePage({Key? key, required this.title}) : super(key: key);\r\n\r\n  final String title;\r\n\r\n  @override\r\n  State<MyHomePage> createState() => _MyHomePageState();\r\n}\r\n\r\nclass _MyHomePageState extends State<MyHomePage> {\r\n  @override\r\n  void initState() {\r\n    super.initState();\r\n\r\n    // enable hybrid composition\r\n    if (Platform.isAndroid) WebView.platform = SurfaceAndroidWebView();\r\n  }\r\n\r\n  final String _html = \"\"\"\r\n  <!DOCTYPE html>\r\n  <html>\r\n  <head>\r\n    <meta charset=\"utf-8\">\r\n    <meta http-equiv=\"X-UA-Compatible\" content=\"IE=edge\">\r\n    <meta name=\"viewport\"\r\n        content=\"width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no\">\r\n    <title>Amaze UI</title>\r\n    <link rel=\"stylesheet\" href=\"http://cdn.amazeui.org/amazeui/2.5.0/css/amazeui.min.css\"/>\r\n  </head>\r\n  <body>\r\n    <input type=\"file\" />\r\n  <script src=\"http://code.jquery.com/jquery-2.1.4.min.js\"></script>\r\n  <script src=\"http://cdn.amazeui.org/amazeui/2.5.0/js/amazeui.min.js\"></script>\r\n  </body> \r\n  </html>\r\n  \"\"\";\r\n\r\n  @override\r\n  Widget build(BuildContext context) {\r\n    return Scaffold(\r\n      appBar: AppBar(\r\n        title: Text(widget.title),\r\n      ),\r\n      body: WebView(\r\n        initialUrl: 'flutter.dev',\r\n        onWebViewCreated: (WebViewController controller) {\r\n          controller.loadUrl(\r\n            Uri.dataFromString(_html, mimeType: 'text/html').toString(),\r\n          );\r\n        },\r\n      ),\r\n    );\r\n  }\r\n}\r\n\r\n```\r\n</details>",
+    "createdAt": "2021-08-06T09:30:34Z"
+  },
+  {
+    "id": 6145,
+    "sender": "wsmPanda",
+    "content": "It is difficult to believe, there are problem exists until now!",
+    "createdAt": "2021-09-07T09:48:31Z"
+  },
+  {
+    "id": 6146,
+    "sender": "blasten",
+    "content": "cc @bparrishMines ",
+    "createdAt": "2021-09-09T21:26:01Z"
+  },
+  {
+    "id": 6147,
+    "sender": "djks74",
+    "content": "Why this official plugin not support many thinga\\s?\r\nI confuse!  Its 2021\r\n\r\nwhy?   \r\n\r\nno file chooser and no geolocation and nothingss... :-((\r\n\r\nBut its good and stable...... but why?",
+    "createdAt": "2021-09-17T02:54:08Z"
+  },
+  {
+    "id": 6148,
+    "sender": "jam33",
+    "content": "any updates on this?  it's been open for 2.5 years.  still an issue in flutter 2.5.  Seems like there is a PR addressing this from over a year ago but it has gone nowhere.  thanks!",
+    "createdAt": "2021-10-07T11:57:27Z"
+  },
+  {
+    "id": 6149,
+    "sender": "edex96",
+    "content": "> any updates on this? it's been open for 2.5 years. still an issue in flutter 2.5. Seems like there is a PR addressing this from over a year ago but it has gone nowhere. thanks!\r\n\r\nthere is a workaround to this but the lib did not receive an update and I don't think it will anytime soon\r\n\r\nif you look at the page header https://pub.dev/packages/webview_flutter \"Flutter Favorite\" badge is not there I gues your only option is editing the library yourself on every major update",
+    "createdAt": "2021-10-07T17:23:23Z"
+  },
+  {
+    "id": 6150,
+    "sender": "0ttik",
+    "content": "As I see, it would not allow to specify file choosing options as only camera or only gallery, it will always use both of them. I think it's important feature to be able to specify that. I would imagine a callback (`List<AllowedInputTypes> onFileChoose()`) or a setting to controll that. ",
+    "createdAt": "2021-10-28T07:55:56Z"
+  },
+  {
+    "id": 6151,
+    "sender": "sanketsakpal",
+    "content": "> Hey, I have a workaround for this. This will take another plugin though. 😄 The plugin: https://github.com/fluttercommunity/flutter_webview_plugin The code:\r\n> \r\n> ```\r\n>         child: WebviewScaffold(\r\n>           url: _url,\r\n>           withLocalStorage: true,\r\n>         ),\r\n>       ),\r\n> ```\r\n\r\nHow to use this plugin ",
+    "createdAt": "2021-11-04T03:25:35Z"
+  },
+  {
+    "id": 6152,
+    "sender": "ayechan-maung",
+    "content": "Hu...,\r\nNo one can not solve yet? ",
+    "createdAt": "2021-11-15T05:25:30Z"
+  },
+  {
+    "id": 6153,
+    "sender": "djks74",
+    "content": "You guys can use this https://pub.dev/packages/flutter_webview_pro\n\nOn Mon, Nov 15, 2021 at 12:25 PM Ayechan Maung ***@***.***>\nwrote:\n\n> Hu...,\n> No one can not solve yet?\n>\n> —\n> You are receiving this because you commented.\n> Reply to this email directly, view it on GitHub\n> <https://github.com/flutter/flutter/issues/27924#issuecomment-968550976>,\n> or unsubscribe\n> <https://github.com/notifications/unsubscribe-auth/AGJD2UZJCREKZKWLF7X22CLUMCKVTANCNFSM4GXMEGSA>\n> .\n> Triage notifications on the go with GitHub Mobile for iOS\n> <https://apps.apple.com/app/apple-store/id1477376905?ct=notification-email&mt=8&pt=524675>\n> or Android\n> <https://play.google.com/store/apps/details?id=com.github.android&referrer=utm_campaign%3Dnotification-email%26utm_medium%3Demail%26utm_source%3Dgithub>.\n>\n>\n\n\n-- \nBest Regards,\nSandi\n",
+    "createdAt": "2021-11-15T05:36:14Z"
+  },
+  {
+    "id": 6154,
+    "sender": "ayechan-maung",
+    "content": "> You guys can use this https://pub.dev/packages/flutter_webview_pro\r\n> […](#)\r\n> It works on Android, but in iOS, this error occurs...\r\n@implementation FLTWebViewFlutterPlugin\r\n\r\n+ (void)registerWithRegistrar:(NSObject<FlutterPluginRegistrar>*)registrar {\r\n  FLTWebViewFactory* webviewFactory =\r\n      [[FLTWebViewFactory alloc] initWithMessenger:registrar.messenger];\r\n  [registrar registerViewFactory:webviewFactory withId:@\"plugins.flutter.io/webview\"];\r\n  [FLTCookieManager registerWithRegistrar:registrar];\r\n}\r\n\r\n@end",
+    "createdAt": "2021-11-15T06:26:41Z"
+  },
+  {
+    "id": 6155,
+    "sender": "moacdev",
+    "content": "Any solve yet ?",
+    "createdAt": "2021-12-15T13:38:27Z"
+  },
+  {
+    "id": 6156,
+    "sender": "AitanQamet",
+    "content": "Any solve yet ? None of the above solutions worked",
+    "createdAt": "2021-12-17T06:07:55Z"
+  },
+  {
+    "id": 6157,
+    "sender": "djks74",
+    "content": "For me, Im using https://pub.dev/packages/flutter_webview_pro for android, then using https://pub.dev/packages/webview_flutter for iOS. both working fine at my end.",
+    "createdAt": "2021-12-17T11:58:38Z"
+  },
+  {
+    "id": 6158,
+    "sender": "nashihu",
+    "content": "@djks74 hold on, you can literally create another package webview out of that 2 separate packages",
+    "createdAt": "2021-12-17T12:04:36Z"
+  },
+  {
+    "id": 6159,
+    "sender": "djks74",
+    "content": "no, for me, I create one for ios and project for android I just copy new project using other package.",
+    "createdAt": "2021-12-17T12:26:15Z"
+  },
+  {
+    "id": 6160,
+    "sender": "AitanQamet",
+    "content": " I'm using webview plugin  for android, then using\nhttps://pub.dev/packages/webview_flutter for iOS.\nI find webview plugin slower than webview_flutter\n\nOn Fri, Dec 17, 2021, 18:26 djks74 ***@***.***> wrote:\n\n> no, for me, I create one for ios and project for android I just copy new\n> project using other package.\n>\n> —\n> Reply to this email directly, view it on GitHub\n> <https://github.com/flutter/flutter/issues/27924#issuecomment-996684538>,\n> or unsubscribe\n> <https://github.com/notifications/unsubscribe-auth/AC2Z27AIPMNUOYDG4HIUQWLURMT7NANCNFSM4GXMEGSA>\n> .\n> Triage notifications on the go with GitHub Mobile for iOS\n> <https://apps.apple.com/app/apple-store/id1477376905?ct=notification-email&mt=8&pt=524675>\n> or Android\n> <https://play.google.com/store/apps/details?id=com.github.android&referrer=utm_campaign%3Dnotification-email%26utm_medium%3Demail%26utm_source%3Dgithub>.\n>\n> You are receiving this because you commented.Message ID:\n> ***@***.***>\n>\n",
+    "createdAt": "2021-12-18T05:15:42Z"
+  },
+  {
+    "id": 6161,
+    "sender": "ayechan-maung",
+    "content": "In flutter 2.8 still has this issue,",
+    "createdAt": "2021-12-22T08:12:05Z"
+  },
+  {
+    "id": 6162,
+    "sender": "hananeboussari",
+    "content": "> For me, Im using https://pub.dev/packages/flutter_webview_pro for android, then using https://pub.dev/packages/webview_flutter for iOS. both working fine at my end.\r\n\r\ni am using  https://pub.dev/packages/webview_flutter for iOS. but its not let me upload picture how you fix it ?",
+    "createdAt": "2022-01-09T17:52:02Z"
+  },
+  {
+    "id": 6163,
+    "sender": "AitanQamet",
+    "content": "I used the latest version and wrote it according to the official\ndocumentation\n\nOn Sun, Jan 9, 2022, 23:52 Hanane Boussari ***@***.***> wrote:\n\n> For me, Im using https://pub.dev/packages/flutter_webview_pro for\n> android, then using https://pub.dev/packages/webview_flutter for iOS.\n> both working fine at my end.\n>\n> i am using https://pub.dev/packages/webview_flutter for iOS. but its not\n> let me upload picture how you fix it ?\n>\n> —\n> Reply to this email directly, view it on GitHub\n> <https://github.com/flutter/flutter/issues/27924#issuecomment-1008344486>,\n> or unsubscribe\n> <https://github.com/notifications/unsubscribe-auth/AC2Z27H7WQQZTNYR24E4GYDUVHDNBANCNFSM4GXMEGSA>\n> .\n> Triage notifications on the go with GitHub Mobile for iOS\n> <https://apps.apple.com/app/apple-store/id1477376905?ct=notification-email&mt=8&pt=524675>\n> or Android\n> <https://play.google.com/store/apps/details?id=com.github.android&referrer=utm_campaign%3Dnotification-email%26utm_medium%3Demail%26utm_source%3Dgithub>.\n>\n> You are receiving this because you commented.Message ID:\n> ***@***.***>\n>\n",
+    "createdAt": "2022-01-12T07:47:38Z"
+  },
+  {
+    "id": 6164,
+    "sender": "Sistem-Pack",
+    "content": "Hello, why Google Chrome used WebView and can download/upload files, but flutter_webview can't?\r\nInAppWebView plugin can download/upload files, but last update the plugin 9 month ago.\r\nIn source code from flutter_webview plugin find download/upload function, but not used. Yet again why? Why so?",
+    "createdAt": "2022-01-19T07:45:29Z"
+  },
+  {
+    "id": 6165,
+    "sender": "zhoujia456888",
+    "content": "> > You guys can use this https://pub.dev/packages/flutter_webview_pro\r\n> > […](#)\r\n> > It works on Android, but in iOS, this error occurs...\r\n> > @implementation FLTWebViewFlutterPlugin\r\n> \r\n> * (void)registerWithRegistrar:(NSObject_)registrar {\r\n>   FLTWebViewFactory_ webviewFactory =\r\n>   [[FLTWebViewFactory alloc] initWithMessenger:registrar.messenger];\r\n>   [registrar registerViewFactory:webviewFactory withId:@\"plugins.flutter.io/webview\"];\r\n>   [FLTCookieManager registerWithRegistrar:registrar];\r\n>   }\r\n> \r\n> @EnD\r\n\r\ni try submit issues to [flutter_webview_pro](https://github.com/wenzhiming/flutter_webview_pro),then the fix this bug at [flutter_webview_pro 1.0.3](https://github.com/wenzhiming/flutter_webview_pro/commit/f1073fcc2fb90d09b931ed2866564dadb26b41ea)",
+    "createdAt": "2022-01-25T03:04:09Z"
+  },
+  {
+    "id": 6166,
+    "sender": "bparrishMines",
+    "content": "**Update:**\r\n\r\nWe are currently working on [moving the platform channel boundary closer to native APIs](https://github.com/flutter/flutter/issues/93732) and [updating the standard platform interface structure](https://github.com/flutter/flutter/issues/94051). Work on this issue will most likely follow sometime after these have been finished.",
+    "createdAt": "2022-01-26T21:15:04Z"
+  },
+  {
+    "id": 6167,
+    "sender": "fouzi9",
+    "content": "I tried this package [https://pub.dev/packages/flutter_webview_pro](flutter_webview_pro) and it worked well on android for me.",
+    "createdAt": "2022-01-30T20:40:08Z"
+  },
+  {
+    "id": 6168,
+    "sender": "stuartmorgan-g",
+    "content": "> **Update:**\r\n> \r\n> We are currently working on [moving the platform channel boundary closer to native APIs](https://github.com/flutter/flutter/issues/93732) and [updating the standard platform interface structure](https://github.com/flutter/flutter/issues/94051). Work on this issue will most likely follow sometime after these have been finished.\r\n\r\nAnd based on discussion in https://github.com/flutter/plugins/pull/3225, the way we'll proceed here is to provide a way to register a handler for the callback on the Dart side, and we'll likely provide an example (and if there's enough need, potentially a default implementation) of how to implement that call using existing plugins.",
+    "createdAt": "2022-02-15T16:16:07Z"
+  },
+  {
+    "id": 6169,
+    "sender": "bilguungt",
+    "content": "> \r\n\r\nremove default webview_flutter from your pubspec.yaml then rm ios/Pods, ios/.symlinks, ios/Podfile.lock, pubspec.lock and install again",
+    "createdAt": "2022-03-10T07:40:10Z"
+  },
+  {
+    "id": 6170,
+    "sender": "fouzi9",
+    "content": "> > \r\n> \r\n> remove default webview_flutter from your pubspec.yaml then rm ios/Pods, ios/.symlinks, ios/Podfile.lock, pubspec.lock and install again\r\n\r\n**And it solves the file pick problem ?**",
+    "createdAt": "2022-03-10T07:45:20Z"
+  },
+  {
+    "id": 6171,
+    "sender": "bilguungt",
+    "content": "> > > \r\n> > \r\n> > \r\n> > remove default webview_flutter from your pubspec.yaml then rm ios/Pods, ios/.symlinks, ios/Podfile.lock, pubspec.lock and install again\r\n> \r\n> **And it solves the file pick problem ?**\r\n\r\nyes it works on me webview_flutter_pro package",
+    "createdAt": "2022-03-10T07:47:18Z"
+  },
+  {
+    "id": 6172,
+    "sender": "newbalancem5",
+    "content": "> > \r\n> \r\n> remove default webview_flutter from your pubspec.yaml then rm ios/Pods, ios/.symlinks, ios/Podfile.lock, pubspec.lock and install again\r\n\r\nThis rather solves the problem for iOS, not for android",
+    "createdAt": "2022-03-10T07:48:45Z"
+  },
+  {
+    "id": 6173,
+    "sender": "bilguungt",
+    "content": "> > > \r\n> > \r\n> > \r\n> > remove default webview_flutter from your pubspec.yaml then rm ios/Pods, ios/.symlinks, ios/Podfile.lock, pubspec.lock and install again\r\n> \r\n> This rather solves the problem for iOS, not for android\r\n\r\nboth solved all works fine \r\ntry use webview_flutter_pro and  use     if (Platform.isAndroid) WebView.platform = SurfaceAndroidWebView();\r\nit on your code",
+    "createdAt": "2022-03-10T07:49:42Z"
+  },
+  {
+    "id": 6174,
+    "sender": "Shubhankt1",
+    "content": "This issue is still there in `webview_flutter: ^3.0.1`\r\nIt's been very very long since this has been like this...??",
+    "createdAt": "2022-03-28T11:44:31Z"
+  },
+  {
+    "id": 6175,
+    "sender": "dupuchba",
+    "content": "FYI I published https://github.com/flutter/plugins/pull/5172 that fix input types for Android web views. ",
+    "createdAt": "2022-04-05T15:04:35Z"
+  },
+  {
+    "id": 6176,
+    "sender": "amdarshini",
+    "content": "The input option does not work with the plugin. Any solution?",
+    "createdAt": "2022-04-08T05:51:22Z"
+  },
+  {
+    "id": 6177,
+    "sender": "stuartmorgan-g",
+    "content": "For anyone considering commenting here: please read https://github.com/flutter/flutter/wiki/Issue-hygiene#do-not-add-me-too-or-same-comments-to-bugs first.",
+    "createdAt": "2022-04-08T15:04:41Z"
+  },
+  {
+    "id": 6178,
+    "sender": "deeprine",
+    "content": "hello. Is it possible to rename 'Take Photo' and 'Photo Library' when performing file select?",
+    "createdAt": "2022-04-15T12:10:18Z"
+  },
+  {
+    "id": 6179,
+    "sender": "Shubhankt1",
+    "content": "> hello. Is it possible to rename 'Take Photo' and 'Photo Library' when performing file select?\r\n\r\nI think you can change the values from the `strings.xml` file located in `android/src/main/res/values/` directory.",
+    "createdAt": "2022-04-19T06:14:35Z"
+  },
+  {
+    "id": 6180,
+    "sender": "pitocms",
+    "content": "Without using [flutter_webview_plugin](https://github.com/fluttercommunity/flutter_webview_plugin) , has there easy solution in webview (this plugin)  to solve this issue ? I'm facing same problem ! ",
+    "createdAt": "2022-06-17T13:22:07Z"
+  },
+  {
+    "id": 6181,
+    "sender": "vikivyas",
+    "content": "Since 14 Feb 2019, this issue is the listed and none have found a good solution for new flutter developers. [flutter_webview_plugin](https://github.com/fluttercommunity/flutter_webview_plugin) works fine yet it has android project migration pending, sometime javascript does not get loaded. webview_flutter is the best & easy to use except for this problem.",
+    "createdAt": "2022-06-24T07:32:45Z"
+  },
+  {
+    "id": 6182,
+    "sender": "mahdiqdi",
+    "content": "plz solve this problem after two years",
+    "createdAt": "2022-10-25T14:47:49Z"
+  },
+  {
+    "id": 6183,
+    "sender": "mahdiqdi",
+    "content": "no progress?!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\r\nits aweful",
+    "createdAt": "2022-11-29T07:24:07Z"
+  },
+  {
+    "id": 6184,
+    "sender": "dupuchba",
+    "content": "@mahdiqdi what's great about open-source is that you can contribute instead of complaining.\r\nPlus you can still use my old fix and take it further and adapt it to the new platform interface structure. https://github.com/flutter/flutter/issues/27924#issuecomment-1088833136",
+    "createdAt": "2022-11-29T07:59:38Z"
+  },
+  {
+    "id": 6185,
+    "sender": "mahdiqdi",
+    "content": "@dupuchba if i was able to solve this native problem i would do that.",
+    "createdAt": "2022-11-29T08:31:57Z"
+  },
+  {
+    "id": 6186,
+    "sender": "rashidotm",
+    "content": "Hi.\r\n\r\nI am happy to see https://github.com/flutter/flutter/issues/94051 merged which was blocking this.\r\n\r\nNow, is there a timeframe for when this will be closed? I am holding an update to my app based on your comments.\r\n\r\nthanks and best.",
+    "createdAt": "2022-12-18T07:42:07Z"
+  },
+  {
+    "id": 6187,
+    "sender": "stuartmorgan-g",
+    "content": "I filed https://github.com/flutter/flutter/issues/118836 to track the other part of addressing this that we've discussed (showing a simple example implementation in the README).",
+    "createdAt": "2023-01-19T22:06:51Z"
+  },
+  {
+    "id": 6188,
+    "sender": "FirdousNath",
+    "content": "Still facing the issue on 4.0.5",
+    "createdAt": "2023-02-24T07:35:59Z"
+  },
+  {
+    "id": 6189,
+    "sender": "stuartmorgan-g",
+    "content": "@FirdousNath Please file a new issue showing your `onShowFileChooser` handling and providing details about what isn't working.",
+    "createdAt": "2023-02-24T11:14:53Z"
+  },
+  {
+    "id": 6190,
+    "sender": "jonahwilliams",
+    "content": "## Semantics object support for edge triggered semantics\n\nFramework support for flutter/flutter#13704.  Also requires https://github.com/flutter/engine/pull/4901 in the engine first.\r\n\r\n\r\n* Adds a `route: bool` parameter to Semantics, SemanticsProperties which corresponds to the SemanticsFlag.isRoute\r\n * Adds a route + explicitChildren semantic to cupertino and mv routes\r\n * Adds a route semantic to drawer\r\n * Adds a route semantic to the AlertDialog\r\n  \r\nAlso updates a significant number of tests which asserted a specific semantics structure.",
+    "createdAt": "2018-03-29T21:01:20Z"
+  },
+  {
+    "id": 6191,
+    "sender": "goderbauer",
+    "content": "Can you please also add a test to ensure that the routeName given to a Semantics widget ends up on the appropriate semantics node?",
+    "createdAt": "2018-03-30T15:54:54Z"
+  },
+  {
+    "id": 6192,
+    "sender": "jonahwilliams",
+    "content": "I've updated the PR with the new route behavior, as well as all of the tests which this broke",
+    "createdAt": "2018-04-03T22:15:08Z"
+  },
+  {
+    "id": 6193,
+    "sender": "jonahwilliams",
+    "content": "Doesn't appear to be any difference between null and empty string - might have to do with how tonic encodes/decodes",
+    "createdAt": "2018-04-05T20:26:57Z"
+  },
+  {
+    "id": 6194,
+    "sender": "jonahwilliams",
+    "content": "I've updated the navigator to take a parameter `typedef String RouteAccessibilityNameCallback(String routeName, bool isInitialRoute)`.  The default value handles splitting strings on \"/\", the default initial route name of \"home\", and iOS specific logic.  This information is computed when a route is pushed and placed into RouteSettings.  The material page then uses this info to construct a semantics node",
+    "createdAt": "2018-04-05T21:34:59Z"
+  },
+  {
+    "id": 6195,
+    "sender": "jonahwilliams",
+    "content": "Another ... hiccup.  The platform specific logic for iOS changes between Dialogs (announced) and Pages/Drawers (chime).  In that case, it might make more sense to introduce `RouteName`, `DialogName` and `DrawerName` widgets for semantics information if this logic is to be handled at the framework/widget level.  But then, instead of doing all of that - why not just add a named arguments to all dialogs and drawers so that we can have a default semantic value.  RouteName could stay as a widget since routes aren't constructed in such a way where we have a clear root widget.\r\n\r\nWhich means that instead of pushing this off into another PR I should just rip off the bandaid now\r\n",
+    "createdAt": "2018-04-09T22:48:02Z"
+  },
+  {
+    "id": 6196,
+    "sender": "jonahwilliams",
+    "content": "@goderbauer , @Hixie  I've updated this PR to work with the engine PR.  Still have not updated tests - this will be a mostly mechanical but time consuming effort",
+    "createdAt": "2018-04-13T00:39:01Z"
+  },
+  {
+    "id": 6197,
+    "sender": "jonahwilliams",
+    "content": "I've updated this PR with the default localized semantics labels, and cleaned up the documentation to reduce repetition - an explanation of scopesRoute and namesRoute now points to dart:ui.",
+    "createdAt": "2018-04-17T02:06:45Z"
+  },
+  {
+    "id": 6198,
+    "sender": "jonahwilliams",
+    "content": "I've updated the PR to remove the routeName widget.  until we have a more general way to create semantics nodes which are unfocusable, I don't think it can be implemented in a clear way.  At any rate, it is not necessary to get route semantics working",
+    "createdAt": "2018-04-17T22:23:45Z"
+  },
+  {
+    "id": 6199,
+    "sender": "jacob314",
+    "content": "## Bare bones widget inspector support.\n\nSent out for review without tests in expectation of significant changes based on code review feedback.\r\n\r\nToggle the widget inspector from the flutter tool by pressing 'i'.\r\nWhen the widget inspector is select mode:\r\nPointer down to to inspect a widget.\r\nPointer click to finalize selection of a widget. You can now interact\r\nwith the application as you normally would but with the inspected widget\r\nhighlighted.\r\nClick the inspect icon in bottom left corner of screen to reactivate\r\nselect mode.",
+    "createdAt": "2017-05-25T22:56:53Z"
+  },
+  {
+    "id": 6200,
+    "sender": "eseidelGoogle",
+    "content": "That error from the CLA bot typically means the email address you set up for git (and got used in the git commit) is not associated with your github account.",
+    "createdAt": "2017-05-25T23:51:53Z"
+  },
+  {
+    "id": 6201,
+    "sender": "eseidelGoogle",
+    "content": "looks like you just want to set `git config --global user.email`",
+    "createdAt": "2017-05-25T23:52:31Z"
+  },
+  {
+    "id": 6202,
+    "sender": "Hixie",
+    "content": "The general approach seems fine. One major problem is that there's no way to know when the item you are watching is moving, so if you inspect something that's animating, your border won't move with it. To fix that you'll need something like https://github.com/flutter/flutter/issues/3861 (though I don't really know how you'd handle it even with that exactly). You could work around it by somehow requesting that you paint every frame that paints, but the system basically spends all its effort making that impossible because it'd be a performance disaster, so there's no good API to hook into to do that right now either.",
+    "createdAt": "2017-05-26T17:30:09Z"
+  },
+  {
+    "id": 6203,
+    "sender": "Hixie",
+    "content": "It sounds like what you want to do is actually hook into the pipeline at a pretty low level. If you're ok with requiring that people add a line of code to their main.dart and import a separate package, you could provide a new binding that overrides the FlutterWidgetsBinding to provide the relevant hooks, in much the same way that the test framework does that. (In your case, you'd probably need to create a new BuildOwner so that you could override the handling of dirty widgets so that any time you have a dirty widget, you also mark the inspector as potentially needing an update, as well as creating a new PipelineOwner so you could catch any changes that result in a paint update, in case any of the render objects are repainting independent of any widget updates.)\r\n\r\nThe alternative would be to hook onDrawFrame to just always mark the inspector dirty, passing through every call to the underlying binding. That would be really sketchy though. For example, it would totally break down if you had multiple inspector widgets at once. It would also be less efficient, though honestly even the binding override won't be great in that respect.",
+    "createdAt": "2017-05-26T22:02:03Z"
+  },
+  {
+    "id": 6204,
+    "sender": "Hixie",
+    "content": "@jacob314 Should we close this PR for now?",
+    "createdAt": "2017-06-07T19:24:26Z"
+  },
+  {
+    "id": 6205,
+    "sender": "Hixie",
+    "content": "@jacob314 I'm going to close this PR since my understanding is that you're not awaiting review and do not plan to land this exact PR, and so we should take it off the review queue. Don't hesitate to reopen it or open a new one when you're ready for another round of review!",
+    "createdAt": "2017-06-12T18:26:57Z"
+  },
+  {
+    "id": 6206,
+    "sender": "Hixie",
+    "content": "@jacob314 You reopened the PR, does that mean you want review again?",
+    "createdAt": "2017-08-02T02:47:33Z"
+  },
+  {
+    "id": 6207,
+    "sender": "jacob314",
+    "content": "I'm going through the comments again now. I need to address a few more of them before it is ready to be reviewed again.",
+    "createdAt": "2017-08-02T15:00:49Z"
+  }
+]

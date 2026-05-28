@@ -1,0 +1,386 @@
+[
+  {
+    "id": 9856,
+    "sender": "PiotrMitkowski",
+    "content": "> @cpboyd any chance you make a PR here ?\r\n\r\nI believe that he's abandoned his work towards adding his code to the public plugin. I've taken it over [here](https://github.com/flutter/plugins/pull/4638)",
+    "createdAt": "2022-04-07T12:19:13Z"
+  },
+  {
+    "id": 9857,
+    "sender": "wenxiangjiang",
+    "content": "@PiotrMitkowski Hope your PR will be merged soon, this issue has been going on for too long.",
+    "createdAt": "2022-04-22T01:35:53Z"
+  },
+  {
+    "id": 9858,
+    "sender": "idrats",
+    "content": "Any updates?",
+    "createdAt": "2022-05-05T07:38:15Z"
+  },
+  {
+    "id": 9859,
+    "sender": "wenxiangjiang",
+    "content": "@idrats Looks like it will be fixed soon. [here](https://github.com/flutter/plugins/pull/5603)",
+    "createdAt": "2022-05-05T07:40:58Z"
+  },
+  {
+    "id": 9860,
+    "sender": "AlehSabadashGmail",
+    "content": "Hi everyone, any updates? I have upgrade image_picker to the latest version and still have issue on IOS. Maybe someone has tried",
+    "createdAt": "2022-05-23T08:45:29Z"
+  },
+  {
+    "id": 9861,
+    "sender": "PiotrMitkowski",
+    "content": "Hi @AlehSabadashGmail, I'm still working on a group of PRs for this change. Please follow https://github.com/flutter/plugins/pull/4638 for progress, as this PR will have the actual change for the `image_picker` package and will be landed as the last one. Cheers!",
+    "createdAt": "2022-05-23T08:50:48Z"
+  },
+  {
+    "id": 9862,
+    "sender": "AlehSabadashGmail",
+    "content": "@PiotrMitkowski Thank you very much for your answer, last question, when are going to release it ?",
+    "createdAt": "2022-05-23T10:06:39Z"
+  },
+  {
+    "id": 9863,
+    "sender": "PiotrMitkowski",
+    "content": "First out of 3 PRs is merged (platform interface), there're two more to go. It should be achievable to complete them by the end of June. I'll post a comment when it's done.\r\n\r\nNote that I'm not working on fixing the exact issue with \"Select Photos\" permission - my change will allow picking images without asking for permission (unless you need some specific image metadata).",
+    "createdAt": "2022-05-23T10:10:49Z"
+  },
+  {
+    "id": 9864,
+    "sender": "ScottOber",
+    "content": "Once all the PR are merged will this plugin finally work correctly with \"Select Photos\" permission?   Is anyone actively working on this issue?",
+    "createdAt": "2022-05-24T23:51:22Z"
+  },
+  {
+    "id": 9865,
+    "sender": "minhnguyenandpad",
+    "content": "Any update with this? I still got that weird error.",
+    "createdAt": "2022-07-25T03:25:09Z"
+  },
+  {
+    "id": 9866,
+    "sender": "jamesleetu",
+    "content": "Still showing all images and videos when clicked select photo. Is it OK when opened in appmarket?",
+    "createdAt": "2022-07-28T08:20:09Z"
+  },
+  {
+    "id": 9867,
+    "sender": "SunriseOYR",
+    "content": "Two years passed， still showing all photos , And, if the Apple audit found this, would it really be OK?",
+    "createdAt": "2022-09-21T02:51:37Z"
+  },
+  {
+    "id": 9868,
+    "sender": "arxlanXgrid40",
+    "content": "Still getting same issue please address it ",
+    "createdAt": "2022-09-22T09:19:46Z"
+  },
+  {
+    "id": 9869,
+    "sender": "luvishq",
+    "content": "any updates on this ?",
+    "createdAt": "2022-10-04T16:17:29Z"
+  },
+  {
+    "id": 9870,
+    "sender": "furaiev",
+    "content": "waiting for @cyanglaz review for https://github.com/flutter/plugins/pull/5915",
+    "createdAt": "2022-10-04T17:57:56Z"
+  },
+  {
+    "id": 9871,
+    "sender": "stayf",
+    "content": "The fix that was made is not complete. It solves the problem with the photo but does not solve the problem with the video :(",
+    "createdAt": "2022-10-11T07:58:12Z"
+  },
+  {
+    "id": 9872,
+    "sender": "awhitford",
+    "content": "## [profiler] Mach thread_info kernel call fails while trying to mach_msg_send. Error MACH_SEND_INVALID_DEST\n\n<!-- Thank you for using Flutter!\r\n\r\n     If you are looking for support, please check out our documentation\r\n     or consider asking a question on Stack Overflow:\r\n      * https://flutter.dev/\r\n      * https://api.flutter.dev/\r\n      * https://stackoverflow.com/questions/tagged/flutter?sort=frequent\r\n\r\n     If you have found a bug or if our documentation doesn't have an answer\r\n     to what you're looking for, then fill out the template below. Please read\r\n     our guide to filing a bug first: https://flutter.dev/docs/resources/bug-reports\r\n-->\r\n\r\n## Steps to Reproduce\r\n\r\n<!-- You must include full steps to reproduce so that we can reproduce the problem. -->\r\n\r\nSince upgrading to **Flutter 1.20.0**, when I `flutter run` my app using the iOS Simulator, I sometimes see 1 or more of this warning:\r\n```\r\nAn Observatory debugger and profiler on iPhone 11 Pro Max is available at: http://127.0.0.1:49425/MFzU_2A99ig=/\r\n[VERBOSE-2:profiler_metrics_ios.mm(184)] Error retrieving thread information: (ipc/send) invalid destination port\r\n[VERBOSE-2:profiler_metrics_ios.mm(184)] Error retrieving thread information: (ipc/send) invalid destination port\r\n```\r\n\r\n**Expected results:** <!-- what did you want to see? -->\r\n\r\nI expect no errors.\r\n\r\n**Actual results:** <!-- what did you see? -->\r\n\r\n<details>\r\n  <summary>Logs</summary>\r\n\r\n<!-- Finally, paste the output of running `flutter doctor -v` here. -->\r\n\r\n```\r\n[✓] Flutter (Channel stable, 1.20.0, on Mac OS X 10.15.6 19G73, locale en-US)\r\n    • Flutter version 1.20.0 at /Users/anthony/flutter\r\n    • Framework revision 840c9205b3 (19 hours ago), 2020-08-04 20:55:12 -0700\r\n    • Engine revision c8e3b94853\r\n    • Dart version 2.9.0\r\n\r\n \r\n[✓] Android toolchain - develop for Android devices (Android SDK version 30.0.0-rc4)\r\n    • Android SDK at /Users/anthony/Library/Android/sdk\r\n    • Platform android-R, build-tools 30.0.0-rc4\r\n    • Java binary at: /Applications/Android Studio.app/Contents/jre/jdk/Contents/Home/bin/java\r\n    • Java version OpenJDK Runtime Environment (build 1.8.0_242-release-1644-b3-6222593)\r\n    • All Android licenses accepted.\r\n\r\n[✓] Xcode - develop for iOS and macOS (Xcode 11.6)\r\n    • Xcode at /Applications/Xcode.app/Contents/Developer\r\n    • Xcode 11.6, Build version 11E708\r\n    • CocoaPods version 1.9.3\r\n\r\n[✓] Android Studio (version 4.0)\r\n    • Android Studio at /Applications/Android Studio.app/Contents\r\n    • Flutter plugin version 47.1.2\r\n    • Dart plugin version 193.7361\r\n    • Java version OpenJDK Runtime Environment (build 1.8.0_242-release-1644-b3-6222593)\r\n\r\n[✓] VS Code (version 1.47.3)\r\n    • VS Code at /Applications/Visual Studio Code.app/Contents\r\n    • Flutter extension version 3.13.2\r\n\r\n[✓] Connected device (2 available)\r\n    • iPhone 11 Pro Max (mobile)     • B7F2DF40-38F4-4D13-81B0-D47A17126D4F     • ios • com.apple.CoreSimulator.SimRuntime.iOS-13-6\r\n      (simulator)\r\n    • iPad (7th generation) (mobile) • 91CAF267-2193-4752-A4B2-E035A2B3FC87     • ios • com.apple.CoreSimulator.SimRuntime.iOS-13-6\r\n      (simulator)\r\n\r\n• No issues found!\r\n```\r\n\r\n</details>\r",
+    "createdAt": "2020-08-05T23:30:49Z"
+  },
+  {
+    "id": 9873,
+    "sender": "TahaTesser",
+    "content": "hI @awhitford \r\nnot able to reproduce, i have run the flutter multiples on `stable` channel all day\r\nCan you please reproduce it again? please provide your `flutter run --verbose` and a complete reproducible minimal code sample\r\nThank you",
+    "createdAt": "2020-08-06T11:42:21Z"
+  },
+  {
+    "id": 9874,
+    "sender": "Vanson",
+    "content": "I have the same issue.\r\n\r\nflutter channel\r\nFlutter channels:\r\n  master\r\n  dev\r\n  beta\r\n* stable\r\n\r\nflutter doctor --verbose\r\n[✓] Flutter (Channel stable, 1.20.1, on Mac OS X 10.15.6 19G73, locale zh-Hans-CN)\r\n    • Flutter version 1.20.1 at /Users/xx/Library/flutter\r\n    • Framework revision 2ae34518b8 (31 hours ago), 2020-08-05 19:53:19 -0700\r\n    • Engine revision c8e3b94853\r\n    • Dart version 2.9.0\r\n\r\n[✓] Android toolchain - develop for Android devices (Android SDK version 30.0.1)\r\n    • Android SDK at /Users/xx/Library/Android/sdk\r\n    • Platform android-29, build-tools 30.0.1\r\n    • ANDROID_HOME = /Users/xx/Library/Android/sdk\r\n    • Java binary at: /Applications/Android Studio.app/Contents/jre/jdk/Contents/Home/bin/java\r\n    • Java version OpenJDK Runtime Environment (build 1.8.0_242-release-1644-b3-6222593)\r\n    • All Android licenses accepted.\r\n\r\n[✓] Xcode - develop for iOS and macOS (Xcode 11.6)\r\n    • Xcode at /Applications/Xcode.app/Contents/Developer\r\n    • Xcode 11.6, Build version 11E708\r\n    • CocoaPods version 1.9.3\r\n\r\n[✓] Android Studio (version 4.0)\r\n    • Android Studio at /Applications/Android Studio.app/Contents\r\n    • Flutter plugin version 48.0.2\r\n    • Dart plugin version 193.7361\r\n    • Java version OpenJDK Runtime Environment (build 1.8.0_242-release-1644-b3-6222593)\r\n\r\n[✓] VS Code (version 1.47.3)\r\n    • VS Code at /Applications/Visual Studio Code.app/Contents\r\n    • Flutter extension version 3.13.2\r\n\r\n[✓] Connected device (1 available)\r\n    • iPhone SE (2nd generation) (mobile) • CFB31139-5963-4154-8B2B-8E9154B88106 • ios • com.apple.CoreSimulator.SimRuntime.iOS-13-6\r\n      (simulator)\r\n\r\n• No issues found!\r\n\r\n\r\nThe issue log is:\r\n[DEBUG]--ADD--PageStack uid/name-->0/PlayerHomePage\r\n2020-08-07 17:27:52.887598+0800 Radio[10463:538495] [VERBOSE-2:profiler_metrics_ios.mm(184)] Error retrieving thread information: (ipc/send) invalid destination port\r\n2020-08-07 17:28:58.565015+0800 Radio[10463:538495] [VERBOSE-2:profiler_metrics_ios.mm(184)] Error retrieving thread information: (ipc/send) invalid destination port\r\n\r\n**The issue is show the flutter page is blank.**\r\n",
+    "createdAt": "2020-08-07T09:47:41Z"
+  },
+  {
+    "id": 9875,
+    "sender": "linhmanh92",
+    "content": "i have the same issue. How can I fix it?",
+    "createdAt": "2020-08-08T08:07:00Z"
+  },
+  {
+    "id": 9876,
+    "sender": "bulgarian-beast",
+    "content": "I have the same issue this morning I made the flutter upgrade, now the application is running perfectly all synchrone and async functions work perfect but I have this message on terminal : \"[VERBOSE-2:profiler_metrics_ios.mm(184)] Error retrieving thread information: (ipc/send) invalid destination port\"",
+    "createdAt": "2020-08-08T11:07:31Z"
+  },
+  {
+    "id": 9877,
+    "sender": "bulgarian-beast",
+    "content": "Oh sorry I apology for my msg, just after writing my previous comments I remember that after the upgrade I dosent restart my computer.\r\nI restart it and now the error msg disappear ",
+    "createdAt": "2020-08-08T11:13:36Z"
+  },
+  {
+    "id": 9878,
+    "sender": "barboraplasovska",
+    "content": "I have also the same issue. I tried restarting my computer, the app and rebugging it again, but it didn't disappear. Does anyone has ANY SOLUTION please? Thanks!",
+    "createdAt": "2020-08-09T11:55:02Z"
+  },
+  {
+    "id": 9879,
+    "sender": "megablinkk",
+    "content": "have the same issue.",
+    "createdAt": "2020-08-09T13:39:48Z"
+  },
+  {
+    "id": 9880,
+    "sender": "devrajraut",
+    "content": "> Oh sorry I apology for my msg, just after writing my previous comments I remember that after the upgrade I dosent restart my computer.\r\n> I restart it and now the error msg disappear\r\n\r\nI have the same issue. But Restarting the System didn't do the trick. Still wonder what error it is?",
+    "createdAt": "2020-08-09T19:50:57Z"
+  },
+  {
+    "id": 9881,
+    "sender": "sscast",
+    "content": "Same issue.",
+    "createdAt": "2020-08-10T00:03:01Z"
+  },
+  {
+    "id": 9882,
+    "sender": "hnnhnn",
+    "content": "I have the same issue.\n",
+    "createdAt": "2020-08-10T00:54:37Z"
+  },
+  {
+    "id": 9883,
+    "sender": "sofferjacob",
+    "content": "Same, have it since before I upgraded to 1.20.0 when I switched to the beta channel a few weeks ago.",
+    "createdAt": "2020-08-10T01:05:05Z"
+  },
+  {
+    "id": 9884,
+    "sender": "abdulrojak288",
+    "content": "I have the same issue.",
+    "createdAt": "2020-08-10T05:53:47Z"
+  },
+  {
+    "id": 9885,
+    "sender": "javyliu",
+    "content": "I have the same issue since I upgraded to 1.20.0.",
+    "createdAt": "2020-08-10T06:22:33Z"
+  },
+  {
+    "id": 9886,
+    "sender": "a7medpa",
+    "content": "On Channel stable, 1.20.1. Same issue 👎 \r\n[VERBOSE-2:profiler_metrics_ios.mm(184)] Error retrieving thread information: (ipc/send) invalid destination port",
+    "createdAt": "2020-08-10T10:40:14Z"
+  },
+  {
+    "id": 9887,
+    "sender": "thomas-schiller",
+    "content": "same issue! \r\n\r\n[VERBOSE-2:profiler_metrics_ios.mm(184)] Error retrieving thread information: (ipc/send) invalid destination port . \r\n\r\n",
+    "createdAt": "2020-08-10T11:44:25Z"
+  },
+  {
+    "id": 9888,
+    "sender": "jpvanmuijen",
+    "content": "I had this issue as well, restarting the simulator solved it for me. Restarting my Mac didn't help, because by default it restores all windows including the simulator, which might still be a badly cached version or something. ",
+    "createdAt": "2020-08-10T12:51:22Z"
+  },
+  {
+    "id": 9889,
+    "sender": "a7medpa",
+    "content": "> I had this issue as well, restarting the simulator solved it for me. Restarting my Mac didn't help, because by default it restores all windows including the simulator, which might still be a badly cached version or something.\r\n\r\nFixed it temporarily then came back not sure if the same happened to you.",
+    "createdAt": "2020-08-10T18:57:24Z"
+  },
+  {
+    "id": 9890,
+    "sender": "cqllzp",
+    "content": "I have the same issue since I upgraded to 1.20.0.",
+    "createdAt": "2020-08-11T13:40:57Z"
+  },
+  {
+    "id": 9891,
+    "sender": "dslingr",
+    "content": "Same issue here since upgrading to 1.20 and 1.20.1:\r\n\r\n<img width=\"1062\" alt=\"Screen Shot 2020-08-11 at 9 41 10 AM\" src=\"https://user-images.githubusercontent.com/27285006/89904447-f211b900-dbb6-11ea-9b12-00da44f59100.png\">\r\n\r\nHowever, the app seems to run just fine.\r\n",
+    "createdAt": "2020-08-11T13:43:22Z"
+  },
+  {
+    "id": 9892,
+    "sender": "ArnoldGihozo",
+    "content": "> Same issue here since upgrading to 1.20 and 1.20.1:\r\n> \r\n> <img alt=\"Screen Shot 2020-08-11 at 9 41 10 AM\" width=\"1062\" src=\"https://user-images.githubusercontent.com/27285006/89904447-f211b900-dbb6-11ea-9b12-00da44f59100.png\">\r\n> \r\n> However, the app seems to run just fine.\r\n\r\nsame issue as well. The apps runs fine tho",
+    "createdAt": "2020-08-11T18:59:02Z"
+  },
+  {
+    "id": 9893,
+    "sender": "real1900",
+    "content": "restarting simulator worked for me too ",
+    "createdAt": "2020-08-12T17:24:17Z"
+  },
+  {
+    "id": 9894,
+    "sender": "Vanson",
+    "content": "> **The issue is show the flutter page is blank.**\r\n\r\nI have solved this problem, check the pubspec.yaml,there are blank dir by the  assets.",
+    "createdAt": "2020-08-14T03:51:10Z"
+  },
+  {
+    "id": 9895,
+    "sender": "chinmaygarde",
+    "content": "This should not happen in any of the release modes and should not affect rendering or execution in other modes. It seems like the call to [task_threads](https://github.com/flutter/engine/blob/41971f48c370a6a3e29ff623b2d46008a9a83bf5/shell/platform/darwin/ios/framework/Source/profiler_metrics_ios.mm#L161) is failing. @iskakaushik for thoughts on what to do in case of this failure? Maybe disable the profiling?",
+    "createdAt": "2020-08-17T18:00:46Z"
+  },
+  {
+    "id": 9896,
+    "sender": "bossanyit",
+    "content": "same problem (flutter 1.20.2 on iOS), I have downgraded to 1.17.5 to solve it",
+    "createdAt": "2020-08-17T19:11:12Z"
+  },
+  {
+    "id": 9897,
+    "sender": "nategiraudeau",
+    "content": "I started having this issue when I upgraded from 1.17 to 1.20. My app gets stuck on the splash screen. It happens on an iOS simulator and a physical device.",
+    "createdAt": "2020-08-18T01:36:39Z"
+  },
+  {
+    "id": 9898,
+    "sender": "nategiraudeau",
+    "content": "I downgraded to v1.17.5 and I still get the error:\r\n`[VERBOSE-2:profiler_metrics_ios.mm(184)] Error retrieving thread information: (ipc/send) invalid destination port`",
+    "createdAt": "2020-08-18T21:58:03Z"
+  },
+  {
+    "id": 9899,
+    "sender": "ovaldi",
+    "content": "+1, Flutter 1.20.1 on iOS",
+    "createdAt": "2020-08-20T04:54:00Z"
+  },
+  {
+    "id": 9900,
+    "sender": "codercarly",
+    "content": "Same",
+    "createdAt": "2020-08-21T18:21:06Z"
+  },
+  {
+    "id": 9901,
+    "sender": "awhitford",
+    "content": "I get these _randomly_, and I just noticed that I too am getting the `invalid argument` message:\r\n```\r\n[VERBOSE-2:profiler_metrics_ios.mm(184)] Error retrieving thread information: (ipc/send) invalid destination port\r\n[VERBOSE-2:profiler_metrics_ios.mm(184)] Error retrieving thread information: (ipc/send) invalid destination port\r\n[VERBOSE-2:profiler_metrics_ios.mm(184)] Error retrieving thread information: (os/kern) invalid argument\r\n```\r\n",
+    "createdAt": "2020-08-21T19:44:13Z"
+  },
+  {
+    "id": 9902,
+    "sender": "csacchetti",
+    "content": "Same problem\r\n[VERBOSE-2:profiler_metrics_ios.mm(184)] Error retrieving thread information: (ipc/send) invalid destination port\r\nwith Flutter 1.20.1",
+    "createdAt": "2020-08-21T21:58:24Z"
+  },
+  {
+    "id": 9903,
+    "sender": "fnicastri",
+    "content": "@TahaTesser \r\n\r\nSame error here from this morning.\r\n`Flutter clean` resolve it temporarily, until next compilation.\r\n\r\nDoctor:\r\n```\r\n[✓] Flutter (Channel stable, 1.20.2, on Mac OS X 10.15.6 19G2021, locale en-US)\r\n    • Flutter version 1.20.2 at /Users/cico/src/flutter\r\n    • Framework revision bbfbf1770c (9 days ago), 2020-08-13 08:33:09 -0700\r\n    • Engine revision 9d5b21729f\r\n    • Dart version 2.9.1\r\n\r\n \r\n[✓] Android toolchain - develop for Android devices (Android SDK version 30.0.1)\r\n    • Android SDK at /Users/cico/Library/Android/sdk\r\n    • Platform android-30, build-tools 30.0.1\r\n    • ANDROID_SDK_ROOT = /Users/cico/Library/Android/sdk\r\n    • Java binary at: /Applications/Android Studio.app/Contents/jre/jdk/Contents/Home/bin/java\r\n    • Java version OpenJDK Runtime Environment (build 1.8.0_242-release-1644-b3-6222593)\r\n    • All Android licenses accepted.\r\n\r\n[✓] Xcode - develop for iOS and macOS (Xcode 11.6)\r\n    • Xcode at /Applications/Xcode.app/Contents/Developer\r\n    • Xcode 11.6, Build version 11E708\r\n    • CocoaPods version 1.9.3\r\n\r\n[!] Android Studio\r\n    • Android Studio at /Applications/Android Studio 4.2 Preview.app/Contents\r\n    ✗ Flutter plugin not installed; this adds Flutter specific functionality.\r\n    ✗ Dart plugin not installed; this adds Dart specific functionality.\r\n    • Java version OpenJDK Runtime Environment (build 1.8.0_242-release-1644-b3-6222593)\r\n\r\n[✓] Android Studio (version 4.0)\r\n    • Android Studio at /Applications/Android Studio.app/Contents\r\n    • Flutter plugin version 48.0.2\r\n    • Dart plugin version 193.7361\r\n    • Java version OpenJDK Runtime Environment (build 1.8.0_242-release-1644-b3-6222593)\r\n\r\n[✓] Connected device (1 available)\r\n    • iPhone5s (mobile) • 6b2dc3dd4bbbb6157d14b059371aa12e9aa0701d • ios • iOS 12.4.8\r\n\r\n```\r\n\r\n\r\nAndroid Studio Flutter logs:\r\n```\r\n\r\n[ +475 ms] ------ Debug phase ------\r\n[        ] Starting debug of 6b2dc3dd4bbbb6157d14b059371aa12e9aa0701d (N53AP, iPhone 5s (Global/CDMA), iphoneos, arm64) a.k.a. 'iPhone5s' connected through USB...\r\n[ +787 ms] [  0%] Looking up developer disk image\r\n[  +53 ms] [ 95%] Developer disk image mounted successfully\r\n[ +846 ms] [100%] Connecting to remote debug server\r\n[        ] -------------------------\r\n[ +311 ms] (lldb) command source -s 0 '/tmp/6C804DA5-776F-4C9A-8B1F-BB9687E34E75/fruitstrap-lldb-prep-cmds-6b2dc3dd4bbbb6157d14b059371aa12e9aa0701d'\r\n[        ] Executing commands in '/tmp/6C804DA5-776F-4C9A-8B1F-BB9687E34E75/fruitstrap-lldb-prep-cmds-6b2dc3dd4bbbb6157d14b059371aa12e9aa0701d'.\r\n[        ] (lldb)     platform select remote-ios --sysroot '/Users/cico/Library/Developer/Xcode/iOS DeviceSupport/12.4.8 (16G201)/Symbols'\r\n[        ]   Platform: remote-ios\r\n[        ]  Connected: no\r\n[        ]   SDK Path: \"/Users/cico/Library/Developer/Xcode/iOS DeviceSupport/12.4.8 (16G201)/Symbols\"\r\n[        ] (lldb)     target create \"/Users/cico/projects/copernico/copernico_app/build/ios/iphoneos/Runner.app\"\r\n[+3909 ms] Current executable set to '/Users/cico/projects/copernico/copernico_app/build/ios/iphoneos/Runner.app' (arm64).\r\n[        ] (lldb)     script fruitstrap_device_app=\"/private/var/containers/Bundle/Application/763BDF02-5C78-4552-9D60-B05EB1A3F0D5/Runner.app\"\r\n[ +286 ms] (lldb)     script fruitstrap_connect_url=\"connect://127.0.0.1:52601\"\r\n[        ] (lldb)     script fruitstrap_output_path=\"\"\r\n[        ] (lldb)     script fruitstrap_error_path=\"\"\r\n[        ] (lldb)     target modules search-paths add /usr \"/Users/cico/Library/Developer/Xcode/iOS DeviceSupport/12.4.8 (16G201)/Symbols/usr\" /System \"/Users/cico/Library/Developer/Xcode/iOS DeviceSupport/12.4.8 (16G201)/Symbols/System\" \"/private/var/containers/Bundle/Application/763BDF02-5C78-4552-9D60-B05EB1A3F0D5\" \"/Users/cico/projects/copernico/copernico_app/build/ios/iphoneos\" \"/var/containers/Bundle/Application/763BDF02-5C78-4552-9D60-B05EB1A3F0D5\" \"/Users/cico/projects/copernico/copernico_app/build/ios/iphoneos\" /Developer \"/Users/cico/Library/Developer/Xcode/iOS DeviceSupport/12.4.8 (16G201)/Symbols/Developer\"\r\n[  +17 ms] (lldb)     command script import \"/tmp/6C804DA5-776F-4C9A-8B1F-BB9687E34E75/fruitstrap_6b2dc3dd4bbbb6157d14b059371aa12e9aa0701d.py\"\r\n[   +4 ms] (lldb)     command script add -f fruitstrap_6b2dc3dd4bbbb6157d14b059371aa12e9aa0701d.connect_command connect\r\n[        ] (lldb)     command script add -s asynchronous -f fruitstrap_6b2dc3dd4bbbb6157d14b059371aa12e9aa0701d.run_command run\r\n[        ] (lldb)     command script add -s asynchronous -f fruitstrap_6b2dc3dd4bbbb6157d14b059371aa12e9aa0701d.autoexit_command autoexit\r\n[        ] (lldb)     command script add -s asynchronous -f fruitstrap_6b2dc3dd4bbbb6157d14b059371aa12e9aa0701d.safequit_command safequit\r\n[        ] (lldb)     connect\r\n[  +42 ms] (lldb)     run\r\n[ +484 ms] success\r\n[        ] (lldb)     safequit\r\n[ +120 ms] Process 1226 detached\r\n[  +37 ms] Application launched on the device. Waiting for observatory port.\r\n[  +15 ms] Attempting to forward device port 58515 to host port 52606\r\n[        ] executing: /Users/cico/src/flutter/bin/cache/artifacts/usbmuxd/iproxy 52606:58515 --udid 6b2dc3dd4bbbb6157d14b059371aa12e9aa0701d\r\n[+1006 ms] Forwarded port ForwardedPort HOST:52606 to DEVICE:58515\r\n[  +15 ms] HttpException: Connection closed before full header was received, uri = http://localhost:52606/ws\r\n[+2410 ms] Caching compiled dill\r\n[ +162 ms] Connecting to service protocol: http://localhost:52606\r\n[  +78 ms] Successfully connected to service protocol: http://localhost:52606\r\nWaiting for iPhone5s to report its views...\r\n[{\"event\":\"app.progress\",\"params\":{\"appId\":\"840242d3-8ea3-48dd-8c76-b01cb0459d6a\",\"id\":\"1\",\"progressId\":null,\"message\":\"Waiting for iPhone5s to report its views...\"}}]\r\n[{\"event\":\"app.progress\",\"params\":{\"appId\":\"840242d3-8ea3-48dd-8c76-b01cb0459d6a\",\"id\":\"1\",\"progressId\":null,\"finished\":true}}]\r\n[  +16 ms] DevFS: Creating new filesystem on the device (null)\r\n[  +46 ms] DevFS: Created new filesystem on the device (file:///private/var/mobile/Containers/Data/Application/4E7BEC70-5373-4140-996A-78741E0EEA3D/tmp/copernico_appkKGyoc/copernico_app/)\r\n[   +2 ms] Updating assets\r\nDebug service listening on ws://localhost:52606/ws\r\n[{\"event\":\"app.debugPort\",\"params\":{\"appId\":\"840242d3-8ea3-48dd-8c76-b01cb0459d6a\",\"port\":52606,\"wsUri\":\"ws://localhost:52606/ws\",\"baseUri\":\"file:///private/var/mobile/Containers/Data/Application/4E7BEC70-5373-4140-996A-78741E0EEA3D/tmp/copernico_appkKGyoc/copernico_app/\"}}]\r\n[ +277 ms] Manifest contained wildcard assets. Inserting missing file into build graph to force rerun. for more information see #56466.\r\nSyncing files to device iPhone5s...\r\n[  +11 ms] Scanning asset files\r\n[   +3 ms] <- reset\r\n[        ] Compiling dart to kernel with 0 updated files\r\n[   +1 ms] <- recompile package:copernico_app/main.dart 4e3a72bc-d178-4f4a-8d38-003ac4197743\r\n[        ] <- 4e3a72bc-d178-4f4a-8d38-003ac4197743\r\n[{\"event\":\"app.progress\",\"params\":{\"appId\":\"840242d3-8ea3-48dd-8c76-b01cb0459d6a\",\"id\":\"2\",\"progressId\":null,\"message\":\"Syncing files to device iPhone5s...\"}}]\r\n[ +128 ms] Updating files\r\n[VERBOSE-2:profiler_metrics_ios.mm(184)] Error retrieving thread information: (ipc/send) invalid destination port\r\n```\r\n\r\n## update:\r\n\r\nwhile I was writing this the app suddenly started. \r\nThis is the rest of the logs:\r\n```\r\n[...]\r\n[ +128 ms] Updating files\r\n[VERBOSE-2:profiler_metrics_ios.mm(184)] Error retrieving thread information: (ipc/send) invalid destination port\r\n[ long delay ]\r\n[VERBOSE-2:profiler_metrics_ios.mm(184)] Error retrieving thread information: (ipc/send) invalid destination port\r\n[+238138 ms] Error writing \"build/flutter_assets/env_files/production.env\" to DevFS: HttpException: , uri = http://localhost:52606\r\n[        ] trying again in a few - 9 more attempts left\r\n[        ] Error writing \"build/flutter_assets/env_files/development_production.env\" to DevFS: HttpException: , uri = http://localhost:52606\r\n[        ] trying again in a few - 9 more attempts left\r\n[ +544 ms] DevFS: Sync finished\r\n[   +1 ms] Synced 3.0MB.\r\n[   +1 ms] <- accept\r\n[   +6 ms] Connected to _flutterView/0x156818c20.\r\n[{\"event\":\"app.progress\",\"params\":{\"appId\":\"840242d3-8ea3-48dd-8c76-b01cb0459d6a\",\"id\":\"2\",\"progressId\":null,\"finished\":true}}]\r\n[{\"event\":\"app.started\",\"params\":{\"appId\":\"840242d3-8ea3-48dd-8c76-b01cb0459d6a\"}}]\r\nflutter: Starting flavor: development\r\n```",
+    "createdAt": "2020-08-22T08:53:17Z"
+  },
+  {
+    "id": 9904,
+    "sender": "fnicastri",
+    "content": "## Update 2\r\n\r\nOn a second try after the same long delay I got this:\r\n```\r\n[ +126 ms] Updating files\r\nvm-service: Error: Unhandled exception:\r\nWebSocketException: Invalid WebSocket upgrade request\r\nLost connection to device.\r\n[+74717 ms] Service protocol connection closed.\r\n[   +3 ms] Error writing \"build/flutter_assets/assets/images/gradiente_orizzontale.png\" to DevFS: HttpException: , uri = http://localhost:53278\r\n[        ] trying again in a few - 9 more attempts left\r\n[VERBOSE-2:dart_isolate.cc(865)] Unhandled exception:\r\nWebSocketException: Invalid WebSocket upgrade request\r\n[ +508 ms] Error writing \"build/flutter_assets/assets/images/gradiente_orizzontale.png\" to DevFS: HttpException: , uri = http://localhost:53278\r\n[        ] trying again in a few - 8 more attempts left\r\n[ +506 ms] Error writing \"build/flutter_assets/assets/images/gradiente_orizzontale.png\" to DevFS: HttpException: , uri = http://localhost:53278\r\n[        ] trying again in a few - 7 more attempts left\r\n[ +508 ms] Error writing \"build/flutter_assets/assets/images/gradiente_orizzontale.png\" to DevFS: HttpException: , uri = http://localhost:53278\r\n[        ] trying again in a few - 6 more attempts left\r\n[ +511 ms] Error writing \"build/flutter_assets/assets/images/gradiente_orizzontale.png\" to DevFS: HttpException: , uri = http://localhost:53278\r\n[        ] trying again in a few - 5 more attempts left\r\n[ +507 ms] Error writing \"build/flutter_assets/assets/images/gradiente_orizzontale.png\" to DevFS: HttpException: , uri = http://localhost:53278\r\n[        ] trying again in a few - 4 more attempts left\r\n[ +512 ms] Error writing \"build/flutter_assets/assets/images/gradiente_orizzontale.png\" to DevFS: HttpException: , uri = http://localhost:53278\r\n[        ] trying again in a few - 3 more attempts left\r\n[ +512 ms] Error writing \"build/flutter_assets/assets/images/gradiente_orizzontale.png\" to DevFS: HttpException: , uri = http://localhost:53278\r\n[        ] trying again in a few - 2 more attempts left\r\n[ +511 ms] Error writing \"build/flutter_assets/assets/images/gradiente_orizzontale.png\" to DevFS: HttpException: , uri = http://localhost:53278\r\n[        ] trying again in a few - 1 more attempts left\r\n[ +511 ms] Error writing \"build/flutter_assets/assets/images/gradiente_orizzontale.png\" to DevFS: HttpException: , uri = http://localhost:53278\r\n[        ] trying again in a few - 0 more attempts left\r\n[ +505 ms] Error writing \"build/flutter_assets/assets/images/gradiente_orizzontale.png\" to DevFS: HttpException: , uri = http://localhost:53278\r\nCould not update files on device: HttpException: , uri = http://localhost:53278\r\n[  +10 ms] DevFS: Deleting filesystem on the device (file:///private/var/mobile/Containers/Data/Application/AECF607D-BCBB-4767-9795-A58BD32B36E0/tmp/copernico_appyGJZUb/copernico_app/)\r\n[{\"event\":\"app.progress\",\"params\":{\"appId\":\"3c0ee9f4-543b-419b-be77-30812f13d788\",\"id\":\"2\",\"progressId\":null,\"finished\":true}}]\r\n[{\"event\":\"app.stop\",\"params\":{\"appId\":\"3c0ee9f4-543b-419b-be77-30812f13d788\"}}]\r\n[{\"id\":0,\"error\":\"app '3c0ee9f4-543b-419b-be77-30812f13d788' not found\",\"trace\":\"#0      AppDomain.stop (package:flutter_tools/src/commands/daemon.dart:678:7)\\n#1      Domain.handleCommand.<anonymous closure> (package:flutter_tools/src/commands/daemon.dart:215:34)\\n#2      new Future.sync (dart:async/future.dart:223:31)\\n#3      Domain.handleCommand (package:flutter_tools/src/commands/daemon.dart:213:5)\\n#4      Daemon._handleRequest (package:flutter_tools/src/commands/daemon.dart:140:28)\\n#5      _rootRunUnary (dart:async/zone.dart:1198:47)\\n#6      _CustomZone.runUnary (dart:async/zone.dart:1100:19)\\n#7      _CustomZone.runUnaryGuarded (dart:async/zone.dart:1005:7)\\n#8      _BufferingStreamSubscription._sendData (dart:async/stream_impl.dart:357:11)\\n#9      _BufferingStreamSubscription._add (dart:async/stream_impl.dart:285:7)\\n#10     _ForwardingStreamSubscription._add (dart:async/stream_pipe.dart:127:11)\\n#11     _MapStream._handleData (dart:async/stream_pipe.dart:224:10)\\n#12     _ForwardingStreamSubscription._handleData (dart:async/stream_pipe.dart:157:13)\\n#13     _rootRunUnary (dart:async/zone.dart:1198:47)\\n#14     _CustomZone.runUnary (dart:async/zone.dart:1100:19)\\n#15     _CustomZone.runUnaryGuarded (dart:async/zone.dart:1005:7)\\n#16     _BufferingStreamSubscription._sendData (dart:async/stream_impl.dart:357:11)\\n#17     _BufferingStreamSubscription._add (dart:async/stream_impl.dart:285:7)\\n#18     _ForwardingStreamSubscription._add (dart:async/stream_pipe.dart:127:11)\\n#19     _WhereStream._handleData (dart:async/stream_pipe.dart:199:12)\\n#20     _ForwardingStreamSubscription._handleData (dart:async/stream_pipe.dart:157:13)\\n#21     _rootRunUnary (dart:async/zone.dart:1198:47)\\n#22     _CustomZone.runUnary (dart:async/zone.dart:1100:19)\\n#23     _CustomZone.runUnaryGuarded (dart:async/zone.dart:1005:7)\\n#24     _BufferingStreamSubscription._sendData (dart:async/stream_impl.dart:357:11)\\n#25     _BufferingStreamSubscription._add (dart:async/stream_impl.dart:285:7)\\n#26     _SinkTransformerStreamSubscription._add (dart:async/stream_transformers.dart:69:11)\\n#27     _EventSinkWrapper.add (dart:async/stream_transformers.dart:15:11)\\n#28     _StringAdapterSink.add (dart:convert/string_conversion.dart:238:11)\\n#29     _LineSplitterSink._addLines (dart:convert/line_splitter.dart:155:13)\\n#30     _LineSplitterSink.addSlice (dart:convert/line_splitter.dart:130:5)\\n#31     StringConversionSinkMixin.add (dart:convert/string_conversion.dart:163:5)\\n#32     _SinkTransformerStreamSubscription._handleData (dart:async/stream_transformers.dart:121:24)\\n#33     _rootRunUnary (dart:async/zone.dart:1198:47)\\n#34     _CustomZone.runUnary (dart:async/zone.dart:1100:19)\\n#35     _CustomZone.runUnaryGuarded (dart:async/zone.dart:1005:7)\\n#36     _BufferingStreamSubscription._sendData (dart:async/stream_impl.dart:357:11)\\n#37     _BufferingStreamSubscription._add (dart:async/stream_impl.dart:285:7)\\n#38     _SinkTransformerStreamSubscription._add (dart:async/stream_transformers.dart:69:11)\\n#39     _EventSinkWrapper.add (dart:async/stream_transformers.dart:15:11)\\n#40     _StringAdapterSink.add (dart:convert/string_conversion.dart:238:11)\\n#41     _StringAdapterSink.addSlice (dart:convert/string_conversion.dart:243:7)\\n#42     _Utf8ConversionSink.addSlice (dart:convert/string_conversion.dart:317:20)\\n#43     _Utf8ConversionSink.add (dart:convert/string_conversion.dart:310:5)\\n#44     _ConverterStreamEventSink.add (dart:convert/chunked_conversion.dart:72:18)\\n#45     _SinkTransformerStreamSubscription._handleData (dart:async/stream_transformers.dart:121:24)\\n#46     _rootRunUnary (dart:async/zone.dart:1198:47)\\n#47     _CustomZone.runUnary (dart:async/zone.dart:1100:19)\\n#48     _CustomZone.runUnaryGuarded (dart:async/zone.dart:1005:7)\\n#49     _BufferingStreamSubscription._sendData (dart:async/stream_impl.dart:357:11)\\n#50     _BufferingStreamSubscription._add (dart:async/stream_impl.dart:285:7)\\n#51     _SyncStreamControllerDispatch._sendData (dart:async/stream_controller.dart:808:19)\\n#52     _StreamController._add (dart:async/stream_controller.dart:682:7)\\n#53     _StreamController.add (dart:async/stream_controller.dart:624:5)\\n#54     _Socket._onData (dart:io-patch/socket_patch.dart:2020:41)\\n#55     _rootRunUnary (dart:async/zone.dart:1206:13)\\n#56     _CustomZone.runUnary (dart:async/zone.dart:1100:19)\\n#57     _CustomZone.runUnaryGuarded (dart:async/zone.dart:1005:7)\\n#58     _BufferingStreamSubscription._sendData (dart:async/stream_impl.dart:357:11)\\n#59     _BufferingStreamSubscription._add (dart:async/stream_impl.dart:285:7)\\n#60     _SyncStreamControllerDispatch._sendData (dart:async/stream_controller.dart:808:19)\\n#61     _StreamController._add (dart:async/stream_controller.dart:682:7)\\n#62     _StreamController.add (dart:async/stream_controller.dart:624:5)\\n#63     new _RawSocket.<anonymous closure> (dart:io-patch/socket_patch.dart:1556:33)\\n#64     _Closure.call (dart:core-patch/function.dart)\\n#65     _NativeSocket.issueReadEvent.issue (dart:io-patch/socket_patch.dart:1052:14)\\n#66     _microtaskLoop (dart:async/schedule_microtask.dart:41:21)\\n#67     _startMicrotaskLoop (dart:async/schedule_microtask.dart:50:5)\\n#68     _runPendingImmediateCallback (dart:isolate-patch/isolate_patch.dart:118:13)\\n#69     _RawReceivePortImpl._handleMessage (dart:isolate-patch/isolate_patch.dart:169:5)\\n\"}]\r\n\r\n```",
+    "createdAt": "2020-08-22T09:05:29Z"
+  },
+  {
+    "id": 9905,
+    "sender": "Marco491973",
+    "content": "I have deleted the \"build\" folder. Not a perfect solution, but it works for me",
+    "createdAt": "2020-08-22T17:06:30Z"
+  },
+  {
+    "id": 9906,
+    "sender": "TahaTesser",
+    "content": "Please thumbs up the original description https://github.com/flutter/flutter/issues/63025#issue-673911573 instead of \"same issue\" or \"me too\" comments  ",
+    "createdAt": "2020-08-26T09:16:13Z"
+  },
+  {
+    "id": 9907,
+    "sender": "Peet-A",
+    "content": "have same issue , any update ?",
+    "createdAt": "2020-08-27T11:36:19Z"
+  },
+  {
+    "id": 9908,
+    "sender": "fnicastri",
+    "content": "The situation is getting worse day by day.\r\nFrom this morning `flutter clean` is not a solution anymore.\r\nIn the end I reverted to flutter 1.17.5\r\n\r\n## update\r\n\r\nSadly even 1.17.5 started to give me the issue. Less often than 1.20 anyway.\r\n\r\nThis issue totally disrupt the development workflow on iOS.",
+    "createdAt": "2020-08-30T13:55:17Z"
+  },
+  {
+    "id": 9909,
+    "sender": "kharitonovAL",
+    "content": "hi everyone! did anyone have troubles with receiving push notifications from FCM accordingly to this issue - `Error retrieving thread information: (ipc/send) invalid destination port`? \r\nthanks!",
+    "createdAt": "2020-08-31T18:51:45Z"
+  },
+  {
+    "id": 9910,
+    "sender": "sofferjacob",
+    "content": "@kharitonovAL I am having issues receiving notifications. They arrive to the system tray but the handlers aren't called (not even onMessage). It was working fine until the upgrade to the new FlutterFire plugins",
+    "createdAt": "2020-08-31T18:54:58Z"
+  },
+  {
+    "id": 9911,
+    "sender": "csacchetti",
+    "content": "I upgraded to version 1.20.3 but the problem remains.",
+    "createdAt": "2020-09-04T21:55:53Z"
+  },
+  {
+    "id": 9912,
+    "sender": "kharitonovAL",
+    "content": "> @kharitonovAL I am having issues receiving notifications. They arrive to the system tray but the handlers aren't called (not even onMessage). It was working fine until the upgrade to the new FlutterFire plugins\n\nI solved same issue by installing (or running) my app from Xcode. If I'll install from VS Code or Android Studio, it won't work. ",
+    "createdAt": "2020-09-05T12:42:59Z"
+  },
+  {
+    "id": 9913,
+    "sender": "racknoris",
+    "content": "Does it affect on the application in production? Anyone had issues other than the error message?",
+    "createdAt": "2020-09-05T19:41:52Z"
+  },
+  {
+    "id": 9914,
+    "sender": "Development4A",
+    "content": "I believe I have the same issue running 1.22.0-10.0.pre.62 on a new app. \r\nI do not know if this is related to the above error message I am not getting a display on my List.generate until I do a hot reload. After the reload I get the error messages. I am new to this language, so my lack of experience with Flutter may be part of the problem.\r\n\r\nThanks for your help.\r\n\r\n\r\n[VERBOSE-2:profiler_metrics_ios.mm(184)] Error retrieving thread information: (ipc/send) invalid destination port\r\n[VERBOSE-2:profiler_metrics_ios.mm(184)] Error retrieving thread information: (ipc/send) invalid destination port\r\n\r\n\r\n[✓] Flutter (Channel master, 1.22.0-10.0.pre.62, on Mac OS X 10.15.6 19G2021, locale en)\r\n    • Flutter version 1.22.0-10.0.pre.62 at /Users/administrator/Developer/flutter\r\n    • Framework revision 020215bb4c (5 days ago), 2020-09-02 18:35:05 -0700\r\n    • Engine revision 165abef0a2\r\n    • Dart version 2.10.0 (build 2.10.0-77.0.dev)\r\n\r\n \r\n[✓] Android toolchain - develop for Android devices (Android SDK version 29.0.3)\r\n    • Android SDK at /Users/administrator/Library/Android/sdk\r\n    • Platform android-29, build-tools 29.0.3\r\n    • Java binary at: /Applications/Android Studio.app/Contents/jre/jdk/Contents/Home/bin/java\r\n    • Java version OpenJDK Runtime Environment (build 1.8.0_242-release-1644-b3-6222593)\r\n    • All Android licenses accepted.\r\n\r\n[✓] Xcode - develop for iOS and macOS (Xcode 11.7)\r\n    • Xcode at /Applications/Xcode.app/Contents/Developer\r\n    • Xcode 11.7, Build version 11E801a\r\n    • CocoaPods version 1.9.0\r\n\r\n[✓] Chrome - develop for the web\r\n    • Chrome at /Applications/Google Chrome.app/Contents/MacOS/Google Chrome\r\n\r\n[✓] Android Studio (version 4.0)\r\n    • Android Studio at /Applications/Android Studio.app/Contents\r\n    • Flutter plugin version 48.0.2\r\n    • Dart plugin version 193.7361\r\n    • Java version OpenJDK Runtime Environment (build 1.8.0_242-release-1644-b3-6222593)\r\n\r\n[✓] VS Code (version 1.48.2)\r\n    • VS Code at /Applications/Visual Studio Code.app/Contents\r\n    • Flutter extension version 3.14.1\r\n\r\n[✓] Connected device (3 available)\r\n    • iPhone SE (2nd generation) (mobile) • 2D27CCAF-0DF0-4A40-9FCB-F8334E1265FC • ios            • com.apple.CoreSimulator.SimRuntime.iOS-13-7 (simulator)\r\n    • Web Server (web)                    • web-server                           • web-javascript • Flutter Tools\r\n    • Chrome (web)                        • chrome   \r\n",
+    "createdAt": "2020-09-08T00:02:46Z"
+  },
+  {
+    "id": 9915,
+    "sender": "sofferjacob",
+    "content": "@Development4A it shouldn't be related to this error. My guess would be that you're pulling the data that populates the list asynchronously (like from a db) and not awaiting it or setting the state afterwards. However, I would need more information to confirm it. Since this is probably unrelated to this issue I'd suggest opening a new one where you specify more information.",
+    "createdAt": "2020-09-08T00:20:25Z"
+  },
+  {
+    "id": 9916,
+    "sender": "Annelein",
+    "content": "is there any fix for this issue yet? I'm experiencing the same..",
+    "createdAt": "2020-09-09T12:06:44Z"
+  },
+  {
+    "id": 9917,
+    "sender": "viktorgvozdikov",
+    "content": "i was able to fix the problem\r\n\r\n1. I downgraded to v1.17.5 from v1.20\r\n`flutter version v1.17.5`\r\n2. rename folder \"ios\" to \"ios1\"\r\n3. next\r\n`flutter create -i swift .`\r\nin result i have new folder \"ios\" with project\r\n4. `flutter build ios` for install pods\r\n5. set up the ios project again and copied necessary files for me from \"ios1\"\r\n6. `flutter run` without any problem\r\n\r\n",
+    "createdAt": "2020-09-10T19:58:01Z"
+  },
+  {
+    "id": 9918,
+    "sender": "ZhuBoao",
+    "content": "I am still having this problem. I don't wanna downgrade my flutter version. 😔",
+    "createdAt": "2020-09-19T15:04:36Z"
+  },
+  {
+    "id": 9919,
+    "sender": "DomingoMG",
+    "content": "I have the same problem with FCM notifications from Firebase Messaging. I wait for a solution please.\r\n\r\nFlutter version: 1.20.4 ( Stable )\r\n\r\n` Error retrieving thread information: (ipc/send) invalid destination port`\r\n\r\n",
+    "createdAt": "2020-09-26T19:13:56Z"
+  }
+]

@@ -1,0 +1,386 @@
+[
+  {
+    "id": 2752,
+    "sender": "jonahwilliams",
+    "content": "Great, next thing to check is the file checksum. Its helpful to start this next part after a flutter clean. First - run your build **twice** with the error intact.\r\n\r\nThen open `.dart_tool/flutter_build/<some-hash-value>/.filecache` and pull the sha for the file you were editing. It will be something like:\r\n\r\n```json\r\n{\r\n  \"version\": 2,\r\n  \"files\": [\r\n    {\"path\": \"path/you/care/about.dart\", \"hash\": \"somevalue\"},\r\n    ...\r\n  ],\r\n}\r\n```\r\n\r\nNext, make the change to fix the error and rebuild the app again. Inspect the hash and verify that it either updated or didn't update",
+    "createdAt": "2020-02-10T20:57:45Z"
+  },
+  {
+    "id": 2753,
+    "sender": "jonahwilliams",
+    "content": "Actually, an easier way might to just run in verbose after changing the file. You would be looking for a line like:\r\n\r\n`skipping kernel_snapshot` or now",
+    "createdAt": "2020-02-10T21:07:01Z"
+  },
+  {
+    "id": 2754,
+    "sender": "Reprevise",
+    "content": "So, to verify:\r\n\r\nI ran the build twice and the error screen came up twice as expected.\r\nI grabbed the sha value.\r\nI fixed the error.\r\nAfter a rebuild, I found that the sha **didn't** change.\r\n\r\n@jonahwilliams \r\n\r\nNOTE: I **couldn't** reproduce the issue on Linux.",
+    "createdAt": "2020-02-10T22:31:51Z"
+  },
+  {
+    "id": 2755,
+    "sender": "jonahwilliams",
+    "content": "@Reprevise when you run through those steps with verbose, do you see that gradle is skiping the flutter task itself? Like:\r\n\r\n```\r\n[        ] > Task :app:transformClassesAndDexWithShrinkResForRelease UP-TO-DATE\r\n[        ] > Task :app:packageRelease UP-TO-DATE\r\n[        ] > Task :app:assembleRelease\r\n[        ] BUILD SUCCESSFUL in 994ms\r\n[        ] 30 actionable tasks: 4 executed, 26 up-to-date\r\n```\r\n\r\nThis will help me narrow down whether or not it is a flutter tool bug or a flutter gradle bug",
+    "createdAt": "2020-02-10T22:57:11Z"
+  },
+  {
+    "id": 2756,
+    "sender": "jonahwilliams",
+    "content": "If this is windows my guess is that there is a formatting error in the depfile which is causing Gradle to incorrectly skip the flutter task. That would square with the sha not updating.",
+    "createdAt": "2020-02-10T23:02:16Z"
+  },
+  {
+    "id": 2757,
+    "sender": "Reprevise",
+    "content": "Here's my log from `flutter run --verbose`:\r\n\r\nhttps://pastebin.com/V5U7G3tj\r\n\r\nNote that my file does **not** contain `MediaQuery.of(context)` in my build method as the error log suggests. And yes, I'm running Windows.",
+    "createdAt": "2020-02-10T23:12:51Z"
+  },
+  {
+    "id": 2758,
+    "sender": "jonahwilliams",
+    "content": "Okay, we're gradually narrowing down the problem. In `FLUTTER_ROOT/packages/flutter_tools/gradle/flutter.gradle` you could add a print statement to verify the depfile is parsed correctly:\r\n\r\n```\r\n    @InputFiles\r\n    FileCollection getSourceFiles() {\r\n        FileCollection sources = project.files()\r\n        for (File depfile in getDependenciesFiles()) {\r\n          sources += readDependencies(depfile)\r\n        }\r\n        sources.collect {\r\n            println it\r\n        }\r\n        return sources + project.files('pubspec.yaml')\r\n    }\r\n```\r\n\r\nIn the `FlutterTask`. Then, rerun and grab the contents of the parsed depfile",
+    "createdAt": "2020-02-10T23:40:20Z"
+  },
+  {
+    "id": 2759,
+    "sender": "Reprevise",
+    "content": "With the print statement, here's my new `flutter run --verbose` log:\r\n\r\nhttps://pastebin.com/dVXCUueS",
+    "createdAt": "2020-02-11T00:05:19Z"
+  },
+  {
+    "id": 2760,
+    "sender": "jonahwilliams",
+    "content": "Thanks! looks like the right files are in there - Are the following files your application code:\r\n\r\n```\r\nC:\\Users\\Owner\\Documents\\Flutter Apps\\error_test\\android\\app\\Apps\\error_test\\pubspec.yaml\r\n[        ] C:\\Users\\Owner\\Documents\\Flutter\r\n[        ] C:\\Users\\Owner\\Documents\\Flutter Apps\\error_test\\android\\app\\Apps\\error_test\\.packages\r\n[        ] C:\\Users\\Owner\\Documents\\Flutter Apps\\error_test\\android\\app\\Apps\\error_test\\lib\\main.dart\r\n```\r\n\r\nI'm going to 🤦‍♂, but I wonder if this is another \"space in file path throws off tool on windows\" issue. Does the issue repro for you in a Directory without a space? (Not that I'm suggesting this as a long term solution ... )\r\n",
+    "createdAt": "2020-02-11T00:20:32Z"
+  },
+  {
+    "id": 2761,
+    "sender": "Reprevise",
+    "content": "The `android\\app\\Apps` part doesn't exist:\r\n\r\nHere's the actual paths to said files:\r\n```\r\nC:\\Users\\Owner\\Documents\\Flutter Apps\\error_test\\pubspec.yaml\r\nC:\\Users\\Owner\\Documents\\Flutter Apps\\error_test\\.packages\r\nC:\\Users\\Owner\\Documents\\Flutter Apps\\error_test\\lib\\main.dart\r\n```\r\nAlso unsure as to why `C:\\Users\\Owner\\Documents\\Flutter` is in there?\r\nBut I don't really think the path thing is an issue, just pointing it out.\r\n\r\nAlso, the \"space in file path\" might have actually caused the issue.\r\nI've tried very hard to reproduce the issue in a path without a space but I can't.\r\n",
+    "createdAt": "2020-02-11T00:37:49Z"
+  },
+  {
+    "id": 2762,
+    "sender": "jonahwilliams",
+    "content": "Thanks for all of the help debugging @Reprevise . With this information I should be able to get a patch put together fairly quickly. \r\n\r\n> Also unsure as to why C:\\Users\\Owner\\Documents\\Flutter is in there?\r\n\r\nLooks odd too, not sure yet either but I'll take a look",
+    "createdAt": "2020-02-11T00:39:22Z"
+  },
+  {
+    "id": 2763,
+    "sender": "Reprevise",
+    "content": "Possibly related to the empty space in the directory name to be honest.",
+    "createdAt": "2020-02-11T00:42:39Z"
+  },
+  {
+    "id": 2764,
+    "sender": "jonahwilliams",
+    "content": "@Reprevise so I repo'd this on my Windows machine and have a fix pending. If you'd like you can patch it in to your own flutter checkout to verify. Note: you will need to flutter clean first to blow away the bad depfile.\r\n\r\nhttps://github.com/flutter/flutter/pull/50538\r\n\r\n",
+    "createdAt": "2020-02-11T04:12:16Z"
+  },
+  {
+    "id": 2765,
+    "sender": "jonahwilliams",
+    "content": "The escaping issue is now fixed on master",
+    "createdAt": "2020-02-11T17:32:25Z"
+  },
+  {
+    "id": 2766,
+    "sender": "Reprevise",
+    "content": "I'll test master when I get home and report back if it fixes the issue",
+    "createdAt": "2020-02-11T17:35:36Z"
+  },
+  {
+    "id": 2767,
+    "sender": "Reprevise",
+    "content": "Seems like it works, rebuilds with the correct code every time so far 🤞 .",
+    "createdAt": "2020-02-11T20:17:57Z"
+  },
+  {
+    "id": 2768,
+    "sender": "gegobyte",
+    "content": "Facing same issue since the past few days. Hot Reload has stopped working, have to restart every single time. ",
+    "createdAt": "2020-02-21T16:30:33Z"
+  },
+  {
+    "id": 2769,
+    "sender": "jonahwilliams",
+    "content": "@gegobyte this has nothing to do with hot reload",
+    "createdAt": "2020-02-21T17:05:08Z"
+  },
+  {
+    "id": 2770,
+    "sender": "AdvaitKale01",
+    "content": "In my case, this situation occured after updating flutter and editing external library. I solved this issue by doing \r\n```\r\nflutter clean\r\n```\r\nand then by running \r\n```\r\nflutter pub cache repair\r\n```\r\nand then re-build your app.\r\n",
+    "createdAt": "2020-03-07T05:59:37Z"
+  },
+  {
+    "id": 2771,
+    "sender": "filiph",
+    "content": "Should we close this? For what it's worth, I am not seeing the issue anymore. And I see that at least one underlying bug was fixed recently.\r\n\r\nIt's also possible we might want to split this into several issues, and use this one as a tracking meta-issue.",
+    "createdAt": "2020-03-25T17:27:31Z"
+  },
+  {
+    "id": 2772,
+    "sender": "Reprevise",
+    "content": "I haven't had this issue in awhile, I'm on the latest beta 1.15.17.",
+    "createdAt": "2020-03-25T17:35:05Z"
+  },
+  {
+    "id": 2773,
+    "sender": "zanderso",
+    "content": "I suspect that we'll find more focused issues to be more useful/actionable. @jonahwilliams wdyt?",
+    "createdAt": "2020-03-25T17:51:49Z"
+  },
+  {
+    "id": 2774,
+    "sender": "ride4sun",
+    "content": "I don't see the issue anymore. I am on channel beta.",
+    "createdAt": "2020-03-25T21:20:35Z"
+  },
+  {
+    "id": 2775,
+    "sender": "starlight173",
+    "content": "The issue seems gone away in stable channel (1.12.13 hotfix 8)",
+    "createdAt": "2020-03-26T02:56:46Z"
+  },
+  {
+    "id": 2776,
+    "sender": "cmaccarone",
+    "content": "I have version 1.12.13 hotfix 8 and I seem to be having this problem still. I ran \r\n\r\nflutter clean\r\n\r\nand it seemed to fix the issue temporarily at least",
+    "createdAt": "2020-03-31T19:06:11Z"
+  },
+  {
+    "id": 2777,
+    "sender": "dev-paulperez",
+    "content": "> \r\n> \r\n> In my case, this situation occured after updating flutter and editing external library. I solved this issue by doing\r\n> \r\n> ```\r\n> flutter clean\r\n> ```\r\n> \r\n> and then by running\r\n> \r\n> ```\r\n> flutter pub cache repair\r\n> ```\r\n> \r\n> and then re-build your app.\r\n\r\nThis fix the problem for me!! (Update Dart and Flutter too).",
+    "createdAt": "2020-04-05T22:00:56Z"
+  },
+  {
+    "id": 2778,
+    "sender": "antheus-s",
+    "content": "I have followed the \"flutter pub cache repair\" solution but now my hot reload doesn't work anymore and I need to flutter clean for every build. Any other suggestions?",
+    "createdAt": "2020-04-07T12:02:19Z"
+  },
+  {
+    "id": 2779,
+    "sender": "eseidelGoogle",
+    "content": "@AntheusS that sounds like it might be a separate issue, which I'm very interested in understanding.  Would you be willing to file a new issue with your specific concerns so we can help you get them resolved?  Thanks!",
+    "createdAt": "2020-04-07T15:54:57Z"
+  },
+  {
+    "id": 2780,
+    "sender": "ngominhtrungit",
+    "content": "> The following note was added by @tvolkert on Oct 16, 2018\r\n> \r\n> # If you are affected by this bug,\r\n> # please fill out the following form!\r\n> **https://goo.gl/forms/eFPT6A3jAD8clU4o2** (Survey to gather information about this bug)\r\n> \r\n> ## Steps to Reproduce\r\n> When I (or one of my teammates) run flutter `flutter run` (or with the run/debug button on IntelliJ and VSCode) on an AVD or on real devices, the installed version is always behind the newest one and I **always** need to restart the app or even sometimes `flutter clean`.\r\n> This is a problem especially when the build on the AVD/real device crashes, and the only solution here is to `flutter clean`, even when I stop the app running and do `flutter run` again.\r\n> \r\n> The same happens when building and installing production APKs:\r\n> When I run `flutter build` and `flutter install`, the installed APK isn't updated.\r\n> If I run flutter clean, and next, again, `flutter build` and `flutter install`, the installed APK is up-to-date.\r\n> \r\n> ## Flutter Doctor:\r\n> ```\r\n> [√] Flutter (Channel beta, v0.2.8, on Microsoft Windows [Versione 10.0.17133.73], locale it-IT)\r\n>     • Flutter version 0.2.8 at C:\\Users\\Edoardo Debenedetti\\flutter\r\n>     • Framework revision b397406561 (13 days ago), 2018-04-02 13:53:20 -0700\r\n>     • Engine revision c903c217a1\r\n>     • Dart version 2.0.0-dev.43.0.flutter-52afcba357\r\n> \r\n> [√] Android toolchain - develop for Android devices (Android SDK 27.0.3)\r\n>     • Android SDK at C:\\Users\\Edoardo Debenedetti\\AppData\\Local\\Android\\sdk\r\n>     • Android NDK location not configured (optional; useful for native profiling support)\r\n>     • Platform android-27, build-tools 27.0.3\r\n>     • Java binary at: C:\\Program Files\\Android\\Android Studio\\jre\\bin\\java\r\n>     • Java version OpenJDK Runtime Environment (build 1.8.0_152-release-1024-b02)\r\n>     • All Android licenses accepted.\r\n> \r\n> [√] Android Studio (version 3.1)\r\n>     • Android Studio at C:\\Program Files\\Android\\Android Studio\r\n>     • Java version OpenJDK Runtime Environment (build 1.8.0_152-release-1024-b02)\r\n> \r\n> [√] IntelliJ IDEA Ultimate Edition (version 2018.1)\r\n>     • IntelliJ at C:\\Users\\Edoardo Debenedetti\\AppData\\Local\\JetBrains\\Toolbox\\apps\\IDEA-U\\ch-0\\181.4203.550\r\n>     • Flutter plugin version 23.1.3\r\n>     • Dart plugin version 181.4203.498\r\n> \r\n> [√] VS Code, 64-bit edition (version 1.22.2)\r\n>     • VS Code at C:\\Program Files\\Microsoft VS Code\r\n>     • Dart Code extension version 2.11.2\r\n> \r\n> [√] Connected devices (2 available)\r\n>     • PRA LX1                   • 57UDU17111026756 • android-arm64 • Android 7.0 (API 24)\r\n>     • Android SDK built for x86 • emulator-5554    • android-x86   • Android 8.1.0 (API 27) (emulator)\r\n> \r\n> • No issues found!\r\n> ```\r\n\r\n\r\n\r\n> Ghi chú sau đã được @tvolkert thêm vào ngày 16 tháng 10 năm 2018\r\n> \r\n> # Nếu bạn bị ảnh hưởng bởi lỗi này,\r\n> # Hãy điền vào mẫu dưới đây!\r\n> **https://goo.gl/forms/eFPT6A3jAD8clU4o2** (Khảo sát để thu thập thông tin về lỗi này)\r\n> \r\n> ## Các bước để sinh sản\r\n> Khi tôi (hoặc một trong những đồng đội của tôi) chạy rung `flutter run`(hoặc bằng nút chạy / gỡ lỗi trên IntelliJ và VSCode) trên AVD hoặc trên các thiết bị thực, phiên bản đã cài đặt luôn ở phía sau phiên bản mới nhất và tôi **luôn** cần khởi động lại ứng dụng hoặc thậm chí đôi khi `flutter clean`.\r\n> Đây là một vấn đề đặc biệt là khi quá trình xây dựng trên AVD / thiết bị thực gặp sự cố và giải pháp duy nhất ở đây là `flutter clean`, ngay cả khi tôi dừng ứng dụng chạy và làm `flutter run`lại.\r\n> \r\n> Điều tương tự cũng xảy ra khi xây dựng và cài đặt APK sản xuất:\r\n> Khi tôi chạy `flutter build`và `flutter install`, APK đã cài đặt không được cập nhật.\r\n> Nếu tôi chạy rung sạch, và tiếp theo, một lần nữa, `flutter build`và `flutter install`APK đã cài đặt sẽ được cập nhật.\r\n> \r\n> ## Bác sĩ rung rinh:\r\n> ```\r\n> [√] Flutter (Channel beta, v0.2.8, on Microsoft Windows [Versione 10.0.17133.73], locale it-IT)\r\n>     • Flutter version 0.2.8 at C:\\Users\\Edoardo Debenedetti\\flutter\r\n>     • Framework revision b397406561 (13 days ago), 2018-04-02 13:53:20 -0700\r\n>     • Engine revision c903c217a1\r\n>     • Dart version 2.0.0-dev.43.0.flutter-52afcba357\r\n> \r\n> [√] Android toolchain - develop for Android devices (Android SDK 27.0.3)\r\n>     • Android SDK at C:\\Users\\Edoardo Debenedetti\\AppData\\Local\\Android\\sdk\r\n>     • Android NDK location not configured (optional; useful for native profiling support)\r\n>     • Platform android-27, build-tools 27.0.3\r\n>     • Java binary at: C:\\Program Files\\Android\\Android Studio\\jre\\bin\\java\r\n>     • Java version OpenJDK Runtime Environment (build 1.8.0_152-release-1024-b02)\r\n>     • All Android licenses accepted.\r\n> \r\n> [√] Android Studio (version 3.1)\r\n>     • Android Studio at C:\\Program Files\\Android\\Android Studio\r\n>     • Java version OpenJDK Runtime Environment (build 1.8.0_152-release-1024-b02)\r\n> \r\n> [√] IntelliJ IDEA Ultimate Edition (version 2018.1)\r\n>     • IntelliJ at C:\\Users\\Edoardo Debenedetti\\AppData\\Local\\JetBrains\\Toolbox\\apps\\IDEA-U\\ch-0\\181.4203.550\r\n>     • Flutter plugin version 23.1.3\r\n>     • Dart plugin version 181.4203.498\r\n> \r\n> [√] VS Code, 64-bit edition (version 1.22.2)\r\n>     • VS Code at C:\\Program Files\\Microsoft VS Code\r\n>     • Dart Code extension version 2.11.2\r\n> \r\n> [√] Connected devices (2 available)\r\n>     • PRA LX1                   • 57UDU17111026756 • android-arm64 • Android 7.0 (API 24)\r\n>     • Android SDK built for x86 • emulator-5554    • android-x86   • Android 8.1.0 (API 27) (emulator)\r\n> \r\n> • No issues found!\r\n> ```\r\n\r\nThanks a lot, I fixed it.",
+    "createdAt": "2020-04-10T02:43:19Z"
+  },
+  {
+    "id": 2781,
+    "sender": "boucoding",
+    "content": "same issue on the last version on stable channel",
+    "createdAt": "2020-04-12T11:42:46Z"
+  },
+  {
+    "id": 2782,
+    "sender": "antheus-s",
+    "content": "> @AntheusS that sounds like it might be a separate issue, which I'm very interested in understanding. Would you be willing to file a new issue with your specific concerns so we can help you get them resolved? Thanks!\r\n\r\nI actually fixed it by reïnstalling my complete development environment after executing the commands described earlier. Thank you very much though. :-)",
+    "createdAt": "2020-04-13T11:50:08Z"
+  },
+  {
+    "id": 2783,
+    "sender": "zanderso",
+    "content": "This issue has gotten a bit long and overloaded. @jonahwilliams work in this area should have addressed the bulk of the problems. If folks still have issues that are fixed by a `flutter clean`, please file a new issue with full details. Thanks!",
+    "createdAt": "2020-04-13T17:41:49Z"
+  },
+  {
+    "id": 2784,
+    "sender": "Piinks",
+    "content": "## Part 1: Skia Gold Testing\n\n## Description\r\nIntegrating Flutter golden file testing with Skia Gold\r\nRe-worked into a phased transition from #31630\r\n\r\nThis PR keeps in place the current structure of Gold file testing via the [flutter/goldens](https://github.com/flutter/goldens) repository for local and pre-submit testing, while Skia Gold is used for post-submit testing.\r\n\r\nGolden tests in this implementation will not turn the tree red. Instead, once this lands and is validated by CI on post-submit, commenting on associated PR's will be added as a method of notification.\r\n\r\nOnce Pre-submit testing is enabled by the Skia Gold team, the former testing structure used through [flutter/goldens](https://github.com/flutter/goldens) will be removed, with Skia Gold taking its place.\r\n\r\n## Related Issues\r\n\r\nDependent on:\r\n- ~#33406~\r\n- ~#33880~ \r\n- ~#33865~ \r\n- ~#33806~ - will implement later through use of the analyzer. Testing in Skia Gold will incorporate a pre-fix naming convention for all tests based on library so as to reduce the chance of a naming conflict.\r\n\r\nAddresses:\r\n- #17260\r\n- #17259\r\n- #17258\r\n- #16859\r\n\r\n## Tests\r\nAdded/Relocated/Updated:\r\n- `flutter_test/test/matchers_test.dart`\r\n  - Comparator succeeds in incorporating version number\r\n  - Comparator succeeds with null version number\r\n  - Comparator failure incorporates version number\r\n  - Comparator failure with null version number\r\n- `flutter_test/test/goldens_test.dart`\r\n  - getTestUri updates file name with version number\r\n  - getTestUri does nothing for null version number\r\n- `flutter_goldens/test/flutter_goldens_test.dart`\r\n  - group: GoldensClient\r\n  - group: SkiaGoldClient\r\n    - auth performs minimal work if already authorized\r\n  - group: FlutterGoldensRepositoryFileComparator\r\n    - fromDefaultComparator calculates the base directory correctly\r\n    - group: getTestUri\r\n      - incorporates version number\r\n      - ignores null version number\r\n  - group: FlutterSkiaGoldFileComparator\r\n    - fromDefaultComparator calculates the base directory correctly\r\n    - group: getTestUri\r\n      - ignores version number\r\n- Any and all tests that have invoked `matchesGoldenFile` with a `skip` in place for platforms other than Linux.\r\n\r\n## Checklist\r\n\r\nBefore you create this PR confirm that it meets all requirements listed below by checking the relevant checkboxes (`[x]`). This will ensure a smooth and quick review process.\r\n\r\n- [x] I read the [Contributor Guide] and followed the process outlined there for submitting PRs.\r\n- [x] I signed the [CLA].\r\n- [x] I read and followed the [Flutter Style Guide], including [Features we expect every widget to implement].\r\n- [x] I updated/added relevant documentation (doc comments with `///`).\r\n- [ ] All existing and new tests are passing.\r\n- [x] The analyzer (`flutter analyze --flutter-repo`) does not report any problems on my PR.\r\n- [x] I am willing to follow-up on review comments in a timely manner.\r\n\r\n## Breaking Change\r\n\r\nDoes your PR require Flutter developers to manually update their apps to accommodate your change?\r\n\r\n- [ ] Yes, this is a breaking change (Please read [Handling breaking changes]). *Replace this with a link to the e-mail where you asked for input on this proposed change.*\r\n- [x] No, this is *not* a breaking change.\r\n\r\n<!-- Links -->\r\n[issue database]: https://github.com/flutter/flutter/issues\r\n[Contributor Guide]: https://github.com/flutter/flutter/wiki/Tree-hygiene#overview\r\n[Test Coverage]: https://github.com/flutter/flutter/wiki/Test-coverage-for-package%3Aflutter\r\n[Flutter Style Guide]: https://github.com/flutter/flutter/wiki/Style-guide-for-Flutter-repo\r\n[Features we expect every widget to implement]: https://github.com/flutter/flutter/wiki/Style-guide-for-Flutter-repo#features-we-expect-every-widget-to-implement\r\n[CLA]: https://cla.developers.google.com/\r\n[Handling breaking changes]: https://github.com/flutter/flutter/wiki/Tree-hygiene#handling-breaking-changes\r",
+    "createdAt": "2019-05-31T23:45:29Z"
+  },
+  {
+    "id": 2785,
+    "sender": "Piinks",
+    "content": "Note: #33406 will probably yield some clean-up here when it lands.",
+    "createdAt": "2019-06-03T16:37:40Z"
+  },
+  {
+    "id": 2786,
+    "sender": "Piinks",
+    "content": "Waiting on #33880 and #33865 to land and update this PR.",
+    "createdAt": "2019-06-04T22:35:12Z"
+  },
+  {
+    "id": 2787,
+    "sender": "Piinks",
+    "content": "This is ready for another look now @goderbauer & @tvolkert. :)",
+    "createdAt": "2019-07-08T20:05:35Z"
+  },
+  {
+    "id": 2788,
+    "sender": "Piinks",
+    "content": "`tool_test_integration-{platform}` presubmit tests have been timing out. I'm going to update the branch again and see if it resolves this. Just waiting on these tests to land this change.",
+    "createdAt": "2019-07-12T16:30:57Z"
+  },
+  {
+    "id": 2789,
+    "sender": "tvolkert",
+    "content": "FYI for future reference: https://github.com/flutter/flutter/wiki/Tree-hygiene#squashing-commits\r\n\r\n(as seen in https://github.com/flutter/flutter/commit/eb0b17902876f1a75eb7180c0b9f3571efb312b8)",
+    "createdAt": "2019-07-12T20:01:48Z"
+  },
+  {
+    "id": 2790,
+    "sender": "pdblasi-google",
+    "content": "## Adds SemanticsNode Finders for searching the semantics tree\n\n* Pulled `FinderBase` out of `Finder`\r\n  * `FinderBase` can be used for any object, not just elements\r\n  * Terminology was updated to be more \"find\" related\r\n* Re-implemented `Finder` using `FinderBase<Element>`\r\n  * Backwards compatibility maintained with `_LegacyFinderMixin`\r\n* Introduced base classes for SemanticsNode finders\r\n* Introduced basic SemanticsNode finders through `find.semantics`\r\n* Updated some relevant matchers to make use of the more generic `FinderBase`\r\n\r\nCloses #123634\r\nCloses #115874\r\n\r\n## Pre-launch Checklist\r\n\r\n- [x] I read the [Contributor Guide] and followed the process outlined there for submitting PRs.\r\n- [x] I read the [Tree Hygiene] wiki page, which explains my responsibilities.\r\n- [x] I read and followed the [Flutter Style Guide], including [Features we expect every widget to implement].\r\n- [x] I signed the [CLA].\r\n- [x] I listed at least one issue that this PR fixes in the description above.\r\n- [x] I updated/added relevant documentation (doc comments with `///`).\r\n- [x] I added new tests to check the change I am making, or this PR is [test-exempt].\r\n- [x] All existing and new tests are passing.",
+    "createdAt": "2023-05-18T21:04:11Z"
+  },
+  {
+    "id": 2791,
+    "sender": "pdblasi-google",
+    "content": "cc: @bartekpacia \r\n\r\nHere's the PR that cleans up the Finder API (as well as pulled out a generic base class for it.\r\n\r\nTurns out the `toString` issue had a reason, there isn't a way to do custom formatting of the `Actual` part of the `expect` call without using `toString`, but I did add a parameter to the `toString` method to be able to actually describe just the finder itself, and the results are where that description is created.",
+    "createdAt": "2023-05-18T22:37:00Z"
+  },
+  {
+    "id": 2792,
+    "sender": "goderbauer",
+    "content": "nit: looks like the analyzer is unhappy about a space somewhere...",
+    "createdAt": "2023-07-24T17:19:40Z"
+  },
+  {
+    "id": 2793,
+    "sender": "goderbauer",
+    "content": "About the deprecations: I am very much against introducing replacement APIs without deprecating the old ones - even if this state is just intended to last a short period of time. Having two sets of APIs without clear marking which one is supposed to be used is creating user confusion, we have seen this before. Furthermore, if we delay the deprecation we may realize too late that for one reason or another we cannot actually deprecate the old API and then we are stuck with both. Also, even when the intention is to follow up with the deprecations right away, intentions and plans change and then things get forgotten. I just recently fixed a \"TODO: deprecate this\" four years after the reason to deprecate it became true and had to do a bunch of extra clean-up because people continued to use the not-yet-deprecated property in their code since they had no better way of knowing that they weren't supposed to.\r\n\r\nI agree that it may not be practical to do all of these deprecations in this PR. For that, we have options. Some examples:\r\n\r\n1. When it comes to renaming things, we can do the rename deprecation first (e.g. rename Finder to WidgetFinder, add a deprecated typedef) in a separate PR upfront.\r\n2. We can chose to not introduce a replacement API at all (e.g. decide that `Finder` is a fine name and not introduce `WidgetFinder`).\r\n3. We can chose to delay introducing the replacement to a future point in time (e.g. keep `Finder` for now and then in a follow-up rename it to `WidgetFinder`, we just need to accept that that may never happen, but we will not end up in a two APIs state).\r\n4. ...\r\n\r\nWhen it comes to deprecating a thing, we also need to evaluate whether the deprecation is worth it. We don't want to create too much churn for our developers without clear benefit for them. Right now, we enjoy there good will and they let use evolve the APIs to make them better. But if we - in their eyes - abuse that good will, people may become grumpy and less receptive to these kind of deprecations.\r\n\r\nTo evaluate whether a depreciation is worthwhile, we should collect some data. For each deprecation it would be worthwhile to collect:\r\n1. How many lines of code need to be migrated in our own repository? In google3? For out customer tests, including the packages repository?\r\n2. Can these deprecations be auto-migrated by dart fix?\r\n3. How would one migrate to the new APIs?\r\n4. What is the developer facing benefit for doing these migrations?\r\n\r\nThe last 3 points are what one would typically also cover in a migration guide. It is a good exercise to write this before doing the deprecations to make sure we have good reasons for it - and to illustrate that doing this is worthwhile.\r\n\r\nLastly, some concrete thoughts on some of the deprecations proposed:\r\n\r\n* `Finder` -> `WidgetFinder` seems to have a rather low return on investment. Sure, we should have used that name from the beginning. If almost nobody is affected by this rename we can still do it, but if it affects hundreds of callsides outside of our direct control I would lean away from it.\r\n\r\n* `Finder.evaluate` is called almost 3,000 times in google3. That's a lot of code that needs to be migrated. I am wondering if we instead should save everyone the trouble and design the new capabilities around this exiting API.",
+    "createdAt": "2023-07-28T22:09:59Z"
+  },
+  {
+    "id": 2794,
+    "sender": "goderbauer",
+    "content": "There's also some more guidance around this in our wiki: https://github.com/flutter/flutter/wiki/Tree-hygiene#handling-breaking-changes",
+    "createdAt": "2023-07-28T22:12:27Z"
+  },
+  {
+    "id": 2795,
+    "sender": "justinmc",
+    "content": "## Context Menus\n\n[Design doc](https://docs.google.com/document/d/1F1itGgbSS3Cbq70hScSCNriDoux1sMGF9LHZsMdvU74/edit?resourcekey=0-RkHGwhe-tcoTGlaQyclPtQ)\r\n\r\nThis PR makes it easy to work with context menus, the menu that shows up on right click, longpress, or when working with text selection.\r\n\r\n![Screenshot from 2022-07-26 16-45-11](https://user-images.githubusercontent.com/389558/181130944-35b4227f-39cd-4fef-bb30-7a192cb33979.png)\r\n\r\n### tl;dr\r\n\r\n  * Widgets that have context menus, like TextField, now have a `contextMenuBuilder` parameter that allows any widget to be built as the context menu.\r\n  * The context menu can be controlled, and even displayed in new places, using the new global ContextMenuController.\r\n  * Several new widgets have been added to make it easy to compose context menus, like AdaptiveTextSelectionToolbar.\r\n  * The old way to build context menus in TextSelectionControls has been deprecated.\r\n\r\nMore details below.\r\n\r\n### Deprecations\r\n\r\nThe old way of building a toolbar still works exactly as before, but it's deprecated.  That's toolbarOptions and the toolbar-related parts of TextSelectionControls.\r\n\r\n  * toolbarOptions (in EditableText et. al.)\r\n  * TextSelectionControls.buildToolbar\r\n  * TextSelectionControls.canCopy (and other toolbar operations)\r\n  * TextSelectionDelegate.canCopy (and other toolbar operations)\r\n  * TextSelectionControls.handleCopy etc.\r\n\r\nAll of these have been replace by contextMenuBuilder and a suite of widgets that allow customizing the default text selection toolbar.  Direct equivalents of canCopy etc. are now at TextSelectionToolbarButtonItemsBuilder.canCopy etc.\r\n\r\n#### New stuff immediately deprecated\r\n\r\n  * TextSelectionHandleControls\r\n    - Since I have deprecated the parts of TextSelectionControls related to the toolbar, I needed a way to distinguish old TextSelectionControls that still desire to customize the toolbar.  To do that, I created a new mixin TextSelectionHandleControls on TextSelectionControls for new usages that don't care about the toolbar.  I immediately deprecated TextSelectionHandleControls.  When the deprecation is removed, we can remove that class and all TextSelectionControls will only relate to handles and not toolbars.\r\n  * buttonItemsForToolbarOptions\r\n    - For the same reason as the previous point, this method was created and immediately deprecated.  It translates between the old toolbarOptions system and the new buttonItems.\r\n\r\n### User-side changes\r\n\r\n  * Mac no longer shows a \"Select all\" button.  I think we missed this before and native Mac shouldn't show one.  I don't ever see one natively, except in the browser.\r\n  * The text selection menu is now clamped to within the field.\r\n\r\n### API changes\r\n  * The desktop text selection toolbar and buttons classes that were previously private have been made public.\r\n    - DesktopTextSelectionToolbar, CupertinoDesktopTextSelectionToolbar, CupertinoDesktopTextSelectionToolbarButton, CupertinoDesktopTextSelectionToolbarButton\r\n    - This is so that we can give users a way to build the default toolbar for the platform, via AdaptiveTextSelectionToolbar and CupertinoAdaptiveTextSelectionToolbar.\r\n  * EditableTextState.clipboardStatus was made public.\r\n    - This was done to allow EditableTextContextMenuButtonItemsBuilder to build the context menu buttons based on the same clipboard status that the EditableText has.\r\n\r\n### Open questions\r\n\r\n  * ContextMenuButtonItem\r\n    - I'm not using @gspencergoog's [MenuItem](https://master-api.flutter.dev/flutter/widgets/MenuItem-class.html) class as it doesn't seem relevant here.  Am I wrong or is there anything else to do to make this easier to mesh with cascading menus?\r\n    - Also, @Renzo-Olivares had the idea to include a `child` parameter to pass a Widget to the button instead of just a text label hardcoded to a Text.  A good use case would be for an icon button.\r\n  * ContextMenuController.isShown only knows if *any* menu is shown, not a specific one.\r\n    - Because ContextMenuController is global, show/hide can be called at any time from anywhere.  If I call `show`, I have no guarantee that my menu is visible or not in the future.  Will that be important?  I could add an \"onHidden\" callback or something.\r\n\r\n### Related\r\n\r\nThis PR was reopened from https://github.com/flutter/flutter/pull/104647 due to incorrectly failing customer tests, losing ~91 commits of history.\r\n\r\nFixes https://github.com/flutter/flutter/issues/98272\r\nFixes https://github.com/flutter/flutter/issues/73574\r\nFixes https://github.com/flutter/flutter/issues/90563\r\nFixes https://github.com/flutter/flutter/issues/79796\r\nFixes https://github.com/flutter/flutter/issues/22210\r\nFixes https://github.com/flutter/flutter/issues/49996\r\nPartial fix for https://github.com/flutter/flutter/issues/74255\r\nAfter deprecations are removed, will fix: https://github.com/flutter/flutter/issues/111213",
+    "createdAt": "2022-07-06T22:39:27Z"
+  },
+  {
+    "id": 2796,
+    "sender": "pedromassango",
+    "content": "@justinmc is there any chance to make it disappear when the application lose focus?",
+    "createdAt": "2022-07-26T21:34:58Z"
+  },
+  {
+    "id": 2797,
+    "sender": "justinmc",
+    "content": "@pedromassango It seems like it's not possible right now to detect when the app loses focus on desktop (without a plugin).  Here's a PR that is trying to add that functionality for Windows: https://github.com/flutter/engine/pull/29288.  I think we can do it once that is merged.",
+    "createdAt": "2022-07-26T21:54:53Z"
+  },
+  {
+    "id": 2798,
+    "sender": "justinmc",
+    "content": "@gspencergoog I wanted to address your comment above about making ContextMenuButtonItem a widget, now that I've done some refactoring and exploratory code.  I'm coming to the conclusion that it's not feasible, but I'd be interested if you had different thoughts here.\r\n\r\nThe purpose of ContextMenuButtonItem is to provide an intermediate representation of the buttons before building their widgets, allowing:\r\n\r\n  1. Button widgets to be built with knowledge of their siblings.  Some buttons look different depending on if they're the first button of many, or the only button, or a middle button, etc.\r\n  2. Users to modify the buttons before they are turned into widgets.  Users may want use a different widget than the default but with the same label/callback, insert a custom button after the Paste button, etc.\r\n\r\nCurrently in my refactored PR, this looks something like this:\r\n\r\n```dart\r\nEditableTextContextMenuButtonItemsBuilder(\r\n  editableTextState: editableTextState,\r\n  builder: (BuildContext context, List<ContextMenuButtonItem> buttonItems) {\r\n    // Here, buttonItems represents the default buttons for the current platform.\r\n    // A user could modify those buttons in any way here before allowing them to\r\n    // be built as full widgets below.\r\n    return AdaptiveTextSelectionToolbar.buttonItems(\r\n      primaryAnchor: primaryAnchor,\r\n      secondaryAnchor: secondaryAnchor,\r\n      buttonItems: buttonItems,\r\n    );\r\n  },\r\n)\r\n```\r\n\r\nIf I made them Widgets, it might look like this:\r\n\r\n```dart\r\nEditableTextContextMenuButtonItemsBuilder(\r\n  editableTextState: editableTextState,\r\n  builder: (BuildContext context, List<Widget> children) {\r\n    // This looks nice, but the widget children are totally opaque.\r\n    // If I wanted to just remove the Paste button, I couldn't figure\r\n    // out which member of children to remove.\r\n    return AdaptiveTextSelectionToolbar(\r\n      primaryAnchor: primaryAnchor,\r\n      secondaryAnchor: secondaryAnchor,\r\n      children: children,\r\n    );\r\n  },\r\n)\r\n```\r\n\r\nI could work around that problem by passing the children widgets as a specific type in order to allow their fields to be accessed, though that might start to defeat the purpose of just using widgets, and I still run into the problem from point 1 above:\r\n\r\n```dart\r\nEditableTextContextMenuButtonItemsBuilder(\r\n  editableTextState: editableTextState,\r\n  builder: (BuildContext context, List<AdaptiveTextSelectionToolbarButton> buttons) {\r\n    // This would allow me to take a look at, say, buttons.first.label and modify the list\r\n    // based on that.  However, remember from point number 1 above that the buttons\r\n    // need to know their place in the list.  So I can't just remove the Paste button from\r\n    // the list, I'd also have to rebuild every other button widget as well!\r\n    return AdaptiveTextSelectionToolbar(\r\n      primaryAnchor: primaryAnchor,\r\n      secondaryAnchor: secondaryAnchor,\r\n      children: buttons,\r\n    );\r\n  },\r\n)\r\n```\r\n\r\n## Conclusion\r\n\r\nIt seems impractical to fully make ContextMenuButtonItem into a widget here unless I'm missing another approach.  However, in my refactoring I have moved lots of buttonItem logic into named constructors and generally hidden them away unless users need them.  By default, widgets like AdaptiveTextSelectionToolbar work on a list of `children` widgets.",
+    "createdAt": "2022-08-20T06:48:33Z"
+  },
+  {
+    "id": 2799,
+    "sender": "masus04",
+    "content": "Does this PR also allow `ContextMenu`s to be used on web platforms?\r\nIt appears the current implementation of `TextField.toolbarOptions` is simply ignored on the web.",
+    "createdAt": "2022-09-01T09:24:30Z"
+  },
+  {
+    "id": 2800,
+    "sender": "justinmc",
+    "content": "@masus04 This does not add full support for context menus on the web, but it gets us closer.  We need a way to prevent the browser from showing its context menu using Dart, which is covered by https://github.com/flutter/flutter/issues/78671.  Once that issue is resolved, I think it would be pretty straightforward to get this to work on web.",
+    "createdAt": "2022-09-06T23:01:44Z"
+  },
+  {
+    "id": 2801,
+    "sender": "justinmc",
+    "content": "I've refactored ContextMenuController so that it is no longer a singleton.\r\n\r\nPreviously, all methods were static and everything operated globally on a single context menu.  This was nice to enforce that there is only one context menu, but it meant that you couldn't know if a specific context menu was shown at any time.\r\n\r\nNow, you show it by creating an instance, and you can use that instance to see `isShown` or to `remove` that specific instance without affecting others.  I also added `onRemove` to be notified if an instance is removed by someone else.  There is still only one static OverlayEntry under the hood, so it still prevents showing multiple context menus at the same time.\r\n\r\nExample:\r\n\r\n```dart\r\nmyContextMenuController = ContextMenuController(\r\n  context: context,\r\n  onRemove: () {\r\n    myContextMenuController = null;\r\n  },\r\n  contextMenuBuilder: (BuildContext context) {\r\n    return MyContextMenu();\r\n  },\r\n);\r\n```",
+    "createdAt": "2022-09-08T23:27:23Z"
+  },
+  {
+    "id": 2802,
+    "sender": "justinmc",
+    "content": "Ready for re-review from everyone, thanks!  Notice the switch away from a singleton ContextMenuController ([explanation above](https://github.com/flutter/flutter/pull/107193#issuecomment-1241333434)).",
+    "createdAt": "2022-09-09T03:13:49Z"
+  },
+  {
+    "id": 2803,
+    "sender": "Renzo-Olivares",
+    "content": "Is there a way to add dividers in between toolbar items? I tried something around these lines, but was wondering if there is another way.\r\n\r\n```dart\r\n        child: TextField(\r\n          contextMenuBuilder: (BuildContext context, EditableTextState state, Offset primaryAnchor, [Offset? secondaryAnchor]) {\r\n            return AdaptiveTextSelectionToolbar(\r\n              primaryAnchor: primaryAnchor,\r\n              secondaryAnchor: secondaryAnchor,\r\n              children: getEditableTextButtonItems(state)\r\n                  .map((ContextMenuButtonItem buttonItem) {\r\n                return Column(\r\n                  children: [\r\n                    TextSelectionToolbarTextButton(\r\n                      onPressed: buttonItem.onPressed,\r\n                      padding: const EdgeInsets.all(10.0),\r\n                      child: SizedBox(\r\n                        width: 200.0,\r\n                        child: Text(\r\n                          AdaptiveTextSelectionToolbar.getButtonLabel(context, buttonItem),\r\n                        ),\r\n                      ),\r\n                    ),\r\n                    Divider(color: Colors.black,)\r\n                  ],\r\n                );\r\n              }).toList() as List<Widget>,\r\n            );\r\n          },\r\n        ),\r\n```",
+    "createdAt": "2022-09-21T20:59:35Z"
+  },
+  {
+    "id": 2804,
+    "sender": "justinmc",
+    "content": "@Renzo-Olivares About dividers, are you talking about the iOS dividers [here](https://github.com/flutter/flutter/pull/107193/files#diff-b35010ea66b8fe0d3e4792bb7eed205ecb04d5d44d5f36747d771c0a1a01ee34R294) or some other ones?  There might be problems with not adding a divider after the last button if I do it in-line like in your code.  Anyway I think any code related to dividers was added before this PR and I just moved it, though I'm happy to clean that up if possible here or in a new PR afterwards.",
+    "createdAt": "2022-09-22T17:48:31Z"
+  },
+  {
+    "id": 2805,
+    "sender": "justinmc",
+    "content": "I've refactored so that builders take EditableTextState or SelectableTextState instead of buttonItems and anchors.  This stems from a [discussion](https://github.com/flutter/flutter/pull/107193#discussion_r980529444) above with @LongCatIsLooong and partially conflicts with some [discussion](https://github.com/flutter/flutter/pull/107193#discussion_r978026488) above with @chunhtai. Here are some details summarizing the change.\r\n\r\n### What\r\nHere's an example of adding a \"Print\" button to a TextField's context menu.\r\n\r\nBefore:\r\n\r\n```dart\r\nTextField(\r\n  contextMenuBuilder: (BuildContext context, List<ContextMenuButtonItems> buttonItems, Offset primaryAnchor, [Offset? secondaryAnchor]) {\r\n    return AdaptiveTextSelectionToolbar(\r\n      buttonItems: <ContextMenuButtonItem>[\r\n        ...buttonItems,\r\n        ContextMenuButtonItem(\r\n          label: 'Print',\r\n          onPressed: print(),\r\n        ),\r\n      ],\r\n      primaryAnchor: primaryAnchor,\r\n      secondaryAnchor: secondaryAnchor,\r\n    );\r\n  },\r\n)\r\n```\r\n\r\nAfter:\r\n\r\n```dart\r\nTextField(\r\n  contextMenuBuilder: (BuildContext context, EditableTextState editableTextState) {\r\n    return AdaptiveTextSelectionToolbar(\r\n      buttonItems: <ContextMenuButtonItem>[\r\n        ...editableTextState.contextMenuButtonItems,\r\n        ContextMenuButtonItem(\r\n          label: 'Print',\r\n          onPressed: print(),\r\n        ),\r\n      ],\r\n      anchors: AdaptiveTextSelectionToolbar.getAnchorsEditable(editableTextState),\r\n    );\r\n  },\r\n)\r\n```\r\n\r\n### Why\r\nThis approach decouples us from the primary/secondary anchor approach, which is specific to our built-in context menus and not to context menus generally.  I think it better follows Flutter's principal of just accepting generic widgets everywhere.\r\n\r\nIn the future, we can update contextMenuBuilder to take a generic TextLayoutMetrics object, further decoupling us from EditableTextState and SelectableRegionState.\r\n\r\n### Changes\r\n\r\n### Context menu builders\r\nPreviously these passed buttonItems and anchor Offsets.  Now they pass EditableTextState or SelectableRegionState when used for those widgets specifically, and otherwise they're just a generic WidgetBuilder.\r\n\r\n### AdaptiveTextSelectionToolbar constructors\r\nThis and CupertinoTextSelectionToolbar now have `.editableText` and `.selectableRegion` constructors again.  They handle the logic of building a menu specifically for these widgets, since contextMenuBuilder is now generic.\r\n\r\nThe logic of calculating the anchors has also been moved from widgets/text_selection.dart to AdaptiveTextSelectionToolbar, since the logic is specific to that widget.\r\n\r\nThe logic for generating buttonItems is still on EditableTextState and SelectableRegionState and has been made public via `contextMenuButtonItems` getters, which AdaptiveTextSelectionToolbar accesses.  EditableTextState and SelectableRegionState still know about context menus and decide what their default buttons are.\r\n\r\n### Anchors\r\nWhere we previously took two offsets, `Offset primaryAnchor, [Offset? secondaryAnchor]`, I have now encapsulated this in a class, TextSelectionToolbarAnchors.  This is mainly done because Dart doesn't have tuples yet and it's the easiest way to allow passing both anchors and no duplicating overlapping calculations for each anchor in two separate calls.\r\n\r\n### SelectableRegionState\r\nThis class had to be made public again.  I [discussed](https://github.com/flutter/flutter/pull/107193#discussion_r978026488) this above earlier in this PR's life but later made it private again, and now we're back to public.  It makes sense public, similar to EditableTextState, while we don't have TextLayoutMetrics and we're not passing specific buttonItems and anchors to the contextMenuBuilder.\r\n\r\nAlso, `selectionEndpoints` has been exposed publicly on this class in order to allow AdaptiveTextSelectionToolbar to calculate the anchors for it.\r\n\r\n### Reviewing\r\nAll changes for this feature are tagged `(pass editable text state)`.  You can view all changes at once with: `git diff cf9e31b0dc9f4e2c7224d55b8bd17e3bd026a96e^ 2a2438c6fe1af8a1213be4d8f0bbc211e4f7be3c`.",
+    "createdAt": "2022-10-05T17:51:45Z"
+  },
+  {
+    "id": 2806,
+    "sender": "justinmc",
+    "content": "@LongCatIsLooong About ButtonItem vs. widget: [Here](https://github.com/flutter/flutter/pull/107193/files#diff-a9680c8f968ad15d426a2929cc646ca042795ec16464e9fbae8213fc59ec1f61R246) is where AdaptiveTextSelectionToolbar decides the padding of its children based on the index and total number of children.  [Here](https://github.com/flutter/flutter/blob/8875040c9871a5538bf204f0a73874e04412da98/packages/flutter/lib/src/material/text_selection.dart#L261) is where this used to happen before this PR.\r\n\r\n[Here's a commit](https://github.com/flutter/flutter/commit/5f65c540a67665ef1a0f79a79272a2bc688d390e) where I quickly got it working by turning ContextMenuButtonItem into ContextMenuItem, a StatelessWidget.  Besides taking `label` and `onPressed`, it now takes a nullable `child`.  If child is null, then it will build a SizedBox.shrink (really the point of this is to tell the AdaptiveTextSelectionToolbar to override it with the right button for the platform).  If child is not null then it's used as-is.\r\n\r\nThis definitely isn't fully fleshed out, but I wonder what your vision here is.  I think fundamentally I do need a way to specify the label/callback without specifying what the button looks like.  It's possible to do this using a single widget as in the commit linked above, but it feels forced as it is there.",
+    "createdAt": "2022-10-14T22:46:59Z"
+  },
+  {
+    "id": 2807,
+    "sender": "codecov-commenter",
+    "content": "# [Codecov](https://codecov.io/gh/flutter/flutter/pull/107193?src=pr&el=h1&utm_medium=referral&utm_source=github&utm_content=comment&utm_campaign=pr+comments&utm_term=flutter) Report\n> Merging [#107193](https://codecov.io/gh/flutter/flutter/pull/107193?src=pr&el=desc&utm_medium=referral&utm_source=github&utm_content=comment&utm_campaign=pr+comments&utm_term=flutter) (f059dd4) into [master](https://codecov.io/gh/flutter/flutter/commit/721ce7aa6e886d9106f20bdccaaab366e9262226?el=desc&utm_medium=referral&utm_source=github&utm_content=comment&utm_campaign=pr+comments&utm_term=flutter) (721ce7a) will **increase** coverage by `20.76%`.\n> The diff coverage is `n/a`.\n\n> :exclamation: Current head f059dd4 differs from pull request most recent head 3af552c. Consider uploading reports for the commit 3af552c to get more accurate results\n\n```diff\n@@             Coverage Diff              @@\n##           master   #107193       +/-   ##\n============================================\n+ Coverage   70.68%    91.44%   +20.76%     \n============================================\n  Files         204       523      +319     \n  Lines       22636     94612    +71976     \n============================================\n+ Hits        16000     86522    +70522     \n- Misses       6636      8090     +1454     \n```\n\n| Flag | Coverage Δ | |\n|---|---|---|\n| flutter_tool | `?` | |\n\nFlags with carried forward coverage won't be shown. [Click here](https://docs.codecov.io/docs/carryforward-flags?utm_medium=referral&utm_source=github&utm_content=comment&utm_campaign=pr+comments&utm_term=flutter#carryforward-flags-in-the-pull-request-comment) to find out more.\n\n| [Impacted Files](https://codecov.io/gh/flutter/flutter/pull/107193?src=pr&el=tree&utm_medium=referral&utm_source=github&utm_content=comment&utm_campaign=pr+comments&utm_term=flutter) | Coverage Δ | |\n|---|---|---|\n| [packages/flutter\\_tools/lib/src/web/bootstrap.dart](https://codecov.io/gh/flutter/flutter/pull/107193/diff?src=pr&el=tree&utm_medium=referral&utm_source=github&utm_content=comment&utm_campaign=pr+comments&utm_term=flutter#diff-cGFja2FnZXMvZmx1dHRlcl90b29scy9saWIvc3JjL3dlYi9ib290c3RyYXAuZGFydA==) | | |\n| [...utter\\_tools/lib/src/test/flutter\\_web\\_platform.dart](https://codecov.io/gh/flutter/flutter/pull/107193/diff?src=pr&el=tree&utm_medium=referral&utm_source=github&utm_content=comment&utm_campaign=pr+comments&utm_term=flutter#diff-cGFja2FnZXMvZmx1dHRlcl90b29scy9saWIvc3JjL3Rlc3QvZmx1dHRlcl93ZWJfcGxhdGZvcm0uZGFydA==) | | |\n| [packages/flutter\\_tools/lib/src/base/net.dart](https://codecov.io/gh/flutter/flutter/pull/107193/diff?src=pr&el=tree&utm_medium=referral&utm_source=github&utm_content=comment&utm_campaign=pr+comments&utm_term=flutter#diff-cGFja2FnZXMvZmx1dHRlcl90b29scy9saWIvc3JjL2Jhc2UvbmV0LmRhcnQ=) | | |\n| [.../flutter\\_tools/lib/src/commands/build\\_fuchsia.dart](https://codecov.io/gh/flutter/flutter/pull/107193/diff?src=pr&el=tree&utm_medium=referral&utm_source=github&utm_content=comment&utm_campaign=pr+comments&utm_term=flutter#diff-cGFja2FnZXMvZmx1dHRlcl90b29scy9saWIvc3JjL2NvbW1hbmRzL2J1aWxkX2Z1Y2hzaWEuZGFydA==) | | |\n| [...ges/flutter\\_tools/lib/src/commands/ide\\_config.dart](https://codecov.io/gh/flutter/flutter/pull/107193/diff?src=pr&el=tree&utm_medium=referral&utm_source=github&utm_content=comment&utm_campaign=pr+comments&utm_term=flutter#diff-cGFja2FnZXMvZmx1dHRlcl90b29scy9saWIvc3JjL2NvbW1hbmRzL2lkZV9jb25maWcuZGFydA==) | | |\n| [packages/flutter\\_tools/lib/src/android/gradle.dart](https://codecov.io/gh/flutter/flutter/pull/107193/diff?src=pr&el=tree&utm_medium=referral&utm_source=github&utm_content=comment&utm_campaign=pr+comments&utm_term=flutter#diff-cGFja2FnZXMvZmx1dHRlcl90b29scy9saWIvc3JjL2FuZHJvaWQvZ3JhZGxlLmRhcnQ=) | | |\n| [...tools/lib/src/windows/visual\\_studio\\_validator.dart](https://codecov.io/gh/flutter/flutter/pull/107193/diff?src=pr&el=tree&utm_medium=referral&utm_source=github&utm_content=comment&utm_campaign=pr+comments&utm_term=flutter#diff-cGFja2FnZXMvZmx1dHRlcl90b29scy9saWIvc3JjL3dpbmRvd3MvdmlzdWFsX3N0dWRpb192YWxpZGF0b3IuZGFydA==) | | |\n| [packages/flutter\\_tools/lib/src/run\\_hot.dart](https://codecov.io/gh/flutter/flutter/pull/107193/diff?src=pr&el=tree&utm_medium=referral&utm_source=github&utm_content=comment&utm_campaign=pr+comments&utm_term=flutter#diff-cGFja2FnZXMvZmx1dHRlcl90b29scy9saWIvc3JjL3J1bl9ob3QuZGFydA==) | | |\n| [...kages/flutter\\_tools/lib/src/macos/build\\_macos.dart](https://codecov.io/gh/flutter/flutter/pull/107193/diff?src=pr&el=tree&utm_medium=referral&utm_source=github&utm_content=comment&utm_campaign=pr+comments&utm_term=flutter#diff-cGFja2FnZXMvZmx1dHRlcl90b29scy9saWIvc3JjL21hY29zL2J1aWxkX21hY29zLmRhcnQ=) | | |\n| [packages/flutter\\_tools/lib/src/linux/makefile.dart](https://codecov.io/gh/flutter/flutter/pull/107193/diff?src=pr&el=tree&utm_medium=referral&utm_source=github&utm_content=comment&utm_campaign=pr+comments&utm_term=flutter#diff-cGFja2FnZXMvZmx1dHRlcl90b29scy9saWIvc3JjL2xpbnV4L21ha2VmaWxlLmRhcnQ=) | | |\n| ... and [717 more](https://codecov.io/gh/flutter/flutter/pull/107193/diff?src=pr&el=tree-more&utm_medium=referral&utm_source=github&utm_content=comment&utm_campaign=pr+comments&utm_term=flutter) | |\n\n:mega: We’re building smart automated test selection to slash your CI/CD build times. [Learn more](https://about.codecov.io/iterative-testing/?utm_medium=referral&utm_source=github&utm_content=comment&utm_campaign=pr+comments&utm_term=flutter)\n",
+    "createdAt": "2022-10-17T19:37:06Z"
+  },
+  {
+    "id": 2808,
+    "sender": "BernardinD",
+    "content": "Hi, thx for introducing this feature. It's been very helpful.\r\n\r\nI'm wondering if the \"undo\" will become available for android. I had assumed all the default menu options for the platform always show up for each text field type but \"undo\" isn't showing up for TextFormField so I'm in need of some guidance.",
+    "createdAt": "2023-03-14T06:38:47Z"
+  },
+  {
+    "id": 2809,
+    "sender": "justinmc",
+    "content": "@BernardinD I'm glad this has been useful for you!\r\n\r\nI think this is the relevant issue: https://github.com/flutter/flutter/issues/107578\r\n\r\nWould you be able to leave a comment over there with details about when the \"undo\" button should show up?  Looking at that issue, it seems that I missed it when I investigated which buttons are missing for Android.  Currently, only Cut, Copy, Paste, and Select all are built-in, but now that this PR has been merged, it should be much easier to add the missing buttons.",
+    "createdAt": "2023-03-15T20:46:58Z"
+  },
+  {
+    "id": 2810,
+    "sender": "johnsonmh",
+    "content": "## [Material 3] Add Navigation Bar component to flutter framework.\n\nThis PR introduces the new \"Material You\" (aka Material v3) Navigation Bar component as a widget in the flutter framework. It features custom animations and an indicator to highlight the selected item.\r\n\r\nCloses https://github.com/flutter/flutter/issues/88888\r\n\r\n![giphy](https://user-images.githubusercontent.com/4229329/119037004-703d9000-b97f-11eb-9e70-150df794cd71.gif)\r\n\r\n\r\nThe above example is accomplished with the following sample app:\r\n\r\n```dart\r\nimport 'package:flutter/material.dart';\r\n\r\nvoid main() {\r\n  runApp(MyApp());\r\n}\r\n\r\nclass MyApp extends StatelessWidget {\r\n  @override\r\n  Widget build(BuildContext context) {\r\n    return MaterialApp(\r\n      title: 'Navigation Bar Demo',\r\n      theme: ThemeData.light(),\r\n      home: Scaffold(\r\n        body: Body(),\r\n        bottomNavigationBar: SampleNavigationBar(),\r\n      ),\r\n    );\r\n  }\r\n}\r\n\r\nclass SampleNavigationBar extends StatefulWidget {\r\n  @override\r\n  _SampleNavigationBarState createState() => _SampleNavigationBarState();\r\n}\r\n\r\nclass _SampleNavigationBarState extends State<SampleNavigationBar> {\r\n  int _currentPageIndex = 0;\r\n\r\n  void _setIndex(int i) {\r\n    setState(() {\r\n      _currentPageIndex = i;\r\n    });\r\n  }\r\n\r\n  @override\r\n  Widget build(BuildContext context) {\r\n    return NavigationBar(\r\n      selectedIndex: _currentPageIndex,\r\n      labelBehavior: NavigationBarDestinationLabelBehavior.alwaysShow,\r\n      onDestinationSelected: _setIndex,\r\n      destinations: [\r\n        NavigationBarDestination(\r\n          icon: Icon(Icons.explore),\r\n          label: 'Explore',\r\n        ),\r\n        NavigationBarDestination(\r\n          icon: Icon(Icons.commute),\r\n          label: 'Commute',\r\n        ),\r\n        NavigationBarDestination(\r\n          icon: Icon(Icons.bookmark),\r\n          unselectedIcon: Icon(Icons.bookmark_border),\r\n          label: 'Saved',\r\n        ),\r\n        NavigationBarDestination(\r\n          icon: Icon(Icons.add_circle),\r\n          unselectedIcon: Icon(Icons.add_circle_outline),\r\n          label: 'Contribute',\r\n        ),\r\n        NavigationBarDestination(\r\n          icon: Icon(Icons.notifications),\r\n          unselectedIcon: Icon(Icons.notifications_none),\r\n          label: 'Updates',\r\n        ),\r\n      ],\r\n    );\r\n  }\r\n}\r\n```\r\n\r\nThe widget also supports different label configurations.\r\n\r\n|`labelBehavior`|result|\r\n|-|-|\r\n|`alwaysShow`|![giphy](https://user-images.githubusercontent.com/4229329/119037004-703d9000-b97f-11eb-9e70-150df794cd71.gif)|\r\n|`onlyShowSelected`|![giphy-1](https://user-images.githubusercontent.com/4229329/119037504-0bcf0080-b980-11eb-9ea3-c635daf99c7b.gif)|\r\n|`alwaysHide`|![giphy-3](https://user-images.githubusercontent.com/4229329/119037925-8dbf2980-b980-11eb-969e-3a9e9f7f4843.gif)|\r\n\r\nAll of the label behaviors support tooltips for proper accessibility.\r\n![giphy-2](https://user-images.githubusercontent.com/4229329/119038083-b6dfba00-b980-11eb-912b-da547260c487.gif)\r\n \r\n\r\n## Pre-launch Checklist\r\n\r\n- [x] I read the [Contributor Guide] and followed the process outlined there for submitting PRs.\r\n- [x] I read the [Tree Hygiene] wiki page, which explains my responsibilities.\r\n- [x] I read and followed the [Flutter Style Guide], including [Features we expect every widget to implement].\r\n- [x] I signed the [CLA].\r\n- [x] I listed at least one issue that this PR fixes in the description above.\r\n- [x] I updated/added relevant documentation (doc comments with `///`).\r\n- [x] I added new tests to check the change I am making or feature I am adding, or Hixie said the PR is test-exempt.\r\n- [x] All existing and new tests are passing.\r\n\r\n<!-- Links -->\r\n[Contributor Guide]: https://github.com/flutter/flutter/wiki/Tree-hygiene#overview\r\n[Tree Hygiene]: https://github.com/flutter/flutter/wiki/Tree-hygiene\r\n[Flutter Style Guide]: https://github.com/flutter/flutter/wiki/Style-guide-for-Flutter-repo\r\n[Features we expect every widget to implement]: https://github.com/flutter/flutter/wiki/Style-guide-for-Flutter-repo#features-we-expect-every-widget-to-implement\r\n[CLA]: https://cla.developers.google.com/\r\n[flutter/tests]: https://github.com/flutter/tests\r\n[breaking change policy]: https://github.com/flutter/flutter/wiki/Tree-hygiene#handling-breaking-changes\r\n[Discord]: https://github.com/flutter/flutter/wiki/Chat\r",
+    "createdAt": "2021-05-20T19:44:51Z"
+  },
+  {
+    "id": 2811,
+    "sender": "skia-gold",
+    "content": "Gold has detected about 1 untriaged digest(s) on patchset 1.\nView them at https://flutter-gold.skia.org/cl/github/83047",
+    "createdAt": "2021-05-20T19:51:12Z"
+  },
+  {
+    "id": 2812,
+    "sender": "skia-gold",
+    "content": "Gold has detected about 2 untriaged digest(s) on patchset 3.\nView them at https://flutter-gold.skia.org/cl/github/83047",
+    "createdAt": "2021-05-21T01:21:12Z"
+  },
+  {
+    "id": 2813,
+    "sender": "YazeedAlKhalaf",
+    "content": "@johnsonmh Where can I find Material You guidelines as a non-googler?",
+    "createdAt": "2021-05-21T06:55:00Z"
+  },
+  {
+    "id": 2814,
+    "sender": "creativecreatorormaybenot",
+    "content": "@johnsonmh Quick question: where are the Material references for this and do they also feature the double ink? (one for the highlight and one for the tap?) Seems out of place but might be me.",
+    "createdAt": "2021-05-21T10:58:37Z"
+  },
+  {
+    "id": 2815,
+    "sender": "rydmike",
+    "content": "@johnsonmh Thanks for the comments on Twitter (https://twitter.com/MHJohnson8/status/1395530093729140736?s=20), I really appreciated them. 👍🏻 \r\n\r\nWhile the `NavigationBarDestinationBuilder` may make it possible to set something up that replicates the old interface of Widgets as icons that e.g. `current` BottomNavigationBarItem` and` NavigationRailDestination` uses, it gets very complex and verbose to actually do so.\r\n\r\nI tried, but failed miserably. All I want and need out of it is to be able to provide `Widgets` for the selected and unselected icons, as in the old/current interfaces for the destinations. Rest of it should behave as the default `NavigationBar` does.\r\n\r\nPlease consider adding an example that demonstrates how to do this, or some helper interfaces to easier accomplish it for better/easier backwards compatible API interfaces.\r\n\r\nMaybe I just don't fully get all the possibilities yet, but it seemed to be easier to just copy/fork the entire widget and make my own slightly modified version to do it. Mostly due to the need for the `SelectableAnimatedBuilder` providing animation to `NavigationBarDestinationInfo` that must be parent to `NavigationBarDestinationBuilder`.\r\n\r\n### Use case for Widgets as Icons - Legacy lowest common interface\r\n\r\nI have a setup (custom widget/package) where it is possible in the API (and end user UI) to select what type of bottom navigation bar (eg Cupertino, Material, Adaptive) you want to use, and it would be nice to add MaterialYuo (NavigationBar) to it, without stepping down the API interface for its destination wrapper to IconData. This does at the moment seem to be the easy way out, but then it would all loose the Widget flexibility. Which would otherwise be the lowest common interface. This new design still feels like it will for most use cases force it down to IconData, despite the nice builder feature `NavigationBar` has, but as said , maybe some concrete usage example is enough.\r\n\r\n### Observation - API Naming Consistency\r\n\r\nThe API naming for selected and unSelected icons seem to be a bit inconsistent between navigation control Widgets. In particular `NavigationBar` switches the usage of icon for selectedIcon, which typically has been used for the unselected icon or one that is just the same for both states. The table below compares some API naming differences between navigation control widgets.\r\n\r\nEdit 22.5.2021: Added API for selecting an item or destination to the comparison, since it was mentioned in later discussion.\r\n\r\n| Property |  NavigationBar | NavigationRail | BottomNavigationBar | CupertinoTabBar |\r\n| --------------- | --------------- | --------------- | --------------- | --------------- |\r\n| Selected icon      |  icon | selectedIcon |  activeIcon | activeIcon |\r\n| Unselected icon | unselectedIcon | icon  | icon | icon |\r\n| current index      | selectedIndex | selectedIndex | currentIndex |  currentIndex | \r\n| Select a destination | onTap | onDestinationSelected |  onTap | onTap |\r\n\r\n \r\n\r\n",
+    "createdAt": "2021-05-21T11:35:55Z"
+  }
+]

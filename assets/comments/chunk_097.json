@@ -1,0 +1,386 @@
+[
+  {
+    "id": 6208,
+    "sender": "jacob314",
+    "content": "Using a layer appears to work great for determining when to redraw.\r\nPushed a new version which should address all comments.\r\n\r\nReady for a full review. ",
+    "createdAt": "2017-08-09T00:50:38Z"
+  },
+  {
+    "id": 6209,
+    "sender": "Hixie",
+    "content": "This seems pretty solid. Only a few more tweaks. :-)",
+    "createdAt": "2017-08-09T21:46:13Z"
+  },
+  {
+    "id": 6210,
+    "sender": "Hixie",
+    "content": "Given how expensive this approach is, we should make sure that this widget cannot run outside of debug mode. Can you add some code that will throw an exception in profile and release builds, saying that this widget isn't available outside debug mode? Also, please add a detailed comment to the Layer subclass explaining that this approach is horrifically for performance and is only used here because this is limited to debug mode and that nobody should think of using this in production code. :-)",
+    "createdAt": "2017-08-09T22:05:03Z"
+  },
+  {
+    "id": 6211,
+    "sender": "abarth",
+    "content": "I'm not sure whether it is feasible, but here's a design that might be more efficient:\r\n\r\n1. Move the widget tree that is under inspection to an off-screen pipeline owner.\r\n2. When the off-screen pipeline owner requests a visual update, request a visual update in the on-screen pipeline owner.\r\n3. In a persistent frame callback, flush the off-screen pipeline owner.\r\n4. Read the relevant information from the off-screen pipeline owner and generate writes into a normal on-screen render tree.\r\n5. Let the on-screen pipeline owner flush the on-screen render tree as usual.\r\n\r\nThis approach will let the inspector use all the machinery of the whole system to work efficiently instead of attempting to do its own layout and paint phase during the addToScene walk of the composite phase.\r\n\r\nEssentially, using a separate pipeline owner separates the work from the inspector's pipeline and the tree under inspection so that they can run in series instead of in parallel.\r\n\r\nIf it is too disruptive to move the tree that is under inspection off-screen, another approach would be for the inspector to build a render tree in an off-screen pipeline owner and then flush the inspector's pipeline during the composite phase.  This approach is less elegant in the sense that we'd still be running a mini version of the whole system inside the composite phase of the real system, but at least you'd have all the machinery of the whole system available to you so you wouldn't need to do grossly inefficient things like re-creating TextPainter objects for every animation frame.",
+    "createdAt": "2017-08-13T03:07:15Z"
+  },
+  {
+    "id": 6212,
+    "sender": "jacob314",
+    "content": "Addressed all comments.\r\n@abarth interesting ideas for how to improve the performance. I'd like to investigate the first option once the initial CL lands. Having a custom PipelineOwner could be interesting for other reasons as wel.\r\nKeep in mind the current design at feels like it has fine performance for the applications I've tested with likely because the UI I need to render in the overlay is extremely simple. Note that the TextPainter is now cached almost all times when the selected RenderObject does not change. The current UI is as complex as the UI rendered within the screen area for Chrome Devtools so I expect there is a good change we do not need to render anything more sophisticated on the device screen to provide a good developer experience. ",
+    "createdAt": "2017-08-14T03:15:42Z"
+  },
+  {
+    "id": 6213,
+    "sender": "abarth",
+    "content": "Please don't take my comments as blocking in any way.  It's just an idea for an approach that might be more scalable (assuming it works at all).\r\n\r\n> the UI I need to render in the overlay is extremely simple\r\n\r\nThese tools tend to get more sophisticated over time.  There's some value in choosing an approach with a solid foundation to be ready for the feature to grow over time.",
+    "createdAt": "2017-08-14T03:23:29Z"
+  },
+  {
+    "id": 6214,
+    "sender": "Hixie",
+    "content": "@jacob314 Looks like you didn't push your recent changes (or at least, the first comment, which you say is done, doesn't seem to have been done).",
+    "createdAt": "2017-08-14T17:30:42Z"
+  },
+  {
+    "id": 6215,
+    "sender": "jacob314",
+    "content": "Fixed the typo in the git push command. Ready for review now.",
+    "createdAt": "2017-08-14T17:56:55Z"
+  },
+  {
+    "id": 6216,
+    "sender": "jacob314",
+    "content": "Removed the direct dependency on material by moving the tooltip code to /rendering and injecting a builder to create the button to re-enter inspect mode. If no builder is specified, the inspector always stays in select mode which is fine as toggling back and forth between select and view modes is an experiment which we could easily remove.",
+    "createdAt": "2017-08-15T18:24:15Z"
+  },
+  {
+    "id": 6217,
+    "sender": "jacob314",
+    "content": "Note that the hit testing code was also simplified to eliminate all dependence on RenderBox hit testing as RenderBox hit testing started giving undesirable results for sample applications due to an added gesture recognizer. The new heuristic is the render object with the smaller bounding rectangle wins if multiple hit test match occurs and the match is not on the edge of one of the rectangles.",
+    "createdAt": "2017-08-15T19:15:47Z"
+  },
+  {
+    "id": 6218,
+    "sender": "Hixie",
+    "content": "Are there any tests for the inspector itself?",
+    "createdAt": "2017-08-15T22:36:04Z"
+  },
+  {
+    "id": 6219,
+    "sender": "jacob314",
+    "content": "Added tests to the inspector. Made  _WidgetInspectorState and _InspectorSelection public for easier testing.",
+    "createdAt": "2017-08-17T23:12:33Z"
+  },
+  {
+    "id": 6220,
+    "sender": "jacob314",
+    "content": "Ready for next round of review. Add tests for the inspector itself, addressed all other outstanding comments.",
+    "createdAt": "2017-08-18T15:49:58Z"
+  },
+  {
+    "id": 6221,
+    "sender": "Hixie",
+    "content": "Modulo the minor comments:\r\n![LGTM](http://junkyard.damowmow.com/579)",
+    "createdAt": "2017-08-18T20:02:21Z"
+  },
+  {
+    "id": 6222,
+    "sender": "HidenoriMatsubayashi",
+    "content": "## [flutter_tools] Add ARM64 Linux host and cross-building option support\n\n## 1. Description\r\n\r\nI want to support following functions.\r\n\r\n* The Flutter SDK works on Arm64 Linux Host (e.g. `flutter run -d linux`, `flutter doctor`)\r\n* Flutter apps can be built on Arm64 Linux Host.\r\n* Flutter apps can be **cross-build** on **x64** Linux Host for Arm64 target devices.\r\n\r\n### Design documents\r\n\r\nhttps://docs.google.com/document/d/19tzWySgtgtTA99XQsjx5Pg0SFJeZKXyUlYavR0EXv8c/edit?usp=sharing\r\n\r\n### Use Case\r\n\r\n#### Running the flutter app on Arm64 Linux Host.\r\n\r\n```\r\n$ flutter doctor\r\n$ flutter run -d linux\r\n```\r\n\r\n![Screenshot from 2020-08-05 12-52-42](https://user-images.githubusercontent.com/62131389/89372186-729c6980-d720-11ea-861d-1de1cbc57e08.png)\r\n\r\n#### Cross-building a Flutter app for Arm64 on x64 Linux Host.\r\n\r\nIf you want to cross-build for Arm64, you need to prepare a target sysroot. You can specify it as a command line argument.\r\n\r\n```\r\n$ flutter build linux --target-platform=linux-arm64 --target-sysroot=/target-sysroot-path\r\n```\r\n\r\n## 2. Related PRs\r\n\r\n - [x] https://github.com/flutter/buildroot/pull/390\r\n - [x] https://github.com/flutter/engine/pull/20254\r\n - [x] https://github.com/flutter/engine/pull/22284\r\n\r\n## 3. Related Issues\r\n\r\n* https://github.com/flutter/flutter/issues/56992\r\n* https://github.com/flutter/flutter/issues/60678\r\n\r\n## 4. Tests\r\n\r\nI have tested that it can be built and run for x84_64 Host and built for aarch64 to work with [Jeston Nano](https://developer.nvidia.com/embedded/jetson-nano-developer-kit).\r\n\r\n## 5. Checklist\r\n\r\nBefore you create this PR confirm that it meets all requirements listed below by checking the relevant checkboxes (`[x]`). This will ensure a smooth and quick review process.\r\n\r\n- [x] I read the [Contributor Guide] and followed the process outlined there for submitting PRs.\r\n- [x] I signed the [CLA].\r\n- [x] I read and followed the [Flutter Style Guide], including [Features we expect every widget to implement].\r\n- [x] I read the [Tree Hygiene] wiki page, which explains my responsibilities.\r\n- [x] I updated/added relevant documentation (doc comments with `///`).\r\n- [x] All existing and new tests are passing.\r\n- [x] The analyzer (`flutter analyze --flutter-repo`) does not report any problems on my PR.\r\n- [x] I am willing to follow-up on review comments in a timely manner.\r\n\r\n## Breaking Change\r\n\r\nDid any tests fail when you ran them? Please read [Handling breaking changes].\r\n\r\n- [ ] No, no existing tests failed, so this is *not* a breaking change.\r\n- [x] Yes, this is a breaking change. *If not, delete the remainder of this section.*\r\n   - [x] I wrote a design doc: [/go/flutter-support-multi-architecture](https://docs.google.com/document/d/19tzWySgtgtTA99XQsjx5Pg0SFJeZKXyUlYavR0EXv8c/edit?usp=sharing)\r\n   - [ ] I got input from the developer relations team, specifically from: *Replace with the names of who gave advice*\r\n   - [ ] I wrote a migration guide: https://flutter.dev/go/breaking-changes-template *Replace this with a link to a pull request that adds the migration guide to https://flutter.dev/docs/release/breaking-changes*\r\n\r\n<!-- Links -->\r\n[issue database]: https://github.com/flutter/flutter/issues\r\n[Contributor Guide]: https://github.com/flutter/flutter/wiki/Tree-hygiene#overview\r\n[Test Coverage]: https://github.com/flutter/flutter/wiki/Test-coverage-for-package%3Aflutter\r\n[Flutter Style Guide]: https://github.com/flutter/flutter/wiki/Style-guide-for-Flutter-repo\r\n[Features we expect every widget to implement]: https://github.com/flutter/flutter/wiki/Style-guide-for-Flutter-repo#features-we-expect-every-widget-to-implement\r\n[CLA]: https://cla.developers.google.com/\r\n[Tree Hygiene]: https://github.com/flutter/flutter/wiki/Tree-hygiene\r\n[Handling breaking changes]: https://github.com/flutter/flutter/wiki/Tree-hygiene#handling-breaking-changes\r",
+    "createdAt": "2020-07-10T08:44:54Z"
+  },
+  {
+    "id": 6223,
+    "sender": "christopherfujino",
+    "content": "@HidenoriMatsubayashi did you actually build the binaries and get this working, or is this a proof of concept? When I said I could help you with infra, I misunderstood and thought you had a working linux arm host setup. I can point you in the right direction, but I don't really have bandwidth to work on this at the moment.",
+    "createdAt": "2020-07-13T16:48:53Z"
+  },
+  {
+    "id": 6224,
+    "sender": "HidenoriMatsubayashi",
+    "content": "@christopherfujino\r\n\r\n> did you actually build the binaries and get this working, or is this a proof of concept?\r\n\r\nYes, I did. I use my customized sysrootfs for aarch64, but here is a binary for sample flutter app built with Flutter SDK with this patch. Works with ARM64 platforms such as JetsonNao. Of course, I also use a locally built version of Flutter Engine.\r\nhttps://github.com/HidenoriMatsubayashi/flutter-examples/blob/master/flutter_aarch64_sample.zip\r\n\r\n![Screenshot from 2020-06-11 17-32-47](https://user-images.githubusercontent.com/62131389/87402030-ee116c00-c5f5-11ea-9cce-29d3e9f2e7d2.png)\r\n\r\n> I misunderstood and thought you had a working linux arm host setup.\r\n\r\nI see. No problem at all.\r\nBy the way, I've also tried it partially. I did dart-sdk cross build for aarch64.",
+    "createdAt": "2020-07-14T08:18:11Z"
+  },
+  {
+    "id": 6225,
+    "sender": "christopherfujino",
+    "content": "@HidenoriMatsubayashi That's awesome to hear!\r\n\r\nDid you cross-build Dart directly from the https://github.com/dart-lang/sdk repo, or via Flutter's engine environment? I was able to do the former, but got stuck on the latter before I had to move on to other things.",
+    "createdAt": "2020-07-14T17:10:06Z"
+  },
+  {
+    "id": 6226,
+    "sender": "HidenoriMatsubayashi",
+    "content": "@christopherfujino \r\n\r\n> Did you cross-build Dart directly from the https://github.com/dart-lang/sdk repo, or via Flutter's engine environment?\r\n\r\nA while ago, I tried to cross-build Dart directly from the https://github.com/dart-lang/sdk repo for running Flutter SDK (flutter commands) on ARM64 Host. I basically tried the steps [here](https://github.com/dart-lang/sdk/wiki/Building).  I think the build result worked on Raspberry Pi 4.\r\n(By the way, I use Flutter Engine environment for building Flutter Engine (so files etc.).)\r\n\r\n> I was able to do the former, but got stuck on the latter before I had to move on to other things.\r\n\r\nWhat exactly was the problem? If you want to support running flutter sdk on ARM64 Host, I may be able to help you..",
+    "createdAt": "2020-07-15T10:27:05Z"
+  },
+  {
+    "id": 6227,
+    "sender": "nhjk",
+    "content": "Any updates on this?",
+    "createdAt": "2020-07-30T18:44:57Z"
+  },
+  {
+    "id": 6228,
+    "sender": "stuartmorgan-g",
+    "content": "Addressing some of the questions/comments in the initial description:\r\n\r\n> Should the result of the x86_64 and aarch64 builds be in separate directories?\r\n\r\nYes, definitely (unless there's a fat/universal build option for Linux that I'm not aware of). We should not stomp builds with different target outputs.\r\n\r\n> Should we include aarch64 rootfs in the Flutter SDK?\r\n\r\nThis seems out of scope for Flutter; we don't ship and use a sysroot for the current builds.\r\n\r\n> We will need infra updates so that you can download artifacts (Flutter Eingine build results, etc.) to the following locations.\r\n\r\nThis would be the first place to start, IMO. We also need confirmation/commitment from Dart folks that cross-compile tooling (e.g., for gen_snapshot) is a supported configuration on Linux.",
+    "createdAt": "2020-07-30T18:58:40Z"
+  },
+  {
+    "id": 6229,
+    "sender": "HidenoriMatsubayashi",
+    "content": "@nikiask \r\nI'm a bit busy. But I'm still working.\r\n\r\n@stuartmorgan \r\nThank you for your reply.\r\n\r\n@christopherfujino \r\nFYI. Here is the procedure for cross-build and running dart-sdk I tried. Basically cross-build procedure is as per [the official wiki](https://github.com/dart-lang/sdk/wiki/Building-Dart-SDK-for-ARM-processors).\r\n\r\n1. Build dart-sdk on Host PC (Ubuntu x64)\r\n```\r\n$ mkdir dart-sdk\r\n$ cd dart-sdk\r\n$ git clone https://chromium.googlesource.com/chromium/tools/depot_tools.git\r\n$ export PATH=\"$PATH:$PWD/depot_tools\"\r\n$ fetch dart\r\n$ cd dart\r\n$ ./tools/build.py --no-goma -m release -a arm64\r\n$ cd out/ReleaseXARM64/\r\n$ tar zcf /tmp/dart-sdk.tar.gz dart-sdk\r\n```\r\n\r\n2. run Flutte SDK on Jetson Nano (Ubuntu arm64)\r\n```\r\n$ git clone https://github.com/flutter/flutter.git\r\n$ export PATH=$PATH:./flutter/bin\r\n$ tar xf dart-sdk.tar.gz\r\n```\r\n\r\nReplace dart-sdk after the error.\r\n```\r\n$ flutter doctor\r\n  build error!!\r\n\r\n$ rm -rf flutter/bin/cache/dart-sdk\r\n$ cp -rf dart-sdk flutter/bin/cache\r\n````\r\n\r\n```\r\n$ flutter doctor\r\nBuilding flutter tool...\r\n\r\n  ╔════════════════════════════════════════════════════════════════════════════╗\r\n  ║                 Welcome to Flutter! - https://flutter.dev                  ║\r\n  ║                                                                            ║\r\n  ║ The Flutter tool uses Google Analytics to anonymously report feature usage ║\r\n  ║ statistics and basic crash reports. This data is used to help improve      ║\r\n  ║ Flutter tools over time.                                                   ║\r\n  ║                                                                            ║\r\n  ║ Flutter tool analytics are not sent on the very first run. To disable      ║\r\n  ║ reporting, type 'flutter config --no-analytics'. To display the current    ║\r\n  ║ setting, type 'flutter config'. If you opt out of analytics, an opt-out    ║\r\n  ║ event will be sent, and then no further information will be sent by the    ║\r\n  ║ Flutter tool.                                                              ║\r\n  ║                                                                            ║\r\n  ║ By downloading the Flutter SDK, you agree to the Google Terms of Service.  ║\r\n  ║ Note: The Google Privacy Policy describes how data is handled in this      ║\r\n  ║ service.                                                                   ║\r\n  ║                                                                            ║\r\n  ║ Moreover, Flutter includes the Dart SDK, which may send usage metrics and  ║\r\n  ║ crash reports to Google.                                                   ║\r\n  ║                                                                            ║\r\n  ║ Read about data we send with crash reports:                                ║\r\n  ║ https://flutter.dev/docs/reference/crash-reporting                         ║\r\n  ║                                                                            ║\r\n  ║ See Google's privacy policy:                                               ║\r\n  ║ https://policies.google.com/privacy                                        ║\r\n  ╚════════════════════════════════════════════════════════════════════════════╝\r\n\r\n\r\nDownloading Material fonts...                                       1.3s\r\nDownloading Gradle Wrapper...                                       0.2s\r\nDownloading package sky_engine...                                   0.5s\r\nDownloading flutter_patched_sdk tools...                            1.5s\r\nDownloading flutter_patched_sdk_product tools...                    1.3s\r\nDownloading linux-x64 tools...                                      2.4s\r\nDownloading linux-x64/font-subset tools...                          0.6s\r\nDownloading android-arm-profile/linux-x64 tools...                  0.6s\r\nDownloading android-arm-release/linux-x64 tools...                  0.6s\r\nDownloading android-arm64-profile/linux-x64 tools...                0.7s\r\nDownloading android-arm64-release/linux-x64 tools...                0.6s\r\nDownloading android-x64-profile/linux-x64 tools...                  0.6s\r\nDownloading android-x64-release/linux-x64 tools...                  0.6s\r\nDoctor summary (to see all details, run flutter doctor -v):\r\n[!] Flutter (Channel master, 1.21.0-6.0.pre.129, on Linux, locale en_US.UTF-8)\r\n    ✗ Downloaded executables cannot execute on host.\r\n      See https://github.com/flutter/flutter/issues/6207 for more information\r\n      On Debian/Ubuntu/Mint: sudo apt-get install lib32stdc++6\r\n      On Fedora: dnf install libstdc++.i686\r\n      On Arch: pacman -S lib32-gcc-libs\r\n\r\n[✗] Android toolchain - develop for Android devices\r\n    ✗ Unable to locate Android SDK.\r\n      Install Android Studio from: https://developer.android.com/studio/index.html\r\n      On first launch it will assist you in installing the Android SDK components.\r\n      (or visit https://flutter.dev/docs/get-started/install/linux#android-setup for detailed instructions).\r\n      If the Android SDK has been installed to a custom location, set ANDROID_SDK_ROOT to that location.\r\n      You may also want to add it to your PATH environment variable.\r\n\r\n[!] Android Studio (not installed)\r\n[!] Connected device\r\n    ! No devices available\r\n\r\n! Doctor found issues in 4 categories.\r\n```",
+    "createdAt": "2020-07-31T05:44:28Z"
+  },
+  {
+    "id": 6230,
+    "sender": "christopherfujino",
+    "content": "> @christopherfujino\r\n> FYI. Here is the procedure for cross-build and running dart-sdk I tried. Basically cross-build procedure is as per [the official wiki](https://github.com/dart-lang/sdk/wiki/Building-Dart-SDK-for-ARM-processors).\r\n\r\nThanks for the response. Sorry I didn't respond, I've been busy putting out fires. I was also able to build the Dart SDK via the Dart repo directly. However, when I tried building it via the Flutter engine environment ([link](https://github.com/flutter/flutter/wiki/Setting-up-the-Engine-development-environment), this is how the Dart SDK that the Flutter SDK uses gets built) I got missing headers errors. I'm guessing I need to provide a sysroot? @HidenoriMatsubayashi ",
+    "createdAt": "2020-07-31T18:02:14Z"
+  },
+  {
+    "id": 6231,
+    "sender": "HidenoriMatsubayashi",
+    "content": "@christopherfujino \r\n\r\n>  I'm guessing I need to provide a sysroot?\r\n\r\nYes. There are two ways. One is to use an external sysroot. Another way is to modify `buildroot` to use `debian_sid_arm64-sysroot`. I have tried both, and built Flutter Engine.\r\n\r\nI could cross-build and pass the build.. I am going to send the PR.\r\nhttps://github.com/HidenoriMatsubayashi/engine/tree/topic-support-linux-aarch64-cross-build\r\nhttps://github.com/HidenoriMatsubayashi/buildroot/tree/topic-support-linux-aarch64-cross-build\r\n\r\n`.gclient file` that I used is following.\r\n\r\n```\r\nsolutions = [\r\n  {\r\n    \"managed\": False,\r\n    \"name\": \"src/flutter\",\r\n    \"url\": \"https://github.com/HidenoriMatsubayashi/engine.git@9158ef84c326dc7260bfe39dd65189dd033d0b29\",\r\n    \"custom_deps\": {},\r\n    \"deps_file\": \"DEPS\",\r\n    \"safesync_url\": \"\",\r\n  },\r\n]\r\n```\r\n\r\nYou need to modify `flutter/DEPS` file by yourself.\r\n```\r\n  'src': 'https://github.com/flutter/buildroot.git' + '@' + 'fe3b46e595e7ce1350e11aa0c90365976051f4a3',\r\n↓\r\n  'src': 'https://github.com/HidenoriMatsubayashi/buildroot.git' + '@' + '5658a5f9168a0025d25eb700b607abc4b1e247af',\r\n```\r\n\r\nBuild Flutter Engine. The build is successful. But it is necessary to be careful about version combinations when actually run a Flutter app because of version check of DartVM.\r\n```\r\n$ ./flutter/tools/gn --target-os linux --linux-cpu arm64 --runtime-mode release\r\n$ ninja -C out/linux_release_arm64\r\n\r\n$ ./flutter/tools/gn --target-os linux --linux-cpu arm64 --runtime-mode debug\r\n$ ninja -C out/linux_debug_arm64\r\n```\r\n",
+    "createdAt": "2020-08-03T03:35:31Z"
+  },
+  {
+    "id": 6232,
+    "sender": "HidenoriMatsubayashi",
+    "content": "I confirmed that the dart-sdk built above works on ARM64 Host. However, the flutter app has not been executed yet due to the error of dart-sdk. I am currently investigating..\r\n\r\n```\r\n[        ] [   +3 ms] executing: /opt/flutter/bin/cache/artifacts/engine/linux-arm64-release/gen_snapshot\r\n--deterministic --snapshot_kind=app-aot-elf\r\n--elf=/root/sample/.dart_tool/flutter_build/923ab164b9c4e4e2cb3229e9cc28c21c/app.so --strip\r\n--no-causal-async-stacks --lazy-async-stacks\r\n/root/sample/.dart_tool/flutter_build/923ab164b9c4e4e2cb3229e9cc28c21c/app.dill\r\n[        ] [  +19 ms] Can't load Kernel binary: Invalid SDK hash.\r\n[        ] [   +3 ms] Dart snapshot generator failed with exit code 254\r\n```",
+    "createdAt": "2020-08-04T04:47:22Z"
+  },
+  {
+    "id": 6233,
+    "sender": "christopherfujino",
+    "content": "> @christopherfujino\r\n> \r\n> > I'm guessing I need to provide a sysroot?\r\n> \r\n> Yes. There are two ways. One is to use an external sysroot. Another way is to modify `buildroot` to use `debian_sid_arm64-sysroot`. I have tried both, and built Flutter Engine.\r\n> \r\n> I could cross-build and pass the build.. I am going to send the PR.\r\n> https://github.com/HidenoriMatsubayashi/engine/tree/topic-support-linux-aarch64-cross-build\r\n> https://github.com/HidenoriMatsubayashi/buildroot/tree/topic-support-linux-aarch64-cross-build\r\n> \r\n> `.gclient file` that I used is following.\r\n> \r\n> ```\r\n> solutions = [\r\n>   {\r\n>     \"managed\": False,\r\n>     \"name\": \"src/flutter\",\r\n>     \"url\": \"https://github.com/HidenoriMatsubayashi/engine.git@9158ef84c326dc7260bfe39dd65189dd033d0b29\",\r\n>     \"custom_deps\": {},\r\n>     \"deps_file\": \"DEPS\",\r\n>     \"safesync_url\": \"\",\r\n>   },\r\n> ]\r\n> ```\r\n> \r\n> You need to modify `flutter/DEPS` file by yourself.\r\n> \r\n> ```\r\n>   'src': 'https://github.com/flutter/buildroot.git' + '@' + 'fe3b46e595e7ce1350e11aa0c90365976051f4a3',\r\n> ↓\r\n>   'src': 'https://github.com/HidenoriMatsubayashi/buildroot.git' + '@' + '5658a5f9168a0025d25eb700b607abc4b1e247af',\r\n> ```\r\n> \r\n> Build Flutter Engine. The build is successful. But it is necessary to be careful about version combinations when actually run a Flutter app because of version check of DartVM.\r\n> \r\n> ```\r\n> $ ./flutter/tools/gn --target-os linux --linux-cpu arm64 --runtime-mode release\r\n> $ ninja -C out/linux_release_arm64\r\n> \r\n> $ ./flutter/tools/gn --target-os linux --linux-cpu arm64 --runtime-mode debug\r\n> $ ninja -C out/linux_debug_arm64\r\n> ```\r\n\r\nThis is great! When I get some free time I'll check this out.",
+    "createdAt": "2020-08-04T18:12:44Z"
+  },
+  {
+    "id": 6234,
+    "sender": "HidenoriMatsubayashi",
+    "content": "@christopherfujino \r\n(cc: @stuartmorgan )\r\n\r\nI was able to run flutte sdk & flutter app on ARM64 Host (Jetson Nano). I will send a PR after this, so I would like to request a review.\r\n\r\n* https://github.com/flutter/engine/pull/20254\r\n* https://github.com/flutter/buildroot/pull/390\r\n\r\n![Screenshot from 2020-08-05 12-52-42](https://user-images.githubusercontent.com/62131389/89370097-d9b71f80-d71a-11ea-8f14-dbf18c46beae.png)\r\n",
+    "createdAt": "2020-08-05T03:56:58Z"
+  },
+  {
+    "id": 6235,
+    "sender": "HidenoriMatsubayashi",
+    "content": "I'm currently considering ARM64 Host support for flutter_tools.",
+    "createdAt": "2020-08-06T01:24:48Z"
+  },
+  {
+    "id": 6236,
+    "sender": "yohyow",
+    "content": "> @nikiask\r\n> I'm a bit busy. But I'm still working.\r\n> \r\n> @stuartmorgan\r\n> Thank you for your reply.\r\n> \r\n> @christopherfujino\r\n> FYI. Here is the procedure for cross-build and running dart-sdk I tried. Basically cross-build procedure is as per [the official wiki](https://github.com/dart-lang/sdk/wiki/Building-Dart-SDK-for-ARM-processors).\r\n> \r\n> 1. Build dart-sdk on Host PC (Ubuntu x64)\r\n> \r\n> ```\r\n> $ mkdir dart-sdk\r\n> $ cd dart-sdk\r\n> $ git clone https://chromium.googlesource.com/chromium/tools/depot_tools.git\r\n> $ export PATH=\"$PATH:$PWD/depot_tools\"\r\n> $ fetch dart\r\n> $ cd dart\r\n> $ ./tools/build.py --no-goma -m release -a arm64\r\n> $ cd out/ReleaseXARM64/\r\n> $ tar zcf /tmp/dart-sdk.tar.gz dart-sdk\r\n> ```\r\n> \r\n> 1. run Flutte SDK on Jetson Nano (Ubuntu arm64)\r\n> \r\n> ```\r\n> $ git clone https://github.com/flutter/flutter.git\r\n> $ export PATH=$PATH:./flutter/bin\r\n> $ tar xf dart-sdk.tar.gz\r\n> ```\r\n> \r\n> Replace dart-sdk after the error.\r\n> \r\n> ```\r\n> $ flutter doctor\r\n>   build error!!\r\n> \r\n> $ rm -rf flutter/bin/cache/dart-sdk\r\n> $ cp -rf dart-sdk flutter/bin/cache\r\n> ```\r\n> \r\n> ```\r\n> $ flutter doctor\r\n> Building flutter tool...\r\n> \r\n>   ╔════════════════════════════════════════════════════════════════════════════╗\r\n>   ║                 Welcome to Flutter! - https://flutter.dev                  ║\r\n>   ║                                                                            ║\r\n>   ║ The Flutter tool uses Google Analytics to anonymously report feature usage ║\r\n>   ║ statistics and basic crash reports. This data is used to help improve      ║\r\n>   ║ Flutter tools over time.                                                   ║\r\n>   ║                                                                            ║\r\n>   ║ Flutter tool analytics are not sent on the very first run. To disable      ║\r\n>   ║ reporting, type 'flutter config --no-analytics'. To display the current    ║\r\n>   ║ setting, type 'flutter config'. If you opt out of analytics, an opt-out    ║\r\n>   ║ event will be sent, and then no further information will be sent by the    ║\r\n>   ║ Flutter tool.                                                              ║\r\n>   ║                                                                            ║\r\n>   ║ By downloading the Flutter SDK, you agree to the Google Terms of Service.  ║\r\n>   ║ Note: The Google Privacy Policy describes how data is handled in this      ║\r\n>   ║ service.                                                                   ║\r\n>   ║                                                                            ║\r\n>   ║ Moreover, Flutter includes the Dart SDK, which may send usage metrics and  ║\r\n>   ║ crash reports to Google.                                                   ║\r\n>   ║                                                                            ║\r\n>   ║ Read about data we send with crash reports:                                ║\r\n>   ║ https://flutter.dev/docs/reference/crash-reporting                         ║\r\n>   ║                                                                            ║\r\n>   ║ See Google's privacy policy:                                               ║\r\n>   ║ https://policies.google.com/privacy                                        ║\r\n>   ╚════════════════════════════════════════════════════════════════════════════╝\r\n> \r\n> \r\n> Downloading Material fonts...                                       1.3s\r\n> Downloading Gradle Wrapper...                                       0.2s\r\n> Downloading package sky_engine...                                   0.5s\r\n> Downloading flutter_patched_sdk tools...                            1.5s\r\n> Downloading flutter_patched_sdk_product tools...                    1.3s\r\n> Downloading linux-x64 tools...                                      2.4s\r\n> Downloading linux-x64/font-subset tools...                          0.6s\r\n> Downloading android-arm-profile/linux-x64 tools...                  0.6s\r\n> Downloading android-arm-release/linux-x64 tools...                  0.6s\r\n> Downloading android-arm64-profile/linux-x64 tools...                0.7s\r\n> Downloading android-arm64-release/linux-x64 tools...                0.6s\r\n> Downloading android-x64-profile/linux-x64 tools...                  0.6s\r\n> Downloading android-x64-release/linux-x64 tools...                  0.6s\r\n> Doctor summary (to see all details, run flutter doctor -v):\r\n> [!] Flutter (Channel master, 1.21.0-6.0.pre.129, on Linux, locale en_US.UTF-8)\r\n>     ✗ Downloaded executables cannot execute on host.\r\n>       See https://github.com/flutter/flutter/issues/6207 for more information\r\n>       On Debian/Ubuntu/Mint: sudo apt-get install lib32stdc++6\r\n>       On Fedora: dnf install libstdc++.i686\r\n>       On Arch: pacman -S lib32-gcc-libs\r\n> \r\n> [✗] Android toolchain - develop for Android devices\r\n>     ✗ Unable to locate Android SDK.\r\n>       Install Android Studio from: https://developer.android.com/studio/index.html\r\n>       On first launch it will assist you in installing the Android SDK components.\r\n>       (or visit https://flutter.dev/docs/get-started/install/linux#android-setup for detailed instructions).\r\n>       If the Android SDK has been installed to a custom location, set ANDROID_SDK_ROOT to that location.\r\n>       You may also want to add it to your PATH environment variable.\r\n> \r\n> [!] Android Studio (not installed)\r\n> [!] Connected device\r\n>     ! No devices available\r\n> \r\n> ! Doctor found issues in 4 categories.\r\n> ```\r\n\r\nsudo apt-get install lib32stdc++6 .  Unable to install, how do you solve this problem",
+    "createdAt": "2020-08-25T10:35:24Z"
+  },
+  {
+    "id": 6237,
+    "sender": "stuartmorgan-g",
+    "content": "I think there are enough questions as to what this should look like exactly for the developer, and enough points that will be in common with other platforms (e.g., eventual Windows arm64 support) that we should really have a design doc for the tooling plan before moving forward with a PR. It would need to answer questions like what the targets should be called and what they mean, e.g.:\r\n- Is `linux` still a build option (vs linux-x64 and linux-arm64 or similar)? If so, does it mean \"same as host\" or \"x64\"?\r\n- How should the build output be structured for multi-arch output?\r\n- For Linux, how is the sysroot handled?",
+    "createdAt": "2020-09-23T19:23:39Z"
+  },
+  {
+    "id": 6238,
+    "sender": "HidenoriMatsubayashi",
+    "content": "@stuartmorgan \r\n\r\nThank you for your comment and advice.\r\n\r\n> we should really have a design doc for the tooling plan before moving forward with a PR\r\n\r\nI agree with you. Is it enough to add my idea to the description so that we can discuss? Or is there any other way?\r\n\r\n> Is linux still a build option (vs linux-x64 and linux-arm64 or similar)? If so, does it mean \"same as host\" or \"x64\"?\r\n\r\nNo, it isn't. I'm sorry for confusing you. I updated the description. Now, I want to run the Flutter SDK on an arm64 host.\r\n\r\n> How should the build output be structured for multi-arch output?\r\n\r\nAt the time of **self-build**, the build output will be output to `build/linux/`. It's the same as the current output directory structure. On the other hand, at the time of **cross-build**, it will be output to `build/linux-cross/`.\r\n\r\nHow about my idea?\r\n\r\n> For Linux, how is the sysroot handled?\r\n\r\nI have considered that an user can specify a sysroot prepared by themselves in the build option. I think it would be better to have an option for them to freely specify sysroot. Because Flutter Engine has similar options.\r\n\r\n```\r\n$ flutter build linux --target-platform=linux-arm64 --target-sysroot=/target-sysroot-path\r\n```\r\n\r\nBut If the Flutter SDK download the sysroot used to cross-build the Flutter Engine first, they don't need to prepare anything.",
+    "createdAt": "2020-09-24T02:19:20Z"
+  },
+  {
+    "id": 6239,
+    "sender": "stuartmorgan-g",
+    "content": "> Is it enough to add my idea to the description so that we can discuss? Or is there any other way?\r\n\r\nhttps://flutter.dev/docs/resources/design-docs\r\n\r\n> \r\n> > Is linux still a build option (vs linux-x64 and linux-arm64 or similar)? If so, does it mean \"same as host\" or \"x64\"?\r\n> \r\n> No, it isn't. I'm sorry for confusing you. I updated the description. Now, I want to run the Flutter SDK on an arm64 host.\r\n> \r\n> > How should the build output be structured for multi-arch output?\r\n> \r\n> At the time of **self-build**, the build output will be output to `build/linux/`. It's the same as the current output directory structure. On the other hand, at the time of **cross-build**, it will be output to `build/linux-cross/`.\r\n\r\nSorry, I wasn't clear. These weren't questions about how your patch works, these are questions that all stakeholders need to agree on what we *want* the solutions to be, not only for Linux, but for other platforms where we need this in the future such as Windows. (E.g., I'm not at all sold on having two different build directories whose contents depend on the host machine, vs., say, always doing linux/x64/... and linux/arm64/...)\r\n\r\nAnd a design document is the best place to have a discussion like that.",
+    "createdAt": "2020-09-24T13:18:26Z"
+  },
+  {
+    "id": 6240,
+    "sender": "HidenoriMatsubayashi",
+    "content": "@stuartmorgan \r\n\r\n> And a design document is the best place to have a discussion like that.\r\n\r\nI get it. I will create a document, so please give me some more time.\r\n\r\n",
+    "createdAt": "2020-09-25T11:19:02Z"
+  },
+  {
+    "id": 6241,
+    "sender": "HidenoriMatsubayashi",
+    "content": "I posted the design document. Please feel free to comment and review.\r\nhttps://docs.google.com/document/d/19tzWySgtgtTA99XQsjx5Pg0SFJeZKXyUlYavR0EXv8c/edit?usp=sharing\r\n\r\nhttps://flutter.dev/docs/resources/design-docs\r\n![image](https://user-images.githubusercontent.com/62131389/94891175-5157bf80-04bc-11eb-8462-59d9eb03187f.png)",
+    "createdAt": "2020-10-02T05:32:52Z"
+  },
+  {
+    "id": 6242,
+    "sender": "skreborn",
+    "content": "@HidenoriMatsubayashi This all seems fairly reasonable. What is it exactly you're unsure about?",
+    "createdAt": "2020-10-05T07:53:23Z"
+  },
+  {
+    "id": 6243,
+    "sender": "HidenoriMatsubayashi",
+    "content": "@skreborn\r\n\r\nThank you for your comment.\r\n\r\n> What is it exactly you're unsure about?\r\n\r\nI updated my comment. It was about the operational procedure of design document.",
+    "createdAt": "2020-10-05T08:02:36Z"
+  },
+  {
+    "id": 6244,
+    "sender": "stuartmorgan-g",
+    "content": "> @stuartmorgan / @christopherfujino the engine can build these artifacts right? All that is left to do is update the recipes to add them?\r\n\r\nIn theory. Nothing has been building them on CI so it's possible there's been minor bitrot.",
+    "createdAt": "2020-10-29T16:23:18Z"
+  },
+  {
+    "id": 6245,
+    "sender": "stuartmorgan-g",
+    "content": "```\r\n[✗] Android toolchain - develop for Android devices\r\n    ✗ Unable to locate Android SDK.\r\n      Install Android Studio from: https://developer.android.com/studio/index.html\r\n      On first launch it will assist you in installing the Android SDK components.\r\n      (or visit https://flutter.dev/docs/get-started/install/linux#android-setup for detailed instructions).\r\n      If the Android SDK has been installed to a custom location, set ANDROID_SDK_ROOT to that location.\r\n      You may also want to add it to your PATH environment variable.\r\n```\r\n\r\nDo these instructions work? Is there an arm64 version of Android Studio, and if so, does building Android Flutter apps from arm64 Linux work with this PR?\r\n\r\nIf not, we should not be including the Android section in `doctor`.",
+    "createdAt": "2020-10-29T16:33:46Z"
+  },
+  {
+    "id": 6246,
+    "sender": "HidenoriMatsubayashi",
+    "content": "> If not, we should not be including the Android section in doctor.\r\n\r\nI don't think there is Android Studio running on Arm64 Host. I'll fix the code.",
+    "createdAt": "2020-10-30T05:21:03Z"
+  },
+  {
+    "id": 6247,
+    "sender": "HidenoriMatsubayashi",
+    "content": "Remaining tasks\r\n- [ ] Add test code\r\n- [x] Change the path of Linux build output directory\r\n- [x] Download Arm64 engine artifacts to the cache\r\n- [ ] Check errors in the CI",
+    "createdAt": "2020-10-30T09:19:03Z"
+  },
+  {
+    "id": 6248,
+    "sender": "christopherfujino",
+    "content": "> Remaining tasks\r\n> \r\n> * [ ]  Add test code\r\n> * [x]  Change the path of Linux build output directory\r\n> * [ ]  Download Arm64 engine artifacts to the cache\r\n> * [ ]  Check errors in the CI\r\n\r\nFYI I'm gonna work on getting the engine artifacts built on CI.",
+    "createdAt": "2020-10-30T18:56:50Z"
+  },
+  {
+    "id": 6249,
+    "sender": "HidenoriMatsubayashi",
+    "content": "> FYI I'm gonna work on getting the engine artifacts built on CI.\r\n\r\n@christopherfujino @stuartmorgan\r\nThanks.\r\nI think that we also need this [PR](https://github.com/flutter/buildroot/pull/390) to build the engine artifacts for Arm64 Linux. Could you review it?",
+    "createdAt": "2020-10-30T23:07:01Z"
+  },
+  {
+    "id": 6250,
+    "sender": "HidenoriMatsubayashi",
+    "content": "@christopherfujino\r\n\r\nThe tasks of the Engine side are complete. Thank you for your work on the CI side. Please let me know if there are any errors. I will cooperate with you too. After that, I'll fix the code to support downloading Arm64 engine artifacts to the cache. And I'll test it on Arm64 environment such as Raspberry Pi 4.",
+    "createdAt": "2020-11-06T04:25:22Z"
+  },
+  {
+    "id": 6251,
+    "sender": "psstoyanov",
+    "content": "Any news on this one? I can't wait to try it on my Pinebook Pro and SBCs!",
+    "createdAt": "2020-11-12T14:15:37Z"
+  },
+  {
+    "id": 6252,
+    "sender": "christopherfujino",
+    "content": "> Any news on this one? I can't wait to try it on my Pinebook Pro and SBCs!\r\n\r\nThis is being blocked on me landing the CI changes to actually build the engine artifacts on CI.",
+    "createdAt": "2020-11-12T17:32:45Z"
+  },
+  {
+    "id": 6253,
+    "sender": "Charlie9830",
+    "content": "Really excited for this to land. Been rebuilding a prototype project in Flutter that originally ran on Electron Desktop with an Electron based player component for Raspberry Pi. Super excited to see the ARM64 target so close. Thanks for the effort guys.",
+    "createdAt": "2020-11-25T12:38:54Z"
+  },
+  {
+    "id": 6254,
+    "sender": "skreborn",
+    "content": "> This is being blocked on me landing the CI changes to actually build the engine artifacts on CI.\r\n\r\n@christopherfujino Is this still blocked on you, or is there something that needs to happen elsewhere? We're excited to use the feature and are looking for ways to help out if we can.",
+    "createdAt": "2020-12-15T14:05:24Z"
+  },
+  {
+    "id": 6255,
+    "sender": "christopherfujino",
+    "content": "Sorry for the delay on this. I'm currently working to land https://flutter-review.googlesource.com/c/recipes/+/9580 and https://github.com/flutter/infra/pull/312 to build and upload the arm host artifacts. I'll update here when the artifacts roll to the framework.",
+    "createdAt": "2021-01-05T21:06:07Z"
+  },
+  {
+    "id": 6256,
+    "sender": "HidenoriMatsubayashi",
+    "content": "Thank you. I'm going to test it and my source code (this PR) on arm hosts when the infra support is completed. And I'm going to fix the rest of the test code, and request a review.",
+    "createdAt": "2021-01-05T23:22:16Z"
+  },
+  {
+    "id": 6257,
+    "sender": "christopherfujino",
+    "content": "> Thank you. I'm going to test it and my source code (this PR) on arm hosts when the infra support is completed. And I'm going to fix the rest of the test code, and request a review.\r\n\r\nFirst successful build was here https://ci.chromium.org/p/flutter/builders/prod/Linux%20Arm%20Host%20Engine/1 (you can see names of the new cloud archives with the steps that start `gsutil upload ...`). You can wait for the next engine roll, or patch in `e115066dcd65008513c66414f2f682c358d76c2a` locally to `flutter/bin/internal/engine.version` to test.",
+    "createdAt": "2021-01-06T00:31:17Z"
+  },
+  {
+    "id": 6258,
+    "sender": "HidenoriMatsubayashi",
+    "content": "@christopherfujino \r\nThanks. I ran the Flutter SDK on an arm64 linux host. But there isn't still font-subset.zip for arm64 in the infra server side.\r\n<details>\r\n  <summary>Log</summary>\r\n\r\n```\r\n$ flutter doctor\r\nDownloading Dart SDK from Flutter engine e115066dcd65008513c66414f2f682c358d76c2a...\r\n  % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current\r\n                                 Dload  Upload   Total   Spent    Left  Speed\r\n100 56.0M  100 56.0M    0     0  9204k      0  0:00:06  0:00:06 --:--:-- 11.1M\r\nBuilding flutter tool...\r\n\r\n  ╔════════════════════════════════════════════════════════════════════════════╗\r\n  ║                 Welcome to Flutter! - https://flutter.dev                  ║\r\n  ║                                                                            ║\r\n  ║ The Flutter tool uses Google Analytics to anonymously report feature usage ║\r\n  ║ statistics and basic crash reports. This data is used to help improve      ║\r\n  ║ Flutter tools over time.                                                   ║\r\n  ║                                                                            ║\r\n  ║ Flutter tool analytics are not sent on the very first run. To disable      ║\r\n  ║ reporting, type 'flutter config --no-analytics'. To display the current    ║\r\n  ║ setting, type 'flutter config'. If you opt out of analytics, an opt-out    ║\r\n  ║ event will be sent, and then no further information will be sent by the    ║\r\n  ║ Flutter tool.                                                              ║\r\n  ║                                                                            ║\r\n  ║ By downloading the Flutter SDK, you agree to the Google Terms of Service.  ║\r\n  ║ Note: The Google Privacy Policy describes how data is handled in this      ║\r\n  ║ service.                                                                   ║\r\n  ║                                                                            ║\r\n  ║ Moreover, Flutter includes the Dart SDK, which may send usage metrics and  ║\r\n  ║ crash reports to Google.                                                   ║\r\n  ║                                                                            ║\r\n  ║ Read about data we send with crash reports:                                ║\r\n  ║ https://flutter.dev/docs/reference/crash-reporting                         ║\r\n  ║                                                                            ║\r\n  ║ See Google's privacy policy:                                               ║\r\n  ║ https://policies.google.com/privacy                                        ║\r\n  ╚════════════════════════════════════════════════════════════════════════════╝\r\n\r\n\r\nDownloading Material fonts...                                    2,100ms\r\nDownloading Gradle Wrapper...                                       80ms\r\nDownloading package sky_engine...                                  766ms\r\nDownloading flutter_patched_sdk tools...                         2,905ms\r\nDownloading flutter_patched_sdk_product tools...                 2,269ms\r\nDownloading linux-arm64 tools...                                    5.6s\r\nDownloading linux-arm64/font-subset tools...                       180ms\r\nDownloading linux-arm64/font-subset tools...                       307ms\r\nFailed to download\r\nhttps://storage.googleapis.com/flutter_infra/flutter/e115066dcd65008513c66414f2f682c358d76c2a/\r\nlinux-arm64/font-subset.zip. Ensure you have network connectivity and then try again.\r\nException: 404\r\n```\r\n\r\n</details>",
+    "createdAt": "2021-01-06T05:15:27Z"
+  },
+  {
+    "id": 6259,
+    "sender": "christopherfujino",
+    "content": "> @christopherfujino\r\n> Thanks. I ran the Flutter SDK on an arm64 linux host. But there isn't still font-subset.zip for arm64 in the infra server side.\r\n> \r\n> Log\r\n> ```\r\n> $ flutter doctor\r\n> Downloading Dart SDK from Flutter engine e115066dcd65008513c66414f2f682c358d76c2a...\r\n>   % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current\r\n>                                  Dload  Upload   Total   Spent    Left  Speed\r\n> 100 56.0M  100 56.0M    0     0  9204k      0  0:00:06  0:00:06 --:--:-- 11.1M\r\n> Building flutter tool...\r\n> \r\n>   ╔════════════════════════════════════════════════════════════════════════════╗\r\n>   ║                 Welcome to Flutter! - https://flutter.dev                  ║\r\n>   ║                                                                            ║\r\n>   ║ The Flutter tool uses Google Analytics to anonymously report feature usage ║\r\n>   ║ statistics and basic crash reports. This data is used to help improve      ║\r\n>   ║ Flutter tools over time.                                                   ║\r\n>   ║                                                                            ║\r\n>   ║ Flutter tool analytics are not sent on the very first run. To disable      ║\r\n>   ║ reporting, type 'flutter config --no-analytics'. To display the current    ║\r\n>   ║ setting, type 'flutter config'. If you opt out of analytics, an opt-out    ║\r\n>   ║ event will be sent, and then no further information will be sent by the    ║\r\n>   ║ Flutter tool.                                                              ║\r\n>   ║                                                                            ║\r\n>   ║ By downloading the Flutter SDK, you agree to the Google Terms of Service.  ║\r\n>   ║ Note: The Google Privacy Policy describes how data is handled in this      ║\r\n>   ║ service.                                                                   ║\r\n>   ║                                                                            ║\r\n>   ║ Moreover, Flutter includes the Dart SDK, which may send usage metrics and  ║\r\n>   ║ crash reports to Google.                                                   ║\r\n>   ║                                                                            ║\r\n>   ║ Read about data we send with crash reports:                                ║\r\n>   ║ https://flutter.dev/docs/reference/crash-reporting                         ║\r\n>   ║                                                                            ║\r\n>   ║ See Google's privacy policy:                                               ║\r\n>   ║ https://policies.google.com/privacy                                        ║\r\n>   ╚════════════════════════════════════════════════════════════════════════════╝\r\n> \r\n> \r\n> Downloading Material fonts...                                    2,100ms\r\n> Downloading Gradle Wrapper...                                       80ms\r\n> Downloading package sky_engine...                                  766ms\r\n> Downloading flutter_patched_sdk tools...                         2,905ms\r\n> Downloading flutter_patched_sdk_product tools...                 2,269ms\r\n> Downloading linux-arm64 tools...                                    5.6s\r\n> Downloading linux-arm64/font-subset tools...                       180ms\r\n> Downloading linux-arm64/font-subset tools...                       307ms\r\n> Failed to download\r\n> https://storage.googleapis.com/flutter_infra/flutter/e115066dcd65008513c66414f2f682c358d76c2a/\r\n> linux-arm64/font-subset.zip. Ensure you have network connectivity and then try again.\r\n> Exception: 404\r\n> ```\r\n\r\nAhh yes, I think we'll need that. I'll work on that.",
+    "createdAt": "2021-01-06T20:53:03Z"
+  },
+  {
+    "id": 6260,
+    "sender": "christopherfujino",
+    "content": "This recipe change uploads font-subset https://flutter-review.googlesource.com/c/recipes/+/9621. Going through code review now.",
+    "createdAt": "2021-01-06T23:21:07Z"
+  },
+  {
+    "id": 6261,
+    "sender": "HidenoriMatsubayashi",
+    "content": "Thank you so much.",
+    "createdAt": "2021-01-06T23:24:57Z"
+  },
+  {
+    "id": 6262,
+    "sender": "HidenoriMatsubayashi",
+    "content": "@christopherfujino \r\n\r\nI tried to run the Flutter SDK with [ Linux Arm Host Engine #20](https://ci.chromium.org/ui/p/flutter/builders/prod/Linux%20Arm%20Host%20Engine/20/overview) again. But I got the following error message. I think that we need `linux-arm64/linux-arm64-flutter-gtk.zip`, `linux-arm64-profile/linux-arm64-flutter-gtk.zip` and  `linux-arm64-release/linux-arm64-flutter-gtk.zip`. Could you check it?\r\n\r\n```\r\n$ flutter run -d linux\r\nDownloading linux-arm64/linux-arm64-flutter-gtk tools...           725ms\r\nDownloading linux-arm64/linux-arm64-flutter-gtk tools...           312ms\r\nFailed to download\r\nhttps://storage.googleapis.com/flutter_infra/flutter/1758eaa4edc301904d98bc80362d00877cabe512/linux-arm64/linux-arm\r\n64-flutter-gtk.zip. Ensure you have network connectivity and then try again.\r\nException: 404\r\n```",
+    "createdAt": "2021-01-07T07:23:10Z"
+  },
+  {
+    "id": 6263,
+    "sender": "psstoyanov",
+    "content": "With the arm64 GTK item being next in line on the infrastructure, @HidenoriMatsubayashi , are you considering to make the example with Weston/Wayland embedder from your presentation at Embedded Linux Conference Europe 2020 example public?\r\n\r\nIt's incredible how close you guys are to completing this change!",
+    "createdAt": "2021-01-07T11:33:21Z"
+  },
+  {
+    "id": 6264,
+    "sender": "HidenoriMatsubayashi",
+    "content": "@psstoyanov \r\nSorry, this is a thread to support Flutter Linux desktop for arm64. So, please check [my new proposal](https://docs.google.com/document/d/1n4NXCk0QlGz16gUCtywR79H0Z1fzPqB2iNL8oxuexuk/edit?usp=sharing).",
+    "createdAt": "2021-01-07T11:50:08Z"
+  },
+  {
+    "id": 6265,
+    "sender": "christopherfujino",
+    "content": "One more try: https://flutter-review.googlesource.com/c/recipes/+/9640. I went through the diff between my new engine_arm recipe and the x64 version, and I believe the remaining artifacts I left out are not needed in arm specific versions (flutter_patched_sdk and flutter_web_sdk).",
+    "createdAt": "2021-01-07T23:56:40Z"
+  },
+  {
+    "id": 6266,
+    "sender": "HidenoriMatsubayashi",
+    "content": "Thanks. I'll check later.\r\n\r\n> (flutter_patched_sdk and flutter_web_sdk).\r\n\r\nYes, I also need to fix the source code..",
+    "createdAt": "2021-01-08T00:07:31Z"
+  },
+  {
+    "id": 6267,
+    "sender": "christopherfujino",
+    "content": "> > (flutter_patched_sdk and flutter_web_sdk).\r\n> \r\n> Yes, I also need to fix the source code..\r\n\r\nSorry, I had a typo, I meant they are NOT needed in arm specific versions. It's safe to use the existing artifacts.",
+    "createdAt": "2021-01-08T00:12:01Z"
+  },
+  {
+    "id": 6268,
+    "sender": "HidenoriMatsubayashi",
+    "content": "Sorry, I misunderstood. By the way, I want to check the operation of Flutter for web on Raspberry Pi 4, but Chrome does not seem to support Arm64 Linux at the moment. But I can use Chromium on Raspberry Pi4, so does it work with Flutter for web? Please let me know if you know.",
+    "createdAt": "2021-01-08T00:22:10Z"
+  },
+  {
+    "id": 6269,
+    "sender": "provokateurin",
+    "content": "Yes it works. I use it on my development machine.",
+    "createdAt": "2021-01-08T00:23:36Z"
+  },
+  {
+    "id": 6270,
+    "sender": "psstoyanov",
+    "content": "It can be sluggish but Flutter web works with Chromium on my arm devices. The easiest way to check is to open one of the examples or even to try with [dartpad](https://www.dartpad.dev/flutter).\r\n\r\nNote: The sluggishness on my rk3399 devices with Flutter web is most likely because of the GPU driver and how it works with Chromium itself, not because of Flutter.",
+    "createdAt": "2021-01-08T00:41:30Z"
+  },
+  {
+    "id": 6271,
+    "sender": "christopherfujino",
+    "content": "> Sorry, I misunderstood. By the way, I want to check the operation of Flutter for web on Raspberry Pi 4, but Chrome does not seem to support Arm64 Linux at the moment. But I can use Chromium on Raspberry Pi4, so does it work with Flutter for web? Please let me know if you know.\r\n\r\nChromium is definitely supported. I'm not sure the exact discovery rules, but I think there's also an env variable where you can explicitly specify the path.",
+    "createdAt": "2021-01-08T00:44:14Z"
+  }
+]

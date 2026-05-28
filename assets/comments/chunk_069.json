@@ -1,0 +1,386 @@
+[
+  {
+    "id": 4416,
+    "sender": "giorgio79",
+    "content": "> The following steps will **fix** the problem (update to new renderer in kotlin project):\r\n> \r\n> 1. Add this line to your app's  build.gradle:\r\n>    `implementation 'com.google.android.gms:play-services-maps:18.0.2'`\r\n> 2. Import these lines to MainActivity.kt:\r\n> \r\n> ```\r\n> import android.util.Log;\r\n> import com.google.android.gms.maps.MapsInitializer\r\n> import com.google.android.gms.maps.MapsInitializer.Renderer\r\n> import com.google.android.gms.maps.OnMapsSdkInitializedCallback\r\n> ```\r\n> \r\n> 2. Add `MapsInitializer.initialize(applicationContext, Renderer.LATEST, this)` in your MainActivity onCreate method.\r\n> 3. Implement  OnMapsSdkInitializedCallback interface for verify the new renderer.\r\n> \r\n> **example (MainActivity.kt):**\r\n> \r\n> ```\r\n> package com.example.application\r\n> \r\n> import android.os.Bundle\r\n> import io.flutter.embedding.android.FlutterActivity\r\n> import io.flutter.embedding.engine.FlutterEngine\r\n> import io.flutter.plugin.common.MethodChannel\r\n> import io.flutter.plugins.GeneratedPluginRegistrant\r\n> import io.flutter.view.FlutterMain\r\n> import android.os.Build;\r\n> import android.view.WindowManager\r\n> import android.util.Log;\r\n> import com.google.android.gms.maps.MapsInitializer\r\n> import com.google.android.gms.maps.MapsInitializer.Renderer\r\n> import com.google.android.gms.maps.OnMapsSdkInitializedCallback\r\n> \r\n> \r\n> class MainActivity: FlutterActivity(), OnMapsSdkInitializedCallback{\r\n>     override \r\n>     fun onCreate(savedInstanceState: Bundle?){\r\n>         super.onCreate(savedInstanceState);\r\n>         MapsInitializer.initialize(applicationContext, Renderer.LATEST, this)\r\n>     }\r\n> \r\n>     override fun onMapsSdkInitialized(renderer: MapsInitializer.Renderer) {\r\n>       when (renderer) {\r\n>         Renderer.LATEST -> Log.d(\"NewRendererLog\", \"The latest version of the renderer is used.\")\r\n>         Renderer.LEGACY -> Log.d(\"NewRendererLog\",\"The legacy version of the renderer is used.\")\r\n>       }\r\n>     }\r\n> }\r\n> ```\r\n> \r\n> 4. Run & Check the logs, you should see these lines:\r\n> \r\n> ```\r\n> D/MapsInitializer: loadedRenderer: LATEST\r\n> D/NewRendererLog: The latest version of the renderer is used.\r\n> ```\r\n\r\nThx. When can we remove these extra lines. I notice play-services-maps went up to 18.1.0 already\r\n\r\n`    implementation 'com.google.android.gms:play-services-maps:18.1.0'\r\n`",
+    "createdAt": "2022-09-09T05:06:26Z"
+  },
+  {
+    "id": 4417,
+    "sender": "stuartmorgan-g",
+    "content": "My current theory for the spike in occurrences is that something about plugin lifetime changed in Flutter 3.0 (possibly related to the new rendering model, possibly unrelated) such that we're now destroying plugins faster, and thus exposing latent race conditions in some plugins that were masked before; see also https://github.com/flutter/flutter/issues/107297#issuecomment-1242212778\r\n\r\nThis is speculative, but I think it's the most promising next avenue of exploration from the Flutter side.",
+    "createdAt": "2022-09-09T16:50:08Z"
+  },
+  {
+    "id": 4418,
+    "sender": "giorgio79",
+    "content": "Just released my app with the proposed solution of switching to the latest renderer in MainActivity.kt by @bdezso , but I am still seeing this crash in the play store console impacting users. Also tried setting the zoom to 16 and minMaxZoomPreference to 16 as mentioned...\r\n\r\nPossibly the same bug at google issue tracker https://issuetracker.google.com/issues/145941832",
+    "createdAt": "2022-09-12T02:51:12Z"
+  },
+  {
+    "id": 4419,
+    "sender": "memishood",
+    "content": "Any updates? Same problem in here..",
+    "createdAt": "2022-09-12T13:20:34Z"
+  },
+  {
+    "id": 4420,
+    "sender": "yzhe819",
+    "content": "The same issue. Any updates?",
+    "createdAt": "2022-09-19T23:11:02Z"
+  },
+  {
+    "id": 4421,
+    "sender": "mj-fk",
+    "content": "My use-case is, the map screen is visible for a long time and as soon as I pop it, it is going back to the previous route and force closed. It is happening 1 in 20. \r\nI don't think the exception is occurring because the map is not finished loading like in the video. \r\nAny thoughts on this?",
+    "createdAt": "2022-09-28T09:59:39Z"
+  },
+  {
+    "id": 4422,
+    "sender": "SyedTahaAlam",
+    "content": "the proposed solution of making a delay before pop to previous screen is not working",
+    "createdAt": "2022-10-09T08:05:30Z"
+  },
+  {
+    "id": 4423,
+    "sender": "Elvis5566",
+    "content": "https://github.com/flutter/flutter/issues/105965#issuecomment-1224473127\r\nDoes this solution actually fix this issue?\r\nWe still run into this issue in flutter 3.3.4.\r\nThe solution should be properly applied as we saw the log \r\n```\r\n\"The latest version of the renderer is used.\"",
+    "createdAt": "2022-10-20T04:12:01Z"
+  },
+  {
+    "id": 4424,
+    "sender": "yamauchieduardo",
+    "content": "For now the [workaround propose](https://github.com/flutter/flutter/issues/105965#issuecomment-1224473127) using the new engine doesn't crash when users pop the screen. But it has a lot of problems, such as lagging, stuttering and glitching. It's a shame. **The new engine isn't usable for production at the moment**.\r\n\r\nI'm waiting for a solution to this problem to release a big Flutter project, because Google Maps is the core of the app.\r\n\r\nIt's unbelievable how low priority this problem is, which was posted back in June. **This problem affects every Flutter Android app that uses Google Maps now.**",
+    "createdAt": "2022-10-21T12:18:20Z"
+  },
+  {
+    "id": 4425,
+    "sender": "bdezso",
+    "content": "> For now the [workaround propose](https://github.com/flutter/flutter/issues/105965#issuecomment-1224473127) using the new engine not to close when users back. But have a lot of problems, such as lagging, shuttering and glitching, it's a shame. **The new engine isn't able for production at the moment**.\r\n> \r\n> I'm waiting for a solution to this problem to release a big flutter project. Because the Google Maps is the core of the app.\r\n> \r\n> It's unbelievable how low priority this problem is, which was addressed back in June. **This problem affects every Flutter Android app that uses Google Maps now.**\r\n\r\nYou're right, the new engine is buggy af, but your best move is to use that.",
+    "createdAt": "2022-10-21T13:24:59Z"
+  },
+  {
+    "id": 4426,
+    "sender": "giorgio79",
+    "content": "Pretty much all of my crashes are related to this bug, and I am seeing some pointers in Google Play Dev console, maybe it helps devs... Looks like Android 11 with xhdpi screen density are impacted the most.\r\n\r\nI also had multiple Google Maps in the application which I now reduced, so hopefully that helps too. How many Google Maps do you guys have in the app?\r\n\r\n> Your crash rate on devices with Screen density (DPI): xhdpi (3.57%) is significantly higher than your overall crash rate (2.87%). These devices represent 42% of your total installs. Reduce crashes on these devices to improve your overall crash rate.\r\n> \r\n> This insight is only available to a limited number of developers.\r\n\r\n`Your crash rate on Android 11 (3.69%) is significantly higher than your overall crash rate (2.87%). These devices represent 41% of your total installs. Reduce crashes on these devices to improve your overall crash rate.`",
+    "createdAt": "2022-10-23T03:54:54Z"
+  },
+  {
+    "id": 4427,
+    "sender": "stuartmorgan-g",
+    "content": "@bazrafkan Please read https://github.com/flutter/flutter/wiki/Issue-hygiene#do-not-add-me-too-or-same-or-is-there-an-update-comments-to-bugs",
+    "createdAt": "2022-10-24T15:17:51Z"
+  },
+  {
+    "id": 4428,
+    "sender": "bazrafkan",
+    "content": "@stuartmorgan any updates on this issue? we can't wait more, we have crash rate 13.64% just for this problem in product 😭 ",
+    "createdAt": "2022-10-27T13:21:35Z"
+  },
+  {
+    "id": 4429,
+    "sender": "bazrafkan",
+    "content": "After implement  [workaround propose](https://github.com/flutter/flutter/issues/105965#issuecomment-1224473127) we have another issue in product:\r\n`Exception java.lang.NullPointerException: Attempt to invoke virtual method 'boolean android.graphics.Bitmap.isMutable()' on a null object reference\r\n  at android.graphics.Canvas.<init> (Canvas.java:113)\r\n  at com.google.maps.api.android.lib6.impl.a.a (a.java:1)\r\n  at com.google.maps.api.android.lib6.phoenix.bd.run (bd.java:2)\r\n  at android.os.Handler.handleCallback (Handler.java:808)\r\n  at android.os.Handler.dispatchMessage (Handler.java:101)\r\n  at android.os.Looper.loop (Looper.java:166)\r\n  at android.app.ActivityThread.main (ActivityThread.java:7529)\r\n  at java.lang.reflect.Method.invoke (Method.java)\r\n  at com.android.internal.os.Zygote$MethodAndArgsCaller.run (Zygote.java:245)\r\n  at com.android.internal.os.ZygoteInit.main (ZygoteInit.java:921)`\r\n\r\nAny updates on this issue? ",
+    "createdAt": "2022-11-09T15:59:08Z"
+  },
+  {
+    "id": 4430,
+    "sender": "bdezso",
+    "content": "Can someone explain to me what could be more important than such an error?\r\nI mean flutter came up new versions, new features, widgets, new youtube videos etc ... but there are bugs which pain as a flutter dev. We build our whole company around flutter, but we are strongly considering the framework change.",
+    "createdAt": "2022-11-09T20:12:40Z"
+  },
+  {
+    "id": 4431,
+    "sender": "giorgio79",
+    "content": "I was thinking the same. Looking into switching to Bing or Mapbox. My apps crash rate is above the bad behavior threshold in the Google Play Store due to a Google bug 🤔",
+    "createdAt": "2022-11-09T21:32:04Z"
+  },
+  {
+    "id": 4432,
+    "sender": "marcglasberg",
+    "content": "Hey @tvolkert @stuartmorgan \r\n\r\n> Returning to P3, since b/242810798 was resolved by the client switching to the new renderer.\r\n\r\nCan I ask how the client problem was solved? The new renderer is **also** buggy, so it's not a real workaround. You can't use markers with it:\r\n\r\n* Markers glitch. See the video here: https://github.com/flutter/flutter/issues/115020\r\n* If you have more than a few markets it gets so slow its not usable.\r\n\r\n---\r\n\r\nFrom https://github.com/flutter/flutter/wiki/Issue-hygiene#priorities the definition of P3 is:\r\n\r\n> The P3 label indicates high-priority issues that are at the top of the work list. (...) Bugs marked P3 are generally actively being worked on unless the assignee is dealing with a P0-P2 bug (or another P3 bug).\r\n\r\n5 months is a very long time to have your app crashing. I'd say by the above definition P3 bugs should not stay open for 5 months. In my opinion you should not have launched Flutter 3 if you can't use Google Maps with it. \r\n\r\nYou know what's really scary? I'm not a \"top-tier customer\", then highly important regression bugs that affect me are at most P3, and it's ok for P3 bugs to be open for 5 months (at least). Flutter prioritization seems a very broken an unfair system to me.\r\n",
+    "createdAt": "2022-11-09T22:24:15Z"
+  },
+  {
+    "id": 4433,
+    "sender": "stuartmorgan-g",
+    "content": "> Can someone explain to me what could be more important than such an error?\r\n\r\nEscalations from top-tier customers are higher priority, as explained in our process documentation.\r\n\r\n> I mean flutter came up new versions, new features, widgets, new youtube videos etc ... \r\n\r\nThese require very different skill sets than trying to find a workaround at the Flutter platform view level for a threading bug in an SDK that the Flutter team doesn't control. ",
+    "createdAt": "2022-11-10T01:37:19Z"
+  },
+  {
+    "id": 4434,
+    "sender": "stuartmorgan-g",
+    "content": "> > Returning to P3, since b/242810798 was resolved by the client switching to the new renderer.\r\n> \r\n> Can I ask how the client problem was solved?\r\n\r\nAs it says in the comment you quoted: by switching to the new renderer.\r\n\r\n> The new renderer is **also** buggy, so it's not a real workaround\r\n\r\nWhile it may not currently be viable for your use case, it is what the client in question did.\r\n\r\n> I'd say by the above definition P3 bugs should not stay open for 5 months.\r\n\r\nI'm not sure what part of the text you quoted leads you to believe there's a commitment to a specific timeline. For most of the time since this has been P3 either there's been some level of active investigation, or the people with the relevant expertise have been working on issues with higher priority, which is how P3 is described.\r\n\r\nThis reason this is still open isn't that it's being ignored, it's that it's proven to be non-trivial to find a viable workaround for the threading bug (which we cannot fix directly, because it's not in Flutter code), and we've been balancing work on this with other, higher-priority issues.\r\n\r\n> In my opinion you should not have launched Flutter 3 if you can't use Google Maps with it.\r\n\r\nThis issue was reported *after* the launch of Flutter 3.\r\n\r\n> Flutter prioritization seems a very broken an unfair system to me.\r\n\r\nI would encourage you to read the rest of the discussion of properties on that page. The following two sections are particularly relevant here:\r\n\r\n>> Flutter is an open source project and many people contribute their time (or their employees' time) to fix code and implement features. Typically, people fix bugs that are relevant to their customers. For example, Google engineers who contribute to Flutter are going to prioritize issues that affect Flutter apps written by Google teams. Many of us, however, also volunteer time to fix more general issues.\r\n\r\n>> If you [aren't a top-tier customer], consider finding like-minded developers to either implement the feature as a team, or to fund hiring someone to work on the feature\r\n\r\nThe PR linked here is an example of someone impacted by this doing the latter, and contributing to the investigation. Ultimately that particular workaround didn't end up solving the problem, but we've learned more about the issue as a result of that work, and it therefore helped move closer to a resolution. Others are certainly welcome to do the same; we all have access to the same source code.",
+    "createdAt": "2022-11-10T01:37:57Z"
+  },
+  {
+    "id": 4435,
+    "sender": "bazrafkan",
+    "content": "@stuartmorgan  It is okay if a plugin have bugs or causes crash but Flutter team have to set in that plugin **Is not ready for product** (like this plugin that causes 15% crash in product app)",
+    "createdAt": "2022-11-10T03:10:59Z"
+  },
+  {
+    "id": 4436,
+    "sender": "bdezso",
+    "content": "> @stuartmorgan It is okay if a plugin have bugs or causes crash but Flutter team have to set in that plugin **Is not ready for product** (like this plugin that causes 15% crash in product app)\r\n\r\nYou're right. \r\n",
+    "createdAt": "2022-11-10T15:05:35Z"
+  },
+  {
+    "id": 4437,
+    "sender": "yamauchieduardo",
+    "content": "I think it makes sense to warn [dart pub repository](https://pub.dev/packages/google_maps_flutter) that the current version does not work for Flutter 3 on Android. So that new users can choose another option and not be stuck with this crash, unfortunately.",
+    "createdAt": "2022-11-10T15:59:54Z"
+  },
+  {
+    "id": 4438,
+    "sender": "marcglasberg",
+    "content": "@stuartmorgan \r\n\r\n> I'm not sure what part of the text you quoted leads you to believe there's a commitment to a specific timeline. \r\n\r\nThat's exactly my point. I'm saying there **should** be a time commitment. The highest priority a \"normal\" customer can have should be important enough so that normal people could have some level of trust that horrible bugs like this would be fixed in a timely manner. Even if very few bugs would classify ever classify as being P3. \r\n\r\nSaying \"this is open source\" is not a magic sentence that removes your responsibility about an important piece of software that's now crashing and basically useless. I don't have enough knowledge to be able to fix this bug. I have 14 packages in pub.dev and at least half of them are just dealing with things Flutter doesn't do well. So I actually go and fix things when I can. But some things should be Google's responsibility. Google Maps is one of them. \r\n\r\nGoogle is a single company, big as it is. You have much more leverage than me to call someone in the Google Maps team and solve this. You would do that if it were P1 right?\r\n\r\n> This issue was reported after the launch of Flutter 3.\r\n\r\nStill Google's fault. It just means you must improve your testing before launching a new Flutter version. ",
+    "createdAt": "2022-11-10T16:18:28Z"
+  },
+  {
+    "id": 4439,
+    "sender": "stuartmorgan-g",
+    "content": "> That's exactly my point. I'm saying there **should** be a time commitment.\r\n\r\nYou are welcome to file a new issue proposing an SLA for P3 issues; arguing about Flutter's overall issue prioritization system is out of scope for this issue.\r\n\r\n> Saying \"this is open source\" is not a magic sentence that removes your responsibility\r\n\r\nI never suggested it was. Please take a moment to review our [code of conduct](https://github.com/flutter/flutter/blob/master/CODE_OF_CONDUCT.md).\r\n\r\nThis fact that this issue is marked P3 is an indication that the Flutter team views it as our responsibility to fix. And as I said above:\r\n>> This reason this is still open isn't that it's being ignored, it's that it's proven to be non-trivial to find a viable workaround for the threading bug (which we cannot fix directly, because it's not in Flutter code), and we've been balancing work on this with other, higher-priority issues.\r\n\r\n> Still Google's fault. It just means you must improve your testing before launching a new Flutter version.\r\n\r\nI'm not sure what exactly the suggestion is here. If it's that we should have more testing going forward, that's true; we always add regression tests when we fix issues. If it's that we should have somehow predicted this specific bug in advance of Flutter 3 and added testing of it in advance and thus known about it, that would certainly have been convenient, but we had no more foreknowledge of this issue than anyone else, and we can't change what has already happened. If it's that we should never launch a new version of Flutter without first adding comprehensive testing of all possible future bugs, that's impossible.\r\n\r\nBut if you have specific, actionable feedback about test coverage, please feel free to file issues for it.",
+    "createdAt": "2022-11-10T17:29:14Z"
+  },
+  {
+    "id": 4440,
+    "sender": "stuartmorgan-g",
+    "content": "I would ask that everyone please keep in mind the following guidance from our issue system documentation:\r\n\r\n> Comments should be reserved for making progress on the issue.",
+    "createdAt": "2022-11-10T17:30:31Z"
+  },
+  {
+    "id": 4441,
+    "sender": "marcglasberg",
+    "content": "> You are welcome to file a new issue proposing an SLA for P3 issues; arguing about Flutter's overall issue prioritization system is out of scope for this issue.\r\n\r\nYou are right and I will do that, thanks for suggesting it.\r\n\r\n\r\n> But if you have specific, actionable feedback about test coverage, please feel free to file issues for it.\r\n\r\nYes, I do have some actionable suggestions, and will file those issues.\r\n\r\n\r\n> Comments should be reserved for making progress on the issue.\r\n\r\nI do think that discussing the prioritization of an issue is helping make progress on the issue. But point taken that you think it's not.\r\n",
+    "createdAt": "2022-11-10T18:49:23Z"
+  },
+  {
+    "id": 4442,
+    "sender": "michaelsof47",
+    "content": "> https://stackoverflow.com/questions/27253524/attempt-to-get-length-of-null-array-in-google-maps-v2-android-app\r\n\r\nanyway same as me. when i used 2.0.5 google_maps_flutter version. it can't crash. My Flutter Version is 3.0.5",
+    "createdAt": "2022-11-29T07:56:59Z"
+  },
+  {
+    "id": 4443,
+    "sender": "Anas-jed",
+    "content": "> > https://stackoverflow.com/questions/27253524/attempt-to-get-length-of-null-array-in-google-maps-v2-android-app\r\n> \r\n> anyway same as me. when i used 2.0.5 google_maps_flutter version. it can't crash. My Flutter Version is 3.0.5\r\n\r\n@michaelsof47  I used 2.0.5 google_maps_flutter version, and idk but it's still crashing in the 3.3.9 flutter version.",
+    "createdAt": "2022-11-29T20:18:39Z"
+  },
+  {
+    "id": 4444,
+    "sender": "rivella50",
+    "content": "@lukaskurz Would your fix you provided in a fork still work for Flutter version 3.3.x?\r\nIf yes i tend to use that since it doesn't seem that Google (or whoever) will fix this issue in the near future.",
+    "createdAt": "2022-12-01T16:39:03Z"
+  },
+  {
+    "id": 4445,
+    "sender": "lukaskurz",
+    "content": "> @lukaskurz Would your fix you provided in a fork still work for Flutter version 3.3.x? If yes i tend to use that since it doesn't seem that Google (or whoever) will fix this issue in the near future.\r\n\r\nHonestly, no idea. I am still running 3.0.1 (or close to that) in production with my hotfix, since it stopped working for later versions. You could try it with the latest version and the linked demo app, but I doubt it still works.",
+    "createdAt": "2022-12-01T17:13:44Z"
+  },
+  {
+    "id": 4446,
+    "sender": "rivella50",
+    "content": "@lukaskurz Thank you. I've found some notes in your PR, and it seems that your fix doesn't work anymore with version 3.3.\r\nI guess this means i will step away from this plugin and Google Maps.\r\nEdit: Successfully switched to flutter_map using MapBox.",
+    "createdAt": "2022-12-01T17:37:20Z"
+  },
+  {
+    "id": 4447,
+    "sender": "angwarati",
+    "content": "Same here, we tried all workarounds but still crashing!",
+    "createdAt": "2022-12-07T12:59:08Z"
+  },
+  {
+    "id": 4448,
+    "sender": "bdezso",
+    "content": "Hi there,\r\n\r\nI recently switched to MapBox and I've been recommending it to everyone. I'm not sure why Google hasn't hired more people to develop flutter plugins, but if they continue as they are, they might face some challenges. It's a shame, because we've built all of our applications in Flutter and we really love the system. However, there are critical bugs that take more than six months to fix, which can be frustrating.",
+    "createdAt": "2022-12-13T17:08:37Z"
+  },
+  {
+    "id": 4449,
+    "sender": "giorgio79",
+    "content": "I also switched to an OpenStreetMap based place picker. This one is decent :) https://pub.dev/packages/location_picker_flutter_map",
+    "createdAt": "2022-12-13T17:21:34Z"
+  },
+  {
+    "id": 4450,
+    "sender": "bazrafkan",
+    "content": "Hi @bdezso. Which package you used for MapBox? thanks",
+    "createdAt": "2022-12-14T22:18:49Z"
+  },
+  {
+    "id": 4451,
+    "sender": "bdezso",
+    "content": "Hello @bazrafkan!\r\nhttps://pub.dev/packages/mapbox_gl ",
+    "createdAt": "2022-12-15T03:38:08Z"
+  },
+  {
+    "id": 4452,
+    "sender": "ethel39",
+    "content": "> The following steps will **fix** the problem (update to new renderer in kotlin project):\r\n> \r\n>     1. Add this line to your app's  build.gradle:\r\n>        `implementation 'com.google.android.gms:play-services-maps:18.0.2'`\r\n> \r\n>     2. Import these lines to MainActivity.kt:\r\n> \r\n> \r\n> ```\r\n> import android.util.Log;\r\n> import com.google.android.gms.maps.MapsInitializer\r\n> import com.google.android.gms.maps.MapsInitializer.Renderer\r\n> import com.google.android.gms.maps.OnMapsSdkInitializedCallback\r\n> ```\r\n> \r\n>     2. Add `MapsInitializer.initialize(applicationContext, Renderer.LATEST, this)` in your MainActivity onCreate method.\r\n> \r\n>     3. Implement  OnMapsSdkInitializedCallback interface for verify the new renderer.\r\n> \r\n> \r\n> **example (MainActivity.kt):**\r\n> \r\n> ```\r\n> package com.example.application\r\n> \r\n> import android.os.Bundle\r\n> import io.flutter.embedding.android.FlutterActivity\r\n> import io.flutter.embedding.engine.FlutterEngine\r\n> import io.flutter.plugin.common.MethodChannel\r\n> import io.flutter.plugins.GeneratedPluginRegistrant\r\n> import io.flutter.view.FlutterMain\r\n> import android.os.Build;\r\n> import android.view.WindowManager\r\n> import android.util.Log;\r\n> import com.google.android.gms.maps.MapsInitializer\r\n> import com.google.android.gms.maps.MapsInitializer.Renderer\r\n> import com.google.android.gms.maps.OnMapsSdkInitializedCallback\r\n> \r\n> \r\n> class MainActivity: FlutterActivity(), OnMapsSdkInitializedCallback{\r\n>     override \r\n>     fun onCreate(savedInstanceState: Bundle?){\r\n>         super.onCreate(savedInstanceState);\r\n>         MapsInitializer.initialize(applicationContext, Renderer.LATEST, this)\r\n>     }\r\n> \r\n>     override fun onMapsSdkInitialized(renderer: MapsInitializer.Renderer) {\r\n>       when (renderer) {\r\n>         Renderer.LATEST -> Log.d(\"NewRendererLog\", \"The latest version of the renderer is used.\")\r\n>         Renderer.LEGACY -> Log.d(\"NewRendererLog\",\"The legacy version of the renderer is used.\")\r\n>       }\r\n>     }\r\n> }\r\n> ```\r\n> \r\n>     4. Run & Check the logs, you should see these lines:\r\n> \r\n> \r\n> ```\r\n> D/MapsInitializer: loadedRenderer: LATEST\r\n> D/NewRendererLog: The latest version of the renderer is used.\r\n> ```\r\n\r\nAfter doing this that error close map before render is gone as far i tested in debug and release mode android\r\nThank you so much\r\n\r\nFlutter 3.3.9 • channel stable • https://github.com/flutter/flutter.git\r\nFramework • revision b8f7f1f986 (3 weeks ago) • 2022-11-23 06:43:51 +0900\r\nEngine • revision 8f2221fbef\r\nTools • Dart 2.18.5 • DevTools 2.15.0\r\n",
+    "createdAt": "2022-12-16T03:31:02Z"
+  },
+  {
+    "id": 4453,
+    "sender": "stuartmorgan-g",
+    "content": "The plugin now supports renderer selection, so project-level changes are no longer needed to request the new renderer; see https://pub.dev/packages/google_maps_flutter_android#map-renderer for details. (You will need to add a direct dependency on the `google_maps_flutter_android` implementation package to use that new API).",
+    "createdAt": "2022-12-16T12:16:43Z"
+  },
+  {
+    "id": 4454,
+    "sender": "lich426",
+    "content": "<pre><code>\r\nE/AndroidRuntime(32351): FATAL EXCEPTION: GLThread 206\r\nE/AndroidRuntime(32351): Process: com.*.*, PID: 32351\r\nE/AndroidRuntime(32351): java.lang.NullPointerException: Attempt to get length of null array\r\nE/AndroidRuntime(32351): \tat java.nio.ByteBufferAsIntBuffer.put(ByteBufferAsIntBuffer.java:122)\r\nE/AndroidRuntime(32351): \tat com.google.maps.api.android.lib6.gmm6.vector.gl.buffer.n.i(:com.google.android.gms.dynamite_mapsdynamite@224814047@22.48.14 (190800-0):2)\r\nE/AndroidRuntime(32351): \tat com.google.maps.api.android.lib6.gmm6.vector.gl.buffer.n.d(:com.google.android.gms.dynamite_mapsdynamite@224814047@22.48.14 (190800-0):3)\r\nE/AndroidRuntime(32351): \tat com.google.maps.api.android.lib6.gmm6.vector.gl.drawable.d.s(:com.google.android.gms.dynamite_mapsdynamite@224814047@22.48.14 (190800-0):2)\r\nE/AndroidRuntime(32351): \tat com.google.maps.api.android.lib6.gmm6.vector.gl.drawable.ao.s(:com.google.android.gms.dynamite_mapsdynamite@224814047@22.48.14 (190800-0):12)\r\nE/AndroidRuntime(32351): \tat com.google.maps.api.android.lib6.gmm6.vector.bz.s(:com.google.android.gms.dynamite_mapsdynamite@224814047@22.48.14 (190800-0):29)\r\nE/AndroidRuntime(32351): \tat com.google.maps.api.android.lib6.gmm6.vector.bs.b(:com.google.android.gms.dynamite_mapsdynamite@224814047@22.48.14 (190800-0):151)\r\nE/AndroidRuntime(32351): \tat com.google.maps.api.android.lib6.gmm6.vector.av.run(:com.google.android.gms.dynamite_mapsdynamite@224814047@22.48.14 (190800-0):48)\r\nI/Process (32351): Sending signal. PID: 32351 SIG: 9\r\nLost connection to device.\r\nExited (sigterm)\r\n</code></pre>\r\nThis issue is not yet resolved. using `google_maps_flutter 2.2.2`\r\n",
+    "createdAt": "2022-12-29T07:01:43Z"
+  },
+  {
+    "id": 4455,
+    "sender": "robinbonnes",
+    "content": "This issue indeed seems to be fixed when adding the following code to `main.dart`:\r\n\r\n```\r\nimport 'package:google_maps_flutter_android/google_maps_flutter_android.dart';\r\nimport 'package:google_maps_flutter_platform_interface/google_maps_flutter_platform_interface.dart';\r\n\r\nfinal GoogleMapsFlutterPlatform mapsImplementation = GoogleMapsFlutterPlatform.instance;\r\nif (mapsImplementation is GoogleMapsFlutterAndroid) {\r\n  mapsImplementation.useAndroidViewSurface = false;\r\n}\r\n```",
+    "createdAt": "2023-01-13T14:36:07Z"
+  },
+  {
+    "id": 4456,
+    "sender": "muhammadkamel",
+    "content": "> \r\nmapsImplementation.useAndroidViewSurface = false;\r\nor\r\nmapsImplementation.useAndroidViewSurface = true;\r\n",
+    "createdAt": "2023-01-13T16:34:30Z"
+  },
+  {
+    "id": 4457,
+    "sender": "giorgio79",
+    "content": "mapsImplementation does not seem to have useAndroidViewSurface?\r\n\r\n![image](https://user-images.githubusercontent.com/283347/212382098-8fc805f4-8e18-4aa8-8e19-62c74ae57746.png)\r\n",
+    "createdAt": "2023-01-13T17:36:06Z"
+  },
+  {
+    "id": 4458,
+    "sender": "muhammadkamel",
+    "content": "@giorgio79 \r\nYou have to add the below package:\r\nflutter pub add google_maps_flutter_android\r\n\r\nAnd import below\r\nimport 'package:google_maps_flutter_android/google_maps_flutter_android.dart';\r\nimport 'package:google_maps_flutter_platform_interface/google_maps_flutter_platform_interface.dart';\r\n",
+    "createdAt": "2023-01-13T22:52:43Z"
+  },
+  {
+    "id": 4459,
+    "sender": "martin-braun",
+    "content": "@giorgio79 `useAndroidViewSurface` is part of `GoogleMapsFlutterAndroid` and not `GoogleMapsFlutterPlatform`, so you have to cast `mapsImplementation` to `GoogleMapsFlutterAndroid` to access it.",
+    "createdAt": "2023-01-13T23:22:22Z"
+  },
+  {
+    "id": 4460,
+    "sender": "sunnykinger",
+    "content": "> The plugin now supports renderer selection, so project-level changes are no longer needed to request the new renderer; see https://pub.dev/packages/google_maps_flutter_android#map-renderer for details. (You will need to add a direct dependency on the `google_maps_flutter_android` implementation package to use that new API).\r\n\r\ndo we just need to use this\r\n```\r\nfinal GoogleMapsFlutterPlatform mapsImplementation = GoogleMapsFlutterPlatform.instance;\r\nif (mapsImplementation is GoogleMapsFlutterAndroid) {\r\n  mapsImplementation.useAndroidViewSurface = false;\r\n}\r\n```\r\n\r\nor we also need to use \r\n\r\n```\r\nAndroidMapRenderer mapRenderer = AndroidMapRenderer.platformDefault;\r\n// ···\r\n  final GoogleMapsFlutterPlatform mapsImplementation =\r\n      GoogleMapsFlutterPlatform.instance;\r\n  if (mapsImplementation is GoogleMapsFlutterAndroid) {\r\n    WidgetsFlutterBinding.ensureInitialized();\r\n    mapRenderer = await mapsImplementation\r\n        .initializeWithRenderer(AndroidMapRenderer.latest);\r\n  }\r\n```\r\n\r\n\r\n",
+    "createdAt": "2023-01-17T11:19:55Z"
+  },
+  {
+    "id": 4461,
+    "sender": "martin-braun",
+    "content": "@sunnykinger `useAndroidViewSurface` is used to toggle Hybrid Composition. I did not have to use Hybrid Composition to fix this crash in Flutter 3, all it requires is using the new renderer, so I assume Hybrid Composition has no effect on the latest renderer, or at least it is not relevant to the issue.",
+    "createdAt": "2023-01-17T14:42:15Z"
+  },
+  {
+    "id": 4462,
+    "sender": "Mik77o",
+    "content": "I'm also experiencing this problem. Does anyone recommend any other map solution for both platforms? App crash is unacceptable in a production app.",
+    "createdAt": "2023-01-20T11:02:31Z"
+  },
+  {
+    "id": 4463,
+    "sender": "rivella50",
+    "content": "@Mik77o https://github.com/flutter/flutter/issues/105965#issuecomment-1334120565",
+    "createdAt": "2023-01-20T11:19:56Z"
+  },
+  {
+    "id": 4464,
+    "sender": "godofsleepy",
+    "content": "> @sunnykinger `useAndroidViewSurface` is used to toggle Hybrid Composition. I did not have to use Hybrid Composition to fix this crash in Flutter 3, all it requires is using the new renderer, so I assume Hybrid Composition has no effect on the latest renderer, or at least it is not relevant to the issue.\r\n\r\nI got this error when hot restart \r\n`[ERROR:flutter/runtime/dart_vm_initializer.cc(41)] Unhandled Exception: PlatformException(Renderer already initialized, Renderer initialization called multiple times, null, null)`\r\nwhere you put map renderer code ?",
+    "createdAt": "2023-01-25T04:00:13Z"
+  },
+  {
+    "id": 4465,
+    "sender": "sunnykinger",
+    "content": "> > @sunnykinger `useAndroidViewSurface` is used to toggle Hybrid Composition. I did not have to use Hybrid Composition to fix this crash in Flutter 3, all it requires is using the new renderer, so I assume Hybrid Composition has no effect on the latest renderer, or at least it is not relevant to the issue.\n> \n> \n> \n> I got this error when hot restart \n> \n> `[ERROR:flutter/runtime/dart_vm_initializer.cc(41)] Unhandled Exception: PlatformException(Renderer already initialized, Renderer initialization called multiple times, null, null)`\n> \n> where you put map renderer code ?\n\nI faced the same issue. I had to put this inside try catch. \nIn production it won't be a problem since hot reload is just one development tool. ",
+    "createdAt": "2023-01-26T03:53:47Z"
+  },
+  {
+    "id": 4466,
+    "sender": "stuartmorgan-g",
+    "content": "/cc @bparrishMines in case this becoming more common is related to dispose timing, per offline discussion.",
+    "createdAt": "2023-02-09T21:27:47Z"
+  },
+  {
+    "id": 4467,
+    "sender": "arcas0803",
+    "content": "Same here, need to migrate to mapbox. The plugin is not production ready and should be an advise in pub.dev",
+    "createdAt": "2023-02-13T17:25:14Z"
+  },
+  {
+    "id": 4468,
+    "sender": "manhduy",
+    "content": "Facing the same issue. Finally I have resolved it by using **google_maps_flutter 2.1.8**, **google_maps_flutter_android 2.4.3**, **flutter 3.3.10** and the below code in main():\r\n\r\n  ```\r\nfinal GoogleMapsFlutterPlatform mapsImplementation = GoogleMapsFlutterPlatform.instance;\r\n  if (mapsImplementation is GoogleMapsFlutterAndroid) {\r\n    mapsImplementation.useAndroidViewSurface = false;\r\n    mapsImplementation.initializeWithRenderer(AndroidMapRenderer.latest);\r\n  }\r\n```",
+    "createdAt": "2023-03-01T07:57:48Z"
+  },
+  {
+    "id": 4469,
+    "sender": "asaarnak",
+    "content": "We have the same configuration. @manhduy\r\nBut using only `mapsImplementation.initializeWithRenderer(AndroidMapRenderer.latest);` seemed to fix the issue for us.",
+    "createdAt": "2023-03-01T10:28:46Z"
+  },
+  {
+    "id": 4470,
+    "sender": "onghuisheng",
+    "content": "> Facing the same issue. Finally I have resolved it by using **google_maps_flutter 2.1.8**, **google_maps_flutter_android 2.4.3**, **flutter 3.3.10** and the below code in main():\r\n> \r\n> ```\r\n> final GoogleMapsFlutterPlatform mapsImplementation = GoogleMapsFlutterPlatform.instance;\r\n> if (mapsImplementation is GoogleMapsFlutterAndroid) {\r\n>   mapsImplementation.useAndroidViewSurface = false;\r\n>   mapsImplementation.initializeWithRenderer(AndroidMapRenderer.latest);\r\n> }\r\n> ```\r\n\r\nUsing this fixes the crash issue but for some reason, I'm getting an issue where Zoom Controls & Map Toolbar becomes unclickable when calling `mapsImplementation.useAndroidViewSurface = false;`",
+    "createdAt": "2023-03-13T16:37:35Z"
+  },
+  {
+    "id": 4471,
+    "sender": "bdezso",
+    "content": "Any update on this issue? :(",
+    "createdAt": "2023-04-03T11:08:33Z"
+  },
+  {
+    "id": 4472,
+    "sender": "oscarshaitan",
+    "content": "> Facing the same issue. Finally I have resolved it by using **google_maps_flutter 2.1.8**, **google_maps_flutter_android 2.4.3**, **flutter 3.3.10** and the below code in main():\r\n> \r\n> ```\r\n> final GoogleMapsFlutterPlatform mapsImplementation = GoogleMapsFlutterPlatform.instance;\r\n> if (mapsImplementation is GoogleMapsFlutterAndroid) {\r\n>   mapsImplementation.useAndroidViewSurface = false;\r\n>   mapsImplementation.initializeWithRenderer(AndroidMapRenderer.latest);\r\n> }\r\n> ```\r\n\r\nI did this and now Im getting\r\nW/SnapshotHandler(27354): Unable to retrieve flag snapshot for com.google.android.gms.maps#xxx.yyy.zzz, using defaults.\r\nW/SnapshotHandler(27354): java.io.FileNotFoundException: /data/user/0/xxx.yyy.zzz/files/phenotype/shared/com.google.android.gms.maps#xxx.yyy.zzz.pb: open failed: ENOENT (No such file or directory)\r\n\r\n",
+    "createdAt": "2023-04-11T13:28:33Z"
+  },
+  {
+    "id": 4473,
+    "sender": "giftty",
+    "content": "> Facing the same issue. Finally I have resolved it by using **google_maps_flutter 2.1.8**, **google_maps_flutter_android 2.4.3**, **flutter 3.3.10** and the below code in main():\r\n> \r\n> ```\r\n> final GoogleMapsFlutterPlatform mapsImplementation = GoogleMapsFlutterPlatform.instance;\r\n> if (mapsImplementation is GoogleMapsFlutterAndroid) {\r\n>   mapsImplementation.useAndroidViewSurface = false;\r\n>   mapsImplementation.initializeWithRenderer(AndroidMapRenderer.latest);\r\n> }\r\n> ```\r\n\r\nThis also fixed the isssue for me for now hope it stays that way.",
+    "createdAt": "2023-04-11T13:35:35Z"
+  },
+  {
+    "id": 4474,
+    "sender": "stuartmorgan-g",
+    "content": "It is not clear to me why comments above are recommending changing the platform view mode (the `useAndroidViewSurface` setting); it is **completely unrelated** to using [the new Google Maps renderer](https://developers.google.com/maps/documentation/android-sdk/renderer) that fixed the crash in the SDK, and thus should be unrelated to this issue.\r\n\r\nI would certainly encourage anyone disabling Hybrid Composition by setting `useAndroidViewSurface` to false (which, again, should **not** be necessary to address this crash) to read [the relevant docs](https://pub.dev/packages/google_maps_flutter_android#display-mode) first, to make sure you understand the correctness issues that doing so may introduce.",
+    "createdAt": "2023-04-11T13:52:02Z"
+  },
+  {
+    "id": 4475,
+    "sender": "thiagotalma",
+    "content": "> Não está claro para mim por que os comentários acima estão recomendando a alteração do modo de visualização da plataforma (a configuração); ele **não está completamente relacionado ao** uso do [novo renderizador do Google Maps](https://developers.google.com/maps/documentation/android-sdk/renderer) que corrigiu a falha no SDK e, portanto, não deve estar relacionado a esse problema.`useAndroidViewSurface`\r\n> \r\n> Eu certamente encorajaria qualquer um que desabilitasse a Composição Híbrida definindo como false (o que, novamente, **não** deveria ser necessário para resolver esse acidente) a ler [os documentos relevantes](https://pub.dev/packages/google_maps_flutter_android#display-mode) primeiro, para garantir que você entenda os problemas de correção que isso pode introduzir.`useAndroidViewSurface`\r\n\r\nI agree with you.\r\nHowever, I think that special attention should be paid to this problem, which will soon celebrate its 1 year anniversary.\r\n\r\nLook at my situation:\r\n\r\n![Crashlytics](https://i.imgur.com/kWOOAQJ.png)\r\n",
+    "createdAt": "2023-04-11T19:44:22Z"
+  },
+  {
+    "id": 4476,
+    "sender": "roryrudy",
+    "content": "> This issue indeed seems to be fixed when adding the following code to `main.dart`:\r\n> \r\n> ```\r\n> import 'package:google_maps_flutter_android/google_maps_flutter_android.dart';\r\n> import 'package:google_maps_flutter_platform_interface/google_maps_flutter_platform_interface.dart';\r\n> \r\n> final GoogleMapsFlutterPlatform mapsImplementation = GoogleMapsFlutterPlatform.instance;\r\n> if (mapsImplementation is GoogleMapsFlutterAndroid) {\r\n>   mapsImplementation.useAndroidViewSurface = false;\r\n> }\r\n> ```\r\n\r\nThis worked perfectly and saved my life. I have been stuck with this issue for weeks. useAndroidViewSurface = false SAVED the day. I wish I could donate to you just for this solution. I did not need nor use the line that says \"mapsImplementation.initializeWithRenderer(AndroidMapRenderer.latest);\"",
+    "createdAt": "2023-04-27T00:59:15Z"
+  },
+  {
+    "id": 4477,
+    "sender": "vbuberen",
+    "content": "Bumped into this issue as well in production for some users. After some research also found out that it happens in some cases when user clicks back and map screen is popped. \r\n\r\n~~As of Flutter 3.7.12 and google_maps_flutter 2.4.13 setting `useAndroidViewSurface = false` as suggested above helped and I can't reproduce the crash anymore.~~ Will ship app update this week and will try to share more data after it reaches production users.\r\n\r\nUPD: After ~5 days of apps being in production I still see same crashes in Crashlytics, so no, `useAndroidViewSurface=false` isn't a solution for this problem.",
+    "createdAt": "2023-05-03T07:26:18Z"
+  },
+  {
+    "id": 4478,
+    "sender": "JettChen12",
+    "content": "> Facing the same issue. Finally I have resolved it by using **google_maps_flutter 2.1.8**, **google_maps_flutter_android 2.4.3**, **flutter 3.3.10** and the below code in main():\r\n> \r\n> ```\r\n> final GoogleMapsFlutterPlatform mapsImplementation = GoogleMapsFlutterPlatform.instance;\r\n> if (mapsImplementation is GoogleMapsFlutterAndroid) {\r\n>   mapsImplementation.useAndroidViewSurface = false;\r\n>   mapsImplementation.initializeWithRenderer(AndroidMapRenderer.latest);\r\n> }\r\n> ```\r\n\r\nIt worked for me, thank you for sharing",
+    "createdAt": "2023-05-11T05:46:07Z"
+  },
+  {
+    "id": 4479,
+    "sender": "mohammadshahmorady",
+    "content": "still no fix from google maps team",
+    "createdAt": "2023-05-14T04:58:43Z"
+  }
+]

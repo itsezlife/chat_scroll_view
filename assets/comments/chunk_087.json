@@ -1,0 +1,386 @@
+[
+  {
+    "id": 5568,
+    "sender": "nitneuq33000",
+    "content": "I tried to explain my need in stackoverflow but I have not enought experience to debug and understand the answers. Anyone to write simple exemple of his plugin with only map on home screen compatible with option like marker, mapType etc. ? thank you ",
+    "createdAt": "2018-06-16T13:36:21Z"
+  },
+  {
+    "id": 5569,
+    "sender": "gerryhigh",
+    "content": "@nitneuq33000 Here's a simple example using the plugin with markers, info windows (and callback when info window tapped) & driving directions. https://github.com/gerryhigh/Flutter-Google-Maps-Demo\r\n\r\n@@jposuna take a look as the map disappears when navigating away\r\n\r\nNote that this example has a button on a home page which navigates to the map page but it would be trivial for you to make the venues page the home page. This example also points to a fork of the plugins in pubspec.yaml because it has a fix for the infowindowonTapped call (I need create a pull request for the fix).\r\n\r\nLastly, this approach does not use the navigator observer that the maps demo that comes with the plugin uses. As a result I've noticed that there is a bug on iOS when rendering the map where the overlay will show up and some x offset. Currently I'm adding a delay on load to get around this issue.\r\n\r\nTo run this example just input your map keys. I hope this helps. ",
+    "createdAt": "2018-06-16T19:40:49Z"
+  },
+  {
+    "id": 5570,
+    "sender": "nitneuq33",
+    "content": "thank you it's very helpful, really what I searched :)\n\n2018-06-16 21:41 GMT+02:00 Gerry High <notifications@github.com>:\n\n> @nitneuq33000 <https://github.com/nitneuq33000> Here's a simple example\n> using the plugin with markers, info windows (and callback when info window\n> tapped) & driving directions. https://github.com/gerryhigh/\n> Flutter-Google-Maps-Demo\n>\n> @@jposuna <https://github.com/jposuna> take a look as the map disappears\n> when navigating away\n>\n> Note that this example has a button on a home page which navigates to the\n> map page but it would be trivial for you to make the venues page the home\n> page. This example also points to a fork of the plugins in pubspec.yaml\n> because it has a fix for the infowindowonTapped call (I need create a pull\n> request for the fix).\n>\n> Lastly, this approach does not use the navigator observer that the maps\n> demo that comes with the plugin uses. As a result I've noticed that there\n> is a bug on iOS when rendering the map where the overlay will show up and\n> some x offset. Currently I'm adding a delay on load to get around this\n> issue.\n>\n> To run this example just input your map keys. I hope this helps.\n>\n> —\n> You are receiving this because you were mentioned.\n> Reply to this email directly, view it on GitHub\n> <https://github.com/flutter/flutter/issues/73#issuecomment-397834840>, or mute\n> the thread\n> <https://github.com/notifications/unsubscribe-auth/AaWFy_a4oC7-F1fvSc6RvobUsZxd7_qVks5t9V9rgaJpZM4Ge5yO>\n> .\n>\n",
+    "createdAt": "2018-06-17T08:13:01Z"
+  },
+  {
+    "id": 5571,
+    "sender": "nitneuq33",
+    "content": "Indeed, a solution for the navigation away will be welcome,\n\n2018-06-17 10:12 GMT+02:00 quentin guichot <guichotquentin@gmail.com>:\n\n> thank you it's very helpful, really what I searched :)\n>\n> 2018-06-16 21:41 GMT+02:00 Gerry High <notifications@github.com>:\n>\n>> @nitneuq33000 <https://github.com/nitneuq33000> Here's a simple example\n>> using the plugin with markers, info windows (and callback when info window\n>> tapped) & driving directions. https://github.com/gerryhigh/F\n>> lutter-Google-Maps-Demo\n>>\n>> @@jposuna <https://github.com/jposuna> take a look as the map disappears\n>> when navigating away\n>>\n>> Note that this example has a button on a home page which navigates to the\n>> map page but it would be trivial for you to make the venues page the home\n>> page. This example also points to a fork of the plugins in pubspec.yaml\n>> because it has a fix for the infowindowonTapped call (I need create a pull\n>> request for the fix).\n>>\n>> Lastly, this approach does not use the navigator observer that the maps\n>> demo that comes with the plugin uses. As a result I've noticed that there\n>> is a bug on iOS when rendering the map where the overlay will show up and\n>> some x offset. Currently I'm adding a delay on load to get around this\n>> issue.\n>>\n>> To run this example just input your map keys. I hope this helps.\n>>\n>> —\n>> You are receiving this because you were mentioned.\n>> Reply to this email directly, view it on GitHub\n>> <https://github.com/flutter/flutter/issues/73#issuecomment-397834840>,\n>> or mute the thread\n>> <https://github.com/notifications/unsubscribe-auth/AaWFy_a4oC7-F1fvSc6RvobUsZxd7_qVks5t9V9rgaJpZM4Ge5yO>\n>> .\n>>\n>\n>\n",
+    "createdAt": "2018-06-17T08:23:03Z"
+  },
+  {
+    "id": 5572,
+    "sender": "nitneuq33",
+    "content": "I have a bug with\r\n\r\ninitState\r\n\r\nI can't upload a saved value. I use shared preference to pass data to\r\nthe next page, but when I add this line, I have un bug and the map is\r\nalways active even when I back to the previous page.\r\n\r\n```\r\nvoid initState() {\r\n  super.initState();\r\n\r\n_loadgeoValue()\r\n\r\n}\r\n\r\n...\r\n\r\n_loadgeoValue() async {\r\n\r\n  SharedPreferences prefs = await SharedPreferences.getInstance();\r\n  setState(() {\r\n    lat = (prefs.getDouble('lat1'));\r\n    long = (prefs.getDouble('long2'));\r\n  }\r\n  );\r\n}\r\n```\r\n\r\nIf some one have an idea... thanks for advance\r\n\r\n\r\n\r\n2018-06-17 10:22 GMT+02:00 quentin guichot <guichotquentin@gmail.com>:\r\n\r\n> Indeed, a solution for the navigation away will be welcome,\r\n>\r\n> 2018-06-17 10:12 GMT+02:00 quentin guichot <guichotquentin@gmail.com>:\r\n>\r\n>> thank you it's very helpful, really what I searched :)\r\n>>\r\n>> 2018-06-16 21:41 GMT+02:00 Gerry High <notifications@github.com>:\r\n>>\r\n>>> @nitneuq33000 <https://github.com/nitneuq33000> Here's a simple example\r\n>>> using the plugin with markers, info windows (and callback when info window\r\n>>> tapped) & driving directions. https://github.com/gerryhigh/F\r\n>>> lutter-Google-Maps-Demo\r\n>>>\r\n>>> @@jposuna <https://github.com/jposuna> take a look as the map\r\n>>> disappears when navigating away\r\n>>>\r\n>>> Note that this example has a button on a home page which navigates to\r\n>>> the map page but it would be trivial for you to make the venues page the\r\n>>> home page. This example also points to a fork of the plugins in\r\n>>> pubspec.yaml because it has a fix for the infowindowonTapped call (I need\r\n>>> create a pull request for the fix).\r\n>>>\r\n>>> Lastly, this approach does not use the navigator observer that the maps\r\n>>> demo that comes with the plugin uses. As a result I've noticed that there\r\n>>> is a bug on iOS when rendering the map where the overlay will show up and\r\n>>> some x offset. Currently I'm adding a delay on load to get around this\r\n>>> issue.\r\n>>>\r\n>>> To run this example just input your map keys. I hope this helps.\r\n>>>\r\n>>> —\r\n>>> You are receiving this because you were mentioned.\r\n>>> Reply to this email directly, view it on GitHub\r\n>>> <https://github.com/flutter/flutter/issues/73#issuecomment-397834840>,\r\n>>> or mute the thread\r\n>>> <https://github.com/notifications/unsubscribe-auth/AaWFy_a4oC7-F1fvSc6RvobUsZxd7_qVks5t9V9rgaJpZM4Ge5yO>\r\n>>> .\r\n>>>\r\n>>\r\n>>\r\n>\r\n",
+    "createdAt": "2018-06-17T16:17:19Z"
+  },
+  {
+    "id": 5573,
+    "sender": "nitneuq33",
+    "content": "Hello, I succeded to get around without passing into initstate to upload my\ndata when I launch the new page. So currently it's fonctionnal but the\nfixed layer when I close the page isn't very sexy. Any idea to make it more\nvisual, like a fade out animation of the layermap when you close the page ?\nor transition animation  who catch the transition of the page ? thank you\n",
+    "createdAt": "2018-06-22T09:33:08Z"
+  },
+  {
+    "id": 5574,
+    "sender": "cosminstoinescu",
+    "content": "Hello, is there any progress regarding this plugin, any news on when we shoul expect to have a solutin?\r\nThank you!",
+    "createdAt": "2018-07-03T06:17:27Z"
+  },
+  {
+    "id": 5575,
+    "sender": "Stavarmath",
+    "content": "How to get current user location lat/long with this plugin? is it supported?",
+    "createdAt": "2018-07-04T07:57:43Z"
+  },
+  {
+    "id": 5576,
+    "sender": "hundeva",
+    "content": "Please keep the support questions away from this thread, ask them on Gitter, Stackoverflow, or any other relevant forum. Anytime you comment, a lot of people get an unnecessary notification. This thread should only contain relevant status updates, or actually useful discussion, thanks.",
+    "createdAt": "2018-07-04T08:17:29Z"
+  },
+  {
+    "id": 5577,
+    "sender": "NguyenSen",
+    "content": "How to use other widget on  this plugin. It is hard to insert widget on map.",
+    "createdAt": "2018-07-06T10:47:17Z"
+  },
+  {
+    "id": 5578,
+    "sender": "ghost",
+    "content": "Hi. I assume using a WebView  to embed the web version of Google Maps is totally unrealistic? (Haven't tried yet, but I have just noticed this plugin https://pub.dartlang.org/packages/flutter_webview_plugin",
+    "createdAt": "2018-07-09T13:46:20Z"
+  },
+  {
+    "id": 5579,
+    "sender": "cosminstoinescu",
+    "content": "Hello, is there any progress regarding this plugin, any news on when we shoul expect to have a solutin?\r\nThank you!",
+    "createdAt": "2018-07-15T12:35:54Z"
+  },
+  {
+    "id": 5580,
+    "sender": "mclark4386",
+    "content": "I'm curious if the concept of \"native widgets\" still progressing. They were going to let you wrap a \"native\" view in a flutter widget in a plugin to let you, theoretically, make a mapview plugin that just wrapped the \"native\" views and inserted that in the flutter render tree where ever you had used the plugin's widget.",
+    "createdAt": "2018-07-16T00:06:57Z"
+  },
+  {
+    "id": 5581,
+    "sender": "amirh",
+    "content": "I'm actively working on this, unfortunately I don't have an ETA.\r\nYou can also follow #19030 for more detailed progress updates.",
+    "createdAt": "2018-07-17T17:45:58Z"
+  },
+  {
+    "id": 5582,
+    "sender": "mclark4386",
+    "content": "@amirh subscribed thank you!",
+    "createdAt": "2018-07-17T21:03:14Z"
+  },
+  {
+    "id": 5583,
+    "sender": "thiphariel",
+    "content": "Maybe you should take a look here : https://github.com/apptreesoftware/flutter_google_map_view\r\n\r\n@apptreesoftware ",
+    "createdAt": "2018-08-02T20:46:46Z"
+  },
+  {
+    "id": 5584,
+    "sender": "amirh",
+    "content": "An Android only **preview** of the inline google maps plugin is now available at: https://github.com/flutter/plugins/tree/master/packages/google_maps_flutter\r\n\r\n(the framework and engine support required for this is currently only available on the master channel)",
+    "createdAt": "2018-08-29T17:39:11Z"
+  },
+  {
+    "id": 5585,
+    "sender": "feinstein",
+    "content": "The Readme speaks about iOS setup ... Shouldn't this be more clarified? ",
+    "createdAt": "2018-08-29T17:43:51Z"
+  },
+  {
+    "id": 5586,
+    "sender": "amirh",
+    "content": "Good point, I'll remove it for now.",
+    "createdAt": "2018-08-29T18:06:45Z"
+  },
+  {
+    "id": 5587,
+    "sender": "cosminstoinescu",
+    "content": "Hi, when testing google_maps_flutter I encountered the following problem:\r\nIf I press 'Go to London' button, the map goes at that location, and if I try to do a zoom out the application stop working and closes.\r\nLog:\r\nE/JavaBinder(10217): !!! FAILED BINDER TRANSACTION !!!  (parcel size = 3050800)\r\nI/Process (10217): Sending signal. PID: 10217 SIG: 9\r\nLost connection to device.\r\n\r\nIf I do a zoom in, everithing works, and then if I do a zoom out, the aplication works fine until it reaches the zoom value set when the button was pressed.\r\nIf I dont press the button, I can do zoom in and zoo out without any problems.\r\n\r\n",
+    "createdAt": "2018-09-23T18:55:33Z"
+  },
+  {
+    "id": 5588,
+    "sender": "zoechi",
+    "content": "@cosminstoinescu it's probably better to create a new issue for this specific problem with a completely filled issue template and if possible a running minimal reproduction. ",
+    "createdAt": "2018-09-24T07:54:00Z"
+  },
+  {
+    "id": 5589,
+    "sender": "cosminstoinescu",
+    "content": "Created issue ticket: #22228: Inline Google Maps - zoom crash",
+    "createdAt": "2018-09-24T20:05:30Z"
+  },
+  {
+    "id": 5590,
+    "sender": "ghost",
+    "content": "As others have already mentioned, it's possible for flutter to interact with native maps via platform channels, here's an example of doing just that in swift: https://github.com/syfgkjasdkn/map_and_flutter\r\n\r\nJust in case someone might find it helpful.",
+    "createdAt": "2018-10-04T13:49:14Z"
+  },
+  {
+    "id": 5591,
+    "sender": "feinstein",
+    "content": "Out of curiosity, are you guys also porting the Places API, or just the Google Maps API? ",
+    "createdAt": "2018-10-04T13:59:10Z"
+  },
+  {
+    "id": 5592,
+    "sender": "HerrNiklasRaab",
+    "content": "Is this the right thread for getting notified on any updates, i need inline google maps view for android and ios, is there a more detailed thread or something like this?",
+    "createdAt": "2018-11-03T15:01:17Z"
+  },
+  {
+    "id": 5593,
+    "sender": "MisterJimson",
+    "content": "@HerrNiklasRaab yes this is the issue to watch and has the best information for inline maps.",
+    "createdAt": "2018-11-05T13:50:29Z"
+  },
+  {
+    "id": 5594,
+    "sender": "amirh",
+    "content": "flutter/plugins#892 added iOS support to the google_maps_flutter plugin.\r\nThe platform views embedding support, which the inline map is based on, is still in early preview (see https://github.com/flutter/flutter/issues/19030#issuecomment-437534853 ).\r\n\r\nOpen issues are tagged with the [platform-views](https://github.com/flutter/flutter/labels/a%3A%20platform-views) and/or [maps](https://github.com/flutter/flutter/labels/p%3A%20maps) labels, please upvote the issues you care about to help us prioritize.",
+    "createdAt": "2018-11-10T00:36:01Z"
+  },
+  {
+    "id": 5595,
+    "sender": "amirh",
+    "content": "Note that if you want to try it out on iOS you will need to enable the preview flag, see more details on:\r\nhttps://github.com/flutter/flutter/issues/19030#issuecomment-437534853",
+    "createdAt": "2018-11-10T00:47:00Z"
+  },
+  {
+    "id": 5596,
+    "sender": "feinstein",
+    "content": "I thinks this information should be included in the Readme.md for the library.\r\n\r\nAre there any plans to move this to not be an in-line solution, so I can place buttons top of the map, a bottom sheet, a drawer layout? ",
+    "createdAt": "2018-11-10T22:24:15Z"
+  },
+  {
+    "id": 5597,
+    "sender": "amirh",
+    "content": "I'm planning to improve the documentation soon.\r\n\r\nNot sure what you mean regarding not being an in-line solution? Flutter widgets can be placed on top of the map now.",
+    "createdAt": "2018-11-10T22:28:33Z"
+  },
+  {
+    "id": 5598,
+    "sender": "feinstein",
+    "content": "Ohh, that's great! I remember reading there couldn't be any widgets on top of the map, as if it was a different rendering layer. Is this valid for ios and android?",
+    "createdAt": "2018-11-10T22:41:58Z"
+  },
+  {
+    "id": 5599,
+    "sender": "nosmirck",
+    "content": "After trying the maps plugin and messing around with platform views widgets, I came to this post, the very original post, and I can say that option 3 would have been a much better option.\r\n\r\nI'd like to know, is there a reason why no one chose to create an actual widget for maps from scratch? I mean, the whole power for it is there! Skia is powerful enough to create it's own renderer for buildings and roads using simple graphics, or is it not possible to do so from Dart? I checked the code from rendering a simple box from Dart to the engine and I see it's possible.\r\n\r\nI understand there's a technical reason we need platform views, but, maps needs \"native\" flutter SDK, or what's the plan for Fuchsia? Keep leveraging Android's SDK to render maps? It's nonsense!\r\n\r\nWe already have a platform view that seems to be working fine, might need optimizations, but the teams can now just drop this maps implementation (basically two, one per platform) and start working on an actual maps for Flutter that would technically work on any future platform that flutter gives support, including hummingbird, PC, Mac and Linux (and many more).\r\n\r\nIt's the best way, and you now it. The maps plugin for Unity3D doesn't use the native view, it's entirely custom for the engine and with amazing customizability! We need that for Flutter too, it's much more rich and useful than what a platform view of a map can do.\r\n\r\nAlso, it will bring an idea for us, developers, on how actually use the graphics engine on a low level to build other stuff.\r\n\r\nI hope you guys don't take this wrong, but, I truly believe that the maps plugin through platform views already fulfilled his goal: to make possible native views to be rendered as widgets.\r\n\r\nOh, before I end this: I thought that maybe this could extend to WebViews (having an actual browser engine that renders using skia) is something useful, maybe not, maybe it's just too much (for now) but would solve the issue of having different renderers for WebViews per platform (like the intention of the flutter maps), however, an integration with chrome engine somehow would be amazing, I mean, if the platform is able of running chromium it could technically serve as a web renderer and provide a channel to render WebViews inside Flutter.\r\n\r\nThat's it! I'm going to bed now :)",
+    "createdAt": "2019-01-28T04:16:17Z"
+  },
+  {
+    "id": 5600,
+    "sender": "hundeva",
+    "content": "I assume that the very long time plan is to develop something independent from the underlying platform (option 3). However, in the meanwhile, this was a \"low hanging fruit\", to support the current two main platforms. I have no doubt that before long, third party solutions will pop up, for example nothing stops noone from creating an OSM package.",
+    "createdAt": "2019-01-28T09:56:10Z"
+  },
+  {
+    "id": 5601,
+    "sender": "MitchellGoodwin",
+    "content": "## CupertinoSheetRoute\n\nFixes #42560\r\n\r\n### Updated 12/04/24\r\n\r\nAdds a CupertinoSheetRoute which displays an iOS style sheet, while giving the previous route a delegated transition to sync up correctly.\r\n\r\nThere's a lot of sample files in this draft showing different use cases for the sake of reviewing the PR. We'll want to probably go down to about two before this PR lands.\r\n\r\n**TODO in this PR**\r\n\r\n- [x] Write actual documentation\r\n- [x] Write tests\r\n\r\n**TODO in a feature branch, and will be merged with this PR**\r\n\r\n- [x] Add swipe down to dismiss\r\n\r\n**TODO in a follow up PR**\r\n\r\n- [ ] Stretching on swipe up\r\n- [ ] Add a fullscreen version\r\n- [x] Dark mode theming\r\n\r\nHow it currently compares, with the simple case and nested navigation:\r\n| Flutter  | Native|\r\n| ------------- | ------------- |\r\n| ![Flutter-Simple](https://github.com/user-attachments/assets/2a1f277e-91c9-48e0-b894-5fad71ef6a21) |![Native-Simple](https://github.com/user-attachments/assets/6960252a-f762-4ad8-8d68-5c3d7cf8d4e7) |\r\n| ![Flutter-Nested](https://github.com/user-attachments/assets/bacb3e35-9d11-4113-9331-75daaded67e7) | ![Native-stacked](https://github.com/user-attachments/assets/70ccbbbb-24c2-40b5-b838-4f8412828b9b) |\r\n\r\nUpdate:\r\n![Flutter-Status-Bar](https://github.com/user-attachments/assets/c738cc5c-7176-4df2-9422-6b3fa608c943)\r\nNow the status bar will transition from dark to light text so that it's visible after the transition.\r\n\r\n`cupertino_sheet.0.dart` has an example of what it looks like to do a simple case. It's fairly straightforward.\r\n\r\n`cupertino_sheet.1.dart` shows one with nested navigation. It's necessary to add a `Navigator` if showing page navigation within the sheet is wanted. I'm thinking adding an API option that auto sets this up may be needed as there are some pitfalls.\r\n\r\n`cupertino_sheet.2.dart` functionally does the same as above but uses the `showCupertinoSheet` to reduce boilerplate.\r\n\r\n## Pre-launch Checklist\r\n\r\n- [x] I read the [Contributor Guide] and followed the process outlined there for submitting PRs.\r\n- [x] I read the [Tree Hygiene] wiki page, which explains my responsibilities.\r\n- [x] I read and followed the [Flutter Style Guide], including [Features we expect every widget to implement].\r\n- [x] I signed the [CLA].\r\n- [x] I listed at least one issue that this PR fixes in the description above.\r\n- [x] I updated/added relevant documentation (doc comments with `///`).\r\n- [x] I added new tests to check the change I am making, or this PR is [test-exempt].\r\n- [x] I followed the [breaking change policy] and added [Data Driven Fixes] where supported.\r\n- [ ] All existing and new tests are passing.\r\n\r\nIf you need help, consider asking for advice on the #hackers-new channel on [Discord].\r\n\r\n<!-- Links -->\r\n[Contributor Guide]: https://github.com/flutter/flutter/blob/main/docs/contributing/Tree-hygiene.md#overview\r\n[Tree Hygiene]: https://github.com/flutter/flutter/blob/main/docs/contributing/Tree-hygiene.md\r\n[test-exempt]: https://github.com/flutter/flutter/blob/main/docs/contributing/Tree-hygiene.md#tests\r\n[Flutter Style Guide]: https://github.com/flutter/flutter/blob/main/docs/contributing/Style-guide-for-Flutter-repo.md\r\n[Features we expect every widget to implement]: https://github.com/flutter/flutter/blob/main/docs/contributing/Style-guide-for-Flutter-repo.md#features-we-expect-every-widget-to-implement\r\n[CLA]: https://cla.developers.google.com/\r\n[flutter/tests]: https://github.com/flutter/tests\r\n[breaking change policy]: https://github.com/flutter/flutter/blob/main/docs/contributing/Tree-hygiene.md#handling-breaking-changes\r\n[Discord]: https://github.com/flutter/flutter/blob/main/docs/contributing/Chat.md\r\n[Data Driven Fixes]: https://github.com/flutter/flutter/blob/main/docs/contributing/Data-driven-Fixes.md\r",
+    "createdAt": "2024-10-25T00:06:26Z"
+  },
+  {
+    "id": 5602,
+    "sender": "MaherSafadii",
+    "content": "I just tried it locally and it matches the native one animation wise, but on the native one when you drag upwards, it stretches a bit, I hope you can also implement this behaviour too.",
+    "createdAt": "2024-10-25T19:58:19Z"
+  },
+  {
+    "id": 5603,
+    "sender": "MitchellGoodwin",
+    "content": "> I just tried it locally and it matches the native one animation wise, but on the native one when you drag upwards, it stretches a bit, I hope you can also implement this behaviour too.\r\n\r\nThanks for taking a look! Good callout on the drag upwards stretch. We're going to probably add the drag controls in a feature branch off of this one. We might not focus on getting the drag upwards behavior correct for initially landing it in master, and instead have that in a follow up issue for the sake of iteration. Same with the fullscreen version. I'll add it to the todos though so it's tracked somewhere.",
+    "createdAt": "2024-10-25T20:05:36Z"
+  },
+  {
+    "id": 5604,
+    "sender": "MaherSafadii",
+    "content": "another notice, the status bar should automatically turn the brightness to light when the sheet is opened.",
+    "createdAt": "2024-10-25T22:18:24Z"
+  },
+  {
+    "id": 5605,
+    "sender": "hls-app",
+    "content": "This is awesome! Been using https://github.com/jamesblasco/modal_bottom_sheet and would definitely prefer a native solution!",
+    "createdAt": "2024-10-26T09:59:47Z"
+  },
+  {
+    "id": 5606,
+    "sender": "MitchellGoodwin",
+    "content": "> another notice, the status bar should automatically turn the brightness to light when the sheet is opened.\r\n\r\nThanks for the callout. We can change the status bar brightness when the sheet is opened, but it is sudden and we can't currently get the gradual transition native has with our APIs. I talked to the iOS team about that and they are aware of it. I'll open an iterative issue on that when this lands.",
+    "createdAt": "2024-10-29T17:46:27Z"
+  },
+  {
+    "id": 5607,
+    "sender": "MaherSafadii",
+    "content": "Another thing to consider is that is in dark mode the sheet in the back should lighten as the opposite of what happens in light mode it darkens, it makes the sheet in the background become visible if its black: \r\n\r\nhttps://github.com/user-attachments/assets/0e20ce8d-526d-4d25-99f0-f921ff32863c\r\n\r\n",
+    "createdAt": "2024-10-31T16:25:38Z"
+  },
+  {
+    "id": 5608,
+    "sender": "MitchellGoodwin",
+    "content": "> Another thing to consider is that is in dark mode the sheet in the back should lighten as the opposite of what happens in light mode it darkens, it makes the sheet in the background become visible if its black:\r\n\r\nIt looks to me like the top sheet itself has a brighter background as well so it stands out. That's probably default behavior. I'll add dark mode to the to-dos.\r\n",
+    "createdAt": "2024-10-31T21:17:13Z"
+  },
+  {
+    "id": 5609,
+    "sender": "MaherSafadii",
+    "content": "> > Another thing to consider is that is in dark mode the sheet in the back should lighten as the opposite of what happens in light mode it darkens, it makes the sheet in the background become visible if its black:\r\n> \r\n> It looks to me like the top sheet itself has a brighter background as well so it stands out. That's probably default behavior. I'll add dark mode to the to-dos.\r\n\r\nYeah it does, on ios it detects if a sheet is open and automatically sets the sheet in the fronts background color to secondaryBackground. ",
+    "createdAt": "2024-11-01T14:17:32Z"
+  },
+  {
+    "id": 5610,
+    "sender": "MitchellGoodwin",
+    "content": "> Also, I think you mentioned it briefly before, but I wonder how you plan on implementing the feature where you can drag down to dismiss the sheet?\r\n\r\nI'm working on that locally. There will be another draft PR branched off of this one for that.",
+    "createdAt": "2024-11-04T20:58:19Z"
+  },
+  {
+    "id": 5611,
+    "sender": "kerberjg",
+    "content": "@MitchellGoodwin Great work so far! Looking forward for this to land 💖",
+    "createdAt": "2024-11-06T12:00:56Z"
+  },
+  {
+    "id": 5612,
+    "sender": "MitchellGoodwin",
+    "content": "Added a sample that has both state restoration and nested navigation in one file. It works locally, but I'm unsure if I set it up in the ideal way.",
+    "createdAt": "2024-11-14T17:56:48Z"
+  },
+  {
+    "id": 5613,
+    "sender": "MitchellGoodwin",
+    "content": "> So it won't really be possible to push a normal route on top of a MBS and have it display as a normal route (instead it displays as an additional sheet in the MBS).\r\n\r\nIt will be possible. The previous route, which is the MBS, just wouldn't transition out and would be static. So a Cupertino page would slide in from the right, but the previous route would not slide left.\r\n\r\nOn native iOS, it is possible, just a little awkward. If you navigate to a new page from within the sheet, it will be nested within the sheet. To navigate directly from the sheet to new page outside of the sheet, you have to define something like a callback in the parent view and pass it down to the sheet.\r\n\r\nI don't believe this is recommended (it's difficult to find direct guidance on this). The sheet is supposed to give options related to the context of the screen it's covering, then always go back to the original page when it's done.\r\n\r\n> My opinion is that we should leave nested navigation up to the user completely\r\n\r\nI think I'm at that opinion as well. I've gotten a nested navigation example with the pages API working in several different ways, none of which make for an short sample. I think it would be pretty bloated to give a FULL sample in the PR, but could make a good blogpost/ article for the website.\r\n\r\nAgain on native, I believe the way it works is the `.sheet` adds a NavigationView or NavigationStack with a lot of defaults turned off to the sheet by default. Both of which are very similar to our own Navigator. However, the recommendation seems to be that if you want to have nested navigation in your app it's better to add your own NavigationStack to the body of the sheet to control that.\r\n\r\nSo I think removing `useNestedNavigation` is the best idea. I was a thinking of providing a `navigatorBuilder` could be an option, but again, it's probably better to just let the developer handle setting that up in what ways work for them. If a common boiler plate becomes needed I'm sure people will let us know/ a package will be created.\r\n\r\nI do not think we need or should add a Navigator by default the way SwiftUI does. That's not very \"Flutter\"y.\r\n\r\ncc @chunhtai ",
+    "createdAt": "2024-11-15T22:19:44Z"
+  },
+  {
+    "id": 5614,
+    "sender": "justinmc",
+    "content": " > It will be possible. The previous route, which is the MBS, just wouldn't transition out and would be static. So a Cupertino page would slide in from the right, but the previous route would not slide left.\r\n\r\nCan you explain how to do that in Flutter code? If that's so, and as you explain it's hard to do in Swift UI, then I think I'm on board with the current approach 👍 .",
+    "createdAt": "2024-11-19T22:03:23Z"
+  },
+  {
+    "id": 5615,
+    "sender": "MitchellGoodwin",
+    "content": "> Can you explain how to do that in Flutter code? If that's so, and as you explain it's hard to do in Swift UI, then I think I'm on board with the current approach 👍 .\r\n\r\nIf there is no nested Navigator, than you just push a route as normal. If there *is* a nested Navigator, than you need to push the route to the root Navigator. So `Navigator.push(context, rootNavigator: true)`, or if using named routes, whatever name gets you to the root Navigator.",
+    "createdAt": "2024-11-19T22:14:18Z"
+  },
+  {
+    "id": 5616,
+    "sender": "chunhtai",
+    "content": "> So I think removing useNestedNavigation is the best idea. I was a thinking of providing a navigatorBuilder could be an option, but again, it's probably better to just let the developer handle setting that up in what ways work for them. If a common boiler plate becomes needed I'm sure people will let us know/ a package will be created.\r\n\r\n>I do not think we need or should add a Navigator by default the way SwiftUI does. That's not very \"Flutter\"y.\r\n\r\nI have not looked at the latest change yet, so I may be under false assumption.\r\n\r\nIn general, It depends on how hard the set up will be, and usually asking developer to create Navigator will require additional work like wrapping it in PopScope or navigatorPopHandler. If it does indeed have this kind of caveats AND it is a common use case, I would suggest adding a parameter to create navigator for them. Imagine we do the opposite, the developers make a bunch of mistakes and create  apps with bad user experience. That is not something we want",
+    "createdAt": "2024-11-19T22:23:46Z"
+  },
+  {
+    "id": 5617,
+    "sender": "justinmc",
+    "content": " > If there is no nested Navigator, than you just push a route as normal. If there is a nested Navigator, than you need to push the route to the root Navigator. So Navigator.push(context, rootNavigator: true), or if using named routes, whatever name gets you to the root Navigator.\r\n\r\nOk got it now. Just to explain the whole situation for posterity (and myself), there are three ways to add a new route to an MBS:\r\n\r\n 1. Push another MBS route to the root Navigator. This will add another sheet to the tabbed view.\r\n 2. Push a route to the nested Navigator. This will cause navigation within the MBS while keeping the tabbed view visible.\r\n 3. Push a non-MBS route to the root Navigator. This will do a full-screen transition to a new page on top of the MBS, hiding the tabbed view.",
+    "createdAt": "2024-11-19T22:58:11Z"
+  },
+  {
+    "id": 5618,
+    "sender": "justinmc",
+    "content": "@chunhtai I talked about this with @MitchellGoodwin and I think you're right. I think we should do the nested navigation for the user if they opt in, because most users won't care about things like setting up their own deep linking for what should be an ephemeral dialog. Those that do can pass their own Navigator without opting in.\r\n\r\nI'm assuming that:\r\n\r\n * Most users just want a single MBS sheet, which does not require nested navigation.\r\n * The next most users will want multiple MBS sheets, which also does not require nested nav.\r\n * A minority of users will want navigation within an MBS sheet, requiring nested nav. Since this is a less common use case, users have to either opt in by setting or `useNestedNavigation: true`, or pass their own Navigator.\r\n   - Among these users, most fall into the category of wanting nested navigation done for them. They don't care about advanced navigation features like deep linking, because the MBS is just an ephemeral popup sort of thing.\r\n   - The rest of these users are advanced and want to build their own Navigator, and they are welcome to do that by not setting `useNestedNavigation`.\r\n\r\nThat way we optimize for what I think will be the most common use cases while still keeping advanced uses possible.",
+    "createdAt": "2024-11-19T23:15:54Z"
+  },
+  {
+    "id": 5619,
+    "sender": "MitchellGoodwin",
+    "content": "I added an overlay color that gets stacked over the previous sheet to make it stand out in dark mode. I also added elevation to the sheet itself which caused the background color to match Swift's sheet.\r\n\r\nLeft is Flutter, right is native.\r\n<img width=\"841\" alt=\"Screenshot 2025-01-09 at 3 24 14 PM\" src=\"https://github.com/user-attachments/assets/fc348d71-fee0-4250-b6ed-15b6745df9bd\" />\r\n",
+    "createdAt": "2025-01-09T23:33:16Z"
+  },
+  {
+    "id": 5620,
+    "sender": "MitchellGoodwin",
+    "content": "> Did you look at the post frame callback thing? Sorry if you responded somewhere else and I missed it.\r\n\r\nThe drag gesture for normal Cupertino pages had that logic from this PR: https://github.com/flutter/flutter/pull/139585.\r\nSeems it was handling a go_router bug. I assumed we'd need it as well to avoid that bug. I'm not 100% sure why it needs to happen a frame later, but I assume it either keeps the transitions from stuttering (transitions change depending on if a user gesture is in progress or not) or it just logically reports that the gesture has ended after the controller disposal when theoretically the user is still touching the area, not simultaneously.",
+    "createdAt": "2025-01-10T19:45:54Z"
+  },
+  {
+    "id": 5621,
+    "sender": "chunhtai",
+    "content": "> > Did you look at the post frame callback thing? Sorry if you responded somewhere else and I missed it.\r\n> \r\n> The drag gesture for normal Cupertino pages had that logic from this PR: #139585. Seems it was handling a go_router bug. I assumed we'd need it as well to avoid that bug. I'm not 100% sure why it needs to happen a frame later, but I assume it either keeps the transitions from stuttering (transitions change depending on if a user gesture is in progress or not) or it just logically reports that the gesture has ended after the controller disposal when theoretically the user is still touching the area, not simultaneously.\r\n\r\nI forgot why the shcedule postframe is needed, but i remember there was a reason, cc @hannah-hyj do you still remember why we need post frame callback instead of renable the gesture directly?",
+    "createdAt": "2025-01-10T19:50:36Z"
+  },
+  {
+    "id": 5622,
+    "sender": "justinmc",
+    "content": "It sounds like it would be good to have a comment explaining the post frame callback if possible, but I'm happy either way.",
+    "createdAt": "2025-01-10T21:17:42Z"
+  },
+  {
+    "id": 5623,
+    "sender": "MaherSafadii",
+    "content": "> I added an overlay color that gets stacked over the previous sheet to make it stand out in dark mode. I also added elevation to the sheet itself which caused the background color to match Swift's sheet.\r\n> \r\n> Left is Flutter, right is native. <img alt=\"Screenshot 2025-01-09 at 3 24 14 PM\" width=\"841\" src=\"https://private-user-images.githubusercontent.com/58190796/401730335-fc348d71-fee0-4250-b6ed-15b6745df9bd.png?jwt=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJnaXRodWIuY29tIiwiYXVkIjoicmF3LmdpdGh1YnVzZXJjb250ZW50LmNvbSIsImtleSI6ImtleTUiLCJleHAiOjE3MzY1NDQ0MTMsIm5iZiI6MTczNjU0NDExMywicGF0aCI6Ii81ODE5MDc5Ni80MDE3MzAzMzUtZmMzNDhkNzEtZmVlMC00MjUwLWI2ZWQtMTViNjc0NWRmOWJkLnBuZz9YLUFtei1BbGdvcml0aG09QVdTNC1ITUFDLVNIQTI1NiZYLUFtei1DcmVkZW50aWFsPUFLSUFWQ09EWUxTQTUzUFFLNFpBJTJGMjAyNTAxMTAlMkZ1cy1lYXN0LTElMkZzMyUyRmF3czRfcmVxdWVzdCZYLUFtei1EYXRlPTIwMjUwMTEwVDIxMjE1M1omWC1BbXotRXhwaXJlcz0zMDAmWC1BbXotU2lnbmF0dXJlPTA4OWYwZDMzMjY1MjBlY2JmODMzZGRmMDg5MGE2YjYzNWJiMjNlMTE1MGQwODYzNjRkNGM5ZWE3NTFmMDI0NGEmWC1BbXotU2lnbmVkSGVhZGVycz1ob3N0In0.JWdP04mWXVZbqxymnUFYsXvWh-epVKo5mPKian2LqxA\">\r\n\r\nThe overlay works but its only for the page that's being presented and not on the one in the back too, if background color of a page is black and you push a sheet it won't be visible behind the sheet which isn't the correct behaviour like on the native side, here's a video that shows what I mean: \r\n\r\nhttps://github.com/user-attachments/assets/81ae2eb7-2a8a-4bf2-9227-03160d94e7d5\r\n\r\n",
+    "createdAt": "2025-01-10T21:37:16Z"
+  },
+  {
+    "id": 5624,
+    "sender": "MaherSafadii",
+    "content": "> > I added an overlay color that gets stacked over the previous sheet to make it stand out in dark mode. I also added elevation to the sheet itself which caused the background color to match Swift's sheet.\r\n> > Left is Flutter, right is native. <img alt=\"Screenshot 2025-01-09 at 3 24 14 PM\" width=\"841\" src=\"https://private-user-images.githubusercontent.com/58190796/401730335-fc348d71-fee0-4250-b6ed-15b6745df9bd.png?jwt=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJnaXRodWIuY29tIiwiYXVkIjoicmF3LmdpdGh1YnVzZXJjb250ZW50LmNvbSIsImtleSI6ImtleTUiLCJleHAiOjE3MzY1NDQ0MTMsIm5iZiI6MTczNjU0NDExMywicGF0aCI6Ii81ODE5MDc5Ni80MDE3MzAzMzUtZmMzNDhkNzEtZmVlMC00MjUwLWI2ZWQtMTViNjc0NWRmOWJkLnBuZz9YLUFtei1BbGdvcml0aG09QVdTNC1ITUFDLVNIQTI1NiZYLUFtei1DcmVkZW50aWFsPUFLSUFWQ09EWUxTQTUzUFFLNFpBJTJGMjAyNTAxMTAlMkZ1cy1lYXN0LTElMkZzMyUyRmF3czRfcmVxdWVzdCZYLUFtei1EYXRlPTIwMjUwMTEwVDIxMjE1M1omWC1BbXotRXhwaXJlcz0zMDAmWC1BbXotU2lnbmF0dXJlPTA4OWYwZDMzMjY1MjBlY2JmODMzZGRmMDg5MGE2YjYzNWJiMjNlMTE1MGQwODYzNjRkNGM5ZWE3NTFmMDI0NGEmWC1BbXotU2lnbmVkSGVhZGVycz1ob3N0In0.JWdP04mWXVZbqxymnUFYsXvWh-epVKo5mPKian2LqxA\">\r\n> \r\n> The overlay works but its only for the page that's being presented and not on the one in the back too, if background color of a page is black and you push a sheet it won't be visible behind the sheet which isn't the correct behaviour like on the native side, here's a video that shows what I mean:\r\n> \r\n>  Recording.at.2025-01-10.23.35.47.mp4\r\n\r\nturns out that the PR has code to make this functionality work but its checking the platform brightness instead of the apps brightness, so the device has to be in dark mode for it to behave correctly, so if the app is in dark mode but the device is in light mode, it won't work properly.\r\n\r\nThis line is the one is the PR used to check the theme\r\n`    final bool isDarkMode = MediaQuery.of(context).platformBrightness == Brightness.dark;\r\n`\r\n\r\nI switched it with this line which checks the apps brightness instead of the device's and it worked correctly:\r\n`final bool isDarkMode = CupertinoTheme.brightnessOf(context) == Brightness.dark;`",
+    "createdAt": "2025-01-10T21:47:31Z"
+  },
+  {
+    "id": 5625,
+    "sender": "MitchellGoodwin",
+    "content": "> turns out that the PR has code to make this functionality work but its checking the platform brightness instead of the apps brightness, so the device has to be in dark mode for it to behave correctly, so if the app is in dark mode but the device is in light mode, it won't work properly.\r\n\r\nGood catch.",
+    "createdAt": "2025-01-10T21:52:35Z"
+  },
+  {
+    "id": 5626,
+    "sender": "hannah-hyj",
+    "content": "> > > Did you look at the post frame callback thing? Sorry if you responded somewhere else and I missed it.\r\n> > \r\n> > \r\n> > The drag gesture for normal Cupertino pages had that logic from this PR: #139585. Seems it was handling a go_router bug. I assumed we'd need it as well to avoid that bug. I'm not 100% sure why it needs to happen a frame later, but I assume it either keeps the transitions from stuttering (transitions change depending on if a user gesture is in progress or not) or it just logically reports that the gesture has ended after the controller disposal when theoretically the user is still touching the area, not simultaneously.\r\n> \r\n> I forgot why the shcedule postframe is needed, but i remember there was a reason, cc @hannah-hyj do you still remember why we need post frame callback instead of renable the gesture directly?\r\n\r\nI tested it again, look like the schedule postframe in #139585 is needed because changing user gesture status in dispose() will cause the rebuild error \"markNeedsBuild() called when widget tree was locked\", adding a post frame will avoid that. ",
+    "createdAt": "2025-01-10T23:28:58Z"
+  },
+  {
+    "id": 5627,
+    "sender": "JavierPerezLavadie",
+    "content": "@MitchellGoodwin Wow amazing job",
+    "createdAt": "2025-01-11T03:43:56Z"
+  },
+  {
+    "id": 5628,
+    "sender": "definev",
+    "content": "How to integrate `CupertinoSheetRoute` with go_router? I wrapped it to `Page` but it throw `'package:flutter/src/widgets/navigator.dart': Failed assertion: line 3110 pos 15: '!pageBased || route.settings is Page': is not true.`\r\n```dart\r\nclass CupertinoSheetPage extends Page<void> {\r\n  const CupertinoSheetPage({\r\n    required this.child,\r\n    super.key,\r\n  });\r\n\r\n  final Widget child;\r\n\r\n  @override\r\n  Route<void> createRoute(BuildContext context) {\r\n    return CupertinoSheetRoute(\r\n      builder: (context) => child,\r\n    );\r\n  }\r\n}\r\n```",
+    "createdAt": "2025-01-13T06:20:52Z"
+  },
+  {
+    "id": 5629,
+    "sender": "chunhtai",
+    "content": "looks like CupertinoSheetRoute is missing `settings` constructor parameter. @MitchellGoodwin can you add the parameter to the route?",
+    "createdAt": "2025-01-13T17:19:12Z"
+  },
+  {
+    "id": 5630,
+    "sender": "parker-sherrill",
+    "content": "![Screenshot 2025-01-14 at 2 38 30 PM](https://github.com/user-attachments/assets/e8ccd809-a426-411f-94d7-78e71ee62d8f)\r\n\r\nWhen is nested scrolling going to be added? I have tried all scrolling hacks. In the provided picture, I should be able to scroll to a third color.\r\n\r\n I think everything else is working great at this point.\r\n\r\nAlso-- I had to create my own appbar to exist in a stack above the modal sheet. When using the typical navigation bar there is way too much padding from the top of the page + it disables gestures in widgets that are used in a Column or ListView towards the top; I could not figure out a solution other than a stack.",
+    "createdAt": "2025-01-14T19:37:58Z"
+  },
+  {
+    "id": 5631,
+    "sender": "MitchellGoodwin",
+    "content": "> When is nested scrolling going to be added? I have tried all scrolling hacks. In the provided picture, I should be able to scroll to a third color.\r\n\r\nCreated an issue: #161623. It's a quick fix to enable nested scrolling. Getting the nested scrolling to smoothly interact with the drag dismiss gesture will be a longer effort.\r\n\r\n> Also-- I had to create my own appbar to exist in a stack above the modal sheet. \r\n\r\nWe don't currently have anything on the backlog for adding a sheet specific app bar. Could you create an issue?\r\n\r\nIn general we're looking for issues for improvements to be made to the sheet.",
+    "createdAt": "2025-01-15T00:06:25Z"
+  }
+]

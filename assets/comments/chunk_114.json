@@ -1,0 +1,386 @@
+[
+  {
+    "id": 7296,
+    "sender": "itielMaimon",
+    "content": "I know this isn’t exactly what we want, it’s not Admob native ads, but it works, so you might find it useful.\n\nThere’s a package for Facebook Audience Network native ads and it’s working great, tested both on Android and iOS.\n\n[https://pub.dev/packages/facebook_audience_network](https://pub.dev/packages/facebook_audience_network)",
+    "createdAt": "2020-07-01T04:46:34Z"
+  },
+  {
+    "id": 7297,
+    "sender": "angel1st",
+    "content": "@jebwatson - have a look at this one https://pub.dev/packages/admob_flutter. I cannot find a better option so far with regards to AdMob & Flutter implementation.",
+    "createdAt": "2020-07-01T06:48:46Z"
+  },
+  {
+    "id": 7298,
+    "sender": "PlymouthRock",
+    "content": "We've been using https://pub.dev/packages/native_ads\r\n\r\n![tidewatch](https://user-images.githubusercontent.com/2496106/86238031-d7393700-bb6a-11ea-8856-bfb79946eb41.jpg)\r\n",
+    "createdAt": "2020-07-01T11:03:45Z"
+  },
+  {
+    "id": 7299,
+    "sender": "zerox1212",
+    "content": "I'm still waiting for this as well. I just want to display AdMob banner inline with my flutter views. Floating the banner over the top of the flutter app is just ugly and undermines the entire purpose of this platform. ",
+    "createdAt": "2020-07-01T19:43:59Z"
+  },
+  {
+    "id": 7300,
+    "sender": "jaggernod",
+    "content": "> We've been using https://pub.dev/packages/native_ads\r\n> \r\n> ![tidewatch](https://user-images.githubusercontent.com/2496106/86238031-d7393700-bb6a-11ea-8856-bfb79946eb41.jpg)\r\n\r\nMy concern would be that this is a grey-zone. \r\nThere is a possibility google might block applications that use Ad solutions which are not designed for them.",
+    "createdAt": "2020-07-02T10:39:42Z"
+  },
+  {
+    "id": 7301,
+    "sender": "sabinbajracharya",
+    "content": "Right now the only solution available that the Third party libraries use to display native ads as part of flutter widget tree (eg: ListView) is to embed native Android and iOS view using `AndroidView` and `UiKitView` respectively **which according to the Flutter Docs is an expensive operation and should be avoided** and as a result there is a significant lag while scrolling.\r\n\r\nIs this the reason the flutter team are delaying native ads implementation as part of the flutter widget tree because they are waiting for a better and faster way to embed native views in flutter or some other improvements?\r\n\r\nBut, wouldn't it be possible to implement admob (native ads) completely in flutter/dart without depending on Android and iOS?\r\n",
+    "createdAt": "2020-07-25T18:28:37Z"
+  },
+  {
+    "id": 7302,
+    "sender": "harshapulikollu",
+    "content": "Desperate to have native ads support in flutter listviews. Any sort of timeline about when we are able to use native ads in flutter by the team will be helpful.",
+    "createdAt": "2020-08-03T17:37:17Z"
+  },
+  {
+    "id": 7303,
+    "sender": "AdiLaxman",
+    "content": "There are so many third-party plugins that implement native ads by AdMob. Knowing the notoriety of Google for banning the developers for trivial issues, I am afraid to use those solutions. I am looking forward to the first-party implementation of this. Could you please give a timeline?",
+    "createdAt": "2020-10-27T17:50:35Z"
+  },
+  {
+    "id": 7304,
+    "sender": "timsneath",
+    "content": "We have good news for you all, with today's announcement of beta support for this feature:\r\n [Support for inline banner and native ads formats in Flutter](https://medium.com/flutter/new-ads-beta-inline-banner-and-native-support-for-the-flutter-mobile-ads-plugin-e48a7e9a0e64)\r\n\r\nRight now this is in a closed beta, but we [strongly encourage you to apply to join](https://forms.gle/5d1MfrbaCLX9PS2Z9) if you're ready to use this feature in a production app. Assuming all goes well, we plan to open this up more broadly in early 2021.",
+    "createdAt": "2020-11-12T00:00:31Z"
+  },
+  {
+    "id": 7305,
+    "sender": "nateshmbhat",
+    "content": "> We have good news for you all, with today's announcement of beta support for this feature:\n>  [Support for inline banner and native ads formats in Flutter](https://medium.com/flutter/new-ads-beta-inline-banner-and-native-support-for-the-flutter-mobile-ads-plugin-e48a7e9a0e64)\n> \n> Right now this is in a closed beta, but we [strongly encourage you to apply to join](https://forms.gle/5d1MfrbaCLX9PS2Z9) if you're ready to use this feature in a production app. Assuming all goes well, we plan to open this up more broadly in early 2021.\n\nThis is awesome ❤️. Been a few days since I applied for the beta program. Waiting eagerly for a reply ✨",
+    "createdAt": "2020-11-25T12:55:37Z"
+  },
+  {
+    "id": 7306,
+    "sender": "zerox1212",
+    "content": "I also applied for the beta program. Has anyone received a response?",
+    "createdAt": "2020-11-25T14:33:55Z"
+  },
+  {
+    "id": 7307,
+    "sender": "peterkapena",
+    "content": "I was approved as a member of the beta program but have no idea how to implement this. Does anyone know how to do this?\r\n",
+    "createdAt": "2021-01-10T09:39:04Z"
+  },
+  {
+    "id": 7308,
+    "sender": "mileusna",
+    "content": "> I was approved as a member of the beta program but have no idea how to implement this. Does anyone know how to do this?\r\n\r\nWhat problem exactly do you have? I'm in beta for a while now and it is working fine. Native Ads are little bit trickier than banner and publisher ads which are very simple.",
+    "createdAt": "2021-01-10T11:17:17Z"
+  },
+  {
+    "id": 7309,
+    "sender": "peterkapena",
+    "content": "> > I was approved as a member of the beta program but have no idea how to implement this. Does anyone know how to do this?\r\n> \r\n> What problem exactly do you have? I'm in beta for a while now and it is working fine. Native Ads are little bit trickier than banner and publisher ads which are very simple.\r\n\r\nThe documentation to implementing the native ads is using Java. And this certainly is confusing as flutter is in dart, should we add a java file? Please share your source code and how you did it. Many thanks",
+    "createdAt": "2021-01-11T18:50:39Z"
+  },
+  {
+    "id": 7310,
+    "sender": "mileusna",
+    "content": "Unfortunately, for NativeAds, yes, you need some Java code to produce native ad and pass it to Flutter (same for iOS I guess, but still haven't reached that part).\r\n\r\nYou can start with`/firebase_admob/example/` from beta repository. There you can find initial code for Java (`NativeAdFactoryExample.java` and `MainActivity.java`) with NativeAdView (`/res/layout/my_native_ad.xml`) that you can edit and customize for your own needs in Andorid studio.\r\n\r\nI also had no experience with Java development for Android before, but it is easy to figure it out.\r\n\r\nMake sure that your `MainActivity.java` looks like this, I had to add one line to make it work in my own project:\r\n\r\n```\r\npublic class MainActivity extends FlutterActivity {\r\n  @Override\r\n  public void configureFlutterEngine(FlutterEngine flutterEngine) {\r\n    GeneratedPluginRegistrant.registerWith(flutterEngine);  // I had to add this to make it work\r\n    flutterEngine.getPlugins().add(new E2EPlugin());\r\n    flutterEngine.getPlugins().add(new FirebaseAdMobPlugin());\r\n\r\n    final NativeAdFactory factory = new NativeAdFactoryExample(getLayoutInflater());\r\n    FirebaseAdMobPlugin.registerNativeAdFactory(flutterEngine, \"adFactoryExample\", factory);\r\n  }\r\n\r\n  @Override\r\n  public void cleanUpFlutterEngine(FlutterEngine flutterEngine) {\r\n    FirebaseAdMobPlugin.unregisterNativeAdFactory(flutterEngine, \"adFactoryExample\");\r\n  }\r\n}\r\n```",
+    "createdAt": "2021-01-11T21:17:41Z"
+  },
+  {
+    "id": 7311,
+    "sender": "yilmazgokhan",
+    "content": "Is there any update?",
+    "createdAt": "2021-02-22T07:12:55Z"
+  },
+  {
+    "id": 7312,
+    "sender": "mileusna",
+    "content": "> Is there any update?\r\n\r\nAs one of the beta testers, I can confirm that widget exists 😀 and it works since I use it event in the production, in my published app.\r\nI don't know when it will be released from beta, but I hope it will be soon.",
+    "createdAt": "2021-02-22T11:40:39Z"
+  },
+  {
+    "id": 7313,
+    "sender": "Purus",
+    "content": "I am also a beta tester. There are few issues in the new package that's\nstopping me from using in production.\n\nOn Mon, 22 Feb, 2021, 5:11 pm Miloš Mileusnić, <notifications@github.com>\nwrote:\n\n> Is there any update?\n>\n> As one of the beta testers, I can confirm that widget exists 😀 and it\n> works since I use it event in the production, in my published app.\n> I don't know when it will be released from beta, but I hope it will be\n> soon.\n>\n> —\n> You are receiving this because you were mentioned.\n> Reply to this email directly, view it on GitHub\n> <https://github.com/flutter/flutter/issues/12114#issuecomment-783314163>,\n> or unsubscribe\n> <https://github.com/notifications/unsubscribe-auth/AAIHDZYWG4RHOO5V7H6GFWDTAI7FBANCNFSM4D3FBARA>\n> .\n>\n",
+    "createdAt": "2021-02-23T04:42:34Z"
+  },
+  {
+    "id": 7314,
+    "sender": "pa2codes",
+    "content": "> I am also a beta tester. There are few issues in the new package that's stopping me from using in production.\r\n> […](#)\r\n> On Mon, 22 Feb, 2021, 5:11 pm Miloš Mileusnić, ***@***.***> wrote: Is there any update? As one of the beta testers, I can confirm that widget exists 😀 and it works since I use it event in the production, in my published app. I don't know when it will be released from beta, but I hope it will be soon. — You are receiving this because you were mentioned. Reply to this email directly, view it on GitHub <[#12114 (comment)](https://github.com/flutter/flutter/issues/12114#issuecomment-783314163)>, or unsubscribe <https://github.com/notifications/unsubscribe-auth/AAIHDZYWG4RHOO5V7H6GFWDTAI7FBANCNFSM4D3FBARA> .\r\n\r\nWhat issues @Purus ? Please explain more detailed. Thanks",
+    "createdAt": "2021-02-27T10:42:11Z"
+  },
+  {
+    "id": 7315,
+    "sender": "houdayec",
+    "content": "Do we still need to be part of closed beta in order to use NativeAd widget available from [here](https://pub.dev/packages/firebase_admob#using-native-ads)?",
+    "createdAt": "2021-03-03T14:38:39Z"
+  },
+  {
+    "id": 7316,
+    "sender": "mileusna",
+    "content": "> Do we still need to be part of closed beta in order to use NativeAd widget available from [here](https://pub.dev/packages/firebase_admob#using-native-ads)?\r\n\r\nThat is just a small version bump in old _firebase_admob_ package, you still can't put ads in widget tree with this version.\r\n\r\nAnd as far as I can see, new package will have the new name, it won't be called _firebase_admob_. ",
+    "createdAt": "2021-03-03T16:49:28Z"
+  },
+  {
+    "id": 7317,
+    "sender": "houdayec",
+    "content": "> > Do we still need to be part of closed beta in order to use NativeAd widget available from [here](https://pub.dev/packages/firebase_admob#using-native-ads)?\r\n> \r\n> That is just a small version bump in old _firebase_admob_ package, you still can't put ads in widget tree with this version.\r\n> \r\n> And as far as I can see, new package will have the new name, it won't be called _firebase_admob_.\r\n\r\nThanks for your answer.",
+    "createdAt": "2021-03-03T17:16:11Z"
+  },
+  {
+    "id": 7318,
+    "sender": "dayron9110",
+    "content": "> I am also a beta tester. There are few issues in the new package that's stopping me from using in production.\r\n> […](#)\r\n> On Mon, 22 Feb, 2021, 5:11 pm Miloš Mileusnić, ***@***.***> wrote: Is there any update? As one of the beta testers, I can confirm that widget exists 😀 and it works since I use it event in the production, in my published app. I don't know when it will be released from beta, but I hope it will be soon. — You are receiving this because you were mentioned. Reply to this email directly, view it on GitHub <[#12114 (comment)](https://github.com/flutter/flutter/issues/12114#issuecomment-783314163)>, or unsubscribe <https://github.com/notifications/unsubscribe-auth/AAIHDZYWG4RHOO5V7H6GFWDTAI7FBANCNFSM4D3FBARA> .\r\n\r\nIs this the new package? \r\nhttps://pub.dev/packages/google_mobile_ads",
+    "createdAt": "2021-03-03T21:41:55Z"
+  },
+  {
+    "id": 7319,
+    "sender": "timsneath",
+    "content": "Yup -- that's the one. And there's a good session on using it here: https://www.youtube.com/watch?v=m0d_pbgeeG8",
+    "createdAt": "2021-03-03T22:08:01Z"
+  },
+  {
+    "id": 7320,
+    "sender": "zoeyfan",
+    "content": "Given Google Mobile Ads SDK is open for beta, I think we can close this issue now! \r\nPlease check our new plugin below, and happy coding and advertising!\r\nhttps://pub.dev/packages/google_mobile_ads",
+    "createdAt": "2021-03-03T22:23:14Z"
+  },
+  {
+    "id": 7321,
+    "sender": "flar",
+    "content": "## New optimized general convex path shadow algorithm\n\n<!--\r\nThanks for filing a pull request!\r\nReviewers are typically assigned within a week of filing a request.\r\nTo learn more about code review, see our documentation on Tree Hygiene: https://github.com/flutter/flutter/blob/main/docs/contributing/Tree-hygiene.md\r\n-->\r\n\r\nConvex paths will now use an optimized mesh-based algorithm to render shadows. The algorithm is based on the code in SkShadowTessellator.\r\n\r\nFixes https://github.com/flutter/flutter/issues/170764\r\n\r\n## Pre-launch Checklist\r\n\r\n- [x] I read the [Contributor Guide] and followed the process outlined there for submitting PRs.\r\n- [x] I read the [Tree Hygiene] wiki page, which explains my responsibilities.\r\n- [x] I read and followed the [Flutter Style Guide], including [Features we expect every widget to implement].\r\n- [x] I signed the [CLA].\r\n- [x] I listed at least one issue that this PR fixes in the description above.\r\n- [x] I updated/added relevant documentation (doc comments with `///`).\r\n- [x] I added new tests to check the change I am making, or this PR is [test-exempt].\r\n- [x] I followed the [breaking change policy] and added [Data Driven Fixes] where supported.\r\n- [x] All existing and new tests are passing.\r\n\r\nIf you need help, consider asking for advice on the #hackers-new channel on [Discord].\r\n\r\n**Note**: The Flutter team is currently trialing the use of [Gemini Code Assist for GitHub](https://developers.google.com/gemini-code-assist/docs/review-github-code). Comments from the `gemini-code-assist` bot should not be taken as authoritative feedback from the Flutter team. If you find its comments useful you can update your code accordingly, but if you are unsure or disagree with the feedback, please feel free to wait for a Flutter team member's review for guidance on which automated comments should be addressed.",
+    "createdAt": "2025-11-12T11:52:54Z"
+  },
+  {
+    "id": 7322,
+    "sender": "flar",
+    "content": "There are a lot of new goldens, but also some failures towards the end. It looks like the new code doesn't mesh with the Inner/Outer styles very well, but there are also a lot of blurs that are cleaner with the new code (perhaps they have 1 less MSAA resolve now?).",
+    "createdAt": "2025-11-20T03:31:26Z"
+  },
+  {
+    "id": 7323,
+    "sender": "flar",
+    "content": "It looks like the new Blur contents overrides Render instead of SetPassInfo. I need to check if it is bypassing some of the setup in the parent class.",
+    "createdAt": "2025-11-20T05:25:39Z"
+  },
+  {
+    "id": 7324,
+    "sender": "flar",
+    "content": "Updating to head as a possible de-flake because the \"smiley face android engine test\" does not look related and doesn't reproduce locally.",
+    "createdAt": "2025-11-22T00:49:40Z"
+  },
+  {
+    "id": 7325,
+    "sender": "flar",
+    "content": "The new goldens all make sense to me so this is ready for review now.",
+    "createdAt": "2025-11-22T03:16:25Z"
+  },
+  {
+    "id": 7326,
+    "sender": "gaaclarke",
+    "content": "/gemini review",
+    "createdAt": "2025-11-24T18:15:05Z"
+  },
+  {
+    "id": 7327,
+    "sender": "flar",
+    "content": "I've fixed pretty much all of the minor stuff, and the main things left are related to lifetimes of refs and ptrs which I want to rethink. I'm going to push a new commit that gets the minor stuff out of the way while I think about that. I'll leave it to @gaaclarke to \"resolve\" the comments that I've addressed to his satisfaction.",
+    "createdAt": "2025-12-05T20:54:31Z"
+  },
+  {
+    "id": 7328,
+    "sender": "flar",
+    "content": "The last commit solved the spikes of dark (or sometimes light) pixels that shot out from the shape across the shadow. They are eliminated now in all of the goldens.\r\n\r\nI want to make a last pass at double-checking the overall size of the shadows, though. I think I spotted a case where we are double applying the MaxBasis in the code.",
+    "createdAt": "2025-12-23T05:48:22Z"
+  },
+  {
+    "id": 7329,
+    "sender": "flar",
+    "content": "I reran my blur size comparison tests and I'm happy with the consistency of the output between:\r\n- the optimized special-case maskblur implementations (the old AttemptRRectBlurShape which is still used for basic rects and rrects)\r\n- the general case maskblur (i.e. uses a GaussianBlur ImageFilter for any kind of shape) and\r\n-  the new general convex path shader (this PR).",
+    "createdAt": "2025-12-23T08:21:12Z"
+  },
+  {
+    "id": 7330,
+    "sender": "davidhicks980",
+    "content": "## [cupertino.dart] Implement CupertinoMenuAnchor and CupertinoMenuItem using RawMenuAnchor\n\nThis PR implements `CupertinoMenuAnchor`, `CupertinoMenuItem`, and `CupertinoMenuDivider` using `RawMenuAnchor`. \r\n\r\nResolves https://github.com/flutter/flutter/issues/60298, https://github.com/notDmDrl/pull_down_button/issues/26, https://github.com/flutter/flutter/pull/137936.\r\n\r\nhttps://github.com/user-attachments/assets/551f2169-cac4-4078-890b-6728ab9c2ae5\r\n\r\nDartpad: https://dartpad.dev/8c6bba779b6a00e95582b61b132292bc\r\n\r\n@dkwingsmt \r\n\r\n## Pre-launch Checklist\r\n\r\n- [x] I read the [Contributor Guide] and followed the process outlined there for submitting PRs.\r\n- [x] I read the [Tree Hygiene] wiki page, which explains my responsibilities.\r\n- [x] I read and followed the [Flutter Style Guide], including [Features we expect every widget to implement].\r\n- [x] I signed the [CLA].\r\n- [x] I listed at least one issue that this PR fixes in the description above.\r\n- [x] I updated/added relevant documentation (doc comments with `///`).\r\n- [x] I added new tests to check the change I am making, or this PR is [test-exempt].\r\n- [x] I followed the [breaking change policy] and added [Data Driven Fixes] where supported.\r\n- [x] All existing and new tests are passing.\r\n\r\nIf you need help, consider asking for advice on the #hackers-new channel on [Discord].\r\n\r\n**Note**: The Flutter team is currently trialing the use of [Gemini Code Assist for GitHub](https://developers.google.com/gemini-code-assist/docs/review-github-code). Comments from the `gemini-code-assist` bot should not be taken as authoritative feedback from the Flutter team. If you find its comments useful you can update your code accordingly, but if you are unsure or disagree with the feedback, please feel free to wait for a Flutter team member's review for guidance on which automated comments should be addressed.\r\n\r\n<!-- Links -->\r\n[Contributor Guide]: https://github.com/flutter/flutter/blob/main/docs/contributing/Tree-hygiene.md#overview\r\n[Tree Hygiene]: https://github.com/flutter/flutter/blob/main/docs/contributing/Tree-hygiene.md\r\n[test-exempt]: https://github.com/flutter/flutter/blob/main/docs/contributing/Tree-hygiene.md#tests\r\n[Flutter Style Guide]: https://github.com/flutter/flutter/blob/main/docs/contributing/Style-guide-for-Flutter-repo.md\r\n[Features we expect every widget to implement]: https://github.com/flutter/flutter/blob/main/docs/contributing/Style-guide-for-Flutter-repo.md#features-we-expect-every-widget-to-implement\r\n[CLA]: https://cla.developers.google.com/\r\n[flutter/tests]: https://github.com/flutter/tests\r\n[breaking change policy]: https://github.com/flutter/flutter/blob/main/docs/contributing/Tree-hygiene.md#handling-breaking-changes\r\n[Discord]: https://github.com/flutter/flutter/blob/main/docs/contributing/Chat.md\r\n[Data Driven Fixes]: https://github.com/flutter/flutter/blob/main/docs/contributing/Data-driven-Fixes.md\r",
+    "createdAt": "2025-08-29T11:06:45Z"
+  },
+  {
+    "id": 7331,
+    "sender": "davidhicks980",
+    "content": "@dkwingsmt Heads up, a somewhat large change to menu item layout will land soon, so you may want to avoid reviewing that section for a day or so.",
+    "createdAt": "2025-09-07T19:45:36Z"
+  },
+  {
+    "id": 7332,
+    "sender": "davidhicks980",
+    "content": "Oh @dkwingsmt this should be ready for review",
+    "createdAt": "2025-11-27T20:03:20Z"
+  },
+  {
+    "id": 7333,
+    "sender": "dkwingsmt",
+    "content": "Awesome! I'll review it after the Thanksgiving. ",
+    "createdAt": "2025-11-28T02:38:55Z"
+  },
+  {
+    "id": 7334,
+    "sender": "jtmcdole",
+    "content": "Reason for revert: post submits are broken\r\n\r\nPlease do not directly add to the merge queue until all presubmits pass.\r\n\r\n 21     main.<anonymous closure> (file:///C:/b/s/w/ir/x/w/flutter/packages/flutter/test/cupertino/menu_anchor_test.dart:969:18)\r\n",
+    "createdAt": "2026-02-06T16:10:53Z"
+  },
+  {
+    "id": 7335,
+    "sender": "jason-simmons",
+    "content": "The `test/cupertino/menu_anchor_test.dart` suite added in this PR is sensitive to the order in which tests are run.\r\n\r\nCI runs these tests using a random order based on a seed that changes daily.\r\n\r\nThe error seen on CI can be reproduced by running:\r\n`flutter test --test-randomize-ordering-seed=20260206 test/cupertino/menu_anchor_test.dart `",
+    "createdAt": "2026-02-06T16:18:32Z"
+  },
+  {
+    "id": 7336,
+    "sender": "hm21",
+    "content": "##  feat(table): add support for colSpan and rowSpan in TableCell\n\n## Description\r\n\r\nThis PR adds support for `colSpan` and `rowSpan` to the `TableCell` widget.  \r\nWith this change, each `TableCell` can now span multiple columns and/or rows, similar to how HTML tables work.\r\n\r\nThis allows developers to create more flexible and complex table layouts without manually merging cells or resorting to nested tables.\r\n\r\n#### Examples\r\n\r\n<details>\r\n    <summary>Example 1</summary>\r\n\r\n<img width=\"350\" alt=\"image\" src=\"https://github.com/user-attachments/assets/eaa2a0fc-2c75-41f7-829d-02f355608ecc\" />\r\n\r\n\r\n```dart\r\nTable(\r\n  border: TableBorder.all(color: Colors.grey),\r\n  columnWidths: const <int, TableColumnWidth>{\r\n    0: FixedColumnWidth(120),\r\n    1: FlexColumnWidth(),\r\n    2: FlexColumnWidth(),\r\n  },\r\n  children: <TableRow>[\r\n    const TableRow(\r\n      decoration: BoxDecoration(color: Color(0xFFE0E0E0)),\r\n      children: <Widget>[\r\n        TableCell(\r\n          colSpan: 3,\r\n          child: Padding(\r\n            padding: EdgeInsets.all(8),\r\n            child: Text(\r\n              'Invoice Summary',\r\n              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),\r\n              textAlign: TextAlign.center,\r\n            ),\r\n          ),\r\n        ),\r\n        TableCell.none,\r\n        TableCell.none,\r\n      ],\r\n    ),\r\n    const TableRow(\r\n      decoration: BoxDecoration(color: Color(0xFFF5F5F5)),\r\n      children: <Widget>[\r\n        Padding(padding: EdgeInsets.all(8), child: Text('Customer')),\r\n        TableCell(\r\n          colSpan: 2,\r\n          child: Padding(padding: EdgeInsets.all(8), child: Text('Alex Frei')),\r\n        ),\r\n        TableCell.none,\r\n      ],\r\n    ),\r\n    const TableRow(\r\n      children: <Widget>[\r\n        Padding(padding: EdgeInsets.all(8), child: Text('Date')),\r\n        Padding(padding: EdgeInsets.all(8), child: Text('16 Oct 2025')),\r\n        Padding(padding: EdgeInsets.all(8), child: Text('Invoice #1024')),\r\n      ],\r\n    ),\r\n    const TableRow(\r\n      decoration: BoxDecoration(color: Color(0xFFE0E0E0)),\r\n      children: <Widget>[\r\n        TableCell(\r\n          colSpan: 3,\r\n          child: Padding(\r\n            padding: EdgeInsets.all(8),\r\n            child: Text('Items', style: TextStyle(fontWeight: FontWeight.bold)),\r\n          ),\r\n        ),\r\n        TableCell.none,\r\n        TableCell.none,\r\n      ],\r\n    ),\r\n    const TableRow(\r\n      children: <Widget>[\r\n        Padding(padding: EdgeInsets.all(8), child: Text('Development Work')),\r\n        Padding(padding: EdgeInsets.all(8), child: Text('10 hours')),\r\n        Padding(padding: EdgeInsets.all(8), child: Text(r'$500')),\r\n      ],\r\n    ),\r\n    const TableRow(\r\n      children: <Widget>[\r\n        Padding(padding: EdgeInsets.all(8), child: Text('Design Work')),\r\n        Padding(padding: EdgeInsets.all(8), child: Text('5 hours')),\r\n        Padding(padding: EdgeInsets.all(8), child: Text(r'$250')),\r\n      ],\r\n    ),\r\n    TableRow(\r\n      children: <Widget>[\r\n        TableCell(\r\n          rowSpan: 2,\r\n          verticalAlignment: TableCellVerticalAlignment.fill,\r\n          child: Container(\r\n            color: const Color(0xFFF5F5F5),\r\n            padding: const EdgeInsets.all(8),\r\n            child: const Text('Notes'),\r\n          ),\r\n        ),\r\n        const TableCell(\r\n          colSpan: 2,\r\n          child: Padding(\r\n            padding: EdgeInsets.all(8),\r\n            child: Text('Thank you for your business!'),\r\n          ),\r\n        ),\r\n        TableCell.none,\r\n      ],\r\n    ),\r\n    const TableRow(\r\n      children: <Widget>[\r\n        TableCell.none,\r\n        TableCell(\r\n          colSpan: 2,\r\n          child: Padding(padding: EdgeInsets.all(8), child: Text('Payment due in 14 days.')),\r\n        ),\r\n        TableCell.none,\r\n      ],\r\n    ),\r\n  ],\r\n)\r\n```\r\n</details>\r\n\r\n<details>\r\n    <summary>Example 2</summary>\r\n\r\n<img width=\"350\" alt=\"image\" src=\"https://github.com/user-attachments/assets/96d385dd-0082-46f7-aa28-e20db47abef8\" />\r\n\r\n```dart\r\nTable(\r\n  border: TableBorder.all(),\r\n  children: <TableRow>[\r\n    TableRow(\r\n      children: <Widget>[\r\n        TableCell(\r\n          rowSpan: 3,\r\n          verticalAlignment: TableCellVerticalAlignment.fill,\r\n          child: Container(color: Colors.blue),\r\n        ),\r\n        TableCell(colSpan: 2, child: Container(color: Colors.pink, height: 50)),\r\n        TableCell.none,\r\n      ],\r\n    ),\r\n    TableRow(\r\n      children: <Widget>[\r\n        TableCell.none,\r\n        TableCell(child: Container(color: Colors.green, height: 50)),\r\n        TableCell(\r\n          verticalAlignment: TableCellVerticalAlignment.bottom,\r\n          rowSpan: 2,\r\n          child: Container(color: Colors.orange, height: 75),\r\n        ),\r\n      ],\r\n    ),\r\n    TableRow(\r\n      children: <Widget>[\r\n        TableCell.none,\r\n        TableCell(child: Container(color: Colors.purple, height: 50)),\r\n        TableCell.none,\r\n      ],\r\n    ),\r\n  ],\r\n);\r\n```\r\n</details>\r\n\r\n\r\n## Issues Fixed\r\n\r\nFixes #21594\r\n\r\n\r\n## Questions for Reviewers\r\n\r\n1. This PR introduces the static constant `TableCell.none` to represent a skipped cell (for when another cell uses `rowSpan` or `colSpan`).  I’m not sure if `none` is the best name, alternatives like `placeholder` or `skipped` might also fit. I avoided `empty` since `DataCell.empty` already exists with different semantics.\r\n2. Should this feature also be considered for `DataTable`? I initially didn’t include it cuz the Material Design table doesn’t normally support `rowSpan` or `colSpan`.\r\n\r\n\r\n## Pre-launch Checklist\r\n\r\n- [x] I read the [Contributor Guide] and followed the process outlined there for submitting PRs.\r\n- [x] I read the [Tree Hygiene] wiki page, which explains my responsibilities.\r\n- [x] I read and followed the [Flutter Style Guide], including [Features we expect every widget to implement].\r\n- [x] I signed the [CLA].\r\n- [x] I listed at least one issue that this PR fixes in the description above.\r\n- [x] I updated/added relevant documentation (doc comments with `///`).\r\n- [x] I added new tests to check the change I am making, or this PR is [test-exempt].\r\n- [x] I followed the [breaking change policy] and added [Data Driven Fixes] where supported.\r\n- [x] All existing and new tests are passing.\r\n\r\n\r\n<!-- Links -->\r\n[Contributor Guide]: https://github.com/flutter/flutter/blob/main/docs/contributing/Tree-hygiene.md#overview\r\n[Tree Hygiene]: https://github.com/flutter/flutter/blob/main/docs/contributing/Tree-hygiene.md\r\n[test-exempt]: https://github.com/flutter/flutter/blob/main/docs/contributing/Tree-hygiene.md#tests\r\n[Flutter Style Guide]: https://github.com/flutter/flutter/blob/main/docs/contributing/Style-guide-for-Flutter-repo.md\r\n[Features we expect every widget to implement]: https://github.com/flutter/flutter/blob/main/docs/contributing/Style-guide-for-Flutter-repo.md#features-we-expect-every-widget-to-implement\r\n[CLA]: https://cla.developers.google.com/\r\n[flutter/tests]: https://github.com/flutter/tests\r\n[breaking change policy]: https://github.com/flutter/flutter/blob/main/docs/contributing/Tree-hygiene.md#handling-breaking-changes\r\n[Discord]: https://github.com/flutter/flutter/blob/main/docs/contributing/Chat.md\r\n[Data Driven Fixes]: https://github.com/flutter/flutter/blob/main/docs/contributing/Data-driven-Fixes.md\r",
+    "createdAt": "2025-10-16T15:37:33Z"
+  },
+  {
+    "id": 7337,
+    "sender": "Piinks",
+    "content": "I am not sure what the implications might be on performance here, have you see the TableView widget that supports cell merging with lazy loading for children?",
+    "createdAt": "2025-10-24T22:32:16Z"
+  },
+  {
+    "id": 7338,
+    "sender": "hm21",
+    "content": "Hey @Piinks, thanks for the fast response to that PR, really appreciate it cuz I thought it would take way longer for someone to take a look, as my other older PR #176393 is still waiting, but maybe that one’s not very interesting for you guys😅🙈\r\n\r\n> ...would you be willing to draft an outline of your changes and the motivations behind the decisions you made here?\r\n\r\nSure, I can fill it out but not sure I’ll have time this weekend, but definitely next week I should find a bit of time.\r\n\r\n> I am not sure what the implications might be on performance here, have you see the TableView widget that supports cell merging with lazy loading for children?\r\n\r\nI'm not sure, but I guess you're referring to the `TableView` from the `two_dimensional_scrollables` package, right? If that's the case, then yes, I know that package. However, I still think there are a few reasons why it makes sense to implement it the way it's done in the PR.\r\n<details>\r\n<summary>Reasons for that PR</summary>\r\n\r\n1. **Dependencies:** `two_dimensional_scrollables` is a package on pub.dev and not directly part of Flutter. I think new Flutter devs will expect the `Table` widget to support that out of the box, without needing to search for an extra package. As seen in #21594, a few hundred people gave a thumbs up to that feature, so it seems like expected behavior should be internal. Also, when we compare it to other popular frameworks like MAUI, Ionic, or NativeScript, that kind of functionality is built-in without any extra dependencies.\r\n2. **Complexity:** I think for simple tables, most devs will expect a structure like `Table > TableRow > TableCell`, since that’s exactly how it works in HTML. In contrast, `TableView` works differently, the `rowBuilder` is separated from the cells, which could makes the widget tree harder to understand. Also, in `TableViewCell`, you have to set both `columnMergeSpan` and `columnMergeStart`. That makes sense when using the builder, but for a simple table, it feels a bit off or unnecessarily complicated. In most other frameworks, and even in standard HTML tables, you just set `colSpan` and `rowSpan` without needing to define a start position.\r\n3. **Built-in RTL:** I'm not 100% sure, but it seems that `TableView.builder` doesn't handle RTL correctly, or at least in my example, switching to RTL still keeps cell 0,0 on the top-left. Btw the existing `Table` widget already supports RTL, and the PR just extends that to also respect it for cell spanning.\r\n4. **TableCellVerticalAlignment**: Also, not 100% sure, but it seems like `verticalAlignment` isn’t supported in `TableView`. In this PR, `verticalAlignment` still works as expected and it also works correctly with `colSpan` and `rowSpan` for each individual cell.\r\n5. **Performance:** That's a good point you mentioned. For large tables with many offscreen cells that can be lazy-loaded, `TableView.builder` will definitely perform better. But for small tables where all cells are visible, I’m pretty sure it’s faster than `TableView`, though I doubt users would notice any difference. Comparing the original `Table` code to my changes, there’s a minimal impact on performance, but I don’t think that’s something end users would feel, especially since the `Table` widget isn’t designed for massive cell counts anyway. I tested it with 10k cells, and it was about 16ms slower, details are in the “Compare-Performance” section below. FYI: if performance is your top priority and readability is less important, I could also rewrite [_computeSpanInformation](https://github.com/hm21/flutter/blob/d11f8a4affe098b5d46bd94c0864c93b7ce84e8a/packages/flutter/lib/src/rendering/table.dart#L1247-L1331) to run directly within the same loop in [performLayout](https://github.com/hm21/flutter/blob/d11f8a4affe098b5d46bd94c0864c93b7ce84e8a/packages/flutter/lib/src/rendering/table.dart#L1633). And also the loop inside [table_border.dart](https://github.com/hm21/flutter/blob/d11f8a4affe098b5d46bd94c0864c93b7ce84e8a/packages/flutter/lib/src/rendering/table_border.dart#L288-L398) could I merge.\r\n\r\n</details>\r\n\r\n<br/>\r\n<details>\r\n<summary>Compare-Performance</summary>\r\n\r\nTo measure the average render duration, I repeatedly called `setState()` 100 times. \r\n\r\n#### **Test 1: Very Large (10,000 cells: 500 rows × 20 columns)**\r\n\r\n| Version     | Avg (ms) | Min (ms) | Max (ms) |\r\n|--------------|-----------|-----------|-----------|\r\n| **Original** | 351.09 | 275.40 | 469.32 |\r\n| **PR**       | 367.22 | 289.07 | 452.91 |\r\n\r\n---\r\n\r\n#### **Test 2: Large (500 cells: 50 rows × 10 columns)**\r\n\r\n| Version     | Avg (ms) | Min (ms) | Max (ms) |\r\n|--------------|-----------|-----------|-----------|\r\n| **Original** | 42.18 | 20.29 | 96.12 |\r\n| **PR**       | 49.89 | 21.50 | 80.72 |\r\n\r\n</details>\r\n\r\n\r\nBtw, I hope you didn’t get me wrong `TableView` from `two_dimensional_scrollables` is definitely an awesome package, and I saw in the commits that you’re also working on it. Still, as I mentioned above, I believe there are valid reasons why it could make sense to support `colSpan`/`rowSpan` in the default `Table` as well. Anyway, if the points I mentioned aren’t relevant for you and the way to go for devs is to use packages for this kind of core functionality, just let me know, then we can close the PR 😉 But in that case, I’d also suggest closing #21594 and mentioning that the recommended solution is to use the `two_dimensional_scrollables` package.\r\n\r\n\r\nThanks again for the fast response to that PR and I'll fill out the document you mentioned as soon as possible.\r\n\r\n\r\n",
+    "createdAt": "2025-10-25T11:07:32Z"
+  },
+  {
+    "id": 7339,
+    "sender": "Piinks",
+    "content": "> as my other older PR https://github.com/flutter/flutter/pull/176393 is still waiting, but maybe that one’s not very interesting for you guys\r\n\r\nActually, we use labels to route PRs to the right sub-team for review. I noticed that PR did not have a team label on it, so I applied one and reached out to the team to confirm. I hope you will hear back soon on it, and thanks again for contributing!\r\nWe have a Discord channel for reaching out to folks directly if a PR goes unattended, see here for docs:\r\n\r\n- https://github.com/flutter/flutter/blob/master/docs/contributing/Tree-hygiene.md#who\r\n- https://github.com/flutter/flutter/blob/master/docs/contributing/Chat.md\r\n\r\nThanks as well for your detailed response. If you are able to fill out the design dic template (the various sections are suggestive, not all required) it would be helpful for review. Otherwise I can start digging into this, it just might take a minute to get through it all. :)\r\n",
+    "createdAt": "2025-10-27T21:54:17Z"
+  },
+  {
+    "id": 7340,
+    "sender": "hm21",
+    "content": "Hey @Piinks, thanks for sharing those two links and my bad for not reading carefully enough that I was supposed to mention the open PR in the Discord channel after two weeks🙈 Still, really appreciate your help with tagging the team on the other PR.\r\n\r\nThe link to the design-document is https://flutter.dev/go/table-cell-span.\r\n\r\nAlso, sorry again, I missed that the usual process is to first create an issue referencing the design doc before opening a PR. If you'd still prefer I create a new issue for the design doc but I just thought it might be a bit pointless now that the PR is already there😅",
+    "createdAt": "2025-10-28T12:34:58Z"
+  },
+  {
+    "id": 7341,
+    "sender": "Piinks",
+    "content": "Also, FYI it looks like there are some failing tests here.",
+    "createdAt": "2025-11-17T23:29:39Z"
+  },
+  {
+    "id": 7342,
+    "sender": "hm21",
+    "content": "Hey @Piinks, so sorry for my late response, I was on vacation in Iceland, and afterwards got a bit caught up with some personal work projects🙈\r\n\r\n\r\n> Couple tests I want to make sure we've covered..\r\n From [your doc](https://docs.google.com/document/d/1OXTnWhI1bjZEfUsE3Cy8tm32ewMIwqKLXBKZPgTwGTM/edit?tab=t.0) (thanks again for providing!):\r\n\"If a developer forgets to include the required TableCell.none entries, assertions during layout report the conflict and specify which row and column overlap occurred.\"\r\nIs that covered here? I might have missed it.\r\n\r\nCurrently it detects two different behaviors:\r\n1. If the user forgets to add a `TableCell.none` or any other widget in a row, it will assert [here](https://github.com/hm21/flutter/blob/a74829531e8e5d3bb97b903faeb0293f5d1ac5f6/packages/flutter/lib/src/widgets/table.dart#L146-L189), indicating exactly which row has the incorrect number of children.\r\n2. If the number of children is correct but the `colSpan` or `rowSpan` exceeds the available columns or rows, it will assert [here](https://github.com/hm21/flutter/blob/a74829531e8e5d3bb97b903faeb0293f5d1ac5f6/packages/flutter/lib/src/rendering/table.dart#L1297-L1332) which throws an error with the exact row and column number where the problem occurred.\r\n\r\n> Also, what happens if the configuration of spans causes overlapping merged cells? How is that handled?\r\n\r\nAt the moment, there's no assert that throws an error in that case, so if it happens, the merged cells will overlap the other cells in reverse order (the last widget ends up on top of the others). I guess it would make sense to implement an assert for that too, right? Or how do you handle that case in `TableView`?\r\n\r\n\r\n<br/>\r\n\r\n> Also, FYI it looks like there are some failing tests here.\r\n\r\nOh, I thought it was cuz of the infrastructure issue with the Linux tests that were failing around the time I created that PR. In another PR, I had the same problem and was told [here](https://github.com/flutter/flutter/pull/176393#issuecomment-3491703352) that it was related to that. But my bad for not double-checking also here more carefully.\r\n\r\n~~Some tests might fail again now, since I’m pretty sure I didn’t implement the golden tests correctly but I’ll fix them ASAP ;)~~\r\n\r\n**EDIT:**\r\nThe Flutter Dashboard bot [here](https://github.com/flutter/flutter/pull/177102#issuecomment-3590004149) mentions reviewing the golden tests. I opened the link and tried it (logged in with the same email as on GitHub), but got this error message: \"Unexpected error triaging: 401 (Are you logged in with the right account?)\"\r\n\r\nSo I’m guessing that part is only available to Flutter team members, or in this case, to “you,” right? Or is there something else I need to do first?\r\n",
+    "createdAt": "2025-11-28T15:55:29Z"
+  },
+  {
+    "id": 7343,
+    "sender": "Piinks",
+    "content": "Thanks for the updates! I hope you had a nice time in Iceland. Let me check how TableView handles overlapping merged cells. I do not recall, and there are probably some fundamental differences here since it lays out lazily.",
+    "createdAt": "2025-12-09T21:04:46Z"
+  },
+  {
+    "id": 7344,
+    "sender": "Piinks",
+    "content": "> Thanks for the updates! I hope you had a nice time in Iceland. Let me check how TableView handles overlapping merged cells. I do not recall, and there are probably some fundamental differences here since it lays out lazily.\r\n\r\nLooks like the TableView will not complain about overlapping merged cells. So maybe that's alright here too. :)",
+    "createdAt": "2025-12-09T21:24:02Z"
+  },
+  {
+    "id": 7345,
+    "sender": "Piinks",
+    "content": "> The Flutter Dashboard bot https://github.com/flutter/flutter/pull/177102#issuecomment-3590004149 mentions reviewing the golden tests. I opened the link and tried it (logged in with the same email as on GitHub), but got this error message: \"Unexpected error triaging: 401 (Are you logged in with the right account?)\"\r\n\r\nYes, we have an allow list to manage write access to images. I can approve them, looking now.",
+    "createdAt": "2025-12-09T21:25:30Z"
+  },
+  {
+    "id": 7346,
+    "sender": "Piinks",
+    "content": "Delightful. 🙂 \r\n<img width=\"400\" height=\"300\" alt=\"image\" src=\"https://github.com/user-attachments/assets/24fd25d4-2bb1-4cd2-8d65-269b89a0bb93\" />\r\n",
+    "createdAt": "2025-12-09T21:26:59Z"
+  },
+  {
+    "id": 7347,
+    "sender": "hm21",
+    "content": "Hey @Piinks, thanks again for your review :)\r\n\r\n> Looks like the TableView will not complain about overlapping merged cells. So maybe that's alright here too. :)\r\n\r\nOkay, that's good to know but if you still prefer me to add it here, just let me know :)\r\n",
+    "createdAt": "2025-12-10T10:17:32Z"
+  },
+  {
+    "id": 7348,
+    "sender": "justinmc",
+    "content": "@hm21 FYI this PR has a merge conflict.",
+    "createdAt": "2026-01-20T23:28:32Z"
+  },
+  {
+    "id": 7349,
+    "sender": "hm21",
+    "content": "@justinmc Thanks for pointing that out! I just fixed it, so it's ready for review now :)",
+    "createdAt": "2026-01-21T08:23:26Z"
+  },
+  {
+    "id": 7350,
+    "sender": "justinmc",
+    "content": "@hm21 Can you update this PR? Looks like the Goldens bot is complaining it's too old.\r\n\r\nAlso CC @chunhtai for re-review.",
+    "createdAt": "2026-02-10T23:27:25Z"
+  },
+  {
+    "id": 7351,
+    "sender": "Piinks",
+    "content": "I think this is ready to go, let me check in with @chunhtai ",
+    "createdAt": "2026-02-18T22:30:49Z"
+  },
+  {
+    "id": 7352,
+    "sender": "Gustl22",
+    "content": "Sorry I came across this implementation, but I wanted to ask why there is a need of a public `TableCell.none` in the first place.\r\n\r\nI would expect to span automatically without the need to specify a `TableCell.none` like in HTML. This would also resolve the confusion, why only `TableCell.none` is allowed as next widget, when a span is specified previously.\r\n\r\nhttps://www.w3schools.com/html/html_table_colspan_rowspan.asp\r\n```html\r\n<table style=\"width:100%\">\r\n  <tr>\r\n    <th colspan=\"2\">Name</th>\r\n    <th>Age</th>\r\n  </tr>\r\n  <tr>\r\n    <td>Jill</td>\r\n    <td>Smith</td>\r\n    <td>43</td>\r\n  </tr>\r\n  <tr>\r\n    <td>Eve</td>\r\n    <td>Jackson</td>\r\n    <td>57</td>\r\n  </tr>\r\n</table>\r\n```\r\n\r\nI did a similar implementation for the PDF package, which calculates the missing TableCells automatically: https://github.com/DavBfr/dart_pdf/pull/1736/changes#diff-7dd0c0420d9a8667875d298f38592fb595a24957ee3291f9ca6c1c36e5e8593bR330",
+    "createdAt": "2026-03-14T07:33:46Z"
+  },
+  {
+    "id": 7353,
+    "sender": "hm21",
+    "content": "@Gustl22 That’s a good question. My main idea was not that the HTML-style approach could not work, but rather that I wanted to keep the table structure fully explicit in the widget tree.\r\n\r\n* **More explicit structure:** Every occupied or skipped slot is represented directly in the row definition.\r\n* **Less implicit behavior:** The layout does not need to derive missing cells from previous spans.\r\n* **API consistency:** It makes the relationship between spanning cells and the following entries more visible in code.\r\n\r\nI did think about the HTML table model, which is also why I chose `colspan` and `rowspan` as names since they are already familiar from the web. And I agree that if `colspan` and `rowspan` are defined correctly, an HTML-style approach can still be predictable. I just leaned more towards an explicit representation instead of having the framework infer the skipped cells automatically.\r\n\r\nThat said, I’d still love to hear feedback from the Flutter team (@Piinks, @chunhtai) on whether moving closer to the HTML-style approach would make more sense here, even though I personally leaned towards the explicit version.\r\n",
+    "createdAt": "2026-03-14T09:25:54Z"
+  },
+  {
+    "id": 7354,
+    "sender": "Gustl22",
+    "content": "I understand your intention. An idea that I throw in would be to have a convenience factory, which is able to implictly add `none` cells, for those who don't want to bother when having lists with large spans, or dynamically changing spans, something like: `Table.implicitSpanCells`. The decision is up to the flutter devs of course.",
+    "createdAt": "2026-03-14T10:52:25Z"
+  },
+  {
+    "id": 7355,
+    "sender": "chunhtai",
+    "content": "I don't have strong opinion on whether the need to TableCell.none, but i would suggest to go with TableCell.none and relax it later if that indeed becomes a pain point. it is always easier go from more restrict to less restrict than the other way around. and I think the web's behavior will be slightly harder to implement since the # of child will be different?\r\n",
+    "createdAt": "2026-03-31T19:28:57Z"
+  },
+  {
+    "id": 7356,
+    "sender": "Piinks",
+    "content": "Yeah, we had already discussed and settled on the TableCell.none choice way further up in the conversation. I think this is ready, I'd love to see it land. Any other objections @chunhtai ?",
+    "createdAt": "2026-03-31T19:45:54Z"
+  },
+  {
+    "id": 7357,
+    "sender": "knopp",
+    "content": "## Multi-window support (engine)\n\n<!--\r\nThanks for filing a pull request!\r\nReviewers are typically assigned within a week of filing a request.\r\nTo learn more about code review, see our documentation on Tree Hygiene: https://github.com/flutter/flutter/blob/main/docs/contributing/Tree-hygiene.md\r\n-->\r\n\r\n*Replace this paragraph with a description of what this PR is changing or adding, and why. Consider including before/after screenshots.*\r\n\r\n*List which issues are fixed by this PR. You must list at least one issue. An issue is not required if the PR fixes something trivial like a typo.*\r\n\r\n*If you had to change anything in the [flutter/tests] repo, include a link to the migration guide as per the [breaking change policy].*\r\n\r\n## Pre-launch Checklist\r\n\r\n- [X] I read the [Contributor Guide] and followed the process outlined there for submitting PRs.\r\n- [X] I read the [Tree Hygiene] wiki page, which explains my responsibilities.\r\n- [X] I read and followed the [Flutter Style Guide], including [Features we expect every widget to implement].\r\n- [X] I signed the [CLA].\r\n- [X] I listed at least one issue that this PR fixes in the description above.\r\n- [X] I updated/added relevant documentation (doc comments with `///`).\r\n- [X] I added new tests to check the change I am making, or this PR is [test-exempt].\r\n- [X] I followed the [breaking change policy] and added [Data Driven Fixes] where supported.\r\n- [X] All existing and new tests are passing.\r\n\r\nIf you need help, consider asking for advice on the #hackers-new channel on [Discord].\r\n\r\n<!-- Links -->\r\n[Contributor Guide]: https://github.com/flutter/flutter/blob/main/docs/contributing/Tree-hygiene.md#overview\r\n[Tree Hygiene]: https://github.com/flutter/flutter/blob/main/docs/contributing/Tree-hygiene.md\r\n[test-exempt]: https://github.com/flutter/flutter/blob/main/docs/contributing/Tree-hygiene.md#tests\r\n[Flutter Style Guide]: https://github.com/flutter/flutter/blob/main/docs/contributing/Style-guide-for-Flutter-repo.md\r\n[Features we expect every widget to implement]: https://github.com/flutter/flutter/blob/main/docs/contributing/Style-guide-for-Flutter-repo.md#features-we-expect-every-widget-to-implement\r\n[CLA]: https://cla.developers.google.com/\r\n[flutter/tests]: https://github.com/flutter/tests\r\n[breaking change policy]: https://github.com/flutter/flutter/blob/main/docs/contributing/Tree-hygiene.md#handling-breaking-changes\r\n[Discord]: https://github.com/flutter/flutter/blob/main/docs/contributing/Chat.md\r\n[Data Driven Fixes]: https://github.com/flutter/flutter/blob/main/docs/contributing/Data-driven-Fixes.md\r",
+    "createdAt": "2025-05-13T10:39:46Z"
+  },
+  {
+    "id": 7358,
+    "sender": "loic-sharma",
+    "content": "Windows changes LGTM but I'll wait until the macOS comments are resolved before approving :)",
+    "createdAt": "2025-06-24T22:41:32Z"
+  },
+  {
+    "id": 7359,
+    "sender": "shujaatak",
+    "content": "@mattkae Pardon my excitement, but I'm really looking forward to this PR being merged! I was wondering — will the two failing checks block the merge, or can it still proceed?",
+    "createdAt": "2025-07-08T12:45:10Z"
+  }
+]

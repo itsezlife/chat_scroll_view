@@ -1,0 +1,386 @@
+[
+  {
+    "id": 8128,
+    "sender": "Zhuinden",
+    "content": "hvisser above has solved the issue though, now people just need to write the code that makes it work",
+    "createdAt": "2020-02-04T12:17:56Z"
+  },
+  {
+    "id": 8129,
+    "sender": "goderbauer",
+    "content": "I am making progress on providing a solution for this. For an early preview of how an app will be able to restore instance state once this is done check out this PR: https://github.com/flutter/samples/pull/433.\r\n\r\nUnfortunately, it will take a little more time until its all done.",
+    "createdAt": "2020-05-27T21:16:48Z"
+  },
+  {
+    "id": 8130,
+    "sender": "goderbauer",
+    "content": "The design document with details about how to do state restoration in Flutter is available here: http://flutter.dev/go/state-restoration-design",
+    "createdAt": "2020-06-09T18:45:47Z"
+  },
+  {
+    "id": 8131,
+    "sender": "goderbauer",
+    "content": "The PR with the general state restoration framework as outlined in the design above has been posted: https://github.com/flutter/flutter/pull/60375. I am still working on adding some more test coverage.",
+    "createdAt": "2020-06-30T22:59:28Z"
+  },
+  {
+    "id": 8132,
+    "sender": "goderbauer",
+    "content": "The general state restoration framework (https://github.com/flutter/flutter/pull/60375) has been submitted. I am now working on integrating it in our widgets. Going to start with scrollables, text fields, and the Navigator.",
+    "createdAt": "2020-07-29T21:38:58Z"
+  },
+  {
+    "id": 8133,
+    "sender": "gaaclarke",
+    "content": "You can implement this yourself by storing the data you want restored inside of a [sqlite](https://pub.dev/packages/sqlite3) database.  That's a technique that is used when writing servers.\r\n\r\nThat has the benefit of restoring an app even if the battery dies on the phone or there is a kernel panic or whatever.  I recommend making an OO wrapper around your SQLite calls.  Dart doesn't have something like SQLite.Net which does it automatically for you unfortunately.\r\n\r\nedit: It's also something we did in the early days of mobile development because memory was so limited and sqlite is a great way to swap things between memory and disk.",
+    "createdAt": "2020-07-31T17:30:09Z"
+  },
+  {
+    "id": 8134,
+    "sender": "goderbauer",
+    "content": "I am closing this issue since the general state restoration framework (and the Android embedding) has landed. The remaining work is tracked in separate issues:\r\n\r\n- https://github.com/flutter/flutter/issues/62916 - Migrate widgets to use state restoration framework\r\n- https://github.com/flutter/flutter/issues/62915 - Enable State Restoration in iOS embedder",
+    "createdAt": "2020-08-04T23:17:14Z"
+  },
+  {
+    "id": 8135,
+    "sender": "luffyjie",
+    "content": "Well Done!!!!! Thanks flutter!!!",
+    "createdAt": "2020-10-12T06:32:29Z"
+  },
+  {
+    "id": 8136,
+    "sender": "jamesblasco",
+    "content": "## [web] Scroll is not recognized by the browser\n\n## Steps to Reproduce\r\n\r\nFlutter is painted on a canvas and the browser doesn't detect the scroll.\r\n\r\nThis causes problems when the native browser uses the scroll to perform their own actions. \r\n\r\nCurrent problems:\r\n\r\n- Safari and Chrome iOS/Android address and bottom bar navigation doesn't collapse when scrolling:\r\nIssues: https://github.com/flutter/flutter/issues/64572 https://github.com/flutter/flutter/issues/68877\r\n\r\n|  Current behavior  |  Expected behavior (would also need to scroll) |\r\n|---|---|\r\n|   <img height=\"400\" src=\"https://user-images.githubusercontent.com/19904063/97805735-36fa3880-1c58-11eb-92ca-0c7436080c6f.gif\" />  |   <img height=\"400\" src=\"https://user-images.githubusercontent.com/19904063/97805757-52654380-1c58-11eb-95a5-8d747c560240.gif\" />  |\r\n- iOS scroll to top by tapping on the status bar doesn't work. A feature available for any website in any ios browser or WKWebView\r\n\r\n- iOS GoogleMaps, Google Assistant, Facebook & Facebook Messenger displays in-app websites inside a draggable modal. Because of scroll is not detected, the modal is closed instead of scrolling upwards.\r\n\r\n<img height=\"400\" src=\"https://user-images.githubusercontent.com/19904063/97805974-9efd4e80-1c59-11eb-941a-910518366ac0.gif\" />\r\n\r\n\r\n\r\n\r\n\r\n\r\n\r",
+    "createdAt": "2020-11-01T14:49:03Z"
+  },
+  {
+    "id": 8137,
+    "sender": "pedromassangocode",
+    "content": "Issue reproducible on latest `master` channel.\r\n\r\n<details><summary>flutter doctor -v</summary>\r\n\r\n```\r\n[✓] Flutter (Channel master, 1.24.0-7.0.pre.47, on Mac OS X 10.15.7 19H2 darwin-x64, locale en)\r\n    • Flutter version 1.24.0-7.0.pre.47 at /Users/pedromassango/dev/SDKs/flutter_master\r\n    • Framework revision 2f18e0b23d (20 hours ago), 2020-11-01 20:58:04 +0530\r\n    • Engine revision 3460519398\r\n    • Dart version 2.12.0 (build 2.12.0-3.0.dev)\r\n\r\n[✓] Android toolchain - develop for Android devices (Android SDK version 30.0.1)\r\n    • Android SDK at /Users/pedromassango/Library/Android/sdk\r\n    • Platform android-30, build-tools 30.0.1\r\n    • Java binary at: /Applications/Android Studio.app/Contents/jre/jdk/Contents/Home/bin/java\r\n    • Java version OpenJDK Runtime Environment (build 1.8.0_242-release-1644-b3-6222593)\r\n    • All Android licenses accepted.\r\n\r\n[✓] Xcode - develop for iOS and macOS (Xcode 12.1)\r\n    • Xcode at /Applications/Xcode.app/Contents/Developer\r\n    • Xcode 12.1, Build version 12A7403\r\n    • CocoaPods version 1.9.3\r\n\r\n[✓] Chrome - develop for the web\r\n    • Chrome at /Applications/Google Chrome.app/Contents/MacOS/Google Chrome\r\n\r\n[✓] Android Studio (version 4.0)\r\n    • Android Studio at /Applications/Android Studio.app/Contents\r\n    • Flutter plugin can be installed from:\r\n      🔨 https://plugins.jetbrains.com/plugin/9212-flutter\r\n    • Dart plugin can be installed from:\r\n      🔨 https://plugins.jetbrains.com/plugin/6351-dart\r\n    • Java version OpenJDK Runtime Environment (build 1.8.0_242-release-1644-b3-6222593)\r\n\r\n[✓] IntelliJ IDEA Community Edition (version 2020.2.3)\r\n    • IntelliJ at /Applications/IntelliJ IDEA CE.app\r\n    • Flutter plugin version 50.0\r\n    • Dart plugin version 202.7319.5\r\n\r\n[✓] VS Code (version 1.50.1)\r\n    • VS Code at /Applications/Visual Studio Code.app/Contents\r\n    • Flutter extension version 3.16.0\r\n\r\n[✓] Connected device (4 available)\r\n    • iPhone 12 Pro Max (mobile) • ECCF5C4A-8BEC-411D-B23E-85A836C3847E • ios            • com.apple.CoreSimulator.SimRuntime.iOS-14-1 (simulator)\r\n    • macOS (desktop)            • macos                                • darwin-x64     • Mac OS X 10.15.7 19H2 darwin-x64\r\n    • Web Server (web)           • web-server                           • web-javascript • Flutter Tools\r\n    • Chrome (web)               • chrome                               • web-javascript • Google Chrome 86.0.4240.111\r\n\r\n• No issues found!\r\n```\r\n</details>",
+    "createdAt": "2020-11-02T11:11:09Z"
+  },
+  {
+    "id": 8138,
+    "sender": "yjbanov",
+    "content": "I thought we had a duplicate issue for this, but I failed to find one. I'm accepting this as a feature request.",
+    "createdAt": "2020-12-04T00:22:22Z"
+  },
+  {
+    "id": 8139,
+    "sender": "yjbanov",
+    "content": "I've been thinking about some ideas for fixing this. Leaving this idea before I forget: the web engine could use a signal from the framework that there's a scrollable area that the user is interacting with as well as when the start/end has been reached. We could then make the body element (or some other top-level element) scrollable while keeping the Flutter View in a fixed position. The browser will see the element scrolling and react appropriately.",
+    "createdAt": "2020-12-04T00:25:54Z"
+  },
+  {
+    "id": 8140,
+    "sender": "yjbanov",
+    "content": "@jamesblasco Curious how did you get it to behave correctly in the \"Expected behavior\" screen recording?",
+    "createdAt": "2020-12-04T00:26:52Z"
+  },
+  {
+    "id": 8141,
+    "sender": "jamesblasco",
+    "content": "Hey @yjbanov, you can see a detailed ex planation in this comment \r\n\r\nhttps://github.com/flutter/flutter/issues/68877#issuecomment-720091525\r\n\r\n**Update** -  Added comment:\r\n\r\nHere is some research I have been doing related to this problem:\r\n\r\n\r\nThe safari mobile WebKit uses the body scroll to handle this interaction. This requires the body `overflow-y` attribute to be set to `auto`/`scroll` and the body to have a size longer than 100%. Obviously, this is not the case for any flutter web as by default overflow is `hidden`.\r\nAfter changing that I couldn't make it work programmatically by calling `window.scrollTo(...)` or `windowScroll()`. Only user manual drag worked. \r\n\r\n\r\n\r\nBy overriding, some of the default CSS attributes added by the flutter framework I manage to hide the bars. But also it broke most of the hitTest inside the flutter framework.\r\n\r\nI also couldn't remove the scrollbar that appears after making these changes.\r\n\r\nYou have the demo here:  https://jamesblasco.github.io/flutter-web-scroll/\r\n\r\n<img height=\"400\"  src=\"https://user-images.githubusercontent.com/19904063/97804556-006cef80-1c51-11eb-90b4-c1e38c43b443.gif\" />\r\n\r\nYou can add this to the `<head>` of the `index.hml` file of any flutter project and try it also there.\r\n```html\r\n\r\n  <style>\r\n    body {\r\n      height: 500vh !important;  /* Bigger than 100% to allow scroll */\r\n      position: static !important;  /* Override absolute from flutter */\r\n      overflow-y: scroll !important; /* Allows verticall scrolling */\r\n      overflow-x: hidden !important;\r\n      touch-action: pan-y !important;  /* Allows vertical scrolling */\r\n      overscroll-behavior: none; /* Avoid bouncing scrolling on top/bottom edget */\r\n    }\r\n\r\n     /* Centers flutter canvas with a size of the viewport*/\r\n    flt-glass-pane {\r\n      position: fixed !important; /* Overrides absolute from flutter  */\r\n      top: 50vh  !important;\r\n      left: 50vw  !important;\r\n      max-width: 100vw  !important;\r\n      max-height: 100vh  !important;\r\n      transform: translate(-50vw, -50vh)  !important;\r\n    }\r\n\r\n    /* \r\n    Scrollbar hide doesn't work on iOS, they add a default one when overflow:true and  -webkit-overflow-scrolling: touch; \r\n    Sadly since iOS 13, this value is forced on iOS -> https://developer.apple.com/documentation/safari-release-notes/safari-13-release-notes\r\n    */\r\n    ::-webkit-scrollbar {\r\n      display: false;\r\n      width: 0px;\r\n      height: 0px;  /* Remove scrollbar space */\r\n      background: transparent;  /* Optional: just make scrollbar invisible */\r\n    }\r\n    \r\n  </style>\r\n```\r\n\r\n ",
+    "createdAt": "2020-12-04T00:43:02Z"
+  },
+  {
+    "id": 8142,
+    "sender": "abar-75",
+    "content": "Hi, is there any update on this? I have the same issue, the scroll isn't recognised when I open the app from a link in a facebook post or messenger.",
+    "createdAt": "2020-12-29T23:20:21Z"
+  },
+  {
+    "id": 8143,
+    "sender": "jamesblasco",
+    "content": "I've just discovered it also happens with the Google Assistant app. There is no way to scroll up\r\n\r\n<img height=\"400\"  src=\"https://user-images.githubusercontent.com/19904063/106584774-e3dd9d80-6546-11eb-91ff-efecc7477227.gif\" />\r\n\r\n\r\nUpdate: Same problem in Google Maps\r\n<img height=\"400\"  src=\"https://user-images.githubusercontent.com/19904063/106587653-28b70380-654a-11eb-998a-4ee665beaa4c.gif\" />\r\n",
+    "createdAt": "2021-02-02T10:09:04Z"
+  },
+  {
+    "id": 8144,
+    "sender": "Mravuri96",
+    "content": "> I thought we had a duplicate issue for this, but I failed to find one. I'm accepting this as a feature request.\r\n\r\nMight that be this? #67832. if not, mentioning it here as it's in the same realm.",
+    "createdAt": "2021-02-15T04:08:25Z"
+  },
+  {
+    "id": 8145,
+    "sender": "ayushin",
+    "content": "Yes, this should really be fixed in flutter, not in css / index.html\r\n",
+    "createdAt": "2021-05-26T19:00:32Z"
+  },
+  {
+    "id": 8146,
+    "sender": "jamesblasco",
+    "content": "@ayushin the problem is that browsers do not provide an api to control this behavior and it is automatically sync with the body scroll",
+    "createdAt": "2021-05-26T19:43:39Z"
+  },
+  {
+    "id": 8147,
+    "sender": "ayushin",
+    "content": "But some PWAs manage it quite well still, like: https://www.wsj.com/",
+    "createdAt": "2021-05-26T19:45:49Z"
+  },
+  {
+    "id": 8148,
+    "sender": "MorelSerge",
+    "content": "How has this issue been known for 8 months and not fixed yet. This is _yet_ another issue that makes the \"cross platform\" Flutter a stupid advertisement.\r\nThis breaks any scrollable flutter web app on iOS (a lot of people use the in-app browsers).\r\n\r\nEDIT: The aforementioned solution doesn't work with scrollable containers (SingleChildScrollView, ListView, ..), on top of that, scrolling with the above solution causes a re-render because the size changes which can cause very buggy behaviour if you're loading e.g. images or content on render.\r\n\r\nEDIT2: Live example: https://hivesey-88262.web.app/",
+    "createdAt": "2021-06-29T20:35:26Z"
+  },
+  {
+    "id": 8149,
+    "sender": "MarcelWilming",
+    "content": "@ayushin how do you get this working in a PWA ?",
+    "createdAt": "2021-07-27T16:12:52Z"
+  },
+  {
+    "id": 8150,
+    "sender": "ayushin",
+    "content": "Nope",
+    "createdAt": "2021-07-27T16:16:30Z"
+  },
+  {
+    "id": 8151,
+    "sender": "MarcelWilming",
+    "content": "@ayushin Do we have a workaround for a scrollView ? ",
+    "createdAt": "2021-07-27T16:28:29Z"
+  },
+  {
+    "id": 8152,
+    "sender": "ayushin",
+    "content": "@MarcelWilming Not at the moment, I don't think I am the right person to ask.",
+    "createdAt": "2021-07-27T16:29:37Z"
+  },
+  {
+    "id": 8153,
+    "sender": "hightman",
+    "content": "I also encountered this problem, but it seems that there is still no solution. \r\nBecause only scrolling on the body element can trigger the hiding URL bar of iOS-safari, all scrolling of flutter-web are not on the body, so I can't think of a way to modify or circumvent it.",
+    "createdAt": "2021-08-24T06:50:57Z"
+  },
+  {
+    "id": 8154,
+    "sender": "Piinks",
+    "content": "There was recently added a new `MaterialState.scrolledUnder`, this may be useful in implementing this. It is currently being used so the AppBar can change when content scrolls under it, if we could pass that information on to the engine in a meaningful way it might work.",
+    "createdAt": "2021-09-02T22:07:02Z"
+  },
+  {
+    "id": 8155,
+    "sender": "yjbanov",
+    "content": "This continues to be a problem in Safari iOS 15 (https://github.com/flutter/flutter/issues/90506).",
+    "createdAt": "2021-09-23T22:14:58Z"
+  },
+  {
+    "id": 8156,
+    "sender": "FantasyOR",
+    "content": "hi, in order for the web application to expand to the full screen and scroll at the same time, it is enough to add this style:\r\n```html\r\n    <head>\r\n   ...\r\n     \r\n        <style>\r\n            body {\r\n                height: 100vh !important;\r\n                position: static !important;\r\n            }\r\n        </style>\r\n    </head>\r\n```",
+    "createdAt": "2021-09-27T14:30:47Z"
+  },
+  {
+    "id": 8157,
+    "sender": "skypu3",
+    "content": "hi @FantasyOR, it can expand to the full screen, but there is blank area please see the attached: \r\n\r\n![IMG_4366](https://user-images.githubusercontent.com/70039/135006908-dc94f5db-b846-4267-8959-ce477c9b3738.jpg)\r\n\r\n",
+    "createdAt": "2021-09-28T01:24:29Z"
+  },
+  {
+    "id": 8158,
+    "sender": "hightman",
+    "content": "this seems bug only in iOS15, If you adjust URL bar to top position in safari setting, it may be ok.\n\n> 在 2021年9月28日，09:24，skypu3 ***@***.***> 写道：\n> \n> ﻿\n> hi @FantasyOR, it still can't expand to the full screen, there is blank area please see the attached:\n> \n> \n> \n> —\n> You are receiving this because you commented.\n> Reply to this email directly, view it on GitHub, or unsubscribe.\n> Triage notifications on the go with GitHub Mobile for iOS or Android. \n",
+    "createdAt": "2021-09-28T03:57:15Z"
+  },
+  {
+    "id": 8159,
+    "sender": "skypu3",
+    "content": "@hightman, I did the test, URL bar both on top and bottom, it doesn't work still has blank area on iOS 15.\r\n",
+    "createdAt": "2021-09-28T10:19:01Z"
+  },
+  {
+    "id": 8160,
+    "sender": "yjbanov",
+    "content": "Just leaving these resources for us to look into when we attempt a fix:\r\n\r\n- https://developer.apple.com/library/archive/documentation/AppleApplications/Reference/SafariHTMLRef/Articles/MetaTags.html\r\n- https://developer.apple.com/library/archive/documentation/AppleApplications/Reference/SafariWebContent/ConfiguringWebApplications/ConfiguringWebApplications.html\r\n\r\nWould be interesting to check how Flutter would behave with no engine-side changes if these tags are specified.",
+    "createdAt": "2021-09-29T21:18:18Z"
+  },
+  {
+    "id": 8161,
+    "sender": "josedoes",
+    "content": "following",
+    "createdAt": "2021-10-05T18:37:17Z"
+  },
+  {
+    "id": 8162,
+    "sender": "FantasyOR",
+    "content": "> hi @FantasyOR, it can expand to the full screen, but there is blank area please see the attached:\r\n> \r\n> ![IMG_4366](https://user-images.githubusercontent.com/70039/135006908-dc94f5db-b846-4267-8959-ce477c9b3738.jpg)\r\n\r\nmaybe your app is not to match height? Please try set: \r\n``` dart\r\nScaffold(\r\n        body: Container(\r\n               height: MediaQuery.of(context).size.height,\r\n               child: ...\r\n```\r\n               ",
+    "createdAt": "2021-10-08T06:50:30Z"
+  },
+  {
+    "id": 8163,
+    "sender": "hightman",
+    "content": "hi @FantasyOR , After I added those body styles, there are some changes in the result, see GIF attachment.\r\n![screenshot_flutterweb_ios15](https://user-images.githubusercontent.com/812381/136947886-673844e1-e92f-4f7a-8e8a-d34985579ad3.gif)\r\n\r\nMy page is simply created under the `scaffold` of `material`, and there is no special setting.\r\nThere are still two problems:\r\n\r\n1. When I refresh the page, the page sometimes full filled the viewport, sometimes it can’t.\r\n2. When I scroll the page, a blank space appears at the bottom.\r\n",
+    "createdAt": "2021-10-12T11:29:33Z"
+  },
+  {
+    "id": 8164,
+    "sender": "skypu3",
+    "content": "any updates on this issue ?",
+    "createdAt": "2021-12-23T08:23:37Z"
+  },
+  {
+    "id": 8165,
+    "sender": "yjbanov",
+    "content": "@skypu3 No update, unfortunately, but I've been trying to think of ideas for how to fix this. My latest idea is to add a two-way scrolling element under `<flt-glass-pane>` that would be scrolled by the browser whenever you drag your finger, in addition to reporting the pointer event to the Flutter framework so that Flutter can react to the scroll too. The downside is that if the framework doesn't tell the engine that it's scrolling the browser will always think that you are scrolling and minimize the address bar, even if the drag gesture is used for something else.\r\n\r\n@hightman Thanks for trying! This gives me hope that this can work. We used to have issues with Safari temporarily reporting wrong window dimensions upon page load. This looks exactly like that problem. We implemented [this hack](https://github.com/flutter/engine/blob/0ec193f2407876472f2881c69103ad86be7363b9/lib/web_ui/lib/src/engine/embedder.dart#L313) for pre-13 Safari, but perhaps we still need this hack for newer Safari versions. If you are able to build the engine, could you try removing `html.window.visualViewport == null` from the `if` condition?\r\n",
+    "createdAt": "2022-01-07T20:59:44Z"
+  },
+  {
+    "id": 8166,
+    "sender": "lyf571321556",
+    "content": "following",
+    "createdAt": "2022-01-13T03:49:03Z"
+  },
+  {
+    "id": 8167,
+    "sender": "MorelSerge",
+    "content": "Just want to mention:\r\n\r\n- This is breaks any flutter app (with some scrollable content) on iOS Safari popup views. For example the ones opening up when clicking a link in the Messenger app.\r\n- It breaks swipe-to-refresh on Chrome (iOS, did not test on Android).",
+    "createdAt": "2022-01-23T03:49:38Z"
+  },
+  {
+    "id": 8168,
+    "sender": "jemutorres",
+    "content": "Following",
+    "createdAt": "2022-01-25T08:10:36Z"
+  },
+  {
+    "id": 8169,
+    "sender": "Akarshit-Git",
+    "content": "Following",
+    "createdAt": "2022-02-09T12:28:56Z"
+  },
+  {
+    "id": 8170,
+    "sender": "tarun-goHomely",
+    "content": "Following",
+    "createdAt": "2022-02-18T13:35:53Z"
+  },
+  {
+    "id": 8171,
+    "sender": "oliverpool",
+    "content": "Instead of spamming this issue with `Following` messages, please simply click the `Subscribe` button on the right side:\r\n\r\n![image](https://user-images.githubusercontent.com/3864879/154706084-459e3f69-62e8-476e-b6b0-fca8cf2187c2.png)\r\n\r\n_(sorry at all the followers for this message not related to the issue)_",
+    "createdAt": "2022-02-18T14:54:54Z"
+  },
+  {
+    "id": 8172,
+    "sender": "atgnatus",
+    "content": "This is a critical issue.  I do not think it is fair to say Flutter works on mobile web while this is still open.  It dramatically reduces the usable screen size which results in a significantly reduced end user experience.",
+    "createdAt": "2022-04-07T19:56:25Z"
+  },
+  {
+    "id": 8173,
+    "sender": "flutterhands",
+    "content": "> This is a critical issue. I do not think it is fair to say Flutter works on mobile web while this is still open. It dramatically reduces the usable screen size which results in a significantly reduced end user experience.\r\n\r\nThis.\r\n\r\nIf not fixable in Flutter, it should at least be fixed in Chrome on all devices. Without such fix we cannot claim Flutter for web is an alternative for anything. Unfortunately, because we love Flutter!",
+    "createdAt": "2022-04-07T21:15:43Z"
+  },
+  {
+    "id": 8174,
+    "sender": "inagornyi",
+    "content": "Hey\r\nWill there be an official solution to this problem?\r\nWhat is the problem to solve and close this bug?",
+    "createdAt": "2022-05-14T13:18:47Z"
+  },
+  {
+    "id": 8175,
+    "sender": "slavap",
+    "content": "@yjbanov \r\nJust FYI, this meta tag\r\n```html\r\n<meta name=\"apple-mobile-web-app-capable\" content=\"yes\">\r\n```\r\ndoes not helping with hiding bottom navigation/addressBar at all.",
+    "createdAt": "2022-05-19T08:40:14Z"
+  },
+  {
+    "id": 8176,
+    "sender": "jakusb",
+    "content": "Please up the priority!\r\nFlutter is getting mature and bragging about all platforms it supports.\r\nthis feature should be supported.",
+    "createdAt": "2022-05-23T20:56:11Z"
+  },
+  {
+    "id": 8177,
+    "sender": "nyermakh",
+    "content": "Is there any workaround?",
+    "createdAt": "2022-05-24T17:37:55Z"
+  },
+  {
+    "id": 8178,
+    "sender": "matthiaswinfried",
+    "content": "If not fixed in flutter it would be very nice if there would be any reliable workaround.\r\nAs mentioned before: \"Please up the priority!\"",
+    "createdAt": "2022-05-25T13:20:18Z"
+  },
+  {
+    "id": 8179,
+    "sender": "inagornyi",
+    "content": "Vote and like to up the priority.",
+    "createdAt": "2022-05-25T14:36:56Z"
+  },
+  {
+    "id": 8180,
+    "sender": "inagornyi",
+    "content": "Is anybody here?",
+    "createdAt": "2022-05-28T16:26:08Z"
+  },
+  {
+    "id": 8181,
+    "sender": "AndreiMisiukevich",
+    "content": "You can kindly ask your users to hide the toolbar with some popup message on the first app start (not ideal at all, but at least something...)\r\n\r\n![image](https://user-images.githubusercontent.com/10124814/170908612-cce2bca5-a60b-48ff-9ea8-6eb3397ca169.png)\r\n",
+    "createdAt": "2022-05-30T02:53:23Z"
+  },
+  {
+    "id": 8182,
+    "sender": "nyermakh",
+    "content": "Well, I am developing a website that is intended to be used within in-app web browsers (like within Google Assistant). In this case, asking your users wouldn't help :(",
+    "createdAt": "2022-06-03T18:36:21Z"
+  },
+  {
+    "id": 8183,
+    "sender": "iapicca",
+    "content": "tagging @huycozy since [referenced](https://github.com/flutter/flutter/issues/109502#issuecomment-1214868983) this issue\r\ncould you consider adding the `crowd` label",
+    "createdAt": "2022-08-15T13:31:33Z"
+  },
+  {
+    "id": 8184,
+    "sender": "huycozy",
+    "content": "@iapicca: Adding `crowd` label based on the number of affected users and upvotes. Thank you!",
+    "createdAt": "2022-08-15T13:43:47Z"
+  },
+  {
+    "id": 8185,
+    "sender": "Piinks",
+    "content": "Following up on https://github.com/flutter/flutter/issues/69529#issuecomment-1007736827 @yjbanov \r\n\r\n> The downside is that if the framework doesn't tell the engine that it's scrolling, the browser will always think that you are scrolling and minimize the address bar, even if the drag gesture is used for something else.\r\n\r\nWe could probably communicate this pretty easily to the engine. AFAIK that's the easy part. When scrolling is occurring, the framework could maybe use a platform channel to let the engine know? From what I can tell we already have all of the recommended and appropriate Apple meta tags and flags set, if we tell the engine we are scrolling, will your idea with `<flt-glass-pane>` work?\r\n",
+    "createdAt": "2022-08-15T20:34:03Z"
+  },
+  {
+    "id": 8186,
+    "sender": "riusaky007",
+    "content": "Hey, Any solution about the\r\n\r\n> ## Steps to Reproduce\r\n> Flutter is painted on a canvas and the browser doesn't detect the scroll.\r\n> \r\n> This causes problems when the native browser uses the scroll to perform their own actions.\r\n> \r\n> Current problems:\r\n> \r\n> * Safari and Chrome iOS/Android address and bottom bar navigation doesn't collapse when scrolling:\r\n>   Issues: [[web] Allow Flutter apps to have 13% bigger screen after being scrolled down #64572](https://github.com/flutter/flutter/issues/64572) [Flutter for Web does not hide url bar and navigation bar on scroll in iOS's Safari #68877](https://github.com/flutter/flutter/issues/68877)\r\n> \r\n> Current behavior\tExpected behavior (would also need to scroll)\r\n> <img alt=\"\" height=\"400\" src=\"https://user-images.githubusercontent.com/19904063/97805735-36fa3880-1c58-11eb-92ca-0c7436080c6f.gif\">\t<img alt=\"\" height=\"400\" src=\"https://user-images.githubusercontent.com/19904063/97805757-52654380-1c58-11eb-95a5-8d747c560240.gif\">\r\n> * iOS scroll to top by tapping on the status bar doesn't work. A feature available for any website in any ios browser or WKWebView\r\n> * iOS GoogleMaps, Google Assistant, Facebook & Facebook Messenger displays in-app websites inside a draggable modal. Because of scroll is not detected, the modal is closed instead of scrolling upwards.\r\n> \r\n> <img alt=\"\" height=\"400\" src=\"https://user-images.githubusercontent.com/19904063/97805974-9efd4e80-1c59-11eb-941a-910518366ac0.gif\"> [ <img alt=\"97805974-9efd4e80-1c59-11eb-941a-910518366ac0.gif\" height=\"400\" src=\"https://user-images.githubusercontent.com/19904063/97805974-9efd4e80-1c59-11eb-941a-910518366ac0.gif\"> ](https://user-images.githubusercontent.com/19904063/97805974-9efd4e80-1c59-11eb-941a-910518366ac0.gif) [ ](https://user-images.githubusercontent.com/19904063/97805974-9efd4e80-1c59-11eb-941a-910518366ac0.gif)\r\n\r\nAny updates about this? I'm facing the same problem (09/20/2022)",
+    "createdAt": "2022-09-20T16:57:34Z"
+  },
+  {
+    "id": 8187,
+    "sender": "rafaelmaia8384",
+    "content": "Following",
+    "createdAt": "2022-10-15T17:37:46Z"
+  },
+  {
+    "id": 8188,
+    "sender": "mateojc008",
+    "content": "Any update ? We are about to release a Flutter merchant web site so this feature is really important for us",
+    "createdAt": "2022-10-17T14:10:52Z"
+  },
+  {
+    "id": 8189,
+    "sender": "willcalderbank",
+    "content": "This issue negatively affects all flutter apps running on the web. Many people have 👍 'd to up the priority (https://github.com/flutter/flutter/issues/69529#issuecomment-1137345691) . @huycozy Could the priority be upped please.",
+    "createdAt": "2022-10-18T10:04:23Z"
+  },
+  {
+    "id": 8190,
+    "sender": "yayyar",
+    "content": "following",
+    "createdAt": "2022-11-05T14:58:22Z"
+  },
+  {
+    "id": 8191,
+    "sender": "jdaru",
+    "content": "Following",
+    "createdAt": "2022-11-21T13:38:31Z"
+  }
+]

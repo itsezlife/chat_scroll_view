@@ -1,0 +1,386 @@
+[
+  {
+    "id": 3392,
+    "sender": "satvikpendem",
+    "content": "I read somewhere that Flutter is pushing for an Accessibility Object Model where you could lay out accessibility tags without them necessarily showing up on the page, I was wondering if something similar could be done with a Search Object Model, layout tags for SEO specifically while keeping the content apart from the actual search engine optimization part.\r\n\r\nThat way, Flutter can display whatever content it needs to but any text or other information is automatically converted to something search engines can parse. It's similar to the comments that were said prior but in a more structured way.",
+    "createdAt": "2023-01-07T19:29:04Z"
+  },
+  {
+    "id": 3393,
+    "sender": "kevlar700",
+    "content": "> I'm not sure how that would work. That's basically what we do today (with an ARIA DOM), but the search engines don't seem to find the content today.\r\n\r\nThis should be all that is required. Text content related to traffic is king. Everything else is just a few seo feathers. If the search engines are not picking this up then doesn't this highlight a serious failing in web technology? How are blind users supposed to use Google reliably?\r\n\r\n",
+    "createdAt": "2023-03-12T20:04:24Z"
+  },
+  {
+    "id": 3394,
+    "sender": "IchordeDionysos",
+    "content": "> How are blind users supposed to use Google reliably?\r\n\r\nBy Google looking at the HTML DOM (not the ARIA DOM) to detect what is on the page.\r\n\r\nThe ARIA DOM is typically generated from the HTML DOM so should be almost identical 😌 ",
+    "createdAt": "2023-03-26T21:33:19Z"
+  },
+  {
+    "id": 3395,
+    "sender": "kevlar700",
+    "content": "> By Google looking at the HTML DOM (not the ARIA DOM) to detect what is on the page.\r\n> \r\n> The ARIA DOM is typically generated from the HTML DOM so should be almost identical 😌\r\n\r\nSurely they both exist for a reason and so fixing this in Google should be a high priority?\r\n\r\nPerhaps Google are worried about content tricks and only wish to trust the visual content?",
+    "createdAt": "2023-05-06T18:33:05Z"
+  },
+  {
+    "id": 3396,
+    "sender": "kevlar700",
+    "content": "Solving this issue would be beneficial to all including the flutter community. These issues are constantly found on sites.\r\n\r\nhttps://github.com/flutter/website/issues/8900",
+    "createdAt": "2023-06-15T16:19:21Z"
+  },
+  {
+    "id": 3397,
+    "sender": "Okunamutata",
+    "content": "Native Seo capabilities would be great. But Seo is possible now through server side rendering. Since Seo is a web specific feature; leave the work to your server and keep the app's code base from being bloated. This article explains what I mean https://medium.com/@tookunna/flutter-web-seo-rich-web-link-preview-5116670369d4",
+    "createdAt": "2023-07-23T21:58:13Z"
+  },
+  {
+    "id": 3398,
+    "sender": "mminhlequang",
+    "content": "up\r\n",
+    "createdAt": "2023-12-27T13:27:59Z"
+  },
+  {
+    "id": 3399,
+    "sender": "OlaiyaO",
+    "content": "> > I'm not sure you're right about those asking questions being new to programming. I, for one, am trying out Flutter for web because I really enjoyed programming in it, whereas I never really enjoyed Javascript. I suppose it isn't ideal (certainly not yet) and I was aware of this before I started, but it was the framework that appealed to me, that's why I started.\r\n> > On the whole issue of exactly **how** to make it more SEO friendly, is there any chance the the accessibility features of Flutter could be used when building the website to create a more simplified (essential) layout that would load faster? Then as the website loaded, this would be replaced by the Flutter UI.\r\n> \r\n> Unfortunately that is not how google works :/ . Please check out Google insights [Test](https://developers.google.com/speed/pagespeed/insights/?url=https%3A%2F%2Fgallery.flutter.dev%2F%23%2Fshrine&tab=mobile) . This is a test of the Shrine flutter demo app. They look at the code and what resources it loads through the entire process. So the system will load the entire application in this instance 906kb, not a lot, however the issue becomes when you try to SEO pages, they dont exists. This is because the app will load new data in the same container. So in reality you cant really get /categories/product/product1 where this is where the SEO happens. in the test you can see that google only loaded the login screen.\r\n> \r\n> Unfortunately since you cant tell google how to crawl the app and since google looks for pages, than anything that is not in view is considered invisible and non existent.\r\n> \r\n> This was also removed by google some times ago as people use to hide text in display none and hidden containers to try to trick the ranking for keywords that they did not actually have on the website.\r\n> \r\n> ***However** If the app is a one page app where all the text is rendered at start than yes google will see it correctly as long as you structure it. Keep in mind that most of googles ranking is done also based on schema.org please review that.\r\n> \r\n> As most of you know, you also need a sitemap that links to all pages, again flutter has no pages so that does not help.\r\n> \r\n> With all that said there are way around it, please see https://nextjs.org/ they do exactly what is needed for SEO. I have asked them some time ago if they support flutter and they said NO but they are open if more people ask for it. So maybe most of you can ask them or maybe somebody will build a dart script that replicates what they do.\r\n> \r\n> I can promise you that I love Flutter as much as all of you and have embraced it, but these are limitations, we learned to adapt and learn that DART can product HTML SEO code for web and flutter amazing apps for back end use and mobile devices.\r\n> \r\n> Happy Coding :)\r\n> \r\n> Also here is a very good resource. As you guys and girls can see this is not a flutter issue, it is a inconvenience that affects all languages of this nature that compile to JS. https://snipcart.com/spa-seo\r\n\r\nI would assume that, people with your level of expertise in web development, would be able to devise a solution for this common issue. Whether from new or seasoned developers, the recurring request suggests that the feature is so crucial that it can shape the entire web development industry. However, your comment seems to imply that building an SEO feature into Flutter web can't be achieved.\r\n\r\nDo you believe it's impossible based on your understanding?",
+    "createdAt": "2024-01-21T11:01:02Z"
+  },
+  {
+    "id": 3400,
+    "sender": "Achraf-cyber",
+    "content": "If I create the website in flutter and create another  SEO optimized web page in html which welcome the user and give him access to the whole website is it a good idea ?",
+    "createdAt": "2024-02-03T07:57:39Z"
+  },
+  {
+    "id": 3401,
+    "sender": "commandiron",
+    "content": "Flutter is an open-source, cross-platform, UI software development kit created by GOOGLE and there has been no seo support for GOOGLE search results for almost 7 years. Funny story.",
+    "createdAt": "2024-03-18T08:39:06Z"
+  },
+  {
+    "id": 3402,
+    "sender": "Okunamutata",
+    "content": "@Achraf-cyber That's a valid solution, I've seen a few businesses choose that route. Either way, a solution for SEO on Flutter Web requires either SSR for non user agents or some framework-level work to make the flutter engine manipulate the dom elements while it renders in the browser. ",
+    "createdAt": "2024-04-18T02:56:41Z"
+  },
+  {
+    "id": 3403,
+    "sender": "sandwichstealer",
+    "content": "Google search is the same company as Google Flutter. The right hand should figure out what the left hand is doing and work together.",
+    "createdAt": "2024-04-18T16:25:17Z"
+  },
+  {
+    "id": 3404,
+    "sender": "ThomasVallee",
+    "content": "Any updates on this? ",
+    "createdAt": "2024-05-21T15:50:40Z"
+  },
+  {
+    "id": 3405,
+    "sender": "txufiknr",
+    "content": "> If I create the website in flutter and create another SEO optimized web page in html which welcome the user and give him access to the whole website is it a good idea ?\r\n\r\nIt might work to solve SEO problems, but I don't think it's a good idea for UX.\r\nLoading times are a big issue. If your flutter web does not load immediately, users may also exit immediately.\r\n\r\nSo, if you still want to do your solution, I can suggest this:\r\nYou can use `<link rel=\"prerender\">` in your welcome page in order to preload your flutter web, **BUT** now this is non-standard:\r\nhttps://developer.mozilla.org/en-US/docs/Web/HTML/Attributes/rel/prerender\r\n\r\nBut it still taking effect on Chrome, although not fully, so you can anyway:\r\nhttps://developer.chrome.com/docs/web-platform/prerender-pages#:~:text=This%20legacy%20prerendering%20using%20the,the%20page%20nor%20execute%20JavaScript.\r\n\r\nAnd you can also use `<link rel=\"preconnect\">`:\r\nhttps://developer.mozilla.org/en-US/docs/Web/HTML/Attributes/rel/preconnect\r\n\r\n> The preconnect keyword for the [rel](https://developer.mozilla.org/en-US/docs/Web/HTML/Element/link#rel) attribute of the [<link>](https://developer.mozilla.org/en-US/docs/Web/HTML/Element/link) element is a hint to browsers that the user is likely to need resources from the target resource's origin, and therefore the browser can likely improve the user experience by preemptively initiating a connection to that origin. Preconnecting speeds up future loads from a given origin by preemptively performing part or all of the handshake (DNS+TCP for HTTP, and DNS+TCP+TLS for HTTPS origins).\r\n\r\nThus this is the code you need to add:\r\n```\r\n<link rel=\"preconnect\" href=\"https://yourflutterweb.com\">\r\n<link rel=\"prerender\" href=\"https://yourflutterweb.com\">\r\n```",
+    "createdAt": "2024-05-30T15:05:17Z"
+  },
+  {
+    "id": 3406,
+    "sender": "AndroidDesigner",
+    "content": "What do you think about this approach? [the Enhancing SEO in Flutter Web Projects with Next.js Integration](https://gist.github.com/lcw99/ac1738cb6d5bb032085077605f56665e)",
+    "createdAt": "2024-07-17T07:52:15Z"
+  },
+  {
+    "id": 3407,
+    "sender": "iapicca",
+    "content": "\r\n\r\n> What do you think about this approach? [the Enhancing SEO in Flutter Web Projects with Next.js Integration](https://gist.github.com/lcw99/ac1738cb6d5bb032085077605f56665e)\r\n\r\nno offense, but this is by definition a work-around \r\nhighly dependent from another stack entirely\r\nand incompatible with [this](https://github.com/flutter/flutter/issues/145954)\r\n\r\n#\r\n\r\nvery happy to see that this is issue is being worked on :)",
+    "createdAt": "2024-07-17T11:00:15Z"
+  },
+  {
+    "id": 3408,
+    "sender": "Mizan84",
+    "content": "Flutter team should focus mainly on SEO now. Without this Flutter Web is unnecessary. ",
+    "createdAt": "2024-09-30T03:25:25Z"
+  },
+  {
+    "id": 3409,
+    "sender": "Mizan84",
+    "content": "Now I can see there is a great hope of SEO in flutter. Looks like Flutter team have found a way. I have checked their demo web app which is https://alien-hawaii-2024.web.app/   .  I see now text can be copied from the web page. Also I have searched in google with the first sentence inside About Hawaii. The sentence is \"Hawaii (/həˈwaɪi/ ⓘ hə-WY-ee; Hawaiian: Hawaiʻi [həˈvɐjʔi, həˈwɐjʔi]) is an island state in the Western United States, about 2,000 miles (3,200 km) from the U.S. mainland in the Pacific Ocean.\". With the search the website showing in the fourth place of search result. So finger crossed. Anyone also can find the demo web app in the SEO section of the FAQ. link is here https://docs.flutter.dev/platform-integration/web/faq",
+    "createdAt": "2024-10-01T08:29:46Z"
+  },
+  {
+    "id": 3410,
+    "sender": "tananga",
+    "content": "Without SEO Flutter Web will always be used only for admin panels. This is must have",
+    "createdAt": "2024-11-03T21:01:01Z"
+  },
+  {
+    "id": 3411,
+    "sender": "jtkeyva",
+    "content": "Google is/was a search company.  SEO is a no-brainer as it would make their bread and butter product (search) more valuable. Ironically they are not prioritizing SEO and giving up web to the competition by removing the html renderer rather than improving it. Hopefully they are cooking up a new one.\r\n\r\nOr... why not let the developers make their own HTML tree's using annotations?\r\n\r\n```\r\n// Hypothetical HTML annotations\r\n@HtmlTag('html')\r\n@HtmlTag('body')\r\nclass MyApp extends StatelessWidget {\r\n  const MyApp({super.key});\r\n\r\n  @override\r\n  Widget build(BuildContext context) {\r\n    return MaterialApp(\r\n      title: 'Simple Flutter App',\r\n      theme: ThemeData(\r\n        primarySwatch: Colors.blue,\r\n        visualDensity: VisualDensity.adaptivePlatformDensity,\r\n      ),\r\n      home: const MyHomePage(),\r\n    );\r\n  }\r\n}\r\n\r\n// Hypothetical HTML element annotations\r\nclass HtmlTag {\r\n  final String tag;\r\n  const HtmlTag(this.tag);\r\n}\r\n\r\n// Hypothetical HTML attribute annotations\r\nclass HtmlAttr {\r\n  final String name;\r\n  final String value;\r\n  const HtmlAttr(this.name, this.value);\r\n}\r\n\r\n@HtmlTag('main')\r\nclass MyHomePage extends StatefulWidget {\r\n  const MyHomePage({super.key});\r\n\r\n  @override\r\n  State<MyHomePage> createState() => _MyHomePageState();\r\n}\r\n\r\nclass _MyHomePageState extends State<MyHomePage> {\r\n  late VideoPlayerController _controller;\r\n\r\n  @override\r\n  void initState() {\r\n    super.initState();\r\n    _controller = VideoPlayerController.asset('assets/video.mp4')\r\n      ..initialize().then((_) {\r\n        setState(() {});\r\n      });\r\n  }\r\n\r\n  @override\r\n  @HtmlTag('div')\r\n  @HtmlAttr('class', 'container')\r\n  Widget build(BuildContext context) {\r\n    return Scaffold(\r\n      @HtmlTag('header')\r\n      appBar: AppBar(\r\n        @HtmlTag('h1')\r\n        title: const Text('My Simple Flutter App'),\r\n      ),\r\n      \r\n      body: SingleChildScrollView(\r\n        padding: const EdgeInsets.all(16.0),\r\n        child: Column(\r\n          crossAxisAlignment: CrossAxisAlignment.start,\r\n          children: [\r\n            @HtmlTag('h2')\r\n            const Text(\r\n              'My Favorite Foods',\r\n              style: TextStyle(\r\n                fontSize: 24,\r\n                fontWeight: FontWeight.bold,\r\n              ),\r\n            ),\r\n            \r\n            const SizedBox(height: 16),\r\n            \r\n            @HtmlTag('ul')\r\n            @HtmlAttr('class', 'food-list')\r\n            Card(\r\n              child: Padding(\r\n                padding: const EdgeInsets.all(16.0),\r\n                child: Column(\r\n                  crossAxisAlignment: CrossAxisAlignment.start,\r\n                  children: const [\r\n                    @HtmlTag('li')\r\n                    ListTile(\r\n                      leading: Icon(Icons.restaurant),\r\n                      title: Text('Pizza'),\r\n                    ),\r\n                    @HtmlTag('li')\r\n                    ListTile(\r\n                      leading: Icon(Icons.icecream),\r\n                      title: Text('Ice Cream'),\r\n                    ),\r\n                    @HtmlTag('li')\r\n                    ListTile(\r\n                      leading: Icon(Icons.lunch_dining),\r\n                      title: Text('Sushi'),\r\n                    ),\r\n                  ],\r\n                ),\r\n              ),\r\n            ),\r\n\r\n            const SizedBox(height: 24),\r\n            \r\n            @HtmlTag('section')\r\n            Column(\r\n              crossAxisAlignment: CrossAxisAlignment.start,\r\n              children: [\r\n                @HtmlTag('h2')\r\n                const Text(\r\n                  'Sample Image',\r\n                  style: TextStyle(\r\n                    fontSize: 24,\r\n                    fontWeight: FontWeight.bold,\r\n                  ),\r\n                ),\r\n                \r\n                const SizedBox(height: 16),\r\n                \r\n                @HtmlTag('img')\r\n                @HtmlAttr('src', 'assets/image.jpg')\r\n                @HtmlAttr('alt', 'Sample Image')\r\n                ClipRRect(\r\n                  borderRadius: BorderRadius.circular(8),\r\n                  child: Image.asset(\r\n                    'assets/image.jpg',\r\n                    width: double.infinity,\r\n                    height: 300,\r\n                    fit: BoxFit.cover,\r\n                  ),\r\n                ),\r\n              ],\r\n            ),\r\n\r\n            const SizedBox(height: 24),\r\n            \r\n            @HtmlTag('section')\r\n            Column(\r\n              crossAxisAlignment: CrossAxisAlignment.start,\r\n              children: [\r\n                @HtmlTag('h2')\r\n                const Text(\r\n                  'Sample Video',\r\n                  style: TextStyle(\r\n                    fontSize: 24,\r\n                    fontWeight: FontWeight.bold,\r\n                  ),\r\n                ),\r\n                \r\n                const SizedBox(height: 16),\r\n                \r\n                @HtmlTag('video')\r\n                @HtmlAttr('controls', 'true')\r\n                _controller.value.isInitialized\r\n                    ? AspectRatio(\r\n                        aspectRatio: _controller.value.aspectRatio,\r\n                        child: Stack(\r\n                          alignment: Alignment.bottomCenter,\r\n                          children: [\r\n                            VideoPlayer(_controller),\r\n                            VideoProgressIndicator(_controller, allowScrubbing: true),\r\n                            FloatingActionButton(\r\n                              onPressed: () {\r\n                                setState(() {\r\n                                  _controller.value.isPlaying\r\n                                      ? _controller.pause()\r\n                                      : _controller.play();\r\n                                });\r\n                              },\r\n                              child: Icon(\r\n                                _controller.value.isPlaying\r\n                                    ? Icons.pause\r\n                                    : Icons.play_arrow,\r\n                              ),\r\n                            ),\r\n                          ],\r\n                        ),\r\n                      )\r\n                    : const CircularProgressIndicator(),\r\n              ],\r\n            ),\r\n          ],\r\n        ),\r\n      ),\r\n    );\r\n  }\r\n}\r\n```",
+    "createdAt": "2025-01-09T05:04:24Z"
+  },
+  {
+    "id": 3412,
+    "sender": "txufiknr",
+    "content": "> Without SEO Flutter Web will always be used only for admin panels. This is must have\n\nI have used flutter web for e-learning web for a particular course school, and it is successful and actively used by teachers and students. 🚀\n- Students cannot copy text so they cannot get answers from AI bots.\n- Beautiful animations in flutter make students more engaged in learning.\n- It's multi-platform, so users can open it directly on the web, or download the application from Play Store & AppStore.\n\nThis may be OOT, but my points are:\n- Flutter web is just one of the options to build a particular website according to our needs.\n- Flutter web may or may not suit your project, and **_SEO is just one big factor_**.\n- You can always consider the pros & cons of each technology for your project.",
+    "createdAt": "2025-01-15T07:24:20Z"
+  },
+  {
+    "id": 3413,
+    "sender": "Mizan84",
+    "content": "> > Without SEO Flutter Web will always be used only for admin panels. This is must have\n> \n> I have used flutter web for e-learning web for a particular course school, and it is successful and actively used by teachers and students. 🚀\n> - Students cannot copy text so they cannot get answers from AI bots.\n> - Beautiful animations in flutter make students more engaged in learning.\n> - It's multi-platform, so users can open it directly on the web, or download the application from Play Store & AppStore.\n> \n> This may be OOT, but my points are:\n> - Flutter web is just one of the options to build a particular website according to our needs.\n> - Flutter web may or may not suit your project, and **_SEO is just one big factor_**.\n> - You can always consider the pros & cons of each technology for your project.\n\nAs demo web app created by flutter team support seo, so we can hope seo is coming in flutter web within 1 year.",
+    "createdAt": "2025-01-15T07:33:49Z"
+  },
+  {
+    "id": 3414,
+    "sender": "adrian-moisa",
+    "content": "I am currently working on a social media app in flutter. The app will have lots of articles. Thanks to impeller I see web is a lot more performant now on web, even on mobile. I've been watching the SEO topic for a long time and I see no significant change. My current plan is the following:\n\n- Create a sitemap on my BE for all the articles\n- Render flutter as html in puppeteer\n- Save static html, point the sitemap to static pages\n- In K8S configure nginx ingress to point bots to the sitemap or static pages depending on the link they visit.\n\nBefore investing significant effort in this approach, what do you think, is it worth waiting? Should I go ahead? Would Google think this is cloaking? Cheers! ",
+    "createdAt": "2025-03-14T14:57:10Z"
+  },
+  {
+    "id": 3415,
+    "sender": "iapicca",
+    "content": "> Thanks to impeller I see web is a lot more performant now on web\n\n@adrian-moisa I thought impeller does not support web, are you sure?",
+    "createdAt": "2025-03-14T16:08:34Z"
+  },
+  {
+    "id": 3416,
+    "sender": "satvikpendem",
+    "content": "They probably mean WASM-GC not Impeller, the former of which definitely increased performance on web.",
+    "createdAt": "2025-03-14T16:44:51Z"
+  },
+  {
+    "id": 3417,
+    "sender": "duongpro01",
+    "content": "here is my project developed with nextjs: https://convert.fancytext.net/ ",
+    "createdAt": "2025-07-01T14:56:58Z"
+  },
+  {
+    "id": 3418,
+    "sender": "AliceSum",
+    "content": "## Consider JSX-like as React Native\n\nFor code that builds a UI has to be readable. I understand that Dart is kind of like a simple version of Java, but it is not really a programming language for building a UI. For example, it doesn't have a closing tag.  As a result, It is very hard to build a picture in mind with this unreadable code. \r\n\r\nMoreover, Flutter was inspired by React. How can Flutter doesn't have JSX but has this kind of unreadable code? I am very scared that Flutter is going to die very soon as the early days of AnglurJs. \r\n\r\nI understand people who work in Google are smart, but we also have some people who are not really smart choose React instead of Dart, and this is one of the reasons why Dart was dead in the past.",
+    "createdAt": "2018-03-25T12:05:33Z"
+  },
+  {
+    "id": 3419,
+    "sender": "cbazza",
+    "content": "This has been asked for a long time:\r\nhttps://github.com/flutter/flutter/issues/11609\r\nFunctional prototype developed:\r\nhttps://spark-heroku-dsx.herokuapp.com/index.html\r\nThat shows the alternative and some benefits...\r\n\r\n----------------------------------------------------------\r\n\r\nThe current issue with DSX is about proper integration with Flutter tools as to provide a great developer experience with debugger, auto-complete, etc. working on .dsx files.\r\n\r\nTelling users that they can use DSX but can't use debugger or enjoy auto-complete is a non starter for me. If anybody wants to help, what I need is to figure out a way to add full preprocessing support (with source map) to Dart Tools and VS Code Dart plug in. Once the tools support that DSX or any other transpiling language (any language that is a superset of Dart but compiles everything down to Dart) would just work.\r\n\r\nIf you can and would like to help, let me know.\r\n",
+    "createdAt": "2018-03-25T12:33:07Z"
+  },
+  {
+    "id": 3420,
+    "sender": "escamoteur",
+    "content": "I cannot agree. Especially using a IDE like Dart Code you get virtual closing tags which makes readin way easier. With Dart2 where you can omit `new` it will even get better.\r\n\r\nAlso I find it discourages you to build too big Widget trees without deconstruct it into smaller easier to maintain widget classes. ",
+    "createdAt": "2018-03-26T12:12:30Z"
+  },
+  {
+    "id": 3421,
+    "sender": "AliceSum",
+    "content": "I use Android Studio. I don't even see a virtual closing tag.  Even though we have a virtual closing tag, it is more complicated than HTML that everyone hates. Dart is just a programming language. People in Google don't understand the importance of simplification. ",
+    "createdAt": "2018-03-26T12:36:00Z"
+  },
+  {
+    "id": 3422,
+    "sender": "AliceSum",
+    "content": "![close](https://user-images.githubusercontent.com/21982975/37906756-f6898d84-30b7-11e8-8a61-e728837be190.png)\r\n",
+    "createdAt": "2018-03-26T12:38:53Z"
+  },
+  {
+    "id": 3423,
+    "sender": "carl2013",
+    "content": "I don't think I would like a JSX-like syntax either but yeah, I use IntelliJ and something needs to be done with the tooling so that the UI code is easier to understand.",
+    "createdAt": "2018-03-26T14:48:15Z"
+  },
+  {
+    "id": 3424,
+    "sender": "cbazza",
+    "content": "> Also I find it discourages you to build too big Widget trees without deconstruct it into smaller easier to maintain widget classes.\r\n\r\nI don't see how this is any different than with JSX... as the tree gets larger you can break into smaller sub-trees with both.\r\n\r\n> I don't think I would like a JSX-like syntax either but yeah, I use IntelliJ and something needs to be done with the tooling so that the UI code is easier to understand.\r\n\r\nand it should be easy to read on all platforms and not only Intellij; I mean it should be easy to read on Bitbucket when reviewing code; and it should also be valid when using any editor; I mean with these 'comment annotations' what happens if someone using 'vi' types a different comment in there?\r\n",
+    "createdAt": "2018-03-26T14:59:04Z"
+  },
+  {
+    "id": 3425,
+    "sender": "zoechi",
+    "content": "This is a dup of the locked down #11609\r\n@sethladd ?",
+    "createdAt": "2018-03-26T15:17:16Z"
+  },
+  {
+    "id": 3426,
+    "sender": "sethladd",
+    "content": "Apologies, you should be seeing the \"virtual closing tags\" in IntelliJ and Android Studio.\r\n\r\ncc @devoncarew to verify which version turned that on, or if the user needs to opt-in ?\r\n\r\nWe thank you for your comments re: JSX-like syntax. We believe there is opportunity across the language, our tools, and plugins to make editing UI code easier. \r\n\r\nThis does dupe #11609 but I'd like for @devoncarew or @mit-mit to add a note about how to turn on \"virtual closing tags\", if possible.\r\n\r\nThanks!",
+    "createdAt": "2018-03-26T17:05:49Z"
+  },
+  {
+    "id": 3427,
+    "sender": "devoncarew",
+    "content": "@JonathanSum, the closing labels aren't available in Android Studio 3.0 unfortunately. You'll need at least IntelliJ 2017.3 or Android Studio 3.1. Android Studio 3.1 is currently in the release candidate stage, and we plan to release a flutter plugin with support for it tomorrow.\r\n\r\nIrrespective of the conversation around a JSX like syntax, we do want to work towards making it easier to write UI code in Dart, in both IntelliJ / Android Studio and in VS Code. That's initially the closing label work, but also the recent Flutter Outline view. That shows the structure of your build() method in an outline view, and allows you to navigate the widgets and more easily see their parent / child relationships. That's currently available in IntelliJ - we do expect to be able to bring it to VS Code as well.\r\n",
+    "createdAt": "2018-03-26T20:01:24Z"
+  },
+  {
+    "id": 3428,
+    "sender": "NathanaelA",
+    "content": "@zoechi - This might be a dup; but the other thread got heated, and locked.   So their is no way to contribute to that conversation.    I don't think you should close this thread as a dup just because you don't like people asking for a feature.   This should probably be the new thread for responses for new people coming and requesting JSX support (or similar functionality).    \r\n\r\n---\r\n\r\n@sethladd - Please do not lock this thread; I do think having community discuss pro's and con's on alternative layout methods is useful.    I would have participated in #11609 had it not been locked.\r\n\r\n---\r\n\r\nI come from a NativeScript background.   I have to say this is one area where I do feel NativeScript is considerably easier to use than Flutter.     I can get a fairly complex screens working in less than 5 minutes and easily iterate the design quickly.   Then add the code that runs the screen.\r\n\r\nIn NativeScript we actually have the following files: \r\n- `screen.js` / `screen.ts`  (.ts is transpiled into .js if you prefer typescript).    This is the main logic for the screen that you are displaying.  \r\n- `screen.css` (or `screen.android.css` and/or `screen.ios.css`) which is a much more limited version of CSS but supports things like height, width, color, background, etc.   Most the time a single css file is only needed, but occasionally if you are doing something weird you might separate your css for android and ios.     It has full support for Classes, Elements, and id's    So I can do `TextArea.Login #Password` and it actually will limit itself to just that specfic element chain.  \r\n- `screen.xml` (Again or `screen.android.xml` and/or `screen.ios.xml`) - This is the screen layout.    You CAN code the layout in JS if you want (basically like flutter); but the XML is so so much easier.   Example:\r\n```\r\n<Page onLoad=\"loadme\">\r\n    <ActionBar title=\"Blah\"><NavigationButton click=\"back\" title=\"Back\"/></ActionBar>\r\n    <StackLayout>\r\n      <Label text=\"Hi\" id=\"Hi\" style=\"color: red\"/>\r\n     <Label text=\"{{name}}\" class=\"name\"></Label>\r\n     <Button text=\"Click Me\" tap=\"clicker\"/>\r\n    </StackLayout></Page>\r\n```\r\n\r\nThe interesting thing is that ActionBar is a specific page only component (i.e. it is specific to only Page); so basically what happens is the XML parser See's page; creates a new Page Element; then creates a ActionBar component which it then runs a builderChild function on the Page component; the page component overrides the default builderChild and looks to see if the child is a ActionBar; if it is; then it internally assigns it to the proper variable; otherwise the rest is passed through parent/super which then assigns it to the \"child\" or \"children\" components automatically.    The build system is incredibly versatile in that each component can use either the parent's builderchild function or override it to do extra items like support `<Label>Hi</Label>` and assign that to the Text value automatically.      This makes layout incredibly easy to get up and running without any code.       \r\n\r\nBecause most editors have good XML editing capability it is automatically colorized and with the proper xsd definition intellij (& vscode) does automatic checking and limited context support.  \r\n\r\nNow technically everything is actually a JavaScript component; so you can do all this manually (like what Flutter does); but I find the easy of laying out a screen is trivial in NativeScript.  And you don't need the JS or CSS when you first start; then you can add the CSS (typically you don't hard code in the layout the css based properties; but you can if you want).\r\n\r\nThe nice thing about this; is it allows Web developers to jump right in with very little (if any) retraining.   In fact; because of its flexible renderer and being JS based -- NativeScript actually support Angular and Vue -- so that you can actually share close to 95% of the code base between web, and your mobile app if you use Angular or Vue.   Since it uses Native OS components like react native (not a webview like cordova); it really is a decent cross-platform system (that is imho better than React Native)  .  However, I can see where there are some strengths that Flutter has that makes it a good complimentary tool for some mobile development as their are some apps that NativeScript is worse at and some it is still the much better for and based on the responses to my issues from Ian; will stay the considerably better tool for in those areas.\r\n\r\n",
+    "createdAt": "2018-03-26T21:25:21Z"
+  },
+  {
+    "id": 3429,
+    "sender": "cbazza",
+    "content": "Better to open that locked thread and copy these comments there so we have a history of full discussions.\r\n",
+    "createdAt": "2018-03-26T21:36:19Z"
+  },
+  {
+    "id": 3430,
+    "sender": "zoechi",
+    "content": "@JonathanSum it's not about whether anyone wants or doesn't wants the feature, \r\nit's whether this is the place to have a heated discussion about it. I guess reddit or similar are better places. \r\n ",
+    "createdAt": "2018-03-27T07:33:36Z"
+  },
+  {
+    "id": 3431,
+    "sender": "NathanaelA",
+    "content": "@cbazza - I don't disagree; but you have to be very careful in the future to not insinuate things about people.  That just inflames the discussion, no matter how idiotic you believe they are being.   \r\n\r\n@zoechi - Actually I believe any discussion about a new feature should be here.   History should be maintained so that  when John Doe comes a month from now and searches about XYZ feature he can :+1:  an existing feature and/or contribute to it.    \r\n",
+    "createdAt": "2018-03-27T16:43:15Z"
+  },
+  {
+    "id": 3432,
+    "sender": "cbazza",
+    "content": "I don't think that thread is really locked for this long because of my comments. If what I said was so bad how come I can comment on everything else, like for example this thread? \r\n\r\nThe thread is locked because the Flutter team has no interest in doing this and just want people to stop talking about it.",
+    "createdAt": "2018-03-27T17:29:15Z"
+  },
+  {
+    "id": 3433,
+    "sender": "sethladd",
+    "content": "Let's please keep the discussion in this issue focused on use cases and examples for a JSX-like feature.",
+    "createdAt": "2018-03-27T17:33:00Z"
+  },
+  {
+    "id": 3434,
+    "sender": "escamoteur",
+    "content": "Actually if NativeScript is that good, why bother with Flutter at all instead of trying to make Flutter NativeScript like.\r\nI'm coming from an XML based Platform (Xamarin Forms) and thought in the beginning it might be more difficult to design in code but that's not the case. \r\nIn the contrary it makes is very easy to break down your design in separate classes which are easy to maintain. ",
+    "createdAt": "2018-03-27T18:00:56Z"
+  },
+  {
+    "id": 3435,
+    "sender": "cbazza",
+    "content": "JSX is designing in code !!!\r\n\r\n@sethladd \r\n> Let's please keep the discussion in this issue focused on use cases and examples for a JSX-like feature.\r\n\r\nOK, Let's talk about my DSX design which can be viewed here:\r\nhttps://spark-heroku-dsx.herokuapp.com/index.html\r\n\r\nIt provides a direct mapping to the current way widgets are built and yet provides a JSX like flavour that is very lightweight and familiar to React developers. Is there anything missing in this design? Can this design generate all possible widgets in the wild?\r\n",
+    "createdAt": "2018-03-27T18:04:09Z"
+  },
+  {
+    "id": 3436,
+    "sender": "mrmcq2u",
+    "content": "Rule of thumb, if you feel one exclamation mark isnt enough you should probably step away from the keyboard and take a break.",
+    "createdAt": "2018-03-27T18:36:06Z"
+  },
+  {
+    "id": 3437,
+    "sender": "SirComputer1",
+    "content": "I'm a newcomer to Flutter, having only some experience with Android and Java, and I must say I find what Flutter offers far better than what is being proposed here. I tend to find that XML is ugly and unwieldy. It's so much more beautiful to have a singular closing character, rather than a sea of <XXXXXX> that makes my code 5x longer, a hatred of mine when editing Android XML, and just virtual closing tags which the vast majority of IDEs which people use support. This is incredibly useful when designing longer structures. The neat nesting XML provides just doesn't outweigh the rest of the disadvantages, in my opinion, especially when 'child:/children:' do almost as good of a job. Dart is incredibly clean, and it is a reason I like it so much. I would be incredibly disappointed if this was to be ruined.\r\n\r\nI know that React does it like this, but last time I checked, this place says Flutter. Just because React does it doesn't mean we have to - you're not the only ones jumping ship to here! I very much agree with all the points @escamoteur made. I'm not seeing the point in adding yet another language that people need to handle when using Flutter. We're already using Dart to program most of it, we don't need a load of other things to master! Consistency and simplicity must be valued.",
+    "createdAt": "2018-03-27T18:39:26Z"
+  },
+  {
+    "id": 3438,
+    "sender": "lukaspili",
+    "content": "Some remarks from your DSX vs generated Dart snippets:\r\n\r\n1. Subjective: I don't see any great readability gains. Verbosity is similar - if not a tad longer. Dart IDE plugin provides auto closing tags, which mirrors declarative markup closing tags. If JSX is design in code, then I don't see how widgets in Dart is not.\r\n\r\n2. Multiple properties in `<vars>`\r\n\r\n```jsx\r\n@<vars>\r\nvar textStyle = {\r\n    \"textDirection\": \"TextDirection.ltr\",\r\n    \"textAlign\": \"TextAlign.center\",\r\n    \"overflow\": \"TextOverflow.ellipsis\",\r\n    \"style\": \"new TextStyle(fontWeight: FontWeight.bold)\"\r\n};\r\n</vars>@\r\n```\r\n\r\nBeing able to define global styles mixing several properties is a nice idea. \r\nHowever when I'm looking back at my modest flutter experience, I don't see where I would use these.\r\n\r\nFor `Text` it seems most of what I need to reuse is defined in `TextStyle`, rather than a mix of several properties. Maybe you can find another example than `Text` where that's not the case.\r\n\r\nLooking at `TextStyle`, I find the current immutable + copy() to be great for reusing and composing in Dart:\r\n\r\n```dart\r\nclass Style {\r\n  static const TextStyle avenirNextMedium =\r\n      const TextStyle(\r\n         fontFamily: 'Avenir Next', \r\n         fontWeight: FontWeight.w500,\r\n      );\r\n\r\n  static TextStyle title =\r\n      avenirNextMedium.copyWith(\r\n        color: ColorKit.blue, \r\n        fontSize: 45.0,\r\n      );\r\n}\r\n\r\nnew Text(\r\n  'Hello',\r\n  style: Style.title,\r\n),\r\n\r\nnew Text(\r\n  'Hello2',\r\n  style: Style.title.copyWith(\r\n    color: ColorKit.red,\r\n  ),\r\n),\r\n```\r\n\r\nFor reusable `Container` sharing a same style, I think that creating a custom stateless widget works better than an external defined `<vars>`.  Most of the time, I want also a padding, an ink, a gesture listener or a shadow. \r\n\r\nFor any of those cases, I would need to compose `Container` with another widget: `Material`, `Padding`, `Center` etc. So if I have to create a custom reusable \"container\" widget anyway, I don't see much gain to have an external `<vars>` style that would just define the properties of a single widget in my reusable widgets hierarchy. \r\n\r\nI don't see Flutter's \"everything is a widget\" work well with \"multiple properties\" styles. \r\n\r\n3. Not highlighted in your current DSX examples: How would you code an interface with dynamic widgets?  Meaning: how to show or not show some widgets depending on a condition.\r\n\r\nWhen doing design in Dart it's easy and convenient to add or not a particular widget into `children`.\r\nIt's also very convenient to dynamically wrap a widget with another. It makes the build() function fluent and easy to understand.\r\n\r\n```dart\r\n    var children = <Widget>[];\r\n    if(a) {\r\n      children.add(wa);\r\n    }\r\n    \r\n    var wb = Text();\r\n    if(b) {\r\n      wb = Padding(child: wb);\r\n    }\r\n    \r\n    children.add(wb);\r\n```\r\n ",
+    "createdAt": "2018-03-27T19:27:14Z"
+  },
+  {
+    "id": 3439,
+    "sender": "cbazza",
+    "content": "@SirComputer1 the DSX proposal is an addition, the current way doesn't change so if you don't like it, don't use it, continue as you are today.\r\n\r\nThe `<var>` thing was only done for the demo because I didn't want to parse full Dart. The final solution would not include `<var>` but would use any dart variable. Also the '@' was only done for the demo to make parsing easy. Final solution would not include it.\r\n\r\nDon't forget that anything else on the file is your normal Dart code, so you can use that for everything else.\r\n\r\n```jsx\r\n    var children = <Widget>[];\r\n    if(a) {\r\n      children.add(wa);\r\n    }\r\n    \r\n    // You can mix and match both\r\n    var wb = <Text/>;\r\n    if(b) {\r\n      wb = Padding(child: wb);\r\n    }\r\n\r\n    // or\r\n    var wb = Text();\r\n    if(b) {\r\n      wb = <Padding> {wb} </Padding>;\r\n    }\r\n    \r\n    children.add(wb);\r\n\r\n    children.add(\r\n      <Center>\r\n          {sayHello == true ?\r\n             <Text ['Hello, world!']/>\r\n          :\r\n             <Text ['Good bye']/>\r\n          }\r\n      </Center>\r\n    );\r\n\r\n```\r\n\r\nLet's stop comparing DSX with the current way, one is not competing with the other. Some people will prefer JSX and this thread is for them. What I want to know is how can I improve DSX to handle things that it won't work for.\r\n",
+    "createdAt": "2018-03-27T20:50:37Z"
+  },
+  {
+    "id": 3440,
+    "sender": "NathanaelA",
+    "content": "@escamoteur - I don't tend to use a hammer as a screw driver.  I evaluate the different technologies and use the proper one for the proper use case.     That doesn't mean their isn't things can could be changed for the better in each of the platforms.   :grinning: \r\n\r\nFor example; third party plugins integration.  NativeScript is truly king over every single other cross platform.  Nothing else even remotely comes close to NativeScript; and third party integration.   I have a client asking about using https://github.com/vipulasri/Timeline-View .  Flutter virtually impossible; NativeScript give me a couple hours and it will work just like any other NS control probably even with fully working data binding.     On the flip side flutter has some serious strengths where NS flags...   \r\n\r\nUse the proper tool for the job.   :grinning:\r\n\r\n---\r\n\r\nI do tend to like the XML based screen layout; but I do understand why people don't.   Adding the ability for XML based building does NOT mean eliminating the existing method; it is just **complementary**; choice.   For those of you who didn't bother reading, I can do the same chain of calls in NS that we do in flutter; but using xml is a lot less typings and easier to me to read.   Everybody has their preferences...\r\n\r\nI have actually thought about adding a XML based renderer to Flutter as a POC; but I haven't had the spare time.  I just wanted to contribute to the conversation and say I would like to see this move forward; but I actually **do not** expect the core team to work on it.   I think NS XML format could be done as community projects where those of us who care (i.e. probably me  :grinning:) would be willing to do the work on them.    However, my biggest concern @sethladd -- is if I spend a lot of time on a patch; will it be rejected because someone on the core team absolutely opposes this ability.   That is what I would like to nail down first before I spend any time on this...    ",
+    "createdAt": "2018-03-27T21:22:17Z"
+  },
+  {
+    "id": 3441,
+    "sender": "cbazza",
+    "content": "@NathanaelA Fantastic perspective !!!!!!! and look I used lots of exclaimation marks ;-) You literally nailed it on the head. \r\n\r\nYes, I can do DSX but I need a way to integrate it in the current Flutter build system so I need commitment from the current Flutter team before I move forward. IDE integration is virtually trivial on VS Code but not so much with Intellij (unless Google has access to Intellij JSX support).\r\n\r\n",
+    "createdAt": "2018-03-27T21:33:57Z"
+  },
+  {
+    "id": 3442,
+    "sender": "AliceSum",
+    "content": "@zoech, No! I think this is an issue. I remember developing an android app with native Java and XML. We still use XML for UI language part. I think using Dart for logic and UI is kind of odd, and this problem is kind of obvious. furthermore, I just hope Google is going to add the UI idea of React into the flutter. The UI part of React is very powerful and concise.",
+    "createdAt": "2018-03-28T06:55:43Z"
+  },
+  {
+    "id": 3443,
+    "sender": "zoechi",
+    "content": "@JonathanSum I have seen many comments about this. \r\nFor me it still looks like something people want because they are reluctant to change their habits, not because it's a benefit for the platform.",
+    "createdAt": "2018-03-28T07:10:52Z"
+  },
+  {
+    "id": 3444,
+    "sender": "yuu2lee4",
+    "content": "Some people like jsx, Some people dont. Why dont support the two ways to implement UI. You can write  jsx-like syntax,and it will finally be comeplied to flutter native syntax,why not support?",
+    "createdAt": "2018-03-28T13:36:35Z"
+  },
+  {
+    "id": 3445,
+    "sender": "zoechi",
+    "content": "@yuu2lee4 https://github.com/flutter/flutter/issues/11609#issuecomment-364811331",
+    "createdAt": "2018-03-28T13:38:37Z"
+  },
+  {
+    "id": 3446,
+    "sender": "cbazza",
+    "content": "@zoechi \r\n> For me it still looks like something people want because they are reluctant to change their habits\r\n\r\nThis is a fair observation but wouldn't it be better for Flutter to be an enabler and remove as much friction as possible for people (outside Google) to adopt Flutter? This gate-keeping behavior is not winning hearts and minds of developers.\r\n\r\n@yuu2lee4 \r\n> Some people like jsx, Some people dont. Why dont support the two ways to implement UI. You can write jsx-like syntax,and it will finally be comeplied to flutter native syntax,why not support?\r\n\r\nExcellent question. Given that I am doing all work on DSX, which is just like JSX, and @Hixie personally sent me email excited about the progress, I don't see why not support it, I don't see why not extend a hand and say 'What can I do to help you? What is blocking you to do this?' \r\n\r\n\r\n",
+    "createdAt": "2018-03-28T14:03:19Z"
+  },
+  {
+    "id": 3447,
+    "sender": "MichaelSowah",
+    "content": "honestly, am beginning to think this heading in a similar direction as the previous one... which would not help... \r\n\r\n@cbazza \r\n> @Hixie personally sent me email excited about the progress..\r\n\r\nSo why don't you continue and the others who can help should also get on board and help? If we don't want this to turn up like the other thread...I think we should be discussing what are the blocks, how do we go about it and how do we get it working and put it out there... and I also think the flutter and dart team have in some way begun some work on reducing the verbose nature of writing UI...\r\nMaybe the team might not be able to join in now but I believe if its worthy cause which I believe it is though for me am okay whichever approach...they will catch up at some point...so @cbazza lets continue with what you are doing and get it out...like what this guy did http://mutisya.com/ in the early days even though I dont know of its state...I also know @NathanaelA can help because he has contributed some really amazing stuff and tools for Nativescript...Lets get it out to give more devs more options...",
+    "createdAt": "2018-03-28T14:33:53Z"
+  },
+  {
+    "id": 3448,
+    "sender": "cbazza",
+    "content": "@MichaelSowah \r\nThe reason not to invest more time on this is like @NathanaelA said:\r\n> However, my biggest concern @sethladd -- is if I spend a lot of time on a patch; will it be rejected because someone on the core team absolutely opposes this ability. That is what I would like to nail down first before I spend any time on this...\r\n\r\nOK, here is what I have:\r\n(a) A pre-processor that takes *.dsx files in and outputs *.dart files out.\r\n\r\nHere is what I need: \r\n(1) Someone to take care of 'VS Code' integration. From my investigation it looks simple.\r\n(2) Someone to figure out how to add pre-processor capability into the Flutter build system so that debugging would work properly. I mean code stepping would be on the *.dsx files via something like sourcemap, etc. \r\n\r\nOnce the above 2 items are done we have an initial end-to-end system to get the ball rolling. Any takers? \r\n\r\nSo as you can see above, (1) & (2) require changes in the Flutter code that the Flutter team can reject so without support/commitment this feature is stuck.\r\n\r\n ",
+    "createdAt": "2018-03-28T15:18:31Z"
+  },
+  {
+    "id": 3449,
+    "sender": "MichaelSowah",
+    "content": "@cbazza great so let's get one of the flutter team members here to let us know whether they are will to take in one and two...so who can we get here to help us progress...?",
+    "createdAt": "2018-03-28T16:57:29Z"
+  },
+  {
+    "id": 3450,
+    "sender": "sethladd",
+    "content": "For (2) I think the best bet is to contact the Dart team, probably via misc@dartlang.org or their issue tracker? I believe one of the goals of Dart 2 was to create an infrastructure for more experimentation with the language and let the community create experiments like DSX. Maybe @anders-sandholm @mit-mit or @mraleph can point you in the right direction.",
+    "createdAt": "2018-03-28T17:02:09Z"
+  },
+  {
+    "id": 3451,
+    "sender": "MichaelSowah",
+    "content": "@sethladd Thanks for the quick response and could you also copy the resource persons and possibly \r\ndart team unto this thread as well\r\n@cbazza could you jump in to get this discourse going with the resource person listed.\r\nwith regards to the 'VS Code' integration I am sure onces we get 2 out of the way maybe @DanTup might be interested in helping out",
+    "createdAt": "2018-03-28T17:11:01Z"
+  },
+  {
+    "id": 3452,
+    "sender": "jonahwilliams",
+    "content": "Just some thoughts\r\n\r\n> OK, here is what I have:\r\n(a) A pre-processor that takes *.dsx files in and outputs *.dart files out.\r\n\r\nThis is probably all you need to start, that and a file watcher to rebuild on changes - see [FileSystemEntity](https://api.dartlang.org/dev/2.0.0-dev.43.0/dart-io/FileSystemEntity/watch.html).  The challenge is this `.dx` grammar is a superset of dartlang, so you would have to parse all of Dart too.  This will be tricky because unlike JavaScript, `<` and `>` are used in more places.  I think the Dart parser is already written in Dart, and somewhere inside the sdk repo, but I don't know where\r\n\r\n1. For vscode and Intellij integration, it's not the flutter build system, it's the dart [analyzer](https://pub.dartlang.org/packages/analyzer) that you want.  I think you can create a plugin for this which would consume the dx, transpile it to dart, then map the results back to the original file.  This is how the [angular analyzer plugin](https://github.com/dart-lang/angular_analyzer_plugin) works to provide things like autocomplete to html files.\r\n\r\n2. You want [build runner](https://pub.dartlang.org/packages/build_runner), this is a much more sophisticated package for doing `a`. ",
+    "createdAt": "2018-03-28T17:20:19Z"
+  },
+  {
+    "id": 3453,
+    "sender": "cbazza",
+    "content": "@MichaelSowah \r\nExcellent so I guess you are taking on (1) & (2) so I can focus on the transpiler?\r\n\r\n@jonahwilliams \r\nI know, full dart parsing will be complicated and not really necessary right now because I can always use my markers for first release (https://spark-heroku-dsx.herokuapp.com/index.html)\r\n\r\nBut one thing is for sure, we need the IDE and debugger working properly or else people will not use DSX because the trade off is too much. I mean 'use DSX and forget about symbolic debugging', not a very compelling offer. That's also the reason I want at least one IDE supported and VS Code would be as simple as pie (since it already supports JSX in their Typescript & Javascript syntaxes definition json files)\r\n",
+    "createdAt": "2018-03-28T18:10:19Z"
+  },
+  {
+    "id": 3454,
+    "sender": "sethladd",
+    "content": "re: IDE and debugger, presumably by implementing this feature inside the Dart 2 infrastructure and \"common front end\", you should be able to enable the higher levels of the stack to be aware of DSX. I recommend working with the Dart team and learning how to explore the various parts of the Common Front End and its APIs.\r\n\r\n@MichaelSowah I did CC the folks from Dart in https://github.com/flutter/flutter/issues/15922#issuecomment-376960770",
+    "createdAt": "2018-03-28T18:13:04Z"
+  },
+  {
+    "id": 3455,
+    "sender": "MichaelSowah",
+    "content": "@NathanaelA would you be interested in joining in on the  (1) & (2) since now we clearly have support from the team",
+    "createdAt": "2018-03-28T18:55:26Z"
+  }
+]

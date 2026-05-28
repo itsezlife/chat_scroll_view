@@ -1,0 +1,386 @@
+[
+  {
+    "id": 5376,
+    "sender": "MarkIngramUK",
+    "content": "Hi @cpboyd , I think I'm looking at this from the opposite direction. We already have apps built on platform specific UI frameworks, where each platform allows us to utilise our vast collection of existing C++ libraries. I understand Flutter is cross-platform, which is great, but unless I can actually use it (with my existing code), then I'm better off just sticking with non-cross-platform UI. The only sticking point comes when a future OS (e.g. Fuchsia) requires the use of Flutter & Dart, but doesn't allow for this use-case. In that case it's likely to be ignored by anyone with large existing codebases.\r\n\r\nI guess I'm not sure whether Flutter / Dart are being designed with \"web\" apps (i.e. where backends are on the web) in mind, or serious consideration is being given to the needs of professional desktop application developers. Ultimately decisions like this can affect the number of, and quality of, many applications on an app store. If I can write a high quality professional app for iOS using UIKit, utilising millions of lines of existing code, but I can't (with near-zero performance cost) if I'm developing for Fuchsia / Flutter / Dart, then that would be an OS & platform that I wouldn't develop for.\r\n\r\nThe aim of my posts is not to compare Flutter to other cross-platform or non-cross-platform libraries, it's to highlight use cases that are important to a subset of developers.\r\n\r\nThe Dart FFI is interesting, from the _very_ brief read of the [sqllite](https://github.com/dart-lang/sdk/blob/master/samples/ffi/sqlite/docs/sqlite-tutorial.md) example, it looks similar to C# with PInvoke, but unfortunately that's not suitable for C++, as either nearly every type you deal with would need wrapping, or you would have to write some fully generic type-less interface system to wrap the C++. Neither of those are particularly appealing when you compare it to the ease of the following Obj-C class:\r\n\r\n```\r\n#include <mylib/mytype.h>\r\n@implementation MyView\r\n{\r\n    MyLib::MyType *_pMyType;\r\n}\r\n@end\r\n```\r\n\r\nOr UWP with C++/WinRT:\r\n```\r\n#include <mylib/mytype.h>\r\nclass MyUserControl : public UserControl\r\n{\r\n    MyLib::MyType *_pMyType;\r\n};\r\n```\r\n\r\nThanks :-)\r\n\r\n> @Hixie @MarkIngramUK Neither of those are cross-platform, which was my point.\r\n> AppKit is Apple-only, while UWP is Windows-only.\r\n> Perhaps if Flutter had used Swift or C# instead of Dart, then we'd already have the same level of support, but that's an entirely different argument.\r\n> Xamarin might be a more appropriate comparison than UWP, but Xamarin's cross platform views weren't nearly as customizable as Flutter's and often required a lot of native code to get looking decent.\r\n> My suggestion still remains: If you want to use Flutter with C++, you should participate in the Dart team's FFI preview and help improve support for all of us 😃\r\n\r\n",
+    "createdAt": "2019-08-12T10:27:26Z"
+  },
+  {
+    "id": 5377,
+    "sender": "cpboyd",
+    "content": "> This issue is about language feature and should not be mixed with UI widget API design.\r\n\r\n@atsushieno Sure, and that's why this discussion would be more productive on the Dart FFI forum... Flutter is the framework. Dart is the language.\r\n\r\n> Neither of those are particularly appealing when you compare it to the ease of the following Obj-C class:\r\n\r\n@MarkIngramUK I'm sure that's exactly the kind of feedback that the Dart team would love to see over at https://groups.google.com/forum/#!forum/dart-ffi",
+    "createdAt": "2019-08-12T13:54:24Z"
+  },
+  {
+    "id": 5378,
+    "sender": "paulocoutinhox",
+    "content": "I have a project called ezored (https://ezored.com) that is a C++ bootstrap project for SDKs and applications in C++. We are using in mobile projects (android and iOS). Im waiting for FFI be finished to create a project that will use the default SDK into flutter. \r\n\r\nWe don't have any problems with C++ and the time of dev new features are reduced, since the SDK has the same code into all platforms, as you can see in the default implementation (poco project, openssl, sqlite, specific platform code integrated with bridge code etc).\r\n\r\nIn my option this is the best way:\r\n- iOS and Android with C++ backend (ezored)\r\n- Flutter and C++ as backend\r\n\r\nFeel free to add a start to the project :)\r\n\r\n",
+    "createdAt": "2019-08-12T17:13:35Z"
+  },
+  {
+    "id": 5379,
+    "sender": "vincentsong",
+    "content": "Kotlin Multiplatform could be a workaround, not perfect thought.  Still need to wait for https://github.com/dart-lang/sdk/issues/34452",
+    "createdAt": "2019-08-26T11:43:33Z"
+  },
+  {
+    "id": 5380,
+    "sender": "pzoltowski",
+    "content": "Unity3d seems is somehow porting flutter to their engine which is based on C# VM [1] - in that world talking between C# and C++ is decent. Maybe worth to take a look at their repo how they solved some issues. They state: \"UIWidgets is mainly derived from Flutter\". I would also have a look at react native camp and their new approach with TurboModules - their solution might have edge over flutter approach since will be  \r\n1) both synchronous and asynchronous and \r\n2) there won't be any marshalling and \r\n3) will support not only C but C++\r\n\r\nI'm cheer-leading both camps.\r\n\r\n[1] https://github.com/UnityTech/UIWidgets",
+    "createdAt": "2019-09-01T22:47:19Z"
+  },
+  {
+    "id": 5381,
+    "sender": "mit-mit",
+    "content": "As of Dart 2.5, this (`dart:ffi`) is now in preview:\r\nhttps://medium.com/dartlang/announcing-dart-2-5-super-charged-development-328822024970",
+    "createdAt": "2019-09-10T14:06:52Z"
+  },
+  {
+    "id": 5382,
+    "sender": "RohovDmytro",
+    "content": "Great news!\r\n\r\nMmm... Will it be enough to use Oboe with Flutter?..\r\n\r\nhttps://github.com/google/oboe",
+    "createdAt": "2019-09-24T20:43:47Z"
+  },
+  {
+    "id": 5383,
+    "sender": "sjindel-google",
+    "content": "@rg4real Yep! But, you'll need to write some C wrappers since the Oboe interface is in C++.\r\n\r\nYou can see https://github.com/flutter/flutter/wiki/Binding-to-native-code-via-FFI for instructions on getting started.",
+    "createdAt": "2019-09-24T20:50:43Z"
+  },
+  {
+    "id": 5384,
+    "sender": "atsushieno",
+    "content": "You can reuse my `oboe-c.so` that I wrote for my C# bindings, if that works https://github.com/atsushieno/oboe-sharp/tree/master/native",
+    "createdAt": "2019-09-24T23:28:33Z"
+  },
+  {
+    "id": 5385,
+    "sender": "RohovDmytro",
+    "content": "@sjindel-google , that are some awesome news!\r\n\r\nSo I need to create a bridge between C++ and C code by creating classes and functions. And then I can use that classes and call that function from a Dart code. I think that's right. \r\n\r\n@atsushieno , thank you. I am taking a look. I am not sure how to make bridges in my case (lack of experience). But did you manage to achieve your overall goal of precise playing with oboe? Was it that good?",
+    "createdAt": "2019-09-25T08:48:52Z"
+  },
+  {
+    "id": 5386,
+    "sender": "atsushieno",
+    "content": "@rg4real I was doing that merely for simpler API (compared to OpenSLES) than low latency audio. If I were really serious about latency then I wouldn't use Xamarin.Android. If you are talking about Oboe (or AAudio behind it), then I do use it in [Fluidsynth](https://github.com/FluidSynth/fluidsynth/pull/464) and it works well. Not sure \"how good\" AAudio is compared to OpenSLES though.",
+    "createdAt": "2019-09-25T11:41:58Z"
+  },
+  {
+    "id": 5387,
+    "sender": "bhauj",
+    "content": "Is there any guide on how memory gets managed?\r\n\r\nIf C++ code creates a memory using new/malloc and returns to dart code, how to free that memory. \r\n\r\nc++ code\r\nvoid foo(char** out) {\r\n*out = new char[25];\r\n}\r\n\r\nHow delete the memory assigned to |out| variable from dart code?\r\n",
+    "createdAt": "2019-10-23T16:07:58Z"
+  },
+  {
+    "id": 5388,
+    "sender": "dcharkes",
+    "content": "If you're on Dart 2.5, there's a `.free()` on `Pointer`. If you're on dev/master branch this method moved `package:ffi` https://github.com/dart-lang/ffi/blob/master/lib/src/allocation.dart#L70.",
+    "createdAt": "2019-10-23T16:15:19Z"
+  },
+  {
+    "id": 5389,
+    "sender": "bhauj",
+    "content": "As per comment - \"It may only be used against pointers allocated in a manner equivalent to [allocate].\" - free() can be used only if memory is allocated using allocate() method.\r\n\r\ne.g.\r\nffi.Pointer<SomeType> ptr = ffi.Pointer<SomeType>.allocate();\r\nptr.free();\r\n\r\nDoes this take care of freeing memory which is allocated in C++ side using either new or malloc from dart code?",
+    "createdAt": "2019-10-24T01:03:21Z"
+  },
+  {
+    "id": 5390,
+    "sender": "dcharkes",
+    "content": "As long as the memory was allocated through `malloc`, either via Dart or C++, it can be freed with `free`.\r\n\r\nIn Dart 2.6 we use `DynamicLibrary.lookupFunction(\"free\")` to define `free` in Dart, so it will be exactly the same `free` as in the C++ part of the program. (Unless you're linking in multiple versions of `free` into your binary.)",
+    "createdAt": "2019-10-24T07:49:59Z"
+  },
+  {
+    "id": 5391,
+    "sender": "mit-mit",
+    "content": "Closing this issue as this feature is now generally available (in beta) in all Flutter channels. We're continue to improve the issue. For any detailed issues, please file them in https://github.com/dart-lang/sdk/issues/new.",
+    "createdAt": "2020-01-06T08:13:57Z"
+  },
+  {
+    "id": 5392,
+    "sender": "KaungZawHtet",
+    "content": "making c++ classes to c compatibility is messy. plz make capability to directly call c++ classes",
+    "createdAt": "2020-01-06T08:29:35Z"
+  },
+  {
+    "id": 5393,
+    "sender": "fzyzcjy",
+    "content": "+1 Can we have C++ support?",
+    "createdAt": "2020-01-08T04:19:34Z"
+  },
+  {
+    "id": 5394,
+    "sender": "dnfield",
+    "content": "@KaungZawHtet  and @fzyzcjy  - please consider opening a new issue (probably in dart-lang rather than flutter) for this.\r\n\r\nI'm going to lock this issue - there are a lot of people subscribed to it, but it's original goal is pretty clearly resolved.\r\n",
+    "createdAt": "2020-01-08T05:06:32Z"
+  },
+  {
+    "id": 5395,
+    "sender": "mit-mit",
+    "content": "Yes, for new issues, please file them using this link: https://github.com/dart-lang/sdk/issues/new?labels=library-ffi,area-vm",
+    "createdAt": "2020-01-08T09:47:43Z"
+  },
+  {
+    "id": 5396,
+    "sender": "salemiranloye",
+    "content": "## Web dev proxy\n\nAdding a development Proxy and dedicated Web configuration File\r\n\r\n<!--\r\nThanks for filing a pull request!\r\nReviewers are typically assigned within a week of filing a request.\r\nTo learn more about code review, see our documentation on Tree Hygiene: https://github.com/flutter/flutter/blob/main/docs/contributing/Tree-hygiene.md\r\n-->\r\n\r\nFlutter's current web development configuration relies on CLI arguments and does not have a development proxy. This PR adds a development proxy to flutter and a designated web_dev_config.yaml where web configuration settings are loaded from.\r\n\r\nIssues:\r\nhttps://github.com/flutter/flutter/issues/170834\r\n\r\nDocument:\r\n[HERE](https://docs.google.com/document/d/1Ud9D3F0GxB5Ocoo5NnAy7PH5oo3qxvALxUlAXMCANJ0/edit?usp=sharing)\r\n\r\n## Pre-launch Checklist\r\n\r\n- [x] I read the [Contributor Guide] and followed the process outlined there for submitting PRs.\r\n- [x] I read the [Tree Hygiene] wiki page, which explains my responsibilities.\r\n- [x] I read and followed the [Flutter Style Guide], including [Features we expect every widget to implement].\r\n- [x] I signed the [CLA].\r\n- [x] I listed at least one issue that this PR fixes in the description above.\r\n- [x] I updated/added relevant documentation (doc comments with `///`).\r\n- [x] I added new tests to check the change I am making, or this PR is [test-exempt].\r\n- [x] I followed the [breaking change policy] and added [Data Driven Fixes] where supported.\r\n- [ ] All existing and new tests are passing.\r\n\r\nIf you need help, consider asking for advice on the #hackers-new channel on [Discord].\r\n\r\n<!-- Links -->\r\n[Contributor Guide]: https://github.com/flutter/flutter/blob/main/docs/contributing/Tree-hygiene.md#overview\r\n[Tree Hygiene]: https://github.com/flutter/flutter/blob/main/docs/contributing/Tree-hygiene.md\r\n[test-exempt]: https://github.com/flutter/flutter/blob/main/docs/contributing/Tree-hygiene.md#tests\r\n[Flutter Style Guide]: https://github.com/flutter/flutter/blob/main/docs/contributing/Style-guide-for-Flutter-repo.md\r\n[Features we expect every widget to implement]: https://github.com/flutter/flutter/blob/main/docs/contributing/Style-guide-for-Flutter-repo.md#features-we-expect-every-widget-to-implement\r\n[CLA]: https://cla.developers.google.com/\r\n[flutter/tests]: https://github.com/flutter/tests\r\n[breaking change policy]: https://github.com/flutter/flutter/blob/main/docs/contributing/Tree-hygiene.md#handling-breaking-changes\r\n[Discord]: https://github.com/flutter/flutter/blob/main/docs/contributing/Chat.md\r\n[Data Driven Fixes]: https://github.com/flutter/flutter/blob/main/docs/contributing/Data-driven-Fixes.md\r\n\r\nCo-authored-by: Sydney Bao <s.bao2115@gmail.com>\r\nCo-authored by: Salem Iranloye <salemiranloye@gmail.com>",
+    "createdAt": "2025-07-15T18:13:18Z"
+  },
+  {
+    "id": 5397,
+    "sender": "ditman",
+    "content": "I'm taking a look at this, but also cc'd @bkonyi and @mdebbar as head honchos of tools and web, respectively!",
+    "createdAt": "2025-07-28T19:26:28Z"
+  },
+  {
+    "id": 5398,
+    "sender": "ditman",
+    "content": "The latest pushes introduced some analyzer issues, PTAL @salemiranloye!",
+    "createdAt": "2025-08-06T23:54:17Z"
+  },
+  {
+    "id": 5399,
+    "sender": "woprandi",
+    "content": "I'm very intestered so I'd like to give it a try but the basic example throw an error :\r\n```\r\nserver:\r\n  proxy: \r\n    - target: \"https://localhost:3000\"\r\n      source: \"/api/\"\r\n```\r\n\r\n`[ProxyRule] Invalid proxy rule in YAML: {target: https://localhost:3000, source: /api/}`\r\n\r\nThe linked DOC seems outdated",
+    "createdAt": "2025-08-11T10:27:51Z"
+  },
+  {
+    "id": 5400,
+    "sender": "mdebbar",
+    "content": "@woprandi I'm assuming you are referring to the Google Doc, which is supposed to be a design doc and not final documentation.\r\n\r\nBefore this goes into a stable flutter release, we'll write official documentation for it.\r\n\r\nFor now, you can change `source` to `prefix`.\r\n\r\nThis also tells me we can improve on the error message to point users like yourself in the right direction 🙂",
+    "createdAt": "2025-08-11T14:02:32Z"
+  },
+  {
+    "id": 5401,
+    "sender": "woprandi",
+    "content": "Can we report issue about this feature ?",
+    "createdAt": "2025-11-06T16:33:09Z"
+  },
+  {
+    "id": 5402,
+    "sender": "kevmoo",
+    "content": "@woprandi – please! In a new issue, though.",
+    "createdAt": "2025-11-06T18:39:40Z"
+  },
+  {
+    "id": 5403,
+    "sender": "GreatTux",
+    "content": "Issue raised against this change here: https://github.com/flutter/flutter/issues/179014",
+    "createdAt": "2025-11-24T14:53:27Z"
+  },
+  {
+    "id": 5404,
+    "sender": "clocksmith",
+    "content": "## [Material] Create a Navigation Rail component and theme\n\n## Description\r\n\r\nThis PR introduces a new component in the Material library: Navigation Rail.\r\nDesign spec: https://material.io/components/navigation-rail/\r\n\r\nlabelType=none\r\n![none 2020-03-11 13_41_23](https://user-images.githubusercontent.com/591699/76446912-24b44d00-639e-11ea-83c5-ebdd404e0d35.gif)\r\n\r\nlabelType=all\r\n![all 2020-03-11 13_41_39](https://user-images.githubusercontent.com/591699/76446922-2b42c480-639e-11ea-90f9-cc004c906850.gif)\r\n\r\nlabelType=selected\r\n![selected 2020-03-11 13_41_56](https://user-images.githubusercontent.com/591699/76446931-2da51e80-639e-11ea-8945-f21a6fc27f87.gif)\r\n\r\n\r\nLarge text scale labelType=selected and labelType=all\r\n![rail_big_selected_all 2020-02-28 08_44_57](https://user-images.githubusercontent.com/591699/75567761-e49cb400-5a06-11ea-9abb-9c4a43f8c64d.gif)\r\n\r\nCustom extended\r\n![rail_extended 2020-02-28 09_01_30](https://user-images.githubusercontent.com/591699/75568918-039c4580-5a09-11ea-8f71-7c6c959529f0.gif)\r\n\r\n\r\n## Related Issues\r\n\r\ncloses #49453\r\n\r\n## Tests\r\n\r\nI added the following tests:\r\n- 34 tests in navigation_rail_test.dart\r\n- 6 tests in navigation_rail_theme_test.dart\r\n\r\nTODO\r\n\r\n## Checklist\r\n\r\nBefore you create this PR confirm that it meets all requirements listed below by checking the relevant checkboxes (`[x]`). This will ensure a smooth and quick review process.\r\n\r\n- [x] I read the [Contributor Guide] and followed the process outlined there for submitting PRs.\r\n- [x] I signed the [CLA].\r\n- [x] I read and followed the [Flutter Style Guide], including [Features we expect every widget to implement].\r\n- [x] I read the [Tree Hygiene] wiki page, which explains my responsibilities.\r\n- [x] I updated/added relevant documentation (doc comments with `///`).\r\n- [x] All existing and new tests are passing.\r\n- [x] The analyzer (`flutter analyze --flutter-repo`) does not report any problems on my PR.\r\n- [x] I am willing to follow-up on review comments in a timely manner.\r\n\r\n## Breaking Change\r\n\r\nDid any tests fail when you ran them? Please read [Handling breaking changes].\r\n\r\n- [x] No, no existing tests failed, so this is *not* a breaking change.\r\n- [ ] Yes, this is a breaking change. *If not, delete the remainder of this section.*\r\n   - [ ] I wrote a design doc: https://flutter.dev/go/template *Replace this with a link to your design doc's short link*\r\n   - [ ] I got input from the developer relations team, specifically from: *Replace with the names of who gave advice*\r\n   - [ ] I wrote a migration guide: *Replace with a link to your migration guide*\r\n\r\n<!-- Links -->\r\n[issue database]: https://github.com/flutter/flutter/issues\r\n[Contributor Guide]: https://github.com/flutter/flutter/wiki/Tree-hygiene#overview\r\n[Test Coverage]: https://github.com/flutter/flutter/wiki/Test-coverage-for-package%3Aflutter\r\n[Flutter Style Guide]: https://github.com/flutter/flutter/wiki/Style-guide-for-Flutter-repo\r\n[Features we expect every widget to implement]: https://github.com/flutter/flutter/wiki/Style-guide-for-Flutter-repo#features-we-expect-every-widget-to-implement\r\n[CLA]: https://cla.developers.google.com/\r\n[Tree Hygiene]: https://github.com/flutter/flutter/wiki/Tree-hygiene\r\n[Handling breaking changes]: https://github.com/flutter/flutter/wiki/Tree-hygiene#handling-breaking-changes\r",
+    "createdAt": "2020-01-27T20:11:56Z"
+  },
+  {
+    "id": 5405,
+    "sender": "rodydavis",
+    "content": "I created a temporary package to achieve this: \r\n\r\nhttps://github.com/rodydavis/navigation_rail\r\n\r\nhttps://pub.dev/packages/navigation_rail/",
+    "createdAt": "2020-01-28T04:55:03Z"
+  },
+  {
+    "id": 5406,
+    "sender": "rodydavis",
+    "content": "Looks great 😎🚀",
+    "createdAt": "2020-02-29T03:31:28Z"
+  },
+  {
+    "id": 5407,
+    "sender": "preconception",
+    "content": "This is great! Thank you for making this!!\r\n\r\nShould this alternate version become a different component?\r\n\r\n![image](https://user-images.githubusercontent.com/49764795/75611068-e67c7b00-5acb-11ea-9a4f-28d4d5c49dcc.png)\r\n\r\nhttps://material.io/components/navigation-rail/#behavior => Backdrop section\r\n",
+    "createdAt": "2020-02-29T16:17:47Z"
+  },
+  {
+    "id": 5408,
+    "sender": "clocksmith",
+    "content": "@preconception it should be possible to accomplish the rail + backdrop with this component",
+    "createdAt": "2020-03-02T18:07:46Z"
+  },
+  {
+    "id": 5409,
+    "sender": "kunit1",
+    "content": "@clocksmith gentle ping.\r\nIs this change planned to be merged soon? This would be very useful for an application my team is working on.",
+    "createdAt": "2020-03-25T23:11:37Z"
+  },
+  {
+    "id": 5410,
+    "sender": "clocksmith",
+    "content": "> @clocksmith gentle ping.\r\n> Is this change planned to be merged soon? This would be very useful for an application my team is working on.\r\n\r\nI plan to merge this when the tree is green. It is nice to hear it will be useful for you and your team!",
+    "createdAt": "2020-03-26T18:30:08Z"
+  },
+  {
+    "id": 5411,
+    "sender": "rodydavis",
+    "content": "Thanks for this 😎🚀💪🏻",
+    "createdAt": "2020-03-26T21:39:22Z"
+  },
+  {
+    "id": 5412,
+    "sender": "preconception",
+    "content": "How do we use this? 😂\r\n\r\nNVM found the exact name",
+    "createdAt": "2020-03-27T00:48:03Z"
+  },
+  {
+    "id": 5413,
+    "sender": "Azzeccagarbugli",
+    "content": "How could I remove the `ripple effect` on the selected item when I click?\r\n\r\nI tried to wrap the `NavigationRail` into the `Theme` widget in this way, but it didn't work and I still can see the ripple:\r\n\r\n``` dart\r\nTheme(\r\n  data: ThemeData(\r\n    splashColor: Colors.transparent,\r\n    highlightColor: Colors.transparent,\r\n  ),\r\n  child: NavigationRail(),\r\n);\r\n```\r\n\r\nThanks in advance!",
+    "createdAt": "2020-06-01T22:57:53Z"
+  },
+  {
+    "id": 5414,
+    "sender": "dreveman",
+    "content": "## Pointer event resampler (#41118)\n\nPointer event resampler (#41118)\r\n\r\nThis introduces the PointerEventResampler class that contains\r\nthe core logic needed to resample pointer events. This can be used\r\nto get smoother event processing at the cos of some added latency.\r\nDevices with low frequency sensors or when the frequency is not a\r\nmultiple of the display frequency (e.g., 120Hz input and 90Hz\r\ndisplay) benefit from this.\r\n\r\nThe caller is responsible for deciding what sampling offset to use\r\nand what frequency to sample at. If touch events arrive at 65 Hz,\r\nthen it's typically good to be using a sampling offset that is\r\ncurrent time - 22 ms for smooth touch event delivery.\r\n\r\nThis change is also using the PointerEventResampler class to\r\nadd resampling support to GestureBinding. Resampling is disabled\r\nby default.\r\n\r\nThis can be used to fix: #41118",
+    "createdAt": "2020-06-29T21:47:28Z"
+  },
+  {
+    "id": 5415,
+    "sender": "dreveman",
+    "content": "PTAL",
+    "createdAt": "2020-07-01T13:36:50Z"
+  },
+  {
+    "id": 5416,
+    "sender": "goderbauer",
+    "content": "nit: Can you please add a short description to the PR describing what this does and what it is for? Also, are there any issues associated with this? If so, please link them from the PR description. ",
+    "createdAt": "2020-07-01T19:01:10Z"
+  },
+  {
+    "id": 5417,
+    "sender": "dreveman",
+    "content": "> nit: Can you please add a short description to the PR describing what this does and what it is for? Also, are there any issues associated with this? If so, please link them from the PR description.\r\n\r\nDone. Sorry for the lack of explanation earlier. We're planning to have this land together with a potential blog post that explains it in more detail but please let me know what more documentation would be useful in code comments and PR description as reading the post should not be necessary to understand this.",
+    "createdAt": "2020-07-01T23:57:39Z"
+  },
+  {
+    "id": 5418,
+    "sender": "CareF",
+    "content": "I don't mean any review comment or suggestion for modification, but I want to point out the thing I wrote in https://github.com/flutter/flutter/pull/60796#issuecomment-656472296 . \r\nThis resampling happens in the `PointerData` level, while our unit test framework `flutter_test` injects the driving input in the `PointerEvent` level. So if this is integrated into the framework in the future in someway (like become a on/off flag in the framework), rather than the current use case as replacing the binding in the app, the instance of `PointerDataResampler` in the framework wouldn't be able to be tested using `WidgetTester` for integration test because anything from `PointerDataResampler` would look like device input rather than test input and will be ignored. ",
+    "createdAt": "2020-07-10T12:30:57Z"
+  },
+  {
+    "id": 5419,
+    "sender": "goderbauer",
+    "content": "(PR triage) @dreveman @liyuqian Are there still plans for this PR? It has been in-active for some weeks now...",
+    "createdAt": "2020-07-22T21:37:17Z"
+  },
+  {
+    "id": 5420,
+    "sender": "goderbauer",
+    "content": "(PR triage) @dreveman @liyuqian Are there still plans for this PR? It has been in-active for some weeks now...",
+    "createdAt": "2020-08-05T21:47:28Z"
+  },
+  {
+    "id": 5421,
+    "sender": "liyuqian",
+    "content": "@dreveman told us this Monday that he's working on an updated resampler for `PointerEvent` instead of `PointerData`. The new work should be available soon.",
+    "createdAt": "2020-08-05T22:19:45Z"
+  },
+  {
+    "id": 5422,
+    "sender": "dreveman",
+    "content": "PTAL and let me know if I missed any feedback. I'm hoping to have this approved and landed today unless some significant changes are requested. Thanks!",
+    "createdAt": "2020-08-18T17:56:44Z"
+  },
+  {
+    "id": 5423,
+    "sender": "CareF",
+    "content": "I tried this flag on https://github.com/flutter/flutter/tree/master/dev/benchmarks/complex_layout \r\nwith changing the `main()` in https://github.com/flutter/flutter/blob/master/dev/benchmarks/complex_layout/lib/main.dart to \r\n```\r\nimport 'package:flutter/gestures.dart';\r\n\r\nvoid main() {\r\n  runApp(ComplexLayoutApp());\r\n  GestureBinding.instance.resamplingEnabled = true;\r\n}\r\n```\r\nIt failed and this is what I got: \r\n\r\n```\r\nE/flutter (15136): [ERROR:flutter/lib/ui/ui_dart_state.cc(171)] Unhandled Exception: 'package:flutter/src/gestures/binding.dart': Failed assertion: line 56 pos 16: 'event.timeStamp <= (scheduler?.currentSystemFrameTimeStamp ?? Duration.zero)': is not true.\r\nE/flutter (15136): #0      _AssertionError._doThrowNew (dart:core-patch/errors_patch.dart:46:39)\r\nE/flutter (15136): #1      _AssertionError._throwNew (dart:core-patch/errors_patch.dart:36:5)\r\nE/flutter (15136): #2      _Resampler.addOrDispatchAll (package:flutter/src/gestures/binding.dart:56:16)\r\nE/flutter (15136): #3      GestureBinding._flushPointerEventQueue (package:flutter/src/gestures/binding.dart:207:18)\r\nE/flutter (15136): #4      GestureBinding._handlePointerDataPacket (package:flutter/src/gestures/binding.dart:190:7)\r\nE/flutter (15136): #5      _rootRunUnary (dart:async/zone.dart:1206:13)\r\nE/flutter (15136): #6      _CustomZone.runUnary (dart:async/zone.dart:1100:19)\r\nE/flutter (15136): #7      _CustomZone.runUnaryGuarded (dart:async/zone.dart:1005:7)\r\nE/flutter (15136): #8      _invoke1 (dart:ui/hooks.dart:265:10)\r\nE/flutter (15136): #9      _dispatchPointerDataPacket (dart:ui/hooks.dart:174:5)\r\nE/flutter (15136): \r\nI/chatty  (15136): uid=10643(com.example.complex_layout) 1.ui identical 84 lines\r\nE/flutter (15136): [ERROR:flutter/lib/ui/ui_dart_state.cc(171)] Unhandled Exception: 'package:flutter/src/gestures/binding.dart': Failed assertion: line 56 pos 16: 'event.timeStamp <= (scheduler?.currentSystemFrameTimeStamp ?? Duration.zero)': is not true.\r\nE/flutter (15136): #0      _AssertionError._doThrowNew (dart:core-patch/errors_patch.dart:46:39)\r\nE/flutter (15136): #1      _AssertionError._throwNew (dart:core-patch/errors_patch.dart:36:5)\r\nE/flutter (15136): #2      _Resampler.addOrDispatchAll (package:flutter/src/gestures/binding.dart:56:16)\r\nE/flutter (15136): #3      GestureBinding._flushPointerEventQueue (package:flutter/src/gestures/binding.dart:207:18)\r\nE/flutter (15136): #4      GestureBinding._handlePointerDataPacket (package:flutter/src/gestures/binding.dart:190:7)\r\nE/flutter (15136): #5      _rootRunUnary (dart:async/zone.dart:1206:13)\r\nE/flutter (15136): #6      _CustomZone.runUnary (dart:async/zone.dart:1100:19)\r\nE/flutter (15136): #7      _CustomZone.runUnaryGuarded (dart:async/zone.dart:1005:7)\r\nE/flutter (15136): #8      _invoke1 (dart:ui/hooks.dart:265:10)\r\nE/flutter (15136): #9      _dispatchPointerDataPacket (dart:ui/hooks.dart:174:5)\r\nE/flutter (15136): \r\n```\r\n\r\nDid I misunderstood how it should be used? ",
+    "createdAt": "2020-08-21T16:17:59Z"
+  },
+  {
+    "id": 5424,
+    "sender": "dreveman",
+    "content": "> I tried this flag on https://github.com/flutter/flutter/tree/master/dev/benchmarks/complex_layout\r\n> with changing the `main()` in https://github.com/flutter/flutter/blob/master/dev/benchmarks/complex_layout/lib/main.dart to\r\n> \r\n> ```\r\n> import 'package:flutter/gestures.dart';\r\n> \r\n> void main() {\r\n>   runApp(ComplexLayoutApp());\r\n>   GestureBinding.instance.resamplingEnabled = true;\r\n> }\r\n> ```\r\n> \r\n> It failed and this is what I got:\r\n> \r\n> ```\r\n> E/flutter (15136): [ERROR:flutter/lib/ui/ui_dart_state.cc(171)] Unhandled Exception: 'package:flutter/src/gestures/binding.dart': Failed assertion: line 56 pos 16: 'event.timeStamp <= (scheduler?.currentSystemFrameTimeStamp ?? Duration.zero)': is not true.\r\n> E/flutter (15136): #0      _AssertionError._doThrowNew (dart:core-patch/errors_patch.dart:46:39)\r\n> E/flutter (15136): #1      _AssertionError._throwNew (dart:core-patch/errors_patch.dart:36:5)\r\n> E/flutter (15136): #2      _Resampler.addOrDispatchAll (package:flutter/src/gestures/binding.dart:56:16)\r\n> E/flutter (15136): #3      GestureBinding._flushPointerEventQueue (package:flutter/src/gestures/binding.dart:207:18)\r\n> E/flutter (15136): #4      GestureBinding._handlePointerDataPacket (package:flutter/src/gestures/binding.dart:190:7)\r\n> E/flutter (15136): #5      _rootRunUnary (dart:async/zone.dart:1206:13)\r\n> E/flutter (15136): #6      _CustomZone.runUnary (dart:async/zone.dart:1100:19)\r\n> E/flutter (15136): #7      _CustomZone.runUnaryGuarded (dart:async/zone.dart:1005:7)\r\n> E/flutter (15136): #8      _invoke1 (dart:ui/hooks.dart:265:10)\r\n> E/flutter (15136): #9      _dispatchPointerDataPacket (dart:ui/hooks.dart:174:5)\r\n> E/flutter (15136): \r\n> I/chatty  (15136): uid=10643(com.example.complex_layout) 1.ui identical 84 lines\r\n> E/flutter (15136): [ERROR:flutter/lib/ui/ui_dart_state.cc(171)] Unhandled Exception: 'package:flutter/src/gestures/binding.dart': Failed assertion: line 56 pos 16: 'event.timeStamp <= (scheduler?.currentSystemFrameTimeStamp ?? Duration.zero)': is not true.\r\n> E/flutter (15136): #0      _AssertionError._doThrowNew (dart:core-patch/errors_patch.dart:46:39)\r\n> E/flutter (15136): #1      _AssertionError._throwNew (dart:core-patch/errors_patch.dart:36:5)\r\n> E/flutter (15136): #2      _Resampler.addOrDispatchAll (package:flutter/src/gestures/binding.dart:56:16)\r\n> E/flutter (15136): #3      GestureBinding._flushPointerEventQueue (package:flutter/src/gestures/binding.dart:207:18)\r\n> E/flutter (15136): #4      GestureBinding._handlePointerDataPacket (package:flutter/src/gestures/binding.dart:190:7)\r\n> E/flutter (15136): #5      _rootRunUnary (dart:async/zone.dart:1206:13)\r\n> E/flutter (15136): #6      _CustomZone.runUnary (dart:async/zone.dart:1100:19)\r\n> E/flutter (15136): #7      _CustomZone.runUnaryGuarded (dart:async/zone.dart:1005:7)\r\n> E/flutter (15136): #8      _invoke1 (dart:ui/hooks.dart:265:10)\r\n> E/flutter (15136): #9      _dispatchPointerDataPacket (dart:ui/hooks.dart:174:5)\r\n> E/flutter (15136): \r\n> ```\r\n> \r\n> Did I misunderstood how it should be used?\r\n\r\nWhat platform is this? Looks like either currentSystemFrameTimeStamp is not set currently or event timestamps are not set correctly.",
+    "createdAt": "2020-08-21T16:54:36Z"
+  },
+  {
+    "id": 5425,
+    "sender": "CareF",
+    "content": "> What platform is this? Looks like either currentSystemFrameTimeStamp is not set currently or event timestamps are not set correctly.\r\n\r\nI tested it on a Pixel 4, with `flutter run` (debug mode). If I do similar thing on a Fuchsia device should it work?",
+    "createdAt": "2020-08-21T16:57:22Z"
+  },
+  {
+    "id": 5426,
+    "sender": "CareF",
+    "content": "FYI, if I add \r\n```\r\n        print(event.timeStamp);\r\n        print(scheduler?.currentSystemFrameTimeStamp);\r\n```\r\nbefore that `assert`, I get: \r\n```\r\nI/flutter (15686): 413:20:24.378000\r\nI/flutter (15686): 413:20:23.399630\r\n```\r\nwhich looks kind of reasonable numbers but for the time difference. If I wait longer time to touch the screen after the app starts, I get larger time difference. It seems that `currentSystemFrameTimeStamp` is not for the coming frame but the last frame. ",
+    "createdAt": "2020-08-21T17:02:30Z"
+  },
+  {
+    "id": 5427,
+    "sender": "CareF",
+    "content": "If I also add `print(scheduler?.currentFrameTimeStamp);`, I get\r\n```\r\n[ERROR:flutter/lib/ui/ui_dart_state.cc(171)] Unhandled Exception: 'package:flutter/src/scheduler/binding.dart': Failed assertion: line 932 pos 12: '_currentFrameTimeStamp != null': is not true.\r\n```\r\nI guess the timestamp is not yet initialized to the value we expect. \r\n\r\nAccording to https://api.flutter.dev/flutter/scheduler/SchedulerBinding/currentFrameTimeStamp.html I believe that's because we are not using the timestamp within a frame scheduling process. And `currentSystemFrameTimeStamp` is NOT reset to `null` which, if that value is going to be documented something other than \"this is a more or less arbitrary value\", means there's a bug for this. \r\n\r\nComment out this `assert` will avoid the error message but also blocked all scroll gesture. Tap still works. ",
+    "createdAt": "2020-08-21T17:18:15Z"
+  },
+  {
+    "id": 5428,
+    "sender": "dreveman",
+    "content": "> currentSystemFrameTimeStamp\r\n\r\nThis resampling logic depends on currentSystemFrameTimeStamp being a valid time stamp for the expected presentation of the next frame. Hence, always in the future. That's what it is on Fuchsia. We can adjust this logic to expect something else on a different platform but ideally we'd instead make currentSystemFrameTimeStamp the same across all platforms.",
+    "createdAt": "2020-08-21T18:09:47Z"
+  },
+  {
+    "id": 5429,
+    "sender": "dreveman",
+    "content": "> I tried this flag on https://github.com/flutter/flutter/tree/master/dev/benchmarks/complex_layout\r\n> with changing the `main()` in https://github.com/flutter/flutter/blob/master/dev/benchmarks/complex_layout/lib/main.dart to\r\n> \r\n> ```\r\n> import 'package:flutter/gestures.dart';\r\n> \r\n> void main() {\r\n>   runApp(ComplexLayoutApp());\r\n>   GestureBinding.instance.resamplingEnabled = true;\r\n> }\r\n> ```\r\n> \r\n> It failed and this is what I got:\r\n> \r\n> ```\r\n> E/flutter (15136): [ERROR:flutter/lib/ui/ui_dart_state.cc(171)] Unhandled Exception: 'package:flutter/src/gestures/binding.dart': Failed assertion: line 56 pos 16: 'event.timeStamp <= (scheduler?.currentSystemFrameTimeStamp ?? Duration.zero)': is not true.\r\n> E/flutter (15136): #0      _AssertionError._doThrowNew (dart:core-patch/errors_patch.dart:46:39)\r\n> E/flutter (15136): #1      _AssertionError._throwNew (dart:core-patch/errors_patch.dart:36:5)\r\n> E/flutter (15136): #2      _Resampler.addOrDispatchAll (package:flutter/src/gestures/binding.dart:56:16)\r\n> E/flutter (15136): #3      GestureBinding._flushPointerEventQueue (package:flutter/src/gestures/binding.dart:207:18)\r\n> E/flutter (15136): #4      GestureBinding._handlePointerDataPacket (package:flutter/src/gestures/binding.dart:190:7)\r\n> E/flutter (15136): #5      _rootRunUnary (dart:async/zone.dart:1206:13)\r\n> E/flutter (15136): #6      _CustomZone.runUnary (dart:async/zone.dart:1100:19)\r\n> E/flutter (15136): #7      _CustomZone.runUnaryGuarded (dart:async/zone.dart:1005:7)\r\n> E/flutter (15136): #8      _invoke1 (dart:ui/hooks.dart:265:10)\r\n> E/flutter (15136): #9      _dispatchPointerDataPacket (dart:ui/hooks.dart:174:5)\r\n> E/flutter (15136): \r\n> I/chatty  (15136): uid=10643(com.example.complex_layout) 1.ui identical 84 lines\r\n> E/flutter (15136): [ERROR:flutter/lib/ui/ui_dart_state.cc(171)] Unhandled Exception: 'package:flutter/src/gestures/binding.dart': Failed assertion: line 56 pos 16: 'event.timeStamp <= (scheduler?.currentSystemFrameTimeStamp ?? Duration.zero)': is not true.\r\n> E/flutter (15136): #0      _AssertionError._doThrowNew (dart:core-patch/errors_patch.dart:46:39)\r\n> E/flutter (15136): #1      _AssertionError._throwNew (dart:core-patch/errors_patch.dart:36:5)\r\n> E/flutter (15136): #2      _Resampler.addOrDispatchAll (package:flutter/src/gestures/binding.dart:56:16)\r\n> E/flutter (15136): #3      GestureBinding._flushPointerEventQueue (package:flutter/src/gestures/binding.dart:207:18)\r\n> E/flutter (15136): #4      GestureBinding._handlePointerDataPacket (package:flutter/src/gestures/binding.dart:190:7)\r\n> E/flutter (15136): #5      _rootRunUnary (dart:async/zone.dart:1206:13)\r\n> E/flutter (15136): #6      _CustomZone.runUnary (dart:async/zone.dart:1100:19)\r\n> E/flutter (15136): #7      _CustomZone.runUnaryGuarded (dart:async/zone.dart:1005:7)\r\n> E/flutter (15136): #8      _invoke1 (dart:ui/hooks.dart:265:10)\r\n> E/flutter (15136): #9      _dispatchPointerDataPacket (dart:ui/hooks.dart:174:5)\r\n> E/flutter (15136): \r\n> ```\r\n> \r\n> Did I misunderstood how it should be used?\r\n\r\nThis should work fine now. I found a bug in the copyWith logic that caused down/move/up events to not be produced correctly. Added some tests for this.\r\n\r\nLatest version of this change also contains a debug flag that is used to determine if resampling works correctly on a device. I've verified that it works correctly on a Pixel 3 device.",
+    "createdAt": "2020-08-22T21:08:06Z"
+  },
+  {
+    "id": 5430,
+    "sender": "FlutterIssues",
+    "content": "## Inline Google Maps support\n\n<a href=\"https://github.com/Hixie\"><img src=\"https://avatars.githubusercontent.com/u/551196?v=3\" align=\"left\" width=\"96\" height=\"96\" hspace=\"10\"></img></a> **Issue by [Hixie](https://github.com/Hixie)**\n_Thursday Jul 16, 2015 at 22:26 GMT_\n_Originally opened as https://github.com/flutter/engine/issues/30_\n\n---\n\n_From @collinjackson on July 8, 2015 20:23_\n\nWe are going to want to have support for maps in Sky.\n\nThere are a few ways we might go about doing this:\n1. Use native maps widget for each platform to render the map\n2. Use maps widget for each platform to render to a texture and draw the map ourselves\n3. Develop a custom maps SDK for Sky\n\nThe second option would be ideal but may not be possible. We should investigate which approach is best and build a demo app.\n\n_Copied from original issue: domokit/mojo#310_",
+    "createdAt": "2015-11-09T20:30:33Z"
+  },
+  {
+    "id": 5431,
+    "sender": "FlutterIssues",
+    "content": "<a href=\"https://github.com/eseidelGoogle\"><img src=\"https://avatars.githubusercontent.com/u/11857803?v=3\" align=\"left\" width=\"48\" height=\"48\" hspace=\"10\"></img></a> **Comment by [eseidelGoogle](https://github.com/eseidelGoogle)**\n_Wednesday Aug 05, 2015 at 19:35 GMT_\n\n---\n\nWe might need this for the Fitness app, depending.\n",
+    "createdAt": "2015-11-09T20:30:33Z"
+  },
+  {
+    "id": 5432,
+    "sender": "Hixie",
+    "content": "This is presumably going to be a \"third-party\" component, right?\n",
+    "createdAt": "2015-12-16T18:34:46Z"
+  },
+  {
+    "id": 5433,
+    "sender": "collinjackson",
+    "content": "We'll almost certainly want to use some non-Dart SDK to provide Maps support, so yes.\n",
+    "createdAt": "2015-12-16T18:53:36Z"
+  },
+  {
+    "id": 5434,
+    "sender": "eseidelGoogle",
+    "content": "We expect developers will use Maps by using a \"native\" iOS or Android maps view, per:\nhttps://docs.google.com/document/d/1DOfwpL6VojCAG_zjjcA_z5ekF7rTIohV8dWn2o7_IME/edit\n",
+    "createdAt": "2016-05-13T16:30:24Z"
+  },
+  {
+    "id": 5435,
+    "sender": "a14n",
+    "content": "I don't see in this doc descriptions of how to integrate native widget (like Maps) into your flutter apps. Have I missed something ?\n",
+    "createdAt": "2016-05-13T19:53:43Z"
+  },
+  {
+    "id": 5436,
+    "sender": "eseidelGoogle",
+    "content": "Sorry, I may have been a bit overzealous in my linking.  Said doc is pre-work for Flutter to participate as a normal View inside Obj-C/Java applications.  The path to add other Obj-C/Java code to them is not yet documented, no.\n",
+    "createdAt": "2016-05-13T19:59:00Z"
+  },
+  {
+    "id": 5437,
+    "sender": "tjerkw",
+    "content": "As a developer i really want to use the native Google Maps component to render inside my flutter app. I just created a flutter app and this is kind of a blocker. The only solution is to build it in Java/Android and open it when clicking a flutter button.\n\nIdeally I would like a 'NativeView' in flutter, which renders a native widget inside flutter.\nThis is probably quite difficult because you have merge rendering / events into the flutter rendering engine.\n\nIt also goes against the flutter 'one widget for both platforms'. However, sometimes complex widgets (like a map) are really something you want to reuse.\n",
+    "createdAt": "2016-09-07T08:58:31Z"
+  },
+  {
+    "id": 5438,
+    "sender": "Goutte",
+    "content": "Hello ! I would love to know the roadmap of this feature, or even if one even exists. I have two mobile apps in the works and both rely heavily on a map. I love Dart, and I'm looking for an excuse to try Flutter.\r\n\r\nThe solution with `FlutterView` looks overly complicated, from the point of view of a rookie who has never written a single line of Flutter. The other solutions do not suit my need, I need a fully interactive map.\r\n\r\nI don't know how hairy that is to implement in Flutter, nor if you even plan to implement it someday. Any info would be appreciated. I guess the resolution of this issue will be my signal to start development with Flutter.",
+    "createdAt": "2016-12-02T14:23:44Z"
+  },
+  {
+    "id": 5439,
+    "sender": "debunge",
+    "content": "Is there any chance maps will be implemented in 2017? I love Dart and would like very much to use Flutter, but I really need non-static maps, like showing points of interest nearby and showing the description upon the click on the point. ",
+    "createdAt": "2017-01-08T12:47:00Z"
+  }
+]

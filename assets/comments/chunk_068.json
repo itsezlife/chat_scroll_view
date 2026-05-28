@@ -1,0 +1,386 @@
+[
+  {
+    "id": 4352,
+    "sender": "lukaskurz",
+    "content": "@martin-braun Danke, I already figured that the API key is going to be misused, but I didn't want to bother setting up the app signing so I can restrict it to my app id and I will invalidate it once this is done anyway.\r\n\r\nMy current idea is to find out where exactly the exception is getting thrown, and then maybe see if we can implement a check in the platform code, to prevent the null value being passed to the api code.\r\n\r\nAnother possible workaround might be to delay the zoom animation of the initialPosition/location as opposed to delaying the navigation itself.\r\nSo that the navigation is \"instant\", but we use the initialPosition without zoom, and zoom in some milliseconds afterwards (if the zoom animation really is the culprit).",
+    "createdAt": "2022-07-11T15:59:00Z"
+  },
+  {
+    "id": 4353,
+    "sender": "lukaskurz",
+    "content": "After doing some more debugging (i.e. putting hundreds of Log.d calls everywhere in the code), I figured out that removing the `mapView.onDestroy()` stops the issue from happening.\r\n\r\n[GoogleMapsController.java:890](https://github.com/flutter/plugins/blob/68cdc58aa67b82209c9eeb832d3e95c9734e3983/packages/google_maps_flutter/google_maps_flutter/android/src/main/java/io/flutter/plugins/googlemaps/GoogleMapController.java#L890)\r\n```java\r\n  private void destroyMapViewIfNecessary() {\r\n    Log.d(\"ShortyDebug\", \"destroyMapViewIfNecessary\");\r\n    if (mapView == null) {\r\n      return;\r\n    }\r\n    //mapView.onDestroy();\r\n    mapView = null;\r\n    Log.d(\"ShortyDebug\", \"destroyMapViewIfNecessary done\");\r\n  }\r\n```\r\n\r\nI am not quite sure yet, what the downside to this is, but I can imagine that this may cause a memory leak or some other unintended behaviour, since we're basically removing a part of the `dispose()` code.\r\n\r\nBut atleast now we might have a more concrete idea, which part of the code is destroying something, that is still needed by another part of the code :man_shrugging: \r\n\r\nThis is however the part where debugging further gets more complicated, since the destroy call is inside the proprietary code, and decompiling that does not really tell anything too useful. So we might need to get some google engineers involved at this point...",
+    "createdAt": "2022-07-11T17:55:48Z"
+  },
+  {
+    "id": 4354,
+    "sender": "martin-braun",
+    "content": "> So that the navigation is \"instant\", but we use the initialPosition without zoom, and zoom in some milliseconds afterwards (if the zoom animation really is the culprit).\r\n\r\nIn my example app I implemented some custom zoom buttons to get them on iOS as well and even when I wait a second after load I managed to crash the app on Android by hitting zoom-in and back (to pop) at the same time. Again, it only happens sometimes. So yea, simply zooming later will simply shift the time frame in which popping can cause a crash.\r\n\r\nI think a possible band-aid would be to block popping while we wait for things to be load after initial zoom and any zoom in general, but then again, we have no callback (yet). I hate this solution, though. Imagine you have slow internet speed and cannot pop the view, because you have to download the map of your location first ...\r\n\r\n> This is however the part where debugging further gets more complicated, since the destroy call is inside the proprietary code, and decompiling that does not really tell anything too useful. So we might need to get some google engineers involved at this point...\r\n\r\nYep, proprietary code, another case to praise open-source. Even if we find a band-aid, it will cause some clunky user experience. I really hate those dead-ends.\r\n\r\n> I am not quite sure yet, what the downside to this is, but I can imagine that this may cause a memory leak or some other unintended behaviour, since we're basically removing a part of the `dispose()` code.\r\n> \r\n> But atleast now we might have a more concrete idea, which part of the code is destroying something, that is still needed by another part of the code 🤷‍♂️\r\n\r\nI don't wonder why this works and yes, it would probably be a memory leak. Something tries to access that nulled array and the array is nulled within `mapView.dispose()`. \r\n\r\nRemember this link I posted? https://github.com/flutter/plugins/blob/main/packages/google_maps_flutter/google_maps_flutter/android/src/main/java/io/flutter/plugins/googlemaps/GoogleMapController.java#L154\r\n\r\nRead the comment, it peaks my interest again. Apparently, the renderer needs time to draw the map (2 frames), before it can invalidate the `mapView`. So what if the `mapView` is already destroyed, but the renderer tries to render its final frame. After all it renders only new content when there are new things to draw, i.e. on *zooming*. Sounds familiar, sounds related to me. Sometimes the renderer wins, sometimes the destroyer wins.\r\n\r\nI think Google needs to ensure to cancel that logic in `mapView.destroy()` before nulling the subjective array.",
+    "createdAt": "2022-07-11T18:00:16Z"
+  },
+  {
+    "id": 4355,
+    "sender": "lukaskurz",
+    "content": "That's indeed quite interesting ... If i wrap the `onDestroy` in a `postFrameCallback` like in the mentioned workaround, the error is also fixed.\r\n\r\n```java\r\npostFrameCallback(() -> {\r\n      mapView.onDestroy();\r\n      mapView = null;\r\n});\r\n```\r\n\r\nWhat if the `onDestroy` is called in the wrong order ? I could imagine that there is a check for the status of the mapView (or our mystery array), it assumes it's still valid and uses it for some animation and afterwards the mapView gets destroyed, GCing the array in question. So by adding 1 frame of delay, we signal that stuff is no longer available, said checks notice that and the code using the array is cancelled, after which we can safely GC the array.\r\n\r\nI don't quite know how the rendering works here, so I am just trying so extrapolate from the little knowledge of game engine rendering that I have :sweat_smile: \r\n\r\nThat being said, the postFrameCallback bandaid seems to work, not produce any jank and still GC the mapview, while not crashing (atleast when i try to cause it in the demo app).",
+    "createdAt": "2022-07-11T18:41:39Z"
+  },
+  {
+    "id": 4356,
+    "sender": "martin-braun",
+    "content": "@lukaskurz Good morning, good approach. Interesting that only one frame (not two frames) later the issue won't appear anymore. So yea, the renderer probably stops in the same frame when the view pops, but it takes two final frames (of which the first is the current) to finish its work. So there is our narrow one-frame window that causes the exception.\r\n\r\nI wonder now, is it somehow possible to implement your band-aid purely on the dart-side, without the necessity to use a fork of the `google_maps_flutter` package? The reason for my asking is that I maintain a package and try to circumvent this issue for now. It would be way less hassle to simply have a dart-fix.",
+    "createdAt": "2022-07-12T04:45:55Z"
+  },
+  {
+    "id": 4357,
+    "sender": "rivella50",
+    "content": "@martin-braun Hopefully the maintainers of the `google_maps_flutter` package will agree to Lukas' fix and include it in a new release, which wouldn't make necessary the use of a forked version.",
+    "createdAt": "2022-07-12T06:07:01Z"
+  },
+  {
+    "id": 4358,
+    "sender": "martin-braun",
+    "content": "@rivella50\r\n\r\n![tenor](https://user-images.githubusercontent.com/24259245/178425560-da5ed103-0d40-4223-acfb-668743507d0a.gif)\r\n ",
+    "createdAt": "2022-07-12T06:43:11Z"
+  },
+  {
+    "id": 4359,
+    "sender": "BoLindJensen",
+    "content": "@lukaskurz your code fixes the issues for our app, even with really quick map-switching. \r\nGood find and good work!\r\n\r\nAre you going to make a fork, that can be used until it is officially fixed from \"google_maps_flutter\" side?\r\nEditing the \"GoogleMapsController.java\" file is not feasible for a CI setup.\r\n\r\nEditing `google_maps_flutter-2.1.8 > android > src > main > java > io > flutter > plugins > googlemaps > GoogleMapsController.java`\r\n\r\nCode that works:\r\n```\r\n  private void destroyMapViewIfNecessary() {\r\n    if (mapView == null) {\r\n      return;\r\n    }\r\n    postFrameCallback(() -> {\r\n      mapView.onDestroy();\r\n      mapView = null;\r\n    });\r\n  }\r\n```\r\n\r\nOriginal code that does not work:\r\n```\r\n  private void destroyMapViewIfNecessary() {\r\n    if (mapView == null) {\r\n      return;\r\n    }\r\n    mapView.onDestroy();\r\n    mapView = null;\r\n  }\r\n```",
+    "createdAt": "2022-07-12T11:10:27Z"
+  },
+  {
+    "id": 4360,
+    "sender": "lukaskurz",
+    "content": "@BoLindJensen I have already created a fork at https://github.com/lukaskurz/plugins :+1: To use it, just use a dependency override in your pubspec.yaml like this:\r\n\r\n```yaml\r\ndependency_overrides:\r\n  google_maps_flutter:\r\n    git:\r\n      url: https://github.com/lukaskurz/plugins\r\n      path: packages/google_maps_flutter/google_maps_flutter\r\n      ref: main\r\n```\r\n\r\nI am going to eat lunch now, and after that I will file the PR with the flutter team. Let's hope that we can resolve this quickly.\r\n\r\n@martin-braun I am not quite sure if this is possible. The issue is the order in which stuff gets marked as \"destroyed\" and it actually being destroyed on the platform side. Postponing the `dispose` of the platform widget would not resolve that issue IMO.",
+    "createdAt": "2022-07-12T11:20:56Z"
+  },
+  {
+    "id": 4361,
+    "sender": "martin-braun",
+    "content": "@lukaskurz Thanks for the repository Lukas. I tried to define the `dependency_overrides` within the pubspec.yaml of my package, just to figure out that it will be ignored. You explicitly have to insert it in the pubspec.yaml of the project that consumes my package. Makes sense, because once you remove your repository, my published package would stop to work.\r\n\r\nI will inform my users for this temporary fix as of now.\r\n\r\nI'm looking forward to a new update from the Google team. I also redirected your fix to the [issue tracker](https://issuetracker.google.com/issues/237380999#comment11) by Google. ",
+    "createdAt": "2022-07-12T12:03:55Z"
+  },
+  {
+    "id": 4362,
+    "sender": "jrowan3",
+    "content": "@BoLindJensen Is there a way to do this with SupportMapFragment also, I am having the same problem @lukaskurz ",
+    "createdAt": "2022-07-12T14:07:23Z"
+  },
+  {
+    "id": 4363,
+    "sender": "stuartmorgan-g",
+    "content": "> Experiencing the Same Error on Flutter 3.0.3 , Reverting back to 2.10.5 Fixed the issue.\r\n\r\nIt sounds like this may be a bug in the new platform view implementation then. If that's the case, then the plugin is the wrong place to fix it.\r\n\r\nDoes forcing hybrid composition, by following the plugin's hybrid composition instructions and also changing `initSurfaceAndroidView` to `initExpensiveAndroidView` in `method_channel_google_maps_flutter.dart` fix this? We're already looking at switching maps to Hybrid Composition while the new platform view behaviors are investigated further, so it would be good to know if doing so would also address this.",
+    "createdAt": "2022-07-13T19:29:15Z"
+  },
+  {
+    "id": 4364,
+    "sender": "rivella50",
+    "content": "Is it confirmed that this crash never happens with Flutter versions 2.x.y?\r\nDoesn't sound that reliable if we only have a statement of one user here.",
+    "createdAt": "2022-07-14T05:47:38Z"
+  },
+  {
+    "id": 4365,
+    "sender": "lukaskurz",
+    "content": "@stuartmorgan I will check whether hybrid composition fixes this issue :+1:. While changing the `CHANGELOG.md`, I saw that [2.0.9 fixes](https://github.com/flutter/plugins/pull/4250) an issue which looks a lot like this one, so maybe its related.",
+    "createdAt": "2022-07-14T09:21:43Z"
+  },
+  {
+    "id": 4366,
+    "sender": "lukaskurz",
+    "content": "So i just tested it, adding the `useAndroidViewSurface = true` per documentation\r\n\r\n```dart\r\nvoid main() {\r\n  if (defaultTargetPlatform == TargetPlatform.android) {\r\n    AndroidGoogleMapsFlutter.useAndroidViewSurface = true;\r\n  }\r\n\r\n  runApp(const MyApp());\r\n}\r\n```\r\n\r\nAnd changing to `initExpensiveAndroidView` in [`method_channel_google_maps_flutter.dart:521`](https://github.com/flutter/plugins/blob/1d2cc3aa286ce6b8fb8abded23e54b0dae2628ef/packages/google_maps_flutter/google_maps_flutter_platform_interface/lib/src/method_channel/method_channel_google_maps_flutter.dart#L521)\r\n\r\n```dart\r\nonCreatePlatformView: (PlatformViewCreationParams params) {\r\n            final ExpensiveAndroidViewController controller = PlatformViewsService.initExpensiveAndroidView(\r\n              id: params.id,\r\n              viewType: 'plugins.flutter.io/google_maps',\r\n              layoutDirection: widgetConfiguration.textDirection,\r\n              creationParams: creationParams,\r\n              creationParamsCodec: const StandardMessageCodec(),\r\n              onFocus: () => params.onFocusChanged(true),\r\n            );\r\n```\r\n\r\nThe error still occured, and now (in my demo app) all 4 pages trigger a crash, although it's a different exception now.\r\n\r\n<details>\r\n<summary>New Exception</summary>\r\n\r\n```\r\nI/Google Maps Android API( 8986): Google Play services package version: 222413047\r\nI/Google Maps Android API( 8986): Google Play services maps renderer version(legacy): 203115000\r\nE/GoogleMapController( 8986): Cannot enable MyLocation layer as location permissions are not granted\r\nE/EGL_emulation( 8986): eglQueryContext 32c0  EGL_BAD_ATTRIBUTE\r\nE/EGL_emulation( 8986): tid 8986: eglQueryContext(2160): error 0x3004 (EGL_BAD_ATTRIBUTE)\r\nD/HostConnection( 8986): createUnique: call\r\nD/HostConnection( 8986): HostConnection::get() New Host Connection established 0x7831e821b790, tid 9086\r\nD/HostConnection( 8986): HostComposition ext ANDROID_EMU_CHECKSUM_HELPER_v1 ANDROID_EMU_native_sync_v2 ANDROID_EMU_native_sync_v3 ANDROID_EMU_native_sync_v4 ANDROID_EMU_dma_v1 ANDROID_EMU_direct_mem ANDROID_EMU_host_composition_v1 ANDROID_EMU_host_composition_v2 ANDROID_EMU_vulkan ANDROID_EMU_deferred_vulkan_commands ANDROID_EMU_vulkan_null_optional_strings ANDROID_EMU_vulkan_create_resources_with_requirements ANDROID_EMU_YUV_Cache ANDROID_EMU_vulkan_ignored_handles ANDROID_EMU_has_shared_slots_host_memory_allocator ANDROID_EMU_vulkan_free_memory_sync ANDROID_EMU_vulkan_shader_float16_int8 ANDROID_EMU_vulkan_async_queue_submit ANDROID_EMU_vulkan_queue_submit_with_commands ANDROID_EMU_sync_buffer_data ANDROID_EMU_read_color_buffer_dma GL_OES_vertex_array_object GL_KHR_texture_compression_astc_ldr ANDROID_EMU_host_side_tracing ANDROID_EMU_gles_max_version_2\r\nD/EGL_emulation( 8986): eglCreateContext: 0x7831e821ac50: maj 1 min 0 rcv 1\r\nD/EGL_emulation( 8986): eglMakeCurrent: 0x7831e821ac50: ver 1 0 (tinfo 0x7833fc2f6300) (first time)\r\nD/EGL_emulation( 8986): eglMakeCurrent: 0x7831e821ac50: ver 1 0 (tinfo 0x7833fc2f6300) (first time)\r\nE/flutter ( 8986): [ERROR:flutter/fml/platform/android/jni_util.cc(204)] java.lang.IllegalStateException: Platform view hasn't been initialized from the platform view channel.\r\nE/flutter ( 8986): \tat io.flutter.plugin.platform.PlatformViewsController.initializePlatformViewIfNeeded(PlatformViewsController.java:732)\r\nE/flutter ( 8986): \tat io.flutter.plugin.platform.PlatformViewsController.onDisplayPlatformView(PlatformViewsController.java:791)\r\nE/flutter ( 8986): \tat io.flutter.embedding.engine.FlutterJNI.onDisplayPlatformView(FlutterJNI.java:1380)\r\nE/flutter ( 8986): \tat android.os.MessageQueue.nativePollOnce(Native Method)\r\nE/flutter ( 8986): \tat android.os.MessageQueue.next(MessageQueue.java:335)\r\nE/flutter ( 8986): \tat android.os.Looper.loopOnce(Looper.java:161)\r\nE/flutter ( 8986): \tat android.os.Looper.loop(Looper.java:288)\r\nE/flutter ( 8986): \tat android.app.ActivityThread.main(ActivityThread.java:7839)\r\nE/flutter ( 8986): \tat java.lang.reflect.Method.invoke(Native Method)\r\nE/flutter ( 8986): \tat com.android.internal.os.RuntimeInit$MethodAndArgsCaller.run(RuntimeInit.java:548)\r\nE/flutter ( 8986): \tat com.android.internal.os.ZygoteInit.main(ZygoteInit.java:1003)\r\nE/flutter ( 8986):\r\nF/flutter ( 8986): [FATAL:flutter/shell/platform/android/platform_view_android_jni_impl.cc(1469)] Check failed: fml::jni::CheckException(env).\r\nF/libc    ( 8986): Fatal signal 6 (SIGABRT), code -1 (SI_QUEUE) in tid 8986 (maps_crash_demo), pid 8986 (maps_crash_demo)\r\n*** *** *** *** *** *** *** *** *** *** *** *** *** *** *** ***\r\nBuild fingerprint: 'google/sdk_gphone64_x86_64/emulator64_x86_64_arm64:12/SE1A.211212.001.B1/8023802:user/release-keys'\r\nRevision: '0'\r\nABI: 'x86_64'\r\nTimestamp: 2022-07-14 12:44:53.135974775+0200\r\nProcess uptime: 0s\r\nCmdline: com.example.gmaps_crash_demo\r\npid: 8986, tid: 8986, name: maps_crash_demo  >>> com.example.gmaps_crash_demo <<<\r\nuid: 10148\r\nsignal 6 (SIGABRT), code -1 (SI_QUEUE), fault addr --------\r\nAbort message: '[FATAL:flutter/shell/platform/android/platform_view_android_jni_impl.cc(1469)] Check failed: fml::jni::CheckException(env).\r\n'\r\n    rax 0000000000000000  rbx 000000000000231a  rcx 00007833ee9cb5cf  rdx 0000000000000006\r\n    r8  00007ffffe921cd0  r9  00007ffffe921cd0  r10 00007ffffe921c70  r11 0000000000000207\r\n    r12 00007831f82619e0  r13 00007ffffe921dd0  r14 00007ffffe921c68  r15 000000000000231a\r\n    rdi 000000000000231a  rsi 000000000000231a\r\n    rbp 0000000000000007  rsp 00007ffffe921c60  rip 00007833ee9cb5cf\r\nbacktrace:\r\n      #00 pc 000000000005e5cf  /apex/com.android.runtime/lib64/bionic/libc.so (abort+191) (BuildId: 5db8d317d3741b337ef046540bbdd0f7)\r\n      #01 pc 000000000160bf15  /data/app/~~GufQyYpwnuvOgrbH9fx5tA==/com.example.gmaps_crash_demo-1hjvn-6kSfZ2j5xoYR5NOA==/lib/x86_64/libflutter.so (BuildId: 56240b113d79b3b4bbe240870d5d7263c98ffe17)\r\n      #02 pc 0000000001631314  /data/app/~~GufQyYpwnuvOgrbH9fx5tA==/com.example.gmaps_crash_demo-1hjvn-6kSfZ2j5xoYR5NOA==/lib/x86_64/libflutter.so (BuildId: 56240b113d79b3b4bbe240870d5d7263c98ffe17)\r\n      #03 pc 0000000001618356  /data/app/~~GufQyYpwnuvOgrbH9fx5tA==/com.example.gmaps_crash_demo-1hjvn-6kSfZ2j5xoYR5NOA==/lib/x86_64/libflutter.so (BuildId: 56240b113d79b3b4bbe240870d5d7263c98ffe17)\r\n      #04 pc 0000000001d847a9  /data/app/~~GufQyYpwnuvOgrbH9fx5tA==/com.example.gmaps_crash_demo-1hjvn-6kSfZ2j5xoYR5NOA==/lib/x86_64/libflutter.so (BuildId: 56240b113d79b3b4bbe240870d5d7263c98ffe17)\r\n      #05 pc 00000000019b64f8  /data/app/~~GufQyYpwnuvOgrbH9fx5tA==/com.example.gmaps_crash_demo-1hjvn-6kSfZ2j5xoYR5NOA==/lib/x86_64/libflutter.so (BuildId: 56240b113d79b3b4bbe240870d5d7263c98ffe17)\r\n      #06 pc 00000000019b4fea  /data/app/~~GufQyYpwnuvOgrbH9fx5tA==/com.example.gmaps_crash_demo-1hjvn-6kSfZ2j5xoYR5NOA==/lib/x86_64/libflutter.so (BuildId: 56240b113d79b3b4bbe240870d5d7263c98ffe17)\r\n      #07 pc 00000000019b5b63  /data/app/~~GufQyYpwnuvOgrbH9fx5tA==/com.example.gmaps_crash_demo-1hjvn-6kSfZ2j5xoYR5NOA==/lib/x86_64/libflutter.so (BuildId: 56240b113d79b3b4bbe240870d5d7263c98ffe17)\r\n      #08 pc 00000000019b6a8d  /data/app/~~GufQyYpwnuvOgrbH9fx5tA==/com.example.gmaps_crash_demo-1hjvn-6kSfZ2j5xoYR5NOA==/lib/x86_64/libflutter.so (BuildId: 56240b113d79b3b4bbe240870d5d7263c98ffe17)\r\n      #09 pc 00000000019b54bb  /data/app/~~GufQyYpwnuvOgrbH9fx5tA==/com.example.gmaps_crash_demo-1hjvn-6kSfZ2j5xoYR5NOA==/lib/x86_64/libflutter.so (BuildId: 56240b113d79b3b4bbe240870d5d7263c98ffe17)\r\n      #10 pc 00000000019b51b4  /data/app/~~GufQyYpwnuvOgrbH9fx5tA==/com.example.gmaps_crash_demo-1hjvn-6kSfZ2j5xoYR5NOA==/lib/x86_64/libflutter.so (BuildId: 56240b113d79b3b4bbe240870d5d7263c98ffe17)\r\n      #11 pc 00000000019c28ef  /data/app/~~GufQyYpwnuvOgrbH9fx5tA==/com.example.gmaps_crash_demo-1hjvn-6kSfZ2j5xoYR5NOA==/lib/x86_64/libflutter.so (BuildId: 56240b113d79b3b4bbe240870d5d7263c98ffe17)\r\n      #12 pc 0000000001631eb3  /data/app/~~GufQyYpwnuvOgrbH9fx5tA==/com.example.gmaps_crash_demo-1hjvn-6kSfZ2j5xoYR5NOA==/lib/x86_64/libflutter.so (BuildId: 56240b113d79b3b4bbe240870d5d7263c98ffe17)\r\n      #13 pc 00000000016372ca  /data/app/~~GufQyYpwnuvOgrbH9fx5tA==/com.example.gmaps_crash_demo-1hjvn-6kSfZ2j5xoYR5NOA==/lib/x86_64/libflutter.so (BuildId: 56240b113d79b3b4bbe240870d5d7263c98ffe17)\r\n      #14 pc 0000000000018475  /system/lib64/libutils.so (android::Looper::pollInner(int)+1013) (BuildId: 0b21e18f17c36471b0becec44f99518b)\r\n      #15 pc 000000000001801e  /system/lib64/libutils.so (android::Looper::pollOnce(int, int*, int*, void**)+126) (BuildId: 0b21e18f17c36471b0becec44f99518b)\r\n      #16 pc 000000000015d253  /system/lib64/libandroid_runtime.so (android::android_os_MessageQueue_nativePollOnce(_JNIEnv*, _jobject*, long, int)+35) (BuildId: f90004a78069fa4c4e587a2081d386cd)\r\n      #17 pc 00000000001ab568  /system/framework/x86_64/boot-framework.oat (art_jni_trampoline+120) (BuildId: 5ead3b6496eb4808298a4612fe10561bbd30f354)\r\n      #18 pc 000000000200316e  /memfd:jit-cache (deleted) (android.os.MessageQueue.next+206)\r\n      #19 pc 000000000202d592  /memfd:jit-cache (deleted) (android.os.Looper.loopOnce+162)\r\n      #20 pc 0000000000395376  /apex/com.android.art/lib64/libart.so (art_quick_invoke_static_stub+806) (BuildId: cfc3de5d1c7b2855effeb77a784fc353)\r\n      #21 pc 000000000041da09  /apex/com.android.art/lib64/libart.so (art::ArtMethod::Invoke(art::Thread*, unsigned int*, unsigned int, art::JValue*, char const*)+233) (BuildId: cfc3de5d1c7b2855effeb77a784fc353)\r\n      #22 pc 00000000005a335c  /apex/com.android.art/lib64/libart.so (art::interpreter::ArtInterpreterToCompiledCodeBridge(art::Thread*, art::ArtMethod*, art::ShadowFrame*, unsigned short, art::JValue*)+428) (BuildId: cfc3de5d1c7b2855effeb77a784fc353)\r\n      #23 pc 000000000059d16c  /apex/com.android.art/lib64/libart.so (bool art::interpreter::DoCall<false, false>(art::ArtMethod*, art::Thread*, art::ShadowFrame&, art::Instruction const*, unsigned short, art::JValue*)+1036) (BuildId: cfc3de5d1c7b2855effeb77a784fc353)\r\n      #24 pc 000000000097c172  /apex/com.android.art/lib64/libart.so (MterpInvokeStatic+1410) (BuildId: cfc3de5d1c7b2855effeb77a784fc353)\r\n      #25 pc 000000000037e899  /apex/com.android.art/lib64/libart.so (mterp_op_invoke_static+25) (BuildId: cfc3de5d1c7b2855effeb77a784fc353)\r\n      #26 pc 000000000044d768  /system/framework/framework.jar\r\n      #27 pc 000000000097c90d  /apex/com.android.art/lib64/libart.so (MterpInvokeStatic+3357) (BuildId: cfc3de5d1c7b2855effeb77a784fc353)\r\n      #28 pc 000000000037e899  /apex/com.android.art/lib64/libart.so (mterp_op_invoke_static+25) (BuildId: cfc3de5d1c7b2855effeb77a784fc353)\r\n      #29 pc 00000000001c85ca  /system/framework/framework.jar\r\n      #30 pc 0000000000594b42  /apex/com.android.art/lib64/libart.so (art::interpreter::Execute(art::Thread*, art::CodeItemDataAccessor const&, art::ShadowFrame&, art::JValue, bool, bool)+306) (BuildId: cfc3de5d1c7b2855effeb77a784fc353)\r\n      #31 pc 0000000000959a6f  /apex/com.android.art/lib64/libart.so (artQuickToInterpreterBridge+1007) (BuildId: cfc3de5d1c7b2855effeb77a784fc353)\r\n      #32 pc 00000000003a04bc  /apex/com.android.art/lib64/libart.so (art_quick_to_interpreter_bridge+140) (BuildId: cfc3de5d1c7b2855effeb77a784fc353)\r\n      #33 pc 0000000000395376  /apex/com.android.art/lib64/libart.so (art_quick_invoke_static_stub+806) (BuildId: cfc3de5d1c7b2855effeb77a784fc353)\r\n      #34 pc 000000000041da09  /apex/com.android.art/lib64/libart.so (art::ArtMethod::Invoke(art::Thread*, unsigned int*, unsigned int, art::JValue*, char const*)+233) (BuildId: cfc3de5d1c7b2855effeb77a784fc353)\r\n      #35 pc 0000000000819502  /apex/com.android.art/lib64/libart.so (_jobject* art::InvokeMethod<(art::PointerSize)8>(art::ScopedObjectAccessAlreadyRunnable const&, _jobject*, _jobject*, _jobject*, unsigned long)+1442) (BuildId: cfc3de5d1c7b2855effeb77a784fc353)\r\n      #36 pc 0000000000772728  /apex/com.android.art/lib64/libart.so (art::Method_invoke(_JNIEnv*, _jobject*, _jobject*, _jobjectArray*)+56) (BuildId: cfc3de5d1c7b2855effeb77a784fc353)\r\n      #37 pc 00000000000b5a30  /apex/com.android.art/javalib/x86_64/boot.oat (art_jni_trampoline+144) (BuildId: d92cc57761604ac2f5849e74a41f38bf70ac7a09)\r\n      #38 pc 0000000000395014  /apex/com.android.art/lib64/libart.so (art_quick_invoke_stub+756) (BuildId: cfc3de5d1c7b2855effeb77a784fc353)\r\n      #39 pc 000000000041d9fa  /apex/com.android.art/lib64/libart.so (art::ArtMethod::Invoke(art::Thread*, unsigned int*, unsigned int, art::JValue*, char const*)+218) (BuildId: cfc3de5d1c7b2855effeb77a784fc353)\r\n      #40 pc 00000000005a335c  /apex/com.android.art/lib64/libart.so (art::interpreter::ArtInterpreterToCompiledCodeBridge(art::Thread*, art::ArtMethod*, art::ShadowFrame*, unsigned short, art::JValue*)+428) (BuildId: cfc3de5d1c7b2855effeb77a784fc353)\r\n      #41 pc 000000000059d16c  /apex/com.android.art/lib64/libart.so (bool art::interpreter::DoCall<false, false>(art::ArtMethod*, art::Thread*, art::ShadowFrame&, art::Instruction const*, unsigned short, art::JValue*)+1036) (BuildId: cfc3de5d1c7b2855effeb77a784fc353)\r\n      #42 pc 000000000096e305  /apex/com.android.art/lib64/libart.so (MterpInvokeVirtual+1349) (BuildId: cfc3de5d1c7b2855effeb77a784fc353)\r\n      #43 pc 000000000037e719  /apex/com.android.art/lib64/libart.so (mterp_op_invoke_virtual+25) (BuildId: cfc3de5d1c7b2855effeb77a784fc353)\r\n      #44 pc 000000000024800e  /system/framework/framework.jar\r\n      #45 pc 0000000000594b42  /apex/com.android.art/lib64/libart.so (art::interpreter::Execute(art::Thread*, art::CodeItemDataAccessor const&, art::ShadowFrame&, art::JValue, bool, bool)+306) (BuildId: cfc3de5d1c7b2855effeb77a784fc353)\r\n      #46 pc 0000000000959a6f  /apex/com.android.art/lib64/libart.so (artQuickToInterpreterBridge+1007) (BuildId: cfc3de5d1c7b2855effeb77a784fc353)\r\n      #47 pc 00000000003a04bc  /apex/com.android.art/lib64/libart.so (art_quick_to_interpreter_bridge+140) (BuildId: cfc3de5d1c7b2855effeb77a784fc353)\r\n      #48 pc 00000000008b3621  /system/framework/x86_64/boot-framework.oat (com.android.internal.os.ZygoteInit.main+2049) (BuildId: 5ead3b6496eb4808298a4612fe10561bbd30f354)\r\n      #49 pc 0000000000395376  /apex/com.android.art/lib64/libart.so (art_quick_invoke_static_stub+806) (BuildId: cfc3de5d1c7b2855effeb77a784fc353)\r\n      #50 pc 000000000041da09  /apex/com.android.art/lib64/libart.so (art::ArtMethod::Invoke(art::Thread*, unsigned int*, unsigned int, art::JValue*, char const*)+233) (BuildId: cfc3de5d1c7b2855effeb77a784fc353)\r\n      #51 pc 0000000000819eb1  /apex/com.android.art/lib64/libart.so (art::JValue art::InvokeWithVarArgs<art::ArtMethod*>(art::ScopedObjectAccessAlreadyRunnable const&, _jobject*, art::ArtMethod*, __va_list_tag*)+465) (BuildId: cfc3de5d1c7b2855effeb77a784fc353)\r\n      #52 pc 00000000006ce8ac  /apex/com.android.art/lib64/libart.so (art::JNI<true>::CallStaticVoidMethodV(_JNIEnv*, _jclass*, _jmethodID*, __va_list_tag*)+620) (BuildId: cfc3de5d1c7b2855effeb77a784fc353)\r\n      #53 pc 00000000000c6374  /system/lib64/libandroid_runtime.so (_JNIEnv::CallStaticVoidMethod(_jclass*, _jmethodID*, ...)+164) (BuildId: f90004a78069fa4c4e587a2081d386cd)\r\n      #54 pc 00000000000d2a71  /system/lib64/libandroid_runtime.so (android::AndroidRuntime::start(char const*, android::Vector<android::String8> const&, bool)+865) (BuildId: f90004a78069fa4c4e587a2081d386cd)\r\n      #55 pc 0000000000002f9f  /system/bin/app_process64 (main+1599) (BuildId: 5c47dfdf42370b14f9eaa0b58a1dedf3)\r\n      #56 pc 0000000000050079  /apex/com.android.runtime/lib64/bionic/libc.so (__libc_init+89) (BuildId: 5db8d317d3741b337ef046540bbdd0f7)\r\nLost connection to device.\r\nExited\r\n```\r\n\r\n</details>\r\n\r\nWhile it's a different exception, the behaviour is the same. Quick switching between pages ~ creating and disposing the widget causes an app crash.",
+    "createdAt": "2022-07-14T10:55:10Z"
+  },
+  {
+    "id": 4367,
+    "sender": "rivella50",
+    "content": "Same here with hybrid composition activated in my app.",
+    "createdAt": "2022-07-15T08:27:26Z"
+  },
+  {
+    "id": 4368,
+    "sender": "rlueders",
+    "content": "\\\r\n\r\n> Is it confirmed that this crash never happens with Flutter versions 2.x.y? Doesn't sound that reliable if we only have a statement of one user here.\r\n\r\nYes, I can also confirm that this was not an issue in Flutter 2.x.y.  My tests started breaking as soon as I upgraded to Flutter 3.0.0.   I tried a couple times switching back and forth between 2.x.y and 3.0.0 with consistent results.  I fixed the issue by adding waits to my test allowing the map to fully rebuild. This bug is a real pain to work around. \r\n\r\nWhy is the Flutter team pushing this off to the Google Maps  team if the issue broke with a Flutter upgrade?  \r\n\r\n",
+    "createdAt": "2022-07-18T00:00:56Z"
+  },
+  {
+    "id": 4369,
+    "sender": "jrowan3",
+    "content": "@rlueders This issue is present in Google Maps Android also, not just flutter, I am currently looking for a workaround for a SupportMapFragment",
+    "createdAt": "2022-07-18T13:25:38Z"
+  },
+  {
+    "id": 4370,
+    "sender": "stuartmorgan-g",
+    "content": "> Why is the Flutter team pushing this off to the Google Maps team\r\n\r\nI'm not sure where you got that impression, but that's not the case.",
+    "createdAt": "2022-07-18T16:21:59Z"
+  },
+  {
+    "id": 4371,
+    "sender": "jrowan3",
+    "content": "Does anyone have a workaround for a SupportMapFragment in native android google maps, or does anyone know a better thread to find a workaround for this issue on native?",
+    "createdAt": "2022-07-21T14:59:41Z"
+  },
+  {
+    "id": 4372,
+    "sender": "danielgomezrico",
+    "content": "@stuartmorgan https://issuetracker.google.com/issues/233786218 maybe he got that impression from this comment, they asked to move this issue to the flutter team:\r\n![image](https://user-images.githubusercontent.com/76348/180518558-63bf7aeb-ad09-4e9e-97ad-c5b71a49a612.png)\r\n",
+    "createdAt": "2022-07-22T20:02:31Z"
+  },
+  {
+    "id": 4373,
+    "sender": "jrowan3",
+    "content": "Here is my issue, still looking for a workaround for SupportMapFragment, but google did verify that is is in the google maps package itself https://issuetracker.google.com/issues/237380999",
+    "createdAt": "2022-07-22T21:13:33Z"
+  },
+  {
+    "id": 4374,
+    "sender": "bdezso",
+    "content": "Can someone explain to me why it's P4 issue?\r\nWe can't release our app, crash is not acceptable.\r\nWe've tried the solution provided by @lukaskurz, but it didn't work.",
+    "createdAt": "2022-07-25T10:43:38Z"
+  },
+  {
+    "id": 4375,
+    "sender": "AnggaSP",
+    "content": "> Here is my issue, still looking for a workaround for SupportMapFragment, but google did verify that is is in the google maps package itself https://issuetracker.google.com/issues/237380999\r\n\r\nThey have updated the status as Won't Fix as they're no longer fixing the GMM6 renderer.\r\nI assume that's the legacy renderer, we could try using the new one https://developers.google.com/maps/documentation/android-sdk/renderer.\r\n\r\nBut that doesn't explain why it's only problematic in Flutter 3 and not in previous stable version.",
+    "createdAt": "2022-07-27T04:10:56Z"
+  },
+  {
+    "id": 4376,
+    "sender": "stuartmorgan-g",
+    "content": "> But that doesn't explain why it's only problematic in Flutter 3 and not in previous stable version.\r\n\r\nThere's been some discussion in https://github.com/flutter/plugins/pull/6093; capturing the relevant part here:\r\n\r\n> It looks at this point like there are probably two issues which result in very similar stack traces (as both are attempting to use the map after it's been destroyed):\r\n>\r\n> * An ordering bug with some async calls in the Android platform view implementation, which we're investigating; if that's the case, this would explain why there's a spike of issues in 3.0.\r\n> * An internal maps threading issue in the ([non-new](https://developers.google.com/maps/documentation/android-sdk/renderer)) renderer.\r\n\r\nWe're currently investigating the former.",
+    "createdAt": "2022-07-27T14:11:47Z"
+  },
+  {
+    "id": 4377,
+    "sender": "rlueders",
+    "content": "> > * An ordering bug with some async calls in the Android platform view implementation, which we're investigating; if that's the case, this would explain why there's a spike of issues in 3.0.\r\n\r\nTo be clear, this is a problem on IOS as well. \r\n\r\n",
+    "createdAt": "2022-07-27T14:27:40Z"
+  },
+  {
+    "id": 4378,
+    "sender": "stuartmorgan-g",
+    "content": "@rlueders This is an Android crash, in Android-specific code. If you have a crash on iOS you should file a new issue with details.",
+    "createdAt": "2022-07-27T14:31:10Z"
+  },
+  {
+    "id": 4379,
+    "sender": "aea91",
+    "content": "Is there anyone fixed that issue? ",
+    "createdAt": "2022-08-03T13:42:32Z"
+  },
+  {
+    "id": 4380,
+    "sender": "dousoftware",
+    "content": "can anyone solve the problem??",
+    "createdAt": "2022-08-03T14:00:59Z"
+  },
+  {
+    "id": 4381,
+    "sender": "stuartmorgan-g",
+    "content": "The engine issue is fixed on master, so I would expect that this is substantially improved there. A workaround is still needed for the threading issue in maps itself.",
+    "createdAt": "2022-08-03T14:03:51Z"
+  },
+  {
+    "id": 4382,
+    "sender": "dousoftware",
+    "content": "@stuartmorgan  \r\nI did not understand what you said. Is there a solution to the problem?",
+    "createdAt": "2022-08-03T15:23:02Z"
+  },
+  {
+    "id": 4383,
+    "sender": "danielgomezrico",
+    "content": "Is there any link for the android maps issue to follow it?",
+    "createdAt": "2022-08-03T18:00:18Z"
+  },
+  {
+    "id": 4384,
+    "sender": "Djcharles26",
+    "content": "@danielgomezrico I found this thread in google issues, which is very close to the exception Im getting:\r\n\r\n[https://issuetracker.google.com/issues/35822688#c34]",
+    "createdAt": "2022-08-04T02:49:42Z"
+  },
+  {
+    "id": 4385,
+    "sender": "aea91",
+    "content": "> > Here is my issue, still looking for a workaround for SupportMapFragment, but google did verify that is is in the google maps package itself https://issuetracker.google.com/issues/237380999\r\n> \r\n> They have updated the status as Won't Fix as they're no longer fixing the GMM6 renderer. I assume that's the legacy renderer, we could try using the new one https://developers.google.com/maps/documentation/android-sdk/renderer.\r\n> \r\n> But that doesn't explain why it's only problematic in Flutter 3 and not in previous stable version.\r\n\r\nDo you know how can we use the new renderer GMM6? ",
+    "createdAt": "2022-08-04T05:32:43Z"
+  },
+  {
+    "id": 4386,
+    "sender": "dayron9110",
+    "content": "News? ",
+    "createdAt": "2022-08-10T23:03:35Z"
+  },
+  {
+    "id": 4387,
+    "sender": "furkansoylemez",
+    "content": "any new trick or workaround ?",
+    "createdAt": "2022-08-11T11:40:05Z"
+  },
+  {
+    "id": 4388,
+    "sender": "stuartmorgan-g",
+    "content": "Is anyone still seeing frequent crashes in a current version of master? We expect that https://github.com/flutter/flutter/pull/108496 fixed the problem that caused much more frequent crashes in Flutter 3.0 (as compared to 2.x).\r\n\r\n> Do you know how can we use the new renderer GMM6?\r\n\r\nThe instructions for using the new renderer (not GMM6, which is the previous renderer) are in https://developers.google.com/maps/documentation/android-sdk/renderer. Because they are global state, you should be able to add that opt-in directly in your application, without any changes needed to the plugin.",
+    "createdAt": "2022-08-11T15:53:53Z"
+  },
+  {
+    "id": 4389,
+    "sender": "rlueders",
+    "content": "After upgrading to master I am still seeing the same null pointer on the sample code and I am still seeing it on my own apps as well. ",
+    "createdAt": "2022-08-11T16:35:56Z"
+  },
+  {
+    "id": 4390,
+    "sender": "martin-braun",
+    "content": "@stuartmorgan I experience the same crashes on the beta:\r\n\r\n```\r\nFlutter 3.3.0-0.3.pre • channel beta • https://github.com/flutter/flutter.git\r\nFramework • revision 8c1149878b (30 hours ago) • 2022-08-10 12:15:36 -0500\r\nEngine • revision f16e757d5d\r\nTools • Dart 2.18.0 (build 2.18.0-271.4.beta) • DevTools 2.15.0\r\n```\r\n\r\nThe issue is not fixed. \r\n\r\n> The instructions for using the new renderer (not GMM6, which is the previous renderer) are in [developers.google.com/maps/documentation/android-sdk/renderer](https://developers.google.com/maps/documentation/android-sdk/renderer). Because they are global state, you should be able to add that opt-in directly in your application, without any changes needed to the plugin.\r\n\r\nCan we please expose a switch to the Flutter code that enables us to toggle the new renderer without messing with the Android project? I don't care so much for myself, but I think a lot of people wish a plug and play experience without tampering too much in the native code.",
+    "createdAt": "2022-08-11T23:21:02Z"
+  },
+  {
+    "id": 4391,
+    "sender": "stuartmorgan-g",
+    "content": "> @stuartmorgan I experience the same crashes on the beta\r\n\r\nI don't know if the current beta has the fix cherry picked yet, which is why my comment above refers to `master`.\r\n\r\n> The issue is not fixed.\r\n\r\n[I never said otherwise](https://github.com/flutter/flutter/issues/105965#issuecomment-1203995331); the question is whether on `master` it's happening frequently (as in 3.0) or rarely (as in 2.x).\r\n\r\n> I think a lot of people wish a plug and play experience without tampering too much in the native code.\r\n\r\nChanging the runner isn't \"tampering\", since the runner is intended to be modified by developers. But if you believe there's an audience for a plugin that enables the new renderer, you are certainly welcome to publish one.",
+    "createdAt": "2022-08-12T12:09:05Z"
+  },
+  {
+    "id": 4392,
+    "sender": "rlueders",
+    "content": "Yes it is happening just as frequently as it did with 3.0. Tests with the sample code and you can see for yourself. ",
+    "createdAt": "2022-08-12T12:19:18Z"
+  },
+  {
+    "id": 4393,
+    "sender": "aea91",
+    "content": "As a whole team, we're waiting for a solution for all these Java null pointer exception bugs. ",
+    "createdAt": "2022-08-12T12:47:04Z"
+  },
+  {
+    "id": 4394,
+    "sender": "Handelika",
+    "content": "I reproduce the issue in flutter again. I tried other versions and still same. It is also happening in `google_maps_flutter: ^2.1.10` I am in the same page. but I use tabs. and after changing 2-3 times the tabs, it crashes. In my bottom bar, When i cahnge the navigation bars over and over again, I can't reproduce the issue. So i can't make navigator pop also. When it is going to solve? \r\n\r\n```\r\nE/AndroidRuntime( 3864): FATAL EXCEPTION: GLThread 117807\r\nE/AndroidRuntime( 3864): Process: com.kiramkolay.mobile, PID: 3864\r\nE/AndroidRuntime( 3864): java.lang.NullPointerException: Attempt to get length of null array\r\nE/AndroidRuntime( 3864):        at java.nio.ByteBufferAsIntBuffer.put(ByteBufferAsIntBuffer.java:122)\r\nE/AndroidRuntime( 3864):        at com.google.maps.api.android.lib6.gmm6.vector.gl.buffer.n.i(:com.google.android.gms.dynamite_mapsdynamite@220656065@22.06.56 (100400-0):2)\r\nE/AndroidRuntime( 3864):        at com.google.maps.api.android.lib6.gmm6.vector.gl.buffer.n.d(:com.google.android.gms.dynamite_mapsdynamite@220656065@22.06.56 (100400-0):3)\r\nE/AndroidRuntime( 3864):        at com.google.maps.api.android.lib6.gmm6.vector.gl.drawable.d.s(:com.google.android.gms.dynamite_mapsdynamite@220656065@22.06.56 (100400-0):2)\r\nE/AndroidRuntime( 3864):        at com.google.maps.api.android.lib6.gmm6.vector.gl.drawable.ao.s(:com.google.android.gms.dynamite_mapsdynamite@220656065@22.06.56 (100400-0):12)\r\nE/AndroidRuntime( 3864):        at com.google.maps.api.android.lib6.gmm6.vector.bz.s(:com.google.android.gms.dynamite_mapsdynamite@220656065@22.06.56 (100400-0):29)\r\nE/AndroidRuntime( 3864):        at com.google.maps.api.android.lib6.gmm6.vector.bs.b(:com.google.android.gms.dynamite_mapsdynamite@220656065@22.06.56 (100400-0):151)\r\nE/AndroidRuntime( 3864):        at com.google.maps.api.android.lib6.gmm6.vector.av.run(:com.google.android.gms.dynamite_mapsdynamite@220656065@22.06.56 (100400-0):48)\r\n```\r\n",
+    "createdAt": "2022-08-12T12:51:51Z"
+  },
+  {
+    "id": 4395,
+    "sender": "rlueders",
+    "content": "if you are crashing between map tabs on the same page, you can use an Offstage widget to keep the map built but not visible.   it won't fix popping navigator, but will fix transition between tabs.",
+    "createdAt": "2022-08-12T13:08:17Z"
+  },
+  {
+    "id": 4396,
+    "sender": "Handelika",
+    "content": "> Offstage\r\n\r\nIt is still crashing with Offstage or visibility widget . This is not solving my problem. after building map, not crashes. Thanks for helping.",
+    "createdAt": "2022-08-12T13:39:44Z"
+  },
+  {
+    "id": 4397,
+    "sender": "furkansoylemez",
+    "content": "> > Offstage\r\n> \r\n> It is still crashing with Offstage or visibility widget . This is not solving my problem. after building map, not crashes. Thanks for helping.\r\n\r\nu can use this override to fix until official update.\r\n\r\n`dependency_overrides:\r\n  google_maps_flutter:\r\n    git:\r\n      url: https://github.com/lukaskurz/plugins\r\n      path: packages/google_maps_flutter/google_maps_flutter\r\n      ref: main`",
+    "createdAt": "2022-08-13T11:51:40Z"
+  },
+  {
+    "id": 4398,
+    "sender": "aea91",
+    "content": "> > > Offstage\r\n> > \r\n> > \r\n> > It is still crashing with Offstage or visibility widget . This is not solving my problem. after building map, not crashes. Thanks for helping.\r\n> \r\n> u can use this override to fix until official update.\r\n> \r\n> `dependency_overrides: google_maps_flutter: git: url: https://github.com/lukaskurz/plugins path: packages/google_maps_flutter/google_maps_flutter ref: main`\r\n\r\nThis override cause another problem on my project. \r\nFurkan problemimiz aynı bana ulaşabilir misin beraber bir yol bulalım. (ankarasoftware06@gmail.com)",
+    "createdAt": "2022-08-13T11:53:44Z"
+  },
+  {
+    "id": 4399,
+    "sender": "Peter080202",
+    "content": "@everyone any updates regarding this issue? Probably not but I´m just curious because our customers are asking everyday when we able to fix it....\r\n",
+    "createdAt": "2022-08-16T09:16:08Z"
+  },
+  {
+    "id": 4400,
+    "sender": "AnggaSP",
+    "content": "Tested #108496 via Flutter Master and we still observed the same crash as stable.\r\n\r\n<details>\r\n<summary>Code sample</summary>\r\n\r\n```dart\r\nimport 'package:flutter/material.dart';\r\nimport 'package:google_maps_flutter/google_maps_flutter.dart';\r\n\r\nvoid main() {\r\n  runApp(const MyApp());\r\n}\r\n\r\nclass MyApp extends StatelessWidget {\r\n  const MyApp({super.key});\r\n\r\n  // This widget is the root of your application.\r\n  @override\r\n  Widget build(BuildContext context) {\r\n    return MaterialApp(\r\n      title: 'Flutter Demo',\r\n      theme: ThemeData(\r\n        // This is the theme of your application.\r\n        //\r\n        // Try running your application with \"flutter run\". You'll see the\r\n        // application has a blue toolbar. Then, without quitting the app, try\r\n        // changing the primarySwatch below to Colors.green and then invoke\r\n        // \"hot reload\" (press \"r\" in the console where you ran \"flutter run\",\r\n        // or simply save your changes to \"hot reload\" in a Flutter IDE).\r\n        // Notice that the counter didn't reset back to zero; the application\r\n        // is not restarted.\r\n        primarySwatch: Colors.blue,\r\n      ),\r\n      home: const AltScreen(),\r\n    );\r\n  }\r\n}\r\n\r\nclass AltScreen extends StatelessWidget {\r\n  const AltScreen({super.key});\r\n\r\n  @override\r\n  Widget build(BuildContext context) {\r\n    return Scaffold(\r\n      appBar: AppBar(\r\n        title: const Text('Alt screen'),\r\n      ),\r\n      body: Center(\r\n        child: ElevatedButton(\r\n          child: const Text('Push map'),\r\n          onPressed: () => Navigator.of(context, rootNavigator: true).push(\r\n            MaterialPageRoute(\r\n              builder: (ctx) => Scaffold(\r\n                appBar: AppBar(\r\n                  actions: [\r\n                    IconButton(\r\n                      onPressed: Navigator.of(ctx, rootNavigator: true).pop,\r\n                      icon: const Icon(Icons.close),\r\n                    ),\r\n                  ],\r\n                ),\r\n                body: const GoogleMap(\r\n                  initialCameraPosition: CameraPosition(\r\n                    target: LatLng(41.9, 12.5),\r\n                    zoom: 17,\r\n                  ),\r\n                  compassEnabled: false,\r\n                  myLocationButtonEnabled: false,\r\n                  myLocationEnabled: false,\r\n                  scrollGesturesEnabled: true,\r\n                  zoomGesturesEnabled: true,\r\n                  rotateGesturesEnabled: false,\r\n                  zoomControlsEnabled: false,\r\n                  mapToolbarEnabled: false,\r\n                ),\r\n              ),\r\n            ),\r\n          ),\r\n        ),\r\n      ),\r\n    );\r\n  }\r\n}\r\n```\r\n\r\n</details>\r\n\r\n\r\n<details>\r\n<summary>Log on master</summary>\r\n\r\n```\r\nE/AndroidRuntime( 4774): FATAL EXCEPTION: GLThread 105\r\nE/AndroidRuntime( 4774): Process: com.example.map_test, PID: 4774\r\nE/AndroidRuntime( 4774): java.lang.NullPointerException: Attempt to get length of null array\r\nE/AndroidRuntime( 4774): \tat java.nio.ByteBufferAsIntBuffer.put(ByteBufferAsIntBuffer.java:122)\r\nE/AndroidRuntime( 4774): \tat com.google.maps.api.android.lib6.gmm6.vector.gl.buffer.n.i(:com.google.android.gms.dynamite_mapsdynamite@222413104@22.24.13 (190800-0):2)\r\nE/AndroidRuntime( 4774): \tat com.google.maps.api.android.lib6.gmm6.vector.gl.buffer.n.d(:com.google.android.gms.dynamite_mapsdynamite@222413104@22.24.13 (190800-0):3)\r\nE/AndroidRuntime( 4774): \tat com.google.maps.api.android.lib6.gmm6.vector.gl.drawable.d.s(:com.google.android.gms.dynamite_mapsdynamite@222413104@22.24.13 (190800-0):2)\r\nE/AndroidRuntime( 4774): \tat com.google.maps.api.android.lib6.gmm6.vector.gl.drawable.ao.s(:com.google.android.gms.dynamite_mapsdynamite@222413104@22.24.13 (190800-0):12)\r\nE/AndroidRuntime( 4774): \tat com.google.maps.api.android.lib6.gmm6.vector.bz.s(:com.google.android.gms.dynamite_mapsdynamite@222413104@22.24.13 (190800-0):29)\r\nE/AndroidRuntime( 4774): \tat com.google.maps.api.android.lib6.gmm6.vector.bs.b(:com.google.android.gms.dynamite_mapsdynamite@222413104@22.24.13 (190800-0):151)\r\nE/AndroidRuntime( 4774): \tat com.google.maps.api.android.lib6.gmm6.vector.an.run(:com.google.android.gms.dynamite_mapsdynamite@222413104@22.24.13 (190800-0):48)\r\nI/Process ( 4774): Sending signal. PID: 4774 SIG: 9\r\n```\r\n\r\n</details>\r\n\r\n\r\n<details>\r\n<summary>flutter doctor -v on master</summary>\r\n\r\n```\r\nflutter doctor -v\r\n[√] Flutter (Channel master, 3.1.0-0.0.pre.2295, on Microsoft Windows [Version 10.0.22622.575], locale id-ID)\r\n    • Flutter version 3.1.0-0.0.pre.2295 on channel master at C:\\Users\\Angga\\SDK\\Flutter\r\n    • Upstream repository https://github.com/flutter/flutter.git\r\n    • Framework revision 3bc49103cc (33 minutes ago), 2022-08-16 05:33:57 -0400\r\n    • Engine revision 8a1ab4692a\r\n    • Dart version 2.19.0 (build 2.19.0-100.0.dev)\r\n    • DevTools version 2.16.0\r\n\r\n[√] Android toolchain - develop for Android devices (Android SDK version 32.1.0-rc1)\r\n    • Android SDK at C:\\Users\\Angga\\SDK\\Android\r\n    • Platform android-32, build-tools 32.1.0-rc1\r\n    • ANDROID_SDK_ROOT = C:\\Users\\Angga\\SDK\\Android\r\n    • Java binary at: C:\\Program Files\\Java\\JDK11\\bin\\java\r\n    • Java version OpenJDK Runtime Environment Zulu11.58+15-CA (build 11.0.16+8-LTS)\r\n    • All Android licenses accepted.\r\n\r\n[X] Chrome - develop for the web (Cannot find Chrome executable at .\\Google\\Chrome\\Application\\chrome.exe)\r\n    ! Cannot find Chrome. Try setting CHROME_EXECUTABLE to a Chrome executable.\r\n\r\n[X] Visual Studio - develop for Windows\r\n    X Visual Studio not installed; this is necessary for Windows development.\r\n      Download at https://visualstudio.microsoft.com/downloads/.\r\n      Please install the \"Desktop development with C++\" workload, including all of its default components\r\n\r\n[!] Android Studio (not installed)\r\n    • Android Studio not found; download from https://developer.android.com/studio/index.html\r\n      (or visit https://flutter.dev/docs/get-started/install/windows#android-setup for detailed instructions).\r\n\r\n[√] IntelliJ IDEA Ultimate Edition (version 2022.2)\r\n    • IntelliJ at C:\\Program Files\\JetBrains\\IntelliJ IDEA\r\n    • Flutter plugin version 69.0.5\r\n    • Dart plugin version 222.3345.108\r\n\r\n[√] Connected device (3 available)\r\n    • sdk gphone64 x86 64 (mobile) • emulator-5554 • android-x64    • Android 12 (API 32) (emulator)\r\n    • Windows (desktop)            • windows       • windows-x64    • Microsoft Windows [Version 10.0.22622.575]\r\n    • Edge (web)                   • edge          • web-javascript • Microsoft Edge 104.0.1293.47\r\n\r\n[√] HTTP Host Availability\r\n    • All required HTTP hosts are available\r\n\r\n! Doctor found issues in 3 categories.\r\n```\r\n\r\n</details>\r\n\r\n\r\n<details>\r\n<summary>Log on stable</summary>\r\n\r\n```\r\nE/AndroidRuntime( 5170): FATAL EXCEPTION: GLThread 153\r\nE/AndroidRuntime( 5170): Process: com.example.map_test, PID: 5170\r\nE/AndroidRuntime( 5170): java.lang.NullPointerException: Attempt to get length of null array\r\nE/AndroidRuntime( 5170): \tat java.nio.ByteBufferAsIntBuffer.put(ByteBufferAsIntBuffer.java:122)\r\nE/AndroidRuntime( 5170): \tat com.google.maps.api.android.lib6.gmm6.vector.gl.buffer.n.i(:com.google.android.gms.dynamite_mapsdynamite@222413104@22.24.13 (190800-0):2)\r\nE/AndroidRuntime( 5170): \tat com.google.maps.api.android.lib6.gmm6.vector.gl.buffer.n.d(:com.google.android.gms.dynamite_mapsdynamite@222413104@22.24.13 (190800-0):3)\r\nE/AndroidRuntime( 5170): \tat com.google.maps.api.android.lib6.gmm6.vector.gl.drawable.y.s(:com.google.android.gms.dynamite_mapsdynamite@222413104@22.24.13 (190800-0):16)\r\nE/AndroidRuntime( 5170): \tat com.google.maps.api.android.lib6.gmm6.vector.gl.drawable.ao.s(:com.google.android.gms.dynamite_mapsdynamite@222413104@22.24.13 (190800-0):11)\r\nE/AndroidRuntime( 5170): \tat com.google.maps.api.android.lib6.gmm6.vector.bz.s(:com.google.android.gms.dynamite_mapsdynamite@222413104@22.24.13 (190800-0):29)\r\nE/AndroidRuntime( 5170): \tat com.google.maps.api.android.lib6.gmm6.vector.bs.b(:com.google.android.gms.dynamite_mapsdynamite@222413104@22.24.13 (190800-0):151)\r\nE/AndroidRuntime( 5170): \tat com.google.maps.api.android.lib6.gmm6.vector.av.run(:com.google.android.gms.dynamite_mapsdynamite@222413104@22.24.13 (190800-0):48)\r\nI/Process ( 5170): Sending signal. PID: 5170 SIG: 9\r\n```\r\n\r\n</details>\r\n\r\n\r\n<details>\r\n<summary>flutter doctor -v on stable</summary>\r\n\r\n```\r\nflutter doctor -v\r\n[√] Flutter (Channel stable, 3.0.5, on Microsoft Windows [Version 10.0.22622.575], locale id-ID)\r\n    • Flutter version 3.0.5 at C:\\Users\\Angga\\SDK\\Flutter\r\n    • Upstream repository https://github.com/flutter/flutter.git\r\n    • Framework revision f1875d570e (5 weeks ago), 2022-07-13 11:24:16 -0700\r\n    • Engine revision e85ea0e79c\r\n    • Dart version 2.17.6\r\n    • DevTools version 2.12.2\r\n\r\n[√] Android toolchain - develop for Android devices (Android SDK version 32.1.0-rc1)\r\n    • Android SDK at C:\\Users\\Angga\\SDK\\Android\r\n    • Platform android-32, build-tools 32.1.0-rc1\r\n    • ANDROID_SDK_ROOT = C:\\Users\\Angga\\SDK\\Android\r\n    • Java binary at: C:\\Program Files\\Java\\JDK11\\bin\\java\r\n    • Java version OpenJDK Runtime Environment Zulu11.58+15-CA (build 11.0.16+8-LTS)\r\n    • All Android licenses accepted.\r\n\r\n[X] Chrome - develop for the web (Cannot find Chrome executable at .\\Google\\Chrome\\Application\\chrome.exe)\r\n    ! Cannot find Chrome. Try setting CHROME_EXECUTABLE to a Chrome executable.\r\n\r\n[X] Visual Studio - develop for Windows\r\n    X Visual Studio not installed; this is necessary for Windows development.\r\n      Download at https://visualstudio.microsoft.com/downloads/.\r\n      Please install the \"Desktop development with C++\" workload, including all of its default components\r\n\r\n[!] Android Studio (not installed)\r\n    • Android Studio not found; download from https://developer.android.com/studio/index.html\r\n      (or visit https://flutter.dev/docs/get-started/install/windows#android-setup for detailed instructions).\r\n\r\n[√] IntelliJ IDEA Ultimate Edition (version 2022.2)\r\n    • IntelliJ at C:\\Program Files\\JetBrains\\IntelliJ IDEA\r\n    • Flutter plugin version 69.0.5\r\n    • Dart plugin version 222.3345.108\r\n\r\n[√] Connected device (3 available)\r\n    • sdk gphone64 x86 64 (mobile) • emulator-5554 • android-x64    • Android 12 (API 32) (emulator)\r\n    • Windows (desktop)            • windows       • windows-x64    • Microsoft Windows [Version 10.0.22622.575]\r\n    • Edge (web)                   • edge          • web-javascript • Microsoft Edge 104.0.1293.47\r\n\r\n[√] HTTP Host Availability\r\n    • All required HTTP hosts are available\r\n\r\n! Doctor found issues in 3 categories.\r\n```\r\n\r\n</details>",
+    "createdAt": "2022-08-16T10:18:48Z"
+  },
+  {
+    "id": 4401,
+    "sender": "tvolkert",
+    "content": "Upping to P1 - b/242810798\r\n\r\n@stuartmorgan ",
+    "createdAt": "2022-08-19T16:37:39Z"
+  },
+  {
+    "id": 4402,
+    "sender": "fleoparra",
+    "content": "I have tested latest version (2.1.12) and the error continues",
+    "createdAt": "2022-08-20T20:26:58Z"
+  },
+  {
+    "id": 4403,
+    "sender": "stuartmorgan-g",
+    "content": "Returning to P3, since b/242810798 was resolved by the client switching to the new renderer.",
+    "createdAt": "2022-08-22T17:02:51Z"
+  },
+  {
+    "id": 4404,
+    "sender": "bdezso",
+    "content": "The following steps will **fix** the problem (update to new renderer in kotlin project):\r\n\r\n1. Add this line to your app's  build.gradle: \r\n`implementation 'com.google.android.gms:play-services-maps:18.0.2'`\r\n2. Import these lines to MainActivity.kt: \r\n```\r\nimport android.util.Log;\r\nimport com.google.android.gms.maps.MapsInitializer\r\nimport com.google.android.gms.maps.MapsInitializer.Renderer\r\nimport com.google.android.gms.maps.OnMapsSdkInitializedCallback\r\n```\r\n2. Add `MapsInitializer.initialize(applicationContext, Renderer.LATEST, this)` in your MainActivity onCreate method.\r\n3. Implement  OnMapsSdkInitializedCallback interface for verify the new renderer.\r\n\r\n\r\n**example (MainActivity.kt):**\r\n```\r\npackage com.example.application\r\n\r\nimport android.os.Bundle\r\nimport io.flutter.embedding.android.FlutterActivity\r\nimport io.flutter.embedding.engine.FlutterEngine\r\nimport io.flutter.plugin.common.MethodChannel\r\nimport io.flutter.plugins.GeneratedPluginRegistrant\r\nimport io.flutter.view.FlutterMain\r\nimport android.os.Build;\r\nimport android.view.WindowManager\r\nimport android.util.Log;\r\nimport com.google.android.gms.maps.MapsInitializer\r\nimport com.google.android.gms.maps.MapsInitializer.Renderer\r\nimport com.google.android.gms.maps.OnMapsSdkInitializedCallback\r\n\r\n\r\nclass MainActivity: FlutterActivity(), OnMapsSdkInitializedCallback{\r\n    override \r\n    fun onCreate(savedInstanceState: Bundle?){\r\n        super.onCreate(savedInstanceState);\r\n        MapsInitializer.initialize(applicationContext, Renderer.LATEST, this)\r\n    }\r\n\r\n    override fun onMapsSdkInitialized(renderer: MapsInitializer.Renderer) {\r\n      when (renderer) {\r\n        Renderer.LATEST -> Log.d(\"NewRendererLog\", \"The latest version of the renderer is used.\")\r\n        Renderer.LEGACY -> Log.d(\"NewRendererLog\",\"The legacy version of the renderer is used.\")\r\n      }\r\n    }\r\n}\r\n\r\n```\r\n4. Run & Check the logs, you should see these lines:\r\n```\r\nD/MapsInitializer: loadedRenderer: LATEST\r\nD/NewRendererLog: The latest version of the renderer is used.\r\n```\r\n\r\n",
+    "createdAt": "2022-08-23T17:55:21Z"
+  },
+  {
+    "id": 4405,
+    "sender": "danielgomezrico",
+    "content": "@bdezso I tried that but I am getting:\r\n\r\n# With the proposed fix\r\n\r\nTried using these two versions:\r\n- `implementation 'com.google.android.gms:play-services-maps:18.0.2'`\r\n- `implementation 'com.google.android.gms:play-services-maps:18.1.0'` (the newer one)\r\n\r\nBut I get:\r\n\r\n```console\r\nD/MapsInitializer(16681): preferredRenderer: null\r\nD/zzca    (16681): preferredRenderer: null\r\nI/Google Android Maps SDK(16681): Google Play services package version: 222615030\r\nI/Google Android Maps SDK(16681): Google Play services maps renderer version(maps_core): 222210600\r\n```\r\n\r\nIm not sure why I dont see any `NewRendererLog` logs, this `preferredRenderer: null` worries me 🤔 \r\n\r\n# Without the fix\r\n\r\nI see these logs without adding this code:\r\n```console\r\nD/MapsInitializer(19175): preferredRenderer: null\r\nD/zzca    (19175): preferredRenderer: null\r\nI/zzca    (19175): Making Creator dynamically\r\nI/DynamiteModule(19175): Considering local module com.google.android.gms.maps_dynamite:0 and remote module com.google.android.gms.maps_dynamite:203115000\r\nI/DynamiteModule(19175): Selected remote version of com.google.android.gms.maps_dynamite, version >= 203115000\r\nV/DynamiteModule(19175): Dynamite loader version >= 2, using loadModule2NoCrashUtils\r\nW/m.lahaus.clien(19175): Unsupported class loader\r\nI/Google Maps Android API(19175): Google Play services client version: 12451000\r\nI/Google Maps Android API(19175): Google Play services package version: 222615030\r\nI/Google Maps Android API(19175): Google Play services maps renderer version(legacy): 203115000\r\nD/MapsInitializer(19175): loadedRenderer: LEGACY\r\nD/zzca    (19175): preferredRenderer: null\r\nI/Google Maps Android API(19175): Google Play services package version: 222615030\r\nI/Google Maps Android API(19175): Google Play services maps renderer version(legacy): 203115000\r\n```\r\n\r\nI still see the `preferredRenderer: null` here 🤔 ",
+    "createdAt": "2022-08-23T19:24:57Z"
+  },
+  {
+    "id": 4406,
+    "sender": "stuartmorgan-g",
+    "content": "Have you verified that your `MapsInitializer.initialize` call was actually reached?",
+    "createdAt": "2022-08-23T19:34:22Z"
+  },
+  {
+    "id": 4407,
+    "sender": "danielgomezrico",
+    "content": "Thanks for that fast answer, I do see the logs now, Im not sure why I havent seen them before, I think that I need to use `adb logcat` instead of `flutter logs` for that.\r\n\r\nAfter adding that code I do see these new logs a lot:\r\n\r\n```console\r\nW/ProxyAndroidLoggerBackend(23686): Too many Flogger logs received before configuration. Dropping old logs.\r\nW/ProxyAndroidLoggerBackend(23686): Too many Flogger logs received before configuration. Dropping old logs.\r\nW/ProxyAndroidLoggerBackend(23686): Too many Flogger logs received before configuration. Dropping old logs.\r\n...\r\n```\r\n\r\nBut I will test to see if this fixes the crash for us 👍🏻 ",
+    "createdAt": "2022-08-23T19:53:03Z"
+  },
+  {
+    "id": 4408,
+    "sender": "benyameenashraf",
+    "content": "Any update.? why flutter team takes so much time to fix it",
+    "createdAt": "2022-08-25T12:28:30Z"
+  },
+  {
+    "id": 4409,
+    "sender": "martin-braun",
+    "content": "@benyameenashraf Because you can circumvent the issue by switching to the new renderer, however this is a hassle. In my opinion, this issue should remain <s>on P1 or at least P2</s> until a renderer switch is exposed in Flutter to make it easy to switch to the new renderer without further touching the native parts of the app.",
+    "createdAt": "2022-08-25T13:54:40Z"
+  },
+  {
+    "id": 4410,
+    "sender": "stuartmorgan-g",
+    "content": "> In my opinion, this issue should remain on P1 or at least P2\r\n\r\nPlease see https://github.com/flutter/flutter/wiki/Issue-hygiene#priorities. P1 and P2 are not opinion-based labels in our issue tracker, and this does not meet the criteria for either.",
+    "createdAt": "2022-08-25T14:48:09Z"
+  },
+  {
+    "id": 4411,
+    "sender": "diwsky",
+    "content": "I'm using this version\r\n```\r\ngoogle_maps_flutter:\r\n    dependency: \"direct main\"\r\n    description:\r\n      name: google_maps_flutter\r\n      url: \"[https://pub.dartlang.org](https://www.google.com/url?q=https://pub.dartlang.org&sa=D&source=buganizer&usg=AOvVaw34QAOCTeOs6qeufPKEaNQ4)\"\r\n    source: hosted\r\n    version: \"2.1.10\"\r\n  google_maps_flutter_platform_interface:\r\n    dependency: transitive\r\n    description:\r\n      name: google_maps_flutter_platform_interface\r\n      url: \"[https://pub.dartlang.org](https://www.google.com/url?q=https://pub.dartlang.org&sa=D&source=buganizer&usg=AOvVaw34QAOCTeOs6qeufPKEaNQ4)\"\r\n    source: hosted\r\n    version: \"2.2.1\"\r\n  google_maps_webservice:\r\n    dependency: \"direct main\"\r\n    description:\r\n      name: google_maps_webservice\r\n      url: \"[https://pub.dartlang.org](https://www.google.com/url?q=https://pub.dartlang.org&sa=D&source=buganizer&usg=AOvVaw34QAOCTeOs6qeufPKEaNQ4)\"\r\n    source: hosted\r\n    version: \"0.0.20-nullsafety.5\"\r\n```\r\n\r\nand the `java.lang.NullPointerException: Attempt to get length of null array` issue still happened\r\n\r\nI haven't try [this](https://github.com/flutter/flutter/issues/105965#issuecomment-1224473127) snippets, but setting the `minMaxZoomPreference` works for me:\r\n\r\n```\r\nGoogleMap(\r\n              onLongPress: (argument) {\r\n                // do something when maps long pressed\r\n              },\r\n              \r\n              initialCameraPosition: CameraPosition(\r\n                target: LatLng(defaultLat, defaultLong),\r\n                zoom: 16, // make sure this set at 16 max\r\n              ),\r\n              onMapCreated: (GoogleMapController controller) {\r\n                controller.complete(controller);\r\n              }),\r\n              },\r\n              minMaxZoomPreference: const MinMaxZoomPreference(0, 16)) // set 0-16 level\r\n```\r\n",
+    "createdAt": "2022-08-26T03:33:51Z"
+  },
+  {
+    "id": 4412,
+    "sender": "benyameenashraf",
+    "content": "Same crash is happening in IOS. I´m just curious because our customers are asking everyday when we able to fix it. our client is at stake",
+    "createdAt": "2022-08-29T11:40:13Z"
+  },
+  {
+    "id": 4413,
+    "sender": "stuartmorgan-g",
+    "content": "> Same crash is happening in IOS.\r\n\r\nPlease file a new issue, with all relevant details, if you have an iOS crash in similar cases. This particular crash is in native Android code, so can't happen on iOS.",
+    "createdAt": "2022-08-29T12:17:32Z"
+  },
+  {
+    "id": 4414,
+    "sender": "Rashid-Khabeer",
+    "content": "Facing the same issue only in android. My app is in production and crashes when navigating to the google maps page, I cannot remove Google Maps because it is the main feature of my app.\r\nWhat's the update on this?",
+    "createdAt": "2022-09-02T09:51:52Z"
+  },
+  {
+    "id": 4415,
+    "sender": "AnggaSP",
+    "content": "We still observed this issue, same as you are.\r\nWe reside towards branching our app and backport trunk changes into flutter 2.x and release that version.\r\n\r\nNot elegant but at least client doesn't experience constant crash.",
+    "createdAt": "2022-09-08T08:12:48Z"
+  }
+]

@@ -1,0 +1,386 @@
+[
+  {
+    "id": 6784,
+    "sender": "luckysmg",
+    "content": "HI @Hixie.\r\n\r\nI come across two things. \r\n1. I need a iOS style scan text icon, but I can't find it in `CupertinoIcons`, would you mind telling me how to get that or how to add it to framework? ^_^\r\n2. Is there a way to regenerate the `arb` file? I want add a new localiztion text string `scanTextButtonLabel`. Or I should manually add it for all different languages ?\r\nO(∩_∩)O",
+    "createdAt": "2022-12-15T12:02:27Z"
+  },
+  {
+    "id": 6785,
+    "sender": "luckysmg",
+    "content": "Hi @justinmc. Would you mind sharing your thoughts on current implementation? O(∩_∩)O ",
+    "createdAt": "2022-12-15T12:07:06Z"
+  },
+  {
+    "id": 6786,
+    "sender": "limenote135",
+    "content": "Hi @luckysmg, I'm eagerly looking forward to the merge of this feature! What's the status of this PR?",
+    "createdAt": "2023-04-02T14:20:24Z"
+  },
+  {
+    "id": 6787,
+    "sender": "justinmc",
+    "content": "Sorry @luckysmg I missed your review request.  Can you fix the merge conflicts here?",
+    "createdAt": "2023-04-06T00:23:19Z"
+  },
+  {
+    "id": 6788,
+    "sender": "luckysmg",
+    "content": "Sure. I ll do that later.",
+    "createdAt": "2023-04-10T02:06:50Z"
+  },
+  {
+    "id": 6789,
+    "sender": "justinmc",
+    "content": "It looks like the customer tests are failing because there is a breaking change from adding startLiveTextInput to TextInputClient.  Is there any reasonable way around making a breaking change there?  I mentioned splitting this out of TextInputClient before, but maybe that's not practical.\r\n\r\nIf not, we'll need to follow the steps in this [breaking change guide](https://github.com/flutter/flutter/wiki/Tree-hygiene#handling-breaking-changes).",
+    "createdAt": "2023-04-20T23:45:58Z"
+  },
+  {
+    "id": 6790,
+    "sender": "luckysmg",
+    "content": "> Is there any reasonable way around making a breaking change there? \r\n\r\nI will have a try on that. ^_^",
+    "createdAt": "2023-04-21T02:08:26Z"
+  },
+  {
+    "id": 6791,
+    "sender": "justinmc",
+    "content": "@luckysmg How's it going with this, anything else I can help with?  Looks like you have a conflict and need to push a merge commit.",
+    "createdAt": "2023-06-13T22:56:04Z"
+  },
+  {
+    "id": 6792,
+    "sender": "luckysmg",
+    "content": "I m working on some busy work. Will continue when I have time. ^_^",
+    "createdAt": "2023-06-14T03:01:23Z"
+  },
+  {
+    "id": 6793,
+    "sender": "justinmc",
+    "content": "Sounds good, keep us posted.",
+    "createdAt": "2023-06-14T17:18:24Z"
+  },
+  {
+    "id": 6794,
+    "sender": "luckysmg",
+    "content": "> Sounds good, keep us posted.\r\n\r\nYes. I will mark this PR ready for review when it is ready ^_^",
+    "createdAt": "2023-06-15T15:38:58Z"
+  },
+  {
+    "id": 6795,
+    "sender": "luckysmg",
+    "content": "@justinmc I think it is ready for re-review ^_^ ",
+    "createdAt": "2023-06-16T11:57:11Z"
+  },
+  {
+    "id": 6796,
+    "sender": "luckysmg",
+    "content": "> Should this work on a simulator? I know it needs a camera, but when I try it, nothing happens. I don't know if that's expected or not.\r\n\r\nI think this is expected. The ios native UITextField has same behavior on simulator.\r\n\r\n<img src=https://github.com/flutter/flutter/assets/49340347/fa88e55f-db31-4b80-b9af-da297a5eea5f width=300 />\r\n\r\n\r\n\r\n",
+    "createdAt": "2023-06-17T01:20:35Z"
+  },
+  {
+    "id": 6797,
+    "sender": "luckysmg",
+    "content": "All nits Done.  And I add color for judging dark mode.\r\n\r\nhttps://github.com/flutter/flutter/assets/49340347/53662c40-a66f-49e7-86f7-fab6732c1e5d\r\n\r\n",
+    "createdAt": "2023-06-28T03:13:24Z"
+  },
+  {
+    "id": 6798,
+    "sender": "luckysmg",
+    "content": "Done.",
+    "createdAt": "2023-06-29T06:01:06Z"
+  },
+  {
+    "id": 6799,
+    "sender": "luckysmg",
+    "content": "@tgucio Would you mind re-review? Since you have a change request that block this PR merging  ^_^",
+    "createdAt": "2023-06-30T01:58:25Z"
+  },
+  {
+    "id": 6800,
+    "sender": "tgucio",
+    "content": "@luckysmg Added a few comments: mostly nits and localisation remarks. Again thanks for this wonderful work!",
+    "createdAt": "2023-07-04T15:51:07Z"
+  },
+  {
+    "id": 6801,
+    "sender": "luckysmg",
+    "content": "@tgucio  All Done. plz re-review ^_^",
+    "createdAt": "2023-07-05T02:00:28Z"
+  },
+  {
+    "id": 6802,
+    "sender": "tgucio",
+    "content": "@luckysmg I've LGTM'd with nits: remaining full stop in Urdu l10n and some doubles without decimal point in `text_selection_toolbar_button.dart` - could you look into those before merging?",
+    "createdAt": "2023-07-05T10:13:10Z"
+  },
+  {
+    "id": 6803,
+    "sender": "luckysmg",
+    "content": "Yes. I ll take a look before merging...  Will change. ^_^\r\n\r\nBefore I didn't understand your meaning very well haha ^_^",
+    "createdAt": "2023-07-05T10:16:03Z"
+  },
+  {
+    "id": 6804,
+    "sender": "luckysmg",
+    "content": "@tgucio I think all nits done. You can take a look",
+    "createdAt": "2023-07-05T11:14:07Z"
+  },
+  {
+    "id": 6805,
+    "sender": "luckysmg",
+    "content": "Also @justinmc would you mind help to take a look that why google testing still not completed? ^_^",
+    "createdAt": "2023-07-05T11:34:39Z"
+  },
+  {
+    "id": 6806,
+    "sender": "justinmc",
+    "content": "Google tests look fine despite the stuck \"pending\" status.  I tried to change the status but it is giving an HTTP error. Merging.",
+    "createdAt": "2023-07-06T15:50:19Z"
+  },
+  {
+    "id": 6807,
+    "sender": "justinmc",
+    "content": "@luckysmg Thanks for all your work here!",
+    "createdAt": "2023-07-06T15:51:30Z"
+  },
+  {
+    "id": 6808,
+    "sender": "Void48",
+    "content": "@luckysmg gj :) ",
+    "createdAt": "2023-07-06T21:11:33Z"
+  },
+  {
+    "id": 6809,
+    "sender": "justinmc",
+    "content": "Congrats to @luckysmg and @tgucio for the shout out in the 3.13 blog post! https://medium.com/flutter/whats-new-in-flutter-3-13-479d9b11df4d",
+    "createdAt": "2023-08-30T17:58:58Z"
+  },
+  {
+    "id": 6810,
+    "sender": "JoseAlba",
+    "content": "## Slider\n\n## Description\r\n\r\nUpdate the Slider and RangeSlider to the latest Material spec. This introduces an updated track, updated thumbs, updated tick marks, and a new value indicator shape. The old paddle value indicator shape is also updated so that text scaling works consistently.\r\n\r\nFull details of this change can be found here: https://groups.google.com/forum/?utm_medium=email&utm_source=footer#!msg/flutter-announce/69dmlKUL5Ew/tQh-ajiEAAAJ\r\n\r\n## Tests\r\n\r\nI added the following tests:\r\n\r\nUpdated all affected tests in slider_test, range_slider_test, and slider_theme_test\r\nAlso kept the original paddle value indicator tests and added a new test for the new default rectangular shape.\r\n\r\n## Checklist\r\n\r\nBefore you create this PR confirm that it meets all requirements listed below by checking the relevant checkboxes (`[x]`). This will ensure a smooth and quick review process.\r\n\r\n- [X] I read the [Contributor Guide] and followed the process outlined there for submitting PRs.\r\n- [X] I signed the [CLA].\r\n- [X] I read and followed the [Flutter Style Guide], including [Features we expect every widget to implement].\r\n- [X] I read the [Tree Hygiene] wiki page, which explains my responsibilities.\r\n- [X] I updated/added relevant documentation (doc comments with `///`).\r\n- [X] All existing and new tests are passing.\r\n- [X] The analyzer (`flutter analyze --flutter-repo`) does not report any problems on my PR.\r\n- [X] I am willing to follow-up on review comments in a timely manner.\r\n\r\n## Breaking Change\r\n\r\nDid any tests fail when you ran them? Please read [Handling breaking changes].\r\n\r\n- [ ] No, no existing tests failed, so this is *not* a breaking change.\r\n- [X] Yes, this is a breaking change. *If not, delete the remainder of this section.*\r\n   - [ ] I wrote a design doc: https://flutter.dev/go/template *Replace this with a link to your design doc's short link*\r\n   - [ ] I got input from the developer relations team, specifically from: *Replace with the names of who gave advice*\r\n   - [ ] I wrote a migration guide: *Replace with a link to your migration guide*\r\n\r\n<!-- Links -->\r\n[issue database]: https://github.com/flutter/flutter/issues\r\n[Contributor Guide]: https://github.com/flutter/flutter/wiki/Tree-hygiene#overview\r\n[Test Coverage]: https://github.com/flutter/flutter/wiki/Test-coverage-for-package%3Aflutter\r\n[Flutter Style Guide]: https://github.com/flutter/flutter/wiki/Style-guide-for-Flutter-repo\r\n[Features we expect every widget to implement]: https://github.com/flutter/flutter/wiki/Style-guide-for-Flutter-repo#features-we-expect-every-widget-to-implement\r\n[CLA]: https://cla.developers.google.com/\r\n[Tree Hygiene]: https://github.com/flutter/flutter/wiki/Tree-hygiene\r\n[Handling breaking changes]: https://github.com/flutter/flutter/wiki/Tree-hygiene#handling-breaking-changes\r",
+    "createdAt": "2020-03-16T13:13:24Z"
+  },
+  {
+    "id": 6811,
+    "sender": "clocksmith",
+    "content": "Add a title for this PR",
+    "createdAt": "2020-03-23T02:32:34Z"
+  },
+  {
+    "id": 6812,
+    "sender": "vanlooverenkoen",
+    "content": "## Android Platform Tools 29: Error retrieving device properties for ro.product.cpu.abi: \n\n<!-- Thank you for using Flutter!\r\n\r\n     If you are looking for support, please check out our documentation\r\n     or consider asking a question on Stack Overflow:\r\n      * https://flutter.dev/\r\n      * https://api.flutter.dev/\r\n      * https://stackoverflow.com/questions/tagged/flutter?sort=frequent\r\n\r\n     If you have found a bug or if our documentation doesn't have an answer\r\n     to what you're looking for, then fill our the template below. Please read\r\n     our guide to filing a bug first: https://flutter.dev/docs/resources/bug-reports\r\n-->\r\n\r\nWhen I try to run my app in an emulator in Android Studio I get the following error. I have to say that it worked before and stopped working after some updates of SDK to v.29. Is there something I have to change now?\r\n\r\nReinstall of android studio and flutter did not work, I tried to kill and restart adb server and disabling heap protection. nothing worked\r\n\r\n```\r\nError retrieving device properties for ro.product.cpu.abi:\r\n\r\nLaunching lib\\main.dart on Android SDK built for x86 in debug mode...\r\nInitializing gradle...\r\nResolving dependencies...\r\n--------- beginning of main\r\n06-05 20:29:29.366 I/GnssLocationProvider( 1871): WakeLock released by handleMessage(REPORT_SV_STATUS, 0, com.android.server.location.GnssLocationProvider$SvStatusInfo@c9864b)\r\nUnhandled exception:\r\nExit code -1073740940 from: C:\\Users\\Koen\\AppData\\Local\\Android\\sdk\\platform-tools\\adb.exe -s emulator-5554 shell -x logcat -v time -t 1\r\n#0      _runWithLoggingSync (package:flutter_tools/src/base/process.dart:360:7)\r\n#1      runCheckedSync (package:flutter_tools/src/base/process.dart:289:10)\r\n#2      AndroidDevice.lastLogcatTimestamp (package:flutter_tools/src/android/android_device.dart:517:27)\r\n#3      _AdbLogReader._start (package:flutter_tools/src/android/android_device.dart:697:41)\r\n#4      _runGuarded (dart:async/stream_controller.dart:805:24)\r\n#5      _BroadcastStreamController._subscribe (dart:async/broadcast_stream_controller.dart:213:7)\r\n#6      _ControllerStream._createSubscription (dart:async/stream_controller.dart:818:19)\r\n#7      _StreamImpl.listen (dart:async/stream_impl.dart:472:9)\r\n#8      FlutterDevice.startEchoingDeviceLog (package:flutter_tools/src/resident_runner.dart:318:71)\r\n#9      FlutterDevice.runHot (package:flutter_tools/src/resident_runner.dart:361:5)\r\n<asynchronous suspension>\r\n#10     HotRunner.run (package:flutter_tools/src/run_hot.dart:253:39)\r\n<asynchronous suspension>\r\n#11     AppDomain.startApp.<anonymous closure> (package:flutter_tools/src/commands/daemon.dart:392:23)\r\n#12     AppDomain.launch.<anonymous closure> (package:flutter_tools/src/commands/daemon.dart:452:26)\r\n<asynchronous suspension>\r\n#13     AppContext.run.<anonymous closure> (package:flutter_tools/src/base/context.dart:153:29)\r\n<asynchronous suspension>\r\n#14     _rootRun (dart:async/zone.dart:1124:13)\r\n#15     _CustomZone.run (dart:async/zone.dart:1021:19)\r\n#16     _runZoned (dart:async/zone.dart:1516:10)\r\n#17     runZoned (dart:async/zone.dart:1463:12)\r\n#18     AppContext.run (package:flutter_tools/src/base/context.dart:152:18)\r\n<asynchronous suspension>\r\n#19     AppInstance._runInZone (package:flutter_tools/src/commands/daemon.dart:822:20)\r\n#20     AppDomain.launch (package:flutter_tools/src/commands/daemon.dart:450:15)\r\n<asynchronous suspension>\r\n#21     AppDomain.startApp (package:flutter_tools/src/commands/daemon.dart:386:12)\r\n<asynchronous suspension>\r\n#22     RunCommand.runCommand (package:flutter_tools/src/commands/run.dart:301:38)\r\n<asynchronous suspension>\r\n#23     FlutterCommand.verifyThenRunCommand (package:flutter_tools/src/runner/flutter_command.dart:488:18)\r\n#24     _asyncThenWrapperHelper.<anonymous closure> (dart:async-patch/async_patch.dart:77:64)\r\n#25     _rootRunUnary (dart:async/zone.dart:1132:38)\r\n#26     _CustomZone.runUnary (dart:async/zone.dart:1029:19)\r\n#27     _FutureListener.handleValue (dart:async/future_impl.dart:126:18)\r\n#28     Future._propagateToListeners.handleValueCallback (dart:async/future_impl.dart:639:45)\r\n#29     Future._propagateToListeners (dart:async/future_impl.dart:668:32)\r\n#30     Future._complete (dart:async/future_impl.dart:473:7)\r\n#31     _SyncCompleter.complete (dart:async/future_impl.dart:51:12)\r\n#32     _AsyncAwaitCompleter.complete (dart:async-patch/async_patch.dart:28:18)\r\n#33     _completeOnAsyncReturn (dart:async-patch/async_patch.dart:294:13)\r\n#34     RunCommand.usageValues (package:flutter_tools/src/commands/run.dart)\r\n#35     _asyncThenWrapperHelper.<anonymous closure> (dart:async-patch/async_patch.dart:77:64)\r\n#36     _rootRunUnary (dart:async/zone.dart:1132:38)\r\n#37     _CustomZone.runUnary (dart:async/zone.dart:1029:19)\r\n#38     _FutureListener.handleValue (dart:async/future_impl.dart:126:18)\r\n#39     Future._propagateToListeners.handleValueCallback (dart:async/future_impl.dart:639:45)\r\n#40     Future._propagateToListeners (dart:async/future_impl.dart:668:32)\r\n#41     Future._complete (dart:async/future_impl.dart:473:7)\r\n#42     _SyncCompleter.complete (dart:async/future_impl.dart:51:12)\r\n#43     _AsyncAwaitCompleter.complete.<anonymous closure> (dart:async-patch/async_patch.dart:33:20)\r\n#44     _rootRun (dart:async/zone.dart:1124:13)\r\n#45     _CustomZone.run (dart:async/zone.dart:1021:19)\r\n#46     _CustomZone.bindCallback.<anonymous closure> (dart:async/zone.dart:947:23)\r\n#47     _microtaskLoop (dart:async/schedule_microtask.dart:41:21)\r\n#48     _startMicrotaskLoop (dart:async/schedule_microtask.dart:50:5)\r\n#49     _runPendingImmediateCallback (dart:isolate-patch/isolate_patch.dart:115:13)\r\n#50     _RawReceivePortImpl._handleMessage (dart:isolate-patch/isolate_patch.dart:172:5)\r\n```\r\n## Steps to Reproduce\r\n\r\n<!-- Please tell us exactly how to reproduce the problem you are running into. -->\r\n\r\n1. Install the latest version of android studio beta  on windows (platform tools 29 will be installed)\r\n\r\n## Logs\r\n\r\n<!--\r\n      Include the full logs of the commands you are running between the lines\r\n      with the backticks below. If you are running any \"flutter\" commands,\r\n      please include the output of running them with \"--verbose\"; for example,\r\n      the output of running \"flutter --verbose create foo\".\r\n-->\r\n\r\n```\r\n```\r\n\r\n<!-- If possible, paste the output of running `flutter doctor -v` here. -->\r\n\r\n```\r\n[√] Flutter (Channel master, v1.5.9-pre.131, on Microsoft Windows [Version 10.0.17134.765], locale nl-BE)\r\n    • Flutter version 1.5.9-pre.131 at C:\\Users\\Koen\\Documents\\flutter\r\n    • Framework revision 38808d9fe4 (5 weeks ago), 2019-05-03 09:48:20 -0700\r\n    • Engine revision 1bcbaf73a7\r\n    • Dart version 2.3.0 (build 2.3.0-dev.0.5 1577b95c93)\r\n\r\n/Error retrieving device properties for ro.product.cpu.abi:\r\n\r\n[√] Android toolchain - develop for Android devices (Android SDK version 29.0.0)\r\n    • Android SDK at C:\\Users\\Koen\\AppData\\Local\\Android\\sdk\r\n    • Android NDK location not configured (optional; useful for native profiling support)\r\n    • Platform android-29, build-tools 29.0.0\r\n    • Java binary at: C:\\Program Files\\Android\\Android Studio Beta\\jre\\bin\\java\r\n    • Java version OpenJDK Runtime Environment (build 1.8.0_202-release-1483-b02)\r\n    • All Android licenses accepted.\r\n\r\n[√] Android Studio (version 3.5)\r\n    • Android Studio at C:\\Program Files\\Android\\Android Studio Beta\r\n    • Flutter plugin version 36.0.7\r\n    • Dart plugin version 191.7830\r\n    • Java version OpenJDK Runtime Environment (build 1.8.0_202-release-1483-b02)\r\n\r\n[!] VS Code (version 1.35.0)\r\n    • VS Code at C:\\Users\\Koen\\AppData\\Local\\Programs\\Microsoft VS Code\r\n    X Flutter extension not installed; install from\r\n      https://marketplace.visualstudio.com/items?itemName=Dart-Code.flutter\r\n\r\n[√] Connected device (1 available)\r\n    • Android SDK built for x86 • emulator-5554 • android-arm • Android null (API null)\r\n\r\n! Doctor found issues in 1 category.\r\n\r\n\r\n```\r\n\r\nThis did not work:\r\n#16865\r",
+    "createdAt": "2019-06-05T20:33:30Z"
+  },
+  {
+    "id": 6813,
+    "sender": "brunocerk",
+    "content": "Exactly same error here, tried the same things",
+    "createdAt": "2019-06-05T20:36:16Z"
+  },
+  {
+    "id": 6814,
+    "sender": "vanlooverenkoen",
+    "content": "Did you update your platform tools to 29 as well?",
+    "createdAt": "2019-06-05T20:37:12Z"
+  },
+  {
+    "id": 6815,
+    "sender": "brunocerk",
+    "content": "I updated everything yesterday, there was 3 or 4 tools updates to do, i think platform tools was one of them.\r\n![image](https://user-images.githubusercontent.com/7141084/58988842-eeb3be00-87b8-11e9-8b06-8e5ab65e7079.png)\r\n",
+    "createdAt": "2019-06-05T20:40:03Z"
+  },
+  {
+    "id": 6816,
+    "sender": "vanlooverenkoen",
+    "content": "I was working on a project in Android studio stable. But auto imports are only supported in the Android studio beta. I downloaded the Beta version on my windows. and boom everything was broken. The installation updated the platform sdk to 29",
+    "createdAt": "2019-06-05T20:41:57Z"
+  },
+  {
+    "id": 6817,
+    "sender": "brunocerk",
+    "content": "I'm setting up everything to work on Windows, installed Android Studio using JetBrains Toolbox, installed all de SDKs and tools, but when i tried to build on emulator it showed up the error, moved to real device, same thing, then i started looking for solutions",
+    "createdAt": "2019-06-05T20:45:14Z"
+  },
+  {
+    "id": 6818,
+    "sender": "SValab",
+    "content": "On stable i'm getting the same error after updating to 29. You can do a quick test to see the error using flutter doctor instead of running your project. Just make sure your device is running / connected.",
+    "createdAt": "2019-06-05T20:48:44Z"
+  },
+  {
+    "id": 6819,
+    "sender": "vanlooverenkoen",
+    "content": "I found a temporary fix while we wait for a solution provided by the Flutter team\r\n\r\nWindows: http://dl-ssl.google.com/android/repository/platform-tools_r28.0.2-windows.zip\r\nmacOS: http://dl-ssl.google.com/android/repository/platform-tools_r28.0.2-darwin.zip\r\nLinux: http://dl-ssl.google.com/android/repository/platform-tools_r28.0.2-linux.zip\r\n\r\nthis download contains the platform tools for 28.0.1\r\n\r\nif you back up your platform-tools folder and place the content of the zip in the platform-tools folder. \r\n![image](https://user-images.githubusercontent.com/21172855/58989489-4f0c2500-87e4-11e9-8b72-6a9b8ebf0e5f.png)\r\n\r\nthis should be in your platform-tools folder\r\n![image](https://user-images.githubusercontent.com/21172855/58989511-59c6ba00-87e4-11e9-8e9d-e2d055416863.png)\r\n\r\n**THIS IS A TEMPORARY FIX, NOT A SOLUTION**",
+    "createdAt": "2019-06-05T20:50:46Z"
+  },
+  {
+    "id": 6820,
+    "sender": "brunocerk",
+    "content": "I prefer going back to my Linux boot where i haven't upgraded it, but thats a nice workaround, thanks for it!",
+    "createdAt": "2019-06-05T20:52:46Z"
+  },
+  {
+    "id": 6821,
+    "sender": "janheinrichmerker",
+    "content": "@vanlooverenkoen You could also just download the `platform-tools` folder from official Google servers:\r\n- Windows: http://dl-ssl.google.com/android/repository/platform-tools_r28.0.2-windows.zip\r\n- macOS: http://dl-ssl.google.com/android/repository/platform-tools_r28.0.2-darwin.zip\r\n- Linux: http://dl-ssl.google.com/android/repository/platform-tools_r28.0.2-linux.zip",
+    "createdAt": "2019-06-05T21:04:46Z"
+  },
+  {
+    "id": 6822,
+    "sender": "vanlooverenkoen",
+    "content": "Aaah nice. I couldn't find the links :D thanks. I updated my comment as well",
+    "createdAt": "2019-06-05T21:05:18Z"
+  },
+  {
+    "id": 6823,
+    "sender": "janheinrichmerker",
+    "content": "@brunocerk Downgrading isn't hard.\r\n1. Navigate to the Android SDK folder.\r\n2. Remove `platform-tools` folder.\r\n3. Unzip downloaded `platform-tools` from version 28.0.2, the last version before 29.0.0.\r\n\r\nOn Bash these are the commands you need (run at Android SDK home):\r\n```bash\r\nrm -r platform-tools\r\nwget -O platform-tools.zip http://dl-ssl.google.com/android/repository/platform-tools_r28.0.2-linux.zip\r\nunzip platform-tools.zip\r\nrm platform-tools.zip\r\n```",
+    "createdAt": "2019-06-05T21:14:24Z"
+  },
+  {
+    "id": 6824,
+    "sender": "Martin-P",
+    "content": "@vanlooverenkoen Thanks for this temporary fix.\r\n\r\nFor anyone who does not know where to find the `platform-tools` folder (at least I did not know :wink:), the folder screenshot in https://github.com/flutter/flutter/issues/33938#issuecomment-499250288 can be found at the following location:\r\n\r\n`C:\\Users\\[your-username]\\AppData\\Local\\Android\\Sdk`\r\n\r\n(`AppData` is a hidden folder by default)",
+    "createdAt": "2019-06-05T22:13:01Z"
+  },
+  {
+    "id": 6825,
+    "sender": "dxdiagmauric",
+    "content": "Same problem, fix platform-tools",
+    "createdAt": "2019-06-05T23:29:03Z"
+  },
+  {
+    "id": 6826,
+    "sender": "intercorps",
+    "content": "Its impressive how 2 google projects dont take care of this massive issues in consideration. This workaround works for now...",
+    "createdAt": "2019-06-05T23:40:35Z"
+  },
+  {
+    "id": 6827,
+    "sender": "cnkygmr",
+    "content": "same problem 5 hour ago",
+    "createdAt": "2019-06-05T23:46:26Z"
+  },
+  {
+    "id": 6828,
+    "sender": "mccreeper98",
+    "content": "> @vanlooverenkoen Gracias por esta solución temporal.\r\n> \r\n> Para cualquier persona que no sepa dónde encontrar la `platform-tools`carpeta (al menos yo no sabía😉), la captura de pantalla de la carpeta en [# 33938 (comentario)](https://github.com/flutter/flutter/issues/33938#issuecomment-499250288) se puede encontrar en la siguiente ubicación:\r\n> \r\n> `C:\\Users\\[your-username]\\AppData\\Local\\Android\\Sdk`\r\n> \r\n> ( `AppData`Es una carpeta oculta por defecto)\r\n\r\nother option windos + r, type %appdata% \r\n",
+    "createdAt": "2019-06-05T23:47:55Z"
+  },
+  {
+    "id": 6829,
+    "sender": "GuilhermeVendramini",
+    "content": "Same problem here.",
+    "createdAt": "2019-06-06T00:18:54Z"
+  },
+  {
+    "id": 6830,
+    "sender": "PhilParisot",
+    "content": "I have the same problem, I'm on the Android Studio stable channel and I rather wait for a fix instead of downgrading. How will we know if a fix is coming to the stable channel? How about the Beta/Dev/Canary Android Studio channels? Or will the fix have to be on the Flutter SDK side?",
+    "createdAt": "2019-06-06T00:44:26Z"
+  },
+  {
+    "id": 6831,
+    "sender": "shamoore",
+    "content": "Same issue. did the work around for now but that's inconvenient.",
+    "createdAt": "2019-06-06T01:38:21Z"
+  },
+  {
+    "id": 6832,
+    "sender": "bruce4code",
+    "content": "thanks~",
+    "createdAt": "2019-06-06T01:40:43Z"
+  },
+  {
+    "id": 6833,
+    "sender": "jp1017",
+    "content": "Download http://dl.google.com/android/repository/platform-tools_r28.0.3-windows.zip makes it.",
+    "createdAt": "2019-06-06T02:12:33Z"
+  },
+  {
+    "id": 6834,
+    "sender": "tdh8316",
+    "content": "> I found a temporary fix while we wait for a solution provided by the Flutter team\r\n> \r\n> Windows: http://dl-ssl.google.com/android/repository/platform-tools_r28.0.2-windows.zip\r\n> macOS: http://dl-ssl.google.com/android/repository/platform-tools_r28.0.2-darwin.zip\r\n> Linux: http://dl-ssl.google.com/android/repository/platform-tools_r28.0.2-linux.zip\r\n> \r\n> this download contains the platform tools for 28.0.1\r\n> \r\n> if you back up your platform-tools folder and place the content of the zip in the platform-tools folder.\r\n> ![image](https://user-images.githubusercontent.com/21172855/58989489-4f0c2500-87e4-11e9-8b72-6a9b8ebf0e5f.png)\r\n> \r\n> this should be in your platform-tools folder\r\n> ![image](https://user-images.githubusercontent.com/21172855/58989511-59c6ba00-87e4-11e9-8e9d-e2d055416863.png)\r\n> \r\n> **THIS IS A TEMPORARY FIX, NOT A SOLUTION**\r\n\r\nHuge thanks!",
+    "createdAt": "2019-06-06T02:39:23Z"
+  },
+  {
+    "id": 6835,
+    "sender": "cvilia",
+    "content": "saved me!",
+    "createdAt": "2019-06-06T03:28:02Z"
+  },
+  {
+    "id": 6836,
+    "sender": "jj007force",
+    "content": "Thank you! Downgrading the platform tools fixed the issue.  Hope a newer sdk update or flutter update comes out to fix the issue with version 29.",
+    "createdAt": "2019-06-06T03:32:44Z"
+  },
+  {
+    "id": 6837,
+    "sender": "meidikawardana",
+    "content": "thank you.. I got problem yesterday and wake up till 3AM trying to solve this problem. now I am curious, how I can file an issue so this issue can be solved by Google's developers?",
+    "createdAt": "2019-06-06T03:48:03Z"
+  },
+  {
+    "id": 6838,
+    "sender": "Sun3",
+    "content": "Same error here too.",
+    "createdAt": "2019-06-06T03:55:22Z"
+  },
+  {
+    "id": 6839,
+    "sender": "MonipichMP",
+    "content": "same here\r\n",
+    "createdAt": "2019-06-06T03:55:53Z"
+  },
+  {
+    "id": 6840,
+    "sender": "PrimeFactor7",
+    "content": "Same issue with 29, downgrade to 28  workaround is functional",
+    "createdAt": "2019-06-06T04:44:22Z"
+  },
+  {
+    "id": 6841,
+    "sender": "vanlooverenkoen",
+    "content": "Please upvote the question so it had a high priority",
+    "createdAt": "2019-06-06T05:31:00Z"
+  },
+  {
+    "id": 6842,
+    "sender": "mohabmm",
+    "content": "same is here ",
+    "createdAt": "2019-06-06T06:02:14Z"
+  },
+  {
+    "id": 6843,
+    "sender": "luisgdev",
+    "content": "I'm starting with Flutter and just got this error. I downgraded to 28 and it worked!",
+    "createdAt": "2019-06-06T06:15:24Z"
+  },
+  {
+    "id": 6844,
+    "sender": "blacknepia",
+    "content": "saved me. ",
+    "createdAt": "2019-06-06T07:18:52Z"
+  },
+  {
+    "id": 6845,
+    "sender": "akshay512",
+    "content": "Probably androidx app may work I guess..",
+    "createdAt": "2019-06-06T07:45:26Z"
+  },
+  {
+    "id": 6846,
+    "sender": "vanlooverenkoen",
+    "content": "Have you already tested it with AndroidX?",
+    "createdAt": "2019-06-06T07:55:43Z"
+  },
+  {
+    "id": 6847,
+    "sender": "akshay512",
+    "content": "Just my suggestion not yet tested  check this out whether it works or not\nhttps://twitter.com/AthorNZ/status/1134640945020846080\n\nOn Thu 6 Jun, 2019, 1:27 PM Van Looveren Koen, <notifications@github.com>\nwrote:\n\n> Have you already tested it with AndroidX?\n>\n> —\n> You are receiving this because you commented.\n> Reply to this email directly, view it on GitHub\n> <https://github.com/flutter/flutter/issues/33938?email_source=notifications&email_token=AKLHDSNQHIEKU77RAJHLI6LPZC7O7A5CNFSM4HUGPLDKYY3PNVWWK3TUL52HS4DFVREXG43VMVBW63LNMVXHJKTDN5WW2ZLOORPWSZGODXCBKAI#issuecomment-499389697>,\n> or mute the thread\n> <https://github.com/notifications/unsubscribe-auth/AKLHDSNNNA74DLKTIMWAQATPZC7O7ANCNFSM4HUGPLDA>\n> .\n>\n",
+    "createdAt": "2019-06-06T08:18:11Z"
+  }
+]

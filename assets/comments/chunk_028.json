@@ -1,0 +1,386 @@
+[
+  {
+    "id": 1792,
+    "sender": "Hixie",
+    "content": "> I'm just hoping to avoid stepping over existing namespaces (e.g. FlutterView, Isolate, VMService etc).\r\n\r\nSince this is in its own package I wouldn't worry too much about that.\r\n\r\n> I can understand this, but is there a workaround so that we can support logging?  I think it is at least important to know if, say, the user doesn't have permission to bind to a port or the like.\r\n\r\nSure, just use `print` or provide a callback that you invoke. Logging doesn't have to be particularly complicated. :-)\r\n\r\n\r\n> Ah.  This was something I blatantly stole from `flutter_tools`.\r\n\r\nOh dear, we still have code there that does this? I thought we'd excised all of it. Sigh. I'll file a bug or something to deal with that. In the meantime, yeah, let's avoid reproducing this mistake here.\r\n\r\n\r\nHappy to give a more detailed review, let me know when it's ready. :-)",
+    "createdAt": "2018-02-01T00:09:51Z"
+  },
+  {
+    "id": 1793,
+    "sender": "awdavies",
+    "content": "@Hixie @yjbanov PTAL\r\n\r\nSupports IPv6 and has tests and such. Logging is self-contained, etc.  I've addressed all concerns AFAICT, though I'm unsure how well the code is tested regarding actual SSH.",
+    "createdAt": "2018-02-09T00:52:45Z"
+  },
+  {
+    "id": 1794,
+    "sender": "yjbanov",
+    "content": "If @Hixie is ok with the high-level structure of this package, I can do a detailed code review.",
+    "createdAt": "2018-02-14T17:21:30Z"
+  },
+  {
+    "id": 1795,
+    "sender": "yjbanov",
+    "content": "I will optimistically begin reviewing the code.",
+    "createdAt": "2018-02-15T00:22:11Z"
+  },
+  {
+    "id": 1796,
+    "sender": "Hixie",
+    "content": "General approach SGTM.",
+    "createdAt": "2018-02-15T00:50:08Z"
+  },
+  {
+    "id": 1797,
+    "sender": "awdavies",
+    "content": "@yjbanov Comments addressed.  PTAL",
+    "createdAt": "2018-03-02T01:58:24Z"
+  },
+  {
+    "id": 1798,
+    "sender": "awdavies",
+    "content": "- [x] the unit tests run as part of our Travis script\r\n- [x] the package is captured by the analyzer\r\n- [x]  all types that are returned by public API are also exported through libraries under `lib/` (so that a user does not have to import from `lib/src`)",
+    "createdAt": "2018-03-15T01:35:51Z"
+  },
+  {
+    "id": 1799,
+    "sender": "awdavies",
+    "content": "@yjbanov @Hixie there are some minor analyzer issues (but these are due to the flutter package.  `slider_theme.dart` is also missing documented public members).",
+    "createdAt": "2018-03-15T01:49:32Z"
+  },
+  {
+    "id": 1800,
+    "sender": "yjbanov",
+    "content": "@Hixie, did you want to do a code style pass on this PR, or is it good to merge?",
+    "createdAt": "2018-03-20T00:17:00Z"
+  },
+  {
+    "id": 1801,
+    "sender": "Hixie",
+    "content": "Just some style nits and one race condition that we should fix before landing (we've had huge troubles with race conditions like this causing flakes, and I really don't want to go down that road again...).",
+    "createdAt": "2018-03-20T18:18:34Z"
+  },
+  {
+    "id": 1802,
+    "sender": "awdavies",
+    "content": "@Hixie @yjbanov \r\n\r\nEverything should be ready to go!",
+    "createdAt": "2018-03-22T00:02:57Z"
+  },
+  {
+    "id": 1803,
+    "sender": "awdavies",
+    "content": "Oh wait... had to fix a constructor.  Should be good.",
+    "createdAt": "2018-03-22T00:09:02Z"
+  },
+  {
+    "id": 1804,
+    "sender": "Hixie",
+    "content": "![LGTM](http://junkyard.damowmow.com/577)",
+    "createdAt": "2018-03-22T23:17:02Z"
+  },
+  {
+    "id": 1805,
+    "sender": "shrike69",
+    "content": "Great!",
+    "createdAt": "2018-03-23T23:41:38Z"
+  },
+  {
+    "id": 1806,
+    "sender": "clocksmith",
+    "content": "## [Slider] Custom track, ticker, and overlay shape painters\n\nCreate a slider shape for custom track, tick mark, and overlay painting. Originally, this work was part of the larger range slider effort, but can and should work independently of having more than 1 thumb.\r\n\r\nWithout this change\r\n\r\n```\r\nPart             | Custom Painter? | Custom Options?\r\n__________________________________\r\nTrack            | ** NO **        | color\r\nTicks            | ** NO **        | periodicity, color\r\nThumbs           | YES             | color\r\nOverlay          | ** NO **        | color\r\nValue Indicators | YES             | color, text style\r\n\r\n```\r\n\r\nWith this change\r\n\r\n```\r\nPart             | Custom Painter? | Custom Options?\r\n__________________________________\r\nTrack            | ** YES **       | color, ** height **\r\nTicks            | ** YES **       | periodicity, color\r\nThumbs           | YES             | color\r\nOverlay          | ** YES **       | color\r\nValue Indicators | YES             | color, text style\r\n```\r\n\r\nCHANGES:\r\n* SliderTrackShape is added as slider theme param, with a default of RectangularSliderTrackShape, and slider RenderBox paint() is updated to use it.\r\n    * The default track shape uses the slider theme colors to maintain compatibility with the activeTrackColor and inactiveTrackColor params in Slider.\r\n    * The default track shape uses a newly created slider theme param: trackHeight, but is overridden if custom track shape is used.\r\n    * Dependency between overlay, track length, and value mapping is removed from the slider class, and made an artifact of the default track shape.\r\n* SliderComponentShape for ticks is added as a slider theme param, with a default of RoundSliderTickShape, and slider RenderBox paint() is updated to use it.\r\n* All tick marks are now painted, instead of excluding the one with the same center as the thumb. This does not affect the default state, but is important if custom tick marks extend the bounds of a thumb\r\n    * Default tick mark radius is a function of track height.\r\n* SliderComponentShape for overlay is added as a slider theme param, with a default of RoundSliderOverlayShape, and slider RenderBox paint() is updated to use it.\r\n* The new shape API and slider paint() works for a single thumb, but also allows for easy adaptation to multiple thumbs, in preparation for the RangeSlider, without having to change the new public API.\r\n\r\nNEXT UP: \r\n* Update rendering to material spec.\r\n    * Tick marks should be aligned with the center of the value, not adjusted to be contained within the track.\r\n    * Thumb shape default radius should be larger.\r\n* More decoupling and customization.\r\n    * Default overlay shape painting should be a function of thumbShape.\r\n    * Default overlay shape should paint after thumb and be painted as an annulus.\r\n    * Default overlay color should use new color theme.\r\n    * Paint color tweens can be initialized once, rather than on every paint.\r\n    * RangeSlider\r\n\r\ncloses #22325\r",
+    "createdAt": "2018-12-05T22:59:14Z"
+  },
+  {
+    "id": 1807,
+    "sender": "clocksmith",
+    "content": "Updated, PTAL",
+    "createdAt": "2018-12-18T21:39:33Z"
+  },
+  {
+    "id": 1808,
+    "sender": "gspencergoog",
+    "content": "You will need to add tests before you commit, but it looks OK to me.  Also, it would be nice to add to the \"custom slider\" demo in the Flutter gallery app to show a simple customization of the track, etc.",
+    "createdAt": "2018-12-18T22:55:29Z"
+  },
+  {
+    "id": 1809,
+    "sender": "clocksmith",
+    "content": "I added tests, and am going to update the gallery with examples next (sep PR)",
+    "createdAt": "2018-12-19T17:27:45Z"
+  },
+  {
+    "id": 1810,
+    "sender": "clocksmith",
+    "content": "Added 2 issues for follow up PRs\r\n\r\nhttps://github.com/flutter/flutter/issues/25672 - Documentation diagram and consistency\r\nhttps://github.com/flutter/flutter/issues/25671 - DiagnostiProperties tests\r\n",
+    "createdAt": "2018-12-21T19:07:10Z"
+  },
+  {
+    "id": 1811,
+    "sender": "clocksmith",
+    "content": "Ready for next review, PTAL",
+    "createdAt": "2019-01-04T18:48:58Z"
+  },
+  {
+    "id": 1812,
+    "sender": "HansMuller",
+    "content": "One other thing: the SliderTheme \"see also\" doc should mention the new shape values.",
+    "createdAt": "2019-01-08T01:32:02Z"
+  },
+  {
+    "id": 1813,
+    "sender": "clocksmith",
+    "content": "> One other thing: the SliderTheme \"see also\" doc should mention the new shape values.\r\n\r\nIt mentions the abstract shapes. Should it also mention the defaults?",
+    "createdAt": "2019-01-16T01:47:17Z"
+  },
+  {
+    "id": 1814,
+    "sender": "jacob314",
+    "content": "## Refactor RenderObject.toStringDeep code to use DiagnosticsNode.\n\nFixes https://github.com/flutter/flutter/issues/9568\r\nThis is a breaking change in how toStringDeep output is computed for Widget and Element classes. \r\nAll implementations of `debugFillDescription` and `debugDescribeChildren` will  need to be refactored and I am happy to refactor any code people have that needs to be refactored due to this change. Instead of generating raw strings, debug data now consists of DiagnosticsNode objects containing sufficient style information to exactly match existing toStringDeep rendering while saving implementors of debugDescribeChilden and debugFillDescription from having to worry about generating pixel perfect ascii art.\r\n\r\nThis CL provides lots of examples showing what I believe are best practices of how those methods should be refactored.\r\nI’ll wait until this CL is done to write down the detailed best practices as I expect what I would write would be obsolete after code review iteration polishing the new APIs for specifying structured diagnostics data to better match flutter conventions.\r\n\r\nThe test expectation changes part of this CL show places I’ve intentionally changed toStringDeep output for the better by fixing unhandled edge cases and inconsistencies between ways the same data was displayed in different toStringDeep methods. There are test cases for all of the complex cases @hixie mentions issue 9568 that I landed in previous test case only CLs.\r\n\r\nAll core logic for storing structured tree diagnostics data is in tree_diagnostics_mixin.dart. See tree_diagnostics_mixin_test.dart of tests showing how the various property diagnostics descriptions are expected to be used.\r\n\r\nAll other changes are the refactor of existing debugFillDescription and debugDescribeChildren method.\r\nI would suggest first focusing the review on the how the APIs from tree_diagnostics_mixin.dart are used and how they should be improved to be clearer and more consistent with Flutter style rather than starting with the internals of tree_diagnostics_mixin.dart which is largely just the sausage making to match the existing ascii art exactly.\r\nThe APIs to create diagnostic properties (DiagnosticsNode.(doubleProperty|intProperty|stringProperty|objectProperty|enumProperty|...) are ready for review discussion now as those will determine whether this refactor is pleasant for users or places an undue burden of people writing Widget and RenderObject classes. I currently err on the side of being a bit verbose but hopefully unsurprising. I’m happy to refactor the code to use terse top level methods instead of the factory constructors and make more constructors with common default values if desired. \r\n\r\nThe general concept is all diagnostic data is represented by DiagnosticsNode objects and each DiagnosticsNode has an optional a list of properties associated with it and a list of children associated with it that are all DiagnosticsNode objects. All DiagnosticsNode object have an associated DiagnosticsTreeStyle (normal|offstage|box|dense|whitespace)  that specifies what general style should be used to display the node in a debugger or as ascii art. DiagnosticNode objects contain name describing their role (e.g. child “child 3” or property  “borderRadius”).\r\n\r\nConstructors for DiagnosticsNode are optimized to accept all information that would be useful for both toStringDeep and a future tree debugging view in IntelliJ. As a disclaimer, not all information that could be useful in IntelliJ is currently stored in the DiagnosticsNode objects generated by the constructors in tree_diagnostics_mixin.dart, only generally the data required for toStringDeep. The design is that changes needed to store that information more permanently can be added later with just non-breaking changes to tree_diagnostics_mixin.dart. This avoids adding extra logic now that may not be actually useful for features added to IntelliJ and can trivially be added later.\r\n\r\nSearch for `enumProperty` in this CL to see all cases where behavior was sometimes intentionally changed so that all enums are treated consistently using dash-separated-enum-values. For example, `lifecycle state: defunct` instead of `_StateLifecycle.defunct`.\r\n\r\n\r\nThe new output is identical for the old output for cases of the form:\r\n```\r\n-    switch (widget.behavior) {\r\n-      case HitTestBehavior.translucent:\r\n-        description.add('behavior: translucent');\r\n-        break;\r\n-      case HitTestBehavior.opaque:\r\n-        description.add('behavior: opaque');\r\n-        break;\r\n-      case HitTestBehavior.deferToChild:\r\n-        description.add('behavior: defer-to-child');\r\n-        break;\r\n+ description.add(new DiagnosticsNode.enumProperty('behavior', widget.behavior, showNull: false));\r\n```\r\nBut is different for cases where the toStringDeep methods displayed `HitTestBehavior.deferToChild` directly in the output as was sometimes also the case.\r\n\r\nGenerally this change should make toStringDeep output more consistent but if there are cases where I changed the output for the worse let me know and I’ll correct them. I believe test coverage is very good for the Render tree code and a bit sparser for the Widget tree code. If desired I can add more property tests for the Widget tree code.\r\n\r\nI’ve called out some other odd edge cases in the inline comments.\r\nSpecifically:\r\nticker_provider.dart\r\n\r\nIterable behavior:\r\nDisplay of zero element iterables seems unhelpful. I’ve set the default be to hide iterables with zero elements to avoid confusion but I can change that.\r",
+    "createdAt": "2017-07-10T23:51:54Z"
+  },
+  {
+    "id": 1815,
+    "sender": "Hixie",
+    "content": "Before this lands, please coordinate with @apwilson regarding any possible changes needed for Fuchsia.\r\nPlease contact @tvolkert for advice on how to roll this into google3.\r\nPlease make sure to e-mail flutter-dev@ when this lands to ensure everyone in the community is aware of how to port their code. You may wish to send a heads-up e-mail now to keep everyone in the loop.",
+    "createdAt": "2017-07-11T02:10:49Z"
+  },
+  {
+    "id": 1816,
+    "sender": "Hixie",
+    "content": "The general approach here seems sound. I didn't carefully check the whole patch and am on vacation so probably won't be able to do a detailed check. @cbracken, @tvolkert, or @abarth would all make great substitutes if they're around. Otherwise, hang in there, I'll get to it eventually. :-)",
+    "createdAt": "2017-07-11T05:39:38Z"
+  },
+  {
+    "id": 1817,
+    "sender": "jacob314",
+    "content": "CL is ready for fine grained review.",
+    "createdAt": "2017-07-17T21:56:30Z"
+  },
+  {
+    "id": 1818,
+    "sender": "Hixie",
+    "content": "Can you push the update with the DiagnosticsNode generics removed? I'd like to review it with the reduction in generics.",
+    "createdAt": "2017-07-19T00:17:05Z"
+  },
+  {
+    "id": 1819,
+    "sender": "jacob314",
+    "content": "Pushed version with extra generics removed. Still in the process of cleaning some bellow quality bar comments up.",
+    "createdAt": "2017-07-19T01:03:07Z"
+  },
+  {
+    "id": 1820,
+    "sender": "Hixie",
+    "content": "This is fantastic stuff.",
+    "createdAt": "2017-07-19T18:20:21Z"
+  },
+  {
+    "id": 1821,
+    "sender": "Hixie",
+    "content": "I've now done a complete pass through the whole patch. Looks great overall. My main comment is that we should try to put more of the properties onto one line each rather than having each property take multiple lines. Feel free to go over 80 characters if that's necessary to do it. The methods where you've done this look much better than the ones where you split it out.\r\n\r\nOverall this looks great. Let me know when you've gone through all the comments so far and I'll take another look.",
+    "createdAt": "2017-07-19T18:21:50Z"
+  },
+  {
+    "id": 1822,
+    "sender": "Hixie",
+    "content": "For the cases where I mentioned we might want a dedicated property, feel free to mark it TODO, no need to add more classes to this PR.",
+    "createdAt": "2017-07-19T18:22:54Z"
+  },
+  {
+    "id": 1823,
+    "sender": "jacob314",
+    "content": "Pushed a new version and replied to all comments",
+    "createdAt": "2017-07-20T22:53:48Z"
+  },
+  {
+    "id": 1824,
+    "sender": "Hixie",
+    "content": "This is great. LGTM.\r\n![LGTM](http://junkyard.damowmow.com/578)\r\nLet's land this and figure out improvements incrementally beyond that.",
+    "createdAt": "2017-07-20T23:07:01Z"
+  },
+  {
+    "id": 1825,
+    "sender": "jacob314",
+    "content": "Had to move TransformProperty to render/debug.dart to fix circular dependency that breaks tests.",
+    "createdAt": "2017-07-24T17:04:25Z"
+  },
+  {
+    "id": 1826,
+    "sender": "jacob314",
+    "content": "Closing and reopening as all the comments are causing github to timeout",
+    "createdAt": "2017-07-24T18:35:33Z"
+  },
+  {
+    "id": 1827,
+    "sender": "davidhicks980",
+    "content": "## Add RawMenuAnchor animation callbacks\n\nAlternative to https://github.com/flutter/flutter/pull/163481, https://github.com/flutter/flutter/pull/167537, https://github.com/flutter/flutter/pull/163481 that uses callbacks.\r\n\r\n@dkwingsmt - you inspired me to simplify the menu behavior. I didn't end up using Actions, mainly because nested behavior was unwieldy and capturing BuildContext has drawbacks. This uses a basic callback mechanism to animate the menu open and closed. Check out the examples.\r\n\r\n<hr />\r\n\r\n### The problem\r\nRawMenuAnchor synchronously shows or hides an overlay menu in response to `MenuController.open()` and `MenuController.close`, respectively. Because animations cannot be run on a hidden overlay, there currently is no way for developers to add animations to RawMenuAnchor and its subclasses (MenuAnchor, DropdownMenuButton, etc).\r\n\r\n### The solution\r\nThis PR:\r\n- Adds two callbacks -- `onOpenRequested` and `onCloseRequested` -- to RawMenuAnchor. \r\n- onOpenRequested is called with a position and a showOverlay callback, which opens the menu when called.\r\n- onCloseRequested is called with a hideOverlay callback, which hides the menu when called.\r\n\r\nWhen `MenuController.open()` and `MenuController.close()` are called, onOpenRequested and onCloseRequested are invoked, respectively. \r\n\r\nPrecursor for https://github.com/flutter/flutter/pull/143416, https://github.com/flutter/flutter/issues/135025, https://github.com/flutter/flutter/pull/143712\r\n\r\n## Demo\r\n\r\nhttps://github.com/user-attachments/assets/bb14abca-af26-45fe-8d45-289b5d07dab2\r\n\r\n```dart\r\n// Copyright 2014 The Flutter Authors. All rights reserved.\r\n// Use of this source code is governed by a BSD-style license that can be\r\n// found in the LICENSE file.\r\n\r\n// ignore_for_file: public_member_api_docs\r\n\r\nimport 'dart:ui' as ui;\r\n\r\nimport 'package:flutter/material.dart' hide MenuController, RawMenuAnchor, RawMenuOverlayInfo;\r\n\r\nimport 'raw_menu_anchor.dart';\r\n\r\n/// Flutter code sample for a [RawMenuAnchor] that animates a simple menu using\r\n/// [RawMenuAnchor.onOpenRequested] and [RawMenuAnchor.onCloseRequested].\r\nvoid main() {\r\n  runApp(const App());\r\n}\r\n\r\nclass Menu extends StatefulWidget {\r\n  const Menu({super.key});\r\n\r\n  @override\r\n  State<Menu> createState() => _MenuState();\r\n}\r\n\r\nclass _MenuState extends State<Menu> with SingleTickerProviderStateMixin {\r\n  late final AnimationController animationController;\r\n  final MenuController menuController = MenuController();\r\n\r\n  @override\r\n  void initState() {\r\n    super.initState();\r\n    animationController = AnimationController(\r\n      vsync: this,\r\n      duration: const Duration(milliseconds: 300),\r\n    );\r\n  }\r\n\r\n  @override\r\n  void dispose() {\r\n    animationController.dispose();\r\n    super.dispose();\r\n  }\r\n\r\n  void _handleMenuOpenRequest(Offset? position, void Function({Offset? position}) showOverlay) {\r\n    // Mount or reposition the menu before animating the menu open.\r\n    showOverlay(position: position);\r\n\r\n    if (animationController.isForwardOrCompleted) {\r\n      // If the menu is already open or opening, the animation is already\r\n      // running forward.\r\n      return;\r\n    }\r\n\r\n    // Animate the menu into view. This will cancel the closing animation.\r\n    animationController.forward();\r\n  }\r\n\r\n  void _handleMenuCloseRequest(VoidCallback hideOverlay) {\r\n    if (!animationController.isForwardOrCompleted) {\r\n      // If the menu is already closed or closing, do nothing.\r\n      return;\r\n    }\r\n\r\n    // Animate the menu out of view.\r\n    //\r\n    // Be sure to use `whenComplete` so that the closing animation\r\n    // can be interrupted by an opening animation.\r\n    animationController.reverse().whenComplete(() {\r\n      if (mounted) {\r\n        // Hide the menu after the menu has closed\r\n        hideOverlay();\r\n      }\r\n    });\r\n  }\r\n\r\n  @override\r\n  Widget build(BuildContext context) {\r\n    return RawMenuAnchor(\r\n      controller: menuController,\r\n      onOpenRequested: _handleMenuOpenRequest,\r\n      onCloseRequested: _handleMenuCloseRequest,\r\n      overlayBuilder: (BuildContext context, RawMenuOverlayInfo info) {\r\n        final ui.Offset position = info.anchorRect.bottomLeft;\r\n        return Positioned(\r\n          top: position.dy + 5,\r\n          left: position.dx,\r\n          child: TapRegion(\r\n            groupId: info.tapRegionGroupId,\r\n            child: Material(\r\n              color: ColorScheme.of(context).primaryContainer,\r\n              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),\r\n              elevation: 3,\r\n              child: SizeTransition(\r\n                sizeFactor: animationController,\r\n                child: const SizedBox(\r\n                  height: 200,\r\n                  width: 150,\r\n                  child: Center(child: Text('Howdy', textAlign: TextAlign.center)),\r\n                ),\r\n              ),\r\n            ),\r\n          ),\r\n        );\r\n      },\r\n      builder: (BuildContext context, MenuController menuController, Widget? child) {\r\n        return FilledButton(\r\n          onPressed: () {\r\n            if (animationController.isForwardOrCompleted) {\r\n              menuController.close();\r\n            } else {\r\n              menuController.open();\r\n            }\r\n          },\r\n          child: const Text('Toggle Menu'),\r\n        );\r\n      },\r\n    );\r\n  }\r\n}\r\n\r\nclass App extends StatelessWidget {\r\n  const App({super.key});\r\n\r\n  @override\r\n  Widget build(BuildContext context) {\r\n    return MaterialApp(\r\n      theme: ThemeData(colorScheme: ColorScheme.fromSeed(seedColor: Colors.blue)),\r\n      home: const Scaffold(body: Center(child: Menu())),\r\n    );\r\n  }\r\n}\r\n\r\n```\r\n\r\n## Pre-launch Checklist\r\n\r\n- [x] I read the [Contributor Guide] and followed the process outlined there for submitting PRs.\r\n- [x] I read the [Tree Hygiene] wiki page, which explains my responsibilities.\r\n- [x] I read and followed the [Flutter Style Guide], including [Features we expect every widget to implement].\r\n- [x] I signed the [CLA].\r\n- [x] I listed at least one issue that this PR fixes in the description above.\r\n- [x] I updated/added relevant documentation (doc comments with `///`).\r\n- [x] I added new tests to check the change I am making, or this PR is [test-exempt].\r\n- [x] I followed the [breaking change policy] and added [Data Driven Fixes] where supported.\r\n- [x] All existing and new tests are passing.\r\n\r\nIf you need help, consider asking for advice on the #hackers-new channel on [Discord].\r\n\r\n<!-- Links -->\r\n[Contributor Guide]: https://github.com/flutter/flutter/blob/main/docs/contributing/Tree-hygiene.md#overview\r\n[Tree Hygiene]: https://github.com/flutter/flutter/blob/main/docs/contributing/Tree-hygiene.md\r\n[test-exempt]: https://github.com/flutter/flutter/blob/main/docs/contributing/Tree-hygiene.md#tests\r\n[Flutter Style Guide]: https://github.com/flutter/flutter/blob/main/docs/contributing/Style-guide-for-Flutter-repo.md\r\n[Features we expect every widget to implement]: https://github.com/flutter/flutter/blob/main/docs/contributing/Style-guide-for-Flutter-repo.md#features-we-expect-every-widget-to-implement\r\n[CLA]: https://cla.developers.google.com/\r\n[flutter/tests]: https://github.com/flutter/tests\r\n[breaking change policy]: https://github.com/flutter/flutter/blob/main/docs/contributing/Tree-hygiene.md#handling-breaking-changes\r\n[Discord]: https://github.com/flutter/flutter/blob/main/docs/contributing/Chat.md\r\n[Data Driven Fixes]: https://github.com/flutter/flutter/blob/main/docs/contributing/Data-driven-Fixes.md\r",
+    "createdAt": "2025-04-25T11:44:17Z"
+  },
+  {
+    "id": 1828,
+    "sender": "dkwingsmt",
+    "content": "Also cc @chunhtai ",
+    "createdAt": "2025-04-30T02:56:56Z"
+  },
+  {
+    "id": 1829,
+    "sender": "davidhicks980",
+    "content": "@dkwingsmt \r\n> No, I mean keeping the handleOpenRequested as pure method and move the implementation to the two state classes. Is it possible?\r\n\r\nI missed this comment. I think I pushed changes that do this -- let me know if it looks right. By pure method, are you referring to an abstract method in _RawMenuAnchorBaseMixin?",
+    "createdAt": "2025-05-05T06:18:49Z"
+  },
+  {
+    "id": 1830,
+    "sender": "davidhicks980",
+    "content": "@dkwingsmt I can't respond to your question about futures for some reason. You're using a future here, which is not cancelable. If you use a timer, \r\n\r\n```dart\r\n onCloseRequested: (hideOverlay) {\r\n    _timer.cancel()\r\n    _timer = null;\r\n  },\r\n onOpenRequested: (Offset? position, showOverlay) {\r\n    _timer ??= Timer(Duration(milliseconds: 100), () {\r\n      showOverlay();\r\n      animationController.forward()\r\n    });\r\n  }\r\n```\r\n\r\nAlso, developers wouldn't have the option to not call showOverlay or hideOverlay if we used futures.\r\n\r\nOh, also sorry for not updating the docs. I posted up the code then took a break. Everything should be up-to-date.",
+    "createdAt": "2025-05-30T10:36:19Z"
+  },
+  {
+    "id": 1831,
+    "sender": "dkwingsmt",
+    "content": "@davidhicks980 A timer doesn't cover all use cases of delaying. The app might want to delay the `showOverlay` call until some event happens, which is not appropriate with a timer.\r\n\r\nThe developer can throw an error to not call the callback. Or probably better, we can make it a `Future<bool>`. Although it uses an additional boolean information, I think this is the cost we have to pay in order to disallow calling the callback multiple times.",
+    "createdAt": "2025-05-30T17:45:33Z"
+  },
+  {
+    "id": 1832,
+    "sender": "davidhicks980",
+    "content": "@dkwingsmt I still prefer callbacks. Is there a way we can get an additional opinion on this? This may come down to a matter of preference, but I feel like futures are more constraining in this situation.",
+    "createdAt": "2025-05-31T12:02:59Z"
+  },
+  {
+    "id": 1833,
+    "sender": "dkwingsmt",
+    "content": "It's fine. I have a similar feeling as well. We can stick to callbacks. But still, how do you think of my analysis above about the logic that an opening/closing should invalidate earlier callbacks in order to make fast opening/closing work properly? (which applies to both the future design and the callback design.)",
+    "createdAt": "2025-05-31T21:35:42Z"
+  },
+  {
+    "id": 1834,
+    "sender": "davidhicks980",
+    "content": "> But still, how do you think of my analysis above about the logic that an opening/closing should invalidate earlier callbacks in order to make fast opening/closing work properly\r\n\r\nClarify this a bit more. What do you mean by fast opening/closing? \r\n\r\n> What happens if a show/hideOverlay from an earlier open/close is called?\r\n\r\nThe menu would open or close, as expected. For a given menu, showOverlay and hideOverlay are the equivalent of calling _RawMenuAnchorState.open() and _RawMenuAnchorState.close(), which stay the same throughout the lifecycle of a widget.\r\n\r\n> What happens if a show/hideOverlay is called for multiple times?\r\n\r\nCalling showOverlay on an already-open menu effectively just calls onOpen and setState, which rebuilds the overlayBuilder. \r\n\r\nCalling hideOverlay on an already-closed menu just returns. This means that onClose isn't called. We could change that behavior.\r\n",
+    "createdAt": "2025-06-04T07:59:39Z"
+  },
+  {
+    "id": 1835,
+    "sender": "dkwingsmt",
+    "content": "For example, the themed menu is controlled by two buttons, one opens the menu and the other closes the menu.\r\n\r\nThe `onOpenRequested` is implemented with a 100ms delay followed by a 100ms-long opening animation. The `onCloseRequested` is implemented with a 100ms delay with no closing animation.\r\n\r\nConsider the following event sequence, where the user quickly taps open then close.\r\n```\r\n  0ms    The user opens the menu, scheduling a `showOverlay` at 100ms\r\n 60ms    The user closes the menu, scheduling a `hideOverlay` at 160ms\r\n100ms    The themed menu calls `showOverlay` and starts an opening animation that ends at 200ms.\r\n160ms    The themed menu calls `hideOverlay`, which terminates the opening animation and hides the overlay.\r\n```\r\nWith the current way, the overlay would appear between 100ms and 160ms. I think this is not desired. Because when the user pressed the closing button, the user intends that the menu should now be closed, and any scheduled opening sequence should be terminated.\r\n\r\nI propose that upon `MenuController.close`, all previous `showOverlay`s should be invalidated. Calling them becomes a noop. Same for the other way around.",
+    "createdAt": "2025-06-04T08:24:09Z"
+  },
+  {
+    "id": 1836,
+    "sender": "davidhicks980",
+    "content": "@dkwingsmt OHH I see what you are suggesting: we should make previous showOverlay/hideOverlay callbacks do nothing if onOpenRequested/onCloseRequested is called again. \r\n\r\nIt's not a bad idea, but I would advise against it. For lower-level apis, imo predictability is more important than convenience. Changing the behavior of a callback depending on external factors (in this case, whether the parent function has been called again) makes the behavior of a system harder to reason about. \r\n\r\nAlso, it's easy to mitigate redundant calls. TickerFuture.whenComplete (shown in the PR examples) and Timer.cancel (shown in the example I gave above) address most use cases, including the example you provided.",
+    "createdAt": "2025-06-05T01:55:06Z"
+  },
+  {
+    "id": 1837,
+    "sender": "dkwingsmt",
+    "content": "IMO it's not that hard to understand: a `showOverlay` closure belongs to the `open` that provides it. Subsequent `open/close` calls invalidates earlier `open`, thus invalidating their `showOverlay` closure. Meanwhile, this comes at the cost of boilerplate for almost every widget that uses it.  Handling asynchronous events can be hard and error prone, and it will save implementors a lot of effort by solving them in the base widget, instead of having them figure out `TickerFuture` and/or `Timer` rather than `Future`. \r\n\r\nIf we really want to go this direction, it's ok as well, but now that the `show/hideOverlay` between different `onOpen/CloseRequested` calls are indifferent, it makes no sense to only provide them in the callback: the implementers could call them any time, as many times as needed, or even save a callback for calling way later. We should probably make `show/hideOverlay` methods of `MenuController`.",
+    "createdAt": "2025-06-05T04:38:55Z"
+  },
+  {
+    "id": 1838,
+    "sender": "davidhicks980",
+    "content": "It's not the difficulty of the concept. It's the fact that the function behaves differently depending on when it is called. We could add an assert function to check whether a stale callback is used, but I don't think the functions should be made noop.\r\n\r\n`showOverlay` and `hideOverlay` don't affect the position of a menu's animation or delay, so I think expanding the MenuController api would lead to confusion. For example, a menu could stay invisible after calling showOverlay, which is confusing. I also don't think we should try to add additional methods to an API unless it's absolutely necessary for what we are trying to accomplish with this PR. ",
+    "createdAt": "2025-06-05T06:22:47Z"
+  },
+  {
+    "id": 1839,
+    "sender": "dkwingsmt",
+    "content": "You're probably right. Keeping `MenuController`'s interface friendly to app developers, instead of also for package developers, is good for clarity. As for `show/hideOverlay`, although they're usable outside of `onXxxRequested` calls, our documentation should have been clear enough that package developers are supposed to use them correctly.",
+    "createdAt": "2025-06-05T08:18:01Z"
+  },
+  {
+    "id": 1840,
+    "sender": "dkwingsmt",
+    "content": "@chunhtai Can you take another look?",
+    "createdAt": "2025-06-05T08:18:55Z"
+  },
+  {
+    "id": 1841,
+    "sender": "davidhicks980",
+    "content": "@dkwingsmt Sounds good, although we can always expand the MenuController api with future PRs. I'm still curious whether anyone will ask for a way to observe whether a menu anchor is opening/closing... we shall see. \r\n\r\nAnyways, thanks for the feedback! I think we landed on a solid design, so I'm excited to see what the community does with it.",
+    "createdAt": "2025-06-05T09:42:18Z"
+  },
+  {
+    "id": 1842,
+    "sender": "davidhicks980",
+    "content": "Note: I just added a change to reduce the number of scrolling/resizing subscriptions. No tests broke, and it should be effectively the same code.\r\n\r\n<img width=\"713\" alt=\"image\" src=\"https://github.com/user-attachments/assets/b56c4ad1-11fd-403c-baa4-fdf57935ea05\" />\r\n",
+    "createdAt": "2025-06-11T05:38:01Z"
+  },
+  {
+    "id": 1843,
+    "sender": "Albert221",
+    "content": "@davidhicks980 making the `MenuController` _final_ just broke our code, we were extending the `MenuController` to add some animation functionality. Was this breaking change really intended?",
+    "createdAt": "2025-08-18T08:04:48Z"
+  },
+  {
+    "id": 1844,
+    "sender": "davidhicks980",
+    "content": "@Albert221 Yes.. although it would have been better if I had included the change in the original RawMenuAnchor PR. The main reason for making MenuController final is that it is now accessible via an inherited widget, MenuController.of(context), so subclasses wouldn't be typed by those using the inherited logic. There're a lot of likes on your comment though, so I'll check with the team to see if I should roll back.",
+    "createdAt": "2025-08-18T09:31:06Z"
+  },
+  {
+    "id": 1845,
+    "sender": "dkwingsmt",
+    "content": "Is the menuControllerOf a big part of the logic? IIRC it's only a convenient getter for developers, right?",
+    "createdAt": "2025-08-18T20:03:13Z"
+  },
+  {
+    "id": 1846,
+    "sender": "davidhicks980",
+    "content": "@dkwingsmt `MenuController.maybeOf(context)` is a convenience getter, albeit it's very useful for nested menus. The issue `final` addresses is, if you passed an `AnimatedMenuController()` subclass of MenuController to a `RawMenuAnchor()` or a `RawMenuAnchor` derivative (e.g. `MenuAnchor`), `MenuController.maybeOf(context)` would return a value statically typed as `MenuController` rather than `AnimatedMenuController`. However, during runtime the `AnimatedMenuController` instance is indeed passed via the inherited widget, so users just need to perform a type check if they wanted strict typing. \r\n\r\nAnyways, imo removing the `final` class modifier is a minimal change that we should probably make. Let me know how to proceed. I'm not sure if a revert-then-recommit or a PR just removing \"final\" is more appropriate.\r\n\r\nhttps://github.com/user-attachments/assets/ebea112d-fd74-418b-bf90-72ef71378a59\r\n\r\n",
+    "createdAt": "2025-08-19T04:39:48Z"
+  },
+  {
+    "id": 1847,
+    "sender": "dkwingsmt",
+    "content": "Yeah I think removing the `final` class modifier is a good call!",
+    "createdAt": "2025-08-19T19:50:18Z"
+  },
+  {
+    "id": 1848,
+    "sender": "winctoryang",
+    "content": "## Improve fidelity of multi-pointer drag gestures.\n\nImprove fidelity of multi-pointer drag gestures.\r\nHi there! \r\nMy name is winctoryang and fixed the related issue below. Please have a review and have a nice one!\r\nThank you!\r\n\r\nAs https://github.com/flutter/flutter/issues/38926  said: \r\n\r\n**When multi pointers dragging: delta(combined) = sum of delta(n)**\r\n  This is very wrong. When multiple pointers are moving in the same direction, the scrollable will be moved at double or triple the speed.\r\n**When a pointer leaves: all remaining pointers still work.**\r\n\r\nThe results that I fixed (refer to iOS behavior):\r\n\r\n**When dragging**: \r\n  delta(combined) = max(i of n that are positive) delta(i) - max(i of n that are negative) delta(i)\r\nIt means that, if two fingers are moving +50 and +10 respectively, it will move +50; if they're moving at +50 and -10 respectively, it will move +40.\r\n**When a pointer leaves**: \r\n  all pointers stop working.\r\n\r\n**The fixed logic:**\r\nA vector stores the EventMove of every pointer, **if the EventMove of all pointers reaches**, flush the vector and update the scroll delta. It means that, if three fingers (p1, p2, p3) are downing and moving: p1 down, p2 down, p3 down, p1 move +10, p2 move +20, and p3 move +30,  only three EventMoves reach(p1 EventMove, p2 EventMove, p3 EventMove), the DragGesture will move +30. \r\n\r\n**Additionally, if the EventMoves of one pointer reach continually,** then flush the vector directly. It means that, if three fingers are downing and moving: p1 down, p2 down, p3 down, p1 move +0, p2 move +0, and  p3 move +10, since the move deltas p1 and p2 both are 0, the EventMoves of p1 and p2 may not reach (according to the log of iOS), only the EventMove of p3 reached, the DragGesture will move +10 until the next EventMove of p3 reaches.\r\n\r\nThe approach will lost the last EventMove, for example, p1 down, p2 down, p1 move +0, p2 move+10, p1 move +0, p2 move +10,  p1 move +0, and p2 move +10, the Events: p1 EventDown, p2 EventDown, p2 EventMove, p2 EventMove, and p2 EventMove, the DragGesture will Move +10 and Move+10 finally. Actually, the EventMove of one pointer reaches many times, and the loss of the final EventMove is acceptable.\r\n\r\nI modified the unit tests too, please have a review. Thank you!\r\n\r\nThe result videos have been attached below:\r\nAndroid before fixed:\r\n\r\nhttps://user-images.githubusercontent.com/35736246/175527463-52e34c37-1ffa-4b9e-97b2-2cace0b3f211.mp4\r\n\r\n\r\nrelated issue:\r\nImprove fidelity of multi-pointer drag gestures #38926\r\nScrolling with two fingers scrolls twice as fast #11884\r\n\r\n\r\n## Pre-launch Checklist\r\n\r\n- [x] I read the [Contributor Guide] and followed the process outlined there for submitting PRs.\r\n- [x] I read the [Tree Hygiene] wiki page, which explains my responsibilities.\r\n- [x] I read and followed the [Flutter Style Guide], including [Features we expect every widget to implement].\r\n- [x] I signed the [CLA].\r\n- [x] I listed at least one issue that this PR fixes in the description above.\r\n- [x] I updated/added relevant documentation (doc comments with `///`).\r\n- [x] I added new tests to check the change I am making, or this PR is [test-exempt].\r\n- [x] All existing and new tests are passing.\r\n\r\nIf you need help, consider asking for advice on the #hackers-new channel on [Discord].\r\n\r\n<!-- Links -->\r\n[Contributor Guide]: https://github.com/flutter/flutter/wiki/Tree-hygiene#overview\r\n[Tree Hygiene]: https://github.com/flutter/flutter/wiki/Tree-hygiene\r\n[test-exempt]: https://github.com/flutter/flutter/wiki/Tree-hygiene#tests\r\n[Flutter Style Guide]: https://github.com/flutter/flutter/wiki/Style-guide-for-Flutter-repo\r\n[Features we expect every widget to implement]: https://github.com/flutter/flutter/wiki/Style-guide-for-Flutter-repo#features-we-expect-every-widget-to-implement\r\n[CLA]: https://cla.developers.google.com/\r\n[flutter/tests]: https://github.com/flutter/tests\r\n[breaking change policy]: https://github.com/flutter/flutter/wiki/Tree-hygiene#handling-breaking-changes\r\n[Discord]: https://github.com/flutter/flutter/wiki/Chat\r",
+    "createdAt": "2022-06-24T11:42:37Z"
+  },
+  {
+    "id": 1849,
+    "sender": "winctoryang",
+    "content": "For the limit of the uploaded video size, I supply other videos here.\r\n\r\nAndroid after fixed:\r\n\r\nhttps://user-images.githubusercontent.com/35736246/175759445-fc5e04f0-dd4e-4b2d-ae8b-a23a522782a4.mp4\r\n\r\n",
+    "createdAt": "2022-06-25T05:31:10Z"
+  },
+  {
+    "id": 1850,
+    "sender": "winctoryang",
+    "content": "iOS before fixed:\r\n\r\nhttps://user-images.githubusercontent.com/35736246/175759775-5999900d-5eb9-4588-b55b-e5d6b73fa746.mp4\r\n\r\n\r\n",
+    "createdAt": "2022-06-25T05:32:00Z"
+  },
+  {
+    "id": 1851,
+    "sender": "winctoryang",
+    "content": "iOS after fixed:\r\n\r\nhttps://user-images.githubusercontent.com/35736246/175759792-27d15069-3276-42e0-9a6a-6babbe63806b.mp4\r\n\r\n\r\n",
+    "createdAt": "2022-06-25T05:32:39Z"
+  },
+  {
+    "id": 1852,
+    "sender": "MaxBittker",
+    "content": "bravo!! thank you for fixing this long standing issue ",
+    "createdAt": "2022-06-26T03:54:02Z"
+  },
+  {
+    "id": 1853,
+    "sender": "winctoryang",
+    "content": "> I wonder how panning is affected by this change. I'm mostly worried about the delta no longer being the change of the position, because this change wants to be compatible with both the iOS scrolling behavior and the iOS panning behavior. Maybe eventually we should have a \"strategy\" class, so that iOS monodrag, iOS panning, and Android dragging should have separate strategies.\r\n\r\nI am confused about the iOS scrolling, the iOS panning, and the iOS monodrag what you mentioned, I am newer to iOS, after my investigation, it seems only the pan gesture is about scrolling in the picture below (Whether single finger or multiple).[UIPanGestureRecognizer](https://developer.apple.com/documentation/uikit/uipangesturerecognizer?language=objc). Can you give me more explanation? Thank you for your patience!\r\n![image](https://user-images.githubusercontent.com/35736246/176476827-9e1e2d12-00fb-415a-a098-f7d0915d7b5a.png)\r\n\r\n> Maybe eventually we should have a \"strategy\" class, so that iOS monodrag, iOS panning, and Android dragging should have separate strategies.\r\n\r\nThe logic in this fixed refers the iOS because the experience of iOS is better than Android. What I understand is you suggest different strategies (to simulate the Android and the iOS behavior) just like the over scroll physics behavior (the BouncingScrollPhysics and the ClampingScrollPhysics())? \r\n\r\nThank you for your review! ",
+    "createdAt": "2022-06-29T15:44:50Z"
+  },
+  {
+    "id": 1854,
+    "sender": "moffatman",
+    "content": "I tried it out in my app, works well :thumbsup:\r\n\r\nFYI Pan/zoom = trackpad scrolling event. Zoom/scale is not relevant here, only pan, which could also be called scroll. When I implemented it, I summed the deltas as previous behavior, but your solution is better in my opinion. The case of using both touchscreen and trackpad is not well handled by most platforms, trying it on iOS/UIKit causes a lot of flickering and is not correct, so there isn't any break with an existing standard to change it.",
+    "createdAt": "2022-06-30T19:03:26Z"
+  },
+  {
+    "id": 1855,
+    "sender": "winctoryang",
+    "content": "@moffatman \r\n> I tried it out in my app, works well 👍\r\n> \r\n> FYI Pan/zoom = trackpad scrolling event. Zoom/scale is not relevant here, only pan, which could also be called scroll. When I implemented it, I summed the deltas as previous behavior, but your solution is better in my opinion. \r\n\r\nThank you for your FYI.\r\n\r\n>  The case of using both touchscreen and trackpad is not well handled by most platforms, trying it on iOS/UIKit causes a lot of flickering and is not correct, so there isn't any break with an existing standard to change it.\r\n\r\n So, the problem is the fixed only works well on the iOS and Android screens, but not on trackpad and touchscreen? I did not test on the trackpad, I will test it next week to improve. But I do not understand what's the problem with using a touchscreen, a lot of flickering on Andoird, iOS, or Windows surface? Can you give me some details about the devices to reproduce the problem? Thank you very much!\r\n\r\n",
+    "createdAt": "2022-07-02T03:34:37Z"
+  }
+]

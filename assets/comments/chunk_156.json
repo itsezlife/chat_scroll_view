@@ -1,0 +1,122 @@
+[
+  {
+    "id": 9984,
+    "sender": "leman7193",
+    "content": "> No idea if this helps or how it's related, but I was running a new version of XCode and handn't installed the CLI utils yet. After running `xcode-select --install` and restarting the simulator, I stopped receiving the error message.\r\n\r\nSame issue.\r\nOn macOS Big Sur 11.0.1(Macbook Air with M1 chipset) iPhone simulator\r\nI also try reinstall CLI but still get logs\r\nVERBOSE-2:profiler_metrics_ios.mm(184)] Error retrieving thread information: (ipc/send) invalid destination port",
+    "createdAt": "2020-12-10T09:47:14Z"
+  },
+  {
+    "id": 9985,
+    "sender": "abdulrojak288",
+    "content": "@iskakaushik do you know the solution?",
+    "createdAt": "2020-12-11T06:59:31Z"
+  },
+  {
+    "id": 9986,
+    "sender": "subhassl",
+    "content": "> Hi, this problem has been fixed on never versions of the Flutter engine, one quick way to see that you are still on a older version of engine is that if the error happens on line 184 as opposed to 203. (see: https://github.com/flutter/engine/pull/22170/files). Can you see if this problem occurs on master channel? Thanks.\r\n> \r\n> 203 as opposed to 184 as seen in `[VERBOSE-2:profiler_metrics_ios.mm(184)] `\r\n> \r\n> There isn't an easy way for me to reproduce this error and the linked change tried to pre-emptively handle this.\r\n\r\nWhen does this update come to the stable relase?",
+    "createdAt": "2020-12-11T15:40:01Z"
+  },
+  {
+    "id": 9987,
+    "sender": "chornbe",
+    "content": "> hI @awhitford\r\n> not able to reproduce, i have run the flutter multiples on `stable` channel all day\r\n> Can you please reproduce it again? please provide your `flutter run --verbose` and a complete reproducible minimal code sample\r\n> Thank you\r\n\r\nIf you're not working on an M1 or DTK pre-release Mac, tracking this down may not be possible or worth your while. \r\n\r\nThe apple DTKs have been available since summer time, and the transition from DTK to retail-ready M1 systems was pretty painless. You can still get in on the DTK program (I think), and if not, a base level Mini with M1 is pretty cheap. It benefits us, the community, so I'm sure there's a way to cost this out to somewhere and bypass having to pull coin from your own pocket. \r\n\r\nFrankly, Google should have been all over this day 1 of the DTK program. Any big-company-backed software that still isn't on M1 is kind of silly. ",
+    "createdAt": "2020-12-11T15:45:58Z"
+  },
+  {
+    "id": 9988,
+    "sender": "holland-hng",
+    "content": "I have the same issue, but it is not a bug of flutter. My observer was not released so it makes double Navigator.pop and this thing make the monitor goes dark.",
+    "createdAt": "2020-12-12T16:54:31Z"
+  },
+  {
+    "id": 9989,
+    "sender": "Pablo-Aldana",
+    "content": "Still having this issue even with version 1.22.5\r\n\r\nAlways in line 184 and as mentioned above seems to be thrown even faster.\r\n\r\nI have tried the Xcode cli too but hasn't fixed it.\r\n\r\nDoctor summary (to see all details, run flutter doctor -v):\r\n[✓] Flutter (Channel stable, 1.22.5, on macOS 11.0 20A2411 darwin-arm, locale en-GB)\r\n \r\n[✓] Android toolchain - develop for Android devices (Android SDK version 30.0.2)\r\n[✓] Xcode - develop for iOS and macOS (Xcode 12.2)\r\n[✓] Android Studio (version 4.1)\r\n[✓] VS Code (version 1.52.0)\r\n[✓] Connected device (1 available)\r\n\r\n• No issues found!",
+    "createdAt": "2020-12-13T22:53:58Z"
+  },
+  {
+    "id": 9990,
+    "sender": "abdulrojak288",
+    "content": "flutter channel master -> Masuk ke\r\nflutter upgrade -> Enter\r\nflutter clean\r\n flutter run\r\n\r\nERROR :  \r\n[VERBOSE-2:profiler_metrics_ios.mm(203)] Error retrieving thread information: (os/kern) invalid argument",
+    "createdAt": "2020-12-14T06:43:24Z"
+  },
+  {
+    "id": 9991,
+    "sender": "ghost",
+    "content": "I have been getting the same errors UNTIL this morning. I did the following:\r\nflutter upgrade\r\nrestart machine\r\nran app on simulator, and noticed the same errors still appearing...\r\n\r\nThen ran:\r\nflutter channel master\r\nflutter upgrade\r\nflutter run\r\nThe errors have now gone. I hope it helps. (I didnt run flutter clean)",
+    "createdAt": "2020-12-15T21:37:42Z"
+  },
+  {
+    "id": 9992,
+    "sender": "abdulrojak288",
+    "content": "> Updated my original comment: if you see this error on line 203 that means that this issue needs to be re-opened. If it happens on line: 184, you are on an older version of Flutter, please try the master channel and see if this is still a problem there. Thanks.\r\n\r\nI have changed the channel from stable to master but this error appears:\r\nERROR :\r\n[VERBOSE-2:profiler_metrics_ios.mm(203)] Error retrieving thread information: (os/kern) invalid argument",
+    "createdAt": "2020-12-16T03:08:11Z"
+  },
+  {
+    "id": 9993,
+    "sender": "Gambit-Play",
+    "content": "> I have been getting the same errors UNTIL this morning. I did the following:\r\n> flutter upgrade\r\n> restart machine\r\n> ran app on simulator, and noticed the same errors still appearing...\r\n> \r\n> Then ran:\r\n> flutter channel master\r\n> flutter upgrade\r\n> flutter run\r\n> The errors have now gone. I hope it helps. (I didnt run flutter clean)\r\n\r\nThis did help me. Just make sure to restart vscode or whatever editor that your using.\r\n",
+    "createdAt": "2020-12-19T16:56:57Z"
+  },
+  {
+    "id": 9994,
+    "sender": "rahulvyas",
+    "content": "I also got the same error but the fix is totally different which nobody can think of. What I did is opened project in Xcode and changed **LaunchScreen** from **Main** to **LaunchScreen** **Storyboard**.  This fixed the issue for me.",
+    "createdAt": "2020-12-22T06:55:14Z"
+  },
+  {
+    "id": 9995,
+    "sender": "jackleemeta",
+    "content": "flutter 1.22.4. same issue",
+    "createdAt": "2020-12-23T05:09:14Z"
+  },
+  {
+    "id": 9996,
+    "sender": "DSolanki91",
+    "content": "@iskakaushik i got an error **[VERBOSE-2:profiler_metrics_ios.mm(203)] Error retrieving thread information: (os/kern) invalid argument**\r\n\r\ni also did \r\nflutter channel master\r\nflutter upgrade\r\nflutter clean\r\nflutter run\r\n\r\nbut not resolve **[VERBOSE-2:profiler_metrics_ios.mm(203)] Error retrieving thread information: (os/kern) invalid argument**\r\n\r\nplease help me.",
+    "createdAt": "2020-12-23T12:07:02Z"
+  },
+  {
+    "id": 9997,
+    "sender": "snadon",
+    "content": "Here's how I made it disappear.\r\n\r\nClose your simulator if it's already opened and then:\r\n\r\n```\r\nflutter channel beta\r\nflutter upgrade\r\nflutter clean\r\nopen -a Simulator\r\nflutter run\r\n```\r\n\r\n```\r\nFlutter 1.25.0-8.2.pre • channel beta • https://github.com/flutter/flutter.git\r\nFramework • revision b0a2299859\r\nEngine • revision 92ae191c17\r\nTools • Dart 2.12.0 (build 2.12.0-133.2.beta)\r\n```\r\n\r\nAnd the error is gone. I noticed this issue was closed so I tried the beta channel before trying on master.",
+    "createdAt": "2021-01-06T03:10:29Z"
+  },
+  {
+    "id": 9998,
+    "sender": "aschlemmer",
+    "content": "> Here's how I made it disappear.\r\n> \r\n> Close your simulator if it's already opened and then:\r\n> \r\n> ```\r\n> flutter channel beta\r\n> flutter upgrade\r\n> flutter clean\r\n> open -a Simulator\r\n> flutter run\r\n \r\ncan verify. Same here. Thanks!",
+    "createdAt": "2021-01-25T22:00:20Z"
+  },
+  {
+    "id": 9999,
+    "sender": "P-Jag",
+    "content": "I also had this error. (with Flutter 1.22.6 and iOS 14.4)\r\n\r\n`[VERBOSE-2:profiler_metrics_ios.mm(184)] Error retrieving thread information: (ipc/send) invalid destination port`\r\n\r\n I've tried a lot fo solutions and nothing works for me. In my case this error occurs when I tried to filter list with usage of my current location. Everything was fine - no different errors but data was continuously loading (never ending loading). \r\n \r\n On Android was perfectly fine so error had to be related with iOS setting, so I've checked info.plist and found some outdated key's like [NSLocationAlways....](https://developer.apple.com/documentation/bundleresources/information_property_list/nslocationalwaysandwheninuseusagedescription) I replace them and puff error disappear, location services works and that's all. fixed. \r\n \r\n So my advice is track where exactly error occur because maybe updating some pakacges/info.plist is everything you'll need.  ",
+    "createdAt": "2021-02-03T21:29:58Z"
+  },
+  {
+    "id": 10000,
+    "sender": "incrediblezayed",
+    "content": "> flutter channel master -> Masuk ke\n> flutter upgrade -> Enter\n> flutter clean\n>  flutter run\n> \n> ERROR :  \n> [VERBOSE-2:profiler_metrics_ios.mm(203)] Error retrieving thread information: (os/kern) invalid argument\n\nI'm getting the same error, but I'm not on M1 chipset.\nAny help? ",
+    "createdAt": "2021-02-13T06:03:47Z"
+  },
+  {
+    "id": 10001,
+    "sender": "hussamDana92",
+    "content": "have the same issue.\r\n",
+    "createdAt": "2021-02-17T07:39:25Z"
+  },
+  {
+    "id": 10002,
+    "sender": "dcchristopher",
+    "content": "> I also got the same error but the fix is totally different which nobody can think of. What I did is opened project in Xcode and changed **LaunchScreen** from **Main** to **LaunchScreen** **Storyboard**. This fixed the issue for me.\r\n\r\nThe following settings (Info.plist) should be the only correct settings:\r\n\r\n\t<key>UILaunchStoryboardName</key>\r\n\t<string>LaunchScreen</string>\r\n\t<key>UIMainStoryboardFile</key>\r\n\t<string>Main</string>\r\n\r\nSetting the UIMainStoryboardFile to LaunchScreen will break the app. Setting the UILaunchStoryboardName to Main will give you a steady stream of these profiler errors (one or two orders of magnitude more). The above settings should have never been changed from the flutter template defaults. Glad to hear the above is what worked for you but it's really puzzling how you ended up in a different state.",
+    "createdAt": "2021-02-21T20:33:56Z"
+  },
+  {
+    "id": 10003,
+    "sender": "TahaTesser",
+    "content": "Could everyone who still has this problem please file a new issue with the exact description of what happens, logs, and the output of `flutter doctor -v`.\r\nAll system setups can be slightly different, so it's always better to open new issues and reference related issues.",
+    "createdAt": "2021-05-06T11:01:18Z"
+  }
+]

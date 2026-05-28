@@ -1,0 +1,386 @@
+[
+  {
+    "id": 2240,
+    "sender": "ds84182",
+    "content": "I think @flar 's idea for a RasterTransformLayer would still work well here, giving the performance benefits for route transitions while keeping the route animations live during the transition. \r\n\r\nSince this impacts fidelity (because native Android animates during transitions) should this be opt-in until a solution that preserves the behavior is found?",
+    "createdAt": "2022-06-29T18:32:55Z"
+  },
+  {
+    "id": 2241,
+    "sender": "dnfield",
+    "content": "@ds84182 it would help if you could share a case where the fidelity impact is noticeable.",
+    "createdAt": "2022-06-29T18:40:49Z"
+  },
+  {
+    "id": 2242,
+    "sender": "dnfield",
+    "content": "In particular, a case where fidelity is noticeable, but performance without this optimization is still acceptable. I'm aware of some cases where Fidelity would be impacted, but performance is currently so bad that you can't even see the animation during the transition on devices because of severe jank.",
+    "createdAt": "2022-06-29T18:49:07Z"
+  },
+  {
+    "id": 2243,
+    "sender": "jonahwilliams",
+    "content": "The rasterized transform layer will not help in this case, because changing the scale via the zoom would invalidate the raster cache. And if it didn't use the raster cache, it would mostly be the same performance as today minus an extra save layer from the image filter ",
+    "createdAt": "2022-06-29T18:53:01Z"
+  },
+  {
+    "id": 2244,
+    "sender": "flar",
+    "content": "> The rasterized transform layer will not help in this case, because changing the scale via the zoom would invalidate the raster cache. And if it didn't use the raster cache, it would mostly be the same performance as today minus an extra save layer from the image filter\r\n\r\nI don't think you understand the purpose of a \"rasterized transform layer\". Its 100% benefit is to prevent invalidation of its cached children due to transform changes. It literally was defined to solve the problem that you are saying can't be solved here. Am I missing something?\r\n\r\nSee https://github.com/flutter/engine/pull/31443\r\n\r\nIt solves the problem at the engine level with little change to the framework and it solves it in a very targeted manner. It was closed because at the time I thought that fixing the tree stability issues would interoperate with ImageFilter.Matrix well enough to make it obsolete, but it looks like ImageFilter.Matrix doesn't provide the fast path we originally thought it does. That PR was designed to solve exactly the problem you are trying to solve here in as direct a manner as possible.",
+    "createdAt": "2022-06-29T18:59:32Z"
+  },
+  {
+    "id": 2245,
+    "sender": "jonahwilliams",
+    "content": "No, you're right - its not that changing the scale invaldiates it - its that the child animation, intentional or accidental invalidates it.",
+    "createdAt": "2022-06-29T19:08:36Z"
+  },
+  {
+    "id": 2246,
+    "sender": "flar",
+    "content": "> No, you're right - its not that changing the scale invaldiates it - its that the child animation, intentional or accidental invalidates it.\r\n\r\nHow does a child animation disrupt a raster transform layer solution, but does not invalidate the toGPUImage image?",
+    "createdAt": "2022-06-29T19:10:14Z"
+  },
+  {
+    "id": 2247,
+    "sender": "jonahwilliams",
+    "content": "Because I'm not invaliding the image regardless of child animation state",
+    "createdAt": "2022-06-29T19:11:50Z"
+  },
+  {
+    "id": 2248,
+    "sender": "dnfield",
+    "content": "The raster transform layer proposal is a bit harder to use for developers, and still requires a bunch of fiddliness about the raster cache rather than letting the framework use it's knowledge of the animation to make and dispose the raster.\r\n\r\nThis patch will discard animations drawn in the same layer. Trying to draw those during the transition generally doesn't work anyway (but I would welcome counterexamples)",
+    "createdAt": "2022-06-29T19:14:21Z"
+  },
+  {
+    "id": 2249,
+    "sender": "dnfield",
+    "content": "Put another way: the linked patch adds more complexity to dart:ui. We should avoid that if possible. This makes it possible.",
+    "createdAt": "2022-06-29T19:17:35Z"
+  },
+  {
+    "id": 2250,
+    "sender": "jonahwilliams",
+    "content": "@ds84182 this isn't a fidelity - performance trade off, this is just a fidelity - fidelity trade off. Today you can either run at a device appropriate framerate (90hz/60hz) during the transition, or you can run animations but at a significantly reduced frame rate. Obviously we'd prefer to run at the full frame rate, with as rich of transitions as possible but that is not possible today.\r\n\r\n@flar If you suspect that we could still get good frame rates by using this rasterized transform layer or (ideally) by fixing image filter, then I think you should prioritize working on it and compare that benchmark with the numbers I have above. \r\n\r\nI had a previous PR that had a more targeted heursitc fix for this, but in retrospect I think that is actually a bad idea. What happens when the next android version has a page transition that does a spin and fade mixed with a color blending effect? How long would the framework team need to wait for the engine team to adjust their heustics? toGpuImage gives the framework the ability to take performance into their own hands, which is important given that our priorities don't always line up.",
+    "createdAt": "2022-06-29T19:18:45Z"
+  },
+  {
+    "id": 2251,
+    "sender": "flar",
+    "content": "OK, here is some background on what makes this solution work better than what we have been achieving with the existing engine design:\r\n\r\n- Engine layers are single purpose. If you want to do multiple operations, you have to break it up into multiple \"engine layers\" each of which work independently. Scale and Fade? That requires a TransformLayer and an OpacityLayer and they each operate on \"children\" - to try to combine their operations requires work by the engine to notice when those operations can be combined. So, while each engine layer can easily cache-optimize its own operations, the ability for a sequence of layers to cache-optimize their combined operations is missing in so many configurations and gets expensive to recognize when the authoring code (the widgets) already knew how the operations combined before they were forced to express the ops as individual nested layers.\r\n- It appears that the framework code here can decide to \"cache and freeze\" the children so that if the children continue to animate, it can ignore the subsequent changes in the children. Existing cache stability mechanism all rely on the children actually not changing, but this code will enforce that condition (presumably because widgets undergoing a transition effect don't need to be animating themselves?)\r\n- Overall, `toGpuImage` as an isolated mechanism should have similar performance to the caching in the engine layers in terms of getting pieces of scenes into images. But the resulting image can be dealt with more flexibly at the widget/RenderObject level than it can at the \"each op is its own layer\" engine level.\r\n\r\nAm I seeing this accurately?",
+    "createdAt": "2022-06-29T20:14:21Z"
+  },
+  {
+    "id": 2252,
+    "sender": "dnfield",
+    "content": "Yes, I think that sounds right.",
+    "createdAt": "2022-06-29T20:42:28Z"
+  },
+  {
+    "id": 2253,
+    "sender": "jonahwilliams",
+    "content": "> it appears that the framework code here can decide to \"cache and freeze\" the children so that if the children continue to animate, it can ignore the subsequent changes in the children. Existing cache stability mechanism all rely on the children actually not changing, but this code will enforce that condition (presumably because widgets undergoing a transition effect don't need to be animating themselves?)\r\n\r\nI would say more generally, the engine caching is conservative because it doesn't know the intention of the developer - and providing more hints is difficult since the engine caching decision happens very \"far\" from where the developer may have authored the code. The framework, or a particular widget, may decide to more agressively cache, and configuring that caching is something that is easier to discover by a developer. This caching may even amount to disabling an animation, which could be desirable if the performance is significant enough or if that animation or repainting is incindental ",
+    "createdAt": "2022-06-29T20:48:36Z"
+  },
+  {
+    "id": 2254,
+    "sender": "flar",
+    "content": "> > it appears that the framework code here can decide to \"cache and freeze\" the children so that if the children continue to animate, it can ignore the subsequent changes in the children. Existing cache stability mechanism all rely on the children actually not changing, but this code will enforce that condition (presumably because widgets undergoing a transition effect don't need to be animating themselves?)\r\n> \r\n> I would say more generally, the engine caching is conservative because it doesn't know the intention of the developer - and providing more hints is difficult since the engine caching decision happens very \"far\" from where the developer may have authored the code. The framework, or a particular widget, may decide to more agressively cache, and configuring that caching is something that is easier to discover by a developer. This caching may even amount to disabling an animation, which could be desirable if the performance is significant enough or if that animation or repainting is incindental\r\n\r\nAnother way to look at this PR is that you are answering the question of \"what if I just wanted to express what I want to do with my children as a call to drawImage?\" For this PR to work, it necessarily involves creating the GpuImage in order to express what you want - which means you have to involve caching in order to express a complex operation through the existing SceneBuilder API. What if we could break those 2 concepts up and so you could still express your transition as \"drawScene(scene, geometric destination description (x,y or rects, nine-slice, etc), Paint, <transform info>)\" and then it could be used as a common way to present modifications of a set of children. That could be combined with either automatic or explicit caching to be able to do the entire zoom page transition in one operation. Even without caching, it would be a much more efficient operation. toGpuImage or the existing engine cache would become implementation details, but the API being presented would be this more flexible one that is independent of those details and would work well with them.",
+    "createdAt": "2022-06-29T20:58:07Z"
+  },
+  {
+    "id": 2255,
+    "sender": "dnfield",
+    "content": "@flar - what happens when the next transition we have to optimize for involves a rotation? Or a custom fragment shader? \r\n\r\nI'm also interested in hearing about the advantages we'd gain by adding API to the SceneBuilder that we otherwise would lose.",
+    "createdAt": "2022-06-29T21:02:16Z"
+  },
+  {
+    "id": 2256,
+    "sender": "flar",
+    "content": "> @flar - what happens when the next transition we have to optimize for involves a rotation? Or a custom fragment shader?\r\n> \r\n> I'm also interested in hearing about the advantages we'd gain by adding API to the SceneBuilder that we otherwise would lose.\r\n\r\nAre you talking about my comment about a potential drawScene(...)? FragmentShader is installed in a Paint so it would already be dealing with that. The transform is part of the operation just as if it would be with drawImage().\r\n\r\nWhat I'm saying is that if you can express your operation as a call to drawImage - as this PR already implicitly requires - then it could be expressed as drawScene(...) which has all of the same bells and whistles as drawImage, but operates on a scene fragment.\r\n\r\nWe're not adding API to the SceneBuilder, we're removing API and replacing it with a more flexible operation.\r\n\r\npushOpacity should have never existed, it should have been drawScene(children, Paint..setAlpha).\r\npushImageFilter should have never existed, it should have been drawScene(children, Paint..setIF()).\r\npushColorFilter should have never existed, it should have been drawScene(children, Paint..setCF()).\r\npushTransform could be replaced by some variant of drawScene(children) with a transform.\r\n\r\nAt that point, pushOpacity nested with pushImageFilter becomes an obsolete concept replaced by drawScene(children, Paint..setThis..setThat).\r\n\r\nAnd if the new transition involves perspective transforms, then it should already be expressable by the new mechanism because it can do anything you could have done with manual caching and a call to drawImage().",
+    "createdAt": "2022-06-29T21:25:40Z"
+  },
+  {
+    "id": 2257,
+    "sender": "flar",
+    "content": "Also, I'm suggesting that a simpler near-term change would be that pushOpacity, pushImageFilter and pushColorFilter could very easily and non-disruptively be replaced by a single pushPaint. Those methods on SceneBuilder could still exist as special cases of pushPaint, but if we had had pushPaint all along, many of the \"peephole optimization\" complications that were part of the reason for this PR would have never been an issue.\r\n\r\nAnd doing so combines 3 engine layers into 1, without any changes to framework code other than providing the framework with an opportunity to combine its layers if it so wishes.\r\n\r\nTo completely express most conceivable transition concepts, pushPaint isn't enough - we'd have to add a transform optimization into that. It isn't as \"mostly delete code with a few lines added\" trivial as adding pushPaint, but it is not that much work.\r\n\r\nThe longer term idea, though, is that pushSingleConceptFoo() is not a good API for us to have ever provided developers.",
+    "createdAt": "2022-06-29T21:34:36Z"
+  },
+  {
+    "id": 2258,
+    "sender": "jonahwilliams",
+    "content": "There's still a bug in this where the exiting route can trigger a repaint at 0% opacity when the animation is in a completed status. I need to update the painting API to always go through the delegate so we can ensure the child isn't painted in that case",
+    "createdAt": "2022-06-29T22:09:13Z"
+  },
+  {
+    "id": 2259,
+    "sender": "fzyzcjy",
+    "content": "> Overall, toGpuImage as an isolated mechanism should have similar performance to the caching in the engine layers in terms of getting pieces of scenes into images. But the resulting image can be dealt with more flexibly at the widget/RenderObject level than it can at the \"each op is its own layer\" engine level.\r\n\r\nThat would be very useful for many cases, because when the flutter app is getting larger and more complicated, it is often the case that we have to control all the underlying details in some performance-critical components.\r\n\r\n",
+    "createdAt": "2022-06-29T22:55:45Z"
+  },
+  {
+    "id": 2260,
+    "sender": "flar",
+    "content": "Where is the time spent in toGPUImage accounted? The call itself just returns a placeholder and puts a task on the rasterizer queue. The rasterization time reported in frame metrics is only the time to render the frame's layer tree itself. The other tasks are not timed or reported AFAICT.\r\n\r\nSo, unless I'm missing something, the results above are basically ignoring the rasterization time of the GPU image...? Perhaps that is only on the first frame of the animation, but it still should be accounted for somewhere to get accurate data.",
+    "createdAt": "2022-06-30T00:43:20Z"
+  },
+  {
+    "id": 2261,
+    "sender": "dnfield",
+    "content": "https://github.com/flutter/flutter/pull/106621#issuecomment-1167748551\r\n\r\nThere is a specific event for toGpuImage, but the important bit is overall frame count goes way up.",
+    "createdAt": "2022-06-30T01:05:09Z"
+  },
+  {
+    "id": 2262,
+    "sender": "flar",
+    "content": "> #106621 (comment)\r\n\r\nThat's good, but we should be accounting for these in the benchmark metrics so we can track regressions. The toGpuImage events will be in the timeline, but the code that reads timelines needs  to be taught what to do with it. This time will not be accounted for in the FrameTiming structures that the E2E benchmarks use.\r\n\r\nWe also track cache counts and memory used and we trace flows that show their lifetimes through creation, usage, and eviction.",
+    "createdAt": "2022-06-30T18:02:13Z"
+  },
+  {
+    "id": 2263,
+    "sender": "flar",
+    "content": "Some more thoughts on the Gpu Images. Is there a mechanism to invalidate them and/or recreate them when the GPU is taken away from us? I'm not sure if that is still a thing, but I know back when we were creating Gpu images in Java (decades ago) we had to create a concept called VolatileImage that could tell you \"I'm sorry, but my contents are missing and I have no way of getting them back, you'll have to abandon this object and recreate it\" because most platforms could just dump your GPU assets outside of your control.\r\n\r\nI looked at the native RasterCache and it looks like it has a Clear method that gets called from CompositorContext::OnGrContextCreated/Destroyed which appears to be a way to invalidate our native cache when these events occur.\r\n\r\nSo...\r\n\r\n- Does asynchronous loss of GPU assets still happen on any platforms we support (or are likely to support in the future)?\r\n- Does this GpuImage mechanism have a way to recover from that (which would either require remembering the scene/DL from which they were created and repopulating automatically, or notifying the framework so that it should recreate the image). I did a brief look through this PR and didn't see any code that looked like it was dealing with this issue.",
+    "createdAt": "2022-06-30T20:22:39Z"
+  },
+  {
+    "id": 2264,
+    "sender": "dnfield",
+    "content": "@flar I think some of these questions might be better suited in some dedicated issues. When implementing https://github.com/flutter/engine/pull/33736 I did run a number of test cases manually to try to simulate the things you're suggesting. It's quite possible I missed something or that there are bugs in the implementation. \r\n\r\nIn general, the GPU image will throw when you try to draw it to the canvas if there was a problem. I tried some test cases manually that should have exercised loss of GPU context, but it's quite possible that I didn't exercise it correctly.\r\n\r\nIn any case, for the cases in this patch, when the GrContext is restored you'd be generating a new image anyway - this only really happens today when the app goes to background and comes back.",
+    "createdAt": "2022-06-30T20:44:28Z"
+  },
+  {
+    "id": 2265,
+    "sender": "jonahwilliams",
+    "content": "Currently waiting on updates for toImageSync. Will need to refactor the existing PR a bit more - the straegy I am using of dynamically adding/removing the raster widget is leading to extra rebuilds.",
+    "createdAt": "2022-07-07T17:56:25Z"
+  },
+  {
+    "id": 2266,
+    "sender": "jonahwilliams",
+    "content": "Need to do a few more cleanups and add some tests and this will be ready for another pass",
+    "createdAt": "2022-07-09T00:52:18Z"
+  },
+  {
+    "id": 2267,
+    "sender": "jonahwilliams",
+    "content": "I have not addressed all feedback, but I did update to a controller API which I think makes more sense",
+    "createdAt": "2022-07-11T18:49:12Z"
+  },
+  {
+    "id": 2268,
+    "sender": "jonahwilliams",
+    "content": "Took a pass attempting to address documentation issues",
+    "createdAt": "2022-07-11T20:14:21Z"
+  },
+  {
+    "id": 2269,
+    "sender": "jonahwilliams",
+    "content": "Latest numbers:\r\n\r\nNew:\r\n```\r\n\"average_frame_build_time_millis\": 1.2650128755364807,\r\n  \"90th_percentile_frame_build_time_millis\": 1.058,\r\n  \"99th_percentile_frame_build_time_millis\": 20.284,\r\n  \"worst_frame_build_time_millis\": 37.832,\r\n  \"missed_frame_build_budget_count\": 3,\r\n  \"average_frame_rasterizer_time_millis\": 2.697935622317597,\r\n  \"90th_percentile_frame_rasterizer_time_millis\": 3.095,\r\n  \"99th_percentile_frame_rasterizer_time_millis\": 14.474,\r\n  \"worst_frame_rasterizer_time_millis\": 15.469,\r\n  \"missed_frame_rasterizer_budget_count\": 0,\r\n  \"frame_count\": 233,\r\n  \"frame_rasterizer_count\": 233,\r\n  \"new_gen_gc_count\": 36,\r\n  \"old_gen_gc_count\": 2,\r\n  ```\r\n  \r\n  Old:\r\n  \r\n  ```\r\n \"average_frame_build_time_millis\": 1.1861463414634146,\r\n  \"90th_percentile_frame_build_time_millis\": 1.13,\r\n  \"99th_percentile_frame_build_time_millis\": 6.712,\r\n  \"worst_frame_build_time_millis\": 34.433,\r\n  \"missed_frame_build_budget_count\": 1,\r\n  \"average_frame_rasterizer_time_millis\": 6.972506024096388,\r\n  \"90th_percentile_frame_rasterizer_time_millis\": 14.395,\r\n  \"99th_percentile_frame_rasterizer_time_millis\": 22.621,\r\n  \"worst_frame_rasterizer_time_millis\": 22.64,\r\n  \"missed_frame_rasterizer_budget_count\": 6,\r\n  \"frame_count\": 82,\r\n  \"frame_rasterizer_count\": 83,\r\n  \"new_gen_gc_count\": 2,\r\n  \"old_gen_gc_count\": 0,\r\n  ```\r\n  \r\n  Device is a Pixel 6.",
+    "createdAt": "2022-07-11T20:45:21Z"
+  },
+  {
+    "id": 2270,
+    "sender": "jonahwilliams",
+    "content": "Converting to a draft while I hack out the last platform view specific bits",
+    "createdAt": "2022-07-14T16:38:16Z"
+  },
+  {
+    "id": 2271,
+    "sender": "jonahwilliams",
+    "content": "PTAL @dnfield @goderbauer \r\n\r\nI've added a fallback system that detects the first time a PlatformView or TextureView is encountered and errors out. We then provide a special delegate in the route transitions that make this not error out and instead fall back to pushing layers.\r\n\r\nBy default we don't handle these errors so users are discouraged from including platform views as children of these - though there is the option to disable this check if they don't care.\r\n\r\nA future change will remove the restriction on texture view.",
+    "createdAt": "2022-07-18T17:43:50Z"
+  },
+  {
+    "id": 2272,
+    "sender": "jonahwilliams",
+    "content": "The future change: https://github.com/flutter/engine/pull/34624",
+    "createdAt": "2022-07-18T17:45:01Z"
+  },
+  {
+    "id": 2273,
+    "sender": "jonahwilliams",
+    "content": "open question, should I just use the single fallback and make the web use the fallback delegate?",
+    "createdAt": "2022-07-18T17:45:29Z"
+  },
+  {
+    "id": 2274,
+    "sender": "dnfield",
+    "content": "> open question, should I just use the single fallback and make the web use the fallback delegate?\r\n\r\nAs opposed to what?",
+    "createdAt": "2022-07-18T18:54:16Z"
+  },
+  {
+    "id": 2275,
+    "sender": "dnfield",
+    "content": "Having fewer code paths in general is probably good though.",
+    "createdAt": "2022-07-18T18:54:29Z"
+  },
+  {
+    "id": 2276,
+    "sender": "jonahwilliams",
+    "content": "as opposed to detecting web before starting the transition and switching to the \"old\" zoom page transition, I could let it hit the fallback path provided to the raster widget",
+    "createdAt": "2022-07-18T18:55:44Z"
+  },
+  {
+    "id": 2277,
+    "sender": "jonahwilliams",
+    "content": "Actually that doesn't quite work unless we give a RasterWidget a way to force hit its fallback path, since we want to allow users to opt out of it via prefer-rasterization. I'm okay keeping this very special cased, since we're only doing it once for this route transition",
+    "createdAt": "2022-07-18T19:03:25Z"
+  },
+  {
+    "id": 2278,
+    "sender": "jonahwilliams",
+    "content": "I removed one of the fallback paths and spent some time working on the documentation",
+    "createdAt": "2022-07-21T20:29:14Z"
+  },
+  {
+    "id": 2279,
+    "sender": "clocksmith",
+    "content": "## [Material] Create a themable Range Slider (continuous and discrete)\n\n## Description\r\n\r\nCreates a Material Design range slider.\r\n\r\nThe range slider is based off the updated slider, with the main difference being that it has 2 thumbs.\r\nBy default, the thumbs cannot pass each other and both the thumb and the value indicator create a stroke when they are overlapping for better visibility.\r\n\r\n![one](https://user-images.githubusercontent.com/591699/57587853-ec23b880-74d9-11e9-9f73-6d5d13c389b0.gif)\r\n![two](https://user-images.githubusercontent.com/591699/57587855-eded7c00-74d9-11e9-8416-c0be9a74b626.gif)\r\n<img width=\"327\" alt=\"range_slider_disabled\" src=\"https://user-images.githubusercontent.com/591699/56827776-bae68f80-682d-11e9-89ab-54291c36f508.png\">\r\n\r\n## Related Issues\r\n\r\nhttps://github.com/flutter/flutter/issues/18083\r\n\r\n## Tests\r\n\r\nI added the following tests:\r\n\r\nBehavior tests for range slider have been added in range_slider_test.dart. Appearence tests will be updated with goldens.\r\n\r\n## Checklist\r\n\r\nBefore you create this PR confirm that it meets all requirements listed below by checking the relevant checkboxes (`[x]`). This will ensure a smooth and quick review process.\r\n\r\n- [x] I read the [Contributor Guide] and followed the process outlined there for submitting PRs.\r\n- [x] I signed the [CLA].\r\n- [x] I read and followed the [Flutter Style Guide], including [Features we expect every widget to implement].\r\n- [x] I updated/added relevant documentation (doc comments with `///`).\r\n- [x] All existing and new tests are passing.\r\n- [x] The analyzer (`flutter analyze --flutter-repo`) does not report any problems on my PR.\r\n- [x] I am willing to follow-up on review comments in a timely manner.\r\n\r\n## Breaking Change\r\n\r\nDoes your PR require Flutter developers to manually update their apps to accommodate your change?\r\n\r\n- [ ] Yes, this is a breaking change (Please read [Handling breaking changes]). *Replace this with a link to the e-mail where you asked for input on this proposed change.*\r\n- [x] No, this is *not* a breaking change.\r\n\r\n<!-- Links -->\r\n[issue database]: https://github.com/flutter/flutter/issues\r\n[Contributor Guide]: https://github.com/flutter/flutter/wiki/Tree-hygiene#overview\r\n[Test Coverage]: https://github.com/flutter/flutter/wiki/Test-coverage-for-package%3Aflutter\r\n[Flutter Style Guide]: https://github.com/flutter/flutter/wiki/Style-guide-for-Flutter-repo\r\n[Features we expect every widget to implement]: https://github.com/flutter/flutter/wiki/Style-guide-for-Flutter-repo#features-we-expect-every-widget-to-implement\r\n[CLA]: https://cla.developers.google.com/\r\n[Handling breaking changes]: https://github.com/flutter/flutter/wiki/Tree-hygiene#handling-breaking-changes\r",
+    "createdAt": "2019-04-26T18:18:13Z"
+  },
+  {
+    "id": 2280,
+    "sender": "lpongetti",
+    "content": "OnChangeEnd doesn't working",
+    "createdAt": "2019-05-06T18:24:39Z"
+  },
+  {
+    "id": 2281,
+    "sender": "clocksmith",
+    "content": "Added common macros, PTAL",
+    "createdAt": "2019-05-12T21:19:08Z"
+  },
+  {
+    "id": 2282,
+    "sender": "lpongetti",
+    "content": "news??\r\nwe are waiting for this",
+    "createdAt": "2019-05-24T10:03:27Z"
+  },
+  {
+    "id": 2283,
+    "sender": "clocksmith",
+    "content": "Most comments resolved, PTAL",
+    "createdAt": "2019-06-04T18:07:45Z"
+  },
+  {
+    "id": 2284,
+    "sender": "cbazza",
+    "content": "## Consider JSX-like syntax inside dart code\n\nIt would be great if aside from the current way of building widgets you could add JSX like capabilities. I mean add tiny syntactic sugar to enable XML like constructs inside dart code. It just makes code so much easier to read/develop/debug/maintain and also easier for powerful GUI builders to integrate with editable code.\r\n\r\nLooking for something like DSX:\r\nhttps://spark-heroku-dsx.herokuapp.com/index.html\r\n\r\nCarlos.\r\n\r\n---\r\n\r\nThe current issue with DSX is about proper integration with Flutter tools as to provide a great developer experience with debugger, auto-complete, etc. working on .dsx files.\r\n\r\nTelling users that they can use DSX but can't use debugger or enjoy auto-complete is a non starter for me. If anybody wants to help, what I need is to figure out a way to add full preprocessing support (with source map) to Dart Tools and VS Code Dart plug in. Once the tools support that DSX or any other transpiling language (any language that is a superset of Dart but compiles everything down to Dart) would just work.\r\n\r\nIf you can and would like to help, let me know.\r",
+    "createdAt": "2017-08-14T16:16:38Z"
+  },
+  {
+    "id": 2285,
+    "sender": "sethladd",
+    "content": "cc @lukechurch ",
+    "createdAt": "2017-08-14T16:30:25Z"
+  },
+  {
+    "id": 2286,
+    "sender": "Hixie",
+    "content": "@cbazza Can you elaborate on why you want this? Maybe show an example of what it would look like compared to today?",
+    "createdAt": "2017-08-15T20:43:01Z"
+  },
+  {
+    "id": 2287,
+    "sender": "cbazza",
+    "content": "Ok, so the \"Basic widgets\" example on 'https://flutter.io/widgets-intro/#basic-widgets' would look like the following:\r\n```dart\r\nimport 'package:flutter/material.dart';\r\n\r\nclass MyAppBar extends StatelessWidget {\r\n  MyAppBar({this.title});\r\n\r\n  // Fields in a Widget subclass are always marked \"final\".\r\n\r\n  final Widget title;\r\n\r\n  @override\r\n  Widget build(BuildContext context) {\r\n    let style = {\r\n        height: 56.0, // in logical pixels\r\n        padding: const EdgeInsets.symmetric(horizontal: 8.0),\r\n        decoration: <BoxDecoration color={Colors.blue[500]}/>,\r\n    };\r\n  \r\n    return <Container style={style}>\r\n      <Row>\r\n        <IconButton\r\n            icon={<Icon name={Icons.menu}/>}\r\n            tooltip='Navigation menu'\r\n            onPressed={null}\r\n        />\r\n        <Expanded>\r\n           {title}\r\n\t</Expanded>  \r\n        <IconButton\r\n            icon={<Icon name={Icons.search}/>}\r\n            tooltip='Search'\r\n            onPressed={null}\r\n        />\r\n      </Row>\r\n    </Container>;\r\n  }\r\n}\r\n\r\nclass MyScaffold extends StatelessWidget {\r\n  @override\r\n  Widget build(BuildContext context) {\r\n    // Material is a conceptual piece of paper on which the UI appears.\r\n    return <Material>\r\n      <Column>\r\n          <MyAppBar\r\n             title={<Text \r\n               text='Example title'\r\n               style={Theme.of(context).primaryTextTheme.title},\r\n             />}\r\n          />\r\n          <Expanded>\r\n            <Center>\r\n              <Text text='Hello, world!'/>\r\n            </Center>\r\n          </Expanded>\r\n      </Column>\r\n    </Material>;\r\n  }\r\n}\r\n\r\nvoid main() {\r\n  runApp(<MaterialApp\r\n    title='My app'\r\n    home={<MyScaffold/>}\r\n  />);\r\n}\r\n```\r\n",
+    "createdAt": "2017-08-15T21:25:06Z"
+  },
+  {
+    "id": 2288,
+    "sender": "Hixie",
+    "content": "How about this syntax?:\r\n\r\n```dart\r\nimport 'package:flutter/material.dart';\r\n\r\nclass MyAppBar extends StatelessWidget {\r\n  MyAppBar({this.title});\r\n\r\n  // Fields in a Widget subclass are always marked \"final\".\r\n\r\n  final Widget title;\r\n\r\n  @override\r\n  Widget build(BuildContext context) {\r\n    return Container(\r\n      height: 56.0, // in logical pixels\r\n      padding: EdgeInsets.symmetric(horizontal: 8.0),\r\n      decoration: BoxDecoration(color: Colors.blue[500]),\r\n      child: Row(\r\n        children: <Widget>[\r\n          IconButton(\r\n            icon: Icon(Icons.menu),\r\n            tooltip: 'Navigation menu',\r\n            onPressed: null,\r\n          ),\r\n          Expanded(\r\n            child: title,\r\n          ),\r\n          IconButton(\r\n            icon: Icon(Icons.search),\r\n            tooltip: 'Search',\r\n            onPressed: null,\r\n          ),\r\n        ],\r\n      ),\r\n    );\r\n  }\r\n}\r\n\r\nclass MyScaffold extends StatelessWidget {\r\n  @override\r\n  Widget build(BuildContext context) {\r\n    // Material is a conceptual piece of paper on which the UI appears.\r\n    return Material(\r\n      child: Column(\r\n        children: <Widget>[\r\n          MyAppBar(\r\n            title: Text(\r\n              'Example title',\r\n              style: Theme.of(context).primaryTextTheme.title,\r\n            ),\r\n          ),\r\n          Expanded(\r\n            child: Center(\r\n              child: Text('Hello, world!'),\r\n            ),\r\n          ),\r\n        ],\r\n      ),\r\n    );\r\n  }\r\n}\r\n\r\nvoid main() {\r\n  runApp(MaterialApp(\r\n    title: 'My app',\r\n    home: MyScaffold(),\r\n  ));\r\n}\r\n```",
+    "createdAt": "2017-08-15T21:35:48Z"
+  },
+  {
+    "id": 2289,
+    "sender": "cbazza",
+    "content": "Huumm, a little improvement but not so good... \r\nHere are the things that gets accomplished by using XML:\r\n(1) No more 'child' & 'children' stuff\r\n(2) easy for 3rd party tools to manipulate (parse, analyse and regenerate)\r\n(3) notice that the switching between markup and programming is easily detected. I mean inside XML you have '{}' to delimit code and in code you have '<Capital' to delimit markup. \r\nAlso separate all the 'style' things from the main structure.\r\nI know this is basically fully endorsing React's way but you are half way there anyways ;)\r\n",
+    "createdAt": "2017-08-15T21:44:30Z"
+  },
+  {
+    "id": 2290,
+    "sender": "sethladd",
+    "content": "cc @kasperl",
+    "createdAt": "2017-08-15T21:48:30Z"
+  },
+  {
+    "id": 2291,
+    "sender": "Hixie",
+    "content": "> (1) No more 'child' & 'children' stuff\r\n\r\nI don't really understand why that's desireable. \"child\" and \"children\" aren't special. Consider ListTile for example. How would you do that one? Why are \"icon\" in IconButton, or \"home\" in MaterialApp, something you want to give a name for, but not \"child\" in Expanded? All three are just arbitrary arguments that happen to take Widget objects. There's nothing magical about \"child\" vs \"home\".\r\n\r\n\r\n> (2) easy for 3rd party tools to manipulate (parse, analyse and regenerate)\r\n\r\nYou can parse, analyze, and regenerate Dart code. But I agree we should make that easier. Hopefully in the coming years the Dart team will provide better APIs for this.\r\n\r\n\r\n> (3) notice that the switching between markup and programming is easily detected.\r\n\r\nWhy is that desireable? I mean, why would any of this count as \"programming\"? It's all just expressions.\r\n\r\n\r\n> I mean inside XML you have '{}' to delimit code and in code you have '<Capital' to delimit markup. \r\n\r\nI don't really understand the distinction.\r\n\r\n\r\n> Also separate all the 'style' things from the main structure.\r\n\r\nYou can do this today in Flutter if you really want to, just put the style in a variable like you did in the XML case.",
+    "createdAt": "2017-08-15T21:49:41Z"
+  },
+  {
+    "id": 2292,
+    "sender": "cbazza",
+    "content": "> I don't really understand why that's desireable. \"child\" and \"children\" aren't special. Consider ListTile for example. How would you do that one? Why are \"icon\" in IconButton, or \"home\" in MaterialApp, something you want to give a name for, but not \"child\" in Expanded? All three are just arbitrary arguments that happen to take Widget objects. There's nothing magical about \"child\" vs \"home\".\r\n\r\nLess boilerplate, you don't need to say it because it is inherited in the structure.\r\n\r\n> Why is that desireable? I mean, why would any of this count as \"programming\"? It's all just expressions.\r\n\r\nIt's related to (2) because it makes life of toolmakers, specially GUI builders, much easier since they don't need to fully parse Dart; but it also makes reading the code easier. \r\n\r\n> I don't really understand the distinction.\r\n\r\nThe format of XML is very simple so when you see '{}' you know it is calculating an expression in dart. Same for the opposite, when reading dart code and you see '<Capital' (a less-than followed by a word that is capitalized. example \\<Row>) you know that an object hierarchy is being created from XML markup.\r\n\r\n",
+    "createdAt": "2017-08-15T22:02:18Z"
+  },
+  {
+    "id": 2293,
+    "sender": "cbazza",
+    "content": "Also in the final XML processor I would avoid passing objects to attributes of parents and instead create child tags as below:\r\n```dart\r\nthis...\r\n          <MyAppBar>\r\n             <Title style={Theme.of(context).primaryTextTheme.title}>  \r\n                 Example title\r\n             </Title>\r\n          </MyAppBar>\r\n\r\ninstead of this...\r\n          <MyAppBar\r\n             title={<Text \r\n               text='Example title'\r\n               style={Theme.of(context).primaryTextTheme.title},\r\n             />}\r\n          />\r\n``` ",
+    "createdAt": "2017-08-15T22:07:57Z"
+  },
+  {
+    "id": 2294,
+    "sender": "Hixie",
+    "content": "> Less boilerplate, you don't need to say it because it is inherited in the structure.\r\n\r\nBut why only for some of the properties? And how do you handle cases where there's two child slots, like ListItem? XML-ish syntax just doesn't seem to handle this very well.\r\n\r\nAlso I'm not really sure it's less boilerplate.\r\n\r\nCompare:\r\n```xml\r\n   <Container style={style}>\r\n      <Row>\r\n        <IconButton\r\n            icon={<Icon name={Icons.menu}/>}\r\n            tooltip='Navigation menu'\r\n            onPressed={null}\r\n        />\r\n        <Expanded> {title} </Expanded>  \r\n      </Row>\r\n    </Container>\r\n```\r\n\r\n```dart\r\n   Container(style: style,\r\n      child: Row(\r\n        children: [\r\n          IconButton(\r\n            icon: Icon(Icons.menu),\r\n            tooltip: 'Navigation menu',\r\n            onPressed: null,\r\n          ),\r\n          Expanded(child: title),\r\n        ],\r\n      ),\r\n    )\r\n```\r\n\r\nIt's not at all clear to me that the XML-ish syntax is cleaner or less boilerplatey. There's lots more punctuation, and some duplication of content (e.g. in the close tags). And you had to add some names, so sure, you lose \"child\", but you gain \"name\" on Icon.\r\n\r\nAlso with XML how do you make it clear that Row can take zero, one, or more than one child, while Center has to have exactly one child? What would happen if someone did this?:\r\n\r\n```xml\r\n   <Center> <Test/> <Test/> </Center>\r\n```\r\n\r\n> It's related to (2) because it makes life of toolmakers, specially GUI builders, much easier since they don't need to fully parse Dart;\r\n\r\nThey wouldn't need to fully parse Dart if we had a Dart parsing API either, though, right? I mean, you'd parse what you want to parse and leave the rest. Also I'm not sure it's actually easier to parse, since it's not actually XML; see below.\r\n\r\n> but it also makes reading the code easier. \r\n\r\nI'm not at all convinced that the XMLy version here is easier to read. Once you've read a few build functions, you quickly get used to the nested constructor syntax.\r\n\r\n> The format of XML is very simple so when you see '{}' you know it is calculating an expression in dart.\r\n\r\nIt's not actually XML, though, right? It's some variant of XML. Are there well-defined parsing rules for it? For example, is this valid?\r\n\r\n```xml\r\n  <Test name={describe(\"}\")}>\r\n```\r\n\r\nHow does it know that the first \"}\" isn't the end of the attribute expression, without parsing Dart?\r\n\r\n> Same for the opposite, when reading dart code and you see '<Capital' (a less-than followed by a word that is capitalized. example \\<Row>) you know that an object hierarchy is being created from XML markup.\r\n\r\nYou know this today when you see the `new` keyword too, right? Or indeed in the new-less markup proposal above when you see any capitalised word. Is this really a benefit of XML, or are you more familiar with XML than Dart?\r\n\r\n> Also in the final XML processor I would avoid passing objects to attributes of parents and instead create child tags as below:\r\n\r\nI really don't understand what you're proposing here. It's not well-formed XML at all as far as I can tell. Can you elaborate on exactly what the syntax you are proposing is and how it works? For example, the \"Text\" constructor seems to have disappeared; how does the processor know that <Title> creates a Text widget?\r\n\r\n\r\nSorry if I sound defensive or aggressive. :-) This is a topic that's come up several times but I've never had someone willing to actually argue the case before so I'm finding this conversation very useful in teaching me what the reasoning behind the request is. Please don't take my argumentative tone as dismissive, I'm very interested in your input here.",
+    "createdAt": "2017-08-15T22:23:28Z"
+  },
+  {
+    "id": 2295,
+    "sender": "cbazza",
+    "content": "Look, you are mixing everything I say and this conversation is going nowhere. In legal terms you are \"Badgering the witness\".\r\n\r\nIf you are really interested in learning why JSX is hot, just google for \"react tutorial\" and notice that for the past 2 years all articles on React use JSX. The original way of creating component hierarchies in React (which is equivalent to the current way in Flutter) is never mentioned again because JSX became the preferred method (best practice).\r\n\r\nhttps://facebook.github.io/react/tutorial/tutorial.html\r\nhttps://facebook.github.io/react-native/docs/flatlist.html\r\n\r\nAnother interesting thing is that Typescript has adopted JSX also:\r\nhttps://www.typescriptlang.org/docs/handbook/jsx.html\r\n\r\nYou failed to grasp that XML parsing (with some extra code to skip '{}' properly) is orders of magnitude simpler than fully parsing a programming language like Dart. That is a fact. You are assuming that tool builders will use Dart on their development, not the case, Intellij most likely is using Kotlin and Java on their IDEs that supports Dart (they are a special case because they specialize in language parsing; everybody else will struggle to fully parse Dart from another language).\r\n\r\nWhat I like about putting XML inside another language is that it provides a cognitive separation between the two because XML is very distinct from programming languages. Just scrolling through the source file you can easily see what is code and what is declarative markup. Can't accomplish that with dart code pretending to be markup. \r\n\r\nStop nit-picking things that are not fully specified. All your doubts have answered for it just learn more about how that was handled in JSX. I just don't have the time for this here.\r\n",
+    "createdAt": "2017-08-16T17:34:19Z"
+  },
+  {
+    "id": 2296,
+    "sender": "Hixie",
+    "content": "My apologies if I sound defensive or aggressive. This is a topic that's come up several times but I'd never had someone willing to actually argue the case before so I was finding this conversation very useful in teaching me what the reasoning behind the request was. Please don't take my argumentative tone as dismissive, I'm very interested in your input here.\r\n\r\nPlease don't feel you have to reply. I'm commenting here so that there is transparency regarding the issues that we would have to resolve before we're able to make a decision or design one way or the other. This is basically just a Socratic dialogue. Your participation is welcome but certainly you should not feel that it is your responsibility to defend your proposal.\r\n\r\n----\r\n\r\nI've no doubt that JSX is \"hot\". In React, the non-JSX syntax is a lot worse than the alternative syntax proposed in this issue (the one that looks like our current code but without the \"new\" and \"const\" keywords). What I'm trying to understand is whether the same reasons that JSX is \"hot\" in React apply to Flutter.\r\n\r\nRegarding TypeScript doing JSX, In 2012 I was involved in efforts to specify [E4H](http://www.hixie.ch/specs/e4h/strawman), and even before that there was [E4X](https://en.wikipedia.org/wiki/ECMAScript_for_XML). Both efforts died. So it's important to me that we understand what exactly it is people like about JSX vs other syntaxes.\r\n\r\nParsing XML isn't easy, parsing sort-of-XML-but-with-curly-braces-somehow is not easy either. Parsing sort-of-XML-but-with-curly-braces-somehow-that-is-embedded-in-another-language is even less easy. However, how easy that is to implement probably isn't a big deal because it's going to be implemented once or twice and then the library that does it will be reused. (I've been heavily involved in writing the specs for parsing HTML and been involved in similar work for XML, and I've implemented a parser for Dart, so I have a pretty good idea of how difficult parsing markup languages vs programming languages actually is.)\r\n\r\n> What I like about putting XML inside another language is that it provides a cognitive separation between the two because XML is very distinct from programming languages. Just scrolling through the source file you can easily see what is code and what is declarative markup. Can't accomplish that with dart code pretending to be markup.\r\n\r\nBut why is it beneficial to be able to do that?\r\n\r\nIt's pretty obvious when scrolling through Flutter apps where the build functions are (they're the giant nested expressions). What is it about \"declarative markup\" that is important to separate from \"code\"?\r\n\r\n> Stop nit-picking things that are not fully specified. All your doubts have answered for it just learn more about how that was handled in JSX. I just don't have the time for this here.\r\n\r\nAs far as I can tell, JSX doesn't handle the things I was asking about. For example, React doesn't have the concept of child slots. The closest thing I could find is something they do by switching back to JS then back to JSX inside that, so you'd need to be able to parse both the programming language and the markup language.",
+    "createdAt": "2017-08-16T19:10:29Z"
+  },
+  {
+    "id": 2297,
+    "sender": "cbazza",
+    "content": "> What I'm trying to understand is whether the same reasons that JSX is \"hot\" in React apply to Flutter.\r\n\r\nYes, the exact same thing applies here. The current way looks good to you because that's the only option you have. Give people a second option and the same will happen. \r\n\r\nWhether E4X died or not is irrelevant because nothing lives forever. I have used ActionScript with E4X a lot and thought that Adobe did an excellent job there. In a way Flutter is just a newer version of Adobe Flash with Flex apps.\r\n\r\n> (I've been heavily involved in writing the specs for parsing HTML and been involved in similar work for XML, and I've implemented a parser for Dart, so I have a pretty good idea of how difficult parsing markup languages vs programming languages actually is.)\r\n\r\nGreat so you know that parsing a markup language is trivial compared to parsing an imperative programming language.\r\n\r\n> But why is it beneficial to be able to do that?\r\n\r\nCode readability and simplicity which in turn drives a whole bunch of other benefits.\r\n\r\n> It's pretty obvious when scrolling through Flutter apps where the build functions are (they're the giant nested expressions). What is it about \"declarative markup\" that is important to separate from \"code\"?\r\n\r\nOn your giant nested expressions can you easily see structure? can this structure be easily manipulated by other tools like GUI builders interchangebly ? I mean like Adobe Flex Builder use to do, drag and drop widgets around, wire them on UI and then switch to code view and just edit anything you want and then switch back to gui mode and continue to manipulate the widgets. You can't do that easily when the programmer goes inside your \"giant nested expressions\" and writes any valid dart code that doesn't follow the structure that the GUI editor is expecting. With a fixed XML structure that is not a problem.\r\n\r\n> As far as I can tell, JSX doesn't handle the things I was asking about. For example, React doesn't have the concept of child slots\r\n\r\nIt handles it just fine, you just don't know how to do it. So going forward just put the example in question here and I will provide you with what I think the JSX version should be.\r\n \r\n```dart\r\n  new ListTile(\r\n    title: new Text('CineArts at the Empire',\r\n        style: new TextStyle(fontWeight: FontWeight.w500, fontSize: 20.0)),\r\n    subtitle: new Text('85 W Portal Ave'),\r\n    leading: new Icon(\r\n      Icons.theaters,\r\n      color: Colors.blue[500],\r\n    ),\r\n  ),\r\n```\r\n```dart\r\n  <ListTile>\r\n    <title> \r\n      <Text style={{fontWeight: FontWeight.w500, fontSize: 20.0}}>\r\n         CineArts at the Empire\r\n      </Text>\r\n    </title>\r\n    <subtitle>\r\n      <Text>85 W Portal Ave</Text>\r\n    </subtitle>\r\n    <leading>\r\n      <Icon data={Icons.theaters} color={Colors.blue[500]}/>\r\n    </leading>\r\n  </ListTile>,\r\n```\r\n\r\nIt looks longer than the dart version but I could had placed everything in the same number of lines. Thing is an IDE/Editor can provide '+' & '-' to expand and collapse these XML nodes anyways.\r\n\r\nMake Flutter look familiar to React developers and you have a chance of attracting a bunch of new users to Flutter.\r\n\r\n",
+    "createdAt": "2017-08-17T14:34:08Z"
+  },
+  {
+    "id": 2298,
+    "sender": "Hixie",
+    "content": "> Whether E4X died or not is irrelevant because nothing lives forever.\r\n\r\nWhether it died isn't the issue, it's why it died. Did it die because it didn't provide a solution that people wanted? Did it die because of implementation issues? Did it die because of patent issues? Was it too early? Too late? I think it's important to learn lessons from past experiences. Why did E4X and E4H fail where JSX has succeeded?\r\n\r\nWhat I find interesting is that people who are new to Flutter often ask for two things: a markup language, and animated GIFs. Then three months in, they are still asking for animated GIFs, but not for a markup language. It could be that this is because the markup language isn't actually needed once you're used to writing build methods in Dart. It could be that they still want a markup language but have worked around the omission and so don't think to ask anymore. It's worth figuring out which because otherwise we risk spending effort on something that is the wrong choice (in either direction).\r\n\r\n> On your giant nested expressions can you easily see structure?\r\n\r\nYes, at least as easily as with XML. Personally, I find XML to be very verbose and it obfuscates the structure. But I think this is more about what you're used to.\r\n\r\n(We're also experimenting with IDEs that put in [virtual \"closing tag\" comments](https://github.com/Dart-Code/Dart-Code/issues/383#issuecomment-321985929) for you so you can see the structure without having to actually write it.)\r\n\r\n> Great so you know that parsing a markup language is trivial compared to parsing an imperative programming language.\r\n\r\nMy experience is that declarative vs imperative is not the distinction that matters when it comes to determining how easy a language is to parse. (For example, HTML is \"declarative\" but it may be among the most complicated languages to parse that I've ever dealt with.)\r\n\r\n> Code readability and simplicity which in turn drives a whole bunch of other benefits.\r\n\r\nIf this is the main benefit then this is something we can test. We could take a mixture of engineers who are used to writing HTML, React, iOS code, Android code, Flutter, command-line apps, and so on, and present them each with various syntaxes, and ask them to describe what they think the resulting UI would look like. We can then measure which syntax gets the best results. @InMatrix is this something we could look at after the animation work wraps up, maybe?\r\n\r\n> can this structure be easily manipulated by other tools like GUI builders interchangebly ?\r\n\r\nYes, in principle at least. It should be relatively straight-forward to mechanically convert Dart expressions to XML or JSON or whatever other structured language one might use. It's just a matter of converting the syntax, the actual information is the same. Personally I wouldn't convert it to a different syntax if I was making a GUI editor, I would just parse it into a data structure in memory straight from Dart.\r\n\r\n> You can't do that easily when the programmer goes inside your \"giant nested expressions\" and writes any valid dart code that doesn't follow the structure that the GUI editor is expecting. With a fixed XML structure that is not a problem.\r\n\r\nThe thing is, you can put exactly the same \"any valid dart code\" in the XML structure as in the Dart expression. They are literally mechanically interchangeable. So I don't really see how using XML helps with this particularly. For example how would you turn this into XML?:\r\n\r\n```dart\r\nnew ListView.builder(\r\n  padding: new EdgeInsets.all(8.0),\r\n  itemExtent: 20.0,\r\n  itemBuilder: (BuildContext context, int index) {\r\n    return new Text('entry $index');\r\n  },\r\n)\r\n```\r\n\r\n> It handles it just fine, you just don't know how to do it.\r\n\r\nI meant specifically JSX. I agree that your proposed syntax would be a perfectly valid way to approach the problem.",
+    "createdAt": "2017-08-17T17:49:09Z"
+  },
+  {
+    "id": 2299,
+    "sender": "HansMuller",
+    "content": "I worked on Adobe's Flex SDK, which combined XML markup and ActionScript, for the last couple years that the product existed at Adobe.  I understand the appeal of markup for defining UIs however I can also remember some drawbacks:\r\n\r\n- Flex application visuals could be defined in terms of markup and code. As I remember it, code tended to dominate in large real-world apps.  Readability isn't necessarily a benefit for apps defined as a complex hybrids of markup and code.\r\n- The \"Flex Builder\" IDE had to support apps that were defined by  markup and code. This made the IDE difficult to build and maintain. Developers tended to view it as an ActionScript tool.\r\n- Evolving and maintaining the XML \"compiler\" was a significant burden that kept a team of engineers busy full-time.  Keeping the compiler and toolkit in lockstep slowed down the evolution of the overall sdk.\r\n\r\nIt's been years and I can no longer recall all the details. However my overall impression is that defining UIs with a combination of markup and code is a mixed bag at best.",
+    "createdAt": "2017-08-17T19:03:15Z"
+  },
+  {
+    "id": 2300,
+    "sender": "cbazza",
+    "content": "> Whether it died isn't the issue, it's why it died. Did it die because it didn't provide a solution that people wanted? Did it die because of implementation issues? Did it die because of patent issues? Was it too early? Too late? I think it's important to learn lessons from past experiences. Why did E4X and E4H fail where JSX has succeeded?\r\n\r\nIt died because E4X was only implemented in ActionScript which was only used inside Adobe Flash/Flex and Adobe killed the project. Instead Adobe changed direction towards open standards where there is no single source provider with possibility of lock-in and ecosystem implosion.\r\n\r\n> What I find interesting is that people who are new to Flutter often ask for two things: a markup language, and animated GIFs. Then three months in, they are still asking for animated GIFs, but not for a markup language. It could be that this is because the markup language isn't actually needed once you're used to writing build methods in Dart. It could be that they still want a markup language but have worked around the omission and so don't think to ask anymore. It's worth figuring out which because otherwise we risk spending effort on something that is the wrong choice (in either direction).\r\n\r\nWell, if I asked you for 2 things and you didn't do either in 3 months and there is an alternative to the first thing, I would also only ask you for what is totally impossible to do given your responsiveness and previous delivery performance.\r\n\r\n> (We're also experimenting with IDEs that put in virtual \"closing tag\" comments for you so you can see the structure without having to actually write it.)\r\n\r\nKind of funny but it's like putting the XML closing tag that you mentioned before was too verbose.\r\n\r\n> If this is the main benefit then this is something we can test. We could take a mixture of engineers who are used to writing HTML, React, iOS code, Android code, Flutter, command-line apps, and so on, and present them each with various syntaxes, and ask them to describe what they think the resulting UI would look like. We can then measure which syntax gets the best results. @InMatrix is this something we could look at after the animation work wraps up, maybe?\r\n\r\nSure you can do that go ahead, I am sure you will find out that \"Once you do React(with JSX) you simply don't go back\". Survey experienced React developers and ask them if they think JSX is bad and it should never had been done. Show your way and ask them if they want to replace JSX with what you have. Before you do that, close the doors and lock up the place because these developers are just going to grab their stuff and sprint for the closest exit.\r\n\r\n> The thing is, you can put exactly the same \"any valid dart code\" in the XML structure as in the Dart expression.\r\n\r\nSure, but for the GUI builders that's just a block of bytes that doesn't need to be touched and can be easily skipped. Making it design/code interchangeability practically possible instead of in principle.\r\n\r\n```dart\r\nnew ListView.builder(\r\n  padding: new EdgeInsets.all(8.0),\r\n  itemExtent: 20.0,\r\n  itemBuilder: (BuildContext context, int index) {\r\n    return new Text('entry $index');\r\n  },\r\n)\r\n``` \r\n\r\n```dart\r\nlet style = {\r\n  padding: new EdgeInsets.all(8.0),\r\n  itemExtent: 20.0\r\n};\r\n\r\n<ListView.builder style={style}>\r\n  {(context, index) => <Text> entry {index} </Text>}\r\n</ListView.builder>\r\n```\r\n",
+    "createdAt": "2017-08-17T21:51:01Z"
+  },
+  {
+    "id": 2301,
+    "sender": "cbazza",
+    "content": "I used Adobe Flex Builder extensibly...\r\n\r\n> Developers tended to view it as an ActionScript tool.\r\n\r\nYes, but I often switched from design view to code view and vice-versa.\r\nStarting a screen I would go to design view and use drag/drop to layout widgets and generate first static screen. Then I would add in code and some static data to fill in screen so I could show people something running that looked like production ready stuff. Productivity was incredible. As development progressed, I connected the front end to the back end and the amount of ActionScript code grew and yes it dominated the code overall but even at close to release time, I often used the design view to tweak the UI without having to dig into code. \r\n\r\n> However my overall impression is that defining UIs with a combination of markup and code is a mixed bag at best.\r\n\r\nNot in today's world. Imperative languages have evolved in the philosophy of Python and are great for development. Declarative techniques with embedded markup (XML) became mainstream with the advent of React; and JSON became the preferred text based data format.\r\n",
+    "createdAt": "2017-08-17T21:54:38Z"
+  },
+  {
+    "id": 2302,
+    "sender": "Hixie",
+    "content": "> E4X was only implemented in ActionScript\r\n\r\nE4X was an ECMA standard. Mozilla shipped it for a while, but then removed it (a very unusual move for a browser vendor). Other browser vendors never wanted to implement it. (They've implemented other new ECMA features, though.) With E4H, the browser vendors were never interested in implementing it (though again, they've implemented plenty of other things I've helped invent).\r\n\r\n> Well, if I asked you for 2 things and you didn't do either in 3 months and there is an alternative to the first thing, I would also only ask you for what is totally impossible to do given your responsiveness and previous delivery performance.\r\n\r\nThat's one possible theory. People tend to ask for many other things besides, though, and many of the things they ask for get implemented, and there are workarounds for animated GIFs too, so I'm not sure this fully explains the situation.\r\n\r\n> Kind of funny but it's like putting the XML closing tag that you mentioned before was too verbose.\r\n\r\nIndeed. This is an optional IDE feature, and one that you don't have to write into the code, which makes a big difference to whether the verbosity is an issue, though.\r\n\r\n\r\n> ...`ListView`...\r\n\r\nHow would a GUI editor handle this markup? I don't really understand how to visualise the UI for this.",
+    "createdAt": "2017-08-17T22:45:35Z"
+  },
+  {
+    "id": 2303,
+    "sender": "branflake2267",
+    "content": "This may be a counter argument to this request, and/or maybe some insight's to keep in mind if you want markup. I have strong feelings that adding markup creating some challenges with GWT I'd hate to see another API go through. \r\n\r\nI've seen a couple other frameworks go through this transition regarding with UI building. Markup like this works great for tooling, in so far it's heavenly for the IDE developers. It's easier to separate the responsibilities of who does what. Although I think it can be done better. \r\n\r\nGWT started out this way, building UI's with Java. Then came along UiBinder, where you could build the UI in xml markup, with a specification. Then the tooling, Eclipse Plugin, was able to generate UI's in xml markup. Android is doing it too, no need to belabor the point. So what I saw happen, markup works great for UI IDE developers. But really, markup is a huge huge investment in time and added complexity tooling to transition it to real program. And the tooling is always last to come. So in the mean time, while all that manifests into reality, there are two worlds. Two interesting ways of doing everything. One in the default language and one in markup. So I support GWT today. When I write documentation, I have to write it twice, once for Java and once for UiBinder XML Markup. So the real question, if you want to go down the markup road, I think the question should be asked, is the added complexity worth the journey! \r\n\r\nJSX I think aims to solve other issues where you want to blend together what your doing with HTML and javascript. It really doesn't feel like the added complexity of markup specification suits the needs of writing UI with markup. Especially when you don't really have a document markup language as the target. At least not for the everyday user. \r\n\r\nOn a positive note. I like to work on tooling. So I can see a markup language being quite useful. It's much easier to write and modify AST when your using markup.\r\n\r\nBut then again, if you have enough minds on the job, it doesn't really matter what you do. At the end of the day, if the developer can write his application faster with your api, your going to get traction. But at what cost to the engineering team. \r\n\r\nI think the real question is, how can the UI be built faster. I think tooling could write the dart, skip any middle man markup. And my aim isn't really to say it's not worth it, but really count the cost's on all the fronts if the road is taken!\r\n\r\n\r\n",
+    "createdAt": "2017-08-17T23:47:46Z"
+  }
+]

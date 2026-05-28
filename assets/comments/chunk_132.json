@@ -1,0 +1,386 @@
+[
+  {
+    "id": 8448,
+    "sender": "asafbennatan",
+    "content": "seems that it doesnt work for android 12 ",
+    "createdAt": "2022-09-02T18:07:19Z"
+  },
+  {
+    "id": 8449,
+    "sender": "acoutts",
+    "content": "I just tested it on a pixel 6 android 12 and it works for me..",
+    "createdAt": "2022-09-02T18:16:30Z"
+  },
+  {
+    "id": 8450,
+    "sender": "asafbennatan",
+    "content": "Tested it on pixel 3 with android 12 , will reverify again tomorrow, thanks!",
+    "createdAt": "2022-09-02T18:33:29Z"
+  },
+  {
+    "id": 8451,
+    "sender": "asafbennatan",
+    "content": "@acoutts you are right , didnt work due to a different issue ",
+    "createdAt": "2022-09-03T08:10:38Z"
+  },
+  {
+    "id": 8452,
+    "sender": "armandojimenez",
+    "content": "> The easiest way is to just add it under `dependency_overrides` and leave your other one there.\r\n> \r\n> https://dart.dev/tools/pub/dependencies#dependency-overrides\r\n\r\nHi, I just tried using this adding it to my dependency overrides, and I still have the same crash, do I have to do anything more?",
+    "createdAt": "2022-09-06T03:44:50Z"
+  },
+  {
+    "id": 8453,
+    "sender": "fauzipadlaw",
+    "content": "> @acoutts thanks , should i add this along side regular camera dependency ? (pub get complains about dependency mismatch) , or should i do :\r\n> \r\n> ```\r\n>   camera:\r\n>     git:\r\n>       url: https://github.com/bottlepay/plugins.git\r\n>       path: packages/camera/camera\r\n>       ref: e1a4dba770da9bc3cf9f858bac6837083f8b9059\r\n> ```\r\n\r\nI tried this and still have the same crash.",
+    "createdAt": "2022-09-09T04:29:53Z"
+  },
+  {
+    "id": 8454,
+    "sender": "icarusoft",
+    "content": "I have added:\r\n\r\n`dependency_overrides:\r\n  camera:\r\n    git:\r\n      url: https://github.com/bottlepay/plugins.git\r\n      path: packages/camera/camera\r\n      ref: e1a4dba770da9bc3cf9f858bac6837083f8b9059`\r\n\r\nAnd still get the same error on Android 13? Is there a official fix on the way?",
+    "createdAt": "2022-09-12T15:48:24Z"
+  },
+  {
+    "id": 8455,
+    "sender": "rknell",
+    "content": "Just confirming that I am still getting the issue with the overridden dependency plus I am getting this confirmation I am using it:\r\n\r\n```\r\nWarning: You are using these overridden dependencies:\r\n! camera 0.10.0+1 from git https://github.com/bottlepay/plugins.git at e1a4db in packages/camera/camera\r\nLaunching lib/main.dart on Pixel 4 in debug mode...\r\n```\r\n\r\nfrom my pubspec:\r\n\r\n```\r\ndependency_overrides:\r\n  camera:\r\n    git:\r\n      url: https://github.com/bottlepay/plugins.git\r\n      path: packages/camera/camera\r\n      ref: e1a4dba770da9bc3cf9f858bac6837083f8b9059\r\n```\r\n\r\nalso adding this as a direct dependency does not solve the error:\r\n\r\n```\r\n  camera:\r\n    git:\r\n      url: https://github.com/bottlepay/plugins.git\r\n      path: packages/camera/camera\r\n      ref: e1a4dba770da9bc3cf9f858bac6837083f8b9059\r\n```",
+    "createdAt": "2022-09-14T10:05:55Z"
+  },
+  {
+    "id": 8456,
+    "sender": "acoutts",
+    "content": "Guys you are not overriding the right package - the only modification I made was to `camera_android` and you need to override that just as I specified in my comment. Overriding the camera package from my fork will change nothing because I didn't modify anything there.",
+    "createdAt": "2022-09-14T11:21:16Z"
+  },
+  {
+    "id": 8457,
+    "sender": "icarusoft",
+    "content": "@acoutts I do not know how to do that? If I have both camera and camera_android in my pubspec, I get this:\r\n\r\nBecause camera 0.10.0+1 depends on camera_android ^0.10.0 and no versions of camera match >0.10.0+1 <0.11.0, camera ^0.10.0+1 requires camera_android from hosted.\r\nSo, because frontier depends on both camera ^0.10.0+1 and camera_android from git, version solving failed.\r\npub get failed (1; So, because frontier depends on both camera ^0.10.0+1 and camera_android from git, version solving failed.)",
+    "createdAt": "2022-09-15T17:02:24Z"
+  },
+  {
+    "id": 8458,
+    "sender": "khoafornia",
+    "content": "> Guys you are not overriding the right package - the only modification I made was to `camera_android` and you need to override that just as I specified in my comment. Overriding the camera package from my fork will change nothing because I didn't modify anything there.\r\n\r\nThis worked for me! On Pixel 6a with Android 13. Thank you!",
+    "createdAt": "2022-09-16T04:35:03Z"
+  },
+  {
+    "id": 8459,
+    "sender": "komritza",
+    "content": "I got sentry report today with this log:\r\n```\r\njava.lang.NullPointerException: Attempt to invoke virtual method 'int android.media.EncoderProfiles$VideoProfile.getWidth()' on a null object reference\r\n    at io.flutter.plugins.a.n0.n.a.e(ResolutionFeature.java:6)\r\n    at io.flutter.plugins.a.n0.n.a.<init>(ResolutionFeature.java:4)\r\n    at io.flutter.plugins.a.n0.c.e(CameraFeatureFactoryImpl.java:1)\r\n    at io.flutter.plugins.a.n0.d.k(CameraFeatures.java:19)\r\n    at io.flutter.plugins.a.z.<init>(Camera.java:10)\r\n    at io.flutter.plugins.a.m0.b(MethodCallHandlerImpl.java:11)\r\n    at io.flutter.plugins.a.m0.c(MethodCallHandlerImpl.java:1)\r\n    at io.flutter.plugins.a.m0.d\r\n    at io.flutter.plugins.a.x.a\r\n    at io.flutter.plugins.a.c0.c(CameraPermissions.java:2)\r\n    at io.flutter.plugins.a.c0.d\r\n    at io.flutter.plugins.a.t.a\r\n    at io.flutter.plugins.a.c0$a.onRequestPermissionsResult(CameraPermissions.java:7)\r\n    at io.flutter.embedding.engine.d$c.i(FlutterEngineConnectionRegistry.java:2)\r\n    at io.flutter.embedding.engine.d.onRequestPermissionsResult(FlutterEngineConnectionRegistry.java:3)\r\n    at io.flutter.embedding.android.e.x(FlutterActivityAndFragmentDelegate.java:9)\r\n    at io.flutter.embedding.android.i.d1(FlutterFragment.java:2)\r\n    at io.flutter.embedding.android.j.onRequestPermissionsResult(FlutterFragmentActivity.java:2)\r\n    at android.app.Activity.dispatchRequestPermissionsResult(Activity.java:8759)\r\n    at android.app.Activity.dispatchActivityResult(Activity.java:8617)\r\n    at android.app.ActivityThread.deliverResults(ActivityThread.java:5340)\r\n    at android.app.ActivityThread.handleSendResult(ActivityThread.java:5386)\r\n    at android.app.servertransaction.ActivityResultItem.execute(ActivityResultItem.java:67)\r\n    at android.app.servertransaction.ActivityTransactionItem.execute(ActivityTransactionItem.java:45)\r\n    at android.app.servertransaction.TransactionExecutor.executeCallbacks(TransactionExecutor.java:135)\r\n    at android.app.servertransaction.TransactionExecutor.execute(TransactionExecutor.java:95)\r\n    at android.app.ActivityThread$H.handleMessage(ActivityThread.java:2308)\r\n    at android.os.Handler.dispatchMessage(Handler.java:106)\r\n    at android.os.Looper.loopOnce(Looper.java:201)\r\n    at android.os.Looper.loop(Looper.java:288)\r\n    at android.app.ActivityThread.main(ActivityThread.java:7898)\r\n    at java.lang.reflect.Method.invoke(Method.java)\r\n    at com.android.internal.os.RuntimeInit$MethodAndArgsCaller.run(RuntimeInit.java:548)\r\n    at com.android.internal.os.ZygoteInit.main(ZygoteInit.java:936)\r\njava.lang.RuntimeException: Failure delivering result ResultInfo{who=@android:requestPermissions:, request=9796, result=-1, data=Intent { act=android.content.pm.action.REQUEST_PERMISSIONS (has extras) }} to activity {com.abacus.finmatics/com.abacus.finmatics.MainActivity}: java.lang.NullPointerException: Attempt to invoke virtual method 'int android.media.EncoderProfiles$VideoProfile.getWidth()' on a null object reference\r\n    at android.app.ActivityThread.deliverResults(ActivityThread.java:5347)\r\n    at android.app.ActivityThread.handleSendResult(ActivityThread.java:5386)\r\n    at android.app.servertransaction.ActivityResultItem.execute(ActivityResultItem.java:67)\r\n    at android.app.servertransaction.ActivityTransactionItem.execute(ActivityTransactionItem.java:45)\r\n    at android.app.servertransaction.TransactionExecutor.executeCallbacks(TransactionExecutor.java:135)\r\n    at android.app.servertransaction.TransactionExecutor.execute(TransactionExecutor.java:95)\r\n    at android.app.ActivityThread$H.handleMessage(ActivityThread.java:2308)\r\n    at android.os.Handler.dispatchMessage(Handler.java:106)\r\n    at android.os.Looper.loopOnce(Looper.java:201)\r\n    at android.os.Looper.loop(Looper.java:288)\r\n    at android.app.ActivityThread.main(ActivityThread.java:7898)\r\n    at java.lang.reflect.Method.invoke(Method.java)\r\n    at com.android.internal.os.RuntimeInit$MethodAndArgsCaller.run(RuntimeInit.java:548)\r\n    at com.android.internal.os.ZygoteInit.main(ZygoteInit.java:936)\r\n```\r\n\r\nDevice: Pixel 5, Android 13",
+    "createdAt": "2022-09-28T15:32:09Z"
+  },
+  {
+    "id": 8460,
+    "sender": "aliyazdi75",
+    "content": "@acoutts\r\n\r\nThanks for the quick fix, camera works and we can see the camera but when we start recording video (`startVideoRecording`)it gets this error: (but taking picture works fine)\r\n```\r\nE/MethodChannel#plugins.flutter.io/camera_android( 6270): Failed to handle method call\r\nE/MethodChannel#plugins.flutter.io/camera_android( 6270): java.lang.NullPointerException: Attempt to invoke virtual method 'java.util.List android.media.EncoderProfiles.getVideoProfiles()' on a null object reference\r\n```",
+    "createdAt": "2022-09-29T14:33:11Z"
+  },
+  {
+    "id": 8461,
+    "sender": "elmar001",
+    "content": "@acoutts's solution fixes the issue but it causes another error on other version Pixel phones. So I forkd it and changed his tempory fix and make it conditional for only Android 13, so limiting possible side effects. I sent pull request, after his approval it should apply to everyone who already uses his git package as dependency_overrides. But for now anyone use it from my git package if necessary:\r\n\r\n```yaml\r\ndependency_overrides:\r\n  camera_android:\r\n    git:\r\n      url: https://github.com/elmar001/plugins.git\r\n      path: packages/camera/camera_android\r\n      ref: 5172b44088a4082ff0899594614c5380457d341b\r\n```",
+    "createdAt": "2022-10-10T02:59:45Z"
+  },
+  {
+    "id": 8462,
+    "sender": "asafbennatan",
+    "content": "Thanks will try in a bit and let you know\n\nOn Fri, Sep 2, 2022, 20:13 Andrew Coutts ***@***.***> wrote:\n\n> Please try my quick fix here:\n>\n>   camera_android:\n>     git:\n>       url: https://github.com/bottlepay/plugins.git\n>       path: packages/camera/camera_android\n>       ref: e1a4dba770da9bc3cf9f858bac6837083f8b9059\n>\n> I just commented out the \"new\" method so it's using the deprecated one. It\n> does make the camera work again but I'm not sure how the permanent fix\n> should work. Hopefully someone with more knowledge of the camera api can\n> chime in.\n>\n> —\n> Reply to this email directly, view it on GitHub\n> <https://github.com/flutter/flutter/issues/109769#issuecomment-1235734989>,\n> or unsubscribe\n> <https://github.com/notifications/unsubscribe-auth/ACET7TAPLEC6PSHQ7ABPOC3V4IYTPANCNFSM564NDLVA>\n> .\n> You are receiving this because you commented.Message ID:\n> ***@***.***>\n>\n",
+    "createdAt": "2022-10-11T07:15:19Z"
+  },
+  {
+    "id": 8463,
+    "sender": "szric98",
+    "content": "@elmar001 Your workaround seems to work on Android 11 (API 30), but it doesn't work for us on Android 12 (API 31) and 13 (API 33). There's no crash, but the recording doesn't start either. We're getting the same error as below.\r\n\r\n> @acoutts\r\n> \r\n> Thanks for the quick fix, camera works and we can see the camera but when we start recording video (`startVideoRecording`)it gets this error: (but taking picture works fine)\r\n> \r\n> ```\r\n> E/MethodChannel#plugins.flutter.io/camera_android( 6270): Failed to handle method call\r\n> E/MethodChannel#plugins.flutter.io/camera_android( 6270): java.lang.NullPointerException: Attempt to invoke virtual method 'java.util.List android.media.EncoderProfiles.getVideoProfiles()' on a null object reference\r\n> ```",
+    "createdAt": "2022-10-11T11:00:46Z"
+  },
+  {
+    "id": 8464,
+    "sender": "elmar001",
+    "content": "@szric98 what model is the phone? And also can you double check that it really overrides the dependecy? You should have camera and camera_android dependencies before dependecy override. Running \"flutter pub get\" will show warning about the override if it really in place. I tested with Pixel 4a Android 13 - taking photos not recording video (my app uses camera for photo taking only) and it solved the issue. Will test recording a video to see if it causes any issue. ",
+    "createdAt": "2022-10-11T12:47:38Z"
+  },
+  {
+    "id": 8465,
+    "sender": "szric98",
+    "content": "@elmar001 It was tested on a Xiaomi Poco X3 Pro (Android 12), Pixel 4a Android 12 and Pixel 4a Android 13. We're getting the warning about the override when running `flutter pub get`. The app uses camera for video taking only, we haven't tested taking photos. Here's an example of the error occurring.\r\n\r\nhttps://user-images.githubusercontent.com/59876451/195099731-a1a4b5e5-ec5d-48fc-90d3-bdc1bf54dfb0.mp4\r\n\r\n",
+    "createdAt": "2022-10-11T13:12:39Z"
+  },
+  {
+    "id": 8466,
+    "sender": "karli2000",
+    "content": "> @acoutts's solution fixes the issue but it causes another error on other version Pixel phones. So I forkd it and changed his tempory fix and make it conditional for only Android 13, so limiting possible side effects. I sent pull request, after his approval it should apply to everyone who already uses his git package as dependency_overrides. But for now anyone use it from my git package if necessary:\r\n> \r\n> ```yaml\r\n> dependency_overrides:\r\n>   camera_android:\r\n>     git:\r\n>       url: https://github.com/elmar001/plugins.git\r\n>       path: packages/camera/camera_android\r\n>       ref: 5172b44088a4082ff0899594614c5380457d341b\r\n> ```\r\n\r\nThis Works for me on Pixel 6 with Android 13, targetSdkVersion & compileSdkVersion set to 33 with Flutter 3.3.4 but i only take photos, no recording.\r\n",
+    "createdAt": "2022-10-12T07:11:50Z"
+  },
+  {
+    "id": 8467,
+    "sender": "0975086498",
+    "content": "> > @acoutts's solution fixes the issue but it causes another error on other version Pixel phones. So I forkd it and changed his tempory fix and make it conditional for only Android 13, so limiting possible side effects. I sent pull request, after his approval it should apply to everyone who already uses his git package as dependency_overrides. But for now anyone use it from my git package if necessary:\r\n> > ```yaml\r\n> > dependency_overrides:\r\n> >   camera_android:\r\n> >     git:\r\n> >       url: https://github.com/elmar001/plugins.git\r\n> >       path: packages/camera/camera_android\r\n> >       ref: 5172b44088a4082ff0899594614c5380457d341b\r\n> > ```\r\n> \r\n> This Works for me on Pixel 6 with Android 13, targetSdkVersion & compileSdkVersion set to 33 with Flutter 3.3.4 but i only take photos, no recording.\r\n\r\nIn my case. It only works with front camera. With back camera it throw just one message \"on Error\" :(\r\n![image](https://user-images.githubusercontent.com/32417212/195300465-a3ea9236-05b3-44ca-b5f5-368ae9f7437c.png)\r\n\r\n",
+    "createdAt": "2022-10-12T07:57:54Z"
+  },
+  {
+    "id": 8468,
+    "sender": "karli2000",
+    "content": "> > > @acoutts's solution fixes the issue but it causes another error on other version Pixel phones. So I forkd it and changed his tempory fix and make it conditional for only Android 13, so limiting possible side effects. I sent pull request, after his approval it should apply to everyone who already uses his git package as dependency_overrides. But for now anyone use it from my git package if necessary:\r\n> > > ```yaml\r\n> > > dependency_overrides:\r\n> > >   camera_android:\r\n> > >     git:\r\n> > >       url: https://github.com/elmar001/plugins.git\r\n> > >       path: packages/camera/camera_android\r\n> > >       ref: 5172b44088a4082ff0899594614c5380457d341b\r\n> > > ```\r\n> > \r\n> > \r\n> > This Works for me on Pixel 6 with Android 13, targetSdkVersion & compileSdkVersion set to 33 with Flutter 3.3.4 but i only take photos, no recording.\r\n> \r\n> In my case. It only works with front camera. With back camera it throw just one message \"on Error\" :( ![image](https://user-images.githubusercontent.com/32417212/195300465-a3ea9236-05b3-44ca-b5f5-368ae9f7437c.png)\r\n\r\nFor me both cameras are working fine with this override.",
+    "createdAt": "2022-10-12T11:09:05Z"
+  },
+  {
+    "id": 8469,
+    "sender": "memishood",
+    "content": "same problem here..",
+    "createdAt": "2022-10-14T20:45:24Z"
+  },
+  {
+    "id": 8470,
+    "sender": "jeff-odopass",
+    "content": "Same problem here, it will be worse when more devices will be compatible with Android 13",
+    "createdAt": "2022-10-19T14:21:55Z"
+  },
+  {
+    "id": 8471,
+    "sender": "jorgeroncero",
+    "content": "After some research, it seems like the problem is in the Android SDK 33 code itself.\r\n\r\nPrior to SDK 33, the flow `CamcorderProfile.getAll(cameraId, quality) -> native_get_camcorder_profiles(id, quality)` was working properly and returning the videoprofiles.\r\n\r\nSince SDK 33, the flow now adds some logic to return advanced encoders `CamcorderProfile.getAll(cameraId, quality) -> native_get_camcorder_profiles(id, quality, advanced)` and returns `[null]` as videoprofiles just as was previously mentioned here.\r\n\r\nI think that there is nothing to be done in Flutter side unfortunately.",
+    "createdAt": "2022-10-21T09:18:38Z"
+  },
+  {
+    "id": 8472,
+    "sender": "elmar001",
+    "content": "I do not think Android developers will change anything. I had one Flutter issue reported thru issue tracker almost 3 month now, they did not do anything to clarify or solve the issue. Maybe we should implement some other way in Flutter side.  I'll have a look how Android 13 native app behaves in this situation. ",
+    "createdAt": "2022-10-21T10:00:01Z"
+  },
+  {
+    "id": 8473,
+    "sender": "jorgeroncero",
+    "content": "> I do not think Android developers will change anything. I had one Flutter issue reported thru issue tracker almost 3 month now, they did not do anything to clarify or solve the issue. Maybe we should implement some other way in Flutter side. I'll have a look how Android 13 native app behaves in this situation.\r\n\r\nI tried it in a Native Android application. The result is just the same. \r\n\r\nAs I said, it is an issue with the `android.media` library and its methods. More precisely, with the JNI methods called inside.",
+    "createdAt": "2022-10-21T10:17:03Z"
+  },
+  {
+    "id": 8474,
+    "sender": "elmar001",
+    "content": "> > I do not think Android developers will change anything. I had one Flutter issue reported thru issue tracker almost 3 month now, they did not do anything to clarify or solve the issue. Maybe we should implement some other way in Flutter side. I'll have a look how Android 13 native app behaves in this situation.\r\n> \r\n> I tried it in a Native Android application. The result is just the same.\r\n> \r\n> As I said, it is an issue with the `android.media` library and its methods. More precisely, with the JNI methods called inside.\r\n\r\nThanks for clarification, appreciate it.",
+    "createdAt": "2022-10-21T10:48:57Z"
+  },
+  {
+    "id": 8475,
+    "sender": "jorgeroncero",
+    "content": "@elmar001 By the way, your fork also needs to allow the new method for API 31 and API 32 in two places, not just one. There is also an if clause in the line 241 of `ResolutionFeature.java`",
+    "createdAt": "2022-10-24T14:01:29Z"
+  },
+  {
+    "id": 8476,
+    "sender": "0975086498",
+    "content": "I've created a simple app with android native and it works on android 13\r\nI tested on emulator pixel 6 with API 33\r\n![image](https://user-images.githubusercontent.com/32417212/198236636-8753b70e-9f92-41bd-b23a-db675a56f1d2.png)\r\n\r\n> > I do not think Android developers will change anything. I had one Flutter issue reported thru issue tracker almost 3 month now, they did not do anything to clarify or solve the issue. Maybe we should implement some other way in Flutter side. I'll have a look how Android 13 native app behaves in this situation.\r\n> \r\n> I tried it in a Native Android application. The result is just the same.\r\n> \r\n> As I said, it is an issue with the `android.media` library and its methods. More precisely, with the JNI methods called inside.\r\n\r\n",
+    "createdAt": "2022-10-27T08:43:12Z"
+  },
+  {
+    "id": 8477,
+    "sender": "jorgeroncero",
+    "content": "@0975086498 are you using `targetSdkPlatform 33` and `compileSdkVersion 33`? I tested in an Android native app with those values, in a device running Android 13, and it fails",
+    "createdAt": "2022-10-27T08:58:48Z"
+  },
+  {
+    "id": 8478,
+    "sender": "0975086498",
+    "content": "> @0975086498 are you using `targetSdkPlatform 33` and `compileSdkVersion 33`? I tested in an Android native app with those values, in a device running Android 13, and it fails\r\n\r\nYes. It works \r\n![image](https://user-images.githubusercontent.com/32417212/198246787-f0658a29-51f3-460d-b49b-3ff6f932a6bf.png)\r\n![image](https://user-images.githubusercontent.com/32417212/198246803-abd42ab4-a802-4657-be67-a9453e9e4b39.png)\r\n",
+    "createdAt": "2022-10-27T09:25:18Z"
+  },
+  {
+    "id": 8479,
+    "sender": "jorgeroncero",
+    "content": "Well, you are just launching the camera. That will of course work. You need to test the methods from the `android.media` library that actually fail in api 33. Specifically:\r\n\r\n```java\r\n//.java \r\nvar recordingProfile = CamcorderProfile.getAll(\"0\", CamcorderProfile.QUALITY_LOW); //returns [null] in videoProfiles\r\n\r\nList<EncoderProfiles.VideoProfile> videoProfiles = recordingProfile.getVideoProfiles(); //Crash because null\r\n```",
+    "createdAt": "2022-10-27T09:31:02Z"
+  },
+  {
+    "id": 8480,
+    "sender": "exaby73",
+    "content": "@stuartmorgan As per https://github.com/flutter/flutter/issues/109769#issuecomment-1286690214, this issue looks like an issue with some Android APIs. If this is the case, does this make this issue invalid?",
+    "createdAt": "2022-10-28T07:28:11Z"
+  },
+  {
+    "id": 8481,
+    "sender": "geiszla",
+    "content": "Does this mean that until the Android APIs get fixes (if ever), we can't use this plugin with `targetSdkVersion 33`? Does this mean that no Flutter app that uses the camera can properly support Android 13?",
+    "createdAt": "2022-10-28T08:05:04Z"
+  },
+  {
+    "id": 8482,
+    "sender": "stuartmorgan-g",
+    "content": "> @stuartmorgan As per [#109769 (comment)](https://github.com/flutter/flutter/issues/109769#issuecomment-1286690214), this issue looks like an issue with some Android APIs. If this is the case, does this make this issue invalid?\r\n\r\nNot necessarily; even if the issue is with specific Android APIs, we may be able to work around it.",
+    "createdAt": "2022-10-31T14:43:32Z"
+  },
+  {
+    "id": 8483,
+    "sender": "posxposy",
+    "content": "Hello there! \r\nI found that forcing a `false` value to the `advanced` argument of the native implementation of `CamcorderProfile.getAll` is fixing the crash. At least for me. Probably original value of `CompatChanges.isChangeEnabled(RETURN_ADVANCED_VIDEO_PROFILES)` may be wrong, or something like that.\r\n\r\nI did it like this:\r\nhttps://github.com/posxposy/plugins/blob/main/packages/camera/camera_android/android/src/main/java/io/flutter/plugins/camera/features/resolution/ResolutionFeature.java#L280-L291\r\n\r\nMaybe it will help someone to figure out what is going on. ",
+    "createdAt": "2022-10-31T15:54:01Z"
+  },
+  {
+    "id": 8484,
+    "sender": "shtreb",
+    "content": "@posxposy it doesn't work for me. \r\n\r\nI took a primitive step. I removed all code for sdk >= 31, after that app can record video and take picture. May be it irrational, but it work. It tested on Pixel 6a and emulator.",
+    "createdAt": "2022-11-04T16:39:46Z"
+  },
+  {
+    "id": 8485,
+    "sender": "dmytrohurskyi",
+    "content": "Facing the same issue, Android 13",
+    "createdAt": "2022-11-14T15:13:41Z"
+  },
+  {
+    "id": 8486,
+    "sender": "ke3470",
+    "content": "same issue, compile sdk 33 + Android 13 = camera crash",
+    "createdAt": "2022-11-15T01:52:09Z"
+  },
+  {
+    "id": 8487,
+    "sender": "rlee1990",
+    "content": "Is there any update on this? I didn't seem to have an issue with the camera for Android 13 when using the Image_Picker package just with the camera package.",
+    "createdAt": "2022-11-16T16:36:56Z"
+  },
+  {
+    "id": 8488,
+    "sender": "S-Shuhei",
+    "content": "Please let me know how I should address this issue. We are currently developing an application that requires a camera with compileSdkVersion33 and are facing this issue.\r\nI would like to get some good advice.",
+    "createdAt": "2022-11-17T03:22:02Z"
+  },
+  {
+    "id": 8489,
+    "sender": "ke3470",
+    "content": "> Please let me know how I should address this issue. We are currently developing an application that requires a camera with compileSdkVersion33 and are facing this issue. I would like to get some good advice.\r\n\r\nif just need take picture, image_picker will be an alternative solution, otherwise can try use camerax instead",
+    "createdAt": "2022-11-17T03:58:32Z"
+  },
+  {
+    "id": 8490,
+    "sender": "rlee1990",
+    "content": "@stuartmorgan Any idea on what can be done? The workaround options from others don't solve all the issues. Not sure if this is really an android issue if the image picker package works on the same device(pixel 7 pro)",
+    "createdAt": "2022-11-17T04:03:28Z"
+  },
+  {
+    "id": 8491,
+    "sender": "dan-1d",
+    "content": "Indeed.. works on the actual device for me (Pixel 6) but not the emulator sdk 33",
+    "createdAt": "2022-11-17T04:37:10Z"
+  },
+  {
+    "id": 8492,
+    "sender": "duduBaiao",
+    "content": "The simplest workaround for now is setting these values in your `build.gradle`:\r\n\r\n```\r\n        compileSdkVersion = 33\r\n        targetSdkVersion = 32\r\n```\r\n\r\nThen you'll need to handle the notification permissions behaviour changes:\r\n\r\nhttps://notificare.com/blog/2022/09/16/deep-dive-into-android-notifications-permission/",
+    "createdAt": "2022-11-17T10:11:23Z"
+  },
+  {
+    "id": 8493,
+    "sender": "stuartmorgan-g",
+    "content": "/cc @reidbaker to route for investigation.",
+    "createdAt": "2022-11-18T19:08:05Z"
+  },
+  {
+    "id": 8494,
+    "sender": "rlee1990",
+    "content": "> The simplest workaround for now is setting these values in your `build.gradle`:\r\n> \r\n> ```\r\n>         compileSdkVersion = 33\r\n>         targetSdkVersion = 32\r\n> ```\r\n> \r\n> Then you'll need to handle the notification permissions behaviour changes:\r\n> \r\n> https://notificare.com/blog/2022/09/16/deep-dive-into-android-notifications-permission/\r\n\r\nDoing this did work for me.",
+    "createdAt": "2022-11-20T03:59:02Z"
+  },
+  {
+    "id": 8495,
+    "sender": "franco-stuart",
+    "content": "Also experiencing the issue. \r\nIt's affecting one of our main features. \r\nIt started after updating to Android API 33.\r\n\r\nReproducible on Pixel 4 with Android 13.\r\n\r\n### Steps:\r\n\r\n- flutter create camera_test\r\n- Add camera dependency\r\n- Use Example code from https://pub.dev/packages/camera \r\n- Make sure target and compile versions are set to 33\r\n\r\n<details> \r\n\r\n<summary>Flutter Doctor</summary>\r\n\r\n```\r\n[✓] Flutter (Channel stable, 3.3.4, on macOS 13.0 22A380 darwin-arm, locale en-ES)\r\n    • Flutter version 3.3.4 on channel stable at /Users/f.sangiacomo/Library/flutter\r\n    • Upstream repository https://github.com/flutter/flutter.git\r\n    • Framework revision eb6d86ee27 (7 weeks ago), 2022-10-04 22:31:45 -0700\r\n    • Engine revision c08d7d5efc\r\n    • Dart version 2.18.2\r\n    • DevTools version 2.15.0\r\n\r\n[✓] Android toolchain - develop for Android devices (Android SDK version 33.0.0)\r\n    • Android SDK at /Users/f.sangiacomo/Library/Android/sdk\r\n    • Platform android-33, build-tools 33.0.0\r\n    • Java binary at: /Applications/Android Studio.app/Contents/jre/Contents/Home/bin/java\r\n    • Java version OpenJDK Runtime Environment (build 11.0.13+0-b1751.21-8125866)\r\n    • All Android licenses accepted.\r\n\r\n[✓] Xcode - develop for iOS and macOS (Xcode 14.0.1)\r\n    • Xcode at /Applications/Xcode.app/Contents/Developer\r\n    • Build 14A400\r\n    • CocoaPods version 1.11.3\r\n\r\n[✓] Chrome - develop for the web\r\n    • Chrome at /Applications/Google Chrome.app/Contents/MacOS/Google Chrome\r\n\r\n[✓] Android Studio (version 2021.3)\r\n    • Android Studio at /Applications/Android Studio.app/Contents\r\n    • Flutter plugin can be installed from:\r\n      🔨 https://plugins.jetbrains.com/plugin/9212-flutter\r\n    • Dart plugin can be installed from:\r\n      🔨 https://plugins.jetbrains.com/plugin/6351-dart\r\n    • Java version OpenJDK Runtime Environment (build 11.0.13+0-b1751.21-8125866)\r\n\r\n[✓] VS Code (version 1.72.2)\r\n    • VS Code at /Applications/Visual Studio Code.app/Contents\r\n    • Flutter extension can be installed from:\r\n      🔨 https://marketplace.visualstudio.com/items?itemName=Dart-Code.flutter\r\n\r\n[✓] Connected device (3 available)\r\n    • Pixel 4 (mobile) • 99071FFAZ003HR • android-arm64  • Android 13 (API 33)\r\n    • macOS (desktop)  • macos          • darwin-arm64   • macOS 13.0 22A380 darwin-arm\r\n    • Chrome (web)     • chrome         • web-javascript • Google Chrome 107.0.5304.110\r\n\r\n[✓] HTTP Host Availability\r\n    • All required HTTP hosts are available\r\n\r\n• No issues found!\r\n```\r\n</details>\r\n\r\n<details>\r\n\r\n<summary>Project</summary>\r\n\r\n[camera_test.zip](https://github.com/flutter/flutter/files/10058208/camera_test.zip)\r\n\r\n</details>\r\n",
+    "createdAt": "2022-11-21T16:22:36Z"
+  },
+  {
+    "id": 8496,
+    "sender": "rlee1990",
+    "content": "@franco-stuart try doing what @duduBaiao suggested it worked for me and my Pixel 7 pro",
+    "createdAt": "2022-11-21T18:12:17Z"
+  },
+  {
+    "id": 8497,
+    "sender": "moshkou2000",
+    "content": "running android 13 and this works for me.\r\n```\r\n        compileSdkVersion = 33\r\n        targetSdkVersion = 32\r\n```\r\n\r\nTanks to @duduBaiao",
+    "createdAt": "2022-12-02T08:49:53Z"
+  },
+  {
+    "id": 8498,
+    "sender": "rlee1990",
+    "content": "Any updates on this from the flutter team? @stuartmorgan ",
+    "createdAt": "2022-12-09T04:03:47Z"
+  },
+  {
+    "id": 8499,
+    "sender": "cnkygmr",
+    "content": "When will there be an improvement on this issue?",
+    "createdAt": "2022-12-09T08:00:44Z"
+  },
+  {
+    "id": 8500,
+    "sender": "mustafiz012",
+    "content": "Need the fix since Android 13 users are increasing rapidly. ",
+    "createdAt": "2022-12-09T11:52:51Z"
+  },
+  {
+    "id": 8501,
+    "sender": "dmytrohurskyi",
+    "content": "This should be fixed. Changing target SDK to 32 is not a solution, because in a few month apps that does not target 33 SDK won't be showed in store for Android 13 users. So it's not a solution at all!",
+    "createdAt": "2022-12-09T12:18:50Z"
+  },
+  {
+    "id": 8502,
+    "sender": "Shakhboz95",
+    "content": "any updates on this issue? We are facing this problem every day",
+    "createdAt": "2022-12-09T18:14:05Z"
+  },
+  {
+    "id": 8503,
+    "sender": "ajosecueto",
+    "content": "The same issue, Please fix this...",
+    "createdAt": "2022-12-10T09:15:44Z"
+  },
+  {
+    "id": 8504,
+    "sender": "rlee1990",
+    "content": "Also if you don't target 33 you can't view the gallery to access photos or videos. So this needs to be a priority.",
+    "createdAt": "2022-12-10T19:04:22Z"
+  },
+  {
+    "id": 8505,
+    "sender": "rlee1990",
+    "content": "This should be considered a p0 or p1 and not a p3 it's a major issue for android devices.",
+    "createdAt": "2022-12-12T23:17:57Z"
+  },
+  {
+    "id": 8506,
+    "sender": "martin-labanic",
+    "content": "This is a substantial issue for our app, please increase the priority.",
+    "createdAt": "2022-12-13T18:31:48Z"
+  },
+  {
+    "id": 8507,
+    "sender": "stuartmorgan-g",
+    "content": "Everyone please read https://github.com/flutter/flutter/wiki/Issue-hygiene#do-not-add-me-too-or-same-or-is-there-an-update-comments-to-bugs and https://github.com/flutter/flutter/wiki/Issue-hygiene#priorities before commenting here. We're aware of the issue.",
+    "createdAt": "2022-12-13T18:57:21Z"
+  },
+  {
+    "id": 8508,
+    "sender": "FakharAlyas119",
+    "content": "@acoutts \r\n  so if i override my dependecies with the give code \r\n  await controller?.initialize(); will work ? ,\r\n   \r\n  \r\n```\r\n   camera_android:\r\n    git:\r\n      url: https://github.com/bottlepay/plugins.git\r\n      path: packages/camera/camera_android\r\n      ref: e1a4dba770da9bc3cf9f858bac6837083f8b9059\r\n```\r\n",
+    "createdAt": "2022-12-14T17:25:00Z"
+  },
+  {
+    "id": 8509,
+    "sender": "camsim99",
+    "content": "Thank you @acoutts for the in depth explanation! The [API](https://developer.android.com/reference/android/media/CamcorderProfile#getAll(java.lang.String,%20int)) that you listed is the cause of the issue. It seems to be returning a list of size 1 with entry `null`.\r\n\r\nThis is a known Android issue, and should be fixed as of the 2022-11-05 build release (those starting with TQ1A*, see [docs](https://source.android.com/docs/setup/about/build-numbers#source-code-tags-and-builds) for more information). **If anyone is still experiencing this issue on any of these builds or a later build, please follow up in this bug.**\r\n\r\nThe update should fix the bug, but I will consider creating a PR to temporarily fall through to the deprecated APIs if the newer one fails as this bug explains. I will update here with progress.",
+    "createdAt": "2022-12-14T21:57:03Z"
+  },
+  {
+    "id": 8510,
+    "sender": "rlee1990",
+    "content": "@camsim99  thanks for the update. Installed the newest update for my pixel and both the camera(video and photos) and gallery are now working ",
+    "createdAt": "2022-12-14T23:17:18Z"
+  },
+  {
+    "id": 8511,
+    "sender": "aliyazdi75",
+    "content": "@camsim99\r\nWe're still facing this issue with the build number `TQ1A.221205.011` on a physical device. Do we need to do something else?",
+    "createdAt": "2022-12-15T16:25:51Z"
+  }
+]

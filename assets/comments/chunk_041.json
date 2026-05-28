@@ -1,0 +1,386 @@
+[
+  {
+    "id": 2624,
+    "sender": "zoechi",
+    "content": "@droidluv I think there was some work done recently to allow reconnect. Not sure this covers your use case. ",
+    "createdAt": "2018-08-16T10:12:48Z"
+  },
+  {
+    "id": 2625,
+    "sender": "BANG88",
+    "content": "Any updates ? Its 2 months. I can't use flutter until this issue resolved.\r\nI run it from vscode.\r\nlogs\r\n\r\n```sh\r\nNoSuchMethodError: The getter 'isClosed' was called on null.\r\nReceiver: null\r\nTried calling: isClosedNoSuchMethodError: The getter 'isClosed' was called on null.\r\nReceiver: null\r\nTried calling: isClosedNoSuchMethodError: The getter 'isClosed' was called on null.\r\nReceiver: null\r\nTried calling: isClosedNoSuchMethodError: The getter 'isClosed' was called on null.\r\nReceiver: null\r\nTried calling: isClosedNoSuchMethodError: The getter 'isClosed' was called on null.\r\nReceiver: null\r\nTried calling: isClosedNoSuchMethodError: The getter 'isClosed' was called on null.\r\nReceiver: null\r\nTried calling: isClosedNoSuchMethodError: The getter 'isClosed' was called on null.\r\nReceiver: null\r\nTried calling: isClosed\r\n```\r\nenv\r\n\r\n```sh\r\n~/Desktop/hello_world\r\n$ flutter doctor\r\nDoctor summary (to see all details, run flutter doctor -v):\r\n[✓] Flutter (Channel beta, v0.7.3, on Mac OS X 10.14 18A384a, locale en-CN)\r\n[✓] Android toolchain - develop for Android devices (Android SDK 26.0.2)\r\n[✓] iOS toolchain - develop for iOS devices (Xcode 9.4.1)\r\n[✓] Android Studio (version 3.0)\r\n[✓] VS Code (version 1.27.0)\r\n[✓] Connected devices (1 available)\r\n\r\n• No issues found!\r\n```",
+    "createdAt": "2018-09-06T13:51:09Z"
+  },
+  {
+    "id": 2626,
+    "sender": "escamoteur",
+    "content": "@bang88 Try switching to dev or master and give it a try. it works fine for me since quite a while.\r\nHow are this error messages connected to this issue?",
+    "createdAt": "2018-09-06T14:15:24Z"
+  },
+  {
+    "id": 2627,
+    "sender": "BANG88",
+    "content": "@escamoteur I have try switch to different channel and have the same error.  The original issue was https://github.com/Dart-Code/Dart-Code/issues/1113",
+    "createdAt": "2018-09-07T04:48:54Z"
+  },
+  {
+    "id": 2628,
+    "sender": "tvolkert",
+    "content": "@DanTup is there a way to get vscode to run the CLI with `--verbose`?",
+    "createdAt": "2018-09-07T16:26:28Z"
+  },
+  {
+    "id": 2629,
+    "sender": "DanTup",
+    "content": "@tvolkert yep, click the cog on the Debug Sidebar to create/open `launch.json`, and then add an `args` section, so it looks something like this:\r\n\r\n```js\r\n{\r\n\t\"version\": \"0.2.0\",\r\n\t\"configurations\": [\r\n\t\t{\r\n\t\t\t\"name\": \"Flutter\",\r\n\t\t\t\"request\": \"launch\",\r\n\t\t\t\"type\": \"dart\",\r\n\t\t\t\"args\": [\r\n\t\t\t\t\"-v\"\r\n\t\t\t]\r\n\t\t}\r\n\t]\r\n}\r\n\r\n```\r\n\r\nThe output will appear in the `Debug Console`:\r\n\r\n<img width=\"891\" alt=\"screen shot 2018-09-07 at 17 33 20\" src=\"https://user-images.githubusercontent.com/1078012/45231534-29d59f00-b2c4-11e8-925f-0cc333de11ff.png\">\r\n",
+    "createdAt": "2018-09-07T16:31:56Z"
+  },
+  {
+    "id": 2630,
+    "sender": "tvolkert",
+    "content": "@bang88 can you try enabling verbose logging per the previous comment and paste the output here?",
+    "createdAt": "2018-09-07T17:24:03Z"
+  },
+  {
+    "id": 2631,
+    "sender": "tvolkert",
+    "content": "Thanks @bang88!\r\n\r\nFYI, for future reference, gist.github.com is a great place to paste really large log snippets like the above.  Then you paste a link to the gist in the comments here.\r\n\r\nSo based on that output, it looks like the following line is returning `null`:\r\n\r\nhttps://github.com/flutter/flutter/blob/cb74e0eda87e35966437ef38a09ef02e23d50206/packages/flutter_tools/lib/src/resident_runner.dart#L71",
+    "createdAt": "2018-09-10T17:13:20Z"
+  },
+  {
+    "id": 2632,
+    "sender": "tvolkert",
+    "content": "Actually, digging a bit, it looks more like a race condition.  @bang88 can you try applying the following diff locally and then running again, and include the output?  Thanks!\r\n\r\n```\r\ndiff --git a/packages/flutter_tools/lib/src/resident_runner.dart b/packages/flutter_tools/lib/src/resident_runner.dart\r\nindex d675e6db3..cdfabe409 100644\r\n--- a/packages/flutter_tools/lib/src/resident_runner.dart\r\n+++ b/packages/flutter_tools/lib/src/resident_runner.dart\r\n@@ -86,12 +86,17 @@ class FlutterDevice {\r\n     if (vmServices == null)\r\n       return <FlutterView>[];\r\n \r\n-    return vmServices\r\n-      .where((VMService service) => !service.isClosed)\r\n-      .expand((VMService service) => viewFilter != null\r\n-          ? service.vm.allViewsWithName(viewFilter)\r\n-          : service.vm.views)\r\n-      .toList();\r\n+    try {\r\n+      return vmServices\r\n+        .where((VMService service) => !service.isClosed)\r\n+        .expand((VMService service) => viewFilter != null\r\n+            ? service.vm.allViewsWithName(viewFilter)\r\n+            : service.vm.views)\r\n+        .toList();\r\n+    } catch (error) {\r\n+      printError('Error while getting views: $error -- stack trace: ${StackTrace.current}');\r\n+      rethrow;\r\n+    }\r\n   }\r\n \r\n   Future<Null> getVMs() async {\r\n```\r\n",
+    "createdAt": "2018-09-10T17:21:01Z"
+  },
+  {
+    "id": 2633,
+    "sender": "BANG88",
+    "content": "@tvolkert\r\n\r\nhttps://gist.github.com/bang88/c22ecff0e1e94fa46ae23058d266c6be#file-flutter-log-L481",
+    "createdAt": "2018-09-11T01:41:39Z"
+  },
+  {
+    "id": 2634,
+    "sender": "zoechi",
+    "content": "@bang88 I deleted your above comment with the inline log content that you also made available with the gist link. I hope it's ok.",
+    "createdAt": "2018-09-11T07:18:03Z"
+  },
+  {
+    "id": 2635,
+    "sender": "BANG88",
+    "content": "@zoechi Thanks.",
+    "createdAt": "2018-09-11T07:19:27Z"
+  },
+  {
+    "id": 2636,
+    "sender": "DanTup",
+    "content": "@bang88 Could you try capturing a log from VS Code while reproducing this and attach here?\r\n\r\nIn VS Code, run the `Dart: Capture Logs` command from the command palette and tick the `Debugger (Observatory)` and `Flutter Run` categories. Then reproduce the issue and hit Stop Logging, then send us the log. ",
+    "createdAt": "2018-09-11T17:03:53Z"
+  },
+  {
+    "id": 2637,
+    "sender": "DanTup",
+    "content": "@bang88 Before you do that, can you please try installing this beta version of Dart Code:\r\n\r\nhttps://github.com/Dart-Code/Dart-Code/releases/tag/v2.18.1-beta.1\r\n\r\nIt [fixes a bug](https://github.com/Dart-Code/Dart-Code/commit/23f4c450aa9dcaf4d9198e132341aef9ed285f01) where running with verbose output from Flutter could cause us to attach the debugger earlier than expected (because we incorrectly parse the Observatory URL from the verbose output). This looks like it might be what's happening in your most recent log, though since I think it's caused by verbose logging, it might not be the original issue (though it's suspicious that the error seems to be the same).",
+    "createdAt": "2018-09-11T17:14:14Z"
+  },
+  {
+    "id": 2638,
+    "sender": "BANG88",
+    "content": "@DanTup I have reproduced it as you suggested. here is the new logs https://gist.github.com/bang88/e140e6a9a3c0c045d24339fc593c5595\r\n\r\nAnd I captured an gif:\r\n\r\n![log](https://user-images.githubusercontent.com/433259/45398233-fe610480-b675-11e8-86a5-d07eba865dfa.gif)\r\n\r\n\r\n",
+    "createdAt": "2018-09-12T02:25:16Z"
+  },
+  {
+    "id": 2639,
+    "sender": "tvolkert",
+    "content": "@DanTup it definitely looks like we start sending events after the `app.start` event and don't wait for the `app.started` event.\r\n\r\n#21696 will make the code more defensive on the tools side, but we should probably also update the IDE side to hold off on sending any events until the app has started.",
+    "createdAt": "2018-09-12T02:39:02Z"
+  },
+  {
+    "id": 2640,
+    "sender": "escamoteur",
+    "content": "Seems like a timing issue depending on the performance of the dev machine so that some people face it and others don't",
+    "createdAt": "2018-09-12T06:19:16Z"
+  },
+  {
+    "id": 2641,
+    "sender": "BANG88",
+    "content": "```\r\nHardware Overview:\r\n\r\n  Model Name:\tMacBook Pro\r\n  Model Identifier:\tMacBookPro14,3\r\n  Processor Name:\tIntel Core i7\r\n  Processor Speed:\t3.1 GHz\r\n  Number of Processors:\t1\r\n  Total Number of Cores:\t4\r\n  L2 Cache (per Core):\t256 KB\r\n  L3 Cache:\t8 MB\r\n  Memory:\t16 GB\r\n  Boot ROM Version:\tMBP143.0178.B00\r\n  SMC Version (system):\t2.45f0\r\n  Serial Number (system):\txxx\r\n  Hardware UUID:\txxx\r\n```",
+    "createdAt": "2018-09-12T07:13:03Z"
+  },
+  {
+    "id": 2642,
+    "sender": "tvolkert",
+    "content": "@bang88 if you `flutter upgrade` on the master channel, you'll get the first fix to this.  My guess is that it will cause you to get a more direct timeout waiting to start the app, but please give it a try and report back.",
+    "createdAt": "2018-09-12T14:57:02Z"
+  },
+  {
+    "id": 2643,
+    "sender": "BANG88",
+    "content": "@tvolkert I just upgrade to the master channel and no errors appear anymore. but the screen is white. and hot reload does not work too",
+    "createdAt": "2018-09-12T15:22:01Z"
+  },
+  {
+    "id": 2644,
+    "sender": "BANG88",
+    "content": "```\r\n~/Desktop/hello_world\r\n$ flutter doctor -v[✓] Flutter (Channel master, v0.8.3-pre.36, on Mac OS X 10.14 18A384a, locale en-CN)\r\n    • Flutter version 0.8.3-pre.36 at /Users/bang/flutter\r\n    • Framework revision d02e67e76e (5 hours ago), 2018-09-12 12:11:59 +0200\r\n    • Engine revision 6f459e2f10\r\n    • Dart version 2.1.0-dev.4.0.flutter-05ccfa8502\r\n\r\n[✓] Android toolchain - develop for Android devices (Android SDK 26.0.2)\r\n    • Android SDK at /Users/bang/Library/Android/Sdk\r\n    • Android NDK at /Users/bang/Library/Android/Sdk/ndk-bundle\r\n    • Platform android-26, build-tools 26.0.2\r\n    • ANDROID_HOME = /Users/bang/Library/Android/Sdk\r\n    • Java binary at: /Applications/Android Studio.app/Contents/jre/jdk/Contents/Home/bin/java\r\n    • Java version OpenJDK Runtime Environment (build 1.8.0_152-release-915-b08)\r\n    • All Android licenses accepted.\r\n\r\n[✓] iOS toolchain - develop for iOS devices (Xcode 9.4.1)\r\n    • Xcode at /Applications/Xcode.app/Contents/Developer\r\n    • Xcode 9.4.1, Build version 9F2000\r\n    • ios-deploy 1.9.2\r\n    • CocoaPods version 1.5.0\r\n\r\n[✓] Android Studio (version 3.0)\r\n    • Android Studio at /Applications/Android Studio.app/Contents\r\n    • Flutter plugin version 23.2.1\r\n    • Dart plugin version 171.4424\r\n    • Java version OpenJDK Runtime Environment (build 1.8.0_152-release-915-b08)\r\n\r\n[✓] VS Code (version 1.27.1)\r\n    • VS Code at /Applications/Visual Studio Code.app/Contents\r\n    • Flutter extension version 2.18.0\r\n\r\n[✓] Connected devices (1 available)\r\n    • iPhone X • 3DBD546E-7A81-40E2-AB99-F2843169EC64 • ios • iOS 11.4 (simulator)\r\n\r\n• No issues found!\r\n\r\n```",
+    "createdAt": "2018-09-12T15:25:37Z"
+  },
+  {
+    "id": 2645,
+    "sender": "DanTup",
+    "content": "@tvolkert I think that may have been happening before but the beta version linked above should have fixed that. Looking at this log, I can't see anything being sent to stdin after the `app.start` event (any data sent to stdin should be logged with `[FlutterRun] [Info] ==>` in the line), but it seems like the last line out of the Flutter process is:\r\n\r\n[10:18:14 GMT+0800 (CST)] [FlutterRun] [Info] <== [   +5 ms] Connecting to service protocol: http://127.0.0.1:59843/\r\n\r\nThen nothing happens until the debug session was terminated. I think something in Flutter may be stalling after the line above, before the `app.started` event is sent.\r\n\r\nI wonder if we should add additional `printTrace`s between the code that prints the line above and the one that sends the `app.started` event? There was another issue I commented on earlier about this too (https://github.com/flutter/flutter/issues/18889#issuecomment-420706390) which I think is a different issue, but also seems like something stalling in this area.\r\n\r\nIf we don't want to commit extra logging, we could do it on a branch and just have these users pull that.",
+    "createdAt": "2018-09-12T16:26:03Z"
+  },
+  {
+    "id": 2646,
+    "sender": "tvolkert",
+    "content": "This future is not completing in time (or perhaps never completing):\r\n\r\nhttps://github.com/flutter/flutter/blob/8cf68731e010023e5dcae1f00991f4ac5b1b758b/packages/flutter_tools/lib/src/resident_runner.dart#L71\r\n\r\nThere are trace statements before and after it -- we're seeing the one before, but not the one after...",
+    "createdAt": "2018-09-12T16:51:12Z"
+  },
+  {
+    "id": 2647,
+    "sender": "tvolkert",
+    "content": "Tracing that call down, I bet where we're actually hanging is here:\r\n\r\nhttps://github.com/flutter/flutter/blob/8cf68731e010023e5dcae1f00991f4ac5b1b758b/packages/flutter_tools/lib/src/vmservice.dart#L241\r\n\r\n/cc @aam ",
+    "createdAt": "2018-09-12T16:53:33Z"
+  },
+  {
+    "id": 2648,
+    "sender": "aam",
+    "content": "VM requests can go unanswered if VM actually went down too.\r\nWhat is going on on the device when we encounter these hang-ups? Are there any crashes reported on the device?",
+    "createdAt": "2018-09-12T17:07:38Z"
+  },
+  {
+    "id": 2649,
+    "sender": "BANG88",
+    "content": "No crashes just a blank screen https://github.com/flutter/flutter/issues/16604#issuecomment-420490327",
+    "createdAt": "2018-09-13T03:15:43Z"
+  },
+  {
+    "id": 2650,
+    "sender": "ChizuNoYama",
+    "content": "Typically I would have to build the application and it would run the application correctly with the changes.",
+    "createdAt": "2018-10-01T21:22:21Z"
+  },
+  {
+    "id": 2651,
+    "sender": "ChizuNoYama",
+    "content": "Actually scratch that. I gotta reinstall the application",
+    "createdAt": "2018-10-01T21:23:41Z"
+  },
+  {
+    "id": 2652,
+    "sender": "BANG88",
+    "content": "Any updates?",
+    "createdAt": "2018-10-09T00:39:33Z"
+  },
+  {
+    "id": 2653,
+    "sender": "zoechi",
+    "content": "I don't need `flutter clean` much anymore since a while.",
+    "createdAt": "2018-10-09T06:21:42Z"
+  },
+  {
+    "id": 2654,
+    "sender": "szotp",
+    "content": "For me clean does not do anything. I have to delete app from iOS simulator. Then flutter will try to run (and fail). And when if I run it for the second time it works.\r\n\r\nThere must be something wrong with incremental update logic. If app was deleted or changed via hot reload, it will not be properly detected during `flutter run`.",
+    "createdAt": "2018-10-09T09:02:44Z"
+  },
+  {
+    "id": 2655,
+    "sender": "BANG88",
+    "content": "I can not use flutter until this problem been solved.",
+    "createdAt": "2018-10-09T09:35:30Z"
+  },
+  {
+    "id": 2656,
+    "sender": "ismailnurudeen",
+    "content": "I just encountered this problem on version 0.8.2\r\n\r\nIt's really annoying. ",
+    "createdAt": "2018-10-09T10:46:41Z"
+  },
+  {
+    "id": 2657,
+    "sender": "escamoteur",
+    "content": "Switch to dev channel",
+    "createdAt": "2018-10-09T11:26:36Z"
+  },
+  {
+    "id": 2658,
+    "sender": "magicleon94",
+    "content": "Still a problem in master 0.10.1-pre.15",
+    "createdAt": "2018-10-10T21:09:36Z"
+  },
+  {
+    "id": 2659,
+    "sender": "FlutterIODev",
+    "content": "I think one of the main reasons this problem happen ( fixed by delete build folder or executes flutter clean command) , when some unvaild modifications applied to the code and then press hot reload or hot restart and then the application crash, after this any new run for the project will take the old build ( before the unvaild modifications) until deleting the build folder.",
+    "createdAt": "2018-10-11T21:55:49Z"
+  },
+  {
+    "id": 2660,
+    "sender": "eseidelGoogle",
+    "content": "FYI @gspencergoog this seems to be one of the more oft-reported tooling issues.",
+    "createdAt": "2018-10-11T22:08:43Z"
+  },
+  {
+    "id": 2661,
+    "sender": "szotp",
+    "content": "@FlutterIODev I agree, crash seems to be necessary to happen for this problem to occur. I think it should be also unrecoverable crash, when app freezes. This seems to happen more when I'm debugging, although I'm not totally sure.",
+    "createdAt": "2018-10-12T05:43:04Z"
+  },
+  {
+    "id": 2662,
+    "sender": "NotThatBowser",
+    "content": "My experience backs that up.  I can guarantee hot reload won't work if there is an exception, needing a clean to work again (which, not being mentioned in tutorials, is pretty confusing when you start out).  I've even had 'build apk' use reflect a previous debug build rather than the current files if 'clean' wasn't used first - that in particular seems unintended.",
+    "createdAt": "2018-10-12T08:35:55Z"
+  },
+  {
+    "id": 2663,
+    "sender": "gspencergoog",
+    "content": "Are there any particular types of crashes that seem to correlate?  Maybe crashes that happen sooner in the startup sequence, or in a particular plugin? I'm wondering if we are just not recovering properly from some kinds of exceptions.",
+    "createdAt": "2018-10-12T14:58:25Z"
+  },
+  {
+    "id": 2664,
+    "sender": "BANG88",
+    "content": "Just install `0.9.4` minutes ago and its still not working.\r\n",
+    "createdAt": "2018-10-12T15:05:01Z"
+  },
+  {
+    "id": 2665,
+    "sender": "davidgalarza",
+    "content": "Any update I'm having the same problem.",
+    "createdAt": "2018-10-14T22:45:38Z"
+  },
+  {
+    "id": 2666,
+    "sender": "tvolkert",
+    "content": "Dear everyone that's been affected by this bug:\r\n\r\nWe're trying to track down the cause(s) of this bug and having a hard time identifying a smoking gun.  If you could please help us by filling out this quick form, it'd greatly help.\r\n\r\nhttps://goo.gl/forms/eFPT6A3jAD8clU4o2\r\n\r\n@dedeswim \r\n@ratsey \r\n@escamoteur \r\n@iampawan \r\n@KgotsoK \r\n@jason-codeheroes \r\n@mohith7548 \r\n@RedTech64 \r\n@jmwatte \r\n@droidluv \r\n@titonton \r\n@szotp \r\n@ElNuru247 \r\n@magicleon94 \r\n@NotThatBowser \r\n@bang88 \r\n@davidgalarza \r\n",
+    "createdAt": "2018-10-16T18:04:05Z"
+  },
+  {
+    "id": 2667,
+    "sender": "escamoteur",
+    "content": "I haven't seen this bug since quite a while since I'M on dev channel",
+    "createdAt": "2018-10-16T21:24:30Z"
+  },
+  {
+    "id": 2668,
+    "sender": "aam",
+    "content": "Folks who are able to reproduce it - when you get into that state(when the app on the device is no longer being updated as you attempt to deploy it from the host), before doing `flutter clean` would it be possible for you to make some change to the source, do `flutter run --verbose` and share the output of that via gist.github.com?",
+    "createdAt": "2018-10-17T07:04:44Z"
+  },
+  {
+    "id": 2669,
+    "sender": "Asaf-m",
+    "content": "when this issue occurs to me, I'm receiving this error from Android Studio\r\n\r\n```\r\njava.io.IOException: error from app.callServiceExtension: \"Bad state: No element\"\r\njava.util.concurrent.CompletionException: java.io.IOException: error from app.callServiceExtension: \"Bad state: No element\"\r\n\tat java.util.concurrent.CompletableFuture.encodeThrowable(CompletableFuture.java:292)\r\n\tat java.util.concurrent.CompletableFuture.completeThrowable(CompletableFuture.java:308)\r\n\tat java.util.concurrent.CompletableFuture.uniApply(CompletableFuture.java:593)\r\n\tat java.util.concurrent.CompletableFuture$UniApply.tryFire(CompletableFuture.java:577)\r\n\tat java.util.concurrent.CompletableFuture.postComplete(CompletableFuture.java:474)\r\n\tat java.util.concurrent.CompletableFuture.completeExceptionally(CompletableFuture.java:1977)\r\n\tat io.flutter.run.daemon.DaemonApi$Command.completeExceptionally(DaemonApi.java:375)\r\n\tat io.flutter.run.daemon.DaemonApi.dispatch(DaemonApi.java:181)\r\n\tat io.flutter.run.daemon.DaemonApi$1.onTextAvailable(DaemonApi.java:141)\r\n\tat sun.reflect.GeneratedMethodAccessor95.invoke(Unknown Source)\r\n\tat sun.reflect.DelegatingMethodAccessorImpl.invoke(DelegatingMethodAccessorImpl.java:43)\r\n\tat java.lang.reflect.Method.invoke(Method.java:498)\r\n\tat com.intellij.execution.process.ProcessHandler$5.invoke(ProcessHandler.java:223)\r\n\tat com.sun.proxy.$Proxy17.onTextAvailable(Unknown Source)\r\n\tat com.intellij.execution.process.ProcessHandler.notifyTextAvailable(ProcessHandler.java:197)\r\n\tat com.intellij.execution.process.BaseOSProcessHandler$SimpleOutputReader.onTextAvailable(BaseOSProcessHandler.java:198)\r\n\tat com.intellij.util.io.BaseOutputReader.sendText(BaseOutputReader.java:202)\r\n\tat com.intellij.util.io.BaseOutputReader.processInput(BaseOutputReader.java:186)\r\n\tat com.intellij.util.io.BaseOutputReader.readAvailableNonBlocking(BaseOutputReader.java:105)\r\n\tat com.intellij.util.io.BaseDataReader.readAvailable(BaseDataReader.java:85)\r\n\tat com.intellij.util.io.BaseDataReader.doRun(BaseDataReader.java:163)\r\n\tat com.intellij.util.io.BaseDataReader$1$1.run(BaseDataReader.java:66)\r\n\tat com.intellij.util.ConcurrencyUtil.runUnderThreadName(ConcurrencyUtil.java:209)\r\n\tat com.intellij.util.io.BaseDataReader$1.run(BaseDataReader.java:63)\r\n\tat java.util.concurrent.Executors$RunnableAdapter.call(Executors.java:511)\r\n\tat java.util.concurrent.FutureTask.run(FutureTask.java:266)\r\n\tat java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1142)\r\n\tat java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:617)\r\n\tat java.lang.Thread.run(Thread.java:745)\r\nCaused by: java.io.IOException: error from app.callServiceExtension: \"Bad state: No element\"\r\n\t... 22 more\r\n```\r\nmaybe it can help...\r\n```\r\nflutter --version:\r\n> Flutter 0.9.4 • channel beta • https://github.com/flutter/flutter.git\r\nFramework • revision f37c235c32 (3 weeks ago) • 2018-09-25 17:45:40 -0400\r\nEngine • revision 74625aed32\r\nTools • Dart 2.1.0-dev.5.0.flutter-a2eb050044\r\n ```\r\nWin10\r\nphysical Android device.",
+    "createdAt": "2018-10-17T07:53:23Z"
+  },
+  {
+    "id": 2670,
+    "sender": "kyleorin",
+    "content": "> Folks who are able to reproduce it - when you get into that state(when the app on the device is no longer being updated as you attempt to deploy it from the host), before doing `flutter clean` would it be possible for you to make some change to the source, do `flutter run --verbose` and share the output of that via gist.github.com?\r\n\r\nThere you go: https://gist.github.com/zoechi/63ad820136130ee6a053e33f48b9ea14\r\n",
+    "createdAt": "2018-10-17T12:20:36Z"
+  },
+  {
+    "id": 2671,
+    "sender": "zoechi",
+    "content": "@5ummit did you fill https://goo.gl/forms/eFPT6A3jAD8clU4o2\r\n\r\nfor Others the suggestion was to post the logs using https://gist.github.com/\r\nand only post the link here to avoid this issue becoming a Mile long.",
+    "createdAt": "2018-10-17T12:35:55Z"
+  },
+  {
+    "id": 2672,
+    "sender": "aam",
+    "content": "@5ummit wrote:\r\n\r\n> There you go:\r\n> ...\r\n>  [  +97 ms] [ +578 ms] Skipping kernel compilation. Fingerprint match.\r\n\r\nThanks, very helpful. The fact that we skipped compilation after you modified source seems to be the root cause. We perhaps need to instrument fingerprint calculation more to understand why it reported a match after you edited a source. Just to confirm - you have edited one of the sources in your flutter app in `lib/` folder, right?\r\n",
+    "createdAt": "2018-10-17T16:52:01Z"
+  },
+  {
+    "id": 2673,
+    "sender": "kyleorin",
+    "content": "> @5ummit wrote:\r\n> \r\n> > There you go:\r\n> > ...\r\n> > [  +97 ms] [ +578 ms] Skipping kernel compilation. Fingerprint match.\r\n> \r\n> @aam wrote:\r\n> Thanks, very helpful. The fact that we skipped compilation after you modified source seems to be the root cause. We perhaps need to instrument fingerprint calculation more to understand why it reported a match after you edited a source. Just to confirm - you have edited one of the sources in your flutter app in `lib/` folder, right?\r\n\r\nYeah, plenty - previously I've had an issue which I managed to fix https://github.com/flutter/flutter/issues/23131 thanks to the community. Now receiving this one - think they're connected?\r\n\r\nI think for me personally my problem is originating from a Firebase dependency, it happened with https://github.com/flutter/flutter/issues/23131 as well. I'll need to look around to find more though.",
+    "createdAt": "2018-10-17T20:09:07Z"
+  },
+  {
+    "id": 2674,
+    "sender": "staadecker",
+    "content": "Here : https://gist.github.com/SUPERETDUPER/2b3585956f279ab5e47df431e8eda113 ",
+    "createdAt": "2018-10-17T22:20:30Z"
+  },
+  {
+    "id": 2675,
+    "sender": "staadecker",
+    "content": "To reproduce I do the following.\r\n\r\n- flutter clean\r\n- flutter run -v\r\n- Make a change\r\n- Hot reload change (with r)\r\n- Stop app (with q)\r\n- flutter run -v\r\n- Make another change\r\n- Hot reload (with r)\r\n- Stop app (with q)\r\n- flutter run -v\r\n\r\nOnly the first change is shown. Must run flutter clean to get the second change to show.\r\nFyi, I am changing a static const integer that is used in a Text widget",
+    "createdAt": "2018-10-17T22:37:09Z"
+  },
+  {
+    "id": 2676,
+    "sender": "aam",
+    "content": "@SUPERETDUPER wrote:\r\n> Here : https://gist.github.com/SUPERETDUPER/2b3585956f279ab5e47df431e8eda113\r\n> ...\r\n>  Compiling dart to kernel with 439 updated file\r\n\r\nThis seems to indicate that when you did `flutter run -v` we did rebuild the app, but what you are saying is that the app ran without your change(static const integer?) being evident?\r\n\r\nAre you able to reproduce this on flutter sample counter (`flutter create sample`) app?",
+    "createdAt": "2018-10-17T23:00:49Z"
+  },
+  {
+    "id": 2677,
+    "sender": "staadecker",
+    "content": "I was using the flutter counter sample app. All I did was add `Text(\"Number: $number\")` in the column widget. And I added this line `static const int number = 1;` in `MyHomePageState` . For changes I just changed `1` to other values.\r\n\r\nAnd yes the app did rebuild; the first time with the changes but the second time without the second change.",
+    "createdAt": "2018-10-17T23:39:06Z"
+  },
+  {
+    "id": 2678,
+    "sender": "aam",
+    "content": "@SUPERETDUPER can you please check if creating sample flutter project somewhere _outside_ of a path with space in a name(your working folder full path has space in `IntelliJ IDEA`) fixes the problem you experience with stale app state?",
+    "createdAt": "2018-10-18T06:38:53Z"
+  },
+  {
+    "id": 2679,
+    "sender": "szotp",
+    "content": "If this is so hard to fix, then is there at least some flag to force flutter to rebuild on every launch?",
+    "createdAt": "2018-10-18T08:47:14Z"
+  },
+  {
+    "id": 2680,
+    "sender": "DanTup",
+    "content": "> If this is so hard to fix, then is there at least some flag to force flutter to rebuild on every launch?\r\n\r\nIt's not as simple as a flag, but if you're using VS Code you could create a task to run `flutter clean` and set it as the `preLaunchTask`.\r\n\r\n## .vscode/tasks.json\r\n```json\r\n{\r\n\t\"version\": \"2.0.0\",\r\n\t\"tasks\": [\r\n\t\t{\r\n\t\t\t\"label\": \"flutter clean\",\r\n\t\t\t\"type\": \"shell\",\r\n\t\t\t\"command\": \"flutter clean\"\r\n\t\t}\r\n\t]\r\n}\r\n```\r\n\r\n## .vscode/launch.json\r\n```json\r\n{\r\n\t\"version\": \"0.2.0\",\r\n\t\"configurations\": [\r\n\t\t{\r\n\t\t\t\"name\": \"Flutter\",\r\n\t\t\t\"request\": \"launch\",\r\n\t\t\t\"type\": \"dart\",\r\n\t\t\t\"preLaunchTask\": \"flutter clean\"\r\n\t\t}\r\n\t]\r\n}\r\n```\r\n\r\nFurther up you said that `clean` doesn't work for you and you have to uninstall the app from the device. If that's still the case then you'd likely need to change the `flutter clean` command to an `adb` command to uninstall the app.\r\n\r\nThat said, I'd encourage trying the things listed above before doing this!\r\n\r\n- Complete this form -> https://github.com/flutter/flutter/issues/16604#issuecomment-430338285\r\n- Post a verbose log in a gist -> https://github.com/flutter/flutter/issues/16604#issuecomment-430513752\r\n- See if this may be caused by spaces in your paths -> https://github.com/flutter/flutter/issues/16604#issuecomment-430892518\r\n\r\n",
+    "createdAt": "2018-10-18T11:24:39Z"
+  },
+  {
+    "id": 2681,
+    "sender": "szotp",
+    "content": "@DanTup indeed I need to delete the app. It's possible that there are actually two bugs: one about needing to run clean, and one about needing to delete iOS app.\r\n\r\nI tested a bit more, and created sample project that works 100% of time, but only on iOS. It's possible that I never had this problem on Android, but I'm not sure.\r\n\r\nhttps://github.com/szotp/flutter_stale_app\r\n\r\nI have added detailed instructions on how to achieve the bug:\r\nhttps://github.com/szotp/flutter_stale_app/blob/master/lib/main.dart#L29-L36\r\n\r\nEDIT: I think it's essential here, that app is in this frozen state - debugger breakpoint seems to ensure this in my sample, but it's possible to have frozen app without reaching any breakpoints. Killing app before relaunching seems to help, so that Xcode build runs again.\r\n\r\nEDIT: When app is frozen and I launch again, Xcode build does not happen, but app is clearly killed and launched again, losing all hot reloads that were accumulated before. ",
+    "createdAt": "2018-10-18T16:01:28Z"
+  },
+  {
+    "id": 2682,
+    "sender": "staadecker",
+    "content": "Interestingly, when I'm debugging with the version that didn't update successfully, the debugger brings up the old code (from the build folder). So it seems like the build folder is not being updated?",
+    "createdAt": "2018-10-18T16:19:46Z"
+  },
+  {
+    "id": 2683,
+    "sender": "DanTup",
+    "content": "@szotp Thanks! I reproduced this first time with your instructions/app on the iOS Simulator on my MacBook.\r\n\r\n@aam @tvolkert not sure who's looking at this, but I presume it'll repro easily. If not, feel free to grab me if (remote) access to my machine is useful to debug.",
+    "createdAt": "2018-10-18T16:37:57Z"
+  },
+  {
+    "id": 2684,
+    "sender": "staadecker",
+    "content": "@tvolkert Do you think you can share the results from the google form? I'm curious.",
+    "createdAt": "2018-10-18T17:58:11Z"
+  },
+  {
+    "id": 2685,
+    "sender": "dnfield",
+    "content": "From the description, it sounds like one of the `flutter_assets` files isn't getting synched correctly in this scenario.",
+    "createdAt": "2018-10-18T18:14:26Z"
+  },
+  {
+    "id": 2686,
+    "sender": "tvolkert",
+    "content": "@SUPERETDUPER sure thing!  Here it is: [survey.pdf](https://github.com/flutter/flutter/files/2493321/survey.pdf).  It shows pretty varied responses, which to me says that this bug is probably overloaded with more than one underlying cause.\r\n",
+    "createdAt": "2018-10-18T19:26:35Z"
+  },
+  {
+    "id": 2687,
+    "sender": "aam",
+    "content": "@sztop, thanks for the awesome repro!\r\nDoes https://github.com/flutter/flutter/issues/16604#issuecomment-431066044 happen on iOS simulator only? What if you exit(close) flutter app on iOS simulator before starting it again from VSCode?",
+    "createdAt": "2018-10-18T21:22:04Z"
+  }
+]

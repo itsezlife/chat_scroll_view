@@ -1,0 +1,386 @@
+[
+  {
+    "id": 7168,
+    "sender": "dkwingsmt",
+    "content": "@goderbauer I think I've addressed all comments. Can you take a look again?",
+    "createdAt": "2020-05-08T23:22:02Z"
+  },
+  {
+    "id": 7169,
+    "sender": "dkwingsmt",
+    "content": "Besides the comments, I also changed `SystemMouseCursor`, instead of `int shapeCode`, it now uses `String kind`, suggested by Stuart for clarity. Let me know if it's considered inappropreate.\r\n",
+    "createdAt": "2020-05-09T00:23:26Z"
+  },
+  {
+    "id": 7170,
+    "sender": "mattkae",
+    "content": "## Windowing implementation of `showDialog` that uses a native desktop window to display the content \n\n<img width=\"800\" height=\"635\" alt=\"image\" src=\"https://github.com/user-attachments/assets/54315175-2091-4508-a61f-337b35ef35e8\" />\r\n\r\n<img width=\"800\" height=\"635\" alt=\"image\" src=\"https://github.com/user-attachments/assets/9f627624-b008-48e1-a281-aabb15b9418e\" />\r\n\r\n\r\n## What's new?\r\n- Added the `MaterialWindowingManager` which will render all of the sub-windows that the material app relies\r\n- The `MaterialWindowingManager` provides the `MaterialWindowRegistry` which enables its descendants to create and remove windows from the windowing manager\r\n- Implemented a windowing path for `showDialog` which uses that `Navigator` to push a true window to the navigation stack\r\n- In `material_window_manager.dart`, the dialog will be rendered appropriately with inherited theming, text direction, and other media query data\r\n- Added the `api_multiwindow` example application to demonstrate the new behavior for both fullscreen and non-fullscreen dialogs\r\n- Added tests to the `api_multiwindow` example application\r\n- Updated the documentation of `showDialog` to explain how each field works when windowing is enabled\r\n- Made it so that we fallback to the regular `showDialog` implementation if the windowing implementation fails\r\n\r\n## How to test\r\nOn Win32, macOS, and Linux:\r\n\r\n1. `fluter config --enable-windowing`\r\n2. In `examples/api_multiwindow`: `flutter run lib/material/dialog/dialog.0.dart`\r\n3. Click the two buttons and see the true dialogs\r\n\r\nAlso, run `flutter test` and see that the tests pass\r\n\r\n## Pre-launch Checklist\r\n\r\n- [x] I read the [Contributor Guide] and followed the process outlined there for submitting PRs.\r\n- [x] I read the [Tree Hygiene] wiki page, which explains my responsibilities.\r\n- [x] I read and followed the [Flutter Style Guide], including [Features we expect every widget to implement].\r\n- [x] I signed the [CLA].\r\n- [x] I listed at least one issue that this PR fixes in the description above.\r\n- [x] I updated/added relevant documentation (doc comments with `///`).\r\n- [x] I added new tests to check the change I am making, or this PR is [test-exempt].\r\n- [x] I followed the [breaking change policy] and added [Data Driven Fixes] where supported.\r\n- [x] All existing and new tests are passing.\r\n\r",
+    "createdAt": "2026-02-03T16:32:45Z"
+  },
+  {
+    "id": 7171,
+    "sender": "mattkae",
+    "content": "@justinmc Should be ready for another high-level review. A lot has been moved into window.dart :smile: ",
+    "createdAt": "2026-02-13T13:48:30Z"
+  },
+  {
+    "id": 7172,
+    "sender": "justinmc",
+    "content": "FYI running the example on Linux and clicking \"Show Dialog\" gives me an error:\r\n\r\n```\r\n══╡ EXCEPTION CAUGHT BY WIDGET LIBRARY ╞════════════════════════════════════════════════════════════\r\nThe following assertion was thrown:\r\nA HeroController can not be shared by multiple Navigators. The Navigators that share the same\r\nHeroController are:\r\n- NavigatorState#3fc4e(tickers: tracking 1 ticker)\r\n- NavigatorState#ddbb1(tickers: tracking 1 ticker)\r\nPlease create a HeroControllerScope for each Navigator or use a HeroControllerScope.none to prevent\r\nsubtree from receiving a HeroController.\r\n\r\nWhen the exception was thrown, this was the stack:\r\n#0      NavigatorState._updateHeroController.<anonymous closure>.<anonymous closure> (package:flutter/src/widgets/navigator.dart:3981:41)\r\n#1      SchedulerBinding._invokeFrameCallback (package:flutter/src/scheduler/binding.dart:1430:15)\r\n#2      SchedulerBinding.handleDrawFrame (package:flutter/src/scheduler/binding.dart:1357:11)\r\n#3      SchedulerBinding._handleDrawFrame (package:flutter/src/scheduler/binding.dart:1198:5)\r\n#4      _invoke (dart:ui/hooks.dart:423:13)\r\n#5      PlatformDispatcher._drawFrame (dart:ui/platform_dispatcher.dart:447:5)\r\n#6      _drawFrame (dart:ui/hooks.dart:395:31)\r\n════════════════════════════════════════════════════════════════════════════════════════════════════\r\n```",
+    "createdAt": "2026-02-27T18:44:41Z"
+  },
+  {
+    "id": 7173,
+    "sender": "mattkae",
+    "content": "> FYI running the example on Linux and clicking \"Show Dialog\" gives me an error:\r\n> \r\n> ```\r\n> ══╡ EXCEPTION CAUGHT BY WIDGET LIBRARY ╞════════════════════════════════════════════════════════════\r\n> The following assertion was thrown:\r\n> A HeroController can not be shared by multiple Navigators. The Navigators that share the same\r\n> HeroController are:\r\n> - NavigatorState#3fc4e(tickers: tracking 1 ticker)\r\n> - NavigatorState#ddbb1(tickers: tracking 1 ticker)\r\n> Please create a HeroControllerScope for each Navigator or use a HeroControllerScope.none to prevent\r\n> subtree from receiving a HeroController.\r\n> \r\n> When the exception was thrown, this was the stack:\r\n> #0      NavigatorState._updateHeroController.<anonymous closure>.<anonymous closure> (package:flutter/src/widgets/navigator.dart:3981:41)\r\n> #1      SchedulerBinding._invokeFrameCallback (package:flutter/src/scheduler/binding.dart:1430:15)\r\n> #2      SchedulerBinding.handleDrawFrame (package:flutter/src/scheduler/binding.dart:1357:11)\r\n> #3      SchedulerBinding._handleDrawFrame (package:flutter/src/scheduler/binding.dart:1198:5)\r\n> #4      _invoke (dart:ui/hooks.dart:423:13)\r\n> #5      PlatformDispatcher._drawFrame (dart:ui/platform_dispatcher.dart:447:5)\r\n> #6      _drawFrame (dart:ui/hooks.dart:395:31)\r\n> ════════════════════════════════════════════════════════════════════════════════════════════════════\r\n> ```\r\n\r\nReverted my last commit to fix this. I will try re-adding it",
+    "createdAt": "2026-02-27T19:07:36Z"
+  },
+  {
+    "id": 7174,
+    "sender": "justinmc",
+    "content": "This is a little bit rough, but I think it will work for removing the need for windowing in Material, if we agree on the API: https://github.com/canonical/flutter/compare/feature/material_dialogs_multi_window...justinmc:flutter:material_dialogs_multi_window_widgets?expand=1\r\n\r\n * I added showRawDialog in Widgets, which shows either a _DialogWindowRoute or a RawDialogRoute.\r\n * It also takes a routeBuilder parameter which builds the route to use, while `builder` still builds the content of the dialog.\r\n * Material's showDialog now uses showRawDialog under the hood. It uses routeBuilder to inject DialogRoute and do Material theming stuff.\r\n * All windowing stuff is hidden inside of showRawDialog. Material doesn't know or care about it. Any Flutter app developer who directly uses showRawDialog also doesn't need to care, though we may want to mention it in its docs?\r\n\r\nWhat do you think? Feel free to take the code I've written and move it here and modify it if you're on board.",
+    "createdAt": "2026-02-28T00:36:23Z"
+  },
+  {
+    "id": 7175,
+    "sender": "loic-sharma",
+    "content": "@mattkae It looks like the PR description is stale (e.g. `MaterialWindowingManager` was moved to the widgets layer). Could you update that? It'll make it easier if someone needs to understand this PR in the future :)",
+    "createdAt": "2026-03-03T21:52:05Z"
+  },
+  {
+    "id": 7176,
+    "sender": "sethladd",
+    "content": "## Google native ads integrated into a Flutter widget tree\n\nThis comment discusses the different ways we are considering addressing this issue, and provides links to more specific issues that cover specific steps towards this issue: https://github.com/flutter/flutter/issues/12114#issuecomment-505633342\r\nWe are working on some of these today. Please see the individual bugs for details.\r\n\r\n----\r\n\r\nBoth Firebase (AdMob) and Facebook support a \"Native Ads\" format:\r\n\r\n* https://developers.google.com/admob/android/native\r\n* https://developers.facebook.com/docs/audience-network/native-ads/\r\n\r\nNative ads are rendered inline with the app's content, with rendering and formatting (colors, fonts) controlled by the app itself.",
+    "createdAt": "2017-09-15T17:06:48Z"
+  },
+  {
+    "id": 7177,
+    "sender": "gcshri",
+    "content": "Would it not be better to have DFP support? Would allow us to integrate a wider range of products, including in house banners, Ad Exchange/AdSense along with native / fluid ads?",
+    "createdAt": "2017-10-12T01:31:14Z"
+  },
+  {
+    "id": 7178,
+    "sender": "sethladd",
+    "content": "Thanks for your feedback! Can you link us to DFP?",
+    "createdAt": "2017-10-12T18:18:40Z"
+  },
+  {
+    "id": 7179,
+    "sender": "Takhion",
+    "content": "I think @gcshri means [DoubleClick for Publishers](https://en.wikipedia.org/wiki/DoubleClick_for_Publishers), which funnily enough was formerly called *DART* 😄 ",
+    "createdAt": "2017-10-12T18:34:33Z"
+  },
+  {
+    "id": 7180,
+    "sender": "sethladd",
+    "content": "Full circle!\n\nOn Thu, Oct 12, 2017, 11:34 Eugenio Marletti <notifications@github.com>\nwrote:\n\n> I think @gcshri <https://github.com/gcshri> means DoubleClick for\n> Publishers <https://en.wikipedia.org/wiki/DoubleClick_for_Publishers>,\n> which funnily enough was formerly called *DART* 😄\n>\n> —\n> You are receiving this because you authored the thread.\n> Reply to this email directly, view it on GitHub\n> <https://github.com/flutter/flutter/issues/12114#issuecomment-336227022>,\n> or mute the thread\n> <https://github.com/notifications/unsubscribe-auth/AAAVZzZFhnb80PxDhsBj6k_30sbrs7qXks5srlu6gaJpZM4PZQgi>\n> .\n>\n",
+    "createdAt": "2017-10-12T18:43:21Z"
+  },
+  {
+    "id": 7181,
+    "sender": "gcshri",
+    "content": "Yep. Avoided Dart as I kept thinking it was some scripting language that came out of the doubleclick shop. But seriously, integration with DFP would open up Flutter to some of us who rely on ad revenue from Google and other sources. ",
+    "createdAt": "2017-10-12T23:25:24Z"
+  },
+  {
+    "id": 7182,
+    "sender": "sethladd",
+    "content": "Thanks. If you can add some links for APIs relevant to DFP, we (and the community) can take a look at what the requirements are.",
+    "createdAt": "2017-10-12T23:28:30Z"
+  },
+  {
+    "id": 7183,
+    "sender": "gcshri",
+    "content": "This would probably be the relevant link.\n\nhttps://developers.google.com/doubleclick-publishers/docs/clients\n\nMost of the publishers will use the javascript implementation on the web or\non HTML5 / hybrid apps.\n\nGit Repos:\n\nhttps://github.com/googleads\n",
+    "createdAt": "2017-10-12T23:33:33Z"
+  },
+  {
+    "id": 7184,
+    "sender": "sethladd",
+    "content": "This dupes https://github.com/flutter/flutter/issues/8098",
+    "createdAt": "2017-12-28T20:33:21Z"
+  },
+  {
+    "id": 7185,
+    "sender": "mit-mit",
+    "content": "Re-activating again. #8098 was restricted to track just banner & interstitial support.\r\n\r\nIf support for Admob Native ads is important to you, please consider \"casting a vote\" on this by clicking 'thumbs up' on the top-most comment of this bug.",
+    "createdAt": "2018-03-05T10:41:32Z"
+  },
+  {
+    "id": 7186,
+    "sender": "andreyvgavrilov",
+    "content": "Is this even possible without some work on the Admob side? I mean Flutter uses custom drawn controls and native ads use native controls.\r\n\r\nGenerally this issue is the main stopper to use Flutter in my current project as I don't know when it will be possible to use the native ads and whether it will be possible at all.",
+    "createdAt": "2018-03-06T05:44:54Z"
+  },
+  {
+    "id": 7187,
+    "sender": "Purus",
+    "content": "This would be a great addition where Native Ads can be displayed inline with the content of the app.",
+    "createdAt": "2018-03-06T17:26:10Z"
+  },
+  {
+    "id": 7188,
+    "sender": "putraxor",
+    "content": "any progress on this?",
+    "createdAt": "2018-05-05T16:44:19Z"
+  },
+  {
+    "id": 7189,
+    "sender": "Ivaskuu",
+    "content": "We (community) really need this. Any progress on this?\n\nEven Unity games (and apps) can show native ads: https://developers.google.com/admob/unity/custom-native",
+    "createdAt": "2018-05-23T17:32:41Z"
+  },
+  {
+    "id": 7190,
+    "sender": "MaskyS",
+    "content": "Agreed, this feature is really needed. Bit ambitious, but could we get this into the 1.0 milestone or earlier? cc @mit-mit ",
+    "createdAt": "2018-05-27T11:08:55Z"
+  },
+  {
+    "id": 7191,
+    "sender": "mit-mit",
+    "content": "Sorry, we don't have a timeline we can offer for this feature.",
+    "createdAt": "2018-05-28T09:19:48Z"
+  },
+  {
+    "id": 7192,
+    "sender": "gcshri",
+    "content": "If it cannot be done as a flutter widget, is it possible that we (i.e. me) can look at editing the kotlin / swift versions of the code and using the mobile ads sdk with them? Not too sure about how Flutter works, but I assume that since it allows hooking into native APIs, this should be possible?\r\n",
+    "createdAt": "2018-05-29T09:57:01Z"
+  },
+  {
+    "id": 7193,
+    "sender": "kyleorin",
+    "content": "If devs will be able to use the AdMob package and position it using guidelines and approval of some sort it would be amazing - both from user and dev in my opinion.",
+    "createdAt": "2018-10-18T02:07:23Z"
+  },
+  {
+    "id": 7194,
+    "sender": "creativefull",
+    "content": "any progress?",
+    "createdAt": "2018-10-18T10:21:43Z"
+  },
+  {
+    "id": 7195,
+    "sender": "aqibgatoo",
+    "content": "Any progress on this. This thing is needed quite badly.",
+    "createdAt": "2018-10-18T17:02:04Z"
+  },
+  {
+    "id": 7196,
+    "sender": "Purus",
+    "content": "Does this feature require core changes to the flutter engine?",
+    "createdAt": "2018-10-26T07:27:46Z"
+  },
+  {
+    "id": 7197,
+    "sender": "Purus",
+    "content": "Does PlatformView can be of any help to achive this?\r\n\r\nhttps://medium.com/flutter-community/flutter-platformview-how-to-create-flutter-widgets-from-native-views-366e378115b6",
+    "createdAt": "2018-10-30T10:55:23Z"
+  },
+  {
+    "id": 7198,
+    "sender": "Purus",
+    "content": "Looks promising .. https://github.com/YoussefKababe/admob_flutter",
+    "createdAt": "2018-12-10T05:35:12Z"
+  },
+  {
+    "id": 7199,
+    "sender": "angel1st",
+    "content": "Any planned release on this one?",
+    "createdAt": "2019-03-01T16:15:58Z"
+  },
+  {
+    "id": 7200,
+    "sender": "Nick-Anderssohn",
+    "content": "I'm also wondering if there is a planned release or any news at all. I would love to use flutter for my upcoming project, but native ads are critical. I don't want an ugly banner at the bottom of my app...",
+    "createdAt": "2019-03-06T13:45:39Z"
+  },
+  {
+    "id": 7201,
+    "sender": "Qwerasdzxc",
+    "content": "Same thing. Native ads are necessary for a good looking application..",
+    "createdAt": "2019-03-06T13:51:53Z"
+  },
+  {
+    "id": 7202,
+    "sender": "theneshofficial",
+    "content": "Waiting for this thing for so long :'(",
+    "createdAt": "2019-03-07T02:09:57Z"
+  },
+  {
+    "id": 7203,
+    "sender": "Purus",
+    "content": "Any love for this most requested feature? Other related 3rd party packages are not maintaned. So this is the only hope.",
+    "createdAt": "2019-03-18T18:03:39Z"
+  },
+  {
+    "id": 7204,
+    "sender": "smkuhne",
+    "content": "I'm a student and want to earn some money on the side with my application, but the default ad types are just too obtrusive. I really hope something can be done about this soon.",
+    "createdAt": "2019-03-27T06:41:44Z"
+  },
+  {
+    "id": 7205,
+    "sender": "theneshofficial",
+    "content": "This looks promising. https://pub.dartlang.org/packages/flutter_google_ad_manager, just tested working as expected. \r\n\r\nThrown exception on iOS at first launch, to fix it follow the steps mention here: https://github.com/ko2ic/flutter_google_ad_manager/pull/4/commits/5ab12ad22927e1bab3615658e75636fac746fcf7. \r\n\r\nCheck https://developers.google.com/ad-manager/mobile-ads-sdk/ios/quick-start or https://developers.google.com/ad-manager/mobile-ads-sdk/android/quick-start for more detail.",
+    "createdAt": "2019-04-07T08:13:12Z"
+  },
+  {
+    "id": 7206,
+    "sender": "888MAXIMUS888",
+    "content": "I use rxDart package in my project, and get the data from the server as streams, added firebase_admob and show ads in app, but when the advertisement on the banner changes, then my streams start automatically. Why so?",
+    "createdAt": "2019-04-11T12:29:32Z"
+  },
+  {
+    "id": 7207,
+    "sender": "angel1st",
+    "content": "> Looks promising .. https://github.com/YoussefKababe/admob_flutter\r\n\r\n@Purus - any other reason preventing you from using the above mentioned plugin aside from lack of iOS and AndroidX support? I believe the latter should be resolved soon, considering the recent developments there...\r\n\r\n@theneshofficial - does https://pub.dartlang.org/packages/flutter_google_ad_manager support native ads?",
+    "createdAt": "2019-04-15T14:54:37Z"
+  },
+  {
+    "id": 7208,
+    "sender": "JaspervanRiet",
+    "content": "We have a plugin for our app that successfully implements native ads (AdMob). We have it implemented via AndroidViews and UIKitViews. Sadly the AdMob SDK forces you to embed the ad inside a UnifiedNativeAd, so you can't send the ad data to Flutter. That's also why writing a Flutter plugin for this is not at all easy. Instead, we essentially produce most of the UI in Dart, and then create all the text, images, etc in Android/iOS themselves, which is then overlaid onto the flutter UI. This works, although of course not preferable due to having to build layouts for both platforms. Nonetheless, the ads display fine, they can be clicked on, etc. \r\n\r\nHowever, there are two big blockers for us, the state of UIKitViews and performance in general. For the former, as can be seen in #25965, UIKitViews can currently not be clipped. This means they glitch through certain UI elements, such as the `TabBar`. For the latter, the problem is that embedding the platform views hits our UI performance. We've gone to great lengths to minimize the performance hit, to the point where we no longer have any method channels for this plugin (we used to be able to track when the ad had loaded, but that call was directly related to a hitch in UI performance). Nonetheless, particularly upon startup, there is a significant amount of jank related to the creation of just one of these platform views. Loading indicators and animations in general halt for around a second. This performance hit becomes less after that, but since we would ideally like to embed the ad inside a list, we are unable to maintain 60 FPS while scrolling (performance profiler shows a max of about 100 ms per frame). \r\n\r\nHere's a small sample for the Java code. The iOS side is the same thing really.\r\n\r\n```java\r\n\tprivate UnifiedNativeAd mAd;\r\n\tprivate FrameLayout mView;\r\n\r\n\tFlutterAdView(Context context, Registrar registrar, int id) {\r\n\t\tmView = ... // Create a placeholder view\r\n\r\n\t\t// request an ad\r\n\t}\r\n\r\n\t@Override\r\n\tpublic View getView() {\r\n\t\treturn mView;\r\n\t}\r\n\r\n\t@Override\r\n\tpublic void onUnifiedNativeAdLoaded(final UnifiedNativeAd unifiedNativeAd) {\r\n\t\tmAd = unifiedNativeAd;\r\n\t\t\r\n\t\t/* Inflate your layout\r\n\t\t/* ...\r\n\t\t*/\r\n\r\n\t\t/* Set your views\r\n\t\t/* ...\r\n\t\t*/\r\n\r\n\t\tadView.setNativeAd(ad);\r\n\r\n\t\tmView.addView(adView);\r\n\t}\r\n\r\n\t// Don't forget about dispose, etc\r\n\r\n\r\n```",
+    "createdAt": "2019-04-18T10:58:03Z"
+  },
+  {
+    "id": 7209,
+    "sender": "angel1st",
+    "content": "@JaspervanRiet - man, you are basically strip out the main Flutter pros - cross platform, while implementing the native Ads. I don't think it makes sense to use Flutter in your case. Would you take a look at https://github.com/YoussefKababe/admob_flutter and see if that approach wouldn't get you back to a Flutter realm?",
+    "createdAt": "2019-04-18T11:12:19Z"
+  },
+  {
+    "id": 7210,
+    "sender": "JaspervanRiet",
+    "content": "@angel1st Those are banner ads, implemented in almost the exact same way. We need native ads. We still make use of Flutter's power for every other part of the app, so your reply makes no sense to me. This is a restriction in the ad SDK, I can't imagine this changing anytime soon unless an official ad SDK for Flutter is released due to the restriction on using UnifiedNativeAd.",
+    "createdAt": "2019-04-18T11:24:32Z"
+  },
+  {
+    "id": 7211,
+    "sender": "SachinGanesh",
+    "content": "We @dreamsoftin have implemented **Facebook Audience Network** for Flutter (https://github.com/dreamsoftin/facebook_audience_network). Currently the plugin is Android only and it supports Banner, Interstitial, Rewarded Video, In Stream Video & **Native Ads.** I'm looking for some one who can help us in implementing iOS part of it.\r\n\r\nNative Ad Demo:\r\n\r\n![](https://raw.githubusercontent.com/dreamsoftin/facebook_audience_network/master/example/gifs/native.gif)\r\n",
+    "createdAt": "2019-05-06T13:39:21Z"
+  },
+  {
+    "id": 7212,
+    "sender": "matte5031",
+    "content": "Any progress? would love this to be available with flutter",
+    "createdAt": "2019-05-09T21:55:24Z"
+  },
+  {
+    "id": 7213,
+    "sender": "Ivaskuu",
+    "content": "Hey guys, devs are prioritizing the most liked (👍) issues by order, so keep upvoting the issue. Thanks!",
+    "createdAt": "2019-05-10T08:53:25Z"
+  },
+  {
+    "id": 7214,
+    "sender": "dark-chocolate",
+    "content": "I am just not able to update my flutter app because of this (native ads), if you guys can tell us when will you be implementing it, we can plan things accordingly.\r\n\r\nThank you. ",
+    "createdAt": "2019-05-13T16:32:09Z"
+  },
+  {
+    "id": 7215,
+    "sender": "Purus",
+    "content": "Untill there is an official update on this, you can use admob_flutter\npackage v 0.2.0.\n\nThanks,\n\nPurusothaman Ramanujam\n\nOn Mon, 13 May, 2019, 10:03 PM Dark Chocolate, <notifications@github.com>\nwrote:\n\n> I am just not able to update my flutter app because of this, if you guys\n> can tell us when will you be implementing it, we can plan things\n> accordingly.\n>\n> Thank you.\n>\n> —\n> You are receiving this because you were mentioned.\n> Reply to this email directly, view it on GitHub\n> <https://github.com/flutter/flutter/issues/12114?email_source=notifications&email_token=AAIHDZ245EMJ2W2HX6MIHDDPVGJ7JA5CNFSM4D3FBARKYY3PNVWWK3TUL52HS4DFVREXG43VMVBW63LNMVXHJKTDN5WW2ZLOORPWSZGODVI3QJI#issuecomment-491894821>,\n> or mute the thread\n> <https://github.com/notifications/unsubscribe-auth/AAIHDZYX4MEYBTZTHKDQQFDPVGJ7JANCNFSM4D3FBARA>\n> .\n>\n",
+    "createdAt": "2019-05-13T16:56:15Z"
+  },
+  {
+    "id": 7216,
+    "sender": "angel1st",
+    "content": "The only tricky part re `admob_flutter` is lack of iOS support. Other than that, it is far better than this one. ",
+    "createdAt": "2019-05-14T07:44:48Z"
+  },
+  {
+    "id": 7217,
+    "sender": "dark-chocolate",
+    "content": "@angel1st This thread is for native ads and even `admob_flutter` doesn't support it. ",
+    "createdAt": "2019-05-14T08:33:12Z"
+  },
+  {
+    "id": 7218,
+    "sender": "SachinGanesh",
+    "content": "Check out https://github.com/dreamsoftin/facebook_audience_network. It supports native ads.",
+    "createdAt": "2019-05-14T08:47:59Z"
+  },
+  {
+    "id": 7219,
+    "sender": "gcshri",
+    "content": "@SachinGanesh - there are serious CPM concerns with FAN.\r\n\r\n**Minor rant** that does not add anything technical to this discussion - For me is strange that Google does not support its top revenue earning product (advertising) on what is supposed to be its hottest framework for developers. There is a disconnect in the force. :) ",
+    "createdAt": "2019-05-15T01:20:48Z"
+  },
+  {
+    "id": 7220,
+    "sender": "FarmaanElahi",
+    "content": "> Check out https://github.com/dreamsoftin/facebook_audience_network. It supports native ads.\r\n\r\n@SachinGanesh Is support for native ads possible on iOS?",
+    "createdAt": "2019-05-17T09:03:43Z"
+  },
+  {
+    "id": 7221,
+    "sender": "naeem-hasan",
+    "content": "Checking in. Please make this plugin better!",
+    "createdAt": "2019-05-25T13:42:41Z"
+  },
+  {
+    "id": 7222,
+    "sender": "liugangnhm",
+    "content": "we all need this😁😁",
+    "createdAt": "2019-05-28T16:02:37Z"
+  },
+  {
+    "id": 7223,
+    "sender": "theneshofficial",
+    "content": "This plugin is updated to support iOS as well to show inline admob ads but native ads not supported yet. https://pub.dev/packages/admob_flutter ",
+    "createdAt": "2019-06-03T04:26:02Z"
+  },
+  {
+    "id": 7224,
+    "sender": "nodinosaur",
+    "content": "I work for a **very large** publisher with a reach of millions of readers daily (_I have spoken with various members of the Flutter Team and they know the publisher which I refer to_). We have an MVP Flutter app, which is fine to release with basic firebase_admob, but we are looking at creating another app which will require [DFP](https://en.wikipedia.org/wiki/DoubleClick_for_Publishers) ads, and the lack of support for native ads is a blocker. This is  disappointing as we have invested resources into the Flutter and are held back by possibly the most important aspect for a lot of app developers. POI: Most of our Ad partners use HTML views and JavaScript inside WebViews.\r\n\r\nReading through some of the posts made above in this thread is it clear that many have attempted to resolve this issue in similar ways to our own development team, but these are approaches do not satisfy ad-network requirements, their own fraud-detection techniques and it is fundamentally something that needs to be addressed by the Flutter team.\r\n\r\nI would like to stress that is is very important to elevate this issue as it will ultimately have an effect on the adoption of Flutter in businesses where ads are an important channel of income.\r\n\r\nExamples of ads we are required to show include ones similar to these:\r\nhttps://vimeo.com/186510665\r\n\r\n#### Update:\r\nSome further background, when testing our example with Teads, the ad is displayed and the embedded video plays, however the log shows an issue with correct viewability tracking:\r\n```Teads:\r\nW/teads#Visibility(17978): The Teads AdView is visible at 0%, hidded by 1 View(s):\r\nW/teads#Visibility(17978):   -  View of class io.flutter.plugin.platform.SingleViewPresentation$FakeWindowViewGroup, with id: -1, with contentDescription: null, with a size of: [width: 1050, height: 875] is hidding 100% of the ad```",
+    "createdAt": "2019-06-11T15:54:50Z"
+  },
+  {
+    "id": 7225,
+    "sender": "SachinGanesh",
+    "content": "> > Check out https://github.com/dreamsoftin/facebook_audience_network. It supports native ads.\r\n> \r\n> @SachinGanesh Is support for native ads possible on iOS?\r\n\r\nYes. It is possible with the UiKitView widget. But native ads for iOS are not yet implemented in [facebook_audience_network](https://github.com/dreamsoftin/facebook_audience_network)",
+    "createdAt": "2019-06-13T07:13:29Z"
+  },
+  {
+    "id": 7226,
+    "sender": "hermitdave",
+    "content": "I work with @nodinosaur and to add to his point, we have an upcoming project that would be great with Flutter but no movement on DFP / ads would imply no flutter.",
+    "createdAt": "2019-06-14T10:05:24Z"
+  },
+  {
+    "id": 7227,
+    "sender": "slightfoot",
+    "content": "@jonataslaw thank you for your feedback. Native DFP ads work. Some publishers like Teads use their own visibility detection code. I believe I have resolved this.\r\n\r\nThe related code is https://github.com/flutter/engine/blob/master/shell/platform/android/io/flutter/plugin/platform/SingleViewPresentation.java\r\n\r\nAs explained at the top of the code:\r\n```java\r\n/*\r\n * A presentation used for hosting a single Android view in a virtual display.\r\n *\r\n * This presentation overrides the WindowManager's addView/removeView/updateViewLayout methods, such that views added\r\n * directly to the WindowManager are added as part of the presentation's view hierarchy (to fakeWindowViewGroup).\r\n *\r\n * The view hierarchy for the presentation is as following:\r\n *\r\n *          rootView\r\n *         /         \\\r\n *        /           \\\r\n *       /             \\\r\n *   container       state.fakeWindowViewGroup\r\n *      |\r\n *   EmbeddedView\r\n */\r\n```\r\n\r\nThis `fakeWindowViewGroup` is placed over the top of the `EmbeddedView`, even though its transparent Teads at least believes it is covering the entire view. The `fakeWindowViewGroup` is required so that when popup menus and panels are added they are positioned above the native view.\r\n\r\nThis however can actually be achieved slightly differently. The first view in `fakeWindowViewGroup` should be the `container`. This then makes the `fakeWindowViewGroup` the parent not a sibling. The `addView`/`removeView`/etc callbacks of the WindowManager can then just add and remove views as they do now, which places view's \"on top\" of the `EmbeddedView` because that is the standard drawing order in Android. Solving the issue that the `fakeWindowViewGroup` sibling is covering up the `EmbeddedView`.\r\n\r\n/cc @amirh \r\n",
+    "createdAt": "2019-06-17T13:12:13Z"
+  },
+  {
+    "id": 7228,
+    "sender": "slightfoot",
+    "content": "I have tested my own local embedded view code, just for testing.\r\n```java\r\nprivate void findAndHideFakeWindowManagerViewGroup()\r\n{\r\n\tfinal ViewGroup parent = (ViewGroup) ((ViewGroup) getParent()).getParent();\r\n\tparent.getChildAt(1).setVisibility(View.INVISIBLE);\r\n}\r\n```\r\nAnd this resolved the issue. So, if the platform `SingleViewPresentation.java` is adjusted to work like my previous comment suggested it will resolve the issue.\r\n\r\n__This is not a solution.. it is a workaround. If your embedded-view tries to display a dialog or popup menu, or fullscreen view. It will not be displayed when using the above code. Please wait for the PR to be merged in__",
+    "createdAt": "2019-06-17T13:14:02Z"
+  },
+  {
+    "id": 7229,
+    "sender": "slightfoot",
+    "content": "PR is attached that should resolve the issue on Android. I do not know if the same issue exists on iOS. I am currently not able to build the engine to test it, so someone will need to run off a build. If the team can do this directly, we can then verify the custom engine build against the local ad-SDKs to verify the fix works.",
+    "createdAt": "2019-06-17T15:11:58Z"
+  },
+  {
+    "id": 7230,
+    "sender": "RaresMihalcea",
+    "content": "Is there any progress on this feature or a timeline we can look forward to?",
+    "createdAt": "2019-06-21T20:00:03Z"
+  },
+  {
+    "id": 7231,
+    "sender": "komapeb",
+    "content": "@RaresMihalcea it's set for the [Future](https://github.com/flutter/flutter/milestone/10) milestone (Due by January 01, 2033), which is somewhat disturbing, considering the importance of this feature. I suspect missing support for native admob ads is a game-changer for a lot of developers.",
+    "createdAt": "2019-06-22T08:01:26Z"
+  }
+]

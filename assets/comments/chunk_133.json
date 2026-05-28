@@ -1,0 +1,386 @@
+[
+  {
+    "id": 8512,
+    "sender": "lielvan",
+    "content": "Currently experiencing the same issue on Samsung Galaxy S20 physical device.\r\nRunning latest available build - TP1A.220624.014\r\n\r\n<details>\r\n<summary>flutter doctor -v</summary>\r\n\r\n```\r\n[✓] Flutter (Channel stable, 3.3.9, on macOS 12.6 21G115 darwin-arm, locale en-IL)\r\n    • Flutter version 3.3.9 on channel stable at /Users/lielvdh/Developer/flutter\r\n    • Upstream repository https://github.com/flutter/flutter.git\r\n    • Framework revision b8f7f1f986 (4 weeks ago), 2022-11-23 06:43:51 +0900\r\n    • Engine revision 8f2221fbef\r\n    • Dart version 2.18.5\r\n    • DevTools version 2.15.0\r\n\r\n[✓] Android toolchain - develop for Android devices (Android SDK version 32.1.0-rc1)\r\n    • Android SDK at /Users/lielvdh/Library/Android/sdk\r\n    • Platform android-33, build-tools 32.1.0-rc1\r\n    • Java binary at: /Applications/Android Studio.app/Contents/jre/Contents/Home/bin/java\r\n    • Java version OpenJDK Runtime Environment (build 11.0.13+0-b1751.21-8125866)\r\n    • All Android licenses accepted.\r\n\r\n[✓] Xcode - develop for iOS and macOS (Xcode 14.2)\r\n    • Xcode at /Applications/Xcode.app/Contents/Developer\r\n    • Build 14C18\r\n    • CocoaPods version 1.11.3\r\n\r\n[✓] Chrome - develop for the web\r\n    • Chrome at /Applications/Google Chrome.app/Contents/MacOS/Google Chrome\r\n\r\n[✓] Android Studio (version 2021.3)\r\n    • Android Studio at /Applications/Android Studio.app/Contents\r\n    • Flutter plugin can be installed from:\r\n      🔨 https://plugins.jetbrains.com/plugin/9212-flutter\r\n    • Dart plugin can be installed from:\r\n      🔨 https://plugins.jetbrains.com/plugin/6351-dart\r\n    • Java version OpenJDK Runtime Environment (build 11.0.13+0-b1751.21-8125866)\r\n\r\n[✓] VS Code (version 1.73.1)\r\n    • VS Code at /Applications/Visual Studio Code.app/Contents\r\n    • Flutter extension can be installed from:\r\n      🔨 https://marketplace.visualstudio.com/items?itemName=Dart-Code.flutter\r\n\r\n[✓] Connected device (3 available)\r\n    • SM G781B (mobile) • ******* • android-arm64  • Android 13 (API 33)\r\n    • macOS (desktop)   • macos       • darwin-arm64   • macOS 12.6 21G115 darwin-arm\r\n    • Chrome (web)      • chrome      • web-javascript • Google Chrome 108.0.5359.124\r\n\r\n[✓] HTTP Host Availability\r\n    • All required HTTP hosts are available\r\n\r\n• No issues found!\r\n```\r\n</details>",
+    "createdAt": "2022-12-20T11:21:57Z"
+  },
+  {
+    "id": 8513,
+    "sender": "vishw8878",
+    "content": "@lielvan  \r\n camera: ^0.10.0+1\r\nminSdkVersion 21\r\ntargetSdkVersion 30\r\nabove setting work for me\r\n",
+    "createdAt": "2022-12-22T12:33:24Z"
+  },
+  {
+    "id": 8514,
+    "sender": "rivella50",
+    "content": "@Vish88781 As mentioned above some users cannot go down from targetSdkVersion 33.",
+    "createdAt": "2022-12-23T09:55:06Z"
+  },
+  {
+    "id": 8515,
+    "sender": "Harrys76",
+    "content": "is there any PR or permanent solution about this issue?",
+    "createdAt": "2022-12-23T10:18:22Z"
+  },
+  {
+    "id": 8516,
+    "sender": "1N50MN14",
+    "content": "@Harrys76 I've tested @MbIXjkee's PR (by overriding camera_android from his repo) I had hoped it would solve the issue but `startVideoRecording()` seems to cause a crash.",
+    "createdAt": "2022-12-23T10:41:21Z"
+  },
+  {
+    "id": 8517,
+    "sender": "vishw8878",
+    "content": "@rivella50  , in this case you can go with image_picker plugin until we have fix solution in all format ,I Suggest",
+    "createdAt": "2022-12-23T18:14:02Z"
+  },
+  {
+    "id": 8518,
+    "sender": "jiyeonjoy",
+    "content": "targetSdkVersion 33 \r\n\r\nphoto_manager: ^2.5.2  // good\r\ncamera: ^0.10.1 // error\r\n\r\n java.lang.NullPointerException: Attempt to invoke virtual method 'int android.media.EncoderProfiles$VideoProfile.getWidth()' on a null object reference\r\n\r\n[✓] Flutter (Channel stable, 3.3.3, on macOS 12.6 21G115 darwin-arm, locale ko-KP)\r\n[✓] Android toolchain - develop for Android devices (Android SDK version 33.0.0-rc2)\r\n[✓] Xcode - develop for iOS and macOS (Xcode 14.2)\r\n[✓] Chrome - develop for the web\r\n[✓] Android Studio (version 2021.3)\r\n[✓] VS Code (version 1.70.1)\r\n[✓] Connected device (3 available)\r\n[✓] HTTP Host Availability\r\n\r\n• No issues found!\r\n\r\n\r\n",
+    "createdAt": "2022-12-26T02:49:25Z"
+  },
+  {
+    "id": 8519,
+    "sender": "ShaplaReformedT",
+    "content": "is there any solution available? i am facing the same issue while recording on android 13",
+    "createdAt": "2022-12-27T09:48:32Z"
+  },
+  {
+    "id": 8520,
+    "sender": "Harrys76",
+    "content": "@ShaplaReformedT I think right now, I'll go with image_picker plugin using ImageSource.camera, but the only issue that i'm facing is, it can't customize the camera UI",
+    "createdAt": "2022-12-27T12:19:55Z"
+  },
+  {
+    "id": 8521,
+    "sender": "elmar001",
+    "content": "Guys, one of the earlist patches mentioned above by me fixes the issue totally for taking photos in all Pixel Android 13 devices:\r\n\r\n```\r\ndependency_overrides:\r\n  camera_android:\r\n    git:\r\n      url: https://github.com/elmar001/plugins.git\r\n      path: packages/camera/camera_android\r\n      ref: 5172b44088a4082ff0899594614c5380457d341b\r\n```\r\n\r\nIt is tested and currently in use in my producation app. There may be an issue with recording a video only which mentioned by some other developers. If it does not work, you most probably did not add the dependecy correctly and it is not overriding camera package. ",
+    "createdAt": "2022-12-27T23:43:42Z"
+  },
+  {
+    "id": 8522,
+    "sender": "aliyazdi75",
+    "content": "Can you please stop spamming? We are all aware of the issues and we subscribed to see actual updates. You can ask your questions in other platforms.",
+    "createdAt": "2022-12-28T01:49:26Z"
+  },
+  {
+    "id": 8523,
+    "sender": "andrey1997acer1",
+    "content": "Just pass the compileSdkVersion 33 to 32, so, We force use API Android 12 in Android 13.\r\nIt's working for me.\r\n\r\ncamera: ^0.10.0+4\r\n\r\n",
+    "createdAt": "2022-12-28T16:58:17Z"
+  },
+  {
+    "id": 8524,
+    "sender": "debojyoti-cmd",
+    "content": "> Just pass the compileSdkVersion 33 to 32, so, We force use API Android 12 in Android 13. It's working for me.\r\n> \r\n> camera: ^0.10.0+4\r\n\r\nIt's not a proper fix.",
+    "createdAt": "2023-01-02T13:30:21Z"
+  },
+  {
+    "id": 8525,
+    "sender": "camsim99",
+    "content": "I will report the issue with the TQ1A* builds. Just to reiterate, the fix is in those builds so, TP* builds are still expected to fail.",
+    "createdAt": "2023-01-05T21:50:15Z"
+  },
+  {
+    "id": 8526,
+    "sender": "debojyoti452",
+    "content": "I debugged the issue and it seems it is coming from the Android 13 OS. Either way, @googlebot needs to update documentation for solving the issue, or we need to find any other way to use the camera package. ",
+    "createdAt": "2023-01-06T08:03:37Z"
+  },
+  {
+    "id": 8527,
+    "sender": "ianfmc",
+    "content": "> I will report the issue with the TQ1A* builds. Just to reiterate, the fix is in those builds so, TP* builds are still expected to fail.\r\n\r\n@camsim99: what does this mean? how can I be sure I'm using a TQ1A* build? which library is this? please clarify.",
+    "createdAt": "2023-01-06T20:01:51Z"
+  },
+  {
+    "id": 8528,
+    "sender": "adiiisanjayaa",
+    "content": "any update for this issue?",
+    "createdAt": "2023-01-07T05:33:53Z"
+  },
+  {
+    "id": 8529,
+    "sender": "rknell",
+    "content": "All you clownin dawgs asking for updates need to learn some patience or solve it yourselves and post back here with a solution better than the workaround.",
+    "createdAt": "2023-01-07T12:50:20Z"
+  },
+  {
+    "id": 8530,
+    "sender": "Harishwarrior",
+    "content": "> > I will report the issue with the TQ1A* builds. Just to reiterate, the fix is in those builds so, TP* builds are still expected to fail.\n> \n> @camsim99: what does this mean? how can I be sure I'm using a TQ1A* build? which library is this? please clarify.\n\nThe problem is with Android 13. The latest TQ1A* build fixed this issue. Check the build number on your device for details.",
+    "createdAt": "2023-01-08T08:16:35Z"
+  },
+  {
+    "id": 8531,
+    "sender": "camsim99",
+    "content": "@ianfmc You can check the build number by following the steps in this article: https://support.google.com/android/answer/7680439?hl=en.",
+    "createdAt": "2023-01-09T18:35:07Z"
+  },
+  {
+    "id": 8532,
+    "sender": "camsim99",
+    "content": "There is a PR under review to workaround this bug from @MbIXjkee in the meantime, as well: https://github.com/flutter/plugins/pull/6867",
+    "createdAt": "2023-01-09T18:36:22Z"
+  },
+  {
+    "id": 8533,
+    "sender": "OmarHatem28",
+    "content": "> @acoutts\r\n> \r\n> Thanks for the quick fix, camera works and we can see the camera but when we start recording video (`startVideoRecording`)it gets this error: (but taking picture works fine)\r\n> \r\n> ```\r\n> E/MethodChannel#plugins.flutter.io/camera_android( 6270): Failed to handle method call\r\n> E/MethodChannel#plugins.flutter.io/camera_android( 6270): java.lang.NullPointerException: Attempt to invoke virtual method 'java.util.List android.media.EncoderProfiles.getVideoProfiles()' on a null object reference\r\n> ```\r\n\r\nHere is a quick fix for both Camera and Video recording with the help of @acoutts and @elmar001 PRs\r\n\r\n```yaml\r\ndependency_overrides:\r\n  camera_android:\r\n    git:\r\n      url: https://github.com/OmarHatem28/plugins.git\r\n      path: packages/camera/camera_android\r\n      ref: 8550e0e698f3d358f42d60b090320dea7c3c0775\r\n```\r\n\r\nIt uses the legacy functions for both camera and video in only targetSdkVersion 33\r\n\r\nfor some reason, the PR under review by @MbIXjkee didn't work with video recording and still threw the above exception although the file changes seem logical",
+    "createdAt": "2023-01-14T03:38:22Z"
+  },
+  {
+    "id": 8534,
+    "sender": "MohamedSafvanKP-MSIL",
+    "content": "Fatal Exception: java.lang.IllegalStateException: CameraDevice was already closed\r\n       at android.hardware.camera2.impl.CameraDeviceImpl.checkIfCameraClosedOrInError(CameraDeviceImpl.java:2492)\r\n       at android.hardware.camera2.impl.CameraDeviceImpl.createCaptureSessionInternal(CameraDeviceImpl.java:734)\r\n       at android.hardware.camera2.impl.CameraDeviceImpl.createCaptureSession(CameraDeviceImpl.java:719)\r\n       at io.flutter.plugins.camera.Camera$DefaultCameraDeviceWrapper.createCaptureSession(Camera.java:175)\r\n       at io.flutter.plugins.camera.Camera.createCaptureSessionWithSessionConfig(Camera.java:479)\r\n       at io.flutter.plugins.camera.Camera.createCaptureSession(Camera.java:465)\r\n       at io.flutter.plugins.camera.Camera.createCaptureSession(Camera.java:387)\r\n       at io.flutter.plugins.camera.Camera.startPreview(Camera.java:1074)\r\n       at io.flutter.plugins.camera.Camera$1.onOpened(Camera.java:322)\r\n       at android.hardware.camera2.impl.CameraDeviceImpl$1.run(CameraDeviceImpl.java:205)\r\n       at android.os.Handler.handleCallback(Handler.java:938)\r\n       at android.os.Handler.dispatchMessage(Handler.java:99)\r\n       at android.os.Looper.loopOnce(Looper.java:233)\r\n       at android.os.Looper.loop(Looper.java:334)\r\n       at android.os.HandlerThread.run(HandlerThread.java:67)\r\n\r\nfacing the crash issues and count also getting higher\r\naffected android versions \r\nAndroid 11, 12, and 13,\r\ncamera plugin used :   camera: ^0.10.0",
+    "createdAt": "2023-01-24T05:37:15Z"
+  },
+  {
+    "id": 8535,
+    "sender": "exaby73",
+    "content": "@MohamedSafvanKP-MSIL This seems like a different issue than the one highlighted here. I suggest searching on StackOverflow or finding help on https://flutter.dev/community. If this is indeed a Flutter issue, you can file a new issue :)",
+    "createdAt": "2023-01-24T08:54:54Z"
+  },
+  {
+    "id": 8536,
+    "sender": "MohamedSafvanKP-MSIL",
+    "content": "The issue facing in flutter camera plugin,\r\ncamera: ^0.10.0\r\nhttps://pub.dev/packages/camera",
+    "createdAt": "2023-01-24T09:00:52Z"
+  },
+  {
+    "id": 8537,
+    "sender": "josh88versa",
+    "content": "Hi Everyone, is this issue resolved in the latest release? \r\ncamera: `^0.10.2+1`",
+    "createdAt": "2023-01-25T02:04:21Z"
+  },
+  {
+    "id": 8538,
+    "sender": "Mmisiek",
+    "content": "I have same problem with 0.10.2+1 camera is blank with SDK 33 ( I had to update from 31 where is was working) ",
+    "createdAt": "2023-01-25T04:18:08Z"
+  },
+  {
+    "id": 8539,
+    "sender": "exaby73",
+    "content": "Hello. Instead of commenting \"same problem\" or asking if it's been fixed. Please use the thumbs up reaction on the original post. See how [the team uses this to prioritize issues](https://github.com/flutter/flutter/wiki/Issue-hygiene#thumbs-up-reactions). Thank you",
+    "createdAt": "2023-01-25T07:06:36Z"
+  },
+  {
+    "id": 8540,
+    "sender": "MichalOneNav",
+    "content": "> Hello. Instead of commenting \"same problem\" or asking if it's been fixed. Please use the thumbs up reaction on the original post. See how [the team uses this to prioritize issues](https://github.com/flutter/flutter/wiki/Issue-hygiene#thumbs-up-reactions). Thank you\r\n\r\nDone and Done. The fixed code from private repo works.",
+    "createdAt": "2023-01-25T07:08:25Z"
+  },
+  {
+    "id": 8541,
+    "sender": "Joren-Thijs-KasparSolutions",
+    "content": "We ran into this today after upgrading to flutter 3.7. also using Sdk 33. We ended up downgrading to flutter 3.3.10 and now it works again.\r\n\r\n<details>\r\n<summary>pubspec lock camera</summary>\r\n```\r\ncamera:\r\n    dependency: \"direct main\"\r\n      description:\r\n      name: camera\r\n      url: \"https://pub.dartlang.org\"\r\n    source: hosted\r\n    version: \"0.10.2+1\"\r\n  camera_android:\r\n    dependency: transitive\r\n    description:\r\n      name: camera_android\r\n      url: \"https://pub.dartlang.org\"\r\n    source: hosted\r\n    version: \"0.10.2+3\"\r\n  camera_avfoundation:\r\n    dependency: transitive\r\n    description:\r\n      name: camera_avfoundation\r\n      url: \"https://pub.dartlang.org\"\r\n    source: hosted\r\n    version: \"0.9.10+2\"\r\n  camera_platform_interface:\r\n    dependency: transitive\r\n    description:\r\n      name: camera_platform_interface\r\n      url: \"https://pub.dartlang.org\"\r\n    source: hosted\r\n    version: \"2.3.4\"\r\n  camera_web:\r\n    dependency: transitive\r\n    description:\r\n      name: camera_web\r\n      url: \"https://pub.dartlang.org\"\r\n    source: hosted\r\n    version: \"0.3.1+1\"\r\n```\r\n</details>\r\n\r\n<details>\r\n<summary>flutter doctor -v</summary>\r\n```\r\n[✓] Flutter (Channel stable, 3.3.10, on Microsoft Windows [Version 10.0.22621.1105], locale en-BE)\r\n    • Flutter version 3.3.10 on channel stable at C:\\tools\\flutter\r\n    • Upstream repository https://github.com/flutter/flutter.git\r\n    • Framework revision 135454af32 (6 weeks ago), 2022-12-15 07:36:55 -0800\r\n    • Engine revision 3316dd8728\r\n    • Dart version 2.18.6\r\n    • DevTools version 2.15.0\r\n\r\n[✓] Android toolchain - develop for Android devices (Android SDK version 32.0.0-rc1)\r\n    • Android SDK at C:\\Users\\jt\\AppData\\Local\\Android\\sdk\r\n    • Platform android-33, build-tools 32.0.0-rc1\r\n    • Java binary at:\r\n      C:\\Users\\jt\\AppData\\Local\\JetBrains\\Toolbox\\apps\\AndroidStudio\\ch-0\\213.7172.25.2113.9123335\\jre\\bin\\java\r\n    • Java version OpenJDK Runtime Environment (build 11.0.13+0-b1751.21-8125866)\r\n    • All Android licenses accepted.\r\n\r\n[✓] Chrome - develop for the web\r\n    • Chrome at C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe\r\n\r\n[✓] Visual Studio - develop for Windows (Visual Studio Community 2022 17.4.3)\r\n    • Visual Studio at C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\r\n    • Visual Studio Community 2022 version 17.4.33205.214\r\n    • Windows 10 SDK version 10.0.19041.0\r\n\r\n[✓] Android Studio (version 2021.3)\r\n    • Android Studio at C:\\Users\\jt\\AppData\\Local\\JetBrains\\Toolbox\\apps\\AndroidStudio\\ch-0\\213.7172.25.2113.9123335\r\n    • Flutter plugin version 71.2.3\r\n    • Dart plugin version 213.7433\r\n    • Java version OpenJDK Runtime Environment (build 11.0.13+0-b1751.21-8125866)\r\n\r\n[✓] VS Code, 64-bit edition (version 1.74.3)\r\n    • VS Code at C:\\Program Files\\Microsoft VS Code\r\n    • Flutter extension version 3.56.0\r\n\r\n[✓] Connected device (4 available)\r\n    • SM A526B (mobile) • R5CR41AMFEN • android-arm64  • Android 13 (API 33)\r\n    • Windows (desktop) • windows     • windows-x64    • Microsoft Windows [Version 10.0.22621.1105]\r\n    • Chrome (web)      • chrome      • web-javascript • Google Chrome 107.0.5304.107\r\n    • Edge (web)        • edge        • web-javascript • Microsoft Edge 109.0.1518.61\r\n\r\n[✓] HTTP Host Availability\r\n    • All required HTTP hosts are available\r\n\r\n• No issues found!\r\n```\r\n</details>",
+    "createdAt": "2023-01-27T10:17:19Z"
+  },
+  {
+    "id": 8542,
+    "sender": "jiyeonjoy",
+    "content": "Rather, I have to update to flutter 3.7.0 and then set target sdk 33 and it works!\r\n\r\n(base) jiyeonchoi@JYC jn_flutter_app % flutter doctor\r\nDoctor summary (to see all details, run flutter doctor -v):\r\n[✓] Flutter (Channel stable, 3.7.0, on macOS 12.6 21G115 darwin-arm64, locale ko-KP)\r\n[✓] Android toolchain - develop for Android devices (Android SDK version 33.0.0-rc2)\r\n[✓] Xcode - develop for iOS and macOS (Xcode 14.2)\r\n[✓] Chrome - develop for the web\r\n[✓] Android Studio (version 2021.3)\r\n[✓] VS Code (version 1.70.1)\r\n[✓] Connected device (4 available)\r\n[✓] HTTP Host Availability\r\n\r\n• No issues found!\r\n\r\ntargetSdkVersion 33 //flutter.targetSdkVersion\r\n\r\n\r\n camera: ^0.10.1\r\n\r\n\r\ncamera_android:\r\n    git:\r\n      url: https://github.com/OmarHatem28/plugins.git\r\n      path: packages/camera/camera_android\r\n      ref: 8550e0e698f3d358f42d60b090320dea7c3c0775\r\n",
+    "createdAt": "2023-01-30T00:10:26Z"
+  },
+  {
+    "id": 8543,
+    "sender": "josh88versa",
+    "content": "> Hello. Instead of commenting \"same problem\" or asking if it's been fixed. Please use the thumbs up reaction on the original post. See how [the team uses this to prioritize issues](https://github.com/flutter/flutter/wiki/Issue-hygiene#thumbs-up-reactions). Thank you\r\n\r\nHi @exaby73, There's hasn't been any movement on this issue for quite some time now. That is the reason for asking if this issue been resolved. It isn't wrong to ask if the issue has been fixed. Some of us have already reacted thumbs up to the OP post and yet this has not been prioritise given that it is a critical bug.",
+    "createdAt": "2023-01-30T01:36:21Z"
+  },
+  {
+    "id": 8544,
+    "sender": "MohamedSafvanKP-MSIL",
+    "content": "Fatal Exception: java.lang.IllegalStateException: CameraDevice was already closed\r\n       at android.hardware.camera2.impl.CameraDeviceImpl.checkIfCameraClosedOrInError(CameraDeviceImpl.java:2236)\r\n       at android.hardware.camera2.impl.CameraDeviceImpl.createCaptureSessionInternal(CameraDeviceImpl.java:658)\r\n       at android.hardware.camera2.impl.CameraDeviceImpl.createCaptureSession(CameraDeviceImpl.java:644)\r\n       at io.flutter.plugins.camera.Camera$DefaultCameraDeviceWrapper.createCaptureSession(Camera.java:175)\r\n       at io.flutter.plugins.camera.Camera.createCaptureSessionWithSessionConfig(Camera.java:479)\r\n       at io.flutter.plugins.camera.Camera.createCaptureSession(Camera.java:465)\r\n       at io.flutter.plugins.camera.Camera.createCaptureSession(Camera.java:387)\r\n       at io.flutter.plugins.camera.Camera.startPreview(Camera.java:1074)\r\n       at io.flutter.plugins.camera.Camera$1.onOpened(Camera.java:322)\r\n       at android.hardware.camera2.impl.CameraDeviceImpl$1.run(CameraDeviceImpl.java:151)\r\n       at android.os.Handler.handleCallback(Handler.java:938)\r\n       at android.os.Handler.dispatchMessage(Handler.java:99)\r\n       at android.os.Looper.loop(Looper.java:246)\r\n       at android.os.HandlerThread.run(HandlerThread.java:67)\r\n\r\nthe crash happened at the camera plugin.\r\ncamera: ^0.10.0\r\nhttps://pub.dev/packages/camera\r\n\r\nany one can help with this?\r\n",
+    "createdAt": "2023-01-30T05:08:04Z"
+  },
+  {
+    "id": 8545,
+    "sender": "exaby73",
+    "content": "@josh88versa With the release of 3.7, there are a few issues and regressions that have appeared. While the team works on those, they will eventually get to this issue. There is still time until Play Store required SDK target 33 (I believe we have time till August of this year), so for now, you can try the multiple workarounds in this thread while the team works on it. Rest be assured, they are very aware of this issue, and are probably discussing, or even implementing a fix as we speak :) As I understand from the conversation of this bug, it's not a simple one to fix as there have been some attempts and while it works for some, it doesn't work for others",
+    "createdAt": "2023-01-30T07:08:16Z"
+  },
+  {
+    "id": 8546,
+    "sender": "rivella50",
+    "content": "@elmar001 To which versions of the camera package does your fix in camera_android apply to?\r\nAnd what about other devices than Google Pixel (e.g. Samsung Galaxy) which also run Android 13 meanwhile?",
+    "createdAt": "2023-01-30T12:33:38Z"
+  },
+  {
+    "id": 8547,
+    "sender": "forYouDevelop",
+    "content": "I have the same problem with Samsung Galaxy android 13. Flutter version 3.7.0\r\nCaused by java.lang.NullPointerException\r\nAttempt to invoke virtual method 'int android.media.EncoderProfiles$VideoProfile.getWidth()' on a null object reference",
+    "createdAt": "2023-01-30T20:32:07Z"
+  },
+  {
+    "id": 8548,
+    "sender": "camsim99",
+    "content": "To update this issue, I started working on a PR to fix this issue https://github.com/flutter/plugins/pull/7073, based on the discussion and https://github.com/flutter/plugins/pull/6867.",
+    "createdAt": "2023-02-01T00:53:03Z"
+  },
+  {
+    "id": 8549,
+    "sender": "elmar001",
+    "content": "> @elmar001 To which versions of the camera package does your fix in camera_android apply to? And what about other devices than Google Pixel (e.g. Samsung Galaxy) which also run Android 13 meanwhile?\r\n\r\nMy solution fixes issue on all Android 13s for taking photo. Myself tested prod app with this fix in Galaxy A13 Android 13 and Google Pixel 4A Android 13. Some other people reported here above that capturing video may still have problem. My app does not use video capturing so I am unaware about that.",
+    "createdAt": "2023-02-01T04:53:31Z"
+  },
+  {
+    "id": 8550,
+    "sender": "rivella50",
+    "content": "@elmar001 Thank you. But i meant the version(s) of the camera package itself. Your fix is from October 10, this means version 0.10.0+3. But what about e.g. the current version 0.10.3?",
+    "createdAt": "2023-02-01T06:40:48Z"
+  },
+  {
+    "id": 8551,
+    "sender": "elmar001",
+    "content": "> @elmar001 Thank you. But i meant the version(s) of the camera package itself. Your fix is from October 10, this means version 0.10.0+3. But what about e.g. the current version 0.10.3?\r\nI have not updated to the newer version of that package yet. Still using old one as it works without any issue. Not sure about newer version you are mentioning. \r\n",
+    "createdAt": "2023-02-01T07:00:38Z"
+  },
+  {
+    "id": 8552,
+    "sender": "hirensamtani",
+    "content": "The issue is still not resolved in 0.10.3. \r\nSimply try running the example code of this plugin with compileSDK 33. The steps are reproduced.\r\nPatching it by compiling through SDK 31 is not an adequate solution as many plugins now require SDK 33.\r\nRequest to escalate this issue to priority.",
+    "createdAt": "2023-02-01T09:49:01Z"
+  },
+  {
+    "id": 8553,
+    "sender": "faisalmushtaq007",
+    "content": "i am getting same issue",
+    "createdAt": "2023-02-03T04:31:02Z"
+  },
+  {
+    "id": 8554,
+    "sender": "zq0flaz",
+    "content": "i am getting same issue in version 0.10.3",
+    "createdAt": "2023-02-03T10:00:31Z"
+  },
+  {
+    "id": 8555,
+    "sender": "faisalmushtaq007",
+    "content": "why is this issue closed???\r\n",
+    "createdAt": "2023-02-06T12:18:12Z"
+  },
+  {
+    "id": 8556,
+    "sender": "lohnn",
+    "content": "Looks like it is fixed with the workaround from this:\r\nhttps://github.com/flutter/plugins/pull/7073\r\nHowever it seems like it is not released to pub.dev yet.",
+    "createdAt": "2023-02-06T12:38:11Z"
+  },
+  {
+    "id": 8557,
+    "sender": "PerLycke",
+    "content": "It's released: https://pub.dev/packages/camera_android\n\nJust run ’pub upgrade’\n\nOn Mon, 6 Feb 2023, 13:38 Johannes Löhnn, ***@***.***> wrote:\n\n> Looks like it is fixed with the workaround from this:\n> flutter/plugins#7073 <https://github.com/flutter/plugins/pull/7073>\n> However it seems like it is not released to pub.dev yet.\n>\n> —\n> Reply to this email directly, view it on GitHub\n> <https://github.com/flutter/flutter/issues/109769#issuecomment-1419016837>,\n> or unsubscribe\n> <https://github.com/notifications/unsubscribe-auth/ACBRLABVRI54ZTKWQOMLTADWWDWEHANCNFSM564NDLVA>\n> .\n> You are receiving this because you are subscribed to this thread.Message\n> ID: ***@***.***>\n>\n",
+    "createdAt": "2023-02-06T12:45:08Z"
+  },
+  {
+    "id": 8558,
+    "sender": "faisalmushtaq007",
+    "content": "@PerLycke why havent they updated https://pub.dev/packages/camera package",
+    "createdAt": "2023-02-06T16:35:01Z"
+  },
+  {
+    "id": 8559,
+    "sender": "PerLycke",
+    "content": "> @PerLycke why havent they updated https://pub.dev/packages/camera package\n\nBecause it's not needed. It's a transitive dependency which got an incremental update and will be updated if you run the upgrade command.",
+    "createdAt": "2023-02-06T16:43:17Z"
+  },
+  {
+    "id": 8560,
+    "sender": "mauriziopinotti",
+    "content": "I confirm upgrading `camera_android` to 0.10.4 works even after reverting `targetSdkVersion` to 33 :+1: ",
+    "createdAt": "2023-02-06T21:27:42Z"
+  },
+  {
+    "id": 8561,
+    "sender": "baek-b",
+    "content": "> I confirm upgrading `camera_android` to 0.10.4 works even after reverting `targetSdkVersion` to 33 :+1: \n\nWhat's your minSDK version?",
+    "createdAt": "2023-02-06T21:40:40Z"
+  },
+  {
+    "id": 8562,
+    "sender": "mauriziopinotti",
+    "content": "> > I confirm upgrading `camera_android` to 0.10.4 works even after reverting `targetSdkVersion` to 33 +1\r\n> \r\n> What's your minSDK version?\r\n\r\n21 but it shouldn't be relevant.\r\n",
+    "createdAt": "2023-02-06T21:42:34Z"
+  },
+  {
+    "id": 8563,
+    "sender": "Origogi",
+    "content": "@mauriziopinotti when 0.10.4 release??",
+    "createdAt": "2023-02-06T23:29:33Z"
+  },
+  {
+    "id": 8564,
+    "sender": "mauriziopinotti",
+    "content": "> @mauriziopinotti when 0.10.4 release??\r\n\r\nVersion 0.10.4 of [camera_android](https://pub.dev/packages/camera_android/score) has been released (not to be confused with [camera](https://pub.dev/packages/camera)). ",
+    "createdAt": "2023-02-06T23:32:59Z"
+  },
+  {
+    "id": 8565,
+    "sender": "oguzhankosar",
+    "content": "Why is this issue closed? The [camera](https://pub.dev/packages/camera) plugin still doesn't work, I don't want to use [camera_android](https://pub.dev/packages/camera_android/score).",
+    "createdAt": "2023-02-07T12:46:40Z"
+  },
+  {
+    "id": 8566,
+    "sender": "dmytrohurskyi",
+    "content": "> Why is this issue closed? The [camera](https://pub.dev/packages/camera) plugin still doesn't work, I don't want to use [camera_android](https://pub.dev/packages/camera_android/score).\r\n\r\nYou don't need to use camera_android explicitly, it's already used by camera package, because it's a transitive dependency. All you need to do is to run `flutter pub upgrade` and it will automatically update dependencies, including camera_android. And then you will see that this issue has been fixed. ",
+    "createdAt": "2023-02-07T12:49:53Z"
+  },
+  {
+    "id": 8567,
+    "sender": "hsandyque",
+    "content": "> > Why is this issue closed? The [camera](https://pub.dev/packages/camera) plugin still doesn't work, I don't want to use [camera_android](https://pub.dev/packages/camera_android/score).\r\n> \r\n> You don't need to use camera_android explicitly, it's already used by camera package, because it's a transitive dependency. All you need to do is to run `flutter pub upgrade` and it will automatically update dependencies, including camera_android. And then you will see that this issue has been fixed.\r\n\r\n@dmytrohurskyi  \r\nI get this issue when building apk for test, it still reference to camera_android 0.10.3 folder (there are 2 folders 0.10.3 and 0.10.4 on pub_cache), how to fix it?",
+    "createdAt": "2023-02-10T05:14:56Z"
+  },
+  {
+    "id": 8568,
+    "sender": "rivella50",
+    "content": "You could try\r\n```\r\ndependency_overrides:\r\n  camera_android: 0.10.4\r\n```",
+    "createdAt": "2023-02-10T07:00:45Z"
+  },
+  {
+    "id": 8569,
+    "sender": "hsandyque",
+    "content": "> You could try\r\n> \r\n> ```\r\n> dependency_overrides:\r\n>   camera_android: 0.10.4\r\n> ```\r\n\r\nNot working，I don't know if it only works on application instead of plugin, I've try to clean and rebuild, but still not working, should I file a new issue for tracking?",
+    "createdAt": "2023-02-10T08:10:15Z"
+  },
+  {
+    "id": 8570,
+    "sender": "mauriziopinotti",
+    "content": "> > You could try\r\n> > ```\r\n> > dependency_overrides:\r\n> >   camera_android: 0.10.4\r\n> > ```\r\n> \r\n> Not working，I don't know if it only works on application instead of plugin, I've try to clean and rebuild, but still not working, should I file a new issue for tracking?\r\n\r\nJust do a pub upgrade, camera_android is a transitive dependency. After upgrading your pubspec.lock should look like this:\r\n\r\n```\r\n  camera_android:\r\n    dependency: transitive\r\n    description:\r\n      name: camera_android\r\n      sha256: e491c836147f60dd8a54cf3895fd2960e13b21b78a9d15b563a1b6c70894f142\r\n      url: \"https://pub.dev\"\r\n    source: hosted\r\n    version: \"0.10.4\"\r\n```\r\n",
+    "createdAt": "2023-02-10T08:32:09Z"
+  },
+  {
+    "id": 8571,
+    "sender": "hsandyque",
+    "content": "> > > You could try\r\n> > > ```\r\n> > > dependency_overrides:\r\n> > >   camera_android: 0.10.4\r\n> > > ```\r\n> > \r\n> > \r\n> > Not working，I don't know if it only works on application instead of plugin, I've try to clean and rebuild, but still not working, should I file a new issue for tracking?\r\n> \r\n> Just do a pub upgrade, camera_android is a transitive dependency. After upgrading your pubspec.lock should look like this:\r\n> \r\n> ```\r\n>   camera_android:\r\n>     dependency: transitive\r\n>     description:\r\n>       name: camera_android\r\n>       sha256: e491c836147f60dd8a54cf3895fd2960e13b21b78a9d15b563a1b6c70894f142\r\n>       url: \"https://pub.dev\"\r\n>     source: hosted\r\n>     version: \"0.10.4\"\r\n> ```\r\n\r\nMy pubspec.lock \r\n\r\ncamera_android:\r\n    dependency: \"direct overridden\"\r\n    description:\r\n      name: camera_android\r\n      sha256: e491c836147f60dd8a54cf3895fd2960e13b21b78a9d15b563a1b6c70894f142\r\n      url: \"https://pub.dev\"\r\n    source: hosted\r\n    version: \"0.10.4\"\r\n",
+    "createdAt": "2023-02-10T11:09:39Z"
+  },
+  {
+    "id": 8572,
+    "sender": "rami-a",
+    "content": "## ☂️ Bring Material 3 to Flutter\n\n![image](https://user-images.githubusercontent.com/6655696/189097522-4efa697c-304b-4c10-948e-fc4cf2fb6758.png)\r\n\r\n[**Material 3**](https://m3.material.io), also known as \"Material You\", is the next generation of Material Design. The major changes include:\r\n- updates to many components (colors, text styles and shapes, etc.)\r\n- color system improvements\r\n- typography improvements\r\n- elevation refinements\r\n \r\nThis issue has tracked the progress and status of adding Material 3 support to the Flutter `material` library. That work is now complete.\r\n\r\n## As of Flutter 3.16, Material3 is the default\r\n\r\nSupport for Material 2 will continue to be available for at least a year after Material 3 becomes the default. To opt-in to Material 2 use the [`useMaterial3`](https://api.flutter.dev/flutter/material/ThemeData/useMaterial3.html) `ThemeData` flag in your app:\r\n\r\n```dart\r\n  return MaterialApp(\r\n    theme: ThemeData(useMaterial3: false),\r\n    // ...\r\n  );\r\n```\r\n> **Note**\r\n> See the API docs for [`useMaterial3`] for the comprehensive list of changes.\r\n\r\n# Updates available in [Flutter 3.16](https://docs.flutter.dev/release/whats-new#15-november-2023-316-release):\r\n\r\nCheck out the updates to components, color, typography, and elevation in the [Material 3 sample app](https://flutter.github.io/samples/material_3.html).\r\n\r\n[![image](https://github-production-user-asset-6210df.s3.amazonaws.com/1377460/237530594-5f002eee-67cd-4ea9-8dc5-4c103f0cdc39.png)](https://flutter.github.io/samples/web/material_3_demo/#/)\r\n\r\n\r\n## Components\r\nThe following components have been updated to Material 3 colors, text styles and shapes generated from the [Material 3 token](https://m3.material.io/foundations/design-tokens/overview) database:\r\n\r\n- [x]  #99022\r\n- [x]  #94486\r\n- [x] #103528\r\n- [x]  #99023\r\n- [x] #99024\r\n- [x]  #99025\r\n- [x]  #88888\r\n- [x]  #99171\r\n- [x]  #92093\r\n- [x] #102684\r\n- [x] #114032\r\n- [x] #103530\r\n- [x] #107382\r\n- [x] #103529\r\n- [x] #110537\r\n- [x] #112169\r\n- [x] #101017\r\n- [x] #115005\r\n- [x] #111449\r\n- [x] #111450\r\n- [x] #111451 \r\n- [x] #114091\r\n- [x] #103536\r\n- [x] #103537\r\n- [x] #105594\r\n- [x] #114811\r\n- [x] #104961\r\n- [x] #110624\r\n- [x] #111448\r\n- [x] #101481\r\n- [x] #114006\r\n- [x] #119627\r\n- [x] #111962\r\n- [x] #103551\r\n- [x] #117483\r\n- [x] #101480\r\n\r\n## Color\r\n- [x]  #89852\r\n- [x]  #93463\r\n- [x]  #91607\r\n- [x] #108948\r\n- [x] Dynamic color / Material You support available in the [`dynamic_color`](https://pub.dev/packages/dynamic_color) package\r\n- [x] #119333 \r\n\r\n## Typography / Iconography\r\n- [x]  #89853\r\n- [x]  #97829\r\n- [x]  #101900\r\n- [x] Roboto Flex / Roboto Serif / Noto: While not part of the Flutter library, these font families are supported through the [`google_fonts`](https://pub.dev/packages/google_fonts) package\r\n\r\n## Android features\r\n- [x]  #87839\r\n- [x]  #100234\r\n- [x]  #82850\r\n- [x]  #99783\r\n- [x]  #99884\r\n\r\n## Documentation / Dev experience\r\n- [x] #93434\r\n- [x] https://github.com/material-foundation/material-theme-builder/issues/50\r\n- [x] #101048\r\n- [x] #111118\r\n\r\n# Remaining work\r\n\r\n## Components\r\n- [x] #23600 (a11y testing left to do)\r\n- [ ] #119328\r\n- [ ] #126069\r\n\r\n## Typography / Iconography\r\n- [ ] #102560\r\n\r\n## iOS features\r\n- [x] #94821\r\n\r\n## Documentation / Dev experience\r\n- [x] #127064\r\n- [ ] #91772 \r\n- [x] https://github.com/flutter/flutter/issues/127216\r\n- [x] #119319\r\n- [x] #130788\r\n- [x] https://github.com/flutter/website/issues/8586\r\n\r\n## Accessibility\r\n- [ ] #116595\r\n- [ ] #120425\r\n\r\n## Motion\r\n- [x] #116525\r\n- [ ] #116526\r",
+    "createdAt": "2021-10-11T13:21:29Z"
+  },
+  {
+    "id": 8573,
+    "sender": "TahaTesser",
+    "content": "@rami-a\r\n\r\nJust noticed this, appears like title shifts from larger text to regular text (similar to Cupertino Navigation Bar)\r\nI couldn't find an issue for this, wdyt?\r\n\r\nhttps://user-images.githubusercontent.com/48603081/137813089-3ef62fef-d0cf-49dd-b0b3-9c3ce354268e.mp4\r\n\r\n \r\n",
+    "createdAt": "2021-10-18T22:06:39Z"
+  },
+  {
+    "id": 8574,
+    "sender": "rami-a",
+    "content": "Hey @TahaTesser, yeah that is one of the variations of app bar now. We should create an issue for it, I can do that\r\n\r\nDone: https://github.com/flutter/flutter/issues/92093",
+    "createdAt": "2021-10-19T13:40:37Z"
+  },
+  {
+    "id": 8575,
+    "sender": "Hixie",
+    "content": "Is the goal to support a seamless upgrade path (flip a switch and you're in Material 3 mode, and your app should work fine), or is this the expectation that upgrading to this library will require effort?\r\n\r\nIf the latter, maybe it makes more sense to provide this as a separate library?",
+    "createdAt": "2021-10-26T19:35:48Z"
+  }
+]

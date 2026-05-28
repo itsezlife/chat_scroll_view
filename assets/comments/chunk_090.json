@@ -1,0 +1,386 @@
+[
+  {
+    "id": 5760,
+    "sender": "lukaszciastko",
+    "content": "Let me add my two cents to this discussion... Having commercially worked with Flutter for around two years now, the most important thing that I learnt was that **Flutter is a UI toolkit**. There wouldn't be anything surprising in this statement - it even says that on the main Flutter website - if people didn't forget about this.\r\n\r\nFlutter is a UI toolkit, and what it does well is UI. If you're trying to create a CPU-heavy application that relies on expensive data processing or uses complicated algorithms and consumes larga amounts of data, then you should NOT use a UI toolkit for this purpose. Business Logic should not be mixed with the UI.\r\n\r\nOf course, with Dart we can do much more than just UI, but let's not forget the main purpose fo this toolkit.\r\n\r\nI've tried a number of approaches, including using headless Flutter - which proved to be a total disaster. Not because it doesn't work, but because we have problems explaining to other developers how it works. The maintenance burdon it adds up is just not worth it. Not too mention testing such a solution. The last time I tried, Flutter Driver wouldn't handle it at all.\r\n\r\nIf your application really does need the processing power, IMHO, you have three options:\r\n- move your logic to the server;\r\n- move your logic to the native platform - you can use Kotlin Native for this - and use Event/Method channels to only provide the View Models to your UI (I think that's what OLX did: https://tech.olx.com/fast-prototypes-with-flutter-kotlin-native-d7ce5cfeb5f1);\r\n- don't use Flutter and look for another framework (Xamarin/Blazor might be a good fit for this as C# offers a more sophisticated multithreading environment than Dart).\r\n\r\nAll of the above have their shortcomings, but trying to stretch a library/framework to do what it wasn't really designed for isn't ideal either.",
+    "createdAt": "2020-08-01T21:09:19Z"
+  },
+  {
+    "id": 5761,
+    "sender": "hasonguo",
+    "content": "Had not the [isolate_handler](https://pub.dev/packages/isolate_handler) solved this problem？",
+    "createdAt": "2020-08-05T07:35:11Z"
+  },
+  {
+    "id": 5762,
+    "sender": "deakjahn",
+    "content": "@hasonguo It uses `flutter_isolate` in the background, it just adds an extra layer to make handling isolates (any isolates, actually) easier by adding the boilerplate for communication so that you don't need to set it up manually every time. It used a different way of addressing the issue earlier, but that was rendered impossible by changes in Flutter itself, and was changed to rely on `flutter_isolate` instead.\r\n\r\nWe're going in circles. Yes, there are solutions, **both plugins actually.** As Ryan pointed out, there is an overhead involved in making the channel communications possible. More likely than not, it's exactly this overhead that made the Flutter team avoid adding it automatically to the original `Isolate`, as you don't need the support in many (most?) cases.\r\n\r\nStill, it's not as clean a solution as it could get. If the Flutter team would be able to provide channel communication without the overhead, directly and automatically, right out of the box with any basic `Isolate`, the whole discussion would be moot. However, the opposite also holds true: they are not really pursuing change for the sake of change. If there is a viable solution in a package or plugin, why spend time and add weight to the core?",
+    "createdAt": "2020-08-05T09:49:07Z"
+  },
+  {
+    "id": 5763,
+    "sender": "ryanheise",
+    "content": "> > Create a new plugin registry etc. for each isolate BUT within the same FlutterEngine,\r\n> \r\n> This could be a good option, but only if the engine always registers plugins by itself.\r\n> \r\n> But this only happens if all plugins in the GeneratedPluginRegistrant.\r\n> https://github.com/flutter/engine/blob/f7d241fd8a889fadf8ab3f9d57918be3d986b4be/shell/platform/android/io/flutter/embedding/engine/FlutterEngine.java#L330-L344\r\n> \r\n> Creating additional callbacks is not an obvious behavior.\r\n\r\nAnother improvement to this second idea is to make have plugins loaded lazily in the new isolate. Normally, if a project depends on many plugins, the `GeneratedPluginRegistrant` will be quite large and depending on how efficient a plugin's initialisation routine is, this may contribute to some of the overheads. Exactly how to implement this is another story. Platform channels aren't owned by plugins, so currently sending a message over a channel can't be used to trigger the platform side of a plugin to be instantiated. So either method channels would need to be associated with plugins, or there would need to be an additional mechanism that the Dart side of a plugin could call on to initialise itself lazily before the first method channel is created, and that mechanism could trigger the instantiation of the platform side of that plugin within the isolate.",
+    "createdAt": "2020-08-05T10:52:03Z"
+  },
+  {
+    "id": 5764,
+    "sender": "nikitadol",
+    "content": "@TahaTesser \r\n\r\nIn your example, the error is not related to this issue\r\n\r\n```\r\nE/flutter ( 7814): [ERROR:flutter/lib/ui/ui_dart_state.cc(177)] Unhandled Exception: Invalid argument(s): Isolate.spawn expects to be passed a static or top-level function\r\n```",
+    "createdAt": "2020-10-01T14:02:18Z"
+  },
+  {
+    "id": 5765,
+    "sender": "TahaTesser",
+    "content": "Hi @nikitadol\r\nThanks, updated example, it doesn't throw an exception, is that correct? (I never needed to use before) \r\nCan you please provide a complete reproducible minimal code sample\r\nThank you",
+    "createdAt": "2020-10-01T14:26:08Z"
+  },
+  {
+    "id": 5766,
+    "sender": "nikitadol",
+    "content": "@TahaTesser \r\n<details>\r\n<summary>code sample</summary>\r\n\r\n```dart\r\nimport 'package:battery/battery.dart';\r\nimport 'package:flutter/foundation.dart';\r\nimport 'package:flutter/widgets.dart';\r\n\r\nFuture<void> main() async {\r\n  await printBatteryLevel();\r\n  await compute(printBatteryLevel, null);\r\n}\r\n\r\nFuture<void> printBatteryLevel([dynamic message]) async {\r\n  WidgetsFlutterBinding.ensureInitialized();\r\n  print(await Battery().batteryLevel);\r\n}\r\n```\r\n</details>\r\n<details>\r\n<summary>logs</summary>\r\n\r\n```console\r\nLaunching lib/main.dart on Pixel 4 in debug mode...\r\nRunning Gradle task 'assembleDebug'...\r\n✓ Built build/app/outputs/flutter-apk/app-debug.apk.\r\nInstalling build/app/outputs/flutter-apk/app.apk...\r\nWaiting for Pixel 4 to report its views...\r\nDebug service listening on ws://127.0.0.1:50709/-SPs_6AmL2Q=/ws\r\nSyncing files to device Pixel 4...\r\nI/flutter ( 8708): 39\r\nE/flutter ( 8708): [ERROR:flutter/lib/ui/ui_dart_state.cc(166)] Unhandled Exception: Exception: UI actions are only available on root isolate.\r\nE/flutter ( 8708): #0      Window._nativeSetNeedsReportTimings (dart:ui/window.dart:1003:86)\r\nE/flutter ( 8708): #1      Window.onReportTimings= (dart:ui/window.dart:996:29)\r\nE/flutter ( 8708): #2      SchedulerBinding.addTimingsCallback (package:flutter/src/scheduler/binding.dart:272:14)\r\nE/flutter ( 8708): #3      SchedulerBinding.initInstances (package:flutter/src/scheduler/binding.dart:209:7)\r\nE/flutter ( 8708): #4      ServicesBinding.initInstances (package:flutter/src/services/binding.dart:27:11)\r\nE/flutter ( 8708): #5      PaintingBinding.initInstances (package:flutter/src/painting/binding.dart:23:11)\r\nE/flutter ( 8708): #6      SemanticsBinding.initInstances (package:flutter/src/semantics/binding.dart:24:11)\r\nE/flutter ( 8708): #7      RendererBinding.initInstances (package:flutter/src/rendering/binding.dart:32:11)\r\nE/flutter ( 8708): #8      WidgetsBinding.initInstances (package:flutter/src/widgets/binding.dart:257:11)\r\nE/flutter ( 8708): #9      new BindingBase (package:flutter/src/foundation/binding.dart:59:5)\r\nE/flutter ( 8708): #10     new _WidgetsFlutterBinding&BindingBase&GestureBinding (package:flutter/src/widgets/binding.dart)\r\nE/flutter ( 8708): #11     new _WidgetsFlutterBinding&BindingBase&GestureBinding&SchedulerBinding (package:flutter/src/widgets/binding.dart)\r\nE/flutter ( 8708): #12     new _WidgetsFlutterBinding&BindingBase&GestureBinding&SchedulerBinding&ServicesBinding (package:flutter/src/widgets/binding.dart)\r\nE/flutter ( 8708): #13     new _WidgetsFlutterBinding&BindingBase&GestureBinding&SchedulerBinding&ServicesBinding&PaintingBinding (package:flutter/src/widgets/binding.dart)\r\nE/flutter ( 8708): #14     new _WidgetsFlutterBinding&BindingBase&GestureBinding&SchedulerBinding&ServicesBinding&PaintingBinding&SemanticsBinding (package:flutter/src/widgets/binding.dart)\r\nE/flutter ( 8708): #15     new _WidgetsFlutterBinding&BindingBase&GestureBinding&SchedulerBinding&ServicesBinding&PaintingBinding&SemanticsBinding&RendererBinding (package:flutter/src/widgets/binding.dart)\r\nE/flutter ( 8708): #16     new _WidgetsFlutterBinding&BindingBase&GestureBinding&SchedulerBinding&ServicesBinding&PaintingBinding&SemanticsBinding&RendererBinding&WidgetsBinding (package:flutter/src/widgets/binding.dart)\r\nE/flutter ( 8708): #17     new WidgetsFlutterBinding (package:flutter/src/widgets/binding.dart)\r\nE/flutter ( 8708): #18     WidgetsFlutterBinding.ensureInitialized (package:flutter/src/widgets/binding.dart:1229:7)\r\nE/flutter ( 8708): #19     printBatteryLevel (package:bug/main.dart:11:25)\r\nE/flutter ( 8708): #20     _IsolateConfiguration.apply (package:flutter/src/foundation/_isolates_io.dart:83:34)\r\nE/flutter ( 8708): #21     _spawn.<anonymous closure> (package:flutter/src/foundation/_isolates_io.dart:90:65)\r\nE/flutter ( 8708): #22     Timeline.timeSync (dart:developer/timeline.dart:163:22)\r\nE/flutter ( 8708): #23     _spawn (package:flutter/src/foundation/_isolates_io.dart:87:35)\r\nE/flutter ( 8708): #24     _startIsolate.<anonymous closure> (dart:isolate-patch/isolate_patch.dart:304:17)\r\nE/flutter ( 8708): #25     _RawReceivePortImpl._handleMessage (dart:isolate-patch/isolate_patch.dart:168:12)\r\nE/flutter ( 8708): \r\n\r\n```\r\n</details>\r\n<details>\r\n<summary>flutter doctor -v</summary>\r\n\r\n```console\r\n[✓] Flutter (Channel stable, 1.20.4, on Mac OS X 10.15.6 19G2021, locale en-BY)\r\n    • Flutter version 1.20.4 at /Users/nikitadold/development/flutter\r\n    • Framework revision fba99f6cf9 (2 weeks ago), 2020-09-14 15:32:52 -0700\r\n    • Engine revision d1bc06f032\r\n    • Dart version 2.9.2\r\n\r\n[✓] Android toolchain - develop for Android devices (Android SDK version 30.0.0)\r\n    • Android SDK at /Users/nikitadold/Library/Android/sdk\r\n    • Platform android-30, build-tools 30.0.0\r\n    • Java binary at: /Users/nikitadold/Library/Application Support/JetBrains/Toolbox/apps/AndroidStudio/ch-0/193.6626763/Android Studio.app/Contents/jre/jdk/Contents/Home/bin/java\r\n    • Java version OpenJDK Runtime Environment (build 1.8.0_242-release-1644-b3-6222593)\r\n    • All Android licenses accepted.\r\n\r\n[✓] Xcode - develop for iOS and macOS (Xcode 12.0.1)\r\n    • Xcode at /Applications/Xcode.app/Contents/Developer\r\n    • Xcode 12.0.1, Build version 12A7300\r\n    • CocoaPods version 1.9.3\r\n\r\n[!] Android Studio (version 4.0)\r\n    • Android Studio at /Users/nikitadold/Library/Application Support/JetBrains/Toolbox/apps/AndroidStudio/ch-0/193.6626763/Android Studio.app/Contents\r\n    ✗ Flutter plugin not installed; this adds Flutter specific functionality.\r\n    ✗ Dart plugin not installed; this adds Dart specific functionality.\r\n    • Java version OpenJDK Runtime Environment (build 1.8.0_242-release-1644-b3-6222593)\r\n\r\n[✓] IntelliJ IDEA Ultimate Edition (version 2020.2.2)\r\n    • IntelliJ at /Users/nikitadold/Applications/JetBrains Toolbox/IntelliJ IDEA Ultimate.app\r\n    • Flutter plugin installed\r\n    • Dart plugin version 202.7319.5\r\n```\r\n</details>",
+    "createdAt": "2020-10-01T14:44:53Z"
+  },
+  {
+    "id": 5767,
+    "sender": "iapicca",
+    "content": "@TahaTesser \r\nplease see this [comment](https://github.com/flutter/flutter/issues/16846#issuecomment-383752606) \r\n\r\n> Platform messages are only supported from the main isolate. [...]\r\n\r\nThis behavior is **_expected_** and has for the label `severe: new feature`\r\nthis issue should be considered as **_feature request_** or _**proposal**_ and not as **_bug_**",
+    "createdAt": "2020-10-01T15:52:22Z"
+  },
+  {
+    "id": 5768,
+    "sender": "nikitadol",
+    "content": "@iapicca \r\n\r\nIn your example, the error is not related to this issue\r\n\r\n```console\r\nE/flutter (23174): [ERROR:flutter/lib/ui/ui_dart_state.cc(166)] Unhandled Exception: Invalid argument(s): Illegal argument in isolate message : (object is a closure - Function '<anonymous closure>':.)\r\n```",
+    "createdAt": "2020-10-01T16:13:01Z"
+  },
+  {
+    "id": 5769,
+    "sender": "iapicca",
+    "content": "> @iapicca\r\n> \r\n> In your example, the error is not related to this issue\r\n> \r\n> ```\r\n> E/flutter (23174): [ERROR:flutter/lib/ui/ui_dart_state.cc(166)] Unhandled Exception: Invalid argument(s): Illegal argument in isolate message : (object is a closure - Function '<anonymous closure>':.)\r\n> ```\r\n\r\nyou are right mine is not a good example, please ignore it\r\n",
+    "createdAt": "2020-10-01T16:45:47Z"
+  },
+  {
+    "id": 5770,
+    "sender": "gaaclarke",
+    "content": "If the isolate is spawned via a new FlutterEngine on the host platform this will work.  The next version of Flutter will have a new API available that is called FlutterEngineGroup which allows one to create FlutterEngines at a fraction of the cost they used to be (~180Kb).  The host platform can then be used as a dispatcher of messages between multiple isolates.  We do something similar here with add-to-app: https://github.com/flutter/samples/tree/master/add_to_app/multiple_flutters   The same approach would work for a plugin I believe.  I haven't tried setting the entry point for a spawned flutter engine to a function in a plugin, yet.",
+    "createdAt": "2021-02-23T22:53:51Z"
+  },
+  {
+    "id": 5771,
+    "sender": "nmfisher",
+    "content": "Thanks @gaaclarke - this is basically what the flutter_isolate plugin does at the moment (just with the \"old\" approach of instantiating a new FlutterEngine), however a more lightweight approach would definitely be welcome. It looks like the \"new\" FlutterEngineGroup API isn't yet available, you mentioned \"the next version\", does that mean there's a targeted version for release, or just \"it's in the pipeline\"?\r\n\r\nAlso in case others are interested, I've created a repository to track progress reimplementing the flutter_isolate plugin functionality to take advantage of this new API:\r\n\r\nhttps://github.com/nmfisher/flutter_isolate_engine_group\r\n\r\nObviously it doesn't offer any benefit at the moment, but I can come back to it when the new API is released.\r\n",
+    "createdAt": "2021-04-09T06:46:47Z"
+  },
+  {
+    "id": 5772,
+    "sender": "ryanheise",
+    "content": "> Also in case others are interested, I've created a repository to track progress reimplementing the flutter_isolate plugin functionality to take advantage of this new API:\r\n\r\nNice work! I have been maintaining flutter_isolate for the past year or so since I needed it as a dependency for the audio_service plugin. The original author is very open to assigning rights to someone else who is interested in taking over the project, so you should definitely consider contacting him. If I had the time, I would probably take flutter_isolate in the same direction to take advantage of this new API but we probably don't need to duplicate the effort here so it may be something worth thinking about.",
+    "createdAt": "2021-04-09T09:59:58Z"
+  },
+  {
+    "id": 5773,
+    "sender": "deakjahn",
+    "content": "And, just another support, with [isolate_handler](https://pub.dev/packages/isolate_handler) we actively rely on the functionality provided by flutter_isolate, watching closely any progress in this area. :-)",
+    "createdAt": "2021-04-09T12:42:44Z"
+  },
+  {
+    "id": 5774,
+    "sender": "ryanheise",
+    "content": "@deakjahn I was also reminded of your package when I wrote the previous comment, and perhaps you might also be interested in getting access to the flutter_isolate repository. I have just posted [this issue](https://github.com/rmawatson/flutter_isolate/issues/70) on flutter_isolate repo to see if we can find someone interested in continuing with the flutter_isolate name.",
+    "createdAt": "2021-04-09T13:36:56Z"
+  },
+  {
+    "id": 5775,
+    "sender": "rmawatson",
+    "content": "@nmfisher @ryanheise\r\n\r\n> Nice work! I have been maintaining flutter_isolate for the past year or so since I needed it as a dependency for the audio_service plugin. The original author is very open to assigning rights to someone else who is interested in taking over the project, so you should definitely consider contacting him\r\n\r\nMore than happy anyone who is willing, to take over the flutter_isolate repo. Although I think @ryanheise has full control to add anyone to this repo too.\r\nDefinitely worth considering to make things less disjointed and confusing or any existing users.\r\n",
+    "createdAt": "2021-04-09T14:27:33Z"
+  },
+  {
+    "id": 5776,
+    "sender": "gaaclarke",
+    "content": "> It looks like the \"new\" FlutterEngineGroup API isn't yet available, you mentioned \"the next version\", does that mean there's a targeted version for release, or just \"it's in the pipeline\"?\r\n\r\nFlutterEngineGroup has been released in Flutter 2.0.  Sample code can be found here: https://github.com/flutter/samples/tree/master/add_to_app/multiple_flutters",
+    "createdAt": "2021-04-09T17:09:50Z"
+  },
+  {
+    "id": 5777,
+    "sender": "nmfisher",
+    "content": "Sorry @gaaclarke, that was lazy phrasing on my part - I meant to ask when it will be stable (since it's marked as \"experimental\" at https://flutter.dev/docs/development/add-to-app/multiple-flutters and [the source](https://github.com/flutter/engine/blob/master/shell/platform/android/io/flutter/embedding/engine/FlutterEngineGroup.java) says \"Do not ship production code with this\".",
+    "createdAt": "2021-04-10T02:43:10Z"
+  },
+  {
+    "id": 5778,
+    "sender": "gaaclarke",
+    "content": "> Sorry @gaaclarke, that was lazy phrasing on my part - I meant to ask when it will be stable (since it's marked as \"experimental\" at https://flutter.dev/docs/development/add-to-app/multiple-flutters and [the source](https://github.com/flutter/engine/blob/master/shell/platform/android/io/flutter/embedding/engine/FlutterEngineGroup.java) says \"Do not ship production code with this\".\r\n\r\nSure, it doesn't say \"Do not ship production code with this.\"  It tries to communicate the risk of using it.  The reason is that it is a very complicated feature that depends on an experimental Dart feature.  We have tested it locally and have had a few customers ship products using it already.  Those customers have in some cases had to work with us to fix bugs they found.  Also, it's a warning about the API changing, which should be a slight nuance at worst.\r\n\r\nIf someone wants to use the feature in production they should first test the feature mimicking their use-case.  Then they should be willing to work with our team to fix any issues they run into.  Depending on the resources / skill of your team that might not be feasible honestly.\r\n\r\nSo basically, just make sure you do the correct calculus that factors in the risk / reward before using it.  That will be the case until more customers ship with it.  Until then we've decided to error on the side of caution.  If no one uses it, then a year later we say, \"Well, no one has had any issues.  Let's remove the warning,\" then people start using it; that defeats the purpose of the warning obviously.  I hope that makes it clear.\r\n\r\nedit: The java docstring did say \"Do not ship production code with this,\" removing it in https://github.com/flutter/engine/pull/25544",
+    "createdAt": "2021-04-12T16:55:53Z"
+  },
+  {
+    "id": 5779,
+    "sender": "nmfisher",
+    "content": "Thanks for taking the time to explain @gaaclarke, that's clearer now.\r\n\r\n",
+    "createdAt": "2021-04-13T01:21:23Z"
+  },
+  {
+    "id": 5780,
+    "sender": "yingshaoxo",
+    "content": "> And, just another support, with [isolate_handler](https://pub.dev/packages/isolate_handler) we actively rely on the functionality provided by flutter_isolate, watching closely any progress in this area. :-)\r\n\r\nFor now, the `isolate_handler` is a good solution:\r\n\r\nhttps://pub.dev/packages/isolate_handler",
+    "createdAt": "2021-07-10T11:02:12Z"
+  },
+  {
+    "id": 5781,
+    "sender": "hashem78",
+    "content": "All the solutions above seem not to have support  for Desktop.\r\n\r\nAny ideas where to go from here?",
+    "createdAt": "2021-08-09T19:12:52Z"
+  },
+  {
+    "id": 5782,
+    "sender": "gaaclarke",
+    "content": "There is a design doc out for [FFI Platform Channels](https://docs.google.com/document/d/1QhCs6RnDHG9ltYDOx9jaPg-s4sxOTFMC_kt3AZdf25g/edit?usp=sharing), they wouldn't have the same limitation about which isolate can call them. They, however, are a bit lower-level and require that you handle your own thread-safety and respond synchronously.",
+    "createdAt": "2021-08-09T20:11:11Z"
+  },
+  {
+    "id": 5783,
+    "sender": "Okladnoj",
+    "content": "blank screen on Android(((\r\n\r\n``` dart\r\n\r\n  @override\r\n  Widget build(BuildContext context) {\r\n    final initialUrl = Uri.encodeFull('https://www.google.com');\r\n    return SafeArea(\r\n      child: Scaffold(\r\n        body: Column(\r\n          children: [\r\n            Container(\r\n              height: 50,\r\n              color: Colors.black26,\r\n            ),\r\n            Expanded(\r\n              child: WebView(\r\n                key: UniqueKey(),\r\n                initialUrl: initialUrl,\r\n                javascriptMode: JavascriptMode.unrestricted,\r\n              ),\r\n            ),\r\n          ],\r\n        ),\r\n      ),\r\n    );\r\n  }\r\n```\r\n\r\n**AndroidManifest**\r\n``` xml\r\n    <uses-permission android:name=\"android.permission.FOREGROUND_SERVICE\" />\r\n    <uses-permission android:name=\"android.permission.ACCESS_FINE_LOCATION\"/>\r\n    <uses-permission android:name=\"android.permission.INTERNET\" />\r\n\r\n   <application\r\n        android:label=\"CoffeesUP\"\r\n        android:icon=\"@mipmap/ic_launcher\"\r\n        android:requestLegacyExternalStorage=\"true\"\r\n        android:usesCleartextTraffic=\"true\">\r\n```\r\n\r\n**Dubug console**\r\n``` dart\r\nReloaded 1 of 1995 libraries in 1 297ms.\r\nE/flutter ( 1580): [ERROR:flutter/shell/common/shell.cc(93)] Dart Unhandled Exception: PlatformException(channel-error, Unable to establish connection on channel., null, null), stack trace: #0      WebViewHostApi.create\r\nE/flutter ( 1580): <asynchronous suspension>\r\nE/flutter ( 1580):\r\nE/flutter ( 1580): [ERROR:flutter/shell/common/shell.cc(93)] Dart Unhandled Exception: PlatformException(channel-error, Unable to establish connection on channel., null, null), stack trace: #0      WebSettingsHostApi.create\r\nE/flutter ( 1580): <asynchronous suspension>\r\nE/flutter ( 1580):\r\nE/flutter ( 1580): [ERROR:flutter/shell/common/shell.cc(93)] Dart Unhandled Exception: PlatformException(channel-error, Unable to establish connection on channel., null, null), stack trace: #0      WebSettingsHostApi.setDomStorageEnabled\r\nE/flutter ( 1580): <asynchronous suspension>\r\nE/flutter ( 1580):\r\nE/flutter ( 1580): [ERROR:flutter/shell/common/shell.cc(93)] Dart Unhandled Exception: PlatformException(channel-error, Unable to establish connection on channel., null, null), stack trace: #0      WebSettingsHostApi.setJavaScriptCanOpenWindowsAutomatically\r\nE/flutter ( 1580): <asynchronous suspension>\r\nE/flutter ( 1580):\r\nE/flutter ( 1580): [ERROR:flutter/shell/common/shell.cc(93)] Dart Unhandled Exception: PlatformException(channel-error, Unable to establish connection on channel., null, null), stack trace: #0      WebSettingsHostApi.setSupportMultipleWindows\r\nE/flutter ( 1580): <asynchronous suspension>\r\nE/flutter ( 1580):\r\nE/flutter ( 1580): [ERROR:flutter/shell/common/shell.cc(93)] Dart Unhandled Exception: PlatformException(channel-error, Unable to establish connection on channel., null, null), stack trace: #0      WebSettingsHostApi.setLoadWithOverviewMode\r\nE/flutter ( 1580): <asynchronous suspension>\r\nE/flutter ( 1580):\r\nE/flutter ( 1580): [ERROR:flutter/shell/common/shell.cc(93)] Dart Unhandled Exception: PlatformException(channel-error, Unable to establish connection on channel., null, null), stack trace: #0      WebSettingsHostApi.setUseWideViewPort\r\nE/flutter ( 1580): <asynchronous suspension>\r\nE/flutter ( 1580):\r\nE/flutter ( 1580): [ERROR:flutter/shell/common/shell.cc(93)] Dart Unhandled Exception: PlatformException(channel-error, Unable to establish connection on channel., null, null), stack trace: #0      WebSettingsHostApi.setDisplayZoomControls\r\nE/flutter ( 1580): <asynchronous suspension>\r\nE/flutter ( 1580):\r\nE/flutter ( 1580): [ERROR:flutter/shell/common/shell.cc(93)] Dart Unhandled Exception: PlatformException(channel-error, Unable to establish connection on channel., null, null), stack trace: #0      WebSettingsHostApi.setBuiltInZoomControls\r\nE/flutter ( 1580): <asynchronous suspension>\r\nE/flutter ( 1580):\r\nE/flutter ( 1580): [ERROR:flutter/shell/common/shell.cc(93)] Dart Unhandled Exception: PlatformException(channel-error, Unable to establish connection on channel., null, null), stack trace: #0      WebViewClientHostApi.create\r\nE/flutter ( 1580): <asynchronous suspension>\r\nE/flutter ( 1580):\r\nE/flutter ( 1580): [ERROR:flutter/shell/common/shell.cc(93)] Dart Unhandled Exception: PlatformException(channel-error, Unable to establish connection on channel., null, null), stack trace: #0      WebSettingsHostApi.setUserAgentString\r\nE/flutter ( 1580): <asynchronous suspension>\r\nE/flutter ( 1580): #1      Future.wait.<anonymous closure> (dart:async/future.dart)\r\nE/flutter ( 1580): <asynchronous suspension>\r\nE/flutter ( 1580): #2      WebViewAndroidPlatformController.updateSettings\r\nE/flutter ( 1580): <asynchronous suspension>\r\nE/flutter ( 1580):\r\nE/flutter ( 1580): [ERROR:flutter/shell/common/shell.cc(93)] Dart Unhandled Exception: PlatformException(channel-error, Unable to establish connection on channel., null, null), stack trace: #0      WebSettingsHostApi.setMediaPlaybackRequiresUserGesture\r\nE/flutter ( 1580): <asynchronous suspension>\r\nE/flutter ( 1580):\r\nE/flutter ( 1580): [ERROR:flutter/shell/common/shell.cc(93)] Dart Unhandled Exception: PlatformException(channel-error, Unable to establish connection on channel., null, null), stack trace: #0      DownloadListenerHostApi.create\r\nE/flutter ( 1580): <asynchronous suspension>\r\nE/flutter ( 1580):\r\nE/flutter ( 1580): [ERROR:flutter/shell/common/shell.cc(93)] Dart Unhandled Exception: PlatformException(channel-error, Unable to establish connection on channel., null, null), stack trace: #0      WebViewHostApi.setDownloadListener\r\nE/flutter ( 1580): <asynchronous suspension>\r\nE/flutter ( 1580):\r\nE/flutter ( 1580): [ERROR:flutter/shell/common/shell.cc(93)] Dart Unhandled Exception: PlatformException(channel-error, Unable to establish connection on channel., null, null), stack trace: #0      WebChromeClientHostApi.create\r\nE/flutter ( 1580): <asynchronous suspension>\r\nE/flutter ( 1580):\r\nE/flutter ( 1580): [ERROR:flutter/shell/common/shell.cc(93)] Dart Unhandled Exception: PlatformException(channel-error, Unable to establish connection on channel., null, null), stack trace: #0      WebViewHostApi.setWebChromeClient\r\nE/flutter ( 1580): <asynchronous suspension>\r\nE/flutter ( 1580):\r\nE/flutter ( 1580): [ERROR:flutter/shell/common/shell.cc(93)] Dart Unhandled Exception: PlatformException(channel-error, Unable to establish connection on channel., null, null), stack trace: #0      WebViewHostApi.loadUrl\r\nE/flutter ( 1580): <asynchronous suspension>\r\nE/flutter ( 1580):\r\nE/flutter ( 1580): [ERROR:flutter/shell/common/shell.cc(93)] Dart Unhandled Exception: PlatformException(error, java.lang.IllegalStateException: Trying to create a platform view of unregistered type: plugins.flutter.io/webview\r\nE/flutter ( 1580): \tat io.flutter.plugin.platform.PlatformViewsController$1.createAndroidViewForPlatformView(PlatformViewsController.java:142)\r\nE/flutter ( 1580): \tat io.flutter.embedding.engine.systemchannels.PlatformViewsChannel$1.create(PlatformViewsChannel.java:104)\r\nE/flutter ( 1580): \tat io.flutter.embedding.engine.systemchannels.PlatformViewsChannel$1.onMethodCall(PlatformViewsChannel.java:59)\r\nE/flutter ( 1580): \tat io.flutter.plugin.common.MethodChannel$IncomingMethodCallHandler.onMessage(MethodChannel.java:233)\r\nE/flutter ( 1580): \tat io.flutter.embedding.engine.dart.DartMessenger.handleMessageFromDart(DartMessenger.java:84)\r\nE/flutter ( 1580): \tat io.flutter.embedding.engine.FlutterJNI.handlePlatformMessage(FlutterJNI.java:865)\r\nE/flutter ( 1580): \tat android.os.MessageQueue.nativePollOnce(Native Method)\r\nE/flutter ( 1580): \tat android.os.MessageQueue.next(MessageQueue.java:335)\r\nE/flutter ( 1580): \tat android.os.Looper.loop(Looper.java:193)\r\nE/flutter ( 1580): \tat android.app.ActivityThread.main(ActivityThread.java:8057)\r\nE/flutter ( 1580): \tat java.lang.reflect.Method.invoke(Native Method)\r\nE/flutter ( 1580): \tat com.android.internal.os.RuntimeInit$MethodAndArgsCaller.run(RuntimeInit.java:620)\r\nE/flutter ( 1580): \tat com.android.internal.os.ZygoteInit.main(ZygoteInit.java:1011)\r\nE/flutter ( 1580): , null, null), stack trace: #0      StandardMethodCodec.decodeEnvelope\r\nE/flutter ( 1580): #1      MethodChannel._invokeMethod\r\nE/flutter ( 1580): <asynchronous suspension>\r\nE/flutter ( 1580): #2      AndroidViewController.create\r\nE/flutter ( 1580): <asynchronous suspension>\r\nE/flutter ( 1580):\r\nE/flutter ( 1580): [ERROR:flutter/shell/common/shell.cc(93)] Dart Unhandled Exception: PlatformException(channel-error, Unable to establish connection on channel., null, null), stack trace: #0      WebSettingsHostApi.dispose\r\nE/flutter ( 1580): <asynchronous suspension>\r\nE/flutter ( 1580):\r\nE/flutter ( 1580): [ERROR:flutter/shell/common/shell.cc(93)] Dart Unhandled Exception: PlatformException(channel-error, Unable to establish connection on channel., null, null), stack trace: #0      WebViewHostApi.dispose\r\nE/flutter ( 1580): <asynchronous suspension>\r\nE/flutter ( 1580): #1      WebViewHostApiImpl.disposeFromInstance\r\nE/flutter ( 1580): <asynchronous suspension>\r\nE/flutter ( 1580):\r\n\r\n\r\n```\r\n\r\n## flutter doctor -v\r\n``` bash\r\n\r\n[✓] Flutter (Channel stable, 2.8.1, on macOS 12.0.1 21A559 darwin-arm, locale ru-UA)\r\n    • Flutter version 2.8.1 at /Users/okji/development/flutter\r\n    • Upstream repository https://github.com/flutter/flutter.git\r\n    • Framework revision 77d935af4d (27 hours ago), 2021-12-16 08:37:33 -0800\r\n    • Engine revision 890a5fca2e\r\n    • Dart version 2.15.1\r\n\r\n[✓] Android toolchain - develop for Android devices (Android SDK version 31.0.0)\r\n    • Android SDK at /Users/okji/Library/Android/sdk\r\n    • Platform android-31, build-tools 31.0.0\r\n    • Java binary at: /Applications/Android Studio.app/Contents/jre/Contents/Home/bin/java\r\n    • Java version OpenJDK Runtime Environment (build 11.0.10+0-b96-7281165)\r\n    • All Android licenses accepted.\r\n\r\n[✓] Xcode - develop for iOS and macOS (Xcode 13.1)\r\n    • Xcode at /Applications/Xcode.app/Contents/Developer\r\n    • CocoaPods version 1.11.2\r\n\r\n[✓] Chrome - develop for the web\r\n    • Chrome at /Applications/Google Chrome.app/Contents/MacOS/Google Chrome\r\n\r\n[✓] Android Studio (version 2020.3)\r\n    • Android Studio at /Applications/Android Studio.app/Contents\r\n    • Flutter plugin can be installed from:\r\n      🔨 https://plugins.jetbrains.com/plugin/9212-flutter\r\n    • Dart plugin can be installed from:\r\n      🔨 https://plugins.jetbrains.com/plugin/6351-dart\r\n    • Java version OpenJDK Runtime Environment (build 11.0.10+0-b96-7281165)\r\n\r\n[✓] VS Code (version 1.63.2)\r\n    • VS Code at /Applications/Visual Studio Code.app/Contents\r\n    • Flutter extension version 3.29.0\r\n\r\n[✓] Connected device (3 available)\r\n    • Redmi Note 8 Pro (mobile) • gubexwivz5e6eyt8 • android-arm64  • Android 11 (API 30)\r\n    • macOS (desktop)           • macos            • darwin-arm64   • macOS 12.0.1 21A559 darwin-arm\r\n    • Chrome (web)              • chrome           • web-javascript • Google Chrome 96.0.4664.110\r\n    ! Error: iPad (Dmytrij) is not connected. Xcode will continue when iPad (Dmytrij) is connected. (code -13)\r\n\r\n• No issues found!\r\n```",
+    "createdAt": "2021-12-17T18:06:59Z"
+  },
+  {
+    "id": 5784,
+    "sender": "aytunch",
+    "content": "Hi all,\r\nWe are using [ffmpeg_kit_flutter](https://pub.dev/packages/ffmpeg_kit_flutter) to encode large videos in mobile clients before uploading them to the server. \r\nBeing able to do this in an isolate will largely increase UI performance of the app. the isolate will let us know when the encoding is finished and will return the saved file path.\r\nHowever because of the root cause of this issue, this can not work now.\r\nDo you have any suggestions? I thought the new flutter isolate mechanisms allowing to create flutter engines with a fraction of the cost would have helped. Is it something else?",
+    "createdAt": "2022-01-04T12:24:52Z"
+  },
+  {
+    "id": 5785,
+    "sender": "deakjahn",
+    "content": "@aytunch Considering that nothing has changed since, I won't refrain from suggesting two plugins (one of which I'm a maintainer of but it actually relies on the other one to do that part of the heavy lifting):\r\n\r\nhttps://pub.dev/packages/flutter_isolate\r\nhttps://pub.dev/packages/isolate_handler",
+    "createdAt": "2022-01-04T15:38:08Z"
+  },
+  {
+    "id": 5786,
+    "sender": "gaaclarke",
+    "content": "@aytunch if I were making that project today I'd either:\r\n1) Issue the information to encode via a platform channel to the native code and call ffmpeg from there.\r\n1) Use ffmpeg_kit_flutter from a background isolate but use dart [ports](https://api.dart.dev/stable/2.15.1/dart-isolate/SendPort-class.html) to communicate with that isolate instead of platform channels.",
+    "createdAt": "2022-01-04T17:59:10Z"
+  },
+  {
+    "id": 5787,
+    "sender": "j3g",
+    "content": "@gaaclarke  thank you for the insight into how to handle this currently. we are all looking for the ability to do background processing (to keep our FPS at 60+). IMO all these limitations with isolates will cause more bugs than just giving us typical threads. why? we cannot do all background work in elegant steps. instead I have to shuffle data between isolates and maintain the state of my process. the limitation of shared memory is a mistake. the limitation of not using plugins is even more painful. so instead of keeping our background processing clean, I'm now forced to do several work arounds. \r\n\r\ni'm building a messaging app. I need to be able to encrypt and send over the network. I need to be able to receive messages, decrypt, and present. I created an isolate pool to receive messages. I'm now re-designing the app to work around all the isolate limitations. I need extra queues, extra state, and moving data from isolates to main. \r\n\r\nGood luck everyone! Cheers.",
+    "createdAt": "2022-01-13T01:45:50Z"
+  },
+  {
+    "id": 5788,
+    "sender": "maks",
+    "content": "> IMO all these limitations with isolates will cause more bugs than just giving us typical threads. why? we cannot do all background work in elegant steps.\r\n\r\n@j3g IMO I would contend that you are _avoiding_ alot of potential bugs by not having to do all the **required** work yourself to *safely* use shared mutable state from multiple threads.\r\nI'm also not clear as to how the limitation of not being able to call platform channels from non-main isolates affects your use case of needing to decrypt messages off the main isolate?",
+    "createdAt": "2022-01-13T01:54:11Z"
+  },
+  {
+    "id": 5789,
+    "sender": "j3g",
+    "content": "Thread-safe data types are your friend. I've never had threading issues, because I follow thread-safe design patterns. Because I'm a season developer I don't need artificial limitations for \"safety\". I would argue that because of isolate limitations, I am forced to add a lot of extra code to get things done. All that extra code gives more probability of bugs. My code is clean and sequential with threads, but more complex with isolates.\r\n\r\nFor Example. Why am I on this discussion? Because my flutter app crashes from the generic error **“Exception: Null check operator used on a null value”**. I figured out it happens when I tried to call my plugin within the isolate. I spent many hours troubleshooting thinking that it was my error. Now I discover it is yet another isolate limitation. I didn’t see this limitation in the official docs. So after today I will redesign my elegant code to something more complex...\r\n\r\n@maks is there a forum I can go and discuss/learn further? i'm not finding quality on stackoverflow.",
+    "createdAt": "2022-01-13T04:08:33Z"
+  },
+  {
+    "id": 5790,
+    "sender": "deakjahn",
+    "content": "@j3g John, still, the question arises that why should each and every isolate make it possible to call platform channels when it comes with a cost. The cost is smaller with the changes than it was before, yes, but it's still a cost. If many isolates don't need that extra functionality, why would we accept the incurred costs?\r\n\r\nIn every single part of Flutter development we accept the fact that much of the important functionality comes in the form of plugins and packages, not in the core, for two reasons. One is to keep the engine as lean as possible (and it still isn't what I'd call lean, of course, in this day and age we and our users don't care that much whether an app is 1 MB or 20, but still). The other is to make sure a much larger community can build useful parts of the jigsaw puzzle and we don't need to wait for the engine team to deliver everything.\r\n\r\nI came to be included in this channel-isolate story exactly for these reasons: I needed a solution to call a plugin. It didn't work out of the box, I looked around for solutions and found out that solutions _do_ exist. Not in the core Isolate but they exist. It just happened that the original creator of one of the plugins mentioned above asked me whether, for her lack of time to maintain it, I'd be interested in taking it over and I did. Part of the reason I said yes was that I used it in several apps and I would need to maintain my own version, anyway. It wasn't my original idea, I don't mention it from time to time because I want to take credit for it or brag about it but simply, as in many other areas of Flutter development, there _is_ a solution with the usual addition of a single line in `pubspec`. Only those need to use it who need it, the rest of the isolates will not suffer from the additional cost.",
+    "createdAt": "2022-01-13T10:54:08Z"
+  },
+  {
+    "id": 5791,
+    "sender": "j3g",
+    "content": "I don't know why you @ replied me. You didn't respond to my talking points. I honestly cannot follow your points. It seems we can agree that plugins are important. As a senior super duper elite coder I need something more than isolates. And I would appreciate if my isolate didn't crash when I call a plugin. I've already moved on and solved this issue with many elite coder hacking skills. I'm hoping dart will add more advanced threads in the future. Cheers.",
+    "createdAt": "2022-01-17T04:11:29Z"
+  },
+  {
+    "id": 5792,
+    "sender": "deakjahn",
+    "content": "@j3g Simply because I mentioned a solution to your problem. There are two plugins currently that make isolates able to call plugins. Without crashes. It's up to you to use them and have a perfect, functioning solution, or not.\n\nI simply tried to explain why it isn't probably necessary to have this functionality in the core isolates and why it's enough to have plugins fill the gap.",
+    "createdAt": "2022-01-17T09:12:15Z"
+  },
+  {
+    "id": 5793,
+    "sender": "mariopepe",
+    "content": "@deakjahn one (of the many) but a very strong one, for which it could be useful to call platform channel methods in another isolate is image compression.\r\n\r\nI may want to use the native code to have the fastest possible image compression, and I would like to do that in an isolate.\r\n\r\nWith so many likes and people requesting this my humble humble humble opinione is that P5 does not reflect well the issue and the demand.\r\n\r\nBest regards",
+    "createdAt": "2022-03-15T20:47:48Z"
+  },
+  {
+    "id": 5794,
+    "sender": "maks",
+    "content": "@mariopepe I agree there are valid reasons for using platform channels in a non-main isolate, but I would suggest that for the use case of image compression, a much better solution would be to use Dart FFI, which does work well within any Isolate.",
+    "createdAt": "2022-03-15T22:00:19Z"
+  },
+  {
+    "id": 5795,
+    "sender": "deakjahn",
+    "content": "@mariopepe Yes, I know. I use isolates for similar purposes all the time. It's very easy to do and it works fine.\r\n\r\nIt's an awkward situation. I don't want to constantly advertise that I'm affiliated with the solution. It wasn't my invention, it's not part of my ego :-), I wast just an active user that needed it badly around the time when the original maintainer wanted to move on to other projects. There's no active development, it's on the back burner, it just works, that's all.\r\n\r\nSo, I don't want to advertise it actively. I just have the feeling, every time another post appears in this thread, that many who desperately ask for this functionality are not aware of the fact that it _is_ readily available, just that it isn't in core. There are many such things in the Flutter world, tons of packages that are readily availabe but not in core. Why is this one any different?",
+    "createdAt": "2022-03-16T09:38:27Z"
+  },
+  {
+    "id": 5796,
+    "sender": "josephantonyk94",
+    "content": "I think isolate and background thread  are different instances one for dart and one for native.",
+    "createdAt": "2022-03-26T16:46:48Z"
+  },
+  {
+    "id": 5797,
+    "sender": "aytunch",
+    "content": "@deakjahn Can we use the packages you have suggested for running [ffmpeg_kit](https://github.com/tanersener/ffmpeg-kit)?",
+    "createdAt": "2022-03-27T18:37:45Z"
+  },
+  {
+    "id": 5798,
+    "sender": "deakjahn",
+    "content": "I can't see why not. I never tried `ffmpeg_kit` myself but I used many other plugins that have channel calls without a single issue.",
+    "createdAt": "2022-03-27T19:02:30Z"
+  },
+  {
+    "id": 5799,
+    "sender": "Hixie",
+    "content": "Update: There are no current plans to implement this at this time (sorry), mostly just because we're focused on higher-priority issues like improving graphics performance.\r\n\r\nThere exist a few workarounds, which have been mentioned several times in this thread: [isolate_handler](https://pub.dev/packages/isolate_handler) and [flutter_isolate](https://pub.dev/packages/flutter_isolate) are the main ones.\r\n\r\nIf you don't need to talk to Android or iOS code, but can talk to C code instead, then dart:ffi may be an interesting alternative as well; that should work fine from a normal Dart isolate.\r\n\r\nIf anyone is interested in working on implementing this feature directly in the engine, the first step would be to [create a design doc](https://github.com/flutter/flutter/wiki/Design-Documents) to describe the desired approach. Alternatively, to help this issue be considered in a coming planning cycle, it would be very useful to collect the use cases for this issue in one place, e.g. a Google Doc (you can use the same template and techniques [as for design docs](https://github.com/flutter/flutter/wiki/Design-Documents)) or a comment on this issue. There are many use cases listed in this issue but they are spread among 150+ comments so it is hard to see at a glance the whole picture. Details on why specific use cases aren't sufficiently handled by the workarounds above would be most useful (e.g. Sqlite is mentioned as one use case, but the best way to use Sqlite from an isolate is dart:ffi, not message channels).\r\n\r\nIn either case, please feel free to reach out on our Discord (link in the repo's contributing guidelines, start with the #hackers-new channel) to learn more about our processes if you are interested in contributing.\r\n\r\nFinally, I would like to remind everyone that `+1`'ing an issue does nothing, but using the Thumbs-Up emoji on the first comment help surface the issue in our searches of high-demand issues, as described [on our wiki](https://github.com/flutter/flutter/wiki/Issue-hygiene#thumbs-up-reactions).",
+    "createdAt": "2022-06-14T19:28:59Z"
+  },
+  {
+    "id": 5800,
+    "sender": "gaaclarke",
+    "content": "I haven't thought much about this but if I were to implement this I'd probably create a static function that can setup a BinaryMessenger on a background isolate which will listen to a dart port to wake up with a integer message_id and check against its stored `Completer`s for one associated with the message_id.  On the host side the engine will store the result's binary data and send the message_id to the port so the target isolate could grab ownership of the results binary data without copying it.",
+    "createdAt": "2022-06-14T21:26:28Z"
+  },
+  {
+    "id": 5801,
+    "sender": "gaaclarke",
+    "content": "I've created a design document that solves this issue.  Please give it a look if you are interested in this issue to make sure it addresses your needs: [Isolate Platform Channels](https://docs.google.com/document/d/1yAFw-6kBefuurXWTur9jdEUAckWiWJVukP1Iay8ehyU/edit#heading=h.722pnbmlqbkx).",
+    "createdAt": "2022-08-02T21:29:00Z"
+  },
+  {
+    "id": 5802,
+    "sender": "gaaclarke",
+    "content": "I wrote sample code for the feature if you want to see the new feature working: https://github.com/gaaclarke/background_isolate_channels_sample\r\n\r\nThe sample code is still in flux until I can get it landed in the official samples repo.",
+    "createdAt": "2022-09-26T23:33:52Z"
+  },
+  {
+    "id": 5803,
+    "sender": "gaaclarke",
+    "content": "I'm marking this closed as per our guidelines that issues are closed when fixes hit master, not stable.  The only outstanding tasks are documentation tasks that can't land until this feature hits stable.",
+    "createdAt": "2022-10-05T18:17:07Z"
+  },
+  {
+    "id": 5804,
+    "sender": "aytunch",
+    "content": "> I haven't thought much about this but if I were to implement this I'd probably create a static function that can setup a BinaryMessenger on a background isolate which will listen to a dart port to wake up with a integer message_id and check against its stored Completers for one associated with the message_id. On the host side the engine will store the result's binary data and send the message_id to the port so the target isolate could grab ownership of the results binary data without copying it.\r\n\r\nIt all starts with an idea. Thanks for this @gaaclarke Can't wait for it to be on stable.",
+    "createdAt": "2022-10-06T15:27:06Z"
+  },
+  {
+    "id": 5805,
+    "sender": "justinmc",
+    "content": "## Text Editing Movement Keys via Shortcuts\n\nThis is the first PR to start migrating text editing to use Actions.  See the [design doc](https://docs.google.com/document/d/1QaVIr1bbOWJGNyyNsB75sXgTDRMuxP268sLGTBNDut0/edit#) for the entire plan.\r\n\r\nThis PR focuses only on the arrow keys, including all modifier keys, but it also establishes the pattern for handling all keyboard, mouse, and touch events for text editing.\r\n\r\n### Example\r\n\r\nThis example shows how to use an additional Shortcuts widget to override some default text editing keyboard shortcuts to have new behavior. Instead of moving the cursor, alt + up/down will change the focused widget.  See the [docs](https://master-api.flutter.dev/flutter/widgets/DefaultTextEditingShortcuts-class.html) for more examples.\r\n\r\n```dart\r\n@override\r\nWidget build(BuildContext context) {\r\n  // If using WidgetsApp or its descendents MaterialApp or CupertinoApp,\r\n  // then DefaultTextEditingShortcuts is already being inserted into the\r\n  // widget tree.\r\n  return DefaultTextEditingShortcuts(\r\n    child: Center(\r\n      child: Shortcuts(\r\n        shortcuts: const <ShortcutActivator, Intent>{\r\n          SingleActivator(LogicalKeyboardKey.arrowDown, alt: true): NextFocusIntent(),\r\n          SingleActivator(LogicalKeyboardKey.arrowUp, alt: true): PreviousFocusIntent(),\r\n        },\r\n        child: Column(\r\n          children: const <Widget>[\r\n            TextField(\r\n              decoration: InputDecoration(\r\n                hintText: 'alt + down moves to the next field.',\r\n              ),\r\n            ),\r\n            TextField(\r\n              decoration: InputDecoration(\r\n                hintText: 'And alt + up moves to the previous.',\r\n              ),\r\n            ),\r\n          ],\r\n        ),\r\n      ),\r\n    ),\r\n  );\r\n}\r\n```\r\n\r\n### Issues\r\n\r\nPartial fix for https://github.com/flutter/flutter/issues/75004.\r\nCloses https://github.com/flutter/flutter/issues/76121\r\n\r\n### Tests\r\n\r\n  * Test that it's possible to remap a shortcut to a different shortcut's Intent.\r\n  *  Test that's possible to write a custom Action to completely change a text editing Intent's behavior.\r\n  * Update RenderEditable tests that relied on the keyboard and have them call new methods instead.\r\n\r\n### Breaking changes\r\nNone.",
+    "createdAt": "2021-01-29T23:31:24Z"
+  },
+  {
+    "id": 5806,
+    "sender": "venkatd",
+    "content": "@justinmc want to confirm that, if merged, this would allow us to override the arrow keys in shortcuts. We have the following code for a `ChatMessageComposer` widget which wraps a TextField. At the highest level, we've got the following shortcuts:\r\n\r\n```dart\r\n    return FocusableActionDetector(\r\n      shortcuts: {\r\n        LogicalKeySet(LogicalKeyboardKey.arrowDown):\r\n            const ListViewSelectionIntent(ListViewSelectionOption.next),\r\n        LogicalKeySet(LogicalKeyboardKey.arrowUp):\r\n            const ListViewSelectionIntent(ListViewSelectionOption.prev),\r\n        LogicalKeySet(LogicalKeyboardKey.tab):\r\n            const ListViewSelectionIntent(ListViewSelectionOption.select),\r\n        LogicalKeySet(LogicalKeyboardKey.enter):\r\n            const ChatComposerIntent(ChatComposerAction.send),\r\n      },\r\n...\r\n```\r\n\r\nAnd our UI when mentioning a user looks like this:\r\n![image](https://user-images.githubusercontent.com/220686/106374525-73722900-635a-11eb-8251-2afdd95ab57a.png)\r\n\r\nThe tab key seems to work fine but the up/down arrow default handling isn't suppressed. Whenever a mention ListView is visible, we'd want the up/down arrow keys only to navigate the selected item.\r\n\r\nThanks!",
+    "createdAt": "2021-01-31T04:25:28Z"
+  },
+  {
+    "id": 5807,
+    "sender": "justinmc",
+    "content": "@venkatd Yes that's exactly what this PR would enable!  Currently movement keys (and some others) are handled in a RawKeyListener inside of RenderEditable, which is why your code above can't override their behavior.  In this PR I'm deleting the movement code in that RawKeyListener and moving it to Shortcuts.",
+    "createdAt": "2021-02-01T16:34:04Z"
+  },
+  {
+    "id": 5808,
+    "sender": "venkatd",
+    "content": "@justinmc that's great! This is going to be a pretty high value add for our product:\r\n\r\n- Various dropdowns with autocomplete that require arrow key traversal of the options\r\n- Mentions of users and other entities\r\n- Shortcut heavy chat composer\r\n\r\nWas trying various hacks to override this stuff like saving/reverting cursor positions, but seems like it's worth waiting for this and swapping over to the dev branch when it's ready.\r\n\r\nSubscribing...",
+    "createdAt": "2021-02-01T21:53:54Z"
+  },
+  {
+    "id": 5809,
+    "sender": "justinmc",
+    "content": "@venkatd For autocomplete, also take a look at the new [Autocomplete](https://github.com/flutter/flutter/pull/73753) widget which is getting keyboard shortcuts thanks to @shihaohong.",
+    "createdAt": "2021-02-02T16:59:19Z"
+  },
+  {
+    "id": 5810,
+    "sender": "shihaohong",
+    "content": "@venkatd Once I have a PR ready for it, I can cc/ you in on it so you can give it a go and provide some feedback if you like! ",
+    "createdAt": "2021-02-02T17:08:05Z"
+  },
+  {
+    "id": 5811,
+    "sender": "venkatd",
+    "content": "Thanks @justinmc !\r\n\r\n@shihaohong sounds good! Our current use case may be slightly different because we have custom needs for our chat message composer. This includes:\r\n\r\n- Detecting when users type types in natural language\r\n- Switching on type (@ to mention users and # to mention tasks)\r\n\r\nThe ideal use case for us is allowing us to compose some of the hard parts like:\r\n- Responding to text editor changes and shortcut keys to update a ValueNotifer to build our search results by hand\r\n- Anchoring a floating widget relative to a target widget that updates in response to those changes. Can inject these same results into this floating widget. For our chat composer, this results widget needs to be anchored bottomLeft-topLeft (and matching widths) to the composer widget.\r\n\r\nI think we do have some situations that could make use of a drop-in autocomplete replacement but several may call for custom code. Either way happy to jump in when it's ready and explain our use cases so you can decide if it's in scope.",
+    "createdAt": "2021-02-02T18:14:08Z"
+  },
+  {
+    "id": 5812,
+    "sender": "Quijx",
+    "content": "I am having an issue where I have a `TextField` inside of an `FocusableActionDetector` which detects the Ctrl-A shortcut. However when the `TextField` is focused and I press Ctrl-A, all text is selected and the action is invoked. But the `TextField` should consume the shortcut and the action should only be invoked if the `FocusableActionDetector` or some child that does not have an action for `Ctrl-A` is focused.\r\n\r\nDoes this PR implicitly resolve that issue?",
+    "createdAt": "2021-02-03T14:05:26Z"
+  },
+  {
+    "id": 5813,
+    "sender": "venkatd",
+    "content": "@Quijx I'm not 100% aware of the details, but it's related.\r\n\r\nYou can take a look at this file to see what previously hardcoded keyboard combinations are being converted to shortcuts:\r\nhttps://github.com/justinmc/flutter/blob/text-editing-refactor/packages/flutter/lib/src/widgets/text_editing_shortcuts.dart\r\n\r\nAnything that's converted to a shortcut can be overridden. I don't see Ctrl-A in this PR, but I'm sure it'll either be added here or in a future PR because that's the direction they want to move in. Once it's in there, you should be able to override the default OS behavior.",
+    "createdAt": "2021-02-03T14:20:59Z"
+  },
+  {
+    "id": 5814,
+    "sender": "justinmc",
+    "content": "@Quijx +1 to what @venkatd said.  Control-A is not in this PR but I plan to add it to TextEditingShortcuts in the next PR, as soon as I get buy-in here on this approach.  Currently it is handled [here](https://github.com/flutter/flutter/blob/7711c1ef8f478c03d12d72f790c625a194cc93b9/packages/flutter/lib/src/rendering/editable.dart#L921) in a RawKey listener, which is why it's not affected by Shortcuts.",
+    "createdAt": "2021-02-03T23:04:16Z"
+  },
+  {
+    "id": 5815,
+    "sender": "justinmc",
+    "content": "Ready for re-review.  Thanks to everyone for taking a look.  Some stuff to look at:\r\n\r\n  * The biggest change is that Actions, and Intents triggered by Shortcuts, are named for what they do now. See https://github.com/flutter/flutter/pull/75032/files#diff-a7ab0a5db9b1cb96f1d25b62073b4d8bbbe0f4dfa56578bede557c528cd0c121.\r\n  * Are we ok with the current lack of support on web?  See https://github.com/flutter/flutter/pull/75032#discussion_r577779699.\r\n  * Is there a nice way that I can document all shortcuts?  I can just put them into the docs for TextEditingShortcuts, but I worry that the docs will get out of sync with the code.  The real source of truth are the maps like `_androidShortcuts`, etc., but these are private.\r\n  * @HansMuller A question on your onInvoke naming suggestion: https://github.com/flutter/flutter/pull/75032/files#r577129035",
+    "createdAt": "2021-02-17T17:40:11Z"
+  },
+  {
+    "id": 5816,
+    "sender": "justinmc",
+    "content": "@LongCatIsLooong RE https://github.com/flutter/flutter/pull/75032#discussion_r580704225, currently I'm asserting that the selection isn't null in all of these render editable methods.  Is that alright since https://github.com/flutter/flutter/issues/76573 seems to indicate that a null/invalid selection should be impossible long term, or should I just do nothing?\r\n\r\nAlso about your comments above on exposing TextSelection and changing it elsewhere (https://github.com/flutter/flutter/pull/75032#discussion_r580770371), I'm on board with the sentiment but I also am not quite sure how this should look.  I think this class does too many things right now.  It would be great if we could just have functions that take the needed metrics (selection and TextPainter?) and then return the new selection.  I'll keep thinking about how we can do this as we go forward.\r\n\r\nI'll think about doing something like you mentioned in https://github.com/flutter/flutter/pull/75032#discussion_r580765707 as well as we go forward.  Originally I was happy to get away from the _handleMovement method, which was like hundreds of lines long and hard to understand, but this broken up way of doing things is repeating some code here and there.",
+    "createdAt": "2021-03-01T22:22:49Z"
+  },
+  {
+    "id": 5817,
+    "sender": "LongCatIsLooong",
+    "content": "Yeah I'll try to address https://github.com/flutter/flutter/pull/75032#discussion_r580704225 separately.  ",
+    "createdAt": "2021-03-01T22:57:00Z"
+  },
+  {
+    "id": 5818,
+    "sender": "justinmc",
+    "content": "Ready for re-review.  The biggest changes this time are:\r\n\r\n  * [TextEditingActionTarget](https://github.com/flutter/flutter/pull/75032/files#diff-b14445f823d598a72b4823a9663ee7b3a3d4fcbe074ccc712848608e56faf798R20) decouples TextEditingAction from EditableText.\r\n  * [TextEditingAction](https://github.com/flutter/flutter/pull/75032/files#diff-b14445f823d598a72b4823a9663ee7b3a3d4fcbe074ccc712848608e56faf798R46) is now an abstract class and the [actions all implement it](https://github.com/flutter/flutter/pull/75032/files#diff-a7ab0a5db9b1cb96f1d25b62073b4d8bbbe0f4dfa56578bede557c528cd0c121R113).\r\n  * Passing actions/shortcuts to WidgetsApp [doesn't affect](https://github.com/flutter/flutter/pull/75032/files#diff-f629b31e1aaf7209877c14f88326284538c1279b6bcf4859e3d4daebc889bef4R1636) the DefaultTextEditingActions/Shortcuts, they must be overridden with Actions/Shortcuts widgets.\r\n\r\nThanks again and let me know if I missed anyone's comment anywhere!",
+    "createdAt": "2021-03-01T23:44:21Z"
+  },
+  {
+    "id": 5819,
+    "sender": "skia-gold",
+    "content": "Gold has detected about 3 untriaged digest(s) on patchset 118.\nView them at https://flutter-gold.skia.org/cl/github/75032",
+    "createdAt": "2021-03-02T22:56:34Z"
+  },
+  {
+    "id": 5820,
+    "sender": "skia-gold",
+    "content": "Gold has detected about 3 untriaged digest(s) on patchset 121.\nView them at https://flutter-gold.skia.org/cl/github/75032",
+    "createdAt": "2021-03-02T23:14:34Z"
+  },
+  {
+    "id": 5821,
+    "sender": "skia-gold",
+    "content": "Gold has detected about 6 untriaged digest(s) on patchset 123.\nView them at https://flutter-gold.skia.org/cl/github/75032",
+    "createdAt": "2021-03-03T17:29:34Z"
+  },
+  {
+    "id": 5822,
+    "sender": "skia-gold",
+    "content": "Gold has detected about 6 untriaged digest(s) on patchset 124.\nView them at https://flutter-gold.skia.org/cl/github/75032",
+    "createdAt": "2021-03-03T17:32:34Z"
+  },
+  {
+    "id": 5823,
+    "sender": "skia-gold",
+    "content": "Gold has detected about 6 untriaged digest(s) on patchset 125.\nView them at https://flutter-gold.skia.org/cl/github/75032",
+    "createdAt": "2021-03-03T17:59:34Z"
+  }
+]

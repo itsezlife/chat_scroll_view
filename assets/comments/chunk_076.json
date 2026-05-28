@@ -1,0 +1,386 @@
+[
+  {
+    "id": 4864,
+    "sender": "AwaisQazii",
+    "content": "This works for me\nhttps://stackoverflow.com/a/78165157/21133532",
+    "createdAt": "2025-01-30T07:43:07Z"
+  },
+  {
+    "id": 4865,
+    "sender": "p3pp8",
+    "content": "@AwaisQazii did you tested both left and right landascape orientation?",
+    "createdAt": "2025-01-30T09:59:49Z"
+  },
+  {
+    "id": 4866,
+    "sender": "AwaisQazii",
+    "content": "@p3pp8 just tested and I would recommend not to follow my answer as a solution 😐\nworking fine on Portrait Mode only",
+    "createdAt": "2025-01-30T11:53:07Z"
+  },
+  {
+    "id": 4867,
+    "sender": "Andi1986",
+    "content": "> [@p3pp8](https://github.com/p3pp8) just tested and I would recommend not to follow my answer as a solution 😐 working fine on Portrait Mode only\n\nit sounds like a hack anyways, we need a native fix in the package (which works for ALL android devices :D )",
+    "createdAt": "2025-01-30T12:01:45Z"
+  },
+  {
+    "id": 4868,
+    "sender": "p3pp8",
+    "content": "> > [@p3pp8](https://github.com/p3pp8) just tested and I would recommend not to follow my answer as a solution 😐 working fine on Portrait Mode only\n> \n> it sounds like a hack anyways, we need a native fix in the package (which works for ALL android devices :D )\n\nIt seems that Flutter 3.27.1 with camera 0.10.6 without any camerax overrides solves the issue, at least for all Android devices i've tested with!",
+    "createdAt": "2025-01-30T13:37:52Z"
+  },
+  {
+    "id": 4869,
+    "sender": "alex-melnyk",
+    "content": "I faced with the same issue when upgrade from 3.19.6 to 3.27.3, as far as I understand It could be fixed with next code:\n\n```dart\n              child: RotatedBox(\n                quarterTurns: 1,\n                child: AspectRatio(\n                  aspectRatio: cameraController.value.aspectRatio,\n                  child: CameraPreview(\n                    cameraController,\n                  ),\n                ),\n              ),\n```\nflutter: 3.27.3\ncamera: 0.11.1\n\nJust use CameraController aspect ratio.\n\n| Before FIX | After FIX |\n|-----------|----------|\n|![Image](https://github.com/user-attachments/assets/d6eca965-3afa-4464-8719-f3149920e170)|![Image](https://github.com/user-attachments/assets/6fbbe840-a530-4360-a9eb-ce1f9854b670)|",
+    "createdAt": "2025-01-30T16:15:24Z"
+  },
+  {
+    "id": 4870,
+    "sender": "michaelnabil230",
+    "content": "I’m experiencing the same issue. Are there any updates?\n\n",
+    "createdAt": "2025-01-31T00:31:52Z"
+  },
+  {
+    "id": 4871,
+    "sender": "elliotrtd",
+    "content": "@alex-melnyk this works except when the device is then rotated... \nI changed this slightly to use:\n\n`aspectRatio: min(1 / MediaQuery.of(context).size.aspectRatio, _controller!.value.aspectRatio),`\n\nwhich gives better values for my initial testing on Android - although iPhone sees different results again and it's now rotated when it wasn't before. \n\n@camsim99 - I feel that it might be better to look at this differently - the camera package should NOT try to correct the rotation at all. Only in CameraPreview widget - where you could do something like the above since this is a widget you're actually displaying. \n\nThe user has the orientation information and aspect ratio to in theory properly handle this if they choose to do so differently. However I don't know what effect this will have on the \"saved\" images as there's 2 sides to this of course. The above thread has been rather unhelpfully littered with comments about the other side (the saved image) but this case should handle the preview. \n",
+    "createdAt": "2025-01-31T04:54:16Z"
+  },
+  {
+    "id": 4872,
+    "sender": "elliotrtd",
+    "content": "Update on above, the rotation is only required on Android. \n\n```\nreturn RotatedBox(\n      quarterTurns: Platform.isAndroid ? (_controller!.description.sensorOrientation / 90).toInt() : 0,\n      child: AspectRatio(\n        aspectRatio: Platform.isAndroid\n            ? min(1 / MediaQuery.of(context).size.aspectRatio, _controller!.value.aspectRatio)\n            : MediaQuery.of(context).size.aspectRatio,\n        child: CameraPreview(\n          _controller!,\n        ),\n      ),\n    );\n```\n\n@camsim99 this makes me think however there may be an issue on the iOS side too? My iPhone reports a sensor orientation of 90 degrees but the preview is already correctly oriented. This then gives us different behaviour between Android and iOS - one of them has to be wrong. ",
+    "createdAt": "2025-01-31T05:01:19Z"
+  },
+  {
+    "id": 4873,
+    "sender": "AwaisQazii",
+    "content": "> > > [@p3pp8](https://github.com/p3pp8) just tested and I would recommend not to follow my answer as a solution 😐 working fine on Portrait Mode only\n> > \n> > \n> > it sounds like a hack anyways, we need a native fix in the package (which works for ALL android devices :D )\n> \n> It seems that Flutter 3.27.1 with camera 0.10.6 without any camerax overrides solves the issue, at least for all Android devices i've tested with!\n\nYes, the rotation issue has been resolved by using camera:0.10.6, however, I am now encountering a bug where the image stream in the CameraPreview widget appears blurry. This issue is occurring in Flutter version 3.27.1.",
+    "createdAt": "2025-01-31T05:41:38Z"
+  },
+  {
+    "id": 4874,
+    "sender": "michaelnabil230",
+    "content": "> Update on above, the rotation is only required on Android.\n> \n> ```\n> return RotatedBox(\n>       quarterTurns: Platform.isAndroid ? (_controller!.description.sensorOrientation / 90).toInt() : 0,\n>       child: AspectRatio(\n>         aspectRatio: Platform.isAndroid\n>             ? min(1 / MediaQuery.of(context).size.aspectRatio, _controller!.value.aspectRatio)\n>             : MediaQuery.of(context).size.aspectRatio,\n>         child: CameraPreview(\n>           _controller!,\n>         ),\n>       ),\n>     );\n> ```\n> \n> [@camsim99](https://github.com/camsim99) this makes me think however there may be an issue on the iOS side too? My iPhone reports a sensor orientation of 90 degrees but the preview is already correctly oriented. This then gives us different behaviour between Android and iOS - one of them has to be wrong.\n\n\nThis not work with me",
+    "createdAt": "2025-01-31T11:22:31Z"
+  },
+  {
+    "id": 4875,
+    "sender": "elliotrtd",
+    "content": "@michaelnabil230 what is the result in your app? Which versions of camera / camerax are you using? \n\nJust saying it doesn't work doesn't really help identify the problem - which is something still eluding us. \n\nPerhaps you could also let us know the values being reported by your camera for the sensorOrientation - that might give some more information. \n\n@camsim99 just to add again - I got the customer who initially reported the issue to me to test the above fix and he confirmed it worked too - that was a horizontal oriented tablet which was one of the more elusive issues we were trying to work out and it's the first time I've had it working properly on all of my devices and his. \n\n",
+    "createdAt": "2025-01-31T13:58:21Z"
+  },
+  {
+    "id": 4876,
+    "sender": "Mairramer",
+    "content": "I’m investigating the rotation behavior and noticed that if I change the `_getQuarterTurns()` function from:\n```\n int _getQuarterTurns() {\n    final Map<DeviceOrientation, int> turns = <DeviceOrientation, int>{\n      DeviceOrientation.portraitUp: 0,\n      DeviceOrientation.landscapeRight: 1,\n      DeviceOrientation.portraitDown: 2,\n      DeviceOrientation.landscapeLeft: 3,\n    };\n    return turns[_getApplicableOrientation()]!;\n  }\n```\n\nto:\n```\nint _getQuarterTurns() {\n    final Map<DeviceOrientation, int> turns = <DeviceOrientation, int>{\n      DeviceOrientation.portraitUp: 3,\n      DeviceOrientation.landscapeRight: 2,\n      DeviceOrientation.portraitDown: 1,\n      DeviceOrientation.landscapeLeft: 0,\n    };\n    return turns[_getApplicableOrientation()]!;\n  }\n```\n\nthe rotation appears both normal and mirrored. This change alters how the device’s orientation is mapped to the rotation applied. I'm trying to check in native, but it seems a bit confusing to me.\n\nWorks to front camera.",
+    "createdAt": "2025-01-31T14:56:43Z"
+  },
+  {
+    "id": 4877,
+    "sender": "reidbaker",
+    "content": "@elliotrtd I just wanted to say thank you for the helpful/productive comments you are adding that help us debug what is happening here. There is a bunch of noise on this bug (that is still a signal that we have not fixed the issue and that many people are paying attention) that does not help us resolve what is wrong. But your comments and code suggestions are helpful. Keep them up we have not given up on getting this fixed. ",
+    "createdAt": "2025-01-31T15:24:16Z"
+  },
+  {
+    "id": 4878,
+    "sender": "Mairramer",
+    "content": "Returning this code https://github.com/flutter/packages/blob/cc7b5fc79cd389bd02dba3dc7ee956761103b8b9/packages/camera/camera_android_camerax/lib/src/android_camera_camerax.dart#L856-L930\nsolved it for me too.",
+    "createdAt": "2025-01-31T15:32:02Z"
+  },
+  {
+    "id": 4879,
+    "sender": "reidbaker",
+    "content": "@Mairramer when you say returning that code do you mean checking out cc7b5fc79cd389bd02dba3dc7ee956761103b8b9 fixed your issue or that if you only revert buildPreview (the lines linked) that you get the right behavior. \n\nIf it is the second that is great news because it really narrows down where the bug can be. ",
+    "createdAt": "2025-01-31T15:42:54Z"
+  },
+  {
+    "id": 4880,
+    "sender": "Mairramer",
+    "content": "> [@Mairramer](https://github.com/Mairramer) when you say returning that code do you mean checking out [cc7b5fc](https://github.com/flutter/flutter/commit/cc7b5fc79cd389bd02dba3dc7ee956761103b8b9) fixed your issue or that if you only revert buildPreview (the lines linked) that you get the right behavior.\n> \n> If it is the second that is great news because it really narrows down where the bug can be.\n\nThe second one, I will test on more devices, but it seems to work as expected.",
+    "createdAt": "2025-01-31T16:27:47Z"
+  },
+  {
+    "id": 4881,
+    "sender": "alex-melnyk",
+    "content": "> @alex-melnyk this works except when the device is then rotated... \n> I changed this slightly to use:\n> \n> `aspectRatio: min(1 / MediaQuery.of(context).size.aspectRatio, _controller!.value.aspectRatio),`\n> \n> which gives better values for my initial testing on Android - although iPhone sees different results again and it's now rotated when it wasn't before. \n> \n> @camsim99 - I feel that it might be better to look at this differently - the camera package should NOT try to correct the rotation at all. Only in CameraPreview widget - where you could do something like the above since this is a widget you're actually displaying. \n> \n> The user has the orientation information and aspect ratio to in theory properly handle this if they choose to do so differently. However I don't know what effect this will have on the \"saved\" images as there's 2 sides to this of course. The above thread has been rather unhelpfully littered with comments about the other side (the saved image) but this case should handle the preview. \n> \n\nYeah, I'm using lock orientation for camera so missed such case, so yes your suggestion definitely better.\n\nbtw, I faced a lot of issues connected with Flutter SDK 3.27.3 so I prefer say it not so stable, so I switched to older 3.24.5 and here is no such issues with camera at all",
+    "createdAt": "2025-01-31T17:45:15Z"
+  },
+  {
+    "id": 4882,
+    "sender": "camsim99",
+    "content": "> [@camsim99](https://github.com/camsim99) just to add again - I got the customer who initially reported the issue to me to test the above fix and he confirmed it worked too - that was a horizontal oriented tablet which was one of the more elusive issues we were trying to work out and it's the first time I've had it working properly on all of my devices and his.\n\nSorry for the delay but thank you @elliotrtd this is a solid lead. If the sensor orientation is interpreted wrong, that could definitely be the cause if the rotation is consistently off by that amount. Working on a repro.\n\nMy Pixel 3A still has the correct rotation, so testing out some other devices. Emulators probably will do the trick.\n\nAlso I've been testing with Flutter master generally and since there are Impeller bugs being fixed, I would appreciate if testers let me know if they notice any difference between using stable and master.",
+    "createdAt": "2025-02-04T23:01:43Z"
+  },
+  {
+    "id": 4883,
+    "sender": "camsim99",
+    "content": "Hmm wait actually 90 is a common sensor orientation so I'm not sure that's it. My Pixel 3A Vulkan API 32 also reports 90 for its sensor orientation. I did run a Pixel 7 OpenGLES API 32 emulator and it reported 90 and is incorrectly rotated 90 degrees though consistently. I wonder if some other camera data is being reported incorrectly.",
+    "createdAt": "2025-02-04T23:33:50Z"
+  },
+  {
+    "id": 4884,
+    "sender": "camsim99",
+    "content": "Same thing with Realme X2 Pro Vulkan API 30. Reports 90 sensor orientation, correctly rotated.",
+    "createdAt": "2025-02-04T23:51:56Z"
+  },
+  {
+    "id": 4885,
+    "sender": "camsim99",
+    "content": "> > CameraController listens to rotation changes, but it doesn't check what the current rotation is before that, and never sets target rotations _except_ when the rotation _changes_. This seems like it _may_ be a bug, but I'm not sure. It would explain why the orientation is off when switching cameras, unless you go out of your way to rotate a particular way and back.\n> > See: https://cs.android.com/androidx/platform/frameworks/support/+/85c1df12ff3922d950cb00a08533fa66c30f4aa4:camera/camera-view/src/main/java/androidx/camera/view/CameraController.java;l=399-403\n\n@t-m-w Ack. I'll check out how the target rotation of the preview may play into this issue,\n",
+    "createdAt": "2025-02-04T23:55:16Z"
+  },
+  {
+    "id": 4886,
+    "sender": "camsim99",
+    "content": "> [@t-m-w](https://github.com/t-m-w) Ack. I'll check out how the target rotation of the preview may play into this issue.\n\nWe don't set a target rotation for the preview. https://developer.android.com/reference/androidx/camera/core/Preview.Builder?_gl=1*f1caeu*_up*MQ..*_ga*MTQ0NzIxODYxOS4xNzM4NzE1MTE3*_ga_6HH9YJMN9M*MTczODcxNTExNi4xLjAuMTczODcxNTExNi4wLjAuMTM0Nzc1ODMxNg..#setTargetRotation(int) suggests that this means it would set the rotation to that of `getRotation()`. I think I should check that value to see if it's what we expect. If it is, I _think_ we could make some real conclusions about the cause of this coming from the `Surface` we provide to the preview (and thus, the Impeller backends) versus logic in the plugin.\n\n",
+    "createdAt": "2025-02-05T00:35:24Z"
+  },
+  {
+    "id": 4887,
+    "sender": "elliotrtd",
+    "content": "@camsim99 I was building on stable - so the fix that's been applied on my side might then be affected on the master branch. I'll try and test later if I can. \n\nMy Pixel 7 also reports 90 degrees (and so without the above fix I used in my code was broken)",
+    "createdAt": "2025-02-06T04:50:26Z"
+  },
+  {
+    "id": 4888,
+    "sender": "martingeorgiu",
+    "content": "This happend to me when updating to Flutter 3.27. Downgrading to `camera_android_camerax : 0.6.11` fixed it.",
+    "createdAt": "2025-02-06T11:39:51Z"
+  },
+  {
+    "id": 4889,
+    "sender": "mahmoudsaleh1997",
+    "content": "@martingeorgiu did u tried on iOS? because that fix worked for me on android but break the iOS",
+    "createdAt": "2025-02-07T05:27:31Z"
+  },
+  {
+    "id": 4890,
+    "sender": "camsim99",
+    "content": "Paired with @matanlurey yesterday and we found a solution for real devices (emulators appear to still be broken but we believe that is an emulator issue). The two fixes we discovered that we need are:\n\n1. **Ensure the preview widget is rebuilt when a new device orientation is detected.** We use a `Stream` to detect changes in orientation, but by only returning a `Texture` and not a widget with the ability to update the state (a `StatefulWidget` or possibly a `StreamBuilder`), the preview actually would not re-render when an update to the device orientation is received. This caused confusion because we were seeing the right rotation calculation with [the orientation calculation](https://developer.android.com/media/camera/camera2/camera-preview#orientation_calculation) that we implemented previously, but not actually the updated preview, leaving the preview 90 degrees off.\n2. **Use [`handlesCropAndRotation`](https://api.flutter.dev/javadoc/io/flutter/view/TextureRegistry.SurfaceProducer.html#handlesCropAndRotation()) to detect if the preview is already correctly rotated or not.** We previously estimated this by assuming devices running API < 29 were using `SurfaceTexture` (whose previews are already correctly rotated) and otherwise were using `ImageReader` (which requires a rotation correction), but this is not quite true. This, for example, is why I was seeing a correct preview rotation on my Pixel 3A (which is API > 29) but the reporters of this issue were likely not.\n\nWe'll follow up with a PR for these fixes. In the meantime, I wanted to thank all of the commentators of this issue that gave us reports and helped us debug this issue, especially @elliotrtd @Mairramer @alex-melnyk @jellynoone @Buenaventura-Celine @Dario-Maselli @NiclasLeichsenring @thecodemonk! We really appreciate your efforts!!",
+    "createdAt": "2025-02-12T23:47:02Z"
+  },
+  {
+    "id": 4891,
+    "sender": "danbeechbloom",
+    "content": "@camsim99 the rotation issue has been reported to me today by a colleague. I can see you've got a PR for that, tyvm.\n\nHowever, on Android 12 the image is in black & white in addition to the rotation. On Android 13 it's full colour with rotation. \n\nWe didn't have either issue until a recent update, so any idea if these issues are linked? If not I can get some info together and open a new issue.",
+    "createdAt": "2025-02-14T15:52:44Z"
+  },
+  {
+    "id": 4892,
+    "sender": "reidbaker",
+    "content": "Please file a separate issue if you are seeing color issues. ",
+    "createdAt": "2025-02-14T16:07:32Z"
+  },
+  {
+    "id": 4893,
+    "sender": "danbeechbloom",
+    "content": "@reidbaker All good, will do",
+    "createdAt": "2025-02-14T16:09:36Z"
+  },
+  {
+    "id": 4894,
+    "sender": "elliotrtd",
+    "content": "@camsim99 @matanlurey Thank you both so much! ",
+    "createdAt": "2025-02-16T07:44:17Z"
+  },
+  {
+    "id": 4895,
+    "sender": "cnkygmr",
+    "content": "When will the update be released? Because of this problem, the camera appears sideways and I cannot update it. Thank you.",
+    "createdAt": "2025-02-16T13:03:57Z"
+  },
+  {
+    "id": 4896,
+    "sender": "ubaid-shamsi",
+    "content": "@darshankawar I'm also getting the similar issue on Samsung Galaxy S20, Android 13 after upgrading `camera` version to \"0.11.1\" and `camera_android_camerax` to \"0.6.13\". It was not occurring before on any of the devices that I have.\n\nIssue Screenshot:\n<img src=\"https://github.com/user-attachments/assets/c071f78a-edd8-4d0f-9821-f07ccb47c1ba\" width =\"300\"> ",
+    "createdAt": "2025-02-17T07:05:14Z"
+  },
+  {
+    "id": 4897,
+    "sender": "AwaisQazii",
+    "content": "@ubaid-shamsi Please use camera version **0.10.6**, it is due to Impeller Engine I guess. If you are working on Android 34 or lower you can downgrade camera version\n  ",
+    "createdAt": "2025-02-17T07:47:18Z"
+  },
+  {
+    "id": 4898,
+    "sender": "Alrfati-HazemY",
+    "content": "Is there any update on this issue? And is there any temporary solution?",
+    "createdAt": "2025-02-19T13:00:51Z"
+  },
+  {
+    "id": 4899,
+    "sender": "ubaid-shamsi",
+    "content": "@Alrfati-HazemY use any version <= \"0.11.0+2\", this works for me. Due to recent update in `camera_android_camerax` (0.6.8) in which they have been shifted to impeller engine, I think that causing the issue. ",
+    "createdAt": "2025-02-19T13:07:19Z"
+  },
+  {
+    "id": 4900,
+    "sender": "camsim99",
+    "content": "https://github.com/flutter/packages/pull/8629 landed in `camera_android_camerax: 0.6.14`, and I believe this should fix the issue, but please let us know if you experience further issues!",
+    "createdAt": "2025-02-26T21:25:12Z"
+  },
+  {
+    "id": 4901,
+    "sender": "camsim99",
+    "content": "@elliotrtd I saw a comment you left in my email about side effects, but I don't see it here. Did you find a fix? If not, can you open an issue so I can resolve it? Thank you!",
+    "createdAt": "2025-02-27T18:13:45Z"
+  },
+  {
+    "id": 4902,
+    "sender": "kylehayes",
+    "content": "@camsim99 Thank you for working on this fix. This definitely is working on my Samsung Tab S9 FE+ device, but still doesn't appear to be working on my MicroTouch display.\n\nOther than it running Android 13, what else can I provide to help debug what's happening?\n\nIf I understand the underlying issue correctly, it has to do with the reported rotation of the camera?",
+    "createdAt": "2025-02-27T18:55:45Z"
+  },
+  {
+    "id": 4903,
+    "sender": "camsim99",
+    "content": "@kylehayes It likely has to do with how your device provides `Surface`s to the camera plugin. It's possible that the API we use to detect if your device needs the preview rotation correction is not reporting the right value for the MicroTouch display.\n\nI haven't seen this on any of my devices, so it would be difficult for me to debug, but if you're willing to help, you could run a local version of the `camera_android_camerax` plugin and play around with the value of `_handlesCropAndRotation` here: https://github.com/flutter/packages/blob/main/packages/camera/camera_android_camerax/lib/src/android_camera_camerax.dart#L847. I wonder if we are building one preview `Widget` on that device when we should building another. We'd expect `_handlesCropAndRotation` to be `false` on Android 13 devices, for context, but maybe something that we don't expect is happening.\n\nIf you need help doing that, let me know!",
+    "createdAt": "2025-02-27T21:33:27Z"
+  },
+  {
+    "id": 4904,
+    "sender": "kylehayes",
+    "content": "Sounds great, @camsim99—thank you for explaining that. I'll hopefully get around to looking at this tomorrow or early next week.",
+    "createdAt": "2025-02-27T22:30:17Z"
+  },
+  {
+    "id": 4905,
+    "sender": "kylehayes",
+    "content": "Alright @camsim99 I was able to debug this today on the device and found some interesting things. `_handesCropAndRotation` is indeed `false` which sounds like a good thing from your POV.\n\nWhen constructing the `RotatedPreview.frontFacingCamera`, here are the reported values:\n`_initialDeviceOrientation` = `DeviceOrientation.landscapeLeft`\n`sensorOrientationDegrees` = `0.0`\n\nAs I step through we end up in the `_wrapInRotatedBox` method of `camera_preview` and the `RotatedBox` gets used and then calls `_getQuarterTurns()` which returns `3` for `landscapeLeft`. However, a quarter turn of `2` is what sets the preview rotation correctly for this device.\n",
+    "createdAt": "2025-02-28T21:22:23Z"
+  },
+  {
+    "id": 4906,
+    "sender": "camsim99",
+    "content": "@kylehayes thank you for looking into that! Is it correct when you set `_handesCropAndRotation` to true?\n\nIf not, I think this is because that device is landscape-oriented, which actually has been broken for `camera_android` for sometime and I believe `camera_android_camerax` since it was built, and I'll need to debug that further.\n\n> As I step through we end up in the _wrapInRotatedBox method of camera_preview and the RotatedBox gets used and then calls _getQuarterTurns() which returns 3 for landscapeLeft. However, a quarter turn of 2 is what sets the preview rotation correctly for this device.\n\nWe apply an additional rotation on top of that one when `RotatedPreview` is used via another `RotatedBox` BTW, but in this line of thinking, if setting `_handesCropAndRotation` to true does not work, it must be because we are assuming the device is naturally portrait up in our logic somewhere.",
+    "createdAt": "2025-02-28T21:34:11Z"
+  },
+  {
+    "id": 4907,
+    "sender": "kylehayes",
+    "content": "@camsim99 it is not correct if I override `_handlesCropAndRotation` to true.\n\nI bet you're right about this always being a landscape device as its a 22\" touch screen computer, meant for commercial/industrial installations.",
+    "createdAt": "2025-02-28T23:01:39Z"
+  },
+  {
+    "id": 4908,
+    "sender": "camsim99",
+    "content": "@kylehayes Ah gotcha. Thank you so much for helping debug! :)  I'll file an issue for landscape oriented devices and we can follow up there; I'll ping you when I do.",
+    "createdAt": "2025-03-01T00:26:19Z"
+  },
+  {
+    "id": 4909,
+    "sender": "elliotrtd",
+    "content": "@camsim99 I realised it wasn't necessarily something to fix - but maybe you want to think about later on - certainly not related here. \n\nQuick summary - When I was testing rotating the display whilst the device was set to locked rotation it comes up with a button in the bottom left corner to force it to rotate. My button for the flash was just below this so the flash was firing at the same time as the rotation which threw an error because the camera was not ready. ",
+    "createdAt": "2025-03-01T02:38:48Z"
+  },
+  {
+    "id": 4910,
+    "sender": "camsim99",
+    "content": "@elliotrtd Interesting :/ if you want us to take a deeper look, can you file a separate issue?",
+    "createdAt": "2025-03-03T17:24:18Z"
+  },
+  {
+    "id": 4911,
+    "sender": "elliotrtd",
+    "content": "@camsim99 I will do some more testing in the coming days - it seems to me a bit more of a unique problem to my setup than a flaw in the package. it's also not strictly related to this issue, I thought it was initially the rotation not being handled until I saw the flash reference, hence I deleted my original comment. \n\nIf I think it's something could / should be handled better I'll file a separate issue no worries. \n\nIn good news - the customer who reported the original issue has confirmed that the new fix works correctly for them without my manual fix which I previously applied so I would confirm this is solved :) ",
+    "createdAt": "2025-03-04T05:15:27Z"
+  },
+  {
+    "id": 4912,
+    "sender": "amirh",
+    "content": "## Embedded Android views can't bring up the keyboard\n\nTo make sure that Flutter can always bring up the keyboard I made the window of virtual display's presentation non focusable.\r\nAs a result the embedded Android views cannot bring up the keyboard.\r\n\r\nWe should figure out if there's some window trickery we can do to let the unfocused window bring up the keyboard. Alternatively see if it's possible to dynamically select the focused window when delivering input events.",
+    "createdAt": "2018-07-24T15:59:35Z"
+  },
+  {
+    "id": 4913,
+    "sender": "fujinjun",
+    "content": "anyone solved this problem?\r\n",
+    "createdAt": "2018-12-05T03:13:09Z"
+  },
+  {
+    "id": 4914,
+    "sender": "bvedam",
+    "content": "Still seeing the issue on the following versions. Surprised to see this issue is still not resolved after 6 months. \r\n```\r\ncompileSdkVersion = targetSdkVersion = 26 & 27\r\n```\r\nTried both stable and beta channels.\r\n```\r\nDoctor summary (to see all details, run flutter doctor -v):\r\n[√] Flutter (Channel beta, v1.0.0, on Microsoft Windows [Version 10.0.16299.847], locale en-US)\r\n[√] Android toolchain - develop for Android devices (Android SDK 28.0.3)\r\n[√] Android Studio (version 3.2)\r\n[√] VS Code, 64-bit edition (version 1.30.2)\r\n[√] Connected device (1 available)\r\n\r\n• No issues found!\r\n```\r\nCan someone respond with the status please. Thanks.",
+    "createdAt": "2019-01-16T04:59:19Z"
+  },
+  {
+    "id": 4915,
+    "sender": "amirh",
+    "content": "Since as far as I can tell there isn't a way for an Android app to dynamically change the focused window, and as only the focused window can bring up and use a keyboard, the only approach I see right now is to setup up some proxying mechanism for input connections which isn't trivial on it's own as non trivial trickery is required to figure out when a webview is asking for keyboard. Last I dug into this I had a somewhat complex plan which I haven't tested yet (if someone have a suggestion for a clean solution I'd be very happy to hear about it).\r\n\r\nAn alternative approach would be to use an iOS style platform view embedding mechanism when keyboard is needed (splitting the Flutter surface instead of rendering to a texture), this will have the drawback of not supporting all transforms (e.g if you'll opt in for keyboard support you will trade things like color filters, backdrop filter, perspective transforms and more).\r\n\r\nAll this to say that this is a non trivial effort, I do think it is important and will try to get it, but right now I'm focusing on finalizing and quality of the current set of platform views features.",
+    "createdAt": "2019-01-16T05:41:46Z"
+  },
+  {
+    "id": 4916,
+    "sender": "bvedam",
+    "content": "Thank you very much for detailing the problem in hand, and its complexity. Currently using flutter_inappbrowser plugin based that is based on AndroidView, which is why I have this problem. I initially used the flutter community plugin \"flutter_webview_plugin\"  but that doesn't support setting cookies (inappbrowser does). Is there a web view plugin you could recommend that supports **setting** webview cookies and not have this keyboard issue.  Appreciate your response. ",
+    "createdAt": "2019-01-17T04:07:45Z"
+  },
+  {
+    "id": 4917,
+    "sender": "amirh",
+    "content": "I have no experience with webview plugins other than webview_flutter, you might have a better luck asking in one of the community channels: https://flutter.io/community",
+    "createdAt": "2019-01-18T03:56:44Z"
+  },
+  {
+    "id": 4918,
+    "sender": "Steve-sy",
+    "content": "Hello Guys, anyone solved this issue?",
+    "createdAt": "2019-02-07T19:17:38Z"
+  },
+  {
+    "id": 4919,
+    "sender": "alexelisenko",
+    "content": "Having the same issue with `webview_flutter: ^0.3.0+2` on Android. Does anyone have any workarounds?",
+    "createdAt": "2019-02-11T22:42:09Z"
+  },
+  {
+    "id": 4920,
+    "sender": "Steve-sy",
+    "content": "> Having the same issue with webview_flutter: ^0.3.0+2 on Android. Does anyone have any workarounds?\r\n\r\nits really shame on flutter man! look at the issue its from Jul 24, 2018! @amirh any news can help us bro?",
+    "createdAt": "2019-02-11T22:59:55Z"
+  },
+  {
+    "id": 4921,
+    "sender": "Hixie",
+    "content": "@Steve-sy Please consider reading through https://github.com/flutter/flutter/blob/master/CODE_OF_CONDUCT.md at some point soon. Thanks! :-)",
+    "createdAt": "2019-02-13T21:29:38Z"
+  },
+  {
+    "id": 4922,
+    "sender": "ghost",
+    "content": "In my app, when the WebView is showing, that is the only place there will ever be a need for a keyboard. In this scenario, the WebView is shown in full screen with a floating button to access settings and exit WebView.\r\n\r\nThis plugin is great compared to the others I've tried but I really need that keyboard on Android. My app also has components written in Flutter, with many more to be added soon, but because we have a web login, we can't get very far (literally nowhere) in our app without a keyboard! \r\n\r\nCould we do something like a FullScreenWebView that DOES allow the window of virtual display's presentation to be focusable? \r\n\r\nThanks\r\n",
+    "createdAt": "2019-02-15T13:05:52Z"
+  },
+  {
+    "id": 4923,
+    "sender": "alexelisenko",
+    "content": "Running the flutter plugins webview example project on android exhibits the same keyboard issue, even in fullscreen. I have found that the inappbrowser plugin does display the keyboard in full screen correctly.\r\n\r\nhttps://pub.dartlang.org/packages/flutter_inappbrowser",
+    "createdAt": "2019-02-15T13:28:57Z"
+  },
+  {
+    "id": 4924,
+    "sender": "ghost",
+    "content": "Maybe I chose the wrong wording in \"Full Screen\". How about \"dedicated\" embedded view. And as a user of the dedicated embedded view, I would not be able to have flutter text widgets within the same screen and it won't matter to me since any text entry for my app in that context will happen through the dedicated embedded view.",
+    "createdAt": "2019-02-15T16:39:05Z"
+  },
+  {
+    "id": 4925,
+    "sender": "rakeshlanjewar",
+    "content": "@Hixie @goderbauer  I think this should be customer-blocker.",
+    "createdAt": "2019-02-16T05:48:17Z"
+  },
+  {
+    "id": 4926,
+    "sender": "Pash237",
+    "content": "Same here.\r\nUse a Web View for logging in. Maybe we can do some runtime switch for the focus? Or even compile-time, as a workaround :) This Web View will have the only text fields in my app.\r\n\r\nWas developing on iOS, and now the app is 90% ready but I can't release it since it's can't be used on Android :(\r\n\r\n------------\r\nUpdate:\r\nMy current hacky workaround — make hidden WebView, and normal form using Flutter native widgets, then fill and submit the web form using `evaluateJavascript()` like that:\r\n```\r\n_webViewController.evaluateJavascript(\"\"\"\r\n        document.getElementById(\"login\").value = \"${_logInTextFieldController.text}\";\r\n        document.getElementById(\"password\").value = \"${_passwordTextFieldController.text}\";\r\n        document.getElementById(\"form\").submit();\r\n      \"\"\");\r\n```",
+    "createdAt": "2019-02-17T18:50:48Z"
+  },
+  {
+    "id": 4927,
+    "sender": "bogdan0083",
+    "content": "> Was developing on iOS, and now the app is 90% ready but I can't release it since it's can't be used on Android :(\r\n\r\nThe same here.\r\n\r\nNon-showing Android keyboard is the only thing that stops me from using Flutter right now.\r\n\r\n",
+    "createdAt": "2019-02-18T01:48:18Z"
+  }
+]

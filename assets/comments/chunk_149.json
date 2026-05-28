@@ -1,0 +1,386 @@
+[
+  {
+    "id": 9536,
+    "sender": "radivojeostojic",
+    "content": "We also have a lot of problems with this issue; it keeps recurring more frequently from version to version.\r\nFlutter version: 3.19.5.\r\n\r\n<img width=\"1353\" alt=\"Screenshot 2024-05-06 at 10 17 31\" src=\"https://github.com/flutter/flutter/assets/28922835/b868f741-3da2-4b03-98e8-7817a1d41a62\">\r\n\r\n",
+    "createdAt": "2024-05-06T08:20:02Z"
+  },
+  {
+    "id": 9537,
+    "sender": "k1r3zz",
+    "content": "> > If anybody is able to provide a reproducible code sample, we would be happy to look into it further.\r\n> \r\n> Much appreciated! So far this issue seems to be incredibly hard to reproduce (while it happens relatively often in production). Our findings so far:\r\n> \r\n> * we see it very often after sharing (using share_plus) but that could very well be related to backgrounding/foregrounding the app\r\n> * I was able to confirm that the app really crashed\r\n> * we see it since upgrading flutter 3.13.9 > 3.19.5\r\n> * it happens on a screen with ads and google maps\r\n> * we don't see a relation with a specific device or OS version (we see it a lot with Android 13/14 on Samsung but that are also the most used devices)\r\n\r\nDo you have this error in flutter 3.13.9? I want to take flutter back and fix it temporarily",
+    "createdAt": "2024-05-06T08:22:57Z"
+  },
+  {
+    "id": 9538,
+    "sender": "lazytesting",
+    "content": "> > > If anybody is able to provide a reproducible code sample, we would be happy to look into it further.\r\n> > \r\n> > \r\n> > Much appreciated! So far this issue seems to be incredibly hard to reproduce (while it happens relatively often in production). Our findings so far:\r\n> > \r\n> > * we see it very often after sharing (using share_plus) but that could very well be related to backgrounding/foregrounding the app\r\n> > * I was able to confirm that the app really crashed\r\n> > * we see it since upgrading flutter 3.13.9 > 3.19.5\r\n> > * it happens on a screen with ads and google maps\r\n> > * we don't see a relation with a specific device or OS version (we see it a lot with Android 13/14 on Samsung but that are also the most used devices)\r\n> \r\n> Do you have this error in flutter 3.13.9? I want to take flutter back and fix it temporarily\r\n\r\nBefore upgrading and after downgrading the SDK we did not saw this error.",
+    "createdAt": "2024-05-06T10:48:40Z"
+  },
+  {
+    "id": 9539,
+    "sender": "fernan88",
+    "content": "@k1r3zz This seems to be another issue with platform views, as far as I know some of them were fixed in Flutter 3.22.0-0.3.pre.",
+    "createdAt": "2024-05-06T11:24:59Z"
+  },
+  {
+    "id": 9540,
+    "sender": "k1r3zz",
+    "content": "> @k1r3zz This seems to be another issue with platform views, as far as I know some of them were fixed in Flutter 3.22.0-0.3.pre.\r\n\r\nHow long will this test build be on stable",
+    "createdAt": "2024-05-07T01:57:48Z"
+  },
+  {
+    "id": 9541,
+    "sender": "wahyupermadie",
+    "content": "we also facing this kind of issue, mostly affected oppo, vivo and realme device. our app is native android which have some feature build in flutter.\r\n```\r\ndlopen failed: library \"/data/app/~~LHhbM4nW8kgpM80y679buQ==/com.app.p-3yD9iuPthG6dPmgMBhKfLQ==/split_config.arm64_v8a.apk!/lib/arm64-v8a/libflutter.so\" not found\r\n```",
+    "createdAt": "2024-05-07T04:37:41Z"
+  },
+  {
+    "id": 9542,
+    "sender": "MilesAdamson",
+    "content": "On April 16th we released a build which bumped flutter version from `3.16.9` to `3.19.3`. It's causing a ton of these crashes but likewise for us, we cannot reproduce them at all. We are downgrading back to `3.16.9` until this seems like it's resolved.\r\n\r\n![image](https://github.com/flutter/flutter/assets/29047682/c3b1251c-ffec-44e5-a35e-34458fc5e69b)\r\n",
+    "createdAt": "2024-05-07T15:59:27Z"
+  },
+  {
+    "id": 9543,
+    "sender": "k1r3zz",
+    "content": "> On April 16th we released a build which bumped flutter version from `3.16.9` to `3.19.3`. It's causing a ton of these crashes but likewise for us, we cannot reproduce them at all. We are downgrading back to `3.16.9` until this seems like it's resolved.\r\n> \r\n> ![image](https://private-user-images.githubusercontent.com/29047682/328592571-c3b1251c-ffec-44e5-a35e-34458fc5e69b.png?jwt=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJnaXRodWIuY29tIiwiYXVkIjoicmF3LmdpdGh1YnVzZXJjb250ZW50LmNvbSIsImtleSI6ImtleTUiLCJleHAiOjE3MTUyMjI3NDQsIm5iZiI6MTcxNTIyMjQ0NCwicGF0aCI6Ii8yOTA0NzY4Mi8zMjg1OTI1NzEtYzNiMTI1MWMtZmZlYy00NGU1LWEzNWUtMzQ0NThmYzVlNjliLnBuZz9YLUFtei1BbGdvcml0aG09QVdTNC1ITUFDLVNIQTI1NiZYLUFtei1DcmVkZW50aWFsPUFLSUFWQ09EWUxTQTUzUFFLNFpBJTJGMjAyNDA1MDklMkZ1cy1lYXN0LTElMkZzMyUyRmF3czRfcmVxdWVzdCZYLUFtei1EYXRlPTIwMjQwNTA5VDAyNDA0NFomWC1BbXotRXhwaXJlcz0zMDAmWC1BbXotU2lnbmF0dXJlPTkwZmJkY2FmY2Q4MWMyNWJmM2ZkMDIwZjBkMmZlN2M3MDlkNDA1ZmQ5Y2Q3NjY3NmJkZGE2NjcwMTIxZmQzMDgmWC1BbXotU2lnbmVkSGVhZGVycz1ob3N0JmFjdG9yX2lkPTAma2V5X2lkPTAmcmVwb19pZD0wIn0.PsmfdNrrWkG3XTBNLS2-BecDjY4uRsSwpFFwBmH4eFI)\r\n\r\nNow I am using 3.19.0. I am going to downgrade to 3.13.9. If 3.16.9 does not have this problem, I will consider 3.16.9",
+    "createdAt": "2024-05-09T02:42:57Z"
+  },
+  {
+    "id": 9544,
+    "sender": "mutant0113",
+    "content": "Hi team,\r\nI encountered the same problem and already left a comment [here](https://github.com/flutter/flutter/issues/112542#issuecomment-1859535917) a few months ago.\r\n\r\nThanks to our QA team, I can finally reproduce the issue with a simple example. \r\nI would like to provide the information, hoping it will help you identify the root cause.\r\n\r\n## Steps to reproduce\r\nUse the sample code. The issue can be reproduced reliably with a release build (flutter run --release), while it does not occur in debug mode. (It only happened once in our app.)\r\n\r\nHere are the steps:\r\nWhen tap `Show WebView in BottomSheet` button\r\nThen a bottom sheet with a WebView should pop up\r\nWhen tap grey area\r\nThen the bottom sheet should disappear\r\nWhen repeat the above steps 10~30 times (it depends, sometimes it happens quickly)\r\nThen the app crashes\r\n\r\n## Device & Information\r\n1. It can be easily reproduced on the **Samsung M12**, while it never happens on the Samsung S22 Ultra.\r\n2. Need to use WebView with `useHybridComposition: true`\r\n\r\n## Code sample\r\nPlease import plugin `flutter_inappwebview: ^6.0.0`.\r\n\r\n<details>\r\n  <summary>Code sample</summary>\r\n\r\n```dart\r\nimport 'package:flutter/material.dart';\r\nimport 'package:flutter_inappwebview/flutter_inappwebview.dart';\r\n\r\nvoid main() => runApp(const MaterialApp(home: HomePage()));\r\n\r\nclass HomePage extends StatefulWidget {\r\n  const HomePage({super.key});\r\n\r\n  @override\r\n  State<HomePage> createState() => _HomePageState();\r\n}\r\n\r\nclass _HomePageState extends State<HomePage> {\r\n  @override\r\n  Widget build(BuildContext context) => Scaffold(\r\n        body: Center(\r\n          child: ElevatedButton(\r\n            child: const Text(\"Show WebView in BottomSheet\"),\r\n            onPressed: () {\r\n              showModalBottomSheet<void>(\r\n                context: context,\r\n                isScrollControlled: true,\r\n                builder: (context) => const SizedBox(height: 600, child: InAppWebViewPage()),\r\n              );\r\n            },\r\n          ),\r\n        ),\r\n      );\r\n}\r\n\r\nclass InAppWebViewPage extends StatefulWidget {\r\n  const InAppWebViewPage({super.key});\r\n\r\n  @override\r\n  State<InAppWebViewPage> createState() => _InAppWebViewPageState();\r\n}\r\n\r\nclass _InAppWebViewPageState extends State<InAppWebViewPage> {\r\n  @override\r\n  Widget build(BuildContext context) => Scaffold(\r\n        appBar: AppBar(title: const Text(\"InAppWebView\")),\r\n        body: InAppWebView(\r\n          initialUrlRequest: URLRequest(url: WebUri(\"https://buy.line.me/\")),\r\n          initialSettings: InAppWebViewSettings(useHybridComposition: true),\r\n        ),\r\n      );\r\n}\r\n```\r\n\r\n</details>\r\n\r\n## Screenshots or Video\r\n<details>\r\n  <summary>Demo video</summary>\r\n\r\nhttps://github.com/flutter/flutter/assets/1586963/91abf344-2a1a-421c-b198-05ed4b88dcda\r\n\r\n</details>\r\n\r\n## Logs\r\n<details>\r\n  <summary>Release build</summary>\r\n  \r\n```\r\n[ERROR:flutter/fml/platform/android/jni_util.cc(206)] java.lang.IllegalStateException: Platform view hasn't been initialized from the platform view channel.\r\n    at io.flutter.plugin.platform.y.X(Unknown Source:96)\r\n    at io.flutter.plugin.platform.y.k0(Unknown Source:3)\r\n    at io.flutter.embedding.engine.FlutterJNI.onDisplayPlatformView(Unknown Source:19)\r\n    at android.os.MessageQueue.nativePollOnce(Native Method)\r\n    at android.os.MessageQueue.next(MessageQueue.java:335)\r\n    at android.os.Looper.loopOnce(Looper.java:186)\r\n    at android.os.Looper.loop(Looper.java:313)\r\n    at android.app.ActivityThread.main(ActivityThread.java:8669)\r\n    at java.lang.reflect.Method.invoke(Native Method)\r\n    at com.android.internal.os.RuntimeInit$MethodAndArgsCaller.run(RuntimeInit.java:571)\r\n    at com.android.internal.os.ZygoteInit.main(ZygoteInit.java:1135)\r\n[FATAL:flutter/shell/platform/android/platform_view_android_jni_impl.cc(1696)] Check failed: fml::jni::CheckException(env). \r\nFatal signal 6 (SIGABRT), code -1 (SI_QUEUE) in tid 32732 (ppwebview_crash), pid 32732 (ppwebview_crash)\r\n*** *** *** *** *** *** *** *** *** *** *** *** *** *** *** ***\r\nBuild fingerprint: 'samsung/m12nsxx/m12:12/SP1A.210812.016/M127FXXU3BVI3:user/release-keys'\r\nRevision: '2'\r\nABI: 'arm64'\r\nProcessor: '0'\r\nTimestamp: 2024-05-09 14:53:56.842393302+0800\r\nProcess uptime: 36s\r\nCmdline: com.example.inappwebview_crash\r\npid: 32732, tid: 32732, name: ppwebview_crash  >>> com.example.inappwebview_crash <<<\r\nuid: 10373\r\nsignal 6 (SIGABRT), code -1 (SI_QUEUE), fault addr --------\r\nAbort message: '[FATAL:flutter/shell/platform/android/platform_view_android_jni_impl.cc(1696)] Check failed: fml::jni::CheckException(env). \r\n    '\r\nx0  0000000000000000  x1  0000000000007fdc  x2  0000000000000006  x3  0000007fe5383ba0\r\nx4  0000007149114000  x5  0000007149114000  x6  0000007149114000  x7  000000000d1a00b0\r\nx8  00000000000000f0  x9  e2cf4cd68e151c0e  x10 0000000000000000  x11 ffffff80fffffbdf\r\nx12 0000000000000001  x13 0000000027a0d7c8  x14 0000000000000000  x15 00005acbd7129a4e\r\nx16 00000071421b6d20  x17 0000007142190c50  x18 0000007148358000  x19 0000000000007fdc\r\nx20 0000000000007fdc  x21 00000000ffffffff  x22 b40000709fe20900  x23 000000701e563000\r\nx24 000000701e563000  x25 b40000700c0d2c48  x26 0000000000000024  x27 0000007147f4901d\r\nx28 0000007147f49021  x29 0000007fe5383c20\r\nlr  00000071421436fc  sp  0000007fe5383b80  pc  0000007142143728  pst 0000000000000000\r\nbacktrace:\r\n#00 pc 0000000000089728  /apex/com.android.runtime/lib64/bionic/libc.so (abort+164) (BuildId: ddfcb9d4fd7d4d5ecb9d226c1e8e24dd)\r\n#01 pc 0000000000438784  /data/app/~~ZCvYvttpLWMHE9GRnjTipg==/com.example.inappwebview_crash-uElkmaCR3O0ehHdbFMHtRA==/lib/arm64/libflutter.so (BuildId: e263a16aaa8bf3e0d2b45e1cc4e6207615829b32)\r\n#02 pc 0000000000465400  /data/app/~~ZCvYvttpLWMHE9GRnjTipg==/com.example.inappwebview_crash-uElkmaCR3O0ehHdbFMHtRA==/lib/arm64/libflutter.so (BuildId: e263a16aaa8bf3e0d2b45e1cc4e6207615829b32)\r\n#03 pc 0000000000451ee4  /data/app/~~ZCvYvttpLWMHE9GRnjTipg==/com.example.inappwebview_crash-uElkmaCR3O0ehHdbFMHtRA==/lib/arm64/libflutter.so (BuildId: e263a16aaa8bf3e0d2b45e1cc4e6207615829b32)\r\n#04 pc 00000000009097dc  /data/app/~~ZCvYvttpLWMHE9GRnjTipg==/com.example.inappwebview_crash-uElkmaCR3O0ehHdbFMHtRA==/lib/arm64/libflutter.so (BuildId: e263a16aaa8bf3e0d2b45e1cc4e6207615829b32)\r\n#05 pc 000000000078fbe0  /data/app/~~ZCvYvttpLWMHE9GRnjTipg==/com.example.inappwebview_crash-uElkmaCR3O0ehHdbFMHtRA==/lib/arm64/libflutter.so (BuildId: e263a16aaa8bf3e0d2b45e1cc4e6207615829b32)\r\n#06 pc 000000000078f5e8  /data/app/~~ZCvYvttpLWMHE9GRnjTipg==/com.example.inappwebview_crash-uElkmaCR3O0ehHdbFMHtRA==/lib/arm64/libflutter.so (BuildId: e263a16aaa8bf3e0d2b45e1cc4e6207615829b32)\r\n#07 pc 00000000007908d0  /data/app/~~ZCvYvttpLWMHE9GRnjTipg==/com.example.inappwebview_crash-uElkmaCR3O0ehHdbFMHtRA==/lib/arm64/libflutter.so (BuildId: e263a16aaa8bf3e0d2b45e1cc4e6207615829b32)\r\n#08 pc 00000000007903d4  /data/app/~~ZCvYvttpLWMHE9GRnjTipg==/com.example.inappwebview_crash-uElkmaCR3O0ehHdbFMHtRA==/lib/arm64/libflutter.so (BuildId: e263a16aaa8bf3e0d2b45e1cc4e6207615829b32)\r\n#09 pc 0000000000465ff8  /data/app/~~ZCvYvttpLWMHE9GRnjTipg==/com.example.inappwebview_crash-uElkmaCR3O0ehHdbFMHtRA==/lib/arm64/libflutter.so (BuildId: e263a16aaa8bf3e0d2b45e1cc4e6207615829b32)\r\n#10 pc 0000000000469d4c  /data/app/~~ZCvYvttpLWMHE9GRnjTipg==/com.example.inappwebview_crash-uElkmaCR3O0ehHdbFMHtRA==/lib/arm64/libflutter.so (BuildId: e263a16aaa8bf3e0d2b45e1cc4e6207615829b32)\r\n#11 pc 0000000000016918  /system/lib64/libutils.so (android::Looper::pollInner(int)+912) (BuildId: a8e5883b039c6d018dc9ced53f79b1d0)\r\n#12 pc 0000000000016520  /system/lib64/libutils.so (android::Looper::pollOnce(int, int*, int*, void**)+112) (BuildId: a8e5883b039c6d018dc9ced53f79b1d0)\r\n#13 pc 000000000015249c  /system/lib64/libandroid_runtime.so (android::android_os_MessageQueue_nativePollOnce(_JNIEnv*, _jobject*, long, int)+44) (BuildId: a24d70944d634a7167f6da4fcd647074)\r\n#14 pc 000000000046b514  /data/misc/apexdata/com.android.art/dalvik-cache/arm64/boot.oat (art_jni_trampoline+116)\r\n```\r\n\r\n</details>\r\n\r\n<details>\r\n  <summary>Debug build</summary>\r\n  \r\n```\r\nE/flutter (13317): [ERROR:flutter/fml/platform/android/jni_util.cc(204)] java.lang.IllegalStateException: Platform view hasn't been initialized from the platform view channel.\r\nE/flutter (13317): \tat io.flutter.plugin.platform.PlatformViewsController.initializePlatformViewIfNeeded(PlatformViewsController.java:1062)\r\nE/flutter (13317): \tat io.flutter.plugin.platform.PlatformViewsController.onDisplayPlatformView(PlatformViewsController.java:1132)\r\nE/flutter (13317): \tat io.flutter.embedding.engine.FlutterJNI.onDisplayPlatformView(FlutterJNI.java:1414)\r\nE/flutter (13317): \tat android.os.MessageQueue.nativePollOnce(Native Method)\r\nE/flutter (13317): \tat android.os.MessageQueue.next(MessageQueue.java:335)\r\nE/flutter (13317): \tat android.os.Looper.loopOnce(Looper.java:186)\r\nE/flutter (13317): \tat android.os.Looper.loop(Looper.java:313)\r\nE/flutter (13317): \tat android.app.ActivityThread.main(ActivityThread.java:8669)\r\nE/flutter (13317): \tat java.lang.reflect.Method.invoke(Native Method)\r\nE/flutter (13317): \tat com.android.internal.os.RuntimeInit$MethodAndArgsCaller.run(RuntimeInit.java:571)\r\nE/flutter (13317): \tat com.android.internal.os.ZygoteInit.main(ZygoteInit.java:1135)\r\nE/flutter (13317): \r\nF/flutter (13317): [FATAL:flutter/shell/platform/android/platform_view_android_jni_impl.cc(1498)] Check failed: fml::jni::CheckException(env). \r\nD/TrackingService.EventDelivery(13317): >>>>>>>> start wait [0] <<<<<<<<\r\nF/libc    (13317): Fatal signal 6 (SIGABRT), code -1 (SI_QUEUE) in tid 13317 (package.name), pid 13317 (package.name)\r\n*** *** *** *** *** *** *** *** *** *** *** *** *** *** *** ***\r\nBuild fingerprint: 'samsung/m12nsxx/m12:12/SP1A.210812.016/M127FXXU3BVI3:user/release-keys'\r\nRevision: '2'\r\nABI: 'arm64'\r\nProcessor: '1'\r\nTimestamp: 2024-05-07 15:00:40.258647312+0800\r\nProcess uptime: 259s\r\nCmdline: package.name\r\npid: 13317, tid: 13317, name: package.name  >>> package.name <<<\r\nuid: 10372\r\nsignal 6 (SIGABRT), code -1 (SI_QUEUE), fault addr --------\r\nAbort message: '[FATAL:flutter/shell/platform/android/platform_view_android_jni_impl.cc(1498)] Check failed: fml::jni::CheckException(env). \r\n'\r\n    x0  0000000000000000  x1  0000000000003405  x2  0000000000000006  x3  0000007fe53826b0\r\n    x4  0000007149114000  x5  0000007149114000  x6  0000007149114000  x7  000000000c87c7b6\r\n    x8  00000000000000f0  x9  e2cf4cd68e151c0e  x10 0000000000000000  x11 ffffff80fffffbdf\r\n    x12 0000000000000001  x13 000000003c2f8cc0  x14 0000000000000000  x15 0000164806c4a7dc\r\n    x16 00000071421b6d20  x17 0000007142190c50  x18 0000007148358000  x19 0000000000003405\r\n    x20 0000000000003405  x21 00000000ffffffff  x22 b400006fa81745c8  x23 0000000000000412\r\n    x24 b40000709fe20900  x25 0000000000000000  x26 000000000000000f  x27 0000007147f49039\r\n    x28 0000007fe53829b8  x29 0000007fe5382730\r\n    lr  00000071421436fc  sp  0000007fe5382690  pc  0000007142143728  pst 0000000000000000\r\nbacktrace:\r\n      #00 pc 0000000000089728  /apex/com.android.runtime/lib64/bionic/libc.so (abort+164) (BuildId: ddfcb9d4fd7d4d5ecb9d226c1e8e24dd)\r\n      #01 pc 000000000167ef8c  /data/app/~~5R2Xo6gsPmLtVTVRHF4rEA==/package.name/base.apk!libflutter.so (BuildId: 59e80130e559b84528a7f4adadcde9e10efeac15)\r\n      #02 pc 00000000016a6670  /data/app/~~5R2Xo6gsPmLtVTVRHF4rEA==/package.name/base.apk!libflutter.so (BuildId: 59e80130e559b84528a7f4adadcde9e10efeac15)\r\n      #03 pc 000000000168ca20  /data/app/~~5R2Xo6gsPmLtVTVRHF4rEA==/package.name/base.apk!libflutter.so (BuildId: 59e80130e559b84528a7f4adadcde9e10efeac15)\r\n      #04 pc 0000000001e05650  /data/app/~~5R2Xo6gsPmLtVTVRHF4rEA==/package.name/base.apk!libflutter.so (BuildId: 59e80130e559b84528a7f4adadcde9e10efeac15)\r\n      #05 pc 0000000001a43b28  /data/app/~~5R2Xo6gsPmLtVTVRHF4rEA==/package.name/base.apk!libflutter.so (BuildId: 59e80130e559b84528a7f4adadcde9e10efeac15)\r\n      #06 pc 0000000001a428a4  /data/app/~~5R2Xo6gsPmLtVTVRHF4rEA==/package.name/base.apk!libflutter.so (BuildId: 59e80130e559b84528a7f4adadcde9e10efeac15)\r\n      #07 pc 0000000001a430bc  /data/app/~~5R2Xo6gsPmLtVTVRHF4rEA==/package.name/base.apk!libflutter.so (BuildId: 59e80130e559b84528a7f4adadcde9e10efeac15)\r\n      #08 pc 0000000001a441c4  /data/app/~~5R2Xo6gsPmLtVTVRHF4rEA==/package.name/base.apk!libflutter.so (BuildId: 59e80130e559b84528a7f4adadcde9e10efeac15)\r\n      #09 pc 0000000001a42c94  /data/app/~~5R2Xo6gsPmLtVTVRHF4rEA==/package.name/base.apk!libflutter.so (BuildId: 59e80130e559b84528a7f4adadcde9e10efeac15)\r\n      #10 pc 0000000001a42a08  /data/app/~~5R2Xo6gsPmLtVTVRHF4rEA==/package.name/base.apk!libflutter.so (BuildId: 59e80130e559b84528a7f4adadcde9e10efeac15)\r\n      #11 pc 0000000001a444c0  /data/app/~~5R2Xo6gsPmLtVTVRHF4rEA==/package.name/base.apk!libflutter.so (BuildId: 59e80130e559b84528a7f4adadcde9e10efeac15)\r\n      #12 pc 00000000016a722c  /data/app/~~5R2Xo6gsPmLtVTVRHF4rEA==/package.name/base.apk!libflutter.so (BuildId: 59e80130e559b84528a7f4adadcde9e10efeac15)\r\n      #13 pc 00000000016ac8d8  /data/app/~~5R2Xo6gsPmLtVTVRHF4rEA==/package.name/base.apk!libflutter.so (BuildId: 59e80130e559b84528a7f4adadcde9e10efeac15)\r\n      #14 pc 0000000000016918  /system/lib64/libutils.so (android::Looper::pollInner(int)+912) (BuildId: a8e5883b039c6d018dc9ced53f79b1d0)\r\n      #15 pc 0000000000016520  /system/lib64/libutils.so (android::Looper::pollOnce(int, int*, int*, void**)+112) (BuildId: a8e5883b039c6d018dc9ced53f79b1d0)\r\n      #16 pc 000000000015249c  /system/lib64/libandroid_runtime.so (android::android_os_MessageQueue_nativePollOnce(_JNIEnv*, _jobject*, long, int)+44) (BuildId: a24d70944d634a7167f6da4fcd647074)\r\n      #17 pc 0000000000355830  /apex/com.android.art/lib64/libart.so (art_quick_generic_jni_trampoline+144) (BuildId: 735f12f804f88d62a2cb437261076ff7)\r\n      #18 pc 000000000033eda4  /apex/com.android.art/lib64/libart.so (art_quick_invoke_stub+612) (BuildId: 735f12f804f88d62a2cb437261076ff7)\r\n      #19 pc 0000000000511050  /apex/com.android.art/lib64/libart.so (bool art::interpreter::DoCall<false>(art::ArtMethod*, art::Thread*, art::ShadowFrame&, art::Instruction const*, unsigned short, bool, art::JValue*)+1976) (BuildId: 735f12f804f88d62a2cb437261076ff7)\r\n      #20 pc 0000000000497814  /apex/com.android.art/lib64/libart.so (void art::interpreter::ExecuteSwitchImplCpp<false>(art::interpreter::SwitchImplContext*)+2040) (BuildId: 735f12f804f88d62a2cb437261076ff7)\r\n      #21 pc 0000000000357fd8  /apex/com.android.art/lib64/libart.so (ExecuteSwitchImplAsm+8) (BuildId: 735f12f804f88d62a2cb437261076ff7)\r\n      #22 pc 00000000004cb924  /system/framework/framework.jar (android.os.MessageQueue.next+0)\r\n      #23 pc 0000000000374120  /apex/com.android.art/lib64/libart.so (art::interpreter::Execute(art::Thread*, art::CodeItemDataAccessor const&, art::ShadowFrame&, art::JValue, bool, bool) (.__uniq.112435418011751916792819755956732575238.llvm.420609892041422114)+232) (BuildId: 735f12f804f88d62a2cb437261076ff7)\r\n      #24 pc 0000000000511d1c  /apex/com.android.art/lib64/libart.so (bool art::interpreter::DoCall<false>(art::ArtMethod*, art::Thread*, art::ShadowFrame&, art::Instruction const*, unsigned short, bool, art::JValue*)+5252) (BuildId: 735f12f804f88d62a2cb437261076ff7)\r\n      #25 pc 00000000004973dc  /apex/com.android.art/lib64/libart.so (void art::interpreter::ExecuteSwitchImplCpp<false>(art::interpreter::SwitchImplContext*)+960) (BuildId: 735f12f804f88d62a2cb437261076ff7)\r\n      #26 pc 0000000000357fd8  /apex/com.android.art/lib64/libart.so (ExecuteSwitchImplAsm+8) (BuildId: 735f12f804f88d62a2cb437261076ff7)\r\n      #27 pc 00000000004ca8a8  /system/framework/framework.jar (android.os.Looper.loopOnce+0)\r\n      #28 pc 0000000000374120  /apex/com.android.art/lib64/libart.so (art::interpreter::Execute(art::Thread*, art::CodeItemDataAccessor const&, art::ShadowFrame&, art::JValue, bool, bool) (.__uniq.112435418011751916792819755956732575238.llvm.420609892041422114)+232) (BuildId: 735f12f804f88d62a2cb437261076ff7)\r\n      #29 pc 0000000000511d1c  /apex/com.android.art/lib64/libart.so (bool art::interpreter::DoCall<false>(art::ArtMethod*, art::Thread*, art::ShadowFrame&, art::Instruction const*, unsigned short, bool, art::JValue*)+5252) (BuildId: 735f12f804f88d62a2cb437261076ff7)\r\n      #30 pc 000000000049774c  /apex/com.android.art/lib64/libart.so (void art::interpreter::ExecuteSwitchImplCpp<false>(art::interpreter::SwitchImplContext*)+1840) (BuildId: 735f12f804f88d62a2cb437261076ff7)\r\n      #31 pc 0000000000357fd8  /apex/com.android.art/lib64/libart.so (ExecuteSwitchImplAsm+8) (BuildId: 735f12f804f88d62a2cb437261076ff7)\r\n      #32 pc 00000000004cb054  /system/framework/framework.jar (android.os.Looper.loop+0)\r\n      #33 pc 0000000000374120  /apex/com.android.art/lib64/libart.so (art::interpreter::Execute(art::Thread*, art::CodeItemDataAccessor const&, art::ShadowFrame&, art::JValue, bool, bool) (.__uniq.112435418011751916792819755956732575238.llvm.420609892041422114)+232) (BuildId: 735f12f804f88d62a2cb437261076ff7)\r\n      #34 pc 0000000000511d1c  /apex/com.android.art/lib64/libart.so (bool art::interpreter::DoCall<false>(art::ArtMethod*, art::Thread*, art::ShadowFrame&, art::Instruction const*, unsigned short, bool, art::JValue*)+5252) (BuildId: 735f12f804f88d62a2cb437261076ff7)\r\n      #35 pc 000000000049774c  /apex/com.android.art/lib64/libart.so (void art::interpreter::ExecuteSwitchImplCpp<false>(art::interpreter::SwitchImplContext*)+1840) (BuildId: 735f12f804f88d62a2cb437261076ff7)\r\n      #36 pc 0000000000357fd8  /apex/com.android.art/lib64/libart.so (ExecuteSwitchImplAsm+8) (BuildId: 735f12f804f88d62a2cb437261076ff7)\r\n      #37 pc 00000000001bc4f0  /system/framework/framework.jar (android.app.ActivityThread.main+0)\r\n      #38 pc 0000000000374120  /apex/com.android.art/lib64/libart.so (art::interpreter::Execute(art::Thread*, art::CodeItemDataAccessor const&, art::ShadowFrame&, art::JValue, bool, bool) (.__uniq.112435418011751916792819755956732575238.llvm.420609892041422114)+232) (BuildId: 735f12f804f88d62a2cb437261076ff7)\r\n      #39 pc 0000000000373a18  /apex/com.android.art/lib64/libart.so (artQuickToInterpreterBridge+964) (BuildId: 735f12f804f88d62a2cb437261076ff7)\r\n      #40 pc 0000000000355968  /apex/com.android.art/lib64/libart.so (art_quick_to_interpreter_bridge+88) (BuildId: 735f12f804f88d62a2cb437261076ff7)\r\n      #41 pc 000000000033f080  /apex/com.android.art/lib64/libart.so (art_quick_invoke_static_stub+640) (BuildId: 735f12f804f88d62a2cb437261076ff7)\r\n      #42 pc 00000000003884dc  /apex/com.android.art/lib64/libart.so (_jobject* art::InvokeMethod<(art::PointerSize)8>(art::ScopedObjectAccessAlreadyRunnable const&, _jobject*, _jobject*, _jobject*, unsigned long)+1588) (BuildId: 735f12f804f88d62a2cb437261076ff7)\r\n      #43 pc 0000000000387e98  /apex/com.android.art/lib64/libart.so (art::Method_invoke(_JNIEnv*, _jobject*, _jobject*, _jobjectArray*) (.__uniq.165753521025965369065708152063621506277)+32) (BuildId: 735f12f804f88d62a2cb437261076ff7)\r\n      #44 pc 0000000000355830  /apex/com.android.art/lib64/libart.so (art_quick_generic_jni_trampoline+144) (BuildId: 735f12f804f88d62a2cb437261076ff7)\r\n      #45 pc 000000000033eda4  /apex/com.android.art/lib64/libart.so (art_quick_invoke_stub+612) (BuildId: 735f12f804f88d62a2cb437261076ff7)\r\n      #46 pc 0000000000511050  /apex/com.android.art/lib64/libart.so (bool art::interpreter::DoCall<false>(art::ArtMethod*, art::Thread*, art::ShadowFrame&, art::Instruction const*, unsigned short, bool, art::JValue*)+1976) (BuildId: 735f12f804f88d62a2cb437261076ff7)\r\n      #47 pc 00000000004973dc  /apex/com.android.art/lib64/libart.so (void art::interpreter::ExecuteSwitchImplCpp<false>(art::interpreter::SwitchImplContext*)+960) (BuildId: 735f12f804f88d62a2cb437261076ff7)\r\n      #48 pc 0000000000357fd8  /apex/com.android.art/lib64/libart.so (ExecuteSwitchImplAsm+8) (BuildId: 735f12f804f88d62a2cb437261076ff7)\r\n      #49 pc 000000000045a0f8  /system/framework/framework.jar (com.android.internal.os.RuntimeInit$MethodAndArgsCaller.run+0)\r\n      #50 pc 0000000000374120  /apex/com.android.art/lib64/libart.so (art::interpreter::Execute(art::Thread*, art::CodeItemDataAccessor const&, art::ShadowFrame&, art::JValue, bool, bool) (.__uniq.112435418011751916792819755956732575238.llvm.420609892041422114)+232) (BuildId: 735f12f804f88d62a2cb437261076ff7)\r\n      #51 pc 0000000000373a18  /apex/com.android.art/lib64/libart.so (artQuickToInterpreterBridge+964) (BuildId: 735f12f804f88d62a2cb437261076ff7)\r\n      #52 pc 0000000000355968  /apex/com.android.art/lib64/libart.so (art_quick_to_interpreter_bridge+88) (BuildId: 735f12f804f88d62a2cb437261076ff7)\r\n      #53 pc 0000000001208ce4  /data/misc/apexdata/com.android.art/dalvik-cache/arm64/boot.oat (com.android.internal.os.ZygoteInit.main+3508)\r\n```\r\n\r\n</details>\r\n\r\n## Flutter Doctor output\r\n<details>\r\n  <summary>Flutter Doctor output</summary>\r\n\r\n```\r\nDoctor summary (to see all details, run flutter doctor -v):\r\n[✓] Flutter (Channel stable, 3.19.6, on macOS 13.4 22F66 darwin-arm64, locale zh-Hant-TW)\r\n[✓] Android toolchain - develop for Android devices (Android SDK version 34.0.0)\r\n[✓] Xcode - develop for iOS and macOS (Xcode 14.3.1)\r\n[✓] Chrome - develop for the web\r\n[✓] Android Studio (version 2023.1)\r\n[✓] IntelliJ IDEA Ultimate Edition (version 2023.3.6)\r\n[✓] IntelliJ IDEA Community Edition (version 2023.3.5)\r\n[✓] VS Code (version 1.79.2)\r\n[✓] Connected device (3 available)\r\n[✓] Network resources\r\n```\r\n\r\n</details>",
+    "createdAt": "2024-05-09T07:43:21Z"
+  },
+  {
+    "id": 9545,
+    "sender": "darshankawar",
+    "content": "@mutant0113 Thanks for the repro and details. I see that you mentioned `flutter_inappwebview` which is third party package. Can you confirm if the same crash occurs using webview_flutter as well ? If not, you'll need to report this in dedicated [repo](https://github.com/pichillilorenzo/flutter_inappwebview/issues). ",
+    "createdAt": "2024-05-09T08:59:57Z"
+  },
+  {
+    "id": 9546,
+    "sender": "mutant0113",
+    "content": "Hi @darshankawar ,\r\nI tried to reproduce the issue with `webview_flutter` by setting `displayWithHybridComposition` to true. (Please correct me if I used it incorrectly.)\"\r\n\r\nHere is the sample code:\r\n<details>\r\n    <summary>Sample code</summary>\r\n\r\n```dart\r\nimport 'package:flutter/material.dart';\r\nimport 'package:webview_flutter/webview_flutter.dart';\r\nimport 'package:webview_flutter_android/webview_flutter_android.dart';\r\nimport 'package:webview_flutter_platform_interface/webview_flutter_platform_interface.dart';\r\n\r\nvoid main() => runApp(const MaterialApp(home: HomePage()));\r\n\r\nclass HomePage extends StatefulWidget {\r\n  const HomePage({super.key});\r\n\r\n  @override\r\n  State<HomePage> createState() => _HomePageState();\r\n}\r\n\r\nclass _HomePageState extends State<HomePage> {\r\n  @override\r\n  Widget build(BuildContext context) => Scaffold(\r\n        body: Center(\r\n          child: ElevatedButton(\r\n            child: const Text(\"Show WebView in BottomSheet\"),\r\n            onPressed: () {\r\n              showModalBottomSheet<void>(\r\n                context: context,\r\n                isScrollControlled: true,\r\n                builder: (context) => const SizedBox(height: 600, child: InAppWebViewPage()),\r\n              );\r\n            },\r\n          ),\r\n        ),\r\n      );\r\n}\r\n\r\nclass InAppWebViewPage extends StatefulWidget {\r\n  const InAppWebViewPage({super.key});\r\n\r\n  @override\r\n  State<InAppWebViewPage> createState() => _InAppWebViewPageState();\r\n}\r\n\r\nclass _InAppWebViewPageState extends State<InAppWebViewPage> {\r\n  @override\r\n  Widget build(BuildContext context) {\r\n    final controller = AndroidWebViewController(AndroidWebViewControllerCreationParams());\r\n    final params = AndroidWebViewWidgetCreationParams(\r\n      controller: controller,\r\n      displayWithHybridComposition: true,\r\n    );\r\n    controller.loadRequest(LoadRequestParams(uri: Uri.parse('https://buy.line.me/')));\r\n\r\n    return Scaffold(\r\n      appBar: AppBar(title: const Text('WebView Flutter')),\r\n      body: WebViewWidget.fromPlatformCreationParams(params: params),\r\n    );\r\n  }\r\n}\r\n```\r\n\r\n</details>\r\n\r\nThe plugins I imported:\r\n```\r\nwebview_flutter_android: ^3.16.1\r\nwebview_flutter: ^4.7.0\r\n```\r\n\r\nThe same bug happens as previously mentioned.\r\nPlease take a look if you have time. Thank you.\r\n\r\nBy the way, I also left a comment on the [InAppWebView Plugin Github](https://github.com/pichillilorenzo/flutter_inappwebview/issues/1675#issuecomment-2103998535)\r\n",
+    "createdAt": "2024-05-10T08:16:12Z"
+  },
+  {
+    "id": 9547,
+    "sender": "k1r3zz",
+    "content": "flutter's 3.22 stable has been updated to any warriors. Are there any resolutions",
+    "createdAt": "2024-05-14T07:56:21Z"
+  },
+  {
+    "id": 9548,
+    "sender": "ozzy1873",
+    "content": "I've been using 3.22.0-0.3.pre (beta channel) in production for the last week with a small number of users and I am no longer seeing this error. With previous versions, I would have seen this error by now. I am going to increase the number of users for a few days before doing the full release.",
+    "createdAt": "2024-05-14T09:53:17Z"
+  },
+  {
+    "id": 9549,
+    "sender": "njuptzwt",
+    "content": "I use flutter 3.16.9 and 3.22.0 stable, encounter the problem too.  In my page, I use baidu_map widget like google_maps_flutter\r\n\r\ncrash phone:\r\nNokia X6, android 9\r\nNokia X71, android 9\r\nVivo X27, android 9\r\nSamsum Note8, android 9\r\n\r\npubspec.yaml:\r\n  flutter_baidu_mapapi_map: 3.6.0\r\n  flutter_baidu_mapapi_utils: 3.6.0\r\n  flutter_baidu_mapapi_search: 3.6.0\r\n  flutter_baidu_mapapi_base: 3.6.0\r\n\r\nerror log:\r\n\r\nE/flutter (23629): [ERROR:flutter/fml/platform/android/jni_util.cc(206)] java.lang.IllegalStateException: Platform view hasn't been initialized from the platform view channel.\r\nE/flutter (23629): \tat io.flutter.plugin.platform.PlatformViewsController.initializePlatformViewIfNeeded(PlatformViewsController.java:1082)\r\nE/flutter (23629): \tat io.flutter.plugin.platform.PlatformViewsController.onDisplayPlatformView(PlatformViewsController.java:1152)\r\nE/flutter (23629): \tat io.flutter.embedding.engine.FlutterJNI.onDisplayPlatformView(FlutterJNI.java:1461)\r\nE/flutter (23629): \tat android.os.MessageQueue.nativePollOnce(Native Method)\r\nE/flutter (23629): \tat android.os.MessageQueue.next(MessageQueue.java:326)\r\nE/flutter (23629): \tat android.os.Looper.loop(Looper.java:165)\r\nE/flutter (23629): \tat android.app.ActivityThread.main(ActivityThread.java:6729)\r\nE/flutter (23629): \tat java.lang.reflect.Method.invoke(Native Method)\r\nE/flutter (23629): \tat com.android.internal.os.RuntimeInit$MethodAndArgsCaller.run(RuntimeInit.java:493)\r\nE/flutter (23629): \tat com.android.internal.os.ZygoteInit.main(ZygoteInit.java:876)\r\nE/flutter (23629): \r\nF/flutter (23629): [FATAL:flutter/shell/platform/android/platform_view_android_jni_impl.cc(1694)] Check failed: fml::jni::CheckException(env). \r\nF/libc    (23629): Fatal signal 6 (SIGABRT), code -6 (SI_TKILL) in tid 23629 (m.unionpay.grid), pid 23629 (m.unionpay.grid)\r\n*** *** *** *** *** *** *** *** *** *** *** *** *** *** *** ***\r\nBuild fingerprint: 'Nokia/Taishan_00CN/TAS:9/PPR1.180610.011/00CN_1_18F:user/release-keys'\r\nRevision: '0'\r\nABI: 'arm64'\r\npid: 23629, tid: 23629, name: m.unionpay.grid  >>> com.unionpay.grid <<<\r\nsignal 6 (SIGABRT), code -6 (SI_TKILL), fault addr --------\r\nAbort message: '[FATAL:flutter/shell/platform/android/platform_view_android_jni_impl.cc(1694)] Check failed: fml::jni::CheckException(env). \r\n\r\n  ",
+    "createdAt": "2024-05-17T07:29:19Z"
+  },
+  {
+    "id": 9550,
+    "sender": "mutant0113",
+    "content": "Someone suggested that the Flutter code issue in `packages/flutter/lib/src/services/platform_views.dart` might be fixed by the solution provided at https://github.com/pichillilorenzo/flutter_inappwebview/issues/1675#issuecomment-1882556327. \r\n\r\nThis fix has already been confirmed by others, as seen at https://github.com/pichillilorenzo/flutter_inappwebview/issues/1675#issuecomment-2117090131. \r\n\r\nIs this helpful?",
+    "createdAt": "2024-05-20T01:59:24Z"
+  },
+  {
+    "id": 9551,
+    "sender": "fernan88",
+    "content": "@ozzy1873 Could you please confirm if this crash is still happening on Flutter 3.22.0?\r\nTnx! ",
+    "createdAt": "2024-05-20T12:37:42Z"
+  },
+  {
+    "id": 9552,
+    "sender": "ozzy1873",
+    "content": "I'm in the process of publishing an update. It will be about a week before I know if this crash is still fixed in 3.22.0 stable.\r\n\r\nVersion 3.22.0-0.3.pre (beta channel) still shows no sign of this crash.",
+    "createdAt": "2024-05-20T13:20:33Z"
+  },
+  {
+    "id": 9553,
+    "sender": "k1r3zz",
+    "content": "> I'm in the process of publishing an update. It will be about a week before I know if this crash is still fixed in 3.22.0 stable.\r\n> \r\n> Version 3.22.0-0.3.pre (beta channel) still shows no sign of this crash.\r\n\r\nMay I ask, are you sure that 3.22.0-0.3.pre does not have this problem? I upgraded the stable 3.22.0, but this problem still exists",
+    "createdAt": "2024-05-27T11:51:03Z"
+  },
+  {
+    "id": 9554,
+    "sender": "fernan88",
+    "content": "We can confirm too, this error is still happening on 3.22.0\r\n\r\nThis is our top crash with Flutter @darshankawar \r\n\r\n<img width=\"1389\" alt=\"Screenshot 2024-05-27 at 08 56 18\" src=\"https://github.com/flutter/flutter/assets/92875193/1c23fa47-2ba6-4547-9e4b-1b4058dc2263\">\r\n",
+    "createdAt": "2024-05-27T11:58:28Z"
+  },
+  {
+    "id": 9555,
+    "sender": "k1r3zz",
+    "content": "The latest version 3.22.1 has anyone tried it",
+    "createdAt": "2024-05-27T12:04:24Z"
+  },
+  {
+    "id": 9556,
+    "sender": "ozzy1873",
+    "content": "My app is slowly being deployed to production. I am still not seeing the crash with 3.22.0 or 3.22.1, but it may be too early to tell.",
+    "createdAt": "2024-05-27T12:08:26Z"
+  },
+  {
+    "id": 9557,
+    "sender": "fernan88",
+    "content": "We have rolled out to 20% and the error occurs as frequently as before; it is the top crash. Version 3.22.1 does not have any changes related to platform views, only some improvements for web according to the changelog.",
+    "createdAt": "2024-05-27T12:13:12Z"
+  },
+  {
+    "id": 9558,
+    "sender": "k1r3zz",
+    "content": "> We have rolled out to 20% and the error occurs as frequently as before; it is the top crash. Version 3.22.1 does not have any changes related to platform views, only some improvements for web according to the changelog.\r\n\r\nAfter looking at 3.22.1, I found that yes, there are not too many changes, I have pushed to 40%, and this error still accounts for 70% of all my errors. Is there any good way for me to eliminate this error as soon as possible",
+    "createdAt": "2024-05-27T12:25:50Z"
+  },
+  {
+    "id": 9559,
+    "sender": "lazytesting",
+    "content": "@darshankawar I think there is now a clear reproduction path(provided by @mutant0113)  as well as two confirmations that the issue is not resolved in the latest version. Could you have a look again and see if this issue could get priority?",
+    "createdAt": "2024-05-29T07:56:27Z"
+  },
+  {
+    "id": 9560,
+    "sender": "techouse",
+    "content": "Has anyone tried to replicate this with the master branch?\r\n\r\nCC/ @lazytesting @mutant0113 @darshankawar",
+    "createdAt": "2024-05-29T08:03:59Z"
+  },
+  {
+    "id": 9561,
+    "sender": "darshankawar",
+    "content": "I tried replicating the code and steps as provided https://github.com/flutter/flutter/issues/125090#issuecomment-2104158710 using latest stable and master version with Android S10 (OS 12) but was unable to replicate / trigger the reported crash.\r\n\r\nTagging @gmackall @reidbaker for thoughts as this issue is getting traction. ",
+    "createdAt": "2024-05-29T08:13:53Z"
+  },
+  {
+    "id": 9562,
+    "sender": "mutant0113",
+    "content": "I've tested with the latest stable version of Flutter 3.22.1 on my Android Galaxy M12 (OS 12), and the crash still happens.\r\n\r\n<details>\r\n  <summary>Flutter Doctor output</summary>\r\n\r\n```\r\nDoctor summary (to see all details, run flutter doctor -v):\r\n[✓] Flutter (Channel stable, 3.22.1, on macOS 13.4 22F66 darwin-arm64, locale zh-Hant-TW)\r\n[✓] Android toolchain - develop for Android devices (Android SDK version 34.0.0)\r\n[!] Xcode - develop for iOS and macOS (Xcode 14.3.1)\r\n    ! Flutter recommends a minimum Xcode version of 15.\r\n      Download the latest version or update via the Mac App Store.\r\n[✓] Chrome - develop for the web\r\n[✓] Android Studio (version 2023.1)\r\n[✓] IntelliJ IDEA Ultimate Edition (version 2023.3.6)\r\n[✓] IntelliJ IDEA Community Edition (version 2023.3.5)\r\n[✓] VS Code (version 1.79.2)\r\n[✓] Connected device (4 available)\r\n[✓] Network resources\r\n```\r\n\r\n</details>",
+    "createdAt": "2024-05-29T15:55:54Z"
+  },
+  {
+    "id": 9563,
+    "sender": "gmackall",
+    "content": "I tried to reproduce this on an s23 using the code/steps from https://github.com/flutter/flutter/issues/125090#issuecomment-2102131570 but wasn't able to. We don't have an M12 in our device library - I'd be interested to hear from all who are seeing this in the play console (or even better, have repros) which devices they can reproduce on, so I can see if there is one that we do have in our device library",
+    "createdAt": "2024-05-29T21:11:01Z"
+  },
+  {
+    "id": 9564,
+    "sender": "fernan88",
+    "content": "@gmackall i can share with you the most affected devices by google console:\r\n\r\n30% of the total crashes occurs on:\r\nsamsung a14\r\nsamsung a32\r\nsamsung a04e\r\n\r\nthe other 70% is distributed between:\r\n\r\nsamsung a14x\r\nRedmi tapas\r\nsamsung a53x\r\nsamsung a22\r\nmotorola devon\r\nsamsung a14xm\r\nmotorola penangf\r\nRedmi topaz\r\nsamsung a51\r\nsamsung a03\r\nOPPO OP5355\r\nOPPO OP4F97\r\nand more..\r\n\r\nActually, we have no report yet from Samsung S23\r\n\r\nhope this helps!",
+    "createdAt": "2024-05-30T02:37:34Z"
+  },
+  {
+    "id": 9565,
+    "sender": "mutant0113",
+    "content": "I provide our affected devices here for your reference as well:\r\n1. samsung a53x\r\n2. samsung a54x\r\n3. samsung a31\r\n4. samsung a52xq\r\n5. samsung a70q\r\n6. samsung a22x\r\n7. OPPO OP4B65L1\r\n8. samsung a14xm\r\n9. samsung a7y18lte\r\n10. Sony XQ-AU52\r\n11. samsung a33x\r\n12. OPPO OP48A1\r\n13. samsung a52sxq\r\n14. POCO citrus\r\n15. Redmi begonia\r\nand more",
+    "createdAt": "2024-05-30T03:15:45Z"
+  },
+  {
+    "id": 9566,
+    "sender": "johnmccutchan",
+    "content": "Can anyone share a minimal reproduction?",
+    "createdAt": "2024-05-30T17:54:03Z"
+  },
+  {
+    "id": 9567,
+    "sender": "mutant0113",
+    "content": "> Can anyone share a minimal reproduction?\r\n\r\nPlease refer to https://github.com/flutter/flutter/issues/125090#issuecomment-2102131570 and https://github.com/flutter/flutter/issues/125090#issuecomment-2104158710\r\nIt is easier to reproduce on some specific devices mentioned in https://github.com/flutter/flutter/issues/125090#issuecomment-2138566664 and https://github.com/flutter/flutter/issues/125090#issuecomment-2138597478",
+    "createdAt": "2024-05-31T02:42:16Z"
+  },
+  {
+    "id": 9568,
+    "sender": "lazytesting",
+    "content": "I created this github repo which is based on the example provided by @mutant0113 https://github.com/lazytesting/flutter-crash-test/tree/main/flutter_application_1 \r\n\r\nWe are able to reproduce this crash on samsung galaxy tab s5e (this device is also available via BrowserStack).\r\nAlso I tried the same thing based on the master version of the Flutter SDK and I can confirm this also crashes. \r\nSee: https://github.com/lazytesting/flutter-crash-test/tree/master-flutter-sdk/flutter_application_1\r\n\r\nReproduction path is not super stable, but after open closing several times (quickly?) it does crash.",
+    "createdAt": "2024-05-31T09:01:10Z"
+  },
+  {
+    "id": 9569,
+    "sender": "camsim99",
+    "content": "Seeing this same failure that seems to be blocking the packages tree. An example failing build: https://ci.chromium.org/ui/p/flutter/builders/prod/Linux_android%20android_device_tests_shard_2%20master/1089/overview",
+    "createdAt": "2024-06-03T16:17:04Z"
+  },
+  {
+    "id": 9570,
+    "sender": "gmackall",
+    "content": "> Seeing this same failure that seems to be blocking the packages tree. An example failing build: https://ci.chromium.org/ui/p/flutter/builders/prod/Linux_android%20android_device_tests_shard_2%20master/1089/overview\r\n\r\nInteresting, looks like it happens on a pixel 7 as well\r\nhttps://firebase.corp.google.com/project/flutter-infra-staging/testlab/histories/bh.8eb89ae93eb3eb36/matrices/6195369739419514607/executions/bs.397a565af5e82685",
+    "createdAt": "2024-06-03T16:26:07Z"
+  },
+  {
+    "id": 9571,
+    "sender": "gmackall",
+    "content": "Update, reproduces on a pixel 7 pro as well, though extremely rarely (<1/500 for me)",
+    "createdAt": "2024-06-04T21:13:49Z"
+  },
+  {
+    "id": 9572,
+    "sender": "ozzy1873",
+    "content": "My app is now running on over 20k devices on flutter 3.22.1 and I am no longer seeing this error.\r\n\r\nGet Outlook for Android<https://aka.ms/AAb9ysg>\r\n________________________________\r\nFrom: Gray Mackall ***@***.***>\r\nSent: Tuesday, June 4, 2024 4:14:13 PM\r\nTo: flutter/flutter ***@***.***>\r\nCc: john osborntech.com ***@***.***>; Mention ***@***.***>\r\nSubject: Re: [flutter/flutter] [FATAL:flutter/shell/platform/android/platform_view_android_jni_impl.cc(1233)] Check failed: fml::jni::CheckException(env). (Issue #125090)\r\n\r\n\r\nUpdate, reproduces on a pixel 7 pro as well.\r\n\r\n—\r\nReply to this email directly, view it on GitHub<https://github.com/flutter/flutter/issues/125090#issuecomment-2148426816>, or unsubscribe<https://github.com/notifications/unsubscribe-auth/ACCL55FVYMXVCSJC6HN6453ZFYU2LAVCNFSM6AAAAAAXDPABQKVHI2DSMVQWIX3LMV43OSLTON2WKQ3PNVWWK3TUHMZDCNBYGQZDMOBRGY>.\r\nYou are receiving this because you were mentioned.Message ID: ***@***.***>\r\n",
+    "createdAt": "2024-06-04T21:18:52Z"
+  },
+  {
+    "id": 9573,
+    "sender": "markHamilton34",
+    "content": "Could anyone confirm that on Flutter 3.22.1 this error is fixed? Thanks.",
+    "createdAt": "2024-06-06T12:26:26Z"
+  },
+  {
+    "id": 9574,
+    "sender": "fernan88",
+    "content": "No @markHamilton34 it is not fixed.\r\n",
+    "createdAt": "2024-06-06T13:16:47Z"
+  },
+  {
+    "id": 9575,
+    "sender": "loganSims",
+    "content": "Similar to @ozzy1873, we pushed an update with Flutter 3.22 and haven't seen the `[FATAL:flutter/shell/platform/android/platform_view_android_jni_impl.cc(1233)] Check failed: fml::jni::CheckException(env)` crash yet.. We usually would by now but may be too early to tell. We don't use any web views in our application.",
+    "createdAt": "2024-06-06T14:05:15Z"
+  },
+  {
+    "id": 9576,
+    "sender": "lazytesting",
+    "content": "Same from our end, we just rolled-out a version based on 7.22.1 and we do not see crashes so far (and I would expect them based on the usage stats of this new version). We will monitor this over the weekend and have a conclusive answer by begin next week.",
+    "createdAt": "2024-06-07T07:15:06Z"
+  },
+  {
+    "id": 9577,
+    "sender": "k1r3zz",
+    "content": "stable updated to 3.22.2, is it used? How is it",
+    "createdAt": "2024-06-07T08:24:19Z"
+  },
+  {
+    "id": 9578,
+    "sender": "lazytesting",
+    "content": "We had our app, based on the 7.22.1 SDK, rolled-out and had roughly 200K session. We did not saw the crash in our logs. Before we used to have it roughly in 0.5-1% of the sessions so we are confident that the crash (in our case) is resolved.",
+    "createdAt": "2024-06-11T08:10:00Z"
+  },
+  {
+    "id": 9579,
+    "sender": "k1r3zz",
+    "content": "> I've tested with the latest stable version of Flutter 3.22.1 on my Android Galaxy M12 (OS 12), and the crash still happens.\r\n> \r\n> Flutter Doctor output\r\n\r\nDid you resolve this issue? I think it was turned off, but it doesn't seem to be resolved in 3.22.1",
+    "createdAt": "2024-06-12T01:44:13Z"
+  },
+  {
+    "id": 9580,
+    "sender": "k1r3zz",
+    "content": "> We had our app, based on the 7.22.1 SDK, rolled-out and had roughly 200K session. We did not saw the crash in our logs. Before we used to have it roughly in 0.5-1% of the sessions so we are confident that the crash (in our case) is resolved.\r\n\r\nHello, are you using flutter 3.22.1, but I don't see any fixes for 3.22.1, have you made any other adjustments, such as webview's sdk",
+    "createdAt": "2024-06-12T02:28:48Z"
+  },
+  {
+    "id": 9581,
+    "sender": "mutant0113",
+    "content": "> Did you resolve this issue? I think it was turned off, but it doesn't seem to be resolved in 3.22.1\r\n\r\nDue to our project's Flutter upgrade policy, I cannot upgrade to Flutter 3.22.1 or 3.22.2 right away.\r\nI tested the crash sample code on my Android Galaxy M12 (OS 12) with Flutter 3.22.1, and it did crash. \r\nCurrently, I don't have the M12 with me, but I will try Flutter 3.22.2 later.",
+    "createdAt": "2024-06-12T06:46:33Z"
+  },
+  {
+    "id": 9582,
+    "sender": "fernan88",
+    "content": "Hello, the issue is closed but I would also like to know if you were able to reproduce the case that @mutant0113  demonstrated with his example. Or did you add a fix for this? If so, in which version was it added, 3.22.1 or 3.22.2? Otherwise, it's not clear why the case was closed. In our app, we plan to update again in the next few weeks from 3.22.0 to 3.22.2, and we will check again if this crash persists. For now, with 3.22.0, it still exists. \r\nThank you!",
+    "createdAt": "2024-06-12T11:36:49Z"
+  },
+  {
+    "id": 9583,
+    "sender": "mutant0113",
+    "content": "I've tested the crash sample code on M12 with Flutter 3.22.2, and the issue still occurs.\r\n<details>\r\n    <summary>Flutter doctor</summary>\r\n\r\nDoctor summary (to see all details, run flutter doctor -v):\r\n[✓] Flutter (Channel stable, 3.22.2, on macOS 13.4 22F66 darwin-arm64, locale zh-Hant-TW)\r\n[✓] Android toolchain - develop for Android devices (Android SDK version 34.0.0)\r\n[!] Xcode - develop for iOS and macOS (Xcode 14.3.1)\r\n    ! Flutter recommends a minimum Xcode version of 15.\r\n      Download the latest version or update via the Mac App Store.\r\n[✓] Chrome - develop for the web\r\n[✓] Android Studio (version 2023.1)\r\n[✓] IntelliJ IDEA Ultimate Edition (version 2023.3.6)\r\n[✓] IntelliJ IDEA Community Edition (version 2023.3.5)\r\n[✓] VS Code (version 1.79.2)\r\n[✓] Connected device (4 available)\r\n[✓] Network resources\r\n\r\n</details>\r\n\r\n\r\n@darshankawar Can we reopen this issue and keep it open until more people confirm it is fixed on their product?\r\nAlso, could you provide some information about the root cause and solution? Thank you!",
+    "createdAt": "2024-06-12T14:54:07Z"
+  },
+  {
+    "id": 9584,
+    "sender": "darshankawar",
+    "content": "@mutant0113 This was closed most probably based on https://github.com/flutter/packages/pull/6860 which reverted a commit causing this issue. Try your scenario in latest master version, as the revert will not be in stable yet.\r\n",
+    "createdAt": "2024-06-13T05:08:32Z"
+  },
+  {
+    "id": 9585,
+    "sender": "lazytesting",
+    "content": "> > We had our app, based on the 7.22.1 SDK, rolled-out and had roughly 200K session. We did not saw the crash in our logs. Before we used to have it roughly in 0.5-1% of the sessions so we are confident that the crash (in our case) is resolved.\r\n> \r\n> Hello, are you using flutter 3.22.1, but I don't see any fixes for 3.22.1, have you made any other adjustments, such as webview's sdk\r\n\r\nFor us we saw the following:\r\n- In 3.13.9 we did not saw this crash\r\n- In our update to 3.19.5 we saw the crash a lot\r\n- In our recent update to 3.22.1 we did not saw the crash anymore\r\n- We did not test in production with any versions between 3.19.5 and 3.22.1.\r\n\r\nBetween those different releases we did not make any other big changes, only some minor features added but not in the screen which caused the crashes. \r\n\r\nI see that people still can reproduce the crash, I can think of two explanations for that:\r\n1. General performance improvements in 3.22 drastically reduced the likelyhood of the crash occuring in our app\r\n2. There are mutiple root causes",
+    "createdAt": "2024-06-13T06:47:41Z"
+  },
+  {
+    "id": 9586,
+    "sender": "mutant0113",
+    "content": "> This was closed most probably based on https://github.com/flutter/packages/pull/6860 which reverted a commit causing this issue. Try your scenario in latest master version, as the revert will not be in stable yet.\r\n\r\nThanks for the information. I've tested with master branch 3.23.0-13.0.pre.212, and the crash still occurs.\r\nAs @lazytesting mentioned, there might be multiple root causes.\r\nAt the very least, it crashes with the sample app.\r\n\r\n<details>\r\n\r\n```\r\nDoctor summary (to see all details, run flutter doctor -v):\r\n[✓] Flutter (Channel master, 3.23.0-13.0.pre.212, on macOS 13.4 22F66 darwin-arm64, locale zh-Hant-TW)\r\n[✓] Android toolchain - develop for Android devices (Android SDK version 34.0.0)\r\n[!] Xcode - develop for iOS and macOS (Xcode 14.3.1)\r\n    ! Flutter recommends a minimum Xcode version of 15.\r\n      Download the latest version or update via the Mac App Store.\r\n[✓] Chrome - develop for the web\r\n[✓] Android Studio (version 2023.1)\r\n[✓] IntelliJ IDEA Ultimate Edition (version 2023.3.7)\r\n[✓] IntelliJ IDEA Community Edition (version 2023.3.5)\r\n[✓] VS Code (version 1.79.2)\r\n[✓] Connected device (4 available)\r\n[✓] Network resources\r\n```\r\n\r\n</details>",
+    "createdAt": "2024-06-13T07:30:00Z"
+  },
+  {
+    "id": 9587,
+    "sender": "darshankawar",
+    "content": "/cc @johnmccutchan for thoughts on recent comments as above.",
+    "createdAt": "2024-06-14T04:59:04Z"
+  },
+  {
+    "id": 9588,
+    "sender": "k1r3zz",
+    "content": "@darshankawar \r\n![image](https://github.com/flutter/flutter/assets/19678748/ec06302f-cb84-4090-b18f-6d192a516a67)\r\nMy app updated to 3.33.3, but the issue is still not fixed at all",
+    "createdAt": "2024-06-25T01:38:42Z"
+  },
+  {
+    "id": 9589,
+    "sender": "therohansanap",
+    "content": "This is still crashing on Flutter version 3.22.2\r\n\r\nOur app is a video editing application created in flutter and we rely heavily on `PlatformView` for rendering.\r\n\r\nGoogle's minimum threshold for user perceived crashes is 1.09% and due to this crash we are not able to meet these requirements as this crash is bumping our crash rates very high. This is causing lot of bad reviews for on Google Play Store.\r\n\r\nWe would really appreciate prioritising this fix 🙏🏽",
+    "createdAt": "2024-06-28T10:52:41Z"
+  },
+  {
+    "id": 9590,
+    "sender": "Neelansh-ns",
+    "content": "<img width=\"1180\" alt=\"Screenshot 2024-07-01 at 5 11 05 PM\" src=\"https://github.com/flutter/flutter/assets/22894247/40a47469-3520-48bf-a8c7-6380e500e6da\">\r\nThis issue has primarily increased the crash rate in Samsung S series devices. At least 10% of the devices are reporting this same issue.",
+    "createdAt": "2024-07-01T11:42:51Z"
+  },
+  {
+    "id": 9591,
+    "sender": "felipecastrosales",
+    "content": "Hey @vickycj can you reopen this issue? ",
+    "createdAt": "2024-07-01T12:33:01Z"
+  },
+  {
+    "id": 9592,
+    "sender": "xxzj990",
+    "content": "My APP has similar crash logs.\r\n\r\nSteps to reproduce：\r\n1、Open any subpage with a input box\r\n2、Click on input box to make the keyboard pop up\r\n3、Switch the app to the background\r\n4、Switch the app back to the foreground again\r\n5、Close subpage and return to homepage\r\n6、Crash\r\n\r\nThe problem I encountered only occurs on Android 13 and 14.\r\n\r\n**Since I upgraded to Flutter 3.22.2，This issue has been fixed.**\r\n\r\nPlease refer to.\r\n\r\nCrash log,crash in Flutter 3.19.6:\r\n[crash.txt](https://github.com/user-attachments/files/16063562/crash.txt)\r\n",
+    "createdAt": "2024-07-02T06:56:19Z"
+  },
+  {
+    "id": 9593,
+    "sender": "mevljas",
+    "content": "It seems like it mostly happens on devices with Mediatek chipsets.\r\n![image](https://github.com/flutter/flutter/assets/38669826/0351e9a0-3c12-4620-997d-aeab04cc4d79)\r\n",
+    "createdAt": "2024-07-03T12:41:22Z"
+  },
+  {
+    "id": 9594,
+    "sender": "markHamilton34",
+    "content": "Any update on this issue?",
+    "createdAt": "2024-07-09T13:55:19Z"
+  },
+  {
+    "id": 9595,
+    "sender": "therohansanap",
+    "content": "Providing Play Console reported stack trace for reference:\r\n\r\n```\r\n[FATAL:flutter/shell/platform/android/platform_view_android_jni_impl.cc(1503)] Check failed: fml::jni::CheckException(env).\r\n```\r\n\r\n```\r\n*** *** *** *** *** *** *** *** *** *** *** *** *** *** *** ***\r\npid: 0, tid: 30889 >>> io.invideo.ai <<<\r\n\r\nbacktrace:\r\n  #00  pc 0x000000000005d428  /apex/com.android.runtime/lib64/bionic/libc.so (abort+168)\r\n  #01  pc 0x00000000004489c4  /data/app/~~hNq3S1Y0gZkm-6zjVP7Ffw==/io.invideo.ai-GF3pYNEVfKe2Nbfg-xsZkA==/split_config.arm64_v8a.apk!libflutter.so (BuildId: 3b69efac3fb4af39fa89588a648ba450d8a50ea3)\r\n  #02  pc 0x0000000000474f80  /data/app/~~hNq3S1Y0gZkm-6zjVP7Ffw==/io.invideo.ai-GF3pYNEVfKe2Nbfg-xsZkA==/split_config.arm64_v8a.apk!libflutter.so (BuildId: 3b69efac3fb4af39fa89588a648ba450d8a50ea3)\r\n  #03  pc 0x0000000000460f84  /data/app/~~hNq3S1Y0gZkm-6zjVP7Ffw==/io.invideo.ai-GF3pYNEVfKe2Nbfg-xsZkA==/split_config.arm64_v8a.apk!libflutter.so (BuildId: 3b69efac3fb4af39fa89588a648ba450d8a50ea3)\r\n  #04  pc 0x0000000000462434  /data/app/~~hNq3S1Y0gZkm-6zjVP7Ffw==/io.invideo.ai-GF3pYNEVfKe2Nbfg-xsZkA==/split_config.arm64_v8a.apk!libflutter.so (BuildId: 3b69efac3fb4af39fa89588a648ba450d8a50ea3)\r\n  #05  pc 0x00000000004628bc  /data/app/~~hNq3S1Y0gZkm-6zjVP7Ffw==/io.invideo.ai-GF3pYNEVfKe2Nbfg-xsZkA==/split_config.arm64_v8a.apk!libflutter.so (BuildId: 3b69efac3fb4af39fa89588a648ba450d8a50ea3)\r\n  #06  pc 0x0000000000461d74  /data/app/~~hNq3S1Y0gZkm-6zjVP7Ffw==/io.invideo.ai-GF3pYNEVfKe2Nbfg-xsZkA==/split_config.arm64_v8a.apk!libflutter.so (BuildId: 3b69efac3fb4af39fa89588a648ba450d8a50ea3)\r\n  #07  pc 0x00000000006e8c74  /data/app/~~hNq3S1Y0gZkm-6zjVP7Ffw==/io.invideo.ai-GF3pYNEVfKe2Nbfg-xsZkA==/split_config.arm64_v8a.apk!libflutter.so (BuildId: 3b69efac3fb4af39fa89588a648ba450d8a50ea3)\r\n  #08  pc 0x00000000006e3ff8  /data/app/~~hNq3S1Y0gZkm-6zjVP7Ffw==/io.invideo.ai-GF3pYNEVfKe2Nbfg-xsZkA==/split_config.arm64_v8a.apk!libflutter.so (BuildId: 3b69efac3fb4af39fa89588a648ba450d8a50ea3)\r\n  #09  pc 0x00000000006e8f00  /data/app/~~hNq3S1Y0gZkm-6zjVP7Ffw==/io.invideo.ai-GF3pYNEVfKe2Nbfg-xsZkA==/split_config.arm64_v8a.apk!libflutter.so (BuildId: 3b69efac3fb4af39fa89588a648ba450d8a50ea3)\r\n  #10  pc 0x00000000006e3ff8  /data/app/~~hNq3S1Y0gZkm-6zjVP7Ffw==/io.invideo.ai-GF3pYNEVfKe2Nbfg-xsZkA==/split_config.arm64_v8a.apk!libflutter.so (BuildId: 3b69efac3fb4af39fa89588a648ba450d8a50ea3)\r\n  #11  pc 0x00000000006e37ac  /data/app/~~hNq3S1Y0gZkm-6zjVP7Ffw==/io.invideo.ai-GF3pYNEVfKe2Nbfg-xsZkA==/split_config.arm64_v8a.apk!libflutter.so (BuildId: 3b69efac3fb4af39fa89588a648ba450d8a50ea3)\r\n  #12  pc 0x00000000006e3ff8  /data/app/~~hNq3S1Y0gZkm-6zjVP7Ffw==/io.invideo.ai-GF3pYNEVfKe2Nbfg-xsZkA==/split_config.arm64_v8a.apk!libflutter.so (BuildId: 3b69efac3fb4af39fa89588a648ba450d8a50ea3)\r\n  #13  pc 0x00000000006e8f00  /data/app/~~hNq3S1Y0gZkm-6zjVP7Ffw==/io.invideo.ai-GF3pYNEVfKe2Nbfg-xsZkA==/split_config.arm64_v8a.apk!libflutter.so (BuildId: 3b69efac3fb4af39fa89588a648ba450d8a50ea3)\r\n  #14  pc 0x00000000006e3ff8  /data/app/~~hNq3S1Y0gZkm-6zjVP7Ffw==/io.invideo.ai-GF3pYNEVfKe2Nbfg-xsZkA==/split_config.arm64_v8a.apk!libflutter.so (BuildId: 3b69efac3fb4af39fa89588a648ba450d8a50ea3)\r\n  #15  pc 0x00000000006e8f00  /data/app/~~hNq3S1Y0gZkm-6zjVP7Ffw==/io.invideo.ai-GF3pYNEVfKe2Nbfg-xsZkA==/split_config.arm64_v8a.apk!libflutter.so (BuildId: 3b69efac3fb4af39fa89588a648ba450d8a50ea3)\r\n  #16  pc 0x00000000006e3ff8  /data/app/~~hNq3S1Y0gZkm-6zjVP7Ffw==/io.invideo.ai-GF3pYNEVfKe2Nbfg-xsZkA==/split_config.arm64_v8a.apk!libflutter.so (BuildId: 3b69efac3fb4af39fa89588a648ba450d8a50ea3)\r\n  #17  pc 0x00000000006e8f00  /data/app/~~hNq3S1Y0gZkm-6zjVP7Ffw==/io.invideo.ai-GF3pYNEVfKe2Nbfg-xsZkA==/split_config.arm64_v8a.apk!libflutter.so (BuildId: 3b69efac3fb4af39fa89588a648ba450d8a50ea3)\r\n  #18  pc 0x00000000006e3ff8  /data/app/~~hNq3S1Y0gZkm-6zjVP7Ffw==/io.invideo.ai-GF3pYNEVfKe2Nbfg-xsZkA==/split_config.arm64_v8a.apk!libflutter.so (BuildId: 3b69efac3fb4af39fa89588a648ba450d8a50ea3)\r\n  #19  pc 0x00000000006e7c8c  /data/app/~~hNq3S1Y0gZkm-6zjVP7Ffw==/io.invideo.ai-GF3pYNEVfKe2Nbfg-xsZkA==/split_config.arm64_v8a.apk!libflutter.so (BuildId: 3b69efac3fb4af39fa89588a648ba450d8a50ea3)\r\n  #20  pc 0x00000000007d47d0  /data/app/~~hNq3S1Y0gZkm-6zjVP7Ffw==/io.invideo.ai-GF3pYNEVfKe2Nbfg-xsZkA==/split_config.arm64_v8a.apk!libflutter.so (BuildId: 3b69efac3fb4af39fa89588a648ba450d8a50ea3)\r\n  #21  pc 0x0000000000475bb0  /data/app/~~hNq3S1Y0gZkm-6zjVP7Ffw==/io.invideo.ai-GF3pYNEVfKe2Nbfg-xsZkA==/split_config.arm64_v8a.apk!libflutter.so (BuildId: 3b69efac3fb4af39fa89588a648ba450d8a50ea3)\r\n  #22  pc 0x00000000004797cc  /data/app/~~hNq3S1Y0gZkm-6zjVP7Ffw==/io.invideo.ai-GF3pYNEVfKe2Nbfg-xsZkA==/split_config.arm64_v8a.apk!libflutter.so (BuildId: 3b69efac3fb4af39fa89588a648ba450d8a50ea3)\r\n  #23  pc 0x0000000000018b6c  /system/lib64/libutils.so (android::Looper::pollInner(int)+1252)\r\n  #24  pc 0x0000000000018624  /system/lib64/libutils.so (android::Looper::pollOnce(int, int*, int*, void**)+124)\r\n  #25  pc 0x000000000018cbbc  /system/lib64/libandroid_runtime.so (android::android_os_MessageQueue_nativePollOnce(_JNIEnv*, _jobject*, long, int)+48)\r\n  #26  pc 0x00000000003e7514  /data/misc/apexdata/com.android.art/dalvik-cache/arm64/boot.oat (art_jni_trampoline+116)\r\n  #27  pc 0x0000000000ba6c40  /data/misc/apexdata/com.android.art/dalvik-cache/arm64/boot.oat (android.os.MessageQueue.next+304)\r\n  #28  pc 0x0000000000ba3820  /data/misc/apexdata/com.android.art/dalvik-cache/arm64/boot.oat (android.os.Looper.loopOnce+96)\r\n  #29  pc 0x0000000000ba36dc  /data/misc/apexdata/com.android.art/dalvik-cache/arm64/boot.oat (android.os.Looper.loop+1132)\r\n  #30  pc 0x000000000089e6a8  /data/misc/apexdata/com.android.art/dalvik-cache/arm64/boot.oat (android.app.ActivityThread.main+4216)\r\n  #31  pc 0x0000000000334280  /apex/com.android.art/lib64/libart.so (art_quick_invoke_static_stub+640)\r\n  #32  pc 0x00000000003883c0  /apex/com.android.art/lib64/libart.so (_jobject* art::InvokeMethod<(art::PointerSize)8>(art::ScopedObjectAccessAlreadyRunnable const&, _jobject*, _jobject*, _jobject*, unsigned long)+1588)\r\n  #33  pc 0x0000000000387d7c  /apex/com.android.art/lib64/libart.so (art::Method_invoke(_JNIEnv*, _jobject*, _jobject*, _jobjectArray*) (.__uniq.165753521025965369065708152063621506277)+32)\r\n  #34  pc 0x00000000003ed6a8  /data/misc/apexdata/com.android.art/dalvik-cache/arm64/boot.oat (art_jni_trampoline+120)\r\n  #35  pc 0x0000000000fe0884  /data/misc/apexdata/com.android.art/dalvik-cache/arm64/boot.oat (com.android.internal.os.RuntimeInit$MethodAndArgsCaller.run+132)\r\n  #36  pc 0x0000000000feea90  /data/misc/apexdata/com.android.art/dalvik-cache/arm64/boot.oat (com.android.internal.os.ZygoteInit.main+4176)\r\n  #37  pc 0x0000000000334280  /apex/com.android.art/lib64/libart.so (art_quick_invoke_static_stub+640)\r\n  #38  pc 0x00000000004e4298  /apex/com.android.art/lib64/libart.so (art::JValue art::InvokeWithVarArgs<_jmethodID*>(art::ScopedObjectAccessAlreadyRunnable const&, _jobject*, _jmethodID*, std::__va_list)+728)\r\n  #39  pc 0x00000000005804e4  /apex/com.android.art/lib64/libart.so (art::JNI<true>::CallStaticVoidMethodV(_JNIEnv*, _jclass*, _jmethodID*, std::__va_list)+156)\r\n  #40  pc 0x00000000000e2be8  /system/lib64/libandroid_runtime.so (_JNIEnv::CallStaticVoidMethod(_jclass*, _jmethodID*, ...)+108)\r\n  #41  pc 0x00000000000eef84  /system/lib64/libandroid_runtime.so (android::AndroidRuntime::start(char const*, android::Vector<android::String8> const&, bool)+988)\r\n  #42  pc 0x0000000000002968  /system/bin/app_process64 (main+1456)\r\n  #43  pc 0x0000000000055a48  /apex/com.android.runtime/lib64/bionic/libc.so (__libc_init+108)\r\n```",
+    "createdAt": "2024-07-10T13:44:07Z"
+  },
+  {
+    "id": 9596,
+    "sender": "k1r3zz",
+    "content": "Flutter updated with 3.22.3, has this been fixed?",
+    "createdAt": "2024-07-18T06:30:11Z"
+  },
+  {
+    "id": 9597,
+    "sender": "Faizan-26",
+    "content": "Google Play Console providing this stack trace sample attribute :\r\nDEVICE INFO:\r\nsamsung g0q (Galaxy S22+)\r\nLargest Crash Cluster\r\n[split_config.arm64_v8a.apk!libflutter.so]\r\n\r\n`\r\n[FATAL:flutter/shell/platform/android/platform_view_android_jni_impl.cc(1344)] Check failed: fml::jni::CheckException(env). `\r\n\r\n`\r\n *** *** *** *** *** *** *** *** *** *** *** *** *** *** *** ***\r\npid: 0, tid: 18240 >>> com.islam.qurankareem.app <<<\r\n\r\nbacktrace:\r\n  #00  pc 0x000000000005b730  /apex/com.android.runtime/lib64/bionic/libc.so (abort+168)\r\n  #01  pc 0x0000000000446804  /data/app/~~5YW2cww5Hzsiuavfp-ID0w==/com.islam.qurankareem.app-3nmxr8H7vvDt5wutwAi9CA==/split_config.arm64_v8a.apk!libflutter.so (BuildId: e05edcf1368609668cf1873a167462cbcf923136)\r\n  #02  pc 0x0000000000473fd4  /data/app/~~5YW2cww5Hzsiuavfp-ID0w==/com.islam.qurankareem.app-3nmxr8H7vvDt5wutwAi9CA==/split_config.arm64_v8a.apk!libflutter.so (BuildId: e05edcf1368609668cf1873a167462cbcf923136)\r\n  #03  pc 0x0000000000460284  /data/app/~~5YW2cww5Hzsiuavfp-ID0w==/com.islam.qurankareem.app-3nmxr8H7vvDt5wutwAi9CA==/split_config.arm64_v8a.apk!libflutter.so (BuildId: e05edcf1368609668cf1873a167462cbcf923136)\r\n  #04  pc 0x000000000045b800  /data/app/~~5YW2cww5Hzsiuavfp-ID0w==/com.islam.qurankareem.app-3nmxr8H7vvDt5wutwAi9CA==/split_config.arm64_v8a.apk!libflutter.so (BuildId: e05edcf1368609668cf1873a167462cbcf923136)\r\n  #05  pc 0x0000000000474bf4  /data/app/~~5YW2cww5Hzsiuavfp-ID0w==/com.islam.qurankareem.app-3nmxr8H7vvDt5wutwAi9CA==/split_config.arm64_v8a.apk!libflutter.so (BuildId: e05edcf1368609668cf1873a167462cbcf923136)\r\n  #06  pc 0x0000000000478784  /data/app/~~5YW2cww5Hzsiuavfp-ID0w==/com.islam.qurankareem.app-3nmxr8H7vvDt5wutwAi9CA==/split_config.arm64_v8a.apk!libflutter.so (BuildId: e05edcf1368609668cf1873a167462cbcf923136)\r\n  #07  pc 0x0000000000018b70  /system/lib64/libutils.so (android::Looper::pollInner(int)+1252)\r\n  #08  pc 0x0000000000018628  /system/lib64/libutils.so (android::Looper::pollOnce(int, int*, int*, void**)+124)\r\n  #09  pc 0x000000000018f184  /system/lib64/libandroid_runtime.so (android::android_os_MessageQueue_nativePollOnce(_JNIEnv*, _jobject*, long, int)+48)\r\n  #10  pc 0x000000000033d4d4  /data/misc/apexdata/com.android.art/dalvik-cache/arm64/boot.oat (art_jni_trampoline+116)\r\n  #11  pc 0x00000000009bb480  /data/misc/apexdata/com.android.art/dalvik-cache/arm64/boot.oat (android.os.MessageQueue.next+304)\r\n  #12  pc 0x00000000009b8468  /data/misc/apexdata/com.android.art/dalvik-cache/arm64/boot.oat (android.os.Looper.loopOnce+88)\r\n  #13  pc 0x00000000009b8374  /data/misc/apexdata/com.android.art/dalvik-cache/arm64/boot.oat (android.os.Looper.loop+916)\r\n  #14  pc 0x00000000007421f0  /data/misc/apexdata/com.android.art/dalvik-cache/arm64/boot.oat (android.app.ActivityThread.main+2128)\r\n  #15  pc 0x000000000033aa80  /apex/com.android.art/lib64/libart.so (art_quick_invoke_static_stub+640)\r\n  #16  pc 0x000000000037bf18  /apex/com.android.art/lib64/libart.so (_jobject* art::InvokeMethod<(art::PointerSize)8>(art::ScopedObjectAccessAlreadyRunnable const&, _jobject*, _jobject*, _jobject*, unsigned long)+1556)\r\n  #17  pc 0x000000000037b8f4  /apex/com.android.art/lib64/libart.so (art::Method_invoke(_JNIEnv*, _jobject*, _jobject*, _jobjectArray*) (.__uniq.165753521025965369065708152063621506277)+32)\r\n  #18  pc 0x0000000000342f88  /data/misc/apexdata/com.android.art/dalvik-cache/arm64/boot.oat (art_jni_trampoline+120)\r\n  #19  pc 0x0000000000ceffc4  /data/misc/apexdata/com.android.art/dalvik-cache/arm64/boot.oat (com.android.internal.os.RuntimeInit$MethodAndArgsCaller.run+116)\r\n  #20  pc 0x0000000000cfaea4  /data/misc/apexdata/com.android.art/dalvik-cache/arm64/boot.oat (com.android.internal.os.ZygoteInit.main+3460)\r\n  #21  pc 0x000000000033aa80  /apex/com.android.art/lib64/libart.so (art_quick_invoke_static_stub+640)\r\n  #22  pc 0x00000000004e1f24  /apex/com.android.art/lib64/libart.so (art::JValue art::InvokeWithVarArgs<_jmethodID*>(art::ScopedObjectAccessAlreadyRunnable const&, _jobject*, _jmethodID*, std::__va_list)+728)\r\n  #23  pc 0x000000000057a0b0  /apex/com.android.art/lib64/libart.so (art::JNI<true>::CallStaticVoidMethodV(_JNIEnv*, _jclass*, _jmethodID*, std::__va_list)+156)\r\n  #24  pc 0x00000000000e3be8  /system/lib64/libandroid_runtime.so (_JNIEnv::CallStaticVoidMethod(_jclass*, _jmethodID*, ...)+108)\r\n  #25  pc 0x00000000000f05bc  /system/lib64/libandroid_runtime.so (android::AndroidRuntime::start(char const*, android::Vector<android::String8> const&, bool)+856)\r\n  #26  pc 0x0000000000002558  /system/bin/app_process64 (main+1280)\r\n  #27  pc 0x0000000000053e50  /apex/com.android.runtime/lib64/bionic/libc.so (__libc_init+108) `",
+    "createdAt": "2024-07-28T16:35:57Z"
+  },
+  {
+    "id": 9598,
+    "sender": "darshankawar",
+    "content": "/cc @reidbaker and @johnmccutchan for thoughts as this issue has been getting traction since the time it was closed but reopened based on reports received.\r\n\r\n",
+    "createdAt": "2024-08-02T10:58:20Z"
+  },
+  {
+    "id": 9599,
+    "sender": "therohansanap",
+    "content": "Small update:\r\n\r\nWe release a version of our app compiled with Flutter version 3.19.6 and the occurrences of this crash has reduced drastically. For this particular crash, before flutter version downgrade, we were seeing ~60 events every day. After downgrade, we are seeing ~15 events every day.\r\n\r\nThis hasn't fixed the issue for us but the number of crashes have gone down due to downgraded Flutter version.",
+    "createdAt": "2024-08-21T09:53:04Z"
+  }
+]

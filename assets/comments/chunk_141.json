@@ -1,0 +1,386 @@
+[
+  {
+    "id": 9024,
+    "sender": "LuizLeite",
+    "content": "Hi.\n\nJust remove the package from the pubspec.yaml file.\n\n\nLuiz Leite\n \n\n    Em quinta-feira, 12 de março de 2020 08:46:41 BRT, mohamed-eltwahy <notifications@github.com> escreveu:  \n \n \n\n\n\nHi. In my case, i removed the \"get_ip\" package, and the black screen is gone, the app is back up and running.\n\n\nhow i can do this?\n\n—\nYou are receiving this because you commented.\nReply to this email directly, view it on GitHub, or unsubscribe.\n  ",
+    "createdAt": "2020-03-12T11:50:50Z"
+  },
+  {
+    "id": 9025,
+    "sender": "DanielEdrisian",
+    "content": "## Added CupertinoFormSection, CupertinoSplitFormRow, and CupertinoTextFormField\n\n## Description\r\n\r\nAdded `CupertinoFormSection`, `CupertinoSplitFormRow`, and `CupertinoTextFormField`.\r\n\r\n<img width=\"427\" alt=\"Screen Shot 2020-11-17 at 8 10 46 PM\" src=\"https://user-images.githubusercontent.com/11810973/99482548-06c9bf80-2911-11eb-8145-794599380ef7.png\">\r\n\r\nDemo:\r\nhttps://github.com/DanielEdrisian/SharedStorage/blob/main/demo%20forms.mov\r\n\r\n## Related Issues\r\n\r\n#69916\r\n#26745\r\n\r\n## Tests\r\n\r\nNo tests.\r\n\r\n*Replace this with a list of the tests that you added as part of this PR. A change in behavior with no test covering it\r\nwill likely get reverted accidentally sooner or later. PRs must include tests for all changed/updated/fixed behaviors. See [Test Coverage].*\r\n\r\n## Checklist\r\n\r\nBefore you create this PR, confirm that it meets all requirements listed below by checking the relevant checkboxes (`[x]`). This will ensure a smooth and quick review process.\r\n\r\n- [x] I read the [Contributor Guide] and followed the process outlined there for submitting PRs.\r\n- [x] I signed the [CLA].\r\n- [x] I read and followed the [Flutter Style Guide], including [Features we expect every widget to implement].\r\n- [x] I read the [Tree Hygiene] wiki page, which explains my responsibilities.\r\n- [x] I updated/added relevant documentation (doc comments with `///`).\r\n- [x] All existing and new tests are passing.\r\n- [x] The analyzer (`flutter analyze --flutter-repo`) does not report any problems on my PR.\r\n- [x] I am willing to follow-up on review comments in a timely manner.\r\n\r\n## Breaking Change\r\n\r\nDid any tests fail when you ran them? Please read [Handling breaking changes].\r\n\r\n- [x] No, no existing tests failed, so this is *not* a breaking change.\r\n- [ ] Yes, this is a breaking change. *If not, delete the remainder of this section.*\r\n   - [ ] I wrote a design doc: https://flutter.dev/go/template *Replace this with a link to your design doc's short link*\r\n   - [ ] I got input from the developer relations team, specifically from: *Replace with the names of who gave advice*\r\n   - [ ] I wrote a migration guide: https://flutter.dev/go/breaking-changes-template *Replace this with a link to a pull request that adds the migration guide to https://flutter.dev/docs/release/breaking-changes*\r\n\r\n<!-- Links -->\r\n[issue database]: https://github.com/flutter/flutter/issues\r\n[Contributor Guide]: https://github.com/flutter/flutter/wiki/Tree-hygiene#overview\r\n[Test Coverage]: https://github.com/flutter/flutter/wiki/Test-coverage-for-package%3Aflutter\r\n[Flutter Style Guide]: https://github.com/flutter/flutter/wiki/Style-guide-for-Flutter-repo\r\n[Features we expect every widget to implement]: https://github.com/flutter/flutter/wiki/Style-guide-for-Flutter-repo#features-we-expect-every-widget-to-implement\r\n[CLA]: https://cla.developers.google.com/\r\n[Tree Hygiene]: https://github.com/flutter/flutter/wiki/Tree-hygiene\r\n[Handling breaking changes]: https://github.com/flutter/flutter/wiki/Tree-hygiene#handling-breaking-changes\r",
+    "createdAt": "2020-11-17T06:19:23Z"
+  },
+  {
+    "id": 9026,
+    "sender": "xster",
+    "content": "you should be able to run `dart dev/bots/analyze-sample-code.dart` locally to check whether the sample code is right instead of waiting for CI to build it ",
+    "createdAt": "2020-11-23T17:41:39Z"
+  },
+  {
+    "id": 9027,
+    "sender": "DanielEdrisian",
+    "content": "I made some changes to the CupertinoFormSection API @LongCatIsLooong @xster \r\n\r\n- Change `decoration` to `groupDecoration` and only affects the row group.\r\n- Gutted `borderRadius` because now it's settable in `groupDecoration`. \r\n- Add a `clipBehavior` for the row group. Defaults to Clip.none.\r\n- Add a `backgroundColor` to the entire form.\r\n- Change color scheme such that it switches between secondary and primary system background color upon theme changes.",
+    "createdAt": "2020-11-24T23:39:18Z"
+  },
+  {
+    "id": 9028,
+    "sender": "DanielEdrisian",
+    "content": "Rebased on top of master",
+    "createdAt": "2020-11-26T01:19:59Z"
+  },
+  {
+    "id": 9029,
+    "sender": "chinmaygarde",
+    "content": "## Investigate wiring up Metal Binary Archives on iOS.\n\nIntroduced at [WWDC 2020](https://developer.apple.com/videos/play/wwdc2020/10615/), Metal Binary Archives speed up creation of pipeline state objects. In Flutter, these objects are created as necessary within a frame workload on the raster thread. This can cause jank. Investigate persisting these archives (shipping them if possible in the application bundle) and loading them (possibly via the Skia persistent cache interface) at runtime to reduce jank during startup. \r\n\r\nTracking issue in Skia: https://bugs.chromium.org/p/skia/issues/detail?id=10804",
+    "createdAt": "2020-06-25T06:08:31Z"
+  },
+  {
+    "id": 9030,
+    "sender": "petro-i",
+    "content": "Issue containing phrase \"This can cause jank,\" in case of Flutter, should have highest possible priority by default, IMHO,",
+    "createdAt": "2020-09-03T04:44:17Z"
+  },
+  {
+    "id": 9031,
+    "sender": "lukepighetti",
+    "content": "We've noticed new sources of jank (these are documented already in other issues) after Flutter switched to Metal and we've had to invest in some very expensive (time consuming) workarounds to be able to continue to ship high fidelity apps on iOS. I agree that these Metal jank issues should be high priority tasks. P5 is too low for these issues imho.",
+    "createdAt": "2020-09-03T15:36:45Z"
+  },
+  {
+    "id": 9032,
+    "sender": "oleh-kolinko",
+    "content": "Please investigate to possibly add this to flutter, I am experiencing terrible jank animations on iOS on startup. \n\nThis potentially can solve:\nhttps://github.com/flutter/flutter/issues/61450",
+    "createdAt": "2020-09-05T07:17:21Z"
+  },
+  {
+    "id": 9033,
+    "sender": "kbokarius",
+    "content": "What could the timing be for a fix to these startup jank issues? We're completely invested in Flutter at this point, and it's frustrating to say the least that it's currently not possible for us to have smooth non-janky animations at startup, especially considering how important the startup experience is for onboarding and engaging new users.",
+    "createdAt": "2020-09-20T15:41:08Z"
+  },
+  {
+    "id": 9034,
+    "sender": "chinmaygarde",
+    "content": "Elevated the priority of this issue with the Skia team. Adjusting here. Will elevate the priority here further once a milestone can be set.",
+    "createdAt": "2020-09-21T18:48:35Z"
+  },
+  {
+    "id": 9035,
+    "sender": "kbokarius",
+    "content": "In case anyone comes here looking for a workaround to startup jank issues, there are OpenGL compiled frameworks available here: https://github.com/acoutts/flutter-engines-no-metal\r\n\r\nA more detailed report on our experience with these OpenGL frameworks: https://github.com/flutter/flutter/issues/61045#issuecomment-700263745",
+    "createdAt": "2020-09-28T20:31:28Z"
+  },
+  {
+    "id": 9036,
+    "sender": "doppio",
+    "content": "Thank you @kbokarius! That does significantly improve performance of first-time animations. Unfortunately, disabling Metal seems to result in several visual regressions in other areas of my app, but maybe it's worth the tradeoff. Thankfully [this article](https://flutter.dev/docs/perf/rendering/shader) drastically improved performance on Android without sacrificing visual quality.\r\n\r\nIt's really a shame, since Flutter is supposed to support 60 FPS out of the box, but there doesn't seem to be any way to run reasonably simple animations on iOS without significant performance hitches on the first run. My app's onboarding animations are currently an awful first impression on iOS, far from the smooth experience the framework promises. :(",
+    "createdAt": "2020-09-29T01:21:00Z"
+  },
+  {
+    "id": 9037,
+    "sender": "kbokarius",
+    "content": "@doppio we're going to test and launch on Android after we launch iOS next month, so we haven't gotten to Android yet. All of our testing was done on iOS so far. Reading your message, it isn't clear if you've tried to disable Metal on iOS? I assume you did, and you ran into other visual regressions? In our case, simplifying our animations and reducing their overall visual attractiveness was well worth alleviating the startup animation jank. First time impressions are absolutely critical for consumer applications, so honestly I'm not sure what we're going to do if our comprehensive QA testing tonight with the OpenGL iOS build doesn't prove successful. I just can't imagine having to launch with that startup jank. I'd almost consider removing those animations altogether, as bad as that sounds.\r\n\r\nEdit: the thought is that if the animation jank is really that bad, it might be worth investing time into exploring ways to address any visual regressions that result from disabling Metal. Hopefully we get a startup jank solution for Metal soon, but reverting to OpenGL does seem to be a workable solution in the interim albeit with additional development to work around the side effects.",
+    "createdAt": "2020-09-29T01:30:51Z"
+  },
+  {
+    "id": 9038,
+    "sender": "doppio",
+    "content": "@kbokarius Yes, I tried disabling Metal on iOS and ran into other visual regressions. The first run performance of animations was significantly improved though, like you experienced. I definitely cannot launch with the startup jank either, so I'll either need to wait for a fix or find a workaround for my visual regression issues as you suggest.\r\n\r\nEven with workarounds for the regressions, it will add a non-trivial amount of wasted dev time to build/download new \"no-Metal\" versions of the framework, get it set up with our CI/CD system etc. I think for now, I'll keep my fingers crossed and hope for a fix, since I'm still several months from a possible release candidate.",
+    "createdAt": "2020-09-29T01:48:58Z"
+  },
+  {
+    "id": 9039,
+    "sender": "erf",
+    "content": "@kbokarius i tried the method with the compiled frameworks you supplied, also doing the \"SkSL warm up\". I think i experienced some performance improvment, but there is still some yank when i open the first page (push a fullscreen MaterialPageRoute), which has simple UI and no animations. I experience the yank on iOS (iPhone 7), Android seem fine.",
+    "createdAt": "2020-09-29T09:11:54Z"
+  },
+  {
+    "id": 9040,
+    "sender": "doppio",
+    "content": "That sounds like a different issue, @erf. Try exploring the Flutter DevTools to see if you can pin down what's causing the jank in your case.",
+    "createdAt": "2020-09-29T16:56:35Z"
+  },
+  {
+    "id": 9041,
+    "sender": "kbokarius",
+    "content": "Quick update on our situation: unfortunately, despite the improvement to startup jank, QA testing did show that our app has OOM crashes intermittently on both 12.X and 13.X devices with the OpenGL frameworks. It looks like we'll have to launch on iOS next month with startup jank. Hopefully we'll have a solution available for Metal soon.",
+    "createdAt": "2020-09-30T17:00:02Z"
+  },
+  {
+    "id": 9042,
+    "sender": "acoutts",
+    "content": "> Quick update on our situation: unfortunately, despite the improvement to startup jank, QA testing did show that our app has OOM crashes intermittently on both 12.X and 13.X devices with the OpenGL frameworks. It looks like we'll have to launch on iOS next month with startup jank. Hopefully we'll have a solution available for Metal soon.\r\n\r\nI recently found the same issue in my app. I think once you have more than a few basic screens / animations it quickly becomes unstable. I'm no longer recommending anyone runs OpenGL because of the potential for stability issues. I understand OpenGL is no longer supported either, so fingers crossed this will be resolved soon.",
+    "createdAt": "2020-11-09T21:36:00Z"
+  },
+  {
+    "id": 9043,
+    "sender": "alectogeek",
+    "content": "> > Quick update on our situation: unfortunately, despite the improvement to startup jank, QA testing did show that our app has OOM crashes intermittently on both 12.X and 13.X devices with the OpenGL frameworks. It looks like we'll have to launch on iOS next month with startup jank. Hopefully we'll have a solution available for Metal soon.\r\n> \r\n> I recently found the same issue in my app. I think once you have more than a few basic screens / animations it quickly becomes unstable. I'm no longer recommending anyone runs OpenGL because of the potential for stability issues. I understand OpenGL is no longer supported either, so fingers crossed this will be resolved soon.\r\n\r\nThat is a pity. I released my app with OpenGL, there are much fewer janks, but users complain that the app is unstable. \r\nWe really hope that the Flutter team will solve all the problems with metal soon 🤞🤞🤞\r\n\r\n",
+    "createdAt": "2020-11-09T23:15:57Z"
+  },
+  {
+    "id": 9044,
+    "sender": "Superkramar",
+    "content": "We had same issue for iOS devices =( If I understand right, no way to fix this problem right now ?",
+    "createdAt": "2020-11-10T12:25:07Z"
+  },
+  {
+    "id": 9045,
+    "sender": "meowofficial",
+    "content": "Could anyone from Flutter team say something about probable terms of solution for ios? As far as I know the issue became critical on ios after release of flutter 1.17.0 on stable channel 6 months ago. I think almost all of flutter developers who know about the cause of their app's lags need this information to choose 1 of 4 available options:\r\n\r\n1) Downgrade to flutter 1.12\r\nI don't know much about consequences of this option because I didn't try it yet. I can't remember critical issues for me from that time, probably `firebase_crashlytics` won't work, may be obfuscation. If there wasn't a problem with OOM crashes it's the best of the worst I think.\r\n2) Release with no-metal flutter engine\r\nI don't know about others, but I don't have testing team or variety of iPhones. I would test on couple iPhones I have and it seems to me I can possibly face OOM crashes on production and won't do anything about it.\r\n3) Release with metal flutter engine\r\nAs for me the janks are so terrible and app is so unusable that the only result I would achieve is 1-star rating, angry users and ruined launch.\r\n4) Wait for fix and add new features while issue is resolving. The question is how long?",
+    "createdAt": "2020-11-10T12:29:04Z"
+  },
+  {
+    "id": 9046,
+    "sender": "Superkramar",
+    "content": "I think it is pretty serious problem in Flutter. And they need write about it in the TITLE of main page http://flutter.dev. \r\nIf I knew about this problem, I would think twice about using flutter.",
+    "createdAt": "2020-11-10T12:38:17Z"
+  },
+  {
+    "id": 9047,
+    "sender": "meowofficial",
+    "content": "As one of the Flutter team said test-based shader warmup wasn't going to release in 2020 when the priority of this issue was `P5` https://github.com/flutter/flutter/issues/53609#issuecomment-665180648. Now it's `P3`, may be it changes something.\r\n\r\nAccording to https://github.com/flutter/flutter/issues/61450#issuecomment-660381438 there won't be an intermediate solution.",
+    "createdAt": "2020-11-10T12:47:43Z"
+  },
+  {
+    "id": 9048,
+    "sender": "Superkramar",
+    "content": "I hope, I won't have rewritten my app to native code by the time when they fix it with P3 priority ))))",
+    "createdAt": "2020-11-10T12:58:51Z"
+  },
+  {
+    "id": 9049,
+    "sender": "kbokarius",
+    "content": "I agree with the sentiments here. Fortunately we were able to somewhat mitigate jank by simplifying our animations, but frankly the fact that we don't yet have an ETA and that there isn't a prominent warning about this issue is shameful. While we all appreciate Flutter as a great technology and the hard work the Google team puts into it, it's simply not fair to the community that 1) there is currently no ETA for a fix, and 2) that developers invest weeks or months into development before discovering this issue and being forced to either rewrite their app or delay release altogether. \n\n@chinmaygarde  @dnfield and others: please consider increasing the priority of this issue further, and please give us an idea of how soon we can expect a solution.",
+    "createdAt": "2020-11-10T14:54:50Z"
+  },
+  {
+    "id": 9050,
+    "sender": "jvanverth",
+    "content": "An update from the Skia side: I started looking into adding MTLBinaryArchive support last week, and at this point it doesn't look like it will be difficult to drop it in as a side cache to our already existing persistent shader cache. I don't want to make a hard promise on completion as I have a lot of demands on my time, but I expect I should be able to get it done in the next few weeks, conservatively before the December break.",
+    "createdAt": "2020-11-10T15:10:32Z"
+  },
+  {
+    "id": 9051,
+    "sender": "petro-i",
+    "content": "@jvanverth thank you for update, we all waiting for solution, since currently Flutter is not actually usable on iOS. Flutter 1.12.13-x still in production because of the iOS Metal janks. \r\n\r\nBut could you please clarify solution planned? Is that \"something\" we have to precache and include to the app build?  \r\nWhat about if some deep-in-app animation cannot be easily precached, it will be janky as any animation right now?\r\n\r\n@meowofficial `firebase_crashlytics` has false Dart sdk version limit, you can easily fork it, fix Dard sdk version and use on old Flutter. ",
+    "createdAt": "2020-11-10T21:59:47Z"
+  },
+  {
+    "id": 9052,
+    "sender": "meowofficial",
+    "content": "> @meowofficial `firebase_crashlytics` has false Dart sdk version limit, you can easily fork it, fix Dard sdk version and use on old Flutter.\r\n\r\nThanks for idea!",
+    "createdAt": "2020-11-10T22:38:08Z"
+  },
+  {
+    "id": 9053,
+    "sender": "alectogeek",
+    "content": "> @meowofficial `firebase_crashlytics` has false Dart sdk version limit, you can easily fork it, fix Dard sdk version and use on old Flutter.\r\n\r\n@totalerex Unfortunately, there are way more packages that have to be downgraded (some of them can be with important bug fixes).  Additionally, there were some fixes especially for iOS 14, so flutter 1.12.13-x doesn't support them.\r\n\r\nIt is really really bad that the flutter team busy with the implementation of any other features while there is such an obvious problem with performance. ",
+    "createdAt": "2020-11-12T11:41:02Z"
+  },
+  {
+    "id": 9054,
+    "sender": "jkh911208",
+    "content": "new Google Pay app released with this problem",
+    "createdAt": "2020-11-18T20:21:17Z"
+  },
+  {
+    "id": 9055,
+    "sender": "erf",
+    "content": "@jvanverth @liyuqian I have a similar question as @totalrex, that is: even if the framework is able to cache shaders to file and bundle them, do developers still have to generate or «warm-up» these shaders manually similar to described [here](https://flutter.dev/docs/perf/rendering/shader#how-to-use-sksl-warmup) by testing out all the app features / widgets, or is this automated? Having to do this manually makes Flutter less attractive to me. I understand you guys are working hard on this issue and i wish you best of luck as many developers are very invested in this. Thanks!",
+    "createdAt": "2020-11-19T10:35:40Z"
+  },
+  {
+    "id": 9056,
+    "sender": "liyuqian",
+    "content": "@erf : the Metal binary shader archives/cache don't need any extra work from the developer. So no manual generations or tests are needed. The tradeoff is that it won't help the first animation after a fresh installation. All subsequent runs, even if the iOS app is completely closed, should be smooth. (Without it, the jank will reoccur after each iOS app close.)",
+    "createdAt": "2020-11-19T22:39:45Z"
+  },
+  {
+    "id": 9057,
+    "sender": "erf",
+    "content": "@liyuqian ok, so the first run will always be yanky, before shaders are stored to disk?\r\n\r\ndoes not sound like an optimal solution yet..",
+    "createdAt": "2020-11-19T23:02:12Z"
+  },
+  {
+    "id": 9058,
+    "sender": "liyuqian",
+    "content": "First run after a fresh installation, yes. It's indeed not optimal. But it's a big step to let iOS Metal catch up with our current state on Android.",
+    "createdAt": "2020-11-19T23:04:44Z"
+  },
+  {
+    "id": 9059,
+    "sender": "erf",
+    "content": "Do you have any plans to reduce yank for a fresh install also?",
+    "createdAt": "2020-11-19T23:05:53Z"
+  },
+  {
+    "id": 9060,
+    "sender": "kbokarius",
+    "content": "While an inconvenience, it's certainly a huge step in the right direction. Unless you're constantly changing UI and animations, the overhead of generating the shader files isn't a big deal and will certainly more than suffice for us. ",
+    "createdAt": "2020-11-19T23:07:23Z"
+  },
+  {
+    "id": 9061,
+    "sender": "erf",
+    "content": ".. if you still are able to generate shaders for the inital fresh install.\r\n\r\nI wonder how SwiftUI does this? I image there is no yank there, but that is a native compiled language with less overhead / layers so..",
+    "createdAt": "2020-11-19T23:10:26Z"
+  },
+  {
+    "id": 9062,
+    "sender": "liyuqian",
+    "content": ">Do you have any plans to reduce yank for a fresh install also?\r\n\r\n@erf : yes, its work and plan are tracked by https://github.com/flutter/flutter/issues/32170. We'll release more details there once available.",
+    "createdAt": "2020-11-19T23:12:15Z"
+  },
+  {
+    "id": 9063,
+    "sender": "alexandrius",
+    "content": "> .. if you still are able to generate shaders for the inital fresh install.\r\n> \r\n> I wonder how SwiftUI does this? I image there is no yank there, but that is a native compiled language with less overhead / layers so..\r\n\r\nSwiftUI uses standard components. It has no need to precompile shaders.\r\nWe better be asking how Unity does this. Unity and Flutter have very similar approach",
+    "createdAt": "2020-11-20T08:00:12Z"
+  },
+  {
+    "id": 9064,
+    "sender": "theniceboy",
+    "content": "@alexandrius I think Unity literally stores the cache in the binary file.",
+    "createdAt": "2020-11-20T09:16:12Z"
+  },
+  {
+    "id": 9065,
+    "sender": "alexandrius",
+    "content": "> @alexandrius I think Unity literally stores the cache in the binary file.\r\n\r\nSo why not do the same? Just curious ",
+    "createdAt": "2020-11-20T09:21:14Z"
+  },
+  {
+    "id": 9066,
+    "sender": "theniceboy",
+    "content": "@alexandrius If they've done that the app would be too big.\r\n\r\n> Why not just compile or warm up all possible shaders?\r\nIf there are only a limited number of possible shaders, then Flutter could do a warm-up and compile all of them before-hand to avoid such jank. However, for the best overall performance, the Skia GPU backend used by Flutter can dynamically generate shaders based on a lot of parameters at runtime (for example, draws, device models, and driver versions). Due to all possible combinations of those parameters, the number of possible shaders is exponential. In short, Flutter uses programs (app, Flutter, and Skia code) to generate some other programs (shaders). The number of possible shader programs that Flutter can generate is simply too large.",
+    "createdAt": "2020-11-20T09:23:42Z"
+  },
+  {
+    "id": 9067,
+    "sender": "alexandrius",
+    "content": "> @alexandrius If they've done that the app would be too big.\r\n> \r\n> > Why not just compile or warm up all possible shaders?\r\n> > If there are only a limited number of possible shaders, then Flutter could do a warm-up and compile all of them before-hand to avoid such jank. However, for the best overall performance, the Skia GPU backend used by Flutter can dynamically generate shaders based on a lot of parameters at runtime (for example, draws, device models, and driver versions). Due to all possible combinations of those parameters, the number of possible shaders is exponential. In short, Flutter uses programs (app, Flutter, and Skia code) to generate some other programs (shaders). The number of possible shader programs that Flutter can generate is simply too large.\r\n\r\nJust checked Google Pay app on iPad it is almost unusable on first run. It works like apps on Windows Mobile",
+    "createdAt": "2020-11-20T12:11:15Z"
+  },
+  {
+    "id": 9068,
+    "sender": "meowofficial",
+    "content": "Why apps builded with flutter 1.12 weren't janky without warmup? I tested it on iPhone 6s and one weak android device. As I understand, flutter 1.12 has the same problem with shaders.",
+    "createdAt": "2020-11-20T13:02:37Z"
+  },
+  {
+    "id": 9069,
+    "sender": "lukepighetti",
+    "content": "I miss OpenGL ",
+    "createdAt": "2020-11-20T13:43:19Z"
+  },
+  {
+    "id": 9070,
+    "sender": "erf",
+    "content": "I just got the new iPhone SE and it seem the yank is almost gone there. Previously I tested on a iPhone 7 where the lag was more apparent. Maybe this is primarily an issue on \"older\" iPhones? I know iPhone 7 is not that old but still..",
+    "createdAt": "2020-11-27T10:24:10Z"
+  },
+  {
+    "id": 9071,
+    "sender": "kbokarius",
+    "content": "Newer phones have less jank in general. It all depends on how animation heavy your app is. Heavier animations will result in more startup jank on older devices, less on new devices. I suppose if your animations are light enough, you may not see startup jank at all on the newest devices. Our animations are fairly heavy and the startup jank will be there until we can bundle shader files.",
+    "createdAt": "2020-11-27T14:35:49Z"
+  },
+  {
+    "id": 9072,
+    "sender": "adeolaex",
+    "content": "I tried using SkSL warmup to pre-cache my apps shader files. There is definitely a difference as opposed to a built version with Metal enabled, but it's just not eliminating the startup/restarting jank completely.",
+    "createdAt": "2020-11-27T14:40:12Z"
+  },
+  {
+    "id": 9073,
+    "sender": "yasinarik",
+    "content": "For testing purposes, I have a basic `ListView.builder` that builds stateless const widgets and I run it on iPhone 8 with `release` mode. \n\nIt is janky as that my eyes can catch. Flutter wasn't like that before.\n\nI continue to develop my app but this new `Metal` thing(!) just upsets me. \n\nBtw, I believe it will be resolved. ",
+    "createdAt": "2020-11-29T21:49:10Z"
+  },
+  {
+    "id": 9074,
+    "sender": "theniceboy",
+    "content": "Ok, guys, here's an update. Previously I didn't use OpenGL for my Flutter app in production because of crashes with plugins such as `image_picker`, but I just tried [Flutter 1.22.4 with OpenGL](https://github.com/acoutts/flutter-engines-no-metal) which was compiled 2 days ago, and there was no crashes! Most importantly, animations were buttery smooth! No jank. I DIDN'T even do the [SkSL warmup](https://flutter.dev/docs/perf/rendering/shader) thing. I did a fresh install and that was it. Previously there was jank even when launching animations such as a bottom action sheet. Animations like [these](https://github.com/flutter/packages/raw/master/packages/animations/example/demo_gifs/container_transform_lineup.gif) were severely janky upon first launch, but now they are smooth as heck.\r\n\r\nWhy did Flutter even switch to Metal lol",
+    "createdAt": "2020-12-05T11:04:54Z"
+  },
+  {
+    "id": 9075,
+    "sender": "alectogeek",
+    "content": "@theniceboy what about UI degradation? Do u feel any difficulties with svg pictures, for example?",
+    "createdAt": "2020-12-05T13:55:22Z"
+  },
+  {
+    "id": 9076,
+    "sender": "theniceboy",
+    "content": "@alectogeek no, not with svg. We used the `flutter_svg` package pretty extensively (like for almost all icons in our app) and everything was running smoothly.\r\n\r\nSurprisingly, I found scrolling became smoother. Idk why.",
+    "createdAt": "2020-12-05T13:58:46Z"
+  },
+  {
+    "id": 9077,
+    "sender": "joniaiuser",
+    "content": "@theniceboy That's interesting. I will give it a spin as well. Our app has quite a number of animations using Flare library. Wonder if that will regress when switching back to OpenGL; will update here.\r\n\r\nSeems like the regression at 99 percentile was observed accepted as happening only once on launch, and resolved by shaders. https://github.com/flutter/flutter/issues/53768 It's interesting how average performance improved with Metal but those are barely noticeable I guess.",
+    "createdAt": "2020-12-05T15:00:54Z"
+  },
+  {
+    "id": 9078,
+    "sender": "dnfield",
+    "content": "We all understand this is a really frustrating issue. OpenGL has been deprecated by Apple, was running into some serious performance and jank issues, as well as some memory usage issues that the team was not able to make adequate progress on. We are committed to making the experience with Metal better than the experience with OpenGL. There is active work being done to implement metal binary archives in Skia. \r\n\r\nSpeaking plainly, two factors slowing this down right now are that we're in a time of year where many engineers take holiday, and that there's a global pandemic going on that both directly and indirectly impacts people working on this issue (or people who could potentially work on it).  These are, at best, frustrating times for all of us. Let's support each other and do our best.\r\n\r\nAnd while we do have people working on this, don't forget that Flutter and Skia are both open source projects. Anyone concerned with this should feel empowered to checkout the source code and make improvements themselves.",
+    "createdAt": "2020-12-05T15:18:10Z"
+  },
+  {
+    "id": 9079,
+    "sender": "adeolaex",
+    "content": "@theniceboy Just switched engines to `1.22.4 Open GL` and can't seem too notice a difference. Is there something I am missing ? Even though the animations in our applications are different, the average result should not be so far off.\r\n\r\nIt its worth noting that this is without using the `SkSl warmup`.",
+    "createdAt": "2020-12-05T15:45:49Z"
+  },
+  {
+    "id": 9080,
+    "sender": "petro-i",
+    "content": "@dnfield , I think you are not too precise in suggestions:\r\n1. Flutter 1.12.13 (OpenGL) is running on iOS smoothly until now. OpenGL was deprecated by Apple long time ago and nothing was preventing Google-Flutter team to postpone Metal-Flutter a little big more to time janks are resolved.\r\n2. No excuses for not resolving janks issues since 1.17 was releases. Flutter just not usable on iOS now.\r\n3. It is funny that you think we can find someone experienced in C++ (f.e. switched from C++ to Flutter) can help us with Skia :) . But I personaly think that you personally could help investigate why janks are much heavier in case using flutter_svg (published by you, right?), may be there is something special we could find workaround, my be there is nothing to do with shaders, may be there is bug in something related to drawPath or what ever used a lot in flutter_svg?    \r\n\r\nOur app is running on Flutter 1.12.13 and we have almost 40% dependencies forked in order to support old flutter and have dependencies updated. You can imagine how much work we do, all because our QA, and developers actually too, prefer to be fired than let users see such janks/lags. Don't Flutter team has manual testers? Than it is big gap :)  \r\n\r\n@csells @filiph, may be I'm too naive to hope you see this, but I and all people in trouble kindly ask you to investigate not this particular issue but the general problem we have with janks/lags on iOS after Flutter switched to Metal. This problem has big history and many bugs closed by formal reasons.",
+    "createdAt": "2020-12-08T05:18:24Z"
+  },
+  {
+    "id": 9081,
+    "sender": "meowofficial",
+    "content": "I downgraded to flutter 1.12.13 and janks are almost gone. I used a lot of non metal engines and every time faced animation stops in the middle of animation. For me it's the only way to release app on ios.",
+    "createdAt": "2020-12-08T10:00:04Z"
+  },
+  {
+    "id": 9082,
+    "sender": "acoutts",
+    "content": "Looks like a good update from @jvanverth on the linked issue yesterday:\r\n>Basic binary cache support has been added. However, in MTLBinaryCache.h Apple mentions some issues with the usage pattern we have planned -- that is, updating the cache on the fly. Namely, it's possible to grow the cache without bound (especially with our dynamically generated shaders), and there's the possibility of cache corruption. For the former we may need a flag to indicate whether to write to the cache or not, or support multiple caches with size constraints. I'm not sure what the issue with the latter is -- possibly we need to track which pipeline have already been cached and skip trying to write those again.",
+    "createdAt": "2020-12-08T10:10:20Z"
+  },
+  {
+    "id": 9083,
+    "sender": "lukepighetti",
+    "content": "Can someone please summarize the issue for those of us who aren't familiar with the Skia/Graphics side of things? Why does the Metal implementation require us to pre-cache items when OpenGL just ran everything fine first time & every time? Is this something that can be wired up quickly or does this need extensive work with in-depth knowledge?\r\n\r\nAlso, the suggestion that I can help fix this problem is a little bewildering when I don't even understand what the issue is, and I have been working full time with Flutter for ~2 years now. It's an area that I've never had to deal with. I think the suggestion that the community can help out on this issue is... a little disheartening.\r\n\r\nI assumed, perhaps wrongly, that Flutter team had made a commitment to handling all the low level jank for us at priority much higher than P5 or P3. For some reason I thought I saw @Hixie in another post/article say that jank was automatically P0 but I could be remembering that incorrectly.\r\n\r\nFinally, in the Flutter/Metal announcement it was sold as a performance benefit and I have yet to see any actual performance increases. I've seen some additional headroom, but I never needed it before. It's like we gained general headroom at the cost of a lot of jank. But that's enough about me....",
+    "createdAt": "2020-12-08T17:22:18Z"
+  },
+  {
+    "id": 9084,
+    "sender": "dnfield",
+    "content": "With OpenGL, we had support for caching of binary shaders that were compiled; these are small programs that tell the GPU how to draw your application, and part of Skia's job is to create them from the code that the rest of Flutter feeds it. Caching them allows for reuse over the run of the application (and on some platforms, over subsequent runs), which reduces the load of compiling new ones as time went by and old ones could be reused.\r\n\r\nOn Metal, this functionality works slightly differently and is currently being implemented.\r\n\r\nSecondly - for some applications, using OpenGL was not causing significant jank or memory pressure, but for others it was causing very severe jank and memory pressure that we lacked the ability to fix because Apple doesn't support OpenGL and all of the tooling/bug reporting resources are geared towards Metal at this point. If your application was working fine with OpenGL and you can't tolerate Metal, you could still use an older version of Flutter. This certainly isn't ideal, but the team made a decision to not temporarilly continue support for OpenGL since we had some pretty clear benchmarks and customer needs showing that the OpenGL backend was not cutting it and was hitting a wall. There are also only so many resources available to maintain the backend(s), and it's better to throw what we have at improving the way forward (Metal) rather than trying to maintain OpenGL _and_ update Metal. In fact, a number of users who continued to make custom builds using OpenGL have run into such problems (unacceptable memory usage increases, incorrect rendering, etc.).\r\n\r\nAnd thirdly - jank can come from many places. This is likely the source of at least some jank on iOS. It's being actively worked on. \r\n\r\nAnd fourthly - my suggestion is not to say that you should start working on this even if you have no idea where to start, or that some random individual needs to start working on this because no one else is. But if you're passionate about this issue and interested, it might be a good place to start poking at things :) If not, for this specific issue, @jvanverth's work is going to resolve it before much longer.",
+    "createdAt": "2020-12-08T17:29:37Z"
+  },
+  {
+    "id": 9085,
+    "sender": "dannyvalentesonos",
+    "content": "@dnfield For this particular feature/issue, I just want to confirm that flutter app developers don't have anything to do to benefit from this, right?\r\nThanks!",
+    "createdAt": "2020-12-08T17:55:13Z"
+  },
+  {
+    "id": 9086,
+    "sender": "dnfield",
+    "content": "Correct. This will roll in from Skia and just automatically take effect in Flutter.",
+    "createdAt": "2020-12-08T18:04:35Z"
+  },
+  {
+    "id": 9087,
+    "sender": "lukepighetti",
+    "content": "Thank you for taking the time to explain it to me!",
+    "createdAt": "2020-12-08T18:11:01Z"
+  }
+]

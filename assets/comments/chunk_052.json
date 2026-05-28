@@ -1,0 +1,386 @@
+[
+  {
+    "id": 3328,
+    "sender": "esDotDev",
+    "content": "Even some of the reference projects the team itself uses for Flutter, would need SEO if they were a real-world product:\r\n\r\nFor example:\r\nhttps://material.io/design/material-studies/shrine.html - All of these items need would indexing, no company would hide all of their saleable products behind an auth wall.",
+    "createdAt": "2022-01-07T16:05:01Z"
+  },
+  {
+    "id": 3329,
+    "sender": "Hixie",
+    "content": "These use cases are fantastic, thanks folks!",
+    "createdAt": "2022-01-07T23:43:10Z"
+  },
+  {
+    "id": 3330,
+    "sender": "krokyze",
+    "content": "[Flutter: What’s next on the Web?](https://medium.com/flutter/flutter-whats-next-on-the-web-e0454bff964)\r\n\r\n> It’s important that Flutter web apps feel natural on the web. This includes features such as scrolling behavior, text functionality, splash screens, hyperlinks, SEO, and other web-specific UI features.\r\n\r\n@Hixie while the post didn't really answer anything about SEO and only mention it, still lead to me thinking that it's high priority. I feel there's quite a lot of people picking other frameworks while the only thing they miss from Flutter Web is the SEO functionality but it's such a vital thing they just cannot do without it.",
+    "createdAt": "2022-01-08T00:02:13Z"
+  },
+  {
+    "id": 3331,
+    "sender": "Hixie",
+    "content": "It's important, certainly, for use cases like those people have shown above. There's some prerequisites, like improving Flutter's deep linking story and our accessibility story, which we (the Flutter project as a whole) have to deal with first, and there's other issues, like those around performance, plugins, and embedding, that are currently higher on the list for Google's Flutter team given the kinds of use cases Google is currently focusing on with Flutter.\r\n\r\nThat said, Flutter is an open source project and Google is only a small fraction of the total set of contributors. I would be more than happy to work with anyone who is interested in advancing this particular area before Google's team gets to it.",
+    "createdAt": "2022-01-08T00:16:24Z"
+  },
+  {
+    "id": 3332,
+    "sender": "esDotDev",
+    "content": "> [Flutter: What’s next on the Web?](https://medium.com/flutter/flutter-whats-next-on-the-web-e0454bff964)\r\n> \r\n\r\nThe comments on that article are interesting, 8 of the 14 comments are asking about SEO.\r\n",
+    "createdAt": "2022-01-08T01:32:50Z"
+  },
+  {
+    "id": 3333,
+    "sender": "Gene-Dana",
+    "content": "\n> I'd be curious about specific use cases you have for this. What kind of app have you found Flutter to be otherwise well suited for, where indexability in web search engines is important? Having some concrete examples (i.e. if you have links to actual deployed Flutter web apps) would be really useful in helping design a solution.\n\nDon't those web applications also need home pages? landing pages? And don't they all have the same challenges of converting users through calls of action (I.e sign up) before they can even login?\n\n\nIs the only alternative here to use another framework for these absolutely necessary web pages? \n\nHow many engineering teams do you know who decided to voluntarily support two separate frameworks when one can just do it all?\n\nI appreciate the honesty and I feel this violates Flutter's core value prop - being truly cross-platform. \n\n",
+    "createdAt": "2022-01-08T02:01:01Z"
+  },
+  {
+    "id": 3334,
+    "sender": "ted-marozzi",
+    "content": "I think the ideal solution is something like [Svelete Kit](https://kit.svelte.dev/) or [Next Js](https://nextjs.org/), essentially a Server Side Rendering solution but provided by flutter for flutter. Especially supporting hybrid rendering so your flutter web app could have its landing and help pages Server Side Generated (at build time) or Server Side Rendered (dynamically) with good SEO and then the Single Page App served on a particular url. Not sure how possible it is, but I it would be an incredible result! Thanks for continuing to listen to the community Flutter team. :)",
+    "createdAt": "2022-01-08T04:53:15Z"
+  },
+  {
+    "id": 3335,
+    "sender": "derolf",
+    "content": "I agree that we need SSR plus faster loading of the app. The main problem is the Dart SDK that already contributes a large chunk as a baseline. Probably the Dart SDK should be separated and hosted on some CDN. When more people create Flutter apps, Dart SDK will then be shared and hopefully has already been downloaded by the client.",
+    "createdAt": "2022-01-08T09:20:15Z"
+  },
+  {
+    "id": 3336,
+    "sender": "ted-marozzi",
+    "content": "As far as I know, client's don't get send a dart sdk (hence the name software **development** kit) and hence doesn't contribute to the load time in client side rendering or SSR/SSG when interacting with a flutter app. In client side rendering (how it is now), js is shipped to the client. In SSG flutter would generate html files at build time and they would be sent to clients. In SSR the server would run the flutter code hosted on the server and generate a html file to send. Its also possible I misunderstood what you are saying however...",
+    "createdAt": "2022-01-08T11:33:54Z"
+  },
+  {
+    "id": 3337,
+    "sender": "derolf",
+    "content": "@ted-marozzi Large parts of the Dart and Flutter SDK get bundled into the app. Just build a minimal example and have a look at the output…\r\n\r\nSo even with SSR, the problem will not disappear. You probably get a fast first view, but then the app will be irresponsive until it was fully loaded. ",
+    "createdAt": "2022-01-08T12:34:40Z"
+  },
+  {
+    "id": 3338,
+    "sender": "esDotDev",
+    "content": "> I feel this violates Flutter's core value prop - being truly cross-platform.\r\n\r\nYa this is the odd thing. It feels odd for Flutter team to be injecting it's own imaginary line, when the entire value proposition of Flutter is erasing imaginary lines. Matt talks about this here: https://youtu.be/U-C9w5QSkjw?t=2275\r\n\r\nIt would just be really nice to see what the teams internal thoughts are on this in terms of implementation details and limitations / edge cases. Maybe a good starting point is to put together an initial design doc on how it might work? Then if the community wants to help, at least we know we're headed in the right direction and can maybe get the ball rolling.\r\n",
+    "createdAt": "2022-01-08T20:37:42Z"
+  },
+  {
+    "id": 3339,
+    "sender": "Gene-Dana",
+    "content": "> I would be more than happy to work with anyone who is interested in advancing this particular area before Google's team gets to it. \r\n@Hixie \r\n\r\n> Then if the community wants to help, at least we know we're headed in the right direction and can maybe get the ball rolling.\r\n@esDotDev\r\n\r\nI really liked what [I saw here ](https://github.com/flutter/uxr/discussions/81#discussioncomment-1921887) and I believe we can best support the community by contributing issues just like this - clear description of the problem alongside clear documentation and issues. \r\n\r\nIt made it very clear for the everyone where the problem was, and from what I can tell it galvanized the Flutter team to action. \r\n\r\nPost like this improve this framework, and I believe this is great place to start. Also, I can never say this enough - the community behind Flutter is the BEST part for me, and seeing initiative and support like this is promising.\r\n",
+    "createdAt": "2022-01-08T20:41:36Z"
+  },
+  {
+    "id": 3340,
+    "sender": "jollygreenlaser",
+    "content": "If Flutter isn't SEO friendly that starts to mean that literally anything public facing on my website (which is a password protected app) needs to not be in Flutter.\r\n\r\nThe maximum number of pages in a Flutter website not in Flutter should be 0. Users saying \"I can't have this page in Flutter because X\" should lead to X being a high priority to solve or X being completely use case unreasonable. \r\n\r\nIt's annoying that the reason for this is something existential to any business. If I have to double my ad spend to get the same number of users passable SEO would have given me, that's a direct cost to being in Flutter. \r\n\r\n",
+    "createdAt": "2022-01-09T04:13:06Z"
+  },
+  {
+    "id": 3341,
+    "sender": "rocboronat",
+    "content": "Yey! Calm down please 😅 @Hixie said there are prerrequisites that should be done before. He didn't say it's not on the roadmap. So the only thing we can do is to collaborate or wait.",
+    "createdAt": "2022-01-09T09:24:52Z"
+  },
+  {
+    "id": 3342,
+    "sender": "iapicca",
+    "content": "> Ya this is the odd thing. It feels odd for Flutter team to be injecting it's own imaginary line, when the entire value proposition of Flutter is erasing imaginary lines. Matt talks about this here: https://youtu.be/U-C9w5QSkjw?t=2275\r\n\r\nI totally agree w/ @esDotDev (and the video you linked is a must watch!)\r\nwhat is incomprehensible to me are:\r\n- devs happy about flutter limitation or reinforcing the idea that those limitation should **not** be overcome\r\n- relative **low priority** of the [most popular issues](https://github.com/flutter/flutter/issues?q=is%3Aissue+is%3Aopen+sort%3Areactions-%2B1-desc)",
+    "createdAt": "2022-01-09T11:43:35Z"
+  },
+  {
+    "id": 3343,
+    "sender": "ark-tik",
+    "content": "If I knew it before that flutter isn't good for web 6 months back, then I would have learnt html-css-js rather than starting out with flutter and add react on top of it. Maybe an explicit mention of this fact in flutter.dev can save time & resources of so many people like me. Not completely ignoring the fact that flutter made android-ios development so much easier and faster, but knowing the web reality can mentally & financially prepare us beforehand.",
+    "createdAt": "2022-01-09T13:40:23Z"
+  },
+  {
+    "id": 3344,
+    "sender": "siva636",
+    "content": "I completely agree with @KartikShrivastava , Flutter homepage must clearly and unambiguously state the followings:\r\n(1) What Flutter does for web\r\n(2) What Flutter does not do for Flutter\r\n(3) What Flutter will do for web\r\n(4) What Flutter will not do for web ",
+    "createdAt": "2022-01-09T13:48:20Z"
+  },
+  {
+    "id": 3345,
+    "sender": "derolf",
+    "content": "Main problems:\r\n\r\n1. Even small web apps already produce huge bundles. Reasons: Large pieces of the Flutter and Dart SDK are bundled with the app. So, baseline footprint is already huge.\r\n\r\nSolution: Can’t be fixed IMHO. Workaround: Dart+Flutter SDK should not be bundled with app, but hosted on shared CDNs. So bundled apps only contain actual app code and shared code hopefully is cached. (Similar to webpack’s external to pull shared React from CDN)\r\n\r\n2. Flutter Web renders to canvas, and not DOM. Hence, content cannot be extracted by crawlers etc.\r\n\r\nSolution: Provide an option to switch to pure DOM-only mode that renders the whole app as DOM instead of painting to canvas.\r\n\r\n3. Pre-rendering to static pages currently not possible.\r\n\r\nSolution: Provide way to prerender routes to static pages similar to what React and SvelteKit do. Also needs support to hydrate and ship state. Biggest issue will be to conserve stuff painted to canvas. Serializing as SVG could help. However, fonts on server and browser are different, so initial SSR-provided frame might not match succeeding client-frame. \r\n\r\n",
+    "createdAt": "2022-01-09T13:52:09Z"
+  },
+  {
+    "id": 3346,
+    "sender": "sawirricardo",
+    "content": "> Main problems:\r\n> \r\n> 1. Even small web apps already produce huge bundles. Reasons: Large pieces of the Flutter and Dart SDK are bundled with the app. So, baseline footprint is already huge.\r\n> \r\n> Solution: Can’t be fixed IMHO. Workaround: Dart+Flutter SDK should not be bundled with app, but hosted on shared CDNs. So bundled apps only contain actual app code and shared code hopefully is cached. (Similar to webpack’s external to pull shared React from CDN)\r\n> \r\n> 2. Flutter Web renders to canvas, and not DOM. Hence, content cannot be extracted by crawlers etc.\r\n> \r\n> Solution: Provide an option to switch to pure DOM-only mode that renders the whole app as DOM instead of painting to canvas.\r\n> \r\n> 3. Pre-rendering to static pages currently not possible.\r\n> \r\n> Solution: Provide way to prerender routes to static pages similar to what React and SvelteKit do. Also needs support to hydrate and ship state. Biggest issue will be to conserve stuff painted to canvas. Serializing as SVG could help. However, fonts on server and browser are different, so initial SSR-provided frame might not match succeeding client-frame.\r\n\r\nCurious, isn't this already in the docs here? https://docs.flutter.dev/deployment/web#choosing-a-web-renderer\r\nAlthough I haven't tried it. we can choose either to render html or canvas? or have I missed something? @derolf ",
+    "createdAt": "2022-01-09T23:54:48Z"
+  },
+  {
+    "id": 3347,
+    "sender": "Oualitsen",
+    "content": "Hello Guys:\r\nWhen we talk about SEO friendly we must first know how search engines work.\r\nMost search engines download html files and follow the links and index pages.\r\nSingle page applications like react/angular/flutter have empty html files. if we want seo friendly I think the rendering should be from the server side (Just like how angular universal works).\r\nHere is how I picture the solution in my mind (I did not put it in practice yet but I think some german developer have already implement that in this thread for his covid related website)\r\n\r\nLet say that you have a list of products that you want to display using your flutter app.\r\nInstead of sending the browser an empty html and wait the app to be loaded (main.dart.js) we should send an html file that has the names, descriptions of our list of products with a bunch of links to other pages. This way, when a bot loads our page it will find what to index and it does not need to execute any javascript.\r\n\r\nYes the page will be ugly html tags while the app is loading but I am sure a simple inline js code will fix that.",
+    "createdAt": "2022-01-10T00:27:42Z"
+  },
+  {
+    "id": 3348,
+    "sender": "derolf",
+    "content": "@Oualitsen For the search engine, this will look like cheating and your page will get demoted. Google for example requires that your bot-view and user-view are identical.\r\n\r\n> Hello Guys: When we talk about SEO friendly we must first know how search engines work. Most search engines download html files and follow the links and index pages. Single page applications like react/angular/flutter have empty html files. if we want seo friendly I think the rendering should be from the server side (Just like how angular universal works). Here is how I picture the solution in my mind (I did not put it in practice yet but I think some german developer have already implement that in this thread for his covid related website)\r\n> \r\n> Let say that you have a list of products that you want to display using your flutter app. Instead of sending the browser an empty html and wait the app to be loaded (main.dart.js) we should send an html file that has the names, descriptions of our list of products with a bunch of links to other pages. This way, when a bot loads our page it will find what to index and it does not need to execute any javascript.\r\n> \r\n> Yes the page will be ugly html tags while the app is loading but I am sure a simple inline js code will fix that.\r\n\r\n",
+    "createdAt": "2022-01-10T07:23:19Z"
+  },
+  {
+    "id": 3349,
+    "sender": "Oualitsen",
+    "content": "@derolf The solution I proposed does exactly that.\r\nFor flutter web, don't just sent an empty index.html. Send a full html file containing links and stuff you want to get indexed for everybody while the app is loading.\r\n",
+    "createdAt": "2022-01-10T22:06:12Z"
+  },
+  {
+    "id": 3350,
+    "sender": "ben700",
+    "content": "> > For me That doesn‘t make Sense. I love Flutter as a Developer. I‘m working as a Consultant building softwareplatforms for big customers. I hoped that we can use Flutter as the one frontend technologie in Future.so we can Build Widget libraries Based on the Corporate Identity and use them on any plattform.\r\n> > It would be sad if there is no, somehow, approach for the seo. This would be a main Requirement and a exclusion criterion.\r\n> \r\n> I am going to guess that most people that ask this question are new to programming. To be honest this should not even be a questions for any developer that knows SEO or flutter for that matter. The simple answer is that, what you are asking is for the equivalent of a Android or IOS app to be SEO. As an example for nodejs apps that use similar tech like angular, you will need a service like prerender.io to render you code to HTML to be somewhat SEO. While yes you can go around it, rendering JS for google to even rank you will be an battle on its own. Remember that Flutter, Angular, React and Vue apps, all compile to a JS file. This will make google look at the website and think it is 3-8mb. If you test a website with google insights you will realize that your website should be under 1.8mb and it has to load in under 1s to rank. SEO is not just headings and text, its is much much more. This is why something like AMP.dev makes sense. To an end the best website you can build will be done in AMP using an image optimization service like gumlet with a back end in DART or \"ANGEL to make things easier\". While a user might want to use your App they can than can download it in flutter. Again this is for a website that is E-commerce or similar. You also have to worry about ADA compliance that is an absolute mess to deal with in flutter. In the end if you need a site that is SEO build in AMP or HTML with back end in DART \"since you guys like flutter not sure what the fuss is about using Dart\". These guidelines are not made by flutter and is not that the flutter team does not want them, it is all because of search engines like Google and Bing that will rank your website based on speed, programming language, image auto size, CDNs and finally content. I hope this makes sense for any new programmers. Flutter for Web is just a container that allows you to run an Angular like app on your browser but with the flexibility of Flutter. As an example look at letgo.com these apps are not SEO by any means for that exact reason. Each framework has its own place. I honestly think this is good as we can get using Dart for server and flutter for apps and admin panels and just leave HTML for the front end. This already simplified our system by removing 4 languages from the mix, remember that before Flutter, for a website you had to do this \" Node for server, HTML/Angular/CSS/React/Vue front end, Andorid JS for APP, Swift for IOS.\" I think we have it really well with just two languages at this point. All I can say is that if anybody has any more questions or doubts, than you can better bet that you do not know enough about web development. I do not mean this in a bad way. I mean it as, this should be your base line to realize how much you know.\r\n\r\nI guess your new to business users. I understand what your saying but what your not understanding is what everyone else is saying: Clients see the value in web app but want us to add half a dozen pages so it provides the business users with more familiar website experience. Those hard to work with business users can search and find the \"web app\" / portal to flutter functionalities. I'd also like tool to make search result page look nice so to match business expectations. So 100% agree with you but 100% disagree too. Also seams auto_route with Navigator 2 wouldn't need too much, already pass in metadata. Mr Ben CMC IET BCS MEng    ",
+    "createdAt": "2022-01-11T01:50:44Z"
+  },
+  {
+    "id": 3351,
+    "sender": "mariamhas",
+    "content": "changing to P4 to match the issue definition; \"Indicates issues that we agree are important to work on, but not at the top of the work list. This is the default level for bugs. A bug at this priority level may not be fixed for a long time.\"",
+    "createdAt": "2022-01-11T21:08:19Z"
+  },
+  {
+    "id": 3352,
+    "sender": "ben700",
+    "content": "> changing to P4 to match the issue definition; \"Indicates issues that we agree are important to work on, but not at the top of the work list. This is the default level for bugs. A bug at this priority level may not be fixed for a long time.\"\r\n\r\nPeople here have the skills, so little bit of support and maybe community can help... \r\nI'd support sitemap, robots, data feed for manufacturers.google.com, enriched search results. Also web users pressing F5 or ctrl R",
+    "createdAt": "2022-01-11T22:25:19Z"
+  },
+  {
+    "id": 3353,
+    "sender": "ben700",
+    "content": "> changing to P4 to match the issue definition; \"Indicates issues that we agree are important to work on, but not at the top of the work list. This is the default level for bugs. A bug at this priority level may not be fixed for a long time.\"\r\n\r\nCan I see a prioritised list of functionality your working on? ",
+    "createdAt": "2022-01-11T22:26:28Z"
+  },
+  {
+    "id": 3354,
+    "sender": "Hixie",
+    "content": "> Can I see a prioritised list of functionality your working on?\r\n\r\nhttps://github.com/flutter/flutter/wiki/Issue-hygiene#priorities",
+    "createdAt": "2022-01-11T22:59:27Z"
+  },
+  {
+    "id": 3355,
+    "sender": "Gene-Dana",
+    "content": "> changing to P4 to match the issue definition; \"Indicates issues that we agree are important to work on, but not at the top of the work list. This is the default level for bugs. A bug at this priority level may not be fixed for a long time.\"\n\n👋 hi there ! How did you come to this decision? Was this related to any product principles? Was it a reflection of Flutters long term goals and vision? What is the determining factor for saying this issue in particular is not severely affecting customers as compared to others?\n\nP.s this is not a bug 😆",
+    "createdAt": "2022-01-12T04:58:40Z"
+  },
+  {
+    "id": 3356,
+    "sender": "Hixie",
+    "content": "@Gene-Dana Issues like this aren't an appropriate place for that kind of discussion, but I would be happy to discuss this with you on our Discord. See the contributing docs for a link to the server.",
+    "createdAt": "2022-01-12T05:42:28Z"
+  },
+  {
+    "id": 3357,
+    "sender": "siva636",
+    "content": "The recently released Flutter [roadmap](https://github.com/flutter/flutter/wiki/Roadmap) says:\r\n... We also intend to make it much easier to embed Flutter applications inside other, non-Flutter, HTML pages....\r\n\r\n",
+    "createdAt": "2022-01-12T05:53:14Z"
+  },
+  {
+    "id": 3358,
+    "sender": "mariamhas",
+    "content": "> The recently released Flutter [roadmap](https://github.com/flutter/flutter/wiki/Roadmap) says: ... We also intend to make it much easier to embed Flutter applications inside other, non-Flutter, HTML pages....\r\n\r\nThis refers to a custom embedding solution: https://github.com/flutter/flutter/issues/32329",
+    "createdAt": "2022-01-12T19:30:12Z"
+  },
+  {
+    "id": 3359,
+    "sender": "esDotDev",
+    "content": "The main thing is just a communication issue. Flutter team should avoid trying to be prescriptive about where Flutter fits and doesn't fit, because this does not ring true with developers and really raises more questions than it answers. \r\n\r\nInstead would be better to come up with a long-term plan for SEO that the community can at least reference, or try and move forward. If we knew how Flutter team at least expects this to be solved one day, or what they view as the major blockers / hurdles, it would be very helpful when trying to make contributions to the effort.\r\n\r\nI'm personally a bit confused, as it seems like all the pieces are there, so I feel like I must be missing something.\r\n* We have a DOM renderer\r\n* We have a Semantics tag\r\n* We could generate a robots.txt from our router configs\r\n\r\nWhat is really left to do to make flutter content crawlable by google? \r\n\r\nIs it just making sure that we're converting semantics like title into \"h1\" or some sort of dedicated Link widget that ends up being rendered as an anchor tag so google crawler can see it? Or dynamically updating the desc metadata etc?",
+    "createdAt": "2022-01-12T23:15:42Z"
+  },
+  {
+    "id": 3360,
+    "sender": "cedvdb",
+    "content": "> I'm personally a bit confused, as it seems like all the pieces are there, so I feel like I must be missing something.\r\n> \r\n> * We have a DOM renderer\r\n> * We have a Semantics tag\r\n> * We could generate a robots.txt from our router configs\r\n\r\nFrom my limited understanding traditionally the crawler downloaded index.html then recursively all the links `<a>` on it for indexing. \r\n\r\nSince javascript can generate content dynamically crawlers had to evolve and also render the page, to let the js make their network requests and add the links dynamically. Then the crawler can download those links and for each page recursively follow those links. The process of rendering hurts indexing since the crawler has to do more work. I don't know how much that holds today since a lot of websites are SPA today.\r\n\r\nThe way it has been traditionally solved with SPA is with an hybrid between server side rendering and client side rendering. The server renders the page with nodejs for example, sends the html and the user see the page with its content. In the background the javascript takes over to hydrate the page. So at first the user receives HTML with css, no animations will play and will also slow down the execution of flutter since more content has to be loaded. \r\n\r\nSo the first step might be to be able to run a flutter app in nodejs with the html renderer and assess the feasability. Alternatively\r\n\r\n",
+    "createdAt": "2022-03-07T11:34:50Z"
+  },
+  {
+    "id": 3361,
+    "sender": "deadsoul44",
+    "content": "It has been 3.5 years since this issue opened. The ignorance for this issue reminds me the same ignorance about the mobile app monetization issue. At some point, the team will accept that they need to work on this. ",
+    "createdAt": "2022-03-09T08:31:49Z"
+  },
+  {
+    "id": 3362,
+    "sender": "demetrio812",
+    "content": "> It has been 3.5 years since this issue opened. The ignorance for this issue reminds me the same ignorance about the mobile app monetization issue. At some point, the team will accept that they need to work on this.\r\n\r\nbeside the fact that this comment doesn't add anything to the discussion and it's quite rude, considering we don't pay anything for Flutter, I think the team knows very well the challenges related to this issue and it's just a matter of priorities: Flutter is born as a mobile framework for iOS and Android and they are working are to support all the main platforms, including Web, so that it's easy to build multi platform apps (and it really is). After they will have addressed this (quite big) part, I think they will have the time to work on platform-specific issues like this one.\r\n\r\nI also would really like to build standard websites with Flutter and avoid having a specific dev team for that but I understand it's not an easy task to do it right as Flutter Web makes a lot of use of canvases and that's not SEO friendly (and if they do it wrong they will still be ppl criticising them). Plus it's something very specific for the Web and not really needed for web apps, just for websites, that's why I understand the reason why it's not a priority at the moment.",
+    "createdAt": "2022-03-09T08:52:00Z"
+  },
+  {
+    "id": 3363,
+    "sender": "deadsoul44",
+    "content": "There is nothing rude here. Sorry.",
+    "createdAt": "2022-03-09T09:02:26Z"
+  },
+  {
+    "id": 3364,
+    "sender": "cybertheory",
+    "content": "Surprised this isn't linked here, maybe this widget can help?\r\nhttps://pub.dev/packages/seo_renderer",
+    "createdAt": "2022-03-09T22:33:18Z"
+  },
+  {
+    "id": 3365,
+    "sender": "Levi-Lesches",
+    "content": "Unfortunately, I believe that package violates Google's SEO guidelines on cloaking. See [my comment](https://github.com/iamSahdeep/seo_renderer/issues/1#issuecomment-1063703285) there for details.",
+    "createdAt": "2022-03-10T06:24:26Z"
+  },
+  {
+    "id": 3366,
+    "sender": "fredgrott",
+    "content": "Good point @Levi-Lesches as was my concern also.\r\n\r\nWhat we need is a way to generate a context map with the links that get's inserted into index.html but not sure about viability per Google SEO rules and guidelines",
+    "createdAt": "2022-03-29T11:48:34Z"
+  },
+  {
+    "id": 3367,
+    "sender": "Levi-Lesches",
+    "content": "The ideas I see from this thread are: \r\n- Using the router to generate `robots.txt` and `sitemap.xml` (safe)\r\n- Using `Semantics` and other widgets to insert HTML content (questionable)\r\n  - related: using [Flutter's HTML renderer](https://docs.flutter.dev/development/tools/web-renderers) to generate a more \"natural\" DOM\r\n- Using dynamic rendering to serve a fully-loaded page to the crawler (safe)\r\n\r\nIt's the second point that gets into cloaking. Checking for web crawlers in order to change the rendered content can very easily be interpreted as cloaking, whereas doing so for dynamic rendering wouldn't. I think a better understanding of how the HTML renderer handles `Semantics` widgets and the like would help us understand any SEO implications. For example, the following Dart code should generate the corresponding HTML code: \r\n\r\n```dart\r\nchild: Image.network(\"https://myimageserver.com/image.png\", semanticLabel: \"My diagram\"),\r\n```\r\n```HTML\r\n<img src=\"https://myimageserver.com/image.png\", alt=\"My diagram\"/>\r\n```\r\n\r\nThis simple relationship is complicated by the CanvasKit renderer, which paints widgets onto a canvas and thus doesn't give web crawlers a natural way to parse content without extensive use of OCR. Could a Flutter team member shed some light on the relevance of this?",
+    "createdAt": "2022-03-30T06:26:23Z"
+  },
+  {
+    "id": 3368,
+    "sender": "esDotDev",
+    "content": "My hope on the canvaskit stuff was that the framework could sniff the robot, and serve it the DOM renderer to enable it to crawl. Hopefully this would not be considered cloaking as the underlying content does not change. ",
+    "createdAt": "2022-03-30T07:54:44Z"
+  },
+  {
+    "id": 3369,
+    "sender": "sawirricardo",
+    "content": "or other idea would be... to render html by default? and show/hide based on wether canvaskit/html renderer...",
+    "createdAt": "2022-03-30T08:06:23Z"
+  },
+  {
+    "id": 3370,
+    "sender": "radvansky-tomas",
+    "content": "I can see that flutter 3.0 did not address this once again...",
+    "createdAt": "2022-05-12T00:39:57Z"
+  },
+  {
+    "id": 3371,
+    "sender": "iapicca",
+    "content": "I'm not sure `a: annoyance` tag is appropriate here\r\nwhile definitely frustrating (following annoyance [label definition](https://github.com/flutter/flutter/labels))\r\nit isn't much an issue with a functionality, but that functionality completely missing\r\n\r\ncc @darshankawar ",
+    "createdAt": "2022-06-17T09:22:18Z"
+  },
+  {
+    "id": 3372,
+    "sender": "cedvdb",
+    "content": "Well for the title the functionality is not missing. Maybe a better title would be flutter apps are not crawlable ?",
+    "createdAt": "2022-06-17T10:14:30Z"
+  },
+  {
+    "id": 3373,
+    "sender": "ps6067966",
+    "content": "Any update on this?",
+    "createdAt": "2022-07-19T08:29:17Z"
+  },
+  {
+    "id": 3374,
+    "sender": "Hixie",
+    "content": "You can rest assured that when progress is made here we will definitely not keep it a secret. :-)",
+    "createdAt": "2022-07-19T19:26:29Z"
+  },
+  {
+    "id": 3375,
+    "sender": "Pr47h4m",
+    "content": "[Feature request] Improve of SEO using router\r\n\r\nhttps://github.com/flutter/flutter/issues/109210",
+    "createdAt": "2022-08-09T11:31:42Z"
+  },
+  {
+    "id": 3376,
+    "sender": "Hixie",
+    "content": "I came across [a video from Google](https://www.youtube.com/watch?v=4vtVUBzw9Rs&list=WL&index=28) about links and javascript and it got me thinking about what the web community should be advising developers who are writing one-page apps hosted on a static web server, where the content is not immediately visible but can be found by interacting with on-page UI elements (which is basically what a Flutter app is).\r\n\r\nLet's take, for example, a static HTML page which renders everything using WebGL, and has a JSON file that it downloads that describes the content it should show. It renders three rectangles labeled A, B, and C, and clicking each one changes the view to show content corresponding to the entries for A, B, and C in the JSON file. Let's say A talks about apples, B about apples, and C about cherries.\r\n\r\nThe developer wants search engines to index this file, with the search results containing deep links so that when the user searches for \"apples\", the search result links directly to the static HTML page in such a way that the page's javascript can automatically bring the user to the \"A\" page at load time, rather than presenting the three rectangles.\r\n\r\nIt's not clear to me that there is a coherent story from the web community currently about what a developer should do in that scenario.\r\n\r\n- How should they be exposing the content in the first place? Should they have an ARIA-based parallel tree inside the <canvas> or in a DOM shadow tree that describes the content? That's what they would have to do for a11y but it's not clear that it helps with indexing.\r\n\r\n- How should they be exposing the deep links to search? They can't use regular paths, since they can't rely on the server to do anything for them — only a single static HTML page exists. The only control they have over the URL is fragment identifiers, but where would they even put the links if they wanted to?\r\n\r\nIt seems like this is going to become a bigger problem over time as more and more apps are deployed on the web as just big piles of Wasm and JS glue code rather than as HTML markup split across multiple URLs.",
+    "createdAt": "2022-08-29T19:30:29Z"
+  },
+  {
+    "id": 3377,
+    "sender": "esDotDev",
+    "content": "As a starting implementation to get the ball rolling, couldn't we just do\r\n* Flutter somehow kicks out a sitemap.xml and robots.txt\r\n* The crawlers can rely on sitemap to index the content at each page \r\n\r\nIn your example, the sitemap would just be:\r\n```\r\n* http://mysite/\r\n* http://mysite/A\r\n* http://mysite/B\r\n* http://mysite/C\r\n```\r\n\r\nSearch engine can index any content that shows up on those URLs and deeplink users there.\r\n\r\nSeems like it shouldn't be too hard to generate robots.txt, as long as you use a modern routing approach as we are already defining most of the information needed to generate it when we declare our routing table.\r\n\r\nThis doesn't solve for dynamic content, where the full list of pages is not knowable (discussion forms, social media), but it would unblock the majority of apps.",
+    "createdAt": "2022-08-29T19:44:13Z"
+  },
+  {
+    "id": 3378,
+    "sender": "AVGP",
+    "content": "> I came across [a video from Google](https://www.youtube.com/watch?v=4vtVUBzw9Rs&list=WL&index=28) about links and javascript and it got me thinking about what the web community should be advising developers who are writing one-page apps hosted on a static web server, where the content is not immediately visible but can be found by interacting with on-page UI elements (which is basically what a Flutter app is).\r\n>\r\n\r\nHey, I'm the guy from the video, so I thought it might make sense to jump in here!\r\n \r\n> Let's take, for example, a static HTML page which renders everything using WebGL, and has a JSON file that it downloads that describes the content it should show. It renders three rectangles labeled A, B, and C, and clicking each one changes the view to show content corresponding to the entries for A, B, and C in the JSON file. Let's say A talks about apples, B about apples, and C about cherries.\r\n> \r\n> The developer wants search engines to index this file, with the search results containing deep links so that when the user searches for \"apples\", the search result links directly to the static HTML page in such a way that the page's javascript can automatically bring the user to the \"A\" page at load time, rather than presenting the three rectangles.\r\n> \r\n> It's not clear to me that there is a coherent story from the web community currently about what a developer should do in that scenario.\r\n> \r\n\r\nHonestly, I think the coherent story has been (and will be): Don't use WebGL, canvas or whatever technology effectively is an opaque rectangle for that scenario. The example here can be done in the DOM, i.e. with HTML, CSS and JavaScript and these technologies aren't going to go away anytime soon. Rendering *content* into HTML is a solid strategy as it gives you built-in accessibility and discoverability benefits, is easily made responsive to different devices and form factors, etc.\r\n\r\n> * How should they be exposing the content in the first place? Should they have an ARIA-based parallel tree inside the  or in a DOM shadow tree that describes the content? That's what they would have to do for a11y but it's not clear that it helps with indexing.\r\n\r\nThat brings me back to: Use HTML, CSS, JS for this. Yes, you could use an ARIA tree for this, but it's better to use what browser already give you for free than trying to redo it all with ARIA. [The WAI says it nicely as \"No ARIA is better than bad ARIA\"](https://www.w3.org/WAI/ARIA/apg/practices/read-me-first/).\r\n\r\n> * How should they be exposing the deep links to search? They can't use regular paths, since they can't rely on the server to do anything for them — only a single static HTML page exists. The only control they have over the URL is fragment identifiers, but where would they even put the links if they wanted to?\r\n\r\nMany server solutions exist to fix this, even for static servers URL rewriting is widely spread.\r\n\r\n> It seems like this is going to become a bigger problem over time as more and more apps are deployed on the web as just big piles of Wasm and JS glue code rather than as HTML markup split across multiple URLs.\r\n\r\nThat's a tricky one. I generally agree that we'll likely see more applications becoming web applications thanks to Wasm et. al. but I'd argue that a lot of the web will remain either part of the *content* part of the web (product pages, articles, etc.) where traditional pages with HTML, CSS and JS will continue to be the right tool for the job or be part of the *application* part of the web, where the content likely won't make sense in terms of search engine indexation - like a CAD software that let's you edit your CAD files from the browser or image editing software.\r\n\r\nNow there's space inbetween and that's going to be challenging. To take the example of an image editing software: What if it should also include a public gallery of the images. Or what if there should be a discoverable 3D model from the CAD software?\r\n\r\nFor those situations, I think it makes sense to consider what you content you want exposed and how to expose this using what the web platform has to offer. For the 3D models, this might be a component that has a GLTF version of the file and uses the <model-viewer> component to embed it, interactively, into a webpage. For the image editing software, the image gallery can be done with just HTML/CSS/JS like it's done today. While that is extra effort, it's worthwhile as it comes with a bunch of affordances we've had for a long time on the web, like early resource scanning, lazyloading etc. built-in.",
+    "createdAt": "2022-08-30T12:33:54Z"
+  },
+  {
+    "id": 3379,
+    "sender": "esDotDev",
+    "content": "Why can't the Flutter engine just serve the crawlers the DOM version of it's content along with a sitemap.xml that helps the crawlers index the entire site/application.\r\n",
+    "createdAt": "2022-08-30T14:10:40Z"
+  },
+  {
+    "id": 3380,
+    "sender": "cedvdb",
+    "content": "> Why can't the Flutter engine just serve the crawlers the DOM version of it's content along with a sitemap.xml that helps the crawlers index the entire site/application.\r\n\r\nYou can be penalized for serving different content to user and crawlers. ",
+    "createdAt": "2022-08-30T14:21:49Z"
+  },
+  {
+    "id": 3381,
+    "sender": "egonm12",
+    "content": "> > Why can't the Flutter engine just serve the crawlers the DOM version of it's content along with a sitemap.xml that helps the crawlers index the entire site/application.\r\n> \r\n> You can be penalized for serving different content to user and crawlers.\r\n\r\nAccording to Google it is not considered cloaking as long as the content is similar ([full source](https://developers.google.com/search/docs/advanced/javascript/dynamic-rendering#cloaking)). This is also how [seo_renderer](https://pub.dev/packages/seo_renderer) works.\r\n\r\n> Googlebot generally doesn't consider dynamic rendering as [cloaking](https://developers.google.com/search/docs/advanced/guidelines/cloaking). As long as your dynamic rendering produces similar content, Googlebot won't view dynamic rendering as cloaking.",
+    "createdAt": "2022-08-30T14:27:27Z"
+  },
+  {
+    "id": 3382,
+    "sender": "AVGP",
+    "content": "> Why can't the Flutter engine just serve the crawlers the DOM version of it's content along with a sitemap.xml that helps the crawlers index the entire site/application.\r\n\r\nAssuming that the DOM content and whatever is happening in a canvas is similar, especially with regards to user expectations, this might be a workable approach.",
+    "createdAt": "2022-08-30T14:29:39Z"
+  },
+  {
+    "id": 3383,
+    "sender": "esDotDev",
+    "content": "> You can be penalized for serving different content to user and crawlers.\r\n\r\nYou can, but in this use case it seems this would not violate Googles terms as the content is very similar.\r\n\r\nIn any case, it's the only pragmatic solution that I can see. It's worth a shot before anything more exotic is entertained? \r\n\r\nGiven that Flutter can already operate in either DOM or WebGL mode, it seems like there is very little lift left to make this happen. \r\n* add a sniffer to the sdk, that presents DOM for crawlers\r\n* create some sort of sitemap-builder that can generate a sitemap.xml\r\n* profit?\r\n\r\nNext we would obviously want to figure out how we can allow buttons and headers to be crawled, but this very basic solution opens the door to SEO for many apps.\r\n",
+    "createdAt": "2022-08-30T16:42:48Z"
+  },
+  {
+    "id": 3384,
+    "sender": "Hixie",
+    "content": "> Hey, I'm the guy from the video, so I thought it might make sense to jump in here!\r\n\r\nThanks for a great video!\r\n\r\n\r\n> Honestly, I think the coherent story has been (and will be): Don't use WebGL, canvas or whatever technology effectively is an opaque rectangle for that scenario.\r\n\r\nThat's certainly the story I would have told when I was working on the web, but, it's impractical. We can't do what Flutter does with pure DOM.\r\n\r\n\r\n> > * How should they be exposing the content in the first place? Should they have an ARIA-based parallel tree inside the  or in a DOM shadow tree that describes the content? That's what they would have to do for a11y but it's not clear that it helps with indexing.\r\n> \r\n> That brings me back to: Use HTML, CSS, JS for this. Yes, you could use an ARIA tree for this, but it's better to use what browser already give you for free than trying to redo it all with ARIA. [The WAI says it nicely as \"No ARIA is better than bad ARIA\"](https://www.w3.org/WAI/ARIA/apg/practices/read-me-first/).\r\n\r\nI'm confident we can generate good ARIA (it's generated from the same accessibility tree as what we expose to the native accessibility systems on Android, iOS, etc).\r\n\r\n\r\n> > * How should they be exposing the deep links to search? They can't use regular paths, since they can't rely on the server to do anything for them — only a single static HTML page exists. The only control they have over the URL is fragment identifiers, but where would they even put the links if they wanted to?\r\n> \r\n> Many server solutions exist to fix this, even for static servers URL rewriting is widely spread.\r\n\r\nCan you elaborate on how this would work with URL rewriting? How does the app get the path if all the URLs are rewritten to the same static file? Wouldn't web crawlers treat all the URLs as equivalent in that scenario?\r\n\r\n\r\n> > It seems like this is going to become a bigger problem over time as more and more apps are deployed on the web as just big piles of Wasm and JS glue code rather than as HTML markup split across multiple URLs.\r\n> \r\n> That's a tricky one. I generally agree that we'll likely see more applications becoming web applications thanks to Wasm et. al. but I'd argue that a lot of the web will remain either part of the _content_ part of the web (product pages, articles, etc.) where traditional pages with HTML, CSS and JS will continue to be the right tool for the job or be part of the _application_ part of the web, where the content likely won't make sense in terms of search engine indexation - like a CAD software that let's you edit your CAD files from the browser or image editing software.\r\n\r\nThat was our argument with Flutter too, but the reality is people really really want to use Flutter for apps with content.\r\n\r\nIf the next Reddit or Quora is written as a Flutter app with a server-side database but not server-side HTML generation, how can the Flutter-to-web app, which renders the app using WebGL just like the Flutter-to-Android app renders the app using OpenGL, be crawled by web search engines?\r\n\r\n\r\n> For those situations, I think it makes sense to consider what you content you want exposed and how to expose this using what the web platform has to offer. For the 3D models, this might be a component that has a GLTF version of the file and uses the component to embed it, interactively, into a webpage. For the image editing software, the image gallery can be done with just HTML/CSS/JS like it's done today. While that is extra effort, it's worthwhile as it comes with a bunch of affordances we've had for a long time on the web, like early resource scanning, lazyloading etc. built-in.\r\n\r\nThe premise of Flutter is that you write the app once and compile it to Android, Windows, macOS, and the web, without any extra work on each platform. I don't think people will bother to rewrite their Flutter app in HTML+CSS just because web indexers can't scan their app. Instead they'll just not use Flutter in the first place. So what we're trying to understand is how we can automate the generation of the crawlable content.",
+    "createdAt": "2022-08-30T16:49:55Z"
+  },
+  {
+    "id": 3385,
+    "sender": "AVGP",
+    "content": "> > Hey, I'm the guy from the video, so I thought it might make sense to jump in here!\r\n> \r\n> Thanks for a great video!\r\n> \r\n\r\nHappy to hear that it's useful :)\r\n\r\n> > Honestly, I think the coherent story has been (and will be): Don't use WebGL, canvas or whatever technology effectively is an opaque rectangle for that scenario.\r\n> \r\n> That's certainly the story I would have told when I was working on the web, but, it's impractical. We can't do what Flutter does with pure DOM.\r\n\r\nThen maybe Flutter isn't the right tool for content pages (and that isn't a problem per se).\r\n\r\n> \r\n> > > * How should they be exposing the content in the first place? Should they have an ARIA-based parallel tree inside the  or in a DOM shadow tree that describes the content? That's what they would have to do for a11y but it's not clear that it helps with indexing.\r\n> > \r\n> > \r\n> > That brings me back to: Use HTML, CSS, JS for this. Yes, you could use an ARIA tree for this, but it's better to use what browser already give you for free than trying to redo it all with ARIA. [The WAI says it nicely as \"No ARIA is better than bad ARIA\"](https://www.w3.org/WAI/ARIA/apg/practices/read-me-first/).\r\n> \r\n> I'm confident we can generate good ARIA (it's generated from the same accessibility tree as what we expose to the native accessibility systems on Android, iOS, etc).\r\n> \r\n\r\nI respectfully doubt it, though. It's surprisingly complicated giving that you can use the web on all sorts of devices with all sorts of assistive technology. The web is a much more open and multi-modal platform than Android or iOS are.\r\n\r\n> > > * How should they be exposing the deep links to search? They can't use regular paths, since they can't rely on the server to do anything for them — only a single static HTML page exists. The only control they have over the URL is fragment identifiers, but where would they even put the links if they wanted to?\r\n> > \r\n> > \r\n> > Many server solutions exist to fix this, even for static servers URL rewriting is widely spread.\r\n> \r\n> Can you elaborate on how this would work with URL rewriting? How does the app get the path if all the URLs are rewritten to the same static file? Wouldn't web crawlers treat all the URLs as equivalent in that scenario?\r\n> \r\n\r\nSure. The URL doesn't change client-side, so for the browser it's still `/a`, `/b` etc. but the server serves `index.html` for all of them nonetheless.\r\n\r\n> > > It seems like this is going to become a bigger problem over time as more and more apps are deployed on the web as just big piles of Wasm and JS glue code rather than as HTML markup split across multiple URLs.\r\n> > \r\n> > \r\n> > That's a tricky one. I generally agree that we'll likely see more applications becoming web applications thanks to Wasm et. al. but I'd argue that a lot of the web will remain either part of the _content_ part of the web (product pages, articles, etc.) where traditional pages with HTML, CSS and JS will continue to be the right tool for the job or be part of the _application_ part of the web, where the content likely won't make sense in terms of search engine indexation - like a CAD software that let's you edit your CAD files from the browser or image editing software.\r\n> \r\n> That was our argument with Flutter too, but the reality is people really really want to use Flutter for apps with content.\r\n> \r\n\r\nMaybe they shouldn't. \"If you only have a hammer every problem is a nail\" should not drive tooling decisions.\r\n\r\n> If the next Reddit or Quora is written as a Flutter app with a server-side database but not server-side HTML generation, how can the Flutter-to-web app, which renders the app using WebGL just like the Flutter-to-Android app renders the app using OpenGL, be crawled by web search engines?\r\n> \r\n\r\nFrom the other comments in this thread, I'm assuming you'd use DOM rendering for that?\r\n\r\n> > For those situations, I think it makes sense to consider what you content you want exposed and how to expose this using what the web platform has to offer. For the 3D models, this might be a component that has a GLTF version of the file and uses the component to embed it, interactively, into a webpage. For the image editing software, the image gallery can be done with just HTML/CSS/JS like it's done today. While that is extra effort, it's worthwhile as it comes with a bunch of affordances we've had for a long time on the web, like early resource scanning, lazyloading etc. built-in.\r\n> \r\n> The premise of Flutter is that you write the app once and compile it to Android, Windows, macOS, and the web, without any extra work on each platform. I don't think people will bother to rewrite their Flutter app in HTML+CSS just because web indexers can't scan their app. Instead they'll just not use Flutter in the first place. So what we're trying to understand is how we can automate the generation of the crawlable content.\r\n\r\nI'm not saying \"rewrite your app in HTML+CSS\". I'm saying \"Get your flutter app working on the web and then add the content-y bits in HTML+CSS\" - that is, unless Flutter really wants to fulfill its promise and treats the web as a first-class citizen, which by definition means working out how to use HTML+CSS just as it uses native primitives on Android, Windows, macOS, etc. I doubt Flutter is rendering everything in DirectX surfaces and sprites instead of using Windows APIs to create buttons etc.?\r\n",
+    "createdAt": "2022-08-30T17:15:37Z"
+  },
+  {
+    "id": 3386,
+    "sender": "iapicca",
+    "content": "I think @egonm12 's [comment](https://github.com/flutter/flutter/issues/46789#issuecomment-1231746763)  should get more attention\r\n\r\n> According to Google it is not considered cloaking as long as the content is similar ([full source](https://developers.google.com/search/docs/advanced/javascript/dynamic-rendering#cloaking)). This is also how [seo_renderer](https://pub.dev/packages/seo_renderer) works.\r\n\r\n# \r\n\r\n@AVGP \r\n\r\n> Then maybe Flutter isn't the right tool for content pages (and that isn't a problem per se).\r\n> [...]\r\n> Maybe they shouldn't. \"If you only have a hammer every problem is a nail\" should not drive tooling decisions.\r\n\r\nNot sure if this is officially the \"mission\" of flutter or just how me and other developers feel;\r\nas I see it the point of flutter is ***write once, run everywhere*** (interesting [video](https://youtu.be/U-C9w5QSkjw) on the topic)\r\nbut if this is true only until your client cares about indexability \r\nor wants a \"content rich\" (whatever that means) web page... \r\nthen the whole point fails\r\n\r\nThe expectation than me and others have is for flutter to (at least attempt) \r\nto come as close as possible to the \"native\" experience for the platform is targeting, \r\nwhich (again, in my mind) includes SEO and content rich web pages for web,\r\n\"close enough\" would definitely be a win in this case.\r\n\r\n#\r\n\r\nI think @esDotDev is on the right track [here](https://github.com/flutter/flutter/issues/46789#issuecomment-1231911833)\r\nwas my understanding that the hold up for the approaches he mentioned was \"google will penalize you\"\r\nbut ***if this isn't the case*** is there any reason not to pursue this approach?\r\n",
+    "createdAt": "2022-08-30T20:07:24Z"
+  },
+  {
+    "id": 3387,
+    "sender": "Hixie",
+    "content": "> Sure. The URL doesn't change client-side, so for the browser it's still `/a`, `/b` etc. but the server serves `index.html` for all of them nonetheless.\r\n\r\nAh, interesting, I see what you're saying. Basically serve up the same* index.html page for all the app's URLs, and using history.pushState to change the URL, rather than using fragment identifiers. Then, crawl the app's content to generate HTML content for those index.html files (hence the asterisk; the content doesn't affect the user experience, only how the search indexers see the page). That could work. Requires a bit more server-side support than we currently need, and wouldn't really handle dynamic sites like if reddit used Flutter, but it's a start. I suppose for dynamic sites you could generate the index.html files dynamically on the server.\r\n\r\n> > That was our argument with Flutter too, but the reality is people really really want to use Flutter for apps with content.\r\n> \r\n> Maybe they shouldn't. \"If you only have a hammer every problem is a nail\" should not drive tooling decisions.\r\n\r\nThe problem is we have created a hammer and nail that manages to nail seven platforms at once, and people like that a lot. When one of those platforms then says \"well we're special and need a screw\" they turn to us and ask us why we can't hide that complexity from them as well.\r\n\r\n\r\n> > If the next Reddit or Quora is written as a Flutter app with a server-side database but not server-side HTML generation, how can the Flutter-to-web app, which renders the app using WebGL just like the Flutter-to-Android app renders the app using OpenGL, be crawled by web search engines?\r\n> \r\n> From the other comments in this thread, I'm assuming you'd use DOM rendering for that?\r\n\r\nI'm not sure how that would work. That's basically what we do today (with an ARIA DOM), but the search engines don't seem to find the content today.\r\n\r\n\r\n> I doubt Flutter is rendering everything in DirectX surfaces and sprites instead of using Windows APIs to create buttons etc.?\r\n\r\nWe render every pixel on every platform. Everything. We even blink our own cursor.",
+    "createdAt": "2022-08-30T22:29:08Z"
+  },
+  {
+    "id": 3388,
+    "sender": "iapicca",
+    "content": "@gedw99 \r\n\r\n> > According to Google it is ***not considered cloaking*** as long as the content is similar ([full source](https://developers.google.com/search/docs/advanced/javascript/dynamic-rendering#cloaking)). This is also how [seo_renderer](https://pub.dev/packages/seo_renderer) works.\r\n\r\n> Technically this is called Cloaking , and the ridiculous thing is that there is no way for google to know if it’s naughty clicking where the content from each rendering engine varies or nice cloaking where the content is the same from both rendering engine .\r\n> \r\n> The maintenance of nav and Sitemap are done via the content system also ensuring both engines nav is correct ( based on user auth ).\r\n",
+    "createdAt": "2022-08-31T18:49:20Z"
+  },
+  {
+    "id": 3389,
+    "sender": "krokyze",
+    "content": "If anyone is interested I just published https://pub.dev/packages/seo which does address the previously mentioned cloaking issue as the html is always in the body. Currently package supports only converting widget tree to html but I'm planning to look into adding meta tag support too.",
+    "createdAt": "2022-11-14T00:57:17Z"
+  },
+  {
+    "id": 3390,
+    "sender": "guplem",
+    "content": "> If anyone is interested I just published https://pub.dev/packages/seo which does address the previously mentioned cloaking issue as the html is always in the body. Currently package supports only converting widget tree to html but I'm planning to look into adding meta tag support too.\r\n\r\n@krokyze would you recommend to use your package alongside [meta_seo](https://pub.dev/packages/meta_seo) to improve even more the SEO of the web?\r\n\r\nEDIT: With v 0.2 of the seo package, support for meta tags was added. So, I don't think there is any reason to use meta_seo package.",
+    "createdAt": "2022-12-15T07:06:43Z"
+  },
+  {
+    "id": 3391,
+    "sender": "debjeetproso",
+    "content": "does seo_renderer: ^0.6.0 package really works ?? \r\nlike it makes flutter web app seo better ? ",
+    "createdAt": "2023-01-04T07:11:02Z"
+  }
+]
