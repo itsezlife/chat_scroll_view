@@ -48,6 +48,11 @@ class ChatScrollbar {
     return ((localY - _pad - _thumbHeight / 2) / travel).clamp(0.0, 1.0);
   }
 
+  /// Cached paints — every Tier-1 paint tick hits this method, so allocating
+  /// fresh [Paint] objects each time is wasted GC pressure.
+  final Paint _trackPaint = Paint()..color = const Color(0x1A000000);
+  final Paint _thumbPaint = Paint();
+
   /// Paint the track and thumb. [progress] is the 0..1 thumb position.
   void paint(Canvas canvas, Offset offset, Size size, double progress) {
     final trackWidth = isDragging ? _activeTrackWidth : _trackWidth;
@@ -61,18 +66,19 @@ class ChatScrollbar {
         Rect.fromLTWH(trackX, trackY, trackWidth, trackHeight),
         Radius.circular(trackWidth / 2),
       ),
-      Paint()..color = const Color(0x1A000000),
+      _trackPaint,
     );
 
     final travel = trackHeight - _thumbHeight;
     if (travel <= 0) return;
     final thumbY = trackY + travel * progress;
+    _thumbPaint.color = Color(isDragging ? 0x99000000 : 0x66000000);
     canvas.drawRRect(
       RRect.fromRectAndRadius(
         Rect.fromLTWH(trackX, thumbY, trackWidth, _thumbHeight),
         Radius.circular(trackWidth / 2),
       ),
-      Paint()..color = Color(isDragging ? 0x99000000 : 0x66000000),
+      _thumbPaint,
     );
   }
 }

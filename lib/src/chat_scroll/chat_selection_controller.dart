@@ -64,4 +64,7 @@ class ChatSelectionController implements Listenable {
       cb();
     }
   }
+
+  /// Drop all listeners. Call from the owning widget's `dispose`.
+  void dispose() => _listeners.clear();
 }

@@ -111,19 +111,26 @@ class RenderDatedMessage extends RenderBox
     );
   }
 
+  /// Fully-opaque / fully-transparent thresholds. Treating a near-opaque
+  /// value as 1.0 avoids creating and disposing an `OpacityLayer` every
+  /// scroll frame at the boundary of the fade band; treating a near-zero
+  /// value as 0.0 skips painting the separator entirely.
+  static const double _opaqueThreshold = 0.999;
+  static const double _hiddenThreshold = 0.001;
+
   @override
   void paint(PaintingContext context, Offset offset) {
     final body = _body;
     context.paintChild(body, offset + _offsetOf(body));
 
     final opacity = _dividerOpacity;
-    if (opacity <= 0.0) {
+    if (opacity <= _hiddenThreshold) {
       _separatorLayer.layer = null;
       return;
     }
     final separator = _separator;
     final separatorOffset = offset + _offsetOf(separator);
-    if (opacity >= 1.0) {
+    if (opacity >= _opaqueThreshold) {
       _separatorLayer.layer = null;
       context.paintChild(separator, separatorOffset);
     } else {

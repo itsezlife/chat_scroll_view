@@ -46,6 +46,32 @@ class _AsyncDataSource extends ChatDataSource {
   }
 }
 
+/// Fails the first [failuresBeforeSuccess] fetches, then resolves normally.
+/// Exercises the error → retry path.
+class _FlakyDataSource extends ChatDataSource {
+  _FlakyDataSource(this.count, {required this.failuresBeforeSuccess});
+
+  final int count;
+  final int failuresBeforeSuccess;
+  int _attempts = 0;
+
+  @override
+  Future<List<IChatMessage>> fetch({
+    int? from,
+    int? to,
+    DateTime? after,
+  }) async {
+    await Future<void>.delayed(const Duration(milliseconds: 30));
+    final attempt = _attempts++;
+    if (attempt < failuresBeforeSuccess) {
+      throw StateError('flaky failure #$attempt');
+    }
+    final lo = (from ?? 0).clamp(0, count - 1);
+    final hi = (to ?? count - 1).clamp(0, count - 1);
+    return <IChatMessage>[for (var i = lo; i <= hi; i++) _msg(i)];
+  }
+}
+
 IChatMessage _msg(int i) => ChatMessage$User(
   id: i,
   sender: 'User',
@@ -421,6 +447,212 @@ void main() {
       expect(
         tester.getTopLeft(find.text('msg-255')).dy,
         closeTo(600 - 260 - 60, 1),
+      );
+    });
+
+    testWidgets('topPadding leaves room for an overlay header', (tester) async {
+      const count = 256;
+      final controller = _boundedController(count)..jumpTo(8);
+      final inset = ValueNotifier<double>(0);
+      addTearDown(inset.dispose);
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: Center(
+              child: SizedBox(
+                width: 400,
+                height: 600,
+                child: ChatScrollView(
+                  dataSource: _PreloadedDataSource(_generate(count)),
+                  controller: controller,
+                  topPadding: inset,
+                  messageBuilder: (context, id, message, status) => SizedBox(
+                    height: 60,
+                    child: Text(message == null ? 'shimmer-$id' : 'msg-$id'),
+                  ),
+                  dateSeparatorBuilder: (context, date) => SizedBox(
+                    height: 24,
+                    child: Text('sep-${date.day}'),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+      final ro = _render(tester);
+
+      // Floating header pinned to the very top while topPadding is 0.
+      expect(ro.debugFloatingHeaderOffset, closeTo(0, 0.1));
+
+      inset.value = 50;
+      await tester.pump();
+      // After bumping topPadding the floating header sits below the inset.
+      expect(ro.debugFloatingHeaderOffset, closeTo(50, 0.1));
+    });
+
+    testWidgets('swapping bottomPadding to a listenable with a larger value '
+        'follows the new inset', (tester) async {
+      const count = 256;
+      final controller = _boundedController(count)..jumpTo(count - 1);
+      final firstInset = ValueNotifier<double>(50);
+      final secondInset = ValueNotifier<double>(200);
+      addTearDown(firstInset.dispose);
+      addTearDown(secondInset.dispose);
+
+      Widget build(ValueListenable<double> inset) => _harness(
+        dataSource: _PreloadedDataSource(_generate(count)),
+        controller: controller,
+        bottomPadding: inset,
+      );
+
+      await tester.pumpWidget(build(firstInset));
+      await tester.pump();
+      expect(
+        tester.getTopLeft(find.text('msg-255')).dy,
+        closeTo(600 - 50 - 60, 1),
+      );
+
+      // Swap the listenable itself — different instance, different current
+      // value. The viewport's setter must catch the value change, not just
+      // listener-value changes on the existing instance.
+      await tester.pumpWidget(build(secondInset));
+      await tester.pump();
+      expect(
+        tester.getTopLeft(find.text('msg-255')).dy,
+        closeTo(600 - 200 - 60, 1),
+      );
+    });
+
+    testWidgets('messageBuilder swap re-inflates messages with the new '
+        'output', (tester) async {
+      const count = 256;
+      final controller = _boundedController(count)..jumpTo(count - 1);
+      final dataSource = _PreloadedDataSource(_generate(count));
+
+      Widget build(String prefix) => MaterialApp(
+        home: Scaffold(
+          body: Center(
+            child: SizedBox(
+              width: 400,
+              height: 600,
+              child: ChatScrollView(
+                dataSource: dataSource,
+                controller: controller,
+                messageBuilder: (context, id, message, status) =>
+                    SizedBox(height: 60, child: Text('$prefix-$id')),
+              ),
+            ),
+          ),
+        ),
+      );
+
+      await tester.pumpWidget(build('first'));
+      await tester.pump();
+      expect(find.text('first-255'), findsOneWidget);
+
+      await tester.pumpWidget(build('second'));
+      await tester.pump();
+      // Skip-rebuild cache must clear on builder change; otherwise the new
+      // builder's output would not reach already-built messages.
+      expect(find.text('second-255'), findsOneWidget);
+      expect(find.text('first-255'), findsNothing);
+    });
+
+    testWidgets('swapping the data source cancels in-flight fetches on the '
+        'old one', (tester) async {
+      const count = 64;
+      final controller = _boundedController(count)..jumpTo(count - 1);
+      final first = _AsyncDataSource(count);
+      final second = _PreloadedDataSource(_generate(count));
+
+      await tester.pumpWidget(
+        _harness(dataSource: first, controller: controller),
+      );
+      // First layout primes the poll; flush microtasks so it actually arms.
+      await tester.pump();
+      // Mid-fetch — the async source's 100ms delay has not elapsed yet.
+      await tester.pump(const Duration(milliseconds: 50));
+      expect(
+        first.chunks.values.any((c) => c.status.isFetching),
+        isTrue,
+        reason: 'fetch should be in flight before the swap',
+      );
+
+      await tester.pumpWidget(
+        _harness(dataSource: second, controller: controller),
+      );
+      // Past the original 100ms window — the cancelled fetch must NOT mark
+      // chunks valid (no listener would resurrect it anyway, but cancelFetch
+      // also clears the fetching flag so we can observe it dropped).
+      await tester.pump(const Duration(milliseconds: 200));
+      expect(
+        first.chunks.values.any((c) => c.status.isFetching),
+        isFalse,
+        reason: 'old source must have dropped the fetching flag',
+      );
+      expect(find.text('msg-63'), findsOneWidget);
+    });
+
+    testWidgets('detaching cancels the in-flight fetch', (tester) async {
+      const count = 64;
+      final controller = _boundedController(count)..jumpTo(count - 1);
+      final source = _AsyncDataSource(count);
+      // Dispose drains pending timers in the source's `Future.delayed`.
+      addTearDown(source.dispose);
+
+      await tester.pumpWidget(
+        _harness(dataSource: source, controller: controller),
+      );
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 50));
+      expect(
+        source.chunks.values.any((c) => c.status.isFetching),
+        isTrue,
+      );
+
+      // Tear the viewport out of the tree.
+      await tester.pumpWidget(const SizedBox.shrink());
+      // The cancellation clears the flag synchronously via cancelFetch().
+      expect(
+        source.chunks.values.any((c) => c.status.isFetching),
+        isFalse,
+      );
+      // Let the orphaned Future.delayed timer fire before the test ends so
+      // flutter_test's "timer still pending" guard doesn't trip on the
+      // (harmless) fetch resolution that lands in a now-null _fetchToken.
+      await tester.pump(const Duration(milliseconds: 100));
+    });
+
+    testWidgets('a failed fetch flips chunks to error and retries', (
+      tester,
+    ) async {
+      const count = 64;
+      final controller = _boundedController(count)..jumpTo(count - 1);
+      final source = _FlakyDataSource(count, failuresBeforeSuccess: 1);
+
+      await tester.pumpWidget(
+        _harness(dataSource: source, controller: controller),
+      );
+      await tester.pump();
+      // First fetch fails (after its 30ms delay) — chunks should land in
+      // error.
+      await tester.pump(const Duration(milliseconds: 60));
+      expect(
+        source.chunks.values.any((c) => c.status.isError),
+        isTrue,
+        reason: 'failed fetch should mark chunks error',
+      );
+      expect(find.text('msg-63'), findsNothing);
+
+      // Backoff is 500–1000ms (step 0); after one retry the second fetch
+      // succeeds and msg-63 appears.
+      await tester.pump(const Duration(milliseconds: 1500));
+      expect(find.text('msg-63'), findsOneWidget);
+      expect(
+        source.chunks.values.any((c) => c.status.isError),
+        isFalse,
       );
     });
   });

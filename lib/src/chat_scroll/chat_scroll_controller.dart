@@ -22,7 +22,12 @@ class ChatScrollController {
   void jumpTo(int messageId) {
     _anchorMessageId = messageId;
     _anchorPixelOffset = 0.0;
-    for (final cb in _jumpListeners) {
+    // Iterate a snapshot — a listener may add or remove listeners (including
+    // itself) while reacting to the jump.
+    for (final cb in List<ValueChanged<int>>.of(
+      _jumpListeners,
+      growable: false,
+    )) {
       cb(messageId);
     }
   }
@@ -40,7 +45,12 @@ class ChatScrollController {
       _boundaryListeners.remove(callback);
 
   void _notifyBoundary() {
-    for (final cb in _boundaryListeners) {
+    // Iterate a snapshot — a listener may add or remove listeners while
+    // reacting to the boundary change.
+    for (final cb in List<VoidCallback>.of(
+      _boundaryListeners,
+      growable: false,
+    )) {
       cb();
     }
   }
@@ -94,5 +104,12 @@ class ChatScrollController {
   void reassignAnchor(int messageId, double pixelOffset) {
     _anchorMessageId = messageId;
     _anchorPixelOffset = pixelOffset;
+  }
+
+  /// Drop all listeners. Call from the owning widget's `dispose` so a stray
+  /// late notification cannot reach a torn-down listener.
+  void dispose() {
+    _jumpListeners.clear();
+    _boundaryListeners.clear();
   }
 }

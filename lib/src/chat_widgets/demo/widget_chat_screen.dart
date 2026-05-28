@@ -42,6 +42,9 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
   @override
   void dispose() {
     _bottomInset.dispose();
+    _controller.dispose();
+    _selection.dispose();
+    _dataSource?.dispose();
     super.dispose();
   }
 

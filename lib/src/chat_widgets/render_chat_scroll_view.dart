@@ -89,6 +89,10 @@ class RenderChatScrollView extends RenderBox {
   set dataSource(ChatDataSource value) {
     if (identical(_dataSource, value)) return;
     if (attached) _dataSource.removeDataListener(_onDataChanged);
+    // The old data source's in-flight fetch (and any pending retry) refers to
+    // chunks we no longer read — let it stop instead of resolving into an
+    // orphan, and avoid a dangling Timer on detach.
+    _dataSource.cancelFetch();
     _dataSource = value;
     if (attached) _dataSource.addDataListener(_onDataChanged);
     markNeedsLayout();
@@ -145,9 +149,14 @@ class RenderChatScrollView extends RenderBox {
   ValueListenable<double>? _bottomPadding;
   set bottomPadding(ValueListenable<double>? value) {
     if (identical(_bottomPadding, value)) return;
+    final oldValue = _bottomPad;
     if (attached) _bottomPadding?.removeListener(_onBottomPaddingChanged);
     _bottomPadding = value;
     if (attached) _bottomPadding?.addListener(_onBottomPaddingChanged);
+    // Swapping the listenable is itself a value change when the new current
+    // differs from the old one — re-pin the newest message so it follows the
+    // inset, the same as `_onBottomPaddingChanged` would have done.
+    if (oldValue != _bottomPad) _bottomPaddingDirty = true;
     markNeedsLayout();
   }
 
@@ -174,7 +183,11 @@ class RenderChatScrollView extends RenderBox {
   /// `null` turns the day-separator feature off entirely.
   int Function(IChatMessage)? _dayBucketOf;
   set dayBucketOf(int Function(IChatMessage)? value) {
-    if (identical(_dayBucketOf, value)) return;
+    // `==` instead of `identical`: an instance-method tear-off
+    // (`widget.someMethod`) is not necessarily identical across accesses but
+    // *is* equal — so `identical` would force a relayout every parent rebuild
+    // while `==` correctly recognises the unchanged callback.
+    if (_dayBucketOf == value) return;
     _dayBucketOf = value;
     markNeedsLayout();
   }
@@ -356,8 +369,10 @@ class RenderChatScrollView extends RenderBox {
     _ticker = null;
     _pollTimer?.cancel();
     _pollTimer = null;
-    _dataSource.cancelFetch();
+    // Drop our listener first — cancelFetch notifies, and a `markNeedsLayout`
+    // on a detaching render object is brittle even if currently harmless.
     _dataSource.removeDataListener(_onDataChanged);
+    _dataSource.cancelFetch();
     _controller
       ..removeJumpListener(_onJump)
       ..removeBoundaryListener(_onBoundaryChanged);
@@ -894,9 +909,19 @@ class RenderChatScrollView extends RenderBox {
   /// Arm the one-shot fetch poll, but only while the laid-out range still has
   /// a missing or dirty chunk. A fully-loaded, idle viewport arms nothing —
   /// no periodic wake-ups.
+  ///
+  /// Outside an active scroll the timer fires on the next microtask instead
+  /// of waiting a full [_pollInterval] — initial load, jumpTo settle, and
+  /// "new chunk arrived" don't need the scroll-debounce. The interval still
+  /// applies while the user is actively scrolling, so a fast fling doesn't
+  /// spam the network with every chunk that briefly enters the viewport.
   void _scheduleFetchPoll() {
     if (_pollTimer != null || !_rangeHasPendingChunks()) return;
-    _pollTimer = Timer(_pollInterval, _onPollTick);
+    final sinceScroll = DateTime.now().millisecondsSinceEpoch - _lastScrollTs;
+    final delay = sinceScroll >= _pollInterval.inMilliseconds
+        ? Duration.zero
+        : _pollInterval;
+    _pollTimer = Timer(delay, _onPollTick);
   }
 
   void _onPollTick() {
@@ -912,12 +937,22 @@ class RenderChatScrollView extends RenderBox {
     _scheduleFetchPoll();
   }
 
-  /// Whether the laid-out chunk range has any missing or dirty chunk.
+  /// Whether the laid-out chunk range has any missing or dirty chunk that is
+  /// not already being fetched.
+  ///
+  /// A chunk with `dirty | fetching` would otherwise keep the poll re-arming
+  /// while its own fetch is in flight — a tight loop when the poll fires
+  /// immediately. The fetch result will arrive via `notifyDataChanged`, which
+  /// markNeedsLayout's the viewport, so a subsequent layout will re-evaluate
+  /// the poll naturally.
   bool _rangeHasPendingChunks() {
     if (_layoutMaxChunk < _layoutMinChunk) return false;
     for (var ci = _layoutMinChunk; ci <= _layoutMaxChunk; ci++) {
       final chunk = _dataSource.chunks[ci];
-      if (chunk == null || chunk.status.isDirty) return true;
+      if (chunk == null) return true;
+      final status = chunk.status;
+      if (status.isFetching) continue;
+      if (status.isDirty || status.isError) return true;
     }
     return false;
   }
