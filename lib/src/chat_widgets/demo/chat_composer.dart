@@ -133,8 +133,8 @@ class _ChatComposerState extends State<ChatComposer>
   // --- Selection actions -----------------------------------------------------
 
   static String? _contentOf(IChatMessage? message) => switch (message) {
-    ChatMessage$User(:final content) => content,
-    ChatMessage$System(:final content) => content,
+    UserChatMessage(:final content) => content,
+    SystemChatMessage(:final content) => content,
     _ => null,
   };
 
@@ -180,69 +180,83 @@ class _ChatComposerState extends State<ChatComposer>
           child: Padding(
             padding: const EdgeInsets.fromLTRB(16, 10, 16, 14),
             child: ClipRect(
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(minHeight: 66),
-                child: Stack(
-                  alignment: Alignment.bottomCenter,
-                  children: <Widget>[
-                    // Input layer — sizes the bar.
-                    SlideTransition(
-                      position: _inputSlide,
-                      child: FadeTransition(
-                        opacity: _inputFade,
-                        child: IgnorePointer(
-                          ignoring: _mode,
-                          child: _InputField(
-                            controller: _text,
-                            focusNode: _focus,
-                            onSend: _handleSend,
-                            scheme: scheme,
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  color: scheme.surfaceContainerHighest,
+                  borderRadius: BorderRadius.circular(24),
+                  border: Border.all(
+                    color: scheme.outlineVariant.withValues(alpha: 0.3),
+                    width: 0.5,
+                  ),
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.all(8.0),
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(minHeight: 66),
+                    child: Stack(
+                      alignment: Alignment.bottomCenter,
+                      children: <Widget>[
+                        // Input layer — sizes the bar.
+                        SlideTransition(
+                          position: _inputSlide,
+                          child: FadeTransition(
+                            opacity: _inputFade,
+                            child: IgnorePointer(
+                              ignoring: _mode,
+                              child: _InputField(
+                                controller: _text,
+                                focusNode: _focus,
+                                onSend: _handleSend,
+                                scheme: scheme,
+                              ),
+                            ),
                           ),
                         ),
-                      ),
-                    ),
-                    // Action layer — overlaid, fades / flies in.
-                    Positioned.fill(
-                      child: IgnorePointer(
-                        ignoring: !_mode,
-                        child: FadeTransition(
-                          opacity: _actionsFade,
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                            children: <Widget>[
-                              SlideTransition(
-                                position: _copySlide,
-                                child: _ActionButton(
-                                  icon: Icons.copy_rounded,
-                                  label: 'Копировать',
-                                  onTap: _copy,
-                                  scheme: scheme,
-                                ),
+                        // Action layer — overlaid, fades / flies in.
+                        Positioned.fill(
+                          child: IgnorePointer(
+                            ignoring: !_mode,
+                            child: FadeTransition(
+                              opacity: _actionsFade,
+                              child: Row(
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceEvenly,
+                                children: <Widget>[
+                                  SlideTransition(
+                                    position: _copySlide,
+                                    child: _ActionButton(
+                                      icon: Icons.copy_rounded,
+                                      label: 'Копировать',
+                                      onTap: _copy,
+                                      scheme: scheme,
+                                    ),
+                                  ),
+                                  ScaleTransition(
+                                    scale: _favScale,
+                                    child: _ActionButton(
+                                      icon: Icons.star_rounded,
+                                      label: 'В избранное',
+                                      onTap: _favorite,
+                                      scheme: scheme,
+                                    ),
+                                  ),
+                                  SlideTransition(
+                                    position: _shareSlide,
+                                    child: _ActionButton(
+                                      icon: Icons.share_rounded,
+                                      label: 'Поделиться',
+                                      onTap: _share,
+                                      scheme: scheme,
+                                    ),
+                                  ),
+                                ],
                               ),
-                              ScaleTransition(
-                                scale: _favScale,
-                                child: _ActionButton(
-                                  icon: Icons.star_rounded,
-                                  label: 'В избранное',
-                                  onTap: _favorite,
-                                  scheme: scheme,
-                                ),
-                              ),
-                              SlideTransition(
-                                position: _shareSlide,
-                                child: _ActionButton(
-                                  icon: Icons.share_rounded,
-                                  label: 'Поделиться',
-                                  onTap: _share,
-                                  scheme: scheme,
-                                ),
-                              ),
-                            ],
+                            ),
                           ),
                         ),
-                      ),
+                      ],
                     ),
-                  ],
+                  ),
                 ),
               ),
             ),

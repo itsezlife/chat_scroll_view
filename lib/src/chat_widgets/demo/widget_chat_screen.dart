@@ -62,13 +62,48 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
   }
 
   void _configure(int count) {
-    _controller
-      ..oldestKnownId = 0
-      ..newestKnownId = count - 1
-      ..reachedOldest = true
-      ..reachedNewest = true
-      ..jumpTo(count - 1);
+    _dataSource!.seedBoundaries(
+      oldestKnownId: 0,
+      newestKnownId: count - 1,
+      reachedOldest: true,
+      reachedNewest: true,
+    );
+    _controller.jumpTo(count - 1);
   }
+
+  /// Stable per-state tear-off — same reference for the widget's lifetime,
+  /// so the viewport's skip-rebuild cache stays warm across parent rebuilds.
+  /// Consults the previous message via the data source to suppress repeated
+  /// sender/avatar for messages in the same run.
+  Widget _buildMessage(
+    BuildContext context,
+    int id,
+    IChatMessage? message,
+    ChatMessageStatus status,
+  ) {
+    if (message == null) return const DemoShimmerBubble();
+    final prev = _dataSource?.getMessage(id - 1);
+    final isFirstInRun = prev?.sender != message.sender;
+    return DemoMessageBubble(
+      message: message,
+      isFirstInRun: isFirstInRun,
+    );
+  }
+
+  Widget _buildChunkError(
+    BuildContext context,
+    ChatChunkErrorDetails details,
+  ) => DemoChunkErrorTile(
+    firstId: details.firstId,
+    lastId: details.lastId,
+    attempt: details.attempt,
+    onRetry: details.retry,
+  );
+
+  Widget _buildEmpty(BuildContext context) => const DemoEmptyState();
+
+  Widget _buildInitialSkeleton(BuildContext context) =>
+      const DemoInitialSkeleton();
 
   @override
   Widget build(BuildContext context) {
@@ -87,7 +122,10 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
                 controller: _controller,
                 selectionController: _selection,
                 bottomPadding: _bottomInset,
-                messageBuilder: buildDemoMessage,
+                messageBuilder: _buildMessage,
+                chunkErrorBuilder: _buildChunkError,
+                emptyBuilder: _buildEmpty,
+                loadingBuilder: _buildInitialSkeleton,
                 dateSeparatorBuilder: (context, date) =>
                     DateSeparator(date: date),
               ),
@@ -131,17 +169,16 @@ class _DemoDataSource extends ChatDataSource {
   final DateTime _baseTime = DateTime.now();
 
   @override
-  Future<List<IChatMessage>> fetch({
-    int? from,
-    int? to,
-    DateTime? after,
+  Future<List<IChatMessage>> fetchRange({
+    required int fromId,
+    required int toId,
   }) async {
     await Future<void>.delayed(const Duration(milliseconds: 150));
-    final lo = (from ?? 0).clamp(0, messageCount - 1);
-    final hi = (to ?? messageCount - 1).clamp(0, messageCount - 1);
+    final lo = fromId.clamp(0, messageCount - 1);
+    final hi = toId.clamp(0, messageCount - 1);
     return <IChatMessage>[
       for (var i = lo; i <= hi; i++)
-        ChatMessage$User(
+        UserChatMessage(
           id: i,
           sender: 'User',
           // Spread messages across days so the date separators have something

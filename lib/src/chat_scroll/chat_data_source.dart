@@ -9,24 +9,151 @@ import 'package:meta/meta.dart';
 
 /// Data source for [ChatScrollView].
 ///
-/// Owns message data (chunks) and the fetch contract.
-/// Uses typed listeners instead of [ChangeNotifier] —
-/// subscribers know exactly what event occurred.
+/// Owns message data (chunks), the fetch contract, and the conversation
+/// boundary state (`oldestKnownId`, `reachedNewest`, …). Boundary state used
+/// to live on the controller but it describes the *data*, not the
+/// navigation — keeping a single source of truth here means consumers don't
+/// have to mirror page metadata onto two objects after every fetch.
+///
+/// Uses typed listeners instead of [ChangeNotifier] — subscribers know
+/// exactly what event occurred.
 abstract class ChatDataSource {
   // --- Fetch contract (subclass implements) ---
 
-  /// Fetch messages by ID range or timestamp.
-  /// `from` and `to` are inclusive message IDs, where `from <= to`.
-  /// `after` used for time-based pagination,
-  /// fetching only updated messages after the given timestamp.
-  /// If nothing is provided, fetch should return the most recent messages to
-  /// determine the initial scroll position.
-  Future<List<IChatMessage>> fetch({int? from, int? to, DateTime? after});
+  /// Load messages whose ids fall in `[fromId, toId]` (both inclusive). The
+  /// subclass may return fewer messages than the range when the end of the
+  /// conversation lies inside it. Required.
+  Future<List<IChatMessage>> fetchRange({
+    required int fromId,
+    required int toId,
+  });
 
   /// Maximum number of chunks to keep in memory.
   /// Override to control the memory/re-fetch tradeoff.
   /// Default 16 ≈ 1024 messages.
   int get maxChunks => 16;
+
+  // --- Boundary state -------------------------------------------------------
+
+  int? _oldestKnownId;
+  int? _newestKnownId;
+  bool _reachedOldest = false;
+  bool _reachedNewest = false;
+
+  /// Lowest message id the data source has seen so far. `null` until the
+  /// first page lands. Bumped down by subsequent fetches that reveal older
+  /// pages.
+  int? get oldestKnownId => _oldestKnownId;
+
+  /// Highest message id the data source has seen so far. `null` while the
+  /// conversation is empty.
+  int? get newestKnownId => _newestKnownId;
+
+  /// Whether [oldestKnownId] is the very first message of the conversation —
+  /// no more older pages exist. The viewport pins content to the top edge
+  /// when both this is `true` and the oldest is in view.
+  bool get reachedOldest => _reachedOldest;
+
+  /// Whether [newestKnownId] is the very last message of the conversation —
+  /// no more newer pages exist. The viewport pins content to the bottom
+  /// edge when both this is `true` and the newest is in view.
+  bool get reachedNewest => _reachedNewest;
+
+  /// Whether the conversation is known to contain no messages — both
+  /// boundaries are reached and neither id was set. Distinct from "nothing
+  /// loaded yet" ([isInitialLoading]): empty is a *confirmed* terminal state.
+  /// The viewport switches to its empty overlay when this is `true` and a
+  /// builder is provided.
+  bool get isEmpty =>
+      _reachedOldest &&
+      _reachedNewest &&
+      _oldestKnownId == null &&
+      _newestKnownId == null;
+
+  /// Whether the data source has not yet seen any messages or boundaries —
+  /// the very first page is still being resolved. Distinct from [isEmpty]:
+  /// initial-loading is *unknown* (either side may still produce ids). The
+  /// viewport switches to its loading overlay when this is `true` and a
+  /// builder is provided.
+  bool get isInitialLoading {
+    if (_oldestKnownId != null || _newestKnownId != null) return false;
+    return !_reachedOldest && !_reachedNewest;
+  }
+
+  /// Atomically set the boundary state. Notifies listeners only if anything
+  /// actually changed. Intended for subclasses to call after a fetch resolves
+  /// — but also exposed publicly so consumers that pre-load their data can
+  /// configure the viewport in one statement.
+  @mustCallSuper
+  void seedBoundaries({
+    int? oldestKnownId,
+    int? newestKnownId,
+    bool? reachedOldest,
+    bool? reachedNewest,
+  }) {
+    var changed = false;
+    if (oldestKnownId != null && oldestKnownId != _oldestKnownId) {
+      _oldestKnownId = oldestKnownId;
+      changed = true;
+    }
+    if (newestKnownId != null && newestKnownId != _newestKnownId) {
+      _newestKnownId = newestKnownId;
+      changed = true;
+    }
+    if (reachedOldest != null && reachedOldest != _reachedOldest) {
+      _reachedOldest = reachedOldest;
+      changed = true;
+    }
+    if (reachedNewest != null && reachedNewest != _reachedNewest) {
+      _reachedNewest = reachedNewest;
+      changed = true;
+    }
+    assert(
+      _oldestKnownId == null ||
+          _newestKnownId == null ||
+          _oldestKnownId! <= _newestKnownId!,
+      'oldestKnownId ($_oldestKnownId) must be ≤ newestKnownId '
+      '($_newestKnownId)',
+    );
+    // An empty conversation is `reachedOldest && reachedNewest` with both ids
+    // null — there are no messages, so no oldest/newest exists to point at.
+    // The assert allows that, but still catches half-empty seeding.
+    final empty = _reachedOldest && _reachedNewest;
+    assert(
+      !_reachedOldest || _oldestKnownId != null || empty,
+      'reachedOldest=true requires oldestKnownId to be set '
+      '(unless the conversation is empty: reachedNewest also true, '
+      'newestKnownId also null)',
+    );
+    assert(
+      !_reachedNewest || _newestKnownId != null || empty,
+      'reachedNewest=true requires newestKnownId to be set '
+      '(unless the conversation is empty: reachedOldest also true, '
+      'oldestKnownId also null)',
+    );
+    if (changed) _notifyBoundary();
+  }
+
+  // --- Typed listener: boundary changed ---
+
+  final _boundaryListeners = <VoidCallback>[];
+
+  /// Subscribe to boundary state changes.
+  void addBoundaryListener(VoidCallback callback) =>
+      _boundaryListeners.add(callback);
+
+  /// Unsubscribe from boundary state changes.
+  void removeBoundaryListener(VoidCallback callback) =>
+      _boundaryListeners.remove(callback);
+
+  void _notifyBoundary() {
+    for (final cb in List<VoidCallback>.of(
+      _boundaryListeners,
+      growable: false,
+    )) {
+      cb();
+    }
+  }
 
   // --- Chunk storage ---
 
@@ -139,6 +266,34 @@ abstract class ChatDataSource {
   @internal
   void cancelFetch() => _cancelFetch();
 
+  /// Force an immediate re-fetch of the chunk containing [messageId],
+  /// bypassing the in-flight backoff.
+  ///
+  /// Intended for UI retry — the user taps "Retry" on a chunk that failed,
+  /// and the viewport's poll alone would either wait out the backoff or skip
+  /// the chunk if the user is no longer near it. Resets the backoff step
+  /// and fires a fresh fetch scoped to the single chunk.
+  ///
+  /// Cancels any in-flight fetch (the source orchestrates a single fetch
+  /// slot). When the cancelled range covered chunks the user is still
+  /// looking at, the next layout's poll will re-fold them in — so user-tap
+  /// retries during heavy scrolling can throw away a network round-trip.
+  /// The trade-off favours the visible chunk the user clicked on.
+  ///
+  /// No-op when the chunk is already loaded successfully. When the chunk
+  /// does not exist yet, a fresh fetch is launched.
+  void retryChunk(int messageId) {
+    final chunkIndex = ChatScrollChunk.chunkOf(messageId);
+    final chunk = _chunks[chunkIndex];
+    if (chunk != null && chunk.status.isValid) return;
+
+    _cancelFetch();
+    _fetchRetryStep = 0;
+    _fetchingMinChunk = chunkIndex;
+    _fetchingMaxChunk = chunkIndex;
+    _executeFetch();
+  }
+
   void _cancelFetch() {
     // Clear the `fetching` flag from chunks that were part of the in-flight
     // range so they don't get stuck in an indeterminate state.
@@ -190,7 +345,7 @@ abstract class ChatDataSource {
         ChatScrollChunk.kSize -
         1;
 
-    fetch(from: fromId, to: toId).then(
+    fetchRange(fromId: fromId, toId: toId).then(
       (messages) {
         if (_fetchToken != token) return; // cancelled or replaced
         _fetchToken = null;
@@ -205,12 +360,17 @@ abstract class ChatDataSource {
           chunk.messages[msg.id - chunk.firstId] = msg;
         }
         for (final ci in _fetchingChunks) {
-          _chunks[ci]?.status = ChatMessageStatus.valid;
+          final chunk = _chunks[ci];
+          if (chunk == null) continue;
+          chunk
+            ..status = ChatMessageStatus.valid
+            ..lastError = null
+            ..failedAttempts = 0;
         }
         _fetchingChunks.clear();
         notifyDataChanged();
       },
-      onError: (Object _) {
+      onError: (Object error) {
         if (_fetchToken != token) return; // cancelled or replaced
         _fetchToken = null;
 
@@ -220,6 +380,9 @@ abstract class ChatDataSource {
         for (final ci in _fetchingChunks) {
           final chunk = _chunks[ci];
           if (chunk == null) continue;
+          chunk
+            ..lastError = error
+            ..failedAttempts += 1;
           chunk.status = chunk.status
               .remove(ChatMessageStatus.fetching)
               .add(ChatMessageStatus.error);
@@ -273,5 +436,6 @@ abstract class ChatDataSource {
   void dispose() {
     _cancelFetch();
     _dataListeners.clear();
+    _boundaryListeners.clear();
   }
 }
