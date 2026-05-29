@@ -639,6 +639,7 @@ class RenderChatScrollView extends RenderBox implements ChatScrollAnimator {
   @override
   void attach(PipelineOwner owner) {
     super.attach(owner);
+    _jumpFetchDispatchDetached = false;
     for (final child in _children.values) {
       child.attach(owner);
     }
@@ -681,6 +682,7 @@ class RenderChatScrollView extends RenderBox implements ChatScrollAnimator {
     _ticker = null;
     _pollTimer?.cancel();
     _pollTimer = null;
+    _jumpFetchDispatchDetached = true;
     // Drop our listener first — cancelFetch notifies, and a `markNeedsLayout`
     // on a detaching render object is brittle even if currently harmless.
     // We do cancel the running fetch / retry timer here: the dominant case is
@@ -771,7 +773,76 @@ class RenderChatScrollView extends RenderBox implements ChatScrollAnimator {
     // running an invisible fade against the old slot — drop it.
     _clearHighlight();
     _cancelBounceback();
+    // Clear `_lastScrollTs` so the poll's same-window debounce passes.
+    // Crucially we do **not** cancel `_pollTimer` here even though it
+    // may be armed for the previous range: a continuous scrollbar drag
+    // fires `_onJump` once per `PointerMove`, and cancelling the
+    // newly-armed `Duration.zero` poll on every move guarantees the
+    // timer is never given a chance to drain before the next move
+    // arrives, so chunks at the new anchor never get fetched until the
+    // user lets go. Letting the timer keep ticking is fine: each
+    // `_onPollTick` reads the live `_layoutMinChunk`/`_layoutMaxChunk`,
+    // so a poll armed during an old drag still requests the *current*
+    // range when it eventually fires.
+    _lastScrollTs = 0;
+    // Belt-and-suspenders: also queue a *direct* fetch dispatch out of
+    // the next layout — see `_maybeDispatchJumpFetch`. The poll timer
+    // path is still the primary mechanism; this is the safety net for
+    // animation-driven repaint cadences (selection-mode chrome,
+    // highlight fade, etc.) that would otherwise race with the timer.
+    _jumpFetchPending = true;
     markNeedsLayout();
+  }
+
+  /// Set by `_onJump` when a discrete navigate happened and the next
+  /// layout must dispatch a fetch for the new range without waiting on
+  /// the scroll-debounce poll. Cleared at the end of `performLayout`.
+  bool _jumpFetchPending = false;
+
+  /// Cleared on attach, set on detach — guards the deferred
+  /// post-layout dispatch from touching a stale data source.
+  bool _jumpFetchDispatchDetached = false;
+
+  /// Dispatched from the end of `performLayout` when
+  /// [_jumpFetchPending] is set.
+  ///
+  /// We forward the `requestChunks` call through *both* a microtask
+  /// and an `addPostFrameCallback`. Either path alone proved
+  /// unreliable in practice — under heavy frame churn (selection-mode
+  /// chrome animations interleaved with continuous scrollbar pointer
+  /// dispatch), the microtask sometimes drained before the layout
+  /// pipeline finalized, and the post-frame callback sometimes fired
+  /// before a sibling animation Ticker re-marked our own layout
+  /// dirty. Doubling the dispatch is cheap (both end up calling the
+  /// same idempotent `requestChunks` against an already-non-null
+  /// `_fetchToken`), and removes the failure mode.
+  ///
+  /// The call into `requestChunks` itself cannot be made synchronously
+  /// from within `performLayout`: it transitively fires
+  /// `notifyDataChanged` → `_onDataChanged` → `markNeedsLayout`,
+  /// which throws the "RenderObject mutated in its own performLayout"
+  /// assert. Deferring even one event loop turn is enough to satisfy
+  /// the assert.
+  void _maybeDispatchJumpFetch() {
+    if (!_jumpFetchPending) return;
+    _jumpFetchPending = false;
+    if (_layoutMaxChunk < _layoutMinChunk) return;
+    if (_jumpFetchDispatchDetached) return;
+    final minChunk = _layoutMinChunk;
+    final maxChunk = _layoutMaxChunk;
+    scheduleMicrotask(() {
+      if (_jumpFetchDispatchDetached) return;
+      _dataSource.requestChunks(minChunk, maxChunk);
+    });
+    // Post-frame belt: catches the case where the microtask drained
+    // before some sibling effect (a parallel layout Tick) re-dirtied
+    // us; the post-frame runs at the end of the NEXT frame and reads
+    // the freshest `_layoutMinChunk`/`_layoutMaxChunk` directly.
+    SchedulerBinding.instance.addPostFrameCallback((_) {
+      if (_jumpFetchDispatchDetached) return;
+      if (_layoutMaxChunk < _layoutMinChunk) return;
+      _dataSource.requestChunks(_layoutMinChunk, _layoutMaxChunk);
+    });
   }
 
   void _onScrollBy(double delta) {
@@ -939,6 +1010,7 @@ class RenderChatScrollView extends RenderBox implements ChatScrollAnimator {
     _updateScrollSemantics();
     _publishControllerState();
     _scheduleFetchPoll();
+    _maybeDispatchJumpFetch();
     _updateFloatingHeader();
 
     assert(() {
