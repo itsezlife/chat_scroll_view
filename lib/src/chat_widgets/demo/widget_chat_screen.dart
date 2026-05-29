@@ -3,11 +3,13 @@ import 'package:chatscrollview/src/chat_scroll/chat_data_source.dart';
 import 'package:chatscrollview/src/chat_scroll/chat_scroll_common.dart';
 import 'package:chatscrollview/src/chat_scroll/chat_scroll_controller.dart';
 import 'package:chatscrollview/src/chat_scroll/chat_selection_controller.dart';
+import 'package:chatscrollview/src/chat_widgets/chat_keyboard_shortcuts.dart';
 import 'package:chatscrollview/src/chat_widgets/chat_scroll_view.dart';
 import 'package:chatscrollview/src/chat_widgets/demo/chat_composer.dart';
 import 'package:chatscrollview/src/chat_widgets/demo/date_separator.dart';
 import 'package:chatscrollview/src/chat_widgets/demo/demo_message.dart';
 import 'package:chatscrollview/src/chat_widgets/demo/measure_size.dart';
+import 'package:chatscrollview/src/chat_widgets/demo/new_messages_pill.dart';
 import 'package:chatscrollview/src/chat_widgets/demo/selection_app_bar.dart';
 import 'package:chatscrollview/src/comments_data_source.dart';
 import 'package:flutter/material.dart';
@@ -51,14 +53,24 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
   Future<void> _init() async {
     try {
       final comments = await CommentsDataSource.load();
+      // The screen may have been popped while `load()` was in flight. The
+      // `dispose()` above already ran with `_dataSource == null`, so we
+      // would otherwise assign the newly-loaded source into the dead State
+      // and never free it.
+      if (!mounted) {
+        comments.dispose();
+        return;
+      }
       _dataSource = comments;
       _configure(comments.manifest.totalMessages);
     } on Object {
+      if (!mounted) return;
       const count = 4000;
       _dataSource = _DemoDataSource(messageCount: count);
       _configure(count);
     }
-    if (mounted) setState(() => _loading = false);
+    if (!mounted) return;
+    setState(() => _loading = false);
   }
 
   void _configure(int count) {
@@ -117,17 +129,21 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
           Positioned.fill(
             child: SafeArea(
               bottom: false,
-              child: ChatScrollView(
-                dataSource: _dataSource!,
+              child: ChatKeyboardShortcuts(
                 controller: _controller,
-                selectionController: _selection,
-                bottomPadding: _bottomInset,
-                messageBuilder: _buildMessage,
-                chunkErrorBuilder: _buildChunkError,
-                emptyBuilder: _buildEmpty,
-                loadingBuilder: _buildInitialSkeleton,
-                dateSeparatorBuilder: (context, date) =>
-                    DateSeparator(date: date),
+                dataSource: _dataSource!,
+                child: ChatScrollView(
+                  dataSource: _dataSource!,
+                  controller: _controller,
+                  selectionController: _selection,
+                  bottomPadding: _bottomInset,
+                  messageBuilder: _buildMessage,
+                  chunkErrorBuilder: _buildChunkError,
+                  emptyBuilder: _buildEmpty,
+                  loadingBuilder: _buildInitialSkeleton,
+                  dateSeparatorBuilder: (context, date) =>
+                      DateSeparator(date: date),
+                ),
               ),
             ),
           ),
@@ -145,6 +161,13 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
                 dataSource: _dataSource!,
               ),
             ),
+          ),
+          // New-messages pill — surfaces above the composer when the user
+          // is scrolled away and newer messages have arrived.
+          NewMessagesPill(
+            controller: _controller,
+            dataSource: _dataSource!,
+            bottomInset: _bottomInset,
           ),
           // Contextual selection bar — overlays the top, so the chat never
           // resizes when selection mode toggles.
