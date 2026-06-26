@@ -382,7 +382,11 @@ void main() {
             body: Column(
               children: <Widget>[
                 const Expanded(child: SizedBox()),
-                ChatComposer(selection: selection, dataSource: dataSource),
+                ChatComposer(
+                  selection: selection,
+                  dataSource: dataSource,
+                  onSend: (_) async {},
+                ),
               ],
             ),
           ),

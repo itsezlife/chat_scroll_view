@@ -4,144 +4,59 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
 
-PORT="${PORT:-8080}"
+if ! command -v supabase >/dev/null 2>&1; then
+  echo "ERROR: supabase CLI not found. Install: https://supabase.com/docs/guides/cli" >&2
+  exit 1
+fi
 
-# Stop any process listening on [PORT] (macOS/Linux).
-stop_port_listeners() {
-  local port="$1"
-  if ! command -v lsof >/dev/null 2>&1; then
-    return 0
-  fi
+echo "==> Starting Supabase (Docker)..."
+supabase start
 
-  local pids
-  pids="$(lsof -t -iTCP:"$port" -sTCP:LISTEN 2>/dev/null || true)"
-  if [[ -z "$pids" ]]; then
-    return 0
-  fi
+echo "==> Applying migrations and seed..."
+supabase db reset
 
-  echo "    Killing listener(s) on port $port: $pids"
-  # shellcheck disable=SC2086
-  kill $pids 2>/dev/null || true
-  sleep 0.5
-  # shellcheck disable=SC2086
-  if kill -0 $pids 2>/dev/null; then
-    # shellcheck disable=SC2086
-    kill -9 $pids 2>/dev/null || true
-  fi
-}
-
-lan_ip() {
-  # macOS: Wi‑Fi (en0) then Ethernet (en1). Linux fallback via hostname -I.
-  ipconfig getifaddr en0 2>/dev/null ||
-    ipconfig getifaddr en1 2>/dev/null ||
-    hostname -I 2>/dev/null | awk '{print $1}' ||
-    true
-}
-
-write_android_device_config() {
-  local ip="$1"
-  local port="$2"
-  local file="config/development.android.device.json"
+write_config() {
+  local file="$1"
+  local url="$2"
+  local key="$3"
+  mkdir -p "$(dirname "$file")"
   cat >"$file" <<EOF
 {
-  "DEMO_BACKEND_URL": "http://${ip}:${port}"
+  "SUPABASE_URL": "$url",
+  "SUPABASE_PUBLISHABLE_KEY": "$key",
+  "DEMO_CHAT_ID": "1"
 }
 EOF
-  echo "    Wrote $file → http://${ip}:${port}"
+  echo "    Wrote $file"
 }
 
-stop_backend_servers() {
-  local port="$1"
-  echo "==> Stopping any existing backend on port $port..."
+STATUS_ENV="$(supabase status -o env 2>/dev/null || true)"
+API_URL="$(echo "$STATUS_ENV" | sed -n 's/^API_URL="\(.*\)"$/\1/p')"
+PUBLISHABLE_KEY="$(echo "$STATUS_ENV" | sed -n 's/^PUBLISHABLE_KEY="\(.*\)"$/\1/p')"
+ANON_KEY="$(echo "$STATUS_ENV" | sed -n 's/^ANON_KEY="\(.*\)"$/\1/p')"
+KEY="${PUBLISHABLE_KEY:-$ANON_KEY}"
 
-  stop_port_listeners "$port"
-
-  if pgrep -f "dart.*bin/server.dart" >/dev/null 2>&1; then
-    echo "    Killing stray bin/server.dart process(es)..."
-    pkill -f "dart.*bin/server.dart" 2>/dev/null || true
-    sleep 0.5
-  fi
-
-  if command -v lsof >/dev/null 2>&1 &&
-    lsof -nP -iTCP:"$port" -sTCP:LISTEN >/dev/null 2>&1; then
-    echo "ERROR: port $port is still in use:" >&2
-    lsof -nP -iTCP:"$port" -sTCP:LISTEN >&2 || true
-    exit 1
-  fi
-
-  echo "    Port $port is free."
-}
-
-wait_for_backend() {
-  local port="$1"
-  local pid="$2"
-  local url="http://127.0.0.1:$port/health"
-  local attempt=0
-  local max_attempts=30
-
-  if ! command -v curl >/dev/null 2>&1; then
-    echo "    curl not found — waiting 3s for backend startup..."
-    sleep 3
-    return 0
-  fi
-
-  echo "    Waiting for backend at $url ..."
-  while (( attempt < max_attempts )); do
-    if ! kill -0 "$pid" 2>/dev/null; then
-      echo "ERROR: backend process exited before becoming healthy" >&2
-      return 1
-    fi
-    if curl -sf "$url" >/dev/null 2>&1; then
-      echo "    Backend healthy at http://127.0.0.1:$port"
-      return 0
-    fi
-    sleep 0.5
-    attempt=$((attempt + 1))
-  done
-
-  echo "ERROR: backend did not respond on $url after ${max_attempts} attempts" >&2
-  return 1
-}
-
-stop_backend_servers "$PORT"
-
-echo "==> Seeding backend if needed..."
-(
-  cd backend
-  dart pub get
-  dart run bin/seed.dart
-)
-
-echo "==> Starting backend on port $PORT..."
-(
-  cd backend
-  PORT="$PORT" dart run bin/server.dart
-) &
-BACKEND_PID=$!
-
-cleanup() {
-  kill "$BACKEND_PID" 2>/dev/null || true
-  stop_port_listeners "$PORT"
-}
-trap cleanup EXIT INT TERM
-
-wait_for_backend "$PORT" "$BACKEND_PID"
-
-LAN_IP="$(lan_ip)"
-if [[ -n "$LAN_IP" ]]; then
-  write_android_device_config "$LAN_IP" "$PORT"
-else
-  echo "    WARNING: could not detect LAN IP for Android USB device config." >&2
-  echo "    Create config/development.android.device.json manually with your Mac's IP." >&2
+API_URL="${API_URL:-http://127.0.0.1:54321}"
+if [[ -z "$KEY" ]]; then
+  echo "WARNING: could not parse publishable/anon key from supabase status." >&2
+  echo "         Run: supabase status -o env" >&2
+  KEY="REPLACE_ME"
 fi
 
-echo "==> Backend running. Press Ctrl+C to stop."
-echo "    Health (this machine): http://127.0.0.1:$PORT/health"
-if [[ -n "$LAN_IP" ]]; then
-  echo "    Health (phone on same Wi‑Fi): http://${LAN_IP}:$PORT/health"
-fi
-echo "    Launch from VS Code:"
-echo "      • main.dart                    — desktop / iOS simulator"
-echo "      • main.dart (Android emulator)  — 10.0.2.2"
-echo "      • main.dart (Android device)    — USB / physical (LAN IP)"
-wait "$BACKEND_PID"
+LAN_IP="$(ipconfig getifaddr en0 2>/dev/null || ipconfig getifaddr en1 2>/dev/null || true)"
+LAN_IP="${LAN_IP:-127.0.0.1}"
+
+echo "==> Writing Flutter dart-define configs..."
+write_config "config/development.supabase.json" "$API_URL" "$KEY"
+write_config "config/development.supabase.android.json" "http://10.0.2.2:54321" "$KEY"
+write_config "config/development.supabase.android.device.json" "http://${LAN_IP}:54321" "$KEY"
+
+echo ""
+echo "==> Supabase demo stack ready."
+echo "    load_chat: ${API_URL}/functions/v1/load_chat"
+echo "    Launch Flutter:"
+echo "      macOS / iOS Simulator:  flutter run --dart-define-from-file=config/development.supabase.json"
+echo "      Android emulator:       flutter run --dart-define-from-file=config/development.supabase.android.json"
+echo "      Android USB device:     flutter run --dart-define-from-file=config/development.supabase.android.device.json"
+echo ""
+echo "    Ensure Supabase is running (supabase start). Phone and Mac must be on the same Wi‑Fi for USB device."

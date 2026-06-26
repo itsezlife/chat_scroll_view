@@ -3,7 +3,7 @@ import 'package:chatscrollview/src/chat_scroll/chat_data_source.dart';
 import 'package:chatscrollview/src/chat_scroll/chat_scroll_common.dart';
 import 'package:chatscrollview/src/chat_scroll/chat_scroll_controller.dart';
 import 'package:chatscrollview/src/chat_widgets/chat_scroll_view.dart';
-import 'package:chatscrollview/src/chat_widgets/demo/demo_last_read_store.dart';
+import 'package:chatscrollview/src/chat_widgets/demo/chat_data_source_extension.dart';
 import 'package:chatscrollview/src/chat_widgets/demo/new_messages_pill.dart';
 import 'package:flutter/foundation.dart' show ValueListenable, ValueNotifier;
 import 'package:flutter/material.dart';
@@ -118,11 +118,10 @@ String _pillText(WidgetTester tester) {
 }
 
 int _openAnchor({required ChatDataSource ds, int? storedLastRead}) {
-  return resolveOpenAnchor(
+  return ds.resolveOpenAnchor(
     storedLastRead: storedLastRead,
     newestKnownId: ds.newestKnownId,
     oldestKnownId: ds.oldestKnownId,
-    getMessage: ds.getMessage,
   );
 }
 
@@ -132,15 +131,14 @@ void main() {
       'stored last-read before any messages loaded resolves to stored id',
       () {
         const count = 10004;
-        const lastRead = 9950;
+        const lastRead = 9951;
         final ds = _MetadataOnlyDataSource(count);
         addTearDown(ds.dispose);
 
-        final anchor = resolveOpenAnchor(
+        final anchor = ds.resolveOpenAnchor(
           storedLastRead: lastRead,
           newestKnownId: ds.newestKnownId,
           oldestKnownId: ds.oldestKnownId,
-          getMessage: ds.getMessage,
         );
         expect(anchor, lastRead);
       },
@@ -356,11 +354,10 @@ void main() {
       const deletedId = 50;
       final ds = _PreloadedDataSource(count, omitIds: {deletedId});
 
-      final anchor = resolveOpenAnchor(
+      final anchor = ds.resolveOpenAnchor(
         storedLastRead: deletedId,
         newestKnownId: ds.newestKnownId,
         oldestKnownId: ds.oldestKnownId,
-        getMessage: ds.getMessage,
       );
       expect(anchor, deletedId - 1);
 
@@ -379,11 +376,10 @@ void main() {
       final newest = count - 1;
       final ds = _PreloadedDataSource(count);
 
-      final anchor = resolveOpenAnchor(
+      final anchor = ds.resolveOpenAnchor(
         storedLastRead: newest + 10,
         newestKnownId: ds.newestKnownId,
         oldestKnownId: ds.oldestKnownId,
-        getMessage: ds.getMessage,
       );
       expect(anchor, newest);
 
@@ -402,11 +398,10 @@ void main() {
       const count = 100;
       final ds = _PreloadedDataSource(count);
 
-      final anchor = resolveOpenAnchor(
+      final anchor = ds.resolveOpenAnchor(
         storedLastRead: -5,
         newestKnownId: ds.newestKnownId,
         oldestKnownId: ds.oldestKnownId,
-        getMessage: ds.getMessage,
       );
       expect(anchor, 0);
 

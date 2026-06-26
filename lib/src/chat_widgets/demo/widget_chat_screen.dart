@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:developer' as dev;
 
 import 'package:chatscrollview/src/backend_chat_data_source.dart';
@@ -10,12 +11,13 @@ import 'package:chatscrollview/src/chat_widgets/chat_scroll_view.dart';
 import 'package:chatscrollview/src/chat_widgets/demo/chat_composer.dart';
 import 'package:chatscrollview/src/chat_widgets/demo/date_separator.dart';
 import 'package:chatscrollview/src/chat_widgets/demo/demo_backend_error.dart';
-import 'package:chatscrollview/src/chat_widgets/demo/demo_last_read_store.dart';
+import 'package:chatscrollview/src/chat_widgets/demo/chat_data_source_extension.dart';
 import 'package:chatscrollview/src/chat_widgets/demo/demo_message.dart';
 import 'package:chatscrollview/src/chat_widgets/demo/measure_size.dart';
 import 'package:chatscrollview/src/chat_widgets/demo/new_messages_pill.dart';
 import 'package:chatscrollview/src/chat_widgets/demo/selection_app_bar.dart';
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 /// Demo screen for the widget-based [ChatScrollView] — the chat viewport,
 /// a bottom composer, and a contextual selection bar, wired together.
@@ -68,7 +70,10 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
     });
 
     try {
-      final backend = await BackendChatDataSource.connect();
+      final backend = await BackendChatDataSource.connect(
+        client: Supabase.instance.client,
+      );
+
       // The screen may have been popped while `load()` was in flight. The
       // `dispose()` above already ran with `_dataSource == null`, so we
       // would otherwise assign the newly-loaded source into the dead State
@@ -79,15 +84,12 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
       }
       _dataSource = backend;
       final newest = backend.newestKnownId;
-      // for testing purposes
-      // ignore: unnecessary_nullable_for_final_variable_declarations
-      final int? lastRead = 9976;
+      final int? lastRead = await backend.getLastReadMessageId();
 
-      final anchor = resolveOpenAnchor(
+      final anchor = backend.resolveOpenAnchor(
         storedLastRead: lastRead,
         newestKnownId: newest,
         oldestKnownId: backend.oldestKnownId,
-        getMessage: backend.getMessage,
       );
       _pillLastSeenBaseline.value =
           lastRead != null && newest != null && lastRead < newest
@@ -96,7 +98,7 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
       final atTail = newest != null && anchor == newest;
       _controller.jumpTo(
         anchor,
-        alignment: atTail ? 0.0 : kDemoLastReadOpenAlignment,
+        alignment: atTail ? 0.0 : .5,
       );
     } on Object catch (error, stackTrace) {
       dev.log(
@@ -119,6 +121,29 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
     final newest = _dataSource?.newestKnownId;
     if (newest == null) return;
     _pillLastSeenBaseline.value = newest;
+    final backend = _dataSource;
+    if (backend is BackendChatDataSource) {
+      unawaited(backend.updateLastReadMessageId(newest));
+    }
+  }
+
+  Future<void> _handleSendMessage(String text) async {
+    final backend = _dataSource;
+    if (backend is! BackendChatDataSource) return;
+    try {
+      await backend.sendMessage(text);
+    } on BackendConnectionException catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(
+          SnackBar(
+            content: Text(error.message),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      rethrow;
+    }
   }
 
   /// Stable per-state tear-off — same reference for the widget's lifetime,
@@ -181,6 +206,8 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
                 child: ChatKeyboardShortcuts(
                   controller: _controller,
                   dataSource: _dataSource!,
+                  reverse: true,
+                  preserveExternalFocus: true,
                   child: ChatScrollView(
                     reverse: true,
                     dataSource: _dataSource!,
@@ -209,6 +236,7 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
                 child: ChatComposer(
                   selection: _selection,
                   dataSource: _dataSource!,
+                  onSend: _handleSendMessage,
                 ),
               ),
             ),
