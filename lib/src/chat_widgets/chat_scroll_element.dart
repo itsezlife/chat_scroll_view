@@ -151,6 +151,7 @@ class ChatScrollElement extends RenderObjectElement
         content = SelectableMessage(
           id: id,
           controller: selection,
+          scrollController: _widget.controller,
           child: content,
         );
       }

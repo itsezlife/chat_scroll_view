@@ -400,6 +400,10 @@ class RenderChatScrollView extends RenderBox implements ChatScrollAnimator {
 
   VerticalDragGestureRecognizer? _drag;
 
+  /// Pointer that cancelled an in-flight fling; long-press is suppressed until
+  /// this pointer lifts.
+  int? _flingCancelPointer;
+
   // --- Overscroll bounce ---------------------------------------------------
 
   /// `true` from `_onDragStart` until `_onDragEnd`. While set, the boundary
@@ -693,6 +697,8 @@ class RenderChatScrollView extends RenderBox implements ChatScrollAnimator {
   @override
   void detach() {
     _cancelFling();
+    _controller.flingCancelSuppressesLongPress = false;
+    _flingCancelPointer = null;
     _ticker?.dispose();
     _ticker = null;
     _pollTimer?.cancel();
@@ -2322,7 +2328,31 @@ class RenderChatScrollView extends RenderBox implements ChatScrollAnimator {
         );
         return;
       }
+      if (_simulation != null) {
+        _cancelFling();
+        _pendingScrollDelta = 0.0;
+        _scrollVelocity = 0.0;
+        _controller.flingCancelSuppressesLongPress = true;
+        _flingCancelPointer = event.pointer;
+      } else if (_flingCancelPointer == null &&
+          _controller.flingCancelSuppressesLongPress) {
+        // A new pointer without cancelling fling — drop stale suppression left
+        // over from a prior fling-cancel tap whose post-frame clear has not
+        // run yet.
+        _controller.flingCancelSuppressesLongPress = false;
+      }
       _drag?.addPointer(event);
+    } else if (event is PointerUpEvent || event is PointerCancelEvent) {
+      if (_flingCancelPointer == event.pointer) {
+        _flingCancelPointer = null;
+        // Tap onTap fires after pointer up; defer clearing so SelectableMessage
+        // still sees suppression when the gesture arena resolves the tap.
+        SchedulerBinding.instance.addPostFrameCallback((_) {
+          if (attached) {
+            _controller.flingCancelSuppressesLongPress = false;
+          }
+        });
+      }
     } else if (event is PointerPanZoomStartEvent) {
       _cancelFling();
       _drag?.addPointerPanZoom(event);

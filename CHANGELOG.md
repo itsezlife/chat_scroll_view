@@ -6,7 +6,17 @@ this project is pre-1.0 and not strictly SemVer yet.
 
 ## [Unreleased]
 
+### Fixed
+
+- **Fling stop on touch** — tapping or pressing the chat viewport during an
+  active fling now stops inertial scroll immediately. Tap and long-press
+  during a fling cancel scroll without toggling or entering selection;
+  selection gestures on a stationary list are unchanged.
+
 ### Added
+
+- **Demo chat back handling** — system back / pop while in message selection
+  mode clears the selection instead of leaving the screen.
 
 - **Local demo backend** (`backend/`) — Dart HTTP server with SQLite storage,
   paginated `GET /api/messages`, conversation metadata, seed script, and

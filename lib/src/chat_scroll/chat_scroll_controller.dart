@@ -282,6 +282,17 @@ class ChatScrollController {
   bool get isDisposed => _disposed;
   bool _disposed = false;
 
+  /// When true, [SelectableMessage] must not fire tap or long-press selection
+  /// actions — the current pointer down cancelled an in-flight fling.
+  @internal
+  bool get flingCancelSuppressesLongPress => _flingCancelSuppressesLongPress;
+  @internal
+  set flingCancelSuppressesLongPress(bool value) {
+    if (_disposed) return;
+    _flingCancelSuppressesLongPress = value;
+  }
+  bool _flingCancelSuppressesLongPress = false;
+
   /// Drop all listeners. Call from the owning widget's `dispose` so a stray
   /// late notification cannot reach a torn-down listener. Idempotent — safe
   /// to call twice.
