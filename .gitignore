@@ -55,4 +55,4 @@ specs/
 backend/data/*.db
 
 # Auto-generated LAN IP for USB-debugged Android devices
-config/development.android.device.json
+config/

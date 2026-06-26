@@ -6,27 +6,7 @@
       "request": "launch",
       "type": "dart",
       "program": "lib/main.dart",
-      "toolArgs": [
-        "--dart-define-from-file=config/development.json"
-      ]
-    },
-    {
-      "name": "main.dart (Android emulator)",
-      "request": "launch",
-      "type": "dart",
-      "program": "lib/main.dart",
-      "toolArgs": [
-        "--dart-define-from-file=config/development.android.json"
-      ]
-    },
-    {
-      "name": "main.dart (Android device)",
-      "request": "launch",
-      "type": "dart",
-      "program": "lib/main.dart",
-      "toolArgs": [
-        "--dart-define-from-file=config/development.android.device.json"
-      ]
+      "toolArgs": ["--dart-define-from-file=config/development.json"]
     },
     {
       "name": "main.dart (profile mode)",
@@ -34,29 +14,7 @@
       "type": "dart",
       "program": "lib/main.dart",
       "flutterMode": "profile",
-      "toolArgs": [
-        "--dart-define-from-file=config/development.json"
-      ]
-    },
-    {
-      "name": "main.dart (Android emulator, profile)",
-      "request": "launch",
-      "type": "dart",
-      "program": "lib/main.dart",
-      "flutterMode": "profile",
-      "toolArgs": [
-        "--dart-define-from-file=config/development.android.json"
-      ]
-    },
-    {
-      "name": "main.dart (Android device, profile)",
-      "request": "launch",
-      "type": "dart",
-      "program": "lib/main.dart",
-      "flutterMode": "profile",
-      "toolArgs": [
-        "--dart-define-from-file=config/development.android.device.json"
-      ]
+      "toolArgs": ["--dart-define-from-file=config/development.json"]
     },
     {
       "name": "main.dart (release mode)",
@@ -64,29 +22,7 @@
       "type": "dart",
       "program": "lib/main.dart",
       "flutterMode": "release",
-      "toolArgs": [
-        "--dart-define-from-file=config/development.json"
-      ]
-    },
-    {
-      "name": "main.dart (Android emulator, release)",
-      "request": "launch",
-      "type": "dart",
-      "program": "lib/main.dart",
-      "flutterMode": "release",
-      "toolArgs": [
-        "--dart-define-from-file=config/development.android.json"
-      ]
-    },
-    {
-      "name": "main.dart (Android device, release)",
-      "request": "launch",
-      "type": "dart",
-      "program": "lib/main.dart",
-      "flutterMode": "release",
-      "toolArgs": [
-        "--dart-define-from-file=config/development.android.device.json"
-      ]
+      "toolArgs": ["--dart-define-from-file=config/development.json"]
     }
   ]
 }
