@@ -400,6 +400,10 @@ class RenderChatScrollView extends RenderBox implements ChatScrollAnimator {
 
   VerticalDragGestureRecognizer? _drag;
 
+  /// Pointer that cancelled an in-flight fling; long-press is suppressed until
+  /// this pointer lifts.
+  int? _flingCancelPointer;
+
   // --- Overscroll bounce ---------------------------------------------------
 
   /// `true` from `_onDragStart` until `_onDragEnd`. While set, the boundary
@@ -693,6 +697,8 @@ class RenderChatScrollView extends RenderBox implements ChatScrollAnimator {
   @override
   void detach() {
     _cancelFling();
+    _controller.flingCancelSuppressesLongPress = false;
+    _flingCancelPointer = null;
     _ticker?.dispose();
     _ticker = null;
     _pollTimer?.cancel();
@@ -2322,7 +2328,19 @@ class RenderChatScrollView extends RenderBox implements ChatScrollAnimator {
         );
         return;
       }
+      if (_simulation != null) {
+        _cancelFling();
+        _pendingScrollDelta = 0.0;
+        _scrollVelocity = 0.0;
+        _controller.flingCancelSuppressesLongPress = true;
+        _flingCancelPointer = event.pointer;
+      }
       _drag?.addPointer(event);
+    } else if (event is PointerUpEvent || event is PointerCancelEvent) {
+      if (_flingCancelPointer == event.pointer) {
+        _controller.flingCancelSuppressesLongPress = false;
+        _flingCancelPointer = null;
+      }
     } else if (event is PointerPanZoomStartEvent) {
       _cancelFling();
       _drag?.addPointerPanZoom(event);

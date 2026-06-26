@@ -250,6 +250,41 @@ void main() {
       await tester.pumpAndSettle();
     });
 
+    testWidgets('tap during fling stops scroll', (tester) async {
+      const count = 256;
+      final controller = ChatScrollController()..jumpTo(count - 1);
+      final events = <ChatScrollEvent>[];
+      controller.addScrollListener(events.add);
+      await tester.pumpWidget(
+        _harness(
+          dataSource: _PreloadedDataSource(_generate(count)),
+          controller: controller,
+        ),
+      );
+      await tester.pump();
+
+      await tester.fling(
+        find.byType(ChatScrollView),
+        const Offset(0, 600),
+        4000,
+      );
+      await tester.pump();
+
+      final anchorBefore = controller.anchorMessageId;
+      final offsetBefore = controller.anchorPixelOffset;
+
+      await tester.tap(find.byType(ChatScrollView));
+      await tester.pump();
+
+      expect(controller.anchorMessageId, anchorBefore);
+      expect(controller.anchorPixelOffset, offsetBefore);
+      expect(events.whereType<ChatFlingEnd>(), isNotEmpty);
+
+      await tester.pump(const Duration(milliseconds: 300));
+      expect(controller.anchorMessageId, anchorBefore);
+      expect(controller.anchorPixelOffset, offsetBefore);
+    });
+
     testWidgets('a scroll repaints far more often than it relayouts (Tier-1)', (
       tester,
     ) async {

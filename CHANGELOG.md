@@ -6,6 +6,13 @@ this project is pre-1.0 and not strictly SemVer yet.
 
 ## [Unreleased]
 
+### Fixed
+
+- **Fling stop on touch** — tapping or pressing the chat viewport during an
+  active fling now stops inertial scroll immediately. Long-press during a
+  fling cancels scroll without entering selection mode; long-press on a
+  stationary list is unchanged.
+
 ### Added
 
 - **Local demo backend** (`backend/`) — Dart HTTP server with SQLite storage,

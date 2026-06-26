@@ -1,3 +1,4 @@
+import 'package:chatscrollview/src/chat_scroll/chat_scroll_controller.dart';
 import 'package:chatscrollview/src/chat_scroll/chat_selection_controller.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -23,6 +24,7 @@ class SelectableMessage extends StatefulWidget {
     required this.id,
     required this.controller,
     required this.child,
+    this.scrollController,
     super.key,
   });
 
@@ -31,6 +33,10 @@ class SelectableMessage extends StatefulWidget {
 
   /// Selection state, shared across the whole viewport.
   final ChatSelectionController controller;
+
+  /// Scroll controller for the viewport; used to suppress long-press when a
+  /// touch cancelled an in-flight fling.
+  final ChatScrollController? scrollController;
 
   /// The message content widget.
   final Widget child;
@@ -113,6 +119,9 @@ class _SelectableMessageState extends State<SelectableMessage>
   }
 
   void _handleLongPress() {
+    if (widget.scrollController?.flingCancelSuppressesLongPress ?? false) {
+      return;
+    }
     final c = widget.controller;
     // Already selected: long-press on an already-selected message is a no-op
     // for the controller, so don't buzz either.

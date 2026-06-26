@@ -134,6 +134,71 @@ void main() {
       expect(selection.count, 1);
     });
 
+    testWidgets('long press during fling does not enter selection mode', (
+      tester,
+    ) async {
+      const count = 256;
+      final controller = ChatScrollController()..jumpTo(count - 1);
+      final selection = ChatSelectionController();
+      await tester.pumpWidget(
+        _harness(
+          dataSource: _PreloadedDataSource(_generate(count)),
+          controller: controller,
+          selectionController: selection,
+        ),
+      );
+      await tester.pump();
+
+      await tester.fling(
+        find.byType(ChatScrollView),
+        const Offset(0, 600),
+        4000,
+      );
+      await tester.pump();
+
+      final gesture = await tester.startGesture(
+        tester.getCenter(find.byType(ChatScrollView)),
+      );
+      await tester.pump(const Duration(milliseconds: 600));
+      await gesture.up();
+      await tester.pump();
+
+      expect(selection.isSelectionMode, isFalse);
+      expect(selection.count, 0);
+    });
+
+    testWidgets('long press after fling cancel enters selection mode', (
+      tester,
+    ) async {
+      const count = 256;
+      final controller = ChatScrollController()..jumpTo(count - 1);
+      final selection = ChatSelectionController();
+      await tester.pumpWidget(
+        _harness(
+          dataSource: _PreloadedDataSource(_generate(count)),
+          controller: controller,
+          selectionController: selection,
+        ),
+      );
+      await tester.pump();
+
+      await tester.fling(
+        find.byType(ChatScrollView),
+        const Offset(0, 600),
+        4000,
+      );
+      await tester.pump();
+
+      await tester.tap(find.byType(ChatScrollView));
+      await tester.pumpAndSettle();
+
+      await tester.longPressAt(tester.getCenter(find.byType(ChatScrollView)));
+      await tester.pumpAndSettle();
+
+      expect(selection.isSelectionMode, isTrue);
+      expect(selection.count, 1);
+    });
+
     testWidgets('tap toggles messages while in selection mode', (tester) async {
       const count = 256;
       final controller = ChatScrollController()..jumpTo(count - 1);
