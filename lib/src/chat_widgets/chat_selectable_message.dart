@@ -34,8 +34,8 @@ class SelectableMessage extends StatefulWidget {
   /// Selection state, shared across the whole viewport.
   final ChatSelectionController controller;
 
-  /// Scroll controller for the viewport; used to suppress long-press when a
-  /// touch cancelled an in-flight fling.
+  /// Scroll controller for the viewport; used to suppress tap / long-press when
+  /// a touch cancelled an in-flight fling.
   final ChatScrollController? scrollController;
 
   /// The message content widget.
@@ -118,10 +118,11 @@ class _SelectableMessageState extends State<SelectableMessage>
     _select.animateTo(c.isSelected(widget.id) ? 1.0 : 0.0);
   }
 
+  bool get _flingCancelSuppressesGestures =>
+      widget.scrollController?.flingCancelSuppressesLongPress ?? false;
+
   void _handleLongPress() {
-    if (widget.scrollController?.flingCancelSuppressesLongPress ?? false) {
-      return;
-    }
+    if (_flingCancelSuppressesGestures) return;
     final c = widget.controller;
     // Already selected: long-press on an already-selected message is a no-op
     // for the controller, so don't buzz either.
@@ -131,6 +132,7 @@ class _SelectableMessageState extends State<SelectableMessage>
   }
 
   void _handleTap() {
+    if (_flingCancelSuppressesGestures) return;
     final c = widget.controller;
     // Outside selection mode a tap on a message does nothing (there is no
     // in-message interaction in this demo); inside it toggles the message.

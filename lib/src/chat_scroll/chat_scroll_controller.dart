@@ -282,8 +282,8 @@ class ChatScrollController {
   bool get isDisposed => _disposed;
   bool _disposed = false;
 
-  /// When true, [SelectableMessage] must not fire long-press actions — the
-  /// current pointer down cancelled an in-flight fling.
+  /// When true, [SelectableMessage] must not fire tap or long-press selection
+  /// actions — the current pointer down cancelled an in-flight fling.
   @internal
   bool get flingCancelSuppressesLongPress => _flingCancelSuppressesLongPress;
   @internal

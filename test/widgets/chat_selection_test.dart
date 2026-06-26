@@ -199,6 +199,42 @@ void main() {
       expect(selection.count, 1);
     });
 
+    testWidgets('tap during fling does not toggle selection in selection mode', (
+      tester,
+    ) async {
+      const count = 256;
+      final controller = ChatScrollController()..jumpTo(count - 1);
+      final selection = ChatSelectionController();
+      await tester.pumpWidget(
+        _harness(
+          dataSource: _PreloadedDataSource(_generate(count)),
+          controller: controller,
+          selectionController: selection,
+        ),
+      );
+      await tester.pump();
+
+      await tester.longPress(find.text('msg-255'));
+      await tester.pumpAndSettle();
+      expect(selection.isSelectionMode, isTrue);
+      expect(selection.count, 1);
+      expect(selection.isSelected(255), isTrue);
+
+      await tester.fling(
+        find.byType(ChatScrollView),
+        const Offset(0, 600),
+        4000,
+      );
+      await tester.pump();
+
+      await tester.tapAt(tester.getCenter(find.byType(ChatScrollView)));
+      await tester.pump();
+
+      expect(selection.isSelectionMode, isTrue);
+      expect(selection.count, 1);
+      expect(selection.isSelected(255), isTrue);
+    });
+
     testWidgets('tap toggles messages while in selection mode', (tester) async {
       const count = 256;
       final controller = ChatScrollController()..jumpTo(count - 1);

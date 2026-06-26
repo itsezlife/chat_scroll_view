@@ -9,9 +9,9 @@ this project is pre-1.0 and not strictly SemVer yet.
 ### Fixed
 
 - **Fling stop on touch** — tapping or pressing the chat viewport during an
-  active fling now stops inertial scroll immediately. Long-press during a
-  fling cancels scroll without entering selection mode; long-press on a
-  stationary list is unchanged.
+  active fling now stops inertial scroll immediately. Tap and long-press
+  during a fling cancel scroll without toggling or entering selection;
+  selection gestures on a stationary list are unchanged.
 
 ### Added
 

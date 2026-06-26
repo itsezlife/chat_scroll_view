@@ -2334,12 +2334,24 @@ class RenderChatScrollView extends RenderBox implements ChatScrollAnimator {
         _scrollVelocity = 0.0;
         _controller.flingCancelSuppressesLongPress = true;
         _flingCancelPointer = event.pointer;
+      } else if (_flingCancelPointer == null &&
+          _controller.flingCancelSuppressesLongPress) {
+        // A new pointer without cancelling fling — drop stale suppression left
+        // over from a prior fling-cancel tap whose post-frame clear has not
+        // run yet.
+        _controller.flingCancelSuppressesLongPress = false;
       }
       _drag?.addPointer(event);
     } else if (event is PointerUpEvent || event is PointerCancelEvent) {
       if (_flingCancelPointer == event.pointer) {
-        _controller.flingCancelSuppressesLongPress = false;
         _flingCancelPointer = null;
+        // Tap onTap fires after pointer up; defer clearing so SelectableMessage
+        // still sees suppression when the gesture arena resolves the tap.
+        SchedulerBinding.instance.addPostFrameCallback((_) {
+          if (attached) {
+            _controller.flingCancelSuppressesLongPress = false;
+          }
+        });
       }
     } else if (event is PointerPanZoomStartEvent) {
       _cancelFling();
