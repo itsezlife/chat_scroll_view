@@ -43,3 +43,16 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+# Cursor IDE
+.cursor/
+
+# Specify
+.specify/
+specs/
+
+# Demo backend SQLite database
+backend/data/*.db
+
+# Auto-generated LAN IP for USB-debugged Android devices
+config/development.android.device.json

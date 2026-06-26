@@ -24,7 +24,7 @@ Widget buildDemoMessage(
 /// Max width of a message's content column (the column inside the viewport,
 /// not the bubble itself — the viewport hands each message the full viewport
 /// width, then we centre this column within it).
-const double _kContentMaxWidth = 620.0;
+const double _kContentMaxWidth = 338.0;
 
 /// Max width of a single bubble inside the content column.
 const double _kBubbleMaxWidth = 480.0;
@@ -37,20 +37,53 @@ const double _kAvatarSize = 32.0;
 /// In a real chat this would be "is the current user" — the team list just
 /// gives the demo two visually-distinct columns to compare.
 const Set<String> _teamMembers = {
-  'Hixie', 'justinmc', 'jonahwilliams', 'chunhtai', 'tvolkert', 'goderbauer',
-  'zanderso', 'liyuqian', 'aam', 'gspencergoog', 'mit-mit', 'xster',
-  'AlexV525', 'maheshj01', 'darshankawar', 'gaaclarke', 'knopp', 'mraleph',
-  'jmagman', 'danagbemava-nc', 'huycozy', 'slightfoot', 'guidezpl',
-  'pedromassango', 'abarth', 'gnprice', 'cbracken', 'exaby73', 'loic-sharma',
-  'nt4f04uNd', 'jason-simmons', 'ColdPaleLight',
+  'Hixie',
+  'justinmc',
+  'jonahwilliams',
+  'chunhtai',
+  'tvolkert',
+  'goderbauer',
+  'zanderso',
+  'liyuqian',
+  'aam',
+  'gspencergoog',
+  'mit-mit',
+  'xster',
+  'AlexV525',
+  'maheshj01',
+  'darshankawar',
+  'gaaclarke',
+  'knopp',
+  'mraleph',
+  'jmagman',
+  'danagbemava-nc',
+  'huycozy',
+  'slightfoot',
+  'guidezpl',
+  'pedromassango',
+  'abarth',
+  'gnprice',
+  'cbracken',
+  'exaby73',
+  'loic-sharma',
+  'nt4f04uNd',
+  'jason-simmons',
+  'ColdPaleLight',
 };
 
 bool _isOutgoing(String sender) => _teamMembers.contains(sender);
 
 const List<Color> _senderColors = <Color>[
-  Color(0xFF42A5F5), Color(0xFF66BB6A), Color(0xFFEF5350), Color(0xFFAB47BC),
-  Color(0xFFFF7043), Color(0xFF26C6DA), Color(0xFFFFCA28), Color(0xFFEC407A),
-  Color(0xFF8D6E63), Color(0xFF78909C),
+  Color(0xFF42A5F5),
+  Color(0xFF66BB6A),
+  Color(0xFFEF5350),
+  Color(0xFFAB47BC),
+  Color(0xFFFF7043),
+  Color(0xFF26C6DA),
+  Color(0xFFFFCA28),
+  Color(0xFFEC407A),
+  Color(0xFF8D6E63),
+  Color(0xFF78909C),
 ];
 
 Color _colorForSender(String sender) =>
@@ -65,8 +98,18 @@ String _formatTime(DateTime dt) {
 }
 
 const List<String> _monthsRu = <String>[
-  'января', 'февраля', 'марта', 'апреля', 'мая', 'июня',
-  'июля', 'августа', 'сентября', 'октября', 'ноября', 'декабря',
+  'января',
+  'февраля',
+  'марта',
+  'апреля',
+  'мая',
+  'июня',
+  'июля',
+  'августа',
+  'сентября',
+  'октября',
+  'ноября',
+  'декабря',
 ];
 
 /// Verbose "5 января 2026, 14:23:45" — shown in the tooltip on hover, so the
@@ -147,7 +190,8 @@ class DemoMessageBubble extends StatelessWidget {
     // Tighter vertical padding for non-first messages so a run reads as one
     // visual group.
     final topPad = isFirstInRun ? 6.0 : 2.0;
-    return Center(
+    return Align(
+      alignment: outgoing ? Alignment.centerRight : Alignment.centerLeft,
       child: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: _kContentMaxWidth),
         child: Padding(
@@ -269,11 +313,7 @@ class _Bubble extends StatelessWidget {
               ],
               Text(
                 content,
-                style: TextStyle(
-                  color: textColor,
-                  fontSize: 15,
-                  height: 1.35,
-                ),
+                style: TextStyle(color: textColor, fontSize: 15, height: 1.35),
               ),
               const SizedBox(height: 2),
               _MetaRow(
@@ -480,11 +520,7 @@ class DemoEmptyState extends StatelessWidget {
     child: Column(
       mainAxisSize: MainAxisSize.min,
       children: <Widget>[
-        Icon(
-          Icons.forum_outlined,
-          size: 48,
-          color: Color(0xFF6E7280),
-        ),
+        Icon(Icons.forum_outlined, size: 48, color: Color(0xFF6E7280)),
         SizedBox(height: 12),
         Text(
           'No messages yet',
@@ -497,10 +533,7 @@ class DemoEmptyState extends StatelessWidget {
         SizedBox(height: 4),
         Text(
           'Start the conversation below.',
-          style: TextStyle(
-            color: Color(0xFF8E94A2),
-            fontSize: 13,
-          ),
+          style: TextStyle(color: Color(0xFF8E94A2), fontSize: 13),
         ),
       ],
     ),
