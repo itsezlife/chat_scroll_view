@@ -10,6 +10,7 @@ import 'package:chatscrollview/src/chat_widgets/chat_scroll_view.dart';
 import 'package:chatscrollview/src/chat_widgets/demo/chat_composer.dart';
 import 'package:chatscrollview/src/chat_widgets/demo/date_separator.dart';
 import 'package:chatscrollview/src/chat_widgets/demo/demo_backend_error.dart';
+import 'package:chatscrollview/src/chat_widgets/demo/demo_last_read_store.dart';
 import 'package:chatscrollview/src/chat_widgets/demo/demo_message.dart';
 import 'package:chatscrollview/src/chat_widgets/demo/measure_size.dart';
 import 'package:chatscrollview/src/chat_widgets/demo/new_messages_pill.dart';
@@ -36,16 +37,23 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
   bool _loading = true;
   String? _errorMessage;
 
+  /// Highest message id counted as read for [NewMessagesPill]. Seeded to
+  /// stored last-read on off-tail open; advanced by the pill while scrolling.
+  final ValueNotifier<int?> _pillLastSeenBaseline = ValueNotifier<int?>(null);
+
   @override
   void initState() {
     super.initState();
     _controller = ChatScrollController();
     _selection = ChatSelectionController();
+    _controller.isAtTail.addListener(_onIsAtTailChanged);
     _init();
   }
 
   @override
   void dispose() {
+    _controller.isAtTail.removeListener(_onIsAtTailChanged);
+    _pillLastSeenBaseline.dispose();
     _bottomInset.dispose();
     _controller.dispose();
     _selection.dispose();
@@ -71,9 +79,25 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
       }
       _dataSource = backend;
       final newest = backend.newestKnownId;
-      if (newest != null) {
-        _controller.jumpTo(newest);
-      }
+      // for testing purposes
+      // ignore: unnecessary_nullable_for_final_variable_declarations
+      final int? lastRead = 9976;
+
+      final anchor = resolveOpenAnchor(
+        storedLastRead: lastRead,
+        newestKnownId: newest,
+        oldestKnownId: backend.oldestKnownId,
+        getMessage: backend.getMessage,
+      );
+      _pillLastSeenBaseline.value =
+          lastRead != null && newest != null && lastRead < newest
+          ? lastRead
+          : null;
+      final atTail = newest != null && anchor == newest;
+      _controller.jumpTo(
+        anchor,
+        alignment: atTail ? 0.0 : kDemoLastReadOpenAlignment,
+      );
     } on Object catch (error, stackTrace) {
       dev.log(
         'Error initializing chat screen',
@@ -88,6 +112,13 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
 
     if (!mounted) return;
     setState(() => _loading = false);
+  }
+
+  void _onIsAtTailChanged() {
+    if (!_controller.isAtTail.value) return;
+    final newest = _dataSource?.newestKnownId;
+    if (newest == null) return;
+    _pillLastSeenBaseline.value = newest;
   }
 
   /// Stable per-state tear-off — same reference for the widget's lifetime,
@@ -187,6 +218,7 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
               controller: _controller,
               dataSource: _dataSource!,
               bottomInset: _bottomInset,
+              lastSeenNewestId: _pillLastSeenBaseline,
             ),
             // Contextual selection bar — overlays the top, so the chat never
             // resizes when selection mode toggles.

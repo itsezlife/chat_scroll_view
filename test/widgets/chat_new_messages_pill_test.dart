@@ -54,9 +54,31 @@ class _LateArrivingSource extends ChatDataSource {
   }
 }
 
+class _PreloadedLikeSource extends ChatDataSource {
+  _PreloadedLikeSource(int count) {
+    for (var i = 0; i < count; i++) {
+      upsertMessage(_msg(i));
+    }
+    seedBoundaries(
+      oldestKnownId: 0,
+      newestKnownId: count - 1,
+      reachedOldest: true,
+      reachedNewest: true,
+    );
+  }
+
+  @override
+  Future<List<IChatMessage>> fetchRange({
+    required int fromId,
+    required int toId,
+  }) async => const <IChatMessage>[];
+}
+
 Widget _scaffoldWithPill({
   required ChatDataSource dataSource,
   required ChatScrollController controller,
+  double cacheExtent = 1000,
+  ValueNotifier<int?>? lastSeenNewestId,
 }) => MaterialApp(
   home: Scaffold(
     body: Center(
@@ -68,7 +90,7 @@ Widget _scaffoldWithPill({
             ChatScrollView(
               dataSource: dataSource,
               controller: controller,
-              cacheExtent: 1000,
+              cacheExtent: cacheExtent,
               messageBuilder: (context, id, message, status) => SizedBox(
                 height: 60,
                 child: Text(message == null ? 'shimmer-$id' : 'msg-$id'),
@@ -78,6 +100,7 @@ Widget _scaffoldWithPill({
             NewMessagesPill(
               controller: controller,
               dataSource: dataSource,
+              lastSeenNewestId: lastSeenNewestId,
             ),
           ],
         ),
@@ -106,15 +129,16 @@ void main() {
         // 0 on a null baseline, so the pill stayed at "0 new messages"
         // (invisible) forever after the first message arrived off-tail.
         final ds = _LateArrivingSource();
-        // Anchor at a synthetic id well past 0 so when ids arrive the
-        // viewport will *not* be at tail.
-        final controller = ChatScrollController()..jumpTo(50);
+        // Anchor mid-history before messages exist — when the batch lands
+        // off-tail, the null-baseline promotion path must surface the pill.
+        final controller = ChatScrollController()..jumpTo(0);
         addTearDown(controller.dispose);
         addTearDown(ds.dispose);
 
         await tester.pumpWidget(_scaffoldWithPill(
           dataSource: ds,
           controller: controller,
+          cacheExtent: 80,
         ));
         await tester.pump();
         expect(_pillText(tester), '0 new messages',
@@ -127,7 +151,7 @@ void main() {
         // tail clamp without a `_wasAtTailLastLayout=true` snapshot leaves
         // the user "off tail" until they scroll. Drive enough frames for
         // both the deferred setter and the pill's post-frame trampoline.
-        ds.pushFirstArrival(count: 10);
+        ds.pushFirstArrival(count: 20);
         await tester.pump();
         await tester.pump();
         await tester.pump(const Duration(milliseconds: 16));
@@ -145,6 +169,87 @@ void main() {
         );
       },
     );
+
+    testWidgets('lastSeenNewestId sets unread baseline on open', (
+      tester,
+    ) async {
+      final ds = _LateArrivingSource()..pushFirstArrival(count: 151);
+      final controller = ChatScrollController()..jumpTo(50);
+      final lastSeen = ValueNotifier<int?>(50);
+      addTearDown(controller.dispose);
+      addTearDown(ds.dispose);
+      addTearDown(lastSeen.dispose);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: Center(
+              child: SizedBox(
+                width: 400,
+                height: 600,
+                child: Stack(
+                  children: <Widget>[
+                    ChatScrollView(
+                      dataSource: ds,
+                      controller: controller,
+                      messageBuilder: (context, id, message, status) =>
+                          SizedBox(
+                            height: 60,
+                            child: Text(
+                              message == null ? 'shimmer-$id' : 'msg-$id',
+                            ),
+                          ),
+                    ),
+                    NewMessagesPill(
+                      controller: controller,
+                      dataSource: ds,
+                      lastSeenNewestId: lastSeen,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 16));
+
+      expect(_pillText(tester), '100 new messages');
+    });
+
+    testWidgets('scrolling toward newer reduces unread count progressively', (
+      tester,
+    ) async {
+      const count = 200;
+      const lastRead = 50;
+      final ds = _PreloadedLikeSource(count);
+      final controller = ChatScrollController()..jumpTo(lastRead);
+      final lastSeen = ValueNotifier<int?>(lastRead);
+      addTearDown(controller.dispose);
+      addTearDown(ds.dispose);
+      addTearDown(lastSeen.dispose);
+
+      await tester.pumpWidget(
+        _scaffoldWithPill(
+          dataSource: ds,
+          controller: controller,
+          lastSeenNewestId: lastSeen,
+        ),
+      );
+      await tester.pump();
+
+      expect(_pillText(tester), '149 new messages');
+
+      await tester.drag(find.byType(ChatScrollView), const Offset(0, -400));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
+
+      final afterScroll = _pillText(tester);
+      expect(afterScroll, isNot('149 new messages'));
+      expect(afterScroll, isNot('0 new messages'));
+      expect(lastSeen.value, greaterThan(lastRead));
+    });
 
     testWidgets(
       'mount at tail → subsequent at-tail arrival keeps the pill at zero',

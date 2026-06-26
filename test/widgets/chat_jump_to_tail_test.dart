@@ -293,6 +293,42 @@ void main() {
       );
     });
 
+    testWidgets('scroll away from tail is not yanked back by pending pin', (
+      tester,
+    ) async {
+      const count = 40;
+      final newest = count - 1;
+      final ds = _PreloadedDataSource(count);
+      final bottomPad = ValueNotifier<double>(96);
+      final controller = ChatScrollController()..jumpTo(newest);
+      addTearDown(controller.dispose);
+      addTearDown(ds.dispose);
+      addTearDown(bottomPad.dispose);
+
+      await tester.pumpWidget(
+        _harness(
+          dataSource: ds,
+          controller: controller,
+          reverse: true,
+          bottomPadding: bottomPad,
+        ),
+      );
+      await tester.pump();
+      expect(controller.isAtTail.value, isTrue);
+      expect(controller.anchorMessageId, newest);
+
+      // Small drag: leave the tail while anchor id can still be `newest`.
+      await tester.drag(find.byType(ChatScrollView), const Offset(0, 120));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
+      expect(controller.isAtTail.value, isFalse);
+
+      // Pending tail pin must not snap the user back on the next frames.
+      await tester.pump(const Duration(milliseconds: 300));
+      await tester.pump();
+      expect(controller.isAtTail.value, isFalse);
+    });
+
     testWidgets('tall newest message pins bottom above bottomPadding', (
       tester,
     ) async {

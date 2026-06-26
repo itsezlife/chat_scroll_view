@@ -25,12 +25,48 @@ this project is pre-1.0 and not strictly SemVer yet.
   active fling now stops inertial scroll immediately. Tap and long-press
   during a fling cancel scroll without toggling or entering selection;
   selection gestures on a stationary list are unchanged.
+- **Tail snap-back after scroll-away** — scrolling off the newest message no
+  longer yanks the viewport back when a pending tail pin is active; repinning
+  continues only for tall/lazy tail settle, not when the user has genuinely
+  left the tail.
+- **Last-read open before history loads** — `resolveOpenAnchor` trusts a stored
+  id within known bounds when the message is not cached yet (metadata-only
+  connect); backward walk applies only for confirmed deletions. Backend
+  `connect()` now seeds `oldestKnownId` so off-tail open does not fall back to
+  id `0`.
+- **New-messages pill dismiss label** — tapping jump-to-newest no longer
+  flashes a “0 new messages” label during the fade-out; the last non-zero count
+  is frozen until opacity finishes.
 
 ### Added
 
+- **Open at last-read message (demo)** — the demo chat resumes at the stored
+  last-read position when reopening, instead of always jumping to the newest
+  message. First visit still opens at the tail. Read position is persisted in
+  memory when the user reaches the conversation tail (including via the
+  new-messages pill).
+- **`DemoLastReadStore`** and **`resolveOpenAnchor`** — demo-only helpers for
+  per-conversation last-read persistence and open-anchor resolution (stale id
+  → previous surviving message; out-of-range → clamp to oldest/newest).
+- **`NewMessagesPill.lastSeenNewestId`** — `ValueNotifier` baseline for the
+  unread counter; advances progressively while scrolling toward newer messages
+  and at tail; replaces `initialLastSeenNewestId`.
+- **`jumpTo` / `animateTo` `alignment` parameter** — optional vertical
+  alignment in `0..1` (`0` = top, default; `0.5` = center in the scroll band
+  above the bottom inset). Boundary pins clamp when content is insufficient;
+  tail navigation stays bottom-pinned. Demo off-tail last-read open uses
+  `kDemoLastReadOpenAlignment` (`0.5`).
+- **`test/widgets/chat_navigation_alignment_test.dart`** — alignment centering,
+  bottom inset, oldest clamp, tail override, and `animateTo` settle.
+- **`test/widgets/chat_open_at_last_read_test.dart`** — regression coverage for
+  off-tail open, unread count, pill jump-to-newest (no zero flash), tail
+  persistence, live arrivals, and stale last-read recovery.
+- **`test/widgets/chat_new_messages_pill_test.dart`** — progressive unread
+  count on scroll, empty-source arrival, and at-tail baseline updates.
 - **`test/widgets/chat_jump_to_tail_test.dart`** — regression coverage for
   tail pin on open, jump/animate to newest, clamp past tail, overscroll at
-  tail, lazy-fetch repin, and tall newest message with `bottomPadding`.
+  tail, lazy-fetch repin, scroll-away without snap-back, and tall newest
+  message with `bottomPadding`.
 - **Demo chat back handling** — system back / pop while in message selection
   mode clears the selection instead of leaving the screen.
 
