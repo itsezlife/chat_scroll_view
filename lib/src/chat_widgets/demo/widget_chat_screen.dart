@@ -70,7 +70,10 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
         return;
       }
       _dataSource = backend;
-      _jumpToNewest(backend);
+      final newest = backend.newestKnownId;
+      if (newest != null) {
+        _controller.jumpTo(newest);
+      }
     } on Object catch (error, stackTrace) {
       dev.log(
         'Error initializing chat screen',
@@ -85,13 +88,6 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
 
     if (!mounted) return;
     setState(() => _loading = false);
-  }
-
-  void _jumpToNewest(BackendChatDataSource source) {
-    final total = source.totalMessages ?? 0;
-    if (total > 0) {
-      _controller.jumpTo(total - 1);
-    }
   }
 
   /// Stable per-state tear-off — same reference for the widget's lifetime,

@@ -9,11 +9,11 @@ import 'package:chatscrollview/src/chat_scroll/chat_scroll_events.dart';
 import 'package:chatscrollview/src/chat_widgets/chat_scrollbar.dart';
 import 'package:flutter/animation.dart' show Curve, Curves;
 import 'package:flutter/foundation.dart' show ValueListenable;
-import 'package:meta/meta.dart' show internal;
 import 'package:flutter/gestures.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/widgets.dart' show ClampingScrollSimulation;
+import 'package:meta/meta.dart' show internal;
 
 /// Parent data for a viewport child.
 ///
@@ -291,6 +291,17 @@ class RenderChatScrollView extends RenderBox implements ChatScrollAnimator {
   /// the new inset even when `_wasAtTailLastLayout` was cleared earlier in
   /// the same `updateRenderObject` cascade.
   bool _repinBottomForPadding = false;
+
+  /// One-shot: a programmatic jump/animate targeted the known tail — force
+  /// `pinNewest` with `repinBottom` on the next layout even when
+  /// `_wasAtTailLastLayout` is still false (initial open, return-to-tail).
+  bool _pinTailOnJump = false;
+
+  /// While true, keep forcing tail repin on each layout until
+  /// [anchorMessageId] sits at [newestKnownId] and [_computeIsAtTail] is
+  /// true — covers lazy fetch (shimmer → real height) and composer inset
+  /// settling after a pre-mount `jumpTo`.
+  bool _pendingTailPinUntilSettled = false;
 
   /// `isAtTail` snapshot taken at the end of the previous layout. Combined
   /// with [_lastSeenNewestId] this drives the follow-tail behavior: when the
@@ -678,6 +689,22 @@ class RenderChatScrollView extends RenderBox implements ChatScrollAnimator {
     _bottomPadding?.addListener(_onBottomPaddingChanged);
     _topPadding?.addListener(_onTopPaddingChanged);
     _drag = _buildDragRecognizer();
+    _seedTailNavigationOnAttach();
+  }
+
+  /// Pre-mount `jumpTo(newest)` sets the controller anchor before this
+  /// render object exists — seed tail-pin + fetch so the first layout
+  /// behaves like a mounted jump.
+  void _seedTailNavigationOnAttach() {
+    final newest = _dataSource.newestKnownId;
+    if (!_dataSource.reachedNewest || newest == null) return;
+    final targetId = _clampJumpTarget(_controller.anchorMessageId);
+    if (targetId != _controller.anchorMessageId) {
+      _controller.reassignAnchor(targetId, 0.0);
+    }
+    if (_controller.anchorMessageId != newest) return;
+    _markPinTailOnJumpIfNeeded(newest);
+    _jumpFetchPending = true;
   }
 
   /// Build a new drag recognizer. `onCancel` is intentionally NOT wired:
@@ -704,6 +731,8 @@ class RenderChatScrollView extends RenderBox implements ChatScrollAnimator {
     _pollTimer?.cancel();
     _pollTimer = null;
     _jumpFetchDispatchDetached = true;
+    _pinTailOnJump = false;
+    _pendingTailPinUntilSettled = false;
     // Drop our listener first — cancelFetch notifies, and a `markNeedsLayout`
     // on a detaching render object is brittle even if currently harmless.
     // We do cancel the running fetch / retry timer here: the dominant case is
@@ -787,7 +816,63 @@ class RenderChatScrollView extends RenderBox implements ChatScrollAnimator {
 
   void _onTopPaddingChanged() => markNeedsLayout();
 
+  /// When [reachedNewest], never anchor past [newestKnownId] — consumers may
+  /// pass `totalMessages` (a count) instead of the last id.
+  int _clampJumpTarget(int messageId) {
+    final newest = _dataSource.newestKnownId;
+    if (_dataSource.reachedNewest && newest != null && messageId > newest) {
+      return newest;
+    }
+    return messageId;
+  }
+
+  /// Tail-targeted navigation should pin the newest above the bottom inset
+  /// even on the first layout (`_wasAtTailLastLayout` still false).
+  void _markPinTailOnJumpIfNeeded(int targetId) {
+    final newest = _dataSource.newestKnownId;
+    if (_dataSource.reachedNewest && newest != null && targetId == newest) {
+      _pinTailOnJump = true;
+      _pendingTailPinUntilSettled = true;
+    }
+  }
+
+  /// Re-pin after lazy chunk load or bottom inset change until the tail
+  /// actually settles — without yanking the user who scrolled away.
+  void _applyPendingTailPin() {
+    if (!_pendingTailPinUntilSettled) return;
+    final newest = _dataSource.newestKnownId;
+    if (!_dataSource.reachedNewest || newest == null) {
+      _pendingTailPinUntilSettled = false;
+      return;
+    }
+    if (_controller.anchorMessageId != newest) {
+      _pendingTailPinUntilSettled = false;
+      return;
+    }
+    final messageLoaded = _dataSource.getMessage(newest) != null;
+    if (messageLoaded && _computeIsAtTail()) {
+      _pendingTailPinUntilSettled = false;
+      return;
+    }
+    _pinTailOnJump = true;
+  }
+
+  /// Clamp a pre-mount [jumpTo] anchor that landed past [newestKnownId].
+  /// [_onJump] handles the mounted case; this covers the listener gap.
+  void _normalizeAnchorToKnownTail() {
+    final anchorId = _controller.anchorMessageId;
+    final targetId = _clampJumpTarget(anchorId);
+    if (targetId == anchorId) return;
+    _controller.reassignAnchor(targetId, 0.0);
+    _markPinTailOnJumpIfNeeded(targetId);
+  }
+
   void _onJump(int messageId) {
+    final targetId = _clampJumpTarget(messageId);
+    if (targetId != messageId) {
+      _controller.reassignAnchor(targetId, 0.0);
+    }
+    _markPinTailOnJumpIfNeeded(targetId);
     _cancelFling();
     // A leftover highlight points at a target id that may no longer be
     // built (`jumpTo` repositioned the anchor). The ticker would keep
@@ -967,6 +1052,8 @@ class RenderChatScrollView extends RenderBox implements ChatScrollAnimator {
     // whole row without bleeding past a narrower content box.
     final childConstraints = BoxConstraints.tightFor(width: size.width);
 
+    _normalizeAnchorToKnownTail();
+
     final built = <int>{};
     final builtChunks = <int>{};
     _layoutFromAnchor(childConstraints, built, builtChunks);
@@ -987,12 +1074,15 @@ class RenderChatScrollView extends RenderBox implements ChatScrollAnimator {
         _wasAtTailLastLayout &&
         newest != null &&
         (_lastSeenNewestId == null || newest > _lastSeenNewestId!);
+    _applyPendingTailPin();
     final repinBottom =
-        _dataSource.reachedNewest &&
-        (_wasAtTailLastLayout || _repinBottomForPadding) &&
-        (_bottomPaddingDirty || tailAdvanced);
+        _pinTailOnJump ||
+        (_dataSource.reachedNewest &&
+            (_wasAtTailLastLayout || _repinBottomForPadding) &&
+            (_bottomPaddingDirty || tailAdvanced));
     _bottomPaddingDirty = false;
     _repinBottomForPadding = false;
+    _pinTailOnJump = false;
     final clamped = _clampBoundaries(repinBottom: repinBottom);
     if (clamped) _cancelFling();
 
@@ -1933,6 +2023,8 @@ class RenderChatScrollView extends RenderBox implements ChatScrollAnimator {
       _ensureTicker();
       markNeedsPaint();
     }
+    _markPinTailOnJumpIfNeeded(_clampJumpTarget(targetId));
+    if (_pinTailOnJump) markNeedsLayout();
     if (completer != null && !completer.isCompleted) completer.complete();
   }
 

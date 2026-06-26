@@ -8,6 +8,19 @@ this project is pre-1.0 and not strictly SemVer yet.
 
 ### Fixed
 
+- **Jump to newest / open at tail** — opening the demo chat or jumping to the
+  newest message no longer lands one message short of the tail. Tail-targeted
+  `jumpTo` / `animateTo` now force a one-shot bottom repin on the first layout
+  (even when the viewport was not previously at the tail), and keep repinning
+  until the newest message is loaded and settled — including after lazy backend
+  fetch and composer inset changes.
+- **Phantom skeleton below newest** — jump targets past `newestKnownId` (e.g.
+  passing message count instead of last id) are clamped to the known tail so no
+  shimmer placeholder row appears below the real newest message. Pre-mount
+  `jumpTo(newest)` is seeded on viewport attach so the first layout matches a
+  mounted tail jump.
+- **Demo initial scroll** — `WidgetChatScreen` jumps to `newestKnownId` on
+  connect instead of deriving the anchor from `totalMessages`.
 - **Fling stop on touch** — tapping or pressing the chat viewport during an
   active fling now stops inertial scroll immediately. Tap and long-press
   during a fling cancel scroll without toggling or entering selection;
@@ -15,6 +28,9 @@ this project is pre-1.0 and not strictly SemVer yet.
 
 ### Added
 
+- **`test/widgets/chat_jump_to_tail_test.dart`** — regression coverage for
+  tail pin on open, jump/animate to newest, clamp past tail, overscroll at
+  tail, lazy-fetch repin, and tall newest message with `bottomPadding`.
 - **Demo chat back handling** — system back / pop while in message selection
   mode clears the selection instead of leaving the screen.
 
