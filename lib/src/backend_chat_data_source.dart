@@ -68,7 +68,11 @@ class BackendChatDataSource extends ChatDataSource {
       return;
     }
 
-    seedBoundaries(newestKnownId: total - 1, reachedNewest: true);
+    seedBoundaries(
+      oldestKnownId: 0,
+      newestKnownId: total - 1,
+      reachedNewest: true,
+    );
   }
 
   int? get totalMessages => _totalMessages;

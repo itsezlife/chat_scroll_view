@@ -21,6 +21,7 @@ abstract class ChatScrollAnimator {
     int targetId, {
     required Duration duration,
     required Curve curve,
+    double alignment = 0.0,
   });
 }
 
@@ -55,10 +56,17 @@ class ChatScrollController {
       _jumpListeners.remove(callback);
 
   /// Jump to a specific message, resetting the anchor.
-  void jumpTo(int messageId) {
+  ///
+  /// [alignment] positions the target within the viewport's scrollable band
+  /// (y = 0 through the bottom inset). `0.0` places the message top at the
+  /// viewport top (default); `0.5` centers it; `1.0` aligns the message
+  /// bottom to the bottom inset. Boundary clamping may reduce the effective
+  /// alignment when insufficient content exists above or below.
+  void jumpTo(int messageId, {double alignment = 0.0}) {
     if (_disposed) return;
     _anchorMessageId = messageId;
     _anchorPixelOffset = 0.0;
+    _setNavigationAlignment(messageId, alignment);
     // Iterate a snapshot — a listener may add or remove listeners (including
     // itself) while reacting to the jump.
     for (final cb in List<ValueChanged<int>>.of(
@@ -132,16 +140,23 @@ class ChatScrollController {
     int messageId, {
     Duration duration = const Duration(milliseconds: 300),
     Curve curve = Curves.easeInOutCubic,
+    double alignment = 0.0,
   }) async {
     if (_disposed) return;
     final animator = _animator;
+    _setNavigationAlignment(messageId, alignment);
     if (animator == null) {
-      jumpTo(messageId);
+      jumpTo(messageId, alignment: alignment);
       return;
     }
     _emitScroll(ChatAnimateStart(messageId, duration));
     try {
-      await animator.animate(messageId, duration: duration, curve: curve);
+      await animator.animate(
+        messageId,
+        duration: duration,
+        curve: curve,
+        alignment: alignment,
+      );
     } finally {
       _emitScroll(ChatAnimateEnd(messageId));
     }
@@ -257,6 +272,35 @@ class ChatScrollController {
   /// Pixel offset of the anchor message's top edge from the viewport top.
   double get anchorPixelOffset => _anchorPixelOffset;
   double _anchorPixelOffset = 0.0;
+
+  /// Alignment requested by the latest [jumpTo] / [animateTo], in `0..1`.
+  @internal
+  double get navigationAlignment => _navigationAlignment;
+  double _navigationAlignment = 0.0;
+
+  /// Message id [navigationAlignment] applies to; cleared after settle.
+  @internal
+  int? get navigationAlignmentMessageId => _navigationAlignmentMessageId;
+  int? _navigationAlignmentMessageId;
+
+  @internal
+  void clearNavigationAlignment() {
+    _navigationAlignment = 0.0;
+    _navigationAlignmentMessageId = null;
+  }
+
+  /// After the viewport clamps a jump target, keep alignment on the resolved id.
+  @internal
+  void syncNavigationAlignmentTarget(int resolvedId) {
+    if (_navigationAlignmentMessageId != null) {
+      _navigationAlignmentMessageId = resolvedId;
+    }
+  }
+
+  void _setNavigationAlignment(int messageId, double alignment) {
+    _navigationAlignment = alignment.clamp(0.0, 1.0);
+    _navigationAlignmentMessageId = messageId;
+  }
 
   // --- Viewport-only: silent mutation without notifications ---
 
