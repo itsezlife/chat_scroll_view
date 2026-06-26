@@ -133,63 +133,75 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
     if (_loading || _dataSource == null) {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
-    return Scaffold(
-      body: Stack(
-        children: <Widget>[
-          // Chat fills the screen; the composer is stacked over its bottom.
-          Positioned.fill(
-            child: SafeArea(
-              bottom: false,
-              child: ChatKeyboardShortcuts(
-                controller: _controller,
-                dataSource: _dataSource!,
-                child: ChatScrollView(
-                  reverse: true,
-                  dataSource: _dataSource!,
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, result) {
+        if (didPop) return;
+        final hasSelection = _selection.isSelectionMode;
+        if (hasSelection) {
+          _selection.clear();
+          return;
+        }
+        Navigator.pop(context);
+      },
+      child: Scaffold(
+        body: Stack(
+          children: <Widget>[
+            // Chat fills the screen; the composer is stacked over its bottom.
+            Positioned.fill(
+              child: SafeArea(
+                bottom: false,
+                child: ChatKeyboardShortcuts(
                   controller: _controller,
-                  selectionController: _selection,
-                  bottomPadding: _bottomInset,
-                  messageBuilder: _buildMessage,
-                  chunkErrorBuilder: _buildChunkError,
-                  emptyBuilder: _buildEmpty,
-                  loadingBuilder: _buildInitialSkeleton,
-                  dateSeparatorBuilder: (context, date) =>
-                      DateSeparator(date: date),
+                  dataSource: _dataSource!,
+                  child: ChatScrollView(
+                    reverse: true,
+                    dataSource: _dataSource!,
+                    controller: _controller,
+                    selectionController: _selection,
+                    bottomPadding: _bottomInset,
+                    messageBuilder: _buildMessage,
+                    chunkErrorBuilder: _buildChunkError,
+                    emptyBuilder: _buildEmpty,
+                    loadingBuilder: _buildInitialSkeleton,
+                    dateSeparatorBuilder: (context, date) =>
+                        DateSeparator(date: date),
+                  ),
                 ),
               ),
             ),
-          ),
-          // Bottom composer — overlaid, not a column sibling. Its measured
-          // height feeds the viewport's bottom inset so the newest message
-          // always clears it (and any future attachment previews).
-          Positioned(
-            left: 0,
-            right: 0,
-            bottom: 0,
-            child: MeasureSize(
-              onChange: (size) => _bottomInset.value = size.height,
-              child: ChatComposer(
-                selection: _selection,
-                dataSource: _dataSource!,
+            // Bottom composer — overlaid, not a column sibling. Its measured
+            // height feeds the viewport's bottom inset so the newest message
+            // always clears it (and any future attachment previews).
+            Positioned(
+              left: 0,
+              right: 0,
+              bottom: 0,
+              child: MeasureSize(
+                onChange: (size) => _bottomInset.value = size.height,
+                child: ChatComposer(
+                  selection: _selection,
+                  dataSource: _dataSource!,
+                ),
               ),
             ),
-          ),
-          // New-messages pill — surfaces above the composer when the user
-          // is scrolled away and newer messages have arrived.
-          NewMessagesPill(
-            controller: _controller,
-            dataSource: _dataSource!,
-            bottomInset: _bottomInset,
-          ),
-          // Contextual selection bar — overlays the top, so the chat never
-          // resizes when selection mode toggles.
-          Positioned(
-            top: 0,
-            left: 0,
-            right: 0,
-            child: SelectionAppBar(selection: _selection),
-          ),
-        ],
+            // New-messages pill — surfaces above the composer when the user
+            // is scrolled away and newer messages have arrived.
+            NewMessagesPill(
+              controller: _controller,
+              dataSource: _dataSource!,
+              bottomInset: _bottomInset,
+            ),
+            // Contextual selection bar — overlays the top, so the chat never
+            // resizes when selection mode toggles.
+            Positioned(
+              top: 0,
+              left: 0,
+              right: 0,
+              child: SelectionAppBar(selection: _selection),
+            ),
+          ],
+        ),
       ),
     );
   }

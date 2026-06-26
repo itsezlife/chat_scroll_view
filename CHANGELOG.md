@@ -15,6 +15,9 @@ this project is pre-1.0 and not strictly SemVer yet.
 
 ### Added
 
+- **Demo chat back handling** — system back / pop while in message selection
+  mode clears the selection instead of leaving the screen.
+
 - **Local demo backend** (`backend/`) — Dart HTTP server with SQLite storage,
   paginated `GET /api/messages`, conversation metadata, seed script, and
   tests. Start everything with `./scripts/dev.sh`.
