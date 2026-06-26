@@ -262,13 +262,22 @@ class RenderChatScrollView extends RenderBox implements ChatScrollAnimator {
   set bottomPadding(ValueListenable<double>? value) {
     if (identical(_bottomPadding, value)) return;
     final oldValue = _bottomPad;
+    final newValue = value?.value ?? 0.0;
+    // Snapshot tail geometry *before* swapping — `updateRenderObject` may
+    // reset `_wasAtTailLastLayout` via an unrelated `dataSource` update in
+    // the same cascade before this setter runs.
+    final pinnedAtOldInset =
+        oldValue != newValue && _isNewestPinnedAtBottomInset(oldValue);
     if (attached) _bottomPadding?.removeListener(_onBottomPaddingChanged);
     _bottomPadding = value;
     if (attached) _bottomPadding?.addListener(_onBottomPaddingChanged);
     // Swapping the listenable is itself a value change when the new current
     // differs from the old one — re-pin the newest message so it follows the
     // inset, the same as `_onBottomPaddingChanged` would have done.
-    if (oldValue != _bottomPad) _bottomPaddingDirty = true;
+    if (oldValue != newValue) {
+      _bottomPaddingDirty = true;
+      if (pinnedAtOldInset) _repinBottomForPadding = true;
+    }
     markNeedsLayout();
   }
 
@@ -277,6 +286,11 @@ class RenderChatScrollView extends RenderBox implements ChatScrollAnimator {
   /// Set when [bottomPadding] changed; consumed by the next [performLayout]
   /// to re-pin the newest message when the viewport was sitting at the bottom.
   bool _bottomPaddingDirty = false;
+
+  /// One-shot: newest was pinned at the pre-change bottom inset — repin at
+  /// the new inset even when `_wasAtTailLastLayout` was cleared earlier in
+  /// the same `updateRenderObject` cascade.
+  bool _repinBottomForPadding = false;
 
   /// `isAtTail` snapshot taken at the end of the previous layout. Combined
   /// with [_lastSeenNewestId] this drives the follow-tail behavior: when the
@@ -415,8 +429,9 @@ class RenderChatScrollView extends RenderBox implements ChatScrollAnimator {
   Duration? _bouncebackStartTime;
   double _bouncebackInitialOverscroll = 0.0;
   _BouncebackSide _bouncebackSide = _BouncebackSide.top;
-  static const Duration _kOverscrollBounceDuration =
-      Duration(milliseconds: 200);
+  static const Duration _kOverscrollBounceDuration = Duration(
+    milliseconds: 200,
+  );
 
   // --- animateTo state ------------------------------------------------------
 
@@ -922,6 +937,25 @@ class RenderChatScrollView extends RenderBox implements ChatScrollAnimator {
       _overlayKind = ChatOverlayKind.none;
     }
 
+    // After `jumpTo`, stale tiles from the old anchor can still sit in the
+    // child maps until the end-of-layout GC pass — [_renormalizeAnchor] and
+    // clamp would read them and fan out across the wrong id span. Drop them
+    // before the first fan-out of the jump layout.
+    if (_jumpFetchPending) {
+      final staleMessages = _children.keys.toList();
+      final staleErrorChunks = _chunkErrors.keys.toList();
+      if (staleMessages.isNotEmpty || staleErrorChunks.isNotEmpty) {
+        invokeLayoutCallback<BoxConstraints>((_) {
+          if (staleMessages.isNotEmpty) {
+            childManager!.removeChildren(staleMessages);
+          }
+          if (staleErrorChunks.isNotEmpty) {
+            childManager!.removeChunkErrors(staleErrorChunks);
+          }
+        });
+      }
+    }
+
     // Children span the full viewport width; each message widget centers its
     // own content column. A full-width child lets selection chrome tint the
     // whole row without bleeding past a narrower content box.
@@ -943,13 +977,16 @@ class RenderChatScrollView extends RenderBox implements ChatScrollAnimator {
     // Both paths gate on `_wasAtTailLastLayout` — without it, the bottom
     // pin would yank content the user scrolled away from back to the tail.
     final newest = _dataSource.newestKnownId;
-    final tailAdvanced = _wasAtTailLastLayout &&
+    final tailAdvanced =
+        _wasAtTailLastLayout &&
         newest != null &&
         (_lastSeenNewestId == null || newest > _lastSeenNewestId!);
-    final repinBottom = _dataSource.reachedNewest &&
-        _wasAtTailLastLayout &&
+    final repinBottom =
+        _dataSource.reachedNewest &&
+        (_wasAtTailLastLayout || _repinBottomForPadding) &&
         (_bottomPaddingDirty || tailAdvanced);
     _bottomPaddingDirty = false;
+    _repinBottomForPadding = false;
     final clamped = _clampBoundaries(repinBottom: repinBottom);
     if (clamped) _cancelFling();
 
@@ -1057,6 +1094,7 @@ class RenderChatScrollView extends RenderBox implements ChatScrollAnimator {
     _headerDirty = false;
     _scrollVelocity = 0.0;
     _bottomPaddingDirty = false;
+    _repinBottomForPadding = false;
     _pendingScrollDelta = 0.0;
     _cancelFling();
     _cancelAnimate();
@@ -1101,13 +1139,22 @@ class RenderChatScrollView extends RenderBox implements ChatScrollAnimator {
     );
   }
 
+  /// Inclusive lower id bound for upward layout fan-out.
+  ///
+  /// While [ChatDataSource.reachedOldest] is false, [ChatDataSource.oldestKnownId]
+  /// is the oldest *loaded* page — not the conversation edge. Clamping
+  /// fan-out there prevents building placeholders for older chunks and
+  /// deadlocks lazy pagination.
+  int? get _fanOutOldestBound =>
+      _dataSource.reachedOldest ? _dataSource.oldestKnownId : 0;
+
   void _fanOutFromAnchor(
     BoxConstraints cc,
     Set<int> built,
     Set<int> builtChunks,
   ) {
     final anchorId = _controller.anchorMessageId;
-    final oldest = _dataSource.oldestKnownId;
+    final fanOldest = _fanOutOldestBound;
     final newest = _dataSource.newestKnownId;
 
     // Build zone = cacheExtent + keep-alive band, plus a directional lead
@@ -1177,7 +1224,7 @@ class RenderChatScrollView extends RenderBox implements ChatScrollAnimator {
     id = anchorIsError
         ? ChatScrollChunk.firstIdOf(anchorChunkIndex) - 1
         : anchorId - 1;
-    while (y > topBound && (oldest == null || id >= oldest)) {
+    while (y > topBound && (fanOldest == null || id >= fanOldest)) {
       final chunkIndex = ChatScrollChunk.chunkOf(id);
       if (_isChunkErrored(chunkIndex)) {
         final tile = _buildChunkError(chunkIndex, cc);
@@ -1308,16 +1355,14 @@ class RenderChatScrollView extends RenderBox implements ChatScrollAnimator {
     double bestOffset = double.infinity;
     for (final entry in _children.entries) {
       final cpd = _parentData(entry.value);
-      if (cpd.offset + entry.value.size.height > 0 &&
-          cpd.offset < bestOffset) {
+      if (cpd.offset + entry.value.size.height > 0 && cpd.offset < bestOffset) {
         bestId = entry.key;
         bestOffset = cpd.offset;
       }
     }
     for (final entry in _chunkErrors.entries) {
       final cpd = _parentData(entry.value);
-      if (cpd.offset + entry.value.size.height > 0 &&
-          cpd.offset < bestOffset) {
+      if (cpd.offset + entry.value.size.height > 0 && cpd.offset < bestOffset) {
         // Reassign to the chunk's first id — the next fan-out will detect
         // the chunk-error tile via `_isChunkErrored`.
         bestId = ChatScrollChunk.firstIdOf(entry.key);
@@ -1559,22 +1604,45 @@ class RenderChatScrollView extends RenderBox implements ChatScrollAnimator {
     }
   }
 
-  /// LRU-evict data chunks outside the laid-out range.
+  /// LRU-evict data chunks until at most [ChatDataSource.maxChunks] remain.
+  ///
+  /// Pass 1 drops outside-layout chunks when already at the budget — a
+  /// `jumpTo` can leave `length == maxChunks` with every entry outside the
+  /// new range. While under budget, off-screen chunks are kept so a later
+  /// `jumpTo` / scroll back can reuse cached data without a refetch. Pass 2
+  /// drops the coldest in-range chunk when still over budget, never the
+  /// anchor's chunk.
   void _evictChunks() {
     final chunks = _dataSource.chunks;
     final maxChunks = _dataSource.maxChunks;
-    while (chunks.length > maxChunks) {
-      ChatScrollChunk? oldest;
+    final anchorChunk = ChatScrollChunk.chunkOf(_controller.anchorMessageId);
+
+    ChatScrollChunk? coldest({required bool outsideLayoutOnly}) {
+      ChatScrollChunk? victim;
       for (final chunk in chunks.values) {
-        if (chunk.index >= _layoutMinChunk && chunk.index <= _layoutMaxChunk) {
-          continue;
-        }
-        if (oldest == null || chunk.lastAccessTick < oldest.lastAccessTick) {
-          oldest = chunk;
+        if (chunk.index == anchorChunk) continue;
+        final outside =
+            chunk.index < _layoutMinChunk || chunk.index > _layoutMaxChunk;
+        if (outsideLayoutOnly && !outside) continue;
+        if (victim == null || chunk.lastAccessTick < victim.lastAccessTick) {
+          victim = chunk;
         }
       }
-      if (oldest == null) break;
-      chunks.remove(oldest.index);
+      return victim;
+    }
+
+    if (chunks.length >= maxChunks) {
+      while (true) {
+        final victim = coldest(outsideLayoutOnly: true);
+        if (victim == null) break;
+        chunks.remove(victim.index);
+      }
+    }
+
+    while (chunks.length > maxChunks) {
+      final victim = coldest(outsideLayoutOnly: false);
+      if (victim == null) break;
+      chunks.remove(victim.index);
     }
   }
 
@@ -1911,7 +1979,8 @@ class RenderChatScrollView extends RenderBox implements ChatScrollAnimator {
 
     // Skip the scroll path entirely on highlight-only frames so the fetch
     // poll's debounce isn't constantly reset by `_markScrollActive`.
-    final hasScrollWork = _pendingScrollDelta != 0.0 ||
+    final hasScrollWork =
+        _pendingScrollDelta != 0.0 ||
         _simulation != null ||
         _animateCompleter != null ||
         _bouncebackActive;
@@ -2048,8 +2117,12 @@ class RenderChatScrollView extends RenderBox implements ChatScrollAnimator {
       if (newest == null || lastId < newest) return true;
     }
     if (topY > -_cacheExtent) {
-      final oldest = _dataSource.oldestKnownId;
-      if (oldest == null || firstId > oldest) return true;
+      if (!_dataSource.reachedOldest) {
+        if (firstId > 0) return true;
+      } else {
+        final oldest = _dataSource.oldestKnownId;
+        if (oldest == null || firstId > oldest) return true;
+      }
     }
     return false;
   }
@@ -2090,11 +2163,10 @@ class RenderChatScrollView extends RenderBox implements ChatScrollAnimator {
   /// Whether the laid-out chunk range has any missing or dirty chunk that is
   /// not already being fetched.
   ///
-  /// A chunk with `dirty | fetching` would otherwise keep the poll re-arming
-  /// while its own fetch is in flight — a tight loop when the poll fires
-  /// immediately. The fetch result will arrive via `notifyDataChanged`, which
-  /// markNeedsLayout's the viewport, so a subsequent layout will re-evaluate
-  /// the poll naturally.
+  /// Errored chunks are excluded — they are retried by [ChatDataSource]'s
+  /// backoff timer and [ChatDataSource.retryChunk], not by this poll loop.
+  /// Treating `error` as pending with [Duration.zero] poll delays spins
+  /// forever once layout becomes cheap (a single chunk-error tile).
   bool _rangeHasPendingChunks() {
     if (_layoutMaxChunk < _layoutMinChunk) return false;
     for (var ci = _layoutMinChunk; ci <= _layoutMaxChunk; ci++) {
@@ -2102,7 +2174,7 @@ class RenderChatScrollView extends RenderBox implements ChatScrollAnimator {
       if (chunk == null) return true;
       final status = chunk.status;
       if (status.isFetching) continue;
-      if (status.isDirty || status.isError) return true;
+      if (status.isDirty) return true;
     }
     return false;
   }
@@ -2367,6 +2439,20 @@ class RenderChatScrollView extends RenderBox implements ChatScrollAnimator {
     _publishIsAtTail();
   }
 
+  /// Whether [newestKnownId] is built and its bottom sits at [bottomPad] below
+  /// the viewport edge — used when swapping [bottomPadding] listenables.
+  bool _isNewestPinnedAtBottomInset(double bottomPad) {
+    if (_overlayKind != ChatOverlayKind.none) return false;
+    final newest = _dataSource.newestKnownId;
+    if (newest == null || !_dataSource.reachedNewest) return false;
+    final last = _boundaryBox(newest);
+    if (last == null || !hasSize) return false;
+    final pd = _parentData(last);
+    final bottomEdge = size.height - bottomPad;
+    final bottom = pd.offset + last.size.height;
+    return bottom <= bottomEdge + 0.5 && pd.offset < bottomEdge;
+  }
+
   /// Whether the newest known message is currently pinned to the bottom of
   /// the viewport — the "follow tail" signal. False in overlay mode, when no
   /// newestKnownId / reachedNewest is set, when the newest is not built, or
@@ -2607,7 +2693,10 @@ class RenderChatScrollView extends RenderBox implements ChatScrollAnimator {
     // message — no scrollbar, no floating header, no per-message cull.
     final overlay = _overlay;
     if (_overlayKind != ChatOverlayKind.none && overlay != null) {
-      context.paintChild(overlay, offset + Offset(0, _parentData(overlay).offset));
+      context.paintChild(
+        overlay,
+        offset + Offset(0, _parentData(overlay).offset),
+      );
       return;
     }
 

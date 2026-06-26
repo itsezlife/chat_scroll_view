@@ -1,4 +1,6 @@
-import 'package:chatscrollview/src/chat_message.dart';
+import 'dart:developer' as dev;
+
+import 'package:chatscrollview/src/backend_chat_data_source.dart';
 import 'package:chatscrollview/src/chat_scroll/chat_data_source.dart';
 import 'package:chatscrollview/src/chat_scroll/chat_scroll_common.dart';
 import 'package:chatscrollview/src/chat_scroll/chat_scroll_controller.dart';
@@ -7,11 +9,11 @@ import 'package:chatscrollview/src/chat_widgets/chat_keyboard_shortcuts.dart';
 import 'package:chatscrollview/src/chat_widgets/chat_scroll_view.dart';
 import 'package:chatscrollview/src/chat_widgets/demo/chat_composer.dart';
 import 'package:chatscrollview/src/chat_widgets/demo/date_separator.dart';
+import 'package:chatscrollview/src/chat_widgets/demo/demo_backend_error.dart';
 import 'package:chatscrollview/src/chat_widgets/demo/demo_message.dart';
 import 'package:chatscrollview/src/chat_widgets/demo/measure_size.dart';
 import 'package:chatscrollview/src/chat_widgets/demo/new_messages_pill.dart';
 import 'package:chatscrollview/src/chat_widgets/demo/selection_app_bar.dart';
-import 'package:chatscrollview/src/comments_data_source.dart';
 import 'package:flutter/material.dart';
 
 /// Demo screen for the widget-based [ChatScrollView] — the chat viewport,
@@ -32,6 +34,7 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
   /// composer's measured height so the newest message clears it.
   final ValueNotifier<double> _bottomInset = ValueNotifier<double>(96);
   bool _loading = true;
+  String? _errorMessage;
 
   @override
   void initState() {
@@ -51,36 +54,44 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
   }
 
   Future<void> _init() async {
+    setState(() {
+      _loading = true;
+      _errorMessage = null;
+    });
+
     try {
-      final comments = await CommentsDataSource.load();
+      final backend = await BackendChatDataSource.connect();
       // The screen may have been popped while `load()` was in flight. The
       // `dispose()` above already ran with `_dataSource == null`, so we
       // would otherwise assign the newly-loaded source into the dead State
       // and never free it.
       if (!mounted) {
-        comments.dispose();
+        backend.dispose();
         return;
       }
-      _dataSource = comments;
-      _configure(comments.manifest.totalMessages);
-    } on Object {
+      _dataSource = backend;
+      _jumpToNewest(backend);
+    } on Object catch (error, stackTrace) {
+      dev.log(
+        'Error initializing chat screen',
+        error: error,
+        stackTrace: stackTrace,
+      );
       if (!mounted) return;
-      const count = 4000;
-      _dataSource = _DemoDataSource(messageCount: count);
-      _configure(count);
+      _dataSource?.dispose();
+      _dataSource = null;
+      _errorMessage = error.toString();
     }
+
     if (!mounted) return;
     setState(() => _loading = false);
   }
 
-  void _configure(int count) {
-    _dataSource!.seedBoundaries(
-      oldestKnownId: 0,
-      newestKnownId: count - 1,
-      reachedOldest: true,
-      reachedNewest: true,
-    );
-    _controller.jumpTo(count - 1);
+  void _jumpToNewest(BackendChatDataSource source) {
+    final total = source.totalMessages ?? 0;
+    if (total > 0) {
+      _controller.jumpTo(total - 1);
+    }
   }
 
   /// Stable per-state tear-off — same reference for the widget's lifetime,
@@ -96,10 +107,7 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
     if (message == null) return const DemoShimmerBubble();
     final prev = _dataSource?.getMessage(id - 1);
     final isFirstInRun = prev?.sender != message.sender;
-    return DemoMessageBubble(
-      message: message,
-      isFirstInRun: isFirstInRun,
-    );
+    return DemoMessageBubble(message: message, isFirstInRun: isFirstInRun);
   }
 
   Widget _buildChunkError(
@@ -119,6 +127,9 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
 
   @override
   Widget build(BuildContext context) {
+    if (_errorMessage != null) {
+      return DemoBackendError(message: _errorMessage!, onRetry: _init);
+    }
     if (_loading || _dataSource == null) {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
@@ -133,6 +144,7 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
                 controller: _controller,
                 dataSource: _dataSource!,
                 child: ChatScrollView(
+                  reverse: true,
                   dataSource: _dataSource!,
                   controller: _controller,
                   selectionController: _selection,
@@ -180,43 +192,5 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
         ],
       ),
     );
-  }
-}
-
-/// Fallback data source generating messages on demand (used when the bundled
-/// `assets/comments` data fails to load).
-class _DemoDataSource extends ChatDataSource {
-  _DemoDataSource({required this.messageCount});
-
-  final int messageCount;
-  final DateTime _baseTime = DateTime.now();
-
-  @override
-  Future<List<IChatMessage>> fetchRange({
-    required int fromId,
-    required int toId,
-  }) async {
-    await Future<void>.delayed(const Duration(milliseconds: 150));
-    final lo = fromId.clamp(0, messageCount - 1);
-    final hi = toId.clamp(0, messageCount - 1);
-    return <IChatMessage>[
-      for (var i = lo; i <= hi; i++)
-        UserChatMessage(
-          id: i,
-          sender: 'User',
-          // Spread messages across days so the date separators have something
-          // to mark — roughly 21 minutes apart.
-          createdAt: _baseTime.subtract(
-            Duration(minutes: (messageCount - i) * 21),
-          ),
-          updatedAt: _baseTime.subtract(
-            Duration(minutes: (messageCount - i) * 21),
-          ),
-          content:
-              'Message #$i — The first rule of Fight Club is: '
-              'you do not talk about Fight Club. The second rule of Fight '
-              'Club is: you DO NOT talk about Fight Club!',
-        ),
-    ];
   }
 }

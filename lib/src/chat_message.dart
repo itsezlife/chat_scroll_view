@@ -48,6 +48,20 @@ class UserChatMessage extends ChatMessage {
     required this.content,
   });
 
+  factory UserChatMessage.fromJson(Map<String, dynamic> json) {
+    final createdAt =
+        DateTime.tryParse(json['createdAt'] as String? ?? '') ?? DateTime.now();
+    final updatedAt =
+        DateTime.tryParse(json['updatedAt'] as String? ?? '') ?? createdAt;
+    return UserChatMessage(
+      id: json['id']! as int,
+      sender: json['sender']! as String,
+      createdAt: createdAt,
+      updatedAt: updatedAt,
+      content: json['content']! as String,
+    );
+  }
+
   /// The content of the user message.
   final String content;
 }

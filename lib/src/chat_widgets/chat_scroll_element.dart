@@ -111,9 +111,8 @@ class ChatScrollElement extends RenderObjectElement
       renderObject.invalidateFloatingHeader();
     }
     // A swapped chunkErrorBuilder must re-inflate every visible chunk-error
-    // tile so the new builder runs against existing slots.
-    if (old.chunkErrorBuilder != newWidget.chunkErrorBuilder &&
-        _chunkErrors.isNotEmpty) {
+    // tile (or replace per-id shimmers with a chunk tile when turning on).
+    if (old.chunkErrorBuilder != newWidget.chunkErrorBuilder) {
       renderObject.markNeedsLayout();
     }
   }
