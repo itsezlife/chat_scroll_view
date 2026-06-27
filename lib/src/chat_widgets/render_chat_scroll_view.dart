@@ -161,6 +161,7 @@ class RenderChatScrollView extends RenderBox implements ChatScrollAnimator {
     //   * laid-out chunk range — the next layout publishes fresh values.
     _wasAtTailLastLayout = false;
     _lastSeenNewestId = null;
+    _userPreemptedTailSettle = false;
     _headerBucket = null;
     _headerDate = null;
     _headerDirty = true;
@@ -194,6 +195,7 @@ class RenderChatScrollView extends RenderBox implements ChatScrollAnimator {
       // the next layout's `_clampBoundaries` would stay suspended.
       _dragInProgress = false;
       _pendingScrollDelta = 0.0;
+      _userPreemptedTailSettle = false;
       if (_drag != null) {
         _drag!.dispose();
         _drag = _buildDragRecognizer();
@@ -302,6 +304,11 @@ class RenderChatScrollView extends RenderBox implements ChatScrollAnimator {
   /// true — covers lazy fetch (shimmer → real height) and composer inset
   /// settling after a pre-mount `jumpTo`.
   bool _pendingTailPinUntilSettled = false;
+
+  /// Set when the user takes scroll control (drag) while attach/jump tail
+  /// settle is pending — blocks [pinNewest] from yanking back until an
+  /// explicit tail navigation (`jumpTo` / `animateTo` newest) clears it.
+  bool _userPreemptedTailSettle = false;
 
   /// `isAtTail` snapshot taken at the end of the previous layout. Combined
   /// with [_lastSeenNewestId] this drives the follow-tail behavior: when the
@@ -734,6 +741,7 @@ class RenderChatScrollView extends RenderBox implements ChatScrollAnimator {
     _jumpFetchDispatchDetached = true;
     _pinTailOnJump = false;
     _pendingTailPinUntilSettled = false;
+    _userPreemptedTailSettle = false;
     // Drop our listener first — cancelFetch notifies, and a `markNeedsLayout`
     // on a detaching render object is brittle even if currently harmless.
     // We do cancel the running fetch / retry timer here: the dominant case is
@@ -827,11 +835,20 @@ class RenderChatScrollView extends RenderBox implements ChatScrollAnimator {
     return messageId;
   }
 
+  /// Drop deferred tail-settle state — user scroll or off-tail geometry
+  /// preempts programmatic pin from attach / jump / lazy load.
+  void _cancelPendingTailPin() {
+    _pendingTailPinUntilSettled = false;
+    _pinTailOnJump = false;
+    _userPreemptedTailSettle = true;
+  }
+
   /// Tail-targeted navigation should pin the newest above the bottom inset
   /// even on the first layout (`_wasAtTailLastLayout` still false).
   void _markPinTailOnJumpIfNeeded(int targetId) {
     final newest = _dataSource.newestKnownId;
     if (_dataSource.reachedNewest && newest != null && targetId == newest) {
+      _userPreemptedTailSettle = false;
       _pinTailOnJump = true;
       _pendingTailPinUntilSettled = true;
     }
@@ -1149,7 +1166,9 @@ class RenderChatScrollView extends RenderBox implements ChatScrollAnimator {
     // off-screen it builds every message between the anchor and the viewport;
     // re-fanning from the renormalized (visible) anchor yields the tight set,
     // so the off-screen extras fall outside `built` and are collected below.
-    if (clamped || _controller.anchorMessageId != anchorBefore || alignmentMoved) {
+    if (clamped ||
+        _controller.anchorMessageId != anchorBefore ||
+        alignmentMoved) {
       built.clear();
       builtChunks.clear();
       _layoutFromAnchor(childConstraints, built, builtChunks);
@@ -1625,6 +1644,7 @@ class RenderChatScrollView extends RenderBox implements ChatScrollAnimator {
     bool pinNewest() {
       final newest = _dataSource.newestKnownId;
       if (!_dataSource.reachedNewest || newest == null) return false;
+      if (_userPreemptedTailSettle && !_computeIsAtTail()) return false;
       final last = _boundaryBox(newest);
       if (last == null) return false;
       final bottom = _parentData(last).offset + last.size.height;
@@ -2344,6 +2364,8 @@ class RenderChatScrollView extends RenderBox implements ChatScrollAnimator {
   // --- Gestures --------------------------------------------------------------
 
   void _onDragStart(DragStartDetails details) {
+    // User takes control — attach/jump pending settle must not compete.
+    _cancelPendingTailPin();
     _controller.clearNavigationAlignment();
     _cancelFling();
     _cancelAnimate();

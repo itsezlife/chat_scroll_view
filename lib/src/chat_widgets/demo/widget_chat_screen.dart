@@ -9,15 +9,15 @@ import 'package:chatscrollview/src/chat_scroll/chat_selection_controller.dart';
 import 'package:chatscrollview/src/chat_widgets/chat_keyboard_shortcuts.dart';
 import 'package:chatscrollview/src/chat_widgets/chat_scroll_view.dart';
 import 'package:chatscrollview/src/chat_widgets/demo/chat_composer.dart';
+import 'package:chatscrollview/src/chat_widgets/demo/chat_data_source_extension.dart';
 import 'package:chatscrollview/src/chat_widgets/demo/date_separator.dart';
 import 'package:chatscrollview/src/chat_widgets/demo/demo_backend_error.dart';
-import 'package:chatscrollview/src/chat_widgets/demo/chat_data_source_extension.dart';
 import 'package:chatscrollview/src/chat_widgets/demo/demo_message.dart';
 import 'package:chatscrollview/src/chat_widgets/demo/measure_size.dart';
 import 'package:chatscrollview/src/chat_widgets/demo/new_messages_pill.dart';
 import 'package:chatscrollview/src/chat_widgets/demo/selection_app_bar.dart';
+import 'package:chatscrollview/src/comments_data_source.dart';
 import 'package:flutter/material.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 
 /// Demo screen for the widget-based [ChatScrollView] — the chat viewport,
 /// a bottom composer, and a contextual selection bar, wired together.
@@ -48,13 +48,13 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
     super.initState();
     _controller = ChatScrollController();
     _selection = ChatSelectionController();
-    _controller.isAtTail.addListener(_onIsAtTailChanged);
+    _pillLastSeenBaseline.addListener(_onPillBaselineChanged);
     _init();
   }
 
   @override
   void dispose() {
-    _controller.isAtTail.removeListener(_onIsAtTailChanged);
+    _pillLastSeenBaseline.removeListener(_onPillBaselineChanged);
     _pillLastSeenBaseline.dispose();
     _bottomInset.dispose();
     _controller.dispose();
@@ -70,9 +70,10 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
     });
 
     try {
-      final backend = await BackendChatDataSource.connect(
-        client: Supabase.instance.client,
-      );
+      // final backend = await BackendChatDataSource.connect(
+      //   client: Supabase.instance.client,
+      // );
+      final backend = await CommentsDataSource.load();
 
       // The screen may have been popped while `load()` was in flight. The
       // `dispose()` above already ran with `_dataSource == null`, so we
@@ -84,7 +85,9 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
       }
       _dataSource = backend;
       final newest = backend.newestKnownId;
-      final int? lastRead = await backend.getLastReadMessageId();
+      // final int? lastRead = await backend.getLastReadMessageId();
+      // ignore: unnecessary_nullable_for_final_variable_declarations
+      final int? lastRead = 10001;
 
       final anchor = backend.resolveOpenAnchor(
         storedLastRead: lastRead,
@@ -96,10 +99,7 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
           ? lastRead
           : null;
       final atTail = newest != null && anchor == newest;
-      _controller.jumpTo(
-        anchor,
-        alignment: atTail ? 0.0 : .5,
-      );
+      _controller.jumpTo(anchor, alignment: atTail ? 0.0 : .8);
     } on Object catch (error, stackTrace) {
       dev.log(
         'Error initializing chat screen',
@@ -116,11 +116,10 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
     setState(() => _loading = false);
   }
 
-  void _onIsAtTailChanged() {
-    if (!_controller.isAtTail.value) return;
+  void _onPillBaselineChanged() {
     final newest = _dataSource?.newestKnownId;
-    if (newest == null) return;
-    _pillLastSeenBaseline.value = newest;
+    final baseline = _pillLastSeenBaseline.value;
+    if (newest == null || baseline == null || baseline < newest) return;
     final backend = _dataSource;
     if (backend is BackendChatDataSource) {
       unawaited(backend.updateLastReadMessageId(newest));

@@ -324,8 +324,7 @@ void main() {
       expect(controller.isAtTail.value, isFalse);
 
       // Pending tail pin must not snap the user back on the next frames.
-      await tester.pump(const Duration(milliseconds: 300));
-      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 1000));
       expect(controller.isAtTail.value, isFalse);
     });
 

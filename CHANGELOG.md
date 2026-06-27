@@ -41,6 +41,17 @@ this project is pre-1.0 and not strictly SemVer yet.
 
 ### Fixed
 
+- **New-messages pill near tail** — opening with only a few unread messages and
+  large bubbles no longer flashes the pill away or zeroes the unread count when
+  `isAtTail` flickers for a frame during layout settling. The pill uses stable
+  at-tail hysteresis before dismissing or advancing the read baseline; demo
+  last-read persistence follows baseline changes instead of raw tail edges.
+
+- **Post-mount scroll magnet** — scrolling up through history immediately after
+  the chat viewport mounts no longer snaps back to the newest message. User drag
+  cancels deferred tail-settle from open-at-newest; boundary pin is suppressed
+  while off-tail until an explicit jump to the newest message.
+
 - **Jump to newest / open at tail** — opening the demo chat or jumping to the
   newest message no longer lands one message short of the tail. Tail-targeted
   `jumpTo` / `animateTo` now force a one-shot bottom repin on the first layout
