@@ -248,7 +248,8 @@ class _NewMessagesPillState extends State<NewMessagesPill> {
     final threshold = widget.visibilityThreshold.clamp(0.0, 1.0);
 
     final risingEdge =
-        lastId != _prevLastVisibleId || _prevLastVisibleFraction < threshold;
+        lastId != _prevLastVisibleId ||
+        (_prevLastVisibleFraction < threshold && fraction >= threshold);
 
     if (fraction >= threshold &&
         risingEdge &&
