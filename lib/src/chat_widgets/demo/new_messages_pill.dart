@@ -26,7 +26,7 @@ class NewMessagesPill extends StatefulWidget {
     required this.dataSource,
     this.bottomInset,
     this.lastSeenNewestId,
-    this.visibilityThreshold = 0.5,
+    this.visibilityThreshold = 0.75,
     super.key,
   });
 
