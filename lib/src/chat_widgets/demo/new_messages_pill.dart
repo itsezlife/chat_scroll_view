@@ -26,6 +26,7 @@ class NewMessagesPill extends StatefulWidget {
     required this.dataSource,
     this.bottomInset,
     this.lastSeenNewestId,
+    this.visibilityThreshold = 0.5,
     super.key,
   });
 
@@ -41,6 +42,11 @@ class NewMessagesPill extends StatefulWidget {
   /// writes back on tail arrival and boundary updates while at tail; it also
   /// advances the baseline while the user scrolls toward newer messages.
   final ValueNotifier<int?>? lastSeenNewestId;
+
+  /// Minimum [ChatVisibleRange.lastVisibleFraction] before progressive scroll
+  /// marks the last visible message as read (relative to message height).
+  /// Defaults to `0.5` (half the message visible in the scrollable band).
+  final double visibilityThreshold;
 
   @override
   State<NewMessagesPill> createState() => _NewMessagesPillState();
@@ -89,6 +95,16 @@ class _NewMessagesPillState extends State<NewMessagesPill> {
   /// Set before tap jump or when scroll-reading starts — latches stable at-tail
   /// on the next raw-`true` frame without waiting for the frame threshold.
   bool _tailArrivalIntent = false;
+
+  /// Progressive read: last `visibleRange.lastId` observed while scrolling.
+  int? _prevLastVisibleId;
+
+  /// Progressive read: last `visibleRange.lastVisibleFraction` observed.
+  double _prevLastVisibleFraction = 0.0;
+
+  /// Message ids already advanced via visibility-threshold crossing — avoids
+  /// repeat baseline writes while fraction stays above threshold.
+  final _thresholdMarkedIds = <int>{};
 
   @override
   void initState() {
@@ -155,6 +171,13 @@ class _NewMessagesPillState extends State<NewMessagesPill> {
     _consecutiveAtTailFrames = 0;
     _stableAtTail = false;
     _tailArrivalIntent = false;
+    _resetProgressiveReadTracking();
+  }
+
+  void _resetProgressiveReadTracking() {
+    _prevLastVisibleId = null;
+    _prevLastVisibleFraction = 0.0;
+    _thresholdMarkedIds.clear();
   }
 
   @override
@@ -212,12 +235,30 @@ class _NewMessagesPillState extends State<NewMessagesPill> {
     }
   }
 
-  /// While off-tail, treat the newest visible message as read-through.
+  /// While off-tail, advance the read baseline only when the last visible
+  /// message's [ChatVisibleRange.lastVisibleFraction] crosses
+  /// [NewMessagesPill.visibilityThreshold] on a rising edge.
   void _syncReadProgressFromViewport() {
     if (widget.controller.isAtTail.value) return;
     final range = widget.controller.visibleRange.value;
     if (range == null) return;
-    _advanceBaselineTo(range.lastId);
+
+    final lastId = range.lastId;
+    final fraction = range.lastVisibleFraction;
+    final threshold = widget.visibilityThreshold.clamp(0.0, 1.0);
+
+    final risingEdge =
+        lastId != _prevLastVisibleId || _prevLastVisibleFraction < threshold;
+
+    if (fraction >= threshold &&
+        risingEdge &&
+        !_thresholdMarkedIds.contains(lastId)) {
+      _advanceBaselineTo(lastId);
+      _thresholdMarkedIds.add(lastId);
+    }
+
+    _prevLastVisibleId = lastId;
+    _prevLastVisibleFraction = fraction;
   }
 
   void _scheduleClearFrozenCount() {
@@ -350,11 +391,7 @@ class _NewMessagesPillState extends State<NewMessagesPill> {
           right: 0,
           bottom: 0,
           child: inset == null
-              ? _Pill(
-                  count: displayCount,
-                  onTap: _onTap,
-                  visible: visible,
-                )
+              ? _Pill(count: displayCount, onTap: _onTap, visible: visible)
               : ValueListenableBuilder<double>(
                   valueListenable: inset,
                   builder: (ctx, value, _) => Padding(

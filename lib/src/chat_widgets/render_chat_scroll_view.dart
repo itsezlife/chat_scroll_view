@@ -2700,8 +2700,33 @@ class RenderChatScrollView extends RenderBox implements ChatScrollAnimator {
     _controller.isAtTail = value;
   }
 
+  /// Fraction of exposable height visible inside `[topEdge, bottomEdge)`.
+  ///
+  /// Denominator is [childHeight] when the message fits in the band, otherwise
+  /// the band height — so a tall message that fills the band reports `1.0`.
+  static double _visibleFraction(
+    double childTop,
+    double childBottom,
+    double childHeight,
+    double topEdge,
+    double bottomEdge,
+  ) {
+    if (childHeight <= 0 || !childHeight.isFinite) return 0.0;
+    final bandHeight = bottomEdge - topEdge;
+    if (bandHeight <= 0 || !bandHeight.isFinite) return 0.0;
+    final visibleTop = childTop < topEdge ? topEdge : childTop;
+    final visibleBottom = childBottom > bottomEdge ? bottomEdge : childBottom;
+    final visibleHeight = visibleBottom > visibleTop
+        ? visibleBottom - visibleTop
+        : 0.0;
+    final denominator = childHeight < bandHeight ? childHeight : bandHeight;
+    return (visibleHeight / denominator).clamp(0.0, 1.0);
+  }
+
+  static bool _fractionsNearEqual(double a, double b) => (a - b).abs() < 1e-4;
+
   void _publishVisibleRange() {
-    if (_children.isEmpty) {
+    if (_children.isEmpty && _chunkErrors.isEmpty) {
       _controller.visibleRange = null;
       return;
     }
@@ -2709,6 +2734,10 @@ class RenderChatScrollView extends RenderBox implements ChatScrollAnimator {
     final bottomEdge = size.height - _bottomPad;
     int? firstId;
     int? lastId;
+    RenderBox? firstIntersectingChild;
+    RenderBox? lastIntersectingChild;
+    double? firstChildTop;
+    double? lastChildTop;
     for (final entry in _children.entries) {
       final child = entry.value;
       final pd = _parentData(child);
@@ -2717,17 +2746,27 @@ class RenderChatScrollView extends RenderBox implements ChatScrollAnimator {
       if (childBottom <= topEdge) continue;
       if (childTop >= bottomEdge) break;
       firstId ??= entry.key;
+      firstIntersectingChild ??= child;
+      firstChildTop ??= childTop;
       lastId = entry.key;
+      lastIntersectingChild = child;
+      lastChildTop = childTop;
     }
     // Chunk-error tiles count as visible id coverage — their chunks' id range
     // is what the listener (mark-as-read, lazy media) cares about, even when
-    // the actual messages are not built.
+    // the actual messages are not built. Fractions stay tied to the built
+    // intersecting render box above; chunk expansion does not fabricate a
+    // per-message fraction for ids that are not laid out.
+    RenderBox? chunkIntersectingChild;
+    double? chunkChildTop;
     for (final entry in _chunkErrors.entries) {
       final child = entry.value;
       final pd = _parentData(child);
       final childTop = pd.offset;
       final childBottom = childTop + child.size.height;
       if (childBottom <= topEdge || childTop >= bottomEdge) continue;
+      chunkIntersectingChild ??= child;
+      chunkChildTop ??= childTop;
       final chunkFirst = ChatScrollChunk.firstIdOf(entry.key);
       final chunkLast = chunkFirst + ChatScrollChunk.kSize - 1;
       final priorFirst = firstId;
@@ -2743,18 +2782,68 @@ class RenderChatScrollView extends RenderBox implements ChatScrollAnimator {
       _controller.visibleRange = null;
       return;
     }
+
+    double firstVisibleFraction = 0.0;
+    if (firstIntersectingChild != null && firstChildTop != null) {
+      final child = firstIntersectingChild;
+      firstVisibleFraction = _visibleFraction(
+        firstChildTop,
+        firstChildTop + child.size.height,
+        child.size.height,
+        topEdge,
+        bottomEdge,
+      );
+    } else if (chunkIntersectingChild != null && chunkChildTop != null) {
+      final child = chunkIntersectingChild;
+      firstVisibleFraction = _visibleFraction(
+        chunkChildTop,
+        chunkChildTop + child.size.height,
+        child.size.height,
+        topEdge,
+        bottomEdge,
+      );
+    }
+
+    double lastVisibleFraction = 0.0;
+    if (lastIntersectingChild != null && lastChildTop != null) {
+      final child = lastIntersectingChild;
+      lastVisibleFraction = _visibleFraction(
+        lastChildTop,
+        lastChildTop + child.size.height,
+        child.size.height,
+        topEdge,
+        bottomEdge,
+      );
+    } else if (chunkIntersectingChild != null && chunkChildTop != null) {
+      final child = chunkIntersectingChild;
+      lastVisibleFraction = _visibleFraction(
+        chunkChildTop,
+        chunkChildTop + child.size.height,
+        child.size.height,
+        topEdge,
+        bottomEdge,
+      );
+    }
+
     final current = _controller.visibleRange.value;
     final anchorId = _controller.anchorMessageId;
     if (current != null &&
         current.firstId == firstId &&
         current.lastId == lastId &&
-        current.anchorId == anchorId) {
+        current.anchorId == anchorId &&
+        _fractionsNearEqual(
+          current.firstVisibleFraction,
+          firstVisibleFraction,
+        ) &&
+        _fractionsNearEqual(current.lastVisibleFraction, lastVisibleFraction)) {
       return;
     }
     _controller.visibleRange = (
       firstId: firstId,
       lastId: lastId,
       anchorId: anchorId,
+      firstVisibleFraction: firstVisibleFraction,
+      lastVisibleFraction: lastVisibleFraction,
     );
   }
 
