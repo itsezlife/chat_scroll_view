@@ -6,13 +6,13 @@ import 'package:chatscrollview/src/chat_scroll/chat_scroll_chunk.dart';
 import 'package:chatscrollview/src/chat_scroll/chat_scroll_common.dart';
 import 'package:chatscrollview/src/chat_scroll/chat_scroll_controller.dart';
 import 'package:chatscrollview/src/chat_scroll/chat_scroll_events.dart';
+import 'package:chatscrollview/src/chat_scroll/chat_scroll_physics.dart';
 import 'package:chatscrollview/src/chat_widgets/chat_scrollbar.dart';
 import 'package:flutter/animation.dart' show Curve, Curves;
 import 'package:flutter/foundation.dart' show ValueListenable;
 import 'package:flutter/gestures.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/scheduler.dart';
-import 'package:flutter/widgets.dart' show ClampingScrollSimulation;
 import 'package:meta/meta.dart' show internal;
 
 /// Parent data for a viewport child.
@@ -180,9 +180,9 @@ class RenderChatScrollView extends RenderBox implements ChatScrollAnimator {
   set controller(ChatScrollController value) {
     if (identical(_controller, value)) return;
     if (attached) {
-      // Cancel a mid-flight fling too — its next tick would apply
-      // `_simulation.x(seconds) - _lastFlingValue` to the NEW controller's
-      // anchor, continuing motion across an unrelated controller swap.
+      // Cancel a mid-flight fling too — its next tick would apply physics
+      // fling delta to the NEW controller's anchor, continuing motion across
+      // an unrelated controller swap.
       _cancelFling();
       _cancelAnimate();
       _cancelBounceback();
@@ -408,13 +408,13 @@ class RenderChatScrollView extends RenderBox implements ChatScrollAnimator {
 
   Ticker? _ticker;
   double _pendingScrollDelta = 0.0;
-  ClampingScrollSimulation? _simulation;
 
-  /// Ticker `elapsed` at the first tick of the current fling, or `null`
-  /// between flings. Nullable on purpose — a [Ticker]'s very first `elapsed`
-  /// is exactly [Duration.zero], so zero cannot double as "unset".
-  Duration? _flingStartTime;
-  double _lastFlingValue = 0.0;
+  /// Fling simulation, drag resistance, and overscroll bounceback. Boundary
+  /// geometry is measured here in the render object and fed back through
+  /// [_overscrollOnSide] — [ChatScrollPhysics] owns only the simulation state.
+  late final ChatScrollPhysics _physics = ChatScrollPhysics(
+    overscrollOnSide: _overscrollOnSide,
+  );
 
   VerticalDragGestureRecognizer? _drag;
 
@@ -423,37 +423,15 @@ class RenderChatScrollView extends RenderBox implements ChatScrollAnimator {
   int? _flingCancelPointer;
 
   // --- Overscroll bounce ---------------------------------------------------
+  //
+  // Spring-back state lives on [_physics]. This section keeps drag-time
+  // behaviour: while [_dragInProgress] the boundary clamp is suspended,
+  // overshoot is allowed, and incoming drag delta is scaled by resistance
+  // (see [_applyOverscrollResistance]) so the further past the boundary the
+  // user pulls, the harder it pushes back.
 
-  /// `true` from `_onDragStart` until `_onDragEnd`. While set, the boundary
-  /// clamp is suspended and overshoot is allowed; incoming drag delta is
-  /// scaled by [_resistance] so the further past the boundary the user
-  /// pulls, the harder it pushes back.
+  /// `true` from `_onDragStart` until `_onDragEnd`.
   bool _dragInProgress = false;
-
-  /// Pixel reference for the resistance roll-off. At an overscroll of
-  /// `_kOverscrollMax`, incoming delta is halved; the response is a
-  /// hyperbola so very large overshoots get heavily damped.
-  static const double _kOverscrollMax = 200.0;
-
-  /// Spring-back animation state. When the user releases while
-  /// overscrolled, the viewport drives the anchor offset back to the
-  /// boundary edge over `_kOverscrollBounceDuration` with linear interp.
-  ///
-  /// The boundary side is captured at start (`_bouncebackSide`) and frozen
-  /// for the duration of the animation; per-tick measurements read *only*
-  /// that side. The `_signedOverscroll()` helper picks the dominant
-  /// violator when both edges are past, which can flip sign mid-animation
-  /// in a short-content viewport (e.g. a fling damps the dominant side and
-  /// the lesser one becomes dominant, or the bounceback itself overshoots
-  /// through the opposite edge). Without the side lock the per-tick delta
-  /// would change direction and the spring would judder / fight itself.
-  bool _bouncebackActive = false;
-  Duration? _bouncebackStartTime;
-  double _bouncebackInitialOverscroll = 0.0;
-  _BouncebackSide _bouncebackSide = _BouncebackSide.top;
-  static const Duration _kOverscrollBounceDuration = Duration(
-    milliseconds: 200,
-  );
 
   // --- animateTo state ------------------------------------------------------
 
@@ -1579,8 +1557,8 @@ class RenderChatScrollView extends RenderBox implements ChatScrollAnimator {
   /// violated, returns the larger-magnitude violation so the bounceback
   /// pulls toward the dominant side.
   double _signedOverscroll() {
-    final top = _overscrollOnSide(_BouncebackSide.top);
-    final bottom = _overscrollOnSide(_BouncebackSide.bottom);
+    final top = _overscrollOnSide(BouncebackSide.top);
+    final bottom = _overscrollOnSide(BouncebackSide.bottom);
     if (top == 0.0) return bottom;
     if (bottom == 0.0) return top;
     // Both violated — return the dominant side.
@@ -1588,23 +1566,23 @@ class RenderChatScrollView extends RenderBox implements ChatScrollAnimator {
   }
 
   /// Signed overscroll for a *specific* side, ignoring the opposite side.
-  /// Used by `_tickBounceback` so the spring-back animation stays locked
-  /// onto the boundary it started from, even when fling composition or
+  /// Used by [ChatScrollPhysics.tickBounceback] so the spring-back animation
+  /// stays locked onto the boundary it started from, even when fling composition or
   /// dual-boundary geometry would flip the dominant violator mid-animation.
   ///
   /// Positive top-side return = oldest below top edge; negative bottom-side
   /// return = newest above bottom edge. Zero when the requested side is
   /// inside its boundary or no boundary is configured on that side.
-  double _overscrollOnSide(_BouncebackSide side) {
+  double _overscrollOnSide(BouncebackSide side) {
     switch (side) {
-      case _BouncebackSide.top:
+      case BouncebackSide.top:
         final oldest = _dataSource.oldestKnownId;
         if (!_dataSource.reachedOldest || oldest == null) return 0.0;
         final first = _boundaryBox(oldest);
         if (first == null) return 0.0;
         final topY = _parentData(first).offset;
         return topY > 0 ? topY : 0.0;
-      case _BouncebackSide.bottom:
+      case BouncebackSide.bottom:
         final newest = _dataSource.newestKnownId;
         if (!_dataSource.reachedNewest || newest == null) return 0.0;
         final last = _boundaryBox(newest);
@@ -1615,23 +1593,11 @@ class RenderChatScrollView extends RenderBox implements ChatScrollAnimator {
     }
   }
 
-  /// Damp [delta] when it would push the anchor further past a boundary —
-  /// the further the overshoot, the higher the resistance. Returns [delta]
-  /// untouched when the motion is back toward content, or when nothing is
-  /// past a boundary yet.
+  /// Delegates to [_physics] after measuring [_signedOverscroll]. Only used
+  /// while [_dragInProgress] and a boundary is reachable — fling / animate /
+  /// wheel / keyboard skip resistance and go through the normal clamp instead.
   double _applyOverscrollResistance(double delta) {
-    if (delta == 0.0) return delta;
-    final overscroll = _signedOverscroll();
-    // Pulling further past top = positive overscroll + positive delta.
-    // Pulling further past bottom = negative overscroll + negative delta.
-    if (overscroll == 0.0 ||
-        (overscroll > 0 && delta < 0) ||
-        (overscroll < 0 && delta > 0)) {
-      return delta;
-    }
-    final magnitude = overscroll.abs();
-    final factor = 1.0 / (1.0 + magnitude / _kOverscrollMax);
-    return delta * factor;
+    return _physics.applyOverscrollResistance(delta, _signedOverscroll());
   }
 
   bool _clampBoundaries({bool repinBottom = false}) {
@@ -1639,7 +1605,7 @@ class RenderChatScrollView extends RenderBox implements ChatScrollAnimator {
     // and the spring-back animation handles the return on release. The
     // bounceback animation itself also drives the anchor past the boundary
     // and back, so it owns the clamp until it ends.
-    if (_dragInProgress || _bouncebackActive) return false;
+    if (_dragInProgress || _physics.isBouncing) return false;
     var cancelFling = false;
     bool pinNewest() {
       final newest = _dataSource.newestKnownId;
@@ -1923,11 +1889,11 @@ class RenderChatScrollView extends RenderBox implements ChatScrollAnimator {
   }
 
   void _stopTickerIfIdle() {
-    if (_simulation == null &&
+    if (!_physics.isFlinging &&
         _pendingScrollDelta == 0.0 &&
         _highlightTargetId == null &&
         _animateCompleter == null &&
-        !_bouncebackActive &&
+        !_physics.isBouncing &&
         !_dragInProgress) {
       _ticker?.stop();
       // Scroll ended — drop the directional lead so the next layout re-fans
@@ -1940,17 +1906,17 @@ class RenderChatScrollView extends RenderBox implements ChatScrollAnimator {
   }
 
   void _startFling(double velocity) {
+    // Cancel first so a re-armed fling emits ChatFlingEnd before ChatFlingStart.
     _cancelFling();
-    _simulation = ClampingScrollSimulation(position: 0.0, velocity: velocity);
-    _lastFlingValue = 0.0;
-    _flingStartTime = null;
+    _physics.startFling(velocity);
     _ensureTicker();
     _controller.notifyScrollEvent(ChatFlingStart(velocity));
   }
 
+  /// Clears fling simulation and emits [ChatFlingEnd] when a fling was active.
   void _cancelFling() {
-    final wasFlinging = _simulation != null;
-    _simulation = null;
+    final wasFlinging = _physics.isFlinging;
+    _physics.cancelFling();
     if (wasFlinging) _controller.notifyScrollEvent(const ChatFlingEnd());
   }
 
@@ -2163,9 +2129,9 @@ class RenderChatScrollView extends RenderBox implements ChatScrollAnimator {
     // poll's debounce isn't constantly reset by `_markScrollActive`.
     final hasScrollWork =
         _pendingScrollDelta != 0.0 ||
-        _simulation != null ||
+        _physics.isFlinging ||
         _animateCompleter != null ||
-        _bouncebackActive;
+        _physics.isBouncing;
     if (!hasScrollWork) {
       // Highlight-only frame: advance the fade and bail.
       if (_highlightProgress(elapsed)) markNeedsPaint();
@@ -2188,27 +2154,21 @@ class RenderChatScrollView extends RenderBox implements ChatScrollAnimator {
       delta = _applyOverscrollResistance(delta);
     }
 
-    final simulation = _simulation;
-    if (simulation != null) {
-      final startTime = _flingStartTime ??= elapsed;
-      final seconds =
-          (elapsed - startTime).inMicroseconds / Duration.microsecondsPerSecond;
-      if (simulation.isDone(seconds)) {
-        _cancelFling();
-      } else {
-        final value = simulation.x(seconds);
-        delta += value - _lastFlingValue;
-        _lastFlingValue = value;
-      }
+    final wasFlinging = _physics.isFlinging;
+    delta += _physics.tickFling(elapsed);
+    // tickFling clears the simulation internally when done; the render object
+    // owns scroll-event dispatch (ChatScrollPhysics does not touch controller).
+    if (wasFlinging && !_physics.isFlinging) {
+      _controller.notifyScrollEvent(const ChatFlingEnd());
     }
-
     // animateTo drives the same Ticker — the close path contributes a delta
     // to the anchor offset, the far path mutates fade opacity and triggers
-    // jumpTo on its own.
+    // jumpTo on its own. Inserted *between* fling and bounceback so the
+    // original composition order is preserved when multiple phases overlap.
     delta += _tickAnimate(elapsed);
     // Spring-back from an overscroll release. Runs after the user lets go,
-    // pulling the boundary back to its edge over a short window.
-    delta += _tickBounceback(elapsed);
+    // pulling the boundary back to its edge over [kOverscrollBounceDuration].
+    delta += _physics.tickBounceback(elapsed);
 
     if (delta != 0.0) _controller.applyScrollDelta(delta);
     // Smooth the per-frame scroll delta; biases the next fan-out lead.
@@ -2237,10 +2197,10 @@ class RenderChatScrollView extends RenderBox implements ChatScrollAnimator {
       markNeedsPaint();
     }
 
-    if (_simulation == null &&
+    if (!_physics.isFlinging &&
         _animateCompleter == null &&
         _highlightTargetId == null &&
-        !_bouncebackActive &&
+        !_physics.isBouncing &&
         !_dragInProgress) {
       _stopTickerIfIdle();
     }
@@ -2397,7 +2357,7 @@ class RenderChatScrollView extends RenderBox implements ChatScrollAnimator {
     _maybeStartBounceback();
     if (velocity.abs() >= 50.0) {
       _startFling(velocity);
-    } else if (!_bouncebackActive) {
+    } else if (!_physics.isBouncing) {
       _stopTickerIfIdle();
     }
   }
@@ -2406,14 +2366,12 @@ class RenderChatScrollView extends RenderBox implements ChatScrollAnimator {
   /// `_onScrollBy`, and the close-path of `animate()` so a programmatic
   /// scroll / animateTo / new drag does not have to fight the spring-back.
   void _cancelBounceback() {
-    if (!_bouncebackActive) return;
-    _bouncebackActive = false;
-    _bouncebackStartTime = null;
+    _physics.cancelBounceback();
   }
 
   /// If the viewport is currently overscrolled, arm a spring-back
   /// animation that pulls the boundary back to its edge across
-  /// [_kOverscrollBounceDuration]. No-op when nothing is past a boundary.
+  /// [kOverscrollBounceDuration]. No-op when nothing is past a boundary.
   ///
   /// Locks onto the dominant violator's side and uses *only* that side's
   /// overscroll for the duration of the animation. When both boundaries
@@ -2423,53 +2381,20 @@ class RenderChatScrollView extends RenderBox implements ChatScrollAnimator {
   /// post-bounceback layout. The alternative (running two springs in
   /// parallel) compounds delta and fights itself in the symmetric case.
   void _maybeStartBounceback() {
-    final top = _overscrollOnSide(_BouncebackSide.top);
-    final bottom = _overscrollOnSide(_BouncebackSide.bottom);
+    final top = _overscrollOnSide(BouncebackSide.top);
+    final bottom = _overscrollOnSide(BouncebackSide.bottom);
     if (top == 0.0 && bottom == 0.0) return;
-    final _BouncebackSide side;
+    final BouncebackSide side;
     final double initial;
     if (top.abs() >= bottom.abs()) {
-      side = _BouncebackSide.top;
+      side = BouncebackSide.top;
       initial = top;
     } else {
-      side = _BouncebackSide.bottom;
+      side = BouncebackSide.bottom;
       initial = bottom;
     }
-    _bouncebackActive = true;
-    _bouncebackStartTime = null;
-    _bouncebackInitialOverscroll = initial;
-    _bouncebackSide = side;
+    _physics.maybeStartBounceback(initial, side);
     _ensureTicker();
-  }
-
-  /// Drive one tick of the bounceback animation. Returns the scroll delta
-  /// to feed into `applyScrollDelta`; clears `_bouncebackActive` once the
-  /// animation has fully settled the anchor back against the boundary.
-  ///
-  /// Reads overscroll on the *locked* side only. A naive read of
-  /// `_signedOverscroll()` would flip sign whenever the dominant boundary
-  /// switched mid-animation (e.g. the spring overshoots through zero and
-  /// past the opposite edge, or a composed fling damps one side faster
-  /// than the other), driving the delta in the wrong direction for the
-  /// remainder of the window — visible as judder or a stuck spring.
-  double _tickBounceback(Duration elapsed) {
-    if (!_bouncebackActive) return 0.0;
-    final start = _bouncebackStartTime ??= elapsed;
-    final totalUs = _kOverscrollBounceDuration.inMicroseconds;
-    final elapsedUs = (elapsed - start).inMicroseconds;
-    final t = (elapsedUs / totalUs).clamp(0.0, 1.0);
-    // Linear ramp toward zero overscroll; sign matches the direction we
-    // need to push the anchor (negative when past top, positive when past
-    // bottom — opposite of the overscroll's sign).
-    final remainingTarget = _bouncebackInitialOverscroll * (1.0 - t);
-    final currentOverscroll = _overscrollOnSide(_bouncebackSide);
-    // Move from current → remainingTarget by emitting (target - current).
-    // `applyScrollDelta(+px)` shifts the anchor down (reveals older); that
-    // *increases* topY (positive overscroll). To shrink positive overscroll
-    // we need a negative delta. Hence the sign flip:
-    final delta = -(currentOverscroll - remainingTarget);
-    if (t >= 1.0) _cancelBounceback();
-    return delta;
   }
 
   @override
@@ -2507,7 +2432,7 @@ class RenderChatScrollView extends RenderBox implements ChatScrollAnimator {
         );
         return;
       }
-      if (_simulation != null) {
+      if (_physics.isFlinging) {
         _cancelFling();
         _pendingScrollDelta = 0.0;
         _scrollVelocity = 0.0;
@@ -3081,9 +3006,3 @@ class RenderChatScrollView extends RenderBox implements ChatScrollAnimator {
     super.dispose();
   }
 }
-
-/// Which boundary the bounceback spring is anchored to. Captured at start of
-/// `_maybeStartBounceback`; per-tick reads stay locked to this side so the
-/// delta does not flip sign when the dominant violator switches (short-
-/// content viewport, fling composition).
-enum _BouncebackSide { top, bottom }
