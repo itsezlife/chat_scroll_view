@@ -650,13 +650,205 @@ void main() {
 
         expect(_pillText(tester), '10 new messages');
 
-        await tester.drag(find.byType(ChatScrollView), const Offset(0, -400));
-        await tester.pump();
-        await tester.pump(const Duration(milliseconds: 300));
+        await tester.fling(
+          find.byType(ChatScrollView),
+          const Offset(0, -1200),
+          2500,
+        );
+        await tester.pumpAndSettle();
 
         final afterScroll = _pillText(tester);
         expect(afterScroll, isNot('10 new messages'));
         expect(afterScroll, isNot('0 new messages'));
+        expect(lastSeen.value, greaterThan(lastRead));
+      },
+    );
+
+    testWidgets(
+      'sliver lastId does not advance baseline below threshold',
+      (tester) async {
+        const count = 10;
+        const lastRead = count - 4;
+        final ds = _TallMessagePreloadedSource(count);
+        final controller = ChatScrollController();
+        final lastSeen = ValueNotifier<int?>(lastRead);
+
+        await _mountNearTailTall(
+          tester: tester,
+          count: count,
+          lastRead: lastRead,
+          controller: controller,
+          ds: ds,
+          lastSeen: lastSeen,
+          messageHeight: 350,
+        );
+        await tester.pump();
+
+        expect(_pillText(tester), '3 new messages');
+        expect(lastSeen.value, lastRead);
+
+        // Small nudge — may bump lastId with only a sliver visible.
+        controller.scrollBy(-40);
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 16));
+
+        final range = controller.visibleRange.value;
+        if (range != null &&
+            range.lastId > lastRead &&
+            range.lastVisibleFraction < 0.5) {
+          expect(lastSeen.value, lastRead);
+        }
+      },
+    );
+
+    testWidgets(
+      'crossing visibility threshold advances baseline',
+      (tester) async {
+        const count = 10;
+        const lastRead = count - 4;
+        final ds = _TallMessagePreloadedSource(count);
+        final controller = ChatScrollController();
+        final lastSeen = ValueNotifier<int?>(lastRead);
+
+        await _mountNearTailTall(
+          tester: tester,
+          count: count,
+          lastRead: lastRead,
+          controller: controller,
+          ds: ds,
+          lastSeen: lastSeen,
+          messageHeight: 350,
+        );
+        await tester.pump();
+
+        await tester.fling(
+          find.byType(ChatScrollView),
+          const Offset(0, -1200),
+          2500,
+        );
+        await tester.pumpAndSettle();
+
+        expect(lastSeen.value, greaterThan(lastRead));
+      },
+    );
+
+    testWidgets(
+      'fraction above threshold does not duplicate baseline writes',
+      (tester) async {
+        const count = 10;
+        const lastRead = count - 4;
+        final ds = _TallMessagePreloadedSource(count);
+        final controller = ChatScrollController();
+        final lastSeen = ValueNotifier<int?>(lastRead);
+        var baselineWrites = 0;
+        lastSeen.addListener(() => baselineWrites++);
+
+        await _mountNearTailTall(
+          tester: tester,
+          count: count,
+          lastRead: lastRead,
+          controller: controller,
+          ds: ds,
+          lastSeen: lastSeen,
+          messageHeight: 350,
+        );
+        await tester.pump();
+
+        await tester.drag(find.byType(ChatScrollView), const Offset(0, -700));
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 300));
+
+        final afterDrag = lastSeen.value;
+        final writesAfterDrag = baselineWrites;
+
+        await _pumpSettleFrames(tester, frameCount: 8);
+
+        expect(lastSeen.value, afterDrag);
+        expect(baselineWrites, writesAfterDrag);
+      },
+    );
+
+    testWidgets(
+      'near-tail tall messages count stable across frames with fractions',
+      (tester) async {
+        const count = 10;
+        const lastRead = count - 3;
+        final ds = _TallMessagePreloadedSource(count);
+        final controller = ChatScrollController();
+        final lastSeen = ValueNotifier<int?>(lastRead);
+
+        await _mountNearTailTall(
+          tester: tester,
+          count: count,
+          lastRead: lastRead,
+          controller: controller,
+          ds: ds,
+          lastSeen: lastSeen,
+        );
+
+        await _pumpSettleFrames(tester);
+        expect(_pillText(tester), '2 new messages');
+        expect(lastSeen.value, lastRead);
+      },
+    );
+
+    testWidgets(
+      'progressive scroll reduces count only after threshold per message',
+      (tester) async {
+        const count = 12;
+        const lastRead = count - 4;
+        final ds = _TallMessagePreloadedSource(count);
+        final controller = ChatScrollController();
+        final lastSeen = ValueNotifier<int?>(lastRead);
+
+        await _mountNearTailTall(
+          tester: tester,
+          count: count,
+          lastRead: lastRead,
+          controller: controller,
+          ds: ds,
+          lastSeen: lastSeen,
+          messageHeight: 350,
+        );
+        await tester.pump();
+
+        expect(_pillText(tester), '3 new messages');
+
+        await tester.drag(find.byType(ChatScrollView), const Offset(0, -350));
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 300));
+
+        final mid = _pillText(tester);
+        expect(mid, isNot('0 new messages'));
+        expect(lastSeen.value, greaterThanOrEqualTo(lastRead));
+      },
+    );
+
+    testWidgets(
+      'message taller than viewport advances at max band fill',
+      (tester) async {
+        const count = 5;
+        const lastRead = 1;
+        final ds = _TallMessagePreloadedSource(count);
+        final controller = ChatScrollController();
+        final lastSeen = ValueNotifier<int?>(lastRead);
+
+        await _mountNearTailTall(
+          tester: tester,
+          count: count,
+          lastRead: lastRead,
+          controller: controller,
+          ds: ds,
+          lastSeen: lastSeen,
+          messageHeight: 800,
+        );
+        await tester.pump();
+
+        await tester.drag(find.byType(ChatScrollView), const Offset(0, -900));
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 300));
+        await _pumpSettleFrames(tester, frameCount: 4);
+
         expect(lastSeen.value, greaterThan(lastRead));
       },
     );

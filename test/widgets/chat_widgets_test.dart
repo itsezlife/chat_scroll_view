@@ -889,6 +889,133 @@ void main() {
       expect(next!.anchorId, 50);
       expect(next.firstId, lessThanOrEqualTo(50));
       expect(next.lastId, greaterThanOrEqualTo(50));
+      expect(next.lastVisibleFraction, greaterThan(0.0));
+      expect(next.firstVisibleFraction, greaterThan(0.0));
+    });
+
+    Widget fractionHarness({
+      required ChatDataSource dataSource,
+      required ChatScrollController controller,
+      double messageHeight = 60,
+      double cacheExtent = 1000,
+    }) =>
+        MaterialApp(
+          home: Scaffold(
+            body: Center(
+              child: SizedBox(
+                width: 400,
+                height: 600,
+                child: ChatScrollView(
+                  dataSource: dataSource,
+                  controller: controller,
+                  cacheExtent: cacheExtent,
+                  messageBuilder: (context, id, message, status) => SizedBox(
+                    height: messageHeight,
+                    child: Text(message == null ? 'shimmer-$id' : 'msg-$id'),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        );
+
+    testWidgets('visibleRange reports half-visible last message fraction', (
+      tester,
+    ) async {
+      const count = 10;
+      const messageHeight = 100.0;
+      final controller = ChatScrollController()..jumpTo(count - 1, alignment: 1.0);
+      await tester.pumpWidget(
+        fractionHarness(
+          dataSource: _PreloadedDataSource(_generate(count)),
+          controller: controller,
+          messageHeight: messageHeight,
+        ),
+      );
+      await tester.pump();
+
+      controller.scrollBy(50);
+      await tester.pump();
+
+      final range = controller.visibleRange.value;
+      expect(range, isNotNull);
+      expect(range!.lastId, count - 1);
+      expect(range.lastVisibleFraction, closeTo(0.5, 0.02));
+    });
+
+    testWidgets(
+      'visibleRange reports 1.0 when tall message fills the band',
+      (tester) async {
+        const count = 5;
+        const messageHeight = 1200.0;
+        final controller = ChatScrollController()..jumpTo(count - 1, alignment: 1.0);
+        await tester.pumpWidget(
+          fractionHarness(
+            dataSource: _PreloadedDataSource(_generate(count)),
+            controller: controller,
+            messageHeight: messageHeight,
+          ),
+        );
+        await tester.pump();
+
+        final range = controller.visibleRange.value;
+        expect(range, isNotNull);
+        expect(range!.lastId, count - 1);
+        expect(range.lastVisibleFraction, closeTo(1.0, 0.02));
+      },
+    );
+
+    testWidgets(
+      'visibleRange reports 1.0 for fully visible boundary message',
+      (tester) async {
+        const count = 5;
+        const messageHeight = 200.0;
+        final controller = ChatScrollController()..jumpTo(count - 1);
+        await tester.pumpWidget(
+          fractionHarness(
+            dataSource: _PreloadedDataSource(_generate(count)),
+            controller: controller,
+            messageHeight: messageHeight,
+          ),
+        );
+        await tester.pump();
+
+        final range = controller.visibleRange.value;
+        expect(range, isNotNull);
+        expect(range!.lastVisibleFraction, closeTo(1.0, 0.02));
+        expect(range.firstVisibleFraction, closeTo(1.0, 0.02));
+      },
+    );
+
+    testWidgets('visibleRange fraction updates when ids unchanged', (
+      tester,
+    ) async {
+      const count = 20;
+      const messageHeight = 120.0;
+      final controller = ChatScrollController()..jumpTo(count - 1, alignment: 1.0);
+      await tester.pumpWidget(
+        fractionHarness(
+          dataSource: _PreloadedDataSource(_generate(count)),
+          controller: controller,
+          messageHeight: messageHeight,
+          cacheExtent: 2000,
+        ),
+      );
+      await tester.pump();
+
+      final initial = controller.visibleRange.value!;
+      expect(initial.lastId, count - 1);
+
+      await tester.drag(find.byType(ChatScrollView), const Offset(0, 40));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 16));
+
+      final updated = controller.visibleRange.value!;
+      expect(updated.lastId, initial.lastId);
+      expect(
+        updated.lastVisibleFraction,
+        isNot(closeTo(initial.lastVisibleFraction, 0.001)),
+      );
     });
   });
 }

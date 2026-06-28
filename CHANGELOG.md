@@ -8,6 +8,17 @@ this project is pre-1.0 and not strictly SemVer yet.
 
 ### Added
 
+- **Visible-range boundary fractions** — `ChatVisibleRange` now includes
+  `firstVisibleFraction` and `lastVisibleFraction` (share of each boundary
+  message's exposable height inside the scrollable paint band). Denominator is
+  `min(messageHeight, bandHeight)` so tall messages report `1.0` when the band
+  is filled. Published on every layout / scroll update, including when ids are
+  unchanged.
+- **Threshold-gated progressive read (demo pill)** — `NewMessagesPill` advances
+  the read baseline during scroll only when `lastVisibleFraction` crosses
+  `visibilityThreshold` (default `0.5`) on a rising edge, so a one-pixel sliver
+  no longer marks a message as read.
+
 - **Production-ready Supabase demo backend** — replaces the Dart Shelf
   `backend/` with a copy-pasteable `supabase/` stack: Postgres schema aligned to
   `chat_protocol`, Edge Functions (`load_chats`, `load_chat`, `load_messages`,

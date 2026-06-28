@@ -10,7 +10,20 @@ import 'package:flutter/scheduler.dart';
 /// `firstId`/`lastId` are the inclusive id bounds of children whose rect
 /// intersects the viewport's logical paint area (top inset to bottom inset).
 /// `anchorId` is the message id currently used as the layout origin.
-typedef ChatVisibleRange = ({int firstId, int lastId, int anchorId});
+///
+/// `firstVisibleFraction` / `lastVisibleFraction` are the fraction of the
+/// first / last **built** intersecting child's laid-out height that lies
+/// inside that paint band: `visible_intersection_height / min(message_height,
+/// band_height)`, clamped to `0.0`–`1.0`. Tall messages use band height as the
+/// denominator so band-fill reports `1.0`. Chunk-error id expansion may widen
+/// bounds without changing which render box supplies each fraction.
+typedef ChatVisibleRange = ({
+  int firstId,
+  int lastId,
+  int anchorId,
+  double firstVisibleFraction,
+  double lastVisibleFraction,
+});
 
 /// Delegate that performs actual scroll animations on behalf of
 /// [ChatScrollController.animateTo]. Implemented by `RenderChatScrollView`
@@ -176,8 +189,10 @@ class ChatScrollController {
       _DeferredValueNotifier<ChatVisibleRange?>(null);
 
   /// Inclusive id range of currently-on-screen messages plus the active
-  /// anchor id. `null` before the first layout has run (or when no message
-  /// intersects the paint area). Push as the viewport scrolls / re-fans.
+  /// anchor id and boundary visibility fractions. `null` before the first
+  /// layout has run (or when no message intersects the paint area). Push as
+  /// the viewport scrolls / re-fans. Fractions use the same scrollable paint
+  /// band as the id intersection test — see [ChatVisibleRange].
   ///
   /// **Listener safety**: pushes from `RenderChatScrollView` happen inside
   /// `performLayout`, where calling `setState` is illegal. The notifier
