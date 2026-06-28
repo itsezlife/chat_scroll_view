@@ -74,6 +74,112 @@ class _PreloadedLikeSource extends ChatDataSource {
   }) async => const <IChatMessage>[];
 }
 
+class _TallMessagePreloadedSource extends ChatDataSource {
+  _TallMessagePreloadedSource(int count) {
+    for (var i = 0; i < count; i++) {
+      upsertMessage(_msg(i));
+    }
+    seedBoundaries(
+      oldestKnownId: 0,
+      newestKnownId: count - 1,
+      reachedOldest: true,
+      reachedNewest: true,
+    );
+  }
+
+  @override
+  Future<List<IChatMessage>> fetchRange({
+    required int fromId,
+    required int toId,
+  }) async => const <IChatMessage>[];
+}
+
+const _viewportWidth = 400.0;
+const _viewportHeight = 600.0;
+
+Future<void> _pumpSettleFrames(
+  WidgetTester tester, {
+  int frameCount = 12,
+}) async {
+  for (var i = 0; i < frameCount; i++) {
+    await tester.pump(const Duration(milliseconds: 16));
+  }
+}
+
+Widget _scaffoldWithTallPill({
+  required ChatDataSource dataSource,
+  required ChatScrollController controller,
+  required int lastRead,
+  double messageHeight = 350,
+  double cacheExtent = 1000,
+  ValueNotifier<int?>? lastSeenNewestId,
+  bool reverse = true,
+  ValueNotifier<double>? bottomPadding,
+}) {
+  final lastSeen = lastSeenNewestId ?? ValueNotifier<int?>(lastRead);
+  return MaterialApp(
+    home: Scaffold(
+      body: Center(
+        child: SizedBox(
+          width: _viewportWidth,
+          height: _viewportHeight,
+          child: Stack(
+            children: <Widget>[
+              ChatScrollView(
+                reverse: reverse,
+                dataSource: dataSource,
+                controller: controller,
+                cacheExtent: cacheExtent,
+                bottomPadding: bottomPadding,
+                messageBuilder: (context, id, message, status) => SizedBox(
+                  height: messageHeight,
+                  child: Text(message == null ? 'shimmer-$id' : 'msg-$id'),
+                ),
+                loadingBuilder: (ctx) => const Center(child: Text('loading')),
+              ),
+              NewMessagesPill(
+                controller: controller,
+                dataSource: dataSource,
+                lastSeenNewestId: lastSeen,
+                bottomInset: bottomPadding,
+              ),
+            ],
+          ),
+        ),
+      ),
+    ),
+  );
+}
+
+Future<void> _mountNearTailTall({
+  required WidgetTester tester,
+  required int count,
+  required int lastRead,
+  required ChatScrollController controller,
+  required ChatDataSource ds,
+  ValueNotifier<int?>? lastSeen,
+  double messageHeight = 350,
+}) async {
+  addTearDown(controller.dispose);
+  addTearDown(ds.dispose);
+  if (lastSeen != null) {
+    addTearDown(lastSeen.dispose);
+  }
+
+  controller.jumpTo(lastRead, alignment: 0.8);
+  await tester.pumpWidget(
+    _scaffoldWithTallPill(
+      dataSource: ds,
+      controller: controller,
+      lastRead: lastRead,
+      messageHeight: messageHeight,
+      lastSeenNewestId: lastSeen,
+      bottomPadding: ValueNotifier<double>(96),
+    ),
+  );
+  await tester.pump();
+}
+
 Widget _scaffoldWithPill({
   required ChatDataSource dataSource,
   required ChatScrollController controller,
@@ -289,6 +395,269 @@ void main() {
         expect(isZeroOrOne, isTrue,
             reason: 'After one new arrival the count must not exceed 1; '
                 'got "$text".');
+      },
+    );
+
+    testWidgets(
+      'near-tail open with tall messages keeps pill count stable',
+      (tester) async {
+        const count = 10;
+        const lastRead = count - 3;
+        final ds = _TallMessagePreloadedSource(count);
+        final controller = ChatScrollController();
+        final lastSeen = ValueNotifier<int?>(lastRead);
+
+        await _mountNearTailTall(
+          tester: tester,
+          count: count,
+          lastRead: lastRead,
+          controller: controller,
+          ds: ds,
+          lastSeen: lastSeen,
+        );
+
+        expect(_pillText(tester), '2 new messages');
+
+        for (var i = 0; i < 12; i++) {
+          await tester.pump(const Duration(milliseconds: 16));
+          expect(
+            _pillText(tester),
+            '2 new messages',
+            reason: 'frame $i: pill must not drop count during layout settling',
+          );
+        }
+      },
+    );
+
+    testWidgets(
+      'near-tail open pill stays visible for 500ms without scroll',
+      (tester) async {
+        const count = 10;
+        const lastRead = count - 3;
+        final ds = _TallMessagePreloadedSource(count);
+        final controller = ChatScrollController();
+        final lastSeen = ValueNotifier<int?>(lastRead);
+
+        await _mountNearTailTall(
+          tester: tester,
+          count: count,
+          lastRead: lastRead,
+          controller: controller,
+          ds: ds,
+          lastSeen: lastSeen,
+        );
+
+        await tester.pump(const Duration(milliseconds: 500));
+
+        expect(_pillText(tester), isNot('0 new messages'));
+        expect(_pillText(tester), '2 new messages');
+      },
+    );
+
+    testWidgets(
+      'baseline unchanged when raw isAtTail flickers near tail',
+      (tester) async {
+        const count = 10;
+        const lastRead = count - 3;
+        final newest = count - 1;
+        final ds = _TallMessagePreloadedSource(count);
+        final controller = ChatScrollController();
+        final lastSeen = ValueNotifier<int?>(lastRead);
+
+        await _mountNearTailTall(
+          tester: tester,
+          count: count,
+          lastRead: lastRead,
+          controller: controller,
+          ds: ds,
+          lastSeen: lastSeen,
+        );
+
+        await _pumpSettleFrames(tester);
+
+        expect(lastSeen.value, lastRead);
+        expect(lastSeen.value, isNot(newest));
+      },
+    );
+
+    testWidgets(
+      'count recovers after brief raw isAtTail true',
+      (tester) async {
+        const count = 10;
+        const lastRead = count - 3;
+        final ds = _TallMessagePreloadedSource(count);
+        final controller = ChatScrollController();
+        final lastSeen = ValueNotifier<int?>(lastRead);
+
+        await _mountNearTailTall(
+          tester: tester,
+          count: count,
+          lastRead: lastRead,
+          controller: controller,
+          ds: ds,
+          lastSeen: lastSeen,
+        );
+
+        await _pumpSettleFrames(tester, frameCount: 6);
+
+        // Even if raw isAtTail flickered mid-sequence, stable at-tail must
+        // not have latched and the label must show the full unread gap.
+        expect(_pillText(tester), '2 new messages');
+        expect(lastSeen.value, lastRead);
+      },
+    );
+
+    testWidgets(
+      'tap pill from near-tail jumps to newest and advances baseline',
+      (tester) async {
+        const count = 10;
+        const lastRead = count - 3;
+        final newest = count - 1;
+        final ds = _TallMessagePreloadedSource(count);
+        final controller = ChatScrollController();
+        final lastSeen = ValueNotifier<int?>(lastRead);
+
+        await _mountNearTailTall(
+          tester: tester,
+          count: count,
+          lastRead: lastRead,
+          controller: controller,
+          ds: ds,
+          lastSeen: lastSeen,
+        );
+        await tester.pump();
+
+        expect(_pillText(tester), '2 new messages');
+
+        await tester.tap(
+          find.descendant(
+            of: find.byType(NewMessagesPill),
+            matching: find.byType(InkWell),
+          ),
+        );
+        await tester.pump();
+        expect(_pillText(tester), isNot('0 new messages'));
+        for (var i = 0; i < 10; i++) {
+          await tester.pump(const Duration(milliseconds: 16));
+          expect(_pillText(tester), isNot('0 new messages'));
+        }
+        for (var i = 0; i < 15; i++) {
+          await tester.pump(const Duration(milliseconds: 16));
+        }
+        await tester.pump(const Duration(milliseconds: 200));
+        await tester.pump();
+
+        expect(lastSeen.value, newest);
+        expect(_pillText(tester), '0 new messages');
+      },
+    );
+
+    testWidgets(
+      'scroll to genuine tail dismisses pill and advances baseline',
+      (tester) async {
+        const count = 10;
+        const lastRead = count - 3;
+        final newest = count - 1;
+        final ds = _TallMessagePreloadedSource(count);
+        final controller = ChatScrollController();
+        final lastSeen = ValueNotifier<int?>(lastRead);
+
+        await _mountNearTailTall(
+          tester: tester,
+          count: count,
+          lastRead: lastRead,
+          controller: controller,
+          ds: ds,
+          lastSeen: lastSeen,
+        );
+        await tester.pump();
+
+        await tester.drag(find.byType(ChatScrollView), const Offset(0, -800));
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 300));
+        await _pumpSettleFrames(tester, frameCount: 6);
+
+        expect(lastSeen.value, newest);
+        expect(_pillText(tester), '0 new messages');
+      },
+    );
+
+    testWidgets(
+      'one unread tall message stays visible until tail',
+      (tester) async {
+        const count = 10;
+        const lastRead = count - 2;
+        final ds = _TallMessagePreloadedSource(count);
+        final controller = ChatScrollController();
+        final lastSeen = ValueNotifier<int?>(lastRead);
+
+        await _mountNearTailTall(
+          tester: tester,
+          count: count,
+          lastRead: lastRead,
+          controller: controller,
+          ds: ds,
+          lastSeen: lastSeen,
+        );
+
+        await _pumpSettleFrames(tester);
+        expect(_pillText(tester), '1 new message');
+      },
+    );
+
+    testWidgets(
+      'three unread tall messages count stable',
+      (tester) async {
+        const count = 10;
+        const lastRead = count - 4;
+        final ds = _TallMessagePreloadedSource(count);
+        final controller = ChatScrollController();
+        final lastSeen = ValueNotifier<int?>(lastRead);
+
+        await _mountNearTailTall(
+          tester: tester,
+          count: count,
+          lastRead: lastRead,
+          controller: controller,
+          ds: ds,
+          lastSeen: lastSeen,
+        );
+
+        await _pumpSettleFrames(tester);
+        expect(_pillText(tester), '3 new messages');
+      },
+    );
+
+    testWidgets(
+      'progressive scroll with tall messages reduces count without spurious zero',
+      (tester) async {
+        const count = 20;
+        const lastRead = 9;
+        final ds = _TallMessagePreloadedSource(count);
+        final controller = ChatScrollController();
+        final lastSeen = ValueNotifier<int?>(lastRead);
+
+        await _mountNearTailTall(
+          tester: tester,
+          count: count,
+          lastRead: lastRead,
+          controller: controller,
+          ds: ds,
+          lastSeen: lastSeen,
+          messageHeight: 200,
+        );
+        await tester.pump();
+
+        expect(_pillText(tester), '10 new messages');
+
+        await tester.drag(find.byType(ChatScrollView), const Offset(0, -400));
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 300));
+
+        final afterScroll = _pillText(tester);
+        expect(afterScroll, isNot('10 new messages'));
+        expect(afterScroll, isNot('0 new messages'));
+        expect(lastSeen.value, greaterThan(lastRead));
       },
     );
   });

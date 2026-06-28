@@ -18,6 +18,7 @@ class ChatComposer extends StatefulWidget {
   const ChatComposer({
     required this.selection,
     required this.dataSource,
+    required this.onSend,
     super.key,
   });
 
@@ -26,6 +27,9 @@ class ChatComposer extends StatefulWidget {
 
   /// Source for message text when copying a selection to the clipboard.
   final ChatDataSource dataSource;
+
+  /// Persists a trimmed message; throw on failure to retain composer text.
+  final Future<void> Function(String text) onSend;
 
   @override
   State<ChatComposer> createState() => _ChatComposerState();
@@ -49,6 +53,7 @@ class _ChatComposerState extends State<ChatComposer>
   late final Animation<double> _actionsFade;
 
   bool _mode = false;
+  bool _sending = false;
 
   CurvedAnimation _curve(Curve curve) {
     final ca = CurvedAnimation(parent: _t, curve: curve);
@@ -124,10 +129,18 @@ class _ChatComposerState extends State<ChatComposer>
     }
   }
 
-  void _handleSend() {
-    if (_text.text.trim().isEmpty) return;
-    _text.clear();
-    _focus.unfocus();
+  Future<void> _handleSend() async {
+    if (_sending) return;
+    final text = _text.text.trim();
+    if (text.isEmpty) return;
+    setState(() => _sending = true);
+    try {
+      await widget.onSend(text);
+      if (!mounted) return;
+      _text.clear();
+    } finally {
+      if (mounted) setState(() => _sending = false);
+    }
   }
 
   // --- Selection actions -----------------------------------------------------
@@ -207,6 +220,7 @@ class _ChatComposerState extends State<ChatComposer>
                                 controller: _text,
                                 focusNode: _focus,
                                 onSend: _handleSend,
+                                sending: _sending,
                                 scheme: scheme,
                               ),
                             ),
@@ -273,12 +287,14 @@ class _InputField extends StatelessWidget {
     required this.controller,
     required this.focusNode,
     required this.onSend,
+    required this.sending,
     required this.scheme,
   });
 
   final TextEditingController controller;
   final FocusNode focusNode;
-  final VoidCallback onSend;
+  final Future<void> Function() onSend;
+  final bool sending;
   final ColorScheme scheme;
 
   @override
@@ -319,7 +335,7 @@ class _InputField extends StatelessWidget {
               size: 38,
               background: scheme.primary,
               foreground: scheme.onPrimary,
-              onTap: onSend,
+              onTap: sending ? null : onSend,
             ),
           ),
         ],
@@ -373,14 +389,14 @@ class _CircleButton extends StatelessWidget {
     required this.size,
     required this.background,
     required this.foreground,
-    required this.onTap,
+    this.onTap,
   });
 
   final IconData icon;
   final double size;
   final Color background;
   final Color foreground;
-  final VoidCallback onTap;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) => Material(

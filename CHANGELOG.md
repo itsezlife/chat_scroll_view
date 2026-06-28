@@ -6,7 +6,51 @@ this project is pre-1.0 and not strictly SemVer yet.
 
 ## [Unreleased]
 
+### Added
+
+- **Production-ready Supabase demo backend** — replaces the Dart Shelf
+  `backend/` with a copy-pasteable `supabase/` stack: Postgres schema aligned to
+  `chat_protocol`, Edge Functions (`load_chats`, `load_chat`, `load_messages`,
+  `send_message`, `get_read_state`, `update_read_state`), Realtime on `messages`
+  (≥10k messages, id remap +1), and server-backed last-read via `chat_read_state`
+  (seeded at message id **9951**). `BackendChatDataSource` calls Edge Functions with lazy boundary discovery
+  (no `GET /api/conversation` / `totalMessages`). Run `./scripts/dev.sh` then
+  `flutter run --dart-define-from-file=config/development.supabase.json`.
+
+  - **Send messages demo** — wire `ChatComposer` to `BackendChatDataSource.sendMessage`;
+    tail follow on send via existing `notifyDataChanged`; SnackBar on failure with
+    composer text retained; connect seeds `newestKnownId` from `load_chat` →
+    `ChatEntry.last_message.id` — not `load_messages` or total count.
+  - **Composer keyboard persistence** — `ChatKeyboardShortcuts.preserveExternalFocus`
+    keeps the soft keyboard open during viewport scroll/tap while composing; demo
+    screen enables it on `WidgetChatScreen`.
+  - **`chat_last_message` denormalization** — Postgres table + `AFTER INSERT`
+    trigger on `messages` maintains `LastMessagePreview`; post-seed backfill after
+    bulk demo load; `load_chat` / `load_chats` read denormalized row (no tail scan).
+  - **Protocol inline documentation** — self-contained three-layer SQL docs
+    (`--` above tables/columns + `COMMENT ON`) in migrations; JSDoc with inline enum
+    and error slug tables in `supabase/functions/_shared/` and handler modules.
+  - **`protocol_enums.ts`** — canonical ChatKind, MessageKind, MessageFlags,
+    UserFlags, Permission, and RichStyle tables with hex values, reserved bit
+    ranges, parse helpers, and documented side effects (e.g. DELETED tombstone).
+
+### Removed
+
+- **`health` Edge Function** — replaced by protocol-shaped `load_chats` / `load_chat`.
+- **Dart `backend/` package** — superseded by the Supabase stack above.
+
 ### Fixed
+
+- **New-messages pill near tail** — opening with only a few unread messages and
+  large bubbles no longer flashes the pill away or zeroes the unread count when
+  `isAtTail` flickers for a frame during layout settling. The pill uses stable
+  at-tail hysteresis before dismissing or advancing the read baseline; demo
+  last-read persistence follows baseline changes instead of raw tail edges.
+
+- **Post-mount scroll magnet** — scrolling up through history immediately after
+  the chat viewport mounts no longer snaps back to the newest message. User drag
+  cancels deferred tail-settle from open-at-newest; boundary pin is suppressed
+  while off-tail until an explicit jump to the newest message.
 
 - **Jump to newest / open at tail** — opening the demo chat or jumping to the
   newest message no longer lands one message short of the tail. Tail-targeted

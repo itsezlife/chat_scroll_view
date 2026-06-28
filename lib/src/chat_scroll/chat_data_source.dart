@@ -200,7 +200,8 @@ abstract class ChatDataSource {
     final existed = _chunks.containsKey(chunkIndex);
     final chunk = _chunks.putIfAbsent(
       chunkIndex,
-      () => ChatScrollChunk(index: chunkIndex)..status = ChatMessageStatus.valid,
+      () =>
+          ChatScrollChunk(index: chunkIndex)..status = ChatMessageStatus.valid,
     );
     chunk.messages[message.id - chunk.firstId] = message;
     // Defensive: a chunk created here used to default to `dirty`, which would
@@ -221,7 +222,8 @@ abstract class ChatDataSource {
       final chunk = _chunks.putIfAbsent(
         chunkIndex,
         () =>
-            ChatScrollChunk(index: chunkIndex)..status = ChatMessageStatus.valid,
+            ChatScrollChunk(index: chunkIndex)
+              ..status = ChatMessageStatus.valid,
       );
       chunk.messages[message.id - chunk.firstId] = message;
       if (!existed) chunk.status = ChatMessageStatus.valid;
@@ -456,8 +458,7 @@ abstract class ChatDataSource {
     for (var ci = _fetchingMinChunk; ci <= _fetchingMaxChunk; ci++) {
       final existing = _chunks[ci];
       if (existing != null && !_needsFetch(existing)) continue;
-      final chunk = existing ??
-          (_chunks[ci] = ChatScrollChunk(index: ci));
+      final chunk = existing ?? (_chunks[ci] = ChatScrollChunk(index: ci));
       chunk.status = chunk.status
           .remove(ChatMessageStatus.error)
           .add(ChatMessageStatus.fetching);

@@ -66,6 +66,30 @@ class _NewMessagesPillState extends State<NewMessagesPill> {
 
   static const Duration _fadeDuration = Duration(milliseconds: 180);
 
+  // --- Stable at-tail (raw `isAtTail` may flicker near the tail) ------------
+  //
+  // The viewport publishes `controller.isAtTail` after every layout. With
+  // tall messages near the tail, geometry can satisfy the pin check for a
+  // frame or two during settling even though the user has not caught up.
+  // Acting on those transient `true` edges zeroed the unread count and advanced
+  // the read baseline prematurely.
+  //
+  // `_stableAtTail` uses asymmetric hysteresis: raw `false` clears immediately
+  // (pill can reappear quickly when leaving the tail); raw `true` must persist
+  // for [_stableAtTailFrameThreshold] consecutive listener fires, or the user
+  // must show tail-arrival intent (scroll toward newer / tap jump), before we
+  // treat the conversation as fully read for dismiss and baseline writes.
+
+  static const int _stableAtTailFrameThreshold = 2;
+
+  int _consecutiveAtTailFrames = 0;
+
+  bool _stableAtTail = false;
+
+  /// Set before tap jump or when scroll-reading starts — latches stable at-tail
+  /// on the next raw-`true` frame without waiting for the frame threshold.
+  bool _tailArrivalIntent = false;
+
   @override
   void initState() {
     super.initState();
@@ -112,16 +136,25 @@ class _NewMessagesPillState extends State<NewMessagesPill> {
       widget.controller.visibleRange.addListener(_onVisibleRangeChanged);
       widget.controller.addScrollListener(_onScrollEvent);
       _scrollReadingEnabled = false;
+      _resetStableAtTail();
     }
     if (!identical(old.dataSource, widget.dataSource)) {
       old.dataSource.removeBoundaryListener(_onBoundaryChanged);
       widget.dataSource.addBoundaryListener(_onBoundaryChanged);
       _seedBaseline();
       _scrollReadingEnabled = false;
+      _resetStableAtTail();
     } else if (!identical(old.lastSeenNewestId, widget.lastSeenNewestId)) {
       _seedBaseline();
       _scrollReadingEnabled = false;
+      _resetStableAtTail();
     }
+  }
+
+  void _resetStableAtTail() {
+    _consecutiveAtTailFrames = 0;
+    _stableAtTail = false;
+    _tailArrivalIntent = false;
   }
 
   @override
@@ -160,9 +193,13 @@ class _NewMessagesPillState extends State<NewMessagesPill> {
       case ChatFlingStart():
       case ChatProgrammaticScroll():
         _scrollReadingEnabled = true;
+        _tailArrivalIntent = true;
         _syncReadProgressFromViewport();
+      case ChatProgrammaticJump(:final targetId):
+        if (targetId == widget.dataSource.newestKnownId) {
+          _tailArrivalIntent = true;
+        }
       case ChatFlingEnd():
-      case ChatProgrammaticJump():
       case ChatAnimateStart():
       case ChatAnimateEnd():
         break;
@@ -188,7 +225,7 @@ class _NewMessagesPillState extends State<NewMessagesPill> {
     _clearFrozenCountTimer?.cancel();
     _clearFrozenCountTimer = Timer(_fadeDuration, () {
       if (!mounted) return;
-      if (!widget.controller.isAtTail.value) return;
+      if (!_stableAtTail) return;
       setState(() {
         _frozenDismissCount = null;
         _lastNonZeroCount = 0;
@@ -196,15 +233,37 @@ class _NewMessagesPillState extends State<NewMessagesPill> {
     });
   }
 
-  void _onIsAtTailChanged() {
-    if (widget.controller.isAtTail.value) {
+  void _syncStableAtTail({required bool scheduleRebuild}) {
+    final rawAtTail = widget.controller.isAtTail.value;
+    final wasStable = _stableAtTail;
+
+    if (!rawAtTail) {
+      _consecutiveAtTailFrames = 0;
+      _stableAtTail = false;
+    } else {
+      _consecutiveAtTailFrames++;
+      if (_tailArrivalIntent ||
+          _consecutiveAtTailFrames >= _stableAtTailFrameThreshold) {
+        _stableAtTail = true;
+      }
+    }
+
+    if (_stableAtTail && !wasStable) {
       // User is back at the tail — snapshot the current newest as "seen"
       // so subsequent arrivals start the counter from zero.
       _writeBaseline(widget.dataSource.newestKnownId);
       _scrollReadingEnabled = false;
+      _tailArrivalIntent = false;
       _scheduleClearFrozenCount();
     }
-    _scheduleRebuild();
+
+    if (scheduleRebuild) {
+      _scheduleRebuild();
+    }
+  }
+
+  void _onIsAtTailChanged() {
+    _syncStableAtTail(scheduleRebuild: true);
   }
 
   void _onBoundaryChanged() {
@@ -215,7 +274,7 @@ class _NewMessagesPillState extends State<NewMessagesPill> {
     // transition so `_onIsAtTailChanged` never fires. Without this
     // snapshot the next time the user scrolls away the pill would count
     // those already-viewed messages as "new".
-    if (widget.controller.isAtTail.value) {
+    if (_stableAtTail) {
       _writeBaseline(newest);
     } else if (_baseline == null && newest != null) {
       _writeBaseline(newest - 1);
@@ -253,7 +312,16 @@ class _NewMessagesPillState extends State<NewMessagesPill> {
     if (count > 0) {
       setState(() => _frozenDismissCount = count);
     }
+    _tailArrivalIntent = true;
     await widget.controller.animateTo(newest);
+    if (!mounted) return;
+    _writeBaseline(newest);
+    _stableAtTail = true;
+    _consecutiveAtTailFrames = _stableAtTailFrameThreshold;
+    _tailArrivalIntent = false;
+    _scrollReadingEnabled = false;
+    _scheduleClearFrozenCount();
+    setState(() {});
   }
 
   @override
@@ -268,7 +336,7 @@ class _NewMessagesPillState extends State<NewMessagesPill> {
     return ListenableBuilder(
       listenable: Listenable.merge(listenables),
       builder: (context, _) {
-        final atTail = widget.controller.isAtTail.value;
+        final atTail = _stableAtTail;
         final liveCount = atTail ? 0 : _unseenCount();
         if (liveCount > 0) {
           _lastNonZeroCount = liveCount;

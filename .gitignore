@@ -51,8 +51,12 @@ app.*.map.json
 .specify/
 specs/
 
-# Demo backend SQLite database
+# Demo backend SQLite database (legacy)
 backend/data/*.db
 
-# Auto-generated LAN IP for USB-debugged Android devices
+# Supabase local secrets
+supabase/.env.local
+supabase/.branches
+
+# Config
 config/

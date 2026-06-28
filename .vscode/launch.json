@@ -2,6 +2,31 @@
   "version": "0.2.0",
   "configurations": [
     {
+      "name": "main.dart (Supabase local)",
+      "request": "launch",
+      "type": "dart",
+      "program": "lib/main.dart",
+      "toolArgs": ["--dart-define-from-file=config/development.supabase.json"]
+    },
+    {
+      "name": "main.dart (Supabase, Android emulator)",
+      "request": "launch",
+      "type": "dart",
+      "program": "lib/main.dart",
+      "toolArgs": [
+        "--dart-define-from-file=config/development.supabase.android.json"
+      ]
+    },
+    {
+      "name": "main.dart (Supabase, Android device)",
+      "request": "launch",
+      "type": "dart",
+      "program": "lib/main.dart",
+      "toolArgs": [
+        "--dart-define-from-file=config/development.supabase.android.device.json"
+      ]
+    },
+    {
       "name": "main.dart",
       "request": "launch",
       "type": "dart",

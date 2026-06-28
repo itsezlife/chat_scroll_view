@@ -41,6 +41,7 @@ Widget _scaffold({
   required ChatScrollController controller,
   bool reverse = false,
   bool autofocus = true,
+  bool preserveExternalFocus = false,
 }) => MaterialApp(
   home: Scaffold(
     body: Center(
@@ -52,6 +53,7 @@ Widget _scaffold({
           dataSource: dataSource,
           reverse: reverse,
           autofocus: autofocus,
+          preserveExternalFocus: preserveExternalFocus,
           child: ChatScrollView(
             dataSource: dataSource,
             controller: controller,
@@ -437,6 +439,103 @@ void main() {
         );
       },
     );
+  });
+
+  group('preserveExternalFocus', () {
+    Future<void> pumpComposerLayout(
+      WidgetTester tester, {
+      required ChatScrollController controller,
+      required ChatDataSource ds,
+      required FocusNode composerFocus,
+      required bool preserveExternalFocus,
+    }) async {
+      await tester.pumpWidget(MaterialApp(
+        home: Scaffold(
+          body: Column(
+            children: <Widget>[
+              Expanded(
+                child: ChatKeyboardShortcuts(
+                  controller: controller,
+                  dataSource: ds,
+                  autofocus: false,
+                  preserveExternalFocus: preserveExternalFocus,
+                  child: ChatScrollView(
+                    controller: controller,
+                    dataSource: ds,
+                    cacheExtent: 1000,
+                    messageBuilder: (context, id, message, status) =>
+                        SizedBox(
+                      height: 60,
+                      child: Text(
+                        message == null ? 'shimmer-$id' : 'msg-$id',
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+              TextField(focusNode: composerFocus),
+            ],
+          ),
+        ),
+      ));
+      await tester.pumpAndSettle();
+      composerFocus.requestFocus();
+      await tester.pump();
+    }
+
+    testWidgets('viewport tap and drag keep composer focus when enabled', (
+      tester,
+    ) async {
+      const count = 256;
+      final controller = ChatScrollController()..jumpTo(count ~/ 2);
+      final ds = _PreloadedDataSource(count);
+      final composerFocus = FocusNode();
+      addTearDown(controller.dispose);
+      addTearDown(ds.dispose);
+      addTearDown(composerFocus.dispose);
+
+      await pumpComposerLayout(
+        tester,
+        controller: controller,
+        ds: ds,
+        composerFocus: composerFocus,
+        preserveExternalFocus: true,
+      );
+      expect(composerFocus.hasFocus, isTrue);
+
+      await tester.tapAt(const Offset(200, 200));
+      await tester.pump();
+      expect(composerFocus.hasFocus, isTrue);
+
+      await tester.drag(find.byType(ChatScrollView), const Offset(0, -80));
+      await tester.pump();
+      expect(composerFocus.hasFocus, isTrue);
+    });
+
+    testWidgets('viewport tap steals composer focus when disabled', (
+      tester,
+    ) async {
+      const count = 256;
+      final controller = ChatScrollController()..jumpTo(count ~/ 2);
+      final ds = _PreloadedDataSource(count);
+      final composerFocus = FocusNode();
+      addTearDown(controller.dispose);
+      addTearDown(ds.dispose);
+      addTearDown(composerFocus.dispose);
+
+      await pumpComposerLayout(
+        tester,
+        controller: controller,
+        ds: ds,
+        composerFocus: composerFocus,
+        preserveExternalFocus: false,
+      );
+      expect(composerFocus.hasFocus, isTrue);
+
+      await tester.tapAt(const Offset(200, 200));
+      await tester.pump();
+      expect(composerFocus.hasFocus, isFalse);
+    });
   });
 
   group('ChatScrollController.scrollBy', () {

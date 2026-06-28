@@ -38,6 +38,12 @@ import 'package:flutter/widgets.dart';
 /// with the chat even when [autofocus] is `false`. Focus is *not* re-
 /// requested if the wrapper already owns it (no churn for repeated taps).
 ///
+/// When [preserveExternalFocus] is `true` (typical chat demo with a
+/// sibling composer `TextField`), pointer-down on the viewport does *not*
+/// steal focus from an external editor — scroll and tap keep the soft
+/// keyboard open. Shortcuts still activate when nothing else in the scope
+/// is focused (tap viewport with no composer focus).
+///
 /// ### Example
 ///
 /// ```dart
@@ -61,6 +67,7 @@ class ChatKeyboardShortcuts extends StatefulWidget {
     this.pageExtent,
     this.pageFraction = 0.85,
     this.autofocus = false,
+    this.preserveExternalFocus = false,
     super.key,
   });
 
@@ -91,6 +98,14 @@ class ChatKeyboardShortcuts extends StatefulWidget {
   /// shortcuts respond without a click. Defaults to `false` so the typical
   /// chat layout's composer `TextField` keeps focus by default.
   final bool autofocus;
+
+  /// When `true`, pointer-down on the viewport does not call
+  /// [FocusNode.requestFocus] while another node in the enclosing
+  /// [FocusScope] already has focus outside this wrapper (e.g. a sibling
+  /// composer). Enables compose-while-scroll without dismissing the soft
+  /// keyboard. Defaults to `false` so a viewport tap still activates
+  /// desktop shortcuts when no external editor is focused.
+  final bool preserveExternalFocus;
 
   @override
   State<ChatKeyboardShortcuts> createState() =>
@@ -208,6 +223,10 @@ class _ChatKeyboardShortcutsState extends State<ChatKeyboardShortcuts> {
   /// inline reply input, a focusable selectable text inside a message)
   /// would otherwise have its focus immediately yanked back to the
   /// wrapper. Skip the grab when focus already landed inside our subtree.
+  ///
+  /// With [preserveExternalFocus], also skip when focus sits outside the
+  /// wrapper (e.g. a sibling composer) so scroll/tap do not dismiss the
+  /// soft keyboard.
   void _handlePointerDown(PointerDownEvent _) {
     if (_focusNode.hasFocus) return;
     final scope = _focusNode.enclosingScope;
@@ -220,6 +239,7 @@ class _ChatKeyboardShortcutsState extends State<ChatKeyboardShortcuts> {
         if (n == _focusNode) return;
         n = n.parent;
       }
+      if (widget.preserveExternalFocus) return;
     }
     _focusNode.requestFocus();
   }

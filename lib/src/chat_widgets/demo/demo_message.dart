@@ -557,7 +557,7 @@ class DemoInitialSkeleton extends StatelessWidget {
       DemoShimmerBubble(),
       DemoShimmerBubble(),
       DemoShimmerBubble(),
-      Spacer(),
+      SizedBox(height: 24),
       SizedBox(
         width: 22,
         height: 22,

@@ -1,7 +1,7 @@
 import 'package:chatscrollview/src/demo_config.dart';
 import 'package:flutter/material.dart';
 
-/// Shown when the demo cannot reach the local backend.
+/// Shown when the demo cannot reach the local Supabase stack.
 class DemoBackendError extends StatelessWidget {
   const DemoBackendError({
     required this.message,
@@ -35,10 +35,16 @@ class DemoBackendError extends StatelessWidget {
                 ),
                 const SizedBox(height: 12),
                 Text(
-                  'Configured backend: ${DemoConfig.backendUrl}',
+                  'Configured Supabase: ${DemoConfig.supabaseUrl}',
                   style: Theme.of(context).textTheme.bodySmall,
                   textAlign: TextAlign.center,
                 ),
+                const SizedBox(height: 8),
+                Text(
+                  'Start locally:\n  ./scripts/dev.sh\n  or:\n  supabase start\n  supabase db reset\n  supabase functions serve',
+                    style: Theme.of(context).textTheme.bodySmall,
+                    textAlign: TextAlign.center,
+                  ),
                 const SizedBox(height: 8),
                 Text(
                   message,
