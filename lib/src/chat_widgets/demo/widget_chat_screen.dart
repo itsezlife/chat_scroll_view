@@ -16,8 +16,8 @@ import 'package:chatscrollview/src/chat_widgets/demo/demo_message.dart';
 import 'package:chatscrollview/src/chat_widgets/demo/measure_size.dart';
 import 'package:chatscrollview/src/chat_widgets/demo/new_messages_pill.dart';
 import 'package:chatscrollview/src/chat_widgets/demo/selection_app_bar.dart';
-import 'package:chatscrollview/src/comments_data_source.dart';
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 /// Demo screen for the widget-based [ChatScrollView] — the chat viewport,
 /// a bottom composer, and a contextual selection bar, wired together.
@@ -43,6 +43,14 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
   /// stored last-read on off-tail open; advanced by the pill while scrolling.
   final ValueNotifier<int?> _pillLastSeenBaseline = ValueNotifier<int?>(null);
 
+  /// Coalesces progressive baseline bumps while scrolling into a single
+  /// `update_read_state` call; tail arrival flushes immediately.
+  Timer? _persistLastReadTimer;
+
+  static const Duration _persistLastReadDebounce = Duration(milliseconds: 500);
+
+  int? _pendingLastReadBaseline;
+
   @override
   void initState() {
     super.initState();
@@ -55,6 +63,8 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
   @override
   void dispose() {
     _pillLastSeenBaseline.removeListener(_onPillBaselineChanged);
+    _flushPendingLastRead();
+    _persistLastReadTimer?.cancel();
     _pillLastSeenBaseline.dispose();
     _bottomInset.dispose();
     _controller.dispose();
@@ -70,10 +80,9 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
     });
 
     try {
-      // final backend = await BackendChatDataSource.connect(
-      //   client: Supabase.instance.client,
-      // );
-      final backend = await CommentsDataSource.load();
+      final backend = await BackendChatDataSource.connect(
+        client: Supabase.instance.client,
+      );
 
       // The screen may have been popped while `load()` was in flight. The
       // `dispose()` above already ran with `_dataSource == null`, so we
@@ -85,9 +94,7 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
       }
       _dataSource = backend;
       final newest = backend.newestKnownId;
-      // final int? lastRead = await backend.getLastReadMessageId();
-      // ignore: unnecessary_nullable_for_final_variable_declarations
-      final int? lastRead = 10001;
+      final int? lastRead = await backend.getLastReadMessageId();
 
       final anchor = backend.resolveOpenAnchor(
         storedLastRead: lastRead,
@@ -119,11 +126,33 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
   void _onPillBaselineChanged() {
     final newest = _dataSource?.newestKnownId;
     final baseline = _pillLastSeenBaseline.value;
-    if (newest == null || baseline == null || baseline < newest) return;
+    if (newest == null || baseline == null) return;
     final backend = _dataSource;
-    if (backend is BackendChatDataSource) {
-      unawaited(backend.updateLastReadMessageId(newest));
+    if (backend is! BackendChatDataSource) return;
+
+    _pendingLastReadBaseline = baseline;
+    _persistLastReadTimer?.cancel();
+
+    if (baseline >= newest) {
+      _flushPendingLastRead();
+      return;
     }
+
+    _persistLastReadTimer = Timer(
+      _persistLastReadDebounce,
+      _flushPendingLastRead,
+    );
+  }
+
+  void _flushPendingLastRead() {
+    _persistLastReadTimer?.cancel();
+    _persistLastReadTimer = null;
+    final baseline = _pendingLastReadBaseline;
+    if (baseline == null) return;
+    final backend = _dataSource;
+    if (backend is! BackendChatDataSource) return;
+    _pendingLastReadBaseline = null;
+    unawaited(backend.updateLastReadMessageId(baseline));
   }
 
   Future<void> _handleSendMessage(String text) async {
