@@ -83,6 +83,16 @@ void main() {
       physics.cancelBounceback();
       expect(physics.isBouncing, isFalse);
     });
+
+    test('zero bounceDuration does not arm or divide on tick', () {
+      final physics = ChatScrollPhysics(
+        bounceDuration: Duration.zero,
+        overscrollOnSide: (_) => 50,
+      );
+      physics.maybeStartBounceback(50, BouncebackSide.top);
+      expect(physics.isBouncing, isFalse);
+      expect(physics.tickBounceback(Duration.zero), 0.0);
+    });
   });
 
   group('tick', () {

@@ -39,7 +39,8 @@ class ChatScrollPhysics {
 
   /// Spring-back window after overscroll release. When the user releases while
   /// overscrolled, the viewport drives the anchor offset back to the boundary
-  /// edge over this duration with linear interpolation.
+  /// edge over this duration with linear interpolation. Zero or negative values
+  /// disable bounceback (no arm, no tick interpolation).
   final Duration bounceDuration;
 
   /// Live boundary measurement supplied by the render object each tick.
@@ -111,10 +112,11 @@ class ChatScrollPhysics {
     return delta * factor;
   }
 
-  /// Arm spring-back on [side] starting from [overscroll]. No-op when zero.
-  /// The render object picks the dominant violator before calling.
+  /// Arm spring-back on [side] starting from [overscroll]. No-op when zero or
+  /// when [bounceDuration] is zero/negative (bounceback disabled).
   void maybeStartBounceback(double overscroll, BouncebackSide side) {
     if (overscroll == 0.0) return;
+    if (bounceDuration.inMicroseconds <= 0) return;
     _bouncebackActive = true;
     _bouncebackStartTime = null;
     _bouncebackInitialOverscroll = overscroll;
@@ -168,6 +170,12 @@ class ChatScrollPhysics {
   /// judder or a stuck spring.
   double _tickBounceback(Duration elapsed) {
     if (!_bouncebackActive) return 0.0;
+    // Zero/negative duration disables interpolation — avoid division by zero
+    // if bounceback was armed before a misconfigured duration (defense in depth).
+    if (bounceDuration.inMicroseconds <= 0) {
+      cancelBounceback();
+      return 0.0;
+    }
     final start = _bouncebackStartTime ??= elapsed;
     final totalUs = bounceDuration.inMicroseconds;
     final elapsedUs = (elapsed - start).inMicroseconds;
