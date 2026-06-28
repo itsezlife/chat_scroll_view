@@ -15,6 +15,15 @@ import 'package:meta/meta.dart';
 /// navigation — keeping a single source of truth here means consumers don't
 /// have to mirror page metadata onto two objects after every fetch.
 ///
+/// **Boundary deletes**: when a delete event removes the message currently at
+/// [oldestKnownId] or [newestKnownId], update boundaries atomically via
+/// [seedBoundaries] with the new ids and reached flags — do not update
+/// boundary fields piecemeal.
+///
+/// **Notification**: [upsertMessage] and [upsertMessages] already call
+/// [notifyDataChanged]. Subclasses MUST NOT call [notifyDataChanged] after
+/// delegating to `super.upsertMessage` / `super.upsertMessages`.
+///
 /// Uses typed listeners instead of [ChangeNotifier] — subscribers know
 /// exactly what event occurred.
 abstract class ChatDataSource {
@@ -563,7 +572,12 @@ abstract class ChatDataSource {
   ///
   /// Iterates over a snapshot to remain safe if a listener adds or removes
   /// listeners (including itself) during dispatch.
+  ///
+  /// Subclasses must not override this method or call it after
+  /// `super.upsertMessage` / `super.upsertMessages` — the base class already
+  /// notifies.
   @protected
+  @nonVirtual
   void notifyDataChanged() {
     for (final cb in List<VoidCallback>.of(_dataListeners, growable: false)) {
       cb();
