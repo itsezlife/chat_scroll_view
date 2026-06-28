@@ -1,10 +1,13 @@
 /// Chat message interface.
 abstract interface class IChatMessage {
-  /// The unique identifier of the message.
-  /// This is used to identify the message
-  /// and should be unique across all messages.
-  /// Messages displayed in the chat scroll view
-  /// should be ordered by their `id` in ascending order.
+  /// The unique identifier. Must be stable for the lifetime of the message —
+  /// no backend operation (delete, edit, reaction) may change this value.
+  ///
+  /// Negative IDs are valid; the chunk system uses arithmetic right-shift
+  /// and handles them correctly. See `docs/adr/001-message-id-scheme.md`.
+  ///
+  /// Messages displayed in the chat scroll view should be ordered by `id`
+  /// in ascending order.
   abstract final int id;
 
   /// The sender name of the message.
@@ -17,9 +20,12 @@ abstract interface class IChatMessage {
   abstract final DateTime updatedAt;
 }
 
-/// Chat message status flags.
-/// Could be implemented as a bitfield for efficient storage and combination.
-/// Allows representing multiple states simultaneously (e.g. dirty + fetching).
+/// Per-chunk fetch status flags stored as a bitfield (`extension type` over
+/// `int`). Allows representing multiple states simultaneously (e.g. dirty +
+/// fetching).
+///
+/// **Footgun**: a raw [int] can be passed where [ChatMessageStatus] is expected
+/// with no runtime error. Prefer the named constants below. See ADR 001.
 extension type const ChatMessageStatus._(int _value) {
   /// The message has been fetched and contains actual content.
   static const ChatMessageStatus valid = ChatMessageStatus._(0);

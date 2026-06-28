@@ -13,6 +13,9 @@ import 'package:flutter/widgets.dart';
 /// fetched) — return a shimmer/placeholder in that case. [status] reflects the
 /// owning chunk's fetch state (dirty / fetching / error / valid).
 ///
+/// **Lint**: [ChatMessageStatus] is an `extension type` over `int` — a raw
+/// `int` coerces silently with no runtime error. Use named constants.
+///
 /// When [ChatScrollView.chunkErrorBuilder] is wired *and* the message's
 /// chunk is in error state, this builder is **not** invoked for any id in
 /// that chunk — the chunk renders as a single chunk-level tile instead.
@@ -36,8 +39,8 @@ typedef ChatDateSeparatorBuilder =
 /// Information passed to a [ChatChunkErrorBuilder] when its chunk has failed
 /// to load.
 ///
-/// * [chunkIndex] — pagination index of the chunk (id `>> 6`); useful for
-///   logging or chunk-scoped diagnostics.
+/// * [chunkIndex] — pagination index of the chunk (`ChatScrollChunk.chunkOf`);
+///   useful for logging or chunk-scoped diagnostics.
 /// * [firstId] / [lastId] — inclusive id range the chunk would cover when
 ///   fully loaded. The conversation's actual boundaries may sit inside this
 ///   range — clamp against `ChatDataSource.oldestKnownId` /
