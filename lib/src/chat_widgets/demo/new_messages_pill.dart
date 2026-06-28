@@ -45,7 +45,7 @@ class NewMessagesPill extends StatefulWidget {
 
   /// Minimum [ChatVisibleRange.lastVisibleFraction] before progressive scroll
   /// marks the last visible message as read (relative to message height).
-  /// Defaults to `0.5` (half the message visible in the scrollable band).
+  /// Defaults to `0.75` (half the message visible in the scrollable band).
   final double visibilityThreshold;
 
   @override
