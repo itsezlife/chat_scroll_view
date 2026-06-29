@@ -122,6 +122,26 @@ void main() {
         coordinator.dispose();
       });
     });
+
+    test('does not arm when chunk in range is errored', () {
+      fakeAsync((async) {
+        final dataSource = _TestDataSource();
+        final requested = <(int, int)>[];
+        final coordinator = ChatFetchCoordinator(
+          dataSource: dataSource,
+          requestRange: (min, max) => requested.add((min, max)),
+          anchorChunkIndex: () => 0,
+        );
+
+        dataSource.chunks[2] = ChatScrollChunk(index: 2)
+          ..status = ChatMessageStatus.error;
+
+        coordinator.onLayoutComplete(2, 2);
+        async.elapse(const Duration(milliseconds: 200));
+        expect(requested, isEmpty);
+        coordinator.dispose();
+      });
+    });
   });
 
   group('evictChunks', () {

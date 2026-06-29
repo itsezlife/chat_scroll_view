@@ -121,6 +121,12 @@ class ChatFetchCoordinator {
   }
 
   /// End of overlay / empty layout — no visible chunks.
+  ///
+  /// Resets the laid-out range to empty (`min=0`, `max=-1`) before eviction.
+  /// With `maxChunk == -1`, every chunk index ≥ 0 satisfies `index > maxChunk`,
+  /// so all cached chunks are already classified as outside layout — pass 2
+  /// cannot evict distinct in-range victims. No separate outside-only API is
+  /// needed; behaviour matches the pre-extraction overlay path.
   void onLayoutCleared() {
     _layoutMinChunk = 0;
     _layoutMaxChunk = -1;
