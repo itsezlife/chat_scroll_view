@@ -68,9 +68,9 @@ void main() {
       expect(sb.isDragging, isFalse);
 
       // A pointer-down outside the strip is ignored.
-      final outside = PointerDownEvent(
+      const outside = PointerDownEvent(
         pointer: 8,
-        position: const Offset(10, 100),
+        position: Offset(10, 100),
       );
       expect(sb.tryStartDrag(outside, size, ltr), isFalse);
       expect(sb.isDragging, isFalse);

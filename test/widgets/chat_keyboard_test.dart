@@ -80,7 +80,9 @@ void main() {
       addTearDown(controller.dispose);
       addTearDown(ds.dispose);
 
-      await tester.pumpWidget(_scaffold(dataSource: ds, controller: controller));
+      await tester.pumpWidget(
+        _scaffold(dataSource: ds, controller: controller),
+      );
       await tester.pumpAndSettle();
       final offsetBefore = controller.anchorPixelOffset;
 
@@ -101,7 +103,9 @@ void main() {
       addTearDown(controller.dispose);
       addTearDown(ds.dispose);
 
-      await tester.pumpWidget(_scaffold(dataSource: ds, controller: controller));
+      await tester.pumpWidget(
+        _scaffold(dataSource: ds, controller: controller),
+      );
       await tester.pumpAndSettle();
       final offsetBefore = controller.anchorPixelOffset;
 
@@ -111,16 +115,16 @@ void main() {
       expect(controller.anchorPixelOffset, closeTo(offsetBefore + 60, 0.1));
     });
 
-    testWidgets('PageDown / PageUp scroll by ~viewport height', (
-      tester,
-    ) async {
+    testWidgets('PageDown / PageUp scroll by ~viewport height', (tester) async {
       const count = 256;
       final controller = ChatScrollController()..jumpTo(count ~/ 2);
       final ds = _PreloadedDataSource(count);
       addTearDown(controller.dispose);
       addTearDown(ds.dispose);
 
-      await tester.pumpWidget(_scaffold(dataSource: ds, controller: controller));
+      await tester.pumpWidget(
+        _scaffold(dataSource: ds, controller: controller),
+      );
       await tester.pumpAndSettle();
 
       // Viewport is 600 px tall; pageFraction = 0.85 → 510 px.
@@ -149,34 +153,39 @@ void main() {
         addTearDown(controller.dispose);
         addTearDown(ds.dispose);
 
-        await tester.pumpWidget(MaterialApp(
-          home: Scaffold(
-            // Force the *screen* to be larger than the wrapper — if the
-            // implementation reads MediaQuery, the step matches the screen.
-            // If it reads the LayoutBuilder height, the step matches the
-            // 300px wrapper.
-            body: Center(
-              child: SizedBox(
-                width: 400,
-                height: wrapperHeight,
-                child: ChatKeyboardShortcuts(
-                  controller: controller,
-                  dataSource: ds,
-                  autofocus: true,
-                  child: ChatScrollView(
-                    dataSource: ds,
+        await tester.pumpWidget(
+          MaterialApp(
+            home: Scaffold(
+              // Force the *screen* to be larger than the wrapper — if the
+              // implementation reads MediaQuery, the step matches the screen.
+              // If it reads the LayoutBuilder height, the step matches the
+              // 300px wrapper.
+              body: Center(
+                child: SizedBox(
+                  width: 400,
+                  height: wrapperHeight,
+                  child: ChatKeyboardShortcuts(
                     controller: controller,
-                    cacheExtent: 1000,
-                    messageBuilder: (context, id, message, status) => SizedBox(
-                      height: 60,
-                      child: Text(message == null ? 'shimmer-$id' : 'msg-$id'),
+                    dataSource: ds,
+                    autofocus: true,
+                    child: ChatScrollView(
+                      dataSource: ds,
+                      controller: controller,
+                      cacheExtent: 1000,
+                      messageBuilder: (context, id, message, status) =>
+                          SizedBox(
+                            height: 60,
+                            child: Text(
+                              message == null ? 'shimmer-$id' : 'msg-$id',
+                            ),
+                          ),
                     ),
                   ),
                 ),
               ),
             ),
           ),
-        ));
+        );
         await tester.pumpAndSettle();
 
         // Screen is ~800px tall by default in the test harness; wrapper is
@@ -189,7 +198,8 @@ void main() {
         expect(
           delta,
           closeTo(wrapperHeight * 0.85, 1.0),
-          reason: 'PageDown default must derive from the wrapper height '
+          reason:
+              'PageDown default must derive from the wrapper height '
               '(300 * 0.85 = 255), not the full MediaQuery height.',
         );
         expect(
@@ -207,7 +217,9 @@ void main() {
       addTearDown(controller.dispose);
       addTearDown(ds.dispose);
 
-      await tester.pumpWidget(_scaffold(dataSource: ds, controller: controller));
+      await tester.pumpWidget(
+        _scaffold(dataSource: ds, controller: controller),
+      );
       await tester.pumpAndSettle();
 
       await tester.sendKeyEvent(LogicalKeyboardKey.home);
@@ -224,7 +236,9 @@ void main() {
       addTearDown(controller.dispose);
       addTearDown(ds.dispose);
 
-      await tester.pumpWidget(_scaffold(dataSource: ds, controller: controller));
+      await tester.pumpWidget(
+        _scaffold(dataSource: ds, controller: controller),
+      );
       await tester.pumpAndSettle();
 
       await tester.sendKeyEvent(LogicalKeyboardKey.end);
@@ -243,11 +257,9 @@ void main() {
       addTearDown(controller.dispose);
       addTearDown(ds.dispose);
 
-      await tester.pumpWidget(_scaffold(
-        dataSource: ds,
-        controller: controller,
-        reverse: true,
-      ));
+      await tester.pumpWidget(
+        _scaffold(dataSource: ds, controller: controller, reverse: true),
+      );
       await tester.pumpAndSettle();
 
       // In reverse mode the "Home" intuition is "the most recent" (top of
@@ -273,11 +285,9 @@ void main() {
       addTearDown(controller.dispose);
       addTearDown(ds.dispose);
 
-      await tester.pumpWidget(_scaffold(
-        dataSource: ds,
-        controller: controller,
-        reverse: true,
-      ));
+      await tester.pumpWidget(
+        _scaffold(dataSource: ds, controller: controller, reverse: true),
+      );
       await tester.pumpAndSettle();
 
       final offsetBefore = controller.anchorPixelOffset;
@@ -348,7 +358,9 @@ void main() {
       controller.addScrollByListener(deltas.add);
       addTearDown(() => controller.removeScrollByListener(deltas.add));
 
-      await tester.pumpWidget(_scaffold(dataSource: ds, controller: controller));
+      await tester.pumpWidget(
+        _scaffold(dataSource: ds, controller: controller),
+      );
       await tester.pumpAndSettle();
 
       await tester.sendKeyEvent(LogicalKeyboardKey.arrowDown);
@@ -371,11 +383,9 @@ void main() {
       addTearDown(controller.dispose);
       addTearDown(ds.dispose);
 
-      await tester.pumpWidget(_scaffold(
-        dataSource: ds,
-        controller: controller,
-        autofocus: false,
-      ));
+      await tester.pumpWidget(
+        _scaffold(dataSource: ds, controller: controller, autofocus: false),
+      );
       await tester.pumpAndSettle();
       final before = controller.anchorPixelOffset;
 
@@ -395,45 +405,46 @@ void main() {
         addTearDown(controller.dispose);
         addTearDown(ds.dispose);
 
-        await tester.pumpWidget(MaterialApp(
-          home: Scaffold(
-            body: Column(
-              children: <Widget>[
-                Expanded(
-                  child: ChatKeyboardShortcuts(
-                    controller: controller,
-                    dataSource: ds,
-                    // Default is autofocus: false — verified by passing it
-                    // explicitly so the test is robust to future renames.
-                    autofocus: false,
-                    child: ChatScrollView(
+        await tester.pumpWidget(
+          MaterialApp(
+            home: Scaffold(
+              body: Column(
+                children: <Widget>[
+                  Expanded(
+                    child: ChatKeyboardShortcuts(
                       controller: controller,
                       dataSource: ds,
-                      cacheExtent: 1000,
-                      messageBuilder:
-                          (context, id, message, status) => SizedBox(
-                        height: 60,
-                        child: Text(
-                          message == null ? 'shimmer-$id' : 'msg-$id',
-                        ),
+                      // Default is autofocus: false — verified by passing it
+                      // explicitly so the test is robust to future renames.
+                      autofocus: false,
+                      child: ChatScrollView(
+                        controller: controller,
+                        dataSource: ds,
+                        cacheExtent: 1000,
+                        messageBuilder: (context, id, message, status) =>
+                            SizedBox(
+                              height: 60,
+                              child: Text(
+                                message == null ? 'shimmer-$id' : 'msg-$id',
+                              ),
+                            ),
                       ),
                     ),
                   ),
-                ),
-                TextField(key: composerKey, autofocus: true),
-              ],
+                  TextField(key: composerKey, autofocus: true),
+                ],
+              ),
             ),
           ),
-        ));
+        );
         await tester.pumpAndSettle();
 
         // The composer must own focus — the wrapper did not steal it.
         final composer = tester.widget<TextField>(find.byKey(composerKey));
-        final FocusNode? composerNode = composer.focusNode;
+        final composerNode = composer.focusNode;
         expect(
-          composerNode?.hasFocus ?? FocusScope.of(
-            composerKey.currentContext!,
-          ).hasFocus,
+          composerNode?.hasFocus ??
+              FocusScope.of(composerKey.currentContext!).hasFocus,
           isTrue,
           reason: 'composer must retain focus over the chat wrapper',
         );
@@ -449,35 +460,37 @@ void main() {
       required FocusNode composerFocus,
       required bool preserveExternalFocus,
     }) async {
-      await tester.pumpWidget(MaterialApp(
-        home: Scaffold(
-          body: Column(
-            children: <Widget>[
-              Expanded(
-                child: ChatKeyboardShortcuts(
-                  controller: controller,
-                  dataSource: ds,
-                  autofocus: false,
-                  preserveExternalFocus: preserveExternalFocus,
-                  child: ChatScrollView(
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: Column(
+              children: <Widget>[
+                Expanded(
+                  child: ChatKeyboardShortcuts(
                     controller: controller,
                     dataSource: ds,
-                    cacheExtent: 1000,
-                    messageBuilder: (context, id, message, status) =>
-                        SizedBox(
-                      height: 60,
-                      child: Text(
-                        message == null ? 'shimmer-$id' : 'msg-$id',
-                      ),
+                    autofocus: false,
+                    preserveExternalFocus: preserveExternalFocus,
+                    child: ChatScrollView(
+                      controller: controller,
+                      dataSource: ds,
+                      cacheExtent: 1000,
+                      messageBuilder: (context, id, message, status) =>
+                          SizedBox(
+                            height: 60,
+                            child: Text(
+                              message == null ? 'shimmer-$id' : 'msg-$id',
+                            ),
+                          ),
                     ),
                   ),
                 ),
-              ),
-              TextField(focusNode: composerFocus),
-            ],
+                TextField(focusNode: composerFocus),
+              ],
+            ),
           ),
         ),
-      ));
+      );
       await tester.pumpAndSettle();
       composerFocus.requestFocus();
       await tester.pump();
@@ -543,8 +556,9 @@ void main() {
       final controller = ChatScrollController();
       addTearDown(controller.dispose);
       var emitted = 0;
-      controller.addScrollByListener((_) => emitted++);
-      controller.scrollBy(0);
+      controller
+        ..addScrollByListener((_) => emitted++)
+        ..scrollBy(0);
       expect(emitted, 0);
     });
 

@@ -104,10 +104,9 @@ void main() {
       addTearDown(controller.dispose);
       addTearDown(ds.dispose);
 
-      await tester.pumpWidget(_scaffold(
-        dataSource: ds,
-        controller: controller,
-      ));
+      await tester.pumpWidget(
+        _scaffold(dataSource: ds, controller: controller),
+      );
       await tester.pumpAndSettle();
 
       final viewportTopLeft = tester.getTopLeft(find.byType(ChatScrollView));
@@ -137,11 +136,13 @@ void main() {
       addTearDown(controller.dispose);
       addTearDown(ds.dispose);
 
-      await tester.pumpWidget(_scaffold(
-        dataSource: ds,
-        controller: controller,
-        ambient: TextDirection.rtl,
-      ));
+      await tester.pumpWidget(
+        _scaffold(
+          dataSource: ds,
+          controller: controller,
+          ambient: TextDirection.rtl,
+        ),
+      );
       await tester.pumpAndSettle();
 
       final viewportTopLeft = tester.getTopLeft(find.byType(ChatScrollView));
@@ -170,11 +171,13 @@ void main() {
       addTearDown(ds.dispose);
 
       // Ambient LTR but override RTL: scrollbar should sit on the left.
-      await tester.pumpWidget(_scaffold(
-        dataSource: ds,
-        controller: controller,
-        override: TextDirection.rtl,
-      ));
+      await tester.pumpWidget(
+        _scaffold(
+          dataSource: ds,
+          controller: controller,
+          override: TextDirection.rtl,
+        ),
+      );
       await tester.pumpAndSettle();
 
       final viewportTopLeft = tester.getTopLeft(find.byType(ChatScrollView));
@@ -195,19 +198,20 @@ void main() {
       addTearDown(ds.dispose);
 
       // LTR: msg aligned to the LEFT edge of the row.
-      await tester.pumpWidget(_scaffold(
-        dataSource: ds,
-        controller: controller,
-      ));
+      await tester.pumpWidget(
+        _scaffold(dataSource: ds, controller: controller),
+      );
       await tester.pumpAndSettle();
       final ltrPos = tester.getTopLeft(find.text('msg-4'));
 
       // Switch to RTL: msg should align to the RIGHT edge of the row.
-      await tester.pumpWidget(_scaffold(
-        dataSource: ds,
-        controller: controller,
-        ambient: TextDirection.rtl,
-      ));
+      await tester.pumpWidget(
+        _scaffold(
+          dataSource: ds,
+          controller: controller,
+          ambient: TextDirection.rtl,
+        ),
+      );
       await tester.pumpAndSettle();
       final rtlPos = tester.getTopLeft(find.text('msg-4'));
 
@@ -226,21 +230,21 @@ void main() {
       addTearDown(controller.dispose);
       addTearDown(ds.dispose);
 
-      await tester.pumpWidget(_scaffold(
-        dataSource: ds,
-        controller: controller,
-        ambient: TextDirection.rtl,
-      ));
+      await tester.pumpWidget(
+        _scaffold(
+          dataSource: ds,
+          controller: controller,
+          ambient: TextDirection.rtl,
+        ),
+      );
       await tester.pumpAndSettle();
 
       final viewportTopLeft = tester.getTopLeft(find.byType(ChatScrollView));
       final center = viewportTopLeft + const Offset(200, 300);
       final offsetBefore = controller.anchorPixelOffset;
-      final testPointer = TestPointer(1, PointerDeviceKind.mouse);
-      testPointer.hover(center);
-      await tester.sendEventToBinding(
-        testPointer.scroll(const Offset(0, 200)),
-      );
+      final testPointer = TestPointer(1, PointerDeviceKind.mouse)
+        ..hover(center);
+      await tester.sendEventToBinding(testPointer.scroll(const Offset(0, 200)));
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 50));
       expect(controller.anchorPixelOffset, isNot(closeTo(offsetBefore, 0.5)));

@@ -6,6 +6,8 @@
 // Profile: flutter drive --driver=test_driver/integration_test.dart \
 //            --target=integration_test/widget_benchmark_test.dart -d macos --profile
 
+// ignore_for_file: no_adjacent_strings_in_list
+
 import 'dart:math';
 
 import 'package:chatscrollview/src/chat_message.dart';
@@ -23,7 +25,13 @@ import 'package:integration_test/integration_test.dart';
 // Test data (identical content distribution to benchmark_test.dart)
 // ---------------------------------------------------------------------------
 
-const _kShort = ['Hello!', 'Sure thing.', 'Got it, thanks.', 'On my way.', 'OK'];
+const _kShort = [
+  'Hello!',
+  'Sure thing.',
+  'Got it, thanks.',
+  'On my way.',
+  'OK',
+];
 const _kMedium = [
   'The quick brown fox jumps over the lazy dog near the riverbank.',
   'I was thinking we could meet up tomorrow at the coffee shop downtown.',
@@ -127,7 +135,7 @@ class _FrameTimingCollector {
   late final TimingsCallback _callback;
 
   void start() {
-    _callback = (List<FrameTiming> list) => timings.addAll(list);
+    _callback = timings.addAll;
     SchedulerBinding.instance.addTimingsCallback(_callback);
   }
 
@@ -138,8 +146,9 @@ class _FrameTimingCollector {
   List<int> get rasterTimesUs =>
       timings.map((t) => t.rasterDuration.inMicroseconds).toList();
   List<int> get totalTimesUs => timings
-      .map((t) =>
-          t.buildDuration.inMicroseconds + t.rasterDuration.inMicroseconds)
+      .map(
+        (t) => t.buildDuration.inMicroseconds + t.rasterDuration.inMicroseconds,
+      )
       .toList();
   int get jankCount => timings
       .where((t) => t.totalSpan > const Duration(milliseconds: 16))
@@ -176,15 +185,16 @@ class _FrameTimingCollector {
   return (ds: ds, ctrl: ctrl);
 }
 
-Widget _widgetApp(_BenchDataSource ds, ChatScrollController ctrl) => MaterialApp(
-  home: Scaffold(
-    body: ChatScrollView(
-      dataSource: ds,
-      controller: ctrl,
-      messageBuilder: _benchBuilder,
-    ),
-  ),
-);
+Widget _widgetApp(_BenchDataSource ds, ChatScrollController ctrl) =>
+    MaterialApp(
+      home: Scaffold(
+        body: ChatScrollView(
+          dataSource: ds,
+          controller: ctrl,
+          messageBuilder: _benchBuilder,
+        ),
+      ),
+    );
 
 RenderChatScrollView _ro(WidgetTester tester) =>
     tester.renderObject<RenderChatScrollView>(find.byType(ChatScrollView));
@@ -205,7 +215,7 @@ void main() {
 
       final collector = _FrameTimingCollector()..start();
       for (var i = 0; i < 200; i++) {
-        ctrl.applyScrollDelta(15.0);
+        ctrl.applyScrollDelta(15);
         _ro(tester).markNeedsLayout();
         await tester.pump(const Duration(milliseconds: 16));
       }
@@ -230,7 +240,7 @@ void main() {
       await tester.fling(
         find.byType(ChatScrollView),
         const Offset(0, -300),
-        3000.0,
+        3000,
       );
       for (var i = 0; i < 300; i++) {
         await tester.pump(const Duration(milliseconds: 16));
@@ -254,7 +264,7 @@ void main() {
       final render = _ro(tester);
 
       for (var i = 0; i < 20; i++) {
-        ctrl.applyScrollDelta(-5.0);
+        ctrl.applyScrollDelta(-5);
         render.markNeedsLayout();
         await tester.pump(const Duration(milliseconds: 16));
       }
@@ -267,7 +277,7 @@ void main() {
       var paintFrames = 0;
 
       for (var i = 0; i < 500; i++) {
-        ctrl.applyScrollDelta(-5.0);
+        ctrl.applyScrollDelta(-5);
         render.markNeedsLayout();
         await tester.pump(const Duration(milliseconds: 16));
         if (render.debugLayoutFrameId != lastLId) {
@@ -285,8 +295,9 @@ void main() {
       final avgLayoutUs = layoutFrames > 0 ? totalLayoutUs / layoutFrames : 0.0;
       final avgPaintUs = paintFrames > 0 ? totalPaintUs / paintFrames : 0.0;
       final avgTotalUs = avgLayoutUs + avgPaintUs;
-      final rawFps =
-          avgTotalUs > 0 ? (1000000.0 / avgTotalUs).toStringAsFixed(0) : '∞';
+      final rawFps = avgTotalUs > 0
+          ? (1000000.0 / avgTotalUs).toStringAsFixed(0)
+          : '∞';
 
       debugPrint(
         'WIDGET raw compute ($count msgs): '

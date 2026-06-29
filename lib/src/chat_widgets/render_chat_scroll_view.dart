@@ -1,3 +1,5 @@
+// ignore_for_file: prefer_asserts_with_message
+
 import 'dart:async';
 import 'dart:collection';
 
@@ -23,8 +25,14 @@ import 'package:meta/meta.dart' show internal;
 /// message loads), and the [dividerOpacity] of its inline date separator. The
 /// floating day header reuses this type — only [offset] is meaningful for it.
 class ChatMessageParentData extends ParentData {
+  /// Message id this render box represents; `0` for the floating day header.
   int id = 0;
-  double offset = 0.0;
+
+  /// Viewport-local Y of this child's top edge; may be negative when scrolled
+  /// off-screen.
+  double offset = 0;
+
+  /// `true` when this message carries an inline day separator above its body.
   bool startsDay = false;
 
   /// Group key (`DateTime`, record, string, anything equatable) — produced by
@@ -36,7 +44,7 @@ class ChatMessageParentData extends ParentData {
   /// `RenderChatScrollView` from [offset] so the separator fades out as it
   /// rises into the floating day header's zone. Only meaningful when
   /// [startsDay] is `true`; read by `RenderDatedMessage`.
-  double dividerOpacity = 1.0;
+  double dividerOpacity = 1;
 }
 
 /// Kind of full-viewport overlay the element is asked to build. Internal
@@ -90,6 +98,8 @@ abstract interface class ChatChildManager {
 /// [markNeedsPaint] (no layout, no rebuild — Tier 1); the framework moves the
 /// cached child layers.
 class RenderChatScrollView extends RenderBox implements ChatScrollAnimator {
+  /// Creates the render object that lays out message children around the
+  /// controller's anchor and drives scroll physics.
   RenderChatScrollView({
     required ChatDataSource dataSource,
     required ChatScrollController controller,
@@ -392,22 +402,22 @@ class RenderChatScrollView extends RenderBox implements ChatScrollAnimator {
   /// Exponential moving average of the per-frame scroll delta (px/frame,
   /// signed). Positive = anchor moving down = revealing older messages.
   /// Drives the directional build-ahead lead.
-  double _scrollVelocity = 0.0;
-  static const double _leadFrames = 4.0;
+  double _scrollVelocity = 0;
+  static const double _leadFrames = 4;
 
   /// Floating-header height assumed for the inline-divider fade before the
   /// real header has been laid out (first frame only).
-  static const double _kHeaderFallbackHeight = 32.0;
+  static const double _kHeaderFallbackHeight = 32;
 
   /// Travel distance over which an inline date separator fades in / out near
   /// the floating header — short, so it reaches full opacity almost as soon as
   /// it clears the header.
-  static const double _kDividerFadeBand = 20.0;
+  static const double _kDividerFadeBand = 20;
 
   // --- Ticker / scroll physics ----------------------------------------------
 
   Ticker? _ticker;
-  double _pendingScrollDelta = 0.0;
+  double _pendingScrollDelta = 0;
 
   /// Fling simulation, drag resistance, and overscroll bounceback. Boundary
   /// geometry is measured here in the render object and fed back through
@@ -441,12 +451,12 @@ class RenderChatScrollView extends RenderBox implements ChatScrollAnimator {
   /// Target id for the in-flight animation; for the close-target branch the
   /// anchor has already been reassigned to this id at the start.
   int _animateTargetId = 0;
-  double _animateAlignment = 0.0;
+  double _animateAlignment = 0;
 
   /// Anchor pixel offset at animation start (close path) or the fade window
   /// progress driver (far path).
-  double _animateStartOffset = 0.0;
-  double _animateEndOffset = 0.0;
+  double _animateStartOffset = 0;
+  double _animateEndOffset = 0;
   Duration? _animateStartTime;
   Duration _animateDuration = Duration.zero;
   Curve _animateCurve = Curves.linear;
@@ -458,8 +468,12 @@ class RenderChatScrollView extends RenderBox implements ChatScrollAnimator {
 
   /// Current fade opacity for far-target crossfade (1.0 → 0.0 → 1.0 across
   /// the animation duration). 1.0 when no far animation is in flight.
-  double _fadeOpacity = 1.0;
+  double _fadeOpacity = 1;
   final LayerHandle<OpacityLayer> _fadeLayer = LayerHandle<OpacityLayer>();
+
+  /// Per-call preference from the active `animateTo`: whether to arm the
+  /// post-settle highlight when the animation completes successfully.
+  bool _animateHighlight = true;
 
   // --- animateTo target-highlight ------------------------------------------
 
@@ -474,7 +488,7 @@ class RenderChatScrollView extends RenderBox implements ChatScrollAnimator {
   /// Current opacity factor (0..1) of the highlight; 1 at the start, 0 at
   /// the end. Updated by `_highlightProgress` each tick; read by
   /// `_paintHighlight` so paint never has to look at ticker state.
-  double _highlightFactor = 0.0;
+  double _highlightFactor = 0;
 
   /// Configurable: how long the post-animate highlight stays on the target.
   /// Zero disables the highlight entirely.
@@ -570,23 +584,53 @@ class RenderChatScrollView extends RenderBox implements ChatScrollAnimator {
   // --- Debug instrumentation (zero-cost in release via assert) --------------
 
   final Stopwatch _debugSw = Stopwatch();
+  /// Wall-clock duration of the most recent `performLayout` (debug builds only).
   Duration debugLastLayoutDuration = Duration.zero;
+
+  /// Wall-clock duration of the most recent `paint` (debug builds only).
   Duration debugLastPaintDuration = Duration.zero;
+
+  /// Monotonic frame counter incremented on each layout pass.
   int debugLayoutFrameId = 0;
+
+  /// Monotonic frame counter incremented on each paint pass.
   int debugPaintFrameId = 0;
 
+  /// Count of message children currently in the sparse child map.
   int get debugChildCount => _children.length;
+
+  /// Count of chunk-error overlay children currently built.
   int get debugChunkErrorCount => _chunkErrors.length;
+
+  /// Number of pagination chunks tracked by the data source.
   int get debugChunkCount => _dataSource.chunks.length;
+
+  /// Lowest chunk index included in the last layout fan-out.
   int get debugLayoutMinChunk => _layoutMinChunk;
+
+  /// Highest chunk index included in the last layout fan-out.
   int get debugLayoutMaxChunk => _layoutMaxChunk;
+
+  /// Smallest message id with a built child, or `null` when empty.
   int? get debugFirstId => _children.isEmpty ? null : _children.firstKey();
+
+  /// Largest message id with a built child, or `null` when empty.
   int? get debugLastId => _children.isEmpty ? null : _children.lastKey();
+
+  /// Whether a floating day header render box is currently attached.
   bool get debugHasFloatingHeader => _floatingHeader != null;
+
+  /// Viewport-local Y of the floating header's top edge, if built.
   double? get debugFloatingHeaderOffset =>
       _floatingHeader == null ? null : _parentData(_floatingHeader!).offset;
+
+  /// Calendar date shown in the floating header, if any.
   DateTime? get debugHeaderDate => _headerDate;
+
+  /// Message id currently receiving the post-navigation highlight tint.
   int? get debugHighlightTargetId => _highlightTargetId;
+
+  /// Highlight animation progress in `0..1` for [debugHighlightTargetId].
   double get debugHighlightFactor => _highlightFactor;
 
   /// Inline-divider fade opacity (0..1) of the built child [id], or `null`
@@ -686,7 +730,7 @@ class RenderChatScrollView extends RenderBox implements ChatScrollAnimator {
     if (!_dataSource.reachedNewest || newest == null) return;
     final targetId = _clampJumpTarget(_controller.anchorMessageId);
     if (targetId != _controller.anchorMessageId) {
-      _controller.reassignAnchor(targetId, 0.0);
+      _controller.reassignAnchor(targetId, 0);
     }
     if (_controller.anchorMessageId != newest) return;
     _markPinTailOnJumpIfNeeded(newest);
@@ -730,8 +774,8 @@ class RenderChatScrollView extends RenderBox implements ChatScrollAnimator {
     // the new viewport's first layout).
     _dataSource
       ..removeDataListener(_onDataChanged)
-      ..removeBoundaryListener(_onBoundaryChanged);
-    _dataSource.cancelFetch();
+      ..removeBoundaryListener(_onBoundaryChanged)
+      ..cancelFetch();
     _controller
       ..removeJumpListener(_onJump)
       ..removeScrollByListener(_onScrollBy)
@@ -760,12 +804,8 @@ class RenderChatScrollView extends RenderBox implements ChatScrollAnimator {
 
   @override
   void redepthChildren() {
-    for (final child in _children.values) {
-      redepthChild(child);
-    }
-    for (final child in _chunkErrors.values) {
-      redepthChild(child);
-    }
+    _children.values.forEach(redepthChild);
+    _chunkErrors.values.forEach(redepthChild);
     final header = _floatingHeader;
     if (header != null) redepthChild(header);
     final overlay = _overlay;
@@ -774,12 +814,8 @@ class RenderChatScrollView extends RenderBox implements ChatScrollAnimator {
 
   @override
   void visitChildren(RenderObjectVisitor visitor) {
-    for (final child in _children.values) {
-      visitor(child);
-    }
-    for (final child in _chunkErrors.values) {
-      visitor(child);
-    }
+    _children.values.forEach(visitor);
+    _chunkErrors.values.forEach(visitor);
     final header = _floatingHeader;
     if (header != null) visitor(header);
     final overlay = _overlay;
@@ -873,7 +909,7 @@ class RenderChatScrollView extends RenderBox implements ChatScrollAnimator {
   double _alignedTopForMessage(double messageHeight, double alignment) {
     final bottomEdge = size.height - _bottomPad;
     final travel = bottomEdge - messageHeight;
-    if (travel <= 0) return 0.0;
+    if (travel <= 0) return 0;
     return alignment.clamp(0.0, 1.0) * travel;
   }
 
@@ -914,15 +950,16 @@ class RenderChatScrollView extends RenderBox implements ChatScrollAnimator {
     final anchorId = _controller.anchorMessageId;
     final targetId = _clampJumpTarget(anchorId);
     if (targetId == anchorId) return;
-    _controller.reassignAnchor(targetId, 0.0);
-    _controller.syncNavigationAlignmentTarget(targetId);
+    _controller
+      ..reassignAnchor(targetId, 0)
+      ..syncNavigationAlignmentTarget(targetId);
     _markPinTailOnJumpIfNeeded(targetId);
   }
 
   void _onJump(int messageId) {
     final targetId = _clampJumpTarget(messageId);
     if (targetId != messageId) {
-      _controller.reassignAnchor(targetId, 0.0);
+      _controller.reassignAnchor(targetId, 0);
     }
     _controller.syncNavigationAlignmentTarget(targetId);
     _markPinTailOnJumpIfNeeded(targetId);
@@ -1504,7 +1541,7 @@ class RenderChatScrollView extends RenderBox implements ChatScrollAnimator {
     // viewport space, walk both and pick the smallest-offset candidate whose
     // bottom is still on screen.
     int? bestId;
-    double bestOffset = double.infinity;
+    var bestOffset = double.infinity;
     for (final entry in _children.entries) {
       final cpd = _parentData(entry.value);
       if (cpd.offset + entry.value.size.height > 0 && cpd.offset < bestOffset) {
@@ -1577,16 +1614,16 @@ class RenderChatScrollView extends RenderBox implements ChatScrollAnimator {
     switch (side) {
       case BouncebackSide.top:
         final oldest = _dataSource.oldestKnownId;
-        if (!_dataSource.reachedOldest || oldest == null) return 0.0;
+        if (!_dataSource.reachedOldest || oldest == null) return 0;
         final first = _boundaryBox(oldest);
-        if (first == null) return 0.0;
+        if (first == null) return 0;
         final topY = _parentData(first).offset;
         return topY > 0 ? topY : 0.0;
       case BouncebackSide.bottom:
         final newest = _dataSource.newestKnownId;
-        if (!_dataSource.reachedNewest || newest == null) return 0.0;
+        if (!_dataSource.reachedNewest || newest == null) return 0;
         final last = _boundaryBox(newest);
-        if (last == null) return 0.0;
+        if (last == null) return 0;
         final bottom = _parentData(last).offset + last.size.height;
         final bottomEdge = size.height - _bottomPad;
         return bottom < bottomEdge ? bottom - bottomEdge : 0.0;
@@ -1596,9 +1633,8 @@ class RenderChatScrollView extends RenderBox implements ChatScrollAnimator {
   /// Delegates to [_physics] after measuring [_signedOverscroll]. Only used
   /// while [_dragInProgress] and a boundary is reachable — fling / animate /
   /// wheel / keyboard skip resistance and go through the normal clamp instead.
-  double _applyOverscrollResistance(double delta) {
-    return _physics.applyOverscrollResistance(delta, _signedOverscroll());
-  }
+  double _applyOverscrollResistance(double delta) =>
+      _physics.applyOverscrollResistance(delta, _signedOverscroll());
 
   bool _clampBoundaries({bool repinBottom = false}) {
     // Skip clamping during an active drag — overshoot is allowed there,
@@ -1793,8 +1829,7 @@ class RenderChatScrollView extends RenderBox implements ChatScrollAnimator {
   /// refreshes the inline separator's fade opacity from the new position —
   /// pure parent-data writes, so this stays on the Tier-1 path.
   void _setOffset(RenderBox child, double offset) {
-    final pd = _parentData(child);
-    pd.offset = offset;
+    final pd = _parentData(child)..offset = offset;
     if (pd.startsDay) pd.dividerOpacity = _dividerOpacityFor(offset);
   }
 
@@ -1924,7 +1959,7 @@ class RenderChatScrollView extends RenderBox implements ChatScrollAnimator {
 
   /// Maximum distance (px) for which the close-path animation is used. Beyond
   /// this the viewport falls back to the far-path: crossfade + jumpTo.
-  static const double _kCloseAnimateDistance = 2400.0;
+  static const double _kCloseAnimateDistance = 2400;
 
   @override
   Future<void> animate(
@@ -1932,6 +1967,7 @@ class RenderChatScrollView extends RenderBox implements ChatScrollAnimator {
     required Duration duration,
     required Curve curve,
     double alignment = 0.0,
+    bool highlight = true,
   }) {
     // Re-entrant animateTo: cancel the in-flight one, schedule the new
     // one, and drop any leftover highlight — the user expects the new
@@ -1942,10 +1978,12 @@ class RenderChatScrollView extends RenderBox implements ChatScrollAnimator {
     _cancelAnimate();
     _cancelBounceback();
     if (duration <= Duration.zero) {
+      // Zero duration is instant jumpTo — no animation phase and no highlight.
       _controller.jumpTo(targetId, alignment: alignment);
       return Future<void>.value();
     }
 
+    _animateHighlight = highlight;
     final completer = Completer<void>();
     _animateCompleter = completer;
     _animateTargetId = targetId;
@@ -2011,7 +2049,7 @@ class RenderChatScrollView extends RenderBox implements ChatScrollAnimator {
   /// delta to apply (for the close path); the far path mutates fade opacity
   /// in-place and returns 0.
   double _tickAnimate(Duration elapsed) {
-    if (_animateCompleter == null) return 0.0;
+    if (_animateCompleter == null) return 0;
     final start = _animateStartTime ??= elapsed;
     final totalUs = _animateDuration.inMicroseconds;
     final elapsedUs = (elapsed - start).inMicroseconds;
@@ -2043,7 +2081,7 @@ class RenderChatScrollView extends RenderBox implements ChatScrollAnimator {
       } else {
         markNeedsPaint();
       }
-      return 0.0;
+      return 0;
     }
 
     // Close path: interpolate anchor offset linearly along the curve.
@@ -2063,10 +2101,11 @@ class RenderChatScrollView extends RenderBox implements ChatScrollAnimator {
     _farAnimateActive = false;
     _farAnimateJumped = false;
     // Successful settle (close-path reached t == 1 or far-path completed
-    // its jumpTo + fade-in) → kick off the target highlight. Cancel
-    // (`_cancelAnimate`) skips this path, so an interrupted animateTo
-    // leaves no leftover tint.
-    if (_highlightDuration > Duration.zero) {
+    // its jumpTo + fade-in) → kick off the target highlight when both the
+    // viewport gate (`_highlightDuration > 0`) and the per-call
+    // `_animateHighlight` flag are set. Cancel (`_cancelAnimate`) skips this
+    // path, so an interrupted animateTo leaves no leftover tint.
+    if (_highlightDuration > Duration.zero && _animateHighlight) {
       _highlightTargetId = targetId;
       _highlightStartTime = null;
       _highlightFactor = 1.0;
@@ -2217,10 +2256,10 @@ class RenderChatScrollView extends RenderBox implements ChatScrollAnimator {
     final hasErrors = _chunkErrors.isNotEmpty;
     if (!hasMessages && !hasErrors) return true;
 
-    double topY = double.infinity;
-    double bottomY = double.negativeInfinity;
-    int firstId = 1 << 62;
-    int lastId = -(1 << 62);
+    var topY = double.infinity;
+    var bottomY = double.negativeInfinity;
+    var firstId = 1 << 62;
+    var lastId = -(1 << 62);
 
     if (hasMessages) {
       // Sorted by id — the outermost id bounds are the first and last keys.
@@ -2480,7 +2519,7 @@ class RenderChatScrollView extends RenderBox implements ChatScrollAnimator {
       return result.addWithPaintOffset(
         offset: Offset(0, _parentData(overlay).offset),
         position: position,
-        hitTest: (BoxHitTestResult innerResult, Offset transformed) =>
+        hitTest: (innerResult, transformed) =>
             overlay.hitTest(innerResult, position: transformed),
       );
     }
@@ -2499,7 +2538,7 @@ class RenderChatScrollView extends RenderBox implements ChatScrollAnimator {
         final hit = result.addWithPaintOffset(
           offset: Offset(0, headerOffset),
           position: position,
-          hitTest: (BoxHitTestResult innerResult, Offset transformed) =>
+          hitTest: (innerResult, transformed) =>
               header.hitTest(innerResult, position: transformed),
         );
         if (hit) return true;
@@ -2517,7 +2556,7 @@ class RenderChatScrollView extends RenderBox implements ChatScrollAnimator {
       final hit = result.addWithPaintOffset(
         offset: Offset(0, pd.offset),
         position: position,
-        hitTest: (BoxHitTestResult innerResult, Offset transformed) =>
+        hitTest: (innerResult, transformed) =>
             child.hitTest(innerResult, position: transformed),
       );
       if (hit) return true;
@@ -2532,7 +2571,7 @@ class RenderChatScrollView extends RenderBox implements ChatScrollAnimator {
       final hit = result.addWithPaintOffset(
         offset: Offset(0, pd.offset),
         position: position,
-        hitTest: (BoxHitTestResult innerResult, Offset transformed) =>
+        hitTest: (innerResult, transformed) =>
             child.hitTest(innerResult, position: transformed),
       );
       if (hit) return true;
@@ -2636,9 +2675,9 @@ class RenderChatScrollView extends RenderBox implements ChatScrollAnimator {
     double topEdge,
     double bottomEdge,
   ) {
-    if (childHeight <= 0 || !childHeight.isFinite) return 0.0;
+    if (childHeight <= 0 || !childHeight.isFinite) return 0;
     final bandHeight = bottomEdge - topEdge;
-    if (bandHeight <= 0 || !bandHeight.isFinite) return 0.0;
+    if (bandHeight <= 0 || !bandHeight.isFinite) return 0;
     final visibleTop = childTop < topEdge ? topEdge : childTop;
     final visibleBottom = childBottom > bottomEdge ? bottomEdge : childBottom;
     final visibleHeight = visibleBottom > visibleTop
@@ -2708,7 +2747,7 @@ class RenderChatScrollView extends RenderBox implements ChatScrollAnimator {
       return;
     }
 
-    double firstVisibleFraction = 0.0;
+    var firstVisibleFraction = 0.0;
     if (firstIntersectingChild != null && firstChildTop != null) {
       final child = firstIntersectingChild;
       firstVisibleFraction = _visibleFraction(
@@ -2729,7 +2768,7 @@ class RenderChatScrollView extends RenderBox implements ChatScrollAnimator {
       );
     }
 
-    double lastVisibleFraction = 0.0;
+    var lastVisibleFraction = 0.0;
     if (lastIntersectingChild != null && lastChildTop != null) {
       final child = lastIntersectingChild;
       lastVisibleFraction = _visibleFraction(
@@ -2906,7 +2945,7 @@ class RenderChatScrollView extends RenderBox implements ChatScrollAnimator {
     _fadeLayer.layer = context.pushOpacity(
       offset,
       (_fadeOpacity * 255).round().clamp(0, 255),
-      (innerContext, innerOffset) => _paintContents(innerContext, innerOffset),
+      _paintContents,
       oldLayer: _fadeLayer.layer,
     );
   }

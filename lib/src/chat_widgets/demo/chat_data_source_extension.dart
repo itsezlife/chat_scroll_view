@@ -1,7 +1,12 @@
 import 'package:chatscrollview/src/chat_scroll/chat_data_source.dart';
 
+/// Demo helpers for opening a chat at the user's last-read position.
 extension ChatDataSourceX on ChatDataSource {
   /// Resolves the message id to pass to [ChatScrollController.jumpTo] on open.
+  ///
+  /// Prefers [storedLastRead] when it still exists in the loaded cache;
+  /// walks backward through loaded ids when the stored row was deleted;
+  /// clamps to [oldestKnownId] / [newestKnownId] when boundaries are known.
   int resolveOpenAnchor({
     required int? storedLastRead,
     required int? newestKnownId,

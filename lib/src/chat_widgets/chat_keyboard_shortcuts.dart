@@ -58,6 +58,8 @@ import 'package:flutter/widgets.dart';
 /// )
 /// ```
 class ChatKeyboardShortcuts extends StatefulWidget {
+  /// Wraps [child] with desktop scroll shortcuts bound to [controller] and
+  /// [dataSource] boundary ids.
   const ChatKeyboardShortcuts({
     required this.controller,
     required this.dataSource,
@@ -71,8 +73,14 @@ class ChatKeyboardShortcuts extends StatefulWidget {
     super.key,
   });
 
+  /// Scroll controller receiving [ChatScrollController.scrollBy] and jumps.
   final ChatScrollController controller;
+
+  /// Supplies `oldestKnownId` / `newestKnownId` for Home / End navigation.
   final ChatDataSource dataSource;
+
+  /// Typically a [ChatScrollView] — receives focus on tap when shortcuts
+  /// should become active.
   final Widget child;
 
   /// Mirrors `ChatScrollView.reverse`. When `true`, PageUp / Home reveal

@@ -3,18 +3,21 @@ import 'package:flutter/material.dart';
 
 /// Shown when the demo cannot reach the local Supabase stack.
 class DemoBackendError extends StatelessWidget {
+  /// Full-screen error when the demo cannot reach the local Supabase stack.
   const DemoBackendError({
     required this.message,
     required this.onRetry,
     super.key,
   });
 
+  /// Human-readable failure detail (connection error, auth, etc.).
   final String message;
+
+  /// Re-runs backend initialization — typically reloads the data source.
   final VoidCallback onRetry;
 
   @override
-  Widget build(BuildContext context) {
-    return Scaffold(
+  Widget build(BuildContext context) => Scaffold(
       body: SafeArea(
         child: Center(
           child: Padding(
@@ -63,5 +66,4 @@ class DemoBackendError extends StatelessWidget {
         ),
       ),
     );
-  }
 }

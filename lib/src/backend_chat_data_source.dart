@@ -18,6 +18,7 @@ typedef EdgeFunctionInvoker =
 
 /// Supabase-backed [ChatDataSource] for the demo (Edge Functions + Realtime).
 class BackendChatDataSource extends ChatDataSource {
+  /// Creates a new [BackendChatDataSource] instance.
   BackendChatDataSource({
     required SupabaseClient client,
     this.chatId = DemoConfig.demoChatId,
@@ -30,6 +31,18 @@ class BackendChatDataSource extends ChatDataSource {
       _subscribeRealtime();
     }
   }
+
+  /// Creates a new [BackendChatDataSource] instance for testing.
+  @visibleForTesting
+  factory BackendChatDataSource.forTest({
+    required EdgeFunctionInvoker invoke,
+    int chatId = 1,
+  }) => BackendChatDataSource(
+    client: _placeholderClient,
+    chatId: chatId,
+    invokeOverride: invoke,
+    subscribeRealtime: false,
+  );
 
   /// Connect via `load_chat` and seed newest boundary from `last_message.id`.
   static Future<BackendChatDataSource> connect({
@@ -44,6 +57,7 @@ class BackendChatDataSource extends ChatDataSource {
     return source;
   }
 
+  /// Connects to the test backend and seeds boundaries.
   @visibleForTesting
   static Future<BackendChatDataSource> connectForTest(
     EdgeFunctionInvoker invoke, {
@@ -57,25 +71,20 @@ class BackendChatDataSource extends ChatDataSource {
     return source;
   }
 
-  @visibleForTesting
-  static BackendChatDataSource forTest({
-    required EdgeFunctionInvoker invoke,
-    int chatId = 1,
-  }) => BackendChatDataSource(
-    client: _placeholderClient,
-    chatId: chatId,
-    invokeOverride: invoke,
-    subscribeRealtime: false,
-  );
-
   static final SupabaseClient _placeholderClient = SupabaseClient(
     'http://127.0.0.1:54321',
     'test-anon-key',
   );
 
   final SupabaseClient _client;
+
+  /// The chat id.
   final int chatId;
+
+  /// The request timeout.
   final Duration requestTimeout;
+
+  /// The invoke override.
   final EdgeFunctionInvoker? _invokeOverride;
 
   RealtimeChannel? _channel;
@@ -160,13 +169,15 @@ class BackendChatDataSource extends ChatDataSource {
     required int fromId,
     required int toId,
   }) async {
+    // Scroll chunks start at id 0; Postgres message ids start at 1.
+    final apiFromId = math.max(1, fromId);
     final batch = await _invokeJson(
       'load_messages',
       body: <String, dynamic>{
         'chat_id': chatId,
-        'from_id': fromId,
+        'from_id': apiFromId,
         'to_id': toId,
-        'limit': math.min(toId - fromId + 1, 256),
+        'limit': math.min(toId - apiFromId + 1, 256),
       },
     );
 
@@ -184,7 +195,7 @@ class BackendChatDataSource extends ChatDataSource {
       for (final item in list) _messageFromProtocolJson(item),
     ];
 
-    _applyBoundaryUpdate(messages, batch);
+    _applyBoundaryUpdate(messages, batch, fromId, toId);
     return messages;
   }
 
@@ -302,6 +313,8 @@ class BackendChatDataSource extends ChatDataSource {
   void _applyBoundaryUpdate(
     List<IChatMessage> messages,
     Map<String, Object?> meta,
+    int fromId,
+    int toId,
   ) {
     final ids = messages.map((m) => m.id);
     final loadedMin = ids.isEmpty ? null : ids.reduce(math.min);
@@ -385,8 +398,10 @@ class BackendChatDataSource extends ChatDataSource {
 
 /// Thrown when the demo backend is unreachable or returns an error status.
 class BackendConnectionException implements Exception {
+  /// Creates a new [BackendConnectionException] instance.
   BackendConnectionException(this.message);
 
+  /// The error message.
   final String message;
 
   @override

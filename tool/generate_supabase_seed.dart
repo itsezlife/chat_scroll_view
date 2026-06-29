@@ -36,7 +36,8 @@ void main(List<String> args) {
   var total = 0;
   for (final chunkName in chunks) {
     final chunkPath = '$inputDir/$chunkName';
-    final list = jsonDecode(File(chunkPath).readAsStringSync()) as List<Object?>;
+    final list =
+        jsonDecode(File(chunkPath).readAsStringSync()) as List<Object?>;
     final rows = <String>[];
 
     for (final raw in list) {
@@ -51,7 +52,7 @@ void main(List<String> args) {
         '($_demoChatId, $protocolId, $_demoUserId, '
         '${_sqlQuote(createdAt)}::timestamptz, '
         '${_sqlQuote(createdAt)}::timestamptz, '
-        "0, 0, NULL, ${_sqlQuote(content)}, NULL, ${_sqlQuote(extra)}::jsonb)",
+        '0, 0, NULL, ${_sqlQuote(content)}, NULL, ${_sqlQuote(extra)}::jsonb)',
       );
       total++;
     }
@@ -82,6 +83,4 @@ String? _arg(List<String> args, String name) {
   return args[i + 1];
 }
 
-String _sqlQuote(String value) {
-  return "'${value.replaceAll("'", "''")}'";
-}
+String _sqlQuote(String value) => "'${value.replaceAll("'", "''")}'";

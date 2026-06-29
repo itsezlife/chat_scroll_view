@@ -4,7 +4,13 @@ import 'package:flutter/widgets.dart' show ClampingScrollSimulation;
 /// [ChatScrollPhysics.maybeStartBounceback]; per-tick reads stay locked to
 /// this side so the delta does not flip sign when the dominant violator
 /// switches (short-content viewport, fling composition).
-enum BouncebackSide { top, bottom }
+enum BouncebackSide {
+  /// Oldest-content edge — user overscrolled past the top of the viewport.
+  top,
+
+  /// Newest-content edge — user overscrolled past the bottom of the viewport.
+  bottom,
+}
 
 /// Default duration for overscroll spring-back after drag release.
 const Duration kOverscrollBounceDuration = Duration(milliseconds: 200);
@@ -26,10 +32,12 @@ const Duration kOverscrollBounceDuration = Duration(milliseconds: 200);
 /// Fling and bounceback may run in the same frame after a high-velocity
 /// overscroll release; they compose additively.
 class ChatScrollPhysics {
+  /// Creates physics with live [overscrollOnSide] measurement from the render
+  /// object, [overscrollMax] resistance roll-off, and [bounceDuration] for
+  /// spring-back after overscroll release.
   ChatScrollPhysics({
-    this.overscrollMax = 200.0,
+    required double Function(BouncebackSide side) overscrollOnSide, this.overscrollMax = 200.0,
     this.bounceDuration = kOverscrollBounceDuration,
-    required double Function(BouncebackSide side) overscrollOnSide,
   }) : _overscrollOnSide = overscrollOnSide;
 
   /// Pixel reference for the resistance roll-off. At an overscroll of
@@ -56,7 +64,7 @@ class ChatScrollPhysics {
   /// between flings. Nullable on purpose — a [Ticker]'s very first `elapsed`
   /// is exactly [Duration.zero], so zero cannot double as "unset".
   Duration? _flingStartTime;
-  double _lastFlingValue = 0.0;
+  double _lastFlingValue = 0;
 
   // --- Bounceback state -----------------------------------------------------
   //
@@ -70,22 +78,26 @@ class ChatScrollPhysics {
 
   bool _bouncebackActive = false;
   Duration? _bouncebackStartTime;
-  double _bouncebackInitialOverscroll = 0.0;
+  double _bouncebackInitialOverscroll = 0;
   BouncebackSide _bouncebackSide = BouncebackSide.top;
 
+  /// `true` while a [ClampingScrollSimulation] is driving inertial scroll.
   bool get isFlinging => _simulation != null;
 
+  /// `true` while overscroll spring-back is interpolating toward a boundary.
   bool get isBouncing => _bouncebackActive;
 
   /// Arm a [ClampingScrollSimulation] at [velocity]. Does not emit scroll
   /// events — the render object calls `_cancelFling` first (for [ChatFlingEnd])
   /// then notifies [ChatFlingStart] after this returns.
   void startFling(double velocity) {
-    _simulation = ClampingScrollSimulation(position: 0.0, velocity: velocity);
+    _simulation = ClampingScrollSimulation(position: 0, velocity: velocity);
     _lastFlingValue = 0.0;
     _flingStartTime = null;
   }
 
+  /// Stops an in-flight fling and clears simulation state. The render object
+  /// emits [ChatFlingEnd] when it detects the `isFlinging` → idle transition.
   void cancelFling() {
     _simulation = null;
     _flingStartTime = null;
@@ -123,6 +135,7 @@ class ChatScrollPhysics {
     _bouncebackSide = side;
   }
 
+  /// Aborts an active overscroll spring-back without moving the anchor.
   void cancelBounceback() {
     if (!_bouncebackActive) return;
     _bouncebackActive = false;
@@ -169,12 +182,12 @@ class ChatScrollPhysics {
   /// in the wrong direction for the remainder of the window — visible as
   /// judder or a stuck spring.
   double _tickBounceback(Duration elapsed) {
-    if (!_bouncebackActive) return 0.0;
+    if (!_bouncebackActive) return 0;
     // Zero/negative duration disables interpolation — avoid division by zero
     // if bounceback was armed before a misconfigured duration (defense in depth).
     if (bounceDuration.inMicroseconds <= 0) {
       cancelBounceback();
-      return 0.0;
+      return 0;
     }
     final start = _bouncebackStartTime ??= elapsed;
     final totalUs = bounceDuration.inMicroseconds;

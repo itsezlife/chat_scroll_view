@@ -7,6 +7,7 @@ import 'package:flutter/material.dart';
 /// of selected messages. Meant to be overlaid (e.g. inside a [Stack]) so the
 /// chat itself never resizes — when idle it collapses to nothing.
 class SelectionAppBar extends StatefulWidget {
+  /// Slides in above the chat while [selection] mode is active.
   const SelectionAppBar({required this.selection, super.key});
 
   /// Selection state — drives visibility and the count.

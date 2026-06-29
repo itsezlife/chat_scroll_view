@@ -37,9 +37,7 @@ class _RecorderDataSource extends ChatDataSource {
     calls.add((from: fromId, to: toId));
     await Future<void>.delayed(const Duration(milliseconds: 5));
     if (shouldFail) throw StateError('boom');
-    return <IChatMessage>[
-      for (var i = fromId; i <= toId; i++) _msg(i),
-    ];
+    return <IChatMessage>[for (var i = fromId; i <= toId; i++) _msg(i)];
   }
 }
 
@@ -75,8 +73,8 @@ void main() {
       addTearDown(ds.dispose);
 
       // Forge a dirty chunk that already exists.
-      ds.chunks[0] =
-          ChatScrollChunk(index: 0)..status = ChatMessageStatus.fetching;
+      ds.chunks[0] = ChatScrollChunk(index: 0)
+        ..status = ChatMessageStatus.fetching;
 
       ds.upsertMessage(_msg(5));
 
@@ -87,24 +85,21 @@ void main() {
 
   group('idempotent dispose', () {
     test('ChatDataSource.dispose is idempotent', () {
-      final ds = _RecorderDataSource();
-      ds
+      final ds = _RecorderDataSource()
         ..dispose()
         ..dispose();
       expect(ds.isDisposed, isTrue);
     });
 
     test('ChatScrollController.dispose is idempotent', () {
-      final c = ChatScrollController();
-      c
+      final c = ChatScrollController()
         ..dispose()
         ..dispose();
       expect(c.isDisposed, isTrue);
     });
 
     test('ChatSelectionController.dispose is idempotent', () {
-      final s = ChatSelectionController();
-      s
+      final s = ChatSelectionController()
         ..dispose()
         ..dispose();
       expect(s.isDisposed, isTrue);
@@ -115,32 +110,31 @@ void main() {
     test('upsertMessage after dispose does not throw or notify', () {
       final ds = _RecorderDataSource();
       var notifications = 0;
-      ds.addDataListener(() => notifications++);
-      ds.dispose();
-
-      // dispose clears the listener list — re-adding after dispose is
-      // tolerated (no-op) but the listener won't fire.
-      ds.addDataListener(() => notifications++);
-      ds.upsertMessage(_msg(0));
-      ds.upsertMessages([_msg(1), _msg(2)]);
+      ds
+        ..addDataListener(() => notifications++)
+        ..dispose()
+        // dispose clears the listener list — re-adding after dispose is
+        // tolerated (no-op) but the listener won't fire.
+        ..addDataListener(() => notifications++)
+        ..upsertMessage(_msg(0))
+        ..upsertMessages([_msg(1), _msg(2)]);
 
       expect(notifications, 0);
       expect(ds.chunks, isEmpty);
     });
 
     test('requestChunks after dispose does not call fetchRange', () {
-      final ds = _RecorderDataSource();
-      ds.dispose();
-      ds.requestChunks(0, 3);
+      final ds = _RecorderDataSource()
+        ..dispose()
+        ..requestChunks(0, 3);
       expect(ds.calls, isEmpty);
     });
 
     test('retryChunk / invalidate / cancelFetch after dispose are no-ops', () {
-      final ds = _RecorderDataSource();
-      ds.dispose();
-      // All of these would crash if they tried to touch listeners or schedule
-      // timers.
-      ds
+      final ds = _RecorderDataSource()
+        ..dispose()
+        // All of these would crash if they tried to touch listeners or schedule
+        // timers.
         ..retryChunk(0)
         ..invalidate()
         ..cancelFetch();
@@ -181,7 +175,8 @@ void main() {
       expect(
         ds.calls.length,
         callsBefore,
-        reason: 'retryChunk should not start a new fetch when the running '
+        reason:
+            'retryChunk should not start a new fetch when the running '
             'one already covers the requested chunk',
       );
       // Let the original fetch resolve cleanly so the tearDown is quiet.

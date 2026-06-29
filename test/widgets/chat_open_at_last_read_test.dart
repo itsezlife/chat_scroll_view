@@ -74,38 +74,36 @@ Widget _harness({
   bool reverse = true,
   ValueListenable<double>? bottomPadding,
   ValueNotifier<int?>? lastSeenNewestId,
-}) {
-  return MaterialApp(
-    home: Scaffold(
-      body: Center(
-        child: SizedBox(
-          width: _viewportWidth,
-          height: _viewportHeight,
-          child: Stack(
-            children: <Widget>[
-              ChatScrollView(
-                reverse: reverse,
-                dataSource: dataSource,
-                controller: controller,
-                bottomPadding: bottomPadding,
-                messageBuilder: (context, id, message, status) => SizedBox(
-                  height: 60,
-                  child: Text(message == null ? 'shimmer-$id' : 'msg-$id'),
-                ),
+}) => MaterialApp(
+  home: Scaffold(
+    body: Center(
+      child: SizedBox(
+        width: _viewportWidth,
+        height: _viewportHeight,
+        child: Stack(
+          children: <Widget>[
+            ChatScrollView(
+              reverse: reverse,
+              dataSource: dataSource,
+              controller: controller,
+              bottomPadding: bottomPadding,
+              messageBuilder: (context, id, message, status) => SizedBox(
+                height: 60,
+                child: Text(message == null ? 'shimmer-$id' : 'msg-$id'),
               ),
-              NewMessagesPill(
-                controller: controller,
-                dataSource: dataSource,
-                bottomInset: bottomPadding,
-                lastSeenNewestId: lastSeenNewestId,
-              ),
-            ],
-          ),
+            ),
+            NewMessagesPill(
+              controller: controller,
+              dataSource: dataSource,
+              bottomInset: bottomPadding,
+              lastSeenNewestId: lastSeenNewestId,
+            ),
+          ],
         ),
       ),
     ),
-  );
-}
+  ),
+);
 
 String _pillText(WidgetTester tester) {
   final txt = tester.widget<Text>(
@@ -117,13 +115,12 @@ String _pillText(WidgetTester tester) {
   return txt.data ?? '';
 }
 
-int _openAnchor({required ChatDataSource ds, int? storedLastRead}) {
-  return ds.resolveOpenAnchor(
-    storedLastRead: storedLastRead,
-    newestKnownId: ds.newestKnownId,
-    oldestKnownId: ds.oldestKnownId,
-  );
-}
+int _openAnchor({required ChatDataSource ds, int? storedLastRead}) =>
+    ds.resolveOpenAnchor(
+      storedLastRead: storedLastRead,
+      newestKnownId: ds.newestKnownId,
+      oldestKnownId: ds.oldestKnownId,
+    );
 
 void main() {
   group('open at last read', () {
@@ -147,7 +144,7 @@ void main() {
     testWidgets('open at stored last-read anchors off tail', (tester) async {
       const count = 100;
       const lastRead = 40;
-      final newest = count - 1;
+      const newest = count - 1;
       final ds = _PreloadedDataSource(count);
       final anchor = _openAnchor(ds: ds, storedLastRead: lastRead);
       expect(anchor, lastRead);
@@ -169,7 +166,7 @@ void main() {
       tester,
     ) async {
       const count = 100;
-      final newest = count - 1;
+      const newest = count - 1;
       final ds = _PreloadedDataSource(count);
       final anchor = _openAnchor(ds: ds);
       expect(anchor, newest);
@@ -216,7 +213,7 @@ void main() {
     testWidgets('pill tap jumps to newest', (tester) async {
       const count = 100;
       const lastRead = 40;
-      final newest = count - 1;
+      const newest = count - 1;
       final ds = _PreloadedDataSource(count);
       final anchor = _openAnchor(ds: ds, storedLastRead: lastRead);
       final inset = ValueNotifier<double>(96);
@@ -266,7 +263,7 @@ void main() {
     testWidgets('isAtTail persists newest to store', (tester) async {
       const count = 100;
       const lastRead = 40;
-      final newest = count - 1;
+      const newest = count - 1;
       final ds = _PreloadedDataSource(count);
       final anchor = _openAnchor(ds: ds, storedLastRead: lastRead);
 
@@ -295,7 +292,7 @@ void main() {
 
     testWidgets('reopen after caught up lands at newest', (tester) async {
       const count = 100;
-      final newest = count - 1;
+      const newest = count - 1;
       final ds = _PreloadedDataSource(count);
 
       final anchor = _openAnchor(ds: ds, storedLastRead: newest);
@@ -338,9 +335,10 @@ void main() {
       await tester.pump(const Duration(milliseconds: 16));
       expect(_pillText(tester), '59 new messages');
 
-      ds.upsertMessage(_msg(100));
-      ds.upsertMessage(_msg(101));
-      ds.seedBoundaries(newestKnownId: 101);
+      ds
+        ..upsertMessage(_msg(100))
+        ..upsertMessage(_msg(101))
+        ..seedBoundaries(newestKnownId: 101);
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 16));
 
@@ -373,7 +371,7 @@ void main() {
 
     testWidgets('stored past newest clamps to newest', (tester) async {
       const count = 100;
-      final newest = count - 1;
+      const newest = count - 1;
       final ds = _PreloadedDataSource(count);
 
       final anchor = ds.resolveOpenAnchor(

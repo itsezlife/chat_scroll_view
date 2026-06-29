@@ -11,50 +11,74 @@ sealed class ChatScrollEvent {
 
 /// User touched the viewport and started dragging.
 class ChatUserDragStart extends ChatScrollEvent {
+  /// Emitted when the user begins dragging the viewport.
   const ChatUserDragStart();
 }
 
 /// User lifted the finger; [velocity] is the terminal pixel/second velocity
 /// (signed: positive = revealing older, negative = revealing newer).
 class ChatUserDragEnd extends ChatScrollEvent {
+  /// Emitted when the user lifts their finger after a drag.
   const ChatUserDragEnd(this.velocity);
+
+  /// Terminal drag velocity in pixels/second; signed like scroll deltas
+  /// (positive reveals older messages).
   final double velocity;
 }
 
 /// A fling simulation just started after a drag end. [velocity] is the
 /// initial velocity in pixel/second.
 class ChatFlingStart extends ChatScrollEvent {
+  /// Emitted when inertial scrolling begins after a drag release.
   const ChatFlingStart(this.velocity);
+
+  /// Initial fling velocity in pixels/second passed to the physics simulation.
   final double velocity;
 }
 
 /// The fling simulation just terminated (either naturally or cancelled).
 class ChatFlingEnd extends ChatScrollEvent {
+  /// Emitted when the fling simulation finishes or is cancelled.
   const ChatFlingEnd();
 }
 
 /// `controller.jumpTo` was called programmatically.
 class ChatProgrammaticJump extends ChatScrollEvent {
+  /// Emitted when [ChatScrollController.jumpTo] repositions the anchor.
   const ChatProgrammaticJump(this.targetId);
+
+  /// Message id the jump targeted.
   final int targetId;
 }
 
 /// `controller.animateTo` started; carries the target id and the duration.
 class ChatAnimateStart extends ChatScrollEvent {
+  /// Emitted when [ChatScrollController.animateTo] begins scrolling.
   const ChatAnimateStart(this.targetId, this.duration);
+
+  /// Message id the animation is scrolling toward.
   final int targetId;
+
+  /// Requested animation length — the viewport may clamp it when the target
+  /// is already on screen.
   final Duration duration;
 }
 
 /// `controller.animateTo`'s animation finished.
 class ChatAnimateEnd extends ChatScrollEvent {
+  /// Emitted when an [ChatScrollController.animateTo] animation completes.
   const ChatAnimateEnd(this.targetId);
+
+  /// Message id that was scrolled to.
   final int targetId;
 }
 
 /// `controller.scrollBy` was called programmatically. [delta] is the pixel
 /// shift applied to the anchor; positive = revealing older messages.
 class ChatProgrammaticScroll extends ChatScrollEvent {
+  /// Emitted when [ChatScrollController.scrollBy] shifts the anchor.
   const ChatProgrammaticScroll(this.delta);
+
+  /// Pixel delta applied to the anchor; positive reveals older messages.
   final double delta;
 }

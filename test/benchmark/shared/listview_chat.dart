@@ -16,9 +16,9 @@ import 'package:flutter/rendering.dart';
 /// architectural (Sliver protocol vs custom LeafRenderObject).
 class ListViewChatCustomPaint extends StatelessWidget {
   const ListViewChatCustomPaint({
-    super.key,
     required this.messages,
     required this.scrollController,
+    super.key,
   });
 
   final List<IChatMessage> messages;
@@ -34,7 +34,7 @@ class ListViewChatCustomPaint extends StatelessWidget {
 }
 
 class CustomPaintBubble extends LeafRenderObjectWidget {
-  const CustomPaintBubble({super.key, required this.message});
+  const CustomPaintBubble({required this.message, super.key});
 
   final IChatMessage message;
 
@@ -54,9 +54,9 @@ class CustomPaintBubble extends LeafRenderObjectWidget {
 class RenderCustomPaintBubble extends RenderBox {
   RenderCustomPaintBubble(this._message);
 
-  static const double _padding = 12.0;
-  static const double _bubblePadding = 16.0;
-  static const double _bubbleRadius = 12.0;
+  static const double _padding = 12;
+  static const double _bubblePadding = 16;
+  static const double _bubbleRadius = 12;
 
   IChatMessage _message;
   ui.Paragraph? _paragraph;
@@ -90,7 +90,7 @@ class RenderCustomPaintBubble extends RenderBox {
     final builder =
         ui.ParagraphBuilder(
             ui.ParagraphStyle(
-              fontSize: 15.0,
+              fontSize: 15,
               fontFamily: '.AppleSystemUIFont',
               height: 1.4,
             ),
@@ -122,14 +122,15 @@ class RenderCustomPaintBubble extends RenderBox {
     final isEven = _message.id.isEven;
     final bgColor = isEven ? const Color(0xFFE3F2FD) : const Color(0xFFF5F5F5);
 
-    canvas.drawRRect(bubbleRect, Paint()..color = bgColor);
-    canvas.save();
-    canvas.translate(
-      offset.dx + _padding + _bubblePadding,
-      offset.dy + _padding / 2 + _bubblePadding,
-    );
-    canvas.drawParagraph(paragraph, Offset.zero);
-    canvas.restore();
+    canvas
+      ..drawRRect(bubbleRect, Paint()..color = bgColor)
+      ..save()
+      ..translate(
+        offset.dx + _padding + _bubblePadding,
+        offset.dy + _padding / 2 + _bubblePadding,
+      )
+      ..drawParagraph(paragraph, Offset.zero)
+      ..restore();
   }
 }
 
@@ -142,9 +143,9 @@ class RenderCustomPaintBubble extends RenderBox {
 /// Represents the idiomatic Flutter approach to building a chat list.
 class ListViewChatText extends StatelessWidget {
   const ListViewChatText({
-    super.key,
     required this.messages,
     required this.scrollController,
+    super.key,
   });
 
   final List<IChatMessage> messages;
@@ -176,18 +177,18 @@ class _TextBubble extends StatelessWidget {
     final bgColor = isEven ? const Color(0xFFE3F2FD) : const Color(0xFFF5F5F5);
 
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 6.0),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
       child: DecoratedBox(
         decoration: BoxDecoration(
           color: bgColor,
-          borderRadius: BorderRadius.circular(12.0),
+          borderRadius: BorderRadius.circular(12),
         ),
         child: Padding(
-          padding: const EdgeInsets.all(16.0),
+          padding: const EdgeInsets.all(16),
           child: Text(
             content,
             style: const TextStyle(
-              fontSize: 15.0,
+              fontSize: 15,
               fontFamily: '.AppleSystemUIFont',
               height: 1.4,
               color: Color(0xFF1A1A1A),
@@ -206,7 +207,7 @@ class _TextBubble extends StatelessWidget {
 /// Wraps a ListView variant and measures layout + paint duration
 /// of the internal [RenderSliverList].
 class BenchmarkListViewWrapper extends SingleChildRenderObjectWidget {
-  const BenchmarkListViewWrapper({super.key, required super.child});
+  const BenchmarkListViewWrapper({required super.child, super.key});
 
   @override
   RenderObject createRenderObject(BuildContext context) =>

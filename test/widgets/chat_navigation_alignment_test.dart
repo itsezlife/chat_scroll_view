@@ -44,8 +44,7 @@ Widget _harness({
   required ChatDataSource dataSource,
   required ChatScrollController controller,
   double bottomPadding = 0,
-}) {
-  return MaterialApp(
+}) => MaterialApp(
     home: Scaffold(
       body: Center(
         child: SizedBox(
@@ -65,7 +64,6 @@ Widget _harness({
       ),
     ),
   );
-}
 
 double _expectedAlignedTop({
   required double viewportHeight,
@@ -167,7 +165,7 @@ void main() {
       tester,
     ) async {
       const count = 100;
-      final newest = count - 1;
+      const newest = count - 1;
       final ds = _PreloadedDataSource(count);
       final controller = ChatScrollController()
         ..jumpTo(newest, alignment: 0.5);

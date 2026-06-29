@@ -77,22 +77,24 @@ class _Preloaded extends ChatDataSource {
   }) async => const <IChatMessage>[];
 }
 
-Widget _csvApp(List<IChatMessage> msgs, ChatScrollController ctrl) => MaterialApp(
-  home: Scaffold(
-    body: Center(
-      child: SizedBox(
-        width: 400,
-        height: 600,
-        child: ChatScrollView(
-          dataSource: _Preloaded(msgs),
-          controller: ctrl,
-          messageBuilder: (context, id, message, status) =>
-              message == null ? const SizedBox(height: 60) : _Bubble(message),
+Widget _csvApp(List<IChatMessage> msgs, ChatScrollController ctrl) =>
+    MaterialApp(
+      home: Scaffold(
+        body: Center(
+          child: SizedBox(
+            width: 400,
+            height: 600,
+            child: ChatScrollView(
+              dataSource: _Preloaded(msgs),
+              controller: ctrl,
+              messageBuilder: (context, id, message, status) => message == null
+                  ? const SizedBox(height: 60)
+                  : _Bubble(message),
+            ),
+          ),
         ),
       ),
-    ),
-  ),
-);
+    );
 
 Widget _lvApp(List<IChatMessage> msgs, ScrollController sc) => MaterialApp(
   home: Scaffold(
@@ -114,7 +116,7 @@ Widget _lvApp(List<IChatMessage> msgs, ScrollController sc) => MaterialApp(
 /// Wall-clock cost of each of 300 frames during a fling.
 Future<List<int>> _flingFrames(WidgetTester tester, Finder target) async {
   final samples = <int>[];
-  await tester.fling(target, const Offset(0, -500), 2000.0);
+  await tester.fling(target, const Offset(0, -500), 2000);
   for (var i = 0; i < 300; i++) {
     final sw = Stopwatch()..start();
     await tester.pump(const Duration(milliseconds: 16));
@@ -138,8 +140,7 @@ int _bubbleCount(WidgetTester tester) =>
     tester.elementList(find.byType(_Bubble, skipOffstage: false)).length;
 
 void main() {
-  final flingRows =
-      <(int, BenchmarkMetrics, BenchmarkMetrics)>[];
+  final flingRows = <(int, BenchmarkMetrics, BenchmarkMetrics)>[];
   final memRows = <(int, MemorySnapshot, MemorySnapshot)>[];
 
   for (final count in <int>[kSmall, kMedium, kLarge]) {
@@ -153,10 +154,7 @@ void main() {
       ctrl.jumpTo(count ~/ 2);
       await tester.pumpAndSettle();
 
-      final csvFling = await _flingFrames(
-        tester,
-        find.byType(ChatScrollView),
-      );
+      final csvFling = await _flingFrames(tester, find.byType(ChatScrollView));
       await tester.pumpAndSettle();
       final csvRender = tester.renderObject<RenderChatScrollView>(
         find.byType(ChatScrollView),
@@ -216,11 +214,6 @@ void main() {
       ),
     );
     // ignore: avoid_print
-    print(
-      generateMemoryTable(
-        title: 'Live objects',
-        rows: memRows,
-      ),
-    );
+    print(generateMemoryTable(title: 'Live objects', rows: memRows));
   });
 }

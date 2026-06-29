@@ -41,37 +41,37 @@ class _SendableDataSource extends ChatDataSource {
   Future<List<IChatMessage>> fetchRange({
     required int fromId,
     required int toId,
-  }) async =>
-      const <IChatMessage>[];
+  }) async => const <IChatMessage>[];
 }
 
 Widget _harness({
   required ChatDataSource dataSource,
   required ChatScrollController controller,
-}) =>
-    MaterialApp(
-      home: Scaffold(
-        body: Center(
-          child: SizedBox(
-            width: 400,
-            height: 600,
-            child: ChatScrollView(
-              reverse: true,
-              dataSource: dataSource,
-              controller: controller,
-              messageBuilder: (context, id, message, status) => SizedBox(
-                height: 60,
-                child: Text(message == null ? 'shimmer-$id' : 'msg-$id'),
-              ),
-            ),
+}) => MaterialApp(
+  home: Scaffold(
+    body: Center(
+      child: SizedBox(
+        width: 400,
+        height: 600,
+        child: ChatScrollView(
+          reverse: true,
+          dataSource: dataSource,
+          controller: controller,
+          messageBuilder: (context, id, message, status) => SizedBox(
+            height: 60,
+            child: Text(message == null ? 'shimmer-$id' : 'msg-$id'),
           ),
         ),
       ),
-    );
+    ),
+  ),
+);
 
 void main() {
   group('Send-driven scroll (US3)', () {
-    testWidgets('at tail, new message stays visible after send', (tester) async {
+    testWidgets('at tail, new message stays visible after send', (
+      tester,
+    ) async {
       const count = 256;
       final controller = ChatScrollController();
       final ds = _SendableDataSource(count);
@@ -90,7 +90,9 @@ void main() {
       expect(find.text('msg-$count'), findsWidgets);
     });
 
-    testWidgets('off tail, send does not move anchor to newest', (tester) async {
+    testWidgets('off tail, send does not move anchor to newest', (
+      tester,
+    ) async {
       const count = 256;
       final controller = ChatScrollController()..jumpTo(128);
       final ds = _SendableDataSource(count);

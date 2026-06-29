@@ -9,6 +9,7 @@ import 'package:flutter/widgets.dart';
 /// objects (e.g. feeding a composer's measured height into a scroll view's
 /// bottom inset).
 class MeasureSize extends SingleChildRenderObjectWidget {
+  /// Lays out [child] and reports size changes through [onChange].
   const MeasureSize({
     required this.onChange,
     required Widget super.child,

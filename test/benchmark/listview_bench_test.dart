@@ -66,19 +66,19 @@ void main() {
 
         // Warmup
         for (var i = 0; i < warmup; i++) {
-          tester.view.physicalSize = Size(401.0 + i % 2, 800.0);
+          tester.view.physicalSize = Size(401.0 + i % 2, 800);
           tester.view.devicePixelRatio = 1.0;
           await tester.pump();
         }
 
-        tester.view.physicalSize = const Size(400.0, 800.0);
+        tester.view.physicalSize = const Size(400, 800);
         tester.view.devicePixelRatio = 1.0;
         await tester.pump();
 
         // Measure layout
         final samples = <int>[];
         for (var i = 0; i < measured; i++) {
-          tester.view.physicalSize = Size(400.0 + (i.isEven ? 0 : 1), 800.0);
+          tester.view.physicalSize = Size(400.0 + (i.isEven ? 0 : 1), 800);
           tester.view.devicePixelRatio = 1.0;
           await tester.pump();
           samples.add(render.debugLastLayoutDuration.inMicroseconds);
@@ -144,7 +144,7 @@ void main() {
         await tester.fling(
           find.byType(ListView),
           const Offset(0, -500),
-          2000.0,
+          2000,
         );
 
         for (var i = 0; i < 300; i++) {
@@ -276,7 +276,7 @@ void main() {
 
       for (var i = 0; i < 200; i++) {
         final width = 400.0 + (i < 100 ? i : 200 - i);
-        tester.view.physicalSize = Size(width, 800.0);
+        tester.view.physicalSize = Size(width, 800);
         tester.view.devicePixelRatio = 1.0;
         await tester.pump();
         final total =
@@ -311,18 +311,18 @@ void main() {
 
         // Warmup
         for (var i = 0; i < 10; i++) {
-          tester.view.physicalSize = Size(401.0 + i % 2, 800.0);
+          tester.view.physicalSize = Size(401.0 + i % 2, 800);
           tester.view.devicePixelRatio = 1.0;
           await tester.pump();
         }
 
-        tester.view.physicalSize = const Size(400.0, 800.0);
+        tester.view.physicalSize = const Size(400, 800);
         tester.view.devicePixelRatio = 1.0;
         await tester.pump();
 
         final samples = <int>[];
         for (var i = 0; i < measured; i++) {
-          tester.view.physicalSize = Size(400.0 + (i.isEven ? 0 : 1), 800.0);
+          tester.view.physicalSize = Size(400.0 + (i.isEven ? 0 : 1), 800);
           tester.view.devicePixelRatio = 1.0;
           await tester.pump();
           samples.add(render.debugLastLayoutDuration.inMicroseconds);
@@ -354,7 +354,7 @@ void main() {
         await tester.fling(
           find.byType(ListView),
           const Offset(0, -500),
-          2000.0,
+          2000,
         );
 
         for (var i = 0; i < 300; i++) {

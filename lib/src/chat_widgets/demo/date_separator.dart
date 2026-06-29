@@ -7,6 +7,7 @@ import 'package:flutter/widgets.dart';
 /// the inline copy out as it nears the floating one, so the two never collide
 /// — the pill is free to carry its own padding.
 class DateSeparator extends StatelessWidget {
+  /// Builds the day pill for [date] — used inline and as the floating header.
   const DateSeparator({required this.date, super.key});
 
   /// A date within the day this separator labels.

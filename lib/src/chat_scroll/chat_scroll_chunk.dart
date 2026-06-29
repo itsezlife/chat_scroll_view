@@ -7,6 +7,10 @@ import 'package:meta/meta.dart';
 /// shifted right by [kBits].
 @internal
 class ChatScrollChunk {
+
+  ChatScrollChunk({required this.index})
+    : messages = List<IChatMessage?>.filled(kSize, null, growable: false),
+      firstId = firstIdOf(index);
   static const int kBits = 6;
   static const int kSize = 64; // 1 << kBits
 
@@ -16,10 +20,6 @@ class ChatScrollChunk {
 
   /// Get the first message id for a given chunk index.
   static int firstIdOf(int chunkIndex) => chunkIndex << kBits;
-
-  ChatScrollChunk({required this.index})
-    : messages = List<IChatMessage?>.filled(kSize, null, growable: false),
-      firstId = firstIdOf(index);
 
   /// The chunk index, calculated as messageId >> kBits.
   /// Can be negative for messages with negative IDs.

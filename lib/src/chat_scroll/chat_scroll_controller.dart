@@ -30,11 +30,17 @@ typedef ChatVisibleRange = ({
 /// and bound automatically when the widget mounts; consumers do not interact
 /// with this directly.
 abstract class ChatScrollAnimator {
+  /// Scrolls so [targetId] lands at [alignment] within the viewport
+  /// (`0` = top edge, `1` = bottom edge) over [duration] with [curve].
+  ///
+  /// When [highlight] is `true`, the viewport briefly tints the target row
+  /// after the animation settles — used by search / deep-link navigation.
   Future<void> animate(
     int targetId, {
     required Duration duration,
     required Curve curve,
     double alignment = 0.0,
+    bool highlight = true,
   });
 }
 
@@ -149,11 +155,19 @@ class ChatScrollController {
   /// the currently-built range, the viewport crossfades — instant jumpTo
   /// under a brief opacity blink — rather than animating through messages it
   /// would need to build on the fly.
+  ///
+  /// [highlight] controls whether a brief fade-out tint is painted over the
+  /// target after a successful settle (default `true`). Pass `highlight: false`
+  /// for routine navigation such as returning to the conversation tail where
+  /// the motion alone is enough context. Use [jumpTo] when both animation and
+  /// highlight are unwanted. A [ChatScrollView] with `highlightDuration:
+  /// Duration.zero` disables highlights globally regardless of this flag.
   Future<void> animateTo(
     int messageId, {
     Duration duration = const Duration(milliseconds: 300),
     Curve curve = Curves.easeInOutCubic,
     double alignment = 0.0,
+    bool highlight = true,
   }) async {
     if (_disposed) return;
     final animator = _animator;
@@ -169,6 +183,7 @@ class ChatScrollController {
         duration: duration,
         curve: curve,
         alignment: alignment,
+        highlight: highlight,
       );
     } finally {
       _emitScroll(ChatAnimateEnd(messageId));
@@ -260,6 +275,7 @@ class ChatScrollController {
     _scrollListeners.add(callback);
   }
 
+  /// Unsubscribes [callback] from [addScrollListener]. No-op when not present.
   void removeScrollListener(ValueChanged<ChatScrollEvent> callback) =>
       _scrollListeners.remove(callback);
 
@@ -286,18 +302,22 @@ class ChatScrollController {
 
   /// Pixel offset of the anchor message's top edge from the viewport top.
   double get anchorPixelOffset => _anchorPixelOffset;
-  double _anchorPixelOffset = 0.0;
+  double _anchorPixelOffset = 0;
 
   /// Alignment requested by the latest [jumpTo] / [animateTo], in `0..1`.
   @internal
   double get navigationAlignment => _navigationAlignment;
-  double _navigationAlignment = 0.0;
+  double _navigationAlignment = 0;
 
   /// Message id [navigationAlignment] applies to; cleared after settle.
   @internal
   int? get navigationAlignmentMessageId => _navigationAlignmentMessageId;
   int? _navigationAlignmentMessageId;
 
+  /// Drops the transient alignment target after a jump / animate settles.
+  ///
+  /// Called by the render object once the anchor has been applied — consumers
+  /// should not call this directly.
   @internal
   void clearNavigationAlignment() {
     _navigationAlignment = 0.0;

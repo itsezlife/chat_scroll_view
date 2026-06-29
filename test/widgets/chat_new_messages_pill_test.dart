@@ -4,6 +4,7 @@ import 'package:chatscrollview/src/chat_scroll/chat_scroll_common.dart';
 import 'package:chatscrollview/src/chat_scroll/chat_scroll_controller.dart';
 import 'package:chatscrollview/src/chat_widgets/chat_scroll_view.dart';
 import 'package:chatscrollview/src/chat_widgets/demo/new_messages_pill.dart';
+import 'package:chatscrollview/src/chat_widgets/render_chat_scroll_view.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -115,6 +116,7 @@ Widget _scaffoldWithTallPill({
   ValueNotifier<int?>? lastSeenNewestId,
   bool reverse = true,
   ValueNotifier<double>? bottomPadding,
+  Duration highlightDuration = const Duration(milliseconds: 600),
 }) {
   final lastSeen = lastSeenNewestId ?? ValueNotifier<int?>(lastRead);
   return MaterialApp(
@@ -131,6 +133,7 @@ Widget _scaffoldWithTallPill({
                 controller: controller,
                 cacheExtent: cacheExtent,
                 bottomPadding: bottomPadding,
+                highlightDuration: highlightDuration,
                 messageBuilder: (context, id, message, status) => SizedBox(
                   height: messageHeight,
                   child: Text(message == null ? 'shimmer-$id' : 'msg-$id'),
@@ -459,7 +462,7 @@ void main() {
       (tester) async {
         const count = 10;
         const lastRead = count - 3;
-        final newest = count - 1;
+        const newest = count - 1;
         final ds = _TallMessagePreloadedSource(count);
         final controller = ChatScrollController();
         final lastSeen = ValueNotifier<int?>(lastRead);
@@ -512,7 +515,7 @@ void main() {
       (tester) async {
         const count = 10;
         const lastRead = count - 3;
-        final newest = count - 1;
+        const newest = count - 1;
         final ds = _TallMessagePreloadedSource(count);
         final controller = ChatScrollController();
         final lastSeen = ValueNotifier<int?>(lastRead);
@@ -553,11 +556,52 @@ void main() {
     );
 
     testWidgets(
+      'tap pill animateTo newest without highlight',
+      (tester) async {
+        const count = 10;
+        const lastRead = count - 3;
+        const newest = count - 1;
+        final ds = _TallMessagePreloadedSource(count);
+        final controller = ChatScrollController();
+        final lastSeen = ValueNotifier<int?>(lastRead);
+
+        await _mountNearTailTall(
+          tester: tester,
+          count: count,
+          lastRead: lastRead,
+          controller: controller,
+          ds: ds,
+          lastSeen: lastSeen,
+        );
+        await tester.pump();
+
+        await tester.tap(
+          find.descendant(
+            of: find.byType(NewMessagesPill),
+            matching: find.byType(InkWell),
+          ),
+        );
+        for (var i = 0; i < 25; i++) {
+          await tester.pump(const Duration(milliseconds: 16));
+        }
+        await tester.pump(const Duration(milliseconds: 200));
+
+        expect(lastSeen.value, newest);
+        expect(
+          tester
+              .renderObject<RenderChatScrollView>(find.byType(ChatScrollView))
+              .debugHighlightTargetId,
+          isNull,
+        );
+      },
+    );
+
+    testWidgets(
       'scroll to genuine tail dismisses pill and advances baseline',
       (tester) async {
         const count = 10;
         const lastRead = count - 3;
-        final newest = count - 1;
+        const newest = count - 1;
         final ds = _TallMessagePreloadedSource(count);
         final controller = ChatScrollController();
         final lastSeen = ValueNotifier<int?>(lastRead);

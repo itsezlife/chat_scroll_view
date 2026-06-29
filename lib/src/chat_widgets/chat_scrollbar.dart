@@ -10,13 +10,13 @@ import 'package:flutter/gestures.dart' show PointerDownEvent, PointerEvent;
 /// 0..1 thumb progress derived from the anchor.
 class ChatScrollbar {
   /// Width of the invisible touch strip along the right edge.
-  static const double hitWidth = 32.0;
+  static const double hitWidth = 32;
 
-  static const double _trackWidth = 4.0;
-  static const double _activeTrackWidth = 6.0;
-  static const double _thumbHeight = 48.0;
-  static const double _pad = 8.0;
-  static const double _right = 4.0;
+  static const double _trackWidth = 4;
+  static const double _activeTrackWidth = 6;
+  static const double _thumbHeight = 48;
+  static const double _pad = 8;
+  static const double _right = 4;
 
   /// Pointer id of the in-progress scrollbar drag, or `null` when idle.
   int? _pointer;
@@ -56,7 +56,7 @@ class ChatScrollbar {
   /// Map a pointer Y inside the track to a 0..1 thumb progress (clamped).
   double progressFromY(double localY, Size size) {
     final travel = size.height - _pad * 2 - _thumbHeight;
-    if (travel <= 0) return 0.0;
+    if (travel <= 0) return 0;
     return ((localY - _pad - _thumbHeight / 2) / travel).clamp(0.0, 1.0);
   }
 

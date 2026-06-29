@@ -8,6 +8,14 @@ this project is pre-1.0 and not strictly SemVer yet.
 
 ### Added
 
+- **Optional `highlight` on `animateTo`** — pass `highlight: false` to scroll
+  to a message with animation but without the post-settle tint (e.g. returning
+  to the newest message). Default remains `true`. `highlightDuration:
+  Duration.zero` on `ChatScrollView` still disables highlights globally.
+- **Silent tail navigation (demo pill)** — new-messages affordance uses
+  `animateTo(..., highlight: false)` so the tail bubble is not highlighted
+  after tap.
+
 - **Visible-range boundary fractions** — `ChatVisibleRange` now includes
   `firstVisibleFraction` and `lastVisibleFraction` (share of each boundary
   message's exposable height inside the scrollable paint band). Denominator is

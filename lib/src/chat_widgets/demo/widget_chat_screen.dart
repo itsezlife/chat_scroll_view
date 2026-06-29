@@ -22,6 +22,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 /// Demo screen for the widget-based [ChatScrollView] — the chat viewport,
 /// a bottom composer, and a contextual selection bar, wired together.
 class WidgetChatScreen extends StatefulWidget {
+  /// Demo route wiring [ChatScrollView], composer, and selection chrome.
   const WidgetChatScreen({super.key});
 
   @override
@@ -94,7 +95,7 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
       }
       _dataSource = backend;
       final newest = backend.newestKnownId;
-      final int? lastRead = await backend.getLastReadMessageId();
+      final lastRead = await backend.getLastReadMessageId();
 
       final anchor = backend.resolveOpenAnchor(
         storedLastRead: lastRead,
@@ -225,6 +226,43 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
         Navigator.pop(context);
       },
       child: Scaffold(
+        floatingActionButtonLocation: .endFloat,
+        floatingActionButton: ValueListenableBuilder(
+          valueListenable: _bottomInset,
+          builder: (context, bottomInset, child) => Padding(
+            padding: const EdgeInsets.only(bottom: 96),
+            child: Align(
+              alignment: .bottomRight,
+              child: Column(
+                mainAxisAlignment: .end,
+                mainAxisSize: .min,
+                children: [
+                  FloatingActionButton.small(
+                    heroTag: 'fab-up',
+                    onPressed: () {
+                      _controller.jumpTo(6000);
+                    },
+                    tooltip: 'Scroll to top',
+                    materialTapTargetSize: MaterialTapTargetSize.padded,
+                    child: const Icon(Icons.arrow_upward, size: 18),
+                  ),
+                  FloatingActionButton.small(
+                    heroTag: 'fab-down',
+                    onPressed: () {
+                      if (_dataSource?.newestKnownId
+                          case final newestKnownId?) {
+                        _controller.animateTo(newestKnownId, highlight: false);
+                      }
+                    },
+                    tooltip: 'Scroll to bottom',
+                    materialTapTargetSize: MaterialTapTargetSize.padded,
+                    child: const Icon(Icons.arrow_downward, size: 18),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
         body: Stack(
           children: <Widget>[
             // Chat fills the screen; the composer is stacked over its bottom.
