@@ -89,18 +89,16 @@ void main() {
       addTearDown(controller.dispose);
       addTearDown(ds.dispose);
 
-      await tester.pumpWidget(_scaffold(dataSource: ds, controller: controller));
+      await tester.pumpWidget(
+        _scaffold(dataSource: ds, controller: controller),
+      );
       await tester.pumpAndSettle();
 
       // Drag content down by 400 px. Without resistance the anchor's pixel
       // offset would change by +400; the rubber-band must scale it down so
       // the measurable shift is strictly less.
       final pixelOffsetBefore = controller.anchorPixelOffset;
-      await _slowDragPast(
-        tester,
-        const Offset(0, 400),
-        steps: 20,
-      );
+      await _slowDragPast(tester, const Offset(0, 400), steps: 20);
       await tester.pump(); // allow bounceback to begin
       // Snapshot mid-bounceback (before it has fully settled).
       // The anchor must have moved less than the 400 px we dragged.
@@ -140,15 +138,13 @@ void main() {
       addTearDown(controller.dispose);
       addTearDown(ds.dispose);
 
-      await tester.pumpWidget(_scaffold(dataSource: ds, controller: controller));
+      await tester.pumpWidget(
+        _scaffold(dataSource: ds, controller: controller),
+      );
       await tester.pumpAndSettle();
 
       // Pull the top down past the boundary, hold, then release.
-      await _slowDragPast(
-        tester,
-        const Offset(0, 200),
-        steps: 10,
-      );
+      await _slowDragPast(tester, const Offset(0, 200), steps: 10);
 
       // First frame after release — anchor is still in the overscroll zone.
       // Drive a few frames of bounceback.
@@ -178,15 +174,17 @@ void main() {
       addTearDown(controller.dispose);
       addTearDown(ds.dispose);
 
-      await tester.pumpWidget(_scaffold(dataSource: ds, controller: controller));
+      await tester.pumpWidget(
+        _scaffold(dataSource: ds, controller: controller),
+      );
       await tester.pumpAndSettle();
 
       // Mouse wheel that would scroll *past* the top: `scrollDelta.dy`
       // is negative when revealing older history.
       final viewportTopLeft = tester.getTopLeft(find.byType(ChatScrollView));
       final center = viewportTopLeft + const Offset(200, 300);
-      final testPointer = TestPointer(1, PointerDeviceKind.mouse);
-      testPointer.hover(center);
+      final testPointer = TestPointer(1, PointerDeviceKind.mouse)
+        ..hover(center);
       await tester.sendEventToBinding(
         testPointer.scroll(const Offset(0, -1000)),
       );
@@ -208,7 +206,9 @@ void main() {
       addTearDown(controller.dispose);
       addTearDown(ds.dispose);
 
-      await tester.pumpWidget(_scaffold(dataSource: ds, controller: controller));
+      await tester.pumpWidget(
+        _scaffold(dataSource: ds, controller: controller),
+      );
       await tester.pumpAndSettle();
 
       // Keyboard scrollBy past the top should hit the clamp and not start
@@ -245,20 +245,15 @@ void main() {
         addTearDown(controller.dispose);
         addTearDown(ds.dispose);
 
-        await tester.pumpWidget(_scaffold(
-          dataSource: ds,
-          controller: controller,
-        ));
+        await tester.pumpWidget(
+          _scaffold(dataSource: ds, controller: controller),
+        );
         await tester.pumpAndSettle();
 
         // Drag the content down 250 px — past the top boundary by a lot,
         // while the small content (180 px) means the bottom boundary's
         // overscroll is also live in the opposite direction.
-        await _slowDragPast(
-          tester,
-          const Offset(0, 250),
-          steps: 10,
-        );
+        await _slowDragPast(tester, const Offset(0, 250), steps: 10);
         await tester.pump(const Duration(milliseconds: 16));
         // Drive bounceback to completion. Without the side-lock fix the
         // delta would change sign as the dominant violator switched.
@@ -272,9 +267,13 @@ void main() {
         // `pumpAndSettle` returned — proves the bounceback terminated
         // (a sign-flip oscillation would either never settle, or settle
         // off-edge by more than a hair).
-        expect(firstBoxTop.dy, closeTo(viewportTopLeft.dy, 1.0),
-            reason: 'short-content bounceback must end with oldest pinned '
-                'to the top edge.');
+        expect(
+          firstBoxTop.dy,
+          closeTo(viewportTopLeft.dy, 1.0),
+          reason:
+              'short-content bounceback must end with oldest pinned '
+              'to the top edge.',
+        );
       },
     );
   });

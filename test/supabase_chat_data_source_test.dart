@@ -11,33 +11,34 @@ String? _userContent(IChatMessage? message) => switch (message) {
 void main() {
   group('BackendChatDataSource (Supabase)', () {
     test('connect seeds newest boundary from load_chat last_message', () async {
-      final source = await BackendChatDataSource.connectForTest(
-        (name, body) async {
-          expect(name, 'load_chat');
-          expect(body['chat_id'], 1);
-          return {
-            'chat': {
-              'id': 1,
-              'kind': 1,
-              'parent_id': null,
+      final source = await BackendChatDataSource.connectForTest((
+        name,
+        body,
+      ) async {
+        expect(name, 'load_chat');
+        expect(body['chat_id'], 1);
+        return {
+          'chat': {
+            'id': 1,
+            'kind': 1,
+            'parent_id': null,
+            'created_at': 1583108356,
+            'updated_at': 1583108356,
+            'title': 'Demo',
+            'avatar_url': null,
+            'last_message': {
+              'id': 10004,
+              'sender_id': 1,
               'created_at': 1583108356,
-              'updated_at': 1583108356,
-              'title': 'Demo',
-              'avatar_url': null,
-              'last_message': {
-                'id': 10004,
-                'sender_id': 1,
-                'created_at': 1583108356,
-                'kind': 0,
-                'flags': 0,
-                'content_preview': 'hello',
-              },
-              'unread_count': 53,
-              'member_count': 1,
+              'kind': 0,
+              'flags': 0,
+              'content_preview': 'hello',
             },
-          };
-        },
-      );
+            'unread_count': 53,
+            'member_count': 1,
+          },
+        };
+      });
 
       expect(source.newestKnownId, 10004);
       expect(source.reachedNewest, isTrue);
@@ -48,20 +49,18 @@ void main() {
 
     test('connect maps chat_not_found to seed hint', () async {
       expect(
-        () => BackendChatDataSource.connectForTest(
-          (name, _) async {
-            expect(name, 'load_chat');
-            return {
-              'error': {
-                'code': 2000,
-                'slug': 'chat_not_found',
-                'message': 'missing',
-                'retry_after_ms': 0,
-                'extra': null,
-              },
-            };
-          },
-        ),
+        () => BackendChatDataSource.connectForTest((name, _) async {
+          expect(name, 'load_chat');
+          return {
+            'error': {
+              'code': 2000,
+              'slug': 'chat_not_found',
+              'message': 'missing',
+              'retry_after_ms': 0,
+              'extra': null,
+            },
+          };
+        }),
         throwsA(
           isA<BackendConnectionException>().having(
             (e) => e.message,
@@ -105,8 +104,7 @@ void main() {
           }
           fail('unexpected $name');
         },
-      );
-      source.seedBoundaries(newestKnownId: 10004, reachedNewest: true);
+      )..seedBoundaries(newestKnownId: 10004, reachedNewest: true);
 
       final messages = await source.fetchRange(fromId: 65, toId: 128);
 
@@ -146,8 +144,7 @@ void main() {
           'requested_from': 1,
           'requested_to': 64,
         },
-      );
-      source.seedBoundaries(newestKnownId: 10004, reachedNewest: true);
+      )..seedBoundaries(newestKnownId: 10004, reachedNewest: true);
 
       await source.fetchRange(fromId: 1, toId: 64);
 
@@ -157,32 +154,76 @@ void main() {
       source.dispose();
     });
 
-    test('structured error throws BackendConnectionException with slug', () async {
+    test('fetchRange clamps chunk-0 fromId 0 to api from_id 1', () async {
       final source = BackendChatDataSource.forTest(
-        invoke: (name, _) async => {
-          'error': {
-            'code': 9000,
-            'slug': 'malformed_frame',
-            'message': 'bad range',
-            'retry_after_ms': 0,
-            'extra': null,
-          },
+        invoke: (name, body) async {
+          expect(name, 'load_messages');
+          expect(body['from_id'], 1);
+          expect(body['to_id'], 63);
+          return {
+            'messages': [
+              {
+                'id': 1,
+                'chat_id': 1,
+                'sender_id': 1,
+                'created_at': 1583108356,
+                'updated_at': 1583108356,
+                'kind': 0,
+                'flags': 0,
+                'reply_to_id': null,
+                'content': 'first',
+                'rich_content': null,
+                'extra': null,
+              },
+            ],
+            'has_more': false,
+            'has_older': false,
+            'has_newer': true,
+            'oldest_id': 1,
+            'newest_id': 10004,
+            'requested_from': 1,
+            'requested_to': 63,
+          };
         },
       );
 
-      expect(
-        () => source.fetchRange(fromId: 0, toId: 10),
-        throwsA(
-          isA<BackendConnectionException>().having(
-            (e) => e.message,
-            'message',
-            contains('malformed_frame'),
-          ),
-        ),
-      );
+      final messages = await source.fetchRange(fromId: 0, toId: 63);
+
+      expect(messages, hasLength(1));
+      expect(messages.first.id, 1);
 
       source.dispose();
     });
+
+    test(
+      'structured error throws BackendConnectionException with slug',
+      () async {
+        final source = BackendChatDataSource.forTest(
+          invoke: (name, _) async => {
+            'error': {
+              'code': 9000,
+              'slug': 'malformed_frame',
+              'message': 'bad range',
+              'retry_after_ms': 0,
+              'extra': null,
+            },
+          },
+        );
+
+        expect(
+          () => source.fetchRange(fromId: 10, toId: 5),
+          throwsA(
+            isA<BackendConnectionException>().having(
+              (e) => e.message,
+              'message',
+              contains('malformed_frame'),
+            ),
+          ),
+        );
+
+        source.dispose();
+      },
+    );
 
     test('getLastReadMessageId invokes get_read_state', () async {
       final source = BackendChatDataSource.forTest(
@@ -283,8 +324,7 @@ void main() {
             },
           };
         },
-      );
-      source.seedBoundaries(newestKnownId: 10004, reachedNewest: true);
+      )..seedBoundaries(newestKnownId: 10004, reachedNewest: true);
 
       final message = await source.sendMessage('hello');
 
@@ -311,8 +351,7 @@ void main() {
             },
           };
         },
-      );
-      source.seedBoundaries(newestKnownId: 10004, reachedNewest: true);
+      )..seedBoundaries(newestKnownId: 10004, reachedNewest: true);
 
       expect(
         () => source.sendMessage('fail'),
@@ -359,8 +398,7 @@ void main() {
           }
           fail('unexpected $name');
         },
-      );
-      source.seedBoundaries(newestKnownId: 10004, reachedNewest: true);
+      )..seedBoundaries(newestKnownId: 10004, reachedNewest: true);
 
       await source.sendMessage('persist me');
       final messages = await source.fetchRange(fromId: 10000, toId: 10005);
@@ -373,24 +411,24 @@ void main() {
     });
 
     test('realtime INSERT updates message and newest boundary', () async {
-      final source = BackendChatDataSource.forTest(
-        invoke: (name, _) async => fail('unexpected $name'),
-      );
-      source.seedBoundaries(newestKnownId: 10004, reachedNewest: true);
-
-      source.applyRealtimeInsertForTest({
-        'id': 10006,
-        'chat_id': 1,
-        'sender_id': 2,
-        'created_at': 1583108356,
-        'updated_at': 1583108356,
-        'kind': 0,
-        'flags': 0,
-        'reply_to_id': null,
-        'content': 'from peer',
-        'rich_content': null,
-        'extra': {'legacy_sender': 'bob'},
-      });
+      final source =
+          BackendChatDataSource.forTest(
+              invoke: (name, _) async => fail('unexpected $name'),
+            )
+            ..seedBoundaries(newestKnownId: 10004, reachedNewest: true)
+            ..applyRealtimeInsertForTest({
+              'id': 10006,
+              'chat_id': 1,
+              'sender_id': 2,
+              'created_at': 1583108356,
+              'updated_at': 1583108356,
+              'kind': 0,
+              'flags': 0,
+              'reply_to_id': null,
+              'content': 'from peer',
+              'rich_content': null,
+              'extra': {'legacy_sender': 'bob'},
+            });
 
       expect(_userContent(source.getMessage(10006)), 'from peer');
       expect(source.newestKnownId, 10006);
@@ -398,42 +436,44 @@ void main() {
       source.dispose();
     });
 
-    test('sendMessage and realtime INSERT for same id are idempotent', () async {
-      final messageJson = {
-        'id': 10005,
-        'chat_id': 1,
-        'sender_id': 1,
-        'created_at': 1583108356,
-        'updated_at': 1583108356,
-        'kind': 0,
-        'flags': 0,
-        'reply_to_id': null,
-        'content': 'once',
-        'rich_content': null,
-        'extra': {'legacy_sender': 'alice'},
-      };
+    test(
+      'sendMessage and realtime INSERT for same id are idempotent',
+      () async {
+        final messageJson = {
+          'id': 10005,
+          'chat_id': 1,
+          'sender_id': 1,
+          'created_at': 1583108356,
+          'updated_at': 1583108356,
+          'kind': 0,
+          'flags': 0,
+          'reply_to_id': null,
+          'content': 'once',
+          'rich_content': null,
+          'extra': {'legacy_sender': 'alice'},
+        };
 
-      final source = BackendChatDataSource.forTest(
-        invoke: (name, _) async {
-          expect(name, 'send_message');
-          return {'message': messageJson};
-        },
-      );
-      source.seedBoundaries(newestKnownId: 10004, reachedNewest: true);
+        final source = BackendChatDataSource.forTest(
+          invoke: (name, _) async {
+            expect(name, 'send_message');
+            return {'message': messageJson};
+          },
+        )..seedBoundaries(newestKnownId: 10004, reachedNewest: true);
 
-      await source.sendMessage('once');
-      source.applyRealtimeInsertForTest(messageJson);
+        await source.sendMessage('once');
+        source.applyRealtimeInsertForTest(messageJson);
 
-      expect(_userContent(source.getMessage(10005)), 'once');
-      var slotsWithId = 0;
-      for (final chunk in source.chunks.values) {
-        for (final message in chunk.messages) {
-          if (message?.id == 10005) slotsWithId++;
+        expect(_userContent(source.getMessage(10005)), 'once');
+        var slotsWithId = 0;
+        for (final chunk in source.chunks.values) {
+          for (final message in chunk.messages) {
+            if (message?.id == 10005) slotsWithId++;
+          }
         }
-      }
-      expect(slotsWithId, 1);
+        expect(slotsWithId, 1);
 
-      source.dispose();
-    });
+        source.dispose();
+      },
+    );
   });
 }

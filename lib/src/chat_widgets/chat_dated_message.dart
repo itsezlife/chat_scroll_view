@@ -21,6 +21,10 @@ class _DatedMessageParentData extends ContainerBoxParentData<RenderBox> {}
 /// are wrapped in their own [RepaintBoundary] here, so their pictures stay
 /// cached — a scroll frame only re-composites two layers.
 class DatedMessage extends MultiChildRenderObjectWidget {
+  /// Stacks [separator] above [body] as the first message of a calendar day.
+  ///
+  /// Both children are wrapped in [RepaintBoundary] so scroll-driven opacity
+  /// changes only re-composite cached pictures.
   DatedMessage({
     required Widget separator,
     required Widget body,

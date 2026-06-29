@@ -143,7 +143,7 @@ void main() {
       tester,
     ) async {
       const count = 20;
-      final newest = count - 1;
+      const newest = count - 1;
       final ds = _PreloadedDataSource(count);
       final inset = ValueNotifier<double>(96);
       final controller = ChatScrollController()..jumpTo(newest);
@@ -173,7 +173,7 @@ void main() {
       tester,
     ) async {
       const count = 40;
-      final newest = count - 1;
+      const newest = count - 1;
       final ds = _PreloadedDataSource(count);
       final controller = ChatScrollController()..jumpTo(newest);
       addTearDown(controller.dispose);
@@ -196,7 +196,7 @@ void main() {
 
     testWidgets('animateTo newest sets tail pin', (tester) async {
       const count = 40;
-      final newest = count - 1;
+      const newest = count - 1;
       final ds = _PreloadedDataSource(count);
       final controller = ChatScrollController()..jumpTo(newest);
       addTearDown(controller.dispose);
@@ -220,7 +220,7 @@ void main() {
       tester,
     ) async {
       const count = 20;
-      final newest = count - 1;
+      const newest = count - 1;
       final ds = _PreloadedDataSource(count);
       final controller = ChatScrollController()..jumpTo(count);
       addTearDown(controller.dispose);
@@ -241,7 +241,7 @@ void main() {
       tester,
     ) async {
       const count = 20;
-      final newest = count - 1;
+      const newest = count - 1;
       final ds = _PreloadedDataSource(count);
       final controller = ChatScrollController()..jumpTo(newest);
       addTearDown(controller.dispose);
@@ -265,7 +265,7 @@ void main() {
 
     testWidgets('lazy fetch repins tail after messages load', (tester) async {
       const count = 5;
-      final newest = count - 1;
+      const newest = count - 1;
       final ds = _LazyTailDataSource(count);
       final controller = ChatScrollController()..jumpTo(newest);
       addTearDown(controller.dispose);
@@ -297,7 +297,7 @@ void main() {
       tester,
     ) async {
       const count = 40;
-      final newest = count - 1;
+      const newest = count - 1;
       final ds = _PreloadedDataSource(count);
       final bottomPad = ValueNotifier<double>(96);
       final controller = ChatScrollController()..jumpTo(newest);
@@ -332,7 +332,7 @@ void main() {
       tester,
     ) async {
       const count = 10;
-      final newest = count - 1;
+      const newest = count - 1;
       final ds = _PreloadedDataSource(count);
       final inset = ValueNotifier<double>(96);
       final controller = ChatScrollController()..jumpTo(newest);

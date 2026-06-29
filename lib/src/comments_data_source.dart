@@ -20,6 +20,7 @@ class CommentsManifest {
     required this.senders,
   });
 
+  /// Parses the `manifest.json` shipped with pre-chunked comment assets.
   factory CommentsManifest.fromJson(Map<String, Object?> json) => CommentsManifest._(
     title: json['title']! as String,
     totalMessages: json['totalMessages']! as int,
@@ -28,10 +29,19 @@ class CommentsManifest {
     senders: (json['senders']! as List<Object?>).cast<String>(),
   );
 
+  /// Human-readable title shown in the demo app bar.
   final String title;
+
+  /// Total message count across all chunk files — ids run `0..totalMessages-1`.
   final int totalMessages;
+
+  /// Maximum messages per asset file; used to map message ids → chunk index.
   final int chunkSize;
+
+  /// Filenames of JSON chunk files relative to the asset prefix.
   final List<String> chunks;
+
+  /// Distinct sender labels referenced by messages in the dataset.
   final List<String> senders;
 }
 
@@ -81,8 +91,13 @@ class CommentsDataSource extends ChatDataSource {
   static Future<String> _loadString(String assetPath) =>
       loadAsset(assetPath);
 
+  /// Parsed manifest describing chunk layout and metadata.
   final CommentsManifest manifest;
+
+  /// Root folder for manifest and chunk JSON (e.g. `assets/comments`).
   final String assetPrefix;
+
+  /// Artificial latency applied to every [fetchRange] for demo realism.
   final Duration fetchDelay;
 
   /// Upper bound on retained parsed chunks. Excess entries are evicted in

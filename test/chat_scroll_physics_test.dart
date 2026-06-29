@@ -35,8 +35,8 @@ void main() {
 
   group('fling', () {
     test('starts flinging and settles to idle', () {
-      final physics = ChatScrollPhysics(overscrollOnSide: (_) => 0);
-      physics.startFling(1200);
+      final physics = ChatScrollPhysics(overscrollOnSide: (_) => 0)
+        ..startFling(1200);
       expect(physics.isFlinging, isTrue);
 
       var elapsed = Duration.zero;
@@ -50,9 +50,9 @@ void main() {
     });
 
     test('cancelFling stops immediately', () {
-      final physics = ChatScrollPhysics(overscrollOnSide: (_) => 0);
-      physics.startFling(800);
-      physics.cancelFling();
+      final physics = ChatScrollPhysics(overscrollOnSide: (_) => 0)
+        ..startFling(800)
+        ..cancelFling();
       expect(physics.isFlinging, isFalse);
       expect(physics.tickFling(Duration.zero), 0);
     });
@@ -64,8 +64,7 @@ void main() {
       final physics = ChatScrollPhysics(
         bounceDuration: const Duration(milliseconds: 100),
         overscrollOnSide: (_) => current,
-      );
-      physics.maybeStartBounceback(80, BouncebackSide.top);
+      )..maybeStartBounceback(80, BouncebackSide.top);
       expect(physics.isBouncing, isTrue);
 
       var elapsed = Duration.zero;
@@ -78,9 +77,9 @@ void main() {
     });
 
     test('cancelBounceback clears active state', () {
-      final physics = ChatScrollPhysics(overscrollOnSide: (_) => 50);
-      physics.maybeStartBounceback(50, BouncebackSide.top);
-      physics.cancelBounceback();
+      final physics = ChatScrollPhysics(overscrollOnSide: (_) => 50)
+        ..maybeStartBounceback(50, BouncebackSide.top)
+        ..cancelBounceback();
       expect(physics.isBouncing, isFalse);
     });
 
@@ -88,8 +87,7 @@ void main() {
       final physics = ChatScrollPhysics(
         bounceDuration: Duration.zero,
         overscrollOnSide: (_) => 50,
-      );
-      physics.maybeStartBounceback(50, BouncebackSide.top);
+      )..maybeStartBounceback(50, BouncebackSide.top);
       expect(physics.isBouncing, isFalse);
       expect(physics.tickBounceback(Duration.zero), 0.0);
     });
@@ -97,9 +95,9 @@ void main() {
 
   group('tick', () {
     test('combines fling and bounceback deltas', () {
-      final physics = ChatScrollPhysics(overscrollOnSide: (_) => 40);
-      physics.startFling(500);
-      physics.maybeStartBounceback(40, BouncebackSide.top);
+      final physics = ChatScrollPhysics(overscrollOnSide: (_) => 40)
+        ..startFling(500)
+        ..maybeStartBounceback(40, BouncebackSide.top);
       final combined = physics.tick(const Duration(milliseconds: 16));
       final separate =
           physics.tickFling(const Duration(milliseconds: 16)) +

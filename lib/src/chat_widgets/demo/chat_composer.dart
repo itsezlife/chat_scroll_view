@@ -7,7 +7,7 @@ import 'package:flutter/services.dart';
 
 /// Max width of the composer content column — the bar background still spans
 /// the full width, but the input field / action buttons are centered within.
-const double _kComposerMaxWidth = 620.0;
+const double _kComposerMaxWidth = 620;
 
 /// Bottom bar for the widget-based chat demo.
 ///
@@ -15,6 +15,8 @@ const double _kComposerMaxWidth = 620.0;
 /// Selection mode: the input field slides down out of view while
 /// copy / favorite / share icon buttons fly in from the sides.
 class ChatComposer extends StatefulWidget {
+  /// Bottom input bar that morphs into selection actions when [selection] is
+  /// active.
   const ChatComposer({
     required this.selection,
     required this.dataSource,
@@ -76,7 +78,7 @@ class _ChatComposerState extends State<ChatComposer>
     _inputFade = Tween<double>(
       begin: 1,
       end: 0,
-    ).animate(_curve(const Interval(0.0, 0.5, curve: Curves.easeIn)));
+    ).animate(_curve(const Interval(0, 0.5, curve: Curves.easeIn)));
     // Action buttons: copy from the left, share from the right, favorite pops
     // up in the middle — all slightly staggered with an ease-out overshoot.
     _copySlide = Tween<Offset>(
@@ -87,7 +89,7 @@ class _ChatComposerState extends State<ChatComposer>
       begin: const Offset(2.6, 0),
       end: Offset.zero,
     ).animate(_curve(const Interval(0.15, 0.9, curve: Curves.easeOutBack)));
-    _favScale = _curve(const Interval(0.3, 1.0, curve: Curves.easeOutBack));
+    _favScale = _curve(const Interval(0.3, 1, curve: Curves.easeOutBack));
     _actionsFade = _curve(const Interval(0.28, 0.62));
 
     _mode = widget.selection.isSelectionMode;
@@ -203,7 +205,7 @@ class _ChatComposerState extends State<ChatComposer>
                   ),
                 ),
                 child: Padding(
-                  padding: const EdgeInsets.all(8.0),
+                  padding: const EdgeInsets.all(8),
                   child: ConstrainedBox(
                     constraints: const BoxConstraints(minHeight: 66),
                     child: Stack(

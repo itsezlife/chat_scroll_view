@@ -1,3 +1,5 @@
+// ignore_for_file: prefer_expression_function_bodies
+
 import 'package:chatscrollview/src/chat_message.dart';
 import 'package:chatscrollview/src/chat_scroll/chat_data_source.dart';
 import 'package:chatscrollview/src/chat_scroll/chat_scroll_common.dart';
@@ -49,16 +51,17 @@ void main() {
 
       controller
         ..addJumpListener(cb)
-        ..addJumpListener(cb);
-      controller.jumpTo(42);
+        ..addJumpListener(cb)
+        ..jumpTo(42);
       expect(
         calls,
         1,
         reason: 'Duplicate registration must dedup — only one notification.',
       );
 
-      controller.removeJumpListener(cb);
-      controller.jumpTo(7);
+      controller
+        ..removeJumpListener(cb)
+        ..jumpTo(7);
       expect(
         calls,
         1,
@@ -78,8 +81,8 @@ void main() {
         ..addScrollByListener(onBy)
         ..addScrollByListener(onBy)
         ..addScrollListener(onEv)
-        ..addScrollListener(onEv);
-      controller.scrollBy(10);
+        ..addScrollListener(onEv)
+        ..scrollBy(10);
       // scrollBy emits both _scrollByListeners and ChatProgrammaticScroll.
       expect(byCalls, 1, reason: 'scrollBy listener must dedup');
       expect(evCalls, 1, reason: 'scroll-event listener must dedup');
@@ -97,9 +100,9 @@ void main() {
         ..addBoundaryListener(onB)
         ..addBoundaryListener(onB)
         ..addDataListener(onD)
-        ..addDataListener(onD);
-      ds.seedBoundaries(reachedOldest: false);
-      ds.upsertMessage(_msg(8));
+        ..addDataListener(onD)
+        ..seedBoundaries(reachedOldest: false)
+        ..upsertMessage(_msg(8));
       expect(bCalls, 1, reason: 'boundary listener must dedup');
       expect(dCalls, 1, reason: 'data listener must dedup');
     });
@@ -111,8 +114,8 @@ void main() {
       void cb() => calls++;
       sc
         ..addListener(cb)
-        ..addListener(cb);
-      sc.startSelection(42);
+        ..addListener(cb)
+        ..startSelection(42);
       expect(calls, 1, reason: 'selection listener must dedup');
     });
   });
@@ -135,22 +138,27 @@ void main() {
         // External widget that subscribes to `isAtTail` and calls setState
         // on every change — exactly the kind of consumer that would crash
         // without the controller-side defer.
-        await tester.pumpWidget(MaterialApp(
-          home: Scaffold(
-            body: _IsAtTailListenerProbe(controller: controller, child: SizedBox(
-              width: 400,
-              height: 600,
-              child: ChatScrollView(
-                dataSource: ds,
+        await tester.pumpWidget(
+          MaterialApp(
+            home: Scaffold(
+              body: _IsAtTailListenerProbe(
                 controller: controller,
-                messageBuilder: (context, id, message, status) => SizedBox(
-                  height: 60,
-                  child: Text(message == null ? 'shimmer-$id' : 'msg-$id'),
+                child: SizedBox(
+                  width: 400,
+                  height: 600,
+                  child: ChatScrollView(
+                    dataSource: ds,
+                    controller: controller,
+                    messageBuilder: (context, id, message, status) => SizedBox(
+                      height: 60,
+                      child: Text(message == null ? 'shimmer-$id' : 'msg-$id'),
+                    ),
+                  ),
                 ),
               ),
-            )),
+            ),
           ),
-        ));
+        );
         await tester.pumpAndSettle();
         // If the controller did not defer, the first layout would throw
         // when `_IsAtTailListenerProbe` ran setState. Reaching here means
@@ -158,7 +166,8 @@ void main() {
         expect(
           tester.takeException(),
           isNull,
-          reason: 'External isAtTail listener must be free to call setState '
+          reason:
+              'External isAtTail listener must be free to call setState '
               'without an explicit post-frame trampoline of its own.',
         );
       },
@@ -173,52 +182,57 @@ void main() {
         addTearDown(controller.dispose);
         addTearDown(ds.dispose);
 
-        await tester.pumpWidget(MaterialApp(
-          home: Scaffold(
-            body: _VisibleRangeListenerProbe(controller: controller, child: SizedBox(
-              width: 400,
-              height: 600,
-              child: ChatScrollView(
-                dataSource: ds,
+        await tester.pumpWidget(
+          MaterialApp(
+            home: Scaffold(
+              body: _VisibleRangeListenerProbe(
                 controller: controller,
-                messageBuilder: (context, id, message, status) => SizedBox(
-                  height: 60,
-                  child: Text(message == null ? 'shimmer-$id' : 'msg-$id'),
+                child: SizedBox(
+                  width: 400,
+                  height: 600,
+                  child: ChatScrollView(
+                    dataSource: ds,
+                    controller: controller,
+                    messageBuilder: (context, id, message, status) => SizedBox(
+                      height: 60,
+                      child: Text(message == null ? 'shimmer-$id' : 'msg-$id'),
+                    ),
+                  ),
                 ),
               ),
-            )),
+            ),
           ),
-        ));
+        );
         await tester.pumpAndSettle();
         expect(
           tester.takeException(),
           isNull,
-          reason: 'External visibleRange listener must be free to call '
+          reason:
+              'External visibleRange listener must be free to call '
               'setState.',
         );
       },
     );
 
-    test(
-      'deferred setter: setting twice in persistentCallbacks dispatches the '
-      'final value only',
-      () {
-        // Mid-layout we mutate isAtTail twice in quick succession (e.g. a
-        // tier-1 tick followed by a clamp pass). The post-frame trampoline
-        // must dispatch only the final value, not both, so listeners see
-        // the steady-state.
-        final controller = ChatScrollController();
-        addTearDown(controller.dispose);
-        // The deferred notifier short-circuits sync from a unit-test
-        // scheduler phase that is not `persistentCallbacks` — drive a
-        // direct read/write sanity check.
-        var lastSeen = controller.isAtTail.value;
-        controller.isAtTail.addListener(() => lastSeen = controller.isAtTail.value);
-        controller.isAtTail = true;
-        // No frame in a pure unit test; setter committed synchronously.
-        expect(lastSeen, isTrue);
-      },
-    );
+    test('deferred setter: setting twice in persistentCallbacks dispatches the '
+        'final value only', () {
+      // Mid-layout we mutate isAtTail twice in quick succession (e.g. a
+      // tier-1 tick followed by a clamp pass). The post-frame trampoline
+      // must dispatch only the final value, not both, so listeners see
+      // the steady-state.
+      final controller = ChatScrollController();
+      addTearDown(controller.dispose);
+      // The deferred notifier short-circuits sync from a unit-test
+      // scheduler phase that is not `persistentCallbacks` — drive a
+      // direct read/write sanity check.
+      var lastSeen = controller.isAtTail.value;
+      controller.isAtTail.addListener(
+        () => lastSeen = controller.isAtTail.value,
+      );
+      controller.isAtTail = true;
+      // No frame in a pure unit test; setter committed synchronously.
+      expect(lastSeen, isTrue);
+    });
   });
 }
 
@@ -256,23 +270,30 @@ class _IsAtTailListenerProbeState extends State<_IsAtTailListenerProbe> {
   Widget build(BuildContext context) {
     // Render with a label that depends on the listened-to state so a
     // misbehaving listener actually contributes to the build phase.
-    return Column(children: <Widget>[
-      Text(_atTail ? 'at tail' : 'off tail'),
-      Expanded(child: widget.child),
-    ]);
+    return Column(
+      children: <Widget>[
+        Text(_atTail ? 'at tail' : 'off tail'),
+        Expanded(child: widget.child),
+      ],
+    );
   }
 }
 
 class _VisibleRangeListenerProbe extends StatefulWidget {
-  const _VisibleRangeListenerProbe({required this.controller, required this.child});
+  const _VisibleRangeListenerProbe({
+    required this.controller,
+    required this.child,
+  });
   final ChatScrollController controller;
   final Widget child;
 
   @override
-  State<_VisibleRangeListenerProbe> createState() => _VisibleRangeListenerProbeState();
+  State<_VisibleRangeListenerProbe> createState() =>
+      _VisibleRangeListenerProbeState();
 }
 
-class _VisibleRangeListenerProbeState extends State<_VisibleRangeListenerProbe> {
+class _VisibleRangeListenerProbeState
+    extends State<_VisibleRangeListenerProbe> {
   ChatVisibleRange? _range;
 
   @override
@@ -292,10 +313,10 @@ class _VisibleRangeListenerProbeState extends State<_VisibleRangeListenerProbe> 
   }
 
   @override
-  Widget build(BuildContext context) {
-    return Column(children: <Widget>[
+  Widget build(BuildContext context) => Column(
+    children: <Widget>[
       Text('range: ${_range?.firstId}..${_range?.lastId}'),
       Expanded(child: widget.child),
-    ]);
-  }
+    ],
+  );
 }

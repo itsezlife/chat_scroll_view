@@ -17,8 +17,7 @@ class _TestDataSource extends ChatDataSource {
   Future<List<IChatMessage>> fetchRange({
     required int fromId,
     required int toId,
-  }) async =>
-      const <IChatMessage>[];
+  }) async => const <IChatMessage>[];
 }
 
 void main() {
@@ -73,29 +72,29 @@ void main() {
     late _TestDataSource source;
 
     setUp(() {
-      source = _TestDataSource();
-      source.upsertMessage(_msg(100));
-      source.upsertMessage(_msg(199));
+      source = _TestDataSource()
+        ..upsertMessage(_msg(100))
+        ..upsertMessage(_msg(199));
     });
 
-    test('getMessage(100) returns message when 101–198 are null in chunk 1', () {
-      final m = source.getMessage(100);
-      expect(m, isNotNull);
-      expect(m!.id, 100);
-      expect(source.getMessage(101), isNull);
-      expect(source.getMessage(150), isNull);
-      expect(source.getMessage(198), isNull);
-      expect(source.getMessage(199)!.id, 199);
-    });
+    test(
+      'getMessage(100) returns message when 101–198 are null in chunk 1',
+      () {
+        final m = source.getMessage(100);
+        expect(m, isNotNull);
+        expect(m!.id, 100);
+        expect(source.getMessage(101), isNull);
+        expect(source.getMessage(150), isNull);
+        expect(source.getMessage(198), isNull);
+        expect(source.getMessage(199)!.id, 199);
+      },
+    );
 
     test('slot assertion fires when chunk is stored at wrong index', () {
       // Chunk for index 0 (firstId 0) stored under key 1 — simulates corruption.
       source.chunks[1] = ChatScrollChunk(index: 0);
 
-      expect(
-        () => source.getMessage(64),
-        throwsA(isA<AssertionError>()),
-      );
+      expect(() => source.getMessage(64), throwsA(isA<AssertionError>()));
     });
   });
 }

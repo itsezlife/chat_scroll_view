@@ -21,6 +21,7 @@ import 'package:flutter/scheduler.dart';
 /// the data source's `newestKnownId`. The consumer owns [lastSeenNewestId]
 /// (typically a [ValueNotifier]) and may update it when persisting read state.
 class NewMessagesPill extends StatefulWidget {
+  /// Floating unread counter that appears when the user scrolls off the tail.
   const NewMessagesPill({
     required this.controller,
     required this.dataSource,
@@ -30,7 +31,10 @@ class NewMessagesPill extends StatefulWidget {
     super.key,
   });
 
+  /// Viewport controller — supplies tail state and visible range.
   final ChatScrollController controller;
+
+  /// Conversation data — supplies `newestKnownId` for the unread baseline.
   final ChatDataSource dataSource;
 
   /// Reserved space at the bottom of the screen — typically the composer's
@@ -100,7 +104,7 @@ class _NewMessagesPillState extends State<NewMessagesPill> {
   int? _prevLastVisibleId;
 
   /// Progressive read: last `visibleRange.lastVisibleFraction` observed.
-  double _prevLastVisibleFraction = 0.0;
+  double _prevLastVisibleFraction = 0;
 
   /// Message ids already advanced via visibility-threshold crossing — avoids
   /// repeat baseline writes while fraction stays above threshold.
@@ -355,7 +359,7 @@ class _NewMessagesPillState extends State<NewMessagesPill> {
       setState(() => _frozenDismissCount = count);
     }
     _tailArrivalIntent = true;
-    await widget.controller.animateTo(newest);
+    await widget.controller.animateTo(newest, highlight: false);
     if (!mounted) return;
     _writeBaseline(newest);
     _stableAtTail = true;
@@ -422,8 +426,7 @@ class _Pill extends StatelessWidget {
   final bool visible;
 
   @override
-  Widget build(BuildContext context) {
-    return IgnorePointer(
+  Widget build(BuildContext context) => IgnorePointer(
       ignoring: !visible,
       child: AnimatedOpacity(
         opacity: visible ? 1.0 : 0.0,
@@ -464,5 +467,4 @@ class _Pill extends StatelessWidget {
         ),
       ),
     );
-  }
 }

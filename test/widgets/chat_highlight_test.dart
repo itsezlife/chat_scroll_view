@@ -190,6 +190,127 @@ void main() {
       expect(f1, greaterThan(f2));
     });
 
+    testWidgets('close-path animateTo with highlight false suppresses highlight', (
+      tester,
+    ) async {
+      const count = 256;
+      final controller = ChatScrollController()..jumpTo(count ~/ 2);
+      final ds = _PreloadedDataSource(count);
+      addTearDown(controller.dispose);
+      addTearDown(ds.dispose);
+
+      await tester.pumpWidget(_scaffold(
+        dataSource: ds,
+        controller: controller,
+      ));
+      await tester.pumpAndSettle();
+
+      final future = controller.animateTo(
+        120,
+        duration: const Duration(milliseconds: 80),
+        highlight: false,
+      );
+      await _driveAnimate(
+        tester,
+        future,
+        animateDuration: const Duration(milliseconds: 80),
+      );
+
+      expect(_render(tester).debugHighlightTargetId, isNull);
+    });
+
+    testWidgets('far-path animateTo with highlight false suppresses highlight', (
+      tester,
+    ) async {
+      const count = 256;
+      final controller = ChatScrollController()..jumpTo(count ~/ 2);
+      final ds = _PreloadedDataSource(count);
+      addTearDown(controller.dispose);
+      addTearDown(ds.dispose);
+
+      await tester.pumpWidget(_scaffold(
+        dataSource: ds,
+        controller: controller,
+        cacheExtent: 8000,
+      ));
+      await tester.pumpAndSettle();
+
+      // Target 0 is far beyond _kCloseAnimateDistance from mid-conversation.
+      final future = controller.animateTo(
+        0,
+        duration: const Duration(milliseconds: 120),
+        highlight: false,
+      );
+      await _driveAnimate(
+        tester,
+        future,
+        animateDuration: const Duration(milliseconds: 120),
+      );
+
+      expect(_render(tester).debugHighlightTargetId, isNull);
+    });
+
+    testWidgets('re-entrant animateTo with highlight false then true', (
+      tester,
+    ) async {
+      const count = 256;
+      final controller = ChatScrollController()..jumpTo(count ~/ 2);
+      final ds = _PreloadedDataSource(count);
+      addTearDown(controller.dispose);
+      addTearDown(ds.dispose);
+
+      await tester.pumpWidget(_scaffold(
+        dataSource: ds,
+        controller: controller,
+        highlightDuration: const Duration(milliseconds: 800),
+      ));
+      await tester.pumpAndSettle();
+
+      final firstFuture = controller.animateTo(
+        120,
+        duration: const Duration(milliseconds: 60),
+        highlight: false,
+      );
+      await _driveAnimate(
+        tester,
+        firstFuture,
+        animateDuration: const Duration(milliseconds: 60),
+      );
+      expect(_render(tester).debugHighlightTargetId, isNull);
+
+      final secondFuture = controller.animateTo(
+        125,
+        duration: const Duration(milliseconds: 80),
+      );
+      await _driveAnimate(
+        tester,
+        secondFuture,
+        animateDuration: const Duration(milliseconds: 80),
+      );
+      expect(_render(tester).debugHighlightTargetId, 125);
+    });
+
+    testWidgets('jumpTo produces no post-navigation highlight', (
+      tester,
+    ) async {
+      const count = 256;
+      final controller = ChatScrollController()..jumpTo(count ~/ 2);
+      final ds = _PreloadedDataSource(count);
+      addTearDown(controller.dispose);
+      addTearDown(ds.dispose);
+
+      await tester.pumpWidget(_scaffold(
+        dataSource: ds,
+        controller: controller,
+      ));
+      await tester.pumpAndSettle();
+
+      controller.jumpTo(120);
+      await tester.pump();
+
+      expect(_render(tester).debugHighlightTargetId, isNull);
+    });
+
     testWidgets('zero-duration animate falls through to jumpTo, no highlight', (
       tester,
     ) async {
@@ -206,7 +327,11 @@ void main() {
       await tester.pumpAndSettle();
 
       // Zero-duration animateTo synchronously jumps and returns immediately.
-      await controller.animateTo(120, duration: Duration.zero);
+      await controller.animateTo(
+        120,
+        duration: Duration.zero,
+        highlight: true,
+      );
       await tester.pump();
 
       expect(_render(tester).debugHighlightTargetId, isNull);
@@ -231,6 +356,7 @@ void main() {
       final future = controller.animateTo(
         120,
         duration: const Duration(milliseconds: 80),
+        highlight: true,
       );
       await _driveAnimate(
         tester,

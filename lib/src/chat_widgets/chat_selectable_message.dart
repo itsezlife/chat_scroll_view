@@ -20,6 +20,7 @@ import 'package:flutter/services.dart';
 /// selection mode. When no selection controller is wired the viewport skips
 /// this wrapper entirely, so it costs nothing.
 class SelectableMessage extends StatefulWidget {
+  /// Wraps message [child] with selection gestures and chrome for [id].
   const SelectableMessage({
     required this.id,
     required this.controller,
@@ -46,8 +47,8 @@ class SelectableMessage extends StatefulWidget {
 }
 
 /// Width of the checkbox gutter when selection mode is fully open.
-const double _kSlotWidth = 44.0;
-const double _kCheckSize = 22.0;
+const double _kSlotWidth = 44;
+const double _kCheckSize = 22;
 const Duration _kModeDuration = Duration(milliseconds: 260);
 const Duration _kSelectDuration = Duration(milliseconds: 200);
 
@@ -263,7 +264,7 @@ class _CheckPainter extends CustomPainter {
     final tick = Path()
       ..moveTo(-4.5, 0.5)
       ..lineTo(-1.5, 3.7)
-      ..lineTo(5.0, -3.5);
+      ..lineTo(5, -3.5);
     canvas
       ..drawPath(
         tick,

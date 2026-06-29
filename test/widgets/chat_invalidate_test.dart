@@ -97,8 +97,9 @@ void main() {
       addTearDown(ds.dispose);
 
       var notifications = 0;
-      ds.addDataListener(() => notifications++);
-      ds.invalidate();
+      ds
+        ..addDataListener(() => notifications++)
+        ..invalidate();
       expect(notifications, 0);
     });
 
@@ -107,8 +108,9 @@ void main() {
       addTearDown(ds.dispose);
       ds.invalidate();
       var notifications = 0;
-      ds.addDataListener(() => notifications++);
-      ds.invalidate();
+      ds
+        ..addDataListener(() => notifications++)
+        ..invalidate();
       // Every chunk is already dirty with cleared error state — no change.
       expect(notifications, 0);
     });
@@ -153,15 +155,15 @@ void main() {
       expect(ds.fetchCalls, 0);
 
       // Stage a server response that replaces content of every requested id.
-      ds.response = (from, to) {
-        final lo = from.clamp(0, 127);
-        final hi = to.clamp(0, 127);
-        return <IChatMessage>[
-          for (var i = lo; i <= hi; i++) _msg(i, 'refreshed $i'),
-        ];
-      };
-
-      ds.invalidate();
+      ds
+        ..response = (from, to) {
+          final lo = from.clamp(0, 127);
+          final hi = to.clamp(0, 127);
+          return <IChatMessage>[
+            for (var i = lo; i <= hi; i++) _msg(i, 'refreshed $i'),
+          ];
+        }
+        ..invalidate();
       await tester.pump(); // markNeedsLayout takes effect; arms fetch poll
       // Stale content still visible while the refetch is in flight.
       expect(find.textContaining('content 64 [stale]'), findsOneWidget);
@@ -195,7 +197,11 @@ void main() {
                     cacheExtent: 100,
                     messageBuilder: (context, id, message, status) => SizedBox(
                       height: 60,
-                      child: Text(message == null ? 'shimmer-$id' : (message as UserChatMessage).content),
+                      child: Text(
+                        message == null
+                            ? 'shimmer-$id'
+                            : (message as UserChatMessage).content,
+                      ),
                     ),
                   ),
                 ),
@@ -209,6 +215,7 @@ void main() {
           for (var i = from.clamp(0, 255); i <= to.clamp(0, 255); i++)
             _msg(i, 'fresh $i'),
         ];
+        // ignore: cascade_invocations
         ds.invalidate();
         // First pump lets the markNeedsLayout from invalidate take effect
         // (which arms the fetch-poll Timer); the 200 ms pump advances past
@@ -227,7 +234,10 @@ void main() {
         final farChunk = ds.chunks[0];
         expect(farChunk, isNotNull);
         expect(farChunk!.status.isDirty, isTrue);
-        expect((ds.getMessage(0)! as UserChatMessage).content, 'content 0'); // pre-invalidate data
+        expect(
+          (ds.getMessage(0)! as UserChatMessage).content,
+          'content 0',
+        ); // pre-invalidate data
       },
     );
 
@@ -255,7 +265,11 @@ void main() {
                   cacheExtent: 100,
                   messageBuilder: (context, id, message, status) => SizedBox(
                     height: 60,
-                    child: Text(message == null ? 'shimmer-$id' : (message as UserChatMessage).content),
+                    child: Text(
+                      message == null
+                          ? 'shimmer-$id'
+                          : (message as UserChatMessage).content,
+                    ),
                   ),
                 ),
               ),
@@ -281,6 +295,7 @@ void main() {
         for (var i = from.clamp(0, 63); i <= to.clamp(0, 63); i++)
           _msg(i, 'recovered $i'),
       ];
+      // ignore: cascade_invocations
       ds.invalidate();
       // Chunk should be dirty (error cleared, attempts reset).
       expect(chunk.status.isError, isFalse);

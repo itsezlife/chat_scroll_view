@@ -1,3 +1,5 @@
+// ignore_for_file: public_member_api_docs, avoid_classes_with_only_static_members
+
 /// Demo Supabase settings from `--dart-define` / `--dart-define-from-file`.
 abstract final class DemoConfig {
   static const String supabaseUrl = String.fromEnvironment(
@@ -16,8 +18,7 @@ abstract final class DemoConfig {
   );
 
   /// Publishable (preferred) or legacy JWT anon key from `--dart-define-from-file`.
-  static String get supabasePublishableKey =>
-      _supabasePublishableKey.isNotEmpty
+  static String get supabasePublishableKey => _supabasePublishableKey.isNotEmpty
       ? _supabasePublishableKey
       : _supabaseAnonKey;
 
@@ -26,5 +27,6 @@ abstract final class DemoConfig {
     defaultValue: 1,
   );
 
-  static bool get hasSupabasePublishableKey => supabasePublishableKey.isNotEmpty;
+  static bool get hasSupabasePublishableKey =>
+      supabasePublishableKey.isNotEmpty;
 }

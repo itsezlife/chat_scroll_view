@@ -77,8 +77,7 @@ Widget _harness({
   required ChatDataSource dataSource,
   required ChatScrollController controller,
   ValueListenable<double>? bottomPadding,
-}) {
-  return MaterialApp(
+}) => MaterialApp(
     home: Scaffold(
       body: Center(
         child: SizedBox(
@@ -98,7 +97,6 @@ Widget _harness({
       ),
     ),
   );
-}
 
 /// Pump through post-release settle — catches layout-driven tail re-pin.
 Future<void> _pumpSettle(WidgetTester tester, {Duration total = const Duration(milliseconds: 1000)}) async {
@@ -199,7 +197,7 @@ void main() {
   group('mount scroll magnet: re-attach', () {
     testWidgets('re-attach then drag up matches continuous mount', (tester) async {
       const count = 40;
-      final newest = count - 1;
+      const newest = count - 1;
       final ds = _PreloadedDataSource(count);
       final inset = ValueNotifier<double>(_bottomInset);
       final controller = ChatScrollController()..jumpTo(newest);
@@ -235,7 +233,7 @@ void main() {
   group('mount scroll magnet: lazy tail', () {
     testWidgets('lazy tail load after user drag does not yank to newest', (tester) async {
       const count = 40;
-      final newest = count - 1;
+      const newest = count - 1;
       final ds = _LazyTailDataSource(count);
       final inset = ValueNotifier<double>(_bottomInset);
       final controller = ChatScrollController()..jumpTo(newest);

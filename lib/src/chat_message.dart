@@ -1,8 +1,14 @@
 import 'package:chatscrollview/src/chat_scroll/chat_scroll_common.dart';
 import 'package:meta/meta.dart';
 
+/// Base type for messages rendered in a [ChatScrollView].
+///
+/// Sealed so callers can pattern-match on [UserChatMessage] vs
+/// [SystemChatMessage] without a catch-all. Implements [IChatMessage] for the
+/// scroll engine's id / timestamp contract.
 @immutable
 sealed class ChatMessage implements IChatMessage {
+  /// Shared fields for every message leaf — [id], [sender], and timestamps.
   const ChatMessage({
     required this.id,
     required this.sender,
@@ -26,6 +32,7 @@ sealed class ChatMessage implements IChatMessage {
 /// A system-authored message — service notifications, join/leave notices,
 /// channel events. `sealed`-pattern leaf of [ChatMessage].
 class SystemChatMessage extends ChatMessage {
+  /// Creates a system-authored row (join notices, channel events, …).
   const SystemChatMessage({
     required super.id,
     required super.sender,
@@ -40,6 +47,7 @@ class SystemChatMessage extends ChatMessage {
 
 /// A user-authored message. `sealed`-pattern leaf of [ChatMessage].
 class UserChatMessage extends ChatMessage {
+  /// Creates a user-authored row with [content] body text.
   const UserChatMessage({
     required super.id,
     required super.sender,
@@ -48,6 +56,11 @@ class UserChatMessage extends ChatMessage {
     required this.content,
   });
 
+  /// Parses a JSON object shaped like the comments asset chunks:
+  /// `{id, sender, content, createdAt, updatedAt?}`.
+  ///
+  /// Missing or unparseable timestamps fall back to [DateTime.now] for
+  /// `createdAt` and to `createdAt` for `updatedAt`.
   factory UserChatMessage.fromJson(Map<String, dynamic> json) {
     final createdAt =
         DateTime.tryParse(json['createdAt'] as String? ?? '') ?? DateTime.now();

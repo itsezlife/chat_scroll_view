@@ -90,6 +90,8 @@ DateTime _defaultGroupBy(IChatMessage message) {
 /// above the first message of each day plus a floating header pinned to the
 /// top showing the topmost day.
 class ChatScrollView extends RenderObjectWidget {
+  /// Creates an anchor-based chat viewport backed by [dataSource] and
+  /// [controller], building each visible row with [messageBuilder].
   const ChatScrollView({
     required this.dataSource,
     required this.controller,

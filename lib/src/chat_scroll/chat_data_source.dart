@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:collection';
+import 'dart:developer' as dev;
 import 'dart:math' as math;
 import 'dart:ui';
 
@@ -348,8 +349,9 @@ abstract class ChatDataSource {
         changed = true;
       }
       if (chunk.failedAttempts != 0 || chunk.lastError != null) {
-        chunk.failedAttempts = 0;
-        chunk.lastError = null;
+        chunk
+          ..failedAttempts = 0
+          ..lastError = null;
         changed = true;
       }
     }
@@ -515,7 +517,12 @@ abstract class ChatDataSource {
         _fetchingChunks.clear();
         notifyDataChanged();
       },
-      onError: (Object error) {
+      onError: (Object error, StackTrace stackTrace) {
+        dev.log(
+          'fetchRange error, range: (fromId: $fromId, toId: $toId)',
+          error: error,
+          stackTrace: stackTrace,
+        );
         if (_fetchToken != token) return; // cancelled or replaced
         _fetchToken = null;
 
@@ -527,10 +534,10 @@ abstract class ChatDataSource {
           if (chunk == null) continue;
           chunk
             ..lastError = error
-            ..failedAttempts += 1;
-          chunk.status = chunk.status
-              .remove(ChatMessageStatus.fetching)
-              .add(ChatMessageStatus.error);
+            ..failedAttempts += 1
+            ..status = chunk.status
+                .remove(ChatMessageStatus.fetching)
+                .add(ChatMessageStatus.error);
         }
         _fetchingChunks.clear();
         notifyDataChanged();

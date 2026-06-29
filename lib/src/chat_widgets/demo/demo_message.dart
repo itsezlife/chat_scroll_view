@@ -24,14 +24,14 @@ Widget buildDemoMessage(
 /// Max width of a message's content column (the column inside the viewport,
 /// not the bubble itself — the viewport hands each message the full viewport
 /// width, then we centre this column within it).
-const double _kContentMaxWidth = 338.0;
+const double _kContentMaxWidth = 338;
 
 /// Max width of a single bubble inside the content column.
-const double _kBubbleMaxWidth = 480.0;
+const double _kBubbleMaxWidth = 480;
 
 /// Avatar diameter; doubles as the left gutter for run-grouped messages
 /// (those without a fresh avatar still indent by this much).
-const double _kAvatarSize = 32.0;
+const double _kAvatarSize = 32;
 
 /// Senders treated as "team members" — right-aligned, distinct bubble color.
 /// In a real chat this would be "is the current user" — the team list just
@@ -142,13 +142,18 @@ const Color _kShimmer = Color(0xFF2C2C2E);
 /// toward its column; subsequent messages omit the avatar / label, drop the
 /// tail, and indent to keep the run visually aligned.
 class DemoMessageBubble extends StatelessWidget {
+  /// Renders [message] as an incoming or outgoing bubble row.
   const DemoMessageBubble({
     required this.message,
     this.isFirstInRun = true,
     super.key,
   });
 
+  /// Message to display — drives sender alignment and bubble styling.
   final IChatMessage message;
+
+  /// When `false`, omits avatar / sender label and tightens vertical padding
+  /// so consecutive messages from the same sender read as one run.
   final bool isFirstInRun;
 
   @override
@@ -227,7 +232,7 @@ class _Avatar extends StatelessWidget {
           color: Color(0xFFFFFFFF),
           fontWeight: FontWeight.w700,
           fontSize: 14,
-          height: 1.0,
+          height: 1,
         ),
       ),
     );
@@ -378,7 +383,7 @@ class _MetaRow extends StatelessWidget {
             style: TextStyle(
               color: color,
               fontSize: 11,
-              height: 1.0,
+              height: 1,
               fontFeatures: const <FontFeature>[FontFeature.tabularFigures()],
             ),
           ),
@@ -398,6 +403,7 @@ class _MetaRow extends StatelessWidget {
 /// real bubble layout — avatar circle + bubble silhouette — so the chat
 /// doesn't jump when data lands.
 class DemoShimmerBubble extends StatelessWidget {
+  /// Placeholder silhouette matching [DemoMessageBubble] layout dimensions.
   const DemoShimmerBubble({super.key});
 
   @override
@@ -442,6 +448,7 @@ class DemoShimmerBubble extends StatelessWidget {
 /// per chunk (not 64 per-message slots), tapping "Retry" cancels the
 /// running backoff and re-fetches the chunk immediately.
 class DemoChunkErrorTile extends StatelessWidget {
+  /// One tile covering the id range `[firstId, lastId]` for a failed chunk.
   const DemoChunkErrorTile({
     required this.firstId,
     required this.lastId,
@@ -450,9 +457,16 @@ class DemoChunkErrorTile extends StatelessWidget {
     super.key,
   });
 
+  /// First message id in the failed chunk (inclusive).
   final int firstId;
+
+  /// Last message id in the failed chunk (inclusive).
   final int lastId;
+
+  /// Failed fetch attempts since the last success — shown when greater than 1.
   final int attempt;
+
+  /// Cancels backoff and immediately re-fetches the chunk.
   final VoidCallback onRetry;
 
   @override
@@ -513,6 +527,7 @@ class DemoChunkErrorTile extends StatelessWidget {
 /// Full-viewport empty state. Shown when the data source reports
 /// [ChatDataSource.isEmpty] — the conversation has no messages.
 class DemoEmptyState extends StatelessWidget {
+  /// Centered copy shown when [ChatDataSource.isEmpty] is true.
   const DemoEmptyState({super.key});
 
   @override
@@ -547,6 +562,7 @@ class DemoEmptyState extends StatelessWidget {
 /// fills the viewport so the user sees layout structure immediately instead
 /// of waiting on a blank screen.
 class DemoInitialSkeleton extends StatelessWidget {
+  /// Shimmer stack shown while [ChatDataSource.isInitialLoading] is true.
   const DemoInitialSkeleton({super.key});
 
   @override

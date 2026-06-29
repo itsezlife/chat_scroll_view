@@ -32,8 +32,7 @@ class _RecordingDataSource extends ChatDataSource {
   }
 
   final int totalCount;
-  final List<({int fromId, int toId})> requests =
-      <({int fromId, int toId})>[];
+  final List<({int fromId, int toId})> requests = <({int fromId, int toId})>[];
 
   @override
   Future<List<IChatMessage>> fetchRange({
@@ -87,10 +86,9 @@ void main() {
         addTearDown(controller.dispose);
         addTearDown(ds.dispose);
 
-        await tester.pumpWidget(_scaffold(
-          dataSource: ds,
-          controller: controller,
-        ));
+        await tester.pumpWidget(
+          _scaffold(dataSource: ds, controller: controller),
+        );
         await tester.pumpAndSettle();
         ds.requests.clear();
 
@@ -100,12 +98,11 @@ void main() {
         final end = viewportTopLeft + const Offset(395, 540);
         final gesture = await tester.startGesture(start);
         // Multiple intermediate moves, ~30 px each, to mimic a real drag.
-        final stepCount = 15;
+        const stepCount = 15;
         for (var i = 1; i <= stepCount; i++) {
-          await gesture.moveTo(Offset(
-            start.dx,
-            start.dy + (end.dy - start.dy) * (i / stepCount),
-          ));
+          await gesture.moveTo(
+            Offset(start.dx, start.dy + (end.dy - start.dy) * (i / stepCount)),
+          );
           await tester.pump(const Duration(milliseconds: 16));
         }
         await gesture.up();
@@ -117,7 +114,8 @@ void main() {
         expect(
           ds.requests,
           isNotEmpty,
-          reason: 'scrollbar DRAG (not just tap) must trigger a fetch '
+          reason:
+              'scrollbar DRAG (not just tap) must trigger a fetch '
               'without requiring a follow-up viewport gesture.',
         );
         expect(controller.anchorMessageId, greaterThan(1000));
@@ -140,10 +138,9 @@ void main() {
         addTearDown(controller.dispose);
         addTearDown(ds.dispose);
 
-        await tester.pumpWidget(_scaffold(
-          dataSource: ds,
-          controller: controller,
-        ));
+        await tester.pumpWidget(
+          _scaffold(dataSource: ds, controller: controller),
+        );
         await tester.pumpAndSettle();
 
         // Step 1: do a gesture-scroll on the viewport so `_lastScrollTs`
@@ -175,7 +172,8 @@ void main() {
         expect(
           ds.requests,
           isNotEmpty,
-          reason: 'scrollbar jump performed within the post-gesture debounce '
+          reason:
+              'scrollbar jump performed within the post-gesture debounce '
               'window must still trigger a fetch — without a follow-up '
               'gesture-scroll.',
         );
@@ -201,11 +199,13 @@ void main() {
         addTearDown(ds.dispose);
         addTearDown(selection.dispose);
 
-        await tester.pumpWidget(_scaffold(
-          dataSource: ds,
-          controller: controller,
-          selectionController: selection,
-        ));
+        await tester.pumpWidget(
+          _scaffold(
+            dataSource: ds,
+            controller: controller,
+            selectionController: selection,
+          ),
+        );
         await tester.pumpAndSettle();
 
         // Long-press a visible message to enter selection mode.
@@ -220,10 +220,9 @@ void main() {
         final end = viewportTopLeft + const Offset(395, 540);
         final gesture = await tester.startGesture(start);
         for (var i = 1; i <= 10; i++) {
-          await gesture.moveTo(Offset(
-            start.dx,
-            start.dy + (end.dy - start.dy) * (i / 10),
-          ));
+          await gesture.moveTo(
+            Offset(start.dx, start.dy + (end.dy - start.dy) * (i / 10)),
+          );
           await tester.pump(const Duration(milliseconds: 16));
         }
         await gesture.up();
@@ -233,7 +232,8 @@ void main() {
         expect(
           ds.requests,
           isNotEmpty,
-          reason: 'selection mode + scrollbar drag must trigger a fetch '
+          reason:
+              'selection mode + scrollbar drag must trigger a fetch '
               'without a follow-up gesture.',
         );
         expect(controller.anchorMessageId, greaterThan(1000));
@@ -253,10 +253,9 @@ void main() {
         addTearDown(controller.dispose);
         addTearDown(ds.dispose);
 
-        await tester.pumpWidget(_scaffold(
-          dataSource: ds,
-          controller: controller,
-        ));
+        await tester.pumpWidget(
+          _scaffold(dataSource: ds, controller: controller),
+        );
         await tester.pumpAndSettle();
 
         // Drain the initial fetch — chunk 0 (messages 0..63).
@@ -280,25 +279,24 @@ void main() {
         expect(
           ds.requests,
           isNotEmpty,
-          reason: 'scrollbar drag without a follow-up gesture must trigger '
+          reason:
+              'scrollbar drag without a follow-up gesture must trigger '
               'a fetch for the chunks at the new anchor.',
         );
         // The anchor should be far from 0 now.
         expect(controller.anchorMessageId, greaterThan(1000));
         // And the requested range should cover the new anchor's chunk.
-        final anchorChunk =
-            ChatScrollChunk.chunkOf(controller.anchorMessageId);
-        final requestedChunks = ds.requests
-            .expand((r) {
-              final lo = ChatScrollChunk.chunkOf(r.fromId);
-              final hi = ChatScrollChunk.chunkOf(r.toId);
-              return <int>[for (var i = lo; i <= hi; i++) i];
-            })
-            .toSet();
+        final anchorChunk = ChatScrollChunk.chunkOf(controller.anchorMessageId);
+        final requestedChunks = ds.requests.expand((r) {
+          final lo = ChatScrollChunk.chunkOf(r.fromId);
+          final hi = ChatScrollChunk.chunkOf(r.toId);
+          return <int>[for (var i = lo; i <= hi; i++) i];
+        }).toSet();
         expect(
           requestedChunks.contains(anchorChunk),
           isTrue,
-          reason: 'fetch must cover the chunk containing the new anchor; '
+          reason:
+              'fetch must cover the chunk containing the new anchor; '
               'anchor chunk=$anchorChunk, requested=$requestedChunks',
         );
       },
