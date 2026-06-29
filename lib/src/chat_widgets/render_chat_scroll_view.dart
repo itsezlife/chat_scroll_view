@@ -4,6 +4,7 @@ import 'dart:async';
 import 'dart:collection';
 
 import 'package:chatscrollview/src/chat_scroll/chat_data_source.dart';
+import 'package:chatscrollview/src/chat_scroll/chat_fetch_coordinator.dart';
 import 'package:chatscrollview/src/chat_scroll/chat_scroll_chunk.dart';
 import 'package:chatscrollview/src/chat_scroll/chat_scroll_common.dart';
 import 'package:chatscrollview/src/chat_scroll/chat_scroll_controller.dart';
@@ -175,8 +176,7 @@ class RenderChatScrollView extends RenderBox implements ChatScrollAnimator {
     _headerBucket = null;
     _headerDate = null;
     _headerDirty = true;
-    _layoutMinChunk = 0;
-    _layoutMaxChunk = -1;
+    _fetchCoordinator.resetLayoutRange();
     if (attached) {
       _dataSource
         ..addDataListener(_onDataChanged)
@@ -396,8 +396,6 @@ class RenderChatScrollView extends RenderBox implements ChatScrollAnimator {
   // --- Layout state ----------------------------------------------------------
 
   int _accessTick = 0;
-  int _layoutMinChunk = 0;
-  int _layoutMaxChunk = -1;
 
   /// Exponential moving average of the per-frame scroll delta (px/frame,
   /// signed). Positive = anchor moving down = revealing older messages.
@@ -422,6 +420,17 @@ class RenderChatScrollView extends RenderBox implements ChatScrollAnimator {
   /// Fling simulation, drag resistance, and overscroll bounceback. Boundary
   /// geometry is measured here in the render object and fed back through
   /// [_overscrollOnSide] — [ChatScrollPhysics] owns only the simulation state.
+  ///
+  /// Chunk fetch poll, jump-fetch dispatch, and LRU eviction are owned by
+  /// [_fetchCoordinator]; the render object publishes the laid-out chunk
+  /// range at the end of `performLayout`.
+  late final ChatFetchCoordinator _fetchCoordinator = ChatFetchCoordinator(
+    dataSource: _dataSource,
+    requestRange: _dataSource.requestChunks,
+    anchorChunkIndex: () =>
+        ChatScrollChunk.chunkOf(_controller.anchorMessageId),
+  );
+
   late final ChatScrollPhysics _physics = ChatScrollPhysics(
     overscrollOnSide: _overscrollOnSide,
   );
@@ -516,9 +525,6 @@ class RenderChatScrollView extends RenderBox implements ChatScrollAnimator {
 
   // --- Fetch poll ------------------------------------------------------------
 
-  static const Duration _pollInterval = Duration(milliseconds: 150);
-  Timer? _pollTimer;
-  int _lastScrollTs = 0;
 
   // --- Scrollbar -------------------------------------------------------------
 
@@ -606,10 +612,10 @@ class RenderChatScrollView extends RenderBox implements ChatScrollAnimator {
   int get debugChunkCount => _dataSource.chunks.length;
 
   /// Lowest chunk index included in the last layout fan-out.
-  int get debugLayoutMinChunk => _layoutMinChunk;
+  int get debugLayoutMinChunk => _fetchCoordinator.layoutMinChunk;
 
   /// Highest chunk index included in the last layout fan-out.
-  int get debugLayoutMaxChunk => _layoutMaxChunk;
+  int get debugLayoutMaxChunk => _fetchCoordinator.layoutMaxChunk;
 
   /// Smallest message id with a built child, or `null` when empty.
   int? get debugFirstId => _children.isEmpty ? null : _children.firstKey();
@@ -699,7 +705,7 @@ class RenderChatScrollView extends RenderBox implements ChatScrollAnimator {
   @override
   void attach(PipelineOwner owner) {
     super.attach(owner);
-    _jumpFetchDispatchDetached = false;
+    _fetchCoordinator.onAttach();
     for (final child in _children.values) {
       child.attach(owner);
     }
@@ -734,7 +740,7 @@ class RenderChatScrollView extends RenderBox implements ChatScrollAnimator {
     }
     if (_controller.anchorMessageId != newest) return;
     _markPinTailOnJumpIfNeeded(newest);
-    _jumpFetchPending = true;
+    _fetchCoordinator.queueJumpFetch();
   }
 
   /// Build a new drag recognizer. `onCancel` is intentionally NOT wired:
@@ -758,9 +764,7 @@ class RenderChatScrollView extends RenderBox implements ChatScrollAnimator {
     _flingCancelPointer = null;
     _ticker?.dispose();
     _ticker = null;
-    _pollTimer?.cancel();
-    _pollTimer = null;
-    _jumpFetchDispatchDetached = true;
+    _fetchCoordinator.onDetach();
     _pinTailOnJump = false;
     _pendingTailPinUntilSettled = false;
     _userPreemptedTailSettle = false;
@@ -969,76 +973,9 @@ class RenderChatScrollView extends RenderBox implements ChatScrollAnimator {
     // running an invisible fade against the old slot — drop it.
     _clearHighlight();
     _cancelBounceback();
-    // Clear `_lastScrollTs` so the poll's same-window debounce passes.
-    // Crucially we do **not** cancel `_pollTimer` here even though it
-    // may be armed for the previous range: a continuous scrollbar drag
-    // fires `_onJump` once per `PointerMove`, and cancelling the
-    // newly-armed `Duration.zero` poll on every move guarantees the
-    // timer is never given a chance to drain before the next move
-    // arrives, so chunks at the new anchor never get fetched until the
-    // user lets go. Letting the timer keep ticking is fine: each
-    // `_onPollTick` reads the live `_layoutMinChunk`/`_layoutMaxChunk`,
-    // so a poll armed during an old drag still requests the *current*
-    // range when it eventually fires.
-    _lastScrollTs = 0;
-    // Belt-and-suspenders: also queue a *direct* fetch dispatch out of
-    // the next layout — see `_maybeDispatchJumpFetch`. The poll timer
-    // path is still the primary mechanism; this is the safety net for
-    // animation-driven repaint cadences (selection-mode chrome,
-    // highlight fade, etc.) that would otherwise race with the timer.
-    _jumpFetchPending = true;
+    // Poll debounce + jump-fetch safety net — see [ChatFetchCoordinator.onJump].
+    _fetchCoordinator.onJump();
     markNeedsLayout();
-  }
-
-  /// Set by `_onJump` when a discrete navigate happened and the next
-  /// layout must dispatch a fetch for the new range without waiting on
-  /// the scroll-debounce poll. Cleared at the end of `performLayout`.
-  bool _jumpFetchPending = false;
-
-  /// Cleared on attach, set on detach — guards the deferred
-  /// post-layout dispatch from touching a stale data source.
-  bool _jumpFetchDispatchDetached = false;
-
-  /// Dispatched from the end of `performLayout` when
-  /// [_jumpFetchPending] is set.
-  ///
-  /// We forward the `requestChunks` call through *both* a microtask
-  /// and an `addPostFrameCallback`. Either path alone proved
-  /// unreliable in practice — under heavy frame churn (selection-mode
-  /// chrome animations interleaved with continuous scrollbar pointer
-  /// dispatch), the microtask sometimes drained before the layout
-  /// pipeline finalized, and the post-frame callback sometimes fired
-  /// before a sibling animation Ticker re-marked our own layout
-  /// dirty. Doubling the dispatch is cheap (both end up calling the
-  /// same idempotent `requestChunks` against an already-non-null
-  /// `_fetchToken`), and removes the failure mode.
-  ///
-  /// The call into `requestChunks` itself cannot be made synchronously
-  /// from within `performLayout`: it transitively fires
-  /// `notifyDataChanged` → `_onDataChanged` → `markNeedsLayout`,
-  /// which throws the "RenderObject mutated in its own performLayout"
-  /// assert. Deferring even one event loop turn is enough to satisfy
-  /// the assert.
-  void _maybeDispatchJumpFetch() {
-    if (!_jumpFetchPending) return;
-    _jumpFetchPending = false;
-    if (_layoutMaxChunk < _layoutMinChunk) return;
-    if (_jumpFetchDispatchDetached) return;
-    final minChunk = _layoutMinChunk;
-    final maxChunk = _layoutMaxChunk;
-    scheduleMicrotask(() {
-      if (_jumpFetchDispatchDetached) return;
-      _dataSource.requestChunks(minChunk, maxChunk);
-    });
-    // Post-frame belt: catches the case where the microtask drained
-    // before some sibling effect (a parallel layout Tick) re-dirtied
-    // us; the post-frame runs at the end of the NEXT frame and reads
-    // the freshest `_layoutMinChunk`/`_layoutMaxChunk` directly.
-    SchedulerBinding.instance.addPostFrameCallback((_) {
-      if (_jumpFetchDispatchDetached) return;
-      if (_layoutMaxChunk < _layoutMinChunk) return;
-      _dataSource.requestChunks(_layoutMinChunk, _layoutMaxChunk);
-    });
   }
 
   void _onScrollBy(double delta) {
@@ -1122,7 +1059,7 @@ class RenderChatScrollView extends RenderBox implements ChatScrollAnimator {
     // child maps until the end-of-layout GC pass — [_renormalizeAnchor] and
     // clamp would read them and fan out across the wrong id span. Drop them
     // before the first fan-out of the jump layout.
-    if (_jumpFetchPending) {
+    if (_fetchCoordinator.jumpFetchPending) {
       final staleMessages = _children.keys.toList();
       final staleErrorChunks = _chunkErrors.keys.toList();
       if (staleMessages.isNotEmpty || staleErrorChunks.isNotEmpty) {
@@ -1213,30 +1150,31 @@ class RenderChatScrollView extends RenderBox implements ChatScrollAnimator {
     // Track the laid-out chunk range (for fetch + eviction). Messages and
     // chunk-error tiles together span the visible chunks — collapse both
     // through `chunkOf` to find the inclusive range.
+    final int minChunk;
+    final int maxChunk;
     if (_children.isEmpty && _chunkErrors.isEmpty) {
-      _layoutMinChunk = 0;
-      _layoutMaxChunk = -1;
+      minChunk = 0;
+      maxChunk = -1;
     } else {
-      var minChunk = _children.isEmpty
+      var computedMin = _children.isEmpty
           ? _chunkErrors.firstKey()!
           : ChatScrollChunk.chunkOf(_children.firstKey()!);
-      var maxChunk = _children.isEmpty
+      var computedMax = _children.isEmpty
           ? _chunkErrors.lastKey()!
           : ChatScrollChunk.chunkOf(_children.lastKey()!);
       if (_chunkErrors.isNotEmpty) {
         final eMin = _chunkErrors.firstKey()!;
         final eMax = _chunkErrors.lastKey()!;
-        if (eMin < minChunk) minChunk = eMin;
-        if (eMax > maxChunk) maxChunk = eMax;
+        if (eMin < computedMin) computedMin = eMin;
+        if (eMax > computedMax) computedMax = eMax;
       }
-      _layoutMinChunk = minChunk;
-      _layoutMaxChunk = maxChunk;
+      minChunk = computedMin;
+      maxChunk = computedMax;
     }
-    _evictChunks();
+    // Fetch poll, LRU eviction, jump-fetch — [ChatFetchCoordinator].
+    _fetchCoordinator.onLayoutComplete(minChunk, maxChunk);
     _updateScrollSemantics();
     _publishControllerState();
-    _scheduleFetchPoll();
-    _maybeDispatchJumpFetch();
     _updateFloatingHeader();
 
     assert(() {
@@ -1276,8 +1214,6 @@ class RenderChatScrollView extends RenderBox implements ChatScrollAnimator {
       _parentData(overlay).offset = 0.0;
     }
 
-    _layoutMinChunk = 0;
-    _layoutMaxChunk = -1;
     _headerBucket = null;
     _headerDate = null;
     _headerDirty = false;
@@ -1309,10 +1245,10 @@ class RenderChatScrollView extends RenderBox implements ChatScrollAnimator {
       _drag = _buildDragRecognizer();
     }
     _ticker?.stop();
-    _evictChunks();
+    // Fetch poll + LRU eviction — [ChatFetchCoordinator].
+    _fetchCoordinator.onLayoutCleared();
     _updateScrollSemantics();
     _publishControllerState();
-    _scheduleFetchPoll();
   }
 
   /// Build + lay out + position children fanning out from the anchor, in a
@@ -1781,48 +1717,6 @@ class RenderChatScrollView extends RenderBox implements ChatScrollAnimator {
     }
   }
 
-  /// LRU-evict data chunks until at most [ChatDataSource.maxChunks] remain.
-  ///
-  /// Pass 1 drops outside-layout chunks when already at the budget — a
-  /// `jumpTo` can leave `length == maxChunks` with every entry outside the
-  /// new range. While under budget, off-screen chunks are kept so a later
-  /// `jumpTo` / scroll back can reuse cached data without a refetch. Pass 2
-  /// drops the coldest in-range chunk when still over budget, never the
-  /// anchor's chunk.
-  void _evictChunks() {
-    final chunks = _dataSource.chunks;
-    final maxChunks = _dataSource.maxChunks;
-    final anchorChunk = ChatScrollChunk.chunkOf(_controller.anchorMessageId);
-
-    ChatScrollChunk? coldest({required bool outsideLayoutOnly}) {
-      ChatScrollChunk? victim;
-      for (final chunk in chunks.values) {
-        if (chunk.index == anchorChunk) continue;
-        final outside =
-            chunk.index < _layoutMinChunk || chunk.index > _layoutMaxChunk;
-        if (outsideLayoutOnly && !outside) continue;
-        if (victim == null || chunk.lastAccessTick < victim.lastAccessTick) {
-          victim = chunk;
-        }
-      }
-      return victim;
-    }
-
-    if (chunks.length >= maxChunks) {
-      while (true) {
-        final victim = coldest(outsideLayoutOnly: true);
-        if (victim == null) break;
-        chunks.remove(victim.index);
-      }
-    }
-
-    while (chunks.length > maxChunks) {
-      final victim = coldest(outsideLayoutOnly: false);
-      if (victim == null) break;
-      chunks.remove(victim.index);
-    }
-  }
-
   // --- Day separators --------------------------------------------------------
 
   /// Set a child's viewport [offset]. For a day-starting message it also
@@ -1915,8 +1809,7 @@ class RenderChatScrollView extends RenderBox implements ChatScrollAnimator {
 
   // --- Scroll ----------------------------------------------------------------
 
-  void _markScrollActive() =>
-      _lastScrollTs = DateTime.now().millisecondsSinceEpoch;
+  void _markScrollActive() => _fetchCoordinator.markScrollActive();
 
   void _ensureTicker() {
     final ticker = _ticker;
@@ -2304,58 +2197,6 @@ class RenderChatScrollView extends RenderBox implements ChatScrollAnimator {
         final oldest = _dataSource.oldestKnownId;
         if (oldest == null || firstId > oldest) return true;
       }
-    }
-    return false;
-  }
-
-  // --- Fetch poll ------------------------------------------------------------
-
-  /// Arm the one-shot fetch poll, but only while the laid-out range still has
-  /// a missing or dirty chunk. A fully-loaded, idle viewport arms nothing —
-  /// no periodic wake-ups.
-  ///
-  /// Outside an active scroll the timer fires on the next microtask instead
-  /// of waiting a full [_pollInterval] — initial load, jumpTo settle, and
-  /// "new chunk arrived" don't need the scroll-debounce. The interval still
-  /// applies while the user is actively scrolling, so a fast fling doesn't
-  /// spam the network with every chunk that briefly enters the viewport.
-  void _scheduleFetchPoll() {
-    if (_pollTimer != null || !_rangeHasPendingChunks()) return;
-    final sinceScroll = DateTime.now().millisecondsSinceEpoch - _lastScrollTs;
-    final delay = sinceScroll >= _pollInterval.inMilliseconds
-        ? Duration.zero
-        : _pollInterval;
-    _pollTimer = Timer(delay, _onPollTick);
-  }
-
-  void _onPollTick() {
-    _pollTimer = null;
-    final now = DateTime.now().millisecondsSinceEpoch;
-    // Skip the fetch while a scroll is still in flight (light debounce); the
-    // re-arm below keeps re-checking until it settles.
-    if (now - _lastScrollTs >= _pollInterval.inMilliseconds &&
-        _layoutMaxChunk >= _layoutMinChunk) {
-      _dataSource.requestChunks(_layoutMinChunk, _layoutMaxChunk);
-    }
-    // Keep polling until everything in range has loaded, then go idle.
-    _scheduleFetchPoll();
-  }
-
-  /// Whether the laid-out chunk range has any missing or dirty chunk that is
-  /// not already being fetched.
-  ///
-  /// Errored chunks are excluded — they are retried by [ChatDataSource]'s
-  /// backoff timer and [ChatDataSource.retryChunk], not by this poll loop.
-  /// Treating `error` as pending with [Duration.zero] poll delays spins
-  /// forever once layout becomes cheap (a single chunk-error tile).
-  bool _rangeHasPendingChunks() {
-    if (_layoutMaxChunk < _layoutMinChunk) return false;
-    for (var ci = _layoutMinChunk; ci <= _layoutMaxChunk; ci++) {
-      final chunk = _dataSource.chunks[ci];
-      if (chunk == null) return true;
-      final status = chunk.status;
-      if (status.isFetching) continue;
-      if (status.isDirty) return true;
     }
     return false;
   }
@@ -3036,8 +2877,7 @@ class RenderChatScrollView extends RenderBox implements ChatScrollAnimator {
     _clearHighlight();
     _ticker?.dispose();
     _ticker = null;
-    _pollTimer?.cancel();
-    _pollTimer = null;
+    _fetchCoordinator.dispose();
     _drag?.dispose();
     _drag = null;
     _clipLayer.layer = null;
