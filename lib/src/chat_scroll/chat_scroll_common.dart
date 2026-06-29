@@ -39,6 +39,25 @@ extension type const ChatMessageStatus._(int _value) {
   /// The message is being fetched.
   static const ChatMessageStatus fetching = ChatMessageStatus._(1 << 2);
 
+  /// The message ID is permanently absent — the server confirmed it does not
+  /// exist within the conversation's bounds (e.g. deleted in a batch). Unlike
+  /// `null` slots in a dirty or fetching chunk, an absent slot will never
+  /// return data. The viewport skips absent IDs during fan-out and they
+  /// contribute zero height, keeping the scrollbar accurate.
+  ///
+  /// Absent slots are set by the `_executeFetch` success pass and cleared by
+  /// `invalidate()` so a re-fetch always starts with a clean slate.
+  ///
+  /// | Bit | Name     | Value | Meaning                              |
+  /// |-----|----------|-------|--------------------------------------|
+  /// |  0  | dirty    |     1 | Stale — needs a re-fetch             |
+  /// |  1  | error    |     2 | Last fetch failed                    |
+  /// |  2  | fetching |     4 | Fetch in flight                      |
+  /// |  3  | absent   |     8 | ID confirmed non-existent by server  |
+  ///
+  /// Bits `1 << 4` through `1 << 31` are reserved for future use.
+  static const ChatMessageStatus absent = ChatMessageStatus._(1 << 3);
+
   // --- Can be expanded up to 1 << 31 --- //
 
   /// A list of all defined status flags.
@@ -47,6 +66,7 @@ extension type const ChatMessageStatus._(int _value) {
     dirty,
     error,
     fetching,
+    absent,
   ];
 
   /// Check if the current status contains a specific flag.
@@ -79,4 +99,9 @@ extension type const ChatMessageStatus._(int _value) {
 
   /// The message is being fetched.
   bool get isFetching => contains(ChatMessageStatus.fetching);
+
+  /// The message ID is confirmed absent — permanently non-existent within the
+  /// conversation's bounds. Fan-out skips absent IDs; they render at zero
+  /// height to keep scrollbar math correct.
+  bool get isAbsent => contains(ChatMessageStatus.absent);
 }

@@ -9,9 +9,21 @@ import 'package:flutter/widgets.dart';
 
 /// Builds the widget for message [id].
 ///
-/// [message] is `null` when the message is not loaded yet (its chunk is being
-/// fetched) — return a shimmer/placeholder in that case. [status] reflects the
-/// owning chunk's fetch state (dirty / fetching / error / valid).
+/// [message] and [status] describe the three-way slot state:
+///
+/// | [message] | [status] | Meaning | Recommended widget |
+/// |-----------|----------|---------|--------------------|
+/// | non-null  | any      | Message loaded | Render the bubble |
+/// | null      | `dirty` / `fetching` | Fetch in flight | Shimmer / loading skeleton |
+/// | null      | `absent` | Permanently absent (server confirmed; e.g. deleted batch) | `SizedBox.shrink()` |
+/// | null      | `valid`  | Should not occur after absent-slot marking; treat as absent for defensive compatibility | `SizedBox.shrink()` |
+///
+/// Return [SizedBox.shrink] (zero height) for absent slots. Absent IDs
+/// contribute no height, so the scrollbar position stays proportional to real
+/// content even across large deletion gaps. The fan-out skips absent IDs in
+/// O(chunk) time, so this builder is not normally invoked for them — but it
+/// MAY be called if the absent-marking pass has not yet run (e.g. during the
+/// first frame before the first fetch completes).
 ///
 /// **Lint**: [ChatMessageStatus] is an `extension type` over `int` — a raw
 /// `int` coerces silently with no runtime error. Use named constants.

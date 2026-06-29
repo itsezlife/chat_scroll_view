@@ -17,12 +17,46 @@ import 'package:flutter/scheduler.dart';
 /// band_height)`, clamped to `0.0`–`1.0`. Tall messages use band height as the
 /// denominator so band-fill reports `1.0`. Chunk-error id expansion may widen
 /// bounds without changing which render box supplies each fraction.
+///
+/// `lastVisibleFillsBand` is `true` when the last intersecting child's height
+/// is at least the paint-band height — i.e. the fraction used the band-height
+/// denominator. Consumers treating fraction as "share of message read" should
+/// ignore threshold crossings on open while this flag is set.
+///
+/// `lastFractionId` is the id of the built child that supplied
+/// [lastVisibleFraction] — before chunk-error id expansion widens [lastId].
+/// Read-marking must key off this id, not [lastId], so an expanded bound does
+/// not mark messages that are not laid out or visible.
+///
+/// `firstVisibleFillsBand` mirrors [lastVisibleFillsBand] for [firstId].
+///
+/// When the message at [anchorId] + 1 is built and intersects the paint band,
+/// [anchorNextId] / [anchorNextVisibleFraction] / [anchorNextFillsBand] /
+/// [anchorNextHeight] describe that row.
+///
+/// Row heights and [paintBandHeight] let consumers distinguish short bubbles
+/// (threshold read on open) from taller content (full visibility on open).
+///
+/// [anyVisibleFillsBand] is `true` when any built child intersecting the paint
+/// band is at least as tall as the band — a conservative signal that tall
+/// content is on screen and open read-marking must not batch-prefix ids.
 typedef ChatVisibleRange = ({
   int firstId,
   int lastId,
   int anchorId,
   double firstVisibleFraction,
   double lastVisibleFraction,
+  bool firstVisibleFillsBand,
+  bool lastVisibleFillsBand,
+  bool anyVisibleFillsBand,
+  int? lastFractionId,
+  double lastFractionHeight,
+  double firstRowHeight,
+  double paintBandHeight,
+  int? anchorNextId,
+  double anchorNextVisibleFraction,
+  bool anchorNextFillsBand,
+  double anchorNextHeight,
 });
 
 /// Delegate that performs actual scroll animations on behalf of
@@ -81,6 +115,16 @@ class ChatScrollController {
   /// viewport top (default); `0.5` centers it; `1.0` aligns the message
   /// bottom to the bottom inset. Boundary clamping may reduce the effective
   /// alignment when insufficient content exists above or below.
+  ///
+  /// **Absent-target behavior**: if [messageId] is confirmed absent after its
+  /// owning chunk's fetch resolves (see `ChatMessageStatus.absent`), the
+  /// navigation completes without error and the viewport renders no row at
+  /// that position. The anchor is set to [messageId] as requested, but
+  /// because absent slots have zero height the viewport behaves as if the
+  /// nearest non-absent neighbor were the effective anchor. Integrators MUST
+  /// NOT assume the viewport moved to [messageId] — verify via
+  /// `ChatDataSource.statusOf` before navigating, or navigate to the nearest
+  /// known-present ID instead.
   void jumpTo(int messageId, {double alignment = 0.0}) {
     if (_disposed) return;
     _anchorMessageId = messageId;
@@ -162,6 +206,10 @@ class ChatScrollController {
   /// the motion alone is enough context. Use [jumpTo] when both animation and
   /// highlight are unwanted. A [ChatScrollView] with `highlightDuration:
   /// Duration.zero` disables highlights globally regardless of this flag.
+  ///
+  /// **Absent-target behavior**: same contract as [jumpTo] — if [messageId]
+  /// is confirmed absent, the navigation completes without error but the
+  /// viewport will not visually move to the target. See [jumpTo] for details.
   Future<void> animateTo(
     int messageId, {
     Duration duration = const Duration(milliseconds: 300),
@@ -228,8 +276,9 @@ class ChatScrollController {
 
   // --- Tail tracking -------------------------------------------------------
 
-  final _DeferredValueNotifier<bool> _isAtTail =
-      _DeferredValueNotifier<bool>(false);
+  final _DeferredValueNotifier<bool> _isAtTail = _DeferredValueNotifier<bool>(
+    false,
+  );
 
   /// Whether the *newest* known message is currently in the paint area and
   /// the data source has reported [ChatDataSource.reachedNewest]. `false`
@@ -370,6 +419,7 @@ class ChatScrollController {
     if (_disposed) return;
     _flingCancelSuppressesLongPress = value;
   }
+
   bool _flingCancelSuppressesLongPress = false;
 
   /// Drop all listeners. Call from the owning widget's `dispose` so a stray

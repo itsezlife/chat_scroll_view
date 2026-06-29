@@ -30,9 +30,20 @@ import 'package:meta/meta.dart';
 abstract class ChatDataSource {
   // --- Fetch contract (subclass implements) ---
 
-  /// Load messages whose ids fall in `[fromId, toId]` (both inclusive). The
-  /// subclass may return fewer messages than the range when the end of the
-  /// conversation lies inside it. Required.
+  /// Load messages whose IDs fall in `[fromId, toId]` (both inclusive).
+  ///
+  /// **Full-chunk boundary invariant** (caller's guarantee):
+  /// `fromId` MUST equal `ChatScrollChunk.firstIdOf(chunkIndex)` and `toId`
+  /// MUST equal `chunk.lastId` for the fetched chunk range. Partial-range
+  /// fetches within a chunk are not supported — the absent-marking pass that
+  /// runs after a successful `fetchRange` relies on the entire chunk being
+  /// covered by the request. Violating this invariant causes null slots inside
+  /// the partial range to be incorrectly marked absent.
+  ///
+  /// The subclass may return fewer messages than the ID range spans when the
+  /// conversation boundary lies inside the range. IDs not returned — but
+  /// within `[oldestKnownId, newestKnownId]` — are treated as permanently
+  /// absent by the absent-marking pass.
   Future<List<IChatMessage>> fetchRange({
     required int fromId,
     required int toId,
@@ -213,7 +224,12 @@ abstract class ChatDataSource {
       () =>
           ChatScrollChunk(index: chunkIndex)..status = ChatMessageStatus.valid,
     );
-    chunk.messages[message.id - chunk.firstId] = message;
+    final slot = message.id - chunk.firstId;
+    // Clear the absent bit before writing the slot so that a realtime insert
+    // at a previously-absent ID surfaces immediately, without requiring
+    // `invalidate()`. Clearing is idempotent when the bit was already zero.
+    chunk.clearAbsentSlot(slot);
+    chunk.messages[slot] = message;
     // Defensive: a chunk created here used to default to `dirty`, which would
     // race with the next poll. If somebody constructed a chunk by hand and we
     // upserted into it, leave its status alone.
@@ -235,7 +251,10 @@ abstract class ChatDataSource {
             ChatScrollChunk(index: chunkIndex)
               ..status = ChatMessageStatus.valid,
       );
-      chunk.messages[message.id - chunk.firstId] = message;
+      final slot = message.id - chunk.firstId;
+      // Clear absent bit before writing — see `upsertMessage` for rationale.
+      chunk.clearAbsentSlot(slot);
+      chunk.messages[slot] = message;
       if (!existed) chunk.status = ChatMessageStatus.valid;
       changed = true;
     }
@@ -326,6 +345,10 @@ abstract class ChatDataSource {
   /// drive a fresh fetch cycle. Per-chunk `failedAttempts` and `lastError`
   /// are reset; an errored chunk reaches the user as `dirty` again rather
   /// than carrying the prior failure state into the new attempt.
+  ///
+  /// Absent masks are cleared so subsequent re-fetches start with a clean
+  /// slate — a message that was absent may have been restored (e.g. un-delete
+  /// or sync recovery) and must not be suppressed by a stale absent flag.
   void invalidate() {
     if (_disposed) return;
     // Coalesce the cancel-fetch notification into ours: otherwise listeners
@@ -354,6 +377,11 @@ abstract class ChatDataSource {
           ..lastError = null;
         changed = true;
       }
+      // Clear the absent mask so the re-fetch can re-confirm (or refute)
+      // each slot's absent status. A restored message must not be suppressed
+      // by a stale absent flag from a previous fetch cycle.
+      // Unconditional: clearAbsentMask is O(1) and idempotent.
+      chunk.clearAbsentMask();
     }
     if (changed) notifyDataChanged();
   }
@@ -492,12 +520,19 @@ abstract class ChatDataSource {
       request = Future<List<IChatMessage>>.error(error);
     }
 
+    assert(
+      fromId == ChatScrollChunk.firstIdOf(ChatScrollChunk.chunkOf(fromId)),
+      'fetchRange fromId=$fromId does not align to a chunk boundary. '
+      'Expected ${ChatScrollChunk.firstIdOf(ChatScrollChunk.chunkOf(fromId))}. '
+      'See the full-chunk boundary invariant in the fetchRange doc comment.',
+    );
+
     request.then(
       (messages) {
         if (_fetchToken != token) return; // cancelled or replaced
         _fetchToken = null;
 
-        // Upsert and mark chunks valid.
+        // Upsert returned messages into their slots.
         for (final msg in messages) {
           final ci = ChatScrollChunk.chunkOf(msg.id);
           final chunk = _chunks.putIfAbsent(
@@ -506,6 +541,36 @@ abstract class ChatDataSource {
           );
           chunk.messages[msg.id - chunk.firstId] = msg;
         }
+
+        // Absent-marking pass: for every fetched chunk, mark ALL null slots
+        // as permanently absent.
+        //
+        // The full-chunk boundary invariant (fromId aligned to a chunk
+        // boundary) guarantees the server was given the opportunity to return
+        // every ID in [fromId, toId]. Any null slot was not returned and
+        // therefore does not exist in this conversation — it is permanently
+        // absent.
+        //
+        // No conversation-boundary guard ([oldestKnownId, newestKnownId]) is
+        // applied here. The boundary guard was the original bug: `oldestKnownId`
+        // advances only when a fetch *returns* messages (via `loadedMin`). An
+        // empty fetch for IDs below the current `oldestKnownId` — which occurs
+        // when scrolling backward through a deletion gap — never moves the
+        // boundary, so the guard would suppress absent-marking for exactly the
+        // slots that need it most.
+        //
+        // `upsertMessage` / `upsertMessages` call `clearAbsentSlot` when
+        // writing a slot, so a realtime insert at a previously-absent ID
+        // surfaces immediately without requiring `invalidate()`.
+        for (final ci in _fetchingChunks) {
+          final chunk = _chunks[ci];
+          if (chunk == null) continue;
+          for (var slot = 0; slot < ChatScrollChunk.kSize; slot++) {
+            if (chunk.messages[slot] != null) continue;
+            chunk.markAbsentSlot(slot);
+          }
+        }
+
         for (final ci in _fetchingChunks) {
           final chunk = _chunks[ci];
           if (chunk == null) continue;

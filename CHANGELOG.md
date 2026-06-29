@@ -6,6 +6,66 @@ this project is pre-1.0 and not strictly SemVer yet.
 
 ## [Unreleased]
 
+### Fixed
+
+- **Deleted messages no longer produce permanent loading skeletons.** When a
+  batch of messages is deleted from a conversation, IDs in the deleted range are
+  now confirmed as permanently absent after the first successful fetch. The
+  viewport skips absent IDs entirely during layout so no shimmer or placeholder
+  row is ever shown for them. Absent slots contribute zero height, keeping
+  scrollbar position proportional to real content even across large deletion
+  gaps.
+
+- **Smooth scroll and correct scrollbar across large ID gaps.** Fan-out now
+  skips runs of absent IDs in O(chunk) time rather than iterating every ID.
+  Fully-absent 64-slot chunks are skipped in O(1). A conversation with one real
+  message at ID 1 and one at ID 10,001 renders exactly two rows with no stall.
+
+- **`invalidate()` resets absent state.** Calling `invalidate()` — e.g. after
+  a WebSocket reconnect or pull-to-refresh — clears the absent bitmask on every
+  chunk so the subsequent re-fetch can re-confirm or restore each slot without
+  being blocked by a stale absent flag.
+
+- **No more message "shifting" when scrolling through an absent gap.** The
+  per-frame scroll repositioning (`_repositionMessagesOnly`) previously stopped
+  at the first absent ID — because absent IDs are never inserted into the render
+  children map, the `null` check terminated the walk and left real messages on
+  the far side of the gap with stale y-offsets. Messages now correctly snap back
+  into place each frame across any absent zone.
+
+- **Absent-marking now covers all fetched chunks, including older-page loads.**
+  The post-fetch absent-marking pass previously skipped null slots outside the
+  initial `[oldestKnownId, newestKnownId]` range. Fetches triggered by paging
+  older messages now correctly mark absent any slot the server did not return,
+  regardless of where the slot falls relative to the initial boundaries.
+
+- **Realtime inserts at previously absent slots are visible immediately.** A new
+  `clearAbsentSlot` method on `ChatScrollChunk` is called by `upsertMessage` and
+  `upsertMessages` so a server-pushed message at a previously deleted slot clears
+  the absent flag and surfaces in the viewport on the next frame without requiring
+  a chunk invalidation.
+
+- **Fan-out termination guaranteed even when the entire scanned range is absent.**
+  The absent-skip helpers (`_nextNonAbsentIdDown` / `_nextNonAbsentIdUp`) now
+  return one past the boundary when all IDs in the range are absent, ensuring the
+  outer loop guard always terminates.
+
+- **Blank viewport after a large absent collapse no longer persists after the
+  scroll settles.** The viewport snap that brings the anchor back into view now
+  fires only after the scroll velocity has dropped to zero, preventing it from
+  fighting fling physics during an active gesture.
+
+### Added
+
+- **`ChatMessageStatus.absent`** — new status flag returned by `statusOf(id)`
+  when a message ID is confirmed permanently absent within the conversation's
+  known bounds. Integrators should return `SizedBox.shrink()` (zero height) for
+  absent slots in `ChatMessageBuilder`.
+
+- **Architecture decision record for the position model** — documents the
+  per-chat sequential ID guarantee, the full-chunk `fetchRange` invariant, and
+  the explicit rationale for not adopting a cursor-based fetch API.
+
 ### Added
 
 - **Optional `highlight` on `animateTo`** — pass `highlight: false` to scroll
