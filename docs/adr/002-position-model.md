@@ -208,4 +208,3 @@ space.
 
 - ADR 001: Message ID Scheme (`docs/adr/001-message-id-scheme.md`)
 - PR-E0 absent-slot patch (`specs/015-sparse-message-gaps/`)
-- Enhancement plan (`enhancement_spec.md`)

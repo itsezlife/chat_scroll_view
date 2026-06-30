@@ -59,4 +59,5 @@ supabase/.env.local
 supabase/.branches
 
 # Config
-config/
+enhancement_spec.md
+config/enhancement_spec.md
