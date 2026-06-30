@@ -352,6 +352,8 @@ class ChatAnimator implements ChatScrollAnimator {
       return;
     }
     final base = highlightColor;
+    // `.a` is the normalized alpha channel (0..1) for [Color.withValues]; the
+    // deprecated `.alpha` getter is 0..255 int and must not be used here.
     final alpha = (base.a * factor).clamp(0.0, 1.0);
     if (alpha <= 0.0) return;
     final paint = Paint()..color = base.withValues(alpha: alpha);
