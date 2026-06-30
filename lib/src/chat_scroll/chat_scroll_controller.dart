@@ -309,6 +309,28 @@ class ChatScrollController {
     _isAtTail.value = value;
   }
 
+  // --- Wired data-source boundaries (viewport passthrough) -----------------
+
+  int? _oldestKnownId;
+  int? _newestKnownId;
+
+  /// Oldest message ID currently known to the viewport's wired data source.
+  ///
+  /// `null` before the first boundary seed. Read-only for consumers — updated
+  /// by `RenderChatScrollView` whenever the source calls [ChatDataSource.seedBoundaries].
+  int? get oldestKnownId => _oldestKnownId;
+
+  /// Newest message ID currently known to the viewport's wired data source.
+  int? get newestKnownId => _newestKnownId;
+
+  /// Viewport-only — mirrors [ChatDataSource.oldestKnownId] / [newestKnownId].
+  @internal
+  set oldestKnownId(int? value) => _oldestKnownId = value;
+
+  /// Viewport-only — mirrors [ChatDataSource.newestKnownId].
+  @internal
+  set newestKnownId(int? value) => _newestKnownId = value;
+
   // --- Scroll events -------------------------------------------------------
 
   /// Plain `List` — same dedup-on-add rationale as [_jumpListeners].

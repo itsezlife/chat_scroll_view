@@ -50,7 +50,6 @@ Widget _scaffold({
         height: 600,
         child: ChatKeyboardShortcuts(
           controller: controller,
-          dataSource: dataSource,
           reverse: reverse,
           autofocus: autofocus,
           preserveExternalFocus: preserveExternalFocus,
@@ -166,7 +165,6 @@ void main() {
                   height: wrapperHeight,
                   child: ChatKeyboardShortcuts(
                     controller: controller,
-                    dataSource: ds,
                     autofocus: true,
                     child: ChatScrollView(
                       dataSource: ds,
@@ -226,6 +224,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(controller.anchorMessageId, ds.oldestKnownId);
+      expect(controller.oldestKnownId, ds.oldestKnownId);
       expect(find.text('msg-0'), findsOneWidget);
     });
 
@@ -413,7 +412,6 @@ void main() {
                   Expanded(
                     child: ChatKeyboardShortcuts(
                       controller: controller,
-                      dataSource: ds,
                       // Default is autofocus: false — verified by passing it
                       // explicitly so the test is robust to future renames.
                       autofocus: false,
@@ -468,7 +466,6 @@ void main() {
                 Expanded(
                   child: ChatKeyboardShortcuts(
                     controller: controller,
-                    dataSource: ds,
                     autofocus: false,
                     preserveExternalFocus: preserveExternalFocus,
                     child: ChatScrollView(

@@ -273,7 +273,6 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
                 bottom: false,
                 child: ChatKeyboardShortcuts(
                   controller: _controller,
-                  dataSource: _dataSource!,
                   reverse: true,
                   preserveExternalFocus: true,
                   child: ChatScrollView(

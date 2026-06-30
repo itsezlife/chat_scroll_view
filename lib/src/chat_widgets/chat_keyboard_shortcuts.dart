@@ -1,4 +1,3 @@
-import 'package:chatscrollview/src/chat_scroll/chat_data_source.dart';
 import 'package:chatscrollview/src/chat_scroll/chat_scroll_controller.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
@@ -15,9 +14,10 @@ import 'package:flutter/widgets.dart';
 ///   even when the wrapper sits under an `AppBar` / next to a side panel.
 ///   The latest measurement is captured each rebuild — keys fired before
 ///   the first layout fall back to the ambient `MediaQuery` height.
-/// * `Home` — `controller.jumpTo(dataSource.oldestKnownId)`. No-op when the
-///   oldest is unknown (initial load).
-/// * `End` — `controller.jumpTo(dataSource.newestKnownId)`.
+/// * `Home` — `controller.jumpTo(controller.oldestKnownId)` (or newest when
+///   [reverse]). No-op when the target id is unknown (initial load).
+/// * `End` — `controller.jumpTo(controller.newestKnownId)` (or oldest when
+///   [reverse]).
 ///
 /// `controller.scrollBy` is anchor-relative, so PageUp / ArrowUp always
 /// reveal older history in both layouts — no direction flip is needed for
@@ -49,7 +49,6 @@ import 'package:flutter/widgets.dart';
 /// ```dart
 /// ChatKeyboardShortcuts(
 ///   controller: _controller,
-///   dataSource: _ds,
 ///   child: ChatScrollView(
 ///     controller: _controller,
 ///     dataSource: _ds,
@@ -58,11 +57,10 @@ import 'package:flutter/widgets.dart';
 /// )
 /// ```
 class ChatKeyboardShortcuts extends StatefulWidget {
-  /// Wraps [child] with desktop scroll shortcuts bound to [controller] and
-  /// [dataSource] boundary ids.
+  /// Wraps [child] with desktop scroll shortcuts bound to [controller]
+  /// boundary ids.
   const ChatKeyboardShortcuts({
     required this.controller,
-    required this.dataSource,
     required this.child,
     this.reverse = false,
     this.lineExtent = 60.0,
@@ -75,9 +73,6 @@ class ChatKeyboardShortcuts extends StatefulWidget {
 
   /// Scroll controller receiving [ChatScrollController.scrollBy] and jumps.
   final ChatScrollController controller;
-
-  /// Supplies `oldestKnownId` / `newestKnownId` for Home / End navigation.
-  final ChatDataSource dataSource;
 
   /// Typically a [ChatScrollView] — receives focus on tap when shortcuts
   /// should become active.
@@ -206,16 +201,16 @@ class _ChatKeyboardShortcutsState extends State<ChatKeyboardShortcuts> {
     // jump-target ids flip with reverse even though the scroll signs do
     // not.
     final id = widget.reverse
-        ? widget.dataSource.newestKnownId
-        : widget.dataSource.oldestKnownId;
+        ? widget.controller.newestKnownId
+        : widget.controller.oldestKnownId;
     if (id != null) widget.controller.jumpTo(id);
     return null;
   }
 
   Object? _onJumpEnd() {
     final id = widget.reverse
-        ? widget.dataSource.oldestKnownId
-        : widget.dataSource.newestKnownId;
+        ? widget.controller.oldestKnownId
+        : widget.controller.newestKnownId;
     if (id != null) widget.controller.jumpTo(id);
     return null;
   }
