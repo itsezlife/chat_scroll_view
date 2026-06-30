@@ -12,7 +12,17 @@ scrollbar progress is derived from content height (absent slots render at zero h
 This model implicitly assumes message IDs form a dense-enough sequence within each
 conversation — i.e. that IDs are allocated per-chat sequentially.
 
-Two classes of real-world data can introduce gaps:
+> **Review note — design constraint, not a vulnerability**  
+> Per-chat sequential ID allocation is a **mandatory integrator constraint**, not a
+> runtime security boundary. The library does not cryptographically validate ID schemes;
+> backends that use global auto-increment, random, or otherwise non-sequential ids per
+> chat will get **incorrect absent-slot marking, scrollbar math, and navigation** (see
+> [Why non-sequential IDs fail](#why-non-sequential-ids-fail)) rather than memory
+> corruption or privilege escalation. Detect incompatibility at integration time via
+> [Known Incompatibilities](#known-incompatibilities) and
+> [Non-Compliant Backends](#non-compliant-backends--detection-and-fallback).
+
+Two classes of real-world data can introduce gaps **within** the supported model:
 
 1. **Batch deletions** — a moderator or sync process removes many consecutive messages,
    leaving permanent gaps in the per-chat ID sequence.
@@ -50,6 +60,40 @@ Integrators MUST satisfy all of the following:
    Partial-range fetches within a chunk corrupt absent-slot marking.
 4. **No renumbering**: Message IDs are immutable after assignment per ADR 001. This
    ADR does not modify that constraint.
+
+## Why non-sequential IDs fail
+
+Absent-slot marking, fan-out, and scrollbar height all treat **integer adjacency as
+scroll adjacency** within a conversation:
+
+| Mechanism | Sequential-id assumption |
+|-----------|--------------------------|
+| Post-fetch absent marking | Every null slot `s` in `[oldestKnownId, newestKnownId]` with no returned message is **permanently absent** — a deleted or never-assigned id at position `s`. |
+| Fan-out (`id++` / `id--`) | The next row above/below in the viewport is at `id ± 1`. |
+| Scrollbar / content height | Each id in the known boundary span contributes either a laid-out row or **zero height** (absent). |
+| Chunk indexing | `chunkOf(id) = id >> kBits` — ids far apart in value land in different chunks even when they are adjacent messages in chat order. |
+
+### Example: global or sparse IDs
+
+Suppose a single chat stores messages at ids `1_000_001` and `1_000_002` (global
+auto-increment) while `oldestKnownId = 1_000_001` and `newestKnownId = 1_000_002`:
+
+- Chunk `15625` spans ids `1_000_000`–`1_000_063`. After `fetchRange`, slots
+  `1_000_000` and `1_000_003`–`1_000_063` are marked **absent** even though most
+  were never valid chat positions — only deletions should create absent holes.
+- Fan-out from `1_000_002` walks `1_000_001`, then `1_000_000`, `999_999`, …
+  through millions of phantom ids instead of the prior message in conversation order.
+- `jumpTo(1_000_001)` and progressive read logic keyed off `id + 1` no longer align
+  with server message order.
+
+**This is incorrect behavior, not an exploit.** The fix is backend-side: allocate
+ids per conversation (dense `1..N` or `1..N` with deletion gaps only), as in
+[ADR 001](001-message-id-scheme.md). There is no in-library adapter for global or
+random per-chat ids.
+
+**Supported gaps** are holes *within* a per-chat sequential sequence (deletions,
+never-assigned ids after the last message) — not arbitrary sparse ids chosen from a
+global namespace.
 
 ## Navigation to absent IDs
 
@@ -93,8 +137,12 @@ one of the following paths.
 ### Per-chat sequential IDs violated (global or random IDs)
 
 **Symptom**: Scrollbar progress, fan-out, and absent-marking behave
-unpredictably — large phantom gaps, permanent skeletons, or runaway fetch
-loops.
+unpredictably — large phantom gaps, permanent skeletons, messages hidden as
+“absent”, or runaway fetch loops. See [Why non-sequential IDs fail](#why-non-sequential-ids-fail).
+
+**This is a design / integration mismatch**, not a security defect. The library
+cannot distinguish “id 42 was deleted” from “id 42 was never part of this chat’s
+sequence” without the sequential-allocation guarantee.
 
 **Fallback**: Migrate to per-conversation ID allocation before integrating
 `ChatScrollView`. There is no in-library cursor or sparse-index fallback for

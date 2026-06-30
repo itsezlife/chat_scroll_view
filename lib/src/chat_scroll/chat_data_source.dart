@@ -16,6 +16,13 @@ import 'package:meta/meta.dart';
 /// navigation — keeping a single source of truth here means consumers don't
 /// have to mirror page metadata onto two objects after every fetch.
 ///
+/// **ID allocation (ADR 002)**: This engine treats raw message ids as scroll
+/// positions (`id++` fan-out, per-slot absent marking). Backends MUST allocate
+/// ids **per conversation, sequentially** (deletion gaps only). Global
+/// auto-increment or random ids per chat are unsupported and cause incorrect
+/// absent marking and navigation — a design constraint, not a runtime security
+/// check. See `docs/adr/002-position-model.md`.
+///
 /// **Boundary deletes**: when a delete event removes the message currently at
 /// [oldestKnownId] or [newestKnownId], update boundaries atomically via
 /// [seedBoundaries] with the new ids and reached flags — do not update
