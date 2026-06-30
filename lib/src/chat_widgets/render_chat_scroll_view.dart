@@ -2701,7 +2701,9 @@ class RenderChatScrollView extends RenderBox implements ChatScrollAnimator {
     RenderBox? lastIntersectingChild;
     double? firstChildTop;
     double? lastChildTop;
-    var anyVisibleFillsBand = false;
+    int? firstBuiltId;
+    int? lastBuiltId;
+    var anyRowFillsBand = false;
     for (final entry in _children.entries) {
       final child = entry.value;
       final pd = _parentData(child);
@@ -2710,16 +2712,17 @@ class RenderChatScrollView extends RenderBox implements ChatScrollAnimator {
       if (childBottom <= topEdge) continue;
       if (childTop >= bottomEdge) break;
       if (bandHeight > 0 && child.size.height >= bandHeight) {
-        anyVisibleFillsBand = true;
+        anyRowFillsBand = true;
       }
       firstId ??= entry.key;
+      firstBuiltId ??= entry.key;
       firstIntersectingChild ??= child;
       firstChildTop ??= childTop;
       lastId = entry.key;
+      lastBuiltId = entry.key;
       lastIntersectingChild = child;
       lastChildTop = childTop;
     }
-    final lastFractionId = lastId;
     // Chunk-error tiles count as visible id coverage — their chunks' id range
     // is what the listener (mark-as-read, lazy media) cares about, even when
     // the actual messages are not built. Fractions stay tied to the built
@@ -2752,7 +2755,6 @@ class RenderChatScrollView extends RenderBox implements ChatScrollAnimator {
     }
 
     var firstVisibleFraction = 0.0;
-    var firstVisibleFillsBand = false;
     var firstRowHeight = 0.0;
     if (firstIntersectingChild != null && firstChildTop != null) {
       final child = firstIntersectingChild;
@@ -2764,7 +2766,6 @@ class RenderChatScrollView extends RenderBox implements ChatScrollAnimator {
         topEdge,
         bottomEdge,
       );
-      firstVisibleFillsBand = bandHeight > 0 && child.size.height >= bandHeight;
     } else if (chunkIntersectingChild != null && chunkChildTop != null) {
       final child = chunkIntersectingChild;
       firstRowHeight = child.size.height;
@@ -2775,11 +2776,9 @@ class RenderChatScrollView extends RenderBox implements ChatScrollAnimator {
         topEdge,
         bottomEdge,
       );
-      firstVisibleFillsBand = bandHeight > 0 && child.size.height >= bandHeight;
     }
 
     var lastVisibleFraction = 0.0;
-    var lastVisibleFillsBand = false;
     var lastFractionHeight = 0.0;
     if (lastIntersectingChild != null && lastChildTop != null) {
       final child = lastIntersectingChild;
@@ -2791,7 +2790,6 @@ class RenderChatScrollView extends RenderBox implements ChatScrollAnimator {
         topEdge,
         bottomEdge,
       );
-      lastVisibleFillsBand = bandHeight > 0 && child.size.height >= bandHeight;
     } else if (chunkIntersectingChild != null && chunkChildTop != null) {
       final child = chunkIntersectingChild;
       lastFractionHeight = child.size.height;
@@ -2802,77 +2800,81 @@ class RenderChatScrollView extends RenderBox implements ChatScrollAnimator {
         topEdge,
         bottomEdge,
       );
-      lastVisibleFillsBand = bandHeight > 0 && child.size.height >= bandHeight;
     }
 
     final anchorId = _controller.anchorMessageId;
-    int? anchorNextId;
-    var anchorNextVisibleFraction = 0.0;
-    var anchorNextFillsBand = false;
-    var anchorNextHeight = 0.0;
+    ChatVisibleRow? anchorNextRow;
     final anchorNextChild = _children[anchorId + 1];
     if (anchorNextChild != null) {
       final pd = _parentData(anchorNextChild);
       final childTop = pd.offset;
       final childBottom = childTop + anchorNextChild.size.height;
+      // Populated only when anchor+1 is built and intersects the paint band;
+      // anchor id itself comes from [ChatScrollController.anchorMessageId].
       if (childBottom > topEdge && childTop < bottomEdge) {
-        anchorNextId = anchorId + 1;
-        anchorNextHeight = anchorNextChild.size.height;
-        anchorNextVisibleFraction = _visibleFraction(
-          childTop,
-          childBottom,
-          anchorNextChild.size.height,
-          topEdge,
-          bottomEdge,
+        final anchorNextHeight = anchorNextChild.size.height;
+        anchorNextRow = (
+          id: anchorId + 1,
+          visibleFraction: _visibleFraction(
+            childTop,
+            childBottom,
+            anchorNextChild.size.height,
+            topEdge,
+            bottomEdge,
+          ),
+          height: anchorNextHeight,
         );
-        anchorNextFillsBand =
-            bandHeight > 0 && anchorNextChild.size.height >= bandHeight;
       }
     }
+
+    final firstRow = (
+      id: firstBuiltId ?? firstId,
+      visibleFraction: firstVisibleFraction,
+      height: firstRowHeight,
+    );
+    final lastRow = (
+      id: lastBuiltId ?? lastId,
+      visibleFraction: lastVisibleFraction,
+      height: lastFractionHeight,
+    );
 
     final current = _controller.visibleRange.value;
     if (current != null &&
         current.firstId == firstId &&
         current.lastId == lastId &&
-        current.anchorId == anchorId &&
-        current.firstVisibleFillsBand == firstVisibleFillsBand &&
-        current.lastVisibleFillsBand == lastVisibleFillsBand &&
-        current.anyVisibleFillsBand == anyVisibleFillsBand &&
-        current.lastFractionId == lastFractionId &&
-        current.anchorNextId == anchorNextId &&
-        current.anchorNextFillsBand == anchorNextFillsBand &&
+        current.anyRowFillsBand == anyRowFillsBand &&
+        current.firstRow.id == firstRow.id &&
+        current.lastRow.id == lastRow.id &&
+        current.anchorNextRow?.id == anchorNextRow?.id &&
         _fractionsNearEqual(current.paintBandHeight, bandHeight) &&
-        _fractionsNearEqual(current.firstRowHeight, firstRowHeight) &&
-        _fractionsNearEqual(current.lastFractionHeight, lastFractionHeight) &&
-        _fractionsNearEqual(current.anchorNextHeight, anchorNextHeight) &&
+        _fractionsNearEqual(current.firstRow.height, firstRow.height) &&
+        _fractionsNearEqual(current.lastRow.height, lastRow.height) &&
         _fractionsNearEqual(
-          current.firstVisibleFraction,
-          firstVisibleFraction,
+          current.anchorNextRow?.height ?? 0,
+          anchorNextRow?.height ?? 0,
         ) &&
-        _fractionsNearEqual(current.lastVisibleFraction, lastVisibleFraction) &&
         _fractionsNearEqual(
-          current.anchorNextVisibleFraction,
-          anchorNextVisibleFraction,
+          current.firstRow.visibleFraction,
+          firstRow.visibleFraction,
+        ) &&
+        _fractionsNearEqual(
+          current.lastRow.visibleFraction,
+          lastRow.visibleFraction,
+        ) &&
+        _fractionsNearEqual(
+          current.anchorNextRow?.visibleFraction ?? 0,
+          anchorNextRow?.visibleFraction ?? 0,
         )) {
       return;
     }
     _controller.visibleRange = (
       firstId: firstId,
       lastId: lastId,
-      anchorId: anchorId,
-      firstVisibleFraction: firstVisibleFraction,
-      lastVisibleFraction: lastVisibleFraction,
-      firstVisibleFillsBand: firstVisibleFillsBand,
-      lastVisibleFillsBand: lastVisibleFillsBand,
-      anyVisibleFillsBand: anyVisibleFillsBand,
-      lastFractionId: lastFractionId,
-      lastFractionHeight: lastFractionHeight,
-      firstRowHeight: firstRowHeight,
       paintBandHeight: bandHeight,
-      anchorNextId: anchorNextId,
-      anchorNextVisibleFraction: anchorNextVisibleFraction,
-      anchorNextFillsBand: anchorNextFillsBand,
-      anchorNextHeight: anchorNextHeight,
+      anyRowFillsBand: anyRowFillsBand,
+      firstRow: firstRow,
+      lastRow: lastRow,
+      anchorNextRow: anchorNextRow,
     );
   }
 

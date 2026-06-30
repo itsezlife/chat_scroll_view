@@ -881,17 +881,18 @@ void main() {
       final range = controller.visibleRange.value;
       expect(range, isNotNull);
       expect(range!.lastId, count - 1);
-      expect(range.anchorId, count - 1);
+      expect(controller.anchorMessageId, count - 1);
       expect(range.firstId, lessThan(range.lastId));
 
       controller.jumpTo(50);
       await tester.pump();
       final next = controller.visibleRange.value;
-      expect(next!.anchorId, 50);
-      expect(next.firstId, lessThanOrEqualTo(50));
+      expect(next, isNotNull);
+      expect(controller.anchorMessageId, 50);
+      expect(next!.firstId, lessThanOrEqualTo(50));
       expect(next.lastId, greaterThanOrEqualTo(50));
-      expect(next.lastVisibleFraction, greaterThan(0.0));
-      expect(next.firstVisibleFraction, greaterThan(0.0));
+      expect(next.lastRow.visibleFraction, greaterThan(0.0));
+      expect(next.firstRow.visibleFraction, greaterThan(0.0));
     });
 
     Widget fractionHarness({
@@ -941,7 +942,8 @@ void main() {
       final range = controller.visibleRange.value;
       expect(range, isNotNull);
       expect(range!.lastId, count - 1);
-      expect(range.lastVisibleFraction, closeTo(0.5, 0.02));
+      expect(range.lastRow.visibleFraction, closeTo(0.5, 0.02));
+      expect(range.lastRow.id, lessThanOrEqualTo(range.lastId));
     });
 
     testWidgets('visibleRange reports 1.0 when tall message fills the band', (
@@ -963,7 +965,12 @@ void main() {
       final range = controller.visibleRange.value;
       expect(range, isNotNull);
       expect(range!.lastId, count - 1);
-      expect(range.lastVisibleFraction, closeTo(1.0, 0.02));
+      expect(range.lastRow.visibleFraction, closeTo(1.0, 0.02));
+      expect(
+        visibleRowFillsBand(range.lastRow.height, range.paintBandHeight),
+        isTrue,
+      );
+      expect(range.lastRow.id, lessThanOrEqualTo(range.lastId));
     });
 
     testWidgets('visibleRange reports 1.0 for fully visible boundary message', (
@@ -983,8 +990,13 @@ void main() {
 
       final range = controller.visibleRange.value;
       expect(range, isNotNull);
-      expect(range!.lastVisibleFraction, closeTo(1.0, 0.02));
-      expect(range.firstVisibleFraction, closeTo(1.0, 0.02));
+      expect(range!.lastRow.visibleFraction, closeTo(1.0, 0.02));
+      expect(range.firstRow.visibleFraction, closeTo(1.0, 0.02));
+      expect(
+        visibleRowFillsBand(range.lastRow.height, range.paintBandHeight),
+        isFalse,
+      );
+      expect(range.lastRow.id, lessThanOrEqualTo(range.lastId));
     });
 
     testWidgets('visibleRange fraction updates when ids unchanged', (
@@ -1014,8 +1026,8 @@ void main() {
       final updated = controller.visibleRange.value!;
       expect(updated.lastId, initial.lastId);
       expect(
-        updated.lastVisibleFraction,
-        isNot(closeTo(initial.lastVisibleFraction, 0.001)),
+        updated.lastRow.visibleFraction,
+        isNot(closeTo(initial.lastRow.visibleFraction, 0.001)),
       );
     });
   });

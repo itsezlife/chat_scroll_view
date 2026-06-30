@@ -5,59 +5,48 @@ import 'package:flutter/animation.dart' show Curve, Curves;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/scheduler.dart';
 
+/// Visibility metrics for one built message row intersecting the paint band.
+///
+/// [visibleFraction] is `visible_intersection_height /
+/// min(height, paintBandHeight)`, clamped to `0.0`–`1.0`. When [height] is at
+/// least the parent range's [ChatVisibleRange.paintBandHeight], the fraction
+/// used the band-height denominator — use [visibleRowFillsBand] with that band
+/// height before treating the fraction as share-of-message read.
+typedef ChatVisibleRow = ({
+  int id,
+  double visibleFraction,
+  double height,
+});
+
 /// Visible-range snapshot exposed by [ChatScrollController.visibleRange].
 ///
-/// `firstId`/`lastId` are the inclusive id bounds of children whose rect
+/// [firstId] / [lastId] are inclusive id bounds of children whose rect
 /// intersects the viewport's logical paint area (top inset to bottom inset).
-/// `anchorId` is the message id currently used as the layout origin.
+/// Chunk-error id expansion may widen [lastId] beyond built children.
 ///
-/// `firstVisibleFraction` / `lastVisibleFraction` are the fraction of the
-/// first / last **built** intersecting child's laid-out height that lies
-/// inside that paint band: `visible_intersection_height / min(message_height,
-/// band_height)`, clamped to `0.0`–`1.0`. Tall messages use band height as the
-/// denominator so band-fill reports `1.0`. Chunk-error id expansion may widen
-/// bounds without changing which render box supplies each fraction.
+/// [lastRow] is the built child that owns the tail [ChatVisibleRow.visibleFraction]
+/// — key progressive-read and threshold logic off [lastRow.id], not [lastId]
+/// alone.
 ///
-/// `lastVisibleFillsBand` is `true` when the last intersecting child's height
-/// is at least the paint-band height — i.e. the fraction used the band-height
-/// denominator. Consumers treating fraction as "share of message read" should
-/// ignore threshold crossings on open while this flag is set.
+/// Layout anchor: [ChatScrollController.anchorMessageId] (not duplicated here).
+/// Optional [anchorNextRow] describes `anchorMessageId + 1` when built and
+/// intersecting — near-tail unread without equating [firstId] to first unread.
 ///
-/// `lastFractionId` is the id of the built child that supplied
-/// [lastVisibleFraction] — before chunk-error id expansion widens [lastId].
-/// Read-marking must key off this id, not [lastId], so an expanded bound does
-/// not mark messages that are not laid out or visible.
-///
-/// `firstVisibleFillsBand` mirrors [lastVisibleFillsBand] for [firstId].
-///
-/// When the message at [anchorId] + 1 is built and intersects the paint band,
-/// [anchorNextId] / [anchorNextVisibleFraction] / [anchorNextFillsBand] /
-/// [anchorNextHeight] describe that row.
-///
-/// Row heights and [paintBandHeight] let consumers distinguish short bubbles
-/// (threshold read on open) from taller content (full visibility on open).
-///
-/// [anyVisibleFillsBand] is `true` when any built child intersecting the paint
-/// band is at least as tall as the band — a conservative signal that tall
-/// content is on screen and open read-marking must not batch-prefix ids.
+/// [anyRowFillsBand] is `true` when any built child intersecting the paint band
+/// is at least as tall as the band — tall content is on screen.
 typedef ChatVisibleRange = ({
   int firstId,
   int lastId,
-  int anchorId,
-  double firstVisibleFraction,
-  double lastVisibleFraction,
-  bool firstVisibleFillsBand,
-  bool lastVisibleFillsBand,
-  bool anyVisibleFillsBand,
-  int? lastFractionId,
-  double lastFractionHeight,
-  double firstRowHeight,
   double paintBandHeight,
-  int? anchorNextId,
-  double anchorNextVisibleFraction,
-  bool anchorNextFillsBand,
-  double anchorNextHeight,
+  bool anyRowFillsBand,
+  ChatVisibleRow firstRow,
+  ChatVisibleRow lastRow,
+  ChatVisibleRow? anchorNextRow,
 });
+
+/// Whether [rowHeight] used the band-height denominator for a visible fraction.
+bool visibleRowFillsBand(double rowHeight, double paintBandHeight) =>
+    paintBandHeight > 0 && rowHeight >= paintBandHeight;
 
 /// Delegate that performs actual scroll animations on behalf of
 /// [ChatScrollController.animateTo]. Implemented by `RenderChatScrollView`

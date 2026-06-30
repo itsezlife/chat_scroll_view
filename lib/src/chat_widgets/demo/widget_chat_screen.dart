@@ -185,6 +185,7 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
     IChatMessage? message,
     ChatMessageStatus status,
   ) {
+    if (status.isAbsent) return const SizedBox.shrink();
     if (message == null) return const DemoShimmerBubble();
     final prev = _dataSource?.getMessage(id - 1);
     final isFirstInRun = prev?.sender != message.sender;
@@ -227,39 +228,35 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
       },
       child: Scaffold(
         floatingActionButtonLocation: .endFloat,
-        floatingActionButton: ValueListenableBuilder(
-          valueListenable: _bottomInset,
-          builder: (context, bottomInset, child) => Padding(
-            padding: const EdgeInsets.only(bottom: 96),
-            child: Align(
-              alignment: .bottomRight,
-              child: Column(
-                mainAxisAlignment: .end,
-                mainAxisSize: .min,
-                children: [
-                  FloatingActionButton.small(
-                    heroTag: 'fab-up',
-                    onPressed: () {
-                      _controller.jumpTo(6000);
-                    },
-                    tooltip: 'Scroll to top',
-                    materialTapTargetSize: MaterialTapTargetSize.padded,
-                    child: const Icon(Icons.arrow_upward, size: 18),
-                  ),
-                  FloatingActionButton.small(
-                    heroTag: 'fab-down',
-                    onPressed: () {
-                      if (_dataSource?.newestKnownId
-                          case final newestKnownId?) {
-                        _controller.animateTo(newestKnownId, highlight: false);
-                      }
-                    },
-                    tooltip: 'Scroll to bottom',
-                    materialTapTargetSize: MaterialTapTargetSize.padded,
-                    child: const Icon(Icons.arrow_downward, size: 18),
-                  ),
-                ],
-              ),
+        floatingActionButton: Padding(
+          padding: const EdgeInsets.only(bottom: 96),
+          child: Align(
+            alignment: .bottomRight,
+            child: Column(
+              mainAxisAlignment: .end,
+              mainAxisSize: .min,
+              children: [
+                FloatingActionButton.small(
+                  heroTag: 'fab-up',
+                  onPressed: () {
+                    _controller.animateTo(6003, alignment: .5);
+                  },
+                  tooltip: 'Scroll to top',
+                  materialTapTargetSize: MaterialTapTargetSize.padded,
+                  child: const Icon(Icons.arrow_upward, size: 18),
+                ),
+                FloatingActionButton.small(
+                  heroTag: 'fab-down',
+                  onPressed: () {
+                    if (_dataSource?.newestKnownId case final newestKnownId?) {
+                      _controller.animateTo(newestKnownId, highlight: false);
+                    }
+                  },
+                  tooltip: 'Scroll to bottom',
+                  materialTapTargetSize: MaterialTapTargetSize.padded,
+                  child: const Icon(Icons.arrow_downward, size: 18),
+                ),
+              ],
             ),
           ),
         ),

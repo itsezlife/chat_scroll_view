@@ -6,6 +6,31 @@ this project is pre-1.0 and not strictly SemVer yet.
 
 ## [Unreleased]
 
+### Changed
+
+- **`ChatVisibleRange` nested row API** — boundary and anchor metrics are grouped
+  into `ChatVisibleRow` records (`firstRow`, `lastRow`, optional
+  `anchorNextRow`) instead of flat `*Fraction` / `*Height` / `*Id` fields.
+  `anyVisibleFillsBand` is renamed to `anyRowFillsBand`. `anchorId` was
+  removed earlier (use `ChatScrollController.anchorMessageId`). Per-row
+  `*FillsBand` flags remain removed (derive via `visibleRowFillsBand`).
+
+  | Before (flat) | After (nested) |
+  |---------------|----------------|
+  | `range.firstVisibleFraction` | `range.firstRow.visibleFraction` |
+  | `range.firstRowHeight` | `range.firstRow.height` |
+  | `range.lastVisibleFraction` | `range.lastRow.visibleFraction` |
+  | `range.lastFractionId` | `range.lastRow.id` |
+  | `range.lastFractionHeight` | `range.lastRow.height` |
+  | `range.anchorNextId` | `range.anchorNextRow?.id` |
+  | `range.anchorNextVisibleFraction` | `range.anchorNextRow?.visibleFraction` |
+  | `range.anchorNextHeight` | `range.anchorNextRow?.height` |
+  | `range.anyVisibleFillsBand` | `range.anyRowFillsBand` |
+
+  `firstId`, `lastId`, and `paintBandHeight` are unchanged. `lastId` may still
+  exceed `lastRow.id` when the chunk boundary expands beyond the last measured
+  child.
+
 ### Fixed
 
 - **Deleted messages no longer produce permanent loading skeletons.** When a

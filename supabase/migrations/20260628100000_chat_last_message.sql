@@ -154,6 +154,77 @@ create trigger messages_sync_chat_last_message
   for each row
   execute function public.sync_chat_last_message_on_insert();
 
+-- sync_chat_last_message_on_delete — retreat denormalized tail when tail row is removed.
+create or replace function public.sync_chat_last_message_on_delete()
+returns trigger
+language plpgsql
+as $$
+declare
+  tail record;
+  preview text;
+begin
+  if not exists (
+    select 1
+    from public.chat_last_message clm
+    where clm.chat_id = old.chat_id
+      and clm.message_id = old.id
+  ) then
+    return old;
+  end if;
+
+  select
+    m.id,
+    m.sender_id,
+    m.created_at,
+    m.kind,
+    m.flags,
+    m.content
+  into tail
+  from public.messages m
+  where m.chat_id = old.chat_id
+  order by m.id desc
+  limit 1;
+
+  if not found then
+    delete from public.chat_last_message
+    where chat_id = old.chat_id;
+    return old;
+  end if;
+
+  if (tail.flags & 2) != 0 then
+    preview := '';
+  else
+    preview := public.truncate_utf8_preview(tail.content);
+  end if;
+
+  update public.chat_last_message
+  set
+    message_id = tail.id,
+    sender_id = tail.sender_id,
+    created_at = tail.created_at,
+    kind = tail.kind,
+    flags = tail.flags,
+    content_preview = preview
+  where chat_id = old.chat_id;
+
+  update public.chats
+  set updated_at = tail.created_at
+  where id = old.chat_id;
+
+  return old;
+end;
+$$;
+
+comment on function public.sync_chat_last_message_on_delete() is
+  'AFTER DELETE on messages: when removed row was denormalized tail, point chat_last_message at previous surviving message (or delete preview row).';
+
+drop trigger if exists messages_sync_chat_last_message_on_delete on public.messages;
+
+create trigger messages_sync_chat_last_message_on_delete
+  after delete on public.messages
+  for each row
+  execute function public.sync_chat_last_message_on_delete();
+
 alter table public.chat_last_message enable row level security;
 
 create policy anon_select_demo_chat_last_message on public.chat_last_message

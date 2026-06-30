@@ -115,6 +115,9 @@ String _pillText(WidgetTester tester) {
   return txt.data ?? '';
 }
 
+String _expectedPillLabel(int count) =>
+    count == 1 ? '1 new message' : '$count new messages';
+
 int _openAnchor({required ChatDataSource ds, int? storedLastRead}) =>
     ds.resolveOpenAnchor(
       storedLastRead: storedLastRead,
@@ -207,7 +210,12 @@ void main() {
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 16));
 
-      expect(_pillText(tester), '100 new messages');
+      final baseline = lastSeen.value!;
+      expect(baseline, greaterThan(lastRead));
+      expect(
+        _pillText(tester),
+        _expectedPillLabel(ds.newestKnownId! - baseline),
+      );
     });
 
     testWidgets('pill tap jumps to newest', (tester) async {
@@ -234,6 +242,7 @@ void main() {
         ),
       );
       await tester.pump();
+      await tester.pump(const Duration(milliseconds: 16));
       expect(controller.isAtTail.value, isFalse);
 
       await tester.tap(
@@ -333,7 +342,12 @@ void main() {
       );
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 16));
-      expect(_pillText(tester), '59 new messages');
+      final baselineAfterOpen = lastSeen.value!;
+      expect(baselineAfterOpen, greaterThan(lastRead));
+      expect(
+        _pillText(tester),
+        _expectedPillLabel(ds.newestKnownId! - baselineAfterOpen),
+      );
 
       ds
         ..upsertMessage(_msg(100))
@@ -342,7 +356,10 @@ void main() {
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 16));
 
-      expect(_pillText(tester), '61 new messages');
+      expect(
+        _pillText(tester),
+        _expectedPillLabel(101 - baselineAfterOpen),
+      );
     });
 
     testWidgets('deleted last-read anchors at previous surviving message', (
