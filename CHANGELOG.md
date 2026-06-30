@@ -8,6 +8,13 @@ this project is pre-1.0 and not strictly SemVer yet.
 
 ### Changed
 
+- **`ChatRangeFetch` internal extraction** — the range-fetch state machine
+  (token cancellation, exponential-backoff retry, `fetchingChunks` tracking)
+  now lives in `lib/src/chat_scroll/chat_range_fetch.dart`. `ChatDataSource`
+  delegates `requestChunks`, `cancelFetch`, `retryChunk`, and the fetch half of
+  `invalidate` unchanged. No public API change; behaviour-neutral refactor for
+  unit-testability.
+
 - **`ChatVisibleRange` nested row API** — boundary and anchor metrics are grouped
   into `ChatVisibleRow` records (`firstRow`, `lastRow`, optional
   `anchorNextRow`) instead of flat `*Fraction` / `*Height` / `*Id` fields.
