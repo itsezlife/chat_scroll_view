@@ -41,12 +41,18 @@ typedef ChatMessageBuilder =
       ChatMessageStatus status,
     );
 
-/// Builds a day separator for [date].
+/// Builds a group separator for the section starting at [firstMessageDate].
 ///
+/// [bucket] is the raw key returned by [ChatScrollView.groupBy] for that
+/// section — a `DateTime` truncated to the day with the default grouper, or
+/// any equatable value for custom grouping (week label, `(year, month)`, …).
 /// The same builder produces both the inline divider above the first message
-/// of each day and the floating header pinned to the top of the viewport.
-typedef ChatDateSeparatorBuilder =
-    Widget Function(BuildContext context, DateTime date);
+/// of each group and the floating header pinned to the top of the viewport.
+typedef ChatGroupSeparatorBuilder = Widget Function(
+  BuildContext context,
+  Object bucket,
+  DateTime firstMessageDate,
+);
 
 /// Information passed to a [ChatChunkErrorBuilder] when its chunk has failed
 /// to load.
@@ -192,31 +198,28 @@ class ChatScrollView extends RenderObjectWidget {
   /// this inset.
   final ValueListenable<double>? topPadding;
 
-  /// Builds a day separator. When non-null the viewport groups messages by
-  /// day: the first message of each day carries an inline separator, and a
-  /// floating copy is pinned to the top showing the topmost visible day. When
-  /// null the day-separator feature is off and costs nothing.
+  /// When non-null, enables message grouping: an inline separator above the
+  /// first message of each group plus a floating header for the topmost group.
+  /// `null` disables the feature entirely.
+  ///
+  /// The builder receives the raw `groupBy` [bucket] and `firstMessageDate`
+  /// (`createdAt` of the first message in that group). Format labels from
+  /// `bucket` when it is not a `DateTime`, or from `firstMessageDate` for day
+  /// grouping.
   ///
   /// The inline separator fades out as it scrolls up toward the floating
-  /// header, so the two are never both visible — the builder is free to style
-  /// and pad the separator however it likes.
-  ///
-  /// Format the date in the same day notion as [groupBy] (both default to the
-  /// local calendar day) — otherwise a label can disagree with the grouping
-  /// near midnight, e.g. printing UTC dates while grouping by local.
+  /// header, so the two are never both visible.
   ///
   /// Pass a stable reference, like [messageBuilder].
-  final ChatDateSeparatorBuilder? dateSeparatorBuilder;
+  final ChatGroupSeparatorBuilder? dateSeparatorBuilder;
 
   /// Groups messages into sections — messages whose returned keys are equal
   /// (`==`) share a section. Consulted only when [dateSeparatorBuilder] is
   /// set; defaults to the local calendar day.
   ///
-  /// The separator builder always receives the first message's `createdAt`
-  /// for each section, so return a date-derived equatable value: a
-  /// `DateTime` truncated to the day (the default), a `(year, week)` record
-  /// for weekly grouping, or `(year, month)` for monthly. Pass a stable
-  /// reference.
+  /// The separator builder receives [bucket] directly, so non-`DateTime` keys
+  /// (weekly / monthly labels, custom records) work without being coerced to
+  /// a date. Pass a stable reference.
   final Object Function(IChatMessage message)? groupBy;
 
   /// Peak colour of the fade-out highlight painted over a message that just

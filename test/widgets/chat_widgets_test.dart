@@ -522,7 +522,7 @@ void main() {
                     height: 60,
                     child: Text(message == null ? 'shimmer-$id' : 'msg-$id'),
                   ),
-                  dateSeparatorBuilder: (context, date) =>
+                  dateSeparatorBuilder: (context, bucket, date) =>
                       SizedBox(height: 24, child: Text('sep-${date.day}')),
                 ),
               ),

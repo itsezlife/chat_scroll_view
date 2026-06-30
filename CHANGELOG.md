@@ -8,6 +8,14 @@ this project is pre-1.0 and not strictly SemVer yet.
 
 ### Changed
 
+- **`ChatGroupSeparatorBuilder` replaces `ChatDateSeparatorBuilder`** *(breaking)* —
+  the `dateSeparatorBuilder` callback now receives `(context, bucket,
+  firstMessageDate)` where `bucket` is the raw `groupBy` key and
+  `firstMessageDate` is the first message's `createdAt` in that section. When
+  `groupBy` uses the default local-day bucket, behaviour is unchanged — format
+  from `firstMessageDate` as before. Custom non-`DateTime` buckets (week labels,
+  records) now reach the builder instead of being silently ignored.
+
 - **`ChatFloatingHeaderController` internal extraction** — floating day-header
   state, top-day scan, inline divider fade math, and layout rebuild decisions
   now live in `lib/src/chat_scroll/chat_floating_header_controller.dart`.

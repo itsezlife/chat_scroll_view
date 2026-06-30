@@ -287,7 +287,7 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
                     chunkErrorBuilder: _buildChunkError,
                     emptyBuilder: _buildEmpty,
                     loadingBuilder: _buildInitialSkeleton,
-                    dateSeparatorBuilder: (context, date) =>
+                    dateSeparatorBuilder: (context, bucket, date) =>
                         DateSeparator(date: date),
                   ),
                 ),

@@ -62,7 +62,7 @@ Widget _harness({
           messageBuilder: (context, id, message, status) =>
               SizedBox(height: 60, child: Text('msg-$id')),
           dateSeparatorBuilder: separators
-              ? (context, date) => SizedBox(
+              ? (context, bucket, date) => SizedBox(
                   height: 24,
                   child: Text('sep-${date.month}-${date.day}'),
                 )
@@ -225,6 +225,52 @@ void main() {
       );
     });
 
+    testWidgets('custom groupBy bucket reaches separator builder', (
+      tester,
+    ) async {
+      const count = 24;
+      final messages = <IChatMessage>[
+        for (var i = 0; i < count; i++)
+          UserChatMessage(
+            id: i,
+            sender: 'User',
+            createdAt: DateTime(2026, 1, 1).add(Duration(hours: i)),
+            updatedAt: DateTime(2026, 1, 1).add(Duration(hours: i)),
+            content: 'content $i',
+          ),
+      ];
+      final controller = ChatScrollController()..jumpTo(0);
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: Center(
+              child: SizedBox(
+                width: 400,
+                height: 600,
+                child: ChatScrollView(
+                  dataSource: _PreloadedDataSource(messages),
+                  controller: controller,
+                  groupBy: (message) => message.id < 12 ? 'morning' : 'afternoon',
+                  messageBuilder: (context, id, message, status) =>
+                      SizedBox(height: 60, child: Text('msg-$id')),
+                  dateSeparatorBuilder: (context, bucket, date) => SizedBox(
+                    height: 24,
+                    child: Text('grp-$bucket'),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+
+      expect(find.text('grp-morning'), findsWidgets);
+      expect(find.text('grp-afternoon'), findsWidgets);
+      final ro = _render(tester);
+      expect(ro.debugHeaderBucket, 'morning');
+    });
+
     testWidgets('tap inside the floating header reaches its builder', (
       tester,
     ) async {
@@ -257,7 +303,7 @@ void main() {
                       child: Text('msg-$id'),
                     ),
                   ),
-                  dateSeparatorBuilder: (context, date) => SizedBox(
+                  dateSeparatorBuilder: (context, bucket, date) => SizedBox(
                     height: 24,
                     child: GestureDetector(
                       behavior: HitTestBehavior.opaque,
