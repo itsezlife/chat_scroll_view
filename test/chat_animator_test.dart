@@ -18,6 +18,8 @@ ChatAnimator _animator({
   VoidCallback? cancelFling,
   VoidCallback? cancelBounceback,
   void Function(int targetId)? onAnimateComplete,
+  bool Function(int id)? isHighlightReady,
+  bool Function(int id)? shouldDropPendingHighlight,
   Duration highlightDuration = const Duration(milliseconds: 1500),
   Color highlightColor = const Color(0x402196F3),
 }) => ChatAnimator(
@@ -27,6 +29,8 @@ ChatAnimator _animator({
   childForId: childForId ?? (_) => null,
   offsetOfChild: offsetOfChild ?? (_) => 0,
   heightOfChild: heightOfChild ?? (_) => 0,
+  isHighlightReady: isHighlightReady ?? (_) => true,
+  shouldDropPendingHighlight: shouldDropPendingHighlight ?? (_) => false,
   markNeedsPaint: markNeedsPaint ?? () {},
   ensureTicker: ensureTicker ?? () {},
   cancelFling: cancelFling ?? () {},
@@ -311,6 +315,116 @@ void main() {
         ),
         returnsNormally,
       );
+    });
+  });
+
+  group('deferred highlight', () {
+    test('defers arm until isHighlightReady', () {
+      final controller = ChatScrollController();
+      final box = _sizedBox();
+      var ready = false;
+      final animator = _animator(
+        controller: controller,
+        offsetToBuiltMessage: (_) => 100.0,
+        alignedTopForMessage: (_, _) => 0.0,
+        childForId: (_) => box,
+        heightOfChild: (_) => box.size.height,
+        isHighlightReady: (_) => ready,
+        highlightDuration: const Duration(milliseconds: 500),
+      );
+
+      animator.animate(
+        1,
+        duration: const Duration(milliseconds: 100),
+        curve: Curves.linear,
+      );
+      animator.tickAnimate(const Duration(seconds: 1));
+      animator.tickAnimate(const Duration(seconds: 1, milliseconds: 100));
+
+      expect(animator.highlightTargetId, isNull);
+      expect(animator.pendingHighlightTargetId, 1);
+
+      ready = true;
+      expect(animator.tryArmPendingHighlight(), isTrue);
+      expect(animator.highlightTargetId, 1);
+      expect(animator.pendingHighlightTargetId, isNull);
+    });
+
+    test('defers when message is loaded but child is not built yet', () {
+      final controller = ChatScrollController();
+      RenderBox? child;
+      final animator = _animator(
+        controller: controller,
+        offsetToBuiltMessage: (_) => 100.0,
+        alignedTopForMessage: (_, _) => 0.0,
+        childForId: (_) => child,
+        heightOfChild: (_) => child?.size.height ?? 0,
+        isHighlightReady: (_) => child != null,
+        highlightDuration: const Duration(milliseconds: 500),
+      );
+
+      animator.animate(
+        1,
+        duration: const Duration(milliseconds: 100),
+        curve: Curves.linear,
+      );
+      animator.tickAnimate(const Duration(seconds: 1));
+      animator.tickAnimate(const Duration(seconds: 1, milliseconds: 100));
+
+      expect(animator.highlightTargetId, isNull);
+      expect(animator.pendingHighlightTargetId, 1);
+
+      child = _sizedBox();
+      expect(animator.tryArmPendingHighlight(), isTrue);
+      expect(animator.highlightTargetId, 1);
+    });
+
+    test('arms immediately when message and child are ready at settle', () {
+      final controller = ChatScrollController();
+      final box = _sizedBox();
+      final animator = _animator(
+        controller: controller,
+        offsetToBuiltMessage: (_) => 100.0,
+        alignedTopForMessage: (_, _) => 0.0,
+        childForId: (_) => box,
+        heightOfChild: (_) => box.size.height,
+        isHighlightReady: (_) => true,
+        highlightDuration: const Duration(milliseconds: 500),
+      );
+
+      animator.animate(
+        1,
+        duration: const Duration(milliseconds: 100),
+        curve: Curves.linear,
+      );
+      animator.tickAnimate(const Duration(seconds: 1));
+      animator.tickAnimate(const Duration(seconds: 1, milliseconds: 100));
+
+      expect(animator.pendingHighlightTargetId, isNull);
+      expect(animator.highlightTargetId, 1);
+      expect(animator.highlightFactor, 1.0);
+    });
+
+    test('drops pending highlight when shouldDropPendingHighlight', () {
+      final controller = ChatScrollController();
+      final animator = _animator(
+        controller: controller,
+        isHighlightReady: (_) => false,
+        shouldDropPendingHighlight: (_) => true,
+      )..pendingHighlightTargetId = 9;
+
+      expect(animator.tryArmPendingHighlight(), isFalse);
+      expect(animator.pendingHighlightTargetId, isNull);
+      expect(animator.highlightTargetId, isNull);
+    });
+
+    test('clearHighlight drops pending arm', () {
+      final animator = _animator(controller: ChatScrollController())
+        ..pendingHighlightTargetId = 3;
+
+      animator.clearHighlight();
+
+      expect(animator.pendingHighlightTargetId, isNull);
     });
   });
 }

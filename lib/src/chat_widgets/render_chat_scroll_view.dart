@@ -157,6 +157,12 @@ class RenderChatScrollView extends RenderBox {
       childForId: (id) => _children[id],
       offsetOfChild: (child) => _parentData(child).offset,
       heightOfChild: (child) => child.size.height,
+      isHighlightReady: (id) =>
+          _dataSource.getMessage(id) != null && _children.containsKey(id),
+      shouldDropPendingHighlight: (id) {
+        final status = _dataSource.statusOf(id);
+        return status.isAbsent || status.isError;
+      },
       markNeedsPaint: markNeedsPaint,
       ensureTicker: _ensureTicker,
       cancelFling: _cancelFling,
@@ -604,6 +610,9 @@ class RenderChatScrollView extends RenderBox {
 
   /// Message id currently receiving the post-navigation highlight tint.
   int? get debugHighlightTargetId => _animator.highlightTargetId;
+
+  /// Message id waiting for its chunk to load before the highlight arms.
+  int? get debugPendingHighlightTargetId => _animator.pendingHighlightTargetId;
 
   /// Highlight animation progress in `0..1` for [debugHighlightTargetId].
   double get debugHighlightFactor => _animator.highlightFactor;
@@ -1169,6 +1178,7 @@ class RenderChatScrollView extends RenderBox {
     _updateScrollSemantics();
     _publishControllerState();
     _updateFloatingHeader();
+    _animator.tryArmPendingHighlight();
 
     assert(() {
       debugLastLayoutDuration = _debugSw.elapsed;
@@ -2081,6 +2091,12 @@ class RenderChatScrollView extends RenderBox {
     // The highlight runs alongside scroll/animate frames — advance it on
     // every tick where the scroll path also ran.
     _animator.tickHighlight(elapsed);
+
+    // Arm a deferred highlight as soon as the target row is built — do not
+    // wait for another layout pass when data was already ready at settle.
+    if (_animator.pendingHighlightTargetId != null) {
+      _animator.tryArmPendingHighlight();
+    }
 
     if (_rangeNoLongerCovers() || headerDayChanged) {
       markNeedsLayout();

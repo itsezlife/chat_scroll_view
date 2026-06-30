@@ -18,6 +18,13 @@ const double kCloseAnimateDistance = 2400;
 /// close path; the far path mutates [fadeOpacity] in-place and returns 0.
 /// [tickHighlight] advances the post-animate tint and reports whether it is
 /// still active.
+///
+/// **Deferred highlight:** when `animateTo` settles on a slot whose message is
+/// not loaded yet (shimmer / skeleton), the tint is held in
+/// [pendingHighlightTargetId] until [isHighlightReady] returns true — the
+/// target message is in the data source *and* its [RenderBox] is built.
+/// When both are already true at settle time, [_requestHighlight] arms
+/// immediately with no layout wait.
 class ChatAnimator implements ChatScrollAnimator {
   /// Creates an animator bound to [controller] and render-object callbacks.
   ChatAnimator({
@@ -28,6 +35,8 @@ class ChatAnimator implements ChatScrollAnimator {
     required RenderBox? Function(int id) childForId,
     required double Function(RenderBox child) offsetOfChild,
     required double Function(RenderBox child) heightOfChild,
+    required bool Function(int id) isHighlightReady,
+    required bool Function(int id) shouldDropPendingHighlight,
     required VoidCallback markNeedsPaint,
     required VoidCallback ensureTicker,
     required VoidCallback cancelFling,
@@ -41,6 +50,8 @@ class ChatAnimator implements ChatScrollAnimator {
        _childForId = childForId,
        _offsetOfChild = offsetOfChild,
        _heightOfChild = heightOfChild,
+       _isHighlightReady = isHighlightReady,
+       _shouldDropPendingHighlight = shouldDropPendingHighlight,
        _markNeedsPaint = markNeedsPaint,
        _ensureTicker = ensureTicker,
        _cancelFling = cancelFling,
@@ -56,6 +67,8 @@ class ChatAnimator implements ChatScrollAnimator {
   final RenderBox? Function(int id) _childForId;
   final double Function(RenderBox child) _offsetOfChild;
   final double Function(RenderBox child) _heightOfChild;
+  final bool Function(int id) _isHighlightReady;
+  final bool Function(int id) _shouldDropPendingHighlight;
   final VoidCallback _markNeedsPaint;
   final VoidCallback _ensureTicker;
   final VoidCallback _cancelFling;
@@ -107,6 +120,10 @@ class ChatAnimator implements ChatScrollAnimator {
   /// highlight is active.
   int? highlightTargetId;
 
+  /// Post-animate highlight waiting for [isHighlightReady] — set when
+  /// `animateTo` settles before the target message has loaded.
+  int? pendingHighlightTargetId;
+
   /// Ticker time at the start of the active highlight; combined with
   /// [highlightDuration] this drives the per-frame opacity.
   Duration? highlightStartTime;
@@ -131,7 +148,9 @@ class ChatAnimator implements ChatScrollAnimator {
     // — the new duration is "from now on", not "retroactively reshape the
     // existing fade". `Duration.zero` clears synchronously so a hard
     // opt-out doesn't have to wait for the next ticker frame.
-    if (highlightTargetId != null) clearHighlight();
+    if (highlightTargetId != null || pendingHighlightTargetId != null) {
+      clearHighlight();
+    }
   }
 
   /// Configurable: peak colour of the highlight overlay. Faded to fully
@@ -287,16 +306,47 @@ class ChatAnimator implements ChatScrollAnimator {
     // its jumpTo + fade-in) → kick off the target highlight when both the
     // viewport gate (`highlightDuration > 0`) and the per-call
     // `animateHighlight` flag are set. Cancel (`cancelAnimate`) skips this
-    // path, so an interrupted animateTo leaves no leftover tint.
+    // path, so an interrupted animateTo leaves no leftover tint. When the
+    // target slot is still a skeleton, arm is deferred via
+    // [pendingHighlightTargetId] until [tryArmPendingHighlight].
     if (highlightDuration > Duration.zero && animateHighlight) {
-      highlightTargetId = targetId;
-      highlightStartTime = null;
-      highlightFactor = 1.0;
-      _ensureTicker();
-      _markNeedsPaint();
+      _requestHighlight(targetId);
     }
     _onAnimateComplete(targetId);
     if (completer != null && !completer.isCompleted) completer.complete();
+  }
+
+  void _requestHighlight(int targetId) {
+    if (_shouldDropPendingHighlight(targetId)) return;
+    if (_isHighlightReady(targetId)) {
+      _armHighlight(targetId);
+    } else {
+      pendingHighlightTargetId = targetId;
+    }
+  }
+
+  void _armHighlight(int targetId) {
+    highlightTargetId = targetId;
+    highlightStartTime = null;
+    highlightFactor = 1.0;
+    _ensureTicker();
+    _markNeedsPaint();
+  }
+
+  /// Arms a deferred highlight once the target message has loaded. Called from
+  /// the render object at the end of `performLayout` after chunk data may
+  /// have changed. Returns `true` when a highlight was started.
+  bool tryArmPendingHighlight() {
+    final id = pendingHighlightTargetId;
+    if (id == null) return false;
+    if (_shouldDropPendingHighlight(id)) {
+      pendingHighlightTargetId = null;
+      return false;
+    }
+    if (!_isHighlightReady(id)) return false;
+    pendingHighlightTargetId = null;
+    _armHighlight(id);
+    return true;
   }
 
   /// Advance the highlight fade by one tick. Returns `true` when the
@@ -320,8 +370,9 @@ class ChatAnimator implements ChatScrollAnimator {
     return true;
   }
 
-  /// Drop any active post-animate highlight tint.
+  /// Drop any active post-animate highlight tint and any deferred arm.
   void clearHighlight() {
+    pendingHighlightTargetId = null;
     if (highlightTargetId == null) return;
     highlightTargetId = null;
     highlightStartTime = null;
