@@ -45,6 +45,18 @@ class ChatScrollElement extends RenderObjectElement
   /// {@macro chat_scroll_element}
   ChatScrollElement(ChatScrollView super.widget);
 
+  /// Set by [RenderChatScrollView] while a [ChatChildManager] method runs
+  /// inside `invokeLayoutCallback`.
+  bool insideLayoutCallback = false;
+
+  void _assertInsideLayoutCallback() {
+    assert(
+      insideLayoutCallback,
+      'ChatChildManager methods must only be called from within '
+      'invokeLayoutCallback.',
+    );
+  }
+
   /// messageId -> child element, sorted so iteration is top-to-bottom.
   final SplayTreeMap<int, Element> _children = SplayTreeMap<int, Element>();
 
@@ -182,6 +194,7 @@ class ChatScrollElement extends RenderObjectElement
 
   @override
   RenderBox? buildChild(int id, {required bool startsNewDay}) {
+    _assertInsideLayoutCallback();
     final ds = _widget.dataSource;
     final message = ds.getMessage(id);
     final status = ds.statusOf(id);
@@ -223,6 +236,7 @@ class ChatScrollElement extends RenderObjectElement
 
   @override
   void removeChildren(List<int> ids) {
+    _assertInsideLayoutCallback();
     if (ids.isEmpty) return;
     owner!.buildScope(this, () {
       for (final id in ids) {
@@ -238,6 +252,7 @@ class ChatScrollElement extends RenderObjectElement
 
   @override
   RenderBox? buildFloatingHeader(DateTime? date) {
+    _assertInsideLayoutCallback();
     final build = _widget.dateSeparatorBuilder;
     // Feature off, or no day known yet -> no header widget.
     final headerWidget = (build == null || date == null)
@@ -255,6 +270,7 @@ class ChatScrollElement extends RenderObjectElement
 
   @override
   RenderBox? buildChunkError(int chunkIndex, int firstId, int lastId) {
+    _assertInsideLayoutCallback();
     // Defensive: the render side only calls this when `hasErrorBuilder` is
     // true, but the host may have flipped the builder away on the same frame.
     if (_widget.chunkErrorBuilder == null) return null;
@@ -301,6 +317,7 @@ class ChatScrollElement extends RenderObjectElement
 
   @override
   void removeChunkErrors(List<int> chunkIndices) {
+    _assertInsideLayoutCallback();
     if (chunkIndices.isEmpty) return;
     owner!.buildScope(this, () {
       for (final idx in chunkIndices) {
@@ -317,6 +334,7 @@ class ChatScrollElement extends RenderObjectElement
 
   @override
   RenderBox? buildOverlay(ChatOverlayKind kind) {
+    _assertInsideLayoutCallback();
     final Widget? widget;
     switch (kind) {
       case ChatOverlayKind.none:

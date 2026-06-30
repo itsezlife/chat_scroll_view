@@ -49,9 +49,9 @@ bool visibleRowFillsBand(double rowHeight, double paintBandHeight) =>
     paintBandHeight > 0 && rowHeight >= paintBandHeight;
 
 /// Delegate that performs actual scroll animations on behalf of
-/// [ChatScrollController.animateTo]. Implemented by `RenderChatScrollView`
-/// and bound automatically when the widget mounts; consumers do not interact
-/// with this directly.
+/// [ChatScrollController.animateTo]. Implemented by [ChatAnimator] and bound
+/// automatically when the widget mounts; consumers do not interact with this
+/// directly.
 abstract class ChatScrollAnimator {
   /// Scrolls so [targetId] lands at [alignment] within the viewport
   /// (`0` = top edge, `1` = bottom edge) over [duration] with [curve].

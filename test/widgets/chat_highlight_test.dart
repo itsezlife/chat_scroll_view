@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:chatscrollview/src/chat_message.dart';
 import 'package:chatscrollview/src/chat_scroll/chat_data_source.dart';
 import 'package:chatscrollview/src/chat_scroll/chat_scroll_common.dart';
@@ -447,5 +449,117 @@ void main() {
       await tester.pump();
       expect(_render(tester).debugHighlightTargetId, 120);
     });
+
+    testWidgets('defers highlight until an unloaded target message loads', (
+      tester,
+    ) async {
+      const total = 200;
+      const loadedFrom = 192;
+      const target = 50;
+      final controller = ChatScrollController()..jumpTo(total - 1);
+      final ds = _GatedLazyTailDataSource(
+        totalCount: total,
+        loadedFromId: loadedFrom,
+      );
+      addTearDown(controller.dispose);
+      addTearDown(ds.dispose);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: Center(
+              child: SizedBox(
+                width: 400,
+                height: 600,
+                child: ChatScrollView(
+                  reverse: true,
+                  dataSource: ds,
+                  controller: controller,
+                  cacheExtent: 2000,
+                  highlightDuration: const Duration(seconds: 10),
+                  messageBuilder: (context, id, message, status) => SizedBox(
+                    height: 60,
+                    child: Text(message == null ? 'shimmer-$id' : 'msg-$id'),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 200));
+
+      final future = controller.animateTo(
+        target,
+        duration: const Duration(milliseconds: 80),
+      );
+      await _driveAnimate(
+        tester,
+        future,
+        animateDuration: const Duration(milliseconds: 80),
+      );
+      await tester.pump();
+
+      final render = _render(tester);
+      expect(render.debugHighlightTargetId, isNull);
+      expect(render.debugPendingHighlightTargetId, target);
+      expect(find.text('shimmer-$target'), findsOneWidget);
+
+      ds.releasePendingFetches();
+      await tester.pump();
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
+
+      final settled = _render(tester);
+      expect(find.text('msg-$target'), findsOneWidget);
+      expect(settled.debugPendingHighlightTargetId, isNull);
+      expect(settled.debugHighlightTargetId, target);
+      expect(settled.debugHighlightFactor, greaterThan(0.0));
+    });
   });
+}
+
+/// Newest chunk loaded; older pages fetch on demand. [releasePendingFetches]
+/// unblocks in-flight [fetchRange] calls so tests can observe the skeleton
+/// window before messages land.
+class _GatedLazyTailDataSource extends ChatDataSource {
+  _GatedLazyTailDataSource({
+    required this.totalCount,
+    required this.loadedFromId,
+  }) {
+    seedBoundaries(newestKnownId: totalCount - 1, reachedNewest: true);
+    for (var i = loadedFromId; i < totalCount; i++) {
+      upsertMessage(_msg(i));
+    }
+    seedBoundaries(oldestKnownId: loadedFromId);
+  }
+
+  final int totalCount;
+  final int loadedFromId;
+  final List<Completer<void>> _pendingGates = [];
+  bool _releaseFetches = false;
+
+  void releasePendingFetches() {
+    _releaseFetches = true;
+    for (final gate in _pendingGates) {
+      if (!gate.isCompleted) gate.complete();
+    }
+    _pendingGates.clear();
+  }
+
+  @override
+  Future<List<IChatMessage>> fetchRange({
+    required int fromId,
+    required int toId,
+  }) async {
+    if (!_releaseFetches) {
+      final gate = Completer<void>();
+      _pendingGates.add(gate);
+      await gate.future;
+    }
+    final lo = fromId.clamp(0, totalCount - 1);
+    final hi = toId.clamp(0, totalCount - 1);
+    return <IChatMessage>[for (var i = lo; i <= hi; i++) _msg(i)];
+  }
 }
