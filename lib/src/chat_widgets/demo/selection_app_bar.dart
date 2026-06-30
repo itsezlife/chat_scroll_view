@@ -1,17 +1,28 @@
 import 'package:chatscrollview/src/chat_scroll/chat_selection_controller.dart';
 import 'package:flutter/material.dart';
 
+/// Toolbar body height below the top [SafeArea] inset.
+const double kSelectionAppBarHeight = 52;
+
 /// Contextual top bar shown while selection mode is active.
 ///
 /// Slides down from above the viewport with a close button and a live count
 /// of selected messages. Meant to be overlaid (e.g. inside a [Stack]) so the
 /// chat itself never resizes — when idle it collapses to nothing.
+///
+/// When [topInset] is set, it is driven every animation frame with
+/// `curveProgress × (top safe padding + [kSelectionAppBarHeight])` so an
+/// overlaid [ChatScrollView] can keep its floating header in sync with the
+/// slide without waiting on layout.
 class SelectionAppBar extends StatefulWidget {
   /// Slides in above the chat while [selection] mode is active.
-  const SelectionAppBar({required this.selection, super.key});
+  const SelectionAppBar({required this.selection, this.topInset, super.key});
 
   /// Selection state — drives visibility and the count.
   final ChatSelectionController selection;
+
+  /// Optional viewport top inset to animate in lockstep with the slide.
+  final ValueNotifier<double>? topInset;
 
   @override
   State<SelectionAppBar> createState() => _SelectionAppBarState();
@@ -38,6 +49,7 @@ class _SelectionAppBarState extends State<SelectionAppBar>
       begin: const Offset(0, -1),
       end: Offset.zero,
     ).animate(_slideCurve);
+    _t.addListener(_onTick);
     widget.selection.addListener(_onSelectionChanged);
   }
 
@@ -49,14 +61,33 @@ class _SelectionAppBarState extends State<SelectionAppBar>
       widget.selection.addListener(_onSelectionChanged);
       _onSelectionChanged();
     }
+    if (!identical(oldWidget.topInset, widget.topInset)) {
+      _publishTopInset();
+    }
   }
 
   @override
   void dispose() {
+    _t.removeListener(_onTick);
     widget.selection.removeListener(_onSelectionChanged);
+    widget.topInset?.value = 0;
     _slideCurve.dispose();
     _t.dispose();
     super.dispose();
+  }
+
+  void _onTick() {
+    if (!mounted) return;
+    _publishTopInset();
+  }
+
+  void _publishTopInset() {
+    final inset = widget.topInset;
+    if (inset == null) return;
+    final next = _t.isDismissed
+        ? 0.0
+        : _slideCurve.value * kSelectionAppBarHeight;
+    if (inset.value != next) inset.value = next;
   }
 
   void _onSelectionChanged() {
@@ -103,7 +134,7 @@ class _SelectionAppBarState extends State<SelectionAppBar>
     child: SafeArea(
       bottom: false,
       child: SizedBox(
-        height: 52,
+        height: kSelectionAppBarHeight,
         child: Row(
           children: <Widget>[
             IconButton(

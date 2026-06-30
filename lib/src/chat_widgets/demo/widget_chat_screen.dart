@@ -37,6 +37,10 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
   /// Bottom inset reserved inside the viewport — kept in sync with the
   /// composer's measured height so the newest message clears it.
   final ValueNotifier<double> _bottomInset = ValueNotifier<double>(96);
+
+  /// Top inset reserved inside the viewport — kept in sync with the
+  /// selection app bar's measured height so the floating day header clears it.
+  final ValueNotifier<double> _topInset = ValueNotifier<double>(0);
   bool _loading = true;
   String? _errorMessage;
 
@@ -68,6 +72,7 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
     _persistLastReadTimer?.cancel();
     _pillLastSeenBaseline.dispose();
     _bottomInset.dispose();
+    _topInset.dispose();
     _controller.dispose();
     _selection.dispose();
     _dataSource?.dispose();
@@ -277,6 +282,7 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
                     controller: _controller,
                     selectionController: _selection,
                     bottomPadding: _bottomInset,
+                    topPadding: _topInset,
                     messageBuilder: _buildMessage,
                     chunkErrorBuilder: _buildChunkError,
                     emptyBuilder: _buildEmpty,
@@ -311,13 +317,16 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
               bottomInset: _bottomInset,
               lastSeenNewestId: _pillLastSeenBaseline,
             ),
-            // Contextual selection bar — overlays the top, so the chat never
-            // resizes when selection mode toggles.
+            // Contextual selection bar — overlays the top. [topInset] is driven
+            // every animation frame so the floating day header tracks the slide.
             Positioned(
               top: 0,
               left: 0,
               right: 0,
-              child: SelectionAppBar(selection: _selection),
+              child: SelectionAppBar(
+                selection: _selection,
+                topInset: _topInset,
+              ),
             ),
           ],
         ),
