@@ -8,6 +8,19 @@ this project is pre-1.0 and not strictly SemVer yet.
 
 ### Changed
 
+- **`ChatFloatingHeaderController` internal extraction** — floating day-header
+  state, top-day scan, inline divider fade math, and layout rebuild decisions
+  now live in `lib/src/chat_scroll/chat_floating_header_controller.dart`.
+  `RenderChatScrollView` delegates while keeping `RenderBox` ownership and
+  `buildFloatingHeader` inflation in the render layer. No public API change.
+
+- **`ChatAnimator` internal extraction** — `animateTo` close-path scroll,
+  far-path crossfade, and post-settle highlight tint now live in
+  `lib/src/chat_scroll/chat_animator.dart`. `ChatAnimator` implements
+  `ChatScrollAnimator`; `fadeLayer` stays on the render object. Debug asserts
+  and doc comments document the `ChatChildManager` / `invokeLayoutCallback`
+  contract on `ChatScrollElement`. No public API change.
+
 - **`ChatRangeFetch` internal extraction** — the range-fetch state machine
   (token cancellation, exponential-backoff retry, `fetchingChunks` tracking)
   now lives in `lib/src/chat_scroll/chat_range_fetch.dart`. `ChatDataSource`
@@ -39,6 +52,15 @@ this project is pre-1.0 and not strictly SemVer yet.
   child.
 
 ### Fixed
+
+- **`animateTo` highlight waits for the target message to load.** Jumping to an
+  unloaded chunk no longer flashes the highlight tint on a skeleton row — the
+  tint arms only after the message is in the data source and its row is built.
+
+- **Demo selection mode: floating day header tracks the selection bar.** Entering
+  selection drives `ChatScrollView.topPadding` from the `SelectionAppBar` slide
+  animation so the floating header moves with the overlay instead of sitting
+  behind it.
 
 - **Deleted messages no longer produce permanent loading skeletons.** When a
   batch of messages is deleted from a conversation, IDs in the deleted range are
