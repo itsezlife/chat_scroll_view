@@ -118,6 +118,14 @@ String _pillText(WidgetTester tester) {
 String _expectedPillLabel(int count) =>
     count == 1 ? '1 new message' : '$count new messages';
 
+/// Flush layout + post-frame initial viewport read sync (pill defers until
+/// [ChatVisibleRange] stabilizes).
+Future<void> _pumpOpenSettled(WidgetTester tester) async {
+  await tester.pump();
+  await tester.pump(const Duration(milliseconds: 16));
+  await tester.pump(const Duration(milliseconds: 16));
+}
+
 int _openAnchor({required ChatDataSource ds, int? storedLastRead}) =>
     ds.resolveOpenAnchor(
       storedLastRead: storedLastRead,
@@ -207,14 +215,14 @@ void main() {
           lastSeenNewestId: lastSeen,
         ),
       );
-      await tester.pump();
-      await tester.pump(const Duration(milliseconds: 16));
+      await _pumpOpenSettled(tester);
 
-      final baseline = lastSeen.value!;
-      expect(baseline, greaterThan(lastRead));
+      // Large off-screen backlog (ratio ≥ 0.75) — open sync defers prefix
+      // read-marking; baseline stays at stored last-read.
+      expect(lastSeen.value, lastRead);
       expect(
         _pillText(tester),
-        _expectedPillLabel(ds.newestKnownId! - baseline),
+        _expectedPillLabel(ds.newestKnownId! - lastRead),
       );
     });
 
@@ -340,10 +348,9 @@ void main() {
           lastSeenNewestId: lastSeen,
         ),
       );
-      await tester.pump();
-      await tester.pump(const Duration(milliseconds: 16));
+      await _pumpOpenSettled(tester);
       final baselineAfterOpen = lastSeen.value!;
-      expect(baselineAfterOpen, greaterThan(lastRead));
+      expect(baselineAfterOpen, lastRead);
       expect(
         _pillText(tester),
         _expectedPillLabel(ds.newestKnownId! - baselineAfterOpen),

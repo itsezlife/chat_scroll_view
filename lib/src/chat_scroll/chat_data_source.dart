@@ -1,9 +1,7 @@
-import 'dart:async';
 import 'dart:collection';
-import 'dart:developer' as dev;
-import 'dart:math' as math;
 import 'dart:ui';
 
+import 'package:chatscrollview/src/chat_scroll/chat_range_fetch.dart';
 import 'package:chatscrollview/src/chat_scroll/chat_scroll_chunk.dart';
 import 'package:chatscrollview/src/chat_scroll/chat_scroll_common.dart';
 import 'package:meta/meta.dart';
@@ -277,72 +275,23 @@ abstract class ChatDataSource {
 
   // --- Range fetch orchestration ---
 
-  static final math.Random _rnd = math.Random();
-  Object? _fetchToken;
-  int _fetchRetryStep = 0;
-  Timer? _retryTimer;
-  int _fetchingMinChunk = 0;
-  int _fetchingMaxChunk = -1;
-
-  /// Chunk indices touched by the in-flight fetch — the subset of
-  /// `[_fetchingMinChunk, _fetchingMaxChunk]` that actually needed loading.
-  /// On resolution / cancellation only these chunks have their status
-  /// updated; already-valid neighbours inside the bounding range are left
-  /// alone so a transient failure on one chunk does not flicker a sibling
-  /// from valid → error.
-  final Set<int> _fetchingChunks = <int>{};
-
-  /// Whether [chunk] should be (re-)fetched. Missing, dirty, or errored
-  /// chunks are eligible; already-fetching and clean chunks are not. Without
-  /// the `error` branch a chunk that failed while neighbouring a valid one
-  /// would stay errored forever — `requestChunks` would not see it as dirty.
-  static bool _needsFetch(ChatScrollChunk? chunk) {
-    if (chunk == null) return true;
-    final status = chunk.status;
-    if (status.isFetching) return false;
-    return status.isDirty || status.isError;
-  }
+  late final ChatRangeFetch _rangeFetch = ChatRangeFetch(
+    chunks: () => _chunks,
+    fetchRange: fetchRange,
+    notifyDataChanged: notifyDataChanged,
+    isDisposed: () => _disposed,
+  );
 
   /// Check visible chunk range and fetch missing/dirty data.
   /// Called from the viewport's periodic poll timer.
   @internal
   void requestChunks(int layoutMinChunk, int layoutMaxChunk) {
-    if (_disposed) return;
-    // Find the actual range that needs fetching.
-    var needsMin = -1;
-    var needsMax = -1;
-    for (var ci = layoutMinChunk; ci <= layoutMaxChunk; ci++) {
-      if (_needsFetch(_chunks[ci])) {
-        if (needsMin < 0) needsMin = ci;
-        needsMax = ci;
-      }
-    }
-    if (needsMin < 0) return; // all chunks valid
-
-    // Same range already in flight — wait for it. Treat a pending retry
-    // timer as in-flight too; otherwise a poll between the error handler
-    // arming the retry and the timer firing would see `_fetchToken == null`,
-    // fall through, cancel the retry, reset the backoff step, and immediately
-    // re-fire `_executeFetch` — defeating the exponential backoff and
-    // hammering a failing endpoint at the poll cadence.
-    final sameRange =
-        _fetchingMinChunk == needsMin && _fetchingMaxChunk == needsMax;
-    if (sameRange && (_fetchToken != null || _retryTimer != null)) return;
-
-    // New range — cancel old request and start fresh.
-    _cancelFetch();
-    _fetchingMinChunk = needsMin;
-    _fetchingMaxChunk = needsMax;
-    _fetchRetryStep = 0;
-    _executeFetch();
+    _rangeFetch.requestChunks(layoutMinChunk, layoutMaxChunk);
   }
 
   /// Cancel any in-flight fetch and retry timer.
   @internal
-  void cancelFetch() {
-    if (_disposed) return;
-    _cancelFetch();
-  }
+  void cancelFetch() => _rangeFetch.cancelFetch();
 
   /// Mark every loaded chunk as stale so the viewport refetches them on the
   /// next pass — lazy: in-range chunks get a fresh fetch from the poll;
@@ -369,12 +318,12 @@ abstract class ChatDataSource {
     // see two `notifyDataChanged` calls (one from the running fetch's
     // status drop, one from the dirty-marking pass) for what is logically
     // a single state change.
-    var changed = _cancelFetchSilent();
+    var changed = _rangeFetch.cancelFetchSilent();
     // Reset source-wide backoff step so the post-invalidate refetch starts
     // from the initial window rather than inheriting accumulated backoff
     // (the per-chunk `lastError`/`failedAttempts` reset below is not enough
-    // — `_fetchRetryStep` lives on the source).
-    _fetchRetryStep = 0;
+    // — the retry step lives on [ChatRangeFetch]).
+    _rangeFetch.resetRetryStep();
     for (final chunk in _chunks.values) {
       // Don't overwrite a chunk that is already dirty (or fetching after a
       // cancelFetch race) — the goal is "mark stale", not "reset to a
@@ -426,13 +375,8 @@ abstract class ChatDataSource {
     // If a fetch is already in flight that covers this chunk, let it
     // resolve — the user tap mustn't trash an in-progress network round-trip
     // that is about to satisfy the same request.
-    if (_fetchToken != null &&
-        chunkIndex >= _fetchingMinChunk &&
-        chunkIndex <= _fetchingMaxChunk) {
-      return;
-    }
+    if (_rangeFetch.coversChunkInFlight(chunkIndex)) return;
 
-    _cancelFetch();
     // Reset per-chunk failure state so the UI sees the user-initiated retry
     // as a fresh attempt rather than continuing the previous counter.
     if (chunk != null) {
@@ -440,210 +384,7 @@ abstract class ChatDataSource {
         ..failedAttempts = 0
         ..lastError = null;
     }
-    _fetchRetryStep = 0;
-    _fetchingMinChunk = chunkIndex;
-    _fetchingMaxChunk = chunkIndex;
-    _executeFetch();
-  }
-
-  void _cancelFetch() {
-    final changed = _cancelFetchSilent();
-    // Listeners (the viewport, debug overlays) need to know the fetching
-    // flag dropped — a chunk stuck in `fetching` after detach / source-swap
-    // would render an indefinite shimmer.
-    if (changed) notifyDataChanged();
-  }
-
-  /// Like [_cancelFetch] but does not notify — returns whether any chunk
-  /// status flag changed so the caller can fold the notification into its
-  /// own pass (the `invalidate` path coalesces it with subsequent dirty
-  /// marks).
-  bool _cancelFetchSilent() {
-    var changed = false;
-    if (_fetchingChunks.isNotEmpty) {
-      for (final ci in _fetchingChunks) {
-        final chunk = _chunks[ci];
-        if (chunk == null) continue;
-        // Re-mark as dirty: a cancelled fetch leaves us without valid data
-        // for this chunk. Without `dirty`, an `error`-only chunk that we
-        // were retrying would land back on status `0` (= valid) while
-        // `lastError`/`failedAttempts` still describe the prior failure —
-        // any consumer reading `status.isValid && lastError != null` would
-        // render a stale error on a "healthy" chunk.
-        chunk.status = chunk.status
-            .remove(ChatMessageStatus.fetching)
-            .add(ChatMessageStatus.dirty);
-        changed = true;
-      }
-      _fetchingChunks.clear();
-    }
-    _fetchToken = null;
-    _fetchingMinChunk = 0;
-    _fetchingMaxChunk = -1;
-    _retryTimer?.cancel();
-    _retryTimer = null;
-    return changed;
-  }
-
-  void _executeFetch() {
-    if (_disposed) return;
-    // Sentinel guard: if the caller dispatched without having set the range
-    // (or a reentrant cancel zeroed it), bail rather than emit a bogus
-    // `fetchRange(0, -1+kSize-1)` to the subclass.
-    if (_fetchingMaxChunk < _fetchingMinChunk) return;
-
-    final token = Object();
-    _fetchToken = token;
-    // Compute the network range before notifying listeners — a synchronous
-    // listener that calls `cancelFetch()` / `invalidate()` resets the range,
-    // and we must not dispatch a request derived from the post-cancel state.
-    final fromId = ChatScrollChunk.firstIdOf(_fetchingMinChunk);
-    final toId =
-        ChatScrollChunk.firstIdOf(_fetchingMaxChunk) +
-        ChatScrollChunk.kSize -
-        1;
-
-    // Pre-create only the chunks that actually need loading and mark them
-    // `fetching`. Valid chunks in the middle of the bounding range stay
-    // valid — they piggyback on the request but their status is not touched
-    // by success or failure of the fetch.
-    _fetchingChunks.clear();
-    for (var ci = _fetchingMinChunk; ci <= _fetchingMaxChunk; ci++) {
-      final existing = _chunks[ci];
-      if (existing != null && !_needsFetch(existing)) continue;
-      final chunk = existing ?? (_chunks[ci] = ChatScrollChunk(index: ci));
-      chunk.status = chunk.status
-          .remove(ChatMessageStatus.error)
-          .add(ChatMessageStatus.fetching);
-      _fetchingChunks.add(ci);
-    }
-    notifyDataChanged();
-    // Listener may have cancelled us reentrantly. Bail before dispatching to
-    // the subclass — the cancel already cleared `_fetchingChunks` and reset
-    // `_fetchToken` to null.
-    if (_fetchToken != token) return;
-
-    // Subclasses are expected to return a Future, but a misbehaving
-    // implementation that throws synchronously before producing one would
-    // otherwise bubble the throw up into the viewport's layout poll. Wrap
-    // it into a rejected Future so the normal error path runs.
-    Future<List<IChatMessage>> request;
-    try {
-      request = fetchRange(fromId: fromId, toId: toId);
-    } catch (error) {
-      request = Future<List<IChatMessage>>.error(error);
-    }
-
-    assert(
-      ChatScrollChunk.isFullChunkRange(fromId, toId),
-      'fetchRange boundary invariant violated for range [$fromId, $toId]. '
-      'fromId must equal ChatScrollChunk.firstIdOf(chunkOf(fromId)) and toId '
-      'must equal the last id of chunkOf(toId). Partial-range fetches corrupt '
-      'absent-slot marking. See fetchRange doc and ChatScrollChunk.isFullChunkRange.',
-    );
-
-    request.then(
-      (messages) {
-        if (_fetchToken != token) return; // cancelled or replaced
-        _fetchToken = null;
-
-        // Upsert returned messages into their slots.
-        for (final msg in messages) {
-          assert(
-            msg.id >= fromId && msg.id <= toId,
-            'fetchRange returned message id ${msg.id} outside the requested '
-            'range [$fromId, $toId]. Subclasses must only return messages '
-            'whose ids fall within the requested chunk-aligned range.',
-          );
-          final ci = ChatScrollChunk.chunkOf(msg.id);
-          final chunk = _chunks.putIfAbsent(
-            ci,
-            () => ChatScrollChunk(index: ci),
-          );
-          chunk.messages[msg.id - chunk.firstId] = msg;
-        }
-
-        // Absent-marking pass: for every fetched chunk, mark ALL null slots
-        // as permanently absent.
-        //
-        // The full-chunk boundary invariant (fromId aligned to a chunk
-        // boundary) guarantees the server was given the opportunity to return
-        // every ID in [fromId, toId]. Any null slot was not returned and
-        // therefore does not exist in this conversation — it is permanently
-        // absent.
-        //
-        // No conversation-boundary guard ([oldestKnownId, newestKnownId]) is
-        // applied here. The boundary guard was the original bug: `oldestKnownId`
-        // advances only when a fetch *returns* messages (via `loadedMin`). An
-        // empty fetch for IDs below the current `oldestKnownId` — which occurs
-        // when scrolling backward through a deletion gap — never moves the
-        // boundary, so the guard would suppress absent-marking for exactly the
-        // slots that need it most.
-        //
-        // `upsertMessage` / `upsertMessages` call `clearAbsentSlot` when
-        // writing a slot, so a realtime insert at a previously-absent ID
-        // surfaces immediately without requiring `invalidate()`.
-        for (final ci in _fetchingChunks) {
-          final chunk = _chunks[ci];
-          if (chunk == null) continue;
-          for (var slot = 0; slot < ChatScrollChunk.kSize; slot++) {
-            if (chunk.messages[slot] != null) continue;
-            chunk.markAbsentSlot(slot);
-          }
-        }
-
-        for (final ci in _fetchingChunks) {
-          final chunk = _chunks[ci];
-          if (chunk == null) continue;
-          chunk
-            ..status = ChatMessageStatus.valid
-            ..lastError = null
-            ..failedAttempts = 0;
-        }
-        _fetchingChunks.clear();
-        notifyDataChanged();
-      },
-      onError: (Object error, StackTrace stackTrace) {
-        dev.log(
-          'fetchRange error, range: (fromId: $fromId, toId: $toId)',
-          error: error,
-          stackTrace: stackTrace,
-        );
-        if (_fetchToken != token) return; // cancelled or replaced
-        _fetchToken = null;
-
-        // Clear fetching, mark error so UI can react. Touch only the chunks
-        // we actually requested — neighbouring valid chunks must not flip
-        // to error.
-        for (final ci in _fetchingChunks) {
-          final chunk = _chunks[ci];
-          if (chunk == null) continue;
-          chunk
-            ..lastError = error
-            ..failedAttempts += 1
-            ..status = chunk.status
-                .remove(ChatMessageStatus.fetching)
-                .add(ChatMessageStatus.error);
-        }
-        _fetchingChunks.clear();
-        notifyDataChanged();
-
-        // Retry with backoff.
-        final delay = _nextDelay(_fetchRetryStep, 500, 30000);
-        _fetchRetryStep++;
-        _retryTimer = Timer(delay, _executeFetch);
-      },
-    );
-  }
-
-  static Duration _nextDelay(int step, int minDelay, int maxDelay) {
-    if (minDelay >= maxDelay) return Duration(milliseconds: maxDelay);
-    final val = math.min(maxDelay, minDelay * math.pow(2, step.clamp(0, 31)));
-    // `nextInt(0)` would throw; clamp the jitter window to at least 1ms so a
-    // misconfigured `minDelay=0` stays well-defined.
-    final window = math.max(1, val.toInt());
-    final interval = _rnd.nextInt(window);
-    return Duration(milliseconds: (minDelay + interval).clamp(0, maxDelay));
+    _rangeFetch.startFetchRange(chunkIndex, chunkIndex);
   }
 
   // --- Typed listener: data changed ---
@@ -691,11 +432,11 @@ abstract class ChatDataSource {
   @mustCallSuper
   void dispose() {
     if (_disposed) return;
-    _cancelFetch();
+    _rangeFetch.cancelFetch();
+    _rangeFetch.dispose();
     _dataListeners.clear();
     _boundaryListeners.clear();
     _chunks.clear();
-    _fetchingChunks.clear();
     _disposed = true;
   }
 }
