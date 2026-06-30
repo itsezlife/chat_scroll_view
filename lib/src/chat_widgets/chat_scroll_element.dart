@@ -153,11 +153,16 @@ class ChatScrollElement extends RenderObjectElement
     IChatMessage? message,
     ChatMessageStatus status,
     bool startsNewDay,
+    Object? groupBucket,
   ) {
     final override = _widget.textDirection;
     final selection = _widget.selectionController;
     final separator = _widget.dateSeparatorBuilder;
-    final hasDateHeader = startsNewDay && separator != null && message != null;
+    final hasDateHeader =
+        startsNewDay &&
+        separator != null &&
+        message != null &&
+        groupBucket != null;
 
     Widget compose(BuildContext context) {
       var content = _widget.messageBuilder(context, id, message, status);
@@ -172,7 +177,7 @@ class ChatScrollElement extends RenderObjectElement
       return hasDateHeader
           ? DatedMessage(
               key: ValueKey<int>(id),
-              separator: separator(context, message.createdAt),
+              separator: separator(context, groupBucket, message.createdAt),
               body: content,
             )
           : RepaintBoundary(key: ValueKey<int>(id), child: content);
@@ -193,7 +198,11 @@ class ChatScrollElement extends RenderObjectElement
   // --- ChatChildManager (driven by RenderChatScrollView.performLayout) ------
 
   @override
-  RenderBox? buildChild(int id, {required bool startsNewDay}) {
+  RenderBox? buildChild(
+    int id, {
+    required bool startsNewDay,
+    Object? groupBucket,
+  }) {
     _assertInsideLayoutCallback();
     final ds = _widget.dataSource;
     final message = ds.getMessage(id);
@@ -215,7 +224,7 @@ class ChatScrollElement extends RenderObjectElement
     owner!.buildScope(this, () {
       final updated = updateChild(
         existing,
-        _buildWidget(id, message, status, startsNewDay),
+        _buildWidget(id, message, status, startsNewDay, groupBucket),
         id,
       );
       if (updated != null) {
@@ -251,13 +260,16 @@ class ChatScrollElement extends RenderObjectElement
   }
 
   @override
-  RenderBox? buildFloatingHeader(DateTime? date) {
+  RenderBox? buildFloatingHeader(
+    Object? bucket,
+    DateTime? firstMessageDate,
+  ) {
     _assertInsideLayoutCallback();
     final build = _widget.dateSeparatorBuilder;
-    // Feature off, or no day known yet -> no header widget.
-    final headerWidget = (build == null || date == null)
+    final headerWidget =
+        (build == null || bucket == null || firstMessageDate == null)
         ? null
-        : RepaintBoundary(child: build(this, date));
+        : RepaintBoundary(child: build(this, bucket, firstMessageDate));
     owner!.buildScope(this, () {
       _floatingHeader = updateChild(
         _floatingHeader,

@@ -70,11 +70,16 @@ enum ChatOverlayKind { none, loading, empty }
 @internal
 abstract interface class ChatChildManager {
   /// Inflate or update the widget for message [id]; returns its render box.
-  /// [startsNewDay] asks the element to prepend an inline date separator.
+  /// [startsNewDay] asks the element to prepend an inline group separator.
+  /// [groupBucket] is the `groupBy` key when [startsNewDay] is true.
   ///
   /// Must only be called from within [invokeLayoutCallback]. Calling
   /// from any other context will assert in debug mode.
-  RenderBox? buildChild(int id, {required bool startsNewDay});
+  RenderBox? buildChild(
+    int id, {
+    required bool startsNewDay,
+    Object? groupBucket,
+  });
 
   /// Deactivate the elements for [ids] that are no longer needed.
   ///
@@ -82,12 +87,15 @@ abstract interface class ChatChildManager {
   /// from any other context will assert in debug mode.
   void removeChildren(List<int> ids);
 
-  /// Inflate / update / remove the floating day header for [date] (`null`
-  /// removes it). Called during layout, the same channel as [buildChild].
+  /// Inflate / update / remove the floating group header for [bucket] and
+  /// [firstMessageDate] (`null` removes it). Called during layout.
   ///
   /// Must only be called from within [invokeLayoutCallback]. Calling
   /// from any other context will assert in debug mode.
-  RenderBox? buildFloatingHeader(DateTime? date);
+  RenderBox? buildFloatingHeader(
+    Object? bucket,
+    DateTime? firstMessageDate,
+  );
 
   /// Inflate or update the chunk-error tile for [chunkIndex]. Called when
   /// the chunk is in error state *and* a `chunkErrorBuilder` was supplied.
@@ -607,6 +615,9 @@ class RenderChatScrollView extends RenderBox {
 
   /// Calendar date shown in the floating header, if any.
   DateTime? get debugHeaderDate => _floatingHeaderController.headerDate;
+
+  /// Debug-only: group bucket the floating header was last built for.
+  Object? get debugHeaderBucket => _floatingHeaderController.headerBucket;
 
   /// Message id currently receiving the post-navigation highlight tint.
   int? get debugHighlightTargetId => _animator.highlightTargetId;
@@ -1203,7 +1214,7 @@ class RenderChatScrollView extends RenderBox {
         childManager!.removeChunkErrors(staleErrorChunks);
       }
       if (_floatingHeader != null) {
-        childManager!.buildFloatingHeader(null);
+        childManager!.buildFloatingHeader(null, null);
       }
       if (_overlayKind != kind) {
         childManager!.buildOverlay(kind);
@@ -1498,7 +1509,11 @@ class RenderChatScrollView extends RenderBox {
   RenderBox? _buildMessage(int id, BoxConstraints cc) {
     final bucket = _bucketOf(id);
     final startsDay = _startsDay(id, bucket);
-    final child = childManager!.buildChild(id, startsNewDay: startsDay);
+    final child = childManager!.buildChild(
+      id,
+      startsNewDay: startsDay,
+      groupBucket: bucket,
+    );
     if (child == null) return null;
     child.layout(cc, parentUsesSize: true);
     _touchChunk(id);
@@ -1912,9 +1927,11 @@ class RenderChatScrollView extends RenderBox {
     );
 
     if (result.needsRebuild) {
-      final date = result.buildDate;
       _invokeChildManagerLayout(() {
-        childManager!.buildFloatingHeader(date);
+        childManager!.buildFloatingHeader(
+          result.bucket,
+          result.firstMessageDate,
+        );
       });
     }
 

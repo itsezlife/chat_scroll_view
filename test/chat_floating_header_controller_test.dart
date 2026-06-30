@@ -41,7 +41,7 @@ void main() {
         createdAtOf: (_) => day,
       );
       expect(first.needsRebuild, isTrue);
-      expect(first.buildDate, day);
+      expect(first.firstMessageDate, day);
       expect(controller.headerBucket, 'a');
 
       final second = controller.evaluateLayoutRebuild(
@@ -77,7 +77,7 @@ void main() {
         createdAtOf: (_) => DateTime(2026),
       );
       expect(result.needsRebuild, isTrue);
-      expect(result.buildDate, isNull);
+      expect(result.firstMessageDate, isNull);
       expect(controller.headerBucket, isNull);
     });
   });

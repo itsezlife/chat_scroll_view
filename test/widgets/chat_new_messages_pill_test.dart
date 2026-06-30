@@ -337,7 +337,7 @@ class _DemoPillScaffoldState extends State<_DemoPillScaffold> {
                 cacheExtent: widget.cacheExtent,
                 bottomPadding: _bottomInset,
                 dateSeparatorBuilder: widget.useDemoMessages
-                    ? (context, date) => DateSeparator(date: date)
+                    ? (context, bucket, date) => DateSeparator(date: date)
                     : null,
                 messageBuilder: widget.useDemoMessages
                     ? buildDemoMessage

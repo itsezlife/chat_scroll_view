@@ -101,10 +101,14 @@ class ChatFloatingHeaderController {
     return (bucket: null, id: null);
   }
 
-  /// Whether the header widget must rebuild and which date to pass to the
-  /// element-side builder. Updates [headerBucket] / [headerDate] when rebuild
-  /// is needed.
-  ({bool needsRebuild, DateTime? buildDate}) evaluateLayoutRebuild({
+  /// Whether the header widget must rebuild and which bucket/date to pass to
+  /// the element-side builder. Updates [headerBucket] / [headerDate] when
+  /// rebuild is needed.
+  ({
+    bool needsRebuild,
+    Object? bucket,
+    DateTime? firstMessageDate,
+  }) evaluateLayoutRebuild({
     required TopDayScan scan,
     required Object Function(IChatMessage)? groupBy,
     required DateTime? Function(int messageId) createdAtOf,
@@ -116,9 +120,17 @@ class ChatFloatingHeaderController {
       headerDate = (targetBucket == null || scan.id == null)
           ? null
           : createdAtOf(scan.id!);
-      return (needsRebuild: true, buildDate: headerDate);
+      return (
+        needsRebuild: true,
+        bucket: targetBucket,
+        firstMessageDate: headerDate,
+      );
     }
-    return (needsRebuild: false, buildDate: headerDate);
+    return (
+      needsRebuild: false,
+      bucket: headerBucket,
+      firstMessageDate: headerDate,
+    );
   }
 
   /// During a Tier-1 scroll: report whether the topmost day changed — the
