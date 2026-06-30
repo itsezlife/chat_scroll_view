@@ -175,7 +175,7 @@ class _SelectableMessageState extends State<SelectableMessage>
             ),
           ),
         Row(
-          crossAxisAlignment: CrossAxisAlignment.center,
+          crossAxisAlignment: CrossAxisAlignment.end,
           children: <Widget>[
             // Checkbox gutter: grows 0 → _kSlotWidth, pushing the content
             // right. ClipRect hides the checkbox until the gutter opens.
@@ -183,7 +183,10 @@ class _SelectableMessageState extends State<SelectableMessage>
               width: _kSlotWidth * m,
               child: ClipRect(
                 child: Center(
-                  child: _SelectionCheck(mode: m, select: s, accent: accent),
+                  child: Padding(
+                    padding: const EdgeInsets.only(bottom: 6),
+                    child: _SelectionCheck(mode: m, select: s, accent: accent),
+                  ),
                 ),
               ),
             ),
