@@ -5,6 +5,7 @@ import 'dart:collection';
 
 import 'package:chatscrollview/src/chat_scroll/chat_chunk_fetch_scheduler.dart';
 import 'package:chatscrollview/src/chat_scroll/chat_data_source.dart';
+import 'package:chatscrollview/src/chat_scroll/chat_floating_header_controller.dart';
 import 'package:chatscrollview/src/chat_scroll/chat_scroll_chunk.dart';
 import 'package:chatscrollview/src/chat_scroll/chat_scroll_common.dart';
 import 'package:chatscrollview/src/chat_scroll/chat_scroll_controller.dart';
@@ -174,9 +175,7 @@ class RenderChatScrollView extends RenderBox implements ChatScrollAnimator {
     _wasAtTailLastLayout = false;
     _lastSeenNewestId = null;
     _userPreemptedTailSettle = false;
-    _headerBucket = null;
-    _headerDate = null;
-    _headerDirty = true;
+    _floatingHeaderController.resetOnDataSourceChange();
     _chunkFetchScheduler.resetLayoutRange();
     if (attached) {
       _dataSource
@@ -404,15 +403,6 @@ class RenderChatScrollView extends RenderBox implements ChatScrollAnimator {
   double _scrollVelocity = 0;
   static const double _leadFrames = 4;
 
-  /// Floating-header height assumed for the inline-divider fade before the
-  /// real header has been laid out (first frame only).
-  static const double _kHeaderFallbackHeight = 32;
-
-  /// Travel distance over which an inline date separator fades in / out near
-  /// the floating header — short, so it reaches full opacity almost as soon as
-  /// it clears the header.
-  static const double _kDividerFadeBand = 20;
-
   // --- Ticker / scroll physics ----------------------------------------------
 
   Ticker? _ticker;
@@ -432,6 +422,12 @@ class RenderChatScrollView extends RenderBox implements ChatScrollAnimator {
         anchorChunkIndex: () =>
             ChatScrollChunk.chunkOf(_controller.anchorMessageId),
       );
+
+  /// Floating day-header state, scan, and divider fade math —
+  /// [ChatFloatingHeaderController]. The render object owns the header
+  /// [RenderBox] and calls `buildFloatingHeader` during layout.
+  final ChatFloatingHeaderController _floatingHeaderController =
+      ChatFloatingHeaderController();
 
   late final ChatScrollPhysics _physics = ChatScrollPhysics(
     overscrollOnSide: _overscrollOnSide,
@@ -565,21 +561,10 @@ class RenderChatScrollView extends RenderBox implements ChatScrollAnimator {
     if (value != null) adoptChild(value);
   }
 
-  /// Group bucket the floating header was last built for; `null` = none.
-  /// The header is rebuilt only when the topmost visible group changes.
-  Object? _headerBucket;
-
-  /// Date the header currently shows — for debugging / introspection.
-  DateTime? _headerDate;
-
-  /// Set when the header must rebuild regardless of the day (its builder
-  /// reference changed). Consumed by the next [performLayout].
-  bool _headerDirty = false;
-
   /// Force the floating header to rebuild on the next layout — used when its
   /// builder reference changes, which the day-bucket gate cannot detect.
   void invalidateFloatingHeader() {
-    _headerDirty = true;
+    _floatingHeaderController.invalidate();
     markNeedsLayout();
   }
 
@@ -633,7 +618,7 @@ class RenderChatScrollView extends RenderBox implements ChatScrollAnimator {
       _floatingHeader == null ? null : _parentData(_floatingHeader!).offset;
 
   /// Calendar date shown in the floating header, if any.
-  DateTime? get debugHeaderDate => _headerDate;
+  DateTime? get debugHeaderDate => _floatingHeaderController.headerDate;
 
   /// Message id currently receiving the post-navigation highlight tint.
   int? get debugHighlightTargetId => _highlightTargetId;
@@ -1216,9 +1201,7 @@ class RenderChatScrollView extends RenderBox implements ChatScrollAnimator {
       _parentData(overlay).offset = 0.0;
     }
 
-    _headerBucket = null;
-    _headerDate = null;
-    _headerDirty = false;
+    _floatingHeaderController.clearForOverlay();
     _scrollVelocity = 0.0;
     _bottomPaddingDirty = false;
     _repinBottomForPadding = false;
@@ -1881,57 +1864,39 @@ class RenderChatScrollView extends RenderBox implements ChatScrollAnimator {
   /// pure parent-data writes, so this stays on the Tier-1 path.
   void _setOffset(RenderBox child, double offset) {
     final pd = _parentData(child)..offset = offset;
-    if (pd.startsDay) pd.dividerOpacity = _dividerOpacityFor(offset);
-  }
-
-  /// Height of the floating header — its laid-out size, or a fallback before
-  /// it has first laid out.
-  double get _floatingHeaderHeight {
-    final header = _floatingHeader;
-    return (header != null && header.hasSize)
-        ? header.size.height
-        : _kHeaderFallbackHeight;
-  }
-
-  /// Fade opacity for an inline date separator whose top edge sits at
-  /// viewport-Y [topY]. Reaches full as soon as the separator clears the
-  /// floating header's bottom edge, fading over a short [_kDividerFadeBand] as
-  /// it rises into the header's zone — so the two never both show.
-  double _dividerOpacityFor(double topY) {
-    final fadeEnd = _topPad + _floatingHeaderHeight;
-    return ((topY - fadeEnd) / _kDividerFadeBand + 1.0).clamp(0.0, 1.0);
-  }
-
-  /// The topmost visible group — the bucket + message id of the first child
-  /// crossing the top edge. O(visible children) of pure parent-data reads.
-  ({Object? bucket, int? id}) _scanTopDay() {
-    final topEdge = _topPad;
-    final viewportHeight = size.height;
-    for (final entry in _children.entries) {
-      final child = entry.value;
-      final pd = _parentData(child);
-      if (pd.offset + child.size.height <= topEdge) continue; // above the top
-      if (pd.offset >= viewportHeight) break; // below the viewport
-      if (pd.dayBucket != null) return (bucket: pd.dayBucket, id: entry.key);
+    if (pd.startsDay) {
+      pd.dividerOpacity = _floatingHeaderController.dividerOpacityFor(
+        topY: offset,
+        topPad: _topPad,
+        floatingHeaderHeight: _floatingHeaderController.floatingHeaderHeight(
+          _floatingHeader,
+        ),
+      );
     }
-    return (bucket: null, id: null);
   }
+
+  TopDayScan _scanTopDay() => _floatingHeaderController.scanTopDay(
+    children: _children.entries,
+    topPad: _topPad,
+    viewportHeight: size.height,
+    offsetOf: (child) => _parentData(child).offset,
+    dayBucketOf: (child) => _parentData(child).dayBucket,
+    heightOf: (child) => child.size.height,
+  );
 
   /// Rebuild (only on a group change), lay out, and pin the floating header.
-  /// Called from [performLayout].
+  /// Called from [performLayout]. Widget inflation stays in the render object
+  /// via [invokeLayoutCallback]; bucket/date logic is on the controller.
   void _updateFloatingHeader() {
     final scan = _scanTopDay();
-    final targetBucket = _groupBy == null ? null : scan.bucket;
+    final result = _floatingHeaderController.evaluateLayoutRebuild(
+      scan: scan,
+      groupBy: _groupBy,
+      createdAtOf: (id) => _dataSource.getMessage(id)?.createdAt,
+    );
 
-    // Rebuild the header widget only when the group it shows changes (or its
-    // builder changed). Building during layout is legal inside a callback.
-    if (targetBucket != _headerBucket || _headerDirty) {
-      _headerBucket = targetBucket;
-      _headerDirty = false;
-      _headerDate = (targetBucket == null || scan.id == null)
-          ? null
-          : _dataSource.getMessage(scan.id!)?.createdAt;
-      final date = _headerDate;
+    if (result.needsRebuild) {
+      final date = result.buildDate;
       invokeLayoutCallback<BoxConstraints>((_) {
         childManager!.buildFloatingHeader(date);
       });
@@ -1952,16 +1917,22 @@ class RenderChatScrollView extends RenderBox implements ChatScrollAnimator {
     if (_floatingHeader == null && _groupBy == null) return false;
     final scan = _scanTopDay();
     _placeFloatingHeader();
-    final targetBucket = _groupBy == null ? null : scan.bucket;
-    return targetBucket != _headerBucket;
+    return _floatingHeaderController.tickForDayChange(
+      scan: scan,
+      groupBy: _groupBy,
+      hasFloatingHeader: _floatingHeader != null,
+    );
   }
 
-  /// Pin the floating header just below the top inset. It never moves with the
-  /// scroll — inline separators fade out before they reach it, so there is
-  /// nothing to push it.
+  /// Pin the floating header just below the top inset — see
+  /// [ChatFloatingHeaderController.placeHeaderOffset].
   void _placeFloatingHeader() {
     final header = _floatingHeader;
-    if (header != null) _parentData(header).offset = _topPad;
+    if (header != null) {
+      _parentData(header).offset = _floatingHeaderController.placeHeaderOffset(
+        topPad: _topPad,
+      );
+    }
   }
 
   // --- Scroll ----------------------------------------------------------------
