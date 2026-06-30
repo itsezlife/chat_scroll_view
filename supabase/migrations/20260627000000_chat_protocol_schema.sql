@@ -111,6 +111,40 @@ create table if not exists public.chat_read_state (
 create index if not exists chat_read_state_lookup_idx
   on public.chat_read_state (chat_id, user_id);
 
+-- sync_chat_read_state_on_message_delete — retreat cursor when read message row is removed.
+create or replace function public.sync_chat_read_state_on_message_delete()
+returns trigger
+language plpgsql
+as $$
+declare
+  prev_id int4;
+begin
+  select max(m.id) into prev_id
+  from public.messages m
+  where m.chat_id = old.chat_id
+    and m.id < old.id;
+
+  update public.chat_read_state crs
+  set
+    last_read_message_id = prev_id,
+    updated_at = now()
+  where crs.chat_id = old.chat_id
+    and crs.last_read_message_id = old.id;
+
+  return old;
+end;
+$$;
+
+comment on function public.sync_chat_read_state_on_message_delete() is
+  'AFTER DELETE on messages: when last_read_message_id matches removed row, walk to previous surviving id (or null).';
+
+drop trigger if exists messages_sync_chat_read_state_on_delete on public.messages;
+
+create trigger messages_sync_chat_read_state_on_delete
+  after delete on public.messages
+  for each row
+  execute function public.sync_chat_read_state_on_message_delete();
+
 comment on table public.users is
   'User profile storage for UserEntry JSON (id, flags, profile fields, timestamps).';
 comment on column public.users.id is
@@ -185,7 +219,11 @@ comment on column public.chat_read_state.last_read_message_id is
 comment on column public.chat_read_state.updated_at is
   'Last update; JSON field updated_at as Unix seconds.';
 
--- Realtime: broadcast INSERT on messages
+-- Realtime: broadcast INSERT/UPDATE/DELETE on messages.
+-- FULL replica identity so DELETE (and UPDATE) payloads include the old row
+-- (chat_id, id, …) — required for clients to learn which id was removed.
+alter table public.messages replica identity full;
+
 alter publication supabase_realtime add table public.messages;
 
 -- RLS (v1 anon demo chat)

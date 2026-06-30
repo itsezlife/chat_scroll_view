@@ -4,7 +4,7 @@ import 'package:chatscrollview/src/chat_scroll/chat_data_source.dart';
 import 'package:chatscrollview/src/chat_scroll/chat_scroll_chunk.dart';
 import 'package:flutter/scheduler.dart';
 
-/// Coordinates lazy chunk fetching, scroll-debounced polling, jump-fetch
+/// Schedules lazy chunk fetching, scroll-debounced polling, jump-fetch
 /// dispatch, and LRU chunk eviction for [RenderChatScrollView].
 ///
 /// The render object measures the laid-out chunk range from built children
@@ -12,13 +12,13 @@ import 'package:flutter/scheduler.dart';
 /// `performLayout`. Scroll activity timestamps and jump navigation are fed
 /// through [markScrollActive] and [onJump]. Attach / detach guard deferred
 /// dispatches so a detaching viewport does not touch a stale data source.
-class ChatFetchCoordinator {
-  /// Creates a fetch coordinator bound to [dataSource].
+class ChatChunkFetchScheduler {
+  /// Creates a chunk fetch scheduler bound to [dataSource].
   ///
   /// [requestRange] is typically `dataSource.requestChunks`. [anchorChunkIndex]
   /// supplies the chunk index of the controller anchor for LRU eviction
   /// (the anchor chunk is never evicted).
-  ChatFetchCoordinator({
+  ChatChunkFetchScheduler({
     required ChatDataSource dataSource,
     required void Function(int minChunk, int maxChunk) requestRange,
     required int Function() anchorChunkIndex,
@@ -233,7 +233,7 @@ class ChatFetchCoordinator {
   /// `markNeedsLayout`, which throws the "RenderObject mutated in its own
   /// performLayout" assert. Deferring to the next frame boundary is enough.
   ///
-  /// **Post-frame-only dispatch (PR-1B):** Previously used both
+  /// **Post-frame-only dispatch:** Previously used both
   /// `scheduleMicrotask` and `addPostFrameCallback` under heavy frame churn.
   /// This extraction consolidates to a single `addPostFrameCallback` that
   /// reads the freshest [_layoutMinChunk]/[_layoutMaxChunk]. Reinstate a

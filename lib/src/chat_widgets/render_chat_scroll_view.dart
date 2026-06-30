@@ -3,13 +3,14 @@
 import 'dart:async';
 import 'dart:collection';
 
+import 'package:chatscrollview/src/chat_scroll/chat_chunk_fetch_scheduler.dart';
 import 'package:chatscrollview/src/chat_scroll/chat_data_source.dart';
-import 'package:chatscrollview/src/chat_scroll/chat_fetch_coordinator.dart';
 import 'package:chatscrollview/src/chat_scroll/chat_scroll_chunk.dart';
 import 'package:chatscrollview/src/chat_scroll/chat_scroll_common.dart';
 import 'package:chatscrollview/src/chat_scroll/chat_scroll_controller.dart';
 import 'package:chatscrollview/src/chat_scroll/chat_scroll_events.dart';
 import 'package:chatscrollview/src/chat_scroll/chat_scroll_physics.dart';
+import 'package:chatscrollview/src/chat_widgets/chat_data_source_ext.dart';
 import 'package:chatscrollview/src/chat_widgets/chat_scrollbar.dart';
 import 'package:flutter/animation.dart' show Curve, Curves;
 import 'package:flutter/foundation.dart' show ValueListenable;
@@ -176,7 +177,7 @@ class RenderChatScrollView extends RenderBox implements ChatScrollAnimator {
     _headerBucket = null;
     _headerDate = null;
     _headerDirty = true;
-    _fetchCoordinator.resetLayoutRange();
+    _chunkFetchScheduler.resetLayoutRange();
     if (attached) {
       _dataSource
         ..addDataListener(_onDataChanged)
@@ -422,14 +423,15 @@ class RenderChatScrollView extends RenderBox implements ChatScrollAnimator {
   /// [_overscrollOnSide] — [ChatScrollPhysics] owns only the simulation state.
   ///
   /// Chunk fetch poll, jump-fetch dispatch, and LRU eviction are owned by
-  /// [_fetchCoordinator]; the render object publishes the laid-out chunk
+  /// [_chunkFetchScheduler]; the render object publishes the laid-out chunk
   /// range at the end of `performLayout`.
-  late final ChatFetchCoordinator _fetchCoordinator = ChatFetchCoordinator(
-    dataSource: _dataSource,
-    requestRange: _dataSource.requestChunks,
-    anchorChunkIndex: () =>
-        ChatScrollChunk.chunkOf(_controller.anchorMessageId),
-  );
+  late final ChatChunkFetchScheduler _chunkFetchScheduler =
+      ChatChunkFetchScheduler(
+        dataSource: _dataSource,
+        requestRange: _dataSource.requestChunks,
+        anchorChunkIndex: () =>
+            ChatScrollChunk.chunkOf(_controller.anchorMessageId),
+      );
 
   late final ChatScrollPhysics _physics = ChatScrollPhysics(
     overscrollOnSide: _overscrollOnSide,
@@ -525,7 +527,6 @@ class RenderChatScrollView extends RenderBox implements ChatScrollAnimator {
 
   // --- Fetch poll ------------------------------------------------------------
 
-
   // --- Scrollbar -------------------------------------------------------------
 
   final ChatScrollbar _scrollbar = ChatScrollbar();
@@ -590,6 +591,7 @@ class RenderChatScrollView extends RenderBox implements ChatScrollAnimator {
   // --- Debug instrumentation (zero-cost in release via assert) --------------
 
   final Stopwatch _debugSw = Stopwatch();
+
   /// Wall-clock duration of the most recent `performLayout` (debug builds only).
   Duration debugLastLayoutDuration = Duration.zero;
 
@@ -612,10 +614,10 @@ class RenderChatScrollView extends RenderBox implements ChatScrollAnimator {
   int get debugChunkCount => _dataSource.chunks.length;
 
   /// Lowest chunk index included in the last layout fan-out.
-  int get debugLayoutMinChunk => _fetchCoordinator.layoutMinChunk;
+  int get debugLayoutMinChunk => _chunkFetchScheduler.layoutMinChunk;
 
   /// Highest chunk index included in the last layout fan-out.
-  int get debugLayoutMaxChunk => _fetchCoordinator.layoutMaxChunk;
+  int get debugLayoutMaxChunk => _chunkFetchScheduler.layoutMaxChunk;
 
   /// Smallest message id with a built child, or `null` when empty.
   int? get debugFirstId => _children.isEmpty ? null : _children.firstKey();
@@ -705,7 +707,7 @@ class RenderChatScrollView extends RenderBox implements ChatScrollAnimator {
   @override
   void attach(PipelineOwner owner) {
     super.attach(owner);
-    _fetchCoordinator.onAttach();
+    _chunkFetchScheduler.onAttach();
     for (final child in _children.values) {
       child.attach(owner);
     }
@@ -740,7 +742,7 @@ class RenderChatScrollView extends RenderBox implements ChatScrollAnimator {
     }
     if (_controller.anchorMessageId != newest) return;
     _markPinTailOnJumpIfNeeded(newest);
-    _fetchCoordinator.queueJumpFetch();
+    _chunkFetchScheduler.queueJumpFetch();
   }
 
   /// Build a new drag recognizer. `onCancel` is intentionally NOT wired:
@@ -764,7 +766,7 @@ class RenderChatScrollView extends RenderBox implements ChatScrollAnimator {
     _flingCancelPointer = null;
     _ticker?.dispose();
     _ticker = null;
-    _fetchCoordinator.onDetach();
+    _chunkFetchScheduler.onDetach();
     _pinTailOnJump = false;
     _pendingTailPinUntilSettled = false;
     _userPreemptedTailSettle = false;
@@ -973,8 +975,8 @@ class RenderChatScrollView extends RenderBox implements ChatScrollAnimator {
     // running an invisible fade against the old slot — drop it.
     _clearHighlight();
     _cancelBounceback();
-    // Poll debounce + jump-fetch safety net — see [ChatFetchCoordinator.onJump].
-    _fetchCoordinator.onJump();
+    // Poll debounce + jump-fetch safety net — see [ChatChunkFetchScheduler.onJump].
+    _chunkFetchScheduler.onJump();
     markNeedsLayout();
   }
 
@@ -1059,7 +1061,7 @@ class RenderChatScrollView extends RenderBox implements ChatScrollAnimator {
     // child maps until the end-of-layout GC pass — [_renormalizeAnchor] and
     // clamp would read them and fan out across the wrong id span. Drop them
     // before the first fan-out of the jump layout.
-    if (_fetchCoordinator.jumpFetchPending) {
+    if (_chunkFetchScheduler.jumpFetchPending) {
       final staleMessages = _children.keys.toList();
       final staleErrorChunks = _chunkErrors.keys.toList();
       if (staleMessages.isNotEmpty || staleErrorChunks.isNotEmpty) {
@@ -1171,8 +1173,8 @@ class RenderChatScrollView extends RenderBox implements ChatScrollAnimator {
       minChunk = computedMin;
       maxChunk = computedMax;
     }
-    // Fetch poll, LRU eviction, jump-fetch — [ChatFetchCoordinator].
-    _fetchCoordinator.onLayoutComplete(minChunk, maxChunk);
+    // Fetch poll, LRU eviction, jump-fetch — [ChatChunkFetchScheduler].
+    _chunkFetchScheduler.onLayoutComplete(minChunk, maxChunk);
     _updateScrollSemantics();
     _publishControllerState();
     _updateFloatingHeader();
@@ -1245,8 +1247,8 @@ class RenderChatScrollView extends RenderBox implements ChatScrollAnimator {
       _drag = _buildDragRecognizer();
     }
     _ticker?.stop();
-    // Fetch poll + LRU eviction — [ChatFetchCoordinator].
-    _fetchCoordinator.onLayoutCleared();
+    // Fetch poll + LRU eviction — [ChatChunkFetchScheduler].
+    _chunkFetchScheduler.onLayoutCleared();
     _updateScrollSemantics();
     _publishControllerState();
   }
@@ -1336,7 +1338,17 @@ class RenderChatScrollView extends RenderBox implements ChatScrollAnimator {
         id = ChatScrollChunk.firstIdOf(chunkIndex + 1);
         continue;
       }
+      // Skip absent IDs — they are permanently non-existent and contribute
+      // zero height. Use the helper to advance past runs of absent slots in
+      // O(chunk) time rather than O(ID) time.
+      if (_dataSource.statusOf(id).isAbsent) {
+        final bound = newest ?? id;
+        id = _nextNonAbsentIdDown(id + 1, bound);
+        continue;
+      }
       final child = _buildMessage(id, cc);
+      // null means the element declined (host unmounted); treat as a genuine
+      // stop, not an absent skip — it is NOT safe to advance id++ here.
       if (child == null) break;
       _setOffset(child, y);
       built.add(id);
@@ -1360,6 +1372,12 @@ class RenderChatScrollView extends RenderBox implements ChatScrollAnimator {
         id = ChatScrollChunk.firstIdOf(chunkIndex) - 1;
         continue;
       }
+      // Skip absent IDs — permanently non-existent, contribute zero height.
+      if (_dataSource.statusOf(id).isAbsent) {
+        final bound = fanOldest ?? id;
+        id = _nextNonAbsentIdUp(id - 1, bound);
+        continue;
+      }
       final child = _buildMessage(id, cc);
       if (child == null) break;
       y -= child.size.height;
@@ -1367,6 +1385,112 @@ class RenderChatScrollView extends RenderBox implements ChatScrollAnimator {
       built.add(id);
       id--;
     }
+  }
+
+  // ---------------------------------------------------------------------------
+  // Blank-viewport snap helpers
+  // ---------------------------------------------------------------------------
+
+  /// Called once at the end of every `performLayout` pass (after all anchor
+  /// renormalization and boundary clamping). When absent-marking has collapsed
+  /// a large contiguous run of shimmer rows, the anchor can end up below the
+  /// viewport bottom leaving a completely blank visible region.
+  ///
+  /// This method detects that state and snaps the anchor to the viewport
+  /// bottom edge so real content is visible before the first paint.
+  ///
+  /// **Conditions that trigger the snap**:
+  ///   1. Not currently mid-drag or bounceback (same guard as `_clampBoundaries`).
+  ///   2. Anchor's top y-coordinate ≥ `size.height` (anchor is off-screen below).
+  ///   3. No built message chunk is in a loading state — a loading chunk means
+  ///      shimmers will appear once the fetch completes, so no snap is needed.
+  ///
+  /// When all three hold, the anchor is reassigned to
+  // ---------------------------------------------------------------------------
+  // Absent-slot skip helpers
+  //
+  // These helpers advance past runs of absent IDs in O(chunk) time rather
+  // than O(ID) time. The fan-out loops call them when `statusOf(id).isAbsent`
+  // is true — the returned ID is the next one worth attempting to build.
+  //
+  // Both helpers stop on the first non-absent slot, regardless of whether that
+  // slot is actually loaded (present) or merely unloaded (pending/dirty). The
+  // fan-out loop then calls `_buildMessage` on the returned ID as normal; if
+  // the chunk is not yet fetched, `_buildMessage` returns a shimmer tile as
+  // before.
+  //
+  // Absent and present are disjoint per the chunk invariant, so stopping at
+  // the first non-absent slot is correct.
+  // ---------------------------------------------------------------------------
+
+  /// Advances [startId] downward (toward higher IDs) until a non-absent slot
+  /// is found, skipping entire fully-absent chunks in O(1). Returns the first
+  /// non-absent ID ≥ [startId], stopping at [bound] (inclusive).
+  ///
+  /// **Termination guarantee**: when [startId] > [bound] OR the entire range
+  /// [startId, bound] is absent, returns `bound + 1`. The caller's outer
+  /// loop guard (`id <= newest`) will then evaluate `bound + 1 <= newest` and
+  /// exit cleanly. Returning [bound] itself would be wrong: if [bound] is also
+  /// absent, `statusOf(bound).isAbsent` re-enters this helper with the same
+  /// arguments, causing an infinite loop.
+  int _nextNonAbsentIdDown(int startId, int bound) {
+    var id = startId;
+    while (id <= bound) {
+      final chunkIndex = ChatScrollChunk.chunkOf(id);
+      final chunk = _dataSource.chunks[chunkIndex];
+      if (chunk == null) return id; // chunk not loaded; let normal path handle
+      if (chunk.isFullyAbsent) {
+        // Skip the entire chunk in O(1).
+        id = ChatScrollChunk.firstIdOf(chunkIndex + 1);
+        continue;
+      }
+      // Scan from current slot to the end of this chunk.
+      var slot = id - chunk.firstId;
+      while (slot < ChatScrollChunk.kSize) {
+        if (!chunk.isAbsentSlot(slot)) return chunk.firstId + slot;
+        slot++;
+      }
+      // All remaining slots in this chunk are absent; advance to next chunk.
+      id = ChatScrollChunk.firstIdOf(chunkIndex + 1);
+    }
+    // Entire range was absent (or startId > bound). Return bound + 1 so the
+    // outer loop's `id <= newest` guard exits on the very next evaluation.
+    return bound + 1;
+  }
+
+  /// Advances [startId] upward (toward lower IDs) until a non-absent slot is
+  /// found, skipping entire fully-absent chunks in O(1). Returns the first
+  /// non-absent ID ≤ [startId], stopping at [bound] (inclusive, lower limit).
+  ///
+  /// **Termination guarantee**: when [startId] < [bound] OR the entire range
+  /// [bound, startId] is absent, returns `bound - 1`. The caller's outer
+  /// loop guard (`id >= oldest`) will then evaluate `bound - 1 >= oldest` and
+  /// exit cleanly. Returning [bound] itself would be wrong: if [bound] is also
+  /// absent, `statusOf(bound).isAbsent` re-enters this helper with the same
+  /// arguments, causing an infinite loop.
+  int _nextNonAbsentIdUp(int startId, int bound) {
+    var id = startId;
+    while (id >= bound) {
+      final chunkIndex = ChatScrollChunk.chunkOf(id);
+      final chunk = _dataSource.chunks[chunkIndex];
+      if (chunk == null) return id; // chunk not loaded; let normal path handle
+      if (chunk.isFullyAbsent) {
+        // Skip the entire chunk in O(1).
+        id = ChatScrollChunk.firstIdOf(chunkIndex) - 1;
+        continue;
+      }
+      // Scan from current slot downward to the start of this chunk.
+      var slot = id - chunk.firstId;
+      while (slot >= 0) {
+        if (!chunk.isAbsentSlot(slot)) return chunk.firstId + slot;
+        slot--;
+      }
+      // All slots from the start of this chunk are absent; go to previous chunk.
+      id = ChatScrollChunk.firstIdOf(chunkIndex) - 1;
+    }
+    // Entire range was absent (or startId < bound). Return bound - 1 so the
+    // outer loop's `id >= oldest` guard exits on the very next evaluation.
+    return bound - 1;
   }
 
   /// Build, lay out, and tag one message child. Stores its day-grouping info
@@ -1643,6 +1767,15 @@ class RenderChatScrollView extends RenderBox implements ChatScrollAnimator {
       _controller.anchorMessageId,
     );
 
+    // Find the range of built message IDs to bound the absent-skip loops.
+    // See _repositionMessagesOnly for why `break` on null is wrong.
+    var maxBuiltId = _controller.anchorMessageId;
+    var minBuiltId = _controller.anchorMessageId;
+    for (final id in _children.keys) {
+      if (id > maxBuiltId) maxBuiltId = id;
+      if (id < minBuiltId) minBuiltId = id;
+    }
+
     var y = _controller.anchorPixelOffset;
     _setOffset(anchor, y);
 
@@ -1651,7 +1784,8 @@ class RenderChatScrollView extends RenderBox implements ChatScrollAnimator {
     var id = anchorIsError
         ? ChatScrollChunk.firstIdOf(anchorChunkIndex + 1)
         : _controller.anchorMessageId + 1;
-    while (true) {
+    while (id <= maxBuiltId ||
+        _chunkErrors.containsKey(ChatScrollChunk.chunkOf(id))) {
       final ci = ChatScrollChunk.chunkOf(id);
       // At a chunk boundary, a chunk-error tile pre-empts message slots.
       if (id == ChatScrollChunk.firstIdOf(ci)) {
@@ -1663,8 +1797,12 @@ class RenderChatScrollView extends RenderBox implements ChatScrollAnimator {
           continue;
         }
       }
+      if (id > maxBuiltId) break;
       final child = _children[id];
-      if (child == null) break;
+      if (child == null) {
+        id++;
+        continue;
+      } // skip absent / unbuilt IDs
       _setOffset(child, y);
       y += child.size.height;
       id++;
@@ -1675,7 +1813,8 @@ class RenderChatScrollView extends RenderBox implements ChatScrollAnimator {
     id = anchorIsError
         ? ChatScrollChunk.firstIdOf(anchorChunkIndex) - 1
         : _controller.anchorMessageId - 1;
-    while (true) {
+    while (id >= minBuiltId ||
+        _chunkErrors.containsKey(ChatScrollChunk.chunkOf(id))) {
       final ci = ChatScrollChunk.chunkOf(id);
       final lastIdOfChunk = ChatScrollChunk.firstIdOf(ci + 1) - 1;
       if (id == lastIdOfChunk) {
@@ -1687,8 +1826,12 @@ class RenderChatScrollView extends RenderBox implements ChatScrollAnimator {
           continue;
         }
       }
+      if (id < minBuiltId) break;
       final child = _children[id];
-      if (child == null) break;
+      if (child == null) {
+        id--;
+        continue;
+      } // skip absent / unbuilt IDs
       y -= child.size.height;
       _setOffset(child, y);
       id--;
@@ -1699,19 +1842,33 @@ class RenderChatScrollView extends RenderBox implements ChatScrollAnimator {
   /// boundary probe and tree lookup that the general path performs.
   void _repositionMessagesOnly(RenderBox anchor) {
     final anchorId = _controller.anchorMessageId;
+    if (_children.isEmpty) return;
+
+    // Find the actual range of built message IDs so we can skip absent-slot
+    // gaps without stopping prematurely. Absent IDs are never inserted into
+    // `_children`, so iterating by sequential ID would stop at the first
+    // absent slot and leave real messages on the far side of the gap with
+    // stale offsets — producing visual "shifting" on every animation tick.
+    var maxBuiltId = anchorId;
+    var minBuiltId = anchorId;
+    for (final id in _children.keys) {
+      if (id > maxBuiltId) maxBuiltId = id;
+      if (id < minBuiltId) minBuiltId = id;
+    }
+
     var y = _controller.anchorPixelOffset;
     _setOffset(anchor, y);
     y += anchor.size.height;
-    for (var id = anchorId + 1; ; id++) {
+    for (var id = anchorId + 1; id <= maxBuiltId; id++) {
       final child = _children[id];
-      if (child == null) break;
+      if (child == null) continue; // skip absent / unbuilt IDs in the range
       _setOffset(child, y);
       y += child.size.height;
     }
     y = _controller.anchorPixelOffset;
-    for (var id = anchorId - 1; ; id--) {
+    for (var id = anchorId - 1; id >= minBuiltId; id--) {
       final child = _children[id];
-      if (child == null) break;
+      if (child == null) continue; // skip absent / unbuilt IDs in the range
       y -= child.size.height;
       _setOffset(child, y);
     }
@@ -1809,7 +1966,7 @@ class RenderChatScrollView extends RenderBox implements ChatScrollAnimator {
 
   // --- Scroll ----------------------------------------------------------------
 
-  void _markScrollActive() => _fetchCoordinator.markScrollActive();
+  void _markScrollActive() => _chunkFetchScheduler.markScrollActive();
 
   void _ensureTicker() {
     final ticker = _ticker;
@@ -2537,12 +2694,16 @@ class RenderChatScrollView extends RenderBox implements ChatScrollAnimator {
     }
     final topEdge = _topPad;
     final bottomEdge = size.height - _bottomPad;
+    final bandHeight = bottomEdge - topEdge;
     int? firstId;
     int? lastId;
     RenderBox? firstIntersectingChild;
     RenderBox? lastIntersectingChild;
     double? firstChildTop;
     double? lastChildTop;
+    int? firstBuiltId;
+    int? lastBuiltId;
+    var anyRowFillsBand = false;
     for (final entry in _children.entries) {
       final child = entry.value;
       final pd = _parentData(child);
@@ -2550,10 +2711,15 @@ class RenderChatScrollView extends RenderBox implements ChatScrollAnimator {
       final childBottom = childTop + child.size.height;
       if (childBottom <= topEdge) continue;
       if (childTop >= bottomEdge) break;
+      if (bandHeight > 0 && child.size.height >= bandHeight) {
+        anyRowFillsBand = true;
+      }
       firstId ??= entry.key;
+      firstBuiltId ??= entry.key;
       firstIntersectingChild ??= child;
       firstChildTop ??= childTop;
       lastId = entry.key;
+      lastBuiltId = entry.key;
       lastIntersectingChild = child;
       lastChildTop = childTop;
     }
@@ -2589,8 +2755,10 @@ class RenderChatScrollView extends RenderBox implements ChatScrollAnimator {
     }
 
     var firstVisibleFraction = 0.0;
+    var firstRowHeight = 0.0;
     if (firstIntersectingChild != null && firstChildTop != null) {
       final child = firstIntersectingChild;
+      firstRowHeight = child.size.height;
       firstVisibleFraction = _visibleFraction(
         firstChildTop,
         firstChildTop + child.size.height,
@@ -2600,6 +2768,7 @@ class RenderChatScrollView extends RenderBox implements ChatScrollAnimator {
       );
     } else if (chunkIntersectingChild != null && chunkChildTop != null) {
       final child = chunkIntersectingChild;
+      firstRowHeight = child.size.height;
       firstVisibleFraction = _visibleFraction(
         chunkChildTop,
         chunkChildTop + child.size.height,
@@ -2610,8 +2779,10 @@ class RenderChatScrollView extends RenderBox implements ChatScrollAnimator {
     }
 
     var lastVisibleFraction = 0.0;
+    var lastFractionHeight = 0.0;
     if (lastIntersectingChild != null && lastChildTop != null) {
       final child = lastIntersectingChild;
+      lastFractionHeight = child.size.height;
       lastVisibleFraction = _visibleFraction(
         lastChildTop,
         lastChildTop + child.size.height,
@@ -2621,6 +2792,7 @@ class RenderChatScrollView extends RenderBox implements ChatScrollAnimator {
       );
     } else if (chunkIntersectingChild != null && chunkChildTop != null) {
       final child = chunkIntersectingChild;
+      lastFractionHeight = child.size.height;
       lastVisibleFraction = _visibleFraction(
         chunkChildTop,
         chunkChildTop + child.size.height,
@@ -2630,25 +2802,79 @@ class RenderChatScrollView extends RenderBox implements ChatScrollAnimator {
       );
     }
 
-    final current = _controller.visibleRange.value;
     final anchorId = _controller.anchorMessageId;
+    ChatVisibleRow? anchorNextRow;
+    final anchorNextChild = _children[anchorId + 1];
+    if (anchorNextChild != null) {
+      final pd = _parentData(anchorNextChild);
+      final childTop = pd.offset;
+      final childBottom = childTop + anchorNextChild.size.height;
+      // Populated only when anchor+1 is built and intersects the paint band;
+      // anchor id itself comes from [ChatScrollController.anchorMessageId].
+      if (childBottom > topEdge && childTop < bottomEdge) {
+        final anchorNextHeight = anchorNextChild.size.height;
+        anchorNextRow = (
+          id: anchorId + 1,
+          visibleFraction: _visibleFraction(
+            childTop,
+            childBottom,
+            anchorNextChild.size.height,
+            topEdge,
+            bottomEdge,
+          ),
+          height: anchorNextHeight,
+        );
+      }
+    }
+
+    final firstRow = (
+      id: firstBuiltId ?? firstId,
+      visibleFraction: firstVisibleFraction,
+      height: firstRowHeight,
+    );
+    final lastRow = (
+      id: lastBuiltId ?? lastId,
+      visibleFraction: lastVisibleFraction,
+      height: lastFractionHeight,
+    );
+
+    final current = _controller.visibleRange.value;
     if (current != null &&
         current.firstId == firstId &&
         current.lastId == lastId &&
-        current.anchorId == anchorId &&
+        current.anyRowFillsBand == anyRowFillsBand &&
+        current.firstRow.id == firstRow.id &&
+        current.lastRow.id == lastRow.id &&
+        current.anchorNextRow?.id == anchorNextRow?.id &&
+        _fractionsNearEqual(current.paintBandHeight, bandHeight) &&
+        _fractionsNearEqual(current.firstRow.height, firstRow.height) &&
+        _fractionsNearEqual(current.lastRow.height, lastRow.height) &&
         _fractionsNearEqual(
-          current.firstVisibleFraction,
-          firstVisibleFraction,
+          current.anchorNextRow?.height ?? 0,
+          anchorNextRow?.height ?? 0,
         ) &&
-        _fractionsNearEqual(current.lastVisibleFraction, lastVisibleFraction)) {
+        _fractionsNearEqual(
+          current.firstRow.visibleFraction,
+          firstRow.visibleFraction,
+        ) &&
+        _fractionsNearEqual(
+          current.lastRow.visibleFraction,
+          lastRow.visibleFraction,
+        ) &&
+        _fractionsNearEqual(
+          current.anchorNextRow?.visibleFraction ?? 0,
+          anchorNextRow?.visibleFraction ?? 0,
+        )) {
       return;
     }
     _controller.visibleRange = (
       firstId: firstId,
       lastId: lastId,
-      anchorId: anchorId,
-      firstVisibleFraction: firstVisibleFraction,
-      lastVisibleFraction: lastVisibleFraction,
+      paintBandHeight: bandHeight,
+      anyRowFillsBand: anyRowFillsBand,
+      firstRow: firstRow,
+      lastRow: lastRow,
+      anchorNextRow: anchorNextRow,
     );
   }
 
@@ -2877,7 +3103,7 @@ class RenderChatScrollView extends RenderBox implements ChatScrollAnimator {
     _clearHighlight();
     _ticker?.dispose();
     _ticker = null;
-    _fetchCoordinator.dispose();
+    _chunkFetchScheduler.dispose();
     _drag?.dispose();
     _drag = null;
     _clipLayer.layer = null;

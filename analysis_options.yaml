@@ -18,6 +18,12 @@ analyzer:
     # Allow having TODOs in the code
     todo: ignore
 
+    # Ignore rules
+    lines_longer_than_80_chars: ignore
+    no_adjacent_strings_in_list: ignore
+    avoid_setters_without_getters: ignore
+    cascade_invocations: ignore
+
     # Info
     directives_ordering: info
     always_declare_return_types: info
@@ -36,9 +42,6 @@ analyzer:
     avoid_types_as_parameter_names: error
     valid_regexps: error
     always_require_non_null_named_parameters: error
-    lines_longer_than_80_chars: ignore
-    no_adjacent_strings_in_list: ignore
-    avoid_setters_without_getters: ignore
 
 linter:
   rules:

@@ -5,25 +5,48 @@ import 'package:flutter/animation.dart' show Curve, Curves;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/scheduler.dart';
 
+/// Visibility metrics for one built message row intersecting the paint band.
+///
+/// [visibleFraction] is `visible_intersection_height /
+/// min(height, paintBandHeight)`, clamped to `0.0`–`1.0`. When [height] is at
+/// least the parent range's [ChatVisibleRange.paintBandHeight], the fraction
+/// used the band-height denominator — use [visibleRowFillsBand] with that band
+/// height before treating the fraction as share-of-message read.
+typedef ChatVisibleRow = ({
+  int id,
+  double visibleFraction,
+  double height,
+});
+
 /// Visible-range snapshot exposed by [ChatScrollController.visibleRange].
 ///
-/// `firstId`/`lastId` are the inclusive id bounds of children whose rect
+/// [firstId] / [lastId] are inclusive id bounds of children whose rect
 /// intersects the viewport's logical paint area (top inset to bottom inset).
-/// `anchorId` is the message id currently used as the layout origin.
+/// Chunk-error id expansion may widen [lastId] beyond built children.
 ///
-/// `firstVisibleFraction` / `lastVisibleFraction` are the fraction of the
-/// first / last **built** intersecting child's laid-out height that lies
-/// inside that paint band: `visible_intersection_height / min(message_height,
-/// band_height)`, clamped to `0.0`–`1.0`. Tall messages use band height as the
-/// denominator so band-fill reports `1.0`. Chunk-error id expansion may widen
-/// bounds without changing which render box supplies each fraction.
+/// [lastRow] is the built child that owns the tail [ChatVisibleRow.visibleFraction]
+/// — key progressive-read and threshold logic off [lastRow.id], not [lastId]
+/// alone.
+///
+/// Layout anchor: [ChatScrollController.anchorMessageId] (not duplicated here).
+/// Optional [anchorNextRow] describes `anchorMessageId + 1` when built and
+/// intersecting — near-tail unread without equating [firstId] to first unread.
+///
+/// [anyRowFillsBand] is `true` when any built child intersecting the paint band
+/// is at least as tall as the band — tall content is on screen.
 typedef ChatVisibleRange = ({
   int firstId,
   int lastId,
-  int anchorId,
-  double firstVisibleFraction,
-  double lastVisibleFraction,
+  double paintBandHeight,
+  bool anyRowFillsBand,
+  ChatVisibleRow firstRow,
+  ChatVisibleRow lastRow,
+  ChatVisibleRow? anchorNextRow,
 });
+
+/// Whether [rowHeight] used the band-height denominator for a visible fraction.
+bool visibleRowFillsBand(double rowHeight, double paintBandHeight) =>
+    paintBandHeight > 0 && rowHeight >= paintBandHeight;
 
 /// Delegate that performs actual scroll animations on behalf of
 /// [ChatScrollController.animateTo]. Implemented by `RenderChatScrollView`
@@ -81,8 +104,23 @@ class ChatScrollController {
   /// viewport top (default); `0.5` centers it; `1.0` aligns the message
   /// bottom to the bottom inset. Boundary clamping may reduce the effective
   /// alignment when insufficient content exists above or below.
+  ///
+  /// **Absent-target behavior**: if [messageId] is confirmed absent after its
+  /// owning chunk's fetch resolves (see `ChatMessageStatus.absent`), the
+  /// navigation completes without error and the viewport renders no row at
+  /// that position. The anchor is set to [messageId] as requested, but
+  /// because absent slots have zero height the viewport behaves as if the
+  /// nearest non-absent neighbor were the effective anchor. Integrators MUST
+  /// NOT assume the viewport moved to [messageId] — verify via
+  /// `ChatDataSource.statusOf` before navigating, or navigate to the nearest
+  /// known-present ID instead.
   void jumpTo(int messageId, {double alignment = 0.0}) {
     if (_disposed) return;
+    // Absent targets: the anchor id is updated below, but absent slots render
+    // at zero height — the viewport does not scroll to a visible row at
+    // [messageId]. Fan-out and clamping behave as if the nearest non-absent
+    // neighbor were the effective position. Check statusOf(messageId).isAbsent
+    // before navigating if the user must see a specific message. ADR 002.
     _anchorMessageId = messageId;
     _anchorPixelOffset = 0.0;
     _setNavigationAlignment(messageId, alignment);
@@ -162,6 +200,10 @@ class ChatScrollController {
   /// the motion alone is enough context. Use [jumpTo] when both animation and
   /// highlight are unwanted. A [ChatScrollView] with `highlightDuration:
   /// Duration.zero` disables highlights globally regardless of this flag.
+  ///
+  /// **Absent-target behavior**: same contract as [jumpTo] — if [messageId]
+  /// is confirmed absent, the navigation completes without error but the
+  /// viewport will not visually move to the target. See [jumpTo] for details.
   Future<void> animateTo(
     int messageId, {
     Duration duration = const Duration(milliseconds: 300),
@@ -170,6 +212,9 @@ class ChatScrollController {
     bool highlight = true,
   }) async {
     if (_disposed) return;
+    // Same absent-target contract as [jumpTo]: no visible row at [messageId]
+    // when statusOf reports absent — animation may run but content does not
+    // land on a deleted id. ADR 002 "Navigation to absent IDs".
     final animator = _animator;
     _setNavigationAlignment(messageId, alignment);
     if (animator == null) {
@@ -228,8 +273,9 @@ class ChatScrollController {
 
   // --- Tail tracking -------------------------------------------------------
 
-  final _DeferredValueNotifier<bool> _isAtTail =
-      _DeferredValueNotifier<bool>(false);
+  final _DeferredValueNotifier<bool> _isAtTail = _DeferredValueNotifier<bool>(
+    false,
+  );
 
   /// Whether the *newest* known message is currently in the paint area and
   /// the data source has reported [ChatDataSource.reachedNewest]. `false`
@@ -370,6 +416,7 @@ class ChatScrollController {
     if (_disposed) return;
     _flingCancelSuppressesLongPress = value;
   }
+
   bool _flingCancelSuppressesLongPress = false;
 
   /// Drop all listeners. Call from the owning widget's `dispose` so a stray
