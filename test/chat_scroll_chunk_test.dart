@@ -142,6 +142,75 @@ void main() {
     test('isFullyAbsent is false when only some slots are marked', () {
       chunk.markAbsentSlot(0);
       expect(chunk.isFullyAbsent, isFalse);
+      expect(chunk.absentSlotCount, 1);
+    });
+
+    test('isFullyAbsent becomes true only after all 64 slots are marked', () {
+      for (var slot = 0; slot < ChatScrollChunk.kSize - 1; slot++) {
+        chunk.markAbsentSlot(slot);
+      }
+      expect(chunk.isFullyAbsent, isFalse);
+      expect(chunk.absentSlotCount, ChatScrollChunk.kSize - 1);
+
+      chunk.markAbsentSlot(ChatScrollChunk.kSize - 1);
+      expect(chunk.isFullyAbsent, isTrue);
+      expect(chunk.absentSlotCount, ChatScrollChunk.kSize);
+    });
+
+    test('clearAbsentSlot on a fully absent chunk clears isFullyAbsent', () {
+      for (var slot = 0; slot < ChatScrollChunk.kSize; slot++) {
+        chunk.markAbsentSlot(slot);
+      }
+      expect(chunk.isFullyAbsent, isTrue);
+
+      chunk.clearAbsentSlot(0);
+      expect(chunk.isFullyAbsent, isFalse);
+      expect(chunk.absentSlotCount, ChatScrollChunk.kSize - 1);
+      expect(chunk.isAbsentSlot(0), isFalse);
+    });
+
+    test('clearAbsentMask on a fully absent chunk resets isFullyAbsent', () {
+      for (var slot = 0; slot < ChatScrollChunk.kSize; slot++) {
+        chunk.markAbsentSlot(slot);
+      }
+      chunk.clearAbsentMask();
+      expect(chunk.isFullyAbsent, isFalse);
+      expect(chunk.absentSlotCount, 0);
+    });
+
+    test('contiguous partial absence leaves isFullyAbsent false', () {
+      for (var slot = 10; slot <= 20; slot++) {
+        chunk.markAbsentSlot(slot);
+      }
+      expect(chunk.isFullyAbsent, isFalse);
+      expect(chunk.absentSlotCount, 11);
+      for (var slot = 0; slot < 10; slot++) {
+        expect(chunk.isAbsentSlot(slot), isFalse);
+      }
+      for (var slot = 21; slot < ChatScrollChunk.kSize; slot++) {
+        expect(chunk.isAbsentSlot(slot), isFalse);
+      }
+    });
+
+    test(
+      'markAbsentSlot on a null unmarked slot succeeds and sets the bit',
+      () {
+        expect(chunk.messages[7], isNull);
+        expect(chunk.isAbsentSlot(7), isFalse);
+
+        chunk.markAbsentSlot(7);
+
+        expect(chunk.isAbsentSlot(7), isTrue);
+        expect(chunk.messages[7], isNull);
+        expect(chunk.isFullyAbsent, isFalse);
+      },
+    );
+
+    test('markAbsentSlot is idempotent when the slot is already absent', () {
+      chunk.markAbsentSlot(4);
+      chunk.markAbsentSlot(4);
+      expect(chunk.isAbsentSlot(4), isTrue);
+      expect(chunk.absentSlotCount, 1);
     });
 
     test(
@@ -217,10 +286,10 @@ void main() {
   });
 
   // ---------------------------------------------------------------------------
-  // Corrected absent-marking scope (T023)
+  // Absent-marking scope after fetchRange
   // ---------------------------------------------------------------------------
 
-  group('ChatDataSource._executeFetch absent-marking scope', () {
+  group('ChatDataSource absent-marking after fetchRange', () {
     // Verify that ALL null slots in fetched chunks are marked absent
     // unconditionally — no [oldestKnownId, newestKnownId] guard.
 
@@ -244,14 +313,17 @@ void main() {
         final ci = ChatScrollChunk.chunkOf(64);
         final chunk = source.chunks[ci];
         expect(chunk, isNotNull, reason: 'chunk must be created by the fetch');
+        final loaded = chunk!;
         for (var slot = 0; slot < ChatScrollChunk.kSize; slot++) {
           expect(
-            chunk!.isAbsentSlot(slot),
+            loaded.isAbsentSlot(slot),
             isTrue,
             reason: 'slot $slot (id ${64 + slot}) must be absent after '
                 'empty fetch even though 64 < oldestKnownId (10001)',
           );
         }
+        expect(loaded.isFullyAbsent, isTrue);
+        expect(loaded.absentSlotCount, ChatScrollChunk.kSize);
       },
     );
 
@@ -280,10 +352,33 @@ void main() {
         }
       },
     );
+
+    test(
+      'sparse fetchRange result marks only unreturned slots absent',
+      () async {
+        final source = _RecordingDataSource(fetchResult: []);
+        source.simulateFetch(
+          fromId: 0,
+          toId: 63,
+          result: [_msg(5), _msg(10)],
+        );
+        await Future<void>.delayed(Duration.zero);
+
+        final chunk = source.chunks[ChatScrollChunk.chunkOf(0)]!;
+        expect(chunk.messages[5], isNotNull);
+        expect(chunk.messages[10], isNotNull);
+        expect(chunk.isAbsentSlot(5), isFalse);
+        expect(chunk.isAbsentSlot(10), isFalse);
+        expect(chunk.isAbsentSlot(0), isTrue);
+        expect(chunk.isAbsentSlot(63), isTrue);
+        expect(chunk.isFullyAbsent, isFalse);
+        expect(chunk.absentSlotCount, ChatScrollChunk.kSize - 2);
+      },
+    );
   });
 
   // ---------------------------------------------------------------------------
-  // upsertMessage / upsertMessages clear the absent bit (T025)
+  // upsertMessage clears absent bit on realtime insert
   // ---------------------------------------------------------------------------
 
   group('upsertMessage clears absent bit', () {

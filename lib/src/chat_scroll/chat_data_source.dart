@@ -32,6 +32,12 @@ abstract class ChatDataSource {
 
   /// Load messages whose IDs fall in `[fromId, toId]` (both inclusive).
   ///
+  /// The subclass returns a **sparse** list containing only messages that
+  /// exist — not a dense array with `null` placeholders for absent IDs.
+  /// The framework's post-fetch absent-marking pass walks every null slot in
+  /// each fetched chunk and marks it permanently absent. Integrators MUST NOT
+  /// embed absent slots in the returned list; omit missing IDs entirely.
+  ///
   /// **Full-chunk boundary invariant** (caller's guarantee):
   /// `fromId` MUST equal `ChatScrollChunk.firstIdOf(chunkIndex)` and `toId`
   /// MUST equal `chunk.lastId` for the fetched chunk range. Partial-range
@@ -534,6 +540,12 @@ abstract class ChatDataSource {
 
         // Upsert returned messages into their slots.
         for (final msg in messages) {
+          assert(
+            msg.id >= fromId && msg.id <= toId,
+            'fetchRange returned message id ${msg.id} outside the requested '
+            'range [$fromId, $toId]. Subclasses must only return messages '
+            'whose ids fall within the requested chunk-aligned range.',
+          );
           final ci = ChatScrollChunk.chunkOf(msg.id);
           final chunk = _chunks.putIfAbsent(
             ci,

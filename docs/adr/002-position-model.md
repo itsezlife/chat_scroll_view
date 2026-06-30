@@ -60,6 +60,61 @@ Integrators MUST satisfy all of the following:
 | Single global auto-increment across all chats in one view | ❌ Unsupported |
 | Non-monotonic or random IDs per chat | ❌ Unsupported |
 
+## Non-Compliant Backends — Detection and Fallback
+
+This library does not silently adapt to backends that violate the mandatory
+constraints above. Integrators should detect incompatibility early and choose
+one of the following paths.
+
+### Per-chat sequential IDs violated (global or random IDs)
+
+**Symptom**: Scrollbar progress, fan-out, and absent-marking behave
+unpredictably — large phantom gaps, permanent skeletons, or runaway fetch
+loops.
+
+**Fallback**: Migrate to per-conversation ID allocation before integrating
+`ChatScrollView`. There is no in-library cursor or sparse-index fallback for
+this model; a different scroll architecture is required.
+
+### Full-chunk `fetchRange` invariant violated
+
+**Symptom**: Partial-range requests (e.g. `fetchRange(70, 90)` inside chunk 1
+instead of `64..127`) cause null slots *outside* the requested sub-range to be
+incorrectly marked absent, hiding messages that were never fetched.
+
+**Detection**: In debug builds, `ChatDataSource` asserts that internally
+dispatched `fromId` values align to chunk boundaries. Subclasses that return
+message IDs outside `[fromId, toId]` also trip a debug assertion on upsert.
+
+**Fallback**:
+
+1. **Preferred** — Fix the integrator to always request full chunk boundaries
+   (`firstIdOf(chunkIndex)` through `chunk.lastId`). The viewport's fetch
+   scheduler already does this; custom `fetchRange` callers must match.
+2. **If partial fetch is unavoidable** — Do not use absent-slot marking for
+   that chunk: return all messages the server knows about for the full chunk in
+   a single call, or invalidate and re-fetch the whole chunk after partial
+   loads. Partial fetches and absent marking are mutually incompatible by design.
+
+### `fetchRange` returns null placeholders instead of omitting absent IDs
+
+**Symptom**: None expected — the API is `Future<List<IChatMessage>>`, not a
+nullable list. Absent IDs are omitted from the return value; the framework
+marks remaining null slots absent after the fetch resolves.
+
+**Fallback**: Return only present messages. Never insert null entries into the
+list; the absent-marking pass handles missing IDs.
+
+### Empty conversation or unreachable backend
+
+**Symptom**: Chunks stay in `error` or `fetching`; UI shows chunk-error tiles
+or shimmers.
+
+**Fallback**: Surface `ChatDataSource.retryChunk` / `invalidate()` to the user;
+ensure `seedBoundaries` reflects server-reported `oldest_id` / `newest_id` when
+the conversation is empty so the viewport does not fan out into unbounded ID
+space.
+
 ## Consequences
 
 ### Positive

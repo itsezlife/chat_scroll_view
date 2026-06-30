@@ -118,6 +118,19 @@ class ChatScrollChunk {
   /// Whether all 64 slots in this chunk are confirmed absent.
   ///
   /// When `true`, fan-out can skip the entire chunk in O(1) without
-  /// inspecting individual slots.
+  /// inspecting individual slots. Equivalent to every slot having been passed
+  /// through [markAbsentSlot] with a null [messages] entry.
   bool get isFullyAbsent => _absentMask == -1;
+
+  /// Number of slots currently marked absent in this chunk (0–[kSize]).
+  ///
+  /// Useful for tests and diagnostics; fan-out uses [isFullyAbsent] for the
+  /// O(1) all-absent fast path.
+  int get absentSlotCount {
+    var count = 0;
+    for (var slot = 0; slot < kSize; slot++) {
+      if (isAbsentSlot(slot)) count++;
+    }
+    return count;
+  }
 }
