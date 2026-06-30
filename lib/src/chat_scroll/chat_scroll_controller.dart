@@ -127,6 +127,11 @@ class ChatScrollController {
   /// known-present ID instead.
   void jumpTo(int messageId, {double alignment = 0.0}) {
     if (_disposed) return;
+    // Absent targets: the anchor id is updated below, but absent slots render
+    // at zero height — the viewport does not scroll to a visible row at
+    // [messageId]. Fan-out and clamping behave as if the nearest non-absent
+    // neighbor were the effective position. Check statusOf(messageId).isAbsent
+    // before navigating if the user must see a specific message. ADR 002.
     _anchorMessageId = messageId;
     _anchorPixelOffset = 0.0;
     _setNavigationAlignment(messageId, alignment);
@@ -218,6 +223,9 @@ class ChatScrollController {
     bool highlight = true,
   }) async {
     if (_disposed) return;
+    // Same absent-target contract as [jumpTo]: no visible row at [messageId]
+    // when statusOf reports absent — animation may run but content does not
+    // land on a deleted id. ADR 002 "Navigation to absent IDs".
     final animator = _animator;
     _setNavigationAlignment(messageId, alignment);
     if (animator == null) {

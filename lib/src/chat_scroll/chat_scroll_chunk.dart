@@ -21,6 +21,22 @@ class ChatScrollChunk {
   /// Get the first message id for a given chunk index.
   static int firstIdOf(int chunkIndex) => chunkIndex << kBits;
 
+  /// Whether `[fromId, toId]` covers only whole chunks — [fromId] sits on a
+  /// chunk's first id and [toId] on a chunk's last id.
+  ///
+  /// The absent-marking pass after `fetchRange` marks every null slot in each
+  /// fetched chunk absent. A partial sub-range (e.g. `70..90` inside chunk 1)
+  /// would incorrectly mark unfetched slots outside `70..90` as absent.
+  /// [ChatDataSource] dispatches only full-chunk ranges; integrators calling
+  /// `fetchRange` directly MUST satisfy this predicate first.
+  static bool isFullChunkRange(int fromId, int toId) {
+    if (fromId > toId) return false;
+    final fromChunk = chunkOf(fromId);
+    final toChunk = chunkOf(toId);
+    return fromId == firstIdOf(fromChunk) &&
+        toId == firstIdOf(toChunk) + kSize - 1;
+  }
+
   /// The chunk index, calculated as messageId >> kBits.
   /// Can be negative for messages with negative IDs.
   final int index;
@@ -118,8 +134,12 @@ class ChatScrollChunk {
   /// Whether all 64 slots in this chunk are confirmed absent.
   ///
   /// When `true`, fan-out can skip the entire chunk in O(1) without
-  /// inspecting individual slots. Equivalent to every slot having been passed
-  /// through [markAbsentSlot] with a null [messages] entry.
+  /// inspecting individual slots.
+  ///
+  /// Implementation: `_absentMask == -1`. In two's complement, setting all
+  /// 64 bits (`0xFFFFFFFFFFFFFFFF`) yields the signed value `-1`, so a single
+  /// integer compare replaces scanning 64 slots. [absentSlotCount] is the
+  /// readable alternative when debugging partial vs full absence.
   bool get isFullyAbsent => _absentMask == -1;
 
   /// Number of slots currently marked absent in this chunk (0–[kSize]).

@@ -40,11 +40,12 @@ abstract class ChatDataSource {
   ///
   /// **Full-chunk boundary invariant** (caller's guarantee):
   /// `fromId` MUST equal `ChatScrollChunk.firstIdOf(chunkIndex)` and `toId`
-  /// MUST equal `chunk.lastId` for the fetched chunk range. Partial-range
+  /// MUST equal `chunk.lastId` for every chunk in the requested span.
+  /// Verify with [ChatScrollChunk.isFullChunkRange] before calling. Partial-range
   /// fetches within a chunk are not supported — the absent-marking pass that
   /// runs after a successful `fetchRange` relies on the entire chunk being
   /// covered by the request. Violating this invariant causes null slots inside
-  /// the partial range to be incorrectly marked absent.
+  /// the unfetched portion to be incorrectly marked absent (silent data loss).
   ///
   /// The subclass may return fewer messages than the ID range spans when the
   /// conversation boundary lies inside the range. IDs not returned — but
@@ -527,10 +528,11 @@ abstract class ChatDataSource {
     }
 
     assert(
-      fromId == ChatScrollChunk.firstIdOf(ChatScrollChunk.chunkOf(fromId)),
-      'fetchRange fromId=$fromId does not align to a chunk boundary. '
-      'Expected ${ChatScrollChunk.firstIdOf(ChatScrollChunk.chunkOf(fromId))}. '
-      'See the full-chunk boundary invariant in the fetchRange doc comment.',
+      ChatScrollChunk.isFullChunkRange(fromId, toId),
+      'fetchRange boundary invariant violated for range [$fromId, $toId]. '
+      'fromId must equal ChatScrollChunk.firstIdOf(chunkOf(fromId)) and toId '
+      'must equal the last id of chunkOf(toId). Partial-range fetches corrupt '
+      'absent-slot marking. See fetchRange doc and ChatScrollChunk.isFullChunkRange.',
     );
 
     request.then(

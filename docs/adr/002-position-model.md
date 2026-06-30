@@ -51,6 +51,30 @@ Integrators MUST satisfy all of the following:
 4. **No renumbering**: Message IDs are immutable after assignment per ADR 001. This
    ADR does not modify that constraint.
 
+## Navigation to absent IDs
+
+`ChatScrollController.jumpTo` and `animateTo` accept any integer message id,
+including ids confirmed absent (`ChatMessageStatus.absent`). The calls complete
+without error, but **the viewport does not visually navigate to a deleted id**:
+
+- Absent slots contribute **zero height** in layout — there is no row to align
+  with the viewport band.
+- The anchor message id is still set to the requested id; fan-out and boundary
+  clamping position content relative to the nearest **built** non-absent
+  neighbors.
+- Users tapping a deep-link to a deleted message will see nearby surviving
+  messages, not an empty viewport or a skeleton.
+
+**Integrator guidance**:
+
+1. Before programmatic navigation, call `dataSource.statusOf(targetId).isAbsent`.
+   If absent, navigate to the nearest known-present id instead (e.g. the next
+   lower non-absent id from a server hint).
+2. Do not rely on `anchorMessageId` alone after `jumpTo` — verify visible
+   content via `visibleRange` or `statusOf`.
+3. `animateTo` follows the same rule: animation may play, but absent targets
+   never produce a visible landing row.
+
 ## Known Incompatibilities
 
 | Backend pattern | Status |
@@ -82,9 +106,11 @@ this model; a different scroll architecture is required.
 instead of `64..127`) cause null slots *outside* the requested sub-range to be
 incorrectly marked absent, hiding messages that were never fetched.
 
-**Detection**: In debug builds, `ChatDataSource` asserts that internally
-dispatched `fromId` values align to chunk boundaries. Subclasses that return
-message IDs outside `[fromId, toId]` also trip a debug assertion on upsert.
+**Detection**: In debug builds, `ChatDataSource` asserts
+`ChatScrollChunk.isFullChunkRange(fromId, toId)` before absent-marking runs.
+Violations also emit a `dev.log` warning (level 900) in all build modes.
+Subclasses that return message IDs outside `[fromId, toId]` trip a debug
+assertion on upsert.
 
 **Fallback**:
 

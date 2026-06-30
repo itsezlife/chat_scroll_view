@@ -51,6 +51,36 @@ void main() {
     });
   });
 
+  group('ChatScrollChunk.isFullChunkRange', () {
+    test('single full chunk 0..63 is valid', () {
+      expect(ChatScrollChunk.isFullChunkRange(0, 63), isTrue);
+    });
+
+    test('single full chunk 64..127 is valid', () {
+      expect(ChatScrollChunk.isFullChunkRange(64, 127), isTrue);
+    });
+
+    test('spanning two whole chunks 0..127 is valid', () {
+      expect(ChatScrollChunk.isFullChunkRange(0, 127), isTrue);
+    });
+
+    test('partial start inside chunk 1 is invalid', () {
+      expect(ChatScrollChunk.isFullChunkRange(65, 127), isFalse);
+    });
+
+    test('partial end inside chunk 1 is invalid', () {
+      expect(ChatScrollChunk.isFullChunkRange(64, 126), isFalse);
+    });
+
+    test('partial sub-range 70..90 inside chunk 1 is invalid', () {
+      expect(ChatScrollChunk.isFullChunkRange(70, 90), isFalse);
+    });
+
+    test('inverted range is invalid', () {
+      expect(ChatScrollChunk.isFullChunkRange(63, 0), isFalse);
+    });
+  });
+
   group('ChatScrollChunk.lastId', () {
     test('index 0 spans ids 0..63', () {
       final chunk = ChatScrollChunk(index: 0);
@@ -373,6 +403,75 @@ void main() {
         expect(chunk.isAbsentSlot(63), isTrue);
         expect(chunk.isFullyAbsent, isFalse);
         expect(chunk.absentSlotCount, ChatScrollChunk.kSize - 2);
+      },
+    );
+
+    test(
+      'large deletion gap across five whole chunks marks every slot absent',
+      () async {
+        final source = _RecordingDataSource(fetchResult: []);
+        // Chunks 1–5 (ids 64–383) empty; anchors at chunk 0 and 6 edges.
+        source.simulateFetch(
+          fromId: 64,
+          toId: 383,
+          result: const <IChatMessage>[],
+        );
+        await Future<void>.delayed(Duration.zero);
+
+        for (var ci = 1; ci <= 5; ci++) {
+          final chunk = source.chunks[ci];
+          expect(chunk, isNotNull, reason: 'chunk $ci must exist');
+          expect(chunk!.isFullyAbsent, isTrue);
+          expect(chunk.absentSlotCount, ChatScrollChunk.kSize);
+        }
+        expect(source.statusOf(64).isAbsent, isTrue);
+        expect(source.statusOf(200).isAbsent, isTrue);
+        expect(source.statusOf(383).isAbsent, isTrue);
+      },
+    );
+
+    test(
+      'chunk boundary ids: first and last slot in a chunk mark absent correctly',
+      () async {
+        final source = _RecordingDataSource(fetchResult: []);
+        source.simulateFetch(
+          fromId: 64,
+          toId: 127,
+          result: [_msg(64), _msg(127)],
+        );
+        await Future<void>.delayed(Duration.zero);
+
+        final chunk = source.chunks[1]!;
+        expect(chunk.isAbsentSlot(0), isFalse);
+        expect(chunk.isAbsentSlot(63), isFalse);
+        expect(chunk.messages[0]!.id, 64);
+        expect(chunk.messages[63]!.id, 127);
+        for (var slot = 1; slot < 63; slot++) {
+          expect(chunk.isAbsentSlot(slot), isTrue, reason: 'slot $slot');
+        }
+        expect(chunk.isFullyAbsent, isFalse);
+        expect(chunk.absentSlotCount, 62);
+      },
+    );
+
+    test(
+      'invalidate clears absent masks then re-fetch can restore a slot',
+      () async {
+        final source = _RecordingDataSource(fetchResult: []);
+        source.simulateFetch(fromId: 0, toId: 63, result: [_msg(5)]);
+        await Future<void>.delayed(Duration.zero);
+        expect(source.statusOf(10).isAbsent, isTrue);
+
+        source.invalidate();
+        expect(source.statusOf(10).isAbsent, isFalse);
+        expect(source.statusOf(10).isDirty, isTrue);
+
+        source.simulateFetch(fromId: 0, toId: 63, result: [_msg(5), _msg(10)]);
+        await Future<void>.delayed(Duration.zero);
+
+        expect(source.statusOf(10).isAbsent, isFalse);
+        expect(source.getMessage(10), isNotNull);
+        expect(source.statusOf(11).isAbsent, isTrue);
       },
     );
   });
