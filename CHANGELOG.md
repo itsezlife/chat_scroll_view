@@ -8,6 +8,16 @@ this project is pre-1.0 and not strictly SemVer yet.
 
 ### Changed
 
+- **`ChatKeyboardShortcuts` drops `dataSource` parameter** *(breaking)* —
+  Home / End now read `oldestKnownId` / `newestKnownId` from the shared
+  [ChatScrollController], which mirrors the viewport's wired data source via
+  `RenderChatScrollView`. Pass only `controller` + `child`; boundary ids stay
+  in sync after data-source swaps.
+
+- **`ChatScrollController.oldestKnownId` / `newestKnownId`** — read-only
+  passthrough of the wired source's boundary ids, updated on attach, boundary
+  listener callbacks, and each layout publish.
+
 - **`ChatGroupSeparatorBuilder` replaces `ChatDateSeparatorBuilder`** *(breaking)* —
   the `dateSeparatorBuilder` callback now receives `(context, bucket,
   firstMessageDate)` where `bucket` is the raw `groupBy` key and

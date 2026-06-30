@@ -227,6 +227,7 @@ class RenderChatScrollView extends RenderBox {
       _dataSource
         ..addDataListener(_onDataChanged)
         ..addBoundaryListener(_onBoundaryChanged);
+      _publishBoundaries();
     }
     markNeedsLayout();
     markNeedsSemanticsUpdate();
@@ -735,6 +736,7 @@ class RenderChatScrollView extends RenderBox {
       ..addJumpListener(_onJump)
       ..addScrollByListener(_onScrollBy)
       ..animator = _animator;
+    _publishBoundaries();
     _bottomPadding?.addListener(_onBottomPaddingChanged);
     _topPadding?.addListener(_onTopPaddingChanged);
     _drag = _buildDragRecognizer();
@@ -1007,6 +1009,7 @@ class RenderChatScrollView extends RenderBox {
   }
 
   void _onBoundaryChanged() {
+    _publishBoundaries();
     markNeedsLayout();
     markNeedsSemanticsUpdate();
   }
@@ -2441,8 +2444,14 @@ class RenderChatScrollView extends RenderBox {
   /// every layout and Tier-1 tick — O(visible children) of pure parent-data
   /// reads.
   void _publishControllerState() {
+    _publishBoundaries();
     _publishVisibleRange();
     _publishIsAtTail();
+  }
+
+  void _publishBoundaries() {
+    _controller.oldestKnownId = _dataSource.oldestKnownId;
+    _controller.newestKnownId = _dataSource.newestKnownId;
   }
 
   /// Whether [newestKnownId] is built and its bottom sits at [bottomPad] below
