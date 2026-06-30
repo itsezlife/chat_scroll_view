@@ -13,10 +13,11 @@ import 'package:chatscrollview/src/chat_widgets/demo/chat_data_source_extension.
 import 'package:chatscrollview/src/chat_widgets/demo/date_separator.dart';
 import 'package:chatscrollview/src/chat_widgets/demo/demo_backend_error.dart';
 import 'package:chatscrollview/src/chat_widgets/demo/demo_message.dart';
-import 'package:chatscrollview/src/chat_widgets/demo/measure_size.dart';
+import 'package:chatscrollview/src/chat_widgets/demo/merged_value_notifier.dart';
 import 'package:chatscrollview/src/chat_widgets/demo/new_messages_pill.dart';
 import 'package:chatscrollview/src/chat_widgets/demo/selection_app_bar.dart';
 import 'package:flutter/material.dart';
+import 'package:keyboard_insets/keyboard_insets.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 /// Demo screen for the widget-based [ChatScrollView] — the chat viewport,
@@ -34,9 +35,24 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
   late final ChatScrollController _controller;
   late final ChatSelectionController _selection;
 
+  StreamSubscription<double>? _keyboardStateSubscription;
+
+  /// Safe area bottom inset reserved inside the viewport — kept in sync with the
+  /// safe area bottom inset so the composer's measured height clears it.
+  final ValueNotifier<double> _safeAreaBottomInset = ValueNotifier<double>(0);
+
   /// Bottom inset reserved inside the viewport — kept in sync with the
   /// composer's measured height so the newest message clears it.
   final ValueNotifier<double> _bottomInset = ValueNotifier<double>(96);
+
+  /// Composer height plus safe-area / keyboard bottom inset — drives viewport
+  /// padding and floating chrome that must clear the full composer stack.
+  late final MergedValueNotifier<double, double, double> _totalBottomInset =
+      MergedValueNotifier(
+        first: _bottomInset,
+        second: _safeAreaBottomInset,
+        merge: (composer, safeArea) => composer + safeArea,
+      );
 
   /// Top inset reserved inside the viewport — kept in sync with the
   /// selection app bar's measured height so the floating day header clears it.
@@ -59,23 +75,48 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
   @override
   void initState() {
     super.initState();
+    PersistentSafeAreaBottom.startObserving();
     _controller = ChatScrollController();
     _selection = ChatSelectionController();
     _pillLastSeenBaseline.addListener(_onPillBaselineChanged);
     _init();
+
+    _bottomInset.addListener(_onBottomInsetChanged);
+
+    _keyboardStateSubscription = KeyboardInsets.insets.listen((state) {
+      _safeAreaBottomInset.value = state;
+    });
+    _assignInitialBottomInset();
+  }
+
+  void _onBottomInsetChanged() {
+    dev.log('bottom inset changed: ${_bottomInset.value}');
+  }
+
+  void _assignInitialBottomInset() {
+    final isVisible = KeyboardInsets.isVisible;
+    final isAnimating = KeyboardInsets.isAnimating;
+    _safeAreaBottomInset.value = isVisible && !isAnimating
+        ? KeyboardInsets.keyboardHeight
+        : 0;
   }
 
   @override
   void dispose() {
+    PersistentSafeAreaBottom.stopObserving();
     _pillLastSeenBaseline.removeListener(_onPillBaselineChanged);
+    _bottomInset.removeListener(_onBottomInsetChanged);
     _flushPendingLastRead();
     _persistLastReadTimer?.cancel();
     _pillLastSeenBaseline.dispose();
+    _totalBottomInset.dispose();
     _bottomInset.dispose();
+    _safeAreaBottomInset.dispose();
     _topInset.dispose();
     _controller.dispose();
     _selection.dispose();
     _dataSource?.dispose();
+    _keyboardStateSubscription?.cancel();
     super.dispose();
   }
 
@@ -214,6 +255,7 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final bottomPadding = MediaQuery.viewPaddingOf(context).bottom;
     if (_errorMessage != null) {
       return DemoBackendError(message: _errorMessage!, onRetry: _init);
     }
@@ -232,36 +274,41 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
         Navigator.pop(context);
       },
       child: Scaffold(
+        resizeToAvoidBottomInset: false,
         floatingActionButtonLocation: .endFloat,
-        floatingActionButton: Padding(
-          padding: const EdgeInsets.only(bottom: 96),
-          child: Align(
-            alignment: .bottomRight,
-            child: Column(
-              mainAxisAlignment: .end,
-              mainAxisSize: .min,
-              children: [
-                FloatingActionButton.small(
-                  heroTag: 'fab-up',
-                  onPressed: () {
-                    _controller.animateTo(6003, alignment: .5);
-                  },
-                  tooltip: 'Scroll to top',
-                  materialTapTargetSize: MaterialTapTargetSize.padded,
-                  child: const Icon(Icons.arrow_upward, size: 18),
-                ),
-                FloatingActionButton.small(
-                  heroTag: 'fab-down',
-                  onPressed: () {
-                    if (_dataSource?.newestKnownId case final newestKnownId?) {
-                      _controller.animateTo(newestKnownId, highlight: false);
-                    }
-                  },
-                  tooltip: 'Scroll to bottom',
-                  materialTapTargetSize: MaterialTapTargetSize.padded,
-                  child: const Icon(Icons.arrow_downward, size: 18),
-                ),
-              ],
+        floatingActionButton: ValueListenableBuilder(
+          valueListenable: _totalBottomInset,
+          builder: (context, bottomInset, child) => Padding(
+            padding: EdgeInsets.only(bottom: bottomInset - bottomPadding),
+            child: Align(
+              alignment: .bottomRight,
+              child: Column(
+                mainAxisAlignment: .end,
+                mainAxisSize: .min,
+                children: [
+                  FloatingActionButton.small(
+                    heroTag: 'fab-up',
+                    onPressed: () {
+                      _controller.animateTo(6002, alignment: .5);
+                    },
+                    tooltip: 'Scroll to top',
+                    materialTapTargetSize: MaterialTapTargetSize.padded,
+                    child: const Icon(Icons.arrow_upward, size: 18),
+                  ),
+                  FloatingActionButton.small(
+                    heroTag: 'fab-down',
+                    onPressed: () {
+                      if (_dataSource?.newestKnownId
+                          case final newestKnownId?) {
+                        _controller.animateTo(newestKnownId, highlight: false);
+                      }
+                    },
+                    tooltip: 'Scroll to bottom',
+                    materialTapTargetSize: MaterialTapTargetSize.padded,
+                    child: const Icon(Icons.arrow_downward, size: 18),
+                  ),
+                ],
+              ),
             ),
           ),
         ),
@@ -280,7 +327,7 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
                     dataSource: _dataSource!,
                     controller: _controller,
                     selectionController: _selection,
-                    bottomPadding: _bottomInset,
+                    bottomPadding: _totalBottomInset,
                     topPadding: _topInset,
                     messageBuilder: _buildMessage,
                     chunkErrorBuilder: _buildChunkError,
@@ -299,13 +346,12 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
               left: 0,
               right: 0,
               bottom: 0,
-              child: MeasureSize(
-                onChange: (size) => _bottomInset.value = size.height,
-                child: ChatComposer(
-                  selection: _selection,
-                  dataSource: _dataSource!,
-                  onSend: _handleSendMessage,
-                ),
+              child: ChatComposer(
+                bottomInset: _safeAreaBottomInset,
+                selection: _selection,
+                dataSource: _dataSource!,
+                onSend: _handleSendMessage,
+                onSizeChanged: (size) => _bottomInset.value = size,
               ),
             ),
             // New-messages pill — surfaces above the composer when the user
@@ -313,7 +359,7 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
             NewMessagesPill(
               controller: _controller,
               dataSource: _dataSource!,
-              bottomInset: _bottomInset,
+              bottomInset: _totalBottomInset,
               lastSeenNewestId: _pillLastSeenBaseline,
             ),
             // Contextual selection bar — overlays the top. [topInset] is driven

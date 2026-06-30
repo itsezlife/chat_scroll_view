@@ -6,6 +6,18 @@ this project is pre-1.0 and not strictly SemVer yet.
 
 ## [Unreleased]
 
+### Fixed
+
+- **Programmatic scroll with non-default alignment** — `animateTo` with
+  `alignment` other than `0` (e.g. centering a search result) no longer
+  micro-jumps mid-animation. Close-path animation now owns offset interpolation
+  for the full duration; layout-time alignment snap is deferred until settle
+  and, when the target row is still loading, until the real message is built.
+  The animator rebases its aligned end offset when layout geometry changes
+  mid-flight (bottom inset, message height, date-header relayout) so the
+  viewport no longer jumps after the scroll animation finishes; settle runs
+  after the final tick reposition instead of fighting a stale end offset.
+
 ### Changed
 
 - **`ChatKeyboardShortcuts` drops `dataSource` parameter** *(breaking)* —

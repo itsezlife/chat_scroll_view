@@ -41,7 +41,6 @@ class ChatAnimator implements ChatScrollAnimator {
     required VoidCallback ensureTicker,
     required VoidCallback cancelFling,
     required VoidCallback cancelBounceback,
-    required void Function(int targetId) onAnimateComplete,
     Duration highlightDuration = const Duration(milliseconds: 1500),
     Color highlightColor = const Color(0x402196F3),
   }) : _controller = controller,
@@ -56,7 +55,6 @@ class ChatAnimator implements ChatScrollAnimator {
        _ensureTicker = ensureTicker,
        _cancelFling = cancelFling,
        _cancelBounceback = cancelBounceback,
-       _onAnimateComplete = onAnimateComplete,
        _highlightDuration = highlightDuration,
        _highlightColor = highlightColor;
 
@@ -73,7 +71,6 @@ class ChatAnimator implements ChatScrollAnimator {
   final VoidCallback _ensureTicker;
   final VoidCallback _cancelFling;
   final VoidCallback _cancelBounceback;
-  final void Function(int targetId) _onAnimateComplete;
 
   /// Active `animateTo`'s completer, or `null` when no animation is running.
   Completer<void>? animateCompleter;
@@ -94,6 +91,11 @@ class ChatAnimator implements ChatScrollAnimator {
 
   /// Ticker timestamp when the current animation segment started.
   Duration? animateStartTime;
+
+  /// Close-path settle deferred until after the render object applies the
+  /// final tick delta and repositions children — avoids fighting
+  /// [applyScrollDelta] with a stale [animateEndOffset].
+  int? _pendingSettleTargetId;
 
   /// Total duration of the active `animateTo`.
   Duration animateDuration = Duration.zero;
@@ -236,6 +238,7 @@ class ChatAnimator implements ChatScrollAnimator {
     if (completer == null) return;
     animateCompleter = null;
     animateStartTime = null;
+    _pendingSettleTargetId = null;
     farAnimateActive = false;
     farAnimateJumped = false;
     if (fadeOpacity != 1.0) {
@@ -287,21 +290,76 @@ class ChatAnimator implements ChatScrollAnimator {
     }
 
     // Close path: interpolate anchor offset linearly along the curve.
-    final eased = animateCurve.transform(t);
+    rebaseClosePathEnd(elapsed: elapsed);
+    final segmentStart = animateStartTime!;
+    final segmentUs = animateDuration.inMicroseconds;
+    final segmentElapsedUs = (elapsed - segmentStart).inMicroseconds;
+    final segmentT = segmentUs <= 0
+        ? 1.0
+        : (segmentElapsedUs / segmentUs).clamp(0.0, 1.0);
+    if (segmentT >= 1.0) {
+      _completeAnimate();
+      return 0;
+    }
+    final eased = animateCurve.transform(segmentT);
     final target =
         animateStartOffset + (animateEndOffset - animateStartOffset) * eased;
-    final delta = target - _controller.anchorPixelOffset;
-    if (t >= 1.0) _completeAnimate();
-    return delta;
+    return target - _controller.anchorPixelOffset;
+  }
+
+  /// Re-target [animateEndOffset] when layout geometry changes mid-flight
+  /// (bottom inset, message height, date-header relayout). Rebases from the
+  /// current anchor offset so the interpolator tracks the live aligned target
+  /// without layout-time snapping during close-path animation.
+  void rebaseClosePathEnd({Duration? elapsed}) {
+    if (animateCompleter == null ||
+        farAnimateActive ||
+        animateAlignment == 0.0) {
+      return;
+    }
+    final child = _childForId(animateTargetId);
+    if (child == null) return;
+    final newEnd = _alignedTopForMessage(
+      _heightOfChild(child),
+      animateAlignment,
+    );
+    if ((newEnd - animateEndOffset).abs() < 0.5) return;
+    animateStartOffset = _controller.anchorPixelOffset;
+    animateEndOffset = newEnd;
+    if (elapsed != null) {
+      animateStartTime = elapsed;
+    }
+  }
+
+  /// Consumes a deferred post-animate settle callback, if any. Called from
+  /// [RenderChatScrollView._onTick] after the final scroll delta is applied.
+  int? takePendingSettleTargetId() {
+    final id = _pendingSettleTargetId;
+    _pendingSettleTargetId = null;
+    return id;
   }
 
   void _completeAnimate() {
     final completer = animateCompleter;
     final targetId = animateTargetId;
+    final wasFarPath = farAnimateActive;
     animateCompleter = null;
     animateStartTime = null;
     farAnimateActive = false;
     farAnimateJumped = false;
+    // Close path with non-zero alignment may have started before the target row
+    // was built (animateEndOffset == 0). Recompute from the built child now so
+    // settle is not stuck at alignment-0 offset until a later layout pass.
+    if (!wasFarPath) {
+      var end = animateEndOffset;
+      if (animateAlignment != 0.0) {
+        final child = _childForId(targetId);
+        if (child != null) {
+          end = _alignedTopForMessage(_heightOfChild(child), animateAlignment);
+        }
+      }
+      _controller.reassignAnchor(targetId, end);
+    }
     // Successful settle (close-path reached t == 1 or far-path completed
     // its jumpTo + fade-in) → kick off the target highlight when both the
     // viewport gate (`highlightDuration > 0`) and the per-call
@@ -312,7 +370,7 @@ class ChatAnimator implements ChatScrollAnimator {
     if (highlightDuration > Duration.zero && animateHighlight) {
       _requestHighlight(targetId);
     }
-    _onAnimateComplete(targetId);
+    _pendingSettleTargetId = targetId;
     if (completer != null && !completer.isCompleted) completer.complete();
   }
 

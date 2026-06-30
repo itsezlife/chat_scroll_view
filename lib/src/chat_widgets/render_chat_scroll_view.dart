@@ -92,10 +92,7 @@ abstract interface class ChatChildManager {
   ///
   /// Must only be called from within [invokeLayoutCallback]. Calling
   /// from any other context will assert in debug mode.
-  RenderBox? buildFloatingHeader(
-    Object? bucket,
-    DateTime? firstMessageDate,
-  );
+  RenderBox? buildFloatingHeader(Object? bucket, DateTime? firstMessageDate);
 
   /// Inflate or update the chunk-error tile for [chunkIndex]. Called when
   /// the chunk is in error state *and* a `chunkErrorBuilder` was supplied.
@@ -175,7 +172,6 @@ class RenderChatScrollView extends RenderBox {
       ensureTicker: _ensureTicker,
       cancelFling: _cancelFling,
       cancelBounceback: _cancelBounceback,
-      onAnimateComplete: _onAnimateSettled,
       highlightColor: highlightColor,
       highlightDuration: highlightDuration,
     );
@@ -444,6 +440,10 @@ class RenderChatScrollView extends RenderBox {
 
   int _accessTick = 0;
 
+  /// Scroll velocity EMA and last ticker timestamp — used to rebase close-path
+  /// animation targets after [performLayout] when geometry changes mid-flight.
+  Duration? _lastTickElapsed;
+
   /// Exponential moving average of the per-frame scroll delta (px/frame,
   /// signed). Positive = anchor moving down = revealing older messages.
   /// Drives the directional build-ahead lead.
@@ -515,6 +515,17 @@ class RenderChatScrollView extends RenderBox {
 
   void _onAnimateSettled(int targetId) {
     _markPinTailOnJumpIfNeeded(_clampJumpTarget(targetId));
+
+    // Close-path animation finished — the animator owned offset each tick.
+    // Try one alignment snap; if the target row is still a skeleton, leave
+    // [navigationAlignment] pending so [performLayout] applies it once the real
+    // message is built (same contract as [jumpTo]). [_applyNavigationAlignment]
+    // clears when aligned; do not clear here unconditionally — that dropped
+    // deferred alignment and regressed post-load landing for non-zero alignment.
+    if (_controller.navigationAlignment != 0.0) {
+      _applyNavigationAlignment();
+    }
+
     if (_pinTailOnJump) markNeedsLayout();
   }
 
@@ -707,9 +718,9 @@ class RenderChatScrollView extends RenderBox {
         fn();
       } finally {
         assert(() {
-        if (manager is ChatScrollElement) {
-          manager.insideLayoutCallback = false;
-        }
+          if (manager is ChatScrollElement) {
+            manager.insideLayoutCallback = false;
+          }
           return true;
         }());
       }
@@ -934,10 +945,19 @@ class RenderChatScrollView extends RenderBox {
 
   /// Apply a pending [ChatScrollController.navigationAlignment] after the
   /// anchor message is laid out. Returns whether the anchor offset moved.
+  ///
+  /// **Dual-writer guard:** close-path `animateTo` sets [navigationAlignment]
+  /// and [ChatAnimator.tickAnimate] interpolates [anchorPixelOffset] each tick.
+  /// Snapping here on every [performLayout] while that animation runs fights
+  /// the interpolator and produces the non-zero-alignment micro-jump (alignment
+  /// `0` never reaches this snap — it returns above). Deferred [jumpTo] and
+  /// post-[animateTo] settle call this when no close-path animation is in flight;
+  /// [navigationAlignment] stays set until the target row is built and aligned.
   bool _applyNavigationAlignment() {
     final alignment = _controller.navigationAlignment;
     final targetId = _controller.navigationAlignmentMessageId;
     if (alignment == 0.0 || targetId == null) return false;
+    if (_animator.isAnimating && !_animator.farAnimateActive) return false;
     if (_controller.anchorMessageId != targetId) return false;
 
     final newest = _dataSource.newestKnownId;
@@ -1194,6 +1214,10 @@ class RenderChatScrollView extends RenderBox {
     _updateFloatingHeader();
     _animator.tryArmPendingHighlight();
 
+    if (_animator.isAnimating && !_animator.farAnimateActive) {
+      _animator.rebaseClosePathEnd(elapsed: _lastTickElapsed);
+    }
+
     assert(() {
       debugLastLayoutDuration = _debugSw.elapsed;
       _debugSw.stop();
@@ -1274,9 +1298,7 @@ class RenderChatScrollView extends RenderBox {
     Set<int> built,
     Set<int> builtChunks,
   ) {
-    _invokeChildManagerLayout(
-      () => _fanOutFromAnchor(cc, built, builtChunks),
-    );
+    _invokeChildManagerLayout(() => _fanOutFromAnchor(cc, built, builtChunks));
   }
 
   /// Inclusive lower id bound for upward layout fan-out.
@@ -2032,6 +2054,7 @@ class RenderChatScrollView extends RenderBox {
   /// children and calls [markNeedsPaint] (Tier 1). Falls back to
   /// [markNeedsLayout] only when the built range no longer covers the viewport.
   void _onTick(Duration elapsed) {
+    _lastTickElapsed = elapsed;
     // Overlay mode owns the viewport — no scroll, no fling, no animate. A
     // ticker that survives the transition (or a stray re-arm) must not
     // mutate the anchor while no children are positioned.
@@ -2116,6 +2139,10 @@ class RenderChatScrollView extends RenderBox {
     // wait for another layout pass when data was already ready at settle.
     if (_animator.pendingHighlightTargetId != null) {
       _animator.tryArmPendingHighlight();
+    }
+
+    if (_animator.takePendingSettleTargetId() case final targetId?) {
+      _onAnimateSettled(targetId);
     }
 
     if (_rangeNoLongerCovers() || headerDayChanged) {
