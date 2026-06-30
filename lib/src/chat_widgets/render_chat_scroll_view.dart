@@ -3,8 +3,8 @@
 import 'dart:async';
 import 'dart:collection';
 
+import 'package:chatscrollview/src/chat_scroll/chat_chunk_fetch_scheduler.dart';
 import 'package:chatscrollview/src/chat_scroll/chat_data_source.dart';
-import 'package:chatscrollview/src/chat_scroll/chat_fetch_coordinator.dart';
 import 'package:chatscrollview/src/chat_scroll/chat_scroll_chunk.dart';
 import 'package:chatscrollview/src/chat_scroll/chat_scroll_common.dart';
 import 'package:chatscrollview/src/chat_scroll/chat_scroll_controller.dart';
@@ -177,7 +177,7 @@ class RenderChatScrollView extends RenderBox implements ChatScrollAnimator {
     _headerBucket = null;
     _headerDate = null;
     _headerDirty = true;
-    _fetchCoordinator.resetLayoutRange();
+    _chunkFetchScheduler.resetLayoutRange();
     if (attached) {
       _dataSource
         ..addDataListener(_onDataChanged)
@@ -423,14 +423,15 @@ class RenderChatScrollView extends RenderBox implements ChatScrollAnimator {
   /// [_overscrollOnSide] — [ChatScrollPhysics] owns only the simulation state.
   ///
   /// Chunk fetch poll, jump-fetch dispatch, and LRU eviction are owned by
-  /// [_fetchCoordinator]; the render object publishes the laid-out chunk
+  /// [_chunkFetchScheduler]; the render object publishes the laid-out chunk
   /// range at the end of `performLayout`.
-  late final ChatFetchCoordinator _fetchCoordinator = ChatFetchCoordinator(
-    dataSource: _dataSource,
-    requestRange: _dataSource.requestChunks,
-    anchorChunkIndex: () =>
-        ChatScrollChunk.chunkOf(_controller.anchorMessageId),
-  );
+  late final ChatChunkFetchScheduler _chunkFetchScheduler =
+      ChatChunkFetchScheduler(
+        dataSource: _dataSource,
+        requestRange: _dataSource.requestChunks,
+        anchorChunkIndex: () =>
+            ChatScrollChunk.chunkOf(_controller.anchorMessageId),
+      );
 
   late final ChatScrollPhysics _physics = ChatScrollPhysics(
     overscrollOnSide: _overscrollOnSide,
@@ -613,10 +614,10 @@ class RenderChatScrollView extends RenderBox implements ChatScrollAnimator {
   int get debugChunkCount => _dataSource.chunks.length;
 
   /// Lowest chunk index included in the last layout fan-out.
-  int get debugLayoutMinChunk => _fetchCoordinator.layoutMinChunk;
+  int get debugLayoutMinChunk => _chunkFetchScheduler.layoutMinChunk;
 
   /// Highest chunk index included in the last layout fan-out.
-  int get debugLayoutMaxChunk => _fetchCoordinator.layoutMaxChunk;
+  int get debugLayoutMaxChunk => _chunkFetchScheduler.layoutMaxChunk;
 
   /// Smallest message id with a built child, or `null` when empty.
   int? get debugFirstId => _children.isEmpty ? null : _children.firstKey();
@@ -706,7 +707,7 @@ class RenderChatScrollView extends RenderBox implements ChatScrollAnimator {
   @override
   void attach(PipelineOwner owner) {
     super.attach(owner);
-    _fetchCoordinator.onAttach();
+    _chunkFetchScheduler.onAttach();
     for (final child in _children.values) {
       child.attach(owner);
     }
@@ -741,7 +742,7 @@ class RenderChatScrollView extends RenderBox implements ChatScrollAnimator {
     }
     if (_controller.anchorMessageId != newest) return;
     _markPinTailOnJumpIfNeeded(newest);
-    _fetchCoordinator.queueJumpFetch();
+    _chunkFetchScheduler.queueJumpFetch();
   }
 
   /// Build a new drag recognizer. `onCancel` is intentionally NOT wired:
@@ -765,7 +766,7 @@ class RenderChatScrollView extends RenderBox implements ChatScrollAnimator {
     _flingCancelPointer = null;
     _ticker?.dispose();
     _ticker = null;
-    _fetchCoordinator.onDetach();
+    _chunkFetchScheduler.onDetach();
     _pinTailOnJump = false;
     _pendingTailPinUntilSettled = false;
     _userPreemptedTailSettle = false;
@@ -974,8 +975,8 @@ class RenderChatScrollView extends RenderBox implements ChatScrollAnimator {
     // running an invisible fade against the old slot — drop it.
     _clearHighlight();
     _cancelBounceback();
-    // Poll debounce + jump-fetch safety net — see [ChatFetchCoordinator.onJump].
-    _fetchCoordinator.onJump();
+    // Poll debounce + jump-fetch safety net — see [ChatChunkFetchScheduler.onJump].
+    _chunkFetchScheduler.onJump();
     markNeedsLayout();
   }
 
@@ -1060,7 +1061,7 @@ class RenderChatScrollView extends RenderBox implements ChatScrollAnimator {
     // child maps until the end-of-layout GC pass — [_renormalizeAnchor] and
     // clamp would read them and fan out across the wrong id span. Drop them
     // before the first fan-out of the jump layout.
-    if (_fetchCoordinator.jumpFetchPending) {
+    if (_chunkFetchScheduler.jumpFetchPending) {
       final staleMessages = _children.keys.toList();
       final staleErrorChunks = _chunkErrors.keys.toList();
       if (staleMessages.isNotEmpty || staleErrorChunks.isNotEmpty) {
@@ -1172,8 +1173,8 @@ class RenderChatScrollView extends RenderBox implements ChatScrollAnimator {
       minChunk = computedMin;
       maxChunk = computedMax;
     }
-    // Fetch poll, LRU eviction, jump-fetch — [ChatFetchCoordinator].
-    _fetchCoordinator.onLayoutComplete(minChunk, maxChunk);
+    // Fetch poll, LRU eviction, jump-fetch — [ChatChunkFetchScheduler].
+    _chunkFetchScheduler.onLayoutComplete(minChunk, maxChunk);
     _updateScrollSemantics();
     _publishControllerState();
     _updateFloatingHeader();
@@ -1246,8 +1247,8 @@ class RenderChatScrollView extends RenderBox implements ChatScrollAnimator {
       _drag = _buildDragRecognizer();
     }
     _ticker?.stop();
-    // Fetch poll + LRU eviction — [ChatFetchCoordinator].
-    _fetchCoordinator.onLayoutCleared();
+    // Fetch poll + LRU eviction — [ChatChunkFetchScheduler].
+    _chunkFetchScheduler.onLayoutCleared();
     _updateScrollSemantics();
     _publishControllerState();
   }
@@ -1965,7 +1966,7 @@ class RenderChatScrollView extends RenderBox implements ChatScrollAnimator {
 
   // --- Scroll ----------------------------------------------------------------
 
-  void _markScrollActive() => _fetchCoordinator.markScrollActive();
+  void _markScrollActive() => _chunkFetchScheduler.markScrollActive();
 
   void _ensureTicker() {
     final ticker = _ticker;
@@ -3100,7 +3101,7 @@ class RenderChatScrollView extends RenderBox implements ChatScrollAnimator {
     _clearHighlight();
     _ticker?.dispose();
     _ticker = null;
-    _fetchCoordinator.dispose();
+    _chunkFetchScheduler.dispose();
     _drag?.dispose();
     _drag = null;
     _clipLayer.layer = null;

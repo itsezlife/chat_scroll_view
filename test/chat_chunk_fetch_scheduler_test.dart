@@ -1,5 +1,5 @@
+import 'package:chatscrollview/src/chat_scroll/chat_chunk_fetch_scheduler.dart';
 import 'package:chatscrollview/src/chat_scroll/chat_data_source.dart';
-import 'package:chatscrollview/src/chat_scroll/chat_fetch_coordinator.dart';
 import 'package:chatscrollview/src/chat_scroll/chat_scroll_chunk.dart';
 import 'package:chatscrollview/src/chat_scroll/chat_scroll_common.dart';
 import 'package:fake_async/fake_async.dart';
@@ -36,8 +36,8 @@ void main() {
       fakeAsync((_) {
         final dataSource = _TestDataSource();
         final requested = <(int, int)>[];
-        final coordinator =
-            ChatFetchCoordinator(
+        final scheduler =
+            ChatChunkFetchScheduler(
                 dataSource: dataSource,
                 requestRange: (min, max) => requested.add((min, max)),
                 anchorChunkIndex: () => 0,
@@ -48,7 +48,7 @@ void main() {
 
         _flushPostFrameCallbacks();
         expect(requested, [(2, 5)]);
-        coordinator.dispose();
+        scheduler.dispose();
       });
     });
 
@@ -56,8 +56,8 @@ void main() {
       fakeAsync((_) {
         final dataSource = _TestDataSource();
         final requested = <(int, int)>[];
-        final coordinator =
-            ChatFetchCoordinator(
+        final scheduler =
+            ChatChunkFetchScheduler(
                 dataSource: dataSource,
                 requestRange: (min, max) => requested.add((min, max)),
                 anchorChunkIndex: () => 0,
@@ -67,7 +67,7 @@ void main() {
               ..onLayoutComplete(1, 3);
         _flushPostFrameCallbacks();
         expect(requested, isEmpty);
-        coordinator.dispose();
+        scheduler.dispose();
       });
     });
   });
@@ -77,7 +77,7 @@ void main() {
       fakeAsync((async) {
         final dataSource = _TestDataSource();
         final requested = <(int, int)>[];
-        final coordinator = ChatFetchCoordinator(
+        final scheduler = ChatChunkFetchScheduler(
           dataSource: dataSource,
           requestRange: (min, max) => requested.add((min, max)),
           anchorChunkIndex: () => 0,
@@ -88,10 +88,10 @@ void main() {
             ..status = ChatMessageStatus.valid;
         }
 
-        coordinator.onLayoutComplete(1, 3);
+        scheduler.onLayoutComplete(1, 3);
         async.elapse(const Duration(milliseconds: 200));
         expect(requested, isEmpty);
-        coordinator.dispose();
+        scheduler.dispose();
       });
     });
 
@@ -99,7 +99,7 @@ void main() {
       fakeAsync((async) {
         final dataSource = _TestDataSource();
         final requested = <(int, int)>[];
-        final coordinator = ChatFetchCoordinator(
+        final scheduler = ChatChunkFetchScheduler(
           dataSource: dataSource,
           requestRange: (min, max) {
             requested.add((min, max));
@@ -116,10 +116,10 @@ void main() {
         dataSource.chunks[2] = ChatScrollChunk(index: 2)
           ..status = ChatMessageStatus.valid;
 
-        coordinator.onLayoutComplete(1, 3);
+        scheduler.onLayoutComplete(1, 3);
         async.elapse(Duration.zero);
         expect(requested, [(1, 3)]);
-        coordinator.dispose();
+        scheduler.dispose();
       });
     });
 
@@ -127,7 +127,7 @@ void main() {
       fakeAsync((async) {
         final dataSource = _TestDataSource();
         final requested = <(int, int)>[];
-        final coordinator = ChatFetchCoordinator(
+        final scheduler = ChatChunkFetchScheduler(
           dataSource: dataSource,
           requestRange: (min, max) => requested.add((min, max)),
           anchorChunkIndex: () => 0,
@@ -136,10 +136,10 @@ void main() {
         dataSource.chunks[2] = ChatScrollChunk(index: 2)
           ..status = ChatMessageStatus.error;
 
-        coordinator.onLayoutComplete(2, 2);
+        scheduler.onLayoutComplete(2, 2);
         async.elapse(const Duration(milliseconds: 200));
         expect(requested, isEmpty);
-        coordinator.dispose();
+        scheduler.dispose();
       });
     });
   });
@@ -147,7 +147,7 @@ void main() {
   group('evictChunks', () {
     test('evicts outside-layout chunks when at budget', () {
       final dataSource = _TestDataSource(chunkBudget: 2);
-      final coordinator = ChatFetchCoordinator(
+      final scheduler = ChatChunkFetchScheduler(
         dataSource: dataSource,
         requestRange: (_, _) {},
         anchorChunkIndex: () => 1,
@@ -159,15 +159,15 @@ void main() {
           ..lastAccessTick = ci;
       }
 
-      coordinator.onLayoutComplete(1, 2);
+      scheduler.onLayoutComplete(1, 2);
       expect(dataSource.chunks.containsKey(0), isFalse);
       expect(dataSource.chunks.containsKey(5), isFalse);
-      coordinator.dispose();
+      scheduler.dispose();
     });
 
     test('never evicts anchor chunk', () {
       final dataSource = _TestDataSource(chunkBudget: 1);
-      final coordinator = ChatFetchCoordinator(
+      final scheduler = ChatChunkFetchScheduler(
         dataSource: dataSource,
         requestRange: (_, _) {},
         anchorChunkIndex: () => 2,
@@ -180,10 +180,10 @@ void main() {
         ..status = ChatMessageStatus.valid
         ..lastAccessTick = 1;
 
-      coordinator.onLayoutComplete(2, 3);
+      scheduler.onLayoutComplete(2, 3);
       expect(dataSource.chunks.containsKey(2), isTrue);
       expect(dataSource.chunks.containsKey(3), isFalse);
-      coordinator.dispose();
+      scheduler.dispose();
     });
   });
 }
