@@ -34,17 +34,6 @@ this project is pre-1.0 and not strictly SemVer yet.
   compensation), not only by repinning the tail. Opening the keyboard mid-history
   no longer yanks the viewport as if the user were still at the newest message.
 
-### Added
-
-- **`keyboard_insets` workspace package** — cross-platform keyboard height and
-  safe-area signals for the demo (`KeyboardInsets`, `PersistentSafeAreaBottom`).
-  Demo wires `ChatScrollView.bottomPadding` from composer height + keyboard
-  overlay + safe area via `MergedValueNotifier`.
-
-- **`ChatScrollDevLog`** — scoped `dart:developer` helper for viewport
-  diagnostics. `ChatScrollFetchAnchor` events (layout, fetch, tail-pin, GC) aid
-  post-fetch jump investigation; disabled by default (`enabled: false`).
-
 ### Changed
 
 - **Demo `ChatComposer`** — `bottomInset` and `onSizeChanged` are optional;
