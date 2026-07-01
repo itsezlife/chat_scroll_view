@@ -90,9 +90,9 @@ void main() {
       const sz = Size(400, 600);
       final sb = ChatScrollbar();
       // LTR: a touch on the far-right is in the strip.
-      expect(sb.inHitArea(399, sz, TextDirection.ltr), isTrue);
+      expect(sb.inHitArea(399, sz.height / 2, sz, TextDirection.ltr), isTrue);
       // RTL: a touch on the far-left is in the strip.
-      expect(sb.inHitArea(0, sz, TextDirection.rtl), isTrue);
+      expect(sb.inHitArea(0, sz.height / 2, sz, TextDirection.rtl), isTrue);
     });
   });
 

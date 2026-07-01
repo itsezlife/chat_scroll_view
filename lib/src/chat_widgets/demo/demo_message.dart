@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:chatscrollview/src/chat_message.dart';
 import 'package:chatscrollview/src/chat_scroll/chat_scroll_common.dart';
 import 'package:flutter/material.dart';
@@ -24,7 +26,13 @@ Widget buildDemoMessage(
 /// Max width of a message's content column (the column inside the viewport,
 /// not the bubble itself — the viewport hands each message the full viewport
 /// width, then we centre this column within it).
-const double _kContentMaxWidth = 338;
+/// 
+/// It should be checked again available space, but for demo purposes just check
+/// the platform.
+final double _kContentMaxWidth = switch (Platform.operatingSystem) {
+  'windows' || 'linux' || 'macos' => 620,
+  _ => 338,
+};
 
 /// Max width of a single bubble inside the content column.
 const double _kBubbleMaxWidth = 480;
@@ -196,9 +204,15 @@ class DemoMessageBubble extends StatelessWidget {
     // visual group.
     final topPad = isFirstInRun ? 6.0 : 2.0;
     return Align(
-      alignment: outgoing ? Alignment.centerRight : Alignment.centerLeft,
+      // It should be checked again available space, but for demo purposes
+      // just check the platform and whether the message is outgoing.
+      alignment: switch ((outgoing, Platform.operatingSystem)) {
+        (_, 'windows' || 'linux' || 'macos') => Alignment.center,
+        (true, _) => Alignment.centerRight,
+        (false, _) => Alignment.centerLeft,
+      },
       child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: _kContentMaxWidth),
+        constraints: BoxConstraints(maxWidth: _kContentMaxWidth),
         child: Padding(
           padding: EdgeInsets.fromLTRB(12, topPad, 12, 2),
           child: row,
@@ -409,7 +423,7 @@ class DemoShimmerBubble extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Center(
     child: ConstrainedBox(
-      constraints: const BoxConstraints(maxWidth: _kContentMaxWidth),
+      constraints: BoxConstraints(maxWidth: _kContentMaxWidth),
       child: const Padding(
         padding: EdgeInsets.fromLTRB(12, 6, 12, 2),
         child: Row(
@@ -476,7 +490,7 @@ class DemoChunkErrorTile extends StatelessWidget {
         : 'Failed to load messages $firstId–$lastId';
     return Center(
       child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: _kContentMaxWidth),
+        constraints: BoxConstraints(maxWidth: _kContentMaxWidth),
         child: Padding(
           padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
           child: DecoratedBox(

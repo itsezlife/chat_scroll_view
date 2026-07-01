@@ -493,4 +493,72 @@ void main() {
       },
     );
   });
+
+  group('animateTo across absent gap', () {
+    const messageHeight = 40.0;
+
+    Future<List<double>> sampleGapAnimateTo(
+      WidgetTester tester,
+      ChatScrollController controller, {
+      required int targetId,
+    }) async {
+      final samples = <double>[];
+      final future = controller.animateTo(
+        targetId,
+        duration: const Duration(milliseconds: 200),
+        alignment: 0.5,
+        highlight: false,
+      );
+      await tester.pump();
+      for (var i = 0; i < 16; i++) {
+        samples.add(controller.anchorPixelOffset);
+        await tester.pump(const Duration(milliseconds: 16));
+      }
+      for (var i = 0; i < 18; i++) {
+        await tester.pump(const Duration(milliseconds: 16));
+      }
+      await future;
+      samples.add(controller.anchorPixelOffset);
+      return samples;
+    }
+
+    testWidgets(
+      'animateTo across absent gap alignment 0.5 moves monotonically',
+      (tester) async {
+        final presentIds = <int>{
+          for (var i = 1; i <= 20; i++) i,
+          for (var i = 40; i <= 63; i++) i,
+        };
+        final ds = GapDataSource(presentIds: presentIds, oldest: 1, newest: 63);
+        const targetId = 10;
+        final controller = ChatScrollController()..jumpTo(63);
+        addTearDown(controller.dispose);
+        addTearDown(ds.dispose);
+
+        await tester.pumpWidget(
+          _harness(dataSource: ds, controller: controller),
+        );
+        await _settle(tester);
+
+        const viewportHeight = 600;
+        const expectedEnd = 0.5 * (viewportHeight - messageHeight);
+        final samples = await sampleGapAnimateTo(
+          tester,
+          controller,
+          targetId: targetId,
+        );
+        for (var i = 1; i < samples.length; i++) {
+          final prevDist = (samples[i - 1] - expectedEnd).abs();
+          final currDist = (samples[i] - expectedEnd).abs();
+          expect(
+            currDist,
+            lessThanOrEqualTo(prevDist + 0.5),
+            reason: 'frame $i moved away from aligned end',
+          );
+        }
+        expect(controller.anchorMessageId, targetId);
+        expect(controller.anchorPixelOffset, closeTo(expectedEnd, 2));
+      },
+    );
+  });
 }

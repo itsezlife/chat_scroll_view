@@ -53,8 +53,9 @@ bool visibleRowFillsBand(double rowHeight, double paintBandHeight) =>
 /// automatically when the widget mounts; consumers do not interact with this
 /// directly.
 abstract class ChatScrollAnimator {
-  /// Scrolls so [targetId] lands at [alignment] within the viewport
-  /// (`0` = top edge, `1` = bottom edge) over [duration] with [curve].
+  /// Scrolls so [targetId] lands at [alignment] within the viewport scroll
+  /// band between top and bottom insets (`0` = band top, `1` = band bottom)
+  /// over [duration] with [curve].
   ///
   /// When [highlight] is `true`, the viewport briefly tints the target row
   /// after the animation settles — used by search / deep-link navigation.
@@ -100,9 +101,9 @@ class ChatScrollController {
   /// Jump to a specific message, resetting the anchor.
   ///
   /// [alignment] positions the target within the viewport's scrollable band
-  /// (y = 0 through the bottom inset). `0.0` places the message top at the
-  /// viewport top (default); `0.5` centers it; `1.0` aligns the message
-  /// bottom to the bottom inset. Boundary clamping may reduce the effective
+  /// between the top inset and bottom inset. `0.0` places the message top at
+  /// the band top (below [ChatScrollView.topPadding]); `0.5` centers it;
+  /// `1.0` aligns the message bottom to the bottom inset. Boundary clamping may reduce the effective
   /// alignment when insufficient content exists above or below.
   ///
   /// **Absent-target behavior**: if [messageId] is confirmed absent after its

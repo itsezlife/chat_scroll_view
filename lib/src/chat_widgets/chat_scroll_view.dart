@@ -3,6 +3,7 @@ import 'package:chatscrollview/src/chat_scroll/chat_scroll_common.dart';
 import 'package:chatscrollview/src/chat_scroll/chat_scroll_controller.dart';
 import 'package:chatscrollview/src/chat_scroll/chat_selection_controller.dart';
 import 'package:chatscrollview/src/chat_widgets/chat_scroll_element.dart';
+import 'package:chatscrollview/src/chat_widgets/chat_scrollbar.dart';
 import 'package:chatscrollview/src/chat_widgets/render_chat_scroll_view.dart';
 import 'package:flutter/foundation.dart' show ValueListenable;
 import 'package:flutter/widgets.dart';
@@ -300,6 +301,7 @@ class ChatScrollView extends RenderObjectWidget {
         highlightColor: highlightColor,
         highlightDuration: highlightDuration,
         textDirection: _resolveDirection(context),
+        scrollbarTheme: ChatScrollbarThemeData.resolve(context),
       );
 
   @override

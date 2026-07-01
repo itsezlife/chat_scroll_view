@@ -239,6 +239,34 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "0.3.1"
+  keyboard_insets:
+    dependency: "direct main"
+    description:
+      path: "packages/keyboard_insets"
+      relative: true
+    source: path
+    version: "0.1.2"
+  keyboard_insets_mobile:
+    dependency: transitive
+    description:
+      path: "packages/keyboard_insets_mobile"
+      relative: true
+    source: path
+    version: "0.1.2"
+  keyboard_insets_platform_interface:
+    dependency: transitive
+    description:
+      path: "packages/keyboard_insets_platform_interface"
+      relative: true
+    source: path
+    version: "1.0.0"
+  keyboard_insets_web:
+    dependency: transitive
+    description:
+      path: "packages/keyboard_insets_web"
+      relative: true
+    source: path
+    version: "0.1.1"
   l:
     dependency: "direct main"
     description:
