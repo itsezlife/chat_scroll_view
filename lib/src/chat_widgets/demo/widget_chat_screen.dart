@@ -16,9 +16,9 @@ import 'package:chatscrollview/src/chat_widgets/demo/demo_message.dart';
 import 'package:chatscrollview/src/chat_widgets/demo/merged_value_notifier.dart';
 import 'package:chatscrollview/src/chat_widgets/demo/new_messages_pill.dart';
 import 'package:chatscrollview/src/chat_widgets/demo/selection_app_bar.dart';
+import 'package:chatscrollview/src/comments_data_source.dart';
 import 'package:flutter/material.dart';
 import 'package:keyboard_insets/keyboard_insets.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 
 /// Demo screen for the widget-based [ChatScrollView] — the chat viewport,
 /// a bottom composer, and a contextual selection bar, wired together.
@@ -39,7 +39,7 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
 
   /// Safe area bottom inset reserved inside the viewport — kept in sync with the
   /// safe area bottom inset so the composer's measured height clears it.
-  final ValueNotifier<double> _safeAreaBottomInset = ValueNotifier<double>(0);
+  final ValueNotifier<double> _keyboardBottomInset = ValueNotifier<double>(0);
 
   /// Bottom inset reserved inside the viewport — kept in sync with the
   /// composer's measured height so the newest message clears it.
@@ -50,7 +50,7 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
   late final MergedValueNotifier<double, double, double> _totalBottomInset =
       MergedValueNotifier(
         first: _bottomInset,
-        second: _safeAreaBottomInset,
+        second: _keyboardBottomInset,
         merge: (composer, safeArea) => composer + safeArea,
       );
 
@@ -81,22 +81,16 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
     _pillLastSeenBaseline.addListener(_onPillBaselineChanged);
     _init();
 
-    _bottomInset.addListener(_onBottomInsetChanged);
-
     _keyboardStateSubscription = KeyboardInsets.insets.listen((state) {
-      _safeAreaBottomInset.value = state;
+      _keyboardBottomInset.value = state;
     });
     _assignInitialBottomInset();
-  }
-
-  void _onBottomInsetChanged() {
-    dev.log('bottom inset changed: ${_bottomInset.value}');
   }
 
   void _assignInitialBottomInset() {
     final isVisible = KeyboardInsets.isVisible;
     final isAnimating = KeyboardInsets.isAnimating;
-    _safeAreaBottomInset.value = isVisible && !isAnimating
+    _keyboardBottomInset.value = isVisible && !isAnimating
         ? KeyboardInsets.keyboardHeight
         : 0;
   }
@@ -105,13 +99,12 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
   void dispose() {
     PersistentSafeAreaBottom.stopObserving();
     _pillLastSeenBaseline.removeListener(_onPillBaselineChanged);
-    _bottomInset.removeListener(_onBottomInsetChanged);
     _flushPendingLastRead();
     _persistLastReadTimer?.cancel();
     _pillLastSeenBaseline.dispose();
     _totalBottomInset.dispose();
     _bottomInset.dispose();
-    _safeAreaBottomInset.dispose();
+    _keyboardBottomInset.dispose();
     _topInset.dispose();
     _controller.dispose();
     _selection.dispose();
@@ -127,9 +120,10 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
     });
 
     try {
-      final backend = await BackendChatDataSource.connect(
-        client: Supabase.instance.client,
-      );
+      // final backend = await BackendChatDataSource.connect(
+      //   client: Supabase.instance.client,
+      // );
+      final backend = await CommentsDataSource.load();
 
       // The screen may have been popped while `load()` was in flight. The
       // `dispose()` above already ran with `_dataSource == null`, so we
@@ -141,7 +135,9 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
       }
       _dataSource = backend;
       final newest = backend.newestKnownId;
-      final lastRead = await backend.getLastReadMessageId();
+      // final lastRead = await backend.getLastReadMessageId();
+      // ignore: prefer_const_declarations
+      final int? lastRead = null;
 
       final anchor = backend.resolveOpenAnchor(
         storedLastRead: lastRead,
@@ -271,45 +267,45 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
           _selection.clear();
           return;
         }
-        Navigator.pop(context);
+        // No-op, since no navigation is supported in this demo.
       },
       child: Scaffold(
         resizeToAvoidBottomInset: false,
         floatingActionButtonLocation: .endFloat,
         floatingActionButton: ValueListenableBuilder(
           valueListenable: _totalBottomInset,
+          child: Align(
+            alignment: .bottomRight,
+            child: Column(
+              mainAxisAlignment: .end,
+              mainAxisSize: .min,
+              children: [
+                FloatingActionButton.small(
+                  heroTag: 'fab-up',
+                  onPressed: () {
+                    _controller.animateTo(6002, alignment: .5);
+                  },
+                  tooltip: 'Scroll to top',
+                  materialTapTargetSize: MaterialTapTargetSize.padded,
+                  child: const Icon(Icons.arrow_upward, size: 18),
+                ),
+                FloatingActionButton.small(
+                  heroTag: 'fab-down',
+                  onPressed: () {
+                    if (_dataSource?.newestKnownId case final newestKnownId?) {
+                      _controller.animateTo(newestKnownId, highlight: false);
+                    }
+                  },
+                  tooltip: 'Scroll to bottom',
+                  materialTapTargetSize: MaterialTapTargetSize.padded,
+                  child: const Icon(Icons.arrow_downward, size: 18),
+                ),
+              ],
+            ),
+          ),
           builder: (context, bottomInset, child) => Padding(
             padding: EdgeInsets.only(bottom: bottomInset - bottomPadding),
-            child: Align(
-              alignment: .bottomRight,
-              child: Column(
-                mainAxisAlignment: .end,
-                mainAxisSize: .min,
-                children: [
-                  FloatingActionButton.small(
-                    heroTag: 'fab-up',
-                    onPressed: () {
-                      _controller.animateTo(6002, alignment: .5);
-                    },
-                    tooltip: 'Scroll to top',
-                    materialTapTargetSize: MaterialTapTargetSize.padded,
-                    child: const Icon(Icons.arrow_upward, size: 18),
-                  ),
-                  FloatingActionButton.small(
-                    heroTag: 'fab-down',
-                    onPressed: () {
-                      if (_dataSource?.newestKnownId
-                          case final newestKnownId?) {
-                        _controller.animateTo(newestKnownId, highlight: false);
-                      }
-                    },
-                    tooltip: 'Scroll to bottom',
-                    materialTapTargetSize: MaterialTapTargetSize.padded,
-                    child: const Icon(Icons.arrow_downward, size: 18),
-                  ),
-                ],
-              ),
-            ),
+            child: child,
           ),
         ),
         body: Stack(
@@ -347,7 +343,7 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
               right: 0,
               bottom: 0,
               child: ChatComposer(
-                bottomInset: _safeAreaBottomInset,
+                bottomInset: _keyboardBottomInset,
                 selection: _selection,
                 dataSource: _dataSource!,
                 onSend: _handleSendMessage,

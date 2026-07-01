@@ -90,6 +90,7 @@ Widget _harness({
   required ChatDataSource dataSource,
   required ChatScrollController controller,
   double bottomPadding = 0,
+  double topPadding = 0,
 }) => MaterialApp(
   home: Scaffold(
     body: Center(
@@ -101,6 +102,7 @@ Widget _harness({
           dataSource: dataSource,
           controller: controller,
           bottomPadding: ValueNotifier<double>(bottomPadding),
+          topPadding: ValueNotifier<double>(topPadding),
           messageBuilder: (context, id, message, status) => SizedBox(
             height: _messageHeight,
             child: Text(message == null ? 'shimmer-$id' : 'msg-$id'),
@@ -116,10 +118,11 @@ double _expectedAlignedTop({
   required double bottomPadding,
   required double messageHeight,
   required double alignment,
+  double topPadding = 0,
 }) {
-  final travel = viewportHeight - bottomPadding - messageHeight;
-  if (travel <= 0) return 0;
-  return alignment * travel;
+  final travel = viewportHeight - topPadding - bottomPadding - messageHeight;
+  if (travel <= 0) return topPadding;
+  return topPadding + alignment * travel;
 }
 
 /// Per-frame monotonicity tolerance (sub-pixel rounding on high-DPI).
@@ -239,6 +242,86 @@ void main() {
         alignment: 0.5,
       );
       expect(controller.anchorPixelOffset, closeTo(expected, 1));
+    });
+
+    testWidgets('jumpTo alignment 0.5 respects top inset', (tester) async {
+      const count = 100;
+      const topPadding = 56.0;
+      final ds = _PreloadedDataSource(count);
+      final controller = ChatScrollController()..jumpTo(50, alignment: 0.5);
+      addTearDown(controller.dispose);
+      addTearDown(ds.dispose);
+
+      await tester.pumpWidget(
+        _harness(
+          dataSource: ds,
+          controller: controller,
+          topPadding: topPadding,
+        ),
+      );
+      await tester.pump();
+
+      final expected = _expectedAlignedTop(
+        viewportHeight: _viewportHeight,
+        topPadding: topPadding,
+        bottomPadding: 0,
+        messageHeight: _messageHeight,
+        alignment: 0.5,
+      );
+      expect(controller.anchorPixelOffset, closeTo(expected, 1));
+    });
+
+    testWidgets('jumpTo alignment 0.5 respects top and bottom inset', (
+      tester,
+    ) async {
+      const count = 100;
+      const topPadding = 56.0;
+      const bottomPadding = 96.0;
+      final ds = _PreloadedDataSource(count);
+      final controller = ChatScrollController()..jumpTo(50, alignment: 0.5);
+      addTearDown(controller.dispose);
+      addTearDown(ds.dispose);
+
+      await tester.pumpWidget(
+        _harness(
+          dataSource: ds,
+          controller: controller,
+          topPadding: topPadding,
+          bottomPadding: bottomPadding,
+        ),
+      );
+      await tester.pump();
+
+      final expected = _expectedAlignedTop(
+        viewportHeight: _viewportHeight,
+        topPadding: topPadding,
+        bottomPadding: bottomPadding,
+        messageHeight: _messageHeight,
+        alignment: 0.5,
+      );
+      expect(controller.anchorPixelOffset, closeTo(expected, 1));
+    });
+
+    testWidgets('jumpTo alignment 0 places message below top inset', (
+      tester,
+    ) async {
+      const count = 100;
+      const topPadding = 48.0;
+      final ds = _PreloadedDataSource(count);
+      final controller = ChatScrollController()..jumpTo(50, alignment: 0);
+      addTearDown(controller.dispose);
+      addTearDown(ds.dispose);
+
+      await tester.pumpWidget(
+        _harness(
+          dataSource: ds,
+          controller: controller,
+          topPadding: topPadding,
+        ),
+      );
+      await tester.pump();
+
+      expect(controller.anchorPixelOffset, closeTo(topPadding, 1));
     });
 
     testWidgets('jumpTo alignment 0.5 near oldest clamps via oldest pin', (

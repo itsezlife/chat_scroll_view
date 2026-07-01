@@ -18,7 +18,42 @@ this project is pre-1.0 and not strictly SemVer yet.
   viewport no longer jumps after the scroll animation finishes; settle runs
   after the final tick reposition instead of fighting a stale end offset.
 
+- **Close-path `animateTo` at the cache margin** — while a close-path animation
+  is in flight, layout no longer renormalizes the anchor away from the target
+  or GCs the animate / navigation-alignment rows. Fixes drift, wrong landing
+  position, and the target row vanishing when skeleton placeholders are visible
+  at the fetch boundary.
+
+- **`jumpTo` / `animateTo` alignment respects top inset** — the alignment band
+  now runs from `topPadding` through the bottom inset (`0` = band top below
+  chrome, `1` = band bottom above the composer). `alignment: 0` no longer parks
+  the message under the app bar / selection bar.
+
+- **Bottom inset changes while scrolled in history** — keyboard or composer
+  inset growth/shrink shifts visible content by the inset delta (anchor
+  compensation), not only by repinning the tail. Opening the keyboard mid-history
+  no longer yanks the viewport as if the user were still at the newest message.
+
+### Added
+
+- **`keyboard_insets` workspace package** — cross-platform keyboard height and
+  safe-area signals for the demo (`KeyboardInsets`, `PersistentSafeAreaBottom`).
+  Demo wires `ChatScrollView.bottomPadding` from composer height + keyboard
+  overlay + safe area via `MergedValueNotifier`.
+
+- **`ChatScrollDevLog`** — scoped `dart:developer` helper for viewport
+  diagnostics. `ChatScrollFetchAnchor` events (layout, fetch, tail-pin, GC) aid
+  post-fetch jump investigation; disabled by default (`enabled: false`).
+
 ### Changed
+
+- **Demo `ChatComposer`** — `bottomInset` and `onSizeChanged` are optional;
+  keyboard height is applied outside the composer measure tree so layout
+  reports content height only.
+
+- **`ChatScrollDrift` debug logging removed** — close-path trace noise dropped
+  from `ChatAnimator` and `RenderChatScrollView`; use `ChatScrollFetchAnchor`
+  when investigating fetch / anchor persistence.
 
 - **`ChatKeyboardShortcuts` drops `dataSource` parameter** *(breaking)* —
   Home / End now read `oldestKnownId` / `newestKnownId` from the shared

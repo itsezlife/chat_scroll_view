@@ -22,8 +22,8 @@ class ChatComposer extends StatefulWidget {
     required this.selection,
     required this.dataSource,
     required this.onSend,
-    required this.bottomInset,
-    required this.onSizeChanged,
+    this.onSizeChanged,
+    this.bottomInset,
     super.key,
   });
 
@@ -38,10 +38,10 @@ class ChatComposer extends StatefulWidget {
 
   /// Safe area bottom inset reserved inside the viewport — kept in sync with the
   /// safe area bottom inset so the composer's measured height clears it.
-  final ValueNotifier<double> bottomInset;
+  final ValueNotifier<double>? bottomInset;
 
   /// Callback to notify the parent of the composer's measured height.
-  final void Function(double height) onSizeChanged;
+  final void Function(double height)? onSizeChanged;
 
   @override
   State<ChatComposer> createState() => _ChatComposerState();
@@ -198,98 +198,93 @@ class _ChatComposerState extends State<ChatComposer>
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     final bottomPadding = MediaQuery.viewPaddingOf(context).bottom;
-    return ValueListenableBuilder(
-      valueListenable: widget.bottomInset,
-      builder: (context, bottomInset, child) => Padding(
-        padding: EdgeInsets.only(bottom: bottomInset),
-        child: MeasureSize(
-          onChange: (size) => widget.onSizeChanged(size.height),
-          child: Padding(
-            padding: EdgeInsets.only(bottom: bottomPadding),
-            child: Center(
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: _kComposerMaxWidth),
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 10, 16, 14),
-                  child: ClipRect(
-                    child: DecoratedBox(
-                      decoration: BoxDecoration(
-                        color: scheme.surfaceContainerHighest,
-                        borderRadius: BorderRadius.circular(24),
-                        border: Border.all(
-                          color: scheme.outlineVariant.withValues(alpha: 0.3),
-                          width: 0.5,
-                        ),
-                      ),
-                      child: Padding(
-                        padding: const EdgeInsets.all(8),
-                        child: ConstrainedBox(
-                          constraints: const BoxConstraints(minHeight: 66),
-                          child: Stack(
-                            alignment: Alignment.bottomCenter,
-                            children: <Widget>[
-                              // Input layer — sizes the bar.
-                              SlideTransition(
-                                position: _inputSlide,
-                                child: FadeTransition(
-                                  opacity: _inputFade,
-                                  child: IgnorePointer(
-                                    ignoring: _mode,
-                                    child: _InputField(
-                                      controller: _text,
-                                      focusNode: _focus,
-                                      onSend: _handleSend,
-                                      sending: _sending,
-                                      scheme: scheme,
-                                    ),
-                                  ),
+
+    final child = MeasureSize(
+      onChange: (size) => widget.onSizeChanged?.call(size.height),
+      child: Padding(
+        padding: EdgeInsets.only(bottom: bottomPadding),
+        child: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: _kComposerMaxWidth),
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(16, 10, 16, 14),
+              child: ClipRect(
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    color: scheme.surfaceContainerHighest,
+                    borderRadius: BorderRadius.circular(24),
+                    border: Border.all(
+                      color: scheme.outlineVariant.withValues(alpha: 0.3),
+                      width: 0.5,
+                    ),
+                  ),
+                  child: Padding(
+                    padding: const EdgeInsets.all(8),
+                    child: ConstrainedBox(
+                      constraints: const BoxConstraints(minHeight: 66),
+                      child: Stack(
+                        alignment: Alignment.bottomCenter,
+                        children: <Widget>[
+                          // Input layer — sizes the bar.
+                          SlideTransition(
+                            position: _inputSlide,
+                            child: FadeTransition(
+                              opacity: _inputFade,
+                              child: IgnorePointer(
+                                ignoring: _mode,
+                                child: _InputField(
+                                  controller: _text,
+                                  focusNode: _focus,
+                                  onSend: _handleSend,
+                                  sending: _sending,
+                                  scheme: scheme,
                                 ),
                               ),
-                              // Action layer — overlaid, fades / flies in.
-                              Positioned.fill(
-                                child: IgnorePointer(
-                                  ignoring: !_mode,
-                                  child: FadeTransition(
-                                    opacity: _actionsFade,
-                                    child: Row(
-                                      mainAxisAlignment:
-                                          MainAxisAlignment.spaceEvenly,
-                                      children: <Widget>[
-                                        SlideTransition(
-                                          position: _copySlide,
-                                          child: _ActionButton(
-                                            icon: Icons.copy_rounded,
-                                            label: 'Копировать',
-                                            onTap: _copy,
-                                            scheme: scheme,
-                                          ),
-                                        ),
-                                        ScaleTransition(
-                                          scale: _favScale,
-                                          child: _ActionButton(
-                                            icon: Icons.star_rounded,
-                                            label: 'В избранное',
-                                            onTap: _favorite,
-                                            scheme: scheme,
-                                          ),
-                                        ),
-                                        SlideTransition(
-                                          position: _shareSlide,
-                                          child: _ActionButton(
-                                            icon: Icons.share_rounded,
-                                            label: 'Поделиться',
-                                            onTap: _share,
-                                            scheme: scheme,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            ],
+                            ),
                           ),
-                        ),
+                          // Action layer — overlaid, fades / flies in.
+                          Positioned.fill(
+                            child: IgnorePointer(
+                              ignoring: !_mode,
+                              child: FadeTransition(
+                                opacity: _actionsFade,
+                                child: Row(
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.spaceEvenly,
+                                  children: <Widget>[
+                                    SlideTransition(
+                                      position: _copySlide,
+                                      child: _ActionButton(
+                                        icon: Icons.copy_rounded,
+                                        label: 'Копировать',
+                                        onTap: _copy,
+                                        scheme: scheme,
+                                      ),
+                                    ),
+                                    ScaleTransition(
+                                      scale: _favScale,
+                                      child: _ActionButton(
+                                        icon: Icons.star_rounded,
+                                        label: 'В избранное',
+                                        onTap: _favorite,
+                                        scheme: scheme,
+                                      ),
+                                    ),
+                                    SlideTransition(
+                                      position: _shareSlide,
+                                      child: _ActionButton(
+                                        icon: Icons.share_rounded,
+                                        label: 'Поделиться',
+                                        onTap: _share,
+                                        scheme: scheme,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                   ),
@@ -298,6 +293,20 @@ class _ChatComposerState extends State<ChatComposer>
             ),
           ),
         ),
+      ),
+    );
+
+    final bottomInset = widget.bottomInset;
+    if (bottomInset == null) {
+      return child;
+    }
+
+    return ValueListenableBuilder(
+      valueListenable: bottomInset,
+      child: child,
+      builder: (context, bottomInset, child) => Padding(
+        padding: EdgeInsets.only(bottom: bottomInset),
+        child: child,
       ),
     );
   }

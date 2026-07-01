@@ -304,7 +304,8 @@ class ChatAnimator implements ChatScrollAnimator {
     final eased = animateCurve.transform(segmentT);
     final target =
         animateStartOffset + (animateEndOffset - animateStartOffset) * eased;
-    return target - _controller.anchorPixelOffset;
+    final delta = target - _controller.anchorPixelOffset;
+    return delta;
   }
 
   /// Re-target [animateEndOffset] when layout geometry changes mid-flight
