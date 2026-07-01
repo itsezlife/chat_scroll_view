@@ -29,12 +29,6 @@ this project is pre-1.0 and not strictly SemVer yet.
   `bottomPadding` (the same scroll band as message alignment). Thumb id
   mapping (Variant A) is unchanged.
 
-- **Scrollbar drag** — dragging the thumb no longer fights tail pin or boundary
-  clamp (no snap-back oscillation when scrubbing away from the tail). Jump
-  targets use id-linear progress; drag sessions apply progress-based alignment
-  and freeze thumb geometry so the thumb tracks the pointer across small data
-  windows and variable row heights.
-
 - **Programmatic scroll with non-default alignment** — `animateTo` with
   `alignment` other than `0` (e.g. centering a search result) no longer
   micro-jumps mid-animation. Close-path animation now owns offset interpolation
