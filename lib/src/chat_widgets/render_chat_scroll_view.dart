@@ -143,6 +143,7 @@ class RenderChatScrollView extends RenderBox {
     Color highlightColor = const Color(0x402196F3),
     Duration highlightDuration = const Duration(milliseconds: 1500),
     TextDirection textDirection = TextDirection.ltr,
+    ChatScrollbarThemeData scrollbarTheme = ChatScrollbarThemeData.light,
   }) : _dataSource = dataSource,
        _controller = controller,
        _cacheExtent = cacheExtent,
@@ -155,7 +156,8 @@ class RenderChatScrollView extends RenderBox {
        _hasErrorBuilder = hasErrorBuilder,
        _hasEmptyBuilder = hasEmptyBuilder,
        _hasLoadingBuilder = hasLoadingBuilder,
-       _textDirection = textDirection {
+       _textDirection = textDirection,
+       _scrollbarTheme = scrollbarTheme {
     _animator = ChatAnimator(
       controller: _controller,
       offsetToBuiltMessage: _offsetToBuiltMessage,
@@ -183,6 +185,19 @@ class RenderChatScrollView extends RenderBox {
     'ChatScrollFetchAnchor',
     enabled: false,
   );
+
+  /// Scrollbar thumb / id-linear progress diagnostics — filter
+  /// `ChatScrollScrollbar`. Set [ChatScrollDevLog.enabled] to `true` while
+  /// investigating thumb jumps, stale position, or height-change drift.
+  final ChatScrollDevLog _scrollbarLog = ChatScrollDevLog(
+    'ChatScrollScrollbar',
+    enabled: true,
+  );
+
+  int? _scrollbarLogLastAnchorId;
+  double? _scrollbarLogLastAnchorH;
+  double? _scrollbarLogLastProgress;
+  int _scrollbarLogPaintCounter = 0;
 
   /// Layout-pass anchor snapshot for end-of-layout delta detection.
   int? _fetchLogAnchorIdAtLayoutStart;
@@ -546,8 +561,25 @@ class RenderChatScrollView extends RenderBox {
   // --- Fetch poll ------------------------------------------------------------
 
   // --- Scrollbar -------------------------------------------------------------
+  //
+  // Thumb progress maps the anchor over the full known id extent (oldest…newest).
+  // Track paint uses a uniform colour from [scrollbarTheme]; loaded/unloaded
+  // honesty is in the viewport, not per-range track segments. Paint does not
+  // read [ChatDataSource.chunks].
 
   final ChatScrollbar _scrollbar = ChatScrollbar();
+
+  ChatScrollbarThemeData _scrollbarTheme;
+
+  /// Resolved scrollbar colours pushed from [ChatScrollElement] / [ChatScrollView].
+  ChatScrollbarThemeData get scrollbarTheme => _scrollbarTheme;
+
+  /// Updates track/thumb colours; triggers repaint only (no layout).
+  set scrollbarTheme(ChatScrollbarThemeData value) {
+    if (_scrollbarTheme == value) return;
+    _scrollbarTheme = value;
+    markNeedsPaint();
+  }
 
   /// Retained clip layer — reused across repaints via `oldLayer`.
   final LayerHandle<ClipRectLayer> _clipLayer = LayerHandle<ClipRectLayer>();
@@ -663,6 +695,10 @@ class RenderChatScrollView extends RenderBox {
 
   void _fetchAnchorEvent(String tag, Map<String, Object?> fields) {
     _fetchAnchorLog.event(tag, fields);
+  }
+
+  void _scrollbarEvent(String tag, Map<String, Object?> fields) {
+    _scrollbarLog.event(tag, fields);
   }
 
   /// Message built closest to the bottom inset — proxy for "what the user was
@@ -1478,6 +1514,15 @@ class RenderChatScrollView extends RenderBox {
       });
     }
     _fetchAnchorEvent('layout.end', _fetchAnchorSnapshot());
+    if (_scrollbarLog.enabled) {
+      final computed = _computeScrollbarProgress();
+      if (computed != null) {
+        _scrollbarEvent(
+          'layout.end',
+          _scrollbarProgressFields(computed, reason: 'layout'),
+        );
+      }
+    }
 
     assert(() {
       debugLastLayoutDuration = _debugSw.elapsed;
@@ -1952,6 +1997,31 @@ class RenderChatScrollView extends RenderBox {
         'fromY': DevLogFormat.f(fromY),
         'toY': DevLogFormat.f(bestOffset),
       });
+      if (_scrollbarLog.enabled) {
+        final before = _computeScrollbarProgress(
+          anchorIdOverride: fromId,
+          anchorYOverride: fromY,
+        );
+        final after = _computeScrollbarProgress();
+        _scrollbarEvent('renormalize', {
+          'fromId': fromId,
+          'toId': bestId,
+          'fromY': DevLogFormat.f(fromY),
+          'toY': DevLogFormat.f(bestOffset),
+        });
+        if (before != null) {
+          _scrollbarEvent(
+            'renormalize.before',
+            _scrollbarProgressFields(before, reason: 'before'),
+          );
+        }
+        if (after != null) {
+          _scrollbarEvent(
+            'renormalize.after',
+            _scrollbarProgressFields(after, reason: 'after'),
+          );
+        }
+      }
     }
   }
 
@@ -2625,8 +2695,15 @@ class RenderChatScrollView extends RenderBox {
     // Scrollbar drag in progress — consume move/up/cancel.
     if (_scrollbar.isDragging) {
       if (event is PointerMoveEvent && _scrollbar.ownsPointer(event)) {
+        final thumbFraction = _currentScrollbarThumbFraction();
         _jumpToScrollbar(
-          _scrollbar.progressFromY(event.localPosition.dy, size),
+          _scrollbar.progressFromY(
+            event.localPosition.dy,
+            size,
+            topInset: _topPad,
+            bottomInset: _bottomPad,
+            thumbFraction: thumbFraction,
+          ),
         );
         return;
       }
@@ -2640,11 +2717,24 @@ class RenderChatScrollView extends RenderBox {
 
     if (event is PointerDownEvent) {
       if (_dataSource.newestKnownId != null &&
-          _scrollbar.tryStartDrag(event, size, _textDirection)) {
+          _scrollbar.tryStartDrag(
+            event,
+            size,
+            _textDirection,
+            topInset: _topPad,
+            bottomInset: _bottomPad,
+          )) {
         _cancelFling();
         markNeedsPaint();
+        final thumbFraction = _currentScrollbarThumbFraction();
         _jumpToScrollbar(
-          _scrollbar.progressFromY(event.localPosition.dy, size),
+          _scrollbar.progressFromY(
+            event.localPosition.dy,
+            size,
+            topInset: _topPad,
+            bottomInset: _bottomPad,
+            thumbFraction: thumbFraction,
+          ),
         );
         return;
       }
@@ -3113,27 +3203,675 @@ class RenderChatScrollView extends RenderBox {
     final oldest = _dataSource.oldestKnownId;
     if (newest == null || oldest == null || newest <= oldest) return;
     final targetId = (oldest + progress * (newest - oldest)).round();
+    if (_scrollbarLog.enabled) {
+      final current = _computeScrollbarProgress();
+      _scrollbarEvent('jump', {
+        'dragProgress': DevLogFormat.f(progress),
+        'targetId': targetId,
+        'oldest': oldest,
+        'newest': newest,
+        if (current != null) 'thumbProgress': DevLogFormat.f(current.progress),
+        'anchorId': _controller.anchorMessageId,
+      });
+    }
     if (targetId != _controller.anchorMessageId) {
       _controller.jumpTo(targetId);
     }
   }
 
-  /// Scrollbar thumb progress (0..1) derived from the anchor — pure id math,
-  /// no dependency on a global content height. Returns `null` when hidden.
-  double? _scrollbarProgress() {
+  /// Maps a scroll-band Y coordinate through built rows into a fractional id.
+  ///
+  /// Stable across anchor renormalization because it uses layout tops, not
+  /// [ChatScrollController.anchorPixelOffset].
+  double? _fractionalIdAtScrollBandRef(double refY) {
+    if (!hasSize || _children.isEmpty) return null;
+
+    for (final entry in _children.entries) {
+      final box = entry.value;
+      if (!box.hasSize) continue;
+      final top = _parentData(box).offset;
+      final bottom = top + box.size.height;
+      if (top <= refY + 0.5 && bottom > refY - 0.5) {
+        final intoRow = ((refY - top) / box.size.height).clamp(0.0, 1.0);
+        return entry.key + intoRow;
+      }
+    }
+
+    int? aboveId;
+    double? aboveBottom;
+    int? belowId;
+    double? belowTop;
+    for (final entry in _children.entries) {
+      final box = entry.value;
+      if (!box.hasSize) continue;
+      final top = _parentData(box).offset;
+      final bottom = top + box.size.height;
+      if (bottom <= refY + 0.5) {
+        if (aboveBottom == null || bottom > aboveBottom) {
+          aboveBottom = bottom;
+          aboveId = entry.key;
+        }
+      } else if (top >= refY - 0.5) {
+        if (belowTop == null || top < belowTop) {
+          belowTop = top;
+          belowId = entry.key;
+        }
+      }
+    }
+
+    if (aboveId != null &&
+        belowId != null &&
+        aboveBottom != null &&
+        belowTop != null) {
+      final gap = belowTop - aboveBottom;
+      final t = gap > 0 ? ((refY - aboveBottom) / gap).clamp(0.0, 1.0) : 0.5;
+      return aboveId + t * (belowId - aboveId);
+    }
+    if (aboveId != null) return aboveId + 1.0;
+    if (belowId != null) return belowId.toDouble();
+    return null;
+  }
+
+  /// Built-row height stats for height-weighted scrollbar math.
+  ({int minBuilt, int maxBuilt, int count, double totalH, double avgH})?
+  _scrollbarBuiltHeightStats() {
+    if (_children.isEmpty) return null;
+    var minBuilt = _children.keys.first;
+    var maxBuilt = minBuilt;
+    var totalH = 0.0;
+    var count = 0;
+    for (final entry in _children.entries) {
+      final box = entry.value;
+      if (!box.hasSize) continue;
+      final id = entry.key;
+      if (id < minBuilt) minBuilt = id;
+      if (id > maxBuilt) maxBuilt = id;
+      totalH += box.size.height;
+      count++;
+    }
+    if (count == 0) return null;
+    final idSpan = maxBuilt - minBuilt;
+    final avgH = idSpan > 0 ? totalH / (idSpan + 1) : totalH / count;
+    return (
+      minBuilt: minBuilt,
+      maxBuilt: maxBuilt,
+      count: count,
+      totalH: totalH,
+      avgH: avgH,
+    );
+  }
+
+  /// Pixel distance from the top of the built stack to [refY] along layout.
+  double _pixelOffsetIntoBuiltStack(double refY) {
+    final sorted = _children.entries.toList()
+      ..sort((a, b) => a.key.compareTo(b.key));
+    var intoBuilt = 0.0;
+    for (final entry in sorted) {
+      final box = entry.value;
+      if (!box.hasSize) continue;
+      final top = _parentData(box).offset;
+      final bottom = top + box.size.height;
+      if (bottom <= refY + 0.5) {
+        intoBuilt += box.size.height;
+      } else if (top <= refY + 0.5) {
+        intoBuilt += refY - top;
+        break;
+      }
+    }
+    return intoBuilt;
+  }
+
+  /// Estimated document height at [refY] using built average row height.
+  ({double heightAtRef, double estimatedExtent, double avgH})?
+  _scrollbarHeightAtRef(double refY) {
+    final stats = _scrollbarBuiltHeightStats();
+    final oldest = _dataSource.oldestKnownId;
+    final newest = _dataSource.newestKnownId;
+    if (stats == null || oldest == null || newest == null) return null;
+    final idCount = newest - oldest + 1;
+    if (idCount <= 0) return null;
+    final estimatedExtent = idCount * stats.avgH;
+    final prefixH = (stats.minBuilt - oldest) * stats.avgH;
+    final intoBuilt = _pixelOffsetIntoBuiltStack(refY);
+    return (
+      heightAtRef: prefixH + intoBuilt,
+      estimatedExtent: estimatedExtent,
+      avgH: stats.avgH,
+    );
+  }
+
+  /// Band-edge scrollbar metrics from layout-interpolated fractional ids.
+  ///
+  /// Shares the same continuous signal as [fractionalId]: local viewport
+  /// density (`bandHeight / visibleSpan`) drives extent, height-above, progress,
+  /// and thumb fraction — without global [avgH] jumps at layout boundaries.
+  ({
+    double thumbFraction,
+    double heightAtTop,
+    double estimatedExtent,
+    double progress,
+  })?
+  _scrollbarBandMetrics({
+    required double bandHeight,
+    required int oldest,
+    required int newest,
+    double? topFrac,
+    double? bottomFrac,
+  }) {
+    final idCount = newest - oldest + 1;
+    if (idCount <= 0 || bandHeight <= 0) return null;
+    if (topFrac == null || bottomFrac == null || bottomFrac <= topFrac) {
+      return null;
+    }
+    final visibleSpan = bottomFrac - topFrac;
+    final thumbFraction = (visibleSpan / idCount).clamp(0.0, 1.0);
+    if (thumbFraction >= 1.0) {
+      return (
+        thumbFraction: 1.0,
+        heightAtTop: 0.0,
+        estimatedExtent: bandHeight,
+        progress: 0.0,
+      );
+    }
+    final estimatedExtent = bandHeight / thumbFraction;
+    final maxScroll = estimatedExtent - bandHeight;
+    final heightAtTop = bandHeight * (topFrac - oldest) / visibleSpan;
+    final progress = maxScroll > 0
+        ? (heightAtTop / maxScroll).clamp(0.0, 1.0)
+        : 0.0;
+    return (
+      thumbFraction: thumbFraction,
+      heightAtTop: heightAtTop,
+      estimatedExtent: estimatedExtent,
+      progress: progress,
+    );
+  }
+
+  double? _currentScrollbarThumbFraction() {
+    if (!hasSize) return null;
+    final bandHeight = size.height - _topPad - _bottomPad;
+    if (bandHeight <= 0) return null;
+    final oldest = _dataSource.oldestKnownId;
+    final newest = _dataSource.newestKnownId;
+    if (oldest == null || newest == null) return null;
+
+    final fromBand = _scrollbarBandMetrics(
+      bandHeight: bandHeight,
+      oldest: oldest,
+      newest: newest,
+      topFrac: _fractionalIdAtScrollBandRef(_topPad),
+      bottomFrac: _fractionalIdAtScrollBandRef(size.height - _bottomPad),
+    )?.thumbFraction;
+    if (fromBand != null) return fromBand;
+
+    final model = _scrollbarHeightAtRef(_topPad);
+    if (model == null || model.estimatedExtent <= 0) return null;
+    if (model.estimatedExtent <= bandHeight) return 1;
+    return (bandHeight / model.estimatedExtent).clamp(0.0, 1.0);
+  }
+
+  /// Intermediate values for scrollbar paint/diagnostics.
+  ///
+  /// [progress] and [thumbFraction] are derived from band-edge fractional ids
+  /// and local viewport density — they track scroll every paint like
+  /// [fractionalId]. Global built-span [avgH] extrapolation is retained only
+  /// in logs (`heightAtBandTopExtrap`, `estimatedExtentExtrap`) for comparison.
+  /// Hard clamps at tail (`1.0`) and oldest head (`0.0`).
+  ({
+    double progress,
+    double thumbFraction,
+    double fractionalId,
+    double idLinearProgress,
+    double legacyProgress,
+    double legacyFractionalId,
+    double bandRefY,
+    double heightAtBandTop,
+    double estimatedExtent,
+    double avgRowH,
+    double slotHeight,
+    double anchorY,
+    int anchorId,
+    double anchorH,
+    bool anchorBuilt,
+    bool anchorLoaded,
+    bool slotHeightIsFallback,
+    int oldest,
+    int newest,
+    int idRange,
+  })?
+  _computeScrollbarProgress({int? anchorIdOverride, double? anchorYOverride}) {
     final newest = _dataSource.newestKnownId;
     final oldest = _dataSource.oldestKnownId;
     if (newest == null || oldest == null) return null;
     final range = newest - oldest;
     if (range <= 0) return null;
 
-    final anchorId = _controller.anchorMessageId;
+    final anchorId = anchorIdOverride ?? _controller.anchorMessageId;
     final anchor = _children[anchorId];
-    final slotHeight = (anchor != null && anchor.size.height > 0)
-        ? anchor.size.height
-        : 60.0;
-    final fractionalId = anchorId - _controller.anchorPixelOffset / slotHeight;
-    return ((fractionalId - oldest) / range).clamp(0.0, 1.0);
+    final resolved = anchorIdOverride == null ? _resolveAnchorBox() : null;
+    final anchorH =
+        resolved?.box.size.height ??
+        (anchor != null && anchor.hasSize ? anchor.size.height : 0.0);
+    final slotHeightIsFallback =
+        anchor == null || !anchor.hasSize || anchorH <= 0;
+    final slotHeight = slotHeightIsFallback ? 60.0 : anchorH;
+    final anchorY = anchorYOverride ?? _controller.anchorPixelOffset;
+    final legacyFractionalId = anchorId - anchorY / slotHeight;
+    final legacyProgress = ((legacyFractionalId - oldest) / range).clamp(
+      0.0,
+      1.0,
+    );
+
+    final bandRefY = hasSize ? _topPad : 0.0;
+    final bandHeight = hasSize ? size.height - _topPad - _bottomPad : 0.0;
+
+    final topFrac = hasSize ? _fractionalIdAtScrollBandRef(_topPad) : null;
+    final bottomFrac = hasSize
+        ? _fractionalIdAtScrollBandRef(size.height - _bottomPad)
+        : null;
+    final bandFractionalId = topFrac ?? bottomFrac ?? legacyFractionalId;
+    final idLinearProgress = ((bandFractionalId - oldest) / range).clamp(
+      0.0,
+      1.0,
+    );
+
+    final heightModel = hasSize ? _scrollbarHeightAtRef(_topPad) : null;
+    final extrapHeightAtBandTop = heightModel?.heightAtRef ?? 0.0;
+    final extrapEstimatedExtent = heightModel?.estimatedExtent ?? 0.0;
+    final extrapAvgRowH = heightModel?.avgH ?? slotHeight;
+
+    final bandMetrics = hasSize
+        ? _scrollbarBandMetrics(
+            bandHeight: bandHeight,
+            oldest: oldest,
+            newest: newest,
+            topFrac: topFrac,
+            bottomFrac: bottomFrac,
+          )
+        : null;
+
+    double progress;
+    double thumbFraction;
+    double heightAtBandTop;
+    double estimatedExtent;
+    double avgRowH;
+    if (_computeIsAtTail()) {
+      progress = 1.0;
+    } else if (_computeIsAtOldestHead()) {
+      progress = 0.0;
+    } else if (bandMetrics != null) {
+      progress = bandMetrics.progress;
+    } else if (heightModel != null && bandHeight > 0) {
+      if (extrapEstimatedExtent <= bandHeight) {
+        progress = 0.0;
+      } else {
+        final maxScroll = extrapEstimatedExtent - bandHeight;
+        progress = (extrapHeightAtBandTop / maxScroll).clamp(0.0, 1.0);
+      }
+    } else {
+      progress = idLinearProgress;
+    }
+
+    if (bandMetrics != null) {
+      thumbFraction = bandMetrics.thumbFraction;
+      heightAtBandTop = bandMetrics.heightAtTop;
+      estimatedExtent = bandMetrics.estimatedExtent;
+      avgRowH = extrapAvgRowH;
+    } else if (extrapEstimatedExtent <= 0 || bandHeight <= 0) {
+      thumbFraction = 1.0;
+      heightAtBandTop = extrapHeightAtBandTop;
+      estimatedExtent = extrapEstimatedExtent;
+      avgRowH = extrapAvgRowH;
+    } else if (extrapEstimatedExtent <= bandHeight) {
+      thumbFraction = 1.0;
+      heightAtBandTop = extrapHeightAtBandTop;
+      estimatedExtent = extrapEstimatedExtent;
+      avgRowH = extrapAvgRowH;
+    } else {
+      thumbFraction = (bandHeight / extrapEstimatedExtent).clamp(0.0, 1.0);
+      heightAtBandTop = extrapHeightAtBandTop;
+      estimatedExtent = extrapEstimatedExtent;
+      avgRowH = extrapAvgRowH;
+    }
+
+    final fractionalId = _computeIsAtTail()
+        ? newest.toDouble()
+        : _computeIsAtOldestHead()
+        ? oldest.toDouble()
+        : bandFractionalId;
+
+    return (
+      progress: progress,
+      thumbFraction: thumbFraction,
+      fractionalId: fractionalId,
+      idLinearProgress: idLinearProgress,
+      legacyProgress: legacyProgress,
+      legacyFractionalId: legacyFractionalId,
+      bandRefY: bandRefY,
+      heightAtBandTop: heightAtBandTop,
+      estimatedExtent: estimatedExtent,
+      avgRowH: avgRowH,
+      slotHeight: slotHeight,
+      anchorY: anchorY,
+      anchorId: anchorId,
+      anchorH: anchorH,
+      anchorBuilt: anchor != null,
+      anchorLoaded: _dataSource.getMessage(anchorId) != null,
+      slotHeightIsFallback: slotHeightIsFallback,
+      oldest: oldest,
+      newest: newest,
+      idRange: range,
+    );
+  }
+
+  /// Whether the oldest known message is pinned to the top scroll band edge.
+  bool _computeIsAtOldestHead() {
+    if (_overlayKind != ChatOverlayKind.none) return false;
+    final oldest = _dataSource.oldestKnownId;
+    if (oldest == null || !_dataSource.reachedOldest) return false;
+    final first = _boundaryBox(oldest);
+    if (first == null) return false;
+    return _parentData(first).offset >= _topPad - 0.5;
+  }
+
+  /// Tail/head layout snapshot for scrollbar diagnostics.
+  Map<String, Object?> _scrollbarBoundarySnapshot(int anchorId) {
+    if (!hasSize) return const {};
+    final bottomEdge = size.height - _bottomPad;
+    final newest = _dataSource.newestKnownId;
+    final oldest = _dataSource.oldestKnownId;
+    final isAtTail = _computeIsAtTail();
+    final isAtOldestHead = _computeIsAtOldestHead();
+    double? newestTop;
+    double? newestBottom;
+    double? oldestTop;
+    if (newest != null) {
+      final last = _boundaryBox(newest);
+      if (last != null) {
+        newestTop = _parentData(last).offset;
+        newestBottom = newestTop + last.size.height;
+      }
+    }
+    if (oldest != null) {
+      final first = _boundaryBox(oldest);
+      if (first != null) {
+        oldestTop = _parentData(first).offset;
+      }
+    }
+    final anchorBox = _children[anchorId];
+    final anchorBottom = anchorBox == null
+        ? null
+        : _parentData(anchorBox).offset + anchorBox.size.height;
+    return {
+      'isAtTail': isAtTail,
+      'isAtOldestHead': isAtOldestHead,
+      'topEdge': DevLogFormat.f(_topPad),
+      'bottomEdge': DevLogFormat.f(bottomEdge),
+      'newestTop': newestTop == null ? null : DevLogFormat.f(newestTop),
+      'newestBottom': newestBottom == null
+          ? null
+          : DevLogFormat.f(newestBottom),
+      'oldestTop': oldestTop == null ? null : DevLogFormat.f(oldestTop),
+      'anchorBottom': anchorBottom == null
+          ? null
+          : DevLogFormat.f(anchorBottom),
+      'anchorIsNewest': newest != null && anchorId == newest,
+      'anchorIsOldest': oldest != null && anchorId == oldest,
+    };
+  }
+
+  /// Built-span metrics for comparing id-linear thumb math to layout reality.
+  Map<String, Object?> _scrollbarBuiltSpanMetrics(int anchorId) {
+    if (_children.isEmpty) {
+      return const {'builtCount': 0};
+    }
+    var minBuilt = anchorId;
+    var maxBuilt = anchorId;
+    var sumAbove = 0.0;
+    var sumBelow = 0.0;
+    var totalH = 0.0;
+    int? prevId;
+    double? prevH;
+    int? nextId;
+    double? nextH;
+    for (final entry in _children.entries) {
+      final id = entry.key;
+      final h = entry.value.size.height;
+      if (id < minBuilt) minBuilt = id;
+      if (id > maxBuilt) maxBuilt = id;
+      totalH += h;
+      if (id < anchorId) {
+        sumAbove += h;
+        if (prevId == null || id > prevId) {
+          prevId = id;
+          prevH = h;
+        }
+      } else if (id > anchorId) {
+        sumBelow += h;
+        if (nextId == null || id < nextId) {
+          nextId = id;
+          nextH = h;
+        }
+      }
+    }
+    final builtSpan = maxBuilt - minBuilt;
+    final progressByBuiltIds = builtSpan > 0
+        ? ((anchorId - minBuilt) / builtSpan).clamp(0.0, 1.0)
+        : null;
+    double? anchorTop;
+    final anchorBox = _children[anchorId];
+    if (anchorBox != null) {
+      anchorTop = _parentData(anchorBox).offset;
+    }
+    return {
+      'builtCount': _children.length,
+      'minBuilt': minBuilt,
+      'maxBuilt': maxBuilt,
+      'builtIdSpan': builtSpan,
+      'sumHAbove': DevLogFormat.f(sumAbove),
+      'sumHBelow': DevLogFormat.f(sumBelow),
+      'totalBuiltH': DevLogFormat.f(totalH),
+      'progressByBuiltIds': progressByBuiltIds == null
+          ? null
+          : DevLogFormat.f(progressByBuiltIds),
+      'prevId': prevId,
+      'prevH': prevH == null ? null : DevLogFormat.f(prevH),
+      'nextId': nextId,
+      'nextH': nextH == null ? null : DevLogFormat.f(nextH),
+      'anchorTop': anchorTop == null ? null : DevLogFormat.f(anchorTop),
+    };
+  }
+
+  Map<String, Object?> _scrollbarProgressFields(
+    ({
+      double progress,
+      double thumbFraction,
+      double fractionalId,
+      double idLinearProgress,
+      double legacyProgress,
+      double legacyFractionalId,
+      double bandRefY,
+      double heightAtBandTop,
+      double estimatedExtent,
+      double avgRowH,
+      double slotHeight,
+      double anchorY,
+      int anchorId,
+      double anchorH,
+      bool anchorBuilt,
+      bool anchorLoaded,
+      bool slotHeightIsFallback,
+      int oldest,
+      int newest,
+      int idRange,
+    })
+    computed, {
+    required String reason,
+  }) {
+    final offsetAsIdAtSlot = computed.anchorY / computed.slotHeight;
+    final offsetAsIdAtAnchorH = computed.anchorH > 0
+        ? computed.anchorY / computed.anchorH
+        : null;
+    final progressAtSlotH =
+        ((computed.anchorId -
+                    computed.anchorY / computed.slotHeight -
+                    computed.oldest) /
+                computed.idRange)
+            .clamp(0.0, 1.0);
+    final progressAtAnchorH = offsetAsIdAtAnchorH == null
+        ? null
+        : ((computed.anchorId - offsetAsIdAtAnchorH - computed.oldest) /
+                  computed.idRange)
+              .clamp(0.0, 1.0);
+    final boundary = _scrollbarBoundarySnapshot(computed.anchorId);
+    final isAtTail = boundary['isAtTail'] == true;
+    final tailDeficit = isAtTail ? 1.0 - computed.progress : null;
+    final legacyTailDeficit = isAtTail ? 1.0 - computed.legacyProgress : null;
+    final isAtOldestHead = boundary['isAtOldestHead'] == true;
+    final headSurplus = isAtOldestHead ? computed.progress : null;
+    final bandTopFrac = hasSize ? _fractionalIdAtScrollBandRef(_topPad) : null;
+    final bandBottomFrac = hasSize
+        ? _fractionalIdAtScrollBandRef(size.height - _bottomPad)
+        : null;
+    final bandHeight = hasSize ? size.height - _topPad - _bottomPad : null;
+    final trackHeight = bandHeight != null && bandHeight > 8
+        ? bandHeight - 8
+        : null;
+    final thumbHeightPx = trackHeight != null
+        ? _scrollbar.resolveThumbHeight(
+            trackHeight,
+            thumbFraction: computed.thumbFraction,
+          )
+        : null;
+    final maxScroll =
+        bandHeight != null && computed.estimatedExtent > bandHeight
+        ? computed.estimatedExtent - bandHeight
+        : null;
+    final extrapModel = hasSize ? _scrollbarHeightAtRef(_topPad) : null;
+    return {
+      'reason': reason,
+      'progress': DevLogFormat.ratio(computed.progress),
+      'thumbFraction': DevLogFormat.ratio(computed.thumbFraction),
+      if (thumbHeightPx != null) 'thumbHeightPx': DevLogFormat.f(thumbHeightPx),
+      'fractionalId': DevLogFormat.ratio(computed.fractionalId, decimals: 2),
+      'bandRefY': DevLogFormat.f(computed.bandRefY),
+      'heightAtBandTop': DevLogFormat.f(computed.heightAtBandTop),
+      if (extrapModel != null)
+        'heightAtBandTopExtrap': DevLogFormat.f(extrapModel.heightAtRef),
+      'estimatedExtent': DevLogFormat.f(computed.estimatedExtent),
+      if (extrapModel != null)
+        'estimatedExtentExtrap': DevLogFormat.f(extrapModel.estimatedExtent),
+      'avgRowH': DevLogFormat.f(computed.avgRowH),
+      if (bandHeight != null) 'bandHeight': DevLogFormat.f(bandHeight),
+      if (maxScroll != null) 'maxScroll': DevLogFormat.f(maxScroll),
+      'progressIdLinear': DevLogFormat.ratio(computed.idLinearProgress),
+      if (bandTopFrac != null)
+        'fractionalIdTop': DevLogFormat.ratio(bandTopFrac, decimals: 2),
+      if (bandBottomFrac != null)
+        'fractionalIdBottom': DevLogFormat.ratio(bandBottomFrac, decimals: 2),
+      if (bandTopFrac != null && bandBottomFrac != null)
+        'visibleIdSpan': DevLogFormat.ratio(
+          bandBottomFrac - bandTopFrac,
+          decimals: 2,
+        ),
+      if (hasSize) 'bandBottomRefY': DevLogFormat.f(size.height - _bottomPad),
+      'progressLegacy': DevLogFormat.ratio(computed.legacyProgress),
+      'fractionalIdLegacy': DevLogFormat.ratio(
+        computed.legacyFractionalId,
+        decimals: 2,
+      ),
+      'anchorId': computed.anchorId,
+      'anchorY': DevLogFormat.f(computed.anchorY),
+      'anchorH': DevLogFormat.f(computed.anchorH),
+      'slotHeight': DevLogFormat.f(computed.slotHeight),
+      'slotHeightIsFallback': computed.slotHeightIsFallback,
+      'anchorBuilt': computed.anchorBuilt,
+      'anchorLoaded': computed.anchorLoaded,
+      'offsetAsIdAtSlot': DevLogFormat.f(offsetAsIdAtSlot),
+      if (offsetAsIdAtAnchorH != null)
+        'offsetAsIdAtAnchorH': DevLogFormat.f(offsetAsIdAtAnchorH),
+      if (progressAtAnchorH != null)
+        'progressIfAnchorH': DevLogFormat.f(progressAtAnchorH),
+      'progressAtSlotH': DevLogFormat.f(progressAtSlotH),
+      'progressDeltaVsAnchorH': progressAtAnchorH == null
+          ? null
+          : DevLogFormat.f((computed.progress - progressAtAnchorH).abs()),
+      'oldest': computed.oldest,
+      'newest': computed.newest,
+      'idRange': computed.idRange,
+      'drag': _scrollbar.isDragging,
+      'fling': _physics.isFlinging,
+      ...boundary,
+      if (tailDeficit != null && tailDeficit > 0.01)
+        'tailDeficit': DevLogFormat.f(tailDeficit),
+      if (legacyTailDeficit != null && legacyTailDeficit > 0.01)
+        'tailDeficitLegacy': DevLogFormat.f(legacyTailDeficit),
+      if (headSurplus != null && headSurplus > 0.01)
+        'headSurplus': DevLogFormat.f(headSurplus),
+      if (isAtTail && computed.legacyProgress < 0.99)
+        'hint': 'legacy_anchorY_formula_under_reports_at_tail',
+      ..._scrollbarBuiltSpanMetrics(computed.anchorId),
+    };
+  }
+
+  void _maybeLogScrollbarProgress(
+    ({
+      double progress,
+      double thumbFraction,
+      double fractionalId,
+      double idLinearProgress,
+      double legacyProgress,
+      double legacyFractionalId,
+      double bandRefY,
+      double heightAtBandTop,
+      double estimatedExtent,
+      double avgRowH,
+      double slotHeight,
+      double anchorY,
+      int anchorId,
+      double anchorH,
+      bool anchorBuilt,
+      bool anchorLoaded,
+      bool slotHeightIsFallback,
+      int oldest,
+      int newest,
+      int idRange,
+    })
+    computed, {
+    required String reason,
+  }) {
+    if (!_scrollbarLog.enabled) return;
+
+    final progressDelta = _scrollbarLogLastProgress == null
+        ? double.infinity
+        : (computed.progress - _scrollbarLogLastProgress!).abs();
+    final anchorHDelta = _scrollbarLogLastAnchorH == null
+        ? double.infinity
+        : (computed.anchorH - _scrollbarLogLastAnchorH!).abs();
+    final anchorIdChanged = computed.anchorId != _scrollbarLogLastAnchorId;
+    _scrollbarLogPaintCounter++;
+    final periodicWhileScrolling =
+        (_physics.isFlinging || _dragInProgress || _scrollbar.isDragging) &&
+        _scrollbarLogPaintCounter % 30 == 0;
+
+    final shouldLog =
+        _scrollbar.isDragging ||
+        anchorIdChanged ||
+        anchorHDelta >= 1.0 ||
+        progressDelta >= 0.002 ||
+        periodicWhileScrolling ||
+        reason == 'layout';
+
+    if (!shouldLog) return;
+
+    _scrollbarLogLastAnchorId = computed.anchorId;
+    _scrollbarLogLastAnchorH = computed.anchorH;
+    _scrollbarLogLastProgress = computed.progress;
+
+    _scrollbarEvent(
+      'progress.$reason',
+      _scrollbarProgressFields(computed, reason: reason),
+    );
   }
 
   // --- Paint -----------------------------------------------------------------
@@ -3236,9 +3974,20 @@ class RenderChatScrollView extends RenderBox {
   }
 
   void _paintScrollbar(PaintingContext context, Offset offset) {
-    final progress = _scrollbarProgress();
-    if (progress == null) return;
-    _scrollbar.paint(context.canvas, offset, size, progress, _textDirection);
+    final computed = _computeScrollbarProgress();
+    if (computed == null) return;
+    _maybeLogScrollbarProgress(computed, reason: 'paint');
+    _scrollbar.paint(
+      context.canvas,
+      offset,
+      size,
+      computed.progress,
+      _textDirection,
+      theme: _scrollbarTheme,
+      topInset: _topPad,
+      bottomInset: _bottomPad,
+      thumbFraction: computed.thumbFraction,
+    );
   }
 
   @override

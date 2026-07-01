@@ -6,8 +6,8 @@ import 'package:flutter/foundation.dart';
 
 /// Scoped `dart:developer` logger for chat scroll diagnostics.
 ///
-/// Create one instance per concern (`ChatScrollFetchAnchor`, …) and filter
-/// console output by [name].
+/// Create one instance per concern (`ChatScrollFetchAnchor`,
+/// `ChatScrollScrollbar`, …) and filter console output by [name].
 ///
 /// ```dart
 /// final fetchLog = ChatScrollDevLog('ChatScrollFetchAnchor', enabled: true);
@@ -50,6 +50,11 @@ class ChatScrollDevLog {
 abstract final class DevLogFormat {
   /// Fixed-one-decimal string for pixel offsets and sizes.
   static String f(double v) => v.toStringAsFixed(1);
+
+  /// Higher-precision string for 0..1 ratios and fractional ids in scrollbar
+  /// diagnostics where one-decimal rounding hides frame-by-frame drift.
+  static String ratio(double v, {int decimals = 3}) =>
+      v.toStringAsFixed(decimals);
 
   /// Comma-separated id list, truncated with a count when [max] is exceeded.
   static String ids(Iterable<int> ids, {int max = 12}) {

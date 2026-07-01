@@ -6,7 +6,34 @@ this project is pre-1.0 and not strictly SemVer yet.
 
 ## [Unreleased]
 
+### Added
+
+- **Scrollbar theme customization** — chat scrollbar thumb and uniform track
+  colours are customizable via `ChatScrollbarThemeData` on
+  `ThemeData.extensions` or a nested `Theme` widget. Thumb position and
+  drag-to-jump behavior are unchanged.
+
 ### Fixed
+
+- **Scrollbar thumb progress** — thumb position is height-weighted: pixel offset
+  at the top scroll-band edge over `(estimatedExtent − viewportBandHeight)`,
+  using average built row height to extrapolate unloaded ids. Thumb size scales
+  with `viewportBandHeight / estimatedExtent` (native scrollbar proportion). 
+  Hard clamps at tail (`1.0`) and oldest head (`0.0`). Replaces
+  id-linear band-edge mapping that treated each message id equally regardless of
+  row height (stuck thumb, tail jumps with variable message sizes). Legacy
+  anchor and id-linear values remain in `ChatScrollScrollbar` logs for comparison.
+
+- **Scrollbar inset alignment** — track, thumb travel, hit strip, and drag
+  progress mapping now respect `ChatScrollView` `topPadding` and
+  `bottomPadding` (the same scroll band as message alignment). Thumb id
+  mapping (Variant A) is unchanged.
+
+- **Scrollbar drag** — dragging the thumb no longer fights tail pin or boundary
+  clamp (no snap-back oscillation when scrubbing away from the tail). Jump
+  targets use id-linear progress; drag sessions apply progress-based alignment
+  and freeze thumb geometry so the thumb tracks the pointer across small data
+  windows and variable row heights.
 
 - **Programmatic scroll with non-default alignment** — `animateTo` with
   `alignment` other than `0` (e.g. centering a search result) no longer
@@ -39,10 +66,6 @@ this project is pre-1.0 and not strictly SemVer yet.
 - **Demo `ChatComposer`** — `bottomInset` and `onSizeChanged` are optional;
   keyboard height is applied outside the composer measure tree so layout
   reports content height only.
-
-- **`ChatScrollDrift` debug logging removed** — close-path trace noise dropped
-  from `ChatAnimator` and `RenderChatScrollView`; use `ChatScrollFetchAnchor`
-  when investigating fetch / anchor persistence.
 
 - **`ChatKeyboardShortcuts` drops `dataSource` parameter** *(breaking)* —
   Home / End now read `oldestKnownId` / `newestKnownId` from the shared
