@@ -16,6 +16,7 @@ import 'package:chatscrollview/src/chat_scroll/chat_scroll_controller.dart';
 import 'package:chatscrollview/src/chat_scroll/chat_scroll_dev_log.dart';
 import 'package:chatscrollview/src/chat_scroll/chat_scroll_events.dart';
 import 'package:chatscrollview/src/chat_scroll/chat_scroll_physics.dart';
+import 'package:chatscrollview/src/chat_scroll/chat_selection_controller.dart';
 import 'package:chatscrollview/src/chat_widgets/chat_data_source_ext.dart';
 import 'package:chatscrollview/src/chat_widgets/chat_scroll_element.dart';
 import 'package:chatscrollview/src/chat_widgets/chat_scrollbar.dart';
@@ -116,6 +117,7 @@ class RenderChatScrollView extends RenderBox {
     required ChatDataSource dataSource,
     required ChatScrollController controller,
     required double cacheExtent,
+    this.selectionController,
     double extraBuildExtent = 0.0,
     bool ticking = true,
     bool reverse = false,
@@ -165,6 +167,8 @@ class RenderChatScrollView extends RenderBox {
       planAnchorMoveAwayFromRemoved: _planAnchorMoveAwayFromRemoved,
       rebuildGroupedNeighbors: _rebuildGroupedNeighbors,
       seedTailInsertPin: _seedTailInsertPin,
+      onAnimationsFullySettled: () => _animator.flushQueuedAnimateTo(),
+      onRemovalRequested: _onRemovalRequested,
       extentLog: _extentLog,
     );
     _animator = ChatAnimator(
@@ -184,12 +188,24 @@ class RenderChatScrollView extends RenderBox {
       ensureTicker: _ensureTicker,
       cancelFling: _cancelFling,
       cancelBounceback: _cancelBounceback,
+      shouldDeferNavigation: _extentCoordinator.shouldDeferNavigation,
+      isTailAnimateTarget: (id) {
+        final newest = _dataSource.newestKnownId;
+        return _dataSource.reachedNewest && newest != null && id == newest;
+      },
+      nearestPresentTarget: (id) =>
+          _findPresentNeighbor(id, direction: -1) ??
+          _findPresentNeighbor(id, direction: 1),
+      navigationLog: ChatScrollDevLog('ChatScrollAnimate', enabled: kDebugMode),
       highlightColor: highlightColor,
       highlightDuration: highlightDuration,
     );
   }
 
   /// Chunk-load / anchor-persistence diagnostics — filter `ChatScrollFetchAnchor`.
+  /// Off by default: `build.tile` fires per message per layout pass and is
+  /// extremely verbose on far jumps (whole-chunk fan-out). Set [enabled] to
+  /// `true` only while investigating anchor / tail-pin issues.
   final ChatScrollDevLog _fetchAnchorLog = ChatScrollDevLog(
     'ChatScrollFetchAnchor',
     enabled: true,
@@ -238,6 +254,34 @@ class RenderChatScrollView extends RenderBox {
   // --- Configurable inputs ---------------------------------------------------
 
   ChatDataSource _dataSource;
+
+  /// Optional whole-message selection — cleared when a removed id is deleted.
+  ChatSelectionController? selectionController;
+
+  bool _onRemovalRequested(int id) {
+    _animator.clearHighlight();
+    _cancelAnimate();
+    final wasSelectionMode = selectionController?.isSelectionMode ?? false;
+    selectionController?.clearSelection(id);
+
+    // animateTo + highlight leaves navigation alignment and tail-pin deferral
+    // aimed at [id]. Plain jumpTo/delete at the edge does not — stale flags
+    // cause extra layout repins and a discontinuity when the ghost finalizes.
+    if (_controller.navigationAlignmentMessageId == id) {
+      _controller.clearNavigationAlignment();
+    }
+    if (_dataSource.isTailRemovalAnimation(id)) {
+      _pendingTailPinUntilSettled = false;
+      _pinTailOnJump = false;
+    }
+
+    // Selection gutter narrows message layout; defer collapse until chrome
+    // snaps shut and the next layout pass remeasures at full width.
+    final exitedSelection =
+        wasSelectionMode && !(selectionController?.isSelectionMode ?? false);
+    return exitedSelection;
+  }
+
   set dataSource(ChatDataSource value) {
     if (identical(_dataSource, value)) return;
     if (attached) {
@@ -563,8 +607,15 @@ class RenderChatScrollView extends RenderBox {
   Color get highlightColor => _animator.highlightColor;
   set highlightColor(Color value) => _animator.highlightColor = value;
 
-  void _onAnimateSettled(int targetId) {
-    _markPinTailOnJumpIfNeeded(_clampJumpTarget(targetId));
+  void _onAnimateSettled(int targetId, {required bool wasTailPin}) {
+    final clampedTarget = _clampJumpTarget(targetId);
+
+    if (wasTailPin && _newestIsTailPinned()) {
+      _pendingTailPinUntilSettled = false;
+      _pinTailOnJump = false;
+    } else {
+      _markPinTailOnJumpIfNeeded(clampedTarget);
+    }
 
     // Close-path animation finished — the animator owned offset each tick.
     // Try one alignment snap; if the target row is still a skeleton, leave
@@ -722,6 +773,12 @@ class RenderChatScrollView extends RenderBox {
   double? debugEffectiveHeightOf(int id) {
     final child = _children[id];
     return child == null ? null : _effectiveChildHeight(child);
+  }
+
+  /// Top layout offset for built message [id], or `null` when not built.
+  double? debugMessageTopOf(int id) {
+    final child = _children[id];
+    return child == null ? null : _parentData(child).offset;
   }
 
   /// Whether message [id] is still in the child map (including pending removal).
@@ -1153,11 +1210,11 @@ class RenderChatScrollView extends RenderBox {
       return;
     }
     final messageLoaded = _dataSource.getMessage(newest) != null;
-    if (messageLoaded && _computeIsAtTail()) {
+    if (messageLoaded && _newestIsTailPinned()) {
       _fetchAnchorEvent('layout.pendingTailPin', {
         ..._fetchAnchorSnapshot(),
         'action': 'clear',
-        'reason': 'at-tail-loaded',
+        'reason': 'at-tail-pinned',
         'newestId': newest,
       });
       _pendingTailPinUntilSettled = false;
@@ -1367,16 +1424,19 @@ class RenderChatScrollView extends RenderBox {
     _processPendingRemovalNeighborInvalidations();
 
     // Structural layout deferral while visible extent animations run (L1).
-    if (_extentCoordinator.shouldDeferStructuralLayout() &&
-        !_rangeNoLongerCovers()) {
-      markNeedsPaint();
-      assert(() {
-        debugLastLayoutDuration = _debugSw.elapsed;
-        _debugSw.stop();
-        debugLayoutFrameId++;
-        return true;
-      }());
-      return;
+    // During tail-ghost collapse, tick compensation owns the bottom edge — do
+    // not fan-out just because the shrinking ghost opened a viewport gap.
+    if (_extentCoordinator.shouldDeferStructuralLayout()) {
+      if (_extentCoordinator.hasActiveTailRemovals || !_rangeNoLongerCovers()) {
+        markNeedsPaint();
+        assert(() {
+          debugLastLayoutDuration = _debugSw.elapsed;
+          _debugSw.stop();
+          debugLayoutFrameId++;
+          return true;
+        }());
+        return;
+      }
     }
     _extentCoordinator.consumeQueuedLayout();
 
@@ -1428,6 +1488,14 @@ class RenderChatScrollView extends RenderBox {
     final built = <int>{};
     final builtChunks = <int>{};
     _layoutFromAnchor(childConstraints, built, builtChunks);
+
+    final anchorBeforeDeferred = _controller.anchorMessageId;
+    if (_startDeferredRemovalAnimations(built) &&
+        _controller.anchorMessageId != anchorBeforeDeferred) {
+      built.clear();
+      builtChunks.clear();
+      _layoutFromAnchor(childConstraints, built, builtChunks);
+    }
 
     final anchorBefore = _controller.anchorMessageId;
     final anchorYBefore = _controller.anchorPixelOffset;
@@ -1705,7 +1773,10 @@ class RenderChatScrollView extends RenderBox {
   ) {
     final anchorId = _controller.anchorMessageId;
     final fanOldest = _fanOutOldestBound;
-    final newest = _dataSource.newestKnownId;
+    var fanNewest = _dataSource.newestKnownId;
+    for (final id in _dataSource.pendingRemovalIds.value) {
+      if (fanNewest == null || id > fanNewest) fanNewest = id;
+    }
 
     // Build zone = cacheExtent + keep-alive band, plus a directional lead
     // biased toward travel so a fast fling does not outrun the built range.
@@ -1750,7 +1821,7 @@ class RenderChatScrollView extends RenderBox {
     var id = anchorIsError
         ? ChatScrollChunk.firstIdOf(anchorChunkIndex + 1)
         : anchorId + 1;
-    while (y < lowerBound && (newest == null || id <= newest)) {
+    while (y < lowerBound && (fanNewest == null || id <= fanNewest)) {
       final chunkIndex = ChatScrollChunk.chunkOf(id);
       if (_isChunkErrored(chunkIndex)) {
         final tile = _buildChunkError(chunkIndex, cc);
@@ -1765,7 +1836,7 @@ class RenderChatScrollView extends RenderBox {
       // zero height. Use the helper to advance past runs of absent slots in
       // O(chunk) time rather than O(ID) time.
       if (_dataSource.statusOf(id).isAbsent) {
-        final bound = newest ?? id;
+        final bound = fanNewest ?? id;
         id = _nextNonAbsentIdDown(id + 1, bound);
         continue;
       }
@@ -2033,11 +2104,10 @@ class RenderChatScrollView extends RenderBox {
     if (chunk != null) chunk.lastAccessTick = ++_accessTick;
   }
 
-  /// Close-path `animateTo` keeps [ChatScrollController.anchorMessageId] on the
-  /// target while interpolating [anchorPixelOffset] — including when the target
-  /// row is temporarily off-screen. [_renormalizeAnchor] must not reassign away.
-  bool _skipRenormalizeDuringClosePath() =>
-      _animator.isAnimating && !_animator.farAnimateActive;
+  /// `animateTo` keeps [ChatScrollController.anchorMessageId] on the target
+  /// (close path via offset interpolation; far path via midpoint [jumpTo]).
+  /// [_renormalizeAnchor] must not reassign away until the animation ends.
+  bool _skipRenormalizeDuringClosePath() => _animator.isAnimating;
 
   /// Message ids that must survive GC while close-path animation is in flight.
   Set<int> _gcPinnedDuringClosePath() {
@@ -2052,6 +2122,39 @@ class RenderChatScrollView extends RenderBox {
   /// the anchor onto the first visible child (no visual change). The anchor
   /// may already be a chunk-error tile — picked up via [_resolveAnchorBox].
   void _renormalizeAnchor() {
+    // Programmatic jump / animate owns the anchor id until navigation
+    // alignment is applied — do not drift to the topmost visible row.
+    final navTarget = _controller.navigationAlignmentMessageId;
+    if (navTarget != null && _controller.anchorMessageId == navTarget) {
+      return;
+    }
+
+    // Hard-deleted anchor slot — walk to the nearest present built message.
+    if (_dataSource.getMessage(_controller.anchorMessageId) == null) {
+      int? bestId;
+      for (final id in _children.keys) {
+        if (_dataSource.getMessage(id) != null) {
+          bestId = id;
+          break;
+        }
+      }
+      if (bestId != null) {
+        final fromId = _controller.anchorMessageId;
+        final fromY = _controller.anchorPixelOffset;
+        final box = _children[bestId]!;
+        final toY = _parentData(box).offset;
+        _controller.reassignAnchor(bestId, toY);
+        _fetchAnchorEvent('tick.renormalize.nullAnchor', {
+          ..._fetchAnchorSnapshot(),
+          'fromId': fromId,
+          'toId': bestId,
+          'fromY': DevLogFormat.f(fromY),
+          'toY': DevLogFormat.f(toY),
+        });
+      }
+      return;
+    }
+
     final resolved = _resolveAnchorBox();
     if (resolved == null) return;
     final anchor = resolved.box;
@@ -2198,8 +2301,11 @@ class RenderChatScrollView extends RenderBox {
     // Skip clamping during an active drag — overshoot is allowed there,
     // and the spring-back animation handles the return on release. The
     // bounceback animation itself also drives the anchor past the boundary
-    // and back, so it owns the clamp until it ends.
-    if (_dragInProgress || _physics.isBouncing) return false;
+    // and back, so it owns the clamp until it ends. Programmatic animateTo
+    // (close or far path) must not be cancelled by a boundary pin mid-flight.
+    if (_dragInProgress || _physics.isBouncing || _animator.isAnimating) {
+      return false;
+    }
     var cancelFling = false;
     bool pinNewest() {
       // Chunk storage retracts [newestKnownId] at removal request time while
@@ -2498,6 +2604,9 @@ class RenderChatScrollView extends RenderBox {
   void _applyDeferredExtentAnimations(Set<int> built) =>
       _extentCoordinator.applyDeferredExtentAnimations(built);
 
+  bool _startDeferredRemovalAnimations(Set<int> built) =>
+      _extentCoordinator.startDeferredRemovalAnimations(built);
+
   void _processPendingElementRemovals() =>
       _extentCoordinator.processPendingElementRemovals();
 
@@ -2568,13 +2677,16 @@ class RenderChatScrollView extends RenderBox {
       final height = child == null ? 0.0 : _effectiveChildHeight(child);
       _controller.reassignAnchor(targetId, bottomEdge - height);
       _markPinTailOnJumpIfNeeded(targetId);
+      if (_animator.isAnimating) _animator.rebaseClosePathEnd();
       return;
     }
     if (child != null) {
       _controller.reassignAnchor(targetId, _parentData(child).offset);
+      if (_animator.isAnimating) _animator.rebaseClosePathEnd();
       return;
     }
     _controller.reassignAnchor(targetId, _controller.anchorPixelOffset);
+    if (_animator.isAnimating) _animator.rebaseClosePathEnd();
   }
 
   int? _findPresentNeighbor(int fromId, {required int direction}) {
@@ -2755,8 +2867,9 @@ class RenderChatScrollView extends RenderBox {
       _animator.tryArmPendingHighlight();
     }
 
+    final animateSettleWasTailPin = _animator.pendingSettleTailPin;
     if (_animator.takePendingSettleTargetId() case final targetId?) {
-      _onAnimateSettled(targetId);
+      _onAnimateSettled(targetId, wasTailPin: animateSettleWasTailPin);
     }
 
     if (_rangeNoLongerCovers() || headerDayChanged) {
@@ -3119,6 +3232,18 @@ class RenderChatScrollView extends RenderBox {
     _controller.newestKnownId = _dataSource.newestKnownId;
   }
 
+  /// Whether the newest built row's bottom sits on the bottom inset line.
+  bool _newestIsTailPinned() {
+    if (_overlayKind != ChatOverlayKind.none) return false;
+    final newest = _dataSource.newestKnownId;
+    if (newest == null || !_dataSource.reachedNewest) return false;
+    final last = _boundaryBox(newest);
+    if (last == null) return false;
+    final bottomEdge = size.height - _bottomPad;
+    final bottom = _parentData(last).offset + _effectiveChildHeight(last);
+    return (bottom - bottomEdge).abs() <= 0.5;
+  }
+
   /// Whether the newest known message is currently pinned to the bottom of
   /// the viewport — the "follow tail" signal. False in overlay mode, when no
   /// newestKnownId / reachedNewest is set, when the newest is not built, or
@@ -3152,7 +3277,7 @@ class RenderChatScrollView extends RenderBox {
     if (_overlayKind == ChatOverlayKind.none) {
       // Do not drop the follow-tail snapshot mid-collapse — tall newest
       // messages report isAtTail=false while their bottom is below the inset.
-      if (_extentCoordinator.activeTailRemovalId == null) {
+      if (!_extentCoordinator.hasActiveTailRemovals) {
         _wasAtTailLastLayout = value;
       }
       _lastSeenNewestId = _dataSource.newestKnownId;

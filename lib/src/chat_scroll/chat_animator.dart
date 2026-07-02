@@ -1,12 +1,33 @@
 import 'dart:async';
 
 import 'package:chatscrollview/src/chat_scroll/chat_scroll_controller.dart';
+import 'package:chatscrollview/src/chat_scroll/chat_scroll_dev_log.dart';
 import 'package:flutter/animation.dart';
 import 'package:flutter/rendering.dart';
 
 /// Maximum distance (px) for which the close-path animation is used. Beyond
 /// this the viewport falls back to the far-path: crossfade + jumpTo.
 const double kCloseAnimateDistance = 2400;
+
+/// **Navigation queue**: when [shouldDeferNavigation] returns true,
+/// `animateTo` waits in [_pendingAnimateTo] until [flushQueuedAnimateTo].
+class _QueuedAnimateTo {
+  const _QueuedAnimateTo({
+    required this.targetId,
+    required this.duration,
+    required this.curve,
+    required this.alignment,
+    required this.highlight,
+    required this.completer,
+  });
+
+  final int targetId;
+  final Duration duration;
+  final Curve curve;
+  final double alignment;
+  final bool highlight;
+  final Completer<void> completer;
+}
 
 /// Owns `animateTo` scroll animation and post-settle target highlight for
 /// [RenderChatScrollView].
@@ -41,6 +62,10 @@ class ChatAnimator implements ChatScrollAnimator {
     required VoidCallback ensureTicker,
     required VoidCallback cancelFling,
     required VoidCallback cancelBounceback,
+    bool Function()? shouldDeferNavigation,
+    bool Function(int id)? isTailAnimateTarget,
+    int? Function(int id)? nearestPresentTarget,
+    ChatScrollDevLog? navigationLog,
     Duration highlightDuration = const Duration(milliseconds: 1500),
     Color highlightColor = const Color(0x402196F3),
   }) : _controller = controller,
@@ -55,6 +80,10 @@ class ChatAnimator implements ChatScrollAnimator {
        _ensureTicker = ensureTicker,
        _cancelFling = cancelFling,
        _cancelBounceback = cancelBounceback,
+       _shouldDeferNavigation = shouldDeferNavigation,
+       _isTailAnimateTarget = isTailAnimateTarget,
+       _nearestPresentTarget = nearestPresentTarget,
+       _navigationLog = navigationLog ?? ChatScrollDevLog('ChatScrollAnimate'),
        _highlightDuration = highlightDuration,
        _highlightColor = highlightColor;
 
@@ -71,6 +100,12 @@ class ChatAnimator implements ChatScrollAnimator {
   final VoidCallback _ensureTicker;
   final VoidCallback _cancelFling;
   final VoidCallback _cancelBounceback;
+  final bool Function()? _shouldDeferNavigation;
+  final bool Function(int id)? _isTailAnimateTarget;
+  final int? Function(int id)? _nearestPresentTarget;
+  final ChatScrollDevLog _navigationLog;
+
+  final List<_QueuedAnimateTo> _pendingAnimateTo = <_QueuedAnimateTo>[];
 
   /// Active `animateTo`'s completer, or `null` when no animation is running.
   Completer<void>? animateCompleter;
@@ -81,6 +116,10 @@ class ChatAnimator implements ChatScrollAnimator {
 
   /// Viewport alignment (`0` = top, `1` = bottom) for the in-flight target.
   double animateAlignment = 0;
+
+  /// `true` when [animateTargetId] is the known newest — close-path end tracks
+  /// tail-pin geometry (`alignment: 1.0`) regardless of the requested alignment.
+  bool animateTailPin = false;
 
   /// Anchor pixel offset at animation start (close path) or the fade window
   /// progress driver (far path).
@@ -96,6 +135,11 @@ class ChatAnimator implements ChatScrollAnimator {
   /// final tick delta and repositions children — avoids fighting
   /// [applyScrollDelta] with a stale [animateEndOffset].
   int? _pendingSettleTargetId;
+
+  /// Whether [_pendingSettleTargetId] used tail-pin geometry — survives until
+  /// [takePendingSettleTargetId] so [_onAnimateSettled] can skip a redundant
+  /// layout repin when the animation already landed pinned.
+  bool pendingSettleTailPin = false;
 
   /// Total duration of the active `animateTo`.
   Duration animateDuration = Duration.zero;
@@ -181,6 +225,70 @@ class ChatAnimator implements ChatScrollAnimator {
     double alignment = 0.0,
     bool highlight = true,
   }) {
+    if (duration <= Duration.zero) {
+      _controller.jumpTo(targetId, alignment: alignment);
+      return Future<void>.value();
+    }
+
+    if (_shouldDeferNavigation?.call() == true) {
+      final completer = Completer<void>();
+      _pendingAnimateTo.add(
+        _QueuedAnimateTo(
+          targetId: targetId,
+          duration: duration,
+          curve: curve,
+          alignment: alignment,
+          highlight: highlight,
+          completer: completer,
+        ),
+      );
+      _navigationLog.event('navigation.queue', {
+        'targetId': targetId,
+        'pending': _pendingAnimateTo.length,
+      });
+      return completer.future;
+    }
+
+    return _startAnimate(
+      targetId,
+      duration: duration,
+      curve: curve,
+      alignment: alignment,
+      highlight: highlight,
+    );
+  }
+
+  /// Starts the next queued `animateTo` when extent transitions have settled.
+  ///
+  /// Called from [ChatExtentCoordinator] — does not re-check
+  /// [shouldDeferNavigation]; the coordinator already decided springs are done.
+  void flushQueuedAnimateTo() {
+    if (_pendingAnimateTo.isEmpty) return;
+
+    final entry = _pendingAnimateTo.removeAt(0);
+    _navigationLog.event('navigation.flush', {
+      'targetId': entry.targetId,
+      'remaining': _pendingAnimateTo.length,
+    });
+    _startAnimate(
+      entry.targetId,
+      duration: entry.duration,
+      curve: entry.curve,
+      alignment: entry.alignment,
+      highlight: entry.highlight,
+    ).whenComplete(() {
+      if (!entry.completer.isCompleted) entry.completer.complete();
+      if (_pendingAnimateTo.isNotEmpty) flushQueuedAnimateTo();
+    });
+  }
+
+  Future<void> _startAnimate(
+    int targetId, {
+    required Duration duration,
+    required Curve curve,
+    double alignment = 0.0,
+    bool highlight = true,
+  }) {
     // Re-entrant animateTo: cancel the in-flight one, schedule the new
     // one, and drop any leftover highlight — the user expects the new
     // target to own the attention. Other cancellers (drag, clamp, …) leave
@@ -189,17 +297,13 @@ class ChatAnimator implements ChatScrollAnimator {
     clearHighlight();
     cancelAnimate();
     _cancelBounceback();
-    if (duration <= Duration.zero) {
-      // Zero duration is instant jumpTo — no animation phase and no highlight.
-      _controller.jumpTo(targetId, alignment: alignment);
-      return Future<void>.value();
-    }
 
     animateHighlight = highlight;
     final completer = Completer<void>();
     animateCompleter = completer;
     animateTargetId = targetId;
     animateAlignment = alignment.clamp(0.0, 1.0);
+    animateTailPin = _isTailAnimateTarget?.call(targetId) ?? false;
     animateDuration = duration;
     animateCurve = curve;
     animateStartTime = null;
@@ -209,7 +313,10 @@ class ChatAnimator implements ChatScrollAnimator {
         offsetToTarget.abs() <= kCloseAnimateDistance) {
       final child = _childForId(targetId);
       final endOffset = child != null
-          ? _alignedTopForMessage(_heightOfChild(child), alignment)
+          ? _alignedTopForMessage(
+              _heightOfChild(child),
+              _effectiveAnimateAlignment(),
+            )
           : 0.0;
       // Close path: re-base the anchor onto the target with its current
       // offset, then animate that offset toward the aligned position.
@@ -238,6 +345,8 @@ class ChatAnimator implements ChatScrollAnimator {
     if (completer == null) return;
     animateCompleter = null;
     animateStartTime = null;
+    animateTailPin = false;
+    pendingSettleTailPin = false;
     _pendingSettleTargetId = null;
     farAnimateActive = false;
     farAnimateJumped = false;
@@ -248,6 +357,7 @@ class ChatAnimator implements ChatScrollAnimator {
     // Completing the completer resumes `ChatScrollController.animateTo`, which
     // emits `ChatAnimateEnd` in its `finally` — don't emit it here too.
     if (!completer.isCompleted) completer.complete();
+    // Queued navigations are independent — do not clear _pendingAnimateTo here.
   }
 
   /// Drive the in-flight animation by one tick. Returns the additional scroll
@@ -255,6 +365,10 @@ class ChatAnimator implements ChatScrollAnimator {
   /// in-place and returns 0.
   double tickAnimate(Duration elapsed) {
     if (animateCompleter == null) return 0;
+    if (_shouldDropPendingHighlight(animateTargetId)) {
+      _settleAnimateOnAbsentTarget();
+      return 0;
+    }
     final start = animateStartTime ??= elapsed;
     final totalUs = animateDuration.inMicroseconds;
     final elapsedUs = (elapsed - start).inMicroseconds;
@@ -275,7 +389,8 @@ class ChatAnimator implements ChatScrollAnimator {
       } else {
         if (!farAnimateJumped) {
           farAnimateJumped = true;
-          _controller.jumpTo(animateTargetId, alignment: animateAlignment);
+          final align = animateTailPin ? 1.0 : animateAlignment;
+          _controller.jumpTo(animateTargetId, alignment: align);
         }
         final eased = animateCurve.transform((t - 0.5) * 2.0);
         fadeOpacity = eased.clamp(0.0, 1.0);
@@ -313,16 +428,13 @@ class ChatAnimator implements ChatScrollAnimator {
   /// current anchor offset so the interpolator tracks the live aligned target
   /// without layout-time snapping during close-path animation.
   void rebaseClosePathEnd({Duration? elapsed}) {
-    if (animateCompleter == null ||
-        farAnimateActive ||
-        animateAlignment == 0.0) {
-      return;
-    }
+    if (animateCompleter == null || farAnimateActive) return;
+    if (!animateTailPin && animateAlignment == 0.0) return;
     final child = _childForId(animateTargetId);
     if (child == null) return;
     final newEnd = _alignedTopForMessage(
       _heightOfChild(child),
-      animateAlignment,
+      _effectiveAnimateAlignment(),
     );
     if ((newEnd - animateEndOffset).abs() < 0.5) return;
     animateStartOffset = _controller.anchorPixelOffset;
@@ -337,13 +449,38 @@ class ChatAnimator implements ChatScrollAnimator {
   int? takePendingSettleTargetId() {
     final id = _pendingSettleTargetId;
     _pendingSettleTargetId = null;
+    pendingSettleTailPin = false;
     return id;
+  }
+
+  void _settleAnimateOnAbsentTarget() {
+    final completer = animateCompleter;
+    final fallbackId = _nearestPresentTarget?.call(animateTargetId);
+    animateCompleter = null;
+    animateStartTime = null;
+    animateTailPin = false;
+    pendingSettleTailPin = false;
+    farAnimateActive = false;
+    farAnimateJumped = false;
+    fadeOpacity = 1.0;
+    pendingHighlightTargetId = null;
+    if (fallbackId != null) {
+      final child = _childForId(fallbackId);
+      if (child != null) {
+        _controller.reassignAnchor(fallbackId, _offsetOfChild(child));
+      } else {
+        _controller.jumpTo(fallbackId);
+      }
+    }
+    if (completer != null && !completer.isCompleted) completer.complete();
+    _markNeedsPaint();
   }
 
   void _completeAnimate() {
     final completer = animateCompleter;
     final targetId = animateTargetId;
     final wasFarPath = farAnimateActive;
+    final jumped = farAnimateJumped;
     animateCompleter = null;
     animateStartTime = null;
     farAnimateActive = false;
@@ -353,14 +490,29 @@ class ChatAnimator implements ChatScrollAnimator {
     // settle is not stuck at alignment-0 offset until a later layout pass.
     if (!wasFarPath) {
       var end = animateEndOffset;
-      if (animateAlignment != 0.0) {
+      if (animateTailPin || animateAlignment != 0.0) {
         final child = _childForId(targetId);
         if (child != null) {
-          end = _alignedTopForMessage(_heightOfChild(child), animateAlignment);
+          end = _alignedTopForMessage(
+            _heightOfChild(child),
+            _effectiveAnimateAlignment(),
+          );
         }
       }
       _controller.reassignAnchor(targetId, end);
+    } else if (!jumped) {
+      _controller.jumpTo(targetId, alignment: animateAlignment);
+    } else if (animateTailPin || animateAlignment != 0.0) {
+      final child = _childForId(targetId);
+      if (child != null) {
+        final end = _alignedTopForMessage(
+          _heightOfChild(child),
+          _effectiveAnimateAlignment(),
+        );
+        _controller.reassignAnchor(targetId, end);
+      }
     }
+
     // Successful settle (close-path reached t == 1 or far-path completed
     // its jumpTo + fade-in) → kick off the target highlight when both the
     // viewport gate (`highlightDuration > 0`) and the per-call
@@ -372,8 +524,13 @@ class ChatAnimator implements ChatScrollAnimator {
       _requestHighlight(targetId);
     }
     _pendingSettleTargetId = targetId;
+    pendingSettleTailPin = animateTailPin;
+    animateTailPin = false;
     if (completer != null && !completer.isCompleted) completer.complete();
   }
+
+  double _effectiveAnimateAlignment() =>
+      animateTailPin ? 1.0 : animateAlignment;
 
   void _requestHighlight(int targetId) {
     if (_shouldDropPendingHighlight(targetId)) return;

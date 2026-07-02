@@ -41,10 +41,19 @@ class ChatSelectionController implements Listenable {
     _notify();
   }
 
+  /// When true, [SelectableMessage] snaps chrome shut instead of animating.
+  /// Set for the duration of [_notify] when selection mode exits abruptly.
+  bool _snapSelectionChrome = false;
+
+  /// Whether chrome should snap shut on this notification cycle.
+  bool get snapSelectionChrome => _snapSelectionChrome;
+
   /// Clear selection for [messageId].
   void clearSelection(int messageId) {
-    _selectedIds.remove(messageId);
+    if (!_selectedIds.remove(messageId)) return;
+    if (_selectedIds.isEmpty) _snapSelectionChrome = true;
     _notify();
+    _snapSelectionChrome = false;
   }
 
   /// Toggle [messageId] in/out of selection.
@@ -60,7 +69,9 @@ class ChatSelectionController implements Listenable {
   void clear() {
     if (_selectedIds.isEmpty) return;
     _selectedIds.clear();
+    _snapSelectionChrome = true;
     _notify();
+    _snapSelectionChrome = false;
   }
 
   // --- Listeners ---

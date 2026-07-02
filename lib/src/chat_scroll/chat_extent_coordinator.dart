@@ -21,6 +21,15 @@ import 'package:flutter/scheduler.dart';
 ///
 /// **Mutations-only entry**: [onMutation] is the sole viewport subscription
 /// for insert, update, and remove — not [ChatMutationsMixin.pendingRemovalIds].
+///
+/// **Eager anchor** : when removal starts, scroll reference moves off the
+/// collapsing ghost before springs run so [ChatAnimator] never bases navigation
+/// on a [pendingRemoval] id. Finalize skips a second move when
+/// [_anchorMovedAtRequest] already recorded the id.
+///
+/// **Multi tail removal**: [_activeTailRemovalIds] aggregates per-frame
+/// bottom-pin compensation — parallel tail deletes must not overwrite each
+/// other’s track state.
 @internal
 class ChatExtentCoordinator {
   /// Creates a coordinator bound to [dataSource] and render-object callbacks.
@@ -47,6 +56,8 @@ class ChatExtentCoordinator {
     planAnchorMoveAwayFromRemoved,
     void Function(int id)? seedTailInsertPin,
     void Function(Iterable<int> ids)? rebuildGroupedNeighbors,
+    VoidCallback? onAnimationsFullySettled,
+    bool Function(int id)? onRemovalRequested,
     ChatScrollDevLog? extentLog,
   }) : _dataSource = dataSource,
        _controller = controller,
@@ -68,6 +79,8 @@ class ChatExtentCoordinator {
        _planAnchorMoveAwayFromRemoved = planAnchorMoveAwayFromRemoved,
        _seedTailInsertPin = seedTailInsertPin,
        _rebuildGroupedNeighbors = rebuildGroupedNeighbors,
+       _onAnimationsFullySettled = onAnimationsFullySettled,
+       _onRemovalRequested = onRemovalRequested,
        _extentLog = extentLog ?? ChatScrollDevLog('ChatScrollExtent');
 
   final ChatDataSource _dataSource;
@@ -92,6 +105,8 @@ class ChatExtentCoordinator {
   _planAnchorMoveAwayFromRemoved;
   final void Function(int id)? _seedTailInsertPin;
   final void Function(Iterable<int> ids)? _rebuildGroupedNeighbors;
+  final VoidCallback? _onAnimationsFullySettled;
+  final bool Function(int id)? _onRemovalRequested;
   final ChatScrollDevLog _extentLog;
 
   final Set<int> _pendingInsertAnimations = <int>{};
@@ -99,15 +114,20 @@ class ChatExtentCoordinator {
   final List<int> _pendingElementRemovals = <int>[];
   final Set<int> _pendingRemovalNeighborInvalidations = <int>{};
   final Set<int> _animatingMessageIds = <int>{};
-  final Map<int, double> _tailRemovalPrevHeight = <int, double>{};
+  final Map<int, double> _removalPrevHeight = <int, double>{};
+  final Map<int, double> _removalFinalizeScrollDelta = <int, double>{};
   final Map<int, double> _tailInsertPrevHeight = <int, double>{};
+  final Set<int> _activeRemovalIds = <int>{};
+  final Set<int> _activeTailRemovalIds = <int>{};
+  final Set<int> _anchorMovedAtRequest = <int>{};
+  final Set<int> _anchorWouldPinTailAtRequest = <int>{};
+  final Set<int> _deferredRemovalStarts = <int>{};
   final List<int> _finishedRemovalsThisTick = <int>[];
 
   bool _hasActiveExtentAnimations = false;
   bool _postLayoutRemovalNotify = false;
   bool _queuedLayout = false;
 
-  int? _activeTailRemovalId;
   int? _activeTailInsertId;
 
   /// Whether any extent spring, opacity run, or pending eviction remains.
@@ -117,13 +137,33 @@ class ChatExtentCoordinator {
       _pendingElementRemovals.isNotEmpty ||
       _dataSource.pendingRemovalIds.value.isNotEmpty;
 
+  /// Whether [ChatAnimator] should queue `animateTo` until extent springs settle.
+  ///
+  /// Intentionally narrower than [hasActiveWork]: pending removal ids and
+  /// queued evictions may remain after springs finish; navigation must still
+  /// flush once [_onAnimationsFullySettled] fires.
+  bool shouldDeferNavigation() {
+    if (_hasActiveExtentAnimations || _animatingMessageIds.isNotEmpty) {
+      return true;
+    }
+    final anchorId = _controller.anchorMessageId;
+    final child = _childForId(anchorId);
+    if (child == null) return false;
+    return _parentDataOf(child).pendingRemoval;
+  }
+
   /// Pending evictions not yet processed by layout.
   bool get hasPendingElementRemovals => _pendingElementRemovals.isNotEmpty;
 
   /// Whether [id] is queued for eviction after collapse settled.
   bool isPendingElementRemoval(int id) => _pendingElementRemovals.contains(id);
 
-  int? get activeTailRemovalId => _activeTailRemovalId;
+  /// First active tail-removal id, if any (debug / pinNewest gate).
+  int? get activeTailRemovalId =>
+      _activeTailRemovalIds.isEmpty ? null : _activeTailRemovalIds.first;
+
+  /// Whether any tail-removal bottom-pin compensation is active.
+  bool get hasActiveTailRemovals => _activeTailRemovalIds.isNotEmpty;
 
   /// Handles insert, update, and remove mutation events.
   void onMutation(ChatMutation mutation) {
@@ -159,11 +199,17 @@ class ChatExtentCoordinator {
   /// Whether structural layout (fan-out, eviction, clamp refan) should defer.
   bool shouldDeferStructuralLayout() {
     if (_queuedLayout) return false;
+    // Collapse finished — eviction must run even if the ghost child is still
+    // in the tree until [processPendingElementRemovals] runs.
+    if (_pendingElementRemovals.isNotEmpty) return false;
+    // Collapse ghosts: refan / pin-newest / band remeasure wait until finalize.
+    if (_activeRemovalIds.isNotEmpty) return true;
     if (_hasActiveExtentAnimations || _animatingMessageIds.isNotEmpty) {
       return true;
     }
     if (_dataSource.pendingRemovalIds.value.isEmpty) return false;
     for (final id in _dataSource.pendingRemovalIds.value) {
+      if (_deferredRemovalStarts.contains(id)) continue;
       if (_childForId(id) != null) return true;
     }
     return false;
@@ -174,7 +220,7 @@ class ChatExtentCoordinator {
 
   /// Suppresses layout-phase [pinNewest] while tail insert/remove springs run.
   bool shouldSuppressPinNewest(RenderBox? newestChild) {
-    if (_activeTailInsertId != null || _activeTailRemovalId != null) {
+    if (_activeTailInsertId != null || _activeTailRemovalIds.isNotEmpty) {
       return true;
     }
     if (newestChild == null) return false;
@@ -351,8 +397,8 @@ class ChatExtentCoordinator {
     if (_activeTailInsertId != null) {
       _compensateTailInsertScroll();
     }
-    if (_activeTailRemovalId != null) {
-      _compensateTailRemovalScroll();
+    if (_activeRemovalIds.isNotEmpty) {
+      _compensateRemovalScrollAll();
     }
 
     _finishedRemovalsThisTick.forEach(_queueFinalizeRemoval);
@@ -421,8 +467,19 @@ class ChatExtentCoordinator {
   }
 
   void _handleRemoveMutation(int id) {
+    final deferRelayout = _onRemovalRequested?.call(id) ?? false;
     final child = _childForId(id);
     if (child == null) {
+      if (deferRelayout) {
+        _deferredRemovalStarts.add(id);
+        _extentEvent('remove.defer', {
+          'id': id,
+          'reason': 'selection-relayout-offTree',
+        });
+        _markNeedsLayout();
+        return;
+      }
+      _eagerReassignAnchor(id);
       _extentEvent('remove.offTree', {'id': id});
       _dataSource.confirmMessageRemoval(id);
       return;
@@ -431,6 +488,13 @@ class ChatExtentCoordinator {
     if (pd.pendingRemoval) return;
     pd.pendingRemoval = true;
     invalidateNeighborsForRemoval(id);
+    if (deferRelayout) {
+      _deferredRemovalStarts.add(id);
+      _extentEvent('remove.defer', {'id': id, 'reason': 'selection-relayout'});
+      _markNeedsLayout();
+      return;
+    }
+    _eagerReassignAnchor(id);
     final fromHeight = child.size.height;
     if (!shouldAnimateExtent(child)) {
       _extentEvent('remove.instant', {
@@ -440,6 +504,7 @@ class ChatExtentCoordinator {
       pd.targetHeight = 0;
       pd.animatedHeight = 0;
       pd.opacity = 0;
+      _recordViewportSpanningPredecessorFinalizeScroll(id, pd, fromHeight);
       _queueFinalizeRemoval(id);
       return;
     }
@@ -448,11 +513,91 @@ class ChatExtentCoordinator {
     _markNeedsLayout();
   }
 
+  /// Starts removal collapse after selection chrome has snapped shut and
+  /// children have been laid out at full width. Returns whether any removal
+  /// animation was started (caller should refan when the anchor moved).
+  bool startDeferredRemovalAnimations(Set<int> built) {
+    if (_deferredRemovalStarts.isEmpty) return false;
+    var started = false;
+    for (final id in _deferredRemovalStarts.toList()) {
+      if (!built.contains(id)) continue;
+      final child = _childForId(id);
+      if (child == null) {
+        _deferredRemovalStarts.remove(id);
+        continue;
+      }
+      _deferredRemovalStarts.remove(id);
+      final pd = _parentDataOf(child);
+      if (!pd.pendingRemoval) {
+        pd.pendingRemoval = true;
+        invalidateNeighborsForRemoval(id);
+      }
+      _eagerReassignAnchor(id);
+      final fromHeight = child.size.height;
+      if (!shouldAnimateExtent(child)) {
+        _extentEvent('remove.instant', {
+          'id': id,
+          'offset': DevLogFormat.f(pd.offset),
+          'deferred': true,
+        });
+        pd.targetHeight = 0;
+        pd.animatedHeight = 0;
+        pd.opacity = 0;
+        _recordViewportSpanningPredecessorFinalizeScroll(id, pd, fromHeight);
+        _queueFinalizeRemoval(id);
+        continue;
+      }
+      _beginRemovalAnimation(child, pd, id, fromHeight: fromHeight);
+      _ensureTicker();
+      started = true;
+    }
+    if (_deferredRemovalStarts.isNotEmpty) {
+      _extentEvent('defer.remove.unbuilt', {
+        'pending': DevLogFormat.ids(_deferredRemovalStarts),
+        'builtCount': built.length,
+      });
+    }
+    return started;
+  }
+
   void _onAnimationsSettled() {
+    _onAnimationsFullySettled?.call();
     if (shouldDeferStructuralLayout()) return;
     _extentEvent('defer.layout', {'queuedLayout': true});
     _queuedLayout = true;
     _markNeedsLayout();
+  }
+
+  /// Moves scroll reference off [removedId] at removal request — not at finalize.
+  void _eagerReassignAnchor(int removedId) {
+    if (_anchorMovedAtRequest.contains(removedId)) return;
+
+    final wasTailRemoval = _dataSource.isTailRemovalAnimation(removedId);
+    ({int targetId, bool pinTail})? move;
+
+    if (_controller.anchorMessageId == removedId) {
+      move = _planAnchorMoveAwayFromRemoved(removedId);
+    } else if (wasTailRemoval && _wasAtTailLastLayout()) {
+      final newest = _dataSource.newestKnownId;
+      if (newest != null && newest != removedId) {
+        move = (targetId: newest, pinTail: true);
+      }
+    }
+
+    if (move == null) return;
+
+    _extentEvent('anchor.move.eager', {
+      'fromId': removedId,
+      'targetId': move.targetId,
+      'pinTail': false,
+      'wouldPinTail': move.pinTail,
+    });
+    // Keep the neighbor at its laid-out offset — pin the collapsing ghost to
+    // the bottom edge via tick compensation instead (pinTail here hides the
+    // collapse below the viewport).
+    _applyAnchorMoveAwayFromRemoved(move.targetId, pinTail: false);
+    _anchorMovedAtRequest.add(removedId);
+    if (move.pinTail) _anchorWouldPinTailAtRequest.add(removedId);
   }
 
   void _queueFinalizeRemoval(int id) {
@@ -468,30 +613,50 @@ class ChatExtentCoordinator {
       pd.opacityRun = null;
     }
     _extentEvent('remove.finalize', {'id': id});
-    final wasTailRemoval = _dataSource.isTailRemovalAnimation(id);
-    final move = _planAnchorMoveAwayFromRemoved(id);
-    if (move != null) {
-      _extentEvent('anchor.move', {
-        'fromId': id,
-        'targetId': move.targetId,
-        'pinTail': move.pinTail,
+    final finalizeDelta = _removalFinalizeScrollDelta.remove(id);
+    if (finalizeDelta != null && finalizeDelta.abs() > 0.01) {
+      _applyScrollDelta(finalizeDelta);
+      _extentEvent('removal.finalize.scroll', {
+        'id': id,
+        'delta': DevLogFormat.f(finalizeDelta),
       });
-      _applyAnchorMoveAwayFromRemoved(move.targetId, pinTail: move.pinTail);
-    } else if (wasTailRemoval && _wasAtTailLastLayout()) {
-      final newest = _dataSource.newestKnownId;
-      if (newest != null) {
+    }
+    if (!_anchorMovedAtRequest.contains(id)) {
+      final wasTailRemoval = _dataSource.isTailRemovalAnimation(id);
+      final move = _planAnchorMoveAwayFromRemoved(id);
+      if (move != null) {
         _extentEvent('anchor.move', {
           'fromId': id,
-          'targetId': newest,
-          'pinTail': true,
+          'targetId': move.targetId,
+          'pinTail': move.pinTail,
         });
-        _applyAnchorMoveAwayFromRemoved(newest, pinTail: true);
+        _applyAnchorMoveAwayFromRemoved(move.targetId, pinTail: move.pinTail);
+      } else if (wasTailRemoval && _wasAtTailLastLayout()) {
+        final newest = _dataSource.newestKnownId;
+        if (newest != null) {
+          _extentEvent('anchor.move', {
+            'fromId': id,
+            'targetId': newest,
+            'pinTail': true,
+          });
+          _applyAnchorMoveAwayFromRemoved(newest, pinTail: true);
+        }
       }
+    } else if (_anchorWouldPinTailAtRequest.contains(id) &&
+        _wasAtTailLastLayout()) {
+      // Ghost-pin scroll compensation already migrated the anchor during
+      // collapse — do not re-pin here (causes a visible jump at finalize).
+      _extentEvent('anchor.move.finalize', {
+        'fromId': id,
+        'action': 'skip',
+        'reason': 'ghost-pin-settled',
+      });
     }
-    if (_activeTailRemovalId == id) {
-      _activeTailRemovalId = null;
-      _tailRemovalPrevHeight.remove(id);
-    }
+    _anchorMovedAtRequest.remove(id);
+    _anchorWouldPinTailAtRequest.remove(id);
+    _activeRemovalIds.remove(id);
+    _activeTailRemovalIds.remove(id);
+    _removalPrevHeight.remove(id);
     if (_activeTailInsertId == id) {
       _activeTailInsertId = null;
       _tailInsertPrevHeight.remove(id);
@@ -616,16 +781,42 @@ class ChatExtentCoordinator {
       0,
     );
     _animatingMessageIds.add(id);
+    _activeRemovalIds.add(id);
+    _removalPrevHeight[id] = fromHeight;
     if (_dataSource.isTailRemovalAnimation(id)) {
-      _activeTailRemovalId = id;
-      _tailRemovalPrevHeight[id] = fromHeight;
+      _activeTailRemovalIds.add(id);
     }
+    _recordViewportSpanningPredecessorFinalizeScroll(id, pd, fromHeight);
     _ensureTicker();
     _extentEvent('anim.remove.start', {
       'id': id,
       'fromHeight': DevLogFormat.f(fromHeight),
       'offset': DevLogFormat.f(_parentDataOf(child).offset),
     });
+  }
+
+  /// One-shot scroll at removal finalize for a viewport-spanning predecessor
+  /// whose bottom sits above the anchor — mirrors the total tick compensation
+  /// that gradual collapse would apply, without mid-animation drift when the
+  /// anchor already sits on a different row (e.g. id=5997 while anchor=6002).
+  void _recordViewportSpanningPredecessorFinalizeScroll(
+    int id,
+    ChatMessageParentData pd,
+    double fromHeight,
+  ) {
+    if (_dataSource.isTailRemovalAnimation(id)) return;
+    if (_anchorMovedAtRequest.contains(id)) return;
+    if (!_hasSize()) return;
+
+    final bottomEdge = _viewportHeight() - _bottomPad();
+    final top = pd.offset;
+    final bottom = top + fromHeight;
+    if (top > 0 || bottom <= bottomEdge) return;
+
+    final anchorY = _controller.anchorPixelOffset;
+    if (bottom > anchorY + 0.5) return;
+
+    _removalFinalizeScrollDelta[id] = -fromHeight;
   }
 
   void _compensateTailInsertScroll() {
@@ -677,52 +868,62 @@ class ChatExtentCoordinator {
     }
   }
 
-  void _compensateTailRemovalScroll() {
-    final id = _activeTailRemovalId;
-    if (id == null || !_hasSize()) return;
+  void _compensateRemovalScrollAll() {
+    if (!_hasSize() || _activeRemovalIds.isEmpty) return;
 
-    final child = _childForId(id);
-    if (child == null) {
-      _tailRemovalPrevHeight.remove(id);
-      _activeTailRemovalId = null;
-      return;
-    }
-    final pd = _parentDataOf(child);
-    if (!pd.pendingRemoval &&
-        pd.heightSpring == null &&
-        !_pendingElementRemovals.contains(id)) {
-      _tailRemovalPrevHeight.remove(id);
-      _activeTailRemovalId = null;
-      return;
-    }
+    var totalDelta = 0.0;
+    final finished = <int>[];
+    final bottomEdge = _viewportHeight() - _bottomPad();
 
-    if (_controller.anchorMessageId == id) {
-      final bottomEdge = _viewportHeight() - _bottomPad();
-      final desiredY = bottomEdge - pd.animatedHeight;
-      final delta = desiredY - _controller.anchorPixelOffset;
-      if (delta.abs() > 0.01) {
-        _applyScrollDelta(delta);
-        _extentEvent('tail.compensate.remove', {
-          'id': id,
-          'mode': 'anchor',
-          'delta': DevLogFormat.f(delta),
-        });
+    for (final id in _activeRemovalIds) {
+      final child = _childForId(id);
+      if (child == null) {
+        finished.add(id);
+        continue;
       }
-    } else {
-      final prevH = _tailRemovalPrevHeight[id];
-      if (prevH != null) {
-        final dH = pd.animatedHeight - prevH;
-        if (dH.abs() > 0.01) {
-          _applyScrollDelta(-dH);
-          _extentEvent('tail.compensate.remove', {
-            'id': id,
-            'mode': 'height',
-            'dH': DevLogFormat.f(dH),
-          });
+      final pd = _parentDataOf(child);
+      if (!pd.pendingRemoval &&
+          pd.heightSpring == null &&
+          !_pendingElementRemovals.contains(id)) {
+        finished.add(id);
+        continue;
+      }
+
+      if (_activeTailRemovalIds.contains(id)) {
+        if (_anchorMovedAtRequest.contains(id)) {
+          // Eager anchor move: keep the collapsing ghost's bottom on the inset
+          // line so height + opacity animation stays visible at the tail.
+          final desiredTop = bottomEdge - pd.animatedHeight;
+          totalDelta += desiredTop - pd.offset;
+        } else if (_controller.anchorMessageId == id) {
+          final desiredY = bottomEdge - pd.animatedHeight;
+          totalDelta += desiredY - _controller.anchorPixelOffset;
+        } else {
+          final prevH = _removalPrevHeight[id];
+          if (prevH != null) {
+            totalDelta += -(pd.animatedHeight - prevH);
+          }
         }
       }
+      _removalPrevHeight[id] = pd.animatedHeight;
     }
-    _tailRemovalPrevHeight[id] = pd.animatedHeight;
+
+    if (totalDelta.abs() > 0.01) {
+      _applyScrollDelta(totalDelta);
+      if (_activeTailRemovalIds.isNotEmpty) {
+        _extentEvent('tail.compensate.remove', {
+          'mode': 'ghost-pin',
+          'activeCount': _activeRemovalIds.length,
+          'delta': DevLogFormat.f(totalDelta),
+        });
+      }
+    }
+
+    for (final id in finished) {
+      _activeRemovalIds.remove(id);
+      _activeTailRemovalIds.remove(id);
+      _removalPrevHeight.remove(id);
+    }
   }
 }
 

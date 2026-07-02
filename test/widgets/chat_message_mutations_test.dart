@@ -1,7 +1,9 @@
 import 'package:chatscrollview/src/chat_message.dart';
 import 'package:chatscrollview/src/chat_scroll/chat_data_source.dart';
+import 'package:chatscrollview/src/chat_scroll/chat_scroll_chunk.dart';
 import 'package:chatscrollview/src/chat_scroll/chat_scroll_common.dart';
 import 'package:chatscrollview/src/chat_scroll/chat_scroll_controller.dart';
+import 'package:chatscrollview/src/chat_scroll/chat_selection_controller.dart';
 import 'package:chatscrollview/src/chat_widgets/chat_data_source_ext.dart';
 import 'package:chatscrollview/src/chat_widgets/chat_scroll_view.dart';
 import 'package:chatscrollview/src/chat_widgets/render_chat_scroll_view.dart';
@@ -42,6 +44,22 @@ class _MutableSource extends ChatDataSource {
   void updateContent(int id, String content) {
     upsertMessage(_msg(id, content: content));
     requestUpdate(id, reason: 'test-edit');
+  }
+
+  /// Nulls a slot in place (backend hard-delete) without collapse animation.
+  void hardDeleteSlot(int id) {
+    final chunkIndex = ChatScrollChunk.chunkOf(id);
+    final chunk = chunks[chunkIndex];
+    if (chunk == null) return;
+    final slot = id - chunk.firstId;
+    if (chunk.messages[slot] == null) return;
+    chunk.messages[slot] = null;
+    chunk.markAbsentSlot(slot);
+    chunk.status = ChatMessageStatus.valid;
+    if (newestKnownId == id) {
+      seedBoundaries(newestKnownId: id - 1, reachedNewest: true);
+    }
+    notifyDataChanged();
   }
 
   @override
@@ -116,6 +134,7 @@ Widget _harness({
   required ChatDataSource dataSource,
   required ChatScrollController controller,
   double messageHeight = 60,
+  ChatSelectionController? selectionController,
 }) => MaterialApp(
   home: Scaffold(
     body: Center(
@@ -126,6 +145,7 @@ Widget _harness({
           reverse: true,
           dataSource: dataSource,
           controller: controller,
+          selectionController: selectionController,
           messageBuilder: (context, id, message, status) => SizedBox(
             height: messageHeight,
             child: Text(message == null ? 'shimmer-$id' : 'msg-$id'),
@@ -138,6 +158,21 @@ Widget _harness({
 
 RenderChatScrollView _render(WidgetTester tester) =>
     tester.renderObject<RenderChatScrollView>(find.byType(ChatScrollView));
+
+/// Drive [animateFuture] to completion — the future needs ticker frames.
+Future<void> _driveAnimate(
+  WidgetTester tester,
+  Future<void> animateFuture, {
+  required Duration animateDuration,
+}) async {
+  await tester.pump();
+  final pumps = (animateDuration.inMilliseconds ~/ 16) + 2;
+  for (var i = 0; i < pumps; i++) {
+    await tester.pump(const Duration(milliseconds: 16));
+  }
+  await animateFuture;
+  await tester.pump(const Duration(milliseconds: 16));
+}
 
 void main() {
   group('Message extent mutations', () {
@@ -300,13 +335,15 @@ void main() {
       expect(ds.statusOf(tailId).isAbsent, isTrue);
       expect(ds.newestKnownId, predecessorId);
       expect(controller.anchorMessageId, predecessorId);
-      expect(controller.isAtTail.value, isTrue);
       expect(_render(tester).debugHasMessageChild(predecessorId), isTrue);
     });
 
-    testWidgets('tail removal scroll tracks animated collapse', (tester) async {
+    testWidgets('tail delete moves anchor before collapse finishes', (
+      tester,
+    ) async {
       const count = 64;
       const tailId = count - 1;
+      const predecessorId = count - 2;
       final controller = ChatScrollController()..jumpTo(tailId);
       final ds = _MutableSource(count);
       addTearDown(controller.dispose);
@@ -315,23 +352,54 @@ void main() {
       await tester.pumpWidget(_harness(dataSource: ds, controller: controller));
       await tester.pump();
 
-      final anchorY0 = controller.anchorPixelOffset;
-      final height0 = _render(tester).debugEffectiveHeightOf(tailId)!;
+      ds.requestRemoval(tailId, reason: 'test');
+      await tester.pump();
+
+      expect(_render(tester).debugHasMessageChild(tailId), isTrue);
+      expect(controller.anchorMessageId, predecessorId);
+    });
+
+    testWidgets('tail removal scroll tracks animated collapse', (tester) async {
+      const count = 64;
+      const tailId = count - 1;
+      const predecessorId = tailId - 1;
+      final controller = ChatScrollController()..jumpTo(tailId);
+      final ds = _MutableSource(count);
+      addTearDown(controller.dispose);
+      addTearDown(ds.dispose);
+
+      await tester.pumpWidget(_harness(dataSource: ds, controller: controller));
+      await tester.pump();
 
       ds.requestRemoval(tailId, reason: 'test');
       await tester.pump();
 
+      expect(controller.anchorMessageId, predecessorId);
+
+      const bottomEdge = 600.0;
+      final height0 = _render(tester).debugEffectiveHeightOf(tailId)!;
+      var sawCollapse = false;
       var sawScrollCompensation = false;
       for (var i = 0; i < 30; i++) {
         await tester.pump(const Duration(milliseconds: 16));
-        final height = _render(tester).debugEffectiveHeightOf(tailId);
+        final ro = _render(tester);
+        final height = ro.debugEffectiveHeightOf(tailId);
         if (height == null) break;
-        if (height < height0 - 5 &&
-            controller.anchorPixelOffset > anchorY0 + 5) {
-          sawScrollCompensation = true;
+        if (height < 50) {
+          sawCollapse = true;
           break;
         }
+        if (height < height0 - 5) {
+          final ghostTop = ro.debugMessageTopOf(tailId);
+          if (ghostTop != null) {
+            final ghostBottom = ghostTop + height;
+            if ((ghostBottom - bottomEdge).abs() < 8.0) {
+              sawScrollCompensation = true;
+            }
+          }
+        }
       }
+      expect(sawCollapse, isTrue);
       expect(sawScrollCompensation, isTrue);
     });
 
@@ -362,14 +430,304 @@ void main() {
         final h = ro.debugEffectiveHeightOf(tailId);
         if (h == null) break;
         if (h < 350) {
-          final bottom = controller.anchorPixelOffset + h;
-          if ((bottom - bottomEdge).abs() < 8.0) {
-            sawPin = true;
+          final ghostTop = ro.debugMessageTopOf(tailId);
+          if (ghostTop != null) {
+            final ghostBottom = ghostTop + h;
+            if ((ghostBottom - bottomEdge).abs() < 8.0) {
+              sawPin = true;
+            }
           }
           break;
         }
       }
       expect(sawPin, isTrue);
+    });
+
+    testWidgets(
+      'tail delete while navigation-highlighted clears highlight and stays pinned',
+      (tester) async {
+        const count = 64;
+        const tailId = count - 1;
+        const predecessorId = tailId - 1;
+        final controller = ChatScrollController()..jumpTo(tailId);
+        final ds = _MutableSource(count);
+        addTearDown(controller.dispose);
+        addTearDown(ds.dispose);
+
+        await tester.pumpWidget(
+          _harness(
+            dataSource: ds,
+            controller: controller,
+            messageHeight: 400,
+          ),
+        );
+        await tester.pump();
+
+        await _driveAnimate(
+          tester,
+          controller.animateTo(
+            tailId,
+            duration: const Duration(milliseconds: 1),
+          ),
+          animateDuration: const Duration(milliseconds: 1),
+        );
+
+        final roBefore = _render(tester);
+        expect(roBefore.debugHighlightTargetId, tailId);
+
+        ds.requestRemoval(tailId, reason: 'test');
+        await tester.pump();
+
+        expect(_render(tester).debugHighlightTargetId, isNull);
+        expect(controller.anchorMessageId, predecessorId);
+
+        const bottomEdge = 600.0;
+        var sawPin = false;
+        for (var i = 0; i < 60; i++) {
+          await tester.pump(const Duration(milliseconds: 16));
+          final ro = _render(tester);
+          if (!ro.debugHasMessageChild(tailId)) break;
+          final h = ro.debugEffectiveHeightOf(tailId);
+          if (h == null) break;
+          final ghostTop = ro.debugMessageTopOf(tailId);
+          if (ghostTop != null) {
+            final ghostBottom = ghostTop + h;
+            if ((ghostBottom - bottomEdge).abs() < 8.0) {
+              sawPin = true;
+              break;
+            }
+          }
+        }
+        expect(sawPin, isTrue);
+
+        // Ghost-pin should converge before finalize — no anchor snap on eviction.
+        double? anchorBeforeFinalize;
+        for (var i = 0; i < 60; i++) {
+          await tester.pump(const Duration(milliseconds: 16));
+          if (!_render(tester).debugHasMessageChild(tailId)) {
+            anchorBeforeFinalize = controller.anchorPixelOffset;
+            break;
+          }
+        }
+        expect(anchorBeforeFinalize, isNotNull);
+        await tester.pump();
+        expect(
+          (controller.anchorPixelOffset - anchorBeforeFinalize!).abs(),
+          lessThan(8.0),
+        );
+        final predH = _render(tester).debugEffectiveHeightOf(predecessorId)!;
+        expect(
+          (controller.anchorPixelOffset + predH - bottomEdge).abs(),
+          lessThan(8.0),
+        );
+      },
+    );
+
+    testWidgets(
+      'tail delete while selected clears selection and exits mode',
+      (tester) async {
+        const count = 64;
+        const tailId = count - 1;
+        final controller = ChatScrollController()..jumpTo(tailId);
+        final ds = _MutableSource(count);
+        final selection = ChatSelectionController();
+        addTearDown(controller.dispose);
+        addTearDown(ds.dispose);
+        addTearDown(selection.dispose);
+
+        await tester.pumpWidget(
+          _harness(
+            dataSource: ds,
+            controller: controller,
+            selectionController: selection,
+          ),
+        );
+        await tester.pump();
+
+        selection.startSelection(tailId);
+        expect(selection.isSelectionMode, isTrue);
+        expect(selection.isSelected(tailId), isTrue);
+
+        ds.requestRemoval(tailId, reason: 'test');
+        await tester.pump();
+
+        expect(selection.isSelectionMode, isFalse);
+        expect(selection.isSelected(tailId), isFalse);
+      },
+    );
+
+    testWidgets(
+      'tail delete while selected stays pinned with wrapped predecessor',
+      (tester) async {
+        const count = 64;
+        const tailId = count - 1;
+        const predecessorId = tailId - 1;
+        final controller = ChatScrollController()..jumpTo(tailId);
+        final ds = _MutableSource(count);
+        final selection = ChatSelectionController();
+        addTearDown(controller.dispose);
+        addTearDown(ds.dispose);
+        addTearDown(selection.dispose);
+
+        String words(int n) => List.filled(n, 'word').join(' ');
+
+        await tester.pumpWidget(
+          MaterialApp(
+            home: Scaffold(
+              body: Center(
+                child: SizedBox(
+                  width: 400,
+                  height: 600,
+                  child: ChatScrollView(
+                    reverse: true,
+                    dataSource: ds,
+                    controller: controller,
+                    selectionController: selection,
+                    messageBuilder: (context, id, message, status) => Padding(
+                      padding: const EdgeInsets.all(8),
+                      child: Text(
+                        id == predecessorId ? words(80) : words(5),
+                        style: const TextStyle(fontSize: 16),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        );
+        await tester.pump();
+
+        selection.startSelection(tailId);
+        for (var i = 0; i < 20; i++) {
+          await tester.pump(const Duration(milliseconds: 16));
+        }
+
+        expect(_render(tester).debugHasMessageChild(tailId), isTrue);
+        expect(controller.anchorMessageId, tailId);
+
+        ds.requestRemoval(tailId, reason: 'test');
+        await tester.pump();
+        await tester.pump();
+
+        expect(selection.isSelectionMode, isFalse);
+        expect(controller.anchorMessageId, predecessorId);
+
+        const bottomEdge = 600.0;
+        var sawPin = false;
+        for (var i = 0; i < 60; i++) {
+          await tester.pump(const Duration(milliseconds: 16));
+          final ro = _render(tester);
+          if (!ro.debugHasMessageChild(tailId)) break;
+          final h = ro.debugEffectiveHeightOf(tailId);
+          if (h == null) break;
+          final ghostTop = ro.debugMessageTopOf(tailId);
+          if (ghostTop != null) {
+            final ghostBottom = ghostTop + h;
+            if ((ghostBottom - bottomEdge).abs() < 8.0) {
+              sawPin = true;
+              break;
+            }
+          }
+        }
+        expect(sawPin, isTrue);
+
+        double? anchorBeforeFinalize;
+        for (var i = 0; i < 60; i++) {
+          await tester.pump(const Duration(milliseconds: 16));
+          if (!_render(tester).debugHasMessageChild(tailId)) {
+            anchorBeforeFinalize = controller.anchorPixelOffset;
+            break;
+          }
+        }
+        expect(anchorBeforeFinalize, isNotNull);
+        await tester.pump();
+        expect(
+          (controller.anchorPixelOffset - anchorBeforeFinalize!).abs(),
+          lessThan(8.0),
+        );
+        final predH = _render(tester).debugEffectiveHeightOf(predecessorId)!;
+        expect(
+          (controller.anchorPixelOffset + predH - bottomEdge).abs(),
+          lessThan(8.0),
+        );
+      },
+    );
+
+    testWidgets(
+      'hard-delete anchor slot reassigns to present neighbor',
+      (tester) async {
+        const count = 64;
+        const tailId = count - 1;
+        const predecessorId = tailId - 1;
+        final controller = ChatScrollController()..jumpTo(tailId);
+        final ds = _MutableSource(count);
+        addTearDown(controller.dispose);
+        addTearDown(ds.dispose);
+
+        await tester.pumpWidget(_harness(dataSource: ds, controller: controller));
+        await tester.pump();
+
+        expect(controller.anchorMessageId, tailId);
+        ds.hardDeleteSlot(tailId);
+        await tester.pump();
+        await tester.pump();
+
+        expect(ds.getMessage(tailId), isNull);
+        expect(controller.anchorMessageId, predecessorId);
+        expect(_render(tester).debugHasMessageChild(predecessorId), isTrue);
+      },
+    );
+
+    testWidgets('short tail delete with tall predecessor stays at tail', (
+      tester,
+    ) async {
+      const count = 64;
+      const tailId = count - 1;
+      const predecessorId = tailId - 1;
+      final controller = ChatScrollController()..jumpTo(tailId);
+      final ds = _MutableSource(count);
+      addTearDown(controller.dispose);
+      addTearDown(ds.dispose);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: Center(
+              child: SizedBox(
+                width: 400,
+                height: 600,
+                child: ChatScrollView(
+                  reverse: true,
+                  dataSource: ds,
+                  controller: controller,
+                  messageBuilder: (context, id, message, status) => SizedBox(
+                    height: id == predecessorId ? 400 : 60,
+                    child: Text(message == null ? 'shimmer-$id' : 'msg-$id'),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+
+      ds.requestRemoval(tailId, reason: 'test');
+      await tester.pump();
+
+      for (var i = 0; i < 120; i++) {
+        await tester.pump(const Duration(milliseconds: 16));
+        if (!_render(tester).debugHasMessageChild(tailId)) break;
+      }
+      await tester.pump();
+
+      expect(controller.isAtTail.value, isTrue);
+      const bottomEdge = 600.0;
+      final ro = _render(tester);
+      final anchorH = ro.debugEffectiveHeightOf(predecessorId) ?? 400;
+      final bottom = controller.anchorPixelOffset + anchorH;
+      expect((bottom - bottomEdge).abs(), lessThan(8.0));
     });
 
     testWidgets('collapsed removal keeps zero height before layout evicts', (

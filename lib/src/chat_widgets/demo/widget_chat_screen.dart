@@ -2,7 +2,6 @@ import 'dart:async';
 import 'dart:developer' as dev;
 
 import 'package:chatscrollview/src/backend_chat_data_source.dart';
-import 'package:chatscrollview/src/chat_message.dart';
 import 'package:chatscrollview/src/chat_scroll/chat_data_source.dart';
 import 'package:chatscrollview/src/chat_scroll/chat_scroll_common.dart';
 import 'package:chatscrollview/src/chat_scroll/chat_scroll_controller.dart';
@@ -256,15 +255,6 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
   ) {
     if (message == null) return const DemoShimmerBubble();
     final prev = _dataSource?.getPreviousPresentMessage(id);
-    final messageContent = (message as UserChatMessage?)?.content;
-    final messageContentTruncated = (messageContent?.length ?? 0) >= 30
-        ? messageContent?.substring(0, 30)
-        : messageContent;
-    final prevContent = (prev as UserChatMessage?)?.content;
-    final prevContentTruncated = (prevContent?.length ?? 0) >= 30
-        ? prevContent?.substring(0, 30)
-        : prevContent;
-    dev.log('message: $messageContentTruncated, prev: $prevContentTruncated');
     final isFirstInRun = prev?.sender != message.sender;
     final localMutations = _localMutationsEnabled;
     return DemoMessageBubble(
@@ -334,7 +324,11 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
                   heroTag: 'fab-down',
                   onPressed: () {
                     if (_dataSource?.newestKnownId case final newestKnownId?) {
-                      _controller.animateTo(newestKnownId, highlight: false);
+                      _controller.animateTo(
+                        newestKnownId,
+                        highlight: false,
+                        alignment: 1,
+                      );
                     }
                   },
                   tooltip: 'Scroll to bottom',

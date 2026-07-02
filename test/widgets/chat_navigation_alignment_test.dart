@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:chatscrollview/src/chat_message.dart';
 import 'package:chatscrollview/src/chat_scroll/chat_data_source.dart';
+import 'package:chatscrollview/src/chat_scroll/chat_scroll_chunk.dart';
 import 'package:chatscrollview/src/chat_scroll/chat_scroll_common.dart';
 import 'package:chatscrollview/src/chat_scroll/chat_scroll_controller.dart';
 import 'package:chatscrollview/src/chat_widgets/chat_scroll_view.dart';
@@ -30,6 +31,18 @@ class _PreloadedDataSource extends ChatDataSource {
   }
 
   final int count;
+
+  void hardDeleteSlot(int id) {
+    final chunkIndex = ChatScrollChunk.chunkOf(id);
+    final chunk = chunks[chunkIndex];
+    if (chunk == null) return;
+    final slot = id - chunk.firstId;
+    if (chunk.messages[slot] == null) return;
+    chunk.messages[slot] = null;
+    chunk.markAbsentSlot(slot);
+    chunk.status = ChatMessageStatus.valid;
+    notifyDataChanged();
+  }
 
   @override
   Future<List<IChatMessage>> fetchRange({
@@ -640,6 +653,107 @@ void main() {
       expect(find.text('msg-$target'), findsOneWidget);
       expect(controller.anchorMessageId, target);
       expect(controller.anchorPixelOffset, closeTo(expectedEnd, 1));
+    });
+
+    testWidgets('animateTo during tail removal reaches target after settle', (
+      tester,
+    ) async {
+      const count = 200;
+      const tailId = count - 1;
+      const targetId = 40;
+      final ds = _PreloadedDataSource(count);
+      final controller = ChatScrollController()..jumpTo(tailId);
+      addTearDown(controller.dispose);
+      addTearDown(ds.dispose);
+
+      await tester.pumpWidget(_harness(dataSource: ds, controller: controller));
+      await tester.pumpAndSettle();
+
+      ds.requestRemoval(tailId, reason: 'test');
+      final future = controller.animateTo(
+        targetId,
+        duration: const Duration(milliseconds: 200),
+        alignment: 0.5,
+        highlight: false,
+      );
+      await tester.pump();
+      for (var i = 0; i < 250; i++) {
+        await tester.pump(const Duration(milliseconds: 16));
+      }
+      await future.timeout(
+        const Duration(milliseconds: 500),
+        onTimeout: () => fail('queued animateTo must complete'),
+      );
+      expect(controller.anchorMessageId, targetId);
+    });
+
+    testWidgets('scroll responsive after animateTo during tail removal', (
+      tester,
+    ) async {
+      const count = 200;
+      const tailId = count - 1;
+      const targetId = 40;
+      final ds = _PreloadedDataSource(count);
+      final controller = ChatScrollController()..jumpTo(tailId);
+      addTearDown(controller.dispose);
+      addTearDown(ds.dispose);
+
+      await tester.pumpWidget(_harness(dataSource: ds, controller: controller));
+      await tester.pumpAndSettle();
+
+      ds.requestRemoval(tailId, reason: 'test');
+      final future = controller.animateTo(
+        targetId,
+        duration: const Duration(milliseconds: 150),
+        alignment: 0.5,
+        highlight: false,
+      );
+      await tester.pump();
+      for (var i = 0; i < 200; i++) {
+        await tester.pump(const Duration(milliseconds: 16));
+      }
+      await future.timeout(
+        const Duration(milliseconds: 500),
+        onTimeout: () => fail('queued animateTo must complete'),
+      );
+
+      final before = controller.anchorPixelOffset;
+      controller.applyScrollDelta(48);
+      await tester.pump();
+      expect(controller.anchorPixelOffset, isNot(closeTo(before, 0.01)));
+    });
+
+    testWidgets('animateTo settles when target hard-deleted mid-flight', (
+      tester,
+    ) async {
+      const count = 200;
+      const targetId = 40;
+      const fallbackId = 39;
+      final ds = _PreloadedDataSource(count);
+      final controller = ChatScrollController()..jumpTo(count - 1);
+      addTearDown(controller.dispose);
+      addTearDown(ds.dispose);
+
+      await tester.pumpWidget(_harness(dataSource: ds, controller: controller));
+      await tester.pump();
+
+      final future = controller.animateTo(
+        targetId,
+        duration: const Duration(milliseconds: 400),
+        alignment: 0.5,
+        highlight: false,
+      );
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 32));
+      ds.hardDeleteSlot(targetId);
+      for (var i = 0; i < 80; i++) {
+        await tester.pump(const Duration(milliseconds: 16));
+      }
+      await future.timeout(
+        const Duration(milliseconds: 500),
+        onTimeout: () => fail('animateTo must complete after target deleted'),
+      );
+      expect(controller.anchorMessageId, fallbackId);
     });
   });
 }

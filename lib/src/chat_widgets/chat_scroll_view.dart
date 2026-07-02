@@ -288,6 +288,7 @@ class ChatScrollView extends RenderObjectWidget {
       RenderChatScrollView(
         dataSource: dataSource,
         controller: controller,
+        selectionController: selectionController,
         cacheExtent: cacheExtent,
         extraBuildExtent: extraBuildExtent,
         ticking: TickerMode.valuesOf(context).enabled,
@@ -312,6 +313,7 @@ class ChatScrollView extends RenderObjectWidget {
     renderObject
       ..dataSource = dataSource
       ..controller = controller
+      ..selectionController = selectionController
       ..cacheExtent = cacheExtent
       ..extraBuildExtent = extraBuildExtent
       ..ticking = TickerMode.valuesOf(context).enabled

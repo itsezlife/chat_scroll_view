@@ -216,6 +216,43 @@ void main() {
       expect(controller.anchorMessageId, newest);
     });
 
+    testWidgets('animateTo tall newest lands pinned without post-settle snap', (
+      tester,
+    ) async {
+      const count = 40;
+      const newest = count - 1;
+      const tallHeight = 800.0;
+      final ds = _PreloadedDataSource(count);
+      final controller = ChatScrollController()..jumpTo(0);
+      addTearDown(controller.dispose);
+      addTearDown(ds.dispose);
+
+      await tester.pumpWidget(
+        _harness(
+          dataSource: ds,
+          controller: controller,
+          messageHeight: (id) => id == newest ? tallHeight : 60.0,
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final future = controller.animateTo(newest);
+      await _driveAnimate(tester, future);
+      final beforeSettle = controller.anchorPixelOffset;
+      await tester.pump();
+      await tester.pumpAndSettle();
+
+      const expectedPinnedTop = _viewportHeight - tallHeight;
+      expect(controller.anchorMessageId, newest);
+      expect(controller.isAtTail.value, isTrue);
+      expect(controller.anchorPixelOffset, closeTo(expectedPinnedTop, 1.5));
+      expect(
+        (controller.anchorPixelOffset - beforeSettle).abs(),
+        lessThan(2.0),
+        reason: 'tail animate should not need a layout pin correction',
+      );
+    });
+
     testWidgets('jumpTo past newest clamps without phantom shimmer', (
       tester,
     ) async {

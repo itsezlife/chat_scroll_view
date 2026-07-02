@@ -115,8 +115,16 @@ class _SelectableMessageState extends State<SelectableMessage>
   /// `animateTo` is a cheap no-op when the target already matches.
   void _onSelectionChanged() {
     final c = widget.controller;
-    _mode.animateTo(c.isSelectionMode ? 1.0 : 0.0);
-    _select.animateTo(c.isSelected(widget.id) ? 1.0 : 0.0);
+    final snap = c.snapSelectionChrome;
+    final modeTarget = c.isSelectionMode ? 1.0 : 0.0;
+    final selectTarget = c.isSelected(widget.id) ? 1.0 : 0.0;
+    if (snap) {
+      _mode.value = modeTarget;
+      _select.value = selectTarget;
+    } else {
+      _mode.animateTo(modeTarget);
+      _select.animateTo(selectTarget);
+    }
   }
 
   bool get _flingCancelSuppressesGestures =>
