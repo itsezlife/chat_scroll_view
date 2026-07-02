@@ -13,11 +13,12 @@ import 'package:chatscrollview/src/chat_widgets/demo/chat_data_source_extension.
 import 'package:chatscrollview/src/chat_widgets/demo/date_separator.dart';
 import 'package:chatscrollview/src/chat_widgets/demo/demo_backend_error.dart';
 import 'package:chatscrollview/src/chat_widgets/demo/demo_message.dart';
-import 'package:chatscrollview/src/chat_widgets/demo/measure_size.dart';
+import 'package:chatscrollview/src/chat_widgets/demo/merged_value_notifier.dart';
 import 'package:chatscrollview/src/chat_widgets/demo/new_messages_pill.dart';
 import 'package:chatscrollview/src/chat_widgets/demo/selection_app_bar.dart';
+import 'package:chatscrollview/src/comments_data_source.dart';
 import 'package:flutter/material.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:keyboard_insets/keyboard_insets.dart';
 
 /// Demo screen for the widget-based [ChatScrollView] — the chat viewport,
 /// a bottom composer, and a contextual selection bar, wired together.
@@ -34,9 +35,24 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
   late final ChatScrollController _controller;
   late final ChatSelectionController _selection;
 
+  StreamSubscription<double>? _keyboardStateSubscription;
+
+  /// Safe area bottom inset reserved inside the viewport — kept in sync with the
+  /// safe area bottom inset so the composer's measured height clears it.
+  final ValueNotifier<double> _keyboardBottomInset = ValueNotifier<double>(0);
+
   /// Bottom inset reserved inside the viewport — kept in sync with the
   /// composer's measured height so the newest message clears it.
   final ValueNotifier<double> _bottomInset = ValueNotifier<double>(96);
+
+  /// Composer height plus safe-area / keyboard bottom inset — drives viewport
+  /// padding and floating chrome that must clear the full composer stack.
+  late final MergedValueNotifier<double, double, double> _totalBottomInset =
+      MergedValueNotifier(
+        first: _bottomInset,
+        second: _keyboardBottomInset,
+        merge: (composer, safeArea) => composer + safeArea,
+      );
 
   /// Top inset reserved inside the viewport — kept in sync with the
   /// selection app bar's measured height so the floating day header clears it.
@@ -59,23 +75,41 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
   @override
   void initState() {
     super.initState();
+    PersistentSafeAreaBottom.startObserving();
     _controller = ChatScrollController();
     _selection = ChatSelectionController();
     _pillLastSeenBaseline.addListener(_onPillBaselineChanged);
     _init();
+
+    _keyboardStateSubscription = KeyboardInsets.insets.listen((state) {
+      _keyboardBottomInset.value = state;
+    });
+    _assignInitialBottomInset();
+  }
+
+  void _assignInitialBottomInset() {
+    final isVisible = KeyboardInsets.isVisible;
+    final isAnimating = KeyboardInsets.isAnimating;
+    _keyboardBottomInset.value = isVisible && !isAnimating
+        ? KeyboardInsets.keyboardHeight
+        : 0;
   }
 
   @override
   void dispose() {
+    PersistentSafeAreaBottom.stopObserving();
     _pillLastSeenBaseline.removeListener(_onPillBaselineChanged);
     _flushPendingLastRead();
     _persistLastReadTimer?.cancel();
     _pillLastSeenBaseline.dispose();
+    _totalBottomInset.dispose();
     _bottomInset.dispose();
+    _keyboardBottomInset.dispose();
     _topInset.dispose();
     _controller.dispose();
     _selection.dispose();
     _dataSource?.dispose();
+    _keyboardStateSubscription?.cancel();
     super.dispose();
   }
 
@@ -86,9 +120,10 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
     });
 
     try {
-      final backend = await BackendChatDataSource.connect(
-        client: Supabase.instance.client,
-      );
+      // final backend = await BackendChatDataSource.connect(
+      //   client: Supabase.instance.client,
+      // );
+      final backend = await CommentsDataSource.load();
 
       // The screen may have been popped while `load()` was in flight. The
       // `dispose()` above already ran with `_dataSource == null`, so we
@@ -100,7 +135,9 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
       }
       _dataSource = backend;
       final newest = backend.newestKnownId;
-      final lastRead = await backend.getLastReadMessageId();
+      // final lastRead = await backend.getLastReadMessageId();
+      // ignore: prefer_const_declarations
+      final int? lastRead = null;
 
       final anchor = backend.resolveOpenAnchor(
         storedLastRead: lastRead,
@@ -214,6 +251,7 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final bottomPadding = MediaQuery.viewPaddingOf(context).bottom;
     if (_errorMessage != null) {
       return DemoBackendError(message: _errorMessage!, onRetry: _init);
     }
@@ -229,12 +267,13 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
           _selection.clear();
           return;
         }
-        Navigator.pop(context);
+        // No-op, since no navigation is supported in this demo.
       },
       child: Scaffold(
+        resizeToAvoidBottomInset: false,
         floatingActionButtonLocation: .endFloat,
-        floatingActionButton: Padding(
-          padding: const EdgeInsets.only(bottom: 96),
+        floatingActionButton: ValueListenableBuilder(
+          valueListenable: _totalBottomInset,
           child: Align(
             alignment: .bottomRight,
             child: Column(
@@ -244,7 +283,7 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
                 FloatingActionButton.small(
                   heroTag: 'fab-up',
                   onPressed: () {
-                    _controller.animateTo(6003, alignment: .5);
+                    _controller.animateTo(6002, alignment: .5);
                   },
                   tooltip: 'Scroll to top',
                   materialTapTargetSize: MaterialTapTargetSize.padded,
@@ -264,6 +303,10 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
               ],
             ),
           ),
+          builder: (context, bottomInset, child) => Padding(
+            padding: EdgeInsets.only(bottom: bottomInset - bottomPadding),
+            child: child,
+          ),
         ),
         body: Stack(
           children: <Widget>[
@@ -280,7 +323,7 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
                     dataSource: _dataSource!,
                     controller: _controller,
                     selectionController: _selection,
-                    bottomPadding: _bottomInset,
+                    bottomPadding: _totalBottomInset,
                     topPadding: _topInset,
                     messageBuilder: _buildMessage,
                     chunkErrorBuilder: _buildChunkError,
@@ -299,13 +342,12 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
               left: 0,
               right: 0,
               bottom: 0,
-              child: MeasureSize(
-                onChange: (size) => _bottomInset.value = size.height,
-                child: ChatComposer(
-                  selection: _selection,
-                  dataSource: _dataSource!,
-                  onSend: _handleSendMessage,
-                ),
+              child: ChatComposer(
+                bottomInset: _keyboardBottomInset,
+                selection: _selection,
+                dataSource: _dataSource!,
+                onSend: _handleSendMessage,
+                onSizeChanged: (size) => _bottomInset.value = size,
               ),
             ),
             // New-messages pill — surfaces above the composer when the user
@@ -313,7 +355,7 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
             NewMessagesPill(
               controller: _controller,
               dataSource: _dataSource!,
-              bottomInset: _bottomInset,
+              bottomInset: _totalBottomInset,
               lastSeenNewestId: _pillLastSeenBaseline,
             ),
             // Contextual selection bar — overlays the top. [topInset] is driven

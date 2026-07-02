@@ -1,0 +1,100 @@
+import 'dart:async';
+import 'dart:js_interop';
+
+import 'package:flutter/foundation.dart';
+import 'package:flutter_web_plugins/flutter_web_plugins.dart';
+import 'package:keyboard_insets_platform_interface/keyboard_insets_platform_interface.dart';
+import 'package:keyboard_insets_web/safe_area_web.dart';
+import 'package:web/web.dart';
+
+/// Web implementation of [KeyboardInsetsPlatform].
+///
+/// Uses `window.visualViewport` to estimate keyboard height.
+/// - On desktop browsers: always returns 0.
+/// - On mobile browsers: returns `screenHeight - visualViewport.height`.
+class KeyboardInsetsWeb extends KeyboardInsetsPlatform {
+  static final StreamController<double> _insetController =
+      StreamController<double>.broadcast();
+  static final StreamController<KeyboardState> _stateController =
+      StreamController<KeyboardState>.broadcast();
+
+  bool _isAnimating = false;
+  double _lastHeight = 0;
+  late final JSFunction _onResizeCallback;
+
+  KeyboardInsetsWeb() {
+    _onResizeCallback = _onResize.toJS;
+    window.visualViewport?.addEventListener('resize', _onResizeCallback);
+    window.visualViewport?.addEventListener('scroll', _onResizeCallback);
+  }
+
+  static void registerWith(Registrar registrar) {
+    KeyboardInsetsPlatform.instance = KeyboardInsetsWeb();
+  }
+
+  void _onResize(Event event) {
+    final viewport = window.visualViewport;
+    if (viewport == null) return;
+
+    final totalHeight = window.innerHeight;
+    final visibleHeight = viewport.height;
+
+    final keyboardHeight =
+        (totalHeight - visibleHeight).clamp(0, double.infinity);
+
+    final isVisible = keyboardHeight > 0;
+    _isAnimating = keyboardHeight != _lastHeight;
+
+    _lastHeight = keyboardHeight.toDouble();
+
+    _insetController.add(keyboardHeight.toDouble());
+    _stateController.add(
+      KeyboardState(isVisible: isVisible, isAnimating: _isAnimating),
+    );
+  }
+
+  @override
+  Stream<double> get insets => _insetController.stream;
+
+  @override
+  Stream<KeyboardState> get stateStream => _stateController.stream;
+
+  @override
+  ValueNotifier<double>? safeArea;
+
+  @override
+  double get keyboardHeight => _lastHeight;
+
+  @override
+  bool get isVisible => _lastHeight > 0;
+
+  @override
+  bool get isAnimating => _isAnimating;
+
+  @override
+  void startObservingSafeArea() {
+    if (!SafeAreaMonitorWeb.listening) {
+      safeArea = ValueNotifier(0.0);
+      void onResponce(double inset) {
+        safeArea?.value = inset;
+      }
+
+      SafeAreaMonitorWeb.startSafeAreaObserver(onResponce);
+    }
+  }
+
+  @override
+  void stopObservingSafeArea() {
+    SafeAreaMonitorWeb.stopSafeAreaObserver();
+    safeArea?.dispose();
+  }
+
+  @override
+  void dispose() {
+    window.visualViewport?.removeEventListener('resize', _onResizeCallback);
+    window.visualViewport?.removeEventListener('scroll', _onResizeCallback);
+    _insetController.close();
+    _stateController.close();
+    safeArea?.dispose();
+  }
+}

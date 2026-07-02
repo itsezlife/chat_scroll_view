@@ -17,7 +17,6 @@ ChatAnimator _animator({
   VoidCallback? ensureTicker,
   VoidCallback? cancelFling,
   VoidCallback? cancelBounceback,
-  void Function(int targetId)? onAnimateComplete,
   bool Function(int id)? isHighlightReady,
   bool Function(int id)? shouldDropPendingHighlight,
   Duration highlightDuration = const Duration(milliseconds: 1500),
@@ -35,7 +34,6 @@ ChatAnimator _animator({
   ensureTicker: ensureTicker ?? () {},
   cancelFling: cancelFling ?? () {},
   cancelBounceback: cancelBounceback ?? () {},
-  onAnimateComplete: onAnimateComplete ?? (_) {},
   highlightDuration: highlightDuration,
   highlightColor: highlightColor,
 );
@@ -189,14 +187,12 @@ void main() {
     test('close path returns anchor delta and completes', () {
       final controller = ChatScrollController()..reassignAnchor(1, 100);
       final box = _sizedBox();
-      final completed = <int>[];
       final animator = _animator(
         controller: controller,
         offsetToBuiltMessage: (_) => 100.0,
         alignedTopForMessage: (_, _) => 0.0,
         childForId: (_) => box,
         heightOfChild: (_) => box.size.height,
-        onAnimateComplete: completed.add,
       );
 
       animator.animate(
@@ -211,9 +207,42 @@ void main() {
       final midDelta = animator.tickAnimate(const Duration(milliseconds: 50));
       expect(midDelta, lessThan(0.0));
 
-      animator.tickAnimate(const Duration(milliseconds: 100));
+      expect(
+        animator.tickAnimate(const Duration(milliseconds: 100)),
+        0.0,
+        reason: 'final tick applies settle in render, not via stale delta',
+      );
       expect(animator.isAnimating, isFalse);
-      expect(completed, [1]);
+      expect(animator.takePendingSettleTargetId(), 1);
+      expect(animator.takePendingSettleTargetId(), isNull);
+    });
+
+    test('rebaseClosePathEnd retargets when aligned end moves', () {
+      final controller = ChatScrollController()..reassignAnchor(1, 200);
+      final box = _sizedBox(height: 60);
+      var alignedEnd = 100.0;
+      final animator = _animator(
+        controller: controller,
+        offsetToBuiltMessage: (_) => 200.0,
+        alignedTopForMessage: (_, _) => alignedEnd,
+        childForId: (_) => box,
+        heightOfChild: (_) => box.size.height,
+      );
+
+      animator.animate(
+        1,
+        duration: const Duration(milliseconds: 100),
+        curve: Curves.linear,
+        alignment: 0.5,
+        highlight: false,
+      );
+
+      animator.tickAnimate(const Duration(milliseconds: 25));
+      alignedEnd = 160.0;
+      animator.rebaseClosePathEnd(elapsed: const Duration(milliseconds: 25));
+      animator.tickAnimate(const Duration(milliseconds: 50));
+      expect(animator.animateEndOffset, 160.0);
+      expect(animator.animateStartOffset, controller.anchorPixelOffset);
     });
 
     test('far path fades out, jumpTo at midpoint, fades in', () {

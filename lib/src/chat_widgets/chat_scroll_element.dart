@@ -4,6 +4,7 @@ import 'package:chatscrollview/src/chat_scroll/chat_scroll_common.dart';
 import 'package:chatscrollview/src/chat_widgets/chat_data_source_ext.dart';
 import 'package:chatscrollview/src/chat_widgets/chat_dated_message.dart';
 import 'package:chatscrollview/src/chat_widgets/chat_scroll_view.dart';
+import 'package:chatscrollview/src/chat_widgets/chat_scrollbar.dart';
 import 'package:chatscrollview/src/chat_widgets/chat_selectable_message.dart';
 import 'package:chatscrollview/src/chat_widgets/render_chat_scroll_view.dart';
 import 'package:flutter/widgets.dart';
@@ -91,6 +92,17 @@ class ChatScrollElement extends RenderObjectElement
   void mount(Element? parent, Object? newSlot) {
     super.mount(parent, newSlot);
     renderObject.childManager = this;
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Repaint when inherited Theme / ChatScrollbarThemeData changes without
+    // a new ChatScrollView widget param — standard RenderObjectElement pattern.
+    final theme = ChatScrollbarThemeData.resolve(this);
+    if (renderObject.scrollbarTheme != theme) {
+      renderObject.scrollbarTheme = theme;
+    }
   }
 
   @override
@@ -260,10 +272,7 @@ class ChatScrollElement extends RenderObjectElement
   }
 
   @override
-  RenderBox? buildFloatingHeader(
-    Object? bucket,
-    DateTime? firstMessageDate,
-  ) {
+  RenderBox? buildFloatingHeader(Object? bucket, DateTime? firstMessageDate) {
     _assertInsideLayoutCallback();
     final build = _widget.dateSeparatorBuilder;
     final headerWidget =

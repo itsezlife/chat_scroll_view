@@ -252,6 +252,66 @@ void main() {
       expect(_render(tester).debugHighlightTargetId, isNull);
     });
 
+    testWidgets('re-entrant animateTo retargets without offset hitch', (
+      tester,
+    ) async {
+      const count = 256;
+      final controller = ChatScrollController()..jumpTo(count ~/ 2);
+      final ds = _PreloadedDataSource(count);
+      addTearDown(controller.dispose);
+      addTearDown(ds.dispose);
+
+      await tester.pumpWidget(_scaffold(
+        dataSource: ds,
+        controller: controller,
+        highlightDuration: Duration.zero,
+      ));
+      await tester.pumpAndSettle();
+
+      const expectedEnd = 0.5 * (600 - 60);
+      final samples = <double>[];
+
+      final firstFuture = controller.animateTo(
+        120,
+        duration: const Duration(milliseconds: 120),
+        alignment: 0.5,
+        highlight: false,
+      );
+      await tester.pump();
+      for (var i = 0; i < 4; i++) {
+        samples.add(controller.anchorPixelOffset);
+        await tester.pump(const Duration(milliseconds: 16));
+      }
+
+      final secondFuture = controller.animateTo(
+        125,
+        duration: const Duration(milliseconds: 120),
+        alignment: 0.5,
+        highlight: false,
+      );
+      await tester.pump();
+      for (var i = 0; i < 20; i++) {
+        samples.add(controller.anchorPixelOffset);
+        await tester.pump(const Duration(milliseconds: 16));
+      }
+      for (var i = 0; i < 10; i++) {
+        await tester.pump(const Duration(milliseconds: 16));
+      }
+      await firstFuture;
+      await secondFuture;
+
+      for (var i = 1; i < samples.length; i++) {
+        final prevDist = (samples[i - 1] - expectedEnd).abs();
+        final currDist = (samples[i] - expectedEnd).abs();
+        expect(
+          currDist,
+          lessThanOrEqualTo(prevDist + 0.5),
+          reason: 're-entrant frame $i offset hitch toward $expectedEnd',
+        );
+      }
+      expect(controller.anchorMessageId, 125);
+    });
+
     testWidgets('re-entrant animateTo with highlight false then true', (
       tester,
     ) async {
