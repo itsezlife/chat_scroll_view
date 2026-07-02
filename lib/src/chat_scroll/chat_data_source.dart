@@ -1,6 +1,7 @@
 import 'dart:collection';
 import 'dart:ui';
 
+import 'package:chatscrollview/src/chat_scroll/chat_mutations.dart';
 import 'package:chatscrollview/src/chat_scroll/chat_range_fetch.dart';
 import 'package:chatscrollview/src/chat_scroll/chat_scroll_chunk.dart';
 import 'package:chatscrollview/src/chat_scroll/chat_scroll_common.dart';
@@ -32,7 +33,14 @@ import 'package:meta/meta.dart';
 ///
 /// Uses typed listeners instead of [ChangeNotifier] — subscribers know
 /// exactly what event occurred.
-abstract class ChatDataSource {
+abstract class ChatDataSource with ChatMutationsMixin {
+  /// When this returns `true` for an id, [prepareRemovalStorage] defers
+  /// [notifyDataChanged] until [flushPendingRemovalNotify] after collapse.
+  @internal
+  bool Function(int id)? shouldDeferRemovalNotify;
+
+  bool _deferredRemovalDataNotify = false;
+
   // --- Fetch contract (subclass implements) ---
 
   /// Load messages whose IDs fall in `[fromId, toId]` (both inclusive).
@@ -202,12 +210,25 @@ abstract class ChatDataSource {
 
   final Map<int, ChatScrollChunk> _chunks = HashMap<int, ChatScrollChunk>();
 
+  /// Snapshot of evicted messages still animating out in the viewport.
+  final Map<int, IChatMessage> _removalSnapshots = <int, IChatMessage>{};
+
+  /// Ids removed from the conversation tail — kept until collapse finishes.
+  final Set<int> _tailRemovalAnimationIds = <int>{};
+
   /// Direct access to chunks for the viewport.
   @internal
   Map<int, ChatScrollChunk> get chunks => _chunks;
 
+  @override
+  bool isMessageAbsent(int id) => _isAbsentInChunk(id);
+
   /// Get a message by ID from the chunk cache.
+  ///
+  /// Returns a removal snapshot while the viewport collapse animation runs.
   IChatMessage? getMessage(int messageId) {
+    final snapshot = _removalSnapshots[messageId];
+    if (snapshot != null) return snapshot;
     final chunkIndex = ChatScrollChunk.chunkOf(messageId);
     final chunk = _chunks[chunkIndex];
     if (chunk == null) return null;
@@ -219,6 +240,47 @@ abstract class ChatDataSource {
     );
     return chunk.messages[slot];
   }
+
+  /// Previous non-absent message before [messageId], skipping deleted slots.
+  IChatMessage? getPreviousPresentMessage(int messageId) {
+    final bound = _oldestKnownId ?? 0;
+    for (var candidate = messageId - 1; candidate >= bound; candidate--) {
+      if (_isAbsentInChunk(candidate)) continue;
+      return _readChunkMessage(candidate);
+    }
+    return null;
+  }
+
+  @override
+  void prepareRemovalStorage(int id) {
+    if (_disposed || _isAbsentInChunk(id)) return;
+    final wasNewestTail = _newestKnownId == id && _reachedNewest;
+    final message = _readChunkMessage(id);
+    if (message != null) {
+      _removalSnapshots[id] = message;
+    }
+    if (_evictMessageFromChunkInternal(id)) {
+      if (wasNewestTail) _tailRemovalAnimationIds.add(id);
+      if (shouldDeferRemovalNotify?.call(id) == true) {
+        _deferredRemovalDataNotify = true;
+      } else {
+        notifyDataChanged();
+      }
+    }
+  }
+
+  @override
+  void clearRemovalPending(int id) {
+    _removalSnapshots.remove(id);
+    _tailRemovalAnimationIds.remove(id);
+    if (pendingRemovalIds.value.contains(id)) {
+      pendingRemovalIds.value = {...pendingRemovalIds.value}..remove(id);
+    }
+  }
+
+  /// Whether [id] was the conversation newest when removal started.
+  @internal
+  bool isTailRemovalAnimation(int id) => _tailRemovalAnimationIds.contains(id);
 
   /// Upsert a message into the chunk cache.
   ///
@@ -418,6 +480,112 @@ abstract class ChatDataSource {
     }
   }
 
+  /// Evicts [id] from the in-memory chunk overlay (marks slot absent).
+  ///
+  /// Called from [confirmRemoval] for off-tree removals that skip
+  /// [requestRemoval].
+  @protected
+  void evictMessageFromChunk(int id) {
+    if (_evictMessageFromChunkInternal(id)) {
+      notifyDataChanged();
+    }
+  }
+
+  /// Same as [evictMessageFromChunk] but without [notifyDataChanged].
+  ///
+  /// Used during [RenderChatScrollView.performLayout] so fan-out sees the
+  /// evicted slot in the same pass without re-dirtying the render object.
+  @internal
+  void silentEvictMessageFromChunk(int id) {
+    _evictMessageFromChunkInternal(id);
+  }
+
+  /// Clears [pendingRemovalIds] without re-evicting — storage is already gone.
+  @internal
+  void silentConfirmRemoval(int id) {
+    clearRemovalPending(id);
+  }
+
+  bool _evictMessageFromChunkInternal(int id) {
+    if (_disposed) return false;
+    final chunkIndex = ChatScrollChunk.chunkOf(id);
+    final chunk = _chunks[chunkIndex];
+    if (chunk == null) return false;
+    final slot = id - chunk.firstId;
+    if (slot < 0 || slot >= ChatScrollChunk.kSize) return false;
+    _retractBoundariesForEviction(id);
+    chunk.messages[slot] = null;
+    chunk.markAbsentSlot(slot);
+    return true;
+  }
+
+  /// Walks inward from [fromId] toward lower ids until a non-absent slot is
+  /// found. Used when the current [newestKnownId] is evicted locally.
+  int? _previousPresentId(int fromId) {
+    final bound = _oldestKnownId ?? 0;
+    for (var candidate = fromId - 1; candidate >= bound; candidate--) {
+      if (!_isAbsentInChunk(candidate)) return candidate;
+    }
+    return null;
+  }
+
+  /// Walks outward from [fromId] toward higher ids until a non-absent slot is
+  /// found. Used when the current [oldestKnownId] is evicted locally.
+  int? _nextPresentId(int fromId) {
+    final bound = _newestKnownId ?? fromId;
+    for (var candidate = fromId + 1; candidate <= bound; candidate++) {
+      if (!_isAbsentInChunk(candidate)) return candidate;
+    }
+    return null;
+  }
+
+  bool _isAbsentInChunk(int id) {
+    final chunk = _chunks[ChatScrollChunk.chunkOf(id)];
+    if (chunk == null) return false;
+    return chunk.isAbsentSlot(id - chunk.firstId);
+  }
+
+  IChatMessage? _readChunkMessage(int id) {
+    final chunk = _chunks[ChatScrollChunk.chunkOf(id)];
+    if (chunk == null) return null;
+    final slot = id - chunk.firstId;
+    if (slot < 0 || slot >= ChatScrollChunk.kSize) return null;
+    if (chunk.isAbsentSlot(slot)) return null;
+    return chunk.messages[slot];
+  }
+
+  void _retractBoundariesForEviction(int id) {
+    if (_newestKnownId == id) {
+      final newNewest = _previousPresentId(id);
+      if (newNewest != null) {
+        _newestKnownId = newNewest;
+      } else {
+        _newestKnownId = null;
+      }
+    }
+    if (_oldestKnownId == id) {
+      final newOldest = _nextPresentId(id);
+      if (newOldest != null) {
+        _oldestKnownId = newOldest;
+      } else {
+        _oldestKnownId = null;
+      }
+    }
+  }
+
+  /// Confirms removal using [evictMessageFromChunk] as the default evictor.
+  void confirmMessageRemoval(int id) {
+    confirmRemoval(id, evictFromChunk: evictMessageFromChunk);
+  }
+
+  /// Notifies listeners after silent in-layout eviction completes.
+  @internal
+  void flushPendingRemovalNotify() {
+    if (!_deferredRemovalDataNotify) return;
+    _deferredRemovalDataNotify = false;
+    notifyDataChanged();
+  }
+
   /// Whether [dispose] has been called. After dispose every mutating entry
   /// point ([requestChunks], [retryChunk], [invalidate], [upsertMessage],
   /// [upsertMessages], [cancelFetch]) becomes a silent no-op so a stale
@@ -434,8 +602,11 @@ abstract class ChatDataSource {
     if (_disposed) return;
     _rangeFetch.cancelFetch();
     _rangeFetch.dispose();
+    disposeMutations();
     _dataListeners.clear();
     _boundaryListeners.clear();
+    _removalSnapshots.clear();
+    _tailRemovalAnimationIds.clear();
     _chunks.clear();
     _disposed = true;
   }

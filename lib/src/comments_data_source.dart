@@ -4,7 +4,6 @@ import 'dart:convert';
 
 import 'package:chatscrollview/src/chat_message.dart';
 import 'package:chatscrollview/src/chat_scroll/chat_data_source.dart';
-import 'package:chatscrollview/src/chat_scroll/chat_scroll_chunk.dart';
 import 'package:chatscrollview/src/chat_scroll/chat_scroll_common.dart';
 import 'package:chatscrollview/src/load_asset.dart'
     if (dart.library.js_interop) 'package:chatscrollview/src/load_asset_web.dart'
@@ -21,13 +20,14 @@ class CommentsManifest {
   });
 
   /// Parses the `manifest.json` shipped with pre-chunked comment assets.
-  factory CommentsManifest.fromJson(Map<String, Object?> json) => CommentsManifest._(
-    title: json['title']! as String,
-    totalMessages: json['totalMessages']! as int,
-    chunkSize: json['chunkSize']! as int,
-    chunks: (json['chunks']! as List<Object?>).cast<String>(),
-    senders: (json['senders']! as List<Object?>).cast<String>(),
-  );
+  factory CommentsManifest.fromJson(Map<String, Object?> json) =>
+      CommentsManifest._(
+        title: json['title']! as String,
+        totalMessages: json['totalMessages']! as int,
+        chunkSize: json['chunkSize']! as int,
+        chunks: (json['chunks']! as List<Object?>).cast<String>(),
+        senders: (json['senders']! as List<Object?>).cast<String>(),
+      );
 
   /// Human-readable title shown in the demo app bar.
   final String title;
@@ -47,10 +47,8 @@ class CommentsManifest {
 
 /// Data source that loads pre-chunked JSON assets (e.g. GitHub issues).
 ///
-/// Each chunk file contains up to [ChatScrollChunk.kSize] messages as JSON:
-/// ```json
-/// [{"id": 0, "sender": "user", "content": "...", "createdAt": "..."}]
-/// ```
+/// Asset files are read-only. Local send / edit / delete mutate the in-memory
+/// [ChatDataSource.chunks] overlay via [upsertMessage] and [evictMessageFromChunk].
 class CommentsDataSource extends ChatDataSource {
   CommentsDataSource._({
     required this.manifest,
@@ -88,8 +86,7 @@ class CommentsDataSource extends ChatDataSource {
 
   /// On native — loads from bundled assets via rootBundle.
   /// On web — fetches on demand via HTTP (assets excluded from service worker).
-  static Future<String> _loadString(String assetPath) =>
-      loadAsset(assetPath);
+  static Future<String> _loadString(String assetPath) => loadAsset(assetPath);
 
   /// Parsed manifest describing chunk layout and metadata.
   final CommentsManifest manifest;
@@ -105,8 +102,50 @@ class CommentsDataSource extends ChatDataSource {
   final int maxCachedChunks;
 
   /// LRU cache of parsed asset chunks (insertion order = access order).
+  /// Read-only — local mutations write [chunks] only.
   final LinkedHashMap<int, List<IChatMessage>> _chunkCache =
       LinkedHashMap<int, List<IChatMessage>>();
+
+  /// Default demo sender for locally composed messages.
+  static const String _localSender = 'demo-user';
+
+  /// Appends a new message at `newestKnownId + 1` (may exceed manifest count).
+  UserChatMessage sendMessage(String content) {
+    final trimmed = content.trim();
+    final newest = newestKnownId;
+    final newId = (newest ?? -1) + 1;
+    final now = DateTime.now();
+    final message = UserChatMessage(
+      id: newId,
+      sender: _localSender,
+      createdAt: now,
+      updatedAt: now,
+      content: trimmed,
+    );
+    upsertMessage(message);
+    seedBoundaries(newestKnownId: newId, reachedNewest: true);
+    notifyInsert(newId, reason: 'local-send');
+    return message;
+  }
+
+  /// Updates message [id] content in the chunk overlay and emits [requestUpdate].
+  void editMessage(int id, String content) {
+    final existing = getMessage(id);
+    if (existing is! UserChatMessage) return;
+    final trimmed = content.trim();
+    final updated = UserChatMessage(
+      id: id,
+      sender: existing.sender,
+      createdAt: existing.createdAt,
+      updatedAt: DateTime.now(),
+      content: trimmed,
+    );
+    upsertMessage(updated);
+    requestUpdate(id, reason: 'local-edit');
+  }
+
+  /// Animated removal entry — chunk evicted immediately; viewport animates out.
+  void removeMessage(int id) => requestRemoval(id, reason: 'local-delete');
 
   @override
   Future<List<IChatMessage>> fetchRange({
@@ -150,7 +189,8 @@ class CommentsDataSource extends ChatDataSource {
 
     final fileName = manifest.chunks[assetChunkIndex];
     final raw = await _loadString('$assetPrefix/$fileName');
-    final list = (jsonDecode(raw) as List<Object?>).cast<Map<String, Object?>>();
+    final list = (jsonDecode(raw) as List<Object?>)
+        .cast<Map<String, Object?>>();
 
     final baseTime = DateTime.now();
     final messages = <IChatMessage>[
@@ -158,10 +198,10 @@ class CommentsDataSource extends ChatDataSource {
         UserChatMessage(
           id: item['id']! as int,
           sender: item['sender']! as String,
-          createdAt: DateTime.tryParse(item['createdAt'] as String? ?? '') ??
-              baseTime,
-          updatedAt: DateTime.tryParse(item['createdAt'] as String? ?? '') ??
-              baseTime,
+          createdAt:
+              DateTime.tryParse(item['createdAt'] as String? ?? '') ?? baseTime,
+          updatedAt:
+              DateTime.tryParse(item['createdAt'] as String? ?? '') ?? baseTime,
           content: item['content'] as String? ?? '',
         ),
     ];

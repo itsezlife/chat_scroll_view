@@ -22,6 +22,8 @@ class ChatComposer extends StatefulWidget {
     required this.selection,
     required this.dataSource,
     required this.onSend,
+    this.editingMessageId,
+    this.onCancelEdit,
     this.onSizeChanged,
     this.bottomInset,
     super.key,
@@ -35,6 +37,12 @@ class ChatComposer extends StatefulWidget {
 
   /// Persists a trimmed message; throw on failure to retain composer text.
   final Future<void> Function(String text) onSend;
+
+  /// When set, the composer edits this message id instead of sending new.
+  final int? editingMessageId;
+
+  /// Clears [editingMessageId] without submitting.
+  final VoidCallback? onCancelEdit;
 
   /// Safe area bottom inset reserved inside the viewport — kept in sync with the
   /// safe area bottom inset so the composer's measured height clears it.
@@ -105,6 +113,7 @@ class _ChatComposerState extends State<ChatComposer>
     _mode = widget.selection.isSelectionMode;
     if (_mode) _t.value = 1.0;
     widget.selection.addListener(_onSelectionChanged);
+    WidgetsBinding.instance.addPostFrameCallback((_) => _syncEditingPrefill());
   }
 
   @override
@@ -115,6 +124,21 @@ class _ChatComposerState extends State<ChatComposer>
       widget.selection.addListener(_onSelectionChanged);
       _onSelectionChanged();
     }
+    if (oldWidget.editingMessageId != widget.editingMessageId) {
+      _syncEditingPrefill();
+    }
+  }
+
+  void _syncEditingPrefill() {
+    final id = widget.editingMessageId;
+    if (id == null) {
+      _text.clear();
+      return;
+    }
+    final content = _contentOf(widget.dataSource.getMessage(id));
+    _text.text = content ?? '';
+    _text.selection = TextSelection.collapsed(offset: _text.text.length);
+    _focus.requestFocus();
   }
 
   @override
@@ -236,7 +260,9 @@ class _ChatComposerState extends State<ChatComposer>
                                   controller: _text,
                                   focusNode: _focus,
                                   onSend: _handleSend,
+                                  onCancelEdit: widget.onCancelEdit,
                                   sending: _sending,
+                                  isEditing: widget.editingMessageId != null,
                                   scheme: scheme,
                                 ),
                               ),
@@ -320,12 +346,16 @@ class _InputField extends StatelessWidget {
     required this.onSend,
     required this.sending,
     required this.scheme,
+    this.isEditing = false,
+    this.onCancelEdit,
   });
 
   final TextEditingController controller;
   final FocusNode focusNode;
   final Future<void> Function() onSend;
+  final VoidCallback? onCancelEdit;
   final bool sending;
+  final bool isEditing;
   final ColorScheme scheme;
 
   @override
@@ -339,6 +369,19 @@ class _InputField extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.end,
         children: <Widget>[
+          if (isEditing && onCancelEdit != null) ...<Widget>[
+            Padding(
+              padding: const EdgeInsets.only(bottom: 2),
+              child: _CircleButton(
+                icon: Icons.close_rounded,
+                size: 38,
+                background: scheme.surfaceContainerHigh,
+                foreground: scheme.onSurfaceVariant,
+                onTap: onCancelEdit,
+              ),
+            ),
+            const SizedBox(width: 4),
+          ],
           Expanded(
             child: Padding(
               padding: const EdgeInsets.symmetric(vertical: 10),
@@ -352,7 +395,7 @@ class _InputField extends StatelessWidget {
                 cursorColor: scheme.primary,
                 style: TextStyle(color: scheme.onSurface, fontSize: 15),
                 decoration: InputDecoration.collapsed(
-                  hintText: 'Сообщение',
+                  hintText: isEditing ? 'Редактирование…' : 'Сообщение',
                   hintStyle: TextStyle(color: scheme.onSurfaceVariant),
                 ),
               ),
@@ -362,7 +405,7 @@ class _InputField extends StatelessWidget {
           Padding(
             padding: const EdgeInsets.only(bottom: 2),
             child: _CircleButton(
-              icon: Icons.send_rounded,
+              icon: isEditing ? Icons.check_rounded : Icons.send_rounded,
               size: 38,
               background: scheme.primary,
               foreground: scheme.onPrimary,

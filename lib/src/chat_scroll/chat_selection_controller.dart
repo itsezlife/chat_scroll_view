@@ -41,6 +41,12 @@ class ChatSelectionController implements Listenable {
     _notify();
   }
 
+  /// Clear selection for [messageId].
+  void clearSelection(int messageId) {
+    _selectedIds.remove(messageId);
+    _notify();
+  }
+
   /// Toggle [messageId] in/out of selection.
   /// Exits selection mode when the set becomes empty.
   void toggle(int messageId) {

@@ -272,6 +272,14 @@ class ChatScrollElement extends RenderObjectElement
   }
 
   @override
+  void invalidateBuiltChild(int id) {
+    _assertInsideLayoutCallback();
+    _builtMessage.remove(id);
+    _builtStatus.remove(id);
+    _builtStartsDay.remove(id);
+  }
+
+  @override
   RenderBox? buildFloatingHeader(Object? bucket, DateTime? firstMessageDate) {
     _assertInsideLayoutCallback();
     final build = _widget.dateSeparatorBuilder;

@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:developer' as dev;
 
 import 'package:chatscrollview/src/backend_chat_data_source.dart';
+import 'package:chatscrollview/src/chat_message.dart';
 import 'package:chatscrollview/src/chat_scroll/chat_data_source.dart';
 import 'package:chatscrollview/src/chat_scroll/chat_scroll_common.dart';
 import 'package:chatscrollview/src/chat_scroll/chat_scroll_controller.dart';
@@ -72,6 +73,9 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
 
   int? _pendingLastReadBaseline;
 
+  /// Message id being edited in the composer (CommentsDataSource demo).
+  int? _editingMessageId;
+
   @override
   void initState() {
     super.initState();
@@ -84,15 +88,6 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
     _keyboardStateSubscription = KeyboardInsets.insets.listen((state) {
       _keyboardBottomInset.value = state;
     });
-    _assignInitialBottomInset();
-  }
-
-  void _assignInitialBottomInset() {
-    final isVisible = KeyboardInsets.isVisible;
-    final isAnimating = KeyboardInsets.isAnimating;
-    _keyboardBottomInset.value = isVisible && !isAnimating
-        ? KeyboardInsets.keyboardHeight
-        : 0;
   }
 
   @override
@@ -199,10 +194,24 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
   }
 
   Future<void> _handleSendMessage(String text) async {
-    final backend = _dataSource;
-    if (backend is! BackendChatDataSource) return;
+    final source = _dataSource;
+    if (source is CommentsDataSource) {
+      final editingId = _editingMessageId;
+      if (editingId != null) {
+        source.editMessage(editingId, text);
+        setState(() => _editingMessageId = null);
+        return;
+      }
+      source.sendMessage(text);
+      final newest = source.newestKnownId;
+      if (newest != null) {
+        _controller.jumpTo(newest);
+      }
+      return;
+    }
+    if (source is! BackendChatDataSource) return;
     try {
-      await backend.sendMessage(text);
+      await source.sendMessage(text);
     } on BackendConnectionException catch (error) {
       if (!mounted) return;
       ScaffoldMessenger.of(context)
@@ -217,21 +226,53 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
     }
   }
 
+  void _startEditingMessage(int id) {
+    setState(() => _editingMessageId = id);
+  }
+
+  void _cancelEditingMessage() {
+    setState(() => _editingMessageId = null);
+  }
+
+  void _deleteMessage(int id) {
+    final source = _dataSource;
+    if (source is CommentsDataSource) {
+      source.removeMessage(id);
+      _selection.clearSelection(id);
+    }
+  }
+
+  bool get _localMutationsEnabled => _dataSource is CommentsDataSource;
+
   /// Stable per-state tear-off — same reference for the widget's lifetime,
   /// so the viewport's skip-rebuild cache stays warm across parent rebuilds.
-  /// Consults the previous message via the data source to suppress repeated
-  /// sender/avatar for messages in the same run.
+  /// Consults the previous present message via the data source to suppress
+  /// repeated sender/avatar for messages in the same run.
   Widget _buildMessage(
     BuildContext context,
     int id,
     IChatMessage? message,
     ChatMessageStatus status,
   ) {
-    if (status.isAbsent) return const SizedBox.shrink();
     if (message == null) return const DemoShimmerBubble();
-    final prev = _dataSource?.getMessage(id - 1);
+    final prev = _dataSource?.getPreviousPresentMessage(id);
+    final messageContent = (message as UserChatMessage?)?.content;
+    final messageContentTruncated = (messageContent?.length ?? 0) >= 30
+        ? messageContent?.substring(0, 30)
+        : messageContent;
+    final prevContent = (prev as UserChatMessage?)?.content;
+    final prevContentTruncated = (prevContent?.length ?? 0) >= 30
+        ? prevContent?.substring(0, 30)
+        : prevContent;
+    dev.log('message: $messageContentTruncated, prev: $prevContentTruncated');
     final isFirstInRun = prev?.sender != message.sender;
-    return DemoMessageBubble(message: message, isFirstInRun: isFirstInRun);
+    final localMutations = _localMutationsEnabled;
+    return DemoMessageBubble(
+      message: message,
+      isFirstInRun: isFirstInRun,
+      onEdit: localMutations ? () => _startEditingMessage(id) : null,
+      onDelete: localMutations ? () => _deleteMessage(id) : null,
+    );
   }
 
   Widget _buildChunkError(
@@ -320,6 +361,7 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
                   preserveExternalFocus: true,
                   child: ChatScrollView(
                     reverse: true,
+                    cacheExtent: 2500,
                     dataSource: _dataSource!,
                     controller: _controller,
                     selectionController: _selection,
@@ -346,6 +388,8 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
                 bottomInset: _keyboardBottomInset,
                 selection: _selection,
                 dataSource: _dataSource!,
+                editingMessageId: _editingMessageId,
+                onCancelEdit: _cancelEditingMessage,
                 onSend: _handleSendMessage,
                 onSizeChanged: (size) => _bottomInset.value = size,
               ),

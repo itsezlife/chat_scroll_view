@@ -12,7 +12,7 @@ import 'package:flutter/material.dart';
 ///
 /// For run-grouped rendering (sender / avatar only on the first message of a
 /// run from a given user) build a closure that captures the data source and
-/// consults `getMessage(id - 1)` — see `widget_chat_screen.dart`.
+/// consults `getPreviousPresentMessage(id)` — see `widget_chat_screen.dart`.
 Widget buildDemoMessage(
   BuildContext context,
   int id,
@@ -26,7 +26,7 @@ Widget buildDemoMessage(
 /// Max width of a message's content column (the column inside the viewport,
 /// not the bubble itself — the viewport hands each message the full viewport
 /// width, then we centre this column within it).
-/// 
+///
 /// It should be checked again available space, but for demo purposes just check
 /// the platform.
 final double _kContentMaxWidth = switch (Platform.operatingSystem) {
@@ -154,6 +154,8 @@ class DemoMessageBubble extends StatelessWidget {
   const DemoMessageBubble({
     required this.message,
     this.isFirstInRun = true,
+    this.onEdit,
+    this.onDelete,
     super.key,
   });
 
@@ -163,6 +165,40 @@ class DemoMessageBubble extends StatelessWidget {
   /// When `false`, omits avatar / sender label and tightens vertical padding
   /// so consecutive messages from the same sender read as one run.
   final bool isFirstInRun;
+
+  /// Long-press menu: open composer for edit (local demo mutations).
+  final VoidCallback? onEdit;
+
+  /// Long-press menu: request animated removal (local demo mutations).
+  final VoidCallback? onDelete;
+
+  Future<void> _showContextMenu(BuildContext context, Offset globalPos) async {
+    if (onEdit == null && onDelete == null) return;
+    final action = await showMenu<String>(
+      context: context,
+      requestFocus: false,
+      position: RelativeRect.fromLTRB(
+        globalPos.dx,
+        globalPos.dy,
+        globalPos.dx,
+        globalPos.dy,
+      ),
+      items: <PopupMenuEntry<String>>[
+        if (onEdit != null)
+          const PopupMenuItem<String>(value: 'edit', child: Text('Edit')),
+        if (onDelete != null)
+          const PopupMenuItem<String>(value: 'delete', child: Text('Delete')),
+      ],
+    );
+    switch (action) {
+      case 'edit':
+        onEdit?.call();
+      case 'delete':
+        onDelete?.call();
+      default:
+        break;
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -203,7 +239,7 @@ class DemoMessageBubble extends StatelessWidget {
     // Tighter vertical padding for non-first messages so a run reads as one
     // visual group.
     final topPad = isFirstInRun ? 6.0 : 2.0;
-    return Align(
+    final messageBody = Align(
       // It should be checked again available space, but for demo purposes
       // just check the platform and whether the message is outgoing.
       alignment: switch ((outgoing, Platform.operatingSystem)) {
@@ -218,6 +254,16 @@ class DemoMessageBubble extends StatelessWidget {
           child: row,
         ),
       ),
+    );
+
+    if (onEdit == null && onDelete == null) return messageBody;
+
+    return GestureDetector(
+      behavior: HitTestBehavior.deferToChild,
+      onTapUp: (details) {
+        _showContextMenu(context, details.globalPosition);
+      },
+      child: messageBody,
     );
   }
 }

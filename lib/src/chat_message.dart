@@ -27,6 +27,10 @@ sealed class ChatMessage implements IChatMessage {
 
   @override
   final DateTime updatedAt;
+
+  @override
+  String toString() =>
+      'ChatMessage(id: $id, sender: $sender, createdAt: $createdAt, updatedAt: $updatedAt)';
 }
 
 /// A system-authored message — service notifications, join/leave notices,
@@ -43,6 +47,24 @@ class SystemChatMessage extends ChatMessage {
 
   /// The content of the system message.
   final String content;
+
+  @override
+  int get hashCode => Object.hash(id, sender, createdAt, updatedAt, content);
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is SystemChatMessage &&
+          runtimeType == other.runtimeType &&
+          id == other.id &&
+          sender == other.sender &&
+          createdAt == other.createdAt &&
+          updatedAt == other.updatedAt &&
+          content == other.content;
+
+  @override
+  String toString() =>
+      'SystemChatMessage(id: $id, sender: $sender, createdAt: $createdAt, updatedAt: $updatedAt, content: $content)';
 }
 
 /// A user-authored message. `sealed`-pattern leaf of [ChatMessage].
@@ -77,4 +99,22 @@ class UserChatMessage extends ChatMessage {
 
   /// The content of the user message.
   final String content;
+
+  @override
+  int get hashCode => Object.hash(id, sender, createdAt, updatedAt, content);
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is UserChatMessage &&
+          runtimeType == other.runtimeType &&
+          id == other.id &&
+          sender == other.sender &&
+          createdAt == other.createdAt &&
+          updatedAt == other.updatedAt &&
+          content == other.content;
+
+  @override
+  String toString() =>
+      'UserChatMessage(id: $id, sender: $sender, createdAt: $createdAt, updatedAt: $updatedAt, content: $content)';
 }

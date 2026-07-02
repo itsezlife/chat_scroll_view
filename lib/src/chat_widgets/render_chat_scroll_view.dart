@@ -1,11 +1,15 @@
 // ignore_for_file: prefer_asserts_with_message
 
+import 'dart:async';
 import 'dart:collection';
 
 import 'package:chatscrollview/src/chat_scroll/chat_animator.dart';
 import 'package:chatscrollview/src/chat_scroll/chat_chunk_fetch_scheduler.dart';
 import 'package:chatscrollview/src/chat_scroll/chat_data_source.dart';
+import 'package:chatscrollview/src/chat_scroll/chat_extent_coordinator.dart';
 import 'package:chatscrollview/src/chat_scroll/chat_floating_header_controller.dart';
+import 'package:chatscrollview/src/chat_scroll/chat_message_parent_data.dart';
+import 'package:chatscrollview/src/chat_scroll/chat_mutations.dart';
 import 'package:chatscrollview/src/chat_scroll/chat_scroll_chunk.dart';
 import 'package:chatscrollview/src/chat_scroll/chat_scroll_common.dart';
 import 'package:chatscrollview/src/chat_scroll/chat_scroll_controller.dart';
@@ -15,41 +19,14 @@ import 'package:chatscrollview/src/chat_scroll/chat_scroll_physics.dart';
 import 'package:chatscrollview/src/chat_widgets/chat_data_source_ext.dart';
 import 'package:chatscrollview/src/chat_widgets/chat_scroll_element.dart';
 import 'package:chatscrollview/src/chat_widgets/chat_scrollbar.dart';
-import 'package:flutter/foundation.dart' show ValueListenable;
+import 'package:flutter/foundation.dart' show ValueListenable, kDebugMode;
 import 'package:flutter/gestures.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:meta/meta.dart' show internal;
 
-/// Parent data for a viewport child.
-///
-/// For a message: its [id], the [offset] of its top edge within the viewport
-/// (viewport-local Y, may be negative), whether it [startsDay] (carries an
-/// inline date divider), its [dayBucket] (day-grouping key, `null` until the
-/// message loads), and the [dividerOpacity] of its inline date separator. The
-/// floating day header reuses this type — only [offset] is meaningful for it.
-class ChatMessageParentData extends ParentData {
-  /// Message id this render box represents; `0` for the floating day header.
-  int id = 0;
-
-  /// Viewport-local Y of this child's top edge; may be negative when scrolled
-  /// off-screen.
-  double offset = 0;
-
-  /// `true` when this message carries an inline day separator above its body.
-  bool startsDay = false;
-
-  /// Group key (`DateTime`, record, string, anything equatable) — produced by
-  /// the viewport's `groupBy` callback. `null` when the message has not loaded
-  /// or grouping is disabled.
-  Object? dayBucket;
-
-  /// Fade opacity (0..1) for this message's inline date separator — set by
-  /// `RenderChatScrollView` from [offset] so the separator fades out as it
-  /// rises into the floating day header's zone. Only meaningful when
-  /// [startsDay] is `true`; read by `RenderDatedMessage`.
-  double dividerOpacity = 1;
-}
+export 'package:chatscrollview/src/chat_scroll/chat_message_parent_data.dart'
+    show ChatMessageParentData;
 
 /// Kind of full-viewport overlay the element is asked to build. Internal
 /// contract between `RenderChatScrollView` and `ChatScrollElement`.
@@ -87,6 +64,14 @@ abstract interface class ChatChildManager {
   /// Must only be called from within [invokeLayoutCallback]. Calling
   /// from any other context will assert in debug mode.
   void removeChildren(List<int> ids);
+
+  /// Clears the build cache for [id] so the next [buildChild] rebuilds it.
+  ///
+  /// Used after a neighbor is removed so grouping / avatar state refreshes.
+  ///
+  /// Must only be called from within [invokeLayoutCallback]. Calling
+  /// from any other context will assert in debug mode.
+  void invalidateBuiltChild(int id);
 
   /// Inflate / update / remove the floating group header for [bucket] and
   /// [firstMessageDate] (`null` removes it). Called during layout.
@@ -158,13 +143,37 @@ class RenderChatScrollView extends RenderBox {
        _hasLoadingBuilder = hasLoadingBuilder,
        _textDirection = textDirection,
        _scrollbarTheme = scrollbarTheme {
+    _extentCoordinator = ChatExtentCoordinator(
+      dataSource: _dataSource,
+      controller: _controller,
+      childForId: (id) => _children[id],
+      parentDataOf: _parentData,
+      hasSize: () => hasSize,
+      viewportHeight: () => size.height,
+      bottomPad: () => _bottomPad,
+      applyScrollDelta: _controller.applyScrollDelta,
+      markNeedsLayout: markNeedsLayout,
+      markNeedsPaint: markNeedsPaint,
+      ensureTicker: _ensureTicker,
+      invokeChildManager: _invokeChildManagerLayout,
+      childManager: _childManagerBridge,
+      repositionFromAnchor: _repositionFromAnchor,
+      wasAtTailLastLayout: () => _wasAtTailLastLayout,
+      findPresentNeighbor: (from, dir) =>
+          _findPresentNeighbor(from, direction: dir),
+      applyAnchorMoveAwayFromRemoved: _applyAnchorMoveAwayFromRemoved,
+      planAnchorMoveAwayFromRemoved: _planAnchorMoveAwayFromRemoved,
+      rebuildGroupedNeighbors: _rebuildGroupedNeighbors,
+      seedTailInsertPin: _seedTailInsertPin,
+      extentLog: _extentLog,
+    );
     _animator = ChatAnimator(
       controller: _controller,
       offsetToBuiltMessage: _offsetToBuiltMessage,
       alignedTopForMessage: _alignedTopForMessage,
       childForId: (id) => _children[id],
       offsetOfChild: (child) => _parentData(child).offset,
-      heightOfChild: (child) => child.size.height,
+      heightOfChild: _extentCoordinator.effectiveHeight,
       isHighlightReady: (id) =>
           _dataSource.getMessage(id) != null && _children.containsKey(id),
       shouldDropPendingHighlight: (id) {
@@ -183,7 +192,7 @@ class RenderChatScrollView extends RenderBox {
   /// Chunk-load / anchor-persistence diagnostics — filter `ChatScrollFetchAnchor`.
   final ChatScrollDevLog _fetchAnchorLog = ChatScrollDevLog(
     'ChatScrollFetchAnchor',
-    enabled: false,
+    enabled: true,
   );
 
   /// Scrollbar thumb / id-linear progress diagnostics — filter
@@ -191,7 +200,14 @@ class RenderChatScrollView extends RenderBox {
   /// investigating thumb jumps, stale position, or height-change drift.
   final ChatScrollDevLog _scrollbarLog = ChatScrollDevLog(
     'ChatScrollScrollbar',
-    enabled: true,
+    enabled: false,
+  );
+
+  /// Message extent insert/update/remove animation diagnostics — filter
+  /// `ChatScrollExtent` in the Dart DevTools log view.
+  final ChatScrollDevLog _extentLog = ChatScrollDevLog(
+    'ChatScrollExtent',
+    enabled: kDebugMode,
   );
 
   int? _scrollbarLogLastAnchorId;
@@ -532,6 +548,11 @@ class RenderChatScrollView extends RenderBox {
   /// the render object; opacity comes from [_animator.fadeOpacity].
   late final ChatAnimator _animator;
 
+  late final ChatExtentCoordinator _extentCoordinator;
+
+  final _ExtentChildManagerBridge _childManagerBridge =
+      _ExtentChildManagerBridge();
+
   final LayerHandle<OpacityLayer> _fadeLayer = LayerHandle<OpacityLayer>();
 
   /// Post-animate highlight duration — forwarded to [ChatAnimator].
@@ -583,6 +604,9 @@ class RenderChatScrollView extends RenderBox {
 
   /// Retained clip layer — reused across repaints via `oldLayer`.
   final LayerHandle<ClipRectLayer> _clipLayer = LayerHandle<ClipRectLayer>();
+
+  /// Subscription to [ChatMutationsMixin.mutations].
+  StreamSubscription<ChatMutation>? _mutationSub;
 
   // --- Day separators --------------------------------------------------------
 
@@ -691,6 +715,23 @@ class RenderChatScrollView extends RenderBox {
   double? debugDividerOpacity(int id) {
     final child = _children[id];
     return child == null ? null : _parentData(child).dividerOpacity;
+  }
+
+  /// Effective layout height for message [id] during extent animation, or
+  /// `null` when [id] is not currently built.
+  double? debugEffectiveHeightOf(int id) {
+    final child = _children[id];
+    return child == null ? null : _effectiveChildHeight(child);
+  }
+
+  /// Whether message [id] is still in the child map (including pending removal).
+  bool debugHasMessageChild(int id) => _children.containsKey(id);
+
+  /// Whether built message [id] carries an inline day separator, or `null`
+  /// when [id] is not currently built.
+  bool? debugStartsDay(int id) {
+    final child = _children[id];
+    return child == null ? null : _parentData(child).startsDay;
   }
 
   void _fetchAnchorEvent(String tag, Map<String, Object?> fields) {
@@ -845,6 +886,7 @@ class RenderChatScrollView extends RenderBox {
   /// Runs [fn] inside `invokeLayoutCallback` and marks the element-side
   /// [ChatChildManager] as inside a layout callback (debug asserts).
   void _invokeChildManagerLayout(void Function() fn) {
+    _childManagerBridge.manager = childManager;
     invokeLayoutCallback<BoxConstraints>((_) {
       final manager = childManager;
       assert(() {
@@ -882,6 +924,12 @@ class RenderChatScrollView extends RenderBox {
     _dataSource
       ..addDataListener(_onDataChanged)
       ..addBoundaryListener(_onBoundaryChanged);
+    _dataSource.shouldDeferRemovalNotify = (id) {
+      final child = _children[id];
+      return child != null && _extentCoordinator.shouldAnimateExtent(child);
+    };
+    _childManagerBridge.manager = childManager;
+    _mutationSub = _dataSource.mutations.listen(_extentCoordinator.onMutation);
     _controller
       ..addJumpListener(_onJump)
       ..addScrollByListener(_onScrollBy)
@@ -947,6 +995,9 @@ class RenderChatScrollView extends RenderBox {
       ..removeDataListener(_onDataChanged)
       ..removeBoundaryListener(_onBoundaryChanged)
       ..cancelFetch();
+    _mutationSub?.cancel();
+    _mutationSub = null;
+    _dataSource.shouldDeferRemovalNotify = null;
     _controller
       ..removeJumpListener(_onJump)
       ..removeScrollByListener(_onScrollBy)
@@ -1044,7 +1095,13 @@ class RenderChatScrollView extends RenderBox {
 
   /// When [reachedNewest], never anchor past [newestKnownId] — consumers may
   /// pass `totalMessages` (a count) instead of the last id.
+  ///
+  /// Ids in [pendingRemovalIds] are exempt — the anchor may stay on a
+  /// collapsing message while chunk storage already retracted [newestKnownId].
   int _clampJumpTarget(int messageId) {
+    if (_dataSource.pendingRemovalIds.value.contains(messageId)) {
+      return messageId;
+    }
     final newest = _dataSource.newestKnownId;
     if (_dataSource.reachedNewest && newest != null && messageId > newest) {
       return newest;
@@ -1207,6 +1264,7 @@ class RenderChatScrollView extends RenderBox {
   /// [_onJump] handles the mounted case; this covers the listener gap.
   void _normalizeAnchorToKnownTail() {
     final anchorId = _controller.anchorMessageId;
+    if (_dataSource.pendingRemovalIds.value.contains(anchorId)) return;
     final targetId = _clampJumpTarget(anchorId);
     if (targetId == anchorId) return;
     _controller
@@ -1305,6 +1363,23 @@ class RenderChatScrollView extends RenderBox {
       return;
     }
 
+    // Neighbor invalidation is safe during structural deferral — no fan-out.
+    _processPendingRemovalNeighborInvalidations();
+
+    // Structural layout deferral while visible extent animations run (L1).
+    if (_extentCoordinator.shouldDeferStructuralLayout() &&
+        !_rangeNoLongerCovers()) {
+      markNeedsPaint();
+      assert(() {
+        debugLastLayoutDuration = _debugSw.elapsed;
+        _debugSw.stop();
+        debugLayoutFrameId++;
+        return true;
+      }());
+      return;
+    }
+    _extentCoordinator.consumeQueuedLayout();
+
     // Normal mode: drop a previously-built overlay before fanning out.
     if (_overlayKind != ChatOverlayKind.none || _overlay != null) {
       _invokeChildManagerLayout(() {
@@ -1312,6 +1387,8 @@ class RenderChatScrollView extends RenderBox {
       });
       _overlayKind = ChatOverlayKind.none;
     }
+
+    _processPendingElementRemovals();
 
     _fetchAnchorLog.bumpLayoutFrame();
     _fetchLogAnchorIdAtLayoutStart = _controller.anchorMessageId;
@@ -1423,7 +1500,12 @@ class RenderChatScrollView extends RenderBox {
     final gcPinned = _gcPinnedDuringClosePath();
     final staleMessages = <int>[
       for (final id in _children.keys)
-        if (!built.contains(id) && !gcPinned.contains(id)) id,
+        if (!built.contains(id) &&
+            !gcPinned.contains(id) &&
+            !_parentData(_children[id]!).pendingRemoval &&
+            !_dataSource.pendingRemovalIds.value.contains(id) &&
+            !_extentCoordinator.isPendingElementRemoval(id))
+          id,
     ];
     final staleErrorChunks = <int>[
       for (final ci in _chunkErrors.keys)
@@ -1523,6 +1605,8 @@ class RenderChatScrollView extends RenderBox {
         );
       }
     }
+
+    _schedulePostLayoutRemovalNotify();
 
     assert(() {
       debugLastLayoutDuration = _debugSw.elapsed;
@@ -1662,7 +1746,7 @@ class RenderChatScrollView extends RenderBox {
     }
 
     // Fan downward (newer messages).
-    var y = anchorTop + anchor.size.height;
+    var y = anchorTop + _effectiveChildHeight(anchor);
     var id = anchorIsError
         ? ChatScrollChunk.firstIdOf(anchorChunkIndex + 1)
         : anchorId + 1;
@@ -1691,7 +1775,7 @@ class RenderChatScrollView extends RenderBox {
       if (child == null) break;
       _setOffset(child, y);
       built.add(id);
-      y += child.size.height;
+      y += _effectiveChildHeight(child);
       id++;
     }
 
@@ -1719,11 +1803,13 @@ class RenderChatScrollView extends RenderBox {
       }
       final child = _buildMessage(id, cc);
       if (child == null) break;
-      y -= child.size.height;
+      y -= _effectiveChildHeight(child);
       _setOffset(child, y);
       built.add(id);
       id--;
     }
+
+    _applyDeferredExtentAnimations(built);
   }
 
   // ---------------------------------------------------------------------------
@@ -1859,6 +1945,7 @@ class RenderChatScrollView extends RenderBox {
     _parentData(child)
       ..startsDay = startsDay
       ..dayBucket = bucket;
+    _syncPassiveExtents(child, id);
     return child;
   }
 
@@ -1928,9 +2015,17 @@ class RenderChatScrollView extends RenderBox {
     if (_dataSource.reachedOldest && oldest != null && id <= oldest) {
       return true; // the very first message of the conversation
     }
-    final prevBucket = _bucketOf(id - 1);
+    final prevBucket = _bucketOfPreviousPresent(id);
     if (prevBucket == null) return false;
     return prevBucket != bucket;
+  }
+
+  /// Group key for the nearest non-absent predecessor of [id].
+  Object? _bucketOfPreviousPresent(int id) {
+    final groupBy = _groupBy;
+    if (groupBy == null) return null;
+    final prev = _dataSource.getPreviousPresentMessage(id);
+    return prev == null ? null : groupBy(prev);
   }
 
   void _touchChunk(int id) {
@@ -1962,7 +2057,7 @@ class RenderChatScrollView extends RenderBox {
     final anchor = resolved.box;
     final pd = _parentData(anchor);
     final top = pd.offset;
-    final bottom = top + anchor.size.height;
+    final bottom = top + _effectiveChildHeight(anchor);
     if (bottom >= -_cacheExtent && top <= size.height + _cacheExtent) return;
 
     // Find the topmost visible child — messages and chunk-error tiles share
@@ -1972,7 +2067,8 @@ class RenderChatScrollView extends RenderBox {
     var bestOffset = double.infinity;
     for (final entry in _children.entries) {
       final cpd = _parentData(entry.value);
-      if (cpd.offset + entry.value.size.height > 0 && cpd.offset < bestOffset) {
+      final effectiveH = _effectiveChildHeight(entry.value);
+      if (cpd.offset + effectiveH > 0 && cpd.offset < bestOffset) {
         bestId = entry.key;
         bestOffset = cpd.offset;
       }
@@ -2086,7 +2182,7 @@ class RenderChatScrollView extends RenderBox {
         if (!_dataSource.reachedNewest || newest == null) return 0;
         final last = _boundaryBox(newest);
         if (last == null) return 0;
-        final bottom = _parentData(last).offset + last.size.height;
+        final bottom = _parentData(last).offset + _effectiveChildHeight(last);
         final bottomEdge = size.height - _bottomPad;
         return bottom < bottomEdge ? bottom - bottomEdge : 0.0;
     }
@@ -2106,12 +2202,18 @@ class RenderChatScrollView extends RenderBox {
     if (_dragInProgress || _physics.isBouncing) return false;
     var cancelFling = false;
     bool pinNewest() {
+      // Chunk storage retracts [newestKnownId] at removal request time while
+      // the collapsing child is still in the tree — pinning here fights the
+      // removal scroll compensation and causes tail-delete jumps.
+      if (_dataSource.pendingRemovalIds.value.isNotEmpty) return false;
+      if (_extentCoordinator.activeTailRemovalId != null) return false;
       final newest = _dataSource.newestKnownId;
       if (!_dataSource.reachedNewest || newest == null) return false;
       if (_userPreemptedTailSettle && !_computeIsAtTail()) return false;
       final last = _boundaryBox(newest);
       if (last == null) return false;
-      final bottom = _parentData(last).offset + last.size.height;
+      if (_extentCoordinator.shouldSuppressPinNewest(last)) return false;
+      final bottom = _parentData(last).offset + _effectiveChildHeight(last);
       // Pin the newest message above the reserved bottom inset (composer,
       // attachment previews, …) instead of against the viewport edge.
       final bottomEdge = size.height - _bottomPad;
@@ -2124,7 +2226,7 @@ class RenderChatScrollView extends RenderBox {
           'newestId': newest,
           'newestBottom': DevLogFormat.f(bottom),
           'newestTop': DevLogFormat.f(_parentData(last).offset),
-          'newestH': DevLogFormat.f(last.size.height),
+          'newestH': DevLogFormat.f(_effectiveChildHeight(last)),
           'newestLoaded': _dataSource.getMessage(newest) != null,
         });
         _controller.applyScrollDelta(delta);
@@ -2200,7 +2302,7 @@ class RenderChatScrollView extends RenderBox {
     _setOffset(anchor, y);
 
     // Walk downward (toward newer ids).
-    y += anchor.size.height;
+    y += _effectiveChildHeight(anchor);
     var id = anchorIsError
         ? ChatScrollChunk.firstIdOf(anchorChunkIndex + 1)
         : _controller.anchorMessageId + 1;
@@ -2224,7 +2326,7 @@ class RenderChatScrollView extends RenderBox {
         continue;
       } // skip absent / unbuilt IDs
       _setOffset(child, y);
-      y += child.size.height;
+      y += _effectiveChildHeight(child);
       id++;
     }
 
@@ -2252,7 +2354,7 @@ class RenderChatScrollView extends RenderBox {
         id--;
         continue;
       } // skip absent / unbuilt IDs
-      y -= child.size.height;
+      y -= _effectiveChildHeight(child);
       _setOffset(child, y);
       id--;
     }
@@ -2278,18 +2380,18 @@ class RenderChatScrollView extends RenderBox {
 
     var y = _controller.anchorPixelOffset;
     _setOffset(anchor, y);
-    y += anchor.size.height;
+    y += _effectiveChildHeight(anchor);
     for (var id = anchorId + 1; id <= maxBuiltId; id++) {
       final child = _children[id];
       if (child == null) continue; // skip absent / unbuilt IDs in the range
       _setOffset(child, y);
-      y += child.size.height;
+      y += _effectiveChildHeight(child);
     }
     y = _controller.anchorPixelOffset;
     for (var id = anchorId - 1; id >= minBuiltId; id--) {
       final child = _children[id];
       if (child == null) continue; // skip absent / unbuilt IDs in the range
-      y -= child.size.height;
+      y -= _effectiveChildHeight(child);
       _setOffset(child, y);
     }
   }
@@ -2318,7 +2420,7 @@ class RenderChatScrollView extends RenderBox {
     viewportHeight: size.height,
     offsetOf: (child) => _parentData(child).offset,
     dayBucketOf: (child) => _parentData(child).dayBucket,
-    heightOf: (child) => child.size.height,
+    heightOf: _effectiveChildHeight,
   );
 
   /// Rebuild (only on a group change), lay out, and pin the floating header.
@@ -2380,7 +2482,116 @@ class RenderChatScrollView extends RenderBox {
 
   void _ensureTicker() {
     final ticker = _ticker;
-    if (ticker != null && !ticker.isActive) ticker.start();
+    if (ticker != null && !ticker.isActive) {
+      _lastTickElapsed = null;
+      ticker.start();
+    }
+  }
+
+  /// Vertical extent reserved for layout — delegated to [ChatExtentCoordinator].
+  double _effectiveChildHeight(RenderBox child) =>
+      _extentCoordinator.effectiveHeight(child);
+
+  void _syncPassiveExtents(RenderBox child, int id) =>
+      _extentCoordinator.syncPassiveExtents(child, id);
+
+  void _applyDeferredExtentAnimations(Set<int> built) =>
+      _extentCoordinator.applyDeferredExtentAnimations(built);
+
+  void _processPendingElementRemovals() =>
+      _extentCoordinator.processPendingElementRemovals();
+
+  void _seedTailInsertPin(int id) {
+    if (!hasSize || _controller.anchorMessageId != id) return;
+    final bottomEdge = size.height - _bottomPad;
+    final child = _children[id];
+    final h = child == null ? 0.0 : _effectiveChildHeight(child);
+    final desiredY = bottomEdge - h;
+    if ((_controller.anchorPixelOffset - desiredY).abs() > 0.5) {
+      _controller.reassignAnchor(id, desiredY);
+      _repositionFromAnchor();
+    }
+  }
+
+  void _rebuildGroupedNeighbors(Iterable<int> ids) {
+    if (!hasSize) return;
+    final cc = BoxConstraints.tightFor(width: size.width);
+    _invokeChildManagerLayout(() {
+      for (final id in ids) {
+        if (!_children.containsKey(id)) continue;
+        final bucket = _bucketOf(id);
+        final startsDay = _startsDay(id, bucket);
+        final box = childManager!.buildChild(
+          id,
+          startsNewDay: startsDay,
+          groupBucket: bucket,
+        );
+        if (box == null) continue;
+        box.layout(cc, parentUsesSize: true);
+        _parentData(box)
+          ..id = id
+          ..startsDay = startsDay
+          ..dayBucket = bucket;
+        _syncPassiveExtents(box, id);
+      }
+    });
+    markNeedsPaint();
+  }
+
+  void _processPendingRemovalNeighborInvalidations() =>
+      _extentCoordinator.processPendingNeighborInvalidations();
+
+  void _schedulePostLayoutRemovalNotify() =>
+      _extentCoordinator.schedulePostLayoutRemovalNotify();
+
+  /// When the anchor is finalized for removal, pick the neighbor to fan out
+  /// from on the next layout pass.
+  ({int targetId, bool pinTail})? _planAnchorMoveAwayFromRemoved(int id) {
+    if (_controller.anchorMessageId != id) return null;
+
+    final atTailDelete = _dataSource.isTailRemovalAnimation(id);
+
+    final predecessor = _findPresentNeighbor(id, direction: -1);
+    if (predecessor != null) {
+      return (targetId: predecessor, pinTail: atTailDelete);
+    }
+
+    final successor = _findPresentNeighbor(id, direction: 1);
+    if (successor == null) return null;
+    return (targetId: successor, pinTail: false);
+  }
+
+  void _applyAnchorMoveAwayFromRemoved(int targetId, {required bool pinTail}) {
+    final child = _children[targetId];
+    if (pinTail && hasSize) {
+      final bottomEdge = size.height - _bottomPad;
+      final height = child == null ? 0.0 : _effectiveChildHeight(child);
+      _controller.reassignAnchor(targetId, bottomEdge - height);
+      _markPinTailOnJumpIfNeeded(targetId);
+      return;
+    }
+    if (child != null) {
+      _controller.reassignAnchor(targetId, _parentData(child).offset);
+      return;
+    }
+    _controller.reassignAnchor(targetId, _controller.anchorPixelOffset);
+  }
+
+  int? _findPresentNeighbor(int fromId, {required int direction}) {
+    final bound = direction < 0
+        ? (_dataSource.oldestKnownId ?? 0)
+        : (_dataSource.newestKnownId ?? fromId);
+    var id = fromId + direction;
+    while (direction < 0 ? id >= bound : id <= bound) {
+      if (_extentCoordinator.isPendingElementRemoval(id) ||
+          _dataSource.pendingRemovalIds.value.contains(id) ||
+          _dataSource.statusOf(id).isAbsent) {
+        id += direction;
+        continue;
+      }
+      return id;
+    }
+    return null;
   }
 
   void _stopTickerIfIdle() {
@@ -2389,8 +2600,10 @@ class RenderChatScrollView extends RenderBox {
         _animator.highlightTargetId == null &&
         !_animator.isAnimating &&
         !_physics.isBouncing &&
+        !_extentCoordinator.hasActiveWork &&
         !_dragInProgress) {
       _ticker?.stop();
+      _lastTickElapsed = null;
       // Scroll ended — drop the directional lead so the next layout re-fans
       // a symmetric range and collects the now-unneeded lead children.
       if (_scrollVelocity != 0.0) {
@@ -2435,6 +2648,7 @@ class RenderChatScrollView extends RenderBox {
   /// children and calls [markNeedsPaint] (Tier 1). Falls back to
   /// [markNeedsLayout] only when the built range no longer covers the viewport.
   void _onTick(Duration elapsed) {
+    final prevElapsed = _lastTickElapsed;
     _lastTickElapsed = elapsed;
     // Overlay mode owns the viewport — no scroll, no fling, no animate. A
     // ticker that survives the transition (or a stray re-arm) must not
@@ -2450,6 +2664,16 @@ class RenderChatScrollView extends RenderBox {
       return;
     }
 
+    // Extent springs / opacity runs advance in [ChatExtentCoordinator] before
+    // reposition every frame — including extent-only frames with no scroll delta.
+    final extentActive = _extentCoordinator.advanceAnimations(
+      elapsed,
+      prevElapsed,
+    );
+
+    final removalCollapseActive =
+        _dataSource.pendingRemovalIds.value.isNotEmpty;
+
     // Skip the scroll path entirely on highlight-only frames so the fetch
     // poll's debounce isn't constantly reset by `_markScrollActive`.
     final hasScrollWork =
@@ -2458,9 +2682,15 @@ class RenderChatScrollView extends RenderBox {
         _animator.isAnimating ||
         _physics.isBouncing;
     if (!hasScrollWork) {
+      if (extentActive ||
+          _extentCoordinator.hasPendingElementRemovals ||
+          removalCollapseActive) {
+        _repositionFromAnchor();
+        markNeedsPaint();
+      }
       // Highlight-only frame: advance the fade and bail.
       if (_animator.tickHighlight(elapsed)) markNeedsPaint();
-      if (!_animator.hasHighlight) _stopTickerIfIdle();
+      if (!_animator.hasHighlight && !extentActive) _stopTickerIfIdle();
       return;
     }
 
@@ -2571,7 +2801,7 @@ class RenderChatScrollView extends RenderBox {
       for (final box in _children.values) {
         final pd = _parentData(box);
         if (pd.offset < topY) topY = pd.offset;
-        final b = pd.offset + box.size.height;
+        final b = pd.offset + _effectiveChildHeight(box);
         if (b > bottomY) bottomY = b;
       }
     }
@@ -2830,11 +3060,15 @@ class RenderChatScrollView extends RenderBox {
     }
     for (final child in _children.values) {
       final pd = _parentData(child);
+      final effectiveH = _effectiveChildHeight(child);
       // Only on-screen children are hit-testable — off-screen build-extent
-      // children may hold a stale offset.
-      if (pd.offset >= viewportHeight || pd.offset + child.size.height <= 0) {
+      // children may hold a stale offset. During collapse, honor animated
+      // height so taps do not land on the clipped-away region.
+      if (pd.offset >= viewportHeight || pd.offset + effectiveH <= 0) {
         continue;
       }
+      final localY = position.dy - pd.offset;
+      if (localY > effectiveH) continue;
       final hit = result.addWithPaintOffset(
         offset: Offset(0, pd.offset),
         position: position,
@@ -2897,7 +3131,7 @@ class RenderChatScrollView extends RenderBox {
     if (last == null) return false;
     final pd = _parentData(last);
     final bottomEdge = size.height - _bottomPad;
-    final bottom = pd.offset + last.size.height;
+    final bottom = pd.offset + _effectiveChildHeight(last);
     // Within `0.5` px of the bottom inset — matches `_computeCanRevealNewer`.
     return bottom <= bottomEdge + 0.5 && pd.offset < bottomEdge;
   }
@@ -2916,7 +3150,11 @@ class RenderChatScrollView extends RenderBox {
     // if `newestKnownId` is null during initial-loading overlay we
     // shouldn't anchor against that.
     if (_overlayKind == ChatOverlayKind.none) {
-      _wasAtTailLastLayout = value;
+      // Do not drop the follow-tail snapshot mid-collapse — tall newest
+      // messages report isAtTail=false while their bottom is below the inset.
+      if (_extentCoordinator.activeTailRemovalId == null) {
+        _wasAtTailLastLayout = value;
+      }
       _lastSeenNewestId = _dataSource.newestKnownId;
     }
     if (_controller.isAtTail.value == value) return;
@@ -3927,6 +4165,62 @@ class RenderChatScrollView extends RenderBox {
     );
   }
 
+  /// Paints one message tile with clip + opacity when extent animation is active.
+  void _paintMessageWithClip(
+    PaintingContext context,
+    Offset offset,
+    RenderBox child,
+    ChatMessageParentData pd,
+  ) {
+    final paintOffset = offset + Offset(0, pd.offset);
+    final effectiveH = _effectiveChildHeight(child);
+    final fullH = child.size.height;
+    final needsClip = effectiveH < fullH - 0.5;
+    final needsOpacity = pd.opacity < 0.999;
+    // Tail-pinned expand (insert at bottom): bottom edge fixed, reveal upward.
+    // In-list expand/collapse: top edge fixed, clip from the top downward.
+    final bottomEdge = size.height - _bottomPad;
+    final clipFromBottom =
+        !pd.pendingRemoval &&
+        pd.heightSpring != null &&
+        pd.targetHeight >= fullH - 0.5 &&
+        effectiveH < fullH - 0.5 &&
+        pd.offset + effectiveH >= bottomEdge - 1.0;
+
+    void paintChild(PaintingContext ctx, Offset off) {
+      ctx.paintChild(child, off);
+    }
+
+    if (needsClip) {
+      final clipRect = clipFromBottom
+          ? Rect.fromLTWH(0, fullH - effectiveH, child.size.width, effectiveH)
+          : Rect.fromLTWH(0, 0, child.size.width, effectiveH);
+      context.pushClipRect(needsCompositing, paintOffset, clipRect, (ctx, off) {
+        if (needsOpacity) {
+          ctx.pushOpacity(
+            off,
+            (pd.opacity * 255).round().clamp(0, 255),
+            paintChild,
+          );
+        } else {
+          paintChild(ctx, off);
+        }
+      });
+      return;
+    }
+
+    if (needsOpacity) {
+      context.pushOpacity(
+        paintOffset,
+        (pd.opacity * 255).round().clamp(0, 255),
+        paintChild,
+      );
+      return;
+    }
+
+    context.paintChild(child, paintOffset);
+  }
+
   void _paintContents(PaintingContext context, Offset offset) {
     // Overlay mode: a single full-viewport child takes the place of every
     // message — no scrollbar, no floating header, no per-message cull.
@@ -3942,12 +4236,13 @@ class RenderChatScrollView extends RenderBox {
     final viewportHeight = size.height;
     for (final child in _children.values) {
       final pd = _parentData(child);
+      final effectiveH = _effectiveChildHeight(child);
       // Cull children fully outside the viewport — off-screen build-extent
       // children stay built but are not composited until they scroll in.
-      if (pd.offset >= viewportHeight || pd.offset + child.size.height <= 0) {
+      if (pd.offset >= viewportHeight || pd.offset + effectiveH <= 0) {
         continue;
       }
-      context.paintChild(child, offset + Offset(0, pd.offset));
+      _paintMessageWithClip(context, offset, child, pd);
     }
     for (final child in _chunkErrors.values) {
       final pd = _parentData(child);
@@ -4004,4 +4299,16 @@ class RenderChatScrollView extends RenderBox {
     _fadeLayer.layer = null;
     super.dispose();
   }
+}
+
+/// Forwards [ChatChildManager] calls into [ChatExtentCoordinator] without a
+/// circular import on the render object.
+class _ExtentChildManagerBridge implements ChatChildManagerBridge {
+  ChatChildManager? manager;
+
+  @override
+  void removeChildren(List<int> ids) => manager!.removeChildren(ids);
+
+  @override
+  void invalidateBuiltChild(int id) => manager!.invalidateBuiltChild(id);
 }
