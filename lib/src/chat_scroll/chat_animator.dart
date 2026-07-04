@@ -312,11 +312,9 @@ class ChatAnimator implements ChatScrollAnimator {
     if (offsetToTarget != null &&
         offsetToTarget.abs() <= kCloseAnimateDistance) {
       final child = _childForId(targetId);
+      final align = animateTailPin ? 1.0 : animateAlignment;
       final endOffset = child != null
-          ? _alignedTopForMessage(
-              _heightOfChild(child),
-              _effectiveAnimateAlignment(),
-            )
+          ? _alignedTopForMessage(_heightOfChild(child), align)
           : 0.0;
       // Close path: re-base the anchor onto the target with its current
       // offset, then animate that offset toward the aligned position.
@@ -432,10 +430,8 @@ class ChatAnimator implements ChatScrollAnimator {
     if (!animateTailPin && animateAlignment == 0.0) return;
     final child = _childForId(animateTargetId);
     if (child == null) return;
-    final newEnd = _alignedTopForMessage(
-      _heightOfChild(child),
-      _effectiveAnimateAlignment(),
-    );
+    final align = animateTailPin ? 1.0 : animateAlignment;
+    final newEnd = _alignedTopForMessage(_heightOfChild(child), align);
     if ((newEnd - animateEndOffset).abs() < 0.5) return;
     animateStartOffset = _controller.anchorPixelOffset;
     animateEndOffset = newEnd;
@@ -493,10 +489,8 @@ class ChatAnimator implements ChatScrollAnimator {
       if (animateTailPin || animateAlignment != 0.0) {
         final child = _childForId(targetId);
         if (child != null) {
-          end = _alignedTopForMessage(
-            _heightOfChild(child),
-            _effectiveAnimateAlignment(),
-          );
+          final align = animateTailPin ? 1.0 : animateAlignment;
+          end = _alignedTopForMessage(_heightOfChild(child), align);
         }
       }
       _controller.reassignAnchor(targetId, end);
@@ -505,11 +499,13 @@ class ChatAnimator implements ChatScrollAnimator {
     } else if (animateTailPin || animateAlignment != 0.0) {
       final child = _childForId(targetId);
       if (child != null) {
-        final end = _alignedTopForMessage(
-          _heightOfChild(child),
-          _effectiveAnimateAlignment(),
+        final align = animateTailPin ? 1.0 : animateAlignment;
+        _controller.reassignAnchor(
+          targetId,
+          _alignedTopForMessage(_heightOfChild(child), align),
         );
-        _controller.reassignAnchor(targetId, end);
+      } else {
+        _controller.jumpTo(targetId, alignment: animateAlignment);
       }
     }
 
@@ -528,9 +524,6 @@ class ChatAnimator implements ChatScrollAnimator {
     animateTailPin = false;
     if (completer != null && !completer.isCompleted) completer.complete();
   }
-
-  double _effectiveAnimateAlignment() =>
-      animateTailPin ? 1.0 : animateAlignment;
 
   void _requestHighlight(int targetId) {
     if (_shouldDropPendingHighlight(targetId)) return;

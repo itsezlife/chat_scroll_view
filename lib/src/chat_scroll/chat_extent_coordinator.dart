@@ -165,6 +165,9 @@ class ChatExtentCoordinator {
   /// Whether any tail-removal bottom-pin compensation is active.
   bool get hasActiveTailRemovals => _activeTailRemovalIds.isNotEmpty;
 
+  /// Active tail-removal ids (collapse ghosts at the conversation tail).
+  Iterable<int> get activeTailRemovalIds => _activeTailRemovalIds;
+
   /// Handles insert, update, and remove mutation events.
   void onMutation(ChatMutation mutation) {
     _extentEvent('mutation.handled', {

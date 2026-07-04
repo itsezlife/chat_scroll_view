@@ -609,20 +609,32 @@ class RenderChatScrollView extends RenderBox {
 
   void _onAnimateSettled(int targetId, {required bool wasTailPin}) {
     final clampedTarget = _clampJumpTarget(targetId);
+    final newest = _dataSource.newestKnownId;
 
-    if (wasTailPin && _newestIsTailPinned()) {
+    if (wasTailPin &&
+        _dataSource.reachedNewest &&
+        newest != null &&
+        _controller.anchorMessageId != newest) {
+      // Far-path or renormalize landed on an older built row while newer ids
+      // exist — one-shot tail jump without a second animation.
+      _controller.jumpTo(newest, alignment: 1);
       _pendingTailPinUntilSettled = false;
       _pinTailOnJump = false;
     } else {
       _markPinTailOnJumpIfNeeded(clampedTarget);
     }
 
-    // Close-path animation finished — the animator owned offset each tick.
-    // Try one alignment snap; if the target row is still a skeleton, leave
-    // [navigationAlignment] pending so [performLayout] applies it once the real
-    // message is built (same contract as [jumpTo]). [_applyNavigationAlignment]
-    // clears when aligned; do not clear here unconditionally — that dropped
-    // deferred alignment and regressed post-load landing for non-zero alignment.
+    // Reference split (TS1): close-path animate uses [_alignedTopForMessage];
+    // layout [pinNewest] completes bottom-pin at settle so the animation
+    // future does not resolve into a visible snap.
+    if (wasTailPin && !_newestIsTailPinned()) {
+      _clampBoundaries(repinBottom: true);
+    }
+    if (wasTailPin && _newestIsTailPinned()) {
+      _pendingTailPinUntilSettled = false;
+      _pinTailOnJump = false;
+    }
+
     if (_controller.navigationAlignment != 0.0) {
       _applyNavigationAlignment();
     }
@@ -810,6 +822,7 @@ class RenderChatScrollView extends RenderBox {
     double? bestBottom;
     var bestGap = double.infinity;
     for (final entry in _children.entries) {
+      if (_parentData(entry.value).pendingRemoval) continue;
       final top = _parentData(entry.value).offset;
       final bottom = top + entry.value.size.height;
       if (bottom <= 0 || top >= bottomEdge) continue;
@@ -1255,12 +1268,61 @@ class RenderChatScrollView extends RenderBox {
 
   /// Top offset for [messageHeight] at [alignment] within the scroll band
   /// (y = [topPad] .. bottom inset). `0` = band top; `1` = band bottom.
+  ///
+  /// For messages taller than the band, `travel <= 0` and this returns
+  /// [topPad] — the top-aligned fallback. Tail close-path animate uses this
+  /// offset; layout [pinNewest] / [_applyPendingTailPin] complete the bottom
+  /// pin (`bottomEdge − height`) at settle — do not dual-write in animator.
   double _alignedTopForMessage(double messageHeight, double alignment) {
     final topEdge = _topPad;
     final bottomEdge = size.height - _bottomPad;
     final travel = bottomEdge - topEdge - messageHeight;
     if (travel <= 0) return topEdge;
     return topEdge + alignment.clamp(0.0, 1.0) * travel;
+  }
+
+  /// Whether removal ghosts or pending collapses affect bottom-boundary math.
+  bool _removalAffectsTailBoundary() =>
+      _extentCoordinator.hasActiveTailRemovals ||
+      _dataSource.pendingRemovalIds.value.isNotEmpty;
+
+  /// Bottom edge of the visible conversation tail while removal ghosts may
+  /// still occupy layout height — max of newest non-ghost bottom and each
+  /// active tail-removal ghost bottom.
+  double? _effectiveTailBottom() {
+    if (!hasSize) return null;
+    final bottomEdge = size.height - _bottomPad;
+    double? effective;
+
+    void consider(double bottom) {
+      if (effective == null || bottom > effective!) {
+        effective = bottom;
+      }
+    }
+
+    final newest = _dataSource.newestKnownId;
+    if (newest != null &&
+        !_dataSource.pendingRemovalIds.value.contains(newest)) {
+      final last = _boundaryBox(newest);
+      if (last != null) {
+        consider(_parentData(last).offset + _effectiveChildHeight(last));
+      }
+    }
+
+    for (final id in _extentCoordinator.activeTailRemovalIds) {
+      final child = _children[id];
+      if (child == null) continue;
+      consider(_parentData(child).offset + _effectiveChildHeight(child));
+    }
+
+    for (final id in _dataSource.pendingRemovalIds.value) {
+      if (_extentCoordinator.activeTailRemovalIds.contains(id)) continue;
+      final child = _children[id];
+      if (child == null) continue;
+      consider(_parentData(child).offset + _effectiveChildHeight(child));
+    }
+
+    return effective ?? bottomEdge;
   }
 
   /// Apply a pending [ChatScrollController.navigationAlignment] after the
@@ -2003,16 +2065,16 @@ class RenderChatScrollView extends RenderBox {
     if (child == null) return null;
     child.layout(cc, parentUsesSize: true);
     _touchChunk(id);
-    final loaded = _dataSource.getMessage(id) != null;
-    if (_fetchAnchorLog.enabled) {
-      _fetchAnchorEvent('build.tile', {
-        'id': id,
-        'loaded': loaded,
-        'h': DevLogFormat.f(child.size.height),
-        'isAnchor': id == _controller.anchorMessageId,
-        'chunk': ChatScrollChunk.chunkOf(id),
-      });
-    }
+    // final loaded = _dataSource.getMessage(id) != null;
+    // if (_fetchAnchorLog.enabled) {
+    //   _fetchAnchorEvent('build.tile', {
+    //     'id': id,
+    //     'loaded': loaded,
+    //     'h': DevLogFormat.f(child.size.height),
+    //     'isAnchor': id == _controller.anchorMessageId,
+    //     'chunk': ChatScrollChunk.chunkOf(id),
+    //   });
+    // }
     _parentData(child)
       ..startsDay = startsDay
       ..dayBucket = bucket;
@@ -2268,9 +2330,8 @@ class RenderChatScrollView extends RenderBox {
   /// stays locked onto the boundary it started from, even when fling composition or
   /// dual-boundary geometry would flip the dominant violator mid-animation.
   ///
-  /// Positive top-side return = oldest below top edge; negative bottom-side
-  /// return = newest above bottom edge. Zero when the requested side is
-  /// inside its boundary or no boundary is configured on that side.
+  /// Bottom side uses [_effectiveTailBottom] only while removal ghosts overlay
+  /// the tail (ET2); baseline reached-newest fling clamp uses newest row bottom.
   double _overscrollOnSide(BouncebackSide side) {
     switch (side) {
       case BouncebackSide.top:
@@ -2281,6 +2342,15 @@ class RenderChatScrollView extends RenderBox {
         final topY = _parentData(first).offset;
         return topY > 0 ? topY : 0.0;
       case BouncebackSide.bottom:
+        if (_removalAffectsTailBoundary()) {
+          final effectiveBottom = _effectiveTailBottom();
+          if (effectiveBottom == null) return 0;
+          final bottomEdge = size.height - _bottomPad;
+          // Negative when content bottom sits above the inset (overscroll gap).
+          return effectiveBottom < bottomEdge
+              ? effectiveBottom - bottomEdge
+              : 0.0;
+        }
         final newest = _dataSource.newestKnownId;
         if (!_dataSource.reachedNewest || newest == null) return 0;
         final last = _boundaryBox(newest);
@@ -2293,7 +2363,7 @@ class RenderChatScrollView extends RenderBox {
 
   /// Delegates to [_physics] after measuring [_signedOverscroll]. Only used
   /// while [_dragInProgress] and a boundary is reachable — fling / animate /
-  /// wheel / keyboard skip resistance and go through the normal clamp instead.
+  /// wheel / keyboard skip resistance and go through per-tick [_clampBoundaries].
   double _applyOverscrollResistance(double delta) =>
       _physics.applyOverscrollResistance(delta, _signedOverscroll());
 
@@ -2301,30 +2371,35 @@ class RenderChatScrollView extends RenderBox {
     // Skip clamping during an active drag — overshoot is allowed there,
     // and the spring-back animation handles the return on release. The
     // bounceback animation itself also drives the anchor past the boundary
-    // and back, so it owns the clamp until it ends. Programmatic animateTo
-    // (close or far path) must not be cancelled by a boundary pin mid-flight.
-    if (_dragInProgress || _physics.isBouncing || _animator.isAnimating) {
-      return false;
-    }
+    // and back, so it owns the clamp until it ends. Close-path animateTo
+    // interpolates freely; far-path and fling use per-tick clamp (FR-009).
+    if (_dragInProgress || _physics.isBouncing) return false;
+    if (_animator.isAnimating && !_animator.farAnimateActive) return false;
     var cancelFling = false;
     bool pinNewest() {
-      // Chunk storage retracts [newestKnownId] at removal request time while
-      // the collapsing child is still in the tree — pinning here fights the
-      // removal scroll compensation and causes tail-delete jumps.
-      if (_dataSource.pendingRemovalIds.value.isNotEmpty) return false;
-      if (_extentCoordinator.activeTailRemovalId != null) return false;
       final newest = _dataSource.newestKnownId;
       if (!_dataSource.reachedNewest || newest == null) return false;
+      // FR-014: suppress only when the pin target is the collapsing ghost.
+      if (_dataSource.pendingRemovalIds.value.contains(newest)) return false;
       if (_userPreemptedTailSettle && !_computeIsAtTail()) return false;
+      if (_animator.farAnimateActive && _animator.animateTargetId != newest) {
+        return false;
+      }
       final last = _boundaryBox(newest);
       if (last == null) return false;
       if (_extentCoordinator.shouldSuppressPinNewest(last)) return false;
+      if (_newestIsTailPinned()) return false;
       final bottom = _parentData(last).offset + _effectiveChildHeight(last);
       // Pin the newest message above the reserved bottom inset (composer,
       // attachment previews, …) instead of against the viewport edge.
       final bottomEdge = size.height - _bottomPad;
       if (bottom < bottomEdge || (repinBottom && bottom > bottomEdge)) {
-        final delta = bottomEdge - bottom;
+        var delta = bottomEdge - bottom;
+        if (!_dragInProgress &&
+            !_physics.isFlinging &&
+            delta.abs() > size.height) {
+          delta = delta.sign * size.height;
+        }
         _fetchAnchorEvent('layout.pinNewest', {
           ..._fetchAnchorSnapshot(),
           'delta': DevLogFormat.f(delta),
@@ -2813,8 +2888,8 @@ class RenderChatScrollView extends RenderBox {
     // While the user is dragging, scale incoming delta by the boundary
     // resistance so pulling further past the edge gets progressively
     // harder. Fling / animate / wheel / keyboard skip this — they go
-    // through the normal clamp instead. The `reached*` gate elides the
-    // per-tick `_signedOverscroll` walk on the dominant case where the
+    // through per-tick [_clampBoundaries] instead. The `reached*` gate elides
+    // the per-tick `_signedOverscroll` walk on the dominant case where the
     // user is dragging mid-conversation with no boundary in sight.
     if (_dragInProgress &&
         (_dataSource.reachedOldest || _dataSource.reachedNewest)) {
@@ -2851,6 +2926,12 @@ class RenderChatScrollView extends RenderBox {
       _cancelFling();
       _cancelAnimate();
     }
+
+    final animateSettleWasTailPin = _animator.pendingSettleTailPin;
+    if (_animator.takePendingSettleTargetId() case final targetId?) {
+      _onAnimateSettled(targetId, wasTailPin: animateSettleWasTailPin);
+    }
+
     _updateScrollSemantics();
     _publishControllerState();
     // Reposition the header (Tier-1); a day crossing needs a relayout to
@@ -2865,11 +2946,6 @@ class RenderChatScrollView extends RenderBox {
     // wait for another layout pass when data was already ready at settle.
     if (_animator.pendingHighlightTargetId != null) {
       _animator.tryArmPendingHighlight();
-    }
-
-    final animateSettleWasTailPin = _animator.pendingSettleTailPin;
-    if (_animator.takePendingSettleTargetId() case final targetId?) {
-      _onAnimateSettled(targetId, wasTailPin: animateSettleWasTailPin);
     }
 
     if (_rangeNoLongerCovers() || headerDayChanged) {
@@ -4300,8 +4376,8 @@ class RenderChatScrollView extends RenderBox {
     final paintOffset = offset + Offset(0, pd.offset);
     final effectiveH = _effectiveChildHeight(child);
     final fullH = child.size.height;
-    final needsClip = effectiveH < fullH - 0.5;
-    final needsOpacity = pd.opacity < 0.999;
+    final needsClip = effectiveH < fullH - 0.5 && pd.pendingRemoval;
+    final needsOpacity = pd.opacity < 0.999 && pd.pendingRemoval;
     // Tail-pinned expand (insert at bottom): bottom edge fixed, reveal upward.
     // In-list expand/collapse: top edge fixed, clip from the top downward.
     final bottomEdge = size.height - _bottomPad;

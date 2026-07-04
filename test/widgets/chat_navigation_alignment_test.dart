@@ -104,7 +104,10 @@ Widget _harness({
   required ChatScrollController controller,
   double bottomPadding = 0,
   double topPadding = 0,
-}) => MaterialApp(
+  double Function(int id)? messageHeight,
+}) {
+  final heightFor = messageHeight ?? (_) => _messageHeight;
+  return MaterialApp(
   home: Scaffold(
     body: Center(
       child: SizedBox(
@@ -117,7 +120,7 @@ Widget _harness({
           bottomPadding: ValueNotifier<double>(bottomPadding),
           topPadding: ValueNotifier<double>(topPadding),
           messageBuilder: (context, id, message, status) => SizedBox(
-            height: _messageHeight,
+            height: heightFor(id),
             child: Text(message == null ? 'shimmer-$id' : 'msg-$id'),
           ),
         ),
@@ -125,6 +128,7 @@ Widget _harness({
     ),
   ),
 );
+}
 
 double _expectedAlignedTop({
   required double viewportHeight,
@@ -754,6 +758,93 @@ void main() {
         onTimeout: () => fail('animateTo must complete after target deleted'),
       );
       expect(controller.anchorMessageId, fallbackId);
+    });
+
+    testWidgets('tail animate ends on newest with interleaved tall messages', (
+      tester,
+    ) async {
+      const count = 80;
+      const newest = count - 1;
+      final ds = _PreloadedDataSource(count);
+      final controller = ChatScrollController()..jumpTo(0);
+      addTearDown(controller.dispose);
+      addTearDown(ds.dispose);
+
+      double heightFor(int id) {
+        if (id == newest) return 700;
+        if (id % 11 == 0) return 400;
+        return 60;
+      }
+
+      await tester.pumpWidget(
+        _harness(
+          dataSource: ds,
+          controller: controller,
+          messageHeight: heightFor,
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final future = controller.animateTo(newest, alignment: 1);
+      await tester.pump();
+      for (var i = 0; i < 30; i++) {
+        await tester.pump(const Duration(milliseconds: 16));
+      }
+      await future;
+      await tester.pumpAndSettle();
+
+      expect(controller.anchorMessageId, newest);
+      expect(controller.isAtTail.value, isTrue);
+    });
+
+    testWidgets('tail animate final position matches jumpTo newest', (
+      tester,
+    ) async {
+      const count = 50;
+      const newest = count - 1;
+      final ds = _PreloadedDataSource(count);
+      final animateController = ChatScrollController()..jumpTo(0);
+      final jumpController = ChatScrollController()..jumpTo(0);
+      addTearDown(animateController.dispose);
+      addTearDown(jumpController.dispose);
+      addTearDown(ds.dispose);
+
+      double heightFor(int id) => id == newest ? 750 : 60;
+
+      await tester.pumpWidget(
+        _harness(
+          dataSource: ds,
+          controller: animateController,
+          messageHeight: heightFor,
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final future = animateController.animateTo(newest, alignment: 1);
+      await tester.pump();
+      for (var i = 0; i < 30; i++) {
+        await tester.pump(const Duration(milliseconds: 16));
+      }
+      await future;
+      await tester.pumpAndSettle();
+      final animateOffset = animateController.anchorPixelOffset;
+
+      await tester.pumpWidget(
+        _harness(
+          dataSource: ds,
+          controller: jumpController,
+          messageHeight: heightFor,
+        ),
+      );
+      await tester.pumpAndSettle();
+      jumpController.jumpTo(newest, alignment: 1);
+      await tester.pumpAndSettle();
+
+      expect(animateController.anchorMessageId, newest);
+      expect(
+        animateOffset,
+        closeTo(jumpController.anchorPixelOffset, 2),
+      );
     });
   });
 }

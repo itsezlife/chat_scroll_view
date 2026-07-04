@@ -19,6 +19,7 @@ ChatAnimator _animator({
   VoidCallback? cancelBounceback,
   bool Function(int id)? isHighlightReady,
   bool Function(int id)? shouldDropPendingHighlight,
+  bool Function(int id)? isTailAnimateTarget,
   Duration highlightDuration = const Duration(milliseconds: 1500),
   Color highlightColor = const Color(0x402196F3),
 }) => ChatAnimator(
@@ -30,6 +31,7 @@ ChatAnimator _animator({
   heightOfChild: heightOfChild ?? (_) => 0,
   isHighlightReady: isHighlightReady ?? (_) => true,
   shouldDropPendingHighlight: shouldDropPendingHighlight ?? (_) => false,
+  isTailAnimateTarget: isTailAnimateTarget,
   markNeedsPaint: markNeedsPaint ?? () {},
   ensureTicker: ensureTicker ?? () {},
   cancelFling: cancelFling ?? () {},

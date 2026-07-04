@@ -808,5 +808,108 @@ void main() {
 
       expect(_render(tester).debugStartsDay(successorId), isTrue);
     });
+
+    testWidgets('tail fling bounded without removal ghost', (tester) async {
+      const count = 40;
+      const tailId = count - 1;
+      final controller = ChatScrollController()..jumpTo(tailId);
+      final ds = _MutableSource(count);
+      addTearDown(controller.dispose);
+      addTearDown(ds.dispose);
+
+      await tester.pumpWidget(_harness(dataSource: ds, controller: controller));
+      await tester.pumpAndSettle();
+
+      final anchorAtTail = controller.anchorPixelOffset;
+      final center = tester.getCenter(find.byType(ChatScrollView));
+      final gesture = await tester.startGesture(center);
+      for (var i = 0; i < 8; i++) {
+        await gesture.moveBy(const Offset(0, -80));
+        await tester.pump(const Duration(milliseconds: 16));
+      }
+      await gesture.up();
+      for (var i = 0; i < 40; i++) {
+        await tester.pump(const Duration(milliseconds: 16));
+      }
+
+      final drift = (controller.anchorPixelOffset - anchorAtTail).abs();
+      expect(
+        drift,
+        lessThan(600.0),
+        reason: 'tail fling without removal should stay bounded',
+      );
+    });
+
+    testWidgets('overscroll bounded during removal fling', (tester) async {
+      const count = 40;
+      const tailId = count - 1;
+      const deleteId = tailId - 4;
+      final controller = ChatScrollController()..jumpTo(tailId);
+      final ds = _MutableSource(count);
+      addTearDown(controller.dispose);
+      addTearDown(ds.dispose);
+
+      await tester.pumpWidget(_harness(dataSource: ds, controller: controller));
+      await tester.pumpAndSettle();
+
+      final anchorAtTail = controller.anchorPixelOffset;
+      ds.requestRemoval(deleteId, reason: 'test');
+      await tester.pump();
+
+      final center = tester.getCenter(find.byType(ChatScrollView));
+      final gesture = await tester.startGesture(center);
+      for (var i = 0; i < 8; i++) {
+        await gesture.moveBy(const Offset(0, -80));
+        await tester.pump(const Duration(milliseconds: 16));
+      }
+      await gesture.up();
+      for (var i = 0; i < 40; i++) {
+        await tester.pump(const Duration(milliseconds: 16));
+      }
+
+      final drift = (controller.anchorPixelOffset - anchorAtTail).abs();
+      expect(
+        drift,
+        lessThan(600.0),
+        reason: 'fling during removal should not drift unbounded',
+      );
+    });
+
+    testWidgets('removal finalize does not teleport more than viewport height', (
+      tester,
+    ) async {
+      const count = 40;
+      const tailId = count - 1;
+      const deleteId = tailId - 3;
+      final controller = ChatScrollController()..jumpTo(tailId);
+      final ds = _MutableSource(count);
+      addTearDown(controller.dispose);
+      addTearDown(ds.dispose);
+
+      await tester.pumpWidget(_harness(dataSource: ds, controller: controller));
+      await tester.pumpAndSettle();
+
+      ds.requestRemoval(deleteId, reason: 'test');
+      await tester.pump();
+
+      final center = tester.getCenter(find.byType(ChatScrollView));
+      final gesture = await tester.startGesture(center);
+      for (var i = 0; i < 10; i++) {
+        await gesture.moveBy(const Offset(0, -100));
+        await tester.pump(const Duration(milliseconds: 16));
+      }
+      await gesture.up();
+
+      var maxJump = 0.0;
+      var prev = controller.anchorPixelOffset;
+      for (var i = 0; i < 80; i++) {
+        await tester.pump(const Duration(milliseconds: 16));
+        final jump = (controller.anchorPixelOffset - prev).abs();
+        if (jump > maxJump) maxJump = jump;
+        prev = controller.anchorPixelOffset;
+      }
+
+      expect(maxJump, lessThan(600.0));
+    });
   });
 }

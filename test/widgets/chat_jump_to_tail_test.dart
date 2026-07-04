@@ -253,6 +253,110 @@ void main() {
       );
     });
 
+    for (final tallHeight in <double>[600, 800, 1200]) {
+      testWidgets(
+        'tail animate to tall newest ($tallHeight px) needs no post-settle snap',
+        (tester) async {
+          const count = 40;
+          const newest = count - 1;
+          final ds = _PreloadedDataSource(count);
+          final controller = ChatScrollController()..jumpTo(0);
+          addTearDown(controller.dispose);
+          addTearDown(ds.dispose);
+
+          await tester.pumpWidget(
+            _harness(
+              dataSource: ds,
+              controller: controller,
+              messageHeight: (id) => id == newest ? tallHeight : 60.0,
+            ),
+          );
+          await tester.pumpAndSettle();
+
+          final future = controller.animateTo(newest, alignment: 1);
+          await _driveAnimate(tester, future);
+          final afterAnimate = controller.anchorPixelOffset;
+          await tester.pumpAndSettle();
+
+          expect(
+            (controller.anchorPixelOffset - afterAnimate).abs(),
+            lessThan(2.0),
+            reason: 'no layout pin correction after animate future completes',
+          );
+          expect(
+            controller.anchorPixelOffset,
+            closeTo(_viewportHeight - tallHeight, 1.5),
+          );
+        },
+      );
+    }
+
+    testWidgets('tail animate scrolls monotonically toward composer inset', (
+      tester,
+    ) async {
+      const count = 40;
+      const newest = count - 1;
+      const tallHeight = 900.0;
+      final ds = _PreloadedDataSource(count);
+      final controller = ChatScrollController()..jumpTo(0);
+      addTearDown(controller.dispose);
+      addTearDown(ds.dispose);
+
+      await tester.pumpWidget(
+        _harness(
+          dataSource: ds,
+          controller: controller,
+          messageHeight: (id) => id == newest ? tallHeight : 60.0,
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final future = controller.animateTo(newest, alignment: 1);
+      await tester.pump();
+      var prevGap = double.infinity;
+      for (var i = 0; i < 25; i++) {
+        await tester.pump(const Duration(milliseconds: 16));
+        final gap = (_viewportHeight - controller.anchorPixelOffset - tallHeight)
+            .abs();
+        expect(
+          gap,
+          lessThanOrEqualTo(prevGap + 1.0),
+          reason: 'tail gap should not grow during animate',
+        );
+        prevGap = gap;
+      }
+      await future;
+      await tester.pump();
+    });
+
+    testWidgets('user drag during tail animate cancels pending tail pin', (
+      tester,
+    ) async {
+      const count = 40;
+      const newest = count - 1;
+      final ds = _PreloadedDataSource(count);
+      final controller = ChatScrollController()..jumpTo(newest);
+      addTearDown(controller.dispose);
+      addTearDown(ds.dispose);
+
+      await tester.pumpWidget(_harness(dataSource: ds, controller: controller));
+      await tester.pumpAndSettle();
+      expect(controller.isAtTail.value, isTrue);
+
+      await tester.drag(find.byType(ChatScrollView), const Offset(0, 300));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
+      expect(controller.isAtTail.value, isFalse);
+
+      final future = controller.animateTo(newest, alignment: 1);
+      await tester.pump();
+      await _slowDrag(tester, const Offset(0, 200));
+      await _driveAnimate(tester, future);
+      await tester.pumpAndSettle();
+
+      expect(controller.isAtTail.value, isFalse);
+    });
+
     testWidgets('jumpTo past newest clamps without phantom shimmer', (
       tester,
     ) async {

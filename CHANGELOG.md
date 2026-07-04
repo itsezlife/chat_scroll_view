@@ -15,6 +15,22 @@ this project is pre-1.0 and not strictly SemVer yet.
 
 ### Fixed
 
+- **Scroll-to-bottom on tall newest messages** — tail `animateTo` uses the
+  reference split: the animator interpolates to the aligned band offset while
+  layout `pinNewest` completes the bottom pin at settle, eliminating the
+  post-animation snap on messages taller than the viewport.
+
+- **Tail edge overscroll** — restored per-tick `_clampBoundaries` during fling
+  (drag-only overscroll resistance). The failed dual-writer `tailPinnedTop` path
+  in the animator was removed.
+
+- **Overscroll during message deletion** — effective tail geometry applies only
+  while removal ghosts are active; `pinNewest` is suppressed for collapsing
+  ghost ids but allowed on the surviving newest row.
+
+- **Wrong anchor after tail animate** — one-shot `jumpTo(newest)` when far-path
+  settle lands on an older built row while newer ids exist.
+
 - **Scrollbar thumb progress** — thumb position is height-weighted: pixel offset
   at the top scroll-band edge over `(estimatedExtent − viewportBandHeight)`,
   using average built row height to extrapolate unloaded ids. Thumb size scales
