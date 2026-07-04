@@ -8,12 +8,21 @@ this project is pre-1.0 and not strictly SemVer yet.
 
 ### Added
 
+- **Architecture knowledge bundle** — scroll runtime constitution lives under
+  `docs/architecture/` as an OKF concept set (coordinate model through known
+  limitations). `docs/chat_viewport_architecture.md` now points there.
+
 - **Scrollbar theme customization** — chat scrollbar thumb and uniform track
   colours are customizable via `ChatScrollbarThemeData` on
   `ThemeData.extensions` or a nested `Theme` widget. Thumb position and
   drag-to-jump behavior are unchanged.
 
 ### Fixed
+
+- **Absent-slot tracking on web** — each chunk stores confirmed-absent slots as
+  per-slot flags (`0`/`1`) plus an absent-slot count, not a packed 64-bit
+  integer mask. Slot 63, fully-absent O(1) fan-out skip, and invalidate/upsert
+  clear paths stay correct on every platform, including dart2js/web.
 
 - **Scrollbar thumb progress** — thumb position is height-weighted: pixel offset
   at the top scroll-band edge over `(estimatedExtent − viewportBandHeight)`,

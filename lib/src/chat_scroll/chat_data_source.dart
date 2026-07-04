@@ -237,7 +237,7 @@ abstract class ChatDataSource {
           ChatScrollChunk(index: chunkIndex)..status = ChatMessageStatus.valid,
     );
     final slot = message.id - chunk.firstId;
-    // Clear the absent bit before writing the slot so that a realtime insert
+    // Clear the absent flag before writing the slot so that a realtime insert
     // at a previously-absent ID surfaces immediately, without requiring
     // `invalidate()`. Clearing is idempotent when the bit was already zero.
     chunk.clearAbsentSlot(slot);
@@ -264,7 +264,7 @@ abstract class ChatDataSource {
               ..status = ChatMessageStatus.valid,
       );
       final slot = message.id - chunk.firstId;
-      // Clear absent bit before writing — see `upsertMessage` for rationale.
+      // Clear absent flag before writing — see `upsertMessage` for rationale.
       chunk.clearAbsentSlot(slot);
       chunk.messages[slot] = message;
       if (!existed) chunk.status = ChatMessageStatus.valid;
