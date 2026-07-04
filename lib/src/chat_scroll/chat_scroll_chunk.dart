@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'package:chatscrollview/src/chat_scroll/chat_scroll_common.dart';
 import 'package:meta/meta.dart';
 
@@ -7,10 +9,11 @@ import 'package:meta/meta.dart';
 /// shifted right by [kBits].
 @internal
 class ChatScrollChunk {
-
   ChatScrollChunk({required this.index})
     : messages = List<IChatMessage?>.filled(kSize, null, growable: false),
+      _absent = Uint8List(kSize),
       firstId = firstIdOf(index);
+
   static const int kBits = 6;
   static const int kSize = 64; // 1 << kBits
 
@@ -66,30 +69,40 @@ class ChatScrollChunk {
   int failedAttempts = 0;
 
   // ---------------------------------------------------------------------------
-  // Absent-slot bitmask
+  // Absent-slot flags
   //
-  // Each bit N tracks whether slot N (= `firstId + N`) is permanently absent —
-  // i.e. the server confirmed that message ID does not exist in this
+  // Each entry N tracks whether slot N (= `firstId + N`) is permanently
+  // absent — i.e. the server confirmed that message ID does not exist in this
   // conversation (e.g. batch-deleted messages, or an empty fetch for IDs in a
   // deletion gap).
   //
+  // Flag values:
+  //   - `0` — not confirmed absent (may be unloaded or present)
+  //   - `1` (non-zero) — confirmed absent
+  //
   // Invariants:
-  //   - Bit N is set iff `messages[N] == null` AND server confirmed absent.
-  //   - Absent and present are disjoint: a non-null slot MUST NOT have its bit
-  //     set (asserted in `markAbsentSlot`).
-  //   - `clearAbsentSlot` MUST be called by `upsertMessage` / `upsertMessages`
-  //     when writing a slot, so a realtime insert at an absent slot surfaces
-  //     immediately without `invalidate()`.
+  //   - Flag N is non-zero iff `messages[N] == null` AND server confirmed
+  //     absent.
+  //   - Absent and present are disjoint: a non-null slot MUST NOT have its
+  //     flag set (asserted in `markAbsentSlot`).
+  //   - `clearAbsentSlot` MUST be called by `upsertMessage` /
+  //     `upsertMessages` when writing a slot, so a realtime insert at an
+  //     absent slot surfaces immediately without `invalidate()`.
   //   - `clearAbsentMask()` MUST be called when the chunk is invalidated so
   //     a re-fetch always starts with a clean slate.
+  //   - `_absentCount` always equals the number of non-zero flags.
   //
-  // Implementation note: Dart `int` is 64-bit signed on 64-bit platforms, so
-  // bits 0–63 are all usable. `isFullyAbsent` checks `_absentMask == -1`
-  // (all 64 bits set in two's complement). Unsigned right-shift (`>>>`) is
-  // used for bit probing to avoid sign-extension on bit 63.
+  // Implementation note: per-slot bytes are used instead of a packed `int`
+  // bitset. An int mask (including slot 63 and `_absentMask == -1` for
+  // fully-absent) is not a reliable 64-slot container under dart2js/web,
+  // where bitwise operators follow JavaScript number semantics. Explicit
+  // flags are correct on every platform. `isFullyAbsent` is
+  // `_absentCount == kSize` (O(1)); mark/clear update the count only on
+  // 0↔1 transitions so idempotent calls do not drift.
   // ---------------------------------------------------------------------------
 
-  int _absentMask = 0;
+  final Uint8List _absent;
+  int _absentCount = 0;
 
   /// Whether slot [slot] (0-based within this chunk) is confirmed absent.
   ///
@@ -97,60 +110,65 @@ class ChatScrollChunk {
   /// Returns `false` for slots that are simply not yet loaded.
   bool isAbsentSlot(int slot) {
     assert(slot >= 0 && slot < kSize, 'slot $slot out of [0, $kSize)');
-    return _absentMask >>> slot & 1 != 0;
+    return _absent[slot] != 0;
   }
 
   /// Mark slot [slot] as confirmed absent.
   ///
   /// The slot MUST be null (not currently holding a message). Attempting to
   /// mark a present slot absent is a logic error and throws in debug mode.
+  /// Idempotent — a no-op when the slot is already absent (count unchanged).
   void markAbsentSlot(int slot) {
     assert(slot >= 0 && slot < kSize, 'slot $slot out of [0, $kSize)');
     assert(
       messages[slot] == null,
       'Cannot mark slot $slot absent: messages[$slot] is non-null',
     );
-    _absentMask |= 1 << slot;
+    if (_absent[slot] == 0) {
+      _absent[slot] = 1;
+      _absentCount++;
+    }
   }
 
-  /// Clear the absent bit for slot [slot].
+  /// Clear the absent flag for slot [slot].
   ///
   /// The symmetric inverse of [markAbsentSlot]. Idempotent — a no-op when
-  /// the bit is already zero. MUST be called by `upsertMessage` /
+  /// the flag is already zero. MUST be called by `upsertMessage` /
   /// `upsertMessages` before or when writing a message into this slot so that
   /// a realtime insert at a previously-absent slot surfaces immediately without
   /// requiring `invalidate()`.
   void clearAbsentSlot(int slot) {
     assert(slot >= 0 && slot < kSize, 'slot $slot out of [0, $kSize)');
-    _absentMask &= ~(1 << slot);
+    if (_absent[slot] != 0) {
+      _absent[slot] = 0;
+      _absentCount--;
+    }
   }
 
-  /// Reset the absent bitmask to zero.
+  /// Reset all absent flags and the absent-slot count to zero.
   ///
   /// Call this when the chunk is invalidated so a subsequent `fetchRange` call
-  /// can re-confirm (or refute) the absent status of each slot.
-  void clearAbsentMask() => _absentMask = 0;
+  /// can re-confirm (or refute) the absent status of each slot. Early-returns
+  /// when already clear. The method name retains "Mask" for API stability;
+  /// storage is per-slot flags, not a bitset.
+  void clearAbsentMask() {
+    if (_absentCount == 0) return;
+    _absent.fillRange(0, kSize, 0);
+    _absentCount = 0;
+  }
 
   /// Whether all 64 slots in this chunk are confirmed absent.
   ///
   /// When `true`, fan-out can skip the entire chunk in O(1) without
   /// inspecting individual slots.
   ///
-  /// Implementation: `_absentMask == -1`. In two's complement, setting all
-  /// 64 bits (`0xFFFFFFFFFFFFFFFF`) yields the signed value `-1`, so a single
-  /// integer compare replaces scanning 64 slots. [absentSlotCount] is the
-  /// readable alternative when debugging partial vs full absence.
-  bool get isFullyAbsent => _absentMask == -1;
+  /// Implementation: `_absentCount == kSize`. [absentSlotCount] is the same
+  /// counter exposed for tests and diagnostics.
+  bool get isFullyAbsent => _absentCount == kSize;
 
   /// Number of slots currently marked absent in this chunk (0–[kSize]).
   ///
   /// Useful for tests and diagnostics; fan-out uses [isFullyAbsent] for the
-  /// O(1) all-absent fast path.
-  int get absentSlotCount {
-    var count = 0;
-    for (var slot = 0; slot < kSize; slot++) {
-      if (isAbsentSlot(slot)) count++;
-    }
-    return count;
-  }
+  /// O(1) all-absent fast path. O(1) — returns the maintained count.
+  int get absentSlotCount => _absentCount;
 }

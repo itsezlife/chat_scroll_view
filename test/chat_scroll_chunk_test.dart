@@ -131,27 +131,43 @@ void main() {
     });
   });
 
-  group('ChatScrollChunk absent mask', () {
+  group('ChatScrollChunk absent slots', () {
     late ChatScrollChunk chunk;
 
     setUp(() {
       chunk = ChatScrollChunk(index: 0);
     });
 
-    test('markAbsentSlot(0) sets bit 0 — isAbsentSlot(0) is true', () {
+    test('markAbsentSlot(0) marks slot 0 absent', () {
       chunk.markAbsentSlot(0);
       expect(chunk.isAbsentSlot(0), isTrue);
       expect(chunk.isAbsentSlot(1), isFalse);
     });
 
-    test('markAbsentSlot(63) sets bit 63 — isAbsentSlot(63) is true', () {
+    test('markAbsentSlot(63) marks slot 63 absent without affecting slot 0',
+        () {
       chunk.markAbsentSlot(63);
       expect(chunk.isAbsentSlot(63), isTrue);
-      // bit 63 set in two's complement does not corrupt lower bits
       expect(chunk.isAbsentSlot(0), isFalse);
     });
 
-    test('clearAbsentMask resets all bits', () {
+    test('only endpoint slots 0 and 63 absent leaves all others present', () {
+      chunk
+        ..markAbsentSlot(0)
+        ..markAbsentSlot(63);
+      expect(chunk.isAbsentSlot(0), isTrue);
+      expect(chunk.isAbsentSlot(63), isTrue);
+      expect(chunk.absentSlotCount, 2);
+      for (var slot = 1; slot < ChatScrollChunk.kSize - 1; slot++) {
+        expect(
+          chunk.isAbsentSlot(slot),
+          isFalse,
+          reason: 'slot $slot should not be absent',
+        );
+      }
+    });
+
+    test('clearAbsentMask resets all absent flags', () {
       chunk
         ..markAbsentSlot(0)
         ..markAbsentSlot(32)
@@ -160,6 +176,7 @@ void main() {
       for (var i = 0; i < ChatScrollChunk.kSize; i++) {
         expect(chunk.isAbsentSlot(i), isFalse, reason: 'slot $i should be clear');
       }
+      expect(chunk.absentSlotCount, 0);
     });
 
     test('isFullyAbsent is true when all 64 slots are marked absent', () {
@@ -167,6 +184,7 @@ void main() {
         chunk.markAbsentSlot(i);
       }
       expect(chunk.isFullyAbsent, isTrue);
+      expect(chunk.absentSlotCount, ChatScrollChunk.kSize);
     });
 
     test('isFullyAbsent is false when only some slots are marked', () {
@@ -197,6 +215,10 @@ void main() {
       expect(chunk.isFullyAbsent, isFalse);
       expect(chunk.absentSlotCount, ChatScrollChunk.kSize - 1);
       expect(chunk.isAbsentSlot(0), isFalse);
+
+      chunk.markAbsentSlot(0);
+      expect(chunk.isFullyAbsent, isTrue);
+      expect(chunk.absentSlotCount, ChatScrollChunk.kSize);
     });
 
     test('clearAbsentMask on a fully absent chunk resets isFullyAbsent', () {
@@ -206,6 +228,16 @@ void main() {
       chunk.clearAbsentMask();
       expect(chunk.isFullyAbsent, isFalse);
       expect(chunk.absentSlotCount, 0);
+      for (var slot = 0; slot < ChatScrollChunk.kSize; slot++) {
+        expect(chunk.isAbsentSlot(slot), isFalse);
+      }
+    });
+
+    test('clearAbsentMask when already clear is a no-op', () {
+      expect(chunk.absentSlotCount, 0);
+      chunk.clearAbsentMask();
+      expect(chunk.absentSlotCount, 0);
+      expect(chunk.isFullyAbsent, isFalse);
     });
 
     test('contiguous partial absence leaves isFullyAbsent false', () {
@@ -223,7 +255,7 @@ void main() {
     });
 
     test(
-      'markAbsentSlot on a null unmarked slot succeeds and sets the bit',
+      'markAbsentSlot on a null unmarked slot succeeds and sets the flag',
       () {
         expect(chunk.messages[7], isNull);
         expect(chunk.isAbsentSlot(7), isFalse);
@@ -254,34 +286,39 @@ void main() {
       },
     );
 
-    test('clearAbsentSlot clears the bit for the given slot', () {
+    test('clearAbsentSlot clears the flag for the given slot', () {
       chunk.markAbsentSlot(3);
       expect(chunk.isAbsentSlot(3), isTrue);
       chunk.clearAbsentSlot(3);
       expect(chunk.isAbsentSlot(3), isFalse);
+      expect(chunk.absentSlotCount, 0);
     });
 
-    test('clearAbsentSlot is idempotent when bit is already zero', () {
+    test('clearAbsentSlot is idempotent when the slot is already clear', () {
       expect(chunk.isAbsentSlot(7), isFalse);
-      // Should not throw or change state.
+      chunk.clearAbsentSlot(7);
       chunk.clearAbsentSlot(7);
       expect(chunk.isAbsentSlot(7), isFalse);
+      expect(chunk.absentSlotCount, 0);
     });
 
-    test('clearAbsentSlot only clears the targeted bit, leaving others set',
-        () {
-      chunk
-        ..markAbsentSlot(0)
-        ..markAbsentSlot(10)
-        ..markAbsentSlot(63);
-      chunk.clearAbsentSlot(10);
-      expect(chunk.isAbsentSlot(0), isTrue);
-      expect(chunk.isAbsentSlot(10), isFalse);
-      expect(chunk.isAbsentSlot(63), isTrue);
-    });
+    test(
+      'clearAbsentSlot only clears the targeted slot, leaving others absent',
+      () {
+        chunk
+          ..markAbsentSlot(0)
+          ..markAbsentSlot(10)
+          ..markAbsentSlot(63);
+        chunk.clearAbsentSlot(10);
+        expect(chunk.isAbsentSlot(0), isTrue);
+        expect(chunk.isAbsentSlot(10), isFalse);
+        expect(chunk.isAbsentSlot(63), isTrue);
+        expect(chunk.absentSlotCount, 2);
+      },
+    );
   });
 
-  group('statusOf with absent mask', () {
+  group('statusOf with absent slots', () {
     late _TestDataSource source;
 
     setUp(() {
@@ -477,10 +514,10 @@ void main() {
   });
 
   // ---------------------------------------------------------------------------
-  // upsertMessage clears absent bit on realtime insert
+  // upsertMessage clears absent flag on realtime insert
   // ---------------------------------------------------------------------------
 
-  group('upsertMessage clears absent bit', () {
+  group('upsertMessage clears absent flag', () {
     test(
       'upsertMessage at a previously-absent slot clears the bit and '
       'statusOf returns valid',
