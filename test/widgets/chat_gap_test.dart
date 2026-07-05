@@ -116,7 +116,7 @@ Widget _harness({
           dataSource: dataSource,
           controller: controller,
           cacheExtent: cacheExtent,
-          messageBuilder: (context, id, message, status) {
+          messageBuilder: (context, id, message, status, runLayout) {
             if (status.isAbsent) return const SizedBox.shrink();
             if (message == null) {
               return SizedBox(height: 40, child: Text('shimmer-$id'));

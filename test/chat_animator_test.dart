@@ -9,7 +9,9 @@ import 'package:flutter_test/flutter_test.dart';
 ChatAnimator _animator({
   required ChatScrollController controller,
   double? Function(int id)? offsetToBuiltMessage,
-  double Function(double messageHeight, double alignment)? alignedTopForMessage,
+  double Function(int targetId, double messageHeight, double alignment)?
+  closePathEndOffsetFor,
+  bool Function(int targetId)? isTailClosePathTarget,
   RenderBox? Function(int id)? childForId,
   double Function(RenderBox child)? offsetOfChild,
   double Function(RenderBox child)? heightOfChild,
@@ -24,7 +26,9 @@ ChatAnimator _animator({
 }) => ChatAnimator(
   controller: controller,
   offsetToBuiltMessage: offsetToBuiltMessage ?? (_) => null,
-  alignedTopForMessage: alignedTopForMessage ?? (_, _) => 0,
+  closePathEndOffsetFor:
+      closePathEndOffsetFor ?? (_, _, alignment) => 40.0 * alignment,
+  isTailClosePathTarget: isTailClosePathTarget ?? (_) => false,
   childForId: childForId ?? (_) => null,
   offsetOfChild: offsetOfChild ?? (_) => 0,
   heightOfChild: heightOfChild ?? (_) => 0,
@@ -120,7 +124,7 @@ void main() {
       final animator = _animator(
         controller: controller,
         offsetToBuiltMessage: (_) => 120.0,
-        alignedTopForMessage: (_, alignment) => 40.0 * alignment,
+        closePathEndOffsetFor: (_, _, alignment) => 40.0 * alignment,
         childForId: (_) => box,
         heightOfChild: (_) => box.size.height,
       );
@@ -190,7 +194,7 @@ void main() {
       final animator = _animator(
         controller: controller,
         offsetToBuiltMessage: (_) => 100.0,
-        alignedTopForMessage: (_, _) => 0.0,
+        closePathEndOffsetFor: (_, _, _) => 0.0,
         childForId: (_) => box,
         heightOfChild: (_) => box.size.height,
       );
@@ -217,6 +221,37 @@ void main() {
       expect(animator.takePendingSettleTargetId(), isNull);
     });
 
+    test('close path tail target uses tail-pin end offset', () {
+      final controller = ChatScrollController();
+      const tailHeight = 900.0;
+      const bottomEdge = 600.0;
+      const tailEnd = bottomEdge - tailHeight;
+      final box = _sizedBox(height: tailHeight);
+      final animator = _animator(
+        controller: controller,
+        offsetToBuiltMessage: (_) => 200.0,
+        closePathEndOffsetFor: (targetId, height, alignment) {
+          if (targetId == 9) return bottomEdge - height;
+          return 0.0;
+        },
+        isTailClosePathTarget: (id) => id == 9,
+        childForId: (_) => box,
+        heightOfChild: (_) => box.size.height,
+      );
+
+      animator.animate(
+        9,
+        duration: const Duration(milliseconds: 100),
+        curve: Curves.linear,
+        highlight: false,
+      );
+
+      expect(animator.animateEndOffset, tailEnd);
+      animator.tickAnimate(Duration.zero);
+      animator.tickAnimate(const Duration(milliseconds: 100));
+      expect(controller.anchorPixelOffset, closeTo(tailEnd, 0.001));
+    });
+
     test('rebaseClosePathEnd retargets when aligned end moves', () {
       final controller = ChatScrollController()..reassignAnchor(1, 200);
       final box = _sizedBox(height: 60);
@@ -224,7 +259,7 @@ void main() {
       final animator = _animator(
         controller: controller,
         offsetToBuiltMessage: (_) => 200.0,
-        alignedTopForMessage: (_, _) => alignedEnd,
+        closePathEndOffsetFor: (_, _, _) => alignedEnd,
         childForId: (_) => box,
         heightOfChild: (_) => box.size.height,
       );
@@ -355,7 +390,7 @@ void main() {
       final animator = _animator(
         controller: controller,
         offsetToBuiltMessage: (_) => 100.0,
-        alignedTopForMessage: (_, _) => 0.0,
+        closePathEndOffsetFor: (_, _, _) => 0.0,
         childForId: (_) => box,
         heightOfChild: (_) => box.size.height,
         isHighlightReady: (_) => ready,
@@ -385,7 +420,7 @@ void main() {
       final animator = _animator(
         controller: controller,
         offsetToBuiltMessage: (_) => 100.0,
-        alignedTopForMessage: (_, _) => 0.0,
+        closePathEndOffsetFor: (_, _, _) => 0.0,
         childForId: (_) => child,
         heightOfChild: (_) => child?.size.height ?? 0,
         isHighlightReady: (_) => child != null,
@@ -414,7 +449,7 @@ void main() {
       final animator = _animator(
         controller: controller,
         offsetToBuiltMessage: (_) => 100.0,
-        alignedTopForMessage: (_, _) => 0.0,
+        closePathEndOffsetFor: (_, _, _) => 0.0,
         childForId: (_) => box,
         heightOfChild: (_) => box.size.height,
         isHighlightReady: (_) => true,

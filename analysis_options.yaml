@@ -23,6 +23,7 @@ analyzer:
     no_adjacent_strings_in_list: ignore
     avoid_setters_without_getters: ignore
     cascade_invocations: ignore
+    avoid_classes_with_only_static_members: ignore
 
     # Info
     directives_ordering: info

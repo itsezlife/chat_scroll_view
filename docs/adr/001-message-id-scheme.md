@@ -42,6 +42,9 @@ This ADR records the **system-wide ID contract** that all phases of the enhancem
 - A chunk may contain **null slots** when ids in `[firstId, lastId]` were deleted or never fetched.
 - `firstId` / `lastId` describe the chunk's **index range**, not the set of live messages.
 - `getMessage(id)` returns `null` for missing slots; debug builds assert slot bounds.
+- Conversation-order neighbors skip confirmed-absent ids via
+  `getPreviousPresentMessage` / `getNextPresentMessage` — not by changing
+  `getMessage` semantics. See [07-data-source-and-ids](../architecture/07-data-source-and-ids.md).
 
 ### 5. ChatMessageStatus as extension type
 

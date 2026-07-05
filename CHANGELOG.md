@@ -8,6 +8,29 @@ this project is pre-1.0 and not strictly SemVer yet.
 
 ### Added
 
+- **Viewport-stable delete** — deleting a tall anchor message while scrolled into
+  its interior no longer jumps the viewport; reading position near the composer
+  is preserved within 8 logical pixels.
+
+- **Short-content no-scroll mode** — when all loaded messages fit in the viewport,
+  drag/fling/bounceback are suppressed, dual boundary pins no longer fight, and
+  the scrollbar is hidden (same UX as a non-scrollable list).
+
+- **`MessageRunLayout` and sender-run resolver** — `ChatSenderRunLayout.resolve`
+  computes first/last-in-run flags from live present neighbors and the active
+  `groupBy` bucket. Passed to `ChatMessageBuilder` as a 5th parameter so
+  position-specific chrome participates in the skip-rebuild cache.
+
+### Changed
+
+- **Breaking:** `ChatMessageBuilder` now takes `(context, id, message, status, runLayout)`.
+  Update all call sites. Use `runLayout.isLastInSenderRun` / `isFirstInSenderRun`
+  for avatar, sender label, tail, and tight padding — do not walk neighbors in
+  the builder.
+
+- **Demo bubbles** — incoming avatar, sender name, and bubble tail render on the
+  **last** message in a same-sender run (Telegram-style), not the first.
+
 - **Architecture knowledge bundle** — scroll runtime constitution lives under
   `docs/architecture/` as an OKF concept set (coordinate model through known
   limitations). `docs/chat_viewport_architecture.md` now points there.
@@ -18,6 +41,24 @@ this project is pre-1.0 and not strictly SemVer yet.
   drag-to-jump behavior are unchanged.
 
 ### Fixed
+
+- **Absent slots never reach `messageBuilder`** — confirmed-absent message ids
+  are excluded before `buildChild` and selection chrome. Deleting the layout
+  anchor reassigns to a present neighbor instead of leaving a shimmer or empty
+  selectable row. Integrators must not rely on returning zero-size widgets for
+  absent status.
+
+- **Boundary retraction after last delete** — `seedBoundaries` accepts explicit
+  `null` ids so removing the final message clears `oldestKnownId` /
+  `newestKnownId` and the empty-chat overlay can appear.
+
+- **Tail `animateTo` on tall newest** — close-path scroll to the known
+  conversation end animates to tail-pin geometry (message bottom on the bottom
+  inset) instead of band top followed by a layout snap.
+
+- **Stale sender-run chrome after delete** — deleting the first of two
+  same-sender messages no longer leaves the survivor without avatar/author when
+  the message instance is unchanged.
 
 - **Absent-slot tracking on web** — each chunk stores confirmed-absent slots as
   per-slot flags (`0`/`1`) plus an absent-slot count, not a packed 64-bit

@@ -57,7 +57,8 @@ messages are revealed.
 
 Full pass: concepts **01 → 13** in order.
 
-Before animation work: **01 → 02 → 04 → 05 → 06 → 11**.
+Before animation work: **01 → 02 → 04 → 05 → 06 → 11**, plus **§18 absent
+build exclusion**, **§19 band-stable delete recovery**, and **§20 short content**.
 
 ## Related ADRs (outside this bundle)
 

@@ -1,6 +1,7 @@
 import 'dart:collection';
 
 import 'package:chatscrollview/src/chat_scroll/chat_scroll_common.dart';
+import 'package:chatscrollview/src/chat_scroll/chat_sender_run_layout.dart';
 import 'package:chatscrollview/src/chat_widgets/chat_data_source_ext.dart';
 import 'package:chatscrollview/src/chat_widgets/chat_dated_message.dart';
 import 'package:chatscrollview/src/chat_widgets/chat_scroll_view.dart';
@@ -61,13 +62,14 @@ class ChatScrollElement extends RenderObjectElement
   /// messageId -> child element, sorted so iteration is top-to-bottom.
   final SplayTreeMap<int, Element> _children = SplayTreeMap<int, Element>();
 
-  /// Skip-rebuild cache: the message instance, status, and first-of-day flag
-  /// each child was last built with. When [buildChild] is asked for an id whose
-  /// inputs are all unchanged, the existing child is reused without running
-  /// `updateChild` / the message widget's `build()` again.
+  /// Skip-rebuild cache: the message instance, status, first-of-day flag, and
+  /// sender-run layout each child was last built with. When [buildChild] is
+  /// asked for an id whose inputs are all unchanged, the existing child is
+  /// reused without running `updateChild` / the message widget's `build()` again.
   final Map<int, IChatMessage?> _builtMessage = <int, IChatMessage?>{};
   final Map<int, ChatMessageStatus> _builtStatus = <int, ChatMessageStatus>{};
   final Map<int, bool> _builtStartsDay = <int, bool>{};
+  final Map<int, MessageRunLayout> _builtRunLayout = <int, MessageRunLayout>{};
 
   /// chunkIndex -> chunk-error tile element, sorted ascending. Empty unless
   /// the host widget supplies an `errorBuilder`.
@@ -128,6 +130,7 @@ class ChatScrollElement extends RenderObjectElement
       _builtMessage.clear();
       _builtStatus.clear();
       _builtStartsDay.clear();
+      _builtRunLayout.clear();
       renderObject.markNeedsLayout();
     }
     // A changed separator builder *or* direction must rebuild the header
@@ -166,6 +169,7 @@ class ChatScrollElement extends RenderObjectElement
     ChatMessageStatus status,
     bool startsNewDay,
     Object? groupBucket,
+    MessageRunLayout runLayout,
   ) {
     final override = _widget.textDirection;
     final selection = _widget.selectionController;
@@ -177,7 +181,17 @@ class ChatScrollElement extends RenderObjectElement
         groupBucket != null;
 
     Widget compose(BuildContext context) {
-      var content = _widget.messageBuilder(context, id, message, status);
+      assert(
+        !status.isAbsent,
+        'messageBuilder must not be invoked for confirmed-absent id $id',
+      );
+      var content = _widget.messageBuilder(
+        context,
+        id,
+        message,
+        status,
+        runLayout,
+      );
       if (selection != null) {
         content = SelectableMessage(
           id: id,
@@ -213,6 +227,7 @@ class ChatScrollElement extends RenderObjectElement
   RenderBox? buildChild(
     int id, {
     required bool startsNewDay,
+    required MessageRunLayout runLayout,
     Object? groupBucket,
   }) {
     _assertInsideLayoutCallback();
@@ -221,6 +236,23 @@ class ChatScrollElement extends RenderObjectElement
     final status = ds.statusOf(id);
     final existing = _children[id];
 
+    // Confirmed-absent: deactivate any stale element; never call messageBuilder
+    // or wrap in SelectableMessage (zero-size shrink still selects as ghost row).
+    if (status.isAbsent) {
+      if (existing != null) {
+        owner!.buildScope(this, () {
+          final removed = updateChild(existing, null, id);
+          assert(removed == null, 'removed is not null');
+          _children.remove(id);
+          _builtMessage.remove(id);
+          _builtStatus.remove(id);
+          _builtStartsDay.remove(id);
+          _builtRunLayout.remove(id);
+        });
+      }
+      return null;
+    }
+
     // Fast path: every input is unchanged since this child was last built —
     // reuse it without rebuilding. Inherited-widget changes (Theme, ...) still
     // rebuild through the normal dependency mechanism, and width changes are
@@ -228,6 +260,7 @@ class ChatScrollElement extends RenderObjectElement
     if (existing != null &&
         _builtStatus[id] == status &&
         _builtStartsDay[id] == startsNewDay &&
+        _builtRunLayout[id] == runLayout &&
         identical(_builtMessage[id], message)) {
       return existing.renderObject as RenderBox?;
     }
@@ -236,7 +269,7 @@ class ChatScrollElement extends RenderObjectElement
     owner!.buildScope(this, () {
       final updated = updateChild(
         existing,
-        _buildWidget(id, message, status, startsNewDay, groupBucket),
+        _buildWidget(id, message, status, startsNewDay, groupBucket, runLayout),
         id,
       );
       if (updated != null) {
@@ -244,12 +277,14 @@ class ChatScrollElement extends RenderObjectElement
         _builtMessage[id] = message;
         _builtStatus[id] = status;
         _builtStartsDay[id] = startsNewDay;
+        _builtRunLayout[id] = runLayout;
         result = updated.renderObject as RenderBox?;
       } else {
         _children.remove(id);
         _builtMessage.remove(id);
         _builtStatus.remove(id);
         _builtStartsDay.remove(id);
+        _builtRunLayout.remove(id);
       }
     });
     return result;
@@ -267,6 +302,7 @@ class ChatScrollElement extends RenderObjectElement
         _builtMessage.remove(id);
         _builtStatus.remove(id);
         _builtStartsDay.remove(id);
+        _builtRunLayout.remove(id);
       }
     });
   }
@@ -442,6 +478,7 @@ class ChatScrollElement extends RenderObjectElement
       _builtMessage.remove(id);
       _builtStatus.remove(id);
       _builtStartsDay.remove(id);
+      _builtRunLayout.remove(id);
     }
     super.forgetChild(child);
   }

@@ -56,7 +56,7 @@ Widget _scaffold({
           reverse: true,
           dataSource: dataSource,
           controller: controller,
-          messageBuilder: (context, id, message, status) => SizedBox(
+          messageBuilder: (context, id, message, status, runLayout) => SizedBox(
             height: 60,
             child: Text(message == null ? 'shimmer-$id' : 'msg-$id'),
           ),
@@ -71,25 +71,28 @@ RenderChatScrollView _render(WidgetTester tester) =>
 
 void main() {
   group('lazy pagination (partial oldest boundary)', () {
-    testWidgets('layout fans below oldestKnownId while reachedOldest is false', (
-      tester,
-    ) async {
-      const total = 200;
-      const loadedFrom = 192; // chunk 3 — ids 192..199
-      final controller = ChatScrollController()..jumpTo(total - 1);
-      final ds = _LazyNewestChunkDataSource(
-        totalCount: total,
-        loadedFromId: loadedFrom,
-      );
-      addTearDown(controller.dispose);
-      addTearDown(ds.dispose);
+    testWidgets(
+      'layout fans below oldestKnownId while reachedOldest is false',
+      (tester) async {
+        const total = 200;
+        const loadedFrom = 192; // chunk 3 — ids 192..199
+        final controller = ChatScrollController()..jumpTo(total - 1);
+        final ds = _LazyNewestChunkDataSource(
+          totalCount: total,
+          loadedFromId: loadedFrom,
+        );
+        addTearDown(controller.dispose);
+        addTearDown(ds.dispose);
 
-      await tester.pumpWidget(_scaffold(dataSource: ds, controller: controller));
-      await tester.pump();
-      await tester.pump(const Duration(milliseconds: 200));
+        await tester.pumpWidget(
+          _scaffold(dataSource: ds, controller: controller),
+        );
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 200));
 
-      // Must build into chunk 2 (ids 128..191) so older pages can be fetched.
-      expect(_render(tester).debugLayoutMinChunk, lessThan(3));
-    });
+        // Must build into chunk 2 (ids 128..191) so older pages can be fetched.
+        expect(_render(tester).debugLayoutMinChunk, lessThan(3));
+      },
+    );
   });
 }

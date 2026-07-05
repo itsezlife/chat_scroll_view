@@ -94,10 +94,11 @@ Widget _harness({
             dataSource: dataSource,
             controller: controller,
             bottomPadding: bottomPadding,
-            messageBuilder: (context, id, message, status) => SizedBox(
-              height: heightFor(id),
-              child: Text(message == null ? 'shimmer-$id' : 'msg-$id'),
-            ),
+            messageBuilder: (context, id, message, status, runLayout) =>
+                SizedBox(
+                  height: heightFor(id),
+                  child: Text(message == null ? 'shimmer-$id' : 'msg-$id'),
+                ),
           ),
         ),
       ),
@@ -214,6 +215,40 @@ void main() {
       await _driveAnimate(tester, future);
       expect(controller.isAtTail.value, isTrue);
       expect(controller.anchorMessageId, newest);
+    });
+
+    testWidgets('animateTo tall newest ends at tail pin not band top', (
+      tester,
+    ) async {
+      const count = 10;
+      const newest = count - 1;
+      const tallHeight = _viewportHeight + 200;
+      final ds = _PreloadedDataSource(count);
+      final controller = ChatScrollController()..jumpTo(newest);
+      addTearDown(controller.dispose);
+      addTearDown(ds.dispose);
+
+      await tester.pumpWidget(
+        _harness(
+          dataSource: ds,
+          controller: controller,
+          messageHeight: (id) => id == newest ? tallHeight : 60.0,
+        ),
+      );
+      await tester.pump();
+
+      await tester.drag(find.byType(ChatScrollView), const Offset(0, 400));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
+      expect(controller.isAtTail.value, isFalse);
+
+      const expectedTailTop = _viewportHeight - tallHeight;
+      final future = controller.animateTo(newest, highlight: false);
+      await _driveAnimate(tester, future);
+
+      expect(controller.isAtTail.value, isTrue);
+      expect(controller.anchorMessageId, newest);
+      expect(controller.anchorPixelOffset, closeTo(expectedTailTop, 1));
     });
 
     testWidgets('jumpTo past newest clamps without phantom shimmer', (

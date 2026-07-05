@@ -145,4 +145,58 @@ void main() {
       expect(controller.placeHeaderOffset(topPad: 24), 24);
     });
   });
+
+  group('shouldShowFloatingHeader', () {
+    test('shows while older history may still load', () {
+      final controller = ChatFloatingHeaderController();
+      expect(
+        controller.shouldShowFloatingHeader(
+          reachedOldest: false,
+          oldestTop: 400,
+          topPad: 0,
+          floatingHeaderHeight: 32,
+        ),
+        isTrue,
+      );
+    });
+
+    test('hides when oldest sits below the header stack', () {
+      final controller = ChatFloatingHeaderController();
+      expect(
+        controller.shouldShowFloatingHeader(
+          reachedOldest: true,
+          oldestTop: 251,
+          topPad: 0,
+          floatingHeaderHeight: 24,
+        ),
+        isFalse,
+      );
+    });
+
+    test('shows when oldest overlaps the header zone', () {
+      final controller = ChatFloatingHeaderController();
+      expect(
+        controller.shouldShowFloatingHeader(
+          reachedOldest: true,
+          oldestTop: 20,
+          topPad: 0,
+          floatingHeaderHeight: 32,
+        ),
+        isTrue,
+      );
+    });
+
+    test('hides during top overscroll past the header stack', () {
+      final controller = ChatFloatingHeaderController();
+      expect(
+        controller.shouldShowFloatingHeader(
+          reachedOldest: true,
+          oldestTop: 80,
+          topPad: 0,
+          floatingHeaderHeight: 32,
+        ),
+        isFalse,
+      );
+    });
+  });
 }

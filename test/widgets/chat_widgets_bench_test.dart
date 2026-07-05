@@ -37,11 +37,18 @@ class _Preloaded extends ChatDataSource {
   Future<List<IChatMessage>> fetchRange({
     required int fromId,
     required int toId,
-  }) async => const <IChatMessage>[];
+  }) async {
+    final out = <IChatMessage>[];
+    for (var id = fromId; id <= toId; id++) {
+      final m = getMessage(id);
+      if (m != null) out.add(m);
+    }
+    return out;
+  }
 }
 
 Future<RenderChatScrollView> _pump(WidgetTester tester, int count) async {
-  final controller = ChatScrollController()..jumpTo(count - 1);
+  final controller = ChatScrollController()..jumpTo(count ~/ 2);
 
   await tester.pumpWidget(
     MaterialApp(
@@ -59,15 +66,9 @@ Future<RenderChatScrollView> _pump(WidgetTester tester, int count) async {
     ),
   );
   await tester.pump();
-
-  final ro = tester.renderObject<RenderChatScrollView>(
+  return tester.renderObject<RenderChatScrollView>(
     find.byType(ChatScrollView),
   );
-  // Mid-list so scrolling never hits a boundary.
-  controller.jumpTo(count ~/ 2);
-  ro.markNeedsLayout();
-  await tester.pump();
-  return ro;
 }
 
 void main() {

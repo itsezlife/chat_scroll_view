@@ -1,7 +1,7 @@
 ---
 type: Architecture Reference
 title: Navigation and Tail
-description: jumpTo, scrollBy, animateTo, alignment lifecycle, and follow-tail.
+description: jumpTo, scrollBy, animateTo, alignment lifecycle, follow-tail, and pinNewest guards during delete recovery.
 tags: [navigation, jumpTo, tail, alignment]
 timestamp: 2026-07-04T00:00:00Z
 resource: lib/src/chat_scroll/chat_scroll_controller.dart
@@ -48,9 +48,11 @@ is built:
 5. Else `reassignAnchor(targetId, desiredTop)` + `_repositionFromAnchor`.
 
 `_alignedTopForMessage` uses the scroll band (`topPad` .. `height - bottomPad`).
-Tall messages (`height ≥ band`) always land at band top — **not** true chat
-tail pin. See [Boundaries](./06-boundaries.md) and
-[Animation Integration](./11-animation-integration.md).
+Tall **non-newest** messages (`height ≥ band`) always land at band top.
+**Known-newest** close-path `animateTo` ends at tail-pin top (`bottomEdge −
+height`) so scroll-to-end does not animate to band top and snap afterward. True
+chat pin (`newest.bottom == bottomEdge`) is still enforced by layout `pinNewest`.
+See [Animation Integration](./11-animation-integration.md).
 
 ## Render reactions
 
@@ -109,3 +111,16 @@ jump/scroll, animate start/end. Physics does not emit events — render does.
 See [Boundaries](./06-boundaries.md) for `_pinTailOnJump`,
 `_pendingTailPinUntilSettled`, `_userPreemptedTailSettle`. Drag start cancels
 pending settle and sets user-preempted so passive pin does not yank back.
+
+### `pinNewest` during delete recovery
+
+When `_deleteCollapseRecoveryActive`, `pinNewest` inside `_clampBoundaries`
+applies extra guards:
+
+- Block when the user was **not** at tail before delete (`!wasAtTailBefore`).
+- Block when the user had **preempted tail** and post-delete geometry satisfies
+  `isAtTail` — prevents an unintended snap to newest after mid-history delete.
+
+These guards use snapshot fields from `_recordLayoutBeforeDelete`. Normal tail
+follow (user genuinely at tail, deletes newest) is unchanged. Emits
+`pinNewestSuppressed` on `layout.deleteCollapse` when blocked.

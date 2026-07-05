@@ -11,6 +11,10 @@ const double kCloseAnimateDistance = 2400;
 /// Owns `animateTo` scroll animation and post-settle target highlight for
 /// [RenderChatScrollView].
 ///
+/// Close-path endpoint geometry comes from [closePathEndOffsetFor] — for the
+/// known conversation newest this is tail-pin top (`bottomEdge - height`), not
+/// band alignment. See [ChatScrollController.animateTo].
+///
 /// The render object keeps [fadeLayer] and applies [fadeOpacity] from
 /// [tickAnimate] during paint — layer handles stay on the render side.
 ///
@@ -30,8 +34,9 @@ class ChatAnimator implements ChatScrollAnimator {
   ChatAnimator({
     required ChatScrollController controller,
     required double? Function(int id) offsetToBuiltMessage,
-    required double Function(double messageHeight, double alignment)
-    alignedTopForMessage,
+    required double Function(int targetId, double messageHeight, double alignment)
+    closePathEndOffsetFor,
+    required bool Function(int targetId) isTailClosePathTarget,
     required RenderBox? Function(int id) childForId,
     required double Function(RenderBox child) offsetOfChild,
     required double Function(RenderBox child) heightOfChild,
@@ -45,7 +50,8 @@ class ChatAnimator implements ChatScrollAnimator {
     Color highlightColor = const Color(0x402196F3),
   }) : _controller = controller,
        _offsetToBuiltMessage = offsetToBuiltMessage,
-       _alignedTopForMessage = alignedTopForMessage,
+       _closePathEndOffsetFor = closePathEndOffsetFor,
+       _isTailClosePathTarget = isTailClosePathTarget,
        _childForId = childForId,
        _offsetOfChild = offsetOfChild,
        _heightOfChild = heightOfChild,
@@ -60,8 +66,9 @@ class ChatAnimator implements ChatScrollAnimator {
 
   final ChatScrollController _controller;
   final double? Function(int id) _offsetToBuiltMessage;
-  final double Function(double messageHeight, double alignment)
-  _alignedTopForMessage;
+  final double Function(int targetId, double messageHeight, double alignment)
+  _closePathEndOffsetFor;
+  final bool Function(int targetId) _isTailClosePathTarget;
   final RenderBox? Function(int id) _childForId;
   final double Function(RenderBox child) _offsetOfChild;
   final double Function(RenderBox child) _heightOfChild;
@@ -209,7 +216,11 @@ class ChatAnimator implements ChatScrollAnimator {
         offsetToTarget.abs() <= kCloseAnimateDistance) {
       final child = _childForId(targetId);
       final endOffset = child != null
-          ? _alignedTopForMessage(_heightOfChild(child), alignment)
+          ? _closePathEndOffsetFor(
+              targetId,
+              _heightOfChild(child),
+              alignment,
+            )
           : 0.0;
       // Close path: re-base the anchor onto the target with its current
       // offset, then animate that offset toward the aligned position.
@@ -313,14 +324,19 @@ class ChatAnimator implements ChatScrollAnimator {
   /// current anchor offset so the interpolator tracks the live aligned target
   /// without layout-time snapping during close-path animation.
   void rebaseClosePathEnd({Duration? elapsed}) {
-    if (animateCompleter == null ||
-        farAnimateActive ||
+    if (animateCompleter == null || farAnimateActive) {
+      return;
+    }
+    // Band-top alignment (0) is stable for ordinary targets; tail-target
+    // animate still rebases when height/insets change (tall newest).
+    if (!_isTailClosePathTarget(animateTargetId) &&
         animateAlignment == 0.0) {
       return;
     }
     final child = _childForId(animateTargetId);
     if (child == null) return;
-    final newEnd = _alignedTopForMessage(
+    final newEnd = _closePathEndOffsetFor(
+      animateTargetId,
       _heightOfChild(child),
       animateAlignment,
     );
@@ -353,11 +369,13 @@ class ChatAnimator implements ChatScrollAnimator {
     // settle is not stuck at alignment-0 offset until a later layout pass.
     if (!wasFarPath) {
       var end = animateEndOffset;
-      if (animateAlignment != 0.0) {
-        final child = _childForId(targetId);
-        if (child != null) {
-          end = _alignedTopForMessage(_heightOfChild(child), animateAlignment);
-        }
+      final child = _childForId(targetId);
+      if (child != null) {
+        end = _closePathEndOffsetFor(
+          targetId,
+          _heightOfChild(child),
+          animateAlignment,
+        );
       }
       _controller.reassignAnchor(targetId, end);
     }

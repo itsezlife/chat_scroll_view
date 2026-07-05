@@ -78,38 +78,45 @@ Widget _harness({
   required ChatScrollController controller,
   ValueListenable<double>? bottomPadding,
 }) => MaterialApp(
-    home: Scaffold(
-      body: Center(
-        child: SizedBox(
-          width: _viewportWidth,
-          height: _viewportHeight,
-          child: ChatScrollView(
-            reverse: true,
-            dataSource: dataSource,
-            controller: controller,
-            bottomPadding: bottomPadding,
-            messageBuilder: (context, id, message, status) => SizedBox(
-              height: 60,
-              child: Text(message == null ? 'shimmer-$id' : 'msg-$id'),
-            ),
+  home: Scaffold(
+    body: Center(
+      child: SizedBox(
+        width: _viewportWidth,
+        height: _viewportHeight,
+        child: ChatScrollView(
+          reverse: true,
+          dataSource: dataSource,
+          controller: controller,
+          bottomPadding: bottomPadding,
+          messageBuilder: (context, id, message, status, runLayout) => SizedBox(
+            height: 60,
+            child: Text(message == null ? 'shimmer-$id' : 'msg-$id'),
           ),
         ),
       ),
     ),
-  );
+  ),
+);
 
 /// Pump through post-release settle — catches layout-driven tail re-pin.
-Future<void> _pumpSettle(WidgetTester tester, {Duration total = const Duration(milliseconds: 1000)}) async {
+Future<void> _pumpSettle(
+  WidgetTester tester, {
+  Duration total = const Duration(milliseconds: 1000),
+}) async {
   final steps = total.inMilliseconds ~/ 16;
   for (var i = 0; i < steps; i++) {
     await tester.pump(const Duration(milliseconds: 16));
   }
 }
 
-Future<({ChatScrollController controller, _PreloadedDataSource ds, ValueNotifier<double> inset})> _mountAtTail(
-  WidgetTester tester, {
-  int count = 40,
-}) async {
+Future<
+  ({
+    ChatScrollController controller,
+    _PreloadedDataSource ds,
+    ValueNotifier<double> inset,
+  })
+>
+_mountAtTail(WidgetTester tester, {int count = 40}) async {
   final newest = count - 1;
   final ds = _PreloadedDataSource(count);
   final inset = ValueNotifier<double>(_bottomInset);
@@ -122,7 +129,11 @@ Future<({ChatScrollController controller, _PreloadedDataSource ds, ValueNotifier
     _harness(dataSource: ds, controller: controller, bottomPadding: inset),
   );
   await tester.pump();
-  expect(controller.isAtTail.value, isTrue, reason: 'precondition: mounted at tail');
+  expect(
+    controller.isAtTail.value,
+    isTrue,
+    reason: 'precondition: mounted at tail',
+  );
   return (controller: controller, ds: ds, inset: inset);
 }
 
@@ -195,7 +206,9 @@ void main() {
   });
 
   group('mount scroll magnet: re-attach', () {
-    testWidgets('re-attach then drag up matches continuous mount', (tester) async {
+    testWidgets('re-attach then drag up matches continuous mount', (
+      tester,
+    ) async {
       const count = 40;
       const newest = count - 1;
       final ds = _PreloadedDataSource(count);
@@ -231,7 +244,9 @@ void main() {
   });
 
   group('mount scroll magnet: lazy tail', () {
-    testWidgets('lazy tail load after user drag does not yank to newest', (tester) async {
+    testWidgets('lazy tail load after user drag does not yank to newest', (
+      tester,
+    ) async {
       const count = 40;
       const newest = count - 1;
       final ds = _LazyTailDataSource(count);

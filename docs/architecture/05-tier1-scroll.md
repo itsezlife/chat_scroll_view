@@ -1,7 +1,7 @@
 ---
 type: Architecture Reference
 title: Tier-1 Scroll
-description: Ticker path composition, physics, paint versus layout decisions.
+description: Ticker path composition, physics, paint versus layout; short-content no-scroll suppression on Tier-1.
 tags: [scroll, tier1, physics]
 timestamp: 2026-07-04T00:00:00Z
 resource: lib/src/chat_widgets/render_chat_scroll_view.dart
@@ -22,6 +22,7 @@ _onTick:
   1. Overlay guard → abort scroll state, stop ticker
   2. Highlight-only early exit (no _markScrollActive)
   3. Drain _pendingScrollDelta
+  3b. If content fits → cancel fling/bounceback; force delta = 0
   4. If drag && boundary reachable → applyOverscrollResistance
   5. delta += tickFling
   6. delta += tickAnimate          // close: offset delta; far: fade only
@@ -47,8 +48,8 @@ predictably.
 | Event | Behavior |
 |-------|----------|
 | `_onDragStart` | `_cancelPendingTailPin()`, clear nav alignment, cancel fling/animate/bounceback, `_dragInProgress = true` |
-| `_onDragUpdate` | `_pendingScrollDelta += details.delta.dy` (finger down → positive → older) |
-| `_onDragEnd` | clear drag flag; always `_maybeStartBounceback()`; if `\|v\| >= 50` start fling |
+| `_onDragUpdate` | `_pendingScrollDelta += details.delta.dy` — **no-op** when content fits |
+| `_onDragEnd` | clear drag flag; `_maybeStartBounceback()`; fling if `\|v\| >= 50` — both skipped when content fits |
 
 Resistance is applied **once per tick** on the combined pending delta, not per
 `DragUpdate` — multiple updates in one frame see one resistance scale.
@@ -56,6 +57,7 @@ Resistance is applied **once per tick** on the combined pending delta, not per
 ## Fling
 
 - `_startFling` / `_cancelFling` via `ChatScrollPhysics` (`ClampingScrollSimulation`).
+- **No-op** when [_contentFitsInViewport](./06-boundaries.md#short-content--_contentfitsinviewport).
 - Per-tick clamp during fling (not suspended).
 - Overscroll resistance is **drag-only**.
 - Render emits `ChatFlingStart` / `ChatFlingEnd`; physics does not touch events.

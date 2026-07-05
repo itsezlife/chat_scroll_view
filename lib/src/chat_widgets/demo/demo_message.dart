@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:chatscrollview/src/chat_message.dart';
 import 'package:chatscrollview/src/chat_scroll/chat_scroll_common.dart';
+import 'package:chatscrollview/src/chat_scroll/chat_sender_run_layout.dart';
 import 'package:flutter/material.dart';
 
 /// Builds a demo message widget for the widget-based [ChatScrollView].
@@ -10,23 +11,28 @@ import 'package:flutter/material.dart';
 /// and a chat bubble once the message has been fetched. Every message shows
 /// its sender, time, and avatar.
 ///
-/// For run-grouped rendering (sender / avatar only on the first message of a
-/// run from a given user) build a closure that captures the data source and
-/// consults `getMessage(id - 1)` — see `widget_chat_screen.dart`.
+/// For run-grouped rendering (avatar / sender on the **last** message in a
+/// sender run within the day bucket) use [MessageRunLayout] from the viewport
+/// — see `widget_chat_screen.dart`.
 Widget buildDemoMessage(
   BuildContext context,
   int id,
   IChatMessage? message,
   ChatMessageStatus status,
+  MessageRunLayout runLayout,
 ) {
   if (message == null) return const DemoShimmerBubble();
-  return DemoMessageBubble(message: message);
+  return DemoMessageBubble(
+    message: message,
+    isLastInRun: runLayout.isLastInSenderRun,
+    isFirstInRun: runLayout.isFirstInSenderRun,
+  );
 }
 
 /// Max width of a message's content column (the column inside the viewport,
 /// not the bubble itself — the viewport hands each message the full viewport
 /// width, then we centre this column within it).
-/// 
+///
 /// It should be checked again available space, but for demo purposes just check
 /// the platform.
 final double _kContentMaxWidth = switch (Platform.operatingSystem) {
@@ -144,15 +150,15 @@ const Color _kShimmer = Color(0xFF2C2C2E);
 /// A single chat bubble — sender label (optional), content text, time, and
 /// (for outgoing) a delivery status icon.
 ///
-/// [isFirstInRun] — `true` when the previous message in the chat has a
-/// different sender (or there is no previous message). The first message in
-/// a run carries an avatar, a sender label, and a bubble "tail" pointing
-/// toward its column; subsequent messages omit the avatar / label, drop the
-/// tail, and indent to keep the run visually aligned.
+/// [isLastInRun] — when `true`, shows avatar, sender label, and bubble tail
+/// (Telegram-style — chrome on the last message in a bucket-scoped run).
+/// [isFirstInRun] — when `false`, tightens vertical padding for middle/last
+/// rows in a run.
 class DemoMessageBubble extends StatelessWidget {
   /// Renders [message] as an incoming or outgoing bubble row.
   const DemoMessageBubble({
     required this.message,
+    this.isLastInRun = true,
     this.isFirstInRun = true,
     super.key,
   });
@@ -160,8 +166,10 @@ class DemoMessageBubble extends StatelessWidget {
   /// Message to display — drives sender alignment and bubble styling.
   final IChatMessage message;
 
-  /// When `false`, omits avatar / sender label and tightens vertical padding
-  /// so consecutive messages from the same sender read as one run.
+  /// When `true`, shows avatar / sender / tail on incoming messages.
+  final bool isLastInRun;
+
+  /// When `false`, uses tighter top padding (not the first row in the run).
   final bool isFirstInRun;
 
   @override
@@ -177,7 +185,7 @@ class DemoMessageBubble extends StatelessWidget {
       content: content,
       createdAt: message.createdAt,
       isOutgoing: outgoing,
-      hasTail: isFirstInRun,
+      hasTail: isLastInRun,
     );
 
     final Widget row;
@@ -190,7 +198,7 @@ class DemoMessageBubble extends StatelessWidget {
       row = Row(
         crossAxisAlignment: CrossAxisAlignment.end,
         children: <Widget>[
-          if (isFirstInRun)
+          if (isLastInRun)
             _Avatar(sender: message.sender)
           else
             const SizedBox(width: _kAvatarSize),

@@ -3,6 +3,7 @@ import 'package:chatscrollview/src/chat_scroll/chat_data_source.dart';
 import 'package:chatscrollview/src/chat_scroll/chat_scroll_common.dart';
 import 'package:chatscrollview/src/chat_scroll/chat_scroll_controller.dart';
 import 'package:chatscrollview/src/chat_scroll/chat_selection_controller.dart';
+import 'package:chatscrollview/src/chat_scroll/chat_sender_run_layout.dart';
 import 'package:chatscrollview/src/chat_widgets/chat_scroll_view.dart';
 import 'package:chatscrollview/src/chat_widgets/demo/chat_composer.dart';
 import 'package:chatscrollview/src/chat_widgets/demo/date_separator.dart';
@@ -169,10 +170,11 @@ Widget _scaffoldWithTallPill({
                 cacheExtent: cacheExtent,
                 bottomPadding: bottomPadding,
                 highlightDuration: highlightDuration,
-                messageBuilder: (context, id, message, status) => SizedBox(
-                  height: messageHeight,
-                  child: Text(message == null ? 'shimmer-$id' : 'msg-$id'),
-                ),
+                messageBuilder: (context, id, message, status, runLayout) =>
+                    SizedBox(
+                      height: messageHeight,
+                      child: Text(message == null ? 'shimmer-$id' : 'msg-$id'),
+                    ),
                 loadingBuilder: (ctx) => const Center(child: Text('loading')),
               ),
               NewMessagesPill(
@@ -298,9 +300,10 @@ class _DemoPillScaffoldState extends State<_DemoPillScaffold> {
       int id,
       IChatMessage? message,
       ChatMessageStatus status,
+      MessageRunLayout runLayout,
     ) {
       if (widget.messageBuilder != null) {
-        return widget.messageBuilder!(context, id, message, status);
+        return widget.messageBuilder!(context, id, message, status, runLayout);
       }
       return SizedBox(
         height: widget.messageHeight,
@@ -313,13 +316,14 @@ class _DemoPillScaffoldState extends State<_DemoPillScaffold> {
       int id,
       IChatMessage? message,
       ChatMessageStatus status,
+      MessageRunLayout runLayout,
     ) {
       if (status.isAbsent) return const SizedBox.shrink();
       if (message == null) return const DemoShimmerBubble();
-      final prev = widget.dataSource.getMessage(id - 1);
       return DemoMessageBubble(
         message: message,
-        isFirstInRun: prev?.sender != message.sender,
+        isLastInRun: runLayout.isLastInSenderRun,
+        isFirstInRun: runLayout.isFirstInSenderRun,
       );
     }
 
@@ -485,8 +489,8 @@ void main() {
                     ChatScrollView(
                       dataSource: ds,
                       controller: controller,
-                      messageBuilder: (context, id, message, status) =>
-                          SizedBox(
+                      messageBuilder:
+                          (context, id, message, status, runLayout) => SizedBox(
                             height: 60,
                             child: Text(
                               message == null ? 'shimmer-$id' : 'msg-$id',
@@ -613,15 +617,16 @@ void main() {
                       ChatScrollView(
                         dataSource: ds,
                         controller: controller,
-                        messageBuilder: (context, id, message, status) {
-                          final height = id >= lastRead + 1 ? 800.0 : 60.0;
-                          return SizedBox(
-                            height: height,
-                            child: Text(
-                              message == null ? 'shimmer-$id' : 'msg-$id',
-                            ),
-                          );
-                        },
+                        messageBuilder:
+                            (context, id, message, status, runLayout) {
+                              final height = id >= lastRead + 1 ? 800.0 : 60.0;
+                              return SizedBox(
+                                height: height,
+                                child: Text(
+                                  message == null ? 'shimmer-$id' : 'msg-$id',
+                                ),
+                              );
+                            },
                       ),
                       NewMessagesPill(
                         controller: controller,
@@ -678,15 +683,16 @@ void main() {
                         reverse: true,
                         dataSource: ds,
                         controller: controller,
-                        messageBuilder: (context, id, message, status) {
-                          final height = id >= lastRead + 1 ? 1200.0 : 60.0;
-                          return SizedBox(
-                            height: height,
-                            child: Text(
-                              message == null ? 'shimmer-$id' : 'msg-$id',
-                            ),
-                          );
-                        },
+                        messageBuilder:
+                            (context, id, message, status, runLayout) {
+                              final height = id >= lastRead + 1 ? 1200.0 : 60.0;
+                              return SizedBox(
+                                height: height,
+                                child: Text(
+                                  message == null ? 'shimmer-$id' : 'msg-$id',
+                                ),
+                              );
+                            },
                       ),
                       NewMessagesPill(
                         controller: controller,
@@ -775,7 +781,10 @@ void main() {
         final range = controller.visibleRange.value;
         expect(range, isNotNull);
         expect(range!.anchorNextRow?.id, lastRead + 1);
-        expect(range.anchorNextRow!.visibleFraction, greaterThanOrEqualTo(0.75));
+        expect(
+          range.anchorNextRow!.visibleFraction,
+          greaterThanOrEqualTo(0.75),
+        );
         expect(range.lastRow.id, newest);
         expect(lastSeen.value, newest);
         expect(_pillText(tester), '0 new messages');
@@ -805,7 +814,7 @@ void main() {
             controller: controller,
             lastSeenNewestId: lastSeen,
             bottomInset: bottomInset,
-            messageBuilder: (context, id, message, status) {
+            messageBuilder: (context, id, message, status, runLayout) {
               final height = id >= lastRead + 1 ? 400.0 : 60.0;
               return SizedBox(
                 height: height,
@@ -842,7 +851,7 @@ void main() {
             controller: controller,
             lastSeenNewestId: lastSeen,
             bottomInset: bottomInset,
-            messageBuilder: (context, id, message, status) {
+            messageBuilder: (context, id, message, status, runLayout) {
               final height = id >= lastRead + 1 ? 900.0 : 60.0;
               return SizedBox(
                 height: height,
@@ -914,7 +923,7 @@ void main() {
             controller: controller,
             lastSeenNewestId: lastSeen,
             bottomInset: bottomInset,
-            messageBuilder: (context, id, message, status) {
+            messageBuilder: (context, id, message, status, runLayout) {
               final height = switch (id) {
                 final n when n == lastRead + 1 => 80.0,
                 final n when n >= lastRead + 2 => 520.0,
@@ -970,7 +979,7 @@ void main() {
             controller: controller,
             lastSeenNewestId: lastSeen,
             bottomInset: bottomInset,
-            messageBuilder: (context, id, message, status) {
+            messageBuilder: (context, id, message, status, runLayout) {
               late final double height;
               if (id >= lastRead + 1) {
                 height = mediumUnreadHeight;
@@ -1030,7 +1039,7 @@ void main() {
             controller: controller,
             lastSeenNewestId: lastSeen,
             bottomInset: bottomInset,
-            messageBuilder: (context, id, message, status) {
+            messageBuilder: (context, id, message, status, runLayout) {
               late final double height;
               if (id == lastRead) {
                 height = lastReadHeight;
@@ -1093,7 +1102,7 @@ void main() {
             controller: controller,
             lastSeenNewestId: lastSeen,
             bottomInset: bottomInset,
-            messageBuilder: (context, id, message, status) {
+            messageBuilder: (context, id, message, status, runLayout) {
               late final double height;
               if (id > lastRead) {
                 height = 60.0;
@@ -1257,15 +1266,16 @@ void main() {
                       ChatScrollView(
                         dataSource: ds,
                         controller: controller,
-                        messageBuilder: (context, id, message, status) {
-                          final height = id >= lastRead + 1 ? 800.0 : 60.0;
-                          return SizedBox(
-                            height: height,
-                            child: Text(
-                              message == null ? 'shimmer-$id' : 'msg-$id',
-                            ),
-                          );
-                        },
+                        messageBuilder:
+                            (context, id, message, status, runLayout) {
+                              final height = id >= lastRead + 1 ? 800.0 : 60.0;
+                              return SizedBox(
+                                height: height,
+                                child: Text(
+                                  message == null ? 'shimmer-$id' : 'msg-$id',
+                                ),
+                              );
+                            },
                       ),
                       NewMessagesPill(
                         controller: controller,
@@ -1323,13 +1333,14 @@ void main() {
                       ChatScrollView(
                         dataSource: ds,
                         controller: controller,
-                        messageBuilder: (context, id, message, status) =>
-                            SizedBox(
-                              height: 800,
-                              child: Text(
-                                message == null ? 'shimmer-$id' : 'msg-$id',
-                              ),
-                            ),
+                        messageBuilder:
+                            (context, id, message, status, runLayout) =>
+                                SizedBox(
+                                  height: 800,
+                                  child: Text(
+                                    message == null ? 'shimmer-$id' : 'msg-$id',
+                                  ),
+                                ),
                       ),
                       NewMessagesPill(
                         controller: controller,
@@ -1385,8 +1396,8 @@ void main() {
                       reverse: true,
                       dataSource: ds,
                       controller: controller,
-                      messageBuilder: (context, id, message, status) =>
-                          SizedBox(
+                      messageBuilder:
+                          (context, id, message, status, runLayout) => SizedBox(
                             height: 350,
                             child: Text(
                               message == null ? 'shimmer-$id' : 'msg-$id',

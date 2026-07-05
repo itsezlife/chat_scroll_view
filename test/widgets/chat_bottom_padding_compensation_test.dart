@@ -58,7 +58,7 @@ Widget _harness({
           dataSource: dataSource,
           controller: controller,
           bottomPadding: bottomPadding,
-          messageBuilder: (context, id, message, status) => SizedBox(
+          messageBuilder: (context, id, message, status, runLayout) => SizedBox(
             height: _messageHeight,
             child: Text(message == null ? 'shimmer-$id' : 'msg-$id'),
           ),

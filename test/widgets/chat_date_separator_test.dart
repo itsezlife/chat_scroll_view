@@ -50,6 +50,7 @@ Widget _harness({
   required ChatDataSource dataSource,
   required ChatScrollController controller,
   bool separators = true,
+  bool reverse = false,
 }) => MaterialApp(
   home: Scaffold(
     body: Center(
@@ -59,7 +60,8 @@ Widget _harness({
         child: ChatScrollView(
           dataSource: dataSource,
           controller: controller,
-          messageBuilder: (context, id, message, status) =>
+          reverse: reverse,
+          messageBuilder: (context, id, message, status, runLayout) =>
               SizedBox(height: 60, child: Text('msg-$id')),
           dateSeparatorBuilder: separators
               ? (context, bucket, date) => SizedBox(
@@ -141,6 +143,44 @@ void main() {
       controller.jumpTo(80); // 80 ~/ 8 == 10 -> 2026-01-11
       await tester.pump();
       expect(ro.debugHeaderDate!.day, 11);
+    });
+
+    testWidgets('short content hides the floating header in reverse mode', (
+      tester,
+    ) async {
+      const count = 3;
+      final controller = ChatScrollController()..jumpTo(count - 1);
+      await tester.pumpWidget(
+        _harness(
+          dataSource: _PreloadedDataSource(_generate(count)),
+          controller: controller,
+          reverse: true,
+        ),
+      );
+      await tester.pump();
+      expect(_render(tester).debugHasFloatingHeader, isFalse);
+    });
+
+    testWidgets('top overscroll hides the floating header', (tester) async {
+      const count = 256;
+      final controller = ChatScrollController()..jumpTo(0);
+      await tester.pumpWidget(
+        _harness(
+          dataSource: _PreloadedDataSource(_generate(count)),
+          controller: controller,
+        ),
+      );
+      await tester.pump();
+      final ro = _render(tester);
+      expect(ro.debugFloatingHeaderVisible, isTrue);
+
+      final gesture = await tester.startGesture(
+        tester.getCenter(find.byType(ChatScrollView)),
+      );
+      await gesture.moveBy(const Offset(0, 120));
+      await tester.pump();
+      expect(ro.debugFloatingHeaderVisible, isFalse);
+      await gesture.up();
     });
 
     testWidgets('the inline date separator fades out as it nears the top', (
@@ -250,13 +290,12 @@ void main() {
                 child: ChatScrollView(
                   dataSource: _PreloadedDataSource(messages),
                   controller: controller,
-                  groupBy: (message) => message.id < 12 ? 'morning' : 'afternoon',
-                  messageBuilder: (context, id, message, status) =>
+                  groupBy: (message) =>
+                      message.id < 12 ? 'morning' : 'afternoon',
+                  messageBuilder: (context, id, message, status, runLayout) =>
                       SizedBox(height: 60, child: Text('msg-$id')),
-                  dateSeparatorBuilder: (context, bucket, date) => SizedBox(
-                    height: 24,
-                    child: Text('grp-$bucket'),
-                  ),
+                  dateSeparatorBuilder: (context, bucket, date) =>
+                      SizedBox(height: 24, child: Text('grp-$bucket')),
                 ),
               ),
             ),
@@ -295,14 +334,15 @@ void main() {
                 child: ChatScrollView(
                   dataSource: _PreloadedDataSource(_generate(count)),
                   controller: controller,
-                  messageBuilder: (context, id, message, status) => SizedBox(
-                    height: 60,
-                    child: GestureDetector(
-                      behavior: HitTestBehavior.opaque,
-                      onTap: () => messageTaps++,
-                      child: Text('msg-$id'),
-                    ),
-                  ),
+                  messageBuilder: (context, id, message, status, runLayout) =>
+                      SizedBox(
+                        height: 60,
+                        child: GestureDetector(
+                          behavior: HitTestBehavior.opaque,
+                          onTap: () => messageTaps++,
+                          child: Text('msg-$id'),
+                        ),
+                      ),
                   dateSeparatorBuilder: (context, bucket, date) => SizedBox(
                     height: 24,
                     child: GestureDetector(

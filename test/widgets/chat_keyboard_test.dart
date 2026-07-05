@@ -57,10 +57,11 @@ Widget _scaffold({
             dataSource: dataSource,
             controller: controller,
             cacheExtent: 1000,
-            messageBuilder: (context, id, message, status) => SizedBox(
-              height: 60,
-              child: Text(message == null ? 'shimmer-$id' : 'msg-$id'),
-            ),
+            messageBuilder: (context, id, message, status, runLayout) =>
+                SizedBox(
+                  height: 60,
+                  child: Text(message == null ? 'shimmer-$id' : 'msg-$id'),
+                ),
           ),
         ),
       ),
@@ -170,8 +171,8 @@ void main() {
                       dataSource: ds,
                       controller: controller,
                       cacheExtent: 1000,
-                      messageBuilder: (context, id, message, status) =>
-                          SizedBox(
+                      messageBuilder:
+                          (context, id, message, status, runLayout) => SizedBox(
                             height: 60,
                             child: Text(
                               message == null ? 'shimmer-$id' : 'msg-$id',
@@ -419,13 +420,14 @@ void main() {
                         controller: controller,
                         dataSource: ds,
                         cacheExtent: 1000,
-                        messageBuilder: (context, id, message, status) =>
-                            SizedBox(
-                              height: 60,
-                              child: Text(
-                                message == null ? 'shimmer-$id' : 'msg-$id',
-                              ),
-                            ),
+                        messageBuilder:
+                            (context, id, message, status, runLayout) =>
+                                SizedBox(
+                                  height: 60,
+                                  child: Text(
+                                    message == null ? 'shimmer-$id' : 'msg-$id',
+                                  ),
+                                ),
                       ),
                     ),
                   ),
@@ -472,8 +474,8 @@ void main() {
                       controller: controller,
                       dataSource: ds,
                       cacheExtent: 1000,
-                      messageBuilder: (context, id, message, status) =>
-                          SizedBox(
+                      messageBuilder:
+                          (context, id, message, status, runLayout) => SizedBox(
                             height: 60,
                             child: Text(
                               message == null ? 'shimmer-$id' : 'msg-$id',

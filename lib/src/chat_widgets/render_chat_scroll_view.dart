@@ -1,17 +1,20 @@
 // ignore_for_file: prefer_asserts_with_message
 
 import 'dart:collection';
+import 'dart:math' as math;
 
 import 'package:chatscrollview/src/chat_scroll/chat_animator.dart';
 import 'package:chatscrollview/src/chat_scroll/chat_chunk_fetch_scheduler.dart';
 import 'package:chatscrollview/src/chat_scroll/chat_data_source.dart';
 import 'package:chatscrollview/src/chat_scroll/chat_floating_header_controller.dart';
+import 'package:chatscrollview/src/chat_scroll/chat_mutations.dart';
 import 'package:chatscrollview/src/chat_scroll/chat_scroll_chunk.dart';
 import 'package:chatscrollview/src/chat_scroll/chat_scroll_common.dart';
 import 'package:chatscrollview/src/chat_scroll/chat_scroll_controller.dart';
 import 'package:chatscrollview/src/chat_scroll/chat_scroll_dev_log.dart';
 import 'package:chatscrollview/src/chat_scroll/chat_scroll_events.dart';
 import 'package:chatscrollview/src/chat_scroll/chat_scroll_physics.dart';
+import 'package:chatscrollview/src/chat_scroll/chat_sender_run_layout.dart';
 import 'package:chatscrollview/src/chat_widgets/chat_data_source_ext.dart';
 import 'package:chatscrollview/src/chat_widgets/chat_scroll_element.dart';
 import 'package:chatscrollview/src/chat_widgets/chat_scrollbar.dart';
@@ -73,12 +76,14 @@ abstract interface class ChatChildManager {
   /// Inflate or update the widget for message [id]; returns its render box.
   /// [startsNewDay] asks the element to prepend an inline group separator.
   /// [groupBucket] is the `groupBy` key when [startsNewDay] is true.
+  /// [runLayout] is bucket-scoped sender-run position for skip-rebuild cache.
   ///
   /// Must only be called from within [invokeLayoutCallback]. Calling
   /// from any other context will assert in debug mode.
   RenderBox? buildChild(
     int id, {
     required bool startsNewDay,
+    required MessageRunLayout runLayout,
     Object? groupBucket,
   });
 
@@ -161,7 +166,8 @@ class RenderChatScrollView extends RenderBox {
     _animator = ChatAnimator(
       controller: _controller,
       offsetToBuiltMessage: _offsetToBuiltMessage,
-      alignedTopForMessage: _alignedTopForMessage,
+      closePathEndOffsetFor: _closePathEndOffsetFor,
+      isTailClosePathTarget: _isTailClosePathTarget,
       childForId: (id) => _children[id],
       offsetOfChild: (child) => _parentData(child).offset,
       heightOfChild: (child) => child.size.height,
@@ -183,7 +189,7 @@ class RenderChatScrollView extends RenderBox {
   /// Chunk-load / anchor-persistence diagnostics — filter `ChatScrollFetchAnchor`.
   final ChatScrollDevLog _fetchAnchorLog = ChatScrollDevLog(
     'ChatScrollFetchAnchor',
-    enabled: false,
+    enabled: true,
   );
 
   /// Scrollbar thumb / id-linear progress diagnostics — filter
@@ -191,7 +197,7 @@ class RenderChatScrollView extends RenderBox {
   /// investigating thumb jumps, stale position, or height-change drift.
   final ChatScrollDevLog _scrollbarLog = ChatScrollDevLog(
     'ChatScrollScrollbar',
-    enabled: true,
+    enabled: false,
   );
 
   int? _scrollbarLogLastAnchorId;
@@ -204,6 +210,27 @@ class RenderChatScrollView extends RenderBox {
   double? _fetchLogAnchorYAtLayoutStart;
   int? _fetchLogBandIdAtLayoutStart;
   double? _fetchLogBandBottomAtLayoutStart;
+
+  /// Layout geometry captured before absent-anchor reassignment on delete.
+  /// Consumed by [_preserveViewportAfterDelete].
+  _BeforeDeleteLayoutSnapshot? _beforeDeleteLayout;
+
+  /// True after [_preserveViewportAfterDelete] runs this layout pass.
+  bool _deleteCollapseViewportPreservedThisLayout = false;
+
+  /// Gates renormalize and tail pin until end of delete-recovery layout pass.
+  bool _deleteCollapseRecoveryActive = false;
+
+  /// [_BeforeDeleteLayoutSnapshot.wasAtTailBefore] for the active recovery pass.
+  bool _deleteCollapseWasAtTailBefore = false;
+
+  /// [_BeforeDeleteLayoutSnapshot.userPreemptedTailBefore] for the active recovery pass.
+  bool _deleteCollapseUserPreemptedTailBefore = false;
+
+  /// Band gap to match after delete; set when scroll was adjusted.
+  double? _deleteCollapseExpectedBandGap;
+
+  static const double _deleteCollapseEpsilon = 0.5;
 
   /// Set by `ChatScrollElement` in `mount`. Drives lazy child inflation.
   ChatChildManager? childManager;
@@ -227,7 +254,8 @@ class RenderChatScrollView extends RenderBox {
     if (attached) {
       _dataSource
         ..removeDataListener(_onDataChanged)
-        ..removeBoundaryListener(_onBoundaryChanged);
+        ..removeBoundaryListener(_onBoundaryChanged)
+        ..removeMutationListener(_onMutation);
     }
     // Don't cancel the OLD source's in-flight fetch — the consumer may be
     // sharing it with another viewport (split-pane chat, brief route-
@@ -252,7 +280,8 @@ class RenderChatScrollView extends RenderBox {
     if (attached) {
       _dataSource
         ..addDataListener(_onDataChanged)
-        ..addBoundaryListener(_onBoundaryChanged);
+        ..addBoundaryListener(_onBoundaryChanged)
+        ..addMutationListener(_onMutation);
       _publishBoundaries();
     }
     markNeedsLayout();
@@ -667,6 +696,11 @@ class RenderChatScrollView extends RenderBox {
   /// Whether a floating day header render box is currently attached.
   bool get debugHasFloatingHeader => _floatingHeader != null;
 
+  /// Whether the floating header would be painted this frame (suppressed above
+  /// the oldest boundary during short content or top overscroll).
+  bool get debugFloatingHeaderVisible =>
+      _floatingHeader != null && _shouldShowFloatingHeader();
+
   /// Viewport-local Y of the floating header's top edge, if built.
   double? get debugFloatingHeaderOffset =>
       _floatingHeader == null ? null : _parentData(_floatingHeader!).offset;
@@ -881,7 +915,8 @@ class RenderChatScrollView extends RenderBox {
     _ticker = Ticker(_onTick)..muted = !_ticking;
     _dataSource
       ..addDataListener(_onDataChanged)
-      ..addBoundaryListener(_onBoundaryChanged);
+      ..addBoundaryListener(_onBoundaryChanged)
+      ..addMutationListener(_onMutation);
     _controller
       ..addJumpListener(_onJump)
       ..addScrollByListener(_onScrollBy)
@@ -946,6 +981,7 @@ class RenderChatScrollView extends RenderBox {
     _dataSource
       ..removeDataListener(_onDataChanged)
       ..removeBoundaryListener(_onBoundaryChanged)
+      ..removeMutationListener(_onMutation)
       ..cancelFetch();
     _controller
       ..removeJumpListener(_onJump)
@@ -1008,6 +1044,10 @@ class RenderChatScrollView extends RenderBox {
     });
     markNeedsLayout();
   }
+
+  /// Mutation intent stub — extent animation follow-on will consume
+  /// [ChatMutation] subtypes here (insert/update batch, remove batch).
+  void _onMutation(ChatMutation mutation) {}
 
   void _onBottomPaddingChanged() {
     _bottomPaddingDirty = true;
@@ -1147,6 +1187,33 @@ class RenderChatScrollView extends RenderBox {
     final travel = bottomEdge - topEdge - messageHeight;
     if (travel <= 0) return topEdge;
     return topEdge + alignment.clamp(0.0, 1.0) * travel;
+  }
+
+  /// Whether close-path [ChatScrollController.animateTo] should end at tail-pin
+  /// geometry (`newest.bottom == bottomEdge`) rather than band alignment.
+  bool _isTailClosePathTarget(int targetId) {
+    final newest = _dataSource.newestKnownId;
+    return _dataSource.reachedNewest && newest != null && targetId == newest;
+  }
+
+  /// Anchor top offset so [messageHeight] row's bottom sits on the bottom inset
+  /// line — same geometry [pinNewest] applies in layout.
+  double _tailPinnedTopForMessage(double messageHeight) {
+    final bottomEdge = size.height - _bottomPad;
+    return bottomEdge - messageHeight;
+  }
+
+  /// Close-path animate endpoint: tail pin for known-newest target, else
+  /// [_alignedTopForMessage].
+  double _closePathEndOffsetFor(
+    int targetId,
+    double messageHeight,
+    double alignment,
+  ) {
+    if (_isTailClosePathTarget(targetId)) {
+      return _tailPinnedTopForMessage(messageHeight);
+    }
+    return _alignedTopForMessage(messageHeight, alignment);
   }
 
   /// Apply a pending [ChatScrollController.navigationAlignment] after the
@@ -1348,13 +1415,31 @@ class RenderChatScrollView extends RenderBox {
 
     _normalizeAnchorToKnownTail();
 
+    // Delete recovery (absent anchor delete):
+    //   record geometry → reassign neighbor → purge tombstones → fan-out →
+    //   preserve viewport → [optional refan if band null] → skip renormalize →
+    //   match band gap (pre-clamp) → clamp → [refan] → match band gap (post-clamp, 1 pass).
+    _recordLayoutBeforeDelete();
+    _reassignAnchorIfAbsent();
+    _purgeAbsentBuiltChildren();
+
     final built = <int>{};
     final builtChunks = <int>{};
     _layoutFromAnchor(childConstraints, built, builtChunks);
 
+    _preserveViewportAfterDelete();
+    // Primary scroll shift is done; refan only when no band row exists yet
+    // (mid-scroll off-screen — successor not intersecting the scroll band).
+    if (_deleteCollapseRecoveryActive && _bottomBandMessage() == null) {
+      built.clear();
+      builtChunks.clear();
+      _layoutFromAnchor(childConstraints, built, builtChunks);
+    }
+
     final anchorBefore = _controller.anchorMessageId;
     final anchorYBefore = _controller.anchorPixelOffset;
-    if (!_skipRenormalizeDuringClosePath()) {
+    if (!_skipRenormalizeDuringClosePath() &&
+        !_skipRenormalizeDuringDeleteRecovery()) {
       _renormalizeAnchor();
     }
     final anchorAfterRenorm = _controller.anchorMessageId;
@@ -1395,6 +1480,11 @@ class RenderChatScrollView extends RenderBox {
       });
     }
     _pinTailOnJump = false;
+    // Fine-tune band gap before clamp — up to 3 passes; clamp may shift geometry.
+    if (_deleteCollapseRecoveryActive &&
+        _deleteCollapseExpectedBandGap != null) {
+      _matchExpectedBandGap();
+    }
     final clamped = _clampBoundaries(repinBottom: repinBottom);
     if (clamped) _cancelFling();
 
@@ -1414,6 +1504,12 @@ class RenderChatScrollView extends RenderBox {
       built.clear();
       builtChunks.clear();
       _layoutFromAnchor(childConstraints, built, builtChunks);
+    }
+
+    // One corrective pass after clamp/refan — avoid fighting pin logic in a loop.
+    if (_deleteCollapseRecoveryActive &&
+        _deleteCollapseExpectedBandGap != null) {
+      _matchExpectedBandGap(maxPasses: 1);
     }
 
     // Garbage-collect children outside the build range. Messages and chunk-
@@ -1513,6 +1609,13 @@ class RenderChatScrollView extends RenderBox {
             alignmentMoved,
       });
     }
+    _deleteCollapseViewportPreservedThisLayout = false;
+    _deleteCollapseRecoveryActive = false;
+    _deleteCollapseWasAtTailBefore = false;
+    _deleteCollapseUserPreemptedTailBefore = false;
+    _deleteCollapseExpectedBandGap = null;
+    _beforeDeleteLayout = null;
+
     _fetchAnchorEvent('layout.end', _fetchAnchorSnapshot());
     if (_scrollbarLog.enabled) {
       final computed = _computeScrollbarProgress();
@@ -1614,6 +1717,340 @@ class RenderChatScrollView extends RenderBox {
   int? get _fanOutOldestBound =>
       _dataSource.reachedOldest ? _dataSource.oldestKnownId : 0;
 
+  /// Records band / anchor geometry before absent-anchor reassignment.
+  ///
+  /// When [ChatScrollController.anchorMessageId] is confirmed-absent (e.g.
+  /// deleted while scrolled to that row), reassign to a present neighbor before
+  /// fan-out so `_buildMessage(anchorId)` never targets a tombstone slot.
+  ///
+  /// Tail delete prefers [ChatDataSource.getPreviousPresentMessage]; reading
+  /// history prefers [ChatDataSource.getNextPresentMessage]. Preserves
+  /// [ChatScrollController.anchorPixelOffset] for the handoff; scroll adjustment
+  /// in [_preserveViewportAfterDelete] keeps the visible band stable — not
+  /// [_renormalizeAnchor].
+  void _recordLayoutBeforeDelete() {
+    final anchorId = _controller.anchorMessageId;
+    if (!_dataSource.statusOf(anchorId).isAbsent) return;
+
+    final resolved = _resolveAnchorBox();
+    final staleBox = _children[anchorId];
+    final deletedHeight = resolved != null && resolved.box.hasSize
+        ? resolved.box.size.height
+        : (staleBox != null && staleBox.hasSize ? staleBox.size.height : null);
+    final band = _bottomBandMessage();
+    _beforeDeleteLayout = _BeforeDeleteLayoutSnapshot(
+      deletedId: anchorId,
+      deletedHeight: deletedHeight,
+      anchorYBefore: _controller.anchorPixelOffset,
+      bandIdBefore: band?.id,
+      bandBottomBefore: band?.bottom,
+      bandGapBefore: band?.gapToBottomEdge,
+      bottomEdgeBefore: size.height - _bottomPad,
+      userPreemptedTailBefore: _userPreemptedTailSettle,
+      wasAtTailBefore: _computeIsAtTail(),
+    );
+  }
+
+  /// Keeps the viewport reading position stable when the layout anchor row
+  /// disappears.
+  ///
+  /// Called once per delete layout pass, after [_reassignAnchorIfAbsent] and the
+  /// first [_layoutFromAnchor]. Does **not** refan — only shifts
+  /// [ChatScrollController.anchorPixelOffset] and repositions existing children.
+  ///
+  /// See [_scrollDeltaForDelete] for the delta decision tree; see
+  /// [_matchExpectedBandGap] for post-clamp gap correction.
+  void _preserveViewportAfterDelete() {
+    final before = _beforeDeleteLayout;
+    if (before == null) return;
+    _beforeDeleteLayout = null;
+
+    const eps = _deleteCollapseEpsilon;
+    final bottomEdge = size.height - _bottomPad;
+    final bandAfterLayout = _bottomBandMessage();
+    final resolvedAnchor = _resolveAnchorBox();
+    final anchorHeightAfter = resolvedAnchor?.box.size.height ?? 0.0;
+
+    final scrollDelta = _scrollDeltaForDelete(
+      before: before,
+      bottomEdge: bottomEdge,
+      bandAfterLayout: bandAfterLayout,
+      anchorHeightAfter: anchorHeightAfter,
+    );
+
+    final applied = scrollDelta.abs() > eps;
+    if (applied) {
+      _shiftLayoutByScrollDelta(
+        scrollDelta,
+        expectedBandBottom: before.bandBottomBefore,
+      );
+    }
+
+    _deleteCollapseViewportPreservedThisLayout = true;
+    _deleteCollapseRecoveryActive = true;
+    _deleteCollapseWasAtTailBefore = before.wasAtTailBefore;
+    _deleteCollapseUserPreemptedTailBefore = before.userPreemptedTailBefore;
+    if (applied) {
+      _deleteCollapseExpectedBandGap = before.bandGapBefore;
+    }
+
+    final bandAfter = _bottomBandMessage();
+    _fetchAnchorEvent('layout.deleteCollapse', {
+      ..._fetchAnchorSnapshot(),
+      'deletedId': before.deletedId,
+      'deletedHeight': before.deletedHeight == null
+          ? null
+          : DevLogFormat.f(before.deletedHeight!),
+      'anchorYBefore': DevLogFormat.f(before.anchorYBefore),
+      'scrollDelta': DevLogFormat.f(scrollDelta),
+      'anchorHeightAfter': DevLogFormat.f(anchorHeightAfter),
+      'bandIdBefore': before.bandIdBefore,
+      'bandBottomBefore': before.bandBottomBefore == null
+          ? null
+          : DevLogFormat.f(before.bandBottomBefore!),
+      'bandBottomAfterPre': bandAfterLayout == null
+          ? null
+          : DevLogFormat.f(bandAfterLayout.bottom),
+      'bandBottomAfter': bandAfter == null
+          ? null
+          : DevLogFormat.f(bandAfter.bottom),
+      'bottomEdge': DevLogFormat.f(bottomEdge),
+      'userPreemptedTailBefore': before.userPreemptedTailBefore,
+      'pinNewestSuppressed':
+          before.userPreemptedTailBefore && _deleteCollapseRecoveryActive,
+      'isAtTailAfter': _computeIsAtTail(),
+      'refan': false,
+    });
+  }
+
+  /// How much to shift [ChatScrollController.anchorPixelOffset] after delete.
+  ///
+  /// Called after pass-1 fan-out with the **neighbor** as anchor. Goal: keep the
+  /// user's reading position — measured by [_bottomBandMessage] bottom relative
+  /// to [bottomEdge] — stable when the deleted row collapses to zero height.
+  ///
+  /// Positive delta moves content down (same sign as
+  /// [ChatScrollController.applyScrollDelta]).
+  ///
+  /// ## Inputs (all from pre-delete snapshot + post fan-out geometry)
+  ///
+  /// - [before.anchorYBefore] — deleted row top before reassignment; `≈ 0` means
+  ///   the user was at the **top** of the tall message (zero scroll delta for
+  ///   very tall rows).
+  /// - [before.bandIdBefore] / [before.bandBottomBefore] — which built row's
+  ///   bottom was closest to the composer inset before delete.
+  /// - [bandAfterLayout] — same probe **after** neighbor reassignment + fan-out,
+  ///   before any scroll shift (often a different id / much higher bottom).
+  /// - [anchorHeightAfter] — laid-out height of the **new** anchor (successor);
+  ///   used to compute collapsed extent when band bottom cannot be measured.
+  ///
+  /// ## Decision tree (first matching branch wins)
+  ///
+  /// 1. Top-anchored delete — preserve absent-anchor handoff or medium-tall band fix.
+  /// 2. Deleted row **was** the band — restore band bottom or shift by collapsed height.
+  /// 3. Another row was the band — band-bottom delta only.
+  /// 4. No measurable band — shift by at most the portion of deleted height that
+  ///    lived above the viewport top.
+  double _scrollDeltaForDelete({
+    required _BeforeDeleteLayoutSnapshot before,
+    required double bottomEdge,
+    required ({int id, double top, double bottom, double gapToBottomEdge})?
+    bandAfterLayout,
+    required double anchorHeightAfter,
+  }) {
+    const eps = _deleteCollapseEpsilon;
+    final viewportHeight = bottomEdge;
+
+    // ── Branch 1: top-anchored delete (deleted top on or above viewport top) ──
+    //
+    // User sees the start of the deleted message. Absent-anchor reassignment
+    // already hands off to the neighbor at the same anchorY; for very tall rows
+    // (≥ 2× viewport) that handoff is correct — scroll delta must stay 0
+    // (next message top stays at former deleted top).
+    if (before.anchorYBefore >= -eps) {
+      final keepZeroAnchorOffset =
+          before.deletedHeight != null &&
+          before.deletedHeight! >= 2 * viewportHeight;
+      // Medium-tall exception (~1.0–1.5× viewport): anchorY stays 0 but the
+      // visible band was the deleted row's bottom — without a shift the band
+      // jumps silently. Measure band-bottom delta instead.
+      if (!keepZeroAnchorOffset &&
+          before.bandIdBefore == before.deletedId &&
+          bandAfterLayout != null &&
+          before.bandBottomBefore != null) {
+        return before.bandBottomBefore! - bandAfterLayout.bottom;
+      }
+      return 0;
+    }
+
+    // ── Branch 2: deleted row was the visible band ──
+    //
+    // bandIdBefore == deletedId  →  the message whose bottom was nearest the
+    // composer is the one being removed. After collapse the successor becomes
+    // anchor; band bottom drops by roughly (deletedHeight - anchorHeightAfter).
+    if (before.bandIdBefore == before.deletedId &&
+        before.deletedHeight != null &&
+        anchorHeightAfter > 0) {
+      // bandBottomBefore > bottomEdge  →  user was reading the lower interior
+      // of a tall message whose bottom extended past the scroll band.
+      final bandExtendsBelowEdge =
+          before.bandBottomBefore != null &&
+          before.bandBottomBefore! > bottomEdge + eps;
+      if (bandExtendsBelowEdge) {
+        // Prefer direct band-bottom measurement when fan-out produced a band row.
+        if (bandAfterLayout != null && before.bandBottomBefore != null) {
+          return before.bandBottomBefore! - bandAfterLayout.bottom;
+        }
+        // Analytic fallback: shift by how much vertical extent disappeared
+        // (full deleted height minus the short successor now at anchor).
+        return before.deletedHeight! - anchorHeightAfter;
+      }
+      // Band bottom was on-screen (mid-scroll interior): same band-bottom delta.
+      if (bandAfterLayout != null && before.bandBottomBefore != null) {
+        return before.bandBottomBefore! - bandAfterLayout.bottom;
+      }
+      return before.deletedHeight! - anchorHeightAfter;
+    }
+
+    // ── Branch 3: band was a different row (e.g. message below the anchor) ──
+    //
+    // Deleting the anchor shrinks the stack above the band row; band bottom
+    // moves up by the collapsed height. Restoring bandBottomBefore fixes it.
+    if (bandAfterLayout != null && before.bandBottomBefore != null) {
+      return before.bandBottomBefore! - bandAfterLayout.bottom;
+    }
+
+    // ── Branch 4: no band probe — conservative height-based shift ──
+    //
+    // aboveViewport = portion of deleted row that lived above y=0 (scrolled
+    // off the top). Cannot shift more than deletedHeight — only removes extent
+    // that could have affected what is visible.
+    if (before.deletedHeight != null) {
+      final aboveViewport = math.max<double>(0, -before.anchorYBefore);
+      return math.min(before.deletedHeight!, aboveViewport);
+    }
+
+    return 0;
+  }
+
+  /// Applies [delta] to the anchor offset and repositions children in place.
+  ///
+  /// When [expectedBandBottom] is set, performs one small follow-up shift if the
+  /// measured band bottom is still off by at most 200 logical px.
+  void _shiftLayoutByScrollDelta(double delta, {double? expectedBandBottom}) {
+    const eps = _deleteCollapseEpsilon;
+    _controller.applyScrollDelta(delta);
+    _repositionFromAnchor();
+    if (expectedBandBottom == null) return;
+    final band = _bottomBandMessage();
+    if (band == null) return;
+    final followUp = expectedBandBottom - band.bottom;
+    if (followUp.abs() <= eps || followUp.abs() > 200) return;
+    _controller.applyScrollDelta(followUp);
+    _repositionFromAnchor();
+  }
+
+  bool _skipRenormalizeDuringDeleteRecovery() =>
+      _deleteCollapseViewportPreservedThisLayout ||
+      _deleteCollapseRecoveryActive;
+
+  /// Fine-tunes scroll so the visible band gap matches [_deleteCollapseExpectedBandGap].
+  ///
+  /// [_preserveViewportAfterDelete] applies the primary [scrollDelta]; this method
+  /// closes residual error when later layout steps (especially
+  /// [_clampBoundaries] `pinNewest` / `pinOldest`) nudge geometry again.
+  ///
+  /// **Gap** = [_bottomBandMessage].gapToBottomEdge — distance from the band
+  /// row's bottom to the scroll band bottom (`height - bottomPad`). The expected
+  /// value was captured before delete in [_recordLayoutBeforeDelete].
+  ///
+  /// ## [maxPasses]
+  ///
+  /// Maximum correction iterations **per call**. Each pass: measure band → compute
+  /// [gapCorrection] → [ChatScrollController.applyScrollDelta] →
+  /// [_repositionFromAnchor]. Multiple passes can be needed because each nudge may
+  /// change which row [_bottomBandMessage] picks as the band.
+  ///
+  /// [performLayout] calls this twice during delete recovery:
+  ///
+  /// - **Before clamp** — default [maxPasses] = 3: converge before pins run.
+  /// - **After clamp** (and optional refan) — [maxPasses] = 1: single nudge only;
+  ///   clamp already moved geometry and further loops would fight pin logic.
+  ///
+  /// ## [tolerance] (8 logical px)
+  ///
+  /// Stop when `|currentGap - expectedGap| ≤ tolerance`. This is the viewport
+  /// stability bar for delete recovery (same threshold as widget tests), not the
+  /// machine epsilon [_deleteCollapseEpsilon].
+  ///
+  /// ## Early exits inside the loop
+  ///
+  /// - No band row to measure.
+  /// - [gapCorrection] ≤ [_deleteCollapseEpsilon] — already negligible.
+  /// - [gapCorrection] > 200 — too large for a fine-tune nudge.
+  /// - [gapCorrection] > 0 and correction would push the entire band row off-screen
+  ///   (short successor after a tall delete — cannot restore a below-edge gap).
+  void _matchExpectedBandGap({int maxPasses = 3}) {
+    final expectedGap = _deleteCollapseExpectedBandGap;
+    if (expectedGap == null || !_deleteCollapseRecoveryActive) return;
+    const eps = _deleteCollapseEpsilon;
+    const tolerance = 8.0;
+    for (var pass = 0; pass < maxPasses; pass++) {
+      final band = _bottomBandMessage();
+      if (band == null) return;
+
+      // Close enough — viewport stable for reading position near composer.
+      final gapDelta = (band.gapToBottomEdge - expectedGap).abs();
+      if (gapDelta <= tolerance) return;
+
+      // Positive gapCorrection → band is too high (gap too small); scroll up.
+      // applyScrollDelta uses the opposite sign (see body below).
+      final gapCorrection = expectedGap - band.gapToBottomEdge;
+      if (gapCorrection.abs() <= eps || gapCorrection.abs() > 200) return;
+
+      final bottomEdge = size.height - _bottomPad;
+      // Would expanding gap push the whole band row above the viewport top?
+      if (gapCorrection > 0 &&
+          band.bottom + gapCorrection - bottomEdge > band.bottom - band.top) {
+        return;
+      }
+      _controller.applyScrollDelta(-gapCorrection);
+      _repositionFromAnchor();
+    }
+  }
+
+  void _reassignAnchorIfAbsent() {
+    final anchorId = _controller.anchorMessageId;
+    if (!_dataSource.statusOf(anchorId).isAbsent) return;
+
+    final newest = _dataSource.newestKnownId;
+    final atTail =
+        _dataSource.reachedNewest && newest != null && anchorId == newest;
+
+    final candidate = atTail
+        ? (_dataSource.getPreviousPresentMessage(anchorId) ??
+              _dataSource.getNextPresentMessage(anchorId))
+        : (_dataSource.getNextPresentMessage(anchorId) ??
+              _dataSource.getPreviousPresentMessage(anchorId));
+
+    if (candidate == null) return;
+
+    _controller.reassignAnchor(candidate.id, _controller.anchorPixelOffset);
+  }
+
+  /// Deactivates message elements for ids that became confirmed-absent since
+  /// the last layout — prevents ghost rows and stale skip-cache entries.
+  void _purgeAbsentBuiltChildren() {
+    final absentBuilt = <int>[
+      for (final id in _children.keys)
+        if (_dataSource.statusOf(id).isAbsent) id,
+    ];
+    if (absentBuilt.isEmpty) return;
+    _invokeChildManagerLayout(() {
+      childManager!.removeChildren(absentBuilt);
+    });
+  }
+
   void _fanOutFromAnchor(
     BoxConstraints cc,
     Set<int> built,
@@ -1635,6 +2072,11 @@ class RenderChatScrollView extends RenderBox {
     // Anchor: chunk-error tile when the anchor's chunk failed and a builder
     // was supplied; the actual message otherwise. The anchor's "size" then
     // determines where downward fan-out begins.
+    //
+    // Confirmed-absent anchors are reassigned in [_reassignAnchorIfAbsent]
+    // before fan-out; [_buildMessage] also returns null for absent ids. Non-
+    // anchor absent ids are skipped in the loops below — zero height, no
+    // [ChatChildManager.buildChild] / messageBuilder invocation.
     //
     // No fallback to `_buildMessage` on a null chunk-error build: the chunk
     // is errored, so 64 per-message slots would surface `status.isError`
@@ -1836,12 +2278,23 @@ class RenderChatScrollView extends RenderBox {
   /// (`startsDay` / `dayBucket`) in parent data so the per-frame header walk is
   /// a pure field read. The caller sets [ChatMessageParentData.offset].
   RenderBox? _buildMessage(int id, BoxConstraints cc) {
+    // Confirmed-absent slots must not inflate widgets or selection chrome —
+    // defense in depth alongside fan-out skip and [_reassignAnchorIfAbsent].
+    if (_dataSource.statusOf(id).isAbsent) {
+      return null;
+    }
     final bucket = _bucketOf(id);
     final startsDay = _startsDay(id, bucket);
+    final runLayout = ChatSenderRunLayout.resolve(
+      dataSource: _dataSource,
+      groupBy: _groupBy,
+      messageId: id,
+    );
     final child = childManager!.buildChild(
       id,
       startsNewDay: startsDay,
       groupBucket: bucket,
+      runLayout: runLayout,
     );
     if (child == null) return null;
     child.layout(cc, parentUsesSize: true);
@@ -1920,7 +2373,8 @@ class RenderChatScrollView extends RenderBox {
   }
 
   /// Whether message [id] is the first of its group — and so carries an
-  /// inline date separator. Needs [id] and its predecessor loaded; until then
+  /// inline date separator. Uses [ChatDataSource.getPreviousPresentMessage]
+  /// for the predecessor bucket; until the previous present message is loaded
   /// returns `false`, so the separator appears once the data arrives.
   bool _startsDay(int id, Object? bucket) {
     if (bucket == null) return false;
@@ -1928,8 +2382,11 @@ class RenderChatScrollView extends RenderBox {
     if (_dataSource.reachedOldest && oldest != null && id <= oldest) {
       return true; // the very first message of the conversation
     }
-    final prevBucket = _bucketOf(id - 1);
-    if (prevBucket == null) return false;
+    final prev = _dataSource.getPreviousPresentMessage(id);
+    if (prev == null) return false;
+    final groupBy = _groupBy;
+    if (groupBy == null) return false;
+    final prevBucket = groupBy(prev);
     return prevBucket != bucket;
   }
 
@@ -2046,6 +2503,29 @@ class RenderChatScrollView extends RenderBox {
     return _children[id];
   }
 
+  /// Whether the full loaded conversation span fits inside the scroll band
+  /// (`topPad` .. `height - bottomPad`) with both boundaries reached.
+  ///
+  /// When true there is no scroll range — same as a non-scrollable [ListView].
+  /// Overscroll, bounceback, fling, and dual-boundary clamp fights are suppressed;
+  /// only the chat/list short-content pin runs ([pinNewest] when [reverse],
+  /// [pinOldest] otherwise).
+  bool _contentFitsInViewport() {
+    if (!hasSize || _overlayKind != ChatOverlayKind.none) return false;
+    if (!_dataSource.reachedOldest || !_dataSource.reachedNewest) return false;
+    final oldest = _dataSource.oldestKnownId;
+    final newest = _dataSource.newestKnownId;
+    if (oldest == null || newest == null) return false;
+    final first = _boundaryBox(oldest);
+    final last = _boundaryBox(newest);
+    if (first == null || last == null) return false;
+    final topY = _parentData(first).offset;
+    final bottom = _parentData(last).offset + last.size.height;
+    final bandHeight = size.height - _topPad - _bottomPad;
+    if (bandHeight <= 0) return false;
+    return bottom - topY <= bandHeight + 0.5;
+  }
+
   /// Signed overscroll amount, in pixels. Positive = oldest has been pulled
   /// *below* the top edge (user dragged past the top); negative = newest
   /// has been pulled *above* the bottom edge (past the bottom). Zero means
@@ -2054,8 +2534,10 @@ class RenderChatScrollView extends RenderBox {
   ///
   /// When the conversation fits inside the viewport and both boundaries are
   /// violated, returns the larger-magnitude violation so the bounceback
-  /// pulls toward the dominant side.
+  /// pulls toward the dominant side. Returns zero when [_contentFitsInViewport]
+  /// — there is no scroll range to overshoot.
   double _signedOverscroll() {
+    if (_contentFitsInViewport()) return 0;
     final top = _overscrollOnSide(BouncebackSide.top);
     final bottom = _overscrollOnSide(BouncebackSide.bottom);
     if (top == 0.0) return bottom;
@@ -2073,6 +2555,7 @@ class RenderChatScrollView extends RenderBox {
   /// return = newest above bottom edge. Zero when the requested side is
   /// inside its boundary or no boundary is configured on that side.
   double _overscrollOnSide(BouncebackSide side) {
+    if (_contentFitsInViewport()) return 0;
     switch (side) {
       case BouncebackSide.top:
         final oldest = _dataSource.oldestKnownId;
@@ -2105,9 +2588,16 @@ class RenderChatScrollView extends RenderBox {
     // and back, so it owns the clamp until it ends.
     if (_dragInProgress || _physics.isBouncing) return false;
     var cancelFling = false;
+
     bool pinNewest() {
       final newest = _dataSource.newestKnownId;
       if (!_dataSource.reachedNewest || newest == null) return false;
+      if (_deleteCollapseRecoveryActive) {
+        if (!_deleteCollapseWasAtTailBefore) return false;
+        if (_deleteCollapseUserPreemptedTailBefore && _computeIsAtTail()) {
+          return false;
+        }
+      }
       if (_userPreemptedTailSettle && !_computeIsAtTail()) return false;
       final last = _boundaryBox(newest);
       if (last == null) return false;
@@ -2135,6 +2625,9 @@ class RenderChatScrollView extends RenderBox {
     }
 
     bool pinOldest() {
+      if (_deleteCollapseRecoveryActive && _bottomBandMessage() != null) {
+        return false;
+      }
       final oldest = _dataSource.oldestKnownId;
       if (!_dataSource.reachedOldest || oldest == null) return false;
       final first = _boundaryBox(oldest);
@@ -2153,6 +2646,30 @@ class RenderChatScrollView extends RenderBox {
         return true;
       }
       return false;
+    }
+
+    // Short content: one pin only — dual pins fight during fling/bounceback
+    // (pinOldest then pinNewest with equal and opposite deltas).
+    if (_contentFitsInViewport() && !_deleteCollapseRecoveryActive) {
+      final keepTopHandoff =
+          _controller.anchorPixelOffset >= -0.5 && !repinBottom;
+      if (_reverse) {
+        if (!keepTopHandoff) {
+          cancelFling = pinNewest() || cancelFling;
+        }
+      } else if (!keepTopHandoff) {
+        final oldest = _dataSource.oldestKnownId;
+        final first = oldest != null ? _boundaryBox(oldest) : null;
+        if (first != null) {
+          final topY = _parentData(first).offset;
+          if (topY.abs() > 0.5) {
+            _controller.applyScrollDelta(-topY);
+            _repositionFromAnchor();
+            cancelFling = true;
+          }
+        }
+      }
+      return cancelFling;
     }
 
     if (_reverse) {
@@ -2305,11 +2822,54 @@ class RenderChatScrollView extends RenderBox {
       pd.dividerOpacity = _floatingHeaderController.dividerOpacityFor(
         topY: offset,
         topPad: _topPad,
-        floatingHeaderHeight: _floatingHeaderController.floatingHeaderHeight(
-          _floatingHeader,
-        ),
+        floatingHeaderHeight: _effectiveFloatingHeaderHeight(),
       );
     }
+  }
+
+  /// Header height used for inline-divider fade — zero when the floating
+  /// header is suppressed (short content / top overscroll above oldest).
+  double _effectiveFloatingHeaderHeight() {
+    if (!_shouldShowFloatingHeader()) return 0;
+    return _floatingHeaderController.floatingHeaderHeight(_floatingHeader);
+  }
+
+  /// Top viewport-Y of [oldestKnownId], or `null` when not built.
+  double? _oldestBoundaryTop() {
+    final oldest = _dataSource.oldestKnownId;
+    if (oldest == null) return null;
+    final first = _boundaryBox(oldest);
+    if (first == null) return null;
+    return _parentData(first).offset;
+  }
+
+  bool _shouldShowFloatingHeader() {
+    if (_groupBy == null || _overlayKind != ChatOverlayKind.none) {
+      return false;
+    }
+    return _floatingHeaderController.shouldShowFloatingHeader(
+      reachedOldest: _dataSource.reachedOldest,
+      oldestTop: _oldestBoundaryTop(),
+      topPad: _topPad,
+      floatingHeaderHeight: _floatingHeaderController.floatingHeaderHeight(
+        _floatingHeader,
+      ),
+    );
+  }
+
+  void _clearFloatingHeaderWhenHidden() {
+    if (_shouldShowFloatingHeader()) return;
+    if (_floatingHeader == null &&
+        _floatingHeaderController.headerBucket == null) {
+      return;
+    }
+    _invokeChildManagerLayout(() {
+      childManager!.buildFloatingHeader(null, null);
+    });
+    _floatingHeaderController
+      ..headerBucket = null
+      ..headerDate = null
+      ..headerDirty = true;
   }
 
   TopDayScan _scanTopDay() => _floatingHeaderController.scanTopDay(
@@ -2325,6 +2885,10 @@ class RenderChatScrollView extends RenderBox {
   /// Called from [performLayout]. Widget inflation stays in the render object
   /// via [invokeLayoutCallback]; bucket/date logic is on the controller.
   void _updateFloatingHeader() {
+    if (!_shouldShowFloatingHeader()) {
+      _clearFloatingHeaderWhenHidden();
+      return;
+    }
     final scan = _scanTopDay();
     final result = _floatingHeaderController.evaluateLayoutRebuild(
       scan: scan,
@@ -2353,7 +2917,11 @@ class RenderChatScrollView extends RenderBox {
   /// During a Tier-1 scroll: re-pin the header and report whether the topmost
   /// day changed — the caller then relayouts to rebuild the header text.
   bool _tickFloatingHeader() {
-    if (_floatingHeader == null && _groupBy == null) return false;
+    if (_groupBy == null) return false;
+    if (!_shouldShowFloatingHeader()) {
+      return _floatingHeader != null;
+    }
+    if (_floatingHeader == null) return true;
     final scan = _scanTopDay();
     _placeFloatingHeader();
     return _floatingHeaderController.tickForDayChange(
@@ -2467,6 +3035,12 @@ class RenderChatScrollView extends RenderBox {
     _markScrollActive();
     var delta = _pendingScrollDelta;
     _pendingScrollDelta = 0.0;
+
+    if (_contentFitsInViewport()) {
+      _cancelFling();
+      _cancelBounceback();
+      delta = 0.0;
+    }
 
     // While the user is dragging, scale incoming delta by the boundary
     // resistance so pulling further past the edge gets progressively
@@ -2622,6 +3196,7 @@ class RenderChatScrollView extends RenderBox {
   }
 
   void _onDragUpdate(DragUpdateDetails details) {
+    if (_contentFitsInViewport()) return;
     _markScrollActive();
     // Resistance is applied at the *tick* layer (`_onTick`), not here, so
     // multiple updates within a single frame still see one combined delta
@@ -2634,6 +3209,11 @@ class RenderChatScrollView extends RenderBox {
     _dragInProgress = false;
     final velocity = details.primaryVelocity ?? 0.0;
     _controller.notifyScrollEvent(ChatUserDragEnd(velocity));
+    if (_contentFitsInViewport()) {
+      _clampBoundaries();
+      if (!_physics.isBouncing) _stopTickerIfIdle();
+      return;
+    }
     // A high-velocity release while overscrolled would otherwise launch
     // straight into a fling and skip the spring-back entirely — the next
     // `_clampBoundaries` would hard-snap the boundary. Run bounceback
@@ -2667,6 +3247,7 @@ class RenderChatScrollView extends RenderBox {
   /// post-bounceback layout. The alternative (running two springs in
   /// parallel) compounds delta and fights itself in the symmetric case.
   void _maybeStartBounceback() {
+    if (_contentFitsInViewport()) return;
     final top = _overscrollOnSide(BouncebackSide.top);
     final bottom = _overscrollOnSide(BouncebackSide.bottom);
     if (top == 0.0 && bottom == 0.0) return;
@@ -2717,6 +3298,7 @@ class RenderChatScrollView extends RenderBox {
 
     if (event is PointerDownEvent) {
       if (_dataSource.newestKnownId != null &&
+          !_contentFitsInViewport() &&
           _scrollbar.tryStartDrag(
             event,
             size,
@@ -2798,7 +3380,7 @@ class RenderChatScrollView extends RenderBox {
     // affordance, etc. — actually fires instead of falling through to the
     // message under it.
     final header = _floatingHeader;
-    if (header != null) {
+    if (header != null && _shouldShowFloatingHeader()) {
       final headerOffset = _parentData(header).offset;
       final headerBottom = headerOffset + header.size.height;
       if (headerOffset < viewportHeight && headerBottom > 0) {
@@ -3964,7 +4546,7 @@ class RenderChatScrollView extends RenderBox {
     );
     // The floating day header — above the messages, below the scrollbar.
     final header = _floatingHeader;
-    if (header != null) {
+    if (header != null && _shouldShowFloatingHeader()) {
       context.paintChild(
         header,
         offset + Offset(0, _parentData(header).offset),
@@ -3974,6 +4556,7 @@ class RenderChatScrollView extends RenderBox {
   }
 
   void _paintScrollbar(PaintingContext context, Offset offset) {
+    if (_contentFitsInViewport()) return;
     final computed = _computeScrollbarProgress();
     if (computed == null) return;
     _maybeLogScrollbarProgress(computed, reason: 'paint');
@@ -4004,4 +4587,32 @@ class RenderChatScrollView extends RenderBox {
     _fadeLayer.layer = null;
     super.dispose();
   }
+}
+
+/// Layout snapshot taken immediately before absent-anchor reassignment.
+///
+/// Used by [_preserveViewportAfterDelete] to compute how far to shift scroll so
+/// the visible band stays at the same distance from the bottom edge.
+class _BeforeDeleteLayoutSnapshot {
+  const _BeforeDeleteLayoutSnapshot({
+    required this.deletedId,
+    required this.deletedHeight,
+    required this.anchorYBefore,
+    required this.bandIdBefore,
+    required this.bandBottomBefore,
+    required this.bandGapBefore,
+    required this.bottomEdgeBefore,
+    required this.userPreemptedTailBefore,
+    required this.wasAtTailBefore,
+  });
+
+  final int deletedId;
+  final double? deletedHeight;
+  final double anchorYBefore;
+  final int? bandIdBefore;
+  final double? bandBottomBefore;
+  final double? bandGapBefore;
+  final double bottomEdgeBefore;
+  final bool userPreemptedTailBefore;
+  final bool wasAtTailBefore;
 }

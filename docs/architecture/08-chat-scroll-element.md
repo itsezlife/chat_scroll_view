@@ -1,9 +1,9 @@
 ---
 type: Architecture Reference
 title: ChatScrollElement
-description: Lazy child inflation, slot namespaces, invokeLayoutCallback, and skip-rebuild cache.
-tags: [element, slots, skip-rebuild]
-timestamp: 2026-07-04T00:00:00Z
+description: Lazy child inflation, slot namespaces, invokeLayoutCallback, skip-rebuild cache, and absent-slot build exclusion contract.
+tags: [element, slots, skip-rebuild, absent]
+timestamp: 2026-07-05T00:00:00Z
 resource: lib/src/chat_widgets/chat_scroll_element.dart
 ---
 
@@ -49,19 +49,29 @@ drop.
 ## `buildChild`
 
 ```
-buildChild(id, {startsNewDay, groupBucket})
+buildChild(id, {startsNewDay, groupBucket, runLayout})
 ```
 
 1. Read `getMessage(id)`, `statusOf(id)`.
-2. Skip-rebuild fast path → return existing `RenderBox`.
-3. Else `owner!.buildScope` → `updateChild(existing, _buildWidget(...), id)`.
-4. On success: store element + cache; on null: remove maps.
+2. If `statusOf(id).isAbsent`, deactivate any existing child, clear skip-cache
+   maps, and return `null` without calling `messageBuilder` (confirmed-absent
+   ids must not inflate widgets or selection chrome). Render also skips before
+   `buildChild`; this step is defense in depth.
+3. Skip-rebuild fast path → return existing `RenderBox`.
+4. Else `owner!.buildScope` → `updateChild(existing, _buildWidget(...), id)`.
+5. On success: store element + cache; on null: remove maps.
+
+`runLayout` is resolved by `RenderChatScrollView` via `ChatSenderRunLayout.resolve`
+(live present neighbors + optional `groupBy` bucket). The element does **not**
+walk neighbors itself — same pattern as `startsNewDay`.
 
 ### `_buildWidget`
 
 - Optional `Directionality` override + `Builder` so builders see the same
   direction as chrome.
-- Optional `SelectableMessage` wrap (selection chrome).
+- Optional `SelectableMessage` wrap (selection chrome) — **only for ids that
+  pass the absent exclusion gate**; wrapping zero-size shrink output for absent
+  ids still produces selectable ghost rows.
 - If `startsNewDay && separator != null && message != null && groupBucket != null`
   → `DatedMessage(separator, body)`; else `RepaintBoundary` + body.
 - Separator is **outside** selection so date chrome is never tinted.
@@ -77,9 +87,10 @@ The element does **not** compute day boundaries — it only consumes
 | `_builtMessage[id]` | `IChatMessage?` — **identity** via `identical` |
 | `_builtStatus[id]` | `ChatMessageStatus` |
 | `_builtStartsDay[id]` | `bool` |
+| `_builtRunLayout[id]` | `MessageRunLayout` — value equality |
 
 **Hit:** existing element **and** status equal **and** `startsNewDay` equal
-**and** `identical(message)`.
+**and** `runLayout` equal **and** `identical(message)`.
 
 **Miss → full `updateChild`.**
 
@@ -90,7 +101,9 @@ The element does **not** compute day boundaries — it only consumes
 **Per-id cleared** on remove / failed update / `forgetChild`.
 
 **Must not:** mutate a message in place without replacing the instance —
-rebuild will be skipped.
+rebuild will be skipped. **Must not** compute neighbor-dependent chrome inside
+`messageBuilder` without consuming `runLayout` — neighbor changes after delete
+or insert will not invalidate the cache otherwise.
 
 Inherited widgets (Theme, etc.) still rebuild via normal element dependencies.
 Width changes are handled by subsequent `child.layout()`, not this cache.

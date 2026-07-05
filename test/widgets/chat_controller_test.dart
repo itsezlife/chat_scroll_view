@@ -149,10 +149,13 @@ void main() {
                   child: ChatScrollView(
                     dataSource: ds,
                     controller: controller,
-                    messageBuilder: (context, id, message, status) => SizedBox(
-                      height: 60,
-                      child: Text(message == null ? 'shimmer-$id' : 'msg-$id'),
-                    ),
+                    messageBuilder: (context, id, message, status, runLayout) =>
+                        SizedBox(
+                          height: 60,
+                          child: Text(
+                            message == null ? 'shimmer-$id' : 'msg-$id',
+                          ),
+                        ),
                   ),
                 ),
               ),
@@ -193,10 +196,13 @@ void main() {
                   child: ChatScrollView(
                     dataSource: ds,
                     controller: controller,
-                    messageBuilder: (context, id, message, status) => SizedBox(
-                      height: 60,
-                      child: Text(message == null ? 'shimmer-$id' : 'msg-$id'),
-                    ),
+                    messageBuilder: (context, id, message, status, runLayout) =>
+                        SizedBox(
+                          height: 60,
+                          child: Text(
+                            message == null ? 'shimmer-$id' : 'msg-$id',
+                          ),
+                        ),
                   ),
                 ),
               ),

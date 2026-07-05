@@ -135,14 +135,15 @@ void main() {
                 dataSource: ds,
                 controller: controller,
                 cacheExtent: 100,
-                messageBuilder: (context, id, message, status) => SizedBox(
-                  height: 60,
-                  child: Text(
-                    message == null
-                        ? 'shimmer-$id'
-                        : '${(message as UserChatMessage).content} [${status.isDirty ? "stale" : "fresh"}]',
-                  ),
-                ),
+                messageBuilder: (context, id, message, status, runLayout) =>
+                    SizedBox(
+                      height: 60,
+                      child: Text(
+                        message == null
+                            ? 'shimmer-$id'
+                            : '${(message as UserChatMessage).content} [${status.isDirty ? "stale" : "fresh"}]',
+                      ),
+                    ),
               ),
             ),
           ),
@@ -195,14 +196,15 @@ void main() {
                     dataSource: ds,
                     controller: controller,
                     cacheExtent: 100,
-                    messageBuilder: (context, id, message, status) => SizedBox(
-                      height: 60,
-                      child: Text(
-                        message == null
-                            ? 'shimmer-$id'
-                            : (message as UserChatMessage).content,
-                      ),
-                    ),
+                    messageBuilder: (context, id, message, status, runLayout) =>
+                        SizedBox(
+                          height: 60,
+                          child: Text(
+                            message == null
+                                ? 'shimmer-$id'
+                                : (message as UserChatMessage).content,
+                          ),
+                        ),
                   ),
                 ),
               ),
@@ -263,14 +265,15 @@ void main() {
                   dataSource: ds,
                   controller: controller,
                   cacheExtent: 100,
-                  messageBuilder: (context, id, message, status) => SizedBox(
-                    height: 60,
-                    child: Text(
-                      message == null
-                          ? 'shimmer-$id'
-                          : (message as UserChatMessage).content,
-                    ),
-                  ),
+                  messageBuilder: (context, id, message, status, runLayout) =>
+                      SizedBox(
+                        height: 60,
+                        child: Text(
+                          message == null
+                              ? 'shimmer-$id'
+                              : (message as UserChatMessage).content,
+                        ),
+                      ),
                 ),
               ),
             ),

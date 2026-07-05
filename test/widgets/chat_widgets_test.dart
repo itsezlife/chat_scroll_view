@@ -125,7 +125,7 @@ Widget _harness({
           cacheExtent: cacheExtent,
           extraBuildExtent: extraBuildExtent,
           bottomPadding: bottomPadding,
-          messageBuilder: (context, id, message, status) => SizedBox(
+          messageBuilder: (context, id, message, status, runLayout) => SizedBox(
             height: 60,
             child: Text(message == null ? 'shimmer-$id' : 'msg-$id'),
           ),
@@ -518,10 +518,13 @@ void main() {
                   dataSource: _PreloadedDataSource(_generate(count)),
                   controller: controller,
                   topPadding: inset,
-                  messageBuilder: (context, id, message, status) => SizedBox(
-                    height: 60,
-                    child: Text(message == null ? 'shimmer-$id' : 'msg-$id'),
-                  ),
+                  messageBuilder: (context, id, message, status, runLayout) =>
+                      SizedBox(
+                        height: 60,
+                        child: Text(
+                          message == null ? 'shimmer-$id' : 'msg-$id',
+                        ),
+                      ),
                   dateSeparatorBuilder: (context, bucket, date) =>
                       SizedBox(height: 24, child: Text('sep-${date.day}')),
                 ),
@@ -590,7 +593,7 @@ void main() {
               child: ChatScrollView(
                 dataSource: dataSource,
                 controller: controller,
-                messageBuilder: (context, id, message, status) =>
+                messageBuilder: (context, id, message, status, runLayout) =>
                     SizedBox(height: 60, child: Text('$prefix-$id')),
               ),
             ),
@@ -782,7 +785,7 @@ void main() {
                   dataSource: _PreloadedDataSource(_generate(count)),
                   controller: controller,
                   reverse: true,
-                  messageBuilder: (context, id, message, status) =>
+                  messageBuilder: (context, id, message, status, runLayout) =>
                       SizedBox(height: 60, child: Text('msg-$id')),
                 ),
               ),
@@ -796,6 +799,50 @@ void main() {
       expect(tester.getTopLeft(find.text('msg-2')).dy, closeTo(540, 1));
       // oldest sits above it, with empty space at the very top.
       expect(tester.getTopLeft(find.text('msg-0')).dy, closeTo(420, 1));
+    });
+
+    testWidgets('short content ignores drag overscroll and fling', (
+      tester,
+    ) async {
+      const count = 3;
+      final controller = ChatScrollController()..jumpTo(count - 1);
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: Center(
+              child: SizedBox(
+                width: 400,
+                height: 600,
+                child: ChatScrollView(
+                  dataSource: _PreloadedDataSource(_generate(count)),
+                  controller: controller,
+                  reverse: true,
+                  messageBuilder: (context, id, message, status, runLayout) =>
+                      SizedBox(height: 60, child: Text('msg-$id')),
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+
+      final newestTopBefore = tester.getTopLeft(find.text('msg-2')).dy;
+      await tester.drag(find.byType(ChatScrollView), const Offset(0, -300));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
+      expect(
+        tester.getTopLeft(find.text('msg-2')).dy,
+        closeTo(newestTopBefore, 1),
+      );
+
+      await tester.fling(find.byType(ChatScrollView), const Offset(0, -800), 2000);
+      await tester.pump();
+      await tester.pump(const Duration(seconds: 1));
+      expect(
+        tester.getTopLeft(find.text('msg-2')).dy,
+        closeTo(newestTopBefore, 1),
+      );
     });
 
     testWidgets('short content still stacks at the top with default reverse', (
@@ -910,10 +957,11 @@ void main() {
               dataSource: dataSource,
               controller: controller,
               cacheExtent: cacheExtent,
-              messageBuilder: (context, id, message, status) => SizedBox(
-                height: messageHeight,
-                child: Text(message == null ? 'shimmer-$id' : 'msg-$id'),
-              ),
+              messageBuilder: (context, id, message, status, runLayout) =>
+                  SizedBox(
+                    height: messageHeight,
+                    child: Text(message == null ? 'shimmer-$id' : 'msg-$id'),
+                  ),
             ),
           ),
         ),

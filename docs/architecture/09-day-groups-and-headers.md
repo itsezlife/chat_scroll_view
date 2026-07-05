@@ -36,16 +36,16 @@ Render-side (`_buildMessage` → `_startsDay`):
 
 1. `bucket == null` → false (unloaded or grouping off).
 2. If `reachedOldest` and `id <= oldestKnownId` → true (conversation first).
-3. Else compare `_bucketOf(id - 1)` to `bucket`; null prev → false; unequal → true.
+3. Else compare previous **present** message bucket to `bucket` via
+   `getPreviousPresentMessage(id)`; null prev → false; unequal → true.
 
 `_bucketOf(id)` = `groupBy(getMessage(id))` or null.
 
 **Intentional for loading:** separator appears only when **both** current and
-predecessor are loaded (except conversation-oldest case).
+the previous present predecessor are loaded (except conversation-oldest case).
 
-**Bug for absent predecessors:** only `id - 1` is checked. If that slot is
-confirmed absent, `_startsDay` returns false even when the previous *present*
-message is a different day. See [Known Limitations](./13-known-limitations.md).
+**Fixed (2026-07-05):** absent predecessors no longer block `startsDay` — walk
+uses `getPreviousPresentMessage`, not `getMessage(id - 1)`.
 
 Element receives `startsNewDay` / `groupBucket` and chooses `DatedMessage` vs
 plain row — it does not recompute boundaries.

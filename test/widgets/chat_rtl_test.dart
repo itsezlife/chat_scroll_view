@@ -62,7 +62,7 @@ Widget _scaffold({
             dataSource: dataSource,
             controller: controller,
             textDirection: override,
-            messageBuilder: (context, id, message, status) {
+            messageBuilder: (context, id, message, status, runLayout) {
               final dir = Directionality.of(context);
               return Align(
                 alignment: dir == TextDirection.rtl

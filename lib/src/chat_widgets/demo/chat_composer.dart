@@ -22,6 +22,8 @@ class ChatComposer extends StatefulWidget {
     required this.selection,
     required this.dataSource,
     required this.onSend,
+    this.onDeleteSelected,
+    this.onEditSelected,
     this.onSizeChanged,
     this.bottomInset,
     super.key,
@@ -35,6 +37,12 @@ class ChatComposer extends StatefulWidget {
 
   /// Persists a trimmed message; throw on failure to retain composer text.
   final Future<void> Function(String text) onSend;
+
+  /// Deletes the currently selected message ids via the data-source CRUD API.
+  final void Function(Iterable<int> ids)? onDeleteSelected;
+
+  /// Saves edited content for [messageId]; only invoked for single-message edit.
+  final Future<void> Function(int messageId, String text)? onEditSelected;
 
   /// Safe area bottom inset reserved inside the viewport — kept in sync with the
   /// safe area bottom inset so the composer's measured height clears it.
@@ -66,6 +74,9 @@ class _ChatComposerState extends State<ChatComposer>
 
   bool _mode = false;
   bool _sending = false;
+
+  /// When set, [onEditSelected] is called instead of [onSend] on submit.
+  int? _editingMessageId;
 
   CurvedAnimation _curve(Curve curve) {
     final ca = CurvedAnimation(parent: _t, curve: curve);
@@ -131,14 +142,26 @@ class _ChatComposerState extends State<ChatComposer>
 
   void _onSelectionChanged() {
     final mode = widget.selection.isSelectionMode;
-    if (mode == _mode) return;
-    setState(() => _mode = mode);
-    if (mode) {
-      _focus.unfocus();
-      _t.forward();
-    } else {
-      _t.reverse();
+    if (mode && _editingMessageId != null) {
+      _text.clear();
+      _editingMessageId = null;
     }
+    if (mode != _mode) {
+      setState(() => _mode = mode);
+      if (mode) {
+        _focus.unfocus();
+        _t.forward();
+      } else {
+        _t.reverse();
+      }
+    } else if (mode) {
+      setState(() {});
+    }
+  }
+
+  void _clearEditing() {
+    if (_editingMessageId == null) return;
+    setState(() => _editingMessageId = null);
   }
 
   Future<void> _handleSend() async {
@@ -147,8 +170,15 @@ class _ChatComposerState extends State<ChatComposer>
     if (text.isEmpty) return;
     setState(() => _sending = true);
     try {
-      await widget.onSend(text);
-      if (!mounted) return;
+      final editingId = _editingMessageId;
+      if (editingId != null) {
+        await widget.onEditSelected?.call(editingId, text);
+        if (!mounted) return;
+        _editingMessageId = null;
+      } else {
+        await widget.onSend(text);
+        if (!mounted) return;
+      }
       _text.clear();
     } finally {
       if (mounted) setState(() => _sending = false);
@@ -176,21 +206,47 @@ class _ChatComposerState extends State<ChatComposer>
     _finish('Скопировано сообщений: ${ids.length}');
   }
 
-  void _favorite() =>
-      _finish('Добавлено в избранное: ${widget.selection.count}');
+  void _deleteSelected() {
+    final ids = widget.selection.selectedIds;
+    if (ids.isEmpty) return;
+    widget.onDeleteSelected?.call(ids);
+    _finish('Удалено сообщений: ${ids.length}');
+  }
 
-  void _share() => _finish('Готово к отправке: ${widget.selection.count}');
+  void _startEditSelected() {
+    if (widget.selection.count != 1) return;
+    final id = widget.selection.selectedIds.first;
+    final content = _contentOf(widget.dataSource.getMessage(id));
+    if (content == null) {
+      _finish('Нельзя редактировать это сообщение');
+      return;
+    }
+    widget.selection.clear();
+    setState(() {
+      _editingMessageId = id;
+      _text.text = content;
+    });
+    _t.reverse();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _focus.requestFocus();
+    });
+  }
 
-  void _finish(String message) {
-    ScaffoldMessenger.of(context)
-      ..hideCurrentSnackBar()
-      ..showSnackBar(
-        SnackBar(
-          content: Text(message),
-          behavior: SnackBarBehavior.floating,
-          duration: const Duration(seconds: 2),
-        ),
-      );
+  void _cancelEdit() {
+    _text.clear();
+    _clearEditing();
+  }
+
+  void _finish([String? message]) {
+    if (message case final message?)
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(
+          SnackBar(
+            content: Text(message),
+            duration: const Duration(seconds: 2),
+          ),
+        );
     widget.selection.clear();
   }
 
@@ -198,6 +254,10 @@ class _ChatComposerState extends State<ChatComposer>
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     final bottomPadding = MediaQuery.viewPaddingOf(context).bottom;
+    final selectionCount = widget.selection.count;
+    final canEdit = selectionCount == 1 && widget.onEditSelected != null;
+    final canDelete = selectionCount >= 1 && widget.onDeleteSelected != null;
+    final isEditing = _editingMessageId != null;
 
     final child = MeasureSize(
       onChange: (size) => widget.onSizeChanged?.call(size.height),
@@ -238,6 +298,11 @@ class _ChatComposerState extends State<ChatComposer>
                                   onSend: _handleSend,
                                   sending: _sending,
                                   scheme: scheme,
+                                  hintText: isEditing
+                                      ? 'Редактирование'
+                                      : 'Сообщение',
+                                  isEditing: isEditing,
+                                  onCancelEdit: _cancelEdit,
                                 ),
                               ),
                             ),
@@ -261,24 +326,26 @@ class _ChatComposerState extends State<ChatComposer>
                                         scheme: scheme,
                                       ),
                                     ),
-                                    ScaleTransition(
-                                      scale: _favScale,
-                                      child: _ActionButton(
-                                        icon: Icons.star_rounded,
-                                        label: 'В избранное',
-                                        onTap: _favorite,
-                                        scheme: scheme,
+                                    if (canEdit)
+                                      ScaleTransition(
+                                        scale: _favScale,
+                                        child: _ActionButton(
+                                          icon: Icons.edit_rounded,
+                                          label: 'Изменить',
+                                          onTap: _startEditSelected,
+                                          scheme: scheme,
+                                        ),
                                       ),
-                                    ),
-                                    SlideTransition(
-                                      position: _shareSlide,
-                                      child: _ActionButton(
-                                        icon: Icons.share_rounded,
-                                        label: 'Поделиться',
-                                        onTap: _share,
-                                        scheme: scheme,
+                                    if (canDelete)
+                                      SlideTransition(
+                                        position: _shareSlide,
+                                        child: _ActionButton(
+                                          icon: Icons.delete_outline_rounded,
+                                          label: 'Удалить',
+                                          onTap: _deleteSelected,
+                                          scheme: scheme,
+                                        ),
                                       ),
-                                    ),
                                   ],
                                 ),
                               ),
@@ -320,6 +387,9 @@ class _InputField extends StatelessWidget {
     required this.onSend,
     required this.sending,
     required this.scheme,
+    required this.isEditing,
+    this.hintText = 'Сообщение',
+    this.onCancelEdit,
   });
 
   final TextEditingController controller;
@@ -327,6 +397,9 @@ class _InputField extends StatelessWidget {
   final Future<void> Function() onSend;
   final bool sending;
   final ColorScheme scheme;
+  final String hintText;
+  final bool isEditing;
+  final VoidCallback? onCancelEdit;
 
   @override
   Widget build(BuildContext context) => DecoratedBox(
@@ -339,6 +412,19 @@ class _InputField extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.end,
         children: <Widget>[
+          if (isEditing && onCancelEdit != null) ...<Widget>[
+            Padding(
+              padding: const EdgeInsets.only(bottom: 2),
+              child: _CircleButton(
+                icon: Icons.close_rounded,
+                size: 38,
+                background: scheme.surfaceContainerHigh,
+                foreground: scheme.onSurfaceVariant,
+                onTap: onCancelEdit,
+              ),
+            ),
+            const SizedBox(width: 4),
+          ],
           Expanded(
             child: Padding(
               padding: const EdgeInsets.symmetric(vertical: 10),
@@ -352,7 +438,7 @@ class _InputField extends StatelessWidget {
                 cursorColor: scheme.primary,
                 style: TextStyle(color: scheme.onSurface, fontSize: 15),
                 decoration: InputDecoration.collapsed(
-                  hintText: 'Сообщение',
+                  hintText: hintText,
                   hintStyle: TextStyle(color: scheme.onSurfaceVariant),
                 ),
               ),
@@ -362,7 +448,7 @@ class _InputField extends StatelessWidget {
           Padding(
             padding: const EdgeInsets.only(bottom: 2),
             child: _CircleButton(
-              icon: Icons.send_rounded,
+              icon: isEditing ? Icons.check_rounded : Icons.send_rounded,
               size: 38,
               background: scheme.primary,
               foreground: scheme.onPrimary,

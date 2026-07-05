@@ -2,6 +2,7 @@ import 'package:chatscrollview/src/chat_scroll/chat_data_source.dart';
 import 'package:chatscrollview/src/chat_scroll/chat_scroll_common.dart';
 import 'package:chatscrollview/src/chat_scroll/chat_scroll_controller.dart';
 import 'package:chatscrollview/src/chat_scroll/chat_selection_controller.dart';
+import 'package:chatscrollview/src/chat_scroll/chat_sender_run_layout.dart';
 import 'package:chatscrollview/src/chat_widgets/chat_scroll_element.dart';
 import 'package:chatscrollview/src/chat_widgets/chat_scrollbar.dart';
 import 'package:chatscrollview/src/chat_widgets/render_chat_scroll_view.dart';
@@ -10,21 +11,18 @@ import 'package:flutter/widgets.dart';
 
 /// Builds the widget for message [id].
 ///
-/// [message] and [status] describe the three-way slot state:
+/// [message] and [status] describe slot state for ids the viewport builds:
 ///
 /// | [message] | [status] | Meaning | Recommended widget |
 /// |-----------|----------|---------|--------------------|
 /// | non-null  | any      | Message loaded | Render the bubble |
 /// | null      | `dirty` / `fetching` | Fetch in flight | Shimmer / loading skeleton |
-/// | null      | `absent` | Permanently absent (server confirmed; e.g. deleted batch) | `SizedBox.shrink()` |
-/// | null      | `valid`  | Should not occur after absent-slot marking; treat as absent for defensive compatibility | `SizedBox.shrink()` |
+/// | null      | `valid`  | Unloaded slot in a valid chunk | Shimmer until fetch completes |
 ///
-/// Return [SizedBox.shrink] (zero height) for absent slots. Absent IDs
-/// contribute no height, so the scrollbar position stays proportional to real
-/// content even across large deletion gaps. The fan-out skips absent IDs in
-/// O(chunk) time, so this builder is not normally invoked for them — but it
-/// MAY be called if the absent-marking pass has not yet run (e.g. during the
-/// first frame before the first fetch completes).
+/// **`status.isAbsent` is unreachable** in normal operation — confirmed-absent
+/// ids are excluded in the render object before this builder runs (zero layout
+/// height, no selection wrapper). Do not rely on returning `SizedBox.shrink()`
+/// as a substitute for absent handling.
 ///
 /// **Lint**: [ChatMessageStatus] is an `extension type` over `int` — a raw
 /// `int` coerces silently with no runtime error. Use named constants.
@@ -34,12 +32,17 @@ import 'package:flutter/widgets.dart';
 /// that chunk — the chunk renders as a single chunk-level tile instead.
 /// Without that builder, ids in the errored chunk are passed to this builder
 /// with `status.isError == true`.
+///
+/// [runLayout] is viewport-computed sender-run position within the effective
+/// `groupBy` bucket — participates in skip-rebuild cache invalidation when
+/// neighbors change. Use for avatar/tail/padding; do not walk neighbors ad hoc.
 typedef ChatMessageBuilder =
     Widget Function(
       BuildContext context,
       int id,
       IChatMessage? message,
       ChatMessageStatus status,
+      MessageRunLayout runLayout,
     );
 
 /// Builds a group separator for the section starting at [firstMessageDate].
@@ -49,11 +52,12 @@ typedef ChatMessageBuilder =
 /// any equatable value for custom grouping (week label, `(year, month)`, …).
 /// The same builder produces both the inline divider above the first message
 /// of each group and the floating header pinned to the top of the viewport.
-typedef ChatGroupSeparatorBuilder = Widget Function(
-  BuildContext context,
-  Object bucket,
-  DateTime firstMessageDate,
-);
+typedef ChatGroupSeparatorBuilder =
+    Widget Function(
+      BuildContext context,
+      Object bucket,
+      DateTime firstMessageDate,
+    );
 
 /// Information passed to a [ChatChunkErrorBuilder] when its chunk has failed
 /// to load.

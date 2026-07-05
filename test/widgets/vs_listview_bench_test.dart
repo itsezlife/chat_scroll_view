@@ -87,7 +87,8 @@ Widget _csvApp(List<IChatMessage> msgs, ChatScrollController ctrl) =>
             child: ChatScrollView(
               dataSource: _Preloaded(msgs),
               controller: ctrl,
-              messageBuilder: (context, id, message, status) => message == null
+              messageBuilder: (context, id, message, status, runLayout) =>
+                  message == null
                   ? const SizedBox(height: 60)
                   : _Bubble(message),
             ),

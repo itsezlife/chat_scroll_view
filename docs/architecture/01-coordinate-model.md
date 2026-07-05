@@ -1,7 +1,7 @@
 ---
 type: Architecture Reference
 title: Coordinate Model
-description: Anchor-based scroll origin versus ScrollPosition; sign convention and scroll band.
+description: Anchor-based scroll origin versus ScrollPosition; sign convention, scroll band, and visible-band stability on delete.
 tags: [scroll, anchor, coordinates]
 timestamp: 2026-07-04T00:00:00Z
 resource: lib/src/chat_scroll/chat_scroll_controller.dart
@@ -95,9 +95,11 @@ return topEdge + clamp(alignment, 0, 1) * travel
 ```
 
 `alignment = 0` → message top at band top; `1` → message bottom at band bottom.
-When `messageHeight >= band`, travel is ≤ 0 and the result is always `topEdge`.
-True chat **tail pin** (`newest.bottom == bottomEdge`) is **not** this formula —
-it is owned by `pinNewest` in layout (see [06-boundaries.md](06-boundaries.md)).
+When `messageHeight >= band`, travel is ≤ 0 and the result is always `topEdge`
+**except** close-path `animateTo` to the known newest — endpoint is
+`bottomEdge − messageHeight` (tail-pin top). True chat **tail pin**
+(`newest.bottom == bottomEdge`) is still owned by `pinNewest` in layout (see
+[06-boundaries.md](06-boundaries.md)).
 
 ## Contrast with standard Flutter scroll
 
@@ -155,3 +157,24 @@ drifted anchor.
 
 Close-path `animateTo` **suspends** renormalize so the anchor id can stay on
 the off-screen target while the offset interpolates.
+
+Delete recovery **suspends** renormalize for one layout pass when
+`_preserveViewportAfterDelete` runs — post-delete off-screen anchor is intentional,
+not drift.
+
+## Visible band (delete stability reference)
+
+`_bottomBandMessage()` returns the built message whose bottom edge is closest
+to the scroll band bottom (`height - bottomPad`). Fields: `id`, `top`, `bottom`,
+`gapToBottomEdge`.
+
+When the layout anchor becomes absent (message delete), absent-anchor
+reassignment moves to a present neighbor but preserves the deleted top offset.
+That alone is insufficient for tall messages scrolled into their interior. `_preserveViewportAfterDelete`
+shifts `anchorPixelOffset` so **band bottom** (or band gap) stays within 8 logical
+px of the pre-delete value — the reading position near the composer, not raw
+anchor Y.
+
+Top-of-tall delete (deleted top on screen, height ≥ 2× viewport): `scrollDelta ≈ 0`.
+Medium-tall deletes may need band-bottom delta even when anchor Y is unchanged.
+See [04-layout-pipeline.md](04-layout-pipeline.md) §6c.
