@@ -8,6 +8,25 @@ this project is pre-1.0 and not strictly SemVer yet.
 
 ### Added
 
+- **Message span selection** — long-press a present message and keep dragging
+  past slop to grow or shrink a contiguous run of present neighbors
+  (Telegram-style rubber-band). Select vs unselect polarity is locked at start
+  from origin membership after that press’s own toggle. Moving back toward the
+  origin drops or restores only this gesture’s changes; unrelated snapshot
+  members stay put. The origin stays selected during a select span. Lift ends
+  the span and leaves the set as it stands; a vertical drag that did not start
+  from this long-press still scrolls. A press that never passes slop stays a
+  single-message select. Span hit is the laid-out message row under the pointer
+  (clamped into the scroll band). Date separators, gaps, shimmer, chunk errors,
+  overlays, and selection-disallowed rows are not hits — the far end freezes.
+  Absent ids occupy no height and never join the chain. Holding in the edge
+  band auto-scrolls as the sole origin writer (follow-tail and close-path
+  animate yield); delta is zero when content fits or a boundary pin is active.
+  `ChatSelectionController.spanYield` can claim the long-press so a future
+  in-bubble text selector can win (unused until then). The pinned floating
+  date header is not a hit — tap and long-press go through to the message
+  underneath.
+
 - **Selection-allowed and span abort** — optional
   `ChatSelectionController.selectionAllowed` (default `null` = every present
   message). A disallowed id is never a span hit, never joins the selected set,
@@ -36,6 +55,11 @@ this project is pre-1.0 and not strictly SemVer yet.
   position-specific chrome participates in the skip-rebuild cache.
 
 ### Changed
+
+- **Viewport-owned selection pointer** — long-press and tap are owned by the
+  viewport, not per-row detectors. Rows keep tap / long-press chrome only
+  while no span is live. Fling-cancel still suppresses the long-press that
+  would start a span.
 
 - **Breaking:** `ChatMessageBuilder` now takes `(context, id, message, status, runLayout)`.
   Update all call sites. Use `runLayout.isLastInSenderRun` / `isFirstInSenderRun`
