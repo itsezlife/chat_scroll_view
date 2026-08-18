@@ -1,6 +1,7 @@
 import 'package:chat_scroll_view/src/chat_widgets/chat_message_theme.dart';
 import 'package:chat_scroll_view/src/chat_widgets/chat_scroll_theme.dart';
 import 'package:chat_scroll_view/src/chat_widgets/chat_selection_chrome.dart';
+import 'package:chat_scroll_view/src/chat_widgets/chat_selection_metrics.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -68,7 +69,7 @@ void main() {
   });
 
   group('DefaultSelectionChrome gutter', () {
-    const slot = 44.0;
+    const slot = ChatSelectionMetrics.slotWidth;
 
     ChatSelectionChromeState stateAt(double mode) => ChatSelectionChromeState(
       id: 1,

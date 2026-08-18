@@ -1,4 +1,5 @@
 import 'package:chat_scroll_view/src/chat_scroll/chat_selection_controller.dart';
+import 'package:chat_scroll_view/src/chat_widgets/chat_selection_metrics.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/services.dart';
 
@@ -10,7 +11,12 @@ import 'package:flutter/services.dart';
 /// long-press so selection does not start. After an unclaimed long-press,
 /// polarity is locked at start: an unselected origin starts a select span;
 /// a selected origin toggles off and starts an unselect span. A null span
-/// hit freezes the far end. Emptying the selected set ends the span.
+/// hit freezes the far end. Emptying the selected set does not end the
+/// span — auto-scroll stays live until lift or cancel — but membership
+/// stays empty; the live span does not paint new ids.
+/// Pointer position during a live span is exposed so the viewport can
+/// auto-scroll as the sole origin writer while the pointer sits in an
+/// edge band.
 class ChatSelectionPointer {
   /// Creates recognizers owned by [debugOwner] (the viewport render object).
   ChatSelectionPointer({required this.debugOwner});
@@ -36,6 +42,16 @@ class ChatSelectionPointer {
   /// When true, the current pointer cancelled a fling and must not select.
   bool Function()? flingCancelSuppresses;
 
+  /// Fires when span liveness or the span pointer position changes so the
+  /// viewport can start or stop origin auto-scroll.
+  VoidCallback? onSpanSessionChanged;
+
+  /// Whether a span session is live and has moved past slop.
+  bool get isSpanLive => _spanOriginId != null && _spanPastSlop;
+
+  /// Latest viewport-local pointer position during a live span.
+  Offset? get spanPointerLocal => _spanPointerLocal;
+
   LongPressGestureRecognizer? _longPress;
   TapGestureRecognizer? _tap;
   int? _pointerDownId;
@@ -43,12 +59,15 @@ class ChatSelectionPointer {
   Set<int>? _spanSnapshot;
   _SpanPolarity? _spanPolarity;
   bool _spanPastSlop = false;
+  bool _spanMembershipFrozen = false;
+  Offset? _spanPointerLocal;
 
   /// Forwards a down event to the selection recognizers when a loaded
   /// message is under the pointer.
   void addPointer(PointerDownEvent event) {
     if (selection == null) return;
     _pointerDownId = messageIdAt?.call(event.localPosition);
+    _spanPointerLocal = event.localPosition;
     if (_pointerDownId == null) return;
     _ensureRecognizers();
     _longPress!.addPointer(event);
@@ -57,6 +76,7 @@ class ChatSelectionPointer {
 
   /// Drops recognizers. Safe to call twice.
   void dispose() {
+    onSpanSessionChanged = null;
     _longPress?.dispose();
     _longPress = null;
     _tap?.dispose();
@@ -65,14 +85,25 @@ class ChatSelectionPointer {
     _clearSpan();
   }
 
+  /// Re-applies the live span at [local]. No-op when no span is live.
+  void applySpanAt(Offset local) {
+    _spanPointerLocal = local;
+    if (!isSpanLive) return;
+    _applySpanAt(local);
+  }
+
   void _ensureRecognizers() {
-    _longPress ??= LongPressGestureRecognizer(debugOwner: debugOwner)
-      ..onLongPress = _onLongPress
-      ..onLongPressMoveUpdate = _onLongPressMoveUpdate
-      ..onLongPressEnd = (_) {
-        _clearSpan();
-      }
-      ..onLongPressCancel = _clearSpan;
+    _longPress ??=
+        LongPressGestureRecognizer(
+            debugOwner: debugOwner,
+            duration: ChatSelectionMetrics.longPressTimeout,
+          )
+          ..onLongPress = _onLongPress
+          ..onLongPressMoveUpdate = _onLongPressMoveUpdate
+          ..onLongPressEnd = (_) {
+            _clearSpan();
+          }
+          ..onLongPressCancel = _clearSpan;
     _tap ??= TapGestureRecognizer(debugOwner: debugOwner)..onTap = _onTap;
   }
 
@@ -92,10 +123,13 @@ class ChatSelectionPointer {
       case _SpanPolarity.select:
         selection.startSelection(id);
     }
-    if (!selection.isSelectionMode) return;
+    // Telegram keeps the rubber-band live even when this toggle emptied the
+    // set (unselect of the last selected message). Auto-scroll must not die,
+    // but membership stays frozen empty — no new ids.
     _spanOriginId = id;
     _spanSnapshot = Set<int>.of(selection.selectedIds);
     _spanPolarity = polarity;
+    _spanMembershipFrozen = !selection.isSelectionMode;
   }
 
   void _onLongPressMoveUpdate(LongPressMoveUpdateDetails details) {
@@ -109,11 +143,30 @@ class ChatSelectionPointer {
         selection == null) {
       return;
     }
+    _spanPointerLocal = details.localPosition;
     if (!_spanPastSlop) {
-      if (details.offsetFromOrigin.distance <= kTouchSlop) return;
+      if (details.offsetFromOrigin.distance <= ChatSelectionMetrics.spanSlop) {
+        return;
+      }
       _spanPastSlop = true;
     }
-    final hit = (spanHitAt ?? messageIdAt)?.call(details.localPosition);
+    _applySpanAt(details.localPosition);
+    onSpanSessionChanged?.call();
+  }
+
+  void _applySpanAt(Offset local) {
+    final origin = _spanOriginId;
+    final snapshot = _spanSnapshot;
+    final polarity = _spanPolarity;
+    final selection = this.selection;
+    if (origin == null ||
+        snapshot == null ||
+        polarity == null ||
+        selection == null) {
+      return;
+    }
+    if (_spanMembershipFrozen) return;
+    final hit = (spanHitAt ?? messageIdAt)?.call(local);
     if (hit == null) return;
     final chain = spanChain?.call(origin, hit) ?? <int>[origin, hit];
     final next = switch (polarity) {
@@ -121,14 +174,18 @@ class ChatSelectionPointer {
       _SpanPolarity.select => {...snapshot, ...chain},
     };
     selection.replaceSelectedIds(next);
-    if (next.isEmpty) _clearSpan();
+    if (next.isEmpty) _spanMembershipFrozen = true;
   }
 
   void _clearSpan() {
+    final wasLive = _spanOriginId != null;
     _spanOriginId = null;
     _spanSnapshot = null;
     _spanPolarity = null;
     _spanPastSlop = false;
+    _spanMembershipFrozen = false;
+    _spanPointerLocal = null;
+    if (wasLive) onSpanSessionChanged?.call();
   }
 
   void _onTap() {

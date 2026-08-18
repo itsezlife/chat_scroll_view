@@ -1,5 +1,6 @@
 import 'dart:ui';
 
+import 'package:chat_scroll_view/src/chat_widgets/chat_selection_metrics.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
@@ -20,10 +21,10 @@ class ChatSelectionThemeData extends ThemeExtension<ChatSelectionThemeData> {
     this.checkAccent,
     this.checkRing = const Color(0xFF8E8E93),
     this.checkmark = const Color(0xFFFFFFFF),
-    this.slotWidth = 44,
-    this.checkSize = 22,
-    this.modeDuration = const Duration(milliseconds: 260),
-    this.selectDuration = const Duration(milliseconds: 200),
+    this.slotWidth = ChatSelectionMetrics.slotWidth,
+    this.checkSize = ChatSelectionMetrics.checkSize,
+    this.modeDuration = ChatSelectionMetrics.modeDuration,
+    this.selectDuration = ChatSelectionMetrics.selectDuration,
   });
 
   /// Resolves from [context], falling back to [mergeTheme].

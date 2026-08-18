@@ -208,7 +208,7 @@ void main() {
     });
 
     testWidgets(
-      'emptying the set ends the span; a follow-up drag is ordinary scroll',
+      'emptying the set keeps the span live; a follow-up drag after lift is ordinary scroll',
       (tester) async {
         const count = 32;
         final selection = await _pumpLoaded(tester);
@@ -224,6 +224,8 @@ void main() {
         expect(selection.selectedIds, isEmpty);
         expect(selection.isSelectionMode, isFalse);
 
+        // Span stays live (auto-scroll could continue) but membership is
+        // frozen empty — shrinking back toward origin does not re-select.
         await gesture.moveTo(tester.getCenter(find.text('msg-${count - 1}')));
         await tester.pump();
         expect(selection.selectedIds, isEmpty);

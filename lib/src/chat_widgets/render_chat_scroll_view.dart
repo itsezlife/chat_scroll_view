@@ -19,6 +19,7 @@ import 'package:chat_scroll_view/src/chat_scroll/chat_sender_run_layout.dart';
 import 'package:chat_scroll_view/src/chat_widgets/chat_data_source_ext.dart';
 import 'package:chat_scroll_view/src/chat_widgets/chat_scroll_element.dart';
 import 'package:chat_scroll_view/src/chat_widgets/chat_scrollbar.dart';
+import 'package:chat_scroll_view/src/chat_widgets/chat_selection_metrics.dart';
 import 'package:chat_scroll_view/src/chat_widgets/chat_selection_pointer.dart';
 import 'package:flutter/foundation.dart' show ValueListenable;
 import 'package:flutter/gestures.dart';
@@ -949,7 +950,9 @@ class RenderChatScrollView extends RenderBox {
       ..spanChain = _selectSpanChain
       ..flingCancelSuppresses = () =>
           _controller.flingCancelSuppressesLongPress;
-    _selectionPointer!.selection = _selectionController;
+    _selectionPointer!
+      ..onSpanSessionChanged = _onSpanSessionChanged
+      ..selection = _selectionController;
     _seedTailNavigationOnAttach();
   }
 
@@ -1494,10 +1497,18 @@ class RenderChatScrollView extends RenderBox {
         _wasAtTailLastLayout &&
         newest != null &&
         (_lastSeenNewestId == null || newest > _lastSeenNewestId!);
-    _applyPendingTailPin();
+    // Span auto-scroll occupies the origin writer while the pointer sits in
+    // the edge band — follow-tail and pending tail-pin must not also write.
+    final occupyingSpanAutoScroll = _spanAutoScrollOccupying;
+    if (!occupyingSpanAutoScroll) {
+      _applyPendingTailPin();
+    }
     final repinBottom =
-        _pinTailOnJump ||
-        (_dataSource.reachedNewest && _wasAtTailLastLayout && tailAdvanced);
+        (!occupyingSpanAutoScroll && _pinTailOnJump) ||
+        (_dataSource.reachedNewest &&
+            _wasAtTailLastLayout &&
+            tailAdvanced &&
+            !occupyingSpanAutoScroll);
     if (repinBottom || _pendingTailPinUntilSettled || _pinTailOnJump) {
       _fetchAnchorEvent('layout.tailPinFlags', {
         ..._fetchAnchorSnapshot(),
@@ -1643,6 +1654,7 @@ class RenderChatScrollView extends RenderBox {
     _deleteCollapseExpectedBandGap = null;
     _beforeDeleteLayout = null;
 
+    if (_spanAutoScrollOccupying) _applyLiveSpanHit();
     _fetchAnchorEvent('layout.end', _fetchAnchorSnapshot());
     if (_scrollbarLog.enabled) {
       final computed = _computeScrollbarProgress();
@@ -2984,7 +2996,8 @@ class RenderChatScrollView extends RenderBox {
         _animator.highlightTargetId == null &&
         !_animator.isAnimating &&
         !_physics.isBouncing &&
-        !_dragInProgress) {
+        !_dragInProgress &&
+        !_spanAutoScrollOccupying) {
       _ticker?.stop();
       // Scroll ended — drop the directional lead so the next layout re-fans
       // a symmetric range and collects the now-unneeded lead children.
@@ -3030,6 +3043,7 @@ class RenderChatScrollView extends RenderBox {
   /// children and calls [markNeedsPaint] (Tier 1). Falls back to
   /// [markNeedsLayout] only when the built range no longer covers the viewport.
   void _onTick(Duration elapsed) {
+    final lastElapsed = _lastTickElapsed;
     _lastTickElapsed = elapsed;
     // Overlay mode owns the viewport — no scroll, no fling, no animate. A
     // ticker that survives the transition (or a stray re-arm) must not
@@ -3047,11 +3061,13 @@ class RenderChatScrollView extends RenderBox {
 
     // Skip the scroll path entirely on highlight-only frames so the fetch
     // poll's debounce isn't constantly reset by `_markScrollActive`.
+    final occupyingSpanAutoScroll = _spanAutoScrollOccupying;
     final hasScrollWork =
         _pendingScrollDelta != 0.0 ||
         _physics.isFlinging ||
-        _animator.isAnimating ||
-        _physics.isBouncing;
+        (!occupyingSpanAutoScroll && _animator.isAnimating) ||
+        _physics.isBouncing ||
+        occupyingSpanAutoScroll;
     if (!hasScrollWork) {
       // Highlight-only frame: advance the fade and bail.
       if (_animator.tickHighlight(elapsed)) markNeedsPaint();
@@ -3091,16 +3107,23 @@ class RenderChatScrollView extends RenderBox {
     // to the anchor offset, the far path mutates fade opacity and triggers
     // jumpTo on its own. Inserted *between* fling and bounceback so the
     // original composition order is preserved when multiple phases overlap.
-    final animateDelta = _animator.tickAnimate(elapsed);
-    delta += animateDelta;
+    // Span auto-scroll is the sole origin writer while the edge band is
+    // occupied — close-path animate yields.
+    if (occupyingSpanAutoScroll) {
+      _cancelAnimate();
+    } else {
+      delta += _animator.tickAnimate(elapsed);
+    }
     // Spring-back from an overscroll release. Runs after the user lets go,
     // pulling the boundary back to its edge over [kOverscrollBounceDuration].
     delta += _physics.tickBounceback(elapsed);
+    delta += _spanAutoScrollDelta(elapsed, lastElapsed);
 
     if (delta != 0.0) _controller.applyScrollDelta(delta);
     // Smooth the per-frame scroll delta; biases the next fan-out lead.
     _scrollVelocity = _scrollVelocity * 0.7 + delta * 0.3;
     _repositionFromAnchor();
+    if (occupyingSpanAutoScroll) _applyLiveSpanHit();
     // Keep the anchor on a visible message so the next layout fans out a
     // tight range rather than rebuilding everything back to a drifted anchor.
     if (!_skipRenormalizeDuringClosePath()) {
@@ -3293,13 +3316,121 @@ class RenderChatScrollView extends RenderBox {
 
   /// Span hit: [local] clamped into the scroll band, then
   /// [_selectionMessageIdAt]. Null over non-message slots (far end freezes).
+  /// The pinned floating date header is not a freeze slot — auto-scroll holds
+  /// in the top edge band, which is exactly where that header sits.
+  ///
+  /// When [_spanHitFullRow] is true (auto-scroll apply), any Y on the
+  /// message row counts — Telegram's `chekMultiselect` uses the child rect,
+  /// not the bubble body — so a row is selected as soon as it reaches the
+  /// inset.
   int? _spanHitAt(Offset local) {
     if (!hasSize) return null;
     if (_overlayKind != ChatOverlayKind.none) return null;
     final minY = _topPad;
     final maxY = math.max(minY, size.height - _bottomPad - 0.001);
-    return _selectionMessageIdAt(Offset(local.dx, local.dy.clamp(minY, maxY)));
+    return _selectionMessageIdAt(
+      Offset(local.dx, local.dy.clamp(minY, maxY)),
+      hitThroughPinnedHeader: true,
+      hitFullRow: _spanHitFullRow,
+    );
   }
+
+  static const double _spanEdgeBand = ChatSelectionMetrics.autoScrollEdgeBand;
+
+  static const double _spanAutoScrollPixelsPerFrame =
+      ChatSelectionMetrics.autoScrollPixelsPerFrame;
+
+  bool get _spanAutoScrollOccupying {
+    final pointer = _selectionPointer;
+    if (pointer == null || !pointer.isSpanLive) return false;
+    final local = pointer.spanPointerLocal;
+    if (local == null || !hasSize) return false;
+    return _spanEdgeDirection(local) != 0;
+  }
+
+  /// `+1` toward older (top band), `-1` toward newer (bottom band), `0` none.
+  int _spanEdgeDirection(Offset local) {
+    if (local.dy < _topPad + _spanEdgeBand) return 1;
+    if (local.dy > size.height - _bottomPad - _spanEdgeBand) return -1;
+    return 0;
+  }
+
+  void _onSpanSessionChanged() {
+    if (_spanAutoScrollOccupying) {
+      _cancelFling();
+      _cancelAnimate();
+      _cancelBounceback();
+      _ensureTicker();
+    } else {
+      _stopTickerIfIdle();
+    }
+  }
+
+  double _spanAutoScrollDelta(Duration elapsed, Duration? lastElapsed) {
+    if (!_spanAutoScrollOccupying) return 0;
+    if (_contentFitsInViewport()) return 0;
+    final local = _selectionPointer!.spanPointerLocal!;
+    final direction = _spanEdgeDirection(local);
+    if (direction == 0) return 0;
+    if (_spanAutoScrollBlockedByPin(direction)) return 0;
+    if (lastElapsed == null) return 0;
+    final dt = ((elapsed - lastElapsed).inMicroseconds / 1e6).clamp(0.0, 0.05);
+    if (dt <= 0.0) return 0;
+    return direction * _spanAutoScrollPixelsPerFrame * _displayRefreshHz() * dt;
+  }
+
+  /// Hz of the first attached display, or 60 when none is reported.
+  double _displayRefreshHz() {
+    for (final view in SchedulerBinding.instance.platformDispatcher.views) {
+      final hz = view.display.refreshRate;
+      if (hz > 1) return hz;
+    }
+    return 60;
+  }
+
+  bool _spanAutoScrollBlockedByPin(int direction) {
+    if (direction > 0) {
+      if (!_dataSource.reachedOldest) return false;
+      final oldest = _dataSource.oldestKnownId;
+      final box = oldest != null ? _boundaryBox(oldest) : null;
+      if (box == null) return false;
+      return _parentData(box).offset >= -0.5;
+    }
+    if (direction < 0) {
+      if (!_dataSource.reachedNewest) return false;
+      final newest = _dataSource.newestKnownId;
+      final box = newest != null ? _boundaryBox(newest) : null;
+      if (box == null) return false;
+      final bottom = _parentData(box).offset + box.size.height;
+      return bottom <= size.height - _bottomPad + 0.5;
+    }
+    return false;
+  }
+
+  void _applyLiveSpanHit() {
+    final pointer = _selectionPointer;
+    final local = pointer?.spanPointerLocal;
+    if (pointer == null || !pointer.isSpanLive || local == null) return;
+    if (!hasSize) return;
+    final direction = _spanEdgeDirection(local);
+    // Telegram's scroller hit-tests at the content inset, not the finger:
+    // `chekMultiselect(0, paddings[0])` / `(height - paddings[1])`. That
+    // selects a row as soon as it reaches the pad, while the finger may
+    // sit in overlay chrome — faster than waiting for the bubble to clear
+    // the bars.
+    final y = direction > 0
+        ? _topPad
+        : math.max(_topPad, size.height - _bottomPad - 0.001);
+    _spanHitFullRow = true;
+    try {
+      pointer.applySpanAt(Offset(local.dx, y));
+    } finally {
+      _spanHitFullRow = false;
+    }
+  }
+
+  /// When true, [_spanHitAt] treats the whole message row as a hit.
+  bool _spanHitFullRow = false;
 
   /// Loaded present ids from [origin] to [hit] inclusive. Walks present
   /// neighbors, skipping absent, shimmer, and chunk-error slots.
@@ -3325,9 +3456,15 @@ class RenderChatScrollView extends RenderBox {
   }
 
   /// Loaded message whose selectable body contains [local], or `null` when
-  /// the point is over overlay, header, chunk-error, shimmer, date chrome,
-  /// or empty space.
-  int? _selectionMessageIdAt(Offset local) {
+  /// the point is over overlay, chunk-error, shimmer, date chrome, or empty
+  /// space. The pinned floating header is ignored when
+  /// [hitThroughPinnedHeader] is true so a span held in the top edge band
+  /// can still hit the message underneath.
+  int? _selectionMessageIdAt(
+    Offset local, {
+    bool hitThroughPinnedHeader = false,
+    bool hitFullRow = false,
+  }) {
     if (!hasSize) return null;
     if (_overlayKind != ChatOverlayKind.none) return null;
     final h = size.height;
@@ -3337,9 +3474,12 @@ class RenderChatScrollView extends RenderBox {
     }
 
     final header = _floatingHeader;
+    var pinnedHeaderCovers = false;
     if (header != null && _shouldShowFloatingHeader()) {
       final top = _parentData(header).offset;
-      if (local.dy >= top && local.dy < top + header.size.height) {
+      pinnedHeaderCovers =
+          local.dy >= top && local.dy < top + header.size.height;
+      if (pinnedHeaderCovers && !hitThroughPinnedHeader) {
         return null;
       }
     }
@@ -3360,7 +3500,8 @@ class RenderChatScrollView extends RenderBox {
         continue;
       }
       if (_dataSource.getMessage(entry.key) == null) return null;
-      if (local.dy < pd.offset + pd.messageBodyTop) return null;
+      final inDateChrome = local.dy < pd.offset + pd.messageBodyTop;
+      if (inDateChrome && !hitFullRow && !pinnedHeaderCovers) return null;
       return entry.key;
     }
     return null;

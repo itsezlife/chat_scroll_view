@@ -2,6 +2,7 @@ import 'package:chat_scroll_view/src/chat_scroll/chat_scroll_controller.dart';
 import 'package:chat_scroll_view/src/chat_scroll/chat_selection_controller.dart';
 import 'package:chat_scroll_view/src/chat_widgets/chat_scroll_theme.dart';
 import 'package:chat_scroll_view/src/chat_widgets/chat_selection_chrome.dart';
+import 'package:chat_scroll_view/src/chat_widgets/chat_selection_metrics.dart';
 import 'package:chat_scroll_view/src/chat_widgets/chat_selection_theme.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -67,12 +68,12 @@ class _SelectableMessageState extends State<SelectableMessage>
     _liveMode = c.isSelectionMode;
     _mode = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 260),
+      duration: ChatSelectionMetrics.modeDuration,
       value: _liveMode ? 1.0 : 0.0,
     );
     _select = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 200),
+      duration: ChatSelectionMetrics.selectDuration,
       value: c.isSelected(widget.id) ? 1.0 : 0.0,
     );
     _animation = Listenable.merge(<Listenable>[_mode, _select]);

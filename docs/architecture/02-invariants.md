@@ -75,6 +75,7 @@ At most **one active writer** of `anchorPixelOffset` for a given phase:
 | Close-path animate | `tickAnimate` → `applyScrollDelta` | Renormalize; `_applyNavigationAlignment` |
 | Layout settle / jump | `_applyNavigationAlignment`, pins | — |
 | Drag / fling / bounce | Tick deltas + clamp (when not suspended) | Clamp during drag/bounce |
+| Span auto-scroll | Tick auto-scroll delta | Follow-tail; close-path animate |
 
 **Must not:** snap alignment in layout while close-path animate interpolates
 (guarded by `_animator.isAnimating && !_animator.farAnimateActive`).

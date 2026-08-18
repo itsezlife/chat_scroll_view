@@ -26,7 +26,10 @@ _onTick:
   4. If drag && boundary reachable → applyOverscrollResistance
   5. delta += tickFling
   6. delta += tickAnimate          // close: offset delta; far: fade only
+     // skipped while span auto-scroll occupies the origin writer
   7. delta += tickBounceback
+  7b. delta += span auto-scroll    // live span + pointer in edge band;
+                                 // 0 if content fits or a boundary pin would unstick
   8. applyScrollDelta(delta)
   9. Update _scrollVelocity EMA
  10. _repositionFromAnchor
@@ -121,7 +124,7 @@ symmetric and lead children are collected.
 
 - `_ensureTicker` starts the ticker if inactive.
 - `_stopTickerIfIdle` stops when no fling, pending delta, highlight, animate,
-  bounceback, or drag.
+  bounceback, drag, or span auto-scroll occupying the origin writer.
 - `_ticking` follows `TickerMode` — inactive routes do not animate fling
   off-screen.
 - Overlay mode aborts all scroll work and stops the ticker.
@@ -144,7 +147,12 @@ and follow-tail converge on the next layout.
   an unselect span if the origin was already selected; tap toggles while
   mode is on). Rows do not attach a competing detector. A host `spanYield`
   that returns true claims the long-press so selection does not start.
-  Emptying the selected set ends the span.
+  Emptying the selected set does not end the span; membership stays empty.
+- While a live span pointer occupies the top or bottom edge band, span
+  auto-scroll is the sole origin writer (follow-tail and close-path
+  animate yield). Delta is zero when content fits or applying it would
+  unstick a boundary pin. Newly laid-out present messages can become
+  the span hit. Lift or span abort releases the writer.
 - Scrollbar drag: maps Y → progress → `_jumpToScrollbar` → `jumpTo(id)`
   (layout path).
 
