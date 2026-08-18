@@ -1068,11 +1068,22 @@ class RenderChatScrollView extends RenderBox {
   // --- Typed listeners -------------------------------------------------------
 
   void _onDataChanged() {
+    _abortSpanIfOriginAbsent();
     _fetchAnchorEvent('fetch.data', {
       ..._fetchAnchorSnapshot(),
       'fetchingChunks': DevLogFormat.ids(_fetchingChunkIndices(), max: 8),
     });
     markNeedsLayout();
+  }
+
+  /// Ends a live span when its gesture origin is confirmed absent so
+  /// delete recovery can write the origin. Keeps the selected set.
+  void _abortSpanIfOriginAbsent() {
+    final pointer = _selectionPointer;
+    final origin = pointer?.spanOriginId;
+    if (pointer == null || origin == null) return;
+    if (!_dataSource.statusOf(origin).isAbsent) return;
+    pointer.abortSpan();
   }
 
   /// Mutation intent stub — extent animation follow-on will consume
@@ -3437,7 +3448,8 @@ class RenderChatScrollView extends RenderBox {
   bool _spanHitFullRow = false;
 
   /// Loaded present ids from [origin] to [hit] inclusive. Walks present
-  /// neighbors, skipping absent, shimmer, and chunk-error slots.
+  /// neighbors, skipping absent, shimmer, chunk-error, and selection-
+  /// disallowed slots.
   List<int> _selectSpanChain(int origin, int hit) {
     if (origin == hit) return <int>[origin];
     final goingUp = hit > origin;
@@ -3451,13 +3463,16 @@ class RenderChatScrollView extends RenderBox {
       if (!goingUp && next < hit) break;
       if (next == id) break;
       id = next;
-      if (_dataSource.getMessage(id) != null) {
+      if (_dataSource.getMessage(id) != null && _isSelectionAllowed(id)) {
         ids.add(id);
       }
       if (id == hit) break;
     }
     return ids;
   }
+
+  bool _isSelectionAllowed(int id) =>
+      _selectionController?.isSelectionAllowed(id) ?? true;
 
   /// Loaded message whose selectable body contains [local], or `null` when
   /// the point is over overlay, chunk-error, shimmer, date chrome, or empty
@@ -3504,6 +3519,7 @@ class RenderChatScrollView extends RenderBox {
         continue;
       }
       if (_dataSource.getMessage(entry.key) == null) return null;
+      if (!_isSelectionAllowed(entry.key)) return null;
       final inDateChrome = local.dy < pd.offset + pd.messageBodyTop;
       if (inDateChrome && !hitFullRow && !pinnedHeaderCovers) return null;
       return entry.key;
