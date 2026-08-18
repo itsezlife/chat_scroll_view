@@ -2,15 +2,19 @@ import 'package:chat_scroll_view/src/chat_scroll/chat_scroll_controller.dart';
 import 'package:chat_scroll_view/src/chat_scroll/chat_selection_controller.dart';
 import 'package:chat_scroll_view/src/chat_widgets/chat_scroll_theme.dart';
 import 'package:chat_scroll_view/src/chat_widgets/chat_selection_chrome.dart';
+import 'package:chat_scroll_view/src/chat_widgets/chat_selection_metrics.dart';
 import 'package:chat_scroll_view/src/chat_widgets/chat_selection_theme.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
-/// Headless selection host: gestures, mode/select animations, freeze-on-exit.
+/// Headless selection host: mode/select animations and freeze-on-exit.
 ///
-/// Chrome is painted by [chromeBuilder] (defaults to [DefaultSelectionChrome.wrap]).
-/// Restyle the bundled chrome with [ChatSelectionThemeData]; replace layout
-/// entirely with `ChatScrollView.selectionChromeBuilder`.
+/// The viewport owns the selection pointer (long-press / tap). This widget
+/// only paints chrome — [chromeBuilder] must not attach a competing
+/// detector. Chrome is built by [chromeBuilder] (defaults to
+/// [DefaultSelectionChrome.wrap]). Restyle the bundled chrome with
+/// [ChatSelectionThemeData]; replace layout entirely with
+/// `ChatScrollView.selectionChromeBuilder`.
 ///
 /// ### Freeze on exit
 ///
@@ -20,7 +24,7 @@ import 'package:flutter/services.dart';
 /// so the check does not play an unselect animation. Re-entering snaps
 /// select progress to the live set before the mode animation runs.
 class SelectableMessage extends StatefulWidget {
-  /// Wraps [child] with selection gestures and animated chrome for [id].
+  /// Wraps [child] with animated selection chrome for [id].
   const SelectableMessage({
     required this.id,
     required this.controller,
@@ -36,7 +40,8 @@ class SelectableMessage extends StatefulWidget {
   /// Shared selection state.
   final ChatSelectionController controller;
 
-  /// Suppresses tap / long-press while a fling-cancel is in progress.
+  /// Suppresses chrome-driven tap / long-press while a fling-cancel is in
+  /// progress. The viewport applies the same guard to its own pointer.
   final ChatScrollController? scrollController;
 
   /// Builds chrome around [child]. Must be a stable tear-off.
@@ -63,12 +68,12 @@ class _SelectableMessageState extends State<SelectableMessage>
     _liveMode = c.isSelectionMode;
     _mode = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 260),
+      duration: ChatSelectionMetrics.modeDuration,
       value: _liveMode ? 1.0 : 0.0,
     );
     _select = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 200),
+      duration: ChatSelectionMetrics.selectDuration,
       value: c.isSelected(widget.id) ? 1.0 : 0.0,
     );
     _animation = Listenable.merge(<Listenable>[_mode, _select]);
@@ -149,26 +154,21 @@ class _SelectableMessageState extends State<SelectableMessage>
   }
 
   @override
-  Widget build(BuildContext context) => GestureDetector(
-    behavior: HitTestBehavior.opaque,
-    onTap: _handleTap,
-    onLongPress: _handleLongPress,
-    child: AnimatedBuilder(
-      animation: _animation,
-      builder: (context, child) => widget.chromeBuilder(
-        context,
-        ChatSelectionChromeState(
-          id: widget.id,
-          modeProgress: _mode.value.clamp(0.0, 1.0),
-          selectProgress: _select.value.clamp(0.0, 1.0),
-          isSelectionMode: widget.controller.isSelectionMode,
-          isSelected: widget.controller.isSelected(widget.id),
-          onTap: _handleTap,
-          onLongPress: _handleLongPress,
-        ),
-        child!,
+  Widget build(BuildContext context) => AnimatedBuilder(
+    animation: _animation,
+    builder: (context, child) => widget.chromeBuilder(
+      context,
+      ChatSelectionChromeState(
+        id: widget.id,
+        modeProgress: _mode.value.clamp(0.0, 1.0),
+        selectProgress: _select.value.clamp(0.0, 1.0),
+        isSelectionMode: widget.controller.isSelectionMode,
+        isSelected: widget.controller.isSelected(widget.id),
+        onTap: _handleTap,
+        onLongPress: _handleLongPress,
       ),
-      child: widget.child,
+      child!,
     ),
+    child: widget.child,
   );
 }

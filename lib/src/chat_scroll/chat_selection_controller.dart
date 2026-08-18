@@ -1,11 +1,16 @@
 import 'dart:collection';
 
-import 'package:flutter/foundation.dart' show Listenable, VoidCallback;
+import 'package:flutter/foundation.dart'
+    show Listenable, ValueListenable, ValueNotifier, VoidCallback;
+import 'package:flutter/scheduler.dart';
 
 /// Whole-message selection controller for the chat viewport.
 ///
 /// Long press enters selection mode and selects the message.
 /// Taps toggle messages. Selection mode exits when the set empties.
+/// [selectionCap] optionally limits how large the selected set can grow.
+/// [selectionAllowed] optionally forbids individual present messages from
+/// joining the selected set.
 ///
 /// Lives outside the render tree — survives render eviction and can be
 /// queried by external UI (toolbar, copy button). Implements [Listenable]
@@ -22,6 +27,7 @@ import 'package:flutter/foundation.dart' show Listenable, VoidCallback;
 /// [ChatSelectionController] per conversation, to avoid this footgun.
 class ChatSelectionController implements Listenable {
   final _selectedIds = HashSet<int>();
+  final _capHits = ValueNotifier<int>(0);
 
   /// Whether selection mode is active.
   bool get isSelectionMode => _selectedIds.isNotEmpty;
@@ -36,17 +42,36 @@ class ChatSelectionController implements Listenable {
   bool isSelected(int messageId) => _selectedIds.contains(messageId);
 
   /// Enter selection mode and select [messageId].
+  ///
+  /// No-op when [messageId] is already selected, is not [selectionAllowed],
+  /// or when adding it would exceed [selectionCap].
   void startSelection(int messageId) {
-    if (!_selectedIds.add(messageId)) return;
+    if (_selectedIds.contains(messageId)) return;
+    if (!isSelectionAllowed(messageId)) return;
+    if (isAtSelectionCap) {
+      notifyCapHit();
+      return;
+    }
+    _selectedIds.add(messageId);
     _notify();
   }
 
   /// Toggle [messageId] in/out of selection.
   /// Exits selection mode when the set becomes empty.
+  ///
+  /// Adding is a no-op when [messageId] is not [selectionAllowed] or the
+  /// set is already at [selectionCap].
   void toggle(int messageId) {
-    if (!_selectedIds.remove(messageId)) {
-      _selectedIds.add(messageId);
+    if (_selectedIds.remove(messageId)) {
+      _notify();
+      return;
     }
+    if (!isSelectionAllowed(messageId)) return;
+    if (isAtSelectionCap) {
+      notifyCapHit();
+      return;
+    }
+    _selectedIds.add(messageId);
     _notify();
   }
 
@@ -59,6 +84,85 @@ class ChatSelectionController implements Listenable {
     _selectedIds.clear();
     _notify();
   }
+
+  /// Replaces the selected set with [ids]. No-op if equal. Empty [ids]
+  /// exits selection mode. Ids that are not [selectionAllowed] are omitted.
+  void replaceSelectedIds(Set<int> ids) {
+    final next = selectionAllowed == null
+        ? ids
+        : ids.where(isSelectionAllowed).toSet();
+    if (next.length == _selectedIds.length && _selectedIds.containsAll(next)) {
+      return;
+    }
+    _selectedIds
+      ..clear()
+      ..addAll(next);
+    _notify();
+  }
+
+  /// Optional maximum size of [selectedIds]. `null` (the default) means
+  /// unlimited — the package does not hardcode Telegram's 100.
+  ///
+  /// A select span does not grow past this size. Unselect spans ignore it
+  /// and may shrink the set while it is at the cap. Hosts that want
+  /// Telegram's limit set this to `100`.
+  int? selectionCap;
+
+  /// Whether [count] has reached [selectionCap]. Always `false` when the
+  /// cap is `null`.
+  bool get isAtSelectionCap {
+    final cap = selectionCap;
+    return cap != null && _selectedIds.length >= cap;
+  }
+
+  /// Bumps whenever an add is refused because the set is already at
+  /// [selectionCap]. The selected set does not change, so [addListener]
+  /// on this controller does not fire — listen here to shake chrome or
+  /// play an error haptic.
+  ValueListenable<int> get capHits => _capHits;
+
+  bool _capHitScheduled = false;
+
+  /// Records a refused add at [selectionCap]. The viewport calls this
+  /// when a select span cannot grow; hosts normally listen to [capHits]
+  /// instead of calling this themselves.
+  void notifyCapHit() {
+    void bump() {
+      if (_disposed) return;
+      _capHits.value++;
+    }
+
+    final phase = SchedulerBinding.instance.schedulerPhase;
+    if (phase == SchedulerPhase.persistentCallbacks ||
+        phase == SchedulerPhase.midFrameMicrotasks) {
+      if (_capHitScheduled) return;
+      _capHitScheduled = true;
+      SchedulerBinding.instance.addPostFrameCallback((_) {
+        _capHitScheduled = false;
+        bump();
+      });
+      return;
+    }
+    bump();
+  }
+
+  /// Host claim on a long-press that would start a span.
+  ///
+  /// Return `true` to claim the press: selection mode does not start and the
+  /// set stays empty. `null` (the default) never claims. This is the seam
+  /// for a future in-bubble text selector; unused until that selector exists.
+  bool Function(int messageId)? spanYield;
+
+  /// Host predicate: a present message may join the selected set only when
+  /// this returns true. `null` (the default) allows every present message.
+  /// Independent of span polarity — a disallowed id is never a span hit
+  /// and is omitted from the selection span.
+  bool Function(int messageId)? selectionAllowed;
+
+  /// Whether [messageId] may join the selected set. True when
+  /// [selectionAllowed] is null.
+  bool isSelectionAllowed(int messageId) =>
+      selectionAllowed?.call(messageId) ?? true;
 
   // --- Listeners ---
 
@@ -78,7 +182,28 @@ class ChatSelectionController implements Listenable {
   @override
   void removeListener(VoidCallback listener) => _listeners.remove(listener);
 
+  bool _notifyScheduled = false;
+
   void _notify() {
+    // Span auto-scroll applies from performLayout. Listeners (composer,
+    // chrome) call setState — illegal during persistentCallbacks. Same
+    // trampoline as ChatScrollController.isAtTail.
+    final phase = SchedulerBinding.instance.schedulerPhase;
+    if (phase == SchedulerPhase.persistentCallbacks ||
+        phase == SchedulerPhase.midFrameMicrotasks) {
+      if (_notifyScheduled) return;
+      _notifyScheduled = true;
+      SchedulerBinding.instance.addPostFrameCallback((_) {
+        _notifyScheduled = false;
+        if (_disposed) return;
+        _notifyNow();
+      });
+      return;
+    }
+    _notifyNow();
+  }
+
+  void _notifyNow() {
     // Iterate a snapshot: a listener may add/remove listeners while reacting
     // (e.g. a message widget unmounting during the resulting rebuild).
     for (final cb in _listeners.toList(growable: false)) {
@@ -96,6 +221,7 @@ class ChatSelectionController implements Listenable {
     if (_disposed) return;
     _disposed = true;
     _listeners.clear();
+    _capHits.dispose();
     // Drop the set: a stale reference held by a consumer (e.g. a toolbar
     // queueing an undo) must not silently match unrelated ids in a fresh
     // conversation that happens to reuse the same numeric range.

@@ -311,6 +311,18 @@ void main() {
       expect(ds.pendingRemovalIds, <int>{99});
       expect(ds.getMessage(100)?.id, 100);
     });
+
+    test('nextInsertId skips staged tail ids after newest retracts', () {
+      final ds = _SpyDataSource()
+        ..insertMessage(_msg(98))
+        ..insertMessage(_msg(99));
+      ds.removeMessages([98, 99]);
+      expect(ds.newestKnownId, lessThan(98));
+      expect(ds.pendingRemovalIds, containsAll(<int>[98, 99]));
+      expect(ds.nextInsertId, 100);
+      ds.insertMessage(_msg(ds.nextInsertId));
+      expect(ds.newestKnownId, 100);
+    });
   });
 
   group('off-tree batch ids', () {

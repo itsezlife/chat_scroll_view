@@ -26,7 +26,11 @@ _onTick:
   4. If drag && boundary reachable → applyOverscrollResistance
   5. delta += tickFling
   6. delta += tickAnimate          // close: offset delta; far: fade only
+     // skipped while span auto-scroll occupies the origin writer
   7. delta += tickBounceback
+  7b. delta += span auto-scroll    // live span + pointer in edge band;
+                                 // 0 if content fits, a boundary pin would
+                                 // unstick, or select-span growth is at cap
   8. applyScrollDelta(delta)
   9. Update _scrollVelocity EMA
  10. _repositionFromAnchor
@@ -121,7 +125,7 @@ symmetric and lead children are collected.
 
 - `_ensureTicker` starts the ticker if inactive.
 - `_stopTickerIfIdle` stops when no fling, pending delta, highlight, animate,
-  bounceback, or drag.
+  bounceback, drag, or span auto-scroll occupying the origin writer.
 - `_ticking` follows `TickerMode` — inactive routes do not animate fling
   off-screen.
 - Overlay mode aborts all scroll work and stops the ticker.
@@ -137,8 +141,26 @@ and follow-tail converge on the next layout.
 - Mouse wheel: `_pendingScrollDelta -= event.scrollDelta.dy` (sign maps to
   anchor convention), Tier-1.
 - Pointer down during fling: cancel fling and set
-  `flingCancelSuppressesLongPress` so selection long-press does not fire on
-  the cancel tap.
+  `flingCancelSuppressesLongPress` so the viewport-owned selection
+  long-press does not fire on the cancel tap.
+- When a selection controller is wired, the same pointer down is also
+  offered to `ChatSelectionPointer` (long-press enters selection or starts
+  an unselect span if the origin was already selected; tap toggles while
+  mode is on). Rows do not attach a competing detector. A host `spanYield`
+  that returns true claims the long-press so selection does not start.
+  A host `selectionAllowed` that returns false is not a span hit and does
+  not join the selected set, even on the present-neighbor walk. Emptying
+  the selected set does not end the span; membership stays empty.
+  If the gesture origin becomes absent, the span aborts (set kept, origin
+  not retargeted) so delete recovery may write the origin.
+- While a live span pointer occupies the top or bottom edge band, span
+  auto-scroll is the sole origin writer (follow-tail and close-path
+  animate yield). Delta is zero when content fits, applying it would
+  unstick a boundary pin, or a select span is at the selection cap in
+  the grow direction (unselect spans ignore the cap; auto-scroll toward
+  the origin still runs). A refused grow bumps `capHits` once per wall.
+  Newly laid-out present messages can become
+  the span hit. Lift or span abort releases the writer.
 - Scrollbar drag: maps Y → progress → `_jumpToScrollbar` → `jumpTo(id)`
   (layout path).
 

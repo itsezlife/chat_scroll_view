@@ -1,5 +1,7 @@
 import 'package:chat_scroll_view/chat_scroll_view.dart';
+import 'package:chat_scroll_view_example/src/common/widgets/cap_hit_shake.dart';
 import 'package:chat_scroll_view_example/src/common/widgets/frozen_value.dart';
+import 'package:chat_scroll_view_example/src/common/widgets/selection_cap_haptic.dart';
 import 'package:flutter/material.dart';
 
 /// Toolbar body height below the top [SafeArea] inset.
@@ -151,12 +153,16 @@ class _SelectionAppBarState extends State<SelectionAppBar>
               color: scheme.onSurface,
               onPressed: widget.selection.clear,
             ),
-            Text(
-              'Выбрано: $count',
-              style: TextStyle(
-                color: scheme.onSurface,
-                fontSize: 17,
-                fontWeight: FontWeight.w600,
+            CapHitShake(
+              hits: widget.selection.capHits,
+              onHit: playSelectionCapHaptic,
+              child: Text(
+                'Выбрано: $count',
+                style: TextStyle(
+                  color: scheme.onSurface,
+                  fontSize: 17,
+                  fontWeight: FontWeight.w600,
+                ),
               ),
             ),
             const Spacer(),

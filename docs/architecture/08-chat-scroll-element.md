@@ -69,9 +69,10 @@ walk neighbors itself — same pattern as `startsNewDay`.
 
 - Optional `Directionality` override + `Builder` so builders see the same
   direction as chrome.
-- Optional `SelectableMessage` wrap (selection chrome) — **only for ids that
-  pass the absent exclusion gate**; wrapping zero-size shrink output for absent
-  ids still produces selectable ghost rows.
+- Optional `SelectableMessage` wrap (selection chrome only — the viewport
+  owns the pointer) — **only for ids that pass the absent exclusion gate**;
+  wrapping zero-size shrink output for absent ids still produces selectable
+  ghost rows.
 - If `startsNewDay && separator != null && message != null && groupBucket != null`
   → `DatedMessage(separator, body)`; else `RepaintBoundary` + body.
 - Separator is **outside** selection so date chrome is never tinted.

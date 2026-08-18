@@ -118,6 +118,40 @@ void main() {
         ..startSelection(42);
       expect(calls, 1, reason: 'selection listener must dedup');
     });
+
+    test('startSelection and toggle refuse a disallowed id', () {
+      final sc = ChatSelectionController()..selectionAllowed = (id) => id != 7;
+      addTearDown(sc.dispose);
+      sc.startSelection(7);
+      expect(sc.isSelected(7), isFalse);
+      expect(sc.isSelectionMode, isFalse);
+      sc.startSelection(6);
+      expect(sc.selectedIds, {6});
+      sc.toggle(7);
+      expect(sc.selectedIds, {6});
+      sc.replaceSelectedIds({6, 7, 8});
+      expect(sc.selectedIds, {6, 8});
+    });
+
+    test('refusing an add at selectionCap bumps capHits', () {
+      final sc = ChatSelectionController()..selectionCap = 2;
+      addTearDown(sc.dispose);
+      var hits = 0;
+      sc.capHits.addListener(() => hits++);
+      sc
+        ..startSelection(1)
+        ..startSelection(2);
+      expect(hits, 0);
+      expect(sc.isAtSelectionCap, isTrue);
+      sc.startSelection(3);
+      expect(hits, 1);
+      expect(sc.count, 2);
+      sc.toggle(4);
+      expect(hits, 2);
+      sc.toggle(2);
+      expect(hits, 2);
+      expect(sc.isAtSelectionCap, isFalse);
+    });
   });
 
   group('isAtTail / visibleRange listener safety', () {

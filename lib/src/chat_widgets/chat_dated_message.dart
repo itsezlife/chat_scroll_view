@@ -81,6 +81,10 @@ class RenderDatedMessage extends RenderBox
     size = constraints.constrain(
       Size(constraints.maxWidth, separator.size.height + body.size.height),
     );
+    final viewportPd = parentData;
+    if (viewportPd is ChatMessageParentData) {
+      viewportPd.messageBodyTop = separator.size.height;
+    }
   }
 
   @override

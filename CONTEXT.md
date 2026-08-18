@@ -110,6 +110,78 @@ A row that opens a new day bucket and may show an inline date separator.
 One of four disjoint identity spaces: messages, chunk errors, floating header, overlay.
 _Avoid_: Child index, GlobalKey, element slot (Flutter’s)
 
+### Selection
+
+**Message selection**:
+Membership of whole messages in the selected set. This viewport’s only selection model.
+_Avoid_: Text selection, character range, highlight
+
+**Span chain**:
+The present-neighbor walk from the gesture origin to the current span hit. Absent, shimmer, and chunk-error slots are not on it.
+_Avoid_: Id interval, reserved range, adapter slice
+
+**Selection span**:
+The span-eligible messages on the span chain. Membership is not reserved for ids that later become present.
+_Avoid_: Paint-toggle, id range, adapter range
+
+**Span polarity**:
+Whether a selection span forces membership on or off. Locked at gesture start.
+_Avoid_: Invert flag, drag mode
+
+**Select span**:
+A selection span whose membership is forced on.
+_Avoid_: Additive drag, paint-select
+
+**Unselect span**:
+A selection span whose membership is forced off.
+_Avoid_: Subtractive drag, paint-deselect
+
+**Span gesture**:
+A viewport-owned pointer sequence that holds a selection span: long-press on a present message, travel past slop, then move. Lift ends it. Message rows do not own this pointer. Does not start if the long-press was claimed (span yield).
+_Avoid_: Selection drag, paint gesture, range drag, per-row detector
+
+**Span yield**:
+A host claim on the long-press that prevents a span gesture from starting. The seam for a future in-bubble text selector; unused until that selector exists.
+_Avoid_: Arena win, text selection (as the name of this seam)
+
+**Span abort**:
+Forced end of a span gesture that leaves the selected set as-is. Happens when the gesture origin becomes absent.
+_Avoid_: Cancel selection, clear, retarget origin
+
+**Gesture origin**:
+The present message that received the long-press that started the span gesture.
+_Avoid_: Anchor, start id, first selected
+
+**Span hit**:
+The laid-out message row whose rectangle contains the pointer after clamping into the scroll band. Non-message slots are not hits; over a gap or non-message slot the span stays put.
+_Avoid_: Nearest neighbor, id under Y, adapter child
+
+**Span auto-scroll**:
+Viewport motion toward the pointer’s edge band during a span gesture. It is the sole origin writer while that band is occupied. Delta may be zero: short content and boundary pins still win.
+_Avoid_: Fling, follow tail, user drag (as the name for this motion)
+
+**Selection snapshot**:
+The set of selected message IDs at span-gesture start, after the origin’s own toggle.
+_Avoid_: Live selection, current set
+
+**Span-eligible**:
+A present message the current span polarity may change, judged only against the selection snapshot.
+_Avoid_: canSelect, selectable
+
+**Selection-allowed**:
+A present message the host permits in the selected set at all. Independent of span polarity.
+_Avoid_: canSelect, selectable, span-eligible
+
+**Selection cap**:
+An optional host-set maximum size of the selected set. Null means no maximum.
+_Avoid_: Hardcoded 100, forward limit
+
+**Cap hit**:
+A refused add because the selected set is already at the selection cap.
+Membership does not change; a dedicated listenable still fires so chrome
+can shake or play an error haptic.
+_Avoid_: overflow, limit error
+
 ### Navigation
 
 **Navigation alignment**:

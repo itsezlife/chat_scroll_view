@@ -8,6 +8,20 @@ this project is pre-1.0 and not strictly SemVer yet.
 
 ### Added
 
+- **Selection-allowed and span abort** — optional
+  `ChatSelectionController.selectionAllowed` (default `null` = every present
+  message). A disallowed id is never a span hit, never joins the selected set,
+  and is omitted from the present-neighbor span. If the gesture origin becomes
+  absent during a live span, the span ends; the selected set is kept and the
+  origin is not retargeted, so delete recovery can write the origin again.
+
+- **Selection cap** — optional `ChatSelectionController.selectionCap` (default
+  `null` = unlimited). A select span does not grow past the cap and auto-scroll
+  in the grow direction stops; shrinking toward the origin and unselect spans
+  still work. Hosts that want Telegram's 100 set the cap themselves.
+  `capHits` increments on a refused add so chrome can shake and play an error
+  haptic without the selected set changing.
+
 - **Viewport-stable delete** — deleting a tall anchor message while scrolled into
   its interior no longer jumps the viewport; reading position near the composer
   is preserved within 8 logical pixels.

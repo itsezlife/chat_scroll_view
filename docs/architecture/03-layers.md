@@ -111,6 +111,7 @@ lib/src/
     chat_dated_message.dart
     chat_scrollbar.dart
     chat_selectable_message.dart
+    chat_selection_pointer.dart
     chat_data_source_ext.dart
 example/lib/                      # demo app only
 ```

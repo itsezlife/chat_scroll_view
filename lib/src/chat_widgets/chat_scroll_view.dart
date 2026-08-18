@@ -187,18 +187,19 @@ class ChatScrollView extends RenderObjectWidget {
   final WidgetBuilder? loadingBuilder;
 
   /// Optional whole-message selection. When non-null each **loaded** message
-  /// is wrapped in [SelectableMessage] and long-press / tap drive the
-  /// [controller]. Placeholder / shimmer slots (`message == null`) are not
-  /// wrapped and cannot be selected. When null the viewport adds no
-  /// selection wrapper and costs nothing.
+  /// is wrapped in [SelectableMessage] for chrome. The viewport owns
+  /// long-press and tap and drives the [controller]. Placeholder / shimmer
+  /// slots (`message == null`) are not wrapped and cannot be selected. When
+  /// null the viewport adds no selection wrapper and costs nothing.
   final ChatSelectionController? selectionController;
 
   /// Replaces the bundled checkbox-gutter chrome. Ignored when
   /// [selectionController] is null.
   ///
-  /// The host still owns gestures and freeze-on-exit; this builder only
-  /// paints. Use [ChatSelectionChromeState.selectProgress] (frozen on
-  /// `clear`) rather than [ChatSelectionChromeState.isSelected] for visuals.
+  /// The viewport owns the selection pointer and freeze-on-exit; this
+  /// builder only paints. Use [ChatSelectionChromeState.selectProgress]
+  /// (frozen on `clear`) rather than [ChatSelectionChromeState.isSelected]
+  /// for visuals.
   /// Pass a stable tear-off, like [messageBuilder].
   ///
   /// Defaults to [DefaultSelectionChrome.wrap]. Restyle that chrome with
@@ -326,6 +327,7 @@ class ChatScrollView extends RenderObjectWidget {
       highlightDuration: highlightDuration ?? theme.highlightDuration!,
       textDirection: _resolveDirection(context),
       scrollbarTheme: theme.scrollbar!,
+      selectionController: selectionController,
     );
   }
 
@@ -351,6 +353,7 @@ class ChatScrollView extends RenderObjectWidget {
       ..highlightColor = highlightColor ?? theme.highlightColor!
       ..highlightDuration = highlightDuration ?? theme.highlightDuration!
       ..scrollbarTheme = theme.scrollbar!
-      ..textDirection = _resolveDirection(context);
+      ..textDirection = _resolveDirection(context)
+      ..selectionController = selectionController;
   }
 }
