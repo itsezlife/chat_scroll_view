@@ -3476,12 +3476,13 @@ class RenderChatScrollView extends RenderBox {
 
   /// Loaded message whose selectable body contains [local], or `null` when
   /// the point is over overlay, chunk-error, shimmer, date chrome, or empty
-  /// space. The pinned floating header is ignored when
-  /// [hitThroughPinnedHeader] is true so a span held in the top edge band
-  /// can still hit the message underneath.
+  /// space. The pinned floating header is ignored by default so tap,
+  /// long-press, and a span held in the top edge band hit the message
+  /// underneath. Pass [hitThroughPinnedHeader] false only if a caller
+  /// must treat the header as a non-hit.
   int? _selectionMessageIdAt(
     Offset local, {
-    bool hitThroughPinnedHeader = false,
+    bool hitThroughPinnedHeader = true,
     bool hitFullRow = false,
   }) {
     if (!hasSize) return null;

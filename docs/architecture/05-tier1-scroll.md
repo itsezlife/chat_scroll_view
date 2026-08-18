@@ -146,7 +146,9 @@ and follow-tail converge on the next layout.
 - When a selection controller is wired, the same pointer down is also
   offered to `ChatSelectionPointer` (long-press enters selection or starts
   an unselect span if the origin was already selected; tap toggles while
-  mode is on). Rows do not attach a competing detector. A host `spanYield`
+  mode is on). The pinned floating date header is not a hit — the
+  message underneath receives the long-press or tap. Rows do not attach
+  a competing detector. A host `spanYield`
   that returns true claims the long-press so selection does not start.
   A host `selectionAllowed` that returns false is not a span hit and does
   not join the selected set, even on the present-neighbor walk. Emptying

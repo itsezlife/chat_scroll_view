@@ -8,11 +8,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import '../chat_message.dart';
 
-IChatMessage _msg(int id) => UserChatMessage(
+IChatMessage _msg(int id, {DateTime? createdAt}) => UserChatMessage(
   id: id,
   sender: 'User',
-  createdAt: DateTime(2026),
-  updatedAt: DateTime(2026),
+  createdAt: createdAt ?? DateTime(2026),
+  updatedAt: createdAt ?? DateTime(2026),
   content: 'content $id',
 );
 
@@ -38,6 +38,7 @@ Widget _harness({
   required ChatDataSource dataSource,
   required ChatScrollController controller,
   required ChatSelectionController selection,
+  ChatGroupSeparatorBuilder? dateSeparatorBuilder,
 }) => MaterialApp(
   home: Scaffold(
     body: Center(
@@ -48,6 +49,7 @@ Widget _harness({
           dataSource: dataSource,
           controller: controller,
           selectionController: selection,
+          dateSeparatorBuilder: dateSeparatorBuilder,
           messageBuilder: (context, id, message, status, runLayout) => SizedBox(
             height: 60,
             child: Text(message == null ? 'shimmer-$id' : 'msg-$id'),
@@ -153,5 +155,76 @@ void main() {
       expect(selection.isSelectionMode, isFalse);
       expect(selection.count, 0);
     });
+
+    testWidgets(
+      'long-press through the pinned date header selects the message underneath',
+      (tester) async {
+        const origin = 8;
+        final controller = ChatScrollController()..jumpTo(origin);
+        final selection = ChatSelectionController();
+        addTearDown(controller.dispose);
+        addTearDown(selection.dispose);
+
+        await tester.pumpWidget(
+          _harness(
+            dataSource: _LoadedSource([
+              for (var i = 0; i < 32; i++)
+                _msg(i, createdAt: DateTime(2026, 1, 1 + i ~/ 4, 9, i % 4)),
+            ]),
+            controller: controller,
+            selection: selection,
+            dateSeparatorBuilder: (context, bucket, date) => SizedBox(
+              height: 40,
+              child: Text('sep-${date.month}-${date.day}'),
+            ),
+          ),
+        );
+        await tester.pump();
+
+        final view = tester.getRect(find.byType(ChatScrollView));
+        await tester.longPressAt(Offset(view.center.dx, view.top + 8));
+        await tester.pumpAndSettle();
+
+        expect(selection.isSelectionMode, isTrue);
+        expect(selection.isSelected(origin), isTrue);
+      },
+    );
+
+    testWidgets(
+      'tap through the pinned date header toggles the message underneath',
+      (tester) async {
+        const origin = 8;
+        final controller = ChatScrollController()..jumpTo(origin);
+        final selection = ChatSelectionController();
+        addTearDown(controller.dispose);
+        addTearDown(selection.dispose);
+
+        await tester.pumpWidget(
+          _harness(
+            dataSource: _LoadedSource([
+              for (var i = 0; i < 32; i++)
+                _msg(i, createdAt: DateTime(2026, 1, 1 + i ~/ 4, 9, i % 4)),
+            ]),
+            controller: controller,
+            selection: selection,
+            dateSeparatorBuilder: (context, bucket, date) => SizedBox(
+              height: 40,
+              child: Text('sep-${date.month}-${date.day}'),
+            ),
+          ),
+        );
+        await tester.pump();
+
+        await tester.longPress(find.text('msg-${origin + 2}'));
+        await tester.pumpAndSettle();
+        expect(selection.isSelected(origin + 2), isTrue);
+
+        final view = tester.getRect(find.byType(ChatScrollView));
+        await tester.tapAt(Offset(view.center.dx, view.top + 8));
+        await tester.pumpAndSettle();
+
+        expect(selection.isSelected(origin), isTrue);
+      },
+    );
   });
 }
