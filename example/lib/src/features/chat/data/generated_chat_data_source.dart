@@ -1,9 +1,8 @@
 import 'dart:async';
 import 'dart:math';
 
-import 'package:chat_scroll_view_example/src/chat_message.dart';
-import 'package:chat_scroll_view/src/chat_scroll/chat_data_source.dart';
-import 'package:chat_scroll_view/src/chat_scroll/chat_scroll_common.dart';
+import 'package:chat_scroll_view/chat_scroll_view.dart';
+import 'package:chat_scroll_view_example/src/common/models/chat_message.dart';
 
 /// How [GeneratedChatDataSource] builds message body text.
 enum GeneratedMessageStyle {

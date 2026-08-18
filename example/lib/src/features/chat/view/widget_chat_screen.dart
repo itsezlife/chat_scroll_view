@@ -2,18 +2,19 @@ import 'dart:async';
 import 'dart:developer' as dev;
 
 import 'package:chat_scroll_view/chat_scroll_view.dart';
-import 'package:chat_scroll_view_example/src/backend_chat_data_source.dart';
-import 'package:chat_scroll_view_example/src/comments_data_source.dart';
-import 'package:chat_scroll_view_example/src/generated_chat_data_source.dart';
-import 'package:chat_scroll_view_example/src/widgets/chat_composer.dart';
-import 'package:chat_scroll_view_example/src/widgets/chat_data_source_extension.dart';
-import 'package:chat_scroll_view_example/src/widgets/date_separator.dart';
-import 'package:chat_scroll_view_example/src/widgets/demo_backend_error.dart';
-import 'package:chat_scroll_view_example/src/widgets/demo_message.dart';
-import 'package:chat_scroll_view_example/src/widgets/merged_value_notifier.dart';
-import 'package:chat_scroll_view_example/src/widgets/new_messages_pill.dart';
-import 'package:chat_scroll_view_example/src/widgets/selection_app_bar.dart';
-import 'package:chat_scroll_view_example/src/chat_message.dart';
+import 'package:chat_scroll_view_example/src/common/models/chat_message.dart';
+import 'package:chat_scroll_view_example/src/common/utils/mapped_value_listenable.dart';
+import 'package:chat_scroll_view_example/src/common/utils/value_listenable_combine_latest.dart';
+import 'package:chat_scroll_view_example/src/features/chat/data/backend_chat_data_source.dart';
+import 'package:chat_scroll_view_example/src/features/chat/data/chat_data_source_extension.dart';
+import 'package:chat_scroll_view_example/src/features/chat/data/comments_data_source.dart';
+import 'package:chat_scroll_view_example/src/features/chat/data/generated_chat_data_source.dart';
+import 'package:chat_scroll_view_example/src/features/chat/widgets/chat_composer.dart';
+import 'package:chat_scroll_view_example/src/features/chat/widgets/date_separator.dart';
+import 'package:chat_scroll_view_example/src/features/chat/widgets/demo_backend_error.dart';
+import 'package:chat_scroll_view_example/src/features/chat/widgets/demo_message.dart';
+import 'package:chat_scroll_view_example/src/features/chat/widgets/new_messages_pill.dart';
+import 'package:chat_scroll_view_example/src/features/chat/widgets/selection_app_bar.dart';
 import 'package:flutter/material.dart';
 import 'package:keyboard_insets/keyboard_insets.dart';
 
@@ -44,9 +45,10 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
 
   /// Composer height plus keyboard bottom inset — drives viewport padding and
   /// floating chrome that must clear the full composer stack.
-  late final _totalBottomInset = _bottomInset.combine(
+  late final _totalBottomInset = CombineLatestValueListenable.combine2(
+    _bottomInset,
     _keyboardBottomInset,
-    (composer, keyboard) => composer + keyboard,
+    (bottom, keyboard) => bottom + keyboard,
   );
 
   /// Top inset reserved inside the viewport — kept in sync with the
@@ -103,7 +105,6 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
     _flushPendingLastRead();
     _persistLastReadTimer?.cancel();
     _pillLastSeenBaseline.dispose();
-    _totalBottomInset.dispose();
     _totalTopInset.dispose();
     _bottomInset.dispose();
     _keyboardBottomInset.dispose();

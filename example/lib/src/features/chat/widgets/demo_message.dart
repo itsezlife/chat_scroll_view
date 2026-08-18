@@ -1,7 +1,7 @@
 import 'dart:io';
 
 import 'package:chat_scroll_view/chat_scroll_view.dart';
-import 'package:chat_scroll_view_example/src/chat_message.dart';
+import 'package:chat_scroll_view_example/src/common/models/chat_message.dart';
 import 'package:flutter/material.dart';
 
 /// Builds a demo message widget for the widget-based [ChatScrollView].

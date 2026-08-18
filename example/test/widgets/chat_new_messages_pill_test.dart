@@ -1,17 +1,17 @@
 // ignore_for_file: implementation_imports
-import 'package:chat_scroll_view_example/src/chat_message.dart';
 import 'package:chat_scroll_view/src/chat_scroll/chat_data_source.dart';
 import 'package:chat_scroll_view/src/chat_scroll/chat_scroll_common.dart';
 import 'package:chat_scroll_view/src/chat_scroll/chat_scroll_controller.dart';
 import 'package:chat_scroll_view/src/chat_scroll/chat_selection_controller.dart';
 import 'package:chat_scroll_view/src/chat_scroll/chat_sender_run_layout.dart';
 import 'package:chat_scroll_view/src/chat_widgets/chat_scroll_view.dart';
-import 'package:chat_scroll_view_example/src/widgets/chat_composer.dart';
-import 'package:chat_scroll_view_example/src/widgets/date_separator.dart';
-import 'package:chat_scroll_view_example/src/widgets/demo_message.dart';
-import 'package:chat_scroll_view_example/src/widgets/measure_size.dart';
-import 'package:chat_scroll_view_example/src/widgets/new_messages_pill.dart';
 import 'package:chat_scroll_view/src/chat_widgets/render_chat_scroll_view.dart';
+import 'package:chat_scroll_view_example/src/common/models/chat_message.dart';
+import 'package:chat_scroll_view_example/src/common/widgets/measure_size.dart';
+import 'package:chat_scroll_view_example/src/features/chat/widgets/chat_composer.dart';
+import 'package:chat_scroll_view_example/src/features/chat/widgets/date_separator.dart';
+import 'package:chat_scroll_view_example/src/features/chat/widgets/demo_message.dart';
+import 'package:chat_scroll_view_example/src/features/chat/widgets/new_messages_pill.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 

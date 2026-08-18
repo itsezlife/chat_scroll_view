@@ -3,8 +3,8 @@ import 'dart:convert';
 import 'dart:math' as math;
 
 import 'package:chat_scroll_view/chat_scroll_view.dart';
-import 'package:chat_scroll_view_example/src/demo_config.dart';
-import 'package:chat_scroll_view_example/src/chat_message.dart';
+import 'package:chat_scroll_view_example/src/common/constant/demo_config.dart';
+import 'package:chat_scroll_view_example/src/common/models/chat_message.dart';
 import 'package:meta/meta.dart';  
 import 'package:supabase_flutter/supabase_flutter.dart';
 

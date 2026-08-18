@@ -1,7 +1,7 @@
 // ignore_for_file: implementation_imports
-import 'package:chat_scroll_view_example/src/backend_chat_data_source.dart';
-import 'package:chat_scroll_view_example/src/chat_message.dart';
 import 'package:chat_scroll_view/src/chat_scroll/chat_scroll_common.dart';
+import 'package:chat_scroll_view_example/src/common/models/chat_message.dart';
+import 'package:chat_scroll_view_example/src/features/chat/data/backend_chat_data_source.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 String? _userContent(IChatMessage? message) => switch (message) {

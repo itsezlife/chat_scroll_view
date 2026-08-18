@@ -4,9 +4,9 @@ library;
 
 import 'dart:io' show Platform;
 
-import 'package:chat_scroll_view_example/src/chat_message.dart';
-import 'package:chat_scroll_view_example/src/widgets/date_separator.dart';
-import 'package:chat_scroll_view_example/src/widgets/demo_message.dart';
+import 'package:chat_scroll_view_example/src/common/models/chat_message.dart';
+import 'package:chat_scroll_view_example/src/features/chat/widgets/date_separator.dart';
+import 'package:chat_scroll_view_example/src/features/chat/widgets/demo_message.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 

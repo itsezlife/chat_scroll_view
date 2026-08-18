@@ -1,4 +1,4 @@
-import 'package:chat_scroll_view/src/chat_scroll/chat_scroll_common.dart';
+import 'package:chat_scroll_view/chat_scroll_view.dart';
 import 'package:meta/meta.dart';
 
 /// Base type for messages rendered in a [ChatScrollView].

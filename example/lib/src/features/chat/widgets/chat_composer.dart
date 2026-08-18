@@ -1,6 +1,6 @@
 import 'package:chat_scroll_view/chat_scroll_view.dart';
-import 'package:chat_scroll_view_example/src/chat_message.dart';
-import 'package:chat_scroll_view_example/src/widgets/measure_size.dart';
+import 'package:chat_scroll_view_example/src/common/models/chat_message.dart';
+import 'package:chat_scroll_view_example/src/common/widgets/measure_size.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 

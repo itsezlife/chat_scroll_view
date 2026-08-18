@@ -4,7 +4,7 @@ import 'dart:async';
 import 'package:chat_scroll_view/src/chat_scroll/chat_data_source.dart';
 import 'package:chat_scroll_view/src/chat_scroll/chat_scroll_common.dart';
 import 'package:chat_scroll_view/src/chat_scroll/chat_selection_controller.dart';
-import 'package:chat_scroll_view_example/src/widgets/chat_composer.dart';
+import 'package:chat_scroll_view_example/src/features/chat/widgets/chat_composer.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 

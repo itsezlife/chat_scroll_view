@@ -189,7 +189,7 @@ class RenderChatScrollView extends RenderBox {
   /// Chunk-load / anchor-persistence diagnostics — filter `ChatScrollFetchAnchor`.
   final ChatScrollDevLog _fetchAnchorLog = ChatScrollDevLog(
     'ChatScrollFetchAnchor',
-    enabled: true,
+    enabled: false,
   );
 
   /// Scrollbar thumb / id-linear progress diagnostics — filter

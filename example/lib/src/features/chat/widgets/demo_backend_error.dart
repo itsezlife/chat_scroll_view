@@ -1,4 +1,4 @@
-import 'package:chat_scroll_view_example/src/demo_config.dart';
+import 'package:chat_scroll_view_example/src/common/constant/demo_config.dart';
 import 'package:flutter/material.dart';
 
 /// Shown when the demo cannot reach the local Supabase stack.

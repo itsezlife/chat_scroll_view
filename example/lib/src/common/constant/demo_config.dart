@@ -1,7 +1,6 @@
-// ignore_for_file: public_member_api_docs, avoid_classes_with_only_static_members
-
 /// Demo Supabase settings from `--dart-define` / `--dart-define-from-file`.
 abstract final class DemoConfig {
+  /// Supabase URL from `--dart-define`.
   static const String supabaseUrl = String.fromEnvironment(
     'SUPABASE_URL',
     defaultValue: 'http://127.0.0.1:54321',
@@ -22,11 +21,13 @@ abstract final class DemoConfig {
       ? _supabasePublishableKey
       : _supabaseAnonKey;
 
+  /// Demo chat id from `--dart-define`.
   static const int demoChatId = int.fromEnvironment(
     'DEMO_CHAT_ID',
     defaultValue: 1,
   );
 
+  /// Whether the Supabase publishable key is set.
   static bool get hasSupabasePublishableKey =>
       supabasePublishableKey.isNotEmpty;
 }

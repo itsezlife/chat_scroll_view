@@ -3,10 +3,10 @@ import 'dart:collection';
 import 'dart:convert';
 
 import 'package:chat_scroll_view/chat_scroll_view.dart';
-import 'package:chat_scroll_view_example/src/load_asset.dart'
-    if (dart.library.js_interop) 'package:chat_scroll_view_example/src/load_asset_web.dart'
-    if (dart.library.io) 'package:chat_scroll_view_example/src/load_asset_native.dart';
-import 'package:chat_scroll_view_example/src/chat_message.dart';
+import 'package:chat_scroll_view_example/src/common/models/chat_message.dart';
+import 'package:chat_scroll_view_example/src/common/utils/load_asset.dart'
+    if (dart.library.js_interop) 'package:chat_scroll_view_example/src/common/utils/platform/load_asset_web.dart'
+    if (dart.library.io) 'package:chat_scroll_view_example/src/common/utils/platform/load_asset_native.dart';
 
 /// Manifest for asset-based chat data.
 class CommentsManifest {

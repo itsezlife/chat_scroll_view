@@ -1,10 +1,8 @@
-// ignore_for_file: deprecated_member_use
-
 import 'dart:async';
 
 import 'package:chat_scroll_view/chat_scroll_view.dart';
-import 'package:chat_scroll_view_example/src/demo_config.dart';
-import 'package:chat_scroll_view_example/src/widget_chat_screen.dart';
+import 'package:chat_scroll_view_example/src/common/constant/demo_config.dart';
+import 'package:chat_scroll_view_example/src/features/chat/view/widget_chat_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:l/l.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
