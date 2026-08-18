@@ -2,6 +2,7 @@ import 'package:chat_scroll_view/chat_scroll_view.dart';
 import 'package:chat_scroll_view_example/src/common/models/chat_message.dart';
 import 'package:chat_scroll_view_example/src/common/widgets/frozen_value.dart';
 import 'package:chat_scroll_view_example/src/common/widgets/measure_size.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -43,9 +44,11 @@ class ChatComposer extends StatefulWidget {
   /// Saves edited content for [messageId]; only invoked for single-message edit.
   final Future<void> Function(int messageId, String text)? onEditSelected;
 
-  /// Safe area bottom inset reserved inside the viewport — kept in sync with the
-  /// safe area bottom inset so the composer's measured height clears it.
-  final ValueNotifier<double>? bottomInset;
+  /// Keyboard height that lifts this bar above the IME.
+  ///
+  /// Not included in [onSizeChanged]; the host adds it into the viewport's
+  /// reserved bottom inset separately.
+  final ValueListenable<double>? bottomInset;
 
   /// Callback to notify the parent of the composer's measured height.
   final void Function(double height)? onSizeChanged;

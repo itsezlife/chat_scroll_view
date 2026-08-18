@@ -1,4 +1,4 @@
-import 'package:chat_scroll_view_example/src/features/chat/theme/demo_chat_theme.dart';
+import 'package:chat_scroll_view_example/src/features/chat/widgets/demo_chat_theme.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {

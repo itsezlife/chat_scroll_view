@@ -44,6 +44,14 @@ _Avoid_: Relayout, rebuild, correctBy
 The usable vertical range between top and bottom padding, used for alignment and tail pinning.
 _Avoid_: Viewport, SafeArea, full height
 
+**Reserved inset**:
+Space the scroll band yields so messages are not drawn under occluding host chrome. The viewport consumes it as `topPadding` / `bottomPadding`.
+_Avoid_: SafeArea, MediaQuery padding (as the name for this reservation)
+
+**Overlay chrome**:
+Host widgets stacked over the viewport that position against the reserved edge and must not increase `topPadding` / `bottomPadding`.
+_Avoid_: Bottom sheet, FAB inset (when they are not reserving the band)
+
 **Visible band**:
 The on-screen slice of content used as the reading-position reference after a delete.
 _Avoid_: Cache extent, build zone

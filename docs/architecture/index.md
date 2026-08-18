@@ -53,6 +53,10 @@ messages are revealed.
 * [Function Reference](./12-function-reference.md) - Exhaustive function catalog
 * [Known Limitations](./13-known-limitations.md) - Documented debt (not fixes)
 
+## Host integration
+
+* [Host Chrome Insets](./14-host-chrome-insets.md) - Reserved vs overlay; listenables into `topPadding` / `bottomPadding`
+
 ## Reading order
 
 Full pass: concepts **01 → 13** in order.

@@ -84,6 +84,11 @@ y = height                    viewport bottom
   `markNeedsLayout` — **no** anchor compensation. Floating header pins to
   `topPad`. `pinOldest` pins the oldest row’s top to **`y = 0`**, not `topPad`.
 
+**Host ownership.** The viewport only consumes these listenables. The host
+aggregates occluding chrome (safe area, header reserve, composer, keyboard)
+into them. Overlay widgets that sit above the reserved edge must not add
+to the pad. See [14-host-chrome-insets.md](./14-host-chrome-insets.md).
+
 `_alignedTopForMessage(height, alignment)`:
 
 ```

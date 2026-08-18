@@ -3,12 +3,11 @@ import 'dart:developer' as dev;
 
 import 'package:chat_scroll_view/chat_scroll_view.dart';
 import 'package:chat_scroll_view_example/src/common/models/chat_message.dart';
-import 'package:chat_scroll_view_example/src/common/utils/mapped_value_listenable.dart';
-import 'package:chat_scroll_view_example/src/common/utils/value_listenable_combine_latest.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/backend_chat_data_source.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/chat_data_source_extension.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/comments_data_source.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/generated_chat_data_source.dart';
+import 'package:chat_scroll_view_example/src/features/chat/utils/chat_viewport_insets_binding.dart';
 import 'package:chat_scroll_view_example/src/features/chat/widgets/chat_composer.dart';
 import 'package:chat_scroll_view_example/src/features/chat/widgets/date_separator.dart';
 import 'package:chat_scroll_view_example/src/features/chat/widgets/demo_backend_error.dart';
@@ -16,7 +15,6 @@ import 'package:chat_scroll_view_example/src/features/chat/widgets/demo_message.
 import 'package:chat_scroll_view_example/src/features/chat/widgets/new_messages_pill.dart';
 import 'package:chat_scroll_view_example/src/features/chat/widgets/selection_app_bar.dart';
 import 'package:flutter/material.dart';
-import 'package:keyboard_insets/keyboard_insets.dart';
 
 /// Demo screen for the widget-based [ChatScrollView] — the chat viewport,
 /// a bottom composer, and a contextual selection bar, wired together.
@@ -28,37 +26,11 @@ class WidgetChatScreen extends StatefulWidget {
   State<WidgetChatScreen> createState() => _WidgetChatScreenState();
 }
 
-class _WidgetChatScreenState extends State<WidgetChatScreen> {
+class _WidgetChatScreenState extends State<WidgetChatScreen>
+    with ChatViewportInsetsBinding {
   ChatDataSource? _dataSource;
   late final ChatScrollController _controller;
   late final ChatSelectionController _selection;
-
-  StreamSubscription<double>? _keyboardStateSubscription;
-
-  /// Safe area bottom inset reserved inside the viewport — kept in sync with the
-  /// safe area bottom inset so the composer's measured height clears it.
-  final ValueNotifier<double> _keyboardBottomInset = ValueNotifier<double>(0);
-
-  /// Bottom inset reserved inside the viewport — kept in sync with the
-  /// composer's measured height so the newest message clears it.
-  final ValueNotifier<double> _bottomInset = ValueNotifier<double>(96);
-
-  /// Composer height plus keyboard bottom inset — drives viewport padding and
-  /// floating chrome that must clear the full composer stack.
-  late final _totalBottomInset = CombineLatestValueListenable.combine2(
-    _bottomInset,
-    _keyboardBottomInset,
-    (bottom, keyboard) => bottom + keyboard,
-  );
-
-  /// Top inset reserved inside the viewport — kept in sync with the
-  /// selection app bar's measured height so the floating day header clears it.
-  final ValueNotifier<double> _topInset = ValueNotifier<double>(0);
-
-  late final double _topPadding = MediaQuery.viewPaddingOf(context).top;
-
-  /// Selection bar height plus the safe-area top inset.
-  late final _totalTopInset = _topInset.map((top) => top + _topPadding);
 
   bool _loading = true;
   String? _errorMessage;
@@ -78,41 +50,21 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
   @override
   void initState() {
     super.initState();
-    PersistentSafeAreaBottom.startObserving();
     _controller = ChatScrollController();
     _selection = ChatSelectionController()..selectionCap = 100;
     _pillLastSeenBaseline.addListener(_onPillBaselineChanged);
     _init();
-
-    _keyboardStateSubscription = KeyboardInsets.insets.listen((state) {
-      _keyboardBottomInset.value = state;
-    });
-    _assignInitialBottomInset();
-  }
-
-  void _assignInitialBottomInset() {
-    final isVisible = KeyboardInsets.isVisible;
-    final isAnimating = KeyboardInsets.isAnimating;
-    _keyboardBottomInset.value = isVisible && !isAnimating
-        ? KeyboardInsets.keyboardHeight
-        : 0;
   }
 
   @override
   void dispose() {
-    PersistentSafeAreaBottom.stopObserving();
     _pillLastSeenBaseline.removeListener(_onPillBaselineChanged);
     _flushPendingLastRead();
     _persistLastReadTimer?.cancel();
     _pillLastSeenBaseline.dispose();
-    _totalTopInset.dispose();
-    _bottomInset.dispose();
-    _keyboardBottomInset.dispose();
-    _topInset.dispose();
     _controller.dispose();
     _selection.dispose();
     _dataSource?.dispose();
-    _keyboardStateSubscription?.cancel();
     super.dispose();
   }
 
@@ -343,8 +295,8 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
                   dataSource: _dataSource!,
                   controller: _controller,
                   selectionController: _selection,
-                  bottomPadding: _totalBottomInset,
-                  topPadding: _totalTopInset,
+                  bottomPadding: insets.bottomPadding,
+                  topPadding: insets.topPadding,
                   messageBuilder: _buildMessage,
                   chunkErrorBuilder: _buildChunkError,
                   emptyBuilder: _buildEmpty,
@@ -354,21 +306,21 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
                 ),
               ),
             ),
-            // Bottom composer — overlaid, not a column sibling. Its measured
-            // height feeds the viewport's bottom inset so the newest message
-            // always clears it (and any future attachment previews).
+            // Bottom composer — overlaid, not a column sibling. Measured
+            // height is reserved inset; overlay chrome reads the same
+            // bottomPadding and does not add to it.
             Positioned(
               left: 0,
               right: 0,
               bottom: 0,
               child: ChatComposer(
-                bottomInset: _keyboardBottomInset,
+                bottomInset: insets.keyboard,
                 selection: _selection,
                 dataSource: _dataSource!,
                 onSend: _handleSendMessage,
                 onDeleteSelected: _handleDeleteSelected,
                 onEditSelected: _handleEditSelected,
-                onSizeChanged: (size) => _bottomInset.value = size,
+                onSizeChanged: insets.setComposerHeight,
               ),
             ),
             // New-messages pill — surfaces above the composer when the user
@@ -376,7 +328,7 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
             NewMessagesPill(
               controller: _controller,
               dataSource: _dataSource!,
-              bottomInset: _totalBottomInset,
+              bottomInset: insets.bottomPadding,
               lastSeenNewestId: _pillLastSeenBaseline,
             ),
             // Scroll shortcuts — stacked above the composer, clearing its inset.
@@ -384,7 +336,7 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
               right: 16,
               bottom: 0,
               child: ValueListenableBuilder<double>(
-                valueListenable: _totalBottomInset,
+                valueListenable: insets.bottomPadding,
                 builder: (context, bottomInset, child) => Padding(
                   padding: EdgeInsets.only(bottom: bottomInset),
                   child: child,
@@ -426,15 +378,16 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
                 ),
               ),
             ),
-            // Contextual selection bar — overlays the top. [topInset] is driven
-            // every animation frame so the floating day header tracks the slide.
+            // Contextual selection bar — overlays the top. [headerReserve]
+            // is driven every animation frame so the floating day header
+            // tracks the slide.
             Positioned(
               top: 0,
               left: 0,
               right: 0,
               child: SelectionAppBar(
                 selection: _selection,
-                topInset: _topInset,
+                topInset: insets.headerReserve,
               ),
             ),
           ],
