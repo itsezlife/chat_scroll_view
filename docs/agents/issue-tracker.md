@@ -25,6 +25,20 @@ When set to `yes`, PRs run through the same labels and states as issues, using t
 
 GitHub shares one number space across issues and PRs, so a bare `#42` may be either — resolve with `gh pr view 42` and fall back to `gh issue view 42`.
 
+## Seam branches (split specs)
+
+When a parent spec is sliced into child tickets, **do not PR each child into `master`.**
+
+1. One **seam branch** named `<parent-number>-<short-slug>` off `master`. Record its name at the top of the parent issue.
+2. Implement each child on a branch cut from the **current seam tip**. Open the child's PR **against the seam branch**.
+3. Close the child issue when that PR merges into the seam.
+4. When every child is on the seam, open **one** PR: seam → `master`. That PR closes the parent spec.
+5. After a child merges, cut the next child from the updated seam — never from a stale sibling, and never from `master` while the seam is open.
+
+Do not land two children on one branch. Do not target `master` for a child while the seam exists.
+
+**Current seam:** parent [#22](https://github.com/itsezlife/chat_scroll_view/issues/22) → branch `22-message-span-selection`. Next child: #24. #23 is already on the seam.
+
 ## When a skill says "publish to the issue tracker"
 
 Create a GitHub issue.
