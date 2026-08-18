@@ -231,14 +231,7 @@ class BackendChatDataSource extends ChatDataSource {
 
     final messageJson = body['message']! as Map<String, Object?>;
     final message = _messageFromProtocolJson(messageJson);
-    upsertMessage(message);
-    final id = message.id;
-    final newest = newestKnownId;
-    seedBoundaries(
-      newestKnownId: newest == null ? id : math.max(newest, id),
-      reachedNewest: true,
-    );
-    notifyDataChanged();
+    insertMessage(message, reason: 'backend-send');
     return message;
   }
 

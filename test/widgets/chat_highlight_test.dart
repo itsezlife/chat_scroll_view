@@ -55,7 +55,7 @@ Widget _scaffold({
           cacheExtent: cacheExtent,
           highlightColor: highlightColor,
           highlightDuration: highlightDuration,
-          messageBuilder: (context, id, message, status) => SizedBox(
+          messageBuilder: (context, id, message, status, runLayout) => SizedBox(
             height: 60,
             child: Text(message == null ? 'shimmer-$id' : 'msg-$id'),
           ),
@@ -98,10 +98,9 @@ void main() {
       addTearDown(controller.dispose);
       addTearDown(ds.dispose);
 
-      await tester.pumpWidget(_scaffold(
-        dataSource: ds,
-        controller: controller,
-      ));
+      await tester.pumpWidget(
+        _scaffold(dataSource: ds, controller: controller),
+      );
       await tester.pumpAndSettle();
       expect(_render(tester).debugHighlightTargetId, isNull);
 
@@ -135,11 +134,13 @@ void main() {
       addTearDown(controller.dispose);
       addTearDown(ds.dispose);
 
-      await tester.pumpWidget(_scaffold(
-        dataSource: ds,
-        controller: controller,
-        highlightDuration: const Duration(milliseconds: 200),
-      ));
+      await tester.pumpWidget(
+        _scaffold(
+          dataSource: ds,
+          controller: controller,
+          highlightDuration: const Duration(milliseconds: 200),
+        ),
+      );
       await tester.pumpAndSettle();
 
       final future = controller.animateTo(
@@ -166,11 +167,13 @@ void main() {
       addTearDown(controller.dispose);
       addTearDown(ds.dispose);
 
-      await tester.pumpWidget(_scaffold(
-        dataSource: ds,
-        controller: controller,
-        highlightDuration: const Duration(milliseconds: 800),
-      ));
+      await tester.pumpWidget(
+        _scaffold(
+          dataSource: ds,
+          controller: controller,
+          highlightDuration: const Duration(milliseconds: 800),
+        ),
+      );
       await tester.pumpAndSettle();
 
       final future = controller.animateTo(
@@ -192,65 +195,64 @@ void main() {
       expect(f1, greaterThan(f2));
     });
 
-    testWidgets('close-path animateTo with highlight false suppresses highlight', (
-      tester,
-    ) async {
-      const count = 256;
-      final controller = ChatScrollController()..jumpTo(count ~/ 2);
-      final ds = _PreloadedDataSource(count);
-      addTearDown(controller.dispose);
-      addTearDown(ds.dispose);
+    testWidgets(
+      'close-path animateTo with highlight false suppresses highlight',
+      (tester) async {
+        const count = 256;
+        final controller = ChatScrollController()..jumpTo(count ~/ 2);
+        final ds = _PreloadedDataSource(count);
+        addTearDown(controller.dispose);
+        addTearDown(ds.dispose);
 
-      await tester.pumpWidget(_scaffold(
-        dataSource: ds,
-        controller: controller,
-      ));
-      await tester.pumpAndSettle();
+        await tester.pumpWidget(
+          _scaffold(dataSource: ds, controller: controller),
+        );
+        await tester.pumpAndSettle();
 
-      final future = controller.animateTo(
-        120,
-        duration: const Duration(milliseconds: 80),
-        highlight: false,
-      );
-      await _driveAnimate(
-        tester,
-        future,
-        animateDuration: const Duration(milliseconds: 80),
-      );
+        final future = controller.animateTo(
+          120,
+          duration: const Duration(milliseconds: 80),
+          highlight: false,
+        );
+        await _driveAnimate(
+          tester,
+          future,
+          animateDuration: const Duration(milliseconds: 80),
+        );
 
-      expect(_render(tester).debugHighlightTargetId, isNull);
-    });
+        expect(_render(tester).debugHighlightTargetId, isNull);
+      },
+    );
 
-    testWidgets('far-path animateTo with highlight false suppresses highlight', (
-      tester,
-    ) async {
-      const count = 256;
-      final controller = ChatScrollController()..jumpTo(count ~/ 2);
-      final ds = _PreloadedDataSource(count);
-      addTearDown(controller.dispose);
-      addTearDown(ds.dispose);
+    testWidgets(
+      'far-path animateTo with highlight false suppresses highlight',
+      (tester) async {
+        const count = 256;
+        final controller = ChatScrollController()..jumpTo(count ~/ 2);
+        final ds = _PreloadedDataSource(count);
+        addTearDown(controller.dispose);
+        addTearDown(ds.dispose);
 
-      await tester.pumpWidget(_scaffold(
-        dataSource: ds,
-        controller: controller,
-        cacheExtent: 8000,
-      ));
-      await tester.pumpAndSettle();
+        await tester.pumpWidget(
+          _scaffold(dataSource: ds, controller: controller, cacheExtent: 8000),
+        );
+        await tester.pumpAndSettle();
 
-      // Target 0 is far beyond _kCloseAnimateDistance from mid-conversation.
-      final future = controller.animateTo(
-        0,
-        duration: const Duration(milliseconds: 120),
-        highlight: false,
-      );
-      await _driveAnimate(
-        tester,
-        future,
-        animateDuration: const Duration(milliseconds: 120),
-      );
+        // Target 0 is far beyond _kCloseAnimateDistance from mid-conversation.
+        final future = controller.animateTo(
+          0,
+          duration: const Duration(milliseconds: 120),
+          highlight: false,
+        );
+        await _driveAnimate(
+          tester,
+          future,
+          animateDuration: const Duration(milliseconds: 120),
+        );
 
-      expect(_render(tester).debugHighlightTargetId, isNull);
-    });
+        expect(_render(tester).debugHighlightTargetId, isNull);
+      },
+    );
 
     testWidgets('re-entrant animateTo retargets without offset hitch', (
       tester,
@@ -261,11 +263,13 @@ void main() {
       addTearDown(controller.dispose);
       addTearDown(ds.dispose);
 
-      await tester.pumpWidget(_scaffold(
-        dataSource: ds,
-        controller: controller,
-        highlightDuration: Duration.zero,
-      ));
+      await tester.pumpWidget(
+        _scaffold(
+          dataSource: ds,
+          controller: controller,
+          highlightDuration: Duration.zero,
+        ),
+      );
       await tester.pumpAndSettle();
 
       const expectedEnd = 0.5 * (600 - 60);
@@ -321,11 +325,13 @@ void main() {
       addTearDown(controller.dispose);
       addTearDown(ds.dispose);
 
-      await tester.pumpWidget(_scaffold(
-        dataSource: ds,
-        controller: controller,
-        highlightDuration: const Duration(milliseconds: 800),
-      ));
+      await tester.pumpWidget(
+        _scaffold(
+          dataSource: ds,
+          controller: controller,
+          highlightDuration: const Duration(milliseconds: 800),
+        ),
+      );
       await tester.pumpAndSettle();
 
       final firstFuture = controller.animateTo(
@@ -352,19 +358,16 @@ void main() {
       expect(_render(tester).debugHighlightTargetId, 125);
     });
 
-    testWidgets('jumpTo produces no post-navigation highlight', (
-      tester,
-    ) async {
+    testWidgets('jumpTo produces no post-navigation highlight', (tester) async {
       const count = 256;
       final controller = ChatScrollController()..jumpTo(count ~/ 2);
       final ds = _PreloadedDataSource(count);
       addTearDown(controller.dispose);
       addTearDown(ds.dispose);
 
-      await tester.pumpWidget(_scaffold(
-        dataSource: ds,
-        controller: controller,
-      ));
+      await tester.pumpWidget(
+        _scaffold(dataSource: ds, controller: controller),
+      );
       await tester.pumpAndSettle();
 
       controller.jumpTo(120);
@@ -382,18 +385,13 @@ void main() {
       addTearDown(controller.dispose);
       addTearDown(ds.dispose);
 
-      await tester.pumpWidget(_scaffold(
-        dataSource: ds,
-        controller: controller,
-      ));
+      await tester.pumpWidget(
+        _scaffold(dataSource: ds, controller: controller),
+      );
       await tester.pumpAndSettle();
 
       // Zero-duration animateTo synchronously jumps and returns immediately.
-      await controller.animateTo(
-        120,
-        duration: Duration.zero,
-        highlight: true,
-      );
+      await controller.animateTo(120, duration: Duration.zero, highlight: true);
       await tester.pump();
 
       expect(_render(tester).debugHighlightTargetId, isNull);
@@ -408,11 +406,13 @@ void main() {
       addTearDown(controller.dispose);
       addTearDown(ds.dispose);
 
-      await tester.pumpWidget(_scaffold(
-        dataSource: ds,
-        controller: controller,
-        highlightDuration: Duration.zero,
-      ));
+      await tester.pumpWidget(
+        _scaffold(
+          dataSource: ds,
+          controller: controller,
+          highlightDuration: Duration.zero,
+        ),
+      );
       await tester.pumpAndSettle();
 
       final future = controller.animateTo(
@@ -436,11 +436,13 @@ void main() {
       addTearDown(controller.dispose);
       addTearDown(ds.dispose);
 
-      await tester.pumpWidget(_scaffold(
-        dataSource: ds,
-        controller: controller,
-        highlightDuration: const Duration(milliseconds: 800),
-      ));
+      await tester.pumpWidget(
+        _scaffold(
+          dataSource: ds,
+          controller: controller,
+          highlightDuration: const Duration(milliseconds: 800),
+        ),
+      );
       await tester.pumpAndSettle();
 
       // First animation lands.
@@ -486,11 +488,13 @@ void main() {
       addTearDown(controller.dispose);
       addTearDown(ds.dispose);
 
-      await tester.pumpWidget(_scaffold(
-        dataSource: ds,
-        controller: controller,
-        highlightDuration: const Duration(milliseconds: 800),
-      ));
+      await tester.pumpWidget(
+        _scaffold(
+          dataSource: ds,
+          controller: controller,
+          highlightDuration: const Duration(milliseconds: 800),
+        ),
+      );
       await tester.pumpAndSettle();
 
       final future = controller.animateTo(
@@ -537,10 +541,13 @@ void main() {
                   controller: controller,
                   cacheExtent: 2000,
                   highlightDuration: const Duration(seconds: 10),
-                  messageBuilder: (context, id, message, status) => SizedBox(
-                    height: 60,
-                    child: Text(message == null ? 'shimmer-$id' : 'msg-$id'),
-                  ),
+                  messageBuilder: (context, id, message, status, runLayout) =>
+                      SizedBox(
+                        height: 60,
+                        child: Text(
+                          message == null ? 'shimmer-$id' : 'msg-$id',
+                        ),
+                      ),
                 ),
               ),
             ),

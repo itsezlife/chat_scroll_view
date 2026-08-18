@@ -1,7 +1,7 @@
 ---
 type: Architecture Reference
 title: Invariants
-description: Hard rules that must never be violated when extending the scroll system.
+description: Hard rules that must never be violated when extending the scroll system, including band-stable delete recovery and short-content no-scroll mode.
 tags: [scroll, invariants]
 timestamp: 2026-07-04T00:00:00Z
 ---
@@ -62,8 +62,8 @@ Fling **always** clamps each tick. Overscroll resistance is **drag-only** —
 fling, animate, wheel, and keyboard go through clamp, not resistance.
 
 **Current code:** close-path `animateTo` does **not** suspend clamp; a pin can
-cancel the animation. Spec 027 intends suspend during close animate only —
-document intent in [11-animation-integration.md](11-animation-integration.md);
+cancel the animation. The intended design is to suspend clamp during close
+animate only — see [11-animation-integration.md](11-animation-integration.md);
 do not invent ad-hoc clamp skips elsewhere.
 
 ## 6. Dual-writer discipline
@@ -139,18 +139,21 @@ via `seedBoundaries` in one call. Do not mutate boundary fields piecemeal.
 `upsertMessage` / `upsertMessages` already call `notifyDataChanged`. Subclasses
 must **not** call it again after `super`. `notifyDataChanged` is `@nonVirtual`.
 
-## 14. Skip-rebuild uses message identity
+## 14. Skip-rebuild uses message identity and layout context
 
-`ChatScrollElement` caches `identical(message)`, status, and `startsNewDay`.
-Mutating a message **in place** without replacing the instance will not rebuild
-the child.
+`ChatScrollElement` caches `identical(message)`, status, `startsNewDay`, and
+`MessageRunLayout` (value equality). In-place mutation of an `IChatMessage`
+instance without replacing it will not rebuild the child. Neighbor-dependent
+chrome must use the supplied `runLayout` — ad-hoc neighbor walks in
+`messageBuilder` bypass the cache and go stale after delete/insert.
 
 ## 15. `getMessage` is not “previous / next message”
 
-`getMessage(id)` returns null for absent **and** unloaded slots. Neighbor
-logic must walk past confirmed-absent ids (same idea as fan-out helpers).
-Today `_startsDay` only checks `id - 1` — a known limitation
-([13-known-limitations.md](13-known-limitations.md)).
+`getMessage(id)` is exact slot lookup: null for absent **and** unloaded slots.
+Directed neighbors that skip confirmed-absent ids use
+`getPreviousPresentMessage(id)` / `getNextPresentMessage(id)` — not
+`getMessage(id ± 1)`. `_startsDay` and demo sender-run grouping use the present
+neighbor APIs (fixed 2026-07-05).
 
 ## 16. Bottom-pad compensation is universal; follow-tail pin is not
 
@@ -159,6 +162,60 @@ positions so content does not jump. Follow-tail `pinNewest(repinBottom:)` must
 **not** be used to implement keyboard follow — that yanks users reading history
 back to the newest message.
 
+## 17. Neighbor layout context is render-resolved
+
+Sender-run flags (`isFirstInSenderRun`, `isLastInSenderRun`) and any future
+position-specific chrome inputs MUST be resolved in the render layer
+(`ChatSenderRunLayout.resolve`) and passed into `buildChild` as `MessageRunLayout`.
+`ChatScrollElement` includes `runLayout` in the skip-rebuild cache (value
+equality). Integrators MUST consume `runLayout` in `ChatMessageBuilder` — not
+walk `getPreviousPresentMessage` / `getNextPresentMessage` ad hoc inside the
+builder. Run boundaries are scoped to the active `groupBy` bucket when day or
+custom grouping is enabled.
+
+## 18. Confirmed-absent ids are never built
+
+When `statusOf(id).isAbsent`, the viewport MUST NOT call `buildChild` /
+`messageBuilder` for that id. Absent slots contribute zero height in fan-out and
+MUST NOT retain inflated elements or selection wrappers — integrators MUST NOT
+rely on returning `SizedBox.shrink()` from `messageBuilder` as a substitute.
+When `anchorMessageId` becomes absent (e.g. delete while scrolled to that
+message), reassign anchor to a present neighbor before fan-out.
+
+## 19. Band-stable delete recovery
+
+When the layout anchor is confirmed-absent at layout start:
+
+1. Record band geometry before reassignment (`_recordLayoutBeforeDelete`).
+2. After neighbor reassignment and pass-1 fan-out, preserve viewport via
+   `applyScrollDelta` when band bottom or gap would shift by more than tolerance
+   (`_preserveViewportAfterDelete`).
+3. Do **not** run `_renormalizeAnchor` in the same layout pass — it overwrites
+   intentional post-delete geometry.
+4. Do **not** run `pinNewest` during recovery when the user had preempted tail
+   or was not at tail before delete.
+5. When a visible band existed before delete, `|bandBottomAfter − bandBottomBefore|`
+   MUST be ≤ 8 logical px after the recovery pass.
+
+Top-of-tall delete (anchor top on screen, deleted height ≥ 2× viewport): scroll
+delta MUST be zero — neighbor top stays at former deleted top.
+
+## 20. Short content is not scrollable
+
+When [_contentFitsInViewport](./06-boundaries.md#short-content--_contentfitsinviewport)
+is true:
+
+1. Tier-1 MUST NOT apply drag, fling, or bounceback deltas.
+2. Overscroll measurement MUST return zero on both sides.
+3. `_clampBoundaries` MUST apply at most **one** boundary pin per pass — never
+   dual pin with equal-and-opposite deltas.
+4. Scrollbar MUST NOT paint or accept drag.
+5. Short-content clamp MUST NOT run during delete recovery — delete-recovery
+   guards own that layout pass.
+
+Exception: `keepTopHandoff` (anchor at top band, no `repinBottom`) preserves
+neighbor handoff after top-of-tall delete without tail/list re-stack.
+
 ## Quick checklist for new code
 
 1. Does this write `anchorMessageId` or `anchorPixelOffset`? Name the phase.
@@ -166,5 +223,7 @@ back to the newest message.
 3. Does this need widgets? Only inside `_invokeChildManagerLayout`.
 4. Does this need only offsets? Tier-1 + `markNeedsPaint`.
 5. Does this assume a global extent or absolute pixels? Redesign.
-6. Does this look up “previous message” with `getMessage(id - 1)` only? Walk
-   absent slots.
+6. Does this look up “previous message” with `getMessage(id - 1)` only? Use
+   `getPreviousPresentMessage(id)` (or walk past absent via `statusOf`).
+7. Does this build or select an id with `statusOf(id).isAbsent`? Stop — reassign
+   anchor or skip; never call `messageBuilder`.

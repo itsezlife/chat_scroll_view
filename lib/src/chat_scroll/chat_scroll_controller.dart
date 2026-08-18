@@ -195,6 +195,15 @@ class ChatScrollController {
   /// under a brief opacity blink — rather than animating through messages it
   /// would need to build on the fly.
   ///
+  /// [alignment] positions the target within the scroll band (`0` = band top,
+  /// `1` = band bottom). For messages taller than the band, alignment is
+  /// ignored and the message top is pinned to the band top — **except** when
+  /// [messageId] is the known conversation newest (`reachedNewest` and
+  /// `newestKnownId`): close-path animation then ends at **tail-pin** geometry
+  /// (message bottom on the bottom inset), matching [jumpTo] / `pinNewest`, so
+  /// scrolling to the chat end does not animate to the message top and snap
+  /// afterward. Use [alignment] for mid-history navigation (search, deep link).
+  ///
   /// [highlight] controls whether a brief fade-out tint is painted over the
   /// target after a successful settle (default `true`). Pass `highlight: false`
   /// for routine navigation such as returning to the conversation tail where

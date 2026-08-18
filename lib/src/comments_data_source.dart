@@ -4,7 +4,6 @@ import 'dart:convert';
 
 import 'package:chatscrollview/src/chat_message.dart';
 import 'package:chatscrollview/src/chat_scroll/chat_data_source.dart';
-import 'package:chatscrollview/src/chat_scroll/chat_scroll_chunk.dart';
 import 'package:chatscrollview/src/chat_scroll/chat_scroll_common.dart';
 import 'package:chatscrollview/src/load_asset.dart'
     if (dart.library.js_interop) 'package:chatscrollview/src/load_asset_web.dart'
@@ -21,13 +20,14 @@ class CommentsManifest {
   });
 
   /// Parses the `manifest.json` shipped with pre-chunked comment assets.
-  factory CommentsManifest.fromJson(Map<String, Object?> json) => CommentsManifest._(
-    title: json['title']! as String,
-    totalMessages: json['totalMessages']! as int,
-    chunkSize: json['chunkSize']! as int,
-    chunks: (json['chunks']! as List<Object?>).cast<String>(),
-    senders: (json['senders']! as List<Object?>).cast<String>(),
-  );
+  factory CommentsManifest.fromJson(Map<String, Object?> json) =>
+      CommentsManifest._(
+        title: json['title']! as String,
+        totalMessages: json['totalMessages']! as int,
+        chunkSize: json['chunkSize']! as int,
+        chunks: (json['chunks']! as List<Object?>).cast<String>(),
+        senders: (json['senders']! as List<Object?>).cast<String>(),
+      );
 
   /// Human-readable title shown in the demo app bar.
   final String title;
@@ -88,8 +88,7 @@ class CommentsDataSource extends ChatDataSource {
 
   /// On native — loads from bundled assets via rootBundle.
   /// On web — fetches on demand via HTTP (assets excluded from service worker).
-  static Future<String> _loadString(String assetPath) =>
-      loadAsset(assetPath);
+  static Future<String> _loadString(String assetPath) => loadAsset(assetPath);
 
   /// Parsed manifest describing chunk layout and metadata.
   final CommentsManifest manifest;
@@ -150,7 +149,8 @@ class CommentsDataSource extends ChatDataSource {
 
     final fileName = manifest.chunks[assetChunkIndex];
     final raw = await _loadString('$assetPrefix/$fileName');
-    final list = (jsonDecode(raw) as List<Object?>).cast<Map<String, Object?>>();
+    final list = (jsonDecode(raw) as List<Object?>)
+        .cast<Map<String, Object?>>();
 
     final baseTime = DateTime.now();
     final messages = <IChatMessage>[
@@ -158,10 +158,10 @@ class CommentsDataSource extends ChatDataSource {
         UserChatMessage(
           id: item['id']! as int,
           sender: item['sender']! as String,
-          createdAt: DateTime.tryParse(item['createdAt'] as String? ?? '') ??
-              baseTime,
-          updatedAt: DateTime.tryParse(item['createdAt'] as String? ?? '') ??
-              baseTime,
+          createdAt:
+              DateTime.tryParse(item['createdAt'] as String? ?? '') ?? baseTime,
+          updatedAt:
+              DateTime.tryParse(item['createdAt'] as String? ?? '') ?? baseTime,
           content: item['content'] as String? ?? '',
         ),
     ];
@@ -173,4 +173,41 @@ class CommentsDataSource extends ChatDataSource {
     }
     return messages;
   }
+
+  /// Demo integrator: send a new message at the tail via [insertMessage].
+  UserChatMessage sendMessage({
+    required String sender,
+    required String content,
+  }) {
+    final id = (newestKnownId ?? -1) + 1;
+    final now = DateTime.now();
+    final message = UserChatMessage(
+      id: id,
+      sender: sender,
+      createdAt: now,
+      updatedAt: now,
+      content: content,
+    );
+    insertMessage(message, reason: 'demo-send');
+    return message;
+  }
+
+  /// Demo integrator: edit an existing message via [updateMessage].
+  void editMessage(UserChatMessage message, String newContent) {
+    updateMessage(
+      UserChatMessage(
+        id: message.id,
+        sender: message.sender,
+        createdAt: message.createdAt,
+        updatedAt: DateTime.now(),
+        content: newContent,
+      ),
+      reason: 'demo-edit',
+    );
+  }
+
+  /// Demo integrator: delete one or more messages via [removeMessages].
+  @override
+  void removeMessages(Iterable<int> ids, {Object? reason}) =>
+      super.removeMessages(ids, reason: reason ?? 'demo-delete');
 }

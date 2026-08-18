@@ -1,6 +1,7 @@
 import 'dart:collection';
 import 'dart:ui';
 
+import 'package:chatscrollview/src/chat_scroll/chat_mutations.dart';
 import 'package:chatscrollview/src/chat_scroll/chat_range_fetch.dart';
 import 'package:chatscrollview/src/chat_scroll/chat_scroll_chunk.dart';
 import 'package:chatscrollview/src/chat_scroll/chat_scroll_common.dart';
@@ -21,17 +22,29 @@ import 'package:meta/meta.dart';
 /// absent marking and navigation — a design constraint, not a runtime security
 /// check. See `docs/adr/002-position-model.md`.
 ///
-/// **Boundary deletes**: when a delete event removes the message currently at
-/// [oldestKnownId] or [newestKnownId], update boundaries atomically via
-/// [seedBoundaries] with the new ids and reached flags — do not update
-/// boundary fields piecemeal.
+/// **Integrator CRUD** (emits [ChatMutation] + one [notifyDataChanged]):
+/// [insertMessage], [insertMessages], [updateMessage], [updateMessages],
+/// [removeMessages]. Subclasses may alias
+/// these (`sendMessage`, `editMessage`, …) but MUST NOT expose a second
+/// add/edit path through [upsertMessage].
 ///
-/// **Notification**: [upsertMessage] and [upsertMessages] already call
-/// [notifyDataChanged]. Subclasses MUST NOT call [notifyDataChanged] after
-/// delegating to `super.upsertMessage` / `super.upsertMessages`.
+/// **Silent storage** (fetch / CRUD internals — **never** emits [ChatMutation]):
+/// [upsertMessage], [upsertMessages]. Pagination and prefetch use these only.
+/// Subclasses MUST NOT call [notifyDataChanged] after delegating to
+/// `super.upsertMessage` / `super.upsertMessages` — the base class notifies.
 ///
-/// Uses typed listeners instead of [ChangeNotifier] — subscribers know
-/// exactly what event occurred.
+/// **Mutation delivery**: [addMutationListener] / [removeMutationListener]
+/// invoke [ChatMutation] synchronously (same dedup-on-add pattern as
+/// [addDataListener]). No `Stream`. Viewport and animation layers subscribe
+/// here for explicit add/update/delete intent — not for fetch merges.
+///
+/// **Boundary deletes**: when a delete removes the message at [oldestKnownId]
+/// or [newestKnownId], [removeMessages] auto-retracts via present-neighbor
+/// walks and one atomic [seedBoundaries] — callers do not pass boundary ids.
+///
+/// **Removal staging**: [removeMessages] marks slots absent and retains
+/// payloads in an internal staging map until [finalizeRemoval] (viewport /
+/// tests). [pendingRemovalIds] is read-only observability derived from staging.
 abstract class ChatDataSource {
   // --- Fetch contract (subclass implements) ---
 
@@ -113,25 +126,38 @@ abstract class ChatDataSource {
     return !_reachedOldest && !_reachedNewest;
   }
 
+  /// Sentinel for [seedBoundaries] optional ids — omit the parameter to leave
+  /// that boundary unchanged; pass explicit `null` to clear it (empty chat).
+  static const Object _boundaryUnset = Object();
+
   /// Atomically set the boundary state. Notifies listeners only if anything
   /// actually changed. Intended for subclasses to call after a fetch resolves
   /// — but also exposed publicly so consumers that pre-load their data can
   /// configure the viewport in one statement.
+  ///
+  /// Omitted [oldestKnownId] / [newestKnownId] leave the current value.
+  /// Explicit `null` clears the id (e.g. after the last message is removed).
   @mustCallSuper
   void seedBoundaries({
-    int? oldestKnownId,
-    int? newestKnownId,
+    Object? oldestKnownId = _boundaryUnset,
+    Object? newestKnownId = _boundaryUnset,
     bool? reachedOldest,
     bool? reachedNewest,
   }) {
     var changed = false;
-    if (oldestKnownId != null && oldestKnownId != _oldestKnownId) {
-      _oldestKnownId = oldestKnownId;
-      changed = true;
+    if (oldestKnownId != _boundaryUnset) {
+      final next = oldestKnownId as int?;
+      if (next != _oldestKnownId) {
+        _oldestKnownId = next;
+        changed = true;
+      }
     }
-    if (newestKnownId != null && newestKnownId != _newestKnownId) {
-      _newestKnownId = newestKnownId;
-      changed = true;
+    if (newestKnownId != _boundaryUnset) {
+      final next = newestKnownId as int?;
+      if (next != _newestKnownId) {
+        _newestKnownId = next;
+        changed = true;
+      }
     }
     if (reachedOldest != null && reachedOldest != _reachedOldest) {
       _reachedOldest = reachedOldest;
@@ -206,7 +232,12 @@ abstract class ChatDataSource {
   @internal
   Map<int, ChatScrollChunk> get chunks => _chunks;
 
-  /// Get a message by ID from the chunk cache.
+  /// Get a message by ID from the chunk cache — **exact slot lookup**.
+  ///
+  /// Returns the instance at [messageId], or `null` if the chunk is missing or
+  /// the slot is empty (absent **or** not yet loaded). Does **not** walk to a
+  /// neighbor when [messageId] is absent; use [getPreviousPresentMessage] or
+  /// [getNextPresentMessage] for directed neighbor lookup.
   IChatMessage? getMessage(int messageId) {
     final chunkIndex = ChatScrollChunk.chunkOf(messageId);
     final chunk = _chunks[chunkIndex];
@@ -220,14 +251,12 @@ abstract class ChatDataSource {
     return chunk.messages[slot];
   }
 
-  /// Upsert a message into the chunk cache.
+  /// Silent chunk write — no [notifyDataChanged], no [ChatMutation].
   ///
-  /// Creates the chunk if it does not exist yet. A freshly-created chunk is
-  /// marked `valid` — the upsert is the consumer's source of truth, so a
-  /// subsequent poll must not re-fetch this chunk and overwrite the local
-  /// message with whatever (possibly empty) page the server returns. If a
-  /// real refresh is wanted, call [invalidate] afterwards.
-  void upsertMessage(IChatMessage message) {
+  /// Used by fetch [upsertMessage] / [upsertMessages] and by CRUD methods after
+  /// intent is recorded. Clears absent flags before writing.
+  @protected
+  void writeMessageSilent(IChatMessage message) {
     if (_disposed) return;
     final chunkIndex = ChatScrollChunk.chunkOf(message.id);
     final existed = _chunks.containsKey(chunkIndex);
@@ -237,40 +266,361 @@ abstract class ChatDataSource {
           ChatScrollChunk(index: chunkIndex)..status = ChatMessageStatus.valid,
     );
     final slot = message.id - chunk.firstId;
-    // Clear the absent flag before writing the slot so that a realtime insert
-    // at a previously-absent ID surfaces immediately, without requiring
-    // `invalidate()`. Clearing is idempotent when the bit was already zero.
     chunk.clearAbsentSlot(slot);
     chunk.messages[slot] = message;
-    // Defensive: a chunk created here used to default to `dirty`, which would
-    // race with the next poll. If somebody constructed a chunk by hand and we
-    // upserted into it, leave its status alone.
     if (!existed) chunk.status = ChatMessageStatus.valid;
+  }
+
+  /// Bulk silent write — no notification.
+  @protected
+  void writeMessagesSilent(Iterable<IChatMessage> messages) {
+    if (_disposed) return;
+    messages.forEach(writeMessageSilent);
+  }
+
+  /// Upsert a message into the chunk cache — **silent storage for fetch**.
+  ///
+  /// Does **not** emit [ChatMutation]. Integrators adding user content MUST
+  /// use [insertMessage] / [updateMessage] instead.
+  ///
+  /// Creates the chunk if it does not exist yet. A freshly-created chunk is
+  /// marked `valid` — the upsert is the consumer's source of truth, so a
+  /// subsequent poll must not re-fetch this chunk and overwrite the local
+  /// message with whatever (possibly empty) page the server returns. If a
+  /// real refresh is wanted, call [invalidate] afterwards.
+  void upsertMessage(IChatMessage message) {
+    if (_disposed) return;
+    writeMessageSilent(message);
     notifyDataChanged();
   }
 
-  /// Upsert multiple messages into the chunk cache. See [upsertMessage] for
-  /// the chunk-status contract.
+  /// Upsert multiple messages — **fetch / cache merge only** (no mutations).
   void upsertMessages(Iterable<IChatMessage> messages) {
     if (_disposed) return;
     var changed = false;
     for (final message in messages) {
-      final chunkIndex = ChatScrollChunk.chunkOf(message.id);
-      final existed = _chunks.containsKey(chunkIndex);
-      final chunk = _chunks.putIfAbsent(
-        chunkIndex,
-        () =>
-            ChatScrollChunk(index: chunkIndex)
-              ..status = ChatMessageStatus.valid,
-      );
-      final slot = message.id - chunk.firstId;
-      // Clear absent flag before writing — see `upsertMessage` for rationale.
-      chunk.clearAbsentSlot(slot);
-      chunk.messages[slot] = message;
-      if (!existed) chunk.status = ChatMessageStatus.valid;
+      writeMessageSilent(message);
       changed = true;
     }
     if (changed) notifyDataChanged();
+  }
+
+  // --- CRUD (integrator intent — emits ChatMutation) ------------------------
+
+  /// Records an insert intent, writes storage silently, extends boundaries,
+  /// and notifies layout once.
+  ///
+  /// Does not block when other ids are in removal staging ([pendingRemovalIds]).
+  ///
+  /// Emits [InsertMutation] (not [InsertBatchMutation]). For bulk tail bursts
+  /// use [insertMessages] — integrator explicit API choice vs silent
+  /// [upsertMessages].
+  void insertMessage(IChatMessage message, {Object? reason}) {
+    if (_disposed) return;
+    assert(
+      !_removalStaging.containsKey(message.id),
+      'insertMessage: id ${message.id} is pending removal',
+    );
+    _notifyMutation(ChatMutation.insert(message.id, reason: reason));
+    writeMessageSilent(message);
+    _extendBoundariesForInsert(message.id);
+    notifyDataChanged();
+  }
+
+  /// Records a batch insert intent, writes storage silently, extends boundaries,
+  /// and notifies layout once.
+  ///
+  /// Normalizes [messages] to unique ids sorted **ascending**, skipping ids
+  /// pending removal idempotently. Does not block when unrelated ids are staged.
+  ///
+  /// Integrators choose this over [upsertMessages] when batch insert intent /
+  /// animation eligibility is desired (e.g. app-resume tail burst). Fetch and
+  /// silent cache merge MUST use [upsertMessages] instead.
+  void insertMessages(Iterable<IChatMessage> messages, {Object? reason}) {
+    if (_disposed) return;
+    final normalized = _normalizeInsertMessages(messages);
+    if (normalized.isEmpty) return;
+
+    final operationId = _nextOperationId++;
+    final ids = normalized.map((m) => m.id).toList(growable: false);
+    _notifyMutation(
+      ChatMutation.insertBatch(
+        ids: ids,
+        operationId: operationId,
+        reason: reason,
+      ),
+    );
+    for (final message in normalized) {
+      writeMessageSilent(message);
+      _extendBoundariesForInsert(message.id);
+    }
+    notifyDataChanged();
+  }
+
+  /// Records an update intent, replaces the stored instance, notifies once.
+  ///
+  /// Integrator edits MUST use this or [updateMessages] — never [upsertMessage]
+  /// for user-driven content changes (resize animation eligibility). No-op with
+  /// debug assert when [message.id] is confirmed absent or staged.
+  ///
+  /// Emits [UpdateMutation] (not [UpdateBatchMutation]). For bulk edits use
+  /// [updateMessages].
+  void updateMessage(IChatMessage message, {Object? reason}) {
+    if (_disposed) return;
+    if (_removalStaging.containsKey(message.id) ||
+        _isConfirmedAbsent(message.id)) {
+      assert(
+        false,
+        'updateMessage: id ${message.id} is absent or pending removal',
+      );
+      return;
+    }
+    _notifyMutation(ChatMutation.update(message.id, reason: reason));
+    writeMessageSilent(message);
+    notifyDataChanged();
+  }
+
+  /// Records a batch update intent, replaces stored instances, notifies once.
+  ///
+  /// Normalizes [messages] to unique ids sorted **ascending**, skipping absent
+  /// and pending-removal ids idempotently. There is **no** silent bulk-edit API
+  /// (contrast with fetch [upsertMessages]).
+  void updateMessages(Iterable<IChatMessage> messages, {Object? reason}) {
+    if (_disposed) return;
+    final normalized = _normalizeUpdateMessages(messages);
+    if (normalized.isEmpty) return;
+
+    final operationId = _nextOperationId++;
+    final ids = normalized.map((m) => m.id).toList(growable: false);
+    _notifyMutation(
+      ChatMutation.updateBatch(
+        ids: ids,
+        operationId: operationId,
+        reason: reason,
+      ),
+    );
+    normalized.forEach(writeMessageSilent);
+    notifyDataChanged();
+  }
+
+  /// Stages one or more ids for removal — one [RemoveBatchMutation]
+  /// and one [notifyDataChanged] per call.
+  ///
+  /// Normalizes [ids] to unique descending order. Unknown ids outside the known
+  /// span and already-staged ids are skipped idempotently. Boundaries retract
+  /// atomically via present-neighbor walks.
+  void removeMessages(Iterable<int> ids, {Object? reason}) {
+    if (_disposed) return;
+    final normalized = _normalizeRemoveIds(ids);
+    if (normalized.isEmpty) return;
+
+    final operationId = _nextOperationId++;
+    normalized.forEach(_stageRemoval);
+    _retractBoundariesAfterRemove();
+    _notifyMutation(
+      ChatMutation.removeBatch(
+        ids: normalized,
+        operationId: operationId,
+        reason: reason,
+      ),
+    );
+    notifyDataChanged();
+  }
+
+  /// Clears removal staging for [id]. Slot stays absent — no second mutation.
+  ///
+  /// Intended for the viewport after collapse completes, or tests. Integrators
+  /// deleting messages use [removeMessages] instead.
+  void finalizeRemoval(int id) {
+    if (_disposed) return;
+    if (_removalStaging.remove(id) != null) {
+      notifyDataChanged();
+    }
+  }
+
+  /// Payload retained while [id] is pending collapse — absent from [getMessage].
+  IChatMessage? getStagedRemovalMessage(int id) => _removalStaging[id];
+
+  /// Read-only view of ids awaiting [finalizeRemoval].
+  Set<int> get pendingRemovalIds => Set.unmodifiable(_removalStaging.keys);
+
+  /// Nearest loaded message **below** [id] in conversation order.
+  ///
+  /// Walks id downward from [id] - 1, skipping confirmed-absent slots
+  /// (deleted, staging, absent flag) within `[oldestKnownId, id)`. Named
+  /// `Present` — not `getPreviousMessage` — to distinguish from raw
+  /// `getMessage(id - 1)` and to signal absent-skip semantics.
+  ///
+  /// Returns `null` when no probe id exists, or the probe is unloaded
+  /// (`getMessage(probe)` null).
+  IChatMessage? getPreviousPresentMessage(int id) {
+    final probe = _previousPresentId(id);
+    return probe == null ? null : getMessage(probe);
+  }
+
+  /// Nearest loaded message **above** [id] in conversation order.
+  ///
+  /// Walks id upward from [id] + 1, skipping confirmed-absent slots within
+  /// `(id, newestKnownId]`. See [getPreviousPresentMessage] for naming rationale.
+  IChatMessage? getNextPresentMessage(int id) {
+    final probe = _nextPresentId(id);
+    return probe == null ? null : getMessage(probe);
+  }
+
+  List<IChatMessage> _normalizeUpdateMessages(Iterable<IChatMessage> messages) {
+    final byId = <int, IChatMessage>{};
+    for (final message in messages) {
+      if (_removalStaging.containsKey(message.id)) continue;
+      if (_isConfirmedAbsent(message.id)) continue;
+      byId[message.id] = message;
+    }
+    final sorted = byId.values.toList()
+      ..sort((a, b) => a.id.compareTo(b.id));
+    return sorted;
+  }
+
+  List<IChatMessage> _normalizeInsertMessages(Iterable<IChatMessage> messages) {
+    final byId = <int, IChatMessage>{};
+    for (final message in messages) {
+      if (_removalStaging.containsKey(message.id)) continue;
+      byId[message.id] = message;
+    }
+    final sorted = byId.values.toList()
+      ..sort((a, b) => a.id.compareTo(b.id));
+    return sorted;
+  }
+
+  List<int> _normalizeRemoveIds(Iterable<int> ids) {
+    final unique = <int>{};
+    for (final id in ids) {
+      if (_shouldSkipRemoveId(id)) continue;
+      unique.add(id);
+    }
+    final sorted = unique.toList()..sort((a, b) => b.compareTo(a));
+    return sorted;
+  }
+
+  bool _shouldSkipRemoveId(int id) {
+    if (_removalStaging.containsKey(id)) return true;
+    final oldest = _oldestKnownId;
+    final newest = _newestKnownId;
+    if (oldest != null && id < oldest) return true;
+    if (newest != null && id > newest) return true;
+    if (oldest == null && newest == null && !isInitialLoading) return true;
+    return false;
+  }
+
+  void _stageRemoval(int id) {
+    final chunkIndex = ChatScrollChunk.chunkOf(id);
+    final chunk = _chunks.putIfAbsent(
+      chunkIndex,
+      () =>
+          ChatScrollChunk(index: chunkIndex)..status = ChatMessageStatus.valid,
+    );
+    final slot = id - chunk.firstId;
+    final existing = chunk.messages[slot];
+    if (existing != null) {
+      _removalStaging[id] = existing;
+    }
+    chunk.messages[slot] = null;
+    if (!chunk.isAbsentSlot(slot)) {
+      chunk.markAbsentSlot(slot);
+    }
+  }
+
+  void _retractBoundariesAfterRemove() {
+    var oldest = _oldestKnownId;
+    var newest = _newestKnownId;
+
+    while (oldest != null && _isConfirmedAbsent(oldest)) {
+      oldest = _nextPresentId(oldest);
+    }
+    while (newest != null && _isConfirmedAbsent(newest)) {
+      newest = _previousPresentId(newest);
+    }
+
+    if (oldest == null && newest == null) {
+      seedBoundaries(
+        oldestKnownId: null,
+        newestKnownId: null,
+        reachedOldest: true,
+        reachedNewest: true,
+      );
+    } else {
+      seedBoundaries(oldestKnownId: oldest, newestKnownId: newest);
+    }
+  }
+
+  void _extendBoundariesForInsert(int id) {
+    if (_oldestKnownId == null && _newestKnownId == null) {
+      seedBoundaries(
+        oldestKnownId: id,
+        newestKnownId: id,
+        reachedOldest: _reachedOldest,
+        reachedNewest: _reachedNewest,
+      );
+      return;
+    }
+    if (_oldestKnownId == null || id < _oldestKnownId!) {
+      seedBoundaries(oldestKnownId: id);
+    }
+    if (_newestKnownId == null || id > _newestKnownId!) {
+      seedBoundaries(newestKnownId: id, reachedNewest: true);
+    }
+  }
+
+  bool _isConfirmedAbsent(int id) {
+    if (_removalStaging.containsKey(id)) return true;
+    final chunk = _chunks[ChatScrollChunk.chunkOf(id)];
+    if (chunk == null) return false;
+    return chunk.isAbsentSlot(id - chunk.firstId);
+  }
+
+  int? _previousPresentId(int id) {
+    final bound = _oldestKnownId;
+    if (bound == null) return null;
+    for (var probe = id - 1; probe >= bound; probe--) {
+      if (!_isConfirmedAbsent(probe)) return probe;
+    }
+    return null;
+  }
+
+  int? _nextPresentId(int id) {
+    final bound = _newestKnownId;
+    if (bound == null) return null;
+    for (var probe = id + 1; probe <= bound; probe++) {
+      if (!_isConfirmedAbsent(probe)) return probe;
+    }
+    return null;
+  }
+
+  // --- Removal staging ------------------------------------------------------
+
+  final Map<int, IChatMessage> _removalStaging = <int, IChatMessage>{};
+  int _nextOperationId = 1;
+
+  // --- Typed listener: mutation intent --------------------------------------
+
+  /// Plain `List` — see [_boundaryListeners]. Same dedup-on-add invariant.
+  final _mutationListeners = <void Function(ChatMutation)>[];
+
+  /// Subscribe to CRUD mutation events. Fetch and upsert never invoke this.
+  void addMutationListener(void Function(ChatMutation) listener) {
+    if (_mutationListeners.contains(listener)) return;
+    _mutationListeners.add(listener);
+  }
+
+  /// Unsubscribe from mutation events.
+  void removeMutationListener(void Function(ChatMutation) listener) =>
+      _mutationListeners.remove(listener);
+
+  void _notifyMutation(ChatMutation mutation) {
+    for (final cb in List<void Function(ChatMutation)>.of(
+      _mutationListeners,
+      growable: false,
+    )) {
+      cb(mutation);
+    }
   }
 
   // --- Range fetch orchestration ---
@@ -419,9 +769,10 @@ abstract class ChatDataSource {
   }
 
   /// Whether [dispose] has been called. After dispose every mutating entry
-  /// point ([requestChunks], [retryChunk], [invalidate], [upsertMessage],
-  /// [upsertMessages], [cancelFetch]) becomes a silent no-op so a stale
-  /// reference cannot resurrect network work or notify torn-down listeners.
+  /// point ([requestChunks], [retryChunk], [invalidate], CRUD methods,
+  /// [upsertMessage], [upsertMessages], [cancelFetch]) becomes a silent no-op
+  /// so a stale reference cannot resurrect network work or notify torn-down
+  /// listeners.
   bool get isDisposed => _disposed;
   bool _disposed = false;
 
@@ -436,6 +787,8 @@ abstract class ChatDataSource {
     _rangeFetch.dispose();
     _dataListeners.clear();
     _boundaryListeners.clear();
+    _mutationListeners.clear();
+    _removalStaging.clear();
     _chunks.clear();
     _disposed = true;
   }

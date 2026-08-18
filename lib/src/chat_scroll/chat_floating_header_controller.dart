@@ -149,4 +149,23 @@ class ChatFloatingHeaderController {
   /// Viewport-local Y for the floating header's top edge — pinned below the
   /// top inset; never moves with scroll.
   double placeHeaderOffset({required double topPad}) => topPad;
+
+  /// Whether the floating day header should be built and painted.
+  ///
+  /// While older history may still be loading ([reachedOldest] is false), the
+  /// header tracks the topmost visible group as usual. Once the oldest known
+  /// message is reached, hide the header when that message sits entirely below
+  /// the header stack — short content pinned at the bottom, or top-side
+  /// overscroll that leaves empty space above the oldest boundary.
+  bool shouldShowFloatingHeader({
+    required bool reachedOldest,
+    required double? oldestTop,
+    required double topPad,
+    required double floatingHeaderHeight,
+  }) {
+    if (!reachedOldest) return true;
+    if (oldestTop == null) return true;
+    final headerBottom = topPad + floatingHeaderHeight;
+    return oldestTop <= headerBottom + 0.5;
+  }
 }

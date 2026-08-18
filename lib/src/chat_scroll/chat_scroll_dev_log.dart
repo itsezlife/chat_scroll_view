@@ -36,7 +36,11 @@ class ChatScrollDevLog {
         .where((e) => e.value != null)
         .map((e) => '${e.key}=${e.value}')
         .join(' ');
-    dev.log('$tag | $body', name: name);
+    final line = '$tag | $body';
+    // print surfaces in `flutter test` stdout; dev.log is easy to miss there.
+    // ignore: avoid_print
+    // print('[$name] $line');
+    dev.log(line, name: name);
   }
 
   /// Increments and returns [layoutFrame].

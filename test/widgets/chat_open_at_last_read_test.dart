@@ -87,10 +87,11 @@ Widget _harness({
               dataSource: dataSource,
               controller: controller,
               bottomPadding: bottomPadding,
-              messageBuilder: (context, id, message, status) => SizedBox(
-                height: 60,
-                child: Text(message == null ? 'shimmer-$id' : 'msg-$id'),
-              ),
+              messageBuilder: (context, id, message, status, runLayout) =>
+                  SizedBox(
+                    height: 60,
+                    child: Text(message == null ? 'shimmer-$id' : 'msg-$id'),
+                  ),
             ),
             NewMessagesPill(
               controller: controller,
@@ -363,10 +364,7 @@ void main() {
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 16));
 
-      expect(
-        _pillText(tester),
-        _expectedPillLabel(101 - baselineAfterOpen),
-      );
+      expect(_pillText(tester), _expectedPillLabel(101 - baselineAfterOpen));
     });
 
     testWidgets('deleted last-read anchors at previous surviving message', (

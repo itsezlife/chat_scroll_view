@@ -50,7 +50,7 @@ Widget _scaffold({
         child: ChatScrollView(
           dataSource: dataSource,
           controller: controller,
-          messageBuilder: (context, id, message, status) => SizedBox(
+          messageBuilder: (context, id, message, status, runLayout) => SizedBox(
             height: 60,
             child: Text(message == null ? 'shimmer-$id' : 'msg-$id'),
           ),

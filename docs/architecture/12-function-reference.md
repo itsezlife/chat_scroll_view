@@ -1,7 +1,7 @@
 ---
 type: Function Catalog
 title: Function Reference
-description: Exhaustive catalog of scroll-critical APIs and their contracts.
+description: Exhaustive catalog of scroll-critical APIs and their contracts, including delete-recovery and short-content no-scroll helpers.
 tags: [reference, api]
 timestamp: 2026-07-04T00:00:00Z
 ---
@@ -42,7 +42,10 @@ Cross-links: [Layout Pipeline](./04-layout-pipeline.md),
 | Member | Purpose | Must not |
 |--------|---------|----------|
 | `fetchRange` | Load full-chunk span | Partial ranges; null placeholders in list |
-| `getMessage` | Slot lookup | Treat null as “no previous message” only |
+| `getMessage` | Exact slot lookup by id | Treat null as “no previous message”; auto-walk neighbors |
+| `getPreviousPresentMessage` | Previous neighbor ↓, skip confirmed-absent | Use when you mean `id - 1` in conversation order |
+| `getNextPresentMessage` | Next neighbor ↑, skip confirmed-absent | Use when you mean `id + 1` in conversation order |
+| `updateMessage` / `updateMessages` | Integrator edit — always emits update intent | Use `upsert*` for fetch refresh only |
 | `statusOf` | dirty/absent/chunk status | — |
 | `seedBoundaries` | Atomic boundary update | Piecemeal field writes on delete |
 | `upsertMessage(s)` | Write slot + notify | Double `notifyDataChanged` after super |
@@ -128,12 +131,21 @@ Cross-links: [Layout Pipeline](./04-layout-pipeline.md),
 | `_buildMessage` / `_buildChunkError` | One child | Writes parent data |
 | `_bucketOf` / `_startsDay` | Day grouping | Predecessor = `id-1` only today |
 | `_nextNonAbsentIdDown` / `Up` | Absent skip | Return `bound±1` |
-| `_renormalizeAnchor` | Visible-origin rebase | Skip on close path |
+| `_renormalizeAnchor` | Visible-origin rebase | Skip on close path; skip on delete recovery |
 | `_applyNavigationAlignment` | Snap to alignment | Skip on close path; skip newest |
+| `_closePathEndOffsetFor` | Close-path animate end | Tail newest → pin top; else band align |
 | `_alignedTopForMessage` | Band alignment math | Not true tail pin |
-| `_clampBoundaries` | pinNewest/pinOldest | Skip drag/bounce |
+| `_clampBoundaries` | pinNewest/pinOldest | Skip drag/bounce; single pin when content fits; delete-recovery guards |
+| `_contentFitsInViewport` | Span ≤ scroll band | Gates no-scroll mode — overscroll, drag, fling, scrollbar |
 | `_compensateBottomPaddingChange` | Keyboard follow | Before fan-out |
 | `_normalizeAnchorToKnownTail` | Pre-mount clamp | Before fan-out |
+| `_recordLayoutBeforeDelete` | Capture band + deleted extent | Before reassignment when anchor absent |
+| `_preserveViewportAfterDelete` | Band-stable scroll delta | After pass-1 fan-out; sets recovery flags |
+| `_scrollDeltaForDelete` | Delta decision tree | Pure; see render doc comment |
+| `_shiftLayoutByScrollDelta` | applyScrollDelta + reposition | Optional band-bottom follow-up ≤200px |
+| `_matchExpectedBandGap` | Gap correction before/after clamp | Skips off-screen push |
+| `_skipRenormalizeDuringDeleteRecovery` | One-pass renormalize block | — |
+| `_bottomBandMessage` | Visible band probe | Closest bottom to bottomEdge |
 | `_applyPendingTailPin` / `_markPinTailOnJumpIfNeeded` / `_cancelPendingTailPin` | Tail settle FSM | Before clamp |
 | `_updateFloatingHeader` | Header rebuild/layout | End of layout |
 | `_gcPinnedDuringClosePath` / `_skipRenormalizeDuringClosePath` | Animate guards | — |
@@ -146,10 +158,10 @@ Cross-links: [Layout Pipeline](./04-layout-pipeline.md),
 | `_repositionFromAnchor` / `_repositionMessagesOnly` | Offset-only place |
 | `_setOffset` | Offset + divider opacity |
 | `_rangeNoLongerCovers` | Need layout? |
-| `_onDragStart` / `Update` / `End` | Gesture → pending delta |
-| `_startFling` / `_cancelFling` | Fling lifecycle |
-| `_maybeStartBounceback` / `_cancelBounceback` | Spring lifecycle |
-| `_signedOverscroll` / `_overscrollOnSide` / `_applyOverscrollResistance` | Boundary physics inputs |
+| `_onDragStart` / `Update` / `End` | Gesture → pending delta | Update/end no-op when content fits |
+| `_startFling` / `_cancelFling` | Fling lifecycle | Start no-op when content fits |
+| `_maybeStartBounceback` / `_cancelBounceback` | Spring lifecycle | Start no-op when content fits |
+| `_signedOverscroll` / `_overscrollOnSide` / `_applyOverscrollResistance` | Boundary physics inputs | Zero when content fits |
 | `_boundaryBox` / `_resolveAnchorBox` | Boundary/anchor render boxes |
 | `handleEvent` / `hitTestChildren` | Pointer / scrollbar / header |
 | `_onJump` / `_onScrollBy` / `_onDataChanged` / `_onBoundaryChanged` | Controller/DS reactions |
@@ -162,6 +174,7 @@ Cross-links: [Layout Pipeline](./04-layout-pipeline.md),
 
 Paint walks children at `Offset(0, parentData.offset)`, header and scrollbar
 on top; far-path uses fade layer; highlight paints over target row.
+`_paintScrollbar` returns immediately when content fits (no thumb travel).
 
 Debug getters (`debugChildCount`, `debugDividerOpacity`, etc.) and
 `_fetchAnchorEvent` / `_scrollbarEvent` are diagnostics only.
@@ -170,8 +183,9 @@ Debug getters (`debugChildCount`, `debugDividerOpacity`, etc.) and
 
 ## Ordering cheat sheet
 
-**Layout:** compensate pad → fan-out → renorm → align → tail flags → clamp →
-re-fan → GC → fetch → publish → header → highlight arm → rebase close path.
+**Layout:** compensate pad → record/reassign/purge → fan-out → preserve viewport →
+renorm → align → tail flags → match band gap → clamp → re-fan → match gap → GC →
+fetch → publish → header → highlight arm → rebase close path.
 
 **Tick:** pending → resistance → fling → animate → bounceback → apply delta →
 reposition → renorm → clamp → publish → header tick → highlight/settle →

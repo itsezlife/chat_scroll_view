@@ -1,9 +1,9 @@
 ---
 type: Architecture Reference
 title: Boundaries
-description: pinNewest, pinOldest, overscroll, reverse pin order, pads, and tail flags.
-tags: [scroll, boundaries, overscroll, tail]
-timestamp: 2026-07-04T00:00:00Z
+description: pinNewest, pinOldest, overscroll, short-content no-scroll mode, reverse pin order, pads, and tail flags.
+tags: [scroll, boundaries, overscroll, tail, short-content]
+timestamp: 2026-07-05T00:00:00Z
 resource: lib/src/chat_widgets/render_chat_scroll_view.dart
 ---
 
@@ -59,14 +59,58 @@ allowed; bounceback owns the return.
 - Requires `reachedOldest`.
 - If oldest top `> 0`, apply `delta = -topY` (pin to **`y = 0`**, not `topPad`).
 
-### Short content / `reverse`
+### Short content — `_contentFitsInViewport`
 
-Both pins can fire when the conversation fits in the viewport; **last wins**:
+When the built span from oldest to newest fits inside the scroll band
+(`height - topPad - bottomPad`) **and** both `reachedOldest` / `reachedNewest`
+are true, there is **no scroll range** — behavior matches a non-scrollable
+`ListView`.
 
-| `reverse` | Order | Short content stacks |
-|-----------|-------|----------------------|
-| `true` (chat) | oldest, then **newest** | Bottom |
-| `false` (list) | newest, then **oldest** | Top |
+Detection:
+
+```
+span = newestBottom - oldestTop
+fits = span <= bandHeight + 0.5
+```
+
+When `fits`:
+
+| Subsystem | Behavior |
+|-----------|----------|
+| `_signedOverscroll` / `_overscrollOnSide` | Always **0** — no overshoot to measure |
+| Drag / fling / bounceback | **Ignored** — deltas not applied; fling not started |
+| `_clampBoundaries` | **Single pin** only (not dual pin); skipped during delete recovery |
+| Scrollbar paint | **Skipped** — nothing to scroll |
+| Scrollbar drag | **Blocked** at pointer down |
+
+Single-pin stacking (when not in delete recovery and not a top-band handoff):
+
+| `reverse` | Pin | Stacks messages at |
+|-----------|-----|-------------------|
+| `true` (chat) | `pinNewest` only | Bottom (composer edge) |
+| `false` (list) | oldest → `y = 0` via `applyScrollDelta(-topY)` | Top |
+
+**Top-band handoff guard** — when `anchorPixelOffset ≥ -0.5` and `repinBottom`
+is false, skip the short-content pin so a neighbor at the top edge after a
+tall-message delete is not tail-snapped on the next layout. Tail jump
+(`repinBottom`) still stacks at bottom / top as usual.
+
+**Delete recovery** — the short-content fast path is **disabled** while
+`_deleteCollapseRecoveryActive`; normal dual-pin clamp runs with delete-recovery
+guards instead.
+
+Previously, dual pin (oldest then newest in chat mode) fired on every fling
+tick when both boundaries looked violated, producing equal-and-opposite deltas
+and visible bounce jitter.
+
+### Long content — dual pin / `reverse`
+
+When content **does not** fit, both pins may run in one clamp; **last wins**:
+
+| `reverse` | Order | Effect when both fire |
+|-----------|-------|------------------------|
+| `true` (chat) | oldest, then **newest** | Bottom wins |
+| `false` (list) | newest, then **oldest** | Top wins |
 
 ## Overscroll
 
@@ -77,9 +121,12 @@ Both pins can fire when the conversation fits in the viewport; **last wins**:
 | Top | oldest top `> 0` | Positive (`topY`) |
 | Bottom | newest bottom `< bottomEdge` | Negative (`bottom - bottomEdge`) |
 
-`_signedOverscroll` returns the dominant side when both are violated.
-`_overscrollOnSide` reads one side only — bounceback **locks** the side at arm
-time so short-content / composed fling cannot flip sign mid-spring.
+When [_contentFitsInViewport](#short-content--_contentfitsinviewport)
+is true, both sides report **0** — there is no scroll range to overshoot.
+
+`_signedOverscroll` returns the dominant side when both are violated on **long**
+content only. `_overscrollOnSide` reads one side only — bounceback **locks** the
+side at arm time so composed fling cannot flip sign mid-spring.
 
 ### Resistance
 
@@ -89,7 +136,8 @@ dragging**. Fling / animate / wheel / keyboard use clamp, not resistance.
 
 ### Bounceback
 
-- Armed on drag end if overscrolled (`_maybeStartBounceback`).
+- Armed on drag end if overscrolled (`_maybeStartBounceback`) — **no-op** when
+  content fits in the viewport.
 - Linear ramp of overscroll → 0 over `bounceDuration` (default 200 ms).
 - Suspends clamp while active.
 - Composes additively with fling in `_onTick`.

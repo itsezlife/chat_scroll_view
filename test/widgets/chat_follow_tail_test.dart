@@ -64,7 +64,7 @@ Widget _scaffold({
         child: ChatScrollView(
           dataSource: dataSource,
           controller: controller,
-          messageBuilder: (context, id, message, status) => SizedBox(
+          messageBuilder: (context, id, message, status, runLayout) => SizedBox(
             height: 60,
             child: Text(message == null ? 'shimmer-$id' : 'msg-$id'),
           ),
@@ -90,7 +90,9 @@ void main() {
       // Before mount.
       expect(controller.isAtTail.value, isFalse);
 
-      await tester.pumpWidget(_scaffold(dataSource: ds, controller: controller));
+      await tester.pumpWidget(
+        _scaffold(dataSource: ds, controller: controller),
+      );
       await tester.pump();
 
       expect(controller.isAtTail.value, isTrue);
@@ -105,7 +107,9 @@ void main() {
       addTearDown(controller.dispose);
       addTearDown(ds.dispose);
 
-      await tester.pumpWidget(_scaffold(dataSource: ds, controller: controller));
+      await tester.pumpWidget(
+        _scaffold(dataSource: ds, controller: controller),
+      );
       await tester.pump();
       expect(controller.isAtTail.value, isTrue);
 
@@ -124,7 +128,9 @@ void main() {
       addTearDown(controller.dispose);
       addTearDown(ds.dispose);
 
-      await tester.pumpWidget(_scaffold(dataSource: ds, controller: controller));
+      await tester.pumpWidget(
+        _scaffold(dataSource: ds, controller: controller),
+      );
       await tester.pump();
 
       // Scroll up.
@@ -149,7 +155,9 @@ void main() {
       addTearDown(controller.dispose);
       addTearDown(ds.dispose);
 
-      await tester.pumpWidget(_scaffold(dataSource: ds, controller: controller));
+      await tester.pumpWidget(
+        _scaffold(dataSource: ds, controller: controller),
+      );
       await tester.pump();
       expect(find.text('msg-19'), findsOneWidget);
       expect(controller.isAtTail.value, isTrue);
@@ -180,7 +188,9 @@ void main() {
       addTearDown(controller.dispose);
       addTearDown(ds.dispose);
 
-      await tester.pumpWidget(_scaffold(dataSource: ds, controller: controller));
+      await tester.pumpWidget(
+        _scaffold(dataSource: ds, controller: controller),
+      );
       await tester.pump();
 
       // Move off the tail.
@@ -212,7 +222,9 @@ void main() {
       addTearDown(controller.dispose);
       addTearDown(ds.dispose);
 
-      await tester.pumpWidget(_scaffold(dataSource: ds, controller: controller));
+      await tester.pumpWidget(
+        _scaffold(dataSource: ds, controller: controller),
+      );
       await tester.pump();
       expect(controller.isAtTail.value, isTrue);
 
@@ -239,7 +251,9 @@ void main() {
       addTearDown(controller.dispose);
       addTearDown(ds.dispose);
 
-      await tester.pumpWidget(_scaffold(dataSource: ds, controller: controller));
+      await tester.pumpWidget(
+        _scaffold(dataSource: ds, controller: controller),
+      );
       await tester.pump();
       final initialChildren = _render(tester).debugChildCount;
 

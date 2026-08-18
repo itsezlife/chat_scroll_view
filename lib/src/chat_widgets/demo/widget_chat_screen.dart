@@ -2,10 +2,12 @@ import 'dart:async';
 import 'dart:developer' as dev;
 
 import 'package:chatscrollview/src/backend_chat_data_source.dart';
+import 'package:chatscrollview/src/chat_message.dart';
 import 'package:chatscrollview/src/chat_scroll/chat_data_source.dart';
 import 'package:chatscrollview/src/chat_scroll/chat_scroll_common.dart';
 import 'package:chatscrollview/src/chat_scroll/chat_scroll_controller.dart';
 import 'package:chatscrollview/src/chat_scroll/chat_selection_controller.dart';
+import 'package:chatscrollview/src/chat_scroll/chat_sender_run_layout.dart';
 import 'package:chatscrollview/src/chat_widgets/chat_keyboard_shortcuts.dart';
 import 'package:chatscrollview/src/chat_widgets/chat_scroll_view.dart';
 import 'package:chatscrollview/src/chat_widgets/demo/chat_composer.dart';
@@ -17,6 +19,7 @@ import 'package:chatscrollview/src/chat_widgets/demo/merged_value_notifier.dart'
 import 'package:chatscrollview/src/chat_widgets/demo/new_messages_pill.dart';
 import 'package:chatscrollview/src/chat_widgets/demo/selection_app_bar.dart';
 import 'package:chatscrollview/src/comments_data_source.dart';
+import 'package:chatscrollview/src/generated_chat_data_source.dart';
 import 'package:flutter/material.dart';
 import 'package:keyboard_insets/keyboard_insets.dart';
 
@@ -45,18 +48,22 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
   /// composer's measured height so the newest message clears it.
   final ValueNotifier<double> _bottomInset = ValueNotifier<double>(96);
 
-  /// Composer height plus safe-area / keyboard bottom inset — drives viewport
-  /// padding and floating chrome that must clear the full composer stack.
-  late final MergedValueNotifier<double, double, double> _totalBottomInset =
-      MergedValueNotifier(
-        first: _bottomInset,
-        second: _keyboardBottomInset,
-        merge: (composer, safeArea) => composer + safeArea,
-      );
+  /// Composer height plus keyboard bottom inset — drives viewport padding and
+  /// floating chrome that must clear the full composer stack.
+  late final _totalBottomInset = _bottomInset.combine(
+    _keyboardBottomInset,
+    (composer, keyboard) => composer + keyboard,
+  );
 
   /// Top inset reserved inside the viewport — kept in sync with the
   /// selection app bar's measured height so the floating day header clears it.
   final ValueNotifier<double> _topInset = ValueNotifier<double>(0);
+
+  late final double _topPadding = MediaQuery.viewPaddingOf(context).top;
+
+  /// Selection bar height plus the safe-area top inset.
+  late final _totalTopInset = _topInset.map((top) => top + _topPadding);
+
   bool _loading = true;
   String? _errorMessage;
 
@@ -103,6 +110,7 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
     _persistLastReadTimer?.cancel();
     _pillLastSeenBaseline.dispose();
     _totalBottomInset.dispose();
+    _totalTopInset.dispose();
     _bottomInset.dispose();
     _keyboardBottomInset.dispose();
     _topInset.dispose();
@@ -124,6 +132,7 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
       //   client: Supabase.instance.client,
       // );
       final backend = await CommentsDataSource.load();
+      // final backend = GeneratedChatDataSource(messageCount: 5);
 
       // The screen may have been popped while `load()` was in flight. The
       // `dispose()` above already ran with `_dataSource == null`, so we
@@ -198,40 +207,96 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
     unawaited(backend.updateLastReadMessageId(baseline));
   }
 
+  static const String _demoSender = 'Hixie';
+
   Future<void> _handleSendMessage(String text) async {
-    final backend = _dataSource;
-    if (backend is! BackendChatDataSource) return;
-    try {
-      await backend.sendMessage(text);
-    } on BackendConnectionException catch (error) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context)
-        ..hideCurrentSnackBar()
-        ..showSnackBar(
-          SnackBar(
-            content: Text(error.message),
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
-      rethrow;
+    final ds = _dataSource;
+    if (ds is CommentsDataSource) {
+      ds.sendMessage(sender: _demoSender, content: text);
+      return;
+    }
+    if (ds is GeneratedChatDataSource) {
+      ds.sendMessage(sender: _demoSender, content: text);
+      return;
+    }
+    if (ds is BackendChatDataSource) {
+      try {
+        await ds.sendMessage(text);
+      } on BackendConnectionException catch (error) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context)
+          ..hideCurrentSnackBar()
+          ..showSnackBar(
+            SnackBar(
+              content: Text(error.message),
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+        rethrow;
+      }
+    }
+  }
+
+  void _handleDeleteSelected(Iterable<int> ids) {
+    final ds = _dataSource;
+    if (ds is CommentsDataSource) {
+      ds.removeMessages(ids);
+      return;
+    }
+    if (ds is GeneratedChatDataSource) {
+      ds.removeMessages(ids);
+      return;
+    }
+    ds?.removeMessages(ids);
+  }
+
+  Future<void> _handleEditSelected(int messageId, String text) async {
+    final ds = _dataSource;
+    if (ds is CommentsDataSource) {
+      final message = ds.getMessage(messageId);
+      if (message is UserChatMessage) {
+        ds.editMessage(message, text);
+      }
+      return;
+    }
+    if (ds is GeneratedChatDataSource) {
+      final message = ds.getMessage(messageId);
+      if (message is UserChatMessage) {
+        ds.editMessage(message, text);
+      }
+      return;
+    }
+    final message = ds?.getMessage(messageId);
+    if (message != null) {
+      ds?.updateMessage(
+        UserChatMessage(
+          id: message.id,
+          sender: message.sender,
+          createdAt: message.createdAt,
+          updatedAt: DateTime.now(),
+          content: text,
+        ),
+      );
     }
   }
 
   /// Stable per-state tear-off — same reference for the widget's lifetime,
   /// so the viewport's skip-rebuild cache stays warm across parent rebuilds.
-  /// Consults the previous message via the data source to suppress repeated
-  /// sender/avatar for messages in the same run.
+  /// Sender-run chrome comes from viewport [MessageRunLayout], not ad-hoc
+  /// neighbor walks here.
   Widget _buildMessage(
     BuildContext context,
     int id,
     IChatMessage? message,
     ChatMessageStatus status,
+    MessageRunLayout runLayout,
   ) {
-    if (status.isAbsent) return const SizedBox.shrink();
     if (message == null) return const DemoShimmerBubble();
-    final prev = _dataSource?.getMessage(id - 1);
-    final isFirstInRun = prev?.sender != message.sender;
-    return DemoMessageBubble(message: message, isFirstInRun: isFirstInRun);
+    return DemoMessageBubble(
+      message: message,
+      isLastInRun: runLayout.isLastInSenderRun,
+      isFirstInRun: runLayout.isFirstInSenderRun,
+    );
   }
 
   Widget _buildChunkError(
@@ -251,7 +316,6 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final bottomPadding = MediaQuery.viewPaddingOf(context).bottom;
     if (_errorMessage != null) {
       return DemoBackendError(message: _errorMessage!, onRetry: _init);
     }
@@ -271,67 +335,27 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
       },
       child: Scaffold(
         resizeToAvoidBottomInset: false,
-        floatingActionButtonLocation: .endFloat,
-        floatingActionButton: ValueListenableBuilder(
-          valueListenable: _totalBottomInset,
-          child: Align(
-            alignment: .bottomRight,
-            child: Column(
-              mainAxisAlignment: .end,
-              mainAxisSize: .min,
-              children: [
-                FloatingActionButton.small(
-                  heroTag: 'fab-up',
-                  onPressed: () {
-                    _controller.animateTo(6002, alignment: .5);
-                  },
-                  tooltip: 'Scroll to top',
-                  materialTapTargetSize: MaterialTapTargetSize.padded,
-                  child: const Icon(Icons.arrow_upward, size: 18),
-                ),
-                FloatingActionButton.small(
-                  heroTag: 'fab-down',
-                  onPressed: () {
-                    if (_dataSource?.newestKnownId case final newestKnownId?) {
-                      _controller.animateTo(newestKnownId, highlight: false);
-                    }
-                  },
-                  tooltip: 'Scroll to bottom',
-                  materialTapTargetSize: MaterialTapTargetSize.padded,
-                  child: const Icon(Icons.arrow_downward, size: 18),
-                ),
-              ],
-            ),
-          ),
-          builder: (context, bottomInset, child) => Padding(
-            padding: EdgeInsets.only(bottom: bottomInset - bottomPadding),
-            child: child,
-          ),
-        ),
         body: Stack(
           children: <Widget>[
             // Chat fills the screen; the composer is stacked over its bottom.
             Positioned.fill(
-              child: SafeArea(
-                bottom: false,
-                child: ChatKeyboardShortcuts(
-                  controller: _controller,
+              child: ChatKeyboardShortcuts(
+                controller: _controller,
+                reverse: true,
+                preserveExternalFocus: true,
+                child: ChatScrollView(
                   reverse: true,
-                  preserveExternalFocus: true,
-                  child: ChatScrollView(
-                    reverse: true,
-                    dataSource: _dataSource!,
-                    controller: _controller,
-                    selectionController: _selection,
-                    bottomPadding: _totalBottomInset,
-                    topPadding: _topInset,
-                    messageBuilder: _buildMessage,
-                    chunkErrorBuilder: _buildChunkError,
-                    emptyBuilder: _buildEmpty,
-                    loadingBuilder: _buildInitialSkeleton,
-                    dateSeparatorBuilder: (context, bucket, date) =>
-                        DateSeparator(date: date),
-                  ),
+                  dataSource: _dataSource!,
+                  controller: _controller,
+                  selectionController: _selection,
+                  bottomPadding: _totalBottomInset,
+                  topPadding: _totalTopInset,
+                  messageBuilder: _buildMessage,
+                  chunkErrorBuilder: _buildChunkError,
+                  emptyBuilder: _buildEmpty,
+                  loadingBuilder: _buildInitialSkeleton,
+                  dateSeparatorBuilder: (context, bucket, date) =>
+                      DateSeparator(date: date),
                 ),
               ),
             ),
@@ -347,6 +371,8 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
                 selection: _selection,
                 dataSource: _dataSource!,
                 onSend: _handleSendMessage,
+                onDeleteSelected: _handleDeleteSelected,
+                onEditSelected: _handleEditSelected,
                 onSizeChanged: (size) => _bottomInset.value = size,
               ),
             ),
@@ -357,6 +383,53 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
               dataSource: _dataSource!,
               bottomInset: _totalBottomInset,
               lastSeenNewestId: _pillLastSeenBaseline,
+            ),
+            // Scroll shortcuts — stacked above the composer, clearing its inset.
+            Positioned(
+              right: 16,
+              bottom: 0,
+              child: ValueListenableBuilder<double>(
+                valueListenable: _totalBottomInset,
+                builder: (context, bottomInset, child) => Padding(
+                  padding: EdgeInsets.only(bottom: bottomInset),
+                  child: child,
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    IconButton.filled(
+                      onPressed: () {
+                        _controller.animateTo(6002, alignment: .5);
+                      },
+                      tooltip: 'Scroll to top',
+                      style: IconButton.styleFrom(
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                      ),
+                      icon: const Icon(Icons.arrow_upward, size: 18),
+                    ),
+                    IconButton.filled(
+                      onPressed: () {
+                        if (_dataSource?.newestKnownId
+                            case final newestKnownId?) {
+                          _controller.animateTo(
+                            newestKnownId,
+                            highlight: false,
+                          );
+                        }
+                      },
+                      tooltip: 'Scroll to bottom',
+                      style: IconButton.styleFrom(
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                      ),
+                      icon: const Icon(Icons.arrow_downward, size: 18),
+                    ),
+                  ],
+                ),
+              ),
             ),
             // Contextual selection bar — overlays the top. [topInset] is driven
             // every animation frame so the floating day header tracks the slide.

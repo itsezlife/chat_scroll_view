@@ -103,7 +103,7 @@ Widget _harness({
           controller: controller,
           bottomPadding: ValueNotifier<double>(bottomPadding),
           topPadding: ValueNotifier<double>(topPadding),
-          messageBuilder: (context, id, message, status) => SizedBox(
+          messageBuilder: (context, id, message, status, runLayout) => SizedBox(
             height: _messageHeight,
             child: Text(message == null ? 'shimmer-$id' : 'msg-$id'),
           ),
@@ -581,10 +581,13 @@ void main() {
                   dataSource: ds,
                   controller: controller,
                   cacheExtent: 2000,
-                  messageBuilder: (context, id, message, status) => SizedBox(
-                    height: message == null ? shimmerHeight : loadedHeight,
-                    child: Text(message == null ? 'shimmer-$id' : 'msg-$id'),
-                  ),
+                  messageBuilder: (context, id, message, status, runLayout) =>
+                      SizedBox(
+                        height: message == null ? shimmerHeight : loadedHeight,
+                        child: Text(
+                          message == null ? 'shimmer-$id' : 'msg-$id',
+                        ),
+                      ),
                 ),
               ),
             ),

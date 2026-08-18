@@ -1,9 +1,9 @@
 ---
 type: Architecture Reference
 title: Layout Pipeline
-description: Ordered performLayout steps, fan-out, renormalize, clamp, and GC.
-tags: [scroll, layout]
-timestamp: 2026-07-04T00:00:00Z
+description: Ordered performLayout steps, fan-out, renormalize, clamp, and GC — including absent anchor reassignment and viewport preservation on delete.
+tags: [scroll, layout, absent, anchor]
+timestamp: 2026-07-05T00:00:00Z
 resource: lib/src/chat_widgets/render_chat_scroll_view.dart
 ---
 
@@ -27,22 +27,26 @@ flowchart TB
   DropOverlay[Drop prior overlay]
   JumpGC[Jump-fetch stale GC]
   NormTail[_normalizeAnchorToKnownTail]
+  DelRec[Delete recovery 6b–6c]
   Fan1[Pass-1 fan-out]
+  Preserve[_preserveViewportAfterDelete]
   Renorm[_renormalizeAnchor]
   Align[_applyNavigationAlignment]
   Tail[Tail-pin flags]
+  GapMatch[_matchExpectedBandGap]
   Clamp[_clampBoundaries]
   Fan2{Re-fan?}
   Fan2Yes[Pass-2 fan-out]
+  GapMatch2[_matchExpectedBandGap post-clamp]
   GC[GC outside built]
   Fetch[Fetch scheduler]
   Pub[Semantics / publish / header / highlight / rebase]
 
   Mode --> Comp --> Overlay
   Overlay -->|yes| OverlayPath
-  Overlay -->|no| DropOverlay --> JumpGC --> NormTail --> Fan1 --> Renorm --> Align --> Tail --> Clamp --> Fan2
-  Fan2 -->|yes| Fan2Yes --> GC
-  Fan2 -->|no| GC
+  Overlay -->|no| DropOverlay --> JumpGC --> NormTail --> DelRec --> Fan1 --> Preserve --> Renorm --> Align --> Tail --> GapMatch --> Clamp --> Fan2
+  Fan2 -->|yes| Fan2Yes --> GapMatch2 --> GC
+  Fan2 -->|no| GapMatch2 --> GC
   GC --> Fetch --> Pub
 ```
 
@@ -86,12 +90,48 @@ would walk stale maps from the previous anchor region.
 Clamps a pre-mount `jumpTo` that landed past `newestKnownId` (listener gap
 before attach). May `reassignAnchor` and mark tail pin.
 
+### 6b. Absent anchor hygiene (before fan-out)
+
+After step 6, before the first fan-out:
+
+1. **`_recordLayoutBeforeDelete`** — when `statusOf(anchorId).isAbsent`, capture
+   deleted height, anchor Y, visible band id/bottom/gap, tail flags into
+   `_BeforeDeleteLayoutSnapshot`.
+2. **`_reassignAnchorIfAbsent`** — move anchor to a present neighbor (tail:
+   previous first, else next; non-tail: next first, else previous). Preserves
+   `anchorPixelOffset` for the handoff.
+3. **`_purgeAbsentBuiltChildren`** — `removeChildren` for any built id whose
+   `statusOf` is absent (deactivates element + clears skip-cache).
+
+Fan-out and `_buildMessage` also skip absent ids as defense in depth.
+
+### 6c. Viewport preservation (after pass-1 fan-out)
+
+When a before-delete snapshot was recorded:
+
+1. **`_preserveViewportAfterDelete`** — computes `scrollDelta` via
+   `_scrollDeltaForDelete`, applies `_shiftLayoutByScrollDelta` when needed,
+   sets recovery flags, emits `layout.deleteCollapse`.
+2. **Conditional refan** — when recovery is active but `_bottomBandMessage()`
+   is null (mid-scroll off-screen), re-run pass-1 fan-out once.
+3. **Skip renormalize** — `_skipRenormalizeDuringDeleteRecovery()` blocks
+   `_renormalizeAnchor` for this pass (intentional off-screen anchor after
+   delete is not scroll drift).
+4. **`_matchExpectedBandGap`** — before and once after `_clampBoundaries`,
+   nudge scroll so band gap matches pre-delete gap (≤ 8 logical px tolerance).
+5. **Pin guards during recovery** — `pinNewest` blocked when user had
+   preempted tail or was not at tail before delete; `pinOldest` skipped when a
+   visible band exists. See [10-navigation-and-tail.md](10-navigation-and-tail.md)
+   and [06-boundaries.md](06-boundaries.md).
+
+Recovery flags clear at end of `performLayout`.
+
 ### 7. Pass-1 fan-out — `_layoutFromAnchor` → `_fanOutFromAnchor`
 
 Inside `_invokeChildManagerLayout`. Builds and lays out children around the
 current anchor. Details below.
 
-### 8. `_renormalizeAnchor` (unless close-path skip)
+### 8. `_renormalizeAnchor` (unless close-path or delete-recovery skip)
 
 If the anchor box is outside `[-cacheExtent, height + cacheExtent]`, rebase to
 the topmost visible child. **Skipped** when
@@ -106,7 +146,7 @@ close-path animate (dual-writer guard). **Cleared without snap** when the
 target is the known newest (tail pin owns geometry). May call
 `_repositionFromAnchor`.
 
-### 10. Tail-pin flags → `_clampBoundaries`
+### 10. Tail-pin flags → gap match → `_clampBoundaries`
 
 ```
 tailAdvanced = _wasAtTailLastLayout && newest advanced since _lastSeenNewestId
@@ -116,7 +156,8 @@ _pinTailOnJump = false   // one-shot consumed
 _clampBoundaries(repinBottom: repinBottom)
 ```
 
-If clamp applied → `_cancelFling()`.
+If clamp applied → `_cancelFling()`. When delete recovery is active,
+`_matchExpectedBandGap(maxPasses: 1)` runs once more after refan.
 
 ### 11. Pass-2 re-fan
 
@@ -169,6 +210,10 @@ Directional lead keeps a fast fling from outrunning the built range.
    chunk — avoids a one-frame flash of per-id error UI).
 4. Place at `anchorPixelOffset` via `_setOffset`.
 
+**Absent ids:** step 2 runs only after step 6b reassignment; `_buildMessage`
+returns null when `statusOf(id).isAbsent`. Downward/upward fan-out skips absent
+ids via `_nextNonAbsentIdDown` / `_nextNonAbsentIdUp`.
+
 ### Downward (newer)
 
 - Start `y = anchorTop + height`, `id = anchorId + 1` (or first id of next
@@ -209,7 +254,8 @@ widget when `chunk.status.isError` and an error builder is wired.
 
 ## Incomplete comment (not live behavior)
 
-Around lines 1733–1748 a comment describes a blank-viewport snap after
-absent-marking collapses shimmer rows. **No method body follows** — only the
-absent-skip helpers. Treat as aspirational / removed, not live behavior. See
+Around the absent-skip helpers a comment describes a blank-viewport snap after
+absent-marking collapses shimmer rows. **No method body follows** — viewport
+preservation (`_preserveViewportAfterDelete`) handles band stability instead.
+Treat the comment as aspirational / removed. See
 [13-known-limitations.md](13-known-limitations.md).

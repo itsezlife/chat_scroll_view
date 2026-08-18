@@ -182,6 +182,7 @@ void main() {
             sender: 'aliceR',
             content: 'one more thought…',
           ),
+          isLastInRun: false,
           isFirstInRun: false,
         ),
       ));

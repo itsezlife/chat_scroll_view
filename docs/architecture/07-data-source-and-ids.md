@@ -1,7 +1,7 @@
 ---
 type: Architecture Reference
 title: Data Source and IDs
-description: Chunks, absent slots, fetch contract, boundaries, and getMessage versus statusOf.
+description: Chunks, absent slots, fetch contract, boundaries, getMessage versus statusOf, and directed neighbor lookup via getPreviousPresentMessage / getNextPresentMessage.
 tags: [data, chunks, absent, ids]
 timestamp: 2026-07-04T00:00:00Z
 resource: lib/src/chat_scroll/chat_data_source.dart
@@ -98,13 +98,41 @@ Derived:
 
 | API | Returns |
 |-----|---------|
-| `getMessage(id)` | Message instance, or `null` if chunk missing **or** slot empty |
+| `getMessage(id)` | Message instance at **this id**, or `null` if chunk missing **or** slot empty |
 | `statusOf(id)` | Chunk missing → `dirty`; absent flag → `absent`; else chunk status |
 
-**`getMessage(id)` is not “previous / next message.”** Null means absent **or**
-unloaded. Neighbor logic must walk past confirmed-absent ids (same idea as
-fan-out helpers). Today `_startsDay` only checks `id - 1` — see
-[Known Limitations](./13-known-limitations.md).
+**`getMessage(id)` is exact slot lookup — not “previous / next message.”** Null
+means absent **or** unloaded. It must **never** auto-walk to a neighbor id:
+direction is caller-defined (previous vs next), and substituting would return
+a payload for the wrong id.
+
+For conversation-order neighbors that skip confirmed-absent holes, use the
+**directed** APIs below — not `getMessage(id ± 1)`.
+
+## Neighbor lookup (`Present` = skip confirmed-absent)
+
+Public integrator/viewport helpers :
+
+| API | Direction | Id walk | Payload |
+|-----|-----------|---------|---------|
+| `getPreviousPresentMessage(id)` | Older (↓ id) | `_previousPresentId` within `[oldestKnownId, id)` | `getMessage(probe)` or `null` |
+| `getNextPresentMessage(id)` | Newer (↑ id) | `_nextPresentId` within `(id, newestKnownId]` | `getMessage(probe)` or `null` |
+
+**Why `Present` in the name:** the walk skips ids that are **confirmed absent**
+(deleted, removal-staging, absent flag set). It does **not** mean “payload
+guaranteed” — the probe id may still be unloaded (`dirty`), so the method can
+return `null` even when a further neighbor exists.
+
+**Why not `getPreviousMessage` / `getNextMessage`:** without `Present` /
+`NonAbsent`, the name reads like `getMessage(id ± 1)` or an ambiguous
+“whichever neighbor is closer.” Keep direction and absent-skip explicit.
+
+Viewport fan-out uses the same idea internally:
+`_nextNonAbsentIdDown` / `_nextNonAbsentIdUp` (see [Invariants](./02-invariants.md)).
+
+**Do not** fold neighbor walks into `getMessage` — see
+[Known Limitations](./13-known-limitations.md). Call sites (`_startsDay`, demo
+sender-run) use `getPreviousPresentMessage` — not `getMessage(id ± 1)`.
 
 ## Notifications
 
@@ -112,6 +140,30 @@ fan-out helpers). Today `_startsDay` only checks `id - 1` — see
 - `upsertMessage` / `upsertMessages` already call `notifyDataChanged`.
 - Subclasses must **not** call it again after `super`.
 - `notifyDataChanged` is `@nonVirtual`.
+
+## CRUD mutations
+
+Integrator **CRUD** (`insertMessage`, `insertMessages`, `updateMessage`,
+`updateMessages`, `removeMessages`) emits typed [ChatMutation] subtypes via
+`addMutationListener` before storage writes. Fetch and silent upsert never
+invoke mutation listeners.
+
+| Bulk add need | Call | Mutation |
+|---------------|------|----------|
+| Animation-eligible batch insert | `insertMessages` | `InsertBatchMutation` (ids ascending) |
+| Silent cache merge | `upsertMessages` | none |
+
+| Edit need | Call | Mutation |
+|-----------|------|----------|
+| Single or bulk integrator edit | `updateMessage` / `updateMessages` | `UpdateMutation` / `UpdateBatchMutation` — **never silent** |
+| Fetch re-fetch refresh | `upsertMessages` | none (not an edit API) |
+
+Foundation does **not** auto-classify reconnect or background batches — the
+integrator chooses the API explicitly.
+
+`RenderChatScrollView` mounts a mutation listener stub; extent springs and
+**coverage override during deferred collapse layout** are deferred to the
+animation follow-on spec.
 
 ## Viewport integration
 
