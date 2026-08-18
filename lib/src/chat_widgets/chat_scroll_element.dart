@@ -1,13 +1,13 @@
 import 'dart:collection';
 
-import 'package:chatscrollview/src/chat_scroll/chat_scroll_common.dart';
-import 'package:chatscrollview/src/chat_scroll/chat_sender_run_layout.dart';
-import 'package:chatscrollview/src/chat_widgets/chat_data_source_ext.dart';
-import 'package:chatscrollview/src/chat_widgets/chat_dated_message.dart';
-import 'package:chatscrollview/src/chat_widgets/chat_scroll_view.dart';
-import 'package:chatscrollview/src/chat_widgets/chat_scrollbar.dart';
-import 'package:chatscrollview/src/chat_widgets/chat_selectable_message.dart';
-import 'package:chatscrollview/src/chat_widgets/render_chat_scroll_view.dart';
+import 'package:chat_scroll_view/src/chat_scroll/chat_scroll_common.dart';
+import 'package:chat_scroll_view/src/chat_scroll/chat_sender_run_layout.dart';
+import 'package:chat_scroll_view/src/chat_widgets/chat_data_source_ext.dart';
+import 'package:chat_scroll_view/src/chat_widgets/chat_dated_message.dart';
+import 'package:chat_scroll_view/src/chat_widgets/chat_scroll_view.dart';
+import 'package:chat_scroll_view/src/chat_widgets/chat_scrollbar.dart';
+import 'package:chat_scroll_view/src/chat_widgets/chat_selectable_message.dart';
+import 'package:chat_scroll_view/src/chat_widgets/render_chat_scroll_view.dart';
 import 'package:flutter/widgets.dart';
 
 /// Singleton slots — kept distinct from the int-keyed message children and

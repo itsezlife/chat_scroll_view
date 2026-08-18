@@ -1,9 +1,9 @@
-import 'package:chatscrollview/src/chat_message.dart';
-import 'package:chatscrollview/src/chat_scroll/chat_data_source.dart';
-import 'package:chatscrollview/src/chat_scroll/chat_mutations.dart';
-import 'package:chatscrollview/src/chat_scroll/chat_scroll_common.dart';
-import 'package:chatscrollview/src/chat_widgets/chat_data_source_ext.dart';
+import 'package:chat_scroll_view/src/chat_scroll/chat_data_source.dart';
+import 'package:chat_scroll_view/src/chat_scroll/chat_mutations.dart';
+import 'package:chat_scroll_view/src/chat_scroll/chat_scroll_common.dart';
+import 'package:chat_scroll_view/src/chat_widgets/chat_data_source_ext.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'chat_message.dart';
 
 IChatMessage _msg(int id, {String content = 'm'}) => UserChatMessage(
   id: id,
@@ -65,25 +65,28 @@ void main() {
   });
 
   group('insertMessages batch', () {
-    test('emits one batch mutation with ascending ids and one data-changed', () {
-      final ds = _SpyDataSource();
-      final mutations = <ChatMutation>[];
-      var dataChanges = 0;
-      ds
-        ..addMutationListener(mutations.add)
-        ..addDataListener(() => dataChanges++);
+    test(
+      'emits one batch mutation with ascending ids and one data-changed',
+      () {
+        final ds = _SpyDataSource();
+        final mutations = <ChatMutation>[];
+        var dataChanges = 0;
+        ds
+          ..addMutationListener(mutations.add)
+          ..addDataListener(() => dataChanges++);
 
-      final batch = List.generate(10, (i) => _msg(100 + i));
-      ds.insertMessages(batch.reversed);
+        final batch = List.generate(10, (i) => _msg(100 + i));
+        ds.insertMessages(batch.reversed);
 
-      expect(mutations, hasLength(1));
-      final mutation = mutations.single as InsertBatchMutation;
-      expect(mutation.ids, List.generate(10, (i) => 100 + i));
-      expect(mutation.operationId, isNonZero);
-      expect(dataChanges, 1);
-      expect(ds.getMessage(109)?.id, 109);
-      expect(ds.newestKnownId, 109);
-    });
+        expect(mutations, hasLength(1));
+        final mutation = mutations.single as InsertBatchMutation;
+        expect(mutation.ids, List.generate(10, (i) => 100 + i));
+        expect(mutation.operationId, isNonZero);
+        expect(dataChanges, 1);
+        expect(ds.getMessage(109)?.id, 109);
+        expect(ds.newestKnownId, 109);
+      },
+    );
 
     test('insertMessages emits mutation; upsertMessages same ids silent', () {
       final ds = _SpyDataSource();
@@ -101,34 +104,34 @@ void main() {
   });
 
   group('updateMessages batch', () {
-    test('emits one batch mutation with ascending ids and one data-changed', () {
-      final ds = _SpyDataSource();
-      final mutations = <ChatMutation>[];
-      var dataChanges = 0;
-      ds
-        ..addMutationListener(mutations.add)
-        ..addDataListener(() => dataChanges++);
-      for (var i = 10; i <= 12; i++) {
-        ds.insertMessage(_msg(i));
-      }
+    test(
+      'emits one batch mutation with ascending ids and one data-changed',
+      () {
+        final ds = _SpyDataSource();
+        final mutations = <ChatMutation>[];
+        var dataChanges = 0;
+        ds
+          ..addMutationListener(mutations.add)
+          ..addDataListener(() => dataChanges++);
+        for (var i = 10; i <= 12; i++) {
+          ds.insertMessage(_msg(i));
+        }
 
-      final batch = [
-        _msg(12, content: 'e'),
-        _msg(10, content: 'e'),
-        _msg(11, content: 'e'),
-      ];
-      ds.updateMessages(batch);
+        final batch = [
+          _msg(12, content: 'e'),
+          _msg(10, content: 'e'),
+          _msg(11, content: 'e'),
+        ];
+        ds.updateMessages(batch);
 
-      expect(mutations, hasLength(4)); // 3 inserts + 1 batch update
-      final mutation = mutations.last as UpdateBatchMutation;
-      expect(mutation.ids, <int>[10, 11, 12]);
-      expect(mutation.operationId, isNonZero);
-      expect(dataChanges, 4);
-      expect(
-        (ds.getMessage(11)! as UserChatMessage).content,
-        'e11',
-      );
-    });
+        expect(mutations, hasLength(4)); // 3 inserts + 1 batch update
+        final mutation = mutations.last as UpdateBatchMutation;
+        expect(mutation.ids, <int>[10, 11, 12]);
+        expect(mutation.operationId, isNonZero);
+        expect(dataChanges, 4);
+        expect((ds.getMessage(11)! as UserChatMessage).content, 'e11');
+      },
+    );
 
     test('updateMessages emits mutation; upsertMessages same ids silent', () {
       final ds = _SpyDataSource();
@@ -154,10 +157,7 @@ void main() {
       ds.addMutationListener(mutations.add);
 
       ds.removeMessages([30]);
-      ds.updateMessages([
-        _msg(30, content: 'nope'),
-        _msg(31, content: 'ok'),
-      ]);
+      ds.updateMessages([_msg(30, content: 'nope'), _msg(31, content: 'ok')]);
 
       expect(mutations.last, isA<UpdateBatchMutation>());
       expect((mutations.last as UpdateBatchMutation).ids, <int>[31]);
@@ -198,28 +198,31 @@ void main() {
   });
 
   group('removeMessages batch', () {
-    test('one batch mutation with descending ids regardless of caller order', () {
-      final ds = _SpyDataSource();
-      final mutations = <ChatMutation>[];
-      var dataChanges = 0;
-      ds
-        ..addMutationListener(mutations.add)
-        ..addDataListener(() => dataChanges++);
-      ds
-        ..insertMessage(_msg(97))
-        ..insertMessage(_msg(98))
-        ..insertMessage(_msg(99));
+    test(
+      'one batch mutation with descending ids regardless of caller order',
+      () {
+        final ds = _SpyDataSource();
+        final mutations = <ChatMutation>[];
+        var dataChanges = 0;
+        ds
+          ..addMutationListener(mutations.add)
+          ..addDataListener(() => dataChanges++);
+        ds
+          ..insertMessage(_msg(97))
+          ..insertMessage(_msg(98))
+          ..insertMessage(_msg(99));
 
-      ds.removeMessages(<int>[98, 99, 97]);
+        ds.removeMessages(<int>[98, 99, 97]);
 
-      expect(mutations, hasLength(4)); // 3 inserts + 1 batch
-      final batch = mutations.last as RemoveBatchMutation;
-      expect(batch.ids, <int>[99, 98, 97]);
-      expect(batch.operationId, isNonZero);
-      expect(ds.pendingRemovalIds, <int>{97, 98, 99});
-      expect(dataChanges, 4);
-      expect(ds.newestKnownId, 96);
-    });
+        expect(mutations, hasLength(4)); // 3 inserts + 1 batch
+        final batch = mutations.last as RemoveBatchMutation;
+        expect(batch.ids, <int>[99, 98, 97]);
+        expect(batch.operationId, isNonZero);
+        expect(ds.pendingRemovalIds, <int>{97, 98, 99});
+        expect(dataChanges, 4);
+        expect(ds.newestKnownId, 96);
+      },
+    );
 
     test('staging cleared by finalizeRemoval without second mutation', () {
       final ds = _SpyDataSource()..insertMessage(_msg(42));

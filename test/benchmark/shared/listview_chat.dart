@@ -1,9 +1,9 @@
 import 'dart:ui' as ui;
 
-import 'package:chatscrollview/src/chat_message.dart';
-import 'package:chatscrollview/src/chat_scroll/chat_scroll_common.dart';
+import 'package:chat_scroll_view/src/chat_scroll/chat_scroll_common.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
+import '../../chat_message.dart';
 
 // ---------------------------------------------------------------------------
 // Variant 1: CustomPaint — identical Canvas rendering to ChatScrollView's

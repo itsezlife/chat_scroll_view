@@ -1,6 +1,6 @@
 import 'dart:async';
 
-import 'package:chatscrollview/src/chat_scroll/chat_scroll_events.dart';
+import 'package:chat_scroll_view/src/chat_scroll/chat_scroll_events.dart';
 import 'package:flutter/animation.dart' show Curve, Curves;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/scheduler.dart';
@@ -12,11 +12,7 @@ import 'package:flutter/scheduler.dart';
 /// least the parent range's [ChatVisibleRange.paintBandHeight], the fraction
 /// used the band-height denominator — use [visibleRowFillsBand] with that band
 /// height before treating the fraction as share-of-message read.
-typedef ChatVisibleRow = ({
-  int id,
-  double visibleFraction,
-  double height,
-});
+typedef ChatVisibleRow = ({int id, double visibleFraction, double height});
 
 /// Visible-range snapshot exposed by [ChatScrollController.visibleRange].
 ///

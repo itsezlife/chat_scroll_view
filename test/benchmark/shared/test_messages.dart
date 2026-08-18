@@ -1,7 +1,7 @@
 import 'dart:math';
 
-import 'package:chatscrollview/src/chat_message.dart';
-import 'package:chatscrollview/src/chat_scroll/chat_scroll_common.dart';
+import 'package:chat_scroll_view/src/chat_scroll/chat_scroll_common.dart';
+import '../../chat_message.dart';
 
 /// Preset message counts for benchmarks.
 const int kSmall = 32;
@@ -87,4 +87,3 @@ List<IChatMessage> generateMessages(int count) {
   }
   return messages;
 }
-

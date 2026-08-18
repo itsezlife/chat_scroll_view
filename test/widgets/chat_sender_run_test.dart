@@ -1,19 +1,13 @@
-import 'package:chatscrollview/src/chat_message.dart';
-import 'package:chatscrollview/src/chat_scroll/chat_data_source.dart';
-import 'package:chatscrollview/src/chat_scroll/chat_scroll_common.dart';
-import 'package:chatscrollview/src/chat_scroll/chat_scroll_controller.dart';
-import 'package:chatscrollview/src/chat_scroll/chat_sender_run_layout.dart';
-import 'package:chatscrollview/src/chat_widgets/chat_scroll_view.dart';
-import 'package:chatscrollview/src/chat_widgets/demo/date_separator.dart';
-import 'package:chatscrollview/src/chat_widgets/demo/demo_message.dart';
+import 'package:chat_scroll_view/src/chat_scroll/chat_data_source.dart';
+import 'package:chat_scroll_view/src/chat_scroll/chat_scroll_common.dart';
+import 'package:chat_scroll_view/src/chat_scroll/chat_scroll_controller.dart';
+import 'package:chat_scroll_view/src/chat_scroll/chat_sender_run_layout.dart';
+import 'package:chat_scroll_view/src/chat_widgets/chat_scroll_view.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import '../chat_message.dart';
 
-IChatMessage _msg(
-  int id, {
-  String sender = 'bot',
-  DateTime? when,
-}) =>
+IChatMessage _msg(int id, {String sender = 'bot', DateTime? when}) =>
     UserChatMessage(
       id: id,
       sender: sender,
@@ -39,8 +33,7 @@ class _LoadedSource extends ChatDataSource {
   Future<List<IChatMessage>> fetchRange({
     required int fromId,
     required int toId,
-  }) async =>
-      const <IChatMessage>[];
+  }) async => const <IChatMessage>[];
 }
 
 Widget _harness({
@@ -49,24 +42,23 @@ Widget _harness({
   required ChatMessageBuilder messageBuilder,
   ChatGroupSeparatorBuilder? dateSeparatorBuilder,
   Object Function(IChatMessage message)? groupBy,
-}) =>
-    MaterialApp(
-      home: Scaffold(
-        body: Center(
-          child: SizedBox(
-            width: 400,
-            height: 600,
-            child: ChatScrollView(
-              dataSource: dataSource,
-              controller: controller,
-              dateSeparatorBuilder: dateSeparatorBuilder,
-              groupBy: groupBy,
-              messageBuilder: messageBuilder,
-            ),
-          ),
+}) => MaterialApp(
+  home: Scaffold(
+    body: Center(
+      child: SizedBox(
+        width: 400,
+        height: 600,
+        child: ChatScrollView(
+          dataSource: dataSource,
+          controller: controller,
+          dateSeparatorBuilder: dateSeparatorBuilder,
+          groupBy: groupBy,
+          messageBuilder: messageBuilder,
         ),
       ),
-    );
+    ),
+  ),
+);
 
 /// Last-in-run chrome marker for tests.
 Widget _chromeBuilder(
@@ -125,11 +117,10 @@ Future<void> _pumpLoaded(
 
 void main() {
   group('sender run chrome', () {
-    testWidgets('delete first of two regains last-in-run chrome', (tester) async {
-      final ds = _LoadedSource([
-        _msg(1),
-        _msg(2),
-      ]);
+    testWidgets('delete first of two regains last-in-run chrome', (
+      tester,
+    ) async {
+      final ds = _LoadedSource([_msg(1), _msg(2)]);
 
       await _pumpLoaded(tester, ds, _chromeBuilder);
       expect(find.text('plain-1'), findsOneWidget);
@@ -143,7 +134,9 @@ void main() {
       expect(find.text('chrome-2'), findsOneWidget);
     });
 
-    testWidgets('three-message run shows chrome only on last id', (tester) async {
+    testWidgets('three-message run shows chrome only on last id', (
+      tester,
+    ) async {
       final ds = _LoadedSource([_msg(1), _msg(2), _msg(3)]);
 
       await _pumpLoaded(tester, ds, _chromeBuilder);
@@ -164,14 +157,16 @@ void main() {
         tester,
         ds,
         _chromeBuilder,
-        separator: (context, bucket, date) => DateSeparator(date: date),
+        separator: (context, bucket, date) => const SizedBox(height: 28),
       );
 
       expect(find.text('chrome-1'), findsOneWidget);
       expect(find.text('chrome-2'), findsOneWidget);
     });
 
-    testWidgets('insert extends run — chrome moves to new last', (tester) async {
+    testWidgets('insert extends run — chrome moves to new last', (
+      tester,
+    ) async {
       final ds = _LoadedSource([_msg(1)]);
 
       await _pumpLoaded(tester, ds, _chromeBuilder);
@@ -216,7 +211,10 @@ void main() {
     testWidgets('demo incoming bubble shows avatar only on last in run', (
       tester,
     ) async {
-      final ds = _LoadedSource([_msg(1, sender: 'skia-gold'), _msg(2, sender: 'skia-gold')]);
+      final ds = _LoadedSource([
+        _msg(1, sender: 'skia-gold'),
+        _msg(2, sender: 'skia-gold'),
+      ]);
       final controller = ChatScrollController()..jumpTo(2);
 
       await tester.pumpWidget(
@@ -230,12 +228,8 @@ void main() {
                   dataSource: ds,
                   controller: controller,
                   messageBuilder: (context, id, message, status, runLayout) {
-                    if (message == null) return const DemoShimmerBubble();
-                    return DemoMessageBubble(
-                      message: message,
-                      isLastInRun: runLayout.isLastInSenderRun,
-                      isFirstInRun: runLayout.isFirstInSenderRun,
-                    );
+                    if (message == null) return const SizedBox(height: 40);
+                    return SizedBox(height: 40, child: Text(message.sender));
                   },
                 ),
               ),

@@ -1,13 +1,12 @@
-import 'package:chatscrollview/src/chat_message.dart';
-import 'package:chatscrollview/src/chat_scroll/chat_data_source.dart';
-import 'package:chatscrollview/src/chat_scroll/chat_scroll_common.dart';
-import 'package:chatscrollview/src/chat_scroll/chat_scroll_controller.dart';
-import 'package:chatscrollview/src/chat_scroll/chat_selection_controller.dart';
-import 'package:chatscrollview/src/chat_widgets/chat_scroll_view.dart';
-import 'package:chatscrollview/src/chat_widgets/chat_selectable_message.dart';
-import 'package:chatscrollview/src/chat_widgets/demo/demo_message.dart';
+import 'package:chat_scroll_view/src/chat_scroll/chat_data_source.dart';
+import 'package:chat_scroll_view/src/chat_scroll/chat_scroll_common.dart';
+import 'package:chat_scroll_view/src/chat_scroll/chat_scroll_controller.dart';
+import 'package:chat_scroll_view/src/chat_scroll/chat_selection_controller.dart';
+import 'package:chat_scroll_view/src/chat_widgets/chat_scroll_view.dart';
+import 'package:chat_scroll_view/src/chat_widgets/chat_selectable_message.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import '../chat_message.dart';
 
 IChatMessage _msg(int id, {String content = ''}) => UserChatMessage(
   id: id,
@@ -336,12 +335,10 @@ void main() {
           dataSource: ds,
           controller: controller,
           messageBuilder: (context, id, message, status, runLayout) {
-            if (message == null) return const DemoShimmerBubble();
-            return DemoMessageBubble(
-              message: message,
-              isLastInRun: runLayout.isLastInSenderRun,
-              isFirstInRun: runLayout.isFirstInSenderRun,
-            );
+            if (message == null) {
+              return const Text('shimmer', key: Key('shimmer'));
+            }
+            return Text(message.sender);
           },
         ),
       );
@@ -353,7 +350,7 @@ void main() {
       await tester.pump(const Duration(milliseconds: 100));
 
       expect(find.text('User'), findsOneWidget);
-      expect(find.byType(DemoShimmerBubble), findsNothing);
+      expect(find.byKey(const Key('shimmer')), findsNothing);
     });
   });
 }

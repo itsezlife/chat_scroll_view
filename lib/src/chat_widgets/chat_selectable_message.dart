@@ -1,5 +1,5 @@
-import 'package:chatscrollview/src/chat_scroll/chat_scroll_controller.dart';
-import 'package:chatscrollview/src/chat_scroll/chat_selection_controller.dart';
+import 'package:chat_scroll_view/src/chat_scroll/chat_scroll_controller.dart';
+import 'package:chat_scroll_view/src/chat_scroll/chat_selection_controller.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 

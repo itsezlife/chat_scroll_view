@@ -1,4 +1,4 @@
-import 'package:chatscrollview/src/chat_scroll/chat_scroll_common.dart';
+import 'package:chat_scroll_view/src/chat_scroll/chat_scroll_common.dart';
 import 'package:flutter/rendering.dart';
 
 /// Floating-header height assumed for the inline-divider fade before the real
@@ -104,11 +104,8 @@ class ChatFloatingHeaderController {
   /// Whether the header widget must rebuild and which bucket/date to pass to
   /// the element-side builder. Updates [headerBucket] / [headerDate] when
   /// rebuild is needed.
-  ({
-    bool needsRebuild,
-    Object? bucket,
-    DateTime? firstMessageDate,
-  }) evaluateLayoutRebuild({
+  ({bool needsRebuild, Object? bucket, DateTime? firstMessageDate})
+  evaluateLayoutRebuild({
     required TopDayScan scan,
     required Object Function(IChatMessage)? groupBy,
     required DateTime? Function(int messageId) createdAtOf,

@@ -36,7 +36,8 @@ class ChatScrollPhysics {
   /// object, [overscrollMax] resistance roll-off, and [bounceDuration] for
   /// spring-back after overscroll release.
   ChatScrollPhysics({
-    required double Function(BouncebackSide side) overscrollOnSide, this.overscrollMax = 200.0,
+    required double Function(BouncebackSide side) overscrollOnSide,
+    this.overscrollMax = 200.0,
     this.bounceDuration = kOverscrollBounceDuration,
   }) : _overscrollOnSide = overscrollOnSide;
 

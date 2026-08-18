@@ -1,11 +1,11 @@
 import 'dart:async';
 
-import 'package:chatscrollview/src/chat_message.dart';
-import 'package:chatscrollview/src/chat_scroll/chat_data_source.dart';
-import 'package:chatscrollview/src/chat_scroll/chat_scroll_chunk.dart';
-import 'package:chatscrollview/src/chat_scroll/chat_scroll_common.dart';
-import 'package:chatscrollview/src/chat_widgets/chat_data_source_ext.dart';
+import 'package:chat_scroll_view/src/chat_scroll/chat_data_source.dart';
+import 'package:chat_scroll_view/src/chat_scroll/chat_scroll_chunk.dart';
+import 'package:chat_scroll_view/src/chat_scroll/chat_scroll_common.dart';
+import 'package:chat_scroll_view/src/chat_widgets/chat_data_source_ext.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'chat_message.dart';
 
 IChatMessage _msg(int id) => UserChatMessage(
   id: id,
@@ -144,12 +144,14 @@ void main() {
       expect(chunk.isAbsentSlot(1), isFalse);
     });
 
-    test('markAbsentSlot(63) marks slot 63 absent without affecting slot 0',
-        () {
-      chunk.markAbsentSlot(63);
-      expect(chunk.isAbsentSlot(63), isTrue);
-      expect(chunk.isAbsentSlot(0), isFalse);
-    });
+    test(
+      'markAbsentSlot(63) marks slot 63 absent without affecting slot 0',
+      () {
+        chunk.markAbsentSlot(63);
+        expect(chunk.isAbsentSlot(63), isTrue);
+        expect(chunk.isAbsentSlot(0), isFalse);
+      },
+    );
 
     test('only endpoint slots 0 and 63 absent leaves all others present', () {
       chunk
@@ -174,7 +176,11 @@ void main() {
         ..markAbsentSlot(63)
         ..clearAbsentMask();
       for (var i = 0; i < ChatScrollChunk.kSize; i++) {
-        expect(chunk.isAbsentSlot(i), isFalse, reason: 'slot $i should be clear');
+        expect(
+          chunk.isAbsentSlot(i),
+          isFalse,
+          reason: 'slot $i should be clear',
+        );
       }
       expect(chunk.absentSlotCount, 0);
     });
@@ -275,16 +281,13 @@ void main() {
       expect(chunk.absentSlotCount, 1);
     });
 
-    test(
-      'markAbsentSlot throws AssertionError in debug mode when slot is '
-      'non-null',
-      () {
-        final msg = _msg(5);
-        chunk.messages[5] = msg;
-        // markAbsentSlot(5) must assert because messages[5] is non-null.
-        expect(() => chunk.markAbsentSlot(5), throwsA(isA<AssertionError>()));
-      },
-    );
+    test('markAbsentSlot throws AssertionError in debug mode when slot is '
+        'non-null', () {
+      final msg = _msg(5);
+      chunk.messages[5] = msg;
+      // markAbsentSlot(5) must assert because messages[5] is non-null.
+      expect(() => chunk.markAbsentSlot(5), throwsA(isA<AssertionError>()));
+    });
 
     test('clearAbsentSlot clears the flag for the given slot', () {
       chunk.markAbsentSlot(3);
@@ -334,22 +337,26 @@ void main() {
       expect(source.statusOf(10), ChatMessageStatus.valid);
     });
 
-    test('statusOf returns absent for a slot marked absent in a valid chunk',
-        () {
-      source.upsertMessage(_msg(10));
-      // Manually mark slot 5 (id = chunkFirstId + 5 = 5) absent.
-      final chunkIndex = ChatScrollChunk.chunkOf(0);
-      final chunk = source.chunks[chunkIndex]!;
-      chunk.markAbsentSlot(5); // id = 0 * 64 + 5 = 5
-      expect(source.statusOf(5), ChatMessageStatus.absent);
-    });
+    test(
+      'statusOf returns absent for a slot marked absent in a valid chunk',
+      () {
+        source.upsertMessage(_msg(10));
+        // Manually mark slot 5 (id = chunkFirstId + 5 = 5) absent.
+        final chunkIndex = ChatScrollChunk.chunkOf(0);
+        final chunk = source.chunks[chunkIndex]!;
+        chunk.markAbsentSlot(5); // id = 0 * 64 + 5 = 5
+        expect(source.statusOf(5), ChatMessageStatus.absent);
+      },
+    );
 
-    test('statusOf returns chunk status (valid) for a null non-absent slot',
-        () {
-      source.upsertMessage(_msg(10));
-      // id=11 is in chunk 0 but not absent and not present.
-      expect(source.statusOf(11), ChatMessageStatus.valid);
-    });
+    test(
+      'statusOf returns chunk status (valid) for a null non-absent slot',
+      () {
+        source.upsertMessage(_msg(10));
+        // id=11 is in chunk 0 but not absent and not present.
+        expect(source.statusOf(11), ChatMessageStatus.valid);
+      },
+    );
   });
 
   // ---------------------------------------------------------------------------
@@ -385,7 +392,8 @@ void main() {
           expect(
             loaded.isAbsentSlot(slot),
             isTrue,
-            reason: 'slot $slot (id ${64 + slot}) must be absent after '
+            reason:
+                'slot $slot (id ${64 + slot}) must be absent after '
                 'empty fetch even though 64 < oldestKnownId (10001)',
           );
         }
@@ -424,11 +432,7 @@ void main() {
       'sparse fetchRange result marks only unreturned slots absent',
       () async {
         final source = _RecordingDataSource(fetchResult: []);
-        source.simulateFetch(
-          fromId: 0,
-          toId: 63,
-          result: [_msg(5), _msg(10)],
-        );
+        source.simulateFetch(fromId: 0, toId: 63, result: [_msg(5), _msg(10)]);
         await Future<void>.delayed(Duration.zero);
 
         final chunk = source.chunks[ChatScrollChunk.chunkOf(0)]!;
@@ -518,45 +522,39 @@ void main() {
   // ---------------------------------------------------------------------------
 
   group('upsertMessage clears absent flag', () {
-    test(
-      'upsertMessage at a previously-absent slot clears the bit and '
-      'statusOf returns valid',
-      () {
-        final source = _TestDataSource();
-        // Force-mark slot 20 (id 20 in chunk 0) absent.
-        source.upsertMessage(_msg(0)); // ensure chunk 0 exists & is valid
-        final chunk = source.chunks[ChatScrollChunk.chunkOf(0)]!;
-        chunk.messages[20] = null; // ensure slot is null
-        chunk.markAbsentSlot(20);
-        expect(source.statusOf(20), ChatMessageStatus.absent);
+    test('upsertMessage at a previously-absent slot clears the bit and '
+        'statusOf returns valid', () {
+      final source = _TestDataSource();
+      // Force-mark slot 20 (id 20 in chunk 0) absent.
+      source.upsertMessage(_msg(0)); // ensure chunk 0 exists & is valid
+      final chunk = source.chunks[ChatScrollChunk.chunkOf(0)]!;
+      chunk.messages[20] = null; // ensure slot is null
+      chunk.markAbsentSlot(20);
+      expect(source.statusOf(20), ChatMessageStatus.absent);
 
-        // Now upsert a real message at id 20.
-        source.upsertMessage(_msg(20));
+      // Now upsert a real message at id 20.
+      source.upsertMessage(_msg(20));
 
-        expect(source.statusOf(20), ChatMessageStatus.valid);
-        expect(source.getMessage(20), isNotNull);
-        expect(chunk.isAbsentSlot(20), isFalse);
-      },
-    );
+      expect(source.statusOf(20), ChatMessageStatus.valid);
+      expect(source.getMessage(20), isNotNull);
+      expect(chunk.isAbsentSlot(20), isFalse);
+    });
 
-    test(
-      'upsertMessages at previously-absent slots clears their bits',
-      () {
-        final source = _TestDataSource();
-        source.upsertMessage(_msg(0));
-        final chunk = source.chunks[ChatScrollChunk.chunkOf(0)]!;
-        for (final slot in [1, 2, 3]) {
-          chunk.messages[slot] = null;
-          chunk.markAbsentSlot(slot);
-        }
-        // Upsert messages 1, 2, 3 via upsertMessages.
-        source.upsertMessages([_msg(1), _msg(2), _msg(3)]);
-        for (final id in [1, 2, 3]) {
-          expect(source.statusOf(id), ChatMessageStatus.valid);
-          expect(chunk.isAbsentSlot(id), isFalse);
-        }
-      },
-    );
+    test('upsertMessages at previously-absent slots clears their bits', () {
+      final source = _TestDataSource();
+      source.upsertMessage(_msg(0));
+      final chunk = source.chunks[ChatScrollChunk.chunkOf(0)]!;
+      for (final slot in [1, 2, 3]) {
+        chunk.messages[slot] = null;
+        chunk.markAbsentSlot(slot);
+      }
+      // Upsert messages 1, 2, 3 via upsertMessages.
+      source.upsertMessages([_msg(1), _msg(2), _msg(3)]);
+      for (final id in [1, 2, 3]) {
+        expect(source.statusOf(id), ChatMessageStatus.valid);
+        expect(chunk.isAbsentSlot(id), isFalse);
+      }
+    });
   });
 }
 
@@ -566,7 +564,7 @@ void main() {
 
 class _RecordingDataSource extends ChatDataSource {
   _RecordingDataSource({required List<IChatMessage> fetchResult})
-      : _defaultResult = fetchResult;
+    : _defaultResult = fetchResult;
 
   final List<IChatMessage> _defaultResult;
 

@@ -11,9 +11,8 @@ class BenchmarkMetrics {
 
   int get count => samples.length;
 
-  double get meanUs => samples.isEmpty
-      ? 0
-      : samples.reduce((a, b) => a + b) / samples.length;
+  double get meanUs =>
+      samples.isEmpty ? 0 : samples.reduce((a, b) => a + b) / samples.length;
 
   double get medianUs {
     if (_sorted.isEmpty) return 0;
@@ -33,14 +32,13 @@ class BenchmarkMetrics {
     final m = meanUs;
     final variance =
         samples.map((s) => (s - m) * (s - m)).reduce((a, b) => a + b) /
-            (samples.length - 1);
+        (samples.length - 1);
     return sqrt(variance);
   }
 
   /// Frames exceeding 16.67ms (60 FPS budget).
   int get jankCount => samples.where((s) => s > 16667).length;
-  double get jankRatio =>
-      samples.isEmpty ? 0 : jankCount / samples.length;
+  double get jankRatio => samples.isEmpty ? 0 : jankCount / samples.length;
 
   double _percentile(double p) {
     if (_sorted.isEmpty) return 0;
@@ -54,7 +52,8 @@ class BenchmarkMetrics {
   }
 
   @override
-  String toString() => '$name: mean=${_fmtUs(meanUs)} '
+  String toString() =>
+      '$name: mean=${_fmtUs(meanUs)} '
       'median=${_fmtUs(medianUs)} p95=${_fmtUs(p95Us)} '
       'p99=${_fmtUs(p99Us)} min=${_fmtUs(minUs.toDouble())} '
       'max=${_fmtUs(maxUs.toDouble())}';
@@ -79,7 +78,8 @@ class MemorySnapshot {
   final int renderObjectCount;
 
   @override
-  String toString() => '$label: attached=$attachedRenders '
+  String toString() =>
+      '$label: attached=$attachedRenders '
       'total=$totalRenders chunks=$chunkCount '
       'elements=$elementCount renderObjects=$renderObjectCount';
 }
@@ -88,15 +88,17 @@ class MemorySnapshot {
 String generateComparisonTable({
   required String title,
   required List<(int messageCount, BenchmarkMetrics csv, BenchmarkMetrics lv)>
-      rows,
+  rows,
 }) {
   final buf = StringBuffer()
     ..writeln('### $title')
     ..writeln()
     ..writeln(
-        '| Messages | Metric | ChatScrollView | ListView.builder | Ratio |')
+      '| Messages | Metric | ChatScrollView | ListView.builder | Ratio |',
+    )
     ..writeln(
-        '|----------|--------|----------------|------------------|-------|');
+      '|----------|--------|----------------|------------------|-------|',
+    );
 
   for (final (count, csv, lv) in rows) {
     void row(String metric, double csvVal, double lvVal) {
@@ -120,27 +122,25 @@ String generateComparisonTable({
 /// Generate markdown for memory comparison.
 String generateMemoryTable({
   required String title,
-  required List<(int messageCount, MemorySnapshot csv, MemorySnapshot lv)>
-      rows,
+  required List<(int messageCount, MemorySnapshot csv, MemorySnapshot lv)> rows,
 }) {
   final buf = StringBuffer()
     ..writeln('### $title')
     ..writeln()
-    ..writeln(
-        '| Messages | Metric | ChatScrollView | ListView.builder |')
-    ..writeln(
-        '|----------|--------|----------------|------------------|');
+    ..writeln('| Messages | Metric | ChatScrollView | ListView.builder |')
+    ..writeln('|----------|--------|----------------|------------------|');
 
   for (final (count, csv, lv) in rows) {
     buf
       ..writeln(
-          '| $count | Attached renders / Visible elements | '
-          '${csv.attachedRenders} | ${lv.elementCount} |')
+        '| $count | Attached renders / Visible elements | '
+        '${csv.attachedRenders} | ${lv.elementCount} |',
+      )
       ..writeln(
-          '| $count | Total renders / RenderObjects | '
-          '${csv.totalRenders} | ${lv.renderObjectCount} |')
-      ..writeln(
-          '| $count | Chunks / — | ${csv.chunkCount} | — |');
+        '| $count | Total renders / RenderObjects | '
+        '${csv.totalRenders} | ${lv.renderObjectCount} |',
+      )
+      ..writeln('| $count | Chunks / — | ${csv.chunkCount} | — |');
   }
 
   buf.writeln();

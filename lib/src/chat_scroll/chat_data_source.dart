@@ -1,10 +1,10 @@
 import 'dart:collection';
 import 'dart:ui';
 
-import 'package:chatscrollview/src/chat_scroll/chat_mutations.dart';
-import 'package:chatscrollview/src/chat_scroll/chat_range_fetch.dart';
-import 'package:chatscrollview/src/chat_scroll/chat_scroll_chunk.dart';
-import 'package:chatscrollview/src/chat_scroll/chat_scroll_common.dart';
+import 'package:chat_scroll_view/src/chat_scroll/chat_mutations.dart';
+import 'package:chat_scroll_view/src/chat_scroll/chat_range_fetch.dart';
+import 'package:chat_scroll_view/src/chat_scroll/chat_scroll_chunk.dart';
+import 'package:chat_scroll_view/src/chat_scroll/chat_scroll_common.dart';
 import 'package:meta/meta.dart';
 
 /// Data source for [ChatScrollView].
@@ -474,8 +474,7 @@ abstract class ChatDataSource {
       if (_isConfirmedAbsent(message.id)) continue;
       byId[message.id] = message;
     }
-    final sorted = byId.values.toList()
-      ..sort((a, b) => a.id.compareTo(b.id));
+    final sorted = byId.values.toList()..sort((a, b) => a.id.compareTo(b.id));
     return sorted;
   }
 
@@ -485,8 +484,7 @@ abstract class ChatDataSource {
       if (_removalStaging.containsKey(message.id)) continue;
       byId[message.id] = message;
     }
-    final sorted = byId.values.toList()
-      ..sort((a, b) => a.id.compareTo(b.id));
+    final sorted = byId.values.toList()..sort((a, b) => a.id.compareTo(b.id));
     return sorted;
   }
 

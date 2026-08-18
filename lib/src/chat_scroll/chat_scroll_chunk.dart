@@ -1,6 +1,6 @@
 import 'dart:typed_data';
 
-import 'package:chatscrollview/src/chat_scroll/chat_scroll_common.dart';
+import 'package:chat_scroll_view/src/chat_scroll/chat_scroll_common.dart';
 import 'package:meta/meta.dart';
 
 /// Chunk of chat messages used for pagination and eviction.

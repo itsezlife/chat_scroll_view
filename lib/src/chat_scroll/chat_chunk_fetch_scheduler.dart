@@ -1,7 +1,7 @@
 import 'dart:async';
 
-import 'package:chatscrollview/src/chat_scroll/chat_data_source.dart';
-import 'package:chatscrollview/src/chat_scroll/chat_scroll_chunk.dart';
+import 'package:chat_scroll_view/src/chat_scroll/chat_data_source.dart';
+import 'package:chat_scroll_view/src/chat_scroll/chat_scroll_chunk.dart';
 import 'package:flutter/scheduler.dart';
 
 /// Schedules lazy chunk fetching, scroll-debounced polling, jump-fetch

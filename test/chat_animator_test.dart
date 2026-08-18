@@ -1,7 +1,7 @@
 import 'dart:async';
 
-import 'package:chatscrollview/src/chat_scroll/chat_animator.dart';
-import 'package:chatscrollview/src/chat_scroll/chat_scroll_controller.dart';
+import 'package:chat_scroll_view/src/chat_scroll/chat_animator.dart';
+import 'package:chat_scroll_view/src/chat_scroll/chat_scroll_controller.dart';
 import 'package:flutter/animation.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';

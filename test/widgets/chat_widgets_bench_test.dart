@@ -8,12 +8,11 @@
 // Layout here includes lazy widget inflation (buildChild) — the honest cost
 // of the widget approach. Paint is the Tier-1 scroll-frame cost.
 
-import 'package:chatscrollview/src/chat_scroll/chat_data_source.dart';
-import 'package:chatscrollview/src/chat_scroll/chat_scroll_common.dart';
-import 'package:chatscrollview/src/chat_scroll/chat_scroll_controller.dart';
-import 'package:chatscrollview/src/chat_widgets/chat_scroll_view.dart';
-import 'package:chatscrollview/src/chat_widgets/demo/demo_message.dart';
-import 'package:chatscrollview/src/chat_widgets/render_chat_scroll_view.dart';
+import 'package:chat_scroll_view/src/chat_scroll/chat_data_source.dart';
+import 'package:chat_scroll_view/src/chat_scroll/chat_scroll_common.dart';
+import 'package:chat_scroll_view/src/chat_scroll/chat_scroll_controller.dart';
+import 'package:chat_scroll_view/src/chat_widgets/chat_scroll_view.dart';
+import 'package:chat_scroll_view/src/chat_widgets/render_chat_scroll_view.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -59,16 +58,19 @@ Future<RenderChatScrollView> _pump(WidgetTester tester, int count) async {
           child: ChatScrollView(
             dataSource: _Preloaded(generateMessages(count)),
             controller: controller,
-            messageBuilder: buildDemoMessage,
+            messageBuilder: (context, id, message, status, runLayout) =>
+                SizedBox(
+                  height: 56,
+                  width: double.infinity,
+                  child: Text('$id'),
+                ),
           ),
         ),
       ),
     ),
   );
   await tester.pump();
-  return tester.renderObject<RenderChatScrollView>(
-    find.byType(ChatScrollView),
-  );
+  return tester.renderObject<RenderChatScrollView>(find.byType(ChatScrollView));
 }
 
 void main() {

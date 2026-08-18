@@ -1,0 +1,212 @@
+import 'dart:async';
+import 'dart:collection';
+import 'dart:convert';
+
+import 'package:chat_scroll_view/chat_scroll_view.dart';
+import 'package:chat_scroll_view_example/src/load_asset.dart'
+    if (dart.library.js_interop) 'package:chat_scroll_view_example/src/load_asset_web.dart'
+    if (dart.library.io) 'package:chat_scroll_view_example/src/load_asset_native.dart';
+import 'package:chat_scroll_view_example/src/chat_message.dart';
+
+/// Manifest for asset-based chat data.
+class CommentsManifest {
+  CommentsManifest._({
+    required this.title,
+    required this.totalMessages,
+    required this.chunkSize,
+    required this.chunks,
+    required this.senders,
+  });
+
+  /// Parses the `manifest.json` shipped with pre-chunked comment assets.
+  factory CommentsManifest.fromJson(Map<String, Object?> json) =>
+      CommentsManifest._(
+        title: json['title']! as String,
+        totalMessages: json['totalMessages']! as int,
+        chunkSize: json['chunkSize']! as int,
+        chunks: (json['chunks']! as List<Object?>).cast<String>(),
+        senders: (json['senders']! as List<Object?>).cast<String>(),
+      );
+
+  /// Human-readable title shown in the demo app bar.
+  final String title;
+
+  /// Total message count across all chunk files — ids run `0..totalMessages-1`.
+  final int totalMessages;
+
+  /// Maximum messages per asset file; used to map message ids → chunk index.
+  final int chunkSize;
+
+  /// Filenames of JSON chunk files relative to the asset prefix.
+  final List<String> chunks;
+
+  /// Distinct sender labels referenced by messages in the dataset.
+  final List<String> senders;
+}
+
+/// Data source that loads pre-chunked JSON assets (e.g. GitHub issues).
+///
+/// Each chunk file contains up to [ChatScrollChunk.kSize] messages as JSON:
+/// ```json
+/// [{"id": 0, "sender": "user", "content": "...", "createdAt": "..."}]
+/// ```
+class CommentsDataSource extends ChatDataSource {
+  CommentsDataSource._({
+    required this.manifest,
+    required this.assetPrefix,
+    required this.fetchDelay,
+    required this.maxCachedChunks,
+  }) {
+    final total = manifest.totalMessages;
+    if (total > 0) {
+      seedBoundaries(
+        oldestKnownId: 0,
+        newestKnownId: total - 1,
+        reachedOldest: true,
+        reachedNewest: true,
+      );
+    }
+  }
+
+  /// Load manifest and return a ready-to-use data source.
+  static Future<CommentsDataSource> load({
+    String assetPrefix = 'assets/comments',
+    Duration fetchDelay = const Duration(milliseconds: 120),
+    int maxCachedChunks = 32,
+  }) async {
+    final raw = await _loadString('$assetPrefix/manifest.json');
+    final json = jsonDecode(raw) as Map<String, Object?>;
+    final manifest = CommentsManifest.fromJson(json);
+    return CommentsDataSource._(
+      manifest: manifest,
+      assetPrefix: assetPrefix,
+      fetchDelay: fetchDelay,
+      maxCachedChunks: maxCachedChunks,
+    );
+  }
+
+  /// On native — loads from bundled assets via rootBundle.
+  /// On web — fetches on demand via HTTP (assets excluded from service worker).
+  static Future<String> _loadString(String assetPath) => loadAsset(assetPath);
+
+  /// Parsed manifest describing chunk layout and metadata.
+  final CommentsManifest manifest;
+
+  /// Root folder for manifest and chunk JSON (e.g. `assets/comments`).
+  final String assetPrefix;
+
+  /// Artificial latency applied to every [fetchRange] for demo realism.
+  final Duration fetchDelay;
+
+  /// Upper bound on retained parsed chunks. Excess entries are evicted in
+  /// least-recently-used order so the cache cannot grow unbounded.
+  final int maxCachedChunks;
+
+  /// LRU cache of parsed asset chunks (insertion order = access order).
+  final LinkedHashMap<int, List<IChatMessage>> _chunkCache =
+      LinkedHashMap<int, List<IChatMessage>>();
+
+  @override
+  Future<List<IChatMessage>> fetchRange({
+    required int fromId,
+    required int toId,
+  }) async {
+    // Simulate network delay.
+    await Future<void>.delayed(fetchDelay);
+
+    // Empty manifest — no messages to serve.
+    if (manifest.totalMessages <= 0) return const [];
+
+    final lo = fromId.clamp(0, manifest.totalMessages - 1);
+    final hi = toId.clamp(0, manifest.totalMessages - 1);
+
+    // Determine which asset chunks we need.
+    final firstAssetChunk = lo ~/ manifest.chunkSize;
+    final lastAssetChunk = hi ~/ manifest.chunkSize;
+
+    final result = <IChatMessage>[];
+
+    for (var ac = firstAssetChunk; ac <= lastAssetChunk; ac++) {
+      final messages = await _loadAssetChunk(ac);
+      for (final msg in messages) {
+        if (msg.id >= lo && msg.id <= hi) result.add(msg);
+      }
+    }
+
+    return result;
+  }
+
+  Future<List<IChatMessage>> _loadAssetChunk(int assetChunkIndex) async {
+    // Cache hit — re-promote to most-recently-used.
+    final cached = _chunkCache.remove(assetChunkIndex);
+    if (cached != null) {
+      _chunkCache[assetChunkIndex] = cached;
+      return cached;
+    }
+
+    if (assetChunkIndex >= manifest.chunks.length) return const [];
+
+    final fileName = manifest.chunks[assetChunkIndex];
+    final raw = await _loadString('$assetPrefix/$fileName');
+    final list = (jsonDecode(raw) as List<Object?>)
+        .cast<Map<String, Object?>>();
+
+    final baseTime = DateTime.now();
+    final messages = <IChatMessage>[
+      for (final item in list)
+        UserChatMessage(
+          id: item['id']! as int,
+          sender: item['sender']! as String,
+          createdAt:
+              DateTime.tryParse(item['createdAt'] as String? ?? '') ?? baseTime,
+          updatedAt:
+              DateTime.tryParse(item['createdAt'] as String? ?? '') ?? baseTime,
+          content: item['content'] as String? ?? '',
+        ),
+    ];
+
+    _chunkCache[assetChunkIndex] = messages;
+    // Evict least-recently-used entries until within bound.
+    while (_chunkCache.length > maxCachedChunks) {
+      _chunkCache.remove(_chunkCache.keys.first);
+    }
+    return messages;
+  }
+
+  /// Demo integrator: send a new message at the tail via [insertMessage].
+  UserChatMessage sendMessage({
+    required String sender,
+    required String content,
+  }) {
+    final id = (newestKnownId ?? -1) + 1;
+    final now = DateTime.now();
+    final message = UserChatMessage(
+      id: id,
+      sender: sender,
+      createdAt: now,
+      updatedAt: now,
+      content: content,
+    );
+    insertMessage(message, reason: 'demo-send');
+    return message;
+  }
+
+  /// Demo integrator: edit an existing message via [updateMessage].
+  void editMessage(UserChatMessage message, String newContent) {
+    updateMessage(
+      UserChatMessage(
+        id: message.id,
+        sender: message.sender,
+        createdAt: message.createdAt,
+        updatedAt: DateTime.now(),
+        content: newContent,
+      ),
+      reason: 'demo-edit',
+    );
+  }
+
+  /// Demo integrator: delete one or more messages via [removeMessages].
+  @override
+  void removeMessages(Iterable<int> ids, {Object? reason}) =>
+      super.removeMessages(ids, reason: reason ?? 'demo-delete');
+}

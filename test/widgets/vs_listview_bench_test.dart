@@ -7,17 +7,17 @@
 // Debug mode (flutter test) — absolute numbers are inflated by asserts; the
 // CSV/LV ratio is the meaningful figure.
 
-import 'package:chatscrollview/src/chat_message.dart';
-import 'package:chatscrollview/src/chat_scroll/chat_data_source.dart';
-import 'package:chatscrollview/src/chat_scroll/chat_scroll_common.dart';
-import 'package:chatscrollview/src/chat_scroll/chat_scroll_controller.dart';
-import 'package:chatscrollview/src/chat_widgets/chat_scroll_view.dart';
-import 'package:chatscrollview/src/chat_widgets/render_chat_scroll_view.dart';
+import 'package:chat_scroll_view/src/chat_scroll/chat_data_source.dart';
+import 'package:chat_scroll_view/src/chat_scroll/chat_scroll_common.dart';
+import 'package:chat_scroll_view/src/chat_scroll/chat_scroll_controller.dart';
+import 'package:chat_scroll_view/src/chat_widgets/chat_scroll_view.dart';
+import 'package:chat_scroll_view/src/chat_widgets/render_chat_scroll_view.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import '../benchmark/shared/metrics.dart';
 import '../benchmark/shared/test_messages.dart';
+import '../chat_message.dart';
 
 /// Message bubble — identical on both sides of the comparison.
 class _Bubble extends StatelessWidget {

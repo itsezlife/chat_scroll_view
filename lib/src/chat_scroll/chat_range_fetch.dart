@@ -2,8 +2,8 @@ import 'dart:async';
 import 'dart:developer' as dev;
 import 'dart:math' as math;
 
-import 'package:chatscrollview/src/chat_scroll/chat_scroll_chunk.dart';
-import 'package:chatscrollview/src/chat_scroll/chat_scroll_common.dart';
+import 'package:chat_scroll_view/src/chat_scroll/chat_scroll_chunk.dart';
+import 'package:chat_scroll_view/src/chat_scroll/chat_scroll_common.dart';
 import 'package:flutter/foundation.dart';
 
 /// Range-fetch state machine for [ChatDataSource].
