@@ -13,4 +13,6 @@ knowledge bundle.
 
 **Start here:** [index.md](./index.md)
 
+Ubiquitous language: [`CONTEXT.md`](../../CONTEXT.md)
+
 Update history: [log.md](./log.md)

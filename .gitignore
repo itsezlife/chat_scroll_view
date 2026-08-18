@@ -47,6 +47,9 @@ app.*.map.json
 # Cursor IDE
 .cursor/
 
+# Local Telegram export — never commit
+/Telegram/
+
 # Specify
 .specify/
 specs/
