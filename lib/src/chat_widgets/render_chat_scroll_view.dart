@@ -3373,6 +3373,10 @@ class RenderChatScrollView extends RenderBox {
     final direction = _spanEdgeDirection(local);
     if (direction == 0) return 0;
     if (_spanAutoScrollBlockedByPin(direction)) return 0;
+    if (_selectionPointer!.selectSpanGrowthBlocked(direction)) {
+      _selectionPointer!.notifyGrowBlocked();
+      return 0;
+    }
     if (lastElapsed == null) return 0;
     final dt = ((elapsed - lastElapsed).inMicroseconds / 1e6).clamp(0.0, 0.05);
     if (dt <= 0.0) return 0;

@@ -7,6 +7,7 @@ import 'package:chat_scroll_view/src/chat_widgets/chat_scroll_view.dart';
 import 'package:chat_scroll_view/src/chat_widgets/chat_selectable_message.dart';
 import 'package:chat_scroll_view/src/chat_widgets/chat_selection_chrome.dart';
 import 'package:chat_scroll_view_example/src/common/models/chat_message.dart';
+import 'package:chat_scroll_view_example/src/common/widgets/cap_hit_shake.dart';
 import 'package:chat_scroll_view_example/src/features/chat/widgets/chat_composer.dart';
 import 'package:chat_scroll_view_example/src/features/chat/widgets/selection_app_bar.dart';
 import 'package:flutter/material.dart';
@@ -552,6 +553,41 @@ void main() {
       await tester.tap(find.byIcon(Icons.close_rounded));
       await tester.pumpAndSettle();
       expect(selection.isSelectionMode, isFalse);
+    });
+
+    testWidgets('SelectionAppBar shakes the count on a cap hit', (tester) async {
+      final selection = ChatSelectionController()..selectionCap = 1;
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: Stack(
+              children: <Widget>[
+                const SizedBox.expand(),
+                Positioned(
+                  top: 0,
+                  left: 0,
+                  right: 0,
+                  child: SelectionAppBar(selection: selection),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+      selection.startSelection(1);
+      await tester.pumpAndSettle();
+      expect(find.byType(CapHitShake), findsOneWidget);
+
+      selection.startSelection(2);
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 16));
+      final translate = tester.widget<Transform>(
+        find.descendant(
+          of: find.byType(CapHitShake),
+          matching: find.byType(Transform),
+        ),
+      );
+      expect(translate.transform.storage[12], isNot(0));
     });
 
     testWidgets('ChatComposer copy action copies and clears the selection', (

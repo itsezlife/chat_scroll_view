@@ -118,6 +118,26 @@ void main() {
         ..startSelection(42);
       expect(calls, 1, reason: 'selection listener must dedup');
     });
+
+    test('refusing an add at selectionCap bumps capHits', () {
+      final sc = ChatSelectionController()..selectionCap = 2;
+      addTearDown(sc.dispose);
+      var hits = 0;
+      sc.capHits.addListener(() => hits++);
+      sc
+        ..startSelection(1)
+        ..startSelection(2);
+      expect(hits, 0);
+      expect(sc.isAtSelectionCap, isTrue);
+      sc.startSelection(3);
+      expect(hits, 1);
+      expect(sc.count, 2);
+      sc.toggle(4);
+      expect(hits, 2);
+      sc.toggle(2);
+      expect(hits, 2);
+      expect(sc.isAtSelectionCap, isFalse);
+    });
   });
 
   group('isAtTail / visibleRange listener safety', () {

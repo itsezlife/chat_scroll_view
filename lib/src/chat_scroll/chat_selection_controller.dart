@@ -1,12 +1,14 @@
 import 'dart:collection';
 
-import 'package:flutter/foundation.dart' show Listenable, VoidCallback;
+import 'package:flutter/foundation.dart'
+    show Listenable, ValueListenable, ValueNotifier, VoidCallback;
 import 'package:flutter/scheduler.dart';
 
 /// Whole-message selection controller for the chat viewport.
 ///
 /// Long press enters selection mode and selects the message.
 /// Taps toggle messages. Selection mode exits when the set empties.
+/// [selectionCap] optionally limits how large the selected set can grow.
 ///
 /// Lives outside the render tree — survives render eviction and can be
 /// queried by external UI (toolbar, copy button). Implements [Listenable]
@@ -23,6 +25,7 @@ import 'package:flutter/scheduler.dart';
 /// [ChatSelectionController] per conversation, to avoid this footgun.
 class ChatSelectionController implements Listenable {
   final _selectedIds = HashSet<int>();
+  final _capHits = ValueNotifier<int>(0);
 
   /// Whether selection mode is active.
   bool get isSelectionMode => _selectedIds.isNotEmpty;
@@ -37,17 +40,33 @@ class ChatSelectionController implements Listenable {
   bool isSelected(int messageId) => _selectedIds.contains(messageId);
 
   /// Enter selection mode and select [messageId].
+  ///
+  /// No-op when [messageId] is already selected, or when adding it would
+  /// exceed [selectionCap].
   void startSelection(int messageId) {
-    if (!_selectedIds.add(messageId)) return;
+    if (_selectedIds.contains(messageId)) return;
+    if (isAtSelectionCap) {
+      notifyCapHit();
+      return;
+    }
+    _selectedIds.add(messageId);
     _notify();
   }
 
   /// Toggle [messageId] in/out of selection.
   /// Exits selection mode when the set becomes empty.
+  ///
+  /// Adding is a no-op when the set is already at [selectionCap].
   void toggle(int messageId) {
-    if (!_selectedIds.remove(messageId)) {
-      _selectedIds.add(messageId);
+    if (_selectedIds.remove(messageId)) {
+      _notify();
+      return;
     }
+    if (isAtSelectionCap) {
+      notifyCapHit();
+      return;
+    }
+    _selectedIds.add(messageId);
     _notify();
   }
 
@@ -71,6 +90,52 @@ class ChatSelectionController implements Listenable {
       ..clear()
       ..addAll(ids);
     _notify();
+  }
+
+  /// Optional maximum size of [selectedIds]. `null` (the default) means
+  /// unlimited — the package does not hardcode Telegram's 100.
+  ///
+  /// A select span does not grow past this size. Unselect spans ignore it
+  /// and may shrink the set while it is at the cap. Hosts that want
+  /// Telegram's limit set this to `100`.
+  int? selectionCap;
+
+  /// Whether [count] has reached [selectionCap]. Always `false` when the
+  /// cap is `null`.
+  bool get isAtSelectionCap {
+    final cap = selectionCap;
+    return cap != null && _selectedIds.length >= cap;
+  }
+
+  /// Bumps whenever an add is refused because the set is already at
+  /// [selectionCap]. The selected set does not change, so [addListener]
+  /// on this controller does not fire — listen here to shake chrome or
+  /// play an error haptic.
+  ValueListenable<int> get capHits => _capHits;
+
+  bool _capHitScheduled = false;
+
+  /// Records a refused add at [selectionCap]. The viewport calls this
+  /// when a select span cannot grow; hosts normally listen to [capHits]
+  /// instead of calling this themselves.
+  void notifyCapHit() {
+    void bump() {
+      if (_disposed) return;
+      _capHits.value++;
+    }
+
+    final phase = SchedulerBinding.instance.schedulerPhase;
+    if (phase == SchedulerPhase.persistentCallbacks ||
+        phase == SchedulerPhase.midFrameMicrotasks) {
+      if (_capHitScheduled) return;
+      _capHitScheduled = true;
+      SchedulerBinding.instance.addPostFrameCallback((_) {
+        _capHitScheduled = false;
+        bump();
+      });
+      return;
+    }
+    bump();
   }
 
   /// Host claim on a long-press that would start a span.
@@ -137,6 +202,7 @@ class ChatSelectionController implements Listenable {
     if (_disposed) return;
     _disposed = true;
     _listeners.clear();
+    _capHits.dispose();
     // Drop the set: a stale reference held by a consumer (e.g. a toolbar
     // queueing an undo) must not silently match unrelated ids in a fresh
     // conversation that happens to reuse the same numeric range.
