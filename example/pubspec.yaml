@@ -13,7 +13,6 @@ dependencies:
     path: ../
   keyboard_insets:
     path: packages/keyboard_insets
-  l: ^5.0.1
   meta: ^1.17.0
   supabase_flutter: ^2.15.0
 

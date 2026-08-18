@@ -310,7 +310,11 @@ abstract class ChatDataSource {
   /// Records an insert intent, writes storage silently, extends boundaries,
   /// and notifies layout once.
   ///
-  /// Does not block when other ids are in removal staging ([pendingRemovalIds]).
+  /// Does not block when *other* ids are in removal staging
+  /// ([pendingRemovalIds]). Re-inserting an id that is still staged is a
+  /// contract error — sequential allocators must use [nextInsertId], not
+  /// `newestKnownId + 1`, after a tail delete (those ids stay staged until
+  /// collapse finishes).
   ///
   /// Emits [InsertMutation] (not [InsertBatchMutation]). For bulk tail bursts
   /// use [insertMessages] — integrator explicit API choice vs silent
@@ -443,6 +447,20 @@ abstract class ChatDataSource {
 
   /// Read-only view of ids awaiting [finalizeRemoval].
   Set<int> get pendingRemovalIds => Set.unmodifiable(_removalStaging.keys);
+
+  /// Next tail id that is not live and not pending removal.
+  ///
+  /// After a tail delete, [newestKnownId] retracts to the last present
+  /// message while the deleted ids remain in [pendingRemovalIds].
+  /// `newestKnownId + 1` then collides with staging; this getter skips
+  /// those ids.
+  int get nextInsertId {
+    var id = newestKnownId ?? -1;
+    for (final staged in _removalStaging.keys) {
+      if (staged > id) id = staged;
+    }
+    return id + 1;
+  }
 
   /// Nearest loaded message **below** [id] in conversation order.
   ///

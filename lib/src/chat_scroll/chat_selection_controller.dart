@@ -1,6 +1,7 @@
 import 'dart:collection';
 
 import 'package:flutter/foundation.dart' show Listenable, VoidCallback;
+import 'package:flutter/scheduler.dart';
 
 /// Whole-message selection controller for the chat viewport.
 ///
@@ -97,7 +98,28 @@ class ChatSelectionController implements Listenable {
   @override
   void removeListener(VoidCallback listener) => _listeners.remove(listener);
 
+  bool _notifyScheduled = false;
+
   void _notify() {
+    // Span auto-scroll applies from performLayout. Listeners (composer,
+    // chrome) call setState — illegal during persistentCallbacks. Same
+    // trampoline as ChatScrollController.isAtTail.
+    final phase = SchedulerBinding.instance.schedulerPhase;
+    if (phase == SchedulerPhase.persistentCallbacks ||
+        phase == SchedulerPhase.midFrameMicrotasks) {
+      if (_notifyScheduled) return;
+      _notifyScheduled = true;
+      SchedulerBinding.instance.addPostFrameCallback((_) {
+        _notifyScheduled = false;
+        if (_disposed) return;
+        _notifyNow();
+      });
+      return;
+    }
+    _notifyNow();
+  }
+
+  void _notifyNow() {
     // Iterate a snapshot: a listener may add/remove listeners while reacting
     // (e.g. a message widget unmounting during the resulting rebuild).
     for (final cb in _listeners.toList(growable: false)) {

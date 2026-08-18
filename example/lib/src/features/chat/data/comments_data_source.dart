@@ -178,7 +178,7 @@ class CommentsDataSource extends ChatDataSource {
     required String sender,
     required String content,
   }) {
-    final id = (newestKnownId ?? -1) + 1;
+    final id = nextInsertId;
     final now = DateTime.now();
     final message = UserChatMessage(
       id: id,
