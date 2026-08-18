@@ -29,7 +29,8 @@ _onTick:
      // skipped while span auto-scroll occupies the origin writer
   7. delta += tickBounceback
   7b. delta += span auto-scroll    // live span + pointer in edge band;
-                                 // 0 if content fits or a boundary pin would unstick
+                                 // 0 if content fits, a boundary pin would
+                                 // unstick, or select-span growth is at cap
   8. applyScrollDelta(delta)
   9. Update _scrollVelocity EMA
  10. _repositionFromAnchor
@@ -150,8 +151,11 @@ and follow-tail converge on the next layout.
   Emptying the selected set does not end the span; membership stays empty.
 - While a live span pointer occupies the top or bottom edge band, span
   auto-scroll is the sole origin writer (follow-tail and close-path
-  animate yield). Delta is zero when content fits or applying it would
-  unstick a boundary pin. Newly laid-out present messages can become
+  animate yield). Delta is zero when content fits, applying it would
+  unstick a boundary pin, or a select span is at the selection cap in
+  the grow direction (unselect spans ignore the cap; auto-scroll toward
+  the origin still runs). A refused grow bumps `capHits` once per wall.
+  Newly laid-out present messages can become
   the span hit. Lift or span abort releases the writer.
 - Scrollbar drag: maps Y → progress → `_jumpToScrollbar` → `jumpTo(id)`
   (layout path).

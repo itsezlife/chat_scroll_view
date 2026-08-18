@@ -176,6 +176,12 @@ _Avoid_: canSelect, selectable, span-eligible
 An optional host-set maximum size of the selected set. Null means no maximum.
 _Avoid_: Hardcoded 100, forward limit
 
+**Cap hit**:
+A refused add because the selected set is already at the selection cap.
+Membership does not change; a dedicated listenable still fires so chrome
+can shake or play an error haptic.
+_Avoid_: overflow, limit error
+
 ### Navigation
 
 **Navigation alignment**:

@@ -80,7 +80,7 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
     super.initState();
     PersistentSafeAreaBottom.startObserving();
     _controller = ChatScrollController();
-    _selection = ChatSelectionController();
+    _selection = ChatSelectionController()..selectionCap = 100;
     _pillLastSeenBaseline.addListener(_onPillBaselineChanged);
     _init();
 

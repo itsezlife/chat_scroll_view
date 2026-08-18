@@ -61,6 +61,8 @@ class ChatSelectionPointer {
   bool _spanPastSlop = false;
   bool _spanMembershipFrozen = false;
   Offset? _spanPointerLocal;
+  int? _spanHitId;
+  bool _spanCapHitSent = false;
 
   /// Forwards a down event to the selection recognizers when a loaded
   /// message is under the pointer.
@@ -90,6 +92,35 @@ class ChatSelectionPointer {
     _spanPointerLocal = local;
     if (!isSpanLive) return;
     _applySpanAt(local);
+  }
+
+  /// Whether auto-scroll in [edgeDirection] would add a **new** id to a
+  /// select span that is already at [ChatSelectionController.selectionCap].
+  ///
+  /// False while the current span hit is already selected — scrolling over
+  /// members is not a refused add. Unselect spans always return `false`.
+  bool selectSpanGrowthBlocked(int edgeDirection) {
+    if (_spanPolarity != _SpanPolarity.select) return false;
+    final selection = this.selection;
+    if (selection == null || !selection.isAtSelectionCap) return false;
+    final origin = _spanOriginId;
+    final hit = _spanHitId;
+    if (origin == null || hit == null) return false;
+    if (selection.isSelected(hit)) return false;
+    if (hit == origin) return false;
+    if (hit < origin) return edgeDirection > 0;
+    return edgeDirection < 0;
+  }
+
+  /// Records a cap hit when grow-direction auto-scroll is blocked. Once
+  /// per wall — further blocked ticks are silent until the span shrinks.
+  void notifyGrowBlocked() {
+    if (_spanPolarity != _SpanPolarity.select) return;
+    final selection = this.selection;
+    if (selection == null || !selection.isAtSelectionCap) return;
+    if (_spanCapHitSent) return;
+    _spanCapHitSent = true;
+    selection.notifyCapHit();
   }
 
   void _ensureRecognizers() {
@@ -130,6 +161,7 @@ class ChatSelectionPointer {
     _spanSnapshot = Set<int>.of(selection.selectedIds);
     _spanPolarity = polarity;
     _spanMembershipFrozen = !selection.isSelectionMode;
+    _spanHitId = id;
   }
 
   void _onLongPressMoveUpdate(LongPressMoveUpdateDetails details) {
@@ -171,8 +203,25 @@ class ChatSelectionPointer {
     final chain = spanChain?.call(origin, hit) ?? <int>[origin, hit];
     final next = switch (polarity) {
       _SpanPolarity.unselect => snapshot.difference(chain.toSet()),
-      _SpanPolarity.select => {...snapshot, ...chain},
+      _SpanPolarity.select => _selectSpanIds(
+        snapshot,
+        chain,
+        selection.selectionCap,
+      ),
     };
+    _spanHitId = hit;
+    if (polarity == _SpanPolarity.select) {
+      final uncapped =
+          snapshot.length + chain.where((id) => !snapshot.contains(id)).length;
+      if (selection.selectionCap != null && uncapped > next.length) {
+        if (!_spanCapHitSent) {
+          _spanCapHitSent = true;
+          selection.notifyCapHit();
+        }
+      } else if (!selection.isAtSelectionCap) {
+        _spanCapHitSent = false;
+      }
+    }
     selection.replaceSelectedIds(next);
     if (next.isEmpty) _spanMembershipFrozen = true;
   }
@@ -185,6 +234,8 @@ class ChatSelectionPointer {
     _spanPastSlop = false;
     _spanMembershipFrozen = false;
     _spanPointerLocal = null;
+    _spanHitId = null;
+    _spanCapHitSent = false;
     if (wasLive) onSpanSessionChanged?.call();
   }
 
@@ -199,3 +250,16 @@ class ChatSelectionPointer {
 }
 
 enum _SpanPolarity { select, unselect }
+
+/// [snapshot] plus [chain] from origin toward the hit, stopping at [cap].
+/// A null [cap] takes the full union.
+Set<int> _selectSpanIds(Set<int> snapshot, List<int> chain, int? cap) {
+  if (cap == null) return {...snapshot, ...chain};
+  final next = Set<int>.of(snapshot);
+  for (final id in chain) {
+    if (next.contains(id)) continue;
+    if (next.length >= cap) break;
+    next.add(id);
+  }
+  return next;
+}
