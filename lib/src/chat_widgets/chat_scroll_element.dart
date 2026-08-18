@@ -4,9 +4,10 @@ import 'package:chat_scroll_view/src/chat_scroll/chat_scroll_common.dart';
 import 'package:chat_scroll_view/src/chat_scroll/chat_sender_run_layout.dart';
 import 'package:chat_scroll_view/src/chat_widgets/chat_data_source_ext.dart';
 import 'package:chat_scroll_view/src/chat_widgets/chat_dated_message.dart';
+import 'package:chat_scroll_view/src/chat_widgets/chat_scroll_theme.dart';
 import 'package:chat_scroll_view/src/chat_widgets/chat_scroll_view.dart';
-import 'package:chat_scroll_view/src/chat_widgets/chat_scrollbar.dart';
 import 'package:chat_scroll_view/src/chat_widgets/chat_selectable_message.dart';
+import 'package:chat_scroll_view/src/chat_widgets/chat_selection_chrome.dart';
 import 'package:chat_scroll_view/src/chat_widgets/render_chat_scroll_view.dart';
 import 'package:flutter/widgets.dart';
 
@@ -99,12 +100,19 @@ class ChatScrollElement extends RenderObjectElement
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    // Repaint when inherited Theme / ChatScrollbarThemeData changes without
+    // Repaint when inherited Theme / ChatScrollThemeData changes without
     // a new ChatScrollView widget param — standard RenderObjectElement pattern.
-    final theme = ChatScrollbarThemeData.resolve(this);
-    if (renderObject.scrollbarTheme != theme) {
-      renderObject.scrollbarTheme = theme;
-    }
+    _applyTheme();
+  }
+
+  void _applyTheme() {
+    final resolved = ChatScrollTheme.resolve(this);
+    final view = _widget;
+    renderObject
+      ..scrollbarTheme = resolved.scrollbar!
+      ..highlightColor = view.highlightColor ?? resolved.highlightColor!
+      ..highlightDuration =
+          view.highlightDuration ?? resolved.highlightDuration!;
   }
 
   @override
@@ -125,6 +133,7 @@ class ChatScrollElement extends RenderObjectElement
     // would keep the old direction until their data changes.
     if (old.messageBuilder != newWidget.messageBuilder ||
         old.selectionController != newWidget.selectionController ||
+        old.selectionChromeBuilder != newWidget.selectionChromeBuilder ||
         old.dateSeparatorBuilder != newWidget.dateSeparatorBuilder ||
         old.textDirection != newWidget.textDirection) {
       _builtMessage.clear();
@@ -149,12 +158,14 @@ class ChatScrollElement extends RenderObjectElement
 
   /// Inflate the widget for message [id].
   ///
-  /// When a selection controller is wired the content is wrapped in
-  /// [SelectableMessage] (checkbox gutter + row tint). When [startsNewDay] is
-  /// set, the message is built as a [DatedMessage] — an inline date separator
-  /// stacked above the body, *outside* [SelectableMessage] so selection chrome
-  /// never tints the date. Plain messages are wrapped in a [RepaintBoundary]
-  /// for picture / layer caching; [DatedMessage] does its own wrapping.
+  /// When a selection controller is wired, **loaded** messages (`message !=
+  /// null`) are wrapped in [SelectableMessage] (checkbox overlay + row tint).
+  /// Shimmer / placeholder slots are not wrapped and cannot be selected.
+  /// When [startsNewDay] is set, the message is built as a [DatedMessage] —
+  /// an inline date separator stacked above the body, *outside*
+  /// [SelectableMessage] so selection chrome never tints the date. Plain
+  /// messages are wrapped in a [RepaintBoundary] for picture / layer
+  /// caching; [DatedMessage] does its own wrapping.
   ///
   /// When an explicit `textDirection` override is supplied on
   /// `ChatScrollView`, [messageBuilder] and the date-separator builder are
@@ -192,11 +203,13 @@ class ChatScrollElement extends RenderObjectElement
         status,
         runLayout,
       );
-      if (selection != null) {
+      if (selection != null && message != null) {
         content = SelectableMessage(
           id: id,
           controller: selection,
           scrollController: _widget.controller,
+          chromeBuilder:
+              _widget.selectionChromeBuilder ?? DefaultSelectionChrome.wrap,
           child: content,
         );
       }
@@ -236,8 +249,8 @@ class ChatScrollElement extends RenderObjectElement
     final status = ds.statusOf(id);
     final existing = _children[id];
 
-    // Confirmed-absent: deactivate any stale element; never call messageBuilder
-    // or wrap in SelectableMessage (zero-size shrink still selects as ghost row).
+    // Confirmed-absent: deactivate any stale element; never call
+    // messageBuilder or wrap in SelectableMessage.
     if (status.isAbsent) {
       if (existing != null) {
         owner!.buildScope(this, () {

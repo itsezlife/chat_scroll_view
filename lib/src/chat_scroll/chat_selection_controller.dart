@@ -51,6 +51,9 @@ class ChatSelectionController implements Listenable {
   }
 
   /// Clear all selection. Exits selection mode.
+  ///
+  /// Visual chrome freezes selected-progress on each row and only animates
+  /// mode closed — see [SelectableMessage]. This method just empties the set.
   void clear() {
     if (_selectedIds.isEmpty) return;
     _selectedIds.clear();

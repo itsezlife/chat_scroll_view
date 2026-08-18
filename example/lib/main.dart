@@ -1,7 +1,7 @@
 import 'dart:async';
 
-import 'package:chat_scroll_view/chat_scroll_view.dart';
 import 'package:chat_scroll_view_example/src/common/constant/demo_config.dart';
+import 'package:chat_scroll_view_example/src/features/chat/theme/demo_chat_theme.dart';
 import 'package:chat_scroll_view_example/src/features/chat/view/widget_chat_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:l/l.dart';
@@ -32,6 +32,7 @@ class ChatDemoApp extends StatelessWidget {
         brightness: Brightness.dark,
       ),
     ),
+    builder: (context, child) => DemoChatTheme(child: child!),
     debugShowCheckedModeBanner: false,
     showPerformanceOverlay: false,
     home: const WidgetChatScreen(),

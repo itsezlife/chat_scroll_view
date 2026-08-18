@@ -1,5 +1,3 @@
-import 'dart:io';
-
 import 'package:chat_scroll_view/chat_scroll_view.dart';
 import 'package:chat_scroll_view_example/src/common/models/chat_message.dart';
 import 'package:flutter/material.dart';
@@ -28,23 +26,8 @@ Widget buildDemoMessage(
   );
 }
 
-/// Max width of a message's content column (the column inside the viewport,
-/// not the bubble itself — the viewport hands each message the full viewport
-/// width, then we centre this column within it).
-///
-/// It should be checked again available space, but for demo purposes just check
-/// the platform.
-final double _kContentMaxWidth = switch (Platform.operatingSystem) {
-  'windows' || 'linux' || 'macos' => 620,
-  _ => 338,
-};
-
-/// Max width of a single bubble inside the content column.
-const double _kBubbleMaxWidth = 480;
-
-/// Avatar diameter; doubles as the left gutter for run-grouped messages
-/// (those without a fresh avatar still indent by this much).
-const double _kAvatarSize = 32;
+ChatMessageThemeData _layoutOf(BuildContext context) =>
+    ChatScrollTheme.messageOf(context);
 
 /// Senders treated as "team members" — right-aligned, distinct bubble color.
 /// In a real chat this would be "is the current user" — the team list just
@@ -179,60 +162,64 @@ class DemoMessageBubble extends StatelessWidget {
       _ => 'Message #${message.id}',
     };
     final outgoing = _isOutgoing(message.sender);
-    final bubble = _Bubble(
-      sender: isFirstInRun ? message.sender : null,
-      content: content,
-      createdAt: message.createdAt,
-      isOutgoing: outgoing,
-      hasTail: isLastInRun,
-    );
+    final layout = _layoutOf(context);
 
-    final Widget row;
-    if (outgoing) {
-      // Outgoing — bubble pinned to the right; no avatar.
-      row = Align(alignment: Alignment.centerRight, child: bubble);
-    } else {
-      // Incoming — avatar on the left, then bubble. Subsequent messages
-      // in the run keep the avatar gutter so the run reads as one block.
-      row = Row(
-        crossAxisAlignment: CrossAxisAlignment.end,
-        children: <Widget>[
-          if (isLastInRun)
-            _Avatar(sender: message.sender)
-          else
-            const SizedBox(width: _kAvatarSize),
-          const SizedBox(width: 8),
-          Flexible(child: bubble),
-        ],
-      );
-    }
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final viewportWidth = constraints.maxWidth;
+        final bubble = _Bubble(
+          sender: isFirstInRun ? message.sender : null,
+          content: content,
+          createdAt: message.createdAt,
+          isOutgoing: outgoing,
+          hasTail: isLastInRun,
+          maxWidth: layout.bubbleCap(viewportWidth, hasAvatarGutter: !outgoing),
+          // maxWidth: layout.bubbleMaxWidth,
+        );
+        final Widget row;
+        if (outgoing) {
+          row = Align(alignment: AlignmentDirectional.centerEnd, child: bubble);
+        } else {
+          row = Row(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: <Widget>[
+              if (isLastInRun)
+                _Avatar(sender: message.sender, size: layout.avatarSize)
+              else
+                SizedBox(width: layout.avatarSize),
+              SizedBox(width: layout.avatarGap),
+              Flexible(child: bubble),
+            ],
+          );
+        }
 
-    // Tighter vertical padding for non-first messages so a run reads as one
-    // visual group.
-    final topPad = isFirstInRun ? 6.0 : 2.0;
-    return Align(
-      // It should be checked again available space, but for demo purposes
-      // just check the platform and whether the message is outgoing.
-      alignment: switch ((outgoing, Platform.operatingSystem)) {
-        (_, 'windows' || 'linux' || 'macos') => Alignment.center,
-        (true, _) => Alignment.centerRight,
-        (false, _) => Alignment.centerLeft,
+        return Align(
+          alignment: layout.columnAlignment(
+            viewportWidth: viewportWidth,
+            outgoing: outgoing,
+          ),
+          child: ConstrainedBox(
+            constraints: BoxConstraints(
+              maxWidth: layout.columnWidth(viewportWidth),
+            ),
+            child: Padding(
+              padding: layout.padding.copyWith(
+                top: layout.topInset(isFirstInRun: isFirstInRun),
+              ),
+              child: row,
+            ),
+          ),
+        );
       },
-      child: ConstrainedBox(
-        constraints: BoxConstraints(maxWidth: _kContentMaxWidth),
-        child: Padding(
-          padding: EdgeInsets.fromLTRB(12, topPad, 12, 2),
-          child: row,
-        ),
-      ),
     );
   }
 }
 
 class _Avatar extends StatelessWidget {
-  const _Avatar({required this.sender});
+  const _Avatar({required this.sender, required this.size});
 
   final String sender;
+  final double size;
 
   @override
   Widget build(BuildContext context) {
@@ -240,8 +227,8 @@ class _Avatar extends StatelessWidget {
         ? '?'
         : sender.characters.first.toUpperCase();
     return Container(
-      width: _kAvatarSize,
-      height: _kAvatarSize,
+      width: size,
+      height: size,
       alignment: Alignment.center,
       decoration: BoxDecoration(
         color: _colorForSender(sender),
@@ -267,6 +254,7 @@ class _Bubble extends StatelessWidget {
     required this.createdAt,
     required this.isOutgoing,
     required this.hasTail,
+    required this.maxWidth,
   });
 
   /// `null` suppresses the sender label — non-first messages in a run.
@@ -275,6 +263,7 @@ class _Bubble extends StatelessWidget {
   final DateTime createdAt;
   final bool isOutgoing;
   final bool hasTail;
+  final double maxWidth;
 
   /// Border radius — asymmetric on the corner that points at the column the
   /// sender writes from (tail effect, without an actual tail glyph).
@@ -306,7 +295,7 @@ class _Bubble extends StatelessWidget {
         : _kIncomingText.withValues(alpha: 0.55);
 
     return ConstrainedBox(
-      constraints: const BoxConstraints(maxWidth: _kBubbleMaxWidth),
+      constraints: BoxConstraints(maxWidth: maxWidth),
       child: DecoratedBox(
         decoration: BoxDecoration(
           color: bg,
@@ -377,7 +366,7 @@ class _MetaRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Align(
-    alignment: Alignment.centerRight,
+    alignment: AlignmentDirectional.centerEnd,
     // Only the time-and-status cluster is the tooltip target — wrapping the
     // outer right-aligned row would stretch the hit zone across the whole
     // bubble width via the Spacer it used to need.
@@ -428,39 +417,53 @@ class DemoShimmerBubble extends StatelessWidget {
   const DemoShimmerBubble({super.key});
 
   @override
-  Widget build(BuildContext context) => Center(
-    child: ConstrainedBox(
-      constraints: BoxConstraints(maxWidth: _kContentMaxWidth),
-      child: const Padding(
-        padding: EdgeInsets.fromLTRB(12, 6, 12, 2),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.end,
-          children: <Widget>[
-            DecoratedBox(
-              decoration: BoxDecoration(
-                color: _kShimmer,
-                shape: BoxShape.circle,
-              ),
-              child: SizedBox(width: _kAvatarSize, height: _kAvatarSize),
-            ),
-            SizedBox(width: 8),
-            DecoratedBox(
-              decoration: BoxDecoration(
-                color: _kShimmer,
-                borderRadius: BorderRadius.only(
-                  topLeft: Radius.circular(4),
-                  topRight: Radius.circular(16),
-                  bottomLeft: Radius.circular(16),
-                  bottomRight: Radius.circular(16),
+  Widget build(BuildContext context) {
+    final layout = _layoutOf(context);
+    return LayoutBuilder(
+      builder: (context, constraints) => Align(
+        alignment: layout.columnAlignment(
+          viewportWidth: constraints.maxWidth,
+          outgoing: false,
+        ),
+        child: ConstrainedBox(
+          constraints: BoxConstraints(
+            maxWidth: layout.columnWidth(constraints.maxWidth),
+          ),
+          child: Padding(
+            padding: layout.padding,
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: <Widget>[
+                DecoratedBox(
+                  decoration: const BoxDecoration(
+                    color: _kShimmer,
+                    shape: BoxShape.circle,
+                  ),
+                  child: SizedBox(
+                    width: layout.avatarSize,
+                    height: layout.avatarSize,
+                  ),
                 ),
-              ),
-              child: SizedBox(width: 240, height: 52),
+                SizedBox(width: layout.avatarGap),
+                const DecoratedBox(
+                  decoration: BoxDecoration(
+                    color: _kShimmer,
+                    borderRadius: BorderRadius.only(
+                      topLeft: Radius.circular(4),
+                      topRight: Radius.circular(16),
+                      bottomLeft: Radius.circular(16),
+                      bottomRight: Radius.circular(16),
+                    ),
+                  ),
+                  child: SizedBox(width: 240, height: 52),
+                ),
+              ],
             ),
-          ],
+          ),
         ),
       ),
-    ),
-  );
+    );
+  }
 }
 
 // --- Chunk-error tile -----------------------------------------------------
@@ -495,45 +498,56 @@ class DemoChunkErrorTile extends StatelessWidget {
     final label = attempt > 1
         ? 'Failed to load messages $firstId–$lastId (attempt $attempt)'
         : 'Failed to load messages $firstId–$lastId';
-    return Center(
-      child: ConstrainedBox(
-        constraints: BoxConstraints(maxWidth: _kContentMaxWidth),
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
-          child: DecoratedBox(
-            decoration: BoxDecoration(
-              color: const Color(0xFF3A2A2A),
-              border: Border.all(color: const Color(0xFF6B3A3A)),
-              borderRadius: BorderRadius.circular(12),
+    final layout = _layoutOf(context);
+    return LayoutBuilder(
+      builder: (context, constraints) => Align(
+        alignment: Alignment.center,
+        child: ConstrainedBox(
+          constraints: BoxConstraints(
+            maxWidth: layout.columnWidth(constraints.maxWidth),
+          ),
+          child: Padding(
+            padding: EdgeInsets.fromLTRB(
+              layout.padding.left,
+              8,
+              layout.padding.right,
+              8,
             ),
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(16, 12, 12, 12),
-              child: Row(
-                children: <Widget>[
-                  const Icon(
-                    Icons.error_outline_rounded,
-                    size: 20,
-                    color: Color(0xFFE57373),
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: Text(
-                      label,
-                      style: const TextStyle(
-                        color: Color(0xFFE6E7EB),
-                        fontSize: 13,
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                color: const Color(0xFF3A2A2A),
+                border: Border.all(color: const Color(0xFF6B3A3A)),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(16, 12, 12, 12),
+                child: Row(
+                  children: <Widget>[
+                    const Icon(
+                      Icons.error_outline_rounded,
+                      size: 20,
+                      color: Color(0xFFE57373),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        label,
+                        style: const TextStyle(
+                          color: Color(0xFFE6E7EB),
+                          fontSize: 13,
+                        ),
                       ),
                     ),
-                  ),
-                  TextButton(
-                    onPressed: onRetry,
-                    style: TextButton.styleFrom(
-                      foregroundColor: const Color(0xFFE57373),
-                      visualDensity: VisualDensity.compact,
+                    TextButton(
+                      onPressed: onRetry,
+                      style: TextButton.styleFrom(
+                        foregroundColor: const Color(0xFFE57373),
+                        visualDensity: VisualDensity.compact,
+                      ),
+                      child: const Text('Retry'),
                     ),
-                    child: const Text('Retry'),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
           ),

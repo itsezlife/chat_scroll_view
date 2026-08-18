@@ -170,6 +170,45 @@ void main() {
       expect(find.byType(SelectableMessage), findsOneWidget);
     });
 
+    testWidgets('does not wrap shimmer slots in SelectableMessage', (
+      tester,
+    ) async {
+      final ds = _SparseUnloadedSource();
+      final controller = ChatScrollController()..jumpTo(5);
+      final selection = ChatSelectionController();
+      addTearDown(controller.dispose);
+      addTearDown(ds.dispose);
+      addTearDown(selection.dispose);
+
+      await _pumpLoaded(
+        tester,
+        ds,
+        controller,
+        (context, id, message, status, runLayout) => SizedBox(
+          height: 60,
+          child: Text(message == null ? 'shimmer-$id' : 'msg-$id'),
+        ),
+        selection: selection,
+      );
+
+      expect(find.text('msg-5'), findsOneWidget);
+      expect(find.textContaining('shimmer-'), findsWidgets);
+      expect(
+        find.ancestor(
+          of: find.text('msg-5'),
+          matching: find.byType(SelectableMessage),
+        ),
+        findsOneWidget,
+      );
+      expect(
+        find.ancestor(
+          of: find.textContaining('shimmer-'),
+          matching: find.byType(SelectableMessage),
+        ),
+        findsNothing,
+      );
+    });
+
     testWidgets('delete non-anchor oldest skips builder for absent id', (
       tester,
     ) async {
