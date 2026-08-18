@@ -148,7 +148,11 @@ and follow-tail converge on the next layout.
   an unselect span if the origin was already selected; tap toggles while
   mode is on). Rows do not attach a competing detector. A host `spanYield`
   that returns true claims the long-press so selection does not start.
-  Emptying the selected set does not end the span; membership stays empty.
+  A host `selectionAllowed` that returns false is not a span hit and does
+  not join the selected set, even on the present-neighbor walk. Emptying
+  the selected set does not end the span; membership stays empty.
+  If the gesture origin becomes absent, the span aborts (set kept, origin
+  not retargeted) so delete recovery may write the origin.
 - While a live span pointer occupies the top or bottom edge band, span
   auto-scroll is the sole origin writer (follow-tail and close-path
   animate yield). Delta is zero when content fits, applying it would

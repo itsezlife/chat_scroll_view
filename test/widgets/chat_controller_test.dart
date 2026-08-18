@@ -119,6 +119,20 @@ void main() {
       expect(calls, 1, reason: 'selection listener must dedup');
     });
 
+    test('startSelection and toggle refuse a disallowed id', () {
+      final sc = ChatSelectionController()..selectionAllowed = (id) => id != 7;
+      addTearDown(sc.dispose);
+      sc.startSelection(7);
+      expect(sc.isSelected(7), isFalse);
+      expect(sc.isSelectionMode, isFalse);
+      sc.startSelection(6);
+      expect(sc.selectedIds, {6});
+      sc.toggle(7);
+      expect(sc.selectedIds, {6});
+      sc.replaceSelectedIds({6, 7, 8});
+      expect(sc.selectedIds, {6, 8});
+    });
+
     test('refusing an add at selectionCap bumps capHits', () {
       final sc = ChatSelectionController()..selectionCap = 2;
       addTearDown(sc.dispose);

@@ -9,6 +9,8 @@ import 'package:flutter/scheduler.dart';
 /// Long press enters selection mode and selects the message.
 /// Taps toggle messages. Selection mode exits when the set empties.
 /// [selectionCap] optionally limits how large the selected set can grow.
+/// [selectionAllowed] optionally forbids individual present messages from
+/// joining the selected set.
 ///
 /// Lives outside the render tree — survives render eviction and can be
 /// queried by external UI (toolbar, copy button). Implements [Listenable]
@@ -41,10 +43,11 @@ class ChatSelectionController implements Listenable {
 
   /// Enter selection mode and select [messageId].
   ///
-  /// No-op when [messageId] is already selected, or when adding it would
-  /// exceed [selectionCap].
+  /// No-op when [messageId] is already selected, is not [selectionAllowed],
+  /// or when adding it would exceed [selectionCap].
   void startSelection(int messageId) {
     if (_selectedIds.contains(messageId)) return;
+    if (!isSelectionAllowed(messageId)) return;
     if (isAtSelectionCap) {
       notifyCapHit();
       return;
@@ -56,12 +59,14 @@ class ChatSelectionController implements Listenable {
   /// Toggle [messageId] in/out of selection.
   /// Exits selection mode when the set becomes empty.
   ///
-  /// Adding is a no-op when the set is already at [selectionCap].
+  /// Adding is a no-op when [messageId] is not [selectionAllowed] or the
+  /// set is already at [selectionCap].
   void toggle(int messageId) {
     if (_selectedIds.remove(messageId)) {
       _notify();
       return;
     }
+    if (!isSelectionAllowed(messageId)) return;
     if (isAtSelectionCap) {
       notifyCapHit();
       return;
@@ -81,14 +86,17 @@ class ChatSelectionController implements Listenable {
   }
 
   /// Replaces the selected set with [ids]. No-op if equal. Empty [ids]
-  /// exits selection mode.
+  /// exits selection mode. Ids that are not [selectionAllowed] are omitted.
   void replaceSelectedIds(Set<int> ids) {
-    if (ids.length == _selectedIds.length && _selectedIds.containsAll(ids)) {
+    final next = selectionAllowed == null
+        ? ids
+        : ids.where(isSelectionAllowed).toSet();
+    if (next.length == _selectedIds.length && _selectedIds.containsAll(next)) {
       return;
     }
     _selectedIds
       ..clear()
-      ..addAll(ids);
+      ..addAll(next);
     _notify();
   }
 
@@ -144,6 +152,17 @@ class ChatSelectionController implements Listenable {
   /// set stays empty. `null` (the default) never claims. This is the seam
   /// for a future in-bubble text selector; unused until that selector exists.
   bool Function(int messageId)? spanYield;
+
+  /// Host predicate: a present message may join the selected set only when
+  /// this returns true. `null` (the default) allows every present message.
+  /// Independent of span polarity — a disallowed id is never a span hit
+  /// and is omitted from the selection span.
+  bool Function(int messageId)? selectionAllowed;
+
+  /// Whether [messageId] may join the selected set. True when
+  /// [selectionAllowed] is null.
+  bool isSelectionAllowed(int messageId) =>
+      selectionAllowed?.call(messageId) ?? true;
 
   // --- Listeners ---
 

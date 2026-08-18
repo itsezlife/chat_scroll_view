@@ -16,7 +16,8 @@ import 'package:flutter/services.dart';
 /// stays empty; the live span does not paint new ids.
 /// Pointer position during a live span is exposed so the viewport can
 /// auto-scroll as the sole origin writer while the pointer sits in an
-/// edge band.
+/// edge band. [abortSpan] ends the session without clearing the selected
+/// set — used when the gesture origin becomes absent.
 class ChatSelectionPointer {
   /// Creates recognizers owned by [debugOwner] (the viewport render object).
   ChatSelectionPointer({required this.debugOwner});
@@ -48,6 +49,9 @@ class ChatSelectionPointer {
 
   /// Whether a span session is live and has moved past slop.
   bool get isSpanLive => _spanOriginId != null && _spanPastSlop;
+
+  /// Gesture origin of the current span session, if any.
+  int? get spanOriginId => _spanOriginId;
 
   /// Latest viewport-local pointer position during a live span.
   Offset? get spanPointerLocal => _spanPointerLocal;
@@ -93,6 +97,10 @@ class ChatSelectionPointer {
     if (!isSpanLive) return;
     _applySpanAt(local);
   }
+
+  /// Ends the span session and keeps the selected set. No-op when idle.
+  /// Does not pick a new gesture origin.
+  void abortSpan() => _clearSpan();
 
   /// Whether auto-scroll in [edgeDirection] would add a **new** id to a
   /// select span that is already at [ChatSelectionController.selectionCap].
@@ -144,6 +152,7 @@ class ChatSelectionPointer {
     final selection = this.selection;
     if (id == null || selection == null) return;
     if (selection.spanYield?.call(id) ?? false) return;
+    if (!selection.isSelectionAllowed(id)) return;
     HapticFeedback.vibrate();
     final polarity = selection.isSelected(id)
         ? _SpanPolarity.unselect
@@ -245,6 +254,7 @@ class ChatSelectionPointer {
     final selection = this.selection;
     if (id == null || selection == null) return;
     if (!selection.isSelectionMode) return;
+    if (!selection.isSelectionAllowed(id)) return;
     selection.toggle(id);
   }
 }
