@@ -2,11 +2,14 @@ import 'package:chat_scroll_view/src/chat_scroll/chat_selection_controller.dart'
 import 'package:flutter/gestures.dart';
 import 'package:flutter/services.dart';
 
-/// Viewport-owned long-press and tap that drive [ChatSelectionController].
+/// Viewport-owned long-press, tap, and select span that drive
+/// [ChatSelectionController].
 ///
 /// Message rows must not attach competing detectors. A host
 /// [ChatSelectionController.spanYield] that returns `true` claims the
-/// long-press so selection does not start.
+/// long-press so selection does not start. After an unclaimed long-press on
+/// an unselected message, movement past slop grows a select span; a null
+/// span hit freezes the far end.
 class ChatSelectionPointer {
   /// Creates recognizers owned by [debugOwner] (the viewport render object).
   ChatSelectionPointer({required this.debugOwner});
@@ -21,12 +24,23 @@ class ChatSelectionPointer {
   /// when the pointer is not over a loaded message body.
   int? Function(Offset localPosition)? messageIdAt;
 
+  /// Span hit after clamping into the scroll band. Null freezes the far end.
+  int? Function(Offset localPosition)? spanHitAt;
+
+  /// Loaded present ids from [origin] to [hit], inclusive. The pointer
+  /// unions this with the selection snapshot; this callback does not
+  /// apply span-eligibility itself.
+  List<int> Function(int origin, int hit)? spanChain;
+
   /// When true, the current pointer cancelled a fling and must not select.
   bool Function()? flingCancelSuppresses;
 
   LongPressGestureRecognizer? _longPress;
   TapGestureRecognizer? _tap;
   int? _pointerDownId;
+  int? _spanOriginId;
+  Set<int>? _spanSnapshot;
+  bool _spanPastSlop = false;
 
   /// Forwards a down event to the selection recognizers when a loaded
   /// message is under the pointer.
@@ -46,11 +60,17 @@ class ChatSelectionPointer {
     _tap?.dispose();
     _tap = null;
     _pointerDownId = null;
+    _clearSpan();
   }
 
   void _ensureRecognizers() {
     _longPress ??= LongPressGestureRecognizer(debugOwner: debugOwner)
-      ..onLongPress = _onLongPress;
+      ..onLongPress = _onLongPress
+      ..onLongPressMoveUpdate = _onLongPressMoveUpdate
+      ..onLongPressEnd = (_) {
+        _clearSpan();
+      }
+      ..onLongPressCancel = _clearSpan;
     _tap ??= TapGestureRecognizer(debugOwner: debugOwner)..onTap = _onTap;
   }
 
@@ -63,6 +83,29 @@ class ChatSelectionPointer {
     if (selection.isSelected(id)) return;
     HapticFeedback.vibrate();
     selection.startSelection(id);
+    _spanOriginId = id;
+    _spanSnapshot = Set<int>.of(selection.selectedIds);
+  }
+
+  void _onLongPressMoveUpdate(LongPressMoveUpdateDetails details) {
+    final origin = _spanOriginId;
+    final snapshot = _spanSnapshot;
+    final selection = this.selection;
+    if (origin == null || snapshot == null || selection == null) return;
+    if (!_spanPastSlop) {
+      if (details.offsetFromOrigin.distance <= kTouchSlop) return;
+      _spanPastSlop = true;
+    }
+    final hit = (spanHitAt ?? messageIdAt)?.call(details.localPosition);
+    if (hit == null) return;
+    final chain = spanChain?.call(origin, hit) ?? <int>[origin, hit];
+    selection.replaceSelectedIds({...snapshot, ...chain});
+  }
+
+  void _clearSpan() {
+    _spanOriginId = null;
+    _spanSnapshot = null;
+    _spanPastSlop = false;
   }
 
   void _onTap() {

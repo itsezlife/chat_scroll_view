@@ -945,6 +945,8 @@ class RenderChatScrollView extends RenderBox {
     _drag = _buildDragRecognizer();
     _selectionPointer = ChatSelectionPointer(debugOwner: this)
       ..messageIdAt = _selectionMessageIdAt
+      ..spanHitAt = _spanHitAt
+      ..spanChain = _selectSpanChain
       ..flingCancelSuppresses = () =>
           _controller.flingCancelSuppressesLongPress;
     _selectionPointer!.selection = _selectionController;
@@ -3287,6 +3289,39 @@ class RenderChatScrollView extends RenderBox {
     }
     _physics.maybeStartBounceback(initial, side);
     _ensureTicker();
+  }
+
+  /// Span hit: [local] clamped into the scroll band, then
+  /// [_selectionMessageIdAt]. Null over non-message slots (far end freezes).
+  int? _spanHitAt(Offset local) {
+    if (!hasSize) return null;
+    if (_overlayKind != ChatOverlayKind.none) return null;
+    final minY = _topPad;
+    final maxY = math.max(minY, size.height - _bottomPad - 0.001);
+    return _selectionMessageIdAt(Offset(local.dx, local.dy.clamp(minY, maxY)));
+  }
+
+  /// Loaded present ids from [origin] to [hit] inclusive. Walks present
+  /// neighbors, skipping absent, shimmer, and chunk-error slots.
+  List<int> _selectSpanChain(int origin, int hit) {
+    if (origin == hit) return <int>[origin];
+    final goingUp = hit > origin;
+    final ids = <int>[origin];
+    var id = origin;
+    for (var n = 0; n < 1 << 16; n++) {
+      final next = goingUp
+          ? _nextNonAbsentIdDown(id + 1, hit)
+          : _nextNonAbsentIdUp(id - 1, hit);
+      if (goingUp && next > hit) break;
+      if (!goingUp && next < hit) break;
+      if (next == id) break;
+      id = next;
+      if (_dataSource.getMessage(id) != null) {
+        ids.add(id);
+      }
+      if (id == hit) break;
+    }
+    return ids;
   }
 
   /// Loaded message whose selectable body contains [local], or `null` when
