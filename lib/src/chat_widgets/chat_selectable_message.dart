@@ -128,7 +128,7 @@ class _SelectableMessageState extends State<SelectableMessage>
     // Already selected: long-press on an already-selected message is a no-op
     // for the controller, so don't buzz either.
     if (c.isSelected(widget.id)) return;
-    HapticFeedback.selectionClick();
+    HapticFeedback.vibrate();
     c.startSelection(widget.id);
   }
 
@@ -138,7 +138,6 @@ class _SelectableMessageState extends State<SelectableMessage>
     // Outside selection mode a tap on a message does nothing (there is no
     // in-message interaction in this demo); inside it toggles the message.
     if (!c.isSelectionMode) return;
-    HapticFeedback.selectionClick();
     c.toggle(widget.id);
   }
 

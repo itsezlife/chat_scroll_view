@@ -1,4 +1,5 @@
 import 'package:chat_scroll_view/chat_scroll_view.dart';
+import 'package:chat_scroll_view_example/src/common/widgets/frozen_value.dart';
 import 'package:flutter/material.dart';
 
 /// Toolbar body height below the top [SafeArea] inset.
@@ -118,13 +119,20 @@ class _SelectionAppBarState extends State<SelectionAppBar>
       return ClipRect(
         child: SlideTransition(
           position: _slide,
-          child: IgnorePointer(ignoring: _t.value < 0.5, child: _bar(scheme)),
+          child: IgnorePointer(
+            ignoring: _t.value < 0.5,
+            child: FrozenValue<int>(
+              frozen: !_mode,
+              value: widget.selection.count,
+              builder: (context, count) => _bar(scheme, count),
+            ),
+          ),
         ),
       );
     },
   );
 
-  Widget _bar(ColorScheme scheme) => DecoratedBox(
+  Widget _bar(ColorScheme scheme, int count) => DecoratedBox(
     decoration: BoxDecoration(
       color: scheme.surfaceContainerHigh,
       border: Border(
@@ -144,7 +152,7 @@ class _SelectionAppBarState extends State<SelectionAppBar>
               onPressed: widget.selection.clear,
             ),
             Text(
-              'Выбрано: ${widget.selection.count}',
+              'Выбрано: $count',
               style: TextStyle(
                 color: scheme.onSurface,
                 fontSize: 17,

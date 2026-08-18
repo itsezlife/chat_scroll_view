@@ -1,5 +1,6 @@
 import 'package:chat_scroll_view/chat_scroll_view.dart';
 import 'package:chat_scroll_view_example/src/common/models/chat_message.dart';
+import 'package:chat_scroll_view_example/src/common/widgets/frozen_value.dart';
 import 'package:chat_scroll_view_example/src/common/widgets/measure_size.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -249,13 +250,49 @@ class _ChatComposerState extends State<ChatComposer>
     widget.selection.clear();
   }
 
+  Widget _actionsRow(ColorScheme scheme, int count) {
+    final canEdit = count == 1 && widget.onEditSelected != null;
+    final canDelete = count >= 1 && widget.onDeleteSelected != null;
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+      children: <Widget>[
+        SlideTransition(
+          position: _copySlide,
+          child: _ActionButton(
+            icon: Icons.copy_rounded,
+            label: 'Копировать',
+            onTap: _copy,
+            scheme: scheme,
+          ),
+        ),
+        if (canEdit)
+          ScaleTransition(
+            scale: _favScale,
+            child: _ActionButton(
+              icon: Icons.edit_rounded,
+              label: 'Изменить',
+              onTap: _startEditSelected,
+              scheme: scheme,
+            ),
+          ),
+        if (canDelete)
+          SlideTransition(
+            position: _shareSlide,
+            child: _ActionButton(
+              icon: Icons.delete_outline_rounded,
+              label: 'Удалить',
+              onTap: _deleteSelected,
+              scheme: scheme,
+            ),
+          ),
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     final bottomPadding = MediaQuery.viewPaddingOf(context).bottom;
-    final selectionCount = widget.selection.count;
-    final canEdit = selectionCount == 1 && widget.onEditSelected != null;
-    final canDelete = selectionCount >= 1 && widget.onDeleteSelected != null;
     final isEditing = _editingMessageId != null;
 
     final child = MeasureSize(
@@ -312,40 +349,11 @@ class _ChatComposerState extends State<ChatComposer>
                               ignoring: !_mode,
                               child: FadeTransition(
                                 opacity: _actionsFade,
-                                child: Row(
-                                  mainAxisAlignment:
-                                      MainAxisAlignment.spaceEvenly,
-                                  children: <Widget>[
-                                    SlideTransition(
-                                      position: _copySlide,
-                                      child: _ActionButton(
-                                        icon: Icons.copy_rounded,
-                                        label: 'Копировать',
-                                        onTap: _copy,
-                                        scheme: scheme,
-                                      ),
-                                    ),
-                                    if (canEdit)
-                                      ScaleTransition(
-                                        scale: _favScale,
-                                        child: _ActionButton(
-                                          icon: Icons.edit_rounded,
-                                          label: 'Изменить',
-                                          onTap: _startEditSelected,
-                                          scheme: scheme,
-                                        ),
-                                      ),
-                                    if (canDelete)
-                                      SlideTransition(
-                                        position: _shareSlide,
-                                        child: _ActionButton(
-                                          icon: Icons.delete_outline_rounded,
-                                          label: 'Удалить',
-                                          onTap: _deleteSelected,
-                                          scheme: scheme,
-                                        ),
-                                      ),
-                                  ],
+                                child: FrozenValue<int>(
+                                  frozen: !_mode,
+                                  value: widget.selection.count,
+                                  builder: (context, count) =>
+                                      _actionsRow(scheme, count),
                                 ),
                               ),
                             ),
