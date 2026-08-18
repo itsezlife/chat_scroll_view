@@ -14,10 +14,12 @@ import 'package:chat_scroll_view/src/chat_scroll/chat_scroll_controller.dart';
 import 'package:chat_scroll_view/src/chat_scroll/chat_scroll_dev_log.dart';
 import 'package:chat_scroll_view/src/chat_scroll/chat_scroll_events.dart';
 import 'package:chat_scroll_view/src/chat_scroll/chat_scroll_physics.dart';
+import 'package:chat_scroll_view/src/chat_scroll/chat_selection_controller.dart';
 import 'package:chat_scroll_view/src/chat_scroll/chat_sender_run_layout.dart';
 import 'package:chat_scroll_view/src/chat_widgets/chat_data_source_ext.dart';
 import 'package:chat_scroll_view/src/chat_widgets/chat_scroll_element.dart';
 import 'package:chat_scroll_view/src/chat_widgets/chat_scrollbar.dart';
+import 'package:chat_scroll_view/src/chat_widgets/chat_selection_pointer.dart';
 import 'package:flutter/foundation.dart' show ValueListenable;
 import 'package:flutter/gestures.dart';
 import 'package:flutter/rendering.dart';
@@ -52,6 +54,11 @@ class ChatMessageParentData extends ParentData {
   /// rises into the floating day header's zone. Only meaningful when
   /// [startsDay] is `true`; read by `RenderDatedMessage`.
   double dividerOpacity = 1;
+
+  /// Local Y of the message body within this child. `0` when the child is
+  /// the body. A dated row writes the inline separator height here during
+  /// layout so a long-press on the date chrome does not select.
+  double messageBodyTop = 0;
 }
 
 /// Kind of full-viewport overlay the element is asked to build. Internal
@@ -149,8 +156,10 @@ class RenderChatScrollView extends RenderBox {
     Duration highlightDuration = const Duration(milliseconds: 1500),
     TextDirection textDirection = TextDirection.ltr,
     ChatScrollbarThemeData scrollbarTheme = ChatScrollbarThemeData.light,
+    ChatSelectionController? selectionController,
   }) : _dataSource = dataSource,
        _controller = controller,
+       _selectionController = selectionController,
        _cacheExtent = cacheExtent,
        _extraBuildExtent = extraBuildExtent,
        _ticking = ticking,
@@ -327,6 +336,13 @@ class RenderChatScrollView extends RenderBox {
         ..animator = _animator;
     }
     markNeedsLayout();
+  }
+
+  ChatSelectionController? _selectionController;
+  set selectionController(ChatSelectionController? value) {
+    if (identical(_selectionController, value)) return;
+    _selectionController = value;
+    _selectionPointer?.selection = value;
   }
 
   double _cacheExtent;
@@ -539,6 +555,8 @@ class RenderChatScrollView extends RenderBox {
   );
 
   VerticalDragGestureRecognizer? _drag;
+
+  ChatSelectionPointer? _selectionPointer;
 
   /// Pointer that cancelled an in-flight fling; long-press is suppressed until
   /// this pointer lifts.
@@ -925,6 +943,11 @@ class RenderChatScrollView extends RenderBox {
     _bottomPadding?.addListener(_onBottomPaddingChanged);
     _topPadding?.addListener(_onTopPaddingChanged);
     _drag = _buildDragRecognizer();
+    _selectionPointer = ChatSelectionPointer(debugOwner: this)
+      ..messageIdAt = _selectionMessageIdAt
+      ..flingCancelSuppresses = () =>
+          _controller.flingCancelSuppressesLongPress;
+    _selectionPointer!.selection = _selectionController;
     _seedTailNavigationOnAttach();
   }
 
@@ -996,6 +1019,8 @@ class RenderChatScrollView extends RenderBox {
     _topPadding?.removeListener(_onTopPaddingChanged);
     _drag?.dispose();
     _drag = null;
+    _selectionPointer?.dispose();
+    _selectionPointer = null;
     super.detach();
     // Detach children after super: `this` is now detached, so each child's
     // `attached == parent.attached` invariant holds during child.detach().
@@ -3264,6 +3289,48 @@ class RenderChatScrollView extends RenderBox {
     _ensureTicker();
   }
 
+  /// Loaded message whose selectable body contains [local], or `null` when
+  /// the point is over overlay, header, chunk-error, shimmer, date chrome,
+  /// or empty space.
+  int? _selectionMessageIdAt(Offset local) {
+    if (!hasSize) return null;
+    if (_overlayKind != ChatOverlayKind.none) return null;
+    final h = size.height;
+    final w = size.width;
+    if (local.dx < 0 || local.dx >= w || local.dy < 0 || local.dy >= h) {
+      return null;
+    }
+
+    final header = _floatingHeader;
+    if (header != null && _shouldShowFloatingHeader()) {
+      final top = _parentData(header).offset;
+      if (local.dy >= top && local.dy < top + header.size.height) {
+        return null;
+      }
+    }
+
+    for (final child in _chunkErrors.values) {
+      final pd = _parentData(child);
+      if (pd.offset >= h || pd.offset + child.size.height <= 0) continue;
+      if (local.dy >= pd.offset && local.dy < pd.offset + child.size.height) {
+        return null;
+      }
+    }
+
+    for (final entry in _children.entries) {
+      final child = entry.value;
+      final pd = _parentData(child);
+      if (pd.offset >= h || pd.offset + child.size.height <= 0) continue;
+      if (local.dy < pd.offset || local.dy >= pd.offset + child.size.height) {
+        continue;
+      }
+      if (_dataSource.getMessage(entry.key) == null) return null;
+      if (local.dy < pd.offset + pd.messageBodyTop) return null;
+      return entry.key;
+    }
+    return null;
+  }
+
   @override
   void handleEvent(PointerEvent event, BoxHitTestEntry entry) {
     assert(debugHandleEvent(event, entry));
@@ -3334,6 +3401,7 @@ class RenderChatScrollView extends RenderBox {
         _controller.flingCancelSuppressesLongPress = false;
       }
       _drag?.addPointer(event);
+      _selectionPointer?.addPointer(event);
     } else if (event is PointerUpEvent || event is PointerCancelEvent) {
       if (_flingCancelPointer == event.pointer) {
         _flingCancelPointer = null;
@@ -4583,6 +4651,8 @@ class RenderChatScrollView extends RenderBox {
     _chunkFetchScheduler.dispose();
     _drag?.dispose();
     _drag = null;
+    _selectionPointer?.dispose();
+    _selectionPointer = null;
     _clipLayer.layer = null;
     _fadeLayer.layer = null;
     super.dispose();

@@ -465,6 +465,57 @@ void main() {
       expect(_probeOf(tester, 255)!.selectProgress, 1.0);
       expect(_probeOf(tester, 255)!.modeProgress, lessThan(1.0));
     });
+
+    testWidgets('rows do not own a GestureDetector for selection', (
+      tester,
+    ) async {
+      const count = 256;
+      final controller = ChatScrollController()..jumpTo(count - 1);
+      final selection = ChatSelectionController();
+      await tester.pumpWidget(
+        _harness(
+          dataSource: _PreloadedDataSource(_generate(count)),
+          controller: controller,
+          selectionController: selection,
+        ),
+      );
+      await tester.pump();
+
+      expect(
+        find.descendant(
+          of: find.byType(SelectableMessage),
+          matching: find.byType(GestureDetector),
+        ),
+        findsNothing,
+      );
+
+      await tester.longPress(find.text('msg-255'));
+      await tester.pumpAndSettle();
+      expect(selection.isSelectionMode, isTrue);
+      expect(selection.isSelected(255), isTrue);
+    });
+
+    testWidgets('span yield claiming the long-press does not start selection', (
+      tester,
+    ) async {
+      const count = 256;
+      final controller = ChatScrollController()..jumpTo(count - 1);
+      final selection = ChatSelectionController()..spanYield = (id) => true;
+      await tester.pumpWidget(
+        _harness(
+          dataSource: _PreloadedDataSource(_generate(count)),
+          controller: controller,
+          selectionController: selection,
+        ),
+      );
+      await tester.pump();
+
+      await tester.longPress(find.text('msg-255'));
+      await tester.pumpAndSettle();
+
+      expect(selection.isSelectionMode, isFalse);
+      expect(selection.count, 0);
+    });
   });
 
   group('selection chrome', () {

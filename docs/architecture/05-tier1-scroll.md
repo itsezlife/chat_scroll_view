@@ -137,8 +137,13 @@ and follow-tail converge on the next layout.
 - Mouse wheel: `_pendingScrollDelta -= event.scrollDelta.dy` (sign maps to
   anchor convention), Tier-1.
 - Pointer down during fling: cancel fling and set
-  `flingCancelSuppressesLongPress` so selection long-press does not fire on
-  the cancel tap.
+  `flingCancelSuppressesLongPress` so the viewport-owned selection
+  long-press does not fire on the cancel tap.
+- When a selection controller is wired, the same pointer down is also
+  offered to `ChatSelectionPointer` (long-press enters selection, tap
+  toggles while mode is on). Rows do not attach a competing detector. A
+  host `spanYield` that returns true claims the long-press so selection
+  does not start.
 - Scrollbar drag: maps Y → progress → `_jumpToScrollbar` → `jumpTo(id)`
   (layout path).
 

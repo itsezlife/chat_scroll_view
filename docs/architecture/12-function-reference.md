@@ -163,7 +163,8 @@ Cross-links: [Layout Pipeline](./04-layout-pipeline.md),
 | `_maybeStartBounceback` / `_cancelBounceback` | Spring lifecycle | Start no-op when content fits |
 | `_signedOverscroll` / `_overscrollOnSide` / `_applyOverscrollResistance` | Boundary physics inputs | Zero when content fits |
 | `_boundaryBox` / `_resolveAnchorBox` | Boundary/anchor render boxes |
-| `handleEvent` / `hitTestChildren` | Pointer / scrollbar / header |
+| `handleEvent` / `hitTestChildren` | Pointer / scrollbar / header / selection |
+| `ChatSelectionPointer` / `_selectionMessageIdAt` | Viewport-owned long-press / tap | Yield + fling-cancel suppress |
 | `_onJump` / `_onScrollBy` / `_onDataChanged` / `_onBoundaryChanged` | Controller/DS reactions |
 | `_onAnimateSettled` / `_cancelAnimate` / `_clearHighlight` | Animate settle/cancel |
 | `_publishControllerState` / `_publishVisibleRange` / `_publishIsAtTail` / `_computeIsAtTail` | Listenables |

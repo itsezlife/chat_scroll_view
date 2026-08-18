@@ -60,6 +60,13 @@ class ChatSelectionController implements Listenable {
     _notify();
   }
 
+  /// Host claim on a long-press that would start a span.
+  ///
+  /// Return `true` to claim the press: selection mode does not start and the
+  /// set stays empty. `null` (the default) never claims. This is the seam
+  /// for a future in-bubble text selector; unused until that selector exists.
+  bool Function(int messageId)? spanYield;
+
   // --- Listeners ---
 
   /// Plain `List` so the field's runtime type stays stable across hot-reload.
