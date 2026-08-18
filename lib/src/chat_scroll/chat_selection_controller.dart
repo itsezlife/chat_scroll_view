@@ -60,6 +60,18 @@ class ChatSelectionController implements Listenable {
     _notify();
   }
 
+  /// Replaces the selected set with [ids]. No-op if equal. Empty [ids]
+  /// exits selection mode.
+  void replaceSelectedIds(Set<int> ids) {
+    if (ids.length == _selectedIds.length && _selectedIds.containsAll(ids)) {
+      return;
+    }
+    _selectedIds
+      ..clear()
+      ..addAll(ids);
+    _notify();
+  }
+
   /// Host claim on a long-press that would start a span.
   ///
   /// Return `true` to claim the press: selection mode does not start and the
