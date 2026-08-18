@@ -174,7 +174,6 @@ class DemoMessageBubble extends StatelessWidget {
           isOutgoing: outgoing,
           hasTail: isLastInRun,
           maxWidth: layout.bubbleCap(viewportWidth, hasAvatarGutter: !outgoing),
-          // maxWidth: layout.bubbleMaxWidth,
         );
         final Widget row;
         if (outgoing) {

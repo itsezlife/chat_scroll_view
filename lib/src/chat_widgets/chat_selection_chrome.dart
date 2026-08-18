@@ -102,56 +102,67 @@ class DefaultSelectionChrome extends StatelessWidget {
     if (m == 0.0 && overlay == 0.0) return child;
 
     final slot = theme.slotWidth;
+    final layout = ChatScrollTheme.messageOf(context);
 
-    // Same geometry as the original Row gutter: a start-side spacer
-    // shrinks [Expanded], so start-aligned bodies shift and end-aligned
-    // bodies stay on the trailing edge. The check itself is *not* in that
-    // spacer — it slides in from off-start as an overlay.
-    return ClipRect(
-      child: Stack(
-        clipBehavior: Clip.hardEdge,
-        children: <Widget>[
-          // Full-row selection tint. Skipped entirely when the message is
-          // not selected — a `ColoredBox` with alpha 0 still records a
-          // paint op, and for a 256-msg viewport that adds up.
-          if (overlay > 0.0)
-            Positioned.fill(
-              child: IgnorePointer(
-                child: ColoredBox(
-                  color: tint.withValues(alpha: 0.13 * overlay),
-                ),
-              ),
-            ),
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.end,
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final fits = layout.selectionGutterFits(
+          viewportWidth: constraints.maxWidth,
+          slotWidth: slot,
+        );
+        final t = fits ? m : 0.0;
+        if (t == 0.0 && overlay == 0.0) return child;
+
+        // Same geometry as the original Row gutter: a start-side spacer
+        // shrinks [Expanded], so start-aligned bodies shift and end-aligned
+        // bodies stay on the trailing edge. The check itself is *not* in
+        // that spacer — it slides in from off-start as an overlay.
+        // When [fits] is false the spacer and check are omitted so a
+        // too-narrow row is not crushed by the slot.
+        return ClipRect(
+          child: Stack(
+            clipBehavior: Clip.hardEdge,
             children: <Widget>[
-              SizedBox(width: slot * m),
-              Expanded(child: child),
-            ],
-          ),
-          if (m > 0.0)
-            Positioned.directional(
-              textDirection: Directionality.of(context),
-              start: slot * (m - 1.0),
-              bottom: 6,
-              width: slot,
-              child: IgnorePointer(
-                child: Center(
-                  child: CustomPaint(
-                    key: const ValueKey<String>('chatSelectionCheck'),
-                    size: Size.square(theme.checkSize),
-                    painter: _CheckPainter(
-                      select: s,
-                      accent: accent,
-                      ring: theme.checkRing,
-                      checkmark: theme.checkmark,
+              if (overlay > 0.0)
+                Positioned.fill(
+                  child: IgnorePointer(
+                    child: ColoredBox(
+                      color: tint.withValues(alpha: 0.13 * overlay),
                     ),
                   ),
                 ),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: <Widget>[
+                  SizedBox(width: slot * t),
+                  Expanded(child: child),
+                ],
               ),
-            ),
-        ],
-      ),
+              if (t > 0.0)
+                Positioned.directional(
+                  textDirection: Directionality.of(context),
+                  start: slot * (t - 1.0),
+                  bottom: 6,
+                  width: slot,
+                  child: IgnorePointer(
+                    child: Center(
+                      child: CustomPaint(
+                        key: const ValueKey<String>('chatSelectionCheck'),
+                        size: Size.square(theme.checkSize),
+                        painter: _CheckPainter(
+                          select: s,
+                          accent: accent,
+                          ring: theme.checkRing,
+                          checkmark: theme.checkmark,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        );
+      },
     );
   }
 }

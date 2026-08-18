@@ -36,38 +36,17 @@ void main() {
       },
     );
 
-    test('centered gutter fits only with enough end slack', () {
-      const centered = ChatMessageThemeData(
-        contentMaxWidth: 620,
-        columnPlacement: ChatMessageColumnPlacement.center,
-      );
-      expect(
-        centered.selectionGutterFits(viewportWidth: 800, slotWidth: 44),
-        isTrue,
-      );
-      expect(
-        centered.selectionGutterFits(viewportWidth: 700, slotWidth: 44),
-        isFalse,
-      );
-      expect(
-        centered.selectionGutterFits(viewportWidth: 400, slotWidth: 44),
-        isFalse,
-      );
-    });
-
-    test('start placement uses full slack on the end', () {
+    test('gutter fits when the remainder covers row padding', () {
       expect(
         layout.selectionGutterFits(viewportWidth: 400, slotWidth: 44),
         isTrue,
       );
-    });
-
-    test('end placement never has room to slide', () {
-      const end = ChatMessageThemeData(
-        columnPlacement: ChatMessageColumnPlacement.end,
+      expect(
+        layout.selectionGutterFits(viewportWidth: 60, slotWidth: 44),
+        isFalse,
       );
       expect(
-        end.selectionGutterFits(viewportWidth: 1200, slotWidth: 44),
+        layout.selectionGutterFits(viewportWidth: 40, slotWidth: 44),
         isFalse,
       );
     });
@@ -101,13 +80,17 @@ void main() {
       onLongPress: () {},
     );
 
-    Widget app({required double mode, required Widget child}) => MaterialApp(
+    Widget app({
+      required double mode,
+      required Widget child,
+      double width = 400,
+    }) => MaterialApp(
       home: ChatScrollTheme(
         data: const ChatScrollThemeData(),
         child: Align(
           alignment: Alignment.topCenter,
           child: SizedBox(
-            width: 400,
+            width: width,
             height: 80,
             child: DefaultSelectionChrome(state: stateAt(mode), child: child),
           ),
@@ -163,6 +146,23 @@ void main() {
       expect(dx(tester, 'wide'), lessThan(slot));
       await tester.pumpWidget(app(mode: 1, child: child));
       expect(dx(tester, 'wide'), closeTo(slot, 0.5));
+    });
+
+    testWidgets('omits check and spacer when the gutter would not fit', (
+      tester,
+    ) async {
+      const child = Align(
+        alignment: Alignment.centerLeft,
+        child: SizedBox(width: 40, height: 20, child: Text('in')),
+      );
+      await tester.pumpWidget(app(mode: 0, width: 50, child: child));
+      final closed = dx(tester, 'in');
+      await tester.pumpWidget(app(mode: 1, width: 50, child: child));
+      expect(dx(tester, 'in'), closeTo(closed, 0.5));
+      expect(
+        find.byKey(const ValueKey<String>('chatSelectionCheck')),
+        findsNothing,
+      );
     });
   });
 }
