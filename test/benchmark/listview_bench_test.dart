@@ -1,4 +1,4 @@
-import 'package:chatscrollview/src/chat_scroll/chat_scroll_common.dart';
+import 'package:chat_scroll_view/src/chat_scroll/chat_scroll_common.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -141,11 +141,7 @@ void main() {
 
         // Fling — total frame time
         final samples = <int>[];
-        await tester.fling(
-          find.byType(ListView),
-          const Offset(0, -500),
-          2000,
-        );
+        await tester.fling(find.byType(ListView), const Offset(0, -500), 2000);
 
         for (var i = 0; i < 300; i++) {
           final sw = Stopwatch()..start();
@@ -351,11 +347,7 @@ void main() {
         await tester.pumpAndSettle();
 
         final samples = <int>[];
-        await tester.fling(
-          find.byType(ListView),
-          const Offset(0, -500),
-          2000,
-        );
+        await tester.fling(find.byType(ListView), const Offset(0, -500), 2000);
 
         for (var i = 0; i < 300; i++) {
           final sw = Stopwatch()..start();

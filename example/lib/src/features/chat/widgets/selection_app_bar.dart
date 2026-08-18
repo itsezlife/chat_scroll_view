@@ -1,0 +1,168 @@
+import 'package:chat_scroll_view/chat_scroll_view.dart';
+import 'package:chat_scroll_view_example/src/common/widgets/frozen_value.dart';
+import 'package:flutter/material.dart';
+
+/// Toolbar body height below the top [SafeArea] inset.
+const double kSelectionAppBarHeight = 52;
+
+/// Contextual top bar shown while selection mode is active.
+///
+/// Slides down from above the viewport with a close button and a live count
+/// of selected messages. Meant to be overlaid (e.g. inside a [Stack]) so the
+/// chat itself never resizes — when idle it collapses to nothing.
+///
+/// When [topInset] is set, it is driven every animation frame with
+/// `curveProgress × (top safe padding + [kSelectionAppBarHeight])` so an
+/// overlaid [ChatScrollView] can keep its floating header in sync with the
+/// slide without waiting on layout.
+class SelectionAppBar extends StatefulWidget {
+  /// Slides in above the chat while [selection] mode is active.
+  const SelectionAppBar({required this.selection, this.topInset, super.key});
+
+  /// Selection state — drives visibility and the count.
+  final ChatSelectionController selection;
+
+  /// Optional viewport top inset to animate in lockstep with the slide.
+  final ValueNotifier<double>? topInset;
+
+  @override
+  State<SelectionAppBar> createState() => _SelectionAppBarState();
+}
+
+class _SelectionAppBarState extends State<SelectionAppBar>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _t;
+  late final CurvedAnimation _slideCurve;
+  late final Animation<Offset> _slide;
+  bool _mode = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _mode = widget.selection.isSelectionMode;
+    _t = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 280),
+      value: _mode ? 1.0 : 0.0,
+    );
+    _slideCurve = CurvedAnimation(parent: _t, curve: Curves.easeOutCubic);
+    _slide = Tween<Offset>(
+      begin: const Offset(0, -1),
+      end: Offset.zero,
+    ).animate(_slideCurve);
+    _t.addListener(_onTick);
+    widget.selection.addListener(_onSelectionChanged);
+  }
+
+  @override
+  void didUpdateWidget(SelectionAppBar oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (!identical(oldWidget.selection, widget.selection)) {
+      oldWidget.selection.removeListener(_onSelectionChanged);
+      widget.selection.addListener(_onSelectionChanged);
+      _onSelectionChanged();
+    }
+    if (!identical(oldWidget.topInset, widget.topInset)) {
+      _publishTopInset();
+    }
+  }
+
+  @override
+  void dispose() {
+    _t.removeListener(_onTick);
+    widget.selection.removeListener(_onSelectionChanged);
+    widget.topInset?.value = 0;
+    _slideCurve.dispose();
+    _t.dispose();
+    super.dispose();
+  }
+
+  void _onTick() {
+    if (!mounted) return;
+    _publishTopInset();
+  }
+
+  void _publishTopInset() {
+    final inset = widget.topInset;
+    if (inset == null) return;
+    final next = _t.isDismissed
+        ? 0.0
+        : _slideCurve.value * kSelectionAppBarHeight;
+    if (inset.value != next) inset.value = next;
+  }
+
+  void _onSelectionChanged() {
+    // Guard the entire callback: the selection controller's listener list is
+    // owned by the controller, not the State, so a late notification (e.g.
+    // controller outlives the route) can otherwise reach `_t.forward()`
+    // after `_t.dispose()` ran.
+    if (!mounted) return;
+    final mode = widget.selection.isSelectionMode;
+    if (mode != _mode) {
+      _mode = mode;
+      if (mode) {
+        _t.forward();
+      } else {
+        _t.reverse();
+      }
+    }
+    // Rebuild for the live count even when the mode itself did not change.
+    setState(() {});
+  }
+
+  @override
+  Widget build(BuildContext context) => AnimatedBuilder(
+    animation: _t,
+    builder: (context, _) {
+      if (_t.isDismissed) return const SizedBox.shrink();
+      final scheme = Theme.of(context).colorScheme;
+      return ClipRect(
+        child: SlideTransition(
+          position: _slide,
+          child: IgnorePointer(
+            ignoring: _t.value < 0.5,
+            child: FrozenValue<int>(
+              frozen: !_mode,
+              value: widget.selection.count,
+              builder: (context, count) => _bar(scheme, count),
+            ),
+          ),
+        ),
+      );
+    },
+  );
+
+  Widget _bar(ColorScheme scheme, int count) => DecoratedBox(
+    decoration: BoxDecoration(
+      color: scheme.surfaceContainerHigh,
+      border: Border(
+        bottom: BorderSide(color: scheme.outlineVariant, width: 0.5),
+      ),
+    ),
+    child: SafeArea(
+      bottom: false,
+      child: SizedBox(
+        height: kSelectionAppBarHeight,
+        child: Row(
+          children: <Widget>[
+            IconButton(
+              icon: const Icon(Icons.close_rounded),
+              tooltip: 'Отменить выделение',
+              color: scheme.onSurface,
+              onPressed: widget.selection.clear,
+            ),
+            Text(
+              'Выбрано: $count',
+              style: TextStyle(
+                color: scheme.onSurface,
+                fontSize: 17,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            const Spacer(),
+          ],
+        ),
+      ),
+    ),
+  );
+}

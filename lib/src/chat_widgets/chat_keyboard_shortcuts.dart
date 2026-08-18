@@ -1,4 +1,4 @@
-import 'package:chatscrollview/src/chat_scroll/chat_scroll_controller.dart';
+import 'package:chat_scroll_view/src/chat_scroll/chat_scroll_controller.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 
@@ -111,8 +111,7 @@ class ChatKeyboardShortcuts extends StatefulWidget {
   final bool preserveExternalFocus;
 
   @override
-  State<ChatKeyboardShortcuts> createState() =>
-      _ChatKeyboardShortcutsState();
+  State<ChatKeyboardShortcuts> createState() => _ChatKeyboardShortcutsState();
 }
 
 class _ChatKeyboardShortcutsState extends State<ChatKeyboardShortcuts> {
@@ -128,13 +127,13 @@ class _ChatKeyboardShortcutsState extends State<ChatKeyboardShortcuts> {
   /// by identity across rebuilds rather than reallocating per frame.
   static const Map<ShortcutActivator, Intent> _kShortcuts =
       <ShortcutActivator, Intent>{
-    SingleActivator(LogicalKeyboardKey.arrowUp): _ScrollLineUpIntent(),
-    SingleActivator(LogicalKeyboardKey.arrowDown): _ScrollLineDownIntent(),
-    SingleActivator(LogicalKeyboardKey.pageUp): _ScrollPageUpIntent(),
-    SingleActivator(LogicalKeyboardKey.pageDown): _ScrollPageDownIntent(),
-    SingleActivator(LogicalKeyboardKey.home): _JumpHomeIntent(),
-    SingleActivator(LogicalKeyboardKey.end): _JumpEndIntent(),
-  };
+        SingleActivator(LogicalKeyboardKey.arrowUp): _ScrollLineUpIntent(),
+        SingleActivator(LogicalKeyboardKey.arrowDown): _ScrollLineDownIntent(),
+        SingleActivator(LogicalKeyboardKey.pageUp): _ScrollPageUpIntent(),
+        SingleActivator(LogicalKeyboardKey.pageDown): _ScrollPageDownIntent(),
+        SingleActivator(LogicalKeyboardKey.home): _JumpHomeIntent(),
+        SingleActivator(LogicalKeyboardKey.end): _JumpEndIntent(),
+      };
 
   late final Map<Type, Action<Intent>> _actions = <Type, Action<Intent>>{
     _ScrollLineUpIntent: CallbackAction<_ScrollLineUpIntent>(

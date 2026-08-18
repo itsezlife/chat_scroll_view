@@ -1,6 +1,6 @@
 import 'dart:ui';
 
-import 'package:chatscrollview/src/chat_widgets/chat_scrollbar.dart';
+import 'package:chat_scroll_view/src/chat_widgets/chat_scrollbar.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 

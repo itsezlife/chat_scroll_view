@@ -5,49 +5,55 @@
       "name": "main.dart (Supabase local)",
       "request": "launch",
       "type": "dart",
+      "cwd": "${workspaceFolder}/example",
       "program": "lib/main.dart",
-      "toolArgs": ["--dart-define-from-file=config/development.supabase.json"]
+      "toolArgs": ["--dart-define-from-file=${workspaceFolder}/config/development.supabase.json"]
     },
     {
       "name": "main.dart (Supabase, Android emulator)",
       "request": "launch",
       "type": "dart",
+      "cwd": "${workspaceFolder}/example",
       "program": "lib/main.dart",
       "toolArgs": [
-        "--dart-define-from-file=config/development.supabase.android.json"
+        "--dart-define-from-file=${workspaceFolder}/config/development.supabase.android.json"
       ]
     },
     {
       "name": "main.dart (Supabase, Android device)",
       "request": "launch",
       "type": "dart",
+      "cwd": "${workspaceFolder}/example",
       "program": "lib/main.dart",
       "toolArgs": [
-        "--dart-define-from-file=config/development.supabase.android.device.json"
+        "--dart-define-from-file=${workspaceFolder}/config/development.supabase.android.device.json"
       ]
     },
     {
       "name": "main.dart",
       "request": "launch",
       "type": "dart",
+      "cwd": "${workspaceFolder}/example",
       "program": "lib/main.dart",
-      "toolArgs": ["--dart-define-from-file=config/development.json"]
+      "toolArgs": ["--dart-define-from-file=${workspaceFolder}/config/development.json"]
     },
     {
       "name": "main.dart (profile mode)",
       "request": "launch",
       "type": "dart",
+      "cwd": "${workspaceFolder}/example",
       "program": "lib/main.dart",
       "flutterMode": "profile",
-      "toolArgs": ["--dart-define-from-file=config/development.json"]
+      "toolArgs": ["--dart-define-from-file=${workspaceFolder}/config/development.json"]
     },
     {
       "name": "main.dart (release mode)",
       "request": "launch",
       "type": "dart",
+      "cwd": "${workspaceFolder}/example",
       "program": "lib/main.dart",
       "flutterMode": "release",
-      "toolArgs": ["--dart-define-from-file=config/development.json"]
+      "toolArgs": ["--dart-define-from-file=${workspaceFolder}/config/development.json"]
     }
   ]
 }

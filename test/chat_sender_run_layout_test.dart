@@ -1,8 +1,8 @@
-import 'package:chatscrollview/src/chat_message.dart';
-import 'package:chatscrollview/src/chat_scroll/chat_data_source.dart';
-import 'package:chatscrollview/src/chat_scroll/chat_scroll_common.dart';
-import 'package:chatscrollview/src/chat_scroll/chat_sender_run_layout.dart';
+import 'package:chat_scroll_view/src/chat_scroll/chat_data_source.dart';
+import 'package:chat_scroll_view/src/chat_scroll/chat_scroll_common.dart';
+import 'package:chat_scroll_view/src/chat_scroll/chat_sender_run_layout.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'chat_message.dart';
 
 IChatMessage _msg(int id, {String sender = 'alice', DateTime? when}) =>
     UserChatMessage(
@@ -15,8 +15,11 @@ IChatMessage _msg(int id, {String sender = 'alice', DateTime? when}) =>
 
 DateTime _day(int day) => DateTime(2026, 5, day);
 
-Object _dayGroup(IChatMessage m) =>
-    DateTime(m.createdAt.toLocal().year, m.createdAt.toLocal().month, m.createdAt.toLocal().day);
+Object _dayGroup(IChatMessage m) => DateTime(
+  m.createdAt.toLocal().year,
+  m.createdAt.toLocal().month,
+  m.createdAt.toLocal().day,
+);
 
 class _LoadedSource extends ChatDataSource {
   _LoadedSource(Iterable<IChatMessage> messages) {
@@ -35,8 +38,7 @@ class _LoadedSource extends ChatDataSource {
   Future<List<IChatMessage>> fetchRange({
     required int fromId,
     required int toId,
-  }) async =>
-      const <IChatMessage>[];
+  }) async => const <IChatMessage>[];
 }
 
 void main() {

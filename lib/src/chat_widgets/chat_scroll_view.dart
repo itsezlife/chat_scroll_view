@@ -1,11 +1,12 @@
-import 'package:chatscrollview/src/chat_scroll/chat_data_source.dart';
-import 'package:chatscrollview/src/chat_scroll/chat_scroll_common.dart';
-import 'package:chatscrollview/src/chat_scroll/chat_scroll_controller.dart';
-import 'package:chatscrollview/src/chat_scroll/chat_selection_controller.dart';
-import 'package:chatscrollview/src/chat_scroll/chat_sender_run_layout.dart';
-import 'package:chatscrollview/src/chat_widgets/chat_scroll_element.dart';
-import 'package:chatscrollview/src/chat_widgets/chat_scrollbar.dart';
-import 'package:chatscrollview/src/chat_widgets/render_chat_scroll_view.dart';
+import 'package:chat_scroll_view/src/chat_scroll/chat_data_source.dart';
+import 'package:chat_scroll_view/src/chat_scroll/chat_scroll_common.dart';
+import 'package:chat_scroll_view/src/chat_scroll/chat_scroll_controller.dart';
+import 'package:chat_scroll_view/src/chat_scroll/chat_selection_controller.dart';
+import 'package:chat_scroll_view/src/chat_scroll/chat_sender_run_layout.dart';
+import 'package:chat_scroll_view/src/chat_widgets/chat_scroll_element.dart';
+import 'package:chat_scroll_view/src/chat_widgets/chat_scroll_theme.dart';
+import 'package:chat_scroll_view/src/chat_widgets/chat_selection_chrome.dart';
+import 'package:chat_scroll_view/src/chat_widgets/render_chat_scroll_view.dart';
 import 'package:flutter/foundation.dart' show ValueListenable;
 import 'package:flutter/widgets.dart';
 
@@ -123,12 +124,13 @@ class ChatScrollView extends RenderObjectWidget {
     this.emptyBuilder,
     this.loadingBuilder,
     this.selectionController,
+    this.selectionChromeBuilder,
     this.bottomPadding,
     this.topPadding,
     this.dateSeparatorBuilder,
     this.groupBy,
-    this.highlightColor = const Color(0x402196F3),
-    this.highlightDuration = const Duration(milliseconds: 1500),
+    this.highlightColor,
+    this.highlightDuration,
     this.textDirection,
     this.cacheExtent = 250.0,
     this.extraBuildExtent = 0.0,
@@ -184,11 +186,24 @@ class ChatScrollView extends RenderObjectWidget {
   /// The package itself does not ship a built-in placeholder.
   final WidgetBuilder? loadingBuilder;
 
-  /// Optional whole-message selection. When non-null every message is wrapped
-  /// in selection chrome (a checkbox gutter + row tint) and long-press / tap
-  /// drive the [controller]. When null the viewport adds no selection wrapper
-  /// and costs nothing.
+  /// Optional whole-message selection. When non-null each **loaded** message
+  /// is wrapped in [SelectableMessage] and long-press / tap drive the
+  /// [controller]. Placeholder / shimmer slots (`message == null`) are not
+  /// wrapped and cannot be selected. When null the viewport adds no
+  /// selection wrapper and costs nothing.
   final ChatSelectionController? selectionController;
+
+  /// Replaces the bundled checkbox-gutter chrome. Ignored when
+  /// [selectionController] is null.
+  ///
+  /// The host still owns gestures and freeze-on-exit; this builder only
+  /// paints. Use [ChatSelectionChromeState.selectProgress] (frozen on
+  /// `clear`) rather than [ChatSelectionChromeState.isSelected] for visuals.
+  /// Pass a stable tear-off, like [messageBuilder].
+  ///
+  /// Defaults to [DefaultSelectionChrome.wrap]. Restyle that chrome with
+  /// [ChatSelectionThemeData] / [ChatScrollTheme]; replace layout here.
+  final ChatSelectionChromeBuilder? selectionChromeBuilder;
 
   /// Empty space reserved inside the viewport after the newest message.
   ///
@@ -231,12 +246,16 @@ class ChatScrollView extends RenderObjectWidget {
   /// became the target of [ChatScrollController.animateTo]. Alpha drives the
   /// initial opacity; set the alpha channel to 0 to opt out without changing
   /// [highlightDuration].
-  final Color highlightColor;
+  ///
+  /// Null → [ChatScrollThemeData.highlightColor] (package default if unset).
+  final Color? highlightColor;
 
   /// How long the post-animate highlight stays on the target before fully
   /// fading out. [Duration.zero] disables the feature entirely — successful
   /// `animateTo` calls land silently.
-  final Duration highlightDuration;
+  ///
+  /// Null → [ChatScrollThemeData.highlightDuration].
+  final Duration? highlightDuration;
 
   /// Reading direction. `null` (the default) inherits from `Directionality`
   /// of the build context — set explicitly to override (e.g. force LTR for
@@ -288,31 +307,34 @@ class ChatScrollView extends RenderObjectWidget {
       textDirection ?? Directionality.maybeOf(context) ?? TextDirection.ltr;
 
   @override
-  RenderChatScrollView createRenderObject(BuildContext context) =>
-      RenderChatScrollView(
-        dataSource: dataSource,
-        controller: controller,
-        cacheExtent: cacheExtent,
-        extraBuildExtent: extraBuildExtent,
-        ticking: TickerMode.valuesOf(context).enabled,
-        reverse: reverse,
-        bottomPadding: bottomPadding,
-        topPadding: topPadding,
-        groupBy: _effectiveGroupBy,
-        hasErrorBuilder: chunkErrorBuilder != null,
-        hasEmptyBuilder: emptyBuilder != null,
-        hasLoadingBuilder: loadingBuilder != null,
-        highlightColor: highlightColor,
-        highlightDuration: highlightDuration,
-        textDirection: _resolveDirection(context),
-        scrollbarTheme: ChatScrollbarThemeData.resolve(context),
-      );
+  RenderChatScrollView createRenderObject(BuildContext context) {
+    final theme = ChatScrollTheme.resolve(context);
+    return RenderChatScrollView(
+      dataSource: dataSource,
+      controller: controller,
+      cacheExtent: cacheExtent,
+      extraBuildExtent: extraBuildExtent,
+      ticking: TickerMode.valuesOf(context).enabled,
+      reverse: reverse,
+      bottomPadding: bottomPadding,
+      topPadding: topPadding,
+      groupBy: _effectiveGroupBy,
+      hasErrorBuilder: chunkErrorBuilder != null,
+      hasEmptyBuilder: emptyBuilder != null,
+      hasLoadingBuilder: loadingBuilder != null,
+      highlightColor: highlightColor ?? theme.highlightColor!,
+      highlightDuration: highlightDuration ?? theme.highlightDuration!,
+      textDirection: _resolveDirection(context),
+      scrollbarTheme: theme.scrollbar!,
+    );
+  }
 
   @override
   void updateRenderObject(
     BuildContext context,
     RenderChatScrollView renderObject,
   ) {
+    final theme = ChatScrollTheme.resolve(context);
     renderObject
       ..dataSource = dataSource
       ..controller = controller
@@ -326,8 +348,9 @@ class ChatScrollView extends RenderObjectWidget {
       ..hasErrorBuilder = chunkErrorBuilder != null
       ..hasEmptyBuilder = emptyBuilder != null
       ..hasLoadingBuilder = loadingBuilder != null
-      ..highlightColor = highlightColor
-      ..highlightDuration = highlightDuration
+      ..highlightColor = highlightColor ?? theme.highlightColor!
+      ..highlightDuration = highlightDuration ?? theme.highlightDuration!
+      ..scrollbarTheme = theme.scrollbar!
       ..textDirection = _resolveDirection(context);
   }
 }

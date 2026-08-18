@@ -4,6 +4,8 @@ This document has moved.
 
 **Canonical reference:** [docs/architecture/index.md](architecture/index.md)
 
+**Language:** [`CONTEXT.md`](../CONTEXT.md)
+
 That directory is an [OKF](https://github.com/GoogleCloudPlatform/knowledge-catalog/blob/main/okf/SPEC.md)
 knowledge bundle covering the anchor-based scroll model, invariants, layout and
 Tier-1 pipelines, boundaries, data source contracts, `ChatScrollElement`, day

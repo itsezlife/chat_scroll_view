@@ -1,6 +1,6 @@
 import 'dart:async';
 
-import 'package:chatscrollview/src/chat_scroll/chat_scroll_controller.dart';
+import 'package:chat_scroll_view/src/chat_scroll/chat_scroll_controller.dart';
 import 'package:flutter/animation.dart';
 import 'package:flutter/rendering.dart';
 
@@ -34,7 +34,11 @@ class ChatAnimator implements ChatScrollAnimator {
   ChatAnimator({
     required ChatScrollController controller,
     required double? Function(int id) offsetToBuiltMessage,
-    required double Function(int targetId, double messageHeight, double alignment)
+    required double Function(
+      int targetId,
+      double messageHeight,
+      double alignment,
+    )
     closePathEndOffsetFor,
     required bool Function(int targetId) isTailClosePathTarget,
     required RenderBox? Function(int id) childForId,
@@ -216,11 +220,7 @@ class ChatAnimator implements ChatScrollAnimator {
         offsetToTarget.abs() <= kCloseAnimateDistance) {
       final child = _childForId(targetId);
       final endOffset = child != null
-          ? _closePathEndOffsetFor(
-              targetId,
-              _heightOfChild(child),
-              alignment,
-            )
+          ? _closePathEndOffsetFor(targetId, _heightOfChild(child), alignment)
           : 0.0;
       // Close path: re-base the anchor onto the target with its current
       // offset, then animate that offset toward the aligned position.
@@ -329,8 +329,7 @@ class ChatAnimator implements ChatScrollAnimator {
     }
     // Band-top alignment (0) is stable for ordinary targets; tail-target
     // animate still rebases when height/insets change (tall newest).
-    if (!_isTailClosePathTarget(animateTargetId) &&
-        animateAlignment == 0.0) {
+    if (!_isTailClosePathTarget(animateTargetId) && animateAlignment == 0.0) {
       return;
     }
     final child = _childForId(animateTargetId);

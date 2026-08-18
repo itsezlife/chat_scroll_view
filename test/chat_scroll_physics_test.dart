@@ -1,4 +1,4 @@
-import 'package:chatscrollview/src/chat_scroll/chat_scroll_physics.dart';
+import 'package:chat_scroll_view/src/chat_scroll/chat_scroll_physics.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {

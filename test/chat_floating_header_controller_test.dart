@@ -1,4 +1,4 @@
-import 'package:chatscrollview/src/chat_scroll/chat_floating_header_controller.dart';
+import 'package:chat_scroll_view/src/chat_scroll/chat_floating_header_controller.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {

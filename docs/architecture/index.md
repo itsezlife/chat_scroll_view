@@ -60,8 +60,9 @@ Full pass: concepts **01 → 13** in order.
 Before animation work: **01 → 02 → 04 → 05 → 06 → 11**, plus **§18 absent
 build exclusion**, **§19 band-stable delete recovery**, and **§20 short content**.
 
-## Related ADRs (outside this bundle)
+## Related (outside this bundle)
 
+* [CONTEXT.md](../../CONTEXT.md) — ubiquitous language used in this bundle
 * [ADR 001: Message ID Scheme](../adr/001-message-id-scheme.md)
 * [ADR 002: Position Model](../adr/002-position-model.md)
 

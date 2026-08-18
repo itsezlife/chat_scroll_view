@@ -1,4 +1,4 @@
-import 'package:chatscrollview/src/chat_widgets/render_chat_scroll_view.dart'
+import 'package:chat_scroll_view/src/chat_widgets/render_chat_scroll_view.dart'
     show ChatMessageParentData;
 import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart';
@@ -25,16 +25,13 @@ class DatedMessage extends MultiChildRenderObjectWidget {
   ///
   /// Both children are wrapped in [RepaintBoundary] so scroll-driven opacity
   /// changes only re-composite cached pictures.
-  DatedMessage({
-    required Widget separator,
-    required Widget body,
-    super.key,
-  }) : super(
-         children: <Widget>[
-           RepaintBoundary(child: separator),
-           RepaintBoundary(child: body),
-         ],
-       );
+  DatedMessage({required Widget separator, required Widget body, super.key})
+    : super(
+        children: <Widget>[
+          RepaintBoundary(child: separator),
+          RepaintBoundary(child: body),
+        ],
+      );
 
   @override
   RenderDatedMessage createRenderObject(BuildContext context) =>
@@ -69,7 +66,10 @@ class RenderDatedMessage extends RenderBox
 
   @override
   void performLayout() {
-    assert(childCount == 2, 'DatedMessage needs exactly a separator and a body');
+    assert(
+      childCount == 2,
+      'DatedMessage needs exactly a separator and a body',
+    );
     final cc = BoxConstraints.tightFor(width: constraints.maxWidth);
     final separator = _separator..layout(cc, parentUsesSize: true);
     final body = _body..layout(cc, parentUsesSize: true);
