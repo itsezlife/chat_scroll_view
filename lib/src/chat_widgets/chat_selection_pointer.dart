@@ -2,14 +2,15 @@ import 'package:chat_scroll_view/src/chat_scroll/chat_selection_controller.dart'
 import 'package:flutter/gestures.dart';
 import 'package:flutter/services.dart';
 
-/// Viewport-owned long-press, tap, and select span that drive
+/// Viewport-owned long-press, tap, and selection span that drive
 /// [ChatSelectionController].
 ///
 /// Message rows must not attach competing detectors. A host
 /// [ChatSelectionController.spanYield] that returns `true` claims the
-/// long-press so selection does not start. After an unclaimed long-press on
-/// an unselected message, movement past slop grows a select span; a null
-/// span hit freezes the far end.
+/// long-press so selection does not start. After an unclaimed long-press,
+/// polarity is locked at start: an unselected origin starts a select span;
+/// a selected origin toggles off and starts an unselect span. A null span
+/// hit freezes the far end. Emptying the selected set ends the span.
 class ChatSelectionPointer {
   /// Creates recognizers owned by [debugOwner] (the viewport render object).
   ChatSelectionPointer({required this.debugOwner});
@@ -28,8 +29,8 @@ class ChatSelectionPointer {
   int? Function(Offset localPosition)? spanHitAt;
 
   /// Loaded present ids from [origin] to [hit], inclusive. The pointer
-  /// unions this with the selection snapshot; this callback does not
-  /// apply span-eligibility itself.
+  /// applies span polarity against the selection snapshot; this callback
+  /// does not apply span-eligibility itself.
   List<int> Function(int origin, int hit)? spanChain;
 
   /// When true, the current pointer cancelled a fling and must not select.
@@ -40,6 +41,7 @@ class ChatSelectionPointer {
   int? _pointerDownId;
   int? _spanOriginId;
   Set<int>? _spanSnapshot;
+  _SpanPolarity? _spanPolarity;
   bool _spanPastSlop = false;
 
   /// Forwards a down event to the selection recognizers when a loaded
@@ -80,18 +82,33 @@ class ChatSelectionPointer {
     final selection = this.selection;
     if (id == null || selection == null) return;
     if (selection.spanYield?.call(id) ?? false) return;
-    if (selection.isSelected(id)) return;
     HapticFeedback.vibrate();
-    selection.startSelection(id);
+    final polarity = selection.isSelected(id)
+        ? _SpanPolarity.unselect
+        : _SpanPolarity.select;
+    switch (polarity) {
+      case _SpanPolarity.unselect:
+        selection.toggle(id);
+      case _SpanPolarity.select:
+        selection.startSelection(id);
+    }
+    if (!selection.isSelectionMode) return;
     _spanOriginId = id;
     _spanSnapshot = Set<int>.of(selection.selectedIds);
+    _spanPolarity = polarity;
   }
 
   void _onLongPressMoveUpdate(LongPressMoveUpdateDetails details) {
     final origin = _spanOriginId;
     final snapshot = _spanSnapshot;
+    final polarity = _spanPolarity;
     final selection = this.selection;
-    if (origin == null || snapshot == null || selection == null) return;
+    if (origin == null ||
+        snapshot == null ||
+        polarity == null ||
+        selection == null) {
+      return;
+    }
     if (!_spanPastSlop) {
       if (details.offsetFromOrigin.distance <= kTouchSlop) return;
       _spanPastSlop = true;
@@ -99,12 +116,18 @@ class ChatSelectionPointer {
     final hit = (spanHitAt ?? messageIdAt)?.call(details.localPosition);
     if (hit == null) return;
     final chain = spanChain?.call(origin, hit) ?? <int>[origin, hit];
-    selection.replaceSelectedIds({...snapshot, ...chain});
+    final next = switch (polarity) {
+      _SpanPolarity.unselect => snapshot.difference(chain.toSet()),
+      _SpanPolarity.select => {...snapshot, ...chain},
+    };
+    selection.replaceSelectedIds(next);
+    if (next.isEmpty) _clearSpan();
   }
 
   void _clearSpan() {
     _spanOriginId = null;
     _spanSnapshot = null;
+    _spanPolarity = null;
     _spanPastSlop = false;
   }
 
@@ -117,3 +140,5 @@ class ChatSelectionPointer {
     selection.toggle(id);
   }
 }
+
+enum _SpanPolarity { select, unselect }

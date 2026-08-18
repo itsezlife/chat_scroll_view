@@ -140,10 +140,11 @@ and follow-tail converge on the next layout.
   `flingCancelSuppressesLongPress` so the viewport-owned selection
   long-press does not fire on the cancel tap.
 - When a selection controller is wired, the same pointer down is also
-  offered to `ChatSelectionPointer` (long-press enters selection, tap
-  toggles while mode is on). Rows do not attach a competing detector. A
-  host `spanYield` that returns true claims the long-press so selection
-  does not start.
+  offered to `ChatSelectionPointer` (long-press enters selection or starts
+  an unselect span if the origin was already selected; tap toggles while
+  mode is on). Rows do not attach a competing detector. A host `spanYield`
+  that returns true claims the long-press so selection does not start.
+  Emptying the selected set ends the span.
 - Scrollbar drag: maps Y → progress → `_jumpToScrollbar` → `jumpTo(id)`
   (layout path).
 
