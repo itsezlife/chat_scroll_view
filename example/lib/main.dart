@@ -2,14 +2,17 @@ import 'dart:async';
 import 'dart:developer' as dev;
 
 import 'package:chat_scroll_view_example/src/common/constant/demo_config.dart';
-import 'package:chat_scroll_view_example/src/features/chat/widgets/demo_chat_theme.dart';
+import 'package:chat_scroll_view_example/src/common/pre_ime_back.dart';
 import 'package:chat_scroll_view_example/src/features/chat/view/widget_chat_screen.dart';
+import 'package:chat_scroll_view_example/src/features/chat/widgets/demo_chat_theme.dart';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 /// Entry point for the widget-based [ChatScrollView] demo.
 void main() => runZonedGuarded<void>(
   () async {
+    WidgetsFlutterBinding.ensureInitialized();
+    bindExamplePreImeBack();
     await Supabase.initialize(
       url: DemoConfig.supabaseUrl,
       publishableKey: DemoConfig.supabasePublishableKey,

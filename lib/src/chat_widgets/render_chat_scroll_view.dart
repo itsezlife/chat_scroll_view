@@ -158,9 +158,11 @@ class RenderChatScrollView extends RenderBox {
     TextDirection textDirection = TextDirection.ltr,
     ChatScrollbarThemeData scrollbarTheme = ChatScrollbarThemeData.light,
     ChatSelectionController? selectionController,
+    void Function(int id, Rect slotGlobal, Offset tapGlobal)? onIdleMessageTap,
   }) : _dataSource = dataSource,
        _controller = controller,
        _selectionController = selectionController,
+       _onIdleMessageTap = onIdleMessageTap,
        _cacheExtent = cacheExtent,
        _extraBuildExtent = extraBuildExtent,
        _ticking = ticking,
@@ -344,6 +346,17 @@ class RenderChatScrollView extends RenderBox {
     if (identical(_selectionController, value)) return;
     _selectionController = value;
     _selectionPointer?.selection = value;
+  }
+
+  void Function(int id, Rect slotGlobal, Offset tapGlobal)? _onIdleMessageTap;
+  set onIdleMessageTap(
+    void Function(int id, Rect slotGlobal, Offset tapGlobal)? value,
+  ) {
+    if (identical(_onIdleMessageTap, value)) return;
+    _onIdleMessageTap = value;
+    _selectionPointer?.onIdleMessageTap = value == null
+        ? null
+        : _dispatchIdleMessageTap;
   }
 
   double _cacheExtent;
@@ -945,14 +958,17 @@ class RenderChatScrollView extends RenderBox {
     _topPadding?.addListener(_onTopPaddingChanged);
     _drag = _buildDragRecognizer();
     _selectionPointer = ChatSelectionPointer(debugOwner: this)
-      ..messageIdAt = _selectionMessageIdAt
+      ..messageIdAt = _presentMessageIdAt
       ..spanHitAt = _spanHitAt
       ..spanChain = _selectSpanChain
       ..flingCancelSuppresses = () =>
           _controller.flingCancelSuppressesLongPress;
     _selectionPointer!
       ..onSpanSessionChanged = _onSpanSessionChanged
-      ..selection = _selectionController;
+      ..selection = _selectionController
+      ..onIdleMessageTap = _onIdleMessageTap == null
+          ? null
+          : _dispatchIdleMessageTap;
     _seedTailNavigationOnAttach();
   }
 
@@ -3474,16 +3490,36 @@ class RenderChatScrollView extends RenderBox {
   bool _isSelectionAllowed(int id) =>
       _selectionController?.isSelectionAllowed(id) ?? true;
 
+  /// Present loaded message under [local], ignoring selection-allowed.
+  int? _presentMessageIdAt(Offset local) =>
+      _selectionMessageIdAt(local, requireSelectionAllowed: false);
+
+  /// Converts a viewport-local idle tap into the host callback's global
+  /// slot rect and tap offset.
+  void _dispatchIdleMessageTap(int id, Offset local) {
+    final callback = _onIdleMessageTap;
+    if (callback == null) return;
+    final child = _children[id];
+    if (child == null || !child.hasSize) return;
+    final pd = _parentData(child);
+    final origin = localToGlobal(Offset(0, pd.offset));
+    final slotGlobal = origin & Size(size.width, child.size.height);
+    callback(id, slotGlobal, localToGlobal(local));
+  }
+
   /// Loaded message whose selectable body contains [local], or `null` when
   /// the point is over overlay, chunk-error, shimmer, date chrome, or empty
   /// space. The pinned floating header is ignored by default so tap,
   /// long-press, and a span held in the top edge band hit the message
   /// underneath. Pass [hitThroughPinnedHeader] false only if a caller
-  /// must treat the header as a non-hit.
+  /// must treat the header as a non-hit. Idle tap uses
+  /// [requireSelectionAllowed] false so selection-allowed stays a
+  /// membership gate only.
   int? _selectionMessageIdAt(
     Offset local, {
     bool hitThroughPinnedHeader = true,
     bool hitFullRow = false,
+    bool requireSelectionAllowed = true,
   }) {
     if (!hasSize) return null;
     if (_overlayKind != ChatOverlayKind.none) return null;
@@ -3520,7 +3556,9 @@ class RenderChatScrollView extends RenderBox {
         continue;
       }
       if (_dataSource.getMessage(entry.key) == null) return null;
-      if (!_isSelectionAllowed(entry.key)) return null;
+      if (requireSelectionAllowed && !_isSelectionAllowed(entry.key)) {
+        return null;
+      }
       final inDateChrome = local.dy < pd.offset + pd.messageBodyTop;
       if (inDateChrome && !hitFullRow && !pinnedHeaderCovers) return null;
       return entry.key;
