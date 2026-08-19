@@ -4,7 +4,6 @@ import 'package:chat_scroll_view/src/chat_widgets/message_menu/chat_message_menu
 import 'package:chat_scroll_view/src/chat_widgets/message_menu/chat_message_menu_appearance.dart';
 import 'package:chat_scroll_view/src/chat_widgets/message_menu/chat_message_menu_config.dart';
 import 'package:chat_scroll_view/src/chat_widgets/message_menu/chat_message_menu_item.dart';
-import 'package:chat_scroll_view/src/chat_widgets/message_menu/chat_message_menu_log.dart';
 import 'package:chat_scroll_view/src/chat_widgets/message_menu/chat_message_menu_placement.dart';
 import 'package:chat_scroll_view/src/chat_widgets/message_menu/chat_message_menu_reactions.dart';
 import 'package:chat_scroll_view/src/chat_widgets/message_menu/chat_message_menu_scrim.dart';
@@ -85,28 +84,8 @@ class _ChatMessageMenuHostState extends State<ChatMessageMenuHost>
 
   void _measureMenu() {
     final box = _menuKey.currentContext?.findRenderObject() as RenderBox?;
-    if (box == null || !box.hasSize) {
-      logChatMessageMenu('measure.miss', {'hasBox': box != null});
-      return;
-    }
+    if (box == null || !box.hasSize) return;
     final size = box.size;
-    Offset? global;
-    try {
-      global = box.localToGlobal(Offset.zero);
-    } on Object {
-      global = null;
-    }
-    logChatMessageMenu('measure', {
-      'prev': ChatMessageMenuLogFormat.size(_menuSize),
-      'size': ChatMessageMenuLogFormat.size(size),
-      'changed': size != _menuSize,
-      'global': global == null
-          ? 'null'
-          : ChatMessageMenuLogFormat.offset(global),
-      'laidOut': global == null
-          ? 'null'
-          : ChatMessageMenuLogFormat.rect(global & size),
-    });
     if (size == _menuSize) return;
     setState(() => _menuSize = size);
   }
@@ -114,11 +93,6 @@ class _ChatMessageMenuHostState extends State<ChatMessageMenuHost>
   Future<void> _close(ChatMessageMenuResult? result) async {
     if (_closing) return;
     _closing = true;
-    logChatMessageMenu('host.close', switch (result) {
-      ChatMessageMenuItemResult(:final itemId) => {'itemId': itemId},
-      ChatMessageMenuReactionResult(:final reaction) => {'reaction': reaction},
-      null => const {'dismissed': true},
-    });
     await Future.wait<void>([
       _appearanceKey.currentState?.dismiss() ?? Future<void>.value(),
       _scrim.reverse(),
@@ -146,10 +120,6 @@ class _ChatMessageMenuHostState extends State<ChatMessageMenuHost>
   Widget build(BuildContext context) {
     final config = widget.config;
     final screenSize = config.screenSize;
-    final hasReactions = config.reactions.isNotEmpty;
-    final reactionsExtent = hasReactions
-        ? kChatMessageMenuReactionsHeight + kChatMessageMenuReactionsGap
-        : 0.0;
     final placement = computeChatMessageMenuPlacement(
       screenSize: screenSize,
       keyboardHeight: config.keyboardHeight,
@@ -157,14 +127,7 @@ class _ChatMessageMenuHostState extends State<ChatMessageMenuHost>
       menuSize: _menuSize,
       tapGlobal: config.tapGlobal,
       safePadding: config.safePadding,
-      reactionsExtent: reactionsExtent,
     );
-
-    logChatMessageMenu('host.build', {
-      'estSize': ChatMessageMenuLogFormat.size(_menuSize),
-      'origin': ChatMessageMenuLogFormat.offset(placement.menuOrigin),
-      'fitsAbove': placement.fitsAbove,
-    });
 
     return OverlayBackButtonListener(
       parentDispatcher: widget.backButtonDispatcher,
