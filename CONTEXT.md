@@ -50,7 +50,7 @@ _Avoid_: SafeArea, MediaQuery padding (as the name for this reservation)
 
 **Overlay chrome**:
 Host widgets stacked over the viewport that position against the reserved edge and must not increase `topPadding` / `bottomPadding`.
-_Avoid_: Bottom sheet, FAB inset (when they are not reserving the band)
+_Avoid_: Bottom sheet, FAB inset (when they are not reserving the band), message menu
 
 **Visible band**:
 The on-screen slice of content used as the reading-position reference after a delete.
@@ -189,6 +189,36 @@ A refused add because the selected set is already at the selection cap.
 Membership does not change; a dedicated listenable still fires so chrome
 can shake or play an error haptic.
 _Avoid_: overflow, limit error
+
+### Message menu
+
+**Message menu**:
+A modal overlay over one present message: dimmed scrim with that message left undimmed, optional reactions, and an action list. Mutually exclusive with message selection. Not overlay chrome.
+_Avoid_: Context menu, overlay chrome, popup, action sheet
+
+**Idle message tap**:
+A tap on a present message slot while message selection is inactive. The hit is the full laid-out row, not bubble ink and not the list background. It identifies the message id, that slot’s rect, and the tap position. Independent of selection-allowed.
+_Avoid_: Opaque tap, bubble tap, onTap, row click, menu-allowed
+
+**Message menu session**:
+The exclusive lifetime of a message menu for one id and one slot rect captured at idle message tap. IME visibility is frozen for that lifetime. Ends without an action on dismiss, or when a host-provided presence signal says that id is absent. Does not retarget.
+_Avoid_: Overlay entry, popup lifetime, live tracking, context-menu route
+
+**Message menu dismiss**:
+Ending the session without an action: first system back, Escape, or scrim tap. IME and the route stay. Next back may hide the IME; only then may the route pop.
+_Avoid_: Navigator.pop, hide keyboard, PopScope
+
+**Pre-IME back claim**:
+A stacked claim on Android back before the IME. The top claim is the live overlay’s dismiss (message menu session today). An empty stack leaves back to the IME.
+_Avoid_: PopScope, BackButtonDispatcher, singleton back handler, WillPopScope
+
+**Message menu action**:
+A host-defined row in the message menu. The viewport has no catalog of actions.
+_Avoid_: MessageAction enum, PopupMenuItem, context-menu item
+
+**Message menu reaction**:
+A host-defined emoji in the message menu reaction strip. Choosing one ends the session the same way an action does.
+_Avoid_: Emoji picker, reaction sheet
 
 ### Navigation
 

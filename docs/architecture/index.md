@@ -69,6 +69,8 @@ build exclusion**, **§19 band-stable delete recovery**, and **§20 short conten
 * [CONTEXT.md](../../CONTEXT.md) — ubiquitous language used in this bundle
 * [ADR 001: Message ID Scheme](../adr/001-message-id-scheme.md)
 * [ADR 002: Position Model](../adr/002-position-model.md)
+* [ADR 003: Viewport owns the span gesture](../adr/003-viewport-owned-span-gesture.md)
+* [ADR 004: Host presents the message menu](../adr/004-host-presents-message-menu.md)
 
 ## How to use this when implementing features
 

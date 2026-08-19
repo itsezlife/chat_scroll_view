@@ -101,11 +101,10 @@ class ChatSelectionController implements Listenable {
   }
 
   /// Optional maximum size of [selectedIds]. `null` (the default) means
-  /// unlimited — the package does not hardcode Telegram's 100.
+  /// unlimited.
   ///
   /// A select span does not grow past this size. Unselect spans ignore it
-  /// and may shrink the set while it is at the cap. Hosts that want
-  /// Telegram's limit set this to `100`.
+  /// and may shrink the set while it is at the cap.
   int? selectionCap;
 
   /// Whether [count] has reached [selectionCap]. Always `false` when the

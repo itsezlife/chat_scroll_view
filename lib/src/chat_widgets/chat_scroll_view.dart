@@ -94,6 +94,16 @@ typedef ChatChunkErrorDetails = ({
 typedef ChatChunkErrorBuilder =
     Widget Function(BuildContext context, ChatChunkErrorDetails details);
 
+/// Reports an idle message tap: a tap on a present message slot while
+/// message selection is inactive. The hit is the full laid-out row, not
+/// bubble ink and not the list background. Independent of
+/// selection-allowed.
+///
+/// [id] is the message. [slotGlobal] is that slot's rect in global
+/// coordinates. [tapGlobal] is the tap position in global coordinates.
+typedef ChatIdleMessageTapCallback =
+    void Function(int id, Rect slotGlobal, Offset tapGlobal);
+
 /// Default day grouping — the local calendar day. A `DateTime` with
 /// hours/minutes/seconds zeroed is equatable enough for the day-bucket gate;
 /// no need to pack y/m/d into an int.
@@ -124,6 +134,7 @@ class ChatScrollView extends RenderObjectWidget {
     this.emptyBuilder,
     this.loadingBuilder,
     this.selectionController,
+    this.onIdleMessageTap,
     this.selectionChromeBuilder,
     this.bottomPadding,
     this.topPadding,
@@ -192,6 +203,17 @@ class ChatScrollView extends RenderObjectWidget {
   /// slots (`message == null`) are not wrapped and cannot be selected. When
   /// null the viewport adds no selection wrapper and costs nothing.
   final ChatSelectionController? selectionController;
+
+  /// Called when the user taps a present message slot while message
+  /// selection is inactive. Null is a no-op — today's silence.
+  ///
+  /// The viewport-owned pointer attaches when this callback or
+  /// [selectionController] is non-null. Not gated on selection-allowed.
+  /// A tap that lost the arena, a fling-cancel tap, a gap, shimmer,
+  /// chunk-error, or empty background does not fire. The pinned date
+  /// header hits through to the message underneath, matching selection
+  /// tap. The host decides whether to present a message menu.
+  final ChatIdleMessageTapCallback? onIdleMessageTap;
 
   /// Replaces the bundled checkbox-gutter chrome. Ignored when
   /// [selectionController] is null.
@@ -328,6 +350,7 @@ class ChatScrollView extends RenderObjectWidget {
       textDirection: _resolveDirection(context),
       scrollbarTheme: theme.scrollbar!,
       selectionController: selectionController,
+      onIdleMessageTap: onIdleMessageTap,
     );
   }
 
@@ -354,6 +377,7 @@ class ChatScrollView extends RenderObjectWidget {
       ..highlightDuration = highlightDuration ?? theme.highlightDuration!
       ..scrollbarTheme = theme.scrollbar!
       ..textDirection = _resolveDirection(context)
-      ..selectionController = selectionController;
+      ..selectionController = selectionController
+      ..onIdleMessageTap = onIdleMessageTap;
   }
 }
