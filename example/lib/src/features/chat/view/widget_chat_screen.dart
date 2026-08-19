@@ -8,6 +8,7 @@ import 'package:chat_scroll_view_example/src/features/chat/data/chat_data_source
 import 'package:chat_scroll_view_example/src/features/chat/data/comments_data_source.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/generated_chat_data_source.dart';
 import 'package:chat_scroll_view_example/src/features/chat/utils/chat_viewport_insets_binding.dart';
+import 'package:chat_scroll_view_example/src/features/chat/utils/demo_message_menu.dart';
 import 'package:chat_scroll_view_example/src/features/chat/widgets/chat_composer.dart';
 import 'package:chat_scroll_view_example/src/features/chat/widgets/date_separator.dart';
 import 'package:chat_scroll_view_example/src/features/chat/widgets/demo_backend_error.dart';
@@ -31,9 +32,12 @@ class _WidgetChatScreenState extends State<WidgetChatScreen>
   ChatDataSource? _dataSource;
   late final ChatScrollController _controller;
   late final ChatSelectionController _selection;
+  final GlobalKey<ChatComposerState> _composerKey =
+      GlobalKey<ChatComposerState>();
 
   bool _loading = true;
   String? _errorMessage;
+  var _menuOpen = false;
 
   /// Highest message id counted as read for [NewMessagesPill]. Seeded to
   /// stored last-read on off-tail open; advanced by the pill while scrolling.
@@ -227,6 +231,30 @@ class _WidgetChatScreenState extends State<WidgetChatScreen>
     }
   }
 
+  Future<void> _onIdleMessageTap(
+    int id,
+    Rect slotGlobal,
+    Offset tapGlobal,
+  ) async {
+    final ds = _dataSource;
+    if (ds == null || _menuOpen) return;
+    _menuOpen = true;
+    try {
+      if (!mounted) return;
+      await presentDemoMessageMenu(
+        context: context,
+        messageId: id,
+        messageRect: slotGlobal,
+        tapGlobal: tapGlobal,
+        dataSource: ds,
+        onDelete: (messageId) => _handleDeleteSelected([messageId]),
+        onEdit: (messageId) => _composerKey.currentState?.beginEdit(messageId),
+      );
+    } finally {
+      _menuOpen = false;
+    }
+  }
+
   /// Stable per-state tear-off — same reference for the widget's lifetime,
   /// so the viewport's skip-rebuild cache stays warm across parent rebuilds.
   /// Sender-run chrome comes from viewport [MessageRunLayout], not ad-hoc
@@ -273,6 +301,7 @@ class _WidgetChatScreenState extends State<WidgetChatScreen>
       canPop: false,
       onPopInvokedWithResult: (didPop, result) {
         if (didPop) return;
+        if (_menuOpen) return;
         final hasSelection = _selection.isSelectionMode;
         if (hasSelection) {
           _selection.clear();
@@ -295,6 +324,7 @@ class _WidgetChatScreenState extends State<WidgetChatScreen>
                   dataSource: _dataSource!,
                   controller: _controller,
                   selectionController: _selection,
+                  onIdleMessageTap: _onIdleMessageTap,
                   bottomPadding: insets.bottomPadding,
                   topPadding: insets.topPadding,
                   messageBuilder: _buildMessage,
@@ -314,6 +344,7 @@ class _WidgetChatScreenState extends State<WidgetChatScreen>
               right: 0,
               bottom: 0,
               child: ChatComposer(
+                key: _composerKey,
                 bottomInset: insets.keyboard,
                 selection: _selection,
                 dataSource: _dataSource!,

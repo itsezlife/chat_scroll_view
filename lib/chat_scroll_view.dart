@@ -21,3 +21,5 @@ export 'src/chat_widgets/chat_scrollbar.dart';
 export 'src/chat_widgets/chat_selectable_message.dart';
 export 'src/chat_widgets/chat_selection_chrome.dart';
 export 'src/chat_widgets/chat_selection_theme.dart';
+export 'src/chat_widgets/message_menu/chat_message_menu.dart';
+export 'src/chat_widgets/message_menu/chat_pre_ime_back.dart';

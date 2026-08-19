@@ -54,10 +54,12 @@ class ChatComposer extends StatefulWidget {
   final void Function(double height)? onSizeChanged;
 
   @override
-  State<ChatComposer> createState() => _ChatComposerState();
+  State<ChatComposer> createState() => ChatComposerState();
 }
 
-class _ChatComposerState extends State<ChatComposer>
+/// State for [ChatComposer]. Hosts can call [beginEdit] to load a message
+/// into the input without entering selection.
+class ChatComposerState extends State<ChatComposer>
     with SingleTickerProviderStateMixin {
   /// 0 → input field shown, 1 → action buttons shown.
   late final AnimationController _t;
@@ -215,23 +217,31 @@ class _ChatComposerState extends State<ChatComposer>
     _finish('Удалено сообщений: ${ids.length}');
   }
 
-  void _startEditSelected() {
-    if (widget.selection.count != 1) return;
-    final id = widget.selection.selectedIds.first;
-    final content = _contentOf(widget.dataSource.getMessage(id));
+  /// Loads [messageId] into the input for editing. No-op if the row has
+  /// no text body. Does not enter message selection.
+  void beginEdit(int messageId) {
+    final content = _contentOf(widget.dataSource.getMessage(messageId));
     if (content == null) {
       _finish('Нельзя редактировать это сообщение');
       return;
     }
     widget.selection.clear();
     setState(() {
-      _editingMessageId = id;
-      _text.text = content;
+      _editingMessageId = messageId;
+      _text.value = TextEditingValue(
+        text: content,
+        selection: TextSelection.collapsed(offset: content.length),
+      );
     });
-    _t.reverse();
+    if (_mode) _t.reverse();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) _focus.requestFocus();
     });
+  }
+
+  void _startEditSelected() {
+    if (widget.selection.count != 1) return;
+    beginEdit(widget.selection.selectedIds.first);
   }
 
   void _cancelEdit() {
