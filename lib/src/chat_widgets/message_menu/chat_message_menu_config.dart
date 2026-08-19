@@ -1,4 +1,5 @@
 import 'package:chat_scroll_view/src/chat_widgets/message_menu/chat_message_menu_item.dart';
+import 'package:chat_scroll_view/src/chat_widgets/message_menu/chat_message_menu_slots.dart';
 import 'package:flutter/material.dart';
 
 /// Snapshot used to present a message menu session.
@@ -15,6 +16,9 @@ final class ChatMessageMenuPresentConfig {
     this.safePadding = EdgeInsets.zero,
     this.presence,
     this.isPresent,
+    this.itemBuilder,
+    this.reactionBuilder,
+    this.menuBuilder,
   });
 
   /// Captured slot rect in overlay coordinates.
@@ -43,4 +47,17 @@ final class ChatMessageMenuPresentConfig {
 
   /// Returns whether the captured message is still present.
   final bool Function()? isPresent;
+
+  /// Optional custom action row. Null uses the package row.
+  final ChatMessageMenuItemBuilder? itemBuilder;
+
+  /// Optional custom reaction slot. Null uses the package slot.
+  final ChatMessageMenuReactionBuilder? reactionBuilder;
+
+  /// Optional custom chrome column. Null uses the package column.
+  ///
+  /// Scrim, placement, back, and presence stay package-owned. Reuse
+  /// [ChatMessageMenuSlots.actionList] / [ChatMessageMenuSlots.reactionStrip]
+  /// to keep the defaults.
+  final ChatMessageMenuBuilder? menuBuilder;
 }

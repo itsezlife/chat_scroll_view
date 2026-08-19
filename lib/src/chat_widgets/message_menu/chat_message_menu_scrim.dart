@@ -1,3 +1,4 @@
+import 'package:chat_scroll_view/src/chat_widgets/chat_scroll_theme.dart';
 import 'package:flutter/material.dart';
 
 /// Target scrim opacity.
@@ -32,14 +33,17 @@ class ChatMessageMenuScrim extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final opacity = (kChatMessageMenuScrimOpacity * progress).clamp(0.0, 1.0);
+    final menuTheme = ChatScrollTheme.menuOf(context);
+    final base = menuTheme.scrimColor ?? const Color.fromRGBO(0, 0, 0, 0.2);
+    final color = base.withValues(alpha: base.a * progress);
     return Listener(
       behavior: HitTestBehavior.opaque,
       onPointerDown: (_) => onDismiss(),
       child: CustomPaint(
         painter: _ScrimHolePainter(
-          color: Color.fromRGBO(0, 0, 0, opacity),
+          color: color,
           hole: hole,
+          holeRadius: menuTheme.holeRadius ?? 16,
         ),
         child: const SizedBox.expand(),
       ),
@@ -48,10 +52,15 @@ class ChatMessageMenuScrim extends StatelessWidget {
 }
 
 class _ScrimHolePainter extends CustomPainter {
-  _ScrimHolePainter({required this.color, required this.hole});
+  _ScrimHolePainter({
+    required this.color,
+    required this.hole,
+    required this.holeRadius,
+  });
 
   final Color color;
   final Rect? hole;
+  final double holeRadius;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -64,11 +73,13 @@ class _ScrimHolePainter extends CustomPainter {
     final path = Path()
       ..fillType = PathFillType.evenOdd
       ..addRect(bounds)
-      ..addRRect(RRect.fromRectAndRadius(hole!, const Radius.circular(16)));
+      ..addRRect(RRect.fromRectAndRadius(hole!, Radius.circular(holeRadius)));
     canvas.drawPath(path, Paint()..color = color);
   }
 
   @override
   bool shouldRepaint(covariant _ScrimHolePainter oldDelegate) =>
-      oldDelegate.color != color || oldDelegate.hole != hole;
+      oldDelegate.color != color ||
+      oldDelegate.hole != hole ||
+      oldDelegate.holeRadius != holeRadius;
 }

@@ -2,15 +2,37 @@ import 'package:flutter/widgets.dart';
 
 /// One host-defined row in a message menu.
 @immutable
-final class ChatMessageMenuItem {
+sealed class ChatMessageMenuItem {
+  /// An action row. Same unnamed constructor as before.
+  const factory ChatMessageMenuItem({
+    required String id,
+    required String label,
+    required IconData icon,
+    bool enabled,
+    bool isDestructive,
+  }) = ChatMessageMenuAction;
+
+  const ChatMessageMenuItem._();
+
+  /// A 1px separator. Insert explicitly — not implied by [isDestructive].
+  const factory ChatMessageMenuItem.divider() = ChatMessageMenuDivider;
+
+  /// An arbitrary row. Use for chrome the package does not model.
+  const factory ChatMessageMenuItem.custom({required WidgetBuilder builder}) =
+      ChatMessageMenuCustom;
+}
+
+/// Tappable action row.
+@immutable
+final class ChatMessageMenuAction extends ChatMessageMenuItem {
   /// Creates an action row.
-  const ChatMessageMenuItem({
+  const ChatMessageMenuAction({
     required this.id,
     required this.label,
     required this.icon,
     this.enabled = true,
     this.isDestructive = false,
-  });
+  }) : super._();
 
   /// Stable id returned on [ChatMessageMenuResult.item].
   final String id;
@@ -26,6 +48,23 @@ final class ChatMessageMenuItem {
 
   /// Uses error coloring (for example Delete).
   final bool isDestructive;
+}
+
+/// Horizontal rule between rows.
+@immutable
+final class ChatMessageMenuDivider extends ChatMessageMenuItem {
+  /// Creates a divider row.
+  const ChatMessageMenuDivider() : super._();
+}
+
+/// Host-built row.
+@immutable
+final class ChatMessageMenuCustom extends ChatMessageMenuItem {
+  /// Creates a custom row.
+  const ChatMessageMenuCustom({required this.builder}) : super._();
+
+  /// Builds the row in the action card.
+  final WidgetBuilder builder;
 }
 
 /// Outcome of [showChatMessageMenu].

@@ -1,6 +1,7 @@
 import 'package:chat_scroll_view/src/chat_widgets/chat_message_theme.dart';
 import 'package:chat_scroll_view/src/chat_widgets/chat_scrollbar.dart';
 import 'package:chat_scroll_view/src/chat_widgets/chat_selection_theme.dart';
+import 'package:chat_scroll_view/src/chat_widgets/message_menu/chat_message_menu_theme.dart';
 import 'package:flutter/material.dart';
 
 /// Visual tokens for [ChatScrollView].
@@ -23,6 +24,7 @@ class ChatScrollThemeData extends ThemeExtension<ChatScrollThemeData> {
     this.message,
     this.scrollbar,
     this.selection,
+    this.menu,
   });
 
   /// Default jump-to highlight fill (`#2196F3` at 25% opacity).
@@ -47,6 +49,9 @@ class ChatScrollThemeData extends ThemeExtension<ChatScrollThemeData> {
   /// Default selection-chrome tokens. Null → [ChatSelectionThemeData.resolve].
   final ChatSelectionThemeData? selection;
 
+  /// Message-menu chrome tokens. Null → [ChatMessageMenuThemeData.resolve].
+  final ChatMessageMenuThemeData? menu;
+
   @override
   ChatScrollThemeData copyWith({
     Color? highlightColor,
@@ -54,12 +59,14 @@ class ChatScrollThemeData extends ThemeExtension<ChatScrollThemeData> {
     ChatMessageThemeData? message,
     ChatScrollbarThemeData? scrollbar,
     ChatSelectionThemeData? selection,
+    ChatMessageMenuThemeData? menu,
   }) => ChatScrollThemeData(
     highlightColor: highlightColor ?? this.highlightColor,
     highlightDuration: highlightDuration ?? this.highlightDuration,
     message: message ?? this.message,
     scrollbar: scrollbar ?? this.scrollbar,
     selection: selection ?? this.selection,
+    menu: menu ?? this.menu,
   );
 
   @override
@@ -83,6 +90,11 @@ class ChatScrollThemeData extends ThemeExtension<ChatScrollThemeData> {
           : other.selection == null
           ? selection
           : selection!.lerp(other.selection, t),
+      menu: menu == null
+          ? other.menu
+          : other.menu == null
+          ? menu
+          : menu!.lerp(other.menu, t),
     );
   }
 }
@@ -115,6 +127,14 @@ class ChatScrollTheme extends InheritedWidget {
   static ChatMessageThemeData messageOf(BuildContext context) =>
       maybeOf(context)?.message ?? ChatMessageThemeData.resolve(context);
 
+  /// Message-menu tokens for [context].
+  static ChatMessageMenuThemeData menuOf(BuildContext context) {
+    final nested =
+        maybeOf(context)?.menu ??
+        Theme.of(context).extension<ChatScrollThemeData>()?.menu;
+    return ChatMessageMenuThemeData.resolve(context).merge(nested);
+  }
+
   /// Fully resolved tokens for [context].
   ///
   /// Order: [ChatScrollTheme] → `ThemeData.extension<ChatScrollThemeData>()`
@@ -134,6 +154,7 @@ class ChatScrollTheme extends InheritedWidget {
       message: base.message ?? ChatMessageThemeData.resolve(context),
       scrollbar: base.scrollbar ?? ChatScrollbarThemeData.resolve(context),
       selection: base.selection ?? ChatSelectionThemeData.resolve(context),
+      menu: base.menu ?? ChatMessageMenuThemeData.resolve(context),
     );
   }
 

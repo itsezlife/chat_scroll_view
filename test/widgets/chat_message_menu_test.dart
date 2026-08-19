@@ -1,6 +1,4 @@
 import 'package:chat_scroll_view/chat_scroll_view.dart';
-import 'package:chat_scroll_view/src/chat_widgets/message_menu/chat_message_menu_actions.dart';
-import 'package:chat_scroll_view/src/chat_widgets/message_menu/chat_message_menu_reactions.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -23,9 +21,14 @@ Future<void> _openMenu(
   bool Function()? isPresent,
   bool keepKeyboardVisible = true,
   FocusNode? composerFocus,
+  ChatMessageMenuThemeData? menuTheme,
+  ChatMessageMenuItemBuilder? itemBuilder,
+  ChatMessageMenuBuilder? menuBuilder,
+  List<ChatMessageMenuItem> items = _items,
 }) async {
   await tester.pumpWidget(
     MaterialApp(
+      theme: ThemeData(extensions: <ThemeExtension<dynamic>>[?menuTheme]),
       home: Scaffold(
         body: Column(
           children: <Widget>[
@@ -37,12 +40,14 @@ Future<void> _openMenu(
                   final result = await showChatMessageMenu(
                     context: context,
                     messageRect: const Rect.fromLTWH(40, 120, 200, 48),
-                    items: _items,
+                    items: items,
                     tapGlobal: const Offset(140, 140),
                     reactions: reactions,
                     keepKeyboardVisible: keepKeyboardVisible,
                     presence: presence,
                     isPresent: isPresent,
+                    itemBuilder: itemBuilder,
+                    menuBuilder: menuBuilder,
                   );
                   onDone(result);
                 },
@@ -70,9 +75,11 @@ void main() {
     expect(find.text('Edit'), findsOneWidget);
     await tester.tap(find.text('Edit'));
     await tester.pump();
-    await tester.pump(const Duration(milliseconds: 350));
 
     expect(result, const ChatMessageMenuResult.item('edit'));
+    expect(find.text('Edit'), findsOneWidget);
+
+    await tester.pump(const Duration(milliseconds: 350));
     expect(find.text('Edit'), findsNothing);
   });
 
@@ -299,5 +306,78 @@ void main() {
     await tester.pump(const Duration(milliseconds: 350));
 
     expect(composerFocus.hasFocus, isTrue);
+  });
+
+  testWidgets('menu theme restyles the action card fill', (tester) async {
+    const fill = Color(0xFF112233);
+    await _openMenu(
+      tester,
+      onDone: (_) {},
+      menuTheme: const ChatMessageMenuThemeData(cardColor: fill),
+    );
+
+    final card = tester.widget<Material>(
+      find
+          .descendant(
+            of: find.byType(ChatMessageMenuCard),
+            matching: find.byType(Material),
+          )
+          .first,
+    );
+    expect(card.color, fill);
+  });
+
+  testWidgets('itemBuilder replaces package action rows', (tester) async {
+    await _openMenu(
+      tester,
+      onDone: (_) {},
+      itemBuilder: (context, item, onSelect) => Text('custom-${item.id}'),
+    );
+
+    expect(find.text('custom-edit'), findsOneWidget);
+    expect(find.text('Edit'), findsNothing);
+  });
+
+  testWidgets('menuBuilder can wrap default chrome', (tester) async {
+    await _openMenu(
+      tester,
+      onDone: (_) {},
+      menuBuilder: (context, slots) => Column(
+        mainAxisSize: MainAxisSize.min,
+        children: <Widget>[const Text('extra-slot'), slots.actionList],
+      ),
+    );
+
+    expect(find.text('extra-slot'), findsOneWidget);
+    expect(find.text('Edit'), findsOneWidget);
+  });
+
+  testWidgets('destructive rows do not insert a divider', (tester) async {
+    await _openMenu(tester, onDone: (_) {});
+
+    expect(find.byType(Divider), findsNothing);
+  });
+
+  testWidgets('explicit divider entry paints a divider', (tester) async {
+    await _openMenu(
+      tester,
+      onDone: (_) {},
+      items: const <ChatMessageMenuItem>[
+        ChatMessageMenuItem(
+          id: 'edit',
+          label: 'Edit',
+          icon: Icons.edit_outlined,
+        ),
+        ChatMessageMenuItem.divider(),
+        ChatMessageMenuItem(
+          id: 'delete',
+          label: 'Delete',
+          icon: Icons.delete_outline,
+          isDestructive: true,
+        ),
+      ],
+    );
+
+    expect(find.byType(Divider), findsOneWidget);
   });
 }
