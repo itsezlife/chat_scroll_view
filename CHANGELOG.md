@@ -8,6 +8,14 @@ this project is pre-1.0 and not strictly SemVer yet.
 
 ### Added
 
+- **Message menu presenter** — `showChatMessageMenu` opens a package-owned
+  session (dimmed scrim with an undimmed hole over a captured slot rect,
+  optional reaction strip, host-defined action rows). Choosing an action
+  or reaction completes once; scrim / Escape / overlay back / presence
+  abort complete with `null`. IME visibility stays frozen via restored
+  focus. Pre-IME back is a LIFO claim stack (`ChatPreImeBackBinding`) —
+  native `acquire`/`release` only while the stack is non-empty.
+
 - **Message span selection** — long-press a present message and keep dragging
   past slop to grow or shrink a contiguous run of present neighbors
   (Telegram-style rubber-band). Select vs unselect polarity is locked at start
