@@ -43,6 +43,11 @@ class ChatSelectionPointer {
   /// When true, the current pointer cancelled a fling and must not select.
   bool Function()? flingCancelSuppresses;
 
+  /// Idle message tap in viewport-local coordinates. Fired when the tap
+  /// won the arena, fling-cancel does not suppress, and message selection
+  /// is inactive. Null is a no-op.
+  void Function(int id, Offset localPosition)? onIdleMessageTap;
+
   /// Fires when span liveness or the span pointer position changes so the
   /// viewport can start or stop origin auto-scroll.
   VoidCallback? onSpanSessionChanged;
@@ -59,6 +64,7 @@ class ChatSelectionPointer {
   LongPressGestureRecognizer? _longPress;
   TapGestureRecognizer? _tap;
   int? _pointerDownId;
+  Offset? _pointerDownLocal;
   int? _spanOriginId;
   Set<int>? _spanSnapshot;
   _SpanPolarity? _spanPolarity;
@@ -71,23 +77,28 @@ class ChatSelectionPointer {
   /// Forwards a down event to the selection recognizers when a loaded
   /// message is under the pointer.
   void addPointer(PointerDownEvent event) {
-    if (selection == null) return;
+    if (selection == null && onIdleMessageTap == null) return;
     _pointerDownId = messageIdAt?.call(event.localPosition);
+    _pointerDownLocal = event.localPosition;
     _spanPointerLocal = event.localPosition;
     if (_pointerDownId == null) return;
     _ensureRecognizers();
-    _longPress!.addPointer(event);
+    if (selection != null) {
+      _longPress!.addPointer(event);
+    }
     _tap!.addPointer(event);
   }
 
   /// Drops recognizers. Safe to call twice.
   void dispose() {
     onSpanSessionChanged = null;
+    onIdleMessageTap = null;
     _longPress?.dispose();
     _longPress = null;
     _tap?.dispose();
     _tap = null;
     _pointerDownId = null;
+    _pointerDownLocal = null;
     _clearSpan();
   }
 
@@ -251,11 +262,16 @@ class ChatSelectionPointer {
   void _onTap() {
     if (flingCancelSuppresses?.call() ?? false) return;
     final id = _pointerDownId;
+    if (id == null) return;
     final selection = this.selection;
-    if (id == null || selection == null) return;
-    if (!selection.isSelectionMode) return;
-    if (!selection.isSelectionAllowed(id)) return;
-    selection.toggle(id);
+    if (selection != null && selection.isSelectionMode) {
+      if (!selection.isSelectionAllowed(id)) return;
+      selection.toggle(id);
+      return;
+    }
+    final local = _pointerDownLocal;
+    if (local == null) return;
+    onIdleMessageTap?.call(id, local);
   }
 }
 
