@@ -34,7 +34,6 @@ const List<ChatMessageMenuItem> kDemoMessageMenuItems = <ChatMessageMenuItem>[
     id: 'delete',
     label: 'Delete',
     icon: Icons.delete_outline,
-    isDestructive: true,
   ),
 ];
 

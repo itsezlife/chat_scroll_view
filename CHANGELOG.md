@@ -16,6 +16,29 @@ this project is pre-1.0 and not strictly SemVer yet.
   focus. Pre-IME back is a LIFO claim stack (`ChatPreImeBackBinding`) —
   native `acquire`/`release` only while the stack is non-empty.
 
+- **Example message menu** — an idle message tap opens the package
+  presenter with a Telegram-like action/reaction set. Presence follows
+  the demo data source (loaded id). The example assigns
+  `ChatPreImeBackBinding.native` at startup; `MainActivity` intercepts
+  Back before the IME while a claim is active so the first back
+  dismisses the menu and leaves the keyboard up. Dart overlay back
+  still works when native is missing (desktop). No package `android/`.
+
+- **Message menu back** — the session is a focus-preserving dialog route
+  so system back dismisses the menu before a page `PopScope`. The
+  example registers an overlay-priority `OnBackInvokedCallback` so
+  gesture Back is claimed before the IME.
+
+- **Message menu rows** — `ChatMessageMenuItem` is a sealed list entry:
+  action, explicit `divider()`, or `custom()`. Destructive coloring no
+  longer inserts a separator.
+
+- **Message menu chrome** — restyle with `ChatMessageMenuThemeData` (or
+  `ChatScrollThemeData.menu`). Swap rows or the floating column via
+  `itemBuilder` / `reactionBuilder` / `menuBuilder` without forking
+  session, scrim, placement, or back. Default chrome widgets are
+  public for composition.
+
 - **Message span selection** — long-press a present message and keep dragging
   past slop to grow or shrink a contiguous run of present neighbors
   (Telegram-style rubber-band). Select vs unselect polarity is locked at start
@@ -114,7 +137,7 @@ this project is pre-1.0 and not strictly SemVer yet.
 - **Scrollbar thumb progress** — thumb position is height-weighted: pixel offset
   at the top scroll-band edge over `(estimatedExtent − viewportBandHeight)`,
   using average built row height to extrapolate unloaded ids. Thumb size scales
-  with `viewportBandHeight / estimatedExtent` (native scrollbar proportion). 
+  with `viewportBandHeight / estimatedExtent` (native scrollbar proportion).
   Hard clamps at tail (`1.0`) and oldest head (`0.0`). Replaces
   id-linear band-edge mapping that treated each message id equally regardless of
   row height (stuck thumb, tail jumps with variable message sizes). Legacy
@@ -157,7 +180,7 @@ this project is pre-1.0 and not strictly SemVer yet.
   keyboard height is applied outside the composer measure tree so layout
   reports content height only.
 
-- **`ChatKeyboardShortcuts` drops `dataSource` parameter** *(breaking)* —
+- **`ChatKeyboardShortcuts` drops `dataSource` parameter** _(breaking)_ —
   Home / End now read `oldestKnownId` / `newestKnownId` from the shared
   [ChatScrollController], which mirrors the viewport's wired data source via
   `RenderChatScrollView`. Pass only `controller` + `child`; boundary ids stay
@@ -167,9 +190,9 @@ this project is pre-1.0 and not strictly SemVer yet.
   passthrough of the wired source's boundary ids, updated on attach, boundary
   listener callbacks, and each layout publish.
 
-- **`ChatGroupSeparatorBuilder` replaces `ChatDateSeparatorBuilder`** *(breaking)* —
+- **`ChatGroupSeparatorBuilder` replaces `ChatDateSeparatorBuilder`** _(breaking)_ —
   the `dateSeparatorBuilder` callback now receives `(context, bucket,
-  firstMessageDate)` where `bucket` is the raw `groupBy` key and
+firstMessageDate)` where `bucket` is the raw `groupBy` key and
   `firstMessageDate` is the first message's `createdAt` in that section. When
   `groupBy` uses the default local-day bucket, behaviour is unchanged — format
   from `firstMessageDate` as before. Custom non-`DateTime` buckets (week labels,
@@ -202,17 +225,17 @@ this project is pre-1.0 and not strictly SemVer yet.
   removed earlier (use `ChatScrollController.anchorMessageId`). Per-row
   `*FillsBand` flags remain removed (derive via `visibleRowFillsBand`).
 
-  | Before (flat) | After (nested) |
-  |---------------|----------------|
-  | `range.firstVisibleFraction` | `range.firstRow.visibleFraction` |
-  | `range.firstRowHeight` | `range.firstRow.height` |
-  | `range.lastVisibleFraction` | `range.lastRow.visibleFraction` |
-  | `range.lastFractionId` | `range.lastRow.id` |
-  | `range.lastFractionHeight` | `range.lastRow.height` |
-  | `range.anchorNextId` | `range.anchorNextRow?.id` |
+  | Before (flat)                     | After (nested)                         |
+  | --------------------------------- | -------------------------------------- |
+  | `range.firstVisibleFraction`      | `range.firstRow.visibleFraction`       |
+  | `range.firstRowHeight`            | `range.firstRow.height`                |
+  | `range.lastVisibleFraction`       | `range.lastRow.visibleFraction`        |
+  | `range.lastFractionId`            | `range.lastRow.id`                     |
+  | `range.lastFractionHeight`        | `range.lastRow.height`                 |
+  | `range.anchorNextId`              | `range.anchorNextRow?.id`              |
   | `range.anchorNextVisibleFraction` | `range.anchorNextRow?.visibleFraction` |
-  | `range.anchorNextHeight` | `range.anchorNextRow?.height` |
-  | `range.anyVisibleFillsBand` | `range.anyRowFillsBand` |
+  | `range.anchorNextHeight`          | `range.anchorNextRow?.height`          |
+  | `range.anyVisibleFillsBand`       | `range.anyRowFillsBand`                |
 
   `firstId`, `lastId`, and `paintBandHeight` are unchanged. `lastId` may still
   exceed `lastRow.id` when the chunk boundary expands beyond the last measured
@@ -292,7 +315,7 @@ this project is pre-1.0 and not strictly SemVer yet.
 - **Optional `highlight` on `animateTo`** — pass `highlight: false` to scroll
   to a message with animation but without the post-settle tint (e.g. returning
   to the newest message). Default remains `true`. `highlightDuration:
-  Duration.zero` on `ChatScrollView` still disables highlights globally.
+Duration.zero` on `ChatScrollView` still disables highlights globally.
 - **Silent tail navigation (demo pill)** — new-messages affordance uses
   `animateTo(..., highlight: false)` so the tail bubble is not highlighted
   after tap.
@@ -316,7 +339,6 @@ this project is pre-1.0 and not strictly SemVer yet.
   (seeded at message id **9951**). `BackendChatDataSource` calls Edge Functions with lazy boundary discovery
   (no `GET /api/conversation` / `totalMessages`). Run `./scripts/dev.sh` then
   `flutter run --dart-define-from-file=config/development.supabase.json`.
-
   - **Send messages demo** — wire `ChatComposer` to `BackendChatDataSource.sendMessage`;
     tail follow on send via existing `notifyDataChanged`; SnackBar on failure with
     composer text retained; connect seeds `newestKnownId` from `load_chat` →
@@ -478,7 +500,7 @@ this project is pre-1.0 and not strictly SemVer yet.
   `jumpTo` / scroll-back can reuse cached data without a refetch.
 - **Lazy-pagination fan-out** no longer clamps upward layout to
   `oldestKnownId` while `reachedOldest` is false — `oldestKnownId` is the
-  oldest *loaded* page, not the conversation floor.
+  oldest _loaded_ page, not the conversation floor.
 - **Fetch poll** no longer treats errored chunks as pending layout work;
   retries are owned by `ChatDataSource` backoff / `retryChunk` instead.
 - **Drag past a known boundary now bounces** with a damped overshoot and

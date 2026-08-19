@@ -1,4 +1,6 @@
+import 'package:chat_scroll_view/src/chat_widgets/chat_scroll_theme.dart';
 import 'package:chat_scroll_view/src/chat_widgets/message_menu/chat_message_menu_item.dart';
+import 'package:chat_scroll_view/src/chat_widgets/message_menu/chat_message_menu_slots.dart';
 import 'package:flutter/material.dart';
 
 /// Minimum width for the action card.
@@ -34,8 +36,17 @@ class ChatMessageMenuCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final menuTheme = ChatScrollTheme.menuOf(context);
     final colorScheme = Theme.of(context).colorScheme;
-    const radius = BorderRadius.all(Radius.circular(12));
+    final radius = BorderRadius.all(
+      Radius.circular(menuTheme.cardRadius ?? 12),
+    );
+    final fill =
+        menuTheme.cardColor ??
+        Color.alphaBlend(
+          colorScheme.onSurface.withValues(alpha: 0.08),
+          colorScheme.surface,
+        );
 
     return Align(
       alignment: Alignment.topLeft,
@@ -44,15 +55,17 @@ class ChatMessageMenuCard extends StatelessWidget {
       child: SizedBox(
         width: minWidth.clamp(0, maxWidth),
         child: DecoratedBox(
-          decoration: const BoxDecoration(
+          decoration: BoxDecoration(
             borderRadius: radius,
-            boxShadow: <BoxShadow>[
-              BoxShadow(
-                color: Color.fromRGBO(0, 0, 0, 0.35),
-                blurRadius: 12,
-                offset: Offset(0, 4),
-              ),
-            ],
+            boxShadow:
+                menuTheme.cardShadow ??
+                const <BoxShadow>[
+                  BoxShadow(
+                    color: Color.fromRGBO(0, 0, 0, 0.35),
+                    blurRadius: 12,
+                    offset: Offset(0, 4),
+                  ),
+                ],
           ),
           child: Material(
             elevation: 0,
@@ -60,10 +73,7 @@ class ChatMessageMenuCard extends StatelessWidget {
             surfaceTintColor: Colors.transparent,
             borderRadius: radius,
             clipBehavior: Clip.antiAlias,
-            color: Color.alphaBlend(
-              colorScheme.onSurface.withValues(alpha: 0.08),
-              colorScheme.surface,
-            ),
+            color: fill,
             child: child,
           ),
         ),
@@ -78,6 +88,7 @@ class ChatMessageMenuActionList extends StatelessWidget {
   const ChatMessageMenuActionList({
     required this.items,
     required this.onSelect,
+    this.itemBuilder,
     super.key,
   });
 
@@ -87,46 +98,51 @@ class ChatMessageMenuActionList extends StatelessWidget {
   /// Called with the item id when tapped.
   final ValueChanged<String> onSelect;
 
+  /// Optional custom row. Null uses the package row.
+  final ChatMessageMenuItemBuilder? itemBuilder;
+
   static const double _tileHeight = 48;
   static const double _tilePadding = 18;
   static const double _iconSize = 24;
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
+    final menuTheme = ChatScrollTheme.menuOf(context);
+    final colorScheme = Theme.of(context).colorScheme;
     final onSurface = colorScheme.onSurface;
-    final error = colorScheme.error;
+    final error = menuTheme.destructiveColor ?? colorScheme.error;
 
     return ChatMessageMenuCard(
       child: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: <Widget>[
-          for (var i = 0; i < items.length; i++) ...<Widget>[
-            if (i > 0 && _shouldGapBefore(items, i))
-              Divider(
+          for (final item in items)
+            switch (item) {
+              ChatMessageMenuDivider() => Divider(
                 height: 1,
                 thickness: 1,
-                color: colorScheme.outlineVariant.withValues(alpha: 0.45),
+                color:
+                    menuTheme.dividerColor ??
+                    colorScheme.outlineVariant.withValues(alpha: 0.45),
               ),
-            _ActionRow(
-              item: items[i],
-              onSurface: onSurface,
-              error: error,
-              onTap: items[i].enabled ? () => onSelect(items[i].id) : null,
-            ),
-          ],
+              ChatMessageMenuCustom(:final builder) => builder(context),
+              ChatMessageMenuAction() =>
+                itemBuilder?.call(
+                      context,
+                      item,
+                      item.enabled ? () => onSelect(item.id) : null,
+                    ) ??
+                    _ActionRow(
+                      item: item,
+                      onSurface: onSurface,
+                      error: error,
+                      onTap: item.enabled ? () => onSelect(item.id) : null,
+                    ),
+            },
         ],
       ),
     );
-  }
-
-  static bool _shouldGapBefore(List<ChatMessageMenuItem> items, int index) {
-    if (index <= 0) return false;
-    final prev = items[index - 1];
-    final cur = items[index];
-    return cur.isDestructive && !prev.isDestructive;
   }
 }
 
@@ -138,7 +154,7 @@ class _ActionRow extends StatelessWidget {
     required this.onTap,
   });
 
-  final ChatMessageMenuItem item;
+  final ChatMessageMenuAction item;
   final Color onSurface;
   final Color error;
   final VoidCallback? onTap;
@@ -152,13 +168,16 @@ class _ActionRow extends StatelessWidget {
         ? error
         : onSurface;
 
+    final menuTheme = ChatScrollTheme.menuOf(context);
     return Material(
       color: Colors.transparent,
       surfaceTintColor: Colors.transparent,
       child: InkWell(
         onTap: onTap,
         child: SizedBox(
-          height: ChatMessageMenuActionList._tileHeight,
+          height:
+              menuTheme.actionTileHeight ??
+              ChatMessageMenuActionList._tileHeight,
           child: Padding(
             padding: const EdgeInsets.symmetric(
               horizontal: ChatMessageMenuActionList._tilePadding,
@@ -167,7 +186,9 @@ class _ActionRow extends StatelessWidget {
               children: <Widget>[
                 Icon(
                   item.icon,
-                  size: ChatMessageMenuActionList._iconSize,
+                  size:
+                      menuTheme.actionIconSize ??
+                      ChatMessageMenuActionList._iconSize,
                   color: color,
                 ),
                 const SizedBox(width: 19),
@@ -176,10 +197,12 @@ class _ActionRow extends StatelessWidget {
                     item.label,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: theme.textTheme.labelLarge?.copyWith(
-                      fontSize: 16,
-                      color: color,
-                    ),
+                    style:
+                        (menuTheme.actionLabelStyle ??
+                                theme.textTheme.labelLarge?.copyWith(
+                                  fontSize: 16,
+                                ))
+                            ?.copyWith(color: color),
                   ),
                 ),
               ],

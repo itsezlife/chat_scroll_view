@@ -2,11 +2,13 @@ import 'dart:math' as math;
 
 import 'package:chat_scroll_view/src/chat_widgets/message_menu/chat_message_menu_actions.dart';
 import 'package:chat_scroll_view/src/chat_widgets/message_menu/chat_message_menu_appearance.dart';
+import 'package:chat_scroll_view/src/chat_widgets/message_menu/chat_message_menu_column.dart';
 import 'package:chat_scroll_view/src/chat_widgets/message_menu/chat_message_menu_config.dart';
 import 'package:chat_scroll_view/src/chat_widgets/message_menu/chat_message_menu_item.dart';
 import 'package:chat_scroll_view/src/chat_widgets/message_menu/chat_message_menu_placement.dart';
 import 'package:chat_scroll_view/src/chat_widgets/message_menu/chat_message_menu_reactions.dart';
 import 'package:chat_scroll_view/src/chat_widgets/message_menu/chat_message_menu_scrim.dart';
+import 'package:chat_scroll_view/src/chat_widgets/message_menu/chat_message_menu_slots.dart';
 import 'package:chat_scroll_view/src/chat_widgets/message_menu/chat_pre_ime_back.dart';
 import 'package:chat_scroll_view/src/chat_widgets/message_menu/overlay_back_button_listener.dart';
 import 'package:flutter/material.dart';
@@ -18,6 +20,7 @@ class ChatMessageMenuHost extends StatefulWidget {
   const ChatMessageMenuHost({
     required this.config,
     required this.onResult,
+    required this.onClosed,
     this.backButtonDispatcher,
     super.key,
   });
@@ -25,8 +28,13 @@ class ChatMessageMenuHost extends StatefulWidget {
   /// Presentation snapshot.
   final ChatMessageMenuPresentConfig config;
 
-  /// Called after leave animation with the chosen result (or null).
-  final Future<void> Function(ChatMessageMenuResult? result) onResult;
+  /// Called as soon as the user chooses, dismisses, or presence aborts.
+  ///
+  /// Leave animation may still be running. [onClosed] runs after it.
+  final ValueChanged<ChatMessageMenuResult?> onResult;
+
+  /// Called after leave animation so the route can be removed.
+  final VoidCallback onClosed;
 
   /// Host [Router] dispatcher captured outside the overlay entry.
   final BackButtonDispatcher? backButtonDispatcher;
@@ -93,11 +101,13 @@ class _ChatMessageMenuHostState extends State<ChatMessageMenuHost>
   Future<void> _close(ChatMessageMenuResult? result) async {
     if (_closing) return;
     _closing = true;
+    widget.onResult(result);
     await Future.wait<void>([
       _appearanceKey.currentState?.dismiss() ?? Future<void>.value(),
       _scrim.reverse(),
     ]);
-    await widget.onResult(result);
+    if (!mounted) return;
+    widget.onClosed();
   }
 
   Future<bool> _onBackButtonPressed() async {
@@ -128,78 +138,80 @@ class _ChatMessageMenuHostState extends State<ChatMessageMenuHost>
       tapGlobal: config.tapGlobal,
       safePadding: config.safePadding,
     );
+    final slots = ChatMessageMenuSlots(
+      items: config.items,
+      reactions: config.reactions,
+      onSelectItem: (id) => _close(ChatMessageMenuResult.item(id)),
+      onSelectReaction: (emoji) =>
+          _close(ChatMessageMenuResult.reaction(emoji)),
+      actionList: ChatMessageMenuActionList(
+        items: config.items,
+        onSelect: (id) => _close(ChatMessageMenuResult.item(id)),
+        itemBuilder: config.itemBuilder,
+      ),
+      reactionStrip: config.reactions.isEmpty
+          ? const SizedBox.shrink()
+          : ChatMessageMenuReactions(
+              reactions: config.reactions,
+              onReaction: (emoji) =>
+                  _close(ChatMessageMenuResult.reaction(emoji)),
+              reactionBuilder: config.reactionBuilder,
+            ),
+    );
 
-    return OverlayBackButtonListener(
-      parentDispatcher: widget.backButtonDispatcher,
-      onBackButtonPressed: _onBackButtonPressed,
-      child: SizedBox(
-        width: screenSize.width,
-        height: screenSize.height,
-        child: Stack(
-          clipBehavior: Clip.hardEdge,
-          children: <Widget>[
-            Positioned.fill(
-              child: AnimatedBuilder(
-                animation: _scrim,
-                builder: (context, _) => ChatMessageMenuScrim(
-                  progress: _scrim.value,
-                  hole: config.messageRect.intersect(Offset.zero & screenSize),
-                  onDismiss: () => _close(null),
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, _) {
+        if (didPop) return;
+        _onBackButtonPressed();
+      },
+      child: OverlayBackButtonListener(
+        parentDispatcher: widget.backButtonDispatcher,
+        onBackButtonPressed: _onBackButtonPressed,
+        child: SizedBox(
+          width: screenSize.width,
+          height: screenSize.height,
+          child: Stack(
+            clipBehavior: Clip.hardEdge,
+            children: <Widget>[
+              Positioned.fill(
+                child: AnimatedBuilder(
+                  animation: _scrim,
+                  builder: (context, _) => ChatMessageMenuScrim(
+                    progress: _scrim.value,
+                    hole: config.messageRect.intersect(
+                      Offset.zero & screenSize,
+                    ),
+                    onDismiss: () => _close(null),
+                  ),
                 ),
               ),
-            ),
-            Positioned(
-              left: placement.menuOrigin.dx,
-              top: placement.menuOrigin.dy,
-              child: ChatMessageMenuAppearance(
-                key: _appearanceKey,
-                fitsAbove: placement.fitsAbove,
-                child: KeyedSubtree(
-                  key: _menuKey,
-                  child: ConstrainedBox(
-                    constraints: BoxConstraints(
-                      maxWidth: math.min(
-                        kChatMessageMenuMinWidth +
-                            kChatMessageMenuReactionsStartOverhang +
-                            kChatMessageMenuReactionsEndOverhang,
-                        screenSize.width - 2 * kChatMessageMenuEdgeInset,
-                      ),
-                    ),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: <Widget>[
-                        if (config.reactions.isNotEmpty) ...<Widget>[
-                          Align(
-                            alignment: Alignment.centerRight,
-                            child: ChatMessageMenuReactions(
-                              reactions: config.reactions,
-                              onReaction: (emoji) {
-                                _close(ChatMessageMenuResult.reaction(emoji));
-                              },
-                            ),
-                          ),
-                          const SizedBox(height: kChatMessageMenuReactionsGap),
-                        ],
-                        Padding(
-                          padding: const EdgeInsets.only(
-                            left: kChatMessageMenuReactionsStartOverhang,
-                            right: kChatMessageMenuReactionsEndOverhang,
-                          ),
-                          child: ChatMessageMenuActionList(
-                            items: config.items,
-                            onSelect: (id) {
-                              _close(ChatMessageMenuResult.item(id));
-                            },
-                          ),
+              Positioned(
+                left: placement.menuOrigin.dx,
+                top: placement.menuOrigin.dy,
+                child: ChatMessageMenuAppearance(
+                  key: _appearanceKey,
+                  fitsAbove: placement.fitsAbove,
+                  child: KeyedSubtree(
+                    key: _menuKey,
+                    child: ConstrainedBox(
+                      constraints: BoxConstraints(
+                        maxWidth: math.min(
+                          kChatMessageMenuMinWidth +
+                              kChatMessageMenuReactionsStartOverhang +
+                              kChatMessageMenuReactionsEndOverhang,
+                          screenSize.width - 2 * kChatMessageMenuEdgeInset,
                         ),
-                      ],
+                      ),
+                      child:
+                          config.menuBuilder?.call(context, slots) ??
+                          ChatMessageMenuColumn(slots: slots),
                     ),
                   ),
                 ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );

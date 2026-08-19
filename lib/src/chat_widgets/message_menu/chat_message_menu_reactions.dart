@@ -1,6 +1,8 @@
 import 'dart:math' as math;
 
+import 'package:chat_scroll_view/src/chat_widgets/chat_scroll_theme.dart';
 import 'package:chat_scroll_view/src/chat_widgets/message_menu/chat_message_menu_actions.dart';
+import 'package:chat_scroll_view/src/chat_widgets/message_menu/chat_message_menu_slots.dart';
 import 'package:flutter/material.dart';
 
 /// Horizontal padding inside the reactions pill.
@@ -31,6 +33,7 @@ class ChatMessageMenuReactions extends StatelessWidget {
     required this.reactions,
     required this.onReaction,
     this.maxWidth,
+    this.reactionBuilder,
     super.key,
   });
 
@@ -42,6 +45,9 @@ class ChatMessageMenuReactions extends StatelessWidget {
 
   /// Optional width cap. Defaults to [kChatMessageMenuMaxWidth].
   final double? maxWidth;
+
+  /// Optional custom slot. Null uses the package emoji slot.
+  final ChatMessageMenuReactionBuilder? reactionBuilder;
 
   /// Slot size.
   static const double slot = 36;
@@ -58,9 +64,12 @@ class ChatMessageMenuReactions extends StatelessWidget {
   Widget build(BuildContext context) {
     if (reactions.isEmpty) return const SizedBox.shrink();
 
+    final menuTheme = ChatScrollTheme.menuOf(context);
     final colorScheme = Theme.of(context).colorScheme;
-    const radius = BorderRadius.all(
-      Radius.circular(kChatMessageMenuReactionsHeight / 2),
+    final radius = BorderRadius.all(
+      Radius.circular(
+        menuTheme.reactionsRadius ?? kChatMessageMenuReactionsHeight / 2,
+      ),
     );
 
     return LayoutBuilder(
@@ -84,10 +93,15 @@ class ChatMessageMenuReactions extends StatelessWidget {
               for (var i = 0; i < reactions.length; i++) ...<Widget>[
                 if (i > 0)
                   const SizedBox(width: kChatMessageMenuReactionsGapSlots),
-                _ReactionSlot(
-                  emoji: reactions[i],
-                  onTap: () => onReaction(reactions[i]),
-                ),
+                reactionBuilder?.call(
+                      context,
+                      reactions[i],
+                      () => onReaction(reactions[i]),
+                    ) ??
+                    _ReactionSlot(
+                      emoji: reactions[i],
+                      onTap: () => onReaction(reactions[i]),
+                    ),
               ],
             ],
           );
@@ -101,17 +115,23 @@ class ChatMessageMenuReactions extends StatelessWidget {
             itemCount: reactions.length,
             separatorBuilder: (_, _) =>
                 const SizedBox(width: kChatMessageMenuReactionsGapSlots),
-            itemBuilder: (context, index) => _ReactionSlot(
-              emoji: reactions[index],
-              onTap: () => onReaction(reactions[index]),
-            ),
+            itemBuilder: (context, index) =>
+                reactionBuilder?.call(
+                  context,
+                  reactions[index],
+                  () => onReaction(reactions[index]),
+                ) ??
+                _ReactionSlot(
+                  emoji: reactions[index],
+                  onTap: () => onReaction(reactions[index]),
+                ),
           );
         }
 
         return DecoratedBox(
-          decoration: const BoxDecoration(
+          decoration: BoxDecoration(
             borderRadius: radius,
-            boxShadow: <BoxShadow>[
+            boxShadow: const <BoxShadow>[
               BoxShadow(
                 color: Color.fromRGBO(0, 0, 0, 0.35),
                 blurRadius: 12,
@@ -124,10 +144,12 @@ class ChatMessageMenuReactions extends StatelessWidget {
             shadowColor: Colors.transparent,
             surfaceTintColor: Colors.transparent,
             borderRadius: radius,
-            color: Color.alphaBlend(
-              colorScheme.onSurface.withValues(alpha: 0.08),
-              colorScheme.surface,
-            ),
+            color:
+                menuTheme.reactionsColor ??
+                Color.alphaBlend(
+                  colorScheme.onSurface.withValues(alpha: 0.08),
+                  colorScheme.surface,
+                ),
             clipBehavior: Clip.antiAlias,
             child: SizedBox(
               width: width,
