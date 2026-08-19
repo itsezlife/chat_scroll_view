@@ -129,77 +129,88 @@ class _ChatMessageMenuHostState extends State<ChatMessageMenuHost>
       safePadding: config.safePadding,
     );
 
-    return OverlayBackButtonListener(
-      parentDispatcher: widget.backButtonDispatcher,
-      onBackButtonPressed: _onBackButtonPressed,
-      child: SizedBox(
-        width: screenSize.width,
-        height: screenSize.height,
-        child: Stack(
-          clipBehavior: Clip.hardEdge,
-          children: <Widget>[
-            Positioned.fill(
-              child: AnimatedBuilder(
-                animation: _scrim,
-                builder: (context, _) => ChatMessageMenuScrim(
-                  progress: _scrim.value,
-                  hole: config.messageRect.intersect(Offset.zero & screenSize),
-                  onDismiss: () => _close(null),
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, _) {
+        if (didPop) return;
+        _onBackButtonPressed();
+      },
+      child: OverlayBackButtonListener(
+        parentDispatcher: widget.backButtonDispatcher,
+        onBackButtonPressed: _onBackButtonPressed,
+        child: SizedBox(
+          width: screenSize.width,
+          height: screenSize.height,
+          child: Stack(
+            clipBehavior: Clip.hardEdge,
+            children: <Widget>[
+              Positioned.fill(
+                child: AnimatedBuilder(
+                  animation: _scrim,
+                  builder: (context, _) => ChatMessageMenuScrim(
+                    progress: _scrim.value,
+                    hole: config.messageRect.intersect(
+                      Offset.zero & screenSize,
+                    ),
+                    onDismiss: () => _close(null),
+                  ),
                 ),
               ),
-            ),
-            Positioned(
-              left: placement.menuOrigin.dx,
-              top: placement.menuOrigin.dy,
-              child: ChatMessageMenuAppearance(
-                key: _appearanceKey,
-                fitsAbove: placement.fitsAbove,
-                child: KeyedSubtree(
-                  key: _menuKey,
-                  child: ConstrainedBox(
-                    constraints: BoxConstraints(
-                      maxWidth: math.min(
-                        kChatMessageMenuMinWidth +
-                            kChatMessageMenuReactionsStartOverhang +
-                            kChatMessageMenuReactionsEndOverhang,
-                        screenSize.width - 2 * kChatMessageMenuEdgeInset,
+              Positioned(
+                left: placement.menuOrigin.dx,
+                top: placement.menuOrigin.dy,
+                child: ChatMessageMenuAppearance(
+                  key: _appearanceKey,
+                  fitsAbove: placement.fitsAbove,
+                  child: KeyedSubtree(
+                    key: _menuKey,
+                    child: ConstrainedBox(
+                      constraints: BoxConstraints(
+                        maxWidth: math.min(
+                          kChatMessageMenuMinWidth +
+                              kChatMessageMenuReactionsStartOverhang +
+                              kChatMessageMenuReactionsEndOverhang,
+                          screenSize.width - 2 * kChatMessageMenuEdgeInset,
+                        ),
                       ),
-                    ),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: <Widget>[
-                        if (config.reactions.isNotEmpty) ...<Widget>[
-                          Align(
-                            alignment: Alignment.centerRight,
-                            child: ChatMessageMenuReactions(
-                              reactions: config.reactions,
-                              onReaction: (emoji) {
-                                _close(ChatMessageMenuResult.reaction(emoji));
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: <Widget>[
+                          if (config.reactions.isNotEmpty) ...<Widget>[
+                            Align(
+                              alignment: Alignment.centerRight,
+                              child: ChatMessageMenuReactions(
+                                reactions: config.reactions,
+                                onReaction: (emoji) {
+                                  _close(ChatMessageMenuResult.reaction(emoji));
+                                },
+                              ),
+                            ),
+                            const SizedBox(
+                              height: kChatMessageMenuReactionsGap,
+                            ),
+                          ],
+                          Padding(
+                            padding: const EdgeInsets.only(
+                              left: kChatMessageMenuReactionsStartOverhang,
+                              right: kChatMessageMenuReactionsEndOverhang,
+                            ),
+                            child: ChatMessageMenuActionList(
+                              items: config.items,
+                              onSelect: (id) {
+                                _close(ChatMessageMenuResult.item(id));
                               },
                             ),
                           ),
-                          const SizedBox(height: kChatMessageMenuReactionsGap),
                         ],
-                        Padding(
-                          padding: const EdgeInsets.only(
-                            left: kChatMessageMenuReactionsStartOverhang,
-                            right: kChatMessageMenuReactionsEndOverhang,
-                          ),
-                          child: ChatMessageMenuActionList(
-                            items: config.items,
-                            onSelect: (id) {
-                              _close(ChatMessageMenuResult.item(id));
-                            },
-                          ),
-                        ),
-                      ],
+                      ),
                     ),
                   ),
                 ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );

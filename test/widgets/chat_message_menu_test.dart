@@ -215,6 +215,49 @@ void main() {
     expect(find.text('Edit'), findsNothing);
   });
 
+  testWidgets('system back dismisses even when the page PopScope cannot pop', (
+    tester,
+  ) async {
+    ChatMessageMenuResult? result = const ChatMessageMenuResult.item(
+      'sentinel',
+    );
+    await tester.pumpWidget(
+      MaterialApp(
+        home: PopScope(
+          canPop: false,
+          child: Scaffold(
+            body: Builder(
+              builder: (context) => TextButton(
+                onPressed: () async {
+                  result = await showChatMessageMenu(
+                    context: context,
+                    messageRect: const Rect.fromLTWH(40, 120, 200, 48),
+                    items: _items,
+                    tapGlobal: const Offset(140, 140),
+                  );
+                },
+                child: const Text('Open'),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+    await tester.tap(find.text('Open'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 350));
+
+    expect(find.text('Edit'), findsOneWidget);
+    final handled = await tester.binding.handlePopRoute();
+    expect(handled, isTrue);
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 350));
+
+    expect(result, isNull);
+    expect(find.text('Edit'), findsNothing);
+  });
+
   testWidgets('presence abort dismisses with null and does not retarget', (
     tester,
   ) async {

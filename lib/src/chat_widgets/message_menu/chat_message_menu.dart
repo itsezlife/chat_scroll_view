@@ -1,5 +1,3 @@
-import 'dart:async';
-
 import 'package:chat_scroll_view/src/chat_widgets/message_menu/chat_message_menu_config.dart';
 import 'package:chat_scroll_view/src/chat_widgets/message_menu/chat_message_menu_host.dart';
 import 'package:chat_scroll_view/src/chat_widgets/message_menu/chat_message_menu_item.dart';
@@ -59,34 +57,36 @@ Future<ChatMessageMenuResult?> _showChatMessageMenuOverlay({
   required BuildContext context,
   required ChatMessageMenuPresentConfig config,
 }) {
-  final overlay = Overlay.maybeOf(context, rootOverlay: true);
-  if (overlay == null) {
-    assert(false, 'showChatMessageMenu requires an Overlay');
+  final navigator = Navigator.maybeOf(context, rootNavigator: true);
+  if (navigator == null) {
+    assert(false, 'showChatMessageMenu requires a Navigator');
     return Future<ChatMessageMenuResult?>.value();
   }
 
   final backDispatcher = Router.maybeOf(context)?.backButtonDispatcher;
-  final completer = Completer<ChatMessageMenuResult?>();
-  late OverlayEntry entry;
 
-  void complete(ChatMessageMenuResult? result) {
-    if (!completer.isCompleted) {
-      completer.complete(result);
-    }
-  }
-
-  // Not opaque: the hole must show the captured slot still painted below.
-  entry = OverlayEntry(
-    builder: (overlayContext) => ChatMessageMenuHost(
-      config: config,
-      backButtonDispatcher: backDispatcher,
-      onResult: (result) async {
-        entry.remove();
-        complete(result);
-      },
+  // A dialog route sits on the navigator stack, so system back hits this
+  // session before a page [PopScope]. [requestFocus] is false so opening
+  // does not steal IME focus. The hole is painted by the host, not a
+  // modal barrier.
+  return navigator.push<ChatMessageMenuResult?>(
+    RawDialogRoute<ChatMessageMenuResult?>(
+      requestFocus: false,
+      barrierDismissible: false,
+      barrierColor: const Color(0x00000000),
+      transitionDuration: Duration.zero,
+      pageBuilder: (routeContext, _, _) => MediaQuery(
+        data: MediaQuery.of(routeContext).removeViewInsets(removeBottom: true),
+        child: ChatMessageMenuHost(
+          config: config,
+          backButtonDispatcher: backDispatcher,
+          onResult: (result) async {
+            if (routeContext.mounted && navigator.canPop()) {
+              navigator.pop(result);
+            }
+          },
+        ),
+      ),
     ),
   );
-
-  overlay.insert(entry);
-  return completer.future;
 }

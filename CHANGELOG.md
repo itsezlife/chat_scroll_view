@@ -16,6 +16,19 @@ this project is pre-1.0 and not strictly SemVer yet.
   focus. Pre-IME back is a LIFO claim stack (`ChatPreImeBackBinding`) —
   native `acquire`/`release` only while the stack is non-empty.
 
+- **Example message menu** — an idle message tap opens the package
+  presenter with a Telegram-like action/reaction set. Presence follows
+  the demo data source (loaded id). The example assigns
+  `ChatPreImeBackBinding.native` at startup; `MainActivity` intercepts
+  Back before the IME while a claim is active so the first back
+  dismisses the menu and leaves the keyboard up. Dart overlay back
+  still works when native is missing (desktop). No package `android/`.
+
+- **Message menu back** — the session is a focus-preserving dialog route
+  so system back dismisses the menu before a page `PopScope`. The
+  example registers an overlay-priority `OnBackInvokedCallback` so
+  gesture Back is claimed before the IME.
+
 - **Message span selection** — long-press a present message and keep dragging
   past slop to grow or shrink a contiguous run of present neighbors
   (Telegram-style rubber-band). Select vs unselect polarity is locked at start
