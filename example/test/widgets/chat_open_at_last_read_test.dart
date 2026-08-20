@@ -5,7 +5,7 @@ import 'package:chat_scroll_view/src/chat_scroll/chat_scroll_controller.dart';
 import 'package:chat_scroll_view/src/chat_widgets/chat_scroll_view.dart';
 import 'package:chat_scroll_view_example/src/common/models/chat_message.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/chat_data_source_extension.dart';
-import 'package:chat_scroll_view_example/src/features/chat/widgets/new_messages_pill.dart';
+import 'package:chat_scroll_view_example/src/features/chat/widgets/scroll_to_bottom_button.dart';
 import 'package:flutter/foundation.dart' show ValueListenable, ValueNotifier;
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -94,7 +94,7 @@ Widget _harness({
                     child: Text(message == null ? 'shimmer-$id' : 'msg-$id'),
                   ),
             ),
-            NewMessagesPill(
+            ChatScrollToBottomButton(
               controller: controller,
               dataSource: dataSource,
               bottomInset: bottomPadding,
@@ -108,13 +108,14 @@ Widget _harness({
 );
 
 String _pillText(WidgetTester tester) {
-  final txt = tester.widget<Text>(
-    find.descendant(
-      of: find.byType(NewMessagesPill),
-      matching: find.byType(Text),
-    ),
-  );
-  return txt.data ?? '';
+  final badge = find.byKey(const ValueKey<String>('scroll_to_bottom_badge'));
+  if (badge.evaluate().isEmpty) {
+    return '0 new messages';
+  }
+  final raw = tester.widget<Text>(badge).data ?? '0';
+  final count = int.tryParse(raw) ?? 0;
+  if (count <= 0) return '0 new messages';
+  return count == 1 ? '1 new message' : '$count new messages';
 }
 
 String _expectedPillLabel(int count) =>
@@ -253,15 +254,12 @@ void main() {
       );
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 16));
+      await tester.pump(const Duration(milliseconds: 300));
       expect(controller.isAtTail.value, isFalse);
 
-      await tester.tap(
-        find.descendant(
-          of: find.byType(NewMessagesPill),
-          matching: find.byType(InkWell),
-        ),
-      );
+      await tester.tap(find.byKey(const ValueKey<String>('scroll_to_bottom')));
       await tester.pump();
+      // Badge stays frozen while the FAB fades out on tap.
       expect(_pillText(tester), isNot('0 new messages'));
       for (var i = 0; i < 10; i++) {
         await tester.pump(const Duration(milliseconds: 16));
@@ -270,7 +268,7 @@ void main() {
       for (var i = 0; i < 15; i++) {
         await tester.pump(const Duration(milliseconds: 16));
       }
-      await tester.pump(const Duration(milliseconds: 200));
+      await tester.pump(const Duration(milliseconds: 300));
       await tester.pump();
 
       expect(controller.isAtTail.value, isTrue);

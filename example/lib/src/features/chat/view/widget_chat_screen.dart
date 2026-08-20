@@ -13,7 +13,7 @@ import 'package:chat_scroll_view_example/src/features/chat/widgets/chat_composer
 import 'package:chat_scroll_view_example/src/features/chat/widgets/date_separator.dart';
 import 'package:chat_scroll_view_example/src/features/chat/widgets/demo_backend_error.dart';
 import 'package:chat_scroll_view_example/src/features/chat/widgets/demo_message.dart';
-import 'package:chat_scroll_view_example/src/features/chat/widgets/new_messages_pill.dart';
+import 'package:chat_scroll_view_example/src/features/chat/widgets/scroll_to_bottom_button.dart';
 import 'package:chat_scroll_view_example/src/features/chat/widgets/selection_app_bar.dart';
 import 'package:flutter/material.dart';
 
@@ -42,8 +42,8 @@ class _WidgetChatScreenState extends State<WidgetChatScreen>
   /// Demo settings: message corner radius (0–17).
   double _bubbleRadius = ChatMessageThemeData.fallback.bubbleRadius;
 
-  /// Highest message id counted as read for [NewMessagesPill]. Seeded to
-  /// stored last-read on off-tail open; advanced by the pill while scrolling.
+  /// Highest message id counted as read for [ChatScrollToBottomButton]. Seeded
+  /// to stored last-read on off-tail open; advanced by the FAB while scrolling.
   final ValueNotifier<int?> _pillLastSeenBaseline = ValueNotifier<int?>(null);
 
   /// Coalesces progressive baseline bumps while scrolling into a single
@@ -382,6 +382,14 @@ class _WidgetChatScreenState extends State<WidgetChatScreen>
                   ),
                 ),
               ),
+              // Scroll-to-bottom — under the composer so show/hide slides
+              // out from / back under the input.
+              ChatScrollToBottomButton(
+                controller: _controller,
+                dataSource: _dataSource!,
+                bottomInset: insets.bottomPadding,
+                lastSeenNewestId: _pillLastSeenBaseline,
+              ),
               // Bottom composer — overlaid, not a column sibling. Measured
               // height is reserved inset; overlay chrome reads the same
               // bottomPadding and does not add to it.
@@ -400,14 +408,6 @@ class _WidgetChatScreenState extends State<WidgetChatScreen>
                   onSizeChanged: insets.setComposerHeight,
                 ),
               ),
-              // New-messages pill — surfaces above the composer when the user
-              // is scrolled away and newer messages have arrived.
-              NewMessagesPill(
-                controller: _controller,
-                dataSource: _dataSource!,
-                bottomInset: insets.bottomPadding,
-                lastSeenNewestId: _pillLastSeenBaseline,
-              ),
               // Contextual selection bar — overlays the top. [headerReserve]
               // is driven every animation frame so the floating day header
               // tracks the slide.
@@ -418,53 +418,6 @@ class _WidgetChatScreenState extends State<WidgetChatScreen>
                 child: SelectionAppBar(
                   selection: _selection,
                   topInset: insets.headerReserve,
-                ),
-              ),
-              // Scroll shortcuts — stacked above the composer, clearing its inset.
-              Positioned(
-                right: 16,
-                bottom: 0,
-                child: ValueListenableBuilder<double>(
-                  valueListenable: insets.bottomPadding,
-                  builder: (context, bottomInset, child) => Padding(
-                    padding: EdgeInsets.only(bottom: bottomInset),
-                    child: child,
-                  ),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      IconButton.filled(
-                        onPressed: () {
-                          _controller.animateTo(6002, alignment: .5);
-                        },
-                        tooltip: 'Scroll to top',
-                        style: IconButton.styleFrom(
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                        ),
-                        icon: const Icon(Icons.arrow_upward, size: 18),
-                      ),
-                      IconButton.filled(
-                        onPressed: () {
-                          if (_dataSource?.newestKnownId
-                              case final newestKnownId?) {
-                            _controller.animateTo(
-                              newestKnownId,
-                              highlight: false,
-                            );
-                          }
-                        },
-                        tooltip: 'Scroll to bottom',
-                        style: IconButton.styleFrom(
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                        ),
-                        icon: const Icon(Icons.arrow_downward, size: 18),
-                      ),
-                    ],
-                  ),
                 ),
               ),
               // Demo: tunable bubbleRadius (Telegram “message corners”).

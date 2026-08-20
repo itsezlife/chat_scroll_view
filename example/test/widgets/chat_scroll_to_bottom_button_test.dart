@@ -11,7 +11,7 @@ import 'package:chat_scroll_view_example/src/common/widgets/measure_size.dart';
 import 'package:chat_scroll_view_example/src/features/chat/widgets/chat_composer.dart';
 import 'package:chat_scroll_view_example/src/features/chat/widgets/date_separator.dart';
 import 'package:chat_scroll_view_example/src/features/chat/widgets/demo_message.dart';
-import 'package:chat_scroll_view_example/src/features/chat/widgets/new_messages_pill.dart';
+import 'package:chat_scroll_view_example/src/features/chat/widgets/scroll_to_bottom_button.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -178,7 +178,7 @@ Widget _scaffoldWithTallPill({
                     ),
                 loadingBuilder: (ctx) => const Center(child: Text('loading')),
               ),
-              NewMessagesPill(
+              ChatScrollToBottomButton(
                 controller: controller,
                 dataSource: dataSource,
                 lastSeenNewestId: lastSeen,
@@ -345,6 +345,12 @@ class _DemoPillScaffoldState extends State<_DemoPillScaffold> {
                     : buildMessage,
                 loadingBuilder: (ctx) => const Center(child: Text('loading')),
               ),
+              ChatScrollToBottomButton(
+                controller: widget.controller,
+                dataSource: widget.dataSource,
+                lastSeenNewestId: widget.lastSeenNewestId,
+                bottomInset: _bottomInset,
+              ),
               Positioned(
                 left: 0,
                 right: 0,
@@ -357,12 +363,6 @@ class _DemoPillScaffoldState extends State<_DemoPillScaffold> {
                     onSend: (_) async {},
                   ),
                 ),
-              ),
-              NewMessagesPill(
-                controller: widget.controller,
-                dataSource: widget.dataSource,
-                lastSeenNewestId: widget.lastSeenNewestId,
-                bottomInset: _bottomInset,
               ),
             ],
           ),
@@ -382,32 +382,32 @@ Future<void> _pumpDemoPillOpen(
   await tester.pump(const Duration(milliseconds: 16));
 }
 
-double _pillOpacity(WidgetTester tester) => tester
-    .widget<AnimatedOpacity>(
-      find.descendant(
-        of: find.byType(NewMessagesPill),
-        matching: find.byType(AnimatedOpacity),
-      ),
-    )
-    .opacity;
+double _pillOpacity(WidgetTester tester) => _fabVisible(tester) ? 1.0 : 0.0;
 
-/// The pill widget is always present in the tree — only its opacity flips.
-/// Read the rendered count from its `Text` to assert visibility intent.
+/// The FAB is always present in the tree — only its opacity flips.
+/// Read the badge label for unread chrome assertions.
 String _pillText(WidgetTester tester) {
-  final txt = tester.widget<Text>(
-    find.descendant(
-      of: find.byType(NewMessagesPill),
-      matching: find.byType(Text),
-    ),
-  );
-  return txt.data ?? '';
+  final badge = find.byKey(const ValueKey<String>('scroll_to_bottom_badge'));
+  if (badge.evaluate().isEmpty) {
+    return '0 new messages';
+  }
+  final raw = tester.widget<Text>(badge).data ?? '0';
+  final count = int.tryParse(raw) ?? 0;
+  if (count <= 0) return '0 new messages';
+  return count == 1 ? '1 new message' : '$count new messages';
 }
 
 String _expectedPillLabel(int count) =>
     count == 1 ? '1 new message' : '$count new messages';
 
+bool _fabVisible(WidgetTester tester) =>
+    find.byKey(chatScrollToBottomVisibleKey).evaluate().isNotEmpty;
+
+Finder _fabTapTarget() =>
+    find.byKey(const ValueKey<String>('scroll_to_bottom'));
+
 void main() {
-  group('NewMessagesPill', () {
+  group('ChatScrollToBottomButton', () {
     testWidgets(
       'empty-source mount → first off-tail arrival surfaces the pill',
       (tester) async {
@@ -494,7 +494,7 @@ void main() {
                             ),
                           ),
                     ),
-                    NewMessagesPill(
+                    ChatScrollToBottomButton(
                       controller: controller,
                       dataSource: ds,
                       lastSeenNewestId: lastSeen,
@@ -625,7 +625,7 @@ void main() {
                               );
                             },
                       ),
-                      NewMessagesPill(
+                      ChatScrollToBottomButton(
                         controller: controller,
                         dataSource: ds,
                         lastSeenNewestId: lastSeen,
@@ -691,7 +691,7 @@ void main() {
                               );
                             },
                       ),
-                      NewMessagesPill(
+                      ChatScrollToBottomButton(
                         controller: controller,
                         dataSource: ds,
                         lastSeenNewestId: lastSeen,
@@ -1274,7 +1274,7 @@ void main() {
                               );
                             },
                       ),
-                      NewMessagesPill(
+                      ChatScrollToBottomButton(
                         controller: controller,
                         dataSource: ds,
                         lastSeenNewestId: lastSeen,
@@ -1339,7 +1339,7 @@ void main() {
                                   ),
                                 ),
                       ),
-                      NewMessagesPill(
+                      ChatScrollToBottomButton(
                         controller: controller,
                         dataSource: ds,
                         lastSeenNewestId: lastSeen,
@@ -1401,7 +1401,7 @@ void main() {
                             ),
                           ),
                     ),
-                    NewMessagesPill(
+                    ChatScrollToBottomButton(
                       controller: controller,
                       dataSource: ds,
                       lastSeenNewestId: lastSeen,
@@ -1668,29 +1668,30 @@ void main() {
           ds: ds,
           lastSeen: lastSeen,
         );
+        // Settle Telegram-style entrance (280ms slide + scale + fade).
         await tester.pump();
+        await tester.pump(const Duration(milliseconds: 300));
 
         expect(_pillText(tester), '2 new messages');
 
-        await tester.tap(
-          find.descendant(
-            of: find.byType(NewMessagesPill),
-            matching: find.byType(InkWell),
-          ),
-        );
+        await tester.tap(_fabTapTarget());
         await tester.pump();
-        expect(_pillText(tester), isNot('0 new messages'));
-        for (var i = 0; i < 10; i++) {
+        // Hide immediately on tap — do not wait for animateTo / at-tail.
+        expect(_pillOpacity(tester), 0.0);
+        // Frozen badge count still in the tree during fade (opacity already 0).
+        final badge = find.byKey(
+          const ValueKey<String>('scroll_to_bottom_badge'),
+        );
+        expect(badge, findsOneWidget);
+        expect(tester.widget<Text>(badge).data, '2');
+        for (var i = 0; i < 25; i++) {
           await tester.pump(const Duration(milliseconds: 16));
-          expect(_pillText(tester), isNot('0 new messages'));
         }
-        for (var i = 0; i < 15; i++) {
-          await tester.pump(const Duration(milliseconds: 16));
-        }
-        await tester.pump(const Duration(milliseconds: 200));
+        await tester.pump(const Duration(milliseconds: 300));
         await tester.pump();
 
         expect(lastSeen.value, newest);
+        expect(_fabVisible(tester), isFalse);
         expect(_pillText(tester), '0 new messages');
       },
     );
@@ -1712,17 +1713,13 @@ void main() {
         lastSeen: lastSeen,
       );
       await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
 
-      await tester.tap(
-        find.descendant(
-          of: find.byType(NewMessagesPill),
-          matching: find.byType(InkWell),
-        ),
-      );
+      await tester.tap(_fabTapTarget());
       for (var i = 0; i < 25; i++) {
         await tester.pump(const Duration(milliseconds: 16));
       }
-      await tester.pump(const Duration(milliseconds: 200));
+      await tester.pump(const Duration(milliseconds: 300));
 
       expect(lastSeen.value, newest);
       expect(
@@ -1835,8 +1832,13 @@ void main() {
 
         final afterScroll = _pillText(tester);
         expect(afterScroll, isNot('10 new messages'));
-        expect(afterScroll, isNot('0 new messages'));
         expect(lastSeen.value, greaterThan(lastRead));
+        // A strong fling toward newer may settle on the tail and clear the
+        // badge — that matches Telegram. Require a non-zero badge only while
+        // still off-tail after settle.
+        if (!controller.isAtTail.value) {
+          expect(afterScroll, isNot('0 new messages'));
+        }
       },
     );
 
@@ -2023,6 +2025,210 @@ void main() {
       await _pumpSettleFrames(tester, frameCount: 4);
 
       expect(lastSeen.value, greaterThan(lastRead));
+    });
+
+    testWidgets('scroll away from tail does not show FAB without unread', (
+      tester,
+    ) async {
+      const count = 40;
+      final ds = _PreloadedLikeSource(count);
+      final controller = ChatScrollController()..jumpTo(count - 1);
+      final lastSeen = ValueNotifier<int?>(count - 1);
+      addTearDown(controller.dispose);
+      addTearDown(ds.dispose);
+      addTearDown(lastSeen.dispose);
+
+      await tester.pumpWidget(
+        _scaffoldWithPill(
+          dataSource: ds,
+          controller: controller,
+          lastSeenNewestId: lastSeen,
+        ),
+      );
+      await _pumpSettleFrames(tester);
+
+      expect(_fabVisible(tester), isFalse);
+
+      // Finger down → older — leave the tail. Must not show.
+      await tester.drag(find.byType(ChatScrollView), const Offset(0, 200));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 50));
+
+      expect(controller.isAtTail.value, isFalse);
+      expect(_fabVisible(tester), isFalse);
+    });
+
+    testWidgets('shows FAB after 100px scroll toward newer', (tester) async {
+      const count = 40;
+      final ds = _PreloadedLikeSource(count);
+      final controller = ChatScrollController()..jumpTo(count - 1);
+      final lastSeen = ValueNotifier<int?>(count - 1);
+      addTearDown(controller.dispose);
+      addTearDown(ds.dispose);
+      addTearDown(lastSeen.dispose);
+
+      await tester.pumpWidget(
+        _scaffoldWithPill(
+          dataSource: ds,
+          controller: controller,
+          lastSeenNewestId: lastSeen,
+        ),
+      );
+      await _pumpSettleFrames(tester);
+
+      // Leave the tail first (no show).
+      await tester.drag(find.byType(ChatScrollView), const Offset(0, 250));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 50));
+      expect(_fabVisible(tester), isFalse);
+
+      // Finger up → newer / toward the end — show after ~100px.
+      await tester.drag(find.byType(ChatScrollView), const Offset(0, -120));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 50));
+
+      expect(controller.isAtTail.value, isFalse);
+      expect(_fabVisible(tester), isTrue);
+      expect(_pillText(tester), '0 new messages');
+    });
+
+    testWidgets('hides FAB when returning to stable tail', (tester) async {
+      const count = 40;
+      final ds = _PreloadedLikeSource(count);
+      final controller = ChatScrollController()..jumpTo(count - 1);
+      final lastSeen = ValueNotifier<int?>(count - 1);
+      addTearDown(controller.dispose);
+      addTearDown(ds.dispose);
+      addTearDown(lastSeen.dispose);
+
+      await tester.pumpWidget(
+        _scaffoldWithPill(
+          dataSource: ds,
+          controller: controller,
+          lastSeenNewestId: lastSeen,
+        ),
+      );
+      await _pumpSettleFrames(tester);
+
+      await tester.drag(find.byType(ChatScrollView), const Offset(0, 250));
+      await tester.pump();
+      await tester.drag(find.byType(ChatScrollView), const Offset(0, -120));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 50));
+      expect(_fabVisible(tester), isTrue);
+
+      final animating = controller.animateTo(count - 1, highlight: false);
+      await tester.pumpAndSettle();
+      await animating;
+      await tester.pump(const Duration(milliseconds: 200));
+
+      expect(controller.isAtTail.value, isTrue);
+      expect(_fabVisible(tester), isFalse);
+    });
+
+    testWidgets('hides FAB when raw isAtTail after scroll toward newer', (
+      tester,
+    ) async {
+      const count = 40;
+      final ds = _PreloadedLikeSource(count);
+      final controller = ChatScrollController()..jumpTo(count - 1);
+      final lastSeen = ValueNotifier<int?>(count - 1);
+      addTearDown(controller.dispose);
+      addTearDown(ds.dispose);
+      addTearDown(lastSeen.dispose);
+
+      await tester.pumpWidget(
+        _scaffoldWithPill(
+          dataSource: ds,
+          controller: controller,
+          lastSeenNewestId: lastSeen,
+        ),
+      );
+      await _pumpSettleFrames(tester);
+
+      await tester.drag(find.byType(ChatScrollView), const Offset(0, 300));
+      await tester.pump();
+      await tester.drag(find.byType(ChatScrollView), const Offset(0, -120));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 50));
+      expect(_fabVisible(tester), isTrue);
+
+      // Fling hard toward newer until the viewport pins the tail.
+      await tester.fling(
+        find.byType(ChatScrollView),
+        const Offset(0, -2000),
+        4000,
+      );
+      await tester.pumpAndSettle();
+      await tester.pump(const Duration(milliseconds: 200));
+
+      expect(controller.isAtTail.value, isTrue);
+      expect(_fabVisible(tester), isFalse);
+    });
+
+    testWidgets('scroll away from tail hides scroll-shown FAB', (tester) async {
+      const count = 40;
+      final ds = _PreloadedLikeSource(count);
+      final controller = ChatScrollController()..jumpTo(count - 1);
+      final lastSeen = ValueNotifier<int?>(count - 1);
+      addTearDown(controller.dispose);
+      addTearDown(ds.dispose);
+      addTearDown(lastSeen.dispose);
+
+      await tester.pumpWidget(
+        _scaffoldWithPill(
+          dataSource: ds,
+          controller: controller,
+          lastSeenNewestId: lastSeen,
+        ),
+      );
+      await _pumpSettleFrames(tester);
+
+      await tester.drag(find.byType(ChatScrollView), const Offset(0, 250));
+      await tester.pump();
+      await tester.drag(find.byType(ChatScrollView), const Offset(0, -120));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 50));
+      expect(_fabVisible(tester), isTrue);
+
+      // Back toward older — dismiss.
+      await tester.drag(find.byType(ChatScrollView), const Offset(0, 80));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 50));
+
+      expect(controller.isAtTail.value, isFalse);
+      expect(_fabVisible(tester), isFalse);
+    });
+
+    testWidgets('append off-tail force-shows FAB with badge', (tester) async {
+      const count = 20;
+      final ds = _LateArrivingSource();
+      final controller = ChatScrollController()..jumpTo(5);
+      addTearDown(controller.dispose);
+      addTearDown(ds.dispose);
+
+      ds.pushFirstArrival(count: count);
+      final lastSeen = ValueNotifier<int?>(count - 1);
+      addTearDown(lastSeen.dispose);
+
+      await tester.pumpWidget(
+        _scaffoldWithPill(
+          dataSource: ds,
+          controller: controller,
+          lastSeenNewestId: lastSeen,
+        ),
+      );
+      await _pumpSettleFrames(tester);
+
+      // Off-tail but baseline at old newest — no unread yet, not scrolled 100px.
+      expect(_pillText(tester), '0 new messages');
+
+      ds.appendOne();
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 50));
+
+      expect(_fabVisible(tester), isTrue);
+      expect(_pillText(tester), '1 new message');
     });
   });
 }

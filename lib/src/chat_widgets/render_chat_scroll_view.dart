@@ -3114,13 +3114,16 @@ class RenderChatScrollView extends RenderBox {
     }
 
     _markScrollActive();
-    var delta = _pendingScrollDelta;
+    // Drag / wheel accumulate into `_pendingScrollDelta`. Only that plus fling
+    // ticks are user-driven for [ChatViewportScrolled] — animate, bounceback,
+    // and span auto-scroll are excluded.
+    var userDelta = _pendingScrollDelta;
     _pendingScrollDelta = 0.0;
 
     if (_contentFitsInViewport()) {
       _cancelFling();
       _cancelBounceback();
-      delta = 0.0;
+      userDelta = 0.0;
     }
 
     // While the user is dragging, scale incoming delta by the boundary
@@ -3131,16 +3134,18 @@ class RenderChatScrollView extends RenderBox {
     // user is dragging mid-conversation with no boundary in sight.
     if (_dragInProgress &&
         (_dataSource.reachedOldest || _dataSource.reachedNewest)) {
-      delta = _applyOverscrollResistance(delta);
+      userDelta = _applyOverscrollResistance(userDelta);
     }
 
     final wasFlinging = _physics.isFlinging;
-    delta += _physics.tickFling(elapsed);
+    final flingDelta = _physics.tickFling(elapsed);
+    userDelta += flingDelta;
     // tickFling clears the simulation internally when done; the render object
     // owns scroll-event dispatch (ChatScrollPhysics does not touch controller).
     if (wasFlinging && !_physics.isFlinging) {
       _controller.notifyScrollEvent(const ChatFlingEnd());
     }
+    var delta = userDelta;
     // animateTo drives the same Ticker — the close path contributes a delta
     // to the anchor offset, the far path mutates fade opacity and triggers
     // jumpTo on its own. Inserted *between* fling and bounceback so the
@@ -3157,6 +3162,9 @@ class RenderChatScrollView extends RenderBox {
     delta += _physics.tickBounceback(elapsed);
     delta += _spanAutoScrollDelta(elapsed, lastElapsed);
 
+    if (userDelta != 0.0) {
+      _controller.notifyScrollEvent(ChatViewportScrolled(userDelta));
+    }
     if (delta != 0.0) _controller.applyScrollDelta(delta);
     // Smooth the per-frame scroll delta; biases the next fan-out lead.
     _scrollVelocity = _scrollVelocity * 0.7 + delta * 0.3;

@@ -916,6 +916,38 @@ void main() {
       expect(events.whereType<ChatUserDragEnd>(), isNotEmpty);
       expect(events.whereType<ChatFlingStart>(), isNotEmpty);
       expect(events.whereType<ChatFlingEnd>(), isNotEmpty);
+      expect(events.whereType<ChatViewportScrolled>(), isNotEmpty);
+      expect(
+        events.whereType<ChatViewportScrolled>().any((e) => e.delta > 0),
+        isTrue,
+        reason: 'fling toward older should emit positive ChatViewportScrolled',
+      );
+    });
+
+    testWidgets('animateTo does not emit ChatViewportScrolled', (
+      tester,
+    ) async {
+      const count = 256;
+      final controller = ChatScrollController()..jumpTo(count - 1);
+      await tester.pumpWidget(
+        _harness(
+          dataSource: _PreloadedDataSource(_generate(count)),
+          controller: controller,
+        ),
+      );
+      await tester.pump();
+
+      final events = <ChatScrollEvent>[];
+      controller.addScrollListener(events.add);
+
+      // animateTo completes only while the test pumps frames — do not await
+      // it before pumpAndSettle (deadlock).
+      final animating = controller.animateTo(50, highlight: false);
+      await tester.pumpAndSettle();
+      await animating;
+
+      expect(events.whereType<ChatAnimateStart>(), isNotEmpty);
+      expect(events.whereType<ChatViewportScrolled>(), isEmpty);
     });
 
     testWidgets('visibleRange tracks the on-screen ids', (tester) async {
