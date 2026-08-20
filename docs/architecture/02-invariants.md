@@ -171,8 +171,11 @@ position-specific chrome inputs MUST be resolved in the render layer
 `ChatScrollElement` includes `runLayout` in the skip-rebuild cache (value
 equality). Integrators MUST consume `runLayout` in `ChatMessageBuilder` — not
 walk `getPreviousPresentMessage` / `getNextPresentMessage` ad hoc inside the
-builder. Run boundaries are scoped to the active `groupBy` bucket when day or
-custom grouping is enabled.
+builder. Run boundaries are owned by the injected `ChatSenderRunLayout`
+(`ChatScrollView.senderRunLayout`; default `DefaultChatSenderRunLayout` —
+same sender, optional `groupBy` bucket, optional 5-minute `|createdAt|`
+window). Hosts MUST replace the policy instance to change clustering, not
+fork package statics.
 
 ## 18. Confirmed-absent ids are never built
 

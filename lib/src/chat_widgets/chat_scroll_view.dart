@@ -34,9 +34,10 @@ import 'package:flutter/widgets.dart';
 /// Without that builder, ids in the errored chunk are passed to this builder
 /// with `status.isError == true`.
 ///
-/// [runLayout] is viewport-computed sender-run position within the effective
-/// `groupBy` bucket — participates in skip-rebuild cache invalidation when
-/// neighbors change. Use for avatar/tail/padding; do not walk neighbors ad hoc.
+/// [runLayout] is viewport-computed sender-run position from
+/// [ChatScrollView.senderRunLayout] — participates in skip-rebuild cache
+/// invalidation when neighbors change. Use for avatar/tail/padding; do not
+/// walk neighbors ad hoc.
 typedef ChatMessageBuilder =
     Widget Function(
       BuildContext context,
@@ -140,6 +141,7 @@ class ChatScrollView extends RenderObjectWidget {
     this.topPadding,
     this.dateSeparatorBuilder,
     this.groupBy,
+    this.senderRunLayout = DefaultChatSenderRunLayout.instance,
     this.highlightColor,
     this.highlightDuration,
     this.textDirection,
@@ -265,6 +267,15 @@ class ChatScrollView extends RenderObjectWidget {
   /// a date. Pass a stable reference.
   final Object Function(IChatMessage message)? groupBy;
 
+  /// Policy that resolves [MessageRunLayout] for each built message.
+  ///
+  /// Default: [DefaultChatSenderRunLayout.instance] (same sender, optional
+  /// [groupBy] bucket, 5-minute `|createdAt|` window). Replace with a custom
+  /// [ChatSenderRunLayout] or `DefaultChatSenderRunLayout(maxClusterGap: …)`
+  /// to change clustering without forking the package. Prefer a stable /
+  /// value-equal instance across rebuilds.
+  final ChatSenderRunLayout senderRunLayout;
+
   /// Peak colour of the fade-out highlight painted over a message that just
   /// became the target of [ChatScrollController.animateTo]. Alpha drives the
   /// initial opacity; set the alpha channel to 0 to opt out without changing
@@ -342,6 +353,7 @@ class ChatScrollView extends RenderObjectWidget {
       bottomPadding: bottomPadding,
       topPadding: topPadding,
       groupBy: _effectiveGroupBy,
+      senderRunLayout: senderRunLayout,
       hasErrorBuilder: chunkErrorBuilder != null,
       hasEmptyBuilder: emptyBuilder != null,
       hasLoadingBuilder: loadingBuilder != null,
@@ -370,6 +382,7 @@ class ChatScrollView extends RenderObjectWidget {
       ..bottomPadding = bottomPadding
       ..topPadding = topPadding
       ..groupBy = _effectiveGroupBy
+      ..senderRunLayout = senderRunLayout
       ..hasErrorBuilder = chunkErrorBuilder != null
       ..hasEmptyBuilder = emptyBuilder != null
       ..hasLoadingBuilder = loadingBuilder != null

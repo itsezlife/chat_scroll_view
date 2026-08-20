@@ -118,6 +118,30 @@ A row that opens a new day bucket and may show an inline date separator.
 One of four disjoint identity spaces: messages, chunk errors, floating header, overlay.
 _Avoid_: Child index, GlobalKey, element slot (Flutter’s)
 
+**Message body layout**:
+Host helper that packs in-bubble content beside trailing meta (time / status) with last-line fit and shrink-wrap. Reply and media stay outside it.
+_Avoid_: Stack+Positioned meta, type-marker child discovery, internal TextPainter for body text
+
+**Bubble radius**:
+Tunable large corner radius for message chrome (`ChatMessageThemeData.bubbleRadius`). Clustered outer corners use the near radius instead.
+_Avoid_: Hardcoded BorderRadius in the message builder, neighbor walks for corners
+
+**Near radius**:
+`min(cornerNearCap, bubbleRadius)` applied to the outer corners when the message is pinned to a same-sender run neighbor (`!isFirstInSenderRun` / `!isLastInSenderRun`). Incoming: top-left / bottom-left; outgoing: top-right / bottom-right.
+_Avoid_: Small radius, tail radius (when meaning clustered round corners)
+
+**Bubble metrics**:
+Pure resolvers (`ChatBubbleMetrics`) that map theme tokens + `MessageRunLayout` to Directionality-aware `BorderRadiusDirectional` / `EdgeInsetsDirectional` / media radii. Horizontal asymmetry is **outer (tail) vs inner (toward center)** — not raw left/right. Hosts read these; they do not re-derive pins from neighbors in `messageBuilder`.
+_Avoid_: Inline corner switch in the list item, AttachmentsBordersType algebra, absolute EdgeInsets.left for bubble chrome
+
+**Cluster gap**:
+Max `|createdAt|` between present same-sender neighbors that may share a sender run under `DefaultChatSenderRunLayout` (`maxClusterGap`, default 5 minutes). Exceeding it ends the run — large corners and unclustered top inset — without a separate spacing enum. `null` disables the window. Hosts replace the whole policy via `ChatScrollView.senderRunLayout`.
+_Avoid_: SpacingType.timeDiff, per-row time checks in messageBuilder, forking package statics
+
+**Sender run layout**:
+Host-injected policy (`ChatSenderRunLayout`) that resolves `MessageRunLayout` for each built id. Package default is `DefaultChatSenderRunLayout`.
+_Avoid_: Static package-only clustering, neighbor walks inside messageBuilder
+
 ### Selection
 
 **Message selection**:

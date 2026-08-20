@@ -4,6 +4,7 @@ library;
 
 import 'dart:io' show Platform;
 
+import 'package:chat_scroll_view/chat_scroll_view.dart';
 import 'package:chat_scroll_view_example/src/common/models/chat_message.dart';
 import 'package:chat_scroll_view_example/src/features/chat/widgets/date_separator.dart';
 import 'package:chat_scroll_view_example/src/features/chat/widgets/demo_message.dart';
@@ -169,14 +170,16 @@ void main() {
     testWidgets('bubble run-grouping: subsequent message in a run', (
       tester,
     ) async {
-      // Same sender as the previous message → no avatar, no sender label,
-      // bubble tail removed. Visual contract for run-grouped rendering.
+      // Same sender mid-run → no avatar, no sender label, clustered outer
+      // corners (near radius) on both top and bottom.
       await tester.pumpWidget(
         _box(
           child: DemoMessageBubble(
             message: _msg(sender: 'aliceR', content: 'one more thought…'),
-            isLastInRun: false,
-            isFirstInRun: false,
+            runLayout: const MessageRunLayout(
+              isFirstInSenderRun: false,
+              isLastInSenderRun: false,
+            ),
           ),
         ),
       );

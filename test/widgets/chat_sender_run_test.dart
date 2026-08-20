@@ -42,6 +42,7 @@ Widget _harness({
   required ChatMessageBuilder messageBuilder,
   ChatGroupSeparatorBuilder? dateSeparatorBuilder,
   Object Function(IChatMessage message)? groupBy,
+  ChatSenderRunLayout senderRunLayout = DefaultChatSenderRunLayout.instance,
 }) => MaterialApp(
   home: Scaffold(
     body: Center(
@@ -53,6 +54,7 @@ Widget _harness({
           controller: controller,
           dateSeparatorBuilder: dateSeparatorBuilder,
           groupBy: groupBy,
+          senderRunLayout: senderRunLayout,
           messageBuilder: messageBuilder,
         ),
       ),
@@ -229,7 +231,13 @@ void main() {
                   controller: controller,
                   messageBuilder: (context, id, message, status, runLayout) {
                     if (message == null) return const SizedBox(height: 40);
-                    return SizedBox(height: 40, child: Text(message.sender));
+                    // Proxy for last-in-run chrome (avatar / sender label).
+                    return SizedBox(
+                      height: 40,
+                      child: runLayout.isLastInSenderRun
+                          ? Text(message.sender)
+                          : const SizedBox.shrink(),
+                    );
                   },
                 ),
               ),
@@ -283,6 +291,55 @@ void main() {
       expect(find.text('chrome-3'), findsOneWidget);
     });
 
+    testWidgets('maxClusterGap splits same-sender run by createdAt', (
+      tester,
+    ) async {
+      final t0 = DateTime(2026, 5, 29, 10);
+      final ds = _LoadedSource([
+        _msg(1, when: t0),
+        _msg(2, when: t0.add(const Duration(minutes: 2))),
+        _msg(3, when: t0.add(const Duration(minutes: 12))),
+      ]);
+      final controller = ChatScrollController()..jumpTo(3);
+
+      await tester.pumpWidget(
+        _harness(
+          dataSource: ds,
+          controller: controller,
+          messageBuilder: _chromeBuilder,
+        ),
+      );
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
+
+      // 1–2 within 5 min → one run (chrome on 2); 3 starts a new run.
+      expect(find.text('plain-1'), findsOneWidget);
+      expect(find.text('chrome-2'), findsOneWidget);
+      expect(find.text('chrome-3'), findsOneWidget);
+    });
+
+    testWidgets('custom senderRunLayout replaces clustering policy', (
+      tester,
+    ) async {
+      final ds = _LoadedSource([_msg(1), _msg(2), _msg(3)]);
+      final controller = ChatScrollController()..jumpTo(3);
+
+      await tester.pumpWidget(
+        _harness(
+          dataSource: ds,
+          controller: controller,
+          messageBuilder: _chromeBuilder,
+          senderRunLayout: const _AlwaysAloneRunLayout(),
+        ),
+      );
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
+
+      expect(find.text('chrome-1'), findsOneWidget);
+      expect(find.text('chrome-2'), findsOneWidget);
+      expect(find.text('chrome-3'), findsOneWidget);
+    });
+
     testWidgets('neighbor sender update rebuilds run layout', (tester) async {
       final ds = _LoadedSource([_msg(1, sender: 'a'), _msg(2, sender: 'a')]);
 
@@ -298,4 +355,16 @@ void main() {
       expect(find.text('chrome-2'), findsOneWidget);
     });
   });
+}
+
+class _AlwaysAloneRunLayout implements ChatSenderRunLayout {
+  const _AlwaysAloneRunLayout();
+
+  @override
+  MessageRunLayout resolve({
+    required ChatDataSource dataSource,
+    required int messageId,
+    Object? Function(IChatMessage)? groupBy,
+  }) =>
+      const MessageRunLayout(isFirstInSenderRun: true, isLastInSenderRun: true);
 }

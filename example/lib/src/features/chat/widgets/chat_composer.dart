@@ -236,7 +236,6 @@ class ChatComposerState extends State<ChatComposer>
     if (_mode) _t.reverse();
     // Menu restore can leave this node focused with the IME closed;
     // requestFocus is a no-op then. Bounce focus so the keyboard opens.
-    FocusManager.instance.primaryFocus?.unfocus();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       _focus.requestFocus();

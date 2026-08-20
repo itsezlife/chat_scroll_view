@@ -30,11 +30,16 @@ class ChatMessageThemeData extends ThemeExtension<ChatMessageThemeData> {
   const ChatMessageThemeData({
     this.contentMaxWidth = 338,
     this.bubbleMaxWidth = 480,
-    this.padding = const EdgeInsets.fromLTRB(12, 6, 12, 2),
+    this.padding = const EdgeInsets.fromLTRB(12, 8, 12, 2),
     this.runGap = 2,
     this.avatarSize = 32,
     this.avatarGap = 8,
     this.columnPlacement = ChatMessageColumnPlacement.start,
+    this.bubbleRadius = 17,
+    this.cornerNearCap = 6,
+    this.mediaRadiusInset = 2,
+    this.mediaNearCap = 3,
+    this.bubblePadding = const EdgeInsetsDirectional.fromSTEB(11, 8, 11, 8),
   });
 
   /// Resolves from [context], falling back to [fallback].
@@ -53,13 +58,17 @@ class ChatMessageThemeData extends ThemeExtension<ChatMessageThemeData> {
   /// Maximum width of a single bubble inside the column.
   final double bubbleMaxWidth;
 
-  /// Insets around the bubble row, inside the column.
-  ///
-  /// [padding.top] is the gap before the first message in a sender run;
-  /// subsequent rows use [runGap] instead.
+  /// [padding.top] is the gap before the first message in a sender run
+  /// (unclustered / new run — ≈ 8dp). [padding.bottom] is the gap after the
+  /// last message in a run (Telegram `offsetBottom` when `!drawPinnedBottom`
+  /// — ≈ 2dp). Mid-run rows split [runGap] evenly across the shared edge
+  /// (half bottom of the upper bubble + half top of the lower).
   final EdgeInsets padding;
 
-  /// Top inset for a message that is not the first in its sender run.
+  /// Full seam between two bubbles in the same sender run.
+  ///
+  /// Applied as [runGap] `/ 2` above the lower bubble and `/ 2` below the
+  /// upper one. Default `2` → 1+1 between clustered messages.
   final double runGap;
 
   /// Avatar diameter; also the leading gutter when the avatar is omitted
@@ -71,6 +80,51 @@ class ChatMessageThemeData extends ThemeExtension<ChatMessageThemeData> {
 
   /// Column placement on viewports wider than [contentMaxWidth].
   final ChatMessageColumnPlacement columnPlacement;
+
+  /// Large corner radius for a bubble that is not clustered on that edge.
+  ///
+  /// Hosts typically expose this as a settings control (Telegram-style
+  /// “message corners”). Clustered outer corners use [nearRadius] instead.
+  /// See [ChatBubbleMetrics.bubbleBorderRadius].
+  final double bubbleRadius;
+
+  /// Cap on the clustered (“near”) outer corner — applied as
+  /// `min(cornerNearCap, bubbleRadius)`.
+  final double cornerNearCap;
+
+  /// How much smaller media content radii are than [bubbleRadius]
+  /// (`max(0, bubbleRadius - mediaRadiusInset)`).
+  final double mediaRadiusInset;
+
+  /// Cap on clustered media content corners —
+  /// `min(mediaNearCap, mediaLargeRadius)`.
+  final double mediaNearCap;
+
+  /// Base in-bubble content insets before radius-scaled extras.
+  ///
+  /// Horizontal [EdgeInsetsDirectional.start] / [EdgeInsetsDirectional.end]
+  /// are the base content insets before [ChatMessageThemeData.extraTextX].
+  /// [ChatBubbleMetrics.bubbleContentPadding] keeps them symmetric (no
+  /// Telegram tail-side +6) until a real bubble-tail path exists.
+  final EdgeInsetsDirectional bubblePadding;
+
+  /// Clustered outer-corner radius: `min([cornerNearCap], [bubbleRadius])`.
+  double get nearRadius => math.min(cornerNearCap, bubbleRadius);
+
+  /// Media content large radius: `max(0, [bubbleRadius] - [mediaRadiusInset])`.
+  double get mediaLargeRadius => math.max(0, bubbleRadius - mediaRadiusInset);
+
+  /// Clustered media outer corner: `min([mediaNearCap], [mediaLargeRadius])`.
+  double get mediaNearRadius => math.min(mediaNearCap, mediaLargeRadius);
+
+  /// Extra horizontal text inset that grows with [bubbleRadius].
+  ///
+  /// Matches Telegram: ≥15 → 2, ≥11 → 1, else 0.
+  double get extraTextX {
+    if (bubbleRadius >= 15) return 2;
+    if (bubbleRadius >= 11) return 1;
+    return 0;
+  }
 
   /// Column width for [viewportWidth] — never exceeds the viewport or
   /// [contentMaxWidth].
@@ -139,8 +193,18 @@ class ChatMessageThemeData extends ThemeExtension<ChatMessageThemeData> {
   }
 
   /// Top inset for a row in a sender run.
+  ///
+  /// First-in-run uses [padding.top]; otherwise half of [runGap] (paired with
+  /// [bottomInset] on the neighbor above).
   double topInset({required bool isFirstInRun}) =>
-      isFirstInRun ? padding.top : runGap;
+      isFirstInRun ? padding.top : runGap / 2;
+
+  /// Bottom inset for a row in a sender run.
+  ///
+  /// Last-in-run uses [padding.bottom]; otherwise half of [runGap] (paired
+  /// with [topInset] on the neighbor below).
+  double bottomInset({required bool isLastInRun}) =>
+      isLastInRun ? padding.bottom : runGap / 2;
 
   @override
   ChatMessageThemeData copyWith({
@@ -151,6 +215,11 @@ class ChatMessageThemeData extends ThemeExtension<ChatMessageThemeData> {
     double? avatarSize,
     double? avatarGap,
     ChatMessageColumnPlacement? columnPlacement,
+    double? bubbleRadius,
+    double? cornerNearCap,
+    double? mediaRadiusInset,
+    double? mediaNearCap,
+    EdgeInsetsDirectional? bubblePadding,
   }) => ChatMessageThemeData(
     contentMaxWidth: contentMaxWidth ?? this.contentMaxWidth,
     bubbleMaxWidth: bubbleMaxWidth ?? this.bubbleMaxWidth,
@@ -159,6 +228,11 @@ class ChatMessageThemeData extends ThemeExtension<ChatMessageThemeData> {
     avatarSize: avatarSize ?? this.avatarSize,
     avatarGap: avatarGap ?? this.avatarGap,
     columnPlacement: columnPlacement ?? this.columnPlacement,
+    bubbleRadius: bubbleRadius ?? this.bubbleRadius,
+    cornerNearCap: cornerNearCap ?? this.cornerNearCap,
+    mediaRadiusInset: mediaRadiusInset ?? this.mediaRadiusInset,
+    mediaNearCap: mediaNearCap ?? this.mediaNearCap,
+    bubblePadding: bubblePadding ?? this.bubblePadding,
   );
 
   @override
@@ -172,6 +246,19 @@ class ChatMessageThemeData extends ThemeExtension<ChatMessageThemeData> {
       avatarSize: lerpDouble(avatarSize, other.avatarSize, t)!,
       avatarGap: lerpDouble(avatarGap, other.avatarGap, t)!,
       columnPlacement: t < 0.5 ? columnPlacement : other.columnPlacement,
+      bubbleRadius: lerpDouble(bubbleRadius, other.bubbleRadius, t)!,
+      cornerNearCap: lerpDouble(cornerNearCap, other.cornerNearCap, t)!,
+      mediaRadiusInset: lerpDouble(
+        mediaRadiusInset,
+        other.mediaRadiusInset,
+        t,
+      )!,
+      mediaNearCap: lerpDouble(mediaNearCap, other.mediaNearCap, t)!,
+      bubblePadding: EdgeInsetsDirectional.lerp(
+        bubblePadding,
+        other.bubblePadding,
+        t,
+      )!,
     );
   }
 }

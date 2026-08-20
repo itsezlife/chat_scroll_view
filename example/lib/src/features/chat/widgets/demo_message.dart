@@ -5,12 +5,14 @@ import 'package:flutter/material.dart';
 /// Builds a demo message widget for the widget-based [ChatScrollView].
 ///
 /// Returns a shimmer placeholder while [message] is `null` (chunk loading),
-/// and a chat bubble once the message has been fetched. Every message shows
-/// its sender, time, and avatar.
+/// and a [DemoMessageBubble] once the message has been fetched.
 ///
-/// For run-grouped rendering (avatar / sender on the **last** message in a
-/// sender run within the day bucket) use [MessageRunLayout] from the viewport
-/// — see `widget_chat_screen.dart`.
+/// The bubble uses [ChatMessageBody] for text + time/status packing — the same
+/// host API apps should wire inside their own `messageBuilder`.
+///
+/// For run-grouped rendering (avatar on the **last** message, sender name on
+/// the **first**) use [MessageRunLayout] from the viewport — see
+/// `widget_chat_screen.dart`.
 Widget buildDemoMessage(
   BuildContext context,
   int id,
@@ -19,11 +21,7 @@ Widget buildDemoMessage(
   MessageRunLayout runLayout,
 ) {
   if (message == null) return const DemoShimmerBubble();
-  return DemoMessageBubble(
-    message: message,
-    isLastInRun: runLayout.isLastInSenderRun,
-    isFirstInRun: runLayout.isFirstInSenderRun,
-  );
+  return DemoMessageBubble(message: message, runLayout: runLayout);
 }
 
 ChatMessageThemeData _layoutOf(BuildContext context) =>
@@ -93,32 +91,6 @@ String _formatTime(DateTime dt) {
   return '$h:$m';
 }
 
-const List<String> _monthsRu = <String>[
-  'января',
-  'февраля',
-  'марта',
-  'апреля',
-  'мая',
-  'июня',
-  'июля',
-  'августа',
-  'сентября',
-  'октября',
-  'ноября',
-  'декабря',
-];
-
-/// Verbose "5 января 2026, 14:23:45" — shown in the tooltip on hover, so the
-/// user can see the exact send time without burning bubble real estate.
-String _formatFullDateTime(DateTime dt) {
-  final local = dt.toLocal();
-  final h = local.hour.toString().padLeft(2, '0');
-  final m = local.minute.toString().padLeft(2, '0');
-  final s = local.second.toString().padLeft(2, '0');
-  return '${local.day} ${_monthsRu[local.month - 1]} ${local.year}, '
-      '$h:$m:$s';
-}
-
 // --- Palette --------------------------------------------------------------
 
 const Color _kOutgoingBg = Color(0xFF0B81F6);
@@ -129,30 +101,32 @@ const Color _kShimmer = Color(0xFF2C2C2E);
 
 // --- Bubble ---------------------------------------------------------------
 
-/// A single chat bubble — sender label (optional), content text, time, and
-/// (for outgoing) a delivery status icon.
+/// A single chat bubble — optional sender label, body text, time, and (for
+/// outgoing) a delivery status icon.
 ///
-/// [isLastInRun] — when `true`, shows avatar, sender label, and bubble tail
-/// (Telegram-style — chrome on the last message in a bucket-scoped run).
-/// [isFirstInRun] — when `false`, tightens vertical padding for middle/last
-/// rows in a run.
+/// Body text and meta are packed with [ChatMessageBody] (last-line fit /
+/// shrink-wrap). The sender label stays above that cluster so run chrome does
+/// not participate in meta packing.
+///
+/// [runLayout] drives chrome: **sender name on first** in the run, **avatar
+/// on last** (incoming), column top inset on first, and bubble corner
+/// clustering via [ChatBubbleMetrics].
 class DemoMessageBubble extends StatelessWidget {
   /// Renders [message] as an incoming or outgoing bubble row.
   const DemoMessageBubble({
     required this.message,
-    this.isLastInRun = true,
-    this.isFirstInRun = true,
+    this.runLayout = const MessageRunLayout(
+      isFirstInSenderRun: true,
+      isLastInSenderRun: true,
+    ),
     super.key,
   });
 
   /// Message to display — drives sender alignment and bubble styling.
   final IChatMessage message;
 
-  /// When `true`, shows avatar / sender / tail on incoming messages.
-  final bool isLastInRun;
-
-  /// When `false`, uses tighter top padding (not the first row in the run).
-  final bool isFirstInRun;
+  /// Sender-run position from the viewport — do not recompute from neighbors.
+  final MessageRunLayout runLayout;
 
   @override
   Widget build(BuildContext context) {
@@ -163,6 +137,8 @@ class DemoMessageBubble extends StatelessWidget {
     };
     final outgoing = _isOutgoing(message.sender);
     final layout = _layoutOf(context);
+    final isFirstInRun = runLayout.isFirstInSenderRun;
+    final isLastInRun = runLayout.isLastInSenderRun;
 
     return LayoutBuilder(
       builder: (context, constraints) {
@@ -172,7 +148,8 @@ class DemoMessageBubble extends StatelessWidget {
           content: content,
           createdAt: message.createdAt,
           isOutgoing: outgoing,
-          hasTail: isLastInRun,
+          runLayout: runLayout,
+          theme: layout,
           maxWidth: layout.bubbleCap(viewportWidth, hasAvatarGutter: !outgoing),
         );
         final Widget row;
@@ -204,6 +181,7 @@ class DemoMessageBubble extends StatelessWidget {
             child: Padding(
               padding: layout.padding.copyWith(
                 top: layout.topInset(isFirstInRun: isFirstInRun),
+                bottom: layout.bottomInset(isLastInRun: isLastInRun),
               ),
               child: row,
             ),
@@ -246,44 +224,42 @@ class _Avatar extends StatelessWidget {
   }
 }
 
+/// Colored bubble chrome around the message body.
+///
+/// Uses [ChatMessageBody] so short lines keep time/status on the same visual
+/// row, long last lines wrap meta underneath, and the bubble width shrinks to
+/// the text + meta cluster instead of always filling [maxWidth].
 class _Bubble extends StatelessWidget {
   const _Bubble({
     required this.sender,
     required this.content,
     required this.createdAt,
     required this.isOutgoing,
-    required this.hasTail,
+    required this.runLayout,
+    required this.theme,
     required this.maxWidth,
   });
 
   /// `null` suppresses the sender label — non-first messages in a run.
   final String? sender;
-  final String content;
-  final DateTime createdAt;
-  final bool isOutgoing;
-  final bool hasTail;
-  final double maxWidth;
 
-  /// Border radius — asymmetric on the corner that points at the column the
-  /// sender writes from (tail effect, without an actual tail glyph).
-  BorderRadius get _radius {
-    const r = Radius.circular(16);
-    const tail = Radius.circular(4);
-    if (!hasTail) return const BorderRadius.all(r);
-    return isOutgoing
-        ? const BorderRadius.only(
-            topLeft: r,
-            topRight: r,
-            bottomLeft: r,
-            bottomRight: tail,
-          )
-        : const BorderRadius.only(
-            topLeft: tail,
-            topRight: r,
-            bottomLeft: r,
-            bottomRight: r,
-          );
-  }
+  /// Plain message body shown in the content slot of [ChatMessageBody].
+  final String content;
+
+  /// Send timestamp; formatted by [_MetaRow] for the meta slot.
+  final DateTime createdAt;
+
+  /// When true, right-column colors and a delivery tick in meta.
+  final bool isOutgoing;
+
+  /// Run position — drives [ChatBubbleMetrics] corner clustering.
+  final MessageRunLayout runLayout;
+
+  /// Layout + bubble chrome tokens from [ChatScrollTheme.messageOf].
+  final ChatMessageThemeData theme;
+
+  /// Cap from [ChatMessageThemeData.bubbleCap]; not a forced width.
+  final double maxWidth;
 
   @override
   Widget build(BuildContext context) {
@@ -292,13 +268,19 @@ class _Bubble extends StatelessWidget {
     final metaColor = isOutgoing
         ? _kOutgoingText.withValues(alpha: 0.78)
         : _kIncomingText.withValues(alpha: 0.55);
+    final radius = ChatBubbleMetrics.bubbleBorderRadius(
+      theme: theme,
+      outgoing: isOutgoing,
+      run: runLayout,
+    );
+    final padding = ChatBubbleMetrics.bubbleContentPadding(theme: theme);
 
     return ConstrainedBox(
       constraints: BoxConstraints(maxWidth: maxWidth),
       child: DecoratedBox(
         decoration: BoxDecoration(
           color: bg,
-          borderRadius: _radius,
+          borderRadius: radius,
           boxShadow: const <BoxShadow>[
             BoxShadow(
               color: Color(0x33000000),
@@ -308,7 +290,7 @@ class _Bubble extends StatelessWidget {
           ],
         ),
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(12, 7, 10, 6),
+          padding: padding,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
@@ -325,15 +307,21 @@ class _Bubble extends StatelessWidget {
                 ),
                 const SizedBox(height: 3),
               ],
-              Text(
-                content,
-                style: TextStyle(color: textColor, fontSize: 15, height: 1.35),
-              ),
-              const SizedBox(height: 2),
-              _MetaRow(
-                createdAt: createdAt,
-                color: metaColor,
-                showStatus: isOutgoing,
+              ChatMessageBody(
+                spacing: 8,
+                content: Text(
+                  content,
+                  style: TextStyle(
+                    color: textColor,
+                    fontSize: 15,
+                    height: 1.35,
+                  ),
+                ),
+                meta: _MetaRow(
+                  createdAt: createdAt,
+                  color: metaColor,
+                  showStatus: isOutgoing,
+                ),
               ),
             ],
           ),
@@ -343,15 +331,11 @@ class _Bubble extends StatelessWidget {
   }
 }
 
-/// "12:34 ✓✓" row at the bottom-right of a bubble. The double-check is a
-/// "delivered" hint for outgoing messages; incoming bubbles show just time.
+/// Time (+ optional delivery ticks) for the [ChatMessageBody] meta slot.
 ///
-/// The whole row is wrapped in a [Tooltip] showing the full date and time —
-/// on desktop / web a hover over the time pops the precise send timestamp,
-/// on mobile a long-press does the same. Long-press on the bubble itself is
-/// already used by selection mode, so the tooltip's gesture only fires on
-/// the metadata strip; that's the right trade-off (long-press the bubble →
-/// select; hover the time → see the date).
+/// Keep this subtree intrinsic-width (`mainAxisSize: min`) so last-line packing
+/// measures the true meta width. Do not wrap in [Align] / [Expanded] — those
+/// stretch to the bubble max width and defeat shrink-wrap.
 class _MetaRow extends StatelessWidget {
   const _MetaRow({
     required this.createdAt,
@@ -359,50 +343,33 @@ class _MetaRow extends StatelessWidget {
     required this.showStatus,
   });
 
+  /// Instant shown as `HH:MM` and in the tooltip's full date string.
   final DateTime createdAt;
+
+  /// Shared color for the time label and status icon.
   final Color color;
+
+  /// When true, appends a delivered (`done_all`) icon after the time.
   final bool showStatus;
 
   @override
-  Widget build(BuildContext context) => Align(
-    alignment: AlignmentDirectional.centerEnd,
-    // Only the time-and-status cluster is the tooltip target — wrapping the
-    // outer right-aligned row would stretch the hit zone across the whole
-    // bubble width via the Spacer it used to need.
-    child: Tooltip(
-      message: _formatFullDateTime(createdAt),
-      waitDuration: const Duration(milliseconds: 400),
-      triggerMode: TooltipTriggerMode.longPress,
-      preferBelow: false,
-      textStyle: const TextStyle(
-        color: Color(0xFFE6E7EB),
-        fontSize: 12,
-        fontFeatures: <FontFeature>[FontFeature.tabularFigures()],
+  Widget build(BuildContext context) => Row(
+    mainAxisSize: MainAxisSize.min,
+    children: <Widget>[
+      Text(
+        _formatTime(createdAt),
+        style: TextStyle(
+          color: color,
+          fontSize: 11,
+          height: 1,
+          fontFeatures: const <FontFeature>[FontFeature.tabularFigures()],
+        ),
       ),
-      decoration: BoxDecoration(
-        color: const Color(0xE61C1C1E),
-        borderRadius: BorderRadius.circular(8),
-      ),
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: <Widget>[
-          Text(
-            _formatTime(createdAt),
-            style: TextStyle(
-              color: color,
-              fontSize: 11,
-              height: 1,
-              fontFeatures: const <FontFeature>[FontFeature.tabularFigures()],
-            ),
-          ),
-          if (showStatus) ...<Widget>[
-            const SizedBox(width: 4),
-            Icon(Icons.done_all_rounded, size: 14, color: color),
-          ],
-        ],
-      ),
-    ),
+      if (showStatus) ...<Widget>[
+        const SizedBox(width: 4),
+        Icon(Icons.done_all_rounded, size: 14, color: color),
+      ],
+    ],
   );
 }
 
@@ -429,7 +396,10 @@ class DemoShimmerBubble extends StatelessWidget {
             maxWidth: layout.columnWidth(constraints.maxWidth),
           ),
           child: Padding(
-            padding: layout.padding,
+            // Placeholders use a slightly roomier vertical rhythm than live
+            // bubbles (`runGap: 2`) so stacked shimmers remain easy to scan
+            // while loading.
+            padding: layout.padding.copyWith(top: 6, bottom: 2),
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.end,
               children: <Widget>[

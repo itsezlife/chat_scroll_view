@@ -118,6 +118,6 @@ inside `messageBuilder` via `getPreviousPresentMessage` was not part of the
 skip-rebuild cache. After delete, survivors kept stale chrome when
 `identical(message)` and status were unchanged.
 
-**Fix:** `ChatSenderRunLayout.resolve` runs in the render object; `MessageRunLayout`
+**Fix:** `ChatSenderRunLayout.resolve` (injected policy) runs in the render object; `MessageRunLayout`
 is cached per id alongside message identity. `ChatMessageBuilder` receives a
 5th `runLayout` parameter. Demo chrome uses last-in-run (Telegram-style).
