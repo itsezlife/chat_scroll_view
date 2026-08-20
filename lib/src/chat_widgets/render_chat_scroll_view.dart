@@ -969,6 +969,7 @@ class RenderChatScrollView extends RenderBox {
       ..onIdleMessageTap = _onIdleMessageTap == null
           ? null
           : _dispatchIdleMessageTap;
+    _displayRefreshHz = _readDisplayRefreshHz();
     _seedTailNavigationOnAttach();
   }
 
@@ -3367,6 +3368,9 @@ class RenderChatScrollView extends RenderBox {
   static const double _spanAutoScrollPixelsPerFrame =
       ChatSelectionMetrics.autoScrollPixelsPerFrame;
 
+  /// Display refresh Hz cached on [attach]; used to scale span auto-scroll.
+  double _displayRefreshHz = 60;
+
   bool get _spanAutoScrollOccupying {
     final pointer = _selectionPointer;
     if (pointer == null || !pointer.isSpanLive) return false;
@@ -3407,11 +3411,11 @@ class RenderChatScrollView extends RenderBox {
     if (lastElapsed == null) return 0;
     final dt = ((elapsed - lastElapsed).inMicroseconds / 1e6).clamp(0.0, 0.05);
     if (dt <= 0.0) return 0;
-    return direction * _spanAutoScrollPixelsPerFrame * _displayRefreshHz() * dt;
+    return direction * _spanAutoScrollPixelsPerFrame * _displayRefreshHz * dt;
   }
 
   /// Hz of the first attached display, or 60 when none is reported.
-  double _displayRefreshHz() {
+  static double _readDisplayRefreshHz() {
     for (final view in SchedulerBinding.instance.platformDispatcher.views) {
       final hz = view.display.refreshRate;
       if (hz > 1) return hz;
