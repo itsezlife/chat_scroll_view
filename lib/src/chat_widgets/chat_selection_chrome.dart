@@ -60,12 +60,13 @@ typedef ChatSelectionChromeBuilder =
 
 /// Bundled checkbox + row-tint chrome. Restyle via [ChatSelectionThemeData].
 ///
-/// The checkbox slides in from off-start. A start-side spacer opens in
-/// sync so a start-aligned body is pushed out of the way, while an
-/// end-aligned body stays pinned to the trailing edge — unless it is
-/// wide enough that the remaining width collides with the check, in
-/// which case its start edge is squeezed. [child] is the message
-/// content, passed straight through from [AnimatedBuilder].
+/// The checkbox slides in from off-start behind a [ClipRect]. A start-side
+/// spacer opens in sync so start-aligned bodies shift while end-aligned bodies
+/// stay on the trailing edge (unless squeezed by the check).
+///
+/// The selected-row tint is painted **outside** that [ClipRect]. Clipping the
+/// tint to the row box was cutting its anti-aliased edges and leaving a
+/// hairline of the chat background between abutting selected rows.
 class DefaultSelectionChrome extends StatelessWidget {
   /// Wraps [child] with the bundled selection visuals for [state].
   const DefaultSelectionChrome({
@@ -113,54 +114,55 @@ class DefaultSelectionChrome extends StatelessWidget {
         final t = fits ? m : 0.0;
         if (t == 0.0 && overlay == 0.0) return child;
 
-        // Same geometry as the original Row gutter: a start-side spacer
-        // shrinks [Expanded], so start-aligned bodies shift and end-aligned
-        // bodies stay on the trailing edge. The check itself is *not* in
-        // that spacer — it slides in from off-start as an overlay.
-        // When [fits] is false the spacer and check are omitted so a
-        // too-narrow row is not crushed by the slot.
-        return ClipRect(
-          child: Stack(
-            clipBehavior: Clip.hardEdge,
-            children: <Widget>[
-              if (overlay > 0.0)
-                Positioned.fill(
-                  child: IgnorePointer(
-                    child: ColoredBox(
-                      color: tint.withValues(alpha: 0.13 * overlay),
-                    ),
+        // Tint outside ClipRect; clip only the sliding check.
+        return Stack(
+          clipBehavior: Clip.none,
+          children: <Widget>[
+            if (overlay > 0.0)
+              Positioned.fill(
+                child: IgnorePointer(
+                  child: ColoredBox(
+                    key: const ValueKey<String>('chatSelectionTint'),
+                    color: tint.withValues(alpha: 0.13 * overlay),
                   ),
                 ),
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: <Widget>[
-                  SizedBox(width: slot * t),
-                  Expanded(child: child),
-                ],
               ),
-              if (t > 0.0)
-                Positioned.directional(
-                  textDirection: Directionality.of(context),
-                  start: slot * (t - 1.0),
-                  bottom: 6,
-                  width: slot,
-                  child: IgnorePointer(
-                    child: Center(
-                      child: CustomPaint(
-                        key: const ValueKey<String>('chatSelectionCheck'),
-                        size: Size.square(theme.checkSize),
-                        painter: _CheckPainter(
-                          select: s,
-                          accent: accent,
-                          ring: theme.checkRing,
-                          checkmark: theme.checkmark,
+            ClipRect(
+              child: Stack(
+                clipBehavior: Clip.hardEdge,
+                children: <Widget>[
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: <Widget>[
+                      SizedBox(width: slot * t),
+                      Expanded(child: child),
+                    ],
+                  ),
+                  if (t > 0.0)
+                    Positioned.directional(
+                      textDirection: Directionality.of(context),
+                      start: slot * (t - 1.0),
+                      bottom: 6,
+                      width: slot,
+                      child: IgnorePointer(
+                        child: Center(
+                          child: CustomPaint(
+                            key: const ValueKey<String>('chatSelectionCheck'),
+                            size: Size.square(theme.checkSize),
+                            painter: _CheckPainter(
+                              select: s,
+                              accent: accent,
+                              ring: theme.checkRing,
+                              checkmark: theme.checkmark,
+                            ),
+                          ),
                         ),
                       ),
                     ),
-                  ),
-                ),
-            ],
-          ),
+                ],
+              ),
+            ),
+          ],
         );
       },
     );

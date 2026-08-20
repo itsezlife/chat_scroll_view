@@ -150,6 +150,7 @@ class RenderChatScrollView extends RenderBox {
     ValueListenable<double>? bottomPadding,
     ValueListenable<double>? topPadding,
     Object Function(IChatMessage)? groupBy,
+    ChatSenderRunLayout senderRunLayout = DefaultChatSenderRunLayout.instance,
     bool hasErrorBuilder = false,
     bool hasEmptyBuilder = false,
     bool hasLoadingBuilder = false,
@@ -170,6 +171,7 @@ class RenderChatScrollView extends RenderBox {
        _bottomPadding = bottomPadding,
        _topPadding = topPadding,
        _groupBy = groupBy,
+       _senderRunLayout = senderRunLayout,
        _hasErrorBuilder = hasErrorBuilder,
        _hasEmptyBuilder = hasEmptyBuilder,
        _hasLoadingBuilder = hasLoadingBuilder,
@@ -482,6 +484,14 @@ class RenderChatScrollView extends RenderBox {
     // while `==` correctly recognises the unchanged callback.
     if (_groupBy == value) return;
     _groupBy = value;
+    markNeedsLayout();
+  }
+
+  /// Host policy for [MessageRunLayout]. See [ChatScrollView.senderRunLayout].
+  ChatSenderRunLayout _senderRunLayout;
+  set senderRunLayout(ChatSenderRunLayout value) {
+    if (_senderRunLayout == value) return;
+    _senderRunLayout = value;
     markNeedsLayout();
   }
 
@@ -2352,7 +2362,7 @@ class RenderChatScrollView extends RenderBox {
     }
     final bucket = _bucketOf(id);
     final startsDay = _startsDay(id, bucket);
-    final runLayout = ChatSenderRunLayout.resolve(
+    final runLayout = _senderRunLayout.resolve(
       dataSource: _dataSource,
       groupBy: _groupBy,
       messageId: id,

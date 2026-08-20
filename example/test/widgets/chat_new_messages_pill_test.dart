@@ -321,11 +321,7 @@ class _DemoPillScaffoldState extends State<_DemoPillScaffold> {
     ) {
       if (status.isAbsent) return const SizedBox.shrink();
       if (message == null) return const DemoShimmerBubble();
-      return DemoMessageBubble(
-        message: message,
-        isLastInRun: runLayout.isLastInSenderRun,
-        isFirstInRun: runLayout.isFirstInSenderRun,
-      );
+      return DemoMessageBubble(message: message, runLayout: runLayout);
     }
 
     return MaterialApp(

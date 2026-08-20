@@ -66,6 +66,16 @@ void main() {
         AlignmentDirectional.centerStart,
       );
     });
+
+    test('run spacing defaults split runGap top and bottom', () {
+      expect(layout.padding.top, 8);
+      expect(layout.padding.bottom, 2);
+      expect(layout.runGap, 2);
+      expect(layout.topInset(isFirstInRun: true), 8);
+      expect(layout.topInset(isFirstInRun: false), 1);
+      expect(layout.bottomInset(isLastInRun: true), 2);
+      expect(layout.bottomInset(isLastInRun: false), 1);
+    });
   });
 
   group('DefaultSelectionChrome gutter', () {
@@ -163,6 +173,35 @@ void main() {
       expect(
         find.byKey(const ValueKey<String>('chatSelectionCheck')),
         findsNothing,
+      );
+    });
+
+    testWidgets('selected tint is painted outside the checkbox ClipRect', (
+      tester,
+    ) async {
+      const child = SizedBox(width: 80, height: 20, child: Text('row'));
+      await tester.pumpWidget(app(mode: 1, child: child));
+
+      final tintFinder = find.byKey(
+        const ValueKey<String>('chatSelectionTint'),
+      );
+      expect(tintFinder, findsOneWidget);
+
+      // Tint must not be a descendant of ClipRect — that hard-clip was
+      // cutting AA edges and opening seams between abutting selected rows.
+      expect(
+        find.descendant(of: find.byType(ClipRect), matching: tintFinder),
+        findsNothing,
+      );
+
+      final tint = tester.renderObject<RenderBox>(tintFinder);
+      final chrome = tester.renderObject<RenderBox>(
+        find.byType(DefaultSelectionChrome),
+      );
+      expect(tint.size, chrome.size);
+      expect(
+        tint.localToGlobal(Offset.zero),
+        chrome.localToGlobal(Offset.zero),
       );
     });
   });

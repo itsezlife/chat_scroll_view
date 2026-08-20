@@ -39,6 +39,9 @@ class _WidgetChatScreenState extends State<WidgetChatScreen>
   String? _errorMessage;
   var _menuOpen = false;
 
+  /// Demo settings: message corner radius (0–17).
+  double _bubbleRadius = ChatMessageThemeData.fallback.bubbleRadius;
+
   /// Highest message id counted as read for [NewMessagesPill]. Seeded to
   /// stored last-read on off-tail open; advanced by the pill while scrolling.
   final ValueNotifier<int?> _pillLastSeenBaseline = ValueNotifier<int?>(null);
@@ -255,6 +258,48 @@ class _WidgetChatScreenState extends State<WidgetChatScreen>
     }
   }
 
+  Future<void> _openBubbleRadiusSettings() async {
+    FocusManager.instance.primaryFocus?.unfocus();
+    final selected = await showDialog<double>(
+      context: context,
+      requestFocus: false,
+      builder: (dialogContext) {
+        var value = _bubbleRadius;
+        return StatefulBuilder(
+          builder: (context, setDialogState) => AlertDialog(
+            title: const Text('Message corners'),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: <Widget>[
+                Text('${value.round()}'),
+                Slider(
+                  value: value,
+                  min: 0,
+                  max: 17,
+                  divisions: 17,
+                  label: '${value.round()}',
+                  onChanged: (next) => setDialogState(() => value = next),
+                ),
+              ],
+            ),
+            actions: <Widget>[
+              TextButton(
+                onPressed: () => Navigator.of(dialogContext).pop(),
+                child: const Text('Cancel'),
+              ),
+              TextButton(
+                onPressed: () => Navigator.of(dialogContext).pop(value),
+                child: const Text('Apply'),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+    if (selected == null || !mounted) return;
+    setState(() => _bubbleRadius = selected);
+  }
+
   /// Stable per-state tear-off — same reference for the widget's lifetime,
   /// so the viewport's skip-rebuild cache stays warm across parent rebuilds.
   /// Sender-run chrome comes from viewport [MessageRunLayout], not ad-hoc
@@ -267,11 +312,7 @@ class _WidgetChatScreenState extends State<WidgetChatScreen>
     MessageRunLayout runLayout,
   ) {
     if (message == null) return const DemoShimmerBubble();
-    return DemoMessageBubble(
-      message: message,
-      isLastInRun: runLayout.isLastInSenderRun,
-      isFirstInRun: runLayout.isFirstInSenderRun,
-    );
+    return DemoMessageBubble(message: message, runLayout: runLayout);
   }
 
   Widget _buildChunkError(
@@ -297,6 +338,9 @@ class _WidgetChatScreenState extends State<WidgetChatScreen>
     if (_loading || _dataSource == null) {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
+    final chatScrollTheme = ChatScrollTheme.of(context);
+    final messageTheme = chatScrollTheme.message;
+    final newMessageTheme = messageTheme?.copyWith(bubbleRadius: _bubbleRadius);
     return PopScope(
       canPop: false,
       onPopInvokedWithResult: (didPop, result) {
@@ -309,119 +353,138 @@ class _WidgetChatScreenState extends State<WidgetChatScreen>
         }
         // No-op, since no navigation is supported in this demo.
       },
-      child: Scaffold(
-        resizeToAvoidBottomInset: false,
-        body: Stack(
-          children: <Widget>[
-            // Chat fills the screen; the composer is stacked over its bottom.
-            Positioned.fill(
-              child: ChatKeyboardShortcuts(
-                controller: _controller,
-                reverse: true,
-                preserveExternalFocus: true,
-                child: ChatScrollView(
-                  reverse: true,
-                  dataSource: _dataSource!,
+      child: ChatScrollTheme(
+        data: chatScrollTheme.copyWith(message: newMessageTheme),
+        child: Scaffold(
+          resizeToAvoidBottomInset: false,
+          body: Stack(
+            children: <Widget>[
+              // Chat fills the screen; the composer is stacked over its bottom.
+              Positioned.fill(
+                child: ChatKeyboardShortcuts(
                   controller: _controller,
-                  selectionController: _selection,
-                  onIdleMessageTap: _onIdleMessageTap,
-                  bottomPadding: insets.bottomPadding,
-                  topPadding: insets.topPadding,
-                  messageBuilder: _buildMessage,
-                  chunkErrorBuilder: _buildChunkError,
-                  emptyBuilder: _buildEmpty,
-                  loadingBuilder: _buildInitialSkeleton,
-                  dateSeparatorBuilder: (context, bucket, date) =>
-                      DateSeparator(date: date),
+                  reverse: true,
+                  preserveExternalFocus: true,
+                  child: ChatScrollView(
+                    reverse: true,
+                    dataSource: _dataSource!,
+                    controller: _controller,
+                    selectionController: _selection,
+                    onIdleMessageTap: _onIdleMessageTap,
+                    bottomPadding: insets.bottomPadding,
+                    topPadding: insets.topPadding,
+                    messageBuilder: _buildMessage,
+                    chunkErrorBuilder: _buildChunkError,
+                    emptyBuilder: _buildEmpty,
+                    loadingBuilder: _buildInitialSkeleton,
+                    dateSeparatorBuilder: (context, bucket, date) =>
+                        DateSeparator(date: date),
+                  ),
                 ),
               ),
-            ),
-            // Bottom composer — overlaid, not a column sibling. Measured
-            // height is reserved inset; overlay chrome reads the same
-            // bottomPadding and does not add to it.
-            Positioned(
-              left: 0,
-              right: 0,
-              bottom: 0,
-              child: ChatComposer(
-                key: _composerKey,
-                bottomInset: insets.keyboard,
-                selection: _selection,
+              // Bottom composer — overlaid, not a column sibling. Measured
+              // height is reserved inset; overlay chrome reads the same
+              // bottomPadding and does not add to it.
+              Positioned(
+                left: 0,
+                right: 0,
+                bottom: 0,
+                child: ChatComposer(
+                  key: _composerKey,
+                  bottomInset: insets.keyboard,
+                  selection: _selection,
+                  dataSource: _dataSource!,
+                  onSend: _handleSendMessage,
+                  onDeleteSelected: _handleDeleteSelected,
+                  onEditSelected: _handleEditSelected,
+                  onSizeChanged: insets.setComposerHeight,
+                ),
+              ),
+              // New-messages pill — surfaces above the composer when the user
+              // is scrolled away and newer messages have arrived.
+              NewMessagesPill(
+                controller: _controller,
                 dataSource: _dataSource!,
-                onSend: _handleSendMessage,
-                onDeleteSelected: _handleDeleteSelected,
-                onEditSelected: _handleEditSelected,
-                onSizeChanged: insets.setComposerHeight,
+                bottomInset: insets.bottomPadding,
+                lastSeenNewestId: _pillLastSeenBaseline,
               ),
-            ),
-            // New-messages pill — surfaces above the composer when the user
-            // is scrolled away and newer messages have arrived.
-            NewMessagesPill(
-              controller: _controller,
-              dataSource: _dataSource!,
-              bottomInset: insets.bottomPadding,
-              lastSeenNewestId: _pillLastSeenBaseline,
-            ),
-            // Scroll shortcuts — stacked above the composer, clearing its inset.
-            Positioned(
-              right: 16,
-              bottom: 0,
-              child: ValueListenableBuilder<double>(
-                valueListenable: insets.bottomPadding,
-                builder: (context, bottomInset, child) => Padding(
-                  padding: EdgeInsets.only(bottom: bottomInset),
-                  child: child,
-                ),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    IconButton.filled(
-                      onPressed: () {
-                        _controller.animateTo(6002, alignment: .5);
-                      },
-                      tooltip: 'Scroll to top',
-                      style: IconButton.styleFrom(
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                      ),
-                      icon: const Icon(Icons.arrow_upward, size: 18),
-                    ),
-                    IconButton.filled(
-                      onPressed: () {
-                        if (_dataSource?.newestKnownId
-                            case final newestKnownId?) {
-                          _controller.animateTo(
-                            newestKnownId,
-                            highlight: false,
-                          );
-                        }
-                      },
-                      tooltip: 'Scroll to bottom',
-                      style: IconButton.styleFrom(
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                      ),
-                      icon: const Icon(Icons.arrow_downward, size: 18),
-                    ),
-                  ],
+              // Contextual selection bar — overlays the top. [headerReserve]
+              // is driven every animation frame so the floating day header
+              // tracks the slide.
+              Positioned(
+                top: 0,
+                left: 0,
+                right: 0,
+                child: SelectionAppBar(
+                  selection: _selection,
+                  topInset: insets.headerReserve,
                 ),
               ),
-            ),
-            // Contextual selection bar — overlays the top. [headerReserve]
-            // is driven every animation frame so the floating day header
-            // tracks the slide.
-            Positioned(
-              top: 0,
-              left: 0,
-              right: 0,
-              child: SelectionAppBar(
-                selection: _selection,
-                topInset: insets.headerReserve,
+              // Scroll shortcuts — stacked above the composer, clearing its inset.
+              Positioned(
+                right: 16,
+                bottom: 0,
+                child: ValueListenableBuilder<double>(
+                  valueListenable: insets.bottomPadding,
+                  builder: (context, bottomInset, child) => Padding(
+                    padding: EdgeInsets.only(bottom: bottomInset),
+                    child: child,
+                  ),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      IconButton.filled(
+                        onPressed: () {
+                          _controller.animateTo(6002, alignment: .5);
+                        },
+                        tooltip: 'Scroll to top',
+                        style: IconButton.styleFrom(
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                        ),
+                        icon: const Icon(Icons.arrow_upward, size: 18),
+                      ),
+                      IconButton.filled(
+                        onPressed: () {
+                          if (_dataSource?.newestKnownId
+                              case final newestKnownId?) {
+                            _controller.animateTo(
+                              newestKnownId,
+                              highlight: false,
+                            );
+                          }
+                        },
+                        tooltip: 'Scroll to bottom',
+                        style: IconButton.styleFrom(
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                        ),
+                        icon: const Icon(Icons.arrow_downward, size: 18),
+                      ),
+                    ],
+                  ),
+                ),
               ),
-            ),
-          ],
+              // Demo: tunable bubbleRadius (Telegram “message corners”).
+              ValueListenableBuilder(
+                valueListenable: insets.topPadding,
+                builder: (context, topPadding, child) => Positioned(
+                  top: topPadding + 8,
+                  right: 12,
+                  child: ListenableBuilder(
+                    listenable: _selection,
+                    builder: (context, _) => IconButton.filledTonal(
+                      tooltip: 'Message corners',
+                      onPressed: _openBubbleRadiusSettings,
+                      icon: const Icon(Icons.rounded_corner, size: 20),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );

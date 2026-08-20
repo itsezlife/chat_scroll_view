@@ -8,6 +8,27 @@ this project is pre-1.0 and not strictly SemVer yet.
 
 ### Added
 
+- **`ChatMessageBody`** — slotted in-bubble layout (`content` + `meta`) with
+  Telegram-style last-line packing and shrink-wrap. Meta sits on the last text
+  line when it fits; otherwise it wraps to the next row. Body is a real child
+  (no internal `TextPainter`, no type-marker discovery). Reply / media stay
+  outside; compose them above in the host bubble. Demo bubbles dogfood it.
+
+- **`ChatBubbleMetrics`** — pure resolvers from `ChatMessageThemeData` +
+  `MessageRunLayout` to clustered `BorderRadius` and content insets. Hosts
+  resolve chrome here instead of walking neighbors in `messageBuilder`.
+
+- **Injectable sender-run policy** — `ChatSenderRunLayout` is an
+  `abstract interface class` on `ChatScrollView.senderRunLayout`. Package
+  default is `DefaultChatSenderRunLayout` (same sender + optional `groupBy`
+  bucket + optional `|createdAt|` window, Telegram-aligned 5 minutes via
+  `maxClusterGap`). Pass `null` gap to disable the time window, or replace
+  the whole policy without forking the viewport.
+
+- **Bubble radius theme tokens** — `ChatMessageThemeData.bubbleRadius`,
+  `cornerNearCap`, and derived `nearRadius` / media radii for clustered
+  outer corners on mid-run messages.
+
 - **Message menu presenter** — `showChatMessageMenu` opens a package-owned
   session (dimmed scrim with an undimmed hole over a captured slot rect,
   optional reaction strip, host-defined action rows). Choosing an action
@@ -80,12 +101,25 @@ this project is pre-1.0 and not strictly SemVer yet.
   drag/fling/bounceback are suppressed, dual boundary pins no longer fight, and
   the scrollbar is hidden (same UX as a non-scrollable list).
 
-- **`MessageRunLayout` and sender-run resolver** — `ChatSenderRunLayout.resolve`
-  computes first/last-in-run flags from live present neighbors and the active
-  `groupBy` bucket. Passed to `ChatMessageBuilder` as a 5th parameter so
-  position-specific chrome participates in the skip-rebuild cache.
+- **`MessageRunLayout` and sender-run resolver** — first/last-in-run flags from
+  live present neighbors, passed to `ChatMessageBuilder` as a 5th parameter so
+  position-specific chrome participates in the skip-rebuild cache. Clustering
+  policy is host-injectable (`ChatScrollView.senderRunLayout`; see Added /
+  Changed above).
 
 ### Changed
+
+- **`MessageRunLayout` resolution** — previously a static
+  `ChatSenderRunLayout.resolve`; now instance policy via
+  `ChatScrollView.senderRunLayout` (default
+  `DefaultChatSenderRunLayout.instance`). Same-sender neighbors farther apart
+  than `maxClusterGap` end a run (large corners / unclustered top inset).
+
+- **Demo bubbles** — use `ChatMessageBody` for text + time/status packing and
+  `ChatBubbleMetrics` for run-clustered radii; meta stays intrinsic-width
+  (no `Align` that defeats shrink-wrap). Incoming avatar, sender name, and
+  bubble tail remain on the **last** message in a same-sender run
+  (Telegram-style).
 
 - **Viewport-owned selection pointer** — long-press and tap are owned by the
   viewport, not per-row detectors. Rows keep tap / long-press chrome only
@@ -97,9 +131,6 @@ this project is pre-1.0 and not strictly SemVer yet.
   for avatar, sender label, tail, and tight padding — do not walk neighbors in
   the builder.
 
-- **Demo bubbles** — incoming avatar, sender name, and bubble tail render on the
-  **last** message in a same-sender run (Telegram-style), not the first.
-
 - **Architecture knowledge bundle** — scroll runtime constitution lives under
   `docs/architecture/` as an OKF concept set (coordinate model through known
   limitations). `docs/chat_viewport_architecture.md` now points there.
@@ -110,6 +141,11 @@ this project is pre-1.0 and not strictly SemVer yet.
   drag-to-jump behavior are unchanged.
 
 ### Fixed
+
+- **Selection row-tint hairlines** — selected-row tint in
+  `DefaultSelectionChrome` is painted outside the checkbox `ClipRect`. Hard
+  clipping the tint was cutting anti-aliased edges and leaving a 1-device-pixel
+  seam of the chat background between abutting selected rows.
 
 - **Absent slots never reach `messageBuilder`** — confirmed-absent message ids
   are excluded before `buildChild` and selection chrome. Deleting the layout

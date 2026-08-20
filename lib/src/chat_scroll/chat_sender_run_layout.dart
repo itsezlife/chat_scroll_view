@@ -4,30 +4,28 @@ import 'package:flutter/foundation.dart';
 
 /// Bucket-scoped first/last position within a contiguous same-sender run.
 ///
-/// A **sender run** is the maximal chain of **present** messages (confirmed
-/// loaded, not absent or pending removal) that share the same [IChatMessage.sender]
-/// within one [Object] bucket from [ChatScrollView.groupBy]. When grouping is
-/// off (`groupBy == null`), the bucket is unbounded — runs span the whole
-/// conversation until sender changes or an absent slot breaks the chain.
+/// A **sender run** is the maximal chain of **present** messages that the
+/// active [ChatSenderRunLayout] policy treats as one cluster. The package
+/// default ([DefaultChatSenderRunLayout]) groups by same
+/// [IChatMessage.sender], optional [ChatScrollView.groupBy] bucket, and an
+/// optional `|createdAt|` window.
 ///
 /// **Who computes this:** [RenderChatScrollView] calls
 /// [ChatSenderRunLayout.resolve] during layout and passes the result into
 /// [ChatChildManager.buildChild]. [ChatScrollElement] stores [MessageRunLayout]
 /// in the skip-rebuild cache (value equality). Integrators MUST consume
-/// [MessageRunLayout] from [ChatMessageBuilder] — walking
-/// [ChatDataSource.getPreviousPresentMessage] inside the builder bypasses the
-/// cache and leaves position-specific chrome stale after delete, insert, or
-/// neighbor sender edits when [identical] message instances are reused.
+/// [MessageRunLayout] from [ChatMessageBuilder] — walking neighbors inside the
+/// builder bypasses the cache and leaves chrome stale after mutations when
+/// [identical] message instances are reused.
 ///
-/// **Policy agnostic:** the package exposes both ends of the run; whether
-/// avatar, sender label, or bubble tail attach to first, last, or both is
-/// integrator/demo choice ([DemoMessageBubble] uses last-in-run / Telegram-style).
+/// **Policy agnostic:** whether avatar, sender label, or bubble tail attach to
+/// first, last, or both is integrator/demo choice.
 @immutable
 class MessageRunLayout {
-  /// Position flags for a loaded message within its effective bucket.
+  /// Position flags for a loaded message within its effective run.
   ///
-  /// Both flags may be `true` for a solitary message in its run (including
-  /// after a bucket break splits one sender into two one-message runs).
+  /// Both flags may be `true` for a solitary message (including after a
+  /// policy break splits one sender into two one-message runs).
   const MessageRunLayout({
     required this.isFirstInSenderRun,
     required this.isLastInSenderRun,
@@ -42,13 +40,12 @@ class MessageRunLayout {
     : isFirstInSenderRun = true,
       isLastInSenderRun = true;
 
-  /// `true` when there is no previous **present** neighbor in the same
-  /// sender+bucket run (conversation-order walk via
-  /// [ChatDataSource.getPreviousPresentMessage], skipping confirmed-absent ids).
+  /// `true` when there is no previous **present** neighbor in the same run
+  /// ([ChatDataSource.getPreviousPresentMessage]).
   final bool isFirstInSenderRun;
 
-  /// `true` when there is no next **present** neighbor in the same sender+bucket
-  /// run ([ChatDataSource.getNextPresentMessage]).
+  /// `true` when there is no next **present** neighbor in the same run
+  /// ([ChatDataSource.getNextPresentMessage]).
   final bool isLastInSenderRun;
 
   @override
@@ -61,32 +58,58 @@ class MessageRunLayout {
   int get hashCode => Object.hash(isFirstInSenderRun, isLastInSenderRun);
 }
 
-/// Resolves [MessageRunLayout] from live [ChatDataSource] neighbors.
+/// Host-owned policy that decides first/last-in-run for each message id.
 ///
-/// Called from the render object on every [ChatChildManager.buildChild] for a
-/// loaded message id — not from [ChatMessageBuilder] — so neighbor changes
-/// after mutations invalidate the skip-rebuild cache even when message
-/// identity is unchanged.
-abstract final class ChatSenderRunLayout {
+/// Inject via [ChatScrollView.senderRunLayout]. The viewport calls [resolve]
+/// from the render object on every [ChatChildManager.buildChild] — never from
+/// [ChatMessageBuilder] — so neighbor changes invalidate the skip-rebuild
+/// cache even when message identity is unchanged.
+///
+/// Implement this to replace sender / time / bucket clustering without forking
+/// the package. Prefer immutable implementations with value [operator ==] so
+/// parent rebuilds with an equal policy do not force relayout.
+abstract interface class ChatSenderRunLayout {
   /// Computes first/last-in-run for [messageId] at layout time.
   ///
-  /// **Neighbor probes:** uses [ChatDataSource.getPreviousPresentMessage] and
-  /// [ChatDataSource.getNextPresentMessage] only — never raw `id ± 1`, which
-  /// would treat confirmed-absent holes as loaded neighbors and mis-classify
-  /// runs after delete.
+  /// [groupBy] is the viewport’s effective grouping callback (`null` when day
+  /// separators are off). Policies may ignore it.
   ///
-  /// **Bucket rule:** when [groupBy] is non-null, prev/next must share both
-  /// [IChatMessage.sender] and the same bucket key (`groupBy(message)`) to
-  /// count as the same run. A calendar-day separator therefore ends a run even
-  /// when the same person sent on consecutive days.
+  /// When [ChatDataSource.getMessage] returns `null`, return
+  /// [MessageRunLayout.degenerate].
+  MessageRunLayout resolve({
+    required ChatDataSource dataSource,
+    required int messageId,
+    Object? Function(IChatMessage)? groupBy,
+  });
+}
+
+/// Package default: same sender + optional [groupBy] bucket + optional
+/// `|createdAt|` window (Telegram-aligned 5 minutes).
+///
+/// Pass a custom instance to tune [maxClusterGap], or implement
+/// [ChatSenderRunLayout] for a different clustering model.
+@immutable
+class DefaultChatSenderRunLayout implements ChatSenderRunLayout {
+  /// Creates the default clustering policy.
   ///
-  /// **Grouping off:** when [groupBy] is `null`, sender equality alone defines
-  /// the run; bucket keys are ignored.
-  ///
-  /// **Unloaded slot:** when [ChatDataSource.getMessage] returns `null`,
-  /// returns [MessageRunLayout.degenerate] — the element may still build a
-  /// shimmer row before fetch completes.
-  static MessageRunLayout resolve({
+  /// [maxClusterGap] — max `|createdAt|` between present same-sender neighbors
+  /// that may share a run. Telegram uses 5 minutes. Pass `null` to disable the
+  /// time window (sender + [groupBy] bucket only).
+  const DefaultChatSenderRunLayout({this.maxClusterGap = defaultMaxClusterGap});
+
+  /// Telegram-aligned default cluster window.
+  static const Duration defaultMaxClusterGap = Duration(minutes: 5);
+
+  /// Shared const instance with [defaultMaxClusterGap].
+  static const DefaultChatSenderRunLayout instance =
+      DefaultChatSenderRunLayout();
+
+  /// Max `|createdAt|` for same-sender neighbors to stay in one run.
+  /// `null` disables the time window.
+  final Duration? maxClusterGap;
+
+  @override
+  MessageRunLayout resolve({
     required ChatDataSource dataSource,
     required int messageId,
     Object? Function(IChatMessage)? groupBy,
@@ -101,7 +124,6 @@ abstract final class ChatSenderRunLayout {
     final prev = dataSource.getPreviousPresentMessage(messageId);
     final next = dataSource.getNextPresentMessage(messageId);
 
-    // First when no prev, or prev is different sender or different bucket.
     final isFirst =
         prev == null ||
         !_sameSenderRun(
@@ -112,7 +134,6 @@ abstract final class ChatSenderRunLayout {
           groupBy: groupBy,
         );
 
-    // Last when no next, or next is different sender or different bucket.
     final isLast =
         next == null ||
         !_sameSenderRun(
@@ -131,11 +152,10 @@ abstract final class ChatSenderRunLayout {
 
   /// Whether [neighbor] continues the same sender run as [message].
   ///
-  /// Sender mismatch always breaks the run. When [groupBy] is null, sender
-  /// match is sufficient. When grouping is on, bucket keys must compare equal
-  /// with `==` — custom groupers must return stable, equatable keys (e.g.
-  /// truncated [DateTime], `(year, month)` records).
-  static bool _sameSenderRun({
+  /// Sender mismatch always breaks. When [groupBy] is null, sender match is
+  /// sufficient (subject to [maxClusterGap]). When grouping is on, bucket keys
+  /// must compare equal with `==`.
+  bool _sameSenderRun({
     required IChatMessage message,
     required IChatMessage neighbor,
     required Object? bucket,
@@ -143,7 +163,20 @@ abstract final class ChatSenderRunLayout {
     required Object? Function(IChatMessage)? groupBy,
   }) {
     if (message.sender != neighbor.sender) return false;
+    final gap = maxClusterGap;
+    if (gap != null) {
+      final delta = message.createdAt.difference(neighbor.createdAt).abs();
+      if (delta > gap) return false;
+    }
     if (groupBy == null) return true;
     return bucket == neighborBucket;
   }
+
+  @override
+  bool operator ==(Object other) =>
+      other is DefaultChatSenderRunLayout &&
+      other.maxClusterGap == maxClusterGap;
+
+  @override
+  int get hashCode => maxClusterGap.hashCode;
 }

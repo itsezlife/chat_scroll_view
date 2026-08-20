@@ -61,7 +61,8 @@ buildChild(id, {startsNewDay, groupBucket, runLayout})
 4. Else `owner!.buildScope` → `updateChild(existing, _buildWidget(...), id)`.
 5. On success: store element + cache; on null: remove maps.
 
-`runLayout` is resolved by `RenderChatScrollView` via `ChatSenderRunLayout.resolve`
+`runLayout` is resolved by `RenderChatScrollView` via the injected
+`ChatSenderRunLayout` (`ChatScrollView.senderRunLayout`)
 (live present neighbors + optional `groupBy` bucket). The element does **not**
 walk neighbors itself — same pattern as `startsNewDay`.
 

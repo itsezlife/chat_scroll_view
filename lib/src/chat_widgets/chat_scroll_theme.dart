@@ -120,6 +120,18 @@ class ChatScrollTheme extends InheritedWidget {
       ? context.dependOnInheritedWidgetOfExactType<ChatScrollTheme>()?.data
       : context.getInheritedWidgetOfExactType<ChatScrollTheme>()?.data;
 
+  static Never _notFoundInheritedWidgetOfExactType() => throw ArgumentError(
+    'Out of scope, not found inherited widget '
+        'a ChatScrollTheme of the exact type',
+    'out_of_scope',
+  );
+
+  /// The state from the closest instance of this class
+  /// that encloses the given context.
+  /// e.g. `Theme.of(context)`
+  static ChatScrollThemeData of(BuildContext context, {bool listen = true}) =>
+      maybeOf(context, listen: listen) ?? _notFoundInheritedWidgetOfExactType();
+
   /// Message-column tokens for [context].
   ///
   /// One inherited lookup — does not resolve scrollbar / selection. Prefer
