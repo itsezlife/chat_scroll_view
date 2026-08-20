@@ -82,3 +82,17 @@ class ChatProgrammaticScroll extends ChatScrollEvent {
   /// Pixel delta applied to the anchor; positive reveals older messages.
   final double delta;
 }
+
+/// Per-frame user-driven scroll (drag, wheel, or fling tick).
+///
+/// [delta] uses the same sign as [ChatProgrammaticScroll] / drag
+/// (`positive` reveals older messages). Not emitted for follow-tail pin,
+/// bounceback, close-path [ChatScrollController.animateTo], or span
+/// auto-scroll — those are not user pan gestures.
+class ChatViewportScrolled extends ChatScrollEvent {
+  /// Emitted when the viewport applies a user-driven pixel delta this frame.
+  const ChatViewportScrolled(this.delta);
+
+  /// Pixel delta applied this frame; positive reveals older messages.
+  final double delta;
+}
