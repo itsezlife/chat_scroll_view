@@ -7,14 +7,20 @@ import 'package:flutter/foundation.dart';
 /// the single place those listenables are computed:
 ///
 /// ```text
-/// topPadding    = safeTop + headerReserve
+/// chromeTop     = safeTop + headerReserve
+/// topPadding    = chromeTop + searchReserve
 /// bottomPadding = composerHeight + keyboard
 /// ```
 ///
 /// **Reserved vs overlay.** Only chrome that occludes messages writes a
-/// reserve ([headerReserve], [setComposerHeight]). Overlay widgets (unread
-/// pill, jump buttons) **read** [bottomPadding] to sit above that edge and
-/// must not add to it.
+/// reserve ([headerReserve], [setSearchReserve], [setComposerHeight]).
+/// Overlay widgets (unread pill, jump buttons, search field, demo toolbar)
+/// **read** [chromeTop] / [bottomPadding] to sit against that edge and must
+/// not add themselves into the value they read.
+///
+/// **Search** writes [setSearchReserve] with the measured open search field
+/// height (including its outer pad). Position the field against [chromeTop]
+/// so growing [topPadding] does not push the field further down.
 ///
 /// **Keyboard** is a live geometric signal, not a second scroll writer. The
 /// composer lifts by [keyboard]; the viewport's [bottomPadding] already
@@ -35,18 +41,24 @@ final class ChatViewportInsets {
     double composerHeight = 96,
     double safeTop = 0,
     double headerReserve = 0,
+    double searchReserve = 0,
     double keyboard = 0,
   }) : _composerHeight = composerHeight,
        _safeTop = safeTop,
+       _searchReserve = searchReserve,
        headerReserve = ValueNotifier<double>(headerReserve),
        _keyboard = ValueNotifier<double>(keyboard),
-       _topPadding = ValueNotifier<double>(safeTop + headerReserve),
+       _chromeTop = ValueNotifier<double>(safeTop + headerReserve),
+       _topPadding = ValueNotifier<double>(
+         safeTop + headerReserve + searchReserve,
+       ),
        _bottomPadding = ValueNotifier<double>(composerHeight + keyboard) {
     this.headerReserve.addListener(_publish);
   }
 
   double _safeTop;
   double _composerHeight;
+  double _searchReserve;
 
   /// Tick-driven header occupancy written by selection chrome.
   ///
@@ -55,6 +67,7 @@ final class ChatViewportInsets {
   final ValueNotifier<double> headerReserve;
 
   final ValueNotifier<double> _keyboard;
+  final ValueNotifier<double> _chromeTop;
   final ValueNotifier<double> _topPadding;
   final ValueNotifier<double> _bottomPadding;
 
@@ -64,9 +77,16 @@ final class ChatViewportInsets {
   /// still key off [bottomPadding], not this listenable.
   ValueListenable<double> get keyboard => _keyboard;
 
+  /// Top edge for overlay chrome that sits below the safe area / selection
+  /// bar but is not itself part of the viewport reserve.
+  ///
+  /// `safeTop + headerReserve`. Search field and demo toolbar position
+  /// against this so [searchReserve] does not displace them.
+  ValueListenable<double> get chromeTop => _chromeTop;
+
   /// Reserved top inset for the viewport `topPadding`.
   ///
-  /// `safeTop + headerReserve`.
+  /// `safeTop + headerReserve + searchReserve`.
   ValueListenable<double> get topPadding => _topPadding;
 
   /// Reserved bottom inset for the viewport `bottomPadding`.
@@ -82,6 +102,16 @@ final class ChatViewportInsets {
   void setSafeTop(double value) {
     if (_safeTop == value) return;
     _safeTop = value;
+    _publish();
+  }
+
+  /// Measured open-search occupancy, including its outer pad above the field.
+  ///
+  /// Zero while search chrome is closed. Does **not** include [safeTop] or
+  /// [headerReserve]; those are added in [topPadding] / [chromeTop].
+  void setSearchReserve(double value) {
+    if (_searchReserve == value) return;
+    _searchReserve = value;
     _publish();
   }
 
@@ -107,12 +137,15 @@ final class ChatViewportInsets {
     headerReserve.removeListener(_publish);
     headerReserve.dispose();
     _keyboard.dispose();
+    _chromeTop.dispose();
     _topPadding.dispose();
     _bottomPadding.dispose();
   }
 
   void _publish() {
-    _topPadding.value = _safeTop + headerReserve.value;
+    final chrome = _safeTop + headerReserve.value;
+    _chromeTop.value = chrome;
+    _topPadding.value = chrome + _searchReserve;
     _bottomPadding.value = _composerHeight + _keyboard.value;
   }
 }

@@ -7,6 +7,8 @@ import 'package:flutter_test/flutter_test.dart';
 ChatAnimator _animator({
   required ChatScrollController controller,
   double? Function(int id)? offsetToBuiltMessage,
+  bool Function(int id)? messageIntersectsPaintBand,
+  double Function()? viewportHeight,
   double Function(int targetId, double messageHeight, double alignment)?
   closePathEndOffsetFor,
   bool Function(int targetId)? isTailClosePathTarget,
@@ -22,12 +24,18 @@ ChatAnimator _animator({
   VoidCallback? clearStitchCapture,
   bool Function(int id)? isHighlightReady,
   bool Function(int id)? shouldDropPendingHighlight,
-  Duration highlightDuration = const Duration(milliseconds: 1500),
-  Color highlightColor = const Color(0x402196F3),
-  Duration preferBuiltTimeout = kPreferBuiltTimeout,
+  bool Function(int id)? isDestinationReady,
+  void Function(int id)? requestDestinationWindow,
+  VoidCallback? clearDestinationWindow,
+  Duration highlightDuration = const Duration(
+    milliseconds: kHighlightHoldDurationMs,
+  ),
+  Color highlightColor = const Color(0x280A90F0),
 }) => ChatAnimator(
   controller: controller,
   offsetToBuiltMessage: offsetToBuiltMessage ?? (_) => null,
+  messageIntersectsPaintBand: messageIntersectsPaintBand ?? (_) => false,
+  viewportHeight: viewportHeight ?? () => 600.0,
   closePathEndOffsetFor:
       closePathEndOffsetFor ?? (_, _, alignment) => 40.0 * alignment,
   isTailClosePathTarget: isTailClosePathTarget ?? (_) => false,
@@ -36,6 +44,9 @@ ChatAnimator _animator({
   heightOfChild: heightOfChild ?? (_) => 0,
   isHighlightReady: isHighlightReady ?? (_) => true,
   shouldDropPendingHighlight: shouldDropPendingHighlight ?? (_) => false,
+  isDestinationReady: isDestinationReady ?? (_) => true,
+  requestDestinationWindow: requestDestinationWindow ?? (_) {},
+  clearDestinationWindow: clearDestinationWindow ?? () {},
   markNeedsPaint: markNeedsPaint ?? () {},
   markNeedsLayout: markNeedsLayout ?? () {},
   ensureTicker: ensureTicker ?? () {},
@@ -45,7 +56,6 @@ ChatAnimator _animator({
   clearStitchCapture: clearStitchCapture ?? () {},
   highlightDuration: highlightDuration,
   highlightColor: highlightColor,
-  preferBuiltTimeout: preferBuiltTimeout,
 );
 
 RenderBox _sizedBox({double height = 60}) {
@@ -60,32 +70,53 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   group('tickHighlight', () {
-    test('opacity progresses from 1.0 toward 0.0 over highlightDuration', () {
+    test('solid hold then fade over kHighlightFadeDuration', () {
       final controller = ChatScrollController();
       final animator = _animator(
         controller: controller,
         highlightDuration: const Duration(milliseconds: 1000),
       );
 
-      animator.highlightTargetId = 42;
-      animator.highlightFactor = 1.0;
+      animator
+        ..highlightTargetId = 42
+        ..highlightPhase = ChatHighlightPhase.solid
+        ..highlightFactor = 1.0
+        ..startHighlightHold();
 
       const start = Duration(seconds: 1);
       expect(animator.tickHighlight(start), isTrue);
       expect(animator.highlightFactor, 1.0);
+      expect(animator.highlightPhase, ChatHighlightPhase.solid);
 
+      // Mid-hold — still solid.
       expect(
         animator.tickHighlight(start + const Duration(milliseconds: 500)),
+        isTrue,
+      );
+      expect(animator.highlightFactor, 1.0);
+      expect(animator.highlightPhase, ChatHighlightPhase.solid);
+
+      // Hold elapsed → fade begins.
+      expect(
+        animator.tickHighlight(start + const Duration(milliseconds: 1000)),
+        isTrue,
+      );
+      expect(animator.highlightPhase, ChatHighlightPhase.fading);
+      expect(animator.highlightFactor, 1.0);
+
+      expect(
+        animator.tickHighlight(start + const Duration(milliseconds: 1150)),
         isTrue,
       );
       expect(animator.highlightFactor, closeTo(0.5, 0.001));
 
       expect(
-        animator.tickHighlight(start + const Duration(milliseconds: 1000)),
+        animator.tickHighlight(start + const Duration(milliseconds: 1300)),
         isFalse,
       );
       expect(animator.highlightTargetId, isNull);
       expect(animator.highlightFactor, 0.0);
+      expect(animator.highlightPhase, ChatHighlightPhase.idle);
     });
 
     test('highlightDuration zero clears immediately', () {
@@ -95,10 +126,173 @@ void main() {
         highlightDuration: Duration.zero,
       );
 
-      animator.highlightTargetId = 1;
-      animator.highlightFactor = 1.0;
+      animator
+        ..highlightTargetId = 1
+        ..highlightPhase = ChatHighlightPhase.solid
+        ..highlightFactor = 1.0
+        ..startHighlightHold();
 
       expect(animator.tickHighlight(Duration.zero), isFalse);
+      expect(animator.highlightTargetId, isNull);
+    });
+
+    test('beginHighlightFade skips remaining hold', () {
+      final controller = ChatScrollController();
+      final animator = _animator(
+        controller: controller,
+        highlightDuration: const Duration(milliseconds: 1000),
+      );
+
+      animator
+        ..highlightTargetId = 7
+        ..highlightPhase = ChatHighlightPhase.solid
+        ..highlightFactor = 1.0
+        ..startHighlightHold();
+      animator.tickHighlight(Duration.zero);
+      animator.beginHighlightFade();
+      expect(animator.highlightPhase, ChatHighlightPhase.fading);
+      expect(animator.tickHighlight(Duration.zero), isTrue);
+      expect(animator.tickHighlight(kHighlightFadeDuration), isFalse);
+      expect(animator.highlightTargetId, isNull);
+    });
+  });
+
+  group('highlight arm at animate start', () {
+    test('close path arms solid before settle', () {
+      final controller = ChatScrollController();
+      final box = _sizedBox();
+      final animator = _animator(
+        controller: controller,
+        offsetToBuiltMessage: (_) => 120.0,
+        closePathEndOffsetFor: (_, _, _) => 0.0,
+        childForId: (_) => box,
+        heightOfChild: (_) => box.size.height,
+        highlightDuration: const Duration(milliseconds: 400),
+      );
+
+      animator.animate(
+        5,
+        duration: const Duration(milliseconds: 200),
+        curve: Curves.linear,
+      );
+
+      expect(animator.highlightTargetId, 5);
+      expect(animator.highlightPhase, ChatHighlightPhase.solid);
+      expect(animator.highlightFactor, 1.0);
+      // Hold clock not running mid-flight.
+      animator.tickAnimate(Duration.zero);
+      animator.tickHighlight(const Duration(milliseconds: 200));
+      expect(animator.highlightPhase, ChatHighlightPhase.solid);
+      expect(animator.highlightFactor, 1.0);
+    });
+
+    test('settle restarts hold then fades', () {
+      final controller = ChatScrollController()..reassignAnchor(1, 100);
+      final box = _sizedBox();
+      final animator = _animator(
+        controller: controller,
+        offsetToBuiltMessage: (_) => 100.0,
+        closePathEndOffsetFor: (_, _, _) => 0.0,
+        childForId: (_) => box,
+        heightOfChild: (_) => box.size.height,
+        highlightDuration: const Duration(milliseconds: 200),
+      );
+
+      animator.animate(
+        1,
+        duration: const Duration(milliseconds: 100),
+        curve: Curves.linear,
+      );
+      animator.tickAnimate(Duration.zero);
+      animator.tickAnimate(animator.animateDuration);
+      expect(animator.isAnimating, isFalse);
+      expect(animator.highlightPhase, ChatHighlightPhase.solid);
+
+      const t0 = Duration.zero;
+      animator.tickHighlight(t0);
+      expect(animator.highlightFactor, 1.0);
+      animator.tickHighlight(t0 + const Duration(milliseconds: 100));
+      expect(animator.highlightPhase, ChatHighlightPhase.solid);
+      animator.tickHighlight(t0 + const Duration(milliseconds: 200));
+      expect(animator.highlightPhase, ChatHighlightPhase.fading);
+      animator.tickHighlight(
+        t0 + const Duration(milliseconds: 200) + kHighlightFadeDuration,
+      );
+      expect(animator.highlightTargetId, isNull);
+    });
+
+    test('cancel mid-flight fades highlight', () {
+      final controller = ChatScrollController();
+      final box = _sizedBox();
+      final animator = _animator(
+        controller: controller,
+        offsetToBuiltMessage: (_) => 120.0,
+        closePathEndOffsetFor: (_, _, _) => 0.0,
+        childForId: (_) => box,
+        heightOfChild: (_) => box.size.height,
+        highlightDuration: const Duration(milliseconds: 400),
+      );
+
+      animator.animate(
+        5,
+        duration: const Duration(milliseconds: 200),
+        curve: Curves.linear,
+      );
+      expect(animator.highlightPhase, ChatHighlightPhase.solid);
+      animator.cancelAnimate();
+      expect(animator.isAnimating, isFalse);
+      expect(animator.highlightPhase, ChatHighlightPhase.fading);
+    });
+
+    test('replace retargets highlight immediately', () {
+      final controller = ChatScrollController();
+      final box = _sizedBox();
+      final animator = _animator(
+        controller: controller,
+        offsetToBuiltMessage: (id) => id == 5 ? 120.0 : 80.0,
+        closePathEndOffsetFor: (_, _, _) => 0.0,
+        childForId: (_) => box,
+        heightOfChild: (_) => box.size.height,
+        highlightDuration: const Duration(milliseconds: 400),
+      );
+
+      animator.animate(
+        5,
+        duration: const Duration(milliseconds: 200),
+        curve: Curves.linear,
+      );
+      expect(animator.highlightTargetId, 5);
+
+      animator.animate(
+        8,
+        duration: const Duration(milliseconds: 200),
+        curve: Curves.linear,
+        busyPolicy: AnimateToBusyPolicy.replace,
+      );
+      expect(animator.highlightTargetId, 8);
+      expect(animator.highlightPhase, ChatHighlightPhase.solid);
+    });
+
+    test('highlight false never arms', () {
+      final controller = ChatScrollController();
+      final box = _sizedBox();
+      final animator = _animator(
+        controller: controller,
+        offsetToBuiltMessage: (_) => 120.0,
+        closePathEndOffsetFor: (_, _, _) => 0.0,
+        childForId: (_) => box,
+        heightOfChild: (_) => box.size.height,
+      );
+
+      animator.animate(
+        5,
+        duration: const Duration(milliseconds: 200),
+        curve: Curves.linear,
+        highlight: false,
+      );
+      expect(animator.highlightTargetId, isNull);
+      animator.tickAnimate(Duration.zero);
+      animator.tickAnimate(animator.animateDuration);
       expect(animator.highlightTargetId, isNull);
     });
   });
@@ -196,6 +390,77 @@ void main() {
       await first;
     });
 
+    test('replace during flight cancels and starts the new target', () async {
+      final controller = ChatScrollController();
+      var captured = <int>[];
+      final animator = _animator(
+        controller: controller,
+        offsetToBuiltMessage: (_) => null,
+        isDestinationReady: (_) => true,
+        prepareStitchCapture: captured.add,
+      );
+
+      final first = animator.animate(
+        1,
+        duration: const Duration(milliseconds: 200),
+        curve: Curves.linear,
+        highlight: false,
+      );
+      expect(animator.animateTargetId, 1);
+      expect(animator.farAnimateActive, isTrue);
+
+      final second = animator.animate(
+        2,
+        duration: const Duration(milliseconds: 200),
+        curve: Curves.linear,
+        highlight: false,
+        busyPolicy: AnimateToBusyPolicy.replace,
+      );
+      expect(animator.animateTargetId, 2);
+      expect(animator.farAnimateActive, isTrue);
+      expect(captured, equals([1, 2]));
+
+      await first;
+      animator.cancelAnimate();
+      await second;
+    });
+
+    test('replace during load-gate retargets immediately', () async {
+      final controller = ChatScrollController();
+      var requested = <int>[];
+      final waiting = _animator(
+        controller: controller,
+        offsetToBuiltMessage: (_) => null,
+        isDestinationReady: (_) => false,
+        requestDestinationWindow: requested.add,
+      );
+      waiting
+          .animate(
+            10,
+            duration: const Duration(milliseconds: 200),
+            curve: Curves.linear,
+            highlight: false,
+          )
+          .ignore();
+      expect(waiting.loadGateWaiting, isTrue);
+      expect(waiting.animateTargetId, 10);
+
+      waiting
+          .animate(
+            20,
+            duration: const Duration(milliseconds: 200),
+            curve: Curves.linear,
+            highlight: false,
+            busyPolicy: AnimateToBusyPolicy.replace,
+          )
+          .ignore();
+      expect(waiting.loadGateWaiting, isTrue);
+      expect(waiting.animateTargetId, 20);
+      expect(requested, contains(20));
+
+      waiting.cancelAnimate();
+    });
+
     test('already at aligned end short-circuits', () async {
       final controller = ChatScrollController();
       final box = _sizedBox();
@@ -241,7 +506,7 @@ void main() {
       );
 
       expect(animator.farAnimateActive, isFalse);
-      expect(animator.preferBuiltWaiting, isFalse);
+      expect(animator.loadGateWaiting, isFalse);
       expect(animator.animateStartOffset, 120.0);
       expect(animator.animateEndOffset, 0.0);
       expect(controller.anchorMessageId, 5);
@@ -264,17 +529,41 @@ void main() {
         loadPolicy: AnimateToLoadPolicy.preferBuilt,
       );
 
-      expect(animator.preferBuiltWaiting, isTrue);
+      expect(animator.loadGateWaiting, isTrue);
       expect(animator.farAnimateActive, isFalse);
       expect(layoutAsked, isTrue);
     });
 
-    test('immediate stitches when target is not built', () {
+    test('immediate waits when destination is not ready', () {
       final controller = ChatScrollController();
       var captured = false;
       final animator = _animator(
         controller: controller,
         offsetToBuiltMessage: (_) => null,
+        isDestinationReady: (_) => false,
+        prepareStitchCapture: (_) => captured = true,
+      );
+
+      animator.animate(
+        99,
+        duration: const Duration(milliseconds: 200),
+        curve: Curves.linear,
+        loadPolicy: AnimateToLoadPolicy.immediate,
+      );
+
+      expect(animator.loadGateWaiting, isTrue);
+      expect(animator.farAnimateActive, isFalse);
+      expect(captured, isFalse);
+      expect(controller.anchorMessageId, isNot(99));
+    });
+
+    test('immediate stitches when ready but not built', () {
+      final controller = ChatScrollController();
+      var captured = false;
+      final animator = _animator(
+        controller: controller,
+        offsetToBuiltMessage: (_) => null,
+        isDestinationReady: (_) => true,
         prepareStitchCapture: (_) => captured = true,
       );
 
@@ -291,22 +580,102 @@ void main() {
       expect(controller.anchorMessageId, 99);
     });
 
-    test('far path when target offset exceeds kCloseAnimateDistance', () {
+    test('close path when target is built even beyond kCloseAnimateDistance', () {
+      // Telegram found → smoothScrollBy; distance must not force stitch.
       final controller = ChatScrollController();
+      final box = _sizedBox();
       final animator = _animator(
         controller: controller,
         offsetToBuiltMessage: (_) => kCloseAnimateDistance + 1,
+        closePathEndOffsetFor: (_, _, alignment) => 40.0 * alignment,
+        childForId: (_) => box,
+        heightOfChild: (_) => box.size.height,
+        messageIntersectsPaintBand: (_) => false,
       );
 
       animator.animate(
         1,
         duration: const Duration(milliseconds: 200),
         curve: Curves.linear,
+        highlight: false,
       );
 
-      expect(animator.farAnimateActive, isTrue);
-      expect(animator.farAnimateJumped, isTrue);
+      expect(animator.farAnimateActive, isFalse);
+      expect(animator.isAnimating, isTrue);
     });
+
+    test(
+      'close path when band-intersecting even if offset exceeds distance',
+      () {
+        // Telegram: found among current children → smoothScrollBy, not stitch.
+        final controller = ChatScrollController();
+        final box = _sizedBox(height: 5000);
+        const startY = -(kCloseAnimateDistance + 2000);
+        const endY = 90.0;
+        final animator = _animator(
+          controller: controller,
+          offsetToBuiltMessage: (_) => startY,
+          messageIntersectsPaintBand: (_) => true,
+          viewportHeight: () => 600.0,
+          closePathEndOffsetFor: (_, _, _) => endY,
+          childForId: (_) => box,
+          heightOfChild: (_) => box.size.height,
+        );
+
+        animator.animate(
+          1,
+          duration: const Duration(milliseconds: 200),
+          curve: Curves.linear,
+          highlight: false,
+        );
+
+        expect(animator.farAnimateActive, isFalse);
+        expect(animator.isAnimating, isTrue);
+        // ~4.5k px travel → Telegram max duration, not caller 200ms.
+        expect(
+          animator.animateDuration,
+          chatAnimateTravelDuration(
+            travelPx: endY - startY,
+            viewportHeight: 600,
+          ),
+        );
+        expect(
+          animator.animateDuration.inMilliseconds,
+          kAnimateTravelDurationMaxMs,
+        );
+        expect(animator.animateCurve, Curves.easeOutQuint);
+      },
+    );
+
+    test(
+      'close path short travel uses Telegram min duration + easeOutQuint',
+      () {
+        final controller = ChatScrollController();
+        final box = _sizedBox();
+        final animator = _animator(
+          controller: controller,
+          offsetToBuiltMessage: (_) => 120.0,
+          closePathEndOffsetFor: (_, _, _) => 0.0,
+          childForId: (_) => box,
+          heightOfChild: (_) => box.size.height,
+          viewportHeight: () => 600.0,
+        );
+
+        animator.animate(
+          5,
+          duration: const Duration(milliseconds: 80),
+          curve: Curves.linear,
+          highlight: false,
+        );
+
+        expect(animator.farAnimateActive, isFalse);
+        expect(
+          animator.animateDuration.inMilliseconds,
+          kAnimateTravelDurationMinMs,
+        );
+        expect(animator.animateCurve, Curves.easeOutQuint);
+      },
+    );
 
     test('preferBuilt becomes close path once target builds nearby', () {
       final controller = ChatScrollController();
@@ -327,21 +696,23 @@ void main() {
         loadPolicy: AnimateToLoadPolicy.preferBuilt,
         highlight: false,
       );
-      expect(animator.preferBuiltWaiting, isTrue);
+      expect(animator.loadGateWaiting, isTrue);
 
       offset = 80.0;
       animator.onLayoutOpportunity(viewportHeight: 600);
-      expect(animator.preferBuiltWaiting, isFalse);
+      expect(animator.loadGateWaiting, isFalse);
       expect(animator.farAnimateActive, isFalse);
       expect(controller.anchorMessageId, 5);
     });
 
-    test('preferBuilt times out into stitch', () {
+    test('preferBuilt does not timeout into stitch while unready', () {
       final controller = ChatScrollController();
+      var captured = false;
       final animator = _animator(
         controller: controller,
         offsetToBuiltMessage: (_) => null,
-        preferBuiltTimeout: Duration.zero,
+        isDestinationReady: (_) => false,
+        prepareStitchCapture: (_) => captured = true,
       );
 
       animator.animate(
@@ -351,12 +722,106 @@ void main() {
         loadPolicy: AnimateToLoadPolicy.preferBuilt,
         highlight: false,
       );
-      expect(animator.preferBuiltWaiting, isTrue);
+      expect(animator.loadGateWaiting, isTrue);
 
       animator.tickAnimate(Duration.zero);
-      expect(animator.preferBuiltWaiting, isFalse);
-      expect(animator.farAnimateActive, isTrue);
-      expect(animator.farAnimateJumped, isTrue);
+      animator.tickAnimate(const Duration(seconds: 5));
+      expect(animator.loadGateWaiting, isTrue);
+      expect(animator.farAnimateActive, isFalse);
+      expect(captured, isFalse);
+    });
+
+    test('load-gate then close path once destination is ready nearby', () {
+      final controller = ChatScrollController();
+      final box = _sizedBox();
+      var ready = false;
+      double? offset;
+      final animator = _animator(
+        controller: controller,
+        offsetToBuiltMessage: (_) => offset,
+        isDestinationReady: (_) => ready,
+        closePathEndOffsetFor: (_, _, _) => 0.0,
+        childForId: (_) => box,
+        heightOfChild: (_) => box.size.height,
+      );
+
+      animator.animate(
+        5,
+        duration: const Duration(milliseconds: 200),
+        curve: Curves.linear,
+        loadPolicy: AnimateToLoadPolicy.immediate,
+        highlight: false,
+      );
+      expect(animator.loadGateWaiting, isTrue);
+      expect(animator.farAnimateActive, isFalse);
+
+      ready = true;
+      offset = 80.0;
+      animator.onLayoutOpportunity(viewportHeight: 600);
+      expect(animator.loadGateWaiting, isFalse);
+      expect(animator.farAnimateActive, isFalse);
+      expect(controller.anchorMessageId, 5);
+    });
+
+    test('load-gate then close once ready and built (even if far)', () async {
+      final controller = ChatScrollController();
+      final box = _sizedBox();
+      var ready = false;
+      double? offset;
+      var captured = false;
+      final animator = _animator(
+        controller: controller,
+        offsetToBuiltMessage: (_) => offset,
+        isDestinationReady: (_) => ready,
+        prepareStitchCapture: (_) => captured = true,
+        closePathEndOffsetFor: (_, _, _) => 0.0,
+        childForId: (_) => box,
+        heightOfChild: (_) => box.size.height,
+      );
+
+      animator
+          .animate(
+            5,
+            duration: const Duration(milliseconds: 200),
+            curve: Curves.linear,
+            loadPolicy: AnimateToLoadPolicy.immediate,
+            highlight: false,
+          )
+          .ignore();
+      expect(animator.loadGateWaiting, isTrue);
+
+      ready = true;
+      offset = kCloseAnimateDistance + 1;
+      animator.onLayoutOpportunity(viewportHeight: 600);
+      await Future<void>.delayed(Duration.zero);
+      expect(animator.loadGateWaiting, isFalse);
+      expect(animator.farAnimateActive, isFalse);
+      expect(captured, isFalse);
+      expect(animator.isAnimating, isTrue);
+    });
+
+    test('unready shimmer offset does not start close or stitch', () {
+      final controller = ChatScrollController();
+      var captured = false;
+      final animator = _animator(
+        controller: controller,
+        offsetToBuiltMessage: (_) => 40.0,
+        isDestinationReady: (_) => false,
+        prepareStitchCapture: (_) => captured = true,
+      );
+
+      animator.animate(
+        5,
+        duration: const Duration(milliseconds: 200),
+        curve: Curves.linear,
+        loadPolicy: AnimateToLoadPolicy.immediate,
+        highlight: false,
+      );
+
+      expect(animator.loadGateWaiting, isTrue);
+      expect(animator.farAnimateActive, isFalse);
+      expect(controller.anchorMessageId, isNot(5));
+      expect(captured, isFalse);
     });
 
     test('zero duration jumps without arming animation', () {
@@ -391,11 +856,11 @@ void main() {
 
       expect(animator.tickAnimate(Duration.zero), closeTo(0.0, 0.001));
 
-      final midDelta = animator.tickAnimate(const Duration(milliseconds: 50));
+      final midDelta = animator.tickAnimate(animator.animateDuration * 0.5);
       expect(midDelta, lessThan(0.0));
 
       expect(
-        animator.tickAnimate(const Duration(milliseconds: 100)),
+        animator.tickAnimate(animator.animateDuration),
         0.0,
         reason: 'final tick applies settle in render, not via stale delta',
       );
@@ -431,7 +896,7 @@ void main() {
 
       expect(animator.animateEndOffset, tailEnd);
       animator.tickAnimate(Duration.zero);
-      animator.tickAnimate(const Duration(milliseconds: 100));
+      animator.tickAnimate(animator.animateDuration);
       expect(controller.anchorPixelOffset, closeTo(tailEnd, 0.001));
     });
 
@@ -455,10 +920,12 @@ void main() {
         highlight: false,
       );
 
-      animator.tickAnimate(const Duration(milliseconds: 25));
+      final quarter = animator.animateDuration * 0.25;
+      final half = animator.animateDuration * 0.5;
+      animator.tickAnimate(quarter);
       alignedEnd = 160.0;
-      animator.rebaseClosePathEnd(elapsed: const Duration(milliseconds: 25));
-      animator.tickAnimate(const Duration(milliseconds: 50));
+      animator.rebaseClosePathEnd(elapsed: quarter);
+      animator.tickAnimate(half);
       expect(animator.animateEndOffset, 160.0);
       expect(animator.animateStartOffset, controller.anchorPixelOffset);
     });
@@ -514,7 +981,7 @@ void main() {
 
   group('paintHighlight', () {
     test('uses normalized .a channel scaled by highlightFactor', () {
-      const base = Color(0x402196F3);
+      const base = Color(0x280A90F0);
       const factor = 0.5;
       final alpha = (base.a * factor).clamp(0.0, 1.0);
       final painted = base.withValues(alpha: alpha);
@@ -604,8 +1071,8 @@ void main() {
         duration: const Duration(milliseconds: 100),
         curve: Curves.linear,
       );
-      animator.tickAnimate(const Duration(seconds: 1));
-      animator.tickAnimate(const Duration(seconds: 1, milliseconds: 100));
+      animator.tickAnimate(Duration.zero);
+      animator.tickAnimate(animator.animateDuration);
 
       expect(animator.highlightTargetId, isNull);
       expect(animator.pendingHighlightTargetId, 1);
@@ -634,8 +1101,8 @@ void main() {
         duration: const Duration(milliseconds: 100),
         curve: Curves.linear,
       );
-      animator.tickAnimate(const Duration(seconds: 1));
-      animator.tickAnimate(const Duration(seconds: 1, milliseconds: 100));
+      animator.tickAnimate(Duration.zero);
+      animator.tickAnimate(animator.animateDuration);
 
       expect(animator.highlightTargetId, isNull);
       expect(animator.pendingHighlightTargetId, 1);
@@ -663,8 +1130,8 @@ void main() {
         duration: const Duration(milliseconds: 100),
         curve: Curves.linear,
       );
-      animator.tickAnimate(const Duration(seconds: 1));
-      animator.tickAnimate(const Duration(seconds: 1, milliseconds: 100));
+      animator.tickAnimate(Duration.zero);
+      animator.tickAnimate(animator.animateDuration);
 
       expect(animator.pendingHighlightTargetId, isNull);
       expect(animator.highlightTargetId, 1);

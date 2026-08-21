@@ -6,34 +6,96 @@ import 'package:chat_scroll_view/src/chat_scroll/chat_scroll_dev_log.dart';
 import 'package:flutter/animation.dart';
 import 'package:flutter/rendering.dart';
 
-/// Maximum distance (px) for which the close-path animation is used. Beyond
-/// this the viewport falls back to the far-path stitch.
+/// Legacy constant retained for tests/callers. Path selection no longer uses a
+/// pixel-distance gate: **built → close-path**, **not built → stitch**.
 const double kCloseAnimateDistance = 2400;
 
-/// How long [AnimateToLoadPolicy.preferBuilt] waits for the target row to
-/// enter the build range before forcing a stitch.
-const Duration kPreferBuiltTimeout = Duration(milliseconds: 300);
+/// Floor for travel-scaled [chatAnimateTravelDuration] (ms).
+const int kAnimateTravelDurationMinMs = 300;
 
-/// Owns `animateTo` scroll animation and post-settle target highlight for
+/// Cap for travel-scaled [chatAnimateTravelDuration] (ms).
+const int kAnimateTravelDurationMaxMs = 1300;
+
+/// Default solid hold after navigate-select settle (ms).
+/// Mapped to [ChatAnimator.highlightDuration].
+const int kHighlightHoldDurationMs = 1000;
+
+/// Fade length after navigate-select hold ends.
+const Duration kHighlightFadeDuration = Duration(milliseconds: 300);
+
+/// Travel-scaled animate duration for close-path and stitch.
+///
+/// Formula: `((|travel| / viewportHeight) + 1) * 200` ms, clamped to
+/// [[kAnimateTravelDurationMinMs], [kAnimateTravelDurationMaxMs]].
+/// Longer hops feel deliberate; short hops stay snappy. Same curve family as
+/// stitch so a tall on-screen close hop does not finish much faster than an
+/// equivalent stitch.
+Duration chatAnimateTravelDuration({
+  required double travelPx,
+  required double viewportHeight,
+}) {
+  final vh = viewportHeight <= 0 ? 1.0 : viewportHeight;
+  final raw = ((travelPx.abs() / vh) + 1.0) * 200.0;
+  final ms = raw
+      .clamp(
+        kAnimateTravelDurationMinMs.toDouble(),
+        kAnimateTravelDurationMaxMs.toDouble(),
+      )
+      .round();
+  return Duration(milliseconds: ms);
+}
+
+/// Phases of the navigate-select row wash.
+enum ChatHighlightPhase {
+  /// No overlay and no pending arm.
+  idle,
+
+  /// Full-strength wash (hold clock may still be deferred until settle).
+  solid,
+
+  /// Opacity declining toward clear after hold (or cancel).
+  fading,
+}
+
+/// Owns `animateTo` motion and navigate-select highlight for
 /// [RenderChatScrollView].
 ///
-/// Close-path endpoint geometry comes from [closePathEndOffsetFor] — for the
-/// known conversation newest this is tail-pin top (`bottomEdge - height`), not
-/// band alignment. See [ChatScrollController.animateTo].
+/// ## Paths
 ///
-/// **Tick integration:** [tickAnimate] returns anchor scroll delta for the
-/// close path; the far-path stitch mutates [stitchProgress] and returns 0.
-/// [tickHighlight] advances the post-animate tint and reports whether it is
-/// still active.
+/// - **Close:** target is already built → continuous origin-offset
+///   interpolation. Endpoint from [closePathEndOffsetFor] (band alignment, or
+///   tail-pin for the known newest).
+/// - **Stitch (far):** target not built → capture outgoing rows, teleport,
+///   dual-translate paint. Runs only after the load-gate ([isDestinationReady]).
+///   No whole-viewport opacity fade.
 ///
-/// **Far path (stitch):** capture outgoing rows → `jumpTo` → dual-translate
-/// outgoing/incoming (no viewport opacity fade). See architecture doc
-/// `11-animation-integration.md`.
+/// ## Timing
+///
+/// Both paths use [chatAnimateTravelDuration] + [Curves.easeOutQuint]. Caller
+/// duration/curve are hints (`duration ≤ 0` ⇒ instant jump).
+///
+/// ## Highlight
+///
+/// When `highlight: true`: arm solid at navigate start; hold clock starts /
+/// restarts at settle; then [kHighlightFadeDuration] fade. Drag/cancel fades;
+/// host [jumpTo] / overlay hard-clear. See `docs/architecture/11-animation-integration.md`.
+///
+/// ## Tick integration
+///
+/// [tickAnimate] returns close-path scroll delta (stitch mutates
+/// [stitchProgress] and returns 0). [tickHighlight] advances hold/fade.
 class ChatAnimator implements ChatScrollAnimator {
   /// Creates an animator bound to [controller] and render-object callbacks.
   ChatAnimator({
     required ChatScrollController controller,
     required double? Function(int id) offsetToBuiltMessage,
+
+    /// Whether built [id] intersects the paint band (used for logging / close
+    /// path diagnostics — path selection itself is built vs not-built).
+    required bool Function(int id) messageIntersectsPaintBand,
+
+    /// Viewport height for travel-scaled duration.
+    required double Function() viewportHeight,
     required double Function(
       int targetId,
       double messageHeight,
@@ -46,6 +108,18 @@ class ChatAnimator implements ChatScrollAnimator {
     required double Function(RenderBox child) heightOfChild,
     required bool Function(int id) isHighlightReady,
     required bool Function(int id) shouldDropPendingHighlight,
+
+    /// `true` when [id] is loaded enough for a real destination row (not an
+    /// unresolved shimmer stand-in). Load-gate blocks path selection until
+    /// this returns true.
+    required bool Function(int id) isDestinationReady,
+
+    /// Ask the host/viewport to fetch an around-target destination window
+    /// for the navigation load-gate.
+    required void Function(int targetId) requestDestinationWindow,
+
+    /// Clear the load-gate destination-window fetch pin.
+    required VoidCallback clearDestinationWindow,
     required VoidCallback markNeedsPaint,
     required VoidCallback markNeedsLayout,
     required VoidCallback ensureTicker,
@@ -57,11 +131,14 @@ class ChatAnimator implements ChatScrollAnimator {
 
     /// Clear stitch pin / frozen tops on cancel or settle. Render-owned.
     required VoidCallback clearStitchCapture,
-    Duration highlightDuration = const Duration(milliseconds: 1500),
-    Color highlightColor = const Color(0x402196F3),
-    Duration preferBuiltTimeout = kPreferBuiltTimeout,
+    Duration highlightDuration = const Duration(
+      milliseconds: kHighlightHoldDurationMs,
+    ),
+    Color highlightColor = const Color(0x280A90F0),
   }) : _controller = controller,
        _offsetToBuiltMessage = offsetToBuiltMessage,
+       _messageIntersectsPaintBand = messageIntersectsPaintBand,
+       _viewportHeight = viewportHeight,
        _closePathEndOffsetFor = closePathEndOffsetFor,
        _isTailClosePathTarget = isTailClosePathTarget,
        _childForId = childForId,
@@ -69,6 +146,9 @@ class ChatAnimator implements ChatScrollAnimator {
        _heightOfChild = heightOfChild,
        _isHighlightReady = isHighlightReady,
        _shouldDropPendingHighlight = shouldDropPendingHighlight,
+       _isDestinationReady = isDestinationReady,
+       _requestDestinationWindow = requestDestinationWindow,
+       _clearDestinationWindow = clearDestinationWindow,
        _markNeedsPaint = markNeedsPaint,
        _markNeedsLayout = markNeedsLayout,
        _ensureTicker = ensureTicker,
@@ -77,11 +157,12 @@ class ChatAnimator implements ChatScrollAnimator {
        _prepareStitchCapture = prepareStitchCapture,
        _clearStitchCapture = clearStitchCapture,
        _highlightDuration = highlightDuration,
-       _highlightColor = highlightColor,
-       _preferBuiltTimeout = preferBuiltTimeout;
+       _highlightColor = highlightColor;
 
   final ChatScrollController _controller;
   final double? Function(int id) _offsetToBuiltMessage;
+  final bool Function(int id) _messageIntersectsPaintBand;
+  final double Function() _viewportHeight;
   final double Function(int targetId, double messageHeight, double alignment)
   _closePathEndOffsetFor;
   final bool Function(int targetId) _isTailClosePathTarget;
@@ -90,6 +171,9 @@ class ChatAnimator implements ChatScrollAnimator {
   final double Function(RenderBox child) _heightOfChild;
   final bool Function(int id) _isHighlightReady;
   final bool Function(int id) _shouldDropPendingHighlight;
+  final bool Function(int id) _isDestinationReady;
+  final void Function(int targetId) _requestDestinationWindow;
+  final VoidCallback _clearDestinationWindow;
   final VoidCallback _markNeedsPaint;
   final VoidCallback _markNeedsLayout;
   final VoidCallback _ensureTicker;
@@ -97,7 +181,6 @@ class ChatAnimator implements ChatScrollAnimator {
   final VoidCallback _cancelBounceback;
   final void Function(int targetId) _prepareStitchCapture;
   final VoidCallback _clearStitchCapture;
-  final Duration _preferBuiltTimeout;
 
   /// Animate / stitch diagnostics — filter console for `ChatScrollAnimate`.
   ///
@@ -105,7 +188,7 @@ class ChatAnimator implements ChatScrollAnimator {
   /// [log.enabled] to `false` to silence.
   final ChatScrollDevLog log = ChatScrollDevLog(
     'ChatScrollAnimate',
-    enabled: true,
+    enabled: false,
   );
 
   /// Last logged progress bucket `0..10` for sparse tick lines.
@@ -147,14 +230,16 @@ class ChatAnimator implements ChatScrollAnimator {
   /// Caller load policy for the in-flight animate.
   AnimateToLoadPolicy loadPolicy = AnimateToLoadPolicy.immediate;
 
-  /// `true` while waiting for the target row under [preferBuilt].
-  bool preferBuiltWaiting = false;
+  /// `true` while the navigation load-gate is waiting for a ready destination
+  /// (or [preferBuilt] is waiting one layout for a close-path chance).
+  bool loadGateWaiting = false;
+
+  /// Alias for [loadGateWaiting] kept for older call sites / debug readers.
+  bool get preferBuiltWaiting => loadGateWaiting;
+  set preferBuiltWaiting(bool value) => loadGateWaiting = value;
 
   /// Close or stitch path has been entered for the in-flight animate.
   bool _pathStarted = false;
-
-  /// Ticker time when preferBuilt wait began (null until first tick).
-  Duration? _preferBuiltStartElapsed;
 
   /// `true` after one deferred layout request for stitch measure.
   bool _stitchMeasureLayoutAsked = false;
@@ -185,29 +270,39 @@ class ChatAnimator implements ChatScrollAnimator {
   /// references opacity does not flash. Far path no longer fades.
   double get fadeOpacity => 1;
 
-  /// Per-call preference from the active `animateTo`: whether to arm the
-  /// post-settle highlight when the animation completes successfully.
+  /// Per-call preference from the active `animateTo`: whether to keep / arm
+  /// the navigate-select highlight for this flight.
   bool animateHighlight = true;
 
-  /// Message id receiving the post-animate fade-out tint, or `null` when no
-  /// highlight is active.
+  /// Message id receiving the highlight overlay, or `null` when idle.
   int? highlightTargetId;
 
-  /// Post-animate highlight waiting for [isHighlightReady] — set when
-  /// `animateTo` settles before the target message has loaded.
+  /// Highlight waiting for [isHighlightReady] — set when navigate starts
+  /// (or settles) before the target row is ready to paint.
   int? pendingHighlightTargetId;
 
-  /// Ticker time at the start of the active highlight; combined with
-  /// [highlightDuration] this drives the per-frame opacity.
-  Duration? highlightStartTime;
+  /// Current [ChatHighlightPhase] for the active overlay.
+  ChatHighlightPhase highlightPhase = ChatHighlightPhase.idle;
 
-  /// Current opacity factor (0..1) of the highlight; 1 at the start, 0 at
-  /// the end. Updated by [tickHighlight] each tick; read by [paintHighlight]
-  /// so paint never has to look at ticker state.
+  /// Ticker time when the solid **hold** clock started (null until settle /
+  /// already-there / first tick after [startHighlightHold]).
+  Duration? highlightHoldStartTime;
+
+  /// Ticker time when the fade phase started.
+  Duration? highlightFadeStartTime;
+
+  /// When true, solid hold elapsed-time is advancing. False while animating
+  /// (hold deferred until settle) or before arm.
+  bool _holdClockActive = false;
+
+  /// If settle requested hold while still pending arm, start hold on arm.
+  bool _startHoldWhenArmed = false;
+
+  /// Current opacity factor (0..1); 1 during solid, declining during fade.
   double highlightFactor = 0;
 
-  /// Configurable: how long the post-animate highlight stays on the target.
-  /// Zero disables the highlight entirely.
+  /// Solid hold length after settle. Zero disables highlight entirely.
+  /// Fade is always [kHighlightFadeDuration].
   Duration _highlightDuration;
 
   /// See [highlightDuration] setter.
@@ -215,19 +310,14 @@ class ChatAnimator implements ChatScrollAnimator {
   set highlightDuration(Duration value) {
     if (_highlightDuration == value) return;
     _highlightDuration = value;
-    // An in-flight fade computes `t = elapsed / total`; swapping `total`
-    // without rebasing `highlightStartTime` makes `t` jump discontinuously
-    // on the next tick. Easier and more honest: drop the active highlight
-    // — the new duration is "from now on", not "retroactively reshape the
-    // existing fade". `Duration.zero` clears synchronously so a hard
-    // opt-out doesn't have to wait for the next ticker frame.
+    // Drop in-flight highlight when hold length changes — do not reshape
+    // an active fade retroactively. `Duration.zero` clears synchronously.
     if (highlightTargetId != null || pendingHighlightTargetId != null) {
       clearHighlight();
     }
   }
 
-  /// Configurable: peak colour of the highlight overlay. Faded to fully
-  /// transparent over [highlightDuration].
+  /// Peak colour of the highlight underlay (alpha scaled by [highlightFactor]).
   Color _highlightColor;
 
   /// See [highlightColor] setter.
@@ -242,8 +332,9 @@ class ChatAnimator implements ChatScrollAnimator {
   @override
   bool get isAnimating => animateCompleter != null;
 
-  /// Whether a post-animate highlight tint is active.
-  bool get hasHighlight => highlightTargetId != null;
+  /// Whether a highlight overlay or deferred arm is active.
+  bool get hasHighlight =>
+      highlightTargetId != null || pendingHighlightTargetId != null;
 
   /// Pixel epsilon: treat start/end (or current/desired) as already aligned.
   static const double _settleEpsilon = 1;
@@ -256,13 +347,12 @@ class ChatAnimator implements ChatScrollAnimator {
     double alignment = 0.0,
     bool highlight = true,
     AnimateToLoadPolicy loadPolicy = AnimateToLoadPolicy.immediate,
+    AnimateToBusyPolicy busyPolicy = AnimateToBusyPolicy.ignore,
   }) {
     final align = alignment.clamp(0.0, 1.0);
 
-    // Telegram `RecyclerAnimationScrollHelper.scrollToPosition`:
-    //   if (recyclerView.fastScrollAnimationRunning) return;
-    // Keep the in-flight motion. Same destination → coalesce onto its future;
-    // any other request is dropped (not cancel+replace).
+    // Same destination → coalesce. Different target → ignore, or cancel and
+    // restart immediately when [busyPolicy] is replace.
     final inFlight = animateCompleter;
     if (inFlight != null && !inFlight.isCompleted) {
       final sameTarget =
@@ -280,16 +370,26 @@ class ChatAnimator implements ChatScrollAnimator {
         if (highlight) animateHighlight = true;
         return inFlight.future;
       }
-      log.event('animate.ignored', {
+      if (busyPolicy != AnimateToBusyPolicy.replace) {
+        log.event('animate.ignored', {
+          'requested': targetId,
+          'running': animateTargetId,
+          'far': farAnimateActive,
+          'preferBuiltWaiting': preferBuiltWaiting,
+          'stitchProgress': farAnimateActive
+              ? DevLogFormat.ratio(stitchProgress)
+              : null,
+        });
+        return Future<void>.value();
+      }
+      log.event('animate.replace', {
         'requested': targetId,
         'running': animateTargetId,
         'far': farAnimateActive,
-        'preferBuiltWaiting': preferBuiltWaiting,
-        'stitchProgress': farAnimateActive
-            ? DevLogFormat.ratio(stitchProgress)
-            : null,
+        'loadGateWaiting': loadGateWaiting,
       });
-      return Future<void>.value();
+      cancelAnimate(fadeHighlight: false);
+      // Fall through to start the new animate.
     }
 
     // Already painted at the aligned seat — no teleport / scroll.
@@ -304,12 +404,15 @@ class ChatAnimator implements ChatScrollAnimator {
       clearHighlight();
       _cancelBounceback();
       _cancelFling();
-      if (highlight) _requestHighlight(targetId);
+      animateHighlight = highlight;
+      // Already-on-screen targets still get navigate-select when requested.
+      if (highlight && highlightDuration > Duration.zero) {
+        _requestHighlight(targetId, startHold: true);
+      }
       return Future<void>.value();
     }
 
     // Fresh animate owns attention: drop leftover highlight / spring-back.
-    // (Re-entrant different-target spam never reaches here — ignored above.)
     clearHighlight();
     _cancelBounceback();
     if (duration <= Duration.zero) {
@@ -331,23 +434,29 @@ class ChatAnimator implements ChatScrollAnimator {
     animateDuration = duration;
     animateCurve = curve;
     animateStartTime = null;
-    preferBuiltWaiting = false;
-    _preferBuiltStartElapsed = null;
+    loadGateWaiting = false;
     _pathStarted = false;
     _stitchMeasureLayoutAsked = false;
     _lastProgressBucket = -1;
 
     final offsetNow = _offsetToBuiltMessage(targetId);
+    final readyNow = _isDestinationReady(targetId);
     log.event('animate.start', {
       'target': targetId,
       'align': DevLogFormat.ratio(animateAlignment),
       'durationMs': duration.inMilliseconds,
       'loadPolicy': loadPolicy.name,
       'highlight': highlight,
+      'ready': readyNow,
       'offsetToTarget': offsetNow == null ? 'null' : DevLogFormat.f(offsetNow),
       'anchorId': _controller.anchorMessageId,
       'anchorY': DevLogFormat.f(_controller.anchorPixelOffset),
     });
+
+    // Arm highlight at flight start so tint tracks the target through motion.
+    if (highlight && highlightDuration > Duration.zero) {
+      _requestHighlight(targetId, startHold: false);
+    }
 
     _cancelFling();
     _tryBeginPath();
@@ -359,6 +468,7 @@ class ChatAnimator implements ChatScrollAnimator {
   bool _isAlreadyAtAlignedTarget(int targetId, double alignment) {
     final child = _childForId(targetId);
     if (child == null) return false;
+    if (!_isDestinationReady(targetId)) return false;
     final top = _offsetToBuiltMessage(targetId);
     if (top == null) return false;
     final end = _closePathEndOffsetFor(
@@ -369,40 +479,51 @@ class ChatAnimator implements ChatScrollAnimator {
     return (top - end).abs() < _settleEpsilon;
   }
 
-  /// Re-evaluate path after layout (preferBuilt wait). Must not call
-  /// [markNeedsLayout] / [jumpTo] synchronously — those re-enter layout.
+  /// Re-evaluate path after layout during load-gate / preferBuilt wait.
+  /// Must not call [markNeedsLayout] / [jumpTo] synchronously — those re-enter
+  /// layout.
   ///
-  /// One layout is enough: if the target still is not built, stitch now
-  /// (Telegram does not idle-wait when the row is missing).
+  /// Unready destinations stay waiting. Ready destinations select close vs
+  /// stitch from built distance only — never invent gap distance, never force
+  /// stitch on unresolved shimmers.
   void onLayoutOpportunity({required double viewportHeight}) {
-    if (animateCompleter == null || !preferBuiltWaiting || _pathStarted) {
+    if (animateCompleter == null || !loadGateWaiting || _pathStarted) {
+      return;
+    }
+
+    if (!_isDestinationReady(animateTargetId)) {
+      log.event('path.loadGate.stillUnready', {
+        'target': animateTargetId,
+        'vh': DevLogFormat.f(viewportHeight),
+      });
+      // Do not re-request the dest window here — that reasserted the pin and
+      // queued a fetch every layout frame, cancelling/restarting in-flight
+      // work and busy-looping. Pin + poll from [_enterLoadGateWait] refill.
       return;
     }
 
     final offsetToTarget = _offsetToBuiltMessage(animateTargetId);
-    if (offsetToTarget != null &&
-        offsetToTarget.abs() <= kCloseAnimateDistance) {
-      log.event('path.preferBuilt.readyClose', {
+    if (_shouldUseClosePath(offsetToTarget)) {
+      log.event('path.loadGate.readyClose', {
         'target': animateTargetId,
-        'offset': DevLogFormat.f(offsetToTarget),
+        'offset': DevLogFormat.f(offsetToTarget!),
         'vh': DevLogFormat.f(viewportHeight),
+        'bandHit': _messageIntersectsPaintBand(animateTargetId),
       });
-      preferBuiltWaiting = false;
-      _preferBuiltStartElapsed = null;
+      loadGateWaiting = false;
       _beginClose(offsetToTarget);
       return;
     }
 
-    // Built-but-far, or still missing after this layout → stitch (deferred).
-    log.event('path.preferBuilt.forceStitch', {
+    // Ready but far, or ready and not yet built → stitch (deferred).
+    log.event('path.loadGate.readyStitch', {
       'target': animateTargetId,
       'offset': offsetToTarget == null
           ? 'null'
           : DevLogFormat.f(offsetToTarget),
       'vh': DevLogFormat.f(viewportHeight),
     });
-    preferBuiltWaiting = false;
-    _preferBuiltStartElapsed = null;
+    loadGateWaiting = false;
     scheduleMicrotask(() {
       if (animateCompleter == null || _pathStarted) return;
       _beginStitch();
@@ -428,8 +549,6 @@ class ChatAnimator implements ChatScrollAnimator {
     stitchProgress = 0;
     animateDuration = _stitchDuration(stitchScrollLength, stitchViewportHeight);
     animateCurve = Curves.easeOutQuint;
-    // Start the clock at measure time (Telegram starts ValueAnimator after
-    // the layout listener, not after an idle gap).
     animateStartTime = elapsed;
     _lastProgressBucket = -1;
     log.event('stitch.measure', {
@@ -443,56 +562,88 @@ class ChatAnimator implements ChatScrollAnimator {
     _markNeedsPaint();
   }
 
-  Duration _stitchDuration(double scrollLength, double viewportHeight) {
-    final raw = ((scrollLength / viewportHeight) + 1.0) * 200.0;
-    final ms = raw.clamp(300.0, 1300.0).round();
-    return Duration(milliseconds: ms);
+  Duration _stitchDuration(double scrollLength, double viewportHeight) =>
+      chatAnimateTravelDuration(
+        travelPx: scrollLength,
+        viewportHeight: viewportHeight,
+      );
+
+  /// Travel-scaled duration + [Curves.easeOutQuint] for close-path motion.
+  /// Caller [animate] duration/curve are hints only (stitch overrides the same
+  /// way after measure).
+  void _applyCloseTravelTiming(double travelPx) {
+    final vh = math.max<double>(_viewportHeight(), 1);
+    animateDuration = chatAnimateTravelDuration(
+      travelPx: travelPx,
+      viewportHeight: vh,
+    );
+    animateCurve = Curves.easeOutQuint;
   }
 
+  /// Close path when the target is among current built children.
+  ///
+  /// Pixel distance alone must not force stitch — tall reverse hops and
+  /// scroll-to-tail often land off-band with |offset| ≫ viewport while still
+  /// built.
+  bool _shouldUseClosePath(double? offsetToTarget) => offsetToTarget != null;
+
   void _tryBeginPath() {
+    if (!_isDestinationReady(animateTargetId)) {
+      log.event('path.loadGate.wait', {
+        'target': animateTargetId,
+        'loadPolicy': loadPolicy.name,
+      });
+      _enterLoadGateWait();
+      return;
+    }
+
     final offsetToTarget = _offsetToBuiltMessage(animateTargetId);
-    if (offsetToTarget != null &&
-        offsetToTarget.abs() <= kCloseAnimateDistance) {
+    if (_shouldUseClosePath(offsetToTarget)) {
       log.event('path.close', {
         'target': animateTargetId,
-        'offset': DevLogFormat.f(offsetToTarget),
+        'offset': DevLogFormat.f(offsetToTarget!),
+        'bandHit': _messageIntersectsPaintBand(animateTargetId),
       });
-      preferBuiltWaiting = false;
-      _preferBuiltStartElapsed = null;
+      loadGateWaiting = false;
       _beginClose(offsetToTarget);
       return;
     }
 
     if (loadPolicy == AnimateToLoadPolicy.preferBuilt &&
         offsetToTarget == null) {
-      log.event('path.preferBuilt.wait', {
-        'target': animateTargetId,
-        'timeoutMs': _preferBuiltTimeout.inMilliseconds,
-      });
-      preferBuiltWaiting = true;
-      // Kick a layout so the target can enter the build range. Safe: called
-      // from [animate], not from inside performLayout.
-      _markNeedsLayout();
+      // Ready payload, row not yet in build range — one layout chance for
+      // close-path (self-insert / follow-tail). Never timeout→force-stitch.
+      log.event('path.preferBuilt.wait', {'target': animateTargetId});
+      _enterLoadGateWait();
       return;
     }
 
     log.event('path.stitch', {
       'target': animateTargetId,
-      'reason': offsetToTarget == null ? 'notBuilt' : 'tooFar',
-      'offset': offsetToTarget == null
-          ? 'null'
-          : DevLogFormat.f(offsetToTarget),
+      'reason': 'notBuilt',
+      'offset': 'null',
       'loadPolicy': loadPolicy.name,
     });
-    preferBuiltWaiting = false;
-    _preferBuiltStartElapsed = null;
+    loadGateWaiting = false;
     _beginStitch();
+  }
+
+  void _enterLoadGateWait() {
+    loadGateWaiting = true;
+    _requestDestinationWindow(animateTargetId);
+    // Kick a layout so readiness / build-range can resolve. Safe: called
+    // from [animate], not from inside performLayout.
+    _markNeedsLayout();
+  }
+
+  void _leaveLoadGateWait() {
+    loadGateWaiting = false;
+    _clearDestinationWindow();
   }
 
   void _beginClose(double offsetToTarget) {
     _pathStarted = true;
-    preferBuiltWaiting = false;
-    _preferBuiltStartElapsed = null;
+    _leaveLoadGateWait();
     final child = _childForId(animateTargetId);
     final endOffset = child != null
         ? _closePathEndOffsetFor(
@@ -509,15 +660,19 @@ class ChatAnimator implements ChatScrollAnimator {
     stitchMeasured = false;
     stitchProgress = 0;
     _lastProgressBucket = -1;
+    final travel = (animateEndOffset - animateStartOffset).abs();
+    _applyCloseTravelTiming(travel);
     log.event('close.begin', {
       'target': animateTargetId,
       'startY': DevLogFormat.f(animateStartOffset),
       'endY': DevLogFormat.f(animateEndOffset),
+      'travel': DevLogFormat.f(travel),
+      'durationMs': animateDuration.inMilliseconds,
       'hasChild': child != null,
       'tailTarget': _isTailClosePathTarget(animateTargetId),
     });
     // Zero travel (already at end) — finish without a 300ms empty tween.
-    if ((animateEndOffset - animateStartOffset).abs() < _settleEpsilon) {
+    if (travel < _settleEpsilon) {
       log.event('close.noop', {'target': animateTargetId});
       _completeAnimate();
     }
@@ -525,8 +680,11 @@ class ChatAnimator implements ChatScrollAnimator {
 
   void _beginStitch() {
     _pathStarted = true;
-    preferBuiltWaiting = false;
-    _preferBuiltStartElapsed = null;
+    // End the load-gate wait, but keep (or establish) the destination-window
+    // fetch pin for the flight. Stitch layout spans outgoing strip + incoming
+    // band; without the pin, poll/jump-fetch contiguous-fills that gap.
+    loadGateWaiting = false;
+    _requestDestinationWindow(animateTargetId);
     farAnimateActive = true;
     stitchMeasured = false;
     stitchProgress = 0;
@@ -545,16 +703,32 @@ class ChatAnimator implements ChatScrollAnimator {
     // can run stitch measure in the same turn.
     farAnimateJumped = true;
     _controller.jumpTo(animateTargetId, alignment: animateAlignment);
+    // Re-assert select highlight after teleport. Host jumpTo clears tint;
+    // stitch-owned jumps must not. Even when clear is skipped, the child may
+    // be pending rebuild — pending arm until layout.
+    if (animateHighlight && highlightDuration > Duration.zero) {
+      _requestHighlight(animateTargetId, startHold: false);
+    }
     log.event('stitch.jumped', {
       'target': animateTargetId,
       'anchorAfter': _controller.anchorMessageId,
       'anchorYAfter': DevLogFormat.f(_controller.anchorPixelOffset),
+      'highlightId': highlightTargetId,
+      'highlightPending': pendingHighlightTargetId,
     });
     _markNeedsLayout();
   }
 
-  /// Cancel the in-flight animation without arming a highlight.
-  void cancelAnimate() {
+  /// Cancel the in-flight animation. When a navigate-select highlight is
+  /// armed, begins a fade (does not hard-clear).
+  @override
+  void cancel() => cancelAnimate();
+
+  /// Cancel the in-flight animation. See [cancel].
+  ///
+  /// Pass [fadeHighlight]: false only for paths that immediately
+  /// [clearHighlight] (replace → re-arm, dispose).
+  void cancelAnimate({bool fadeHighlight = true}) {
     final completer = animateCompleter;
     if (completer == null) return;
     log.event('animate.cancel', {
@@ -562,13 +736,13 @@ class ChatAnimator implements ChatScrollAnimator {
       'far': farAnimateActive,
       'measured': stitchMeasured,
       'progress': DevLogFormat.ratio(stitchProgress),
-      'preferBuiltWaiting': preferBuiltWaiting,
+      'loadGateWaiting': loadGateWaiting,
+      'fadeHighlight': fadeHighlight && animateHighlight,
     });
     animateCompleter = null;
     animateStartTime = null;
     _pendingSettleTargetId = null;
-    preferBuiltWaiting = false;
-    _preferBuiltStartElapsed = null;
+    _leaveLoadGateWait();
     _pathStarted = false;
     _stitchMeasureLayoutAsked = false;
     _lastProgressBucket = -1;
@@ -581,6 +755,12 @@ class ChatAnimator implements ChatScrollAnimator {
       _clearStitchCapture();
       _markNeedsPaint();
     }
+    if (fadeHighlight &&
+        animateHighlight &&
+        highlightDuration > Duration.zero &&
+        (highlightTargetId != null || pendingHighlightTargetId != null)) {
+      beginHighlightFade();
+    }
     if (!completer.isCompleted) completer.complete();
   }
 
@@ -589,42 +769,40 @@ class ChatAnimator implements ChatScrollAnimator {
   double tickAnimate(Duration elapsed) {
     if (animateCompleter == null) return 0;
 
-    if (preferBuiltWaiting) {
-      _preferBuiltStartElapsed ??= elapsed;
-      final waited = elapsed - _preferBuiltStartElapsed!;
+    if (loadGateWaiting) {
+      if (!_isDestinationReady(animateTargetId)) {
+        // Still unready — do **not** markNeedsLayout every tick (that makes
+        // pumpAndSettle hang forever). Data notify schedules layout.
+        return 0;
+      }
       final offsetToTarget = _offsetToBuiltMessage(animateTargetId);
-      if (offsetToTarget != null &&
-          offsetToTarget.abs() <= kCloseAnimateDistance) {
-        log.event('path.preferBuilt.tickClose', {
+      if (_shouldUseClosePath(offsetToTarget)) {
+        log.event('path.loadGate.tickClose', {
           'target': animateTargetId,
-          'waitedMs': waited.inMilliseconds,
-          'offset': DevLogFormat.f(offsetToTarget),
+          'offset': DevLogFormat.f(offsetToTarget!),
+          'bandHit': _messageIntersectsPaintBand(animateTargetId),
         });
         _beginClose(offsetToTarget);
         // Fall through to close-path tick below.
-      } else if (offsetToTarget != null || waited >= _preferBuiltTimeout) {
-        log.event('path.preferBuilt.tickStitch', {
+      } else if (offsetToTarget != null) {
+        log.event('path.loadGate.tickStitch', {
           'target': animateTargetId,
-          'waitedMs': waited.inMilliseconds,
-          'offset': offsetToTarget == null
-              ? 'null'
-              : DevLogFormat.f(offsetToTarget),
+          'offset': DevLogFormat.f(offsetToTarget),
         });
         _beginStitch();
         return 0;
       } else {
-        // Still waiting — do **not** markNeedsLayout every tick (that makes
-        // pumpAndSettle hang forever).
+        // Ready but not built — wait for [onLayoutOpportunity].
         return 0;
       }
     }
 
     if (farAnimateActive) {
       if (!stitchMeasured) {
-        // Prefer real post-jump layout measure (Telegram OnLayoutChange).
-        // Paint already uses provisional off-screen offsets for incoming via
-        // [_stitchPaintDy] — do **not** finalize measure here or a later
-        // layout geom pass is ignored (`stitchMeasured` already true).
+        // Prefer real post-jump layout measure. Paint already uses provisional
+        // off-screen offsets for incoming via [_stitchPaintDy] — do **not**
+        // finalize measure here or a later layout geom pass is ignored
+        // (`stitchMeasured` already true).
         if (!_stitchMeasureLayoutAsked) {
           _stitchMeasureLayoutAsked = true;
           log.event('stitch.awaitMeasure', {'target': animateTargetId});
@@ -764,7 +942,7 @@ class ChatAnimator implements ChatScrollAnimator {
     animateCompleter = null;
     animateStartTime = null;
     _pathStarted = false;
-    _preferBuiltStartElapsed = null;
+    _leaveLoadGateWait();
     _stitchMeasureLayoutAsked = false;
     _lastProgressBucket = -1;
     farAnimateActive = false;
@@ -786,34 +964,73 @@ class ChatAnimator implements ChatScrollAnimator {
       }
       _controller.reassignAnchor(targetId, end);
     }
-    // Successful settle (close-path reached t == 1 or far-path completed
-    // its jumpTo + fade-in) → kick off the target highlight when both the
-    // viewport gate (`highlightDuration > 0`) and the per-call
-    // `animateHighlight` flag are set. Cancel (`cancelAnimate`) skips this
-    // path, so an interrupted animateTo leaves no leftover tint. When the
-    // target slot is still a skeleton, arm is deferred via
-    // [pendingHighlightTargetId] until [tryArmPendingHighlight].
+    // Successful settle → restart solid hold. Highlight was usually armed at
+    // navigate start; if not (deferred), request with hold-on-arm.
     if (highlightDuration > Duration.zero && animateHighlight) {
-      _requestHighlight(targetId);
+      if (highlightTargetId == targetId ||
+          pendingHighlightTargetId == targetId) {
+        startHighlightHold();
+      } else {
+        _requestHighlight(targetId, startHold: true);
+      }
     }
     _pendingSettleTargetId = targetId;
     _markNeedsPaint();
     if (completer != null && !completer.isCompleted) completer.complete();
   }
 
-  void _requestHighlight(int targetId) {
+  void _requestHighlight(int targetId, {required bool startHold}) {
     if (_shouldDropPendingHighlight(targetId)) return;
+    _startHoldWhenArmed = startHold;
     if (_isHighlightReady(targetId)) {
-      _armHighlight(targetId);
+      _armHighlight(targetId, startHold: startHold);
     } else {
       pendingHighlightTargetId = targetId;
+      // Keep any prior solid on a different id from painting over the wrong
+      // row while we wait — pending is the source of truth until arm.
+      if (highlightTargetId != null && highlightTargetId != targetId) {
+        highlightTargetId = null;
+        highlightPhase = ChatHighlightPhase.idle;
+        highlightFactor = 0;
+        _holdClockActive = false;
+        highlightHoldStartTime = null;
+        highlightFadeStartTime = null;
+      }
+      _ensureTicker();
     }
   }
 
-  void _armHighlight(int targetId) {
+  void _armHighlight(int targetId, {required bool startHold}) {
+    pendingHighlightTargetId = null;
     highlightTargetId = targetId;
-    highlightStartTime = null;
+    highlightPhase = ChatHighlightPhase.solid;
     highlightFactor = 1.0;
+    highlightFadeStartTime = null;
+    _holdClockActive = startHold;
+    highlightHoldStartTime = null;
+    _startHoldWhenArmed = startHold;
+    _ensureTicker();
+    _markNeedsPaint();
+  }
+
+  /// Restart the solid hold clock after settle.
+  ///
+  /// If the row is still pending, hold starts when [tryArmPendingHighlight]
+  /// succeeds.
+  void startHighlightHold() {
+    if (highlightDuration <= Duration.zero) return;
+    _startHoldWhenArmed = true;
+    if (highlightTargetId == null) return;
+    if (highlightPhase == ChatHighlightPhase.fading) {
+      // Interrupted fade → back to solid for a fresh hold.
+      highlightPhase = ChatHighlightPhase.solid;
+      highlightFactor = 1.0;
+      highlightFadeStartTime = null;
+    }
+    highlightPhase = ChatHighlightPhase.solid;
+    highlightFactor = 1.0;
+    _holdClockActive = true;
+    highlightHoldStartTime = null;
     _ensureTicker();
     _markNeedsPaint();
   }
@@ -830,46 +1047,99 @@ class ChatAnimator implements ChatScrollAnimator {
     }
     if (!_isHighlightReady(id)) return false;
     pendingHighlightTargetId = null;
-    _armHighlight(id);
+    _armHighlight(id, startHold: _startHoldWhenArmed || !isAnimating);
     return true;
   }
 
-  /// Advance the highlight fade by one tick. Returns `true` when the
-  /// highlight is still active after the update; `false` once it has ended
-  /// (in which case state has been cleared).
-  bool tickHighlight(Duration elapsed) {
-    if (highlightTargetId == null) return false;
-    final start = highlightStartTime ??= elapsed;
-    final dt = elapsed - start;
-    final totalUs = highlightDuration.inMicroseconds;
-    if (totalUs <= 0) {
-      clearHighlight();
-      return false;
-    }
-    final t = (dt.inMicroseconds / totalUs).clamp(0.0, 1.0);
-    if (t >= 1.0) {
-      clearHighlight();
-      return false;
-    }
-    highlightFactor = 1.0 - t;
-    return true;
-  }
-
-  /// Drop any active post-animate highlight tint and any deferred arm.
-  void clearHighlight() {
+  /// Enter fade-out; skips any remaining solid hold.
+  void beginHighlightFade() {
     pendingHighlightTargetId = null;
-    if (highlightTargetId == null) return;
+    _startHoldWhenArmed = false;
+    _holdClockActive = false;
+    highlightHoldStartTime = null;
+    if (highlightTargetId == null) {
+      highlightPhase = ChatHighlightPhase.idle;
+      highlightFactor = 0;
+      return;
+    }
+    if (highlightPhase == ChatHighlightPhase.fading) return;
+    highlightPhase = ChatHighlightPhase.fading;
+    highlightFadeStartTime = null;
+    highlightFactor = 1.0;
+    _ensureTicker();
+    _markNeedsPaint();
+  }
+
+  /// Advance hold / fade by one tick. Returns `true` while overlay or pending
+  /// arm still needs the ticker.
+  bool tickHighlight(Duration elapsed) {
+    if (highlightTargetId == null) {
+      return pendingHighlightTargetId != null;
+    }
+    if (highlightDuration <= Duration.zero) {
+      clearHighlight();
+      return false;
+    }
+
+    if (highlightPhase == ChatHighlightPhase.solid) {
+      highlightFactor = 1.0;
+      if (!_holdClockActive) return true;
+      final start = highlightHoldStartTime ??= elapsed;
+      final holdUs = highlightDuration.inMicroseconds;
+      if (holdUs <= 0 || (elapsed - start).inMicroseconds >= holdUs) {
+        beginHighlightFade();
+        // Fall through to fade tick with same elapsed.
+      } else {
+        return true;
+      }
+    }
+
+    if (highlightPhase == ChatHighlightPhase.fading) {
+      final fadeStart = highlightFadeStartTime ??= elapsed;
+      final fadeUs = kHighlightFadeDuration.inMicroseconds;
+      if (fadeUs <= 0) {
+        clearHighlight();
+        return false;
+      }
+      final t = ((elapsed - fadeStart).inMicroseconds / fadeUs).clamp(0.0, 1.0);
+      if (t >= 1.0) {
+        clearHighlight();
+        return false;
+      }
+      // Linear fade: factor 1 → 0 over [kHighlightFadeDuration].
+      highlightFactor = 1.0 - t;
+      return true;
+    }
+
+    return false;
+  }
+
+  /// Drop highlight state.
+  ///
+  /// [animated] true → [beginHighlightFade] (user drag / interrupt).
+  /// false → immediate clear (jumpTo, overlay, new animate re-arm).
+  void clearHighlight({bool animated = false}) {
+    if (animated) {
+      beginHighlightFade();
+      return;
+    }
+    pendingHighlightTargetId = null;
+    _startHoldWhenArmed = false;
+    _holdClockActive = false;
+    highlightHoldStartTime = null;
+    highlightFadeStartTime = null;
+    highlightPhase = ChatHighlightPhase.idle;
+    if (highlightTargetId == null && highlightFactor == 0.0) return;
     highlightTargetId = null;
-    highlightStartTime = null;
     highlightFactor = 0.0;
     _markNeedsPaint();
   }
 
-  /// Draws a full-width tint over the target message after a successful
-  /// `animateTo`. Fades from full to 0 over [highlightDuration].
+  /// Paints a full-width wash **under** the highlight target row.
   ///
-  /// Called from the render object's paint path, after messages and before the
-  /// day header and scrollbar, so chrome stays on top.
+  /// Soft solid during hold; fades over [kHighlightFadeDuration] after
+  /// unselect. Called from the render paint path **before** message children
+  /// so text and bubbles stay crisp. Bubble selected-fill is host-owned.
   void paintHighlight({
     required PaintingContext context,
     required Offset offset,

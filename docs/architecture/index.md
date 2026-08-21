@@ -49,7 +49,7 @@ messages are revealed.
 
 ## Animation and catalogs
 
-* [Animation Integration](./11-animation-integration.md) - Close/far path; writer ownership
+* [Animation Integration](./11-animation-integration.md) - Close/stitch; load-gate; writer ownership
 * [Function Reference](./12-function-reference.md) - Exhaustive function catalog
 * [Known Limitations](./13-known-limitations.md) - Documented debt (not fixes)
 

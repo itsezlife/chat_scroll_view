@@ -76,8 +76,13 @@ class ChatFloatingHeaderController {
     return ((topY - fadeEnd) / kDividerFadeBand + 1.0).clamp(0.0, 1.0);
   }
 
-  /// The topmost visible group — the bucket + message id of the first child
-  /// crossing the top edge. O(visible children) of pure parent-data reads.
+  /// The topmost visible group — the bucket + message id of the child whose
+  /// top edge is closest to (and intersects) the viewport top. O(visible
+  /// children) of pure parent-data reads.
+  ///
+  /// Does **not** assume [children] are ordered by Y — stitch dual-translate
+  /// can put low ids below the viewport while higher outgoing ids remain
+  /// paint-visible near the top.
   ///
   /// [offsetOf], [dayBucketOf], and [heightOf] are supplied by the render
   /// object so this class stays decoupled from [ChatMessageParentData].
@@ -90,15 +95,23 @@ class ChatFloatingHeaderController {
     required double Function(RenderBox child) heightOf,
   }) {
     final topEdge = topPad;
+    Object? bestBucket;
+    int? bestId;
+    double? bestTop;
     for (final entry in children) {
       final child = entry.value;
       final offset = offsetOf(child);
-      if (offset + heightOf(child) <= topEdge) continue; // above the top
-      if (offset >= viewportHeight) break; // below the viewport
+      if (offset + heightOf(child) <= topEdge) continue; // fully above
+      if (offset >= viewportHeight) continue; // fully below
       final bucket = dayBucketOf(child);
-      if (bucket != null) return (bucket: bucket, id: entry.key);
+      if (bucket == null) continue;
+      if (bestTop == null || offset < bestTop) {
+        bestTop = offset;
+        bestBucket = bucket;
+        bestId = entry.key;
+      }
     }
-    return (bucket: null, id: null);
+    return (bucket: bestBucket, id: bestId);
   }
 
   /// Whether the header widget must rebuild and which bucket/date to pass to

@@ -107,6 +107,10 @@ class CommentsDataSource extends ChatDataSource {
   final LinkedHashMap<int, List<IChatMessage>> _chunkCache =
       LinkedHashMap<int, List<IChatMessage>>();
 
+  /// Messages created via [sendMessage] past [CommentsManifest.totalMessages].
+  /// Survives engine LRU eviction so [fetchRange] can re-serve them.
+  final Map<int, IChatMessage> _tailOverrides = <int, IChatMessage>{};
+
   @override
   Future<List<IChatMessage>> fetchRange({
     required int fromId,
@@ -115,23 +119,42 @@ class CommentsDataSource extends ChatDataSource {
     // Simulate network delay.
     await Future<void>.delayed(fetchDelay);
 
-    // Empty manifest — no messages to serve.
-    if (manifest.totalMessages <= 0) return const [];
+    final upper = newestKnownId ??
+        (manifest.totalMessages > 0 ? manifest.totalMessages - 1 : -1);
+    if (upper < 0) return const [];
 
-    final lo = fromId.clamp(0, manifest.totalMessages - 1);
-    final hi = toId.clamp(0, manifest.totalMessages - 1);
-
-    // Determine which asset chunks we need.
-    final firstAssetChunk = lo ~/ manifest.chunkSize;
-    final lastAssetChunk = hi ~/ manifest.chunkSize;
+    final lo = fromId < 0 ? 0 : fromId;
+    final hi = toId > upper ? upper : toId;
+    if (hi < lo) return const [];
 
     final result = <IChatMessage>[];
+    final assetLast = manifest.totalMessages - 1;
 
-    for (var ac = firstAssetChunk; ac <= lastAssetChunk; ac++) {
-      final messages = await _loadAssetChunk(ac);
-      for (final msg in messages) {
-        if (msg.id >= lo && msg.id <= hi) result.add(msg);
+    // Seeded asset range (ids that exist in chunk JSON files).
+    if (manifest.totalMessages > 0 && lo <= assetLast) {
+      final assetLo = lo;
+      final assetHi = hi < assetLast ? hi : assetLast;
+      final firstAssetChunk = assetLo ~/ manifest.chunkSize;
+      final lastAssetChunk = assetHi ~/ manifest.chunkSize;
+
+      for (var ac = firstAssetChunk; ac <= lastAssetChunk; ac++) {
+        final messages = await _loadAssetChunk(ac);
+        for (final msg in messages) {
+          if (msg.id >= assetLo && msg.id <= assetHi) result.add(msg);
+        }
       }
+    }
+
+    // Demo sends past the manifest — re-serve from overrides / live cache.
+    for (var id = lo; id <= hi; id++) {
+      if (id < manifest.totalMessages) continue;
+      final cached = getMessage(id);
+      if (cached != null) {
+        result.add(cached);
+        continue;
+      }
+      final override = _tailOverrides[id];
+      if (override != null) result.add(override);
     }
 
     return result;
@@ -188,6 +211,7 @@ class CommentsDataSource extends ChatDataSource {
       updatedAt: now,
       content: content,
     );
+    _tailOverrides[id] = message;
     insertMessage(message, reason: 'demo-send');
     return message;
   }

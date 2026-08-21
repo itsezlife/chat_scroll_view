@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:chat_scroll_view/src/chat_scroll/chat_animator.dart';
 import 'package:chat_scroll_view/src/chat_scroll/chat_data_source.dart';
 import 'package:chat_scroll_view/src/chat_scroll/chat_scroll_common.dart';
 import 'package:chat_scroll_view/src/chat_scroll/chat_scroll_controller.dart';
@@ -114,9 +115,11 @@ void main() {
       await tester.pump(const Duration(milliseconds: 30));
       expect(
         _render(tester).debugHighlightTargetId,
-        isNull,
-        reason: 'no highlight while animation is in transit',
+        target,
+        reason: 'Telegram: highlight arms at navigate start',
       );
+      expect(_render(tester).debugHighlightPhase, ChatHighlightPhase.solid);
+      expect(_render(tester).debugHighlightFactor, 1.0);
 
       await _driveAnimate(
         tester,
@@ -125,11 +128,11 @@ void main() {
       );
 
       expect(_render(tester).debugHighlightTargetId, target);
-      expect(_render(tester).debugHighlightFactor, greaterThan(0.0));
-      expect(_render(tester).debugHighlightFactor, lessThanOrEqualTo(1.0));
+      expect(_render(tester).debugHighlightPhase, ChatHighlightPhase.solid);
+      expect(_render(tester).debugHighlightFactor, 1.0);
     });
 
-    testWidgets('highlight clears once the duration elapses', (tester) async {
+    testWidgets('highlight stays solid through hold then fades', (tester) async {
       const count = 256;
       final controller = ChatScrollController()..jumpTo(count ~/ 2);
       final ds = _PreloadedDataSource(count);
@@ -155,14 +158,29 @@ void main() {
         animateDuration: const Duration(milliseconds: 80),
       );
       expect(_render(tester).debugHighlightTargetId, 120);
+      expect(_render(tester).debugHighlightPhase, ChatHighlightPhase.solid);
 
-      // Advance past the highlight duration.
-      await tester.pump(const Duration(milliseconds: 220));
+      // Mid-hold — still solid at full factor.
+      await tester.pump(const Duration(milliseconds: 100));
+      expect(_render(tester).debugHighlightPhase, ChatHighlightPhase.solid);
+      expect(_render(tester).debugHighlightFactor, 1.0);
+
+      // Past hold → fading (factor still 1 at fade start).
+      await tester.pump(const Duration(milliseconds: 120));
+      expect(_render(tester).debugHighlightPhase, ChatHighlightPhase.fading);
+
+      await tester.pump(const Duration(milliseconds: 100));
+      expect(_render(tester).debugHighlightFactor, lessThan(1.0));
+
+      // Past fade → cleared.
+      await tester.pump(const Duration(milliseconds: 250));
       expect(_render(tester).debugHighlightTargetId, isNull);
       expect(_render(tester).debugHighlightFactor, 0.0);
     });
 
-    testWidgets('factor monotonically decreases across frames', (tester) async {
+    testWidgets('factor stays 1 during hold then decreases in fade', (
+      tester,
+    ) async {
       const count = 256;
       final controller = ChatScrollController()..jumpTo(count ~/ 2);
       final ds = _PreloadedDataSource(count);
@@ -173,7 +191,7 @@ void main() {
         _scaffold(
           dataSource: ds,
           controller: controller,
-          highlightDuration: const Duration(milliseconds: 800),
+          highlightDuration: const Duration(milliseconds: 100),
         ),
       );
       await tester.pumpAndSettle();
@@ -188,13 +206,19 @@ void main() {
         animateDuration: const Duration(milliseconds: 60),
       );
       final f0 = _render(tester).debugHighlightFactor;
+      expect(f0, 1.0);
+      await tester.pump(const Duration(milliseconds: 50));
+      expect(_render(tester).debugHighlightFactor, 1.0);
+      // Enter fade and advance into it.
+      await tester.pump(const Duration(milliseconds: 60));
+      expect(_render(tester).debugHighlightPhase, ChatHighlightPhase.fading);
       await tester.pump(const Duration(milliseconds: 100));
       final f1 = _render(tester).debugHighlightFactor;
       await tester.pump(const Duration(milliseconds: 100));
       final f2 = _render(tester).debugHighlightFactor;
 
-      expect(f0, greaterThan(f1));
-      expect(f1, greaterThan(f2));
+      expect(f1, lessThan(1.0));
+      expect(f2, lessThan(f1));
     });
 
     testWidgets(
@@ -236,11 +260,11 @@ void main() {
         addTearDown(ds.dispose);
 
         await tester.pumpWidget(
-          _scaffold(dataSource: ds, controller: controller, cacheExtent: 8000),
+          _scaffold(dataSource: ds, controller: controller, cacheExtent: 200),
         );
         await tester.pumpAndSettle();
 
-        // Target 0 is far beyond _kCloseAnimateDistance from mid-conversation.
+        // Target 0 is outside the build range — stitch, not close.
         final future = controller.animateTo(
           0,
           duration: const Duration(milliseconds: 120),
@@ -253,6 +277,64 @@ void main() {
         );
 
         expect(_render(tester).debugHighlightTargetId, isNull);
+      },
+    );
+
+    testWidgets(
+      'far-path stitch keeps highlight armed through jump (not only at settle)',
+      (tester) async {
+        // Regression: _onJump used to hard-clear highlight on stitch teleport,
+        // so select tint only reappeared in _completeAnimate — unlike Telegram
+        // highlightMessageId set before scrollHelper.
+        const count = 256;
+        final controller = ChatScrollController()..jumpTo(count ~/ 2);
+        final ds = _PreloadedDataSource(count);
+        addTearDown(controller.dispose);
+        addTearDown(ds.dispose);
+
+        await tester.pumpWidget(
+          _scaffold(
+            dataSource: ds,
+            controller: controller,
+            cacheExtent: 200,
+            highlightDuration: const Duration(seconds: 10),
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        const target = 0;
+        final future = controller.animateTo(
+          target,
+          duration: const Duration(milliseconds: 200),
+        );
+        await tester.pump();
+        // Drive until stitch has jumped (far active + target anchored).
+        var sawStitch = false;
+        for (var i = 0; i < 80; i++) {
+          await tester.pump(const Duration(milliseconds: 16));
+          final r = _render(tester);
+          if (r.debugFarAnimateActive && r.debugFarAnimateJumped) {
+            sawStitch = true;
+            expect(
+              r.debugHighlightTargetId,
+              target,
+              reason: 'highlight must survive stitch jumpTo',
+            );
+            expect(r.debugHighlightPhase, ChatHighlightPhase.solid);
+            expect(r.debugHighlightFactor, 1.0);
+            break;
+          }
+        }
+        expect(sawStitch, isTrue, reason: 'expected far-path stitch flight');
+
+        await _driveAnimate(
+          tester,
+          future,
+          animateDuration: const Duration(milliseconds: 200),
+          maxPumps: 400,
+        );
+        expect(_render(tester).debugHighlightTargetId, target);
+        expect(_render(tester).debugHighlightPhase, ChatHighlightPhase.solid);
       },
     );
 
@@ -461,8 +543,7 @@ void main() {
       expect(_render(tester).debugHighlightTargetId, 120);
 
       // Start a new animation while the previous highlight is still active.
-      // The new animateTo's setup clears the leftover highlight; once the
-      // new one lands, it owns the highlight.
+      // Telegram: clear then re-arm the new id at navigate start.
       final secondFuture = controller.animateTo(
         125,
         duration: const Duration(milliseconds: 80),
@@ -470,9 +551,10 @@ void main() {
       await tester.pump();
       expect(
         _render(tester).debugHighlightTargetId,
-        isNull,
-        reason: 'old highlight is cleared at the start of the new animateTo',
+        125,
+        reason: 'highlight retargets at the start of the new animateTo',
       );
+      expect(_render(tester).debugHighlightPhase, ChatHighlightPhase.solid);
 
       await _driveAnimate(
         tester,
@@ -482,7 +564,7 @@ void main() {
       expect(_render(tester).debugHighlightTargetId, 125);
     });
 
-    testWidgets('drag during highlight does not cancel the fade', (
+    testWidgets('drag during highlight fades but keeps target until fade ends', (
       tester,
     ) async {
       const count = 256;
@@ -510,126 +592,124 @@ void main() {
         animateDuration: const Duration(milliseconds: 60),
       );
       expect(_render(tester).debugHighlightTargetId, 120);
+      expect(_render(tester).debugHighlightPhase, ChatHighlightPhase.solid);
 
       // A short drag — won't sweep msg-120 off-screen at 60 px tall.
       await tester.drag(find.byType(ChatScrollView), const Offset(0, 30));
       await tester.pump();
       expect(_render(tester).debugHighlightTargetId, 120);
+      expect(_render(tester).debugHighlightPhase, ChatHighlightPhase.fading);
     });
 
-    testWidgets('defers highlight until an unloaded target message loads', (
-      tester,
-    ) async {
-      const total = 200;
-      const loadedFrom = 192;
-      const target = 50;
-      final controller = ChatScrollController()..jumpTo(total - 1);
-      final ds = _GatedLazyTailDataSource(
-        totalCount: total,
-        loadedFromId: loadedFrom,
-      );
-      addTearDown(controller.dispose);
-      addTearDown(ds.dispose);
+    testWidgets(
+      'load-gate waits then highlights after destination becomes ready',
+      (tester) async {
+        const total = 200;
+        const loadedFrom = 192;
+        const target = 50;
+        final controller = ChatScrollController()..jumpTo(total - 1);
+        final ds = _GatedLazyTailDataSource(
+          totalCount: total,
+          loadedFromId: loadedFrom,
+        );
+        addTearDown(controller.dispose);
+        addTearDown(ds.dispose);
 
-      await tester.pumpWidget(
-        MaterialApp(
-          home: Scaffold(
-            body: Center(
-              child: SizedBox(
-                width: 400,
-                height: 600,
-                child: ChatScrollView(
-                  reverse: true,
-                  dataSource: ds,
-                  controller: controller,
-                  cacheExtent: 2000,
-                  highlightDuration: const Duration(seconds: 10),
-                  messageBuilder: (context, id, message, status, runLayout) =>
-                      SizedBox(
-                        height: 60,
-                        child: Text(
-                          message == null ? 'shimmer-$id' : 'msg-$id',
+        await tester.pumpWidget(
+          MaterialApp(
+            home: Scaffold(
+              body: Center(
+                child: SizedBox(
+                  width: 400,
+                  height: 600,
+                  child: ChatScrollView(
+                    reverse: true,
+                    dataSource: ds,
+                    controller: controller,
+                    cacheExtent: 2000,
+                    highlightDuration: const Duration(seconds: 10),
+                    messageBuilder: (context, id, message, status, runLayout) =>
+                        SizedBox(
+                          height: 60,
+                          child: Text(
+                            message == null ? 'shimmer-$id' : 'msg-$id',
+                          ),
                         ),
-                      ),
+                  ),
                 ),
               ),
             ),
           ),
-        ),
-      );
-      await tester.pump();
-      await tester.pump(const Duration(milliseconds: 200));
+        );
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 200));
 
-      final future = controller.animateTo(
-        target,
-        duration: const Duration(milliseconds: 80),
-      );
-      await _driveAnimate(
-        tester,
-        future,
-        animateDuration: const Duration(milliseconds: 80),
-      );
-      await tester.pump();
+        final future = controller.animateTo(
+          target,
+          duration: const Duration(milliseconds: 80),
+        );
+        await tester.pump();
+        for (var i = 0; i < 8; i++) {
+          await tester.pump(const Duration(milliseconds: 16));
+        }
 
-      final render = _render(tester);
-      expect(render.debugHighlightTargetId, isNull);
-      expect(render.debugPendingHighlightTargetId, target);
-      expect(find.text('shimmer-$target'), findsOneWidget);
+        expect(_render(tester).debugLoadGateWaiting, isTrue);
+        expect(_render(tester).debugFarAnimateActive, isFalse);
+        expect(_render(tester).debugHighlightTargetId, isNull);
+        expect(_render(tester).debugPendingHighlightTargetId, isNull);
 
-      ds.releasePendingFetches();
-      await tester.pump();
-      await tester.pump();
-      await tester.pump(const Duration(milliseconds: 100));
+        // Destination window (issue 02 owns auto-fetch); host/test loads it.
+        ds.loadTargetWindow(aroundId: target);
+        await _driveAnimate(
+          tester,
+          future,
+          animateDuration: const Duration(milliseconds: 80),
+          maxPumps: 400,
+        );
+        await tester.pump();
 
-      final settled = _render(tester);
-      expect(find.text('msg-$target'), findsOneWidget);
-      expect(settled.debugPendingHighlightTargetId, isNull);
-      expect(settled.debugHighlightTargetId, target);
-      expect(settled.debugHighlightFactor, greaterThan(0.0));
-    });
+        final settled = _render(tester);
+        expect(find.text('msg-$target'), findsOneWidget);
+        expect(find.text('shimmer-$target'), findsNothing);
+        expect(settled.debugPendingHighlightTargetId, isNull);
+        expect(settled.debugHighlightTargetId, target);
+        expect(settled.debugHighlightFactor, greaterThan(0.0));
+      },
+    );
   });
 }
 
-/// Newest chunk loaded; older pages fetch on demand. [releasePendingFetches]
-/// unblocks in-flight [fetchRange] calls so tests can observe the skeleton
-/// window before messages land.
+/// Newest chunk loaded; older ids stay cold until [loadTargetWindow].
 class _GatedLazyTailDataSource extends ChatDataSource {
   _GatedLazyTailDataSource({
     required this.totalCount,
     required this.loadedFromId,
   }) {
-    seedBoundaries(newestKnownId: totalCount - 1, reachedNewest: true);
+    seedBoundaries(
+      oldestKnownId: 0,
+      newestKnownId: totalCount - 1,
+      reachedOldest: true,
+      reachedNewest: true,
+    );
     for (var i = loadedFromId; i < totalCount; i++) {
       upsertMessage(_msg(i));
     }
-    seedBoundaries(oldestKnownId: loadedFromId);
   }
 
   final int totalCount;
   final int loadedFromId;
-  final List<Completer<void>> _pendingGates = [];
-  bool _releaseFetches = false;
 
-  void releasePendingFetches() {
-    _releaseFetches = true;
-    for (final gate in _pendingGates) {
-      if (!gate.isCompleted) gate.complete();
+  void loadTargetWindow({required int aroundId, int radius = 32}) {
+    final lo = (aroundId - radius).clamp(0, totalCount - 1);
+    final hi = (aroundId + radius).clamp(0, totalCount - 1);
+    for (var i = lo; i <= hi; i++) {
+      upsertMessage(_msg(i));
     }
-    _pendingGates.clear();
   }
 
   @override
   Future<List<IChatMessage>> fetchRange({
     required int fromId,
     required int toId,
-  }) async {
-    if (!_releaseFetches) {
-      final gate = Completer<void>();
-      _pendingGates.add(gate);
-      await gate.future;
-    }
-    final lo = fromId.clamp(0, totalCount - 1);
-    final hi = toId.clamp(0, totalCount - 1);
-    return <IChatMessage>[for (var i = lo; i <= hi; i++) _msg(i)];
-  }
+  }) async => const <IChatMessage>[];
 }

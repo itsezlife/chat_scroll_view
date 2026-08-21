@@ -3,6 +3,7 @@ import 'dart:developer' as dev;
 
 import 'package:chat_scroll_view/chat_scroll_view.dart';
 import 'package:chat_scroll_view_example/src/common/models/chat_message.dart';
+import 'package:chat_scroll_view_example/src/common/widgets/measure_size.dart';
 import 'package:chat_scroll_view_example/src/features/chat/controller/chat_search_controller.dart';
 import 'package:chat_scroll_view_example/src/features/chat/controller/chat_search_state.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/backend_chat_data_source.dart';
@@ -98,7 +99,7 @@ class _WidgetChatScreenState extends State<WidgetChatScreen>
       //   client: Supabase.instance.client,
       // );
       final backend = await CommentsDataSource.load();
-      // final backend = GeneratedChatDataSource(messageCount: 5);
+      // final backend = GeneratedChatDataSource(messageCount: 100);
 
       // The screen may have been popped while `load()` was in flight. The
       // `dispose()` above already ran with `_dataSource == null`, so we
@@ -419,6 +420,7 @@ class _WidgetChatScreenState extends State<WidgetChatScreen>
                   _ChatSideControlsHost(
                     pageDownChromeVisible: _pageDownChromeVisible,
                     bottomInset: insets.bottomPadding,
+                    onSearchStep: _onSearchStep,
                     pageDown: ChatScrollToBottomButton(
                       embedded: true,
                       controller: _controller,
@@ -462,6 +464,8 @@ class _WidgetChatScreenState extends State<WidgetChatScreen>
                     ),
                   ),
                   // Demo: search + bubble radius — top-right chrome.
+                  // Position against [chromeTop] (not [topPadding]) so search
+                  // reserve does not push this row further down.
                   // [Positioned] must be a *direct* Stack child; wrapping it in
                   // ValueListenableBuilder makes the builder expand and cover
                   // the chat.
@@ -469,9 +473,9 @@ class _WidgetChatScreenState extends State<WidgetChatScreen>
                     top: 0,
                     right: 12,
                     child: ValueListenableBuilder<double>(
-                      valueListenable: insets.topPadding,
-                      builder: (context, topPadding, child) => Padding(
-                        padding: EdgeInsets.only(top: topPadding + 8),
+                      valueListenable: insets.chromeTop,
+                      builder: (context, chromeTop, child) => Padding(
+                        padding: EdgeInsets.only(top: chromeTop + 8),
                         child: child,
                       ),
                       child: ListenableBuilder(
@@ -504,8 +508,8 @@ class _WidgetChatScreenState extends State<WidgetChatScreen>
                     left: 12,
                     right: 118,
                     child: ValueListenableBuilder<double>(
-                      valueListenable: insets.topPadding,
-                      builder: (context, topPadding, _) =>
+                      valueListenable: insets.chromeTop,
+                      builder: (context, chromeTop, _) =>
                           ValueListenableBuilder<bool>(
                             valueListenable: search.select(
                               (s) => s.maybeMap(
@@ -515,9 +519,18 @@ class _WidgetChatScreenState extends State<WidgetChatScreen>
                             ),
                             builder: (context, isOpen, _) {
                               if (!isOpen) return const SizedBox.shrink();
+                              // Position against chromeTop; measure only the
+                              // local pad + field into searchReserve.
                               return Padding(
-                                padding: EdgeInsets.only(top: topPadding + 8),
-                                child: const ChatSearchBar(),
+                                padding: EdgeInsets.only(top: chromeTop),
+                                child: MeasureSize(
+                                  onChange: (size) =>
+                                      insets.setSearchReserve(size.height),
+                                  child: const Padding(
+                                    padding: EdgeInsets.only(top: 8),
+                                    child: ChatSearchBar(),
+                                  ),
+                                ),
                               );
                             },
                           ),
@@ -538,28 +551,51 @@ class _WidgetChatScreenState extends State<WidgetChatScreen>
     ChatSearchState previous,
     ChatSearchState current,
   ) {
-    final prevHit = previous.maybeMap(
-      populated: (s) =>
-          (id: s.hits[s.index], index: s.index, len: s.hits.length),
-      orElse: () => null,
-    );
-    final nextHit = current.maybeMap(
-      populated: (s) =>
-          (id: s.hits[s.index], index: s.index, len: s.hits.length),
-      orElse: () => null,
-    );
-    if (nextHit == null) return;
-    if (prevHit != null &&
-        prevHit.id == nextHit.id &&
-        prevHit.index == nextHit.index &&
-        prevHit.len == nextHit.len) {
+    final wasOpen = previous.maybeMap(closed: (_) => false, orElse: () => true);
+    final isOpen = current.maybeMap(closed: (_) => false, orElse: () => true);
+    if (wasOpen && !isOpen) {
+      insets.setSearchReserve(0);
+    }
+
+    final prevPopulated = previous.mapOrNull(populated: (s) => s);
+    final nextPopulated = current.mapOrNull(populated: (s) => s);
+    if (nextPopulated == null) return;
+    // Index-only commits from [_onSearchStep] keep the same hits list.
+    // Re-animating here would double-fire after every accepted step.
+    if (prevPopulated != null &&
+        identical(prevPopulated.hits, nextPopulated.hits)) {
       return;
     }
     unawaited(
       _controller.animateTo(
-        nextHit.id,
+        nextPopulated.hits[nextPopulated.index],
         highlight: true,
+        alignment: 0.5,
         loadPolicy: AnimateToLoadPolicy.immediate,
+        busyPolicy: AnimateToBusyPolicy.ignore,
+      ),
+    );
+  }
+
+  /// Search up/down: one step per in-flight animate under ignore.
+  ///
+  /// Commit the hit index only when the viewport can accept the navigation.
+  /// Advancing first (old [ChatSearchController.goOlder]) races selection
+  /// ahead of [AnimateToBusyPolicy.ignore] drops and kills bound-gated FABs.
+  void _onSearchStep({required bool towardOlder}) {
+    final search = _search;
+    if (search == null) return;
+    if (_controller.isAnimating) return;
+    final step = towardOlder ? search.peekOlder() : search.peekNewer();
+    if (step == null) return;
+    search.selectIndex(step.index);
+    unawaited(
+      _controller.animateTo(
+        step.id,
+        highlight: true,
+        alignment: 0.5,
+        loadPolicy: AnimateToLoadPolicy.immediate,
+        busyPolicy: AnimateToBusyPolicy.ignore,
       ),
     );
   }
@@ -571,11 +607,13 @@ class _ChatSideControlsHost extends StatelessWidget {
     required this.pageDownChromeVisible,
     required this.bottomInset,
     required this.pageDown,
+    required this.onSearchStep,
   });
 
   final bool pageDownChromeVisible;
   final ValueListenable<double> bottomInset;
   final Widget pageDown;
+  final void Function({required bool towardOlder}) onSearchStep;
 
   @override
   Widget build(BuildContext context) {
@@ -596,8 +634,8 @@ class _ChatSideControlsHost extends StatelessWidget {
         searching: slice.searching,
         pageDownVisible: pageDownChromeVisible,
         bottomInset: bottomInset,
-        onSearchUp: search.goOlder,
-        onSearchDown: search.goNewer,
+        onSearchUp: () => onSearchStep(towardOlder: true),
+        onSearchDown: () => onSearchStep(towardOlder: false),
         searchHitCount: slice.hitCount,
         searchUpEnabled: slice.index > 0,
         searchDownEnabled:

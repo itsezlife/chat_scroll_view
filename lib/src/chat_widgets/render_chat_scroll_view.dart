@@ -156,8 +156,10 @@ class RenderChatScrollView extends RenderBox {
     bool hasErrorBuilder = false,
     bool hasEmptyBuilder = false,
     bool hasLoadingBuilder = false,
-    Color highlightColor = const Color(0x402196F3),
-    Duration highlightDuration = const Duration(milliseconds: 1500),
+    Color highlightColor = const Color(0x280A90F0),
+    Duration highlightDuration = const Duration(
+      milliseconds: kHighlightHoldDurationMs,
+    ),
     TextDirection textDirection = TextDirection.ltr,
     ChatScrollbarThemeData scrollbarTheme = ChatScrollbarThemeData.light,
     ChatSelectionController? selectionController,
@@ -184,10 +186,16 @@ class RenderChatScrollView extends RenderBox {
     _animator = ChatAnimator(
       controller: _controller,
       offsetToBuiltMessage: _offsetToBuiltMessage,
+      messageIntersectsPaintBand: _messageIntersectsPaintBand,
+      viewportHeight: () => hasSize ? size.height : 600.0,
       closePathEndOffsetFor: _closePathEndOffsetFor,
       isTailClosePathTarget: _isTailClosePathTarget,
       childForId: (id) => _children[id],
-      offsetOfChild: (child) => _parentData(child).offset,
+      // Paint Y (layout + stitch dual-translate) so highlight rides the row.
+      offsetOfChild: (child) {
+        final pd = _parentData(child);
+        return pd.offset + _stitchPaintDyIfActive(pd.id);
+      },
       heightOfChild: (child) => child.size.height,
       isHighlightReady: (id) =>
           _dataSource.getMessage(id) != null && _children.containsKey(id),
@@ -195,6 +203,20 @@ class RenderChatScrollView extends RenderBox {
         final status = _dataSource.statusOf(id);
         return status.isAbsent || status.isError;
       },
+      isDestinationReady: (id) => _dataSource.getMessage(id) != null,
+      requestDestinationWindow: (id) {
+        final prev = _chunkFetchScheduler.navigationDestinationChunk;
+        _chunkFetchScheduler.setNavigationDestinationId(id);
+        // One-shot reopen only when the pin is newly established — not on
+        // every stitch/load-gate reassert (that dirtied + notified every frame).
+        final next = ChatScrollChunk.chunkOf(id);
+        if (prev == next) return;
+        scheduleMicrotask(() {
+          if (!attached) return;
+          _dataSource.reopenIdForFetch(id);
+        });
+      },
+      clearDestinationWindow: _chunkFetchScheduler.clearNavigationDestination,
       markNeedsPaint: markNeedsPaint,
       markNeedsLayout: markNeedsLayout,
       ensureTicker: _ensureTicker,
@@ -328,9 +350,9 @@ class RenderChatScrollView extends RenderBox {
       // fling delta to the NEW controller's anchor, continuing motion across
       // an unrelated controller swap.
       _cancelFling();
-      _cancelAnimate();
+      _cancelAnimate(fadeHighlight: false);
       _cancelBounceback();
-      // Clear any leftover post-animateTo highlight — its target id refers
+      // Clear any leftover navigate highlight — its target id refers
       // to a message position resolved against the old controller's anchor;
       // painting it under the new controller would tint an arbitrary row.
       _clearHighlight();
@@ -450,7 +472,7 @@ class RenderChatScrollView extends RenderBox {
   double get _bottomPad => _bottomPadding?.value ?? 0.0;
 
   /// Set when [bottomPadding] changed; consumed by the next [performLayout]
-  /// to shift the anchor by the inset delta (Telegram-style keyboard follow).
+  /// to shift the anchor by the inset delta (composer / keyboard follow).
   bool _bottomPaddingDirty = false;
 
   /// [bottomPadding] value applied on the previous layout — seeds on first
@@ -664,7 +686,8 @@ class RenderChatScrollView extends RenderBox {
   Color get highlightColor => _animator.highlightColor;
   set highlightColor(Color value) => _animator.highlightColor = value;
 
-  /// Snapshot visible rows before stitch `jumpTo` (Telegram ignoreView prep).
+  /// Snapshot visible rows before stitch `jumpTo` (outgoing strip for
+  /// dual-translate + GC presence pin).
   void _prepareStitchCapture(int targetId) {
     _stitchOutgoingIds.clear();
     _stitchFrozenTops.clear();
@@ -805,12 +828,13 @@ class RenderChatScrollView extends RenderBox {
     final towardNewer = _stitchTowardNewer;
     final viewportHeight = size.height;
     final finalHeight = towardNewer ? oldH : viewportHeight - oldT;
+    // Full-strip travel: outgoing strip + incoming extents (including
+    // off-screen tall parts). Duration scales with travel separately.
     final scrollLength = hasIncoming
         ? finalHeight +
               (towardNewer ? -incomingTop : incomingBottom - viewportHeight)
         : math.max(finalHeight, viewportHeight);
-
-    final clamped = scrollLength.abs().clamp(1.0, viewportHeight * 4);
+    final travel = math.max<double>(scrollLength.abs(), 1);
     _animator.log.event('stitch.measureGeom', {
       'target': _animator.animateTargetId,
       'towardNewer': towardNewer,
@@ -821,15 +845,14 @@ class RenderChatScrollView extends RenderBox {
       'hasIncoming': hasIncoming,
       'inTop': hasIncoming ? DevLogFormat.f(incomingTop) : null,
       'inBot': hasIncoming ? DevLogFormat.f(incomingBottom) : null,
-      'scrollLenRaw': DevLogFormat.f(scrollLength),
-      'scrollLen': DevLogFormat.f(clamped),
+      'scrollLen': DevLogFormat.f(travel),
       'outgoingN': _stitchOutgoingIds.length,
       'outgoingLive': liveOutgoing,
       'childN': _children.length,
     });
 
     _animator.applyStitchMeasure(
-      scrollLength: clamped,
+      scrollLength: travel,
       towardNewer: towardNewer,
       viewportHeight: viewportHeight,
       elapsed: _lastTickElapsed,
@@ -840,7 +863,7 @@ class RenderChatScrollView extends RenderBox {
   ///
   /// While jumped but not yet measured, still offset incoming fully off-screen
   /// (viewport-height provisional) so no frame shows destination at rest —
-  /// Telegram starts translationY from the first post-layout paint.
+  /// translation starts from the first post-layout paint.
   double _stitchPaintDy(int id) {
     if (!_animator.farAnimateActive || !_animator.farAnimateJumped) {
       return 0;
@@ -1010,16 +1033,26 @@ class RenderChatScrollView extends RenderBox {
   int? get debugPendingHighlightTargetId => _animator.pendingHighlightTargetId;
 
   /// Highlight animation progress in `0..1` for [debugHighlightTargetId].
+  /// Solid hold stays at `1.0`; fade declines toward `0`.
   double get debugHighlightFactor => _animator.highlightFactor;
+
+  /// Current highlight phase for tests (`idle` / `solid` / `fading`).
+  ChatHighlightPhase get debugHighlightPhase => _animator.highlightPhase;
 
   /// Whether far-path stitch is in flight (post-jump dual-translate).
   bool get debugFarAnimateActive => _animator.farAnimateActive;
 
+  /// Whether stitch has already run its teleport `jumpTo`.
+  bool get debugFarAnimateJumped => _animator.farAnimateJumped;
+
   /// Whether any [animateTo] (close, stitch, or preferBuilt wait) is in flight.
   bool get debugIsAnimating => _animator.isAnimating;
 
-  /// Whether close-path vs stitch is deferred under preferBuilt.
-  bool get debugPreferBuiltWaiting => _animator.preferBuiltWaiting;
+  /// Whether close-path vs stitch is deferred under the navigation load-gate.
+  bool get debugLoadGateWaiting => _animator.loadGateWaiting;
+
+  /// Alias for [debugLoadGateWaiting].
+  bool get debugPreferBuiltWaiting => debugLoadGateWaiting;
 
   /// Outgoing ids retained during stitch (GC pin + frozen paint Y).
   Set<int> get debugStitchOutgoingIds => Set<int>.of(_stitchOutgoingIds);
@@ -1038,6 +1071,13 @@ class RenderChatScrollView extends RenderBox {
   double? debugDividerOpacity(int id) {
     final child = _children[id];
     return child == null ? null : _parentData(child).dividerOpacity;
+  }
+
+  /// Whether the built child [id] carries an inline day separator, or `false`
+  /// when [id] is not currently built.
+  bool debugStartsDay(int id) {
+    final child = _children[id];
+    return child != null && _parentData(child).startsDay;
   }
 
   void _fetchAnchorEvent(String tag, Map<String, Object?> fields) {
@@ -1399,8 +1439,22 @@ class RenderChatScrollView extends RenderBox {
         _scheduleSelfInsertFollow([messageId]);
       case InsertBatchMutation(:final ids):
         _scheduleSelfInsertFollow(ids);
-      case RemoveBatchMutation():
-        break;
+      case RemoveBatchMutation(:final ids):
+        _cancelAnimateIfPresencePinnedRemoved(ids);
+    }
+  }
+
+  /// Explicit host delete of the animate target or stitch outgoing strip
+  /// cancels navigation — no mid-flight soft-retarget / blank band.
+  void _cancelAnimateIfPresencePinnedRemoved(List<int> removedIds) {
+    if (!_animator.isAnimating) return;
+    final pinned = _stitchPresencePinnedIds();
+    if (pinned.isEmpty) return;
+    for (final id in removedIds) {
+      if (pinned.contains(id)) {
+        _cancelAnimate();
+        return;
+      }
     }
   }
 
@@ -1421,7 +1475,7 @@ class RenderChatScrollView extends RenderBox {
     });
   }
 
-  /// Telegram `hasFromMe`: scroll to newest even off-tail via [animateTo]
+  /// Self-authored inserts: scroll to newest even off-tail via [animateTo]
   /// (smooth — not [jumpTo] teleport).
   ///
   /// When already at the tail, skips [animateTo] entirely — layout
@@ -1708,11 +1762,28 @@ class RenderChatScrollView extends RenderBox {
     _controller.syncNavigationAlignmentTarget(targetId);
     _markPinTailOnJumpIfNeeded(targetId);
     _cancelFling();
-    // A leftover highlight points at a target id that may no longer be
-    // built (`jumpTo` repositioned the anchor). The ticker would keep
-    // running an invisible fade against the old slot — drop it.
-    _clearHighlight();
+    // Stitch teleport is not a host jump — highlight stays armed through
+    // dual-translate. Clearing here made navigate-select look like
+    // "highlight only after settle".
+    final stitchOwnedJump =
+        _animator.farAnimateActive && _animator.animateTargetId == targetId;
+    if (!stitchOwnedJump) {
+      // Host / scrollbar jump — hard-clear leftover navigate tint.
+      _clearHighlight();
+    }
     _cancelBounceback();
+    // Scrollbar / discrete jump elsewhere must clear load-gate destination
+    // pin; otherwise poll + jump-fetch keep requesting only the animate
+    // window while this layout shows unloaded tiles. Stitch's own jumpTo
+    // uses [animateTargetId] — keep that flight alive.
+    if (_animator.animateCompleter != null &&
+        _animator.animateTargetId != targetId) {
+      _cancelAnimate(fadeHighlight: false);
+    } else if (_chunkFetchScheduler.isOutsideNavigationDestination(targetId)) {
+      // Orphan pin (animate already finished/cancelled incompletely) — drop it
+      // so fetch follows the thumb again.
+      _chunkFetchScheduler.clearNavigationDestination();
+    }
     // Poll debounce + jump-fetch safety net — see [ChatChunkFetchScheduler.onJump].
     _chunkFetchScheduler.onJump();
     markNeedsLayout();
@@ -1809,11 +1880,9 @@ class RenderChatScrollView extends RenderBox {
       'fetchingChunks': DevLogFormat.ids(_fetchingChunkIndices(), max: 8),
     });
     // Drop pre-jump children so renormalize/clamp do not fan across the wrong
-    // id span — but keep stitch outgoing (Telegram ignoreView strip).
+    // id span — but keep stitch presence pins (outgoing strip + animate target).
     if (_chunkFetchScheduler.jumpFetchPending) {
-      final stitchPinned = _animator.farAnimateActive
-          ? _stitchOutgoingIds
-          : const <int>{};
+      final stitchPinned = _stitchPresencePinnedIds();
       final staleMessages = <int>[
         for (final id in _children.keys)
           if (!stitchPinned.contains(id)) id,
@@ -2012,7 +2081,7 @@ class RenderChatScrollView extends RenderBox {
     }
 
     // Stitch outgoing stay outside fan-out `built` — layout + re-freeze so
-    // they remain paint-valid (Telegram ignoreView strip).
+    // they remain paint-valid for dual-translate.
     _layoutStitchOutgoingPinned(childConstraints);
 
     // Track the laid-out chunk range (for fetch + eviction). Messages and
@@ -2046,7 +2115,7 @@ class RenderChatScrollView extends RenderBox {
     _updateFloatingHeader();
     _animator.tryArmPendingHighlight();
 
-    if (_animator.preferBuiltWaiting) {
+    if (_animator.loadGateWaiting) {
       _animator.onLayoutOpportunity(viewportHeight: size.height);
     }
     _refreezeStitchOutgoing();
@@ -2148,7 +2217,7 @@ class RenderChatScrollView extends RenderBox {
     _scrollVelocity = 0.0;
     _pendingScrollDelta = 0.0;
     _cancelFling();
-    _cancelAnimate();
+    _cancelAnimate(fadeHighlight: false);
     // The overlay-branch `_clearHighlight()` in `_onTick` is unreachable
     // once the ticker has stopped — clear here so a highlight that was
     // alive when the viewport entered overlay mode does not survive across
@@ -2502,6 +2571,10 @@ class RenderChatScrollView extends RenderBox {
   void _reassignAnchorIfAbsent() {
     final anchorId = _controller.anchorMessageId;
     if (!_dataSource.statusOf(anchorId).isAbsent) return;
+    // Presence pin: do not soft-retarget the animate target mid wait/flight.
+    // Explicit delete cancels first via [RemoveBatchMutation]; remaining
+    // Absent while pinned is treated as false Absent for navigation.
+    if (_stitchPresencePinnedIds().contains(anchorId)) return;
 
     final newest = _dataSource.newestKnownId;
     final atTail =
@@ -2521,9 +2594,11 @@ class RenderChatScrollView extends RenderBox {
   /// Deactivates message elements for ids that became confirmed-absent since
   /// the last layout — prevents ghost rows and stale skip-cache entries.
   void _purgeAbsentBuiltChildren() {
+    final presencePinned = _stitchPresencePinnedIds();
     final absentBuilt = <int>[
       for (final id in _children.keys)
-        if (_dataSource.statusOf(id).isAbsent) id,
+        if (_dataSource.statusOf(id).isAbsent && !presencePinned.contains(id))
+          id,
     ];
     if (absentBuilt.isEmpty) return;
     _invokeChildManagerLayout(() {
@@ -2601,8 +2676,9 @@ class RenderChatScrollView extends RenderBox {
       }
       // Skip absent IDs — they are permanently non-existent and contribute
       // zero height. Use the helper to advance past runs of absent slots in
-      // O(chunk) time rather than O(ID) time.
-      if (_dataSource.statusOf(id).isAbsent) {
+      // O(chunk) time rather than O(ID) time. Presence-pinned ids stay live
+      // for stitch / load-gate (false Absent must not collapse the strip).
+      if (_dataSource.statusOf(id).isAbsent && !isPresencePinned(id)) {
         final bound = newest ?? id;
         id = _nextNonAbsentIdDown(id + 1, bound);
         continue;
@@ -2634,7 +2710,8 @@ class RenderChatScrollView extends RenderBox {
         continue;
       }
       // Skip absent IDs — permanently non-existent, contribute zero height.
-      if (_dataSource.statusOf(id).isAbsent) {
+      // Presence-pinned ids stay live for stitch / load-gate.
+      if (_dataSource.statusOf(id).isAbsent && !isPresencePinned(id)) {
         final bound = fanOldest ?? id;
         id = _nextNonAbsentIdUp(id - 1, bound);
         continue;
@@ -2645,6 +2722,76 @@ class RenderChatScrollView extends RenderBox {
       _setOffset(child, y);
       built.add(id);
       id--;
+    }
+
+    // Tall anchors alone can fill past the build zone so id±1 never enters
+    // fan-out — reverse hops then stitch with reason=notBuilt. Keep one
+    // present neighbor beyond each overshooting edge so scrollTo-style
+    // `found` / close-path can win on the way back.
+    if (!anchorIsError) {
+      _ensureTallAnchorEdgeNeighbors(
+        cc: cc,
+        built: built,
+        anchorId: anchorId,
+        anchorTop: anchorTop,
+        anchorHeight: anchor.size.height,
+        lowerBound: lowerBound,
+        topBound: topBound,
+        newest: newest,
+        fanOldest: fanOldest,
+      );
+    }
+  }
+
+  /// When [anchorHeight] alone crosses a fan-out bound, force-build the
+  /// first present neighbor past that edge (if any).
+  void _ensureTallAnchorEdgeNeighbors({
+    required BoxConstraints cc,
+    required Set<int> built,
+    required int anchorId,
+    required double anchorTop,
+    required double anchorHeight,
+    required double lowerBound,
+    required double topBound,
+    required int? newest,
+    required int? fanOldest,
+  }) {
+    final anchorBottom = anchorTop + anchorHeight;
+
+    // Newer / below: downward loop never ran because y already >= lowerBound.
+    if (anchorBottom >= lowerBound && (newest == null || anchorId < newest)) {
+      final bound = newest ?? anchorId + 1;
+      var id = anchorId + 1;
+      if (_dataSource.statusOf(id).isAbsent && !isPresencePinned(id)) {
+        id = _nextNonAbsentIdDown(id + 1, bound);
+      }
+      if (id <= bound &&
+          !built.contains(id) &&
+          !_isChunkErrored(ChatScrollChunk.chunkOf(id))) {
+        final child = _buildMessage(id, cc);
+        if (child != null) {
+          _setOffset(child, anchorBottom);
+          built.add(id);
+        }
+      }
+    }
+
+    // Older / above: upward loop never ran because y already <= topBound.
+    if (anchorTop <= topBound && (fanOldest == null || anchorId > fanOldest)) {
+      final bound = fanOldest ?? anchorId - 1;
+      var id = anchorId - 1;
+      if (_dataSource.statusOf(id).isAbsent && !isPresencePinned(id)) {
+        id = _nextNonAbsentIdUp(id - 1, bound);
+      }
+      if (id >= bound &&
+          !built.contains(id) &&
+          !_isChunkErrored(ChatScrollChunk.chunkOf(id))) {
+        final child = _buildMessage(id, cc);
+        if (child != null) {
+          _setOffset(child, anchorTop - child.size.height);
+          built.add(id);
+        }
+      }
     }
   }
 
@@ -2760,7 +2907,9 @@ class RenderChatScrollView extends RenderBox {
   RenderBox? _buildMessage(int id, BoxConstraints cc) {
     // Confirmed-absent slots must not inflate widgets or selection chrome —
     // defense in depth alongside fan-out skip and [_reassignAnchorIfAbsent].
-    if (_dataSource.statusOf(id).isAbsent) {
+    // Presence-pinned ids stay mounted for stitch / load-gate despite false
+    // Absent (explicit delete cancels first via [RemoveBatchMutation]).
+    if (_dataSource.statusOf(id).isAbsent && !isPresencePinned(id)) {
       return null;
     }
     final bucket = _bucketOf(id);
@@ -2882,18 +3031,28 @@ class RenderChatScrollView extends RenderBox {
   /// while outgoing rows remain pinned for dual-translate paint.
   bool _skipRenormalizeDuringClosePath() => _animator.isAnimating;
 
-  /// Message ids that must survive GC while close-path or stitch animation
-  /// keeps them on screen (close target / outgoing stitch strip).
-  Set<int> _gcPinnedDuringClosePath() {
-    if (_animator.farAnimateActive && _stitchOutgoingIds.isNotEmpty) {
-      return {..._stitchOutgoingIds};
-    }
-    if (!_skipRenormalizeDuringClosePath()) return const {};
+  /// Whether [id] is presence-pinned for an in-flight animate (load-gate or
+  /// stitch). Element build must not deactivate these on false Absent.
+  bool isPresencePinned(int id) => _stitchPresencePinnedIds().contains(id);
+
+  /// Ids presence-pinned for load-gate wait + stitch flight (target + outgoing).
+  ///
+  /// Immune to GC and false Absent handling until settle or explicit-delete
+  /// cancel. See CONTEXT "Stitch presence pin".
+  Set<int> _stitchPresencePinnedIds() {
+    if (!_animator.isAnimating) return const {};
     final pinned = <int>{_animator.animateTargetId};
+    if (_animator.farAnimateActive) {
+      pinned.addAll(_stitchOutgoingIds);
+    }
     final navTarget = _controller.navigationAlignmentMessageId;
     if (navTarget != null) pinned.add(navTarget);
     return pinned;
   }
+
+  /// Message ids that must survive GC while close-path or stitch animation
+  /// keeps them on screen (close target / outgoing stitch strip).
+  Set<int> _gcPinnedDuringClosePath() => _stitchPresencePinnedIds();
 
   /// If the anchor message drifted beyond the cache extent, silently re-base
   /// the anchor onto the first visible child (no visual change). The anchor
@@ -3299,15 +3458,37 @@ class RenderChatScrollView extends RenderBox {
   // --- Day separators --------------------------------------------------------
 
   /// Set a child's viewport [offset]. For a day-starting message it also
-  /// refreshes the inline separator's fade opacity from the new position —
-  /// pure parent-data writes, so this stays on the Tier-1 path.
+  /// refreshes the inline separator's fade opacity from the paint position —
+  /// Tier-1-safe (parent-data + optional stitch dy), no `getMessage`.
   void _setOffset(RenderBox child, double offset) {
     final pd = _parentData(child)..offset = offset;
     if (pd.startsDay) {
       pd.dividerOpacity = _floatingHeaderController.dividerOpacityFor(
-        topY: offset,
+        topY: offset + _stitchPaintDyIfActive(pd.id),
         topPad: _topPad,
         floatingHeaderHeight: _effectiveFloatingHeaderHeight(),
+      );
+    }
+  }
+
+  /// Paint translation while stitch is jumped; `0` otherwise.
+  double _stitchPaintDyIfActive(int id) =>
+      (_animator.farAnimateActive && _animator.farAnimateJumped)
+      ? _stitchPaintDy(id)
+      : 0.0;
+
+  /// Refresh inline-separator fades from paint Y during stitch ticks (progress
+  /// changes without `_setOffset`).
+  void _refreshStitchDividerOpacities() {
+    if (!_animator.farAnimateActive || !_animator.farAnimateJumped) return;
+    final headerH = _effectiveFloatingHeaderHeight();
+    for (final entry in _children.entries) {
+      final pd = _parentData(entry.value);
+      if (!pd.startsDay) continue;
+      pd.dividerOpacity = _floatingHeaderController.dividerOpacityFor(
+        topY: pd.offset + _stitchPaintDy(pd.id),
+        topPad: _topPad,
+        floatingHeaderHeight: headerH,
       );
     }
   }
@@ -3361,7 +3542,12 @@ class RenderChatScrollView extends RenderBox {
     children: _children.entries,
     topPad: _topPad,
     viewportHeight: size.height,
-    offsetOf: (child) => _parentData(child).offset,
+    // During stitch, paint translation (not layout offset) is what crosses the
+    // viewport top — floating date / day scan must follow paint Y.
+    offsetOf: (child) {
+      final pd = _parentData(child);
+      return pd.offset + _stitchPaintDyIfActive(pd.id);
+    },
     dayBucketOf: (child) => _parentData(child).dayBucket,
     heightOf: (child) => child.size.height,
   );
@@ -3469,10 +3655,11 @@ class RenderChatScrollView extends RenderBox {
     if (wasFlinging) _controller.notifyScrollEvent(const ChatFlingEnd());
   }
 
-  void _clearHighlight() => _animator.clearHighlight();
+  void _clearHighlight({bool animated = false}) =>
+      _animator.clearHighlight(animated: animated);
 
-  void _cancelAnimate() {
-    _animator.cancelAnimate();
+  void _cancelAnimate({bool fadeHighlight = true}) {
+    _animator.cancelAnimate(fadeHighlight: fadeHighlight);
   }
 
   /// Anchor-relative Y offset of message [id] in the currently-laid-out
@@ -3481,6 +3668,15 @@ class RenderChatScrollView extends RenderBox {
     final child = _children[id];
     if (child == null) return null;
     return _parentData(child).offset;
+  }
+
+  /// Whether built [id] intersects the paint viewport (band-hit diagnostic).
+  bool _messageIntersectsPaintBand(int id) {
+    final child = _children[id];
+    if (child == null || !hasSize) return false;
+    final top = _parentData(child).offset;
+    final bottom = top + child.size.height;
+    return bottom > 0 && top < size.height;
   }
 
   /// Ticker callback — the entire scroll path. Bypasses layout: repositions
@@ -3495,7 +3691,7 @@ class RenderChatScrollView extends RenderBox {
     if (_overlayKind != ChatOverlayKind.none) {
       _pendingScrollDelta = 0.0;
       _cancelFling();
-      _cancelAnimate();
+      _cancelAnimate(fadeHighlight: false);
       _clearHighlight();
       _cancelBounceback();
       _dragInProgress = false;
@@ -3592,7 +3788,9 @@ class RenderChatScrollView extends RenderBox {
     _updateScrollSemantics();
     _publishControllerState();
     // Reposition the header (Tier-1); a day crossing needs a relayout to
-    // rebuild its text.
+    // rebuild its text. Stitch also refreshes inline-separator fades from
+    // paint Y as dual-translate progress moves rows.
+    _refreshStitchDividerOpacities();
     final headerDayChanged = _tickFloatingHeader();
 
     // The highlight runs alongside scroll/animate frames — advance it on
@@ -3609,7 +3807,13 @@ class RenderChatScrollView extends RenderBox {
       _onAnimateSettled(targetId);
     }
 
-    if (_rangeNoLongerCovers() || headerDayChanged) {
+    // Far-path stitch intentionally keeps a short dual-translate strip
+    // (target + outgoing pins). [_rangeNoLongerCovers] would see that as a
+    // hole toward oldest/newest and request layout every ticker frame —
+    // layout.jump spam / jank until settle. Paint-only until stitch ends.
+    final coverageNeedsLayout =
+        !_animator.farAnimateActive && _rangeNoLongerCovers();
+    if (coverageNeedsLayout || headerDayChanged) {
       markNeedsLayout();
     } else {
       markNeedsPaint();
@@ -3694,7 +3898,11 @@ class RenderChatScrollView extends RenderBox {
     _cancelPendingTailPin();
     _controller.clearNavigationAlignment();
     _cancelFling();
+    // Drag takes over: fade navigate-select if a flight or hold is live.
     _cancelAnimate();
+    if (_animator.hasHighlight) {
+      _clearHighlight(animated: true);
+    }
     _cancelBounceback();
     _dragInProgress = true;
     _ensureTicker();
@@ -3776,9 +3984,8 @@ class RenderChatScrollView extends RenderBox {
   /// in the top edge band, which is exactly where that header sits.
   ///
   /// When [_spanHitFullRow] is true (auto-scroll apply), any Y on the
-  /// message row counts — Telegram's `chekMultiselect` uses the child rect,
-  /// not the bubble body — so a row is selected as soon as it reaches the
-  /// inset.
+  /// message row counts — hit-test the full child rect, not only the bubble
+  /// body — so a row is selected as soon as it reaches the inset.
   int? _spanHitAt(Offset local) {
     if (!hasSize) return null;
     if (_overlayKind != ChatOverlayKind.none) return null;
@@ -3876,11 +4083,9 @@ class RenderChatScrollView extends RenderBox {
     if (pointer == null || !pointer.isSpanLive || local == null) return;
     if (!hasSize) return;
     final direction = _spanEdgeDirection(local);
-    // Telegram's scroller hit-tests at the content inset, not the finger:
-    // `chekMultiselect(0, paddings[0])` / `(height - paddings[1])`. That
-    // selects a row as soon as it reaches the pad, while the finger may
-    // sit in overlay chrome — faster than waiting for the bubble to clear
-    // the bars.
+    // During edge auto-scroll, hit-test at the content inset (not the finger):
+    // select a row as soon as it reaches the pad, even if the pointer sits in
+    // overlay chrome — faster than waiting for the bubble to clear the bars.
     final y = direction > 0
         ? _topPad
         : math.max(_topPad, size.height - _bottomPad - 0.001);
@@ -5257,6 +5462,13 @@ class RenderChatScrollView extends RenderBox {
     }
 
     final viewportHeight = size.height;
+    // Navigate-select wash under message children (text/bubbles stay crisp).
+    _animator.paintHighlight(
+      context: context,
+      offset: offset,
+      viewportWidth: size.width,
+      viewportHeight: viewportHeight,
+    );
     // Apply stitch translations whenever the jump has happened — including
     // the pre-measure frame (provisional off-screen incoming).
     final stitching = _animator.farAnimateActive && _animator.farAnimateJumped;
@@ -5277,12 +5489,6 @@ class RenderChatScrollView extends RenderBox {
       }
       context.paintChild(child, offset + Offset(0, pd.offset));
     }
-    _animator.paintHighlight(
-      context: context,
-      offset: offset,
-      viewportWidth: size.width,
-      viewportHeight: viewportHeight,
-    );
     // The floating day header — above the messages, below the scrollbar.
     final header = _floatingHeader;
     if (header != null && _shouldShowFloatingHeader()) {
@@ -5315,7 +5521,7 @@ class RenderChatScrollView extends RenderBox {
   @override
   void dispose() {
     _cancelFling();
-    _cancelAnimate();
+    _cancelAnimate(fadeHighlight: false);
     _clearHighlight();
     _ticker?.dispose();
     _ticker = null;

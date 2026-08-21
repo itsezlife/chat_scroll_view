@@ -27,8 +27,10 @@ Effective grouper: `groupBy ?? defaultGroupBy` (local calendar day
 Chunk-error tiles force `startsDay = false`, `dayBucket = null`. Floating
 header reuses this parent-data type; only `offset` is meaningful (`id = 0`).
 
-**Invariant:** per-frame header scan and fade are **pure parent-data reads** —
-no `getMessage` on Tier-1.
+**Invariant:** per-frame header scan and fade are **Tier-1-safe** — no
+`getMessage` on the hot path. Scan/fade read parent-data (`dayBucket`,
+`startsDay`, layout `offset`) and, while stitch is jumped, the paint
+translation from the animator.
 
 ## How `startsDay` is computed
 
@@ -74,8 +76,10 @@ Controller never inflates widgets.
 
 ### Layout path (`_updateFloatingHeader`)
 
-1. `_scanTopDay()` — first child whose rect crosses `topPad` with non-null
-   `dayBucket`.
+1. `_scanTopDay()` — topmost child by **paint** Y whose rect crosses `topPad`
+   with non-null `dayBucket` (layout offset, plus stitch dual-translate dy while
+   the far path is jumped). Children are not assumed Y-sorted — stitch can
+   invert id order vs paint order.
 2. `evaluateLayoutRebuild` — rebuild if `scan.bucket != headerBucket` **or**
    `headerDirty`.
 3. On rebuild: `buildFloatingHeader(bucket, firstMessageDate)`.
@@ -86,11 +90,13 @@ Controller never inflates widgets.
 
 1. Re-pin header offset (does not scroll with content).
 2. `tickForDayChange` compares scan bucket to `headerBucket` **without**
-   mutating state.
+   mutating state (same paint-aware scan as layout — stitch ticks can change
+   the floating date from paint-visible content before settle).
 3. If day changed → caller `markNeedsLayout` (header **text** needs rebuild).
 
 **Must not:** call `buildFloatingHeader` from Tier-1. Fade opacity updates stay
-on Tier-1 via `_setOffset`.
+on Tier-1 via `_setOffset` / stitch paint-Y refresh. Mid-gap days are never
+invented — the scan only reads buckets of currently built rows.
 
 ### Forced rebuild
 

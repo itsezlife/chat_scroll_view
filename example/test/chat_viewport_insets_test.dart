@@ -5,16 +5,23 @@ import 'package:flutter_test/flutter_test.dart';
 
 void main() {
   group('ChatViewportInsets', () {
-    test('topPadding is safeTop plus headerReserve', () {
+    test('topPadding is safeTop plus headerReserve plus searchReserve', () {
       final insets = ChatViewportInsets();
       addTearDown(insets.dispose);
 
       expect(insets.topPadding.value, 0);
+      expect(insets.chromeTop.value, 0);
 
       insets.setSafeTop(20);
       insets.headerReserve.value = 52;
 
+      expect(insets.chromeTop.value, 72);
       expect(insets.topPadding.value, 72);
+
+      insets.setSearchReserve(56);
+
+      expect(insets.chromeTop.value, 72);
+      expect(insets.topPadding.value, 128);
     });
 
     test('bottomPadding is composerHeight plus keyboard', () {
@@ -44,6 +51,7 @@ void main() {
       insets.setComposerHeight(96);
       insets.setKeyboard(0);
       insets.setSafeTop(0);
+      insets.setSearchReserve(0);
       insets.headerReserve.value = 0;
 
       expect(bottomTicks, 0);
@@ -56,7 +64,8 @@ void main() {
       insets
         ..setKeyboard(12)
         ..setComposerHeight(100)
-        ..setSafeTop(8);
+        ..setSafeTop(8)
+        ..setSearchReserve(40);
       insets.headerReserve.value = 24;
       insets.dispose();
     });

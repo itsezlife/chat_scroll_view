@@ -251,9 +251,45 @@ Where a jump or animate should land the target inside the scroll band (band top 
 _Avoid_: Scroll offset, alignment in pixels
 
 **Close-path animation**:
-Continuous origin-offset interpolation when the target is already built and nearby.
+Continuous origin-offset interpolation when the target is already built (Telegram `found` → `smoothScrollBy`).
 _Avoid_: Animate pixels, lerp ScrollPosition
 
 **Far-path animation**:
-A crossfade plus jump when the target is not built or is far away.
-_Avoid_: Teleport, correctBy through intermediate offsets
+Navigation when the target is not among current built children. Implemented as a stitch, not as scrolling through the gap and not as a viewport crossfade.
+_Avoid_: Continuous scroll through unloaded ids, far fade, inventing pixel distance across gaps, distance gate forcing stitch for a built row
+
+**Stitch**:
+A continuity illusion for far-path navigation: capture visible outgoing rows, teleport the origin to the target, then dual-translate outgoing and incoming paint so the jump reads as one scroll. Intermediate history need not exist as real rows during the flight.
+_Avoid_: Crossfade, opacity fade of the whole viewport, walking every id between endpoints
+
+**Outgoing strip**:
+The message rows visible at stitch capture, pinned and painted sliding out for the duration of the stitch.
+_Avoid_: Old viewport snapshot bitmap, ghost list
+
+**Incoming band**:
+The destination rows built after the stitch teleport, painted sliding in under the same animation factor as the outgoing strip.
+_Avoid_: New list, post-jump content (when meaning the paint set during flight)
+
+**Full-strip travel**:
+Stitch scroll length derived from the full outgoing strip and incoming extents, including off-screen parts of tall rows — not clamped to the scroll band for product reasons.
+_Avoid_: Viewport-capped stitch, cropped tall-message scroll
+
+**Navigation load-gate**:
+Far-path stitch runs only after the target is loaded enough to be a real destination row (not an unresolved shimmer stand-in). Until then the host may show loading; the viewport must not dual-translate a placeholder band across an unloaded gap.
+_Avoid_: preferBuilt timeout → force stitch on shimmers, inventing travel across unloaded chunks
+
+**Destination window fetch**:
+Loading for navigation readiness is an around-target window owned by the host/data-source. The engine must not expand readiness into a contiguous fill of every chunk between the current origin and the target.
+_Avoid_: Gap fill for stitch, minChunk…maxChunk storm as a load-gate requirement
+
+**Stitch presence pin**:
+For the load-gate wait and the stitch flight, the animate target and the outgoing strip stay protected from GC and from being treated as Absent. Explicit host deletion of those ids cancels the animation; silent retarget or delete-collapse of the target is forbidden.
+_Avoid_: Soft retarget mid-stitch, LRU eviction of outgoing/target during flight
+
+**Immediate navigation**:
+Start path selection as soon as possible: if the target is not ready, enter the navigation load-gate (destination window fetch), then close-path or stitch. Never stitch over unresolved shimmers.
+_Avoid_: Force stitch after timeout, shimmer dual-translate
+
+**Prefer-built navigation**:
+Same readiness rule as immediate navigation, plus a short chance for a row that is already entering the build range (self-insert / follow-tail) so close-path can win when near. Still never falls back to shimmer-stitch.
+_Avoid_: preferBuilt timeout → force stitch

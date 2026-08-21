@@ -1,11 +1,15 @@
 import 'dart:async';
 
+import 'package:chat_scroll_view/src/chat_scroll/animate_to_busy_policy.dart';
+import 'package:chat_scroll_view/src/chat_scroll/animate_to_disposition.dart';
 import 'package:chat_scroll_view/src/chat_scroll/animate_to_load_policy.dart';
 import 'package:chat_scroll_view/src/chat_scroll/chat_scroll_events.dart';
 import 'package:flutter/animation.dart' show Curve, Curves;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/scheduler.dart';
 
+export 'package:chat_scroll_view/src/chat_scroll/animate_to_busy_policy.dart';
+export 'package:chat_scroll_view/src/chat_scroll/animate_to_disposition.dart';
 export 'package:chat_scroll_view/src/chat_scroll/animate_to_load_policy.dart';
 
 /// Visibility metrics for one built message row intersecting the paint band.
@@ -72,8 +76,8 @@ abstract class ChatScrollAnimator {
   /// close-path vs far-path stitch.
   ///
   /// Same-target spam while animating coalesces onto the in-flight future.
-  /// Different-target spam while animating is ignored (Telegram
-  /// `fastScrollAnimationRunning`).
+  /// Different-target spam is ignored by default, or cancelled and replaced
+  /// when [busyPolicy] is [AnimateToBusyPolicy.replace].
   Future<void> animate(
     int targetId, {
     required Duration duration,
@@ -81,7 +85,11 @@ abstract class ChatScrollAnimator {
     double alignment = 0.0,
     bool highlight = true,
     AnimateToLoadPolicy loadPolicy = AnimateToLoadPolicy.immediate,
+    AnimateToBusyPolicy busyPolicy = AnimateToBusyPolicy.ignore,
   });
+
+  /// Cancels the in-flight [animate] without arming a highlight.
+  void cancel();
 }
 
 /// Scroll controller for [ChatScrollView].
@@ -95,6 +103,14 @@ abstract class ChatScrollAnimator {
 /// Uses typed listeners instead of [ChangeNotifier] — subscribers know
 /// exactly what event occurred.
 class ChatScrollController {
+  /// Whether an [animateTo] is currently in flight.
+  ///
+  /// Under [AnimateToBusyPolicy.ignore], hosts that keep a selection index
+  /// should refuse to advance that index while this is `true` (or only commit
+  /// after [animateTo] returns a non-[AnimateToDisposition.ignored]
+  /// disposition).
+  bool get isAnimating => _animator?.isAnimating ?? false;
+
   // --- Jump: typed listener with payload ---
 
   /// Plain `List` so the field's runtime type stays stable across hot-reload
@@ -203,61 +219,87 @@ class ChatScrollController {
     _emitScroll(ChatProgrammaticScroll(pixels));
   }
 
-  /// Smoothly move the anchor onto [messageId] over [duration].
+  /// Smoothly move the anchor onto [messageId].
   ///
-  /// Returns a Future that completes when the animation settles (or
-  /// immediately if no viewport is bound yet). When the target is far outside
-  /// the currently-built range (or not built yet), the viewport runs a
-  /// **stitch**: keep outgoing rows, `jumpTo`, dual-translate into the new
-  /// band (Telegram `RecyclerAnimationScrollHelper`) — not an opacity fade.
+  /// Completes when motion settles (or immediately if no viewport is bound).
   ///
-  /// [alignment] positions the target within the scroll band (`0` = band top,
-  /// `1` = band bottom). For messages taller than the band, alignment is
-  /// ignored and the message top is pinned to the band top — **except** when
-  /// [messageId] is the known conversation newest (`reachedNewest` and
-  /// `newestKnownId`): close-path animation then ends at **tail-pin** geometry
-  /// (message bottom on the bottom inset), matching [jumpTo] / `pinNewest`, so
-  /// scrolling to the chat end does not animate to the message top and snap
-  /// afterward. Use [alignment] for mid-history navigation (search, deep link).
+  /// ## Close vs stitch
   ///
-  /// [highlight] controls whether a brief fade-out tint is painted over the
-  /// target after a successful settle (default `true`). Pass `highlight: false`
-  /// for routine navigation such as returning to the conversation tail where
-  /// the motion alone is enough context. Use [jumpTo] when both animation and
-  /// highlight are unwanted. A [ChatScrollView] with `highlightDuration:
-  /// Duration.zero` disables highlights globally regardless of this flag.
+  /// - **Built target** → continuous close-path scroll to the aligned seat.
+  /// - **Not built** → **stitch**: keep outgoing rows, teleport, dual-translate
+  ///   into the destination band (continuity illusion — not a viewport fade).
+  ///   Stitch waits on the load-gate until the destination is a real row.
   ///
-  /// [loadPolicy] defaults to [AnimateToLoadPolicy.immediate]: choose close
-  /// vs stitch without waiting. Pass [AnimateToLoadPolicy.preferBuilt] for
-  /// self-insert / follow-tail where the newest row is usually one layout
-  /// away and close-path is preferred.
+  /// ## Duration / curve
   ///
-  /// **Spam / re-entry** (Telegram `RecyclerAnimationScrollHelper`):
-  /// while an animation is in flight, further [animateTo] calls are ignored
-  /// (`fastScrollAnimationRunning` → return). Same id+alignment coalesces onto
-  /// the running future. Already-aligned targets short-circuit with no scroll
-  /// tween. Drag / clamp still call [ChatScrollAnimator] cancel separately.
+  /// Both paths use travel-scaled timing
+  /// (`((travel / viewportHeight) + 1) * 200` ms, clamped 300–1300) with
+  /// [Curves.easeOutQuint]. [duration] / [curve] are compatibility hints:
+  /// `duration ≤ 0` ⇒ instant [jumpTo] (no highlight); otherwise caller
+  /// duration is ignored so a tall close hop and a matching stitch feel alike.
+  /// Defaults (`300ms`, `easeOutQuint`) match that floor.
   ///
-  /// **Absent-target behavior**: same contract as [jumpTo] — if [messageId]
-  /// is confirmed absent, the navigation completes without error but the
-  /// viewport will not visually move to the target. See [jumpTo] for details.
-  Future<void> animateTo(
+  /// ## Alignment
+  ///
+  /// [alignment] places the target in the scroll band (`0` = top, `1` = bottom).
+  /// Rows taller than the band pin to the band top — **except** the known
+  /// conversation newest (`reachedNewest` + `newestKnownId`): close-path then
+  /// ends at **tail-pin** (message bottom on the bottom inset), matching
+  /// [jumpTo] / follow-tail, so “go to end” does not animate to the message
+  /// top and snap. Use [alignment] for mid-history (search, deep link).
+  ///
+  /// ## Highlight
+  ///
+  /// When [highlight] is true (default), a soft full-width **underlay** arms
+  /// at flight start, holds through settle +
+  /// [ChatScrollThemeData.highlightDuration] (default 1000ms), then fades
+  /// ~300ms. Pass `false` for routine hops (e.g. return to tail). Use [jumpTo]
+  /// when both motion and tint are unwanted. `highlightDuration: Duration.zero`
+  /// on the view disables tint globally. Drag cancels motion and fades tint;
+  /// [jumpTo] / overlay hard-clear.
+  ///
+  /// ## Load policy
+  ///
+  /// Defaults to [AnimateToLoadPolicy.immediate]: enter the load-gate when
+  /// unready, then close (built) vs stitch (not built). Use
+  /// [AnimateToLoadPolicy.preferBuilt] for self-insert / follow-tail where a
+  /// warming newest may win close-path. Neither policy stitches over unresolved
+  /// placeholders.
+  ///
+  /// ## Busy / re-entry
+  ///
+  /// - Same id+alignment while busy → [AnimateToDisposition.coalesced].
+  /// - Different target while busy → [AnimateToDisposition.ignored] by default.
+  ///   Pass [AnimateToBusyPolicy.replace] to cancel and start immediately
+  ///   ([AnimateToDisposition.accepted]).
+  /// - Already-aligned targets short-circuit (optional highlight only).
+  ///
+  /// Drag / clamp still call [ChatScrollAnimator.cancel] separately.
+  ///
+  /// **Hosts that keep a selection index** (e.g. search next/prev) with
+  /// [AnimateToBusyPolicy.ignore]: only advance that index when disposition is
+  /// not [AnimateToDisposition.ignored], or the UI races ahead of the viewport.
+  ///
+  /// **Absent targets:** same as [jumpTo] — completes without error but does
+  /// not land on a deleted id.
+  Future<AnimateToDisposition> animateTo(
     int messageId, {
     Duration duration = const Duration(milliseconds: 300),
-    Curve curve = Curves.easeInOutCubic,
+    Curve curve = Curves.easeOutQuint,
     double alignment = 0.0,
     bool highlight = true,
     AnimateToLoadPolicy loadPolicy = AnimateToLoadPolicy.immediate,
+    AnimateToBusyPolicy busyPolicy = AnimateToBusyPolicy.ignore,
   }) async {
-    if (_disposed) return;
+    if (_disposed) return AnimateToDisposition.ignored;
     // Same absent-target contract as [jumpTo]: no visible row at [messageId]
     // when statusOf reports absent — animation may run but content does not
     // land on a deleted id. ADR 002 "Navigation to absent IDs".
     final animator = _animator;
-    _setNavigationAlignment(messageId, alignment);
     if (animator == null) {
+      _setNavigationAlignment(messageId, alignment);
       jumpTo(messageId, alignment: alignment);
-      return;
+      return AnimateToDisposition.accepted;
     }
     final align = alignment.clamp(0.0, 1.0);
     final busy = animator.isAnimating;
@@ -265,11 +307,16 @@ class ChatScrollController {
         busy &&
         animator.animateTargetId == messageId &&
         (animator.animateAlignment - align).abs() < 0.001;
-    // Telegram drop: different target (or zero-duration) while busy — no
-    // Start/End pair; viewport keeps the in-flight animation.
     if (busy && !sameTarget) {
-      return;
+      if (busyPolicy != AnimateToBusyPolicy.replace) {
+        // Do not update navigation alignment for ignored spam — that desyncs
+        // the counter from the viewport and makes a later reverse tap look
+        // like a forward jump.
+        return AnimateToDisposition.ignored;
+      }
+      animator.cancel();
     }
+    _setNavigationAlignment(messageId, alignment);
     final coalesce = duration > Duration.zero && sameTarget;
     if (!coalesce) {
       _emitScroll(ChatAnimateStart(messageId, duration));
@@ -282,12 +329,16 @@ class ChatScrollController {
         alignment: alignment,
         highlight: highlight,
         loadPolicy: loadPolicy,
+        busyPolicy: busyPolicy,
       );
     } finally {
       if (!coalesce) {
         _emitScroll(ChatAnimateEnd(messageId));
       }
     }
+    return coalesce
+        ? AnimateToDisposition.coalesced
+        : AnimateToDisposition.accepted;
   }
 
   // --- Scroll-animator binding (viewport-only) -----------------------------

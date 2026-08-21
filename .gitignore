@@ -50,6 +50,8 @@ app.*.map.json
 # Local Telegram export — never commit
 /Telegram/
 
+.scratch/
+
 # Specify
 .specify/
 specs/

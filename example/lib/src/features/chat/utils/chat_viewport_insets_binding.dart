@@ -11,6 +11,10 @@ import 'package:keyboard_insets/keyboard_insets.dart';
 /// height already includes `viewPadding.bottom` from layout, and wiring the
 /// observer into [ChatViewportInsets.bottomPadding] would double-count it.
 ///
+/// Does **not** drive [ChatViewportInsets.setSearchReserve] — the host
+/// measures open search chrome and writes that reserve (same pattern as
+/// composer height via [ChatViewportInsets.setComposerHeight]).
+///
 /// This mixin creates and disposes [insets]. The host [State] must invoke
 /// `super` from [initState], [didChangeDependencies], and [dispose].
 mixin ChatViewportInsetsBinding<T extends StatefulWidget> on State<T> {

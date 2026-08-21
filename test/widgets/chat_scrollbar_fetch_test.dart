@@ -4,6 +4,7 @@ import 'package:chat_scroll_view/src/chat_scroll/chat_scroll_common.dart';
 import 'package:chat_scroll_view/src/chat_scroll/chat_scroll_controller.dart';
 import 'package:chat_scroll_view/src/chat_scroll/chat_selection_controller.dart';
 import 'package:chat_scroll_view/src/chat_widgets/chat_scroll_view.dart';
+import 'package:chat_scroll_view/src/chat_widgets/render_chat_scroll_view.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import '../chat_message.dart';
@@ -20,7 +21,7 @@ IChatMessage _msg(int i) => UserChatMessage(
 /// has a known range), but chunks are not preloaded — each `fetchRange`
 /// is recorded so the test can assert what the viewport asked for.
 class _RecordingDataSource extends ChatDataSource {
-  _RecordingDataSource(this.totalCount) {
+  _RecordingDataSource(this.totalCount, {this.serveFetches = true}) {
     if (totalCount > 0) {
       seedBoundaries(
         oldestKnownId: 0,
@@ -34,12 +35,16 @@ class _RecordingDataSource extends ChatDataSource {
   final int totalCount;
   final List<({int fromId, int toId})> requests = <({int fromId, int toId})>[];
 
+  /// When false, [fetchRange] records but returns empty (load-gate stays open).
+  bool serveFetches;
+
   @override
   Future<List<IChatMessage>> fetchRange({
     required int fromId,
     required int toId,
   }) async {
     requests.add((fromId: fromId, toId: toId));
+    if (!serveFetches) return const <IChatMessage>[];
     final lo = fromId.clamp(0, totalCount - 1);
     final hi = toId.clamp(0, totalCount - 1);
     return <IChatMessage>[for (var i = lo; i <= hi; i++) _msg(i)];
@@ -298,6 +303,80 @@ void main() {
           reason:
               'fetch must cover the chunk containing the new anchor; '
               'anchor chunk=$anchorChunk, requested=$requestedChunks',
+        );
+      },
+    );
+
+    testWidgets(
+      'jump elsewhere during load-gate clears dest pin and fetches new anchor',
+      (tester) async {
+        // Dest-window pin must not starve scrollbar/jump fetches: jumping to a
+        // different id cancels the in-flight animate and requests the new
+        // layout range (not only the abandoned animate destination).
+        const total = 2000;
+        const loadedFrom = 1900;
+        const animateTarget = 10;
+        const jumpTarget = 1000;
+        final controller = ChatScrollController()..jumpTo(total - 1);
+        final ds = _RecordingDataSource(total, serveFetches: false);
+        addTearDown(controller.dispose);
+        addTearDown(ds.dispose);
+
+        for (var i = loadedFrom; i < total; i++) {
+          ds.upsertMessage(_msg(i));
+        }
+
+        await tester.pumpWidget(
+          _scaffold(dataSource: ds, controller: controller),
+        );
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 50));
+
+        final animating = controller.animateTo(
+          animateTarget,
+          duration: const Duration(milliseconds: 200),
+          highlight: false,
+          loadPolicy: AnimateToLoadPolicy.immediate,
+        );
+        await tester.pump();
+        for (var i = 0; i < 8; i++) {
+          await tester.pump(const Duration(milliseconds: 16));
+        }
+
+        final render =
+            tester.renderObject(find.byType(ChatScrollView))
+                as RenderChatScrollView;
+        expect(render.debugLoadGateWaiting, isTrue);
+
+        ds.requests.clear();
+        ds.serveFetches = true;
+        controller.jumpTo(jumpTarget);
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 50));
+        await tester.pump(const Duration(milliseconds: 200));
+
+        expect(render.debugLoadGateWaiting, isFalse);
+        expect(controller.anchorMessageId, jumpTarget);
+        await animating;
+
+        final jumpChunk = ChatScrollChunk.chunkOf(jumpTarget);
+        final animateChunk = ChatScrollChunk.chunkOf(animateTarget);
+        final requestedChunks = ds.requests.expand((r) {
+          final lo = ChatScrollChunk.chunkOf(r.fromId);
+          final hi = ChatScrollChunk.chunkOf(r.toId);
+          return <int>[for (var i = lo; i <= hi; i++) i];
+        }).toSet();
+        expect(
+          requestedChunks.contains(jumpChunk),
+          isTrue,
+          reason:
+              'after jump-away, fetch must cover the new anchor chunk '
+              '($jumpChunk); requested=$requestedChunks',
+        );
+        // Must not keep exclusive-storming only the abandoned animate window.
+        expect(
+          requestedChunks.length == 1 && requestedChunks.single == animateChunk,
+          isFalse,
         );
       },
     );

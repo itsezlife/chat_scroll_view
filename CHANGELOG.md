@@ -6,6 +6,17 @@ this project is pre-1.0 and not strictly SemVer yet.
 
 ## [Unreleased]
 
+### Changed
+
+- **Breaking — `AnimateToLoadPolicy` semantics (stitch load-gate).** `immediate`
+  and `preferBuilt` keep their names but no longer timeout into shimmer-stitch.
+  Both honor the navigation load-gate (wait until the destination is a real
+  row). After readiness: **built → close-path**, **not built → stitch**.
+  `preferBuilt` only adds a short close-path chance for a warming row
+  (self-insert / follow-tail). Far path is Telegram-style stitch (continuity
+  illusion), not a viewport opacity fade. See ADR 005 and
+  `docs/architecture/11-animation-integration.md`.
+
 ### Added
 
 - **`ChatMessageBody`** — slotted in-bubble layout (`content` + `meta`) with

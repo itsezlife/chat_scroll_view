@@ -1,12 +1,17 @@
-/// How [ChatScrollController.animateTo] behaves when the target row is not
-/// yet built (unfetched chunk / not in the fan-out range).
+/// How [ChatScrollController.animateTo] behaves when the target is not yet a
+/// ready destination row (unfetched chunk / unresolved shimmer).
+///
+/// Both policies honor the **navigation load-gate**: stitch never runs over
+/// unresolved shimmers, and neither policy times out into force-stitch. After
+/// readiness: **built → close-path**; **not built → stitch**.
 enum AnimateToLoadPolicy {
-  /// Wait one layout for the target to build, then close-path if near,
-  /// else stitch. Use for self-insert / follow-tail where newest is usually
-  /// one frame away.
+  /// Prefer close-path when a ready row is already entering the build range
+  /// (self-insert / follow-tail). Still waits for readiness; never falls back
+  /// to shimmer-stitch.
   preferBuilt,
 
-  /// Choose close vs stitch immediately (default). Unloaded slots may appear
-  /// as shimmers in the incoming stitch strip — no idle wait before jump.
+  /// Enter the load-gate as soon as needed, then choose close vs stitch
+  /// (default). Ready-but-unbuilt targets may stitch immediately; unready
+  /// targets wait until loaded.
   immediate,
 }

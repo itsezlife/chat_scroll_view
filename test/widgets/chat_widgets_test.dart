@@ -30,7 +30,8 @@ mixin _BoundedSource on ChatDataSource {
   }
 }
 
-/// All messages preloaded; [fetchRange] is a no-op (range never needs fetch).
+/// All messages preloaded. [fetchRange] re-serves ids after LRU eviction so
+/// navigation load-gate can unblock (empty fetch would wait forever).
 class _PreloadedDataSource extends ChatDataSource with _BoundedSource {
   _PreloadedDataSource(List<IChatMessage> messages) : count = messages.length {
     upsertMessages(messages);
@@ -44,7 +45,12 @@ class _PreloadedDataSource extends ChatDataSource with _BoundedSource {
   Future<List<IChatMessage>> fetchRange({
     required int fromId,
     required int toId,
-  }) async => const <IChatMessage>[];
+  }) async {
+    if (count <= 0) return const <IChatMessage>[];
+    final lo = fromId.clamp(0, count - 1);
+    final hi = toId.clamp(0, count - 1);
+    return <IChatMessage>[for (var i = lo; i <= hi; i++) _msg(i)];
+  }
 }
 
 /// Empty until [fetchRange] resolves (after a delay) — exercises the
