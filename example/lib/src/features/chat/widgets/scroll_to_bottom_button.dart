@@ -1,14 +1,14 @@
-import 'dart:math' as math;
 import 'dart:ui' as ui;
 
 import 'package:chat_scroll_view/chat_scroll_view.dart';
 import 'package:chat_scroll_view_example/src/common/widgets/frozen_value.dart';
-import 'package:flutter/foundation.dart' show ValueListenable, defaultTargetPlatform;
+import 'package:chat_scroll_view_example/src/features/chat/widgets/side_controls/chat_side_control_counter.dart';
+import 'package:chat_scroll_view_example/src/features/chat/widgets/side_controls/overshoot_curve.dart';
+import 'package:flutter/foundation.dart' show ValueListenable;
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 
 part 'scroll_to_bottom_fab.dart';
-part 'scroll_to_bottom_counter.dart';
 part 'scroll_to_bottom_unread.dart';
 
 /// Scroll-to-bottom control: round FAB above the composer with
@@ -31,9 +31,12 @@ class ChatScrollToBottomButton extends StatefulWidget {
     required this.controller,
     required this.dataSource,
     this.bottomInset,
+    this.isSelfMessage,
     this.lastSeenNewestId,
     this.visibilityThreshold = 0.75,
     this.scrollAwayThreshold = 100,
+    this.embedded = false,
+    this.onChromeVisibleChanged,
     super.key,
   });
 
@@ -46,6 +49,12 @@ class ChatScrollToBottomButton extends StatefulWidget {
   /// Reserved space at the bottom — typically composer height so the FAB clears
   /// the input row.
   final ValueListenable<double>? bottomInset;
+
+  /// Same host predicate as [ChatScrollView.isSelfMessage]. When the newest
+  /// known id is a self message, the unread baseline advances so own sends
+  /// (including multi-device) never inflate the badge — Telegram zeroes the
+  /// page-down counter on `hasFromMe`.
+  final bool Function(IChatMessage message)? isSelfMessage;
 
   /// Highest message id treated as "read" for the unread badge. When null,
   /// seeds from [ChatDataSource.newestKnownId] at mount. Writes back on tail
@@ -60,12 +69,24 @@ class ChatScrollToBottomButton extends StatefulWidget {
   /// when there is no unread.
   final double scrollAwayThreshold;
 
+  /// When `true`, skips [Positioned] / inset padding so a
+  /// [ChatSideControlsStack] can own placement and stack animation.
+  final bool embedded;
+
+  /// Reports chrome show-intent for an embedding [ChatSideControlsStack].
+  ///
+  /// Fires when the page-down visibility policy changes (not every frame).
+  final ValueChanged<bool>? onChromeVisibleChanged;
+
   @override
   State<ChatScrollToBottomButton> createState() =>
       _ChatScrollToBottomButtonState();
 }
 
 class _ChatScrollToBottomButtonState extends State<ChatScrollToBottomButton> {
+  /// Last value sent to [ChatScrollToBottomButton.onChromeVisibleChanged].
+  bool? _reportedChromeVisible;
+
   /// Fallback when [ChatScrollToBottomButton.lastSeenNewestId] is not provided.
   int? _internalLastSeenNewestId;
 
@@ -267,9 +288,26 @@ class _ChatScrollToBottomButtonState extends State<ChatScrollToBottomButton> {
         } else {
           _pendingInitialViewportReadSync = true;
         }
+      case ChatAnimateStart(:final targetId):
+        if (targetId == widget.dataSource.newestKnownId) {
+          _tailArrivalIntent = true;
+          _pendingInitialViewportReadSync = false;
+          // Hide page-down while animating to tail (self-send / FAB).
+          _pendingTapDismiss = true;
+          _canShow = false;
+          _totalDy = 0;
+          _syncCanShow(scheduleRebuild: true);
+        }
+      case ChatAnimateEnd(:final targetId):
+        if (targetId == widget.dataSource.newestKnownId) {
+          _pendingTapDismiss = false;
+          _writeBaseline(targetId, reason: 'animate_to_newest_end');
+          _stableAtTail = true;
+          _consecutiveAtTailFrames = _stableAtTailFrameThreshold;
+          _tailArrivalIntent = false;
+          _syncCanShow(scheduleRebuild: true);
+        }
       case ChatFlingEnd():
-      case ChatAnimateStart():
-      case ChatAnimateEnd():
         break;
     }
   }
@@ -474,6 +512,16 @@ class _ChatScrollToBottomButtonState extends State<ChatScrollToBottomButton> {
 
   void _onBoundaryChanged() {
     final newest = widget.dataSource.newestKnownId;
+    // Self insert (any device): Telegram zeroes page-down unread on hasFromMe.
+    // Do this before the stable-at-tail path so the badge never flashes.
+    if (newest != null &&
+        _isSelfId(newest) &&
+        (_baseline == null || newest > _baseline!)) {
+      _writeBaseline(newest, reason: 'boundary_self_newest');
+      _syncCanShow(scheduleRebuild: false);
+      _scheduleRebuild();
+      return;
+    }
     // When new messages arrive while the user is already pinned at the
     // tail, the follow-tail layout auto-scrolls them into view — they
     // are *visible*, not unseen. `isAtTail` stays `true` across that
@@ -487,6 +535,24 @@ class _ChatScrollToBottomButtonState extends State<ChatScrollToBottomButton> {
     }
     _syncCanShow(scheduleRebuild: false);
     _scheduleRebuild();
+  }
+
+  bool _isSelfId(int id) {
+    final pred = widget.isSelfMessage;
+    if (pred == null) return false;
+    final msg = widget.dataSource.getMessage(id);
+    return msg != null && pred(msg);
+  }
+
+  int _unseenCount() {
+    final newest = widget.dataSource.newestKnownId;
+    if (newest == null) return 0;
+    // Defensive: self newest must not count even if baseline write lagged.
+    if (_isSelfId(newest)) return 0;
+    final lastSeen = _baseline;
+    if (lastSeen == null) return 0;
+    final diff = newest - lastSeen;
+    return diff > 0 ? diff : 0;
   }
 
   // The controller pushes `isAtTail` from inside `performLayout`, so the
@@ -503,15 +569,6 @@ class _ChatScrollToBottomButtonState extends State<ChatScrollToBottomButton> {
     }
   }
 
-  int _unseenCount() {
-    final newest = widget.dataSource.newestKnownId;
-    if (newest == null) return 0;
-    final lastSeen = _baseline;
-    if (lastSeen == null) return 0;
-    final diff = newest - lastSeen;
-    return diff > 0 ? diff : 0;
-  }
-
   Future<void> _onTap() async {
     final newest = widget.dataSource.newestKnownId;
     if (newest == null) return;
@@ -522,7 +579,11 @@ class _ChatScrollToBottomButtonState extends State<ChatScrollToBottomButton> {
     _totalDy = 0;
     _tailArrivalIntent = true;
     _scheduleRebuild();
-    await widget.controller.animateTo(newest, highlight: false);
+    await widget.controller.animateTo(
+      newest,
+      highlight: false,
+      loadPolicy: AnimateToLoadPolicy.preferBuilt,
+    );
     if (!mounted) return;
     _writeBaseline(newest, reason: 'scroll_to_bottom_tap');
     _stableAtTail = true;
@@ -550,6 +611,7 @@ class _ChatScrollToBottomButtonState extends State<ChatScrollToBottomButton> {
       builder: (context, _) {
         final liveCount = _stableAtTail ? 0 : _unseenCount();
         final visible = !_pendingInitialViewportReadSync && _canShow;
+        _reportChromeVisible(visible);
         // Freeze only for dismiss fade-out. While unread is live, always prefer
         // [liveCount] so a 0→N update that coincides with freeze rising-edge
         // (hidden chrome + first unread) is not stuck on a held 0.
@@ -558,11 +620,16 @@ class _ChatScrollToBottomButtonState extends State<ChatScrollToBottomButton> {
           value: liveCount,
           builder: (context, frozenCount) {
             final count = liveCount > 0 ? liveCount : frozenCount;
+            // When embedded, the stack owns opacity/scale/slide; keep keys in
+            // sync with policy so tests still see show-intent.
             final fab = _ScrollToBottomFab(
               count: count,
               onTap: _onTap,
-              visible: visible,
+              visible: widget.embedded || visible,
+              chromeVisible: visible,
+              animateVisibility: !widget.embedded,
             );
+            if (widget.embedded) return fab;
             return Positioned(
               right: 12,
               bottom: 0,
@@ -581,5 +648,16 @@ class _ChatScrollToBottomButtonState extends State<ChatScrollToBottomButton> {
         );
       },
     );
+  }
+
+  void _reportChromeVisible(bool visible) {
+    final cb = widget.onChromeVisibleChanged;
+    if (cb == null || _reportedChromeVisible == visible) return;
+    _reportedChromeVisible = visible;
+    // Avoid calling setState in the host during our build.
+    SchedulerBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      cb(visible);
+    });
   }
 }
