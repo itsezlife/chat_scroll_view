@@ -132,6 +132,36 @@ class GeneratedChatDataSource extends ChatDataSource {
   void removeMessages(Iterable<int> ids, {Object? reason}) =>
       super.removeMessages(ids, reason: reason ?? 'demo-delete');
 
+  /// Scans the full synthetic range for [query] (already lower-cased).
+  ///
+  /// Prefers cached / edited rows via [getMessage]; otherwise synthesizes
+  /// content without writing into the chunk cache.
+  Future<List<int>> searchAllMessageIds(
+    String query, {
+    required bool Function() isCancelled,
+  }) async {
+    final oldest = oldestKnownId;
+    final newest = newestKnownId;
+    if (oldest == null || newest == null || query.isEmpty) return const [];
+
+    final hits = <int>[];
+    const yieldEvery = 64;
+    for (var id = oldest; id <= newest; id++) {
+      if (isCancelled()) return hits;
+      final message =
+          getMessage(id) ?? (id < messageCount ? _generateMessage(id) : null);
+      if (message == null) continue;
+      final text = message.text;
+      if (text != null && text.toLowerCase().contains(query)) {
+        hits.add(id);
+      }
+      if ((id - oldest) % yieldEvery == yieldEvery - 1) {
+        await Future<void>.delayed(Duration.zero);
+      }
+    }
+    return hits;
+  }
+
   UserChatMessage _generateMessage(int id) {
     final rng = Random(seed ^ (id * 0x9E3779B9));
     final time = baseTime.add(Duration(minutes: id));

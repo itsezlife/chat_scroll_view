@@ -1,5 +1,6 @@
 import 'package:chat_scroll_view/chat_scroll_view.dart';
 import 'package:chat_scroll_view_example/src/common/models/chat_message.dart';
+import 'package:chat_scroll_view_example/src/features/chat/widgets/demo_message_edit_body.dart';
 import 'package:flutter/material.dart';
 
 /// Builds a demo message widget for the widget-based [ChatScrollView].
@@ -83,14 +84,6 @@ const List<Color> _senderColors = <Color>[
 Color _colorForSender(String sender) =>
     _senderColors[sender.hashCode.abs() % _senderColors.length];
 
-/// "HH:MM" in the local time zone — what most chats show inside a bubble.
-String _formatTime(DateTime dt) {
-  final local = dt.toLocal();
-  final h = local.hour.toString().padLeft(2, '0');
-  final m = local.minute.toString().padLeft(2, '0');
-  return '$h:$m';
-}
-
 // --- Palette --------------------------------------------------------------
 
 const Color _kOutgoingBg = Color(0xFF0B81F6);
@@ -147,6 +140,7 @@ class DemoMessageBubble extends StatelessWidget {
           sender: isFirstInRun ? message.sender : null,
           content: content,
           createdAt: message.createdAt,
+          edited: message.updatedAt != message.createdAt,
           isOutgoing: outgoing,
           runLayout: runLayout,
           theme: layout,
@@ -234,6 +228,7 @@ class _Bubble extends StatelessWidget {
     required this.sender,
     required this.content,
     required this.createdAt,
+    required this.edited,
     required this.isOutgoing,
     required this.runLayout,
     required this.theme,
@@ -246,8 +241,11 @@ class _Bubble extends StatelessWidget {
   /// Plain message body shown in the content slot of [ChatMessageBody].
   final String content;
 
-  /// Send timestamp; formatted by [_MetaRow] for the meta slot.
+  /// Send timestamp; formatted by meta for the meta slot.
   final DateTime createdAt;
+
+  /// When true, meta shows an “edited” label (demo: `updatedAt != createdAt`).
+  final bool edited;
 
   /// When true, right-column colors and a delivery tick in meta.
   final bool isOutgoing;
@@ -307,20 +305,19 @@ class _Bubble extends StatelessWidget {
                 ),
                 const SizedBox(height: 3),
               ],
-              ChatMessageBody(
-                spacing: 8,
-                content: Text(
-                  content,
-                  style: TextStyle(
-                    color: textColor,
-                    fontSize: 15,
-                    height: 1.35,
-                  ),
-                ),
-                meta: _MetaRow(
-                  createdAt: createdAt,
-                  color: metaColor,
-                  showStatus: isOutgoing,
+              DemoMessageEditBody(
+                content: content,
+                createdAt: createdAt,
+                edited: edited,
+                showStatus: isOutgoing,
+                sizeAlignment: isOutgoing
+                    ? AlignmentDirectional.topEnd
+                    : AlignmentDirectional.topStart,
+                metaColor: metaColor,
+                textStyle: TextStyle(
+                  color: textColor,
+                  fontSize: 15,
+                  height: 1.35,
                 ),
               ),
             ],
@@ -329,48 +326,6 @@ class _Bubble extends StatelessWidget {
       ),
     );
   }
-}
-
-/// Time (+ optional delivery ticks) for the [ChatMessageBody] meta slot.
-///
-/// Keep this subtree intrinsic-width (`mainAxisSize: min`) so last-line packing
-/// measures the true meta width. Do not wrap in [Align] / [Expanded] — those
-/// stretch to the bubble max width and defeat shrink-wrap.
-class _MetaRow extends StatelessWidget {
-  const _MetaRow({
-    required this.createdAt,
-    required this.color,
-    required this.showStatus,
-  });
-
-  /// Instant shown as `HH:MM` and in the tooltip's full date string.
-  final DateTime createdAt;
-
-  /// Shared color for the time label and status icon.
-  final Color color;
-
-  /// When true, appends a delivered (`done_all`) icon after the time.
-  final bool showStatus;
-
-  @override
-  Widget build(BuildContext context) => Row(
-    mainAxisSize: MainAxisSize.min,
-    children: <Widget>[
-      Text(
-        _formatTime(createdAt),
-        style: TextStyle(
-          color: color,
-          fontSize: 11,
-          height: 1,
-          fontFeatures: const <FontFeature>[FontFeature.tabularFigures()],
-        ),
-      ),
-      if (showStatus) ...<Widget>[
-        const SizedBox(width: 4),
-        Icon(Icons.done_all_rounded, size: 14, color: color),
-      ],
-    ],
-  );
 }
 
 // --- Shimmer placeholder --------------------------------------------------

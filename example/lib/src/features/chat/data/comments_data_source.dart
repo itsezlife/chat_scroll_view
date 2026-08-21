@@ -7,6 +7,7 @@ import 'package:chat_scroll_view_example/src/common/models/chat_message.dart';
 import 'package:chat_scroll_view_example/src/common/utils/load_asset.dart'
     if (dart.library.js_interop) 'package:chat_scroll_view_example/src/common/utils/platform/load_asset_web.dart'
     if (dart.library.io) 'package:chat_scroll_view_example/src/common/utils/platform/load_asset_native.dart';
+import 'package:chat_scroll_view_example/src/features/chat/data/chat_message_search.dart';
 
 /// Manifest for asset-based chat data.
 class CommentsManifest {
@@ -209,4 +210,27 @@ class CommentsDataSource extends ChatDataSource {
   @override
   void removeMessages(Iterable<int> ids, {Object? reason}) =>
       super.removeMessages(ids, reason: reason ?? 'demo-delete');
+
+  /// Scans every asset chunk for [query] (already lower-cased) without the
+  /// artificial [fetchDelay] used by [fetchRange].
+  Future<List<int>> searchAllMessageIds(
+    String query, {
+    required bool Function() isCancelled,
+  }) async {
+    if (manifest.totalMessages <= 0 || query.isEmpty) return const [];
+
+    final hits = <int>[];
+    for (var ac = 0; ac < manifest.chunks.length; ac++) {
+      if (isCancelled()) return hits;
+      final messages = await _loadAssetChunk(ac);
+      for (final message in messages) {
+        if (chatMessageMatchesQuery(message, query)) {
+          hits.add(message.id);
+        }
+      }
+      // Yield between chunks so a newer submit can supersede this scan.
+      await Future<void>.delayed(Duration.zero);
+    }
+    return hits;
+  }
 }
