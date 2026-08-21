@@ -250,8 +250,16 @@ class ChatScrollElement extends RenderObjectElement
     final existing = _children[id];
 
     // Confirmed-absent: deactivate any stale element; never call
-    // messageBuilder or wrap in SelectableMessage.
+    // messageBuilder or wrap in SelectableMessage — unless the render
+    // object presence-pins the id for an in-flight animate (stitch /
+    // load-gate). Keep the existing child mounted so false Absent cannot
+    // blank the flight; explicit host delete cancels first.
     if (status.isAbsent) {
+      final render = renderObject;
+      final pinned = render.isPresencePinned(id);
+      if (pinned && existing != null) {
+        return existing.renderObject as RenderBox?;
+      }
       if (existing != null) {
         owner!.buildScope(this, () {
           final removed = updateChild(existing, null, id);

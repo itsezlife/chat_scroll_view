@@ -1,4 +1,5 @@
 import 'dart:collection';
+import 'dart:math' as math;
 import 'dart:ui';
 
 import 'package:chat_scroll_view/src/chat_scroll/chat_mutations.dart';
@@ -66,9 +67,9 @@ abstract class ChatDataSource {
   /// the unfetched portion to be incorrectly marked absent (silent data loss).
   ///
   /// The subclass may return fewer messages than the ID range spans when the
-  /// conversation boundary lies inside the range. IDs not returned — but
-  /// within `[oldestKnownId, newestKnownId]` — are treated as permanently
-  /// absent by the absent-marking pass.
+  /// conversation boundary lies inside the range. IDs not returned are treated
+  /// as permanently absent, except the unconfirmed live tail past the highest
+  /// returned id (recent inserts) which stays unloaded for refill.
   Future<List<IChatMessage>> fetchRange({
     required int fromId,
     required int toId,
@@ -85,6 +86,11 @@ abstract class ChatDataSource {
   int? _newestKnownId;
   bool _reachedOldest = false;
   bool _reachedNewest = false;
+
+  /// Highest id advanced by [insertMessage] / [insertMessages] that a later
+  /// range fetch may still omit (stale backend / race). Absent-marking must
+  /// not tombstone `(maxReturned, through]` while this is set.
+  int? _unconfirmedTailThroughId;
 
   /// Lowest message id the data source has seen so far. `null` until the
   /// first page lands. Bumped down by subsequent fetches that reveal older
@@ -288,6 +294,11 @@ abstract class ChatDataSource {
   /// subsequent poll must not re-fetch this chunk and overwrite the local
   /// message with whatever (possibly empty) page the server returns. If a
   /// real refresh is wanted, call [invalidate] afterwards.
+  ///
+  /// **Eviction caveat:** [insertMessage] into a previously LRU-evicted chunk
+  /// recreates that chunk with only the new row. That path marks the chunk
+  /// dirty when known-span sibling slots are still empty so the viewport can
+  /// refill them (see [_markDirtyIfKnownSpanHoles]).
   void upsertMessage(IChatMessage message) {
     if (_disposed) return;
     writeMessageSilent(message);
@@ -328,6 +339,11 @@ abstract class ChatDataSource {
     _notifyMutation(ChatMutation.insert(message.id, reason: reason));
     writeMessageSilent(message);
     _extendBoundariesForInsert(message.id);
+    // After eviction, writeMessageSilent recreates the chunk as `valid` with
+    // only this row — sibling slots stay null and would shimmer forever
+    // because needsFetch skips valid chunks. Mark dirty when the known span
+    // still has holes so jump/poll refetch fills them.
+    _markDirtyIfKnownSpanHoles(ChatScrollChunk.chunkOf(message.id));
     notifyDataChanged();
   }
 
@@ -357,6 +373,7 @@ abstract class ChatDataSource {
     for (final message in normalized) {
       writeMessageSilent(message);
       _extendBoundariesForInsert(message.id);
+      _markDirtyIfKnownSpanHoles(ChatScrollChunk.chunkOf(message.id));
     }
     notifyDataChanged();
   }
@@ -364,8 +381,11 @@ abstract class ChatDataSource {
   /// Records an update intent, replaces the stored instance, notifies once.
   ///
   /// Integrator edits MUST use this or [updateMessages] — never [upsertMessage]
-  /// for user-driven content changes (resize animation eligibility). No-op with
-  /// debug assert when [message.id] is confirmed absent or staged.
+  /// for user-driven content changes. Emits [UpdateMutation] so hosts can run
+  /// edit transitions; the viewport expects the message child to **lerp its
+  /// reported height** during resize (see example `DemoMessageEditBody`) until
+  /// a viewport-owned extent spring lands. No-op with debug assert when
+  /// [message.id] is confirmed absent or staged.
   ///
   /// Emits [UpdateMutation] (not [UpdateBatchMutation]). For bulk edits use
   /// [updateMessages].
@@ -575,6 +595,7 @@ abstract class ChatDataSource {
         reachedOldest: _reachedOldest,
         reachedNewest: _reachedNewest,
       );
+      _noteUnconfirmedTail(id);
       return;
     }
     if (_oldestKnownId == null || id < _oldestKnownId!) {
@@ -582,6 +603,26 @@ abstract class ChatDataSource {
     }
     if (_newestKnownId == null || id > _newestKnownId!) {
       seedBoundaries(newestKnownId: id, reachedNewest: true);
+      _noteUnconfirmedTail(id);
+    } else if (id == _newestKnownId) {
+      // Re-insert / replace at newest still needs fetch protection if LRU
+      // drops the payload before a confirming range response.
+      _noteUnconfirmedTail(id);
+    }
+  }
+
+  void _noteUnconfirmedTail(int id) {
+    final through = _unconfirmedTailThroughId;
+    if (through == null || id > through) {
+      _unconfirmedTailThroughId = id;
+    }
+  }
+
+  void _onRangeFetchSuccess(int? maxReturnedId) {
+    final through = _unconfirmedTailThroughId;
+    if (through == null) return;
+    if (maxReturnedId != null && maxReturnedId >= through) {
+      _unconfirmedTailThroughId = null;
     }
   }
 
@@ -646,18 +687,147 @@ abstract class ChatDataSource {
     fetchRange: fetchRange,
     notifyDataChanged: notifyDataChanged,
     isDisposed: () => _disposed,
+    unconfirmedTailThroughId: () => _unconfirmedTailThroughId,
+    onFetchSuccess: _onRangeFetchSuccess,
   );
 
   /// Check visible chunk range and fetch missing/dirty data.
   /// Called from the viewport's periodic poll timer.
+  ///
+  /// Before dispatching, any in-range `valid` chunk that still has empty
+  /// known-span slots (typical after insert into an LRU-evicted chunk) is
+  /// marked dirty so [ChatRangeFetch.needsFetch] will refill it.
   @internal
   void requestChunks(int layoutMinChunk, int layoutMaxChunk) {
+    if (layoutMaxChunk >= layoutMinChunk) {
+      for (var ci = layoutMinChunk; ci <= layoutMaxChunk; ci++) {
+        _markDirtyIfKnownSpanHoles(ci);
+      }
+    }
     _rangeFetch.requestChunks(layoutMinChunk, layoutMaxChunk);
+  }
+
+  /// Marks [chunkIndex] dirty when it still has empty known-span slots.
+  /// No-op while a fetch is in flight.
+  void _markDirtyIfKnownSpanHoles(int chunkIndex) {
+    final chunk = _chunks[chunkIndex];
+    if (chunk == null) return;
+    if (chunk.status.isFetching) return;
+    if (!_chunkHasKnownSpanHoles(chunk)) return;
+    _clearSuspectAbsentSlots(chunk);
+    chunk.status = ChatMessageStatus.dirty;
+  }
+
+  /// `true` when any slot in the intersection of this chunk and the known
+  /// conversation span is still missing a payload.
+  ///
+  /// Also treats absent marks on the unconfirmed live tail (past the last
+  /// present payload, through [_unconfirmedTailThroughId]) as holes — stale
+  /// fetches used to tombstone recent inserts and leave load-gate stuck.
+  bool _chunkHasKnownSpanHoles(ChatScrollChunk chunk) {
+    final oldest = _oldestKnownId;
+    final newest = _newestKnownId;
+    if (oldest == null || newest == null) return false;
+    final from = math.max(chunk.firstId, oldest);
+    final to = math.min(chunk.firstId + ChatScrollChunk.kSize - 1, newest);
+    if (from > to) return false;
+    final unconfirmedThrough = _unconfirmedTailThroughId;
+    int? maxPresent;
+    for (var id = from; id <= to; id++) {
+      final slot = id - chunk.firstId;
+      if (chunk.messages[slot] != null) maxPresent = id;
+    }
+    for (var id = from; id <= to; id++) {
+      final slot = id - chunk.firstId;
+      if (chunk.messages[slot] != null) continue;
+      if (!chunk.isAbsentSlot(slot)) return true;
+      if (unconfirmedThrough != null &&
+          id <= unconfirmedThrough &&
+          (maxPresent == null || id > maxPresent)) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  /// Clears absent flags on the unconfirmed live tail so a refetch can refill.
+  void _clearSuspectAbsentSlots(ChatScrollChunk chunk) {
+    final oldest = _oldestKnownId;
+    final newest = _newestKnownId;
+    final unconfirmedThrough = _unconfirmedTailThroughId;
+    if (oldest == null || newest == null || unconfirmedThrough == null) {
+      return;
+    }
+    final from = math.max(chunk.firstId, oldest);
+    final to = math.min(chunk.firstId + ChatScrollChunk.kSize - 1, newest);
+    if (from > to) return;
+    int? maxPresent;
+    for (var id = from; id <= to; id++) {
+      final slot = id - chunk.firstId;
+      if (chunk.messages[slot] != null) maxPresent = id;
+    }
+    for (var id = from; id <= to; id++) {
+      final slot = id - chunk.firstId;
+      if (chunk.messages[slot] != null) continue;
+      if (!chunk.isAbsentSlot(slot)) continue;
+      if (id > unconfirmedThrough) continue;
+      if (maxPresent == null || id > maxPresent) {
+        chunk.clearAbsentSlot(slot);
+      }
+    }
+  }
+
+  /// Clears absent/tombstone state for [messageId] and marks its chunk dirty
+  /// so the next [requestChunks] refetches it.
+  ///
+  /// Used once when a navigation destination pin is newly established so a
+  /// prior stale absent mark cannot leave load-gate idle at `pending=false`.
+  @internal
+  void reopenIdForFetch(int messageId) {
+    if (_disposed) return;
+    final chunkIndex = ChatScrollChunk.chunkOf(messageId);
+    final chunk = _chunks.putIfAbsent(
+      chunkIndex,
+      () => ChatScrollChunk(index: chunkIndex),
+    );
+    if (chunk.status.isFetching) return;
+    final slot = messageId - chunk.firstId;
+    if (slot < 0 || slot >= ChatScrollChunk.kSize) return;
+    if (chunk.messages[slot] != null) return;
+    final wasAbsent = chunk.isAbsentSlot(slot);
+    final wasDirty = chunk.status.isDirty;
+    chunk
+      ..clearAbsentSlot(slot)
+      ..status = ChatMessageStatus.dirty
+      ..lastError = null;
+    _clearSuspectAbsentSlots(chunk);
+    if (!wasDirty || wasAbsent) {
+      notifyDataChanged();
+    }
+  }
+
+  /// Whether [chunkIndex] still has missing payloads in the known conversation
+  /// span (including suspect trailing absents). Used by the fetch scheduler
+  /// so poll stays armed while a "valid" chunk needs refill.
+  @internal
+  bool hasKnownSpanHoles(int chunkIndex) {
+    final chunk = _chunks[chunkIndex];
+    if (chunk == null) return false;
+    return _chunkHasKnownSpanHoles(chunk);
   }
 
   /// Cancel any in-flight fetch and retry timer.
   @internal
   void cancelFetch() => _rangeFetch.cancelFetch();
+
+  /// Whether [chunkIndex] is covered by an in-flight range fetch token.
+  ///
+  /// True even if the chunk map entry was LRU-evicted mid-flight — the
+  /// scheduler must not treat those indexes as "still need a fetch" or it
+  /// will busy-loop on a zero-delay poll while the token is live.
+  @internal
+  bool coversChunkInFlight(int chunkIndex) =>
+      _rangeFetch.coversChunkInFlight(chunkIndex);
 
   /// Mark every loaded chunk as stale so the viewport refetches them on the
   /// next pass — lazy: in-range chunks get a fresh fetch from the poll;

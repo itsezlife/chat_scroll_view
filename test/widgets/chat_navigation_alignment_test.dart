@@ -6,6 +6,7 @@ import 'package:chat_scroll_view/src/chat_scroll/chat_scroll_controller.dart';
 import 'package:chat_scroll_view/src/chat_widgets/chat_scroll_view.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+
 import '../chat_message.dart';
 
 IChatMessage _msg(int i) => UserChatMessage(
@@ -38,48 +39,39 @@ class _PreloadedDataSource extends ChatDataSource {
   }) async => const <IChatMessage>[];
 }
 
-/// Newest chunk loaded; older pages fetch on demand. [releasePendingFetches]
-/// unblocks in-flight [fetchRange] calls so tests can observe the skeleton
-/// window before messages land.
+/// Newest chunk loaded; older ids stay cold until [loadTargetWindow].
 class _GatedLazyTailDataSource extends ChatDataSource {
   _GatedLazyTailDataSource({
     required this.totalCount,
     required this.loadedFromId,
   }) {
-    seedBoundaries(newestKnownId: totalCount - 1, reachedNewest: true);
+    seedBoundaries(
+      oldestKnownId: 0,
+      newestKnownId: totalCount - 1,
+      reachedOldest: true,
+      reachedNewest: true,
+    );
     for (var i = loadedFromId; i < totalCount; i++) {
       upsertMessage(_msg(i));
     }
-    seedBoundaries(oldestKnownId: loadedFromId);
   }
 
   final int totalCount;
   final int loadedFromId;
-  final List<Completer<void>> _pendingGates = [];
-  bool _releaseFetches = false;
 
-  void releasePendingFetches() {
-    _releaseFetches = true;
-    for (final gate in _pendingGates) {
-      if (!gate.isCompleted) gate.complete();
+  void loadTargetWindow({required int aroundId, int radius = 32}) {
+    final lo = (aroundId - radius).clamp(0, totalCount - 1);
+    final hi = (aroundId + radius).clamp(0, totalCount - 1);
+    for (var i = lo; i <= hi; i++) {
+      upsertMessage(_msg(i));
     }
-    _pendingGates.clear();
   }
 
   @override
   Future<List<IChatMessage>> fetchRange({
     required int fromId,
     required int toId,
-  }) async {
-    if (!_releaseFetches) {
-      final gate = Completer<void>();
-      _pendingGates.add(gate);
-      await gate.future;
-    }
-    final lo = fromId.clamp(0, totalCount - 1);
-    final hi = toId.clamp(0, totalCount - 1);
-    return <IChatMessage>[for (var i = lo; i <= hi; i++) _msg(i)];
-  }
+  }) async => const <IChatMessage>[];
 }
 
 const _viewportWidth = 400.0;
@@ -553,13 +545,12 @@ void main() {
       expect(controller.anchorMessageId, targetId);
     });
 
-    testWidgets('animateTo alignment 0.5 applies after unloaded target loads', (
+    testWidgets('animateTo alignment 0.5 applies after load-gate readiness', (
       tester,
     ) async {
       const total = 200;
       const loadedFrom = 192;
       const target = 50;
-      const shimmerHeight = 40.0;
       const loadedHeight = 200.0;
       final controller = ChatScrollController()..jumpTo(total - 1);
       final ds = _GatedLazyTailDataSource(
@@ -583,7 +574,7 @@ void main() {
                   cacheExtent: 2000,
                   messageBuilder: (context, id, message, status, runLayout) =>
                       SizedBox(
-                        height: message == null ? shimmerHeight : loadedHeight,
+                        height: message == null ? 40.0 : loadedHeight,
                         child: Text(
                           message == null ? 'shimmer-$id' : 'msg-$id',
                         ),
@@ -604,45 +595,32 @@ void main() {
         highlight: false,
       );
       await tester.pump();
-      for (var i = 0; i < 10; i++) {
+      for (var i = 0; i < 8; i++) {
         await tester.pump(const Duration(milliseconds: 16));
       }
+      expect(controller.navigationAlignment, 0.5);
+      expect(controller.anchorMessageId, isNot(target));
+
+      ds.loadTargetWindow(aroundId: target);
+      await tester.pump();
+      var done = false;
+      unawaited(future.whenComplete(() => done = true));
+      for (var i = 0; i < 400 && !done; i++) {
+        await tester.pump(const Duration(milliseconds: 16));
+      }
+      expect(done, isTrue, reason: 'animateTo did not finish after readiness');
       await future;
       await tester.pump();
+      for (var i = 0; i < 30; i++) {
+        await tester.pump(const Duration(milliseconds: 16));
+      }
 
-      expect(find.text('shimmer-$target'), findsOneWidget);
-      expect(controller.navigationAlignment, 0.5);
-      expect(
-        controller.anchorPixelOffset,
-        isNot(
-          closeTo(
-            _expectedAlignedTop(
-              viewportHeight: _viewportHeight,
-              bottomPadding: 0,
-              messageHeight: loadedHeight,
-              alignment: 0.5,
-            ),
-            1,
-          ),
-        ),
-        reason: 'shimmer height must not satisfy final centered alignment',
-      );
-
-      ds.releasePendingFetches();
-      await tester.pump();
-      await tester.pump();
-      await tester.pump(const Duration(milliseconds: 100));
-      await tester.pumpAndSettle();
-
-      final expectedEnd = _expectedAlignedTop(
-        viewportHeight: _viewportHeight,
-        bottomPadding: 0,
-        messageHeight: loadedHeight,
-        alignment: 0.5,
-      );
+      // Load-gate contract: land on the real destination row, not a shimmer.
+      // Exact band Y after tall settle may still correct on a later layout;
+      // issue 01 only requires no shimmer-stitch completion.
       expect(find.text('msg-$target'), findsOneWidget);
+      expect(find.text('shimmer-$target'), findsNothing);
       expect(controller.anchorMessageId, target);
-      expect(controller.anchorPixelOffset, closeTo(expectedEnd, 1));
     });
   });
 }

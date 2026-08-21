@@ -110,24 +110,26 @@ class _ChatSideControlFabState extends State<ChatSideControlFab>
           final pressScale = 1.0 - _pressScaleDelta * _press.value;
           return Transform.scale(scale: pressScale, child: child);
         },
-        child: SizedBox(
-          width: ChatSideControlFab.outerSize,
-          height: ChatSideControlFab.frameHeight,
-          child: Stack(
-            clipBehavior: Clip.none,
-            alignment: Alignment.bottomCenter,
-            children: [
-              Positioned(
-                left: 0,
-                right: 0,
-                bottom: 0,
-                height: ChatSideControlFab.outerSize,
-                child: GestureDetector(
-                  behavior: HitTestBehavior.opaque,
-                  onTap: widget.onTap,
-                  onTapDown: _onTapDown,
-                  onTapUp: _onTapUp,
-                  onTapCancel: _onTapCancel,
+        // One detector for glass + badge: the counter paints above the circle
+        // and would otherwise steal hits without firing [onTap].
+        child: GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onTap: widget.onTap,
+          onTapDown: _onTapDown,
+          onTapUp: _onTapUp,
+          onTapCancel: _onTapCancel,
+          child: SizedBox(
+            width: ChatSideControlFab.outerSize,
+            height: ChatSideControlFab.frameHeight,
+            child: Stack(
+              clipBehavior: Clip.none,
+              alignment: Alignment.bottomCenter,
+              children: [
+                Positioned(
+                  left: 0,
+                  right: 0,
+                  bottom: 0,
+                  height: ChatSideControlFab.outerSize,
                   child: Center(
                     child: ChatSideControlGlass(
                       size: ChatSideControlFab.glassSize,
@@ -137,18 +139,18 @@ class _ChatSideControlFabState extends State<ChatSideControlFab>
                     ),
                   ),
                 ),
-              ),
-              Positioned(
-                top: 0,
-                left: 0,
-                right: 0,
-                height: _counterSlotHeight,
-                child: Align(
-                  alignment: Alignment.center,
-                  child: ChatSideControlCounter(count: widget.count),
+                Positioned(
+                  top: 0,
+                  left: 0,
+                  right: 0,
+                  height: _counterSlotHeight,
+                  child: Align(
+                    alignment: Alignment.center,
+                    child: ChatSideControlCounter(count: widget.count),
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),

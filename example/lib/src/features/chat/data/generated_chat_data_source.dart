@@ -62,6 +62,10 @@ class GeneratedChatDataSource extends ChatDataSource {
   /// Anchor timestamp for id `0`; each subsequent id adds one minute.
   final DateTime baseTime;
 
+  /// Messages created via [sendMessage] / [insertMessage] past [messageCount].
+  /// Survives LRU eviction so [fetchRange] can re-serve them.
+  final Map<int, IChatMessage> _tailOverrides = <int, IChatMessage>{};
+
   static const _defaultSenders = ['Alice', 'Bob', 'Charlie', 'Dana'];
 
   @override
@@ -88,6 +92,11 @@ class GeneratedChatDataSource extends ChatDataSource {
         result.add(cached);
         continue;
       }
+      final override = _tailOverrides[id];
+      if (override != null) {
+        result.add(override);
+        continue;
+      }
       if (id < messageCount) {
         result.add(_generateMessage(id));
       }
@@ -109,6 +118,7 @@ class GeneratedChatDataSource extends ChatDataSource {
       updatedAt: now,
       content: content,
     );
+    _tailOverrides[id] = message;
     insertMessage(message, reason: 'demo-send');
     return message;
   }

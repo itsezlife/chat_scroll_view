@@ -9,6 +9,7 @@
 //    in-flight fetch already covers the chunk.
 
 import 'package:chat_scroll_view/src/chat_scroll/chat_data_source.dart';
+import 'package:chat_scroll_view/src/chat_scroll/chat_range_fetch.dart';
 import 'package:chat_scroll_view/src/chat_scroll/chat_scroll_chunk.dart';
 import 'package:chat_scroll_view/src/chat_scroll/chat_scroll_common.dart';
 import 'package:chat_scroll_view/src/chat_scroll/chat_scroll_controller.dart';
@@ -80,6 +81,62 @@ void main() {
 
       expect(ds.chunks[0]!.status.isFetching, isTrue);
       expect(ds.chunks[0]!.status.isValid, isFalse);
+    });
+
+    test(
+      'insert after chunk eviction marks dirty so sibling holes can refetch',
+      () {
+        final ds = _RecorderDataSource();
+        addTearDown(ds.dispose);
+
+        ds.seedBoundaries(
+          oldestKnownId: 0,
+          newestKnownId: 10,
+          reachedOldest: true,
+          reachedNewest: true,
+        );
+        for (var i = 0; i <= 10; i++) {
+          ds.upsertMessage(_msg(i));
+        }
+        final chunkIndex = ChatScrollChunk.chunkOf(10);
+        expect(ds.chunks[chunkIndex]!.status.isValid, isTrue);
+
+        // LRU eviction of the tail chunk (viewport scrolled deep into history).
+        ds.chunks.remove(chunkIndex);
+        expect(ds.chunks.containsKey(chunkIndex), isFalse);
+
+        // Local send recreates the chunk with only the new row.
+        ds.insertMessage(_msg(11));
+
+        final chunk = ds.chunks[chunkIndex]!;
+        expect(chunk.status.isDirty, isTrue);
+        expect(ds.getMessage(11), isNotNull);
+        expect(ds.getMessage(10), isNull);
+        expect(ChatRangeFetch.needsFetch(chunk), isTrue);
+      },
+    );
+
+    test('requestChunks dirties sparse-valid chunks in range before fetch', () {
+      final ds = _RecorderDataSource();
+      addTearDown(ds.dispose);
+
+      ds.seedBoundaries(
+        oldestKnownId: 0,
+        newestKnownId: 5,
+        reachedOldest: true,
+        reachedNewest: true,
+      );
+      // Simulate insert-after-eviction without going through insertMessage:
+      // valid chunk with only one filled slot.
+      final chunk = ChatScrollChunk(index: 0)..status = ChatMessageStatus.valid;
+      chunk.messages[5] = _msg(5);
+      ds.chunks[0] = chunk;
+      expect(ChatRangeFetch.needsFetch(chunk), isFalse);
+
+      ds.requestChunks(0, 0);
+
+      expect(ds.chunks[0]!.status.isDirty, isTrue);
+      expect(ds.calls, isNotEmpty);
     });
   });
 

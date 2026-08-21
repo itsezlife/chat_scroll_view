@@ -1,7 +1,10 @@
+import 'dart:async' show unawaited;
+
 import 'package:chat_scroll_view/src/chat_scroll/chat_data_source.dart';
 import 'package:chat_scroll_view/src/chat_scroll/chat_scroll_common.dart';
 import 'package:chat_scroll_view/src/chat_scroll/chat_scroll_controller.dart';
 import 'package:chat_scroll_view/src/chat_widgets/chat_scroll_view.dart';
+import 'package:chat_scroll_view/src/chat_widgets/render_chat_scroll_view.dart';
 import 'package:flutter/foundation.dart' show ValueListenable, ValueNotifier;
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -108,16 +111,19 @@ Widget _harness({
 
 /// Drive [animateFuture] to completion — the future only resolves once the
 /// viewport ticker fires, which requires explicit pumps in widget tests.
+/// Stitch may rewrite duration up to ~1300ms; use a hard pump budget.
 Future<void> _driveAnimate(
   WidgetTester tester,
   Future<void> animateFuture, {
-  Duration animateDuration = const Duration(milliseconds: 300),
+  int maxPumps = 200,
 }) async {
   await tester.pump();
-  final pumps = (animateDuration.inMilliseconds ~/ 16) + 2;
-  for (var i = 0; i < pumps; i++) {
+  var done = false;
+  unawaited(animateFuture.whenComplete(() => done = true));
+  for (var i = 0; i < maxPumps && !done; i++) {
     await tester.pump(const Duration(milliseconds: 16));
   }
+  expect(done, isTrue, reason: 'animateTo did not finish in $maxPumps pumps');
   await animateFuture;
   await tester.pump();
 }
@@ -250,6 +256,71 @@ void main() {
       expect(controller.anchorMessageId, newest);
       expect(controller.anchorPixelOffset, closeTo(expectedTailTop, 1));
     });
+
+    testWidgets(
+      'animateTo very tall newest uses close path (no stitch top then pin)',
+      (tester) async {
+        // Repro: tall newest scrolled into body → |offset| > kCloseAnimateDistance
+        // used to pick stitch, jumpTo(align=0) snaps to top, then pinNewest
+        // yanks to tail mid-flight.
+        const count = 10;
+        const newest = count - 1;
+        const tallHeight = 5000.0;
+        final ds = _PreloadedDataSource(count);
+        final controller = ChatScrollController()..jumpTo(newest);
+        addTearDown(controller.dispose);
+        addTearDown(ds.dispose);
+
+        await tester.pumpWidget(
+          _harness(
+            dataSource: ds,
+            controller: controller,
+            messageHeight: (id) => id == newest ? tallHeight : 60.0,
+          ),
+        );
+        await tester.pump();
+
+        // Scroll up into the tall body (not at tail).
+        await tester.drag(find.byType(ChatScrollView), const Offset(0, 800));
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 300));
+        expect(controller.isAtTail.value, isFalse);
+        expect(controller.anchorMessageId, newest);
+        expect(controller.anchorPixelOffset.abs(), greaterThan(2400));
+
+        final render =
+            tester.renderObject(find.byType(ChatScrollView))
+                as RenderChatScrollView;
+        final future = controller.animateTo(
+          newest,
+          highlight: false,
+          loadPolicy: AnimateToLoadPolicy.preferBuilt,
+        );
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 16));
+
+        // Must not stitch: same visible newest should smooth-scroll (Telegram
+        // found→smoothScrollBy), never jump to band top then pin.
+        expect(
+          render.debugFarAnimateActive,
+          isFalse,
+          reason: 'visible tall newest must use close path, not stitch',
+        );
+        // Never snap toward message top (Y≈0) while returning to tail.
+        expect(
+          controller.anchorPixelOffset,
+          lessThan(-100),
+          reason: 'must not jumpTo(align=0) on the way to tail pin',
+        );
+
+        await _driveAnimate(tester, future, maxPumps: 300);
+
+        const expectedTailTop = _viewportHeight - tallHeight;
+        expect(controller.isAtTail.value, isTrue);
+        expect(controller.anchorMessageId, newest);
+        expect(controller.anchorPixelOffset, closeTo(expectedTailTop, 1));
+      },
+    );
 
     testWidgets('jumpTo past newest clamps without phantom shimmer', (
       tester,

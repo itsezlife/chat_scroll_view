@@ -24,10 +24,14 @@ class ChatRangeFetch {
     fetchRange,
     required VoidCallback notifyDataChanged,
     required bool Function() isDisposed,
+    int? Function()? unconfirmedTailThroughId,
+    void Function(int? maxReturnedId)? onFetchSuccess,
   }) : _chunks = chunks,
        _fetchRange = fetchRange,
        _notifyDataChanged = notifyDataChanged,
-       _isDisposed = isDisposed;
+       _isDisposed = isDisposed,
+       _unconfirmedTailThroughId = unconfirmedTailThroughId,
+       _onFetchSuccess = onFetchSuccess;
 
   static final math.Random _rnd = math.Random();
 
@@ -39,6 +43,8 @@ class ChatRangeFetch {
   _fetchRange;
   final VoidCallback _notifyDataChanged;
   final bool Function() _isDisposed;
+  final int? Function()? _unconfirmedTailThroughId;
+  final void Function(int? maxReturnedId)? _onFetchSuccess;
 
   Object? _fetchToken;
   int _fetchRetryStep = 0;
@@ -88,31 +94,77 @@ class ChatRangeFetch {
     final chunks = _chunks();
     // Find the actual range that needs fetching.
     var needsMin = -1;
-    var needsMax = -1;
     for (var ci = layoutMinChunk; ci <= layoutMaxChunk; ci++) {
       if (needsFetch(chunks[ci])) {
         if (needsMin < 0) needsMin = ci;
-        needsMax = ci;
       }
     }
     if (needsMin < 0) return; // all chunks valid
 
-    // Same range already in flight — wait for it. Treat a pending retry
-    // timer as in-flight too; otherwise a poll between the error handler
-    // arming the retry and the timer firing would see `_fetchToken == null`,
-    // fall through, cancel the retry, reset the backoff step, and immediately
-    // re-fire `_executeFetch` — defeating the exponential backoff and
-    // hammering a failing endpoint at the poll cadence.
-    final sameRange =
-        _fetchingMinChunk == needsMin && _fetchingMaxChunk == needsMax;
-    if (sameRange && (_fetchToken != null || _retryTimer != null)) return;
+    // Bound the network request to the *laid-out* span, not the dirty subset.
+    // Using needsMin..needsMax alone caused a scrollbar cancel storm:
+    //   request 96..97 → both fetching → next poll "needs" only the still-dirty
+    //   edge → cancel wider flight (dirtying the sibling) → flip forever under
+    //   Duration.zero poll. Valid siblings inside the layout span are skipped
+    //   when marking `fetching` in [_executeFetch].
+    final fetchMin = layoutMinChunk;
+    final fetchMax = layoutMaxChunk;
 
-    // New range — cancel old request and start fresh.
+    // An in-flight (or retry-armed) fetch that overlaps the layout span must
+    // not be cancelled for a shrink. Treat a pending retry timer as in-flight
+    // too so poll does not defeat exponential backoff.
+    final live = _fetchToken != null || _retryTimer != null;
+    if (live) {
+      final overlaps =
+          fetchMin <= _fetchingMaxChunk && fetchMax >= _fetchingMinChunk;
+      if (overlaps) {
+        if (fetchMin < _fetchingMinChunk || fetchMax > _fetchingMaxChunk) {
+          // Layout grew past the live span — widen once to the union.
+          final unionMin = math.min(fetchMin, _fetchingMinChunk);
+          final unionMax = math.max(fetchMax, _fetchingMaxChunk);
+          cancelFetch();
+          _fetchingMinChunk = unionMin;
+          _fetchingMaxChunk = unionMax;
+          _fetchRetryStep = 0;
+          _executeFetch();
+          return;
+        }
+        // Equal or subset — wait for the live request / retry.
+        if (_fetchToken != null) {
+          _rematerializeInFlightChunks(_fetchingMinChunk, _fetchingMaxChunk);
+        }
+        return;
+      }
+    }
+
+    // Disjoint (or idle) — cancel any old request and start fresh.
     cancelFetch();
-    _fetchingMinChunk = needsMin;
-    _fetchingMaxChunk = needsMax;
+    _fetchingMinChunk = fetchMin;
+    _fetchingMaxChunk = fetchMax;
     _fetchRetryStep = 0;
     _executeFetch();
+  }
+
+  /// Restore chunk map entries covered by the live token after mid-flight
+  /// eviction so callers observing [needsFetch]/pending stay consistent.
+  void _rematerializeInFlightChunks(int needsMin, int needsMax) {
+    final chunks = _chunks();
+    var changed = false;
+    for (var ci = needsMin; ci <= needsMax; ci++) {
+      final existing = chunks[ci];
+      if (existing != null && !needsFetch(existing)) continue;
+      final chunk = existing ?? (chunks[ci] = ChatScrollChunk(index: ci));
+      if (chunk.status.isFetching) {
+        fetchingChunks.add(ci);
+        continue;
+      }
+      chunk.status = chunk.status
+          .remove(ChatMessageStatus.error)
+          .add(ChatMessageStatus.fetching);
+      fetchingChunks.add(ci);
+      changed = true;
+    }
+    if (changed) _notifyDataChanged();
   }
 
   /// Start a fetch for the inclusive chunk range [minChunk..maxChunk].
@@ -248,34 +300,45 @@ class ChatRangeFetch {
           chunk.messages[msg.id - chunk.firstId] = msg;
         }
 
-        // Absent-marking pass: for every fetched chunk, mark ALL null slots
-        // as permanently absent.
+        // Absent-marking pass: for every fetched chunk, mark null slots that
+        // the server had a chance to fill as permanently absent.
         //
         // The full-chunk boundary invariant (fromId aligned to a chunk
         // boundary) guarantees the server was given the opportunity to return
         // every ID in [fromId, toId]. Any null slot was not returned and
-        // therefore does not exist in this conversation — it is permanently
-        // absent.
-        //
-        // No conversation-boundary guard ([oldestKnownId, newestKnownId]) is
-        // applied here. The boundary guard was the original bug: `oldestKnownId`
-        // advances only when a fetch *returns* messages (via `loadedMin`). An
-        // empty fetch for IDs below the current `oldestKnownId` — which occurs
-        // when scrolling backward through a deletion gap — never moves the
-        // boundary, so the guard would suppress absent-marking for exactly the
-        // slots that need it most.
+        // therefore does not exist — except for the unconfirmed live tail
+        // past the highest returned id (recent inserts whose refetch may still
+        // be stale). Those stay unloaded so scroll-to-newest can refill.
         //
         // `upsertMessage` / `upsertMessages` call `clearAbsentSlot` when
         // writing a slot, so a realtime insert at a previously-absent ID
         // surfaces immediately without requiring `invalidate()`.
+        final maxReturned = messages.isEmpty
+            ? null
+            : messages.map((m) => m.id).reduce(math.max);
+        final unconfirmedThrough = _unconfirmedTailThroughId?.call();
         for (final ci in fetchingChunks) {
           final chunk = chunks[ci];
           if (chunk == null) continue;
           for (var slot = 0; slot < ChatScrollChunk.kSize; slot++) {
             if (chunk.messages[slot] != null) continue;
+            final id = chunk.firstId + slot;
+            if (id < fromId || id > toId) continue;
+            if (unconfirmedThrough != null &&
+                maxReturned != null &&
+                id > maxReturned &&
+                id <= unconfirmedThrough) {
+              continue;
+            }
+            if (unconfirmedThrough != null &&
+                maxReturned == null &&
+                id <= unconfirmedThrough) {
+              continue;
+            }
             chunk.markAbsentSlot(slot);
           }
         }
+        _onFetchSuccess?.call(maxReturned);
 
         for (final ci in fetchingChunks) {
           final chunk = chunks[ci];

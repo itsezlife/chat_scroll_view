@@ -86,6 +86,106 @@ void main() {
     });
   });
 
+  group('ChatRangeFetch mid-flight eviction', () {
+    test('same-range poll rematerializes evicted fetching chunks', () {
+      fakeAsync((async) {
+        final chunks = <int, ChatScrollChunk>{};
+        final completer = Completer<List<IChatMessage>>();
+        final fetch = ChatRangeFetch(
+          chunks: () => chunks,
+          fetchRange: ({required fromId, required toId}) => completer.future,
+          notifyDataChanged: () {},
+          isDisposed: () => false,
+        );
+
+        fetch.requestChunks(3, 4);
+        expect(chunks.containsKey(3), isTrue);
+        expect(chunks[3]!.status.isFetching, isTrue);
+
+        // Simulate LRU dropping the map entry while the token is live.
+        chunks.remove(3);
+        expect(fetch.coversChunkInFlight(3), isTrue);
+
+        fetch.requestChunks(3, 4);
+        expect(chunks.containsKey(3), isTrue);
+        expect(chunks[3]!.status.isFetching, isTrue);
+        expect(completer.isCompleted, isFalse);
+
+        completer.complete(const <IChatMessage>[]);
+        async.elapse(Duration.zero);
+        expect(chunks[3]!.status.isValid, isTrue);
+      });
+    });
+
+    test('does not cancel wider in-flight fetch when dirty subset shrinks', () {
+      fakeAsync((async) {
+        final chunks = <int, ChatScrollChunk>{};
+        var fetchCalls = 0;
+        final completer = Completer<List<IChatMessage>>();
+        final fetch = ChatRangeFetch(
+          chunks: () => chunks,
+          fetchRange: ({required fromId, required toId}) {
+            fetchCalls++;
+            return completer.future;
+          },
+          notifyDataChanged: () {},
+          isDisposed: () => false,
+        );
+
+        fetch.requestChunks(96, 97);
+        expect(fetchCalls, 1);
+        expect(chunks[96]!.status.isFetching, isTrue);
+        expect(chunks[97]!.status.isFetching, isTrue);
+
+        // Same layout while in flight — must not restart.
+        fetch.requestChunks(96, 97);
+        expect(fetchCalls, 1);
+
+        // Dirty subset shrink shape: 96 dirty again, 97 still fetching.
+        chunks[96]!.status = ChatMessageStatus.dirty;
+        fetch.requestChunks(96, 97);
+        expect(fetchCalls, 1, reason: 'layout-bounded overlap must wait');
+        expect(chunks[97]!.status.isFetching, isTrue);
+
+        // Layout temporarily shows only 96 — still overlaps in-flight 96..97.
+        fetch.requestChunks(96, 96);
+        expect(fetchCalls, 1, reason: 'subset layout must not cancel sibling');
+
+        completer.complete(const <IChatMessage>[]);
+        async.elapse(Duration.zero);
+      });
+    });
+
+    test('switches when layout jumps to a disjoint chunk', () {
+      fakeAsync((async) {
+        final chunks = <int, ChatScrollChunk>{};
+        var fetchCalls = 0;
+        Completer<List<IChatMessage>>? current;
+        final fetch = ChatRangeFetch(
+          chunks: () => chunks,
+          fetchRange: ({required fromId, required toId}) {
+            fetchCalls++;
+            current = Completer<List<IChatMessage>>();
+            return current!.future;
+          },
+          notifyDataChanged: () {},
+          isDisposed: () => false,
+        );
+
+        fetch.requestChunks(96, 97);
+        expect(fetchCalls, 1);
+
+        fetch.requestChunks(110, 110);
+        expect(fetchCalls, 2);
+        expect(fetch.coversChunkInFlight(110), isTrue);
+        expect(fetch.coversChunkInFlight(96), isFalse);
+
+        current!.complete(const <IChatMessage>[]);
+        async.elapse(Duration.zero);
+      });
+    });
+  });
+
   group('ChatRangeFetch token cancellation', () {
     test('supersedes in-flight fetch when range changes', () {
       fakeAsync((async) {
@@ -178,6 +278,85 @@ void main() {
         fetch.requestChunks(0, 0);
         async.elapse(Duration.zero);
         expect(fetchCalls, 1);
+      });
+    });
+  });
+
+  group('ChatRangeFetch absent marking', () {
+    test('does not tombstone trailing nulls past highest returned id', () {
+      fakeAsync((async) {
+        final chunks = <int, ChatScrollChunk>{};
+        // Chunk 0: ids 0..63. Return only through 40; leave 41..50 as live tail.
+        final fetch = ChatRangeFetch(
+          chunks: () => chunks,
+          fetchRange: ({required fromId, required toId}) async => <IChatMessage>[
+            for (var id = fromId; id <= 40; id++) _StubMessage(id),
+          ],
+          notifyDataChanged: () {},
+          isDisposed: () => false,
+          unconfirmedTailThroughId: () => 50,
+        );
+
+        fetch.requestChunks(0, 0);
+        async.elapse(Duration.zero);
+
+        final chunk = chunks[0]!;
+        expect(chunk.status.isValid, isTrue);
+        expect(chunk.messages[40], isNotNull);
+        expect(chunk.isAbsentSlot(30), isFalse);
+        // Interior gap below maxReturned would be absent; here contiguous.
+        expect(chunk.messages[45], isNull);
+        expect(
+          chunk.isAbsentSlot(45),
+          isFalse,
+          reason: 'trailing past maxReturned must stay refetchable',
+        );
+        expect(chunk.isAbsentSlot(50), isFalse);
+      });
+    });
+
+    test('still marks interior deletes below maxReturned as absent', () {
+      fakeAsync((async) {
+        final chunks = <int, ChatScrollChunk>{};
+        final fetch = ChatRangeFetch(
+          chunks: () => chunks,
+          fetchRange: ({required fromId, required toId}) async => <IChatMessage>[
+            for (var id = 1; id <= 20; id++) _StubMessage(id),
+            for (var id = 40; id <= 63; id++) _StubMessage(id),
+          ],
+          notifyDataChanged: () {},
+          isDisposed: () => false,
+          unconfirmedTailThroughId: () => 63,
+        );
+
+        fetch.requestChunks(0, 0);
+        async.elapse(Duration.zero);
+
+        final chunk = chunks[0]!;
+        expect(chunk.isAbsentSlot(30), isTrue);
+        expect(chunk.messages[20], isNotNull);
+        expect(chunk.messages[40], isNotNull);
+      });
+    });
+
+    test('without unconfirmed watermark, trailing nulls stay absent', () {
+      fakeAsync((async) {
+        final chunks = <int, ChatScrollChunk>{};
+        final fetch = ChatRangeFetch(
+          chunks: () => chunks,
+          fetchRange: ({required fromId, required toId}) async => <IChatMessage>[
+            for (var id = fromId; id <= 1; id++) _StubMessage(id),
+          ],
+          notifyDataChanged: () {},
+          isDisposed: () => false,
+        );
+
+        fetch.requestChunks(0, 0);
+        async.elapse(Duration.zero);
+
+        final chunk = chunks[0]!;
+        expect(chunk.isAbsentSlot(2), isTrue);
+        expect(chunk.isAbsentSlot(63), isTrue);
       });
     });
   });

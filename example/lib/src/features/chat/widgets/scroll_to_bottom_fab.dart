@@ -168,24 +168,25 @@ class _ScrollToBottomFabState extends State<_ScrollToBottomFab>
             ),
           );
         },
-        child: SizedBox(
-          width: _outerSize,
-          height: _frameHeight,
-          child: Stack(
-            clipBehavior: Clip.none,
-            alignment: Alignment.bottomCenter,
-            children: [
-              Positioned(
-                left: 0,
-                right: 0,
-                bottom: 0,
-                height: _outerSize,
-                child: GestureDetector(
-                  behavior: HitTestBehavior.opaque,
-                  onTap: widget.onTap,
-                  onTapDown: _onTapDown,
-                  onTapUp: _onTapUp,
-                  onTapCancel: _onTapCancel,
+        // Glass + badge share one hit target (badge paints above the circle).
+        child: GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onTap: widget.onTap,
+          onTapDown: _onTapDown,
+          onTapUp: _onTapUp,
+          onTapCancel: _onTapCancel,
+          child: SizedBox(
+            width: _outerSize,
+            height: _frameHeight,
+            child: Stack(
+              clipBehavior: Clip.none,
+              alignment: Alignment.bottomCenter,
+              children: [
+                Positioned(
+                  left: 0,
+                  right: 0,
+                  bottom: 0,
+                  height: _outerSize,
                   child: Center(
                     child: _GlassPageDownButton(
                       key: const ValueKey<String>('scroll_to_bottom'),
@@ -195,23 +196,23 @@ class _ScrollToBottomFabState extends State<_ScrollToBottomFab>
                     ),
                   ),
                 ),
-              ),
-              // Full-width slot (like CounterView MATCH_PARENT): pill is painted
-              // centered inside; widget width must not lerp or expand breaks.
-              Positioned(
-                top: 0,
-                left: 0,
-                right: 0,
-                height: _counterSlotHeight,
-                child: Align(
-                  alignment: Alignment.center,
-                  child: ChatSideControlCounter(
-                    count: widget.count,
-                    seamKey: const ValueKey<String>('scroll_to_bottom_badge'),
+                // Full-width slot (like CounterView MATCH_PARENT): pill is painted
+                // centered inside; widget width must not lerp or expand breaks.
+                Positioned(
+                  top: 0,
+                  left: 0,
+                  right: 0,
+                  height: _counterSlotHeight,
+                  child: Align(
+                    alignment: Alignment.center,
+                    child: ChatSideControlCounter(
+                      count: widget.count,
+                      seamKey: const ValueKey<String>('scroll_to_bottom_badge'),
+                    ),
                   ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),

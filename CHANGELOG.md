@@ -6,7 +6,39 @@ this project is pre-1.0 and not strictly SemVer yet.
 
 ## [Unreleased]
 
+### Changed
+
+- **Breaking — `AnimateToLoadPolicy`.** Enum names are unchanged; behavior is
+  not. Neither `immediate` nor `preferBuilt` may fall back to animating over
+  unresolved placeholders. Unready destinations wait (load-gate) until the
+  target is a real row, then:
+  - **built** → close-path scroll
+  - **not built** → stitch (outgoing capture → teleport → dual-translate)
+
+  `preferBuilt` only adds a brief chance for a row already entering the build
+  range (self-insert / follow-tail) to take close-path. Prefer
+  `docs/architecture/11-animation-integration.md` and ADR 005 when wiring
+  search, deep links, or send-follow.
+
+- **`animateTo` timing.** Close-path and stitch share travel-scaled duration
+  (`((travel / viewportHeight) + 1) * 200` ms, clamped 300–1300) and
+  `Curves.easeOutQuint`. Caller `duration` / `curve` remain API-compatible:
+  `duration ≤ 0` is still an instant `jumpTo`; otherwise path timing ignores
+  short caller durations so tall on-screen hops and matching stitches feel
+  consistent. Defaults are `300ms` / `easeOutQuint`.
+
+- **Navigate-select highlight.** With `highlight: true` (default), a full-width
+  underlay arms at flight start, holds through settle +
+  `ChatScrollThemeData.highlightDuration` (default 1s), then fades (~300ms).
+  Drag fades; `jumpTo` / overlay hard-clear. Stitch-owned teleports no longer
+  wipe the tint mid-flight. Bubble selected-fill stays host-owned.
+
 ### Added
+
+- **`AnimateToBusyPolicy` / `AnimateToDisposition`.** Control re-entry while an
+  animate is in flight (`ignore` default vs `replace`). `animateTo` returns a
+  disposition so hosts (e.g. search next/prev) can advance selection only when
+  the call was accepted or coalesced — not when ignored.
 
 - **`ChatMessageBody`** — slotted in-bubble layout (`content` + `meta`) with
   Telegram-style last-line packing and shrink-wrap. Meta sits on the last text
@@ -141,6 +173,14 @@ this project is pre-1.0 and not strictly SemVer yet.
   drag-to-jump behavior are unchanged.
 
 ### Fixed
+
+- **Tall reverse hops after close-path** — landing on a message taller than the
+  build zone no longer drops the adjacent neighbor from the built set, so the
+  reverse `animateTo` stays on close-path instead of stitching as “not built”.
+
+- **Stitch mid-flight layout thrash** — far-path no longer re-layouts every
+  ticker frame from range-coverage checks against the intentionally short
+  stitch strip.
 
 - **Selection row-tint hairlines** — selected-row tint in
   `DefaultSelectionChrome` is painted outside the checkbox `ClipRect`. Hard

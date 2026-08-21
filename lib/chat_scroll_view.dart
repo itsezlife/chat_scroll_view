@@ -9,6 +9,9 @@
 /// [ChatBubbleMetrics] (theme + run → corner / padding resolvers).
 library;
 
+export 'src/chat_scroll/animate_to_busy_policy.dart';
+export 'src/chat_scroll/animate_to_disposition.dart';
+export 'src/chat_scroll/animate_to_load_policy.dart';
 export 'src/chat_scroll/chat_data_source.dart';
 export 'src/chat_scroll/chat_mutations.dart';
 export 'src/chat_scroll/chat_scroll_common.dart';

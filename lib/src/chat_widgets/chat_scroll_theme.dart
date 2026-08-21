@@ -1,3 +1,5 @@
+import 'package:chat_scroll_view/src/chat_scroll/chat_animator.dart'
+    show kHighlightFadeDuration, kHighlightHoldDurationMs;
 import 'package:chat_scroll_view/src/chat_widgets/chat_message_theme.dart';
 import 'package:chat_scroll_view/src/chat_widgets/chat_scrollbar.dart';
 import 'package:chat_scroll_view/src/chat_widgets/chat_selection_theme.dart';
@@ -27,17 +29,23 @@ class ChatScrollThemeData extends ThemeExtension<ChatScrollThemeData> {
     this.menu,
   });
 
-  /// Default jump-to highlight fill (`#2196F3` at 25% opacity).
-  static const Color defaultHighlightColor = Color(0x402196F3);
+  /// Default navigate-select row wash (`0x280A90F0` — soft blue, ~16% alpha).
+  /// Painted **under** the message row so text/bubbles stay crisp.
+  static const Color defaultHighlightColor = Color(0x280A90F0);
 
-  /// Default jump-to highlight fade.
-  static const Duration defaultHighlightDuration = Duration(milliseconds: 1500);
+  /// Default solid hold after navigate settle (1000ms). Fade-out after hold
+  /// is fixed at [kHighlightFadeDuration].
+  static const Duration defaultHighlightDuration = Duration(
+    milliseconds: kHighlightHoldDurationMs,
+  );
 
-  /// Jump-target overlay colour. Null → [defaultHighlightColor].
+  /// Jump-target row wash. Null → [defaultHighlightColor].
+  /// Full-width underlay; bubble selected-fill shifts are host-owned.
   final Color? highlightColor;
 
-  /// Jump-target overlay fade. Null → [defaultHighlightDuration].
-  /// [Duration.zero] disables the overlay.
+  /// Solid hold after navigate settle (and for already-there). Null →
+  /// [defaultHighlightDuration]. [Duration.zero] disables the overlay.
+  /// Fade after hold is always ~300ms ([kHighlightFadeDuration]).
   final Duration? highlightDuration;
 
   /// Message-column layout. Null → [ChatMessageThemeData.resolve].

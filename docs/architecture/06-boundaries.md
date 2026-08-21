@@ -47,11 +47,12 @@ allowed; bounceback owns the return.
 
 - Requires `reachedNewest` and `newestKnownId`.
 - Suppressed if `_userPreemptedTailSettle && !_computeIsAtTail()` (user scrolled
-  away during attach/jump settle).
+  away during attach/jump settle). Within `_tailEdgeSlop` past the band still
+  counts as at-tail (follow only); that also clears preempt on publish.
 - `bottomEdge = height - bottomPad`.
 - Pins when `bottom < bottomEdge` **or** (`repinBottom && bottom > bottomEdge`).
-  The second case pulls content **up** when follow-tail / jump-to-tail and the
-  newest grew below the edge.
+  No automatic pin-up merely because the user is within the at-tail slop —
+  that fought small intentional scroll-away.
 - Applies `applyScrollDelta(bottomEdge - bottom)` then `_repositionFromAnchor`.
 
 ### `pinOldest`
@@ -183,17 +184,21 @@ floating header Y, and scrollbar insets. `pinOldest` still uses `y = 0`.
 `_applyPendingTailPin` — clears if no newest, anchor ≠ newest, or user scrolled
 newest top to/below bottom edge; else sets `_pinTailOnJump` again.
 
-### Follow-tail (new messages)
+### Follow-tail (new messages + same-id height)
 
-`repinBottom` when `_wasAtTailLastLayout && newest > _lastSeenNewestId` and
-`reachedNewest`. Default pin only lifts content when bottom is **above** the
-edge; a new message below needs forced repin.
+`repinBottom` when jump-to-tail, or `_wasAtTailLastLayout && reachedNewest` and
+(`newest` id advanced **or** newest laid-out height grew vs the previous
+layout). Default pin only lifts content when bottom is **above** the edge; a
+new message below the edge **or** a same-id height jump past the edge needs
+forced repin. `_tailEdgeSlop` widens `isAtTail` only — it does not snap.
 
 ### `_computeIsAtTail`
 
-Newest built, bottom within `0.5px` of `bottomEdge`, and newest top still above
-`bottomEdge`. Overlay → `false`. Overlay must **not** update
-`_wasAtTailLastLayout` (preserves follow-tail across overlay → normal).
+Newest built, `bottom ≤ bottomEdge + _tailEdgeSlop` (12px), and newest top still
+above `bottomEdge`. Slop is **follow-tail detection only** — it does not snap
+scroll. Overlay → `false`. Overlay must **not** update `_wasAtTailLastLayout`
+(preserves follow-tail across overlay → normal). When true, publish clears
+`_userPreemptedTailSettle`.
 
 ## Layout integration
 
@@ -201,8 +206,9 @@ In `performLayout` (see [Layout Pipeline](./04-layout-pipeline.md)):
 
 ```
 tailAdvanced = _wasAtTailLastLayout && newest advanced
+newestHeightGrew = wasAtTail && same newest id taller than last layout
 _applyPendingTailPin()
-repinBottom = _pinTailOnJump || (reachedNewest && wasAtTail && tailAdvanced)
+repinBottom = _pinTailOnJump || (reachedNewest && wasAtTail && (tailAdvanced || newestHeightGrew))
 _pinTailOnJump = false
 _clampBoundaries(repinBottom: repinBottom)
 ```

@@ -11,13 +11,13 @@ resource: lib/src/chat_scroll/chat_scroll_controller.dart
 
 ## Controller APIs
 
-| API | Anchor effect | Notifications |
-|-----|---------------|---------------|
-| `jumpTo(id, {alignment})` | id = target, offset = `0` | Jump listeners + `ChatProgrammaticJump` |
-| `scrollBy(px)` | offset += px | ScrollBy listeners + `ChatProgrammaticScroll`; no-op if `px == 0` or non-finite |
-| `animateTo` | Animator drives; falls back to `jumpTo` if unbound | `ChatAnimateStart` / `ChatAnimateEnd` |
-| `applyScrollDelta` (`@internal`) | offset += delta | None (tick / clamp / pad) |
-| `reassignAnchor` (`@internal`) | silent id + offset | None (renormalize / align / animator) |
+| API                              | Anchor effect                                      | Notifications                                                                   |
+| -------------------------------- | -------------------------------------------------- | ------------------------------------------------------------------------------- |
+| `jumpTo(id, {alignment})`        | id = target, offset = `0`                          | Jump listeners + `ChatProgrammaticJump`                                         |
+| `scrollBy(px)`                   | offset += px                                       | ScrollBy listeners + `ChatProgrammaticScroll`; no-op if `px == 0` or non-finite |
+| `animateTo`                      | Animator drives; falls back to `jumpTo` if unbound | `ChatAnimateStart` / `ChatAnimateEnd`                                           |
+| `applyScrollDelta` (`@internal`) | offset += delta                                    | None (tick / clamp / pad)                                                       |
+| `reassignAnchor` (`@internal`)   | silent id + offset                                 | None (renormalize / align / animator)                                           |
 
 **Sign convention:** positive `scrollBy` / drag reveals **older** (content moves
 down) — opposite of Flutter `ScrollPosition.pixels`.
@@ -89,7 +89,19 @@ overlay):
 - `_lastSeenNewestId`
 
 On layout, when `reachedNewest` and `_wasAtTailLastLayout` and newest id
-advanced → `repinBottom` so the new message is not left below the bottom edge.
+advanced → `repinBottom` so the new message is not left below the bottom edge
+— **except** while an off-tail self-insert `animateTo` is in flight
+(`_deferTailAdvancedRepin`).
+
+Self-insert (`isSelfMessage` + insert mutation):
+
+- **Already at tail** (`_wasAtTailLastLayout` / `isAtTail`) → no `animateTo`;
+  layout `tailAdvanced` pin only.
+- **Off-tail** → `animateTo(newest, preferBuilt, highlight: false)`. Pinning
+  is deferred to animate settle (`_onAnimateSettled`) / follow completion.
+
+Same-id newest height growth while at tail still uses instant `repinBottom`
+(edit expand).
 
 `isAtTail` listenable uses `_DeferredValueNotifier` — pushes from
 `performLayout` defer `notifyListeners` to post-frame so listeners may
@@ -111,6 +123,29 @@ jump/scroll, animate start/end. Physics does not emit events — render does.
 See [Boundaries](./06-boundaries.md) for `_pinTailOnJump`,
 `_pendingTailPinUntilSettled`, `_userPreemptedTailSettle`. Drag start cancels
 pending settle and sets user-preempted so passive pin does not yank back.
+
+`repinBottom` when jump-to-tail, or when `_wasAtTailLastLayout && reachedNewest`
+and either `newestKnownId` advanced **or** the newest row's laid-out height
+grew (same-id edit / resize). Do **not** force `repinBottom` on every
+at-tail→next layout — that fights manual scroll-away.
+
+Manual scroll that dies within `_tailEdgeSlop` of `bottomEdge` still counts as
+at-tail for follow (no pin-snap).
+
+## Self-insert follow
+
+When [ChatScrollView.isSelfMessage] is set, an [InsertMutation] /
+[InsertBatchMutation] that includes a matching message forces
+`animateTo(newestKnownId)` (smooth scroll — not `jumpTo`) even if the
+viewport was scrolled into history. Incoming-only inserts still follow only
+when `_wasAtTailLastLayout`.
+
+`insertMessage` notifies mutations **before** storage write — the render
+object defers the self check to a microtask so `getMessage` resolves.
+
+Unread chrome (example FAB) should share the same predicate and advance
+`lastSeenNewestId` when the newest id is self so own sends never inflate the
+badge.
 
 ### `pinNewest` during delete recovery
 

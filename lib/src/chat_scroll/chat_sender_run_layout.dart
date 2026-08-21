@@ -84,7 +84,7 @@ abstract interface class ChatSenderRunLayout {
 }
 
 /// Package default: same sender + optional [groupBy] bucket + optional
-/// `|createdAt|` window (Telegram-aligned 5 minutes).
+/// `|createdAt|` window (default 5 minutes).
 ///
 /// Pass a custom instance to tune [maxClusterGap], or implement
 /// [ChatSenderRunLayout] for a different clustering model.
@@ -93,11 +93,11 @@ class DefaultChatSenderRunLayout implements ChatSenderRunLayout {
   /// Creates the default clustering policy.
   ///
   /// [maxClusterGap] — max `|createdAt|` between present same-sender neighbors
-  /// that may share a run. Telegram uses 5 minutes. Pass `null` to disable the
+  /// that may share a run. Default is 5 minutes. Pass `null` to disable the
   /// time window (sender + [groupBy] bucket only).
   const DefaultChatSenderRunLayout({this.maxClusterGap = defaultMaxClusterGap});
 
-  /// Telegram-aligned default cluster window.
+  /// Default cluster window (5 minutes).
   static const Duration defaultMaxClusterGap = Duration(minutes: 5);
 
   /// Shared const instance with [defaultMaxClusterGap].

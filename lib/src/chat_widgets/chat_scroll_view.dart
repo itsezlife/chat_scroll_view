@@ -148,6 +148,7 @@ class ChatScrollView extends RenderObjectWidget {
     this.cacheExtent = 250.0,
     this.extraBuildExtent = 0.0,
     this.reverse = false,
+    this.isSelfMessage,
     super.key,
   });
 
@@ -276,17 +277,18 @@ class ChatScrollView extends RenderObjectWidget {
   /// value-equal instance across rebuilds.
   final ChatSenderRunLayout senderRunLayout;
 
-  /// Peak colour of the fade-out highlight painted over a message that just
-  /// became the target of [ChatScrollController.animateTo]. Alpha drives the
-  /// initial opacity; set the alpha channel to 0 to opt out without changing
-  /// [highlightDuration].
+  /// Peak colour of the navigate-select **underlay**.
+  ///
+  /// Alpha drives wash strength; text/bubbles paint above it. Set alpha to 0
+  /// to opt out without changing [highlightDuration].
   ///
   /// Null → [ChatScrollThemeData.highlightColor] (package default if unset).
   final Color? highlightColor;
 
-  /// How long the post-animate highlight stays on the target before fully
-  /// fading out. [Duration.zero] disables the feature entirely — successful
-  /// `animateTo` calls land silently.
+  /// Solid hold after settle for navigate-select highlight.
+  ///
+  /// Fade after hold is fixed (~300ms). [Duration.zero] disables the feature —
+  /// `animateTo` lands without tint.
   ///
   /// Null → [ChatScrollThemeData.highlightDuration].
   final Duration? highlightDuration;
@@ -319,13 +321,24 @@ class ChatScrollView extends RenderObjectWidget {
   /// * `false` (list-style, default): pin the oldest message to the top, gap
   ///   below the newest. Matches `ListView`-shaped UIs.
   /// * `true` (chat-style): pin the newest message to the bottom, gap above
-  ///   the oldest. Matches Telegram / iMessage when only a couple of
-  ///   messages exist yet.
+  ///   the oldest. Typical for short conversations that still feel like a chat.
   ///
   /// Also flips the assistive-tech mapping for `scrollUp`/`scrollDown`
   /// actions: in `reverse` mode `scrollUp` reveals older history (what
   /// chat-app users expect).
   final bool reverse;
+
+  /// Host-relative predicate: messages authored by the signed-in user.
+  ///
+  /// When non-null, an [InsertMutation] / [InsertBatchMutation] that includes
+  /// any matching message forces follow-tail (`animateTo` newest) even if the
+  /// viewport was scrolled into history. Incoming-only inserts still follow
+  /// only when already at the tail.
+  ///
+  /// Do **not** put "outgoing" on [IChatMessage]: that is session-relative.
+  /// Pass the same predicate to unread chrome so self inserts do not inflate
+  /// the page-down badge.
+  final bool Function(IChatMessage message)? isSelfMessage;
 
   /// The effective grouping function, or `null` when day separators are off.
   Object Function(IChatMessage)? get _effectiveGroupBy =>
@@ -363,6 +376,7 @@ class ChatScrollView extends RenderObjectWidget {
       scrollbarTheme: theme.scrollbar!,
       selectionController: selectionController,
       onIdleMessageTap: onIdleMessageTap,
+      isSelfMessage: isSelfMessage,
     );
   }
 
@@ -391,6 +405,7 @@ class ChatScrollView extends RenderObjectWidget {
       ..scrollbarTheme = theme.scrollbar!
       ..textDirection = _resolveDirection(context)
       ..selectionController = selectionController
-      ..onIdleMessageTap = onIdleMessageTap;
+      ..onIdleMessageTap = onIdleMessageTap
+      ..isSelfMessage = isSelfMessage;
   }
 }

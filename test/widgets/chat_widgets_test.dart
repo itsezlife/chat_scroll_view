@@ -1,3 +1,5 @@
+import 'dart:async' show unawaited;
+
 import 'package:chat_scroll_view/src/chat_scroll/chat_data_source.dart';
 import 'package:chat_scroll_view/src/chat_scroll/chat_scroll_common.dart';
 import 'package:chat_scroll_view/src/chat_scroll/chat_scroll_controller.dart';
@@ -28,7 +30,8 @@ mixin _BoundedSource on ChatDataSource {
   }
 }
 
-/// All messages preloaded; [fetchRange] is a no-op (range never needs fetch).
+/// All messages preloaded. [fetchRange] re-serves ids after LRU eviction so
+/// navigation load-gate can unblock (empty fetch would wait forever).
 class _PreloadedDataSource extends ChatDataSource with _BoundedSource {
   _PreloadedDataSource(List<IChatMessage> messages) : count = messages.length {
     upsertMessages(messages);
@@ -42,7 +45,12 @@ class _PreloadedDataSource extends ChatDataSource with _BoundedSource {
   Future<List<IChatMessage>> fetchRange({
     required int fromId,
     required int toId,
-  }) async => const <IChatMessage>[];
+  }) async {
+    if (count <= 0) return const <IChatMessage>[];
+    final lo = fromId.clamp(0, count - 1);
+    final hi = toId.clamp(0, count - 1);
+    return <IChatMessage>[for (var i = lo; i <= hi; i++) _msg(i)];
+  }
 }
 
 /// Empty until [fetchRange] resolves (after a delay) — exercises the
@@ -725,14 +733,20 @@ void main() {
         targetId,
         duration: const Duration(milliseconds: 200),
       );
-      await tester.pumpAndSettle();
+      var done = false;
+      unawaited(future.whenComplete(() => done = true));
+      await tester.pump();
+      for (var i = 0; i < 50 && !done; i++) {
+        await tester.pump(const Duration(milliseconds: 16));
+      }
+      expect(done, isTrue);
       await future;
 
       expect(controller.anchorMessageId, targetId);
       expect(controller.anchorPixelOffset, closeTo(0, 1));
     });
 
-    testWidgets('falls back to a crossfade when the target is far off', (
+    testWidgets('falls back to a stitch when the target is far off', (
       tester,
     ) async {
       const count = 8000;
@@ -748,11 +762,18 @@ void main() {
       final future = controller.animateTo(
         100, // ~ 7700 messages × 60 px ≫ close-path threshold
         duration: const Duration(milliseconds: 200),
+        loadPolicy: AnimateToLoadPolicy.immediate,
       );
-      await tester.pumpAndSettle();
+      // Stitch duration scales up to ~1300ms — hard pump budget, no settle.
+      var done = false;
+      unawaited(future.whenComplete(() => done = true));
+      await tester.pump();
+      for (var i = 0; i < 200 && !done; i++) {
+        await tester.pump(const Duration(milliseconds: 16));
+      }
+      expect(done, isTrue);
       await future;
 
-      // The crossfade ran (jumpTo at midpoint).
       expect(controller.anchorMessageId, 100);
     });
 

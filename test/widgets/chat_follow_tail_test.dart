@@ -3,6 +3,7 @@ import 'package:chat_scroll_view/src/chat_scroll/chat_scroll_common.dart';
 import 'package:chat_scroll_view/src/chat_scroll/chat_scroll_controller.dart';
 import 'package:chat_scroll_view/src/chat_widgets/chat_scroll_view.dart';
 import 'package:chat_scroll_view/src/chat_widgets/render_chat_scroll_view.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import '../chat_message.dart';
@@ -55,6 +56,9 @@ class _GrowingDataSource extends ChatDataSource {
 Widget _scaffold({
   required ChatDataSource dataSource,
   required ChatScrollController controller,
+  ValueListenable<double>? bottomPadding,
+  double Function(int id)? heightForId,
+  bool Function(IChatMessage)? isSelfMessage,
 }) => MaterialApp(
   home: Scaffold(
     body: Center(
@@ -64,8 +68,10 @@ Widget _scaffold({
         child: ChatScrollView(
           dataSource: dataSource,
           controller: controller,
+          bottomPadding: bottomPadding,
+          isSelfMessage: isSelfMessage,
           messageBuilder: (context, id, message, status, runLayout) => SizedBox(
-            height: 60,
+            height: heightForId?.call(id) ?? 60,
             child: Text(message == null ? 'shimmer-$id' : 'msg-$id'),
           ),
         ),
@@ -144,6 +150,99 @@ void main() {
       await tester.pump();
       expect(controller.isAtTail.value, isTrue);
     });
+
+    testWidgets(
+      'small scroll past band edge stays at-tail without snapping back',
+      (tester) async {
+        // Slop keeps follow-tail; must not yank the user back on a small
+        // intentional scroll-away from the exact pin.
+        final ds = _GrowingDataSource(40);
+        final controller = ChatScrollController()..jumpTo(39);
+        final inset = ValueNotifier<double>(100);
+        addTearDown(controller.dispose);
+        addTearDown(ds.dispose);
+        addTearDown(inset.dispose);
+
+        await tester.pumpWidget(
+          _scaffold(
+            dataSource: ds,
+            controller: controller,
+            bottomPadding: inset,
+          ),
+        );
+        await tester.pump();
+        expect(controller.isAtTail.value, isTrue);
+
+        controller.scrollBy(8);
+        await tester.pump();
+
+        final bandBottom =
+            tester.getBottomLeft(find.byType(ChatScrollView)).dy - inset.value;
+        expect(
+          tester.getBottomLeft(find.text('msg-39')).dy,
+          closeTo(bandBottom + 8, 0.5),
+          reason: 'must not pin-snap small scroll-away',
+        );
+        expect(controller.isAtTail.value, isTrue);
+      },
+    );
+
+    testWidgets(
+      'append while slightly past band edge still follow-pins',
+      (tester) async {
+        final ds = _GrowingDataSource(40);
+        final controller = ChatScrollController()..jumpTo(39);
+        final inset = ValueNotifier<double>(100);
+        addTearDown(controller.dispose);
+        addTearDown(ds.dispose);
+        addTearDown(inset.dispose);
+
+        await tester.pumpWidget(
+          _scaffold(
+            dataSource: ds,
+            controller: controller,
+            bottomPadding: inset,
+          ),
+        );
+        await tester.pump();
+
+        controller.scrollBy(8);
+        await tester.pump();
+        expect(controller.isAtTail.value, isTrue);
+
+        ds.appendOne();
+        await tester.pump();
+        await tester.pump();
+
+        final bandBottom =
+            tester.getBottomLeft(find.byType(ChatScrollView)).dy - inset.value;
+        expect(
+          tester.getBottomLeft(find.text('msg-40')).dy,
+          closeTo(bandBottom, 0.5),
+        );
+        expect(controller.isAtTail.value, isTrue);
+      },
+    );
+
+    testWidgets(
+      'scroll far past band edge does not count as at-tail',
+      (tester) async {
+        final ds = _GrowingDataSource(40);
+        final controller = ChatScrollController()..jumpTo(39);
+        addTearDown(controller.dispose);
+        addTearDown(ds.dispose);
+
+        await tester.pumpWidget(
+          _scaffold(dataSource: ds, controller: controller),
+        );
+        await tester.pump();
+        expect(controller.isAtTail.value, isTrue);
+
+        controller.scrollBy(200);
+        await tester.pump();
+        expect(controller.isAtTail.value, isFalse);
+      },
+    );
   });
 
   group('follow tail: auto-scroll on new message', () {
@@ -239,6 +338,174 @@ void main() {
         );
         expect(controller.isAtTail.value, isTrue);
       }
+    });
+
+    testWidgets(
+      'same-id newest height growth at tail keeps bottom on band edge',
+      (tester) async {
+        // Edit / content change: newest id unchanged, child height grows.
+        // Without repinBottom on height drift, growth expands under bottomPad.
+        final ds = _GrowingDataSource(20);
+        final controller = ChatScrollController()..jumpTo(19);
+        final inset = ValueNotifier<double>(120);
+        final heights = ValueNotifier<Map<int, double>>({19: 60});
+        addTearDown(controller.dispose);
+        addTearDown(ds.dispose);
+        addTearDown(inset.dispose);
+        addTearDown(heights.dispose);
+
+        Widget build() => AnimatedBuilder(
+          animation: heights,
+          builder: (context, _) => _scaffold(
+            dataSource: ds,
+            controller: controller,
+            bottomPadding: inset,
+            heightForId: (id) => heights.value[id] ?? 60,
+          ),
+        );
+
+        await tester.pumpWidget(build());
+        await tester.pump();
+        expect(controller.isAtTail.value, isTrue);
+
+        final bandBottomBefore =
+            tester.getBottomLeft(find.byType(ChatScrollView)).dy - inset.value;
+        expect(
+          tester.getBottomLeft(find.text('msg-19')).dy,
+          closeTo(bandBottomBefore, 0.5),
+        );
+
+        heights.value = {19: 180};
+        await tester.pumpWidget(build());
+        await tester.pump();
+
+        final bandBottomAfter =
+            tester.getBottomLeft(find.byType(ChatScrollView)).dy - inset.value;
+        expect(
+          tester.getBottomLeft(find.text('msg-19')).dy,
+          closeTo(bandBottomAfter, 0.5),
+          reason: 'newest bottom must stay on scroll-band bottom while height '
+              'grows (expand upward, not under composer)',
+        );
+        expect(controller.isAtTail.value, isTrue);
+      },
+    );
+  });
+
+  group('follow tail: self insert', () {
+    testWidgets('self insert while scrolled away jumps to newest', (
+      tester,
+    ) async {
+      final ds = _GrowingDataSource(40);
+      final controller = ChatScrollController()..jumpTo(39);
+      addTearDown(controller.dispose);
+      addTearDown(ds.dispose);
+
+      await tester.pumpWidget(
+        _scaffold(
+          dataSource: ds,
+          controller: controller,
+          isSelfMessage: (m) => m.sender == 'me',
+        ),
+      );
+      await tester.pump();
+      expect(controller.isAtTail.value, isTrue);
+
+      await tester.drag(find.byType(ChatScrollView), const Offset(0, 600));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 600));
+      expect(controller.isAtTail.value, isFalse);
+
+      // Multi-device self send while reading history.
+      ds.insertMessage(
+        UserChatMessage(
+          id: 40,
+          sender: 'me',
+          createdAt: DateTime(2026),
+          updatedAt: DateTime(2026),
+          content: 'from desktop',
+        ),
+      );
+      await tester.pump();
+      // animateTo default 300ms — settle past the close-path animation.
+      await tester.pump(const Duration(milliseconds: 350));
+      await tester.pump();
+
+      expect(controller.isAtTail.value, isTrue);
+      expect(find.text('msg-40'), findsOneWidget);
+    });
+
+    testWidgets('at-tail self insert skips animateTo (layout pin only)', (
+      tester,
+    ) async {
+      final ds = _GrowingDataSource(40);
+      final controller = ChatScrollController()..jumpTo(39);
+      addTearDown(controller.dispose);
+      addTearDown(ds.dispose);
+
+      await tester.pumpWidget(
+        _scaffold(
+          dataSource: ds,
+          controller: controller,
+          isSelfMessage: (m) => m.sender == 'me',
+          heightForId: (id) => id == 40 ? 120 : 60,
+        ),
+      );
+      await tester.pump();
+      expect(controller.isAtTail.value, isTrue);
+
+      ds.insertMessage(
+        UserChatMessage(
+          id: 40,
+          sender: 'me',
+          createdAt: DateTime(2026),
+          updatedAt: DateTime(2026),
+          content: 'local send',
+        ),
+      );
+      await tester.pump();
+      expect(
+        _render(tester).debugIsAnimating,
+        isFalse,
+        reason: 'at-tail self insert must not animateTo',
+      );
+      expect(_render(tester).debugFarAnimateActive, isFalse);
+
+      await tester.pump();
+      expect(controller.isAtTail.value, isTrue);
+      expect(find.text('msg-40'), findsOneWidget);
+    });
+
+    testWidgets('incoming insert while scrolled away does not jump', (
+      tester,
+    ) async {
+      final ds = _GrowingDataSource(40);
+      final controller = ChatScrollController()..jumpTo(39);
+      addTearDown(controller.dispose);
+      addTearDown(ds.dispose);
+
+      await tester.pumpWidget(
+        _scaffold(
+          dataSource: ds,
+          controller: controller,
+          isSelfMessage: (m) => m.sender == 'me',
+        ),
+      );
+      await tester.pump();
+
+      await tester.drag(find.byType(ChatScrollView), const Offset(0, 600));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 600));
+      expect(controller.isAtTail.value, isFalse);
+      final anchorBefore = controller.anchorMessageId;
+
+      ds.appendOne(); // sender is 'User', not 'me'
+      await tester.pump();
+      await tester.pump();
+
+      expect(controller.isAtTail.value, isFalse);
+      expect(controller.anchorMessageId, anchorBefore);
+      expect(find.text('msg-40'), findsNothing);
     });
   });
 

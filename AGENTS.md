@@ -2,13 +2,11 @@
 
 ### Issue tracker
 
-Issues live in this repo's GitHub Issues and are operated via the `gh` CLI. See `docs/agents/issue-tracker.md`.
-
-Split specs use a **seam branch** (not per-ticket PRs to `master`). Current: [#22](https://github.com/itsezlife/chat_scroll_view/issues/22) → `22-message-span-selection`; child PRs target that branch. See **Seam branches** in the issue-tracker doc.
+Issues live as markdown under `.scratch/<feature>/` (spec + numbered issue files). See `docs/agents/issue-tracker.md`.
 
 ### Triage labels
 
-Canonical roles map 1:1 to tracker labels: `needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-human`, `wontfix`. See `docs/agents/triage-labels.md`.
+Canonical roles map 1:1 to tracker status strings: `needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-human`, `wontfix`. See `docs/agents/triage-labels.md`.
 
 ### Domain docs
 

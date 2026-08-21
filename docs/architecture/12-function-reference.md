@@ -101,7 +101,7 @@ Cross-links: [Layout Pipeline](./04-layout-pipeline.md),
 |--------|---------|---------|
 | `animate` | Start/replace animation | Anchor (close start); flags |
 | `cancelAnimate` | Abort without highlight | Clears animate state |
-| `tickAnimate` | Close delta or far fade | offset (via return); `fadeOpacity` |
+| `tickAnimate` | Close delta or stitch progress tick | offset (via return); stitch progress |
 | `rebaseClosePathEnd` | Live retarget end offset | start/end offsets |
 | `takePendingSettleTargetId` | Consume settle hook | pending id |
 | `_completeAnimate` | Snap end, complete future | anchor, highlight, completer |
@@ -174,7 +174,8 @@ Cross-links: [Layout Pipeline](./04-layout-pipeline.md),
 ## Paint / debug
 
 Paint walks children at `Offset(0, parentData.offset)`, header and scrollbar
-on top; far-path uses fade layer; highlight paints over target row.
+on top; far-path stitch applies per-child translation (not a viewport fade);
+highlight paints over target row.
 `_paintScrollbar` returns immediately when content fits (no thumb travel).
 
 Debug getters (`debugChildCount`, `debugDividerOpacity`, etc.) and
