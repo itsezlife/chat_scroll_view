@@ -37,9 +37,8 @@ class ChatScrollDevLog {
         .map((e) => '${e.key}=${e.value}')
         .join(' ');
     final line = '$tag | $body';
-    // print surfaces in `flutter test` stdout; dev.log is easy to miss there.
-    // ignore: avoid_print
-    // print('[$name] $line');
+    // print is easy to copy from `flutter run` / test stdout; dev.log needs
+    // a name filter in DevTools.
     dev.log(line, name: name);
   }
 

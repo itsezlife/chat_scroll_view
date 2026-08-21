@@ -1,9 +1,12 @@
 import 'dart:async';
 
+import 'package:chat_scroll_view/src/chat_scroll/animate_to_load_policy.dart';
 import 'package:chat_scroll_view/src/chat_scroll/chat_scroll_events.dart';
 import 'package:flutter/animation.dart' show Curve, Curves;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/scheduler.dart';
+
+export 'package:chat_scroll_view/src/chat_scroll/animate_to_load_policy.dart';
 
 /// Visibility metrics for one built message row intersecting the paint band.
 ///
@@ -49,18 +52,35 @@ bool visibleRowFillsBand(double rowHeight, double paintBandHeight) =>
 /// automatically when the widget mounts; consumers do not interact with this
 /// directly.
 abstract class ChatScrollAnimator {
+  /// Whether an [animate] call is currently in flight.
+  bool get isAnimating;
+
+  /// Target id of the in-flight [animate], if any (undefined when idle).
+  int get animateTargetId;
+
+  /// Alignment of the in-flight [animate], if any (undefined when idle).
+  double get animateAlignment;
+
   /// Scrolls so [targetId] lands at [alignment] within the viewport scroll
   /// band between top and bottom insets (`0` = band top, `1` = band bottom)
   /// over [duration] with [curve].
   ///
   /// When [highlight] is `true`, the viewport briefly tints the target row
   /// after the animation settles — used by search / deep-link navigation.
+  ///
+  /// [loadPolicy] controls waiting for an unbuilt target before choosing
+  /// close-path vs far-path stitch.
+  ///
+  /// Same-target spam while animating coalesces onto the in-flight future.
+  /// Different-target spam while animating is ignored (Telegram
+  /// `fastScrollAnimationRunning`).
   Future<void> animate(
     int targetId, {
     required Duration duration,
     required Curve curve,
     double alignment = 0.0,
     bool highlight = true,
+    AnimateToLoadPolicy loadPolicy = AnimateToLoadPolicy.immediate,
   });
 }
 
@@ -187,9 +207,9 @@ class ChatScrollController {
   ///
   /// Returns a Future that completes when the animation settles (or
   /// immediately if no viewport is bound yet). When the target is far outside
-  /// the currently-built range, the viewport crossfades — instant jumpTo
-  /// under a brief opacity blink — rather than animating through messages it
-  /// would need to build on the fly.
+  /// the currently-built range (or not built yet), the viewport runs a
+  /// **stitch**: keep outgoing rows, `jumpTo`, dual-translate into the new
+  /// band (Telegram `RecyclerAnimationScrollHelper`) — not an opacity fade.
   ///
   /// [alignment] positions the target within the scroll band (`0` = band top,
   /// `1` = band bottom). For messages taller than the band, alignment is
@@ -207,6 +227,17 @@ class ChatScrollController {
   /// highlight are unwanted. A [ChatScrollView] with `highlightDuration:
   /// Duration.zero` disables highlights globally regardless of this flag.
   ///
+  /// [loadPolicy] defaults to [AnimateToLoadPolicy.immediate]: choose close
+  /// vs stitch without waiting. Pass [AnimateToLoadPolicy.preferBuilt] for
+  /// self-insert / follow-tail where the newest row is usually one layout
+  /// away and close-path is preferred.
+  ///
+  /// **Spam / re-entry** (Telegram `RecyclerAnimationScrollHelper`):
+  /// while an animation is in flight, further [animateTo] calls are ignored
+  /// (`fastScrollAnimationRunning` → return). Same id+alignment coalesces onto
+  /// the running future. Already-aligned targets short-circuit with no scroll
+  /// tween. Drag / clamp still call [ChatScrollAnimator] cancel separately.
+  ///
   /// **Absent-target behavior**: same contract as [jumpTo] — if [messageId]
   /// is confirmed absent, the navigation completes without error but the
   /// viewport will not visually move to the target. See [jumpTo] for details.
@@ -216,6 +247,7 @@ class ChatScrollController {
     Curve curve = Curves.easeInOutCubic,
     double alignment = 0.0,
     bool highlight = true,
+    AnimateToLoadPolicy loadPolicy = AnimateToLoadPolicy.immediate,
   }) async {
     if (_disposed) return;
     // Same absent-target contract as [jumpTo]: no visible row at [messageId]
@@ -227,7 +259,21 @@ class ChatScrollController {
       jumpTo(messageId, alignment: alignment);
       return;
     }
-    _emitScroll(ChatAnimateStart(messageId, duration));
+    final align = alignment.clamp(0.0, 1.0);
+    final busy = animator.isAnimating;
+    final sameTarget =
+        busy &&
+        animator.animateTargetId == messageId &&
+        (animator.animateAlignment - align).abs() < 0.001;
+    // Telegram drop: different target (or zero-duration) while busy — no
+    // Start/End pair; viewport keeps the in-flight animation.
+    if (busy && !sameTarget) {
+      return;
+    }
+    final coalesce = duration > Duration.zero && sameTarget;
+    if (!coalesce) {
+      _emitScroll(ChatAnimateStart(messageId, duration));
+    }
     try {
       await animator.animate(
         messageId,
@@ -235,9 +281,12 @@ class ChatScrollController {
         curve: curve,
         alignment: alignment,
         highlight: highlight,
+        loadPolicy: loadPolicy,
       );
     } finally {
-      _emitScroll(ChatAnimateEnd(messageId));
+      if (!coalesce) {
+        _emitScroll(ChatAnimateEnd(messageId));
+      }
     }
   }
 

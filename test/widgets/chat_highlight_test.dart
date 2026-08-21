@@ -7,6 +7,7 @@ import 'package:chat_scroll_view/src/chat_widgets/chat_scroll_view.dart';
 import 'package:chat_scroll_view/src/chat_widgets/render_chat_scroll_view.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+
 import '../chat_message.dart';
 
 IChatMessage _msg(int i) => UserChatMessage(
@@ -69,20 +70,21 @@ RenderChatScrollView _render(WidgetTester tester) =>
     tester.renderObject<RenderChatScrollView>(find.byType(ChatScrollView));
 
 /// Helper: drive an animateTo to completion with explicit ticker frames.
-/// `await controller.animateTo(...)` alone would never resolve because the
-/// future needs the ticker to fire — and the ticker only runs across pumps.
+/// Never `await` the future before pumping — that deadlocks. Never
+/// pumpAndSettle while the animate ticker is live.
 Future<void> _driveAnimate(
   WidgetTester tester,
   Future<void> animateFuture, {
   required Duration animateDuration,
+  int maxPumps = 200,
 }) async {
   await tester.pump();
-  // One pump per ~16 ms of animation; plus 32 ms of slack for the final
-  // tick that crosses t == 1.0 and the `_completeAnimate` follow-up.
-  final pumps = (animateDuration.inMilliseconds ~/ 16) + 2;
-  for (var i = 0; i < pumps; i++) {
+  var done = false;
+  unawaited(animateFuture.whenComplete(() => done = true));
+  for (var i = 0; i < maxPumps && !done; i++) {
     await tester.pump(const Duration(milliseconds: 16));
   }
+  expect(done, isTrue, reason: 'animateTo did not finish in $maxPumps pumps');
   await animateFuture;
   await tester.pump(const Duration(milliseconds: 16));
 }
@@ -254,7 +256,7 @@ void main() {
       },
     );
 
-    testWidgets('re-entrant animateTo retargets without offset hitch', (
+    testWidgets('re-entrant animateTo is ignored while in flight', (
       tester,
     ) async {
       const count = 256;
@@ -287,6 +289,7 @@ void main() {
         await tester.pump(const Duration(milliseconds: 16));
       }
 
+      // Telegram: while animating, a different target is dropped.
       final secondFuture = controller.animateTo(
         125,
         duration: const Duration(milliseconds: 120),
@@ -310,10 +313,10 @@ void main() {
         expect(
           currDist,
           lessThanOrEqualTo(prevDist + 0.5),
-          reason: 're-entrant frame $i offset hitch toward $expectedEnd',
+          reason: 'in-flight frame $i offset hitch toward $expectedEnd',
         );
       }
-      expect(controller.anchorMessageId, 125);
+      expect(controller.anchorMessageId, 120);
     });
 
     testWidgets('re-entrant animateTo with highlight false then true', (

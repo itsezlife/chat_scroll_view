@@ -1,4 +1,5 @@
 import 'dart:collection';
+import 'dart:math' as math;
 import 'dart:ui';
 
 import 'package:chat_scroll_view/src/chat_scroll/chat_mutations.dart';
@@ -288,6 +289,11 @@ abstract class ChatDataSource {
   /// subsequent poll must not re-fetch this chunk and overwrite the local
   /// message with whatever (possibly empty) page the server returns. If a
   /// real refresh is wanted, call [invalidate] afterwards.
+  ///
+  /// **Eviction caveat:** [insertMessage] into a previously LRU-evicted chunk
+  /// recreates that chunk with only the new row. That path marks the chunk
+  /// dirty when known-span sibling slots are still empty so the viewport can
+  /// refill them (see [_markDirtyIfKnownSpanHoles]).
   void upsertMessage(IChatMessage message) {
     if (_disposed) return;
     writeMessageSilent(message);
@@ -328,6 +334,11 @@ abstract class ChatDataSource {
     _notifyMutation(ChatMutation.insert(message.id, reason: reason));
     writeMessageSilent(message);
     _extendBoundariesForInsert(message.id);
+    // After eviction, writeMessageSilent recreates the chunk as `valid` with
+    // only this row — sibling slots stay null and would shimmer forever
+    // because needsFetch skips valid chunks. Mark dirty when the known span
+    // still has holes so jump/poll refetch fills them.
+    _markDirtyIfKnownSpanHoles(ChatScrollChunk.chunkOf(message.id));
     notifyDataChanged();
   }
 
@@ -357,6 +368,7 @@ abstract class ChatDataSource {
     for (final message in normalized) {
       writeMessageSilent(message);
       _extendBoundariesForInsert(message.id);
+      _markDirtyIfKnownSpanHoles(ChatScrollChunk.chunkOf(message.id));
     }
     notifyDataChanged();
   }
@@ -364,8 +376,11 @@ abstract class ChatDataSource {
   /// Records an update intent, replaces the stored instance, notifies once.
   ///
   /// Integrator edits MUST use this or [updateMessages] — never [upsertMessage]
-  /// for user-driven content changes (resize animation eligibility). No-op with
-  /// debug assert when [message.id] is confirmed absent or staged.
+  /// for user-driven content changes. Emits [UpdateMutation] so hosts can run
+  /// edit transitions; the viewport expects the message child to **lerp its
+  /// reported height** during resize (see example `DemoMessageEditBody`) until
+  /// a viewport-owned extent spring lands. No-op with debug assert when
+  /// [message.id] is confirmed absent or staged.
   ///
   /// Emits [UpdateMutation] (not [UpdateBatchMutation]). For bulk edits use
   /// [updateMessages].
@@ -650,9 +665,46 @@ abstract class ChatDataSource {
 
   /// Check visible chunk range and fetch missing/dirty data.
   /// Called from the viewport's periodic poll timer.
+  ///
+  /// Before dispatching, any in-range `valid` chunk that still has empty
+  /// known-span slots (typical after insert into an LRU-evicted chunk) is
+  /// marked dirty so [ChatRangeFetch.needsFetch] will refill it.
   @internal
   void requestChunks(int layoutMinChunk, int layoutMaxChunk) {
+    if (layoutMaxChunk >= layoutMinChunk) {
+      for (var ci = layoutMinChunk; ci <= layoutMaxChunk; ci++) {
+        _markDirtyIfKnownSpanHoles(ci);
+      }
+    }
     _rangeFetch.requestChunks(layoutMinChunk, layoutMaxChunk);
+  }
+
+  /// Marks [chunkIndex] dirty when it still has null, non-absent slots inside
+  /// `[oldestKnownId, newestKnownId]`. No-op while a fetch is in flight.
+  void _markDirtyIfKnownSpanHoles(int chunkIndex) {
+    final chunk = _chunks[chunkIndex];
+    if (chunk == null) return;
+    if (chunk.status.isFetching) return;
+    if (!_chunkHasKnownSpanHoles(chunk)) return;
+    chunk.status = ChatMessageStatus.dirty;
+  }
+
+  /// `true` when any slot in the intersection of this chunk and the known
+  /// conversation span is still null and not confirmed absent.
+  bool _chunkHasKnownSpanHoles(ChatScrollChunk chunk) {
+    final oldest = _oldestKnownId;
+    final newest = _newestKnownId;
+    if (oldest == null || newest == null) return false;
+    final from = math.max(chunk.firstId, oldest);
+    final to = math.min(chunk.firstId + ChatScrollChunk.kSize - 1, newest);
+    if (from > to) return false;
+    for (var id = from; id <= to; id++) {
+      final slot = id - chunk.firstId;
+      if (chunk.messages[slot] == null && !chunk.isAbsentSlot(slot)) {
+        return true;
+      }
+    }
+    return false;
   }
 
   /// Cancel any in-flight fetch and retry timer.

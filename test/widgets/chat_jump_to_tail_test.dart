@@ -1,3 +1,5 @@
+import 'dart:async' show unawaited;
+
 import 'package:chat_scroll_view/src/chat_scroll/chat_data_source.dart';
 import 'package:chat_scroll_view/src/chat_scroll/chat_scroll_common.dart';
 import 'package:chat_scroll_view/src/chat_scroll/chat_scroll_controller.dart';
@@ -108,16 +110,19 @@ Widget _harness({
 
 /// Drive [animateFuture] to completion — the future only resolves once the
 /// viewport ticker fires, which requires explicit pumps in widget tests.
+/// Stitch may rewrite duration up to ~1300ms; use a hard pump budget.
 Future<void> _driveAnimate(
   WidgetTester tester,
   Future<void> animateFuture, {
-  Duration animateDuration = const Duration(milliseconds: 300),
+  int maxPumps = 200,
 }) async {
   await tester.pump();
-  final pumps = (animateDuration.inMilliseconds ~/ 16) + 2;
-  for (var i = 0; i < pumps; i++) {
+  var done = false;
+  unawaited(animateFuture.whenComplete(() => done = true));
+  for (var i = 0; i < maxPumps && !done; i++) {
     await tester.pump(const Duration(milliseconds: 16));
   }
+  expect(done, isTrue, reason: 'animateTo did not finish in $maxPumps pumps');
   await animateFuture;
   await tester.pump();
 }

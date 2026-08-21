@@ -148,6 +148,7 @@ class ChatScrollView extends RenderObjectWidget {
     this.cacheExtent = 250.0,
     this.extraBuildExtent = 0.0,
     this.reverse = false,
+    this.isSelfMessage,
     super.key,
   });
 
@@ -327,6 +328,19 @@ class ChatScrollView extends RenderObjectWidget {
   /// chat-app users expect).
   final bool reverse;
 
+  /// Host-relative predicate: messages authored by the signed-in user.
+  ///
+  /// When non-null, an [InsertMutation] / [InsertBatchMutation] that includes
+  /// any matching message forces follow-tail (`animateTo` newest) even if the
+  /// viewport was scrolled into history — Telegram `hasFromMe` /
+  /// `scrollToLastMessage`. Incoming-only inserts still follow only when
+  /// already at the tail.
+  ///
+  /// Do **not** put "outgoing" on [IChatMessage]: that is session-relative.
+  /// Pass the same predicate to unread chrome so self inserts do not inflate
+  /// the page-down badge.
+  final bool Function(IChatMessage message)? isSelfMessage;
+
   /// The effective grouping function, or `null` when day separators are off.
   Object Function(IChatMessage)? get _effectiveGroupBy =>
       dateSeparatorBuilder == null ? null : (groupBy ?? _defaultGroupBy);
@@ -363,6 +377,7 @@ class ChatScrollView extends RenderObjectWidget {
       scrollbarTheme: theme.scrollbar!,
       selectionController: selectionController,
       onIdleMessageTap: onIdleMessageTap,
+      isSelfMessage: isSelfMessage,
     );
   }
 
@@ -391,6 +406,7 @@ class ChatScrollView extends RenderObjectWidget {
       ..scrollbarTheme = theme.scrollbar!
       ..textDirection = _resolveDirection(context)
       ..selectionController = selectionController
-      ..onIdleMessageTap = onIdleMessageTap;
+      ..onIdleMessageTap = onIdleMessageTap
+      ..isSelfMessage = isSelfMessage;
   }
 }

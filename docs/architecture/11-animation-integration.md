@@ -1,9 +1,9 @@
 ---
 type: Architecture Reference
 title: Animation Integration
-description: Close/far animateTo paths, writer ownership, and clamp suspend rules.
-tags: [animation, animateTo, dual-writer]
-timestamp: 2026-07-04T00:00:00Z
+description: Close/far animateTo paths, stitch far path, load policy, writer ownership.
+tags: [animation, animateTo, dual-writer, stitch]
+timestamp: 2026-08-21T00:00:00Z
 resource: lib/src/chat_scroll/chat_animator.dart
 ---
 
@@ -23,16 +23,54 @@ Core model: [Coordinate Model](./01-coordinate-model.md),
 
 1. Sets `navigationAlignment` + `navigationAlignmentMessageId`.
 2. Emits `ChatAnimateStart`, awaits `ChatAnimator.animate(...)`, emits
-   `ChatAnimateEnd` in `finally`.
+   `ChatAnimateEnd` in `finally` (skipped when coalesced onto an in-flight
+   same-target animate, or when the call is ignored while busy).
 3. If no animator bound → `jumpTo`.
+4. Optional `loadPolicy` (default `immediate`) — see below.
+
+### Spam / re-entry (Telegram-style)
+
+Telegram `RecyclerAnimationScrollHelper.scrollToPosition`:
+
+```java
+if (recyclerView.fastScrollAnimationRunning) {
+    return;
+}
+```
+
+| Case | Behavior |
+|------|----------|
+| Any [animateTo] while animating, **different** target | **Ignored** — in-flight motion continues; call returns immediately |
+| Same `messageId` + alignment while animating | **Coalesce** — return the in-flight future |
+| Target built and already at close-path end Y | **No-op** — optional highlight only |
+| Close path with `\|end − start\| < 1px` | **Instant complete** — no empty 300ms tween |
+
+Drag / clamp cancel the in-flight animation separately. Search / deep-link
+should use [AnimateToLoadPolicy.immediate]; reserve `preferBuilt` for
+self-insert / follow-tail.
+
+## Load policy
+
+| Policy | Unbuilt target | Built + near | Built + far |
+|--------|----------------|--------------|-------------|
+| `immediate` (default) | Stitch now (incoming may be shimmers) | Close | Stitch |
+| `preferBuilt` | One layout wait, then close if near else stitch | Close | Stitch |
+
+Self-insert / FAB follow-tail pass `preferBuilt` so one layout that builds
+newest can take the **close path**. Far navigation stays `immediate` — no
+idle wait before the teleport (Telegram `scrollToPositionWithOffset` is
+synchronous when content is loaded).
 
 ## Path selection (`kCloseAnimateDistance = 2400`)
 
 | Condition | Path |
 |-----------|------|
 | Target **built** and `\|offsetToTarget\| ≤ 2400` | **Close path** — continuous scroll |
-| Target not built, or distance `> 2400` | **Far path** — opacity crossfade + midpoint `jumpTo` |
+| Target not built (after policy), or distance `> 2400` | **Far path** — stitch |
 | `duration ≤ 0` | Instant `jumpTo`, no highlight |
+
+Do **not** invent pixel distance across unloaded gaps. If not built after
+`preferBuilt` wait → stitch.
 
 ## Close path
 
@@ -68,13 +106,31 @@ Does **not** write alignment on the controller each tick — only interpolates
 resets start/end from live child height / insets so keyboard/height changes
 do not leave a stale endpoint.
 
-## Far path
+## Far path (stitch)
 
-1. No anchor reassignment at start.
-2. `fadeOpacity` goes `1 → 0` (first half), at `t ≥ 0.5` one-shot
-   `jumpTo(targetId, alignment:)`, then `0 → 1`.
-3. Curve applied **per half** so opacity is exactly 0 at midpoint.
-4. Tick returns `0` (no scroll delta); paint uses `OpacityLayer`.
+Telegram `RecyclerAnimationScrollHelper` pattern — **not** a viewport opacity
+fade:
+
+1. **Capture outgoing** — message boxes intersecting the paint band (id,
+   frozen top Y, scroll direction). Pin against GC for the stitch window.
+2. **Teleport** — `jumpTo(targetId, alignment:)` so fan-out builds the
+   destination band (same call stack — no preferBuilt idle when using
+   `immediate`).
+3. **Measure** — on the post-jump layout, scroll travel from outgoing strip +
+   incoming extents. Duration scales with travel (~300–1300ms,
+   `Curves.easeOutQuint`). Animation clock starts at measure time.
+4. **Paint invariant:** from the first post-jump frame, incoming rows are
+   painted with full entry offset (`scrollLength * (1−t)` at `t=0`), even
+   before measure completes (provisional = viewport height). Never show
+   destination rows at rest between teleport and dual-translate.
+5. **Animate** one factor `t ∈ [0,1]`:
+   - Outgoing: paint Y `±scrollLength * t` (exit)
+   - Incoming: paint Y from `∓scrollLength * (1−t)` to layout Y
+6. **End** — clear pin, GC outgoing, `stitchProgress = 0`, complete
+   completer, highlight / pinNewest settle as usual.
+
+Paint drives **per-child translation**, not `OpacityLayer`. Cancel clears
+stitch capture so mid-flight pins do not stick.
 
 Post-jump contracts are the same as `jumpTo` (tail pin, alignment). Layout
 owns pin/align.
@@ -86,7 +142,8 @@ owns pin/align.
 | Close start | Yes (`reassignAnchor`) | Yes (current Y) | — |
 | Close tick | No | Yes (via delta) | Layout snap / renormalize |
 | Close settle (`_completeAnimate`) | Yes | Yes (aligned end) | Second pin writer in animator |
-| Far midpoint | Yes (`jumpTo`) | Yes (`0` + layout align/pin) | Animator-owned pin |
+| Stitch start | Yes (`jumpTo`) | Yes (`0` + layout align/pin) | Animator-owned pin |
+| Stitch tick | No | No (paint translation only) | Opacity fade |
 | Layout nav-align | No (id must match) | Yes | Run during close path |
 | Layout `pinNewest` / `pinOldest` | No | Yes (delta) | Implement keyboard follow |
 | Drag / fling / bounce | No | Yes (delta) | — |
@@ -128,8 +185,7 @@ in feature specs).
 ## Cancel rules
 
 Drag, `scrollBy`, clamp-hit (current), overlay, and controller dispose must
-cancel animate without leaving fade opacity or stale completers.
-`_cancelAnimate` clears fade layer when opacity ≠ 1.
+cancel animate without leaving stitch pins or stale completers.
 
 ## Close-path animate vs clamp (planned vs current)
 
@@ -153,3 +209,4 @@ No `chat_extent_coordinator.dart` in this codebase.
 3. Do not add a second geometry writer for pin/tail.
 4. Prefer extending close/far paths over a one-off compensate path.
 5. Settle must leave layout as the authority for boundary pins.
+6. Far path must keep visual continuity via stitch translation, not fade.

@@ -1,5 +1,3 @@
-import 'dart:async';
-
 import 'package:chat_scroll_view/src/chat_scroll/chat_animator.dart';
 import 'package:chat_scroll_view/src/chat_scroll/chat_scroll_controller.dart';
 import 'package:flutter/animation.dart';
@@ -16,13 +14,17 @@ ChatAnimator _animator({
   double Function(RenderBox child)? offsetOfChild,
   double Function(RenderBox child)? heightOfChild,
   VoidCallback? markNeedsPaint,
+  VoidCallback? markNeedsLayout,
   VoidCallback? ensureTicker,
   VoidCallback? cancelFling,
   VoidCallback? cancelBounceback,
+  void Function(int targetId)? prepareStitchCapture,
+  VoidCallback? clearStitchCapture,
   bool Function(int id)? isHighlightReady,
   bool Function(int id)? shouldDropPendingHighlight,
   Duration highlightDuration = const Duration(milliseconds: 1500),
   Color highlightColor = const Color(0x402196F3),
+  Duration preferBuiltTimeout = kPreferBuiltTimeout,
 }) => ChatAnimator(
   controller: controller,
   offsetToBuiltMessage: offsetToBuiltMessage ?? (_) => null,
@@ -35,11 +37,15 @@ ChatAnimator _animator({
   isHighlightReady: isHighlightReady ?? (_) => true,
   shouldDropPendingHighlight: shouldDropPendingHighlight ?? (_) => false,
   markNeedsPaint: markNeedsPaint ?? () {},
+  markNeedsLayout: markNeedsLayout ?? () {},
   ensureTicker: ensureTicker ?? () {},
   cancelFling: cancelFling ?? () {},
   cancelBounceback: cancelBounceback ?? () {},
+  prepareStitchCapture: prepareStitchCapture ?? (_) {},
+  clearStitchCapture: clearStitchCapture ?? () {},
   highlightDuration: highlightDuration,
   highlightColor: highlightColor,
+  preferBuiltTimeout: preferBuiltTimeout,
 );
 
 RenderBox _sizedBox({double height = 60}) {
@@ -98,22 +104,121 @@ void main() {
   });
 
   group('cancelAnimate', () {
-    test('resets fadeOpacity to 1.0', () {
+    test('clears stitch state and completes', () {
       final controller = ChatScrollController();
-      var painted = false;
+      var cleared = false;
       final animator = _animator(
         controller: controller,
-        markNeedsPaint: () => painted = true,
+        clearStitchCapture: () => cleared = true,
       );
 
-      animator.animateCompleter = Completer<void>();
-      animator.fadeOpacity = 0.3;
+      animator.animate(
+        9,
+        duration: const Duration(milliseconds: 200),
+        curve: Curves.linear,
+        loadPolicy: AnimateToLoadPolicy.immediate,
+        highlight: false,
+      );
+      expect(animator.farAnimateActive, isTrue);
 
       animator.cancelAnimate();
 
-      expect(animator.fadeOpacity, 1.0);
       expect(animator.isAnimating, isFalse);
-      expect(painted, isTrue);
+      expect(animator.farAnimateActive, isFalse);
+      expect(cleared, isTrue);
+      expect(animator.fadeOpacity, 1.0);
+    });
+  });
+
+  group('animate coalesce / short-circuit', () {
+    test('same target while in flight returns the same future', () async {
+      final controller = ChatScrollController();
+      final animator = _animator(
+        controller: controller,
+        offsetToBuiltMessage: (_) => null,
+      );
+
+      final first = animator.animate(
+        42,
+        duration: const Duration(milliseconds: 200),
+        curve: Curves.linear,
+        loadPolicy: AnimateToLoadPolicy.immediate,
+        highlight: false,
+      );
+      expect(animator.farAnimateActive, isTrue);
+
+      final second = animator.animate(
+        42,
+        duration: const Duration(milliseconds: 200),
+        curve: Curves.linear,
+        loadPolicy: AnimateToLoadPolicy.immediate,
+        highlight: false,
+      );
+
+      expect(identical(first, second), isTrue);
+      expect(animator.farAnimateActive, isTrue);
+
+      animator.cancelAnimate();
+      await first;
+    });
+
+    test('different target while in flight is ignored', () async {
+      final controller = ChatScrollController();
+      var clearCount = 0;
+      final animator = _animator(
+        controller: controller,
+        offsetToBuiltMessage: (_) => null,
+        clearStitchCapture: () => clearCount++,
+      );
+
+      final first = animator.animate(
+        1,
+        duration: const Duration(milliseconds: 200),
+        curve: Curves.linear,
+        highlight: false,
+      );
+      expect(animator.animateTargetId, 1);
+      expect(animator.farAnimateActive, isTrue);
+      final clearsAfterStart = clearCount;
+
+      await animator.animate(
+        2,
+        duration: const Duration(milliseconds: 200),
+        curve: Curves.linear,
+        highlight: false,
+      );
+
+      expect(animator.animateTargetId, 1);
+      expect(animator.farAnimateActive, isTrue);
+      expect(clearCount, clearsAfterStart);
+
+      animator.cancelAnimate();
+      await first;
+    });
+
+    test('already at aligned end short-circuits', () async {
+      final controller = ChatScrollController();
+      final box = _sizedBox();
+      var stitchPrep = 0;
+      final animator = _animator(
+        controller: controller,
+        offsetToBuiltMessage: (_) => 0.0,
+        closePathEndOffsetFor: (_, _, _) => 0.0,
+        childForId: (_) => box,
+        heightOfChild: (_) => box.size.height,
+        prepareStitchCapture: (_) => stitchPrep++,
+      );
+
+      await animator.animate(
+        7,
+        duration: const Duration(milliseconds: 200),
+        curve: Curves.linear,
+        highlight: false,
+      );
+
+      expect(animator.isAnimating, isFalse);
+      expect(stitchPrep, 0);
+      expect(animator.farAnimateActive, isFalse);
     });
   });
 
@@ -136,28 +241,54 @@ void main() {
       );
 
       expect(animator.farAnimateActive, isFalse);
+      expect(animator.preferBuiltWaiting, isFalse);
       expect(animator.animateStartOffset, 120.0);
       expect(animator.animateEndOffset, 0.0);
       expect(controller.anchorMessageId, 5);
       expect(controller.anchorPixelOffset, 120.0);
     });
 
-    test('far path when target is not built', () {
+    test('preferBuilt waits when target is not built', () {
       final controller = ChatScrollController();
+      var layoutAsked = false;
       final animator = _animator(
         controller: controller,
         offsetToBuiltMessage: (_) => null,
+        markNeedsLayout: () => layoutAsked = true,
       );
 
       animator.animate(
         99,
         duration: const Duration(milliseconds: 200),
         curve: Curves.linear,
+        loadPolicy: AnimateToLoadPolicy.preferBuilt,
+      );
+
+      expect(animator.preferBuiltWaiting, isTrue);
+      expect(animator.farAnimateActive, isFalse);
+      expect(layoutAsked, isTrue);
+    });
+
+    test('immediate stitches when target is not built', () {
+      final controller = ChatScrollController();
+      var captured = false;
+      final animator = _animator(
+        controller: controller,
+        offsetToBuiltMessage: (_) => null,
+        prepareStitchCapture: (_) => captured = true,
+      );
+
+      animator.animate(
+        99,
+        duration: const Duration(milliseconds: 200),
+        curve: Curves.linear,
+        loadPolicy: AnimateToLoadPolicy.immediate,
       );
 
       expect(animator.farAnimateActive, isTrue);
-      expect(animator.farAnimateJumped, isFalse);
-      expect(animator.fadeOpacity, 1.0);
+      expect(animator.farAnimateJumped, isTrue);
+      expect(captured, isTrue);
+      expect(controller.anchorMessageId, 99);
     });
 
     test('far path when target offset exceeds kCloseAnimateDistance', () {
@@ -174,6 +305,58 @@ void main() {
       );
 
       expect(animator.farAnimateActive, isTrue);
+      expect(animator.farAnimateJumped, isTrue);
+    });
+
+    test('preferBuilt becomes close path once target builds nearby', () {
+      final controller = ChatScrollController();
+      final box = _sizedBox();
+      double? offset;
+      final animator = _animator(
+        controller: controller,
+        offsetToBuiltMessage: (_) => offset,
+        closePathEndOffsetFor: (_, _, _) => 0.0,
+        childForId: (_) => box,
+        heightOfChild: (_) => box.size.height,
+      );
+
+      animator.animate(
+        5,
+        duration: const Duration(milliseconds: 200),
+        curve: Curves.linear,
+        loadPolicy: AnimateToLoadPolicy.preferBuilt,
+        highlight: false,
+      );
+      expect(animator.preferBuiltWaiting, isTrue);
+
+      offset = 80.0;
+      animator.onLayoutOpportunity(viewportHeight: 600);
+      expect(animator.preferBuiltWaiting, isFalse);
+      expect(animator.farAnimateActive, isFalse);
+      expect(controller.anchorMessageId, 5);
+    });
+
+    test('preferBuilt times out into stitch', () {
+      final controller = ChatScrollController();
+      final animator = _animator(
+        controller: controller,
+        offsetToBuiltMessage: (_) => null,
+        preferBuiltTimeout: Duration.zero,
+      );
+
+      animator.animate(
+        99,
+        duration: const Duration(milliseconds: 200),
+        curve: Curves.linear,
+        loadPolicy: AnimateToLoadPolicy.preferBuilt,
+        highlight: false,
+      );
+      expect(animator.preferBuiltWaiting, isTrue);
+
+      animator.tickAnimate(Duration.zero);
+      expect(animator.preferBuiltWaiting, isFalse);
+      expect(animator.farAnimateActive, isTrue);
+      expect(animator.farAnimateJumped, isTrue);
     });
 
     test('zero duration jumps without arming animation', () {
@@ -280,11 +463,13 @@ void main() {
       expect(animator.animateStartOffset, controller.anchorPixelOffset);
     });
 
-    test('far path fades out, jumpTo at midpoint, fades in', () {
+    test('stitch advances progress after measure and completes', () {
       final controller = ChatScrollController();
+      var cleared = false;
       final animator = _animator(
         controller: controller,
         offsetToBuiltMessage: (_) => null,
+        clearStitchCapture: () => cleared = true,
       );
 
       animator.animate(
@@ -293,20 +478,37 @@ void main() {
         curve: Curves.linear,
         alignment: 0.25,
         highlight: false,
+        loadPolicy: AnimateToLoadPolicy.immediate,
       );
 
-      animator.tickAnimate(const Duration(seconds: 1));
-      animator.tickAnimate(const Duration(seconds: 1, milliseconds: 25));
-      expect(animator.fadeOpacity, lessThan(1.0));
-      expect(animator.farAnimateJumped, isFalse);
-
-      animator.tickAnimate(const Duration(seconds: 1, milliseconds: 50));
       expect(animator.farAnimateJumped, isTrue);
       expect(controller.anchorMessageId, 42);
+      expect(animator.stitchMeasured, isFalse);
 
-      animator.tickAnimate(const Duration(seconds: 1, milliseconds: 100));
-      expect(animator.fadeOpacity, 1.0);
+      // Waiting for measure — progress stays 0.
+      animator.tickAnimate(const Duration(milliseconds: 10));
+      expect(animator.stitchProgress, 0.0);
+      expect(animator.isAnimating, isTrue);
+
+      animator.applyStitchMeasure(
+        scrollLength: 400,
+        towardNewer: false,
+        viewportHeight: 600,
+      );
+      expect(animator.stitchMeasured, isTrue);
+      expect(
+        animator.animateDuration.inMilliseconds,
+        greaterThanOrEqualTo(300),
+      );
+
+      // Clock starts at measure (or first tick after). Drive past duration.
+      const start = Duration(milliseconds: 100);
+      animator.tickAnimate(start);
+      expect(animator.stitchProgress, lessThan(1.0));
+      animator.tickAnimate(start + animator.animateDuration);
       expect(animator.isAnimating, isFalse);
+      expect(animator.stitchProgress, 0.0);
+      expect(cleared, isTrue);
     });
   });
 

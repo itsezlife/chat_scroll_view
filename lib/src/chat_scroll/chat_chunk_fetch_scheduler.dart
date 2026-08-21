@@ -204,6 +204,8 @@ class ChatChunkFetchScheduler {
       _requestRange(_layoutMinChunk, _layoutMaxChunk);
     }
     // Keep polling until everything in range has loaded, then go idle.
+    // Sparse-valid chunks (insert after eviction) are healed inside
+    // [ChatDataSource.requestChunks] before needsFetch runs.
     scheduleFetchPoll();
   }
 
