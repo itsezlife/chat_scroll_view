@@ -15,6 +15,8 @@ dependencies:
     path: packages/keyboard_insets
   meta: ^1.17.0
   supabase_flutter: ^2.15.0
+  control: 1.0.0-dev.1
+  freezed_annotation: ^3.1.0
 
 dev_dependencies:
   flutter_test:
@@ -22,6 +24,8 @@ dev_dependencies:
   flutter_lints: ^6.0.0
   integration_test:
     sdk: flutter
+  freezed: ^3.2.5
+  build_runner: ^2.15.1
 
 flutter:
   uses-material-design: true

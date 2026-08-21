@@ -1,28 +1,40 @@
-part of 'scroll_to_bottom_button.dart';
+import 'dart:math' as math;
 
-/// Unread count pill for the scroll-to-bottom control.
+import 'package:chat_scroll_view_example/src/features/chat/widgets/side_controls/overshoot_curve.dart';
+import 'package:flutter/foundation.dart' show defaultTargetPlatform;
+import 'package:flutter/material.dart';
+
+/// Count pill for side-control FABs (page-down unread, search hits, …).
 ///
 /// Drawn with a single [TextPainter] (measure + paint). Count changes animate:
 /// appear (scale + overshoot), dismiss (scale down), replace (width lerp,
 /// vertical digit slide, stable digits stay put, light pop on increase).
 /// Jumps larger than 99 snap without animation.
-class _UnreadCounter extends StatefulWidget {
-  const _UnreadCounter({required this.count});
+class ChatSideControlCounter extends StatefulWidget {
+  /// Creates an animated count pill (`0` collapses).
+  const ChatSideControlCounter({required this.count, this.seamKey, super.key});
 
+  /// Displayed count; `≤ 0` hides the pill.
   final int count;
 
+  /// Optional semantics / test seam for the invisible layout text.
+  final Key? seamKey;
+
+  /// Painted pill height (matches Telegram CounterView).
+  static const double height = 23;
+
   @override
-  State<_UnreadCounter> createState() => _UnreadCounterState();
+  State<ChatSideControlCounter> createState() => _ChatSideControlCounterState();
 }
 
 enum _CounterAnim { none, fadeIn, fadeOut, replace }
 
-class _UnreadCounterState extends State<_UnreadCounter>
+class _ChatSideControlCounterState extends State<ChatSideControlCounter>
     with SingleTickerProviderStateMixin {
   static const Color _background = Color(0xFF229AF0);
   static const Color _foreground = Color(0xFFFFFFFF);
   static const double _radius = 11.5;
-  static const double _height = _radius * 2; // 23
+  static const double _height = ChatSideControlCounter.height;
   static const double _extraWidth = _radius - 0.5; // 11
   static const double _minTextSlot = 12;
   static const int _skipAnimDelta = 99;
@@ -69,7 +81,7 @@ class _UnreadCounterState extends State<_UnreadCounter>
   }
 
   @override
-  void didUpdateWidget(covariant _UnreadCounter oldWidget) {
+  void didUpdateWidget(covariant ChatSideControlCounter oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.count != widget.count) {
       _applyCount(widget.count, animated: true);
@@ -270,7 +282,7 @@ class _UnreadCounterState extends State<_UnreadCounter>
           width: double.infinity,
           height: _height,
           child: CustomPaint(
-            painter: _UnreadCounterPainter(
+            painter: _SideControlCounterPainter(
               progress: _controller.value,
               anim: _anim,
               increment: _increment,
@@ -287,7 +299,7 @@ class _UnreadCounterState extends State<_UnreadCounter>
                 ? Center(
                     child: Text(
                       _currentCount > 0 ? '$_currentCount' : _currentText,
-                      key: const ValueKey<String>('scroll_to_bottom_badge'),
+                      key: widget.seamKey,
                       style: style.copyWith(color: const Color(0x00000000)),
                     ),
                   )
@@ -299,8 +311,8 @@ class _UnreadCounterState extends State<_UnreadCounter>
   }
 }
 
-class _UnreadCounterPainter extends CustomPainter {
-  _UnreadCounterPainter({
+class _SideControlCounterPainter extends CustomPainter {
+  _SideControlCounterPainter({
     required this.progress,
     required this.anim,
     required this.increment,
@@ -455,7 +467,7 @@ class _UnreadCounterPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(covariant _UnreadCounterPainter old) =>
+  bool shouldRepaint(covariant _SideControlCounterPainter old) =>
       progress != old.progress ||
       anim != old.anim ||
       increment != old.increment ||

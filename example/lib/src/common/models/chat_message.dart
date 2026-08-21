@@ -59,3 +59,13 @@ class UserChatMessage extends ChatMessage {
   /// The content of the user message.
   final String content;
 }
+
+/// Extension methods for [IChatMessage].
+extension ChatMessageExtension on IChatMessage {
+  /// The content of the message.
+  String? get text => switch (this) {
+    UserChatMessage(:final content) => content,
+    SystemChatMessage(:final content) => content,
+    _ => null,
+  };
+}

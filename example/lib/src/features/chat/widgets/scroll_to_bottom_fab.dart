@@ -10,25 +10,6 @@ const Key chatScrollToBottomHiddenKey = ValueKey<String>(
   'scroll_to_bottom_hidden',
 );
 
-/// Easing that overshoots past 1.0 then settles (press release, badge appear).
-///
-/// Apply via [Curve.transform] (or in paint). [AnimationController] clamps
-/// values to `[0, 1]`, so passing this as `animateTo(curve:)` alone will not
-/// show overshoot.
-class OvershootCurve extends Curve {
-  /// Creates an [OvershootCurve] with the given tension.
-  const OvershootCurve([this.tension = 2.0]);
-
-  /// Overshoot amount. Default `2.0`.
-  final double tension;
-
-  @override
-  double transformInternal(double t) {
-    final x = t - 1.0;
-    return x * x * ((tension + 1.0) * x + tension) + 1.0;
-  }
-}
-
 /// Round scroll-to-bottom control: frosted circle, optional unread badge,
 /// show/hide (opacity + scale + slide), press scale with overshoot release.
 class _ScrollToBottomFab extends StatefulWidget {
@@ -36,11 +17,21 @@ class _ScrollToBottomFab extends StatefulWidget {
     required this.count,
     required this.onTap,
     required this.visible,
+    this.chromeVisible,
+    this.animateVisibility = true,
   });
 
   final int count;
   final VoidCallback onTap;
+
+  /// Drives opacity/scale/slide when [animateVisibility] is true.
   final bool visible;
+
+  /// Show-intent for test keys when [animateVisibility] is false (embedded).
+  final bool? chromeVisible;
+
+  /// When false, paints at full opacity (parent stack owns hide animation).
+  final bool animateVisibility;
 
   @override
   State<_ScrollToBottomFab> createState() => _ScrollToBottomFabState();
@@ -98,7 +89,7 @@ class _ScrollToBottomFabState extends State<_ScrollToBottomFab>
     _visibility = AnimationController(
       vsync: this,
       duration: _visibilityDuration,
-      value: widget.visible ? 1.0 : 0.0,
+      value: (!widget.animateVisibility || widget.visible) ? 1.0 : 0.0,
     );
     _press = AnimationController(vsync: this, duration: _pressInDuration);
   }
@@ -106,6 +97,10 @@ class _ScrollToBottomFabState extends State<_ScrollToBottomFab>
   @override
   void didUpdateWidget(covariant _ScrollToBottomFab oldWidget) {
     super.didUpdateWidget(oldWidget);
+    if (!widget.animateVisibility) {
+      if (_visibility.value != 1.0) _visibility.value = 1.0;
+      return;
+    }
     if (oldWidget.visible != widget.visible) {
       _visibility.animateTo(
         widget.visible ? 1.0 : 0.0,
@@ -146,8 +141,9 @@ class _ScrollToBottomFabState extends State<_ScrollToBottomFab>
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
+    final chromeVisible = widget.chromeVisible ?? widget.visible;
     return KeyedSubtree(
-      key: widget.visible
+      key: chromeVisible
           ? chatScrollToBottomVisibleKey
           : chatScrollToBottomHiddenKey,
       child: AnimatedBuilder(
@@ -209,7 +205,10 @@ class _ScrollToBottomFabState extends State<_ScrollToBottomFab>
                 height: _counterSlotHeight,
                 child: Align(
                   alignment: Alignment.center,
-                  child: _UnreadCounter(count: widget.count),
+                  child: ChatSideControlCounter(
+                    count: widget.count,
+                    seamKey: const ValueKey<String>('scroll_to_bottom_badge'),
+                  ),
                 ),
               ),
             ],
