@@ -402,7 +402,6 @@ class _WidgetChatScreenState extends State<WidgetChatScreen>
                         controller: _controller,
                         selectionController: _selection,
                         onIdleMessageTap: _onIdleMessageTap,
-                        isSelfMessage: _isSelfMessage,
                         bottomPadding: insets.bottomPadding,
                         topPadding: insets.topPadding,
                         messageBuilder: _buildMessage,
@@ -559,7 +558,6 @@ class _WidgetChatScreenState extends State<WidgetChatScreen>
       _controller.animateTo(
         nextHit.id,
         highlight: true,
-        loadPolicy: AnimateToLoadPolicy.immediate,
       ),
     );
   }

@@ -50,10 +50,10 @@ class ChatScrollToBottomButton extends StatefulWidget {
   /// the input row.
   final ValueListenable<double>? bottomInset;
 
-  /// Same host predicate as [ChatScrollView.isSelfMessage]. When the newest
-  /// known id is a self message, the unread baseline advances so own sends
-  /// (including multi-device) never inflate the badge — Telegram zeroes the
-  /// page-down counter on `hasFromMe`.
+  /// Host predicate for own messages. When the newest known id is a self
+  /// message, the unread baseline advances so own sends (including multi-device)
+  /// never inflate the badge — Telegram zeroes the page-down counter on
+  /// `hasFromMe`.
   final bool Function(IChatMessage message)? isSelfMessage;
 
   /// Highest message id treated as "read" for the unread badge. When null,
@@ -582,7 +582,6 @@ class _ChatScrollToBottomButtonState extends State<ChatScrollToBottomButton> {
     await widget.controller.animateTo(
       newest,
       highlight: false,
-      loadPolicy: AnimateToLoadPolicy.preferBuilt,
     );
     if (!mounted) return;
     _writeBaseline(newest, reason: 'scroll_to_bottom_tap');
