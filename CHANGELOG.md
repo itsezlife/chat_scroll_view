@@ -8,6 +8,13 @@ this project is pre-1.0 and not strictly SemVer yet.
 
 ### Fixed
 
+- **Close-path delay during keyboard inset.** Tall scroll-to-bottom no longer
+  stalls while the keyboard animates: bottom-pad compensate parallel-shifts
+  close-path start/end (`shiftClosePathByInset`) with the same delta as the
+  anchor, so `rebaseClosePathEnd` does not restart the travel clock on every
+  inset frame. Compensate runs eagerly on pad change during close-path to
+  beat the next tick.
+
 - **Stitch measure / freeze ordering.** Layout freeze applies only after
   `stitchMeasured` so the post-jump measure pass can still run `pinNewest`
   (tall scroll-to-bottom starts from the message bottom). Freezing earlier

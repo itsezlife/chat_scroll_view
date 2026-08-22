@@ -134,12 +134,15 @@ Does **not** write alignment on the controller each tick — only interpolates
 
 ### Mid-flight geometry
 
-`rebaseClosePathEnd` (layout end + each close tick for tail target or when
-`alignment ≠ 0`) resets start/end from the live child height / insets and,
-when `elapsed` is supplied, restarts the travel clock from that elapsed so
-the interpolator tracks the new end without inventing a parallel endpoint
-writer. Bottom-pad compensate during close path stays layout-owned (same as
-idle); do not shift animate endpoints inside the animator.
+**Inset (keyboard / composer):** bottom-pad compensate applies
+`applyScrollDelta(delta)` and `shiftClosePathByInset(delta)` together — same
+sign, clock unchanged — ideally as soon as the pad listenables fire so a
+close-path tick cannot rebase against the new `bottomEdge` first. After that
+shift, live end matches `animateEndOffset` and `rebaseClosePathEnd` no-ops.
+
+**Height / other geometry:** `rebaseClosePathEnd` (layout end + each close
+tick for tail target or when `alignment ≠ 0`) resets start/end from the live
+child and, when `elapsed` is supplied, restarts the travel clock.
 
 ## Far path (stitch)
 

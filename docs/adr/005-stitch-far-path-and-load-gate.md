@@ -46,10 +46,10 @@ when paint stops applying stitch dy.
 
 ## Close-path inset
 
-Outside stitch, bottom-padding follow remains layout
-`bottomPadCompensate` + close-path `rebaseClosePathEnd` (retarget from the
-current anchor; when `elapsed` is supplied the travel clock restarts). That is
-independent of stitch freeze / commit.
+Outside stitch, bottom-padding follow uses `bottomPadCompensate` plus
+`shiftClosePathByInset` during close-path animate so the travel clock keeps
+running while the keyboard moves. `rebaseClosePathEnd` (clock restart) remains
+for height / non-inset geometry only — after an inset shift it should no-op.
 
 ## Diagnostics
 

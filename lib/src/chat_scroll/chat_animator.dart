@@ -935,9 +935,12 @@ class ChatAnimator implements ChatScrollAnimator {
   }
 
   /// Re-target [animateEndOffset] when layout geometry changes mid-flight
-  /// (bottom inset, message height, date-header relayout). Rebases from the
-  /// current anchor offset so the interpolator tracks the live aligned target
-  /// without layout-time snapping during close-path animation.
+  /// (message height, date-header relayout — not inset-only). Rebases from
+  /// the current anchor so the interpolator tracks the live aligned target.
+  ///
+  /// Bottom-inset changes must use [shiftClosePathByInset] together with
+  /// [ChatScrollController.applyScrollDelta] so this becomes a no-op and the
+  /// travel clock keeps running.
   void rebaseClosePathEnd({Duration? elapsed}) {
     if (animateCompleter == null || farAnimateActive) {
       return;
@@ -966,6 +969,18 @@ class ChatAnimator implements ChatScrollAnimator {
     if (elapsed != null) {
       animateStartTime = elapsed;
     }
+  }
+
+  /// Parallel-shift close-path endpoints when bottom inset compensation moves
+  /// the anchor by [delta] (same sign as [ChatScrollController.applyScrollDelta]).
+  /// Keeps [animateStartTime] so tall scroll-to-bottom continues during
+  /// keyboard/composer motion; the next [rebaseClosePathEnd] then no-ops.
+  void shiftClosePathByInset(double delta) {
+    if (animateCompleter == null || farAnimateActive || delta == 0.0) {
+      return;
+    }
+    animateStartOffset += delta;
+    animateEndOffset += delta;
   }
 
   /// Consumes a deferred post-animate settle callback, if any.

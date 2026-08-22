@@ -935,6 +935,52 @@ void main() {
       expect(animator.animateStartOffset, controller.anchorPixelOffset);
     });
 
+    test('shiftClosePathByInset keeps clock; rebase then no-ops', () {
+      final controller = ChatScrollController()..reassignAnchor(9, 200);
+      const bottomEdge = 600.0;
+      const tallH = 800.0;
+      var pad = 0.0;
+      final box = _sizedBox(height: tallH);
+      final animator = _animator(
+        controller: controller,
+        offsetToBuiltMessage: (_) => 200.0,
+        closePathEndOffsetFor: (_, height, _) => bottomEdge - pad - height,
+        isTailClosePathTarget: (_) => true,
+        childForId: (_) => box,
+        heightOfChild: (_) => box.size.height,
+      );
+
+      animator.animate(
+        9,
+        duration: const Duration(milliseconds: 400),
+        curve: Curves.linear,
+        highlight: false,
+      );
+      final quarter = animator.animateDuration * 0.25;
+      animator.tickAnimate(quarter);
+      final startTime = animator.animateStartTime;
+      final startBefore = animator.animateStartOffset;
+      final endBefore = animator.animateEndOffset;
+
+      // Keyboard opens: pad grows → end moves by the same delta as compensate.
+      const delta = -40.0;
+      pad = 40.0;
+      controller.applyScrollDelta(delta);
+      animator.shiftClosePathByInset(delta);
+
+      expect(animator.animateStartTime, startTime);
+      expect(animator.animateStartOffset, startBefore + delta);
+      expect(animator.animateEndOffset, endBefore + delta);
+
+      // Live end now matches shifted end → geometry rebase must not restart.
+      animator.rebaseClosePathEnd(elapsed: quarter);
+      expect(animator.animateStartTime, startTime);
+      expect(animator.animateEndOffset, endBefore + delta);
+
+      animator.tickAnimate(quarter * 2);
+      expect(animator.animateStartTime, startTime);
+    });
+
     test('stitch advances progress after measure and completes', () {
       final controller = ChatScrollController();
       StitchCancelSnapshot? completed;

@@ -1612,6 +1612,12 @@ class RenderChatScrollView extends RenderBox {
   void _onBottomPaddingChanged() {
     _bottomPaddingDirty = true;
     _bottomPadCompensationBase ??= _lastLaidOutBottomPad;
+    // Close-path: apply inset shift before the next tick can rebase against
+    // the new bottomEdge and restart the travel clock (otherwise tall
+    // scroll-to-bottom freezes for the keyboard animation).
+    if (_animator.isAnimating && !_animator.farAnimateActive) {
+      _compensateBottomPaddingChange();
+    }
     markNeedsLayout();
   }
 
@@ -1638,6 +1644,11 @@ class RenderChatScrollView extends RenderBox {
       'delta': DevLogFormat.f(delta),
     });
     _controller.applyScrollDelta(delta);
+    // Keep close-path travel clock running: inset moves the whole segment by
+    // the same delta so the next tick's rebase is a no-op.
+    if (_animator.isAnimating && !_animator.farAnimateActive) {
+      _animator.shiftClosePathByInset(delta);
+    }
   }
 
   void _onTopPaddingChanged() => markNeedsLayout();
