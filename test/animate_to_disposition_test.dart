@@ -31,7 +31,6 @@ void main() {
       prepareStitchCapture: (_) {},
       onStitchCancelled: (_) {},
       onStitchComplete: (_) {},
-      stitchMeasureDeferReason: () => null,
     );
     controller.animator = animator;
 

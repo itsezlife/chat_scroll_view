@@ -166,9 +166,6 @@ class ChatAnimator implements ChatScrollAnimator {
     /// Bake dual-translate at final progress and clear stitch capture on normal
     /// stitch completion. Render-owned.
     required void Function(StitchCancelSnapshot snapshot) onStitchComplete,
-
-    /// Why post-jump stitch measure is still deferred (render-owned).
-    required String? Function() stitchMeasureDeferReason,
     Duration highlightDuration = const Duration(
       milliseconds: kHighlightHoldDurationMs,
     ),
@@ -195,7 +192,6 @@ class ChatAnimator implements ChatScrollAnimator {
        _prepareStitchCapture = prepareStitchCapture,
        _onStitchCancelled = onStitchCancelled,
        _onStitchComplete = onStitchComplete,
-       _stitchMeasureDeferReason = stitchMeasureDeferReason,
        _highlightDuration = highlightDuration,
        _highlightColor = highlightColor;
 
@@ -222,7 +218,6 @@ class ChatAnimator implements ChatScrollAnimator {
   final void Function(int targetId) _prepareStitchCapture;
   final void Function(StitchCancelSnapshot snapshot) _onStitchCancelled;
   final void Function(StitchCancelSnapshot snapshot) _onStitchComplete;
-  final String? Function() _stitchMeasureDeferReason;
 
   /// Animate / stitch diagnostics — filter console for `ChatScrollAnimate`.
   ///
@@ -230,7 +225,7 @@ class ChatAnimator implements ChatScrollAnimator {
   /// [log.enabled] to `false` to silence.
   final ChatScrollDevLog log = ChatScrollDevLog(
     'ChatScrollAnimate',
-    enabled: false,
+    enabled: true,
   );
 
   /// Last logged progress bucket `0..10` for sparse tick lines.
@@ -604,68 +599,6 @@ class ChatAnimator implements ChatScrollAnimator {
     _markNeedsPaint();
   }
 
-  /// Recompute stitch travel after bottom inset changes during measured flight.
-  ///
-  /// Preserves [stitchProgress] — inset motion is handled in paint via
-  /// Telegram-style `additionalY`; this API remains for tests/contracts.
-  void rebaseStitchTravel({
-    required double scrollLength,
-    required double viewportHeight,
-  }) {
-    rebaseStitchTravelInset(
-      scrollLength: scrollLength,
-      viewportHeight: viewportHeight,
-    );
-  }
-
-  /// Inset-only travel update (progress unchanged). Prefer paint `additionalY`.
-  void rebaseStitchTravelInset({
-    required double scrollLength,
-    required double viewportHeight,
-  }) {
-    if (!farAnimateActive || !stitchMeasured) return;
-    final oldLen = stitchScrollLength;
-    final newLen = math.max<double>(scrollLength, 1);
-    if ((newLen - oldLen).abs() < 0.5) return;
-    stitchScrollLength = newLen;
-    stitchViewportHeight = math.max(viewportHeight, 1);
-    animateDuration = _stitchDuration(stitchScrollLength, stitchViewportHeight);
-    log.event('stitch.rebase.inset', {
-      'target': animateTargetId,
-      'oldLen': DevLogFormat.f(oldLen),
-      'newLen': DevLogFormat.f(newLen),
-      'progress': DevLogFormat.ratio(stitchProgress),
-    });
-    _markNeedsPaint();
-  }
-
-  /// Geometry-driven travel rebase (jump fetch, row heights). Scales progress
-  /// so effective on-screen travel stays monotonic — no backward visual jump.
-  void rebaseStitchTravelGeometry({
-    required double scrollLength,
-    required double viewportHeight,
-  }) {
-    if (!farAnimateActive || !stitchMeasured) return;
-    final oldLen = stitchScrollLength;
-    final newLen = math.max<double>(scrollLength, 1);
-    if ((newLen - oldLen).abs() < 0.5) return;
-    final effectiveTravel = stitchProgress * oldLen;
-    stitchScrollLength = newLen;
-    stitchViewportHeight = math.max(viewportHeight, 1);
-    stitchProgress = oldLen <= 0
-        ? stitchProgress
-        : (effectiveTravel / newLen).clamp(0.0, 1.0);
-    animateDuration = _stitchDuration(stitchScrollLength, stitchViewportHeight);
-    log.event('stitch.rebase.geom', {
-      'target': animateTargetId,
-      'oldLen': DevLogFormat.f(oldLen),
-      'newLen': DevLogFormat.f(newLen),
-      'oldProgress': DevLogFormat.ratio(effectiveTravel / oldLen),
-      'newProgress': DevLogFormat.ratio(stitchProgress),
-    });
-    _markNeedsPaint();
-  }
-
   Duration _stitchDuration(double scrollLength, double viewportHeight) =>
       chatAnimateTravelDuration(
         travelPx: scrollLength,
@@ -784,6 +717,9 @@ class ChatAnimator implements ChatScrollAnimator {
 
   void _beginStitch() {
     _pathStarted = true;
+    // End the load-gate wait, but keep (or establish) the destination-window
+    // fetch pin for the flight. Stitch layout spans outgoing strip + incoming
+    // band; without the pin, poll/jump-fetch contiguous-fills that gap.
     loadGateWaiting = false;
     _requestDestinationWindow(animateTargetId);
     farAnimateActive = true;
@@ -798,9 +734,15 @@ class ChatAnimator implements ChatScrollAnimator {
       'anchorBefore': _controller.anchorMessageId,
       'anchorYBefore': DevLogFormat.f(_controller.anchorPixelOffset),
     });
+    // Capture frozen outgoing geometry *before* the jump relocates fan-out.
     _prepareStitchCapture(animateTargetId);
+    // Mark jumped before jumpTo so a synchronous layout from jump listeners
+    // can run stitch measure in the same turn.
     farAnimateJumped = true;
     _controller.jumpTo(animateTargetId, alignment: animateAlignment);
+    // Re-assert select highlight after teleport. Host jumpTo clears tint;
+    // stitch-owned jumps must not. Even when clear is skipped, the child may
+    // be pending rebuild — pending arm until layout.
     if (animateHighlight && highlightDuration > Duration.zero) {
       _requestHighlight(animateTargetId, startHold: false);
     }
@@ -913,11 +855,7 @@ class ChatAnimator implements ChatScrollAnimator {
           log.event('stitch.awaitMeasure', {'target': animateTargetId});
           _markNeedsLayout();
         } else {
-          final deferReason = _stitchMeasureDeferReason();
-          log.event('stitch.awaitMeasure.pending', {
-            'target': animateTargetId,
-            'reason': ?deferReason,
-          });
+          log.event('stitch.awaitMeasure.pending', {'target': animateTargetId});
           _markNeedsLayout();
         }
         return 0;

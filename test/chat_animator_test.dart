@@ -23,7 +23,6 @@ ChatAnimator _animator({
   void Function(int targetId)? prepareStitchCapture,
   void Function(StitchCancelSnapshot snapshot)? onStitchCancelled,
   void Function(StitchCancelSnapshot snapshot)? onStitchComplete,
-  String? Function()? stitchMeasureDeferReason,
   bool Function(int id)? isHighlightReady,
   bool Function(int id)? shouldDropPendingHighlight,
   bool Function(int id)? isDestinationReady,
@@ -57,7 +56,6 @@ ChatAnimator _animator({
   prepareStitchCapture: prepareStitchCapture ?? (_) {},
   onStitchCancelled: onStitchCancelled ?? (_) {},
   onStitchComplete: onStitchComplete ?? (_) {},
-  stitchMeasureDeferReason: stitchMeasureDeferReason ?? () => null,
   highlightDuration: highlightDuration,
   highlightColor: highlightColor,
 );
@@ -987,71 +985,6 @@ void main() {
       expect(completed!.progress, 1.0);
       expect(completed!.measured, isTrue);
       expect(completed!.jumped, isTrue);
-    });
-
-    test('rebaseStitchTravelInset preserves progress and updates scroll length', () {
-      final controller = ChatScrollController();
-      final animator = _animator(
-        controller: controller,
-        offsetToBuiltMessage: (_) => null,
-      );
-
-      animator.animate(
-        42,
-        duration: const Duration(milliseconds: 100),
-        curve: Curves.linear,
-        alignment: 0,
-        highlight: false,
-        loadPolicy: AnimateToLoadPolicy.immediate,
-      );
-
-      animator.applyStitchMeasure(
-        scrollLength: 400,
-        towardNewer: true,
-        viewportHeight: 600,
-        elapsed: Duration.zero,
-      );
-      const elapsed = Duration(milliseconds: 100);
-      animator.tickAnimate(elapsed);
-      final progressBefore = animator.stitchProgress;
-      expect(progressBefore, greaterThan(0));
-      expect(progressBefore, lessThan(1));
-
-      animator.rebaseStitchTravelInset(scrollLength: 520, viewportHeight: 500);
-      expect(animator.stitchScrollLength, 520);
-      expect(animator.stitchProgress, progressBefore);
-    });
-
-    test('rebaseStitchTravelGeometry scales progress for monotonic travel', () {
-      final controller = ChatScrollController();
-      final animator = _animator(
-        controller: controller,
-        offsetToBuiltMessage: (_) => null,
-      );
-
-      animator.animate(
-        42,
-        duration: const Duration(milliseconds: 100),
-        curve: Curves.linear,
-        alignment: 0,
-        highlight: false,
-        loadPolicy: AnimateToLoadPolicy.immediate,
-      );
-
-      animator.applyStitchMeasure(
-        scrollLength: 400,
-        towardNewer: true,
-        viewportHeight: 600,
-        elapsed: Duration.zero,
-      );
-      animator.stitchProgress = 0.5;
-
-      animator.rebaseStitchTravelGeometry(
-        scrollLength: 800,
-        viewportHeight: 600,
-      );
-      expect(animator.stitchScrollLength, 800);
-      expect(animator.stitchProgress, 0.25);
     });
   });
 

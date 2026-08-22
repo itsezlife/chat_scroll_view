@@ -273,6 +273,18 @@ class _ChatScrollToBottomButtonState extends State<ChatScrollToBottomButton> {
       case ChatViewportScrolled(:final delta):
         _onViewportScrolled(delta);
       case ChatUserDragStart():
+        // Drag cancels an in-flight animateTo — do not latch stable-at-tail on
+        // the subsequent ChatAnimateEnd unless layout later reports tail.
+        _scrollReadingEnabled = true;
+        _pendingInitialViewportReadSync = false;
+        if (_pendingTapDismiss) {
+          _pendingTapDismiss = false;
+          _tailArrivalIntent = false;
+        } else {
+          _tailArrivalIntent = true;
+        }
+        _syncReadProgressFromViewport();
+        _syncCanShow(scheduleRebuild: true);
       case ChatUserDragEnd():
       case ChatFlingStart():
       case ChatProgrammaticScroll():
@@ -301,11 +313,10 @@ class _ChatScrollToBottomButtonState extends State<ChatScrollToBottomButton> {
       case ChatAnimateEnd(:final targetId):
         if (targetId == widget.dataSource.newestKnownId) {
           _pendingTapDismiss = false;
-          _writeBaseline(targetId, reason: 'animate_to_newest_end');
-          _stableAtTail = true;
-          _consecutiveAtTailFrames = _stableAtTailFrameThreshold;
-          _tailArrivalIntent = false;
-          _syncCanShow(scheduleRebuild: true);
+          _completeTailAnimateSettle(
+            targetId,
+            baselineReason: 'animate_to_newest_end',
+          );
         }
       case ChatFlingEnd():
         break;
@@ -320,6 +331,8 @@ class _ChatScrollToBottomButtonState extends State<ChatScrollToBottomButton> {
   /// * force-show when unread exists off-tail.
   void _onViewportScrolled(double delta) {
     if (delta == 0.0) return;
+
+    _reconcileStaleStableAtTail();
 
     // Raw at-tail wins over scroll-show accumulation. Stable hysteresis can
     // miss a second `isAtTail` edge when the flag stays true, leaving the FAB
@@ -585,16 +598,50 @@ class _ChatScrollToBottomButtonState extends State<ChatScrollToBottomButton> {
       loadPolicy: AnimateToLoadPolicy.preferBuilt,
     );
     if (!mounted) return;
-    _writeBaseline(newest, reason: 'scroll_to_bottom_tap');
-    _stableAtTail = true;
-    _consecutiveAtTailFrames = _stableAtTailFrameThreshold;
-    _tailArrivalIntent = false;
+    _completeTailAnimateSettle(newest, baselineReason: 'scroll_to_bottom_tap');
     _pendingTapDismiss = false;
     _scrollReadingEnabled = false;
     _pendingInitialViewportReadSync = false;
-    _canShow = false;
-    _totalDy = 0;
     setState(() {});
+  }
+
+  /// After animate-to-newest completes (or is cancelled), latch read state only
+  /// when layout confirms the viewport is at the tail. A user drag that
+  /// aborts mid-flight must not leave [_stableAtTail] latched or the FAB stays
+  /// hidden until a manual return to tail.
+  void _completeTailAnimateSettle(
+    int targetId, {
+    required String baselineReason,
+  }) {
+    void apply() {
+      if (!mounted) return;
+      _reconcileStaleStableAtTail();
+      if (widget.controller.isAtTail.value) {
+        _writeBaseline(targetId, reason: baselineReason);
+        _stableAtTail = true;
+        _consecutiveAtTailFrames = _stableAtTailFrameThreshold;
+        _canShow = false;
+        _totalDy = 0;
+      }
+      _tailArrivalIntent = false;
+      _syncCanShow(scheduleRebuild: true);
+    }
+
+    if (widget.controller.isAtTail.value) {
+      apply();
+      return;
+    }
+
+    // Successful settle may publish isAtTail on the next layout pass.
+    SchedulerBinding.instance.addPostFrameCallback((_) => apply());
+  }
+
+  /// Clears a latched stable-at-tail when the viewport is visibly off-tail
+  /// (e.g. animate-to-newest was cancelled by a drag).
+  void _reconcileStaleStableAtTail() {
+    if (!_stableAtTail || widget.controller.isAtTail.value) return;
+    _stableAtTail = false;
+    _consecutiveAtTailFrames = 0;
   }
 
   @override

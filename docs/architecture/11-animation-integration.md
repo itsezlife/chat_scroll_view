@@ -135,8 +135,11 @@ Does **not** write alignment on the controller each tick — only interpolates
 ### Mid-flight geometry
 
 `rebaseClosePathEnd` (layout end + each close tick for tail target or when
-`alignment ≠ 0`) resets start/end from live child height / insets so
-keyboard/height changes do not leave a stale endpoint.
+`alignment ≠ 0`) resets start/end from the live child height / insets and,
+when `elapsed` is supplied, restarts the travel clock from that elapsed so
+the interpolator tracks the new end without inventing a parallel endpoint
+writer. Bottom-pad compensate during close path stays layout-owned (same as
+idle); do not shift animate endpoints inside the animator.
 
 ## Far path (stitch)
 
@@ -164,11 +167,19 @@ scrolling through the gap and not a viewport opacity fade:
    destination-visible content during the flight (Telegram
    `scrollListener` → `invalidateMessagesVisiblePart`), not a fake mid-gap
    timeline and not “update only after settle.”
-7. **End** — clear pin, GC outgoing, `stitchProgress = 0`, complete
-   completer, **restart highlight hold** / pinNewest settle as usual.
+7. **End** — bake dual-translate paint dy into layout offsets
+   (`StitchCancelSnapshot` / `stitch.commit`), then clear pin, GC outgoing,
+   `stitchProgress = 0`, complete completer, **restart highlight hold** /
+   pinNewest settle as usual. Cancel uses the same bake at interrupted
+   progress so outgoing rows do not snap back one frame.
 
-Paint drives **per-child translation**, not `OpacityLayer`. Cancel clears
-stitch capture so mid-flight pins do not stick.
+Paint drives **per-child translation**, not `OpacityLayer`.
+
+**Freeze after measure:** layout freeze (skip refan / nav-align snap) applies
+only once `stitchMeasured`. The post-jump measure layout must still run
+`pinNewest` / alignment so travel is measured from the correct end (tall
+newest). While jumped, fan-out skips outgoing capture ids so paint dy is not
+double-applied.
 
 Post-jump contracts are the same as `jumpTo` (tail pin, alignment). Layout
 owns pin/align.

@@ -8,49 +8,22 @@ this project is pre-1.0 and not strictly SemVer yet.
 
 ### Fixed
 
-- **Stitch blank viewport during bottom inset changes.** Far-path stitch no
-  longer leaves the scroll band empty when the composer or keyboard animates
-  open or closed mid-flight. Measured-flight paint applies symmetric
-  `additionalY` (`bottomPadAtMeasure − bottomPad`) to **both** outgoing and
-  incoming dual-translate strips so the bands stay aligned as the scroll band
-  shrinks or grows.
+- **Stitch measure / freeze ordering.** Layout freeze applies only after
+  `stitchMeasured` so the post-jump measure pass can still run `pinNewest`
+  (tall scroll-to-bottom starts from the message bottom). Freezing earlier
+  pinned from the row top and hitching mid-flight.
 
-- **Stitch commit losing inset compensation.** `stitch.commit` / cancel bake
-  now applies the final inset delta even though `ChatAnimator` clears
-  `stitchMeasured` before the render callback runs. The anchor controller
-  offset is synced to the baked row top so the next full layout does not
-  refan from stale Y and rely on a follow-up `pinNewest` to recover.
+- **Stitch outgoing double-apply.** While jumped, fan-out skips outgoing
+  capture ids (`_skipStitchOutgoingReposition`) so paint dual-translate is
+  not stacked on a layout walk that already moved those rows.
 
-- **Deferred stitch measure on fetch stubs.** Post-jump travel is not finalized
-  while the animate target is still a shimmer or absent from the built set;
-  diagnostics distinguish `stitch.awaitMeasure` vs
-  `stitch.awaitMeasure.deferred` (`targetNotBuilt` / `targetShimmer`).
+- **Example scroll-to-bottom FAB after cancelled animate.** Drag that aborts
+  `animateTo(newest)` no longer latches stable-at-tail; settle writes the
+  read baseline only when layout confirms `isAtTail`.
 
 - **Example fetch returning locally removed ids.** `CommentsDataSource` and
   `GeneratedChatDataSource` skip ids marked removed in-memory when assembling
   `fetchRange` results.
-
-### Added
-
-- **Stitch settle: commit-at-progress.** Dual-translate paint offsets bake
-  into layout offsets on normal completion and user cancel via
-  `StitchCancelSnapshot` (`stitch.commit`), preventing outgoing rows from
-  snapping back for one frame when paint stops.
-
-- **Stitch inset layout paths.** Post-jump pre-measure inset changes route
-  through uniform layout shift + outgoing refreeze (`stitchFlight`); measured
-  flight uses paint-only `additionalY` (`stitchPaint`) without refan/GC
-  (`layout.stitchSlim`). Geometry-driven travel rebase
-  (`stitch.rebase.geom`) scales progress when row extents change mid-flight.
-
-- **Stitch regression tests.** Widget coverage for keyboard/composer inset
-  ramp during tail and mid-history stitch, commit tail pin after inset growth,
-  deferred measure from gap-span origins, full-strip travel for tall rows,
-  and paint-space scroll-band intersection during measured flight.
-
-- **ADR 005 expansion.** Documents stitch layout phases, dual-translate paint
-  contract, inset compensation invariants, layout freeze, commit-at-progress,
-  day chrome, and diagnostic event names.
 
 ### Changed
 
@@ -80,6 +53,11 @@ this project is pre-1.0 and not strictly SemVer yet.
   wipe the tint mid-flight. Bubble selected-fill stays host-owned.
 
 ### Added
+
+- **Stitch settle: commit-at-progress.** Dual-translate paint offsets bake
+  into layout offsets on normal completion and user cancel via
+  `StitchCancelSnapshot` (`stitch.commit`), so outgoing rows do not snap
+  back for one frame when paint stops applying stitch dy.
 
 - **`AnimateToBusyPolicy` / `AnimateToDisposition`.** Control re-entry while an
   animate is in flight (`ignore` default vs `replace`). `animateTo` returns a
