@@ -699,13 +699,21 @@ abstract class ChatDataSource {
   /// known-span slots (typical after insert into an LRU-evicted chunk) is
   /// marked dirty so [ChatRangeFetch.needsFetch] will refill it.
   @internal
-  void requestChunks(int layoutMinChunk, int layoutMaxChunk) {
+  void requestChunks(
+    int layoutMinChunk,
+    int layoutMaxChunk, {
+    bool allowWiden = true,
+  }) {
     if (layoutMaxChunk >= layoutMinChunk) {
       for (var ci = layoutMinChunk; ci <= layoutMaxChunk; ci++) {
         _markDirtyIfKnownSpanHoles(ci);
       }
     }
-    _rangeFetch.requestChunks(layoutMinChunk, layoutMaxChunk);
+    _rangeFetch.requestChunks(
+      layoutMinChunk,
+      layoutMaxChunk,
+      allowWiden: allowWiden,
+    );
   }
 
   /// Marks [chunkIndex] dirty when it still has empty known-span slots.
@@ -829,6 +837,10 @@ abstract class ChatDataSource {
   @internal
   bool coversChunkInFlight(int chunkIndex) =>
       _rangeFetch.coversChunkInFlight(chunkIndex);
+
+  /// Whether any range fetch token or retry timer is armed.
+  @internal
+  bool get hasInFlightFetch => _rangeFetch.hasInFlightFetch;
 
   /// Mark every loaded chunk as stale so the viewport refetches them on the
   /// next pass — lazy: in-range chunks get a fresh fetch from the poll;

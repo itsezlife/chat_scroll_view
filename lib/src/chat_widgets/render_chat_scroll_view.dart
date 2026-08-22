@@ -3755,7 +3755,8 @@ class RenderChatScrollView extends RenderBox {
 
   // --- Scroll ----------------------------------------------------------------
 
-  void _markScrollActive() => _chunkFetchScheduler.markScrollActive();
+  void _markScrollActive() =>
+      _chunkFetchScheduler.markScrollActive(velocity: _scrollVelocity);
 
   void _ensureTicker() {
     final ticker = _ticker;

@@ -184,6 +184,66 @@ void main() {
         async.elapse(Duration.zero);
       });
     });
+
+    test('allowWiden false waits instead of widening overlapping growth', () {
+      fakeAsync((async) {
+        final chunks = <int, ChatScrollChunk>{};
+        var fetchCalls = 0;
+        final completer = Completer<List<IChatMessage>>();
+        final fetch = ChatRangeFetch(
+          chunks: () => chunks,
+          fetchRange: ({required fromId, required toId}) {
+            fetchCalls++;
+            return completer.future;
+          },
+          notifyDataChanged: () {},
+          isDisposed: () => false,
+        );
+
+        fetch.requestChunks(3, 3);
+        expect(fetchCalls, 1);
+        expect(fetch.hasInFlightFetch, isTrue);
+
+        // Growing band during fling — must not cancel/restart.
+        fetch.requestChunks(3, 5, allowWiden: false);
+        expect(fetchCalls, 1);
+        expect(fetch.coversChunkInFlight(3), isTrue);
+        expect(fetch.coversChunkInFlight(4), isFalse);
+
+        completer.complete(const <IChatMessage>[]);
+        async.elapse(Duration.zero);
+      });
+    });
+
+    test('allowWiden false waits on disjoint live fetch', () {
+      fakeAsync((async) {
+        final chunks = <int, ChatScrollChunk>{};
+        var fetchCalls = 0;
+        final completer = Completer<List<IChatMessage>>();
+        final fetch = ChatRangeFetch(
+          chunks: () => chunks,
+          fetchRange: ({required fromId, required toId}) {
+            fetchCalls++;
+            return completer.future;
+          },
+          notifyDataChanged: () {},
+          isDisposed: () => false,
+        );
+
+        fetch.requestChunks(3, 3);
+        expect(fetchCalls, 1);
+
+        fetch.requestChunks(4, 4, allowWiden: false);
+        expect(fetchCalls, 1, reason: 'must not cancel live page mid-scroll');
+        expect(fetch.coversChunkInFlight(3), isTrue);
+
+        completer.complete(const <IChatMessage>[]);
+        async.elapse(Duration.zero);
+
+        fetch.requestChunks(4, 4, allowWiden: false);
+        expect(fetchCalls, 2);
+      });
+    });
   });
 
   group('ChatRangeFetch token cancellation', () {

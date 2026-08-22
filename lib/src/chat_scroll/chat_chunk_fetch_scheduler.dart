@@ -6,7 +6,7 @@ import 'package:chat_scroll_view/src/chat_scroll/chat_scroll_chunk.dart';
 import 'package:chat_scroll_view/src/chat_scroll/chat_scroll_dev_log.dart';
 import 'package:flutter/scheduler.dart';
 
-/// Schedules lazy chunk fetching, scroll-debounced polling, jump-fetch
+/// Schedules lazy chunk fetching, scroll-aware polling, jump-fetch
 /// dispatch, and LRU chunk eviction for [RenderChatScrollView].
 ///
 /// The render object measures the laid-out chunk range from built children
@@ -14,6 +14,12 @@ import 'package:flutter/scheduler.dart';
 /// `performLayout`. Scroll activity timestamps and jump navigation are fed
 /// through [markScrollActive] and [onJump]. Attach / detach guard deferred
 /// dispatches so a detaching viewport does not touch a stale data source.
+///
+/// **Mid-scroll vs settle:** While the user is scrolling, urgent missing/dirty
+/// chunks are fetched one page (one chunk) at a time in the scroll direction
+/// with `allowWiden: false` so a growing layout band cannot cancel/restart
+/// in-flight work. After scroll settles, the full laid-out band is requested
+/// (holes + any missed chunks). Load-gate destination pins stay dest-only.
 class ChatChunkFetchScheduler {
   /// Creates a chunk fetch scheduler bound to [dataSource].
   ///
@@ -22,7 +28,12 @@ class ChatChunkFetchScheduler {
   /// (the anchor chunk is never evicted).
   ChatChunkFetchScheduler({
     required ChatDataSource dataSource,
-    required void Function(int minChunk, int maxChunk) requestRange,
+    required void Function(
+      int minChunk,
+      int maxChunk, {
+      bool allowWiden,
+    })
+    requestRange,
     required int Function() anchorChunkIndex,
     Duration pollInterval = const Duration(milliseconds: 150),
   }) : _dataSource = dataSource,
@@ -31,9 +42,18 @@ class ChatChunkFetchScheduler {
        _pollInterval = pollInterval;
 
   final ChatDataSource _dataSource;
-  final void Function(int minChunk, int maxChunk) _requestRange;
+  final void Function(
+    int minChunk,
+    int maxChunk, {
+    bool allowWiden,
+  })
+  _requestRange;
   final int Function() _anchorChunkIndex;
   final Duration _pollInterval;
+
+  /// Extra chunks beyond the laid-out band to consider while scrolling
+  /// (Telegram-style look-ahead when pixel lead is thinner than a page).
+  static const int scrollLookaheadChunks = 1;
 
   /// Filter console by `ChatScrollFetchSched`.
   final ChatScrollDevLog log = ChatScrollDevLog(
@@ -50,6 +70,12 @@ class ChatChunkFetchScheduler {
 
   Timer? _pollTimer;
   int _lastScrollTs = 0;
+
+  /// Sign of scroll velocity: `>0` toward older (lower chunk indices),
+  /// `<0` toward newer (higher chunk indices). Last non-zero wins while
+  /// mid-scroll velocity briefly reads as 0 between frames.
+  double _scrollDirection = 0;
+  double _lastNonZeroScrollDirection = 0;
 
   /// Set by [onJump] / [queueJumpFetch]; cleared at the end of the layout
   /// that dispatches [maybeDispatchJumpFetch].
@@ -212,7 +238,87 @@ class ChatChunkFetchScheduler {
   void _requestDestinationWindow(int destChunk) {
     final range = _clampedDestinationWindow(destChunk);
     _logRequest('destWindow', range.$1, range.$2);
-    _requestRange(range.$1, range.$2);
+    _requestLayoutRange(range.$1, range.$2);
+  }
+
+  void _requestLayoutRange(
+    int minChunk,
+    int maxChunk, {
+    bool allowWiden = true,
+  }) {
+    _requestRange(minChunk, maxChunk, allowWiden: allowWiden);
+  }
+
+  bool _isScrollSettled([int? nowMs]) {
+    final now = nowMs ?? DateTime.now().millisecondsSinceEpoch;
+    return now - _lastScrollTs >= _pollInterval.inMilliseconds;
+  }
+
+  /// Laid-out band expanded by [scrollLookaheadChunks] in the scroll direction.
+  (int, int) _prefetchScanRange() {
+    if (_layoutMaxChunk < _layoutMinChunk) return (0, -1);
+    var min = _layoutMinChunk;
+    var max = _layoutMaxChunk;
+    final dir = _effectiveScrollDirection();
+    if (dir > 0) {
+      // Toward older → lower chunk indices.
+      min -= scrollLookaheadChunks;
+      if (min < 0) min = 0;
+      final oldest = _dataSource.oldestKnownId;
+      if (_dataSource.reachedOldest && oldest != null) {
+        min = math.max(min, ChatScrollChunk.chunkOf(oldest));
+      }
+    } else if (dir < 0) {
+      // Toward newer → higher chunk indices.
+      max += scrollLookaheadChunks;
+      final newest = _dataSource.newestKnownId;
+      if (_dataSource.reachedNewest && newest != null) {
+        max = math.min(max, ChatScrollChunk.chunkOf(newest));
+      }
+    }
+    if (max < min) return (_layoutMinChunk, _layoutMaxChunk);
+    return (min, max);
+  }
+
+  double _effectiveScrollDirection() {
+    if (_scrollDirection != 0) return _scrollDirection;
+    return _lastNonZeroScrollDirection;
+  }
+
+  bool _chunkIsUrgent(int ci) {
+    if (_dataSource.coversChunkInFlight(ci)) return false;
+    final chunk = _dataSource.chunks[ci];
+    if (chunk == null) return true;
+    final status = chunk.status;
+    if (status.isFetching) return false;
+    return status.isDirty;
+  }
+
+  /// One-chunk page at the leading urgent edge (Telegram ~50-message page).
+  (int, int)? _leadingPageRange() {
+    final scan = _prefetchScanRange();
+    if (scan.$2 < scan.$1) return null;
+    final dir = _effectiveScrollDirection();
+    int? page;
+    if (dir < 0) {
+      // Toward newer: leading edge is the highest urgent index.
+      for (var ci = scan.$2; ci >= scan.$1; ci--) {
+        if (_chunkIsUrgent(ci)) {
+          page = ci;
+          break;
+        }
+      }
+    } else {
+      // Toward older or unknown: leading edge is the lowest urgent index.
+      for (var ci = scan.$1; ci <= scan.$2; ci++) {
+        if (_chunkIsUrgent(ci)) {
+          page = ci;
+          break;
+        }
+      }
+    }
+    if (page == null) return null;
+    return (page, page);
   }
 
   /// `true` when laid-out chunks look like a stitch dual-strip: they overlap
@@ -287,9 +393,16 @@ class ChatChunkFetchScheduler {
     _deferredSeedJumpFetch = false;
   }
 
-  /// Bump the scroll-activity timestamp used by the poll debounce.
-  void markScrollActive() {
+  /// Bump the scroll-activity timestamp used by the poll settle window.
+  ///
+  /// [velocity] follows the render-object convention: positive toward older
+  /// (top / lower chunk indices), negative toward newer.
+  void markScrollActive({double velocity = 0}) {
     _lastScrollTs = DateTime.now().millisecondsSinceEpoch;
+    _scrollDirection = velocity;
+    if (velocity != 0) {
+      _lastNonZeroScrollDirection = velocity;
+    }
   }
 
   /// Called from `_onJump` after a discrete navigation.
@@ -436,26 +549,26 @@ class ChatChunkFetchScheduler {
     }
   }
 
-  /// Arms a one-shot timer when the laid-out range has chunks that still need
-  /// fetching. The timer goes idle once every chunk in range is valid or
-  /// in-flight, so there are no periodic wake-ups.
+  /// Arms a one-shot timer when the laid-out (or mid-scroll lookahead) range
+  /// has chunks that still need fetching. The timer goes idle once every
+  /// chunk in range is valid or in-flight, so there are no periodic wake-ups.
   ///
-  /// Outside an active scroll the timer fires on the next microtask instead
-  /// of waiting a full [_pollInterval] — initial load, jumpTo settle, and
-  /// "new chunk arrived" don't need the scroll-debounce. The interval still
-  /// applies while the user is actively scrolling, so a fast fling doesn't
-  /// spam the network with every chunk that briefly enters the viewport.
+  /// Urgent missing/dirty chunks arm [Duration.zero] so mid-scroll page
+  /// prefetch can start immediately. While a live fetch already blocks the
+  /// next mid-scroll page (`allowWiden: false` wait), the interval is used
+  /// instead of busy-spinning. Hole-only refill always uses [_pollInterval].
   void scheduleFetchPoll() {
     if (_pollTimer != null || !_rangeHasPendingChunks()) return;
     final sinceScroll = DateTime.now().millisecondsSinceEpoch - _lastScrollTs;
+    final scrollSettled = sinceScroll >= _pollInterval.inMilliseconds;
     final urgent = _rangeHasUrgentPendingChunks();
     // Hole-only refill (valid chunk, missing known-span payloads) must not
     // arm Duration.zero — a stale partial tail would otherwise busy-spin.
     final delay = !urgent
         ? _pollInterval
-        : (sinceScroll >= _pollInterval.inMilliseconds
-              ? Duration.zero
-              : _pollInterval);
+        : (!scrollSettled && _dataSource.hasInFlightFetch
+              ? _pollInterval
+              : Duration.zero);
     _pollTimer = Timer(delay, _onPollTick);
   }
 
@@ -464,25 +577,25 @@ class ChatChunkFetchScheduler {
     final now = DateTime.now().millisecondsSinceEpoch;
     final sinceScroll = now - _lastScrollTs;
     final scrollSettled = sinceScroll >= _pollInterval.inMilliseconds;
-    // Skip the fetch while a scroll is still in flight (light debounce); the
-    // re-arm below keeps re-checking until it settles.
-    if (scrollSettled) {
-      final dest = _navigationDestChunk;
-      if (dest != null) {
-        // Load-gate / stitch: one range only. Do not also request layout in
-        // the same tick — [requestChunks] cancels in-flight work on range
-        // change, which left on-screen tiles permanently unloaded.
-        // Scrollbar jumps clear this pin via
-        // [isOutsideNavigationDestination] / animate cancel.
-        log.event('poll.tick', {
-          'branch': 'dest',
-          'dest': dest,
-          'layout': '$_layoutMinChunk..$_layoutMaxChunk',
-          'sinceScrollMs': sinceScroll,
-          'stitchGap': _layoutSpansStitchGap(dest),
-        });
-        _requestDestinationWindow(dest);
-      } else if (_layoutMaxChunk >= _layoutMinChunk) {
+    final dest = _navigationDestChunk;
+
+    if (dest != null) {
+      // Load-gate / stitch: one range only. Do not also request layout in
+      // the same tick — [requestChunks] cancels in-flight work on range
+      // change, which left on-screen tiles permanently unloaded.
+      // Scrollbar jumps clear this pin via
+      // [isOutsideNavigationDestination] / animate cancel.
+      // Dest fetches run even mid-scroll (load-gate must stay warm).
+      log.event('poll.tick', {
+        'branch': 'dest',
+        'dest': dest,
+        'layout': '$_layoutMinChunk..$_layoutMaxChunk',
+        'sinceScrollMs': sinceScroll,
+        'stitchGap': _layoutSpansStitchGap(dest),
+      });
+      _requestDestinationWindow(dest);
+    } else if (_layoutMaxChunk >= _layoutMinChunk) {
+      if (scrollSettled) {
         _schedEvent('poll.tick', {
           'branch': 'layout',
           'layout': '$_layoutMinChunk..$_layoutMaxChunk',
@@ -490,17 +603,38 @@ class ChatChunkFetchScheduler {
           'pending': _rangeHasPendingChunks(),
         });
         _logRequest('poll', _layoutMinChunk, _layoutMaxChunk);
-        _requestRange(_layoutMinChunk, _layoutMaxChunk);
+        _requestLayoutRange(_layoutMinChunk, _layoutMaxChunk);
+      } else if (_rangeHasUrgentPendingChunks()) {
+        // Mid-scroll: one leading chunk, no widen-cancel of in-flight work.
+        final page = _leadingPageRange();
+        if (page != null) {
+          _schedEvent('poll.tick', {
+            'branch': 'midScrollPage',
+            'page': '${page.$1}..${page.$2}',
+            'layout': '$_layoutMinChunk..$_layoutMaxChunk',
+            'dir': _effectiveScrollDirection(),
+            'sinceScrollMs': sinceScroll,
+          });
+          _logRequest('midScrollPage', page.$1, page.$2);
+          _requestLayoutRange(page.$1, page.$2, allowWiden: false);
+        } else {
+          log.event('poll.debounce', {
+            'reason': 'noUrgentPage',
+            'sinceScrollMs': sinceScroll,
+            'layout': '$_layoutMinChunk..$_layoutMaxChunk',
+          });
+        }
       } else {
-        log.event('poll.tick', {
-          'branch': 'empty',
+        // Hole-only while scrolling — wait for settle / poll interval.
+        log.event('poll.debounce', {
+          'reason': 'holesOnly',
+          'sinceScrollMs': sinceScroll,
           'layout': '$_layoutMinChunk..$_layoutMaxChunk',
         });
       }
     } else {
-      log.event('poll.debounce', {
-        'sinceScrollMs': sinceScroll,
-        'dest': _navigationDestChunk,
+      log.event('poll.tick', {
+        'branch': 'empty',
         'layout': '$_layoutMinChunk..$_layoutMaxChunk',
       });
     }
@@ -517,6 +651,9 @@ class ChatChunkFetchScheduler {
   /// backoff timer and [ChatDataSource.retryChunk], not by this poll loop.
   /// Treating `error` as pending with [Duration.zero] poll delays spins
   /// forever once layout becomes cheap (a single chunk-error tile).
+  ///
+  /// While scrolling, the scan includes [scrollLookaheadChunks] beyond layout
+  /// so the next page can arm before it enters the build zone.
   bool _rangeHasPendingChunks() {
     final dest = _navigationDestChunk;
     if (dest != null) {
@@ -524,7 +661,14 @@ class ChatChunkFetchScheduler {
       return _chunkRangeHasPending(range.$1, range.$2);
     }
     if (_layoutMaxChunk < _layoutMinChunk) return false;
-    return _chunkRangeHasPending(_layoutMinChunk, _layoutMaxChunk);
+    if (_chunkRangeHasPending(_layoutMinChunk, _layoutMaxChunk)) return true;
+    if (!_isScrollSettled()) {
+      final scan = _prefetchScanRange();
+      if (scan.$1 != _layoutMinChunk || scan.$2 != _layoutMaxChunk) {
+        return _chunkRangeHasPending(scan.$1, scan.$2);
+      }
+    }
+    return false;
   }
 
   bool _rangeHasUrgentPendingChunks() {
@@ -534,7 +678,16 @@ class ChatChunkFetchScheduler {
       return _chunkRangeHasUrgentPending(range.$1, range.$2);
     }
     if (_layoutMaxChunk < _layoutMinChunk) return false;
-    return _chunkRangeHasUrgentPending(_layoutMinChunk, _layoutMaxChunk);
+    if (_chunkRangeHasUrgentPending(_layoutMinChunk, _layoutMaxChunk)) {
+      return true;
+    }
+    if (!_isScrollSettled()) {
+      final scan = _prefetchScanRange();
+      if (scan.$1 != _layoutMinChunk || scan.$2 != _layoutMaxChunk) {
+        return _chunkRangeHasUrgentPending(scan.$1, scan.$2);
+      }
+    }
+    return false;
   }
 
   /// Dispatched from [onLayoutComplete] when [_jumpFetchPending] is set.
@@ -621,7 +774,7 @@ class ChatChunkFetchScheduler {
         });
       }
       _logRequest('jumpFetch', _layoutMinChunk, _layoutMaxChunk);
-      _requestRange(_layoutMinChunk, _layoutMaxChunk);
+      _requestLayoutRange(_layoutMinChunk, _layoutMaxChunk);
     });
   }
 }
