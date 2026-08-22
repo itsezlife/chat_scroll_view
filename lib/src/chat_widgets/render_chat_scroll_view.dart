@@ -223,7 +223,8 @@ class RenderChatScrollView extends RenderBox {
       cancelFling: _cancelFling,
       cancelBounceback: _cancelBounceback,
       prepareStitchCapture: _prepareStitchCapture,
-      clearStitchCapture: _clearStitchCapture,
+      onStitchCancelled: _onStitchCancelled,
+      onStitchComplete: _onStitchComplete,
       highlightColor: highlightColor,
       highlightDuration: highlightDuration,
     );
@@ -232,7 +233,7 @@ class RenderChatScrollView extends RenderBox {
   /// Chunk-load / anchor-persistence diagnostics — filter `ChatScrollFetchAnchor`.
   final ChatScrollDevLog _fetchAnchorLog = ChatScrollDevLog(
     'ChatScrollFetchAnchor',
-    enabled: false,
+    enabled: true,
   );
 
   /// Scrollbar thumb / id-linear progress diagnostics — filter
@@ -750,6 +751,93 @@ class RenderChatScrollView extends RenderBox {
       if (t < top) top = t;
     }
     return top == double.infinity ? 0.0 : top;
+  }
+
+  /// User or host cancelled mid-stitch — bake dual-translate at [snapshot.progress]
+  /// into layout offsets so the viewport stays where it was painted, then refan.
+  void _onStitchCancelled(StitchCancelSnapshot snapshot) {
+    _chunkFetchScheduler.clearNavigationDestination();
+    _pinTailOnJump = false;
+    _pendingTailPinUntilSettled = false;
+    if (hasSize && snapshot.jumped && snapshot.measured) {
+      _commitStitchAtProgress(snapshot);
+    } else if (hasSize) {
+      _renormalizeAnchor();
+    }
+    _clearStitchCapture();
+    markNeedsLayout();
+  }
+
+  /// Normal stitch completion — bake paint dy at final progress before clearing
+  /// capture so outgoing rows do not snap back into the viewport for one frame.
+  void _onStitchComplete(StitchCancelSnapshot snapshot) {
+    if (hasSize && snapshot.jumped && snapshot.measured) {
+      _commitStitchAtProgress(snapshot);
+    }
+    _clearStitchCapture();
+    markNeedsLayout();
+  }
+
+  /// Apply stitch paint translation to layout offsets at cancel/complete time.
+  void _commitStitchAtProgress(StitchCancelSnapshot snapshot) {
+    final hasLiveOutgoing = _stitchOutgoingIds.any(_children.containsKey);
+    if (!hasLiveOutgoing) {
+      _renormalizeAnchor();
+      return;
+    }
+    final travel = math.max<double>(snapshot.scrollLength, 1);
+    final t = snapshot.progress;
+    final towardNewer = snapshot.towardNewer;
+    for (final entry in _children.entries) {
+      final dy = _stitchPaintDyFor(
+        id: entry.key,
+        towardNewer: towardNewer,
+        travel: travel,
+        progress: t,
+        hasLiveOutgoing: hasLiveOutgoing,
+      );
+      if (dy == 0) continue;
+      final pd = _parentData(entry.value);
+      _setOffset(entry.value, pd.offset + dy);
+    }
+    final fromId = _controller.anchorMessageId;
+    final fromY = _controller.anchorPixelOffset;
+    _syncAnchorOffsetAfterStitchCommit();
+    _renormalizeAnchor();
+    _fetchAnchorEvent('stitch.commit', {
+      ..._fetchAnchorSnapshot(),
+      'target': snapshot.targetId,
+      'progress': DevLogFormat.ratio(snapshot.progress),
+      'scrollLen': DevLogFormat.f(travel),
+      'fromId': fromId,
+      'fromY': DevLogFormat.f(fromY),
+      'toId': _controller.anchorMessageId,
+      'toY': DevLogFormat.f(_controller.anchorPixelOffset),
+    });
+  }
+
+  /// Keep [ChatScrollController.anchorPixelOffset] aligned with the anchor row
+  /// after commit bake so the next full layout does not refan from stale Y.
+  void _syncAnchorOffsetAfterStitchCommit() {
+    final resolved = _resolveAnchorBox();
+    if (resolved == null) return;
+    final top = _parentData(resolved.box).offset;
+    if ((_controller.anchorPixelOffset - top).abs() <= 0.5) return;
+    _controller.reassignAnchor(_controller.anchorMessageId, top);
+  }
+
+  double _stitchPaintDyFor({
+    required int id,
+    required bool towardNewer,
+    required double travel,
+    required double progress,
+    required bool hasLiveOutgoing,
+  }) {
+    if (!hasLiveOutgoing) return 0;
+    if (_stitchOutgoingIds.contains(id)) {
+      return towardNewer ? -travel * progress : travel * progress;
+    }
+    return towardNewer ? travel * (1 - progress) : -travel * (1 - progress);
   }
 
   void _clearStitchCapture() {
@@ -1524,6 +1612,12 @@ class RenderChatScrollView extends RenderBox {
   void _onBottomPaddingChanged() {
     _bottomPaddingDirty = true;
     _bottomPadCompensationBase ??= _lastLaidOutBottomPad;
+    // Close-path: apply inset shift before the next tick can rebase against
+    // the new bottomEdge and restart the travel clock (otherwise tall
+    // scroll-to-bottom freezes for the keyboard animation).
+    if (_animator.isAnimating && !_animator.farAnimateActive) {
+      _compensateBottomPaddingChange();
+    }
     markNeedsLayout();
   }
 
@@ -1550,6 +1644,11 @@ class RenderChatScrollView extends RenderBox {
       'delta': DevLogFormat.f(delta),
     });
     _controller.applyScrollDelta(delta);
+    // Keep close-path travel clock running: inset moves the whole segment by
+    // the same delta so the next tick's rebase is a no-op.
+    if (_animator.isAnimating && !_animator.farAnimateActive) {
+      _animator.shiftClosePathByInset(delta);
+    }
   }
 
   void _onTopPaddingChanged() => markNeedsLayout();
@@ -1571,6 +1670,23 @@ class RenderChatScrollView extends RenderBox {
     _pinTailOnJump = false;
     _userPreemptedTailSettle = true;
   }
+
+  /// Measured dual-translate flight only — not the post-jump measure layout.
+  /// Measure layout must still run tail [pinNewest] so scroll-to-bottom lands
+  /// on the message bottom before travel is measured; freezing earlier caused
+  /// animating from the row top then teleporting mid-flight.
+  bool _shouldFreezeStitchLayout() =>
+      _animator.farAnimateActive &&
+      _animator.farAnimateJumped &&
+      _animator.stitchMeasured;
+
+  /// Outgoing stitch rows keep capture-time layout offsets; fan-out from the
+  /// jumped anchor would stack them against incoming ids and double-apply travel
+  /// once paint adds [_stitchPaintDy].
+  bool _skipStitchOutgoingReposition(int id) =>
+      _animator.farAnimateActive &&
+      _animator.farAnimateJumped &&
+      _stitchOutgoingIds.contains(id);
 
   /// Tail-targeted navigation should pin the newest above the bottom inset
   /// even on the first layout (`_wasAtTailLastLayout` still false).
@@ -1699,6 +1815,12 @@ class RenderChatScrollView extends RenderBox {
   /// post-[animateTo] settle call this when no close-path animation is in flight;
   /// [navigationAlignment] stays set until the target row is built and aligned.
   bool _applyNavigationAlignment() {
+    // Measured stitch owns paint translation — nav snap would fight dual-translate.
+    if (_animator.farAnimateActive &&
+        _animator.farAnimateJumped &&
+        _animator.stitchMeasured) {
+      return false;
+    }
     final alignment = _controller.navigationAlignment;
     final targetId = _controller.navigationAlignmentMessageId;
     if (targetId == null) return false;
@@ -1977,7 +2099,8 @@ class RenderChatScrollView extends RenderBox {
     // Span auto-scroll occupies the origin writer while the pointer sits in
     // the edge band — follow-tail and pending tail-pin must not also write.
     final occupyingSpanAutoScroll = _spanAutoScrollOccupying;
-    if (!occupyingSpanAutoScroll) {
+    final stitchLayoutFrozen = _shouldFreezeStitchLayout();
+    if (!occupyingSpanAutoScroll && !stitchLayoutFrozen) {
       _applyPendingTailPin();
     }
     // Self-insert animate owns follow-tail motion: skip instant pin on id
@@ -1985,11 +2108,12 @@ class RenderChatScrollView extends RenderBox {
     final followTailRepin =
         (!_deferTailAdvancedRepin && tailAdvanced) || newestHeightGrew;
     final repinBottom =
-        (!occupyingSpanAutoScroll && _pinTailOnJump) ||
-        (_dataSource.reachedNewest &&
-            _wasAtTailLastLayout &&
-            followTailRepin &&
-            !occupyingSpanAutoScroll);
+        !stitchLayoutFrozen &&
+        ((!occupyingSpanAutoScroll && _pinTailOnJump) ||
+            (_dataSource.reachedNewest &&
+                _wasAtTailLastLayout &&
+                followTailRepin &&
+                !occupyingSpanAutoScroll));
     if (repinBottom || _pendingTailPinUntilSettled || _pinTailOnJump) {
       _fetchAnchorEvent('layout.tailPinFlags', {
         ..._fetchAnchorSnapshot(),
@@ -1997,6 +2121,7 @@ class RenderChatScrollView extends RenderBox {
         'tailAdvanced': tailAdvanced,
         'newestHeightGrew': newestHeightGrew,
         'pinTailOnJump': _pinTailOnJump,
+        if (stitchLayoutFrozen) 'frozen': 'stitchMeasured',
       });
     }
     _pinTailOnJump = false;
@@ -2012,9 +2137,10 @@ class RenderChatScrollView extends RenderBox {
     // off-screen it builds every message between the anchor and the viewport;
     // re-fanning from the renormalized (visible) anchor yields the tight set,
     // so the off-screen extras fall outside `built` and are collected below.
-    if (clamped ||
-        _controller.anchorMessageId != anchorBefore ||
-        alignmentMoved) {
+    if (!stitchLayoutFrozen &&
+        (clamped ||
+            _controller.anchorMessageId != anchorBefore ||
+            alignmentMoved)) {
       _fetchAnchorEvent('layout.refan', {
         ..._fetchAnchorSnapshot(),
         'clamped': clamped,
@@ -3231,6 +3357,7 @@ class RenderChatScrollView extends RenderBox {
     // bounceback animation itself also drives the anchor past the boundary
     // and back, so it owns the clamp until it ends.
     if (_dragInProgress || _physics.isBouncing) return false;
+    if (_shouldFreezeStitchLayout()) return false;
     var cancelFling = false;
 
     bool pinNewest() {
@@ -3263,6 +3390,9 @@ class RenderChatScrollView extends RenderBox {
         });
         _controller.applyScrollDelta(delta);
         _repositionFromAnchor();
+        if (_animator.farAnimateActive && _animator.farAnimateJumped) {
+          _refreezeStitchOutgoing();
+        }
         return true;
       }
       return false;
@@ -3384,6 +3514,10 @@ class RenderChatScrollView extends RenderBox {
         id++;
         continue;
       } // skip absent / unbuilt IDs
+      if (_skipStitchOutgoingReposition(id)) {
+        id++;
+        continue;
+      }
       _setOffset(child, y);
       y += child.size.height;
       id++;
@@ -3413,6 +3547,10 @@ class RenderChatScrollView extends RenderBox {
         id--;
         continue;
       } // skip absent / unbuilt IDs
+      if (_skipStitchOutgoingReposition(id)) {
+        id--;
+        continue;
+      }
       y -= child.size.height;
       _setOffset(child, y);
       id--;
@@ -3443,6 +3581,7 @@ class RenderChatScrollView extends RenderBox {
     for (var id = anchorId + 1; id <= maxBuiltId; id++) {
       final child = _children[id];
       if (child == null) continue; // skip absent / unbuilt IDs in the range
+      if (_skipStitchOutgoingReposition(id)) continue;
       _setOffset(child, y);
       y += child.size.height;
     }
@@ -3450,6 +3589,7 @@ class RenderChatScrollView extends RenderBox {
     for (var id = anchorId - 1; id >= minBuiltId; id--) {
       final child = _children[id];
       if (child == null) continue; // skip absent / unbuilt IDs in the range
+      if (_skipStitchOutgoingReposition(id)) continue;
       y -= child.size.height;
       _setOffset(child, y);
     }
@@ -3811,9 +3951,17 @@ class RenderChatScrollView extends RenderBox {
     // (target + outgoing pins). [_rangeNoLongerCovers] would see that as a
     // hole toward oldest/newest and request layout every ticker frame —
     // layout.jump spam / jank until settle. Paint-only until stitch ends.
+    final stitchMeasuredFlight =
+        _animator.farAnimateActive && _animator.stitchMeasured;
     final coverageNeedsLayout =
         !_animator.farAnimateActive && _rangeNoLongerCovers();
-    if (coverageNeedsLayout || headerDayChanged) {
+    if (stitchMeasuredFlight) {
+      if (headerDayChanged) {
+        markNeedsLayout();
+      } else {
+        markNeedsPaint();
+      }
+    } else if (coverageNeedsLayout || headerDayChanged) {
       markNeedsLayout();
     } else {
       markNeedsPaint();

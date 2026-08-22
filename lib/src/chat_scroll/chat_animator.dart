@@ -23,6 +23,37 @@ const int kHighlightHoldDurationMs = 1000;
 /// Fade length after navigate-select hold ends.
 const Duration kHighlightFadeDuration = Duration(milliseconds: 300);
 
+/// Stitch geometry captured when [ChatAnimator.cancelAnimate] aborts a far path.
+class StitchCancelSnapshot {
+  /// Creates a snapshot of the stitch cancel state.
+  const StitchCancelSnapshot({
+    required this.targetId,
+    required this.measured,
+    required this.jumped,
+    required this.progress,
+    required this.scrollLength,
+    required this.towardNewer,
+  });
+
+  /// The id of the target message that was being stitched.
+  final int targetId;
+
+  /// Whether the stitch was measured.
+  final bool measured;
+
+  /// Whether the stitch jumped.
+  final bool jumped;
+
+  /// The progress of the stitch.
+  final double progress;
+
+  /// The scroll length of the stitch.
+  final double scrollLength;
+
+  /// Whether the stitch was toward newer.
+  final bool towardNewer;
+}
+
 /// Travel-scaled animate duration for close-path and stitch.
 ///
 /// Formula: `((|travel| / viewportHeight) + 1) * 200` ms, clamped to
@@ -129,8 +160,12 @@ class ChatAnimator implements ChatScrollAnimator {
     /// Capture visible outgoing rows before the stitch jump. Render-owned.
     required void Function(int targetId) prepareStitchCapture,
 
-    /// Clear stitch pin / frozen tops on cancel or settle. Render-owned.
-    required VoidCallback clearStitchCapture,
+    /// Bake dual-translate into layout offsets when a stitch flight is cancelled.
+    required void Function(StitchCancelSnapshot snapshot) onStitchCancelled,
+
+    /// Bake dual-translate at final progress and clear stitch capture on normal
+    /// stitch completion. Render-owned.
+    required void Function(StitchCancelSnapshot snapshot) onStitchComplete,
     Duration highlightDuration = const Duration(
       milliseconds: kHighlightHoldDurationMs,
     ),
@@ -155,7 +190,8 @@ class ChatAnimator implements ChatScrollAnimator {
        _cancelFling = cancelFling,
        _cancelBounceback = cancelBounceback,
        _prepareStitchCapture = prepareStitchCapture,
-       _clearStitchCapture = clearStitchCapture,
+       _onStitchCancelled = onStitchCancelled,
+       _onStitchComplete = onStitchComplete,
        _highlightDuration = highlightDuration,
        _highlightColor = highlightColor;
 
@@ -180,7 +216,8 @@ class ChatAnimator implements ChatScrollAnimator {
   final VoidCallback _cancelFling;
   final VoidCallback _cancelBounceback;
   final void Function(int targetId) _prepareStitchCapture;
-  final VoidCallback _clearStitchCapture;
+  final void Function(StitchCancelSnapshot snapshot) _onStitchCancelled;
+  final void Function(StitchCancelSnapshot snapshot) _onStitchComplete;
 
   /// Animate / stitch diagnostics — filter console for `ChatScrollAnimate`.
   ///
@@ -188,7 +225,7 @@ class ChatAnimator implements ChatScrollAnimator {
   /// [log.enabled] to `false` to silence.
   final ChatScrollDevLog log = ChatScrollDevLog(
     'ChatScrollAnimate',
-    enabled: false,
+    enabled: true,
   );
 
   /// Last logged progress bucket `0..10` for sparse tick lines.
@@ -747,13 +784,23 @@ class ChatAnimator implements ChatScrollAnimator {
     _stitchMeasureLayoutAsked = false;
     _lastProgressBucket = -1;
     final wasStitch = farAnimateActive;
+    StitchCancelSnapshot? stitchCancel;
+    if (wasStitch) {
+      stitchCancel = StitchCancelSnapshot(
+        targetId: animateTargetId,
+        measured: stitchMeasured,
+        jumped: farAnimateJumped,
+        progress: stitchProgress,
+        scrollLength: stitchScrollLength,
+        towardNewer: stitchTowardNewer,
+      );
+    }
     farAnimateActive = false;
     farAnimateJumped = false;
     stitchMeasured = false;
     stitchProgress = 0;
-    if (wasStitch) {
-      _clearStitchCapture();
-      _markNeedsPaint();
+    if (stitchCancel != null) {
+      _onStitchCancelled(stitchCancel);
     }
     if (fadeHighlight &&
         animateHighlight &&
@@ -888,9 +935,12 @@ class ChatAnimator implements ChatScrollAnimator {
   }
 
   /// Re-target [animateEndOffset] when layout geometry changes mid-flight
-  /// (bottom inset, message height, date-header relayout). Rebases from the
-  /// current anchor offset so the interpolator tracks the live aligned target
-  /// without layout-time snapping during close-path animation.
+  /// (message height, date-header relayout — not inset-only). Rebases from
+  /// the current anchor so the interpolator tracks the live aligned target.
+  ///
+  /// Bottom-inset changes must use [shiftClosePathByInset] together with
+  /// [ChatScrollController.applyScrollDelta] so this becomes a no-op and the
+  /// travel clock keeps running.
   void rebaseClosePathEnd({Duration? elapsed}) {
     if (animateCompleter == null || farAnimateActive) {
       return;
@@ -921,6 +971,18 @@ class ChatAnimator implements ChatScrollAnimator {
     }
   }
 
+  /// Parallel-shift close-path endpoints when bottom inset compensation moves
+  /// the anchor by [delta] (same sign as [ChatScrollController.applyScrollDelta]).
+  /// Keeps [animateStartTime] so tall scroll-to-bottom continues during
+  /// keyboard/composer motion; the next [rebaseClosePathEnd] then no-ops.
+  void shiftClosePathByInset(double delta) {
+    if (animateCompleter == null || farAnimateActive || delta == 0.0) {
+      return;
+    }
+    animateStartOffset += delta;
+    animateEndOffset += delta;
+  }
+
   /// Consumes a deferred post-animate settle callback, if any.
   int? takePendingSettleTargetId() {
     final id = _pendingSettleTargetId;
@@ -932,6 +994,17 @@ class ChatAnimator implements ChatScrollAnimator {
     final completer = animateCompleter;
     final targetId = animateTargetId;
     final wasFarPath = farAnimateActive;
+    StitchCancelSnapshot? stitchComplete;
+    if (wasFarPath) {
+      stitchComplete = StitchCancelSnapshot(
+        targetId: targetId,
+        measured: stitchMeasured,
+        jumped: farAnimateJumped,
+        progress: stitchProgress,
+        scrollLength: stitchScrollLength,
+        towardNewer: stitchTowardNewer,
+      );
+    }
     log.event('animate.complete', {
       'target': targetId,
       'path': wasFarPath ? 'stitch' : 'close',
@@ -949,8 +1022,8 @@ class ChatAnimator implements ChatScrollAnimator {
     farAnimateJumped = false;
     stitchMeasured = false;
     stitchProgress = 0;
-    if (wasFarPath) {
-      _clearStitchCapture();
+    if (stitchComplete != null) {
+      _onStitchComplete(stitchComplete);
     }
     if (!wasFarPath) {
       var end = animateEndOffset;

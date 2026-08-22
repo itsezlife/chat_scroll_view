@@ -55,6 +55,10 @@ class ChatChunkFetchScheduler {
   /// that dispatches [maybeDispatchJumpFetch].
   bool _jumpFetchPending = false;
 
+  /// Pre-mount tail seed: arm jump-fetch after the first layout publishes a
+  /// real chunk range (avoids `layout=0..-1` dispatch noise).
+  bool _deferredSeedJumpFetch = false;
+
   /// While set, fetch prioritizes an around-target destination window for the
   /// navigation load-gate (not a contiguous gap fill from the laid-out range).
   int? _navigationDestChunk;
@@ -280,6 +284,7 @@ class ChatChunkFetchScheduler {
   void resetLayoutRange() {
     _layoutMinChunk = 0;
     _layoutMaxChunk = -1;
+    _deferredSeedJumpFetch = false;
   }
 
   /// Bump the scroll-activity timestamp used by the poll debounce.
@@ -322,6 +327,14 @@ class ChatChunkFetchScheduler {
 
   /// Queue jump-fetch without clearing scroll timestamp (pre-mount tail seed).
   void queueJumpFetch() {
+    if (_layoutMaxChunk < _layoutMinChunk) {
+      _deferredSeedJumpFetch = true;
+      log.event('queueJumpFetch.deferred', {
+        'dest': _navigationDestChunk,
+        'layout': '$_layoutMinChunk..$_layoutMaxChunk',
+      });
+      return;
+    }
     _jumpFetchPending = true;
     log.event('queueJumpFetch', {
       'dest': _navigationDestChunk,
@@ -342,6 +355,15 @@ class ChatChunkFetchScheduler {
     });
     evictChunks();
     scheduleFetchPoll();
+    if (_deferredSeedJumpFetch && _layoutMaxChunk >= _layoutMinChunk) {
+      _deferredSeedJumpFetch = false;
+      _jumpFetchPending = true;
+      log.event('queueJumpFetch', {
+        'dest': _navigationDestChunk,
+        'layout': '$minChunk..$maxChunk',
+        'via': 'deferredSeed',
+      });
+    }
     maybeDispatchJumpFetch();
   }
 

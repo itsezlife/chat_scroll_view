@@ -2092,6 +2092,51 @@ void main() {
       expect(_pillText(tester), '0 new messages');
     });
 
+    testWidgets('cancelled tap animateTo still allows FAB after scroll toward newer', (
+      tester,
+    ) async {
+      const count = 40;
+      final ds = _PreloadedLikeSource(count);
+      final controller = ChatScrollController()..jumpTo(count - 1);
+      final lastSeen = ValueNotifier<int?>(count - 1);
+      addTearDown(controller.dispose);
+      addTearDown(ds.dispose);
+      addTearDown(lastSeen.dispose);
+
+      await tester.pumpWidget(
+        _scaffoldWithPill(
+          dataSource: ds,
+          controller: controller,
+          lastSeenNewestId: lastSeen,
+        ),
+      );
+      await _pumpSettleFrames(tester);
+
+      await tester.drag(find.byType(ChatScrollView), const Offset(0, 250));
+      await tester.pump();
+      await tester.drag(find.byType(ChatScrollView), const Offset(0, -120));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 50));
+      expect(_fabVisible(tester), isTrue);
+
+      await tester.tap(_fabTapTarget());
+      await tester.pump();
+      // User takes over mid-flight — drag cancels animateTo before tail.
+      await tester.drag(find.byType(ChatScrollView), const Offset(0, 80));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
+
+      expect(controller.isAtTail.value, isFalse);
+      expect(_fabVisible(tester), isFalse);
+
+      await tester.drag(find.byType(ChatScrollView), const Offset(0, -120));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 50));
+
+      expect(controller.isAtTail.value, isFalse);
+      expect(_fabVisible(tester), isTrue);
+    });
+
     testWidgets('hides FAB when returning to stable tail', (tester) async {
       const count = 40;
       final ds = _PreloadedLikeSource(count);

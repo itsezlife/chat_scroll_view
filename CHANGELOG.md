@@ -6,6 +6,32 @@ this project is pre-1.0 and not strictly SemVer yet.
 
 ## [Unreleased]
 
+### Fixed
+
+- **Close-path delay during keyboard inset.** Tall scroll-to-bottom no longer
+  stalls while the keyboard animates: bottom-pad compensate parallel-shifts
+  close-path start/end (`shiftClosePathByInset`) with the same delta as the
+  anchor, so `rebaseClosePathEnd` does not restart the travel clock on every
+  inset frame. Compensate runs eagerly on pad change during close-path to
+  beat the next tick.
+
+- **Stitch measure / freeze ordering.** Layout freeze applies only after
+  `stitchMeasured` so the post-jump measure pass can still run `pinNewest`
+  (tall scroll-to-bottom starts from the message bottom). Freezing earlier
+  pinned from the row top and hitching mid-flight.
+
+- **Stitch outgoing double-apply.** While jumped, fan-out skips outgoing
+  capture ids (`_skipStitchOutgoingReposition`) so paint dual-translate is
+  not stacked on a layout walk that already moved those rows.
+
+- **Example scroll-to-bottom FAB after cancelled animate.** Drag that aborts
+  `animateTo(newest)` no longer latches stable-at-tail; settle writes the
+  read baseline only when layout confirms `isAtTail`.
+
+- **Example fetch returning locally removed ids.** `CommentsDataSource` and
+  `GeneratedChatDataSource` skip ids marked removed in-memory when assembling
+  `fetchRange` results.
+
 ### Changed
 
 - **Breaking — `AnimateToLoadPolicy`.** Enum names are unchanged; behavior is
@@ -34,6 +60,11 @@ this project is pre-1.0 and not strictly SemVer yet.
   wipe the tint mid-flight. Bubble selected-fill stays host-owned.
 
 ### Added
+
+- **Stitch settle: commit-at-progress.** Dual-translate paint offsets bake
+  into layout offsets on normal completion and user cancel via
+  `StitchCancelSnapshot` (`stitch.commit`), so outgoing rows do not snap
+  back for one frame when paint stops applying stitch dy.
 
 - **`AnimateToBusyPolicy` / `AnimateToDisposition`.** Control re-entry while an
   animate is in flight (`ignore` default vs `replace`). `animateTo` returns a

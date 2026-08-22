@@ -119,7 +119,8 @@ class CommentsDataSource extends ChatDataSource {
     // Simulate network delay.
     await Future<void>.delayed(fetchDelay);
 
-    final upper = newestKnownId ??
+    final upper =
+        newestKnownId ??
         (manifest.totalMessages > 0 ? manifest.totalMessages - 1 : -1);
     if (upper < 0) return const [];
 
@@ -140,7 +141,9 @@ class CommentsDataSource extends ChatDataSource {
       for (var ac = firstAssetChunk; ac <= lastAssetChunk; ac++) {
         final messages = await _loadAssetChunk(ac);
         for (final msg in messages) {
-          if (msg.id >= assetLo && msg.id <= assetHi) result.add(msg);
+          if (msg.id < assetLo || msg.id > assetHi) continue;
+          if (_isLocallyRemoved(msg.id)) continue;
+          result.add(msg);
         }
       }
     }
@@ -148,6 +151,7 @@ class CommentsDataSource extends ChatDataSource {
     // Demo sends past the manifest — re-serve from overrides / live cache.
     for (var id = lo; id <= hi; id++) {
       if (id < manifest.totalMessages) continue;
+      if (_isLocallyRemoved(id)) continue;
       final cached = getMessage(id);
       if (cached != null) {
         result.add(cached);
@@ -232,8 +236,12 @@ class CommentsDataSource extends ChatDataSource {
 
   /// Demo integrator: delete one or more messages via [removeMessages].
   @override
-  void removeMessages(Iterable<int> ids, {Object? reason}) =>
-      super.removeMessages(ids, reason: reason ?? 'demo-delete');
+  void removeMessages(Iterable<int> ids, {Object? reason}) {
+    ids.forEach(_tailOverrides.remove);
+    super.removeMessages(ids, reason: reason ?? 'demo-delete');
+  }
+
+  bool _isLocallyRemoved(int id) => pendingRemovalIds.contains(id);
 
   /// Scans every asset chunk for [query] (already lower-cased) without the
   /// artificial [fetchDelay] used by [fetchRange].

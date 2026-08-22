@@ -29,7 +29,8 @@ void main() {
       cancelFling: () {},
       cancelBounceback: () {},
       prepareStitchCapture: (_) {},
-      clearStitchCapture: () {},
+      onStitchCancelled: (_) {},
+      onStitchComplete: (_) {},
     );
     controller.animator = animator;
 

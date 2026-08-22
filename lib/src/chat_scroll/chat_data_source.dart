@@ -555,9 +555,9 @@ abstract class ChatDataSource {
     );
     final slot = id - chunk.firstId;
     final existing = chunk.messages[slot];
-    if (existing != null) {
-      _removalStaging[id] = existing;
-    }
+    // Always record the id so local deletes survive chunk LRU eviction and
+    // block fetchRange merge from resurrecting rows the integrator removed.
+    _removalStaging[id] = existing;
     chunk.messages[slot] = null;
     if (!chunk.isAbsentSlot(slot)) {
       chunk.markAbsentSlot(slot);
@@ -653,7 +653,7 @@ abstract class ChatDataSource {
 
   // --- Removal staging ------------------------------------------------------
 
-  final Map<int, IChatMessage> _removalStaging = <int, IChatMessage>{};
+  final Map<int, IChatMessage?> _removalStaging = <int, IChatMessage?>{};
   int _nextOperationId = 1;
 
   // --- Typed listener: mutation intent --------------------------------------
@@ -689,6 +689,7 @@ abstract class ChatDataSource {
     isDisposed: () => _disposed,
     unconfirmedTailThroughId: () => _unconfirmedTailThroughId,
     onFetchSuccess: _onRangeFetchSuccess,
+    skipFetchUpsert: _isConfirmedAbsent,
   );
 
   /// Check visible chunk range and fetch missing/dirty data.

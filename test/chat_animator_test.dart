@@ -21,7 +21,8 @@ ChatAnimator _animator({
   VoidCallback? cancelFling,
   VoidCallback? cancelBounceback,
   void Function(int targetId)? prepareStitchCapture,
-  VoidCallback? clearStitchCapture,
+  void Function(StitchCancelSnapshot snapshot)? onStitchCancelled,
+  void Function(StitchCancelSnapshot snapshot)? onStitchComplete,
   bool Function(int id)? isHighlightReady,
   bool Function(int id)? shouldDropPendingHighlight,
   bool Function(int id)? isDestinationReady,
@@ -53,7 +54,8 @@ ChatAnimator _animator({
   cancelFling: cancelFling ?? () {},
   cancelBounceback: cancelBounceback ?? () {},
   prepareStitchCapture: prepareStitchCapture ?? (_) {},
-  clearStitchCapture: clearStitchCapture ?? () {},
+  onStitchCancelled: onStitchCancelled ?? (_) {},
+  onStitchComplete: onStitchComplete ?? (_) {},
   highlightDuration: highlightDuration,
   highlightColor: highlightColor,
 );
@@ -300,10 +302,10 @@ void main() {
   group('cancelAnimate', () {
     test('clears stitch state and completes', () {
       final controller = ChatScrollController();
-      var cleared = false;
+      var cancelled = false;
       final animator = _animator(
         controller: controller,
-        clearStitchCapture: () => cleared = true,
+        onStitchCancelled: (_) => cancelled = true,
       );
 
       animator.animate(
@@ -319,7 +321,7 @@ void main() {
 
       expect(animator.isAnimating, isFalse);
       expect(animator.farAnimateActive, isFalse);
-      expect(cleared, isTrue);
+      expect(cancelled, isTrue);
       expect(animator.fadeOpacity, 1.0);
     });
   });
@@ -358,11 +360,11 @@ void main() {
 
     test('different target while in flight is ignored', () async {
       final controller = ChatScrollController();
-      var clearCount = 0;
+      var cancelCount = 0;
       final animator = _animator(
         controller: controller,
         offsetToBuiltMessage: (_) => null,
-        clearStitchCapture: () => clearCount++,
+        onStitchCancelled: (_) => cancelCount++,
       );
 
       final first = animator.animate(
@@ -373,7 +375,7 @@ void main() {
       );
       expect(animator.animateTargetId, 1);
       expect(animator.farAnimateActive, isTrue);
-      final clearsAfterStart = clearCount;
+      final clearsAfterStart = cancelCount;
 
       await animator.animate(
         2,
@@ -384,7 +386,7 @@ void main() {
 
       expect(animator.animateTargetId, 1);
       expect(animator.farAnimateActive, isTrue);
-      expect(clearCount, clearsAfterStart);
+      expect(cancelCount, clearsAfterStart);
 
       animator.cancelAnimate();
       await first;
@@ -580,29 +582,32 @@ void main() {
       expect(controller.anchorMessageId, 99);
     });
 
-    test('close path when target is built even beyond kCloseAnimateDistance', () {
-      // Telegram found → smoothScrollBy; distance must not force stitch.
-      final controller = ChatScrollController();
-      final box = _sizedBox();
-      final animator = _animator(
-        controller: controller,
-        offsetToBuiltMessage: (_) => kCloseAnimateDistance + 1,
-        closePathEndOffsetFor: (_, _, alignment) => 40.0 * alignment,
-        childForId: (_) => box,
-        heightOfChild: (_) => box.size.height,
-        messageIntersectsPaintBand: (_) => false,
-      );
+    test(
+      'close path when target is built even beyond kCloseAnimateDistance',
+      () {
+        // Telegram found → smoothScrollBy; distance must not force stitch.
+        final controller = ChatScrollController();
+        final box = _sizedBox();
+        final animator = _animator(
+          controller: controller,
+          offsetToBuiltMessage: (_) => kCloseAnimateDistance + 1,
+          closePathEndOffsetFor: (_, _, alignment) => 40.0 * alignment,
+          childForId: (_) => box,
+          heightOfChild: (_) => box.size.height,
+          messageIntersectsPaintBand: (_) => false,
+        );
 
-      animator.animate(
-        1,
-        duration: const Duration(milliseconds: 200),
-        curve: Curves.linear,
-        highlight: false,
-      );
+        animator.animate(
+          1,
+          duration: const Duration(milliseconds: 200),
+          curve: Curves.linear,
+          highlight: false,
+        );
 
-      expect(animator.farAnimateActive, isFalse);
-      expect(animator.isAnimating, isTrue);
-    });
+        expect(animator.farAnimateActive, isFalse);
+        expect(animator.isAnimating, isTrue);
+      },
+    );
 
     test(
       'close path when band-intersecting even if offset exceeds distance',
@@ -930,13 +935,59 @@ void main() {
       expect(animator.animateStartOffset, controller.anchorPixelOffset);
     });
 
+    test('shiftClosePathByInset keeps clock; rebase then no-ops', () {
+      final controller = ChatScrollController()..reassignAnchor(9, 200);
+      const bottomEdge = 600.0;
+      const tallH = 800.0;
+      var pad = 0.0;
+      final box = _sizedBox(height: tallH);
+      final animator = _animator(
+        controller: controller,
+        offsetToBuiltMessage: (_) => 200.0,
+        closePathEndOffsetFor: (_, height, _) => bottomEdge - pad - height,
+        isTailClosePathTarget: (_) => true,
+        childForId: (_) => box,
+        heightOfChild: (_) => box.size.height,
+      );
+
+      animator.animate(
+        9,
+        duration: const Duration(milliseconds: 400),
+        curve: Curves.linear,
+        highlight: false,
+      );
+      final quarter = animator.animateDuration * 0.25;
+      animator.tickAnimate(quarter);
+      final startTime = animator.animateStartTime;
+      final startBefore = animator.animateStartOffset;
+      final endBefore = animator.animateEndOffset;
+
+      // Keyboard opens: pad grows → end moves by the same delta as compensate.
+      const delta = -40.0;
+      pad = 40.0;
+      controller.applyScrollDelta(delta);
+      animator.shiftClosePathByInset(delta);
+
+      expect(animator.animateStartTime, startTime);
+      expect(animator.animateStartOffset, startBefore + delta);
+      expect(animator.animateEndOffset, endBefore + delta);
+
+      // Live end now matches shifted end → geometry rebase must not restart.
+      animator.rebaseClosePathEnd(elapsed: quarter);
+      expect(animator.animateStartTime, startTime);
+      expect(animator.animateEndOffset, endBefore + delta);
+
+      animator.tickAnimate(quarter * 2);
+      expect(animator.animateStartTime, startTime);
+    });
+
     test('stitch advances progress after measure and completes', () {
       final controller = ChatScrollController();
-      var cleared = false;
+      StitchCancelSnapshot? completed;
       final animator = _animator(
         controller: controller,
         offsetToBuiltMessage: (_) => null,
-        clearStitchCapture: () => cleared = true,
+        onStitchComplete: (snapshot) => completed = snapshot,
       );
 
       animator.animate(
@@ -975,7 +1026,11 @@ void main() {
       animator.tickAnimate(start + animator.animateDuration);
       expect(animator.isAnimating, isFalse);
       expect(animator.stitchProgress, 0.0);
-      expect(cleared, isTrue);
+      expect(completed, isNotNull);
+      expect(completed!.targetId, 42);
+      expect(completed!.progress, 1.0);
+      expect(completed!.measured, isTrue);
+      expect(completed!.jumped, isTrue);
     });
   });
 
