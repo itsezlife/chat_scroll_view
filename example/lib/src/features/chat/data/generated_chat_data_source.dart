@@ -87,6 +87,7 @@ class GeneratedChatDataSource extends ChatDataSource {
 
     final result = <IChatMessage>[];
     for (var id = lo; id <= hi; id++) {
+      if (_isLocallyRemoved(id)) continue;
       final cached = getMessage(id);
       if (cached != null) {
         result.add(cached);
@@ -139,8 +140,12 @@ class GeneratedChatDataSource extends ChatDataSource {
 
   /// Demo integrator: delete one or more messages via [removeMessages].
   @override
-  void removeMessages(Iterable<int> ids, {Object? reason}) =>
-      super.removeMessages(ids, reason: reason ?? 'demo-delete');
+  void removeMessages(Iterable<int> ids, {Object? reason}) {
+    ids.forEach(_tailOverrides.remove);
+    super.removeMessages(ids, reason: reason ?? 'demo-delete');
+  }
+
+  bool _isLocallyRemoved(int id) => pendingRemovalIds.contains(id);
 
   /// Scans the full synthetic range for [query] (already lower-cased).
   ///

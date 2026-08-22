@@ -21,7 +21,9 @@ ChatAnimator _animator({
   VoidCallback? cancelFling,
   VoidCallback? cancelBounceback,
   void Function(int targetId)? prepareStitchCapture,
-  VoidCallback? clearStitchCapture,
+  void Function(StitchCancelSnapshot snapshot)? onStitchCancelled,
+  void Function(StitchCancelSnapshot snapshot)? onStitchComplete,
+  String? Function()? stitchMeasureDeferReason,
   bool Function(int id)? isHighlightReady,
   bool Function(int id)? shouldDropPendingHighlight,
   bool Function(int id)? isDestinationReady,
@@ -53,7 +55,9 @@ ChatAnimator _animator({
   cancelFling: cancelFling ?? () {},
   cancelBounceback: cancelBounceback ?? () {},
   prepareStitchCapture: prepareStitchCapture ?? (_) {},
-  clearStitchCapture: clearStitchCapture ?? () {},
+  onStitchCancelled: onStitchCancelled ?? (_) {},
+  onStitchComplete: onStitchComplete ?? (_) {},
+  stitchMeasureDeferReason: stitchMeasureDeferReason ?? () => null,
   highlightDuration: highlightDuration,
   highlightColor: highlightColor,
 );
@@ -300,10 +304,10 @@ void main() {
   group('cancelAnimate', () {
     test('clears stitch state and completes', () {
       final controller = ChatScrollController();
-      var cleared = false;
+      var cancelled = false;
       final animator = _animator(
         controller: controller,
-        clearStitchCapture: () => cleared = true,
+        onStitchCancelled: (_) => cancelled = true,
       );
 
       animator.animate(
@@ -319,7 +323,7 @@ void main() {
 
       expect(animator.isAnimating, isFalse);
       expect(animator.farAnimateActive, isFalse);
-      expect(cleared, isTrue);
+      expect(cancelled, isTrue);
       expect(animator.fadeOpacity, 1.0);
     });
   });
@@ -358,11 +362,11 @@ void main() {
 
     test('different target while in flight is ignored', () async {
       final controller = ChatScrollController();
-      var clearCount = 0;
+      var cancelCount = 0;
       final animator = _animator(
         controller: controller,
         offsetToBuiltMessage: (_) => null,
-        clearStitchCapture: () => clearCount++,
+        onStitchCancelled: (_) => cancelCount++,
       );
 
       final first = animator.animate(
@@ -373,7 +377,7 @@ void main() {
       );
       expect(animator.animateTargetId, 1);
       expect(animator.farAnimateActive, isTrue);
-      final clearsAfterStart = clearCount;
+      final clearsAfterStart = cancelCount;
 
       await animator.animate(
         2,
@@ -384,7 +388,7 @@ void main() {
 
       expect(animator.animateTargetId, 1);
       expect(animator.farAnimateActive, isTrue);
-      expect(clearCount, clearsAfterStart);
+      expect(cancelCount, clearsAfterStart);
 
       animator.cancelAnimate();
       await first;
@@ -580,29 +584,32 @@ void main() {
       expect(controller.anchorMessageId, 99);
     });
 
-    test('close path when target is built even beyond kCloseAnimateDistance', () {
-      // Telegram found → smoothScrollBy; distance must not force stitch.
-      final controller = ChatScrollController();
-      final box = _sizedBox();
-      final animator = _animator(
-        controller: controller,
-        offsetToBuiltMessage: (_) => kCloseAnimateDistance + 1,
-        closePathEndOffsetFor: (_, _, alignment) => 40.0 * alignment,
-        childForId: (_) => box,
-        heightOfChild: (_) => box.size.height,
-        messageIntersectsPaintBand: (_) => false,
-      );
+    test(
+      'close path when target is built even beyond kCloseAnimateDistance',
+      () {
+        // Telegram found → smoothScrollBy; distance must not force stitch.
+        final controller = ChatScrollController();
+        final box = _sizedBox();
+        final animator = _animator(
+          controller: controller,
+          offsetToBuiltMessage: (_) => kCloseAnimateDistance + 1,
+          closePathEndOffsetFor: (_, _, alignment) => 40.0 * alignment,
+          childForId: (_) => box,
+          heightOfChild: (_) => box.size.height,
+          messageIntersectsPaintBand: (_) => false,
+        );
 
-      animator.animate(
-        1,
-        duration: const Duration(milliseconds: 200),
-        curve: Curves.linear,
-        highlight: false,
-      );
+        animator.animate(
+          1,
+          duration: const Duration(milliseconds: 200),
+          curve: Curves.linear,
+          highlight: false,
+        );
 
-      expect(animator.farAnimateActive, isFalse);
-      expect(animator.isAnimating, isTrue);
-    });
+        expect(animator.farAnimateActive, isFalse);
+        expect(animator.isAnimating, isTrue);
+      },
+    );
 
     test(
       'close path when band-intersecting even if offset exceeds distance',
@@ -932,11 +939,11 @@ void main() {
 
     test('stitch advances progress after measure and completes', () {
       final controller = ChatScrollController();
-      var cleared = false;
+      StitchCancelSnapshot? completed;
       final animator = _animator(
         controller: controller,
         offsetToBuiltMessage: (_) => null,
-        clearStitchCapture: () => cleared = true,
+        onStitchComplete: (snapshot) => completed = snapshot,
       );
 
       animator.animate(
@@ -975,7 +982,76 @@ void main() {
       animator.tickAnimate(start + animator.animateDuration);
       expect(animator.isAnimating, isFalse);
       expect(animator.stitchProgress, 0.0);
-      expect(cleared, isTrue);
+      expect(completed, isNotNull);
+      expect(completed!.targetId, 42);
+      expect(completed!.progress, 1.0);
+      expect(completed!.measured, isTrue);
+      expect(completed!.jumped, isTrue);
+    });
+
+    test('rebaseStitchTravelInset preserves progress and updates scroll length', () {
+      final controller = ChatScrollController();
+      final animator = _animator(
+        controller: controller,
+        offsetToBuiltMessage: (_) => null,
+      );
+
+      animator.animate(
+        42,
+        duration: const Duration(milliseconds: 100),
+        curve: Curves.linear,
+        alignment: 0,
+        highlight: false,
+        loadPolicy: AnimateToLoadPolicy.immediate,
+      );
+
+      animator.applyStitchMeasure(
+        scrollLength: 400,
+        towardNewer: true,
+        viewportHeight: 600,
+        elapsed: Duration.zero,
+      );
+      const elapsed = Duration(milliseconds: 100);
+      animator.tickAnimate(elapsed);
+      final progressBefore = animator.stitchProgress;
+      expect(progressBefore, greaterThan(0));
+      expect(progressBefore, lessThan(1));
+
+      animator.rebaseStitchTravelInset(scrollLength: 520, viewportHeight: 500);
+      expect(animator.stitchScrollLength, 520);
+      expect(animator.stitchProgress, progressBefore);
+    });
+
+    test('rebaseStitchTravelGeometry scales progress for monotonic travel', () {
+      final controller = ChatScrollController();
+      final animator = _animator(
+        controller: controller,
+        offsetToBuiltMessage: (_) => null,
+      );
+
+      animator.animate(
+        42,
+        duration: const Duration(milliseconds: 100),
+        curve: Curves.linear,
+        alignment: 0,
+        highlight: false,
+        loadPolicy: AnimateToLoadPolicy.immediate,
+      );
+
+      animator.applyStitchMeasure(
+        scrollLength: 400,
+        towardNewer: true,
+        viewportHeight: 600,
+        elapsed: Duration.zero,
+      );
+      animator.stitchProgress = 0.5;
+
+      animator.rebaseStitchTravelGeometry(
+        scrollLength: 800,
+        viewportHeight: 600,
+      );
+      expect(animator.stitchScrollLength, 800);
+      expect(animator.stitchProgress, 0.25);
     });
   });
 

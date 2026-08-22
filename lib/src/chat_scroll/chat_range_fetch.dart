@@ -26,12 +26,14 @@ class ChatRangeFetch {
     required bool Function() isDisposed,
     int? Function()? unconfirmedTailThroughId,
     void Function(int? maxReturnedId)? onFetchSuccess,
+    bool Function(int id)? skipFetchUpsert,
   }) : _chunks = chunks,
        _fetchRange = fetchRange,
        _notifyDataChanged = notifyDataChanged,
        _isDisposed = isDisposed,
        _unconfirmedTailThroughId = unconfirmedTailThroughId,
-       _onFetchSuccess = onFetchSuccess;
+       _onFetchSuccess = onFetchSuccess,
+       _skipFetchUpsert = skipFetchUpsert;
 
   static final math.Random _rnd = math.Random();
 
@@ -45,6 +47,7 @@ class ChatRangeFetch {
   final bool Function() _isDisposed;
   final int? Function()? _unconfirmedTailThroughId;
   final void Function(int? maxReturnedId)? _onFetchSuccess;
+  final bool Function(int id)? _skipFetchUpsert;
 
   Object? _fetchToken;
   int _fetchRetryStep = 0;
@@ -284,7 +287,8 @@ class ChatRangeFetch {
         _fetchToken = null;
 
         final chunks = _chunks();
-        // Upsert returned messages into their slots.
+        // Upsert returned messages into their slots. Skip ids the integrator
+        // removed locally — static/refetch sources may still return them.
         for (final msg in messages) {
           assert(
             msg.id >= fromId && msg.id <= toId,
@@ -292,6 +296,7 @@ class ChatRangeFetch {
             'range [$fromId, $toId]. Subclasses must only return messages '
             'whose ids fall within the requested chunk-aligned range.',
           );
+          if (_skipFetchUpsert?.call(msg.id) ?? false) continue;
           final ci = ChatScrollChunk.chunkOf(msg.id);
           final chunk = chunks.putIfAbsent(
             ci,

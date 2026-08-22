@@ -223,7 +223,9 @@ class RenderChatScrollView extends RenderBox {
       cancelFling: _cancelFling,
       cancelBounceback: _cancelBounceback,
       prepareStitchCapture: _prepareStitchCapture,
-      clearStitchCapture: _clearStitchCapture,
+      onStitchCancelled: _onStitchCancelled,
+      onStitchComplete: _onStitchComplete,
+      stitchMeasureDeferReason: _stitchMeasureDeferReason,
       highlightColor: highlightColor,
       highlightDuration: highlightDuration,
     );
@@ -675,8 +677,20 @@ class RenderChatScrollView extends RenderBox {
   /// Dedupes `stitch.gc` logs across layout spam during one stitch.
   String? _stitchGcLogSig;
 
+  /// Dedupes `stitch.chrome.*` diagnostic lines within one stitch flight.
+  final Set<String> _stitchChromePhasesLogged = <String>{};
+
   /// Anchor id before stitch jump — direction heuristic.
   int? _stitchAnchorIdBeforeJump;
+
+  /// Bottom inset changed post-jump before measure — next layout skips refan.
+  bool _stitchPostJumpInsetCompensatedThisLayout = false;
+
+  /// Dedupes `stitch.awaitMeasure.deferred` while waiting for target build.
+  String? _stitchMeasureDeferLogSig;
+
+  /// Bottom padding at stitch measure — Telegram `paddingBottomStart` for paint.
+  double? _stitchBottomPadAtMeasure;
 
   /// Post-animate highlight duration — forwarded to [ChatAnimator].
   Duration get highlightDuration => _animator.highlightDuration;
@@ -726,6 +740,7 @@ class RenderChatScrollView extends RenderBox {
       'outgoingIds': DevLogFormat.ids(_stitchOutgoingIds),
       'stripH': DevLogFormat.f(_stitchOutgoingStripBottom()),
     });
+    _logStitchDayChrome('capture');
   }
 
   /// Bottom of the captured outgoing strip (max frozen top+height), or 0.
@@ -752,14 +767,218 @@ class RenderChatScrollView extends RenderBox {
     return top == double.infinity ? 0.0 : top;
   }
 
+  /// User or host cancelled mid-stitch — bake dual-translate at [snapshot.progress]
+  /// into layout offsets so the viewport stays where it was painted, then refan.
+  void _onStitchCancelled(StitchCancelSnapshot snapshot) {
+    _chunkFetchScheduler.clearNavigationDestination();
+    _pinTailOnJump = false;
+    _pendingTailPinUntilSettled = false;
+    if (hasSize && snapshot.jumped && snapshot.measured) {
+      _commitStitchAtProgress(snapshot);
+    } else if (hasSize) {
+      _renormalizeAnchor();
+    }
+    _clearStitchCapture();
+    markNeedsLayout();
+  }
+
+  /// Normal stitch completion — bake paint dy at final progress before clearing
+  /// capture so outgoing rows do not snap back into the viewport for one frame.
+  void _onStitchComplete(StitchCancelSnapshot snapshot) {
+    if (hasSize && snapshot.jumped && snapshot.measured) {
+      _commitStitchAtProgress(snapshot);
+    }
+    _clearStitchCapture();
+    markNeedsLayout();
+  }
+
+  /// Apply stitch paint translation to layout offsets at cancel time.
+  void _commitStitchAtProgress(StitchCancelSnapshot snapshot) {
+    final hasLiveOutgoing = _stitchOutgoingIds.any(_children.containsKey);
+    if (!hasLiveOutgoing) {
+      _renormalizeAnchor();
+      return;
+    }
+    final travel = math.max<double>(snapshot.scrollLength, 1);
+    final t = snapshot.progress;
+    final towardNewer = snapshot.towardNewer;
+    final insetAdditionalY = _stitchInsetAdditionalYAtCommit();
+    for (final entry in _children.entries) {
+      final dy = _stitchPaintDyFor(
+        id: entry.key,
+        towardNewer: towardNewer,
+        travel: travel,
+        progress: t,
+        hasLiveOutgoing: hasLiveOutgoing,
+        insetAdditionalY: insetAdditionalY,
+      );
+      if (dy == 0) continue;
+      final pd = _parentData(entry.value);
+      _setOffset(entry.value, pd.offset + dy);
+    }
+    final fromId = _controller.anchorMessageId;
+    final fromY = _controller.anchorPixelOffset;
+    _syncAnchorOffsetAfterStitchCommit();
+    _renormalizeAnchor();
+    _fetchAnchorEvent('stitch.commit', {
+      ..._fetchAnchorSnapshot(),
+      'target': snapshot.targetId,
+      'progress': DevLogFormat.ratio(snapshot.progress),
+      'scrollLen': DevLogFormat.f(travel),
+      'insetAdditionalY': DevLogFormat.f(insetAdditionalY),
+      'fromId': fromId,
+      'fromY': DevLogFormat.f(fromY),
+      'toId': _controller.anchorMessageId,
+      'toY': DevLogFormat.f(_controller.anchorPixelOffset),
+    });
+  }
+
+  /// Inset delta baked at stitch commit/cancel — must not depend on
+  /// [ChatAnimator.stitchMeasured]; [_completeAnimate] clears that flag before
+  /// [_onStitchComplete] runs.
+  double _stitchInsetAdditionalYAtCommit() {
+    final padAtMeasure = _stitchBottomPadAtMeasure;
+    if (padAtMeasure == null) return 0;
+    return padAtMeasure - _bottomPad;
+  }
+
+  /// Keep [ChatScrollController.anchorPixelOffset] aligned with the anchor row
+  /// after commit bake so the next full layout does not refan from stale Y.
+  void _syncAnchorOffsetAfterStitchCommit() {
+    final resolved = _resolveAnchorBox();
+    if (resolved == null) return;
+    final top = _parentData(resolved.box).offset;
+    if ((_controller.anchorPixelOffset - top).abs() <= 0.5) return;
+    _controller.reassignAnchor(_controller.anchorMessageId, top);
+  }
+
+  double _stitchPaintDyFor({
+    required int id,
+    required bool towardNewer,
+    required double travel,
+    required double progress,
+    required bool hasLiveOutgoing,
+    double insetAdditionalY = 0,
+  }) {
+    if (!hasLiveOutgoing) return 0;
+    if (_stitchOutgoingIds.contains(id)) {
+      final travelDy = towardNewer ? -travel * progress : travel * progress;
+      return travelDy + insetAdditionalY;
+    }
+    final base = towardNewer
+        ? travel * (1 - progress)
+        : -travel * (1 - progress);
+    return base + insetAdditionalY;
+  }
+
+  /// Telegram `additionalY = paddingBottomStart - paddingBottom` during flight.
+  double _stitchInsetAdditionalY() {
+    if (!_animator.stitchMeasured || _stitchBottomPadAtMeasure == null) {
+      return 0;
+    }
+    return _stitchBottomPadAtMeasure! - _bottomPad;
+  }
+
   void _clearStitchCapture() {
     _stitchOutgoingIds.clear();
     _stitchFrozenTops.clear();
     _stitchFrozenHeights.clear();
     _stitchGcLogSig = null;
+    _stitchChromePhasesLogged.clear();
     _stitchAnchorIdBeforeJump = null;
     _stitchTowardNewer = true;
+    _stitchMeasureDeferLogSig = null;
+    _stitchBottomPadAtMeasure = null;
   }
+
+  /// Post-jump stitch travel may finalize only after the animate target is a
+  /// built row with loaded message geometry — not a fetch stub/shimmer alone.
+  bool _stitchTargetReadyForMeasure() {
+    final targetId = _animator.animateTargetId;
+    if (!_children.containsKey(targetId)) return false;
+    if (_dataSource.getMessage(targetId) == null) return false;
+    return true;
+  }
+
+  /// Why [_stitchTargetReadyForMeasure] is false, for animate diagnostics.
+  String? _stitchMeasureDeferReason() {
+    final targetId = _animator.animateTargetId;
+    if (!_children.containsKey(targetId)) return 'targetNotBuilt';
+    if (_dataSource.getMessage(targetId) == null) return 'targetShimmer';
+    return null;
+  }
+
+  void _logStitchMeasureDeferredIfNeeded() {
+    final reason = _stitchMeasureDeferReason();
+    if (reason == null) {
+      _stitchMeasureDeferLogSig = null;
+      return;
+    }
+    if (_stitchMeasureDeferLogSig == reason) return;
+    _stitchMeasureDeferLogSig = reason;
+    _animator.log.event('stitch.awaitMeasure.deferred', {
+      'target': _animator.animateTargetId,
+      'reason': reason,
+    });
+  }
+
+  /// Measured dual-translate flight only — not the post-jump measure layout.
+  /// Measure layout must still run tail [pinNewest] so scroll-to-bottom lands
+  /// on the message bottom before the stitch animates; blocking earlier caused
+  /// animating to the row top then teleporting at settle.
+  bool _shouldFreezeStitchLayout() =>
+      _animator.farAnimateActive &&
+      _animator.farAnimateJumped &&
+      _animator.stitchMeasured;
+
+  /// Apply bottom-inset delta during measured stitch flight: uniform shift of
+  /// anchor, incoming layout offsets, and frozen outgoing tops. Must not call
+  /// [_repositionFromAnchor] — the id-walk skips outgoing without reserving
+  /// their strip height and collapses dual-translate geometry (blank viewport).
+  void _applyStitchFlightInsetDelta(
+    double delta, {
+    required double previous,
+    required double current,
+  }) {
+    if (delta == 0.0) return;
+    _fetchAnchorEvent('layout.bottomPadCompensate.stitchFlight', {
+      ..._fetchAnchorSnapshot(),
+      'prev': DevLogFormat.f(previous),
+      'current': DevLogFormat.f(current),
+      'delta': DevLogFormat.f(delta),
+      'outgoingN': _stitchOutgoingIds.length,
+    });
+    _applyStitchMeasuredUniformShift(delta);
+  }
+
+  /// Measured stitch flight: translate layout offsets uniformly. Outgoing rows
+  /// stay on [_stitchFrozenTops]; incoming/history shift by [delta] in place.
+  void _applyStitchMeasuredUniformShift(double delta) {
+    if (delta == 0.0) return;
+    _controller.applyScrollDelta(delta);
+    for (final id in _stitchFrozenTops.keys) {
+      _stitchFrozenTops[id] = _stitchFrozenTops[id]! + delta;
+    }
+    _shiftStitchNonOutgoingLayoutBy(delta);
+    _refreezeStitchOutgoing();
+  }
+
+  void _shiftStitchNonOutgoingLayoutBy(double delta) {
+    for (final entry in _children.entries) {
+      if (_skipStitchOutgoingReposition(entry.key)) continue;
+      final pd = _parentData(entry.value);
+      _setOffset(entry.value, pd.offset + delta);
+    }
+    for (final entry in _chunkErrors.entries) {
+      final pd = _parentData(entry.value);
+      _setOffset(entry.value, pd.offset + delta);
+    }
+  }
+
+  /// Post-jump dual-translate — id-walk reposition collapses around the pinned
+  /// outgoing strip. Keep measure-layout offsets until settle (pre- and post-measure).
+  bool _shouldSkipStitchReposition() =>
+      _animator.farAnimateActive && _animator.farAnimateJumped;
 
   /// Toward-newer heuristic captured before jump (also used pre-measure paint).
   bool _stitchTowardNewer = true;
@@ -773,7 +992,7 @@ class RenderChatScrollView extends RenderBox {
       child.layout(cc, parentUsesSize: true);
       final frozen = _stitchFrozenTops[id];
       if (frozen != null) {
-        _parentData(child).offset = frozen;
+        _setOffset(child, frozen);
       }
     }
   }
@@ -785,8 +1004,61 @@ class RenderChatScrollView extends RenderBox {
       final child = _children[id];
       final frozen = _stitchFrozenTops[id];
       if (child == null || frozen == null) continue;
-      _parentData(child).offset = frozen;
+      _setOffset(child, frozen);
     }
+  }
+
+  /// Outgoing stitch rows keep capture-time layout offsets; fan-out from the
+  /// jumped anchor would stack them against incoming ids and double-apply travel
+  /// once paint adds [_stitchPaintDy].
+  bool _skipStitchOutgoingReposition(int id) =>
+      _animator.farAnimateActive &&
+      _animator.farAnimateJumped &&
+      _stitchOutgoingIds.contains(id);
+
+  /// Full-strip stitch travel from current outgoing/incoming geometry.
+  double _computeStitchScrollLength() {
+    final oldT = _stitchOutgoingStripTop();
+    final oldH = _stitchOutgoingStripBottom();
+
+    var incomingTop = 0.0;
+    var incomingBottom = 0.0;
+    var hasIncoming = false;
+    for (final entry in _children.entries) {
+      if (_stitchOutgoingIds.contains(entry.key)) continue;
+      final top = _parentData(entry.value).offset;
+      final bot = top + entry.value.size.height;
+      if (!hasIncoming) {
+        incomingTop = top;
+        incomingBottom = bot;
+        hasIncoming = true;
+      } else {
+        if (top < incomingTop) incomingTop = top;
+        if (bot > incomingBottom) incomingBottom = bot;
+      }
+    }
+
+    final towardNewer = _stitchTowardNewer;
+    final viewportHeight = size.height;
+    final finalHeight = towardNewer ? oldH : viewportHeight - oldT;
+    final scrollLength = hasIncoming
+        ? finalHeight +
+              (towardNewer ? -incomingTop : incomingBottom - viewportHeight)
+        : math.max(finalHeight, viewportHeight);
+    return math.max<double>(scrollLength.abs(), 1);
+  }
+
+  void _rebaseStitchTravelGeometryIfNeeded() {
+    if (!_animator.farAnimateActive ||
+        !_animator.farAnimateJumped ||
+        !_animator.stitchMeasured ||
+        !hasSize) {
+      return;
+    }
+    _animator.rebaseStitchTravelGeometry(
+      scrollLength: _computeStitchScrollLength(),
+      viewportHeight: size.height,
+    );
   }
 
   void _finishStitchMeasureIfNeeded() {
@@ -796,6 +1068,11 @@ class RenderChatScrollView extends RenderBox {
       return;
     }
     if (!hasSize) return;
+    if (!_stitchTargetReadyForMeasure()) {
+      _logStitchMeasureDeferredIfNeeded();
+      return;
+    }
+    _stitchMeasureDeferLogSig = null;
 
     _refreezeStitchOutgoing();
 
@@ -828,13 +1105,7 @@ class RenderChatScrollView extends RenderBox {
     final towardNewer = _stitchTowardNewer;
     final viewportHeight = size.height;
     final finalHeight = towardNewer ? oldH : viewportHeight - oldT;
-    // Full-strip travel: outgoing strip + incoming extents (including
-    // off-screen tall parts). Duration scales with travel separately.
-    final scrollLength = hasIncoming
-        ? finalHeight +
-              (towardNewer ? -incomingTop : incomingBottom - viewportHeight)
-        : math.max(finalHeight, viewportHeight);
-    final travel = math.max<double>(scrollLength.abs(), 1);
+    final travel = _computeStitchScrollLength();
     _animator.log.event('stitch.measureGeom', {
       'target': _animator.animateTargetId,
       'towardNewer': towardNewer,
@@ -857,6 +1128,134 @@ class RenderChatScrollView extends RenderBox {
       viewportHeight: viewportHeight,
       elapsed: _lastTickElapsed,
     );
+    _stitchBottomPadAtMeasure = _bottomPad;
+    _logStitchDayChrome('measure');
+  }
+
+  /// Whether a layout pass may skip fan-out and only refresh stitch chrome.
+  bool _shouldUseStitchSlimLayout() =>
+      _animator.farAnimateActive && _animator.stitchMeasured;
+
+  /// Lightweight layout during measured stitch flight — refreeze outgoing
+  /// pins and rebuild the floating header without refan/GC.
+  bool _performStitchSlimLayoutIfEligible(BoxConstraints childConstraints) {
+    if (!_shouldUseStitchSlimLayout()) return false;
+
+    _layoutStitchOutgoingPinned(childConstraints);
+    _refreezeStitchOutgoing();
+    _updateFloatingHeader();
+    _updateScrollSemantics();
+    _publishControllerState();
+    _animator.tryArmPendingHighlight();
+
+    final int minChunk;
+    final int maxChunk;
+    if (_children.isEmpty && _chunkErrors.isEmpty) {
+      minChunk = 0;
+      maxChunk = -1;
+    } else {
+      var computedMin = _children.isEmpty
+          ? _chunkErrors.firstKey()!
+          : ChatScrollChunk.chunkOf(_children.firstKey()!);
+      var computedMax = _children.isEmpty
+          ? _chunkErrors.lastKey()!
+          : ChatScrollChunk.chunkOf(_children.lastKey()!);
+      if (_chunkErrors.isNotEmpty) {
+        final eMin = _chunkErrors.firstKey()!;
+        final eMax = _chunkErrors.lastKey()!;
+        if (eMin < computedMin) computedMin = eMin;
+        if (eMax > computedMax) computedMax = eMax;
+      }
+      minChunk = computedMin;
+      maxChunk = computedMax;
+    }
+    _chunkFetchScheduler.onLayoutComplete(minChunk, maxChunk);
+
+    _fetchAnchorEvent('layout.stitchSlim', {
+      ..._fetchAnchorSnapshot(),
+      'progress': DevLogFormat.ratio(_animator.stitchProgress),
+      'outgoingN': _stitchOutgoingIds.length,
+      'jumpFetchPending': _chunkFetchScheduler.jumpFetchPending,
+    });
+    _fetchAnchorEvent('layout.end', _fetchAnchorSnapshot());
+    _rebaseStitchTravelGeometryIfNeeded();
+    return true;
+  }
+
+  /// Post-jump pre-measure inset: uniform shift already applied — skip refan.
+  bool _performStitchPostJumpInsetSlimLayoutIfNeeded(
+    BoxConstraints childConstraints,
+  ) {
+    if (!_stitchPostJumpInsetCompensatedThisLayout) return false;
+    _stitchPostJumpInsetCompensatedThisLayout = false;
+
+    _layoutStitchOutgoingPinned(childConstraints);
+    _refreezeStitchOutgoing();
+    _updateFloatingHeader();
+    _updateScrollSemantics();
+    _publishControllerState();
+    _animator.tryArmPendingHighlight();
+    _finishStitchMeasureIfNeeded();
+    if (_animator.farAnimateActive && _animator.farAnimateJumped) {
+      _logStitchDayChrome('jumped');
+    }
+
+    _fetchAnchorEvent('layout.stitchPostJumpInset', {
+      ..._fetchAnchorSnapshot(),
+      'outgoingN': _stitchOutgoingIds.length,
+      'measured': _animator.stitchMeasured,
+    });
+    _fetchAnchorEvent('layout.end', _fetchAnchorSnapshot());
+    markNeedsPaint();
+    return true;
+  }
+
+  /// Emits one `stitch.chrome.*` line per [phase] per stitch flight.
+  void _logStitchDayChrome(String phase) {
+    if (!_stitchChromePhasesLogged.add(phase)) return;
+    if (!hasSize) {
+      _animator.log.event('stitch.chrome.$phase', {
+        'target': _animator.animateTargetId,
+        'hasSize': false,
+      });
+      return;
+    }
+    final scan = _scanTopDay();
+    final startsDayIds = <int>[];
+    final dividerFields = <String>[];
+    for (final entry in _children.entries) {
+      final pd = _parentData(entry.value);
+      if (!pd.startsDay) continue;
+      startsDayIds.add(entry.key);
+      final paintY = pd.offset + _stitchPaintDyIfActive(entry.key);
+      dividerFields.add(
+        '${entry.key}:o${DevLogFormat.ratio(pd.dividerOpacity)}'
+        '@y${DevLogFormat.f(paintY)}',
+      );
+    }
+    final outgoingStartsDay = _stitchOutgoingIds
+        .where(
+          (id) =>
+              _children.containsKey(id) &&
+              _parentData(_children[id]!).startsDay,
+        )
+        .toList();
+    _animator.log.event('stitch.chrome.$phase', {
+      'target': _animator.animateTargetId,
+      'towardNewer': _animator.stitchMeasured
+          ? _animator.stitchTowardNewer
+          : _stitchTowardNewer,
+      'progress': _animator.stitchMeasured
+          ? DevLogFormat.ratio(_animator.stitchProgress)
+          : null,
+      'scanId': scan.id,
+      'headerDay': _floatingHeaderController.headerDate?.day,
+      'headerVisible': _shouldShowFloatingHeader(),
+      'startsDayN': startsDayIds.length,
+      'startsDayIds': DevLogFormat.ids(startsDayIds),
+      'outStartsDay': DevLogFormat.ids(outgoingStartsDay),
+      'dividers': dividerFields.isEmpty ? null : dividerFields.join(';'),
+    });
   }
 
   /// Paint-time Y delta for stitch dual-translate.
@@ -880,10 +1279,16 @@ class RenderChatScrollView extends RenderBox {
         ? _animator.stitchScrollLength
         : (hasSize ? size.height : 600.0);
     final t = _animator.stitchMeasured ? _animator.stitchProgress : 0.0;
-    if (_stitchOutgoingIds.contains(id)) {
-      return towardNewer ? -travel * t : travel * t;
-    }
-    return towardNewer ? travel * (1 - t) : -travel * (1 - t);
+    return _stitchPaintDyFor(
+      id: id,
+      towardNewer: towardNewer,
+      travel: travel,
+      progress: t,
+      hasLiveOutgoing: hasLiveOutgoing,
+      insetAdditionalY: _animator.stitchMeasured
+          ? _stitchInsetAdditionalY()
+          : 0,
+    );
   }
 
   void _onAnimateSettled(int targetId) {
@@ -1045,6 +1450,9 @@ class RenderChatScrollView extends RenderBox {
   /// Whether stitch has already run its teleport `jumpTo`.
   bool get debugFarAnimateJumped => _animator.farAnimateJumped;
 
+  /// Whether layout measured stitch travel (`stitch.measure`).
+  bool get debugStitchMeasured => _animator.stitchMeasured;
+
   /// Whether any [animateTo] (close, stitch, or preferBuilt wait) is in flight.
   bool get debugIsAnimating => _animator.isAnimating;
 
@@ -1078,6 +1486,31 @@ class RenderChatScrollView extends RenderBox {
   bool debugStartsDay(int id) {
     final child = _children[id];
     return child != null && _parentData(child).startsDay;
+  }
+
+  /// Layout top (px) of built message [id]; `null` when not built.
+  double? debugLayoutTop(int id) {
+    final child = _children[id];
+    return child == null ? null : _parentData(child).offset;
+  }
+
+  /// Reserved bottom inset (composer / keyboard band) from the last layout.
+  double get debugBottomPad => _bottomPad;
+
+  /// Whether any built message row intersects the scroll band in paint space
+  /// (layout offset + stitch dual-translate when active).
+  bool debugBuiltMessagesIntersectScrollBand() {
+    if (!hasSize) return false;
+    final topEdge = _topPad;
+    final bottomEdge = size.height - _bottomPad;
+    if (bottomEdge <= topEdge) return false;
+    for (final entry in _children.entries) {
+      final paintTop =
+          _parentData(entry.value).offset + _stitchPaintDyIfActive(entry.key);
+      final paintBottom = paintTop + entry.value.size.height;
+      if (paintBottom > topEdge && paintTop < bottomEdge) return true;
+    }
+    return false;
   }
 
   void _fetchAnchorEvent(String tag, Map<String, Object?> fields) {
@@ -1543,6 +1976,27 @@ class RenderChatScrollView extends RenderBox {
     _lastLaidOutBottomPad = current;
     final delta = previous - current;
     if (delta == 0.0) return;
+    if (_animator.farAnimateActive && _animator.farAnimateJumped) {
+      if (_animator.stitchMeasured) {
+        // Telegram: padding updates on the list; `additionalY` in paint handles
+        // continuity — no layout shift or travel rebase for inset-only changes.
+        _fetchAnchorEvent('layout.bottomPadCompensate.stitchPaint', {
+          ..._fetchAnchorSnapshot(),
+          'prev': DevLogFormat.f(previous),
+          'current': DevLogFormat.f(current),
+          'delta': DevLogFormat.f(delta),
+          'additionalY': DevLogFormat.f(_stitchInsetAdditionalY()),
+        });
+        markNeedsPaint();
+        return;
+      }
+      _applyStitchFlightInsetDelta(delta, previous: previous, current: current);
+      _stitchPostJumpInsetCompensatedThisLayout = true;
+      return;
+    }
+    if (_animator.isAnimating && !_animator.farAnimateActive) {
+      _animator.rebaseClosePathEnd(elapsed: _lastTickElapsed);
+    }
     _fetchAnchorEvent('layout.bottomPadCompensate', {
       ..._fetchAnchorSnapshot(),
       'prev': DevLogFormat.f(previous),
@@ -1699,6 +2153,11 @@ class RenderChatScrollView extends RenderBox {
   /// post-[animateTo] settle call this when no close-path animation is in flight;
   /// [navigationAlignment] stays set until the target row is built and aligned.
   bool _applyNavigationAlignment() {
+    if (_animator.farAnimateActive &&
+        _animator.farAnimateJumped &&
+        _animator.stitchMeasured) {
+      return false;
+    }
     final alignment = _controller.navigationAlignment;
     final targetId = _controller.navigationAlignmentMessageId;
     if (targetId == null) return false;
@@ -1879,6 +2338,33 @@ class RenderChatScrollView extends RenderBox {
       ..._fetchAnchorSnapshot(),
       'fetchingChunks': DevLogFormat.ids(_fetchingChunkIndices(), max: 8),
     });
+    // Children span the full viewport width; each message widget centers its
+    // own content column. A full-width child lets selection chrome tint the
+    // whole row without bleeding past a narrower content box.
+    final childConstraints = BoxConstraints.tightFor(width: size.width);
+
+    // Post-measure stitch ticks must not re-fan — refan overwrites frozen
+    // outgoing offsets and breaks dual-translate paint (blank mid-flight).
+    if (_performStitchSlimLayoutIfEligible(childConstraints)) {
+      assert(() {
+        debugLastLayoutDuration = _debugSw.elapsed;
+        _debugSw.stop();
+        debugLayoutFrameId++;
+        return true;
+      }());
+      return;
+    }
+
+    if (_performStitchPostJumpInsetSlimLayoutIfNeeded(childConstraints)) {
+      assert(() {
+        debugLastLayoutDuration = _debugSw.elapsed;
+        _debugSw.stop();
+        debugLayoutFrameId++;
+        return true;
+      }());
+      return;
+    }
+
     // Drop pre-jump children so renormalize/clamp do not fan across the wrong
     // id span — but keep stitch presence pins (outgoing strip + animate target).
     if (_chunkFetchScheduler.jumpFetchPending) {
@@ -1899,11 +2385,6 @@ class RenderChatScrollView extends RenderBox {
         });
       }
     }
-
-    // Children span the full viewport width; each message widget centers its
-    // own content column. A full-width child lets selection chrome tint the
-    // whole row without bleeding past a narrower content box.
-    final childConstraints = BoxConstraints.tightFor(width: size.width);
 
     _normalizeAnchorToKnownTail();
 
@@ -1977,7 +2458,8 @@ class RenderChatScrollView extends RenderBox {
     // Span auto-scroll occupies the origin writer while the pointer sits in
     // the edge band — follow-tail and pending tail-pin must not also write.
     final occupyingSpanAutoScroll = _spanAutoScrollOccupying;
-    if (!occupyingSpanAutoScroll) {
+    final stitchLayoutFrozen = _shouldFreezeStitchLayout();
+    if (!occupyingSpanAutoScroll && !stitchLayoutFrozen) {
       _applyPendingTailPin();
     }
     // Self-insert animate owns follow-tail motion: skip instant pin on id
@@ -1985,11 +2467,12 @@ class RenderChatScrollView extends RenderBox {
     final followTailRepin =
         (!_deferTailAdvancedRepin && tailAdvanced) || newestHeightGrew;
     final repinBottom =
-        (!occupyingSpanAutoScroll && _pinTailOnJump) ||
-        (_dataSource.reachedNewest &&
-            _wasAtTailLastLayout &&
-            followTailRepin &&
-            !occupyingSpanAutoScroll);
+        !stitchLayoutFrozen &&
+        ((!occupyingSpanAutoScroll && _pinTailOnJump) ||
+            (_dataSource.reachedNewest &&
+                _wasAtTailLastLayout &&
+                followTailRepin &&
+                !occupyingSpanAutoScroll));
     if (repinBottom || _pendingTailPinUntilSettled || _pinTailOnJump) {
       _fetchAnchorEvent('layout.tailPinFlags', {
         ..._fetchAnchorSnapshot(),
@@ -2012,9 +2495,10 @@ class RenderChatScrollView extends RenderBox {
     // off-screen it builds every message between the anchor and the viewport;
     // re-fanning from the renormalized (visible) anchor yields the tight set,
     // so the off-screen extras fall outside `built` and are collected below.
-    if (clamped ||
-        _controller.anchorMessageId != anchorBefore ||
-        alignmentMoved) {
+    if (!stitchLayoutFrozen &&
+        (clamped ||
+            _controller.anchorMessageId != anchorBefore ||
+            alignmentMoved)) {
       _fetchAnchorEvent('layout.refan', {
         ..._fetchAnchorSnapshot(),
         'clamped': clamped,
@@ -2120,6 +2604,9 @@ class RenderChatScrollView extends RenderBox {
     }
     _refreezeStitchOutgoing();
     _finishStitchMeasureIfNeeded();
+    if (_animator.farAnimateActive && _animator.farAnimateJumped) {
+      _logStitchDayChrome('jumped');
+    }
 
     if (_animator.isAnimating && !_animator.farAnimateActive) {
       _animator.rebaseClosePathEnd(elapsed: _lastTickElapsed);
@@ -3231,6 +3718,7 @@ class RenderChatScrollView extends RenderBox {
     // bounceback animation itself also drives the anchor past the boundary
     // and back, so it owns the clamp until it ends.
     if (_dragInProgress || _physics.isBouncing) return false;
+    if (_shouldFreezeStitchLayout()) return false;
     var cancelFling = false;
 
     bool pinNewest() {
@@ -3384,6 +3872,10 @@ class RenderChatScrollView extends RenderBox {
         id++;
         continue;
       } // skip absent / unbuilt IDs
+      if (_skipStitchOutgoingReposition(id)) {
+        id++;
+        continue;
+      }
       _setOffset(child, y);
       y += child.size.height;
       id++;
@@ -3413,6 +3905,10 @@ class RenderChatScrollView extends RenderBox {
         id--;
         continue;
       } // skip absent / unbuilt IDs
+      if (_skipStitchOutgoingReposition(id)) {
+        id--;
+        continue;
+      }
       y -= child.size.height;
       _setOffset(child, y);
       id--;
@@ -3443,6 +3939,7 @@ class RenderChatScrollView extends RenderBox {
     for (var id = anchorId + 1; id <= maxBuiltId; id++) {
       final child = _children[id];
       if (child == null) continue; // skip absent / unbuilt IDs in the range
+      if (_skipStitchOutgoingReposition(id)) continue;
       _setOffset(child, y);
       y += child.size.height;
     }
@@ -3450,6 +3947,7 @@ class RenderChatScrollView extends RenderBox {
     for (var id = anchorId - 1; id >= minBuiltId; id--) {
       final child = _children[id];
       if (child == null) continue; // skip absent / unbuilt IDs in the range
+      if (_skipStitchOutgoingReposition(id)) continue;
       y -= child.size.height;
       _setOffset(child, y);
     }
@@ -3538,8 +4036,27 @@ class RenderChatScrollView extends RenderBox {
       ..headerDirty = true;
   }
 
+  /// Built rows considered for floating-header day scan.
+  ///
+  /// During stitch, outgoing and incoming bands overlap in paint space; scanning
+  /// both every tick makes the top day flip each frame (layout spam + flicker).
+  /// Use outgoing for the first half of the flight and incoming after midpoint
+  /// — at progress 0 the outgoing strip owns the viewport top; at progress 1
+  /// the incoming strip does (both stitch directions).
+  Iterable<MapEntry<int, RenderBox>> _dayScanChildren() {
+    if (!_animator.farAnimateActive || !_animator.farAnimateJumped) {
+      return _children.entries;
+    }
+    final progress = _animator.stitchMeasured ? _animator.stitchProgress : 0.0;
+    final preferOutgoing = progress < 0.5;
+    if (preferOutgoing) {
+      return _children.entries.where((e) => _stitchOutgoingIds.contains(e.key));
+    }
+    return _children.entries.where((e) => !_stitchOutgoingIds.contains(e.key));
+  }
+
   TopDayScan _scanTopDay() => _floatingHeaderController.scanTopDay(
-    children: _children.entries,
+    children: _dayScanChildren(),
     topPad: _topPad,
     viewportHeight: size.height,
     // During stitch, paint translation (not layout offset) is what crosses the
@@ -3742,6 +4259,11 @@ class RenderChatScrollView extends RenderBox {
     final wasFlinging = _physics.isFlinging;
     final flingDelta = _physics.tickFling(elapsed);
     userDelta += flingDelta;
+    // User scroll during stitch must abort the far path before it advances or
+    // applies delta to the jumped tail anchor.
+    if (_animator.farAnimateActive && userDelta != 0.0) {
+      _cancelAnimate(fadeHighlight: false);
+    }
     // tickFling clears the simulation internally when done; the render object
     // owns scroll-event dispatch (ChatScrollPhysics does not touch controller).
     if (wasFlinging && !_physics.isFlinging) {
@@ -3767,10 +4289,21 @@ class RenderChatScrollView extends RenderBox {
     if (userDelta != 0.0) {
       _controller.notifyScrollEvent(ChatViewportScrolled(userDelta));
     }
-    if (delta != 0.0) _controller.applyScrollDelta(delta);
+    if (delta != 0.0) {
+      if (_shouldSkipStitchReposition()) {
+        _applyStitchMeasuredUniformShift(delta);
+      } else {
+        _controller.applyScrollDelta(delta);
+      }
+    }
     // Smooth the per-frame scroll delta; biases the next fan-out lead.
     _scrollVelocity = _scrollVelocity * 0.7 + delta * 0.3;
-    _repositionFromAnchor();
+    if (!_shouldSkipStitchReposition()) {
+      _repositionFromAnchor();
+      if (_animator.farAnimateActive && _animator.farAnimateJumped) {
+        _refreezeStitchOutgoing();
+      }
+    }
     if (occupyingSpanAutoScroll) _applyLiveSpanHit();
     // Keep the anchor on a visible message so the next layout fans out a
     // tight range rather than rebuilding everything back to a drifted anchor.
@@ -3792,6 +4325,11 @@ class RenderChatScrollView extends RenderBox {
     // paint Y as dual-translate progress moves rows.
     _refreshStitchDividerOpacities();
     final headerDayChanged = _tickFloatingHeader();
+    if (_animator.farAnimateActive &&
+        _animator.stitchMeasured &&
+        _animator.stitchProgress > 0) {
+      _logStitchDayChrome('tick');
+    }
 
     // The highlight runs alongside scroll/animate frames — advance it on
     // every tick where the scroll path also ran.
@@ -3811,9 +4349,19 @@ class RenderChatScrollView extends RenderBox {
     // (target + outgoing pins). [_rangeNoLongerCovers] would see that as a
     // hole toward oldest/newest and request layout every ticker frame —
     // layout.jump spam / jank until settle. Paint-only until stitch ends.
+    final stitchMeasuredFlight =
+        _animator.farAnimateActive && _animator.stitchMeasured;
     final coverageNeedsLayout =
         !_animator.farAnimateActive && _rangeNoLongerCovers();
-    if (coverageNeedsLayout || headerDayChanged) {
+    if (stitchMeasuredFlight) {
+      // Header placement is Tier-1; rebuild header text only on bucket change
+      // via the slim layout path — otherwise repaint only.
+      if (headerDayChanged) {
+        markNeedsLayout();
+      } else {
+        markNeedsPaint();
+      }
+    } else if (coverageNeedsLayout || headerDayChanged) {
       markNeedsLayout();
     } else {
       markNeedsPaint();

@@ -14,20 +14,35 @@ IChatMessage _msg(int id, {String content = 'm'}) => UserChatMessage(
 );
 
 class _SpyDataSource extends ChatDataSource {
-  _SpyDataSource() {
-    seedBoundaries(
-      oldestKnownId: 0,
-      newestKnownId: 99,
-      reachedOldest: true,
-      reachedNewest: true,
-    );
+  _SpyDataSource({this.fetchHandler}) {
+    _seedDefaultBoundaries(this);
   }
+
+  final Future<List<IChatMessage>> Function({
+    required int fromId,
+    required int toId,
+  })?
+  fetchHandler;
 
   @override
   Future<List<IChatMessage>> fetchRange({
     required int fromId,
     required int toId,
-  }) async => const <IChatMessage>[];
+  }) async {
+    if (fetchHandler != null) {
+      return fetchHandler!(fromId: fromId, toId: toId);
+    }
+    return const <IChatMessage>[];
+  }
+}
+
+void _seedDefaultBoundaries(_SpyDataSource ds) {
+  ds.seedBoundaries(
+    oldestKnownId: 0,
+    newestKnownId: 99,
+    reachedOldest: true,
+    reachedNewest: true,
+  );
 }
 
 void main() {
@@ -334,7 +349,7 @@ void main() {
       ds.removeMessages([50, 51, 52]);
 
       expect((mutations.single as RemoveBatchMutation).ids, <int>[52, 51, 50]);
-      expect(ds.pendingRemovalIds, <int>{50});
+      expect(ds.pendingRemovalIds, <int>{50, 51, 52});
       expect(ds.statusOf(51).isAbsent, isTrue);
       expect(ds.statusOf(52).isAbsent, isTrue);
       expect(ds.getStagedRemovalMessage(50), isNotNull);
@@ -345,6 +360,32 @@ void main() {
         ..finalizeRemoval(52)
         ..finalizeRemoval(50);
       expect(ds.pendingRemovalIds, isEmpty);
+    });
+  });
+
+  group('fetch merge respects local deletes', () {
+    test('does not resurrect removed message from fetchRange payload', () async {
+      final ds = _SpyDataSource(
+        fetchHandler: ({required fromId, required toId}) async =>
+            <IChatMessage>[_msg(10), _msg(11)],
+      )
+        ..insertMessage(_msg(10))
+        ..insertMessage(_msg(11));
+
+      ds.removeMessages([10, 11]);
+      expect(ds.getMessage(10), isNull);
+      expect(ds.getMessage(11), isNull);
+
+      // Simulate engine LRU eviction before a later refetch.
+      ds.chunks.clear();
+
+      ds.requestChunks(0, 0);
+      await Future<void>.delayed(Duration.zero);
+      await Future<void>.delayed(Duration.zero);
+
+      expect(ds.getMessage(10), isNull);
+      expect(ds.getMessage(11), isNull);
+      expect(ds.pendingRemovalIds, containsAll(<int>[10, 11]));
     });
   });
 

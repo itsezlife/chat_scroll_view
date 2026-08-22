@@ -1,3 +1,5 @@
+import 'dart:async' show unawaited;
+
 import 'package:chat_scroll_view/src/chat_scroll/chat_data_source.dart';
 import 'package:chat_scroll_view/src/chat_scroll/chat_scroll_chunk.dart';
 import 'package:chat_scroll_view/src/chat_scroll/chat_scroll_common.dart';
@@ -510,13 +512,17 @@ void main() {
         highlight: false,
       );
       await tester.pump();
-      for (var i = 0; i < 16; i++) {
+      var done = false;
+      unawaited(future.whenComplete(() => done = true));
+      for (var i = 0; i < 200 && !done; i++) {
         samples.add(controller.anchorPixelOffset);
         await tester.pump(const Duration(milliseconds: 16));
       }
-      for (var i = 0; i < 18; i++) {
-        await tester.pump(const Duration(milliseconds: 16));
-      }
+      expect(
+        done,
+        isTrue,
+        reason: 'animateTo across gap did not finish in 200 pumps',
+      );
       await future;
       samples.add(controller.anchorPixelOffset);
       return samples;

@@ -35,9 +35,9 @@ class _LoadedSource extends ChatDataSource {
   }) async => const <IChatMessage>[];
 }
 
-/// Boundaries 0–9; only id 5 is loaded — neighbors render as shimmer.
-class _SparseUnloadedSource extends ChatDataSource {
-  _SparseUnloadedSource() {
+/// Fetch fails so empty-range absent-marking never runs; neighbors stay shimmer.
+class _FetchFailSparseSource extends ChatDataSource {
+  _FetchFailSparseSource() {
     upsertMessage(_msg(5));
     seedBoundaries(
       oldestKnownId: 0,
@@ -51,7 +51,10 @@ class _SparseUnloadedSource extends ChatDataSource {
   Future<List<IChatMessage>> fetchRange({
     required int fromId,
     required int toId,
-  }) async => const <IChatMessage>[];
+  }) async {
+    await Future<void>.delayed(const Duration(milliseconds: 10));
+    throw StateError('keep neighbors shimmer for select-span test');
+  }
 }
 
 Widget _harness({
@@ -220,7 +223,7 @@ void main() {
 
       await tester.pumpWidget(
         _harness(
-          dataSource: _SparseUnloadedSource(),
+          dataSource: _FetchFailSparseSource(),
           controller: controller,
           selection: selection,
         ),
@@ -230,7 +233,8 @@ void main() {
       final gesture = await _longPressHold(tester, find.text('msg-5'));
       expect(selection.selectedIds, {5});
 
-      await gesture.moveTo(tester.getCenter(find.text('shimmer-4')));
+      expect(find.text('shimmer-6'), findsOneWidget);
+      await gesture.moveTo(tester.getCenter(find.text('shimmer-6')));
       await tester.pump();
       expect(selection.selectedIds, {5});
       await gesture.up();
