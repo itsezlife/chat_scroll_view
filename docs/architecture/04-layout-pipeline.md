@@ -177,6 +177,23 @@ Compute `minChunk` / `maxChunk` from remaining children and chunk-errors;
 `_chunkFetchScheduler.onLayoutComplete(minChunk, maxChunk)` (poll, eviction,
 jump-fetch completion).
 
+**Mid-scroll vs settle**
+
+- While scroll is active, urgent missing/dirty chunks are requested **one
+  chunk page** at a time in the scroll-velocity direction (`allowWiden:
+  false`), optionally including one look-ahead chunk beyond the laid-out
+  band. Growing the build zone must not cancel/restart an in-flight page.
+- After scroll settles (≥ poll interval since last `markScrollActive`), the
+  poll requests the **full** laid-out `minChunk..maxChunk` band (holes and
+  any missed chunks).
+- Hole-only refill on already-valid chunks stays interval-gated (no
+  zero-delay busy-spin).
+- A pinned navigation destination window stays dest-only (no contiguous
+  fill from the origin layout band to the target).
+
+Velocity for page direction comes from `markScrollActive(velocity:)` —
+positive toward older (lower chunk indices), negative toward newer.
+
 ### 14. Publish and chrome
 
 1. `_updateScrollSemantics`

@@ -70,6 +70,9 @@ class ChatRangeFetch {
       chunkIndex >= _fetchingMinChunk &&
       chunkIndex <= _fetchingMaxChunk;
 
+  /// Whether a fetch token or retry timer is armed (any range).
+  bool get hasInFlightFetch => _fetchToken != null || _retryTimer != null;
+
   /// Reset source-wide backoff — called from [ChatDataSource.invalidate].
   void resetRetryStep() => _fetchRetryStep = 0;
 
@@ -92,7 +95,16 @@ class ChatRangeFetch {
   }
 
   /// Check visible chunk range and fetch missing/dirty data.
-  void requestChunks(int layoutMinChunk, int layoutMaxChunk) {
+  ///
+  /// When [allowWiden] is false (mid-scroll page prefetch), an overlapping
+  /// growth or a disjoint live fetch is left running — wait for it to finish
+  /// instead of cancel/restart. Settle / jump paths keep the default
+  /// [allowWiden] true so the laid-out band can widen once.
+  void requestChunks(
+    int layoutMinChunk,
+    int layoutMaxChunk, {
+    bool allowWiden = true,
+  }) {
     if (_isDisposed()) return;
     final chunks = _chunks();
     // Find the actual range that needs fetching.
@@ -121,7 +133,8 @@ class ChatRangeFetch {
       final overlaps =
           fetchMin <= _fetchingMaxChunk && fetchMax >= _fetchingMinChunk;
       if (overlaps) {
-        if (fetchMin < _fetchingMinChunk || fetchMax > _fetchingMaxChunk) {
+        if (allowWiden &&
+            (fetchMin < _fetchingMinChunk || fetchMax > _fetchingMaxChunk)) {
           // Layout grew past the live span — widen once to the union.
           final unionMin = math.min(fetchMin, _fetchingMinChunk);
           final unionMax = math.max(fetchMax, _fetchingMaxChunk);
@@ -132,10 +145,15 @@ class ChatRangeFetch {
           _executeFetch();
           return;
         }
-        // Equal or subset — wait for the live request / retry.
+        // Equal, subset, or mid-scroll no-widen — wait for the live request.
         if (_fetchToken != null) {
           _rematerializeInFlightChunks(_fetchingMinChunk, _fetchingMaxChunk);
         }
+        return;
+      }
+      if (!allowWiden) {
+        // Mid-scroll page toward a disjoint chunk: do not cancel the live
+        // page (waits for the in-flight load, then re-checks).
         return;
       }
     }

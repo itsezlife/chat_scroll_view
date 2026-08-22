@@ -6,6 +6,17 @@ this project is pre-1.0 and not strictly SemVer yet.
 
 ## [Unreleased]
 
+### Added
+
+- **Mid-scroll chunk prefetch.** While the user is flinging or dragging,
+  `ChatChunkFetchScheduler` starts network fetches without waiting for scroll
+  settle: one leading chunk page in the scroll-velocity direction (optional
+  one-chunk look-ahead beyond the laid-out band), with `allowWiden: false` so
+  a growing layout span cannot cancel/restart an in-flight page. After settle,
+  the poll still requests the full laid-out band (holes + any missed chunks).
+  Destination-window load-gate and hole-only interval gating are unchanged.
+  See `docs/architecture/04-layout-pipeline.md` §13.
+
 ### Fixed
 
 - **Close-path delay during keyboard inset.** Tall scroll-to-bottom no longer

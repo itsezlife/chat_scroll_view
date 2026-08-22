@@ -170,5 +170,8 @@ animation follow-on spec.
 - Data change → `markNeedsLayout`.
 - Boundary change → publish mirrored ids on controller + layout + semantics.
 - Fetch poll / LRU eviction: `ChatChunkFetchScheduler` after layout completes.
+  Mid-scroll requests one leading chunk page (`allowWiden: false`); after
+  settle the full laid-out band is requested. See
+  `docs/architecture/04-layout-pipeline.md` §13.
 - While `!reachedOldest`, fan-out oldest bound is `0`, not `oldestKnownId`
   (pagination deadlock otherwise).
