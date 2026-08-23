@@ -29,7 +29,8 @@ import 'package:flutter/foundation.dart';
 /// **Measurement** of composer height is a bootstrap and later correction,
 /// not a second coordinate system. Composer height defaults to 96 until
 /// the first layout report — that default is idle occupancy, not a theme
-/// token.
+/// token. The measured value must include the composer's own bottom
+/// safe-area pad and island→keyboard gap; it must **not** include keyboard.
 ///
 /// Call [dispose] when the host leaves the tree. Do not dispose
 /// [headerReserve] separately; this object owns every notifier it exposes.
@@ -115,7 +116,8 @@ final class ChatViewportInsets {
     _publish();
   }
 
-  /// Measured composer occupancy, including its own bottom safe-area pad.
+  /// Measured composer occupancy, including its own bottom safe-area pad
+  /// and island→keyboard gap.
   ///
   /// Does **not** include keyboard height; keyboard is applied outside the
   /// measure and added here via [setKeyboard].
@@ -125,7 +127,7 @@ final class ChatViewportInsets {
     _publish();
   }
 
-  /// Live keyboard height in logical pixels.
+  /// Live keyboard / emoji-panel slot height in logical pixels.
   void setKeyboard(double value) {
     if (_keyboard.value == value) return;
     _keyboard.value = value;

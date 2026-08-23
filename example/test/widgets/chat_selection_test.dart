@@ -1,4 +1,5 @@
 // ignore_for_file: implementation_imports
+import 'package:chat_chrome/chat_chrome.dart';
 import 'package:chat_scroll_view/src/chat_scroll/chat_data_source.dart';
 import 'package:chat_scroll_view/src/chat_scroll/chat_scroll_common.dart';
 import 'package:chat_scroll_view/src/chat_scroll/chat_scroll_controller.dart';
@@ -605,6 +606,8 @@ void main() {
                   selection: selection,
                   dataSource: dataSource,
                   onSend: (_) async {},
+                  onEmojiPressed: () {},
+                  emojiIconState: ChatEnterEmojiIconState.smile,
                 ),
               ],
             ),

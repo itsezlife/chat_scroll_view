@@ -1,34 +1,33 @@
 import 'package:flutter/foundation.dart';
 
-/// Telegram Android selection tokens (ChatMessageCell, CheckBoxBase,
-/// RecyclerListView.startMultiselect).
+/// Selection gesture and chrome metrics for message multi-select.
 ///
 /// Keep gesture, chrome, and auto-scroll numbers in one place so they
-/// cannot drift independently of the reference client.
+/// cannot drift independently across hosts.
 @immutable
 abstract final class ChatSelectionMetrics {
-  /// [ViewConfiguration.getLongPressTimeout] default (ms).
+  /// Long-press duration before selection mode arms.
   static const Duration longPressTimeout = Duration(milliseconds: 500);
 
-  /// [ViewConfiguration.getScaledTouchSlop] default, in logical pixels.
-  /// Past this distance after long-press, the span starts tracking.
+  /// Touch slop after long-press, in logical pixels.
+  /// Past this distance, the span starts tracking.
   static const double spanSlop = 8;
 
-  /// `RecyclerListView` edge band: `dp(56)` from each padded edge.
+  /// Auto-scroll edge band from each padded viewport edge (logical px).
   static const double autoScrollEdgeBand = 56;
 
-  /// `RecyclerListView` scroller: `dp(12)` per vsync.
+  /// Auto-scroll distance per vsync frame (logical px).
   static const double autoScrollPixelsPerFrame = 12;
 
-  /// `ChatMessageCell` checkbox translation: `dp(35)`.
+  /// Horizontal checkbox slot width (logical px).
   static const double slotWidth = 35;
 
-  /// `CheckBoxBase(this, 21)` on the message cell.
+  /// Checkbox diameter on the message cell (logical px).
   static const double checkSize = 21;
 
-  /// `ChatMessageCell` checkbox show/hide: `dt / 200.0f`.
+  /// Selection-mode chrome show/hide duration.
   static const Duration modeDuration = Duration(milliseconds: 200);
 
-  /// `CheckBoxBase.animationDuration` default.
+  /// Per-checkbox select/deselect animation duration.
   static const Duration selectDuration = Duration(milliseconds: 200);
 }

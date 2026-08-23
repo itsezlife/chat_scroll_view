@@ -13,7 +13,9 @@ private external fun platform_update_inset(inset: Float, target: Float)
 object KeyboardInsets {
     private var activity: Activity? = null
     private var rootView: android.view.View? = null
+    /** Upper bound from the in-flight IME animation; valid only while [imeAnimationCount] > 0. */
     private var targetInsetDp: Float = 0f
+    private var imeAnimationCount: Int = 0
     private var isKeyboardAnimationEnabled: Boolean = true
 
     fun setActivity(act: Activity?) {
@@ -39,7 +41,9 @@ object KeyboardInsets {
                         }
         val view = rootView!!
 
-        // First immediate push
+        // First immediate push — settled IME only (no stale animation target).
+        imeAnimationCount = 0
+        targetInsetDp = 0f
         val insets = ViewCompat.getRootWindowInsets(view)
         pushInset(insets)
 
@@ -57,11 +61,19 @@ object KeyboardInsets {
                                 WindowInsetsAnimationCompat.Callback
                                         .DISPATCH_MODE_CONTINUE_ON_SUBTREE
                         ) {
+                    override fun onPrepare(animation: WindowInsetsAnimationCompat) {
+                        if (animation.typeMask and Type.ime() != 0) {
+                            imeAnimationCount++
+                        }
+                    }
+
                     override fun onStart(
                             animation: WindowInsetsAnimationCompat,
                             bounds: WindowInsetsAnimationCompat.BoundsCompat
                     ): WindowInsetsAnimationCompat.BoundsCompat {
-                        targetInsetDp = bounds.upperBound.bottom / density
+                        if (animation.typeMask and Type.ime() != 0) {
+                            targetInsetDp = bounds.upperBound.bottom / density
+                        }
                         return bounds
                     }
 
@@ -73,6 +85,18 @@ object KeyboardInsets {
                             pushInset(insets)
                         }
                         return insets
+                    }
+
+                    override fun onEnd(animation: WindowInsetsAnimationCompat) {
+                        if (animation.typeMask and Type.ime() != 0) {
+                            imeAnimationCount = (imeAnimationCount - 1).coerceAtLeast(0)
+                            if (imeAnimationCount == 0) {
+                                // Animation finished — drop stale upper bound so
+                                // hidden IME reports target=0 (not last peak).
+                                targetInsetDp = 0f
+                            }
+                            pushInset(ViewCompat.getRootWindowInsets(view))
+                        }
                     }
                 }
         )
@@ -86,16 +110,28 @@ object KeyboardInsets {
             ViewCompat.setWindowInsetsAnimationCallback(view, null)
         }
         rootView = null
+        imeAnimationCount = 0
+        targetInsetDp = 0f
     }
 
     private fun pushInset(insets: WindowInsetsCompat?) {
         val navBottom = insets?.getInsets(WindowInsetsCompat.Type.systemBars())?.bottom ?: 0
 
-        val imeBottomPx = ((insets?.getInsets(Type.ime())?.bottom
-                ?: 0) - navBottom).coerceAtLeast(0)
+        val imeBottomPx =
+                ((insets?.getInsets(Type.ime())?.bottom ?: 0) - navBottom).coerceAtLeast(0)
         val keyboardDp = imeBottomPx / density
-        val target = (targetInsetDp - navBottom / density).coerceAtLeast(0f).toFloat()
 
-        platform_update_inset(keyboardDp.toFloat(), target)
+        // Settled: target == current. Only during an IME animation may target
+        // differ (upper bound). Never keep a previous keyboard peak as target
+        // after the keyboard is gone — that made isVisible/isAnimating stick
+        // true across Flutter hot restarts and layout-only inset passes.
+        val target =
+                if (imeAnimationCount > 0) {
+                    (targetInsetDp - navBottom / density).coerceAtLeast(0f)
+                } else {
+                    keyboardDp
+                }
+
+        platform_update_inset(keyboardDp.toFloat(), target.toFloat())
     }
 }

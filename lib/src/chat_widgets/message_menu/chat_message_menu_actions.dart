@@ -3,16 +3,14 @@ import 'package:chat_scroll_view/src/chat_widgets/message_menu/chat_message_menu
 import 'package:chat_scroll_view/src/chat_widgets/message_menu/chat_message_menu_slots.dart';
 import 'package:flutter/material.dart';
 
-/// Minimum width for the action card.
-///
-/// Telegram `ActionBarPopupWindowLayout.setMinimumWidth(dp(200))`.
+/// Minimum width for the action card (logical px).
 const double kChatMessageMenuMinWidth = 200;
 
 /// Maximum width for the action card and reactions strip.
 ///
-/// Telegram sizes the popup `WRAP_CONTENT` to the action rows; reactions
-/// are `MATCH_PARENT` to that width. Capping here keeps the column from
-/// expanding to the screen and pinning to the left inset.
+/// The popup wraps action rows; reactions stretch to that width. Capping
+/// here keeps the column from expanding to the screen and pinning to the
+/// left inset.
 const double kChatMessageMenuMaxWidth = 280;
 
 /// Card without M3 elevation overlays.

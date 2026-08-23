@@ -2,6 +2,7 @@ import 'package:chat_scroll_view_example/src/features/chat/utils/chat_viewport_i
 import 'package:chat_scroll_view_example/src/features/chat/utils/chat_viewport_insets_binding.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {
   group('ChatViewportInsets', () {
@@ -73,6 +74,7 @@ void main() {
 
   group('ChatViewportInsetsBinding', () {
     testWidgets('writes viewPadding.top into insets', (tester) async {
+      SharedPreferences.setMockInitialValues(<String, Object>{});
       await tester.pumpWidget(
         const MediaQuery(
           data: MediaQueryData(viewPadding: EdgeInsets.only(top: 47)),
@@ -84,6 +86,8 @@ void main() {
         find.byType(_InsetsBindingHost),
       );
       expect(state.insets.topPadding.value, 47);
+      // Composer default 96 + keyboard 0 (safe-bottom lives in composer measure).
+      expect(state.insets.bottomPadding.value, 96);
     });
   });
 }

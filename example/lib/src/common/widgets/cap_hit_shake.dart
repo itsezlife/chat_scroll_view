@@ -4,8 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/physics.dart';
 import 'package:flutter/widgets.dart';
 
-/// Horizontal spring-shake driven by [hits], matching Telegram Android
-/// `AndroidUtilities.shakeViewSpring` (stiffness 600, 10 dp kick).
+/// Horizontal spring-shake driven by [hits] (stiffness 600, 10 logical-px kick).
 class CapHitShake extends StatefulWidget {
   /// Shakes [child] each time [hits] increments.
   const CapHitShake({

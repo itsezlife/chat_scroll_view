@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:developer' as dev;
 
+import 'package:chat_chrome/chat_chrome.dart';
 import 'package:chat_scroll_view/chat_scroll_view.dart';
 import 'package:chat_scroll_view_example/src/common/models/chat_message.dart';
 import 'package:chat_scroll_view_example/src/common/widgets/measure_size.dart';
@@ -23,12 +24,27 @@ import 'package:chat_scroll_view_example/src/features/chat/widgets/side_controls
 import 'package:control/control.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 /// Demo screen for the widget-based [ChatScrollView] — the chat viewport,
 /// a bottom composer, and a contextual selection bar, wired together.
 class WidgetChatScreen extends StatefulWidget {
   /// Demo route wiring [ChatScrollView], composer, and selection chrome.
-  const WidgetChatScreen({super.key});
+  ///
+  /// Prefer a preloaded [keyboardHeightStore] / [emojiDataSource] from `main`
+  /// so the composer button shows the last type tab (GIF / stickers) on first
+  /// paint instead of the default smile.
+  const WidgetChatScreen({
+    this.keyboardHeightStore,
+    this.emojiDataSource,
+    super.key,
+  });
+
+  /// Optional preloaded prefs store (IME heights + last type tab).
+  final KeyboardHeightStore? keyboardHeightStore;
+
+  /// Optional preloaded emoji catalog. When null, the screen owns one.
+  final DefaultEmojiDataSource? emojiDataSource;
 
   @override
   State<WidgetChatScreen> createState() => _WidgetChatScreenState();
@@ -37,10 +53,21 @@ class WidgetChatScreen extends StatefulWidget {
 class _WidgetChatScreenState extends State<WidgetChatScreen>
     with ChatViewportInsetsBinding {
   ChatDataSource? _dataSource;
+  late final DefaultEmojiDataSource _emojiDataSource;
+  var _ownsEmojiDataSource = false;
   late final ChatScrollController _controller;
   late final ChatSelectionController _selection;
   final GlobalKey<ChatComposerState> _composerKey =
       GlobalKey<ChatComposerState>();
+  final GlobalKey<EmojiPanelState> _emojiPanelKey =
+      GlobalKey<EmojiPanelState>();
+
+  /// Demo: all type tabs so the floating glass pill matches Telegram.
+  static const EmojiPanelAllow _emojiAllow = EmojiPanelAllow.all;
+
+  var _emojiPanelOpen = false;
+  EmojiPanelTab? _lastEmojiTab;
+  ChatPreImeBackClaim? _emojiBackClaim;
 
   bool _loading = true;
   String? _errorMessage;
@@ -67,16 +94,53 @@ class _WidgetChatScreenState extends State<WidgetChatScreen>
   int? _pendingLastReadBaseline;
 
   @override
+  KeyboardHeightStore createKeyboardHeightStore() =>
+      widget.keyboardHeightStore ?? KeyboardHeightStore();
+
+  @override
+  void onKeyboardHeightStoreReady() {
+    final tab = _lastTabFromStore(keyboardHeightStore);
+    if (tab == null || tab == _lastEmojiTab || !mounted) return;
+    setState(() => _lastEmojiTab = tab);
+  }
+
+  @override
   void initState() {
     super.initState();
+    final injected = widget.emojiDataSource;
+    if (injected != null) {
+      _emojiDataSource = injected;
+    } else {
+      _ownsEmojiDataSource = true;
+      _emojiDataSource = DefaultEmojiDataSource(
+        catalog: LocaleEmojiCatalogProvider(
+          locale: const Locale('ru'),
+          categoryTitles: EmojiCategoryTitles.russian,
+          stripIconFor: EmojiTabAssets.stripIconForId,
+        ),
+      )..load();
+    }
+    // Prefs already loaded from main → seed before first composer paint.
+    _lastEmojiTab = _lastTabFromStore(keyboardHeightStore);
     _controller = ChatScrollController();
     _selection = ChatSelectionController()..selectionCap = 100;
     _pillLastSeenBaseline.addListener(_onPillBaselineChanged);
     _init();
   }
 
+  /// Last type tab from prefs, restricted to [_emojiAllow] tabs.
+  static EmojiPanelTab? _lastTabFromStore(KeyboardHeightStore store) {
+    if (!store.isReady) return null;
+    final preferred = EmojiPanelTabPrefs.fromPrefs(store.selectedPage);
+    final tabs = _emojiAllow.tabs;
+    if (tabs.contains(preferred)) return preferred;
+    return tabs.isEmpty ? null : tabs.first;
+  }
+
   @override
   void dispose() {
+    _emojiBackClaim?.pop();
+    _emojiBackClaim = null;
     _pillLastSeenBaseline.removeListener(_onPillBaselineChanged);
     _flushPendingLastRead();
     _persistLastReadTimer?.cancel();
@@ -84,6 +148,9 @@ class _WidgetChatScreenState extends State<WidgetChatScreen>
     _search?.dispose();
     _controller.dispose();
     _selection.dispose();
+    if (_ownsEmojiDataSource) {
+      _emojiDataSource.dispose();
+    }
     _dataSource?.dispose();
     super.dispose();
   }
@@ -349,6 +416,113 @@ class _WidgetChatScreenState extends State<WidgetChatScreen>
   Widget _buildInitialSkeleton(BuildContext context) =>
       const DemoInitialSkeleton();
 
+  ChatEnterEmojiIconState get _emojiIconState => resolveEmojiIconState(
+    panelOpen: _emojiPanelOpen,
+    textEmpty:
+        _composerKey.currentState?.textController.text.trim().isEmpty ?? true,
+    lastTab: _lastEmojiTab,
+  );
+
+  void _syncEmojiBackClaim() {
+    if (_emojiPanelOpen) {
+      _emojiBackClaim ??= ChatPreImeBackClaim.push(() async {
+        final handled =
+            await _emojiPanelKey.currentState?.handleBack() ?? false;
+        return handled;
+      });
+    } else {
+      _emojiBackClaim?.pop();
+      _emojiBackClaim = null;
+    }
+  }
+
+  void _toggleEmojiPanel() {
+    if (_emojiPanelOpen) {
+      chatChromeLog('toggle → close+keyboard');
+      unawaited(_handoffEmojiToKeyboard());
+      return;
+    }
+    _openEmojiPanel();
+  }
+
+  void _openEmojiPanel() {
+    if (_emojiPanelOpen) return;
+
+    final landscape =
+        MediaQuery.orientationOf(context) == Orientation.landscape;
+    final replacing = bottomInsetController.isImeVisible;
+    final target = bottomInsetController.openPanel(landscape: landscape);
+    chatChromeLog(
+      'toggle → open replacing=$replacing target=$target '
+      'published=${bottomInsetController.height} '
+      'ime=${bottomInsetController.imeHeight}',
+    );
+
+    // Set open first so composer enters IME-suppress mode (keyboard icon).
+    setState(() => _emojiPanelOpen = true);
+    _syncEmojiBackClaim();
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || !_emojiPanelOpen) return;
+      // After rebuild: hide soft IME, keep focus for cursor + hardware keys.
+      _composerKey.currentState?.hideKeyboardRetainingFocus();
+      unawaited(
+        _emojiPanelKey.currentState?.open(replacingKeyboard: replacing),
+      );
+    });
+  }
+
+  /// Telegram: focus composer first (keep IME) → close search → panel handoff.
+  Future<void> _handoffEmojiToKeyboard() async {
+    final panel = _emojiPanelKey.currentState;
+    // Steal focus before search/panel collapse so soft keyboard does not drop.
+    // Field-tap races focus ahead of [onTap]; [prepareKeyboardHandoff] on
+    // pointer-down arms IME-suppress bypass before this runs.
+    _composerKey.currentState?.requestKeyboard();
+    if (!mounted) return;
+    if (panel != null && panel.isSearchOpen) {
+      await panel.closeSearch(hideKeyboard: false);
+    }
+    if (!mounted) return;
+    await panel?.close(waitForIme: true);
+  }
+
+  void _onInputTapWhileEmojiOpen() {
+    if (!_emojiPanelOpen) return;
+    chatChromeLog('input tap → close search/panel + keyboard');
+    unawaited(_handoffEmojiToKeyboard());
+  }
+
+  void _copySelected() {
+    final ids = _selection.selectedIds.toList()..sort();
+    final buffer = StringBuffer();
+    for (final id in ids) {
+      final message = _dataSource?.getMessage(id);
+      final text = switch (message) {
+        UserChatMessage(:final content) => content,
+        SystemChatMessage(:final content) => content,
+        _ => null,
+      };
+      if (text == null) continue;
+      if (buffer.isNotEmpty) buffer.writeln();
+      buffer.write(text);
+    }
+    Clipboard.setData(ClipboardData(text: buffer.toString()));
+    _selection.clear();
+  }
+
+  void _editSelectedFromBar() {
+    if (_selection.count != 1) return;
+    final id = _selection.selectedIds.first;
+    _composerKey.currentState?.beginEdit(id);
+  }
+
+  void _onEmojiPanelOpenChanged(bool open) {
+    if (_emojiPanelOpen == open) return;
+    setState(() => _emojiPanelOpen = open);
+    _syncEmojiBackClaim();
+  }
+
   @override
   Widget build(BuildContext context) {
     if (_errorMessage != null) {
@@ -361,6 +535,7 @@ class _WidgetChatScreenState extends State<WidgetChatScreen>
     final messageTheme = chatScrollTheme.message;
     final newMessageTheme = messageTheme?.copyWith(bubbleRadius: _bubbleRadius);
     final search = _search!;
+    final bottomPad = MediaQuery.viewPaddingOf(context).bottom;
 
     return ControllerScope.value(
       search,
@@ -381,162 +556,258 @@ class _WidgetChatScreenState extends State<WidgetChatScreen>
             _selection.clear();
             return;
           }
+          if (_emojiPanelOpen) {
+            unawaited(_emojiPanelKey.currentState?.handleBack());
+            return;
+          }
           // No-op, since no navigation is supported in this demo.
         },
         child: ChatScrollTheme(
           data: chatScrollTheme.copyWith(message: newMessageTheme),
-          child: Scaffold(
-            resizeToAvoidBottomInset: false,
-            body: StateConsumer<ChatSearchController, ChatSearchState>(
-              listener: _onSearchStateChanged,
-              child: Stack(
-                children: <Widget>[
-                  // Chat fills the screen; the composer is stacked over its bottom.
-                  Positioned.fill(
-                    child: ChatKeyboardShortcuts(
-                      controller: _controller,
-                      reverse: true,
-                      preserveExternalFocus: true,
-                      child: ChatScrollView(
-                        reverse: true,
-                        dataSource: _dataSource!,
+          child: AnnotatedRegion<SystemUiOverlayStyle>(
+            value: const SystemUiOverlayStyle(
+              statusBarColor: Colors.transparent,
+              statusBarIconBrightness: Brightness.light,
+              statusBarBrightness: Brightness.dark,
+              systemNavigationBarContrastEnforced: false,
+              systemNavigationBarColor: Colors.transparent,
+              systemNavigationBarDividerColor: Colors.transparent,
+              systemNavigationBarIconBrightness: Brightness.light,
+              systemStatusBarContrastEnforced: false,
+            ),
+            child: Scaffold(
+              resizeToAvoidBottomInset: false,
+              body: StateConsumer<ChatSearchController, ChatSearchState>(
+                listener: _onSearchStateChanged,
+                child: Stack(
+                  children: <Widget>[
+                    // Chat fills the screen; the composer is stacked over its bottom.
+                    Positioned.fill(
+                      child: ChatKeyboardShortcuts(
                         controller: _controller,
-                        selectionController: _selection,
-                        onIdleMessageTap: _onIdleMessageTap,
+                        reverse: true,
+                        preserveExternalFocus: true,
+                        child: ChatScrollView(
+                          reverse: true,
+                          dataSource: _dataSource!,
+                          controller: _controller,
+                          selectionController: _selection,
+                          onIdleMessageTap: _onIdleMessageTap,
+                          isSelfMessage: _isSelfMessage,
+                          bottomPadding: insets.bottomPadding,
+                          topPadding: insets.topPadding,
+                          messageBuilder: _buildMessage,
+                          chunkErrorBuilder: _buildChunkError,
+                          emptyBuilder: _buildEmpty,
+                          loadingBuilder: _buildInitialSkeleton,
+                          dateSeparatorBuilder: (context, bucket, date) =>
+                              DateSeparator(date: date),
+                        ),
+                      ),
+                    ),
+                    // Side controls — page-down + search up/down share one stack
+                    // (Telegram coordinated show/hide + vertical slide).
+                    _ChatSideControlsHost(
+                      pageDownChromeVisible: _pageDownChromeVisible,
+                      bottomInset: insets.bottomPadding,
+                      onSearchStep: _onSearchStep,
+                      pageDown: ChatScrollToBottomButton(
+                        embedded: true,
+                        controller: _controller,
+                        dataSource: _dataSource!,
                         isSelfMessage: _isSelfMessage,
-                        bottomPadding: insets.bottomPadding,
-                        topPadding: insets.topPadding,
-                        messageBuilder: _buildMessage,
-                        chunkErrorBuilder: _buildChunkError,
-                        emptyBuilder: _buildEmpty,
-                        loadingBuilder: _buildInitialSkeleton,
-                        dateSeparatorBuilder: (context, bucket, date) =>
-                            DateSeparator(date: date),
-                      ),
-                    ),
-                  ),
-                  // Side controls — page-down + search up/down share one stack
-                  // (Telegram coordinated show/hide + vertical slide).
-                  _ChatSideControlsHost(
-                    pageDownChromeVisible: _pageDownChromeVisible,
-                    bottomInset: insets.bottomPadding,
-                    onSearchStep: _onSearchStep,
-                    pageDown: ChatScrollToBottomButton(
-                      embedded: true,
-                      controller: _controller,
-                      dataSource: _dataSource!,
-                      isSelfMessage: _isSelfMessage,
-                      lastSeenNewestId: _pillLastSeenBaseline,
-                      onChromeVisibleChanged: (visible) {
-                        if (_pageDownChromeVisible == visible) return;
-                        setState(() => _pageDownChromeVisible = visible);
-                      },
-                    ),
-                  ),
-                  // Bottom composer — overlaid, not a column sibling. Measured
-                  // height is reserved inset; overlay chrome reads the same
-                  // bottomPadding and does not add to it.
-                  Positioned(
-                    left: 0,
-                    right: 0,
-                    bottom: 0,
-                    child: ChatComposer(
-                      key: _composerKey,
-                      bottomInset: insets.keyboard,
-                      selection: _selection,
-                      dataSource: _dataSource!,
-                      onSend: _handleSendMessage,
-                      onDeleteSelected: _handleDeleteSelected,
-                      onEditSelected: _handleEditSelected,
-                      onSizeChanged: insets.setComposerHeight,
-                    ),
-                  ),
-                  // Contextual selection bar — overlays the top. [headerReserve]
-                  // is driven every animation frame so the floating day header
-                  // tracks the slide.
-                  Positioned(
-                    top: 0,
-                    left: 0,
-                    right: 0,
-                    child: SelectionAppBar(
-                      selection: _selection,
-                      topInset: insets.headerReserve,
-                    ),
-                  ),
-                  // Demo: search + bubble radius — top-right chrome.
-                  // Position against [chromeTop] (not [topPadding]) so search
-                  // reserve does not push this row further down.
-                  // [Positioned] must be a *direct* Stack child; wrapping it in
-                  // ValueListenableBuilder makes the builder expand and cover
-                  // the chat.
-                  Positioned(
-                    top: 0,
-                    right: 12,
-                    child: ValueListenableBuilder<double>(
-                      valueListenable: insets.chromeTop,
-                      builder: (context, chromeTop, child) => Padding(
-                        padding: EdgeInsets.only(top: chromeTop + 8),
-                        child: child,
-                      ),
-                      child: ListenableBuilder(
-                        listenable: _selection,
-                        builder: (context, _) {
-                          if (_selection.isSelectionMode) {
-                            return const SizedBox.shrink();
-                          }
-                          return Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              const ChatSearchToggleButton(),
-                              const SizedBox(width: 4),
-                              IconButton.filledTonal(
-                                tooltip: 'Message corners',
-                                onPressed: _openBubbleRadiusSettings,
-                                icon: const Icon(
-                                  Icons.rounded_corner,
-                                  size: 20,
-                                ),
-                              ),
-                            ],
-                          );
+                        lastSeenNewestId: _pillLastSeenBaseline,
+                        onChromeVisibleChanged: (visible) {
+                          if (_pageDownChromeVisible == visible) return;
+                          setState(() => _pageDownChromeVisible = visible);
                         },
                       ),
                     ),
-                  ),
-                  Positioned(
-                    top: 0,
-                    left: 12,
-                    right: 118,
-                    child: ValueListenableBuilder<double>(
-                      valueListenable: insets.chromeTop,
-                      builder: (context, chromeTop, _) =>
-                          ValueListenableBuilder<bool>(
-                            valueListenable: search.select(
-                              (s) => s.maybeMap(
-                                closed: (_) => false,
-                                orElse: () => true,
+                    // Soft fade under composer / keyboard (ChatActivityFadeView
+                    // bottom zone). Over messages, under input chrome.
+                    ValueListenableBuilder<double>(
+                      valueListenable: insets.bottomPadding,
+                      builder: (context, zoneHeight, _) {
+                        if (zoneHeight <= 0) {
+                          return const SizedBox.shrink();
+                        }
+                        final colors = ChatChromeTheme.of(context);
+                        return Positioned(
+                          left: 0,
+                          right: 0,
+                          bottom: 0,
+                          height: zoneHeight,
+                          child: ChatContentBottomFade(
+                            zoneHeight: zoneHeight,
+                            color: colors.contentBottomFade,
+                          ),
+                        );
+                      },
+                    ),
+                    // Bottom chrome. Insets math (master):
+                    //   bottomPadding = composerHeight + keyboard
+                    // Composer measure includes island + gap + safe-bottom.
+                    // [keyboard] is IME height or emoji-panel target from the
+                    // height store (Telegram kbd_height) — never live IME=0
+                    // while the panel is open.
+                    Positioned(
+                      left: 0,
+                      right: 0,
+                      bottom: 0,
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: <Widget>[
+                          ChatComposer(
+                            key: _composerKey,
+                            selection: _selection,
+                            dataSource: _dataSource!,
+                            onSend: _handleSendMessage,
+                            onEditSelected: _handleEditSelected,
+                            onSizeChanged: insets.setComposerHeight,
+                            onEmojiPressed: _toggleEmojiPanel,
+                            emojiIconState: _emojiIconState,
+                            onFieldTapWhileEmojiOpen: _emojiPanelOpen
+                                ? _onInputTapWhileEmojiOpen
+                                : null,
+                          ),
+                          // Keyboard / emoji slot — one term only. Do not also
+                          // pad the composer with the same inset (would double).
+                          ValueListenableBuilder<double>(
+                            valueListenable: insets.keyboard,
+                            builder: (context, keyboard, child) => SizedBox(
+                              height: keyboard + bottomPad,
+                              child: child,
+                            ),
+                            child: RepaintBoundary(
+                              child: EmojiPanel(
+                                key: _emojiPanelKey,
+                                open: _emojiPanelOpen,
+                                controller: bottomInsetController,
+                                store: keyboardHeightStore,
+                                allow: _emojiAllow,
+                                labels: EmojiPanelLabels.russian,
+                                dataSource: _emojiDataSource,
+                                onEmojiSelected: (glyph) {
+                                  _composerKey.currentState?.insertText(glyph);
+                                },
+                                onBackspace: () {
+                                  _composerKey.currentState?.backspace();
+                                },
+                                callbacks: EmojiPanelCallbacks(
+                                  onStickerSettings: () {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(
+                                        content: Text('Sticker settings'),
+                                        duration: Duration(seconds: 1),
+                                      ),
+                                    );
+                                  },
+                                  onSearchClosed: () {
+                                    _composerKey.currentState
+                                        ?.hideKeyboardRetainingFocus();
+                                  },
+                                ),
+                                onTabChanged: (tab) {
+                                  setState(() => _lastEmojiTab = tab);
+                                },
+                                onOpenChanged: _onEmojiPanelOpenChanged,
                               ),
                             ),
-                            builder: (context, isOpen, _) {
-                              if (!isOpen) return const SizedBox.shrink();
-                              // Position against chromeTop; measure only the
-                              // local pad + field into searchReserve.
-                              return Padding(
-                                padding: EdgeInsets.only(top: chromeTop),
-                                child: MeasureSize(
-                                  onChange: (size) =>
-                                      insets.setSearchReserve(size.height),
-                                  child: const Padding(
-                                    padding: EdgeInsets.only(top: 8),
-                                    child: ChatSearchBar(),
+                          ),
+                        ],
+                      ),
+                    ),
+                    // Contextual selection bar — overlays the top. [headerReserve]
+                    // is driven every animation frame so the floating day header
+                    // tracks the slide.
+                    Positioned(
+                      top: 0,
+                      left: 0,
+                      right: 0,
+                      child: SelectionAppBar(
+                        selection: _selection,
+                        topInset: insets.headerReserve,
+                        onCopy: _copySelected,
+                        onEdit: _editSelectedFromBar,
+                        onDelete: () =>
+                            _handleDeleteSelected(_selection.selectedIds),
+                      ),
+                    ),
+                    // Demo: search + bubble radius — top-right chrome.
+                    // Position against [chromeTop] (not [topPadding]) so search
+                    // reserve does not push this row further down.
+                    // [Positioned] must be a *direct* Stack child; wrapping it in
+                    // ValueListenableBuilder makes the builder expand and cover
+                    // the chat.
+                    Positioned(
+                      top: 0,
+                      right: 12,
+                      child: ValueListenableBuilder<double>(
+                        valueListenable: insets.chromeTop,
+                        builder: (context, chromeTop, child) => Padding(
+                          padding: EdgeInsets.only(top: chromeTop + 8),
+                          child: child,
+                        ),
+                        child: ListenableBuilder(
+                          listenable: _selection,
+                          builder: (context, _) {
+                            if (_selection.isSelectionMode) {
+                              return const SizedBox.shrink();
+                            }
+                            return Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const ChatSearchToggleButton(),
+                                const SizedBox(width: 4),
+                                IconButton.filledTonal(
+                                  tooltip: 'Message corners',
+                                  onPressed: _openBubbleRadiusSettings,
+                                  icon: const Icon(
+                                    Icons.rounded_corner,
+                                    size: 20,
                                   ),
                                 ),
-                              );
-                            },
-                          ),
+                              ],
+                            );
+                          },
+                        ),
+                      ),
                     ),
-                  ),
-                ],
+                    Positioned(
+                      top: 0,
+                      left: 12,
+                      right: 118,
+                      child: ValueListenableBuilder<double>(
+                        valueListenable: insets.chromeTop,
+                        builder: (context, chromeTop, _) =>
+                            ValueListenableBuilder<bool>(
+                              valueListenable: search.select(
+                                (s) => s.maybeMap(
+                                  closed: (_) => false,
+                                  orElse: () => true,
+                                ),
+                              ),
+                              builder: (context, isOpen, _) {
+                                if (!isOpen) return const SizedBox.shrink();
+                                // Position against chromeTop; measure only the
+                                // local pad + field into searchReserve.
+                                return Padding(
+                                  padding: EdgeInsets.only(top: chromeTop),
+                                  child: MeasureSize(
+                                    onChange: (size) =>
+                                        insets.setSearchReserve(size.height),
+                                    child: const Padding(
+                                      padding: EdgeInsets.only(top: 8),
+                                      child: ChatSearchBar(),
+                                    ),
+                                  ),
+                                );
+                              },
+                            ),
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
           ),

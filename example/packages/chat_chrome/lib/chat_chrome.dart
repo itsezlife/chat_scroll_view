@@ -1,0 +1,38 @@
+/// Chat composer and keyboard-replacement emoji / sticker / GIF panel chrome.
+///
+/// Host integration: mount [EmojiPanel], wire [EmojiDataSource], composer
+/// insert/delete, and aggregate chrome into scroll `bottomPadding`. See the
+/// package README for data-source contracts and layout logs.
+library;
+
+export 'package:emoji_data/emoji_data.dart';
+
+export 'src/composer/chat_enter_icons.dart';
+export 'src/composer/chat_enter_top_view.dart';
+export 'src/composer/chat_enter_view.dart';
+export 'src/composer/chat_input_metrics.dart';
+export 'src/composer/chat_content_bottom_fade.dart';
+export 'src/debug/chat_chrome_log.dart';
+export 'src/inset/chat_bottom_inset_controller.dart';
+export 'src/inset/keyboard_height_store.dart';
+export 'src/motion/scale_pressable.dart';
+export 'src/motion/keyboard_panel_motion.dart';
+export 'src/panel/backspace_action_button.dart';
+export 'src/panel/emoji_category_strip.dart';
+export 'src/panel/emoji_color_picker.dart';
+export 'src/panel/emoji_deferred_recents.dart';
+export 'src/panel/emoji_glyph.dart';
+export 'src/panel/emoji_glyph_cell.dart';
+export 'src/panel/emoji_page.dart';
+export 'src/panel/emoji_panel.dart';
+export 'src/panel/emoji_panel_allow.dart';
+export 'src/panel/emoji_panel_bottom_actions.dart';
+export 'src/panel/emoji_panel_bottom_bar.dart';
+export 'src/panel/emoji_panel_callbacks.dart';
+export 'src/panel/emoji_panel_labels.dart';
+export 'src/panel/emoji_panel_nav_bar_fade.dart';
+export 'src/panel/emoji_search_field.dart';
+export 'src/panel/emoji_tab_assets.dart';
+export 'src/panel/emoji_type_tabs_pill.dart';
+export 'src/panel/sticker_gif_stubs.dart';
+export 'src/theme/chat_chrome_colors.dart';

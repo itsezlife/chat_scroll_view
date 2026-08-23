@@ -196,8 +196,8 @@ class _ScrollToBottomFabState extends State<_ScrollToBottomFab>
                     ),
                   ),
                 ),
-                // Full-width slot (like CounterView MATCH_PARENT): pill is painted
-                // centered inside; widget width must not lerp or expand breaks.
+                // Full-width slot: pill is painted centered inside; widget
+                // width must not lerp or expand breaks.
                 Positioned(
                   top: 0,
                   left: 0,

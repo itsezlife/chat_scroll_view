@@ -67,17 +67,23 @@ void set_keyboard_animation(bool isEnabled) {
 ///
 /// Triggers callback for update insets
 void platform_update_inset(float current, float target) {
-    if (current == current_inset) {
+    // Must compare both — previously we bailed when only `target` changed,
+    // so a hidden keyboard stuck at target=lastPeak (visible+animating forever).
+    if (current == current_inset && target == current_target) {
         return;
     }
 
+    const bool current_changed = current != current_inset;
     current_inset = current;
     current_target = target;
     if (max_inset < target) {
         max_inset = target;
     }
+    if (max_inset < current) {
+        max_inset = current;
+    }
 
-    if (inset_callback && is_keyboard_animation_enabled) {
+    if (inset_callback && is_keyboard_animation_enabled && current_changed) {
         inset_callback(current);
     }
 

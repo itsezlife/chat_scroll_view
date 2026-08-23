@@ -129,6 +129,13 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "1.4.1"
+  chat_chrome:
+    dependency: "direct main"
+    description:
+      path: "packages/chat_chrome"
+      relative: true
+    source: path
+    version: "0.1.0"
   chat_scroll_view:
     dependency: "direct main"
     description:
@@ -200,6 +207,13 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "3.1.7"
+  emoji_data:
+    dependency: "direct main"
+    description:
+      path: "packages/emoji_data"
+      relative: true
+    source: path
+    version: "0.1.0"
   fake_async:
     dependency: transitive
     description:
@@ -466,6 +480,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "2.0.0"
+  morphnext:
+    dependency: transitive
+    description:
+      name: morphnext
+      sha256: "72fc123ad6e4a541b48315a461d15b10216d5a467ad6d8e264af0231cb9a9c31"
+      url: "https://pub.dev"
+    source: hosted
+    version: "0.6.0"
   package_config:
     dependency: transitive
     description:
@@ -587,7 +609,7 @@ packages:
     source: hosted
     version: "2.13.0"
   shared_preferences:
-    dependency: transitive
+    dependency: "direct main"
     description:
       name: shared_preferences
       sha256: c3025c5534b01739267eb7d76959bbc25a6d10f6988e1c2a3036940133dd10bf
@@ -743,6 +765,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "2.17.2"
+  super_sliver_list:
+    dependency: transitive
+    description:
+      name: super_sliver_list
+      sha256: b1e1e64d08ce40e459b9bb5d9f8e361617c26b8c9f3bb967760b0f436b6e3f56
+      url: "https://pub.dev"
+    source: hosted
+    version: "0.4.1"
   sync_http:
     dependency: transitive
     description:

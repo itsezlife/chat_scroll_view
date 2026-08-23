@@ -20,7 +20,7 @@ class ChatSideControlCounter extends StatefulWidget {
   /// Optional semantics / test seam for the invisible layout text.
   final Key? seamKey;
 
-  /// Painted pill height (matches Telegram CounterView).
+  /// Painted pill height (logical px).
   static const double height = 23;
 
   @override
@@ -273,7 +273,7 @@ class _ChatSideControlCounterState extends State<ChatSideControlCounter>
     final style = _textStyle;
 
     // Fill the counter strip width. Pill size is painted (lerped), not laid out
-    // — matching a fixed-width CounterView so 9→10 does not reflow the box.
+    // — host width stays fixed so digit growth (9→10) does not reflow the box.
     return AnimatedBuilder(
       animation: _controller,
       builder: (context, _) {

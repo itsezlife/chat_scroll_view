@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:developer' as dev;
 
+import 'package:chat_chrome/chat_chrome.dart';
 import 'package:chat_scroll_view_example/src/common/constant/demo_config.dart';
 import 'package:chat_scroll_view_example/src/common/pre_ime_back.dart';
 import 'package:chat_scroll_view_example/src/features/chat/view/widget_chat_screen.dart';
@@ -13,11 +14,33 @@ void main() => runZonedGuarded<void>(
   () async {
     WidgetsFlutterBinding.ensureInitialized();
     bindExamplePreImeBack();
-    await Supabase.initialize(
-      url: DemoConfig.supabaseUrl,
-      publishableKey: DemoConfig.supabasePublishableKey,
+
+    final keyboardHeightStore = KeyboardHeightStore();
+    final emojiDataSource = DefaultEmojiDataSource(
+      catalog: LocaleEmojiCatalogProvider(
+        locale: const Locale('ru'),
+        categoryTitles: EmojiCategoryTitles.russian,
+        stripIconFor: EmojiTabAssets.stripIconForId,
+      ),
     );
-    runApp(const ChatDemoApp());
+
+    // Prefs + emoji catalog before first frame so composer last-tab icon and
+    // panel initial page match persist storage (no smile→GIF flash).
+    await (
+      Supabase.initialize(
+        url: DemoConfig.supabaseUrl,
+        publishableKey: DemoConfig.supabasePublishableKey,
+      ),
+      keyboardHeightStore.load(),
+      emojiDataSource.load(),
+    ).wait;
+
+    runApp(
+      ChatDemoApp(
+        keyboardHeightStore: keyboardHeightStore,
+        emojiDataSource: emojiDataSource,
+      ),
+    );
   },
   (error, stackTrace) =>
       dev.log('Top level exception', error: error, stackTrace: stackTrace),
@@ -28,7 +51,17 @@ void main() => runZonedGuarded<void>(
 /// {@endtemplate}
 class ChatDemoApp extends StatelessWidget {
   /// {@macro chat_demo_app}
-  const ChatDemoApp({super.key});
+  const ChatDemoApp({
+    required this.keyboardHeightStore,
+    required this.emojiDataSource,
+    super.key,
+  });
+
+  /// Preloaded IME height + last emoji type tab prefs.
+  final KeyboardHeightStore keyboardHeightStore;
+
+  /// Preloaded emoji catalog / recents.
+  final DefaultEmojiDataSource emojiDataSource;
 
   @override
   Widget build(BuildContext context) => MaterialApp(
@@ -39,9 +72,15 @@ class ChatDemoApp extends StatelessWidget {
         brightness: Brightness.dark,
       ),
     ),
-    builder: (context, child) => DemoChatTheme(child: child!),
+    builder: (context, child) => ChatChromeTheme(
+      colors: const ChatChromeColors.dark(),
+      child: DemoChatTheme(child: child!),
+    ),
     debugShowCheckedModeBanner: false,
     showPerformanceOverlay: false,
-    home: const WidgetChatScreen(),
+    home: WidgetChatScreen(
+      keyboardHeightStore: keyboardHeightStore,
+      emojiDataSource: emojiDataSource,
+    ),
   );
 }

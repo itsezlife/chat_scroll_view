@@ -19,13 +19,29 @@ const double kSelectionAppBarHeight = 52;
 /// slide without waiting on layout.
 class SelectionAppBar extends StatefulWidget {
   /// Slides in above the chat while [selection] mode is active.
-  const SelectionAppBar({required this.selection, this.topInset, super.key});
+  const SelectionAppBar({
+    required this.selection,
+    this.topInset,
+    this.onCopy,
+    this.onEdit,
+    this.onDelete,
+    super.key,
+  });
 
   /// Selection state — drives visibility and the count.
   final ChatSelectionController selection;
 
   /// Optional viewport top inset to animate in lockstep with the slide.
   final ValueNotifier<double>? topInset;
+
+  /// Copy selected messages.
+  final VoidCallback? onCopy;
+
+  /// Edit the single selected message.
+  final VoidCallback? onEdit;
+
+  /// Delete selected messages.
+  final VoidCallback? onDelete;
 
   @override
   State<SelectionAppBar> createState() => _SelectionAppBarState();
@@ -166,6 +182,27 @@ class _SelectionAppBarState extends State<SelectionAppBar>
               ),
             ),
             const Spacer(),
+            if (widget.onCopy != null)
+              IconButton(
+                icon: const Icon(Icons.copy_rounded),
+                tooltip: 'Копировать',
+                color: scheme.onSurface,
+                onPressed: widget.onCopy,
+              ),
+            if (widget.onEdit != null)
+              IconButton(
+                icon: const Icon(Icons.edit_rounded),
+                tooltip: 'Изменить',
+                color: scheme.onSurface,
+                onPressed: widget.onEdit,
+              ),
+            if (widget.onDelete != null)
+              IconButton(
+                icon: const Icon(Icons.delete_outline_rounded),
+                tooltip: 'Удалить',
+                color: scheme.onSurface,
+                onPressed: widget.onDelete,
+              ),
           ],
         ),
       ),

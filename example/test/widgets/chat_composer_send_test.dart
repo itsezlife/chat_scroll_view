@@ -1,6 +1,7 @@
 // ignore_for_file: implementation_imports
 import 'dart:async';
 
+import 'package:chat_chrome/chat_chrome.dart';
 import 'package:chat_scroll_view/src/chat_scroll/chat_data_source.dart';
 import 'package:chat_scroll_view/src/chat_scroll/chat_scroll_common.dart';
 import 'package:chat_scroll_view/src/chat_scroll/chat_selection_controller.dart';
@@ -33,11 +34,23 @@ Widget _composerHarness({
           selection: selection,
           dataSource: dataSource,
           onSend: onSend,
+          onEmojiPressed: () {},
+          emojiIconState: ChatEnterEmojiIconState.smile,
         ),
       ],
     ),
   ),
 );
+
+Future<void> _pumpAsync(WidgetTester tester) async {
+  await tester.pump();
+  await tester.pump(const Duration(milliseconds: 50));
+}
+
+Future<void> _tapSend(WidgetTester tester) async {
+  await tester.tap(find.byIcon(Icons.send_rounded));
+  await _pumpAsync(tester);
+}
 
 void main() {
   group('ChatComposer send', () {
@@ -62,8 +75,8 @@ void main() {
       await tester.pump();
 
       await tester.enterText(find.byType(TextField), '  hello world  ');
-      await tester.tap(find.byIcon(Icons.send_rounded));
-      await tester.pumpAndSettle();
+      await tester.pump();
+      await _tapSend(tester);
 
       expect(sent, 'hello world');
       expect(find.byType(TextField), findsOneWidget);
@@ -90,8 +103,11 @@ void main() {
       await tester.pump();
 
       await tester.enterText(find.byType(TextField), '   \n  ');
-      await tester.tap(find.byIcon(Icons.send_rounded));
-      await tester.pumpAndSettle();
+      await tester.pump();
+      expect(find.byIcon(Icons.send_rounded), findsNothing);
+      expect(find.byIcon(Icons.mic_none_rounded), findsOneWidget);
+      await tester.tap(find.byIcon(Icons.mic_none_rounded));
+      await _pumpAsync(tester);
 
       expect(invoked, isFalse);
     });
@@ -122,16 +138,14 @@ void main() {
         await tester.pump();
 
         await tester.enterText(find.byType(TextField), 'retry me');
-        await tester.tap(find.byIcon(Icons.send_rounded));
         await tester.pump();
-        await tester.pump();
+        await _tapSend(tester);
 
         expect(attempts, 1);
         final field = tester.widget<TextField>(find.byType(TextField));
         expect(field.controller!.text, 'retry me');
 
-        await tester.tap(find.byIcon(Icons.send_rounded));
-        await tester.pumpAndSettle();
+        await _tapSend(tester);
 
         expect(attempts, 2);
         expect(field.controller!.text, isEmpty);
