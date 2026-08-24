@@ -20,7 +20,7 @@ packages:
   catalog_assets:
     dependency: "direct main"
     description:
-      path: "../../../packages/catalog_assets"
+      path: "../catalog_assets"
       relative: true
     source: path
     version: "0.1.0"
@@ -169,7 +169,7 @@ packages:
   panel_catalog:
     dependency: "direct main"
     description:
-      path: "../../../packages/panel_catalog"
+      path: "../panel_catalog"
       relative: true
     source: path
     version: "0.1.0"

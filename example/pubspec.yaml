@@ -14,9 +14,9 @@ dependencies:
   keyboard_insets:
     path: packages/keyboard_insets
   chat_chrome:
-    path: packages/chat_chrome
+    path: ../packages/chat_chrome
   emoji_data:
-    path: packages/emoji_data
+    path: ../packages/emoji_data
   meta: ^1.17.0
   supabase_flutter: ^2.15.0
   control: 1.0.0-dev.1

@@ -139,7 +139,7 @@ packages:
   chat_chrome:
     dependency: "direct main"
     description:
-      path: "packages/chat_chrome"
+      path: "../packages/chat_chrome"
       relative: true
     source: path
     version: "0.1.0"
@@ -217,7 +217,7 @@ packages:
   emoji_data:
     dependency: "direct main"
     description:
-      path: "packages/emoji_data"
+      path: "../packages/emoji_data"
       relative: true
     source: path
     version: "0.1.0"

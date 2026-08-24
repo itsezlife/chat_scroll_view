@@ -5,9 +5,9 @@ a thin extent-scroll RenderObject engine with paint leaves and Telegram-style
 **stitch** far jumps — not `SuperSliverList` forever and not a fork of Chat
 Scroll’s message-id / anchor model. Assets live in a **global catalog asset
 cache** shared with chat; catalog DS notifies like `ChatDataSource` but does
-not own decode bytes. Monorepo: incremental root `packages/` (`catalog_assets`,
-`panel_catalog`, lift chrome/data); `chat_scroll_view` stays at repo root until
-a dedicated move.
+not own decode bytes. Monorepo: root `packages/` (`catalog_assets`,
+`panel_catalog`, `emoji_data`, `chat_chrome`); `chat_scroll_view` remains at
+repo root.
 
 **Status**: Accepted  
 **Date**: 2026-08-24
@@ -29,7 +29,7 @@ a dedicated move.
 | Assets | **Global catalog asset cache** (`packages/catalog_assets`); panel + chat bind/paint only |
 | Data | Parallel catalog DS + `addDataListener` / `notifyDataChanged`; fetch not in the viewport |
 | v1 ship | Unicode catalog + stitch + paint leaves; leaf contract ready for document-backed / animated |
-| Packages | Incremental root `packages/`; `example/` is the app |
+| Packages | Root `packages/` for catalog + chrome/data; `example/` is the app; `chat_scroll_view` remains at repo root |
 
 ## Rejected
 

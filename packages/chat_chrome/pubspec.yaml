@@ -13,11 +13,11 @@ dependencies:
   flutter:
     sdk: flutter
   catalog_assets:
-    path: ../../../packages/catalog_assets
+    path: ../catalog_assets
   emoji_data:
     path: ../emoji_data
   panel_catalog:
-    path: ../../../packages/panel_catalog
+    path: ../panel_catalog
   shared_preferences: ^2.5.3
   morphnext: ^0.6.0
 
