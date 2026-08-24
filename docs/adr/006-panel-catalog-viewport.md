@@ -1,0 +1,45 @@
+# ADR 006: Panel Catalog Viewport (sibling to Chat Scroll)
+
+Keyboard-panel emoji / stickers / GIFs get their own **Panel Catalog Viewport** —
+a thin extent-scroll RenderObject engine with paint leaves and Telegram-style
+**stitch** far jumps — not `SuperSliverList` forever and not a fork of Chat
+Scroll’s message-id / anchor model. Assets live in a **global catalog asset
+cache** shared with chat; catalog DS notifies like `ChatDataSource` but does
+not own decode bytes. Monorepo: incremental root `packages/` (`catalog_assets`,
+`panel_catalog`, lift chrome/data); `chat_scroll_view` stays at repo root until
+a dedicated move.
+
+**Status**: Accepted  
+**Date**: 2026-08-24
+
+## Decided
+
+| Topic | Decision |
+| ----- | -------- |
+| Context | Sibling **Panel Catalog Viewport** ([glossary](../panel-catalog/CONTEXT.md)); not “Media Grid” (collides with chat attachments) |
+| Ownership | Viewport = catalog body only; **catalog shell** = strip / search / tabs / pickers / DS wiring |
+| Geometry | **Extent scroll** (absolute offset + known/estimated content height) |
+| Leaves | **Paint leaf** pool + **viewport-owned hit-test**; no per-cell StatefulWidget default |
+| Placeholders | Kind-specific: **circle** (unicode), **thumb-first** (animated), **shaped wash** (stickers) — see [leaf-placeholder.md](../panel-catalog/leaf-placeholder.md) |
+| Far path | **Stitch** when not attached and `\|target − firstVisible\| > span × 9` (or animations off). Not naked `jumpTo` |
+| Near path | Smooth scroller (Telegram `LinearSmoothScrollerCustom`) |
+| Assets | **Global catalog asset cache** (`packages/catalog_assets`); panel + chat bind/paint only |
+| Data | Parallel catalog DS + `addDataListener` / `notifyDataChanged`; fetch not in the viewport |
+| v1 ship | Unicode catalog + stitch + paint leaves; leaf contract ready for document-backed / animated |
+| Packages | Incremental root `packages/`; `example/` is the app |
+
+## Rejected
+
+| Alternative | Why not |
+| ----------- | ------- |
+| Extend Chat Scroll glossary / anchor origin | Wrong identity model for a sectioned catalog |
+| Far path = `jumpTo` | Breaks Telegram parity (`RecyclerAnimationScrollHelper` stitch) |
+| One generic shimmer for all leaves | Telegram uses three different loading paints |
+| Panel-private drawable cache | Blocks reuse in chat inline emoji / stickers / GIFs |
+| Engine inside `chat_scroll_view` or forever under `example/packages` | Wrong bounded context; hides shared product surface |
+| Big-bang move of chat into `packages/` with v1 | Unrelated churn; defer |
+
+## Related
+
+- Chat stitch / load-gate: [ADR 005](005-stitch-far-path-and-load-gate.md) (chat-only rules; panel does **not** inherit message load-gate by default)
+- Context map: [CONTEXT-MAP.md](../../CONTEXT-MAP.md)

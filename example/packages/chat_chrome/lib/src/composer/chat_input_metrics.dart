@@ -1,9 +1,19 @@
 /// Layout metrics for the composer input island.
 ///
 /// Paint sizes — not outer hit boxes.
+///
+/// **Radius vs height:** `bubbleRadius` is 22 because the idle island height is
+/// 44 (`DEFAULT_HEIGHT`). Half of height → stadium / capsule ends. Raising the
+/// radius alone does not match Telegram; a taller Flutter island with the same
+/// 22 reads as “less round.” Keep single-line height at [islandHeight].
 abstract final class ChatInputMetrics {
-  /// Glass input island corner radius (`INPUT_BUBBLE_RADIUS`).
-  static const double bubbleRadius = 28;
+  /// Idle glass island height (`DEFAULT_HEIGHT` / `defaultIslandHeight`).
+  static const double islandHeight = 44;
+
+  /// Glass corner radius (`INPUT_BUBBLE_RADIUS`).
+  ///
+  /// With [islandHeight] 44 this is a full pill (`radius == height / 2`).
+  static const double bubbleRadius = 22;
 
   /// Under-keyboard / emoji panel top radius (`INPUT_KEYBOARD_RADIUS`).
   static const double keyboardRadius = 29;

@@ -691,7 +691,22 @@ class EmojiPageState extends State<EmojiPage>
     }
   }
 
+  /// Drop search-field focus on finger drag.
+  ///
+  /// Must **not** use [ScrollViewKeyboardDismissBehavior.onDrag]: that calls
+  /// [FocusScopeNode.unfocus] and clears every focused descendant (composer
+  /// included). Only [EmojiPage.searchFocusNode] is cleared here.
+  void _dismissSearchFocusOnUserDrag(ScrollNotification notification) {
+    if (_programmaticScroll) return;
+    if (notification is! ScrollStartNotification) return;
+    if (notification.dragDetails == null) return;
+    final focus = widget.searchFocusNode;
+    if (focus == null || !focus.hasFocus) return;
+    focus.unfocus();
+  }
+
   bool _handleScrollNotification(ScrollNotification notification) {
+    _dismissSearchFocusOnUserDrag(notification);
     if (_programmaticScroll || !_showCategoryStrip) return false;
     if (notification is! ScrollUpdateNotification) return false;
     final dy = notification.scrollDelta ?? 0;
@@ -1074,7 +1089,6 @@ class EmojiPageState extends State<EmojiPage>
                 onNotification: _handleScrollNotification,
                 child: CustomScrollView(
                   controller: _scroll,
-                  keyboardDismissBehavior: .onDrag,
                   slivers: <Widget>[
                     SliverPadding(
                       padding: EdgeInsets.only(top: scrollPadTop),

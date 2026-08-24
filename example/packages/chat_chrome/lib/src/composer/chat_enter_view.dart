@@ -1,6 +1,8 @@
 import 'package:chat_chrome/src/composer/chat_enter_icons.dart';
 import 'package:chat_chrome/src/composer/chat_enter_top_view.dart';
 import 'package:chat_chrome/src/composer/chat_input_metrics.dart';
+import 'package:chat_chrome/src/glass/telegram_glass.dart';
+import 'package:chat_chrome/src/glass/telegram_glass_style.dart';
 import 'package:chat_chrome/src/theme/chat_chrome_colors.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -49,6 +51,7 @@ class ChatEnterView extends StatefulWidget {
     this.onCancelEdit,
     this.maxWidth = 620,
     this.onFieldTapWhileEmojiOpen,
+    this.glassKey,
     super.key,
   });
 
@@ -97,12 +100,15 @@ class ChatEnterView extends StatefulWidget {
   /// Max content width.
   final double maxWidth;
 
+  /// Key on the liquid-glass island (for fade cutout tracking).
+  final GlobalKey? glassKey;
+
   /// Fired when the user taps the field while the emoji panel is open
   /// (tap input → close emoji, show IME).
   final VoidCallback? onFieldTapWhileEmojiOpen;
 
-  /// Default composer height.
-  static const double rowHeight = 44;
+  /// Default composer height (`DEFAULT_HEIGHT` / island paint height).
+  static const double rowHeight = ChatInputMetrics.islandHeight;
 
   @override
   State<ChatEnterView> createState() => ChatEnterViewState();
@@ -212,62 +218,52 @@ class ChatEnterViewState extends State<ChatEnterView> {
   @override
   Widget build(BuildContext context) {
     final colors = ChatChromeTheme.of(context);
+    final brightness = Theme.of(context).brightness;
+    final glassStyle = TelegramGlassStyle.composerIsland(
+      panelBackground: colors.messagePanelBackground,
+      brightness: brightness,
+      cornerRadius: ChatInputMetrics.bubbleRadius,
+    );
     return Material(
       color: Colors.transparent,
       child: Center(
         child: ConstrainedBox(
           constraints: BoxConstraints(maxWidth: widget.maxWidth),
-          child: DecoratedBox(
-            decoration: BoxDecoration(
-              color: colors.messagePanelBackground.withValues(alpha: 0.94),
-              borderRadius: BorderRadius.circular(
-                ChatInputMetrics.bubbleRadius,
-              ),
-              boxShadow: <BoxShadow>[
-                BoxShadow(
-                  color: colors.messagePanelShadow.withValues(alpha: 0.28),
-                  blurRadius: 8,
-                  offset: const Offset(0, 2),
+          child: TelegramGlass(
+            key: widget.glassKey,
+            style: glassStyle,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: <Widget>[
+                if (widget.topBanner != null)
+                  ChatEnterTopView(
+                    title: widget.topBanner!.title,
+                    subtitle: widget.topBanner!.subtitle,
+                    isEdit: widget.topBanner!.isEdit,
+                    onClose: widget.onTopBannerClose ?? () {},
+                  ),
+                _InputRow(
+                  controller: widget.controller,
+                  focusNode: widget.focusNode,
+                  colors: colors,
+                  hintText: widget.hintText,
+                  emojiIconState: widget.emojiIconState,
+                  onEmojiPressed: widget.onEmojiPressed,
+                  onAttachPressed: widget.onAttachPressed,
+                  onSend: widget.onSend,
+                  onMicPressed: widget.onMicPressed,
+                  hasText: _hasText,
+                  sending: widget.sending,
+                  isEditing: widget.isEditing,
+                  onCancelEdit: widget.onCancelEdit,
+                  enabled: widget.enabled,
+                  onFieldTapWhileEmojiOpen: widget.onFieldTapWhileEmojiOpen,
+                  onPrepareKeyboardHandoff:
+                      widget.onFieldTapWhileEmojiOpen == null
+                      ? null
+                      : prepareKeyboardHandoff,
                 ),
               ],
-            ),
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(
-                ChatInputMetrics.bubbleRadius,
-              ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: <Widget>[
-                  if (widget.topBanner != null)
-                    ChatEnterTopView(
-                      title: widget.topBanner!.title,
-                      subtitle: widget.topBanner!.subtitle,
-                      isEdit: widget.topBanner!.isEdit,
-                      onClose: widget.onTopBannerClose ?? () {},
-                    ),
-                  _InputRow(
-                    controller: widget.controller,
-                    focusNode: widget.focusNode,
-                    colors: colors,
-                    hintText: widget.hintText,
-                    emojiIconState: widget.emojiIconState,
-                    onEmojiPressed: widget.onEmojiPressed,
-                    onAttachPressed: widget.onAttachPressed,
-                    onSend: widget.onSend,
-                    onMicPressed: widget.onMicPressed,
-                    hasText: _hasText,
-                    sending: widget.sending,
-                    isEditing: widget.isEditing,
-                    onCancelEdit: widget.onCancelEdit,
-                    enabled: widget.enabled,
-                    onFieldTapWhileEmojiOpen: widget.onFieldTapWhileEmojiOpen,
-                    onPrepareKeyboardHandoff:
-                        widget.onFieldTapWhileEmojiOpen == null
-                        ? null
-                        : prepareKeyboardHandoff,
-                  ),
-                ],
-              ),
             ),
           ),
         ),
@@ -316,12 +312,10 @@ class _InputRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsetsDirectional.only(
-        start: 2,
-        end: 2,
-        top: 2,
-        bottom: 4,
-      ),
+      // Horizontal only — vertical chrome is the 44 island (`DEFAULT_HEIGHT`).
+      // Extra top/bottom pad made the glass taller than 44, so radius 22 no
+      // longer read as a stadium (half-height pill).
+      padding: const EdgeInsetsDirectional.only(start: 2, end: 2),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.end,
         children: <Widget>[

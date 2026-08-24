@@ -1,5 +1,4 @@
-import 'package:chat_chrome/src/panel/emoji_panel_allow.dart';
-import 'package:chat_chrome/src/theme/chat_chrome_colors.dart';
+import 'package:chat_chrome/chat_chrome.dart';
 import 'package:flutter/material.dart';
 import 'package:morphnext/morphnext.dart';
 

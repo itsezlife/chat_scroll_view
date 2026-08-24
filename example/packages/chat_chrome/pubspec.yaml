@@ -25,5 +25,9 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
+  shaders:
+    - shaders/liquid_glass.frag
+    - shaders/liquid_glass_backdrop.frag
+    - shaders/glass_frost_prepass.frag
   assets:
     - assets/emoji_tabs/

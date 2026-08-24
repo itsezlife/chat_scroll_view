@@ -244,6 +244,10 @@ _Avoid_: MessageAction enum, PopupMenuItem, context-menu item
 A host-defined emoji in the message menu reaction strip. Choosing one ends the session the same way an action does.
 _Avoid_: Emoji picker, reaction sheet
 
+**Global catalog asset cache**:
+Process-wide thumbs/media cache for document-backed emoji, stickers, and GIFs, shared with the Panel Catalog Viewport so chat leaves and panel leaves bind the same assets.
+_Avoid_: Per-message private decode stores, panel-only drawable maps as the long-term source of truth
+
 ### Navigation
 
 **Navigation alignment**:

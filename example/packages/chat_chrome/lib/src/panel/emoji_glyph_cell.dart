@@ -8,12 +8,12 @@ import 'package:flutter/material.dart';
 /// Provides:
 /// - Press scale (linear press-in, overshoot release — see [releaseDuration] /
 ///   [releaseTension]).
-/// - Soft rounded ripple via [Material] + [InkWell] (list-selector tint;
-///   corner radius from [selectorRadiusOf]).
+/// - Soft rounded ripple via [Material] + [InkWell] is **temporarily disabled**
+///   (see restore block in [build]); scale-only feedback for now.
 ///
 /// [AnimationController] is created lazily on first press so idle mounts skip
-/// ticker allocation. Scale starts on pointer DOWN ([Listener]); release also
-/// follows [InkWell.onHighlightChanged] so drag-off cancels match ink.
+/// ticker allocation. Scale starts on pointer DOWN ([Listener]); release on
+/// pointer UP / cancel.
 class EmojiGlyphCell extends StatefulWidget {
   /// Creates the cell.
   const EmojiGlyphCell({
@@ -49,6 +49,8 @@ class EmojiGlyphCell extends StatefulWidget {
 
   /// Nominal corner radius in density-independent units before platform
   /// density scaling (see [selectorRadiusOf]).
+  ///
+  /// Kept for [Material]/[InkWell] restore (see build restore block).
   static const double selectorRadiusDp = 2;
 
   /// Corner radius of the press highlight on the current device.
@@ -57,13 +59,19 @@ class EmojiGlyphCell extends StatefulWidget {
   /// [selectorRadiusDp] (convert to device pixels, then treat those pixels as
   /// density-independent units again). Effective radius ≈
   /// `selectorRadiusDp × devicePixelRatio` logical pixels (6 on 3×).
+  ///
+  /// Kept for [Material]/[InkWell] restore (see build restore block).
   static double selectorRadiusOf(BuildContext context) =>
       selectorRadiusDp * MediaQuery.devicePixelRatioOf(context);
 
   /// List-selector tint for light chrome (`0x0f000000`).
+  ///
+  /// Kept for [Material]/[InkWell] restore (see build restore block).
   static const Color listSelectorLight = Color(0x0F000000);
 
   /// Night-friendly list selector (~6% white).
+  ///
+  /// Kept for [Material]/[InkWell] restore (see build restore block).
   static const Color listSelectorDark = Color(0x0FFFFFFF);
 
   /// Release settle duration (overshoot curve / 350ms).
@@ -162,11 +170,6 @@ class _EmojiGlyphCellState extends State<EmojiGlyphCell>
   @override
   Widget build(BuildContext context) {
     final paint = (EmojiPage.glyphSize / widget.cellSize).clamp(0.55, 0.92);
-    final ink = Theme.brightnessOf(context) == Brightness.dark
-        ? EmojiGlyphCell.listSelectorDark
-        : EmojiGlyphCell.listSelectorLight;
-    final selectorRadius = EmojiGlyphCell.selectorRadiusOf(context);
-    final radius = BorderRadius.circular(selectorRadius);
     final glyph = EmojiGlyph(
       glyph: widget.glyph,
       size: widget.cellSize,
@@ -186,12 +189,43 @@ class _EmojiGlyphCellState extends State<EmojiGlyphCell>
     };
 
     // [Listener] starts scale on DOWN before the gesture arena (quick taps).
+    //
+    // Long-press callbacks are all-or-nothing: any non-null long-press slot
+    // registers a recognizer that cancels [GestureDetector.onTap] after the
+    // timeout.
+    //
+    // --- RESTORE Material + InkWell (soft list-selector ripple) -------------
     // [InkWell.onHighlightChanged] cancels scale when the finger leaves the
     // cell — same bounds check Material uses for ink, which [Listener] alone
     // does not get on MOVE.
     //
-    // Long-press callbacks are all-or-nothing: any non-null long-press slot
-    // registers a recognizer that cancels [InkWell.onTap] after the timeout.
+    // final ink = Theme.brightnessOf(context) == Brightness.dark
+    //     ? EmojiGlyphCell.listSelectorDark
+    //     : EmojiGlyphCell.listSelectorLight;
+    // final selectorRadius = EmojiGlyphCell.selectorRadiusOf(context);
+    // final radius = BorderRadius.circular(selectorRadius);
+    //
+    // Then wrap `scaled` (instead of passing it as GestureDetector.child) and
+    // remove [GestureDetector.onTap] (InkWell owns tap):
+    //
+    // Material(
+    //   type: MaterialType.transparency,
+    //   child: InkWell(
+    //     borderRadius: radius,
+    //     splashColor: ink,
+    //     highlightColor: ink,
+    //     onTap: widget.onTap,
+    //     onHighlightChanged: (highlighted) {
+    //       if (highlighted) {
+    //         _pressIn();
+    //         return;
+    //       }
+    //       _pressOut();
+    //     },
+    //     child: scaled,
+    //   ),
+    // )
+    // -----------------------------------------------------------------------
     final longPress = widget.onLongPressStart;
     return Listener(
       behavior: HitTestBehavior.opaque,
@@ -200,28 +234,13 @@ class _EmojiGlyphCellState extends State<EmojiGlyphCell>
       onPointerCancel: (_) => _pressOut(),
       child: GestureDetector(
         behavior: HitTestBehavior.opaque,
+        onTap: widget.onTap,
         onLongPressStart: longPress,
         onLongPressMoveUpdate: longPress != null
             ? widget.onLongPressMove
             : null,
         onLongPressEnd: longPress != null ? widget.onLongPressEnd : null,
-        child: Material(
-          type: MaterialType.transparency,
-          child: InkWell(
-            borderRadius: radius,
-            splashColor: ink,
-            highlightColor: ink,
-            onTap: widget.onTap,
-            onHighlightChanged: (highlighted) {
-              if (highlighted) {
-                _pressIn();
-                return;
-              }
-              _pressOut();
-            },
-            child: scaled,
-          ),
-        ),
+        child: scaled,
       ),
     );
   }

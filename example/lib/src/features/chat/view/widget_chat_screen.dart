@@ -59,6 +59,7 @@ class _WidgetChatScreenState extends State<WidgetChatScreen>
   late final ChatSelectionController _selection;
   final GlobalKey<ChatComposerState> _composerKey =
       GlobalKey<ChatComposerState>();
+  final GlobalKey _composerGlassKey = GlobalKey(debugLabel: 'ComposerGlass');
   final GlobalKey<EmojiPanelState> _emojiPanelKey =
       GlobalKey<EmojiPanelState>();
 
@@ -166,7 +167,7 @@ class _WidgetChatScreenState extends State<WidgetChatScreen>
       //   client: Supabase.instance.client,
       // );
       final backend = await CommentsDataSource.load();
-      // final backend = GeneratedChatDataSource(messageCount: 100);
+      // final backend = GeneratedChatDataSource(messageCount: 15);
 
       // The screen may have been popped while `load()` was in flight. The
       // `dispose()` above already ran with `_dataSource == null`, so we
@@ -278,16 +279,10 @@ class _WidgetChatScreenState extends State<WidgetChatScreen>
   }
 
   void _handleDeleteSelected(Iterable<int> ids) {
+    final toDelete = ids.toList();
     final ds = _dataSource;
-    if (ds is CommentsDataSource) {
-      ds.removeMessages(ids);
-      return;
-    }
-    if (ds is GeneratedChatDataSource) {
-      ds.removeMessages(ids);
-      return;
-    }
-    ds?.removeMessages(ids);
+    ds?.removeMessages(toDelete);
+    _selection.clear();
   }
 
   Future<void> _handleEditSelected(int messageId, String text) async {
@@ -536,6 +531,7 @@ class _WidgetChatScreenState extends State<WidgetChatScreen>
     final newMessageTheme = messageTheme?.copyWith(bubbleRadius: _bubbleRadius);
     final search = _search!;
     final bottomPad = MediaQuery.viewPaddingOf(context).bottom;
+    final colors = ChatChromeTheme.of(context);
 
     return ControllerScope.value(
       search,
@@ -605,8 +601,8 @@ class _WidgetChatScreenState extends State<WidgetChatScreen>
                         ),
                       ),
                     ),
-                    // Side controls — page-down + search up/down share one stack
-                    // (Telegram coordinated show/hide + vertical slide).
+                    // Side controls — page-down + search up/down share one
+                    // stack.
                     _ChatSideControlsHost(
                       pageDownChromeVisible: _pageDownChromeVisible,
                       bottomInset: insets.bottomPadding,
@@ -623,15 +619,17 @@ class _WidgetChatScreenState extends State<WidgetChatScreen>
                         },
                       ),
                     ),
-                    // Soft fade under composer / keyboard (ChatActivityFadeView
-                    // bottom zone). Over messages, under input chrome.
+                    // Soft fade over chat in the chrome zone.
+                    // Under the composer so the emoji panel is not washed.
+                    // Island hole keeps BackdropFilter sampling chat, not this
+                    // wash; hole clears when the island unmounts
+                    // (selection mode).
                     ValueListenableBuilder<double>(
                       valueListenable: insets.bottomPadding,
                       builder: (context, zoneHeight, _) {
                         if (zoneHeight <= 0) {
                           return const SizedBox.shrink();
                         }
-                        final colors = ChatChromeTheme.of(context);
                         return Positioned(
                           left: 0,
                           right: 0,
@@ -640,6 +638,8 @@ class _WidgetChatScreenState extends State<WidgetChatScreen>
                           child: ChatContentBottomFade(
                             zoneHeight: zoneHeight,
                             color: colors.contentBottomFade,
+                            glassKey: _composerGlassKey,
+                            cutoutSync: _selection,
                           ),
                         );
                       },
@@ -659,6 +659,7 @@ class _WidgetChatScreenState extends State<WidgetChatScreen>
                         children: <Widget>[
                           ChatComposer(
                             key: _composerKey,
+                            glassKey: _composerGlassKey,
                             selection: _selection,
                             dataSource: _dataSource!,
                             onSend: _handleSendMessage,

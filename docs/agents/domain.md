@@ -4,11 +4,15 @@ How the engineering skills should consume this repo's domain documentation when 
 
 ## Before exploring, read these
 
-- **[`CONTEXT.md`](../../CONTEXT.md)** — ubiquitous language for this viewport. Glossary only; not a spec.
-- **[`docs/architecture/index.md`](../architecture/index.md)** — OKF runtime constitution. Read **before** changing scroll, layout, day headers, or animations.
-- **`docs/adr/`** — ID scheme and position-model policy:
+- **[`CONTEXT-MAP.md`](../../CONTEXT-MAP.md)** — which contexts exist and how they relate.
+- **[`CONTEXT.md`](../../CONTEXT.md)** — Chat Scroll Viewport glossary. Glossary only; not a spec.
+- **[`docs/panel-catalog/CONTEXT.md`](../panel-catalog/CONTEXT.md)** — Panel Catalog Viewport glossary (keyboard panel catalogs).
+- **[`docs/architecture/index.md`](../architecture/index.md)** — OKF runtime constitution for chat scroll. Read **before** changing scroll, layout, day headers, or animations.
+- **`docs/adr/`** — accepted policy:
   - [ADR 001: Message ID Scheme](../adr/001-message-id-scheme.md)
   - [ADR 002: Position Model](../adr/002-position-model.md)
+  - [ADR 005: Stitch far path with navigation load-gate](../adr/005-stitch-far-path-and-load-gate.md) (Chat Scroll)
+  - [ADR 006: Panel Catalog Viewport](../adr/006-panel-catalog-viewport.md)
 
 Feature specs under `specs/` are incremental contracts. They do not replace the architecture bundle.
 
@@ -16,38 +20,23 @@ If a listed file is missing, **proceed silently**. Don't flag its absence; don't
 
 ## File structure
 
-This is a **single-context** repo:
-
-```
-/
-├── CONTEXT.md                         ← glossary
-├── docs/
-│   ├── adr/                           ← accepted policy
-│   │   ├── 001-message-id-scheme.md
-│   │   └── 002-position-model.md
-│   └── architecture/                  ← OKF runtime constitution
-│       └── index.md
-└── lib/
-```
-
-Multi-context layout (not used here; presence of `CONTEXT-MAP.md` at the root):
+This is a **multi-context** repo:
 
 ```
 /
 ├── CONTEXT-MAP.md
-├── docs/adr/                          ← system-wide decisions
-└── src/
-    ├── ordering/
-    │   ├── CONTEXT.md
-    │   └── docs/adr/                  ← context-specific decisions
-    └── billing/
-        ├── CONTEXT.md
-        └── docs/adr/
+├── CONTEXT.md                         ← Chat Scroll Viewport glossary
+├── docs/
+│   ├── adr/                           ← system-wide / chat decisions
+│   ├── architecture/                  ← chat scroll OKF constitution
+│   └── panel-catalog/
+│       └── CONTEXT.md                 ← Panel Catalog Viewport glossary
+└── lib/
 ```
 
 ## Use the glossary's vocabulary
 
-When your output names a domain concept (in an issue title, a refactor proposal, a hypothesis, a test name), use the term as defined in `CONTEXT.md`. Don't drift to synonyms the glossary explicitly avoids.
+When your output names a domain concept (in an issue title, a refactor proposal, a hypothesis, a test name), use the term as defined in the **relevant** context glossary (`CONTEXT.md` or `docs/panel-catalog/CONTEXT.md`). Don't drift to synonyms the glossary explicitly avoids.
 
 If the concept you need isn't in the glossary yet, that's a signal — either you're inventing language the project doesn't use (reconsider) or there's a real gap (note it for `/domain-modeling`).
 

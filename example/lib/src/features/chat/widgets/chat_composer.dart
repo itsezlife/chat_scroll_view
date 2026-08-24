@@ -24,6 +24,7 @@ class ChatComposer extends StatefulWidget {
     this.onMicPressed,
     this.bottomInset,
     this.onFieldTapWhileEmojiOpen,
+    this.glassKey,
     super.key,
   });
 
@@ -63,6 +64,9 @@ class ChatComposer extends StatefulWidget {
 
   /// Tap on the field while emoji panel is open (switch back to IME).
   final VoidCallback? onFieldTapWhileEmojiOpen;
+
+  /// Key on the glass island for bottom-fade cutout tracking.
+  final GlobalKey? glassKey;
 
   @override
   State<ChatComposer> createState() => ChatComposerState();
@@ -239,6 +243,7 @@ class ChatComposerState extends State<ChatComposer> {
             onMicPressed: widget.onMicPressed,
             emojiIconState: widget.emojiIconState,
             onFieldTapWhileEmojiOpen: widget.onFieldTapWhileEmojiOpen,
+            glassKey: widget.glassKey,
             hintText: isEditing ? 'Edit message' : 'Message',
             isEditing: isEditing,
             sending: _sending,
