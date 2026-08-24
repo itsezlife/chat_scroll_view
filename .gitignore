@@ -71,3 +71,4 @@ config/development.supabase.json
 
 # Build folders
 **/build/
+**/.kotlin
