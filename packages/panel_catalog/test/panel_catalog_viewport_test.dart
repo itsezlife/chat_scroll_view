@@ -153,7 +153,7 @@ void main() {
     expect(render.contentExtent, 64);
   });
 
-  testWidgets('unready unicode leaves present circle placeholder', (
+  testWidgets('unicode leaves paint as content without waiting on cache ready', (
     tester,
   ) async {
     const leaf = CatalogLeaf.unicode('😀');
@@ -170,13 +170,30 @@ void main() {
     );
     await tester.pumpAndSettle();
 
+    // Unicode paints from paragraph cache — no circle while loading/unbound.
     expect(
       _render(tester).presentationOf(leaf.assetKey),
-      CatalogLeafPresentation.circlePlaceholder,
+      CatalogLeafPresentation.content,
     );
     expect(kCirclePlaceholderRadiusFactor, 0.4);
+  });
 
-    assetCache.markReady(
+  testWidgets('failed unicode leaf presents failed stand-in', (tester) async {
+    const leaf = CatalogLeaf.unicode('😀');
+    dataSource.replaceSections([
+      _section('a', [leaf]),
+    ]);
+
+    await tester.pumpWidget(
+      _harness(
+        dataSource: dataSource,
+        assetCache: assetCache,
+        controller: controller,
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    assetCache.markFailed(
       CatalogAssetKey.unicode('😀'),
       CatalogAssetCacheType.keyboard,
     );
@@ -184,9 +201,46 @@ void main() {
 
     expect(
       _render(tester).presentationOf(leaf.assetKey),
-      CatalogLeafPresentation.content,
+      CatalogLeafPresentation.failed,
     );
   });
+
+  testWidgets(
+    'ready document stays content after binding detachAll (pager reattach)',
+    (tester) async {
+      const leaf = CatalogLeaf.document('doc-42');
+      dataSource.replaceSections([
+        _section('a', [leaf]),
+      ]);
+
+      await tester.pumpWidget(
+        _harness(
+          dataSource: dataSource,
+          assetCache: assetCache,
+          controller: controller,
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      assetCache.markReady(
+        CatalogAssetKey.document('doc-42'),
+        CatalogAssetCacheType.keyboard,
+      );
+      await tester.pump();
+      expect(
+        _render(tester).presentationOf(leaf.assetKey),
+        CatalogLeafPresentation.content,
+      );
+
+      // Simulate keep-alive leave: render detach drops pool binds; cache
+      // must retain ready so paint before re-sync does not flash thumb.
+      _render(tester).debugDetachBindings();
+      expect(
+        _render(tester).presentationOf(leaf.assetKey),
+        CatalogLeafPresentation.content,
+      );
+    },
+  );
 
   testWidgets(
     'document-backed leaf identity hooks exist with thumb-first placeholder',
@@ -449,12 +503,64 @@ void main() {
 
     final render = _render(tester);
     expect(started?.assetKey, leaf.assetKey);
-    expect(render.pressedLeaf?.assetKey, leaf.assetKey);
+    expect(render.pressedSlotKey, isNotNull);
     expect(render.pressProgress, greaterThan(0));
 
     await gesture.up();
     await tester.pumpAndSettle();
     expect(render.pressProgress, 0);
+  });
+
+  testWidgets('press feedback is slot-specific for duplicate emoji glyphs', (
+    tester,
+  ) async {
+    const emoji = CatalogLeaf.unicode('😀');
+    dataSource.replaceSections([
+      _section('Recents', [emoji]),
+      _section('Smiles', [emoji]),
+    ]);
+
+    await tester.pumpWidget(
+      _harness(
+        dataSource: dataSource,
+        assetCache: assetCache,
+        controller: controller,
+        onLeafTap: (_) {},
+        headerExtent: 24,
+        cellExtent: 40,
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final projection = projectCatalogSlots(
+      sections: dataSource.sections,
+      spanCount: 4,
+      cellExtent: 40,
+      headerExtent: 24,
+      padding: EdgeInsets.zero,
+      maxWidth: 320,
+    );
+    final leafSlots = projection.slots.whereType<CatalogLeafSlot>().toList();
+    expect(leafSlots, hasLength(2));
+    final recentsSlot = leafSlots.first;
+    final smilesSlot = leafSlots.last;
+
+    final box = tester.getRect(find.byType(PanelCatalogViewport));
+    final smilesCenter = Offset(
+      box.left + smilesSlot.left + smilesSlot.width / 2,
+      box.top + smilesSlot.top - controller.offset + smilesSlot.height / 2,
+    );
+    final gesture = await tester.startGesture(smilesCenter);
+    await tester.pump(const Duration(milliseconds: 50));
+
+    final render = _render(tester);
+    expect(render.pressedSlotKey, smilesSlot.key);
+    expect(render.pressedSlotKey, isNot(recentsSlot.key));
+    expect(render.pressProgress, greaterThan(0));
+
+    await gesture.up();
+    await tester.pumpAndSettle();
+    expect(render.pressedSlotKey, isNull);
   });
 
   testWidgets('pointer down on a leaf starts press scale feedback', (
@@ -481,13 +587,13 @@ void main() {
     await tester.pump();
 
     final render = _render(tester);
-    expect(render.pressedLeaf?.assetKey, leaf.assetKey);
+    expect(render.pressedSlotKey, isNotNull);
     expect(render.pressProgress, greaterThan(0));
 
     await gesture.up();
     await tester.pumpAndSettle();
     expect(render.pressProgress, 0);
-    expect(render.pressedLeaf, isNull);
+    expect(render.pressedSlotKey, isNull);
   });
 
   testWidgets('drag-end with velocity starts a ballistic fling', (
@@ -608,9 +714,10 @@ void main() {
     expect(_render(tester).isSectionJumpAnimating, isFalse);
   });
 
-  testWidgets('jumpToSection within span×9 gate uses near path not bare jump', (
+  testWidgets('jumpToSection within 9 flat-row gate uses near path', (
     tester,
   ) async {
+    // 8 leaves / span 4 → 2 rows/section; section 2 header at flat index 6 (≤ 9).
     dataSource.replaceSections(_sections(12, leavesPerSection: 8));
 
     await tester.pumpWidget(
@@ -634,6 +741,50 @@ void main() {
     expect(_render(tester).isSectionJumpAnimating, isFalse);
     expect(_render(tester).isFarStitchActive, isFalse);
   });
+
+  testWidgets(
+    'jumpToSection past 9 flat rows uses far-path stitch',
+    (tester) async {
+      // 8 leaves / span 4 → 3 flat slots/section; section 4 header at flat 12 (> 9).
+      dataSource.replaceSections(_sections(12, leavesPerSection: 8));
+
+      await tester.pumpWidget(
+        _harness(
+          dataSource: dataSource,
+          assetCache: assetCache,
+          controller: controller,
+          height: 240,
+          spanCount: 4,
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(
+        isNearPathSectionJump(
+          targetSectionIndex: 4,
+          sections: dataSource.sections,
+          spanCount: 4,
+          cellExtent: 40,
+          headerExtent: 24,
+          padding: EdgeInsets.zero,
+          scrollOffset: 0,
+          viewportHeight: 240,
+        ),
+        isFalse,
+      );
+
+      final future = controller.jumpToSection(4);
+      await tester.pump();
+      expect(controller.isSectionJumpActive, isTrue);
+      expect(_render(tester).isFarStitchActive, isTrue);
+      expect(_render(tester).isSectionJumpAnimating, isFalse);
+
+      await tester.pumpAndSettle();
+      await future;
+      expect(controller.isSectionJumpActive, isFalse);
+      expect(_render(tester).isFarStitchActive, isFalse);
+    },
+  );
 
   testWidgets('user drag cancels in-flight section jump', (tester) async {
     dataSource.replaceSections(_sections(12, leavesPerSection: 8));
@@ -733,7 +884,7 @@ void main() {
         viewportHeight: viewportHeight,
       ),
       isFalse,
-      reason: 'fixture must select far path behind span×9 gate',
+      reason: 'fixture must select far path behind 9 flat-row gate',
     );
 
     final future = controller.jumpToSection(targetSection);
@@ -753,6 +904,66 @@ void main() {
     expect(controller.offset, expectedOffset);
     expect(controller.isSectionJumpActive, isFalse);
     expect(_render(tester).isFarStitchActive, isFalse);
+  });
+
+  testWidgets('jumpToSection ignores re-entry while stitch is active', (
+    tester,
+  ) async {
+    dataSource.replaceSections(_sections(20, leavesPerSection: 16));
+
+    const viewportHeight = 240.0;
+    const spanCount = 4;
+    const cellExtent = 40.0;
+    const headerExtent = 24.0;
+    const padding = EdgeInsets.zero;
+
+    await tester.pumpWidget(
+      _harness(
+        dataSource: dataSource,
+        assetCache: assetCache,
+        controller: controller,
+        height: viewportHeight,
+        spanCount: spanCount,
+        cellExtent: cellExtent,
+        headerExtent: headerExtent,
+        padding: padding,
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    const targetSection = 19;
+    const ignoredSection = 5;
+    final projection = projectCatalogSlots(
+      sections: dataSource.sections,
+      spanCount: spanCount,
+      cellExtent: cellExtent,
+      headerExtent: headerExtent,
+      padding: padding,
+      maxWidth: 320,
+    );
+    final expectedOffset = scrollOffsetForSectionHeader(
+      sectionIndex: targetSection,
+      sections: dataSource.sections,
+      spanCount: spanCount,
+      cellExtent: cellExtent,
+      headerExtent: headerExtent,
+      padding: padding,
+    ).clamp(0.0, projection.contentExtent - viewportHeight);
+
+    final future = controller.jumpToSection(targetSection);
+    await tester.pump();
+    expect(_render(tester).isFarStitchActive, isTrue);
+
+    final offsetAfterTeleport = controller.offset;
+    final ignoredFuture = controller.jumpToSection(ignoredSection);
+    expect(ignoredFuture, same(future));
+    await tester.pump();
+    expect(controller.offset, offsetAfterTeleport);
+    expect(_render(tester).isFarStitchActive, isTrue);
+
+    await _driveSectionJump(tester, future);
+    expect(controller.offset, expectedOffset);
+    expect(controller.isSectionJumpActive, isFalse);
   });
 
   testWidgets('user drag cancels in-flight far-path stitch', (tester) async {

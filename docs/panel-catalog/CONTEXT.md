@@ -31,8 +31,8 @@ When the target is not attached and farther than the distance gate (or animation
 _Avoid_: Naked `jumpTo` as the far-path UX, animateTo through the entire gap
 
 **Far-path distance gate**:
-Telegram emoji/stickers rule: target view not currently attached AND `|targetFlatIndex - firstVisibleFlatIndex| > spanCount * 9`. Below that (or if the target header row is already visible), use near-path smooth scroll. Flat-row index counts one slot per section header plus one per leaf row (not per cell).
-_Avoid_: Pixel-distance gates, treating “far” as synonymous with jumpTo, per-cell index for the gate
+Telegram emoji rule (`EmojiView.scrollEmojisToPosition`): target view not currently attached AND `|adapterPos − firstVisible| > spanCount * 9` in **per-cell** adapter space. In flat-row index (one slot per section header + one per leaf row) that is `|targetFlatIndex − firstVisibleFlatIndex| > [kFarPathDistanceGateFactor]` (= 9). Below that (or if the target header row is already visible), use near-path smooth scroll.
+_Avoid_: Multiplying the flat-row gate by spanCount again (over-widens near path), pixel-distance gates, treating “far” as synonymous with jumpTo, per-cell index for the gate when the catalog already uses flat rows
 
 **Section jump**:
 Programmatic navigation to a catalog section via [PanelCatalogController.jumpToSection]. Lands the section header under the viewport's reserved top inset ([PanelCatalogViewport.padding.top]). Path selection uses near-path smooth scroll or far-path stitch per the distance gate.
@@ -97,8 +97,8 @@ How one catalog cell appears: ready content, a kind-specific loading placeholder
 _Avoid_: One generic “shimmer” for every leaf kind, ChatMessageStatus, Absent, navigation load-gate for ordinary pack/section jumps
 
 **Circle placeholder**:
-Loading stand-in for standard emoji bitmap leaves: a solid circle (~0.4 × glyph bounds) until the page bitmap is ready (Telegram `Emoji.SimpleEmojiDrawable`).
-_Avoid_: Moving gradient wash, sticker-shaped shimmer for unicode cells
+Reserved stand-in for async bitmap-page unicode leaves (solid circle ~0.4 × glyph bounds). Current unicode cells paint from paragraph cache and resolve unbound/loading to content — they MUST NOT flash this circle across pager keep-alive gaps.
+_Avoid_: Using circle as the default for paragraph-painted unicode, moving gradient wash, sticker-shaped shimmer for unicode cells
 
 **Thumb-first placeholder**:
 Loading stand-in for document-backed animated/custom emoji: static/SVG thumb via the image pipeline until media is ready (Telegram `AnimatedEmojiDrawable` + `ImageReceiver`).
@@ -113,8 +113,8 @@ Authoritative catalog contents and per-leaf readiness for one panel surface. Not
 _Avoid_: Streams as the integration contract, fetch inside the viewport, subclassing ChatDataSource, private per-viewport drawable maps as the long-term design
 
 **Global catalog asset cache**:
-Process-wide cache for emoji / sticker / GIF document thumbs and media, shared by the Panel Catalog Viewport and by Chat Scroll (inline animated emoji, sticker messages, etc.). Viewport and chat cells only bind and paint; they do not each keep a private decode store.
-_Avoid_: Per-panel-only drawable map as the source of truth, duplicating Telegram `AnimatedEmojiDrawable` caches per surface
+Process-wide cache for emoji / sticker / GIF document thumbs and media, shared by the Panel Catalog Viewport and by Chat Scroll (inline animated emoji, sticker messages, etc.). Viewport and chat cells only bind and paint; they do not each keep a private decode store. Ready/failed entries survive the last surface detach so pager keep-alive leave/return does not flash loading; [isRetained] tracks live binds only.
+_Avoid_: Per-panel-only drawable map as the source of truth, evicting settled readiness on every detach, duplicating Telegram `AnimatedEmojiDrawable` caches per surface
 
 **Document-backed leaf**:
 A catalog cell identified by a document (animated/custom emoji, sticker) rather than only a unicode glyph. v1 prepares identity and placeholder modes for these even if full media decode ships later.

@@ -110,7 +110,7 @@ class _EmojiCategoryStripState extends State<EmojiCategoryStrip> {
         scrollDirection: Axis.horizontal,
         padding: const EdgeInsets.symmetric(
           horizontal: EmojiCategoryStrip.padH,
-          vertical: 2,
+          vertical: 3,
         ),
         itemCount: widget.tabs.length,
         separatorBuilder: (_, _) =>
@@ -150,7 +150,7 @@ class _CategoryTab extends StatelessWidget {
     return Material(
       color: Colors.transparent,
       child: InkWell(
-        borderRadius: BorderRadius.circular(EmojiCategoryStrip.inkRadius),
+        borderRadius: BorderRadius.circular(EmojiCategoryStrip.cell),
         onTap: onTap,
         child: SizedBox(
           width: EmojiCategoryStrip.cell,

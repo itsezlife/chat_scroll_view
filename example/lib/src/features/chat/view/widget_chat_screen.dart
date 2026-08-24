@@ -64,7 +64,7 @@ class _WidgetChatScreenState extends State<WidgetChatScreen>
       GlobalKey<EmojiPanelState>();
 
   /// Demo: all type tabs so the floating glass pill matches Telegram.
-  static const EmojiPanelAllow _emojiAllow = EmojiPanelAllow.emojiOnly;
+  static const EmojiPanelAllow _emojiAllow = EmojiPanelAllow.all;
 
   var _emojiPanelOpen = false;
   EmojiPanelTab? _lastEmojiTab;

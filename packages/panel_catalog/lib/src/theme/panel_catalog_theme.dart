@@ -4,23 +4,6 @@ import 'package:panel_catalog/src/theme/panel_catalog_theme_data.dart';
 export 'panel_catalog_theme_data.dart';
 
 /// Inherited scope for [PanelCatalogThemeData] above a catalog subtree.
-///
-/// Mount above [PanelCatalogViewport] (or the whole panel shell) so paint
-/// tokens resolve through [of]. Package-owned inherited theme — independent
-/// of Material [ThemeData].
-///
-/// ```dart
-/// PanelCatalogTheme(
-///   data: PanelCatalogThemeData.dark,
-///   child: PanelCatalogViewport(/* … */),
-/// )
-/// ```
-///
-/// ## Brightness transitions
-///
-/// To animate palette changes, rebuild this widget with
-/// `data: PanelCatalogThemeData.lerp(start, end, t)` each frame instead of
-/// swapping [PanelCatalogThemeData.light] / [dark] abruptly.
 class PanelCatalogTheme extends InheritedWidget {
   /// Provides [data] to descendants.
   const PanelCatalogTheme({
@@ -32,19 +15,27 @@ class PanelCatalogTheme extends InheritedWidget {
   /// Active catalog paint tokens for this subtree.
   final PanelCatalogThemeData data;
 
-  /// Nearest [PanelCatalogThemeData] for [context].
-  ///
-  /// Registers a dependency — subtree rebuilds when [data] changes. Falls
-  /// back to [PanelCatalogThemeData.light] when no ancestor is mounted.
-  static PanelCatalogThemeData of(BuildContext context) {
-    final scoped =
-        context.dependOnInheritedWidgetOfExactType<PanelCatalogTheme>();
-    return scoped?.data ?? PanelCatalogThemeData.light;
+  /// Looks up the nearest [PanelCatalogThemeData], or `null`.
+  static PanelCatalogThemeData? maybeOf(
+    BuildContext context, {
+    bool listen = false,
+  }) {
+    final inherited = listen
+        ? context.dependOnInheritedWidgetOfExactType<PanelCatalogTheme>()
+        : context.getInheritedWidgetOfExactType<PanelCatalogTheme>();
+    return inherited?.data;
   }
 
-  /// Optional lookup without registering a dependency.
-  static PanelCatalogThemeData? maybeOf(BuildContext context) =>
-      context.getInheritedWidgetOfExactType<PanelCatalogTheme>()?.data;
+  /// Looks up the nearest [PanelCatalogThemeData].
+  static PanelCatalogThemeData of(
+    BuildContext context, {
+    bool listen = false,
+  }) => maybeOf(context, listen: listen) ?? _notFound();
+
+  static Never _notFound() => throw ArgumentError(
+    'PanelCatalogTheme not found in context. '
+    'Mount PanelCatalogTheme above this call site.',
+  );
 
   @override
   bool updateShouldNotify(PanelCatalogTheme oldWidget) =>

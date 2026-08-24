@@ -19,12 +19,15 @@ import 'package:chat_chrome/src/theme/chat_chrome_colors.dart';
 import 'package:emoji_data/emoji_data.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:panel_catalog/panel_catalog.dart';
 
 /// Keyboard-replacement panel shell.
 ///
 /// Owns open/close motion, type-tab [PageView], bottom chrome, search overlay,
-/// and deferred recents commit. Does **not** own catalog listeners or glyph
-/// grid layout — those live on [EmojiPage] / [EmojiDataSource].
+/// and deferred recents commit. Bottom-bar hide/show listens to
+/// [PanelCatalogController] scroll events from the emoji [EmojiPage] — not
+/// [ScrollNotification]. Does **not** own catalog listeners or glyph grid
+/// layout — those live on [EmojiPage] / [EmojiDataSource].
 ///
 /// **Host wiring**: supply [controller], [store], [dataSource], insertion
 /// ([onEmojiSelected]), and delete ([onBackspace]). Prefer
@@ -173,8 +176,7 @@ class EmojiPanelState extends State<EmojiPanel> with TickerProviderStateMixin {
   double _bottomScrollAccum = 0;
   DateTime? _shownBottomTabAfterClick;
 
-  /// Skip scroll-driven hide while a category jump is animating.
-  var _smoothScrolling = false;
+  PanelCatalogController? _boundCatalogController;
 
   /// Short window after a strip/category tap — ignore bottom-bar hide.
   static const _tapTimeout = Duration(milliseconds: 100);
@@ -203,6 +205,10 @@ class EmojiPanelState extends State<EmojiPanel> with TickerProviderStateMixin {
   /// Selects a type tab programmatically (tests).
   @visibleForTesting
   Future<void> debugSelectPage(int index) => _commitPage(index, jump: true);
+
+  /// Emoji grid state key (widget tests).
+  @visibleForTesting
+  GlobalKey<EmojiPageState> get debugEmojiPageKey => _emojiPageKey;
 
   /// Whether search mode is open (focused field + expanded height).
   bool get isSearchOpen => _searchOpen.value;
@@ -320,6 +326,7 @@ class EmojiPanelState extends State<EmojiPanel> with TickerProviderStateMixin {
     _searchOpen.dispose();
     _searchFieldTy.dispose();
     _searchFieldShadow.dispose();
+    _unbindCatalogScroll();
     super.dispose();
   }
 
@@ -327,8 +334,16 @@ class EmojiPanelState extends State<EmojiPanel> with TickerProviderStateMixin {
 
   void _onPageControllerTick() {
     final page = _pageController.page;
-    if (page == null || page == _page.value) return;
-    _page.value = page;
+    if (page == null) return;
+    if (page != _page.value) {
+      _page.value = page;
+    }
+    // Mid-swipe / mid-animate: freeze type-tab indicator settle animation.
+    final fraction = (page - page.roundToDouble()).abs();
+    final dragging = fraction > 0.001;
+    if (_pageDragging.value != dragging) {
+      _pageDragging.value = dragging;
+    }
   }
 
   /// Remount [PageView] at [index] when the controller has no clients.
@@ -349,11 +364,13 @@ class EmojiPanelState extends State<EmojiPanel> with TickerProviderStateMixin {
   void _ensurePageSyncedAfterOpen() {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted || !_visible) return;
+      _syncCatalogScrollBinding();
       if (!_pageController.hasClients) return;
       final current = _pageController.page?.round() ?? _pageIndex.value;
       if (current == _pageIndex.value) return;
       _pageController.jumpToPage(_pageIndex.value);
       _page.value = _pageIndex.value.toDouble();
+      _pageDragging.value = false;
     });
   }
 
@@ -693,26 +710,67 @@ class EmojiPanelState extends State<EmojiPanel> with TickerProviderStateMixin {
 
   // --- Bottom bar visibility ------------------------------------------------
 
+  void _bindCatalogScroll(PanelCatalogController controller) {
+    if (identical(_boundCatalogController, controller)) return;
+    _unbindCatalogScroll();
+    _boundCatalogController = controller;
+    controller.addScrollListener(_onCatalogScroll);
+  }
+
+  void _unbindCatalogScroll() {
+    _boundCatalogController?.removeScrollListener(_onCatalogScroll);
+    _boundCatalogController = null;
+  }
+
+  void _syncCatalogScrollBinding() {
+    final page = _emojiPageKey.currentState;
+    final controller = page?.catalogController;
+    if (controller == null) {
+      _unbindCatalogScroll();
+      return;
+    }
+    _bindCatalogScroll(controller);
+  }
+
+  void _onCatalogScroll(PanelCatalogScrollEvent event) {
+    switch (event) {
+      case PanelCatalogSectionJumpStart():
+        _bottomScrollAccum = 0;
+        _markBottomTabAfterClick();
+      case PanelCatalogSectionJumpEnd():
+        _markBottomTabAfterClick();
+        _maybeShowBottomTabAtCatalogEdge();
+      case PanelCatalogViewportScrolled(:final delta):
+        _checkBottomTabScroll(delta);
+      case PanelCatalogOffsetChanged():
+      case PanelCatalogProgrammaticJump():
+      case PanelCatalogAnimateEnd():
+      case PanelCatalogFlingEnd():
+        _maybeShowBottomTabAtCatalogEdge();
+      default:
+        break;
+    }
+  }
+
+  void _maybeShowBottomTabAtCatalogEdge() {
+    final page = _emojiPageKey.currentState;
+    if (page == null || page.catalogMaxScrollOffset <= 0) return;
+    final offset = page.catalogScrollOffset;
+    final max = page.catalogMaxScrollOffset;
+    final atTop = offset <= 0.5;
+    final atBottom = offset >= max - 0.5;
+    if (atTop || atBottom) {
+      _showBottomTab(true);
+    }
+  }
+
   void _markBottomTabAfterClick() {
     _shownBottomTabAfterClick = DateTime.now();
     _showBottomTab(true);
   }
 
-  void _beginCategorySmoothScroll() {
-    _smoothScrolling = true;
-    _bottomScrollAccum = 0;
-    _markBottomTabAfterClick();
-  }
-
-  void _endCategorySmoothScroll() {
-    _smoothScrolling = false;
-    // Jump may emit a trailing ScrollUpdate after the flag clears — treat as
-    // post-click so the bar stays visible.
-    _markBottomTabAfterClick();
-  }
-
   void _checkBottomTabScroll(double dy) {
-    if (_smoothScrolling) return;
+    if (_boundCatalogController?.isSectionJumpActive ?? false) return;
 
     final afterClick = _shownBottomTabAfterClick;
     if (afterClick != null &&
@@ -740,32 +798,6 @@ class EmojiPanelState extends State<EmojiPanel> with TickerProviderStateMixin {
     }
     if (show == _bottomBarVisible.value) return;
     _bottomBarVisible.value = show;
-  }
-
-  bool _onGridScrollNotification(ScrollNotification notification) {
-    if (notification.metrics.axis != Axis.vertical) return false;
-
-    if (notification is ScrollUpdateNotification) {
-      final dy = notification.scrollDelta;
-      if (dy != null && dy != 0) {
-        _checkBottomTabScroll(dy);
-      }
-      return false;
-    }
-
-    // On scroll idle: show bar at top or bottom edge.
-    if (notification is ScrollEndNotification) {
-      _maybeShowBottomTabAtEdge(notification.metrics);
-    }
-    return false;
-  }
-
-  void _maybeShowBottomTabAtEdge(ScrollMetrics metrics) {
-    final atTop = metrics.pixels <= metrics.minScrollExtent + 0.5;
-    final atBottom = metrics.pixels >= metrics.maxScrollExtent - 0.5;
-    if (atTop || atBottom) {
-      _showBottomTab(true);
-    }
   }
 
   // --- Search / type tab ----------------------------------------------------
@@ -894,15 +926,16 @@ class EmojiPanelState extends State<EmojiPanel> with TickerProviderStateMixin {
   /// [PageView.onPageChanged] only commits [_pageIndex]; forcing `_page = index`
   /// here would teleport the type-tab indicator mid-drag.
   ///
-  /// Reselecting the emoji tab scrolls past the search spacer (hides sticky
-  /// search) without exiting search mode.
+  /// Reselecting the emoji tab calls [EmojiPageState.scrollToFirstCategory]
+  /// without exiting search mode.
   Future<void> _commitPage(int index, {required bool jump}) async {
     if (index < 0 || index >= _tabs.length) return;
 
     final changed = index != _pageIndex.value;
     if (!changed && jump && _tabs[index] == EmojiPanelTab.emoji) {
       _showBottomTab(true);
-      await _emojiPageKey.currentState?.scrollPastSearchSpacer();
+      _syncCatalogScrollBinding();
+      await _emojiPageKey.currentState?.scrollToFirstCategory();
       return;
     }
 
@@ -917,9 +950,13 @@ class EmojiPanelState extends State<EmojiPanel> with TickerProviderStateMixin {
         _pageController.hasClients &&
         (_pageController.page?.round() ?? _pageIndex.value) != index) {
       _pageController.jumpToPage(index);
+      _pageDragging.value = false;
     }
 
     _showBottomTab(true);
+    if (_tabs[index] == EmojiPanelTab.emoji) {
+      _syncCatalogScrollBinding();
+    }
     final tab = _tabs[index];
     if (changed) {
       widget.onTabChanged?.call(tab);
@@ -993,56 +1030,35 @@ class EmojiPanelState extends State<EmojiPanel> with TickerProviderStateMixin {
                   child: Stack(
                     fit: StackFit.expand,
                     children: <Widget>[
-                      NotificationListener<ScrollNotification>(
-                        onNotification: (notification) {
-                          // Horizontal PageView drag vs vertical emoji grid.
-                          if (notification.metrics.axis == Axis.horizontal) {
-                            if (notification is ScrollStartNotification &&
-                                notification.dragDetails != null) {
-                              _pageDragging.value = true;
-                            } else if (notification is ScrollEndNotification) {
-                              if (_pageDragging.value) {
-                                _pageDragging.value = false;
-                              }
-                            }
-                            return false;
-                          }
-                          return _onGridScrollNotification(notification);
-                        },
-                        child: PageView(
-                          controller: _pageController,
-                          onPageChanged: _onPageChanged,
-                          children: <Widget>[
-                            for (final tab in _tabs)
-                              switch (tab) {
-                                EmojiPanelTab.emoji => EmojiPage(
-                                  key: _emojiPageKey,
-                                  dataSource: widget.dataSource,
-                                  recents: _deferredRecents.glyphs,
-                                  recentlyUsedLabel: widget.labels.recentlyUsed,
-                                  searchController: _search,
-                                  searchModeListenable: _searchOpen,
-                                  searchFieldTranslationY: _searchFieldTy,
-                                  searchFieldShadow: _searchFieldShadow,
-                                  searchFocusNode: _searchFocus,
-                                  searchHintText: widget.labels.searchHint,
-                                  searchResultsLabel:
-                                      widget.labels.searchResults,
-                                  searchEmptyLabel: widget.labels.searchEmpty,
-                                  onOpenSearch: () {
-                                    unawaited(_openSearch());
-                                  },
-                                  onEmojiSelected: _onEmoji,
-                                  onClearRecents: _onRequestClearRecents,
-                                  onCategoryTap: _beginCategorySmoothScroll,
-                                  onCategoryJumpEnd: _endCategorySmoothScroll,
-                                ),
-                                EmojiPanelTab.gifs => const GifPageStub(),
-                                EmojiPanelTab.stickers =>
-                                  const StickerPageStub(),
-                              },
-                          ],
-                        ),
+                      PageView(
+                        controller: _pageController,
+                        onPageChanged: _onPageChanged,
+                        children: <Widget>[
+                          for (final tab in _tabs)
+                            switch (tab) {
+                              EmojiPanelTab.emoji => EmojiPage(
+                                key: _emojiPageKey,
+                                dataSource: widget.dataSource,
+                                recents: _deferredRecents.glyphs,
+                                recentlyUsedLabel: widget.labels.recentlyUsed,
+                                searchController: _search,
+                                searchModeListenable: _searchOpen,
+                                searchFieldTranslationY: _searchFieldTy,
+                                searchFieldShadow: _searchFieldShadow,
+                                searchFocusNode: _searchFocus,
+                                searchHintText: widget.labels.searchHint,
+                                searchResultsLabel: widget.labels.searchResults,
+                                searchEmptyLabel: widget.labels.searchEmpty,
+                                onOpenSearch: () {
+                                  unawaited(_openSearch());
+                                },
+                                onEmojiSelected: _onEmoji,
+                                onClearRecents: _onRequestClearRecents,
+                              ),
+                              EmojiPanelTab.gifs => const GifPageStub(),
+                              EmojiPanelTab.stickers => const StickerPageStub(),
+                            },
+                        ],
                       ),
                       // Softens glyphs that scroll into the nav inset
                       // (clipToPadding=false). Over grid, under bottom bar.

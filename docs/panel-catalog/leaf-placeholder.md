@@ -62,7 +62,7 @@ unicode emoji cells.
 | Circle placeholder fill | [PanelCatalogThemeData.placeholderColor] (default `0x10000000` light) |
 | Press list-selector | [PanelCatalogThemeData.leafPressHighlightColor] on full cell rect |
 | Press selector corner | [PanelCatalogThemeData.selectorRadiusLogicalPx] (`nominalDp × DPR`) |
-| Section header title | [PanelCatalogThemeData.sectionHeaderColor] |
+| Section header title | [PanelCatalogThemeData.sectionHeaderStyle] |
 | RRect stand-in corner | [PanelCatalogThemeData.standInCornerRadius] (default `6`) |
 | Document ready-path stub | [PanelCatalogThemeData.documentStandInColor] |
 

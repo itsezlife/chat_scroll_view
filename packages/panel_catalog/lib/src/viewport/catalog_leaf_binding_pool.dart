@@ -1,4 +1,5 @@
 import 'package:catalog_assets/catalog_assets.dart';
+import 'package:panel_catalog/src/debug/panel_catalog_dev_log.dart';
 import 'package:panel_catalog/src/model/catalog_leaf.dart';
 import 'package:panel_catalog/src/model/catalog_leaf_presentation.dart';
 import 'package:panel_catalog/src/viewport/catalog_slot_projection.dart';
@@ -23,14 +24,23 @@ import 'package:panel_catalog/src/viewport/catalog_slot_projection.dart';
 /// ## Presentation projection
 ///
 /// [presentationFor] maps `(leaf kind, readiness)` → exactly one
-/// [CatalogLeafPresentation]. Unbound leaves (not yet in [_bindings], or
-/// never intersecting the window) are treated as
-/// [CatalogAssetReadiness.loading] so paint can still show a placeholder
-/// without a null path.
+/// [CatalogLeafPresentation]. Readiness comes from the live binding, else
+/// [CatalogAssetCache.readinessOf] (settled entries survive zero attaches),
+/// else loading.
 ///
-/// | Leaf | loading | ready | failed |
-/// |------|---------|-------|--------|
-/// | [UnicodeCatalogLeaf] | [CatalogLeafPresentation.circlePlaceholder] | [CatalogLeafPresentation.content] | [CatalogLeafPresentation.failed] |
+/// **Unicode** glyphs paint from paragraph cache — no async asset decode.
+/// Unbound / loading unicode therefore resolves to
+/// [CatalogLeafPresentation.content] (not a circle). Circles only appear for
+/// unicode when the host has marked the key [CatalogAssetReadiness.failed].
+///
+/// **Document** leaves use loading placeholders when still loading. Ready
+/// document entries retained in the cache after [detachAll] still resolve to
+/// [CatalogLeafPresentation.content] while unbound so pager leave/return does
+/// not flash thumbs.
+///
+/// | Leaf | loading / unbound (no settled cache) | ready | failed |
+/// |------|--------------------------------------|-------|--------|
+/// | [UnicodeCatalogLeaf] | [CatalogLeafPresentation.content] | [CatalogLeafPresentation.content] | [CatalogLeafPresentation.failed] |
 /// | [DocumentCatalogLeaf] | [CatalogLeafPresentation.thumbFirstPlaceholder] | [CatalogLeafPresentation.content] | [CatalogLeafPresentation.failed] |
 ///
 /// ## Lifecycle
@@ -43,6 +53,11 @@ import 'package:panel_catalog/src/viewport/catalog_slot_projection.dart';
 /// [onReadinessChanged] is registered on every new binding (typically
 /// `markNeedsPaint`) so placeholders flip without a full catalog reproject.
 final class CatalogLeafBindingPool {
+  static final PanelCatalogDevLog _log = PanelCatalogDevLog(
+    'PanelCatalogBinding',
+    enabled: true,
+  );
+
   /// Creates an empty binding pool.
   ///
   /// [onReadinessChanged] fires when any attached binding's readiness
@@ -113,22 +128,52 @@ final class CatalogLeafBindingPool {
     for (final key in stale) {
       _bindings.remove(key)?.detach();
     }
+    if (_log.enabled && (visibleKeys.isNotEmpty || stale.isNotEmpty)) {
+      var ready = 0;
+      var loading = 0;
+      var failed = 0;
+      for (final binding in _bindings.values) {
+        switch (binding.readiness) {
+          case CatalogAssetReadiness.ready:
+            ready++;
+          case CatalogAssetReadiness.loading:
+            loading++;
+          case CatalogAssetReadiness.failed:
+            failed++;
+        }
+      }
+      _log.event('sync', {
+        'winTop': DevLogFormat.f(top),
+        'winBot': DevLogFormat.f(bottom),
+        'visible': visibleKeys.length,
+        'attached': _bindings.length,
+        'detached': stale.length,
+        'ready': ready,
+        'loading': loading,
+        'failed': failed,
+      });
+    }
   }
 
-  /// Presentation for [leaf], or a loading placeholder when unbound.
+  /// Presentation for [leaf], never `null`.
   ///
-  /// Never returns `null` — unbound means loading-mode for that leaf kind.
-  /// Callers that need “key absent from projection” must check slots first.
+  /// Resolves readiness from the live binding when attached, otherwise from
+  /// [CatalogAssetCache.readinessOf] so ready/failed cache entries that
+  /// survived [detachAll] (pager keep-alive) do not flash loading placeholders.
+  /// Absent cache entries are treated as loading.
+  ///
+  /// Unicode glyphs do not wait on decode bytes — unbound/loading unicode is
+  /// [CatalogLeafPresentation.content]. Document leaves use a kind-specific
+  /// loading placeholder when still loading.
   CatalogLeafPresentation presentationFor(CatalogLeaf leaf) {
     final readiness =
-        _bindings[leaf.assetKey]?.readiness ?? CatalogAssetReadiness.loading;
+        _bindings[leaf.assetKey]?.readiness ??
+        _assetCache.readinessOf(leaf.assetKey, _cacheType) ??
+        CatalogAssetReadiness.loading;
     return switch ((leaf, readiness)) {
-      (UnicodeCatalogLeaf(), CatalogAssetReadiness.ready) =>
-        CatalogLeafPresentation.content,
       (UnicodeCatalogLeaf(), CatalogAssetReadiness.failed) =>
         CatalogLeafPresentation.failed,
-      (UnicodeCatalogLeaf(), CatalogAssetReadiness.loading) =>
-        CatalogLeafPresentation.circlePlaceholder,
+      (UnicodeCatalogLeaf(), _) => CatalogLeafPresentation.content,
       (DocumentCatalogLeaf(), CatalogAssetReadiness.ready) =>
         CatalogLeafPresentation.content,
       (DocumentCatalogLeaf(), CatalogAssetReadiness.failed) =>
@@ -151,6 +196,12 @@ final class CatalogLeafBindingPool {
   void _ensure(CatalogLeaf leaf) {
     final key = leaf.assetKey;
     if (_bindings.containsKey(key)) return;
+    // Unicode cells paint from cached paragraphs — no async decode. Mark ready
+    // on attach so hosts that never call markReady still resolve content.
+    if (_assetCache case final MemoryCatalogAssetCache memory
+        when leaf is UnicodeCatalogLeaf) {
+      memory.markReady(key, _cacheType);
+    }
     final binding = _assetCache.attach(key, _cacheType);
     binding.addListener(_onReadinessChanged);
     _bindings[key] = binding;

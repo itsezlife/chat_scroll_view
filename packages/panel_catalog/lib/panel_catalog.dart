@@ -6,9 +6,13 @@
 ///
 /// Primary host types: [PanelCatalogViewport], [CatalogDataSource],
 /// [PanelCatalogController] ([jumpTo], [scrollBy], [PanelCatalogController.jumpToSection]),
-/// [PanelCatalogThemeData], [PanelCatalogTheme], leaf/section/presentation models, section landing helpers
-/// ([scrollOffsetForSectionHeader], [kFarPathDistanceGateFactor]), and
+/// [PanelCatalogThemeData], [PanelCatalogTheme], leaf/section/presentation models,
+/// section landing helpers ([scrollOffsetForSectionHeader],
+/// [kFarPathDistanceGateFactor] flat-row near/far gate), and
 /// [FakeCatalogDataSource].
+///
+/// [PanelCatalogThemeData] / [PanelCatalogTheme] supply host paint tokens;
+/// [PanelCatalogViewport] resolves [CatalogLeafPaintTheme] for the engine.
 ///
 /// Engine internals (`RenderPanelCatalog`, binding pool, painter, slot
 /// projection) are not exported — they live under `src/viewport/`.
@@ -22,6 +26,8 @@ export 'src/model/catalog_leaf_presentation.dart';
 export 'src/model/catalog_section.dart';
 export 'src/theme/panel_catalog_theme.dart';
 export 'src/viewport/panel_catalog_controller.dart';
+export 'src/viewport/panel_catalog_scroll_events.dart';
 export 'src/viewport/panel_catalog_viewport.dart';
 export 'src/viewport/catalog_section_navigation.dart'
     show kFarPathDistanceGateFactor, scrollOffsetForSectionHeader;
+export 'src/debug/panel_catalog_dev_log.dart';

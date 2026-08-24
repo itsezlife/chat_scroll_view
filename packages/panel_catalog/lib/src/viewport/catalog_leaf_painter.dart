@@ -4,6 +4,7 @@ import 'dart:ui' as ui;
 import 'package:flutter/painting.dart';
 import 'package:panel_catalog/src/model/catalog_leaf.dart';
 import 'package:panel_catalog/src/model/catalog_leaf_presentation.dart';
+import 'package:panel_catalog/src/viewport/catalog_leaf_paint_theme.dart';
 import 'package:panel_catalog/src/viewport/catalog_slot_projection.dart';
 
 /// Paints catalog headers and leaves onto a [Canvas].
@@ -11,8 +12,8 @@ import 'package:panel_catalog/src/viewport/catalog_slot_projection.dart';
 /// Owns paragraph caches for section titles and unicode glyphs so repeated
 /// paint of the same visible band does not rebuild text layouts every frame.
 /// Does **not** own layout slots, scroll offset, or asset readiness — the
-/// render object passes content [origin], slot geometry, and
-/// [CatalogLeafPresentation].
+/// render object passes content [origin], slot geometry,
+/// [CatalogLeafPresentation], and [CatalogLeafPaintTheme].
 ///
 /// ## Coordinate contract
 ///
@@ -48,6 +49,12 @@ import 'package:panel_catalog/src/viewport/catalog_slot_projection.dart';
 /// cell** is filled with the configured list-selector color before scaled leaf
 /// content. Highlight does not scale with glyph press.
 ///
+/// ## Theme vs layout constants
+///
+/// [CatalogLeafPaintTheme] supplies section header typography and insets plus
+/// stand-in / press colors and radii. Glyph bounds use fixed fractions (`0.72`,
+/// `0.85`, [kCirclePlaceholderRadiusFactor]) — not theme fields.
+///
 /// ## Dispose
 ///
 /// Call [dispose] when the owning render object disposes to drop cached
@@ -55,50 +62,26 @@ import 'package:panel_catalog/src/viewport/catalog_slot_projection.dart';
 /// native dispose in current Flutter.
 final class CatalogLeafPainter {
   /// Creates a painter with empty paragraph caches.
-  CatalogLeafPainter({
-    required Color placeholderColor,
-    required Color leafPressHighlightColor,
-    required Color sectionHeaderColor,
-    required Color documentStandInColor,
-    required double leafPressSelectorRadius,
-    required double standInCornerRadius,
-  }) : _placeholderColor = placeholderColor,
-       _leafPressHighlightColor = leafPressHighlightColor,
-       _sectionHeaderColor = sectionHeaderColor,
-       _documentStandInColor = documentStandInColor,
-       _leafPressSelectorRadius = leafPressSelectorRadius,
-       _standInCornerRadius = standInCornerRadius;
+  CatalogLeafPainter({required CatalogLeafPaintTheme theme}) : _theme = theme;
 
-  Color _placeholderColor;
-  Color _leafPressHighlightColor;
-  Color _sectionHeaderColor;
-  Color _documentStandInColor;
-  double _leafPressSelectorRadius;
-  double _standInCornerRadius;
+  CatalogLeafPaintTheme _theme;
   final Map<_HeaderPaintKey, ui.Paragraph> _headerParagraphs = {};
   final Map<_GlyphPaintKey, ui.Paragraph> _glyphParagraphs = {};
 
-  /// Updates the circle / stand-in fill color.
-  set placeholderColor(Color value) => _placeholderColor = value;
-
-  /// List-selector wash on pressed cells. Fully transparent disables highlight.
-  set leafPressHighlightColor(Color value) => _leafPressHighlightColor = value;
-
-  /// Section header title color. Clears header paragraph cache on change.
-  set sectionHeaderColor(Color value) {
-    if (_sectionHeaderColor == value) return;
-    _sectionHeaderColor = value;
-    _headerParagraphs.clear();
+  /// Resolved paint tokens from [PanelCatalogThemeData] at the viewport.
+  ///
+  /// No-op when [value] equals the current snapshot (`==`). Clears header
+  /// paragraph cache when any section-header paint token changes.
+  set theme(CatalogLeafPaintTheme value) {
+    if (_theme == value) return;
+    final headerPaintChanged =
+        _theme.sectionHeaderStyle != value.sectionHeaderStyle ||
+        _theme.sectionHeaderStartInset != value.sectionHeaderStartInset;
+    _theme = value;
+    if (headerPaintChanged) {
+      _headerParagraphs.clear();
+    }
   }
-
-  /// Document ready-path stand-in fill.
-  set documentStandInColor(Color value) => _documentStandInColor = value;
-
-  /// Corner radius for rounded-rect stand-ins (logical px).
-  set standInCornerRadius(double value) => _standInCornerRadius = value;
-
-  /// Corner radius for press highlight on the full cell rect.
-  set leafPressSelectorRadius(double value) => _leafPressSelectorRadius = value;
 
   /// Releases cached paragraphs. Idempotent.
   void dispose() {
@@ -108,10 +91,10 @@ final class CatalogLeafPainter {
 
   /// Paints [header] at content [origin].
   ///
-  /// Title paragraph is cached by [CatalogHeaderSlot.title]. Layout width is
-  /// `contentWidth − padding.horizontal`. Vertical placement adds a small
-  /// inset (`+ 8`) below [CatalogHeaderSlot.top] so the label sits inside the
-  /// header band rather than flush to its top edge.
+  /// Title paragraph is cached by title, typography, color, and layout width.
+  /// Vertical placement centers the line in [CatalogHeaderSlot.height];
+  /// horizontal placement adds [CatalogLeafPaintTheme.sectionHeaderStartInset]
+  /// after [padding.left].
   void paintHeader({
     required Canvas canvas,
     required Offset origin,
@@ -119,23 +102,36 @@ final class CatalogLeafPainter {
     required double contentWidth,
     required EdgeInsets padding,
   }) {
-    final paragraph = _headerParagraphs.putIfAbsent(
-      _HeaderPaintKey(header.title, _sectionHeaderColor),
-      () {
-      final builder =
-          ui.ParagraphBuilder(
-              ui.ParagraphStyle(fontSize: 13, fontWeight: FontWeight.w600),
-            )
-            ..pushStyle(ui.TextStyle(color: _sectionHeaderColor))
-            ..addText(header.title);
-      return builder.build()..layout(
-        ui.ParagraphConstraints(width: contentWidth - padding.horizontal),
-      );
-    },
+    final theme = _theme;
+    final headerStyle = theme.sectionHeaderStyle;
+    final textWidth = math.max(
+      0.0,
+      contentWidth - padding.horizontal - theme.sectionHeaderStartInset,
     );
+    final paragraph = _headerParagraphs.putIfAbsent(
+      _HeaderPaintKey(
+        title: header.title,
+        style: headerStyle,
+        width: textWidth,
+      ),
+      () {
+        final builder =
+            ui.ParagraphBuilder(
+                headerStyle.getParagraphStyle(textScaler: TextScaler.noScaling),
+              )
+              ..pushStyle(headerStyle.getTextStyle())
+              ..addText(header.title);
+        return builder.build()
+          ..layout(ui.ParagraphConstraints(width: textWidth));
+      },
+    );
+    final textY = header.top + (header.height - paragraph.height) / 2;
     canvas.drawParagraph(
       paragraph,
-      Offset(origin.dx + padding.left, origin.dy + header.top + 8),
+      Offset(
+        origin.dx + padding.left + theme.sectionHeaderStartInset,
+        origin.dy + textY,
+      ),
     );
   }
 
@@ -162,6 +158,7 @@ final class CatalogLeafPainter {
     double pressScale = 1,
     double pressProgress = 0,
   }) {
+    final theme = _theme;
     final cellRect = Rect.fromLTWH(
       origin.dx + slot.left,
       origin.dy + slot.top,
@@ -175,16 +172,16 @@ final class CatalogLeafPainter {
       height: glyphSize,
     );
 
-    if (pressProgress > 0 && _leafPressHighlightColor.a > 0) {
+    if (pressProgress > 0 && theme.leafPressHighlightColor.a > 0) {
       final factor = pressProgress.clamp(0.0, 1.0);
       canvas.drawRRect(
         RRect.fromRectAndRadius(
           cellRect,
-          Radius.circular(_leafPressSelectorRadius),
+          Radius.circular(theme.leafPressSelectorRadius),
         ),
         Paint()
-          ..color = _leafPressHighlightColor.withValues(
-            alpha: _leafPressHighlightColor.a * factor,
+          ..color = theme.leafPressHighlightColor.withValues(
+            alpha: theme.leafPressHighlightColor.a * factor,
           ),
       );
     }
@@ -202,7 +199,7 @@ final class CatalogLeafPainter {
         canvas.drawCircle(
           glyphRect.center,
           glyphRect.width * kCirclePlaceholderRadiusFactor,
-          Paint()..color = _placeholderColor,
+          Paint()..color = theme.placeholderColor,
         );
       case CatalogLeafPresentation.thumbFirstPlaceholder:
       case CatalogLeafPresentation.shapedLoadingWash:
@@ -210,9 +207,9 @@ final class CatalogLeafPainter {
         canvas.drawRRect(
           RRect.fromRectAndRadius(
             glyphRect,
-            Radius.circular(_standInCornerRadius),
+            Radius.circular(theme.standInCornerRadius),
           ),
-          Paint()..color = _placeholderColor,
+          Paint()..color = theme.placeholderColor,
         );
       case CatalogLeafPresentation.content:
         switch (slot.leaf) {
@@ -222,9 +219,9 @@ final class CatalogLeafPainter {
             canvas.drawRRect(
               RRect.fromRectAndRadius(
                 glyphRect,
-                Radius.circular(_standInCornerRadius),
+                Radius.circular(theme.standInCornerRadius),
               ),
-              Paint()..color = _documentStandInColor,
+              Paint()..color = theme.documentStandInColor,
             );
         }
     }
@@ -256,21 +253,27 @@ final class CatalogLeafPainter {
   }
 }
 
-/// Cache key for header paragraphs (title + title color).
+/// Cache key for header paragraphs (title, style, layout width).
 final class _HeaderPaintKey {
-  const _HeaderPaintKey(this.title, this.color);
+  const _HeaderPaintKey({
+    required this.title,
+    required this.style,
+    required this.width,
+  });
 
   final String title;
-  final Color color;
+  final TextStyle style;
+  final double width;
 
   @override
   bool operator ==(Object other) =>
       other is _HeaderPaintKey &&
       other.title == title &&
-      other.color == color;
+      other.style == style &&
+      other.width == width;
 
   @override
-  int get hashCode => Object.hash(title, color);
+  int get hashCode => Object.hash(title, style, width);
 }
 
 /// Cache key for glyph paragraphs (glyph + layout width).

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:chat_chrome/chat_chrome.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -112,7 +114,8 @@ void main() {
     await tester.pump(const Duration(milliseconds: 50)); // startDelay
     await tester.pump(const Duration(milliseconds: 100));
     expect(controller.height, greaterThan(0));
-    await tester.pumpAndSettle();
+    await tester.pump(const Duration(milliseconds: 200));
+    await tester.pump();
     expect(controller.height, closeTo(200, 1));
     expect(find.byType(EmojiPanel), findsOneWidget);
     expect(controller.isPanelOpen, isTrue);
@@ -135,23 +138,19 @@ void main() {
     expect(find.byType(EmojiPage), findsOneWidget);
   });
 
-  testWidgets(
-    'opening panel does not mount search TextField while search closed',
-    (tester) async {
-      await tester.pumpWidget(harness(open: false));
-      controller.onImeHeight(320, landscape: false);
-      controller.openPanel(landscape: false);
-      await tester.pumpWidget(harness(open: true));
-      // Snap open — we only assert search chrome, not cold animation.
-      await panelKey.currentState!.open(replacingKeyboard: true);
-      await tester.pump();
+  testWidgets('opening panel keeps search closed', (tester) async {
+    await tester.pumpWidget(harness(open: false));
+    controller.onImeHeight(320, landscape: false);
+    controller.openPanel(landscape: false);
+    await tester.pumpWidget(harness(open: true));
+    // Snap open — we only assert search chrome, not cold animation.
+    await panelKey.currentState!.open(replacingKeyboard: true);
+    await tester.pump();
 
-      // Regression: autofocus search field used to mount on every panel open
-      // and pull up the OS IME on device.
-      expect(find.byType(TextField), findsNothing);
-      expect(find.byType(EmojiPage), findsOneWidget);
-    },
-  );
+    expect(find.byType(EmojiSearchField), findsOneWidget);
+    expect(panelKey.currentState!.isSearchOpen, isFalse);
+    expect(find.byType(EmojiPage), findsOneWidget);
+  });
 
   testWidgets('cold close animates slot height before releasing panel', (
     tester,
@@ -251,7 +250,24 @@ void main() {
     controller.openPanel(landscape: false);
     await tester.pumpWidget(harness(open: true));
     await panelKey.currentState!.open(replacingKeyboard: true);
+    await tester.pumpAndSettle();
+  }
+
+  /// Drives async panel work that awaits [AnimationController.forward] — needs
+  /// explicit frame pumps in widget tests (search expand, strip reveal, …).
+  Future<void> pumpAsync(
+    WidgetTester tester,
+    Future<void> future, {
+    int frames = 40,
+  }) async {
     await tester.pump();
+    var done = false;
+    unawaited(future.whenComplete(() => done = true));
+    for (var i = 0; i < frames; i++) {
+      await tester.pump(const Duration(milliseconds: 16));
+      if (done) break;
+    }
+    await future;
   }
 
   testWidgets('scroll down hides bottom bar; scroll up shows it', (
@@ -260,17 +276,11 @@ void main() {
     await openReplace(tester);
     expect(panelKey.currentState!.bottomBarVisible, isTrue);
 
-    final scrollable = find
-        .descendant(
-          of: find.byType(EmojiPage),
-          matching: find.byType(Scrollable),
-        )
-        .first;
-    await tester.drag(scrollable, const Offset(0, -120));
+    await tester.drag(find.byType(EmojiPage), const Offset(0, -120));
     await tester.pump();
     expect(panelKey.currentState!.bottomBarVisible, isFalse);
 
-    await tester.drag(scrollable, const Offset(0, 120));
+    await tester.drag(find.byType(EmojiPage), const Offset(0, 120));
     await tester.pump();
     expect(panelKey.currentState!.bottomBarVisible, isTrue);
   });
@@ -283,6 +293,21 @@ void main() {
     expect(panelKey.currentState!.isSearchOpen, isFalse);
   });
 
+  testWidgets('browse at rest reserves strip and search spacer in catalog', (
+    tester,
+  ) async {
+    await openReplace(tester);
+    await tester.pump(const Duration(milliseconds: 250));
+
+    final page = tester.state<EmojiPageState>(find.byType(EmojiPage));
+    expect(page.catalogScrollOffset, 0);
+    expect(
+      page.catalogPaddingTop,
+      closeTo(EmojiPage.gridPadTop + EmojiSearchField.height, 0.1),
+    );
+    expect(panelKey.currentState!.debugEmojiPageKey.currentState, isNotNull);
+  });
+
   testWidgets('search open hides bottom bar and expands panel target', (
     tester,
   ) async {
@@ -290,9 +315,8 @@ void main() {
     expect(panelKey.currentState!.bottomBarVisible, isTrue);
     final base = controller.panelTarget;
 
-    await panelKey.currentState!.openSearch();
+    await pumpAsync(tester, panelKey.currentState!.openSearch());
     await tester.pump();
-    await tester.pump(const Duration(milliseconds: 350));
 
     expect(panelKey.currentState!.bottomBarVisible, isFalse);
     expect(panelKey.currentState!.isSearchOpen, isTrue);
@@ -304,38 +328,41 @@ void main() {
 
   testWidgets('handleBack closes search before panel', (tester) async {
     await openReplace(tester);
-    await panelKey.currentState!.openSearch();
-    await tester.pump(const Duration(milliseconds: 350));
+    await pumpAsync(tester, panelKey.currentState!.openSearch());
     expect(panelKey.currentState!.isSearchOpen, isTrue);
 
-    final consumed = await panelKey.currentState!.handleBack();
-    await tester.pump(const Duration(milliseconds: 350));
-    expect(consumed, isTrue);
+    controller.onImeHeight(0, landscape: false);
+    await tester.pump();
+
+    await pumpAsync(tester, panelKey.currentState!.handleBack());
     expect(panelKey.currentState!.isSearchOpen, isFalse);
     expect(panelKey.currentState!.isOpen, isTrue);
     expect(controller.isSearchExpanded, isFalse);
   });
 
-  testWidgets('reselect emoji tab scrolls past search spacer', (tester) async {
+  testWidgets('reselect emoji tab animates to first category', (tester) async {
     await openReplace(tester);
     final page = tester.state<EmojiPageState>(find.byType(EmojiPage));
-    expect(page, isNotNull);
 
-    final scrollable = find
-        .descendant(
-          of: find.byType(EmojiPage),
-          matching: find.byType(Scrollable),
-        )
-        .first;
-    // Reveal sticky search at top first.
-    await tester.drag(scrollable, const Offset(0, 200));
+    // Scroll deep enough that a fixed-duration animateTo would look like a
+    // jump; reselect must use jumpToSection (near/far) to section 0.
+    await tester.drag(find.byType(EmojiPage), const Offset(0, -2400));
+    await tester.pump();
+    final before = page.catalogScrollOffset;
+    expect(before, greaterThan(EmojiSearchField.height + 100));
+
+    await pumpAsync(
+      tester,
+      panelKey.currentState!.debugSelectPage(0),
+      frames: 180,
+    );
     await tester.pumpAndSettle();
 
-    await panelKey.currentState!.debugSelectPage(0);
-    await tester.pumpAndSettle();
-
-    final scroll = tester.state<ScrollableState>(scrollable);
-    expect(scroll.position.pixels, greaterThanOrEqualTo(EmojiSearchField.height - 1));
+    expect(page.categoryIndex, 0);
+    expect(
+      page.catalogScrollOffset,
+      closeTo(EmojiSearchField.height, 1),
+    );
   });
 
   testWidgets('category jump keeps bottom bar visible during animation', (
@@ -355,8 +382,7 @@ void main() {
     final tabCenter = Offset(
       stripRect.left +
           EmojiCategoryStrip.padH +
-          animalsIndex *
-              (EmojiCategoryStrip.cell + EmojiCategoryStrip.gap) +
+          animalsIndex * (EmojiCategoryStrip.cell + EmojiCategoryStrip.gap) +
           EmojiCategoryStrip.cell / 2,
       stripRect.center.dy,
     );
@@ -367,7 +393,7 @@ void main() {
     await tester.pump(const Duration(milliseconds: 100));
     expect(panelKey.currentState!.bottomBarVisible, isTrue);
 
-    await tester.pump(const Duration(milliseconds: 200));
+    await tester.pumpAndSettle();
     expect(panelKey.currentState!.bottomBarVisible, isTrue);
   });
 
@@ -423,17 +449,20 @@ void main() {
     expect(find.bySemanticsLabel('Settings'), findsNothing);
 
     await tester.tap(find.text('GIF'));
-    await tester.pumpAndSettle();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 350));
     expect(panelKey.currentState!.selectedTab, EmojiPanelTab.gifs);
     expect(find.bySemanticsLabel('Settings'), findsNothing);
 
     await tester.tap(find.text('Stickers'));
-    await tester.pumpAndSettle();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 350));
     expect(panelKey.currentState!.selectedTab, EmojiPanelTab.stickers);
     expect(find.bySemanticsLabel('Settings'), findsOneWidget);
 
     await tester.tap(find.text('Emoji'));
-    await tester.pumpAndSettle();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 350));
     expect(panelKey.currentState!.selectedTab, EmojiPanelTab.emoji);
     expect(find.bySemanticsLabel('Settings'), findsNothing);
   });

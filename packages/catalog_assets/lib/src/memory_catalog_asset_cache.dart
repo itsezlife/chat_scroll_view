@@ -10,8 +10,16 @@ import 'package:catalog_assets/src/catalog_asset_readiness.dart';
 /// callers (or tests) set readiness via [markReady] / [markFailed]; this class
 /// does not perform fetch/decode.
 ///
-/// **Retention**: an entry is kept while [CatalogAssetBinding.detach] has not
-/// dropped the last attach. After the last detach, the entry is removed.
+/// ## Retention
+///
+/// [isRetained] is true while at least one [CatalogAssetBinding] is live.
+/// After the last [CatalogAssetBinding.detach]:
+/// - **ready / failed** entries stay in the map so a surface that re-attaches
+///   (pager keep-alive leave/return) does not flash [CatalogAssetReadiness.loading]
+/// - **loading** entries with zero attaches are dropped (abandoned fetch)
+///
+/// Call [evict] / [clear] for explicit memory pressure. LRU eviction is not
+/// implemented yet.
 final class MemoryCatalogAssetCache implements CatalogAssetCache {
   final Map<_EntryId, _Entry> _entries = {};
 
@@ -42,12 +50,22 @@ final class MemoryCatalogAssetCache implements CatalogAssetCache {
     _setReadiness(key, cacheType, CatalogAssetReadiness.failed);
   }
 
-  /// Current readiness when an entry is present; otherwise `null`.
+  @override
   CatalogAssetReadiness? readinessOf(
     CatalogAssetKey key,
     CatalogAssetCacheType cacheType,
-  ) =>
-      _entries[_EntryId(key, cacheType)]?.readiness;
+  ) => _entries[_EntryId(key, cacheType)]?.readiness;
+
+  /// Drops the entry for [key] at [cacheType] regardless of attach count.
+  ///
+  /// Live bindings keep observing the removed entry's last readiness until
+  /// they [CatalogAssetBinding.detach]; prefer detaching surfaces first.
+  void evict(CatalogAssetKey key, CatalogAssetCacheType cacheType) {
+    _entries.remove(_EntryId(key, cacheType));
+  }
+
+  /// Drops every entry. Same live-binding caveat as [evict].
+  void clear() => _entries.clear();
 
   void _setReadiness(
     CatalogAssetKey key,
@@ -69,7 +87,11 @@ final class MemoryCatalogAssetCache implements CatalogAssetCache {
       return;
     }
     entry.attachCount -= 1;
-    if (entry.attachCount <= 0) {
+    if (entry.attachCount > 0) {
+      return;
+    }
+    // Keep settled readiness for re-attach; drop abandoned loads only.
+    if (entry.readiness == CatalogAssetReadiness.loading) {
       _entries.remove(id);
     }
   }

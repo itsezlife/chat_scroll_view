@@ -3,12 +3,15 @@ import 'dart:ui' show lerpDouble;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/painting.dart';
 
-/// Immutable paint tokens for the panel catalog viewport paint leaves.
+/// Immutable host-facing paint tokens for the panel catalog viewport.
 ///
-/// Hosts supply an instance to the package [PanelCatalogTheme] inherited
-/// widget above the catalog subtree. [PanelCatalogViewport] reads resolved
-/// values in [createRenderObject] / [updateRenderObject] — not via per-widget
-/// ctor args.
+/// Does **not** own viewport layout geometry ([PanelCatalogViewport.headerExtent],
+/// cell pitch, content [EdgeInsets]) or resolve device density for press
+/// selector radius — [PanelCatalogViewport] builds [CatalogLeafPaintTheme] at
+/// the widget boundary and passes one snapshot to the engine.
+///
+/// Hosts supply an instance to [PanelCatalogTheme] above the catalog subtree.
+/// [PanelCatalogTheme.of] throws when no ancestor is mounted.
 ///
 /// ## Press highlight
 ///
@@ -22,16 +25,17 @@ import 'package:flutter/painting.dart';
 ///
 /// ## Section headers and stand-ins
 ///
-/// [sectionHeaderColor] tints projected section titles. [standInCornerRadius]
-/// rounds non-circle placeholder rects (thumb-first, wash, failed) and the
-/// document ready-path stub. [documentStandInColor] fills that document stub
-/// when media decode is not yet painted by the host.
+/// [sectionHeaderStyle] and [sectionHeaderStartInset] control projected section
+/// title paint inside [CatalogHeaderSlot] bands — vertical centering uses the
+/// slot height from the viewport; these tokens do not change content extent.
+/// [standInCornerRadius] rounds non-circle placeholder rects (thumb-first, wash,
+/// failed) and the document ready-path stub. [documentStandInColor] fills that
+/// document stub when media decode is not yet painted by the host.
 ///
 /// ## Defaults
 ///
 /// [light] and [dark] ship reference-aligned tints. [forBrightness] picks
-/// between them. [PanelCatalogTheme.of] falls back to [light] when no ancestor
-/// is mounted.
+/// between them.
 ///
 /// ## Animated transitions
 ///
@@ -44,17 +48,24 @@ class PanelCatalogThemeData {
   const PanelCatalogThemeData({
     required this.placeholderColor,
     required this.leafPressHighlightColor,
-    required this.sectionHeaderColor,
+    required this.sectionHeaderStyle,
     required this.documentStandInColor,
     this.leafPressSelectorRadiusNominalDp = _defaultSelectorRadiusNominalDp,
     this.standInCornerRadius = _defaultStandInCornerRadius,
+    this.sectionHeaderStartInset = _defaultSectionHeaderStartInset,
   });
 
   /// Light catalog paint defaults.
+  ///
+  /// Reference preset for [forBrightness] / [lerp] light targets.
   static const PanelCatalogThemeData light = PanelCatalogThemeData(
     placeholderColor: Color(0x10000000),
     leafPressHighlightColor: Color(0x0F000000),
-    sectionHeaderColor: Color(0xFF666666),
+    sectionHeaderStyle: TextStyle(
+      fontSize: 15,
+      fontWeight: FontWeight.w500,
+      color: Color(0xFF666666),
+    ),
     documentStandInColor: Color(0xFF90CAF9),
   );
 
@@ -62,11 +73,18 @@ class PanelCatalogThemeData {
   static const PanelCatalogThemeData dark = PanelCatalogThemeData(
     placeholderColor: Color(0x10FFFFFF),
     leafPressHighlightColor: Color(0x0FFFFFFF),
-    sectionHeaderColor: Color(0xFF999999),
+    sectionHeaderStyle: TextStyle(
+      fontSize: 15,
+      fontWeight: FontWeight.w500,
+      color: Color(0xFF999999),
+    ),
     documentStandInColor: Color(0xFF64B5F6),
   );
 
   /// Picks [light] or [dark] from [brightness].
+  ///
+  /// Convenience when the host already knows shell brightness and does not
+  /// maintain a custom [PanelCatalogThemeData] instance.
   factory PanelCatalogThemeData.forBrightness(Brightness brightness) =>
       brightness == Brightness.dark ? dark : light;
 
@@ -75,6 +93,9 @@ class PanelCatalogThemeData {
 
   /// Default corner radius for rounded-rect stand-ins (logical px).
   static const double _defaultStandInCornerRadius = 6;
+
+  /// Default extra start inset after [PanelCatalogViewport.padding.left].
+  static const double _defaultSectionHeaderStartInset = 8;
 
   /// Fill for circle / stand-in placeholders ([CatalogLeafPresentation]
   /// loading paths). Paint-only — does not affect layout extent.
@@ -86,8 +107,16 @@ class PanelCatalogThemeData {
   /// Non-zero alpha is multiplied by clamped press progress each frame.
   final Color leafPressHighlightColor;
 
-  /// Section header title color ([CatalogHeaderSlot] labels).
-  final Color sectionHeaderColor;
+  /// Section header title style ([CatalogHeaderSlot] labels).
+  ///
+  /// Paint-only — does not affect [PanelCatalogViewport.headerExtent]. The
+  /// label is vertically centered inside the header band. Host shells typically
+  /// [copyWith] color and size from a brightness preset.
+  final TextStyle sectionHeaderStyle;
+
+  /// Extra start inset applied after horizontal [PanelCatalogViewport.padding]
+  /// when painting [CatalogHeaderSlot] titles.
+  final double sectionHeaderStartInset;
 
   /// Fill for document [CatalogLeafPresentation.content] ready-path stand-in
   /// when media bytes are not yet painted by the host pipeline.
@@ -112,6 +141,12 @@ class PanelCatalogThemeData {
       leafPressSelectorRadiusNominalDp * devicePixelRatio;
 
   /// Linearly interpolates [a] and [b] by [t] (`0` → [a], `1` → [b]).
+  ///
+  /// [t] is not clamped. Rebuild [PanelCatalogTheme] with the result each
+  /// animation tick so [CatalogLeafPaintTheme] updates through the viewport.
+  /// Color channels use [Color.lerp]; radii use [lerpDouble]; header typography
+  /// uses [TextStyle.lerp]. When a color lerp is undefined, that channel keeps
+  /// [a]'s value ([Color.lerp] contract).
   static PanelCatalogThemeData lerp(
     PanelCatalogThemeData a,
     PanelCatalogThemeData b,
@@ -124,9 +159,9 @@ class PanelCatalogThemeData {
         b.leafPressHighlightColor,
         t,
       )!,
-      sectionHeaderColor: Color.lerp(
-        a.sectionHeaderColor,
-        b.sectionHeaderColor,
+      sectionHeaderStyle: TextStyle.lerp(
+        a.sectionHeaderStyle,
+        b.sectionHeaderStyle,
         t,
       )!,
       documentStandInColor: Color.lerp(
@@ -144,29 +179,39 @@ class PanelCatalogThemeData {
         b.standInCornerRadius,
         t,
       )!,
+      sectionHeaderStartInset: lerpDouble(
+        a.sectionHeaderStartInset,
+        b.sectionHeaderStartInset,
+        t,
+      )!,
     );
   }
 
   /// Returns a copy with the given fields replaced.
+  ///
+  /// Omitted arguments retain the current value. Does not mutate `this`.
   PanelCatalogThemeData copyWith({
     Color? placeholderColor,
     Color? leafPressHighlightColor,
-    Color? sectionHeaderColor,
+    TextStyle? sectionHeaderStyle,
     Color? documentStandInColor,
     double? leafPressSelectorRadiusNominalDp,
     double? standInCornerRadius,
+    double? sectionHeaderStartInset,
   }) {
     return PanelCatalogThemeData(
       placeholderColor: placeholderColor ?? this.placeholderColor,
       leafPressHighlightColor:
           leafPressHighlightColor ?? this.leafPressHighlightColor,
-      sectionHeaderColor: sectionHeaderColor ?? this.sectionHeaderColor,
+      sectionHeaderStyle: sectionHeaderStyle ?? this.sectionHeaderStyle,
       documentStandInColor:
           documentStandInColor ?? this.documentStandInColor,
       leafPressSelectorRadiusNominalDp:
           leafPressSelectorRadiusNominalDp ??
           this.leafPressSelectorRadiusNominalDp,
       standInCornerRadius: standInCornerRadius ?? this.standInCornerRadius,
+      sectionHeaderStartInset:
+          sectionHeaderStartInset ?? this.sectionHeaderStartInset,
     );
   }
 
@@ -175,19 +220,21 @@ class PanelCatalogThemeData {
       other is PanelCatalogThemeData &&
       other.placeholderColor == placeholderColor &&
       other.leafPressHighlightColor == leafPressHighlightColor &&
-      other.sectionHeaderColor == sectionHeaderColor &&
+      other.sectionHeaderStyle == sectionHeaderStyle &&
       other.documentStandInColor == documentStandInColor &&
       other.leafPressSelectorRadiusNominalDp ==
           leafPressSelectorRadiusNominalDp &&
-      other.standInCornerRadius == standInCornerRadius;
+      other.standInCornerRadius == standInCornerRadius &&
+      other.sectionHeaderStartInset == sectionHeaderStartInset;
 
   @override
   int get hashCode => Object.hash(
     placeholderColor,
     leafPressHighlightColor,
-    sectionHeaderColor,
+    sectionHeaderStyle,
     documentStandInColor,
     leafPressSelectorRadiusNominalDp,
     standInCornerRadius,
+    sectionHeaderStartInset,
   );
 }

@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/painting.dart';
 import 'package:panel_catalog/src/model/catalog_leaf.dart';
 import 'package:panel_catalog/src/model/catalog_section.dart';
@@ -59,6 +60,8 @@ final class CatalogHeaderSlot extends CatalogLayoutSlot {
 /// One leaf cell in the grid.
 ///
 /// [left] / [width] are content-x; [top] / [height] are content-y.
+/// [key] identifies this cell within the current projection — distinct from
+/// [leaf.assetKey], which may repeat across sections (e.g. recents + catalog).
 final class CatalogLeafSlot extends CatalogLayoutSlot {
   /// Creates a leaf cell slot.
   const CatalogLeafSlot({
@@ -77,6 +80,32 @@ final class CatalogLeafSlot extends CatalogLayoutSlot {
 
   /// Leaf projected into this cell (identity only).
   final CatalogLeaf leaf;
+
+  /// Stable cell identity for hit-test and press feedback within one project.
+  CatalogLeafSlotKey get key => CatalogLeafSlotKey(top: top, left: left);
+}
+
+/// Content-space identity for one projected leaf cell.
+///
+/// Press scale / list-selector chrome key off this, not [CatalogLeaf.assetKey],
+/// so duplicate glyphs in different sections animate independently.
+@immutable
+final class CatalogLeafSlotKey {
+  /// Creates a slot key at content [top] and [left].
+  const CatalogLeafSlotKey({required this.top, required this.left});
+
+  /// Content y of the cell top edge.
+  final double top;
+
+  /// Content x of the cell left edge.
+  final double left;
+
+  @override
+  bool operator ==(Object other) =>
+      other is CatalogLeafSlotKey && other.top == top && other.left == left;
+
+  @override
+  int get hashCode => Object.hash(top, left);
 }
 
 /// Result of projecting catalog sections into absolute layout slots.

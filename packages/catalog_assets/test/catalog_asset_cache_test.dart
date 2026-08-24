@@ -46,15 +46,52 @@ void main() {
       expect(cache.isRetained(key, CatalogAssetCacheType.keyboard), isFalse);
     });
 
-    test('detaching the last surface evicts readiness for a later attach', () {
-      const key = CatalogAssetKey.document('doc-42');
-      final binding = cache.attach(key, CatalogAssetCacheType.messages);
-      cache.markReady(key, CatalogAssetCacheType.messages);
+    test(
+      'ready readiness survives last detach so reattach does not flash loading',
+      () {
+        const key = CatalogAssetKey.document('doc-42');
+        final binding = cache.attach(key, CatalogAssetCacheType.messages);
+        cache.markReady(key, CatalogAssetCacheType.messages);
+        binding.detach();
+
+        expect(cache.isRetained(key, CatalogAssetCacheType.messages), isFalse);
+        expect(
+          cache.readinessOf(key, CatalogAssetCacheType.messages),
+          CatalogAssetReadiness.ready,
+        );
+
+        final rebound = cache.attach(key, CatalogAssetCacheType.messages);
+        expect(rebound.readiness, CatalogAssetReadiness.ready);
+      },
+    );
+
+    test('failed readiness survives last detach', () {
+      const key = CatalogAssetKey.unicode('😀');
+      final binding = cache.attach(key, CatalogAssetCacheType.keyboard);
+      cache.markFailed(key, CatalogAssetCacheType.keyboard);
       binding.detach();
 
-      final rebound = cache.attach(key, CatalogAssetCacheType.messages);
+      expect(
+        cache.readinessOf(key, CatalogAssetCacheType.keyboard),
+        CatalogAssetReadiness.failed,
+      );
+      expect(
+        cache.attach(key, CatalogAssetCacheType.keyboard).readiness,
+        CatalogAssetReadiness.failed,
+      );
+    });
 
-      expect(rebound.readiness, CatalogAssetReadiness.loading);
+    test('loading-only entry is dropped on last detach', () {
+      const key = CatalogAssetKey.document('doc-loading');
+      final binding = cache.attach(key, CatalogAssetCacheType.keyboard);
+      expect(binding.readiness, CatalogAssetReadiness.loading);
+      binding.detach();
+
+      expect(cache.readinessOf(key, CatalogAssetCacheType.keyboard), isNull);
+      expect(
+        cache.attach(key, CatalogAssetCacheType.keyboard).readiness,
+        CatalogAssetReadiness.loading,
+      );
     });
 
     test('cache type isolates readiness for the same key', () {

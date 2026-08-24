@@ -1,8 +1,9 @@
 /// Process-wide global catalog asset cache for catalog and chat leaves.
 ///
 /// Callers bind by key and cache type, observe leaf readiness, and
-/// attach/detach so entries are retained while a surface is bound.
-/// Fetch orchestration stays outside this package.
+/// attach/detach. Ready/failed entries survive the last detach so pager
+/// keep-alive leave/return does not flash loading; [isRetained] still tracks
+/// live surface binds. Fetch orchestration stays outside this package.
 library;
 
 export 'src/catalog_asset_binding.dart';

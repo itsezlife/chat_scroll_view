@@ -3,10 +3,12 @@ import 'dart:math' as math;
 import 'package:flutter/painting.dart';
 import 'package:panel_catalog/src/model/catalog_section.dart';
 
-/// Flat-row distance multiplier for near vs far path selection.
+/// Max flat-row distance for near-path section jumps.
 ///
-/// Near path when the target section header is visible or
-/// `|targetFlatIndex − firstVisibleFlatIndex| ≤ spanCount × [kFarPathDistanceGateFactor]`.
+/// Panel catalogs index sections as **flat rows** (one slot per section header
+/// plus one per leaf row at [spanCount] columns). A common per-cell adapter
+/// gate of `spanCount × 9` cells maps to **`9` flat rows** — multiplying the
+/// flat-row delta by [spanCount] again over-widens near-path selection.
 const int kFarPathDistanceGateFactor = 9;
 
 /// Row count for [section]'s leaf grid at [spanCount] columns.
@@ -52,11 +54,11 @@ double sectionHeaderTop({
   return y;
 }
 
-/// Scroll offset that parks [sectionIndex]'s header under [padding.top].
+/// Scroll offset that parks [sectionIndex]'s header under the landing inset.
 ///
 /// Content paints with `viewportY = contentY − offset`, so
-/// `offset = headerTop − padding.top` aligns the header with the reserved top
-/// inset band used by the category strip shell.
+/// `offset = headerTop − landingInset` aligns the header with the reserved top
+/// band. When [headerLandingInset] is null, [padding.top] is used.
 double scrollOffsetForSectionHeader({
   required int sectionIndex,
   required List<CatalogSection> sections,
@@ -64,6 +66,7 @@ double scrollOffsetForSectionHeader({
   required double cellExtent,
   required double headerExtent,
   required EdgeInsets padding,
+  double? headerLandingInset,
 }) {
   final headerTop = sectionHeaderTop(
     sectionIndex: sectionIndex,
@@ -73,7 +76,8 @@ double scrollOffsetForSectionHeader({
     headerExtent: headerExtent,
     padding: padding,
   );
-  return math.max(0, headerTop - padding.top);
+  final inset = headerLandingInset ?? padding.top;
+  return math.max(0, headerTop - inset);
 }
 
 /// Whether [headerTop]…[headerTop]+[headerExtent] intersects the viewport band.
@@ -129,10 +133,27 @@ int firstVisibleFlatIndex({
   return math.max(0, flatIndex - 1);
 }
 
-/// Near-path gate: attached target header or within `span × 9` flat-row distance.
+/// Near-path gate for [PanelCatalogController.jumpToSection] path selection.
 ///
-/// When `false`, callers should use far-path navigation (stitch — not bare
-/// [PanelCatalogController.jumpTo] as the default UX).
+/// Returns `true` when the viewport SHOULD smooth-scroll (near path) rather
+/// than stitch (far path).
+///
+/// ## Attached shortcut
+///
+/// `true` when [targetSectionIndex]'s header band intersects the viewport
+/// (`[scrollOffset, scrollOffset + viewportHeight)` in content-y) — equivalent
+/// to an attached target view in adapter-backed lists.
+///
+/// ## Distance gate
+///
+/// When the header is not visible, compares flat-row indices from
+/// [flatIndexForSectionHeader] and [firstVisibleFlatIndex]:
+/// `|targetFlat − firstVisibleFlat| ≤ [distanceGateFactor]` (default
+/// [kFarPathDistanceGateFactor]). Each flat row spans up to [spanCount] leaf
+/// cells; the gate is **not** `spanCount × distanceGateFactor` rows.
+///
+/// When `false`, the bound viewport uses far-path stitch — not bare
+/// [PanelCatalogController.jumpTo].
 bool isNearPathSectionJump({
   required int targetSectionIndex,
   required List<CatalogSection> sections,
@@ -176,5 +197,5 @@ bool isNearPathSectionJump({
     padding: padding,
   );
   final rowDelta = (targetFlat - firstVisible).abs();
-  return rowDelta <= spanCount * distanceGateFactor;
+  return rowDelta <= distanceGateFactor;
 }

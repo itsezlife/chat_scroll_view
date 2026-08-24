@@ -12,8 +12,9 @@ surfaces (emoji / stickers / GIFs).
   pointer-down while flinging cancels coast and suppresses leaf pick for that
   pointer
 - **Section jump** — `PanelCatalogController.jumpToSection` with near-path
-  smooth scroll when the far-path distance gate passes (`spanCount × 9`
-  flat-row rule); `isSectionJumpActive` for host strip-sync gating
+  smooth scroll when the far-path distance gate passes (`≤ 9` flat rows;
+  Telegram `spanCount × 9` in per-cell adapter space); `isSectionJumpActive`
+  for host strip-sync gating
 - **Paint leaves** — no per-cell `StatefulWidget` default; visible-band asset
   bind/recycle
 - **Hit-test** — viewport-owned pointer → `CatalogLeaf`; shell callbacks
@@ -41,8 +42,9 @@ PanelCatalogTheme(
 )
 ```
 
-[PanelCatalogViewport] resolves tokens from [PanelCatalogTheme.of] each build
-(placeholder, press highlight, section headers, stand-in geometry, document stub).
+[PanelCatalogViewport] resolves [PanelCatalogTheme.of] into
+[CatalogLeafPaintTheme] once per build (DPR included) and passes that snapshot
+to the engine.
 
 Pick preset from shell brightness:
 

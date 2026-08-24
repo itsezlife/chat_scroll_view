@@ -6,6 +6,14 @@ is pre-1.0.
 
 ## [Unreleased]
 
+### Changed
+
+- **Ready/failed retention** — after the last [CatalogAssetBinding.detach],
+  settled entries stay in [MemoryCatalogAssetCache] so re-attach keeps
+  readiness (pager keep-alive leave/return). Loading-only orphans are still
+  dropped. [CatalogAssetCache.readinessOf] is on the interface;
+  [MemoryCatalogAssetCache.evict] / [clear] for explicit drop.
+
 ## [0.1.0] - 2026-08-25
 
 ### Added

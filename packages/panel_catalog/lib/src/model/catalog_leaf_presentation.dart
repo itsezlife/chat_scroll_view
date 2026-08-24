@@ -5,24 +5,29 @@
 /// switches on it. Storing a bitmask or multiple simultaneous modes on the
 /// leaf would fight the single paint path and duplicate cache readiness.
 ///
-/// | Leaf kind | Loading | Ready | Failed |
-/// |-----------|---------|-------|--------|
-/// | Unicode / bitmap glyph | [circlePlaceholder] | [content] | [failed] |
+/// | Leaf kind | Loading / unbound | Ready | Failed |
+/// |-----------|-------------------|-------|--------|
+/// | Unicode (paragraph paint) | [content] | [content] | [failed] |
 /// | Document-backed media | [thumbFirstPlaceholder] | [content] | [failed] |
 /// | Sticker | [shapedLoadingWash] | [content] | [failed] |
 ///
-/// [shapedLoadingWash] is not the loading mode for unicode cells — circle
-/// geometry is.
+/// [circlePlaceholder] remains for a future bitmap-page unicode path (async
+/// page decode). The current unicode leaf paints glyphs via paragraph cache
+/// with no decode wait — unbound/loading MUST resolve to [content] so pager
+/// keep-alive gaps do not flash empty circles.
+///
+/// [shapedLoadingWash] is not the loading mode for unicode cells.
 enum CatalogLeafPresentation {
   /// Ready glyph or media content (or a ready-path stand-in when decode is
   /// still stubbed for document leaves).
   content,
 
-  /// Unicode loading: solid circle centered in glyph draw bounds.
+  /// Reserved for async bitmap-page unicode loading (glyph draw-bounds circle).
   ///
-  /// Radius is `glyphBounds.width * kCirclePlaceholderRadiusFactor`
-  /// (~0.4). MUST NOT be sized against the full cell pitch — glyph bounds are
-  /// a centered fraction of the cell (~72% pitch).
+  /// Radius is `glyphBounds.width * kCirclePlaceholderRadiusFactor` (~0.4).
+  /// MUST NOT be sized against the full cell pitch. Current
+  /// [UnicodeCatalogLeaf] paragraph paint does not select this mode for
+  /// unbound/loading — see [CatalogLeafBindingPool.presentationFor].
   circlePlaceholder,
 
   /// Document-backed loading: static/SVG thumb silhouette (may be stubbed as

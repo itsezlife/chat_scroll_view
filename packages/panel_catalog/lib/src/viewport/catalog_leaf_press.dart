@@ -1,13 +1,13 @@
 import 'package:flutter/animation.dart';
 import 'package:flutter/scheduler.dart';
-import 'package:panel_catalog/src/model/catalog_leaf.dart';
+import 'package:panel_catalog/src/viewport/catalog_slot_projection.dart';
 import 'package:panel_catalog/src/viewport/overshoot_curve.dart';
 
-/// Press progress for one catalog leaf under pointer-down.
+/// Press progress for one catalog cell under pointer-down.
 ///
-/// Owns the press [AnimationController] and which [CatalogLeaf] is pressed.
-/// Does **not** own hit-testing or gesture arena resolution — the render
-/// object calls [pressIn] / [pressOut] from pointer + recognizer edges.
+/// Owns the press [AnimationController] and which [CatalogLeafSlotKey] is
+/// pressed. Does **not** own hit-testing or gesture arena resolution — the
+/// render object calls [pressIn] / [pressOut] from pointer + recognizer edges.
 ///
 /// ## Scale contract
 ///
@@ -32,7 +32,7 @@ final class CatalogLeafPress {
 
   final TickerProvider _vsync;
 
-  /// Fired when [progress] or [pressedLeaf] changes (drive [markNeedsPaint]).
+  /// Fired when [progress] or [pressedSlotKey] changes (drive [markNeedsPaint]).
   final VoidCallback onChanged;
 
   /// Release settle duration for press-out overshoot.
@@ -42,19 +42,19 @@ final class CatalogLeafPress {
   static const double releaseTension = 5;
 
   AnimationController? _controller;
-  CatalogLeaf? _pressedLeaf;
+  CatalogLeafSlotKey? _pressedSlotKey;
   var _pointerDown = false;
 
-  /// Leaf currently receiving press feedback, or `null` when idle / settled.
-  CatalogLeaf? get pressedLeaf => _pressedLeaf;
+  /// Cell currently receiving press feedback, or `null` when idle / settled.
+  CatalogLeafSlotKey? get pressedSlotKey => _pressedSlotKey;
 
   /// Press amount: `0` idle, `1` fully pressed; may be slightly negative on
   /// overshoot release. `0` when never pressed.
   double get progress => _controller?.value ?? 0;
 
-  /// Paint scale for the pressed leaf (`1` when no active press animation).
+  /// Paint scale for the pressed cell (`1` when no active press animation).
   double get scale {
-    if (_pressedLeaf == null && progress == 0) return 1;
+    if (_pressedSlotKey == null && progress == 0) return 1;
     return 0.8 + 0.2 * (1 - progress);
   }
 
@@ -96,14 +96,14 @@ final class CatalogLeafPress {
     );
   }
 
-  /// Starts press-in for [leaf].
+  /// Starts press-in for [slotKey].
   ///
   /// Idempotent while the pointer is already down for this press session.
-  /// Call [pressOut] before a new [pressIn] for another leaf.
-  void pressIn(CatalogLeaf leaf) {
+  /// Call [pressOut] before a new [pressIn] for another cell.
+  void pressIn(CatalogLeafSlotKey slotKey) {
     if (_pointerDown) return;
     _pointerDown = true;
-    _pressedLeaf = leaf;
+    _pressedSlotKey = slotKey;
     final pressed = _ensureController;
     pressed.stop();
     // One paint step immediately so UP before the first ticker tick still
@@ -119,7 +119,7 @@ final class CatalogLeafPress {
 
   /// Releases press with overshoot settle.
   ///
-  /// Keeps [pressedLeaf] until settle reaches idle so paint can overshoot on
+  /// Keeps [pressedSlotKey] until settle reaches idle so paint can overshoot on
   /// the correct cell. No-op when not pointer-down.
   void pressOut() {
     if (!_pointerDown) return;
@@ -127,7 +127,7 @@ final class CatalogLeafPress {
     final pressed = _controller;
     if (pressed == null) return;
     if (pressed.value == 0 && !pressed.isAnimating) {
-      _pressedLeaf = null;
+      _pressedSlotKey = null;
       onChanged();
       return;
     }
@@ -144,7 +144,7 @@ final class CatalogLeafPress {
         )
         .whenComplete(() {
           if (!_pointerDown && pressed.value == 0) {
-            _pressedLeaf = null;
+            _pressedSlotKey = null;
             onChanged();
           }
         });
@@ -156,7 +156,7 @@ final class CatalogLeafPress {
     _controller?.removeListener(onChanged);
     _controller?.dispose();
     _controller = null;
-    _pressedLeaf = null;
+    _pressedSlotKey = null;
     _pointerDown = false;
   }
 }

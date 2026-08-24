@@ -6,6 +6,27 @@ is pre-1.0.
 
 ## [Unreleased]
 
+### Changed
+
+- **Unicode presentation** — unbound/loading [UnicodeCatalogLeaf] resolves to
+  [CatalogLeafPresentation.content] (paragraph paint; no decode wait). Avoids
+  circle-placeholder flash after pager keep-alive detach / empty sync.
+  [CatalogLeafPresentation.circlePlaceholder] reserved for a future
+  bitmap-page path. Failed unicode still uses [CatalogLeafPresentation.failed].
+- **Settled cache readiness across detach** — [presentationFor] falls back to
+  [CatalogAssetCache.readinessOf] when unbound so ready document leaves stay
+  [CatalogLeafPresentation.content] after pool [detachAll] (pager reattach).
+- **Far-path distance gate** — near path when flat-row distance `≤ 9`
+  ([kFarPathDistanceGateFactor]), not `spanCount × 9` rows. Matches Telegram
+  `EmojiView.scrollEmojisToPosition` (`spanCount × 9` in per-cell adapter
+  space). The previous multiplier over-widened near-path smooth scroll.
+- **`PanelCatalogController.jumpToSection` re-entry** — while
+  [isSectionJumpActive], additional requests are ignored and return the
+  in-flight future (Telegram `emojiSmoothScrolling` /
+  `fastScrollAnimationRunning`); user drag still cancels.
+- **`PanelCatalogViewport.placeholderColor` removed** — use
+  [PanelCatalogThemeData.placeholderColor] via [PanelCatalogTheme] instead.
+
 ### Added
 
 - **`PanelCatalogTheme`** + **`PanelCatalogThemeData`** — inherited theme for
@@ -19,18 +40,13 @@ is pre-1.0.
   now resolve from inherited theme (no hardcoded painter literals).
 - **`PanelCatalogController.jumpToSection`** — programmatic section landing
   under viewport top inset with near-path smooth scroll when the far-path
-  distance gate passes (`spanCount × 9` flat-row rule,
-  [kFarPathDistanceGateFactor]) and far-path [CatalogFarStitch] (capture →
-  teleport → dual-translate) when the gate fails. Exposes
-  [isSectionJumpActive] for host strip-sync gating during programmatic motion.
+  distance gate passes (`≤ 9` flat rows, [kFarPathDistanceGateFactor]) and
+  far-path [CatalogFarStitch] (capture → teleport → dual-translate) when the
+  gate fails. Exposes [isSectionJumpActive] for host strip-sync gating during
+  programmatic motion.
 - **`leafLongPressEligible`** on [PanelCatalogViewport] — per-leaf gate for
   registering the long-press recognizer. Ineligible leaves stay tap-only so
   plain glyphs do not lose tap after the long-press timeout.
-
-### Changed
-
-- **`PanelCatalogViewport.placeholderColor` removed** — use
-  [PanelCatalogThemeData.placeholderColor] via [PanelCatalogTheme] instead.
 
 ## [0.1.0] - 2026-08-25
 
@@ -50,7 +66,7 @@ is pre-1.0.
 - **Viewport-owned hit-test** — `leafAt` maps pointers to `CatalogLeaf`;
   shell callbacks `onLeafTap` and long-press start/move/end with leaf identity.
 - **Press scale in paint** — `0.8 + 0.2 * (1 − progress)` via
-  `CatalogLeafPress`; test seams `pressedLeaf` / `pressProgress` on the render
+  `CatalogLeafPress`; test seams `pressedSlotKey` / `pressProgress` on the render
   object.
 - **Ballistic fling** — `CatalogScrollPhysics` (`ClampingScrollSimulation`) on
   drag-end; pointer-down while flinging cancels coast and suppresses leaf

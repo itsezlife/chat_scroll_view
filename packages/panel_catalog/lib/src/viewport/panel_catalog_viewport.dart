@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:panel_catalog/src/data/catalog_data_source.dart';
 import 'package:panel_catalog/src/model/catalog_leaf.dart';
 import 'package:panel_catalog/src/theme/panel_catalog_theme.dart';
+import 'package:panel_catalog/src/viewport/catalog_leaf_paint_theme.dart';
 import 'package:panel_catalog/src/viewport/panel_catalog_controller.dart';
 import 'package:panel_catalog/src/viewport/render_panel_catalog.dart';
 
@@ -29,12 +30,14 @@ import 'package:panel_catalog/src/viewport/render_panel_catalog.dart';
 /// Drag and pointer-wheel update [controller] via [PanelCatalogController.scrollBy];
 /// the render object clamps with [PanelCatalogController.correctOffset].
 /// [PanelCatalogController.jumpToSection] lands a section header under
-/// [padding.top] via near-path smooth scroll when the far-path distance gate
-/// passes (`spanCount × [kFarPathDistanceGateFactor]` flat-row rule), or via
-/// far-path [CatalogFarStitch] when the gate fails. Drag-end with enough
-/// velocity starts a ballistic fling; pointer-down while flinging cancels the
-/// coast and suppresses leaf tap/long-press for that pointer. User drag
-/// cancels an in-flight near-path scroll or far-path stitch.
+/// [padding.top] via near-path smooth scroll when [isNearPathSectionJump]
+/// passes ([kFarPathDistanceGateFactor] flat rows, not `spanCount ×` that
+/// value), or via far-path [CatalogFarStitch] when the gate fails. Re-entry
+/// while [PanelCatalogController.isSectionJumpActive] is ignored at the
+/// controller; hosts SHOULD gate category strip the same way. Drag-end with
+/// enough velocity starts a ballistic fling; pointer-down while flinging
+/// cancels the coast and suppresses leaf tap/long-press for that pointer.
+/// User drag cancels an in-flight near-path scroll or far-path stitch.
 /// [PanelCatalogController.isSectionJumpActive] is `true` during programmatic
 /// section motion so hosts can suppress strip sync.
 /// Asset bindings attach only for leaves in the visible window plus
@@ -53,11 +56,11 @@ import 'package:panel_catalog/src/viewport/render_panel_catalog.dart';
 ///
 /// ## Theme
 ///
-/// Paint tokens (placeholder fill, press highlight, selector corner radius)
-/// come from [PanelCatalogTheme.of] — wrap the subtree in [PanelCatalogTheme]
-/// with [PanelCatalogThemeData]. Use [PanelCatalogThemeData.lerp] when animating
-/// palette changes. The viewport resolves density-scaled selector radius on
-/// each build; no per-widget color ctor args.
+/// Requires a [PanelCatalogTheme] ancestor. [PanelCatalogTheme.of] →
+/// [PanelCatalogThemeData] → [CatalogLeafPaintTheme.resolve] (DPR applied once)
+/// → engine [RenderPanelCatalog.paintTheme]. Hosts customize
+/// [PanelCatalogThemeData] only; the viewport owns density resolution and the
+/// single snapshot handoff.
 class PanelCatalogViewport extends LeafRenderObjectWidget {
   /// Creates an extent-scroll catalog body backed by [dataSource],
   /// [assetCache], and [controller].
@@ -78,6 +81,7 @@ class PanelCatalogViewport extends LeafRenderObjectWidget {
     this.cellExtent = 48,
     this.headerExtent = 32,
     this.padding = EdgeInsets.zero,
+    this.headerLandingInset,
     this.cacheType = CatalogAssetCacheType.keyboard,
     this.onLeafTap,
     this.onLeafLongPressStart,
@@ -148,6 +152,15 @@ class PanelCatalogViewport extends LeafRenderObjectWidget {
   /// [spanCount] columns. Negative values are undefined.
   final EdgeInsets padding;
 
+  /// Top inset for [PanelCatalogController.jumpToSection] header landing.
+  ///
+  /// When null, [padding.top] is used. Host shells that reserve extra content
+  /// padding (e.g. a sticky search spacer folded into [padding.top]) but park
+  /// section headers under a shorter overlay band (category strip only) MUST
+  /// set this to the strip inset so landing math matches legacy flat-list
+  /// behavior.
+  final double? headerLandingInset;
+
   /// Attach size class passed to [CatalogAssetCache.attach] for each leaf.
   ///
   /// Replacing the type detaches every binding before re-attach on the next
@@ -190,7 +203,7 @@ class PanelCatalogViewport extends LeafRenderObjectWidget {
 
   @override
   RenderPanelCatalog createRenderObject(BuildContext context) {
-    final theme = PanelCatalogTheme.of(context);
+    final theme = PanelCatalogTheme.of(context, listen: true);
     final dpr = MediaQuery.devicePixelRatioOf(context);
     return RenderPanelCatalog(
       dataSource: dataSource,
@@ -200,13 +213,9 @@ class PanelCatalogViewport extends LeafRenderObjectWidget {
       cellExtent: cellExtent,
       headerExtent: headerExtent,
       padding: padding,
+      headerLandingInset: headerLandingInset,
       cacheType: cacheType,
-      placeholderColor: theme.placeholderColor,
-      leafPressHighlightColor: theme.leafPressHighlightColor,
-      sectionHeaderColor: theme.sectionHeaderColor,
-      documentStandInColor: theme.documentStandInColor,
-      leafPressSelectorRadius: theme.selectorRadiusLogicalPx(dpr),
-      standInCornerRadius: theme.standInCornerRadius,
+      paintTheme: CatalogLeafPaintTheme.resolve(theme, devicePixelRatio: dpr),
       onLeafTap: onLeafTap,
       onLeafLongPressStart: onLeafLongPressStart,
       onLeafLongPressMove: onLeafLongPressMove,
@@ -220,7 +229,7 @@ class PanelCatalogViewport extends LeafRenderObjectWidget {
     BuildContext context,
     RenderPanelCatalog renderObject,
   ) {
-    final theme = PanelCatalogTheme.of(context);
+    final theme = PanelCatalogTheme.of(context, listen: true);
     final dpr = MediaQuery.devicePixelRatioOf(context);
     renderObject
       ..dataSource = dataSource
@@ -230,13 +239,9 @@ class PanelCatalogViewport extends LeafRenderObjectWidget {
       ..cellExtent = cellExtent
       ..headerExtent = headerExtent
       ..padding = padding
+      ..headerLandingInset = headerLandingInset
       ..cacheType = cacheType
-      ..placeholderColor = theme.placeholderColor
-      ..leafPressHighlightColor = theme.leafPressHighlightColor
-      ..sectionHeaderColor = theme.sectionHeaderColor
-      ..documentStandInColor = theme.documentStandInColor
-      ..leafPressSelectorRadius = theme.selectorRadiusLogicalPx(dpr)
-      ..standInCornerRadius = theme.standInCornerRadius
+      ..paintTheme = CatalogLeafPaintTheme.resolve(theme, devicePixelRatio: dpr)
       ..onLeafTap = onLeafTap
       ..onLeafLongPressStart = onLeafLongPressStart
       ..onLeafLongPressMove = onLeafLongPressMove
