@@ -14,6 +14,7 @@ Widget _harness({
   int spanCount = 4,
   double cellExtent = 40,
   double headerExtent = 24,
+  EdgeInsets padding = EdgeInsets.zero,
   ValueChanged<CatalogLeaf>? onLeafTap,
   void Function(CatalogLeaf leaf, LongPressStartDetails details)?
   onLeafLongPressStart,
@@ -21,6 +22,7 @@ Widget _harness({
   onLeafLongPressMove,
   void Function(CatalogLeaf leaf, LongPressEndDetails details)?
   onLeafLongPressEnd,
+  bool Function(CatalogLeaf leaf)? leafLongPressEligible,
 }) {
   return MaterialApp(
     home: Scaffold(
@@ -35,10 +37,12 @@ Widget _harness({
             spanCount: spanCount,
             cellExtent: cellExtent,
             headerExtent: headerExtent,
+            padding: padding,
             onLeafTap: onLeafTap,
             onLeafLongPressStart: onLeafLongPressStart,
             onLeafLongPressMove: onLeafLongPressMove,
             onLeafLongPressEnd: onLeafLongPressEnd,
+            leafLongPressEligible: leafLongPressEligible,
           ),
         ),
       ),
@@ -48,6 +52,14 @@ Widget _harness({
 
 CatalogSection _section(String id, List<CatalogLeaf> leaves) =>
     CatalogSection(id: id, title: 'Section $id', leaves: leaves);
+
+List<CatalogSection> _sections(int count, {int leavesPerSection = 8}) => [
+  for (var i = 0; i < count; i++)
+    _section('s$i', [
+      for (var j = 0; j < leavesPerSection; j++)
+        CatalogLeaf.unicode(String.fromCharCode(0x1F600 + j)),
+    ]),
+];
 
 RenderPanelCatalog _render(WidgetTester tester) =>
     tester.renderObject(find.byType(PanelCatalogViewport));
@@ -361,6 +373,48 @@ void main() {
     },
   );
 
+  testWidgets('leafLongPressEligible skips long-press on ineligible leaves', (
+    tester,
+  ) async {
+    const eligible = CatalogLeaf.unicode('👍');
+    const ineligible = CatalogLeaf.unicode('❤️');
+    dataSource.replaceSections([
+      _section('a', [ineligible, eligible]),
+    ]);
+
+    CatalogLeaf? started;
+    var taps = 0;
+    await tester.pumpWidget(
+      _harness(
+        dataSource: dataSource,
+        assetCache: assetCache,
+        controller: controller,
+        leafLongPressEligible: (leaf) => leaf.assetKey == eligible.assetKey,
+        onLeafTap: (_) => taps += 1,
+        onLeafLongPressStart: (l, _) => started = l,
+        onLeafLongPressMove: (_, _) {},
+        onLeafLongPressEnd: (_, _) {},
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final box = tester.getRect(find.byType(PanelCatalogViewport));
+    final ineligibleCenter = Offset(box.left + 20, box.top + 24 + 20);
+    final gesture = await tester.startGesture(ineligibleCenter);
+    await tester.pump(kLongPressTimeout + const Duration(milliseconds: 50));
+    expect(started, isNull);
+
+      await gesture.up();
+      await tester.pumpAndSettle();
+      expect(taps, 1);
+
+      final eligibleCenter = Offset(box.left + 100, box.top + 24 + 20);
+    final eligibleGesture = await tester.startGesture(eligibleCenter);
+    await tester.pump(kLongPressTimeout + const Duration(milliseconds: 50));
+    expect(started?.assetKey, eligible.assetKey);
+    await eligibleGesture.up();
+  });
+
   testWidgets('press scale stays live when long-press wins over tap', (
     tester,
   ) async {
@@ -504,5 +558,115 @@ void main() {
 
     await tester.pumpAndSettle();
     expect(taps, 0);
+  });
+
+  testWidgets('near-path jumpToSection smooth-scrolls to strip inset landing', (
+    tester,
+  ) async {
+    const stripInset = 36.0;
+    final sections = _sections(12, leavesPerSection: 8);
+    dataSource.replaceSections(sections);
+
+    await tester.pumpWidget(
+      _harness(
+        dataSource: dataSource,
+        assetCache: assetCache,
+        controller: controller,
+        height: 240,
+        padding: const EdgeInsets.only(top: stripInset),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    const targetSection = 1;
+    final expectedOffset = scrollOffsetForSectionHeader(
+      sectionIndex: targetSection,
+      sections: sections,
+      spanCount: 4,
+      cellExtent: 40,
+      headerExtent: 24,
+      padding: const EdgeInsets.only(top: stripInset),
+    );
+
+    final future = controller.jumpToSection(targetSection);
+    await tester.pump();
+    expect(controller.isSectionJumpActive, isTrue);
+    expect(_render(tester).isSectionJumpAnimating, isTrue);
+    expect(controller.offset, isNot(expectedOffset));
+
+    await tester.pumpAndSettle();
+    await future;
+
+    expect(controller.offset, expectedOffset);
+    expect(controller.isSectionJumpActive, isFalse);
+    expect(_render(tester).isSectionJumpAnimating, isFalse);
+  });
+
+  testWidgets('jumpToSection within span×9 gate uses near path not bare jump', (
+    tester,
+  ) async {
+    dataSource.replaceSections(_sections(12, leavesPerSection: 8));
+
+    await tester.pumpWidget(
+      _harness(
+        dataSource: dataSource,
+        assetCache: assetCache,
+        controller: controller,
+        height: 240,
+        spanCount: 4,
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final future = controller.jumpToSection(2);
+    await tester.pump();
+    expect(_render(tester).isSectionJumpAnimating, isTrue);
+
+    await tester.pumpAndSettle();
+    await future;
+    expect(_render(tester).isSectionJumpAnimating, isFalse);
+  });
+
+  testWidgets('user drag cancels in-flight section jump', (tester) async {
+    dataSource.replaceSections(_sections(12, leavesPerSection: 8));
+
+    await tester.pumpWidget(
+      _harness(
+        dataSource: dataSource,
+        assetCache: assetCache,
+        controller: controller,
+        height: 240,
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final future = controller.jumpToSection(3);
+    await tester.pump();
+    expect(controller.isSectionJumpActive, isTrue);
+
+    await tester.drag(find.byType(PanelCatalogViewport), const Offset(0, 80));
+    await tester.pumpAndSettle();
+
+    expect(controller.isSectionJumpActive, isFalse);
+    expect(_render(tester).isSectionJumpAnimating, isFalse);
+    await future;
+  });
+
+  testWidgets('out-of-range jumpToSection is a silent no-op', (tester) async {
+    dataSource.replaceSections(_sections(2));
+
+    await tester.pumpWidget(
+      _harness(
+        dataSource: dataSource,
+        assetCache: assetCache,
+        controller: controller,
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final before = controller.offset;
+    await controller.jumpToSection(99);
+    await tester.pumpAndSettle();
+    expect(controller.offset, before);
   });
 }

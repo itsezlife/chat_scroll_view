@@ -6,6 +6,17 @@ is pre-1.0.
 
 ## [Unreleased]
 
+### Added
+
+- **`PanelCatalogController.jumpToSection`** — programmatic section landing
+  under viewport top inset with near-path smooth scroll when the far-path
+  distance gate passes (`spanCount × 9` flat-row rule,
+  [kFarPathDistanceGateFactor]). Exposes [isSectionJumpActive] for host
+  strip-sync gating during programmatic motion.
+- **`leafLongPressEligible`** on [PanelCatalogViewport] — per-leaf gate for
+  registering the long-press recognizer. Ineligible leaves stay tap-only so
+  plain glyphs do not lose tap after the long-press timeout.
+
 ## [0.1.0] - 2026-08-25
 
 ### Added
@@ -23,7 +34,7 @@ is pre-1.0.
   wash / content / failed).
 - **Viewport-owned hit-test** — `leafAt` maps pointers to `CatalogLeaf`;
   shell callbacks `onLeafTap` and long-press start/move/end with leaf identity.
-- **Press scale in paint** — Telegram-style `0.8 + 0.2 * (1 − progress)` via
+- **Press scale in paint** — `0.8 + 0.2 * (1 − progress)` via
   `CatalogLeafPress`; test seams `pressedLeaf` / `pressProgress` on the render
   object.
 - **Ballistic fling** — `CatalogScrollPhysics` (`ClampingScrollSimulation`) on

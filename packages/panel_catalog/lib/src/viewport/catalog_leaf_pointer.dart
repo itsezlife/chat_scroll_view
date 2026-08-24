@@ -11,10 +11,11 @@ import 'package:panel_catalog/src/model/catalog_leaf.dart';
 /// ## Arena
 ///
 /// [TapGestureRecognizer] is registered when [onLeafTap] is non-null.
-/// [LongPressGestureRecognizer] is registered only when
-/// [onLeafLongPressStart] is non-null — a long-press recognizer cancels tap
-/// after the timeout even if move/end are unused, so empty long-press wiring
-/// MUST stay null (all-or-nothing: start gates the recognizer).
+/// [LongPressGestureRecognizer] is created when [onLeafLongPressStart] is
+/// non-null, but each pointer adds to it only when [leafLongPressEligible]
+/// returns true (or when the predicate is null — every leaf). Skipping
+/// ineligible leaves avoids the ~500ms tap cancel with no action that occurs
+/// when a long-press recognizer competes on plain glyphs.
 ///
 /// Call [addPointer] from the render object's [PointerDownEvent] path only
 /// when [leafAt] returns a leaf. Header / padding downs skip this helper so
@@ -47,6 +48,12 @@ final class CatalogLeafPointer {
   void Function(CatalogLeaf leaf, LongPressEndDetails details)?
   onLeafLongPressEnd;
 
+  /// Per-leaf gate for registering [LongPressGestureRecognizer] on pointer
+  /// down. When null, every leaf is eligible while [onLeafLongPressStart] is
+  /// wired. When non-null, returns false to leave tap-only recognition on
+  /// that leaf (host policy for contextual long-press actions).
+  bool Function(CatalogLeaf leaf)? leafLongPressEligible;
+
   /// Fired when long-press is cancelled (arena lost / pointer cancel) so the
   /// host can release press scale. Tap cancel MUST NOT use this path — when
   /// long-press wins the arena, tap is cancelled while the pointer is still
@@ -73,9 +80,15 @@ final class CatalogLeafPointer {
     final leaf = resolve(event.localPosition);
     _downLeaf = leaf;
     if (leaf == null) return;
+    final longPressEligible =
+        onLeafLongPressStart != null &&
+        (leafLongPressEligible?.call(leaf) ?? true);
+    if (onLeafTap == null && !longPressEligible) return;
     _ensureRecognizers();
     _tap?.addPointer(event);
-    _longPress?.addPointer(event);
+    if (longPressEligible) {
+      _longPress?.addPointer(event);
+    }
   }
 
   /// Drops recognizers. Safe to call twice.
@@ -86,6 +99,7 @@ final class CatalogLeafPointer {
     onLeafLongPressStart = null;
     onLeafLongPressMove = null;
     onLeafLongPressEnd = null;
+    leafLongPressEligible = null;
     leafAt = null;
     _tap?.dispose();
     _tap = null;

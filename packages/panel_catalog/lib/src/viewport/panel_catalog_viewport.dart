@@ -27,9 +27,14 @@ import 'package:panel_catalog/src/viewport/render_panel_catalog.dart';
 ///
 /// Drag and pointer-wheel update [controller] via [PanelCatalogController.scrollBy];
 /// the render object clamps with [PanelCatalogController.correctOffset].
-/// Drag-end with enough velocity starts a ballistic fling; pointer-down while
-/// flinging cancels the coast and suppresses leaf tap/long-press for that
-/// pointer. Asset bindings attach only for leaves in the visible window plus
+/// [PanelCatalogController.jumpToSection] lands a section header under
+/// [padding.top] via near-path smooth scroll when the far-path distance gate
+/// passes (`spanCount × [kFarPathDistanceGateFactor]` flat-row rule). Drag-end
+/// with enough velocity starts a ballistic fling; pointer-down while flinging
+/// cancels the coast and suppresses leaf tap/long-press for that pointer. User
+/// drag cancels an in-flight section jump. [PanelCatalogController.isSectionJumpActive]
+/// is `true` during programmatic section motion so hosts can suppress strip sync.
+/// Asset bindings attach only for leaves in the visible window plus
 /// one [cellExtent] of overscan; readiness flips mark paint dirty without a
 /// full catalog reproject.
 ///
@@ -38,9 +43,10 @@ import 'package:panel_catalog/src/viewport/render_panel_catalog.dart';
 /// The viewport is the sole hit target. Pointers map to [CatalogLeaf] via
 /// content geometry (not per-cell [GestureDetector] / [InkWell]). Optional
 /// [onLeafTap] / long-press callbacks forward leaf identity to the catalog
-/// shell. Press scale is painted on the leaf
-/// (`0.8 + 0.2 * (1 − progress)`). Drag-end may start a ballistic fling;
-/// a fling-cancel tap does not insert a leaf.
+/// shell. [leafLongPressEligible] optionally limits which leaves register a
+/// long-press recognizer (ineligible leaves stay tap-only). Press scale is
+/// painted on the leaf (`0.8 + 0.2 * (1 − progress)`). A fling-cancel tap
+/// does not insert a leaf.
 class PanelCatalogViewport extends LeafRenderObjectWidget {
   /// Creates an extent-scroll catalog body backed by [dataSource],
   /// [assetCache], and [controller].
@@ -50,8 +56,9 @@ class PanelCatalogViewport extends LeafRenderObjectWidget {
   /// Negative [padding] is undefined.
   ///
   /// Long-press is all-or-nothing: when [onLeafLongPressStart] is null, move
-  /// and end are ignored and no long-press recognizer is registered (a
-  /// recognizer would cancel tap after the timeout).
+  /// and end are ignored and no long-press recognizer is registered. When
+  /// start is wired, [leafLongPressEligible] optionally limits which leaves
+  /// register the recognizer (plain glyphs stay tap-only).
   const PanelCatalogViewport({
     required this.dataSource,
     required this.assetCache,
@@ -66,6 +73,7 @@ class PanelCatalogViewport extends LeafRenderObjectWidget {
     this.onLeafLongPressStart,
     this.onLeafLongPressMove,
     this.onLeafLongPressEnd,
+    this.leafLongPressEligible,
     super.key,
   });
 
@@ -90,7 +98,8 @@ class PanelCatalogViewport extends LeafRenderObjectWidget {
   /// (`CatalogLeafPresentation`).
   final CatalogAssetCache assetCache;
 
-  /// Absolute content-offset and navigation entry points ([jumpTo], [scrollBy]).
+  /// Absolute content-offset and navigation entry points ([jumpTo], [scrollBy],
+  /// [PanelCatalogController.jumpToSection]).
   ///
   /// Catalog top = `0`. After each navigation notify the bound render object
   /// clamps to `[0, max(0, contentExtent − viewportHeight)]` via
@@ -153,7 +162,7 @@ class PanelCatalogViewport extends LeafRenderObjectWidget {
   ///
   /// Null disables the long-press recognizer. When non-null, a long-press
   /// wins the arena after the timeout and cancels [onLeafTap] for that
-  /// pointer.
+  /// pointer on leaves where [leafLongPressEligible] allows registration.
   final void Function(CatalogLeaf leaf, LongPressStartDetails details)?
   onLeafLongPressStart;
 
@@ -168,6 +177,14 @@ class PanelCatalogViewport extends LeafRenderObjectWidget {
   /// Ignored when [onLeafLongPressStart] is null.
   final void Function(CatalogLeaf leaf, LongPressEndDetails details)?
   onLeafLongPressEnd;
+
+  /// Host policy for which leaves register a long-press recognizer.
+  ///
+  /// Null treats every leaf as eligible when [onLeafLongPressStart] is wired.
+  /// Return false when the shell has no long-press action for that leaf so
+  /// tap is not cancelled after the long-press timeout (e.g. plain unicode
+  /// glyphs without variant picker, vs recents or tone-capable bases).
+  final bool Function(CatalogLeaf leaf)? leafLongPressEligible;
 
   @override
   RenderPanelCatalog createRenderObject(BuildContext context) {
@@ -185,6 +202,7 @@ class PanelCatalogViewport extends LeafRenderObjectWidget {
       onLeafLongPressStart: onLeafLongPressStart,
       onLeafLongPressMove: onLeafLongPressMove,
       onLeafLongPressEnd: onLeafLongPressEnd,
+      leafLongPressEligible: leafLongPressEligible,
     );
   }
 
@@ -206,6 +224,7 @@ class PanelCatalogViewport extends LeafRenderObjectWidget {
       ..onLeafTap = onLeafTap
       ..onLeafLongPressStart = onLeafLongPressStart
       ..onLeafLongPressMove = onLeafLongPressMove
-      ..onLeafLongPressEnd = onLeafLongPressEnd;
+      ..onLeafLongPressEnd = onLeafLongPressEnd
+      ..leafLongPressEligible = leafLongPressEligible;
   }
 }

@@ -5,7 +5,9 @@
 /// or asset fetch/decode (`CatalogAssetCache` from `catalog_assets`).
 ///
 /// Primary host types: [PanelCatalogViewport], [CatalogDataSource],
-/// [PanelCatalogController], plus leaf/section/presentation models and
+/// [PanelCatalogController] ([jumpTo], [scrollBy], [PanelCatalogController.jumpToSection]),
+/// leaf/section/presentation models, section landing helpers
+/// ([scrollOffsetForSectionHeader], [kFarPathDistanceGateFactor]), and
 /// [FakeCatalogDataSource].
 ///
 /// Engine internals (`RenderPanelCatalog`, binding pool, painter, slot
@@ -19,3 +21,5 @@ export 'src/model/catalog_leaf_presentation.dart';
 export 'src/model/catalog_section.dart';
 export 'src/viewport/panel_catalog_controller.dart';
 export 'src/viewport/panel_catalog_viewport.dart';
+export 'src/viewport/catalog_section_navigation.dart'
+    show kFarPathDistanceGateFactor, scrollOffsetForSectionHeader;

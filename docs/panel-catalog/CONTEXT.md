@@ -31,8 +31,24 @@ When the target is not attached and farther than the distance gate (or animation
 _Avoid_: Naked `jumpTo` as the far-path UX, animateTo through the entire gap
 
 **Far-path distance gate**:
-Telegram emoji/stickers rule: target view not currently attached AND `|targetIndex - firstVisibleIndex| > spanCount * 9`. Below that (or if the target row is already attached), use near-path smooth scroll.
-_Avoid_: Pixel-distance gates, treating “far” as synonymous with jumpTo
+Telegram emoji/stickers rule: target view not currently attached AND `|targetFlatIndex - firstVisibleFlatIndex| > spanCount * 9`. Below that (or if the target header row is already visible), use near-path smooth scroll. Flat-row index counts one slot per section header plus one per leaf row (not per cell).
+_Avoid_: Pixel-distance gates, treating “far” as synonymous with jumpTo, per-cell index for the gate
+
+**Section jump**:
+Programmatic navigation to a catalog section via [PanelCatalogController.jumpToSection]. Lands the section header under the viewport's reserved top inset ([PanelCatalogViewport.padding.top]). Path selection uses near-path smooth scroll or far-path stitch per the distance gate.
+_Avoid_: Bare [jumpTo] as the only category navigation API from the shell, flat list indices where section indices are required
+
+**Strip inset landing**:
+Scroll offset `headerTop − padding.top` so the section title band aligns with the reserved top inset band. Content paints at `viewportY = contentY − offset`.
+_Avoid_: Landing at offset `headerTop` when [padding.top] reserves strip space
+
+**Section jump active**:
+[PanelCatalogController.isSectionJumpActive] is `true` while a programmatic section jump animation owns scroll motion. Hosts suppress category-strip scroll sync during this window.
+_Avoid_: Inferring programmatic motion from offset deltas alone, re-entrant strip updates during near-path animate
+
+**Flat-row index**:
+Adapter-style index for section-jump gating: each section contributes one index for its header, then one index per leaf row at [spanCount] columns. Matches Telegram flat list / SuperSliverList header+row lists.
+_Avoid_: Per-cell index for the distance gate, message-id indices
 
 **Stitch**:
 A continuity illusion for far-path catalog jumps: capture visible outgoing rows, teleport the content offset to the target, then dual-translate outgoing and incoming paint so the jump reads as one scroll.
@@ -49,8 +65,24 @@ A recycled catalog cell drawn by the viewport without a per-cell widget Element/
 _Avoid_: EmojiGlyphCell-per-slot, StatefulWidget cell as the default path
 
 **Viewport-owned hit-test**:
-Pointer mapping to a leaf id inside the catalog viewport: press scale in paint, tap/long-press callbacks to the catalog shell.
+Pointer mapping to a [CatalogLeaf] inside the catalog viewport: press scale in paint, tap and long-press callbacks to the catalog shell. Recognizers live on the viewport render object — not on per-cell widgets.
 _Avoid_: Per-cell GestureDetector/InkWell as the default, temporary overlay widgets for every press
+
+**Leaf tap callback**:
+Shell hook fired when the user completes a tap on a leaf. Receives [CatalogLeaf] identity only. Header bands and padding are silent (no synthetic leaf). Null on the viewport disables tap recognition; scroll drag still works.
+_Avoid_: Per-cell onTap widgets, inferring leaf identity from paint coordinates in the shell
+
+**Leaf long-press callback**:
+Shell hooks for a long-press session on a leaf: start (with gesture details for anchor placement), move while the session is live, end on lift. All three are wired through [PanelCatalogViewport] or none — null start disables the long-press recognizer entirely. The viewport forwards [CatalogLeaf] identity; it does **not** own picker UI, clear-recents dialogs, or variant/tone policy.
+_Avoid_: Mounting LongPressGestureRecognizer on each cell, wiring move/end without start (registers a recognizer that cancels tap)
+
+**Long-press eligibility**:
+Optional host predicate ([PanelCatalogViewport.leafLongPressEligible]) evaluated on pointer-down. When it returns false for a leaf, the viewport does **not** register a long-press recognizer for that pointer — the leaf stays tap-only. Use when most leaves have no long-press action so plain glyphs are not cancelled after the long-press timeout (~500ms). When the predicate is null, every leaf is eligible whenever start is wired.
+_Avoid_: Registering long-press on all cells and no-oping in the callback (loses tap on ineligible leaves)
+
+**Fling-cancel leaf suppress**:
+When the user touches down while a ballistic fling is coasting, the viewport cancels the coast and suppresses leaf tap and long-press for **that pointer only** so stopping scroll does not insert or open a picker. The next deliberate tap/long-press on a still leaf works normally.
+_Avoid_: Per-cell fling guards, treating fling-cancel as a global “gestures off” mode
 
 **Leaf presentation**:
 How one catalog cell appears: ready content, a kind-specific loading placeholder, or failed.

@@ -20,9 +20,11 @@ a dedicated move.
 | Ownership | Viewport = catalog body only; **catalog shell** = strip / search / tabs / pickers / DS wiring |
 | Geometry | **Extent scroll** (absolute offset + known/estimated content height) |
 | Leaves | **Paint leaf** pool + **viewport-owned hit-test**; no per-cell StatefulWidget default |
+| Leaf gestures | Tap and long-press start/move/end callbacks to the **catalog shell** with [CatalogLeaf] identity; optional **long-press eligibility** predicate so ineligible leaves stay tap-only; **fling-cancel suppress** on the stopping pointer |
 | Placeholders | Kind-specific: **circle** (unicode), **thumb-first** (animated), **shaped wash** (stickers) — see [leaf-placeholder.md](../panel-catalog/leaf-placeholder.md) |
-| Far path | **Stitch** when not attached and `\|target − firstVisible\| > span × 9` (or animations off). Not naked `jumpTo` |
-| Near path | Smooth scroller (Telegram `LinearSmoothScrollerCustom`) |
+| Far path | **Stitch** when not attached and `\|target − firstVisible\| > span × 9` (or animations off). Not naked `jumpTo` as default UX. **Interim:** far branch uses bare [jumpTo] until stitch ships (issue 05) |
+| Near path | [PanelCatalogController.jumpToSection] + [CatalogNearScroll] (220ms decelerate; Telegram `LinearSmoothScrollerCustom` parity). Landing under viewport [padding.top] |
+| Section jump | Flat-row gate ([kFarPathDistanceGateFactor] = 9); [isSectionJumpActive] for shell strip-sync gating; near writes silent [correctOffset] only |
 | Assets | **Global catalog asset cache** (`packages/catalog_assets`); panel + chat bind/paint only |
 | Data | Parallel catalog DS + `addDataListener` / `notifyDataChanged`; fetch not in the viewport |
 | v1 ship | Unicode catalog + stitch + paint leaves; leaf contract ready for document-backed / animated |

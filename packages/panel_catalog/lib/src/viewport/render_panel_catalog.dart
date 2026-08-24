@@ -12,7 +12,9 @@ import 'package:panel_catalog/src/viewport/catalog_leaf_binding_pool.dart';
 import 'package:panel_catalog/src/viewport/catalog_leaf_painter.dart';
 import 'package:panel_catalog/src/viewport/catalog_leaf_pointer.dart';
 import 'package:panel_catalog/src/viewport/catalog_leaf_press.dart';
+import 'package:panel_catalog/src/viewport/catalog_near_scroll.dart';
 import 'package:panel_catalog/src/viewport/catalog_scroll_physics.dart';
+import 'package:panel_catalog/src/viewport/catalog_section_navigation.dart';
 import 'package:panel_catalog/src/viewport/catalog_slot_projection.dart';
 import 'package:panel_catalog/src/viewport/panel_catalog_controller.dart';
 
@@ -81,7 +83,20 @@ import 'package:panel_catalog/src/viewport/panel_catalog_controller.dart';
 /// ([CatalogScrollPhysics] / [ClampingScrollSimulation]) in content offset
 /// space. Each tick applies [PanelCatalogController.scrollBy] until the
 /// simulation ends or offset hits `[0, maxOffset]`. Fling cancels on drag
-/// start, wheel, [jumpTo], scroll wall, or pointer-down while flinging.
+/// start, wheel, [jumpTo], [PanelCatalogController.jumpToSection], scroll wall,
+/// or pointer-down while flinging.
+///
+/// ## Section jump
+///
+/// [PanelCatalogController.jumpToSection] lands a section header under
+/// [padding.top] (strip inset band). Path selection uses
+/// [isNearPathSectionJump] (`spanCount × [kFarPathDistanceGateFactor]` flat-row
+/// gate plus attached-header shortcut). Near targets animate via
+/// [CatalogNearScroll] (220ms decelerate curve). Far targets use bare
+/// [PanelCatalogController.jumpTo] until far-path stitch ships. User drag /
+/// [jumpTo] / [scrollBy] cancel in-flight near scroll. Motion writes
+/// [PanelCatalogController.correctOffset] only so scroll-by listeners stay
+/// quiet; [PanelCatalogController.isSectionJumpActive] gates host strip sync.
 ///
 /// A pointer-down that cancels an in-flight fling suppresses leaf tap /
 /// long-press for that pointer so stopping the coast does not insert a leaf.
@@ -99,9 +114,11 @@ import 'package:panel_catalog/src/viewport/panel_catalog_controller.dart';
 /// The entire viewport is the hit target ([hitTestSelf]). On pointer-down,
 /// [leafAt] maps viewport-local coordinates through scroll offset into a
 /// [CatalogLeaf] (or `null` on headers / padding). [CatalogLeafPointer]
-/// registers tap / long-press only for leaf downs; drag always receives the
-/// pointer so scroll still wins the arena when the finger moves. Press scale
-/// starts on leaf-down via [CatalogLeafPress] and is painted into the leaf
+/// registers tap / long-press for leaf downs when wired;
+/// [CatalogLeafPointer.leafLongPressEligible] skips the long-press recognizer
+/// on ineligible leaves. Drag always receives the pointer so scroll still wins
+/// the arena when the finger moves. Press scale starts on leaf-down via
+/// [CatalogLeafPress] and is painted into the leaf
 /// (`0.8 + 0.2 * (1 − progress)`). Drag start and long-press cancel call
 /// press-out. Pointer move that leaves the pressed leaf rect also releases.
 ///
@@ -151,6 +168,7 @@ class RenderPanelCatalog extends RenderBox {
     onLeafLongPressMove,
     void Function(CatalogLeaf leaf, LongPressEndDetails details)?
     onLeafLongPressEnd,
+    bool Function(CatalogLeaf leaf)? leafLongPressEligible,
   }) : _dataSource = dataSource,
        _controller = controller,
        _spanCount = spanCount,
@@ -161,6 +179,7 @@ class RenderPanelCatalog extends RenderBox {
        _onLeafLongPressStart = onLeafLongPressStart,
        _onLeafLongPressMove = onLeafLongPressMove,
        _onLeafLongPressEnd = onLeafLongPressEnd,
+       _leafLongPressEligible = leafLongPressEligible,
        _painter = CatalogLeafPainter(placeholderColor: placeholderColor) {
     _pool = CatalogLeafBindingPool(
       assetCache: assetCache,
@@ -173,6 +192,7 @@ class RenderPanelCatalog extends RenderBox {
       ..onLeafLongPressStart = onLeafLongPressStart
       ..onLeafLongPressMove = onLeafLongPressMove
       ..onLeafLongPressEnd = onLeafLongPressEnd
+      ..leafLongPressEligible = leafLongPressEligible
       ..onGestureCancel = _onLeafGestureCancel
       ..flingCancelSuppresses = () => _flingCancelSuppressesLeaf;
   }
@@ -313,6 +333,14 @@ class RenderPanelCatalog extends RenderBox {
     _leafPointer.onLeafLongPressEnd = value;
   }
 
+  /// Per-leaf long-press registration gate. Null = all leaves eligible.
+  bool Function(CatalogLeaf leaf)? _leafLongPressEligible;
+  set leafLongPressEligible(bool Function(CatalogLeaf leaf)? value) {
+    if (_leafLongPressEligible == value) return;
+    _leafLongPressEligible = value;
+    _leafPointer.leafLongPressEligible = value;
+  }
+
   // --- Runtime state --------------------------------------------------------
 
   late CatalogLeafBindingPool _pool;
@@ -321,6 +349,9 @@ class RenderPanelCatalog extends RenderBox {
 
   /// Ballistic scroll simulation and tick integration in content offset space.
   final CatalogScrollPhysics _physics = CatalogScrollPhysics();
+
+  /// Near-path section jump animation; null after [detach] / [dispose].
+  CatalogNearScroll? _nearScroll;
 
   /// Shared [TickerProvider] for press animation and fling ticks while attached.
   CatalogPressTickerProvider? _pressTickers;
@@ -405,6 +436,9 @@ class RenderPanelCatalog extends RenderBox {
   /// slightly negative during overshoot release.
   double get pressProgress => _press?.progress ?? 0;
 
+  /// Whether a near-path section jump animation is driving offset.
+  bool get isSectionJumpAnimating => _nearScroll?.isActive ?? false;
+
   /// Resolves the [CatalogLeaf] under [localPosition], or `null` when the
   /// point lies on a header, padding, or empty band.
   ///
@@ -469,22 +503,125 @@ class RenderPanelCatalog extends RenderBox {
   void _bindController(PanelCatalogController controller) {
     controller
       ..addJumpListener(_onJump)
-      ..addScrollByListener(_onScrollBy);
+      ..addScrollByListener(_onScrollBy)
+      ..addSectionJumpListener(_onSectionJump);
   }
 
   void _unbindController(PanelCatalogController controller) {
     controller
       ..removeJumpListener(_onJump)
-      ..removeScrollByListener(_onScrollBy);
+      ..removeScrollByListener(_onScrollBy)
+      ..removeSectionJumpListener(_onSectionJump);
   }
 
-  /// Cancels fling then runs the navigation path (clamp + bind + paint).
+  /// Cancels near scroll + fling, then runs the navigation path.
   void _onJump(double pixels) {
+    _cancelNearScroll();
     _cancelFling();
     _onNavigation();
   }
 
-  void _onScrollBy(double delta) => _onNavigation();
+  void _onScrollBy(double delta) {
+    _cancelNearScroll();
+    _onNavigation();
+  }
+
+  void _onSectionJump(int sectionIndex) {
+    _handleSectionJump(sectionIndex);
+  }
+
+  // --- Section jump (near-path animate; far interim jumpTo) -----------------
+
+  /// Path-selects near smooth scroll vs interim far [jumpTo], then completes
+  /// the pending [PanelCatalogController.jumpToSection] future.
+  Future<void> _handleSectionJump(int sectionIndex) async {
+    final sections = _dataSource.sections;
+    if (sectionIndex < 0 || sectionIndex >= sections.length) {
+      _controller.setSectionJumpActive(false);
+      _controller.completePendingSectionJump(sectionIndex: sectionIndex);
+      return;
+    }
+    if (!hasSize) {
+      _controller.setSectionJumpActive(false);
+      _controller.completePendingSectionJump(sectionIndex: sectionIndex);
+      return;
+    }
+
+    _cancelFling();
+    _cancelNearScroll();
+
+    final targetOffset = scrollOffsetForSectionHeader(
+      sectionIndex: sectionIndex,
+      sections: sections,
+      spanCount: _spanCount,
+      cellExtent: _cellExtent,
+      headerExtent: _headerExtent,
+      padding: _padding,
+    ).clamp(0.0, maxOffset);
+
+    if ((targetOffset - _controller.offset).abs() < 1) {
+      _controller.correctOffset(targetOffset);
+      _onNavigation();
+      _controller.setSectionJumpActive(false);
+      _controller.completePendingSectionJump(sectionIndex: sectionIndex);
+      return;
+    }
+
+    final near = isNearPathSectionJump(
+      targetSectionIndex: sectionIndex,
+      sections: sections,
+      spanCount: _spanCount,
+      cellExtent: _cellExtent,
+      headerExtent: _headerExtent,
+      padding: _padding,
+      scrollOffset: _controller.offset,
+      viewportHeight: size.height,
+    );
+
+    if (!near) {
+      // Far-path stitch replaces this bare jump when stitch lands.
+      _controller.jumpTo(targetOffset);
+      _controller.setSectionJumpActive(false);
+      _controller.completePendingSectionJump(sectionIndex: sectionIndex);
+      return;
+    }
+
+    final nearScroll = _nearScroll;
+    if (nearScroll == null) {
+      _controller.jumpTo(targetOffset);
+      _controller.setSectionJumpActive(false);
+      _controller.completePendingSectionJump(sectionIndex: sectionIndex);
+      return;
+    }
+
+    _controller.setSectionJumpActive(true);
+    try {
+      final from = _controller.offset;
+      await nearScroll.animate(
+        from: from,
+        to: targetOffset,
+        applyOffset: (pixels) {
+          final clamped = pixels.clamp(0.0, maxOffset).toDouble();
+          _controller.correctOffset(clamped);
+        },
+      );
+      _clampOffset();
+      _syncVisibleBindings();
+      markNeedsPaint();
+    } finally {
+      _controller.setSectionJumpActive(false);
+      _controller.completePendingSectionJump(sectionIndex: sectionIndex);
+    }
+  }
+
+  void _cancelNearScroll({int? forSectionIndex}) {
+    final wasActive = _nearScroll?.isActive ?? false;
+    _nearScroll?.cancel();
+    if (wasActive) {
+      _controller.setSectionJumpActive(false);
+      _controller.completePendingSectionJump(sectionIndex: forSectionIndex);
+    }
+  }
 
   /// Silently writes [PanelCatalogController.offset] into `[0, maxOffset]`.
   ///
@@ -507,11 +644,23 @@ class RenderPanelCatalog extends RenderBox {
     _bindController(_controller);
     _pressTickers = CatalogPressTickerProvider();
     _press = CatalogLeafPress(vsync: _pressTickers!, onChanged: markNeedsPaint);
+    _nearScroll = CatalogNearScroll(
+      vsync: _pressTickers!,
+      onTick: () {
+        _clampOffset();
+        _syncVisibleBindings();
+        markNeedsPaint();
+      },
+    );
     _drag = VerticalDragGestureRecognizer()
       ..onStart = _onDragStart
       ..onUpdate = _onDragUpdate
       ..onEnd = _onDragEnd
       ..dragStartBehavior = DragStartBehavior.down;
+    final pending = _controller.pendingSectionJump;
+    if (pending != null) {
+      _handleSectionJump(pending.$1);
+    }
   }
 
   @override
@@ -519,8 +668,11 @@ class RenderPanelCatalog extends RenderBox {
     _dataSource.removeDataListener(_onDataChanged);
     _unbindController(_controller);
     _clearPressPointerRoute();
+    _cancelNearScroll();
     _cancelFling();
     _flingTicker = null;
+    _nearScroll?.dispose();
+    _nearScroll = null;
     _flingCancelSuppressesLeaf = false;
     _flingCancelPointer = null;
     _drag?.dispose();
@@ -538,8 +690,11 @@ class RenderPanelCatalog extends RenderBox {
   @override
   void dispose() {
     _clearPressPointerRoute();
+    _cancelNearScroll();
     _cancelFling();
     _flingTicker = null;
+    _nearScroll?.dispose();
+    _nearScroll = null;
     _flingCancelSuppressesLeaf = false;
     _flingCancelPointer = null;
     _drag?.dispose();
@@ -600,6 +755,7 @@ class RenderPanelCatalog extends RenderBox {
 
   /// Cancels fling and press before a new drag gesture owns the pointer.
   void _onDragStart(DragStartDetails details) {
+    _cancelNearScroll();
     _cancelFling();
     _clearPressPointerRoute();
     _press?.pressOut();
