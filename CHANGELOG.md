@@ -8,6 +8,30 @@ this project is pre-1.0 and not strictly SemVer yet.
 
 ### Added
 
+- **Panel Catalog Viewport (sibling package).** Keyboard-panel emoji / stickers /
+  GIFs get an extent-scroll paint-leaf engine instead of a forever-`SuperSliverList`
+  body or a Chat Scroll message-id/anchor fork. New repo-root packages:
+  - **`packages/catalog_assets`** — process-wide global catalog asset cache
+    (`CatalogAssetCache` / `MemoryCatalogAssetCache` / `FakeCatalogAssetCache`):
+    key + cache-type/size class, readiness (`loading` / `ready` / `failed`),
+    attach/refcount retention; fetch/decode stays outside. Settled ready/failed
+    entries survive last detach (pager leave/return); loading-only orphans drop.
+  - **`packages/panel_catalog`** — `PanelCatalogViewport` + package-private
+    `RenderPanelCatalog`: absolute extent scroll, recycled paint leaves, section
+    headers in extent, ballistic fling with fling-cancel tap/long-press suppress,
+    viewport-owned hit-test (`onLeafTap` + long-press start/move/end,
+    optional `leafLongPressEligible`), press scale + list-selector highlight,
+    `PanelCatalogTheme` / `PanelCatalogThemeData`, near-path
+    `PanelCatalogController.jumpToSection` (≤ 9 flat rows /
+    `kFarPathDistanceGateFactor`) and far-path `CatalogFarStitch` (capture →
+    teleport → dual-translate; not bare `jumpTo`). Catalog shell stays in
+    `chat_chrome`; DS notify mirrors chat (`addDataListener` /
+    `notifyDataChanged`). ADR 006 + `docs/panel-catalog/CONTEXT.md`.
+  - Example emoji panel hosts the viewport (sticky search / bottom bar from
+    catalog scroll events; type-tab reselect lands via `jumpToSection`).
+  - Correctness suite + A/B benches vs SuperSliverList and SliverGrid
+    (`packages/panel_catalog/test/benchmark/`).
+
 - **Paint-time edge stretch overscroll.** Replaces layout rubber-band /
   bounceback with a clamped-layout EdgeEffect stretch (`ChatStretchOverscroll`):
   unconsumed dy at a reached oldest/newest pin paints scale-from-edge on
@@ -58,6 +82,12 @@ this project is pre-1.0 and not strictly SemVer yet.
   `fetchRange` results.
 
 ### Changed
+
+- **Monorepo package layout.** Shared ecosystem libs live under repo-root
+  `packages/` — `catalog_assets`, `panel_catalog`, `emoji_data`, `chat_chrome`.
+  Example app resolves chrome/data via path deps; `keyboard_insets*` stay under
+  `example/packages`. `chat_scroll_view` remains at repo root. See
+  `CONTEXT-MAP.md` and ADR 006.
 
 - **Breaking — overscroll model.** `ChatScrollPhysics` no longer owns
   bounceback / overscroll resistance (`BouncebackSide`,
