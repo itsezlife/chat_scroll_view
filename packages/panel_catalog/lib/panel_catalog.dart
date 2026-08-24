@@ -6,12 +6,13 @@
 ///
 /// Primary host types: [PanelCatalogViewport], [CatalogDataSource],
 /// [PanelCatalogController] ([jumpTo], [scrollBy], [PanelCatalogController.jumpToSection]),
-/// leaf/section/presentation models, section landing helpers
+/// [PanelCatalogThemeData], [PanelCatalogTheme], leaf/section/presentation models, section landing helpers
 /// ([scrollOffsetForSectionHeader], [kFarPathDistanceGateFactor]), and
 /// [FakeCatalogDataSource].
 ///
 /// Engine internals (`RenderPanelCatalog`, binding pool, painter, slot
 /// projection) are not exported — they live under `src/viewport/`.
+/// Theme types live under `src/theme/`.
 library;
 
 export 'src/data/catalog_data_source.dart';
@@ -19,6 +20,7 @@ export 'src/data/fake_catalog_data_source.dart';
 export 'src/model/catalog_leaf.dart';
 export 'src/model/catalog_leaf_presentation.dart';
 export 'src/model/catalog_section.dart';
+export 'src/theme/panel_catalog_theme.dart';
 export 'src/viewport/panel_catalog_controller.dart';
 export 'src/viewport/panel_catalog_viewport.dart';
 export 'src/viewport/catalog_section_navigation.dart'

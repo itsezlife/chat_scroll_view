@@ -85,16 +85,20 @@ final class CatalogLeafBindingPool {
 
   /// Syncs attaches to leaf slots intersecting `[top, bottom]` in content y.
   ///
+  /// [pinnedKeys] are kept attached even when outside the window — used during
+  /// far-path stitch so outgoing strip bindings survive the teleport.
+  ///
   /// Slots with `bottom < top` or `top > bottom` relative to the window are
   /// skipped. Already-attached keys that remain visible are kept (no
   /// re-attach). Keys that left the window are [CatalogAssetBinding.detach]ed
-  /// and removed from the map.
+  /// and removed from the map unless listed in [pinnedKeys].
   void syncVisible({
     required List<CatalogLayoutSlot> slots,
     required double top,
     required double bottom,
+    Set<CatalogAssetKey>? pinnedKeys,
   }) {
-    final visibleKeys = <CatalogAssetKey>{};
+    final visibleKeys = <CatalogAssetKey>{...?pinnedKeys};
     for (final slot in slots) {
       if (slot case final CatalogLeafSlot leaf) {
         if (leaf.bottom < top || leaf.top > bottom) continue;

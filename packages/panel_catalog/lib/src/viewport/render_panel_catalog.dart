@@ -1,3 +1,4 @@
+import 'dart:async' show Completer, unawaited;
 import 'dart:math' as math;
 
 import 'package:catalog_assets/catalog_assets.dart';
@@ -8,6 +9,7 @@ import 'package:flutter/widgets.dart';
 import 'package:panel_catalog/src/data/catalog_data_source.dart';
 import 'package:panel_catalog/src/model/catalog_leaf.dart';
 import 'package:panel_catalog/src/model/catalog_leaf_presentation.dart';
+import 'package:panel_catalog/src/viewport/catalog_far_stitch.dart';
 import 'package:panel_catalog/src/viewport/catalog_leaf_binding_pool.dart';
 import 'package:panel_catalog/src/viewport/catalog_leaf_painter.dart';
 import 'package:panel_catalog/src/viewport/catalog_leaf_pointer.dart';
@@ -62,7 +64,9 @@ import 'package:panel_catalog/src/viewport/panel_catalog_controller.dart';
 /// [CatalogLeafBindingPool] attaches [CatalogAssetCache] bindings only for
 /// leaf slots intersecting the visible window (viewport band plus one
 /// [cellExtent] of overscan above and below). Leaves that leave that band
-/// are detached. Readiness changes on attached bindings mark paint dirty so
+/// are detached unless their key is listed in the stitch pin set during
+/// far-path flight ([CatalogFarStitch]) so outgoing strip bindings survive
+/// the teleport. Readiness changes on attached bindings mark paint dirty so
 /// placeholders flip to content without a full catalog reproject.
 ///
 /// Overscan is intentionally one cell row: enough that a short drag does not
@@ -92,11 +96,12 @@ import 'package:panel_catalog/src/viewport/panel_catalog_controller.dart';
 /// [padding.top] (strip inset band). Path selection uses
 /// [isNearPathSectionJump] (`spanCount × [kFarPathDistanceGateFactor]` flat-row
 /// gate plus attached-header shortcut). Near targets animate via
-/// [CatalogNearScroll] (220ms decelerate curve). Far targets use bare
-/// [PanelCatalogController.jumpTo] until far-path stitch ships. User drag /
-/// [jumpTo] / [scrollBy] cancel in-flight near scroll. Motion writes
-/// [PanelCatalogController.correctOffset] only so scroll-by listeners stay
-/// quiet; [PanelCatalogController.isSectionJumpActive] gates host strip sync.
+/// [CatalogNearScroll] (220ms decelerate curve). Far targets use
+/// [CatalogFarStitch] (capture outgoing strip → teleport → dual-translate).
+/// User drag / [jumpTo] / [scrollBy] cancel in-flight near scroll or stitch.
+/// Motion writes [PanelCatalogController.correctOffset] only so scroll-by
+/// listeners stay quiet; [PanelCatalogController.isSectionJumpActive] gates
+/// host strip sync for both paths.
 ///
 /// A pointer-down that cancels an in-flight fling suppresses leaf tap /
 /// long-press for that pointer so stopping the coast does not insert a leaf.
@@ -121,6 +126,8 @@ import 'package:panel_catalog/src/viewport/panel_catalog_controller.dart';
 /// [CatalogLeafPress] and is painted into the leaf
 /// (`0.8 + 0.2 * (1 − progress)`). Drag start and long-press cancel call
 /// press-out. Pointer move that leaves the pressed leaf rect also releases.
+/// List-selector highlight (full cell rect, themed radius/color) tracks the
+/// same press progress without scaling with glyph content.
 ///
 /// ## Lifecycle
 ///
@@ -161,6 +168,11 @@ class RenderPanelCatalog extends RenderBox {
     required EdgeInsets padding,
     required CatalogAssetCacheType cacheType,
     required Color placeholderColor,
+    required Color leafPressHighlightColor,
+    required Color sectionHeaderColor,
+    required Color documentStandInColor,
+    required double leafPressSelectorRadius,
+    required double standInCornerRadius,
     ValueChanged<CatalogLeaf>? onLeafTap,
     void Function(CatalogLeaf leaf, LongPressStartDetails details)?
     onLeafLongPressStart,
@@ -180,7 +192,14 @@ class RenderPanelCatalog extends RenderBox {
        _onLeafLongPressMove = onLeafLongPressMove,
        _onLeafLongPressEnd = onLeafLongPressEnd,
        _leafLongPressEligible = leafLongPressEligible,
-       _painter = CatalogLeafPainter(placeholderColor: placeholderColor) {
+       _painter = CatalogLeafPainter(
+         placeholderColor: placeholderColor,
+         leafPressHighlightColor: leafPressHighlightColor,
+         sectionHeaderColor: sectionHeaderColor,
+         documentStandInColor: documentStandInColor,
+         leafPressSelectorRadius: leafPressSelectorRadius,
+         standInCornerRadius: standInCornerRadius,
+       ) {
     _pool = CatalogLeafBindingPool(
       assetCache: assetCache,
       cacheType: cacheType,
@@ -292,6 +311,36 @@ class RenderPanelCatalog extends RenderBox {
     markNeedsPaint();
   }
 
+  /// List-selector wash on pressed leaf cells. Paint-only — no layout.
+  set leafPressHighlightColor(Color value) {
+    _painter.leafPressHighlightColor = value;
+    markNeedsPaint();
+  }
+
+  /// Corner radius for press highlight on the full cell rect (logical px).
+  set leafPressSelectorRadius(double value) {
+    _painter.leafPressSelectorRadius = value;
+    markNeedsPaint();
+  }
+
+  /// Section header title color. Clears header paragraph cache on change.
+  set sectionHeaderColor(Color value) {
+    _painter.sectionHeaderColor = value;
+    markNeedsPaint();
+  }
+
+  /// Document ready-path stand-in fill. Paint-only — no layout.
+  set documentStandInColor(Color value) {
+    _painter.documentStandInColor = value;
+    markNeedsPaint();
+  }
+
+  /// Corner radius for rounded-rect stand-ins (logical px).
+  set standInCornerRadius(double value) {
+    _painter.standInCornerRadius = value;
+    markNeedsPaint();
+  }
+
   /// Shell tap callback. Rebinding updates the leaf pointer while attached.
   ValueChanged<CatalogLeaf>? _onLeafTap;
   set onLeafTap(ValueChanged<CatalogLeaf>? value) {
@@ -352,6 +401,18 @@ class RenderPanelCatalog extends RenderBox {
 
   /// Near-path section jump animation; null after [detach] / [dispose].
   CatalogNearScroll? _nearScroll;
+
+  /// Far-path stitch animation; null after [detach] / [dispose].
+  CatalogFarStitch? _farStitch;
+
+  /// Outgoing strip captured before stitch teleport (viewport-local geometry).
+  List<CatalogStitchCapturedSlot> _stitchOutgoing = const [];
+
+  /// Outgoing leaf bindings pinned for the stitch flight.
+  Set<CatalogAssetKey> _stitchPinnedKeys = const {};
+
+  /// Completes when the in-flight far stitch settles or is cancelled.
+  Completer<void>? _stitchFlightCompleter;
 
   /// Shared [TickerProvider] for press animation and fling ticks while attached.
   CatalogPressTickerProvider? _pressTickers;
@@ -439,6 +500,12 @@ class RenderPanelCatalog extends RenderBox {
   /// Whether a near-path section jump animation is driving offset.
   bool get isSectionJumpAnimating => _nearScroll?.isActive ?? false;
 
+  /// Whether a far-path stitch flight is active (post-teleport dual-translate).
+  bool get isFarStitchActive => _farStitch?.isActive ?? false;
+
+  /// Eased stitch progress in `[0, 1]` while [isFarStitchActive]; `0` when idle.
+  double get farStitchProgress => _farStitch?.progress ?? 0;
+
   /// Resolves the [CatalogLeaf] under [localPosition], or `null` when the
   /// point lies on a header, padding, or empty band.
   ///
@@ -516,13 +583,13 @@ class RenderPanelCatalog extends RenderBox {
 
   /// Cancels near scroll + fling, then runs the navigation path.
   void _onJump(double pixels) {
-    _cancelNearScroll();
+    _cancelSectionJumpMotion();
     _cancelFling();
     _onNavigation();
   }
 
   void _onScrollBy(double delta) {
-    _cancelNearScroll();
+    _cancelSectionJumpMotion();
     _onNavigation();
   }
 
@@ -530,10 +597,10 @@ class RenderPanelCatalog extends RenderBox {
     _handleSectionJump(sectionIndex);
   }
 
-  // --- Section jump (near-path animate; far interim jumpTo) -----------------
+  // --- Section jump (near-path animate; far-path stitch) --------------------
 
-  /// Path-selects near smooth scroll vs interim far [jumpTo], then completes
-  /// the pending [PanelCatalogController.jumpToSection] future.
+  /// Path-selects near smooth scroll vs far stitch, then completes the pending
+  /// [PanelCatalogController.jumpToSection] future.
   Future<void> _handleSectionJump(int sectionIndex) async {
     final sections = _dataSource.sections;
     if (sectionIndex < 0 || sectionIndex >= sections.length) {
@@ -548,7 +615,7 @@ class RenderPanelCatalog extends RenderBox {
     }
 
     _cancelFling();
-    _cancelNearScroll();
+    _cancelSectionJumpMotion();
 
     final targetOffset = scrollOffsetForSectionHeader(
       sectionIndex: sectionIndex,
@@ -579,10 +646,10 @@ class RenderPanelCatalog extends RenderBox {
     );
 
     if (!near) {
-      // Far-path stitch replaces this bare jump when stitch lands.
-      _controller.jumpTo(targetOffset);
-      _controller.setSectionJumpActive(false);
-      _controller.completePendingSectionJump(sectionIndex: sectionIndex);
+      await _runFarStitch(
+        sectionIndex: sectionIndex,
+        targetOffset: targetOffset,
+      );
       return;
     }
 
@@ -623,6 +690,135 @@ class RenderPanelCatalog extends RenderBox {
     }
   }
 
+  /// Cancels an in-flight far-path stitch and completes the pending section jump.
+  void _cancelFarStitch({int? forSectionIndex}) {
+    final wasActive = _farStitch?.isActive ?? false;
+    _farStitch?.cancel();
+    if (wasActive) {
+      _clearStitchCapture();
+      final completer = _stitchFlightCompleter;
+      _stitchFlightCompleter = null;
+      completer?.complete();
+      _controller.setSectionJumpActive(false);
+      _controller.completePendingSectionJump(sectionIndex: forSectionIndex);
+    }
+  }
+
+  /// Cancels near-path scroll and far-path stitch programmatic motion.
+  void _cancelSectionJumpMotion({int? forSectionIndex}) {
+    _cancelNearScroll(forSectionIndex: forSectionIndex);
+    _cancelFarStitch(forSectionIndex: forSectionIndex);
+  }
+
+  /// Runs far-path stitch: capture → teleport → measure → dual-translate.
+  ///
+  /// When [_farStitch] is null (detached tickers), falls back to silent
+  /// [PanelCatalogController.correctOffset] only. When the outgoing capture
+  /// is empty, still runs an incoming-only stitch flight (destination band
+  /// slides in from off-screen) rather than showing the teleported catalog
+  /// at rest for one frame.
+  Future<void> _runFarStitch({
+    required int sectionIndex,
+    required double targetOffset,
+  }) async {
+    final farStitch = _farStitch;
+    if (farStitch == null) {
+      _controller.correctOffset(targetOffset);
+      _onNavigation();
+      _controller.setSectionJumpActive(false);
+      _controller.completePendingSectionJump(sectionIndex: sectionIndex);
+      return;
+    }
+
+    final fromOffset = _controller.offset;
+    final towardNewer = targetOffset > fromOffset;
+
+    _stitchOutgoing = captureCatalogStitchOutgoing(
+      slots: _slots,
+      scrollOffset: fromOffset,
+      viewportHeight: size.height,
+    );
+    _stitchPinnedKeys = catalogStitchOutgoingLeafKeys(_stitchOutgoing);
+
+    _controller.setSectionJumpActive(true);
+    final flight = Completer<void>();
+    _stitchFlightCompleter = flight;
+    farStitch.begin(towardNewer: towardNewer);
+    _controller.correctOffset(targetOffset);
+    _clampOffset();
+    _syncVisibleBindings();
+    _beginStitchMeasureIfNeeded();
+    markNeedsLayout();
+    markNeedsPaint();
+
+    try {
+      await flight.future;
+      _clampOffset();
+      _syncVisibleBindings();
+      markNeedsPaint();
+    } finally {
+      _clearStitchCapture();
+      _controller.setSectionJumpActive(false);
+      _controller.completePendingSectionJump(sectionIndex: sectionIndex);
+      if (identical(_stitchFlightCompleter, flight)) {
+        _stitchFlightCompleter = null;
+      }
+    }
+  }
+
+  /// Drops stitch capture state after settle or cancel.
+  void _clearStitchCapture() {
+    _stitchOutgoing = const [];
+    _stitchPinnedKeys = const {};
+  }
+
+  /// After stitch teleport layout, measures travel and starts progress animation.
+  ///
+  /// Idempotent once [CatalogFarStitch.measured] is true. Also invoked
+  /// synchronously from [_runFarStitch] so the first post-teleport paint can
+  /// apply provisional incoming off-screen offsets without waiting another frame.
+  void _beginStitchMeasureIfNeeded() {
+    final farStitch = _farStitch;
+    if (farStitch == null ||
+        !farStitch.isActive ||
+        !farStitch.jumped ||
+        farStitch.measured) {
+      return;
+    }
+    if (!hasSize) return;
+
+    final (top, bottom) = _visibleWindow();
+    final incomingVisible = [
+      for (final slot in _slots)
+        if (slot.bottom >= top && slot.top <= bottom) slot,
+    ];
+    final travel = measureCatalogStitchTravel(
+      outgoing: _stitchOutgoing,
+      incomingVisible: incomingVisible,
+      towardNewer: farStitch.towardNewer,
+      scrollOffset: _controller.offset,
+      viewportHeight: size.height,
+    );
+
+    unawaited(
+      farStitch
+          .applyMeasure(
+            scrollLength: travel,
+            viewportHeight: size.height,
+          )
+          .then((_) {
+            if (!attached) return;
+            _clearStitchCapture();
+            _clampOffset();
+            _syncVisibleBindings();
+            markNeedsPaint();
+            final completer = _stitchFlightCompleter;
+            _stitchFlightCompleter = null;
+            completer?.complete();
+          }),
+    );
+  }
+
   /// Silently writes [PanelCatalogController.offset] into `[0, maxOffset]`.
   ///
   /// No-op before [hasSize] (cannot know viewport height). Uses
@@ -652,6 +848,10 @@ class RenderPanelCatalog extends RenderBox {
         markNeedsPaint();
       },
     );
+    _farStitch = CatalogFarStitch(
+      vsync: _pressTickers!,
+      onTick: markNeedsPaint,
+    );
     _drag = VerticalDragGestureRecognizer()
       ..onStart = _onDragStart
       ..onUpdate = _onDragUpdate
@@ -668,11 +868,15 @@ class RenderPanelCatalog extends RenderBox {
     _dataSource.removeDataListener(_onDataChanged);
     _unbindController(_controller);
     _clearPressPointerRoute();
-    _cancelNearScroll();
+    _cancelSectionJumpMotion();
     _cancelFling();
     _flingTicker = null;
     _nearScroll?.dispose();
     _nearScroll = null;
+    _farStitch?.dispose();
+    _farStitch = null;
+    _clearStitchCapture();
+    _stitchFlightCompleter = null;
     _flingCancelSuppressesLeaf = false;
     _flingCancelPointer = null;
     _drag?.dispose();
@@ -690,11 +894,15 @@ class RenderPanelCatalog extends RenderBox {
   @override
   void dispose() {
     _clearPressPointerRoute();
-    _cancelNearScroll();
+    _cancelSectionJumpMotion();
     _cancelFling();
     _flingTicker = null;
     _nearScroll?.dispose();
     _nearScroll = null;
+    _farStitch?.dispose();
+    _farStitch = null;
+    _clearStitchCapture();
+    _stitchFlightCompleter = null;
     _flingCancelSuppressesLeaf = false;
     _flingCancelPointer = null;
     _drag?.dispose();
@@ -748,14 +956,19 @@ class RenderPanelCatalog extends RenderBox {
   /// Reconciles [CatalogLeafBindingPool] attaches to the current [_visibleWindow].
   void _syncVisibleBindings() {
     final (top, bottom) = _visibleWindow();
-    _pool.syncVisible(slots: _slots, top: top, bottom: bottom);
+    _pool.syncVisible(
+      slots: _slots,
+      top: top,
+      bottom: bottom,
+      pinnedKeys: _stitchPinnedKeys.isEmpty ? null : _stitchPinnedKeys,
+    );
   }
 
   // --- Scroll — drag --------------------------------------------------------
 
   /// Cancels fling and press before a new drag gesture owns the pointer.
   void _onDragStart(DragStartDetails details) {
-    _cancelNearScroll();
+    _cancelSectionJumpMotion();
     _cancelFling();
     _clearPressPointerRoute();
     _press?.pressOut();
@@ -939,6 +1152,7 @@ class RenderPanelCatalog extends RenderBox {
     size = constraints.constrain(Size(maxWidth, maxHeight));
     _clampOffset();
     _syncVisibleBindings();
+    _beginStitchMeasureIfNeeded();
   }
 
   // --- Hit-test and pointer routing -----------------------------------------
@@ -1002,6 +1216,9 @@ class RenderPanelCatalog extends RenderBox {
 
   /// Clips to the viewport, translates by `−offset`, paints intersecting slots.
   ///
+  /// During far-path stitch, paints captured outgoing strip and incoming band
+  /// with dual-translate dy instead of the normal single-pass loop.
+  ///
   /// Paint culling uses the same visible window as binding sync (including
   /// overscan). A slot may be bound but still skipped here if it sits only
   /// in the overscan fringe and the cull band is evaluated equivalently —
@@ -1015,39 +1232,163 @@ class RenderPanelCatalog extends RenderBox {
     canvas.clipRect(offset & size);
 
     final scroll = _controller.offset;
-    // Shift content so content-y `scroll` aligns with viewport top.
     final contentOrigin = offset.translate(0, -scroll);
     final (top, bottom) = _visibleWindow();
     final pressed = _press?.pressedLeaf;
     final pressScale = _press?.scale ?? 1.0;
+    final pressProgress = _press?.progress ?? 0.0;
+
+    final farStitch = _farStitch;
+    switch (farStitch) {
+      case final stitch? when stitch.isActive && stitch.jumped:
+        _paintStitchFlight(
+          canvas: canvas,
+          viewportOrigin: offset,
+          contentOrigin: contentOrigin,
+          visibleTop: top,
+          visibleBottom: bottom,
+          farStitch: stitch,
+          pressed: pressed,
+          pressScale: pressScale,
+          pressProgress: pressProgress,
+        );
+        canvas.restore();
+        return;
+      default:
+        break;
+    }
 
     for (final slot in _slots) {
       if (slot.bottom < top || slot.top > bottom) continue;
-      switch (slot) {
-        case final CatalogHeaderSlot header:
-          _painter.paintHeader(
+      _paintLayoutSlot(
+        canvas: canvas,
+        origin: contentOrigin,
+        slot: slot,
+        pressed: pressed,
+        pressScale: pressScale,
+        pressProgress: pressProgress,
+      );
+    }
+
+    canvas.restore();
+  }
+
+  /// Paints one projected [CatalogLayoutSlot] at [origin] (content coordinates).
+  void _paintLayoutSlot({
+    required Canvas canvas,
+    required Offset origin,
+    required CatalogLayoutSlot slot,
+    required CatalogLeaf? pressed,
+    required double pressScale,
+    required double pressProgress,
+  }) {
+    switch (slot) {
+      case final CatalogHeaderSlot header:
+        _painter.paintHeader(
+          canvas: canvas,
+          origin: origin,
+          header: header,
+          contentWidth: size.width,
+          padding: _padding,
+        );
+      case final CatalogLeafSlot leaf:
+        final isPressed = switch (pressed) {
+          final p? when leaf.leaf.assetKey == p.assetKey => true,
+          _ => false,
+        };
+        _painter.paintLeaf(
+          canvas: canvas,
+          origin: origin,
+          slot: leaf,
+          presentation: _pool.presentationFor(leaf.leaf),
+          pressScale: isPressed ? pressScale : 1.0,
+          pressProgress: isPressed ? pressProgress : 0,
+        );
+    }
+  }
+
+  /// Dual-translate paint for an in-flight far-path stitch.
+  ///
+  /// Outgoing capture paints in **viewport** space (`viewportOrigin + dy`).
+  /// Incoming visible slots paint in **content** space (`contentOrigin + dy`).
+  /// Before [CatalogFarStitch.measured], incoming uses [provisionalTravel]
+  /// fully off-screen; outgoing uses the same travel with progress `0`.
+  void _paintStitchFlight({
+    required Canvas canvas,
+    required Offset viewportOrigin,
+    required Offset contentOrigin,
+    required double visibleTop,
+    required double visibleBottom,
+    required CatalogFarStitch farStitch,
+    required CatalogLeaf? pressed,
+    required double pressScale,
+    required double pressProgress,
+  }) {
+    final towardNewer = farStitch.towardNewer;
+    final measured = farStitch.measured;
+    final travel = farStitch.scrollLength;
+    final progress = farStitch.progress;
+    final provisionalTravel = size.height;
+
+    for (final captured in _stitchOutgoing) {
+      final dy = catalogStitchOutgoingPaintDy(
+        towardNewer: towardNewer,
+        travel: measured ? travel : provisionalTravel,
+        progress: measured ? progress : 0,
+      );
+      final bandOrigin = viewportOrigin.translate(0, captured.viewportTop + dy);
+      switch (captured) {
+        case CatalogStitchCapturedHeader(:final title, :final height):
+          _paintLayoutSlot(
             canvas: canvas,
-            origin: contentOrigin,
-            header: header,
-            contentWidth: size.width,
-            padding: _padding,
+            origin: bandOrigin,
+            slot: CatalogHeaderSlot(top: 0, height: height, title: title),
+            pressed: pressed,
+            pressScale: pressScale,
+            pressProgress: pressProgress,
           );
-        case final CatalogLeafSlot leaf:
-          final scale = switch (pressed) {
-            final p? when leaf.leaf.assetKey == p.assetKey => pressScale,
-            _ => 1.0,
-          };
-          _painter.paintLeaf(
+        case CatalogStitchCapturedLeaf(
+          :final left,
+          :final width,
+          :final height,
+          :final leaf,
+        ):
+          _paintLayoutSlot(
             canvas: canvas,
-            origin: contentOrigin,
-            slot: leaf,
-            presentation: _pool.presentationFor(leaf.leaf),
-            pressScale: scale,
+            origin: bandOrigin,
+            slot: CatalogLeafSlot(
+              top: 0,
+              height: height,
+              left: left,
+              width: width,
+              leaf: leaf,
+            ),
+            pressed: pressed,
+            pressScale: pressScale,
+            pressProgress: pressProgress,
           );
       }
     }
 
-    canvas.restore();
+    for (final slot in _slots) {
+      if (slot.bottom < visibleTop || slot.top > visibleBottom) continue;
+      if (catalogStitchSlotIsOutgoing(slot, _stitchOutgoing)) continue;
+      final dy = catalogStitchIncomingPaintDy(
+        towardNewer: towardNewer,
+        travel: travel,
+        progress: progress,
+        measured: measured,
+        provisionalTravel: provisionalTravel,
+      );
+      _paintLayoutSlot(
+        canvas: canvas,
+        origin: contentOrigin.translate(0, dy),
+        slot: slot,
+        pressed: pressed,
+        pressScale: pressScale,
+        pressProgress: pressProgress,
+      );
+    }
   }
 
   // --- Debug ----------------------------------------------------------------
@@ -1060,6 +1401,9 @@ class RenderPanelCatalog extends RenderBox {
       ..add(DoubleProperty('offset', _controller.offset))
       ..add(DoubleProperty('maxOffset', hasSize ? maxOffset : null))
       ..add(IntProperty('attachedLeaves', attachedLeafCount))
-      ..add(FlagProperty('isFlinging', value: isFlinging, ifTrue: 'flinging'));
+      ..add(FlagProperty('isFlinging', value: isFlinging, ifTrue: 'flinging'))
+      ..add(
+        FlagProperty('isFarStitchActive', value: isFarStitchActive, ifTrue: 'stitch'),
+      );
   }
 }

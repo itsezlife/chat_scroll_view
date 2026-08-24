@@ -1,7 +1,8 @@
 import 'package:catalog_assets/catalog_assets.dart';
-import 'package:flutter/widgets.dart';
+import 'package:flutter/material.dart';
 import 'package:panel_catalog/src/data/catalog_data_source.dart';
 import 'package:panel_catalog/src/model/catalog_leaf.dart';
+import 'package:panel_catalog/src/theme/panel_catalog_theme.dart';
 import 'package:panel_catalog/src/viewport/panel_catalog_controller.dart';
 import 'package:panel_catalog/src/viewport/render_panel_catalog.dart';
 
@@ -29,11 +30,13 @@ import 'package:panel_catalog/src/viewport/render_panel_catalog.dart';
 /// the render object clamps with [PanelCatalogController.correctOffset].
 /// [PanelCatalogController.jumpToSection] lands a section header under
 /// [padding.top] via near-path smooth scroll when the far-path distance gate
-/// passes (`spanCount × [kFarPathDistanceGateFactor]` flat-row rule). Drag-end
-/// with enough velocity starts a ballistic fling; pointer-down while flinging
-/// cancels the coast and suppresses leaf tap/long-press for that pointer. User
-/// drag cancels an in-flight section jump. [PanelCatalogController.isSectionJumpActive]
-/// is `true` during programmatic section motion so hosts can suppress strip sync.
+/// passes (`spanCount × [kFarPathDistanceGateFactor]` flat-row rule), or via
+/// far-path [CatalogFarStitch] when the gate fails. Drag-end with enough
+/// velocity starts a ballistic fling; pointer-down while flinging cancels the
+/// coast and suppresses leaf tap/long-press for that pointer. User drag
+/// cancels an in-flight near-path scroll or far-path stitch.
+/// [PanelCatalogController.isSectionJumpActive] is `true` during programmatic
+/// section motion so hosts can suppress strip sync.
 /// Asset bindings attach only for leaves in the visible window plus
 /// one [cellExtent] of overscan; readiness flips mark paint dirty without a
 /// full catalog reproject.
@@ -44,9 +47,17 @@ import 'package:panel_catalog/src/viewport/render_panel_catalog.dart';
 /// content geometry (not per-cell [GestureDetector] / [InkWell]). Optional
 /// [onLeafTap] / long-press callbacks forward leaf identity to the catalog
 /// shell. [leafLongPressEligible] optionally limits which leaves register a
-/// long-press recognizer (ineligible leaves stay tap-only). Press scale is
-/// painted on the leaf (`0.8 + 0.2 * (1 − progress)`). A fling-cancel tap
-/// does not insert a leaf.
+/// long-press recognizer (ineligible leaves stay tap-only). Press feedback is
+/// painted from [PanelCatalogTheme] — scale on glyph content, list-selector
+/// highlight on the full cell rect. A fling-cancel tap does not insert a leaf.
+///
+/// ## Theme
+///
+/// Paint tokens (placeholder fill, press highlight, selector corner radius)
+/// come from [PanelCatalogTheme.of] — wrap the subtree in [PanelCatalogTheme]
+/// with [PanelCatalogThemeData]. Use [PanelCatalogThemeData.lerp] when animating
+/// palette changes. The viewport resolves density-scaled selector radius on
+/// each build; no per-widget color ctor args.
 class PanelCatalogViewport extends LeafRenderObjectWidget {
   /// Creates an extent-scroll catalog body backed by [dataSource],
   /// [assetCache], and [controller].
@@ -68,7 +79,6 @@ class PanelCatalogViewport extends LeafRenderObjectWidget {
     this.headerExtent = 32,
     this.padding = EdgeInsets.zero,
     this.cacheType = CatalogAssetCacheType.keyboard,
-    this.placeholderColor = const Color(0x10000000),
     this.onLeafTap,
     this.onLeafLongPressStart,
     this.onLeafLongPressMove,
@@ -144,14 +154,6 @@ class PanelCatalogViewport extends LeafRenderObjectWidget {
   /// sync.
   final CatalogAssetCacheType cacheType;
 
-  /// Fill for unicode circle placeholders and related stand-ins
-  /// (thumb-first / wash / failed rounded rects).
-  ///
-  /// Paint-only: changing color marks paint dirty without reprojecting slots.
-  /// Circle radius still uses `kCirclePlaceholderRadiusFactor` against glyph
-  /// draw bounds — not the full cell pitch.
-  final Color placeholderColor;
-
   /// Shell tap when the user selects a leaf.
   ///
   /// Null disables tap recognition (scroll drag still works). Header and
@@ -188,6 +190,8 @@ class PanelCatalogViewport extends LeafRenderObjectWidget {
 
   @override
   RenderPanelCatalog createRenderObject(BuildContext context) {
+    final theme = PanelCatalogTheme.of(context);
+    final dpr = MediaQuery.devicePixelRatioOf(context);
     return RenderPanelCatalog(
       dataSource: dataSource,
       assetCache: assetCache,
@@ -197,7 +201,12 @@ class PanelCatalogViewport extends LeafRenderObjectWidget {
       headerExtent: headerExtent,
       padding: padding,
       cacheType: cacheType,
-      placeholderColor: placeholderColor,
+      placeholderColor: theme.placeholderColor,
+      leafPressHighlightColor: theme.leafPressHighlightColor,
+      sectionHeaderColor: theme.sectionHeaderColor,
+      documentStandInColor: theme.documentStandInColor,
+      leafPressSelectorRadius: theme.selectorRadiusLogicalPx(dpr),
+      standInCornerRadius: theme.standInCornerRadius,
       onLeafTap: onLeafTap,
       onLeafLongPressStart: onLeafLongPressStart,
       onLeafLongPressMove: onLeafLongPressMove,
@@ -211,6 +220,8 @@ class PanelCatalogViewport extends LeafRenderObjectWidget {
     BuildContext context,
     RenderPanelCatalog renderObject,
   ) {
+    final theme = PanelCatalogTheme.of(context);
+    final dpr = MediaQuery.devicePixelRatioOf(context);
     renderObject
       ..dataSource = dataSource
       ..assetCache = assetCache
@@ -220,7 +231,12 @@ class PanelCatalogViewport extends LeafRenderObjectWidget {
       ..headerExtent = headerExtent
       ..padding = padding
       ..cacheType = cacheType
-      ..placeholderColor = placeholderColor
+      ..placeholderColor = theme.placeholderColor
+      ..leafPressHighlightColor = theme.leafPressHighlightColor
+      ..sectionHeaderColor = theme.sectionHeaderColor
+      ..documentStandInColor = theme.documentStandInColor
+      ..leafPressSelectorRadius = theme.selectorRadiusLogicalPx(dpr)
+      ..standInCornerRadius = theme.standInCornerRadius
       ..onLeafTap = onLeafTap
       ..onLeafLongPressStart = onLeafLongPressStart
       ..onLeafLongPressMove = onLeafLongPressMove

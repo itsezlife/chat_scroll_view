@@ -3,6 +3,8 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:panel_catalog/panel_catalog.dart';
+import 'package:panel_catalog/src/viewport/catalog_section_navigation.dart';
+import 'package:panel_catalog/src/viewport/catalog_slot_projection.dart';
 import 'package:panel_catalog/src/viewport/render_panel_catalog.dart';
 
 Widget _harness({
@@ -25,24 +27,27 @@ Widget _harness({
   bool Function(CatalogLeaf leaf)? leafLongPressEligible,
 }) {
   return MaterialApp(
-    home: Scaffold(
-      body: Center(
-        child: SizedBox(
-          width: width,
-          height: height,
-          child: PanelCatalogViewport(
-            dataSource: dataSource,
-            assetCache: assetCache,
-            controller: controller,
-            spanCount: spanCount,
-            cellExtent: cellExtent,
-            headerExtent: headerExtent,
-            padding: padding,
-            onLeafTap: onLeafTap,
-            onLeafLongPressStart: onLeafLongPressStart,
-            onLeafLongPressMove: onLeafLongPressMove,
-            onLeafLongPressEnd: onLeafLongPressEnd,
-            leafLongPressEligible: leafLongPressEligible,
+    home: PanelCatalogTheme(
+      data: PanelCatalogThemeData.light,
+      child: Scaffold(
+        body: Center(
+          child: SizedBox(
+            width: width,
+            height: height,
+            child: PanelCatalogViewport(
+              dataSource: dataSource,
+              assetCache: assetCache,
+              controller: controller,
+              spanCount: spanCount,
+              cellExtent: cellExtent,
+              headerExtent: headerExtent,
+              padding: padding,
+              onLeafTap: onLeafTap,
+              onLeafLongPressStart: onLeafLongPressStart,
+              onLeafLongPressMove: onLeafLongPressMove,
+              onLeafLongPressEnd: onLeafLongPressEnd,
+              leafLongPressEligible: leafLongPressEligible,
+            ),
           ),
         ),
       ),
@@ -592,6 +597,7 @@ void main() {
     await tester.pump();
     expect(controller.isSectionJumpActive, isTrue);
     expect(_render(tester).isSectionJumpAnimating, isTrue);
+    expect(_render(tester).isFarStitchActive, isFalse);
     expect(controller.offset, isNot(expectedOffset));
 
     await tester.pumpAndSettle();
@@ -621,10 +627,12 @@ void main() {
     final future = controller.jumpToSection(2);
     await tester.pump();
     expect(_render(tester).isSectionJumpAnimating, isTrue);
+    expect(_render(tester).isFarStitchActive, isFalse);
 
     await tester.pumpAndSettle();
     await future;
     expect(_render(tester).isSectionJumpAnimating, isFalse);
+    expect(_render(tester).isFarStitchActive, isFalse);
   });
 
   testWidgets('user drag cancels in-flight section jump', (tester) async {
@@ -669,4 +677,119 @@ void main() {
     await tester.pumpAndSettle();
     expect(controller.offset, before);
   });
+
+  testWidgets('far-path jumpToSection stitches instead of bare jump', (
+    tester,
+  ) async {
+    dataSource.replaceSections(_sections(20, leavesPerSection: 16));
+
+    const viewportHeight = 240.0;
+    const spanCount = 4;
+    const cellExtent = 40.0;
+    const headerExtent = 24.0;
+    const padding = EdgeInsets.zero;
+
+    await tester.pumpWidget(
+      _harness(
+        dataSource: dataSource,
+        assetCache: assetCache,
+        controller: controller,
+        height: viewportHeight,
+        spanCount: spanCount,
+        cellExtent: cellExtent,
+        headerExtent: headerExtent,
+        padding: padding,
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    const targetSection = 19;
+    final projection = projectCatalogSlots(
+      sections: dataSource.sections,
+      spanCount: spanCount,
+      cellExtent: cellExtent,
+      headerExtent: headerExtent,
+      padding: padding,
+      maxWidth: 320,
+    );
+    final expectedOffset = scrollOffsetForSectionHeader(
+      sectionIndex: targetSection,
+      sections: dataSource.sections,
+      spanCount: spanCount,
+      cellExtent: cellExtent,
+      headerExtent: headerExtent,
+      padding: padding,
+    ).clamp(0.0, projection.contentExtent - viewportHeight);
+
+    expect(
+      isNearPathSectionJump(
+        targetSectionIndex: targetSection,
+        sections: dataSource.sections,
+        spanCount: spanCount,
+        cellExtent: cellExtent,
+        headerExtent: headerExtent,
+        padding: padding,
+        scrollOffset: controller.offset,
+        viewportHeight: viewportHeight,
+      ),
+      isFalse,
+      reason: 'fixture must select far path behind span×9 gate',
+    );
+
+    final future = controller.jumpToSection(targetSection);
+    await tester.pump();
+
+    expect(controller.isSectionJumpActive, isTrue);
+    expect(_render(tester).isFarStitchActive, isTrue);
+    expect(_render(tester).isSectionJumpAnimating, isFalse);
+    expect(controller.offset, expectedOffset);
+
+    await tester.pump(const Duration(milliseconds: 50));
+    expect(_render(tester).farStitchProgress, greaterThan(0));
+    expect(_render(tester).farStitchProgress, lessThan(1));
+
+    await _driveSectionJump(tester, future);
+
+    expect(controller.offset, expectedOffset);
+    expect(controller.isSectionJumpActive, isFalse);
+    expect(_render(tester).isFarStitchActive, isFalse);
+  });
+
+  testWidgets('user drag cancels in-flight far-path stitch', (tester) async {
+    dataSource.replaceSections(_sections(20, leavesPerSection: 16));
+
+    await tester.pumpWidget(
+      _harness(
+        dataSource: dataSource,
+        assetCache: assetCache,
+        controller: controller,
+        height: 240,
+        spanCount: 4,
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final future = controller.jumpToSection(19);
+    await tester.pump();
+    expect(_render(tester).isFarStitchActive, isTrue);
+
+    await tester.drag(find.byType(PanelCatalogViewport), const Offset(0, 80));
+    await tester.pumpAndSettle();
+
+    expect(controller.isSectionJumpActive, isFalse);
+    expect(_render(tester).isFarStitchActive, isFalse);
+    await future;
+  });
+}
+
+Future<void> _driveSectionJump(
+  WidgetTester tester,
+  Future<void> future, {
+  int maxPumps = 200,
+}) async {
+  await tester.pump();
+  for (var i = 0; i < maxPumps; i++) {
+    await tester.pump(const Duration(milliseconds: 16));
+  }
+  await future;
 }

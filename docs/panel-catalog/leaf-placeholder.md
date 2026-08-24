@@ -57,11 +57,20 @@ unicode emoji cells.
 
 ## Flutter mapping (Panel Catalog)
 
+| Role | Flutter |
+| ---- | ------- |
+| Circle placeholder fill | [PanelCatalogThemeData.placeholderColor] (default `0x10000000` light) |
+| Press list-selector | [PanelCatalogThemeData.leafPressHighlightColor] on full cell rect |
+| Press selector corner | [PanelCatalogThemeData.selectorRadiusLogicalPx] (`nominalDp × DPR`) |
+| Section header title | [PanelCatalogThemeData.sectionHeaderColor] |
+| RRect stand-in corner | [PanelCatalogThemeData.standInCornerRadius] (default `6`) |
+| Document ready-path stub | [PanelCatalogThemeData.documentStandInColor] |
+
 | Leaf kind | Leaf presentation while loading |
 | --------- | -------------------------------- |
-| Unicode / bitmap glyph | Circle placeholder (Telegram `EmojiDrawable`) |
+| Unicode / bitmap glyph | Circle placeholder |
 | Document-backed animated | Thumb-first (SVG/static), then drawable |
-| Sticker | Shaped loading wash (`LoadingStickerDrawable`) |
+| Sticker | Shaped loading wash |
 
 Viewport paints the matching placeholder mode; catalog data source owns fetch
-and readiness notify.
+and readiness notify. Hosts scope tokens with [PanelCatalogTheme].

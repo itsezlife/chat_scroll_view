@@ -166,9 +166,9 @@ final class PanelCatalogController {
   /// the in-flight [Future]. A different index cancels the prior jump and
   /// starts anew.
   ///
-  /// Near targets animate continuously; far targets use far-path navigation
-  /// (bare [jumpTo] until stitch lands). User drag cancels an in-flight
-  /// near-path animation.
+  /// Near targets animate continuously; far targets use [CatalogFarStitch]
+  /// (capture → teleport → dual-translate). User drag cancels an in-flight
+  /// near-path animation or far-path stitch.
   ///
   /// After dispose, returns an immediately-completed future.
   Future<void> jumpToSection(int sectionIndex) {

@@ -84,6 +84,14 @@ _Avoid_: Registering long-press on all cells and no-oping in the callback (loses
 When the user touches down while a ballistic fling is coasting, the viewport cancels the coast and suppresses leaf tap and long-press for **that pointer only** so stopping scroll does not insert or open a picker. The next deliberate tap/long-press on a still leaf works normally.
 _Avoid_: Per-cell fling guards, treating fling-cancel as a global “gestures off” mode
 
+**Leaf press chrome**:
+Paint feedback on pointer-down: glyph scale (`0.8 + 0.2 × (1 − progress)`) plus list-selector highlight on the **full cell rect**. Tokens live in **Panel catalog theme** ([PanelCatalogThemeData] via [PanelCatalogTheme]).
+_Avoid_: Per-cell Material/InkWell as the default, prop-drilling colors onto [PanelCatalogViewport]
+
+**Panel catalog theme**:
+Package-owned inherited paint tokens for the viewport: placeholder fill, list-selector press highlight, section header color, stand-in corner radius, document ready-path stub fill, density-scaled press-selector corner. [PanelCatalogTheme] scopes [PanelCatalogThemeData]; [PanelCatalogThemeData.lerp] supports animated palette transitions.
+_Avoid_: [ThemeData.extensions] for catalog paint, per-viewport color ctor args
+
 **Leaf presentation**:
 How one catalog cell appears: ready content, a kind-specific loading placeholder, or failed.
 _Avoid_: One generic “shimmer” for every leaf kind, ChatMessageStatus, Absent, navigation load-gate for ordinary pack/section jumps

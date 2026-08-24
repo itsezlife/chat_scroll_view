@@ -8,14 +8,29 @@ is pre-1.0.
 
 ### Added
 
+- **`PanelCatalogTheme`** + **`PanelCatalogThemeData`** — inherited theme for
+  all catalog paint tokens (placeholder, press highlight, section header,
+  stand-in corner radius, document stub fill). [PanelCatalogThemeData.lerp]
+  for transitions.
+- Painted **list-selector highlight** on pressed leaf cells (full cell rect,
+  opacity ∝ press progress) alongside existing glyph scale.
+- **`PanelCatalogThemeData`** extended with `sectionHeaderColor`,
+  `documentStandInColor`, `standInCornerRadius` — all catalog paint colors
+  now resolve from inherited theme (no hardcoded painter literals).
 - **`PanelCatalogController.jumpToSection`** — programmatic section landing
   under viewport top inset with near-path smooth scroll when the far-path
   distance gate passes (`spanCount × 9` flat-row rule,
-  [kFarPathDistanceGateFactor]). Exposes [isSectionJumpActive] for host
-  strip-sync gating during programmatic motion.
+  [kFarPathDistanceGateFactor]) and far-path [CatalogFarStitch] (capture →
+  teleport → dual-translate) when the gate fails. Exposes
+  [isSectionJumpActive] for host strip-sync gating during programmatic motion.
 - **`leafLongPressEligible`** on [PanelCatalogViewport] — per-leaf gate for
   registering the long-press recognizer. Ineligible leaves stay tap-only so
   plain glyphs do not lose tap after the long-press timeout.
+
+### Changed
+
+- **`PanelCatalogViewport.placeholderColor` removed** — use
+  [PanelCatalogThemeData.placeholderColor] via [PanelCatalogTheme] instead.
 
 ## [0.1.0] - 2026-08-25
 
