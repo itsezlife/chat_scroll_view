@@ -519,6 +519,22 @@ class RenderPanelCatalog extends RenderBox {
   /// Eased stitch progress in `[0, 1]` while [isFarStitchActive]; `0` when idle.
   double get farStitchProgress => _farStitch?.progress ?? 0;
 
+  /// Wall time of the last [performLayout] (project + size + bind sync).
+  ///
+  /// Test / diagnostics seam — not part of the host contract. Updated every
+  /// layout pass (always-on wall clock, not assert-gated). `Duration.zero`
+  /// before the first layout.
+  @visibleForTesting
+  Duration debugLastLayoutDuration = Duration.zero;
+
+  /// Wall time of the last [paint] (clip + leaf/header draw, or stitch flight).
+  ///
+  /// Test / diagnostics seam — not part of the host contract. Updated every
+  /// paint (always-on wall clock, not assert-gated). `Duration.zero` before
+  /// the first paint.
+  @visibleForTesting
+  Duration debugLastPaintDuration = Duration.zero;
+
   /// Resolves the [CatalogLeaf] under [localPosition], or `null` when the
   /// point lies on a header, padding, or empty band.
   ///
@@ -1328,8 +1344,11 @@ class RenderPanelCatalog extends RenderBox {
   /// Unbounded width falls back to [computeMinIntrinsicWidth]. Unbounded
   /// height constrains against the last-known [_contentExtent] (may be `0`
   /// on the first pass before project).
+  ///
+  /// Records [debugLastLayoutDuration] each pass.
   @override
   void performLayout() {
+    final sw = Stopwatch()..start();
     final maxWidth = constraints.hasBoundedWidth
         ? constraints.maxWidth
         : computeMinIntrinsicWidth(constraints.maxHeight);
@@ -1341,6 +1360,7 @@ class RenderPanelCatalog extends RenderBox {
     _clampOffset();
     _syncVisibleBindings();
     _beginStitchMeasureIfNeeded();
+    debugLastLayoutDuration = sw.elapsed;
     _logLayoutEnd(constraints);
   }
 
@@ -1456,8 +1476,11 @@ class RenderPanelCatalog extends RenderBox {
   /// both use [_visibleWindow], so bound ⇒ eligible to paint.
   ///
   /// The cell under [pressedSlotKey] is drawn with [CatalogLeafPress.scale].
+  ///
+  /// Records [debugLastPaintDuration] each pass.
   @override
   void paint(PaintingContext context, Offset offset) {
+    final sw = Stopwatch()..start();
     final canvas = context.canvas;
     canvas.save();
     canvas.clipRect(offset & size);
@@ -1484,6 +1507,7 @@ class RenderPanelCatalog extends RenderBox {
           pressProgress: pressProgress,
         );
         canvas.restore();
+        debugLastPaintDuration = sw.elapsed;
         return;
       default:
         break;
@@ -1504,6 +1528,7 @@ class RenderPanelCatalog extends RenderBox {
     _logPaintSummary(top, bottom);
 
     canvas.restore();
+    debugLastPaintDuration = sw.elapsed;
   }
 
   void _logPaintSummary(double visibleTop, double visibleBottom) {
