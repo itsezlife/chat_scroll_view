@@ -32,13 +32,13 @@ Returns `true` if any pin applied (caller cancels fling; on tick, also animate).
 
 ### Suspension
 
-Returns immediately when `_dragInProgress || _physics.isBouncing` — overshoot
-allowed; bounceback owns the return.
+Returns immediately when stitch layout is frozen. Drag no longer skips clamp —
+overshoot is paint stretch, not a skipped pin.
 
 | Phase | Clamp? |
 |-------|--------|
-| Drag | Suspended |
-| Bounceback | Suspended |
+| Drag | Runs |
+| Stretch spring | Runs (layout already pinned) |
 | Fling | Runs every tick |
 | Close-path `animateTo` | Runs every tick (current code) |
 | Idle layout | Runs |
@@ -78,8 +78,8 @@ When `fits`:
 
 | Subsystem | Behavior |
 |-----------|----------|
-| `_signedOverscroll` / `_overscrollOnSide` | Always **0** — no overshoot to measure |
-| Drag / fling / bounceback | **Ignored** — deltas not applied; fling not started |
+| `_signedOverscroll` / `_overscrollOnSide` | **Not used** — stretch uses `_unconsumedOverscrollDelta` |
+| Drag / fling | Travel suppressed; unconsumed dy still paints EdgeEffect stretch |
 | `_clampBoundaries` | **Single pin** only (not dual pin); skipped during delete recovery |
 | Scrollbar paint | **Skipped** — nothing to scroll |
 | Scrollbar drag | **Blocked** at pointer down |
@@ -115,34 +115,22 @@ When content **does not** fit, both pins may run in one clamp; **last wins**:
 
 ## Overscroll
 
-### Measurement
+Paint-time Android 12 EdgeEffect stretch (`ChatStretchOverscroll`). Layout
+never rubber-bands.
 
-| Side | Condition | Signed value |
-|------|-----------|--------------|
-| Top | oldest top `> 0` | Positive (`topY`) |
-| Bottom | newest bottom `< bottomEdge` | Negative (`bottom - bottomEdge`) |
+`_unconsumedOverscrollDelta` is the portion of a tick delta that exceeds
+remaining travel to a reached pin (`max(0, distance-to-pin)`). Measured from
+boundary **boxes** before apply, not from `anchorPixelOffset` after
+renormalize. A missing boundary box means that edge is not in play
+(unconsumed = 0). Sub-pixel remainder is consumed, not treated as a full
+overscroll. Short content has zero travel on both pins, so the full delta
+is unconsumed.
 
-When [_contentFitsInViewport](#short-content--_contentfitsinviewport)
-is true, both sides report **0** — there is no scroll range to overshoot.
+`releaseIntoContent` runs only when the frame actually travelled back into
+content while stretch is painted — not on every mid-list drag tick because
+a return spring is still `isActive`.
 
-`_signedOverscroll` returns the dominant side when both are violated on **long**
-content only. `_overscrollOnSide` reads one side only — bounceback **locks** the
-side at arm time so composed fling cannot flip sign mid-spring.
-
-### Resistance
-
-`factor = 1 / (1 + |overscroll| / overscrollMax)` (default `overscrollMax = 200`).
-Applied only when delta pushes **further** past the boundary, and **only while
-dragging**. Fling / animate / wheel / keyboard use clamp, not resistance.
-
-### Bounceback
-
-- Armed on drag end if overscrolled (`_maybeStartBounceback`) — **no-op** when
-  content fits in the viewport.
-- Linear ramp of overscroll → 0 over `bounceDuration` (default 200 ms).
-- Suspends clamp while active.
-- Composes additively with fling in `_onTick`.
-- Cancelled by: new drag, `scrollBy`, `animateTo`, jump, overlay, controller swap.
+Wheel / keyboard / `scrollBy` stay hard-clamped (no stretch).
 
 ## Padding
 
@@ -156,6 +144,10 @@ dragging**. Fling / animate / wheel / keyboard use clamp, not resistance.
 - `_bottomPadCompensationBase` survives a concurrent dataSource swap that
   clears the last laid-out pad.
 - Runs for **all** scroll positions — not only at the tail.
+- While `_bottomPaddingDirty`, tick-path `pinNewest` is skipped so a live
+  stretch ticker cannot pin to the new pad before compensate runs (that
+  double-shift pushed the newest under the composer). Stretch is cleared on
+  pad change.
 
 **Must not** implement keyboard follow via follow-tail `pinNewest` — that yanks
 users reading history back to the newest message.

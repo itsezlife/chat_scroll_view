@@ -8,6 +8,15 @@ this project is pre-1.0 and not strictly SemVer yet.
 
 ### Added
 
+- **Paint-time edge stretch overscroll.** Replaces layout rubber-band /
+  bounceback with a clamped-layout EdgeEffect stretch (`ChatStretchOverscroll`):
+  unconsumed dy at a reached oldest/newest pin paints scale-from-edge on
+  **messages only** (floating date header and scrollbar stay viewport-fixed).
+  Drag pull, fling-into-edge `absorbImpact`, reverse fling into content, and
+  soft spring return match Telegram 1:1 chat. Short content still stretches
+  (`OVER_SCROLL_ALWAYS`). Wheel / keyboard / `scrollBy` stay hard-clamped.
+  See `docs/architecture/05-tier1-scroll.md` and `06-boundaries.md`.
+
 - **Mid-scroll chunk prefetch.** While the user is flinging or dragging,
   `ChatChunkFetchScheduler` starts network fetches without waiting for scroll
   settle: one leading chunk page in the scroll-velocity direction (optional
@@ -18,6 +27,11 @@ this project is pre-1.0 and not strictly SemVer yet.
   See `docs/architecture/04-layout-pipeline.md` §13.
 
 ### Fixed
+
+- **Bottom-pad compensate vs stretch ticker.** While edge stretch kept the
+  ticker alive, tick-path `pinNewest` against the live pad before layout
+  compensate double-shifted the newest under the composer on keyboard dismiss.
+  Pad dirty skips tick pin; stretch clears on pad change.
 
 - **Close-path delay during keyboard inset.** Tall scroll-to-bottom no longer
   stalls while the keyboard animates: bottom-pad compensate parallel-shifts
@@ -44,6 +58,13 @@ this project is pre-1.0 and not strictly SemVer yet.
   `fetchRange` results.
 
 ### Changed
+
+- **Breaking — overscroll model.** `ChatScrollPhysics` no longer owns
+  bounceback / overscroll resistance (`BouncebackSide`,
+  `kOverscrollBounceDuration`, `applyOverscrollResistance`,
+  `maybeStartBounceback`, `tickBounceback`). Fling-only clamping remains.
+  `ChatAnimator` takes `cancelOverscroll` instead of `cancelBounceback`.
+  Hosts that depended on layout rubber-band MUST migrate to paint stretch.
 
 - **Breaking — `AnimateToLoadPolicy`.** Enum names are unchanged; behavior is
   not. Neither `immediate` nor `preferBuilt` may fall back to animating over

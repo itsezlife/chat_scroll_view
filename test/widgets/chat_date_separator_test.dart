@@ -161,7 +161,9 @@ void main() {
       expect(_render(tester).debugHasFloatingHeader, isFalse);
     });
 
-    testWidgets('top overscroll hides the floating header', (tester) async {
+    testWidgets('top overscroll keeps floating header viewport-fixed', (
+      tester,
+    ) async {
       const count = 256;
       final controller = ChatScrollController()..jumpTo(0);
       await tester.pumpWidget(
@@ -173,13 +175,24 @@ void main() {
       await tester.pump();
       final ro = _render(tester);
       expect(ro.debugFloatingHeaderVisible, isTrue);
+      final headerY = ro.debugFloatingHeaderOffset;
 
       final gesture = await tester.startGesture(
         tester.getCenter(find.byType(ChatScrollView)),
       );
       await gesture.moveBy(const Offset(0, 120));
       await tester.pump();
-      expect(ro.debugFloatingHeaderVisible, isFalse);
+      expect(
+        ro.debugStretchOverscroll,
+        greaterThan(0.01),
+        reason: 'pull past oldest paints stretch',
+      );
+      expect(
+        ro.debugFloatingHeaderVisible,
+        isTrue,
+        reason: 'header stays painted outside the stretch transform',
+      );
+      expect(ro.debugFloatingHeaderOffset, closeTo(headerY!, 0.5));
       await gesture.up();
     });
 

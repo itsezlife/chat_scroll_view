@@ -822,7 +822,7 @@ void main() {
       expect(tester.getTopLeft(find.text('msg-0')).dy, closeTo(420, 1));
     });
 
-    testWidgets('short content ignores drag overscroll and fling', (
+    testWidgets('short content drag keeps layout pinned (stretch is paint-only)', (
       tester,
     ) async {
       const count = 3;

@@ -22,58 +22,60 @@ _onTick:
   1. Overlay guard → abort scroll state, stop ticker
   2. Highlight-only early exit (no _markScrollActive)
   3. Drain _pendingScrollDelta
-  3b. If content fits → cancel fling/bounceback; force delta = 0
-  4. If drag && boundary reachable → applyOverscrollResistance
-  5. delta += tickFling
-  6. delta += tickAnimate          // close: offset delta; far: fade only
+  3b. If content fits → cancel fling (stretch still allowed)
+  4. delta += tickFling
+  5. delta += tickAnimate          // close: offset delta; far: fade only
      // skipped while span auto-scroll occupies the origin writer
-  7. delta += tickBounceback
-  7b. delta += span auto-scroll    // live span + pointer in edge band;
-                                 // 0 if content fits, a boundary pin would
-                                 // unstick, or select-span growth is at cap
-  8. applyScrollDelta(delta)
+  6. delta += span auto-scroll
+  7. Split delta: unconsumed at a reached edge vs consumed travel
+  8. applyScrollDelta(consumed only)
   9. Update _scrollVelocity EMA
  10. _repositionFromAnchor
  11. _renormalizeAnchor            // unless close-path
- 12. _clampBoundaries → cancel fling + animate if pinned
- 13. Semantics + _publishControllerState
- 14. _tickFloatingHeader
- 15. tickHighlight / tryArmPendingHighlight / settle → _onAnimateSettled
- 16. markNeedsLayout OR markNeedsPaint
- 17. _stopTickerIfIdle
+ 12. _clampBoundaries
+ 13. Stretch: pull unconsumed (drag) / absorb (fling) / release into content
+ 14. Semantics + _publishControllerState
+ 15. _tickFloatingHeader
+ 16. tickHighlight / tryArmPendingHighlight / settle → _onAnimateSettled
+ 17. markNeedsLayout OR markNeedsPaint
+ 18. _stopTickerIfIdle
 ```
 
-Inserting a new motion source must pick a slot in this order deliberately.
-Animate sits **between** fling and bounceback so overlapping phases compose
-predictably.
+Unconsumed remainder is measured from oldest/newest **box geometry**, never from
+`anchorPixelOffset` after renormalize. Mid-conversation travel must not stretch.
 
 ## Drag
 
 | Event | Behavior |
 |-------|----------|
-| `_onDragStart` | `_cancelPendingTailPin()`, clear nav alignment, cancel fling/animate/bounceback, `_dragInProgress = true` |
-| `_onDragUpdate` | `_pendingScrollDelta += details.delta.dy` — **no-op** when content fits |
-| `_onDragEnd` | clear drag flag; `_maybeStartBounceback()`; fling if `\|v\| >= 50` — both skipped when content fits |
-
-Resistance is applied **once per tick** on the combined pending delta, not per
-`DragUpdate` — multiple updates in one frame see one resistance scale.
+| `_onDragStart` | `_cancelPendingTailPin()`, clear nav alignment, cancel fling/animate, `_stretch.onDragStart()`, `_dragInProgress = true` |
+| `_onDragUpdate` | `_pendingScrollDelta += details.delta.dy` (including short content) |
+| `_onDragEnd` | `_stretch.onDragEnd` (spring only if stretch ≠ 0); fling if `\|v\| ≥ 50` and not stretching and content does not fit |
 
 ## Fling
 
 - `_startFling` / `_cancelFling` via `ChatScrollPhysics` (`ClampingScrollSimulation`).
 - **No-op** when [_contentFitsInViewport](./06-boundaries.md#short-content--_contentfitsinviewport).
 - Per-tick clamp during fling (not suspended).
-- Overscroll resistance is **drag-only**.
+- Overscroll resistance is **not** used; unconsumed dy at a reached edge
+  feeds paint-time [ChatStretchOverscroll] (Android EdgeEffect).
 - Render emits `ChatFlingStart` / `ChatFlingEnd`; physics does not touch events.
 
-## Bounceback
+## Stretch overscroll
 
-- Armed on drag end if overscrolled (`_maybeStartBounceback`).
-- Locks `BouncebackSide` (top or bottom) at arm time; per-tick reads **only**
-  that side so short-content / composed fling cannot flip sign mid-spring.
-- Suspends `_clampBoundaries` while active.
-- Composes additively with fling in `_onTick`.
-- Cancelled by: new drag, `scrollBy`, `animateTo`, jump, overlay, controller swap.
+- Paint-only scale-from-edge. Layout pins stay clamped.
+- Pull only the overflow past remaining pin travel
+  (`_unconsumedOverscrollDelta`). Missing boundary box → not that edge.
+  Short content: zero travel on both pins, so the full delta.
+- `onDragEnd`: reverse velocity drops the glow for content fling; same-
+  direction velocity absorbs then springs back; idle release springs from
+  the current stretch with zero initial velocity (no slam).
+- Fling that reaches a pin (including the frame that consumes the last travel
+  pixels): `absorbImpact` with leftover velocity, then cancel fling.
+- Cancelled by: jump, `scrollBy`, `animateTo`, overlay, controller swap,
+  bottom-pad change.
+- Paint stretch wraps **messages only** — floating date header and scrollbar
+  stay viewport-fixed.
 
 ## `_repositionFromAnchor`
 

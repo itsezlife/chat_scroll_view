@@ -89,9 +89,16 @@ Cross-links: [Layout Pipeline](./04-layout-pipeline.md),
 | Member | Purpose | Must not |
 |--------|---------|----------|
 | `startFling` / `cancelFling` | Inertial scroll | Emit controller events |
-| `applyOverscrollResistance` | Drag damping | Use on fling/animate |
-| `maybeStartBounceback` / `cancelBounceback` | Spring-back | Read both sides mid-bounce |
-| `tickFling` / `tickBounceback` / `tick` | Per-frame deltas | Touch layout |
+| `tickFling` / `flingVelocity` | Per-frame fling delta | Touch layout |
+
+## `ChatStretchOverscroll`
+
+| Member | Purpose | Must not |
+|--------|---------|----------|
+| `pull` | Unconsumed dy → paint stretch | Feed mid-content travel |
+| `onDragEnd` | Reverse → content fling; same-dir → absorb; idle → soft spring | Slam back with inverted max fling velocity |
+| `absorbImpact` | Fling hits a reached edge (incl. last travel frame) | Arm from rest on mid-content fling |
+| `tick` / `paintMatrix` | Return spring + scale | Mutate anchor |
 
 ---
 
@@ -136,7 +143,7 @@ Cross-links: [Layout Pipeline](./04-layout-pipeline.md),
 | `_closePathEndOffsetFor` | Close-path animate end | Tail newest → pin top; else band align |
 | `_alignedTopForMessage` | Band alignment math | Not true tail pin |
 | `_clampBoundaries` | pinNewest/pinOldest | Skip drag/bounce; single pin when content fits; delete-recovery guards |
-| `_contentFitsInViewport` | Span ≤ scroll band | Gates no-scroll mode — overscroll, drag, fling, scrollbar |
+| `_contentFitsInViewport` | Span ≤ scroll band | Gates no-scroll mode — drag travel, fling, scrollbar |
 | `_compensateBottomPaddingChange` | Keyboard follow | Before fan-out |
 | `_normalizeAnchorToKnownTail` | Pre-mount clamp | Before fan-out |
 | `_recordLayoutBeforeDelete` | Capture band + deleted extent | Before reassignment when anchor absent |
@@ -158,10 +165,9 @@ Cross-links: [Layout Pipeline](./04-layout-pipeline.md),
 | `_repositionFromAnchor` / `_repositionMessagesOnly` | Offset-only place |
 | `_setOffset` | Offset + divider opacity |
 | `_rangeNoLongerCovers` | Need layout? |
-| `_onDragStart` / `Update` / `End` | Gesture → pending delta | Update/end no-op when content fits |
+| `_onDragStart` / `Update` / `End` | Gesture → pending delta | Stretch only from unconsumed edge remainder |
 | `_startFling` / `_cancelFling` | Fling lifecycle | Start no-op when content fits |
-| `_maybeStartBounceback` / `_cancelBounceback` | Spring lifecycle | Start no-op when content fits |
-| `_signedOverscroll` / `_overscrollOnSide` / `_applyOverscrollResistance` | Boundary physics inputs | Zero when content fits |
+| `_unconsumedOverscrollDelta` / `_cancelOverscroll` | Overflow past pin travel → EdgeEffect; missing box is not that edge |
 | `_boundaryBox` / `_resolveAnchorBox` | Boundary/anchor render boxes |
 | `handleEvent` / `hitTestChildren` | Pointer / scrollbar / header / selection |
 | `ChatSelectionPointer` / `_selectionMessageIdAt` / `_spanHitAt` / `_selectSpanChain` | Viewport-owned long-press, tap, select/unselect span | Yield + fling-cancel suppress; span polarity vs selection snapshot; empty set ends the span; the pinned floating date header is not a hit (tap/long-press/span go through to the message); other non-message slots and `selectionAllowed == false` freeze the far end; disallowed ids are omitted from the chain; select-span growth and grow-direction auto-scroll stop at `selectionCap` (unselect ignores the cap); a refused grow bumps `capHits` once per wall; origin-absent aborts the span (set kept) |

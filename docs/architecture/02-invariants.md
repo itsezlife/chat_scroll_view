@@ -55,11 +55,10 @@ Parent-data writes (`offset`, `dividerOpacity`) are allowed.
 
 `_clampBoundaries` returns immediately (no pin) when:
 
-- `_dragInProgress` — overshoot allowed; resistance applies on drag only
-- `_physics.isBouncing` — bounceback owns the return to the edge
+- `_shouldFreezeStitchLayout()` — stitch owns the anchor
 
-Fling **always** clamps each tick. Overscroll resistance is **drag-only** —
-fling, animate, wheel, and keyboard go through clamp, not resistance.
+Fling **always** clamps each tick. Unconsumed dy at a reached edge is paint
+stretch, not a skipped pin.
 
 **Current code:** close-path `animateTo` does **not** suspend clamp; a pin can
 cancel the animation. The intended design is to suspend clamp during close

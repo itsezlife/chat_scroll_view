@@ -18,16 +18,18 @@ import 'package:chat_scroll_view/src/chat_scroll/chat_scroll_events.dart';
 import 'package:chat_scroll_view/src/chat_scroll/chat_scroll_physics.dart';
 import 'package:chat_scroll_view/src/chat_scroll/chat_selection_controller.dart';
 import 'package:chat_scroll_view/src/chat_scroll/chat_sender_run_layout.dart';
+import 'package:chat_scroll_view/src/chat_scroll/chat_stretch_overscroll.dart';
 import 'package:chat_scroll_view/src/chat_widgets/chat_data_source_ext.dart';
 import 'package:chat_scroll_view/src/chat_widgets/chat_scroll_element.dart';
 import 'package:chat_scroll_view/src/chat_widgets/chat_scrollbar.dart';
 import 'package:chat_scroll_view/src/chat_widgets/chat_selection_metrics.dart';
 import 'package:chat_scroll_view/src/chat_widgets/chat_selection_pointer.dart';
-import 'package:flutter/foundation.dart' show ValueListenable;
+import 'package:flutter/foundation.dart'
+    show ValueListenable, precisionErrorTolerance;
 import 'package:flutter/gestures.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/scheduler.dart';
-import 'package:meta/meta.dart' show internal;
+import 'package:meta/meta.dart' show internal, visibleForTesting;
 
 /// Parent data for a viewport child.
 ///
@@ -221,7 +223,7 @@ class RenderChatScrollView extends RenderBox {
       markNeedsLayout: markNeedsLayout,
       ensureTicker: _ensureTicker,
       cancelFling: _cancelFling,
-      cancelBounceback: _cancelBounceback,
+      cancelOverscroll: _cancelOverscroll,
       prepareStitchCapture: _prepareStitchCapture,
       onStitchCancelled: _onStitchCancelled,
       onStitchComplete: _onStitchComplete,
@@ -233,7 +235,7 @@ class RenderChatScrollView extends RenderBox {
   /// Chunk-load / anchor-persistence diagnostics — filter `ChatScrollFetchAnchor`.
   final ChatScrollDevLog _fetchAnchorLog = ChatScrollDevLog(
     'ChatScrollFetchAnchor',
-    enabled: true,
+    enabled: false,
   );
 
   /// Scrollbar thumb / id-linear progress diagnostics — filter
@@ -242,6 +244,11 @@ class RenderChatScrollView extends RenderBox {
   final ChatScrollDevLog _scrollbarLog = ChatScrollDevLog(
     'ChatScrollScrollbar',
     enabled: false,
+  );
+
+  /// Paint-time edge stretch — filter `ChatScrollOverscroll`.
+  final ChatScrollDevLog _overscrollLog = ChatScrollDevLog(
+    'ChatScrollOverscroll',
   );
 
   int? _scrollbarLogLastAnchorId;
@@ -352,7 +359,7 @@ class RenderChatScrollView extends RenderBox {
       // an unrelated controller swap.
       _cancelFling();
       _cancelAnimate(fadeHighlight: false);
-      _cancelBounceback();
+      _cancelOverscroll();
       // Clear any leftover navigate highlight — its target id refers
       // to a message position resolved against the old controller's anchor;
       // painting it under the new controller would tint an arbitrary row.
@@ -614,9 +621,9 @@ class RenderChatScrollView extends RenderBox {
   Ticker? _ticker;
   double _pendingScrollDelta = 0;
 
-  /// Fling simulation, drag resistance, and overscroll bounceback. Boundary
-  /// geometry is measured here in the render object and fed back through
-  /// [_overscrollOnSide] — [ChatScrollPhysics] owns only the simulation state.
+  /// Fling simulation. Edge stretch is owned by [_stretch]; layout pins stay
+  /// clamped and only the unconsumed remainder at a reached boundary feeds
+  /// [ChatStretchOverscroll].
   ///
   /// Chunk fetch poll, jump-fetch dispatch, and LRU eviction are owned by
   /// [_chunkFetchScheduler]; the render object publishes the laid-out chunk
@@ -635,8 +642,10 @@ class RenderChatScrollView extends RenderBox {
   final ChatFloatingHeaderController _floatingHeaderController =
       ChatFloatingHeaderController();
 
-  late final ChatScrollPhysics _physics = ChatScrollPhysics(
-    overscrollOnSide: _overscrollOnSide,
+  late final ChatScrollPhysics _physics = ChatScrollPhysics();
+
+  late final ChatStretchOverscroll _stretch = ChatStretchOverscroll(
+    log: _overscrollLog,
   );
 
   VerticalDragGestureRecognizer? _drag;
@@ -647,13 +656,11 @@ class RenderChatScrollView extends RenderBox {
   /// this pointer lifts.
   int? _flingCancelPointer;
 
-  // --- Overscroll bounce ---------------------------------------------------
+  // --- Overscroll stretch ----------------------------------------------------
   //
-  // Spring-back state lives on [_physics]. This section keeps drag-time
-  // behaviour: while [_dragInProgress] the boundary clamp is suspended,
-  // overshoot is allowed, and incoming drag delta is scaled by resistance
-  // (see [_applyOverscrollResistance]) so the further past the boundary the
-  // user pulls, the harder it pushes back.
+  // Layout is always clamped. Unconsumed pointer dy feeds [_stretch] and is
+  // painted as a scale-from-edge on messages only. Idle stacking still uses
+  // the short-content pin.
 
   /// `true` from `_onDragStart` until `_onDragEnd`.
   bool _dragInProgress = false;
@@ -1016,6 +1023,10 @@ class RenderChatScrollView extends RenderBox {
   /// Retained clip layer — reused across repaints via `oldLayer`.
   final LayerHandle<ClipRectLayer> _clipLayer = LayerHandle<ClipRectLayer>();
 
+  /// Stretch transform layer — reused while EdgeEffect stretch is painted.
+  final LayerHandle<TransformLayer> _stretchLayer =
+      LayerHandle<TransformLayer>();
+
   // --- Day separators --------------------------------------------------------
 
   /// The floating day header, pinned to the top — one extra child render box
@@ -1096,15 +1107,23 @@ class RenderChatScrollView extends RenderBox {
   /// Largest message id with a built child, or `null` when empty.
   int? get debugLastId => _children.isEmpty ? null : _children.lastKey();
 
-  /// Whether a floating day header render box is currently attached.
+  /// Paint stretch in `[-1, 1]`. Zero at rest.
+  @visibleForTesting
+  double get debugStretchOverscroll => _stretch.overscroll;
+
+  /// Whether a floating header child is currently attached (may still be
+  /// hidden by [debugFloatingHeaderVisible]).
+  @visibleForTesting
   bool get debugHasFloatingHeader => _floatingHeader != null;
 
   /// Whether the floating header would be painted this frame (suppressed above
-  /// the oldest boundary during short content or top overscroll).
+  /// the oldest boundary during short content).
+  @visibleForTesting
   bool get debugFloatingHeaderVisible =>
       _floatingHeader != null && _shouldShowFloatingHeader();
 
   /// Viewport-local Y of the floating header's top edge, if built.
+  @visibleForTesting
   double? get debugFloatingHeaderOffset =>
       _floatingHeader == null ? null : _parentData(_floatingHeader!).offset;
 
@@ -1612,6 +1631,11 @@ class RenderChatScrollView extends RenderBox {
   void _onBottomPaddingChanged() {
     _bottomPaddingDirty = true;
     _bottomPadCompensationBase ??= _lastLaidOutBottomPad;
+    // Stretch keeps the ticker alive; tick-path pinNewest would use the live
+    // pad before layout compensate and double-shift content under the composer.
+    if (_stretch.isActive) {
+      _cancelOverscroll();
+    }
     // Close-path: apply inset shift before the next tick can rebase against
     // the new bottomEdge and restart the travel clock (otherwise tall
     // scroll-to-bottom freezes for the keyboard animation).
@@ -1893,7 +1917,7 @@ class RenderChatScrollView extends RenderBox {
       // Host / scrollbar jump — hard-clear leftover navigate tint.
       _clearHighlight();
     }
-    _cancelBounceback();
+    _cancelOverscroll();
     // Scrollbar / discrete jump elsewhere must clear load-gate destination
     // pin; otherwise poll + jump-fetch keep requesting only the animate
     // window while this layout shows unloaded tiles. Stitch's own jumpTo
@@ -1914,10 +1938,7 @@ class RenderChatScrollView extends RenderBox {
   void _onScrollBy(double delta) {
     _cancelFling();
     _cancelAnimate();
-    // Programmatic scroll is explicit user intent — it should win over a
-    // passive spring-back. Otherwise the bounceback keeps pulling against
-    // the new anchor offset for the rest of its window.
-    _cancelBounceback();
+    _cancelOverscroll();
     // Drop any drag delta accumulated since the last tick: the controller
     // has already shifted the anchor by `delta`; applying the pending drag
     // on top would make the drag appear to accelerate by `delta` for one
@@ -2354,7 +2375,7 @@ class RenderChatScrollView extends RenderBox {
     // ticker is about to stop, so the overlay branch of `_onTick` can no
     // longer reset them.
     _dragInProgress = false;
-    _cancelBounceback();
+    _cancelOverscroll();
     // An active drag survives a hit-test entry if the gesture arena already
     // assigned the pointer to our recognizer. handleEvent's overlay-mode
     // guard only blocks *new* pointers — the recognizer will keep dispatching
@@ -3276,10 +3297,9 @@ class RenderChatScrollView extends RenderBox {
   /// Whether the full loaded conversation span fits inside the scroll band
   /// (`topPad` .. `height - bottomPad`) with both boundaries reached.
   ///
-  /// When true there is no scroll range — same as a non-scrollable [ListView].
-  /// Overscroll, bounceback, fling, and dual-boundary clamp fights are suppressed;
-  /// only the chat/list short-content pin runs ([pinNewest] when [reverse],
-  /// [pinOldest] otherwise).
+  /// When true there is no *travel* range: scrollbar, span auto-scroll, and
+  /// inertial fling are suppressed. Pointer unconsumed dy still drives
+  /// [ChatStretchOverscroll] (Telegram `OVER_SCROLL_ALWAYS`).
   bool _contentFitsInViewport() {
     if (!hasSize || _overlayKind != ChatOverlayKind.none) return false;
     if (!_dataSource.reachedOldest || !_dataSource.reachedNewest) return false;
@@ -3296,73 +3316,48 @@ class RenderChatScrollView extends RenderBox {
     return bottom - topY <= bandHeight + 0.5;
   }
 
-  /// Signed overscroll amount, in pixels. Positive = oldest has been pulled
-  /// *below* the top edge (user dragged past the top); negative = newest
-  /// has been pulled *above* the bottom edge (past the bottom). Zero means
-  /// no boundary is being violated. Reads `_boundaryBox`, so chunk-error
-  /// tiles count as boundaries too.
+  /// Portion of [delta] that a reached conversation edge cannot consume.
   ///
-  /// When the conversation fits inside the viewport and both boundaries are
-  /// violated, returns the larger-magnitude violation so the bounceback
-  /// pulls toward the dominant side. Returns zero when [_contentFitsInViewport]
-  /// — there is no scroll range to overshoot.
-  double _signedOverscroll() {
-    if (_contentFitsInViewport()) return 0;
-    final top = _overscrollOnSide(BouncebackSide.top);
-    final bottom = _overscrollOnSide(BouncebackSide.bottom);
-    if (top == 0.0) return bottom;
-    if (bottom == 0.0) return top;
-    // Both violated — return the dominant side.
-    return top.abs() >= bottom.abs() ? top : bottom;
-  }
-
-  /// Signed overscroll for a *specific* side, ignoring the opposite side.
-  /// Used by [ChatScrollPhysics.tickBounceback] so the spring-back animation
-  /// stays locked onto the boundary it started from, even when fling composition or
-  /// dual-boundary geometry would flip the dominant violator mid-animation.
-  ///
-  /// Positive top-side return = oldest below top edge; negative bottom-side
-  /// return = newest above bottom edge. Zero when the requested side is
-  /// inside its boundary or no boundary is configured on that side.
-  double _overscrollOnSide(BouncebackSide side) {
-    if (_contentFitsInViewport()) return 0;
-    switch (side) {
-      case BouncebackSide.top:
-        final oldest = _dataSource.oldestKnownId;
-        if (!_dataSource.reachedOldest || oldest == null) return 0;
-        final first = _boundaryBox(oldest);
-        if (first == null) return 0;
-        final topY = _parentData(first).offset;
-        return topY > 0 ? topY : 0.0;
-      case BouncebackSide.bottom:
-        final newest = _dataSource.newestKnownId;
-        if (!_dataSource.reachedNewest || newest == null) return 0;
-        final last = _boundaryBox(newest);
-        if (last == null) return 0;
-        final bottom = _parentData(last).offset + last.size.height;
-        final bottomEdge = size.height - _bottomPad;
-        return bottom < bottomEdge ? bottom - bottomEdge : 0.0;
+  /// Remaining travel is `max(0, distance-to-pin)`. A sub-pixel remainder
+  /// must still be consumed — never treat "almost at the edge" as "the
+  /// whole gesture is overscroll". If the boundary box is not built, that
+  /// edge is not in play (unconsumed = 0). Short content has zero travel
+  /// on both pins, so the full delta is unconsumed.
+  double _unconsumedOverscrollDelta(double delta) {
+    if (delta == 0.0 || !hasSize) return 0;
+    if (delta > 0) {
+      if (!_dataSource.reachedOldest) return 0;
+      final oldest = _dataSource.oldestKnownId;
+      final box = oldest != null ? _boundaryBox(oldest) : null;
+      if (box == null) return 0;
+      final travel = math.max<double>(0, -_parentData(box).offset);
+      if (delta <= travel) return 0;
+      return delta - travel;
     }
+    if (!_dataSource.reachedNewest) return 0;
+    final newest = _dataSource.newestKnownId;
+    final box = newest != null ? _boundaryBox(newest) : null;
+    if (box == null) return 0;
+    final bottom = _parentData(box).offset + box.size.height;
+    final travel = math.max<double>(0, bottom - (size.height - _bottomPad));
+    if (-delta <= travel) return 0;
+    return delta + travel;
   }
-
-  /// Delegates to [_physics] after measuring [_signedOverscroll]. Only used
-  /// while [_dragInProgress] and a boundary is reachable — fling / animate /
-  /// wheel / keyboard skip resistance and go through the normal clamp instead.
-  double _applyOverscrollResistance(double delta) =>
-      _physics.applyOverscrollResistance(delta, _signedOverscroll());
 
   bool _clampBoundaries({bool repinBottom = false}) {
-    // Skip clamping during an active drag — overshoot is allowed there,
-    // and the spring-back animation handles the return on release. The
-    // bounceback animation itself also drives the anchor past the boundary
-    // and back, so it owns the clamp until it ends.
-    if (_dragInProgress || _physics.isBouncing) return false;
+    // Layout never rubber-bands. Unconsumed dy is EdgeEffect stretch, not
+    // a pin skip. Stitch freeze still owns the anchor until dual-translate
+    // settles.
     if (_shouldFreezeStitchLayout()) return false;
     var cancelFling = false;
 
     bool pinNewest() {
       final newest = _dataSource.newestKnownId;
       if (!_dataSource.reachedNewest || newest == null) return false;
+      // Pad transitions are owned by [_compensateBottomPaddingChange] in
+      // layout. Tick-path pin against the live pad before compensate double-
+      // shifts (especially while stretch keeps the ticker running).
+      if (_bottomPaddingDirty) return false;
       if (_deleteCollapseRecoveryActive) {
         if (!_deleteCollapseWasAtTailBefore) return false;
         if (_deleteCollapseUserPreemptedTailBefore && _computeIsAtTail()) {
@@ -3768,7 +3763,7 @@ class RenderChatScrollView extends RenderBox {
         _pendingScrollDelta == 0.0 &&
         _animator.highlightTargetId == null &&
         !_animator.isAnimating &&
-        !_physics.isBouncing &&
+        !_stretch.isActive &&
         !_dragInProgress &&
         !_spanAutoScrollOccupying) {
       _ticker?.stop();
@@ -3834,7 +3829,7 @@ class RenderChatScrollView extends RenderBox {
       _cancelFling();
       _cancelAnimate(fadeHighlight: false);
       _clearHighlight();
-      _cancelBounceback();
+      _cancelOverscroll();
       _dragInProgress = false;
       _ticker?.stop();
       return;
@@ -3847,7 +3842,7 @@ class RenderChatScrollView extends RenderBox {
         _pendingScrollDelta != 0.0 ||
         _physics.isFlinging ||
         (!occupyingSpanAutoScroll && _animator.isAnimating) ||
-        _physics.isBouncing ||
+        _stretch.isActive ||
         occupyingSpanAutoScroll;
     if (!hasScrollWork) {
       // Highlight-only frame: advance the fade and bail.
@@ -3865,66 +3860,66 @@ class RenderChatScrollView extends RenderBox {
 
     if (_contentFitsInViewport()) {
       _cancelFling();
-      _cancelBounceback();
-      userDelta = 0.0;
-    }
-
-    // While the user is dragging, scale incoming delta by the boundary
-    // resistance so pulling further past the edge gets progressively
-    // harder. Fling / animate / wheel / keyboard skip this — they go
-    // through the normal clamp instead. The `reached*` gate elides the
-    // per-tick `_signedOverscroll` walk on the dominant case where the
-    // user is dragging mid-conversation with no boundary in sight.
-    if (_dragInProgress &&
-        (_dataSource.reachedOldest || _dataSource.reachedNewest)) {
-      userDelta = _applyOverscrollResistance(userDelta);
     }
 
     final wasFlinging = _physics.isFlinging;
     final flingDelta = _physics.tickFling(elapsed);
+    final flingVelocity = wasFlinging ? _physics.flingVelocity(elapsed) : 0.0;
     userDelta += flingDelta;
-    // tickFling clears the simulation internally when done; the render object
-    // owns scroll-event dispatch (ChatScrollPhysics does not touch controller).
     if (wasFlinging && !_physics.isFlinging) {
       _controller.notifyScrollEvent(const ChatFlingEnd());
     }
     var delta = userDelta;
-    // animateTo drives the same Ticker — the close path contributes a delta
-    // to the anchor offset, the far path mutates fade opacity and triggers
-    // jumpTo on its own. Inserted *between* fling and bounceback so the
-    // original composition order is preserved when multiple phases overlap.
-    // Span auto-scroll is the sole origin writer while the edge band is
-    // occupied — close-path animate yields.
     if (occupyingSpanAutoScroll) {
       _cancelAnimate();
     } else {
       delta += _animator.tickAnimate(elapsed);
     }
-    // Spring-back from an overscroll release. Runs after the user lets go,
-    // pulling the boundary back to its edge over [kOverscrollBounceDuration].
-    delta += _physics.tickBounceback(elapsed);
     delta += _spanAutoScrollDelta(elapsed, lastElapsed);
 
     if (userDelta != 0.0) {
       _controller.notifyScrollEvent(ChatViewportScrolled(userDelta));
     }
-    if (delta != 0.0) _controller.applyScrollDelta(delta);
-    // Smooth the per-frame scroll delta; biases the next fan-out lead.
-    _scrollVelocity = _scrollVelocity * 0.7 + delta * 0.3;
+    final unconsumed = _unconsumedOverscrollDelta(delta);
+    final consumed = delta - unconsumed;
+    if (consumed != 0.0) _controller.applyScrollDelta(consumed);
+    _scrollVelocity = _scrollVelocity * 0.7 + consumed * 0.3;
     _repositionFromAnchor();
     if (occupyingSpanAutoScroll) _applyLiveSpanHit();
-    // Keep the anchor on a visible message so the next layout fans out a
-    // tight range rather than rebuilding everything back to a drifted anchor.
     if (!_skipRenormalizeDuringClosePath()) {
       _renormalizeAnchor();
     }
-    if (_clampBoundaries()) {
+    final hitBoundary = _clampBoundaries();
+    const edgePx = 1.0;
+    if (_dragInProgress) {
+      if (unconsumed.abs() > edgePx && hasSize) {
+        _stretch.pull(
+          unconsumed,
+          size.height,
+          travel: delta.abs() - unconsumed.abs(),
+          fits: _contentFitsInViewport(),
+        );
+      } else if (consumed.abs() > edgePx &&
+          _stretch.overscroll.abs() > 0 &&
+          consumed.sign != _stretch.overscroll.sign) {
+        // Travel *away* from the stretched edge — not the last pixels
+        // of remaining travel toward that same edge.
+        _stretch.releaseIntoContent();
+      }
+    } else if (unconsumed.abs() > edgePx && wasFlinging) {
+      // Fling hit a reached edge — including the frame that consumed the last
+      // travel pixels. Telegram absorbGlows: leftover velocity enters stretch.
+      final absorbV = unconsumed.sign * flingVelocity.abs();
+      _stretch.absorbImpact(absorbV);
+    }
+    if (hitBoundary || unconsumed.abs() > 0.5) {
       _cancelFling();
-      // Stitch owns the anchor until dual-translate settles — clamping must
-      // not abort the far path mid-flight.
       if (!_animator.farAnimateActive) {
         _cancelAnimate();
       }
+    }
+    if (_stretch.tick(elapsed) || _stretch.isActive) {
+      markNeedsPaint();
     }
     _updateScrollSemantics();
     _publishControllerState();
@@ -3971,7 +3966,7 @@ class RenderChatScrollView extends RenderBox {
     if (!_physics.isFlinging &&
         !_animator.isAnimating &&
         !_animator.hasHighlight &&
-        !_physics.isBouncing &&
+        !_stretch.isActive &&
         !_dragInProgress) {
       _stopTickerIfIdle();
     }
@@ -4052,18 +4047,14 @@ class RenderChatScrollView extends RenderBox {
     if (_animator.hasHighlight) {
       _clearHighlight(animated: true);
     }
-    _cancelBounceback();
+    _stretch.onDragStart();
     _dragInProgress = true;
     _ensureTicker();
     _controller.notifyScrollEvent(const ChatUserDragStart());
   }
 
   void _onDragUpdate(DragUpdateDetails details) {
-    if (_contentFitsInViewport()) return;
     _markScrollActive();
-    // Resistance is applied at the *tick* layer (`_onTick`), not here, so
-    // multiple updates within a single frame still see one combined delta
-    // and the resistance scales it once against the current overscroll.
     _pendingScrollDelta += details.delta.dy;
     _ensureTicker();
   }
@@ -4072,59 +4063,20 @@ class RenderChatScrollView extends RenderBox {
     _dragInProgress = false;
     final velocity = details.primaryVelocity ?? 0.0;
     _controller.notifyScrollEvent(ChatUserDragEnd(velocity));
-    if (_contentFitsInViewport()) {
-      _clampBoundaries();
-      if (!_physics.isBouncing) _stopTickerIfIdle();
-      return;
-    }
-    // A high-velocity release while overscrolled would otherwise launch
-    // straight into a fling and skip the spring-back entirely — the next
-    // `_clampBoundaries` would hard-snap the boundary. Run bounceback
-    // unconditionally; the fling (if started) composes additively in
-    // `_onTick`, and the bounceback shortens its own life as overscroll
-    // shrinks past zero.
-    _maybeStartBounceback();
-    if (velocity.abs() >= 50.0) {
+    _stretch.onDragEnd(velocity);
+    if (_stretch.isActive) _ensureTicker();
+    if (!_contentFitsInViewport() &&
+        !_stretch.isActive &&
+        velocity.abs() >= 50.0) {
       _startFling(velocity);
-    } else if (!_physics.isBouncing) {
+    } else if (!_stretch.isActive) {
       _stopTickerIfIdle();
     }
   }
 
-  /// Cancel any in-flight bounceback. Called from `_onDragStart`,
-  /// `_onScrollBy`, and the close-path of `animate()` so a programmatic
-  /// scroll / animateTo / new drag does not have to fight the spring-back.
-  void _cancelBounceback() {
-    _physics.cancelBounceback();
-  }
-
-  /// If the viewport is currently overscrolled, arm a spring-back
-  /// animation that pulls the boundary back to its edge across
-  /// [kOverscrollBounceDuration]. No-op when nothing is past a boundary.
-  ///
-  /// Locks onto the dominant violator's side and uses *only* that side's
-  /// overscroll for the duration of the animation. When both boundaries
-  /// are violated (short-content viewport with aggressive drag) the lesser
-  /// side stays in its post-release position until the dominant spring-back
-  /// finishes — `_clampBoundaries` then snaps the residual on the first
-  /// post-bounceback layout. The alternative (running two springs in
-  /// parallel) compounds delta and fights itself in the symmetric case.
-  void _maybeStartBounceback() {
-    if (_contentFitsInViewport()) return;
-    final top = _overscrollOnSide(BouncebackSide.top);
-    final bottom = _overscrollOnSide(BouncebackSide.bottom);
-    if (top == 0.0 && bottom == 0.0) return;
-    final BouncebackSide side;
-    final double initial;
-    if (top.abs() >= bottom.abs()) {
-      side = BouncebackSide.top;
-      initial = top;
-    } else {
-      side = BouncebackSide.bottom;
-      initial = bottom;
-    }
-    _physics.maybeStartBounceback(initial, side);
-    _ensureTicker();
+  /// Drop stretch immediately (jump, overlay, controller swap, animate).
+  void _cancelOverscroll() {
+    _stretch.reset();
   }
 
   /// Span hit: [local] clamped into the scroll band, then
@@ -4174,7 +4126,7 @@ class RenderChatScrollView extends RenderBox {
     if (_spanAutoScrollOccupying) {
       _cancelFling();
       _cancelAnimate();
-      _cancelBounceback();
+      _cancelOverscroll();
       _ensureTicker();
     } else {
       _stopTickerIfIdle();
@@ -5610,6 +5562,25 @@ class RenderChatScrollView extends RenderBox {
       return;
     }
 
+    // Stretch only the message list. Floating date header + scrollbar stay
+    // viewport-fixed (Telegram: sticky day chip is not EdgeEffect content).
+    if (_stretch.overscroll.abs() > precisionErrorTolerance) {
+      _stretchLayer.layer = context.pushTransform(
+        needsCompositing,
+        offset,
+        _stretch.paintMatrix(size),
+        _paintMessages,
+        oldLayer: _stretchLayer.layer,
+      );
+    } else {
+      _stretchLayer.layer = null;
+      _paintMessages(context, offset);
+    }
+    _paintFloatingHeader(context, offset);
+    _paintScrollbar(context, offset);
+  }
+
+  void _paintMessages(PaintingContext context, Offset offset) {
     final viewportHeight = size.height;
     // Navigate-select wash under message children (text/bubbles stay crisp).
     _animator.paintHighlight(
@@ -5638,15 +5609,12 @@ class RenderChatScrollView extends RenderBox {
       }
       context.paintChild(child, offset + Offset(0, pd.offset));
     }
-    // The floating day header — above the messages, below the scrollbar.
+  }
+
+  void _paintFloatingHeader(PaintingContext context, Offset offset) {
     final header = _floatingHeader;
-    if (header != null && _shouldShowFloatingHeader()) {
-      context.paintChild(
-        header,
-        offset + Offset(0, _parentData(header).offset),
-      );
-    }
-    _paintScrollbar(context, offset);
+    if (header == null || !_shouldShowFloatingHeader()) return;
+    context.paintChild(header, offset + Offset(0, _parentData(header).offset));
   }
 
   void _paintScrollbar(PaintingContext context, Offset offset) {
@@ -5680,6 +5648,7 @@ class RenderChatScrollView extends RenderBox {
     _selectionPointer?.dispose();
     _selectionPointer = null;
     _clipLayer.layer = null;
+    _stretchLayer.layer = null;
     super.dispose();
   }
 }

@@ -343,7 +343,7 @@ void main() {
       expect(find.text('msg-$newest'), findsOneWidget);
     });
 
-    testWidgets('overscroll at tail leaves no phantom row after bounce-back', (
+    testWidgets('overscroll at tail leaves no phantom row after spring', (
       tester,
     ) async {
       const count = 20;

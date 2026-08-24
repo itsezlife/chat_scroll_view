@@ -165,8 +165,9 @@ class ChatFloatingHeaderController {
   /// While older history may still be loading ([reachedOldest] is false), the
   /// header tracks the topmost visible group as usual. Once the oldest known
   /// message is reached, hide the header when that message sits entirely below
-  /// the header stack — short content pinned at the bottom, or top-side
-  /// overscroll that leaves empty space above the oldest boundary.
+  /// the header stack — typically short content pinned at the bottom. Paint-
+  /// time edge stretch does not move [oldestTop]; hosts keep the header
+  /// outside the stretch transform instead.
   bool shouldShowFloatingHeader({
     required bool reachedOldest,
     required double? oldestTop,

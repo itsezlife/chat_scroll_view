@@ -27,7 +27,7 @@ void main() {
       markNeedsLayout: () {},
       ensureTicker: () {},
       cancelFling: () {},
-      cancelBounceback: () {},
+      cancelOverscroll: () {},
       prepareStitchCapture: (_) {},
       onStitchCancelled: (_) {},
       onStitchComplete: (_) {},

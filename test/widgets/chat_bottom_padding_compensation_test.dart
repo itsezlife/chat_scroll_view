@@ -181,5 +181,49 @@ void main() {
         reason: 'keyboard dismiss should shift content down by the inset delta',
       );
     });
+
+    testWidgets(
+      'inset shrink at tail during edge stretch keeps newest above inset',
+      (tester) async {
+        const count = 20;
+        const newest = count - 1;
+        final ds = _PreloadedDataSource(count);
+        final inset = ValueNotifier<double>(_keyboardInset);
+        final controller = ChatScrollController()..jumpTo(newest);
+        addTearDown(controller.dispose);
+        addTearDown(ds.dispose);
+        addTearDown(inset.dispose);
+
+        await tester.pumpWidget(
+          _harness(
+            dataSource: ds,
+            controller: controller,
+            bottomPadding: inset,
+          ),
+        );
+        await tester.pump();
+        expect(controller.isAtTail.value, isTrue);
+
+        // Pull past newest so stretch is active (keeps the ticker running).
+        final center = tester.getCenter(find.byType(ChatScrollView));
+        final gesture = await tester.startGesture(center);
+        await gesture.moveBy(const Offset(0, -180));
+        await tester.pump();
+
+        // Dismiss keyboard while the glow / spring would otherwise pin on tick.
+        inset.value = _initialInset;
+        await tester.pump();
+        await gesture.up();
+        await tester.pumpAndSettle();
+
+        expect(controller.isAtTail.value, isTrue);
+        expect(
+          tester.getTopLeft(find.text('msg-$newest')).dy,
+          closeTo(_viewportHeight - _initialInset - _messageHeight, 1),
+          reason:
+              'tick pinNewest must not double-apply with bottom-pad compensate',
+        );
+      },
+    );
   });
 }

@@ -155,7 +155,7 @@ class ChatAnimator implements ChatScrollAnimator {
     required VoidCallback markNeedsLayout,
     required VoidCallback ensureTicker,
     required VoidCallback cancelFling,
-    required VoidCallback cancelBounceback,
+    required VoidCallback cancelOverscroll,
 
     /// Capture visible outgoing rows before the stitch jump. Render-owned.
     required void Function(int targetId) prepareStitchCapture,
@@ -188,7 +188,7 @@ class ChatAnimator implements ChatScrollAnimator {
        _markNeedsLayout = markNeedsLayout,
        _ensureTicker = ensureTicker,
        _cancelFling = cancelFling,
-       _cancelBounceback = cancelBounceback,
+       _cancelOverscroll = cancelOverscroll,
        _prepareStitchCapture = prepareStitchCapture,
        _onStitchCancelled = onStitchCancelled,
        _onStitchComplete = onStitchComplete,
@@ -214,7 +214,7 @@ class ChatAnimator implements ChatScrollAnimator {
   final VoidCallback _markNeedsLayout;
   final VoidCallback _ensureTicker;
   final VoidCallback _cancelFling;
-  final VoidCallback _cancelBounceback;
+  final VoidCallback _cancelOverscroll;
   final void Function(int targetId) _prepareStitchCapture;
   final void Function(StitchCancelSnapshot snapshot) _onStitchCancelled;
   final void Function(StitchCancelSnapshot snapshot) _onStitchComplete;
@@ -225,7 +225,7 @@ class ChatAnimator implements ChatScrollAnimator {
   /// [log.enabled] to `false` to silence.
   final ChatScrollDevLog log = ChatScrollDevLog(
     'ChatScrollAnimate',
-    enabled: true,
+    enabled: false,
   );
 
   /// Last logged progress bucket `0..10` for sparse tick lines.
@@ -439,7 +439,7 @@ class ChatAnimator implements ChatScrollAnimator {
         'anchorY': DevLogFormat.f(_controller.anchorPixelOffset),
       });
       clearHighlight();
-      _cancelBounceback();
+      _cancelOverscroll();
       _cancelFling();
       animateHighlight = highlight;
       // Already-on-screen targets still get navigate-select when requested.
@@ -449,9 +449,9 @@ class ChatAnimator implements ChatScrollAnimator {
       return Future<void>.value();
     }
 
-    // Fresh animate owns attention: drop leftover highlight / spring-back.
+    // Fresh animate owns attention: drop leftover highlight / stretch.
     clearHighlight();
-    _cancelBounceback();
+    _cancelOverscroll();
     if (duration <= Duration.zero) {
       // Zero duration is instant jumpTo — no animation phase and no highlight.
       log.event('animate.jumpInstant', {
