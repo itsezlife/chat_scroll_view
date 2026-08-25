@@ -1,10 +1,10 @@
 import 'package:chat_chrome/src/motion/scale_pressable.dart';
 import 'package:chat_chrome/src/panel/backspace_action_button.dart';
-import 'package:chat_chrome/src/panel/emoji_panel_allow.dart';
-import 'package:chat_chrome/src/panel/emoji_panel_bottom_actions.dart';
-import 'package:chat_chrome/src/panel/emoji_panel_labels.dart';
+import 'package:chat_chrome/src/panel/keyboard_panel_allow.dart';
+import 'package:chat_chrome/src/panel/keyboard_panel_bottom_actions.dart';
+import 'package:chat_chrome/src/panel/keyboard_panel_labels.dart';
 import 'package:chat_chrome/src/panel/emoji_tab_assets.dart';
-import 'package:chat_chrome/src/panel/emoji_type_tabs_pill.dart';
+import 'package:chat_chrome/src/panel/keyboard_panel_type_tabs_pill.dart';
 import 'package:chat_chrome/src/theme/chat_chrome_colors.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -14,9 +14,9 @@ import 'package:flutter/services.dart';
 /// Type pill shrink-wraps (`setShouldExpand(false)`). Selection indicator
 /// follows [page] / settles like `PagerSlidingTabStrip` + `AnimatedFloat`.
 /// Trailing action swaps with scale+fade (`showBackspaceButton` / 200ms).
-class EmojiPanelBottomBar extends StatelessWidget {
+class KeyboardPanelBottomBar extends StatelessWidget {
   /// Creates the floating bottom chrome.
-  const EmojiPanelBottomBar({
+  const KeyboardPanelBottomBar({
     required this.tabs,
     required this.page,
     required this.selectedTab,
@@ -28,19 +28,19 @@ class EmojiPanelBottomBar extends StatelessWidget {
   });
 
   /// Enabled type tabs.
-  final List<EmojiPanelTab> tabs;
+  final List<KeyboardPanelTab> tabs;
 
   /// Continuous pager position (`PageController.page`).
   final double page;
 
   /// Settled pager tab (`onPageSelected`) — drives trailing action swap.
-  final EmojiPanelTab selectedTab;
+  final KeyboardPanelTab selectedTab;
 
   /// Host-localized tab titles.
-  final EmojiPanelLabels labels;
+  final KeyboardPanelLabels labels;
 
   /// Per-tab trailing actions.
-  final EmojiPanelBottomActions actions;
+  final KeyboardPanelBottomActions actions;
 
   /// True while the user is dragging the [PageView].
   final bool pageDragging;
@@ -102,7 +102,7 @@ class EmojiPanelBottomBar extends StatelessWidget {
             if (showTypeTabs)
               Align(
                 alignment: Alignment.bottomCenter,
-                child: EmojiTypeTabsPill(
+                child: KeyboardPanelTypeTabsPill(
                   tabs: tabs,
                   page: page,
                   pageDragging: pageDragging,
@@ -136,17 +136,17 @@ class _AnimatedActionSlot extends StatelessWidget {
     required this.iconColor,
   });
 
-  final EmojiPanelBottomAction? action;
+  final KeyboardPanelBottomAction? action;
   final Color fill;
   final Color iconColor;
 
   @override
   Widget build(BuildContext context) {
     return SizedBox(
-      width: EmojiPanelBottomBar.actionSize,
-      height: EmojiPanelBottomBar.actionSize,
+      width: KeyboardPanelBottomBar.actionSize,
+      height: KeyboardPanelBottomBar.actionSize,
       child: AnimatedSwitcher(
-        duration: EmojiPanelBottomBar.actionSwapDuration,
+        duration: KeyboardPanelBottomBar.actionSwapDuration,
         switchInCurve: Curves.easeOut,
         switchOutCurve: Curves.easeOut,
         transitionBuilder: (child, animation) => FadeTransition(
@@ -174,7 +174,7 @@ class _ActionButton extends StatelessWidget {
     super.key,
   });
 
-  final EmojiPanelBottomAction action;
+  final KeyboardPanelBottomAction action;
   final Color fill;
   final Color iconColor;
 
@@ -186,8 +186,8 @@ class _ActionButton extends StatelessWidget {
       child: Image.asset(
         action.iconAsset,
         package: EmojiTabAssets.package,
-        width: EmojiPanelBottomBar.iconSize,
-        height: EmojiPanelBottomBar.iconSize,
+        width: KeyboardPanelBottomBar.iconSize,
+        height: KeyboardPanelBottomBar.iconSize,
         color: iconColor,
         colorBlendMode: BlendMode.srcIn,
         filterQuality: FilterQuality.medium,
@@ -195,8 +195,8 @@ class _ActionButton extends StatelessWidget {
     );
 
     final cell = SizedBox(
-      width: EmojiPanelBottomBar.actionSize,
-      height: EmojiPanelBottomBar.actionSize,
+      width: KeyboardPanelBottomBar.actionSize,
+      height: KeyboardPanelBottomBar.actionSize,
       child: Material(
         color: fill,
         shape: const CircleBorder(),

@@ -8,6 +8,13 @@ this project is pre-1.0 and not strictly SemVer yet.
 
 ### Added
 
+- **KeyboardPanelController (chat_chrome).** Host-owned chrome source of truth
+  for the keyboard-replacement panel: typed listeners for open / search / tab,
+  `open` / `close` / `openSearch` / `closeSearch` / `selectTab` / `handleBack`,
+  inset claim/release via [ChatBottomInsetController], projection into
+  [KeyboardPanel] motion without GlobalKey on panel State. ADR 007 +
+  `docs/panel-catalog/CONTEXT.md` (*KeyboardPanel*, *KeyboardPanelController*).
+
 - **Panel Catalog Viewport (sibling package).** Keyboard-panel emoji / stickers /
   GIFs get an extent-scroll paint-leaf engine instead of a forever-`SuperSliverList`
   body or a Chat Scroll message-id/anchor fork. New repo-root packages:
@@ -24,10 +31,10 @@ this project is pre-1.0 and not strictly SemVer yet.
     `PanelCatalogTheme` / `PanelCatalogThemeData`, near-path
     `PanelCatalogController.jumpToSection` (≤ 9 flat rows /
     `kFarPathDistanceGateFactor`) and far-path `CatalogFarStitch` (capture →
-    teleport → dual-translate; not bare `jumpTo`). Catalog shell stays in
-    `chat_chrome`; DS notify mirrors chat (`addDataListener` /
+    teleport → dual-translate; not bare `jumpTo`). KeyboardPanel chrome stays
+    in `chat_chrome`; DS notify mirrors chat (`addDataListener` /
     `notifyDataChanged`). ADR 006 + `docs/panel-catalog/CONTEXT.md`.
-  - Example emoji panel hosts the viewport (sticky search / bottom bar from
+  - Example KeyboardPanel hosts the viewport (sticky search / bottom bar from
     catalog scroll events; type-tab reselect lands via `jumpToSection`).
   - Correctness suite + A/B benches vs SuperSliverList and SliverGrid
     (`packages/panel_catalog/test/benchmark/`).
@@ -82,6 +89,15 @@ this project is pre-1.0 and not strictly SemVer yet.
   `fetchRange` results.
 
 ### Changed
+
+- **chat_chrome chrome API → `KeyboardPanel*`.** Public panel, allow, tab,
+  labels, callbacks, bottom bar/actions, type-tabs pill rename from
+  `EmojiPanel*`. Unicode page / glyph / `emoji_data` stay `Emoji*`. Prefs
+  store renamed [KeyboardHeightStore] → [KeyboardPanelStore] with
+  `keyboard_panel_*` keys only (selected page + heights; no legacy dual-read).
+  Host entry is controller-first (package README + public dartdoc).
+- **emoji_data recents** — drop legacy `chat_chrome_emoji_*` migrate/dual-read;
+  persist only `emoji_data_use_history`.
 
 - **Monorepo package layout.** Shared ecosystem libs live under repo-root
   `packages/` — `catalog_assets`, `panel_catalog`, `emoji_data`, `chat_chrome`.

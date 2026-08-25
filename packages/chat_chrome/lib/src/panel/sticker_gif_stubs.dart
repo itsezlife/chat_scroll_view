@@ -1,7 +1,7 @@
 import 'package:chat_chrome/src/theme/chat_chrome_colors.dart';
 import 'package:flutter/material.dart';
 
-/// Empty sticker-pack page (enabled via [EmojiPanelAllow.stickers]).
+/// Empty sticker-pack page (enabled via [KeyboardPanelAllow.stickers]).
 class StickerPageStub extends StatelessWidget {
   /// Creates the stub.
   const StickerPageStub({super.key});
@@ -42,7 +42,7 @@ class StickerPageStub extends StatelessWidget {
   }
 }
 
-/// Empty GIF page (enabled via [EmojiPanelAllow.gifs]).
+/// Empty GIF page (enabled via [KeyboardPanelAllow.gifs]).
 class GifPageStub extends StatelessWidget {
   /// Creates the stub.
   const GifPageStub({super.key});

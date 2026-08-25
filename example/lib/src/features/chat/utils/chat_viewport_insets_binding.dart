@@ -7,7 +7,7 @@ import 'package:keyboard_insets/keyboard_insets.dart';
 
 /// Pushes [MediaQuery] safe-top and arbitered bottom inset into [insets].
 ///
-/// **IME vs emoji panel.** Live [KeyboardInsets.insets] drive the soft
+/// **IME vs keyboard panel.** Live [KeyboardInsets.insets] drive the soft
 /// keyboard slot. Panel sizing uses
 /// [KeyboardInsets.keyboardHeight] (native persistent peak / `max_inset`),
 /// not collapsing animation frames.
@@ -16,16 +16,16 @@ import 'package:keyboard_insets/keyboard_insets.dart';
 /// host [State] must invoke `super` from [initState], [didChangeDependencies],
 /// and [dispose].
 ///
-/// Override [createKeyboardHeightStore] to inject a store already [KeyboardHeightStore.load]ed
+/// Override [createKeyboardPanelStore] to inject a store already [KeyboardPanelStore.load]ed
 /// at app start (composer last-tab icon, panel initial page).
 mixin ChatViewportInsetsBinding<T extends StatefulWidget> on State<T> {
   /// Aggregator that receives safe-top and keyboard-slot updates.
   final ChatViewportInsets insets = ChatViewportInsets();
 
-  /// Prefs backup + last emoji type tab.
+  /// Prefs backup + last keyboard-panel type tab.
   ///
-  /// Assigned in [initState] from [createKeyboardHeightStore].
-  late final KeyboardHeightStore keyboardHeightStore;
+  /// Assigned in [initState] from [createKeyboardPanelStore].
+  late final KeyboardPanelStore keyboardPanelStore;
 
   /// IME ↔ panel arbiter; single writer of the keyboard inset term.
   late final ChatBottomInsetController bottomInsetController;
@@ -34,14 +34,14 @@ mixin ChatViewportInsetsBinding<T extends StatefulWidget> on State<T> {
   VoidCallback? _forwardInset;
   var _landscape = false;
 
-  /// Host may return a preloaded [KeyboardHeightStore] (e.g. from `main`).
+  /// Host may return a preloaded [KeyboardPanelStore] (e.g. from `main`).
   @protected
-  KeyboardHeightStore createKeyboardHeightStore() => KeyboardHeightStore();
+  KeyboardPanelStore createKeyboardPanelStore() => KeyboardPanelStore();
 
   /// Native persistent IME peak (`keyboard_insets` `max_inset`).
   static double? _readOsKeyboardHeight() {
     final h = KeyboardInsets.keyboardHeight;
-    if (!h.isFinite || h < KeyboardHeightStore.minSaneKeyboardHeight) {
+    if (!h.isFinite || h < KeyboardPanelStore.minSaneKeyboardHeight) {
       return null;
     }
     return h;
@@ -50,9 +50,9 @@ mixin ChatViewportInsetsBinding<T extends StatefulWidget> on State<T> {
   @override
   void initState() {
     super.initState();
-    keyboardHeightStore = createKeyboardHeightStore();
+    keyboardPanelStore = createKeyboardPanelStore();
     bottomInsetController = ChatBottomInsetController(
-      store: keyboardHeightStore,
+      store: keyboardPanelStore,
       osKeyboardHeight: _readOsKeyboardHeight,
     );
     _forwardInset = () {
@@ -68,28 +68,28 @@ mixin ChatViewportInsetsBinding<T extends StatefulWidget> on State<T> {
     bottomInsetController.heightListenable.addListener(_forwardInset!);
     _keyboardSubscription = KeyboardInsets.insets.listen(_onImeHeight);
     unawaited(
-      keyboardHeightStore.load().then((_) {
+      keyboardPanelStore.load().then((_) {
         final os = KeyboardInsets.keyboardHeight;
         chatChromeLog(
-          'KeyboardHeightStore loaded '
-          'portrait=${keyboardHeightStore.heightFor(landscape: false)} '
-          'selectedPage=${keyboardHeightStore.selectedPage} '
+          'KeyboardPanelStore loaded '
+          'portrait=${keyboardPanelStore.heightFor(landscape: false)} '
+          'selectedPage=${keyboardPanelStore.selectedPage} '
           'osPersistent=$os',
         );
-        if (os.isFinite && os >= KeyboardHeightStore.minSaneKeyboardHeight) {
-          unawaited(keyboardHeightStore.record(os, landscape: false));
+        if (os.isFinite && os >= KeyboardPanelStore.minSaneKeyboardHeight) {
+          unawaited(keyboardPanelStore.record(os, landscape: false));
         }
-        onKeyboardHeightStoreReady();
+        onKeyboardPanelStoreReady();
       }),
     );
     _seedKeyboard();
   }
 
-  /// Called after [keyboardHeightStore] finishes [KeyboardHeightStore.load].
+  /// Called after [keyboardPanelStore] finishes [KeyboardPanelStore.load].
   ///
   /// No-op by default — hosts seed composer last-tab chrome here.
   @protected
-  void onKeyboardHeightStoreReady() {}
+  void onKeyboardPanelStoreReady() {}
 
   @override
   void didChangeDependencies() {
@@ -133,7 +133,7 @@ mixin ChatViewportInsetsBinding<T extends StatefulWidget> on State<T> {
       height,
       landscape: _landscape,
       record:
-          !isAnimating && height >= KeyboardHeightStore.minSaneKeyboardHeight,
+          !isAnimating && height >= KeyboardPanelStore.minSaneKeyboardHeight,
     );
     insets.setKeyboard(bottomInsetController.height);
   }

@@ -29,7 +29,7 @@ import 'package:panel_catalog/panel_catalog.dart';
 /// rebuilding this page on every keystroke.
 ///
 /// **Embedding**: use the [EmojiGridView] typedef when mounting outside
-/// [EmojiPanel]. Keep-alive is enabled so a pager may retain this page.
+/// [KeyboardPanel]. Keep-alive is enabled so a pager may retain this page.
 class EmojiPage extends StatefulWidget {
   /// Creates the emoji grid (also exported as [EmojiGridView]).
   const EmojiPage({
@@ -195,7 +195,7 @@ class EmojiPageState extends State<EmojiPage>
   // --- Diagnostics ----------------------------------------------------------
 
   static final PanelCatalogDevLog _shellLog = PanelCatalogDevLog(
-    'PanelCatalogShell',
+    'KeyboardPanel',
   );
 
   double? _searchLogLastOffset;
@@ -321,7 +321,7 @@ class EmojiPageState extends State<EmojiPage>
       ? !widget.searchModeListenable!.value
       : widget.showCategoryStrip;
 
-  /// Whether [EmojiPanel] wired the sticky search overlay (strip + search band).
+  /// Whether [KeyboardPanel] wired the sticky search overlay (strip + search band).
   bool get _hasStickySearchOverlay =>
       widget.searchFieldTranslationY != null &&
       widget.searchController != null &&
@@ -736,7 +736,7 @@ class EmojiPageState extends State<EmojiPage>
       _stripShadowVisible.value = showShadow;
     }
     // Skip geometry logs when nothing moved — every scrollBy used to spam
-    // PanelCatalogShell while the sticky search was already parked.
+    // KeyboardPanel while the sticky search was already parked.
     if (!tyChanged && !shadowChanged && !forceTyUpdate) {
       return;
     }
@@ -1376,5 +1376,5 @@ final class _TopEdgeClipper extends CustomClipper<Rect> {
       oldClipper.top != top;
 }
 
-/// Alias for embedding the grid outside [EmojiPanel].
+/// Alias for embedding the grid outside [KeyboardPanel].
 typedef EmojiGridView = EmojiPage;

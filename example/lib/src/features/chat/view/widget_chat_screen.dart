@@ -31,17 +31,17 @@ import 'package:flutter/services.dart';
 class WidgetChatScreen extends StatefulWidget {
   /// Demo route wiring [ChatScrollView], composer, and selection chrome.
   ///
-  /// Prefer a preloaded [keyboardHeightStore] / [emojiDataSource] from `main`
+  /// Prefer a preloaded [keyboardPanelStore] / [emojiDataSource] from `main`
   /// so the composer button shows the last type tab (GIF / stickers) on first
   /// paint instead of the default smile.
   const WidgetChatScreen({
-    this.keyboardHeightStore,
+    this.keyboardPanelStore,
     this.emojiDataSource,
     super.key,
   });
 
   /// Optional preloaded prefs store (IME heights + last type tab).
-  final KeyboardHeightStore? keyboardHeightStore;
+  final KeyboardPanelStore? keyboardPanelStore;
 
   /// Optional preloaded emoji catalog. When null, the screen owns one.
   final DefaultEmojiDataSource? emojiDataSource;
@@ -60,14 +60,13 @@ class _WidgetChatScreenState extends State<WidgetChatScreen>
   final GlobalKey<ChatComposerState> _composerKey =
       GlobalKey<ChatComposerState>();
   final GlobalKey _composerGlassKey = GlobalKey(debugLabel: 'ComposerGlass');
-  final GlobalKey<EmojiPanelState> _emojiPanelKey =
-      GlobalKey<EmojiPanelState>();
+  late final KeyboardPanelController _panelController;
 
   /// Demo: all type tabs so the floating glass pill matches Telegram.
-  static const EmojiPanelAllow _emojiAllow = EmojiPanelAllow.all;
+  static const KeyboardPanelAllow _emojiAllow = KeyboardPanelAllow.all;
 
-  var _emojiPanelOpen = false;
-  EmojiPanelTab? _lastEmojiTab;
+  var _keyboardPanelOpen = false;
+  KeyboardPanelTab? _lastEmojiTab;
   ChatPreImeBackClaim? _emojiBackClaim;
 
   bool _loading = true;
@@ -95,12 +94,12 @@ class _WidgetChatScreenState extends State<WidgetChatScreen>
   int? _pendingLastReadBaseline;
 
   @override
-  KeyboardHeightStore createKeyboardHeightStore() =>
-      widget.keyboardHeightStore ?? KeyboardHeightStore();
+  KeyboardPanelStore createKeyboardPanelStore() =>
+      widget.keyboardPanelStore ?? KeyboardPanelStore();
 
   @override
-  void onKeyboardHeightStoreReady() {
-    final tab = _lastTabFromStore(keyboardHeightStore);
+  void onKeyboardPanelStoreReady() {
+    final tab = _lastTabFromStore(keyboardPanelStore);
     if (tab == null || tab == _lastEmojiTab || !mounted) return;
     setState(() => _lastEmojiTab = tab);
   }
@@ -108,6 +107,12 @@ class _WidgetChatScreenState extends State<WidgetChatScreen>
   @override
   void initState() {
     super.initState();
+    _panelController = KeyboardPanelController(
+      inset: bottomInsetController,
+      store: keyboardPanelStore,
+    )
+      ..addOpenListener(_onPanelControllerOpen)
+      ..addTabListener(_onPanelControllerTab);
     final injected = widget.emojiDataSource;
     if (injected != null) {
       _emojiDataSource = injected;
@@ -122,7 +127,7 @@ class _WidgetChatScreenState extends State<WidgetChatScreen>
       )..load();
     }
     // Prefs already loaded from main → seed before first composer paint.
-    _lastEmojiTab = _lastTabFromStore(keyboardHeightStore);
+    _lastEmojiTab = _lastTabFromStore(keyboardPanelStore);
     _controller = ChatScrollController();
     _selection = ChatSelectionController()..selectionCap = 100;
     _pillLastSeenBaseline.addListener(_onPillBaselineChanged);
@@ -130,9 +135,9 @@ class _WidgetChatScreenState extends State<WidgetChatScreen>
   }
 
   /// Last type tab from prefs, restricted to [_emojiAllow] tabs.
-  static EmojiPanelTab? _lastTabFromStore(KeyboardHeightStore store) {
+  static KeyboardPanelTab? _lastTabFromStore(KeyboardPanelStore store) {
     if (!store.isReady) return null;
-    final preferred = EmojiPanelTabPrefs.fromPrefs(store.selectedPage);
+    final preferred = KeyboardPanelTabPrefs.fromPrefs(store.selectedPage);
     final tabs = _emojiAllow.tabs;
     if (tabs.contains(preferred)) return preferred;
     return tabs.isEmpty ? null : tabs.first;
@@ -142,6 +147,10 @@ class _WidgetChatScreenState extends State<WidgetChatScreen>
   void dispose() {
     _emojiBackClaim?.pop();
     _emojiBackClaim = null;
+    _panelController
+      ..removeOpenListener(_onPanelControllerOpen)
+      ..removeTabListener(_onPanelControllerTab)
+      ..dispose();
     _pillLastSeenBaseline.removeListener(_onPillBaselineChanged);
     _flushPendingLastRead();
     _persistLastReadTimer?.cancel();
@@ -412,79 +421,80 @@ class _WidgetChatScreenState extends State<WidgetChatScreen>
       const DemoInitialSkeleton();
 
   ChatEnterEmojiIconState get _emojiIconState => resolveEmojiIconState(
-    panelOpen: _emojiPanelOpen,
+    panelOpen: _keyboardPanelOpen,
     textEmpty:
         _composerKey.currentState?.textController.text.trim().isEmpty ?? true,
     lastTab: _lastEmojiTab,
   );
 
   void _syncEmojiBackClaim() {
-    if (_emojiPanelOpen) {
-      _emojiBackClaim ??= ChatPreImeBackClaim.push(() async {
-        final handled =
-            await _emojiPanelKey.currentState?.handleBack() ?? false;
-        return handled;
-      });
+    if (_keyboardPanelOpen) {
+      _emojiBackClaim ??= ChatPreImeBackClaim.push(_handleKeyboardPanelBack);
     } else {
       _emojiBackClaim?.pop();
       _emojiBackClaim = null;
     }
   }
 
-  void _toggleEmojiPanel() {
-    if (_emojiPanelOpen) {
-      chatChromeLog('toggle → close+keyboard');
+  /// Soft-IME dismiss while search is focused, then controller search→panel.
+  ///
+  /// Soft-IME needs [BuildContext] / text-input channels (host-owned). Chrome
+  /// SoT ordering stays on [KeyboardPanelController.handleBack].
+  Future<bool> _handleKeyboardPanelBack() async {
+    if (_panelController.isSearchOpen) {
+      final imeUp =
+          MediaQuery.viewInsetsOf(context).bottom > 1 ||
+          bottomInsetController.imeHeight > 1;
+      if (imeUp) {
+        await SystemChannels.textInput.invokeMethod<void>('TextInput.hide');
+        return true;
+      }
+    }
+    return _panelController.handleBack();
+  }
+
+  void _toggleKeyboardPanel() {
+    if (_panelController.isOpen) {
       unawaited(_handoffEmojiToKeyboard());
       return;
     }
-    _openEmojiPanel();
+    _openKeyboardPanel();
   }
 
-  void _openEmojiPanel() {
-    if (_emojiPanelOpen) return;
+  void _openKeyboardPanel() {
+    if (_panelController.isOpen) return;
 
     final landscape =
         MediaQuery.orientationOf(context) == Orientation.landscape;
-    final replacing = bottomInsetController.isImeVisible;
-    final target = bottomInsetController.openPanel(landscape: landscape);
-    chatChromeLog(
-      'toggle → open replacing=$replacing target=$target '
-      'published=${bottomInsetController.height} '
-      'ime=${bottomInsetController.imeHeight}',
-    );
-
-    // Set open first so composer enters IME-suppress mode (keyboard icon).
-    setState(() => _emojiPanelOpen = true);
-    _syncEmojiBackClaim();
+    _panelController.open(landscape: landscape);
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted || !_emojiPanelOpen) return;
+      if (!mounted || !_panelController.isOpen) return;
       // After rebuild: hide soft IME, keep focus for cursor + hardware keys.
       _composerKey.currentState?.hideKeyboardRetainingFocus();
-      unawaited(
-        _emojiPanelKey.currentState?.open(replacingKeyboard: replacing),
-      );
     });
   }
 
-  /// Telegram: focus composer first (keep IME) → close search → panel handoff.
+  /// Focus composer first (keep IME) → await search collapse → panel handoff.
+  ///
+  /// Matches pre-controller host ordering: [closeSearch] must finish animating
+  /// to the keyboard-sized base before [close] with `waitForIme` captures the
+  /// hold floor.
   Future<void> _handoffEmojiToKeyboard() async {
-    final panel = _emojiPanelKey.currentState;
     // Steal focus before search/panel collapse so soft keyboard does not drop.
     // Field-tap races focus ahead of [onTap]; [prepareKeyboardHandoff] on
     // pointer-down arms IME-suppress bypass before this runs.
     _composerKey.currentState?.requestKeyboard();
     if (!mounted) return;
-    if (panel != null && panel.isSearchOpen) {
-      await panel.closeSearch(hideKeyboard: false);
+    if (_panelController.isSearchOpen) {
+      await _panelController.closeSearch(hideKeyboard: false);
     }
     if (!mounted) return;
-    await panel?.close(waitForIme: true);
+    _panelController.close(waitForIme: true);
   }
 
   void _onInputTapWhileEmojiOpen() {
-    if (!_emojiPanelOpen) return;
-    chatChromeLog('input tap → close search/panel + keyboard');
+    if (!_panelController.isOpen) return;
     unawaited(_handoffEmojiToKeyboard());
   }
 
@@ -493,11 +503,7 @@ class _WidgetChatScreenState extends State<WidgetChatScreen>
     final buffer = StringBuffer();
     for (final id in ids) {
       final message = _dataSource?.getMessage(id);
-      final text = switch (message) {
-        UserChatMessage(:final content) => content,
-        SystemChatMessage(:final content) => content,
-        _ => null,
-      };
+      final text = message?.text;
       if (text == null) continue;
       if (buffer.isNotEmpty) buffer.writeln();
       buffer.write(text);
@@ -512,10 +518,15 @@ class _WidgetChatScreenState extends State<WidgetChatScreen>
     _composerKey.currentState?.beginEdit(id);
   }
 
-  void _onEmojiPanelOpenChanged(bool open) {
-    if (_emojiPanelOpen == open) return;
-    setState(() => _emojiPanelOpen = open);
+  void _onPanelControllerOpen(bool open) {
+    if (_keyboardPanelOpen == open) return;
+    setState(() => _keyboardPanelOpen = open);
     _syncEmojiBackClaim();
+  }
+
+  void _onPanelControllerTab(KeyboardPanelTab tab) {
+    if (tab == _lastEmojiTab || !mounted) return;
+    setState(() => _lastEmojiTab = tab);
   }
 
   @override
@@ -552,8 +563,8 @@ class _WidgetChatScreenState extends State<WidgetChatScreen>
             _selection.clear();
             return;
           }
-          if (_emojiPanelOpen) {
-            unawaited(_emojiPanelKey.currentState?.handleBack());
+          if (_keyboardPanelOpen) {
+            unawaited(_handleKeyboardPanelBack());
             return;
           }
           // No-op, since no navigation is supported in this demo.
@@ -620,7 +631,7 @@ class _WidgetChatScreenState extends State<WidgetChatScreen>
                       ),
                     ),
                     // Soft fade over chat in the chrome zone.
-                    // Under the composer so the emoji panel is not washed.
+                    // Under the composer so the keyboard panel is not washed.
                     // Island hole keeps BackdropFilter sampling chat, not this
                     // wash; hole clears when the island unmounts
                     // (selection mode).
@@ -647,8 +658,8 @@ class _WidgetChatScreenState extends State<WidgetChatScreen>
                     // Bottom chrome. Insets math (master):
                     //   bottomPadding = composerHeight + keyboard
                     // Composer measure includes island + gap + safe-bottom.
-                    // [keyboard] is IME height or emoji-panel target from the
-                    // height store (Telegram kbd_height) — never live IME=0
+                    // [keyboard] is IME height or keyboard-panel target from the
+                    // panel store (Telegram kbd_height) — never live IME=0
                     // while the panel is open.
                     Positioned(
                       left: 0,
@@ -665,9 +676,9 @@ class _WidgetChatScreenState extends State<WidgetChatScreen>
                             onSend: _handleSendMessage,
                             onEditSelected: _handleEditSelected,
                             onSizeChanged: insets.setComposerHeight,
-                            onEmojiPressed: _toggleEmojiPanel,
+                            onEmojiPressed: _toggleKeyboardPanel,
                             emojiIconState: _emojiIconState,
-                            onFieldTapWhileEmojiOpen: _emojiPanelOpen
+                            onFieldTapWhilePanelOpen: _keyboardPanelOpen
                                 ? _onInputTapWhileEmojiOpen
                                 : null,
                           ),
@@ -680,13 +691,10 @@ class _WidgetChatScreenState extends State<WidgetChatScreen>
                               child: child,
                             ),
                             child: RepaintBoundary(
-                              child: EmojiPanel(
-                                key: _emojiPanelKey,
-                                open: _emojiPanelOpen,
-                                controller: bottomInsetController,
-                                store: keyboardHeightStore,
+                              child: KeyboardPanel(
+                                controller: _panelController,
                                 allow: _emojiAllow,
-                                labels: EmojiPanelLabels.russian,
+                                labels: KeyboardPanelLabels.russian,
                                 dataSource: _emojiDataSource,
                                 onEmojiSelected: (glyph) {
                                   _composerKey.currentState?.insertText(glyph);
@@ -694,7 +702,7 @@ class _WidgetChatScreenState extends State<WidgetChatScreen>
                                 onBackspace: () {
                                   _composerKey.currentState?.backspace();
                                 },
-                                callbacks: EmojiPanelCallbacks(
+                                callbacks: KeyboardPanelCallbacks(
                                   onStickerSettings: () {
                                     ScaffoldMessenger.of(context).showSnackBar(
                                       const SnackBar(
@@ -708,10 +716,6 @@ class _WidgetChatScreenState extends State<WidgetChatScreen>
                                         ?.hideKeyboardRetainingFocus();
                                   },
                                 ),
-                                onTabChanged: (tab) {
-                                  setState(() => _lastEmojiTab = tab);
-                                },
-                                onOpenChanged: _onEmojiPanelOpenChanged,
                               ),
                             ),
                           ),

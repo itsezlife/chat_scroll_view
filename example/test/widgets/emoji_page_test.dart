@@ -70,7 +70,7 @@ Future<void> longPressGlyph(
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
-  late KeyboardHeightStore store;
+  late KeyboardPanelStore store;
   late DefaultEmojiDataSource dataSource;
   late GlobalKey<EmojiPageState> pageKey;
   final selected = <String>[];
@@ -78,7 +78,7 @@ void main() {
 
   setUp(() async {
     SharedPreferences.setMockInitialValues(<String, Object>{});
-    store = KeyboardHeightStore(defaultHeight: 200);
+    store = KeyboardPanelStore(defaultHeight: 200);
     await store.load();
     dataSource = await createTestEmojiDataSource();
     pageKey = GlobalKey<EmojiPageState>();

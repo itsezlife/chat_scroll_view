@@ -127,7 +127,7 @@ final class ChatViewportInsets {
     _publish();
   }
 
-  /// Live keyboard / emoji-panel slot height in logical pixels.
+  /// Live keyboard / keyboard-panel slot height in logical pixels.
   void setKeyboard(double value) {
     if (_keyboard.value == value) return;
     _keyboard.value = value;

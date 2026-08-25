@@ -4,74 +4,74 @@ import 'dart:math' as math;
 import 'package:chat_chrome/src/composer/chat_input_metrics.dart';
 import 'package:chat_chrome/src/debug/chat_chrome_log.dart';
 import 'package:chat_chrome/src/inset/chat_bottom_inset_controller.dart';
-import 'package:chat_chrome/src/inset/keyboard_height_store.dart';
 import 'package:chat_chrome/src/motion/keyboard_panel_motion.dart';
 import 'package:chat_chrome/src/panel/emoji_deferred_recents.dart';
 import 'package:chat_chrome/src/panel/emoji_page.dart';
-import 'package:chat_chrome/src/panel/emoji_panel_allow.dart';
-import 'package:chat_chrome/src/panel/emoji_panel_bottom_actions.dart';
-import 'package:chat_chrome/src/panel/emoji_panel_bottom_bar.dart';
-import 'package:chat_chrome/src/panel/emoji_panel_callbacks.dart';
-import 'package:chat_chrome/src/panel/emoji_panel_labels.dart';
-import 'package:chat_chrome/src/panel/emoji_panel_nav_bar_fade.dart';
+import 'package:chat_chrome/src/panel/keyboard_panel_allow.dart';
+import 'package:chat_chrome/src/panel/keyboard_panel_bottom_actions.dart';
+import 'package:chat_chrome/src/panel/keyboard_panel_bottom_bar.dart';
+import 'package:chat_chrome/src/panel/keyboard_panel_callbacks.dart';
+import 'package:chat_chrome/src/panel/keyboard_panel_labels.dart';
+import 'package:chat_chrome/src/panel/keyboard_panel_nav_bar_fade.dart';
+import 'package:chat_chrome/src/panel/keyboard_panel_controller.dart';
 import 'package:chat_chrome/src/panel/sticker_gif_stubs.dart';
 import 'package:chat_chrome/src/theme/chat_chrome_colors.dart';
 import 'package:emoji_data/emoji_data.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:panel_catalog/panel_catalog.dart';
 
 /// Keyboard-replacement panel shell.
 ///
-/// Owns open/close motion, type-tab [PageView], bottom chrome, search overlay,
-/// and deferred recents commit. Bottom-bar hide/show listens to
-/// [PanelCatalogController] scroll events from the emoji [EmojiPage] — not
-/// [ScrollNotification]. Does **not** own catalog listeners or glyph grid
-/// layout — those live on [EmojiPage] / [EmojiDataSource].
+/// ## Ownership
 ///
-/// **Host wiring**: supply [controller], [store], [dataSource], insertion
-/// ([onEmojiSelected]), and delete ([onBackspace]). Prefer
-/// [EmojiPanelBottomActions.standard] for trailing bottom-bar actions.
+/// **Owns:** open/close motion projection, type-tab [PageView], bottom chrome,
+/// search overlay widgets/focus, and deferred recents commit timing. Bottom-bar
+/// hide/show listens to [PanelCatalogController] scroll events from the emoji
+/// [EmojiPage] — not [ScrollNotification].
 ///
-/// **Open / close**: call [EmojiPanelState.open] / [EmojiPanelState.close] via
-/// a [GlobalKey] (or keep [open] in sync). [close] with `waitForIme: true`
-/// hands off to the soft keyboard while keeping the inset shell.
+/// **Does not own:** desired open / search / type-tab SoT (that is
+/// [KeyboardPanelController]); inset occupancy math ([ChatBottomInsetController]);
+/// catalog listeners or glyph grid layout ([EmojiPage] / [EmojiDataSource]);
+/// composer text; soft-IME dismiss-before-search-exit (host — needs
+/// [BuildContext] / text-input channels).
 ///
-/// **Recents**: [EmojiDeferredRecents] commits frequency updates on open and
-/// when leaving search — not on every pick while the panel is open.
-class EmojiPanel extends StatefulWidget {
+/// ## Controller projection
+///
+/// Hosts drive chrome via [KeyboardPanelController] only — no GlobalKey on this
+/// widget's State. On mount the private State binds projection handlers,
+/// projects cold / replace-IME / wait-for-IME handoff, search expand/collapse,
+/// and the type pager, and unbinds on dispose without disposing the host
+/// controller. Insert/backspace and [KeyboardPanelCallbacks] stay on this widget.
+///
+/// ## Recents
+///
+/// [EmojiDeferredRecents] commits frequency updates on open and when leaving
+/// search — not on every pick while the panel is open.
+class KeyboardPanel extends StatefulWidget {
   /// Creates the panel shell.
-  const EmojiPanel({
+  const KeyboardPanel({
     required this.controller,
-    required this.store,
     required this.allow,
     required this.dataSource,
     required this.onEmojiSelected,
     required this.onBackspace,
-    this.onStickerSettings,
-    this.callbacks = const EmojiPanelCallbacks(),
+    this.callbacks = const KeyboardPanelCallbacks(),
     this.bottomActions,
-    this.labels = EmojiPanelLabels.english,
-    this.open = false,
-    this.onTabChanged,
-    this.onOpenChanged,
+    this.labels = KeyboardPanelLabels.english,
     super.key,
   });
 
-  /// Bottom-inset arbiter (panel occupancy vs IME).
-  final ChatBottomInsetController controller;
-
-  /// Persisted panel height prefs and last selected type tab.
-  final KeyboardHeightStore store;
+  /// Host-owned chrome SoT (open/search/tab + inset claim/release + panel store).
+  final KeyboardPanelController controller;
 
   /// Catalog, recents, search, and skin-tone data.
   final EmojiDataSource dataSource;
 
   /// Which type tabs are enabled (emoji / gifs / stickers).
-  final EmojiPanelAllow allow;
+  final KeyboardPanelAllow allow;
 
   /// Host-localized type-tab titles and clear-recents copy.
-  final EmojiPanelLabels labels;
+  final KeyboardPanelLabels labels;
 
   /// Insert emoji into the composer (host-owned text field).
   final ValueChanged<String> onEmojiSelected;
@@ -79,37 +79,20 @@ class EmojiPanel extends StatefulWidget {
   /// Backspace on the emoji tab (also used for hold-to-repeat).
   final VoidCallback onBackspace;
 
-  /// Stickers settings — prefer [EmojiPanelCallbacks.onStickerSettings].
-  final VoidCallback? onStickerSettings;
-
   /// Secondary host hooks (clear-recents confirm, stickers settings, …).
-  final EmojiPanelCallbacks callbacks;
+  final KeyboardPanelCallbacks callbacks;
 
-  /// Trailing bottom-bar actions; defaults to [EmojiPanelBottomActions.standard].
-  final EmojiPanelBottomActions? bottomActions;
-
-  /// Declarative open flag — kept in sync with [EmojiPanelState.open] /
-  /// [EmojiPanelState.close].
-  ///
-  /// When this drops to `false` while the panel is still visible (and not in
-  /// keyboard handoff), the state schedules [EmojiPanelState.close].
-  final bool open;
-
-  /// Fired when the active type tab changes.
-  final ValueChanged<EmojiPanelTab>? onTabChanged;
-
-  /// Fired when open state changes (`true` after open starts, `false` on close).
-  final ValueChanged<bool>? onOpenChanged;
+  /// Trailing bottom-bar actions; defaults to [KeyboardPanelBottomActions.standard].
+  final KeyboardPanelBottomActions? bottomActions;
 
   @override
-  State<EmojiPanel> createState() => EmojiPanelState();
+  State<KeyboardPanel> createState() => _KeyboardPanelState();
 }
 
-/// State for [EmojiPanel].
-///
-/// Hosts SHOULD call [open] / [close] / [handleBack] via a [GlobalKey]. Prefer
-/// those over mutating [EmojiPanel.open] alone for animation control.
-class EmojiPanelState extends State<EmojiPanel> with TickerProviderStateMixin {
+class _KeyboardPanelState extends State<KeyboardPanel>
+    with TickerProviderStateMixin {
+  ChatBottomInsetController get _inset => widget.controller.inset;
+
   // --- Motion ---------------------------------------------------------------
 
   late final AnimationController _progress;
@@ -149,7 +132,7 @@ class EmojiPanelState extends State<EmojiPanel> with TickerProviderStateMixin {
   // --- Type pager -----------------------------------------------------------
 
   late PageController _pageController;
-  late List<EmojiPanelTab> _tabs;
+  late List<KeyboardPanelTab> _tabs;
   late final ValueNotifier<int> _pageIndex;
   late final ValueNotifier<double> _page;
   late final ValueNotifier<bool> _pageDragging;
@@ -157,7 +140,7 @@ class EmojiPanelState extends State<EmojiPanel> with TickerProviderStateMixin {
   // --- Search ---------------------------------------------------------------
 
   final TextEditingController _search = TextEditingController();
-  final FocusNode _searchFocus = FocusNode(debugLabel: 'EmojiPanelSearch');
+  final FocusNode _searchFocus = FocusNode(debugLabel: 'KeyboardPanelSearch');
   late final ValueNotifier<bool> _searchOpen;
   late final ValueNotifier<double> _searchFieldTy;
   late final ValueNotifier<bool> _searchFieldShadow;
@@ -181,57 +164,10 @@ class EmojiPanelState extends State<EmojiPanel> with TickerProviderStateMixin {
   /// Short window after a strip/category tap — ignore bottom-bar hide.
   static const _tapTimeout = Duration(milliseconds: 100);
 
-  // --- Test / host observables ----------------------------------------------
-
-  /// Whether the panel is open, animating, or in keyboard handoff.
-  bool get isOpen =>
-      _visible || _handoffToKeyboard || widget.controller.isPanelOpen;
-
-  /// Whether the bottom type-tab bar is shown.
-  bool get bottomBarVisible => _bottomBarVisible.value;
-
-  /// Active type tab.
-  EmojiPanelTab get selectedTab => _tabs[_pageIndex.value];
-
   EmojiDataSource get _dataSource => widget.dataSource;
 
-  VoidCallback? get _onStickerSettings =>
-      widget.callbacks.onStickerSettings ?? widget.onStickerSettings;
-
-  /// [PageController.initialPage] after last rebind (tests).
-  @visibleForTesting
-  int get debugPageControllerInitialPage => _pageController.initialPage;
-
-  /// Selects a type tab programmatically (tests).
-  @visibleForTesting
-  Future<void> debugSelectPage(int index) => _commitPage(index, jump: true);
-
-  /// Emoji grid state key (widget tests).
-  @visibleForTesting
-  GlobalKey<EmojiPageState> get debugEmojiPageKey => _emojiPageKey;
-
-  /// Whether search mode is open (focused field + expanded height).
-  bool get isSearchOpen => _searchOpen.value;
-
-  /// Toggles search / bottom-bar visibility contract (tests).
-  @visibleForTesting
-  void debugToggleSearch() {
-    if (_searchOpen.value) {
-      unawaited(closeSearch());
-    } else {
-      unawaited(openSearch());
-    }
-  }
-
-  /// Opens emoji search (expand height, pin field, hide strip / bottom bar).
-  Future<void> openSearch() => _openSearch();
-
-  /// Closes emoji search and collapses expanded height.
-  ///
-  /// [hideKeyboard]: when `false`, leaves IME focus transfer to the host
-  /// (composer tap / keyboard button) so the soft keyboard does not flicker.
-  Future<void> closeSearch({bool hideKeyboard = true}) =>
-      _closeSearch(hideKeyboard: hideKeyboard);
+  Future<void>? _searchOpenOp;
+  Future<void>? _searchCloseOp;
 
   // --- Lifecycle ------------------------------------------------------------
 
@@ -255,59 +191,39 @@ class EmojiPanelState extends State<EmojiPanel> with TickerProviderStateMixin {
       vsync: this,
       duration: KeyboardPanelMotion.duration,
     )..addListener(_onProgressTick);
-    widget.controller.addListener(_onController);
-    widget.controller.heightListenable.addListener(_onInsetHeight);
+    _inset.addListener(_onController);
+    _inset.heightListenable.addListener(_onInsetHeight);
+    _bindPanelController(widget.controller);
     chatChromeLog(
-      'EmojiPanel initState open=${widget.open} tabs=${_tabs.length}',
+      'KeyboardPanel initState isOpen=${widget.controller.isOpen} '
+      'tabs=${_tabs.length}',
     );
-    if (widget.open) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted && widget.open) {
-          unawaited(
-            open(replacingKeyboard: widget.controller.openedReplacingIme),
-          );
-        }
-      });
-    }
   }
 
   @override
-  void didUpdateWidget(EmojiPanel oldWidget) {
+  void didUpdateWidget(KeyboardPanel oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.allow != widget.allow) {
       _tabs = widget.allow.tabs;
       if (_pageIndex.value >= _tabs.length) _pageIndex.value = 0;
     }
     if (!identical(oldWidget.controller, widget.controller)) {
-      oldWidget.controller.removeListener(_onController);
-      oldWidget.controller.heightListenable.removeListener(_onInsetHeight);
-      widget.controller.addListener(_onController);
-      widget.controller.heightListenable.addListener(_onInsetHeight);
-    }
-    if (oldWidget.open != widget.open) {
-      chatChromeLog(
-        'EmojiPanel didUpdateWidget open ${oldWidget.open}→${widget.open}',
+      _unbindPanelController(oldWidget.controller);
+      oldWidget.controller.inset.removeListener(_onController);
+      oldWidget.controller.inset.heightListenable.removeListener(
+        _onInsetHeight,
       );
-      // Host drives open/close via GlobalKey. Only sync close here if the
-      // declarative flag dropped while we are still visibly open (back / etc.).
-      final wantOpen = widget.open;
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (!mounted) return;
-        if (!wantOpen && (_visible || _handoffToKeyboard) && !_closing) {
-          if (_handoffToKeyboard) {
-            // Host clears `open` during keyboard handoff — shell stays up.
-            return;
-          }
-          unawaited(close());
-        }
-      });
+      _inset.addListener(_onController);
+      _inset.heightListenable.addListener(_onInsetHeight);
+      _bindPanelController(widget.controller);
     }
   }
 
   @override
   void dispose() {
-    widget.controller.removeListener(_onController);
-    widget.controller.heightListenable.removeListener(_onInsetHeight);
+    _unbindPanelController(widget.controller);
+    _inset.removeListener(_onController);
+    _inset.heightListenable.removeListener(_onInsetHeight);
     _progress
       ..removeListener(_onProgressTick)
       ..dispose();
@@ -328,6 +244,69 @@ class EmojiPanelState extends State<EmojiPanel> with TickerProviderStateMixin {
     _searchFieldShadow.dispose();
     _unbindCatalogScroll();
     super.dispose();
+  }
+
+  void _bindPanelController(KeyboardPanelController panel) {
+    panel.bindProjection(
+      onOpen: _projectOpen,
+      onClose: _projectClose,
+      onSearchOpen: _projectSearchOpen,
+      onSearchClose: _projectSearchClose,
+      onTab: _projectTab,
+    );
+    if (panel.isOpen) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted || !identical(widget.controller, panel)) return;
+        if (!panel.isOpen) return;
+        _open(replacingKeyboard: panel.inset.openedReplacingIme);
+        if (panel.isSearchOpen) {
+          _openSearch();
+        }
+        _syncPagerToControllerTab(panel.selectedTab);
+      });
+    }
+  }
+
+  void _unbindPanelController(KeyboardPanelController panel) {
+    panel.bindProjection();
+  }
+
+  void _projectOpen() {
+    _open(replacingKeyboard: _inset.openedReplacingIme);
+  }
+
+  void _projectClose({required bool waitForIme}) {
+    _close(notifyController: false, waitForIme: waitForIme);
+  }
+
+  Future<void> _projectSearchOpen() {
+    final op = _openSearch();
+    _searchOpenOp = op;
+    return op.whenComplete(() {
+      if (identical(_searchOpenOp, op)) {
+        _searchOpenOp = null;
+      }
+    });
+  }
+
+  Future<void> _projectSearchClose({required bool hideKeyboard}) {
+    final op = _closeSearch(hideKeyboard: hideKeyboard);
+    _searchCloseOp = op;
+    return op.whenComplete(() {
+      if (identical(_searchCloseOp, op)) {
+        _searchCloseOp = null;
+      }
+    });
+  }
+
+  void _projectTab(KeyboardPanelTab tab) {
+    _syncPagerToControllerTab(tab);
+  }
+
+  void _syncPagerToControllerTab(KeyboardPanelTab tab) {
+    final index = _tabs.indexOf(tab);
+    if (index < 0) return;
+    _commitPage(index, jump: true, fromController: true);
   }
 
   // --- Pager ---------------------------------------------------------------
@@ -376,7 +355,7 @@ class EmojiPanelState extends State<EmojiPanel> with TickerProviderStateMixin {
 
   int _initialPageIndex() {
     if (_tabs.isEmpty) return 0;
-    final preferred = EmojiPanelTabPrefs.fromPrefs(widget.store.selectedPage);
+    final preferred = widget.controller.selectedTab;
     final idx = _tabs.indexOf(preferred);
     return idx >= 0 ? idx : 0;
   }
@@ -388,9 +367,10 @@ class EmojiPanelState extends State<EmojiPanel> with TickerProviderStateMixin {
     _maybeDismissHandoffShell();
     if (_handoffToKeyboard) return;
 
-    if (!widget.controller.isPanelOpen && (_visible || _progress.value > 0)) {
-      chatChromeLog('EmojiPanel controller cleared panel → sync close');
-      unawaited(close(notifyController: false));
+    if (!_inset.isPanelOpen && (_visible || _progress.value > 0)) {
+      chatChromeLog('KeyboardPanel controller cleared panel → sync close');
+      widget.controller.adoptClose();
+      unawaited(_close(notifyController: false));
     }
   }
 
@@ -408,7 +388,7 @@ class EmojiPanelState extends State<EmojiPanel> with TickerProviderStateMixin {
   }
 
   void _maybeDismissHandoffShell() {
-    if (!_handoffToKeyboard || widget.controller.isHoldingForIme) return;
+    if (!_handoffToKeyboard || _inset.isHoldingForIme) return;
     if (mounted) {
       setState(_finishHandoffShell);
     }
@@ -426,51 +406,52 @@ class EmojiPanelState extends State<EmojiPanel> with TickerProviderStateMixin {
     if (_replacingKeyboard && !_closing) return;
     if (!_visible && _progress.value == 0) return;
 
-    final target = _closing ? _closeTarget : widget.controller.panelTarget;
+    final target = _closing ? _closeTarget : _inset.panelTarget;
     if (target <= 0 && !_closing) return;
 
-    if (!_closing && !widget.controller.isPanelOpen) return;
+    if (!_closing && !_inset.isPanelOpen) return;
 
     if (_closing) {
       // Inset stays ≥ 0 (target → 0). Safe-area exit is a local Transform.
-      widget.controller.setPanelCloseOccupancy(_progress.value * _closeTarget);
+      _inset.setPanelCloseOccupancy(_progress.value * _closeTarget);
     } else {
-      widget.controller.setPanelOccupancy(_progress.value * target);
+      _inset.setPanelOccupancy(_progress.value * target);
     }
   }
 
-  // --- Open / close / back --------------------------------------------------
+  // --- Open / close projection ----------------------------------------------
 
-  /// Opens the panel. Prefer calling this from the host after claiming the
-  /// inset slot ([ChatBottomInsetController.openPanel]).
+  /// Projects an open from [KeyboardPanelController] (or heals chrome).
   ///
   /// [replacingKeyboard]: skip entrance animation when IME was up (REPLACE).
   /// No-ops when tabs are empty or an open is already in flight. Commits
   /// deferred recents and rebinds the pager before the [PageView] mounts.
-  Future<void> open({bool replacingKeyboard = false}) async {
+  /// Claims the inset only when the controller has not already claimed it
+  /// (heal path — hosts MUST still [KeyboardPanelController.open] normally).
+  Future<void> _open({bool replacingKeyboard = false}) async {
     chatChromeLog(
-      'EmojiPanel.open enter replacing=$replacingKeyboard '
+      'KeyboardPanel.open enter replacing=$replacingKeyboard '
       'visible=$_visible progress=${_progress.value} '
       'opening=$_opening closing=$_closing tabs=${_tabs.length} '
-      'controllerOpen=${widget.controller.isPanelOpen} '
-      'target=${widget.controller.panelTarget} '
-      'published=${widget.controller.height}',
+      'controllerOpen=${_inset.isPanelOpen} '
+      'target=${_inset.panelTarget} '
+      'published=${_inset.height}',
     );
     if (_tabs.isEmpty) {
-      chatChromeLog('EmojiPanel.open ABORT empty tabs');
+      chatChromeLog('KeyboardPanel.open ABORT empty tabs');
       return;
     }
     if (_opening) {
-      chatChromeLog('EmojiPanel.open ABORT already opening');
+      chatChromeLog('KeyboardPanel.open ABORT already opening');
       return;
     }
 
     final healChrome = _handoffToKeyboard || !_contentVisible;
     _restoreChromeForOpen();
 
-    if (_visible && _progress.value >= 1 && widget.controller.isPanelOpen) {
+    if (_visible && _progress.value >= 1 && _inset.isPanelOpen) {
       chatChromeLog(
-        'EmojiPanel.open ABORT already fully open heal=$healChrome',
+        'KeyboardPanel.open ABORT already fully open heal=$healChrome',
       );
       if (healChrome && mounted) {
         setState(() {});
@@ -485,17 +466,17 @@ class EmojiPanelState extends State<EmojiPanel> with TickerProviderStateMixin {
     final landscape =
         MediaQuery.orientationOf(context) == Orientation.landscape;
     final safeBottom = MediaQuery.viewPaddingOf(context).bottom;
-    if (!widget.controller.isPanelOpen) {
-      chatChromeLog('EmojiPanel.open claiming slot (host did not)');
-      widget.controller.openPanel(landscape: landscape);
-      _replacingKeyboard = widget.controller.openedReplacingIme;
+    if (!_inset.isPanelOpen) {
+      chatChromeLog('KeyboardPanel.open claiming slot (controller did not)');
+      _inset.openPanel(landscape: landscape);
+      _replacingKeyboard = _inset.openedReplacingIme;
     }
+    widget.controller.adoptOpen();
 
-    _layoutHeight = widget.controller.panelTarget + safeBottom;
+    _layoutHeight = _inset.panelTarget + safeBottom;
     if (_layoutHeight < safeBottom + 96) {
       _layoutHeight =
-          widget.controller.panelTargetHeight(landscape: landscape) +
-          safeBottom;
+          _inset.panelTargetHeight(landscape: landscape) + safeBottom;
     }
 
     // Pager was torn down while closed — rebuild [PageController] at [_pageIndex]
@@ -513,12 +494,11 @@ class EmojiPanelState extends State<EmojiPanel> with TickerProviderStateMixin {
     } else if (mounted) {
       setState(() {});
     }
-    widget.onOpenChanged?.call(true);
 
     if (_replacingKeyboard) {
-      chatChromeLog('EmojiPanel.open REPLACE snap progress=1');
+      chatChromeLog('KeyboardPanel.open REPLACE snap progress=1');
       _progress.value = 1;
-      widget.controller.setPanelOccupancy(widget.controller.panelTarget);
+      _inset.setPanelOccupancy(_inset.panelTarget);
       _opening = false;
       _ensurePageSyncedAfterOpen();
       // Warm after snap so REPLACE open does not pay first-fling glyph raster.
@@ -526,9 +506,9 @@ class EmojiPanelState extends State<EmojiPanel> with TickerProviderStateMixin {
       return;
     }
 
-    chatChromeLog('EmojiPanel.open COLD animate 0→1');
+    chatChromeLog('KeyboardPanel.open COLD animate 0→1');
     _progress.value = 0;
-    widget.controller.setPanelOccupancy(0);
+    _inset.setPanelOccupancy(0);
     // Layout the page, then warm glyphs without blocking the open animation.
     await WidgetsBinding.instance.endOfFrame;
     if (!mounted || _closing) {
@@ -539,7 +519,7 @@ class EmojiPanelState extends State<EmojiPanel> with TickerProviderStateMixin {
     await Future<void>.delayed(KeyboardPanelMotion.startDelay);
     if (!mounted || _closing) {
       chatChromeLog(
-        'EmojiPanel.open COLD aborted after delay '
+        'KeyboardPanel.open COLD aborted after delay '
         'mounted=$mounted closing=$_closing',
       );
       _opening = false;
@@ -548,39 +528,42 @@ class EmojiPanelState extends State<EmojiPanel> with TickerProviderStateMixin {
     try {
       await _progress.animateTo(1, curve: KeyboardPanelMotion.curve);
       chatChromeLog(
-        'EmojiPanel.open COLD done progress=${_progress.value} '
-        'published=${widget.controller.height}',
+        'KeyboardPanel.open COLD done progress=${_progress.value} '
+        'published=${_inset.height}',
       );
     } catch (e, st) {
-      chatChromeLog('EmojiPanel.open COLD animate error $e\n$st');
+      chatChromeLog('KeyboardPanel.open COLD animate error $e\n$st');
     } finally {
       _opening = false;
       _ensurePageSyncedAfterOpen();
     }
   }
 
-  /// Closes the panel.
+  /// Projects a close from [KeyboardPanelController] (or heals chrome).
   ///
   /// [waitForIme]: keyboard handoff — hide emoji chrome, keep shell + inset
-  /// hold until IME takes over. [notifyController]: whether to call
-  /// [ChatBottomInsetController.closePanel]. Cold close animates occupancy
-  /// then unmounts; search state is cleared.
-  Future<void> close({
+  /// hold until IME takes over. [notifyController]: when `true`, releases the
+  /// inset via [ChatBottomInsetController.closePanel] and adopts closed SoT on
+  /// [KeyboardPanelController]; when `false` (controller-driven projection),
+  /// cold close finishes with [KeyboardPanelController.completeColdClose].
+  Future<void> _close({
     bool notifyController = true,
     bool waitForIme = false,
   }) async {
     chatChromeLog(
-      'EmojiPanel.close waitForIme=$waitForIme notify=$notifyController '
-      'progress=${_progress.value} published=${widget.controller.height}',
+      'KeyboardPanel.close waitForIme=$waitForIme notify=$notifyController '
+      'progress=${_progress.value} published=${_inset.height}',
     );
     if (_closing) return;
 
     if (_handoffToKeyboard) {
       if (waitForIme) {
-        chatChromeLog('EmojiPanel.close handoff duplicate → finish shell');
-        widget.onOpenChanged?.call(false);
-        if (widget.controller.isHoldingForIme) {
-          widget.controller.closePanel(waitForIme: false);
+        chatChromeLog('KeyboardPanel.close handoff duplicate → finish shell');
+        if (_inset.isHoldingForIme) {
+          _inset.closePanel(waitForIme: false);
+        }
+        if (notifyController) {
+          widget.controller.adoptClose();
         }
         if (mounted) {
           setState(_finishHandoffShell);
@@ -594,20 +577,30 @@ class EmojiPanelState extends State<EmojiPanel> with TickerProviderStateMixin {
     }
 
     _opening = false;
-    widget.onOpenChanged?.call(false);
+    if (notifyController) {
+      widget.controller.adoptClose();
+    }
+
+    // Search cannot outlive a closed panel — clear local chrome (SoT already
+    // cleared when the host used [KeyboardPanelController.close]).
+    if (_searchOpen.value) {
+      _searchOpen.value = false;
+      _search.clear();
+      _searchFocus.unfocus();
+    }
 
     if (waitForIme) {
       // Keyboard handoff: hide emoji chrome, keep panel shell + inset hold.
       _handoffToKeyboard = true;
       _contentVisible = false;
       if (notifyController) {
-        widget.controller.closePanel(waitForIme: true);
+        _inset.closePanel(waitForIme: true);
       }
       if (mounted) {
         setState(() {});
       }
       chatChromeLog(
-        'EmojiPanel.close handoff shell-only progress=${_progress.value}',
+        'KeyboardPanel.close handoff shell-only progress=${_progress.value}',
       );
       return;
     }
@@ -615,13 +608,13 @@ class EmojiPanelState extends State<EmojiPanel> with TickerProviderStateMixin {
     _closing = true;
     // Cold dismiss: animate occupancy target → −safeBottom, then release.
     _closeSafeBottom = MediaQuery.viewPaddingOf(context).bottom;
-    _closeTarget = widget.controller.isPanelOpen
-        ? (widget.controller.panelTarget > 0
-              ? widget.controller.panelTarget
-              : math.max(0.0, widget.controller.height))
-        : math.max(0.0, widget.controller.height);
+    _closeTarget = _inset.isPanelOpen
+        ? (_inset.panelTarget > 0
+              ? _inset.panelTarget
+              : math.max(0.0, _inset.height))
+        : math.max(0.0, _inset.height);
     if (_closeTarget <= 0) {
-      _closeTarget = widget.controller.panelTargetHeight(
+      _closeTarget = _inset.panelTargetHeight(
         landscape: MediaQuery.orientationOf(context) == Orientation.landscape,
       );
     }
@@ -634,15 +627,17 @@ class EmojiPanelState extends State<EmojiPanel> with TickerProviderStateMixin {
     try {
       await _progress.animateTo(0, curve: KeyboardPanelMotion.curve);
       chatChromeLog(
-        'EmojiPanel.close COLD done progress=${_progress.value} '
-        'published=${widget.controller.height}',
+        'KeyboardPanel.close COLD done progress=${_progress.value} '
+        'published=${_inset.height}',
       );
     } catch (e, st) {
-      chatChromeLog('EmojiPanel.close animate error $e\n$st');
+      chatChromeLog('KeyboardPanel.close animate error $e\n$st');
     }
 
     if (notifyController) {
-      widget.controller.closePanel(waitForIme: false);
+      _inset.closePanel(waitForIme: false);
+    } else {
+      widget.controller.completeColdClose();
     }
 
     if (!mounted) return;
@@ -654,35 +649,9 @@ class EmojiPanelState extends State<EmojiPanel> with TickerProviderStateMixin {
       _searchOpen.value = false;
       _search.clear();
       _searchFocus.unfocus();
-      widget.controller.collapsePanelFromSearch();
+      _inset.collapsePanelFromSearch();
     });
-    chatChromeLog(
-      'EmojiPanel.close done published=${widget.controller.height}',
-    );
-  }
-
-  /// Back-press contract: search IME → search mode → panel → unhandled.
-  ///
-  /// While search is open and the soft keyboard is up, the first back only
-  /// dismisses IME and **keeps** search focus (Telegram). The next back exits
-  /// search mode.
-  Future<bool> handleBack() async {
-    if (_searchOpen.value) {
-      final imeUp =
-          MediaQuery.viewInsetsOf(context).bottom > 1 ||
-          widget.controller.imeHeight > 1;
-      if (imeUp) {
-        await SystemChannels.textInput.invokeMethod<void>('TextInput.hide');
-        return true;
-      }
-      await _closeSearch(hideKeyboard: true);
-      return true;
-    }
-    if (isOpen) {
-      await close();
-      return true;
-    }
-    return false;
+    chatChromeLog('KeyboardPanel.close done published=${_inset.height}');
   }
 
   // --- Picks / recents ------------------------------------------------------
@@ -788,7 +757,7 @@ class EmojiPanelState extends State<EmojiPanel> with TickerProviderStateMixin {
     }
 
     _bottomScrollAccum += dy;
-    final offset = EmojiPanelBottomBar.scrollToggleOffset;
+    final offset = KeyboardPanelBottomBar.scrollToggleOffset;
 
     if (_bottomScrollAccum >= offset) {
       _showBottomTab(false);
@@ -812,8 +781,8 @@ class EmojiPanelState extends State<EmojiPanel> with TickerProviderStateMixin {
   // --- Search / type tab ----------------------------------------------------
 
   void _onSearchFocusChanged() {
-    if (_searchFocus.hasFocus && !_searchOpen.value) {
-      unawaited(_openSearch());
+    if (_searchFocus.hasFocus && !widget.controller.isSearchOpen) {
+      widget.controller.openSearch();
     }
   }
 
@@ -827,11 +796,14 @@ class EmojiPanelState extends State<EmojiPanel> with TickerProviderStateMixin {
     const composerBand = 56.0;
     const slack = 6.0;
     return math.max(
-      widget.controller.panelBaseTarget,
+      _inset.panelBaseTarget,
       size.height - safeTop - safeBottom - composerBand - slack,
     );
   }
 
+  /// Projects search expand. SoT is already committed when invoked via
+  /// [KeyboardPanelController.openSearch]. If local chrome runs while SoT is
+  /// still closed, adopts open without projecting again.
   Future<void> _openSearch() async {
     if (_searchOpen.value) {
       if (!_searchFocus.hasFocus) {
@@ -839,14 +811,17 @@ class EmojiPanelState extends State<EmojiPanel> with TickerProviderStateMixin {
       }
       return;
     }
+    if (!widget.controller.isSearchOpen) {
+      widget.controller.adoptSearch(true);
+    }
     _searchOpen.value = true;
     _showBottomTab(false);
     _searchFieldTy.value = 0;
     if (mounted) setState(() {});
 
-    final from = widget.controller.panelTarget;
+    final from = _inset.panelTarget;
     final avail = _availableMaxForSearch();
-    final to = widget.controller.expandPanelForSearch(availableMax: avail);
+    final to = _inset.expandPanelForSearch(availableMax: avail);
     await _animateSearchHeight(from: from, to: to);
 
     if (!mounted) return;
@@ -855,9 +830,19 @@ class EmojiPanelState extends State<EmojiPanel> with TickerProviderStateMixin {
     }
   }
 
+  /// Projects search collapse. SoT is already committed when invoked via
+  /// [KeyboardPanelController.closeSearch].
+  ///
+  /// Silent early return when local search is already closed and the inset is
+  /// not search-expanded. [hideKeyboard] controls unfocus and
+  /// [KeyboardPanelCallbacks.onSearchClosed]. Adopts closed SoT when local close
+  /// runs while the controller still reports search open.
   Future<void> _closeSearch({bool hideKeyboard = true}) async {
-    if (!_searchOpen.value && !widget.controller.isSearchExpanded) {
+    if (!_searchOpen.value && !_inset.isSearchExpanded) {
       return;
+    }
+    if (widget.controller.isSearchOpen) {
+      widget.controller.adoptSearch(false);
     }
     if (hideKeyboard) {
       _searchFocus.unfocus();
@@ -866,16 +851,16 @@ class EmojiPanelState extends State<EmojiPanel> with TickerProviderStateMixin {
     _search.clear();
     _deferredRecents.commit(_dataSource);
 
-    final from = widget.controller.panelTarget;
-    final to = widget.controller.panelBaseTarget;
+    final from = _inset.panelTarget;
+    final to = _inset.panelBaseTarget;
     await _animateSearchHeight(from: from, to: to);
-    widget.controller.collapsePanelFromSearch();
+    _inset.collapsePanelFromSearch();
 
     if (!mounted) return;
     _showBottomTab(true);
     setState(() {});
     if (hideKeyboard) {
-      // Stay on emoji panel — host restores composer focus (IME stays down).
+      // Stay on keyboard panel — host restores composer focus (IME stays down).
       widget.callbacks.onSearchClosed?.call();
     }
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -890,7 +875,7 @@ class EmojiPanelState extends State<EmojiPanel> with TickerProviderStateMixin {
     if ((from - to).abs() < 0.5) {
       final safeBottom = MediaQuery.viewPaddingOf(context).bottom;
       _layoutHeight = to + safeBottom;
-      widget.controller.setPanelOccupancy(to);
+      _inset.setPanelOccupancy(to);
       if (mounted) setState(() {});
       return;
     }
@@ -909,7 +894,7 @@ class EmojiPanelState extends State<EmojiPanel> with TickerProviderStateMixin {
 
     void tick() {
       final h = from + (to - from) * curved.value;
-      widget.controller.setPanelOccupancy(h);
+      _inset.setPanelOccupancy(h);
       _layoutHeight = h + safeBottom;
       if (mounted) setState(() {});
     }
@@ -917,7 +902,7 @@ class EmojiPanelState extends State<EmojiPanel> with TickerProviderStateMixin {
     curved.addListener(tick);
     try {
       await controller.forward();
-      widget.controller.setPanelOccupancy(to);
+      _inset.setPanelOccupancy(to);
       _layoutHeight = to + safeBottom;
       if (mounted) setState(() {});
     } finally {
@@ -937,11 +922,19 @@ class EmojiPanelState extends State<EmojiPanel> with TickerProviderStateMixin {
   ///
   /// Reselecting the emoji tab calls [EmojiPageState.scrollToFirstCategory]
   /// without exiting search mode.
-  Future<void> _commitPage(int index, {required bool jump}) async {
+  ///
+  /// When [fromController] is true, [KeyboardPanelController.selectTab] already
+  /// committed SoT and prefs — this only projects the pager. Otherwise adopts
+  /// SoT and persists (swipe / local reselect side paths).
+  Future<void> _commitPage(
+    int index, {
+    required bool jump,
+    bool fromController = false,
+  }) async {
     if (index < 0 || index >= _tabs.length) return;
 
     final changed = index != _pageIndex.value;
-    if (!changed && jump && _tabs[index] == EmojiPanelTab.emoji) {
+    if (!changed && jump && _tabs[index] == KeyboardPanelTab.emoji) {
       _showBottomTab(true);
       _syncCatalogScrollBinding();
       await _emojiPageKey.currentState?.scrollToFirstCategory();
@@ -963,14 +956,16 @@ class EmojiPanelState extends State<EmojiPanel> with TickerProviderStateMixin {
     }
 
     _showBottomTab(true);
-    if (_tabs[index] == EmojiPanelTab.emoji) {
+    if (_tabs[index] == KeyboardPanelTab.emoji) {
       _syncCatalogScrollBinding();
     }
     final tab = _tabs[index];
     if (changed) {
-      widget.onTabChanged?.call(tab);
+      if (!fromController) {
+        widget.controller.adoptTab(tab);
+        await widget.controller.store.setSelectedPage(tab.prefsPage);
+      }
     }
-    await widget.store.setSelectedPage(tab.prefsPage);
   }
 
   Future<void> _onPageChanged(int index) async {
@@ -990,7 +985,7 @@ class EmojiPanelState extends State<EmojiPanel> with TickerProviderStateMixin {
     final drawContent = _contentVisible && !_handoffToKeyboard;
     final layoutH = _layoutHeight > 0
         ? _layoutHeight
-        : widget.controller.panelTarget + safeBottom;
+        : _inset.panelTarget + safeBottom;
 
     // Freeze bottom viewInsets/padding so lists do not reflow while the OS
     // keyboard dismisses under a REPLACE open (keep a fixed sheet height).
@@ -1045,7 +1040,7 @@ class EmojiPanelState extends State<EmojiPanel> with TickerProviderStateMixin {
                         children: <Widget>[
                           for (final tab in _tabs)
                             switch (tab) {
-                              EmojiPanelTab.emoji => EmojiPage(
+                              KeyboardPanelTab.emoji => EmojiPage(
                                 key: _emojiPageKey,
                                 dataSource: widget.dataSource,
                                 recents: _deferredRecents.glyphs,
@@ -1059,13 +1054,14 @@ class EmojiPanelState extends State<EmojiPanel> with TickerProviderStateMixin {
                                 searchResultsLabel: widget.labels.searchResults,
                                 searchEmptyLabel: widget.labels.searchEmpty,
                                 onOpenSearch: () {
-                                  unawaited(_openSearch());
+                                  unawaited(widget.controller.openSearch());
                                 },
                                 onEmojiSelected: _onEmoji,
                                 onClearRecents: _onRequestClearRecents,
                               ),
-                              EmojiPanelTab.gifs => const GifPageStub(),
-                              EmojiPanelTab.stickers => const StickerPageStub(),
+                              KeyboardPanelTab.gifs => const GifPageStub(),
+                              KeyboardPanelTab.stickers =>
+                                const StickerPageStub(),
                             },
                         ],
                       ),
@@ -1076,7 +1072,7 @@ class EmojiPanelState extends State<EmojiPanel> with TickerProviderStateMixin {
                           left: 0,
                           right: 0,
                           bottom: 0,
-                          child: EmojiPanelNavBarFade(
+                          child: KeyboardPanelNavBarFade(
                             height: safeBottom,
                             color: colors.panelBackground,
                           ),
@@ -1096,11 +1092,11 @@ class EmojiPanelState extends State<EmojiPanel> with TickerProviderStateMixin {
                                 tween: Tween<double>(
                                   end: bottomBarVisible
                                       ? 0
-                                      : EmojiPanelBottomBar.hideSlide +
+                                      : KeyboardPanelBottomBar.hideSlide +
                                             safeBottom,
                                 ),
                                 duration:
-                                    EmojiPanelBottomBar.visibilityDuration,
+                                    KeyboardPanelBottomBar.visibilityDuration,
                                 curve: Curves.easeOutQuint,
                                 builder: (context, y, animatedChild) =>
                                     Transform.translate(
@@ -1119,7 +1115,7 @@ class EmojiPanelState extends State<EmojiPanel> with TickerProviderStateMixin {
                                   _pageIndex,
                                 ]),
                                 builder: (context, _) {
-                                  return EmojiPanelBottomBar(
+                                  return KeyboardPanelBottomBar(
                                     tabs: _tabs,
                                     page: _page.value,
                                     selectedTab: _tabs[_pageIndex.value],
@@ -1127,16 +1123,26 @@ class EmojiPanelState extends State<EmojiPanel> with TickerProviderStateMixin {
                                     labels: widget.labels,
                                     actions:
                                         widget.bottomActions ??
-                                        EmojiPanelBottomActions.standard(
+                                        KeyboardPanelBottomActions.standard(
                                           onBackspace: widget.onBackspace,
-                                          onStickerSettings: _onStickerSettings,
+                                          onStickerSettings: widget
+                                              .callbacks
+                                              .onStickerSettings,
                                         ),
                                     onSelectTab: (i) {
                                       // Jump type tab without pager smooth
                                       // scroll — indicator settles separately.
                                       _markBottomTabAfterClick();
                                       _pageDragging.value = false;
-                                      unawaited(_commitPage(i, jump: true));
+                                      final tab = _tabs[i];
+                                      if (tab ==
+                                          widget.controller.selectedTab) {
+                                        // Same-value selectTab is silent — still
+                                        // run reselect side effects (emoji → top).
+                                        _commitPage(i, jump: true);
+                                      } else {
+                                        widget.controller.selectTab(tab);
+                                      }
                                     },
                                   );
                                 },
@@ -1158,8 +1164,8 @@ class EmojiPanelState extends State<EmojiPanel> with TickerProviderStateMixin {
 
 /// Deletes one extended grapheme cluster at the caret, or the selection.
 ///
-/// Hosts typically wire this to [EmojiPanel.onBackspace] /
-/// [EmojiPanelBottomActions]. No-ops when the field is empty or the caret
+/// Hosts typically wire this to [KeyboardPanel.onBackspace] /
+/// [KeyboardPanelBottomActions]. No-ops when the field is empty or the caret
 /// is at offset `0` with a collapsed selection.
 void emojiBackspace(TextEditingController controller) {
   final value = controller.value;

@@ -1,14 +1,14 @@
 import 'package:chat_chrome/src/motion/scale_pressable.dart';
-import 'package:chat_chrome/src/panel/emoji_panel_allow.dart';
-import 'package:chat_chrome/src/panel/emoji_panel_bottom_bar.dart';
-import 'package:chat_chrome/src/panel/emoji_panel_labels.dart';
+import 'package:chat_chrome/src/panel/keyboard_panel_allow.dart';
+import 'package:chat_chrome/src/panel/keyboard_panel_bottom_bar.dart';
+import 'package:chat_chrome/src/panel/keyboard_panel_labels.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 
 /// Shrink-wrapped type tabs + sliding indicator (`PagerSlidingTabStrip`).
-class EmojiTypeTabsPill extends StatefulWidget {
+class KeyboardPanelTypeTabsPill extends StatefulWidget {
   /// Creates the type-tabs pill.
-  const EmojiTypeTabsPill({
+  const KeyboardPanelTypeTabsPill({
     required this.tabs,
     required this.page,
     required this.pageDragging,
@@ -22,7 +22,7 @@ class EmojiTypeTabsPill extends StatefulWidget {
   });
 
   /// Enabled tabs.
-  final List<EmojiPanelTab> tabs;
+  final List<KeyboardPanelTab> tabs;
 
   /// Continuous pager position.
   final double page;
@@ -31,7 +31,7 @@ class EmojiTypeTabsPill extends StatefulWidget {
   final bool pageDragging;
 
   /// Host labels.
-  final EmojiPanelLabels labels;
+  final KeyboardPanelLabels labels;
 
   /// Tab tap.
   final ValueChanged<int> onSelectTab;
@@ -49,10 +49,10 @@ class EmojiTypeTabsPill extends StatefulWidget {
   final Color idleText;
 
   @override
-  State<EmojiTypeTabsPill> createState() => _EmojiTypeTabsPillState();
+  State<KeyboardPanelTypeTabsPill> createState() => _KeyboardPanelTypeTabsPillState();
 }
 
-class _EmojiTypeTabsPillState extends State<EmojiTypeTabsPill>
+class _KeyboardPanelTypeTabsPillState extends State<KeyboardPanelTypeTabsPill>
     with SingleTickerProviderStateMixin {
   late List<GlobalKey> _textKeys;
   late final AnimationController _line;
@@ -74,7 +74,7 @@ class _EmojiTypeTabsPillState extends State<EmojiTypeTabsPill>
     _line =
         AnimationController(
           vsync: this,
-          duration: EmojiPanelBottomBar.indicatorDuration,
+          duration: KeyboardPanelBottomBar.indicatorDuration,
         )..addListener(() {
           final t = Curves.easeOutQuint.transform(_line.value);
           _lineLeft = _fromLeft + (_toLeft - _fromLeft) * t;
@@ -84,7 +84,7 @@ class _EmojiTypeTabsPillState extends State<EmojiTypeTabsPill>
   }
 
   @override
-  void didUpdateWidget(EmojiTypeTabsPill oldWidget) {
+  void didUpdateWidget(KeyboardPanelTypeTabsPill oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.tabs.length != widget.tabs.length) {
       _textKeys = List<GlobalKey>.generate(
@@ -106,7 +106,7 @@ class _EmojiTypeTabsPillState extends State<EmojiTypeTabsPill>
     super.dispose();
   }
 
-  double _hPad(EmojiPanelTab tab) => tab == EmojiPanelTab.gifs ? 12 : 16;
+  double _hPad(KeyboardPanelTab tab) => tab == KeyboardPanelTab.gifs ? 12 : 16;
 
   List<Rect?> _textRects(RenderBox strip) {
     return <Rect?>[
@@ -130,7 +130,7 @@ class _EmojiTypeTabsPillState extends State<EmojiTypeTabsPill>
     final b = i + 1 < rects.length ? rects[i + 1] : null;
     final left = b == null ? a.left : a.left + (b.left - a.left) * t;
     final right = b == null ? a.right : a.right + (b.right - a.right) * t;
-    final pad = EmojiPanelBottomBar.indicatorPad;
+    final pad = KeyboardPanelBottomBar.indicatorPad;
     return (left - pad, right + pad);
   }
 
@@ -178,7 +178,7 @@ class _EmojiTypeTabsPillState extends State<EmojiTypeTabsPill>
       borderRadius: BorderRadius.circular(18),
       clipBehavior: Clip.antiAlias,
       child: SizedBox(
-        height: EmojiPanelBottomBar.stripHeight,
+        height: KeyboardPanelBottomBar.stripHeight,
         child: Padding(
           padding: const EdgeInsets.symmetric(vertical: 3),
           child: Stack(
@@ -201,7 +201,7 @@ class _EmojiTypeTabsPillState extends State<EmojiTypeTabsPill>
                         decoration: BoxDecoration(
                           color: widget.indicator,
                           borderRadius: BorderRadius.circular(
-                            EmojiPanelBottomBar.stripHeight / 2,
+                            KeyboardPanelBottomBar.stripHeight / 2,
                           ),
                         ),
                       ),

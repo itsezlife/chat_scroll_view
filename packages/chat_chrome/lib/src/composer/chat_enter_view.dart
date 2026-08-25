@@ -50,7 +50,7 @@ class ChatEnterView extends StatefulWidget {
     this.isEditing = false,
     this.onCancelEdit,
     this.maxWidth = 620,
-    this.onFieldTapWhileEmojiOpen,
+    this.onFieldTapWhilePanelOpen,
     this.glassKey,
     super.key,
   });
@@ -103,9 +103,9 @@ class ChatEnterView extends StatefulWidget {
   /// Key on the liquid-glass island (for fade cutout tracking).
   final GlobalKey? glassKey;
 
-  /// Fired when the user taps the field while the emoji panel is open
-  /// (tap input → close emoji, show IME).
-  final VoidCallback? onFieldTapWhileEmojiOpen;
+  /// Fired when the user taps the field while the keyboard panel is open
+  /// (tap input → close panel, show IME).
+  final VoidCallback? onFieldTapWhilePanelOpen;
 
   /// Default composer height (`DEFAULT_HEIGHT` / island paint height).
   static const double rowHeight = ChatInputMetrics.islandHeight;
@@ -149,7 +149,7 @@ class ChatEnterViewState extends State<ChatEnterView> {
 
   var _allowImeOnce = false;
 
-  /// Emoji panel open → keyboard icon; suppress OS IME while focused.
+  /// Keyboard panel open → keyboard icon; suppress OS IME while focused.
   bool get _suppressSoftKeyboard =>
       widget.emojiIconState == ChatEnterEmojiIconState.keyboard;
 
@@ -178,15 +178,15 @@ class ChatEnterViewState extends State<ChatEnterView> {
 
   /// Arms one focus gain so IME-suppress does not hide the soft keyboard.
   ///
-  /// Call on pointer-down of the composer field while the emoji panel is open
-  /// — [TextField] steals focus before [onTap], ahead of [requestKeyboard].
+  /// Call on pointer-down of the composer field while the keyboard panel is
+  /// open — [TextField] steals focus before [onTap], ahead of [requestKeyboard].
   void prepareKeyboardHandoff() {
     _allowImeOnce = true;
   }
 
   /// Programmatic focus + IME show.
   ///
-  /// Bypasses emoji-panel IME suppression once so focus handoff from the
+  /// Bypasses keyboard-panel IME suppression once so focus handoff from the
   /// emoji search field does not hide-then-show the soft keyboard.
   void requestKeyboard() {
     final alreadyFocused = widget.focusNode.hasFocus;
@@ -201,7 +201,7 @@ class ChatEnterViewState extends State<ChatEnterView> {
     SystemChannels.textInput.invokeMethod<void>('TextInput.hide');
   }
 
-  /// Hides soft IME but keeps the field focused (emoji panel open).
+  /// Hides soft IME but keeps the field focused (keyboard panel open).
   ///
   /// Call only while [ChatEnterEmojiIconState.keyboard] suppresses IME show.
   void hideKeyboardRetainingFocus() {
@@ -257,9 +257,9 @@ class ChatEnterViewState extends State<ChatEnterView> {
                   isEditing: widget.isEditing,
                   onCancelEdit: widget.onCancelEdit,
                   enabled: widget.enabled,
-                  onFieldTapWhileEmojiOpen: widget.onFieldTapWhileEmojiOpen,
+                  onFieldTapWhilePanelOpen: widget.onFieldTapWhilePanelOpen,
                   onPrepareKeyboardHandoff:
-                      widget.onFieldTapWhileEmojiOpen == null
+                      widget.onFieldTapWhilePanelOpen == null
                       ? null
                       : prepareKeyboardHandoff,
                 ),
@@ -288,7 +288,7 @@ class _InputRow extends StatelessWidget {
     required this.isEditing,
     required this.onCancelEdit,
     required this.enabled,
-    this.onFieldTapWhileEmojiOpen,
+    this.onFieldTapWhilePanelOpen,
     this.onPrepareKeyboardHandoff,
   });
 
@@ -306,7 +306,7 @@ class _InputRow extends StatelessWidget {
   final bool isEditing;
   final VoidCallback? onCancelEdit;
   final bool enabled;
-  final VoidCallback? onFieldTapWhileEmojiOpen;
+  final VoidCallback? onFieldTapWhilePanelOpen;
   final VoidCallback? onPrepareKeyboardHandoff;
 
   @override
@@ -348,7 +348,7 @@ class _InputRow extends StatelessWidget {
                     maxLines: 6,
                     keyboardType: TextInputType.multiline,
                     textInputAction: TextInputAction.newline,
-                    onTap: onFieldTapWhileEmojiOpen,
+                    onTap: onFieldTapWhilePanelOpen,
                     cursorColor: colors.messagePanelCursor,
                     style: TextStyle(
                       color: colors.messagePanelText,

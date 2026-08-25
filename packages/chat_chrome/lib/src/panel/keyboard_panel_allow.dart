@@ -1,20 +1,20 @@
 import 'package:flutter/foundation.dart';
 
-/// Which emoji-panel tabs are available .
+/// Which keyboard-panel type tabs are available.
 @immutable
-class EmojiPanelAllow {
+class KeyboardPanelAllow {
   /// Creates an allow mask.
-  const EmojiPanelAllow({
+  const KeyboardPanelAllow({
     this.emoji = true,
     this.stickers = false,
     this.gifs = false,
   });
 
   /// Demo default: emoji only.
-  static const EmojiPanelAllow emojiOnly = EmojiPanelAllow();
+  static const KeyboardPanelAllow emojiOnly = KeyboardPanelAllow();
 
   /// All three tabs.
-  static const EmojiPanelAllow all = EmojiPanelAllow(
+  static const KeyboardPanelAllow all = KeyboardPanelAllow(
     emoji: true,
     stickers: true,
     gifs: true,
@@ -30,11 +30,11 @@ class EmojiPanelAllow {
   final bool gifs;
 
   /// Ordered pager pages: emoji → GIF → stickers.
-  List<EmojiPanelTab> get tabs {
-    final out = <EmojiPanelTab>[];
-    if (emoji) out.add(EmojiPanelTab.emoji);
-    if (gifs) out.add(EmojiPanelTab.gifs);
-    if (stickers) out.add(EmojiPanelTab.stickers);
+  List<KeyboardPanelTab> get tabs {
+    final out = <KeyboardPanelTab>[];
+    if (emoji) out.add(KeyboardPanelTab.emoji);
+    if (gifs) out.add(KeyboardPanelTab.gifs);
+    if (stickers) out.add(KeyboardPanelTab.stickers);
     return out;
   }
 
@@ -42,8 +42,8 @@ class EmojiPanelAllow {
   bool get showTypeTabs => tabs.length > 1;
 
   /// Copy with selective overrides.
-  EmojiPanelAllow copyWith({bool? emoji, bool? stickers, bool? gifs}) =>
-      EmojiPanelAllow(
+  KeyboardPanelAllow copyWith({bool? emoji, bool? stickers, bool? gifs}) =>
+      KeyboardPanelAllow(
         emoji: emoji ?? this.emoji,
         stickers: stickers ?? this.stickers,
         gifs: gifs ?? this.gifs,
@@ -51,7 +51,7 @@ class EmojiPanelAllow {
 
   @override
   bool operator ==(Object other) =>
-      other is EmojiPanelAllow &&
+      other is KeyboardPanelAllow &&
       other.emoji == emoji &&
       other.stickers == stickers &&
       other.gifs == gifs;
@@ -60,8 +60,8 @@ class EmojiPanelAllow {
   int get hashCode => Object.hash(emoji, stickers, gifs);
 }
 
-/// Bottom type-tab identity .
-enum EmojiPanelTab {
+/// Bottom type-tab identity for the keyboard panel.
+enum KeyboardPanelTab {
   /// Unicode emoji.
   emoji,
 
@@ -72,19 +72,19 @@ enum EmojiPanelTab {
   stickers,
 }
 
-/// Maps persisted `selected_page` onto [EmojiPanelTab].
-extension EmojiPanelTabPrefs on EmojiPanelTab {
+/// Maps [KeyboardPanelStore.selectedPageKey] onto [KeyboardPanelTab].
+extension KeyboardPanelTabPrefs on KeyboardPanelTab {
   /// Prefs integer (0 emoji / 1 stickers / 2 GIFs).
   int get prefsPage => switch (this) {
-    EmojiPanelTab.emoji => 0,
-    EmojiPanelTab.stickers => 1,
-    EmojiPanelTab.gifs => 2,
+    KeyboardPanelTab.emoji => 0,
+    KeyboardPanelTab.stickers => 1,
+    KeyboardPanelTab.gifs => 2,
   };
 
   /// Inverse of [prefsPage].
-  static EmojiPanelTab fromPrefs(int page) => switch (page) {
-    1 => EmojiPanelTab.stickers,
-    2 => EmojiPanelTab.gifs,
-    _ => EmojiPanelTab.emoji,
+  static KeyboardPanelTab fromPrefs(int page) => switch (page) {
+    1 => KeyboardPanelTab.stickers,
+    2 => KeyboardPanelTab.gifs,
+    _ => KeyboardPanelTab.emoji,
   };
 }

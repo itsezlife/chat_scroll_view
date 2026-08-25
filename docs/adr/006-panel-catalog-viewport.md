@@ -17,10 +17,10 @@ repo root.
 | Topic | Decision |
 | ----- | -------- |
 | Context | Sibling **Panel Catalog Viewport** ([glossary](../panel-catalog/CONTEXT.md)); not “Media Grid” (collides with chat attachments) |
-| Ownership | Viewport = catalog body only; **catalog shell** = strip / search / tabs / pickers / DS wiring |
+| Ownership | Viewport = catalog body only; chrome around it is **KeyboardPanel** (ADR 007; was “catalog shell”) = strip / search / tabs / pickers / DS wiring |
 | Geometry | **Extent scroll** (absolute offset + known/estimated content height) |
 | Leaves | **Paint leaf** pool + **viewport-owned hit-test**; no per-cell StatefulWidget default |
-| Leaf gestures | Tap and long-press start/move/end callbacks to the **catalog shell** with [CatalogLeaf] identity; optional **long-press eligibility** predicate; **fling-cancel suppress**; painted press scale + list-selector highlight |
+| Leaf gestures | Tap and long-press start/move/end callbacks to **KeyboardPanel** with [CatalogLeaf] identity; optional **long-press eligibility** predicate; **fling-cancel suppress**; painted press scale + list-selector highlight |
 | Theme | **[PanelCatalogTheme]** + **[PanelCatalogThemeData]** — package inherited theme for placeholder fill and press chrome; [PanelCatalogThemeData.lerp] for transitions |
 | Placeholders | Kind-specific: **circle** (unicode), **thumb-first** (animated), **shaped wash** (stickers) — see [leaf-placeholder.md](../panel-catalog/leaf-placeholder.md) |
 | Far path | [CatalogFarStitch] when not attached and flat-row distance `> 9` (Telegram `spanCount × 9` in per-cell adapter space; or animations off). Capture → teleport → dual-translate; not naked `jumpTo` |

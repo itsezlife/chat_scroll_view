@@ -15,7 +15,7 @@ abstract final class ChatInputMetrics {
   /// With [islandHeight] 44 this is a full pill (`radius == height / 2`).
   static const double bubbleRadius = 22;
 
-  /// Under-keyboard / emoji panel top radius (`INPUT_KEYBOARD_RADIUS`).
+  /// Under-keyboard / keyboard-panel top radius (`INPUT_KEYBOARD_RADIUS`).
   static const double keyboardRadius = 29;
 
   /// Gap between island bottom and keyboard/panel top (`INPUT_BUBBLE_BOTTOM`).

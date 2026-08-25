@@ -1,6 +1,6 @@
 import 'package:flutter/animation.dart';
 
-/// Keyboard / emoji-panel open-close motion tokens.
+/// Keyboard / keyboard-panel open-close motion tokens.
 abstract final class KeyboardPanelMotion {
   /// Panel / IME pan duration — 250ms.
   static const Duration duration = Duration(milliseconds: 250);

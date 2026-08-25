@@ -60,7 +60,7 @@ final class EmojiCatalogStripTab {
 /// paint skips circle placeholders for standard emoji cells.
 final class EmojiCatalogDataSource extends CatalogDataSource {
   static final PanelCatalogDevLog _log = PanelCatalogDevLog(
-    'PanelCatalogShell',
+    'KeyboardPanel',
   );
 
   /// Creates an adapter over [emojiSource] and [assetCache].

@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-/// Theme colors for composer + emoji panel.
+/// Theme colors for composer + keyboard panel.
 @immutable
 class ChatChromeColors {
   /// Light defaults.

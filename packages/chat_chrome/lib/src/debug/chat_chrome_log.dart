@@ -13,7 +13,7 @@ import 'package:panel_catalog/panel_catalog.dart';
 /// | `PanelCatalogBinding`  | sync window, readiness counts   |
 /// | `PanelCatalogScroll`   | section jump, offset            |
 /// | `PanelCatalogPaint`    | placeholder vs content counts   |
-/// | `PanelCatalogShell`    | emoji page, data-source, search geometry |
+/// | `KeyboardPanel`        | emoji page, data-source, search |
 ///
 /// Enabled in debug builds by default ([kPanelCatalogDevLog]). Silence with
 /// `--dart-define=PANEL_CATALOG_DEV_LOG=false`.

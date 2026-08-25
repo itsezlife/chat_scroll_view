@@ -3,7 +3,7 @@ import 'package:chat_chrome/src/panel/emoji_search_state_icon.dart';
 import 'package:chat_chrome/src/theme/chat_chrome_colors.dart';
 import 'package:flutter/material.dart';
 
-/// Sticky emoji-panel search chrome (50dp host, 36dp glass pill).
+/// Sticky keyboard-panel search chrome (50dp host, 36dp glass pill).
 ///
 /// Idle: host translates with the grid search spacer. Focus / tap opens search
 /// mode via [onOpenSearch]. Bottom shadow shows only while search is open and

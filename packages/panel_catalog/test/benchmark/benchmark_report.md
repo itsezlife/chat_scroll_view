@@ -10,7 +10,7 @@
 - Candidate: Panel Catalog Viewport (paint leaves)
 - Baselines:
   1. **SliverGrid** — section headers + `SliverGrid` per section (what most packages use)
-  2. **SuperSliverList** — frozen flat header+row list (pre-viewport emoji panel body)
+  2. **SuperSliverList** — frozen flat header+row list (pre-viewport keyboard-panel catalog body)
 
 ## How to re-run
 

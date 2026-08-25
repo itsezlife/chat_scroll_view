@@ -7,16 +7,16 @@ void main() {
 
   test('selected_page persists across store reloads', () async {
     SharedPreferences.setMockInitialValues(<String, Object>{
-      'chat_chrome_emoji_selected_page': EmojiPanelTab.stickers.prefsPage,
+      KeyboardPanelStore.selectedPageKey: KeyboardPanelTab.stickers.prefsPage,
     });
-    final store = KeyboardHeightStore(defaultHeight: 200);
+    final store = KeyboardPanelStore(defaultHeight: 200);
     await store.load();
-    expect(store.selectedPage, EmojiPanelTab.stickers.prefsPage);
+    expect(store.selectedPage, KeyboardPanelTab.stickers.prefsPage);
 
-    await store.setSelectedPage(EmojiPanelTab.emoji.prefsPage);
+    await store.setSelectedPage(KeyboardPanelTab.emoji.prefsPage);
 
-    final reloaded = KeyboardHeightStore(defaultHeight: 200);
+    final reloaded = KeyboardPanelStore(defaultHeight: 200);
     await reloaded.load();
-    expect(reloaded.selectedPage, EmojiPanelTab.emoji.prefsPage);
+    expect(reloaded.selectedPage, KeyboardPanelTab.emoji.prefsPage);
   });
 }

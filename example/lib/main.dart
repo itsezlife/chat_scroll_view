@@ -15,7 +15,7 @@ void main() => runZonedGuarded<void>(
     WidgetsFlutterBinding.ensureInitialized();
     bindExamplePreImeBack();
 
-    final keyboardHeightStore = KeyboardHeightStore();
+    final keyboardPanelStore = KeyboardPanelStore();
     final emojiDataSource = DefaultEmojiDataSource(
       catalog: LocaleEmojiCatalogProvider(
         locale: const Locale('ru'),
@@ -31,13 +31,13 @@ void main() => runZonedGuarded<void>(
         url: DemoConfig.supabaseUrl,
         publishableKey: DemoConfig.supabasePublishableKey,
       ),
-      keyboardHeightStore.load(),
+      keyboardPanelStore.load(),
       emojiDataSource.load(),
     ).wait;
 
     runApp(
       ChatDemoApp(
-        keyboardHeightStore: keyboardHeightStore,
+        keyboardPanelStore: keyboardPanelStore,
         emojiDataSource: emojiDataSource,
       ),
     );
@@ -52,13 +52,13 @@ void main() => runZonedGuarded<void>(
 class ChatDemoApp extends StatelessWidget {
   /// {@macro chat_demo_app}
   const ChatDemoApp({
-    required this.keyboardHeightStore,
+    required this.keyboardPanelStore,
     required this.emojiDataSource,
     super.key,
   });
 
-  /// Preloaded IME height + last emoji type tab prefs.
-  final KeyboardHeightStore keyboardHeightStore;
+  /// Preloaded panel height + last type-tab prefs.
+  final KeyboardPanelStore keyboardPanelStore;
 
   /// Preloaded emoji catalog / recents.
   final DefaultEmojiDataSource emojiDataSource;
@@ -79,7 +79,7 @@ class ChatDemoApp extends StatelessWidget {
     debugShowCheckedModeBanner: false,
     showPerformanceOverlay: false,
     home: WidgetChatScreen(
-      keyboardHeightStore: keyboardHeightStore,
+      keyboardPanelStore: keyboardPanelStore,
       emojiDataSource: emojiDataSource,
     ),
   );

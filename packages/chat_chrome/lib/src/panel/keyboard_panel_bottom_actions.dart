@@ -1,4 +1,4 @@
-import 'package:chat_chrome/src/panel/emoji_panel_allow.dart';
+import 'package:chat_chrome/src/panel/keyboard_panel_allow.dart';
 import 'package:chat_chrome/src/panel/emoji_tab_assets.dart';
 import 'package:flutter/foundation.dart';
 
@@ -7,9 +7,9 @@ import 'package:flutter/foundation.dart';
 /// When [repeatOnHold] is true, the bar mounts [BackspaceActionButton] instead
 /// of a single-shot [ScalePressable] tap.
 @immutable
-class EmojiPanelBottomAction {
+class KeyboardPanelBottomAction {
   /// Creates an action button descriptor.
-  const EmojiPanelBottomAction({
+  const KeyboardPanelBottomAction({
     required this.iconAsset,
     required this.onPressed,
     this.repeatOnHold = false,
@@ -29,35 +29,35 @@ class EmojiPanelBottomAction {
   final String? semanticsLabel;
 }
 
-/// Resolves which trailing action to show per [EmojiPanelTab].
+/// Resolves which trailing action to show per [KeyboardPanelTab].
 ///
-/// [EmojiPanelBottomActions.standard]: emoji → backspace (hold repeats),
+/// [KeyboardPanelBottomActions.standard]: emoji → backspace (hold repeats),
 /// GIFs → none, stickers → settings when provided.
 @immutable
-class EmojiPanelBottomActions {
+class KeyboardPanelBottomActions {
   /// Creates a resolver.
-  const EmojiPanelBottomActions({required this.resolve});
+  const KeyboardPanelBottomActions({required this.resolve});
 
   /// Returns the action for [tab], or `null` when the tab has none.
-  final EmojiPanelBottomAction? Function(EmojiPanelTab tab) resolve;
+  final KeyboardPanelBottomAction? Function(KeyboardPanelTab tab) resolve;
 
   /// Convenience lookup.
-  EmojiPanelBottomAction? forTab(EmojiPanelTab tab) => resolve(tab);
+  KeyboardPanelBottomAction? forTab(KeyboardPanelTab tab) => resolve(tab);
 
   /// Default mapping (emoji backspace with [repeatOnHold]).
-  factory EmojiPanelBottomActions.standard({
+  factory KeyboardPanelBottomActions.standard({
     required VoidCallback onBackspace,
     VoidCallback? onStickerSettings,
   }) =>
-      EmojiPanelBottomActions(
+      KeyboardPanelBottomActions(
         resolve: (tab) => switch (tab) {
-          EmojiPanelTab.emoji => EmojiPanelBottomAction(
+          KeyboardPanelTab.emoji => KeyboardPanelBottomAction(
             iconAsset: EmojiTabAssets.clear,
             onPressed: onBackspace,
             repeatOnHold: true,
           ),
-          EmojiPanelTab.stickers when onStickerSettings != null =>
-            EmojiPanelBottomAction(
+          KeyboardPanelTab.stickers when onStickerSettings != null =>
+            KeyboardPanelBottomAction(
               iconAsset: EmojiTabAssets.settings,
               onPressed: onStickerSettings,
               semanticsLabel: 'Settings',

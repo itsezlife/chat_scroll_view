@@ -1,6 +1,6 @@
 import 'dart:async';
 
-import 'package:chat_chrome/src/panel/emoji_panel_labels.dart';
+import 'package:chat_chrome/src/panel/keyboard_panel_labels.dart';
 import 'package:flutter/material.dart';
 
 /// Request to wipe frequently-used emoji after host confirmation.
@@ -20,7 +20,7 @@ class EmojiClearRecentsRequest {
   final BuildContext context;
 
   /// Localized copy for a confirm dialog.
-  final EmojiPanelLabels labels;
+  final KeyboardPanelLabels labels;
 
   /// Permanently clears the recents store and refreshes the panel UI.
   final Future<void> Function() clear;
@@ -65,21 +65,21 @@ abstract final class EmojiClearRecents {
   static Future<void> ignore(EmojiClearRecentsRequest request) async {}
 }
 
-/// Secondary host hooks for [EmojiPanel] (settings, clear-recents confirm, …).
+/// Secondary host hooks for [KeyboardPanel] (settings, clear-recents confirm, …).
 ///
-/// Keep insert / backspace on [EmojiPanel] itself; put optional UX that needs a
+/// Keep insert / backspace on [KeyboardPanel] itself; put optional UX that needs a
 /// [BuildContext] or confirm flow here so the host has one place to customize.
 @immutable
-class EmojiPanelCallbacks {
+class KeyboardPanelCallbacks {
   /// Creates host callbacks. Defaults to confirm-then-clear.
-  const EmojiPanelCallbacks({
+  const KeyboardPanelCallbacks({
     this.onStickerSettings,
     this.onClearRecents = EmojiClearRecents.materialConfirm,
     this.onSearchClosed,
   });
 
   /// No secondary hooks (clear-recents long-press is ignored).
-  static const EmojiPanelCallbacks none = EmojiPanelCallbacks(
+  static const KeyboardPanelCallbacks none = KeyboardPanelCallbacks(
     onClearRecents: EmojiClearRecents.ignore,
   );
 
@@ -91,7 +91,7 @@ class EmojiPanelCallbacks {
 
   /// Search mode ended while the panel stays open (IME dismissed).
   ///
-  /// Host SHOULD restore composer focus with soft IME still suppressed
-  /// (Telegram: focus only). Keyboard handoff owns its own [requestKeyboard].
+  /// Host SHOULD restore composer focus with soft IME still suppressed. 
+  /// Keyboard handoff owns its own [requestKeyboard].
   final VoidCallback? onSearchClosed;
 }

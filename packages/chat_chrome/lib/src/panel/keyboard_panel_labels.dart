@@ -1,13 +1,13 @@
-import 'package:chat_chrome/src/panel/emoji_panel_allow.dart';
+import 'package:chat_chrome/src/panel/keyboard_panel_allow.dart';
 import 'package:flutter/foundation.dart';
 
 /// Host-provided copy for type tabs and clear-recents confirm.
 ///
 /// Package stays locale-agnostic — the host maps strings (l10n / demo).
 @immutable
-class EmojiPanelLabels {
+class KeyboardPanelLabels {
   /// Creates labels. Prefer app l10n; English defaults are for tests/demos.
-  const EmojiPanelLabels({
+  const KeyboardPanelLabels({
     this.emoji = 'Emoji',
     this.gifs = 'GIF',
     this.stickers = 'Stickers',
@@ -22,10 +22,10 @@ class EmojiPanelLabels {
   });
 
   /// English defaults (tests / demos without l10n).
-  static const EmojiPanelLabels english = EmojiPanelLabels();
+  static const KeyboardPanelLabels english = KeyboardPanelLabels();
 
   /// Russian demo copy.
-  static const EmojiPanelLabels russian = EmojiPanelLabels(
+  static const KeyboardPanelLabels russian = KeyboardPanelLabels(
     emoji: 'Эмодзи',
     gifs: 'GIF',
     stickers: 'Стикеры',
@@ -73,15 +73,15 @@ class EmojiPanelLabels {
   final String cancelButton;
 
   /// Resolves the label for [tab].
-  String of(EmojiPanelTab tab) => switch (tab) {
-    EmojiPanelTab.emoji => emoji,
-    EmojiPanelTab.gifs => gifs,
-    EmojiPanelTab.stickers => stickers,
+  String of(KeyboardPanelTab tab) => switch (tab) {
+    KeyboardPanelTab.emoji => emoji,
+    KeyboardPanelTab.gifs => gifs,
+    KeyboardPanelTab.stickers => stickers,
   };
 
   @override
   bool operator ==(Object other) =>
-      other is EmojiPanelLabels &&
+      other is KeyboardPanelLabels &&
       other.emoji == emoji &&
       other.gifs == gifs &&
       other.stickers == stickers &&

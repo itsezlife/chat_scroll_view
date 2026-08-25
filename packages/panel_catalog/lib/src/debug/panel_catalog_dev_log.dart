@@ -14,7 +14,8 @@ const bool kPanelCatalogDevLog =
 /// Scoped `dart:developer` logger for panel catalog viewport diagnostics.
 ///
 /// Filter console / DevTools by [name], e.g. `PanelCatalogLayout`,
-/// `PanelCatalogBinding`, `PanelCatalogScroll`, `PanelCatalogShell`.
+/// `PanelCatalogBinding`, `PanelCatalogScroll`. Chat-chrome page chrome uses
+/// the name `KeyboardPanel` on the same logger type.
 ///
 /// ```dart
 /// final layoutLog = PanelCatalogDevLog('PanelCatalogLayout');

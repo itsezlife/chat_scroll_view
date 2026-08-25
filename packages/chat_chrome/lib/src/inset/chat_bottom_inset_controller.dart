@@ -2,7 +2,7 @@ import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:chat_chrome/src/debug/chat_chrome_log.dart';
-import 'package:chat_chrome/src/inset/keyboard_height_store.dart';
+import 'package:chat_chrome/src/inset/keyboard_panel_store.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/scheduler.dart';
 
@@ -11,7 +11,7 @@ enum ChatBottomInsetOwner {
   /// Soft keyboard (or idle zero).
   ime,
 
-  /// Custom emoji / sticker / GIF panel.
+  /// Custom keyboard-replacement panel (emoji / stickers / GIFs).
   panel,
 }
 
@@ -19,27 +19,27 @@ enum ChatBottomInsetOwner {
 ///
 /// Composer / panel bottom-inset model vs Flutter `keyboard_insets`:
 /// - IME open → publish live IME height (record settled peaks only).
-/// - Keyboard → emoji → claim slot at current IME height (inset unchanged).
-/// - Cold emoji open → occupancy animates 0→target.
+/// - Keyboard → panel → claim slot at current IME height (inset unchanged).
+/// - Cold panel open → occupancy animates 0→target.
 /// - Never follow collapsing live IME while the panel owns the slot.
 /// - Do **not** auto-dismiss on a one-frame IME spike after hide
 ///   (`310→0→310` glitch from WindowInsetsAnimation).
 final class ChatBottomInsetController extends ChangeNotifier {
   /// Creates an arbiter.
   ChatBottomInsetController({
-    required KeyboardHeightStore store,
+    required KeyboardPanelStore store,
     double holdEpsilon = 2,
     this.osKeyboardHeight,
   }) : _store = store,
        _holdEpsilon = holdEpsilon;
 
-  final KeyboardHeightStore _store;
+  final KeyboardPanelStore _store;
   final double _holdEpsilon;
 
   /// OS persistent keyboard peak (e.g. `KeyboardInsets.keyboardHeight`).
   ///
   /// Native `keyboard_insets` keeps the last measured IME target even while
-  /// the keyboard is hidden — use that for emoji-panel sizing, not live
+  /// the keyboard is hidden — use that for keyboard-panel sizing, not live
   /// animation frames.
   final double? Function()? osKeyboardHeight;
 
@@ -73,7 +73,7 @@ final class ChatBottomInsetController extends ChangeNotifier {
   /// Current inset owner.
   ChatBottomInsetOwner get owner => _owner;
 
-  /// Whether the emoji panel should be considered open.
+  /// Whether the keyboard panel should be considered open.
   bool get isPanelOpen => _panelDesired;
 
   /// Whether [closePanel] is holding the inset floor for IME handoff.
@@ -118,13 +118,13 @@ final class ChatBottomInsetController extends ChangeNotifier {
   double _resolvedOsHeight() {
     final raw = osKeyboardHeight?.call();
     if (raw == null || !raw.isFinite) return _store.defaultHeight;
-    if (raw < KeyboardHeightStore.minSaneKeyboardHeight) {
+    if (raw < KeyboardPanelStore.minSaneKeyboardHeight) {
       return _store.defaultHeight;
     }
     return raw;
   }
 
-  /// Claims the bottom slot for the emoji panel.
+  /// Claims the bottom slot for the keyboard panel.
   ///
   /// Call **before** hiding the IME when replacing the keyboard.
   double openPanel({required bool landscape}) {
@@ -136,7 +136,7 @@ final class ChatBottomInsetController extends ChangeNotifier {
     } else {
       _panelTarget = math.max(stored, os);
     }
-    if (_panelTarget < KeyboardHeightStore.minSaneKeyboardHeight) {
+    if (_panelTarget < KeyboardPanelStore.minSaneKeyboardHeight) {
       _panelTarget = _store.defaultHeight;
     }
     _panelDesired = true;
@@ -275,7 +275,7 @@ final class ChatBottomInsetController extends ChangeNotifier {
       // Never auto-dismiss on rising IME. Hide-animations from TextInput.hide
       // produce 0-streaks then a 0→peak glitch that looked like "user opened
       // the keyboard" and tore the panel down. Close only via host UI
-      // (emoji toggle, back, tap composer).
+      // (panel toggle, back, tap composer).
       if (height > previous + _holdEpsilon &&
           height > _holdEpsilon &&
           height >= _panelTarget - _holdEpsilon) {
@@ -326,7 +326,7 @@ final class ChatBottomInsetController extends ChangeNotifier {
     }
 
     // Post-release sticky: ignore brief IME=0 glitch at the peak (310→0→310).
-    // Do **not** restore the floor after a real descent (emoji handoff → IME hide).
+    // Do **not** restore the floor after a real descent (panel handoff → IME hide).
     if (_postHoldStickyUntil != null) {
       if (DateTime.now().isBefore(_postHoldStickyUntil!) &&
           _postHoldFloor > _holdEpsilon) {

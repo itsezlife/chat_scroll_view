@@ -2,27 +2,55 @@ import 'package:emoji_data/src/emoji_pick_source.dart';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-/// Host-owned frequently-used emoji store (frequency map).
+/// Host-owned frequently-used emoji frequency map.
 abstract class EmojiRecentsStore {
+  /// Frequency-sorted glyphs (highest use first). Unmodifiable view.
   List<String> get recents;
 
+  /// Records a qualifying pick and returns the new ordered list, or `null`
+  /// when the pick is ignored ([EmojiPickSource.search] / empty glyph).
   Future<List<String>?> recordPick(
     String glyph, {
     required EmojiPickSource source,
   });
 
+  /// Wipes the frequency map. No-op when already empty.
   Future<void> clear();
+
+  /// Hydrates from durable storage when the implementation persists.
+  ///
+  /// Default is a no-op (in-memory stores).
   Future<void> load() async {}
 }
 
 /// SharedPreferences-backed frequency recents.
+///
+/// ## Persistence
+///
+/// Reads and writes only [prefsKey] (`emoji_data_use_history`). Encoded form
+/// is `glyph=count` entries joined by commas. Absent or empty [prefsKey] data
+/// yields an empty map; other prefs keys are ignored.
+///
+/// ## Ordering and caps
+///
+/// Recents are sorted by descending use count. When inserting a new glyph at
+/// [maxCount], the lowest-frequency entry is evicted first. [clear] removes
+/// the prefs entry; it does not touch unrelated keys.
+///
+/// ## Silent paths
+///
+/// [recordPick] with [EmojiPickSource.search] or an empty glyph returns `null`
+/// and leaves prefs unchanged. [clear] returns without writing when already
+/// empty. [load] must run before [recordPick] / [clear] persist — until then
+/// `_prefs` is null and writes are skipped.
 final class SharedPrefsEmojiRecentsStore implements EmojiRecentsStore {
   SharedPrefsEmojiRecentsStore({this.maxCount = 48});
 
-  static const String _prefsKey = 'emoji_data_use_history';
-  static const String _legacyKey = 'chat_chrome_emoji_use_history';
-  static const String _legacyListKey = 'chat_chrome_emoji_recents';
+  /// Durable frequency-map key. Sole load/persist identity for this store.
+  @visibleForTesting
+  static const String prefsKey = 'emoji_data_use_history';
 
+  /// Maximum glyphs retained. New inserts at capacity evict the lowest count.
   final int maxCount;
   SharedPreferences? _prefs;
   final Map<String, int> _useHistory = <String, int>{};
@@ -36,23 +64,8 @@ final class SharedPrefsEmojiRecentsStore implements EmojiRecentsStore {
     _prefs = await SharedPreferences.getInstance();
     _useHistory
       ..clear()
-      ..addAll(_decode(_prefs!.getString(_prefsKey)));
-    if (_useHistory.isEmpty) {
-      _useHistory.addAll(_decode(_prefs!.getString(_legacyKey)));
-    }
+      ..addAll(_decode(_prefs!.getString(prefsKey)));
     _resort();
-    if (_sorted.isEmpty) {
-      await _migrateLegacyList();
-    }
-  }
-
-  Future<void> _migrateLegacyList() async {
-    final legacy = _prefs?.getStringList(_legacyListKey);
-    if (legacy == null || legacy.isEmpty) return;
-    for (final glyph in legacy.reversed) {
-      await recordPick(glyph, source: EmojiPickSource.grid);
-    }
-    await _prefs?.remove(_legacyListKey);
   }
 
   @override
@@ -78,7 +91,7 @@ final class SharedPrefsEmojiRecentsStore implements EmojiRecentsStore {
     if (_useHistory.isEmpty) return;
     _useHistory.clear();
     _sorted = <String>[];
-    await _prefs?.remove(_prefsKey);
+    await _prefs?.remove(prefsKey);
   }
 
   void _resort() {
@@ -93,7 +106,7 @@ final class SharedPrefsEmojiRecentsStore implements EmojiRecentsStore {
   }
 
   Future<void> _persist() async {
-    await _prefs?.setString(_prefsKey, _encode(_useHistory));
+    await _prefs?.setString(prefsKey, _encode(_useHistory));
   }
 
   static Map<String, int> _decode(String? raw) {
@@ -114,10 +127,15 @@ final class SharedPrefsEmojiRecentsStore implements EmojiRecentsStore {
       map.entries.map((e) => '${e.key}=${e.value}').join(',');
 }
 
+/// In-memory frequency recents for tests and hosts that skip persistence.
+///
+/// Same pick / clear / search-ignore contracts as [SharedPrefsEmojiRecentsStore]
+/// without SharedPreferences. [load] is a no-op.
 @visibleForTesting
 final class MemoryEmojiRecentsStore implements EmojiRecentsStore {
   MemoryEmojiRecentsStore({this.maxCount = 48});
 
+  /// Maximum glyphs retained. New inserts at capacity evict the lowest count.
   final int maxCount;
   final Map<String, int> _useHistory = <String, int>{};
   List<String> _sorted = <String>[];

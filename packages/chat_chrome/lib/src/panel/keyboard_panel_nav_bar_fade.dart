@@ -9,9 +9,9 @@ import 'package:flutter/material.dart';
 /// **Factor**: `clamp01((height − 32) / 16)` in logical pixels — zero below
 /// 32, full at ≥ 48. Stops: base color, base × 0.66 alpha, transparent
 /// (bottom → top).
-class EmojiPanelNavBarFade extends StatelessWidget {
+class KeyboardPanelNavBarFade extends StatelessWidget {
   /// Creates a bottom-inset fade of [height] using [color] as the theme fill.
-  const EmojiPanelNavBarFade({
+  const KeyboardPanelNavBarFade({
     required this.height,
     required this.color,
     super.key,

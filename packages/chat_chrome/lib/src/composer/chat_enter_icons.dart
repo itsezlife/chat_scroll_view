@@ -21,13 +21,13 @@ enum ChatEnterEmojiIconState {
 ChatEnterEmojiIconState resolveEmojiIconState({
   required bool panelOpen,
   required bool textEmpty,
-  required EmojiPanelTab? lastTab,
+  required KeyboardPanelTab? lastTab,
 }) {
   if (panelOpen) return ChatEnterEmojiIconState.keyboard;
-  if (textEmpty && lastTab == EmojiPanelTab.stickers) {
+  if (textEmpty && lastTab == KeyboardPanelTab.stickers) {
     return ChatEnterEmojiIconState.sticker;
   }
-  if (textEmpty && lastTab == EmojiPanelTab.gifs) {
+  if (textEmpty && lastTab == KeyboardPanelTab.gifs) {
     return ChatEnterEmojiIconState.gif;
   }
   return ChatEnterEmojiIconState.smile;

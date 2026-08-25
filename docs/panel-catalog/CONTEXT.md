@@ -12,9 +12,13 @@ stitch. Does not own panel chrome or message-attachment media.
 The scrollable catalog body: sections, rows/cells, recycle, and near/far jumps with stitch.
 _Avoid_: Media Grid, EmojiEngine, Chat Scroll Viewport, Attachment Grid
 
-**Catalog shell**:
-Host chrome around the viewport — category strip, search, type tabs, skin-tone picker, and data-source wiring.
-_Avoid_: Putting strip/search lifecycle inside the viewport
+**KeyboardPanel**:
+Keyboard-replacement panel chrome around one or more catalog pages — type tabs, search overlay, open/close motion, bottom bar, and data-source wiring for the active page. Does not own catalog scroll extent or cell paint. Public API name in chat chrome (replaces EmojiPanel as the domain term). Related chrome types use the `KeyboardPanel*` prefix (`Allow`, `Tab`, `Labels`, `Callbacks`, bottom bar, store, …). Prefs live on [KeyboardPanelStore] under `keyboard_panel_*` keys (no legacy dual-read). Unicode page / glyph / `emoji_data` keep the `Emoji*` prefix.
+_Avoid_: CatalogPanel (mirrors Panel Catalog), Catalog shell, EmojiPanel (as the lasting domain name), renaming emoji catalog page types to Keyboard*, putting strip/search lifecycle inside the viewport
+
+**KeyboardPanelController**:
+Host-owned **source of truth** for KeyboardPanel chrome intents and presented desired state (open, tab, search, …). Constructed with bottom-inset arbitration and [KeyboardPanelStore]; `open` / `close` claim or release the inset slot themselves so the host does not dual-call `openPanel` + panel open. Commands always commit on the controller and notify typed listeners even when no KeyboardPanel is attached; the bound panel **projects** that state into motion/layout. Does not own inset math, composer text, or insert/backspace effects — those stay as widget/host callbacks. Distinct from PanelCatalogController (extent scroll on one catalog page). Host passes the controller into KeyboardPanel; chrome MUST NOT require GlobalKey on State. Observability uses typed listeners (and optional sealed panel events) with dedup-on-add, snapshot dispatch, and silent no-ops after dispose — not ChangeNotifier and not app-layer StateController. Widget-level declarative `open:` is not the lasting API.
+_Avoid_: Driving chrome via GlobalKey on State, command-only silent no-op while unbound as the primary model, merging inset math into this controller, host dual-calling inset open plus panel open, putting insert/backspace on the controller, renaming PanelCatalogController to match, duplicating open state only in widget fields, blanket ChangeNotifier for host rebuilds
 
 ### Navigation
 
@@ -65,7 +69,7 @@ A recycled catalog cell drawn by the viewport without a per-cell widget Element/
 _Avoid_: EmojiGlyphCell-per-slot, StatefulWidget cell as the default path
 
 **Viewport-owned hit-test**:
-Pointer mapping to a [CatalogLeaf] inside the catalog viewport: press scale in paint, tap and long-press callbacks to the catalog shell. Recognizers live on the viewport render object — not on per-cell widgets.
+Pointer mapping to a [CatalogLeaf] inside the catalog viewport: press scale in paint, tap and long-press callbacks to KeyboardPanel. Recognizers live on the viewport render object — not on per-cell widgets.
 _Avoid_: Per-cell GestureDetector/InkWell as the default, temporary overlay widgets for every press
 
 **Leaf tap callback**:
