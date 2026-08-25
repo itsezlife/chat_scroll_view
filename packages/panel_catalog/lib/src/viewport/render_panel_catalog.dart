@@ -84,6 +84,14 @@ import 'package:panel_catalog/src/viewport/panel_catalog_scroll_events.dart';
 /// Drag-up (negative primary delta) reveals content below → positive delta
 /// on the controller. Drag start cancels fling and clears in-flight press.
 ///
+/// Drag uses [DragStartBehavior.start] (Flutter default). On leaf downs,
+/// [CatalogLeafPointer] registers tap / long-press into the same arena, so
+/// vertical drag cannot win until the pointer exceeds touch slop. With
+/// [DragStartBehavior.down], acceptance would dump the entire pending delta
+/// as one [scrollBy] (~[kTouchSlop] jump). [DragStartBehavior.start] absorbs
+/// that pending delta into the drag origin so the first applied scroll is
+/// only post-acceptance motion.
+///
 /// ## Fling physics
 ///
 /// Drag-end with sufficient velocity starts a ballistic fling
@@ -1040,8 +1048,7 @@ class RenderPanelCatalog extends RenderBox {
     _drag = VerticalDragGestureRecognizer()
       ..onStart = _onDragStart
       ..onUpdate = _onDragUpdate
-      ..onEnd = _onDragEnd
-      ..dragStartBehavior = DragStartBehavior.down;
+      ..onEnd = _onDragEnd;
     final pending = _controller.pendingSectionJump;
     if (pending != null) {
       _handleSectionJump(pending.$1);

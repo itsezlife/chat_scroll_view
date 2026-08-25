@@ -11,6 +11,7 @@
 ///
 /// **Coverage map:**
 /// - extent scroll + DS notify
+/// - drag vs leaf long-press arena (no touch-slop catch-up jump)
 /// - leaf presentation (unicode content, circle radius contract, thumb-first)
 /// - paint-leaf element flatness + binding recycle
 /// - tap / long-press identity, `leafLongPressEligible`, press scale
@@ -139,6 +140,61 @@ void main() {
 
         expect(controller.offset, greaterThan(0));
         expect(controller.offset, lessThanOrEqualTo(render.maxOffset));
+      },
+    );
+
+    testWidgets(
+      'leaf drag past touch slop does not dump the full pending delta',
+      (tester) async {
+        // Production emoji chrome wires long-press, so VerticalDrag competes
+        // with Tap + LongPress and cannot win until kTouchSlop. With
+        // DragStartBehavior.down the recognizer then fires one onUpdate for
+        // the entire pending delta (~18px jump). Chat scroll uses the
+        // default DragStartBehavior.start (pending delta absorbed, no jump).
+        final leaves = [
+          for (var i = 0; i < 80; i++)
+            CatalogLeaf.unicode(String.fromCharCode(0x1F600 + i)),
+        ];
+        dataSource.replaceSections([_section('a', leaves)]);
+
+        await tester.pumpWidget(
+          _harness(
+            dataSource: dataSource,
+            assetCache: assetCache,
+            controller: controller,
+            onLeafTap: (_) {},
+            onLeafLongPressStart: (_, _) {},
+            onLeafLongPressMove: (_, _) {},
+            onLeafLongPressEnd: (_, _) {},
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        final box = tester.getRect(find.byType(PanelCatalogViewport));
+        final leafCenter = Offset(box.left + 20, box.top + 24 + 20);
+        final gesture = await tester.startGesture(leafCenter);
+        await tester.pump();
+
+        // One move that crosses touch slop — the arena accepts drag here.
+        await gesture.moveBy(Offset(0, -(kTouchSlop + 1)));
+        await tester.pump();
+
+        // Start behavior: pending slop is not applied as scroll. Down
+        // behavior would set offset ≈ kTouchSlop + 1 (the logged jumps).
+        expect(
+          controller.offset,
+          lessThan(kTouchSlop / 2),
+          reason:
+              'DragStartBehavior.down dumps ~kTouchSlop as the first '
+              'scrollBy when leaf long-press competes in the arena',
+        );
+
+        await gesture.moveBy(const Offset(0, -40));
+        await tester.pump();
+        expect(controller.offset, closeTo(40, 1));
+
+        await gesture.up();
+        await tester.pumpAndSettle();
       },
     );
 
