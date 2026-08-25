@@ -193,10 +193,11 @@ void main() {
       await tester.pumpAndSettle();
       final base = inset.panelTarget;
 
-      panel.openSearch();
+      final opening = panel.openSearch();
       await tester.pump();
       await tester.pump(KeyboardPanelMotion.searchExpandDuration);
       await tester.pump();
+      await opening;
       expect(panel.isSearchOpen, isTrue);
       expect(inset.isSearchExpanded, isTrue);
       expect(inset.height, greaterThan(base));
@@ -349,11 +350,12 @@ void main() {
     final visibleY = bottomBarCenterY(tester);
     final base = inset.panelTarget;
 
-    panel.openSearch();
+    final opening = panel.openSearch();
     await tester.pump();
     await tester.pump(KeyboardPanelMotion.searchExpandDuration);
     await tester.pump();
     await tester.pump(KeyboardPanelBottomBar.visibilityDuration);
+    await opening;
 
     expect(bottomBarCenterY(tester), greaterThan(visibleY));
     expect(panel.isSearchOpen, isTrue);
@@ -365,10 +367,11 @@ void main() {
 
   testWidgets('handleBack closes search before panel', (tester) async {
     await openReplace(tester);
-    panel.openSearch();
+    final opening = panel.openSearch();
     await tester.pump();
     await tester.pump(KeyboardPanelMotion.searchExpandDuration);
     await tester.pump();
+    await opening;
     expect(panel.isSearchOpen, isTrue);
 
     inset.onImeHeight(0, landscape: false);
