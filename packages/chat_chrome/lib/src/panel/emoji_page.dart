@@ -377,9 +377,18 @@ class EmojiPageState extends State<EmojiPage>
     _rebuildCatalog();
     _scheduleSearch(_activeSearchQuery);
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) _updateSearchGeometry();
+      if (!mounted) return;
+      _updateSearchGeometry();
+      unawaited(warmAhead());
     });
   }
+
+  /// Cold-start warm-up for the first `[screens]` viewport heights of glyphs.
+  ///
+  /// Forwards to [PanelCatalogController.warmAhead]. Silent no-op when the
+  /// viewport is not yet bound.
+  Future<void> warmAhead({double screens = 2.5}) =>
+      _catalogController.warmAhead(screens: screens);
 
   @override
   void didUpdateWidget(EmojiPage oldWidget) {
@@ -661,9 +670,9 @@ class EmojiPageState extends State<EmojiPage>
 
   // --- Scroll / category strip ----------------------------------------------
 
-  /// Sticky search-field TY + strip / field shadows (`checkEmojiSearchFieldScroll`).
-  ///
-  /// [catalogOffset] overrides the live offset for one-shot geometry refresh.
+  /// Silent when [ty] / strip / shadow are unchanged (common after the sticky
+  /// search has fully collapsed). Avoids notifier churn and log spam on every
+  /// scroll tick while still refreshing when [catalogOffset] is forced.
   void _updateSearchGeometry({double? catalogOffset}) {
     final phase = SchedulerBinding.instance.schedulerPhase;
     if (phase != SchedulerPhase.idle &&
@@ -703,9 +712,11 @@ class EmojiPageState extends State<EmojiPage>
     }
     final forceTyUpdate =
         catalogOffset != null || _catalogController.isSectionJumpActive;
+    var tyChanged = false;
     if (tyNotifier != null &&
         (forceTyUpdate || (tyNotifier.value - ty).abs() > 0.1)) {
       tyNotifier.value = ty;
+      tyChanged = true;
       if (forceTyUpdate) {
         SchedulerBinding.instance.ensureVisualUpdate();
       }
@@ -720,8 +731,14 @@ class EmojiPageState extends State<EmojiPage>
     final spacerGone = offset >= padTop + EmojiSearchField.height - 0.5;
     final showShadow =
         translatedBottom > 0 && (spacerGone || spacerBottom < translatedBottom);
-    if (_stripShadowVisible.value != showShadow) {
+    final shadowChanged = _stripShadowVisible.value != showShadow;
+    if (shadowChanged) {
       _stripShadowVisible.value = showShadow;
+    }
+    // Skip geometry logs when nothing moved — every scrollBy used to spam
+    // PanelCatalogShell while the sticky search was already parked.
+    if (!tyChanged && !shadowChanged && !forceTyUpdate) {
+      return;
     }
     _logSearchGeometry(
       ty: ty,
@@ -1014,6 +1031,8 @@ class EmojiPageState extends State<EmojiPage>
     final shadowListenable = widget.searchFieldShadow;
     final modeListenable = widget.searchModeListenable;
     final colors = ChatChromeTheme.of(context);
+    // Outer builder: clip + TY only. Inner builder: search-field chrome so a
+    // strip/TY tick does not rebuild [EmojiSearchField] every scroll frame.
     return Positioned(
       top: 0,
       left: 0,
@@ -1023,10 +1042,31 @@ class EmojiPageState extends State<EmojiPage>
         listenable: Listenable.merge(<Listenable>[
           tyListenable,
           _stripOffset,
-          _searchBusy,
-          ?shadowListenable,
           ?modeListenable,
         ]),
+        child: ListenableBuilder(
+          listenable: Listenable.merge(<Listenable>[
+            _searchBusy,
+            ?shadowListenable,
+            ?modeListenable,
+          ]),
+          builder: (context, _) {
+            final searchOpen = modeListenable?.value ?? widget.searchMode;
+            return ColoredBox(
+              color: colors.panelBackground,
+              child: EmojiSearchField(
+                controller: controller,
+                focusNode: focus,
+                searchOpen: searchOpen,
+                showShadow: shadowListenable?.value ?? false,
+                searchBusy: _searchBusy.value,
+                searchSettled: _loadedSearchQuery.isNotEmpty,
+                hintText: widget.searchHintText ?? 'Search',
+                onOpenSearch: onOpen,
+              ),
+            );
+          },
+        ),
         builder: (context, child) {
           final searchOpen = modeListenable?.value ?? widget.searchMode;
           final ty = searchOpen ? 0.0 : tyListenable.value;
@@ -1037,22 +1077,7 @@ class EmojiPageState extends State<EmojiPage>
             clipper: _TopEdgeClipper(stripBottom.clamp(0.0, double.infinity)),
             child: Align(
               alignment: Alignment.topCenter,
-              child: Transform.translate(
-                offset: Offset(0, ty),
-                child: ColoredBox(
-                  color: colors.panelBackground,
-                  child: EmojiSearchField(
-                    controller: controller,
-                    focusNode: focus,
-                    searchOpen: searchOpen,
-                    showShadow: shadowListenable?.value ?? false,
-                    searchBusy: _searchBusy.value,
-                    searchSettled: _loadedSearchQuery.isNotEmpty,
-                    hintText: widget.searchHintText ?? 'Search',
-                    onOpenSearch: onOpen,
-                  ),
-                ),
-              ),
+              child: Transform.translate(offset: Offset(0, ty), child: child),
             ),
           );
         },
@@ -1069,7 +1094,9 @@ class EmojiPageState extends State<EmojiPage>
         ?tyListenable,
         ?widget.searchModeListenable,
       ]),
-      builder: (context, _) {
+
+      child: child,
+      builder: (context, child) {
         final searchOpen =
             widget.searchModeListenable?.value ?? widget.searchMode;
         final stripBottom = _showCategoryStrip

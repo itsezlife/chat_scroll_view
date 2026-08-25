@@ -6,7 +6,7 @@
 - Viewport: 400×600 logical pixels (span 8, cell 48, header 32)
 - Catalog presets: 64 / 512 / 4096 unicode leaves (8 leaves/section)
 - Test runner: `flutter test test/benchmark/vs_supersliver_bench_test.dart` (headless debug — absolute µs inflated by asserts; **ratios** are the signal)
-- Date: 2026-08-25
+- Date: 2026-08-25 (re-run after layout-once glyphs, paint cull, drag-start fix, cold warm-up)
 - Candidate: Panel Catalog Viewport (paint leaves)
 - Baselines:
   1. **SliverGrid** — section headers + `SliverGrid` per section (what most packages use)
@@ -23,9 +23,14 @@ flutter test test/benchmark/vs_supersliver_bench_test.dart
 
 **Pass.** Against both baselines, PCV wins the UX bar (fling / near / far p95–max, layout, memory).
 
-The gap vs **SliverGrid** is larger than vs SuperSliverList — especially layout at 4096 leaves (Grid p95 ~37ms, 67% jank tripwire) and memory (Grid mounts thousands of ROs; PCV stays flat at 8 attached / 169 ROs).
+Notable vs prior report:
 
-**Call-out (non-blocking):** isolated scroll-only paint still favors widget/RO baselines (~5–12×). End-to-end fling frames favor PCV on p95/max.
+- **Scroll-only paint** gap narrowed (~5–12× → ~2–4× vs baselines) after layout-once glyph paragraphs.
+- **Far-path** now compares stitch to travel-scaled **`animateTo`** (the API stitch replaces), not bare `jumpTo` — the win is clearer, especially at 4096 (Grid animateTo janks 27% of frames).
+
+The gap vs **SliverGrid** remains larger than vs SuperSliverList — layout at 4096 leaves (Grid p95 ~45ms, 85% jank tripwire) and memory (Grid mounts thousands of ROs; PCV stays flat at 8 attached / 169 ROs).
+
+**Call-out (non-blocking):** isolated scroll-only paint still favors widget/RO baselines (~2–4×). End-to-end fling frames favor PCV on p95/mean.
 
 Ratio legend: **PCV/baseline** — `< 1` means PCV is faster. Parenthetical is inverse speedup when PCV wins.
 
@@ -37,21 +42,21 @@ Forced relayout via 1px width toggle (400↔401).
 
 ### vs SliverGrid (common Flutter path)
 
-| Leaves | Panel Catalog Viewport | SliverGrid + cells     | PCV/Grid Ratio            |
-| ------ | ---------------------- | ---------------------- | ------------------------- |
-| 64     | 98µs (p95: 158µs)      | 1.29ms (p95: 2.29ms)   | **0.08x** (13× faster)    |
-| 512    | 52µs (p95: 86µs)       | 2.50ms (p95: 3.91ms)   | **0.02x** (48× faster)    |
-| 4096   | 163µs (p95: 262µs)     | 21.3ms (p95: 36.8ms)   | **0.01x** (~130× faster)  |
+| Leaves | Panel Catalog Viewport | SliverGrid + cells      | PCV/Grid Ratio           |
+| ------ | ---------------------- | ----------------------- | ------------------------ |
+| 64     | 144µs (p95: 409µs)     | 1.58ms (p95: 2.84ms)    | **0.09x** (11× faster)   |
+| 512    | 72µs (p95: 158µs)      | 3.06ms (p95: 4.72ms)    | **0.02x** (43× faster)   |
+| 4096   | 151µs (p95: 355µs)     | 27.6ms (p95: 45.1ms)    | **0.01x** (~180× faster) |
 
-Grid layout at 4096 leaves: **67/100 samples jank** (>16.67ms). PCV: 0 jank.
+Grid layout at 4096 leaves: **85/100 samples jank** (>16.67ms). PCV: 0 jank.
 
 ### vs SuperSliverList (frozen prior body)
 
 | Leaves | Panel Catalog Viewport | SuperSliverList + cells | PCV/SSL Ratio          |
 | ------ | ---------------------- | ----------------------- | ---------------------- |
-| 64     | 98µs (p95: 158µs)      | 915µs (p95: 1.57ms)     | **0.11x** (9× faster)  |
-| 512    | 52µs (p95: 86µs)       | 497µs (p95: 860µs)      | **0.11x** (9× faster)  |
-| 4096   | 163µs (p95: 262µs)     | 419µs (p95: 932µs)      | **0.39x** (2.6× faster)|
+| 64     | 144µs (p95: 409µs)     | 1.56ms (p95: 2.95ms)    | **0.09x** (11× faster) |
+| 512    | 72µs (p95: 158µs)      | 572µs (p95: 983µs)      | **0.13x** (8× faster)  |
+| 4096   | 151µs (p95: 355µs)     | 504µs (p95: 1.05ms)     | **0.30x** (3.3× faster)|
 
 ---
 
@@ -65,24 +70,23 @@ PCV **paint leaves** redraw the visible band on a canvas every scroll (`clip` + 
 
 SliverGrid / SuperSliverList keep **widget cells as ROs**. Real scroll is often compositor motion; this probe also **forces** `markNeedsPaint` on a timing proxy so samples aren’t stale — that still understates “full leaf redraw” vs PCV’s honest canvas loop.
 
-So baselines win this **isolated paint** probe (~5–12×). End-to-end **fling** still favors PCV because Grid pays build/layout when cells enter the band. Treat ~100–200µs PCV paint as a steady tax well under a 16.7ms frame — not proof that widget grids scroll better.
+Baselines still win this **isolated paint** probe (~2–4×). End-to-end **fling** still favors PCV because Grid pays build/layout when cells enter the band. Treat ~35–50µs PCV paint as a steady tax well under a 16.7ms frame — not proof that widget grids scroll better.
 
 ### vs SliverGrid
 
 | Leaves | Panel Catalog Viewport | SliverGrid + cells | PCV/Grid Ratio         |
 | ------ | ---------------------- | ------------------ | ---------------------- |
-| 64     | 85µs (p95: 149µs)      | 11µs (p95: 38µs)   | **7.5x** (Grid faster) |
-| 512    | 96µs (p95: 219µs)      | 15µs (p95: 27µs)   | **6.3x** (Grid faster) |
-| 4096   | 99µs (p95: 183µs)      | 18µs (p95: 34µs)   | **5.5x** (Grid faster) |
+| 64     | 36µs (p95: 69µs)       | 14µs (p95: 33µs)   | **2.6x** (Grid faster) |
+| 512    | 52µs (p95: 150µs)      | 21µs (p95: 47µs)   | **2.5x** (Grid faster) |
+| 4096   | 47µs (p95: 190µs)      | 25µs (p95: 38µs)   | **1.9x** (Grid faster) |
 
 ### vs SuperSliverList
 
 | Leaves | Panel Catalog Viewport | SuperSliverList + cells | PCV/SSL Ratio          |
 | ------ | ---------------------- | ----------------------- | ---------------------- |
-| 64     | 85µs (p95: 149µs)      | 9µs (p95: 21µs)         | **9.2x** (SSL faster)  |
-| 512    | 96µs (p95: 219µs)      | 11µs (p95: 24µs)        | **8.8x** (SSL faster)  |
-| 4096   | 99µs (p95: 183µs)      | 8µs (p95: 17µs)         | **11.8x** (SSL faster) |
-
+| 64     | 36µs (p95: 69µs)       | 9µs (p95: 27µs)         | **4.2x** (SSL faster)  |
+| 512    | 52µs (p95: 150µs)      | 23µs (p95: 50µs)        | **2.2x** (SSL faster)  |
+| 4096   | 47µs (p95: 190µs)      | 19µs (p95: 60µs)        | **2.5x** (SSL faster)  |
 
 ---
 
@@ -94,69 +98,71 @@ Wall-clock per `tester.pump(16ms)` during fling (300 frames).
 
 | Leaves | Panel Catalog Viewport            | SliverGrid + cells                 | PCV/Grid Ratio           |
 | ------ | --------------------------------- | ---------------------------------- | ------------------------ |
-| 64     | mean=46µs, p95=99µs, max=1.11ms   | mean=147µs, p95=874µs, max=9.07ms  | **0.32x** (3× mean)      |
-| 512    | mean=57µs, p95=287µs, max=599µs   | mean=365µs, p95=2.21ms, max=3.95ms | **0.16x** (6× mean)      |
-| 4096   | mean=57µs, p95=276µs, max=852µs   | mean=812µs, p95=5.30ms, max=6.59ms | **0.07x** (14× mean)     |
+| 64     | mean=39µs, p95=88µs, max=1.24ms   | mean=206µs, p95=1.11ms, max=9.59ms | **0.19x** (5× mean)      |
+| 512    | mean=60µs, p95=231µs, max=1.97ms  | mean=522µs, p95=3.49ms, max=6.92ms | **0.12x** (9× mean)      |
+| 4096   | mean=132µs, p95=456µs, max=6.14ms | mean=983µs, p95=6.01ms, max=9.32ms | **0.13x** (7× mean)      |
 
 ### vs SuperSliverList
 
 | Leaves | Panel Catalog Viewport            | SuperSliverList + cells            | PCV/SSL Ratio            |
 | ------ | --------------------------------- | ---------------------------------- | ------------------------ |
-| 64     | mean=46µs, p95=99µs, max=1.11ms   | mean=88µs, p95=507µs, max=1.80ms   | **0.53x** (1.9× mean)    |
-| 512    | mean=57µs, p95=287µs, max=599µs   | mean=160µs, p95=1.06ms, max=2.65ms | **0.36x** (2.8× mean)    |
-| 4096   | mean=57µs, p95=276µs, max=852µs   | mean=140µs, p95=834µs, max=3.33ms  | **0.40x** (2.5× mean)    |
+| 64     | mean=39µs, p95=88µs, max=1.24ms   | mean=92µs, p95=443µs, max=1.87ms   | **0.43x** (2.3× mean)    |
+| 512    | mean=60µs, p95=231µs, max=1.97ms  | mean=204µs, p95=1.29ms, max=3.52ms | **0.30x** (3.4× mean)    |
+| 4096   | mean=132µs, p95=456µs, max=6.14ms | mean=203µs, p95=1.20ms, max=3.89ms | **0.65x** (1.5× mean)    |
 
 ### Fling — p95 / max advantage vs SliverGrid
 
 | Leaves | PCV p95 | Grid p95 | Grid/PCV p95 | PCV max | Grid max | Grid/PCV max |
 | ------ | ------- | -------- | ------------ | ------- | -------- | ------------ |
-| 64     | 99µs    | 874µs    | **8.8×**     | 1.11ms  | 9.07ms   | **8.2×**     |
-| 512    | 287µs   | 2.21ms   | **7.7×**     | 599µs   | 3.95ms   | **6.6×**     |
-| 4096   | 276µs   | 5.30ms   | **19×**      | 852µs   | 6.59ms   | **7.7×**     |
+| 64     | 88µs    | 1.11ms   | **13×**      | 1.24ms  | 9.59ms   | **7.7×**     |
+| 512    | 231µs   | 3.49ms   | **15×**      | 1.97ms  | 6.92ms   | **3.5×**     |
+| 4096   | 456µs   | 6.01ms   | **13×**      | 6.14ms  | 9.32ms   | **1.5×**     |
 
 ---
 
 ## Near-path section jump
 
-~220ms smooth scroll (PCV `jumpToSection`; baselines `animateTo`).
+~220ms smooth scroll (PCV `jumpToSection` near path; baselines `animateTo` 220ms).
 
 ### vs SliverGrid
 
-| Leaves | Panel Catalog Viewport | SliverGrid + cells        | PCV/Grid Ratio         |
-| ------ | ---------------------- | ------------------------- | ---------------------- |
-| 64     | p95=362µs, max=1.12ms  | p95=1.28ms, max=3.01ms    | **0.28x** (3.5× p95)   |
-| 512    | p95=239µs, max=429µs   | p95=1.33ms, max=2.76ms    | **0.18x** (5.6× p95)   |
-| 4096   | p95=279µs, max=2.72ms  | p95=2.73ms, max=4.47ms    | **0.10x** (10× p95)    |
+| Leaves | Panel Catalog Viewport | SliverGrid + cells         | PCV/Grid Ratio         |
+| ------ | ---------------------- | -------------------------- | ---------------------- |
+| 64     | p95=231µs, max=2.88ms  | p95=2.08ms, max=3.48ms     | **0.11x** (9× p95)     |
+| 512    | p95=195µs, max=291µs   | p95=3.11ms, max=10.7ms     | **0.06x** (16× p95)    |
+| 4096   | p95=235µs, max=323µs   | p95=5.21ms, max=16.8ms     | **0.05x** (22× p95)    |
 
 ### vs SuperSliverList
 
-| Leaves | Panel Catalog Viewport | SuperSliverList + cells   | PCV/SSL Ratio          |
-| ------ | ---------------------- | ------------------------- | ---------------------- |
-| 64     | p95=362µs, max=1.12ms  | p95=627µs, max=1.35ms     | **0.58x** (1.7× p95)   |
-| 512    | p95=239µs, max=429µs   | p95=577µs, max=1.24ms     | **0.41x** (2.4× p95)   |
-| 4096   | p95=279µs, max=2.72ms  | p95=629µs, max=3.15ms     | **0.44x** (2.3× p95)   |
+| Leaves | Panel Catalog Viewport | SuperSliverList + cells    | PCV/SSL Ratio          |
+| ------ | ---------------------- | -------------------------- | ---------------------- |
+| 64     | p95=231µs, max=2.88ms  | p95=797µs, max=1.74ms      | **0.29x** (3.5× p95)   |
+| 512    | p95=195µs, max=291µs   | p95=505µs, max=3.39ms      | **0.39x** (2.6× p95)   |
+| 4096   | p95=235µs, max=323µs   | p95=583µs, max=4.79ms      | **0.40x** (2.5× p95)   |
 
 ---
 
-## Far-path stitch vs bare jump
+## Far-path stitch vs animateTo
 
-PCV: stitch flight. Baselines: bare `jumpTo`.
+PCV: far-path stitch flight. Baselines: travel-scaled `animateTo` (same duration formula as stitch — the smooth-scroll alternative stitch replaces). Sample windows are duration-matched (~60–82 baseline frames vs 180 stitch frames).
 
 ### vs SliverGrid
 
-| Leaves | Panel Catalog Viewport | SliverGrid (bare jump)    | PCV/Grid Ratio          |
-| ------ | ---------------------- | ------------------------- | ----------------------- |
-| 64     | p95=239µs, max=2.64ms  | p95=416µs, max=1.45ms     | **0.57x** (1.7× p95)    |
-| 512    | p95=463µs, max=1.55ms  | p95=3.13ms, max=16.2ms    | **0.15x** (6.8× p95)    |
-| 4096   | p95=233µs, max=1.19ms  | p95=955µs, max=17.7ms     | **0.24x** (4.1× p95)    |
+| Leaves | Panel Catalog Viewport | SliverGrid (`animateTo`)   | PCV/Grid Ratio          |
+| ------ | ---------------------- | -------------------------- | ----------------------- |
+| 64     | p95=174µs, max=3.46ms  | p95=2.25ms, max=2.80ms     | **0.08x** (13× p95)     |
+| 512    | p95=484µs, max=1.46ms  | p95=4.70ms, max=5.90ms     | **0.10x** (10× p95)     |
+| 4096   | p95=166µs, max=2.05ms  | p95=30.7ms, max=64.6ms     | **0.01x** (~185× p95)   |
+
+Grid far `animateTo` at 4096: **22/82 samples jank** (26.8%). PCV stitch: 0 jank.
 
 ### vs SuperSliverList
 
-| Leaves | Panel Catalog Viewport | SuperSliverList (bare jump) | PCV/SSL Ratio         |
-| ------ | ---------------------- | --------------------------- | --------------------- |
-| 64     | p95=239µs, max=2.64ms  | p95=205µs, max=892µs        | ~parity on p95        |
-| 512    | p95=463µs, max=1.55ms  | p95=4.76ms, max=5.35ms      | **0.10x** (10× p95)   |
-| 4096   | p95=233µs, max=1.19ms  | p95=8.46ms, max=9.37ms      | **0.03x** (36× p95)   |
+| Leaves | Panel Catalog Viewport | SuperSliverList (`animateTo`) | PCV/SSL Ratio         |
+| ------ | ---------------------- | ----------------------------- | --------------------- |
+| 64     | p95=174µs, max=3.46ms  | p95=1.22ms, max=4.54ms        | **0.14x** (7× p95)    |
+| 512    | p95=484µs, max=1.46ms  | p95=4.89ms, max=6.34ms        | **0.10x** (10× p95)   |
+| 4096   | p95=166µs, max=2.05ms  | p95=8.26ms, max=9.35ms        | **0.02x** (50× p95)   |
 
 ---
 
@@ -190,12 +196,12 @@ PCV stays flat. SliverGrid RO count grows with catalog size (per-cell widgets). 
 
 | Metric              | vs SliverGrid              | vs SuperSliverList         | Notes                                      |
 | ------------------- | -------------------------- | -------------------------- | ------------------------------------------ |
-| Layout              | **13–130× faster**         | **2.6–9× faster**          | Grid janks at 4096 on width toggle         |
-| Paint (scroll-only) | Grid ~5–8× faster          | SSL ~9–12× faster          | Isolated retained-RO paint (non-blocking)  |
-| Fling (mean)        | **3–14× faster**           | **~2–3× faster**           | Primary UX                                 |
-| Fling (p95 / max)   | **8–19× / 7–8× better**    | **3–5× / 2–4× better**     | Worst-case spikes                          |
-| Near-path           | **3.5–10× better p95**     | **1.7–2.4× better p95**    |                                            |
-| Far-path            | **2–7× better p95**        | up to **36× better p95**   | Stitch vs bare jump                        |
+| Layout              | **11–180× faster**         | **3–11× faster**           | Grid janks at 4096 on width toggle         |
+| Paint (scroll-only) | Grid ~2–3× faster          | SSL ~2–4× faster           | Narrowed vs prior (~5–12×); still isolated |
+| Fling (mean)        | **5–9× faster**            | **~1.5–3× faster**         | Primary UX                                 |
+| Fling (p95)         | **13–15× better**          | **~3–5× better**           | Worst-case vs Grid                         |
+| Near-path           | **9–22× better p95**       | **2.5–3.5× better p95**    | vs `animateTo`                             |
+| Far-path            | **10–185× better p95**     | **7–50× better p95**       | Stitch vs travel-scaled `animateTo`        |
 | Memory              | Flat vs thousands of ROs   | Flat vs hundreds of ROs    | Paint-leaf recycle                         |
 
 ---
@@ -204,6 +210,6 @@ PCV stays flat. SliverGrid RO count grows with catalog size (per-cell widgets). 
 
 - Debug-mode absolute times are not profile/release; compare **ratios** and p95/max.
 - Headless fling samples rarely trip the 16.67ms jank tripwire — prefer p95/max.
-- Far-path baselines use fewer frames (jump + 30) than stitch (180).
+- Far-path baselines use travel-scaled `animateTo` duration (`catalogStitchTravelDuration`), not bare `jumpTo`.
 - Scroll-only paint forces baseline proxy paint each step.
 - Suite prints full Metric-column tables for both baselines in `tearDownAll`; this report is the hand-curated summary.

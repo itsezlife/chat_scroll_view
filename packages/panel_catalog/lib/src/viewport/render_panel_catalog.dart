@@ -1,4 +1,4 @@
-import 'dart:async' show Completer, unawaited;
+import 'dart:async' show Completer, Future, unawaited;
 import 'dart:math' as math;
 
 import 'package:catalog_assets/catalog_assets.dart';
@@ -59,7 +59,8 @@ import 'package:panel_catalog/src/viewport/panel_catalog_scroll_events.dart';
 /// memory and layout cost. Headers are paint-only as well.
 ///
 /// Scrolling is Tier-1 cheap: clamp + re-sync bindings + [markNeedsPaint].
-/// Geometry changes (span, pitch, padding, data notify) call
+/// Unicode glyphs reuse a layout-once paragraph cache (drawParagraph only on
+/// scroll). Geometry changes (span, pitch, padding, data notify) call
 /// [markCatalogNeedsUpdate] so the next layout reprojects slots.
 ///
 /// ## Binding recycle
@@ -152,6 +153,16 @@ import 'package:panel_catalog/src/viewport/panel_catalog_scroll_events.dart';
 /// [paintTheme]. Snapshot is built by [PanelCatalogViewport] from
 /// [PanelCatalogTheme.of] + device pixel ratio — this object does not read
 /// [BuildContext]. Paint-only changes mark [markNeedsPaint] without layout.
+///
+/// ## Cold-start warm-up
+///
+/// [warmAhead] walks unicode leaves in the first `[screens]` viewport heights
+/// from the current offset, ensures layout-once paragraphs via
+/// [CatalogLeafPainter.ensureGlyphParagraph], then optionally awaits
+/// [CatalogLeafPainter.rasterizeGlyphsForWarmup]. Concurrent callers share one
+/// in-flight future. Silent no-op before first layout, when detached, or when
+/// the band has no unicode glyphs. Hosts invoke via
+/// [PanelCatalogController.warmAhead] from open / idle — not from scroll ticks.
 ///
 /// ## Lifecycle
 ///
@@ -448,9 +459,7 @@ class RenderPanelCatalog extends RenderBox {
   final PanelCatalogDevLog _scrollLog = PanelCatalogDevLog(
     'PanelCatalogScroll',
   );
-  final PanelCatalogDevLog _paintLog = PanelCatalogDevLog(
-    'PanelCatalogPaint',
-  );
+  final PanelCatalogDevLog _paintLog = PanelCatalogDevLog('PanelCatalogPaint');
 
   double? _layoutLogLastExtent;
   int? _layoutLogLastSlotCount;
@@ -572,6 +581,78 @@ class RenderPanelCatalog extends RenderBox {
     return null;
   }
 
+  // --- Cold-start warm-up ---------------------------------------------------
+
+  /// In-flight warm-up future; concurrent [warmAhead] callers share it.
+  Future<void>? _warmInFlight;
+
+  /// Prepares unicode glyphs for the first `[screens]` viewport heights.
+  ///
+  /// Band is `[offset, offset + height × screens]` clamped to content
+  /// ([screens] clamped to `[1, 8]`). Ensures layout-once paragraphs for each
+  /// unicode leaf in the band; when [rasterize] is true, awaits
+  /// [CatalogLeafPainter.rasterizeGlyphsForWarmup]. Concurrent callers share
+  /// one future. Silent no-op when detached, before first layout, when
+  /// glyph width ≤ 0, or when the band has no unicode leaves. Completes
+  /// immediately when [rasterize] is false after paragraph ensure. MUST NOT
+  /// be driven from scroll / paint ticks.
+  Future<void> warmAhead({double screens = 2.5, bool rasterize = true}) {
+    final existing = _warmInFlight;
+    if (existing != null) return existing;
+    final future = _warmAheadBody(screens: screens, rasterize: rasterize);
+    _warmInFlight = future;
+    return future.whenComplete(() {
+      if (identical(_warmInFlight, future)) {
+        _warmInFlight = null;
+      }
+    });
+  }
+
+  /// Band walk + optional offscreen raster for [warmAhead]. Clears
+  /// [_warmInFlight] via the public future’s `whenComplete`.
+  Future<void> _warmAheadBody({
+    required double screens,
+    required bool rasterize,
+  }) async {
+    if (!attached || !hasSize || _slots.isEmpty) return;
+    final bandBottom = math.min(
+      _contentExtent,
+      _controller.offset + size.height * screens.clamp(1.0, 8.0),
+    );
+    final bandTop = _controller.offset.clamp(0.0, _contentExtent);
+    final glyphWidth = _glyphLogicalWidth;
+    if (glyphWidth <= 0) return;
+
+    final glyphs = <String>[];
+    final start = _firstSlotIndexAtOrBelow(bandTop);
+    final end = _slotIndexAfter(bandBottom);
+    for (var i = start; i < end; i++) {
+      final slot = _slots[i];
+      if (slot.bottom < bandTop || slot.top > bandBottom) continue;
+      if (slot case CatalogLeafSlot(:final leaf)) {
+        if (leaf case UnicodeCatalogLeaf(:final glyph)) {
+          glyphs.add(glyph);
+          _painter.ensureGlyphParagraph(glyph, glyphWidth);
+        }
+      }
+    }
+    if (!rasterize || glyphs.isEmpty) return;
+    await _painter.rasterizeGlyphsForWarmup(
+      glyphs: glyphs,
+      logicalWidth: glyphWidth,
+    );
+  }
+
+  /// Logical glyph draw width matching [CatalogLeafPainter] (~72% of cell pitch).
+  double get _glyphLogicalWidth {
+    final usableW = (size.width - _padding.horizontal).clamp(
+      0.0,
+      double.infinity,
+    );
+    final cellW = usableW > 0 ? usableW / _spanCount : _cellExtent;
+    return math.min(cellW, _cellExtent) * 0.72;
+  }
+
   // --- Catalog invalidation -------------------------------------------------
 
   /// Marks layout and paint dirty after catalog or geometry changes.
@@ -614,7 +695,8 @@ class RenderPanelCatalog extends RenderBox {
       ..addJumpListener(_onJump)
       ..addScrollByListener(_onScrollBy)
       ..addSectionJumpListener(_onSectionJump)
-      ..addAnimateToListener(_onAnimateTo);
+      ..addAnimateToListener(_onAnimateTo)
+      ..bindWarmAheadHandler((screens) => warmAhead(screens: screens));
   }
 
   void _unbindController(PanelCatalogController controller) {
@@ -622,7 +704,8 @@ class RenderPanelCatalog extends RenderBox {
       ..removeJumpListener(_onJump)
       ..removeScrollByListener(_onScrollBy)
       ..removeSectionJumpListener(_onSectionJump)
-      ..removeAnimateToListener(_onAnimateTo);
+      ..removeAnimateToListener(_onAnimateTo)
+      ..bindWarmAheadHandler(null);
   }
 
   /// Cancels near scroll + fling, then runs the navigation path.
@@ -631,9 +714,7 @@ class RenderPanelCatalog extends RenderBox {
     _cancelFling();
     _onNavigation();
     if (_scrollLog.enabled) {
-      _scrollLog.event('jump', {
-        'offset': DevLogFormat.f(_controller.offset),
-      });
+      _scrollLog.event('jump', {'offset': DevLogFormat.f(_controller.offset)});
     }
   }
 
@@ -702,9 +783,7 @@ class RenderPanelCatalog extends RenderBox {
     }
 
     markNeedsLayout();
-    _controller.notifyScrollEvent(
-      PanelCatalogAnimateStart(target, duration),
-    );
+    _controller.notifyScrollEvent(PanelCatalogAnimateStart(target, duration));
     try {
       final from = _controller.offset;
       await nearScroll.animate(
@@ -718,9 +797,7 @@ class RenderPanelCatalog extends RenderBox {
       _syncVisibleBindings();
       markNeedsPaint();
     } finally {
-      _controller.notifyScrollEvent(
-        PanelCatalogAnimateEnd(_controller.offset),
-      );
+      _controller.notifyScrollEvent(PanelCatalogAnimateEnd(_controller.offset));
       _controller.completePendingAnimateTo();
     }
   }
@@ -760,9 +837,7 @@ class RenderPanelCatalog extends RenderBox {
       _onNavigation();
       _controller.setSectionJumpActive(false);
       _controller.completePendingSectionJump(sectionIndex: sectionIndex);
-      _controller.notifyScrollEvent(
-        PanelCatalogSectionJumpEnd(sectionIndex),
-      );
+      _controller.notifyScrollEvent(PanelCatalogSectionJumpEnd(sectionIndex));
       return;
     }
 
@@ -798,11 +873,7 @@ class RenderPanelCatalog extends RenderBox {
     }
 
     _controller.notifyScrollEvent(
-      PanelCatalogSectionJumpStart(
-        sectionIndex,
-        targetOffset,
-        farPath: false,
-      ),
+      PanelCatalogSectionJumpStart(sectionIndex, targetOffset, farPath: false),
     );
 
     final nearScroll = _nearScroll;
@@ -811,9 +882,7 @@ class RenderPanelCatalog extends RenderBox {
       _onNavigation();
       _controller.setSectionJumpActive(false);
       _controller.completePendingSectionJump(sectionIndex: sectionIndex);
-      _controller.notifyScrollEvent(
-        PanelCatalogSectionJumpEnd(sectionIndex),
-      );
+      _controller.notifyScrollEvent(PanelCatalogSectionJumpEnd(sectionIndex));
       return;
     }
 
@@ -830,9 +899,7 @@ class RenderPanelCatalog extends RenderBox {
     } finally {
       _controller.setSectionJumpActive(false);
       _controller.completePendingSectionJump(sectionIndex: sectionIndex);
-      _controller.notifyScrollEvent(
-        PanelCatalogSectionJumpEnd(sectionIndex),
-      );
+      _controller.notifyScrollEvent(PanelCatalogSectionJumpEnd(sectionIndex));
       if (_scrollLog.enabled) {
         _scrollLog.event('sectionJump.end', {
           'section': sectionIndex,
@@ -893,17 +960,11 @@ class RenderPanelCatalog extends RenderBox {
       _clampOffset();
       _onNavigation();
       _controller.notifyScrollEvent(
-        PanelCatalogSectionJumpStart(
-          sectionIndex,
-          targetOffset,
-          farPath: true,
-        ),
+        PanelCatalogSectionJumpStart(sectionIndex, targetOffset, farPath: true),
       );
       _controller.setSectionJumpActive(false);
       _controller.completePendingSectionJump(sectionIndex: sectionIndex);
-      _controller.notifyScrollEvent(
-        PanelCatalogSectionJumpEnd(sectionIndex),
-      );
+      _controller.notifyScrollEvent(PanelCatalogSectionJumpEnd(sectionIndex));
       return;
     }
 
@@ -924,11 +985,7 @@ class RenderPanelCatalog extends RenderBox {
     _clampOffset();
     _syncVisibleBindings();
     _controller.notifyScrollEvent(
-      PanelCatalogSectionJumpStart(
-        sectionIndex,
-        targetOffset,
-        farPath: true,
-      ),
+      PanelCatalogSectionJumpStart(sectionIndex, targetOffset, farPath: true),
     );
     _beginStitchMeasureIfNeeded();
     markNeedsLayout();
@@ -946,9 +1003,7 @@ class RenderPanelCatalog extends RenderBox {
         _controller.setSectionJumpActive(false);
       }
       _controller.completePendingSectionJump(sectionIndex: sectionIndex);
-      _controller.notifyScrollEvent(
-        PanelCatalogSectionJumpEnd(sectionIndex),
-      );
+      _controller.notifyScrollEvent(PanelCatalogSectionJumpEnd(sectionIndex));
       if (identical(_stitchFlightCompleter, flight)) {
         _stitchFlightCompleter = null;
       }
@@ -1135,12 +1190,15 @@ class RenderPanelCatalog extends RenderBox {
     _contentExtent = projection.contentExtent;
   }
 
-  /// Content-y window used for binding sync and paint culling.
+  /// Content-y window used for **binding** sync (viewport + one-cell overscan).
   ///
   /// When sized: `[offset − cellExtent, offset + height + cellExtent]`
   /// clamped to `[0, contentExtent]`. Before [hasSize], returns the full
   /// content band so a pre-layout sync (rare) does not attach nothing then
   /// thrash on first paint.
+  ///
+  /// Paint uses [_paintWindow] (no overscan) so scroll frames do not draw an
+  /// extra fringe row that the user cannot see.
   (double, double) _visibleWindow() {
     if (!hasSize) {
       return (0, _contentExtent);
@@ -1150,6 +1208,55 @@ class RenderPanelCatalog extends RenderBox {
     final top = (pixels - overscan).clamp(0.0, _contentExtent);
     final bottom = (pixels + size.height + overscan).clamp(0.0, _contentExtent);
     return (top, bottom);
+  }
+
+  /// Content-y window used for **paint** culling (strict viewport, no overscan).
+  ///
+  /// Binding overscan stays on [_visibleWindow]; drawing the fringe costs
+  /// color-emoji paint/raster for cells that never appear on screen.
+  (double, double) _paintWindow() {
+    if (!hasSize) {
+      return (0, _contentExtent);
+    }
+    final pixels = _controller.offset;
+    final top = pixels.clamp(0.0, _contentExtent);
+    final bottom = (pixels + size.height).clamp(0.0, _contentExtent);
+    return (top, bottom);
+  }
+
+  /// First index in [_slots] whose `bottom >= [top]` (binary search).
+  ///
+  /// Slots are projected in ascending content-y order. Returns
+  /// [_slots.length] when every slot ends above [top].
+  int _firstSlotIndexAtOrBelow(double top) {
+    final slots = _slots;
+    var lo = 0;
+    var hi = slots.length;
+    while (lo < hi) {
+      final mid = (lo + hi) >> 1;
+      if (slots[mid].bottom < top) {
+        lo = mid + 1;
+      } else {
+        hi = mid;
+      }
+    }
+    return lo;
+  }
+
+  /// Exclusive end index in [_slots] for slots with `top <= [bottom]`.
+  int _slotIndexAfter(double bottom) {
+    final slots = _slots;
+    var lo = 0;
+    var hi = slots.length;
+    while (lo < hi) {
+      final mid = (lo + hi) >> 1;
+      if (slots[mid].top <= bottom) {
+        lo = mid + 1;
+      } else {
+        hi = mid;
+      }
+    }
+    return lo;
   }
 
   /// Reconciles [CatalogLeafBindingPool] attaches to the current [_visibleWindow].
@@ -1188,14 +1295,10 @@ class RenderPanelCatalog extends RenderBox {
     final fingerVelocity = details.primaryVelocity ?? 0;
     // Finger up (negative primaryVelocity) → positive content-offset velocity.
     final contentVelocity = -fingerVelocity;
-    _controller.notifyScrollEvent(
-      PanelCatalogUserDragEnd(contentVelocity),
-    );
+    _controller.notifyScrollEvent(PanelCatalogUserDragEnd(contentVelocity));
     if (!hasSize || maxOffset <= 0) return;
     if (contentVelocity.abs() < 50) return;
-    _controller.notifyScrollEvent(
-      PanelCatalogFlingStart(contentVelocity),
-    );
+    _controller.notifyScrollEvent(PanelCatalogFlingStart(contentVelocity));
     _startFling(contentVelocity);
   }
 
@@ -1477,10 +1580,9 @@ class RenderPanelCatalog extends RenderBox {
   /// During far-path stitch, paints captured outgoing strip and incoming band
   /// with dual-translate dy instead of the normal single-pass loop.
   ///
-  /// Paint culling uses the same visible window as binding sync (including
-  /// overscan). A slot may be bound but still skipped here if it sits only
-  /// in the overscan fringe and the cull band is evaluated equivalently —
-  /// both use [_visibleWindow], so bound ⇒ eligible to paint.
+  /// Paint culling uses [_paintWindow] (strict viewport). Binding sync keeps
+  /// [_visibleWindow] overscan so cells entering the band are already attached;
+  /// overscan fringe is not drawn.
   ///
   /// The cell under [pressedSlotKey] is drawn with [CatalogLeafPress.scale].
   ///
@@ -1494,7 +1596,7 @@ class RenderPanelCatalog extends RenderBox {
 
     final scroll = _controller.offset;
     final contentOrigin = offset.translate(0, -scroll);
-    final (top, bottom) = _visibleWindow();
+    final (top, bottom) = _paintWindow();
     final pressedSlotKey = _press?.pressedSlotKey;
     final pressScale = _press?.scale ?? 1.0;
     final pressProgress = _press?.progress ?? 0.0;
@@ -1520,7 +1622,11 @@ class RenderPanelCatalog extends RenderBox {
         break;
     }
 
-    for (final slot in _slots) {
+    final slots = _slots;
+    final start = _firstSlotIndexAtOrBelow(top);
+    final end = _slotIndexAfter(bottom);
+    for (var i = start; i < end; i++) {
+      final slot = slots[i];
       if (slot.bottom < top || slot.top > bottom) continue;
       _paintLayoutSlot(
         canvas: canvas,
@@ -1666,7 +1772,11 @@ class RenderPanelCatalog extends RenderBox {
       }
     }
 
-    for (final slot in _slots) {
+    final slots = _slots;
+    final start = _firstSlotIndexAtOrBelow(visibleTop);
+    final end = _slotIndexAfter(visibleBottom);
+    for (var i = start; i < end; i++) {
+      final slot = slots[i];
       if (slot.bottom < visibleTop || slot.top > visibleBottom) continue;
       if (catalogStitchSlotIsOutgoing(slot, _stitchOutgoing)) continue;
       final dy = catalogStitchIncomingPaintDy(

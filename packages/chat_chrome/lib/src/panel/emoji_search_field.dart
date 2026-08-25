@@ -227,12 +227,19 @@ class _EmojiSearchFieldState extends State<EmojiSearchField>
             left: 0,
             right: 0,
             bottom: 0,
-            child: FadeTransition(
-              opacity: CurvedAnimation(parent: _shadow, curve: Curves.easeOut),
-              child: ColoredBox(
-                color: colors.panelShadowLine,
-                child: const SizedBox(height: 1),
-              ),
+            child: AnimatedBuilder(
+              animation: _shadow,
+              builder: (context, _) {
+                final t = Curves.easeOut.transform(_shadow.value);
+                if (t <= 0.001) return const SizedBox.shrink();
+                // Paint alpha — not [FadeTransition] (saveLayer on open/scroll).
+                return ColoredBox(
+                  color: colors.panelShadowLine.withValues(
+                    alpha: colors.panelShadowLine.a * t,
+                  ),
+                  child: const SizedBox(height: 1),
+                );
+              },
             ),
           ),
         ],

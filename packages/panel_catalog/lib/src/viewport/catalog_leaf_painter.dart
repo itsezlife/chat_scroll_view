@@ -15,6 +15,15 @@ import 'package:panel_catalog/src/viewport/catalog_slot_projection.dart';
 /// render object passes content [origin], slot geometry,
 /// [CatalogLeafPresentation], and [CatalogLeafPaintTheme].
 ///
+/// ## Cold-start warm-up
+///
+/// [ensureGlyphParagraph] builds and layouts a glyph paragraph without
+/// painting. [rasterizeGlyphsForWarmup] draws those paragraphs into a
+/// temporary picture, awaits [ui.Picture.toImage], then disposes the image so
+/// the rasterizer’s color-emoji path is exercised before the first user
+/// fling. Callers MUST invoke warm-up from open / idle — not from scroll
+/// ticks (offscreen `toImage` on the fling path regresses frame time).
+///
 /// ## Coordinate contract
 ///
 /// [origin] is the paint origin of content-y `0` after scroll translation
@@ -33,6 +42,12 @@ import 'package:panel_catalog/src/viewport/catalog_slot_projection.dart';
 ///
 /// MUST NOT size the circle against the full cell pitch — that oversizes
 /// relative to the eventual glyph.
+///
+/// ## Unicode glyphs
+///
+/// Glyphs use a cached [ui.Paragraph] keyed by `(glyph, logicalWidth)`.
+/// Layout runs **once** when the paragraph is created. Scroll paints only
+/// [Canvas.drawParagraph] for that cached instance.
 ///
 /// ## Presentation switch
 ///
@@ -232,17 +247,7 @@ final class CatalogLeafPainter {
   }
 
   void _paintGlyph(Canvas canvas, Rect glyphRect, String glyph) {
-    final key = _GlyphPaintKey(glyph, glyphRect.width);
-    final paragraph = _glyphParagraphs.putIfAbsent(key, () {
-      final builder = ui.ParagraphBuilder(
-        ui.ParagraphStyle(
-          textAlign: TextAlign.center,
-          fontSize: glyphRect.width * 0.85,
-        ),
-      )..addText(glyph);
-      return builder.build();
-    });
-    paragraph.layout(ui.ParagraphConstraints(width: glyphRect.width));
+    final paragraph = _paragraphForGlyph(glyph, glyphRect.width);
     canvas.drawParagraph(
       paragraph,
       Offset(
@@ -250,6 +255,85 @@ final class CatalogLeafPainter {
         glyphRect.top + (glyphRect.height - paragraph.height) / 2,
       ),
     );
+  }
+
+  /// Returns a laid-out [ui.Paragraph] for [glyph] at [logicalWidth].
+  ///
+  /// Creates and layouts on first use for that `(glyph, width)` key; later
+  /// calls reuse the cache. Does **not** draw and does **not** notify the
+  /// owner. [logicalWidth] ≤ 0 yields a paragraph laid out against that
+  /// width (caller SHOULD skip). Used by [rasterizeGlyphsForWarmup] and by
+  /// the owning render object’s cold-start band walk.
+  ui.Paragraph ensureGlyphParagraph(String glyph, double logicalWidth) =>
+      _paragraphForGlyph(glyph, logicalWidth);
+
+  /// Cache lookup / create for one glyph paragraph at [logicalWidth].
+  ui.Paragraph _paragraphForGlyph(String glyph, double logicalWidth) {
+    final key = _GlyphPaintKey(glyph, logicalWidth);
+    return _glyphParagraphs.putIfAbsent(key, () {
+      final builder = ui.ParagraphBuilder(
+        ui.ParagraphStyle(
+          textAlign: TextAlign.center,
+          fontSize: logicalWidth * 0.85,
+        ),
+      )..addText(glyph);
+      return builder.build()
+        ..layout(ui.ParagraphConstraints(width: logicalWidth));
+    });
+  }
+
+  /// Offscreen-rasterizes unique [glyphs] at [logicalWidth] (device pixels).
+  ///
+  /// For each chunk: builds a temporary picture of laid-out paragraphs,
+  /// awaits [ui.Picture.toImage], disposes the image and picture. Side
+  /// effect is exercising the rasterizer’s color-emoji path so a later
+  /// on-screen [paintLeaf] is cheaper. Empty [glyphs] or [logicalWidth] ≤ 0
+  /// is a silent no-op. Failed chunks are skipped (MUST NOT throw to the
+  /// host). Yields after each chunk so an in-flight open animation can
+  /// schedule. MUST NOT be called from the scroll/paint tick path.
+  Future<void> rasterizeGlyphsForWarmup({
+    required Iterable<String> glyphs,
+    required double logicalWidth,
+    int chunkSize = 16,
+  }) async {
+    if (logicalWidth <= 0) return;
+    final unique = <String>{};
+    for (final g in glyphs) {
+      if (g.isNotEmpty) unique.add(g);
+    }
+    if (unique.isEmpty) return;
+
+    final views = ui.PlatformDispatcher.instance.views;
+    final dpr = views.isEmpty ? 1.0 : views.first.devicePixelRatio;
+    final pixelW = math.max(1, (logicalWidth * dpr).ceil());
+    final list = unique.toList(growable: false);
+
+    for (var i = 0; i < list.length; i += chunkSize) {
+      final end = math.min(i + chunkSize, list.length);
+      final chunk = list.sublist(i, end);
+      final recorder = ui.PictureRecorder();
+      final canvas = Canvas(recorder);
+      canvas.scale(dpr);
+      var y = 0.0;
+      for (final glyph in chunk) {
+        final paragraph = _paragraphForGlyph(glyph, logicalWidth);
+        final dy = (logicalWidth - paragraph.height) / 2;
+        canvas.drawParagraph(paragraph, Offset(0, y + dy));
+        y += logicalWidth;
+      }
+      final picture = recorder.endRecording();
+      final pixelH = math.max(1, (y * dpr).ceil());
+      try {
+        final image = await picture.toImage(pixelW, pixelH);
+        image.dispose();
+      } on Object {
+        // Warm-up must never break open; skip failed chunks.
+      } finally {
+        picture.dispose();
+      }
+      // Let the open animation / input schedule run between chunks.
+      await Future<void>.delayed(Duration.zero);
+    }
   }
 }
 

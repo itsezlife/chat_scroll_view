@@ -165,15 +165,15 @@ class _CategoryTab extends StatelessWidget {
                 alignment: Alignment.center,
                 children: <Widget>[
                   if (t > 0.01)
-                    Opacity(
-                      opacity: t,
-                      child: Container(
+                    DecoratedBox(
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        // Alpha on the fill — avoids [Opacity] saveLayer.
+                        color: idleColor.withValues(alpha: 0.18 * t),
+                      ),
+                      child: const SizedBox(
                         width: EmojiCategoryStrip.cell,
                         height: EmojiCategoryStrip.cell,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: idleColor.withValues(alpha: 0.18),
-                        ),
                       ),
                     ),
                   _StripIconVisual(icon: icon, tint: tint),
@@ -341,9 +341,17 @@ class _StripShadowState extends State<_StripShadow>
 
   @override
   Widget build(BuildContext context) {
-    return FadeTransition(
-      opacity: CurvedAnimation(parent: _c, curve: Curves.easeOut),
-      child: ColoredBox(color: widget.color, child: const SizedBox(height: 1)),
+    return AnimatedBuilder(
+      animation: _c,
+      builder: (context, _) {
+        final t = Curves.easeOut.transform(_c.value);
+        if (t <= 0.001) return const SizedBox.shrink();
+        // Paint alpha — not [FadeTransition] / [Opacity] (those force saveLayer).
+        return ColoredBox(
+          color: widget.color.withValues(alpha: widget.color.a * t),
+          child: const SizedBox(height: 1),
+        );
+      },
     );
   }
 }

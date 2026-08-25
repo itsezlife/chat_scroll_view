@@ -52,6 +52,13 @@ import 'package:panel_catalog/src/viewport/panel_catalog_scroll_events.dart';
 /// stay aligned. User drag cancels in-flight near scroll or far-path stitch;
 /// only then may a new [jumpToSection] start.
 ///
+/// ## Cold-start warm-up
+///
+/// [warmAhead] asks the bound viewport to pre-build unicode paragraphs and
+/// offscreen-rasterize the first content band so the first fling does not
+/// pay first-touch color-emoji raster cost. Silent no-op when no viewport is
+/// bound or after [dispose].
+///
 /// The viewport does **not** dispose this controller. After [dispose],
 /// mutating entry points are silent no-ops and listeners are cleared.
 final class PanelCatalogController {
@@ -362,19 +369,45 @@ final class PanelCatalogController {
     _offset = pixels;
   }
 
+  // --- Cold-start warm-up ---------------------------------------------------
+
+  /// Bound viewport warm body; `null` when detached / disposed.
+  Future<void> Function(double screens)? _warmAheadHandler;
+
+  /// Registers the bound viewport’s [warmAhead] implementation.
+  ///
+  /// Viewport-only. Pass `null` on detach / dispose. Hosts MUST NOT call
+  /// this — use [warmAhead].
+  void bindWarmAheadHandler(Future<void> Function(double screens)? handler) {
+    _warmAheadHandler = handler;
+  }
+
+  /// Prepares unicode glyphs for the first `[screens]` viewport heights.
+  ///
+  /// Forwards to the bound viewport when attached. Completes immediately
+  /// (silent) when unbound or disposed. [screens] is interpreted by the
+  /// viewport (clamped). Concurrent calls coalesce at the viewport.
+  Future<void> warmAhead({double screens = 2.5}) async {
+    if (_disposed) return;
+    final handler = _warmAheadHandler;
+    if (handler == null) return;
+    await handler(screens);
+  }
+
   // --- Lifecycle ------------------------------------------------------------
 
   /// Drops all listeners and marks the controller disposed. Idempotent.
   ///
   /// After dispose, [jumpTo] / [scrollBy] / [animateTo] / [jumpToSection] /
-  /// [correctOffset] / [applyOffset] are silent no-ops. Safe to call more than
-  /// once.
+  /// [correctOffset] / [applyOffset] / [warmAhead] are silent no-ops. Safe to
+  /// call more than once.
   void dispose() {
     if (_disposed) return;
     _disposed = true;
     _completePendingSectionJump();
     _completePendingAnimateTo();
     _sectionJumpActive = false;
+    _warmAheadHandler = null;
     _jumpListeners.clear();
     _scrollByListeners.clear();
     _sectionJumpListeners.clear();

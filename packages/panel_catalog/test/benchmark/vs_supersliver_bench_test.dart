@@ -7,10 +7,13 @@
 // Debug mode — absolute µs inflated by asserts; ratios are the signal.
 // Report: test/benchmark/benchmark_report.md
 
+import 'dart:async';
+
 import 'package:catalog_assets/catalog_assets.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:panel_catalog/panel_catalog.dart';
+import 'package:panel_catalog/src/viewport/catalog_far_stitch.dart';
 import 'package:panel_catalog/src/viewport/render_panel_catalog.dart';
 
 import 'shared/baseline_sliver_grid_catalog.dart';
@@ -129,8 +132,22 @@ Future<List<int>> _pumpUntilSettledSamples(
     await tester.pump(const Duration(milliseconds: 16));
     samples.add(sw.elapsedMicroseconds);
   }
-  await future;
-  await tester.pumpAndSettle();
+  // Bound drain — Grid far animateTo can keep scheduling frames; default
+  // pumpAndSettle timeout is 10 minutes and looks like a hang.
+  try {
+    await tester.pumpAndSettle(
+      const Duration(milliseconds: 16),
+      EnginePhase.sendSemanticsUpdate,
+      const Duration(seconds: 3),
+    );
+  } on FlutterError {
+    // Timed out still settling; sampled frames remain valid.
+  }
+  try {
+    await future.timeout(const Duration(seconds: 1));
+  } on TimeoutException {
+    // Samples cover maxFrames; ignore leftover animation future.
+  }
   return samples;
 }
 
@@ -452,7 +469,7 @@ void main() {
       }
     });
 
-    testWidgets('far-path stitch vs bare jump — $leafCount leaves', (
+    testWidgets('far-path stitch vs animateTo — $leafCount leaves', (
       tester,
     ) async {
       final sections = generateCatalogSections(leafCount);
@@ -506,20 +523,25 @@ void main() {
           sslKey: sslKey,
           gridKey: gridKey,
         );
-        final baseFar = <int>[];
-        final sw = Stopwatch()..start();
-        sc.jumpTo(target.clamp(0.0, sc.position.maxScrollExtent));
-        await tester.pump();
-        baseFar.add(sw.elapsedMicroseconds);
-        for (var i = 0; i < 30; i++) {
-          final frameSw = Stopwatch()..start();
-          await tester.pump(const Duration(milliseconds: 16));
-          baseFar.add(frameSw.elapsedMicroseconds);
-        }
+        final to = target.clamp(0.0, sc.position.maxScrollExtent);
+        final travel = (to - sc.offset).abs();
+        // Same travel-scaled window as stitch — honest “smooth scroll the gap”
+        // alternative that stitch replaces.
+        final duration = catalogStitchTravelDuration(
+          travelPx: travel,
+          viewportHeight: kBenchViewportSize.height,
+        );
+        final maxFrames = (duration.inMilliseconds / 16).ceil().clamp(60, 180);
+        final baseFar = await _pumpUntilSettledSamples(
+          tester,
+          start: () =>
+              sc.animateTo(to, duration: duration, curve: Curves.easeOutCubic),
+          maxFrames: maxFrames,
+        );
         sc.dispose();
         await tester.pumpWidget(const SizedBox.shrink());
 
-        final base = BenchmarkMetrics('${_label(kind)} far jump', baseFar);
+        final base = BenchmarkMetrics('${_label(kind)} far animateTo', baseFar);
         switch (kind) {
           case _BaselineKind.superSliver:
             farSsl.add((leafCount, cand, base));
@@ -528,7 +550,8 @@ void main() {
         }
         // ignore: avoid_print
         print(
-          '\n$leafCount leaves — far vs ${_label(kind)}:\n  $cand\n  $base',
+          '\n$leafCount leaves — far stitch vs ${_label(kind)} animateTo:\n'
+          '  $cand\n  $base',
         );
       }
     });
@@ -689,7 +712,7 @@ void main() {
     dump('Scroll-only paint', paintSsl, paintGrid);
     dump('Fling frame time', flingSsl, flingGrid);
     dump('Near-path section jump', nearSsl, nearGrid);
-    dump('Far-path stitch vs bare jump', farSsl, farGrid);
+    dump('Far-path stitch vs animateTo', farSsl, farGrid);
     // ignore: avoid_print
     print(
       generateCatalogMemoryTable(

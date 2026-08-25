@@ -12,6 +12,7 @@
 /// **Coverage map:**
 /// - extent scroll + DS notify
 /// - drag vs leaf long-press arena (no touch-slop catch-up jump)
+/// - cold-start warmAhead (paragraph + offscreen raster)
 /// - leaf presentation (unicode content, circle radius contract, thumb-first)
 /// - paint-leaf element flatness + binding recycle
 /// - tap / long-press identity, `leafLongPressEligible`, press scale
@@ -197,6 +198,30 @@ void main() {
         await tester.pumpAndSettle();
       },
     );
+
+    testWidgets('warmAhead prepares unicode glyphs without throwing', (
+      tester,
+    ) async {
+      final leaves = [
+        for (var i = 0; i < 120; i++)
+          CatalogLeaf.unicode(String.fromCharCode(0x1F600 + (i % 80))),
+      ];
+      dataSource.replaceSections([_section('a', leaves)]);
+
+      await tester.pumpWidget(
+        _harness(
+          dataSource: dataSource,
+          assetCache: assetCache,
+          controller: controller,
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      await controller.warmAhead(screens: 2);
+      await tester.pump();
+      expect(tester.takeException(), isNull);
+      expect(controller.offset, 0);
+    });
 
     testWidgets('notifyDataChanged refreshes the projected catalog', (
       tester,
