@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:math' as math;
 import 'dart:ui' as ui;
 
@@ -73,11 +74,22 @@ import 'package:panel_catalog/src/viewport/catalog_slot_projection.dart';
 /// ## Dispose
 ///
 /// Call [dispose] when the owning render object disposes to drop cached
-/// paragraphs. Clearing maps is enough — [ui.Paragraph] does not require a
-/// native dispose in current Flutter.
+/// paragraphs and abort any in-flight [rasterizeGlyphsForWarmup] yield timer.
+/// Clearing maps is enough for paragraphs — [ui.Paragraph] does not require a
+/// native dispose in current Flutter. [cancelWarmup] aborts warm-up without
+/// clearing caches (detach / rebind).
 final class CatalogLeafPainter {
   /// Creates a painter with empty paragraph caches.
   CatalogLeafPainter({required CatalogLeafPaintTheme theme}) : _theme = theme;
+
+  /// Bumped by [cancelWarmup] / [dispose] so in-flight warm-up exits.
+  int _warmupEpoch = 0;
+
+  /// Zero-delay yield between warm-up chunks; cancelled on abort / dispose.
+  Timer? _warmupYield;
+
+  /// Completer for the in-flight yield; completed on timer fire or [cancelWarmup].
+  Completer<void>? _warmupYieldCompleter;
 
   CatalogLeafPaintTheme _theme;
   final Map<_HeaderPaintKey, ui.Paragraph> _headerParagraphs = {};
@@ -98,8 +110,25 @@ final class CatalogLeafPainter {
     }
   }
 
-  /// Releases cached paragraphs. Idempotent.
+  /// Aborts in-flight [rasterizeGlyphsForWarmup] and cancels its yield timer.
+  ///
+  /// Does not clear paragraph caches. Safe to call while warm-up is idle.
+  /// After abort, a later [rasterizeGlyphsForWarmup] starts a new epoch.
+  /// Completes any awaiting chunk yield so the warm-up future does not hang.
+  void cancelWarmup() {
+    _warmupEpoch++;
+    _warmupYield?.cancel();
+    _warmupYield = null;
+    final pending = _warmupYieldCompleter;
+    _warmupYieldCompleter = null;
+    if (pending != null && !pending.isCompleted) {
+      pending.complete();
+    }
+  }
+
+  /// Releases cached paragraphs and aborts warm-up. Idempotent.
   void dispose() {
+    cancelWarmup();
     _headerParagraphs.clear();
     _glyphParagraphs.clear();
   }
@@ -290,11 +319,15 @@ final class CatalogLeafPainter {
   /// on-screen [paintLeaf] is cheaper. Empty [glyphs] or [logicalWidth] ≤ 0
   /// is a silent no-op. Failed chunks are skipped (MUST NOT throw to the
   /// host). Yields after each chunk so an in-flight open animation can
-  /// schedule. MUST NOT be called from the scroll/paint tick path.
+  /// schedule. Stops early when [shouldContinue] returns `false`, or after
+  /// [cancelWarmup] / [dispose] (pending yield timer is cancelled — no
+  /// orphan [Timer] after the owning viewport leaves the tree). MUST NOT be
+  /// called from the scroll/paint tick path.
   Future<void> rasterizeGlyphsForWarmup({
     required Iterable<String> glyphs,
     required double logicalWidth,
     int chunkSize = 16,
+    bool Function()? shouldContinue,
   }) async {
     if (logicalWidth <= 0) return;
     final unique = <String>{};
@@ -303,12 +336,15 @@ final class CatalogLeafPainter {
     }
     if (unique.isEmpty) return;
 
+    final epoch = _warmupEpoch;
     final views = ui.PlatformDispatcher.instance.views;
     final dpr = views.isEmpty ? 1.0 : views.first.devicePixelRatio;
     final pixelW = math.max(1, (logicalWidth * dpr).ceil());
     final list = unique.toList(growable: false);
 
     for (var i = 0; i < list.length; i += chunkSize) {
+      if (epoch != _warmupEpoch) return;
+      if (shouldContinue != null && !shouldContinue()) return;
       final end = math.min(i + chunkSize, list.length);
       final chunk = list.sublist(i, end);
       final recorder = ui.PictureRecorder();
@@ -331,8 +367,20 @@ final class CatalogLeafPainter {
       } finally {
         picture.dispose();
       }
+      if (epoch != _warmupEpoch) return;
+      if (shouldContinue != null && !shouldContinue()) return;
       // Let the open animation / input schedule run between chunks.
-      await Future<void>.delayed(Duration.zero);
+      final yieldDone = Completer<void>();
+      _warmupYield?.cancel();
+      _warmupYieldCompleter = yieldDone;
+      _warmupYield = Timer(Duration.zero, () {
+        _warmupYield = null;
+        if (identical(_warmupYieldCompleter, yieldDone)) {
+          _warmupYieldCompleter = null;
+        }
+        if (!yieldDone.isCompleted) yieldDone.complete();
+      });
+      await yieldDone.future;
     }
   }
 }

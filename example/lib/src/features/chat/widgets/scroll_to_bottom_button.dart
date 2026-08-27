@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:ui' as ui;
 
 import 'package:chat_scroll_view/chat_scroll_view.dart';
@@ -150,6 +151,16 @@ class _ChatScrollToBottomButtonState extends State<ChatScrollToBottomButton> {
   /// unread is still non-zero mid-flight.
   bool _pendingTapDismiss = false;
 
+  /// Holds the last non-zero badge through the FAB hide fade after a tap.
+  ///
+  /// Baseline may zero [liveCount] mid-flight; without this freeze the badge
+  /// would clear before opacity reaches 0. Cleared after
+  /// [_ScrollToBottomFabState._visibilityDuration] or when chrome re-shows.
+  bool _freezeBadgeForHide = false;
+
+  /// Cancels [_freezeBadgeForHide] after the hide animation duration.
+  Timer? _badgeFreezeTimer;
+
   double _totalDy = 0;
 
   @override
@@ -236,6 +247,7 @@ class _ChatScrollToBottomButtonState extends State<ChatScrollToBottomButton> {
 
   @override
   void dispose() {
+    _badgeFreezeTimer?.cancel();
     widget.controller.isAtTail.removeListener(_onIsAtTailChanged);
     widget.controller.visibleRange.removeListener(_onVisibleRangeChanged);
     widget.controller.removeScrollListener(_onScrollEvent);
@@ -591,6 +603,7 @@ class _ChatScrollToBottomButtonState extends State<ChatScrollToBottomButton> {
     _canShow = false;
     _totalDy = 0;
     _tailArrivalIntent = true;
+    _beginBadgeHideFreeze();
     _scheduleRebuild();
     await widget.controller.animateTo(
       newest,
@@ -603,6 +616,23 @@ class _ChatScrollToBottomButtonState extends State<ChatScrollToBottomButton> {
     _scrollReadingEnabled = false;
     _pendingInitialViewportReadSync = false;
     setState(() {});
+  }
+
+  /// Freezes the badge for one hide-animation duration after tap dismiss.
+  void _beginBadgeHideFreeze() {
+    _freezeBadgeForHide = true;
+    _badgeFreezeTimer?.cancel();
+    _badgeFreezeTimer = Timer(_ScrollToBottomFabState._visibilityDuration, () {
+      _badgeFreezeTimer = null;
+      if (!mounted || !_freezeBadgeForHide) return;
+      setState(() => _freezeBadgeForHide = false);
+    });
+  }
+
+  void _clearBadgeHideFreeze() {
+    _badgeFreezeTimer?.cancel();
+    _badgeFreezeTimer = null;
+    _freezeBadgeForHide = false;
   }
 
   /// After animate-to-newest completes (or is cancelled), latch read state only
@@ -658,12 +688,16 @@ class _ChatScrollToBottomButtonState extends State<ChatScrollToBottomButton> {
       builder: (context, _) {
         final liveCount = _stableAtTail ? 0 : _unseenCount();
         final visible = !_pendingInitialViewportReadSync && _canShow;
+        if (visible && _freezeBadgeForHide) {
+          _clearBadgeHideFreeze();
+        }
         _reportChromeVisible(visible);
-        // Freeze only for dismiss fade-out. While unread is live, always prefer
-        // [liveCount] so a 0→N update that coincides with freeze rising-edge
-        // (hidden chrome + first unread) is not stuck on a held 0.
+        // Freeze for tap hide-fade ([_freezeBadgeForHide]) so baseline→0 mid
+        // flight does not clear the badge before opacity hits 0. Also freeze
+        // while hidden with live unread so held stays coherent; prefer
+        // [liveCount] when non-zero so a 0→N arrival is not stuck on held 0.
         return FrozenValue<int>(
-          frozen: !visible && liveCount > 0,
+          frozen: _freezeBadgeForHide || (!visible && liveCount > 0),
           value: liveCount,
           builder: (context, frozenCount) {
             final count = liveCount > 0 ? liveCount : frozenCount;

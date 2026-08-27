@@ -1,5 +1,4 @@
 // ignore_for_file: implementation_imports
-import 'package:chat_chrome/chat_chrome.dart';
 import 'package:chat_scroll_view/src/chat_scroll/chat_data_source.dart';
 import 'package:chat_scroll_view/src/chat_scroll/chat_scroll_common.dart';
 import 'package:chat_scroll_view/src/chat_scroll/chat_scroll_controller.dart';
@@ -9,7 +8,6 @@ import 'package:chat_scroll_view/src/chat_widgets/chat_selectable_message.dart';
 import 'package:chat_scroll_view/src/chat_widgets/chat_selection_chrome.dart';
 import 'package:chat_scroll_view_example/src/common/models/chat_message.dart';
 import 'package:chat_scroll_view_example/src/common/widgets/cap_hit_shake.dart';
-import 'package:chat_scroll_view_example/src/features/chat/widgets/chat_composer.dart';
 import 'package:chat_scroll_view_example/src/features/chat/widgets/selection_app_bar.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -591,23 +589,29 @@ void main() {
       expect(translate.transform.storage[12], isNot(0));
     });
 
-    testWidgets('ChatComposer copy action copies and clears the selection', (
+    testWidgets('SelectionAppBar copy action copies and clears the selection', (
       tester,
     ) async {
       final selection = ChatSelectionController();
-      final dataSource = _PreloadedDataSource(_generate(32));
+      addTearDown(selection.dispose);
+      var copied = false;
       await tester.pumpWidget(
         MaterialApp(
           home: Scaffold(
-            body: Column(
+            body: Stack(
               children: <Widget>[
-                const Expanded(child: SizedBox()),
-                ChatComposer(
-                  selection: selection,
-                  dataSource: dataSource,
-                  onSend: (_) async {},
-                  onEmojiPressed: () {},
-                  emojiIconState: ChatEnterEmojiIconState.smile,
+                const SizedBox.expand(),
+                Positioned(
+                  top: 0,
+                  left: 0,
+                  right: 0,
+                  child: SelectionAppBar(
+                    selection: selection,
+                    onCopy: () {
+                      copied = true;
+                      selection.clear();
+                    },
+                  ),
                 ),
               ],
             ),
@@ -616,8 +620,7 @@ void main() {
       );
       await tester.pump();
 
-      // The input field is present while idle.
-      expect(find.byType(TextField), findsOneWidget);
+      expect(find.byIcon(Icons.copy_rounded), findsNothing);
 
       selection
         ..startSelection(5)
@@ -627,6 +630,7 @@ void main() {
       await tester.tap(find.byIcon(Icons.copy_rounded));
       await tester.pumpAndSettle();
 
+      expect(copied, isTrue);
       expect(selection.isSelectionMode, isFalse);
     });
   });

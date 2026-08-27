@@ -926,7 +926,9 @@ void main() {
             messageBuilder: (context, id, message, status, runLayout) {
               final height = switch (id) {
                 final n when n == lastRead + 1 => 80.0,
-                final n when n >= lastRead + 2 => 520.0,
+                // Must fill the paint band after MeasureSize shrinks the
+                // composer inset below the initial 96 (band can exceed 504).
+                final n when n >= lastRead + 2 => _viewportHeight,
                 _ => 60.0,
               };
               return SizedBox(

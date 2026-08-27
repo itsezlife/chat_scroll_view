@@ -5,6 +5,20 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'emoji_page_test.dart' show createTestEmojiDataSource;
 
+/// Drives [AnimationController] ticks until [future] completes.
+///
+/// [KeyboardPanelController.openSearch] / [closeSearch] await expand/collapse
+/// motion that only advances when the tester pumps frames.
+Future<void> pumpAsync(WidgetTester tester, Future<void> future) async {
+  var completed = false;
+  final tracked = future.whenComplete(() => completed = true);
+  await tester.pump();
+  for (var i = 0; i < 120 && !completed; i++) {
+    await tester.pump(const Duration(milliseconds: 16));
+  }
+  await tracked;
+}
+
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
@@ -194,10 +208,7 @@ void main() {
       final base = inset.panelTarget;
 
       final opening = panel.openSearch();
-      await tester.pump();
-      await tester.pump(KeyboardPanelMotion.searchExpandDuration);
-      await tester.pump();
-      await opening;
+      await pumpAsync(tester, opening);
       expect(panel.isSearchOpen, isTrue);
       expect(inset.isSearchExpanded, isTrue);
       expect(inset.height, greaterThan(base));
@@ -205,10 +216,7 @@ void main() {
       // Pre-refactor host ordering: await animated search collapse, then
       // waitForIme close so the hold captures the keyboard-sized base.
       final closing = panel.closeSearch(hideKeyboard: false);
-      await tester.pump();
-      await tester.pump(KeyboardPanelMotion.searchExpandDuration);
-      await tester.pump();
-      await closing;
+      await pumpAsync(tester, closing);
 
       expect(panel.isSearchOpen, isFalse);
       expect(inset.isSearchExpanded, isFalse);
@@ -351,11 +359,8 @@ void main() {
     final base = inset.panelTarget;
 
     final opening = panel.openSearch();
-    await tester.pump();
-    await tester.pump(KeyboardPanelMotion.searchExpandDuration);
-    await tester.pump();
+    await pumpAsync(tester, opening);
     await tester.pump(KeyboardPanelBottomBar.visibilityDuration);
-    await opening;
 
     expect(bottomBarCenterY(tester), greaterThan(visibleY));
     expect(panel.isSearchOpen, isTrue);
@@ -368,10 +373,7 @@ void main() {
   testWidgets('handleBack closes search before panel', (tester) async {
     await openReplace(tester);
     final opening = panel.openSearch();
-    await tester.pump();
-    await tester.pump(KeyboardPanelMotion.searchExpandDuration);
-    await tester.pump();
-    await opening;
+    await pumpAsync(tester, opening);
     expect(panel.isSearchOpen, isTrue);
 
     inset.onImeHeight(0, landscape: false);

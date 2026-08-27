@@ -59,6 +59,22 @@ this project is pre-1.0 and not strictly SemVer yet.
 
 ### Fixed
 
+- **Newest-only insert boundaries.** After connect seeds only `newestKnownId`
+  (lazy oldest), `insertMessage` / `insertMessages` no longer invent
+  `oldestKnownId = insertId` when the new id is at or past the tip — that
+  tripped `oldest ≤ newest` on tail send. Oldest seeds from insert only when
+  the id is strictly older than the known newest (or shrinks an existing
+  oldest).
+
+- **Scroll-to-bottom badge freeze on tap.** Unread count stays visible through
+  the FAB hide fade after tap-to-newest; baseline may zero mid-flight, but the
+  badge no longer clears before opacity hits 0.
+
+- **Panel Catalog warm-up timer leak.** Cold-start `rasterizeGlyphsForWarmup`
+  yield timers are cancelled on detach/dispose (`cancelWarmup` +
+  `shouldContinue: () => attached`), so widget-test teardown no longer leaves
+  a pending `Timer`.
+
 - **Bottom-pad compensate vs stretch ticker.** While edge stretch kept the
   ticker alive, tick-path `pinNewest` against the live pad before layout
   compensate double-shifted the newest under the composer on keyboard dismiss.

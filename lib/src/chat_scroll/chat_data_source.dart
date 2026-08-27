@@ -587,6 +587,18 @@ abstract class ChatDataSource {
     }
   }
 
+  /// Extends known id span for an integrator insert.
+  ///
+  /// Empty conversation (`oldest` and `newest` both null) seeds both ends to
+  /// [id]. Otherwise advances [newestKnownId] when [id] is past the tip, and
+  /// advances [oldestKnownId] only when [id] is strictly older than the
+  /// current oldest — or, when oldest is still unset (newest-only connect /
+  /// lazy pagination), only when [id] is strictly older than the known newest.
+  ///
+  /// A null oldest with a seeded newest is intentional: connect may know the
+  /// tip before any older page lands. Treating that null as “set oldest =
+  /// insert id” would invent `oldest > newest` on a tail send and trip
+  /// [seedBoundaries].
   void _extendBoundariesForInsert(int id) {
     if (_oldestKnownId == null && _newestKnownId == null) {
       seedBoundaries(
@@ -598,7 +610,13 @@ abstract class ChatDataSource {
       _noteUnconfirmedTail(id);
       return;
     }
-    if (_oldestKnownId == null || id < _oldestKnownId!) {
+    final oldest = _oldestKnownId;
+    if (oldest == null) {
+      final newest = _newestKnownId;
+      if (newest != null && id < newest) {
+        seedBoundaries(oldestKnownId: id);
+      }
+    } else if (id < oldest) {
       seedBoundaries(oldestKnownId: id);
     }
     if (_newestKnownId == null || id > _newestKnownId!) {

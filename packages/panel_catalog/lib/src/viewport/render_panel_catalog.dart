@@ -169,7 +169,7 @@ import 'package:panel_catalog/src/viewport/panel_catalog_scroll_events.dart';
 /// - [attach]: register data + controller listeners; create drag, leaf
 ///   pointer, press tickers, and press controller.
 /// - [detach]: unregister listeners; dispose recognizers / press / fling;
-///   [CatalogLeafBindingPool.detachAll].
+///   [CatalogLeafPainter.cancelWarmup]; [CatalogLeafBindingPool.detachAll].
 /// - [dispose]: same binding/painter teardown; safe if already detached.
 ///
 /// Listeners are only live while attached. Swapping [dataSource] /
@@ -640,6 +640,7 @@ class RenderPanelCatalog extends RenderBox {
     await _painter.rasterizeGlyphsForWarmup(
       glyphs: glyphs,
       logicalWidth: glyphWidth,
+      shouldContinue: () => attached,
     );
   }
 
@@ -1124,6 +1125,9 @@ class RenderPanelCatalog extends RenderBox {
     _clearPressPointerRoute();
     _cancelSectionJumpMotion();
     _cancelFling();
+    // Abort cold-start raster so widget-test teardown does not leave a
+    // pending [Timer] from [CatalogLeafPainter.rasterizeGlyphsForWarmup].
+    _painter.cancelWarmup();
     _flingTicker = null;
     _nearScroll?.dispose();
     _nearScroll = null;

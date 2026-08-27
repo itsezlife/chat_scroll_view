@@ -77,6 +77,45 @@ void main() {
       expect(mutations, hasLength(1));
       expect(mutations.single, isA<InsertMutation>());
     });
+
+    test(
+      'newest-only seed then tail insert keeps oldest null and advances newest',
+      () {
+        final ds = _SpyDataSource()
+          ..seedBoundaries(
+            oldestKnownId: null,
+            newestKnownId: 10004,
+            reachedOldest: false,
+            reachedNewest: true,
+          );
+
+        ds.insertMessage(_msg(10005));
+
+        expect(ds.oldestKnownId, isNull);
+        expect(ds.newestKnownId, 10005);
+        expect(ds.reachedNewest, isTrue);
+        expect(ds.reachedOldest, isFalse);
+      },
+    );
+
+    test(
+      'newest-only seed then older insert seeds oldest without moving newest',
+      () {
+        final ds = _SpyDataSource()
+          ..seedBoundaries(
+            oldestKnownId: null,
+            newestKnownId: 10004,
+            reachedOldest: false,
+            reachedNewest: true,
+          );
+
+        ds.insertMessage(_msg(10000));
+
+        expect(ds.oldestKnownId, 10000);
+        expect(ds.newestKnownId, 10004);
+        expect(ds.reachedNewest, isTrue);
+      },
+    );
   });
 
   group('insertMessages batch', () {

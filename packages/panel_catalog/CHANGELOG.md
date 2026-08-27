@@ -6,6 +6,13 @@ is pre-1.0.
 
 ## [Unreleased]
 
+### Fixed
+
+- **Warm-up yield timer on detach.** [CatalogLeafPainter.rasterizeGlyphsForWarmup]
+  now takes optional [shouldContinue]; [cancelWarmup] aborts in-flight chunk
+  yields. [RenderPanelCatalog.detach] cancels warm-up so a zero-delay Timer is
+  not left pending after the viewport leaves the tree.
+
 ### Changed
 
 - **Unicode presentation** — unbound/loading [UnicodeCatalogLeaf] resolves to
