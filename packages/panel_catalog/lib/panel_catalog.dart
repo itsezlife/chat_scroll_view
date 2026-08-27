@@ -1,0 +1,33 @@
+/// Panel Catalog Viewport — extent-scroll catalog body with paint leaves.
+///
+/// Owns recycle, cell paint, and section geometry for the **catalog body**.
+/// Does **not** own panel chrome (category strip, search, type tabs, pickers)
+/// or asset fetch/decode (`CatalogAssetCache` from `catalog_assets`).
+///
+/// Primary host types: [PanelCatalogViewport], [CatalogDataSource],
+/// [PanelCatalogController] ([jumpTo], [scrollBy], [PanelCatalogController.jumpToSection]),
+/// [PanelCatalogThemeData], [PanelCatalogTheme], leaf/section/presentation models,
+/// section landing helpers ([scrollOffsetForSectionHeader],
+/// [kFarPathDistanceGateFactor] flat-row near/far gate), and
+/// [FakeCatalogDataSource].
+///
+/// [PanelCatalogThemeData] / [PanelCatalogTheme] supply host paint tokens;
+/// [PanelCatalogViewport] resolves [CatalogLeafPaintTheme] for the engine.
+///
+/// Engine internals (`RenderPanelCatalog`, binding pool, painter, slot
+/// projection) are not exported — they live under `src/viewport/`.
+/// Theme types live under `src/theme/`.
+library;
+
+export 'src/data/catalog_data_source.dart';
+export 'src/data/fake_catalog_data_source.dart';
+export 'src/model/catalog_leaf.dart';
+export 'src/model/catalog_leaf_presentation.dart';
+export 'src/model/catalog_section.dart';
+export 'src/theme/panel_catalog_theme.dart';
+export 'src/viewport/panel_catalog_controller.dart';
+export 'src/viewport/panel_catalog_scroll_events.dart';
+export 'src/viewport/panel_catalog_viewport.dart';
+export 'src/viewport/catalog_section_navigation.dart'
+    show kFarPathDistanceGateFactor, scrollOffsetForSectionHeader;
+export 'src/debug/panel_catalog_dev_log.dart';

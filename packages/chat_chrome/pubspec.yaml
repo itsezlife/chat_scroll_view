@@ -1,0 +1,36 @@
+name: chat_chrome
+description: >
+  Chat composer and keyboard-replacement emoji/sticker/GIF panel chrome
+  for host apps.
+version: 0.1.0
+publish_to: none
+
+environment:
+  sdk: ^3.11.0
+  flutter: ">=3.32.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  catalog_assets:
+    path: ../catalog_assets
+  emoji_data:
+    path: ../emoji_data
+  panel_catalog:
+    path: ../panel_catalog
+  shared_preferences: ^2.5.3
+  morphnext: ^0.6.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+
+flutter:
+  uses-material-design: true
+  shaders:
+    - shaders/liquid_glass.frag
+    - shaders/liquid_glass_backdrop.frag
+    - shaders/glass_frost_prepass.frag
+  assets:
+    - assets/emoji_tabs/

@@ -9,7 +9,7 @@ import 'package:flutter/material.dart';
 ///
 /// Idle / edit: [ChatEnterView]. Selection mode: hidden — actions live on the
 /// selection app bar (Telegram action mode), not a morph of this island.
-/// Does not host [EmojiPanel]; the screen places the panel in the keyboard slot.
+/// Does not host [KeyboardPanel]; the screen places the panel in the keyboard slot.
 class ChatComposer extends StatefulWidget {
   /// Creates the composer.
   const ChatComposer({
@@ -23,7 +23,7 @@ class ChatComposer extends StatefulWidget {
     this.onAttachPressed,
     this.onMicPressed,
     this.bottomInset,
-    this.onFieldTapWhileEmojiOpen,
+    this.onFieldTapWhilePanelOpen,
     this.glassKey,
     super.key,
   });
@@ -49,7 +49,7 @@ class ChatComposer extends StatefulWidget {
   /// Measured chrome height: island + island→keyboard gap (+ safe pad when
   /// the keyboard slot is closed).
   ///
-  /// Does **not** include the keyboard / emoji-panel slot — that is the
+  /// Does **not** include the keyboard / keyboard-panel slot — that is the
   /// separate `keyboard` term in [ChatViewportInsets.bottomPadding].
   final void Function(double height)? onSizeChanged;
 
@@ -62,8 +62,8 @@ class ChatComposer extends StatefulWidget {
   /// Bottom inset.
   final ValueListenable<double>? bottomInset;
 
-  /// Tap on the field while emoji panel is open (switch back to IME).
-  final VoidCallback? onFieldTapWhileEmojiOpen;
+  /// Tap on the field while the keyboard panel is open (switch back to IME).
+  final VoidCallback? onFieldTapWhilePanelOpen;
 
   /// Key on the glass island for bottom-fade cutout tracking.
   final GlobalKey? glassKey;
@@ -183,15 +183,9 @@ class ChatComposerState extends State<ChatComposer> {
     }
   }
 
-  static String? _contentOf(IChatMessage? message) => switch (message) {
-    UserChatMessage(:final content) => content,
-    SystemChatMessage(:final content) => content,
-    _ => null,
-  };
-
   /// Loads [messageId] into the input for editing.
   void beginEdit(int messageId) {
-    final content = _contentOf(widget.dataSource.getMessage(messageId));
+    final content = widget.dataSource.getMessage(messageId)?.text;
     if (content == null) return;
     widget.selection.clear();
     setState(() {
@@ -242,7 +236,7 @@ class ChatComposerState extends State<ChatComposer> {
             onAttachPressed: widget.onAttachPressed,
             onMicPressed: widget.onMicPressed,
             emojiIconState: widget.emojiIconState,
-            onFieldTapWhileEmojiOpen: widget.onFieldTapWhileEmojiOpen,
+            onFieldTapWhilePanelOpen: widget.onFieldTapWhilePanelOpen,
             glassKey: widget.glassKey,
             hintText: isEditing ? 'Edit message' : 'Message',
             isEditing: isEditing,

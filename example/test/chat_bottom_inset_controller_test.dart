@@ -5,16 +5,14 @@ import 'package:shared_preferences/shared_preferences.dart';
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
-  late KeyboardHeightStore store;
+  late KeyboardPanelStore store;
   late ChatBottomInsetController controller;
 
   setUp(() async {
     SharedPreferences.setMockInitialValues(<String, Object>{});
-    store = KeyboardHeightStore(defaultHeight: 200);
+    store = KeyboardPanelStore(defaultHeight: 200);
     await store.load();
-    controller = ChatBottomInsetController(
-      store: store,
-    );
+    controller = ChatBottomInsetController(store: store);
   });
 
   tearDown(() {
@@ -111,24 +109,27 @@ void main() {
     expect(controller.height, 310);
   });
 
-  test('waitForIme release does not dip below floor on IME undershoot', () async {
-    controller
-      ..onImeHeight(310.4, landscape: false)
-      ..openPanel(landscape: false);
-    controller.closePanel(waitForIme: true);
-    expect(controller.height, 310.4);
+  test(
+    'waitForIme release does not dip below floor on IME undershoot',
+    () async {
+      controller
+        ..onImeHeight(310.4, landscape: false)
+        ..openPanel(landscape: false);
+      controller.closePanel(waitForIme: true);
+      expect(controller.height, 310.4);
 
-    // IME settles within ε of floor but slightly under — common on Android.
-    controller.onImeHeight(309.33, landscape: false);
-    expect(controller.height, 310.4);
-    controller.onImeHeight(309.33, landscape: false);
-    // Hold released; must stay at floor, not publish 309.33.
-    expect(controller.height, 310.4);
-    controller.onImeHeight(309.69, landscape: false);
-    expect(controller.height, 310.4);
-    controller.onImeHeight(310.4, landscape: false);
-    expect(controller.height, 310.4);
-  });
+      // IME settles within ε of floor but slightly under — common on Android.
+      controller.onImeHeight(309.33, landscape: false);
+      expect(controller.height, 310.4);
+      controller.onImeHeight(309.33, landscape: false);
+      // Hold released; must stay at floor, not publish 309.33.
+      expect(controller.height, 310.4);
+      controller.onImeHeight(309.69, landscape: false);
+      expect(controller.height, 310.4);
+      controller.onImeHeight(310.4, landscape: false);
+      expect(controller.height, 310.4);
+    },
+  );
 
   test(
     'post-hold sticky does not restore floor after gradual IME descent',

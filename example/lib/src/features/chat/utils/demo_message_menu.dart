@@ -92,7 +92,7 @@ Future<void> presentDemoMessageMenu({
     case ChatMessageMenuItemResult(:final itemId):
       switch (itemId) {
         case 'copy':
-          final text = _copyText(dataSource.getMessage(messageId));
+          final text = dataSource.getMessage(messageId)?.text;
           if (text == null || text.isEmpty) return;
           await Clipboard.setData(ClipboardData(text: text));
         case 'delete':
@@ -111,9 +111,3 @@ Future<void> presentDemoMessageMenu({
       }
   }
 }
-
-String? _copyText(IChatMessage? message) => switch (message) {
-  UserChatMessage(:final content) => content,
-  SystemChatMessage(:final content) => content,
-  _ => null,
-};

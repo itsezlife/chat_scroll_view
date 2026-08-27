@@ -13,10 +13,64 @@ Future<DefaultEmojiDataSource> createTestEmojiDataSource() async {
   return source;
 }
 
+/// Drives [jumpToSection] to completion in widget tests.
+///
+/// Near-path scroll and far-path stitch both use render-owned tickers that
+/// need explicit frame pumps — a single 250ms pump is not enough.
+Future<void> pumpJump(
+  WidgetTester tester,
+  GlobalKey<EmojiPageState> pageKey,
+  int index,
+) async {
+  final future = pageKey.currentState!.jumpToSection(index);
+  await tester.pump();
+  for (var i = 0; i < 200; i++) {
+    await tester.pump(const Duration(milliseconds: 16));
+  }
+  await future;
+}
+
+Future<void> tapGlyph(
+  WidgetTester tester,
+  GlobalKey<EmojiPageState> pageKey,
+  String glyph,
+) async {
+  final state = pageKey.currentState!;
+  final sectionIndex = state.sectionIndexForDisplayGlyph(glyph);
+  if (sectionIndex != null && sectionIndex > 0) {
+    await pumpJump(tester, pageKey, sectionIndex);
+  }
+  state.scrollDisplayGlyphIntoView(glyph);
+  await tester.pump();
+  final center = state.globalCenterForDisplayGlyph(glyph);
+  expect(center, isNotNull, reason: 'glyph $glyph not in projected catalog');
+  await tester.tapAt(center!);
+  await tester.pump();
+}
+
+Future<void> longPressGlyph(
+  WidgetTester tester,
+  GlobalKey<EmojiPageState> pageKey,
+  String glyph,
+) async {
+  final state = pageKey.currentState!;
+  final sectionIndex = state.sectionIndexForDisplayGlyph(glyph);
+  if (sectionIndex != null && sectionIndex > 0) {
+    await pumpJump(tester, pageKey, sectionIndex);
+  }
+  state.scrollDisplayGlyphIntoView(glyph);
+  await tester.pump();
+  final center = state.globalCenterForDisplayGlyph(glyph);
+  expect(center, isNotNull, reason: 'glyph $glyph not in projected catalog');
+  final gesture = await tester.startGesture(center!);
+  await tester.pump(const Duration(seconds: 1));
+  await gesture.up();
+}
+
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
-  late KeyboardHeightStore store;
+  late KeyboardPanelStore store;
   late DefaultEmojiDataSource dataSource;
   late GlobalKey<EmojiPageState> pageKey;
   final selected = <String>[];
@@ -24,7 +78,7 @@ void main() {
 
   setUp(() async {
     SharedPreferences.setMockInitialValues(<String, Object>{});
-    store = KeyboardHeightStore(defaultHeight: 200);
+    store = KeyboardPanelStore(defaultHeight: 200);
     await store.load();
     dataSource = await createTestEmojiDataSource();
     pageKey = GlobalKey<EmojiPageState>();
@@ -59,26 +113,6 @@ void main() {
     ),
   );
 
-  Future<void> pumpJump(WidgetTester tester, int index) async {
-    final future = pageKey.currentState!.jumpToSection(index);
-    await tester.pump();
-    await tester.pump(const Duration(milliseconds: 250));
-    await future;
-  }
-
-  Future<void> revealGlyph(WidgetTester tester, String glyph) async {
-    final finder = find.text(glyph);
-    final scrollable = find
-        .descendant(
-          of: find.byType(EmojiPage),
-          matching: find.byType(Scrollable),
-        )
-        .first;
-    await tester.scrollUntilVisible(finder, 120, scrollable: scrollable);
-    await tester.drag(scrollable, const Offset(0, 80));
-    await tester.pump();
-  }
-
   testWidgets('category strip jump scrolls to real section offsets', (
     tester,
   ) async {
@@ -91,16 +125,12 @@ void main() {
     );
     expect(animalsIndex, greaterThanOrEqualTo(0));
 
-    await pumpJump(tester, animalsIndex);
+    await pumpJump(tester, pageKey, animalsIndex);
     expect(pageKey.currentState!.categoryIndex, animalsIndex);
-    expect(find.text('Animals'), findsWidgets);
 
-    final flagsIndex = dataSource.categories.indexWhere(
-      (c) => c.id == 'flags',
-    );
-    await pumpJump(tester, flagsIndex);
+    final flagsIndex = dataSource.categories.indexWhere((c) => c.id == 'flags');
+    await pumpJump(tester, pageKey, flagsIndex);
     expect(pageKey.currentState!.categoryIndex, flagsIndex);
-    expect(find.text('Flags'), findsWidgets);
   });
 
   testWidgets('jump updates category strip selection', (tester) async {
@@ -108,13 +138,11 @@ void main() {
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 250));
 
-    final flagsIndex = dataSource.categories.indexWhere(
-      (c) => c.id == 'flags',
-    );
-    await pumpJump(tester, flagsIndex);
+    final flagsIndex = dataSource.categories.indexWhere((c) => c.id == 'flags');
+    await pumpJump(tester, pageKey, flagsIndex);
     expect(pageKey.currentState!.categoryIndex, flagsIndex);
 
-    await pumpJump(tester, 0);
+    await pumpJump(tester, pageKey, 0);
     expect(pageKey.currentState!.categoryIndex, 0);
   });
 
@@ -125,8 +153,7 @@ void main() {
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 250));
 
-    await revealGlyph(tester, '👍');
-    await tester.tap(find.text('👍'));
+    await tapGlyph(tester, pageKey, '👍');
     await tester.pump();
 
     expect(selected, <String>['👍']);
@@ -140,9 +167,7 @@ void main() {
     await tester.pump(const Duration(milliseconds: 250));
 
     final colored = EmojiSkinTone.apply('👍', 3);
-    await revealGlyph(tester, colored);
-    expect(find.text(colored), findsOneWidget);
-    await tester.tap(find.text(colored));
+    await tapGlyph(tester, pageKey, colored);
     await tester.pump();
 
     expect(selected, <String>[colored]);
@@ -153,12 +178,8 @@ void main() {
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 250));
 
-    await revealGlyph(tester, '👍');
-    final center = tester.getCenter(find.text('👍'));
-    final gesture = await tester.startGesture(center);
-    await tester.pump(const Duration(seconds: 1));
+    await longPressGlyph(tester, pageKey, '👍');
     expect(find.byType(EmojiColorPicker), findsOneWidget);
-    await gesture.up();
     await tester.pump();
   });
 
@@ -173,6 +194,7 @@ void main() {
             width: 360,
             height: 480,
             child: EmojiPage(
+              key: pageKey,
               dataSource: dataSource,
               recents: const <String>['😀', '🎉'],
               recentlyUsedLabel: 'Recently used',
@@ -186,12 +208,9 @@ void main() {
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 250));
 
-    final center = tester.getCenter(find.text('😀').first);
-    final gesture = await tester.startGesture(center);
-    await tester.pump(const Duration(seconds: 1));
+    await longPressGlyph(tester, pageKey, '😀');
     expect(requested, isTrue);
     expect(find.byType(EmojiColorPicker), findsNothing);
-    await gesture.up();
     await tester.pump();
   });
 
@@ -200,13 +219,7 @@ void main() {
     await tester.pump();
     expect(pageKey.currentState!.stripOffset, 0);
 
-    final scrollable = find
-        .descendant(
-          of: find.byType(EmojiPage),
-          matching: find.byType(Scrollable),
-        )
-        .first;
-    await tester.drag(scrollable, const Offset(0, -120));
+    await tester.drag(find.byType(EmojiPage), const Offset(0, -120));
     await tester.pump();
     expect(pageKey.currentState!.stripOffset, lessThan(0));
   });
@@ -215,17 +228,11 @@ void main() {
     await tester.pumpWidget(harness());
     await tester.pump();
 
-    final scrollable = find
-        .descendant(
-          of: find.byType(EmojiPage),
-          matching: find.byType(Scrollable),
-        )
-        .first;
-    await tester.drag(scrollable, const Offset(0, -120));
+    await tester.drag(find.byType(EmojiPage), const Offset(0, -120));
     await tester.pump();
     expect(pageKey.currentState!.stripOffset, lessThan(0));
 
-    await pumpJump(tester, 0);
+    await pumpJump(tester, pageKey, 0);
     expect(pageKey.currentState!.stripOffset, 0);
   });
 
@@ -237,7 +244,7 @@ void main() {
     );
     await tester.pump();
 
-    await tester.tap(find.text('😀'));
+    await tapGlyph(tester, pageKey, '😀');
     await tester.pump();
 
     expect(selected, ['😀']);

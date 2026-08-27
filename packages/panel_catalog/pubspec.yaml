@@ -1,0 +1,20 @@
+name: panel_catalog
+description: Panel Catalog Viewport — extent-scroll catalog body with paint leaves.
+version: 0.1.0
+publish_to: none
+
+environment:
+  sdk: ^3.11.0
+
+dependencies:
+  catalog_assets:
+    path: ../catalog_assets
+  flutter:
+    sdk: flutter
+
+dev_dependencies:
+  flutter_lints: ^6.0.0
+  flutter_test:
+    sdk: flutter
+  # Frozen A/B baseline for panel catalog benches (issue 08) — not a runtime dep.
+  super_sliver_list: ^0.4.1

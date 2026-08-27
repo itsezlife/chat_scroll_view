@@ -68,3 +68,7 @@ enhancement_spec.md
 config/development.supabase.android.device.json
 config/development.supabase.android.json
 config/development.supabase.json
+
+# Build folders
+**/build/
+**/.kotlin
