@@ -1,6 +1,7 @@
 # message_media
 
-Telegram-faithful **single** and **grouped** photo/video layout geometry, plus
+Telegram-faithful **single** and **grouped** photo/video layout geometry, a
+**per-chat grouped messages map**, group caption placement (plain text), and
 muted placeholder paint for judging mosaics.
 
 ## Owns
@@ -8,15 +9,19 @@ muted placeholder paint for judging mosaics.
 - `computeSingleMediaSize` — single photo/video box clamps
 - `GroupedMessages.calculate` / `GroupedMessagePosition` — photo/video mosaic
   (not documents stack layout)
+- `GroupedMessagesMap` — disposable per-chat `groupId` → members / positions
+- `GroupRowLayout` / `GroupRowCaption` — caption height on the owning edge row
+  only (`captionAbove` supported; no entities)
 - `MosaicLayout.project` — abstract positions → pixel rects + radii
 - `MessageMediaPlaceholder` — solid fills in those rects
 
 ## Does not own
 
-- Per-chat grouped messages map
 - Chat list fan-out / neighbor policy
 - Image decode / download pipelines
+- Caption entities / spoilers / rich text blocks
 - Documents grouped stack layout
+- `ChatDataSource` (host feeds the map; media APIs stay out of the DS)
 
 ## TRACE metrics
 
