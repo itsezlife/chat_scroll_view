@@ -2,6 +2,7 @@ import 'package:chat_scroll_view/chat_scroll_view.dart';
 import 'package:chat_scroll_view_example/src/common/models/chat_message.dart';
 import 'package:chat_scroll_view_example/src/features/chat/widgets/demo_message_edit_body.dart';
 import 'package:flutter/material.dart';
+import 'package:message_media/message_media.dart';
 
 /// Builds a demo message widget for the widget-based [ChatScrollView].
 ///
@@ -11,6 +12,9 @@ import 'package:flutter/material.dart';
 /// The bubble uses [ChatMessageBody] for text + time/status packing — the same
 /// host API apps should wire inside their own `messageBuilder`.
 ///
+/// [groupedMessages] is the per-chat map for album geometry; omit or pass an
+/// empty map when the host has no media groups.
+///
 /// For run-grouped rendering (avatar on the **last** message, sender name on
 /// the **first**) use [MessageRunLayout] from the viewport — see
 /// `widget_chat_screen.dart`.
@@ -19,10 +23,15 @@ Widget buildDemoMessage(
   int id,
   IChatMessage? message,
   ChatMessageStatus status,
-  MessageRunLayout runLayout,
-) {
+  MessageRunLayout runLayout, {
+  GroupedMessagesMap? groupedMessages,
+}) {
   if (message == null) return const DemoShimmerBubble();
-  return DemoMessageBubble(message: message, runLayout: runLayout);
+  return DemoMessageBubble(
+    message: message,
+    runLayout: runLayout,
+    groupedMessages: groupedMessages,
+  );
 }
 
 ChatMessageThemeData _layoutOf(BuildContext context) =>
@@ -92,6 +101,12 @@ const Color _kOutgoingText = Color(0xFFFFFFFF);
 const Color _kIncomingText = Color(0xFFE6E7EB);
 const Color _kShimmer = Color(0xFF2C2C2E);
 
+const TextStyle _kCaptionStyle = TextStyle(
+  color: Color(0xFFE8E8ED),
+  fontSize: 14,
+  height: 1.2,
+);
+
 // --- Bubble ---------------------------------------------------------------
 
 /// A single chat bubble — optional sender label, body text, time, and (for
@@ -100,6 +115,9 @@ const Color _kShimmer = Color(0xFF2C2C2E);
 /// Body text and meta are packed with [ChatMessageBody] (last-line fit /
 /// shrink-wrap). The sender label stays above that cluster so run chrome does
 /// not participate in meta packing.
+///
+/// When [message] is a media [UserChatMessage], paints a media placeholder
+/// (single or one group row from [groupedMessages]) instead of the text body.
 ///
 /// [runLayout] drives chrome: **sender name on first** in the run, **avatar
 /// on last** (incoming), column top inset on first, and bubble corner
@@ -112,6 +130,7 @@ class DemoMessageBubble extends StatelessWidget {
       isFirstInSenderRun: true,
       isLastInSenderRun: true,
     ),
+    this.groupedMessages,
     super.key,
   });
 
@@ -120,6 +139,9 @@ class DemoMessageBubble extends StatelessWidget {
 
   /// Sender-run position from the viewport — do not recompute from neighbors.
   final MessageRunLayout runLayout;
+
+  /// Per-chat grouped messages map for album rows; `null` skips group lookup.
+  final GroupedMessagesMap? groupedMessages;
 
   @override
   Widget build(BuildContext context) {
@@ -145,6 +167,8 @@ class DemoMessageBubble extends StatelessWidget {
           runLayout: runLayout,
           theme: layout,
           maxWidth: layout.bubbleCap(viewportWidth, hasAvatarGutter: !outgoing),
+          message: message,
+          groupedMessages: groupedMessages,
         );
         final Widget row;
         if (outgoing) {
@@ -223,6 +247,9 @@ class _Avatar extends StatelessWidget {
 /// Uses [ChatMessageBody] so short lines keep time/status on the same visual
 /// row, long last lines wrap meta underneath, and the bubble width shrinks to
 /// the text + meta cluster instead of always filling [maxWidth].
+///
+/// Media rows replace the text body with a media placeholder; meta packing
+/// stays on text-only messages via [DemoMessageEditBody].
 class _Bubble extends StatelessWidget {
   const _Bubble({
     required this.sender,
@@ -233,6 +260,8 @@ class _Bubble extends StatelessWidget {
     required this.runLayout,
     required this.theme,
     required this.maxWidth,
+    required this.message,
+    required this.groupedMessages,
   });
 
   /// `null` suppresses the sender label — non-first messages in a run.
@@ -259,6 +288,12 @@ class _Bubble extends StatelessWidget {
   /// Cap from [ChatMessageThemeData.bubbleCap]; not a forced width.
   final double maxWidth;
 
+  /// Source message — media fields select placeholder vs text body.
+  final IChatMessage message;
+
+  /// Per-chat map for group-row geometry.
+  final GroupedMessagesMap? groupedMessages;
+
   @override
   Widget build(BuildContext context) {
     final bg = isOutgoing ? _kOutgoingBg : _kIncomingBg;
@@ -272,6 +307,8 @@ class _Bubble extends StatelessWidget {
       run: runLayout,
     );
     final padding = ChatBubbleMetrics.bubbleContentPadding(theme: theme);
+
+    final mediaBody = _buildMediaBody(bubbleRadius: theme.bubbleRadius);
 
     return ConstrainedBox(
       constraints: BoxConstraints(maxWidth: maxWidth),
@@ -305,27 +342,180 @@ class _Bubble extends StatelessWidget {
                 ),
                 const SizedBox(height: 3),
               ],
-              DemoMessageEditBody(
-                content: content,
-                createdAt: createdAt,
-                edited: edited,
-                showStatus: isOutgoing,
-                sizeAlignment: isOutgoing
-                    ? AlignmentDirectional.topEnd
-                    : AlignmentDirectional.topStart,
-                metaColor: metaColor,
-                textStyle: TextStyle(
-                  color: textColor,
-                  fontSize: 15,
-                  height: 1.35,
+              if (mediaBody case final media?)
+                media
+              else
+                DemoMessageEditBody(
+                  content: content,
+                  createdAt: createdAt,
+                  edited: edited,
+                  showStatus: isOutgoing,
+                  sizeAlignment: isOutgoing
+                      ? AlignmentDirectional.topEnd
+                      : AlignmentDirectional.topStart,
+                  metaColor: metaColor,
+                  textStyle: TextStyle(
+                    color: textColor,
+                    fontSize: 15,
+                    height: 1.35,
+                  ),
                 ),
-              ),
             ],
           ),
         ),
       ),
     );
   }
+
+  /// Placeholder single or group row, or `null` for text-only messages.
+  ///
+  /// Album members (`groupId` set) never fall back to the single-media path:
+  /// until the map has a mosaic (≥2 members), the row is empty.
+  Widget? _buildMediaBody({required double bubbleRadius}) {
+    if (message case UserChatMessage(
+      :final id,
+      :final aspectRatio?,
+      :final groupId,
+      :final caption,
+      :final invertMedia,
+    )) {
+      if (groupId case final gid?) {
+        final entry = groupedMessages?.group(gid);
+        if (entry == null) {
+          return const SizedBox.shrink();
+        }
+        return _GroupRowMedia(
+          messageId: id,
+          entry: entry,
+          mosaicWidth: maxWidth,
+          bubbleRadius: bubbleRadius,
+        );
+      }
+      return _SingleMedia(
+        aspectRatio: aspectRatio,
+        maxWidth: maxWidth,
+        bubbleRadius: bubbleRadius,
+        caption: caption,
+        captionAbove: invertMedia,
+      );
+    }
+    return null;
+  }
+}
+
+/// Single photo/video placeholder with optional plain caption.
+class _SingleMedia extends StatelessWidget {
+  const _SingleMedia({
+    required this.aspectRatio,
+    required this.maxWidth,
+    required this.bubbleRadius,
+    required this.caption,
+    required this.captionAbove,
+  });
+
+  final double aspectRatio;
+  final double maxWidth;
+  final double bubbleRadius;
+  final String? caption;
+  final bool captionAbove;
+
+  @override
+  Widget build(BuildContext context) {
+    final media = MessageMediaPlaceholder.single(
+      aspectRatio: aspectRatio,
+      maxWidth: maxWidth,
+      bubbleRadius: bubbleRadius,
+    );
+    return switch (caption) {
+      final text? when text.isNotEmpty => GroupRowCaption(
+        caption: GroupCaptionSlot(
+          text: text,
+          above: captionAbove,
+          height: _measureCaptionHeight(text, maxWidth),
+        ),
+        style: _kCaptionStyle,
+        child: media,
+      ),
+      _ => media,
+    };
+  }
+}
+
+/// One album member as a group row (cell + optional caption on the owner).
+class _GroupRowMedia extends StatelessWidget {
+  const _GroupRowMedia({
+    required this.messageId,
+    required this.entry,
+    required this.mosaicWidth,
+    required this.bubbleRadius,
+  });
+
+  final int messageId;
+  final GroupedMessagesEntry entry;
+  final double mosaicWidth;
+  final double bubbleRadius;
+
+  @override
+  Widget build(BuildContext context) {
+    final index = entry.messageIds.indexOf(messageId);
+    if (index < 0) {
+      return const SizedBox.shrink();
+    }
+
+    final mosaic = MosaicLayout.project(
+      positions: entry.messages.positions,
+      mosaicWidth: mosaicWidth,
+      bubbleRadius: bubbleRadius,
+    );
+    if (index >= mosaic.cells.length) {
+      return const SizedBox.shrink();
+    }
+
+    final captionText = entry.captionText ?? '';
+    final captionHeight = switch (entry.messages.captionIndex) {
+      final i? when i == index && captionText.isNotEmpty =>
+        _measureCaptionHeight(captionText, mosaicWidth),
+      _ => 0.0,
+    };
+
+    final rows = GroupRowLayout.compute(
+      mosaic: mosaic,
+      messages: entry.messages,
+      captionText: entry.captionText,
+      captionHeight: captionHeight,
+    );
+    final row = rows[index];
+    final cell = mosaic.cells[index];
+
+    return SizedBox(
+      width: mosaic.size.width,
+      child: GroupRowCaption(
+        caption: row.caption,
+        style: _kCaptionStyle,
+        child: SizedBox(
+          width: mosaic.size.width,
+          height: row.mediaHeight,
+          child: Align(
+            alignment: Alignment.topLeft,
+            child: Padding(
+              padding: EdgeInsets.only(left: cell.rect.left),
+              child: MessageMediaPlaceholder.cell(cell: cell),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+double _measureCaptionHeight(String text, double maxWidth) {
+  final painter = TextPainter(
+    text: TextSpan(text: text, style: _kCaptionStyle),
+    textDirection: TextDirection.ltr,
+    maxLines: 3,
+    ellipsis: '…',
+  )..layout(maxWidth: maxWidth);
+  return painter.height;
 }
 
 // --- Shimmer placeholder --------------------------------------------------

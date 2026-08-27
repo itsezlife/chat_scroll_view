@@ -11,6 +11,8 @@ import 'package:chat_scroll_view_example/src/features/chat/data/backend_chat_dat
 import 'package:chat_scroll_view_example/src/features/chat/data/chat_data_source_extension.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/comments_data_source.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/generated_chat_data_source.dart';
+import 'package:chat_scroll_view_example/src/features/chat/data/grouped_messages_map_sync.dart';
+import 'package:chat_scroll_view_example/src/features/chat/data/media_fixture_chat_data_source.dart';
 import 'package:chat_scroll_view_example/src/features/chat/utils/chat_viewport_insets_binding.dart';
 import 'package:chat_scroll_view_example/src/features/chat/utils/demo_message_menu.dart';
 import 'package:chat_scroll_view_example/src/features/chat/widgets/chat_composer.dart';
@@ -25,6 +27,7 @@ import 'package:control/control.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:message_media/message_media.dart';
 
 /// Demo screen for the widget-based [ChatScrollView] — the chat viewport,
 /// a bottom composer, and a contextual selection bar, wired together.
@@ -53,6 +56,8 @@ class WidgetChatScreen extends StatefulWidget {
 class _WidgetChatScreenState extends State<WidgetChatScreen>
     with ChatViewportInsetsBinding {
   ChatDataSource? _dataSource;
+  late final GroupedMessagesMap _groupedMessages;
+  late final GroupedMessagesMapSync _groupedSync;
   late final DefaultEmojiDataSource _emojiDataSource;
   var _ownsEmojiDataSource = false;
   late final ChatScrollController _controller;
@@ -107,12 +112,13 @@ class _WidgetChatScreenState extends State<WidgetChatScreen>
   @override
   void initState() {
     super.initState();
-    _panelController = KeyboardPanelController(
-      inset: bottomInsetController,
-      store: keyboardPanelStore,
-    )
-      ..addOpenListener(_onPanelControllerOpen)
-      ..addTabListener(_onPanelControllerTab);
+    _panelController =
+        KeyboardPanelController(
+            inset: bottomInsetController,
+            store: keyboardPanelStore,
+          )
+          ..addOpenListener(_onPanelControllerOpen)
+          ..addTabListener(_onPanelControllerTab);
     final injected = widget.emojiDataSource;
     if (injected != null) {
       _emojiDataSource = injected;
@@ -128,6 +134,8 @@ class _WidgetChatScreenState extends State<WidgetChatScreen>
     }
     // Prefs already loaded from main → seed before first composer paint.
     _lastEmojiTab = _lastTabFromStore(keyboardPanelStore);
+    _groupedMessages = GroupedMessagesMap();
+    _groupedSync = GroupedMessagesMapSync(_groupedMessages);
     _controller = ChatScrollController();
     _selection = ChatSelectionController()..selectionCap = 100;
     _pillLastSeenBaseline.addListener(_onPillBaselineChanged);
@@ -161,7 +169,13 @@ class _WidgetChatScreenState extends State<WidgetChatScreen>
     if (_ownsEmojiDataSource) {
       _emojiDataSource.dispose();
     }
-    _dataSource?.dispose();
+    final ds = _dataSource;
+    if (ds != null) {
+      ds.removeDataListener(_onDataSourceChanged);
+      ds.dispose();
+    }
+    _groupedSync.reset();
+    _groupedMessages.dispose();
     super.dispose();
   }
 
@@ -175,8 +189,9 @@ class _WidgetChatScreenState extends State<WidgetChatScreen>
       // final backend = await BackendChatDataSource.connect(
       //   client: Supabase.instance.client,
       // );
-      final backend = await CommentsDataSource.load();
+      // final backend = await CommentsDataSource.load();
       // final backend = GeneratedChatDataSource(messageCount: 15);
+      final backend = MediaFixtureChatDataSource();
 
       // The screen may have been popped while `load()` was in flight. The
       // `dispose()` above already ran with `_dataSource == null`, so we
@@ -186,7 +201,10 @@ class _WidgetChatScreenState extends State<WidgetChatScreen>
         backend.dispose();
         return;
       }
+      _dataSource?.removeDataListener(_onDataSourceChanged);
       _dataSource = backend;
+      backend.addDataListener(_onDataSourceChanged);
+      _syncGroupedMessagesFromDataSource();
       _search?.dispose();
       _search = ChatSearchController(dataSource: backend);
       final newest = backend.newestKnownId;
@@ -259,17 +277,41 @@ class _WidgetChatScreenState extends State<WidgetChatScreen>
   static bool _isSelfMessage(IChatMessage message) =>
       message.sender == _demoSender;
 
+  void _onDataSourceChanged() => _syncGroupedMessagesFromDataSource();
+
+  /// Rebuilds the per-chat map from currently cached messages (host-owned).
+  void _syncGroupedMessagesFromDataSource() {
+    final ds = _dataSource;
+    if (ds == null || _groupedMessages.isDisposed) {
+      return;
+    }
+    final oldest = ds.oldestKnownId;
+    final newest = ds.newestKnownId;
+    if (oldest == null || newest == null) {
+      _groupedSync.sync(const []);
+      return;
+    }
+    final loaded = <IChatMessage>[
+      for (var id = oldest; id <= newest; id++) ?ds.getMessage(id),
+    ];
+    _groupedSync.sync(loaded);
+  }
+
   Future<void> _handleSendMessage(String text) async {
     final ds = _dataSource;
-    if (ds is CommentsDataSource) {
-      ds.sendMessage(sender: _demoSender, content: text);
+    if (ds case final MediaFixtureChatDataSource media) {
+      media.sendMessage(sender: _demoSender, content: text);
       return;
     }
-    if (ds is GeneratedChatDataSource) {
-      ds.sendMessage(sender: _demoSender, content: text);
+    if (ds case final CommentsDataSource comments) {
+      comments.sendMessage(sender: _demoSender, content: text);
       return;
     }
-    if (ds is BackendChatDataSource) {
+    if (ds case final GeneratedChatDataSource generated) {
+      generated.sendMessage(sender: _demoSender, content: text);
+      return;
+    }
+    if (ds case final BackendChatDataSource ds) {
       try {
         await ds.sendMessage(text);
       } on BackendConnectionException catch (error) {
@@ -296,22 +338,47 @@ class _WidgetChatScreenState extends State<WidgetChatScreen>
 
   Future<void> _handleEditSelected(int messageId, String text) async {
     final ds = _dataSource;
-    if (ds is CommentsDataSource) {
-      final message = ds.getMessage(messageId);
-      if (message is UserChatMessage) {
-        ds.editMessage(message, text);
+    if (ds case final MediaFixtureChatDataSource media) {
+      if (media.getMessage(messageId) case final UserChatMessage message) {
+        media.editMessage(message, text);
       }
       return;
     }
-    if (ds is GeneratedChatDataSource) {
-      final message = ds.getMessage(messageId);
-      if (message is UserChatMessage) {
-        ds.editMessage(message, text);
+    if (ds case final CommentsDataSource comments) {
+      if (comments.getMessage(messageId) case final UserChatMessage message) {
+        comments.editMessage(message, text);
+      }
+      return;
+    }
+    if (ds case final GeneratedChatDataSource generated) {
+      if (generated.getMessage(messageId) case final UserChatMessage message) {
+        generated.editMessage(message, text);
       }
       return;
     }
     final message = ds?.getMessage(messageId);
-    if (message != null) {
+    if (message case UserChatMessage(
+      :final groupId,
+      :final aspectRatio,
+      :final mediaKind,
+      :final caption,
+      :final invertMedia,
+    )) {
+      ds?.updateMessage(
+        UserChatMessage(
+          id: message.id,
+          sender: message.sender,
+          createdAt: message.createdAt,
+          updatedAt: DateTime.now(),
+          content: text,
+          groupId: groupId,
+          aspectRatio: aspectRatio,
+          mediaKind: mediaKind,
+          caption: caption,
+          invertMedia: invertMedia,
+        ),
+      );
+    } else if (message != null) {
       ds?.updateMessage(
         UserChatMessage(
           id: message.id,
@@ -402,7 +469,11 @@ class _WidgetChatScreenState extends State<WidgetChatScreen>
     MessageRunLayout runLayout,
   ) {
     if (message == null) return const DemoShimmerBubble();
-    return DemoMessageBubble(message: message, runLayout: runLayout);
+    return DemoMessageBubble(
+      message: message,
+      runLayout: runLayout,
+      groupedMessages: _groupedMessages,
+    );
   }
 
   Widget _buildChunkError(

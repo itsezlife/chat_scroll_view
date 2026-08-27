@@ -13,7 +13,7 @@ muted placeholder paint for judging mosaics.
 - `GroupRowLayout` / `GroupRowCaption` — caption height on the owning edge row
   only (`captionAbove` supported; no entities)
 - `MosaicLayout.project` — abstract positions → pixel rects + radii
-- `MessageMediaPlaceholder` — solid fills in those rects
+- `MessageMediaPlaceholder` — solid fills in those rects (single, cell, mosaic)
 
 ## Does not own
 

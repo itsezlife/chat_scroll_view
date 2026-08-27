@@ -17,6 +17,8 @@ dependencies:
     path: ../packages/chat_chrome
   emoji_data:
     path: ../packages/emoji_data
+  message_media:
+    path: ../packages/message_media
   meta: ^1.17.0
   supabase_flutter: ^2.15.0
   control: 1.0.0-dev.1

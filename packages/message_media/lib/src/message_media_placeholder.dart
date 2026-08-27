@@ -9,8 +9,8 @@ import 'package:message_media/src/single_media_layout.dart';
 /// without implying a decoded bitmap.
 const Color kMessageMediaPlaceholderColor = Color(0xFF3A3A40);
 
-/// Paints a single media placeholder or a multi-cell mosaic with TRACE’d
-/// gaps and outer/inner radii.
+/// Paints a single media placeholder, one group-row cell, or a full mosaic
+/// with TRACE’d gaps and outer/inner radii.
 ///
 /// Owns: solid fills in geometry rects for judging layout. Does not own:
 /// image-receiver bind, downloads, captions, or chat-list fan-out.
@@ -19,10 +19,11 @@ const Color kMessageMediaPlaceholderColor = Color(0xFF3A3A40);
 ///
 /// Painted size is fixed by layout math — not by incoming box constraints:
 /// - **Single:** [computeSingleMediaSize] at [maxWidth] (default 300).
+/// - **Cell:** [MosaicCellLayout.rect] size (group row).
 /// - **Mosaic:** [MosaicLayout.size] from a prior [MosaicLayout.project].
 ///
-/// Outer/inner radii for mosaics are baked into that [MosaicLayout]; the
-/// mosaic constructor does not take a separate bubble radius.
+/// Outer/inner radii for mosaics / cells are baked into that projection; the
+/// mosaic and cell constructors do not take a separate bubble radius.
 class MessageMediaPlaceholder extends StatelessWidget {
   /// Single photo/video placeholder sized like Telegram at [maxWidth].
   const MessageMediaPlaceholder.single({
@@ -31,7 +32,8 @@ class MessageMediaPlaceholder extends StatelessWidget {
     this.maxWidth = 300,
     this.bubbleRadius = 17,
     this.color = kMessageMediaPlaceholderColor,
-  }) : mosaic = null;
+  }) : mosaic = null,
+       cell = null;
 
   /// Grouped mosaic placeholder from a precomputed [MosaicLayout].
   ///
@@ -42,16 +44,34 @@ class MessageMediaPlaceholder extends StatelessWidget {
     this.color = kMessageMediaPlaceholderColor,
   }) : aspectRatio = null,
        maxWidth = null,
+       bubbleRadius = 17,
+       cell = null;
+
+  /// One group-row cell from a projected [MosaicCellLayout].
+  ///
+  /// Sized to [MosaicCellLayout.rect] size (origin remapped to top-left). Host
+  /// fan-out stacks these rows; horizontal siblings share a mosaic width in
+  /// Telegram’s grid — this paint path only fills this cell’s box.
+  const MessageMediaPlaceholder.cell({
+    super.key,
+    required MosaicCellLayout this.cell,
+    this.color = kMessageMediaPlaceholderColor,
+  }) : aspectRatio = null,
+       maxWidth = null,
+       mosaic = null,
        bubbleRadius = 17;
 
-  /// Aspect for the single-media path; `null` when [mosaic] is set.
+  /// Aspect for the single-media path; `null` when [mosaic] / [cell] is set.
   final double? aspectRatio;
 
-  /// Max width for [computeSingleMediaSize]; unused on the mosaic path.
+  /// Max width for [computeSingleMediaSize]; unused on mosaic / cell paths.
   final double? maxWidth;
 
-  /// Precomputed mosaic; `null` on the single-media path.
+  /// Precomputed mosaic; `null` on the single-media and cell paths.
   final MosaicLayout? mosaic;
+
+  /// One mosaic cell for a group row; `null` on single / full-mosaic paths.
+  final MosaicCellLayout? cell;
 
   /// Host bubble radius → outer media corner on the **single** path only
   /// ([MediaLayoutMetrics.mediaOuterRadius]).
@@ -68,6 +88,21 @@ class MessageMediaPlaceholder extends StatelessWidget {
         painter: _MediaPlaceholderPainter(
           mosaic: layout,
           single: null,
+          color: color,
+        ),
+      );
+    }
+
+    if (cell case final mosaicCell?) {
+      final size = mosaicCell.rect.size;
+      return CustomPaint(
+        size: size,
+        painter: _MediaPlaceholderPainter(
+          mosaic: null,
+          single: _SinglePlaceholder(
+            size: size,
+            radius: mosaicCell.borderRadius,
+          ),
           color: color,
         ),
       );

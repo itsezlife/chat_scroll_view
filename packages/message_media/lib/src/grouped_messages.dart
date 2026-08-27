@@ -211,10 +211,10 @@ final class GroupedMessages {
     final minH = MediaLayoutMetrics.minGroupedLineHeight / maxSizeHeight;
     final pString = proportions.toString();
 
-    final left = GroupedPositionFlags.left;
-    final right = GroupedPositionFlags.right;
-    final top = GroupedPositionFlags.top;
-    final bottom = GroupedPositionFlags.bottom;
+    const left = GroupedPositionFlags.left;
+    const right = GroupedPositionFlags.right;
+    const top = GroupedPositionFlags.top;
+    const bottom = GroupedPositionFlags.bottom;
 
     // --- Fixed-count paths (2 / 3 / 4) ---------------------------------------
     if (!forceCalc && (count == 2 || count == 3 || count == 4)) {
