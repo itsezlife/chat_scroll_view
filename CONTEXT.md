@@ -248,6 +248,40 @@ _Avoid_: Emoji picker, reaction sheet
 Process-wide thumbs/media cache for document-backed emoji, stickers, and GIFs, shared with the Panel Catalog Viewport so chat leaves and panel leaves bind the same assets.
 _Avoid_: Per-message private decode stores, panel-only drawable maps as the long-term source of truth
 
+### Message media
+
+**Grouped messages**:
+The layout model for several photo/video messages that share one `groupId` and paint as one mosaic (Telegram `MessageObject.GroupedMessages`). Identity is **N Message IDs** (one present message each), not one message with N blobs.
+_Avoid_: Attachment group, album, media collage, attachment package, single-row multi-attachment as the identity model
+
+**Grouped message position**:
+One cell’s span in that mosaic: grid bounds, aspect, edge flags, and sibling heights (Telegram `GroupedMessagePosition`), keyed by Message ID.
+_Avoid_: Tile, attachment slot, grid cell index alone
+
+**Group row**:
+One present Message ID in a grouped-messages set, laid out as its own fan-out row whose height comes from that id’s grouped message position (Telegram: one `ChatMessageCell` per group member). Sibling group rows abut so the mosaic reads as one surface. Host/viewport neighbor policy must not insert day headers or cluster gaps inside a group.
+_Avoid_: Primary-only row with zero-height siblings, mosaic slot outside the message identity space
+
+**Grouped messages map**:
+A **per-chat (per-dialog) UI index** of `groupId` → grouped messages + positions (Telegram `ChatActivity.groupedMessagesMap`). Built and owned with that chat surface; not a process-wide singleton and not part of `ChatDataSource`. Inbox uses a separate last-message group list (`DialogCell.groupMessages` / `dialogMessage`), not this map.
+_Avoid_: Global GroupedMessagesStore, media probe on ChatDataSource, assuming inbox/search read ChatActivity’s map
+
+**Group caption**:
+The single caption owned by a grouped-messages set (`captionMessage` / `hasCaption` / `captionAbove`), drawn on the edge group row that carries the caption flags — not repeated on every member.
+_Avoid_: Per-item captions inside a photo mosaic, caption-only Spec that skips mosaic geometry
+
+**Image receiver**:
+The bind surface that progresses stripped thumb → thumb → full image for one paint target (Telegram `ImageReceiver`).
+_Avoid_: CachedNetworkImage, Attachment widget, minithumbnail widget (as the whole pipeline)
+
+**Stripped thumb**:
+The tiny inline JPEG bytes on the photo/document (`TL_photoStrippedSize`), decoded to a cheap placeholder drawable before any file fetch.
+_Avoid_: BlurHash, minithumbnail (TDLib name for a related but separate blob), shimmer
+
+**Image loader** / **File loader**:
+Process-wide decode/mem-cache and on-disk download orchestration that feed image receivers (Telegram `ImageLoader` / `FileLoader`). Host-owned implementations; not the chat viewport.
+_Avoid_: PaintingBinding.imageCache alone, per-row download Future
+
 ### Navigation
 
 **Navigation alignment**:
