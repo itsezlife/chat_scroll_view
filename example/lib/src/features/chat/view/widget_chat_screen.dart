@@ -13,6 +13,7 @@ import 'package:chat_scroll_view_example/src/features/chat/data/comments_data_so
 import 'package:chat_scroll_view_example/src/features/chat/data/generated_chat_data_source.dart';
 import 'package:chat_scroll_view_example/src/features/chat/utils/chat_viewport_insets_binding.dart';
 import 'package:chat_scroll_view_example/src/features/chat/utils/demo_message_menu.dart';
+import 'package:chat_scroll_view_example/src/features/chat/utils/ios_keyboard_safe_peel.dart';
 import 'package:chat_scroll_view_example/src/features/chat/widgets/chat_composer.dart';
 import 'package:chat_scroll_view_example/src/features/chat/widgets/chat_search_bar.dart';
 import 'package:chat_scroll_view_example/src/features/chat/widgets/date_separator.dart';
@@ -107,12 +108,13 @@ class _WidgetChatScreenState extends State<WidgetChatScreen>
   @override
   void initState() {
     super.initState();
-    _panelController = KeyboardPanelController(
-      inset: bottomInsetController,
-      store: keyboardPanelStore,
-    )
-      ..addOpenListener(_onPanelControllerOpen)
-      ..addTabListener(_onPanelControllerTab);
+    _panelController =
+        KeyboardPanelController(
+            inset: bottomInsetController,
+            store: keyboardPanelStore,
+          )
+          ..addOpenListener(_onPanelControllerOpen)
+          ..addTabListener(_onPanelControllerTab);
     final injected = widget.emojiDataSource;
     if (injected != null) {
       _emojiDataSource = injected;
@@ -529,6 +531,29 @@ class _WidgetChatScreenState extends State<WidgetChatScreen>
     setState(() => _lastEmojiTab = tab);
   }
 
+  /// Safe band in the keyboard slot under [insets.keyboard].
+  ///
+  /// On iOS the soft keyboard / panel extent excludes [viewPadding.bottom];
+  /// adding full [safeBottom] while open oversizes emoji vs IME. Peel safe
+  /// proportionally to keyboard occupancy (`keyboard / target`) so the slot
+  /// animates `bottomPad → 0` in sync with open/close frames — not a step.
+  ///
+  /// Android keeps full [safeBottom] (nav inset often collapses into IME height).
+  double _keyboardSlotSafeInset({
+    required double keyboard,
+    required double safeBottom,
+  }) => iosKeyboardSafeBandPeel(
+    safeBottom: safeBottom,
+    keyboard: keyboard,
+    keyboardTarget: iosKeyboardOpenTarget(
+      keyboard: keyboard,
+      panelTarget: bottomInsetController.panelTarget,
+      storedKeyboardHeight: keyboardPanelStore.heightFor(
+        landscape: isLandscape,
+      ),
+    ),
+  );
+
   @override
   Widget build(BuildContext context) {
     if (_errorMessage != null) {
@@ -684,12 +709,19 @@ class _WidgetChatScreenState extends State<WidgetChatScreen>
                           ),
                           // Keyboard / emoji slot — one term only. Do not also
                           // pad the composer with the same inset (would double).
+                          // iOS: peel safeBottom as keyboard occupancy rises.
                           ValueListenableBuilder<double>(
                             valueListenable: insets.keyboard,
-                            builder: (context, keyboard, child) => SizedBox(
-                              height: keyboard + bottomPad,
-                              child: child,
-                            ),
+                            builder: (context, keyboard, child) {
+                              final slotSafe = _keyboardSlotSafeInset(
+                                keyboard: keyboard,
+                                safeBottom: bottomPad,
+                              );
+                              return SizedBox(
+                                height: keyboard + slotSafe,
+                                child: child,
+                              );
+                            },
                             child: RepaintBoundary(
                               child: KeyboardPanel(
                                 controller: _panelController,

@@ -1,3 +1,4 @@
+import 'package:chat_scroll_view_example/src/features/chat/utils/ios_keyboard_safe_peel.dart';
 import 'package:flutter/foundation.dart';
 
 /// Aggregates host chrome into the reserved insets a chat viewport consumes.
@@ -11,6 +12,11 @@ import 'package:flutter/foundation.dart';
 /// topPadding    = chromeTop + searchReserve
 /// bottomPadding = composerHeight + keyboard
 /// ```
+///
+/// On iOS, [composerHeight] from measure includes the idle home-indicator
+/// band. While [keyboard] occupancy rises, that band is peeled out of the
+/// reserve via [iosKeyboardSafeBandPeel] so [bottomPadding] stays aligned
+/// with the physical keyboard slot (same lerp as the host slot layout).
 ///
 /// **Reserved vs overlay.** Only chrome that occludes messages writes a
 /// reserve ([headerReserve], [setSearchReserve], [setComposerHeight]).
@@ -46,6 +52,8 @@ final class ChatViewportInsets {
     double keyboard = 0,
   }) : _composerHeight = composerHeight,
        _safeTop = safeTop,
+       _safeBottom = 0,
+       _keyboardTarget = 0,
        _searchReserve = searchReserve,
        headerReserve = ValueNotifier<double>(headerReserve),
        _keyboard = ValueNotifier<double>(keyboard),
@@ -58,6 +66,8 @@ final class ChatViewportInsets {
   }
 
   double _safeTop;
+  double _safeBottom;
+  double _keyboardTarget;
   double _composerHeight;
   double _searchReserve;
 
@@ -127,10 +137,24 @@ final class ChatViewportInsets {
     _publish();
   }
 
-  /// Live keyboard / keyboard-panel slot height in logical pixels.
+  /// Live keyboard / keyboard-panel extent in logical pixels.
   void setKeyboard(double value) {
     if (_keyboard.value == value) return;
     _keyboard.value = value;
+    _publish();
+  }
+
+  /// Bottom safe band (`MediaQuery.viewPadding.bottom`) for iOS peel math.
+  void setSafeBottom(double value) {
+    if (_safeBottom == value) return;
+    _safeBottom = value;
+    _publish();
+  }
+
+  /// Open keyboard / panel target for iOS safe-band peel (`keyboard / target`).
+  void setKeyboardTarget(double value) {
+    if (_keyboardTarget == value) return;
+    _keyboardTarget = value;
     _publish();
   }
 
@@ -146,8 +170,19 @@ final class ChatViewportInsets {
 
   void _publish() {
     final chrome = _safeTop + headerReserve.value;
+    final keyboard = _keyboard.value;
     _chromeTop.value = chrome;
     _topPadding.value = chrome + _searchReserve;
-    _bottomPadding.value = _composerHeight + _keyboard.value;
+
+    var composer = _composerHeight;
+    if (_safeBottom > 0) {
+      final peeled = iosKeyboardSafeBandPeel(
+        safeBottom: _safeBottom,
+        keyboard: keyboard,
+        keyboardTarget: _keyboardTarget,
+      );
+      composer = _composerHeight - (_safeBottom - peeled);
+    }
+    _bottomPadding.value = composer + keyboard;
   }
 }

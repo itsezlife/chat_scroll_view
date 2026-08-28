@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:chat_chrome/chat_chrome.dart';
 import 'package:chat_scroll_view_example/src/features/chat/utils/chat_viewport_insets.dart';
+import 'package:chat_scroll_view_example/src/features/chat/utils/ios_keyboard_safe_peel.dart';
 import 'package:flutter/widgets.dart';
 import 'package:keyboard_insets/keyboard_insets.dart';
 
@@ -32,7 +33,18 @@ mixin ChatViewportInsetsBinding<T extends StatefulWidget> on State<T> {
 
   StreamSubscription<double>? _keyboardSubscription;
   VoidCallback? _forwardInset;
+  late final WidgetsBindingObserver _metricsObserver;
   var _landscape = false;
+
+  /// Cached [MediaQuery] landscape flag for keyboard-panel store lookups.
+  @protected
+  bool get isLandscape => _landscape;
+
+  void _syncLandscapeFromMediaQuery() {
+    final next = MediaQuery.orientationOf(context) == Orientation.landscape;
+    if (next == _landscape) return;
+    _landscape = next;
+  }
 
   /// Host may return a preloaded [KeyboardPanelStore] (e.g. from `main`).
   @protected
@@ -50,6 +62,11 @@ mixin ChatViewportInsetsBinding<T extends StatefulWidget> on State<T> {
   @override
   void initState() {
     super.initState();
+    _metricsObserver = _ChatViewportMetricsObserver(() {
+      if (!mounted) return;
+      _syncLandscapeFromMediaQuery();
+    });
+    WidgetsBinding.instance.addObserver(_metricsObserver);
     keyboardPanelStore = createKeyboardPanelStore();
     bottomInsetController = ChatBottomInsetController(
       store: keyboardPanelStore,
@@ -63,7 +80,7 @@ mixin ChatViewportInsetsBinding<T extends StatefulWidget> on State<T> {
         'panel=${bottomInsetController.isPanelOpen} '
         'osKbd=${KeyboardInsets.keyboardHeight}',
       );
-      insets.setKeyboard(h);
+      _publishKeyboardInset(h);
     };
     bottomInsetController.heightListenable.addListener(_forwardInset!);
     _keyboardSubscription = KeyboardInsets.insets.listen(_onImeHeight);
@@ -95,11 +112,23 @@ mixin ChatViewportInsetsBinding<T extends StatefulWidget> on State<T> {
   void didChangeDependencies() {
     super.didChangeDependencies();
     insets.setSafeTop(MediaQuery.viewPaddingOf(context).top);
-    _landscape = MediaQuery.orientationOf(context) == Orientation.landscape;
+    insets.setSafeBottom(MediaQuery.viewPaddingOf(context).bottom);
+    _syncLandscapeFromMediaQuery();
+  }
+
+  void _publishKeyboardInset(double keyboard) {
+    final target = iosKeyboardOpenTarget(
+      keyboard: keyboard,
+      panelTarget: bottomInsetController.panelTarget,
+      storedKeyboardHeight: keyboardPanelStore.heightFor(landscape: isLandscape),
+    );
+    insets.setKeyboardTarget(target);
+    insets.setKeyboard(keyboard);
   }
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(_metricsObserver);
     _keyboardSubscription?.cancel();
     final forward = _forwardInset;
     if (forward != null) {
@@ -135,6 +164,17 @@ mixin ChatViewportInsetsBinding<T extends StatefulWidget> on State<T> {
       record:
           !isAnimating && height >= KeyboardPanelStore.minSaneKeyboardHeight,
     );
-    insets.setKeyboard(bottomInsetController.height);
+    _publishKeyboardInset(bottomInsetController.height);
   }
+}
+
+/// Forwards [WidgetsBindingObserver.didChangeMetrics] without bloating host
+/// [State] with the full observer surface.
+final class _ChatViewportMetricsObserver with WidgetsBindingObserver {
+  _ChatViewportMetricsObserver(this._onMetrics);
+
+  final VoidCallback _onMetrics;
+
+  @override
+  void didChangeMetrics() => _onMetrics();
 }
