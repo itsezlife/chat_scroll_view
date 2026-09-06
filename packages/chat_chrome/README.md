@@ -67,8 +67,17 @@ panel.close(waitForIme: true);
 Host MUST NOT dual-call [ChatBottomInsetController.openPanel] plus panel
 `open` — the controller claims the slot itself.
 
-After locale change, rebuild the catalog provider and call
-`emojiData.reloadCatalog()`.
+After locale change, rebuild the catalog provider and swap it in:
+
+```dart
+await emojiData.swapCatalog(
+  LocaleEmojiCatalogProvider(
+    locale: newLocale,
+    categoryTitles: myL10nEmojiTitles,
+    stripIconFor: EmojiTabAssets.stripIconForId,
+  ),
+);
+```
 
 Recents are a **frequency map** (see [EmojiRecentsStore]):
 

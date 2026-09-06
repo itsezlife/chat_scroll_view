@@ -1,4 +1,5 @@
 import 'package:emoji_data/emoji_data.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
@@ -74,6 +75,25 @@ void main() {
       await source.setSkinTone('👍', 3);
       expect(notifyCount, 1);
       expect(source.skinToneFor('👍'), 3);
+    });
+
+    test('swapCatalog replaces provider and updates search index', () async {
+      expect(source.categories.first.title, 'Smileys');
+
+      var notifyCount = 0;
+      source.addDataListener(() => notifyCount++);
+
+      final next = LocaleEmojiCatalogProvider(
+        locale: const Locale('ru'),
+        filterUnsupported: false,
+      );
+      await source.swapCatalog(next);
+
+      expect(notifyCount, 1);
+      expect(source.categories.first.title, 'Смайлы');
+
+      final hits = await source.search('кот');
+      expect(hits, isNotEmpty);
     });
   });
 }

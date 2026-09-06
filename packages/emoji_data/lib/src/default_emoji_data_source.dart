@@ -11,18 +11,22 @@ import 'package:emoji_data/src/emoji_recents_store.dart';
 import 'package:emoji_data/src/locale_emoji_catalog_provider.dart';
 import 'package:emoji_data/src/skin_tone_prefs.dart';
 
-/// Default [EmojiDataSource]: locale catalog + frequency recents + skin tones.
+/// Default emoji data source implementation.
 final class DefaultEmojiDataSource extends EmojiDataSource
     with EmojiDataListenerMixin {
   DefaultEmojiDataSource({
     EmojiCatalogProvider? catalog,
     EmojiRecentsStore? recentsStore,
     SkinTonePrefs? skinTonePrefs,
-  })  : catalog = catalog ?? LocaleEmojiCatalogProvider(),
+  })  : _catalog = catalog ?? LocaleEmojiCatalogProvider(),
         recentsStore = recentsStore ?? SharedPrefsEmojiRecentsStore(),
         skinTonePrefs = skinTonePrefs ?? SharedPrefsSkinTonePrefs();
 
-  final EmojiCatalogProvider catalog;
+  EmojiCatalogProvider _catalog;
+
+  /// Active catalog provider.
+  EmojiCatalogProvider get catalog => _catalog;
+
   final EmojiRecentsStore recentsStore;
   final SkinTonePrefs skinTonePrefs;
 
@@ -48,7 +52,13 @@ final class DefaultEmojiDataSource extends EmojiDataSource
     notifyDataChanged();
   }
 
-  /// Reloads categories from [catalog] (e.g. after host locale / title change).
+  /// Replaces the catalog provider and reloads categories in one step.
+  Future<void> swapCatalog(EmojiCatalogProvider catalog) async {
+    _catalog = catalog;
+    await reloadCatalog();
+  }
+
+  /// Reloads categories from the current catalog provider.
   ///
   /// Does not re-read recents or skin prefs. Emits [notifyDataChanged].
   Future<void> reloadCatalog() async {
@@ -57,7 +67,7 @@ final class DefaultEmojiDataSource extends EmojiDataSource
   }
 
   Future<void> _reloadCatalog() async {
-    _categories = await catalog.loadCategories();
+    _categories = await _catalog.loadCategories();
     _searchIndex = _categories
         .expand((c) => c.items.whereType<UnicodeEmojiItem>())
         .toList(growable: false);

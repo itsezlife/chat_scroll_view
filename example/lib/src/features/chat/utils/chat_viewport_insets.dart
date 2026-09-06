@@ -3,47 +3,12 @@ import 'package:flutter/foundation.dart';
 
 /// Aggregates host chrome into the reserved insets a chat viewport consumes.
 ///
-/// The viewport does not own composer, keyboard, or selection chrome. It
-/// only reads `topPadding` / `bottomPadding` listenables. This object is
-/// the single place those listenables are computed:
-///
-/// ```text
-/// chromeTop     = safeTop + headerReserve
-/// topPadding    = chromeTop + searchReserve
-/// bottomPadding = composerHeight + keyboard
-/// ```
-///
 /// On iOS, [composerHeight] from measure includes the idle home-indicator
 /// band. While [keyboard] occupancy rises, that band is peeled out of the
 /// reserve via [iosKeyboardSafeBandPeel] so [bottomPadding] stays aligned
 /// with the physical keyboard slot (same lerp as the host slot layout).
-///
-/// **Reserved vs overlay.** Only chrome that occludes messages writes a
-/// reserve ([headerReserve], [setSearchReserve], [setComposerHeight]).
-/// Overlay widgets (unread pill, jump buttons, search field, demo toolbar)
-/// **read** [chromeTop] / [bottomPadding] to sit against that edge and must
-/// not add themselves into the value they read.
-///
-/// **Search** writes [setSearchReserve] with the measured open search field
-/// height (including its outer pad). Position the field against [chromeTop]
-/// so growing [topPadding] does not push the field further down.
-///
-/// **Keyboard** is a live geometric signal, not a second scroll writer. The
-/// composer lifts by [keyboard]; the viewport's [bottomPadding] already
-/// includes that same value so messages clear both composer and IME.
-///
-/// **Measurement** of composer height is a bootstrap and later correction,
-/// not a second coordinate system. Composer height defaults to 96 until
-/// the first layout report — that default is idle occupancy, not a theme
-/// token. The measured value must include the composer's own bottom
-/// safe-area pad and island→keyboard gap; it must **not** include keyboard.
-///
-/// Call [dispose] when the host leaves the tree. Do not dispose
-/// [headerReserve] separately; this object owns every notifier it exposes.
 final class ChatViewportInsets {
   /// Creates an aggregator.
-  ///
-  /// [composerHeight] seeds [bottomPadding] until the first measure.
   ChatViewportInsets({
     double composerHeight = 96,
     double safeTop = 0,
