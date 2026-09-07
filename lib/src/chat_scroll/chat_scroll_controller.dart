@@ -51,6 +51,53 @@ typedef ChatVisibleRange = ({
 bool visibleRowFillsBand(double rowHeight, double paintBandHeight) =>
     paintBandHeight > 0 && rowHeight >= paintBandHeight;
 
+/// Snapshot of the Message under the fixed mid paint-band ray.
+///
+/// Hosts observe this via [ChatScrollController.centerBand] for leave/reopen
+/// reading position. It is **not** the layout Anchor origin
+/// ([ChatScrollController.anchorMessageId] /
+/// [ChatScrollController.anchorPixelOffset]).
+///
+/// [messageId] is the built Message whose rect contains the center-band ray
+/// (50% of the paint band between reserved top and bottom insets).
+/// [offsetFromMessageTop] is logical pixels from that Message's top edge down
+/// to the ray — so a tall bubble scrolled mid-row reports a non-zero offset
+/// inside that Message.
+///
+/// Value equality supports debounce / “did the leave point change?” checks.
+/// Floating headers, chunk-error tiles, and overlay slots are never reported.
+@immutable
+final class ChatCenterBand {
+  /// Creates a Center Band snapshot for [messageId] at [offsetFromMessageTop].
+  const ChatCenterBand({
+    required this.messageId,
+    required this.offsetFromMessageTop,
+  });
+
+  /// Built Message id whose rect contains the center-band ray.
+  final int messageId;
+
+  /// Logical pixels from [messageId]'s top edge down to the center-band ray.
+  ///
+  /// Produced values lie in `[0, messageHeight)` for the hit-test used by the
+  /// viewport (`top <= rayY < bottom`).
+  final double offsetFromMessageTop;
+
+  @override
+  bool operator ==(Object other) =>
+      other is ChatCenterBand &&
+      other.messageId == messageId &&
+      other.offsetFromMessageTop == offsetFromMessageTop;
+
+  @override
+  int get hashCode => Object.hash(messageId, offsetFromMessageTop);
+
+  @override
+  String toString() =>
+      'ChatCenterBand(messageId: $messageId, '
+      'offsetFromMessageTop: $offsetFromMessageTop)';
+}
+
 /// Delegate that performs actual scroll animations on behalf of
 /// [ChatScrollController.animateTo]. Implemented by [ChatAnimator] and bound
 /// automatically when the widget mounts; consumers do not interact with this
@@ -95,10 +142,11 @@ abstract class ChatScrollAnimator {
 /// Scroll controller for [ChatScrollView].
 ///
 /// Owns anchor state and navigation: which message is the layout origin, its
-/// pixel offset, the jump / animate entry points, and the typed event
-/// stream (drag, fling, jump). Conversation boundaries (`oldestKnownId`,
-/// `reachedOldest`, …) live on [ChatDataSource] — they describe the *data*,
-/// not the navigation.
+/// pixel offset, the jump / animate entry points, deferred paint-band
+/// listenables ([visibleRange], [centerBand], [isAtTail]), and the typed
+/// event stream (drag, fling, jump). Conversation boundaries
+/// (`oldestKnownId`, `reachedOldest`, …) live on [ChatDataSource] — they
+/// describe the *data*, not the navigation.
 ///
 /// Uses typed listeners instead of [ChangeNotifier] — subscribers know
 /// exactly what event occurred.
@@ -377,6 +425,29 @@ class ChatScrollController {
     _visibleRange.value = value;
   }
 
+  // --- Center Band ---------------------------------------------------------
+
+  final _DeferredValueNotifier<ChatCenterBand?> _centerBand =
+      _DeferredValueNotifier<ChatCenterBand?>(null);
+
+  /// Live Center Band: Message under the fixed 50% paint-band ray, plus
+  /// pixels from that Message's top to the ray. `null` before the first
+  /// layout or when no built Message intersects the ray.
+  ///
+  /// Pushed after layout and Tier-1 reposition — including silent Anchor
+  /// origin renormalize frames that do not emit [ChatViewportScrolled].
+  /// Geometric ray hit wins over any `visibleRange` id-midpoint heuristic.
+  ValueListenable<ChatCenterBand?> get centerBand => _centerBand;
+
+  /// Viewport-only setter — `RenderChatScrollView` pushes after every
+  /// layout / Tier-1 reposition. Safe to call from inside `performLayout`.
+  /// Post-[dispose] writes are silent no-ops.
+  @internal
+  set centerBand(ChatCenterBand? value) {
+    if (_disposed) return;
+    _centerBand.value = value;
+  }
+
   // --- Tail tracking -------------------------------------------------------
 
   final _DeferredValueNotifier<bool> _isAtTail = _DeferredValueNotifier<bool>(
@@ -561,6 +632,7 @@ class ChatScrollController {
     // anchor state through a stale reference.
     _animator = null;
     _visibleRange.dispose();
+    _centerBand.dispose();
     _isAtTail.dispose();
   }
 }
@@ -570,8 +642,9 @@ class ChatScrollController {
 /// scheduler phase (layout / paint). Outside that phase it behaves exactly
 /// like a plain `ValueNotifier`.
 ///
-/// Used for [ChatScrollController.isAtTail] and
-/// [ChatScrollController.visibleRange]: `RenderChatScrollView` pushes both
+/// Used for [ChatScrollController.isAtTail],
+/// [ChatScrollController.visibleRange], and
+/// [ChatScrollController.centerBand]: `RenderChatScrollView` pushes these
 /// from inside `performLayout`, where a synchronous `notifyListeners()` would
 /// invite listeners to call `setState` mid-layout — illegal. Deferring the
 /// notification lets listeners be naive consumers without each one having to

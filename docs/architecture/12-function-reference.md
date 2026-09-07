@@ -31,7 +31,7 @@ Cross-links: [Layout Pipeline](./04-layout-pipeline.md),
 | `reassignAnchor` | Silent id+offset | both | Notify listeners (it does not) |
 | `clearNavigationAlignment` | Drop pending align | alignment fields | — |
 | `syncNavigationAlignmentTarget` | Keep align on clamped id | alignment message id | — |
-| `visibleRange` / `isAtTail` | Listenables | deferred notify | setState without deferral (already deferred) |
+| `visibleRange` / `centerBand` / `isAtTail` | Listenables | deferred notify | setState without deferral (already deferred) |
 | `notifyScrollEvent` | Emit typed event | — | Call from physics |
 | `dispose` | Drop listeners / animator | all | — |
 
@@ -173,7 +173,7 @@ Cross-links: [Layout Pipeline](./04-layout-pipeline.md),
 | `ChatSelectionPointer` / `_selectionMessageIdAt` / `_spanHitAt` / `_selectSpanChain` | Viewport-owned long-press, tap, select/unselect span | Yield + fling-cancel suppress; span polarity vs selection snapshot; empty set ends the span; the pinned floating date header is not a hit (tap/long-press/span go through to the message); other non-message slots and `selectionAllowed == false` freeze the far end; disallowed ids are omitted from the chain; select-span growth and grow-direction auto-scroll stop at `selectionCap` (unselect ignores the cap); a refused grow bumps `capHits` once per wall; origin-absent aborts the span (set kept) |
 | `_onJump` / `_onScrollBy` / `_onDataChanged` / `_onBoundaryChanged` | Controller/DS reactions |
 | `_onAnimateSettled` / `_cancelAnimate` / `_clearHighlight` | Animate settle/cancel |
-| `_publishControllerState` / `_publishVisibleRange` / `_publishIsAtTail` / `_computeIsAtTail` | Listenables |
+| `_publishControllerState` / `_publishVisibleRange` / `_publishCenterBand` / `_publishIsAtTail` / `_computeIsAtTail` | Listenables |
 | `_updateScrollSemantics` / `_computeCanRevealOlder` / `Newer` | A11y scroll actions |
 | `_jumpToScrollbar` / `_computeScrollbarProgress` / band helpers | Scrollbar geometry |
 

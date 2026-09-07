@@ -27,7 +27,7 @@ height — do not assume a visible row at that id. Check `statusOf` before
 navigating if the user must see a specific message (ADR 002).
 
 Consumers must **not** call `reassignAnchor`, `applyScrollDelta`,
-`visibleRange=`, `isAtTail=`, `animator=`, or `notifyScrollEvent`.
+`visibleRange=`, `centerBand=`, `isAtTail=`, `animator=`, or `notifyScrollEvent`.
 
 ## Alignment lifecycle
 
@@ -112,6 +112,16 @@ Same-id newest height growth while at tail still uses instant `repinBottom`
 `ChatVisibleRange` includes `firstId` / `lastId`, paint-band metrics,
 `firstRow` / `lastRow`, optional `anchorNextRow`. Chunk-error tiles can widen
 id coverage. Same deferred notifier contract as `isAtTail`.
+
+## Center Band
+
+`ChatCenterBand` is the Message under the fixed 50% paint-band ray plus
+`offsetFromMessageTop`. Live via deferred `centerBand` on
+`ChatScrollController` (same listener safety as `visibleRange`). Pushed after
+layout and Tier-1 — including silent Anchor origin renormalize frames that do
+not emit `ChatViewportScrolled`. Geometric ray hit only; not an id-midpoint
+heuristic. `null` before first layout or when no Message intersects the ray.
+See [ADR 009](../adr/009-center-band.md).
 
 ## Scroll events
 

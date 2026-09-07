@@ -379,6 +379,7 @@ class RenderChatScrollView extends RenderBox {
         ..removeScrollByListener(_onScrollBy)
         ..animator = null
         ..visibleRange = null
+        ..centerBand = null
         ..isAtTail = false;
     }
     _controller = value;
@@ -1463,6 +1464,7 @@ class RenderChatScrollView extends RenderBox {
       // Mirror the controller-swap path: once no viewport is bound, the
       // last-published state no longer reflects anything observable.
       ..visibleRange = null
+      ..centerBand = null
       ..isAtTail = false;
     _cancelAnimate();
     _bottomPadding?.removeListener(_onBottomPaddingChanged);
@@ -4491,15 +4493,16 @@ class RenderChatScrollView extends RenderBox {
     }
   }
 
-  // --- Visible range publishing --------------------------------------------
+  // --- Visible range / Center Band publishing ------------------------------
 
   /// Push the current first/last on-screen ids + anchor id to the controller's
-  /// `visibleRange` listenable, and update its `isAtTail` flag. Called after
-  /// every layout and Tier-1 tick — O(visible children) of pure parent-data
-  /// reads.
+  /// `visibleRange` listenable, the Center Band under the mid-band ray, and
+  /// update its `isAtTail` flag. Called after every layout and Tier-1 tick —
+  /// O(visible children) of pure parent-data reads.
   void _publishControllerState() {
     _publishBoundaries();
     _publishVisibleRange();
+    _publishCenterBand();
     _publishNewestHeightSample();
     _publishIsAtTail();
   }
@@ -4782,6 +4785,50 @@ class RenderChatScrollView extends RenderBox {
       lastRow: lastRow,
       anchorNextRow: anchorNextRow,
     );
+  }
+
+  /// Push the Message under the fixed 50% paint-band ray to
+  /// [ChatScrollController.centerBand].
+  ///
+  /// Walks built message rows only (not floating header / chunk-error /
+  /// overlay). Hit test is `top <= rayY < bottom`;
+  /// [ChatCenterBand.offsetFromMessageTop] is `rayY - top`. Silent no-op when
+  /// the snapshot is unchanged within float tolerance.
+  void _publishCenterBand() {
+    if (_children.isEmpty) {
+      _controller.centerBand = null;
+      return;
+    }
+    final topEdge = _topPad;
+    final bottomEdge = size.height - _bottomPad;
+    final bandHeight = bottomEdge - topEdge;
+    if (bandHeight <= 0 || !bandHeight.isFinite) {
+      _controller.centerBand = null;
+      return;
+    }
+    final rayY = topEdge + bandHeight * 0.5;
+    for (final entry in _children.entries) {
+      final child = entry.value;
+      final childTop = _parentData(child).offset;
+      final childBottom = childTop + child.size.height;
+      if (childBottom <= topEdge) continue;
+      if (childTop >= bottomEdge) break;
+      if (childTop <= rayY && rayY < childBottom) {
+        final offset = rayY - childTop;
+        final current = _controller.centerBand.value;
+        if (current case final c?
+            when c.messageId == entry.key &&
+                _fractionsNearEqual(c.offsetFromMessageTop, offset)) {
+          return;
+        }
+        _controller.centerBand = ChatCenterBand(
+          messageId: entry.key,
+          offsetFromMessageTop: offset,
+        );
+        return;
+      }
+    }
+    _controller.centerBand = null;
   }
 
   // Note: `visitChildrenForSemantics` is intentionally NOT overridden to filter
