@@ -3,6 +3,7 @@ import 'package:chat_scroll_view/src/chat_scroll/chat_scroll_common.dart';
 import 'package:chat_scroll_view/src/chat_scroll/chat_scroll_controller.dart';
 import 'package:chat_scroll_view/src/chat_scroll/chat_scroll_events.dart';
 import 'package:chat_scroll_view/src/chat_widgets/chat_scroll_view.dart';
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -484,6 +485,58 @@ void main() {
       expect(() => controller.jumpToCenterBand(5, 12), returnsNormally);
       expect(controller.anchorMessageId, 5);
     });
+
+    testWidgets(
+      'mouse wheel aborts pending jumpToCenterBand and scrolls immediately',
+      (tester) async {
+        const count = 80;
+        const tallId = 40;
+        const tallHeight = 800.0;
+        const viewportHeight = 600.0;
+        final controller = ChatScrollController()..jumpTo(count - 1);
+        final ds = _PreloadedDataSource(count);
+        addTearDown(controller.dispose);
+        addTearDown(ds.dispose);
+
+        await tester.pumpWidget(
+          _harness(
+            dataSource: ds,
+            controller: controller,
+            viewportHeight: viewportHeight,
+            heightForId: (id) => id == tallId ? tallHeight : 60,
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        controller.jumpToCenterBand(tallId, 300);
+        expect(controller.hasPendingNavigationCenterBand, isTrue);
+
+        // Wheel before the pending Center Band layout apply — must not stick.
+        final center = tester.getCenter(find.byType(ChatScrollView));
+        final pointer = TestPointer(1, PointerDeviceKind.mouse)..hover(center);
+        await tester.sendEventToBinding(
+          pointer.scroll(const Offset(0, -200)),
+        );
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 32));
+        await tester.pump();
+
+        expect(
+          controller.hasPendingNavigationCenterBand,
+          isFalse,
+          reason: 'wheel must clear pending Center Band like drag',
+        );
+        final band = controller.centerBand.value;
+        expect(
+          band == null ||
+              band.messageId != tallId ||
+              (band.offsetFromMessageTop - 300).abs() > 5,
+          isTrue,
+          reason:
+              'pending Center Band must not re-seat the restore ray under wheel',
+        );
+      },
+    );
   });
 }
 

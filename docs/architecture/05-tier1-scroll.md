@@ -141,9 +141,10 @@ and follow-tail converge on the next layout.
 ## Pointer / wheel
 
 - Mouse wheel: `_pendingScrollDelta -= event.scrollDelta.dy` (sign maps to
-  anchor convention), Tier-1. Wheel also calls `_cancelPendingTailPin` (and
-  cancels fling / animate) so open-at-newest / lazy-load pending pin cannot
-  yank the viewport back — same user-preemption as drag start.
+  anchor convention), Tier-1. Wheel also calls `_cancelPendingTailPin` and
+  clears pending `jumpTo` / `jumpToCenterBand` navigation (same user-preemption
+  as drag start) so open-at-newest / leave-reopen settle cannot yank the
+  viewport back under the wheel. Fling / animate cancel with the same path.
 - Pointer down during fling: cancel fling and set
   `flingCancelSuppressesLongPress` so the viewport-owned selection
   long-press does not fire on the cancel tap.

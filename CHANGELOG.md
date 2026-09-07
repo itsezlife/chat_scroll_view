@@ -67,6 +67,11 @@ this project is pre-1.0 and not strictly SemVer yet.
 
 ### Fixed
 
+- **Mouse wheel sticky after `jumpToCenterBand`.** Wheel cancelled pending
+  tail pin but not pending Center Band / alignment settle, so layout kept
+  re-seating the restore ray under early wheel input. Wheel now clears those
+  pending writers like drag.
+
 - **Mouse wheel ignored on open-at-newest.** Wheel did not call
   `_cancelPendingTailPin` (unlike drag), so pending tail pin / lazy load after
   jump-to-newest yanked wheel deltas back to the bottom edge. Wheel now
