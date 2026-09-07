@@ -201,12 +201,12 @@ class ChatScrollView extends RenderObjectWidget {
   final WidgetBuilder? loadingBuilder;
 
   /// Optional whole-message selection. When non-null each **loaded** message
-  /// that passes [ChatSelectionController.isSelectionAllowed] is wrapped in
-  /// [SelectableMessage] for chrome. Disallowed ids are not wrapped.
-  /// The viewport owns long-press and tap and drives the [controller].
-  /// Placeholder / shimmer slots (`message == null`) are not wrapped and
-  /// cannot be selected. When null the viewport adds no selection wrapper
-  /// and costs nothing.
+  /// whose [ChatSelectionAllowed.showsChrome] is true is wrapped in
+  /// [SelectableMessage] for chrome. [ChatSelectionAllowed.none] rows
+  /// are not wrapped. The viewport owns long-press and tap and drives the
+  /// [controller]. Placeholder / shimmer slots (`message == null`) are not
+  /// wrapped and cannot be selected. When null the viewport adds no selection
+  /// wrapper and costs nothing.
   final ChatSelectionController? selectionController;
 
   /// Called when the user taps a present message slot while message

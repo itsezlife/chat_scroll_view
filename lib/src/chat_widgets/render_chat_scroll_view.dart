@@ -4296,7 +4296,7 @@ class RenderChatScrollView extends RenderBox {
       if (!goingUp && next < hit) break;
       if (next == id) break;
       id = next;
-      if (_dataSource.getMessage(id) != null && _isSelectionAllowed(id)) {
+      if (_dataSource.getMessage(id) != null && _isSelectable(id)) {
         ids.add(id);
       }
       if (id == hit) break;
@@ -4304,8 +4304,8 @@ class RenderChatScrollView extends RenderBox {
     return ids;
   }
 
-  bool _isSelectionAllowed(int id) =>
-      _selectionController?.isSelectionAllowed(id) ?? true;
+  bool _isSelectable(int id) =>
+      _selectionController?.isSelectable(id) ?? true;
 
   /// Present loaded message under [local], ignoring selection-allowed.
   int? _presentMessageIdAt(Offset local) =>
@@ -4373,7 +4373,7 @@ class RenderChatScrollView extends RenderBox {
         continue;
       }
       if (_dataSource.getMessage(entry.key) == null) return null;
-      if (requireSelectionAllowed && !_isSelectionAllowed(entry.key)) {
+      if (requireSelectionAllowed && !_isSelectable(entry.key)) {
         return null;
       }
       final inDateChrome = local.dy < pd.offset + pd.messageBodyTop;

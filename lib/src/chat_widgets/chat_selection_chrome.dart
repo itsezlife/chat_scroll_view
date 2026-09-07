@@ -1,3 +1,4 @@
+import 'package:chat_scroll_view/src/chat_scroll/chat_selection_allowed.dart';
 import 'package:chat_scroll_view/src/chat_widgets/chat_scroll_theme.dart';
 import 'package:chat_scroll_view/src/chat_widgets/chat_selection_theme.dart';
 import 'package:flutter/material.dart';
@@ -12,6 +13,7 @@ final class ChatSelectionChromeState {
     required this.selectProgress,
     required this.isSelectionMode,
     required this.isSelected,
+    required this.showsCheck,
     required this.onTap,
     required this.onLongPress,
   });
@@ -34,6 +36,12 @@ final class ChatSelectionChromeState {
 
   /// Live controller flag (not frozen). Prefer [selectProgress] for paint.
   final bool isSelected;
+
+  /// Whether bundled chrome should paint the check control.
+  ///
+  /// False for [ChatSelectionAllowed.gutterOnly]: the mode gutter still
+  /// opens so the body shifts, but the circle is omitted.
+  final bool showsCheck;
 
   /// Host tap handler (toggle while in selection mode).
   final VoidCallback onTap;
@@ -146,16 +154,20 @@ class DefaultSelectionChrome extends StatelessWidget {
                       width: slot,
                       child: IgnorePointer(
                         child: Center(
-                          child: CustomPaint(
-                            key: const ValueKey<String>('chatSelectionCheck'),
-                            size: Size.square(theme.checkSize),
-                            painter: _CheckPainter(
-                              select: s,
-                              accent: accent,
-                              ring: theme.checkRing,
-                              checkmark: theme.checkmark,
-                            ),
-                          ),
+                          child: state.showsCheck
+                              ? CustomPaint(
+                                  key: const ValueKey<String>(
+                                    'chatSelectionCheck',
+                                  ),
+                                  size: Size.square(theme.checkSize),
+                                  painter: _CheckPainter(
+                                    select: s,
+                                    accent: accent,
+                                    ring: theme.checkRing,
+                                    checkmark: theme.checkmark,
+                                  ),
+                                )
+                              : SizedBox.square(dimension: theme.checkSize),
                         ),
                       ),
                     ),

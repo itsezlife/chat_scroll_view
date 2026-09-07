@@ -155,12 +155,13 @@ and follow-tail converge on the next layout.
   message underneath receives the long-press or tap. Rows do not attach
   a competing detector. A host `spanYield`
   that returns true claims the long-press so selection does not start.
-  A host `selectionAllowed` that returns false is not a span hit and does
-  not join the selected set, even on the present-neighbor walk. Emptying
+  A host `selectionAllowed` that is not selectable is not a span hit and
+  does not join the selected set, even on the present-neighbor walk. Emptying
   the selected set does not end the span; membership stays empty.
-  Disallowed rows are also not wrapped in selection chrome. Assigning
-  `selectionAllowed` (or `reapplySelectionAllowed`) drops newly-disallowed
-  ids from the selected set and invalidates chrome wrap. If the gesture
+  Chrome wrap follows `showsChrome` (`none` omits wrap; `gutterOnly` shifts
+  without a check). Assigning `selectionAllowed` (or
+  `reapplySelectionAllowed`) drops newly-non-selectable ids from the
+  selected set and invalidates chrome wrap. If the gesture
   origin becomes absent, the span aborts (set kept, origin
   not retargeted) so delete recovery may write the origin.
 - While a live span pointer occupies the top or bottom edge band, span

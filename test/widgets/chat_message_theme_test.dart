@@ -87,6 +87,7 @@ void main() {
       selectProgress: 1,
       isSelectionMode: mode > 0,
       isSelected: true,
+      showsCheck: true,
       onTap: () {},
       onLongPress: () {},
     );

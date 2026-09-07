@@ -1,6 +1,7 @@
 import 'dart:collection';
 
 import 'package:chat_scroll_view/src/chat_scroll/chat_scroll_common.dart';
+import 'package:chat_scroll_view/src/chat_scroll/chat_selection_allowed.dart';
 import 'package:chat_scroll_view/src/chat_scroll/chat_sender_run_layout.dart';
 import 'package:chat_scroll_view/src/chat_widgets/chat_data_source_ext.dart';
 import 'package:chat_scroll_view/src/chat_widgets/chat_dated_message.dart';
@@ -72,7 +73,8 @@ class ChatScrollElement extends RenderObjectElement
   final Map<int, ChatMessageStatus> _builtStatus = <int, ChatMessageStatus>{};
   final Map<int, bool> _builtStartsDay = <int, bool>{};
   final Map<int, MessageRunLayout> _builtRunLayout = <int, MessageRunLayout>{};
-  final Map<int, bool> _builtSelectionAllowed = <int, bool>{};
+  final Map<int, ChatSelectionAllowed> _builtSelectionAllowed =
+      <int, ChatSelectionAllowed>{};
 
   /// chunkIndex -> chunk-error tile element, sorted ascending. Empty unless
   /// the host widget supplies an `errorBuilder`.
@@ -111,8 +113,8 @@ class ChatScrollElement extends RenderObjectElement
   }
 
   void _onSelectionAllowedChanged() {
-    // Drop only the allowed bit — other skip inputs are still valid. Missing
-    // keys make the fast path miss so wrap presence is re-evaluated.
+    // Drop only selection-allowed — other skip inputs are still valid. Missing
+    // keys make the fast path miss so wrap / check presence is re-evaluated.
     _builtSelectionAllowed.clear();
     renderObject.markNeedsLayout();
   }
@@ -203,14 +205,15 @@ class ChatScrollElement extends RenderObjectElement
   /// Inflate the widget for message [id].
   ///
   /// When a selection controller is wired, **loaded** messages (`message !=
-  /// null`) that pass [ChatSelectionController.isSelectionAllowed] for [id]
-  /// are wrapped in [SelectableMessage] (checkbox overlay + row tint).
-  /// Disallowed ids, and shimmer / placeholder slots, are not wrapped and
-  /// cannot be selected. When [startsNewDay] is set, the message is built as
-  /// a [DatedMessage] — an inline date separator stacked above the body,
-  /// *outside* [SelectableMessage] so selection chrome never tints the date.
-  /// Plain messages are wrapped in a [RepaintBoundary] for picture / layer
-  /// caching; [DatedMessage] does its own wrapping.
+  /// null`) whose [ChatSelectionAllowed.showsChrome] is true are
+  /// wrapped in [SelectableMessage]. [ChatSelectionAllowed.none] and
+  /// shimmer / placeholder slots are not wrapped. Membership still follows
+  /// [ChatSelectionAllowed.isSelectable]. When [startsNewDay] is set,
+  /// the message is built as a [DatedMessage] — an inline date separator
+  /// stacked above the body, *outside* [SelectableMessage] so selection
+  /// chrome never tints the date. Plain messages are wrapped in a
+  /// [RepaintBoundary] for picture / layer caching; [DatedMessage] does its
+  /// own wrapping.
   ///
   /// When an explicit `textDirection` override is supplied on
   /// `ChatScrollView`, [messageBuilder] and the date-separator builder are
@@ -226,7 +229,7 @@ class ChatScrollElement extends RenderObjectElement
     bool startsNewDay,
     Object? groupBucket,
     MessageRunLayout runLayout,
-    bool selectionAllowed,
+    ChatSelectionAllowed allowed,
   ) {
     final override = _widget.textDirection;
     final selection = _widget.selectionController;
@@ -249,10 +252,11 @@ class ChatScrollElement extends RenderObjectElement
         status,
         runLayout,
       );
-      if (selection != null && message != null && selectionAllowed) {
+      if (selection != null && message != null && allowed.showsChrome) {
         content = SelectableMessage(
           id: id,
           controller: selection,
+          allowed: allowed,
           scrollController: _widget.controller,
           chromeBuilder:
               _widget.selectionChromeBuilder ?? DefaultSelectionChrome.wrap,
@@ -296,8 +300,9 @@ class ChatScrollElement extends RenderObjectElement
     final existing = _children[id];
     final selection = _widget.selectionController;
     // Slot id — same key the pointer / span / SelectableMessage use.
-    final selectionAllowed =
-        selection == null || selection.isSelectionAllowed(id);
+    final allowed = selection == null
+        ? ChatSelectionAllowed.full
+        : selection.isSelectionAllowed(id);
 
     // Confirmed-absent: deactivate any stale element; never call
     // messageBuilder or wrap in SelectableMessage — unless the render
@@ -329,7 +334,7 @@ class ChatScrollElement extends RenderObjectElement
         _builtStatus[id] == status &&
         _builtStartsDay[id] == startsNewDay &&
         _builtRunLayout[id] == runLayout &&
-        _builtSelectionAllowed[id] == selectionAllowed &&
+        _builtSelectionAllowed[id] == allowed &&
         identical(_builtMessage[id], message)) {
       return existing.renderObject as RenderBox?;
     }
@@ -345,7 +350,7 @@ class ChatScrollElement extends RenderObjectElement
           startsNewDay,
           groupBucket,
           runLayout,
-          selectionAllowed,
+          allowed,
         ),
         id,
       );
@@ -355,7 +360,7 @@ class ChatScrollElement extends RenderObjectElement
         _builtStatus[id] = status;
         _builtStartsDay[id] = startsNewDay;
         _builtRunLayout[id] = runLayout;
-        _builtSelectionAllowed[id] = selectionAllowed;
+        _builtSelectionAllowed[id] = allowed;
         result = updated.renderObject as RenderBox?;
       } else {
         _children.remove(id);

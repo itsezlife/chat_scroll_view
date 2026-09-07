@@ -1,16 +1,19 @@
 import 'dart:collection';
 
+import 'package:chat_scroll_view/src/chat_scroll/chat_selection_allowed.dart';
 import 'package:flutter/foundation.dart'
     show Listenable, ValueListenable, ValueNotifier, VoidCallback;
 import 'package:flutter/scheduler.dart';
+
+export 'package:chat_scroll_view/src/chat_scroll/chat_selection_allowed.dart';
 
 /// Whole-message selection controller for the chat viewport.
 ///
 /// Long press enters selection mode and selects the message.
 /// Taps toggle messages. Selection mode exits when the set empties.
 /// [selectionCap] optionally limits how large the selected set can grow.
-/// [selectionAllowed] optionally forbids individual present messages from
-/// joining the selected set.
+/// [selectionAllowed] optionally controls per-id membership and chrome
+/// (see [ChatSelectionAllowed]).
 ///
 /// Lives outside the render tree — survives render eviction and can be
 /// queried by external UI (toolbar, copy button). Implements [Listenable]
@@ -28,12 +31,13 @@ import 'package:flutter/scheduler.dart';
 ///
 /// ### Changing [selectionAllowed]
 ///
-/// Assigning [selectionAllowed] (or calling [reapplySelectionAllowed]) drops
-/// any selected id that is no longer allowed and notifies
-/// [addSelectionAllowedListener] so the viewport can rebuild selection chrome.
-/// Mutating state closed over by the predicate without reassigning or calling
-/// [reapplySelectionAllowed] does not notify — chrome wrap may stay stale
-/// until the next natural layout that re-evaluates the predicate.
+/// Assigning [selectionAllowed] (or calling
+/// [reapplySelectionAllowed]) drops any selected id that is no longer
+/// selectable and notifies [addSelectionAllowedListener] so the
+/// viewport can rebuild selection chrome. Mutating state closed over by the
+/// predicate without reassigning or calling [reapplySelectionAllowed]
+/// does not notify — chrome wrap may stay stale until the next natural
+/// layout that re-evaluates selection-allowed.
 class ChatSelectionController implements Listenable {
   final _selectedIds = HashSet<int>();
   final _capHits = ValueNotifier<int>(0);
@@ -53,11 +57,11 @@ class ChatSelectionController implements Listenable {
 
   /// Enter selection mode and select [messageId].
   ///
-  /// No-op when [messageId] is already selected, is not [selectionAllowed],
-  /// or when adding it would exceed [selectionCap].
+  /// No-op when [messageId] is already selected, is not selectable, or when
+  /// adding it would exceed [selectionCap].
   void startSelection(int messageId) {
     if (_selectedIds.contains(messageId)) return;
-    if (!isSelectionAllowed(messageId)) return;
+    if (!isSelectable(messageId)) return;
     if (isAtSelectionCap) {
       notifyCapHit();
       return;
@@ -69,14 +73,14 @@ class ChatSelectionController implements Listenable {
   /// Toggle [messageId] in/out of selection.
   /// Exits selection mode when the set becomes empty.
   ///
-  /// Adding is a no-op when [messageId] is not [selectionAllowed] or the
-  /// set is already at [selectionCap].
+  /// Adding is a no-op when [messageId] is not selectable or the set is
+  /// already at [selectionCap].
   void toggle(int messageId) {
     if (_selectedIds.remove(messageId)) {
       _notify();
       return;
     }
-    if (!isSelectionAllowed(messageId)) return;
+    if (!isSelectable(messageId)) return;
     if (isAtSelectionCap) {
       notifyCapHit();
       return;
@@ -96,11 +100,11 @@ class ChatSelectionController implements Listenable {
   }
 
   /// Replaces the selected set with [ids]. No-op if equal. Empty [ids]
-  /// exits selection mode. Ids that are not [selectionAllowed] are omitted.
+  /// exits selection mode. Ids that are not selectable are omitted.
   void replaceSelectedIds(Set<int> ids) {
     final next = _selectionAllowed == null
         ? ids
-        : ids.where(isSelectionAllowed).toSet();
+        : ids.where(isSelectable).toSet();
     if (next.length == _selectedIds.length && _selectedIds.containsAll(next)) {
       return;
     }
@@ -162,37 +166,45 @@ class ChatSelectionController implements Listenable {
   /// for a future in-bubble text selector; unused until that selector exists.
   bool Function(int messageId)? spanYield;
 
-  /// Host predicate: a present message may join the selected set only when
-  /// this returns true. `null` (the default) allows every present message.
-  /// Independent of span polarity — a disallowed id is never a span hit
-  /// and is omitted from the selection span.
+  /// Host predicate: per-id membership and chrome grants.
+  /// `null` (the default) is [ChatSelectionAllowed.full] for every
+  /// present message. A non-selectable id is never a span hit and is omitted
+  /// from the selection span. Chrome wrap follows
+  /// [ChatSelectionAllowed.showsChrome].
   ///
   /// Assigning a new function (or `null`) re-filters [selectedIds] and
   /// notifies [addSelectionAllowedListener]. Prefer a new closure (or
   /// [reapplySelectionAllowed]) when closed-over host state changes.
-  bool Function(int messageId)? get selectionAllowed => _selectionAllowed;
-  set selectionAllowed(bool Function(int messageId)? value) {
+  ChatSelectionAllowed Function(int messageId)?
+  get selectionAllowed => _selectionAllowed;
+  set selectionAllowed(
+    ChatSelectionAllowed Function(int messageId)? value,
+  ) {
     if (identical(_selectionAllowed, value)) return;
     _selectionAllowed = value;
     reapplySelectionAllowed();
   }
 
-  bool Function(int messageId)? _selectionAllowed;
+  ChatSelectionAllowed Function(int messageId)? _selectionAllowed;
 
-  /// Whether [messageId] may join the selected set. True when
-  /// [selectionAllowed] is null.
-  bool isSelectionAllowed(int messageId) =>
-      _selectionAllowed?.call(messageId) ?? true;
+  /// Resolved [ChatSelectionAllowed] for [messageId].
+  /// [ChatSelectionAllowed.full] when [selectionAllowed] is null.
+  ChatSelectionAllowed isSelectionAllowed(int messageId) =>
+      _selectionAllowed?.call(messageId) ??
+      ChatSelectionAllowed.full;
+
+  /// Whether [messageId] may join the selected set.
+  bool isSelectable(int messageId) => isSelectionAllowed(messageId).isSelectable;
 
   /// Re-runs [selectionAllowed] against [selectedIds] and notifies
-  /// [addSelectionAllowedListener] without requiring a new function identity.
+  /// [addSelectionAllowedListener] without requiring a new function
+  /// identity.
   ///
   /// Use when the predicate closes over mutable host state that changed
-  /// in place (e.g. a blocked-id set grew) and the host did not reassign
-  /// [selectionAllowed].
+  /// in place and the host did not reassign [selectionAllowed].
   void reapplySelectionAllowed() {
     _notifySelectionAllowed();
-    final next = _selectedIds.where(isSelectionAllowed).toSet();
+    final next = _selectedIds.where(isSelectable).toSet();
     if (next.length == _selectedIds.length && _selectedIds.containsAll(next)) {
       return;
     }

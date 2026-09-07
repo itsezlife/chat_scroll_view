@@ -163,7 +163,7 @@ class ChatSelectionPointer {
     final selection = this.selection;
     if (id == null || selection == null) return;
     if (selection.spanYield?.call(id) ?? false) return;
-    if (!selection.isSelectionAllowed(id)) return;
+    if (!selection.isSelectable(id)) return;
     HapticFeedback.vibrate();
     final polarity = selection.isSelected(id)
         ? _SpanPolarity.unselect
@@ -265,7 +265,7 @@ class ChatSelectionPointer {
     if (id == null) return;
     final selection = this.selection;
     if (selection != null && selection.isSelectionMode) {
-      if (!selection.isSelectionAllowed(id)) return;
+      if (!selection.isSelectable(id)) return;
       selection.toggle(id);
       return;
     }

@@ -28,6 +28,7 @@ class SelectableMessage extends StatefulWidget {
   const SelectableMessage({
     required this.id,
     required this.controller,
+    required this.allowed,
     required this.child,
     this.scrollController,
     this.chromeBuilder = DefaultSelectionChrome.wrap,
@@ -39,6 +40,10 @@ class SelectableMessage extends StatefulWidget {
 
   /// Shared selection state.
   final ChatSelectionController controller;
+
+  /// Per-id chrome / check grants. Membership is enforced by the controller;
+  /// this drives [ChatSelectionChromeState.showsCheck].
+  final ChatSelectionAllowed allowed;
 
   /// Suppresses chrome-driven tap / long-press while a fling-cancel is in
   /// progress. The viewport applies the same guard to its own pointer.
@@ -164,6 +169,7 @@ class _SelectableMessageState extends State<SelectableMessage>
         selectProgress: _select.value.clamp(0.0, 1.0),
         isSelectionMode: widget.controller.isSelectionMode,
         isSelected: widget.controller.isSelected(widget.id),
+        showsCheck: widget.allowed.showsCheck,
         onTap: _handleTap,
         onLongPress: _handleLongPress,
       ),

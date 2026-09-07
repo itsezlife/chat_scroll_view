@@ -325,7 +325,9 @@ void main() {
       final taps = <_Tap>[];
       final controller = ChatScrollController()..jumpTo(blocked);
       final selection = ChatSelectionController()
-        ..selectionAllowed = (id) => id != blocked;
+        ..selectionAllowed = (id) => id == blocked
+          ? ChatSelectionAllowed.none
+          : ChatSelectionAllowed.full;
       addTearDown(controller.dispose);
       addTearDown(selection.dispose);
 

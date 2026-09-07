@@ -120,7 +120,9 @@ void main() {
     });
 
     test('startSelection and toggle refuse a disallowed id', () {
-      final sc = ChatSelectionController()..selectionAllowed = (id) => id != 7;
+      final sc = ChatSelectionController()..selectionAllowed = (id) => id == 7
+          ? ChatSelectionAllowed.none
+          : ChatSelectionAllowed.full;
       addTearDown(sc.dispose);
       sc.startSelection(7);
       expect(sc.isSelected(7), isFalse);
@@ -140,7 +142,9 @@ void main() {
       sc.addSelectionAllowedListener(() => allowedChanges++);
       sc.replaceSelectedIds({1, 2, 3});
       expect(sc.selectedIds, {1, 2, 3});
-      sc.selectionAllowed = (id) => id != 2;
+      sc.selectionAllowed = (id) => id == 2
+          ? ChatSelectionAllowed.none
+          : ChatSelectionAllowed.full;
       expect(sc.selectedIds, {1, 3});
       expect(allowedChanges, 1);
       expect(sc.isSelectionMode, isTrue);
@@ -149,7 +153,9 @@ void main() {
     test('reapplySelectionAllowed refilters without a new function', () {
       final blocked = <int>{};
       final sc = ChatSelectionController()
-        ..selectionAllowed = (id) => !blocked.contains(id);
+        ..selectionAllowed = (id) => blocked.contains(id)
+          ? ChatSelectionAllowed.none
+          : ChatSelectionAllowed.full;
       addTearDown(sc.dispose);
       var allowedChanges = 0;
       sc.addSelectionAllowedListener(() => allowedChanges++);
@@ -162,7 +168,7 @@ void main() {
 
     test('selectionAllowed assign that leaves the set unchanged still '
         'notifies selectionAllowed listeners', () {
-      final sc = ChatSelectionController()..selectionAllowed = (_) => true;
+      final sc = ChatSelectionController()..selectionAllowed = (_) => ChatSelectionAllowed.full;
       addTearDown(sc.dispose);
       sc.replaceSelectedIds({1});
       var allowedChanges = 0;
@@ -170,7 +176,9 @@ void main() {
       sc
         ..addSelectionAllowedListener(() => allowedChanges++)
         ..addListener(() => selection++);
-      sc.selectionAllowed = (id) => id != 99;
+      sc.selectionAllowed = (id) => id == 99
+          ? ChatSelectionAllowed.none
+          : ChatSelectionAllowed.full;
       expect(sc.selectedIds, {1});
       expect(allowedChanges, 1);
       expect(selection, 0);
@@ -184,7 +192,7 @@ void main() {
       sc
         ..addSelectionAllowedListener(cb)
         ..addSelectionAllowedListener(cb)
-        ..selectionAllowed = (_) => false;
+        ..selectionAllowed = (_) => ChatSelectionAllowed.none;
       expect(calls, 1);
     });
 
