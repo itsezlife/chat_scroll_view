@@ -8,10 +8,16 @@ this project is pre-1.0 and not strictly SemVer yet.
 
 ### Added
 
+- **`ChatMessageChangeTransition`.** Message edit morph: layout jumps to the
+  incoming settled size; background bounds animate via paint deltas
+  (`ChatMessageChangeParams`); old/new text crossfade inside a clip of the
+  painted bubble; “edited” meta enter on the same 250ms list-item cubic.
+  Replaces the demo OverflowBox/ClipRect size-lerp fake.
+
 - **`ChatMessageBody.header`.** Optional in-bubble band above content that
-  contributes to shrink-wrap width (Telegram `maxChildWidth` / name). When the
-  header is wider than the text cluster, meta trails at the body end; inline vs
-  wrap still uses the padded max width, not header width.
+  contributes to shrink-wrap width. When the header is wider than the text
+  cluster, meta trails at the body end; inline vs wrap still uses the padded
+  max width, not header width.
 
 - **Center Band leave/reopen reading place.** Hosts observe a deferred
   `ValueListenable<ChatCenterBand?>` on [ChatScrollController] (Message under

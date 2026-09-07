@@ -134,6 +134,10 @@ _Avoid_: Child index, GlobalKey, element slot (Flutter’s)
 Host helper that packs an optional in-bubble header band, content, and trailing meta (time / status) with last-line fit and shrink-wrap. Header width can trail meta when it exceeds the text cluster; reply and media stay outside it.
 _Avoid_: Stack+Positioned meta, type-marker child discovery, internal TextPainter for body text, Column sender above a separate body that ignores name width
 
+**Message change transition**:
+Edit morph: layout size is already final; painted bubble bounds move via edge deltas; old/new text crossfade inside a clip of that painted background; “edited” meta enters on the same progress factor (`ChatMessageChangeTransition`).
+_Avoid_: OverflowBox/ClipRect host-size lerp, SubstringLayoutAnimator, per-glyph morph
+
 **Bubble radius**:
 Tunable large corner radius for message chrome (`ChatMessageThemeData.bubbleRadius`). Clustered outer corners use the near radius instead.
 _Avoid_: Hardcoded BorderRadius in the message builder, neighbor walks for corners

@@ -1,6 +1,6 @@
 import 'package:chat_scroll_view/chat_scroll_view.dart';
 import 'package:chat_scroll_view_example/src/common/models/chat_message.dart';
-import 'package:chat_scroll_view_example/src/features/chat/widgets/demo_message_edit_body.dart';
+import 'package:chat_scroll_view_example/src/features/chat/widgets/demo_message_meta.dart';
 import 'package:flutter/material.dart';
 
 /// Builds a demo message widget for the widget-based [ChatScrollView].
@@ -8,8 +8,9 @@ import 'package:flutter/material.dart';
 /// Returns a shimmer placeholder while [message] is `null` (chunk loading),
 /// and a [DemoMessageBubble] once the message has been fetched.
 ///
-/// The bubble uses [ChatMessageBody] for text + time/status packing — the same
-/// host API apps should wire inside their own `messageBuilder`.
+/// The bubble uses [ChatMessageChangeTransition] for text + time/status packing
+/// and edit morph — the same host API apps should wire inside their own
+/// `messageBuilder`.
 ///
 /// For run-grouped rendering (avatar on the **last** message, sender name on
 /// the **first**) use [MessageRunLayout] from the viewport — see
@@ -220,9 +221,9 @@ class _Avatar extends StatelessWidget {
 
 /// Colored bubble chrome around the message body.
 ///
-/// Uses [ChatMessageBody] so short lines keep time/status on the same visual
-/// row, long last lines wrap meta underneath, an optional sender [header]
-/// widens the bubble and trails meta at the end, and width shrinks to the
+/// Uses [ChatMessageChangeTransition] so edits keep layout-final / paint-delta
+/// morph: short lines keep time/status on the same visual row, an optional
+/// sender [header] widens the bubble and trails meta, and width shrinks to the
 /// header / text / meta cluster instead of always filling [maxWidth].
 class _Bubble extends StatelessWidget {
   const _Bubble({
@@ -239,7 +240,7 @@ class _Bubble extends StatelessWidget {
   /// `null` suppresses the sender label — non-first messages in a run.
   final String? sender;
 
-  /// Plain message body shown in the content slot of [ChatMessageBody].
+  /// Plain message body shown in the content slot.
   final String content;
 
   /// Send timestamp; formatted by meta for the meta slot.
@@ -273,49 +274,47 @@ class _Bubble extends StatelessWidget {
       run: runLayout,
     );
     final padding = ChatBubbleMetrics.bubbleContentPadding(theme: theme);
+    final textStyle = TextStyle(color: textColor, fontSize: 15, height: 1.35);
 
     return ConstrainedBox(
       constraints: BoxConstraints(maxWidth: maxWidth),
-      child: DecoratedBox(
-        decoration: BoxDecoration(
-          color: bg,
-          borderRadius: radius,
-          boxShadow: const <BoxShadow>[
-            BoxShadow(
-              color: Color(0x33000000),
-              blurRadius: 4,
-              offset: Offset(0, 1),
-            ),
-          ],
-        ),
-        child: Padding(
-          padding: padding,
-          child: DemoMessageEditBody(
-            header: switch (sender) {
-              final name? when name.isNotEmpty => Padding(
-                padding: const EdgeInsets.only(bottom: 3),
-                child: Text(
-                  name,
-                  style: TextStyle(
-                    color: _colorForSender(name),
-                    fontWeight: FontWeight.w600,
-                    fontSize: 13,
-                    height: 1.15,
-                  ),
-                ),
-              ),
-              _ => null,
-            },
-            content: content,
-            createdAt: createdAt,
-            edited: edited,
-            showStatus: isOutgoing,
-            sizeAlignment: isOutgoing
-                ? AlignmentDirectional.topEnd
-                : AlignmentDirectional.topStart,
-            metaColor: metaColor,
-            textStyle: TextStyle(color: textColor, fontSize: 15, height: 1.35),
+      child: ChatMessageChangeTransition(
+        contentIdentity: content,
+        outgoing: isOutgoing,
+        edited: edited,
+        color: bg,
+        borderRadius: radius,
+        padding: padding,
+        spacing: 8,
+        boxShadow: const <BoxShadow>[
+          BoxShadow(
+            color: Color(0x33000000),
+            blurRadius: 4,
+            offset: Offset(0, 1),
           ),
+        ],
+        header: switch (sender) {
+          final name? when name.isNotEmpty => Padding(
+            padding: const EdgeInsets.only(bottom: 3),
+            child: Text(
+              name,
+              style: TextStyle(
+                color: _colorForSender(name),
+                fontWeight: FontWeight.w600,
+                fontSize: 13,
+                height: 1.15,
+              ),
+            ),
+          ),
+          _ => null,
+        },
+        content: Text(content, style: textStyle),
+        metaBuilder: (context, editedOpacity) => DemoMessageMeta(
+          createdAt: createdAt,
+          color: metaColor,
+          showStatus: isOutgoing,
+          edited: edited,
+          editedOpacity: editedOpacity,
         ),
       ),
     );
