@@ -6,6 +6,7 @@ import 'package:chat_scroll_view/src/chat_scroll/chat_scroll_controller.dart';
 import 'package:chat_scroll_view/src/chat_widgets/chat_scroll_view.dart';
 import 'package:chat_scroll_view/src/chat_widgets/render_chat_scroll_view.dart';
 import 'package:flutter/foundation.dart' show ValueListenable, ValueNotifier;
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import '../chat_message.dart';
@@ -433,6 +434,52 @@ void main() {
       await tester.pump(const Duration(milliseconds: 1000));
       expect(controller.isAtTail.value, isFalse);
     });
+
+    testWidgets(
+      'mouse wheel away from tail during lazy load is not yanked by pending pin',
+      (tester) async {
+        const count = 40;
+        const newest = count - 1;
+        final ds = _LazyTailDataSource(count);
+        final bottomPad = ValueNotifier<double>(96);
+        final controller = ChatScrollController()..jumpTo(newest);
+        addTearDown(controller.dispose);
+        addTearDown(ds.dispose);
+        addTearDown(bottomPad.dispose);
+
+        await tester.pumpWidget(
+          _harness(
+            dataSource: ds,
+            controller: controller,
+            reverse: true,
+            bottomPadding: bottomPad,
+          ),
+        );
+        await tester.pump();
+        expect(ds.loaded, isFalse);
+
+        final center = tester.getCenter(find.byType(ChatScrollView));
+        final pointer = TestPointer(1, PointerDeviceKind.mouse)..hover(center);
+        // Reveal older — same sign as settled-open wheel probes.
+        await tester.sendEventToBinding(
+          pointer.scroll(const Offset(0, -200)),
+        );
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 32));
+
+        // Let the lazy fetch complete — pending pin must not repin to tail.
+        await tester.pump(const Duration(milliseconds: 300));
+        await tester.pumpAndSettle();
+        expect(ds.loaded, isTrue);
+        expect(
+          controller.isAtTail.value,
+          isFalse,
+          reason:
+              'wheel must preempt pending tail pin like drag — otherwise '
+              'open-at-newest / Warm History load yanks wheel scroll back',
+        );
+      },
+    );
 
     testWidgets('tall newest message pins bottom above bottomPadding', (
       tester,

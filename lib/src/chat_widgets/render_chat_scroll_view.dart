@@ -4469,7 +4469,11 @@ class RenderChatScrollView extends RenderBox {
       _cancelFling();
       _drag?.addPointerPanZoom(event);
     } else if (event is PointerScrollEvent) {
+      // Same user-preemption as drag: open-at-newest / lazy-load pending tail
+      // pin must not yank wheel deltas back to the bottom edge.
+      _cancelPendingTailPin();
       _cancelFling();
+      _cancelAnimate();
       _markScrollActive();
       _pendingScrollDelta -= event.scrollDelta.dy;
       _ensureTicker();
