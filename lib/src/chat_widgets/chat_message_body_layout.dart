@@ -10,12 +10,16 @@ class ChatMessageBodyLayout {
   /// Creates a measured layout result.
   const ChatMessageBodyLayout({
     required this.size,
+    required this.headerOffset,
     required this.contentOffset,
     required this.metaOffset,
   });
 
   /// Outer size after applying incoming [BoxConstraints].
   final Size size;
+
+  /// Paint offset for the optional header child, relative to the parent origin.
+  final Offset headerOffset;
 
   /// Paint offset for the content child, relative to the parent origin.
   final Offset contentOffset;
@@ -30,8 +34,13 @@ class ChatMessageBodyLayout {
 /// content child's coordinate space (see [lastLineWidthOf]), or the content
 /// width when line metrics are unavailable (dry layout / non-text body).
 ///
+/// Optional [headerSize] contributes to outer width (max with the packed
+/// content/meta cluster) and stacks above content — matching Telegram's
+/// `maxChildWidth` / name band. Inline-vs-wrap still uses the padded max
+/// width from [constraints], not the header width.
+///
 /// Returns either an **inline** result (meta on the last line, height =
-/// content height) or a **wrap** result (meta on the next row).
+/// header + content) or a **wrap** result (meta on the next row).
 ChatMessageBodyLayout layoutChatMessageBody({
   required BoxConstraints constraints,
   required EdgeInsets padding,
@@ -41,34 +50,44 @@ ChatMessageBodyLayout layoutChatMessageBody({
   required double Function() lastLineWidth,
   required bool hasContent,
   required bool hasMeta,
+  Size headerSize = Size.zero,
 }) {
   final availableWidth = math.max<double>(
     0,
     constraints.maxWidth - padding.horizontal,
   );
+  final headerW = headerSize.width;
+  final headerH = headerSize.height;
+  final headerOffset = Offset(padding.left, padding.top);
+  final contentTop = padding.top + headerH;
 
   if (!hasContent || contentSize == Size.zero) {
+    final clusterW = math.max(headerW, metaSize.width);
+    final clusterH = headerH + metaSize.height;
     return ChatMessageBodyLayout(
       size: constraints.constrain(
         Size(
-          padding.horizontal + metaSize.width,
-          padding.vertical + metaSize.height,
+          padding.horizontal + clusterW,
+          padding.vertical + clusterH,
         ),
       ),
-      contentOffset: Offset(padding.left, padding.top),
-      metaOffset: Offset(padding.left, padding.top),
+      headerOffset: headerOffset,
+      contentOffset: Offset(padding.left, contentTop),
+      metaOffset: Offset(padding.left, contentTop),
     );
   }
 
   if (!hasMeta || metaSize == Size.zero) {
+    final clusterW = math.max(headerW, contentSize.width);
     return ChatMessageBodyLayout(
       size: constraints.constrain(
         Size(
-          padding.horizontal + contentSize.width,
-          padding.vertical + contentSize.height,
+          padding.horizontal + clusterW,
+          padding.vertical + headerH + contentSize.height,
         ),
       ),
-      contentOffset: Offset(padding.left, padding.top),
+      headerOffset: headerOffset,
+      contentOffset: Offset(padding.left, contentTop),
       metaOffset: Offset.zero,
     );
   }
@@ -77,38 +96,45 @@ ChatMessageBodyLayout layoutChatMessageBody({
   final fitsInline = lineWidth + spacing + metaSize.width <= availableWidth;
 
   if (fitsInline) {
-    final innerWidth = math.max(
+    final packWidth = math.max(
       contentSize.width,
       lineWidth + spacing + metaSize.width,
     );
+    final innerWidth = math.max(headerW, packWidth);
     final size = constraints.constrain(
       Size(
         padding.horizontal + innerWidth,
-        padding.vertical + contentSize.height,
+        padding.vertical + headerH + contentSize.height,
       ),
     );
     return ChatMessageBodyLayout(
       size: size,
-      contentOffset: Offset(padding.left, padding.top),
+      headerOffset: headerOffset,
+      contentOffset: Offset(padding.left, contentTop),
       metaOffset: Offset(
         size.width - padding.right - metaSize.width,
-        padding.top + contentSize.height - metaSize.height,
+        contentTop + contentSize.height - metaSize.height,
       ),
     );
   }
 
+  final innerWidth = math.max(
+    headerW,
+    math.max(contentSize.width, metaSize.width),
+  );
   final size = constraints.constrain(
     Size(
-      padding.horizontal + math.max(contentSize.width, metaSize.width),
-      padding.vertical + contentSize.height + metaSize.height,
+      padding.horizontal + innerWidth,
+      padding.vertical + headerH + contentSize.height + metaSize.height,
     ),
   );
   return ChatMessageBodyLayout(
     size: size,
-    contentOffset: Offset(padding.left, padding.top),
+    headerOffset: headerOffset,
+    contentOffset: Offset(padding.left, contentTop),
     metaOffset: Offset(
       size.width - padding.right - metaSize.width,
-      padding.top + contentSize.height,
+      contentTop + contentSize.height,
     ),
   );
 }

@@ -159,6 +159,31 @@ void main() {
       expect(offsetOf(tester, metaKey), const Offset(5, 5));
     });
 
+    testWidgets('wide header trails meta at body end for short content', (
+      tester,
+    ) async {
+      const headerKey = ValueKey('header');
+      const contentKey = ValueKey('content');
+      const metaKey = ValueKey('meta');
+
+      await tester.pumpWidget(
+        harness(
+          body: const ChatMessageBody(
+            spacing: spacing,
+            header: SizedBox(key: headerKey, width: 160, height: 16),
+            content: SizedBox(key: contentKey, width: 20, height: 20),
+            meta: SizedBox(key: metaKey, width: 40, height: 12),
+          ),
+        ),
+      );
+
+      final bodySize = sizeOf(tester, find.byType(ChatMessageBody));
+      expect(bodySize, const Size(160, 36));
+      expect(offsetOf(tester, headerKey), Offset.zero);
+      expect(offsetOf(tester, contentKey), const Offset(0, 16));
+      expect(offsetOf(tester, metaKey), const Offset(120, 24));
+    });
+
     testWidgets('hit-test reaches meta and content', (tester) async {
       var contentTaps = 0;
       var metaTaps = 0;

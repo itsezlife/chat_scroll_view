@@ -131,8 +131,8 @@ One of four disjoint identity spaces: messages, chunk errors, floating header, o
 _Avoid_: Child index, GlobalKey, element slot (Flutter’s)
 
 **Message body layout**:
-Host helper that packs in-bubble content beside trailing meta (time / status) with last-line fit and shrink-wrap. Reply and media stay outside it.
-_Avoid_: Stack+Positioned meta, type-marker child discovery, internal TextPainter for body text
+Host helper that packs an optional in-bubble header band, content, and trailing meta (time / status) with last-line fit and shrink-wrap. Header width can trail meta when it exceeds the text cluster; reply and media stay outside it.
+_Avoid_: Stack+Positioned meta, type-marker child discovery, internal TextPainter for body text, Column sender above a separate body that ignores name width
 
 **Bubble radius**:
 Tunable large corner radius for message chrome (`ChatMessageThemeData.bubbleRadius`). Clustered outer corners use the near radius instead.

@@ -8,6 +8,11 @@ this project is pre-1.0 and not strictly SemVer yet.
 
 ### Added
 
+- **`ChatMessageBody.header`.** Optional in-bubble band above content that
+  contributes to shrink-wrap width (Telegram `maxChildWidth` / name). When the
+  header is wider than the text cluster, meta trails at the body end; inline vs
+  wrap still uses the padded max width, not header width.
+
 - **Center Band leave/reopen reading place.** Hosts observe a deferred
   `ValueListenable<ChatCenterBand?>` on [ChatScrollController] (Message under
   the fixed 50% paint-band ray + `offsetFromMessageTop`) and restore with

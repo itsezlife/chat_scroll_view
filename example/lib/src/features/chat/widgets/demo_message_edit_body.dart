@@ -21,10 +21,15 @@ class DemoMessageEditBody extends StatefulWidget {
     required this.metaColor,
     required this.showStatus,
     required this.edited,
+    this.header,
     this.sizeAlignment = Alignment.topLeft,
     this.spacing = 8,
     super.key,
   });
+
+  /// Optional in-bubble band above content (sender name). Widens the body so
+  /// meta trails at the bubble end when the header exceeds the text cluster.
+  final Widget? header;
 
   /// Body text.
   final String content;
@@ -159,6 +164,7 @@ class _DemoMessageEditBodyState extends State<DemoMessageEditBody>
     key: key,
     child: ChatMessageBody(
       spacing: widget.spacing,
+      header: widget.header,
       content: Text(content, style: widget.textStyle),
       meta: _EditMetaRow(
         createdAt: widget.createdAt,

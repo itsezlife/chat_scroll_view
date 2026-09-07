@@ -221,8 +221,9 @@ class _Avatar extends StatelessWidget {
 /// Colored bubble chrome around the message body.
 ///
 /// Uses [ChatMessageBody] so short lines keep time/status on the same visual
-/// row, long last lines wrap meta underneath, and the bubble width shrinks to
-/// the text + meta cluster instead of always filling [maxWidth].
+/// row, long last lines wrap meta underneath, an optional sender [header]
+/// widens the bubble and trails meta at the end, and width shrinks to the
+/// header / text / meta cluster instead of always filling [maxWidth].
 class _Bubble extends StatelessWidget {
   const _Bubble({
     required this.sender,
@@ -289,38 +290,31 @@ class _Bubble extends StatelessWidget {
         ),
         child: Padding(
           padding: padding,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: <Widget>[
-              if (sender != null) ...<Widget>[
-                Text(
-                  sender!,
+          child: DemoMessageEditBody(
+            header: switch (sender) {
+              final name? when name.isNotEmpty => Padding(
+                padding: const EdgeInsets.only(bottom: 3),
+                child: Text(
+                  name,
                   style: TextStyle(
-                    color: _colorForSender(sender!),
+                    color: _colorForSender(name),
                     fontWeight: FontWeight.w600,
                     fontSize: 13,
                     height: 1.15,
                   ),
                 ),
-                const SizedBox(height: 3),
-              ],
-              DemoMessageEditBody(
-                content: content,
-                createdAt: createdAt,
-                edited: edited,
-                showStatus: isOutgoing,
-                sizeAlignment: isOutgoing
-                    ? AlignmentDirectional.topEnd
-                    : AlignmentDirectional.topStart,
-                metaColor: metaColor,
-                textStyle: TextStyle(
-                  color: textColor,
-                  fontSize: 15,
-                  height: 1.35,
-                ),
               ),
-            ],
+              _ => null,
+            },
+            content: content,
+            createdAt: createdAt,
+            edited: edited,
+            showStatus: isOutgoing,
+            sizeAlignment: isOutgoing
+                ? AlignmentDirectional.topEnd
+                : AlignmentDirectional.topStart,
+            metaColor: metaColor,
+            textStyle: TextStyle(color: textColor, fontSize: 15, height: 1.35),
           ),
         ),
       ),

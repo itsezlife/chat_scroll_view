@@ -9,6 +9,10 @@ export 'package:chat_scroll_view/src/chat_widgets/render_chat_message_body.dart'
 ///
 /// Slot identity is stable across rebuilds; do not reorder or rename values.
 enum ChatMessageBodySlot {
+  /// Optional band above content that contributes to outer width (sender name,
+  /// forward label, and similar in-bubble chrome).
+  header,
+
   /// Body (typically [Text] / [RichText], or any shrink-wrapping subtree).
   content,
 
@@ -16,21 +20,23 @@ enum ChatMessageBodySlot {
   meta,
 }
 
-/// Shrink-wrapping in-bubble layout: body beside trailing meta.
+/// Shrink-wrapping in-bubble layout: optional header, body, trailing meta.
 ///
 /// ## Contract
 ///
 /// - **Inline**: when the last text line plus [spacing] plus [meta] width fits
-///   in the padded max width, [meta] sits on that line (bottom-right) and the
-///   outer height stays equal to [content]'s height.
+///   in the padded max width, [meta] sits on that line (bottom-trailing) and
+///   the outer height stays equal to [header] + [content] height.
 /// - **Wrap**: otherwise [meta] drops to the next row under [content]; height
 ///   grows by [meta]'s height (no extra vertical gap).
 /// - **Shrink-wrap**: under loose constraints (`minWidth == 0`), width is the
-///   minimum that fits content and (when inline) trailing meta — not the
-///   incoming `maxWidth`.
+///   minimum that fits [header] and the packed content/meta cluster — not the
+///   incoming `maxWidth`. A wider [header] trails [meta] at the body's end.
+/// - **Wrap vs inline** uses the padded max width from constraints, not
+///   [header] width (Telegram `maxWidth` vs `lastLineWidth + timeMore`).
 ///
-/// Both slots are real children ([SlottedMultiChildRenderObjectWidget]). The
-/// body is not painted with an internal [TextPainter], so selection, semantics,
+/// Slots are real children ([SlottedMultiChildRenderObjectWidget]). The body
+/// is not painted with an internal [TextPainter], so selection, semantics,
 /// and hit-testing work on the host widgets.
 ///
 /// ## Last-line measurement
@@ -45,12 +51,13 @@ enum ChatMessageBodySlot {
 /// ## Composition
 ///
 /// Reply previews, media, and attachment overlays are **outside** this widget.
-/// Stack them above in the host bubble; keep [ChatMessageBody] for the text +
-/// meta cluster only.
+/// Stack them above in the host bubble; keep [ChatMessageBody] for the optional
+/// name/forward band + text + meta cluster.
 ///
 /// ```dart
 /// ChatMessageBody(
 ///   spacing: 4,
+///   header: Text(senderName),
 ///   content: Text(message.text),
 ///   meta: Row(
 ///     mainAxisSize: MainAxisSize.min,
@@ -69,14 +76,19 @@ class ChatMessageBody
   /// Creates a content + meta body layout.
   ///
   /// [meta] is required. Omit [content] (or pass null) for meta-only sizing
-  /// (e.g. a compact time chip without body text).
+  /// (e.g. a compact time chip without body text). Optional [header] widens
+  /// the body when it exceeds the packed content/meta width.
   const ChatMessageBody({
     required this.meta,
+    this.header,
     this.content,
     this.spacing = 4.0,
     this.padding = EdgeInsets.zero,
     super.key,
   });
+
+  /// Optional band above [content]. Null means no header contribution.
+  final Widget? header;
 
   /// Body widget. Null means meta-only sizing.
   final Widget? content;
@@ -87,7 +99,8 @@ class ChatMessageBody
   /// Horizontal gap between the last text line and [meta] when packed inline.
   final double spacing;
 
-  /// Insets around the content + meta cluster (resolved with [Directionality]).
+  /// Insets around the header + content + meta cluster (resolved with
+  /// [Directionality]).
   final EdgeInsetsGeometry padding;
 
   @override
@@ -95,6 +108,7 @@ class ChatMessageBody
 
   @override
   Widget? childForSlot(ChatMessageBodySlot slot) => switch (slot) {
+    ChatMessageBodySlot.header => header,
     ChatMessageBodySlot.content => content,
     ChatMessageBodySlot.meta => meta,
   };

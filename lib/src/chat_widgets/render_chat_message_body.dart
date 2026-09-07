@@ -5,8 +5,9 @@ import 'package:flutter/widgets.dart';
 
 /// Render object for [ChatMessageBody].
 ///
-/// Lays out slotted children, paints [ChatMessageBodySlot.content] then
-/// [ChatMessageBodySlot.meta], and hit-tests meta first (painted on top).
+/// Lays out slotted children, paints [ChatMessageBodySlot.header], then
+/// [ChatMessageBodySlot.content], then [ChatMessageBodySlot.meta], and
+/// hit-tests meta first (painted on top).
 class RenderChatMessageBody extends RenderBox
     with SlottedContainerRenderObjectMixin<ChatMessageBodySlot, RenderBox> {
   /// Creates a content + meta layout render object.
@@ -48,12 +49,13 @@ class RenderChatMessageBody extends RenderBox
 
   EdgeInsets get _resolvedPadding => _padding.resolve(_textDirection);
 
+  RenderBox? get _header => childForSlot(ChatMessageBodySlot.header);
   RenderBox? get _content => childForSlot(ChatMessageBodySlot.content);
   RenderBox? get _meta => childForSlot(ChatMessageBodySlot.meta);
 
-  /// Hit-test order: meta first (on top), then content.
+  /// Hit-test order: meta first (on top), then content, then header.
   @override
-  Iterable<RenderBox> get children => <RenderBox>[?_meta, ?_content];
+  Iterable<RenderBox> get children => <RenderBox>[?_meta, ?_content, ?_header];
 
   @override
   void setupParentData(RenderBox child) {
@@ -64,7 +66,7 @@ class RenderChatMessageBody extends RenderBox
 
   @override
   double? computeDistanceToActualBaseline(TextBaseline baseline) {
-    final child = _content ?? _meta;
+    final child = _content ?? _header ?? _meta;
     if (child == null) return null;
     final distance = child.getDistanceToActualBaseline(baseline);
     if (distance == null) return null;
@@ -79,6 +81,10 @@ class RenderChatMessageBody extends RenderBox
   void performLayout() {
     final result = _measure(constraints, dry: false);
     size = result.size;
+    final header = _header;
+    if (header != null) {
+      _positionChild(header, result.headerOffset);
+    }
     final content = _content;
     if (content != null) {
       _positionChild(content, result.contentOffset);
@@ -100,8 +106,12 @@ class RenderChatMessageBody extends RenderBox
     );
     final childConstraints = BoxConstraints(maxWidth: availableWidth);
 
+    final header = _header;
     final content = _content;
     final meta = _meta;
+    final headerSize = header == null
+        ? Size.zero
+        : _layoutChild(header, childConstraints, dry: dry);
     final contentSize = content == null
         ? Size.zero
         : _layoutChild(content, childConstraints, dry: dry);
@@ -113,6 +123,7 @@ class RenderChatMessageBody extends RenderBox
       constraints: constraints,
       padding: padding,
       spacing: _spacing,
+      headerSize: headerSize,
       contentSize: contentSize,
       metaSize: metaSize,
       hasContent: content != null,
@@ -142,6 +153,10 @@ class RenderChatMessageBody extends RenderBox
 
   @override
   void paint(PaintingContext context, Offset offset) {
+    final header = _header;
+    if (header != null) {
+      context.paintChild(header, offset + _offsetOf(header));
+    }
     final content = _content;
     if (content != null) {
       context.paintChild(content, offset + _offsetOf(content));
