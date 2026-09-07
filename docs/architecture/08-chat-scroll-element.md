@@ -71,9 +71,10 @@ walk neighbors itself — same pattern as `startsNewDay`.
 - Optional `Directionality` override + `Builder` so builders see the same
   direction as chrome.
 - Optional `SelectableMessage` wrap (selection chrome only — the viewport
-  owns the pointer) — **only for ids that pass the absent exclusion gate**;
-  wrapping zero-size shrink output for absent ids still produces selectable
-  ghost rows.
+  owns the pointer) — **only for loaded ids that pass
+  `ChatSelectionController.isSelectionAllowed`** (slot id). Absent /
+  shimmer slots and disallowed ids are not wrapped; wrapping zero-size
+  shrink output for absent ids still produces selectable ghost rows.
 - If `startsNewDay && separator != null && message != null && groupBucket != null`
   → `DatedMessage(separator, body)`; else `RepaintBoundary` + body.
 - Separator is **outside** selection so date chrome is never tinted.
@@ -90,9 +91,11 @@ The element does **not** compute day boundaries — it only consumes
 | `_builtStatus[id]` | `ChatMessageStatus` |
 | `_builtStartsDay[id]` | `bool` |
 | `_builtRunLayout[id]` | `MessageRunLayout` — value equality |
+| `_builtSelectionAllowed[id]` | `bool` — last `isSelectionAllowed(id)` (true when no controller) |
 
 **Hit:** existing element **and** status equal **and** `startsNewDay` equal
-**and** `runLayout` equal **and** `identical(message)`.
+**and** `runLayout` equal **and** selection-allowed equal **and**
+`identical(message)`.
 
 **Miss → full `updateChild`.**
 
@@ -100,12 +103,20 @@ The element does **not** compute day boundaries — it only consumes
 `textDirection` change. Use `==` on builder tear-offs, not `identical`
 (otherwise every parent rebuild drops the cache).
 
+**Selection-allowed map only** cleared on
+`ChatSelectionController` notify (`selectionAllowed` assign /
+`reapplySelectionAllowed` → `addSelectionAllowedListener`), then
+`markNeedsLayout` so visible rows re-evaluate wrap.
+
 **Per-id cleared** on remove / failed update / `forgetChild`.
 
 **Must not:** mutate a message in place without replacing the instance —
 rebuild will be skipped. **Must not** compute neighbor-dependent chrome inside
 `messageBuilder` without consuming `runLayout` — neighbor changes after delete
-or insert will not invalidate the cache otherwise.
+or insert will not invalidate the cache otherwise. **Must not** mutate state
+closed over by `selectionAllowed` without reassigning the predicate or calling
+`reapplySelectionAllowed` — otherwise wrap can stay stale until a layout that
+re-evaluates the bit (and selected ids are not re-filtered).
 
 Inherited widgets (Theme, etc.) still rebuild via normal element dependencies.
 Width changes are handled by subsequent `child.layout()`, not this cache.

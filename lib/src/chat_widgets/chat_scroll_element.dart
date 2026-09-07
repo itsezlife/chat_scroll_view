@@ -63,14 +63,16 @@ class ChatScrollElement extends RenderObjectElement
   /// messageId -> child element, sorted so iteration is top-to-bottom.
   final SplayTreeMap<int, Element> _children = SplayTreeMap<int, Element>();
 
-  /// Skip-rebuild cache: the message instance, status, first-of-day flag, and
-  /// sender-run layout each child was last built with. When [buildChild] is
-  /// asked for an id whose inputs are all unchanged, the existing child is
-  /// reused without running `updateChild` / the message widget's `build()` again.
+  /// Skip-rebuild cache: the message instance, status, first-of-day flag,
+  /// sender-run layout, and selection-allowed bit each child was last built
+  /// with. When [buildChild] is asked for an id whose inputs are all unchanged,
+  /// the existing child is reused without running `updateChild` / the message
+  /// widget's `build()` again.
   final Map<int, IChatMessage?> _builtMessage = <int, IChatMessage?>{};
   final Map<int, ChatMessageStatus> _builtStatus = <int, ChatMessageStatus>{};
   final Map<int, bool> _builtStartsDay = <int, bool>{};
   final Map<int, MessageRunLayout> _builtRunLayout = <int, MessageRunLayout>{};
+  final Map<int, bool> _builtSelectionAllowed = <int, bool>{};
 
   /// chunkIndex -> chunk-error tile element, sorted ascending. Empty unless
   /// the host widget supplies an `errorBuilder`.
@@ -95,6 +97,40 @@ class ChatScrollElement extends RenderObjectElement
   void mount(Element? parent, Object? newSlot) {
     super.mount(parent, newSlot);
     renderObject.childManager = this;
+    _widget.selectionController?.addSelectionAllowedListener(
+      _onSelectionAllowedChanged,
+    );
+  }
+
+  @override
+  void unmount() {
+    _widget.selectionController?.removeSelectionAllowedListener(
+      _onSelectionAllowedChanged,
+    );
+    super.unmount();
+  }
+
+  void _onSelectionAllowedChanged() {
+    // Drop only the allowed bit — other skip inputs are still valid. Missing
+    // keys make the fast path miss so wrap presence is re-evaluated.
+    _builtSelectionAllowed.clear();
+    renderObject.markNeedsLayout();
+  }
+
+  void _clearSkipCache() {
+    _builtMessage.clear();
+    _builtStatus.clear();
+    _builtStartsDay.clear();
+    _builtRunLayout.clear();
+    _builtSelectionAllowed.clear();
+  }
+
+  void _clearSkipCacheFor(int id) {
+    _builtMessage.remove(id);
+    _builtStatus.remove(id);
+    _builtStartsDay.remove(id);
+    _builtRunLayout.remove(id);
+    _builtSelectionAllowed.remove(id);
   }
 
   @override
@@ -121,6 +157,17 @@ class ChatScrollElement extends RenderObjectElement
     super.update(
       newWidget,
     ); // -> updateRenderObject (dataSource/controller/...)
+    // Retarget the selectionAllowed subscription when the controller instance
+    // swaps. Same object — not a second controller; just unsubscribe/subscribe
+    // so we never leave a listener on a detached host controller.
+    if (!identical(old.selectionController, newWidget.selectionController)) {
+      old.selectionController?.removeSelectionAllowedListener(
+        _onSelectionAllowedChanged,
+      );
+      newWidget.selectionController?.addSelectionAllowedListener(
+        _onSelectionAllowedChanged,
+      );
+    }
     // No builder is handed to the render object; if any changed, drop the
     // skip-cache and force a layout so every active child re-inflates.
     // Use `==` instead of `identical` — instance-method tear-offs are equal
@@ -136,10 +183,7 @@ class ChatScrollElement extends RenderObjectElement
         old.selectionChromeBuilder != newWidget.selectionChromeBuilder ||
         old.dateSeparatorBuilder != newWidget.dateSeparatorBuilder ||
         old.textDirection != newWidget.textDirection) {
-      _builtMessage.clear();
-      _builtStatus.clear();
-      _builtStartsDay.clear();
-      _builtRunLayout.clear();
+      _clearSkipCache();
       renderObject.markNeedsLayout();
     }
     // A changed separator builder *or* direction must rebuild the header
@@ -159,12 +203,13 @@ class ChatScrollElement extends RenderObjectElement
   /// Inflate the widget for message [id].
   ///
   /// When a selection controller is wired, **loaded** messages (`message !=
-  /// null`) are wrapped in [SelectableMessage] (checkbox overlay + row tint).
-  /// Shimmer / placeholder slots are not wrapped and cannot be selected.
-  /// When [startsNewDay] is set, the message is built as a [DatedMessage] —
-  /// an inline date separator stacked above the body, *outside*
-  /// [SelectableMessage] so selection chrome never tints the date. Plain
-  /// messages are wrapped in a [RepaintBoundary] for picture / layer
+  /// null`) that pass [ChatSelectionController.isSelectionAllowed] for [id]
+  /// are wrapped in [SelectableMessage] (checkbox overlay + row tint).
+  /// Disallowed ids, and shimmer / placeholder slots, are not wrapped and
+  /// cannot be selected. When [startsNewDay] is set, the message is built as
+  /// a [DatedMessage] — an inline date separator stacked above the body,
+  /// *outside* [SelectableMessage] so selection chrome never tints the date.
+  /// Plain messages are wrapped in a [RepaintBoundary] for picture / layer
   /// caching; [DatedMessage] does its own wrapping.
   ///
   /// When an explicit `textDirection` override is supplied on
@@ -181,6 +226,7 @@ class ChatScrollElement extends RenderObjectElement
     bool startsNewDay,
     Object? groupBucket,
     MessageRunLayout runLayout,
+    bool selectionAllowed,
   ) {
     final override = _widget.textDirection;
     final selection = _widget.selectionController;
@@ -203,7 +249,7 @@ class ChatScrollElement extends RenderObjectElement
         status,
         runLayout,
       );
-      if (selection != null && message != null) {
+      if (selection != null && message != null && selectionAllowed) {
         content = SelectableMessage(
           id: id,
           controller: selection,
@@ -248,6 +294,10 @@ class ChatScrollElement extends RenderObjectElement
     final message = ds.getMessage(id);
     final status = ds.statusOf(id);
     final existing = _children[id];
+    final selection = _widget.selectionController;
+    // Slot id — same key the pointer / span / SelectableMessage use.
+    final selectionAllowed =
+        selection == null || selection.isSelectionAllowed(id);
 
     // Confirmed-absent: deactivate any stale element; never call
     // messageBuilder or wrap in SelectableMessage — unless the render
@@ -265,10 +315,7 @@ class ChatScrollElement extends RenderObjectElement
           final removed = updateChild(existing, null, id);
           assert(removed == null, 'removed is not null');
           _children.remove(id);
-          _builtMessage.remove(id);
-          _builtStatus.remove(id);
-          _builtStartsDay.remove(id);
-          _builtRunLayout.remove(id);
+          _clearSkipCacheFor(id);
         });
       }
       return null;
@@ -282,6 +329,7 @@ class ChatScrollElement extends RenderObjectElement
         _builtStatus[id] == status &&
         _builtStartsDay[id] == startsNewDay &&
         _builtRunLayout[id] == runLayout &&
+        _builtSelectionAllowed[id] == selectionAllowed &&
         identical(_builtMessage[id], message)) {
       return existing.renderObject as RenderBox?;
     }
@@ -290,7 +338,15 @@ class ChatScrollElement extends RenderObjectElement
     owner!.buildScope(this, () {
       final updated = updateChild(
         existing,
-        _buildWidget(id, message, status, startsNewDay, groupBucket, runLayout),
+        _buildWidget(
+          id,
+          message,
+          status,
+          startsNewDay,
+          groupBucket,
+          runLayout,
+          selectionAllowed,
+        ),
         id,
       );
       if (updated != null) {
@@ -299,13 +355,11 @@ class ChatScrollElement extends RenderObjectElement
         _builtStatus[id] = status;
         _builtStartsDay[id] = startsNewDay;
         _builtRunLayout[id] = runLayout;
+        _builtSelectionAllowed[id] = selectionAllowed;
         result = updated.renderObject as RenderBox?;
       } else {
         _children.remove(id);
-        _builtMessage.remove(id);
-        _builtStatus.remove(id);
-        _builtStartsDay.remove(id);
-        _builtRunLayout.remove(id);
+        _clearSkipCacheFor(id);
       }
     });
     return result;
@@ -320,10 +374,7 @@ class ChatScrollElement extends RenderObjectElement
         final removed = updateChild(_children[id], null, id);
         assert(removed == null, 'removed is not null');
         _children.remove(id);
-        _builtMessage.remove(id);
-        _builtStatus.remove(id);
-        _builtStartsDay.remove(id);
-        _builtRunLayout.remove(id);
+        _clearSkipCacheFor(id);
       }
     });
   }
@@ -496,10 +547,7 @@ class ChatScrollElement extends RenderObjectElement
       );
       final id = child.slot! as int;
       _children.remove(id);
-      _builtMessage.remove(id);
-      _builtStatus.remove(id);
-      _builtStartsDay.remove(id);
-      _builtRunLayout.remove(id);
+      _clearSkipCacheFor(id);
     }
     super.forgetChild(child);
   }

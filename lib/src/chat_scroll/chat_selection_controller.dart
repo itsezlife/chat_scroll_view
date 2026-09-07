@@ -25,9 +25,19 @@ import 'package:flutter/scheduler.dart';
 /// silently match unrelated messages in the new conversation. Call [clear]
 /// from your own dataSource-swap logic, or scope a separate
 /// [ChatSelectionController] per conversation, to avoid this footgun.
+///
+/// ### Changing [selectionAllowed]
+///
+/// Assigning [selectionAllowed] (or calling [reapplySelectionAllowed]) drops
+/// any selected id that is no longer allowed and notifies
+/// [addSelectionAllowedListener] so the viewport can rebuild selection chrome.
+/// Mutating state closed over by the predicate without reassigning or calling
+/// [reapplySelectionAllowed] does not notify — chrome wrap may stay stale
+/// until the next natural layout that re-evaluates the predicate.
 class ChatSelectionController implements Listenable {
   final _selectedIds = HashSet<int>();
   final _capHits = ValueNotifier<int>(0);
+  final _selectionAllowedListeners = <VoidCallback>[];
 
   /// Whether selection mode is active.
   bool get isSelectionMode => _selectedIds.isNotEmpty;
@@ -88,7 +98,7 @@ class ChatSelectionController implements Listenable {
   /// Replaces the selected set with [ids]. No-op if equal. Empty [ids]
   /// exits selection mode. Ids that are not [selectionAllowed] are omitted.
   void replaceSelectedIds(Set<int> ids) {
-    final next = selectionAllowed == null
+    final next = _selectionAllowed == null
         ? ids
         : ids.where(isSelectionAllowed).toSet();
     if (next.length == _selectedIds.length && _selectedIds.containsAll(next)) {
@@ -156,12 +166,61 @@ class ChatSelectionController implements Listenable {
   /// this returns true. `null` (the default) allows every present message.
   /// Independent of span polarity — a disallowed id is never a span hit
   /// and is omitted from the selection span.
-  bool Function(int messageId)? selectionAllowed;
+  ///
+  /// Assigning a new function (or `null`) re-filters [selectedIds] and
+  /// notifies [addSelectionAllowedListener]. Prefer a new closure (or
+  /// [reapplySelectionAllowed]) when closed-over host state changes.
+  bool Function(int messageId)? get selectionAllowed => _selectionAllowed;
+  set selectionAllowed(bool Function(int messageId)? value) {
+    if (identical(_selectionAllowed, value)) return;
+    _selectionAllowed = value;
+    reapplySelectionAllowed();
+  }
+
+  bool Function(int messageId)? _selectionAllowed;
 
   /// Whether [messageId] may join the selected set. True when
   /// [selectionAllowed] is null.
   bool isSelectionAllowed(int messageId) =>
-      selectionAllowed?.call(messageId) ?? true;
+      _selectionAllowed?.call(messageId) ?? true;
+
+  /// Re-runs [selectionAllowed] against [selectedIds] and notifies
+  /// [addSelectionAllowedListener] without requiring a new function identity.
+  ///
+  /// Use when the predicate closes over mutable host state that changed
+  /// in place (e.g. a blocked-id set grew) and the host did not reassign
+  /// [selectionAllowed].
+  void reapplySelectionAllowed() {
+    _notifySelectionAllowed();
+    final next = _selectedIds.where(isSelectionAllowed).toSet();
+    if (next.length == _selectedIds.length && _selectedIds.containsAll(next)) {
+      return;
+    }
+    _selectedIds
+      ..clear()
+      ..addAll(next);
+    _notify();
+  }
+
+  /// Registers [listener] for [selectionAllowed] changes (assign or
+  /// [reapplySelectionAllowed]). Dedup-on-add; snapshot dispatch.
+  ///
+  /// The selected-set [Listenable] does **not** fire when [selectedIds] is
+  /// unchanged — listen here for chrome-wrap invalidation.
+  void addSelectionAllowedListener(VoidCallback listener) {
+    if (_selectionAllowedListeners.contains(listener)) return;
+    _selectionAllowedListeners.add(listener);
+  }
+
+  /// Removes a listener registered with [addSelectionAllowedListener].
+  void removeSelectionAllowedListener(VoidCallback listener) =>
+      _selectionAllowedListeners.remove(listener);
+
+  void _notifySelectionAllowed() {
+    for (final cb in _selectionAllowedListeners.toList(growable: false)) {
+      cb();
+    }
+  }
 
   // --- Listeners ---
 
@@ -220,6 +279,7 @@ class ChatSelectionController implements Listenable {
     if (_disposed) return;
     _disposed = true;
     _listeners.clear();
+    _selectionAllowedListeners.clear();
     _capHits.dispose();
     // Drop the set: a stale reference held by a consumer (e.g. a toolbar
     // queueing an undo) must not silently match unrelated ids in a fresh

@@ -158,7 +158,10 @@ and follow-tail converge on the next layout.
   A host `selectionAllowed` that returns false is not a span hit and does
   not join the selected set, even on the present-neighbor walk. Emptying
   the selected set does not end the span; membership stays empty.
-  If the gesture origin becomes absent, the span aborts (set kept, origin
+  Disallowed rows are also not wrapped in selection chrome. Assigning
+  `selectionAllowed` (or `reapplySelectionAllowed`) drops newly-disallowed
+  ids from the selected set and invalidates chrome wrap. If the gesture
+  origin becomes absent, the span aborts (set kept, origin
   not retargeted) so delete recovery may write the origin.
 - While a live span pointer occupies the top or bottom edge band, span
   auto-scroll is the sole origin writer (follow-tail and close-path

@@ -133,6 +133,61 @@ void main() {
       expect(sc.selectedIds, {6, 8});
     });
 
+    test('assigning selectionAllowed drops newly-disallowed selected ids', () {
+      final sc = ChatSelectionController();
+      addTearDown(sc.dispose);
+      var allowedChanges = 0;
+      sc.addSelectionAllowedListener(() => allowedChanges++);
+      sc.replaceSelectedIds({1, 2, 3});
+      expect(sc.selectedIds, {1, 2, 3});
+      sc.selectionAllowed = (id) => id != 2;
+      expect(sc.selectedIds, {1, 3});
+      expect(allowedChanges, 1);
+      expect(sc.isSelectionMode, isTrue);
+    });
+
+    test('reapplySelectionAllowed refilters without a new function', () {
+      final blocked = <int>{};
+      final sc = ChatSelectionController()
+        ..selectionAllowed = (id) => !blocked.contains(id);
+      addTearDown(sc.dispose);
+      var allowedChanges = 0;
+      sc.addSelectionAllowedListener(() => allowedChanges++);
+      sc.replaceSelectedIds({1, 2});
+      blocked.add(2);
+      sc.reapplySelectionAllowed();
+      expect(sc.selectedIds, {1});
+      expect(allowedChanges, 1);
+    });
+
+    test('selectionAllowed assign that leaves the set unchanged still '
+        'notifies selectionAllowed listeners', () {
+      final sc = ChatSelectionController()..selectionAllowed = (_) => true;
+      addTearDown(sc.dispose);
+      sc.replaceSelectedIds({1});
+      var allowedChanges = 0;
+      var selection = 0;
+      sc
+        ..addSelectionAllowedListener(() => allowedChanges++)
+        ..addListener(() => selection++);
+      sc.selectionAllowed = (id) => id != 99;
+      expect(sc.selectedIds, {1});
+      expect(allowedChanges, 1);
+      expect(selection, 0);
+    });
+
+    test('addSelectionAllowedListener dedup', () {
+      final sc = ChatSelectionController();
+      addTearDown(sc.dispose);
+      var calls = 0;
+      void cb() => calls++;
+      sc
+        ..addSelectionAllowedListener(cb)
+        ..addSelectionAllowedListener(cb)
+        ..selectionAllowed = (_) => false;
+      expect(calls, 1);
+    });
+
     test('refusing an add at selectionCap bumps capHits', () {
       final sc = ChatSelectionController()..selectionCap = 2;
       addTearDown(sc.dispose);

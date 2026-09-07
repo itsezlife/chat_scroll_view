@@ -3,6 +3,7 @@ import 'package:chat_scroll_view/src/chat_scroll/chat_scroll_common.dart';
 import 'package:chat_scroll_view/src/chat_scroll/chat_scroll_controller.dart';
 import 'package:chat_scroll_view/src/chat_scroll/chat_selection_controller.dart';
 import 'package:chat_scroll_view/src/chat_widgets/chat_scroll_view.dart';
+import 'package:chat_scroll_view/src/chat_widgets/chat_selectable_message.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -186,6 +187,117 @@ void main() {
         expect(selection.selectedIds, {count - 1, count - 2, count - 4});
         expect(selection.isSelected(blocked), isFalse);
         await gesture.up();
+      },
+    );
+
+    testWidgets('does not wrap a disallowed message in SelectableMessage', (
+      tester,
+    ) async {
+      const count = 32;
+      const blocked = count - 1;
+      final controller = ChatScrollController()..jumpTo(count - 1);
+      await _pumpTail(
+        tester: tester,
+        controller: controller,
+        dataSource: _LoadedSource([for (var i = 0; i < count; i++) _msg(i)]),
+        selectionAllowed: (id) => id != blocked,
+      );
+
+      expect(
+        find.ancestor(
+          of: find.text('msg-$blocked'),
+          matching: find.byType(SelectableMessage),
+        ),
+        findsNothing,
+      );
+      expect(
+        find.ancestor(
+          of: find.text('msg-${count - 2}'),
+          matching: find.byType(SelectableMessage),
+        ),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets(
+      'assigning selectionAllowed drops chrome and selected membership',
+      (tester) async {
+        const count = 32;
+        const blocked = count - 2;
+        final controller = ChatScrollController()..jumpTo(count - 1);
+        final selection = await _pumpTail(
+          tester: tester,
+          controller: controller,
+          dataSource: _LoadedSource([for (var i = 0; i < count; i++) _msg(i)]),
+        );
+
+        expect(
+          find.ancestor(
+            of: find.text('msg-$blocked'),
+            matching: find.byType(SelectableMessage),
+          ),
+          findsOneWidget,
+        );
+
+        await tester.longPress(find.text('msg-$blocked'));
+        await tester.pumpAndSettle();
+        expect(selection.selectedIds, {blocked});
+
+        selection.selectionAllowed = (id) => id != blocked;
+        await tester.pump();
+
+        expect(selection.isSelected(blocked), isFalse);
+        expect(selection.isSelectionMode, isFalse);
+        expect(
+          find.ancestor(
+            of: find.text('msg-$blocked'),
+            matching: find.byType(SelectableMessage),
+          ),
+          findsNothing,
+        );
+        expect(
+          find.ancestor(
+            of: find.text('msg-${count - 1}'),
+            matching: find.byType(SelectableMessage),
+          ),
+          findsOneWidget,
+        );
+      },
+    );
+
+    testWidgets(
+      'reapplySelectionAllowed rebuilds wrap after closed-over state change',
+      (tester) async {
+        const count = 32;
+        const blocked = count - 1;
+        final banned = <int>{};
+        final controller = ChatScrollController()..jumpTo(count - 1);
+        final selection = await _pumpTail(
+          tester: tester,
+          controller: controller,
+          dataSource: _LoadedSource([for (var i = 0; i < count; i++) _msg(i)]),
+          selectionAllowed: (id) => !banned.contains(id),
+        );
+
+        expect(
+          find.ancestor(
+            of: find.text('msg-$blocked'),
+            matching: find.byType(SelectableMessage),
+          ),
+          findsOneWidget,
+        );
+
+        banned.add(blocked);
+        selection.reapplySelectionAllowed();
+        await tester.pump();
+
+        expect(
+          find.ancestor(
+            of: find.text('msg-$blocked'),
+            matching: find.byType(SelectableMessage),
+          ),
+          findsNothing,
+        );
       },
     );
   });

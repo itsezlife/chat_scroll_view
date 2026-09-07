@@ -67,6 +67,15 @@ this project is pre-1.0 and not strictly SemVer yet.
 
 ### Fixed
 
+- **Selection chrome for disallowed ids.** Loaded rows that fail
+  `ChatSelectionController.isSelectionAllowed` are no longer wrapped in
+  `SelectableMessage`. Assigning `selectionAllowed` (or calling
+  `reapplySelectionAllowed`) drops newly-disallowed ids from the selected
+  set, notifies `addSelectionAllowedListener` /
+  `removeSelectionAllowedListener`, and invalidates the element's
+  selection-allowed skip-cache so chrome wrap re-evaluates on the next
+  layout. The wrap gate uses the slot id (same key as pointer / span).
+
 - **Mouse wheel sticky after `jumpToCenterBand`.** Wheel cancelled pending
   tail pin but not pending Center Band / alignment settle, so layout kept
   re-seating the restore ray under early wheel input. Wheel now clears those
@@ -257,9 +266,12 @@ this project is pre-1.0 and not strictly SemVer yet.
 - **Selection-allowed and span abort** — optional
   `ChatSelectionController.selectionAllowed` (default `null` = every present
   message). A disallowed id is never a span hit, never joins the selected set,
-  and is omitted from the present-neighbor span. If the gesture origin becomes
-  absent during a live span, the span ends; the selected set is kept and the
-  origin is not retargeted, so delete recovery can write the origin again.
+  is omitted from the present-neighbor span, and is not wrapped in
+  `SelectableMessage` chrome. Assigning the predicate (or
+  `reapplySelectionAllowed`) refilters the selected set and notifies
+  `addSelectionAllowedListener`. If the gesture origin becomes absent during
+  a live span, the span ends; the selected set is kept and the origin is not
+  retargeted, so delete recovery can write the origin again.
 
 - **Selection cap** — optional `ChatSelectionController.selectionCap` (default
   `null` = unlimited). A select span does not grow past the cap and auto-scroll
