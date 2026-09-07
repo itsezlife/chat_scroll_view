@@ -14,6 +14,7 @@ resource: lib/src/chat_scroll/chat_scroll_controller.dart
 | API                              | Anchor effect                                      | Notifications                                                                   |
 | -------------------------------- | -------------------------------------------------- | ------------------------------------------------------------------------------- |
 | `jumpTo(id, {alignment})`        | id = target, offset = `0`                          | Jump listeners + `ChatProgrammaticJump`                                         |
+| `jumpToCenterBand(id, offset)`   | id = target; layout places ray at msg top + offset | Jump listeners + `ChatProgrammaticJump`                                         |
 | `scrollBy(px)`                   | offset += px                                       | ScrollBy listeners + `ChatProgrammaticScroll`; no-op if `px == 0` or non-finite |
 | `animateTo`                      | Animator drives; falls back to `jumpTo` if unbound | `ChatAnimateStart` / `ChatAnimateEnd`                                           |
 | `applyScrollDelta` (`@internal`) | offset += delta                                    | None (tick / clamp / pad)                                                       |
@@ -121,7 +122,13 @@ id coverage. Same deferred notifier contract as `isAtTail`.
 layout and Tier-1 — including silent Anchor origin renormalize frames that do
 not emit `ChatViewportScrolled`. Geometric ray hit only; not an id-midpoint
 heuristic. `null` before first layout or when no Message intersects the ray.
-See [ADR 009](../adr/009-center-band.md).
+
+`jumpToCenterBand(messageId, offsetFromMessageTop)` places that ray in one
+navigation (not host `jumpTo` + `scrollBy`). Layout applies the pending offset
+after the target row is built — same settle lifecycle as alignment. Jump-to-
+newest tail pin is suppressed while Center Band apply is pending so mid-bubble
+restore on the conversation newest is not fought. See
+[ADR 009](../adr/009-center-band.md).
 
 ## Scroll events
 

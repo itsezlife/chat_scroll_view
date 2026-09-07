@@ -25,12 +25,15 @@ Cross-links: [Layout Pipeline](./04-layout-pipeline.md),
 | Member | Purpose | Mutates | Must not |
 |--------|---------|---------|----------|
 | `jumpTo` | Teleport anchor to id | id, offset=`0`, alignment | Assume visible row if absent |
+| `jumpToCenterBand` | Place center-band ray at msg top + offset | id, pending Center Band apply | Compose via `jumpTo`+`scrollBy`; assume visible if absent |
 | `scrollBy` | Programmatic pixel shift | offset | Call with non-finite; expect Tier-1 |
 | `animateTo` | Smooth nav | alignment; animator drives offset | Call after dispose |
 | `applyScrollDelta` | Silent tick/clamp delta | offset | Call from app code |
 | `reassignAnchor` | Silent id+offset | both | Notify listeners (it does not) |
 | `clearNavigationAlignment` | Drop pending align | alignment fields | — |
+| `clearNavigationCenterBand` | Drop pending Center Band apply | Center Band nav fields | — |
 | `syncNavigationAlignmentTarget` | Keep align on clamped id | alignment message id | — |
+| `syncNavigationCenterBandTarget` | Keep Center Band apply on clamped id | Center Band message id | — |
 | `visibleRange` / `centerBand` / `isAtTail` | Listenables | deferred notify | setState without deferral (already deferred) |
 | `notifyScrollEvent` | Emit typed event | — | Call from physics |
 | `dispose` | Drop listeners / animator | all | — |
@@ -140,6 +143,7 @@ Cross-links: [Layout Pipeline](./04-layout-pipeline.md),
 | `_nextNonAbsentIdDown` / `Up` | Absent skip | Return `bound±1` |
 | `_renormalizeAnchor` | Visible-origin rebase | Skip on close path; skip on delete recovery |
 | `_applyNavigationAlignment` | Snap to alignment | Skip on close path; skip newest |
+| `_applyNavigationCenterBand` | Place ray at msg top + offset | Skip on close path; no newest skip |
 | `_closePathEndOffsetFor` | Close-path animate end | Tail newest → pin top; else band align |
 | `_alignedTopForMessage` | Band alignment math | Not true tail pin |
 | `_clampBoundaries` | pinNewest/pinOldest | Skip drag/bounce; single pin when content fits; delete-recovery guards |

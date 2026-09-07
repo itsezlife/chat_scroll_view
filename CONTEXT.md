@@ -41,7 +41,7 @@ Leave/reopen reading position: the Message whose rect intersects the center-band
 _Avoid_: Open Anchor, layout anchor pair, gaze, ChatCenterBandRestore
 
 **ChatCenterBand**:
-Public snapshot of a Center Band: `messageId` + `offsetFromMessageTop`. Live via deferred listenable on the scroll controller. Apply verb is `jumpToCenterBand` (ADR 009) — not shipped until that API lands.
+Public snapshot of a Center Band: `messageId` + `offsetFromMessageTop`. Live via deferred listenable on the scroll controller. Apply with `jumpToCenterBand` (ADR 009).
 _Avoid_: Anchor origin fields, visibleRange first/last midpoint
 
 **Fan-out**:
