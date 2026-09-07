@@ -25,13 +25,16 @@ Cross-links: [Layout Pipeline](./04-layout-pipeline.md),
 | Member | Purpose | Mutates | Must not |
 |--------|---------|---------|----------|
 | `jumpTo` | Teleport anchor to id | id, offset=`0`, alignment | Assume visible row if absent |
+| `jumpToCenterBand` | Place center-band ray at msg top + offset | id, pending Center Band apply | Compose via `jumpTo`+`scrollBy`; assume visible if absent |
 | `scrollBy` | Programmatic pixel shift | offset | Call with non-finite; expect Tier-1 |
 | `animateTo` | Smooth nav | alignment; animator drives offset | Call after dispose |
 | `applyScrollDelta` | Silent tick/clamp delta | offset | Call from app code |
 | `reassignAnchor` | Silent id+offset | both | Notify listeners (it does not) |
 | `clearNavigationAlignment` | Drop pending align | alignment fields | — |
+| `clearNavigationCenterBand` | Drop pending Center Band apply | Center Band nav fields | — |
 | `syncNavigationAlignmentTarget` | Keep align on clamped id | alignment message id | — |
-| `visibleRange` / `isAtTail` | Listenables | deferred notify | setState without deferral (already deferred) |
+| `syncNavigationCenterBandTarget` | Keep Center Band apply on clamped id | Center Band message id | — |
+| `visibleRange` / `centerBand` / `isAtTail` | Listenables | deferred notify | setState without deferral (already deferred) |
 | `notifyScrollEvent` | Emit typed event | — | Call from physics |
 | `dispose` | Drop listeners / animator | all | — |
 
@@ -140,6 +143,7 @@ Cross-links: [Layout Pipeline](./04-layout-pipeline.md),
 | `_nextNonAbsentIdDown` / `Up` | Absent skip | Return `bound±1` |
 | `_renormalizeAnchor` | Visible-origin rebase | Skip on close path; skip on delete recovery |
 | `_applyNavigationAlignment` | Snap to alignment | Skip on close path; skip newest |
+| `_applyNavigationCenterBand` | Place ray at msg top + offset | Skip on close path; no newest skip |
 | `_closePathEndOffsetFor` | Close-path animate end | Tail newest → pin top; else band align |
 | `_alignedTopForMessage` | Band alignment math | Not true tail pin |
 | `_clampBoundaries` | pinNewest/pinOldest | Skip drag/bounce; single pin when content fits; delete-recovery guards |
@@ -173,7 +177,7 @@ Cross-links: [Layout Pipeline](./04-layout-pipeline.md),
 | `ChatSelectionPointer` / `_selectionMessageIdAt` / `_spanHitAt` / `_selectSpanChain` | Viewport-owned long-press, tap, select/unselect span | Yield + fling-cancel suppress; span polarity vs selection snapshot; empty set ends the span; the pinned floating date header is not a hit (tap/long-press/span go through to the message); other non-message slots and `selectionAllowed == false` freeze the far end; disallowed ids are omitted from the chain; select-span growth and grow-direction auto-scroll stop at `selectionCap` (unselect ignores the cap); a refused grow bumps `capHits` once per wall; origin-absent aborts the span (set kept) |
 | `_onJump` / `_onScrollBy` / `_onDataChanged` / `_onBoundaryChanged` | Controller/DS reactions |
 | `_onAnimateSettled` / `_cancelAnimate` / `_clearHighlight` | Animate settle/cancel |
-| `_publishControllerState` / `_publishVisibleRange` / `_publishIsAtTail` / `_computeIsAtTail` | Listenables |
+| `_publishControllerState` / `_publishVisibleRange` / `_publishCenterBand` / `_publishIsAtTail` / `_computeIsAtTail` | Listenables |
 | `_updateScrollSemantics` / `_computeCanRevealOlder` / `Newer` | A11y scroll actions |
 | `_jumpToScrollbar` / `_computeScrollbarProgress` / band helpers | Scrollbar geometry |
 

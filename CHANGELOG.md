@@ -8,6 +8,14 @@ this project is pre-1.0 and not strictly SemVer yet.
 
 ### Added
 
+- **Center Band leave/reopen reading place.** Hosts observe a deferred
+  `ValueListenable<ChatCenterBand?>` on [ChatScrollController] (Message under
+  the fixed 50% paint-band ray + `offsetFromMessageTop`) and restore with
+  `jumpToCenterBand(messageId, offsetFromMessageTop)` — one layout navigation,
+  not host-composed `jumpTo` + `scrollBy`. Anchor origin stays engine-only.
+  Geometric ray hit (tall mid-bubble / mixed heights); same listener safety as
+  `visibleRange`. ADR 009 + `CONTEXT.md` (*Center Band*, *ChatCenterBand*).
+
 - **KeyboardPanelController (chat_chrome).** Host-owned chrome source of truth
   for the keyboard-replacement panel: typed listeners for open / search / tab,
   `open` / `close` / `openSearch` / `closeSearch` / `selectTab` / `handleBack`,
@@ -58,6 +66,11 @@ this project is pre-1.0 and not strictly SemVer yet.
   See `docs/architecture/04-layout-pipeline.md` §13.
 
 ### Fixed
+
+- **Mouse wheel ignored on open-at-newest.** Wheel did not call
+  `_cancelPendingTailPin` (unlike drag), so pending tail pin / lazy load after
+  jump-to-newest yanked wheel deltas back to the bottom edge. Wheel now
+  preempts pending pin like drag. Finger scroll was unaffected.
 
 - **Newest-only insert boundaries.** After connect seeds only `newestKnownId`
   (lazy oldest), `insertMessage` / `insertMessages` no longer invent

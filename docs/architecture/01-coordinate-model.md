@@ -146,6 +146,7 @@ benefits (coordinated multi-sliver scroll, `SliverGrid`) are used.
 | `reassignAnchor(id, y)` | Both | No | Renormalize, nav-align, animator close-path |
 | `scrollBy(pixels)` | `anchorPixelOffset` | Yes → `markNeedsLayout` | Programmatic scroll |
 | `jumpTo(id, {alignment})` | id + offset `0` + alignment | Yes → `markNeedsLayout` | Navigation |
+| `jumpToCenterBand(id, offset)` | id + pending Center Band apply | Yes → `markNeedsLayout` | Leave/reopen |
 
 Consumers (`_fanOutFromAnchor`, `_repositionFromAnchor`, paint) **must not**
 invent a parallel “visual offset” or absolute Y. See

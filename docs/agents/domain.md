@@ -13,6 +13,7 @@ How the engineering skills should consume this repo's domain documentation when 
   - [ADR 002: Position Model](../adr/002-position-model.md)
   - [ADR 005: Stitch far path with navigation load-gate](../adr/005-stitch-far-path-and-load-gate.md) (Chat Scroll)
   - [ADR 006: Panel Catalog Viewport](../adr/006-panel-catalog-viewport.md)
+  - [ADR 009: Center Band vs Anchor origin](../adr/009-center-band.md) (Chat Scroll)
 
 Feature specs under `specs/` are incremental contracts. They do not replace the architecture bundle.
 

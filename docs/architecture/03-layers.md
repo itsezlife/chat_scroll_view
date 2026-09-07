@@ -20,7 +20,7 @@ idea as `SliverMultiBoxAdaptorElement`, without the sliver protocol.
 | `ChatScrollView` | `RenderObjectWidget` | Public API: `dataSource`, `controller`, builders, pads, cache extents |
 | `ChatScrollElement` | `RenderObjectElement` + `ChatChildManager` | Lazy inflate / deactivate children; skip-rebuild cache; slot routing |
 | `RenderChatScrollView` | `RenderBox` | Layout, Tier-1 scroll, gestures, fetch schedule, paint, semantics |
-| `ChatScrollController` | Headless | Anchor ownership, `jumpTo` / `scrollBy` / `animateTo`, events, `visibleRange`, `isAtTail` |
+| `ChatScrollController` | Headless | Anchor ownership, `jumpTo` / `jumpToCenterBand` / `scrollBy` / `animateTo`, events, `visibleRange`, `centerBand`, `isAtTail` |
 | `ChatDataSource` | Headless | Chunks, fetch, boundaries, absent slots, typed data listeners |
 | `ChatFloatingHeaderController` | Headless geometry | Day scan, fade math, header bucket state (no widgets) |
 | `ChatAnimator` | Headless | Close/far `animateTo`, post-settle highlight |
@@ -71,9 +71,9 @@ flowchart LR
 
 | API | Who may call | Effect |
 |-----|--------------|--------|
-| `jumpTo`, `scrollBy`, `animateTo` | App / demo | Notifying navigation |
+| `jumpTo`, `jumpToCenterBand`, `scrollBy`, `animateTo` | App / demo | Notifying navigation |
 | `applyScrollDelta`, `reassignAnchor` | Render / animator only (`@internal`) | Silent anchor mutation |
-| `visibleRange=`, `isAtTail=` | Render only | Deferred listenable push |
+| `visibleRange=`, `centerBand=`, `isAtTail=` | Render only | Deferred listenable push |
 | `notifyScrollEvent` | Render only | Typed scroll event stream |
 | `ChatChildManager.*` | Render only, inside layout callback | Child lifecycle |
 

@@ -197,7 +197,7 @@ positive toward older (lower chunk indices), negative toward newer.
 ### 14. Publish and chrome
 
 1. `_updateScrollSemantics`
-2. `_publishControllerState` (boundaries, `visibleRange`, `isAtTail` snapshot)
+2. `_publishControllerState` (boundaries, `visibleRange`, `centerBand`, `isAtTail` snapshot)
 3. `_updateFloatingHeader` (may rebuild header widget)
 4. `_animator.tryArmPendingHighlight`
 5. If close-path animating: `_animator.rebaseClosePathEnd` (live end offset

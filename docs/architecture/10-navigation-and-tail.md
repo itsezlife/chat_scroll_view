@@ -14,6 +14,7 @@ resource: lib/src/chat_scroll/chat_scroll_controller.dart
 | API                              | Anchor effect                                      | Notifications                                                                   |
 | -------------------------------- | -------------------------------------------------- | ------------------------------------------------------------------------------- |
 | `jumpTo(id, {alignment})`        | id = target, offset = `0`                          | Jump listeners + `ChatProgrammaticJump`                                         |
+| `jumpToCenterBand(id, offset)`   | id = target; layout places ray at msg top + offset | Jump listeners + `ChatProgrammaticJump`                                         |
 | `scrollBy(px)`                   | offset += px                                       | ScrollBy listeners + `ChatProgrammaticScroll`; no-op if `px == 0` or non-finite |
 | `animateTo`                      | Animator drives; falls back to `jumpTo` if unbound | `ChatAnimateStart` / `ChatAnimateEnd`                                           |
 | `applyScrollDelta` (`@internal`) | offset += delta                                    | None (tick / clamp / pad)                                                       |
@@ -27,7 +28,7 @@ height — do not assume a visible row at that id. Check `statusOf` before
 navigating if the user must see a specific message (ADR 002).
 
 Consumers must **not** call `reassignAnchor`, `applyScrollDelta`,
-`visibleRange=`, `isAtTail=`, `animator=`, or `notifyScrollEvent`.
+`visibleRange=`, `centerBand=`, `isAtTail=`, `animator=`, or `notifyScrollEvent`.
 
 ## Alignment lifecycle
 
@@ -112,6 +113,22 @@ Same-id newest height growth while at tail still uses instant `repinBottom`
 `ChatVisibleRange` includes `firstId` / `lastId`, paint-band metrics,
 `firstRow` / `lastRow`, optional `anchorNextRow`. Chunk-error tiles can widen
 id coverage. Same deferred notifier contract as `isAtTail`.
+
+## Center Band
+
+`ChatCenterBand` is the Message under the fixed 50% paint-band ray plus
+`offsetFromMessageTop`. Live via deferred `centerBand` on
+`ChatScrollController` (same listener safety as `visibleRange`). Pushed after
+layout and Tier-1 — including silent Anchor origin renormalize frames that do
+not emit `ChatViewportScrolled`. Geometric ray hit only; not an id-midpoint
+heuristic. `null` before first layout or when no Message intersects the ray.
+
+`jumpToCenterBand(messageId, offsetFromMessageTop)` places that ray in one
+navigation (not host `jumpTo` + `scrollBy`). Layout applies the pending offset
+after the target row is built — same settle lifecycle as alignment. Jump-to-
+newest tail pin is suppressed while Center Band apply is pending so mid-bubble
+restore on the conversation newest is not fought. See
+[ADR 009](../adr/009-center-band.md).
 
 ## Scroll events
 

@@ -30,7 +30,19 @@ _Avoid_: id ± 1, previous slot, adjacent index
 
 **Anchor origin**:
 The only scroll state: which message’s top edge is the layout origin, and that edge’s viewport Y.
-_Avoid_: Scroll offset, pixels, content offset, ScrollPosition
+_Avoid_: Scroll offset, pixels, content offset, ScrollPosition, Center Band, ChatCenterBand
+
+**Center-band ray**:
+Fixed infinitesimal horizontal ray at 50% of the paint band (top inset → bottom inset). Used to identify the Message under visual center.
+_Avoid_: Gaze ray, id-midpoint heuristic, thick center slab, host-configurable fraction (v1)
+
+**Center Band**:
+Leave/reopen reading position: the Message whose rect intersects the center-band ray, plus pixels from that message’s top to the ray. Not the Anchor origin.
+_Avoid_: Open Anchor, layout anchor pair, gaze, ChatCenterBandRestore
+
+**ChatCenterBand**:
+Public snapshot of a Center Band: `messageId` + `offsetFromMessageTop`. Live via deferred listenable on the scroll controller. Apply with `jumpToCenterBand` (ADR 009).
+_Avoid_: Anchor origin fields, visibleRange first/last midpoint
 
 **Fan-out**:
 Placing rows by walking present IDs up and down from the anchor origin.

@@ -379,6 +379,7 @@ class RenderChatScrollView extends RenderBox {
         ..removeScrollByListener(_onScrollBy)
         ..animator = null
         ..visibleRange = null
+        ..centerBand = null
         ..isAtTail = false;
     }
     _controller = value;
@@ -1463,6 +1464,7 @@ class RenderChatScrollView extends RenderBox {
       // Mirror the controller-swap path: once no viewport is bound, the
       // last-published state no longer reflects anything observable.
       ..visibleRange = null
+      ..centerBand = null
       ..isAtTail = false;
     _cancelAnimate();
     _bottomPadding?.removeListener(_onBottomPaddingChanged);
@@ -1888,6 +1890,69 @@ class RenderChatScrollView extends RenderBox {
     return true;
   }
 
+  /// Apply a pending [ChatScrollController.jumpToCenterBand] after the target
+  /// Message is laid out. Returns whether the anchor offset moved.
+  ///
+  /// Places the Message so the fixed 50% paint-band ray hits
+  /// `message top + offsetFromMessageTop`. Unlike [_applyNavigationAlignment],
+  /// this runs for known-newest targets too — leave/reopen mid-bubble on the
+  /// conversation newest must not clear without snap. Dual-writer / stitch
+  /// guards match alignment. Offset is clamped into `[0, height)` so the ray
+  /// stays inside the Message rect used by [_publishCenterBand].
+  bool _applyNavigationCenterBand() {
+    if (_animator.farAnimateActive &&
+        _animator.farAnimateJumped &&
+        _animator.stitchMeasured) {
+      return false;
+    }
+    final targetId = _controller.navigationCenterBandMessageId;
+    final offset = _controller.navigationCenterBandOffset;
+    if (targetId == null || offset == null) return false;
+    if (_animator.isAnimating && !_animator.farAnimateActive) {
+      return false;
+    }
+    if (_controller.anchorMessageId != targetId) {
+      return false;
+    }
+
+    final child = _boundaryBox(targetId);
+    if (child == null || !child.hasSize) {
+      return false;
+    }
+
+    final topEdge = _topPad;
+    final bottomEdge = size.height - _bottomPad;
+    final bandHeight = bottomEdge - topEdge;
+    if (bandHeight <= 0 || !bandHeight.isFinite) {
+      _controller.clearNavigationCenterBand();
+      return false;
+    }
+
+    final rayY = topEdge + bandHeight * 0.5;
+    final maxOffset = math.max<double>(0, child.size.height - 1e-6);
+    final clampedOffset = offset.clamp(0.0, maxOffset);
+    final desiredTop = rayY - clampedOffset;
+    final currentTop = _controller.anchorPixelOffset;
+    if ((desiredTop - currentTop).abs() < 0.5) {
+      if (_dataSource.getMessage(targetId) != null) {
+        _controller.clearNavigationCenterBand();
+      }
+      return false;
+    }
+
+    _fetchAnchorEvent('layout.centerBand', {
+      ..._fetchAnchorSnapshot(),
+      'targetId': targetId,
+      'offset': DevLogFormat.f(clampedOffset),
+      'from': DevLogFormat.f(currentTop),
+      'to': DevLogFormat.f(desiredTop),
+      'childH': DevLogFormat.f(child.size.height),
+    });
+    _controller.reassignAnchor(targetId, desiredTop);
+    _repositionFromAnchor();
+    return true;
+  }
+
   /// Clamp a pre-mount [jumpTo] anchor that landed past [newestKnownId].
   /// [_onJump] handles the mounted case; this covers the listener gap.
   void _normalizeAnchorToKnownTail() {
@@ -1896,8 +1961,11 @@ class RenderChatScrollView extends RenderBox {
     if (targetId == anchorId) return;
     _controller
       ..reassignAnchor(targetId, 0)
-      ..syncNavigationAlignmentTarget(targetId);
-    _markPinTailOnJumpIfNeeded(targetId);
+      ..syncNavigationAlignmentTarget(targetId)
+      ..syncNavigationCenterBandTarget(targetId);
+    if (!_controller.hasPendingNavigationCenterBand) {
+      _markPinTailOnJumpIfNeeded(targetId);
+    }
   }
 
   void _onJump(int messageId) {
@@ -1905,8 +1973,14 @@ class RenderChatScrollView extends RenderBox {
     if (targetId != messageId) {
       _controller.reassignAnchor(targetId, 0);
     }
-    _controller.syncNavigationAlignmentTarget(targetId);
-    _markPinTailOnJumpIfNeeded(targetId);
+    _controller
+      ..syncNavigationAlignmentTarget(targetId)
+      ..syncNavigationCenterBandTarget(targetId);
+    // Center Band mid-bubble restore on newest must not arm jump-to-tail pin —
+    // that would fight [_applyNavigationCenterBand] on the next layout.
+    if (!_controller.hasPendingNavigationCenterBand) {
+      _markPinTailOnJumpIfNeeded(targetId);
+    }
     _cancelFling();
     // Stitch teleport is not a host jump — highlight stays armed through
     // dual-translate. Clearing here made navigate-select look like
@@ -2090,6 +2164,8 @@ class RenderChatScrollView extends RenderBox {
       });
     }
     final alignmentMoved = _applyNavigationAlignment();
+    final centerBandMoved = _applyNavigationCenterBand();
+    final navigationMoved = alignmentMoved || centerBandMoved;
     // Forcibly re-pin newest to the bottom edge when:
     // * follow-tail insert: viewport was at the tail and newest **id** advanced
     //   (new row lives below the previous bottomEdge), or
@@ -2161,11 +2237,12 @@ class RenderChatScrollView extends RenderBox {
     if (!stitchLayoutFrozen &&
         (clamped ||
             _controller.anchorMessageId != anchorBefore ||
-            alignmentMoved)) {
+            navigationMoved)) {
       _fetchAnchorEvent('layout.refan', {
         ..._fetchAnchorSnapshot(),
         'clamped': clamped,
         'alignmentMoved': alignmentMoved,
+        'centerBandMoved': centerBandMoved,
         'anchorIdChanged': _controller.anchorMessageId != anchorBefore,
       });
       built.clear();
@@ -2301,7 +2378,7 @@ class RenderChatScrollView extends RenderBox {
         'refan':
             clamped ||
             _controller.anchorMessageId != anchorBefore ||
-            alignmentMoved,
+            navigationMoved,
       });
     }
     _deleteCollapseViewportPreservedThisLayout = false;
@@ -4040,7 +4117,9 @@ class RenderChatScrollView extends RenderBox {
   void _onDragStart(DragStartDetails details) {
     // User takes control — attach/jump pending settle must not compete.
     _cancelPendingTailPin();
-    _controller.clearNavigationAlignment();
+    _controller
+      ..clearNavigationAlignment()
+      ..clearNavigationCenterBand();
     _cancelFling();
     // Drag takes over: fade navigate-select if a flight or hold is live.
     _cancelAnimate();
@@ -4390,7 +4469,11 @@ class RenderChatScrollView extends RenderBox {
       _cancelFling();
       _drag?.addPointerPanZoom(event);
     } else if (event is PointerScrollEvent) {
+      // Same user-preemption as drag: open-at-newest / lazy-load pending tail
+      // pin must not yank wheel deltas back to the bottom edge.
+      _cancelPendingTailPin();
       _cancelFling();
+      _cancelAnimate();
       _markScrollActive();
       _pendingScrollDelta -= event.scrollDelta.dy;
       _ensureTicker();
@@ -4491,15 +4574,16 @@ class RenderChatScrollView extends RenderBox {
     }
   }
 
-  // --- Visible range publishing --------------------------------------------
+  // --- Visible range / Center Band publishing ------------------------------
 
   /// Push the current first/last on-screen ids + anchor id to the controller's
-  /// `visibleRange` listenable, and update its `isAtTail` flag. Called after
-  /// every layout and Tier-1 tick — O(visible children) of pure parent-data
-  /// reads.
+  /// `visibleRange` listenable, the Center Band under the mid-band ray, and
+  /// update its `isAtTail` flag. Called after every layout and Tier-1 tick —
+  /// O(visible children) of pure parent-data reads.
   void _publishControllerState() {
     _publishBoundaries();
     _publishVisibleRange();
+    _publishCenterBand();
     _publishNewestHeightSample();
     _publishIsAtTail();
   }
@@ -4782,6 +4866,50 @@ class RenderChatScrollView extends RenderBox {
       lastRow: lastRow,
       anchorNextRow: anchorNextRow,
     );
+  }
+
+  /// Push the Message under the fixed 50% paint-band ray to
+  /// [ChatScrollController.centerBand].
+  ///
+  /// Walks built message rows only (not floating header / chunk-error /
+  /// overlay). Hit test is `top <= rayY < bottom`;
+  /// [ChatCenterBand.offsetFromMessageTop] is `rayY - top`. Silent no-op when
+  /// the snapshot is unchanged within float tolerance.
+  void _publishCenterBand() {
+    if (_children.isEmpty) {
+      _controller.centerBand = null;
+      return;
+    }
+    final topEdge = _topPad;
+    final bottomEdge = size.height - _bottomPad;
+    final bandHeight = bottomEdge - topEdge;
+    if (bandHeight <= 0 || !bandHeight.isFinite) {
+      _controller.centerBand = null;
+      return;
+    }
+    final rayY = topEdge + bandHeight * 0.5;
+    for (final entry in _children.entries) {
+      final child = entry.value;
+      final childTop = _parentData(child).offset;
+      final childBottom = childTop + child.size.height;
+      if (childBottom <= topEdge) continue;
+      if (childTop >= bottomEdge) break;
+      if (childTop <= rayY && rayY < childBottom) {
+        final offset = rayY - childTop;
+        final current = _controller.centerBand.value;
+        if (current case final c?
+            when c.messageId == entry.key &&
+                _fractionsNearEqual(c.offsetFromMessageTop, offset)) {
+          return;
+        }
+        _controller.centerBand = ChatCenterBand(
+          messageId: entry.key,
+          offsetFromMessageTop: offset,
+        );
+        return;
+      }
+    }
+    _controller.centerBand = null;
   }
 
   // Note: `visitChildrenForSemantics` is intentionally NOT overridden to filter
