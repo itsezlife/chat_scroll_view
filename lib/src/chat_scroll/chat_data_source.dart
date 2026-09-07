@@ -383,7 +383,7 @@ abstract class ChatDataSource {
   /// Integrator edits MUST use this or [updateMessages] — never [upsertMessage]
   /// for user-driven content changes. Emits [UpdateMutation] so hosts can run
   /// edit transitions; the viewport expects the message child to **lerp its
-  /// reported height** during resize (see example `DemoMessageEditBody`) until
+  /// reported height** during resize (see example `DemoMessageMeta`) until
   /// a viewport-owned extent spring lands. No-op with debug assert when
   /// [message.id] is confirmed absent or staged.
   ///

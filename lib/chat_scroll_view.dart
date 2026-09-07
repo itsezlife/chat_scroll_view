@@ -5,8 +5,9 @@
 /// embedding [ChatScrollView].
 ///
 /// Host-facing helpers include [DatedMessage] (day separator + body),
-/// [ChatMessageBody] (in-bubble content + meta last-line packing), and
-/// [ChatBubbleMetrics] (theme + run → corner / padding resolvers).
+/// [ChatMessageBody] (in-bubble content + meta last-line packing),
+/// [ChatMessageChangeTransition] (edit morph: layout-final + paint deltas),
+/// and [ChatBubbleMetrics] (theme + run → corner / padding resolvers).
 library;
 
 export 'src/chat_scroll/animate_to_busy_policy.dart';
@@ -24,6 +25,7 @@ export 'src/chat_widgets/chat_bubble_metrics.dart';
 export 'src/chat_widgets/chat_dated_message.dart';
 export 'src/chat_widgets/chat_keyboard_shortcuts.dart';
 export 'src/chat_widgets/chat_message_body.dart';
+export 'src/chat_widgets/chat_message_change_transition.dart';
 export 'src/chat_widgets/chat_message_theme.dart';
 export 'src/chat_widgets/chat_scroll_theme.dart';
 export 'src/chat_widgets/chat_scroll_view.dart';
