@@ -27,6 +27,38 @@ class ChatEnterTopBanner {
   final bool isEdit;
 }
 
+/// Shell-owned field + IME handoff for a custom [ChatEnterView] input row.
+///
+/// [ChatEnterView] owns focus / soft-IME policy. A custom row must attach its
+/// [TextField] (or equivalent) to [focusNode] / [controller] and call
+/// [prepareKeyboardHandoff] on pointer-down before a panel→IME tap steals
+/// focus.
+@immutable
+class ChatEnterFieldHandle {
+  /// Creates a field handle.
+  const ChatEnterFieldHandle({
+    required this.controller,
+    required this.focusNode,
+    required this.prepareKeyboardHandoff,
+  });
+
+  /// Same controller passed to [ChatEnterView].
+  final TextEditingController controller;
+
+  /// Same focus node the shell listens to for IME suppress / show.
+  final FocusNode focusNode;
+
+  /// Arms one focus gain so IME-suppress does not hide the soft keyboard.
+  final VoidCallback prepareKeyboardHandoff;
+}
+
+/// Builds a custom input row under the glass island.
+///
+/// Receives the shell-owned [ChatEnterFieldHandle] so the row stays on the
+/// same focus / IME policy as [ChatEnterViewState].
+typedef ChatEnterInputBuilder =
+    Widget Function(BuildContext context, ChatEnterFieldHandle field);
+
 /// Floating input island (glass bubble).
 ///
 /// Transparent outer host — the painted shape is the 22dp-radius island with
@@ -51,6 +83,7 @@ class ChatEnterView extends StatefulWidget {
     this.onCancelEdit,
     this.maxWidth = 620,
     this.onFieldTapWhilePanelOpen,
+    this.inputBuilder,
     this.glassKey,
     super.key,
   });
@@ -107,6 +140,13 @@ class ChatEnterView extends StatefulWidget {
   /// (tap input → close panel, show IME).
   final VoidCallback? onFieldTapWhilePanelOpen;
 
+  /// Optional custom input row under the glass island.
+  ///
+  /// When null, builds the stock emoji / field / attach / send row.
+  /// When set, receives a [ChatEnterFieldHandle] bound to this view's
+  /// [controller] / [focusNode] and IME handoff.
+  final ChatEnterInputBuilder? inputBuilder;
+
   /// Default composer height (`DEFAULT_HEIGHT` / island paint height).
   static const double rowHeight = ChatInputMetrics.islandHeight;
 
@@ -116,12 +156,12 @@ class ChatEnterView extends StatefulWidget {
 
 /// State for [ChatEnterView].
 class ChatEnterViewState extends State<ChatEnterView> {
-  bool _hasText = false;
+  late final ValueNotifier<bool> _hasText;
 
   @override
   void initState() {
     super.initState();
-    _hasText = widget.controller.text.trim().isNotEmpty;
+    _hasText = ValueNotifier(widget.controller.text.trim().isNotEmpty);
     widget.controller.addListener(_onText);
     widget.focusNode.addListener(_onFocusChange);
   }
@@ -132,7 +172,7 @@ class ChatEnterViewState extends State<ChatEnterView> {
     if (!identical(oldWidget.controller, widget.controller)) {
       oldWidget.controller.removeListener(_onText);
       widget.controller.addListener(_onText);
-      _hasText = widget.controller.text.trim().isNotEmpty;
+      _hasText = ValueNotifier(widget.controller.text.trim().isNotEmpty);
     }
     if (oldWidget.emojiIconState != widget.emojiIconState &&
         _suppressSoftKeyboard) {
@@ -173,7 +213,9 @@ class ChatEnterViewState extends State<ChatEnterView> {
 
   void _onText() {
     final next = widget.controller.text.trim().isNotEmpty;
-    if (next != _hasText) setState(() => _hasText = next);
+    if (next == _hasText.value) return;
+    if (!mounted) return;
+    _hasText.value = next;
   }
 
   /// Arms one focus gain so IME-suppress does not hide the soft keyboard.
@@ -235,34 +277,44 @@ class ChatEnterViewState extends State<ChatEnterView> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: <Widget>[
-                if (widget.topBanner != null)
+                if (widget.topBanner case final banner?)
                   ChatEnterTopView(
-                    title: widget.topBanner!.title,
-                    subtitle: widget.topBanner!.subtitle,
-                    isEdit: widget.topBanner!.isEdit,
+                    title: banner.title,
+                    subtitle: banner.subtitle,
+                    isEdit: banner.isEdit,
                     onClose: widget.onTopBannerClose ?? () {},
                   ),
-                _InputRow(
-                  controller: widget.controller,
-                  focusNode: widget.focusNode,
-                  colors: colors,
-                  hintText: widget.hintText,
-                  emojiIconState: widget.emojiIconState,
-                  onEmojiPressed: widget.onEmojiPressed,
-                  onAttachPressed: widget.onAttachPressed,
-                  onSend: widget.onSend,
-                  onMicPressed: widget.onMicPressed,
-                  hasText: _hasText,
-                  sending: widget.sending,
-                  isEditing: widget.isEditing,
-                  onCancelEdit: widget.onCancelEdit,
-                  enabled: widget.enabled,
-                  onFieldTapWhilePanelOpen: widget.onFieldTapWhilePanelOpen,
-                  onPrepareKeyboardHandoff:
-                      widget.onFieldTapWhilePanelOpen == null
-                      ? null
-                      : prepareKeyboardHandoff,
-                ),
+                switch (widget.inputBuilder) {
+                  final build? => build(
+                    context,
+                    ChatEnterFieldHandle(
+                      controller: widget.controller,
+                      focusNode: widget.focusNode,
+                      prepareKeyboardHandoff: prepareKeyboardHandoff,
+                    ),
+                  ),
+                  null => _InputRow(
+                    controller: widget.controller,
+                    focusNode: widget.focusNode,
+                    colors: colors,
+                    hintText: widget.hintText,
+                    emojiIconState: widget.emojiIconState,
+                    onEmojiPressed: widget.onEmojiPressed,
+                    onAttachPressed: widget.onAttachPressed,
+                    onSend: widget.onSend,
+                    onMicPressed: widget.onMicPressed,
+                    hasText: _hasText,
+                    sending: widget.sending,
+                    isEditing: widget.isEditing,
+                    onCancelEdit: widget.onCancelEdit,
+                    enabled: widget.enabled,
+                    onFieldTapWhilePanelOpen: widget.onFieldTapWhilePanelOpen,
+                    onPrepareKeyboardHandoff:
+                        widget.onFieldTapWhilePanelOpen == null
+                        ? null
+                        : prepareKeyboardHandoff,
+                  ),
+                },
               ],
             ),
           ),
@@ -301,7 +353,7 @@ class _InputRow extends StatelessWidget {
   final VoidCallback? onAttachPressed;
   final VoidCallback? onSend;
   final VoidCallback? onMicPressed;
-  final bool hasText;
+  final ValueNotifier<bool> hasText;
   final bool sending;
   final bool isEditing;
   final VoidCallback? onCancelEdit;
@@ -372,12 +424,17 @@ class _InputRow extends StatelessWidget {
             icon: Icons.attach_file_rounded,
             onPressed: enabled ? onAttachPressed : null,
           ),
-          ChatEnterSendMicButton(
-            hasText: hasText,
-            onSend: onSend,
-            onMic: onMicPressed,
-            sending: sending,
-            isEditing: isEditing,
+          ValueListenableBuilder(
+            valueListenable: hasText,
+            builder: (context, hasText, child) {
+              return ChatEnterSendMicButton(
+                hasText: hasText,
+                onSend: onSend,
+                onMic: onMicPressed,
+                sending: sending,
+                isEditing: isEditing,
+              );
+            },
           ),
         ],
       ),
