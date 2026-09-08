@@ -30,10 +30,12 @@ class ChatEnterTopView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = ChatChromeTheme.of(context);
+    // Transparent — lives under [TelegramGlass]; an opaque panel fill would
+    // paint over the liquid glass for this strip.
     return SizedBox(
       height: barHeight,
       child: Material(
-        color: colors.messagePanelBackground,
+        type: MaterialType.transparency,
         child: Row(
           children: <Widget>[
             const SizedBox(width: 18),
