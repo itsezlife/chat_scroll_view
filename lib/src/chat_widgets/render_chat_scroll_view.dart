@@ -763,10 +763,18 @@ class RenderChatScrollView extends RenderBox {
 
   /// User or host cancelled mid-stitch — bake dual-translate at [snapshot.progress]
   /// into layout offsets so the viewport stays where it was painted, then refan.
+  ///
+  /// During [detach] (route pop while stitch is in flight) skip bake /
+  /// [markNeedsLayout]: the tree is leaving, and a host [LayoutBuilder] /
+  /// Overlay may still be inside `performLayout`.
   void _onStitchCancelled(StitchCancelSnapshot snapshot) {
     _chunkFetchScheduler.clearNavigationDestination();
     _pinTailOnJump = false;
     _pendingTailPinUntilSettled = false;
+    if (_detaching) {
+      _clearStitchCapture();
+      return;
+    }
     if (hasSize && snapshot.jumped && snapshot.measured) {
       _commitStitchAtProgress(snapshot);
     } else if (hasSize) {
@@ -779,6 +787,10 @@ class RenderChatScrollView extends RenderBox {
   /// Normal stitch completion — bake paint dy at final progress before clearing
   /// capture so outgoing rows do not snap back into the viewport for one frame.
   void _onStitchComplete(StitchCancelSnapshot snapshot) {
+    if (_detaching) {
+      _clearStitchCapture();
+      return;
+    }
     if (hasSize && snapshot.jumped && snapshot.measured) {
       _commitStitchAtProgress(snapshot);
     }
@@ -1431,59 +1443,68 @@ class RenderChatScrollView extends RenderBox {
         ..onUpdate = _onDragUpdate
         ..onEnd = _onDragEnd;
 
+  /// True while [detach] is running — stitch-cancel must not [markNeedsLayout]
+  /// (Overlay / host [LayoutBuilder] may be mid-`performLayout` during route pop).
+  bool _detaching = false;
+
   @override
   void detach() {
-    _cancelFling();
-    _controller.flingCancelSuppressesLongPress = false;
-    _flingCancelPointer = null;
-    _ticker?.dispose();
-    _ticker = null;
-    _chunkFetchScheduler.onDetach();
-    _pinTailOnJump = false;
-    _pendingTailPinUntilSettled = false;
-    _userPreemptedTailSettle = false;
-    _lastLaidOutBottomPad = null;
-    _bottomPadCompensationBase = null;
-    // Drop our listener first — cancelFetch notifies, and a `markNeedsLayout`
-    // on a detaching render object is brittle even if currently harmless.
-    // We do cancel the running fetch / retry timer here: the dominant case is
-    // a single viewport owning a single data source, and a viewport removal
-    // should not leave a background retry storm running. Consumers that
-    // share one source across viewports must reattach into a new viewport
-    // synchronously, or accept the cancelled fetch (it'll be re-armed by
-    // the new viewport's first layout).
-    _dataSource
-      ..removeDataListener(_onDataChanged)
-      ..removeBoundaryListener(_onBoundaryChanged)
-      ..removeMutationListener(_onMutation)
-      ..cancelFetch();
-    _controller
-      ..removeJumpListener(_onJump)
-      ..removeScrollByListener(_onScrollBy)
-      ..animator = null
-      // Mirror the controller-swap path: once no viewport is bound, the
-      // last-published state no longer reflects anything observable.
-      ..visibleRange = null
-      ..centerBand = null
-      ..isAtTail = false;
-    _cancelAnimate();
-    _bottomPadding?.removeListener(_onBottomPaddingChanged);
-    _topPadding?.removeListener(_onTopPaddingChanged);
-    _drag?.dispose();
-    _drag = null;
-    _selectionPointer?.dispose();
-    _selectionPointer = null;
-    super.detach();
-    // Detach children after super: `this` is now detached, so each child's
-    // `attached == parent.attached` invariant holds during child.detach().
-    for (final child in _children.values) {
-      child.detach();
+    _detaching = true;
+    try {
+      _cancelFling();
+      _controller.flingCancelSuppressesLongPress = false;
+      _flingCancelPointer = null;
+      _ticker?.dispose();
+      _ticker = null;
+      _chunkFetchScheduler.onDetach();
+      _pinTailOnJump = false;
+      _pendingTailPinUntilSettled = false;
+      _userPreemptedTailSettle = false;
+      _lastLaidOutBottomPad = null;
+      _bottomPadCompensationBase = null;
+      // Drop our listener first — cancelFetch notifies, and a `markNeedsLayout`
+      // on a detaching render object is brittle even if currently harmless.
+      // We do cancel the running fetch / retry timer here: the dominant case is
+      // a single viewport owning a single data source, and a viewport removal
+      // should not leave a background retry storm running. Consumers that
+      // share one source across viewports must reattach into a new viewport
+      // synchronously, or accept the cancelled fetch (it'll be re-armed by
+      // the new viewport's first layout).
+      _dataSource
+        ..removeDataListener(_onDataChanged)
+        ..removeBoundaryListener(_onBoundaryChanged)
+        ..removeMutationListener(_onMutation)
+        ..cancelFetch();
+      _controller
+        ..removeJumpListener(_onJump)
+        ..removeScrollByListener(_onScrollBy)
+        ..animator = null
+        // Mirror the controller-swap path: once no viewport is bound, the
+        // last-published state no longer reflects anything observable.
+        ..visibleRange = null
+        ..centerBand = null
+        ..isAtTail = false;
+      _cancelAnimate(fadeHighlight: false);
+      _bottomPadding?.removeListener(_onBottomPaddingChanged);
+      _topPadding?.removeListener(_onTopPaddingChanged);
+      _drag?.dispose();
+      _drag = null;
+      _selectionPointer?.dispose();
+      _selectionPointer = null;
+      super.detach();
+      // Detach children after super: `this` is now detached, so each child's
+      // `attached == parent.attached` invariant holds during child.detach().
+      for (final child in _children.values) {
+        child.detach();
+      }
+      for (final child in _chunkErrors.values) {
+        child.detach();
+      }
+      _floatingHeader?.detach();
+      _overlay?.detach();
+    } finally {
+      _detaching = false;
     }
-    for (final child in _chunkErrors.values) {
-      child.detach();
-    }
-    _floatingHeader?.detach();
-    _overlay?.detach();
   }
 
   @override

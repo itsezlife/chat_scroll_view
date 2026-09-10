@@ -78,6 +78,15 @@ this project is pre-1.0 and not strictly SemVer yet.
 
 ### Fixed
 
+- **Detach mid-stitch layout mutation.** Cancelling an in-flight far-path
+  stitch from `RenderChatScrollView.detach` (route pop / Overlay rebuild
+  while scroll-to-bottom or any stitch is flying) no longer calls
+  `markNeedsLayout` from `_onStitchCancelled` / `_onStitchComplete`. That
+  path asserted under a host `_RenderLayoutBuilder.performLayout` (“RenderObject
+  was mutated when none of its ancestors is actively performing layout”).
+  Detach still clears stitch capture and navigation pins without baking
+  dual-translate into a leaving tree.
+
 - **Selection chrome for disallowed ids.**
   `ChatSelectionController.selectionAllowed` returns
   [ChatSelectionAllowed] (`full` / `gutterOnly` / `none`, or custom
