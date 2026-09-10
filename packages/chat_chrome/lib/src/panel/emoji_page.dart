@@ -1130,26 +1130,30 @@ class EmojiPageState extends State<EmojiPage>
     );
   }
 
-  Widget? _emptySearchOverlay() {
-    if (!_catalogDataSource.isSearchEmpty) return null;
+  /// Empty-keyword placeholder. Always mounted while sticky search is wired so
+  /// inserting/removing it does not shift [Stack] slots and remount the field.
+  Widget _emptySearchOverlay() {
     final colors = ChatChromeTheme.of(context);
+    final show = _catalogDataSource.isSearchEmpty;
     return Positioned.fill(
       child: IgnorePointer(
-        child: Align(
-          alignment: Alignment.topCenter,
-          child: Padding(
-            padding: EdgeInsets.only(
-              top: EmojiSearchField.height + EmojiPage.searchEmptyPadTop,
-            ),
-            child: Text(
-              widget.searchEmptyLabel ?? 'No emoji found',
-              style: TextStyle(
-                color: colors.panelEmptyText,
-                fontSize: EmojiPage.searchEmptyFontSize,
-              ),
-            ),
-          ),
-        ),
+        child: show
+            ? Align(
+                alignment: Alignment.topCenter,
+                child: Padding(
+                  padding: EdgeInsets.only(
+                    top: EmojiSearchField.height + EmojiPage.searchEmptyPadTop,
+                  ),
+                  child: Text(
+                    widget.searchEmptyLabel ?? 'No emoji found',
+                    style: TextStyle(
+                      color: colors.panelEmptyText,
+                      fontSize: EmojiPage.searchEmptyFontSize,
+                    ),
+                  ),
+                ),
+              )
+            : const SizedBox.shrink(),
       ),
     );
   }
@@ -1313,7 +1317,10 @@ class EmojiPageState extends State<EmojiPage>
             },
           ),
         ),
-        ?_emptySearchOverlay(),
+        // With sticky search, always reserve this slot so empty↔hits does not
+        // remount the field (null-aware insert shifts Stack children).
+        if (_hasStickySearchOverlay || _catalogDataSource.isSearchEmpty)
+          _emptySearchOverlay(),
         ?_stickySearchOverlay(),
         if (showStrip)
           Positioned(

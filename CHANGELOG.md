@@ -78,6 +78,11 @@ this project is pre-1.0 and not strictly SemVer yet.
 
 ### Fixed
 
+- **Emoji search field focus on empty ↔ hits.** Sticky emoji search no longer
+  loses focus/cursor when keyword results flip between empty and non-empty.
+  The empty-results overlay keeps a stable [Stack] slot ahead of the search
+  field so null-aware insert/remove cannot remount [EmojiSearchField].
+
 - **Detach mid-stitch layout mutation.** Cancelling an in-flight far-path
   stitch from `RenderChatScrollView.detach` (route pop / Overlay rebuild
   while scroll-to-bottom or any stitch is flying) no longer calls
