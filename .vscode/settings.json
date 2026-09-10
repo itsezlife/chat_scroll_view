@@ -8,8 +8,6 @@
   "[typescript]": {
     "editor.defaultFormatter": "denoland.vscode-deno"
   },
-  "typescript.validate.enable": false,
-  "javascript.validate.enable": false,
   "[jsonc]": {
     "editor.defaultFormatter": "vscode.json-language-features"
   }

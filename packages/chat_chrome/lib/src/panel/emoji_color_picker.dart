@@ -193,6 +193,8 @@ class EmojiColorPickerSession {
     required Offset anchorGlobal,
     int initialSelection = 0,
   }) {
+    // OverlayEntry is outside the host ChatChromeTheme subtree.
+    final chromeColors = ChatChromeTheme.of(context);
     final completer = Completer<String?>();
     final overlay = Overlay.of(context);
     final size = MediaQuery.sizeOf(context);
@@ -220,15 +222,18 @@ class EmojiColorPickerSession {
     }
 
     entry = OverlayEntry(
-      builder: (context) {
+      builder: (overlayContext) {
         final arrowX = (anchorGlobal.dx - left).clamp(16.0, popupW - 16);
         return Positioned(
           left: left,
           top: top,
-          child: EmojiColorPicker(
-            base: base,
-            selection: selection,
-            arrowX: arrowX,
+          child: ChatChromeTheme(
+            colors: chromeColors,
+            child: EmojiColorPicker(
+              base: base,
+              selection: selection,
+              arrowX: arrowX,
+            ),
           ),
         );
       },
