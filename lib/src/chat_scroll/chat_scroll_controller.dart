@@ -98,8 +98,8 @@ final class ChatCenterBand {
       'offsetFromMessageTop: $offsetFromMessageTop)';
 }
 
-/// Delegate that performs actual scroll animations on behalf of
-/// [ChatScrollController.animateTo]. Implemented by [ChatAnimator] and bound
+/// Delegate that performs `animateTo` motion and Message highlight paint on
+/// behalf of [ChatScrollController]. Implemented by [ChatAnimator] and bound
 /// automatically when the widget mounts; consumers do not interact with this
 /// directly.
 abstract class ChatScrollAnimator {
@@ -137,16 +137,29 @@ abstract class ChatScrollAnimator {
 
   /// Cancels the in-flight [animate] without arming a highlight.
   void cancel();
+
+  /// Request Message highlight on [messageId] without changing Anchor origin.
+  ///
+  /// Replaces any previous request. Arms a solid wash when the row is a loaded
+  /// Message with a built child (same id restarts hold); otherwise defers
+  /// until layout/data make that row ready. Absent or error drops the request
+  /// (controller slot included) so bind cannot late-arm. [Duration.zero]
+  /// highlight duration on the bound viewport is a silent no-op.
+  void requestHighlight(int messageId);
+
+  /// Drop pending or armed Message highlight immediately (no fade).
+  void clearHighlight();
 }
 
 /// Scroll controller for [ChatScrollView].
 ///
 /// Owns anchor state and navigation: which message is the layout origin, its
-/// pixel offset, the jump / animate / Center Band apply entry points, deferred
-/// paint-band listenables ([visibleRange], [centerBand], [isAtTail]), and the
-/// typed event stream (drag, fling, jump). Conversation boundaries
-/// (`oldestKnownId`, `reachedOldest`, …) live on [ChatDataSource] — they
-/// describe the *data*, not the navigation.
+/// pixel offset, the jump / animate / Center Band apply entry points, the
+/// Message highlight request slot, deferred paint-band listenables
+/// ([visibleRange], [centerBand], [isAtTail]), and the typed event stream
+/// (drag, fling, jump). Conversation boundaries (`oldestKnownId`,
+/// `reachedOldest`, …) live on [ChatDataSource] — they describe the *data*,
+/// not the navigation.
 ///
 /// Uses typed listeners instead of [ChangeNotifier] — subscribers know
 /// exactly what event occurred.
@@ -186,6 +199,11 @@ class ChatScrollController {
   /// `1.0` aligns the message bottom to the bottom inset. Boundary clamping may reduce the effective
   /// alignment when insufficient content exists above or below.
   ///
+  /// **Highlight**: default [highlight] is `false` — geometry only. Hosts
+  /// MUST treat that as a hard-clear of any leftover Message highlight
+  /// request (same as [jumpToCenterBand]). Pass `true` to write origin then
+  /// request [highlight] so the jump hard-clear cannot drop the wash.
+  ///
   /// **Absent-target behavior**: if [messageId] is confirmed absent after its
   /// owning chunk's fetch resolves (see `ChatMessageStatus.absent`), the
   /// navigation completes without error and the viewport renders no row at
@@ -195,7 +213,7 @@ class ChatScrollController {
   /// NOT assume the viewport moved to [messageId] — verify via
   /// `ChatDataSource.statusOf` before navigating, or navigate to the nearest
   /// known-present ID instead.
-  void jumpTo(int messageId, {double alignment = 0.0}) {
+  void jumpTo(int messageId, {double alignment = 0.0, bool highlight = false}) {
     if (_disposed) return;
     // Absent targets: the anchor id is updated below, but absent slots render
     // at zero height — the viewport does not scroll to a visible row at
@@ -205,7 +223,39 @@ class ChatScrollController {
     _anchorMessageId = messageId;
     _anchorPixelOffset = 0.0;
     _setNavigationAlignment(messageId, alignment);
+    if (!highlight) {
+      // Geometry jump drops leftover attention. Stitch-owned jumps still skip
+      // animator hard-clear in the viewport `_onJump`; the animator re-asserts
+      // its in-flight wash after teleport.
+      _requestedHighlightMessageId = null;
+    }
     _notifyJump(messageId);
+    if (highlight) {
+      this.highlight(messageId);
+    }
+  }
+
+  /// Request Message highlight on [messageId] without changing Anchor origin.
+  ///
+  /// One pending slot: a new call replaces any previous request. When the
+  /// viewport is bound, the animator arms a solid wash if [messageId] is a
+  /// loaded Message with a built child, otherwise defers until that row is
+  /// ready (layout / data — no pending ticker). Hold starts immediately when
+  /// already aligned (no extra motion). A same-id call while the row is on
+  /// screen restarts hold. If a wash is already painted on a different id,
+  /// that wash is hard-cleared then the new id is armed or deferred. Absent
+  /// or error drops the request (and this slot) so a later upsert cannot
+  /// late-arm.
+  ///
+  /// MUST NOT write Anchor origin — use [jumpTo] with `highlight: true`
+  /// (or [jumpTo] then this) when first layout must fan out from [messageId].
+  /// MUST NOT notify jump or scroll listeners. Post-[dispose] calls MUST be
+  /// silent no-ops (they are). `highlightDuration: Duration.zero` on the view
+  /// still disables paint globally.
+  void highlight(int messageId) {
+    if (_disposed) return;
+    _requestedHighlightMessageId = messageId;
+    _animator?.requestHighlight(messageId);
   }
 
   /// Place the paint-band center-band ray at
@@ -227,7 +277,8 @@ class ChatScrollController {
   /// Emits the same jump listeners and [ChatProgrammaticJump] as [jumpTo].
   /// Pending band alignment from a prior [jumpTo] / [animateTo] is cleared —
   /// Center Band placement and fractional alignment are mutually exclusive
-  /// pending writers.
+  /// pending writers. Leftover Message highlight is hard-cleared — restore
+  /// is not attention (ADR 009). There is no highlight flag on this method.
   ///
   /// **Absent-target behavior**: same ADR 002 caution as [jumpTo] — navigation
   /// completes without error; absent slots have zero height and do not produce
@@ -239,6 +290,9 @@ class ChatScrollController {
     _anchorMessageId = messageId;
     _anchorPixelOffset = 0.0;
     _setNavigationCenterBand(messageId, offsetFromMessageTop);
+    // Restore is geometry-only (ADR 009) — leftover attention must not ride
+    // the Center Band apply.
+    _requestedHighlightMessageId = null;
     _notifyJump(messageId);
   }
 
@@ -292,6 +346,9 @@ class ChatScrollController {
   /// instead. To know "what's N viewport-heights away" the consumer needs
   /// the current viewport size, which the controller does not own — fold
   /// that into [pixels] at the call site.
+  ///
+  /// **Highlight**: matches user drag. An armed wash fades; a pending
+  /// request is hard-cleared so a later-built row cannot late-arm.
   void scrollBy(double pixels) {
     if (_disposed) return;
     if (pixels == 0.0 || !pixels.isFinite) return;
@@ -321,9 +378,10 @@ class ChatScrollController {
   /// Both paths use travel-scaled timing
   /// (`((travel / viewportHeight) + 1) * 200` ms, clamped 300–1300) with
   /// [Curves.easeOutQuint]. [duration] / [curve] are compatibility hints:
-  /// `duration ≤ 0` ⇒ instant [jumpTo] (no highlight); otherwise caller
-  /// duration is ignored so a tall close hop and a matching stitch feel alike.
-  /// Defaults (`300ms`, `easeOutQuint`) match that floor.
+  /// `duration ≤ 0` ⇒ instant [jumpTo] (no highlight while a viewport is
+  /// bound); otherwise caller duration is ignored so a tall close hop and a
+  /// matching stitch feel alike. Defaults (`300ms`, `easeOutQuint`) match
+  /// that floor.
   ///
   /// ## Alignment
   ///
@@ -340,9 +398,12 @@ class ChatScrollController {
   /// at flight start, holds through settle +
   /// [ChatScrollThemeData.highlightDuration] (default 1000ms), then fades
   /// ~300ms. Pass `false` for routine hops (e.g. return to tail). Use [jumpTo]
-  /// when both motion and tint are unwanted. `highlightDuration: Duration.zero`
-  /// on the view disables tint globally. Drag cancels motion and fades tint;
-  /// [jumpTo] / overlay hard-clear.
+  /// when both motion and tint are unwanted, or [highlight] to wash a row
+  /// without moving. `highlightDuration: Duration.zero` on the view disables
+  /// tint globally. Drag and [scrollBy] cancel motion and fade an armed wash
+  /// (pending is hard-cleared). Default [jumpTo] / overlay / controller swap /
+  /// [dispose] hard-clear. If no viewport is bound, [highlight] is forwarded
+  /// into the same [jumpTo] sugar (pre-mount open-at-message).
   ///
   /// ## Load policy
   ///
@@ -384,7 +445,7 @@ class ChatScrollController {
     final animator = _animator;
     if (animator == null) {
       _setNavigationAlignment(messageId, alignment);
-      jumpTo(messageId, alignment: alignment);
+      jumpTo(messageId, alignment: alignment, highlight: highlight);
       return AnimateToDisposition.accepted;
     }
     final align = alignment.clamp(0.0, 1.0);
@@ -403,6 +464,11 @@ class ChatScrollController {
       animator.cancel();
     }
     _setNavigationAlignment(messageId, alignment);
+    if (highlight) {
+      _requestedHighlightMessageId = messageId;
+    } else {
+      _requestedHighlightMessageId = null;
+    }
     final coalesce = duration > Duration.zero && sameTarget;
     if (!coalesce) {
       _emitScroll(ChatAnimateStart(messageId, duration));
@@ -431,9 +497,41 @@ class ChatScrollController {
 
   ChatScrollAnimator? _animator;
 
-  /// Bound by `RenderChatScrollView` on attach. Detach passes `null`.
+  /// Requested Message highlight id, or `null` when none. Survives detach /
+  /// reattach of the same controller; [dispose] clears it.
+  int? _requestedHighlightMessageId;
+
+  /// Bound by `RenderChatScrollView` on attach. Detach passes `null` and
+  /// does **not** clear [_requestedHighlightMessageId] — bind/reattach adopts
+  /// the stored request into the new animator.
   @internal
-  set animator(ChatScrollAnimator? value) => _animator = value;
+  set animator(ChatScrollAnimator? value) {
+    _animator = value;
+    switch ((value, _requestedHighlightMessageId)) {
+      case (final animator?, final id?):
+        animator.requestHighlight(id);
+      case _:
+        break;
+    }
+  }
+
+  /// Drop the stored Message highlight request when the target is confirmed
+  /// absent or error.
+  ///
+  /// Without this, bind/reattach would replay [_requestedHighlightMessageId]
+  /// into the animator and late-arm a wash after the row reappears. Pass
+  /// [messageId] so a newer request is not cleared by a stale drop. Silent
+  /// after [dispose].
+  @internal
+  void dropHighlightRequest([int? messageId]) {
+    if (_disposed) return;
+    switch (messageId) {
+      case final id? when _requestedHighlightMessageId != id:
+        return;
+      case _:
+        _requestedHighlightMessageId = null;
+    }
+  }
 
   // --- Visible range -------------------------------------------------------
 
@@ -711,9 +809,12 @@ class ChatScrollController {
     _jumpListeners.clear();
     _scrollListeners.clear();
     _scrollByListeners.clear();
-    // Drop the animator binding — a pending `await animator.animate(...)`
-    // from a previous `animateTo` returning after dispose must not mutate
-    // anchor state through a stale reference.
+    // Drop the animator binding and Message highlight slot — a pending
+    // `await animator.animate(...)` from a previous `animateTo` returning
+    // after dispose must not mutate anchor state through a stale reference,
+    // and a disposed navigator must not arm after teardown.
+    _requestedHighlightMessageId = null;
+    _animator?.clearHighlight();
     _animator = null;
     _visibleRange.dispose();
     _centerBand.dispose();

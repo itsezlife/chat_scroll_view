@@ -145,7 +145,7 @@ benefits (coordinated multi-sliver scroll, `SliverGrid`) are used.
 | `applyScrollDelta(delta)` | `anchorPixelOffset` only | No | Tick path, clamp pins, bottom-pad compensate |
 | `reassignAnchor(id, y)` | Both | No | Renormalize, nav-align, animator close-path |
 | `scrollBy(pixels)` | `anchorPixelOffset` | Yes → `markNeedsLayout` | Programmatic scroll |
-| `jumpTo(id, {alignment})` | id + offset `0` + alignment | Yes → `markNeedsLayout` | Navigation |
+| `jumpTo(id, {alignment, highlight})` | id + offset `0` + alignment | Yes → `markNeedsLayout` | Navigation; `highlight: true` requests wash |
 | `jumpToCenterBand(id, offset)` | id + pending Center Band apply | Yes → `markNeedsLayout` | Leave/reopen |
 
 Consumers (`_fanOutFromAnchor`, `_repositionFromAnchor`, paint) **must not**

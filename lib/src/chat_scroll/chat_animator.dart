@@ -108,8 +108,16 @@ enum ChatHighlightPhase {
 /// ## Highlight
 ///
 /// When `highlight: true`: arm solid at navigate start; hold clock starts /
-/// restarts at settle; then [kHighlightFadeDuration] fade. Drag/cancel fades;
-/// host [jumpTo] / overlay hard-clear. See `docs/architecture/11-animation-integration.md`.
+/// restarts at settle; then [kHighlightFadeDuration] fade. Host
+/// [ChatScrollController.highlight] / [ChatScrollController.jumpTo] with
+/// `highlight: true` request the same wash via the controller slot; bind
+/// adopts it. Drag / [ChatScrollController.scrollBy] fade an armed wash and
+/// hard-clear pending. Default host [jumpTo] / overlay / controller swap /
+/// dispose hard-clear. Detach without dispose keeps the slot so a
+/// same-controller remount can replay. Deferred pending does not keep the
+/// viewport ticker alive — arm from layout/data when the Message is loaded
+/// **and** a child exists. Absent or error drops pending and the controller
+/// slot (no late-arm). See `docs/architecture/11-animation-integration.md`.
 ///
 /// ## Tick integration
 ///
@@ -314,8 +322,8 @@ class ChatAnimator implements ChatScrollAnimator {
   /// Message id receiving the highlight overlay, or `null` when idle.
   int? highlightTargetId;
 
-  /// Highlight waiting for [isHighlightReady] — set when navigate starts
-  /// (or settles) before the target row is ready to paint.
+  /// Highlight waiting for [isHighlightReady] — set when a host request or
+  /// navigate starts before the target is a loaded Message with a built child.
   int? pendingHighlightTargetId;
 
   /// Current [ChatHighlightPhase] for the active overlay.
@@ -739,7 +747,14 @@ class ChatAnimator implements ChatScrollAnimator {
     // Mark jumped before jumpTo so a synchronous layout from jump listeners
     // can run stitch measure in the same turn.
     farAnimateJumped = true;
-    _controller.jumpTo(animateTargetId, alignment: animateAlignment);
+    // Forward the in-flight highlight flag so jumpTo does not drop the
+    // controller attention slot. `_onJump` still skips animator hard-clear
+    // for stitch-owned teleports; re-assert below covers pending rebuild.
+    _controller.jumpTo(
+      animateTargetId,
+      alignment: animateAlignment,
+      highlight: animateHighlight && highlightDuration > Duration.zero,
+    );
     // Re-assert select highlight after teleport. Host jumpTo clears tint;
     // stitch-owned jumps must not. Even when clear is skipped, the child may
     // be pending rebuild — pending arm until layout.
@@ -760,6 +775,18 @@ class ChatAnimator implements ChatScrollAnimator {
   /// armed, begins a fade (does not hard-clear).
   @override
   void cancel() => cancelAnimate();
+
+  /// Request Message highlight without changing Anchor origin.
+  ///
+  /// Replaces any previous pending/armed id. Hold starts immediately when no
+  /// animate is in flight (same id restarts hold). Silent no-op when
+  /// [highlightDuration] is [Duration.zero]. Pending arm does not start the
+  /// viewport ticker. Absent or error drops the request rather than deferring.
+  @override
+  void requestHighlight(int messageId) {
+    if (highlightDuration <= Duration.zero) return;
+    _requestHighlight(messageId, startHold: !isAnimating);
+  }
 
   /// Cancel the in-flight animation. See [cancel].
   ///
@@ -1053,7 +1080,14 @@ class ChatAnimator implements ChatScrollAnimator {
   }
 
   void _requestHighlight(int targetId, {required bool startHold}) {
-    if (_shouldDropPendingHighlight(targetId)) return;
+    if (_shouldDropPendingHighlight(targetId)) {
+      // Absent/error is a dropped request, not a defer. Clear any leftover
+      // wash and the controller slot so bind cannot late-arm if the id later
+      // becomes a real row.
+      _controller.dropHighlightRequest(targetId);
+      clearHighlight();
+      return;
+    }
     _startHoldWhenArmed = startHold;
     if (_isHighlightReady(targetId)) {
       _armHighlight(targetId, startHold: startHold);
@@ -1069,7 +1103,8 @@ class ChatAnimator implements ChatScrollAnimator {
         highlightHoldStartTime = null;
         highlightFadeStartTime = null;
       }
-      _ensureTicker();
+      // Do not start the viewport ticker for pending-only — arm from
+      // layout/data via [tryArmPendingHighlight].
     }
   }
 
@@ -1108,14 +1143,19 @@ class ChatAnimator implements ChatScrollAnimator {
     _markNeedsPaint();
   }
 
-  /// Arms a deferred highlight once the target message has loaded. Called from
-  /// the render object at the end of `performLayout` after chunk data may
-  /// have changed. Returns `true` when a highlight was started.
+  /// Arms a deferred highlight once the target is a loaded Message with a
+  /// built child. Called from the render object at the end of `performLayout`
+  /// after chunk data may have changed.
+  ///
+  /// Returns `true` when a highlight was started. Absent/error drops pending
+  /// and the controller slot so bind/reattach cannot late-arm. Unresolved
+  /// shimmer / missing child leaves pending in place — no ticker.
   bool tryArmPendingHighlight() {
     final id = pendingHighlightTargetId;
     if (id == null) return false;
     if (_shouldDropPendingHighlight(id)) {
       pendingHighlightTargetId = null;
+      _controller.dropHighlightRequest(id);
       return false;
     }
     if (!_isHighlightReady(id)) return false;
@@ -1143,11 +1183,13 @@ class ChatAnimator implements ChatScrollAnimator {
     _markNeedsPaint();
   }
 
-  /// Advance hold / fade by one tick. Returns `true` while overlay or pending
-  /// arm still needs the ticker.
+  /// Advance hold / fade by one tick. Returns `true` while an **armed**
+  /// overlay still needs the ticker. Pending-only MUST NOT keep the ticker
+  /// alive — arm from layout/data via [tryArmPendingHighlight].
   bool tickHighlight(Duration elapsed) {
     if (highlightTargetId == null) {
-      return pendingHighlightTargetId != null;
+      // Pending-only must not keep the ticker alive; layout/data arm later.
+      return false;
     }
     if (highlightDuration <= Duration.zero) {
       clearHighlight();
@@ -1191,6 +1233,7 @@ class ChatAnimator implements ChatScrollAnimator {
   ///
   /// [animated] true → [beginHighlightFade] (user drag / interrupt).
   /// false → immediate clear (jumpTo, overlay, new animate re-arm).
+  @override
   void clearHighlight({bool animated = false}) {
     if (animated) {
       beginHighlightFade();

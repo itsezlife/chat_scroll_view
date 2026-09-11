@@ -37,8 +37,8 @@ Fixed infinitesimal horizontal ray at 50% of the paint band (top inset → botto
 _Avoid_: Gaze ray, id-midpoint heuristic, thick center slab, host-configurable fraction (v1)
 
 **Center Band**:
-Leave/reopen reading position: the Message whose rect intersects the center-band ray, plus pixels from that message’s top to the ray. Not the Anchor origin.
-_Avoid_: Open Anchor, layout anchor pair, gaze, ChatCenterBandRestore
+Leave/reopen reading position: the Message whose rect intersects the center-band ray, plus pixels from that message’s top to the ray. Not the Anchor origin, and not a Message highlight.
+_Avoid_: Open Anchor, layout anchor pair, gaze, ChatCenterBandRestore, Message highlight
 
 **ChatCenterBand**:
 Public snapshot of a Center Band: `messageId` + `offsetFromMessageTop`. Live via deferred listenable on the scroll controller. Apply with `jumpToCenterBand` (ADR 009).
@@ -313,3 +313,11 @@ _Avoid_: Force stitch after timeout, shimmer dual-translate
 **Prefer-built navigation**:
 Same readiness rule as immediate navigation, plus a short chance for a row that is already entering the build range (self-insert / follow-tail) so close-path can win when near. Still never falls back to shimmer-stitch.
 _Avoid_: preferBuilt timeout → force stitch
+
+**Message highlight**:
+A transient attention wash on one present message row. Not membership in the selected set, and not a leave/reopen reading position.
+_Avoid_: Message selection, selected-fill, Center Band
+
+**Deferred highlight**:
+A Message highlight whose target row is not yet a loaded Message with a built child. Held until that row exists, or dropped when superseded, the id is absent/error, a host jump does not request highlight, or the user drags. No wall-clock TTL; arm is from layout/data, not a pending ticker.
+_Avoid_: Navigation load-gate, pending jump, pending Center Band, timeout TTL

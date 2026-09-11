@@ -360,10 +360,11 @@ class RenderChatScrollView extends RenderBox {
       _cancelFling();
       _cancelAnimate(fadeHighlight: false);
       _cancelOverscroll();
-      // Clear any leftover navigate highlight — its target id refers
-      // to a message position resolved against the old controller's anchor;
-      // painting it under the new controller would tint an arbitrary row.
+      // Hard-clear leftover wash and the old controller's attention slot.
+      // Swap is teardown of that navigator, not a same-controller rebuild —
+      // keeping the slot would late-arm if the old controller is rebound.
       _clearHighlight();
+      _controller.dropHighlightRequest();
       // Mid-drag controller swap: the new controller would otherwise see
       // `_dragInProgress=true` with no matching `ChatUserDragStart`, and
       // the next layout's `_clampBoundaries` would stay suspended.
@@ -1149,7 +1150,8 @@ class RenderChatScrollView extends RenderBox {
   /// Message id currently receiving the post-navigation highlight tint.
   int? get debugHighlightTargetId => _animator.highlightTargetId;
 
-  /// Message id waiting for its chunk to load before the highlight arms.
+  /// Message id waiting until it is a loaded Message with a built child
+  /// before the highlight arms.
   int? get debugPendingHighlightTargetId => _animator.pendingHighlightTargetId;
 
   /// Highlight animation progress in `0..1` for [debugHighlightTargetId].
@@ -2032,7 +2034,8 @@ class RenderChatScrollView extends RenderBox {
 
   void _onScrollBy(double delta) {
     _cancelFling();
-    _cancelAnimate();
+    _cancelAnimate(fadeHighlight: false);
+    _cancelHighlightForPan();
     _cancelOverscroll();
     // Drop any drag delta accumulated since the last tick: the controller
     // has already shifted the anchor by `delta`; applying the pending drag
@@ -2463,10 +2466,11 @@ class RenderChatScrollView extends RenderBox {
     _pendingScrollDelta = 0.0;
     _cancelFling();
     _cancelAnimate(fadeHighlight: false);
+    // Overlay owns the viewport — leftover wash and the controller slot
+    // must not survive. Paint-only clear would late-arm on remount.
     // The overlay-branch `_clearHighlight()` in `_onTick` is unreachable
-    // once the ticker has stopped — clear here so a highlight that was
-    // alive when the viewport entered overlay mode does not survive across
-    // the transition and tint a re-mounted target id on the next paint.
+    // once the ticker has stopped, so this layout path is the authority.
+    _controller.dropHighlightRequest();
     _clearHighlight();
     // Clear drag + bounceback state so that the next normal-mode layout's
     // `_clampBoundaries` is not silently suppressed by stale flags. The
@@ -3892,6 +3896,19 @@ class RenderChatScrollView extends RenderBox {
   void _clearHighlight({bool animated = false}) =>
       _animator.clearHighlight(animated: animated);
 
+  /// Drag and [ChatScrollController.scrollBy] cancel attention the same way:
+  /// drop the controller slot so a later-built row cannot late-arm, fade an
+  /// armed wash, hard-clear pending. Does not run on render detach — that
+  /// path keeps the slot so a same-controller remount can replay the request.
+  void _cancelHighlightForPan() {
+    _controller.dropHighlightRequest();
+    if (_animator.highlightTargetId != null) {
+      _clearHighlight(animated: true);
+    } else {
+      _clearHighlight();
+    }
+  }
+
   void _cancelAnimate({bool fadeHighlight = true}) {
     _animator.cancelAnimate(fadeHighlight: fadeHighlight);
   }
@@ -3926,6 +3943,7 @@ class RenderChatScrollView extends RenderBox {
       _pendingScrollDelta = 0.0;
       _cancelFling();
       _cancelAnimate(fadeHighlight: false);
+      _controller.dropHighlightRequest();
       _clearHighlight();
       _cancelOverscroll();
       _dragInProgress = false;
@@ -3945,7 +3963,7 @@ class RenderChatScrollView extends RenderBox {
     if (!hasScrollWork) {
       // Highlight-only frame: advance the fade and bail.
       if (_animator.tickHighlight(elapsed)) markNeedsPaint();
-      if (!_animator.hasHighlight) _stopTickerIfIdle();
+      if (_animator.highlightTargetId == null) _stopTickerIfIdle();
       return;
     }
 
@@ -4063,7 +4081,7 @@ class RenderChatScrollView extends RenderBox {
 
     if (!_physics.isFlinging &&
         !_animator.isAnimating &&
-        !_animator.hasHighlight &&
+        _animator.highlightTargetId == null &&
         !_stretch.isActive &&
         !_dragInProgress) {
       _stopTickerIfIdle();
@@ -4142,11 +4160,10 @@ class RenderChatScrollView extends RenderBox {
       ..clearNavigationAlignment()
       ..clearNavigationCenterBand();
     _cancelFling();
-    // Drag takes over: fade navigate-select if a flight or hold is live.
-    _cancelAnimate();
-    if (_animator.hasHighlight) {
-      _clearHighlight(animated: true);
-    }
+    // Drag takes over: cancel flight without a second highlight policy,
+    // then pan-clear (armed fades; pending hard-clears with the slot).
+    _cancelAnimate(fadeHighlight: false);
+    _cancelHighlightForPan();
     _stretch.onDragStart();
     _dragInProgress = true;
     _ensureTicker();
@@ -4325,8 +4342,7 @@ class RenderChatScrollView extends RenderBox {
     return ids;
   }
 
-  bool _isSelectable(int id) =>
-      _selectionController?.isSelectable(id) ?? true;
+  bool _isSelectable(int id) => _selectionController?.isSelectable(id) ?? true;
 
   /// Present loaded message under [local], ignoring selection-allowed.
   int? _presentMessageIdAt(Offset local) =>

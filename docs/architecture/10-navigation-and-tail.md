@@ -13,10 +13,11 @@ resource: lib/src/chat_scroll/chat_scroll_controller.dart
 
 | API                              | Anchor effect                                      | Notifications                                                                   |
 | -------------------------------- | -------------------------------------------------- | ------------------------------------------------------------------------------- |
-| `jumpTo(id, {alignment})`        | id = target, offset = `0`                          | Jump listeners + `ChatProgrammaticJump`                                         |
-| `jumpToCenterBand(id, offset)`   | id = target; layout places ray at msg top + offset | Jump listeners + `ChatProgrammaticJump`                                         |
+| `jumpTo(id, {alignment, highlight})` | id = target, offset = `0` | Jump listeners + `ChatProgrammaticJump`; `highlight: true` then requests wash |
+| `jumpToCenterBand(id, offset)`   | id = target; layout places ray at msg top + offset | Jump listeners + `ChatProgrammaticJump`; hard-clears highlight |
 | `scrollBy(px)`                   | offset += px                                       | ScrollBy listeners + `ChatProgrammaticScroll`; no-op if `px == 0` or non-finite |
-| `animateTo`                      | Animator drives; falls back to `jumpTo` if unbound | `ChatAnimateStart` / `ChatAnimateEnd`                                           |
+| `animateTo`                      | Animator drives; falls back to `jumpTo` (same `highlight` flag) if unbound | `ChatAnimateStart` / `ChatAnimateEnd`                                           |
+| `highlight(id)`                  | none (attention slot only)                         | None — animator paints/holds/fades when bound                                   |
 | `applyScrollDelta` (`@internal`) | offset += delta                                    | None (tick / clamp / pad)                                                       |
 | `reassignAnchor` (`@internal`)   | silent id + offset                                 | None (renormalize / align / animator)                                           |
 

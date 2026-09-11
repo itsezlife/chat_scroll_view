@@ -8,6 +8,21 @@ this project is pre-1.0 and not strictly SemVer yet.
 
 ### Added
 
+- **Message highlight for open-at-message.** `ChatScrollController.highlight(id)`
+  requests a one-slot attention wash without moving Anchor origin.
+  `jumpTo(..., highlight: true)` writes origin then requests highlight so the
+  jump hard-clear cannot drop the wash (default `highlight: false` stays
+  geometry-only). Unbound `animateTo` forwards the same flag into that sugar.
+  Deferred highlight waits until the Message is loaded **and** built (no TTL,
+  no pending-only ticker); absent/error drops the controller slot. Clear
+  matrix: replace on a new request; default `jumpTo` / `jumpToCenterBand` /
+  overlay / controller swap / dispose hard-clear; drag / `scrollBy` fade an
+  armed wash and hard-clear pending; same-controller detach/remount keeps the
+  request; stitch-owned jumps still do not steal in-flight navigate-select.
+  `jumpToCenterBand` stays without a highlight flag (ADR 009). See
+  `docs/architecture/11-animation-integration.md` and `CONTEXT.md`
+  (_Message highlight_, _Deferred highlight_).
+
 - **`ChatMessageChangeTransition`.** Message edit morph: layout jumps to the
   incoming settled size; background bounds animate via paint deltas
   (`ChatMessageChangeParams`); old/new text crossfade inside a clip of the
@@ -25,14 +40,14 @@ this project is pre-1.0 and not strictly SemVer yet.
   `jumpToCenterBand(messageId, offsetFromMessageTop)` — one layout navigation,
   not host-composed `jumpTo` + `scrollBy`. Anchor origin stays engine-only.
   Geometric ray hit (tall mid-bubble / mixed heights); same listener safety as
-  `visibleRange`. ADR 009 + `CONTEXT.md` (*Center Band*, *ChatCenterBand*).
+  `visibleRange`. ADR 009 + `CONTEXT.md` (_Center Band_, _ChatCenterBand_).
 
 - **KeyboardPanelController (chat_chrome).** Host-owned chrome source of truth
   for the keyboard-replacement panel: typed listeners for open / search / tab,
   `open` / `close` / `openSearch` / `closeSearch` / `selectTab` / `handleBack`,
   inset claim/release via [ChatBottomInsetController], projection into
   [KeyboardPanel] motion without GlobalKey on panel State. ADR 007 +
-  `docs/panel-catalog/CONTEXT.md` (*KeyboardPanel*, *KeyboardPanelController*).
+  `docs/panel-catalog/CONTEXT.md` (_KeyboardPanel_, _KeyboardPanelController_).
 
 - **Panel Catalog Viewport (sibling package).** Keyboard-panel emoji / stickers /
   GIFs get an extent-scroll paint-leaf engine instead of a forever-`SuperSliverList`
@@ -204,8 +219,11 @@ this project is pre-1.0 and not strictly SemVer yet.
 - **Navigate-select highlight.** With `highlight: true` (default), a full-width
   underlay arms at flight start, holds through settle +
   `ChatScrollThemeData.highlightDuration` (default 1s), then fades (~300ms).
-  Drag fades; `jumpTo` / overlay hard-clear. Stitch-owned teleports no longer
-  wipe the tint mid-flight. Bubble selected-fill stays host-owned.
+  Shares the controller attention slot with `highlight()` /
+  `jumpTo(highlight: true)`. Drag / `scrollBy` fade an armed wash and
+  hard-clear pending; default `jumpTo` / overlay / swap / dispose hard-clear.
+  Stitch-owned teleports no longer wipe the tint mid-flight. Bubble
+  selected-fill stays host-owned.
 
 ### Added
 
