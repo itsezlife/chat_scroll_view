@@ -1,6 +1,6 @@
 # ADR 010: Message selection precedes text selection
 
-**Status**: Accepted  
+**Status**: Superseded by [ADR 012](012-cross-platform-selection-policies.md)  
 **Date**: 2026-09-11
 
 Chat list text selection follows Telegram Android order: a long-press always enters **message selection** first (even on body text). **Text selection** is allowed only on an already-selected message, and only for that one **text selection subject** (entering text selection collapses the selected set to that id).
@@ -14,4 +14,4 @@ Exit is cause-split: dismiss text alone may leave the subject selected; successf
 - **Text-first long-press (span yield before any membership)** — rejected: contradicts Telegram chat (`checkTextSelection` requires selection background).
 - **Hybrid text→messages morph across bubble edges** — rejected: mixes two products; not Telegram chat list behavior.
 - **Cross-message character ranges in the chat list** — rejected for chat parity (article-style multi-body stays out of scope).
-- **Message-then-text with programmatic entry after yield** — accepted.
+- **Message-then-text with programmatic entry after yield** — accepted as the **mobile** entry path; see ADR 012 for cross-platform policy.

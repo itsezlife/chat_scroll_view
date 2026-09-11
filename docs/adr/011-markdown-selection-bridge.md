@@ -3,7 +3,7 @@
 **Status**: Accepted  
 **Date**: 2026-09-11
 
-The chat viewport core stays markdown-agnostic: it owns **message selection**, span gestures, and the **span yield** seam, and does not depend on a markdown engine. In-bubble **text selection** for markdown bodies is integrated via an optional bridge package (`chat_md_selection`) that depends on the viewport and a pinned markdown renderer fork, orchestrates yield → programmatic text entry, single-subject gating, and host chrome defaults (Copy / Select all).
+The chat viewport core stays markdown-agnostic: it owns **message selection**, span gestures, and the **span yield** seam, and does not depend on a markdown engine. In-bubble **text selection** for markdown bodies is integrated via an optional bridge package (`chat_md_selection`) that depends on the viewport and a pinned markdown renderer fork, orchestrates yield → programmatic text entry (and desktop direct entry under **selection policy**, ADR 012), single-subject gating, and host chrome defaults (Copy / Select all).
 
 Hosts that do not use markdown simply omit the bridge. Selectable bodies that want this path render through the markdown widget; plain-text dual stacks are out of scope for v1.
 

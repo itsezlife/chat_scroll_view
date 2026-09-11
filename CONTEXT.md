@@ -161,16 +161,20 @@ _Avoid_: Static package-only clustering, neighbor walks inside messageBuilder
 ### Selection
 
 **Message selection**:
-Membership of whole messages in the selected set. Enters on long-press before any text selection; independent of character ranges.
+Membership of whole messages in the selected set (multiselect chrome). Independent of character ranges; relationship to text selection is governed by **selection policy**.
 _Avoid_: Text selection (when meaning membership), character range, highlight
 
 **Text selection**:
-A character-range selection inside the body text of one already-selected message. Not membership in the selected set, and not a Message highlight.
-_Avoid_: Message selection, SelectableRegion, cross-message character range (chat list)
+A character-range selection inside the body text of one message. Not membership in the selected set, and not a Message highlight. How it is entered and whether it nests with message selection is **selection policy**.
+_Avoid_: Message selection, SelectableRegion, cross-message character range (chat list), already-selected-only (as a universal rule)
 
 **Text selection subject**:
-The single selected message that owns the active text selection. Entering text selection collapses the selected set to this id.
-_Avoid_: Gesture origin, document id, anchor
+The single message that owns the active character-range text selection. Under mobile policy it is also the collapsed selected-set member; under desktop/web policy it owns the range while the selected set is empty.
+_Avoid_: Gesture origin, document id, anchor, “the selected message” (as the only meaning)
+
+**Selection policy**:
+The product rules for how message selection and text selection enter, nest or exclude each other, dismiss, and behave on Copy (mobile vs desktop/web strategies). Not a pointer kind and not a platform import fork by itself.
+_Avoid_: TargetPlatform (as the domain name), theme, “Telegram order” (when meaning only Android)
 
 **Span chain**:
 The present-neighbor walk from the gesture origin to the current span hit. Absent, shimmer, and chunk-error slots are not on it.
