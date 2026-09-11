@@ -4,9 +4,11 @@ Optional bridge between chat **message selection** and markdown **text
 selection**. Register message bodies, pick a **selection policy**, and let the
 controller keep character ranges on one **text selection subject**.
 
-Mobile and desktop/web behave differently on entry and Copy. That split lives
-in [ChatMdSelectionPolicy]. This package does not show copy toasts.
-Listen for Copy success and show feedback in the app if you want it.
+Mobile and desktop/web differ on entry and Copy. That split lives in
+[ChatMdSelectionPolicy]. Mobile nests text under message selection; desktop
+arms markdown gestures for direct entry when message membership is empty and
+keeps the range after Copy. This package does not show copy toasts — listen
+for Copy success and show feedback in the app if you want it.
 
 ## Quick start
 

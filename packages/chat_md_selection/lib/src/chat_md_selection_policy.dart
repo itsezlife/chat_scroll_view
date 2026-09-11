@@ -50,6 +50,10 @@ sealed class ChatMdSelectionPolicy {
 }
 
 /// Mobile selection policy.
+///
+/// Message-then-text entry (span yield / Select text on an already-selected
+/// message); nested subject; dismiss-text keeps the subject selected; Copy
+/// success clears text and message mode. See ADR 012.
 final class ChatMdSelectionPolicy$Mobile implements ChatMdSelectionPolicy {
   /// Creates the mobile policy variant.
   const ChatMdSelectionPolicy$Mobile();
@@ -79,6 +83,10 @@ final class ChatMdSelectionPolicy$Mobile implements ChatMdSelectionPolicy {
 }
 
 /// Desktop / web selection policy.
+///
+/// Direct character-range entry without prior message membership; text-active
+/// and message membership are mutually exclusive; Copy writes the clipboard
+/// only and keeps the range; dismiss clears text. See ADR 012.
 final class ChatMdSelectionPolicy$Desktop implements ChatMdSelectionPolicy {
   /// Creates the desktop / web policy variant.
   const ChatMdSelectionPolicy$Desktop();

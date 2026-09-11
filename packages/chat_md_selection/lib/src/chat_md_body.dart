@@ -2,14 +2,16 @@ import 'package:chat_md_selection/src/chat_md_selection_controller.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_md/flutter_md.dart';
 
-/// Paints a registered markdown body; mounts a selection surface while
-/// [messageId] is selected so span yield can hit-test body text.
+/// Paints a registered markdown body; mounts a selection surface when
+/// [ChatMdSelectionController.exposesSelectionSurface] is true for
+/// [messageId].
 ///
-/// Character-range arming stays with
-/// [ChatMdSelectionController.isDocumentArmed] and
+/// Mobile: selected bodies mount for span-yield hit-testing. Desktop/web:
+/// registered bodies mount while message membership is empty so direct entry
+/// can hit-test. Character-range gestures stay gated by
+/// [ChatMdSelectionController.armsMarkdownGestures] /
 /// [ChatMdSelectionScope.enabled] — a mounted surface alone does not enable
-/// text-selection gestures. Resolves the model via
-/// [ChatMdSelectionController.bodyOf]. Call
+/// them. Resolves the model via [ChatMdSelectionController.bodyOf]. Call
 /// [ChatMdSelectionController.putBody] before paint; a missing body yields
 /// [SizedBox.shrink].
 class ChatMdBody extends StatelessWidget {

@@ -2,10 +2,12 @@ import 'package:chat_md_selection/src/chat_md_selection_controller.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_md/flutter_md.dart';
 
-/// Mounts [MarkdownSelectionScope] for [controller], enabled only while text
-/// selection is active.
+/// Mounts [MarkdownSelectionScope] for [controller], enabled when
+/// [ChatMdSelectionController.armsMarkdownGestures] is true.
 ///
-/// Place above [ChatMdBody] rows. Default toolbar Copy calls
+/// Mobile: inert until text selection is active. Desktop/web: armed for
+/// direct drag / double-click / keyboard entry while message membership is
+/// empty. Place above [ChatMdBody] rows. Default toolbar Copy calls
 /// [ChatMdSelectionController.copyTextSelection]; hosts that pass
 /// [contextMenuBuilder] own Copy handling.
 class ChatMdSelectionScope extends StatelessWidget {
@@ -77,7 +79,7 @@ class ChatMdSelectionScope extends StatelessWidget {
       builder: (context, _) {
         return MarkdownSelectionScope(
           controller: controller.markdownSelection,
-          enabled: controller.isTextSelectionActive,
+          enabled: controller.armsMarkdownGestures,
           focusNode: focusNode,
           selectionColor: selectionColor,
           contextMenuBuilder:

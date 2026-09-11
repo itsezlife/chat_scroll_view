@@ -1,8 +1,7 @@
 name: chat_md_selection
 description: >
-  Message-then-text selection for chat: register markdown bodies by Message ID,
-  keep character selection inert until entry, collapse membership to one
-  subject, and arm that document for ranges (Copy / Select all).
+  Markdown text selection bridge for chat: selection policy, span yield or direct entry, 
+  single-document character ranges.
 version: 0.1.0
 publish_to: none
 

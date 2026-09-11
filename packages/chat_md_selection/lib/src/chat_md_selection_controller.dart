@@ -8,8 +8,10 @@ import 'package:flutter_md/flutter_md.dart';
 /// character ranges for one **text selection subject**, under a
 /// [ChatMdSelectionPolicy].
 ///
-/// Entry, nesting, span-yield claim, and Copy-success effects come from
-/// [policy]. Hosts MUST NOT replace it while this controller is alive.
+/// Entry, nesting, span-yield claim, gesture arming, and Copy-success effects
+/// come from [policy]. [armsMarkdownGestures] is the SoT for
+/// [ChatMdSelectionScope.enabled]. Hosts MUST NOT replace [policy] while this
+/// controller is alive.
 final class ChatMdSelectionController implements Listenable {
   /// Creates a controller bound to [messageSelection].
   ///
@@ -68,8 +70,6 @@ final class ChatMdSelectionController implements Listenable {
   var _$hadTextRange = false;
 
   /// Whether character-range text selection is active for [textSelectionSubject].
-  ///
-  /// Also drives [ChatMdSelectionScope] gesture enablement.
   bool get isTextSelectionActive => _$active;
 
   /// Message ID of the active text selection, or null when inactive.
@@ -77,6 +77,19 @@ final class ChatMdSelectionController implements Listenable {
 
   /// Whether this controller has been [dispose]d.
   bool get isDisposed => _$disposed;
+
+  /// Whether [ChatMdSelectionScope] should enable markdown selection gestures.
+  ///
+  /// True while text selection is active, or under a policy that allows direct
+  /// text entry when message membership is empty (desktop/web). Mobile stays
+  /// inert until programmatic / span-yield entry. Hosts MUST NOT invent a
+  /// parallel enable flag — this is the single arming SoT for the scope.
+  bool get armsMarkdownGestures {
+    if (_$disposed) return false;
+    if (_$active) return true;
+    return policy.allowsTextEntryWithoutMessageSelection &&
+        messageSelection.selectedIds.isEmpty;
+  }
 
   /// Whether [messageId] is the armed text-selection subject in the document
   /// registry.
@@ -90,17 +103,20 @@ final class ChatMdSelectionController implements Listenable {
   /// Whether [ChatMdBody] should mount a markdown selection surface for
   /// [messageId].
   ///
-  /// While text selection is inactive: selected registered bodies (mobile) or
-  /// every registered body when [policy] allows entry without membership
-  /// (desktop), so yield / programmatic entry can hit-test. While active:
-  /// only the subject, so heal-registration cannot open cross-message
-  /// character ranges. Character-range gestures stay gated by
-  /// [isDocumentArmed] / [ChatMdSelectionScope.enabled].
+  /// While text-active: only the subject (blocks heal-registration from
+  /// opening cross-message ranges). While inactive under direct-entry policy
+  /// (desktop): every registered body only when message membership is empty,
+  /// so drag / double-click can start. While inactive under nested policy
+  /// (mobile): selected registered bodies for span-yield hit-testing.
+  /// Gestures stay gated by [armsMarkdownGestures] /
+  /// [ChatMdSelectionScope.enabled].
   bool exposesSelectionSurface(int messageId) {
     if (_$disposed) return false;
     if (!_bodies.containsKey(messageId)) return false;
     if (_$active) return _$subjectId == messageId;
-    if (policy.allowsTextEntryWithoutMessageSelection) return true;
+    if (policy.allowsTextEntryWithoutMessageSelection) {
+      return messageSelection.selectedIds.isEmpty;
+    }
     if (!messageSelection.isSelected(messageId)) return false;
     return true;
   }
@@ -192,6 +208,12 @@ final class ChatMdSelectionController implements Listenable {
     policy.applyEnterMembership(messageSelection, messageId);
     _syncArmedDocument();
     _notify();
+    // Heal from a still-mounted outgoing surface can re-register a neighbor
+    // before ChatMdBody clears its documentId on the next frame.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (_$disposed || !_$active || _$subjectId != messageId) return;
+      _syncArmedDocument();
+    });
 
     return switch (globalOffset) {
       null => _selectAllSubject(),
@@ -334,13 +356,68 @@ final class ChatMdSelectionController implements Listenable {
       }
       return;
     }
+    // Desktop/web: a gesture-created range while gestures are armed becomes
+    // exclusive text selection for that document.
+    if (armsMarkdownGestures) {
+      switch (markdownSelection.selection) {
+        case final sel? when !sel.isCollapsed:
+          final id = sel.base.documentId;
+          if (id case final int messageId when _bodies.containsKey(messageId)) {
+            _adoptGestureTextSelection(messageId);
+          }
+        case _:
+          break;
+      }
+      return;
+    }
     _pruneRegistryIfInactive();
+  }
+
+  /// Arms exclusive text mode from a markdown gesture range on [messageId].
+  ///
+  /// Collapses the document registry to the subject so heal-registered
+  /// neighbors cannot keep a cross-message character range. When the live
+  /// extent lies on another document, collapses onto [sel.base] before
+  /// [setDocuments] so validation does not wipe the selection entirely.
+  void _adoptGestureTextSelection(int messageId) {
+    // Mark active first so a selection write below re-enters the active path,
+    // not another adopt.
+    _$subjectId = messageId;
+    _$active = true;
+    policy.applyEnterMembership(messageSelection, messageId);
+
+    final sel = markdownSelection.selection;
+    if (sel != null && sel.extent.documentId != messageId) {
+      // Base is always the adopt subject; drop the foreign extent.
+      markdownSelection.selection = MarkdownSelection(
+        base: sel.base,
+        extent: sel.base,
+      );
+      _$hadTextRange = false;
+    } else {
+      _$hadTextRange = switch (sel) {
+        final s? when !s.isCollapsed => true,
+        _ => false,
+      };
+    }
+    _syncArmedDocument();
+    _notify();
+    // Scope rebuild can update still-mounted non-subject surfaces before their
+    // ChatMdBody turns documentId off; heal putDocument would re-open neighbors.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (_$disposed || !_$active || _$subjectId != messageId) return;
+      _syncArmedDocument();
+    });
   }
 
   /// Drops heal-registered documents while text selection is inactive so
   /// selected surfaces can hit-test without arming character ranges.
+  ///
+  /// Skipped while [armsMarkdownGestures] needs heal-registered documents for
+  /// direct desktop/web entry.
   void _pruneRegistryIfInactive() {
     if (_$disposed || _$active) return;
+    if (armsMarkdownGestures) return;
     if (markdownSelection.documentCount == 0 &&
         markdownSelection.selection == null) {
       return;
