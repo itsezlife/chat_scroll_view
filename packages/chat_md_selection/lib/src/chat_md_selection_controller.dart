@@ -6,27 +6,15 @@ import 'package:flutter_md/flutter_md.dart';
 
 /// Coordinates [ChatSelectionController] message membership with markdown
 /// character ranges for one **text selection subject**, under a
-/// [ChatMdSelectionPolicy] (ADR 012).
+/// [ChatMdSelectionPolicy].
 ///
 /// Entry, nesting, span-yield claim, and Copy-success effects come from
-/// [policy] — not platform checks in this orchestrator. Omit [policy] for
-/// [ChatMdSelectionPolicy.forPlatform]; hosts that need a fixed matrix MUST
-/// pass one. Construction wires [ChatSelectionController.spanYield]; hosts
-/// MUST NOT replace it while this controller is alive. Copy feedback UI stays
-/// app-side ([addCopySuccessListener] / [onCopySuccess]).
+/// [policy]. Hosts MUST NOT replace it while this controller is alive.
 final class ChatMdSelectionController implements Listenable {
   /// Creates a controller bound to [messageSelection].
   ///
-  /// Wires [ChatSelectionController.spanYield] to [shouldSpanYield] and
-  /// listens for claimed yields to enter text selection. Hosts MUST NOT
-  /// replace [ChatSelectionController.spanYield] while this controller is
-  /// alive; dispose clears the predicate when it still owns it.
-  ///
   /// When [markdownSelection] is omitted, a [MarkdownSelectionController] is
   /// created and disposed with this controller.
-  ///
-  /// [policy] defaults to [ChatMdSelectionPolicy.forPlatform]. [onCopySuccess]
-  /// is an optional host hook in addition to typed Copy-success listeners.
   ChatMdSelectionController({
     required this.messageSelection,
     ChatMdSelectionPolicy? policy,
@@ -97,8 +85,7 @@ final class ChatMdSelectionController implements Listenable {
   /// Selected non-subject bodies may mount a surface for yield hit-testing
   /// while inactive ([exposesSelectionSurface]); they MUST NOT stay in the
   /// armed document registry.
-  bool isDocumentArmed(int messageId) =>
-      _$active && _$subjectId == messageId;
+  bool isDocumentArmed(int messageId) => _$active && _$subjectId == messageId;
 
   /// Whether [ChatMdBody] should mount a markdown selection surface for
   /// [messageId].
