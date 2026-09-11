@@ -8,6 +8,13 @@ this project is pre-1.0 and not strictly SemVer yet.
 
 ### Added
 
+- **`chat_md_selection` package.** Message-then-text markdown selection against
+  `ChatSelectionController`: register bodies by Message ID, keep markdown
+  selection inert until `enterTextSelection`, collapse membership to the
+  text-selection subject, arm only that document, and start a word range at a
+  global point or select-all via an explicit enter (default Copy / Select all
+  chrome).
+
 - **Message highlight for open-at-message.** `ChatScrollController.highlight(id)`
   requests a one-slot attention wash without moving Anchor origin.
   `jumpTo(..., highlight: true)` writes origin then requests highlight so the

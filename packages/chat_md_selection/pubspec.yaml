@@ -1,0 +1,31 @@
+name: chat_md_selection
+description: >
+  Message-then-text selection for chat: register markdown bodies by Message ID,
+  keep character selection inert until entry, collapse membership to one
+  subject, and arm that document for ranges (Copy / Select all).
+version: 0.1.0
+publish_to: none
+
+environment:
+  sdk: ^3.11.0
+  flutter: ">=3.32.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  chat_scroll_view:
+    path: ../..
+    
+  # Markdown renderer.
+  flutter_md:
+    git:
+      url: https://github.com/itsezlife/md.git
+      ref: 1686337e1b55bc6288b59a9c13eed55c28b37ae5
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+
+flutter:
+  uses-material-design: true
