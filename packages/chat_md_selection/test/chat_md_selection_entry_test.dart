@@ -40,14 +40,17 @@ void main() {
 
   setUp(() {
     messages = ChatSelectionController();
-    controller = ChatMdSelectionController(messageSelection: messages);
+    controller = ChatMdSelectionController(
+      messageSelection: messages,
+      policy: const ChatMdSelectionPolicy.mobile(),
+    );
   });
 
   tearDown(() {
     controller.dispose();
   });
 
-  group('inert until text-selection entry', () {
+  group('inert until text-selection entry (mobile policy)', () {
     testWidgets('selected body exposes a surface but stays unarmed', (
       tester,
     ) async {

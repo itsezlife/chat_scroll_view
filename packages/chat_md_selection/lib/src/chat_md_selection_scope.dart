@@ -1,14 +1,13 @@
 import 'package:chat_md_selection/src/chat_md_selection_controller.dart';
-import 'package:flutter/widgets.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_md/flutter_md.dart';
 
-/// Exposes [ChatMdSelectionController.markdownSelection] and enables markdown
-/// selection gestures only while text selection is active.
+/// Mounts [MarkdownSelectionScope] for [controller], enabled only while text
+/// selection is active.
 ///
-/// Mount above [ChatMdBody] rows. Selected bodies may mount surfaces for span
-/// yield hit-testing while [enabled] stays false until
-/// [ChatMdSelectionController.enterTextSelection]. Rebuilds when the
-/// controller notifies.
+/// Place above [ChatMdBody] rows. Default toolbar Copy calls
+/// [ChatMdSelectionController.copyTextSelection]; hosts that pass
+/// [contextMenuBuilder] own Copy handling.
 class ChatMdSelectionScope extends StatelessWidget {
   /// Creates a scope driven by [controller].
   const ChatMdSelectionScope({
@@ -16,27 +15,26 @@ class ChatMdSelectionScope extends StatelessWidget {
     required this.child,
     this.focusNode,
     this.selectionColor,
-    this.contextMenuBuilder =
-        MarkdownSelectionScope.defaultContextMenuBuilder,
+    this.contextMenuBuilder,
     this.magnifierConfiguration,
     this.selectionControls,
     this.onSelectionChanged,
     super.key,
   });
 
-  /// Text-selection controller (arming + markdown SoT).
+  /// Text-selection controller.
   final ChatMdSelectionController controller;
 
   /// Subtree containing markdown bodies.
   final Widget child;
 
-  /// Focus node forwarded to [MarkdownSelectionScope]; null creates one.
+  /// Focus node for [MarkdownSelectionScope]; null creates one.
   final FocusNode? focusNode;
 
   /// Selection highlight color; null uses ambient theme defaults.
   final Color? selectionColor;
 
-  /// Toolbar builder. Defaults to adaptive Copy / Select all.
+  /// Toolbar builder; null uses [defaultContextMenuBuilder].
   final MarkdownSelectionContextMenuBuilder? contextMenuBuilder;
 
   /// Magnifier configuration for touch handle drags.
@@ -48,6 +46,30 @@ class ChatMdSelectionScope extends StatelessWidget {
   /// Called when the markdown selection changes.
   final ValueChanged<MarkdownSelection?>? onSelectionChanged;
 
+  /// Default toolbar: Copy → [ChatMdSelectionController.copyTextSelection].
+  static Widget defaultContextMenuBuilder(
+    BuildContext context,
+    MarkdownSelectionScopeState state,
+    ChatMdSelectionController controller,
+  ) {
+    final items = <ContextMenuButtonItem>[
+      for (final item in state.contextMenuButtonItems)
+        switch (item.type) {
+          ContextMenuButtonType.copy => ContextMenuButtonItem(
+            type: ContextMenuButtonType.copy,
+            onPressed: () {
+              controller.copyTextSelection();
+            },
+          ),
+          _ => item,
+        },
+    ];
+    return AdaptiveTextSelectionToolbar.buttonItems(
+      buttonItems: items,
+      anchors: state.contextMenuAnchors,
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return ListenableBuilder(
@@ -58,7 +80,10 @@ class ChatMdSelectionScope extends StatelessWidget {
           enabled: controller.isTextSelectionActive,
           focusNode: focusNode,
           selectionColor: selectionColor,
-          contextMenuBuilder: contextMenuBuilder,
+          contextMenuBuilder:
+              contextMenuBuilder ??
+              (context, state) =>
+                  defaultContextMenuBuilder(context, state, controller),
           magnifierConfiguration: magnifierConfiguration,
           selectionControls: selectionControls,
           onSelectionChanged: onSelectionChanged,

@@ -8,6 +8,15 @@ this project is pre-1.0 and not strictly SemVer yet.
 
 ### Added
 
+- **`chat_md_selection` selection policy (ADR 012).** Sealed
+  `ChatMdSelectionPolicy` (`mobile` / `desktop`) with host override and
+  `forPlatform` default (iOS/Android → mobile; desktop OSes + web → desktop).
+  `ChatMdSelectionController` delegates entry, nesting, span-yield claim, and
+  Copy-success effects to the policy. Mobile preserves message-then-text and
+  Copy-clears-mode; desktop clears membership on enter and keeps the range on
+  Copy. Copy success notifies typed listeners + optional `onCopySuccess`
+  (feedback UI stays app-side).
+
 - **`chat_md_selection` package.** Message-then-text markdown selection against
   `ChatSelectionController`: register bodies by Message ID, keep markdown
   selection inert until `enterTextSelection`, collapse membership to the
@@ -16,7 +25,11 @@ this project is pre-1.0 and not strictly SemVer yet.
   chrome). Owns `spanYield`: claims only when the id is already selected and
   the global point hits that body’s selectable text; the yield notify enters
   text selection. Selected bodies mount hit-test surfaces while inactive;
-  only the subject mounts a surface (and is armed) while text-active.
+  only the subject mounts a surface (and is armed) while text-active. Exit
+  matrix (mobile policy): dismiss text keeps the subject selected;
+  `copyTextSelection` / default toolbar Copy clears text and message
+  selection; clearing message selection clears text; entering on a new subject
+  moves the range and collapses membership.
 
 - **Message highlight for open-at-message.** `ChatScrollController.highlight(id)`
   requests a one-slot attention wash without moving Anchor origin.

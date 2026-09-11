@@ -1,31 +1,41 @@
 # chat_md_selection
 
-Message-then-text selection for chat lists: register markdown bodies by Message
-ID, keep character selection inert until entry, collapse membership to one
-**text selection subject**, arm that document only, and expose Copy / Select
-all via pinned `flutter_md`.
+Optional bridge between chat **message selection** and markdown **text
+selection**. Register message bodies, pick a **selection policy**, and let the
+controller keep character ranges on one **text selection subject**.
 
-## Contract
+Mobile and desktop/web behave differently on entry and Copy. That split lives
+in [ChatMdSelectionPolicy]. This package does not show copy toasts.
+Listen for Copy success and show feedback in the app if you want it.
 
-- Register bodies by Message ID; markdown selection gestures stay disabled until
-  [ChatMdSelectionController.enterTextSelection].
-- Construction owns [ChatSelectionController.spanYield]: yields only when the
-  id is already selected and the global point hits that message’s selectable
-  body text; the yield notify enters text selection at that point.
-- First long-press on glyphs of an unselected message never yields — message
-  selection / span still wins. Long-press on selected padding / chrome does not
-  yield (unselect span remains available).
-- Selected bodies mount a hit-test surface while text selection is inactive;
-  only the subject mounts a surface (and is armed) while text selection is
-  active.
-- Entry collapses message membership to the subject and arms only that
-  document for character ranges.
-- Leaving message selection clears text selection.
-- `flutter_md` is pinned by git commit SHA in `pubspec.yaml`.
+## Quick start
 
-## Usage
+```dart
+final messages = ChatSelectionController();
+final mdSelection = ChatMdSelectionController(
+  messageSelection: messages,
+  // Optional. Omit for ChatMdSelectionPolicy.forPlatform().
+  policy: const ChatMdSelectionPolicy.mobile(),
+  onCopySuccess: (text) {
+    // App-side feedback only.
+  },
+);
 
-Register bodies, wrap the subtree in [ChatMdSelectionScope], paint with
-[ChatMdBody]. Span yield is wired automatically; hosts may also call
-[ChatMdSelectionController.enterTextSelection] (with a global point, or without
-for select-all).
+// Per message body:
+mdSelection.putBody(messageId, Markdown.fromString(body));
+
+// In the tree:
+ChatMdSelectionScope(
+  controller: mdSelection,
+  child: ChatMdBody(
+    controller: mdSelection,
+    messageId: messageId,
+  ),
+);
+```
+
+Wrap the list in [ChatMdSelectionScope], paint rows with [ChatMdBody]. Span
+yield is wired at construction when the policy claims it. You can also call
+[ChatMdSelectionController.enterTextSelection] (with a global point for a word,
+or without for select-all). Default toolbar Copy goes through
+[ChatMdSelectionController.copyTextSelection].

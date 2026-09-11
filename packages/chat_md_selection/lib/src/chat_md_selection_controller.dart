@@ -1,27 +1,19 @@
+import 'package:chat_md_selection/src/chat_md_selection_policy.dart';
 import 'package:chat_scroll_view/chat_scroll_view.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_md/flutter_md.dart';
 
 /// Coordinates [ChatSelectionController] message membership with markdown
-/// character ranges for one **text selection subject**.
+/// character ranges for one **text selection subject**, under a
+/// [ChatMdSelectionPolicy] (ADR 012).
 ///
-/// ## Message-then-text order
-///
-/// Markdown selection stays inert until [enterTextSelection]. Construction
-/// owns [ChatSelectionController.spanYield] and a yield notify listener:
-/// [shouldSpanYield] claims only when [messageId] is already selected and
-/// [globalOffset] hits that message’s selectable body text; the notify then
-/// calls [enterTextSelection] at that point. First long-press on glyphs of an
-/// unselected message never yields — message selection / span still wins.
-///
-/// ## Surfaces vs arming
-///
-/// While text selection is inactive, selected messages expose a markdown
-/// selection surface so yield can hit-test body text. While text selection is
-/// active, only the subject exposes a surface. Only the subject is **armed**
-/// in the document registry ([isDocumentArmed]); heal-registration from other
-/// surfaces is pruned while inactive. Dropping the subject from message
-/// selection clears text selection.
+/// Entry, nesting, span-yield claim, and Copy-success effects come from
+/// [policy] — not platform checks in this orchestrator. Omit [policy] for
+/// [ChatMdSelectionPolicy.forPlatform]; hosts that need a fixed matrix MUST
+/// pass one. Construction wires [ChatSelectionController.spanYield]; hosts
+/// MUST NOT replace it while this controller is alive. Copy feedback UI stays
+/// app-side ([addCopySuccessListener] / [onCopySuccess]).
 final class ChatMdSelectionController implements Listenable {
   /// Creates a controller bound to [messageSelection].
   ///
@@ -32,10 +24,16 @@ final class ChatMdSelectionController implements Listenable {
   ///
   /// When [markdownSelection] is omitted, a [MarkdownSelectionController] is
   /// created and disposed with this controller.
+  ///
+  /// [policy] defaults to [ChatMdSelectionPolicy.forPlatform]. [onCopySuccess]
+  /// is an optional host hook in addition to typed Copy-success listeners.
   ChatMdSelectionController({
     required this.messageSelection,
+    ChatMdSelectionPolicy? policy,
+    this.onCopySuccess,
     MarkdownSelectionController? markdownSelection,
-  }) : _disposeMarkdown = switch (markdownSelection) {
+  }) : policy = policy ?? ChatMdSelectionPolicy.forPlatform(),
+       _disposeMarkdown = switch (markdownSelection) {
          null => true,
          _ => false,
        },
@@ -48,6 +46,15 @@ final class ChatMdSelectionController implements Listenable {
       ..addListener(_onMessageSelectionChanged);
     this.markdownSelection.addListener(_onMarkdownSelectionChanged);
   }
+
+  /// Active **selection policy** (entry, nesting, yield claim, Copy).
+  final ChatMdSelectionPolicy policy;
+
+  /// Optional host hook invoked after a successful Copy clipboard write.
+  ///
+  /// Receives the copied plain text. Prefer [addCopySuccessListener] when
+  /// multiple observers need the same event.
+  final ValueChanged<String>? onCopySuccess;
 
   /// Message-selection controller supplied at construction.
   final ChatSelectionController messageSelection;
@@ -62,11 +69,15 @@ final class ChatMdSelectionController implements Listenable {
 
   final Map<int, _BodyEntry> _bodies = <int, _BodyEntry>{};
   final List<VoidCallback> _listeners = <VoidCallback>[];
+  final List<ValueChanged<String>> _$copySuccessListeners =
+      <ValueChanged<String>>[];
 
   int? _$subjectId;
   var _$active = false;
   var _$disposed = false;
   var _$pruningRegistry = false;
+  var _$pendingWordSelect = false;
+  var _$hadTextRange = false;
 
   /// Whether character-range text selection is active for [textSelectionSubject].
   ///
@@ -92,15 +103,18 @@ final class ChatMdSelectionController implements Listenable {
   /// Whether [ChatMdBody] should mount a markdown selection surface for
   /// [messageId].
   ///
-  /// While text selection is inactive: every selected registered body, so
-  /// yield can hit-test. While active: only the subject, so heal-registration
-  /// cannot open cross-message character ranges. Character-range gestures
-  /// stay gated by [isDocumentArmed] / [ChatMdSelectionScope.enabled].
+  /// While text selection is inactive: selected registered bodies (mobile) or
+  /// every registered body when [policy] allows entry without membership
+  /// (desktop), so yield / programmatic entry can hit-test. While active:
+  /// only the subject, so heal-registration cannot open cross-message
+  /// character ranges. Character-range gestures stay gated by
+  /// [isDocumentArmed] / [ChatMdSelectionScope.enabled].
   bool exposesSelectionSurface(int messageId) {
     if (_$disposed) return false;
     if (!_bodies.containsKey(messageId)) return false;
-    if (!messageSelection.isSelected(messageId)) return false;
     if (_$active) return _$subjectId == messageId;
+    if (policy.allowsTextEntryWithoutMessageSelection) return true;
+    if (!messageSelection.isSelected(messageId)) return false;
     return true;
   }
 
@@ -139,15 +153,16 @@ final class ChatMdSelectionController implements Listenable {
   }
 
   /// Pure span-yield predicate: selected [messageId] whose selectable body
-  /// text contains [globalOffset].
+  /// text contains [globalOffset], when [policy] claims yield for text entry.
   ///
   /// MUST NOT start text selection or mutate membership. Wired to
   /// [ChatSelectionController.spanYield] at construction. Returns `false`
-  /// when disposed, [messageId] is not selected, no body is registered, or
-  /// the point misses that message’s mounted selectable text (padding /
-  /// chrome / another surface).
+  /// when disposed, [policy] does not claim yield, [messageId] is not
+  /// selected, no body is registered, or the point misses that message’s
+  /// mounted selectable text (padding / chrome / another surface).
   bool shouldSpanYield(int messageId, Offset globalOffset) {
     if (_$disposed) return false;
+    if (!policy.claimsSpanYieldForTextEntry) return false;
     if (!messageSelection.isSelected(messageId)) return false;
     if (!_bodies.containsKey(messageId)) return false;
     final hit = markdownSelection.positionForGlobal(
@@ -160,27 +175,34 @@ final class ChatMdSelectionController implements Listenable {
     };
   }
 
-  /// Enters text selection for an already-selected [messageId].
+  /// Enters text selection for [messageId] under [policy].
   ///
-  /// Collapses [messageSelection] to `{messageId}`, arms only that document,
-  /// and enables markdown selection chrome. With [globalOffset], selects the
-  /// word at that point after the next frame (surface attach). Without
-  /// [globalOffset], selects the entire subject body immediately.
+  /// Mobile: requires an already-selected [messageId], collapses membership
+  /// to that id, arms only that document. Desktop: allows entry without prior
+  /// membership and clears the selected set (exclusive). With [globalOffset],
+  /// selects the word at that point after the next frame (surface attach).
+  /// Without [globalOffset], selects the entire subject body immediately.
   ///
-  /// Returns `false` when disposed, [messageId] is not selected, no body is
-  /// registered, or (without [globalOffset]) select-all produced no range.
+  /// Returns `false` when disposed, entry is blocked by [policy] / missing
+  /// body, or (without [globalOffset]) select-all produced no range.
   /// Pre-arm failures leave prior text-selection state unchanged. With
   /// [globalOffset], a synchronous `true` means the subject is armed; the
   /// word range lands next frame (a miss clears the markdown range only).
   bool enterTextSelection(int messageId, {Offset? globalOffset}) {
     if (_$disposed) return false;
-    if (!messageSelection.isSelected(messageId)) return false;
+    if (!policy.allowsTextEntryWithoutMessageSelection &&
+        !messageSelection.isSelected(messageId)) {
+      return false;
+    }
     final entry = _bodies[messageId];
     if (entry == null) return false;
 
-    messageSelection.replaceSelectedIds(<int>{messageId});
+    // Arm before membership mutation so desktop clear does not look like
+    // "subject dropped while nested" to [_onMessageSelectionChanged].
     _$subjectId = messageId;
     _$active = true;
+    _$hadTextRange = false;
+    policy.applyEnterMembership(messageSelection, messageId);
     _syncArmedDocument();
     _notify();
 
@@ -200,7 +222,10 @@ final class ChatMdSelectionController implements Listenable {
 
   bool _scheduleWordAtGlobal(int messageId, Offset globalOffset) {
     // Word selection needs a mounted surface; arming notifies bodies first.
+    // Pending flag blocks dismiss-sync while the range is still null.
+    _$pendingWordSelect = true;
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      _$pendingWordSelect = false;
       if (_$disposed || !_$active || _$subjectId != messageId) return;
       final sel = markdownSelection.selectWordAtGlobal(globalOffset);
       if (sel == null) {
@@ -214,7 +239,8 @@ final class ChatMdSelectionController implements Listenable {
   /// Clears markdown text selection and disarms every document.
   ///
   /// Leaves [messageSelection] unchanged. Selected bodies may keep surfaces
-  /// for a later yield hit-test.
+  /// for a later yield hit-test. This is the dismiss-text exit (tap / Esc /
+  /// equivalent).
   void clearTextSelection() {
     if (_$disposed) return;
     if (!_$active && markdownSelection.selection == null) {
@@ -223,10 +249,57 @@ final class ChatMdSelectionController implements Listenable {
     }
     _$active = false;
     _$subjectId = null;
+    _$hadTextRange = false;
+    _$pendingWordSelect = false;
     markdownSelection
       ..clear()
       ..setDocuments(const <MarkdownDocumentRef>[]);
     _notify();
+  }
+
+  /// Copies the active plain-text range, then applies [policy] Copy-success
+  /// effects and notifies Copy-success observers.
+  ///
+  /// Places [MarkdownSelectionController.getText] on the clipboard when
+  /// non-empty, then [ChatMdSelectionPolicy.applyCopySuccess]. Returns
+  /// `false` when disposed, text selection is inactive, or there is no
+  /// non-empty range (state unchanged; no Copy-success notify).
+  Future<bool> copyTextSelection() async {
+    if (_$disposed || !_$active) return false;
+    final text = markdownSelection.getText();
+    if (text.isEmpty) return false;
+    await Clipboard.setData(ClipboardData(text: text));
+    policy.applyCopySuccess(
+      clearTextSelection: clearTextSelection,
+      clearMessageSelection: messageSelection.clear,
+    );
+    _notifyCopySuccess(text);
+    return true;
+  }
+
+  /// Registers [listener] for successful Copy (clipboard write completed).
+  ///
+  /// Dedup-on-add; snapshot dispatch. Payload is the copied plain text.
+  /// Silent when [copyTextSelection] returns `false`.
+  void addCopySuccessListener(ValueChanged<String> listener) {
+    if (_$disposed) return;
+    if (_$copySuccessListeners.contains(listener)) return;
+    _$copySuccessListeners.add(listener);
+  }
+
+  /// Removes a listener registered with [addCopySuccessListener].
+  void removeCopySuccessListener(ValueChanged<String> listener) {
+    _$copySuccessListeners.remove(listener);
+  }
+
+  void _notifyCopySuccess(String text) {
+    onCopySuccess?.call(text);
+    for (final cb in List<ValueChanged<String>>.of(
+      _$copySuccessListeners,
+      growable: false,
+    )) {
+      cb(text);
+    }
   }
 
   void _onSpanYielded(int messageId, Offset globalOffset) {
@@ -237,11 +310,19 @@ final class ChatMdSelectionController implements Listenable {
     if (_$disposed) return;
     if (_$active) {
       final subject = _$subjectId;
-      if (subject == null || !messageSelection.isSelected(subject)) {
+      if (policy.nestsTextSubjectInMessageSelection) {
+        if (subject == null || !messageSelection.isSelected(subject)) {
+          clearTextSelection();
+          return;
+        }
+        _syncArmedDocument();
+      } else if (messageSelection.selectedIds.isNotEmpty) {
+        // Exclusive: any message membership dismisses text.
         clearTextSelection();
         return;
+      } else {
+        _syncArmedDocument();
       }
-      _syncArmedDocument();
     } else {
       _pruneRegistryIfInactive();
     }
@@ -251,9 +332,22 @@ final class ChatMdSelectionController implements Listenable {
 
   void _onMarkdownSelectionChanged() {
     if (_$disposed || _$pruningRegistry) return;
-    if (!_$active) {
-      _pruneRegistryIfInactive();
+    if (_$active) {
+      // Tap/Esc dismiss clears a previously established range. A pending
+      // word-at-global (range still null) and a miss (never had a range) MUST
+      // NOT leave text-active mode via this path.
+      if (_$pendingWordSelect) return;
+      switch (markdownSelection.selection) {
+        case final sel? when !sel.isCollapsed:
+          _$hadTextRange = true;
+        case _ when _$hadTextRange:
+          clearTextSelection();
+        case _:
+          break;
+      }
+      return;
     }
+    _pruneRegistryIfInactive();
   }
 
   /// Drops heal-registered documents while text selection is inactive so
@@ -323,8 +417,11 @@ final class ChatMdSelectionController implements Listenable {
     markdownSelection.removeListener(_onMarkdownSelectionChanged);
     _$active = false;
     _$subjectId = null;
+    _$hadTextRange = false;
+    _$pendingWordSelect = false;
     _bodies.clear();
     _listeners.clear();
+    _$copySuccessListeners.clear();
     markdownSelection.clear();
     markdownSelection.setDocuments(const <MarkdownDocumentRef>[]);
     if (_disposeMarkdown) {
