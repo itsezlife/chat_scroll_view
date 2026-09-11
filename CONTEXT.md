@@ -161,8 +161,16 @@ _Avoid_: Static package-only clustering, neighbor walks inside messageBuilder
 ### Selection
 
 **Message selection**:
-Membership of whole messages in the selected set. This viewport’s only selection model.
-_Avoid_: Text selection, character range, highlight
+Membership of whole messages in the selected set. Enters on long-press before any text selection; independent of character ranges.
+_Avoid_: Text selection (when meaning membership), character range, highlight
+
+**Text selection**:
+A character-range selection inside the body text of one already-selected message. Not membership in the selected set, and not a Message highlight.
+_Avoid_: Message selection, SelectableRegion, cross-message character range (chat list)
+
+**Text selection subject**:
+The single selected message that owns the active text selection. Entering text selection collapses the selected set to this id.
+_Avoid_: Gesture origin, document id, anchor
 
 **Span chain**:
 The present-neighbor walk from the gesture origin to the current span hit. Absent, shimmer, and chunk-error slots are not on it.
@@ -189,7 +197,7 @@ A viewport-owned pointer sequence that holds a selection span: long-press on a p
 _Avoid_: Selection drag, paint gesture, range drag, per-row detector
 
 **Span yield**:
-A host claim on the long-press that prevents a span gesture from starting. The seam for a future in-bubble text selector; unused until that selector exists.
+A host claim on a long-press at a global point that prevents a span gesture from starting. Used so text selection can begin on body text of an already-selected message; the viewport does not forward the gesture — it notifies the claim, and the host starts text selection programmatically.
 _Avoid_: Arena win, text selection (as the name of this seam)
 
 **Span abort**:
@@ -233,8 +241,8 @@ _Avoid_: overflow, limit error
 ### Message menu
 
 **Message menu**:
-A modal overlay over one present message: dimmed scrim with that message left undimmed, optional reactions, and an action list. Mutually exclusive with message selection. Not overlay chrome.
-_Avoid_: Context menu, overlay chrome, popup, action sheet
+A modal overlay over one present message: dimmed scrim with that message left undimmed, optional reactions, and an action list. Mutually exclusive with message selection (and therefore with text selection nested under it). Not overlay chrome.
+_Avoid_: Context menu, overlay chrome, popup, action sheet, text selection toolbar
 
 **Idle message tap**:
 A tap on a present message slot while message selection is inactive. The hit is the full laid-out row, not bubble ink and not the list background. It identifies the message id, that slot’s rect, and the tap position. Independent of selection-allowed.

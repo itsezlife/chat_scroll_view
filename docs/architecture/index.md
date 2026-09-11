@@ -71,6 +71,8 @@ build exclusion**, **§19 band-stable delete recovery**, and **§20 short conten
 * [ADR 002: Position Model](../adr/002-position-model.md)
 * [ADR 003: Viewport owns the span gesture](../adr/003-viewport-owned-span-gesture.md)
 * [ADR 004: Host presents the message menu](../adr/004-host-presents-message-menu.md)
+* [ADR 010: Message selection precedes text selection](../adr/010-message-then-text-selection.md)
+* [ADR 011: Markdown text selection bridge package](../adr/011-markdown-selection-bridge.md)
 
 ## How to use this when implementing features
 

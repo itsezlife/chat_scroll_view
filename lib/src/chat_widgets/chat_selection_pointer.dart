@@ -8,16 +8,17 @@ import 'package:flutter/services.dart';
 ///
 /// Message rows must not attach competing detectors. A host
 /// [ChatSelectionController.spanYield] that returns `true` claims the
-/// long-press so selection does not start. After an unclaimed long-press,
-/// polarity is locked at start: an unselected origin starts a select span;
-/// a selected origin toggles off and starts an unselect span. A null span
-/// hit freezes the far end. Emptying the selected set does not end the
-/// span — auto-scroll stays live until lift or cancel — but membership
-/// stays empty; the live span does not paint new ids.
-/// Pointer position during a live span is exposed so the viewport can
-/// auto-scroll as the sole origin writer while the pointer sits in an
-/// edge band. [abortSpan] ends the session without clearing the selected
-/// set — used when the gesture origin becomes absent.
+/// long-press at its global point: no span starts and membership does not
+/// change from that press; [ChatSelectionController.addSpanYieldedListener]
+/// is notified. After an unclaimed long-press, polarity is locked at start:
+/// an unselected origin starts a select span; a selected origin toggles off
+/// and starts an unselect span. A null span hit freezes the far end.
+/// Emptying the selected set does not end the span — auto-scroll stays live
+/// until lift or cancel — but membership stays empty; the live span does
+/// not paint new ids. Pointer position during a live span is exposed so the
+/// viewport can auto-scroll as the sole origin writer while the pointer sits
+/// in an edge band. [abortSpan] ends the session without clearing the
+/// selected set — used when the gesture origin becomes absent.
 class ChatSelectionPointer {
   /// Creates recognizers owned by [debugOwner] (the viewport render object).
   ChatSelectionPointer({required this.debugOwner});
@@ -148,7 +149,7 @@ class ChatSelectionPointer {
             debugOwner: debugOwner,
             duration: ChatSelectionMetrics.longPressTimeout,
           )
-          ..onLongPress = _onLongPress
+          ..onLongPressStart = _onLongPressStart
           ..onLongPressMoveUpdate = _onLongPressMoveUpdate
           ..onLongPressEnd = (_) {
             _clearSpan();
@@ -157,12 +158,12 @@ class ChatSelectionPointer {
     _tap ??= TapGestureRecognizer(debugOwner: debugOwner)..onTap = _onTap;
   }
 
-  void _onLongPress() {
+  void _onLongPressStart(LongPressStartDetails details) {
     if (flingCancelSuppresses?.call() ?? false) return;
     final id = _pointerDownId;
     final selection = this.selection;
     if (id == null || selection == null) return;
-    if (selection.spanYield?.call(id) ?? false) return;
+    if (selection.claimSpanYield(id, details.globalPosition)) return;
     if (!selection.isSelectable(id)) return;
     HapticFeedback.vibrate();
     final polarity = selection.isSelected(id)

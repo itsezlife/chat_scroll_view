@@ -125,36 +125,153 @@ void main() {
       expect(selection.count, 1);
     });
 
-    testWidgets('span yield claiming the long-press leaves selection empty', (
-      tester,
-    ) async {
-      const count = 32;
-      final controller = ChatScrollController()..jumpTo(count - 1);
-      final claimed = <int>[];
-      final selection = ChatSelectionController()
-        ..spanYield = (id) {
-          claimed.add(id);
-          return true;
-        };
-      addTearDown(controller.dispose);
-      addTearDown(selection.dispose);
+    testWidgets(
+      'span yield claim passes global offset and notifies once without selecting',
+      (tester) async {
+        const count = 32;
+        const id = count - 1;
+        final controller = ChatScrollController()..jumpTo(id);
+        final predicateArgs = <(int, Offset)>[];
+        final notified = <(int, Offset)>[];
+        final selection = ChatSelectionController();
+        selection
+          ..addSpanYieldedListener((messageId, globalOffset) {
+            notified.add((messageId, globalOffset));
+          })
+          ..spanYield = (messageId, globalOffset) {
+            predicateArgs.add((messageId, globalOffset));
+            return true;
+          };
+        addTearDown(controller.dispose);
+        addTearDown(selection.dispose);
 
-      await tester.pumpWidget(
-        _harness(
-          dataSource: _LoadedSource([for (var i = 0; i < count; i++) _msg(i)]),
-          controller: controller,
-          selection: selection,
-        ),
-      );
-      await tester.pump();
+        await tester.pumpWidget(
+          _harness(
+            dataSource: _LoadedSource([for (var i = 0; i < count; i++) _msg(i)]),
+            controller: controller,
+            selection: selection,
+          ),
+        );
+        await tester.pump();
 
-      await tester.longPress(find.text('msg-${count - 1}'));
-      await tester.pumpAndSettle();
+        final target = find.text('msg-$id');
+        final expectedGlobal = tester.getCenter(target);
+        await tester.longPress(target);
+        await tester.pumpAndSettle();
 
-      expect(claimed, [count - 1]);
-      expect(selection.isSelectionMode, isFalse);
-      expect(selection.count, 0);
-    });
+        expect(predicateArgs, [(id, expectedGlobal)]);
+        expect(notified, [(id, expectedGlobal)]);
+        expect(selection.isSelectionMode, isFalse);
+        expect(selection.count, 0);
+      },
+    );
+
+    testWidgets(
+      'unclaimed span yield on an unselected message still starts select span',
+      (tester) async {
+        const count = 32;
+        const id = count - 1;
+        final controller = ChatScrollController()..jumpTo(id);
+        final notified = <(int, Offset)>[];
+        final selection = ChatSelectionController();
+        selection
+          ..addSpanYieldedListener((messageId, globalOffset) {
+            notified.add((messageId, globalOffset));
+          })
+          ..spanYield = (messageId, globalOffset) => false;
+        addTearDown(controller.dispose);
+        addTearDown(selection.dispose);
+
+        await tester.pumpWidget(
+          _harness(
+            dataSource: _LoadedSource([for (var i = 0; i < count; i++) _msg(i)]),
+            controller: controller,
+            selection: selection,
+          ),
+        );
+        await tester.pump();
+
+        await tester.longPress(find.text('msg-$id'));
+        await tester.pumpAndSettle();
+
+        expect(notified, isEmpty);
+        expect(selection.isSelectionMode, isTrue);
+        expect(selection.isSelected(id), isTrue);
+      },
+    );
+
+    testWidgets(
+      'claimed yield on a selected message does not start an unselect span',
+      (tester) async {
+        const count = 32;
+        const id = count - 1;
+        final controller = ChatScrollController()..jumpTo(id);
+        final selection = ChatSelectionController();
+        addTearDown(controller.dispose);
+        addTearDown(selection.dispose);
+
+        await tester.pumpWidget(
+          _harness(
+            dataSource: _LoadedSource([for (var i = 0; i < count; i++) _msg(i)]),
+            controller: controller,
+            selection: selection,
+          ),
+        );
+        await tester.pump();
+
+        await tester.longPress(find.text('msg-$id'));
+        await tester.pumpAndSettle();
+        expect(selection.isSelected(id), isTrue);
+
+        final notified = <(int, Offset)>[];
+        selection
+          ..addSpanYieldedListener((messageId, globalOffset) {
+            notified.add((messageId, globalOffset));
+          })
+          ..spanYield = (messageId, globalOffset) => true;
+
+        final target = find.text('msg-$id');
+        final expectedGlobal = tester.getCenter(target);
+        await tester.longPress(target);
+        await tester.pumpAndSettle();
+
+        expect(notified, [(id, expectedGlobal)]);
+        expect(selection.isSelected(id), isTrue);
+        expect(selection.count, 1);
+      },
+    );
+
+    testWidgets(
+      'unclaimed yield on a selected message still starts an unselect span',
+      (tester) async {
+        const count = 32;
+        const id = count - 1;
+        final controller = ChatScrollController()..jumpTo(id);
+        final selection = ChatSelectionController()
+          ..spanYield = (messageId, globalOffset) => false;
+        addTearDown(controller.dispose);
+        addTearDown(selection.dispose);
+
+        await tester.pumpWidget(
+          _harness(
+            dataSource: _LoadedSource([for (var i = 0; i < count; i++) _msg(i)]),
+            controller: controller,
+            selection: selection,
+          ),
+        );
+        await tester.pump();
+
+        await tester.longPress(find.text('msg-$id'));
+        await tester.pumpAndSettle();
+        expect(selection.isSelected(id), isTrue);
+
+        await tester.longPress(find.text('msg-$id'));
+        await tester.pumpAndSettle();
+
+        expect(selection.isSelected(id), isFalse);
+        expect(selection.isSelectionMode, isFalse);
+      },
+    );
 
     testWidgets(
       'long-press through the pinned date header selects the message underneath',

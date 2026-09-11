@@ -1,9 +1,11 @@
 import 'dart:collection';
+import 'dart:ui' show Offset;
 
 import 'package:chat_scroll_view/src/chat_scroll/chat_selection_allowed.dart';
 import 'package:flutter/foundation.dart'
     show Listenable, ValueListenable, ValueNotifier, VoidCallback;
 import 'package:flutter/scheduler.dart';
+import 'package:meta/meta.dart' show internal;
 
 export 'package:chat_scroll_view/src/chat_scroll/chat_selection_allowed.dart';
 
@@ -159,12 +161,53 @@ class ChatSelectionController implements Listenable {
     bump();
   }
 
-  /// Host claim on a long-press that would start a span.
+  /// Host claim on a long-press that would start a span gesture.
   ///
-  /// Return `true` to claim the press: selection mode does not start and the
-  /// set stays empty. `null` (the default) never claims. This is the seam
-  /// for a future in-bubble text selector; unused until that selector exists.
-  bool Function(int messageId)? spanYield;
+  /// Called with the pressed [messageId] and the long-press **global** point.
+  /// Return `true` to claim: the viewport does not start a span and does not
+  /// change membership from that press. `null` (the default) never claims.
+  ///
+  /// MUST stay side-effect free — start text selection (or other host work)
+  /// from [addSpanYieldedListener], not here. The viewport keeps the
+  /// long-press; it does not forward the arena to a child.
+  bool Function(int messageId, Offset globalOffset)? spanYield;
+
+  final _spanYieldedListeners =
+      <void Function(int messageId, Offset globalOffset)>[];
+
+  /// Subscribe to a claimed [spanYield]. Payload matches the predicate call
+  /// that returned `true`. Dedup-on-add; snapshot dispatch.
+  ///
+  /// Notified only when the viewport claims via [claimSpanYield] — a bare
+  /// `true` from [spanYield] without that call does not notify. Post-
+  /// [dispose] claims are silent.
+  void addSpanYieldedListener(
+    void Function(int messageId, Offset globalOffset) listener,
+  ) {
+    if (_spanYieldedListeners.contains(listener)) return;
+    _spanYieldedListeners.add(listener);
+  }
+
+  /// Removes a listener registered with [addSpanYieldedListener].
+  void removeSpanYieldedListener(
+    void Function(int messageId, Offset globalOffset) listener,
+  ) => _spanYieldedListeners.remove(listener);
+
+  /// Runs [spanYield] at [globalOffset]. When claimed, notifies
+  /// [addSpanYieldedListener] once and returns `true`. Otherwise `false`.
+  ///
+  /// Viewport selection pointer only. Hosts MUST listen via
+  /// [addSpanYieldedListener] and start text selection from that notify —
+  /// do not call this to simulate entry.
+  @internal
+  bool claimSpanYield(int messageId, Offset globalOffset) {
+    if (_disposed) return false;
+    if (!(spanYield?.call(messageId, globalOffset) ?? false)) return false;
+    for (final cb in List.of(_spanYieldedListeners, growable: false)) {
+      cb(messageId, globalOffset);
+    }
+    return true;
+  }
 
   /// Host predicate: per-id membership and chrome grants.
   /// `null` (the default) is [ChatSelectionAllowed.full] for every
@@ -292,6 +335,7 @@ class ChatSelectionController implements Listenable {
     _disposed = true;
     _listeners.clear();
     _selectionAllowedListeners.clear();
+    _spanYieldedListeners.clear();
     _capHits.dispose();
     // Drop the set: a stale reference held by a consumer (e.g. a toolbar
     // queueing an undo) must not silently match unrelated ids in a fresh

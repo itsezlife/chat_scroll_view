@@ -11,9 +11,12 @@ How the engineering skills should consume this repo's domain documentation when 
 - **`docs/adr/`** — accepted policy:
   - [ADR 001: Message ID Scheme](../adr/001-message-id-scheme.md)
   - [ADR 002: Position Model](../adr/002-position-model.md)
+  - [ADR 003: Viewport owns the span gesture](../adr/003-viewport-owned-span-gesture.md) (Chat Scroll)
   - [ADR 005: Stitch far path with navigation load-gate](../adr/005-stitch-far-path-and-load-gate.md) (Chat Scroll)
   - [ADR 006: Panel Catalog Viewport](../adr/006-panel-catalog-viewport.md)
   - [ADR 009: Center Band vs Anchor origin](../adr/009-center-band.md) (Chat Scroll)
+  - [ADR 010: Message selection precedes text selection](../adr/010-message-then-text-selection.md) (Chat Scroll)
+  - [ADR 011: Markdown text selection bridge package](../adr/011-markdown-selection-bridge.md) (Chat Scroll)
 
 Feature specs under `specs/` are incremental contracts. They do not replace the architecture bundle.
 

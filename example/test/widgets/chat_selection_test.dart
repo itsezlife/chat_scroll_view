@@ -500,7 +500,8 @@ void main() {
     ) async {
       const count = 256;
       final controller = ChatScrollController()..jumpTo(count - 1);
-      final selection = ChatSelectionController()..spanYield = (id) => true;
+      final selection = ChatSelectionController()
+        ..spanYield = (id, globalOffset) => true;
       await tester.pumpWidget(
         _harness(
           dataSource: _PreloadedDataSource(_generate(count)),

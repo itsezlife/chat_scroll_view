@@ -175,6 +175,14 @@ this project is pre-1.0 and not strictly SemVer yet.
 
 ### Changed
 
+- **Breaking — span yield API.** `ChatSelectionController.spanYield` is now
+  `(int messageId, Offset globalOffset) → bool`. When it returns `true`, the
+  viewport does not start a span or change membership from that press, and
+  `addSpanYieldedListener` / `removeSpanYieldedListener` fire once with the
+  same payload (`claimSpanYield`). Predicate MUST stay side-effect free —
+  start text selection from the typed notify. See ADR 003 / CONTEXT
+  (_Span yield_).
+
 - **chat_chrome chrome API → `KeyboardPanel*`.** Public panel, allow, tab,
   labels, callbacks, bottom bar/actions, type-tabs pill rename from
   `EmojiPanel*`. Unicode page / glyph / `emoji_data` stay `Emoji*`. Prefs
@@ -303,10 +311,11 @@ this project is pre-1.0 and not strictly SemVer yet.
   Absent ids occupy no height and never join the chain. Holding in the edge
   band auto-scrolls as the sole origin writer (follow-tail and close-path
   animate yield); delta is zero when content fits or a boundary pin is active.
-  `ChatSelectionController.spanYield` can claim the long-press so a future
-  in-bubble text selector can win (unused until then). The pinned floating
-  date header is not a hit — tap and long-press go through to the message
-  underneath.
+  `ChatSelectionController.spanYield` claims a long-press at
+  `(messageId, globalOffset)`; when claimed, no span starts and
+  `addSpanYieldedListener` is notified so the host can start text
+  selection programmatically. The pinned floating date header is not a
+  hit — tap and long-press go through to the message underneath.
 
 - **Selection-allowed and span abort** — optional
   `ChatSelectionController.selectionAllowed` (default `null` =
