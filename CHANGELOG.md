@@ -13,7 +13,10 @@ this project is pre-1.0 and not strictly SemVer yet.
   selection inert until `enterTextSelection`, collapse membership to the
   text-selection subject, arm only that document, and start a word range at a
   global point or select-all via an explicit enter (default Copy / Select all
-  chrome).
+  chrome). Owns `spanYield`: claims only when the id is already selected and
+  the global point hits that body’s selectable text; the yield notify enters
+  text selection. Selected bodies mount hit-test surfaces while inactive;
+  only the subject mounts a surface (and is armed) while text-active.
 
 - **Message highlight for open-at-message.** `ChatScrollController.highlight(id)`
   requests a one-slot attention wash without moving Anchor origin.

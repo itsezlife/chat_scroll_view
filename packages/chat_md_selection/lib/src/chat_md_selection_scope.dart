@@ -5,7 +5,10 @@ import 'package:flutter_md/flutter_md.dart';
 /// Exposes [ChatMdSelectionController.markdownSelection] and enables markdown
 /// selection gestures only while text selection is active.
 ///
-/// Mount above [ChatMdBody] rows. Rebuilds when the controller notifies.
+/// Mount above [ChatMdBody] rows. Selected bodies may mount surfaces for span
+/// yield hit-testing while [enabled] stays false until
+/// [ChatMdSelectionController.enterTextSelection]. Rebuilds when the
+/// controller notifies.
 class ChatMdSelectionScope extends StatelessWidget {
   /// Creates a scope driven by [controller].
   const ChatMdSelectionScope({

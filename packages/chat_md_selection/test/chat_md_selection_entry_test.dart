@@ -7,6 +7,7 @@ import 'package:flutter_test/flutter_test.dart';
 Widget _harness({
   required ChatMdSelectionController controller,
   required List<int> messageIds,
+  EdgeInsets bodyPadding = EdgeInsets.zero,
 }) {
   return MaterialApp(
     home: Scaffold(
@@ -20,7 +21,10 @@ Widget _harness({
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 for (final id in messageIds)
-                  ChatMdBody(controller: controller, messageId: id),
+                  Padding(
+                    padding: bodyPadding,
+                    child: ChatMdBody(controller: controller, messageId: id),
+                  ),
               ],
             ),
           ),
@@ -44,7 +48,7 @@ void main() {
   });
 
   group('inert until text-selection entry', () {
-    testWidgets('registered bodies stay unarmed and gestures disabled', (
+    testWidgets('selected body exposes a surface but stays unarmed', (
       tester,
     ) async {
       controller.putBody(1, Markdown.fromString('Hello selectable world'));
@@ -59,7 +63,144 @@ void main() {
       expect(controller.markdownSelection.documentCount, 0);
 
       final md = tester.widget<MarkdownWidget>(find.byType(MarkdownWidget));
+      expect(md.documentId, 1);
+      expect(md.controller, same(controller.markdownSelection));
+    });
+
+    testWidgets('unselected body does not expose a selection surface', (
+      tester,
+    ) async {
+      controller.putBody(1, Markdown.fromString('Hello selectable world'));
+
+      await tester.pumpWidget(_harness(controller: controller, messageIds: const [1]));
+      await tester.pumpAndSettle();
+
+      final md = tester.widget<MarkdownWidget>(find.byType(MarkdownWidget));
       expect(md.documentId, isNull);
+      expect(controller.shouldSpanYield(1, tester.getCenter(find.byType(MarkdownWidget))), isFalse);
+    });
+  });
+
+  group('span yield — predicate + notify entry', () {
+    testWidgets('first long-press path: glyphs alone do not yield', (
+      tester,
+    ) async {
+      controller.putBody(1, Markdown.fromString('Hello selectable world'));
+      await tester.pumpWidget(_harness(controller: controller, messageIds: const [1]));
+      await tester.pumpAndSettle();
+
+      final global = tester.getCenter(find.byType(MarkdownWidget));
+      expect(controller.shouldSpanYield(1, global), isFalse);
+      expect(messages.spanYield!(1, global), isFalse);
+      expect(controller.isTextSelectionActive, isFalse);
+      expect(controller.markdownSelection.selection, isNull);
+    });
+
+    testWidgets('selected body text yields, notifies, and enters text selection', (
+      tester,
+    ) async {
+      controller.putBody(1, Markdown.fromString('Hello selectable world'));
+      messages.startSelection(1);
+
+      await tester.pumpWidget(_harness(controller: controller, messageIds: const [1]));
+      await tester.pumpAndSettle();
+
+      final global = tester.getCenter(find.byType(MarkdownWidget));
+      expect(controller.shouldSpanYield(1, global), isTrue);
+      expect(messages.spanYield!(1, global), isTrue);
+
+      // ignore: invalid_use_of_internal_member — claimSpanYield is the viewport claim path
+      expect(messages.claimSpanYield(1, global), isTrue);
+      await tester.pump();
+      await tester.pump();
+
+      expect(controller.isTextSelectionActive, isTrue);
+      expect(controller.textSelectionSubject, 1);
+      expect(controller.isDocumentArmed(1), isTrue);
+      final sel = controller.markdownSelection.selection;
+      expect(sel, isNotNull);
+      expect(sel!.isCollapsed, isFalse);
+      expect(sel.base.documentId, 1);
+    });
+
+    testWidgets('selected message padding does not yield or enter text selection', (
+      tester,
+    ) async {
+      controller.putBody(1, Markdown.fromString('Hello selectable world'));
+      messages.startSelection(1);
+
+      await tester.pumpWidget(
+        _harness(
+          controller: controller,
+          messageIds: const [1],
+          bodyPadding: const EdgeInsets.all(40),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final mdRect = tester.getRect(find.byType(MarkdownWidget));
+      final paddingPoint = mdRect.topLeft - const Offset(20, 20);
+      expect(controller.shouldSpanYield(1, paddingPoint), isFalse);
+      expect(messages.spanYield!(1, paddingPoint), isFalse);
+
+      // ignore: invalid_use_of_internal_member — claimSpanYield is the viewport claim path
+      expect(messages.claimSpanYield(1, paddingPoint), isFalse);
+      expect(controller.isTextSelectionActive, isFalse);
+      expect(controller.markdownSelection.selection, isNull);
+      expect(messages.isSelected(1), isTrue);
+    });
+
+    testWidgets('yield predicate stays true only for the hit selected id', (
+      tester,
+    ) async {
+      controller
+        ..putBody(1, Markdown.fromString('First message body'), order: 0)
+        ..putBody(2, Markdown.fromString('Second message body'), order: 1);
+      messages
+        ..startSelection(1)
+        ..toggle(2);
+
+      await tester.pumpWidget(
+        _harness(controller: controller, messageIds: const [1, 2]),
+      );
+      await tester.pumpAndSettle();
+
+      final widgets = tester.widgetList<MarkdownWidget>(find.byType(MarkdownWidget)).toList();
+      expect(widgets, hasLength(2));
+      final secondCenter = tester.getCenter(find.byWidget(widgets[1]));
+
+      expect(controller.shouldSpanYield(2, secondCenter), isTrue);
+      expect(controller.shouldSpanYield(1, secondCenter), isFalse);
+    });
+
+    testWidgets('while text-active only the subject mounts a surface', (
+      tester,
+    ) async {
+      controller
+        ..putBody(1, Markdown.fromString('First message body'), order: 0)
+        ..putBody(2, Markdown.fromString('Second message body'), order: 1);
+      messages
+        ..startSelection(1)
+        ..toggle(2);
+
+      await tester.pumpWidget(
+        _harness(controller: controller, messageIds: const [1, 2]),
+      );
+      await tester.pumpAndSettle();
+
+      expect(controller.enterTextSelection(2), isTrue);
+      await tester.pump();
+
+      final widgets = tester
+          .widgetList<MarkdownWidget>(find.byType(MarkdownWidget))
+          .toList();
+      expect(widgets, hasLength(2));
+      expect(
+        widgets.where((w) => w.documentId != null).map((w) => w.documentId),
+        <Object?>[2],
+      );
+      expect(controller.exposesSelectionSurface(1), isFalse);
+      expect(controller.exposesSelectionSurface(2), isTrue);
     });
   });
 

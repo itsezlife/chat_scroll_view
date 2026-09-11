@@ -1,5 +1,5 @@
-/// Message-then-text selection: chat membership + single-document markdown
-/// character ranges.
+/// Message-then-text selection: chat membership, span yield → programmatic
+/// text entry, and single-document markdown character ranges.
 library;
 
 export 'src/chat_md_body.dart';
