@@ -72,7 +72,9 @@ build exclusion**, **§19 band-stable delete recovery**, and **§20 short conten
 * [ADR 003: Viewport owns the span gesture](../adr/003-viewport-owned-span-gesture.md)
 * [ADR 004: Host presents the message menu](../adr/004-host-presents-message-menu.md)
 * [ADR 010: Message selection precedes text selection](../adr/010-message-then-text-selection.md)
-* [ADR 011: Markdown text selection bridge package](../adr/011-markdown-selection-bridge.md)
+* [ADR 011: Markdown text selection bridge package (superseded)](../adr/011-markdown-selection-bridge.md)
+* [ADR 012: Cross-platform selection policies](../adr/012-cross-platform-selection-policies.md)
+* [ADR 013: Viewport owns markdown text selection](../adr/013-viewport-owns-markdown-text-selection.md)
 
 ## How to use this when implementing features
 

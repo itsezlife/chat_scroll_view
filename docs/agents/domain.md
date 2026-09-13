@@ -16,8 +16,9 @@ How the engineering skills should consume this repo's domain documentation when 
   - [ADR 006: Panel Catalog Viewport](../adr/006-panel-catalog-viewport.md)
   - [ADR 009: Center Band vs Anchor origin](../adr/009-center-band.md) (Chat Scroll)
   - [ADR 010: Message-then-text (mobile policy; superseded)](../adr/010-message-then-text-selection.md) (Chat Scroll)
-  - [ADR 011: Markdown text selection bridge package](../adr/011-markdown-selection-bridge.md) (Chat Scroll)
+  - [ADR 011: Markdown text selection bridge package (superseded)](../adr/011-markdown-selection-bridge.md) (Chat Scroll)
   - [ADR 012: Cross-platform selection policies](../adr/012-cross-platform-selection-policies.md) (Chat Scroll)
+  - [ADR 013: Viewport owns markdown text selection](../adr/013-viewport-owns-markdown-text-selection.md) (Chat Scroll)
 
 Feature specs under `specs/` are incremental contracts. They do not replace the architecture bundle.
 

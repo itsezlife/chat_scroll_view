@@ -23,6 +23,7 @@ class ChatSelectionThemeData extends ThemeExtension<ChatSelectionThemeData> {
     this.checkmark = const Color(0xFFFFFFFF),
     this.slotWidth = ChatSelectionMetrics.slotWidth,
     this.checkSize = ChatSelectionMetrics.checkSize,
+    this.checkTrailingMargin = ChatSelectionMetrics.checkTrailingMargin,
     this.modeDuration = ChatSelectionMetrics.modeDuration,
     this.selectDuration = ChatSelectionMetrics.selectDuration,
   });
@@ -62,6 +63,9 @@ class ChatSelectionThemeData extends ThemeExtension<ChatSelectionThemeData> {
   /// Checkbox diameter.
   final double checkSize;
 
+  /// Trailing edge margin for the selection checkbox under desktop policy.
+  final double checkTrailingMargin;
+
   /// Duration of the mode (gutter slide) animation.
   final Duration modeDuration;
 
@@ -76,6 +80,7 @@ class ChatSelectionThemeData extends ThemeExtension<ChatSelectionThemeData> {
     Color? checkmark,
     double? slotWidth,
     double? checkSize,
+    double? checkTrailingMargin,
     Duration? modeDuration,
     Duration? selectDuration,
   }) => ChatSelectionThemeData(
@@ -85,6 +90,7 @@ class ChatSelectionThemeData extends ThemeExtension<ChatSelectionThemeData> {
     checkmark: checkmark ?? this.checkmark,
     slotWidth: slotWidth ?? this.slotWidth,
     checkSize: checkSize ?? this.checkSize,
+    checkTrailingMargin: checkTrailingMargin ?? this.checkTrailingMargin,
     modeDuration: modeDuration ?? this.modeDuration,
     selectDuration: selectDuration ?? this.selectDuration,
   );
@@ -102,6 +108,8 @@ class ChatSelectionThemeData extends ThemeExtension<ChatSelectionThemeData> {
       checkmark: Color.lerp(checkmark, other.checkmark, t)!,
       slotWidth: lerpDouble(slotWidth, other.slotWidth, t)!,
       checkSize: lerpDouble(checkSize, other.checkSize, t)!,
+      checkTrailingMargin:
+          lerpDouble(checkTrailingMargin, other.checkTrailingMargin, t)!,
       modeDuration: lerpDuration(modeDuration, other.modeDuration, t),
       selectDuration: lerpDuration(selectDuration, other.selectDuration, t),
     );

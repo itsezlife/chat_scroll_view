@@ -25,6 +25,9 @@ abstract final class ChatSelectionMetrics {
   /// Checkbox diameter on the message cell (logical px).
   static const double checkSize = 21;
 
+  /// Trailing edge margin for the selection checkbox under desktop policy.
+  static const double checkTrailingMargin = 12;
+
   /// Selection-mode chrome show/hide duration.
   static const Duration modeDuration = Duration(milliseconds: 200);
 

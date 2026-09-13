@@ -15,12 +15,12 @@ warming row — neither may timeout into force-stitch.
 
 ## Layout freeze vs measure
 
-| Phase | `farAnimateJumped` | `stitchMeasured` | Layout |
-| ----- | ------------------ | ---------------- | ------ |
-| Load-gate wait | false | false | Normal fan-out; presence pins only |
-| Post-jump measure | true | false | Full layout — **allow** `pinNewest` / align so travel measures from the correct end |
-| Measured flight | true | true | Freeze fan-out / refan / nav-align snap; paint owns dual-translate |
-| Settle | false | false | Normal; commit bake then clear capture |
+| Phase             | `farAnimateJumped` | `stitchMeasured` | Layout                                                                              |
+| ----------------- | ------------------ | ---------------- | ----------------------------------------------------------------------------------- |
+| Load-gate wait    | false              | false            | Normal fan-out; presence pins only                                                  |
+| Post-jump measure | true               | false            | Full layout — **allow** `pinNewest` / align so travel measures from the correct end |
+| Measured flight   | true               | true             | Freeze fan-out / refan / nav-align snap; paint owns dual-translate                  |
+| Settle            | false              | false            | Normal; commit bake then clear capture                                              |
 
 Freeze **after** measure only. Freezing the measure layout pins tall newest
 from the row top and produces a hitch once travel is measured from the bottom.

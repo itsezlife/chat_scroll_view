@@ -10,6 +10,12 @@
 /// and [ChatBubbleMetrics] (theme + run → corner / padding resolvers).
 library;
 
+export 'package:flutter_md/flutter_md.dart'
+    show
+        Markdown,
+        MarkdownSelection,
+        MarkdownPosition;
+
 export 'src/chat_scroll/animate_to_busy_policy.dart';
 export 'src/chat_scroll/animate_to_disposition.dart';
 export 'src/chat_scroll/animate_to_load_policy.dart';
@@ -20,10 +26,13 @@ export 'src/chat_scroll/chat_scroll_controller.dart';
 export 'src/chat_scroll/chat_scroll_events.dart';
 export 'src/chat_scroll/chat_selection_allowed.dart';
 export 'src/chat_scroll/chat_selection_controller.dart';
+export 'src/chat_scroll/chat_selection_policy.dart';
 export 'src/chat_scroll/chat_sender_run_layout.dart';
 export 'src/chat_widgets/chat_bubble_metrics.dart';
+export 'src/chat_widgets/chat_code_block_painter.dart';
 export 'src/chat_widgets/chat_dated_message.dart';
 export 'src/chat_widgets/chat_keyboard_shortcuts.dart';
+export 'src/chat_widgets/chat_markdown_body.dart';
 export 'src/chat_widgets/chat_message_body.dart';
 export 'src/chat_widgets/chat_message_change_transition.dart';
 export 'src/chat_widgets/chat_message_theme.dart';
@@ -32,6 +41,9 @@ export 'src/chat_widgets/chat_scroll_view.dart';
 export 'src/chat_widgets/chat_scrollbar.dart';
 export 'src/chat_widgets/chat_selectable_message.dart';
 export 'src/chat_widgets/chat_selection_chrome.dart';
+export 'src/chat_widgets/chat_selection_metrics.dart';
 export 'src/chat_widgets/chat_selection_theme.dart';
+export 'src/chat_widgets/chat_smooth_contour.dart';
+export 'src/chat_widgets/chat_span_feedback.dart';
 export 'src/chat_widgets/message_menu/chat_message_menu.dart';
 export 'src/chat_widgets/message_menu/chat_pre_ime_back.dart';

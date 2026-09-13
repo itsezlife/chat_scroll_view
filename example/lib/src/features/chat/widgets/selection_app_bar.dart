@@ -23,6 +23,7 @@ class SelectionAppBar extends StatefulWidget {
     required this.selection,
     this.topInset,
     this.onCopy,
+    this.onSelectText,
     this.onEdit,
     this.onDelete,
     super.key,
@@ -36,6 +37,12 @@ class SelectionAppBar extends StatefulWidget {
 
   /// Copy selected messages.
   final VoidCallback? onCopy;
+
+  /// Enter character-range text selection for the single selected message.
+  ///
+  /// Shown only while [selection] count is exactly one. Hosts wire this to
+  /// the markdown bridge (`enterTextSelection`) when that path is available.
+  final VoidCallback? onSelectText;
 
   /// Edit the single selected message.
   final VoidCallback? onEdit;
@@ -182,6 +189,13 @@ class _SelectionAppBarState extends State<SelectionAppBar>
               ),
             ),
             const Spacer(),
+            if (widget.onSelectText != null && count == 1)
+              IconButton(
+                icon: const Icon(Icons.text_fields_rounded),
+                tooltip: 'Выделить текст',
+                color: scheme.onSurface,
+                onPressed: widget.onSelectText,
+              ),
             if (widget.onCopy != null)
               IconButton(
                 icon: const Icon(Icons.copy_rounded),

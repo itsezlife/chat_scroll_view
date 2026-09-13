@@ -131,9 +131,128 @@ class _WidgetChatScreenState extends State<WidgetChatScreen>
     // Prefs already loaded from main → seed before first composer paint.
     _lastEmojiTab = _lastTabFromStore(keyboardPanelStore);
     _controller = ChatScrollController();
-    _selection = ChatSelectionController()..selectionCap = 100;
+    _selection = ChatSelectionController(
+      onCopySuccess: _onCopySuccess,
+      onLinkTap: _onLinkTap,
+      onLinkLongPress: _onLinkLongPress,
+      onCodeTap: _onCodeTap,
+    )..selectionCap = 100;
     _pillLastSeenBaseline.addListener(_onPillBaselineChanged);
     _init();
+  }
+
+  void _onCopySuccess(String text) {
+    if (!mounted || text.isEmpty) return;
+    if (defaultTargetPlatform == TargetPlatform.android) {
+      return; // Do not show the snackbar on Android
+    }
+    ScaffoldMessenger.of(context)
+      ..clearSnackBars()
+      ..showSnackBar(
+        const SnackBar(
+          content: Text('Copied'),
+          behavior: SnackBarBehavior.floating,
+          duration: Duration(seconds: 1),
+        ),
+      );
+  }
+
+  void _onLinkTap(int messageId, String title, String url) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context)
+      ..clearSnackBars()
+      ..showSnackBar(
+        SnackBar(
+          content: Text('Opening: $url'),
+          behavior: SnackBarBehavior.floating,
+          duration: const Duration(seconds: 2),
+        ),
+      );
+  }
+
+  void _onLinkLongPress(int messageId, String title, String url) {
+    if (!mounted) return;
+    showModalBottomSheet<void>(
+      context: context,
+      builder: (context) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: <Widget>[
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  if (title.isNotEmpty && title != url)
+                    Text(
+                      title,
+                      style: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 15,
+                      ),
+                    ),
+                  Text(
+                    url,
+                    style: TextStyle(
+                      color: Theme.of(context).colorScheme.primary,
+                      fontSize: 13,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const Divider(),
+            ListTile(
+              leading: const Icon(Icons.open_in_browser),
+              title: const Text('Open link'),
+              onTap: () {
+                Navigator.pop(context);
+                _onLinkTap(messageId, title, url);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.copy),
+              title: const Text('Copy link URL'),
+              onTap: () {
+                Navigator.pop(context);
+                Clipboard.setData(ClipboardData(text: url));
+                _onCopySuccess(url);
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _onCodeTap(int messageId, String code) {
+    if (!mounted) return;
+    if (defaultTargetPlatform == TargetPlatform.android) {
+      return; // Do not show the snackbar on Android as native Clipboard is already showing the message
+    }
+    ScaffoldMessenger.of(context)
+      ..clearSnackBars()
+      ..showSnackBar(
+        const SnackBar(
+          content: Text('Code snippet copied to clipboard'),
+          behavior: SnackBarBehavior.floating,
+          duration: Duration(seconds: 1),
+        ),
+      );
+  }
+
+  void _onAvatarTap(String sender) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(
+          content: Text('User Profile: $sender'),
+          behavior: SnackBarBehavior.floating,
+          duration: const Duration(seconds: 1),
+        ),
+      );
   }
 
   /// Last type tab from prefs, restricted to [_emojiAllow] tabs.
@@ -402,9 +521,20 @@ class _WidgetChatScreenState extends State<WidgetChatScreen>
     IChatMessage? message,
     ChatMessageStatus status,
     MessageRunLayout runLayout,
-  ) {
-    if (message == null) return const DemoShimmerBubble();
-    return DemoMessageBubble(message: message, runLayout: runLayout);
+  ) => buildDemoMessage(
+    context,
+    id,
+    message,
+    status,
+    runLayout,
+    selection: _selection,
+    onAvatarTap: _onAvatarTap,
+    onSenderTap: _onAvatarTap,
+  );
+
+  void _selectTextFromBar() {
+    if (_selection.count != 1) return;
+    _selection.enterTextSelection(_selection.selectedIds.first);
   }
 
   Widget _buildChunkError(
@@ -501,6 +631,10 @@ class _WidgetChatScreenState extends State<WidgetChatScreen>
   }
 
   void _copySelected() {
+    if (_selection.isTextSelectionActive) {
+      unawaited(_selection.copyTextSelection());
+      return;
+    }
     final ids = _selection.selectedIds.toList()..sort();
     final buffer = StringBuffer();
     for (final id in ids) {
@@ -583,6 +717,10 @@ class _WidgetChatScreenState extends State<WidgetChatScreen>
             search.close();
           }
           if (_menuOpen) return;
+          if (_selection.isTextSelectionActive) {
+            _selection.clearTextSelection();
+            return;
+          }
           final hasSelection = _selection.isSelectionMode;
           if (hasSelection) {
             _selection.clear();
@@ -617,6 +755,7 @@ class _WidgetChatScreenState extends State<WidgetChatScreen>
                     Positioned.fill(
                       child: ChatKeyboardShortcuts(
                         controller: _controller,
+                        selectionController: _selection,
                         reverse: true,
                         preserveExternalFocus: true,
                         child: ChatScrollView(
@@ -764,6 +903,7 @@ class _WidgetChatScreenState extends State<WidgetChatScreen>
                       child: SelectionAppBar(
                         selection: _selection,
                         topInset: insets.headerReserve,
+                        onSelectText: _selectTextFromBar,
                         onCopy: _copySelected,
                         onEdit: _editSelectedFromBar,
                         onDelete: () =>

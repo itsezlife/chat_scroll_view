@@ -1,4 +1,7 @@
+import 'dart:math' as math;
+
 import 'package:chat_scroll_view/src/chat_scroll/chat_selection_allowed.dart';
+import 'package:chat_scroll_view/src/chat_scroll/chat_selection_policy.dart';
 import 'package:chat_scroll_view/src/chat_widgets/chat_scroll_theme.dart';
 import 'package:chat_scroll_view/src/chat_widgets/chat_selection_theme.dart';
 import 'package:flutter/material.dart';
@@ -16,6 +19,8 @@ final class ChatSelectionChromeState {
     required this.showsCheck,
     required this.onTap,
     required this.onLongPress,
+    this.policy = const ChatSelectionPolicy.mobile(),
+    this.canPerformActions = true,
   });
 
   /// Message id this row represents.
@@ -49,6 +54,14 @@ final class ChatSelectionChromeState {
   /// Host long-press handler (enter selection).
   final VoidCallback onLongPress;
 
+  /// Active selection policy governing this row's selection behavior.
+  final ChatSelectionPolicy policy;
+
+  /// Whether child message actions (profile open, media open) can be performed.
+  /// When `false` (during message multiselect), child touches are suppressed
+  /// so row taps toggle selection instead of activating child actions.
+  final bool canPerformActions;
+
   /// Combined overlay strength in 0..1 — fade a row tint with both axes.
   double get overlayProgress => modeProgress * selectProgress;
 }
@@ -68,9 +81,11 @@ typedef ChatSelectionChromeBuilder =
 
 /// Bundled checkbox + row-tint chrome. Restyle via [ChatSelectionThemeData].
 ///
-/// The checkbox slides in from off-start behind a [ClipRect]. A start-side
-/// spacer opens in sync so start-aligned bodies shift while end-aligned bodies
-/// stay on the trailing edge (unless squeezed by the check).
+/// Adapts to [ChatSelectionChromeState.policy]:
+/// - Under mobile policy: opens a start-side gutter and slides the checkbox in
+///   behind a [ClipRect] while shifting the message body.
+/// - Under desktop policy: leaves the message body stationary and fades/scales
+///   the checkbox in place at the trailing edge.
 ///
 /// The selected-row tint is painted **outside** that [ClipRect]. Clipping the
 /// tint to the row box was cutting its anti-aliased edges and leaving a
@@ -80,10 +95,27 @@ class DefaultSelectionChrome extends StatelessWidget {
   const DefaultSelectionChrome({
     required this.state,
     required this.child,
+    this.forceDesktop,
     super.key,
   });
 
+  /// Explicit mobile variant (shifts message body into a start-side gutter).
+  const DefaultSelectionChrome.mobile({
+    required this.state,
+    required this.child,
+    super.key,
+  }) : forceDesktop = false;
+
+  /// Explicit desktop variant (leaves message body stationary, trailing check).
+  const DefaultSelectionChrome.desktop({
+    required this.state,
+    required this.child,
+    super.key,
+  }) : forceDesktop = true;
+
   /// Stable default for [ChatScrollView.selectionChromeBuilder].
+  ///
+  /// Adapts automatically to [ChatSelectionChromeState.policy].
   static Widget wrap(
     BuildContext context,
     ChatSelectionChromeState state,
@@ -95,6 +127,10 @@ class DefaultSelectionChrome extends StatelessWidget {
 
   /// Message body — built once by the host and passed through [AnimatedBuilder].
   final Widget child;
+
+  /// Optional override to pin desktop or mobile chrome styling regardless of
+  /// [ChatSelectionChromeState.policy].
+  final bool? forceDesktop;
 
   @override
   Widget build(BuildContext context) {
@@ -109,6 +145,61 @@ class DefaultSelectionChrome extends StatelessWidget {
     final tint = theme.selectedTint ?? accent;
 
     if (m == 0.0 && overlay == 0.0) return child;
+
+    final isDesktop =
+        forceDesktop ?? state.policy.positionsSelectionCheckAtTrailingEdge;
+
+    if (isDesktop) {
+      final layout = ChatScrollTheme.messageOf(context);
+      return LayoutBuilder(
+        builder: (context, constraints) {
+          final rowWidth =
+              constraints.maxWidth.isFinite ? constraints.maxWidth : null;
+          final endSlack = constraints.maxWidth.isFinite
+              ? layout.endSlack(constraints.maxWidth)
+              : 0.0;
+          final checkEnd = math.max(
+            theme.checkTrailingMargin,
+            endSlack - theme.checkSize - theme.checkTrailingMargin,
+          );
+
+          return Stack(
+            clipBehavior: Clip.none,
+            children: <Widget>[
+              SizedBox(
+                width: rowWidth,
+                child: child,
+              ),
+              if (m > 0.0)
+                Positioned.directional(
+                  textDirection: Directionality.of(context),
+                  end: checkEnd,
+                  bottom: 6,
+                  child: IgnorePointer(
+                    child: Opacity(
+                      opacity: m,
+                      child: state.showsCheck
+                          ? CustomPaint(
+                              key: const ValueKey<String>(
+                                'chatSelectionCheck',
+                              ),
+                              size: Size.square(theme.checkSize),
+                              painter: _CheckPainter(
+                                select: s,
+                                accent: accent,
+                                ring: theme.checkRing,
+                                checkmark: theme.checkmark,
+                              ),
+                            )
+                          : SizedBox.square(dimension: theme.checkSize),
+                    ),
+                  ),
+                ),
+            ],
+          );
+        },
+      );
+    }
 
     final slot = theme.slotWidth;
     final layout = ChatScrollTheme.messageOf(context);

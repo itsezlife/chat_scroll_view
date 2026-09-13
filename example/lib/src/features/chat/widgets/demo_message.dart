@@ -1,7 +1,9 @@
 import 'package:chat_scroll_view/chat_scroll_view.dart';
 import 'package:chat_scroll_view_example/src/common/models/chat_message.dart';
+import 'package:chat_scroll_view_example/src/features/chat/widgets/demo_markdown_theme.dart';
 import 'package:chat_scroll_view_example/src/features/chat/widgets/demo_message_meta.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_md/flutter_md.dart';
 
 /// Builds a demo message widget for the widget-based [ChatScrollView].
 ///
@@ -15,15 +17,27 @@ import 'package:flutter/material.dart';
 /// For run-grouped rendering (avatar on the **last** message, sender name on
 /// the **first**) use [MessageRunLayout] from the viewport — see
 /// `widget_chat_screen.dart`.
+///
+/// When [selection] is set, the body registers with [ChatSelectionController]
+/// and mounts [MarkdownWidget] with engine-owned markdown text selection.
 Widget buildDemoMessage(
   BuildContext context,
   int id,
   IChatMessage? message,
   ChatMessageStatus status,
-  MessageRunLayout runLayout,
-) {
+  MessageRunLayout runLayout, {
+  ChatSelectionController? selection,
+  void Function(String sender)? onAvatarTap,
+  void Function(String sender)? onSenderTap,
+}) {
   if (message == null) return const DemoShimmerBubble();
-  return DemoMessageBubble(message: message, runLayout: runLayout);
+  return DemoMessageBubble(
+    message: message,
+    runLayout: runLayout,
+    selection: selection,
+    onAvatarTap: onAvatarTap,
+    onSenderTap: onSenderTap,
+  );
 }
 
 ChatMessageThemeData _layoutOf(BuildContext context) =>
@@ -88,7 +102,9 @@ Color _colorForSender(String sender) =>
 // --- Palette --------------------------------------------------------------
 
 const Color _kOutgoingBg = Color(0xFF0B81F6);
+const Color _kOutgoingSelectedBg = Color(0xFF1D68B2);
 const Color _kIncomingBg = Color(0xFF2A2A2C);
+const Color _kIncomingSelectedBg = Color(0xFF2B5278);
 const Color _kOutgoingText = Color(0xFFFFFFFF);
 const Color _kIncomingText = Color(0xFFE6E7EB);
 const Color _kShimmer = Color(0xFF2C2C2E);
@@ -102,6 +118,10 @@ const Color _kShimmer = Color(0xFF2C2C2E);
 /// shrink-wrap). The sender label stays above that cluster so run chrome does
 /// not participate in meta packing.
 ///
+/// When [selection] is non-null, the body registers with
+/// [ChatSelectionController] and mounts [MarkdownWidget] with engine-owned
+/// markdown text selection. When null, the body is plain [Text].
+///
 /// [runLayout] drives chrome: **sender name on first** in the run, **avatar
 /// on last** (incoming), column top inset on first, and bubble corner
 /// clustering via [ChatBubbleMetrics].
@@ -113,6 +133,9 @@ class DemoMessageBubble extends StatelessWidget {
       isFirstInSenderRun: true,
       isLastInSenderRun: true,
     ),
+    this.selection,
+    this.onAvatarTap,
+    this.onSenderTap,
     super.key,
   });
 
@@ -121,6 +144,15 @@ class DemoMessageBubble extends StatelessWidget {
 
   /// Sender-run position from the viewport — do not recompute from neighbors.
   final MessageRunLayout runLayout;
+
+  /// Optional engine selection controller for markdown text selection and inline hits.
+  final ChatSelectionController? selection;
+
+  /// Optional tap callback for the sender avatar.
+  final void Function(String sender)? onAvatarTap;
+
+  /// Optional tap callback for the sender name header.
+  final void Function(String sender)? onSenderTap;
 
   @override
   Widget build(BuildContext context) {
@@ -138,6 +170,7 @@ class DemoMessageBubble extends StatelessWidget {
       builder: (context, constraints) {
         final viewportWidth = constraints.maxWidth;
         final bubble = _Bubble(
+          messageId: message.id,
           sender: isFirstInRun ? message.sender : null,
           content: content,
           createdAt: message.createdAt,
@@ -146,6 +179,8 @@ class DemoMessageBubble extends StatelessWidget {
           runLayout: runLayout,
           theme: layout,
           maxWidth: layout.bubbleCap(viewportWidth, hasAvatarGutter: !outgoing),
+          selection: selection,
+          onSenderTap: onSenderTap,
         );
         final Widget row;
         if (outgoing) {
@@ -155,7 +190,13 @@ class DemoMessageBubble extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.end,
             children: <Widget>[
               if (isLastInRun)
-                _Avatar(sender: message.sender, size: layout.avatarSize)
+                _Avatar(
+                  sender: message.sender,
+                  size: layout.avatarSize,
+                  onTap: onAvatarTap != null
+                      ? () => onAvatarTap!(message.sender)
+                      : null,
+                )
               else
                 SizedBox(width: layout.avatarSize),
               SizedBox(width: layout.avatarGap),
@@ -188,31 +229,36 @@ class DemoMessageBubble extends StatelessWidget {
 }
 
 class _Avatar extends StatelessWidget {
-  const _Avatar({required this.sender, required this.size});
+  const _Avatar({required this.sender, required this.size, this.onTap});
 
   final String sender;
   final double size;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
     final initial = sender.isEmpty
         ? '?'
         : sender.characters.first.toUpperCase();
-    return Container(
-      width: size,
-      height: size,
-      alignment: Alignment.center,
-      decoration: BoxDecoration(
-        color: _colorForSender(sender),
-        shape: BoxShape.circle,
-      ),
-      child: Text(
-        initial,
-        style: const TextStyle(
-          color: Color(0xFFFFFFFF),
-          fontWeight: FontWeight.w700,
-          fontSize: 14,
-          height: 1,
+    return GestureDetector(
+      onTap: onTap,
+      onLongPress: () {}, // Absorb long-press so avatar does not trigger message selection (Decision 3)
+      child: Container(
+        width: size,
+        height: size,
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          color: _colorForSender(sender),
+          shape: BoxShape.circle,
+        ),
+        child: Text(
+          initial,
+          style: const TextStyle(
+            color: Color(0xFFFFFFFF),
+            fontWeight: FontWeight.w700,
+            fontSize: 14,
+            height: 1,
+          ),
         ),
       ),
     );
@@ -227,6 +273,7 @@ class _Avatar extends StatelessWidget {
 /// header / text / meta cluster instead of always filling [maxWidth].
 class _Bubble extends StatelessWidget {
   const _Bubble({
+    required this.messageId,
     required this.sender,
     required this.content,
     required this.createdAt,
@@ -235,7 +282,12 @@ class _Bubble extends StatelessWidget {
     required this.runLayout,
     required this.theme,
     required this.maxWidth,
+    this.selection,
+    this.onSenderTap,
   });
+
+  /// Stable id for body registration and selection.
+  final int messageId;
 
   /// `null` suppresses the sender label — non-first messages in a run.
   final String? sender;
@@ -261,6 +313,12 @@ class _Bubble extends StatelessWidget {
   /// Cap from [ChatMessageThemeData.bubbleCap]; not a forced width.
   final double maxWidth;
 
+  /// When set, content is [_RegisteredChatMdBody]; otherwise plain [Text].
+  final ChatSelectionController? selection;
+
+  /// Optional tap callback for the sender name header.
+  final void Function(String sender)? onSenderTap;
+
   @override
   Widget build(BuildContext context) {
     final bg = isOutgoing ? _kOutgoingBg : _kIncomingBg;
@@ -275,6 +333,16 @@ class _Bubble extends StatelessWidget {
     );
     final padding = ChatBubbleMetrics.bubbleContentPadding(theme: theme);
     final textStyle = TextStyle(color: textColor, fontSize: 15, height: 1.35);
+    final body = switch (selection) {
+      final controller? => _RegisteredChatMdBody(
+        selection: controller,
+        messageId: messageId,
+        content: content,
+        textStyle: textStyle,
+        isOutgoing: isOutgoing,
+      ),
+      null => Text(content, style: textStyle),
+    };
 
     return ConstrainedBox(
       constraints: BoxConstraints(maxWidth: maxWidth),
@@ -283,6 +351,7 @@ class _Bubble extends StatelessWidget {
         outgoing: isOutgoing,
         edited: edited,
         color: bg,
+        selectedColor: isOutgoing ? _kOutgoingSelectedBg : _kIncomingSelectedBg,
         borderRadius: radius,
         padding: padding,
         spacing: 8,
@@ -296,25 +365,118 @@ class _Bubble extends StatelessWidget {
         header: switch (sender) {
           final name? when name.isNotEmpty => Padding(
             padding: const EdgeInsets.only(bottom: 3),
-            child: Text(
-              name,
-              style: TextStyle(
-                color: _colorForSender(name),
-                fontWeight: FontWeight.w600,
-                fontSize: 13,
-                height: 1.15,
+            child: GestureDetector(
+              onTap: onSenderTap != null ? () => onSenderTap!(name) : null,
+              onLongPress: () {}, // Absorb long-press so sender name does not trigger message selection (Decision 3)
+              child: Text(
+                name,
+                style: TextStyle(
+                  color: _colorForSender(name),
+                  fontWeight: FontWeight.w600,
+                  fontSize: 13,
+                  height: 1.15,
+                ),
               ),
             ),
           ),
           _ => null,
         },
-        content: Text(content, style: textStyle),
+        content: body,
         metaBuilder: (context, editedOpacity) => DemoMessageMeta(
           createdAt: createdAt,
           color: metaColor,
           showStatus: isOutgoing,
           edited: edited,
           editedOpacity: editedOpacity,
+        ),
+      ),
+    );
+  }
+}
+
+/// Registers [content] with [selection] and mounts [MarkdownWidget].
+///
+/// Keeps put/remove lifecycle next to the mounted body so recycle and edits
+/// stay in sync with the viewport registry.
+class _RegisteredChatMdBody extends StatefulWidget {
+  const _RegisteredChatMdBody({
+    required this.selection,
+    required this.messageId,
+    required this.content,
+    required this.textStyle,
+    required this.isOutgoing,
+  });
+
+  final ChatSelectionController selection;
+  final int messageId;
+  final String content;
+  final TextStyle textStyle;
+  final bool isOutgoing;
+
+  @override
+  State<_RegisteredChatMdBody> createState() => _RegisteredChatMdBodyState();
+}
+
+class _RegisteredChatMdBodyState extends State<_RegisteredChatMdBody> {
+  Object? _token;
+  Markdown? _model;
+
+  @override
+  void initState() {
+    super.initState();
+    _put();
+  }
+
+  @override
+  void didUpdateWidget(covariant _RegisteredChatMdBody oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (!identical(oldWidget.selection, widget.selection) ||
+        oldWidget.messageId != widget.messageId) {
+      oldWidget.selection.removeBody(oldWidget.messageId, token: _token);
+      _token = null;
+      _model = null;
+      _put();
+      return;
+    }
+    if (oldWidget.content != widget.content) {
+      _put();
+    }
+  }
+
+  @override
+  void dispose() {
+    widget.selection.removeBody(widget.messageId, token: _token);
+    super.dispose();
+  }
+
+  void _put() {
+    final model = Markdown.fromString(widget.content);
+    _model = model;
+    _token = widget.selection.putBody(
+      widget.messageId,
+      model,
+      order: widget.messageId,
+      token: _token,
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final baseMarkdownTheme = MarkdownTheme.maybeOf(context);
+    final bubbleMarkdownTheme =
+        (baseMarkdownTheme ?? demoDarkMarkdownTheme(context)).copyWith(
+          textStyle: widget.textStyle,
+          linkColor: widget.isOutgoing ? const Color(0xFFBBDEFB) : null,
+        );
+
+    return MarkdownTheme(
+      data: bubbleMarkdownTheme,
+      child: DefaultTextStyle.merge(
+        style: widget.textStyle,
+        child: ChatMarkdownBody(
+          controller: widget.selection,
+          messageId: widget.messageId,
+          markdown: _model,
         ),
       ),
     );

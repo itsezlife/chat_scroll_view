@@ -166,11 +166,14 @@ class RenderChatScrollView extends RenderBox {
     ChatScrollbarThemeData scrollbarTheme = ChatScrollbarThemeData.light,
     ChatSelectionController? selectionController,
     void Function(int id, Rect slotGlobal, Offset tapGlobal)? onIdleMessageTap,
+    void Function(int id, Rect slotGlobal, Offset tapGlobal)?
+    onSecondaryMessageTap,
     bool Function(IChatMessage message)? isSelfMessage,
   }) : _dataSource = dataSource,
        _controller = controller,
        _selectionController = selectionController,
        _onIdleMessageTap = onIdleMessageTap,
+       _onSecondaryMessageTap = onSecondaryMessageTap,
        _isSelfMessage = isSelfMessage,
        _cacheExtent = cacheExtent,
        _extraBuildExtent = extraBuildExtent,
@@ -409,6 +412,18 @@ class RenderChatScrollView extends RenderBox {
     _selectionPointer?.onIdleMessageTap = value == null
         ? null
         : _dispatchIdleMessageTap;
+  }
+
+  void Function(int id, Rect slotGlobal, Offset tapGlobal)?
+  _onSecondaryMessageTap;
+  set onSecondaryMessageTap(
+    void Function(int id, Rect slotGlobal, Offset tapGlobal)? value,
+  ) {
+    if (identical(_onSecondaryMessageTap, value)) return;
+    _onSecondaryMessageTap = value;
+    _selectionPointer?.onSecondaryMessageTap = value == null
+        ? null
+        : _dispatchSecondaryMessageTap;
   }
 
   /// See [ChatScrollView.isSelfMessage].
@@ -1411,7 +1426,10 @@ class RenderChatScrollView extends RenderBox {
       ..selection = _selectionController
       ..onIdleMessageTap = _onIdleMessageTap == null
           ? null
-          : _dispatchIdleMessageTap;
+          : _dispatchIdleMessageTap
+      ..onSecondaryMessageTap = _onSecondaryMessageTap == null
+          ? null
+          : _dispatchSecondaryMessageTap;
     _displayRefreshHz = _readDisplayRefreshHz();
     _seedTailNavigationOnAttach();
   }
@@ -1440,7 +1458,14 @@ class RenderChatScrollView extends RenderBox {
   /// (rare in chat UIs) is handled by overlay entry, controller swap, and
   /// the per-frame `_clampBoundaries` guard.
   VerticalDragGestureRecognizer _buildDragRecognizer() =>
-      VerticalDragGestureRecognizer()
+      VerticalDragGestureRecognizer(
+        supportedDevices: const <PointerDeviceKind>{
+          PointerDeviceKind.touch,
+          PointerDeviceKind.stylus,
+          PointerDeviceKind.invertedStylus,
+          PointerDeviceKind.trackpad,
+        },
+      )
         ..onStart = _onDragStart
         ..onUpdate = _onDragUpdate
         ..onEnd = _onDragEnd;
@@ -4361,6 +4386,19 @@ class RenderChatScrollView extends RenderBox {
     callback(id, slotGlobal, localToGlobal(local));
   }
 
+  /// Converts a viewport-local secondary tap (right-click) into the host
+  /// callback's global slot rect and tap offset.
+  void _dispatchSecondaryMessageTap(int id, Offset local) {
+    final callback = _onSecondaryMessageTap;
+    if (callback == null) return;
+    final child = _children[id];
+    if (child == null || !child.hasSize) return;
+    final pd = _parentData(child);
+    final origin = localToGlobal(Offset(0, pd.offset));
+    final slotGlobal = origin & Size(size.width, child.size.height);
+    callback(id, slotGlobal, localToGlobal(local));
+  }
+
   /// Loaded message whose selectable body contains [local], or `null` when
   /// the point is over overlay, chunk-error, shimmer, date chrome, or empty
   /// space. The pinned floating header is ignored by default so tap,
@@ -4489,8 +4527,10 @@ class RenderChatScrollView extends RenderBox {
         // run yet.
         _controller.flingCancelSuppressesLongPress = false;
       }
-      _drag?.addPointer(event);
       _selectionPointer?.addPointer(event);
+      if (event.kind != PointerDeviceKind.mouse) {
+        _drag?.addPointer(event);
+      }
     } else if (event is PointerUpEvent || event is PointerCancelEvent) {
       if (_flingCancelPointer == event.pointer) {
         _flingCancelPointer = null;

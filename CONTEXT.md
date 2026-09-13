@@ -165,15 +165,15 @@ Membership of whole messages in the selected set (multiselect chrome). Independe
 _Avoid_: Text selection (when meaning membership), character range, highlight
 
 **Text selection**:
-A character-range selection inside the body text of one message. Not membership in the selected set, and not a Message highlight. How it is entered and whether it nests with message selection is **selection policy**.
-_Avoid_: Message selection, SelectableRegion, cross-message character range (chat list), already-selected-only (as a universal rule)
+A character-range selection inside the body text of one message. Owned by the chat viewport as a peer to **message selection**. Not membership in the selected set, and not a Message highlight. How it is entered and whether it nests with message selection is **selection policy**.
+_Avoid_: Message selection, SelectableRegion, cross-message character range (chat list), already-selected-only (as a universal rule), bridge package (as the owner)
 
 **Text selection subject**:
-The single message that owns the active character-range text selection. Under mobile policy it is also the collapsed selected-set member; under desktop/web policy it owns the range while the selected set is empty.
+The single message that owns the active character-range text selection. Under mobile policy it is one of the message-selected members (message selection is preserved intact); under desktop/web policy it owns the range while the selected set is empty.
 _Avoid_: Gesture origin, document id, anchor, “the selected message” (as the only meaning)
 
 **Selection policy**:
-The product rules for how message selection and text selection enter, nest or exclude each other, dismiss, and behave on Copy (mobile vs desktop/web strategies). Not a pointer kind and not a platform import fork by itself.
+The product rules for how message selection and text selection enter, nest or exclude each other, dismiss, behave on Copy, and how **inline hits** relate to idle dismiss (mobile vs desktop/web strategies). Not a pointer kind and not a platform import fork by itself.
 _Avoid_: TargetPlatform (as the domain name), theme, “Telegram order” (when meaning only Android)
 
 **Span chain**:
@@ -197,12 +197,28 @@ A selection span whose membership is forced off.
 _Avoid_: Subtractive drag, paint-deselect
 
 **Span gesture**:
-A viewport-owned pointer sequence that holds a selection span: long-press on a present message, travel past slop, then move. Lift ends it. Message rows do not own this pointer. Does not start if the long-press was claimed (span yield).
+A viewport-owned pointer sequence that holds a selection span: long-press on a present message, travel past slop, then move. Lift ends it. Message rows do not own this pointer. Does not start when engine-owned long-press routing claims the press for **text selection**.
 _Avoid_: Selection drag, paint gesture, range drag, per-row detector
 
 **Span yield**:
-A host claim on a long-press at a global point that prevents a span gesture from starting. Used so text selection can begin on body text of an already-selected message; the viewport does not forward the gesture — it notifies the claim, and the host starts text selection programmatically.
-_Avoid_: Arena win, text selection (as the name of this seam)
+Former transitional host claim on a long-press at a global point that prevented a span gesture from starting. Superseded and removed: routing between span and text is fully engine-internal from live membership, **text selection subject**, range, and **selection policy** ([ADR 003](docs/adr/003-viewport-owned-span-gesture.md), [ADR 013](docs/adr/013-viewport-owns-markdown-text-selection.md)).
+_Avoid_: Arena win, text selection (as the name of this seam), current host API
+
+**Inline hit**:
+A pointer on a markdown body that is not idle selection-dismiss: link activation or code/pre click-to-copy (or a host callback for those). First-class against idle-tap dismiss. Under mobile **selection policy**, **message selection** or a live **character-range text selection** suppresses *all* inline activations (links, inline code, fenced COPY chrome). Under desktop/web, message membership alone does not suppress; a live character-range still does. Mere arm-for-entry does not suppress.
+_Avoid_: Idle message tap (as the name of this path), toolbar dismiss, text selection (as the name of this path)
+
+**Tap highlight** (press highlight):
+A transient visual plate under an actionable inline element (link, inline code, mention, fenced copy chrome) inside a message body. **Press-lifecycle:** expand on pointer down, hold while pressed, fade on up/cancel; abort if the pointer is claimed by a **span gesture** or **text selection**. Under mobile **selection policy**, does not arm while **message selection** mode or **text selection** is already active (desktop keeps press ink). Same paint for short tap and long-press (host action is separate). Composed of a vector-smoothed contour path with an expanding touch-origin ripple. Not persistent **text selection**, and not a whole-row **Message highlight**.
+_Avoid_: RippleDrawable, InkWell, selection highlight, active selection, one-shot long-press flash
+
+**Smooth text contour**:
+A continuous rounded polygon path generated from a list of text bounding boxes (single or multi-line) with vector-arc rounded corners, collinear vertex elimination, and cross-product turn direction. Used for **tap highlights** and custom **text selection** plates.
+_Avoid_: Rounded rect union, stair-stepped selection, CornerPathEffect (as the Dart concept)
+
+**Fenced code block header**:
+The top banner of a fenced markdown code block displaying language information and desktop click-to-copy action with hover cursor feedback, visually and hit-test distinct from the selectable code body text beneath it.
+_Avoid_: Code fence title, code card button, toolbar
 
 **Span abort**:
 Forced end of a span gesture that leaves the selected set as-is. Happens when the gesture origin becomes absent.

@@ -6,7 +6,50 @@ this project is pre-1.0 and not strictly SemVer yet.
 
 ## [Unreleased]
 
+### Fixed
+
+- **Ghost bubble selectedColor.** `SelectableMessage` chrome now rebuilds on
+  facade notifies, not only mode/select animation ticks. Clearing a drag
+  preview mid mode-enter no longer leaves `ChatMessageChangeTransition`
+  painted with selectedColor while membership is empty.
+
+- **Mobile inline hits vs selection (one matrix).** Idle: link / inline code /
+  COPY CODE fire. **Message selection** or a live **character-range**: all
+  three suppress (no more “fix COPY, break inline code” flip-flop). Desktop
+  message membership and arm-for-entry keep inline live; a live range
+  suppresses everywhere.
+
+- **Desktop text vs message pan (tdesktop Inside parity).** Message pan no
+  longer wins on empty line gutter / body surface padding: `containsGlobal`
+  is surface-bounds. While **text selection** is active, non-text clicks
+  dismiss text instead of starting message drag-select.
+
+
+### Changed
+
+- **Selection ownership (ADR 013).** Viewport owns markdown **text
+  selection**; optional-bridge / markdown-agnostic core (ADR 011) is
+  superseded. ADR 012 records policy amendments: engine-owned mobile
+  long-press routing (public **span yield** is not the lasting entry seam);
+  collapse-to-subject as this viewport’s mobile rule; mobile retarget as
+  policy; **inline hit** first-class vs idle dismiss; desktop drag-out
+  promotion to **message selection** accepted and deferred past foundation.
+
+- **`ChatSelectionController` is the selection facade.** Membership plus
+  **text selection** subject/range, **selection policy**, and Copy
+  observation live on one controller. New call sites do not compose a
+  second host text controller.
+
 ### Added
+
+- **Viewport markdown dependency + text module.** `chat_scroll_view`
+  depends on `flutter_md` and owns an internal text-selection module
+  that reuses that library’s selection _model_ (documents, positions,
+  copy formatting). `ChatSelectionPolicy` (`$Mobile` / `$Desktop`,
+  `forPlatform` default) is constructed with the facade. Programmatic
+  `enterTextSelection` / `clearTextSelection` / `copyTextSelection`,
+  `putBody` / `removeBody`, and Copy-success listeners (plus optional
+  `onCopySuccess`) are the public text surface.
 
 - **`chat_md_selection` selection policy (ADR 012).** Sealed
   `ChatMdSelectionPolicy` (`mobile` / `desktop`) with host override and

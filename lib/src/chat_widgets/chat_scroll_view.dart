@@ -136,6 +136,7 @@ class ChatScrollView extends RenderObjectWidget {
     this.loadingBuilder,
     this.selectionController,
     this.onIdleMessageTap,
+    this.onSecondaryMessageTap,
     this.selectionChromeBuilder,
     this.bottomPadding,
     this.topPadding,
@@ -200,17 +201,24 @@ class ChatScrollView extends RenderObjectWidget {
   /// The package itself does not ship a built-in placeholder.
   final WidgetBuilder? loadingBuilder;
 
-  /// Optional whole-message selection. When non-null each **loaded** message
+  /// Optional selection facade. When non-null each **loaded** message
   /// whose [ChatSelectionAllowed.showsChrome] is true is wrapped in
   /// [SelectableMessage] for chrome. [ChatSelectionAllowed.none] rows
-  /// are not wrapped. The viewport owns long-press and tap and drives the
-  /// [controller]. Placeholder / shimmer slots (`message == null`) are not
-  /// wrapped and cannot be selected. When null the viewport adds no selection
-  /// wrapper and costs nothing.
+  /// are not wrapped. The viewport owns long-press and tap and drives
+  /// **message selection**. **Text selection** subject/range/policy/Copy
+  /// live on the same facade; the list is not wrapped in a markdown
+  /// library selection scope. Placeholder / shimmer slots
+  /// (`message == null`) are not wrapped and cannot be selected. When
+  /// null the viewport adds no selection wrapper and costs nothing.
   final ChatSelectionController? selectionController;
 
   /// Called when the user taps a present message slot while message
-  /// selection is inactive. Null is a no-op — today's silence.
+  /// selection and text selection are both inactive. Null is a no-op.
+  ///
+  /// Never fired when [selectionController] is in message selection mode or
+  /// when text selection is active — message menu and selection modes are
+  /// mutually exclusive. When text selection is active, an idle tap dismisses
+  /// text selection without dispatching here.
   ///
   /// The viewport-owned pointer attaches when this callback or
   /// [selectionController] is non-null. Not gated on selection-allowed.
@@ -219,6 +227,13 @@ class ChatScrollView extends RenderObjectWidget {
   /// header hits through to the message underneath, matching selection
   /// tap. The host decides whether to present a message menu.
   final ChatIdleMessageTapCallback? onIdleMessageTap;
+
+  /// Called when the user secondary-taps (right-clicks) a present message slot.
+  /// Null is a no-op.
+  ///
+  /// On desktop platforms, right-click is the canonical trigger for the message
+  /// context menu, both while idle and during selection mode.
+  final ChatIdleMessageTapCallback? onSecondaryMessageTap;
 
   /// Replaces the bundled checkbox-gutter chrome. Ignored when
   /// [selectionController] is null.
@@ -378,6 +393,7 @@ class ChatScrollView extends RenderObjectWidget {
       scrollbarTheme: theme.scrollbar!,
       selectionController: selectionController,
       onIdleMessageTap: onIdleMessageTap,
+      onSecondaryMessageTap: onSecondaryMessageTap,
       isSelfMessage: isSelfMessage,
     );
   }
@@ -408,6 +424,7 @@ class ChatScrollView extends RenderObjectWidget {
       ..textDirection = _resolveDirection(context)
       ..selectionController = selectionController
       ..onIdleMessageTap = onIdleMessageTap
+      ..onSecondaryMessageTap = onSecondaryMessageTap
       ..isSelfMessage = isSelfMessage;
   }
 }
