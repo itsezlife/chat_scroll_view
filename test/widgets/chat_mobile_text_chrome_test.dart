@@ -342,6 +342,19 @@ void main() {
         expect(selection.isTextSelectionActive, isTrue);
         expect(find.byType(CompositedTransformFollower), findsNWidgets(2));
 
+        MarkdownSelectionScopeState subjectScope() {
+          // Prefer the subject body's scope when several mounts share the
+          // controller (message 2 stays enabled under mobile multi-select).
+          final scopes = find.byType(MarkdownSelectionScope);
+          for (var i = 0; i < scopes.evaluate().length; i++) {
+            final state = tester.state<MarkdownSelectionScopeState>(scopes.at(i));
+            if (state.selectionHandleLeadersAttached || state.toolbarIsVisible) {
+              return state;
+            }
+          }
+          return tester.state<MarkdownSelectionScopeState>(scopes.first);
+        }
+
         // Simulate handle-driven range update (user's "next selection update").
         final tl = tester.getTopLeft(find.byType(MarkdownWidget).first);
         selection.markdownSelection.moveSelectionEdgeToGlobal(
@@ -351,15 +364,378 @@ void main() {
         await tester.pumpAndSettle();
 
         expect(selection.isTextSelectionActive, isTrue);
+        expect(selection.textSelection!.isCollapsed, isFalse);
         expect(
           find.byType(CompositedTransformFollower),
           findsNWidgets(2),
-          reason: 'handles must survive range updates under multi-message membership',
+          reason:
+              'text selection chrome handles must survive range updates under '
+              'multi-message membership',
         );
-        final scope = tester.state<MarkdownSelectionScopeState>(
-          find.byType(MarkdownSelectionScope).first,
+        var scope = subjectScope();
+        expect(scope.toolbarIsVisible, isTrue);
+        expect(
+          scope.selectionHandleLeadersAttached,
+          isTrue,
+          reason: 'handle leaders must stay linked after the first settle',
+        );
+
+        selection.markdownSelection.moveSelectionEdgeToGlobal(
+          tl + const Offset(80, 12),
+          isStart: false,
+        );
+        await tester.pumpAndSettle();
+
+        expect(selection.isTextSelectionActive, isTrue);
+        expect(selection.textSelection!.isCollapsed, isFalse);
+        expect(find.byType(CompositedTransformFollower), findsNWidgets(2));
+        scope = subjectScope();
+        expect(
+          scope.selectionHandleLeadersAttached,
+          isTrue,
+          reason:
+              'text selection chrome leaders must survive a second non-collapsed '
+              'range settle',
         );
         expect(scope.toolbarIsVisible, isTrue);
+
+        selection.clearTextSelection();
+        await tester.pumpAndSettle();
+        expect(selection.isTextSelectionActive, isFalse);
+        expect(find.byType(CompositedTransformFollower), findsNothing);
+        expect(
+          tester
+              .state<MarkdownSelectionScopeState>(
+                find.byType(MarkdownSelectionScope).first,
+              )
+              .selectionHandleLeadersAttached,
+          isFalse,
+          reason: 'disarmed text must clear handle leaders (no zombie chrome)',
+        );
+      } finally {
+        debugDefaultTargetPlatformOverride = null;
+      }
+    },
+  );
+
+  testWidgets(
+    'toolbar and handles re-anchor when the subject scrolls (viewport reposition)',
+    (tester) async {
+      debugDefaultTargetPlatformOverride = TargetPlatform.android;
+      try {
+        final dataSource = _LoadedSource([
+          for (var i = 1; i <= 20; i++) _msg(i),
+        ]);
+        final controller = ChatScrollController()..jumpTo(10);
+        final selection = ChatSelectionController(
+          policy: const ChatSelectionPolicy.mobile(),
+        );
+        addTearDown(controller.dispose);
+        addTearDown(selection.dispose);
+        addTearDown(dataSource.dispose);
+
+        selection.putBody(10, Markdown.fromString('Hello selectable world'));
+
+        await tester.pumpWidget(
+          MaterialApp(
+            theme: ThemeData(platform: TargetPlatform.android),
+            home: Scaffold(
+              body: SizedBox(
+                width: 400,
+                height: 600,
+                child: ChatScrollView(
+                  dataSource: dataSource,
+                  controller: controller,
+                  selectionController: selection,
+                  messageBuilder: (context, id, message, status, runLayout) =>
+                      Container(
+                        height: 80,
+                        padding: const EdgeInsets.all(12),
+                        child: id == 10
+                            ? ChatMarkdownBody(
+                                controller: selection,
+                                messageId: id,
+                              )
+                            : Text('row $id'),
+                      ),
+                ),
+              ),
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        selection.startSelection(10);
+        await tester.pumpAndSettle();
+
+        final global = tester.getCenter(find.byType(MarkdownWidget));
+        expect(
+          selection.enterTextSelection(10, globalOffset: global),
+          isTrue,
+        );
+        await tester.pump();
+        await tester.pumpAndSettle();
+
+        expect(selection.isTextSelectionActive, isTrue);
+        final scope = tester.state<MarkdownSelectionScopeState>(
+          find.byType(MarkdownSelectionScope),
+        );
+        expect(scope.toolbarIsVisible, isTrue);
+        expect(find.byType(CompositedTransformFollower), findsNWidgets(2));
+
+        final toolbarFinder = find.byType(AdaptiveTextSelectionToolbar);
+        expect(toolbarFinder, findsOneWidget);
+        final before = tester
+            .widget<AdaptiveTextSelectionToolbar>(toolbarFinder)
+            .anchors
+            .primaryAnchor;
+        final subjectBefore = tester.getCenter(find.byType(MarkdownWidget));
+
+        controller.scrollBy(120);
+        await tester.pumpAndSettle();
+
+        expect(selection.isTextSelectionActive, isTrue);
+        expect(scope.toolbarIsVisible, isTrue);
+        expect(toolbarFinder, findsOneWidget);
+        final after = tester
+            .widget<AdaptiveTextSelectionToolbar>(toolbarFinder)
+            .anchors
+            .primaryAnchor;
+        final subjectAfter = tester.getCenter(find.byType(MarkdownWidget));
+        expect(
+          subjectAfter.dy,
+          isNot(equals(subjectBefore.dy)),
+          reason: 'fixture must move the text selection subject on-screen',
+        );
+        expect(
+          after,
+          isNot(equals(before)),
+          reason:
+              'text selection chrome toolbar must re-anchor when the subject '
+              'moves via viewport reposition (not only Scrollable notifications)',
+        );
+        expect(find.byType(CompositedTransformFollower), findsNWidgets(2));
+        expect(
+          scope.selectionHandleLeadersAttached,
+          isTrue,
+          reason: 'handles must track the subject after geometry change',
+        );
+      } finally {
+        debugDefaultTargetPlatformOverride = null;
+      }
+    },
+  );
+
+  testWidgets(
+    'mobile Select All with multi-message membership expands subject and keeps chrome',
+    (tester) async {
+      debugDefaultTargetPlatformOverride = TargetPlatform.android;
+      try {
+        final dataSource = _LoadedSource([_msg(1), _msg(2)]);
+        final controller = ChatScrollController();
+        final selection = ChatSelectionController(
+          policy: const ChatSelectionPolicy.mobile(),
+        );
+        addTearDown(controller.dispose);
+        addTearDown(selection.dispose);
+        addTearDown(dataSource.dispose);
+
+        const body1 = 'First message full body text';
+        const body2 = 'Second message full body text';
+        selection.putBody(1, Markdown.fromString(body1));
+        selection.putBody(2, Markdown.fromString(body2));
+
+        await tester.pumpWidget(
+          MaterialApp(
+            theme: ThemeData(platform: TargetPlatform.android),
+            home: Scaffold(
+              body: SizedBox(
+                width: 400,
+                height: 600,
+                child: ChatScrollView(
+                  dataSource: dataSource,
+                  controller: controller,
+                  selectionController: selection,
+                  messageBuilder: (context, id, message, status, runLayout) =>
+                      Container(
+                        key: ValueKey('container-$id'),
+                        height: 100,
+                        padding: const EdgeInsets.all(12),
+                        child: ChatMarkdownBody(
+                          key: ValueKey('md-$id'),
+                          controller: selection,
+                          messageId: id,
+                        ),
+                      ),
+                ),
+              ),
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        selection
+          ..startSelection(1)
+          ..toggle(2);
+        await tester.pumpAndSettle();
+        expect(selection.selectedIds, <int>{1, 2});
+
+        // Partial word entry first so Select All must expand (not no-op).
+        final surface = selection.surfaceFor(1);
+        expect(surface, isNotNull);
+        final boxes = surface!.localBoxesForRange(0, 0, 1);
+        expect(boxes, isNotEmpty);
+        final global = (surface as RenderBox).localToGlobal(boxes.first.center);
+        expect(
+          selection.enterTextSelection(1, globalOffset: global),
+          isTrue,
+        );
+        await tester.pump();
+        await tester.pumpAndSettle();
+
+        expect(selection.isTextSelectionActive, isTrue);
+        expect(selection.textSelectionSubject, 1);
+        expect(selection.textSelection!.isCollapsed, isFalse);
+        final before = selection.markdownSelection.getText();
+        expect(before, isNotEmpty);
+        expect(before.length, lessThan(body1.length));
+        expect(find.byType(CompositedTransformFollower), findsNWidgets(2));
+        expect(find.byType(AdaptiveTextSelectionToolbar), findsOneWidget);
+
+        expect(selection.selectAllText(), isTrue);
+        await tester.pumpAndSettle();
+
+        expect(selection.isTextSelectionActive, isTrue);
+        expect(selection.textSelectionSubject, 1);
+        expect(selection.selectedIds, <int>{1, 2});
+        expect(selection.textSelection, isNotNull);
+        expect(selection.textSelection!.isCollapsed, isFalse);
+        expect(selection.textSelection!.base.documentId, 1);
+        expect(selection.textSelection!.extent.documentId, 1);
+        expect(selection.markdownSelection.getText(), body1);
+        expect(find.byType(CompositedTransformFollower), findsNWidgets(2));
+        expect(find.byType(AdaptiveTextSelectionToolbar), findsOneWidget);
+        expect(
+          tester
+              .state<MarkdownSelectionScopeState>(
+                find.byType(MarkdownSelectionScope).first,
+              )
+              .toolbarIsVisible,
+          isTrue,
+        );
+        // Only the subject mounts a selection surface while text is live.
+        expect(selection.surfaceFor(2), isNull);
+        expect(
+          selection.markdownSelection.documents.map((d) => d.id),
+          <Object>[1],
+        );
+
+        selection.clearTextSelection();
+        await tester.pumpAndSettle();
+        expect(selection.isTextSelectionActive, isFalse);
+        expect(selection.selectedIds, <int>{1, 2});
+        expect(find.byType(CompositedTransformFollower), findsNothing);
+      } finally {
+        debugDefaultTargetPlatformOverride = null;
+      }
+    },
+  );
+
+  testWidgets(
+    'toolbar re-anchors when reserved bottom inset shifts the band',
+    (tester) async {
+      debugDefaultTargetPlatformOverride = TargetPlatform.android;
+      try {
+        final dataSource = _LoadedSource([
+          for (var i = 1; i <= 12; i++) _msg(i),
+        ]);
+        final controller = ChatScrollController()..jumpTo(6);
+        final selection = ChatSelectionController(
+          policy: const ChatSelectionPolicy.mobile(),
+        );
+        final bottomPad = ValueNotifier<double>(0);
+        addTearDown(controller.dispose);
+        addTearDown(selection.dispose);
+        addTearDown(dataSource.dispose);
+        addTearDown(bottomPad.dispose);
+
+        selection.putBody(6, Markdown.fromString('Hello selectable world'));
+
+        await tester.pumpWidget(
+          MaterialApp(
+            theme: ThemeData(platform: TargetPlatform.android),
+            home: Scaffold(
+              body: SizedBox(
+                width: 400,
+                height: 600,
+                child: ChatScrollView(
+                  dataSource: dataSource,
+                  controller: controller,
+                  selectionController: selection,
+                  bottomPadding: bottomPad,
+                  messageBuilder: (context, id, message, status, runLayout) =>
+                      Container(
+                        height: 80,
+                        padding: const EdgeInsets.all(12),
+                        child: id == 6
+                            ? ChatMarkdownBody(
+                                controller: selection,
+                                messageId: id,
+                              )
+                            : Text('row $id'),
+                      ),
+                ),
+              ),
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        selection.startSelection(6);
+        await tester.pumpAndSettle();
+
+        final global = tester.getCenter(find.byType(MarkdownWidget));
+        expect(
+          selection.enterTextSelection(6, globalOffset: global),
+          isTrue,
+        );
+        await tester.pump();
+        await tester.pumpAndSettle();
+
+        final scope = tester.state<MarkdownSelectionScopeState>(
+          find.byType(MarkdownSelectionScope),
+        );
+        expect(scope.toolbarIsVisible, isTrue);
+
+        final toolbarFinder = find.byType(AdaptiveTextSelectionToolbar);
+        final before = tester
+            .widget<AdaptiveTextSelectionToolbar>(toolbarFinder)
+            .anchors
+            .primaryAnchor;
+        final subjectBefore = tester.getCenter(find.byType(MarkdownWidget));
+
+        bottomPad.value = 120;
+        await tester.pumpAndSettle();
+
+        expect(scope.toolbarIsVisible, isTrue);
+        final after = tester
+            .widget<AdaptiveTextSelectionToolbar>(toolbarFinder)
+            .anchors
+            .primaryAnchor;
+        final subjectAfter = tester.getCenter(find.byType(MarkdownWidget));
+        expect(
+          subjectAfter.dy,
+          isNot(equals(subjectBefore.dy)),
+          reason: 'reserved inset must shift on-screen subject geometry',
+        );
+        expect(
+          after,
+          isNot(equals(before)),
+          reason:
+              'text selection chrome must re-anchor when reserved inset '
+              'shifts the scroll band',
+        );
+        expect(find.byType(CompositedTransformFollower), findsNWidgets(2));
       } finally {
         debugDefaultTargetPlatformOverride = null;
       }

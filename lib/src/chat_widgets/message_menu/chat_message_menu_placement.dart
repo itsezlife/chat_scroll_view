@@ -1,5 +1,6 @@
 import 'dart:math' as math;
 
+import 'package:chat_scroll_view/src/chat_widgets/message_menu/chat_message_menu_presentation.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/painting.dart';
 
@@ -31,13 +32,13 @@ final class ChatMessageMenuPlacement {
 /// Positions the menu from the tap, clamped above the IME and safe insets.
 ///
 /// Slot rects are full rows and can be taller/wider than the screen, so
-/// **Y follows the tap** (`ChatActivity.createMenu` `popupY = listY +
-/// cellTop + tapY`), not `messageRect.top`.
+/// **Y follows the tap**, not `messageRect.top`.
 ///
-/// - **X:** always the leading inset ([kChatMessageMenuEdgeInset]). Telegram's window is that
-///   outer box; the action card is then inset 16/36 under a wider
-///   reactions strip (`ChatScrimPopupContainerLayout`). Outgoing vs
-///   incoming does not change X.
+/// - **X ([ChatMessageMenuPresentation.sheet]):** leading inset
+///   ([kChatMessageMenuEdgeInset]). The action card may be further inset under
+///   a wider reactions strip. Outgoing vs incoming does not change X.
+/// - **X ([ChatMessageMenuPresentation.popup]):** follows the tap, clamped
+///   into the overlay so a desktop/web pointer menu stays near the cursor.
 /// - **Y:** start at tap Y; if the stack is taller than 240dp, shift up by
 ///   `240 - (height + 48)`; then clamp into the overlay.
 ChatMessageMenuPlacement computeChatMessageMenuPlacement({
@@ -47,13 +48,25 @@ ChatMessageMenuPlacement computeChatMessageMenuPlacement({
   required Size menuSize,
   Offset? tapGlobal,
   EdgeInsets safePadding = EdgeInsets.zero,
+  ChatMessageMenuPresentation presentation = ChatMessageMenuPresentation.sheet,
 }) {
   final tap = tapGlobal ?? messageRect.center;
   final kb = keyboardHeight < 0 ? 0.0 : keyboardHeight;
   final bottomInset = kb > safePadding.bottom ? kb : safePadding.bottom;
   final bottom = screenSize.height - bottomInset;
 
-  final menuX = kChatMessageMenuEdgeInset + safePadding.left;
+  final minX = kChatMessageMenuEdgeInset + safePadding.left;
+  final maxX = math.max(
+    minX,
+    screenSize.width -
+        menuSize.width -
+        kChatMessageMenuEdgeInset -
+        safePadding.right,
+  );
+  final menuX = switch (presentation) {
+    ChatMessageMenuPresentation.sheet => minX,
+    ChatMessageMenuPresentation.popup => tap.dx.clamp(minX, maxX).toDouble(),
+  };
 
   final minY = safePadding.top + 24;
   final clampHeight = menuSize.height + kChatMessageMenuClampHeightPad;

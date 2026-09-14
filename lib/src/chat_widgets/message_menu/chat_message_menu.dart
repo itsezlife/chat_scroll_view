@@ -1,15 +1,22 @@
 import 'dart:async';
 
+import 'package:chat_scroll_view/src/chat_scroll/chat_selection_policy.dart';
 import 'package:chat_scroll_view/src/chat_widgets/message_menu/chat_message_menu_config.dart';
 import 'package:chat_scroll_view/src/chat_widgets/message_menu/chat_message_menu_host.dart';
 import 'package:chat_scroll_view/src/chat_widgets/message_menu/chat_message_menu_item.dart';
+import 'package:chat_scroll_view/src/chat_widgets/message_menu/chat_message_menu_presentation.dart';
 import 'package:chat_scroll_view/src/chat_widgets/message_menu/chat_message_menu_slots.dart';
 import 'package:flutter/material.dart';
 
 export 'package:chat_scroll_view/src/chat_widgets/message_menu/chat_message_menu_actions.dart';
 export 'package:chat_scroll_view/src/chat_widgets/message_menu/chat_message_menu_column.dart';
 export 'package:chat_scroll_view/src/chat_widgets/message_menu/chat_message_menu_item.dart';
+export 'package:chat_scroll_view/src/chat_widgets/message_menu/chat_message_menu_placement.dart'
+    show kChatMessageMenuEdgeInset;
+export 'package:chat_scroll_view/src/chat_widgets/message_menu/chat_message_menu_presentation.dart';
 export 'package:chat_scroll_view/src/chat_widgets/message_menu/chat_message_menu_reactions.dart';
+export 'package:chat_scroll_view/src/chat_widgets/message_menu/chat_message_menu_request.dart';
+export 'package:chat_scroll_view/src/chat_widgets/message_menu/chat_message_menu_scrim.dart';
 export 'package:chat_scroll_view/src/chat_widgets/message_menu/chat_message_menu_slots.dart';
 export 'package:chat_scroll_view/src/chat_widgets/message_menu/chat_message_menu_theme.dart';
 
@@ -20,6 +27,13 @@ export 'package:chat_scroll_view/src/chat_widgets/message_menu/chat_message_menu
 /// Completes on the tap itself — leave animation does not delay the
 /// result. The overlay is removed after the animation.
 /// Empty [reactions] omits the reaction strip.
+///
+/// **Message menu presentation** defaults from [selectionPolicy] (or
+/// [ChatSelectionPolicy.forPlatform] when that is also omitted). Pass
+/// [presentation] to override for a single present. [sheet] dims the
+/// viewport with an undimmed slot hole; [popup] is a light pointer menu
+/// with no dim and no slot outline / lift. Presence, Escape / back,
+/// outside dismiss, and action / reaction results stay one session API.
 ///
 /// When [keepKeyboardVisible] is true, restores the previous [FocusNode]
 /// after the overlay so IME height does not change. Does not request
@@ -32,8 +46,7 @@ export 'package:chat_scroll_view/src/chat_widgets/message_menu/chat_message_menu
 /// Restyle chrome with [ChatMessageMenuThemeData] (or
 /// [ChatScrollThemeData.menu]). Replace rows or the floating column
 /// with [itemBuilder] / [reactionBuilder] / [menuBuilder] — session,
-/// scrim, placement, and back stay package-owned.
-///
+/// presentation chrome, placement, and back stay package-owned.
 Future<ChatMessageMenuResult?> showChatMessageMenu({
   required BuildContext context,
   required Rect messageRect,
@@ -43,11 +56,18 @@ Future<ChatMessageMenuResult?> showChatMessageMenu({
   bool keepKeyboardVisible = true,
   Listenable? presence,
   bool Function()? isPresent,
+  ChatMessageMenuPresentation? presentation,
+  ChatSelectionPolicy? selectionPolicy,
   ChatMessageMenuItemBuilder? itemBuilder,
   ChatMessageMenuReactionBuilder? reactionBuilder,
   ChatMessageMenuBuilder? menuBuilder,
 }) async {
   final media = MediaQuery.of(context);
+  final resolvedPresentation =
+      presentation ??
+      ChatMessageMenuPresentation.forPolicy(
+        selectionPolicy ?? ChatSelectionPolicy.forPlatform(),
+      );
   final config = ChatMessageMenuPresentConfig(
     messageRect: messageRect,
     tapGlobal: tapGlobal,
@@ -56,6 +76,7 @@ Future<ChatMessageMenuResult?> showChatMessageMenu({
     keyboardHeight: media.viewInsets.bottom,
     screenSize: media.size,
     safePadding: media.viewPadding,
+    presentation: resolvedPresentation,
     presence: presence,
     isPresent: isPresent,
     itemBuilder: itemBuilder,

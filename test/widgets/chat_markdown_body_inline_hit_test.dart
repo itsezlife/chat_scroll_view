@@ -71,7 +71,7 @@ void main() {
               selectionController: selection,
               onIdleMessageTap: onIdle == null
                   ? null
-                  : (id, slot, tap) => onIdle(),
+                  : (request) => onIdle(),
               messageBuilder: (context, id, message, status, runLayout) =>
                   Container(
                     // Tall enough for long fenced code + mobile COPY CODE bar.

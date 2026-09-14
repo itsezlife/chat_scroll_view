@@ -41,10 +41,6 @@ sealed class ChatSelectionPolicy {
   /// `false` under [$Desktop] (direct text entry via drag; long-press does not route).
   bool get routesLongPressToTextSelection;
 
-  /// Deprecated alias for [routesLongPressToTextSelection].
-  @Deprecated('Use routesLongPressToTextSelection instead.')
-  bool get claimsSpanYieldForTextEntry => routesLongPressToTextSelection;
-
   /// Whether the **text selection subject** must remain in the selected set
   /// while text is active.
   bool get nestsTextSubjectInMessageSelection;
@@ -174,9 +170,6 @@ final class ChatSelectionPolicy$Mobile implements ChatSelectionPolicy {
   bool get routesLongPressToTextSelection => true;
 
   @override
-  bool get claimsSpanYieldForTextEntry => true;
-
-  @override
   bool get nestsTextSubjectInMessageSelection => true;
 
   @override
@@ -243,9 +236,6 @@ final class ChatSelectionPolicy$Desktop implements ChatSelectionPolicy {
 
   @override
   bool get routesLongPressToTextSelection => false;
-
-  @override
-  bool get claimsSpanYieldForTextEntry => false;
 
   @override
   bool get nestsTextSubjectInMessageSelection => false;

@@ -6,12 +6,55 @@ this project is pre-1.0 and not strictly SemVer yet.
 
 ## [Unreleased]
 
+### Added
+
+- **Message menu presentation (ADR 016).** `ChatMessageMenuPresentation`
+  (`sheet` / `popup`) defaults from **selection policy** (`$Mobile` →
+  scrim sheet with undimmed slot; `$Desktop` → pointer popup with no
+  viewport dim and no slot outline / lift). Pass `presentation:` to
+  override a single present; optional `selectionPolicy:` feeds the
+  default when presentation is omitted. Shared session still supports
+  presence abort, Escape / back / outside dismiss, and action / reaction
+  results. Reactions remain optional on either presentation.
+
+- **Secondary opt-in owns the full message slot.** When
+  `onSecondaryMessageTap` is set, the viewport claims right-click on the
+  entire **slot** (including markdown glyphs); per-body text yields so
+  Flutter’s text context menu does not stack. When the callback is null,
+  Flutter’s text menu remains on selectable markdown.
+
+### Changed
+
+- **Message menu request (ADR 016).**
+  `ChatScrollView.onIdleMessageTap` / `onSecondaryMessageTap` receive a
+  [ChatMessageMenuRequest] with id, slot, tap, **point state** (body
+  Inside vs slot Outside), **membership** (idle / upon-selected /
+  elsewhere; upon-selected is **over-selection**), `hasTextSelection`
+  (subject has a live non-collapsed range), range-upon
+  `overlapsTextSelection` + optional plain-text snapshot, optional
+  `selectUpToIds` when elsewhere and under the selection cap, and
+  optional **inline hit** (link / code). Opening the menu still does not
+  clear membership or text selection. **Point state** uses the
+  host-reported message surface (bubble); **text overlap** is range-upon
+  at the tap (highlight rects), not subject-only. Example catalogs omit
+  both Copy and Copy Selected Text when text is selected but the press
+  is not upon the range; upon-selected rows use bulk labels; elsewhere
+  can offer Select up to. Hosts may pass `excludeActionIds` on the
+  example `MessageMenu` / catalog without forking the presenter.
+
 ### Fixed
 
 - **Ghost bubble selectedColor.** `SelectableMessage` chrome now rebuilds on
   facade notifies, not only mode/select animation ticks. Clearing a drag
   preview mid mode-enter no longer leaves `ChatMessageChangeTransition`
   painted with selectedColor while membership is empty.
+
+- **Message menu Inside after scroll.** Surface / body paint registration
+  stores the mounted [RenderBox] and resolves `localToGlobal` at hit time
+  (`reportMessageSurfaceBounds` / `reportBodyPaintBounds` now take
+  `RenderBox?`, not a cached global [Rect]). Cached rects went stale when
+  the list scrolled without rebuilding, so secondary taps looked Outside
+  (desktop Select-only — easy to read as “elsewhere”).
 
 - **Mobile inline hits vs selection (one matrix).** Idle: link / inline code /
   COPY CODE fire. **Message selection** or a live **character-range**: all

@@ -1,4 +1,5 @@
 import 'package:chat_scroll_view/src/chat_widgets/message_menu/chat_message_menu_item.dart';
+import 'package:chat_scroll_view/src/chat_widgets/message_menu/chat_message_menu_presentation.dart';
 import 'package:chat_scroll_view/src/chat_widgets/message_menu/chat_message_menu_slots.dart';
 import 'package:flutter/material.dart';
 
@@ -12,6 +13,7 @@ final class ChatMessageMenuPresentConfig {
     required this.reactions,
     required this.keyboardHeight,
     required this.screenSize,
+    required this.presentation,
     this.tapGlobal,
     this.safePadding = EdgeInsets.zero,
     this.presence,
@@ -42,6 +44,14 @@ final class ChatMessageMenuPresentConfig {
   /// System safe insets (status / nav). Do not include the IME.
   final EdgeInsets safePadding;
 
+  /// Resolved **message menu presentation** for this session.
+  ///
+  /// Always set by [showChatMessageMenu] after resolving [presentation] /
+  /// [selectionPolicy] / [ChatSelectionPolicy.forPlatform]. Direct
+  /// construction must pass the intended chrome — there is no silent
+  /// sheet default here.
+  final ChatMessageMenuPresentation presentation;
+
   /// Optional presence listenable. No signal = no watch.
   final Listenable? presence;
 
@@ -56,7 +66,8 @@ final class ChatMessageMenuPresentConfig {
 
   /// Optional custom chrome column. Null uses the package column.
   ///
-  /// Scrim, placement, back, and presence stay package-owned. Reuse
+  /// Presentation chrome (scrim vs transparent dismiss), placement, back,
+  /// and presence stay package-owned. Reuse
   /// [ChatMessageMenuSlots.actionList] / [ChatMessageMenuSlots.reactionStrip]
   /// to keep the defaults.
   final ChatMessageMenuBuilder? menuBuilder;

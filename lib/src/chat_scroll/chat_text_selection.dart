@@ -1,10 +1,10 @@
 import 'dart:collection';
-import 'dart:ui' show Offset, Path;
 
 import 'package:chat_scroll_view/src/chat_scroll/chat_inline_hit.dart';
 import 'package:chat_scroll_view/src/chat_scroll/chat_selection_policy.dart';
 import 'package:chat_scroll_view/src/chat_widgets/chat_code_block_painter.dart';
 import 'package:chat_scroll_view/src/chat_widgets/chat_smooth_contour.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter_md/flutter_md.dart';
 import 'package:meta/meta.dart';
 
@@ -36,6 +36,11 @@ final class ChatTextSelection {
   final bool _disposeMarkdown;
 
   final Map<int, _BodyEntry> _bodies = <int, _BodyEntry>{};
+  /// Mounted body paint boxes — resolved to global rects at hit time so
+  /// scroll does not stale a cached [Rect].
+  final Map<int, RenderBox> _bodyPaintBoxes = <int, RenderBox>{};
+  /// Mounted message-surface (bubble) boxes — same live-resolve contract.
+  final Map<int, RenderBox> _messageSurfaceBoxes = <int, RenderBox>{};
 
   int? _subjectId;
   var _active = false;
@@ -74,19 +79,100 @@ final class ChatTextSelection {
     return null;
   }
 
-  /// Whether [globalOffset] hits the registered body surface of [messageId]
+  /// Whether [globalOffset] hits the registered body of [messageId]
   /// (document bounds — padding and empty gutter included).
   ///
+  /// Prefer the mounted selection surface. When the surface is unmounted
+  /// (subject-only mounts while text is live), fall back to the body
+  /// [RenderBox] reported by the body widget so retarget / padding
+  /// arbitration still works for message-selected siblings.
+  ///
   /// Glyph-tight hit-testing for I-beam / links is separate
-  /// (`hitsSelectableGlyphs` / [resolveInlineHit]). Desktop text-vs-message
-  /// routing uses this surface predicate (tdesktop `PointState::Inside`).
+  /// (`hitsSelectableGlyphs` / [resolveInlineHit]). This is the text-body
+  /// surface for gesture routing — not the message-menu bubble surface
+  /// ([containsMessageSurface]).
   bool containsGlobal(int messageId, Offset globalOffset) {
     if (_disposed) return false;
     if (!_bodies.containsKey(messageId)) return false;
     final surface = surfaceFor(messageId);
-    if (surface == null) return false;
-    final bounds = surface.globalBounds;
-    return !bounds.isEmpty && bounds.contains(globalOffset);
+    if (surface != null) {
+      final bounds = surface.globalBounds;
+      return !bounds.isEmpty && bounds.contains(globalOffset);
+    }
+    final reported = _liveGlobalBounds(
+      _bodyPaintBoxes[messageId],
+      _bodyPaintBoxes,
+    );
+    return reported != null && reported.contains(globalOffset);
+  }
+
+  /// Whether [globalOffset] hits the host-reported **message surface**
+  /// (painted bubble / chrome), used for **message menu point state**.
+  ///
+  /// Uses the mounted [RenderBox] at hit time (scroll-safe). Falls back to
+  /// [containsGlobal] when no surface box is registered so text-only hosts
+  /// still get Inside on the body.
+  bool containsMessageSurface(int messageId, Offset globalOffset) {
+    if (_disposed) return false;
+    final surface = _liveGlobalBounds(
+      _messageSurfaceBoxes[messageId],
+      _messageSurfaceBoxes,
+    );
+    if (surface != null) {
+      return surface.contains(globalOffset);
+    }
+    return containsGlobal(messageId, globalOffset);
+  }
+
+  /// Current global paint rect for a registered [box], or null when the box
+  /// is missing, detached, or unsized (and drops the stale [owner] entry).
+  Rect? _liveGlobalBounds(RenderBox? box, Map<int, RenderBox> owner) {
+    if (box == null) return null;
+    if (!box.attached || !box.hasSize) {
+      owner.removeWhere((_, b) => identical(b, box));
+      return null;
+    }
+    return box.localToGlobal(Offset.zero) & box.size;
+  }
+
+  /// Records the body widget's [RenderBox] for [containsGlobal] fallback.
+  ///
+  /// Pass `null` on dispose / unmount. Hit-tests resolve
+  /// [RenderBox.localToGlobal] at query time — do not cache a global [Rect]
+  /// across scroll. Silent after [dispose].
+  void reportBodyPaintBounds(int messageId, RenderBox? box) {
+    if (_disposed) return;
+    if (box == null || !box.hasSize) {
+      _bodyPaintBoxes.remove(messageId);
+      return;
+    }
+    _bodyPaintBoxes[messageId] = box;
+  }
+
+  /// Records the message surface (bubble) [RenderBox] for menu Inside/Outside.
+  ///
+  /// Pass `null` on dispose / unmount. Hit-tests resolve live global geometry
+  /// at query time so scroll without rebuild stays correct. Silent after
+  /// [dispose].
+  void reportMessageSurfaceBounds(int messageId, RenderBox? box) {
+    if (_disposed) return;
+    if (box == null || !box.hasSize) {
+      _messageSurfaceBoxes.remove(messageId);
+      return;
+    }
+    _messageSurfaceBoxes[messageId] = box;
+  }
+
+  /// Whether the live text-selection highlight contains [globalOffset] on
+  /// [messageId] (glyph/box upon — not merely subject membership).
+  bool textSelectionContainsGlobal(int messageId, Offset globalOffset) {
+    if (_disposed || !_active || _subjectId != messageId) return false;
+    final sel = markdownSelection.selection;
+    if (sel == null || sel.isCollapsed) return false;
+    for (final rect in markdownSelection.globalSelectionRects()) {
+      if (rect.contains(globalOffset)) return true;
+    }
+    return false;
   }
 
   /// Resolves whether [globalOffset] hits an inline element (link or code)
@@ -437,6 +523,8 @@ final class ChatTextSelection {
       cleared = true;
     }
     _bodies.remove(messageId);
+    _bodyPaintBoxes.remove(messageId);
+    _messageSurfaceBoxes.remove(messageId);
     return cleared;
   }
 
@@ -490,8 +578,15 @@ final class ChatTextSelection {
 
   /// Selects the entire armed subject body. Returns `false` when the
   /// markdown range is missing or collapsed.
+  ///
+  /// Re-syncs the markdown document registry to the armed subject first.
+  /// Sibling body mounts share [markdownSelection] and call `putDocument` on
+  /// attach; without this prune, [MarkdownSelectionController.selectAll]
+  /// spans every registered document and the facade then collapses the
+  /// cross-message range.
   bool selectAllSubject() {
     if (_disposed || !_active) return false;
+    pruneToArmedSubject();
     markdownSelection.selectAll();
     return switch (markdownSelection.selection) {
       final sel? when !sel.isCollapsed => true,
@@ -530,6 +625,22 @@ final class ChatTextSelection {
     ]);
   }
 
+  /// Collapses the markdown document registry to the armed subject when sibling
+  /// mounts have re-expanded it via `putDocument`.
+  ///
+  /// Returns `true` when a sync ran (caller should let the resulting
+  /// [markdownSelection] notify finish the work). No-op when inactive,
+  /// disposed, or already subject-only.
+  bool pruneToArmedSubject() {
+    if (_disposed || !_active) return false;
+    final id = _subjectId;
+    if (id == null) return false;
+    final docs = markdownSelection.documents;
+    if (docs.length == 1 && docs.first.id == id) return false;
+    _syncArmedDocument();
+    return true;
+  }
+
   /// Clears listeners on the markdown model and, when created here, disposes
   /// it. Idempotent.
   void dispose() {
@@ -538,6 +649,8 @@ final class ChatTextSelection {
     _active = false;
     _subjectId = null;
     _bodies.clear();
+    _bodyPaintBoxes.clear();
+    _messageSurfaceBoxes.clear();
     markdownSelection
       ..clear()
       ..setDocuments(const <MarkdownDocumentRef>[]);

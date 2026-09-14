@@ -1,5 +1,6 @@
 import 'package:chat_scroll_view/src/chat_scroll/chat_selection_controller.dart';
 import 'package:chat_scroll_view/src/chat_widgets/chat_code_block_painter.dart';
+import 'package:chat_scroll_view/src/chat_widgets/chat_secondary_message_tap_scope.dart';
 import 'package:flutter/gestures.dart' show PointerDeviceKind;
 import 'package:flutter/material.dart'
     show
@@ -8,6 +9,38 @@ import 'package:flutter/material.dart'
         ContextMenuButtonType;
 import 'package:flutter/widgets.dart';
 import 'package:flutter_md/flutter_md.dart';
+
+/// Controls whether a descendant markdown body may register with the chat
+/// selection facade / mount a selection surface.
+///
+/// Edit-morph keeps an **outgoing** twin painted during the crossfade. That
+/// twin shares the same [messageId] as the live body; if it also attaches a
+/// surface or [ChatSelectionController.putBody]s, it overwrites the live
+/// registry entry and can orphan hit-testing when the twin detaches. Wrap
+/// outgoing content with `registers: false`.
+class ChatMarkdownBodyRegistration extends InheritedWidget {
+  /// Creates a registration scope for descendant [ChatMarkdownBody] mounts.
+  const ChatMarkdownBodyRegistration({
+    required this.registers,
+    required super.child,
+    super.key,
+  });
+
+  /// When false, descendants must not [ChatSelectionController.putBody] and
+  /// must not mount a selection surface for this paint.
+  final bool registers;
+
+  /// Whether the nearest scope allows selection registration (default true).
+  static bool allows(BuildContext context) =>
+      context
+          .getInheritedWidgetOfExactType<ChatMarkdownBodyRegistration>()
+          ?.registers ??
+      true;
+
+  @override
+  bool updateShouldNotify(covariant ChatMarkdownBodyRegistration oldWidget) =>
+      registers != oldWidget.registers;
+}
 
 /// Paints a registered markdown body and attaches an engine-owned text selection
 /// surface when [ChatSelectionController.exposesSelectionSurface] is true for [messageId].
@@ -25,12 +58,31 @@ import 'package:flutter_md/flutter_md.dart';
 /// ### Continuous text gestures (ADR 015)
 ///
 /// The per-body [MarkdownSelectionScope] owns continuous text entry once the
-/// viewport yields. Under mobile policy, the scope is enabled for
-/// message-selected bodies and the active **text selection subject**, with
-/// touch long-press armed and touch consecutive-tap entry off (taps stay with
-/// the viewport). The facade **adopts** the subject from the first
-/// non-collapsed markdown range. Desktop keeps mouse recognizers for direct
-/// entry when policy allows entry without membership.
+/// viewport yields. Under mobile policy, while **text selection** is inactive
+/// the scope is enabled for message-selected bodies; while text is live only
+/// the **text selection subject** mounts a surface (sibling `putDocument`
+/// would re-expand the shared registry). Touch long-press is armed on the
+/// subject; consecutive-tap entry stays off. The facade **adopts** the subject
+/// from the first non-collapsed markdown range. Retarget onto another selected
+/// body uses reported body paint bounds and facade
+/// [ChatSelectionController.enterTextSelection]. Desktop keeps mouse
+/// recognizers for direct entry when policy allows entry without membership.
+///
+/// ### Text selection chrome
+///
+/// Several bodies share one [ChatSelectionController.markdownSelection]
+/// controller. [MarkdownSelectionScope.ownsSelectionChrome] is gated to this
+/// [messageId] so only the **text selection subject** paints handles /
+/// toolbar. While text is live, only the subject mounts a selection surface;
+/// siblings report paint bounds for retarget / padding arbitration without
+/// re-expanding the document registry. Collapsed / disarmed text still clears
+/// chrome.
+///
+/// Toolbar anchors are absolute; they stay live because [ChatScrollView]
+/// dispatches [ScrollUpdateNotification] when subject geometry moves
+/// (reposition / fan-out / reserved inset), which the scope already consumes
+/// via [ScrollNotificationObserver]. Handle followers track via [LeaderLayer]
+/// without that rebuild.
 ///
 /// Inline taps (links / code) are arbitrated by the viewport selection pointer,
 /// not a competing body [GestureDetector] — a local tap recognizer would win
@@ -92,9 +144,22 @@ class _ChatMarkdownBodyState extends State<ChatMarkdownBody>
   @override
   void dispose() {
     _unbindFeedbackListeners(widget.controller);
+    widget.controller.reportBodyPaintBounds(widget.messageId, null);
     _clearFeedback();
     _feedbackNotifier.dispose();
     super.dispose();
+  }
+
+  void _reportPaintBounds() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      switch (context.findRenderObject()) {
+        case final RenderBox box when box.hasSize:
+          widget.controller.reportBodyPaintBounds(widget.messageId, box);
+        case _:
+          widget.controller.reportBodyPaintBounds(widget.messageId, null);
+      }
+    });
   }
 
   void _bindFeedbackListeners(ChatSelectionController controller) {
@@ -307,10 +372,11 @@ class _ChatMarkdownBodyState extends State<ChatMarkdownBody>
         widget.controller.textSelectionSubject == widget.messageId;
     if (isSubject) return true;
     final policy = widget.controller.selectionPolicy;
-    // Mobile message-then-text: selected bodies stay armed for continuous
-    // text entry / retarget (ADR 015). Chrome stays subject-only via
-    // [ownsSelectionChrome].
+    // Mobile message-then-text: while text is inactive, selected bodies stay
+    // armed for continuous text entry (ADR 015). While text is live only the
+    // subject mounts — siblings use reported paint bounds for retarget.
     if (policy.nestsTextSubjectInMessageSelection &&
+        !widget.controller.isTextSelectionActive &&
         widget.controller.isSelected(widget.messageId)) {
       return true;
     }
@@ -410,10 +476,12 @@ class _ChatMarkdownBodyState extends State<ChatMarkdownBody>
     builder: (context, _) {
       final model =
           widget.markdown ?? widget.controller.bodyOf(widget.messageId);
-      final mountSurface = widget.controller.exposesSelectionSurface(
-        widget.messageId,
-      );
+      final register = ChatMarkdownBodyRegistration.allows(context);
+      final mountSurface =
+          register &&
+          widget.controller.exposesSelectionSurface(widget.messageId);
       final scopeEnabled = _isScopeEnabled(mountSurface);
+      _reportPaintBounds();
       return switch (model) {
         null => const SizedBox.shrink(),
         final md => Listener(
@@ -491,9 +559,17 @@ class _ChatMarkdownBodyState extends State<ChatMarkdownBody>
                 enableTouchGestures: _enableTouchGestures(scopeEnabled),
                 enableTouchConsecutiveTaps: false,
                 canStartSelectionAt: _canStartTextSelectionAt,
+                // Subject-only chrome: siblings share the controller under
+                // mobile multi-select but must not paint this body's handles.
                 ownsSelectionChrome: (documentId) =>
                     documentId == widget.messageId,
-                contextMenuBuilder: _buildContextMenu,
+                // Host opted into secondary → yield right-click to the
+                // viewport (full-slot message menu). Null builder also
+                // omits the markdown secondary recognizer (flutter_md).
+                contextMenuBuilder:
+                    ChatSecondaryMessageTapScope.hostOwnsSecondaryOf(context)
+                    ? null
+                    : _buildContextMenu,
                 child: MarkdownWidget(
                   markdown: md,
                   theme: _resolveTheme(context),

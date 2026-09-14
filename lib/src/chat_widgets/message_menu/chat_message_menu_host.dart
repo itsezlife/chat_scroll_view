@@ -6,6 +6,7 @@ import 'package:chat_scroll_view/src/chat_widgets/message_menu/chat_message_menu
 import 'package:chat_scroll_view/src/chat_widgets/message_menu/chat_message_menu_config.dart';
 import 'package:chat_scroll_view/src/chat_widgets/message_menu/chat_message_menu_item.dart';
 import 'package:chat_scroll_view/src/chat_widgets/message_menu/chat_message_menu_placement.dart';
+import 'package:chat_scroll_view/src/chat_widgets/message_menu/chat_message_menu_presentation.dart';
 import 'package:chat_scroll_view/src/chat_widgets/message_menu/chat_message_menu_reactions.dart';
 import 'package:chat_scroll_view/src/chat_widgets/message_menu/chat_message_menu_scrim.dart';
 import 'package:chat_scroll_view/src/chat_widgets/message_menu/chat_message_menu_slots.dart';
@@ -14,7 +15,12 @@ import 'package:chat_scroll_view/src/chat_widgets/message_menu/overlay_back_butt
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
-/// Full-screen message menu (scrim + reactions + actions).
+/// Full-screen message menu host (presentation chrome + reactions + actions).
+///
+/// [ChatMessageMenuPresentation.sheet] paints the dimmed scrim with an
+/// undimmed slot hole. [ChatMessageMenuPresentation.popup] uses a
+/// transparent outside-dismiss layer only — no viewport dim and no slot
+/// outline / lift. Session dismiss and result paths are shared.
 class ChatMessageMenuHost extends StatefulWidget {
   /// Creates the host.
   const ChatMessageMenuHost({
@@ -49,7 +55,7 @@ class _ChatMessageMenuHostState extends State<ChatMessageMenuHost>
   final GlobalKey<ChatMessageMenuAppearanceState> _appearanceKey =
       GlobalKey<ChatMessageMenuAppearanceState>();
 
-  late final AnimationController _scrim;
+  AnimationController? _scrim;
   late final ChatPreImeBackClaim _backClaim;
   Size _menuSize = const Size(220, 200);
   var _closing = false;
@@ -57,10 +63,15 @@ class _ChatMessageMenuHostState extends State<ChatMessageMenuHost>
   @override
   void initState() {
     super.initState();
-    _scrim = AnimationController(
-      vsync: this,
-      duration: kChatMessageMenuScrimDuration,
-    )..forward();
+    switch (widget.config.presentation) {
+      case ChatMessageMenuPresentation.sheet:
+        _scrim = AnimationController(
+          vsync: this,
+          duration: kChatMessageMenuScrimDuration,
+        )..forward();
+      case ChatMessageMenuPresentation.popup:
+        break;
+    }
     _backClaim = ChatPreImeBackClaim.push(_onBackButtonPressed);
     HardwareKeyboard.instance.addHandler(_onHardwareKey);
     final presence = widget.config.presence;
@@ -80,7 +91,7 @@ class _ChatMessageMenuHostState extends State<ChatMessageMenuHost>
     widget.config.presence?.removeListener(_onPresence);
     HardwareKeyboard.instance.removeHandler(_onHardwareKey);
     _backClaim.pop();
-    _scrim.dispose();
+    _scrim?.dispose();
     super.dispose();
   }
 
@@ -104,7 +115,7 @@ class _ChatMessageMenuHostState extends State<ChatMessageMenuHost>
     widget.onResult(result);
     await Future.wait<void>([
       _appearanceKey.currentState?.dismiss() ?? Future<void>.value(),
-      _scrim.reverse(),
+      _scrim?.reverse() ?? Future<void>.value(),
     ]);
     if (!mounted) return;
     widget.onClosed();
@@ -126,6 +137,37 @@ class _ChatMessageMenuHostState extends State<ChatMessageMenuHost>
     return true;
   }
 
+  Widget _buildDismissLayer(Size screenSize) {
+    switch (widget.config.presentation) {
+      case ChatMessageMenuPresentation.sheet:
+        return switch (_scrim) {
+          final scrim? => Positioned.fill(
+            child: AnimatedBuilder(
+              animation: scrim,
+              builder: (context, _) => ChatMessageMenuScrim(
+                progress: scrim.value,
+                hole: widget.config.messageRect.intersect(
+                  Offset.zero & screenSize,
+                ),
+                onDismiss: () => _close(null),
+              ),
+            ),
+          ),
+          null => const SizedBox.shrink(),
+        };
+      case ChatMessageMenuPresentation.popup:
+        // Hit-test only — no paint, so the list stays undimmed and there
+        // is no slot hole / outline lift chrome.
+        return Positioned.fill(
+          child: Listener(
+            behavior: HitTestBehavior.opaque,
+            onPointerDown: (_) => _close(null),
+            child: const SizedBox.expand(),
+          ),
+        );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final config = widget.config;
@@ -137,6 +179,7 @@ class _ChatMessageMenuHostState extends State<ChatMessageMenuHost>
       menuSize: _menuSize,
       tapGlobal: config.tapGlobal,
       safePadding: config.safePadding,
+      presentation: config.presentation,
     );
     final slots = ChatMessageMenuSlots(
       items: config.items,
@@ -174,18 +217,7 @@ class _ChatMessageMenuHostState extends State<ChatMessageMenuHost>
           child: Stack(
             clipBehavior: Clip.hardEdge,
             children: <Widget>[
-              Positioned.fill(
-                child: AnimatedBuilder(
-                  animation: _scrim,
-                  builder: (context, _) => ChatMessageMenuScrim(
-                    progress: _scrim.value,
-                    hole: config.messageRect.intersect(
-                      Offset.zero & screenSize,
-                    ),
-                    onDismiss: () => _close(null),
-                  ),
-                ),
-              ),
+              _buildDismissLayer(screenSize),
               Positioned(
                 left: placement.menuOrigin.dx,
                 top: placement.menuOrigin.dy,

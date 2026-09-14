@@ -7,9 +7,11 @@ import 'package:chat_scroll_view/src/chat_widgets/chat_data_source_ext.dart';
 import 'package:chat_scroll_view/src/chat_widgets/chat_dated_message.dart';
 import 'package:chat_scroll_view/src/chat_widgets/chat_scroll_theme.dart';
 import 'package:chat_scroll_view/src/chat_widgets/chat_scroll_view.dart';
+import 'package:chat_scroll_view/src/chat_widgets/chat_secondary_message_tap_scope.dart';
 import 'package:chat_scroll_view/src/chat_widgets/chat_selectable_message.dart';
 import 'package:chat_scroll_view/src/chat_widgets/chat_selection_chrome.dart';
 import 'package:chat_scroll_view/src/chat_widgets/render_chat_scroll_view.dart';
+import 'package:flutter/scheduler.dart';
 import 'package:flutter/widgets.dart';
 
 /// Singleton slots — kept distinct from the int-keyed message children and
@@ -94,6 +96,49 @@ class ChatScrollElement extends RenderObjectElement
   @override
   RenderChatScrollView get renderObject =>
       super.renderObject as RenderChatScrollView;
+
+  /// Coalesces post-frame [ScrollUpdateNotification] dispatches so layout and
+  /// Tier-1 ticks in the same frame share one observer wake-up.
+  bool _viewportGeometryScrollScheduled = false;
+
+  /// Dispatches a [ScrollUpdateNotification] after child Y offsets move.
+  ///
+  /// The anchor viewport is not a [Scrollable], so conventional descendant
+  /// scroll bubbling never fires. Selection chrome (and any other
+  /// [ScrollNotificationObserver] listener under the same [Scaffold] /
+  /// observer host) still needs a geometry signal when **reposition**,
+  /// layout/fan-out, or **reserved inset** shifts move painted rows.
+  ///
+  /// Always deferred off [performLayout] / mid-frame microtasks: observer
+  /// listeners must not run while this element is laying out children.
+  /// Metrics are synthetic — listeners must not treat
+  /// [ScrollMetrics.pixels] as an authoritative chat scroll offset. The
+  /// notification exists so observers can refresh absolute overlays.
+  @override
+  void dispatchViewportGeometryScrollNotification() {
+    if (!mounted || _viewportGeometryScrollScheduled) return;
+    _viewportGeometryScrollScheduled = true;
+    SchedulerBinding.instance.addPostFrameCallback((_) {
+      _viewportGeometryScrollScheduled = false;
+      if (!mounted) return;
+      final height = renderObject.hasSize ? renderObject.size.height : 0.0;
+      final dpr =
+          MediaQuery.maybeDevicePixelRatioOf(this) ??
+          View.maybeOf(this)?.devicePixelRatio ??
+          1.0;
+      ScrollUpdateNotification(
+        metrics: FixedScrollMetrics(
+          minScrollExtent: 0,
+          maxScrollExtent: 0,
+          pixels: 0,
+          viewportDimension: height,
+          axisDirection: AxisDirection.down,
+          devicePixelRatio: dpr,
+        ),
+        context: this,
+      ).dispatch(this);
+    });
+  }
 
   @override
   void mount(Element? parent, Object? newSlot) {
@@ -184,7 +229,9 @@ class ChatScrollElement extends RenderObjectElement
         old.selectionController != newWidget.selectionController ||
         old.selectionChromeBuilder != newWidget.selectionChromeBuilder ||
         old.dateSeparatorBuilder != newWidget.dateSeparatorBuilder ||
-        old.textDirection != newWidget.textDirection) {
+        old.textDirection != newWidget.textDirection ||
+        (old.onSecondaryMessageTap == null) !=
+            (newWidget.onSecondaryMessageTap == null)) {
       _clearSkipCache();
       renderObject.markNeedsLayout();
     }
@@ -263,6 +310,12 @@ class ChatScrollElement extends RenderObjectElement
           child: content,
         );
       }
+      // Viewport-owned secondary (host callback set) must wrap every row so
+      // markdown bodies yield right-click to the full-slot message menu.
+      content = ChatSecondaryMessageTapScope(
+        hostOwnsSecondary: _widget.onSecondaryMessageTap != null,
+        child: content,
+      );
       return hasDateHeader
           ? DatedMessage(
               key: ValueKey<int>(id),

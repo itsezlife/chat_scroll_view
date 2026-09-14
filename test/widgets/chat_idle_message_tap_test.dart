@@ -3,6 +3,7 @@ import 'package:chat_scroll_view/src/chat_scroll/chat_scroll_common.dart';
 import 'package:chat_scroll_view/src/chat_scroll/chat_scroll_controller.dart';
 import 'package:chat_scroll_view/src/chat_scroll/chat_selection_controller.dart';
 import 'package:chat_scroll_view/src/chat_widgets/chat_scroll_view.dart';
+import 'package:chat_scroll_view/src/chat_widgets/message_menu/chat_message_menu_request.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -86,7 +87,7 @@ Widget _harness({
   required ChatDataSource dataSource,
   required ChatScrollController controller,
   ChatSelectionController? selection,
-  ChatIdleMessageTapCallback? onIdleMessageTap,
+  ChatMessageMenuRequestCallback? onIdleMessageTap,
   ChatGroupSeparatorBuilder? dateSeparatorBuilder,
   ChatChunkErrorBuilder? chunkErrorBuilder,
   ChatMessageBuilder? messageBuilder,
@@ -133,7 +134,7 @@ void main() {
               for (var i = 0; i < count; i++) _msg(i),
             ]),
             controller: controller,
-            onIdleMessageTap: (id, slot, tap) => taps.add(_Tap(id, slot, tap)),
+            onIdleMessageTap: (request) => taps.add(_Tap(request.messageId, request.slotGlobal, request.tapGlobal)),
           ),
         );
         await tester.pump();
@@ -160,7 +161,7 @@ void main() {
         _harness(
           dataSource: _LoadedSource([for (var i = 0; i < count; i++) _msg(i)]),
           controller: controller,
-          onIdleMessageTap: (id, slot, tap) => taps.add(_Tap(id, slot, tap)),
+          onIdleMessageTap: (request) => taps.add(_Tap(request.messageId, request.slotGlobal, request.tapGlobal)),
           messageBuilder: (context, id, message, status, runLayout) => SizedBox(
             height: 60,
             child: Align(
@@ -196,7 +197,7 @@ void main() {
         _harness(
           dataSource: _LoadedSource([for (var i = 0; i < 3; i++) _msg(i)]),
           controller: controller,
-          onIdleMessageTap: (id, slot, tap) => taps.add(_Tap(id, slot, tap)),
+          onIdleMessageTap: (request) => taps.add(_Tap(request.messageId, request.slotGlobal, request.tapGlobal)),
           reverse: true,
         ),
       );
@@ -218,7 +219,7 @@ void main() {
         _harness(
           dataSource: _SparseUnloadedSource(),
           controller: controller,
-          onIdleMessageTap: (id, slot, tap) => taps.add(_Tap(id, slot, tap)),
+          onIdleMessageTap: (request) => taps.add(_Tap(request.messageId, request.slotGlobal, request.tapGlobal)),
         ),
       );
       await tester.pump();
@@ -241,7 +242,7 @@ void main() {
         _harness(
           dataSource: source,
           controller: controller,
-          onIdleMessageTap: (id, slot, tap) => taps.add(_Tap(id, slot, tap)),
+          onIdleMessageTap: (request) => taps.add(_Tap(request.messageId, request.slotGlobal, request.tapGlobal)),
           chunkErrorBuilder: (context, details) => SizedBox(
             height: 120,
             child: Text('error-${details.firstId}-${details.lastId}'),
@@ -274,7 +275,7 @@ void main() {
           dataSource: _LoadedSource([for (var i = 0; i < count; i++) _msg(i)]),
           controller: controller,
           selection: selection,
-          onIdleMessageTap: (id, slot, tap) => taps.add(_Tap(id, slot, tap)),
+          onIdleMessageTap: (request) => taps.add(_Tap(request.messageId, request.slotGlobal, request.tapGlobal)),
         ),
       );
       await tester.pump();
@@ -306,7 +307,7 @@ void main() {
           dataSource: _LoadedSource([for (var i = 0; i < count; i++) _msg(i)]),
           controller: controller,
           selection: selection,
-          onIdleMessageTap: (id, slot, tap) => taps.add(_Tap(id, slot, tap)),
+          onIdleMessageTap: (request) => taps.add(_Tap(request.messageId, request.slotGlobal, request.tapGlobal)),
         ),
       );
       await tester.pump();
@@ -336,7 +337,7 @@ void main() {
           dataSource: _LoadedSource([for (var i = 0; i < count; i++) _msg(i)]),
           controller: controller,
           selection: selection,
-          onIdleMessageTap: (id, slot, tap) => taps.add(_Tap(id, slot, tap)),
+          onIdleMessageTap: (request) => taps.add(_Tap(request.messageId, request.slotGlobal, request.tapGlobal)),
         ),
       );
       await tester.pump();
@@ -388,7 +389,7 @@ void main() {
         _harness(
           dataSource: _LoadedSource([for (var i = 0; i < count; i++) _msg(i)]),
           controller: controller,
-          onIdleMessageTap: (id, slot, tap) => taps.add(_Tap(id, slot, tap)),
+          onIdleMessageTap: (request) => taps.add(_Tap(request.messageId, request.slotGlobal, request.tapGlobal)),
         ),
       );
       await tester.pump();
@@ -410,7 +411,7 @@ void main() {
         _harness(
           dataSource: _LoadedSource([for (var i = 0; i < count; i++) _msg(i)]),
           controller: controller,
-          onIdleMessageTap: (id, slot, tap) => taps.add(_Tap(id, slot, tap)),
+          onIdleMessageTap: (request) => taps.add(_Tap(request.messageId, request.slotGlobal, request.tapGlobal)),
         ),
       );
       await tester.pump();
@@ -442,7 +443,7 @@ void main() {
                 _msg(i, createdAt: DateTime(2026, 1, 1 + i ~/ 4, 9, i % 4)),
             ]),
             controller: controller,
-            onIdleMessageTap: (id, slot, tap) => taps.add(_Tap(id, slot, tap)),
+            onIdleMessageTap: (request) => taps.add(_Tap(request.messageId, request.slotGlobal, request.tapGlobal)),
             dateSeparatorBuilder: (context, bucket, date) => SizedBox(
               height: 40,
               child: Text('sep-${date.month}-${date.day}'),

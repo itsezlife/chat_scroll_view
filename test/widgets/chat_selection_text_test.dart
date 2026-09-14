@@ -159,6 +159,48 @@ void main() {
     );
 
     test(
+      'selectAllText under multi-message membership expands only the subject body',
+      () {
+        final selection = ChatSelectionController(
+          policy: const ChatSelectionPolicy.mobile(),
+        );
+        addTearDown(selection.dispose);
+
+        const body1 = 'First message full body text';
+        const body2 = 'Second message full body text';
+        selection.putBody(1, Markdown.fromString(body1));
+        selection.putBody(2, Markdown.fromString(body2));
+
+        selection
+          ..startSelection(1)
+          ..toggle(2);
+        expect(selection.enterTextSelection(1), isTrue);
+        expect(selection.textSelectionSubject, 1);
+
+        // Sibling mounts call putDocument and can re-expand the registry after
+        // adopt collapses to the subject — Select All must still stay on-body.
+        selection.markdownSelection.putDocument(
+          2,
+          Markdown.fromString(body2),
+          order: 1,
+        );
+
+        expect(selection.selectAllText(), isTrue);
+        expect(selection.isTextSelectionActive, isTrue);
+        expect(selection.textSelectionSubject, 1);
+        expect(selection.selectedIds, <int>{1, 2});
+        expect(selection.textSelection!.isCollapsed, isFalse);
+        expect(selection.textSelection!.base.documentId, 1);
+        expect(selection.textSelection!.extent.documentId, 1);
+        expect(selection.markdownSelection.getText(), body1);
+        expect(
+          selection.markdownSelection.documents.map((d) => d.id),
+          <Object>[1],
+        );
+      },
+    );
+
+    test(
       'starting selection on an unselected message dismisses active text selection',
       () {
         final selection = ChatSelectionController(
@@ -491,10 +533,12 @@ void main() {
         expect(selection.isTextSelectionActive, isTrue);
         expect(selection.textSelectionSubject, 1);
         expect(selection.selectedIds, <int>{1, 2});
+        expect(selection.surfaceFor(2), isNull);
 
-        // Retarget to message 2 via programmatic enter
+        // Sibling has no surface to yield to — retarget is programmatic /
+        // viewport enterTextSelection (shouldRoute stays false).
         final global2 = tester.getCenter(find.byKey(const ValueKey('md-2')));
-        expect(selection.shouldRouteLongPressToText(2, global2), isTrue);
+        expect(selection.shouldRouteLongPressToText(2, global2), isFalse);
         expect(selection.enterTextSelection(2, globalOffset: global2), isTrue);
         await tester.pump();
         await tester.pump();
@@ -799,7 +843,7 @@ void main() {
                   dataSource: dataSource,
                   controller: controller,
                   selectionController: selection,
-                  onIdleMessageTap: (id, slot, tap) => taps.add(id),
+                  onIdleMessageTap: (request) => taps.add(request.messageId),
                   messageBuilder: (context, id, message, status, runLayout) =>
                       Container(
                         key: ValueKey('container-$id'),
@@ -885,7 +929,7 @@ void main() {
                   dataSource: dataSource,
                   controller: controller,
                   selectionController: selection,
-                  onIdleMessageTap: (id, slot, tap) => taps.add(id),
+                  onIdleMessageTap: (request) => taps.add(request.messageId),
                   messageBuilder: (context, id, message, status, runLayout) =>
                       Container(
                         key: ValueKey('container-$id'),
@@ -980,7 +1024,7 @@ void main() {
                     dataSource: dataSource,
                     controller: controller,
                     selectionController: selection,
-                    onIdleMessageTap: (id, slot, tap) => taps.add(id),
+                    onIdleMessageTap: (request) => taps.add(request.messageId),
                     messageBuilder: (context, id, message, status, runLayout) =>
                         Container(
                           key: ValueKey('container-$id'),
@@ -1022,10 +1066,12 @@ void main() {
           await gesture1.up();
           await tester.pumpAndSettle();
 
-          // 3. Long-press on message 2's body text -> moves text selection to 2, clears range on 1
+          // 3. Long-press on message 2 body → viewport retargets (no sibling
+          // surface yield); membership unchanged.
           final md2 = find.byKey(const ValueKey('md-2'));
           final start2 = tester.getTopLeft(md2) + const Offset(24, 16);
-          expect(selection.shouldRouteLongPressToText(2, start2), isTrue);
+          expect(selection.shouldRouteLongPressToText(2, start2), isFalse);
+          expect(selection.containsGlobal(2, start2), isTrue);
           final gesture2 = await tester.startGesture(start2);
           await tester.pump(kLongPressTimeout + kPressTimeout);
           await tester.pump();
@@ -1232,7 +1278,7 @@ void main() {
                   dataSource: dataSource,
                   controller: controller,
                   selectionController: selection,
-                  onIdleMessageTap: (id, slot, tap) => taps.add(id),
+                  onIdleMessageTap: (request) => taps.add(request.messageId),
                   messageBuilder: (context, id, message, status, runLayout) =>
                       SizedBox(height: 60, child: Text('msg-$id')),
                 ),
@@ -1561,7 +1607,6 @@ void main() {
       addTearDown(selection.dispose);
 
       expect(selection.selectionPolicy.routesLongPressToTextSelection, isFalse);
-      expect(selection.selectionPolicy.claimsSpanYieldForTextEntry, isFalse);
 
       selection.putBody(1, Markdown.fromString('Hello selectable world'));
       expect(selection.shouldRouteLongPressToText(1, Offset.zero), isFalse);
@@ -1917,7 +1962,7 @@ void main() {
                   dataSource: dataSource,
                   controller: controller,
                   selectionController: selection,
-                  onIdleMessageTap: (id, slot, tap) => taps.add(id),
+                  onIdleMessageTap: (request) => taps.add(request.messageId),
                   messageBuilder: (context, id, message, status, runLayout) =>
                       Container(
                         key: ValueKey('container-$id'),
@@ -2212,9 +2257,8 @@ void main() {
                   dataSource: dataSource,
                   controller: controller,
                   selectionController: selection,
-                  onIdleMessageTap: (id, slot, tap) => taps.add(id),
-                  onSecondaryMessageTap: (id, slot, tap) =>
-                      secondaryTaps.add(id),
+                  onIdleMessageTap: (request) => taps.add(request.messageId),
+                  onSecondaryMessageTap: (request) => secondaryTaps.add(request.messageId),
                   messageBuilder: (context, id, message, status, runLayout) =>
                       SizedBox(height: 60, child: Text('msg-$id')),
                 ),
@@ -2788,6 +2832,59 @@ void main() {
     );
 
     test(
+      'handleInlineHitLongPress code reuses click-to-copy and yields under suppression',
+      () async {
+        final selection = ChatSelectionController(
+          policy: const ChatSelectionPolicy.mobile(),
+        );
+        addTearDown(selection.dispose);
+
+        final clipboard = <MethodCall>[];
+        TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+            .setMockMethodCallHandler(SystemChannels.platform, (call) async {
+              if (call.method == 'Clipboard.setData') clipboard.add(call);
+              return null;
+            });
+        addTearDown(
+          () => TestDefaultBinaryMessengerBinding
+              .instance
+              .defaultBinaryMessenger
+              .setMockMethodCallHandler(SystemChannels.platform, null),
+        );
+
+        final copySuccesses = <String>[];
+        selection.addCopySuccessListener(copySuccesses.add);
+        final codeTaps = <(int, String)>[];
+        selection.addCodeTapListener((id, code) => codeTaps.add((id, code)));
+
+        const codeHit = ChatInlineHit.code(
+          messageId: 42,
+          code: 'flutter run',
+          language: 'bash',
+        );
+
+        expect(selection.handleInlineHitLongPress(codeHit), isTrue);
+        expect(codeTaps, <(int, String)>[(42, 'flutter run')]);
+        expect(copySuccesses, <String>['flutter run']);
+        expect(clipboard, isNotEmpty);
+        expect(clipboard.last.arguments['text'], 'flutter run');
+
+        selection.startSelection(7);
+        codeTaps.clear();
+        copySuccesses.clear();
+        clipboard.clear();
+        expect(
+          selection.handleInlineHitLongPress(codeHit),
+          isFalse,
+          reason: 'mobile message selection must suppress hold-to-copy',
+        );
+        expect(codeTaps, isEmpty);
+        expect(copySuccesses, isEmpty);
+        expect(clipboard, isEmpty);
+      },
+    );
+
+    test(
       'listener removal cleanly unregisters link and code tap observers',
       () {
         final selection = ChatSelectionController(
@@ -2822,7 +2919,7 @@ void main() {
     );
 
     testWidgets(
-      'harness: tap on link with active text selection activates link without dismissing text',
+      'harness: tap on link with live text selection is suppressed (keeps or dismisses per idle-tap)',
       (tester) async {
         final dataSource = _LoadedSource([_msg(1)]);
         final controller = ChatScrollController();
@@ -2881,26 +2978,21 @@ void main() {
         );
         await tester.pumpAndSettle();
 
-        // 1. Enter message selection, then text selection on message 1
         selection.startSelection(1);
         expect(selection.enterTextSelection(1), isTrue);
         expect(selection.isTextSelectionActive, isTrue);
 
-        // 2. Tap directly on link glyphs (not empty max-width gutter)
         await tester.tapAt(_glyphPointOnBody(selection, 1, endOffset: 9));
         await tester.pumpAndSettle();
 
-        // 3. Link tap was activated, text selection remains active!
-        expect(linkTaps, hasLength(1));
-        expect(linkTaps.first, (1, 'Auto Docs', 'https://auto.com'));
-        expect(selection.isTextSelectionActive, isTrue);
-        expect(selection.textSelectionSubject, 1);
+        // Live character-range suppresses inline activation (ADR 012).
+        expect(linkTaps, isEmpty);
         expect(selection.selectedIds, <int>{1});
       },
     );
 
     testWidgets(
-      'harness: tap on code with active text selection copies code without dismissing text',
+      'harness: tap on code with live text selection is suppressed',
       (tester) async {
         final dataSource = _LoadedSource([_msg(1)]);
         final controller = ChatScrollController();
@@ -2962,22 +3054,17 @@ void main() {
         );
         await tester.pumpAndSettle();
 
-        // 1. Enter text selection on message 1
         expect(selection.enterTextSelection(1), isTrue);
         expect(selection.isTextSelectionActive, isTrue);
 
-        // 2. Tap on the code block header
         final mdTopLeft = tester.getTopLeft(find.byKey(const ValueKey('md-1')));
         await tester.tapAt(mdTopLeft + const Offset(50, 10));
         await tester.pumpAndSettle();
 
-        // 3. Code copied, callbacks fired, text selection remains active!
-        expect(codeTaps, <(int, String)>[(1, 'void main() {}')]);
-        expect(copySuccesses, <String>['void main() {}']);
-        expect(clipboard, isNotEmpty);
-        expect(clipboard.last.arguments['text'], 'void main() {}');
-        expect(selection.isTextSelectionActive, isTrue);
-        expect(selection.textSelectionSubject, 1);
+        // Live character-range suppresses fenced COPY chrome (ADR 012).
+        expect(codeTaps, isEmpty);
+        expect(copySuccesses, isEmpty);
+        expect(clipboard, isEmpty);
       },
     );
 
@@ -3320,7 +3407,7 @@ void main() {
                   dataSource: dataSource,
                   controller: controller,
                   selectionController: selection,
-                  onIdleMessageTap: (id, slot, tap) => idleTaps.add(id),
+                  onIdleMessageTap: (request) => idleTaps.add(request.messageId),
                   messageBuilder: (context, id, message, status, runLayout) =>
                       Container(
                         key: ValueKey('container-$id'),
@@ -3669,6 +3756,79 @@ void main() {
     });
 
     testWidgets(
+      'edit morph: after twin dispose, live body keeps selection surface and body model',
+      (tester) async {
+        final selection = ChatSelectionController(
+          policy: const ChatSelectionPolicy.mobile(),
+        );
+        addTearDown(selection.dispose);
+
+        const original = 'plain text only';
+        const updated = 'see `inline` and [docs](https://example.com)';
+
+        Widget harness(String content) => MaterialApp(
+          home: Scaffold(
+            body: Center(
+              child: ChatMessageChangeTransition(
+                contentIdentity: content,
+                content: _RegisteredLifecycleBody(
+                  controller: selection,
+                  messageId: 1,
+                  text: content,
+                ),
+                metaBuilder: (context, editedOpacity) => const SizedBox(
+                  width: 40,
+                  height: 12,
+                ),
+                color: const Color(0xFF2B5278),
+                borderRadius: BorderRadius.circular(12),
+                padding: const EdgeInsets.all(8),
+                outgoing: false,
+              ),
+            ),
+          ),
+        );
+
+        await tester.pumpWidget(harness(original));
+        await tester.pumpAndSettle();
+        expect(selection.bodyOf(1)?.toString(), original);
+        expect(selection.surfaceFor(1), isNotNull);
+
+        await tester.pumpWidget(harness(updated));
+        // Mid-morph: outgoing twin is mounted under registers:false.
+        await tester.pump();
+        expect(selection.bodyOf(1)?.toString(), updated);
+
+        await tester.pump(kChatMessageChangeDuration);
+        await tester.pumpAndSettle();
+
+        expect(
+          selection.bodyOf(1)?.toString(),
+          updated,
+          reason: 'live body model must stay on the edited text after morph',
+        );
+        expect(
+          selection.surfaceFor(1),
+          isNotNull,
+          reason:
+              'outgoing twin detach must not orphan the live selection surface',
+        );
+
+        // Inline hit needs laid-out glyphs on the live surface.
+        final surface = selection.surfaceFor(1)!;
+        final boxes = surface.localBoxesForRange(
+          0,
+          'see '.length,
+          'see `inline`'.length,
+        );
+        expect(boxes, isNotEmpty);
+        final global = (surface as RenderBox).localToGlobal(boxes.first.center);
+        final hit = selection.resolveInlineHit(1, global);
+        expect(hit, isA<ChatInlineHit$Code>());
+      },
+    );
+
+    testWidgets(
       'edit morph: disposing outgoing twin must not wipe the live body',
       (tester) async {
         final selection = ChatSelectionController();
@@ -3764,16 +3924,43 @@ class _RegisteredLifecycleBodyState extends State<_RegisteredLifecycleBody> {
   @override
   void initState() {
     super.initState();
+    _put();
+  }
+
+  @override
+  void didUpdateWidget(covariant _RegisteredLifecycleBody oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (!identical(oldWidget.controller, widget.controller) ||
+        oldWidget.messageId != widget.messageId) {
+      if (_token != null) {
+        oldWidget.controller.removeBody(oldWidget.messageId, token: _token);
+      }
+      _token = null;
+      _put();
+      return;
+    }
+    if (oldWidget.text != widget.text) {
+      _put();
+    }
+  }
+
+  void _put() {
+    if (!ChatMarkdownBodyRegistration.allows(context)) {
+      return;
+    }
     _token = widget.controller.putBody(
       widget.messageId,
       Markdown.fromString(widget.text),
       order: widget.messageId,
+      token: _token,
     );
   }
 
   @override
   void dispose() {
-    widget.controller.removeBody(widget.messageId, token: _token);
+    if (_token != null) {
+      widget.controller.removeBody(widget.messageId, token: _token);
+    }
     super.dispose();
   }
 
@@ -3781,5 +3968,6 @@ class _RegisteredLifecycleBodyState extends State<_RegisteredLifecycleBody> {
   Widget build(BuildContext context) => ChatMarkdownBody(
     controller: widget.controller,
     messageId: widget.messageId,
+    markdown: Markdown.fromString(widget.text),
   );
 }

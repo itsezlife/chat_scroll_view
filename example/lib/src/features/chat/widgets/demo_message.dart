@@ -240,24 +240,28 @@ class _Avatar extends StatelessWidget {
     final initial = sender.isEmpty
         ? '?'
         : sender.characters.first.toUpperCase();
-    return GestureDetector(
-      onTap: onTap,
-      onLongPress: () {}, // Absorb long-press so avatar does not trigger message selection (Decision 3)
-      child: Container(
-        width: size,
-        height: size,
-        alignment: Alignment.center,
-        decoration: BoxDecoration(
-          color: _colorForSender(sender),
-          shape: BoxShape.circle,
-        ),
-        child: Text(
-          initial,
-          style: const TextStyle(
-            color: Color(0xFFFFFFFF),
-            fontWeight: FontWeight.w700,
-            fontSize: 14,
-            height: 1,
+    return MouseRegion(
+      cursor: SystemMouseCursors.click,
+      child: GestureDetector(
+        onTap: onTap,
+        onLongPress:
+            () {}, // Absorb long-press so avatar does not trigger message selection (Decision 3)
+        child: Container(
+          width: size,
+          height: size,
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            color: _colorForSender(sender),
+            shape: BoxShape.circle,
+          ),
+          child: Text(
+            initial,
+            style: const TextStyle(
+              color: Color(0xFFFFFFFF),
+              fontWeight: FontWeight.w700,
+              fontSize: 14,
+              height: 1,
+            ),
           ),
         ),
       ),
@@ -346,52 +350,79 @@ class _Bubble extends StatelessWidget {
 
     return ConstrainedBox(
       constraints: BoxConstraints(maxWidth: maxWidth),
-      child: ChatMessageChangeTransition(
-        contentIdentity: content,
-        outgoing: isOutgoing,
-        edited: edited,
-        color: bg,
-        selectedColor: isOutgoing ? _kOutgoingSelectedBg : _kIncomingSelectedBg,
-        borderRadius: radius,
-        padding: padding,
-        spacing: 8,
-        boxShadow: const <BoxShadow>[
-          BoxShadow(
-            color: Color(0x33000000),
-            blurRadius: 4,
-            offset: Offset(0, 1),
+      child: switch (selection) {
+        final controller? => ChatMessageSurfaceBounds(
+          controller: controller,
+          messageId: messageId,
+          child: _bubbleChrome(
+            bg: bg,
+            metaColor: metaColor,
+            radius: radius,
+            padding: padding,
+            body: body,
           ),
-        ],
-        header: switch (sender) {
-          final name? when name.isNotEmpty => Padding(
-            padding: const EdgeInsets.only(bottom: 3),
-            child: GestureDetector(
-              onTap: onSenderTap != null ? () => onSenderTap!(name) : null,
-              onLongPress: () {}, // Absorb long-press so sender name does not trigger message selection (Decision 3)
-              child: Text(
-                name,
-                style: TextStyle(
-                  color: _colorForSender(name),
-                  fontWeight: FontWeight.w600,
-                  fontSize: 13,
-                  height: 1.15,
-                ),
+        ),
+        null => _bubbleChrome(
+          bg: bg,
+          metaColor: metaColor,
+          radius: radius,
+          padding: padding,
+          body: body,
+        ),
+      },
+    );
+  }
+
+  Widget _bubbleChrome({
+    required Color bg,
+    required Color metaColor,
+    required BorderRadiusGeometry radius,
+    required EdgeInsetsGeometry padding,
+    required Widget body,
+  }) => ChatMessageChangeTransition(
+    contentIdentity: content,
+    outgoing: isOutgoing,
+    edited: edited,
+    color: bg,
+    selectedColor: isOutgoing ? _kOutgoingSelectedBg : _kIncomingSelectedBg,
+    borderRadius: radius,
+    padding: padding,
+    spacing: 8,
+    boxShadow: const <BoxShadow>[
+      BoxShadow(color: Color(0x33000000), blurRadius: 4, offset: Offset(0, 1)),
+    ],
+    header: switch (sender) {
+      final name? when name.isNotEmpty => Padding(
+        padding: const EdgeInsets.only(bottom: 3),
+        child: MouseRegion(
+          cursor: SystemMouseCursors.click,
+          child: GestureDetector(
+            onTap: onSenderTap != null ? () => onSenderTap!(name) : null,
+            onLongPress:
+                () {}, // Absorb long-press so sender name does not trigger message selection (Decision 3)
+            child: Text(
+              name,
+              style: TextStyle(
+                color: _colorForSender(name),
+                fontWeight: FontWeight.w600,
+                fontSize: 13,
+                height: 1.15,
               ),
             ),
           ),
-          _ => null,
-        },
-        content: body,
-        metaBuilder: (context, editedOpacity) => DemoMessageMeta(
-          createdAt: createdAt,
-          color: metaColor,
-          showStatus: isOutgoing,
-          edited: edited,
-          editedOpacity: editedOpacity,
         ),
       ),
-    );
-  }
+      _ => null,
+    },
+    content: body,
+    metaBuilder: (context, editedOpacity) => DemoMessageMeta(
+      createdAt: createdAt,
+      color: metaColor,
+      showStatus: isOutgoing,
+      edited: edited,
+      editedOpacity: editedOpacity,
+    ),
+  );
 }
 
 /// Registers [content] with [selection] and mounts [MarkdownWidget].
@@ -445,13 +476,18 @@ class _RegisteredChatMdBodyState extends State<_RegisteredChatMdBody> {
 
   @override
   void dispose() {
-    widget.selection.removeBody(widget.messageId, token: _token);
+    if (_token != null) {
+      widget.selection.removeBody(widget.messageId, token: _token);
+    }
     super.dispose();
   }
 
   void _put() {
     final model = Markdown.fromString(widget.content);
     _model = model;
+    if (!ChatMarkdownBodyRegistration.allows(context)) {
+      return;
+    }
     _token = widget.selection.putBody(
       widget.messageId,
       model,

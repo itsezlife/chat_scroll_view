@@ -6,6 +6,7 @@ import 'package:chat_scroll_view/src/chat_scroll/chat_sender_run_layout.dart';
 import 'package:chat_scroll_view/src/chat_widgets/chat_scroll_element.dart';
 import 'package:chat_scroll_view/src/chat_widgets/chat_scroll_theme.dart';
 import 'package:chat_scroll_view/src/chat_widgets/chat_selection_chrome.dart';
+import 'package:chat_scroll_view/src/chat_widgets/message_menu/chat_message_menu_request.dart';
 import 'package:chat_scroll_view/src/chat_widgets/render_chat_scroll_view.dart';
 import 'package:flutter/foundation.dart' show ValueListenable;
 import 'package:flutter/widgets.dart';
@@ -95,16 +96,6 @@ typedef ChatChunkErrorDetails = ({
 typedef ChatChunkErrorBuilder =
     Widget Function(BuildContext context, ChatChunkErrorDetails details);
 
-/// Reports an idle message tap: a tap on a present message slot while
-/// message selection is inactive. The hit is the full laid-out row, not
-/// bubble ink and not the list background. Independent of
-/// selection-allowed.
-///
-/// [id] is the message. [slotGlobal] is that slot's rect in global
-/// coordinates. [tapGlobal] is the tap position in global coordinates.
-typedef ChatIdleMessageTapCallback =
-    void Function(int id, Rect slotGlobal, Offset tapGlobal);
-
 /// Default day grouping — the local calendar day. A `DateTime` with
 /// hours/minutes/seconds zeroed is equatable enough for the day-bucket gate;
 /// no need to pack y/m/d into an int.
@@ -120,6 +111,12 @@ DateTime _defaultGroupBy(IChatMessage message) {
 /// height. Children are real widgets — built lazily during layout via a
 /// custom [ChatScrollElement] and wrapped in [RepaintBoundary] for picture +
 /// layer caching. Scrolling repositions cached layers without re-layout.
+///
+/// When child Y offsets change (user / programmatic **reposition**, fan-out,
+/// or **reserved inset** compensation), the element dispatches a synthetic
+/// [ScrollUpdateNotification] after the frame so ancestor
+/// [ScrollNotificationObserver] hosts can refresh absolute overlays. This is
+/// not a [Scrollable]; notification metrics are not a chat scroll position.
 ///
 /// Pass [dateSeparatorBuilder] to group messages by day — an inline separator
 /// above the first message of each day plus a floating header pinned to the
@@ -212,28 +209,39 @@ class ChatScrollView extends RenderObjectWidget {
   /// null the viewport adds no selection wrapper and costs nothing.
   final ChatSelectionController? selectionController;
 
-  /// Called when the user taps a present message slot while message
+  /// Called when the user taps a present message **slot** while message
   /// selection and text selection are both inactive. Null is a no-op.
   ///
-  /// Never fired when [selectionController] is in message selection mode or
-  /// when text selection is active — message menu and selection modes are
-  /// mutually exclusive. When text selection is active, an idle tap dismisses
-  /// text selection without dispatching here.
+  /// Receives a [ChatMessageMenuRequest] (id, slot, tap, point state,
+  /// membership / over-selection, text-selection overlap, optional inline
+  /// hit). Never fired when [selectionController] is in
+  /// message selection mode or when text selection is active — message menu
+  /// and selection modes are mutually exclusive on this path. When text
+  /// selection is active, an idle tap dismisses text selection without
+  /// dispatching here.
   ///
   /// The viewport-owned pointer attaches when this callback or
   /// [selectionController] is non-null. Not gated on selection-allowed.
   /// A tap that lost the arena, a fling-cancel tap, a gap, shimmer,
   /// chunk-error, or empty background does not fire. The pinned date
   /// header hits through to the message underneath, matching selection
-  /// tap. The host decides whether to present a message menu.
-  final ChatIdleMessageTapCallback? onIdleMessageTap;
+  /// tap. Opening the menu from this request does not clear membership or
+  /// text selection. The host decides whether to present a message menu.
+  final ChatMessageMenuRequestCallback? onIdleMessageTap;
 
-  /// Called when the user secondary-taps (right-clicks) a present message slot.
-  /// Null is a no-op.
+  /// Called when the user secondary-taps (right-clicks) a present message
+  /// **slot**. Null is a no-op — Flutter’s built-in text context menu stays
+  /// available on selectable markdown.
   ///
-  /// On desktop platforms, right-click is the canonical trigger for the message
-  /// context menu, both while idle and during selection mode.
-  final ChatIdleMessageTapCallback? onSecondaryMessageTap;
+  /// Under desktop/web **selection policy** this is the message-menu entry
+  /// gesture — including while message selection is active (**membership**
+  /// upon-selected / elsewhere) and while text selection is live (overlap +
+  /// snapshot on the request). The request also carries **point state** and
+  /// an optional **inline hit**. When non-null, the viewport owns secondary
+  /// on the **full slot** (including text glyphs); per-body markdown yields
+  /// so Flutter’s text menu does not stack on the same gesture. Opening the
+  /// menu from this request does not clear membership or text selection.
+  final ChatMessageMenuRequestCallback? onSecondaryMessageTap;
 
   /// Replaces the bundled checkbox-gutter chrome. Ignored when
   /// [selectionController] is null.

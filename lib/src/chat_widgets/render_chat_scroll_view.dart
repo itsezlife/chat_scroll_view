@@ -24,6 +24,7 @@ import 'package:chat_scroll_view/src/chat_widgets/chat_scroll_element.dart';
 import 'package:chat_scroll_view/src/chat_widgets/chat_scrollbar.dart';
 import 'package:chat_scroll_view/src/chat_widgets/chat_selection_metrics.dart';
 import 'package:chat_scroll_view/src/chat_widgets/chat_selection_pointer.dart';
+import 'package:chat_scroll_view/src/chat_widgets/message_menu/chat_message_menu_request.dart';
 import 'package:flutter/foundation.dart'
     show ValueListenable, precisionErrorTolerance;
 import 'package:flutter/gestures.dart';
@@ -77,12 +78,16 @@ class ChatMessageParentData extends ParentData {
 @internal
 enum ChatOverlayKind { none, loading, empty }
 
-/// Contract the render object uses to lazily inflate / dispose children.
+/// Contract the render object uses to lazily inflate / dispose children and to
+/// signal viewport geometry moves for scroll-observer chrome.
 ///
 /// Implemented by `ChatScrollElement` only. The render object calls the
 /// build methods during `performLayout` (wrapped in `invokeLayoutCallback`)
 /// and the remove methods to garbage-collect children outside the build
-/// range. Public API consumers should never implement or call this directly.
+/// range. [dispatchViewportGeometryScrollNotification] is the post-layout /
+/// Tier-1 wake-up for ancestor observers — not gated on
+/// [invokeLayoutCallback]. Public API consumers should never implement or
+/// call this directly.
 @internal
 abstract interface class ChatChildManager {
   /// Inflate or update the widget for message [id]; returns its render box.
@@ -125,6 +130,10 @@ abstract interface class ChatChildManager {
   /// from any other context will assert in debug mode.
   void removeChunkErrors(List<int> chunkIndices);
 
+  /// After child Y offsets move, wake ancestor [ScrollNotificationObserver]
+  /// listeners (deferred off layout). Safe outside [invokeLayoutCallback].
+  void dispatchViewportGeometryScrollNotification();
+
   /// Inflate / update / remove the full-viewport overlay (loading or empty).
   /// Pass [ChatOverlayKind.none] to drop the currently-built overlay.
   ///
@@ -165,9 +174,8 @@ class RenderChatScrollView extends RenderBox {
     TextDirection textDirection = TextDirection.ltr,
     ChatScrollbarThemeData scrollbarTheme = ChatScrollbarThemeData.light,
     ChatSelectionController? selectionController,
-    void Function(int id, Rect slotGlobal, Offset tapGlobal)? onIdleMessageTap,
-    void Function(int id, Rect slotGlobal, Offset tapGlobal)?
-    onSecondaryMessageTap,
+    ChatMessageMenuRequestCallback? onIdleMessageTap,
+    ChatMessageMenuRequestCallback? onSecondaryMessageTap,
     bool Function(IChatMessage message)? isSelfMessage,
   }) : _dataSource = dataSource,
        _controller = controller,
@@ -403,10 +411,8 @@ class RenderChatScrollView extends RenderBox {
     _selectionPointer?.selection = value;
   }
 
-  void Function(int id, Rect slotGlobal, Offset tapGlobal)? _onIdleMessageTap;
-  set onIdleMessageTap(
-    void Function(int id, Rect slotGlobal, Offset tapGlobal)? value,
-  ) {
+  ChatMessageMenuRequestCallback? _onIdleMessageTap;
+  set onIdleMessageTap(ChatMessageMenuRequestCallback? value) {
     if (identical(_onIdleMessageTap, value)) return;
     _onIdleMessageTap = value;
     _selectionPointer?.onIdleMessageTap = value == null
@@ -414,11 +420,8 @@ class RenderChatScrollView extends RenderBox {
         : _dispatchIdleMessageTap;
   }
 
-  void Function(int id, Rect slotGlobal, Offset tapGlobal)?
-  _onSecondaryMessageTap;
-  set onSecondaryMessageTap(
-    void Function(int id, Rect slotGlobal, Offset tapGlobal)? value,
-  ) {
+  ChatMessageMenuRequestCallback? _onSecondaryMessageTap;
+  set onSecondaryMessageTap(ChatMessageMenuRequestCallback? value) {
     if (identical(_onSecondaryMessageTap, value)) return;
     _onSecondaryMessageTap = value;
     _selectionPointer?.onSecondaryMessageTap = value == null
@@ -1459,13 +1462,13 @@ class RenderChatScrollView extends RenderBox {
   /// the per-frame `_clampBoundaries` guard.
   VerticalDragGestureRecognizer _buildDragRecognizer() =>
       VerticalDragGestureRecognizer(
-        supportedDevices: const <PointerDeviceKind>{
-          PointerDeviceKind.touch,
-          PointerDeviceKind.stylus,
-          PointerDeviceKind.invertedStylus,
-          PointerDeviceKind.trackpad,
-        },
-      )
+          supportedDevices: const <PointerDeviceKind>{
+            PointerDeviceKind.touch,
+            PointerDeviceKind.stylus,
+            PointerDeviceKind.invertedStylus,
+            PointerDeviceKind.trackpad,
+          },
+        )
         ..onStart = _onDragStart
         ..onUpdate = _onDragUpdate
         ..onEnd = _onDragEnd;
@@ -3722,8 +3725,15 @@ class RenderChatScrollView extends RenderBox {
   /// Set a child's viewport [offset]. For a day-starting message it also
   /// refreshes the inline separator's fade opacity from the paint position —
   /// Tier-1-safe (parent-data + optional stitch dy), no `getMessage`.
+  ///
+  /// Marks [_childOffsetsMoved] when the Y actually changes so
+  /// [_publishControllerState] can notify scroll-observer chrome.
   void _setOffset(RenderBox child, double offset) {
-    final pd = _parentData(child)..offset = offset;
+    final pd = _parentData(child);
+    if (pd.offset != offset) {
+      _childOffsetsMoved = true;
+    }
+    pd.offset = offset;
     if (pd.startsDay) {
       pd.dividerOpacity = _floatingHeaderController.dividerOpacityFor(
         topY: offset + _stitchPaintDyIfActive(pd.id),
@@ -4373,30 +4383,113 @@ class RenderChatScrollView extends RenderBox {
   int? _presentMessageIdAt(Offset local) =>
       _selectionMessageIdAt(local, requireSelectionAllowed: false);
 
-  /// Converts a viewport-local idle tap into the host callback's global
-  /// slot rect and tap offset.
+  /// Builds a [ChatMessageMenuRequest] for [id] at viewport-local [local] and
+  /// dispatches it to the host idle-tap callback. Silent when the slot is
+  /// missing or has no size.
   void _dispatchIdleMessageTap(int id, Offset local) {
     final callback = _onIdleMessageTap;
     if (callback == null) return;
-    final child = _children[id];
-    if (child == null || !child.hasSize) return;
-    final pd = _parentData(child);
-    final origin = localToGlobal(Offset(0, pd.offset));
-    final slotGlobal = origin & Size(size.width, child.size.height);
-    callback(id, slotGlobal, localToGlobal(local));
+    final request = _messageMenuRequestAt(id, local);
+    if (request == null) return;
+    callback(request);
   }
 
-  /// Converts a viewport-local secondary tap (right-click) into the host
-  /// callback's global slot rect and tap offset.
+  /// Builds a [ChatMessageMenuRequest] for [id] at viewport-local [local] and
+  /// dispatches it to the host secondary-tap callback. Silent when the slot
+  /// is missing or has no size.
   void _dispatchSecondaryMessageTap(int id, Offset local) {
     final callback = _onSecondaryMessageTap;
     if (callback == null) return;
+    final request = _messageMenuRequestAt(id, local);
+    if (request == null) return;
+    callback(request);
+  }
+
+  /// Slot geometry + viewport-known menu context for [id] at [local].
+  ///
+  /// Does not clear membership or text selection. Returns null when the
+  /// present child is missing or unsized.
+  ChatMessageMenuRequest? _messageMenuRequestAt(int id, Offset local) {
     final child = _children[id];
-    if (child == null || !child.hasSize) return;
+    if (child == null || !child.hasSize) return null;
     final pd = _parentData(child);
     final origin = localToGlobal(Offset(0, pd.offset));
     final slotGlobal = origin & Size(size.width, child.size.height);
-    callback(id, slotGlobal, localToGlobal(local));
+    final tapGlobal = localToGlobal(local);
+    final selection = _selectionController;
+    final inside =
+        selection?.containsMessageSurface(id, tapGlobal) ?? false;
+    final pointState = inside
+        ? ChatMessageMenuPointState.inside
+        : ChatMessageMenuPointState.outside;
+    final ChatMessageMenuMembership membership;
+    if (selection == null || !selection.isSelectionMode) {
+      membership = ChatMessageMenuMembership.idle;
+    } else if (selection.isSelected(id)) {
+      membership = ChatMessageMenuMembership.uponSelected;
+    } else {
+      membership = ChatMessageMenuMembership.elsewhere;
+    }
+    final hasTextSelection =
+        selection?.hasTextSelectionOnMessage(id) ?? false;
+    final overlapsText =
+        selection?.textSelectionOverlapsMessage(id, tapGlobal) ?? false;
+    final String? selectedTextSnapshot;
+    if (!overlapsText) {
+      selectedTextSnapshot = null;
+    } else {
+      // Empty string is a valid snapshot when the live range formats to
+      // nothing — still non-null so the request invariant holds.
+      selectedTextSnapshot = selection?.textSelectionPlainText() ?? '';
+    }
+    final inlineHit = inside
+        ? selection?.resolveInlineHit(id, tapGlobal)
+        : null;
+    final selectUpToIds = membership == ChatMessageMenuMembership.elsewhere
+        ? _selectUpToIds(id)
+        : null;
+    return ChatMessageMenuRequest(
+      messageId: id,
+      slotGlobal: slotGlobal,
+      tapGlobal: tapGlobal,
+      pointState: pointState,
+      membership: membership,
+      hasTextSelection: hasTextSelection,
+      overlapsTextSelection: overlapsText,
+      selectedTextSnapshot: selectedTextSnapshot,
+      selectUpToIds: selectUpToIds,
+      inlineHit: inlineHit,
+    );
+  }
+
+  /// Inclusive selectable chain from the nearest selected id to [targetId]
+  /// when the span fits under [ChatSelectionController.selectionCap].
+  List<int>? _selectUpToIds(int targetId) {
+    final selection = _selectionController;
+    if (selection == null || !selection.isSelectionMode) return null;
+    if (selection.isSelected(targetId)) return null;
+    final selected = selection.selectedIds;
+    if (selected.isEmpty) return null;
+
+    int? nearest;
+    var minDiff = 1 << 30;
+    for (final id in selected) {
+      final diff = (id - targetId).abs();
+      if (diff < minDiff) {
+        minDiff = diff;
+        nearest = id;
+      }
+    }
+    if (nearest == null) return null;
+
+    final chain = _selectSpanChain(nearest, targetId);
+    if (chain.isEmpty) return null;
+    final cap = selection.selectionCap;
+    if (cap != null) {
+      final combined = {...selected, ...chain};
+      if (combined.length > cap) return null;
+    }
+    return List<int>.unmodifiable(chain);
   }
 
   /// Loaded message whose selectable body contains [local], or `null` when
@@ -4660,12 +4753,28 @@ class RenderChatScrollView extends RenderBox {
   /// `visibleRange` listenable, the Center Band under the mid-band ray, and
   /// update its `isAtTail` flag. Called after every layout and Tier-1 tick —
   /// O(visible children) of pure parent-data reads.
+  ///
+  /// When any child offset changed this pass, also asks [ChatScrollElement] to
+  /// dispatch a [ScrollUpdateNotification] so ancestor
+  /// [ScrollNotificationObserver] listeners (e.g. markdown **text selection
+  /// chrome**) can re-anchor without requiring a conventional [Scrollable].
   void _publishControllerState() {
     _publishBoundaries();
     _publishVisibleRange();
     _publishCenterBand();
     _publishNewestHeightSample();
     _publishIsAtTail();
+    _dispatchViewportGeometryScrollIfNeeded();
+  }
+
+  /// Set when [_setOffset] moves a child; consumed by
+  /// [_dispatchViewportGeometryScrollIfNeeded].
+  bool _childOffsetsMoved = false;
+
+  void _dispatchViewportGeometryScrollIfNeeded() {
+    if (!_childOffsetsMoved) return;
+    _childOffsetsMoved = false;
+    childManager?.dispatchViewportGeometryScrollNotification();
   }
 
   /// Record newest row height for next layout's same-id growth detection.

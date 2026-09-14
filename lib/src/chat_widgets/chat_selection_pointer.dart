@@ -62,8 +62,18 @@ class ChatSelectionPointer {
 
   /// Secondary message tap (right-click) in viewport-local coordinates. Fired
   /// when secondary tap won the arena and fling-cancel does not suppress.
-  /// Null is a no-op.
-  void Function(int id, Offset localPosition)? onSecondaryMessageTap;
+  /// Null is a no-op — and the secondary recognizer is not armed, so
+  /// per-body text context menus can win the arena.
+  void Function(int id, Offset localPosition)? get onSecondaryMessageTap =>
+      _onSecondaryMessageTap;
+  set onSecondaryMessageTap(void Function(int id, Offset localPosition)? value) {
+    if (identical(_onSecondaryMessageTap, value)) return;
+    _onSecondaryMessageTap = value;
+    // Keep the live recognizer in sync without waiting for the next down.
+    _tap?.onSecondaryTapUp = value == null ? null : _onSecondaryTapUp;
+  }
+
+  void Function(int id, Offset localPosition)? _onSecondaryMessageTap;
 
   /// Fires when span liveness or the span pointer position changes so the
   /// viewport can start or stop origin auto-scroll.
@@ -105,7 +115,7 @@ class ChatSelectionPointer {
   void addPointer(PointerDownEvent event) {
     if (selection == null &&
         onIdleMessageTap == null &&
-        onSecondaryMessageTap == null) {
+        _onSecondaryMessageTap == null) {
       return;
     }
     _pointerDownId = messageIdAt?.call(event.localPosition);
@@ -161,7 +171,8 @@ class ChatSelectionPointer {
   void dispose() {
     onSpanSessionChanged = null;
     onIdleMessageTap = null;
-    onSecondaryMessageTap = null;
+    _onSecondaryMessageTap = null;
+    _tap?.onSecondaryTapUp = null;
     _longPress?.dispose();
     _longPress = null;
     _pan?.dispose();
@@ -243,16 +254,19 @@ class ChatSelectionPointer {
             ..onCancel = _onPanCancel;
     }
     _tap ??=
-        TapGestureRecognizer(debugOwner: debugOwner)
-          ..onTap = _onTap
-          ..onSecondaryTapUp = _onSecondaryTapUp;
+        TapGestureRecognizer(debugOwner: debugOwner)..onTap = _onTap;
+    // Arm secondary only when the host opted in. Otherwise leave the arena
+    // to per-body markdown so Flutter’s text context menu remains.
+    _tap!.onSecondaryTapUp = _onSecondaryMessageTap == null
+        ? null
+        : _onSecondaryTapUp;
   }
 
   void _onSecondaryTapUp(TapUpDetails details) {
     if (flingCancelSuppresses?.call() ?? false) return;
     final id = _pointerDownId;
     if (id == null) return;
-    onSecondaryMessageTap?.call(id, details.localPosition);
+    _onSecondaryMessageTap?.call(id, details.localPosition);
   }
 
   void _onPanStart(DragStartDetails details) {
@@ -364,16 +378,29 @@ class ChatSelectionPointer {
     // The host may handle link long-press (e.g. preview sheet) instead of entering selection.
     final inlineHit = selection.resolveInlineHit(id, details.globalPosition);
     if (inlineHit != null && selection.handleInlineHitLongPress(inlineHit)) {
-      // Keep press ink; release runs on pointer up.
+      // Code hold-to-copy aborts ink inside the facade. Link long-press keeps
+      // press ink until pointer up.
       return;
     }
     if (inlineHit != null) {
-      // Unclaimed inline long-press (e.g. code chrome): abort ink so
-      // message / text selection can own the pointer.
+      // Unclaimed inline long-press (suppressed code / no link handler):
+      // abort ink so message / text selection can own the pointer.
       selection.abortSpanFeedback();
     }
 
     if (!selection.isSelectable(id)) return;
+
+    // Subject-only surfaces while text is live: sibling scopes are off.
+    // Body hit → retarget via facade. Padding / chrome → unselect span.
+    if (selection.isTextSelectionActive &&
+        selection.isSelected(id) &&
+        selection.textSelectionSubject != id &&
+        selection.containsGlobal(id, details.globalPosition)) {
+      selection.abortSpanFeedback();
+      selection.enterTextSelection(id, globalOffset: details.globalPosition);
+      return;
+    }
+
     selection.abortSpanFeedback();
     HapticFeedback.vibrate();
     final polarity = selection.isSelected(id)

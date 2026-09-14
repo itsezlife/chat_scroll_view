@@ -1,6 +1,6 @@
 import 'dart:async' show unawaited;
 import 'dart:collection';
-import 'dart:ui' show Offset, Path;
+import 'dart:ui' show Offset, Path, Rect;
 
 import 'package:chat_scroll_view/src/chat_scroll/chat_inline_hit.dart';
 import 'package:chat_scroll_view/src/chat_scroll/chat_selection_allowed.dart';
@@ -15,6 +15,7 @@ import 'package:flutter/foundation.dart'
         ValueNotifier,
         VoidCallback,
         setEquals;
+import 'package:flutter/rendering.dart' show RenderBox;
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart' show Clipboard, ClipboardData;
 import 'package:flutter_md/flutter_md.dart';
@@ -123,9 +124,11 @@ enum ChatDragSelectAction {
 /// desktop arm-for-entry does not suppress. Under [$Desktop], message
 /// membership does not suppress inline activation.
 ///
-/// Code taps trigger click-to-copy (copying text to the clipboard and notifying
-/// [addCopySuccessListener]), while also notifying [addCodeTapListener]. Automatic
-/// clipboard write can be disabled via [copyCodeOnClick].
+/// Code taps **and idle long-presses** trigger click-to-copy (clipboard write
+/// plus [addCopySuccessListener]), and notify [addCodeTapListener]. Automatic
+/// clipboard write can be disabled via [copyCodeOnClick]. Under suppression
+/// (mobile message selection / live text range), long-press yields to message
+/// or text selection instead.
 ///
 /// ### Policy
 ///
@@ -496,6 +499,37 @@ class ChatSelectionController implements Listenable {
   bool containsGlobal(int messageId, Offset globalOffset) =>
       _text.containsGlobal(messageId, globalOffset);
 
+  /// Whether [messageId] is the live non-collapsed **text selection** subject.
+  bool hasTextSelectionOnMessage(int messageId) {
+    if (_disposed || !_text.isActive || _text.subjectId != messageId) {
+      return false;
+    }
+    final range = _text.range;
+    return range != null && !range.isCollapsed;
+  }
+
+  /// Whether a **message menu** for [messageId] at [globalOffset] should
+  /// report live **text selection** overlap for Copy-selected.
+  ///
+  /// True when text selection is active, non-collapsed, [messageId] is the
+  /// **text selection subject**, and [globalOffset] lands inside a painted
+  /// selection highlight rect. Subject-only (tap elsewhere on the same
+  /// message) returns false.
+  bool textSelectionOverlapsMessage(int messageId, Offset globalOffset) {
+    if (_disposed) return false;
+    return _text.textSelectionContainsGlobal(messageId, globalOffset);
+  }
+
+  /// Plain text of the live **text selection** range, or `null` when
+  /// disposed, inactive, collapsed, or empty.
+  String? textSelectionPlainText() {
+    if (_disposed || !_text.isActive) return null;
+    final range = _text.range;
+    if (range == null || range.isCollapsed) return null;
+    final text = _text.getText();
+    return text.isEmpty ? null : text;
+  }
+
   /// Removes a previously registered body.
   ///
   /// When [token] is non-null, drops only that owner. When [messageId] is
@@ -652,8 +686,14 @@ class ChatSelectionController implements Listenable {
   /// Whether a markdown body for [messageId] should mount a selectable document
   /// surface with [markdownSelection].
   ///
-  /// Under mobile policy: every registered body exposes a surface when idle or
-  /// message-selected, allowing inline hit-testing and long-press routing.
+  /// Under mobile policy: while **text selection** is inactive, every
+  /// registered body exposes a surface when idle or message-selected (inline
+  /// hit-testing and long-press entry). While text is live, only the
+  /// [textSelectionSubject] mounts — sibling selected mounts share this
+  /// controller and would `putDocument` on attach, re-expanding the registry
+  /// and breaking Select All / one-message ranges. Retarget uses reported
+  /// body paint bounds plus facade [enterTextSelection].
+  ///
   /// Under desktop direct-entry: every registered body while idle **and** while
   /// **message selection** is active (inline link/code/chrome activation must
   /// keep working without unmounting hit targets). While text-active on
@@ -662,6 +702,7 @@ class ChatSelectionController implements Listenable {
     if (_disposed) return false;
     if (!_text.hasBody(messageId)) return false;
     if (selectionPolicy.nestsTextSubjectInMessageSelection) {
+      if (_text.isActive) return _text.subjectId == messageId;
       return isSelected(messageId) || _selectedIds.isEmpty;
     }
     if (_text.isActive) return _text.subjectId == messageId;
@@ -672,6 +713,33 @@ class ChatSelectionController implements Listenable {
     }
     return false;
   }
+
+  /// Records the body widget's [RenderBox] for [containsGlobal] fallback.
+  ///
+  /// Bodies call this so [containsGlobal] / retarget still work when the
+  /// selection surface is unmounted for non-subjects. Pass `null` on unmount.
+  /// Hit-tests resolve live global geometry at query time (scroll-safe).
+  void reportBodyPaintBounds(int messageId, RenderBox? box) {
+    if (_disposed) return;
+    _text.reportBodyPaintBounds(messageId, box);
+  }
+
+  /// Records the painted **message surface** (bubble chrome) [RenderBox] for
+  /// [containsMessageSurface] / message-menu **point state**.
+  ///
+  /// Hosts wrap the bubble in [ChatMessageSurfaceBounds] (or call this
+  /// directly). Pass `null` on unmount. Hit-tests resolve
+  /// [RenderBox.localToGlobal] at query time so scroll without rebuild stays
+  /// correct — do not cache a global [Rect] across frames.
+  void reportMessageSurfaceBounds(int messageId, RenderBox? box) {
+    if (_disposed) return;
+    _text.reportMessageSurfaceBounds(messageId, box);
+  }
+
+  /// Whether [globalOffset] hits the reported message surface for
+  /// [messageId], falling back to the text body when no surface was reported.
+  bool containsMessageSurface(int messageId, Offset globalOffset) =>
+      _text.containsMessageSurface(messageId, globalOffset);
 
   /// Registered markdown model for [messageId], or null when none.
   Markdown? bodyOf(int messageId) => _text.bodyOf(messageId);
@@ -843,10 +911,16 @@ class ChatSelectionController implements Listenable {
     }
   }
 
-  /// Dispatches an inline element long-press (such as holding down on a hyperlink).
+  /// Dispatches an inline element long-press.
+  ///
+  /// Links notify [onLinkLongPress] / [addLinkLongPressListener] (preview sheet,
+  /// etc.) and leave press ink until pointer up. Code / COPY chrome reuses
+  /// [handleInlineHit] so hold-to-copy matches tap-to-copy (including
+  /// [copyCodeOnClick] and activation suppression), then [abortSpanFeedback]
+  /// so the highlight does not linger after the action.
   ///
   /// Returns `true` if the long-press was handled and should suppress message
-  /// selection entry (such as activating a link preview sheet or context menu).
+  /// selection entry.
   bool handleInlineHitLongPress(ChatInlineHit hit) {
     if (_disposed) return false;
     switch (hit) {
@@ -856,7 +930,11 @@ class ChatSelectionController implements Listenable {
         _notifyLinkLongPress(messageId, title, url);
         return hasHandlers;
       case ChatInlineHit$Code():
-        return false;
+        // Same action as tap. Drop press ink immediately — the gesture already
+        // completed (unlike link long-press, which keeps ink until pointer up).
+        final handled = handleInlineHit(hit);
+        if (handled) abortSpanFeedback();
+        return handled;
     }
   }
 
@@ -1087,6 +1165,12 @@ class ChatSelectionController implements Listenable {
     switch (_text.range) {
       case final sel? when !sel.isCollapsed:
         final docId = sel.base.documentId;
+        final extentId = sel.extent.documentId;
+        // Character ranges stay one message — drop cross-document commits.
+        if (docId != extentId) {
+          clearTextSelection();
+          return;
+        }
         if (docId is int) {
           if (!_text.isActive || _text.subjectId != docId) {
             if (!_adoptTextSubject(docId)) {
@@ -1173,10 +1257,11 @@ class ChatSelectionController implements Listenable {
   /// text selection under [selectionPolicy].
   ///
   /// Mobile: requires [messageId] to be already message-selected and the
-  /// point to hit mounted selectable text for [messageId]. When text selection
-  /// is already active on another message, a long-press on another selected
-  /// message body routes to text selection on that subject (retargeting),
-  /// clearing the previous range and preserving message selection membership.
+  /// point to hit that message’s body (mounted surface, or reported paint
+  /// bounds when the surface is unmounted for a non-subject). When text is
+  /// already active on another message, yielding applies only to the current
+  /// subject; retarget onto another selected body is handled by the viewport
+  /// long-press calling [enterTextSelection].
   ///
   /// The viewport uses this on pointer-down to **yield** its long-press
   /// recognizer so the per-body markdown scope owns the continuous press
@@ -1186,6 +1271,10 @@ class ChatSelectionController implements Listenable {
     if (_disposed) return false;
     if (!selectionPolicy.routesLongPressToTextSelection) return false;
     if (!isSelected(messageId)) return false;
+    // While text is live, only the subject mounts a surface / enabled scope.
+    // Do not yield for siblings — the viewport keeps the long-press to retarget
+    // or run an unselect span (padding).
+    if (_text.isActive && _text.subjectId != messageId) return false;
     return _text.containsGlobal(messageId, globalOffset);
   }
 
@@ -1201,14 +1290,6 @@ class ChatSelectionController implements Listenable {
   @internal
   bool routeLongPressToTextSelection(int messageId, Offset globalOffset) =>
       shouldRouteLongPressToText(messageId, globalOffset);
-
-  /// Deprecated alias for [routeLongPressToTextSelection].
-  @internal
-  @Deprecated(
-    'Use routeLongPressToTextSelection instead. Public span yield has been removed.',
-  )
-  bool claimSpanYield(int messageId, Offset globalOffset) =>
-      routeLongPressToTextSelection(messageId, globalOffset);
 
   /// Host predicate: per-id membership and chrome grants.
   /// `null` (the default) is [ChatSelectionAllowed.full] for every

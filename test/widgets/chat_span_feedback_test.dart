@@ -943,5 +943,71 @@ void main() {
         controller.dispose();
       },
     );
+
+    testWidgets(
+      'long-press on inline code hold-to-copy aborts press feedback',
+      (tester) async {
+        final codeTaps = <(int, String)>[];
+        final controller = ChatSelectionController(
+          policy: const ChatSelectionPolicy.mobile(),
+          onCodeTap: (id, code) => codeTaps.add((id, code)),
+        );
+
+        const markdownText = 'Run `main()` please.';
+        final model = Markdown.fromString(markdownText);
+        controller.registerBody(6, model);
+
+        await tester.pumpWidget(
+          MaterialApp(
+            home: Scaffold(
+              body: Center(
+                child: SizedBox(
+                  width: 400,
+                  child: ChatMarkdownBody(
+                    controller: controller,
+                    messageId: 6,
+                    markdown: model,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        final surface = controller.markdownSelection.mountedSurfaces.first;
+        final renderBox = surface as RenderBox;
+        final codeBoxes = surface.localBoxesForRange(
+          0,
+          'Run '.length,
+          'Run main()'.length,
+        );
+        final point = renderBox.localToGlobal(codeBoxes.first.center);
+
+        final gesture = await tester.startGesture(point);
+        await tester.pump();
+        expect(controller.spanFeedback, isNotNull);
+
+        await tester.pump(const Duration(milliseconds: 600));
+        expect(controller.spanFeedback, isNotNull);
+        expect(controller.spanFeedback!.isHeld, isTrue);
+
+        final hit = controller.resolveInlineHit(6, point);
+        expect(hit, isA<ChatInlineHit$Code>());
+        expect(controller.handleInlineHitLongPress(hit!), isTrue);
+        expect(codeTaps, <(int, String)>[(6, 'main()')]);
+        expect(
+          controller.spanFeedback,
+          isNull,
+          reason: 'hold-to-copy must drop press ink immediately',
+        );
+
+        await gesture.up();
+        await tester.pumpAndSettle();
+        expect(controller.spanFeedback, isNull);
+
+        controller.dispose();
+      },
+    );
   });
 }

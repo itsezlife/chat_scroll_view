@@ -12,8 +12,8 @@ import 'package:chat_scroll_view_example/src/features/chat/data/comments_data_so
 import 'package:chat_scroll_view_example/src/features/chat/data/generated_chat_data_source.dart';
 import 'package:chat_scroll_view_example/src/features/chat/utils/chat_data_source_extension.dart';
 import 'package:chat_scroll_view_example/src/features/chat/utils/chat_viewport_insets_binding.dart';
-import 'package:chat_scroll_view_example/src/features/chat/utils/demo_message_menu.dart';
 import 'package:chat_scroll_view_example/src/features/chat/utils/ios_keyboard_safe_peel.dart';
+import 'package:chat_scroll_view_example/src/features/chat/utils/message_menu.dart';
 import 'package:chat_scroll_view_example/src/features/chat/widgets/chat_composer.dart';
 import 'package:chat_scroll_view_example/src/features/chat/widgets/chat_search_bar.dart';
 import 'package:chat_scroll_view_example/src/features/chat/widgets/date_separator.dart';
@@ -72,7 +72,7 @@ class _WidgetChatScreenState extends State<WidgetChatScreen>
 
   bool _loading = true;
   String? _errorMessage;
-  var _menuOpen = false;
+  MessageMenu? _messageMenu;
 
   /// Demo settings: message corner radius (0–17).
   double _bubbleRadius = ChatMessageThemeData.fallback.bubbleRadius;
@@ -172,6 +172,7 @@ class _WidgetChatScreenState extends State<WidgetChatScreen>
 
   void _onLinkLongPress(int messageId, String title, String url) {
     if (!mounted) return;
+    HapticFeedback.lightImpact();
     showModalBottomSheet<void>(
       context: context,
       builder: (context) => SafeArea(
@@ -283,6 +284,7 @@ class _WidgetChatScreenState extends State<WidgetChatScreen>
       _emojiDataSource.dispose();
     }
     _dataSource?.dispose();
+    _messageMenu = null;
     super.dispose();
   }
 
@@ -308,6 +310,16 @@ class _WidgetChatScreenState extends State<WidgetChatScreen>
         return;
       }
       _dataSource = backend;
+      _messageMenu = MessageMenu(
+        dataSource: backend,
+        selection: _selection,
+        actions: MessageMenuActions(
+          onDelete: (messageId) => _handleDeleteSelected([messageId]),
+          onDeleteSelected: _handleDeleteSelected,
+          onEdit: (messageId) =>
+              _composerKey.currentState?.beginEdit(messageId),
+        ),
+      );
       _search?.dispose();
       _search = ChatSearchController(dataSource: backend);
       final newest = backend.newestKnownId;
@@ -335,6 +347,7 @@ class _WidgetChatScreenState extends State<WidgetChatScreen>
       if (!mounted) return;
       _dataSource?.dispose();
       _dataSource = null;
+      _messageMenu = null;
       _errorMessage = error.toString();
     }
 
@@ -445,28 +458,12 @@ class _WidgetChatScreenState extends State<WidgetChatScreen>
     }
   }
 
-  Future<void> _onIdleMessageTap(
-    int id,
-    Rect slotGlobal,
-    Offset tapGlobal,
-  ) async {
-    final ds = _dataSource;
-    if (ds == null || _menuOpen) return;
-    _menuOpen = true;
-    try {
-      if (!mounted) return;
-      await presentDemoMessageMenu(
-        context: context,
-        messageId: id,
-        messageRect: slotGlobal,
-        tapGlobal: tapGlobal,
-        dataSource: ds,
-        onDelete: (messageId) => _handleDeleteSelected([messageId]),
-        onEdit: (messageId) => _composerKey.currentState?.beginEdit(messageId),
-      );
-    } finally {
-      _menuOpen = false;
-    }
+  /// Host message-menu seam for idle primary tap (mobile) and secondary tap
+  /// (desktop right-click) — [ChatScrollView] routes each per selection policy.
+  Future<void> _presentMessageMenu(ChatMessageMenuRequest request) async {
+    final menu = _messageMenu;
+    if (menu == null || !mounted) return;
+    await menu.present(context, request);
   }
 
   Future<void> _openBubbleRadiusSettings() async {
@@ -716,7 +713,7 @@ class _WidgetChatScreenState extends State<WidgetChatScreen>
           if (isOpenSearch) {
             search.close();
           }
-          if (_menuOpen) return;
+          if (_messageMenu?.isPresenting ?? false) return;
           if (_selection.isTextSelectionActive) {
             _selection.clearTextSelection();
             return;
@@ -763,7 +760,8 @@ class _WidgetChatScreenState extends State<WidgetChatScreen>
                           dataSource: _dataSource!,
                           controller: _controller,
                           selectionController: _selection,
-                          onIdleMessageTap: _onIdleMessageTap,
+                          onIdleMessageTap: _presentMessageMenu,
+                          onSecondaryMessageTap: _presentMessageMenu,
                           isSelfMessage: _isSelfMessage,
                           bottomPadding: insets.bottomPadding,
                           topPadding: insets.topPadding,

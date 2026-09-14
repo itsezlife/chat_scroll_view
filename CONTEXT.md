@@ -172,6 +172,10 @@ _Avoid_: Message selection, SelectableRegion, cross-message character range (cha
 The single message that owns the active character-range text selection. Under mobile policy it is one of the message-selected members (message selection is preserved intact); under desktop/web policy it owns the range while the selected set is empty.
 _Avoid_: Gesture origin, document id, anchor, “the selected message” (as the only meaning)
 
+**Text selection chrome**:
+The mobile handles and adaptive toolbar that present and act on the live **text selection** for the **text selection subject**. Owned with that selection (per-body scope + facade sync); not **message selection** chrome, not the **message menu**, and not overlay chrome. On desktop/web, Flutter’s built-in text context menu remains the default when the host does not handle **secondary message tap**; when the host does, text-range actions belong in the **message menu** instead of a second popup.
+_Avoid_: Context menu (alone), selection overlay (Flutter), floating toolbar (host), magnifier
+
 **Selection policy**:
 The product rules for how message selection and text selection enter, nest or exclude each other, dismiss, behave on Copy, and how **inline hits** relate to idle dismiss (mobile vs desktop/web strategies). Not a pointer kind and not a platform import fork by itself.
 _Avoid_: TargetPlatform (as the domain name), theme, “Telegram order” (when meaning only Android)
@@ -261,19 +265,43 @@ _Avoid_: overflow, limit error
 ### Message menu
 
 **Message menu**:
-A modal overlay over one present message: dimmed scrim with that message left undimmed, optional reactions, and an action list. Mutually exclusive with message selection (and therefore with text selection nested under it). Not overlay chrome.
-_Avoid_: Context menu, overlay chrome, popup, action sheet, text selection toolbar
+A host-presented exclusive surface of actions (and optional reactions) for one present message, opened from a press or tap on that message. One concept across platforms; how it looks (scrim and undimmed slot vs a light popup at the pointer) is presentation, not a second term. Cannot run concurrently with an active **span gesture** or other selection-entry gesture; may open while the selected set is already non-empty (**over-selection**). Not overlay chrome and not **text selection chrome**.
+_Avoid_: Context menu, overlay chrome, popup, action sheet, **text selection chrome**
+
+**Message menu request**:
+The structured packet the viewport emits when a message-menu entry gesture wins on a present message **slot** (full row — not bubble-only, not list background or day headers): message id, slot rect, tap position, and viewport-known **hit context** the host needs to choose rows — **message menu point state** (message-surface Inside vs slot Outside), **message menu membership** (idle / upon-selected / elsewhere), whether this message is the live **text selection** subject (`hasTextSelection`), whether the tap is upon that highlight (`overlapsTextSelection`, with a snapshot for Copy-selected), optional **select-up-to** chain ids when membership is elsewhere and the span fits under the selection cap, and an optional **inline hit** (link / code) when the tap is Inside. Not a catalog of actions — that stays host data. Opening the menu does not by itself clear text selection.
+_Avoid_: ContextMenuRequest (as our type name), MenuEvent, TapDetails alone, host-rebuilt hit guess, nearest-neighbor gap hit
+
+**Message menu point state**:
+Whether the menu gesture landed on the painted **message surface** / bubble (Inside — including sender header and meta) or only on surrounding **slot** padding / row chrome (Outside). The menu may still open for Outside on a present slot; hosts typically reduce rows (desktop Select-only). Empty list / day headers never emit a request — that is not Outside. Hosts report the surface via `ChatMessageSurfaceBounds` (or equivalent); hit-testing resolves the mounted box’s live global geometry so scroll without rebuild does not leave a stale Outside.
+_Avoid_: Text-body-only as Inside, Bubble ink only, slot-as-Inside, nearest-neighbor Outside, cached global Rect across scroll
+
+**Message menu membership**:
+How the gesture relates to **message selection**: idle (selection inactive), upon-selected (tap id is in the set — **over-selection**), or elsewhere (selection active but tap id is not in the set). Bulk actions belong on upon-selected only. Elsewhere may offer **Select up to this message** when the request carries a non-empty `selectUpToIds` chain that fits under the selection cap.
+_Avoid_: Selection mode flag alone, overSelection as the only axis
+
+**Over-selection**:
+A **message menu request** whose **membership** is upon-selected — the tap lands on a message already in the selected set while message selection is active. The host typically offers bulk actions (copy/forward/delete/clear) instead of single-message rows. Opening the menu does not clear membership by itself.
+_Avoid_: Selection mode menu, multi-select sheet, bulk-only menu product
 
 **Idle message tap**:
-A tap on a present message slot while message selection is inactive. The hit is the full laid-out row, not bubble ink and not the list background. It identifies the message id, that slot’s rect, and the tap position. Independent of selection-allowed.
+A primary tap on a present message slot while message selection is inactive. The hit is the full laid-out row, not bubble ink and not the list background. Under mobile **selection policy** it produces a **message menu request**; under desktop/web it does not open the message menu (primary stays text, links, and dismiss). Independent of selection-allowed.
 _Avoid_: Opaque tap, bubble tap, onTap, row click, menu-allowed
 
+**Secondary message tap**:
+A secondary (right-click) tap on a present message slot. Under desktop/web **selection policy** it is the message-menu entry gesture and produces a **message menu request** (including while message selection is active, so the host can offer over-selection actions). When the host wires the secondary callback, the viewport owns secondary on the **full slot** (including text glyphs) and per-body Flutter text context menus yield; when the callback is null, Flutter’s text menu stays available on selectable text. Not the mobile idle-tap path.
+_Avoid_: Context menu event (as our term), right-click handler, onSecondaryTap alone
+
 **Message menu session**:
-The exclusive lifetime of a message menu for one id and one slot rect captured at idle message tap. IME visibility is frozen for that lifetime. Ends without an action on dismiss, or when a host-provided presence signal says that id is absent. Does not retarget.
+The exclusive lifetime of a **message menu** for one **message menu request** (id and slot rect captured at entry). IME visibility is frozen for that lifetime when an IME is in play. Ends without an action on dismiss, or when a host-provided presence signal says that id is absent. Does not retarget.
 _Avoid_: Overlay entry, popup lifetime, live tracking, context-menu route
 
+**Message menu presentation**:
+How a **message menu session** is drawn: mobile uses a dimmed scrim with the target slot left undimmed and the action column anchored to that slot; desktop/web uses a light popup at the pointer with no viewport dim and no message outline lift. Defaults from **selection policy** (`$Mobile` → scrim sheet, `$Desktop` → pointer popup); the host may override for a given present. Same session contract; not a second product concept.
+_Avoid_: Two menu products, ContextMenu vs ActionSheet split, host-only desktop shell
+
 **Message menu dismiss**:
-Ending the session without an action: first system back, Escape, or scrim tap. IME and the route stay. Next back may hide the IME; only then may the route pop.
+Ending the session without an action: system back, Escape, scrim tap (mobile presentation), or outside/dismiss on the desktop popup. IME and the route stay when an IME was frozen. Next back may hide the IME; only then may the route pop.
 _Avoid_: Navigator.pop, hide keyboard, PopScope
 
 **Pre-IME back claim**:
@@ -285,8 +313,8 @@ A host-defined row in the message menu. The viewport has no catalog of actions.
 _Avoid_: MessageAction enum, PopupMenuItem, context-menu item
 
 **Message menu reaction**:
-A host-defined emoji in the message menu reaction strip. Choosing one ends the session the same way an action does.
-_Avoid_: Emoji picker, reaction sheet
+A host-defined emoji in the message menu reaction strip (optional on any **message menu presentation**). Choosing one ends the session the same way an action does. Host may omit the strip on a given presentation without making reactions a separate product.
+_Avoid_: Emoji picker, reaction sheet, desktop-only reaction product
 
 **Global catalog asset cache**:
 Process-wide thumbs/media cache for document-backed emoji, stickers, and GIFs, shared with the Panel Catalog Viewport so chat leaves and panel leaves bind the same assets.
