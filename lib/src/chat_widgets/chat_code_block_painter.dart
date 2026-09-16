@@ -427,8 +427,7 @@ class ChatCodeBlockPainter with SelectableTextBlock implements BlockPainter {
     MarkdownThemeData theme,
   ) {
     final baseStyle = theme.textStyle.copyWith(
-      fontFamily: kMonospaceFontFamily,
-      fontFamilyFallback: kMonospaceFontFamilyFallback,
+      fontFamily: 'monospace',
       fontSize: theme.textStyle.fontSize ?? 13.0,
       height: 1.35,
     );
