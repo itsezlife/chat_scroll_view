@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_md/flutter_md.dart';
 import 'package:flutter_md/highlight.dart';
@@ -17,6 +18,12 @@ const Map<MD$AlertType, Color> _demoDarkAlertColors = <MD$AlertType, Color>{
   MD$AlertType.caution: Color(0xFFF85149),
 };
 
+/// Phone chat clients underline links; desktop/web usually color only.
+bool get _underlineLinksOnPlatform => switch (defaultTargetPlatform) {
+  TargetPlatform.android || TargetPlatform.iOS => true,
+  _ => false,
+};
+
 /// Produces a dark [MarkdownThemeData] configured for the chat demo.
 MarkdownThemeData demoDarkMarkdownTheme(BuildContext context) {
   final theme = Theme.of(context);
@@ -29,6 +36,11 @@ MarkdownThemeData demoDarkMarkdownTheme(BuildContext context) {
     monospaceBackgroundColor: Colors.transparent,
     dividerColor: const Color(0x24FFFFFF),
     linkColor: const Color(0xFF58A6FF),
+    // Mobile: underline on top of [linkColor] (Telegram-style). Desktop
+    // keeps color + bold from the theme defaults without decoration.
+    linkStyle: _underlineLinksOnPlatform
+        ? const TextStyle(decoration: TextDecoration.underline)
+        : null,
     spanFilter: (span) => !span.style.contains(MD$Style.image),
   );
 }
