@@ -12,7 +12,7 @@ dependencies:
   meta: ^1.17.0
   flutter_md:
     git:
-      url: https://github.com/itsezlife/md
+      url: https://github.com/itsezlife/md.git
       ref: feat/selection-chrome
 
 dev_dependencies:
@@ -24,7 +24,5 @@ dev_dependencies:
   fake_async: ^1.3.3
 
 dependency_overrides:
-  # Local flutter_md: enableTouchGestures + enabled-flip chrome sync.
-  # Drop once feat/selection-chrome publishes those changes.
   flutter_md:
     path: ../md

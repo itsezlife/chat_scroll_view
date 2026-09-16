@@ -186,10 +186,17 @@ class ChatSelectionPointer {
     _clearSpan();
   }
 
-  /// Re-applies the live span at [local]. No-op when no span is live.
+  /// Re-applies the live span or desktop drag preview at [local].
+  ///
+  /// Used by viewport edge auto-scroll while the pointer is stationary: without
+  /// this, membership / drag preview only advances on pointer-move events.
   void applySpanAt(Offset local) {
     _spanPointerLocal = local;
     if (!isSpanLive) return;
+    if (_panOriginId != null) {
+      _applyDragSelectionAt(local);
+      return;
+    }
     _applySpanAt(local);
   }
 
@@ -323,8 +330,7 @@ class ChatSelectionPointer {
     }
 
     if (hit != null) {
-      final chain = spanChain?.call(origin, hit) ?? <int>[origin, hit];
-      selection.updateDragSelection(chain.toSet(), action: _panAction);
+      _applyDragSelectionAt(details.localPosition);
       onSpanSessionChanged?.call();
     }
   }
@@ -389,17 +395,6 @@ class ChatSelectionPointer {
     }
 
     if (!selection.isSelectable(id)) return;
-
-    // Subject-only surfaces while text is live: sibling scopes are off.
-    // Body hit → retarget via facade. Padding / chrome → unselect span.
-    if (selection.isTextSelectionActive &&
-        selection.isSelected(id) &&
-        selection.textSelectionSubject != id &&
-        selection.containsGlobal(id, details.globalPosition)) {
-      selection.abortSpanFeedback();
-      selection.enterTextSelection(id, globalOffset: details.globalPosition);
-      return;
-    }
 
     selection.abortSpanFeedback();
     HapticFeedback.vibrate();
@@ -482,6 +477,22 @@ class ChatSelectionPointer {
     }
     selection.replaceSelectedIds(next);
     if (next.isEmpty) _spanMembershipFrozen = true;
+  }
+
+  /// Desktop/web drag-preview counterpart to [_applySpanAt].
+  ///
+  /// Edge auto-scroll calls [applySpanAt] without pointer-move events; the pan
+  /// path must refresh [ChatSelectionController.updateDragSelection] here or
+  /// the preview freezes until the cursor moves again.
+  void _applyDragSelectionAt(Offset local) {
+    final origin = _panOriginId;
+    final selection = this.selection;
+    if (origin == null || selection == null) return;
+    if (_panAction == ChatDragSelectAction.none) return;
+    final hit = (spanHitAt ?? messageIdAt)?.call(local);
+    if (hit == null) return;
+    final chain = spanChain?.call(origin, hit) ?? <int>[origin, hit];
+    selection.updateDragSelection(chain.toSet(), action: _panAction);
   }
 
   void _clearSpan() {

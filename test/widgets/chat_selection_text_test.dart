@@ -533,12 +533,13 @@ void main() {
         expect(selection.isTextSelectionActive, isTrue);
         expect(selection.textSelectionSubject, 1);
         expect(selection.selectedIds, <int>{1, 2});
-        expect(selection.surfaceFor(2), isNull);
+        // Selected sibling mounts a surface so continuous retarget can yield.
+        expect(selection.exposesSelectionSurface(2), isTrue);
 
-        // Sibling has no surface to yield to — retarget is programmatic /
-        // viewport enterTextSelection (shouldRoute stays false).
+        // Sibling body hit yields for continuous retarget (ADR 015).
+        // Programmatic enterTextSelection remains for hosts / tests.
         final global2 = tester.getCenter(find.byKey(const ValueKey('md-2')));
-        expect(selection.shouldRouteLongPressToText(2, global2), isFalse);
+        expect(selection.shouldRouteLongPressToText(2, global2), isTrue);
         expect(selection.enterTextSelection(2, globalOffset: global2), isTrue);
         await tester.pump();
         await tester.pump();
@@ -1066,11 +1067,11 @@ void main() {
           await gesture1.up();
           await tester.pumpAndSettle();
 
-          // 3. Long-press on message 2 body → viewport retargets (no sibling
-          // surface yield); membership unchanged.
+          // 3. Long-press on message 2 body → viewport yields; scope retargets
+          // with continuous press; membership unchanged.
           final md2 = find.byKey(const ValueKey('md-2'));
           final start2 = tester.getTopLeft(md2) + const Offset(24, 16);
-          expect(selection.shouldRouteLongPressToText(2, start2), isFalse);
+          expect(selection.shouldRouteLongPressToText(2, start2), isTrue);
           expect(selection.containsGlobal(2, start2), isTrue);
           final gesture2 = await tester.startGesture(start2);
           await tester.pump(kLongPressTimeout + kPressTimeout);

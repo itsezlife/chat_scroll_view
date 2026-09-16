@@ -173,7 +173,7 @@ The single message that owns the active character-range text selection. Under mo
 _Avoid_: Gesture origin, document id, anchor, “the selected message” (as the only meaning)
 
 **Text selection chrome**:
-The mobile handles and adaptive toolbar that present and act on the live **text selection** for the **text selection subject**. Owned with that selection (per-body scope + facade sync); not **message selection** chrome, not the **message menu**, and not overlay chrome. On desktop/web, Flutter’s built-in text context menu remains the default when the host does not handle **secondary message tap**; when the host does, text-range actions belong in the **message menu** instead of a second popup.
+The mobile handles and adaptive toolbar that present and act on the live **text selection** for the **text selection subject**. Owned with that selection (per-body scope + facade sync); not **message selection** chrome, not the **message menu**, and not overlay chrome. On desktop/web, Flutter’s built-in text context menu remains the default when the host does not handle **secondary message tap**; when the host does under `$Desktop`, text-range actions belong in the **message menu** instead of a second popup. Under `$Mobile`, the adaptive toolbar stays even when secondary is also wired (message menu entry is idle primary).
 _Avoid_: Context menu (alone), selection overlay (Flutter), floating toolbar (host), magnifier
 
 **Selection policy**:

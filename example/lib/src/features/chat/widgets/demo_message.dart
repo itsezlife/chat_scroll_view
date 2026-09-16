@@ -156,11 +156,9 @@ class DemoMessageBubble extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final content = switch (message) {
-      UserChatMessage(:final content) => content,
-      SystemChatMessage(:final content) => content,
-      _ => 'Message #${message.id}',
-    };
+    final content = message.text ?? 'Message #${message.id}';
+    // Prefer the host pre-parsed AST — parsing belongs at ingest, not mount.
+    final markdown = message.markdownBody;
     final outgoing = _isOutgoing(message.sender);
     final layout = _layoutOf(context);
     final isFirstInRun = runLayout.isFirstInSenderRun;
@@ -173,6 +171,7 @@ class DemoMessageBubble extends StatelessWidget {
           messageId: message.id,
           sender: isFirstInRun ? message.sender : null,
           content: content,
+          markdown: markdown,
           createdAt: message.createdAt,
           edited: message.updatedAt != message.createdAt,
           isOutgoing: outgoing,
@@ -286,6 +285,7 @@ class _Bubble extends StatelessWidget {
     required this.runLayout,
     required this.theme,
     required this.maxWidth,
+    this.markdown,
     this.selection,
     this.onSenderTap,
   });
@@ -296,8 +296,11 @@ class _Bubble extends StatelessWidget {
   /// `null` suppresses the sender label — non-first messages in a run.
   final String? sender;
 
-  /// Plain message body shown in the content slot.
+  /// Plain message body shown in the content slot (and morph identity).
   final String content;
+
+  /// Host pre-parsed markdown; when null with [selection], falls back to plain [Text].
+  final Markdown? markdown;
 
   /// Send timestamp; formatted by meta for the meta slot.
   final DateTime createdAt;
@@ -337,15 +340,15 @@ class _Bubble extends StatelessWidget {
     );
     final padding = ChatBubbleMetrics.bubbleContentPadding(theme: theme);
     final textStyle = TextStyle(color: textColor, fontSize: 15, height: 1.35);
-    final body = switch (selection) {
-      final controller? => _RegisteredChatMdBody(
+    final body = switch ((selection, markdown)) {
+      (final controller?, final md?) => _RegisteredChatMdBody(
         selection: controller,
         messageId: messageId,
-        content: content,
+        markdown: md,
         textStyle: textStyle,
         isOutgoing: isOutgoing,
       ),
-      null => Text(content, style: textStyle),
+      _ => Text(content, style: textStyle),
     };
 
     return ConstrainedBox(
@@ -425,22 +428,22 @@ class _Bubble extends StatelessWidget {
   );
 }
 
-/// Registers [content] with [selection] and mounts [MarkdownWidget].
+/// Registers host-supplied [markdown] with [selection] and mounts the body.
 ///
-/// Keeps put/remove lifecycle next to the mounted body so recycle and edits
-/// stay in sync with the viewport registry.
+/// Does **not** parse — [Markdown.fromString] belongs at message ingest so
+/// recycle / remount reuse the same AST instance.
 class _RegisteredChatMdBody extends StatefulWidget {
   const _RegisteredChatMdBody({
     required this.selection,
     required this.messageId,
-    required this.content,
+    required this.markdown,
     required this.textStyle,
     required this.isOutgoing,
   });
 
   final ChatSelectionController selection;
   final int messageId;
-  final String content;
+  final Markdown markdown;
   final TextStyle textStyle;
   final bool isOutgoing;
 
@@ -450,7 +453,6 @@ class _RegisteredChatMdBody extends StatefulWidget {
 
 class _RegisteredChatMdBodyState extends State<_RegisteredChatMdBody> {
   Object? _token;
-  Markdown? _model;
 
   @override
   void initState() {
@@ -465,11 +467,10 @@ class _RegisteredChatMdBodyState extends State<_RegisteredChatMdBody> {
         oldWidget.messageId != widget.messageId) {
       oldWidget.selection.removeBody(oldWidget.messageId, token: _token);
       _token = null;
-      _model = null;
       _put();
       return;
     }
-    if (oldWidget.content != widget.content) {
+    if (!identical(oldWidget.markdown, widget.markdown)) {
       _put();
     }
   }
@@ -483,14 +484,12 @@ class _RegisteredChatMdBodyState extends State<_RegisteredChatMdBody> {
   }
 
   void _put() {
-    final model = Markdown.fromString(widget.content);
-    _model = model;
     if (!ChatMarkdownBodyRegistration.allows(context)) {
       return;
     }
     _token = widget.selection.putBody(
       widget.messageId,
-      model,
+      widget.markdown,
       order: widget.messageId,
       token: _token,
     );
@@ -512,7 +511,7 @@ class _RegisteredChatMdBodyState extends State<_RegisteredChatMdBody> {
         child: ChatMarkdownBody(
           controller: widget.selection,
           messageId: widget.messageId,
-          markdown: _model,
+          markdown: widget.markdown,
         ),
       ),
     );

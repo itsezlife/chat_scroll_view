@@ -103,6 +103,16 @@ sealed class ChatSelectionPolicy {
   /// Mere arm-for-entry (desktop pointer-down) does not.
   bool get suppressesLinkTapInMessageSelection;
 
+  /// Whether a wired [ChatScrollView.onSecondaryMessageTap] claims the full
+  /// message **slot** for secondary (including glyphs), so per-body Flutter
+  /// **text selection chrome** / context menus must yield.
+  ///
+  /// Under [$Desktop] (`true`), secondary is the **message menu** entry —
+  /// text-range actions belong on that menu, not a second popup.
+  /// Under [$Mobile] (`false`), the message menu is idle primary tap; the
+  /// adaptive text toolbar stays even when secondary is also wired.
+  bool get secondaryMessageTapOwnsFullSlot;
+
   /// Whether **tap highlight** (link / inline-code press ink) is suppressed
   /// while **message selection** mode or **text selection** is active.
   ///
@@ -191,6 +201,9 @@ final class ChatSelectionPolicy$Mobile implements ChatSelectionPolicy {
   bool get suppressesLinkTapInMessageSelection => true;
 
   @override
+  bool get secondaryMessageTapOwnsFullSlot => false;
+
+  @override
   bool get suppressesTapHighlightDuringSelection => true;
 
   @override
@@ -257,6 +270,9 @@ final class ChatSelectionPolicy$Desktop implements ChatSelectionPolicy {
 
   @override
   bool get suppressesLinkTapInMessageSelection => false;
+
+  @override
+  bool get secondaryMessageTapOwnsFullSlot => true;
 
   @override
   bool get suppressesTapHighlightDuringSelection => false;

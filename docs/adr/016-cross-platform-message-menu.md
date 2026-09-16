@@ -47,11 +47,14 @@ active **span gesture**.
 
 On desktop/web, Flutter’s built-in text context menu remains the default when
 the host does **not** handle **secondary message tap**. When the host does
-handle that seam (and typically presents a **message menu**), the engine must
-not also show Flutter’s text menu on the same gesture — text-range actions then
-belong in the message menu (driven by text overlap on the request). Hosts that
-omit the secondary callback need no custom menu widget. Mobile **text selection
-chrome** (handles / toolbar) stays as today and is not the message menu.
+handle that seam under `$Desktop` (and typically presents a **message menu**),
+the engine must not also show Flutter’s text menu on the same gesture —
+text-range actions then belong in the message menu (driven by text overlap on
+the request). Under `$Mobile`, adaptive **text selection chrome** stays even
+when secondary is also wired — message-menu entry is idle primary tap. Hosts
+that omit the secondary callback need no custom menu widget. Mobile **text
+selection chrome** (handles / toolbar) stays as today and is not the message
+menu.
 
 Rejected: splitting desktop into a separate “context menu” product; leaving
 desktop popup entirely to the example when the host *does* opt in; keeping a

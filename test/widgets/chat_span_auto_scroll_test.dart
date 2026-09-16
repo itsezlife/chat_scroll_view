@@ -3,9 +3,12 @@ import 'package:chat_scroll_view/src/chat_scroll/chat_scroll_common.dart';
 import 'package:chat_scroll_view/src/chat_scroll/chat_scroll_controller.dart';
 import 'package:chat_scroll_view/src/chat_scroll/chat_selection_controller.dart';
 import 'package:chat_scroll_view/src/chat_widgets/chat_scroll_view.dart';
+import 'package:chat_scroll_view/src/chat_widgets/chat_selectable_message.dart';
+import 'package:chat_scroll_view/src/chat_widgets/chat_selection_chrome.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+
 import '../chat_message.dart';
 
 IChatMessage _msg(int id, {DateTime? createdAt}) => UserChatMessage(
@@ -89,6 +92,16 @@ Widget _harness({
     ),
   ),
 );
+
+Map<int, ChatSelectionChromeState> _chromeById(WidgetTester tester) {
+  final out = <int, ChatSelectionChromeState>{};
+  for (final scope in tester.widgetList<ChatSelectionStateScope>(
+    find.byType(ChatSelectionStateScope),
+  )) {
+    out[scope.state.id] = scope.state;
+  }
+  return out;
+}
 
 Future<TestGesture> _longPressHold(WidgetTester tester, Finder finder) async {
   final gesture = await tester.startGesture(tester.getCenter(finder));
@@ -289,6 +302,78 @@ void main() {
           reason: 'auto-scroll must reveal newer messages into the span',
         );
         expect(controller.anchorPixelOffset, isNot(originYBefore));
+        await gesture.up();
+      },
+    );
+
+    testWidgets(
+      r'$Desktop: stationary pointer in the edge band grows drag preview and chrome',
+      (tester) async {
+        const count = 32;
+        final controller = ChatScrollController()..jumpTo(count - 1);
+        final selection = ChatSelectionController(
+          policy: const ChatSelectionPolicy.desktop(),
+        );
+        addTearDown(controller.dispose);
+        addTearDown(selection.dispose);
+
+        await tester.pumpWidget(
+          _harness(
+            dataSource: _LoadedSource([
+              for (var i = 0; i < count; i++) _msg(i),
+            ]),
+            controller: controller,
+            selection: selection,
+          ),
+        );
+        await tester.pump();
+
+        final gesture = await tester.startGesture(
+          tester.getCenter(find.text('msg-${count - 1}')),
+        );
+        await tester.pump();
+        await gesture.moveTo(_viewTopBand(tester));
+        await tester.pump();
+
+        final afterMove = Set<int>.of(selection.effectiveSelectedIds);
+        expect(afterMove, isNotEmpty);
+        final minAfterMove = afterMove.reduce((a, b) => a < b ? a : b);
+        final originYBefore = controller.anchorPixelOffset;
+
+        // Hold still — growth must come from live auto-scroll hits, not moves.
+        for (var i = 0; i < 24; i++) {
+          await tester.pump(const Duration(milliseconds: 16));
+        }
+
+        final afterHold = Set<int>.of(selection.effectiveSelectedIds);
+        expect(
+          controller.anchorPixelOffset,
+          isNot(originYBefore),
+          reason: 'edge-band hold must keep driving origin auto-scroll',
+        );
+        expect(
+          afterHold.any((id) => id < minAfterMove),
+          isTrue,
+          reason:
+              'desktop drag preview must grow while the pointer is stationary',
+        );
+
+        await tester.pump(const Duration(milliseconds: 250));
+        final chrome = _chromeById(tester);
+        final newly = afterHold.difference(afterMove);
+        expect(newly, isNotEmpty);
+        for (final id in newly) {
+          final state = chrome[id];
+          if (state == null) continue;
+          expect(state.isSelected, isTrue);
+          expect(
+            state.selectProgress,
+            greaterThan(0.5),
+            reason:
+                'chrome selectProgress must advance without further pointer moves',
+          );
+        }
+
         await gesture.up();
       },
     );

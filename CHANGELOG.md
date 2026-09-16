@@ -44,6 +44,16 @@ this project is pre-1.0 and not strictly SemVer yet.
 
 ### Fixed
 
+- **Mobile retarget continuous text gesture.** With message multi-select and
+  text active on subject A, long-press on another selected body’s text yields
+  to that body’s markdown scope (same path as first entry) so drag-extend and
+  scope haptics work. Previously the viewport kept the press and one-shot
+  `enterTextSelection`, which settled immediately. Selected siblings mount
+  surfaces while text is live; adopt / Select All still prune the registry to
+  the subject (ADR 015). Handle drags that walk onto a sibling mount confine
+  back to the subject instead of clearing text. Retarget clears
+  `toolbarWanted` so the prior adaptive toolbar does not linger mid-gesture.
+
 - **Ghost bubble selectedColor.** `SelectableMessage` chrome now rebuilds on
   facade notifies, not only mode/select animation ticks. Clearing a drag
   preview mid mode-enter no longer leaves `ChatMessageChangeTransition`
@@ -55,6 +65,11 @@ this project is pre-1.0 and not strictly SemVer yet.
   `RenderBox?`, not a cached global [Rect]). Cached rects went stale when
   the list scrolled without rebuilding, so secondary taps looked Outside
   (desktop Select-only — easy to read as “elsewhere”).
+
+- **Mobile text chrome with secondary wired.** Suppressing Flutter’s text
+  context menu when `onSecondaryMessageTap` is set is `$Desktop`-only
+  (`secondaryMessageTapOwnsFullSlot`). `$Mobile` keeps the adaptive toolbar
+  even when the host also wires secondary.
 
 - **Mobile inline hits vs selection (one matrix).** Idle: link / inline code /
   COPY CODE fire. **Message selection** or a live **character-range**: all

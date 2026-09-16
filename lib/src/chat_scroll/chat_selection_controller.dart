@@ -688,11 +688,11 @@ class ChatSelectionController implements Listenable {
   ///
   /// Under mobile policy: while **text selection** is inactive, every
   /// registered body exposes a surface when idle or message-selected (inline
-  /// hit-testing and long-press entry). While text is live, only the
-  /// [textSelectionSubject] mounts — sibling selected mounts share this
-  /// controller and would `putDocument` on attach, re-expanding the registry
-  /// and breaking Select All / one-message ranges. Retarget uses reported
-  /// body paint bounds plus facade [enterTextSelection].
+  /// hit-testing and long-press entry). While text is live, the
+  /// [textSelectionSubject] and every other **message-selected** body mount so
+  /// a sibling long-press can own continuous retarget (ADR 015). Sibling
+  /// `putDocument` may briefly re-expand the shared registry; [adopt] /
+  /// [selectAllText] prune back to the subject (one-message ranges).
   ///
   /// Under desktop direct-entry: every registered body while idle **and** while
   /// **message selection** is active (inline link/code/chrome activation must
@@ -702,7 +702,9 @@ class ChatSelectionController implements Listenable {
     if (_disposed) return false;
     if (!_text.hasBody(messageId)) return false;
     if (selectionPolicy.nestsTextSubjectInMessageSelection) {
-      if (_text.isActive) return _text.subjectId == messageId;
+      if (_text.isActive) {
+        return _text.subjectId == messageId || isSelected(messageId);
+      }
       return isSelected(messageId) || _selectedIds.isEmpty;
     }
     if (_text.isActive) return _text.subjectId == messageId;
@@ -1166,8 +1168,17 @@ class ChatSelectionController implements Listenable {
       case final sel? when !sel.isCollapsed:
         final docId = sel.base.documentId;
         final extentId = sel.extent.documentId;
-        // Character ranges stay one message — drop cross-document commits.
+        // Character ranges stay one message. A handle / drag that walks onto
+        // a sibling mount (registry briefly re-expanded) is confined to the
+        // subject — not cleared (that felt like the selection collapsing).
         if (docId != extentId) {
+          final subject = _text.subjectId;
+          if (_text.isActive &&
+              _hasEstablishedTextRange &&
+              subject != null &&
+              _text.confineSelectionToDocument(subject)) {
+            return;
+          }
           clearTextSelection();
           return;
         }
@@ -1199,7 +1210,16 @@ class ChatSelectionController implements Listenable {
         !isSelected(messageId)) {
       return false;
     }
+    final retargeting =
+        _text.isActive &&
+        _text.subjectId != null &&
+        _text.subjectId != messageId;
     if (!_text.adopt(messageId)) return false;
+    if (retargeting) {
+      // Prior subject left toolbarWanted set; the new scope must not restore
+      // that toolbar mid long-press (gesture showToolbar runs on settle).
+      _text.markdownSelection.toolbarWanted = false;
+    }
     selectionPolicy.applyEnterMembership(
       replaceSelectedIds: replaceSelectedIds,
       clearMessageSelection: _clearMessageIds,
@@ -1257,24 +1277,19 @@ class ChatSelectionController implements Listenable {
   /// text selection under [selectionPolicy].
   ///
   /// Mobile: requires [messageId] to be already message-selected and the
-  /// point to hit that message’s body (mounted surface, or reported paint
-  /// bounds when the surface is unmounted for a non-subject). When text is
-  /// already active on another message, yielding applies only to the current
-  /// subject; retarget onto another selected body is handled by the viewport
-  /// long-press calling [enterTextSelection].
+  /// point to hit that message’s body. Yields for the live **text selection
+  /// subject** and for other selected bodies (retarget) so the per-body
+  /// markdown scope owns continuous long-press → drag-extend (ADR 015).
+  /// Padding / chrome on a selected row still returns `false` so the viewport
+  /// keeps the long-press for an unselect span.
   ///
   /// The viewport uses this on pointer-down to **yield** its long-press
-  /// recognizer so the per-body markdown scope owns the continuous press
-  /// (ADR 015). It is not a one-shot enter-text API.
+  /// recognizer. It is not a one-shot enter-text API.
   @internal
   bool shouldRouteLongPressToText(int messageId, Offset globalOffset) {
     if (_disposed) return false;
     if (!selectionPolicy.routesLongPressToTextSelection) return false;
     if (!isSelected(messageId)) return false;
-    // While text is live, only the subject mounts a surface / enabled scope.
-    // Do not yield for siblings — the viewport keeps the long-press to retarget
-    // or run an unselect span (padding).
-    if (_text.isActive && _text.subjectId != messageId) return false;
     return _text.containsGlobal(messageId, globalOffset);
   }
 

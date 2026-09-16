@@ -31,33 +31,63 @@ sealed class ChatMessage implements IChatMessage {
 
 /// A system-authored message — service notifications, join/leave notices,
 /// channel events. `sealed`-pattern leaf of [ChatMessage].
+///
+/// Parses [content] into [body] at construction so markdown work stays off the
+/// widget mount / recycle path.
 class SystemChatMessage extends ChatMessage {
-  /// Creates a system-authored row (join notices, channel events, …).
-  const SystemChatMessage({
+  /// Creates a system-authored row and parses [content] into [body] once.
+  SystemChatMessage({
     required super.id,
     required super.sender,
     required super.createdAt,
     required super.updatedAt,
-    required this.content,
+    required String content,
+  }) : body = Markdown.fromString(content);
+
+  /// Already-parsed [body] — host cache, isolate batch, or future entities bridge.
+  const SystemChatMessage.preParsed({
+    required super.id,
+    required super.sender,
+    required super.createdAt,
+    required super.updatedAt,
+    required this.body,
   });
 
-  /// The content of the system message.
-  final String content;
+  /// Pre-parsed markdown AST for paint and selection registration.
+  final Markdown body;
+
+  /// Original markdown source (same as [Markdown.markdown]).
+  String get content => body.markdown;
 }
 
 /// A user-authored message. `sealed`-pattern leaf of [ChatMessage].
+///
+/// Parses [content] into [body] at construction so markdown work stays off the
+/// widget mount / recycle path.
 class UserChatMessage extends ChatMessage {
-  /// Creates a user-authored row with [content] body text.
-  const UserChatMessage({
+  /// Creates a user-authored row and parses [content] into [body] once.
+  UserChatMessage({
     required super.id,
     required super.sender,
     required super.createdAt,
     required super.updatedAt,
-    required this.content,
+    required String content,
+  }) : body = Markdown.fromString(content);
+
+  /// Already-parsed [body] — host cache, isolate batch, or future entities bridge.
+  const UserChatMessage.preParsed({
+    required super.id,
+    required super.sender,
+    required super.createdAt,
+    required super.updatedAt,
+    required this.body,
   });
 
-  /// The content of the user message.
-  final String content;
+  /// Pre-parsed markdown AST for paint and selection registration.
+  final Markdown body;
+
+  /// Original markdown source (same as [Markdown.markdown]).
+  String get content => body.markdown;
 }
 
 /// Extension methods for [IChatMessage].
@@ -66,6 +96,13 @@ extension ChatMessageExtension on IChatMessage {
   String? get text => switch (this) {
     UserChatMessage(:final content) => content,
     SystemChatMessage(:final content) => content,
+    _ => null,
+  };
+
+  /// Pre-parsed markdown body when this is a [ChatMessage] leaf; otherwise null.
+  Markdown? get markdownBody => switch (this) {
+    UserChatMessage(:final body) => body,
+    SystemChatMessage(:final body) => body,
     _ => null,
   };
 }

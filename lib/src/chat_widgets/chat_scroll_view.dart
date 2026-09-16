@@ -237,10 +237,12 @@ class ChatScrollView extends RenderObjectWidget {
   /// gesture — including while message selection is active (**membership**
   /// upon-selected / elsewhere) and while text selection is live (overlap +
   /// snapshot on the request). The request also carries **point state** and
-  /// an optional **inline hit**. When non-null, the viewport owns secondary
-  /// on the **full slot** (including text glyphs); per-body markdown yields
-  /// so Flutter’s text menu does not stack on the same gesture. Opening the
-  /// menu from this request does not clear membership or text selection.
+  /// an optional **inline hit**. When non-null on `$Desktop`, the viewport
+  /// owns secondary on the **full slot** (including text glyphs); per-body
+  /// markdown yields so Flutter’s text menu does not stack. Under `$Mobile`,
+  /// secondary may still be wired, but adaptive **text selection chrome**
+  /// stays — message-menu entry is idle primary tap. Opening the menu from
+  /// this request does not clear membership or text selection.
   final ChatMessageMenuRequestCallback? onSecondaryMessageTap;
 
   /// Replaces the bundled checkbox-gutter chrome. Ignored when

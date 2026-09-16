@@ -126,6 +126,78 @@ void main() {
   );
 
   testWidgets(
+    'mobile toolbar stays when onSecondaryMessageTap is wired',
+    (tester) async {
+      debugDefaultTargetPlatformOverride = TargetPlatform.iOS;
+      try {
+        final dataSource = _LoadedSource([_msg(1)]);
+        final controller = ChatScrollController();
+        final selection = ChatSelectionController(
+          policy: const ChatSelectionPolicy.mobile(),
+        );
+        addTearDown(controller.dispose);
+        addTearDown(selection.dispose);
+        addTearDown(dataSource.dispose);
+
+        selection.putBody(1, Markdown.fromString('Hello selectable world'));
+
+        await tester.pumpWidget(
+          MaterialApp(
+            theme: ThemeData(platform: TargetPlatform.iOS),
+            home: Scaffold(
+              body: SizedBox(
+                width: 400,
+                height: 600,
+                child: ChatScrollView(
+                  dataSource: dataSource,
+                  controller: controller,
+                  selectionController: selection,
+                  // Same wiring as the example host — must not kill mobile
+                  // text selection chrome.
+                  onSecondaryMessageTap: (_) {},
+                  messageBuilder: (context, id, message, status, runLayout) =>
+                      Container(
+                        key: ValueKey('container-$id'),
+                        height: 80,
+                        padding: const EdgeInsets.all(12),
+                        color: Colors.white,
+                        child: ChatMarkdownBody(
+                          key: ValueKey('md-$id'),
+                          controller: selection,
+                          messageId: id,
+                        ),
+                      ),
+                ),
+              ),
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        selection.startSelection(1);
+        await tester.pumpAndSettle();
+
+        final mdCenter = tester.getCenter(find.byType(MarkdownWidget));
+        final gesture = await tester.startGesture(mdCenter);
+        await tester.pump(kLongPressTimeout + kPressTimeout);
+        await tester.pump();
+        await tester.pump();
+        await gesture.up();
+        await tester.pumpAndSettle();
+
+        expect(selection.isTextSelectionActive, isTrue);
+        final scope = tester.state<MarkdownSelectionScopeState>(
+          find.byType(MarkdownSelectionScope),
+        );
+        expect(scope.toolbarIsVisible, isTrue);
+        expect(find.byType(AdaptiveTextSelectionToolbar), findsOneWidget);
+      } finally {
+        debugDefaultTargetPlatformOverride = null;
+      }
+    },
+  );
+
+  testWidgets(
     'programmatic mobile enterTextSelection(word) shows handles and toolbar',
     (tester) async {
       debugDefaultTargetPlatformOverride = TargetPlatform.android;
@@ -275,6 +347,312 @@ void main() {
               'one-shot word and drop the gesture',
         );
         expect(find.byType(CompositedTransformFollower), findsNWidgets(2));
+      } finally {
+        debugDefaultTargetPlatformOverride = null;
+      }
+    },
+  );
+
+  testWidgets(
+    'mobile retarget long-press on another selected body must drag-extend',
+    (tester) async {
+      debugDefaultTargetPlatformOverride = TargetPlatform.iOS;
+      try {
+        final dataSource = _LoadedSource([_msg(1), _msg(2)]);
+        final controller = ChatScrollController();
+        final selection = ChatSelectionController(
+          policy: const ChatSelectionPolicy.mobile(),
+        );
+        addTearDown(controller.dispose);
+        addTearDown(selection.dispose);
+        addTearDown(dataSource.dispose);
+
+        selection.putBody(
+          1,
+          Markdown.fromString('Hello selectable world and more words here'),
+        );
+        selection.putBody(
+          2,
+          Markdown.fromString('Second selectable body with many words here'),
+        );
+
+        await tester.pumpWidget(
+          MaterialApp(
+            theme: ThemeData(platform: TargetPlatform.iOS),
+            home: Scaffold(
+              body: SizedBox(
+                width: 400,
+                height: 600,
+                child: ChatScrollView(
+                  dataSource: dataSource,
+                  controller: controller,
+                  selectionController: selection,
+                  messageBuilder: (context, id, message, status, runLayout) =>
+                      Container(
+                        key: ValueKey('container-$id'),
+                        height: 100,
+                        padding: const EdgeInsets.all(12),
+                        color: Colors.white,
+                        child: ChatMarkdownBody(
+                          key: ValueKey('md-$id'),
+                          controller: selection,
+                          messageId: id,
+                        ),
+                      ),
+                ),
+              ),
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        selection
+          ..startSelection(1)
+          ..toggle(2);
+        await tester.pumpAndSettle();
+
+        // Enter text on message 1 (continuous path).
+        final md1 = find.byKey(const ValueKey('md-1'));
+        final start1 = tester.getTopLeft(md1) + const Offset(24, 16);
+        final gesture1 = await tester.startGesture(start1);
+        await tester.pump(kLongPressTimeout + kPressTimeout);
+        await tester.pump();
+        await gesture1.up();
+        await tester.pumpAndSettle();
+
+        expect(selection.isTextSelectionActive, isTrue);
+        expect(selection.textSelectionSubject, 1);
+        expect(selection.selectedIds, <int>{1, 2});
+
+        // Retarget: long-press on message 2 body, then drag-extend.
+        final md2 = find.byKey(const ValueKey('md-2'));
+        final start2 = tester.getTopLeft(md2) + const Offset(24, 16);
+        final end2 = start2 + const Offset(180, 0);
+        expect(selection.shouldRouteLongPressToText(2, start2), isTrue);
+        expect(selection.containsGlobal(2, start2), isTrue);
+
+        final gesture2 = await tester.startGesture(start2);
+        await tester.pump(kLongPressTimeout + kPressTimeout);
+        await tester.pump();
+        await gesture2.moveTo(end2);
+        await tester.pump();
+        await gesture2.up();
+        await tester.pumpAndSettle();
+
+        expect(selection.selectedIds, <int>{1, 2});
+        expect(selection.isTextSelectionActive, isTrue);
+        expect(selection.textSelectionSubject, 2);
+        final text = selection.markdownSelection.getText();
+        expect(text, isNotEmpty);
+        expect(
+          text.length,
+          greaterThan(8),
+          reason:
+              'retarget long-press must stay live for drag-extend, not '
+              'one-shot enterTextSelection and drop the gesture',
+        );
+        expect(find.byType(CompositedTransformFollower), findsNWidgets(2));
+      } finally {
+        debugDefaultTargetPlatformOverride = null;
+      }
+    },
+  );
+
+  testWidgets(
+    'handle drag past subject into sibling body keeps selection on subject',
+    (tester) async {
+      debugDefaultTargetPlatformOverride = TargetPlatform.android;
+      try {
+        final dataSource = _LoadedSource([_msg(1), _msg(2)]);
+        final controller = ChatScrollController();
+        final selection = ChatSelectionController(
+          policy: const ChatSelectionPolicy.mobile(),
+        );
+        addTearDown(controller.dispose);
+        addTearDown(selection.dispose);
+        addTearDown(dataSource.dispose);
+
+        selection.putBody(
+          1,
+          Markdown.fromString('Hello selectable world and more'),
+        );
+        selection.putBody(
+          2,
+          Markdown.fromString('Second selectable body text here'),
+        );
+
+        await tester.pumpWidget(
+          MaterialApp(
+            theme: ThemeData(platform: TargetPlatform.android),
+            home: Scaffold(
+              body: SizedBox(
+                width: 400,
+                height: 600,
+                child: ChatScrollView(
+                  dataSource: dataSource,
+                  controller: controller,
+                  selectionController: selection,
+                  messageBuilder: (context, id, message, status, runLayout) =>
+                      Container(
+                        key: ValueKey('container-$id'),
+                        height: 100,
+                        padding: const EdgeInsets.all(12),
+                        color: Colors.white,
+                        child: ChatMarkdownBody(
+                          key: ValueKey('md-$id'),
+                          controller: selection,
+                          messageId: id,
+                        ),
+                      ),
+                ),
+              ),
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        selection
+          ..startSelection(1)
+          ..toggle(2);
+        await tester.pumpAndSettle();
+
+        final md1 = find.byKey(const ValueKey('md-1'));
+        final start1 = tester.getTopLeft(md1) + const Offset(24, 16);
+        expect(
+          selection.enterTextSelection(1, globalOffset: start1),
+          isTrue,
+        );
+        await tester.pumpAndSettle();
+
+        expect(selection.isTextSelectionActive, isTrue);
+        expect(selection.textSelectionSubject, 1);
+        expect(selection.textSelection!.isCollapsed, isFalse);
+        final before = selection.markdownSelection.getText();
+        expect(before, isNotEmpty);
+
+        // Drag the end handle into message 2's body — must not clear text
+        // (sibling registry must not create a cross-message range that the
+        // facade collapses).
+        final md2 = find.byKey(const ValueKey('md-2'));
+        final intoSibling = tester.getTopLeft(md2) + const Offset(24, 16);
+        selection.markdownSelection.moveSelectionEdgeToGlobal(
+          intoSibling,
+          isStart: false,
+        );
+        await tester.pump();
+        await tester.pumpAndSettle();
+
+        expect(
+          selection.isTextSelectionActive,
+          isTrue,
+          reason:
+              'handle drag into a sibling body must not collapse text '
+              'selection',
+        );
+        expect(selection.textSelectionSubject, 1);
+        expect(selection.textSelection!.isCollapsed, isFalse);
+        expect(selection.textSelection!.base.documentId, 1);
+        expect(selection.textSelection!.extent.documentId, 1);
+        expect(selection.markdownSelection.getText(), isNotEmpty);
+        expect(find.byType(CompositedTransformFollower), findsNWidgets(2));
+      } finally {
+        debugDefaultTargetPlatformOverride = null;
+      }
+    },
+  );
+
+  testWidgets(
+    'retarget clears prior toolbar before the new subject settles chrome',
+    (tester) async {
+      debugDefaultTargetPlatformOverride = TargetPlatform.iOS;
+      try {
+        final dataSource = _LoadedSource([_msg(1), _msg(2)]);
+        final controller = ChatScrollController();
+        final selection = ChatSelectionController(
+          policy: const ChatSelectionPolicy.mobile(),
+        );
+        addTearDown(controller.dispose);
+        addTearDown(selection.dispose);
+        addTearDown(dataSource.dispose);
+
+        selection.putBody(
+          1,
+          Markdown.fromString('Hello selectable world and more words here'),
+        );
+        selection.putBody(
+          2,
+          Markdown.fromString('Second selectable body with many words here'),
+        );
+
+        await tester.pumpWidget(
+          MaterialApp(
+            theme: ThemeData(platform: TargetPlatform.iOS),
+            home: Scaffold(
+              body: SizedBox(
+                width: 400,
+                height: 600,
+                child: ChatScrollView(
+                  dataSource: dataSource,
+                  controller: controller,
+                  selectionController: selection,
+                  messageBuilder: (context, id, message, status, runLayout) =>
+                      Container(
+                        key: ValueKey('container-$id'),
+                        height: 100,
+                        padding: const EdgeInsets.all(12),
+                        color: Colors.white,
+                        child: ChatMarkdownBody(
+                          key: ValueKey('md-$id'),
+                          controller: selection,
+                          messageId: id,
+                        ),
+                      ),
+                ),
+              ),
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        selection
+          ..startSelection(1)
+          ..toggle(2);
+        await tester.pumpAndSettle();
+
+        final md1 = find.byKey(const ValueKey('md-1'));
+        final start1 = tester.getTopLeft(md1) + const Offset(24, 16);
+        final gesture1 = await tester.startGesture(start1);
+        await tester.pump(kLongPressTimeout + kPressTimeout);
+        await tester.pump();
+        await gesture1.up();
+        await tester.pumpAndSettle();
+
+        expect(selection.textSelectionSubject, 1);
+        expect(find.byType(AdaptiveTextSelectionToolbar), findsOneWidget);
+
+        // Retarget long-press on message 2: prior toolbar must not linger
+        // while the new subject's range is still settling.
+        final md2 = find.byKey(const ValueKey('md-2'));
+        final start2 = tester.getTopLeft(md2) + const Offset(24, 16);
+        final gesture2 = await tester.startGesture(start2);
+        await tester.pump(kLongPressTimeout + kPressTimeout);
+        await tester.pump();
+
+        expect(selection.textSelectionSubject, 2);
+        expect(
+          find.byType(AdaptiveTextSelectionToolbar),
+          findsNothing,
+          reason:
+              'prior subject toolbar must clear as soon as retarget selects '
+              'the new subject; toolbar returns after the new gesture settles',
+        );
+
+        await gesture2.up();
+        await tester.pumpAndSettle();
+
+        expect(selection.textSelectionSubject, 2);
+        expect(selection.isTextSelectionActive, isTrue);
+        expect(find.byType(AdaptiveTextSelectionToolbar), findsOneWidget);
       } finally {
         debugDefaultTargetPlatformOverride = null;
       }
@@ -603,8 +981,8 @@ void main() {
         expect(find.byType(AdaptiveTextSelectionToolbar), findsOneWidget);
 
         expect(selection.selectAllText(), isTrue);
-        await tester.pumpAndSettle();
-
+        // Assert before pump: sibling mounts may putDocument and briefly
+        // re-expand the registry; Select All already pruned at call time.
         expect(selection.isTextSelectionActive, isTrue);
         expect(selection.textSelectionSubject, 1);
         expect(selection.selectedIds, <int>{1, 2});
@@ -613,6 +991,18 @@ void main() {
         expect(selection.textSelection!.base.documentId, 1);
         expect(selection.textSelection!.extent.documentId, 1);
         expect(selection.markdownSelection.getText(), body1);
+        expect(
+          selection.markdownSelection.documents.map((d) => d.id),
+          <Object>[1],
+        );
+
+        await tester.pumpAndSettle();
+
+        expect(selection.isTextSelectionActive, isTrue);
+        expect(selection.textSelectionSubject, 1);
+        expect(selection.selectedIds, <int>{1, 2});
+        expect(selection.markdownSelection.getText(), body1);
+        expect(selection.exposesSelectionSurface(2), isTrue);
         expect(find.byType(CompositedTransformFollower), findsNWidgets(2));
         expect(find.byType(AdaptiveTextSelectionToolbar), findsOneWidget);
         expect(
@@ -622,12 +1012,6 @@ void main() {
               )
               .toolbarIsVisible,
           isTrue,
-        );
-        // Only the subject mounts a selection surface while text is live.
-        expect(selection.surfaceFor(2), isNull);
-        expect(
-          selection.markdownSelection.documents.map((d) => d.id),
-          <Object>[1],
         );
 
         selection.clearTextSelection();

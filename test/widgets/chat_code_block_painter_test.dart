@@ -40,6 +40,47 @@ void main() {
     );
   });
 
+  group('ChatCodeBlockPainter — Geometry Invariants', () {
+    test('internal body padding is 12dp on all sides of the code text', () {
+      // Independent of layout arithmetic — the visual contract from fenced
+      // chrome screenshots (text must not sit flush on the fence fill).
+      expect(ChatCodeBlockPainter.padding, 12);
+    });
+
+    test('outer vertical padding sits above and below painted chrome', () {
+      expect(ChatCodeBlockPainter.outerPadding, 4);
+
+      final painter = ChatCodeBlockPainter(
+        text: sampleDartCode,
+        language: 'dart',
+        theme: defaultTheme,
+        policy: const ChatSelectionPolicy.desktop(),
+      );
+      addTearDown(painter.dispose);
+
+      final size = painter.layout(400);
+      expect(
+        painter.paintedHeight,
+        size.height - ChatCodeBlockPainter.outerPadding * 2,
+      );
+      expect(
+        size.height,
+        ChatCodeBlockPainter.outerPadding +
+            ChatCodeBlockPainter.desktopHeaderHeight +
+            ChatCodeBlockPainter.padding +
+            painter.painter.height +
+            ChatCodeBlockPainter.padding +
+            ChatCodeBlockPainter.outerPadding,
+      );
+
+      // Outer bands are outside interactive chrome / body hit targets.
+      const topGapY = ChatCodeBlockPainter.outerPadding / 2;
+      final bottomGapY = size.height - ChatCodeBlockPainter.outerPadding / 2;
+      expect(painter.isLinkAtLocal(const Offset(50, topGapY)), isFalse);
+      expect(painter.isLinkAtLocal(Offset(50, bottomGapY)), isFalse);
+    });
+  });
+
   group('ChatCodeBlockPainter — Desktop Policy', () {
     test('measures header and offsets selectionOrigin without bottom bar', () {
       final painter = ChatCodeBlockPainter(
@@ -55,12 +96,13 @@ void main() {
       expect(painter.hasBottomBar, isFalse);
       expect(painter.bottomBarHeight, 0.0);
 
-      // selectionOrigin must offset by padding.dx and headerHeight + padding.dy
+      // selectionOrigin clears outer top padding, then header + body padding.
       expect(
         painter.selectionOrigin,
         const Offset(
           ChatCodeBlockPainter.padding,
-          ChatCodeBlockPainter.desktopHeaderHeight +
+          ChatCodeBlockPainter.outerPadding +
+              ChatCodeBlockPainter.desktopHeaderHeight +
               ChatCodeBlockPainter.padding,
         ),
       );
@@ -70,10 +112,12 @@ void main() {
       expect(size.width, 400.0);
       expect(
         size.height,
-        ChatCodeBlockPainter.desktopHeaderHeight +
+        ChatCodeBlockPainter.outerPadding +
+            ChatCodeBlockPainter.desktopHeaderHeight +
             ChatCodeBlockPainter.padding +
             painter.painter.height +
-            ChatCodeBlockPainter.padding,
+            ChatCodeBlockPainter.padding +
+            ChatCodeBlockPainter.outerPadding,
       );
     });
 
@@ -90,12 +134,26 @@ void main() {
 
         painter.layout(400);
 
-        // Over top header
-        expect(painter.isLinkAtLocal(const Offset(50, 10)), isTrue);
-        expect(painter.isLinkAtLocal(const Offset(350, 20)), isTrue);
+        // Over top header (below outer top padding)
+        expect(
+          painter.isLinkAtLocal(
+            const Offset(50, ChatCodeBlockPainter.outerPadding + 10),
+          ),
+          isTrue,
+        );
+        expect(
+          painter.isLinkAtLocal(
+            const Offset(350, ChatCodeBlockPainter.outerPadding + 20),
+          ),
+          isTrue,
+        );
 
         // Over code body
-        final bodyY = painter.headerHeight + ChatCodeBlockPainter.padding + 10;
+        final bodyY =
+            ChatCodeBlockPainter.outerPadding +
+            painter.headerHeight +
+            ChatCodeBlockPainter.padding +
+            10;
         expect(painter.isLinkAtLocal(Offset(50, bodyY)), isFalse);
 
         // Outside bounds
@@ -122,7 +180,9 @@ void main() {
       expect(
         caret.top,
         closeTo(
-          ChatCodeBlockPainter.desktopHeaderHeight + ChatCodeBlockPainter.padding,
+          ChatCodeBlockPainter.outerPadding +
+              ChatCodeBlockPainter.desktopHeaderHeight +
+              ChatCodeBlockPainter.padding,
           0.5,
         ),
       );
@@ -132,7 +192,9 @@ void main() {
       expect(
         boxes.first.top,
         greaterThanOrEqualTo(
-          ChatCodeBlockPainter.desktopHeaderHeight + ChatCodeBlockPainter.padding,
+          ChatCodeBlockPainter.outerPadding +
+              ChatCodeBlockPainter.desktopHeaderHeight +
+              ChatCodeBlockPainter.padding,
         ),
       );
 
@@ -140,7 +202,8 @@ void main() {
       final (offset, _) = painter.positionAndAffinityForLocal(
         const Offset(
           ChatCodeBlockPainter.padding,
-          ChatCodeBlockPainter.desktopHeaderHeight +
+          ChatCodeBlockPainter.outerPadding +
+              ChatCodeBlockPainter.desktopHeaderHeight +
               ChatCodeBlockPainter.padding,
         ),
       );
@@ -168,10 +231,19 @@ void main() {
         painter.layout(400);
 
         // Top header is informative (non-tappable) on mobile
-        expect(painter.isLinkAtLocal(const Offset(50, 10)), isFalse);
+        expect(
+          painter.isLinkAtLocal(
+            const Offset(50, ChatCodeBlockPainter.outerPadding + 10),
+          ),
+          isFalse,
+        );
 
         // Code body is false
-        final bodyY = painter.headerHeight + ChatCodeBlockPainter.padding + 10;
+        final bodyY =
+            ChatCodeBlockPainter.outerPadding +
+            painter.headerHeight +
+            ChatCodeBlockPainter.padding +
+            10;
         expect(painter.isLinkAtLocal(Offset(50, bodyY)), isFalse);
       },
     );
@@ -194,12 +266,13 @@ void main() {
         ChatCodeBlockPainter.mobileBottomBarHeight,
       );
 
-      // selectionOrigin remains header + padding (not affected by bottom bar)
+      // selectionOrigin clears outer top padding, then header + body padding
       expect(
         painter.selectionOrigin,
         const Offset(
           ChatCodeBlockPainter.padding,
-          ChatCodeBlockPainter.mobileHeaderHeight +
+          ChatCodeBlockPainter.outerPadding +
+              ChatCodeBlockPainter.mobileHeaderHeight +
               ChatCodeBlockPainter.padding,
         ),
       );
@@ -207,23 +280,36 @@ void main() {
       final size = painter.layout(400);
       expect(
         size.height,
-        ChatCodeBlockPainter.mobileHeaderHeight +
+        ChatCodeBlockPainter.outerPadding +
+            ChatCodeBlockPainter.mobileHeaderHeight +
             ChatCodeBlockPainter.padding +
             painter.painter.height +
             ChatCodeBlockPainter.padding +
-            ChatCodeBlockPainter.mobileBottomBarHeight,
+            ChatCodeBlockPainter.mobileBottomBarHeight +
+            ChatCodeBlockPainter.outerPadding,
       );
 
       // Top header is informative on mobile
-      expect(painter.isLinkAtLocal(const Offset(50, 10)), isFalse);
+      expect(
+        painter.isLinkAtLocal(
+          const Offset(50, ChatCodeBlockPainter.outerPadding + 10),
+        ),
+        isFalse,
+      );
 
       // Code body is false
-      final bodyY = painter.headerHeight + ChatCodeBlockPainter.padding + 10;
+      final bodyY =
+          ChatCodeBlockPainter.outerPadding +
+          painter.headerHeight +
+          ChatCodeBlockPainter.padding +
+          10;
       expect(painter.isLinkAtLocal(Offset(50, bodyY)), isFalse);
 
-      // Bottom bar is interactive
+      // Bottom bar is interactive (above the outer bottom padding)
       final bottomBarY =
-          size.height - ChatCodeBlockPainter.mobileBottomBarHeight / 2;
+          size.height -
+          ChatCodeBlockPainter.outerPadding -
+          ChatCodeBlockPainter.mobileBottomBarHeight / 2;
       expect(painter.isLinkAtLocal(Offset(50, bottomBarY)), isTrue);
     });
 
@@ -242,7 +328,7 @@ void main() {
         painter.selectionOrigin,
         const Offset(
           ChatCodeBlockPainter.padding,
-          ChatCodeBlockPainter.padding,
+          ChatCodeBlockPainter.outerPadding + ChatCodeBlockPainter.padding,
         ),
       );
     });
@@ -286,278 +372,290 @@ void main() {
           reason: 'Code body taps must not trigger inline hit',
         );
 
-      // Top header tap (isHeader: true)
-      final headerHit = selection.inlineHitAt(
-        messageId: 1,
-        blockIndex: 2,
-        offset: 0,
-        isHeader: true,
-      );
-      expect(headerHit, isA<ChatInlineHit$Code>());
-      final headerCode = headerHit! as ChatInlineHit$Code;
-      expect(headerCode.code, 'void main() {}');
-      expect(headerCode.language, 'dart');
+        // Top header tap (isHeader: true)
+        final headerHit = selection.inlineHitAt(
+          messageId: 1,
+          blockIndex: 2,
+          offset: 0,
+          isHeader: true,
+        );
+        expect(headerHit, isA<ChatInlineHit$Code>());
+        final headerCode = headerHit! as ChatInlineHit$Code;
+        expect(headerCode.code, 'void main() {}');
+        expect(headerCode.language, 'dart');
 
-      // Bottom bar tap (isBottomBar: true)
-      final bottomHit = selection.inlineHitAt(
-        messageId: 1,
-        blockIndex: 2,
-        offset: 0,
-        isBottomBar: true,
-      );
-      expect(bottomHit, isA<ChatInlineHit$Code>());
-      final bottomCode = bottomHit! as ChatInlineHit$Code;
-      expect(bottomCode.code, 'void main() {}');
-      expect(bottomCode.language, 'dart');
-    });
+        // Bottom bar tap (isBottomBar: true)
+        final bottomHit = selection.inlineHitAt(
+          messageId: 1,
+          blockIndex: 2,
+          offset: 0,
+          isBottomBar: true,
+        );
+        expect(bottomHit, isA<ChatInlineHit$Code>());
+        final bottomCode = bottomHit! as ChatInlineHit$Code;
+        expect(bottomCode.code, 'void main() {}');
+        expect(bottomCode.language, 'dart');
+      },
+    );
   });
 
   group('ChatCodeBlockPainter — Harness & Widget Seam', () {
-    testWidgets('desktop hover cursor shows click over header and text over body',
-        (tester) async {
-      final controller = ChatSelectionController(
-        policy: const ChatSelectionPolicy.desktop(),
-      );
-      addTearDown(controller.dispose);
+    testWidgets(
+      'desktop hover cursor shows click over header and text over body',
+      (tester) async {
+        final controller = ChatSelectionController(
+          policy: const ChatSelectionPolicy.desktop(),
+        );
+        addTearDown(controller.dispose);
 
-      final md = Markdown.fromString('```dart\nvoid main() {\n  runApp();\n}\n```');
-      controller.putBody(1, md);
-      controller.enterTextSelection(1);
+        final md = Markdown.fromString(
+          '```dart\nvoid main() {\n  runApp();\n}\n```',
+        );
+        controller.putBody(1, md);
+        controller.enterTextSelection(1);
 
-      await tester.pumpWidget(
-        MaterialApp(
-          home: Scaffold(
-            body: Align(
-              alignment: Alignment.topLeft,
-              child: SizedBox(
-                width: 400,
-                child: ChatMarkdownBody(
-                  controller: controller,
-                  messageId: 1,
+        await tester.pumpWidget(
+          MaterialApp(
+            home: Scaffold(
+              body: Align(
+                alignment: Alignment.topLeft,
+                child: SizedBox(
+                  width: 400,
+                  child: ChatMarkdownBody(controller: controller, messageId: 1),
                 ),
               ),
             ),
           ),
-        ),
-      );
-      await tester.pumpAndSettle();
+        );
+        await tester.pumpAndSettle();
 
-      final gesture = await tester.createGesture(
-        kind: PointerDeviceKind.mouse,
-        pointer: 1,
-      );
-      await gesture.addPointer(location: Offset.zero);
-      addTearDown(gesture.removePointer);
+        final gesture = await tester.createGesture(
+          kind: PointerDeviceKind.mouse,
+          pointer: 1,
+        );
+        await gesture.addPointer(location: Offset.zero);
+        addTearDown(gesture.removePointer);
 
-      final markdownOrigin = tester.getTopLeft(find.byType(MarkdownWidget));
+        final markdownOrigin = tester.getTopLeft(find.byType(MarkdownWidget));
 
-      // Hover over header (y = 15 dp, inside 32 dp header)
-      await gesture.moveTo(markdownOrigin + const Offset(100, 15));
-      await tester.pumpAndSettle();
-      expect(
-        RendererBinding.instance.mouseTracker.debugDeviceActiveCursor(1),
-        SystemMouseCursors.click,
-        reason: 'Desktop code header must present click hand cursor',
-      );
+        // Hover over header (y = 15 dp, inside 32 dp header)
+        await gesture.moveTo(markdownOrigin + const Offset(100, 15));
+        await tester.pumpAndSettle();
+        expect(
+          RendererBinding.instance.mouseTracker.debugDeviceActiveCursor(1),
+          SystemMouseCursors.click,
+          reason: 'Desktop code header must present click hand cursor',
+        );
 
-      // Hover over code body (y = 55 dp, inside body text)
-      await gesture.moveTo(markdownOrigin + const Offset(100, 55));
-      await tester.pumpAndSettle();
-      expect(
-        RendererBinding.instance.mouseTracker.debugDeviceActiveCursor(1),
-        SystemMouseCursors.text,
-        reason: 'Code body text must present text I-beam cursor',
-      );
-    });
-
-    testWidgets('desktop clicking header triggers onCodeTap without activating text selection',
-        (tester) async {
-      String? tappedCode;
-      final controller = ChatSelectionController(
-        policy: const ChatSelectionPolicy.desktop(),
-        onCodeTap: (msgId, code) {
-          tappedCode = code;
-        },
-      );
-      addTearDown(controller.dispose);
-
-      final md = Markdown.fromString('```dart\nvoid main() {}\n```');
-      controller.putBody(1, md);
-
-      await tester.pumpWidget(
-        MaterialApp(
-          home: Scaffold(
-            body: Align(
-              alignment: Alignment.topLeft,
-              child: SizedBox(
-                width: 400,
-                child: ChatMarkdownBody(
-                  controller: controller,
-                  messageId: 1,
-                ),
-              ),
-            ),
-          ),
-        ),
-      );
-      await tester.pumpAndSettle();
-
-      final markdownOrigin = tester.getTopLeft(find.byType(MarkdownWidget));
-
-      // Click top header (y = 15)
-      final headerPoint = markdownOrigin + const Offset(100, 15);
-      final inlineHit = controller.resolveInlineHit(1, headerPoint);
-      expect(inlineHit, isA<ChatInlineHit$Code>());
-      expect((inlineHit! as ChatInlineHit$Code).code, 'void main() {}');
-
-      controller.handleInlineHit(inlineHit);
-      expect(tappedCode, 'void main() {}');
-      expect(controller.isTextSelectionActive, isFalse);
-    });
-
-    testWidgets('mobile tapping bottom copy bar triggers onCodeTap, top header does not',
-        (tester) async {
-      String? tappedCode;
-      final controller = ChatSelectionController(
-        policy: const ChatSelectionPolicy.mobile(),
-        onCodeTap: (msgId, code) {
-          tappedCode = code;
-        },
-      );
-      addTearDown(controller.dispose);
-
-      // Snippet >= 75 chars
-      final md = Markdown.fromString('```dart\n$sampleLongCode\n```');
-      controller.putBody(1, md);
-
-      await tester.pumpWidget(
-        MaterialApp(
-          home: Scaffold(
-            body: Align(
-              alignment: Alignment.topLeft,
-              child: SizedBox(
-                width: 400,
-                child: ChatMarkdownBody(
-                  controller: controller,
-                  messageId: 1,
-                ),
-              ),
-            ),
-          ),
-        ),
-      );
-      await tester.pumpAndSettle();
-
-      final markdownOrigin = tester.getTopLeft(find.byType(MarkdownWidget));
-      final markdownSize = tester.getSize(find.byType(MarkdownWidget));
-
-      // 1. Tapping informative top header (y = 12) must NOT return inline hit
-      final headerPoint = markdownOrigin + const Offset(100, 12);
-      final headerHit = controller.resolveInlineHit(1, headerPoint);
-      expect(headerHit, isNull, reason: 'Mobile top header is informative only');
-
-      // 2. Tapping bottom copy bar (near bottom edge) MUST return code inline hit
-      final bottomBarPoint = markdownOrigin + Offset(100, markdownSize.height - 12);
-      final bottomHit = controller.resolveInlineHit(1, bottomBarPoint);
-      expect(bottomHit, isA<ChatInlineHit$Code>());
-      expect((bottomHit! as ChatInlineHit$Code).code.trim(), sampleLongCode.trim());
-
-      controller.handleInlineHit(bottomHit);
-      expect(tappedCode?.trim(), sampleLongCode.trim());
-    });
-
-    testWidgets('padding hit zones do not misclassify as header or bottom bar',
-        (tester) async {
-      final controller = ChatSelectionController(
-        policy: const ChatSelectionPolicy.desktop(),
-      );
-      addTearDown(controller.dispose);
-
-      final md = Markdown.fromString('```dart\nvoid main() {}\n```');
-      controller.putBody(1, md);
-
-      await tester.pumpWidget(
-        MaterialApp(
-          home: Scaffold(
-            body: Align(
-              alignment: Alignment.topLeft,
-              child: SizedBox(
-                width: 400,
-                child: ChatMarkdownBody(
-                  controller: controller,
-                  messageId: 1,
-                ),
-              ),
-            ),
-          ),
-        ),
-      );
-      await tester.pumpAndSettle();
-
-      final markdownOrigin = tester.getTopLeft(find.byType(MarkdownWidget));
-
-      // Header is dy in [0, 32).
-      // Padding is dy in [32, 40).
-      // Tapping at dy = 35 (in top padding) must return null, NOT click-to-copy!
-      final paddingPoint = markdownOrigin + const Offset(100, 35);
-      final paddingHit = controller.resolveInlineHit(1, paddingPoint);
-      expect(
-        paddingHit,
-        isNull,
-        reason: 'Taps in top padding must not trigger header copy',
-      );
-    });
+        // Hover over code body (y = 55 dp, inside body text)
+        await gesture.moveTo(markdownOrigin + const Offset(100, 55));
+        await tester.pumpAndSettle();
+        expect(
+          RendererBinding.instance.mouseTracker.debugDeviceActiveCursor(1),
+          SystemMouseCursors.text,
+          reason: 'Code body text must present text I-beam cursor',
+        );
+      },
+    );
 
     testWidgets(
-        'code body interactions support word selection and range selection',
-        (tester) async {
-      final controller = ChatSelectionController(
-        policy: const ChatSelectionPolicy.desktop(),
-      );
-      addTearDown(controller.dispose);
+      'desktop clicking header triggers onCodeTap without activating text selection',
+      (tester) async {
+        String? tappedCode;
+        final controller = ChatSelectionController(
+          policy: const ChatSelectionPolicy.desktop(),
+          onCodeTap: (msgId, code) {
+            tappedCode = code;
+          },
+        );
+        addTearDown(controller.dispose);
 
-      final md = Markdown.fromString('```dart\nvoid main() {}\n```');
-      controller.putBody(1, md);
+        final md = Markdown.fromString('```dart\nvoid main() {}\n```');
+        controller.putBody(1, md);
 
-      await tester.pumpWidget(
-        MaterialApp(
-          home: Scaffold(
-            body: Align(
-              alignment: Alignment.topLeft,
-              child: SizedBox(
-                width: 400,
-                child: ChatMarkdownBody(
-                  controller: controller,
-                  messageId: 1,
+        await tester.pumpWidget(
+          MaterialApp(
+            home: Scaffold(
+              body: Align(
+                alignment: Alignment.topLeft,
+                child: SizedBox(
+                  width: 400,
+                  child: ChatMarkdownBody(controller: controller, messageId: 1),
                 ),
               ),
             ),
           ),
-        ),
-      );
-      await tester.pumpAndSettle();
+        );
+        await tester.pumpAndSettle();
 
-      final markdownOrigin = tester.getTopLeft(find.byType(MarkdownWidget));
+        final markdownOrigin = tester.getTopLeft(find.byType(MarkdownWidget));
 
-      // Code body text starts at dy = 32 (header) + 8 (padding) = 40.
-      // Point at 'main': x ~= 50, y ~= 48.
-      final codeBodyPoint = markdownOrigin + const Offset(50, 48);
+        // Click top header (y = 15)
+        final headerPoint = markdownOrigin + const Offset(100, 15);
+        final inlineHit = controller.resolveInlineHit(1, headerPoint);
+        expect(inlineHit, isA<ChatInlineHit$Code>());
+        expect((inlineHit! as ChatInlineHit$Code).code, 'void main() {}');
 
-      // Verify inline hit is null on code body
-      final inlineHit = controller.resolveInlineHit(1, codeBodyPoint);
-      expect(inlineHit, isNull, reason: 'Code body taps must not trigger inline hit');
+        controller.handleInlineHit(inlineHit);
+        expect(tappedCode, 'void main() {}');
+        expect(controller.isTextSelectionActive, isFalse);
+      },
+    );
 
-      // Enter text selection at code body point (triggers word selection)
-      expect(controller.enterTextSelection(1, globalOffset: codeBodyPoint), isTrue);
-      expect(controller.isTextSelectionActive, isTrue);
+    testWidgets(
+      'mobile tapping bottom copy bar triggers onCodeTap, top header does not',
+      (tester) async {
+        String? tappedCode;
+        final controller = ChatSelectionController(
+          policy: const ChatSelectionPolicy.mobile(),
+          onCodeTap: (msgId, code) {
+            tappedCode = code;
+          },
+        );
+        addTearDown(controller.dispose);
 
-      await tester.pump();
-      await tester.pump();
+        // Snippet >= 75 chars
+        final md = Markdown.fromString('```dart\n$sampleLongCode\n```');
+        controller.putBody(1, md);
 
-      // Text selection should be active and non-collapsed (word at caret)
-      expect(controller.textSelection, isNotNull);
-      expect(controller.textSelection!.isCollapsed, isFalse);
-      expect(controller.textSelection!.base.documentId, 1);
-    });
+        await tester.pumpWidget(
+          MaterialApp(
+            home: Scaffold(
+              body: Align(
+                alignment: Alignment.topLeft,
+                child: SizedBox(
+                  width: 400,
+                  child: ChatMarkdownBody(controller: controller, messageId: 1),
+                ),
+              ),
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        final markdownOrigin = tester.getTopLeft(find.byType(MarkdownWidget));
+        final markdownSize = tester.getSize(find.byType(MarkdownWidget));
+
+        // 1. Tapping informative top header (y = 12) must NOT return inline hit
+        final headerPoint = markdownOrigin + const Offset(100, 12);
+        final headerHit = controller.resolveInlineHit(1, headerPoint);
+        expect(
+          headerHit,
+          isNull,
+          reason: 'Mobile top header is informative only',
+        );
+
+        // 2. Tapping bottom copy bar (near bottom edge) MUST return code inline hit
+        final bottomBarPoint =
+            markdownOrigin + Offset(100, markdownSize.height - 12);
+        final bottomHit = controller.resolveInlineHit(1, bottomBarPoint);
+        expect(bottomHit, isA<ChatInlineHit$Code>());
+        expect(
+          (bottomHit! as ChatInlineHit$Code).code.trim(),
+          sampleLongCode.trim(),
+        );
+
+        controller.handleInlineHit(bottomHit);
+        expect(tappedCode?.trim(), sampleLongCode.trim());
+      },
+    );
+
+    testWidgets(
+      'padding hit zones do not misclassify as header or bottom bar',
+      (tester) async {
+        final controller = ChatSelectionController(
+          policy: const ChatSelectionPolicy.desktop(),
+        );
+        addTearDown(controller.dispose);
+
+        final md = Markdown.fromString('```dart\nvoid main() {}\n```');
+        controller.putBody(1, md);
+
+        await tester.pumpWidget(
+          MaterialApp(
+            home: Scaffold(
+              body: Align(
+                alignment: Alignment.topLeft,
+                child: SizedBox(
+                  width: 400,
+                  child: ChatMarkdownBody(controller: controller, messageId: 1),
+                ),
+              ),
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        final markdownOrigin = tester.getTopLeft(find.byType(MarkdownWidget));
+
+        // Header is dy in [4, 36) with outerPadding=4 and header=32.
+        // Body padding is dy in [36, 48).
+        // Tapping at dy = 40 (in top body padding) must return null, NOT copy!
+        final paddingPoint = markdownOrigin + const Offset(100, 40);
+        final paddingHit = controller.resolveInlineHit(1, paddingPoint);
+        expect(
+          paddingHit,
+          isNull,
+          reason: 'Taps in top padding must not trigger header copy',
+        );
+      },
+    );
+
+    testWidgets(
+      'code body interactions support word selection and range selection',
+      (tester) async {
+        final controller = ChatSelectionController(
+          policy: const ChatSelectionPolicy.desktop(),
+        );
+        addTearDown(controller.dispose);
+
+        final md = Markdown.fromString('```dart\nvoid main() {}\n```');
+        controller.putBody(1, md);
+
+        await tester.pumpWidget(
+          MaterialApp(
+            home: Scaffold(
+              body: Align(
+                alignment: Alignment.topLeft,
+                child: SizedBox(
+                  width: 400,
+                  child: ChatMarkdownBody(controller: controller, messageId: 1),
+                ),
+              ),
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        final markdownOrigin = tester.getTopLeft(find.byType(MarkdownWidget));
+
+        // Code body text starts at dy = 4 (outer) + 32 (header) + 12 (padding) = 48.
+        // Point at 'main': x ~= 50, y ~= 56.
+        final codeBodyPoint = markdownOrigin + const Offset(50, 56);
+
+        // Verify inline hit is null on code body
+        final inlineHit = controller.resolveInlineHit(1, codeBodyPoint);
+        expect(
+          inlineHit,
+          isNull,
+          reason: 'Code body taps must not trigger inline hit',
+        );
+
+        // Enter text selection at code body point (triggers word selection)
+        expect(
+          controller.enterTextSelection(1, globalOffset: codeBodyPoint),
+          isTrue,
+        );
+        expect(controller.isTextSelectionActive, isTrue);
+
+        await tester.pump();
+        await tester.pump();
+
+        // Text selection should be active and non-collapsed (word at caret)
+        expect(controller.textSelection, isNotNull);
+        expect(controller.textSelection!.isCollapsed, isFalse);
+        expect(controller.textSelection!.base.documentId, 1);
+      },
+    );
   });
 }

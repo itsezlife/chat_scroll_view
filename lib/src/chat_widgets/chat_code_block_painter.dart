@@ -37,7 +37,8 @@ BlockPainter? chatCodeBlockBuilder(
 ///
 /// Implements [SelectableTextBlock] so that text selection carets, bounding
 /// boxes, and drag gestures align 100% pixel-accurately with the code text by
-/// offsetting [selectionOrigin] by [headerHeight] and [padding].
+/// offsetting [selectionOrigin] by [outerPadding], [headerHeight], and
+/// [padding].
 ///
 /// ## Platform Interaction Matrix
 ///
@@ -100,8 +101,11 @@ class ChatCodeBlockPainter with SelectableTextBlock implements BlockPainter {
 
   // --- Geometry Constants --------------------------------------------------
 
-  /// Internal padding around the code text.
-  static const double padding = 8;
+  /// Internal padding around the code text (inside the fence fill).
+  static const double padding = 12;
+
+  /// Unpainted vertical padding above and below the fence fill.
+  static const double outerPadding = 4;
 
   /// Height of the interactive top header bar on desktop.
   static const double desktopHeaderHeight = 32;
@@ -167,6 +171,17 @@ class ChatCodeBlockPainter with SelectableTextBlock implements BlockPainter {
   /// Height of the bottom copy bar, or `0.0` if no bottom bar is rendered.
   double get bottomBarHeight => hasBottomBar ? mobileBottomBarHeight : 0.0;
 
+  /// Height of the painted fence (header + body + optional bottom bar),
+  /// excluding [outerPadding] on both ends.
+  double get paintedHeight =>
+      math.max<double>(0, _size.height - outerPadding * 2);
+
+  /// Top edge of the painted fence in local block coordinates.
+  double get paintedTop => outerPadding;
+
+  /// Bottom edge of the painted fence in local block coordinates.
+  double get paintedBottom => paintedTop + paintedHeight;
+
   // --- SelectableTextBlock Protocol ----------------------------------------
 
   @override
@@ -175,10 +190,11 @@ class ChatCodeBlockPainter with SelectableTextBlock implements BlockPainter {
   /// Shifted origin for text selection coordinates.
   ///
   /// Anchors text selection to the code body's top-left corner, shifted down
-  /// by [headerHeight] and [padding]. This prevents vertical caret and drag
-  /// handle drift across the code block.
+  /// by [outerPadding], [headerHeight], and [padding]. This prevents vertical
+  /// caret and drag handle drift across the code block.
   @override
-  Offset get selectionOrigin => Offset(padding, headerHeight + padding);
+  Offset get selectionOrigin =>
+      Offset(padding, outerPadding + headerHeight + padding);
 
   /// Selection highlights must be painted above the cached content picture
   /// so that the opaque background fill does not obscure the highlight.
@@ -187,20 +203,22 @@ class ChatCodeBlockPainter with SelectableTextBlock implements BlockPainter {
 
   @override
   bool isLinkAtLocal(Offset local) {
+    final top = paintedTop;
+    final bottom = paintedBottom;
     if (local.dx < 0 ||
         local.dx > _size.width ||
-        local.dy < 0 ||
-        local.dy > _size.height) {
+        local.dy < top ||
+        local.dy >= bottom) {
       return false;
     }
     // Interactive top header on desktop
     if (hasHeader &&
         policy.hasInteractiveCodeHeader &&
-        local.dy < headerHeight) {
+        local.dy < top + headerHeight) {
       return true;
     }
     // Interactive bottom copy bar on mobile
-    if (hasBottomBar && local.dy >= _size.height - bottomBarHeight) {
+    if (hasBottomBar && local.dy >= bottom - bottomBarHeight) {
       return true;
     }
     return false;
@@ -245,7 +263,13 @@ class ChatCodeBlockPainter with SelectableTextBlock implements BlockPainter {
     }
 
     final totalHeight =
-        hHeight + padding + painter.size.height + padding + bottomBarHeight;
+        outerPadding +
+        hHeight +
+        padding +
+        painter.size.height +
+        padding +
+        bottomBarHeight +
+        outerPadding;
     final totalWidth = width.isFinite
         ? width
         : painter.size.width + padding * 2;
@@ -255,11 +279,13 @@ class ChatCodeBlockPainter with SelectableTextBlock implements BlockPainter {
   @override
   void paint(Canvas canvas, Size size, double offset) {
     if (size.width < _size.width) return;
-    final blockRect = Rect.fromLTWH(0, offset, size.width, _size.height);
+    final fillTop = offset + paintedTop;
+    final fillHeight = paintedHeight;
+    final blockRect = Rect.fromLTWH(0, fillTop, size.width, fillHeight);
     const cornerRadius = Radius.circular(8);
     final rrect = RRect.fromRectAndRadius(blockRect, cornerRadius);
 
-    // 1. Block background
+    // 1. Block background (excludes outerPadding bands)
     canvas.drawRRect(
       rrect,
       Paint()
@@ -270,7 +296,7 @@ class ChatCodeBlockPainter with SelectableTextBlock implements BlockPainter {
     // 2. Top header bar
     final hHeight = headerHeight;
     if (hasHeader) {
-      final headerRect = Rect.fromLTWH(0, offset, size.width, hHeight);
+      final headerRect = Rect.fromLTWH(0, fillTop, size.width, hHeight);
       final headerRRect = RRect.fromRectAndCorners(
         headerRect,
         topLeft: cornerRadius,
@@ -286,8 +312,8 @@ class ChatCodeBlockPainter with SelectableTextBlock implements BlockPainter {
 
       // Divider line under header
       canvas.drawLine(
-        Offset(0, offset + hHeight),
-        Offset(size.width, offset + hHeight),
+        Offset(0, fillTop + hHeight),
+        Offset(size.width, fillTop + hHeight),
         Paint()
           ..color = _dividerColor
           ..strokeWidth = 1.0,
@@ -295,23 +321,23 @@ class ChatCodeBlockPainter with SelectableTextBlock implements BlockPainter {
 
       // Language label
       if (_headerPainter != null) {
-        final textY = offset + (hHeight - _headerPainter.height) / 2;
+        final textY = fillTop + (hHeight - _headerPainter.height) / 2;
         _headerPainter.paint(canvas, Offset(padding + 4.0, textY));
       }
 
       // Desktop copy icon
       if (policy.hasInteractiveCodeHeader) {
-        _paintCopyIcon(canvas, size.width, offset, hHeight);
+        _paintCopyIcon(canvas, size.width, fillTop, hHeight);
       }
     }
 
     // 3. Code body text
-    painter.paint(canvas, Offset(padding, offset + hHeight + padding));
+    painter.paint(canvas, Offset(padding, fillTop + hHeight + padding));
 
     // 4. Mobile bottom copy bar
     if (hasBottomBar) {
       final bHeight = bottomBarHeight;
-      final bottomBarY = offset + _size.height - bHeight;
+      final bottomBarY = fillTop + fillHeight - bHeight;
       final bottomBarRect = Rect.fromLTWH(0, bottomBarY, size.width, bHeight);
       final bottomBarRRect = RRect.fromRectAndCorners(
         bottomBarRect,

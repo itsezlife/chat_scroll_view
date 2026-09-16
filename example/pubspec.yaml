@@ -19,7 +19,7 @@ dependencies:
     path: ../packages/emoji_data
   flutter_md:
     git:
-      url: https://github.com/itsezlife/md
+      url: https://github.com/itsezlife/md.git
       ref: feat/selection-chrome
   meta: ^1.17.0
   supabase_flutter: ^2.15.0

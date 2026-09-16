@@ -641,6 +641,50 @@ final class ChatTextSelection {
     return true;
   }
 
+  /// Pins both selection endpoints onto [documentId] when a handle / drag
+  /// walked onto a sibling mount (cross-document commit).
+  ///
+  /// Keeps the endpoint that still lands on [documentId]; pins the wandered
+  /// edge to that document’s start or end. Returns `true` when a confined
+  /// range was written (markdown listeners re-enter). Returns `false` when
+  /// there is nothing to confine (caller may clear).
+  bool confineSelectionToDocument(int documentId) {
+    if (_disposed) return false;
+    final sel = markdownSelection.selection;
+    if (sel == null || sel.isCollapsed) return false;
+    final entry = _bodies[documentId];
+    if (entry == null) return false;
+    final model = entry.model;
+    if (model.blocks.isEmpty) return false;
+
+    final start = MarkdownPosition(
+      documentId: documentId,
+      blockIndex: 0,
+      offset: 0,
+    );
+    final lastBlock = model.blocks.length - 1;
+    final end = MarkdownPosition(
+      documentId: documentId,
+      blockIndex: lastBlock,
+      offset: markdownBlockRenderedText(model.blocks[lastBlock]).length,
+    );
+
+    final baseOn = sel.base.documentId == documentId;
+    final extentOn = sel.extent.documentId == documentId;
+    if (!baseOn && !extentOn) return false;
+
+    final next = MarkdownSelection(
+      base: baseOn ? sel.base : start,
+      extent: extentOn ? sel.extent : end,
+    );
+    final confined = next.isCollapsed
+        ? MarkdownSelection(base: start, extent: end)
+        : next;
+    if (confined == sel) return false;
+    markdownSelection.selection = confined;
+    return true;
+  }
+
   /// Clears listeners on the markdown model and, when created here, disposes
   /// it. Idempotent.
   void dispose() {

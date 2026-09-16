@@ -58,24 +58,21 @@ class ChatMarkdownBodyRegistration extends InheritedWidget {
 /// ### Continuous text gestures (ADR 015)
 ///
 /// The per-body [MarkdownSelectionScope] owns continuous text entry once the
-/// viewport yields. Under mobile policy, while **text selection** is inactive
-/// the scope is enabled for message-selected bodies; while text is live only
-/// the **text selection subject** mounts a surface (sibling `putDocument`
-/// would re-expand the shared registry). Touch long-press is armed on the
-/// subject; consecutive-tap entry stays off. The facade **adopts** the subject
-/// from the first non-collapsed markdown range. Retarget onto another selected
-/// body uses reported body paint bounds and facade
-/// [ChatSelectionController.enterTextSelection]. Desktop keeps mouse
-/// recognizers for direct entry when policy allows entry without membership.
+/// viewport yields. Under mobile policy, message-selected bodies keep an armed
+/// scope (including siblings while text is live) so long-press can enter or
+/// **retarget** with drag-extend. Sibling `putDocument` may briefly re-expand
+/// the shared registry; facade adopt / Select All prune to the subject.
+/// Consecutive-tap entry stays off. The facade **adopts** the subject from the
+/// first non-collapsed markdown range. Desktop keeps mouse recognizers for
+/// direct entry when policy allows entry without membership.
 ///
 /// ### Text selection chrome
 ///
 /// Several bodies share one [ChatSelectionController.markdownSelection]
 /// controller. [MarkdownSelectionScope.ownsSelectionChrome] is gated to this
 /// [messageId] so only the **text selection subject** paints handles /
-/// toolbar. While text is live, only the subject mounts a selection surface;
-/// siblings report paint bounds for retarget / padding arbitration without
-/// re-expanding the document registry. Collapsed / disarmed text still clears
+/// toolbar. Selected siblings may mount surfaces for continuous retarget but
+/// do not paint chrome until adopted. Collapsed / disarmed text still clears
 /// chrome.
 ///
 /// Toolbar anchors are absolute; they stay live because [ChatScrollView]
@@ -372,11 +369,10 @@ class _ChatMarkdownBodyState extends State<ChatMarkdownBody>
         widget.controller.textSelectionSubject == widget.messageId;
     if (isSubject) return true;
     final policy = widget.controller.selectionPolicy;
-    // Mobile message-then-text: while text is inactive, selected bodies stay
-    // armed for continuous text entry (ADR 015). While text is live only the
-    // subject mounts — siblings use reported paint bounds for retarget.
+    // Mobile message-then-text: selected bodies stay armed for continuous
+    // text entry and retarget, including while text is live on another subject
+    // (ADR 015). Unselected rows stay off so message-selection long-press wins.
     if (policy.nestsTextSubjectInMessageSelection &&
-        !widget.controller.isTextSelectionActive &&
         widget.controller.isSelected(widget.messageId)) {
       return true;
     }
@@ -560,14 +556,20 @@ class _ChatMarkdownBodyState extends State<ChatMarkdownBody>
                 enableTouchConsecutiveTaps: false,
                 canStartSelectionAt: _canStartTextSelectionAt,
                 // Subject-only chrome: siblings share the controller under
-                // mobile multi-select but must not paint this body's handles.
+                // mobile multi-select but must not paint this body's handles
+                // or toolbar until they are the text selection subject.
                 ownsSelectionChrome: (documentId) =>
-                    documentId == widget.messageId,
-                // Host opted into secondary → yield right-click to the
-                // viewport (full-slot message menu). Null builder also
-                // omits the markdown secondary recognizer (flutter_md).
+                    documentId == widget.messageId &&
+                    widget.controller.textSelectionSubject == widget.messageId,
+                // Desktop + host secondary → yield right-click to the full-slot
+                // message menu. Mobile keeps adaptive text chrome even when
+                // secondary is also wired (menu entry is idle primary).
                 contextMenuBuilder:
-                    ChatSecondaryMessageTapScope.hostOwnsSecondaryOf(context)
+                    ChatSecondaryMessageTapScope.hostOwnsSecondaryOf(context) &&
+                        widget
+                            .controller
+                            .selectionPolicy
+                            .secondaryMessageTapOwnsFullSlot
                     ? null
                     : _buildContextMenu,
                 child: MarkdownWidget(
