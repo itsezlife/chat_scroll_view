@@ -36,10 +36,11 @@ Copy — not a universal “message-then-text” law. The viewport owns markdown
 
 | Branch                                                                                                                     | Doc                                                                 |
 | -------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------- |
-| Glossary (_Message selection_, _Text selection_, _Text selection subject_, _Selection policy_, _Selection interaction_, _Span yield_, _Inline hit_, _Tap highlight_, _Smooth text contour_, _Fenced code block header_) | [CONTEXT.md](CONTEXT.md)                                            |
+| Glossary (_Message selection_, _Text selection_, _Text selection subject_, _Selection policy_, _Selection interaction_, _Span yield_, _Inline hit_, _Body linkify_, _Linkify policy_, _Link preview_, _Tap highlight_, _Smooth text contour_, _Fenced code block header_) | [CONTEXT.md](CONTEXT.md)                                            |
 | Fenced code blocks, cursors & press / tap highlight                                        | [ADR 014](docs/adr/014-fenced-code-interaction-and-smooth-contour-highlight.md)    |
 | Engine-owned markdown text selection (supersedes optional bridge)                                                          | [ADR 013](docs/adr/013-viewport-owns-markdown-text-selection.md)    |
 | Per-body scope owns continuous text gestures (yield after gate)                                                            | [ADR 015](docs/adr/015-per-body-scope-owns-continuous-text-gestures.md) |
+| Body linkify host-invoked (not viewport paint)                                                                             | [ADR 017](docs/adr/017-body-linkify-host-invoked.md)                |
 | Cross-platform policy (supersedes mobile-only ADR 010)                                                                     | [ADR 012](docs/adr/012-cross-platform-selection-policies.md)        |
 | Mobile message-then-text path (historical; mobile strategy)                                                                | [ADR 010](docs/adr/010-message-then-text-selection.md)              |
 | Span gesture (viewport-owned long-press)                                                                                   | [ADR 003](docs/adr/003-viewport-owned-span-gesture.md)              |
@@ -57,6 +58,8 @@ Copy — not a universal “message-then-text” law. The viewport owns markdown
 - Copy **feedback UI** is app-side; the facade exposes **selection
   interactions** (`ChatSelectionInteraction` via `onInteraction` /
   listeners), not Material toasts.
+- **Body linkify** is host-invoked (send / materialize); the viewport never
+  auto-detects bare URLs or mentions on paint ([ADR 017](docs/adr/017-body-linkify-host-invoked.md)).
 
 ## Domain and architecture
 

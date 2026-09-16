@@ -3,6 +3,7 @@ import 'dart:math';
 
 import 'package:chat_scroll_view/chat_scroll_view.dart';
 import 'package:chat_scroll_view_example/src/common/models/chat_message.dart';
+import 'package:chat_scroll_view_example/src/features/chat/utils/chat_body_linkify_util.dart';
 
 /// How [GeneratedChatDataSource] builds message body text.
 enum GeneratedMessageStyle {
@@ -18,6 +19,9 @@ enum GeneratedMessageStyle {
 /// Pass [messageCount] to define ids `0..messageCount-1`. Content is
 /// deterministic for a given [seed] — the same id always yields the same
 /// text until [updateMessage] / [editMessage] replaces it.
+///
+/// Generated, sent, and edited bodies pass through
+/// [ChatBodyLinkifyUtil.materialize] at the host materialize/send seam (ADR 017).
 ///
 /// ```dart
 /// final ds = GeneratedChatDataSource(messageCount: 10_000);
@@ -106,6 +110,8 @@ class GeneratedChatDataSource extends ChatDataSource {
   }
 
   /// Demo integrator: append a new message at the tail via [insertMessage].
+  ///
+  /// Runs **body linkify** before store/display (ADR 017).
   UserChatMessage sendMessage({
     required String sender,
     required String content,
@@ -117,7 +123,7 @@ class GeneratedChatDataSource extends ChatDataSource {
       sender: sender,
       createdAt: now,
       updatedAt: now,
-      content: content,
+      content: ChatBodyLinkifyUtil.materialize(content),
     );
     _tailOverrides[id] = message;
     insertMessage(message, reason: 'demo-send');
@@ -125,6 +131,8 @@ class GeneratedChatDataSource extends ChatDataSource {
   }
 
   /// Demo integrator: edit an existing message via [updateMessage].
+  ///
+  /// Linkifies [newContent] the same way as [sendMessage].
   void editMessage(UserChatMessage message, String newContent) {
     updateMessage(
       UserChatMessage(
@@ -132,7 +140,7 @@ class GeneratedChatDataSource extends ChatDataSource {
         sender: message.sender,
         createdAt: message.createdAt,
         updatedAt: DateTime.now(),
-        content: newContent,
+        content: ChatBodyLinkifyUtil.materialize(newContent),
       ),
       reason: 'demo-edit',
     );
@@ -180,15 +188,17 @@ class GeneratedChatDataSource extends ChatDataSource {
   UserChatMessage _generateMessage(int id) {
     final rng = Random(seed ^ (id * 0x9E3779B9));
     final time = baseTime.add(Duration(minutes: id));
+    final plain = switch (style) {
+      GeneratedMessageStyle.lorem => _loremContent(rng, id),
+      GeneratedMessageStyle.varied => _variedContent(rng),
+    };
     return UserChatMessage(
       id: id,
       sender: senders[id % senders.length],
       createdAt: time,
       updatedAt: time,
-      content: switch (style) {
-        GeneratedMessageStyle.lorem => _loremContent(rng, id),
-        GeneratedMessageStyle.varied => _variedContent(rng),
-      },
+      // Host materialize — same seam as asset/backend ingest (ADR 017).
+      content: ChatBodyLinkifyUtil.materialize(plain),
     );
   }
 }

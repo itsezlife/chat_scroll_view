@@ -8,6 +8,17 @@ this project is pre-1.0 and not strictly SemVer yet.
 
 ### Added
 
+- **Body linkify (host-invoked).** Opt-in `ChatBodyLinkify.apply` +
+  combinable `ChatLinkifyPolicy` bitmask (`webUrls`, `mentions`,
+  convenience `webAndMentions` default; `|` / `add` / `remove`). Rewrites
+  bare `http` / `https` / `www` and `@username` into markdown links.
+  Mentions become `[@username](mention:<username>)` and ride the existing
+  link **inline hit** channel. Skips fenced code, inline code, and existing
+  `[…](…)`. The viewport paint/build path does not call it
+  ([ADR 017](docs/adr/017-body-linkify-host-invoked.md)). Link preview
+  remains out of scope. Example hosts invoke the helper at send and
+  materialize, and branch activation on `http`/`https` vs `mention:`.
+
 - **Selection interaction facade.** Sealed `ChatSelectionInteraction`
   (`ChatCopied`, `ChatLinkActivated`, `ChatCodeActivated`) with
   `ChatSelectionController.onInteraction` /

@@ -10,6 +10,7 @@ import 'package:chat_scroll_view_example/src/features/chat/controller/chat_searc
 import 'package:chat_scroll_view_example/src/features/chat/data/backend_chat_data_source.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/comments_data_source.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/generated_chat_data_source.dart';
+import 'package:chat_scroll_view_example/src/features/chat/utils/chat_body_linkify_util.dart';
 import 'package:chat_scroll_view_example/src/features/chat/utils/chat_data_source_extension.dart';
 import 'package:chat_scroll_view_example/src/features/chat/utils/chat_viewport_insets_binding.dart';
 import 'package:chat_scroll_view_example/src/features/chat/utils/ios_keyboard_safe_peel.dart';
@@ -131,9 +132,8 @@ class _WidgetChatScreenState extends State<WidgetChatScreen>
     // Prefs already loaded from main → seed before first composer paint.
     _lastEmojiTab = _lastTabFromStore(keyboardPanelStore);
     _controller = ChatScrollController();
-    _selection = ChatSelectionController(
-      onInteraction: _onSelectionInteraction,
-    )..selectionCap = 100;
+    _selection = ChatSelectionController(onInteraction: _onSelectionInteraction)
+      ..selectionCap = 100;
     _pillLastSeenBaseline.addListener(_onPillBaselineChanged);
     _init();
   }
@@ -183,11 +183,16 @@ class _WidgetChatScreenState extends State<WidgetChatScreen>
 
   void _onLinkTap(int messageId, String title, String url) {
     if (!mounted) return;
+    final label = switch (ChatBodyLinkifyUtil.activation(url)) {
+      WebLinkActivation(:final uri) => 'Opening: $uri',
+      MentionLinkActivation(:final username) => 'Mention: $username',
+      OtherLinkActivation(:final url) => 'Link: $url',
+    };
     ScaffoldMessenger.of(context)
       ..clearSnackBars()
       ..showSnackBar(
         SnackBar(
-          content: Text('Opening: $url'),
+          content: Text(label),
           behavior: SnackBarBehavior.floating,
           duration: const Duration(seconds: 2),
         ),
@@ -197,6 +202,12 @@ class _WidgetChatScreenState extends State<WidgetChatScreen>
   void _onLinkLongPress(int messageId, String title, String url) {
     if (!mounted) return;
     HapticFeedback.lightImpact();
+    final activation = ChatBodyLinkifyUtil.activation(url);
+    final openLabel = switch (activation) {
+      WebLinkActivation() => 'Open link',
+      MentionLinkActivation() => 'Open mention',
+      OtherLinkActivation() => 'Open',
+    };
     showModalBottomSheet<void>(
       context: context,
       builder: (context) => SafeArea(
@@ -229,8 +240,12 @@ class _WidgetChatScreenState extends State<WidgetChatScreen>
             ),
             const Divider(),
             ListTile(
-              leading: const Icon(Icons.open_in_browser),
-              title: const Text('Open link'),
+              leading: Icon(switch (activation) {
+                MentionLinkActivation() => Icons.person_outline,
+                WebLinkActivation() ||
+                OtherLinkActivation() => Icons.open_in_browser,
+              }),
+              title: Text(openLabel),
               onTap: () {
                 Navigator.pop(context);
                 _onLinkTap(messageId, title, url);
@@ -238,7 +253,10 @@ class _WidgetChatScreenState extends State<WidgetChatScreen>
             ),
             ListTile(
               leading: const Icon(Icons.copy),
-              title: const Text('Copy link URL'),
+              title: Text(switch (activation) {
+                MentionLinkActivation() => 'Copy mention',
+                WebLinkActivation() || OtherLinkActivation() => 'Copy link URL',
+              }),
               onTap: () {
                 Navigator.pop(context);
                 Clipboard.setData(ClipboardData(text: url));
@@ -464,7 +482,7 @@ class _WidgetChatScreenState extends State<WidgetChatScreen>
           sender: message.sender,
           createdAt: message.createdAt,
           updatedAt: DateTime.now(),
-          content: text,
+          content: ChatBodyLinkifyUtil.materialize(text),
         ),
       );
     }

@@ -7,7 +7,8 @@
 /// Host-facing helpers include [DatedMessage] (day separator + body),
 /// [ChatMessageBody] (in-bubble content + meta last-line packing),
 /// [ChatMessageChangeTransition] (edit morph: layout-final + paint deltas),
-/// and [ChatBubbleMetrics] (theme + run → corner / padding resolvers).
+/// [ChatBubbleMetrics] (theme + run → corner / padding resolvers), and
+/// [ChatBodyLinkify] (host-invoked bare URL / mention → markdown; never paint).
 library;
 
 export 'package:flutter_md/flutter_md.dart'
@@ -19,6 +20,7 @@ export 'package:flutter_md/flutter_md.dart'
 export 'src/chat_scroll/animate_to_busy_policy.dart';
 export 'src/chat_scroll/animate_to_disposition.dart';
 export 'src/chat_scroll/animate_to_load_policy.dart';
+export 'src/chat_scroll/chat_body_linkify.dart';
 export 'src/chat_scroll/chat_data_source.dart';
 export 'src/chat_scroll/chat_mutations.dart';
 export 'src/chat_scroll/chat_scroll_common.dart';
