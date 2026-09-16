@@ -52,7 +52,7 @@ class ChatChunkFetchScheduler {
   final Duration _pollInterval;
 
   /// Extra chunks beyond the laid-out band to consider while scrolling
-  /// (Telegram-style look-ahead when pixel lead is thinner than a page).
+  /// (look-ahead when pixel lead is thinner than a page).
   static const int scrollLookaheadChunks = 1;
 
   /// Filter console by `ChatScrollFetchSched`.
@@ -294,7 +294,7 @@ class ChatChunkFetchScheduler {
     return status.isDirty;
   }
 
-  /// One-chunk page at the leading urgent edge (Telegram ~50-message page).
+  /// One-chunk page at the leading urgent edge (~50-message page).
   (int, int)? _leadingPageRange() {
     final scan = _prefetchScanRange();
     if (scan.$2 < scan.$1) return null;

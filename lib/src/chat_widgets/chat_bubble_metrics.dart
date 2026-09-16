@@ -11,7 +11,7 @@ import 'package:flutter/painting.dart';
 /// - `pinTop` → `!run.isFirstInSenderRun` (same-run message above)
 /// - `pinBottom` → `!run.isLastInSenderRun` (same-run message below)
 ///
-/// Horizontal asymmetry for **corners** follows Telegram’s outer / inner
+/// Horizontal asymmetry for **corners** follows an outer / inner clustering
 /// model via [BorderRadiusDirectional]. Content padding stays symmetric
 /// (see [bubbleContentPadding]) until a real tail path exists.
 abstract final class ChatBubbleMetrics {
@@ -51,12 +51,11 @@ abstract final class ChatBubbleMetrics {
   /// In-bubble content [EdgeInsetsDirectional] for text chrome.
   ///
   /// Uses [ChatMessageThemeData.bubblePadding] + [ChatMessageThemeData.extraTextX]
-  /// on **both** horizontal sides. Telegram’s larger incoming `textX` (`17`
-  /// vs `11`) compensates for the `TYPE_TEXT` **tail path** that sticks past
-  /// the round rect — this package paints round corners only, so copying that
-  /// +6 on the outer side over-pads incoming bubbles. Keep insets symmetric
-  /// until a real tail geometry exists; [EdgeInsetsDirectional] still flips
-  /// correctly under RTL.
+  /// on **both** horizontal sides. Some chat UIs pad the outer edge more to
+  /// clear a drawn bubble tail; this package paints round corners only, so
+  /// copying that outer bias over-pads incoming bubbles. Keep insets
+  /// symmetric until a real tail geometry exists; [EdgeInsetsDirectional]
+  /// still flips correctly under RTL.
   static EdgeInsetsDirectional bubbleContentPadding({
     required ChatMessageThemeData theme,
   }) {

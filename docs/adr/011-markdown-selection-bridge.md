@@ -7,10 +7,10 @@ The chat viewport core stays markdown-agnostic: it owns **message selection**, s
 
 Hosts that do not use markdown simply omit the bridge. Selectable bodies that want this path render through the markdown widget; plain-text dual stacks are out of scope for v1.
 
-Default markdown selection autoscroll (ancestor `Scrollable.jumpTo`) does not drive the anchor viewport; v1 disables it, with a follow-on to wire edge motion through the viewport writer (same class of seam as span auto-scroll).
+Default markdown selection autoscroll (ancestor `Scrollable.jumpTo`) does not drive the anchor viewport; v1 disables it. **Follow-on (landed):** `ChatMarkdownAutoscroll` drives edge motion through `ChatScrollController.scrollBy`. Hosts override via `ChatMarkdownAutoscrollOptions` (enabled / velocity / edge zone). Defaults: [$Mobile] half-line × display Hz; [$Desktop] fixed ~15ms near-edge product. Subject-flush stop when the text-selection subject no longer sticks past the pad. Desktop text→message promotion at flush is not in scope here.
 
 ## Considered options
 
 - **Core depends on markdown** — rejected: forces every host to take the engine and couples layout to one renderer.
-- **Example-only wiring, no package** — rejected: duplicates Telegram-order gating and registry policy in every app.
+- **Example-only wiring, no package** — rejected: duplicates selection-order gating and registry policy in every app.
 - **Optional bridge package + pinned git commit of the renderer fork** — accepted.

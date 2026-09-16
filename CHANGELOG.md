@@ -8,6 +8,14 @@ this project is pre-1.0 and not strictly SemVer yet.
 
 ### Added
 
+- **Markdown text selection edge autoscroll.** `ChatMarkdownBody` drives the
+  anchor viewport through `ChatMarkdownAutoscroll`. Hosts pass
+  `ChatMarkdownAutoscrollOptions` (enabled / maxVelocity / edgeZone) — not the
+  raw markdown autoscroll config. Defaults: mobile half-line (~9) × Hz;
+  desktop fixed ~15ms near-edge product. Subject-flush stop when the text
+  subject is flush with the pad. Desktop text→message promotion at flush is
+  scratch issue 11.
+
 - **Message menu presentation (ADR 016).** `ChatMessageMenuPresentation`
   (`sheet` / `popup`) defaults from **selection policy** (`$Mobile` →
   scrim sheet with undimmed slot; `$Desktop` → pointer popup with no

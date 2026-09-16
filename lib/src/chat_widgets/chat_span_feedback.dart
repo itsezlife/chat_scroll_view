@@ -10,9 +10,8 @@ import 'package:flutter/widgets.dart';
 /// ## Overview
 ///
 /// Ink arms on pointer **down**, holds while pressed, and fades on **up** /
-/// cancel — Telegram `LinkSpanDrawable` press tracking. Short tap and
-/// long-press share this lifecycle; host long-press actions are a separate
-/// side channel.
+/// cancel. Short tap and long-press share this lifecycle; host long-press
+/// actions are a separate side channel.
 ///
 /// Encapsulates:
 /// - [messageId]: Containing message row.

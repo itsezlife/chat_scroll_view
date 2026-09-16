@@ -3429,7 +3429,7 @@ class RenderChatScrollView extends RenderBox {
   ///
   /// When true there is no *travel* range: scrollbar, span auto-scroll, and
   /// inertial fling are suppressed. Pointer unconsumed dy still drives
-  /// [ChatStretchOverscroll] (Telegram `OVER_SCROLL_ALWAYS`).
+  /// [ChatStretchOverscroll] (always-on overscroll stretch).
   bool _contentFitsInViewport() {
     if (!hasSize || _overlayKind != ChatOverlayKind.none) return false;
     if (!_dataSource.reachedOldest || !_dataSource.reachedNewest) return false;
@@ -4059,7 +4059,7 @@ class RenderChatScrollView extends RenderBox {
       }
     } else if (unconsumed.abs() > edgePx && wasFlinging) {
       // Fling hit a reached edge — including the frame that consumed the last
-      // travel pixels. Telegram absorbGlows: leftover velocity enters stretch.
+      // travel pixels. Leftover velocity enters stretch.
       final absorbV = unconsumed.sign * flingVelocity.abs();
       _stretch.absorbImpact(absorbV);
     }
@@ -4328,6 +4328,82 @@ class RenderChatScrollView extends RenderBox {
       return bottom <= size.height - _bottomPad + 0.5;
     }
     return false;
+  }
+
+  /// Global bounds of this viewport, or `null` when not laid out / attached.
+  @internal
+  Rect? get markdownAutoscrollGlobalBounds {
+    if (!hasSize || !attached) return null;
+    return localToGlobal(Offset.zero) & size;
+  }
+
+  /// Content insets where edge bands should start (composer / top chrome).
+  @internal
+  EdgeInsets get markdownAutoscrollPadding =>
+      EdgeInsets.only(top: _topPad, bottom: _bottomPad);
+
+  /// Whether edge motion may still move content for markdown text selection.
+  ///
+  /// [direction] matches span auto-scroll: `+1` toward older (top band),
+  /// `-1` toward newer (bottom band).
+  ///
+  /// Scroll only while the **text selection subject** cell still sticks past
+  /// the pad and the conversation pin still has travel. Promoting text →
+  /// message selection past flush is a separate follow-on.
+  @internal
+  bool canMarkdownEdgeAutoscroll(int direction) {
+    if (direction == 0) return false;
+    if (_contentFitsInViewport()) return false;
+    if (_spanAutoScrollBlockedByPin(direction)) return false;
+    return !_markdownSubjectFlushWithPad(direction);
+  }
+
+  /// Applies a **screen-space** selection autoscroll delta.
+  ///
+  /// Positive [delta] moves content up (reveal newer). Returns the screen-
+  /// space amount applied, or `0` when the subject / pin gate blocks motion
+  /// (caller should disarm that direction). Clamps so a frame cannot carry
+  /// the subject past flush with the pad.
+  @internal
+  double applyMarkdownAutoscrollDelta(double delta) {
+    if (delta.abs() < 0.5) return 0;
+    final direction = delta > 0 ? -1 : 1;
+    if (!canMarkdownEdgeAutoscroll(direction)) return 0;
+
+    final room = _markdownSubjectScrollRoom(direction);
+    if (room != null && room <= 0.5) return 0;
+    final want = delta.abs();
+    final appliedMag = room == null ? want : math.min(want, room);
+    if (appliedMag < 0.5) return 0;
+
+    // Screen + = reveal newer = anchor-relative scrollBy negative.
+    final screenApplied = delta > 0 ? appliedMag : -appliedMag;
+    _controller.scrollBy(-screenApplied);
+    return screenApplied;
+  }
+
+  /// True when the text-selection subject row is already flush with the pad
+  /// in [direction] (nothing left to reveal of that message).
+  bool _markdownSubjectFlushWithPad(int direction) {
+    final room = _markdownSubjectScrollRoom(direction);
+    return room != null && room <= 0.5;
+  }
+
+  /// Remaining viewport travel that still exposes more of the subject cell
+  /// past the pad in [direction], or null when there is no subject / box.
+  double? _markdownSubjectScrollRoom(int direction) {
+    final subjectId = _selectionController?.textSelectionSubject;
+    if (subjectId == null) return null;
+    final box = _boundaryBox(subjectId);
+    if (box == null) return null;
+    final top = _parentData(box).offset;
+    final bottom = top + box.size.height;
+    if (direction > 0) {
+      // Toward older: subject must still sit above the top pad.
+      return _topPad - top;
+    }
+    // Toward newer: subject must still sit below the bottom pad.
+    return bottom - (size.height - _bottomPad);
   }
 
   void _applyLiveSpanHit() {
@@ -5880,7 +5956,7 @@ class RenderChatScrollView extends RenderBox {
     }
 
     // Stretch only the message list. Floating date header + scrollbar stay
-    // viewport-fixed (Telegram: sticky day chip is not EdgeEffect content).
+    // viewport-fixed (sticky day chip is not overscroll content).
     if (_stretch.overscroll.abs() > precisionErrorTolerance) {
       _stretchLayer.layer = context.pushTransform(
         needsCompositing,

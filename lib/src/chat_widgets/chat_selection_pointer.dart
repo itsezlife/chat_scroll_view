@@ -148,8 +148,8 @@ class ChatSelectionPointer {
         if (sel.isTextSelectionActive) {
           // Inside the body: markdown / idle tap own dismiss and text drag.
           // Outside (padding, sibling chrome, Text-only rows): keep message
-          // pan so drag-out can promote to message selection (tdesktop
-          // PrepareSelect when not PointState::Inside).
+          // pan so drag-out can promote to message selection when the
+          // pointer is outside the text body.
           if (!landsOnText) {
             _pan?.addPointer(event);
           }

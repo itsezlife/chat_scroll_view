@@ -1,5 +1,6 @@
 import 'package:chat_scroll_view/src/chat_scroll/chat_selection_controller.dart';
 import 'package:chat_scroll_view/src/chat_widgets/chat_code_block_painter.dart';
+import 'package:chat_scroll_view/src/chat_widgets/chat_markdown_autoscroll.dart';
 import 'package:chat_scroll_view/src/chat_widgets/chat_secondary_message_tap_scope.dart';
 import 'package:flutter/gestures.dart' show PointerDeviceKind;
 import 'package:flutter/material.dart'
@@ -84,6 +85,13 @@ class ChatMarkdownBodyRegistration extends InheritedWidget {
 /// Inline taps (links / code) are arbitrated by the viewport selection pointer,
 /// not a competing body [GestureDetector] — a local tap recognizer would win
 /// the arena on selected body text and block toggle / text-dismiss.
+///
+/// ### Edge autoscroll
+///
+/// Defaults to [ChatMarkdownAutoscroll] (anchor viewport writer, host-union
+/// gate off, policy velocity / edge band). Pass [autoscroll] only to disable
+/// or override speed / edge depth via [ChatMarkdownAutoscrollOptions] — not
+/// the raw markdown autoscroll config.
 class ChatMarkdownBody extends StatefulWidget {
   /// Creates a selectable markdown body for [messageId] driven by [controller].
   const ChatMarkdownBody({
@@ -91,6 +99,7 @@ class ChatMarkdownBody extends StatefulWidget {
     required this.messageId,
     this.markdown,
     this.theme,
+    this.autoscroll,
     super.key,
   });
 
@@ -106,6 +115,12 @@ class ChatMarkdownBody extends StatefulWidget {
   /// Optional custom markdown theme. When null, resolves from ambient [MarkdownTheme.maybeOf].
   final MarkdownThemeData? theme;
 
+  /// Edge autoscroll knobs while dragging a text selection.
+  ///
+  /// Null → enabled with policy defaults. Prefer a long-lived instance when
+  /// overriding so mid-drag rebuilds keep a stable scope config.
+  final ChatMarkdownAutoscrollOptions? autoscroll;
+
   @override
   State<ChatMarkdownBody> createState() => _ChatMarkdownBodyState();
 }
@@ -117,6 +132,13 @@ class _ChatMarkdownBodyState extends State<ChatMarkdownBody>
   ChatSelectionPolicy? _cachedPolicy;
   MarkdownThemeData? _resolvedTheme;
 
+  /// Default when [ChatMarkdownBody.autoscroll] is null — rebuilt only when
+  /// options / policy / display Hz change so mid-drag list rebuilds keep the
+  /// scope’s cached target (resolver identity is part of config equality).
+  MarkdownSelectionAutoscrollConfig? _scopeAutoscroll;
+  ChatMarkdownAutoscrollOptions? _scopeAutoscrollOptions;
+  ChatSelectionPolicy? _scopeAutoscrollPolicy;
+  double? _scopeAutoscrollHz;
   AnimationController? _pressController;
   AnimationController? _releaseController;
   final _feedbackNotifier = ValueNotifier<ChatSpanFeedback?>(null);
@@ -243,6 +265,27 @@ class _ChatMarkdownBodyState extends State<ChatMarkdownBody>
       _feedbackNotifier.value = null;
       widget.controller.setSpanFeedback(null);
     }
+  }
+
+  MarkdownSelectionAutoscrollConfig _resolvedAutoscroll() {
+    final options =
+        widget.autoscroll ?? const ChatMarkdownAutoscrollOptions();
+    final policy = widget.controller.selectionPolicy;
+    final hz = ChatMarkdownAutoscroll.readDisplayRefreshHz();
+    if (_scopeAutoscroll case final cached?
+        when options == _scopeAutoscrollOptions &&
+            identical(policy, _scopeAutoscrollPolicy) &&
+            hz == _scopeAutoscrollHz) {
+      return cached;
+    }
+    _scopeAutoscrollOptions = options;
+    _scopeAutoscrollPolicy = policy;
+    _scopeAutoscrollHz = hz;
+    return _scopeAutoscroll = ChatMarkdownAutoscroll.config(
+      options: options,
+      policy: policy,
+      displayRefreshHz: hz,
+    );
   }
 
   void _tryBeginInlinePress(Offset globalPosition) {
@@ -377,8 +420,9 @@ class _ChatMarkdownBodyState extends State<ChatMarkdownBody>
       return true;
     }
     // Desktop/web: direct entry only while message membership is empty —
-    // settled message selection and text selection are exclusive (tdesktop).
-    // Surfaces may still mount for inline hit-testing; the scope stays off.
+    // settled message selection and text selection are exclusive under
+    // [$Desktop]. Surfaces may still mount for inline hit-testing; the
+    // scope stays off.
     if (policy.allowsTextEntryWithoutMessageSelection) {
       return !widget.controller.isSelectionMode &&
           !widget.controller.hasDragSelection;
@@ -549,6 +593,8 @@ class _ChatMarkdownBodyState extends State<ChatMarkdownBody>
               child: MarkdownSelectionScope(
                 controller: widget.controller.markdownSelection,
                 enabled: scopeEnabled,
+                // Drive the anchor viewport.
+                autoscroll: _resolvedAutoscroll(),
                 // Continuous text: touch long-press → word → drag-extend
                 // (ADR 015). Consecutive taps stay off so the viewport owns
                 // toggle / dismiss taps; mouse multi-click remains desktop.

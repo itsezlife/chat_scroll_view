@@ -33,7 +33,7 @@ enum ChatMessageBodySlot {
 ///   minimum that fits [header] and the packed content/meta cluster — not the
 ///   incoming `maxWidth`. A wider [header] trails [meta] at the body's end.
 /// - **Wrap vs inline** uses the padded max width from constraints, not
-///   [header] width (Telegram `maxWidth` vs `lastLineWidth + timeMore`).
+///   [header] width (wrap decision is independent of header-driven shrink).
 ///
 /// Slots are real children ([SlottedMultiChildRenderObjectWidget]). The body
 /// is not painted with an internal [TextPainter], so selection, semantics,

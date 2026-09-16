@@ -595,8 +595,7 @@ class ChatSelectionController implements Listenable {
   ///
   /// Pre-arm failures leave prior text selection state unchanged.
   /// Under desktop/web policy, refuses while **message selection** is active
-  /// (modes are exclusive; tdesktop does not start character selection once
-  /// message multi-select is settled).
+  /// (modes are exclusive once message multi-select is settled).
   bool armTextSelection(int messageId) {
     if (_disposed) return false;
     if (selectionPolicy.allowsTextEntryWithoutMessageSelection &&
