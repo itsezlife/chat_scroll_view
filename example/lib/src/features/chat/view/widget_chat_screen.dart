@@ -132,16 +132,40 @@ class _WidgetChatScreenState extends State<WidgetChatScreen>
     _lastEmojiTab = _lastTabFromStore(keyboardPanelStore);
     _controller = ChatScrollController();
     _selection = ChatSelectionController(
-      onCopySuccess: _onCopySuccess,
-      onLinkTap: _onLinkTap,
-      onLinkLongPress: _onLinkLongPress,
-      onCodeTap: _onCodeTap,
+      onInteraction: _onSelectionInteraction,
     )..selectionCap = 100;
     _pillLastSeenBaseline.addListener(_onPillBaselineChanged);
     _init();
   }
 
-  void _onCopySuccess(String text) {
+  void _onSelectionInteraction(ChatSelectionInteraction interaction) {
+    switch (interaction) {
+      case ChatCopied(:final text, :final gesture):
+        if (gesture == ChatInlineGesture.longPress) {
+          HapticFeedback.lightImpact();
+        }
+        _showCopiedSnack(text);
+      case ChatLinkActivated(
+        :final messageId,
+        :final title,
+        :final url,
+        :final gesture,
+      ):
+        switch (gesture) {
+          case ChatInlineGesture.tap:
+            _onLinkTap(messageId, title, url);
+          case ChatInlineGesture.longPress:
+            _onLinkLongPress(messageId, title, url);
+        }
+      case ChatCodeActivated(:final gesture):
+        // Host-owned copy path only when [copyCodeOnClick] is false.
+        if (gesture == ChatInlineGesture.longPress) {
+          HapticFeedback.lightImpact();
+        }
+    }
+  }
+
+  void _showCopiedSnack(String text) {
     if (!mounted || text.isEmpty) return;
     if (defaultTargetPlatform == TargetPlatform.android) {
       return; // Do not show the snackbar on Android
@@ -218,29 +242,13 @@ class _WidgetChatScreenState extends State<WidgetChatScreen>
               onTap: () {
                 Navigator.pop(context);
                 Clipboard.setData(ClipboardData(text: url));
-                _onCopySuccess(url);
+                _showCopiedSnack(url);
               },
             ),
           ],
         ),
       ),
     );
-  }
-
-  void _onCodeTap(int messageId, String code) {
-    if (!mounted) return;
-    if (defaultTargetPlatform == TargetPlatform.android) {
-      return; // Do not show the snackbar on Android as native Clipboard is already showing the message
-    }
-    ScaffoldMessenger.of(context)
-      ..clearSnackBars()
-      ..showSnackBar(
-        const SnackBar(
-          content: Text('Code snippet copied to clipboard'),
-          behavior: SnackBarBehavior.floating,
-          duration: Duration(seconds: 1),
-        ),
-      );
   }
 
   void _onAvatarTap(String sender) {
@@ -318,6 +326,10 @@ class _WidgetChatScreenState extends State<WidgetChatScreen>
           onDeleteSelected: _handleDeleteSelected,
           onEdit: (messageId) =>
               _composerKey.currentState?.beginEdit(messageId),
+          onCopy: _showCopiedSnack,
+          onCopySelected: _showCopiedSnack,
+          onCopyLink: _showCopiedSnack,
+          onCopyCode: _showCopiedSnack,
         ),
       );
       _search?.dispose();
@@ -641,8 +653,11 @@ class _WidgetChatScreenState extends State<WidgetChatScreen>
       if (buffer.isNotEmpty) buffer.writeln();
       buffer.write(text);
     }
-    Clipboard.setData(ClipboardData(text: buffer.toString()));
+    final text = buffer.toString();
+    if (text.isEmpty) return;
+    Clipboard.setData(ClipboardData(text: text));
     _selection.clear();
+    _showCopiedSnack(text);
   }
 
   void _editSelectedFromBar() {

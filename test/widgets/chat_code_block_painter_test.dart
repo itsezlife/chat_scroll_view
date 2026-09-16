@@ -459,13 +459,18 @@ void main() {
     );
 
     testWidgets(
-      'desktop clicking header triggers onCodeTap without activating text selection',
+      'desktop clicking header triggers ChatCopied codeTap without activating text selection',
       (tester) async {
         String? tappedCode;
         final controller = ChatSelectionController(
           policy: const ChatSelectionPolicy.desktop(),
-          onCodeTap: (msgId, code) {
-            tappedCode = code;
+          onInteraction: (i) {
+            if (i case ChatCopied(
+              :final text,
+              origin: ChatCopyOrigin.codeTap,
+            )) {
+              tappedCode = text;
+            }
           },
         );
         addTearDown(controller.dispose);
@@ -503,13 +508,18 @@ void main() {
     );
 
     testWidgets(
-      'mobile tapping bottom copy bar triggers onCodeTap, top header does not',
+      'mobile tapping bottom copy bar triggers ChatCopied codeTap, top header does not',
       (tester) async {
         String? tappedCode;
         final controller = ChatSelectionController(
           policy: const ChatSelectionPolicy.mobile(),
-          onCodeTap: (msgId, code) {
-            tappedCode = code;
+          onInteraction: (i) {
+            if (i case ChatCopied(
+              :final text,
+              origin: ChatCopyOrigin.codeTap,
+            )) {
+              tappedCode = text;
+            }
           },
         );
         addTearDown(controller.dispose);

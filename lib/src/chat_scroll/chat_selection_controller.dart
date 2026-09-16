@@ -4,6 +4,7 @@ import 'dart:ui' show Offset, Path, Rect;
 
 import 'package:chat_scroll_view/src/chat_scroll/chat_inline_hit.dart';
 import 'package:chat_scroll_view/src/chat_scroll/chat_selection_allowed.dart';
+import 'package:chat_scroll_view/src/chat_scroll/chat_selection_interaction.dart';
 import 'package:chat_scroll_view/src/chat_scroll/chat_selection_policy.dart';
 import 'package:chat_scroll_view/src/chat_scroll/chat_text_selection.dart';
 import 'package:chat_scroll_view/src/chat_widgets/chat_span_feedback.dart';
@@ -23,6 +24,7 @@ import 'package:meta/meta.dart' show internal;
 
 export 'package:chat_scroll_view/src/chat_scroll/chat_inline_hit.dart';
 export 'package:chat_scroll_view/src/chat_scroll/chat_selection_allowed.dart';
+export 'package:chat_scroll_view/src/chat_scroll/chat_selection_interaction.dart';
 export 'package:chat_scroll_view/src/chat_scroll/chat_selection_policy.dart';
 export 'package:chat_scroll_view/src/chat_widgets/chat_span_feedback.dart';
 
@@ -39,17 +41,6 @@ typedef ChatSpanFeedbackReleaseCallback = void Function();
 /// Signature for span feedback **abort** (immediate clear on selection yield).
 typedef ChatSpanFeedbackAbortCallback = void Function();
 
-/// Signature for handling tapped hyperlinks in message bodies.
-typedef ChatLinkTapCallback =
-    void Function(int messageId, String title, String url);
-
-/// Signature for handling long-pressed hyperlinks in message bodies.
-typedef ChatLinkLongPressCallback =
-    void Function(int messageId, String title, String url);
-
-/// Signature for handling tapped code blocks or monospace code snippets.
-typedef ChatCodeTapCallback = void Function(int messageId, String code);
-
 /// Action performed during a continuous pointer drag-selection gesture on
 /// desktop/web platforms.
 enum ChatDragSelectAction {
@@ -65,7 +56,7 @@ enum ChatDragSelectAction {
 
 /// Public selection facade for the chat viewport: **message selection**
 /// membership plus **text selection** subject, range, **selection policy**,
-/// and Copy observation.
+/// and host **selection interactions**.
 ///
 /// Long press enters message-selection mode and selects the message.
 /// Taps toggle messages. Selection mode exits when the set empties.
@@ -87,8 +78,18 @@ enum ChatDragSelectAction {
 /// queried by external UI (toolbar, copy button). Implements [Listenable]
 /// so the widget-based viewport can drive `ListenableBuilder` directly.
 /// [Listenable] fires on membership **or** text-selection subject/range
-/// changes. Copy success uses [addCopySuccessListener] (and optional
-/// [onCopySuccess]); feedback UI stays app-side.
+/// changes. Copy, link, and code outcomes use [onInteraction] /
+/// [addInteractionListener] ([ChatSelectionInteraction]); feedback UI stays
+/// app-side.
+///
+/// ### Selection interactions vs message-menu requests
+///
+/// [ChatSelectionInteraction] covers facade-owned Copy and inline body hits
+/// (links, code). Message-menu entry
+/// (`ChatScrollView.onIdleMessageTap` / `onSecondaryMessageTap` →
+/// `ChatMessageMenuRequest`) stays on the viewport — slot geometry and menu
+/// context, not this channel. Span-feedback listeners are engine → chrome
+/// paint, not host actions.
 ///
 /// ### Swapping conversations
 ///
@@ -124,11 +125,13 @@ enum ChatDragSelectAction {
 /// desktop arm-for-entry does not suppress. Under [$Desktop], message
 /// membership does not suppress inline activation.
 ///
-/// Code taps **and idle long-presses** trigger click-to-copy (clipboard write
-/// plus [addCopySuccessListener]), and notify [addCodeTapListener]. Automatic
-/// clipboard write can be disabled via [copyCodeOnClick]. Under suppression
-/// (mobile message selection / live text range), long-press yields to message
-/// or text selection instead.
+/// Code taps **and idle long-presses** with [copyCodeOnClick] write the
+/// clipboard and emit a single [ChatCopied] (`origin: codeTap`) — not a
+/// separate [ChatCodeActivated]. When [copyCodeOnClick] is `false`, only
+/// [ChatCodeActivated] fires and the host owns clipboard / toast. Prefer
+/// handling [ChatCopied] alone for “Copied” chrome. Under suppression
+/// (mobile message selection / live text range), long-press yields to
+/// message or text selection instead.
 ///
 /// ### Policy
 ///
@@ -140,10 +143,7 @@ class ChatSelectionController implements Listenable {
   /// [policy] defaults to [ChatSelectionPolicy.forPlatform].
   ChatSelectionController({
     ChatSelectionPolicy? policy,
-    this.onCopySuccess,
-    this.onLinkTap,
-    this.onLinkLongPress,
-    this.onCodeTap,
+    this.onInteraction,
     this.copyCodeOnClick = true,
   }) : selectionPolicy = policy ?? ChatSelectionPolicy.forPlatform(),
        _text = ChatTextSelection(
@@ -155,42 +155,22 @@ class ChatSelectionController implements Listenable {
   /// Active **selection policy** (entry, nesting, Copy).
   final ChatSelectionPolicy selectionPolicy;
 
-  /// Optional host hook invoked after a successful Copy clipboard write.
+  /// Optional host hook for [ChatSelectionInteraction] outcomes.
   ///
-  /// Receives the copied plain text. Prefer [addCopySuccessListener] when
-  /// multiple observers need the same event.
-  final ValueChanged<String>? onCopySuccess;
-
-  /// Optional host hook invoked when a hyperlink in a markdown body is tapped.
-  ///
-  /// Receives `(messageId, title, url)`. Prefer [addLinkTapListener] when
-  /// multiple observers need the same event.
-  final ChatLinkTapCallback? onLinkTap;
-
-  /// Optional host hook invoked when a hyperlink in a markdown body is long-pressed.
-  ///
-  /// Receives `(messageId, title, url)`. Prefer [addLinkLongPressListener] when
-  /// multiple observers need the same event.
-  final ChatLinkLongPressCallback? onLinkLongPress;
-
-  /// Optional host hook invoked when a code block or monospace snippet is tapped.
-  ///
-  /// Receives `(messageId, code)`. Prefer [addCodeTapListener] when multiple
-  /// observers need the same event.
-  final ChatCodeTapCallback? onCodeTap;
+  /// Prefer [addInteractionListener] when multiple observers need the same
+  /// events. Switch on the sealed variants — handle [ChatCopied] for feedback
+  /// UI; do not toast again on [ChatCodeActivated].
+  final ValueChanged<ChatSelectionInteraction>? onInteraction;
 
   /// Whether tapping a code block or monospace snippet automatically writes
-  /// the code text to the system clipboard and notifies Copy-success observers.
+  /// the code text to the system clipboard and notifies via [ChatCopied].
   ///
-  /// Defaults to `true`. When `false`, [onCodeTap] and code tap listeners are
-  /// still notified, but no clipboard write or [onCopySuccess] notification occurs.
+  /// Defaults to `true`. When `false`, [ChatCodeActivated] is emitted instead
+  /// — the host owns copy (and any toast).
   final bool copyCodeOnClick;
 
   final ChatTextSelection _text;
-  final _copySuccessListeners = <ValueChanged<String>>[];
-  final _linkTapListeners = <ChatLinkTapCallback>[];
-  final _linkLongPressListeners = <ChatLinkLongPressCallback>[];
-  final _codeTapListeners = <ChatCodeTapCallback>[];
+  final _interactionListeners = <ValueChanged<ChatSelectionInteraction>>[];
 
   final _selectedIds = HashSet<int>();
   Set<int>? _dragSelectedIds;
@@ -763,10 +743,10 @@ class ChatSelectionController implements Listenable {
   bool _isCopying = false;
 
   /// Copies the active plain-text range, then applies [selectionPolicy]
-  /// Copy-success effects and notifies Copy-success observers.
+  /// Copy-success effects and notifies via [ChatCopied].
   ///
   /// Returns `false` when disposed, text selection is inactive, or there is
-  /// no non-empty range (state unchanged; no Copy-success notify).
+  /// no non-empty range (state unchanged; no interaction notify).
   Future<bool> copyTextSelection() async {
     if (_disposed || !_text.isActive || _isCopying) return false;
     final text = _text.getText();
@@ -785,33 +765,38 @@ class ChatSelectionController implements Listenable {
       clearTextSelection: clearTextSelection,
       clearMessageSelection: clear,
     );
-    _notifyCopySuccess(text);
+    _notifyInteraction(
+      ChatSelectionInteraction.copied(
+        text: text,
+        origin: ChatCopyOrigin.textSelection,
+      ),
+    );
     return true;
   }
 
-  /// Registers [listener] for successful Copy (clipboard write completed).
+  /// Registers [listener] for [ChatSelectionInteraction] outcomes.
   ///
-  /// Dedup-on-add; snapshot dispatch. Payload is the copied plain text.
-  /// Silent when [copyTextSelection] returns `false`. Post-[dispose]
-  /// registration is a no-op.
-  void addCopySuccessListener(ValueChanged<String> listener) {
+  /// Dedup-on-add; snapshot dispatch. Silent after [dispose].
+  void addInteractionListener(ValueChanged<ChatSelectionInteraction> listener) {
     if (_disposed) return;
-    if (_copySuccessListeners.contains(listener)) return;
-    _copySuccessListeners.add(listener);
+    if (_interactionListeners.contains(listener)) return;
+    _interactionListeners.add(listener);
   }
 
-  /// Removes a listener registered with [addCopySuccessListener].
-  void removeCopySuccessListener(ValueChanged<String> listener) {
-    _copySuccessListeners.remove(listener);
+  /// Removes a listener registered with [addInteractionListener].
+  void removeInteractionListener(
+    ValueChanged<ChatSelectionInteraction> listener,
+  ) {
+    _interactionListeners.remove(listener);
   }
 
-  void _notifyCopySuccess(String text) {
-    onCopySuccess?.call(text);
-    for (final cb in List<ValueChanged<String>>.of(
-      _copySuccessListeners,
+  void _notifyInteraction(ChatSelectionInteraction interaction) {
+    onInteraction?.call(interaction);
+    for (final cb in List<ValueChanged<ChatSelectionInteraction>>.of(
+      _interactionListeners,
       growable: false,
     )) {
-      cb(text);
+      cb(interaction);
     }
   }
 
@@ -849,13 +834,20 @@ class ChatSelectionController implements Listenable {
 
   /// Dispatches an inline hit (link activation or code click-to-copy).
   ///
+  /// [gesture] is [ChatInlineGesture.tap] for primary activation and
+  /// [ChatInlineGesture.longPress] when routed from [handleInlineHitLongPress]
+  /// (code hold-to-copy). Hosts can key haptics / feedback on the gesture.
+  ///
   /// Returns `true` if the inline hit was handled as a first-class action,
   /// or `false` if it was suppressed by policy (e.g. mobile message selection
   /// mode suppressing ordinary link opens) or after [dispose].
   ///
   /// Handled inline hits do not dismiss active text selection, do not toggle
   /// message selection membership, and do not fire idle message taps.
-  bool handleInlineHit(ChatInlineHit hit) {
+  bool handleInlineHit(
+    ChatInlineHit hit, {
+    ChatInlineGesture gesture = ChatInlineGesture.tap,
+  }) {
     if (_disposed) return false;
     // One gate for every [ChatInlineHit] variant — do not special-case link
     // vs code/COPY chrome (that flip-flops idle vs selected behavior).
@@ -866,7 +858,14 @@ class ChatSelectionController implements Listenable {
       case ChatInlineHit$Link(:final messageId, :final title, :final url):
         // Press ink arms on pointer down via [beginSpanFeedback]; do not
         // one-shot flash again on action.
-        _notifyLinkTap(messageId, title, url);
+        _notifyInteraction(
+          ChatSelectionInteraction.linkActivated(
+            messageId: messageId,
+            title: title,
+            url: url,
+            gesture: gesture,
+          ),
+        );
         return true;
 
       case ChatInlineHit$Code(:final messageId, :final code):
@@ -874,9 +873,23 @@ class ChatSelectionController implements Listenable {
           unawaited(
             Clipboard.setData(ClipboardData(text: code)).catchError((_) {}),
           );
-          _notifyCopySuccess(code);
+          _notifyInteraction(
+            ChatSelectionInteraction.copied(
+              text: code,
+              origin: ChatCopyOrigin.codeTap,
+              messageId: messageId,
+              gesture: gesture,
+            ),
+          );
+        } else {
+          _notifyInteraction(
+            ChatSelectionInteraction.codeActivated(
+              messageId: messageId,
+              code: code,
+              gesture: gesture,
+            ),
+          );
         }
-        _notifyCodeTap(messageId, code);
         return true;
     }
   }
@@ -897,37 +910,14 @@ class ChatSelectionController implements Listenable {
     _ => false,
   };
 
-  /// Registers [listener] for inline hyperlink taps.
-  ///
-  /// Dedup-on-add; snapshot dispatch. Receives `(messageId, title, url)`.
-  /// Silent when link tap is suppressed by policy or after [dispose].
-  void addLinkTapListener(ChatLinkTapCallback listener) {
-    if (_disposed || _linkTapListeners.contains(listener)) return;
-    _linkTapListeners.add(listener);
-  }
-
-  /// Removes a listener registered with [addLinkTapListener].
-  void removeLinkTapListener(ChatLinkTapCallback listener) {
-    _linkTapListeners.remove(listener);
-  }
-
-  void _notifyLinkTap(int messageId, String title, String url) {
-    onLinkTap?.call(messageId, title, url);
-    for (final cb in List<ChatLinkTapCallback>.of(
-      _linkTapListeners,
-      growable: false,
-    )) {
-      cb(messageId, title, url);
-    }
-  }
-
   /// Dispatches an inline element long-press.
   ///
-  /// Links notify [onLinkLongPress] / [addLinkLongPressListener] (preview sheet,
-  /// etc.) and leave press ink until pointer up. Code / COPY chrome reuses
-  /// [handleInlineHit] so hold-to-copy matches tap-to-copy (including
-  /// [copyCodeOnClick] and activation suppression), then [abortSpanFeedback]
-  /// so the highlight does not linger after the action.
+  /// Links emit [ChatLinkActivated] with [ChatInlineGesture.longPress] (preview
+  /// sheet, etc.) and leave press ink until pointer up. Code / COPY chrome
+  /// reuses [handleInlineHit] with [ChatInlineGesture.longPress] so
+  /// hold-to-copy matches tap-to-copy (including [copyCodeOnClick] and
+  /// activation suppression) while preserving gesture for host haptics, then
+  /// [abortSpanFeedback] so the highlight does not linger after the action.
   ///
   /// Returns `true` if the long-press was handled and should suppress message
   /// selection entry.
@@ -936,63 +926,26 @@ class ChatSelectionController implements Listenable {
     switch (hit) {
       case ChatInlineHit$Link(:final messageId, :final title, :final url):
         final hasHandlers =
-            onLinkLongPress != null || _linkLongPressListeners.isNotEmpty;
-        _notifyLinkLongPress(messageId, title, url);
+            onInteraction != null || _interactionListeners.isNotEmpty;
+        _notifyInteraction(
+          ChatSelectionInteraction.linkActivated(
+            messageId: messageId,
+            title: title,
+            url: url,
+            gesture: ChatInlineGesture.longPress,
+          ),
+        );
         return hasHandlers;
       case ChatInlineHit$Code():
-        // Same action as tap. Drop press ink immediately — the gesture already
-        // completed (unlike link long-press, which keeps ink until pointer up).
-        final handled = handleInlineHit(hit);
+        // Same action as tap, tagged long-press. Drop press ink immediately —
+        // the gesture already completed (unlike link long-press, which keeps
+        // ink until pointer up).
+        final handled = handleInlineHit(
+          hit,
+          gesture: ChatInlineGesture.longPress,
+        );
         if (handled) abortSpanFeedback();
         return handled;
-    }
-  }
-
-  /// Registers [listener] for inline hyperlink long-presses.
-  ///
-  /// Dedup-on-add; snapshot dispatch. Receives `(messageId, title, url)`.
-  /// Silent after [dispose].
-  void addLinkLongPressListener(ChatLinkLongPressCallback listener) {
-    if (_disposed || _linkLongPressListeners.contains(listener)) return;
-    _linkLongPressListeners.add(listener);
-  }
-
-  /// Removes a listener registered with [addLinkLongPressListener].
-  void removeLinkLongPressListener(ChatLinkLongPressCallback listener) {
-    _linkLongPressListeners.remove(listener);
-  }
-
-  void _notifyLinkLongPress(int messageId, String title, String url) {
-    onLinkLongPress?.call(messageId, title, url);
-    for (final cb in List<ChatLinkLongPressCallback>.of(
-      _linkLongPressListeners,
-      growable: false,
-    )) {
-      cb(messageId, title, url);
-    }
-  }
-
-  /// Registers [listener] for inline code / monospace snippet taps.
-  ///
-  /// Dedup-on-add; snapshot dispatch. Receives `(messageId, code)`.
-  /// Silent after [dispose].
-  void addCodeTapListener(ChatCodeTapCallback listener) {
-    if (_disposed || _codeTapListeners.contains(listener)) return;
-    _codeTapListeners.add(listener);
-  }
-
-  /// Removes a listener registered with [addCodeTapListener].
-  void removeCodeTapListener(ChatCodeTapCallback listener) {
-    _codeTapListeners.remove(listener);
-  }
-
-  void _notifyCodeTap(int messageId, String code) {
-    onCodeTap?.call(messageId, code);
-    for (final cb in List<ChatCodeTapCallback>.of(
-      _codeTapListeners,
-      growable: false,
-    )) {
-      cb(messageId, code);
     }
   }
 
@@ -1458,10 +1411,7 @@ class ChatSelectionController implements Listenable {
     _text.markdownSelection.removeListener(_onTextRangeChanged);
     _listeners.clear();
     _selectionAllowedListeners.clear();
-    _copySuccessListeners.clear();
-    _linkTapListeners.clear();
-    _linkLongPressListeners.clear();
-    _codeTapListeners.clear();
+    _interactionListeners.clear();
     _spanFeedbackListeners.clear();
     _spanFeedbackTriggerListeners.clear();
     _spanFeedbackReleaseListeners.clear();

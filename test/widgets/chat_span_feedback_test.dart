@@ -872,8 +872,10 @@ void main() {
         var longPressCount = 0;
         final controller = ChatSelectionController(
           policy: const ChatSelectionPolicy.mobile(),
-          onLinkLongPress: (_, _, _) {
-            longPressCount++;
+          onInteraction: (i) {
+            if (i case ChatLinkActivated(gesture: ChatInlineGesture.longPress)) {
+              longPressCount++;
+            }
           },
         );
 
@@ -950,7 +952,15 @@ void main() {
         final codeTaps = <(int, String)>[];
         final controller = ChatSelectionController(
           policy: const ChatSelectionPolicy.mobile(),
-          onCodeTap: (id, code) => codeTaps.add((id, code)),
+          onInteraction: (i) {
+            if (i case ChatCopied(
+              :final text,
+              origin: ChatCopyOrigin.codeTap,
+              :final messageId?,
+            )) {
+              codeTaps.add((messageId, text));
+            }
+          },
         );
 
         const markdownText = 'Run `main()` please.';

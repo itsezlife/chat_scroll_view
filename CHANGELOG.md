@@ -8,6 +8,35 @@ this project is pre-1.0 and not strictly SemVer yet.
 
 ### Added
 
+- **Selection interaction facade.** Sealed `ChatSelectionInteraction`
+  (`ChatCopied`, `ChatLinkActivated`, `ChatCodeActivated`) with
+  `ChatSelectionController.onInteraction` /
+  `addInteractionListener`. Replaces parallel `onCopySuccess` /
+  `onLinkTap` / `onLinkLongPress` / `onCodeTap` and their typed
+  listeners. Code click-to-copy (`copyCodeOnClick: true`) emits a
+  single `ChatCopied(origin: codeTap)` — not a second code event —
+  so “Copied” chrome keys on `ChatCopied` alone. When auto-copy is
+  off, only `ChatCodeActivated` fires. Message-menu requests stay on
+  `ChatScrollView` (slot geometry), not this channel.
+
+- **Standalone tap highlight widget.** `ChatTapHighlight` wraps arbitrary
+  children with press-lifecycle contour ink (expand / hold / release; cancel
+  aborts). Past touch-slop travel also aborts (mobile list pan — scrollables
+  rarely deliver `PointerCancel` to a `Listener`). Desktop/mouse presses
+  exclude the pointer from viewport message pan; touch with null `onLongPress`
+  lets mobile **message selection** claim the press (Telegram name chrome).
+  Pointer handlers tolerate unmount mid-gesture. Selection-facade-free; under
+  `ChatSelectionStateScope` it respects `canPerformActions`. Label [color]
+  uses diluted ink alpha (`labelInkAlpha`); [padding] expands paint/hit only
+  (layout size unchanged). Demo sender name uses it.
+
+- **Mobile host-chrome gate during selection.** `ChatSelectableMessage` sets
+  `canPerformActions` false while mobile **message selection** or **text
+  selection** is active (host chrome / `ChatTapHighlight`). `IgnorePointer`
+  still covers **unselected** non-subject bodies only — selected rows stay
+  hittable so yielded long-press can enter **text selection** (ADR 015).
+  Desktop keeps host chrome hittable.
+
 - **Markdown text selection edge autoscroll.** `ChatMarkdownBody` drives the
   anchor viewport through `ChatMarkdownAutoscroll`. Hosts pass
   `ChatMarkdownAutoscrollOptions` (enabled / maxVelocity / edgeZone) — not the
@@ -32,6 +61,12 @@ this project is pre-1.0 and not strictly SemVer yet.
   Flutter’s text menu remains on selectable markdown.
 
 ### Changed
+
+- **Breaking: selection host observation.** Prefer
+  `ChatSelectionController(onInteraction: …)` /
+  `addInteractionListener`. Removed `onCopySuccess`, `onLinkTap`,
+  `onLinkLongPress`, `onCodeTap`, and the matching typed
+  `add*Listener` APIs.
 
 - **Message menu request (ADR 016).**
   `ChatScrollView.onIdleMessageTap` / `onSecondaryMessageTap` receive a

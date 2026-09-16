@@ -57,9 +57,11 @@ final class ChatSelectionChromeState {
   /// Active selection policy governing this row's selection behavior.
   final ChatSelectionPolicy policy;
 
-  /// Whether child message actions (profile open, media open) can be performed.
-  /// When `false` (during message multiselect), child touches are suppressed
-  /// so row taps toggle selection instead of activating child actions.
+  /// Whether host chrome actions (profile open, media open, sender name) may
+  /// run. When `false` under mobile **selection policy**, suppress those
+  /// actions so row toggles / **text selection** own the surface. Desktop
+  /// keeps this `true`. Engine markdown **tap highlight** / inline hits use
+  /// the selection facade separately ([ChatSelectionController.allowsInlineTapHighlight]).
   final bool canPerformActions;
 
   /// Combined overlay strength in 0..1 — fade a row tint with both axes.

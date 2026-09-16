@@ -317,6 +317,10 @@ final class MessageMenuActions {
     this.onPin,
     this.onForward,
     this.onReact,
+    this.onCopy,
+    this.onCopySelected,
+    this.onCopyLink,
+    this.onCopyCode,
   });
 
   /// Delete one message.
@@ -340,6 +344,20 @@ final class MessageMenuActions {
 
   /// Optional reaction handler; default feedback when null.
   final ValueChanged<String>? onReact;
+
+  /// After [MessageMenuActionId.copy] wrote the clipboard (message body or
+  /// selected set as text). Receives the copied plain text.
+  final ValueChanged<String>? onCopy;
+
+  /// After [MessageMenuActionId.copySelected] wrote the live text-selection
+  /// snapshot.
+  final ValueChanged<String>? onCopySelected;
+
+  /// After [MessageMenuActionId.copyLink] wrote the inline link URL.
+  final ValueChanged<String>? onCopyLink;
+
+  /// After [MessageMenuActionId.copyCode] wrote the inline code payload.
+  final ValueChanged<String>? onCopyCode;
 }
 
 /// Host-owned **message menu** session.
@@ -465,14 +483,17 @@ final class MessageMenu {
             final text = request.selectedTextSnapshot;
             if (text == null || text.isEmpty) return;
             await Clipboard.setData(ClipboardData(text: text));
+            actions.onCopySelected?.call(text);
           case MessageMenuActionId.copyLink:
             final hit = request.inlineHit;
             if (hit is! ChatInlineHit$Link) return;
             await Clipboard.setData(ClipboardData(text: hit.url));
+            actions.onCopyLink?.call(hit.url);
           case MessageMenuActionId.copyCode:
             final hit = request.inlineHit;
             if (hit is! ChatInlineHit$Code) return;
             await Clipboard.setData(ClipboardData(text: hit.code));
+            actions.onCopyCode?.call(hit.code);
           case MessageMenuActionId.copy:
             if (request.overSelection) {
               final buffer = StringBuffer();
@@ -486,11 +507,13 @@ final class MessageMenu {
               if (text.isEmpty) return;
               await Clipboard.setData(ClipboardData(text: text));
               selection?.clear();
+              actions.onCopy?.call(text);
               return;
             }
             final text = dataSource.getMessage(request.messageId)?.text;
             if (text == null || text.isEmpty) return;
             await Clipboard.setData(ClipboardData(text: text));
+            actions.onCopy?.call(text);
           case MessageMenuActionId.delete:
             if (request.overSelection) {
               if (actions.onDeleteSelected case final deleteSelected?) {

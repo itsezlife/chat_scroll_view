@@ -36,7 +36,7 @@ Copy — not a universal “message-then-text” law. The viewport owns markdown
 
 | Branch                                                                                                                     | Doc                                                                 |
 | -------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------- |
-| Glossary (_Message selection_, _Text selection_, _Text selection subject_, _Selection policy_, _Span yield_, _Inline hit_, _Tap highlight_, _Smooth text contour_, _Fenced code block header_) | [CONTEXT.md](CONTEXT.md)                                            |
+| Glossary (_Message selection_, _Text selection_, _Text selection subject_, _Selection policy_, _Selection interaction_, _Span yield_, _Inline hit_, _Tap highlight_, _Smooth text contour_, _Fenced code block header_) | [CONTEXT.md](CONTEXT.md)                                            |
 | Fenced code blocks, cursors & press / tap highlight                                        | [ADR 014](docs/adr/014-fenced-code-interaction-and-smooth-contour-highlight.md)    |
 | Engine-owned markdown text selection (supersedes optional bridge)                                                          | [ADR 013](docs/adr/013-viewport-owns-markdown-text-selection.md)    |
 | Per-body scope owns continuous text gestures (yield after gate)                                                            | [ADR 015](docs/adr/015-per-body-scope-owns-continuous-text-gestures.md) |
@@ -54,8 +54,9 @@ Copy — not a universal “message-then-text” law. The viewport owns markdown
   public selection facade in `chat_scroll_view`.
 - Policy strategies are pure Dart (`$Mobile` / `$Desktop` shape) — not
   `_vm`/`_js` forks unless a real native/web spirit differs.
-- Copy **feedback UI** is app-side; the facade exposes Copy success
-  observation (listeners + optional callback), not Material toasts.
+- Copy **feedback UI** is app-side; the facade exposes **selection
+  interactions** (`ChatSelectionInteraction` via `onInteraction` /
+  listeners), not Material toasts.
 
 ## Domain and architecture
 

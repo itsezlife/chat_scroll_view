@@ -1,4 +1,5 @@
 import 'package:chat_scroll_view/src/chat_scroll/chat_selection_controller.dart';
+import 'package:chat_scroll_view/src/chat_widgets/chat_selection_gesture_exclusion.dart';
 import 'package:chat_scroll_view/src/chat_widgets/chat_selection_metrics.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/services.dart';
@@ -113,6 +114,11 @@ class ChatSelectionPointer {
   /// message is under the pointer, or when text selection is active so an
   /// idle tap outside loaded messages can dismiss text chrome.
   void addPointer(PointerDownEvent event) {
+    // Leaf chrome (e.g. ChatTapHighlight) excludes this pointer on the same
+    // down — hit-test order is leaf before viewport.
+    if (ChatSelectionGestureExclusion.take(event.pointer)) {
+      return;
+    }
     if (selection == null &&
         onIdleMessageTap == null &&
         _onSecondaryMessageTap == null) {

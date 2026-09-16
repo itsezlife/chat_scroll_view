@@ -239,10 +239,15 @@ class _Avatar extends StatelessWidget {
     final initial = sender.isEmpty
         ? '?'
         : sender.characters.first.toUpperCase();
+    final actionsAllowed =
+        ChatSelectionStateScope.maybeOf(context)?.canPerformActions ?? true;
+    final tap = actionsAllowed ? onTap : null;
     return MouseRegion(
-      cursor: SystemMouseCursors.click,
+      cursor: tap != null
+          ? SystemMouseCursors.click
+          : SystemMouseCursors.basic,
       child: GestureDetector(
-        onTap: onTap,
+        onTap: tap,
         onLongPress:
             () {}, // Absorb long-press so avatar does not trigger message selection (Decision 3)
         child: Container(
@@ -397,20 +402,19 @@ class _Bubble extends StatelessWidget {
     header: switch (sender) {
       final name? when name.isNotEmpty => Padding(
         padding: const EdgeInsets.only(bottom: 3),
-        child: MouseRegion(
-          cursor: SystemMouseCursors.click,
-          child: GestureDetector(
-            onTap: onSenderTap != null ? () => onSenderTap!(name) : null,
-            onLongPress:
-                () {}, // Absorb long-press so sender name does not trigger message selection (Decision 3)
-            child: Text(
-              name,
-              style: TextStyle(
-                color: _colorForSender(name),
-                fontWeight: FontWeight.w600,
-                fontSize: 13,
-                height: 1.15,
-              ),
+        child: ChatTapHighlight(
+          color: _colorForSender(name),
+          onTap: switch (onSenderTap) {
+            final c? => () => c(name),
+            null => null,
+          },
+          child: Text(
+            name,
+            style: TextStyle(
+              color: _colorForSender(name),
+              fontWeight: FontWeight.w600,
+              fontSize: 13,
+              height: 1.15,
             ),
           ),
         ),

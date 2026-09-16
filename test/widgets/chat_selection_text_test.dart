@@ -783,14 +783,20 @@ void main() {
     test('Copy success notifies and clears text plus message mode', () async {
       final selection = ChatSelectionController(
         policy: const ChatSelectionPolicy.mobile(),
-        onCopySuccess: (text) {
-          expect(text, 'Hello selectable world');
+        onInteraction: (i) {
+          if (i case ChatCopied(:final text)) {
+            expect(text, 'Hello selectable world');
+          }
         },
       );
       addTearDown(selection.dispose);
 
       final copied = <String>[];
-      selection.addCopySuccessListener(copied.add);
+      selection.addInteractionListener((i) {
+        if (i case ChatCopied(:final text)) {
+          copied.add(text);
+        }
+      });
 
       selection.putBody(1, Markdown.fromString('Hello selectable world'));
       selection.startSelection(1);
@@ -1621,12 +1627,20 @@ void main() {
         final copiedFromCallback = <String>[];
         final selection = ChatSelectionController(
           policy: const ChatSelectionPolicy.desktop(),
-          onCopySuccess: copiedFromCallback.add,
+          onInteraction: (i) {
+            if (i case ChatCopied(:final text)) {
+              copiedFromCallback.add(text);
+            }
+          },
         );
         addTearDown(selection.dispose);
 
         final copiedFromListener = <String>[];
-        selection.addCopySuccessListener(copiedFromListener.add);
+        selection.addInteractionListener((i) {
+          if (i case ChatCopied(:final text)) {
+            copiedFromListener.add(text);
+          }
+        });
 
         selection.putBody(1, Markdown.fromString('Hello desktop world'));
         expect(selection.enterTextSelection(1), isTrue);
@@ -2700,20 +2714,48 @@ void main() {
         );
 
         final mobileTaps = <(int, String, String)>[];
-        mobile.addLinkTapListener(
-          (id, title, url) => mobileTaps.add((id, title, url)),
-        );
         final mobileCodeTaps = <(int, String)>[];
-        mobile.addCodeTapListener((id, code) => mobileCodeTaps.add((id, code)));
+        mobile.addInteractionListener((i) {
+          switch (i) {
+            case ChatLinkActivated(
+              :final messageId,
+              :final title,
+              :final url,
+              gesture: ChatInlineGesture.tap,
+            ):
+              mobileTaps.add((messageId, title, url));
+            case ChatCopied(
+              :final text,
+              origin: ChatCopyOrigin.codeTap,
+              :final messageId?,
+            ):
+              mobileCodeTaps.add((messageId, text));
+            case _:
+              break;
+          }
+        });
 
         final desktopTaps = <(int, String, String)>[];
-        desktop.addLinkTapListener(
-          (id, title, url) => desktopTaps.add((id, title, url)),
-        );
         final desktopCodeTaps = <(int, String)>[];
-        desktop.addCodeTapListener(
-          (id, code) => desktopCodeTaps.add((id, code)),
-        );
+        desktop.addInteractionListener((i) {
+          switch (i) {
+            case ChatLinkActivated(
+              :final messageId,
+              :final title,
+              :final url,
+              gesture: ChatInlineGesture.tap,
+            ):
+              desktopTaps.add((messageId, title, url));
+            case ChatCopied(
+              :final text,
+              origin: ChatCopyOrigin.codeTap,
+              :final messageId?,
+            ):
+              desktopCodeTaps.add((messageId, text));
+            case _:
+              break;
+          }
+        });
 
         void expectMobileAllFire() {
           expect(mobile.handleInlineHit(linkHit1), isTrue);
@@ -2772,7 +2814,7 @@ void main() {
     );
 
     test(
-      'handleInlineHit code click-to-copy writes to clipboard, notifies copy and code listeners',
+      'handleInlineHit code click-to-copy writes to clipboard and emits ChatCopied codeTap',
       () async {
         final selection = ChatSelectionController(
           policy: const ChatSelectionPolicy.mobile(),
@@ -2792,11 +2834,8 @@ void main() {
               .setMockMethodCallHandler(SystemChannels.platform, null),
         );
 
-        final copySuccesses = <String>[];
-        selection.addCopySuccessListener(copySuccesses.add);
-
-        final codeTaps = <(int, String)>[];
-        selection.addCodeTapListener((id, code) => codeTaps.add((id, code)));
+        final interactions = <ChatSelectionInteraction>[];
+        selection.addInteractionListener(interactions.add);
 
         const codeHit = ChatInlineHit.code(
           messageId: 42,
@@ -2805,8 +2844,14 @@ void main() {
         );
 
         expect(selection.handleInlineHit(codeHit), isTrue);
-        expect(codeTaps, <(int, String)>[(42, 'flutter run')]);
-        expect(copySuccesses, <String>['flutter run']);
+        expect(interactions, [
+          const ChatSelectionInteraction.copied(
+            text: 'flutter run',
+            origin: ChatCopyOrigin.codeTap,
+            messageId: 42,
+            gesture: ChatInlineGesture.tap,
+          ),
+        ]);
         expect(clipboard, isNotEmpty);
         expect(clipboard.last.arguments['text'], 'flutter run');
 
@@ -2817,17 +2862,18 @@ void main() {
         );
         addTearDown(noCopySelection.dispose);
 
-        final noCopyCalls = <String>[];
-        noCopySelection.addCopySuccessListener(noCopyCalls.add);
-        final noCopyCodeTaps = <(int, String)>[];
-        noCopySelection.addCodeTapListener(
-          (id, code) => noCopyCodeTaps.add((id, code)),
-        );
+        final noCopyInteractions = <ChatSelectionInteraction>[];
+        noCopySelection.addInteractionListener(noCopyInteractions.add);
 
         clipboard.clear();
         expect(noCopySelection.handleInlineHit(codeHit), isTrue);
-        expect(noCopyCodeTaps, <(int, String)>[(42, 'flutter run')]);
-        expect(noCopyCalls, isEmpty);
+        expect(noCopyInteractions, [
+          const ChatSelectionInteraction.codeActivated(
+            messageId: 42,
+            code: 'flutter run',
+            gesture: ChatInlineGesture.tap,
+          ),
+        ]);
         expect(clipboard, isEmpty);
       },
     );
@@ -2853,10 +2899,8 @@ void main() {
               .setMockMethodCallHandler(SystemChannels.platform, null),
         );
 
-        final copySuccesses = <String>[];
-        selection.addCopySuccessListener(copySuccesses.add);
-        final codeTaps = <(int, String)>[];
-        selection.addCodeTapListener((id, code) => codeTaps.add((id, code)));
+        final interactions = <ChatSelectionInteraction>[];
+        selection.addInteractionListener(interactions.add);
 
         const codeHit = ChatInlineHit.code(
           messageId: 42,
@@ -2865,28 +2909,32 @@ void main() {
         );
 
         expect(selection.handleInlineHitLongPress(codeHit), isTrue);
-        expect(codeTaps, <(int, String)>[(42, 'flutter run')]);
-        expect(copySuccesses, <String>['flutter run']);
+        expect(interactions, [
+          const ChatSelectionInteraction.copied(
+            text: 'flutter run',
+            origin: ChatCopyOrigin.codeTap,
+            messageId: 42,
+            gesture: ChatInlineGesture.longPress,
+          ),
+        ]);
         expect(clipboard, isNotEmpty);
         expect(clipboard.last.arguments['text'], 'flutter run');
 
         selection.startSelection(7);
-        codeTaps.clear();
-        copySuccesses.clear();
+        interactions.clear();
         clipboard.clear();
         expect(
           selection.handleInlineHitLongPress(codeHit),
           isFalse,
           reason: 'mobile message selection must suppress hold-to-copy',
         );
-        expect(codeTaps, isEmpty);
-        expect(copySuccesses, isEmpty);
+        expect(interactions, isEmpty);
         expect(clipboard, isEmpty);
       },
     );
 
     test(
-      'listener removal cleanly unregisters link and code tap observers',
+      'listener removal cleanly unregisters interaction observers',
       () {
         final selection = ChatSelectionController(
           policy: const ChatSelectionPolicy.mobile(),
@@ -2894,12 +2942,19 @@ void main() {
         addTearDown(selection.dispose);
 
         var linkCalls = 0;
-        void linkListener(int id, String title, String url) => linkCalls++;
-        selection.addLinkTapListener(linkListener);
-
         var codeCalls = 0;
-        void codeListener(int id, String code) => codeCalls++;
-        selection.addCodeTapListener(codeListener);
+        void interactionListener(ChatSelectionInteraction i) {
+          switch (i) {
+            case ChatLinkActivated(gesture: ChatInlineGesture.tap):
+              linkCalls++;
+            case ChatCopied(origin: ChatCopyOrigin.codeTap):
+              codeCalls++;
+            case _:
+              break;
+          }
+        }
+
+        selection.addInteractionListener(interactionListener);
 
         const linkHit = ChatInlineHit.link(messageId: 1, title: 'T', url: 'U');
         const codeHit = ChatInlineHit.code(messageId: 1, code: 'C');
@@ -2909,8 +2964,7 @@ void main() {
         expect(linkCalls, 1);
         expect(codeCalls, 1);
 
-        selection.removeLinkTapListener(linkListener);
-        selection.removeCodeTapListener(codeListener);
+        selection.removeInteractionListener(interactionListener);
 
         expect(selection.handleInlineHit(linkHit), isTrue);
         expect(selection.handleInlineHit(codeHit), isTrue);
@@ -2927,7 +2981,16 @@ void main() {
         final linkTaps = <(int, String, String)>[];
         final selection = ChatSelectionController(
           policy: const ChatSelectionPolicy.mobile(),
-          onLinkTap: (id, title, url) => linkTaps.add((id, title, url)),
+          onInteraction: (i) {
+            if (i case ChatLinkActivated(
+              :final messageId,
+              :final title,
+              :final url,
+              gesture: ChatInlineGesture.tap,
+            )) {
+              linkTaps.add((messageId, title, url));
+            }
+          },
         );
         addTearDown(controller.dispose);
         addTearDown(selection.dispose);
@@ -2997,12 +3060,10 @@ void main() {
       (tester) async {
         final dataSource = _LoadedSource([_msg(1)]);
         final controller = ChatScrollController();
-        final codeTaps = <(int, String)>[];
-        final copySuccesses = <String>[];
+        final interactions = <ChatSelectionInteraction>[];
         final selection = ChatSelectionController(
           policy: const ChatSelectionPolicy.desktop(),
-          onCodeTap: (id, code) => codeTaps.add((id, code)),
-          onCopySuccess: copySuccesses.add,
+          onInteraction: interactions.add,
         );
         addTearDown(controller.dispose);
         addTearDown(selection.dispose);
@@ -3063,8 +3124,7 @@ void main() {
         await tester.pumpAndSettle();
 
         // Live character-range suppresses fenced COPY chrome (ADR 012).
-        expect(codeTaps, isEmpty);
-        expect(copySuccesses, isEmpty);
+        expect(interactions, isEmpty);
         expect(clipboard, isEmpty);
       },
     );
@@ -3077,7 +3137,16 @@ void main() {
         final linkTaps = <(int, String, String)>[];
         final selection = ChatSelectionController(
           policy: const ChatSelectionPolicy.mobile(),
-          onLinkTap: (id, title, url) => linkTaps.add((id, title, url)),
+          onInteraction: (i) {
+            if (i case ChatLinkActivated(
+              :final messageId,
+              :final title,
+              :final url,
+              gesture: ChatInlineGesture.tap,
+            )) {
+              linkTaps.add((messageId, title, url));
+            }
+          },
         );
         addTearDown(controller.dispose);
         addTearDown(selection.dispose);
@@ -3157,7 +3226,16 @@ void main() {
         final linkTaps = <(int, String, String)>[];
         final selection = ChatSelectionController(
           policy: const ChatSelectionPolicy.mobile(),
-          onLinkTap: (id, title, url) => linkTaps.add((id, title, url)),
+          onInteraction: (i) {
+            if (i case ChatLinkActivated(
+              :final messageId,
+              :final title,
+              :final url,
+              gesture: ChatInlineGesture.tap,
+            )) {
+              linkTaps.add((messageId, title, url));
+            }
+          },
         );
         addTearDown(controller.dispose);
         addTearDown(selection.dispose);
@@ -3236,8 +3314,25 @@ void main() {
         final codeTaps = <(int, String)>[];
         final selection = ChatSelectionController(
           policy: const ChatSelectionPolicy.desktop(),
-          onLinkTap: (id, title, url) => linkTaps.add((id, title, url)),
-          onCodeTap: (id, code) => codeTaps.add((id, code)),
+          onInteraction: (i) {
+            switch (i) {
+              case ChatLinkActivated(
+                :final messageId,
+                :final title,
+                :final url,
+                gesture: ChatInlineGesture.tap,
+              ):
+                linkTaps.add((messageId, title, url));
+              case ChatCopied(
+                :final text,
+                origin: ChatCopyOrigin.codeTap,
+                :final messageId?,
+              ):
+                codeTaps.add((messageId, text));
+              case _:
+                break;
+            }
+          },
         );
         addTearDown(controller.dispose);
         addTearDown(selection.dispose);
@@ -3387,7 +3482,16 @@ void main() {
         final idleTaps = <int>[];
         final selection = ChatSelectionController(
           policy: const ChatSelectionPolicy.mobile(),
-          onLinkTap: (id, title, url) => linkTaps.add((id, title, url)),
+          onInteraction: (i) {
+            if (i case ChatLinkActivated(
+              :final messageId,
+              :final title,
+              :final url,
+              gesture: ChatInlineGesture.tap,
+            )) {
+              linkTaps.add((messageId, title, url));
+            }
+          },
         );
         addTearDown(controller.dispose);
         addTearDown(selection.dispose);
@@ -3463,8 +3567,16 @@ void main() {
         final linkLongPresses = <(int, String, String)>[];
         final selection = ChatSelectionController(
           policy: const ChatSelectionPolicy.mobile(),
-          onLinkLongPress: (id, title, url) =>
-              linkLongPresses.add((id, title, url)),
+          onInteraction: (i) {
+            if (i case ChatLinkActivated(
+              :final messageId,
+              :final title,
+              :final url,
+              gesture: ChatInlineGesture.longPress,
+            )) {
+              linkLongPresses.add((messageId, title, url));
+            }
+          },
         );
         addTearDown(controller.dispose);
         addTearDown(selection.dispose);

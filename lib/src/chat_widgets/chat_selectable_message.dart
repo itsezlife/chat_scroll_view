@@ -20,11 +20,11 @@ import 'package:flutter/services.dart';
 ///
 /// While **message selection** is active under mobile policy, unselected rows
 /// wrap the body in [IgnorePointer] so link/code chrome does not steal toggle
-/// taps. Desktop/web keeps children live so inline activation works during
-/// message selection without clearing membership. Selected rows (and the
-/// **text selection subject**) always forward pointers so the per-body
-/// markdown scope can own continuous text gestures after the viewport yields
-/// (ADR 015).
+/// taps. Selected rows stay hittable so a further long-press can enter **text
+/// selection** after the viewport yields (ADR 015). Desktop/web keeps children
+/// live so inline activation works during message selection without clearing
+/// membership. The **text selection subject** always forwards pointers so the
+/// per-body markdown scope can own continuous text gestures.
 ///
 /// ### Freeze on exit
 ///
@@ -188,14 +188,19 @@ class _SelectableMessageState extends State<SelectableMessage>
     builder: (context, child) {
       final isSubject = widget.controller.isTextSelectionActive &&
           widget.controller.textSelectionSubject == widget.id;
+      final policy = widget.controller.selectionPolicy;
       // Mobile multiselect: ignore unselected bodies so link/code do not steal
-      // row toggles. Desktop/web: keep children hit-testable — inline
-      // activation must succeed without clearing message membership.
-      final ignoreChildren =
-          widget.controller.selectionPolicy.suppressesLinkTapInMessageSelection &&
-          widget.controller.isSelectionMode &&
+      // row toggles. Selected rows stay hittable — viewport yields long-press
+      // into the per-body text scope (ADR 015). Text **subject** stays
+      // hittable for handles / drag. Host chrome gates via [canPerformActions].
+      final suppressHostChrome =
+          policy.suppressesLinkTapInMessageSelection &&
+          (widget.controller.isSelectionMode ||
+              widget.controller.isTextSelectionActive);
+      final ignoreChildren = suppressHostChrome &&
           !isSubject &&
           !widget.controller.isSelected(widget.id);
+      final canPerformActions = !suppressHostChrome;
       final state = ChatSelectionChromeState(
         id: widget.id,
         modeProgress: _mode.value.clamp(0.0, 1.0),
@@ -205,8 +210,8 @@ class _SelectableMessageState extends State<SelectableMessage>
         showsCheck: widget.allowed.showsCheck,
         onTap: _handleTap,
         onLongPress: _handleLongPress,
-        policy: widget.controller.selectionPolicy,
-        canPerformActions: !widget.controller.isSelectionMode || isSubject,
+        policy: policy,
+        canPerformActions: canPerformActions,
       );
       return ChatSelectionStateScope(
         state: state,

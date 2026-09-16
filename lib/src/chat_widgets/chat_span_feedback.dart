@@ -43,6 +43,8 @@ class ChatSpanFeedback {
     required this.pressController,
     required this.releaseController,
     this.color,
+    this.baseOpacity = opaqueBaseOpacity,
+    this.rippleOpacity = opaqueRippleOpacity,
   });
 
   /// The message ID whose body contains the pressed span.
@@ -60,8 +62,25 @@ class ChatSpanFeedback {
   /// Release clock: 0 while held; 0→1 over [releaseDuration] while fading.
   final AnimationController releaseController;
 
-  /// Optional highlight accent. Falls back to the ambient theme link color.
+  /// Ink accent. Peak plate/ripple alphas are
+  /// `[color].a × [baseOpacity|rippleOpacity] × releaseT`.
+  ///
+  /// Opaque accents (markdown link color) pair with [opaqueBaseOpacity] /
+  /// [opaqueRippleOpacity]. Premultiplied inks (e.g. name selector at 12%
+  /// alpha) pair with factors of `1.0`.
   final Color? color;
+
+  /// Multiplier on [color]'s alpha for the base contour plate.
+  final double baseOpacity;
+
+  /// Multiplier on [color]'s alpha for the expanding ripple.
+  final double rippleOpacity;
+
+  /// Default base plate factor when [color] is opaque (markdown path).
+  static const double opaqueBaseOpacity = 0.15;
+
+  /// Default ripple factor when [color] is opaque (markdown path).
+  static const double opaqueRippleOpacity = 0.20;
 
   /// Expand duration (60 ms) — also the minimum visibility before fade.
   static const int pressDurationMs = 60;
@@ -124,11 +143,12 @@ class ChatSpanFeedback {
 /// Canvas painter for press-lifecycle contour plate and expanding ripple.
 ///
 /// Paints two layered components:
-/// 1. **Base Contour Fill:** Tint \(\alpha \approx 0.15 \times \text{releaseT}\)
+/// 1. **Base Contour Fill:** Tint
+///    \(\alpha = \text{color.a} \cdot \text{baseOpacity} \cdot \text{releaseT}\)
 ///    over [ChatSpanFeedback.contourPath].
 /// 2. **Radial Ripple:** Circle at [ChatSpanFeedback.touchOrigin] with radius
 ///    \( R = \text{pressT} \cdot R_{\max} \), clipped to the contour, at
-///    \(\alpha \approx 0.20 \times \text{releaseT}\).
+///    \(\alpha = \text{color.a} \cdot \text{rippleOpacity} \cdot \text{releaseT}\).
 ///
 /// Repaints from [repaint] (typically [ChatSpanFeedback.listenable]) only.
 class ChatSpanFeedbackPainter extends CustomPainter {
@@ -149,9 +169,10 @@ class ChatSpanFeedbackPainter extends CustomPainter {
     final path = fb.contourPath;
     final origin = fb.touchOrigin;
     final press = fb.pressT;
+    final sourceA = color.a;
 
     // 1. Base contour plate fill
-    final baseAlpha = (0.15 * release).clamp(0.0, 1.0);
+    final baseAlpha = (sourceA * fb.baseOpacity * release).clamp(0.0, 1.0);
     if (baseAlpha > 0.0) {
       final basePaint = Paint()
         ..color = color.withValues(alpha: baseAlpha)
@@ -173,7 +194,10 @@ class ChatSpanFeedbackPainter extends CustomPainter {
       final maxRadius = math.sqrt(dx * dx + dy * dy);
       final currentRadius = maxRadius * press;
 
-      final rippleAlpha = (0.20 * release).clamp(0.0, 1.0);
+      final rippleAlpha = (sourceA * fb.rippleOpacity * release).clamp(
+        0.0,
+        1.0,
+      );
       if (rippleAlpha > 0.0 && currentRadius > 0.0) {
         canvas.save();
         canvas.clipPath(path);

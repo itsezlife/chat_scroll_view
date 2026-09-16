@@ -102,7 +102,16 @@ void main() {
         final idleTaps = <int>[];
         final selection = ChatSelectionController(
           policy: const ChatSelectionPolicy.mobile(),
-          onLinkTap: (id, title, url) => linkTaps.add((id, title, url)),
+          onInteraction: (i) {
+            if (i case ChatLinkActivated(
+              :final messageId,
+              :final title,
+              :final url,
+              gesture: ChatInlineGesture.tap,
+            )) {
+              linkTaps.add((messageId, title, url));
+            }
+          },
         );
         addTearDown(controller.dispose);
         addTearDown(selection.dispose);
@@ -147,7 +156,15 @@ void main() {
       final codeTaps = <(int, String)>[];
       final selection = ChatSelectionController(
         policy: const ChatSelectionPolicy.mobile(),
-        onCodeTap: (id, code) => codeTaps.add((id, code)),
+        onInteraction: (i) {
+          if (i case ChatCopied(
+            :final text,
+            origin: ChatCopyOrigin.codeTap,
+            :final messageId?,
+          )) {
+            codeTaps.add((messageId, text));
+          }
+        },
       );
       addTearDown(controller.dispose);
       addTearDown(selection.dispose);
@@ -214,7 +231,15 @@ void main() {
         final codeTaps = <(int, String)>[];
         final selection = ChatSelectionController(
           policy: const ChatSelectionPolicy.mobile(),
-          onCodeTap: (id, code) => codeTaps.add((id, code)),
+          onInteraction: (i) {
+            if (i case ChatCopied(
+              :final text,
+              origin: ChatCopyOrigin.codeTap,
+              :final messageId?,
+            )) {
+              codeTaps.add((messageId, text));
+            }
+          },
         );
         addTearDown(controller.dispose);
         addTearDown(selection.dispose);
@@ -269,7 +294,15 @@ void main() {
         final codeTaps = <(int, String)>[];
         final selection = ChatSelectionController(
           policy: const ChatSelectionPolicy.mobile(),
-          onCodeTap: (id, code) => codeTaps.add((id, code)),
+          onInteraction: (i) {
+            if (i case ChatCopied(
+              :final text,
+              origin: ChatCopyOrigin.codeTap,
+              :final messageId?,
+            )) {
+              codeTaps.add((messageId, text));
+            }
+          },
         );
         addTearDown(controller.dispose);
         addTearDown(selection.dispose);
@@ -325,7 +358,15 @@ void main() {
         final codeTaps = <(int, String)>[];
         final selection = ChatSelectionController(
           policy: const ChatSelectionPolicy.mobile(),
-          onCodeTap: (id, code) => codeTaps.add((id, code)),
+          onInteraction: (i) {
+            if (i case ChatCopied(
+              :final text,
+              origin: ChatCopyOrigin.codeTap,
+              :final messageId?,
+            )) {
+              codeTaps.add((messageId, text));
+            }
+          },
         );
         addTearDown(controller.dispose);
         addTearDown(selection.dispose);
@@ -370,7 +411,16 @@ void main() {
       final linkTaps = <(int, String, String)>[];
       final selection = ChatSelectionController(
         policy: const ChatSelectionPolicy.desktop(),
-        onLinkTap: (id, title, url) => linkTaps.add((id, title, url)),
+        onInteraction: (i) {
+          if (i case ChatLinkActivated(
+            :final messageId,
+            :final title,
+            :final url,
+            gesture: ChatInlineGesture.tap,
+          )) {
+            linkTaps.add((messageId, title, url));
+          }
+        },
       );
       addTearDown(controller.dispose);
       addTearDown(selection.dispose);
@@ -434,7 +484,15 @@ void main() {
         final codeTaps = <(int, String)>[];
         final selection = ChatSelectionController(
           policy: const ChatSelectionPolicy.desktop(),
-          onCodeTap: (id, code) => codeTaps.add((id, code)),
+          onInteraction: (i) {
+            if (i case ChatCopied(
+              :final text,
+              origin: ChatCopyOrigin.codeTap,
+              :final messageId?,
+            )) {
+              codeTaps.add((messageId, text));
+            }
+          },
         );
         addTearDown(controller.dispose);
         addTearDown(selection.dispose);

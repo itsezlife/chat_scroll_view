@@ -105,6 +105,14 @@ Facade symmetry: `beginSpanFeedback` / `releaseSpanFeedback` /
 `abortSpanFeedback`. Animation ownership stays on `ChatMarkdownBody`; the
 selection facade does not own `AnimationController`s.
 
+Standalone host chrome (sender name, etc.) uses the same paint model via
+`ChatTapHighlight` — paint/hit padding without layout shift, press-lifecycle,
+no selection facade coupling. Under `ChatSelectionStateScope`, mobile hosts
+gate with `canPerformActions`. While interactive, pointer-down excludes the
+pointer from viewport **message selection** gestures (not a competing pan —
+that stole descendant **text selection** drags when the hit layer shared the
+path).
+
 *(Supersedes the earlier “tap-up → one-shot 180 ms” wiring shipped with ticket
 04; paint math (`pressT` / `releaseT` / contour) is unchanged.)*
 
