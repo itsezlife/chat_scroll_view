@@ -562,6 +562,147 @@ void main() {
   );
 
   testWidgets(
+    'handle drag onto sibling must not jump to full-body or reverse the range',
+    (tester) async {
+      debugDefaultTargetPlatformOverride = TargetPlatform.android;
+      try {
+        // Tail message (2) below subject (1) — the layout the user described.
+        final dataSource = _LoadedSource([_msg(1), _msg(2)]);
+        final controller = ChatScrollController();
+        final selection = ChatSelectionController(
+          policy: const ChatSelectionPolicy.mobile(),
+        );
+        addTearDown(controller.dispose);
+        addTearDown(selection.dispose);
+        addTearDown(dataSource.dispose);
+
+        const body1 = 'Hello selectable world and more words here';
+        selection.putBody(1, Markdown.fromString(body1));
+        selection.putBody(
+          2,
+          Markdown.fromString('Second selectable body text here'),
+        );
+
+        await tester.pumpWidget(
+          MaterialApp(
+            theme: ThemeData(platform: TargetPlatform.android),
+            home: Scaffold(
+              body: SizedBox(
+                width: 400,
+                height: 600,
+                child: ChatScrollView(
+                  dataSource: dataSource,
+                  controller: controller,
+                  selectionController: selection,
+                  messageBuilder: (context, id, message, status, runLayout) =>
+                      Container(
+                        key: ValueKey('container-$id'),
+                        height: 100,
+                        padding: const EdgeInsets.all(12),
+                        color: Colors.white,
+                        child: ChatMarkdownBody(
+                          key: ValueKey('md-$id'),
+                          controller: selection,
+                          messageId: id,
+                        ),
+                      ),
+                ),
+              ),
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        selection
+          ..startSelection(1)
+          ..toggle(2);
+        await tester.pumpAndSettle();
+
+        final md1 = find.byKey(const ValueKey('md-1'));
+        final start1 = tester.getTopLeft(md1) + const Offset(24, 16);
+        expect(
+          selection.enterTextSelection(1, globalOffset: start1),
+          isTrue,
+        );
+        await tester.pumpAndSettle();
+
+        final before = selection.textSelection!;
+        final beforeText = selection.markdownSelection.getText();
+        expect(before.isCollapsed, isFalse);
+        expect(beforeText.length, lessThan(body1.length));
+
+        // End handle into the tailed sibling below — must not pin to subject
+        // document start/end (full-body select or reversed range flash).
+        final md2 = find.byKey(const ValueKey('md-2'));
+        final intoSibling = tester.getTopLeft(md2) + const Offset(24, 16);
+        selection.markdownSelection.moveSelectionEdgeToGlobal(
+          intoSibling,
+          isStart: false,
+        );
+        await tester.pump();
+
+        expect(selection.isTextSelectionActive, isTrue);
+        expect(selection.textSelectionSubject, 1);
+        final after = selection.textSelection!;
+        expect(after.base.documentId, 1);
+        expect(after.extent.documentId, 1);
+        final afterText = selection.markdownSelection.getText();
+        expect(
+          afterText.length,
+          lessThan(body1.length),
+          reason:
+              'dragging onto a sibling must not confine the wandered edge to '
+              'the subject document end (full-body flash)',
+        );
+        expect(
+          after.base.offset,
+          before.base.offset,
+          reason: 'fixed edge must stay put while the handle is over a sibling',
+        );
+        expect(
+          after.extent.offset,
+          before.extent.offset,
+          reason:
+              'wandered edge must not jump to document start/end or reverse '
+              'while over a sibling; keep the last on-subject range',
+        );
+
+        // Back over the subject — normal extend works again.
+        final backOnSubject = tester.getTopLeft(md1) + const Offset(120, 16);
+        selection.markdownSelection.moveSelectionEdgeToGlobal(
+          backOnSubject,
+          isStart: false,
+        );
+        await tester.pump();
+        expect(selection.isTextSelectionActive, isTrue);
+        expect(selection.textSelection!.extent.documentId, 1);
+        expect(
+          selection.markdownSelection.getText().length,
+          greaterThan(0),
+        );
+
+        // Start handle into the sibling — same restore (no reverse / full-body).
+        final mid = selection.textSelection!;
+        final midText = selection.markdownSelection.getText();
+        selection.markdownSelection.moveSelectionEdgeToGlobal(
+          intoSibling,
+          isStart: true,
+        );
+        await tester.pump();
+        expect(selection.isTextSelectionActive, isTrue);
+        final afterStart = selection.textSelection!;
+        expect(afterStart.base.documentId, 1);
+        expect(afterStart.extent.documentId, 1);
+        expect(afterStart.base.offset, mid.base.offset);
+        expect(afterStart.extent.offset, mid.extent.offset);
+        expect(selection.markdownSelection.getText(), midText);
+      } finally {
+        debugDefaultTargetPlatformOverride = null;
+      }
+    },
+  );
+
+  testWidgets(
     'retarget clears prior toolbar before the new subject settles chrome',
     (tester) async {
       debugDefaultTargetPlatformOverride = TargetPlatform.iOS;

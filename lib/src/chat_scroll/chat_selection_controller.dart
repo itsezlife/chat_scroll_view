@@ -301,6 +301,7 @@ class ChatSelectionController implements Listenable {
     }
     if (_text.isActive) {
       _hasEstablishedTextRange = false;
+      _lastSameDocTextSelection = null;
       _text.disarm();
     }
     if (action == ChatDragSelectAction.selecting) {
@@ -376,6 +377,7 @@ class ChatSelectionController implements Listenable {
     final textChanged = _text.disarm();
     _hasEstablishedTextRange = false;
     _pendingWordSelect = false;
+    _lastSameDocTextSelection = null;
     if (hadSelected || hadDrag || textChanged) {
       _notify();
     }
@@ -433,6 +435,7 @@ class ChatSelectionController implements Listenable {
     _text.disarm();
     _hasEstablishedTextRange = false;
     _pendingWordSelect = false;
+    _lastSameDocTextSelection = null;
   }
 
   void _onMembershipChanged() {
@@ -564,6 +567,7 @@ class ChatSelectionController implements Listenable {
       return false;
     }
     _hasEstablishedTextRange = false;
+    _lastSameDocTextSelection = null;
     if (!_text.arm(messageId)) return false;
 
     if (globalOffset == null) {
@@ -573,6 +577,7 @@ class ChatSelectionController implements Listenable {
         return false;
       }
       _hasEstablishedTextRange = true;
+      _lastSameDocTextSelection = _text.range;
       selectionPolicy.applyEnterMembership(
         replaceSelectedIds: replaceSelectedIds,
         clearMessageSelection: _clearMessageIds,
@@ -606,6 +611,7 @@ class ChatSelectionController implements Listenable {
       return true;
     }
     _hasEstablishedTextRange = false;
+    _lastSameDocTextSelection = null;
     if (!_text.arm(messageId)) return false;
     selectionPolicy.applyEnterMembership(
       replaceSelectedIds: replaceSelectedIds,
@@ -626,6 +632,7 @@ class ChatSelectionController implements Listenable {
     final selected = _text.selectAllSubject();
     if (selected) {
       _hasEstablishedTextRange = true;
+      _lastSameDocTextSelection = _text.range;
       _text.markdownSelection.toolbarWanted = true;
       _notify();
     }
@@ -655,6 +662,7 @@ class ChatSelectionController implements Listenable {
         clearTextSelection();
       } else {
         _hasEstablishedTextRange = true;
+        _lastSameDocTextSelection = sel;
         selectionPolicy.applyEnterMembership(
           replaceSelectedIds: replaceSelectedIds,
           clearMessageSelection: _clearMessageIds,
@@ -674,6 +682,7 @@ class ChatSelectionController implements Listenable {
     if (_disposed || _isDisarming) return;
     _hasEstablishedTextRange = false;
     _pendingWordSelect = false;
+    _lastSameDocTextSelection = null;
     _isDisarming = true;
     try {
       if (!_text.disarm()) return;
@@ -1160,6 +1169,13 @@ class ChatSelectionController implements Listenable {
   bool _pendingWordSelect = false;
   bool _isDisarming = false;
 
+  /// Last non-collapsed same-document range while text is live.
+  ///
+  /// Handle drags that hit a sibling mount briefly commit a cross-document
+  /// range; we restore this instead of pinning to subject start/end (which
+  /// flashes full-body or reversed selection for the rest of the gesture).
+  MarkdownSelection? _lastSameDocTextSelection;
+
   void _onTextRangeChanged() {
     if (_disposed || _isDisarming) return;
     if (_pendingWordSelect) return;
@@ -1169,14 +1185,20 @@ class ChatSelectionController implements Listenable {
         final docId = sel.base.documentId;
         final extentId = sel.extent.documentId;
         // Character ranges stay one message. A handle / drag that walks onto
-        // a sibling mount (registry briefly re-expanded) is confined to the
-        // subject — not cleared (that felt like the selection collapsing).
+        // a sibling mount must not clear text and must not pin to document
+        // edges (full-body / reverse flash). Restore the last on-subject range.
         if (docId != extentId) {
+          final last = _lastSameDocTextSelection;
           final subject = _text.subjectId;
           if (_text.isActive &&
               _hasEstablishedTextRange &&
+              last != null &&
               subject != null &&
-              _text.confineSelectionToDocument(subject)) {
+              last.base.documentId == subject &&
+              last.extent.documentId == subject) {
+            if (_text.range != last) {
+              _text.markdownSelection.selection = last;
+            }
             return;
           }
           clearTextSelection();
@@ -1189,6 +1211,7 @@ class ChatSelectionController implements Listenable {
             }
           }
           _hasEstablishedTextRange = true;
+          _lastSameDocTextSelection = sel;
         }
       case _ when _text.isActive && _hasEstablishedTextRange:
         clearTextSelection();
@@ -1432,6 +1455,7 @@ class ChatSelectionController implements Listenable {
     _dragSelectedIds = null;
     _hasEstablishedTextRange = false;
     _pendingWordSelect = false;
+    _lastSameDocTextSelection = null;
     _text.markdownSelection.removeListener(_onTextRangeChanged);
     _listeners.clear();
     _selectionAllowedListeners.clear();

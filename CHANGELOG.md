@@ -50,9 +50,11 @@ this project is pre-1.0 and not strictly SemVer yet.
   scope haptics work. Previously the viewport kept the press and one-shot
   `enterTextSelection`, which settled immediately. Selected siblings mount
   surfaces while text is live; adopt / Select All still prune the registry to
-  the subject (ADR 015). Handle drags that walk onto a sibling mount confine
-  back to the subject instead of clearing text. Retarget clears
-  `toolbarWanted` so the prior adaptive toolbar does not linger mid-gesture.
+  the subject (ADR 015). Handle drags that walk onto a sibling mount restore
+  the last on-subject range instead of clearing text or pinning to document
+  edges (which flashed full-body or reversed selection mid-gesture). Retarget
+  clears `toolbarWanted` so the prior adaptive toolbar does not linger
+  mid-gesture.
 
 - **Ghost bubble selectedColor.** `SelectableMessage` chrome now rebuilds on
   facade notifies, not only mode/select animation ticks. Clearing a drag
