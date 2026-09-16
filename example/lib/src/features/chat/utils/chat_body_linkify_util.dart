@@ -75,8 +75,8 @@ final class OtherLinkActivation extends LinkActivation {
 /// Thin host wrapper around package [ChatBodyLinkify] — keep policy and
 /// activation routing in one place.
 abstract final class ChatBodyLinkifyUtil {
-  /// Allowlist for this host — web URLs + `@username` → `mention:` links.
-  static const ChatLinkifyPolicy policy = ChatLinkifyPolicy.webAndMentions;
+  /// Allowlist for this host — web URLs.
+  static const ChatLinkifyPolicy policy = ChatLinkifyPolicy.webUrls;
 
   /// Rewrites bare tokens into markdown links for storage and display.
   ///
