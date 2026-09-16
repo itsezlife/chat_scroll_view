@@ -268,8 +268,7 @@ class _ChatMarkdownBodyState extends State<ChatMarkdownBody>
   }
 
   MarkdownSelectionAutoscrollConfig _resolvedAutoscroll() {
-    final options =
-        widget.autoscroll ?? const ChatMarkdownAutoscrollOptions();
+    final options = widget.autoscroll ?? const ChatMarkdownAutoscrollOptions();
     final policy = widget.controller.selectionPolicy;
     final hz = ChatMarkdownAutoscroll.readDisplayRefreshHz();
     if (_scopeAutoscroll case final cached?

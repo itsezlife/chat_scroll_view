@@ -1149,7 +1149,12 @@ class ChatSelectionController implements Listenable {
               last.base.documentId == subject &&
               last.extent.documentId == subject) {
             if (_text.range != last) {
+              // Public setter arms toolbarWanted on mobile. This restore is a
+              // mid-gesture same-document clamp when a drag hit a sibling
+              // mount — not a settled present. Autoscroll geometry refresh
+              // would otherwise re-show the adaptive toolbar before drag end.
               _text.markdownSelection.selection = last;
+              _text.markdownSelection.toolbarWanted = false;
             }
             return;
           }

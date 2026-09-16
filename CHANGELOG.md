@@ -98,6 +98,15 @@ this project is pre-1.0 and not strictly SemVer yet.
 
 ### Fixed
 
+- **Mid-drag toolbar on sibling hit during autoscroll.** With message
+  multi-select and a live text expand drag, hit-targeting a nearby selected
+  body briefly commits a cross-document range; the facade restores the last
+  on-subject range via the public markdown `selection` setter, which armed
+  `toolbarWanted`. Edge autoscroll scroll notifications then re-presented the
+  adaptive toolbar before drag end. Restore now clears `toolbarWanted` after
+  the clamp (drag-end `showToolbar` re-arms). Pair with the markdown scope
+  mid-drag scroll guard.
+
 - **Mobile retarget continuous text gesture.** With message multi-select and
   text active on subject A, long-press on another selected body’s text yields
   to that body’s markdown scope (same path as first entry) so drag-extend and

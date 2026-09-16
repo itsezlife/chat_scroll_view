@@ -801,6 +801,127 @@ void main() {
   );
 
   testWidgets(
+    'expand drag onto sibling selected body keeps toolbar hidden mid-drag '
+    'even when scroll notifications fire',
+    (tester) async {
+      debugDefaultTargetPlatformOverride = TargetPlatform.iOS;
+      try {
+        // Symptom: multi-select + live text drag that hit-targets a nearby
+        // selected sibling (often during edge autoscroll) pops the adaptive
+        // toolbar on the current subject before the drag settles.
+        final dataSource = _LoadedSource([_msg(1), _msg(2)]);
+        final controller = ChatScrollController();
+        final selection = ChatSelectionController(
+          policy: const ChatSelectionPolicy.mobile(),
+        );
+        addTearDown(controller.dispose);
+        addTearDown(selection.dispose);
+        addTearDown(dataSource.dispose);
+
+        selection.putBody(
+          1,
+          Markdown.fromString('Hello selectable world and more words here'),
+        );
+        selection.putBody(
+          2,
+          Markdown.fromString('Second selectable body with many words here'),
+        );
+
+        await tester.pumpWidget(
+          MaterialApp(
+            theme: ThemeData(platform: TargetPlatform.iOS),
+            home: Scaffold(
+              body: SizedBox(
+                width: 400,
+                height: 600,
+                child: ChatScrollView(
+                  dataSource: dataSource,
+                  controller: controller,
+                  selectionController: selection,
+                  messageBuilder: (context, id, message, status, runLayout) =>
+                      Container(
+                        key: ValueKey('container-$id'),
+                        height: 100,
+                        padding: const EdgeInsets.all(12),
+                        color: Colors.white,
+                        child: ChatMarkdownBody(
+                          key: ValueKey('md-$id'),
+                          controller: selection,
+                          messageId: id,
+                        ),
+                      ),
+                ),
+              ),
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        selection
+          ..startSelection(1)
+          ..toggle(2);
+        await tester.pumpAndSettle();
+
+        final md1 = find.byKey(const ValueKey('md-1'));
+        final start1 = tester.getTopLeft(md1) + const Offset(24, 16);
+        final enter = await tester.startGesture(start1);
+        await tester.pump(kLongPressTimeout + kPressTimeout);
+        await tester.pump();
+        await enter.up();
+        await tester.pumpAndSettle();
+
+        expect(selection.textSelectionSubject, 1);
+        expect(find.byType(AdaptiveTextSelectionToolbar), findsOneWidget);
+
+        // Re-arm expand drag on the subject, then walk onto the sibling body
+        // (the path that briefly tries a cross-document expand / restore).
+        final gesture = await tester.startGesture(start1);
+        await tester.pump(kLongPressTimeout + kPressTimeout);
+        await tester.pump();
+        expect(
+          find.byType(AdaptiveTextSelectionToolbar),
+          findsNothing,
+          reason: 'toolbar must hide as soon as expand drag arms',
+        );
+
+        final md2 = find.byKey(const ValueKey('md-2'));
+        final intoSibling = tester.getTopLeft(md2) + const Offset(24, 16);
+        await gesture.moveTo(intoSibling);
+        await tester.pump();
+
+        // Autoscroll / viewport reposition delivers scroll notifications while
+        // the pointer is still down over the sibling.
+        controller.scrollBy(24);
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 16));
+
+        expect(selection.textSelectionSubject, 1);
+        expect(selection.isTextSelectionActive, isTrue);
+        expect(
+          find.byType(AdaptiveTextSelectionToolbar),
+          findsNothing,
+          reason:
+              'active expand drag that hit-targets a nearby selected message '
+              'must not pop the subject toolbar before drag end',
+        );
+        expect(
+          selection.markdownSelection.toolbarWanted,
+          isFalse,
+          reason:
+              'cross-document restore must not arm toolbarWanted mid-drag; '
+              'scroll geometry refresh would otherwise re-show the menu',
+        );
+
+        await gesture.up();
+        await tester.pumpAndSettle();
+        expect(find.byType(AdaptiveTextSelectionToolbar), findsOneWidget);
+      } finally {
+        debugDefaultTargetPlatformOverride = null;
+      }
+    },
+  );
+
+  testWidgets(
     'handle edge move keeps both handles after multi-message membership',
     (tester) async {
       debugDefaultTargetPlatformOverride = TargetPlatform.android;
