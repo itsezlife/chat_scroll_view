@@ -50,6 +50,9 @@ class ChatMarkdownBodyRegistration extends InheritedWidget {
 /// - [ChatCodeBlockPainter] via [chatCodeBlockBuilder] to separate interactive
 ///   code header/bottom bars from selectable code body text under the active
 ///   [controller.selectionPolicy].
+/// - [BlockPainter$ScrollableTable] so overflowing markdown tables pan
+///   horizontally inside the bubble (opt-in by choosing that painter, not a
+///   theme flag).
 /// - Dynamic hover cursor resolution via [theme.cursorResolver], reflecting
 ///   interactive links, inline code spans, click-to-copy headers/bars, and text bodies.
 /// - Press-lifecycle tactile feedback via [ChatSpanFeedbackPainter]: begin on
@@ -338,6 +341,19 @@ class _ChatMarkdownBodyState extends State<ChatMarkdownBody>
       builder: (block, themeData) {
         if (userBuilder case final b?) {
           if (b(block, themeData) case final custom?) return custom;
+        }
+        // Catalog painters: scrollable tables, then fenced code chrome.
+        if (block case MD$Table(
+          :final header,
+          :final rows,
+          :final alignments,
+        )) {
+          return BlockPainter$ScrollableTable(
+            header: header,
+            rows: rows,
+            alignments: alignments,
+            theme: themeData,
+          );
         }
         return chatCodeBlockBuilder(block, themeData, policy: policy);
       },

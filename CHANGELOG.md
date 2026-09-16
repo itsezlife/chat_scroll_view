@@ -8,6 +8,11 @@ this project is pre-1.0 and not strictly SemVer yet.
 
 ### Added
 
+- **Scrollable overflowing markdown tables.** `ChatMarkdownBody` selects
+  `BlockPainter$ScrollableTable` so wide tables pan horizontally inside the
+  bubble (catalog painter opt-in, not a theme flag). Pan survives theme
+  rebuilds and engine row recycle via `MarkdownSelectionController`.
+
 - **Body linkify (host-invoked).** Opt-in `ChatBodyLinkify.apply` +
   combinable `ChatLinkifyPolicy` bitmask (`webUrls`, `mentions`,
   convenience `webAndMentions` default; `|` / `add` / `remove`). Rewrites
