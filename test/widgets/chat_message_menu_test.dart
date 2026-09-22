@@ -25,6 +25,9 @@ Future<void> _openMenu(
   ChatMessageMenuItemBuilder? itemBuilder,
   ChatMessageMenuBuilder? menuBuilder,
   List<ChatMessageMenuItem> items = _items,
+  ChatMessageMenuPresentation presentation = ChatMessageMenuPresentation.sheet,
+  ChatSelectionPolicy? selectionPolicy,
+  Offset tapGlobal = const Offset(140, 140),
 }) async {
   await tester.pumpWidget(
     MaterialApp(
@@ -41,11 +44,13 @@ Future<void> _openMenu(
                     context: context,
                     messageRect: const Rect.fromLTWH(40, 120, 200, 48),
                     items: items,
-                    tapGlobal: const Offset(140, 140),
+                    tapGlobal: tapGlobal,
                     reactions: reactions,
                     keepKeyboardVisible: keepKeyboardVisible,
                     presence: presence,
                     isPresent: isPresent,
+                    presentation: presentation,
+                    selectionPolicy: selectionPolicy,
                     itemBuilder: itemBuilder,
                     menuBuilder: menuBuilder,
                   );
@@ -241,6 +246,7 @@ void main() {
                     messageRect: const Rect.fromLTWH(40, 120, 200, 48),
                     items: _items,
                     tapGlobal: const Offset(140, 140),
+                    presentation: ChatMessageMenuPresentation.sheet,
                   );
                 },
                 child: const Text('Open'),
@@ -379,5 +385,229 @@ void main() {
     );
 
     expect(find.byType(Divider), findsOneWidget);
+  });
+
+  group('message menu presentation', () {
+    test('forPolicy maps mobile to sheet and desktop to popup', () {
+      expect(
+        ChatMessageMenuPresentation.forPolicy(
+          const ChatSelectionPolicy.mobile(),
+        ),
+        ChatMessageMenuPresentation.sheet,
+      );
+      expect(
+        ChatMessageMenuPresentation.forPolicy(
+          const ChatSelectionPolicy.desktop(),
+        ),
+        ChatMessageMenuPresentation.popup,
+      );
+    });
+
+    testWidgets('sheet presentation paints the scrim', (tester) async {
+      await _openMenu(
+        tester,
+        onDone: (_) {},
+        presentation: ChatMessageMenuPresentation.sheet,
+      );
+
+      expect(find.byType(ChatMessageMenuScrim), findsOneWidget);
+      expect(find.text('Edit'), findsOneWidget);
+    });
+
+    testWidgets('popup presentation omits the scrim', (tester) async {
+      await _openMenu(
+        tester,
+        onDone: (_) {},
+        presentation: ChatMessageMenuPresentation.popup,
+      );
+
+      expect(find.byType(ChatMessageMenuScrim), findsNothing);
+      expect(find.text('Edit'), findsOneWidget);
+    });
+
+    testWidgets('desktop policy defaults to popup without an override', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: Builder(
+              builder: (context) => TextButton(
+                onPressed: () {
+                  showChatMessageMenu(
+                    context: context,
+                    messageRect: const Rect.fromLTWH(40, 120, 200, 48),
+                    items: _items,
+                    tapGlobal: const Offset(140, 140),
+                    selectionPolicy: const ChatSelectionPolicy.desktop(),
+                  );
+                },
+                child: const Text('Open'),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+      await tester.tap(find.text('Open'));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 350));
+
+      expect(find.byType(ChatMessageMenuScrim), findsNothing);
+      expect(find.text('Edit'), findsOneWidget);
+    });
+
+    testWidgets('mobile policy defaults to sheet without an override', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: Builder(
+              builder: (context) => TextButton(
+                onPressed: () {
+                  showChatMessageMenu(
+                    context: context,
+                    messageRect: const Rect.fromLTWH(40, 120, 200, 48),
+                    items: _items,
+                    tapGlobal: const Offset(140, 140),
+                    selectionPolicy: const ChatSelectionPolicy.mobile(),
+                  );
+                },
+                child: const Text('Open'),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+      await tester.tap(find.text('Open'));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 350));
+
+      expect(find.byType(ChatMessageMenuScrim), findsOneWidget);
+      expect(find.text('Edit'), findsOneWidget);
+    });
+
+    testWidgets('explicit presentation overrides selection policy', (
+      tester,
+    ) async {
+      await _openMenu(
+        tester,
+        onDone: (_) {},
+        presentation: ChatMessageMenuPresentation.sheet,
+        selectionPolicy: const ChatSelectionPolicy.desktop(),
+      );
+
+      expect(find.byType(ChatMessageMenuScrim), findsOneWidget);
+    });
+
+    testWidgets('popup outside tap dismisses with null', (tester) async {
+      ChatMessageMenuResult? result = const ChatMessageMenuResult.item(
+        'sentinel',
+      );
+      await _openMenu(
+        tester,
+        onDone: (value) => result = value,
+        presentation: ChatMessageMenuPresentation.popup,
+      );
+
+      expect(find.text('Edit'), findsOneWidget);
+      await tester.tapAt(const Offset(8, 8));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 350));
+
+      expect(result, isNull);
+      expect(find.text('Edit'), findsNothing);
+    });
+
+    testWidgets('popup Escape dismisses with null', (tester) async {
+      ChatMessageMenuResult? result = const ChatMessageMenuResult.item(
+        'sentinel',
+      );
+      await _openMenu(
+        tester,
+        onDone: (value) => result = value,
+        presentation: ChatMessageMenuPresentation.popup,
+      );
+
+      await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 350));
+
+      expect(result, isNull);
+      expect(find.text('Edit'), findsNothing);
+    });
+
+    testWidgets('popup presence abort dismisses with null', (tester) async {
+      final presence = ChangeNotifier();
+      var present = true;
+      ChatMessageMenuResult? result = const ChatMessageMenuResult.item(
+        'sentinel',
+      );
+
+      await _openMenu(
+        tester,
+        onDone: (value) => result = value,
+        presentation: ChatMessageMenuPresentation.popup,
+        presence: presence,
+        isPresent: () => present,
+      );
+      expect(find.text('Edit'), findsOneWidget);
+
+      present = false;
+      presence.notifyListeners();
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 350));
+
+      expect(result, isNull);
+      expect(find.text('Edit'), findsNothing);
+    });
+
+    testWidgets('popup choosing an item still completes with itemId', (
+      tester,
+    ) async {
+      ChatMessageMenuResult? result;
+      await _openMenu(
+        tester,
+        onDone: (value) => result = value,
+        presentation: ChatMessageMenuPresentation.popup,
+      );
+
+      await tester.tap(find.text('Edit'));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 350));
+
+      expect(result, const ChatMessageMenuResult.item('edit'));
+    });
+
+    testWidgets('popup may omit reactions without a second product', (
+      tester,
+    ) async {
+      await _openMenu(
+        tester,
+        onDone: (_) {},
+        presentation: ChatMessageMenuPresentation.popup,
+        reactions: const <String>[],
+      );
+
+      expect(find.byType(ChatMessageMenuScrim), findsNothing);
+      expect(find.text('Edit'), findsOneWidget);
+      expect(find.text('👍'), findsNothing);
+    });
+
+    testWidgets('popup origin follows the pointer X', (tester) async {
+      const tap = Offset(220, 140);
+      await _openMenu(
+        tester,
+        onDone: (_) {},
+        presentation: ChatMessageMenuPresentation.popup,
+        tapGlobal: tap,
+      );
+
+      final menuLeft = tester.getTopLeft(find.byType(ChatMessageMenuColumn)).dx;
+      expect(menuLeft, closeTo(tap.dx, 1));
+      expect(menuLeft, isNot(kChatMessageMenuEdgeInset));
+    });
   });
 }

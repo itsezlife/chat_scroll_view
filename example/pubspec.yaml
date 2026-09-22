@@ -17,6 +17,10 @@ dependencies:
     path: ../packages/chat_chrome
   emoji_data:
     path: ../packages/emoji_data
+  flutter_md:
+    git:
+      url: https://github.com/itsezlife/md.git
+      ref: feat/selection-chrome
   meta: ^1.17.0
   supabase_flutter: ^2.15.0
   control: 1.0.0-dev.1
@@ -43,3 +47,9 @@ flutter:
         - macos
         - linux
         - windows
+
+dependency_overrides:
+  # Local flutter_md: enableTouchGestures + enabled-flip chrome sync.
+  # Drop once feat/selection-chrome publishes those changes.
+  flutter_md:
+    path: ../../md

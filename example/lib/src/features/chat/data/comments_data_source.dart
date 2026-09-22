@@ -8,6 +8,7 @@ import 'package:chat_scroll_view_example/src/common/utils/load_asset.dart'
     if (dart.library.js_interop) 'package:chat_scroll_view_example/src/common/utils/platform/load_asset_web.dart'
     if (dart.library.io) 'package:chat_scroll_view_example/src/common/utils/platform/load_asset_native.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/chat_message_search.dart';
+import 'package:chat_scroll_view_example/src/features/chat/utils/chat_body_linkify_util.dart';
 
 /// Manifest for asset-based chat data.
 class CommentsManifest {
@@ -51,6 +52,10 @@ class CommentsManifest {
 /// ```json
 /// [{"id": 0, "sender": "user", "content": "...", "createdAt": "..."}]
 /// ```
+///
+/// On chunk load and on [sendMessage] / [editMessage], plain bodies are
+/// rewritten via [ChatBodyLinkifyUtil.materialize] (host-invoked **body linkify**,
+/// not viewport paint — ADR 017).
 class CommentsDataSource extends ChatDataSource {
   CommentsDataSource._({
     required this.manifest,
@@ -189,7 +194,10 @@ class CommentsDataSource extends ChatDataSource {
               DateTime.tryParse(item['createdAt'] as String? ?? '') ?? baseTime,
           updatedAt:
               DateTime.tryParse(item['createdAt'] as String? ?? '') ?? baseTime,
-          content: item['content'] as String? ?? '',
+          // Host materialize — linkify before parse/display (ADR 017).
+          content: ChatBodyLinkifyUtil.materialize(
+            item['content'] as String? ?? '',
+          ),
         ),
     ];
 
@@ -202,6 +210,9 @@ class CommentsDataSource extends ChatDataSource {
   }
 
   /// Demo integrator: send a new message at the tail via [insertMessage].
+  ///
+  /// Runs **body linkify** before store/display so optimistic bubbles match
+  /// materialize (ADR 017).
   UserChatMessage sendMessage({
     required String sender,
     required String content,
@@ -213,7 +224,7 @@ class CommentsDataSource extends ChatDataSource {
       sender: sender,
       createdAt: now,
       updatedAt: now,
-      content: content,
+      content: ChatBodyLinkifyUtil.materialize(content),
     );
     _tailOverrides[id] = message;
     insertMessage(message, reason: 'demo-send');
@@ -221,6 +232,8 @@ class CommentsDataSource extends ChatDataSource {
   }
 
   /// Demo integrator: edit an existing message via [updateMessage].
+  ///
+  /// Linkifies [newContent] the same way as [sendMessage].
   void editMessage(UserChatMessage message, String newContent) {
     updateMessage(
       UserChatMessage(
@@ -228,7 +241,7 @@ class CommentsDataSource extends ChatDataSource {
         sender: message.sender,
         createdAt: message.createdAt,
         updatedAt: DateTime.now(),
-        content: newContent,
+        content: ChatBodyLinkifyUtil.materialize(newContent),
       ),
       reason: 'demo-edit',
     );

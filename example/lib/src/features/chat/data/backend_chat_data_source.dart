@@ -5,7 +5,8 @@ import 'dart:math' as math;
 import 'package:chat_scroll_view/chat_scroll_view.dart';
 import 'package:chat_scroll_view_example/src/common/constant/demo_config.dart';
 import 'package:chat_scroll_view_example/src/common/models/chat_message.dart';
-import 'package:meta/meta.dart';  
+import 'package:chat_scroll_view_example/src/features/chat/utils/chat_body_linkify_util.dart';
+import 'package:meta/meta.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 /// Invokes a demo Edge Function and returns parsed JSON (test override supported).
@@ -210,12 +211,16 @@ class BackendChatDataSource extends ChatDataSource {
   }
 
   /// Sends a text message via the `send_message` Edge Function.
+  ///
+  /// Linkifies [content] before the network call so the stored body matches
+  /// host materialize (ADR 017).
   Future<UserChatMessage> sendMessage(String content) async {
+    final linkified = ChatBodyLinkifyUtil.materialize(content);
     final body = await _invokeJson(
       'send_message',
       body: <String, dynamic>{
         'chat_id': chatId,
-        'content': content,
+        'content': linkified,
         'sender_id': 1,
       },
     );
@@ -387,7 +392,8 @@ class BackendChatDataSource extends ChatDataSource {
       sender: legacySender ?? 'user$senderId',
       createdAt: createdAt,
       updatedAt: updatedAt,
-      content: json['content']! as String,
+      // Host materialize — plain or already-linked bodies from the protocol.
+      content: ChatBodyLinkifyUtil.materialize(json['content']! as String),
     );
   }
 

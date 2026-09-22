@@ -10,10 +10,11 @@ import 'package:chat_scroll_view_example/src/features/chat/controller/chat_searc
 import 'package:chat_scroll_view_example/src/features/chat/data/backend_chat_data_source.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/comments_data_source.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/generated_chat_data_source.dart';
+import 'package:chat_scroll_view_example/src/features/chat/utils/chat_body_linkify_util.dart';
 import 'package:chat_scroll_view_example/src/features/chat/utils/chat_data_source_extension.dart';
 import 'package:chat_scroll_view_example/src/features/chat/utils/chat_viewport_insets_binding.dart';
-import 'package:chat_scroll_view_example/src/features/chat/utils/demo_message_menu.dart';
 import 'package:chat_scroll_view_example/src/features/chat/utils/ios_keyboard_safe_peel.dart';
+import 'package:chat_scroll_view_example/src/features/chat/utils/message_menu.dart';
 import 'package:chat_scroll_view_example/src/features/chat/widgets/chat_composer.dart';
 import 'package:chat_scroll_view_example/src/features/chat/widgets/chat_search_bar.dart';
 import 'package:chat_scroll_view_example/src/features/chat/widgets/date_separator.dart';
@@ -72,7 +73,7 @@ class _WidgetChatScreenState extends State<WidgetChatScreen>
 
   bool _loading = true;
   String? _errorMessage;
-  var _menuOpen = false;
+  MessageMenu? _messageMenu;
 
   /// Demo settings: message corner radius (0–17).
   double _bubbleRadius = ChatMessageThemeData.fallback.bubbleRadius;
@@ -131,9 +132,154 @@ class _WidgetChatScreenState extends State<WidgetChatScreen>
     // Prefs already loaded from main → seed before first composer paint.
     _lastEmojiTab = _lastTabFromStore(keyboardPanelStore);
     _controller = ChatScrollController();
-    _selection = ChatSelectionController()..selectionCap = 100;
+    _selection = ChatSelectionController(onInteraction: _onSelectionInteraction)
+      ..selectionCap = 100;
     _pillLastSeenBaseline.addListener(_onPillBaselineChanged);
     _init();
+  }
+
+  void _onSelectionInteraction(ChatSelectionInteraction interaction) {
+    switch (interaction) {
+      case ChatCopied(:final text, :final gesture):
+        if (gesture == ChatInlineGesture.longPress) {
+          HapticFeedback.lightImpact();
+        }
+        _showCopiedSnack(text);
+      case ChatLinkActivated(
+        :final messageId,
+        :final title,
+        :final url,
+        :final gesture,
+      ):
+        switch (gesture) {
+          case ChatInlineGesture.tap:
+            _onLinkTap(messageId, title, url);
+          case ChatInlineGesture.longPress:
+            _onLinkLongPress(messageId, title, url);
+        }
+      case ChatCodeActivated(:final gesture):
+        // Host-owned copy path only when [copyCodeOnClick] is false.
+        if (gesture == ChatInlineGesture.longPress) {
+          HapticFeedback.lightImpact();
+        }
+    }
+  }
+
+  void _showCopiedSnack(String text) {
+    if (!mounted || text.isEmpty) return;
+    if (defaultTargetPlatform == TargetPlatform.android) {
+      return; // Do not show the snackbar on Android
+    }
+    ScaffoldMessenger.of(context)
+      ..clearSnackBars()
+      ..showSnackBar(
+        const SnackBar(
+          content: Text('Copied'),
+          behavior: SnackBarBehavior.floating,
+          duration: Duration(seconds: 1),
+        ),
+      );
+  }
+
+  void _onLinkTap(int messageId, String title, String url) {
+    if (!mounted) return;
+    final label = switch (ChatBodyLinkifyUtil.activation(url)) {
+      WebLinkActivation(:final uri) => 'Opening: $uri',
+      MentionLinkActivation(:final username) => 'Mention: $username',
+      OtherLinkActivation(:final url) => 'Link: $url',
+    };
+    ScaffoldMessenger.of(context)
+      ..clearSnackBars()
+      ..showSnackBar(
+        SnackBar(
+          content: Text(label),
+          behavior: SnackBarBehavior.floating,
+          duration: const Duration(seconds: 2),
+        ),
+      );
+  }
+
+  void _onLinkLongPress(int messageId, String title, String url) {
+    if (!mounted) return;
+    HapticFeedback.lightImpact();
+    final activation = ChatBodyLinkifyUtil.activation(url);
+    final openLabel = switch (activation) {
+      WebLinkActivation() => 'Open link',
+      MentionLinkActivation() => 'Open mention',
+      OtherLinkActivation() => 'Open',
+    };
+    showModalBottomSheet<void>(
+      context: context,
+      builder: (context) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: <Widget>[
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  if (title.isNotEmpty && title != url)
+                    Text(
+                      title,
+                      style: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 15,
+                      ),
+                    ),
+                  Text(
+                    url,
+                    style: TextStyle(
+                      color: Theme.of(context).colorScheme.primary,
+                      fontSize: 13,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const Divider(),
+            ListTile(
+              leading: Icon(switch (activation) {
+                MentionLinkActivation() => Icons.person_outline,
+                WebLinkActivation() ||
+                OtherLinkActivation() => Icons.open_in_browser,
+              }),
+              title: Text(openLabel),
+              onTap: () {
+                Navigator.pop(context);
+                _onLinkTap(messageId, title, url);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.copy),
+              title: Text(switch (activation) {
+                MentionLinkActivation() => 'Copy mention',
+                WebLinkActivation() || OtherLinkActivation() => 'Copy link URL',
+              }),
+              onTap: () {
+                Navigator.pop(context);
+                Clipboard.setData(ClipboardData(text: url));
+                _showCopiedSnack(url);
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _onAvatarTap(String sender) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(
+          content: Text('User Profile: $sender'),
+          behavior: SnackBarBehavior.floating,
+          duration: const Duration(seconds: 1),
+        ),
+      );
   }
 
   /// Last type tab from prefs, restricted to [_emojiAllow] tabs.
@@ -164,6 +310,7 @@ class _WidgetChatScreenState extends State<WidgetChatScreen>
       _emojiDataSource.dispose();
     }
     _dataSource?.dispose();
+    _messageMenu = null;
     super.dispose();
   }
 
@@ -189,6 +336,20 @@ class _WidgetChatScreenState extends State<WidgetChatScreen>
         return;
       }
       _dataSource = backend;
+      _messageMenu = MessageMenu(
+        dataSource: backend,
+        selection: _selection,
+        actions: MessageMenuActions(
+          onDelete: (messageId) => _handleDeleteSelected([messageId]),
+          onDeleteSelected: _handleDeleteSelected,
+          onEdit: (messageId) =>
+              _composerKey.currentState?.beginEdit(messageId),
+          onCopy: _showCopiedSnack,
+          onCopySelected: _showCopiedSnack,
+          onCopyLink: _showCopiedSnack,
+          onCopyCode: _showCopiedSnack,
+        ),
+      );
       _search?.dispose();
       _search = ChatSearchController(dataSource: backend);
       final newest = backend.newestKnownId;
@@ -216,6 +377,7 @@ class _WidgetChatScreenState extends State<WidgetChatScreen>
       if (!mounted) return;
       _dataSource?.dispose();
       _dataSource = null;
+      _messageMenu = null;
       _errorMessage = error.toString();
     }
 
@@ -320,34 +482,18 @@ class _WidgetChatScreenState extends State<WidgetChatScreen>
           sender: message.sender,
           createdAt: message.createdAt,
           updatedAt: DateTime.now(),
-          content: text,
+          content: ChatBodyLinkifyUtil.materialize(text),
         ),
       );
     }
   }
 
-  Future<void> _onIdleMessageTap(
-    int id,
-    Rect slotGlobal,
-    Offset tapGlobal,
-  ) async {
-    final ds = _dataSource;
-    if (ds == null || _menuOpen) return;
-    _menuOpen = true;
-    try {
-      if (!mounted) return;
-      await presentDemoMessageMenu(
-        context: context,
-        messageId: id,
-        messageRect: slotGlobal,
-        tapGlobal: tapGlobal,
-        dataSource: ds,
-        onDelete: (messageId) => _handleDeleteSelected([messageId]),
-        onEdit: (messageId) => _composerKey.currentState?.beginEdit(messageId),
-      );
-    } finally {
-      _menuOpen = false;
-    }
+  /// Host message-menu seam for idle primary tap (mobile) and secondary tap
+  /// (desktop right-click) — [ChatScrollView] routes each per selection policy.
+  Future<void> _presentMessageMenu(ChatMessageMenuRequest request) async {
+    final menu = _messageMenu;
+    if (menu == null || !mounted) return;
+    await menu.present(context, request);
   }
 
   Future<void> _openBubbleRadiusSettings() async {
@@ -402,9 +548,20 @@ class _WidgetChatScreenState extends State<WidgetChatScreen>
     IChatMessage? message,
     ChatMessageStatus status,
     MessageRunLayout runLayout,
-  ) {
-    if (message == null) return const DemoShimmerBubble();
-    return DemoMessageBubble(message: message, runLayout: runLayout);
+  ) => buildDemoMessage(
+    context,
+    id,
+    message,
+    status,
+    runLayout,
+    selection: _selection,
+    onAvatarTap: _onAvatarTap,
+    onSenderTap: _onAvatarTap,
+  );
+
+  void _selectTextFromBar() {
+    if (_selection.count != 1) return;
+    _selection.enterTextSelection(_selection.selectedIds.first);
   }
 
   Widget _buildChunkError(
@@ -501,6 +658,10 @@ class _WidgetChatScreenState extends State<WidgetChatScreen>
   }
 
   void _copySelected() {
+    if (_selection.isTextSelectionActive) {
+      unawaited(_selection.copyTextSelection());
+      return;
+    }
     final ids = _selection.selectedIds.toList()..sort();
     final buffer = StringBuffer();
     for (final id in ids) {
@@ -510,8 +671,11 @@ class _WidgetChatScreenState extends State<WidgetChatScreen>
       if (buffer.isNotEmpty) buffer.writeln();
       buffer.write(text);
     }
-    Clipboard.setData(ClipboardData(text: buffer.toString()));
+    final text = buffer.toString();
+    if (text.isEmpty) return;
+    Clipboard.setData(ClipboardData(text: text));
     _selection.clear();
+    _showCopiedSnack(text);
   }
 
   void _editSelectedFromBar() {
@@ -582,7 +746,11 @@ class _WidgetChatScreenState extends State<WidgetChatScreen>
           if (isOpenSearch) {
             search.close();
           }
-          if (_menuOpen) return;
+          if (_messageMenu?.isPresenting ?? false) return;
+          if (_selection.isTextSelectionActive) {
+            _selection.clearTextSelection();
+            return;
+          }
           final hasSelection = _selection.isSelectionMode;
           if (hasSelection) {
             _selection.clear();
@@ -617,6 +785,7 @@ class _WidgetChatScreenState extends State<WidgetChatScreen>
                     Positioned.fill(
                       child: ChatKeyboardShortcuts(
                         controller: _controller,
+                        selectionController: _selection,
                         reverse: true,
                         preserveExternalFocus: true,
                         child: ChatScrollView(
@@ -624,7 +793,8 @@ class _WidgetChatScreenState extends State<WidgetChatScreen>
                           dataSource: _dataSource!,
                           controller: _controller,
                           selectionController: _selection,
-                          onIdleMessageTap: _onIdleMessageTap,
+                          onIdleMessageTap: _presentMessageMenu,
+                          onSecondaryMessageTap: _presentMessageMenu,
                           isSelfMessage: _isSelfMessage,
                           bottomPadding: insets.bottomPadding,
                           topPadding: insets.topPadding,
@@ -764,6 +934,7 @@ class _WidgetChatScreenState extends State<WidgetChatScreen>
                       child: SelectionAppBar(
                         selection: _selection,
                         topInset: insets.headerReserve,
+                        onSelectText: _selectTextFromBar,
                         onCopy: _copySelected,
                         onEdit: _editSelectedFromBar,
                         onDelete: () =>

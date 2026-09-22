@@ -1,11 +1,9 @@
-import 'package:chat_scroll_view/src/chat_scroll/chat_data_source.dart';
-import 'package:chat_scroll_view/src/chat_scroll/chat_scroll_common.dart';
-import 'package:chat_scroll_view/src/chat_scroll/chat_scroll_controller.dart';
-import 'package:chat_scroll_view/src/chat_scroll/chat_selection_controller.dart';
-import 'package:chat_scroll_view/src/chat_widgets/chat_scroll_view.dart';
-import 'package:chat_scroll_view/src/chat_widgets/chat_selectable_message.dart';
+import 'package:chat_scroll_view/chat_scroll_view.dart';
+import 'package:flutter/foundation.dart';
+import 'package:flutter/gestures.dart' show kLongPressTimeout, kPressTimeout;
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+
 import '../chat_message.dart';
 
 IChatMessage _msg(int id, {DateTime? createdAt}) => UserChatMessage(
@@ -39,7 +37,9 @@ Widget _harness({
   required ChatScrollController controller,
   required ChatSelectionController selection,
   ChatGroupSeparatorBuilder? dateSeparatorBuilder,
+  ChatMessageBuilder? messageBuilder,
 }) => MaterialApp(
+  theme: ThemeData(platform: TargetPlatform.iOS),
   home: Scaffold(
     body: Center(
       child: SizedBox(
@@ -50,10 +50,12 @@ Widget _harness({
           controller: controller,
           selectionController: selection,
           dateSeparatorBuilder: dateSeparatorBuilder,
-          messageBuilder: (context, id, message, status, runLayout) => SizedBox(
-            height: 60,
-            child: Text(message == null ? 'shimmer-$id' : 'msg-$id'),
-          ),
+          messageBuilder:
+              messageBuilder ??
+              (context, id, message, status, runLayout) => SizedBox(
+                height: 60,
+                child: Text(message == null ? 'shimmer-$id' : 'msg-$id'),
+              ),
         ),
       ),
     ),
@@ -125,36 +127,187 @@ void main() {
       expect(selection.count, 1);
     });
 
-    testWidgets('span yield claiming the long-press leaves selection empty', (
-      tester,
-    ) async {
-      const count = 32;
-      final controller = ChatScrollController()..jumpTo(count - 1);
-      final claimed = <int>[];
-      final selection = ChatSelectionController()
-        ..spanYield = (id) {
-          claimed.add(id);
-          return true;
-        };
-      addTearDown(controller.dispose);
-      addTearDown(selection.dispose);
+    testWidgets(
+      'long-press routing to text selection enters text without starting a span',
+      (tester) async {
+        debugDefaultTargetPlatformOverride = TargetPlatform.iOS;
+        try {
+          const count = 32;
+          const id = count - 1;
+          final controller = ChatScrollController()..jumpTo(id);
+          final selection = ChatSelectionController(
+            policy: const ChatSelectionPolicy.mobile(),
+          );
+          selection.putBody(id, Markdown.fromString('Hello selectable world'));
+          selection.startSelection(id);
+          addTearDown(controller.dispose);
+          addTearDown(selection.dispose);
 
-      await tester.pumpWidget(
-        _harness(
-          dataSource: _LoadedSource([for (var i = 0; i < count; i++) _msg(i)]),
-          controller: controller,
-          selection: selection,
-        ),
-      );
-      await tester.pump();
+          await tester.pumpWidget(
+            _harness(
+              dataSource: _LoadedSource([
+                for (var i = 0; i < count; i++) _msg(i),
+              ]),
+              controller: controller,
+              selection: selection,
+              messageBuilder: (context, msgId, message, status, runLayout) =>
+                  SizedBox(
+                    height: 60,
+                    child: ChatMarkdownBody(
+                      key: ValueKey('md-$msgId'),
+                      controller: selection,
+                      messageId: msgId,
+                    ),
+                  ),
+            ),
+          );
+          await tester.pumpAndSettle();
 
-      await tester.longPress(find.text('msg-${count - 1}'));
-      await tester.pumpAndSettle();
+          final md = find.byKey(const ValueKey('md-$id'));
+          final point = tester.getTopLeft(md) + const Offset(24, 16);
+          expect(selection.shouldRouteLongPressToText(id, point), isTrue);
 
-      expect(claimed, [count - 1]);
-      expect(selection.isSelectionMode, isFalse);
-      expect(selection.count, 0);
-    });
+          final gesture = await tester.startGesture(point);
+          await tester.pump(kLongPressTimeout + kPressTimeout);
+          await tester.pump();
+          await gesture.up();
+          await tester.pumpAndSettle();
+
+          expect(selection.isTextSelectionActive, isTrue);
+          expect(selection.textSelectionSubject, id);
+          expect(selection.isSelected(id), isTrue);
+        } finally {
+          debugDefaultTargetPlatformOverride = null;
+        }
+      },
+    );
+
+    testWidgets(
+      'unselected message with selectable body still starts select span on long-press',
+      (tester) async {
+        const count = 32;
+        const id = count - 1;
+        final controller = ChatScrollController()..jumpTo(id);
+        final selection = ChatSelectionController();
+        selection.putBody(id, Markdown.fromString('msg-$id'));
+        addTearDown(controller.dispose);
+        addTearDown(selection.dispose);
+
+        await tester.pumpWidget(
+          _harness(
+            dataSource: _LoadedSource([
+              for (var i = 0; i < count; i++) _msg(i),
+            ]),
+            controller: controller,
+            selection: selection,
+            messageBuilder: (context, msgId, message, status, runLayout) =>
+                SizedBox(
+                  height: 60,
+                  child: ChatMarkdownBody(
+                    key: ValueKey('md-$msgId'),
+                    controller: selection,
+                    messageId: msgId,
+                  ),
+                ),
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        final target = find.byKey(const ValueKey('md-$id'));
+        await tester.longPress(target, warnIfMissed: false);
+        await tester.pumpAndSettle();
+
+        expect(selection.isTextSelectionActive, isFalse);
+        expect(selection.isSelectionMode, isTrue);
+        expect(selection.isSelected(id), isTrue);
+      },
+    );
+
+    testWidgets(
+      'routed long-press on a selected message does not start an unselect span',
+      (tester) async {
+        debugDefaultTargetPlatformOverride = TargetPlatform.iOS;
+        try {
+          const count = 32;
+          const id = count - 1;
+          final controller = ChatScrollController()..jumpTo(id);
+          final selection = ChatSelectionController(
+            policy: const ChatSelectionPolicy.mobile(),
+          );
+          selection.putBody(id, Markdown.fromString('Hello selectable world'));
+          selection.startSelection(id);
+          addTearDown(controller.dispose);
+          addTearDown(selection.dispose);
+
+          await tester.pumpWidget(
+            _harness(
+              dataSource: _LoadedSource([
+                for (var i = 0; i < count; i++) _msg(i),
+              ]),
+              controller: controller,
+              selection: selection,
+              messageBuilder: (context, msgId, message, status, runLayout) =>
+                  SizedBox(
+                    height: 60,
+                    child: ChatMarkdownBody(
+                      key: ValueKey('md-$msgId'),
+                      controller: selection,
+                      messageId: msgId,
+                    ),
+                  ),
+            ),
+          );
+          await tester.pumpAndSettle();
+
+          final md = find.byKey(const ValueKey('md-$id'));
+          final point = tester.getTopLeft(md) + const Offset(24, 16);
+          final gesture = await tester.startGesture(point);
+          await tester.pump(kLongPressTimeout + kPressTimeout);
+          await tester.pump();
+          await gesture.up();
+          await tester.pumpAndSettle();
+
+          expect(selection.isSelected(id), isTrue);
+          expect(selection.isTextSelectionActive, isTrue);
+          expect(selection.count, 1);
+        } finally {
+          debugDefaultTargetPlatformOverride = null;
+        }
+      },
+    );
+
+    testWidgets(
+      'unrouted long-press on a selected message without body still starts an unselect span',
+      (tester) async {
+        const count = 32;
+        const id = count - 1;
+        final controller = ChatScrollController()..jumpTo(id);
+        final selection = ChatSelectionController();
+        addTearDown(controller.dispose);
+        addTearDown(selection.dispose);
+
+        await tester.pumpWidget(
+          _harness(
+            dataSource: _LoadedSource([
+              for (var i = 0; i < count; i++) _msg(i),
+            ]),
+            controller: controller,
+            selection: selection,
+          ),
+        );
+        await tester.pump();
+
+        await tester.longPress(find.text('msg-$id'));
+        await tester.pumpAndSettle();
+        expect(selection.isSelected(id), isTrue);
+
+        await tester.longPress(find.text('msg-$id'));
+        await tester.pumpAndSettle();
+
+        expect(selection.isSelected(id), isFalse);
+        expect(selection.isSelectionMode, isFalse);
+      },
+    );
 
     testWidgets(
       'long-press through the pinned date header selects the message underneath',

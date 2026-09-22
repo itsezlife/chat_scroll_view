@@ -1,4 +1,6 @@
+import 'package:chat_scroll_view/src/chat_widgets/chat_markdown_body.dart';
 import 'package:chat_scroll_view/src/chat_widgets/chat_message_change_params.dart';
+import 'package:chat_scroll_view/src/chat_widgets/chat_selectable_message.dart';
 import 'package:chat_scroll_view/src/chat_widgets/render_chat_message_change_transition.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
@@ -48,6 +50,7 @@ class ChatMessageChangeTransition extends StatefulWidget {
     required this.color,
     required this.borderRadius,
     required this.outgoing,
+    this.selectedColor,
     this.header,
     this.edited = false,
     this.spacing = 8,
@@ -76,6 +79,13 @@ class ChatMessageChangeTransition extends StatefulWidget {
 
   /// Bubble fill.
   final Color color;
+
+  /// Optional bubble fill when this message row is selected.
+  ///
+  /// When non-null, [ChatSelectionStateScope] reports that this message is
+  /// selected, and the active [ChatSelectionPolicy.appliesSelectedColorToBubble]
+  /// is true, this color replaces [color].
+  final Color? selectedColor;
 
   /// Bubble corners.
   final BorderRadiusGeometry borderRadius;
@@ -263,10 +273,19 @@ class _ChatMessageChangeTransitionState
       }
     });
 
+    final selection = ChatSelectionStateScope.maybeOf(context);
+    final isSelected = selection?.isSelected ?? false;
+    final appliesSelectedColor =
+        selection?.policy.appliesSelectedColorToBubble ?? true;
+    final effectiveColor =
+        (isSelected && appliesSelectedColor && widget.selectedColor != null)
+            ? widget.selectedColor!
+            : widget.color;
+
     return _ChatMessageChangeTransition(
       key: _renderKey,
       params: _params,
-      color: widget.color,
+      color: effectiveColor,
       borderRadius: widget.borderRadius,
       padding: widget.padding,
       spacing: widget.spacing,
@@ -335,7 +354,15 @@ class _ChatMessageChangeTransition
     ChatMessageChangeSlot.header => header,
     ChatMessageChangeSlot.content => content,
     ChatMessageChangeSlot.meta => meta,
-    ChatMessageChangeSlot.outgoingContent => outgoingContent,
+    // Outgoing twin is paint-only: must not putBody / attach a selection
+    // surface for the same messageId (would orphan the live body's hits).
+    ChatMessageChangeSlot.outgoingContent => switch (outgoingContent) {
+      final child? => ChatMarkdownBodyRegistration(
+        registers: false,
+        child: child,
+      ),
+      null => null,
+    },
     ChatMessageChangeSlot.outgoingMeta => outgoingMeta,
   };
 

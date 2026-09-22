@@ -35,9 +35,8 @@ class ChatMessageBodyLayout {
 /// width when line metrics are unavailable (dry layout / non-text body).
 ///
 /// Optional [headerSize] contributes to outer width (max with the packed
-/// content/meta cluster) and stacks above content — matching Telegram's
-/// `maxChildWidth` / name band. Inline-vs-wrap still uses the padded max
-/// width from [constraints], not the header width.
+/// content/meta cluster) and stacks above content. Inline-vs-wrap still uses
+/// the padded max width from [constraints], not the header width.
 ///
 /// Returns either an **inline** result (meta on the last line, height =
 /// header + content) or a **wrap** result (meta on the next row).

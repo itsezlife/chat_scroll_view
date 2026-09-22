@@ -495,12 +495,13 @@ void main() {
       expect(selection.isSelected(255), isTrue);
     });
 
-    testWidgets('span yield claiming the long-press does not start selection', (
+    testWidgets('non-selectable message does not start selection on long-press', (
       tester,
     ) async {
       const count = 256;
       final controller = ChatScrollController()..jumpTo(count - 1);
-      final selection = ChatSelectionController()..spanYield = (id) => true;
+      final selection = ChatSelectionController()
+        ..selectionAllowed = (id) => ChatSelectionAllowed.none;
       await tester.pumpWidget(
         _harness(
           dataSource: _PreloadedDataSource(_generate(count)),
@@ -633,5 +634,49 @@ void main() {
       expect(copied, isTrue);
       expect(selection.isSelectionMode, isFalse);
     });
+
+    testWidgets(
+      'SelectionAppBar Select text is only offered for a single selection',
+      (tester) async {
+        final selection = ChatSelectionController();
+        addTearDown(selection.dispose);
+        var selectTextCalls = 0;
+        await tester.pumpWidget(
+          MaterialApp(
+            home: Scaffold(
+              body: Stack(
+                children: <Widget>[
+                  const SizedBox.expand(),
+                  Positioned(
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    child: SelectionAppBar(
+                      selection: selection,
+                      onSelectText: () => selectTextCalls++,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+        await tester.pump();
+
+        expect(find.byIcon(Icons.text_fields_rounded), findsNothing);
+
+        selection.startSelection(3);
+        await tester.pumpAndSettle();
+        expect(find.byIcon(Icons.text_fields_rounded), findsOneWidget);
+
+        await tester.tap(find.byIcon(Icons.text_fields_rounded));
+        await tester.pump();
+        expect(selectTextCalls, 1);
+
+        selection.startSelection(4);
+        await tester.pumpAndSettle();
+        expect(find.byIcon(Icons.text_fields_rounded), findsNothing);
+      },
+    );
   });
 }

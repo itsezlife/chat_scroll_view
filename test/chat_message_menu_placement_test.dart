@@ -1,4 +1,5 @@
 import 'package:chat_scroll_view/src/chat_widgets/message_menu/chat_message_menu_placement.dart';
+import 'package:chat_scroll_view/src/chat_widgets/message_menu/chat_message_menu_presentation.dart';
 import 'package:flutter/painting.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -45,7 +46,7 @@ void main() {
     expect(placement.menuOrigin.dy, greaterThanOrEqualTo(24 + 24));
   });
 
-  test('X is independent of tap X and of outgoing vs incoming', () {
+  test('sheet X is independent of tap X and of outgoing vs incoming', () {
     const size = Size(384, 832);
     const rect = Rect.fromLTWH(0, -115, 384, 699);
     const menu = Size(252, 345);
@@ -58,6 +59,7 @@ void main() {
       menuSize: menu,
       tapGlobal: Offset(tapX, 314),
       safePadding: pad,
+      presentation: ChatMessageMenuPresentation.sheet,
     ).menuOrigin;
 
     expect(originAt(51.6).dx, originAt(308.3).dx);
@@ -65,6 +67,36 @@ void main() {
     expect(
       originAt(308.3).dx,
       isNot(384 - kChatMessageMenuEdgeInset - 252),
+    );
+  });
+
+  test('popup X follows the tap within edge clamps', () {
+    final placement = computeChatMessageMenuPlacement(
+      screenSize: const Size(400, 800),
+      keyboardHeight: 0,
+      messageRect: const Rect.fromLTWH(100, 200, 180, 40),
+      menuSize: const Size(200, 160),
+      tapGlobal: const Offset(120, 210),
+      presentation: ChatMessageMenuPresentation.popup,
+    );
+
+    expect(placement.menuOrigin.dx, 120);
+    expect(placement.menuOrigin.dy, 210);
+  });
+
+  test('popup X clamps near the trailing edge', () {
+    final placement = computeChatMessageMenuPlacement(
+      screenSize: const Size(400, 800),
+      keyboardHeight: 0,
+      messageRect: const Rect.fromLTWH(100, 200, 180, 40),
+      menuSize: const Size(200, 160),
+      tapGlobal: const Offset(390, 210),
+      presentation: ChatMessageMenuPresentation.popup,
+    );
+
+    expect(
+      placement.menuOrigin.dx,
+      400 - 200 - kChatMessageMenuEdgeInset,
     );
   });
 }

@@ -10,29 +10,29 @@ only layout scroll state and is not the host persist/restore record.
 
 ## Decided
 
-| Topic | Decision |
-| ----- | -------- |
-| Product intent | Leave/reopen restores **where the reader was looking**, not the layout Anchor origin |
-| Geometry | Exact message intersecting a fixed **center-band ray** at 50% of the paint band (zero thickness; no host fraction/slab in v1) |
-| Persist shape | `ChatCenterBand`: `messageId` + `offsetFromMessageTop` (px from message top → ray) |
-| Live observe | Deferred `ValueListenable<ChatCenterBand?>` on [ChatScrollController] (same listener safety as `visibleRange`) |
-| Apply | Package `jumpToCenterBand(messageId, offsetFromMessageTop)` — one layout operation; hosts MUST NOT compose `jumpTo` + `scrollBy` for this job |
-| Naming | **Center Band** / `ChatCenterBand` / `jumpToCenterBand` — physical paint-band role; not “gaze”, not “Open Anchor”, not `*Restore` |
-| Engine split | Anchor origin (`anchorMessageId`, `anchorPixelOffset`) stays engine-only layout; Center Band is the host-facing reading snapshot |
-| Heuristic | Reject in-app `visibleRange` id midpoints — variable row heights make them wrong |
-| Telegram | Inspiration for message + within-row offset / mid-band place; not a RecyclerView port |
+| Topic          | Decision                                                                                                                                      |
+| -------------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
+| Product intent | Leave/reopen restores **where the reader was looking**, not the layout Anchor origin                                                          |
+| Geometry       | Exact message intersecting a fixed **center-band ray** at 50% of the paint band (zero thickness; no host fraction/slab in v1)                 |
+| Persist shape  | `ChatCenterBand`: `messageId` + `offsetFromMessageTop` (px from message top → ray)                                                            |
+| Live observe   | Deferred `ValueListenable<ChatCenterBand?>` on [ChatScrollController] (same listener safety as `visibleRange`)                                |
+| Apply          | Package `jumpToCenterBand(messageId, offsetFromMessageTop)` — one layout operation; hosts MUST NOT compose `jumpTo` + `scrollBy` for this job |
+| Naming         | **Center Band** / `ChatCenterBand` / `jumpToCenterBand` — physical paint-band role; not “gaze”, not “Open Anchor”, not `*Restore`             |
+| Engine split   | Anchor origin (`anchorMessageId`, `anchorPixelOffset`) stays engine-only layout; Center Band is the host-facing reading snapshot              |
+| Heuristic      | Reject in-app `visibleRange` id midpoints — variable row heights make them wrong                                                              |
+| Telegram       | Inspiration for message + within-row offset / mid-band place; not a RecyclerView port                                                         |
 
 ## Rejected
 
-| Alternative | Why not |
-| ----------- | ------- |
-| Persist layout Anchor origin as leave/reopen | Wrong product: origin ≠ visual center; tall/mixed heights feel wrong |
-| Host-only heuristic from `visibleRange` | Cannot know which row crosses geometric center when heights vary |
-| Host-composed `jumpTo` + `scrollBy` restore | Fragile under Warm History / first layout / tall rows; Telegram-style place is one op |
-| Configurable center fraction or thick slab in v1 | Extra API + tie-breaks; mid-band ray matches the locked mid-screen intent |
-| Rename / redefine Anchor origin to mean Center Band | Lies about today’s engine contract and confuses architecture docs |
-| `*Restore` / “gaze” naming | Metaphor, not measured role; conflicts with physical naming house style |
-| Expose full visible-row geometry for host-defined center policy | Premature; one package center policy keeps hosts simple |
+| Alternative                                                     | Why not                                                                               |
+| --------------------------------------------------------------- | ------------------------------------------------------------------------------------- |
+| Persist layout Anchor origin as leave/reopen                    | Wrong product: origin ≠ visual center; tall/mixed heights feel wrong                  |
+| Host-only heuristic from `visibleRange`                         | Cannot know which row crosses geometric center when heights vary                      |
+| Host-composed `jumpTo` + `scrollBy` restore                     | Fragile under Warm History / first layout / tall rows; Telegram-style place is one op |
+| Configurable center fraction or thick slab in v1                | Extra API + tie-breaks; mid-band ray matches the locked mid-screen intent             |
+| Rename / redefine Anchor origin to mean Center Band             | Lies about today’s engine contract and confuses architecture docs                     |
+| `*Restore` / “gaze” naming                                      | Metaphor, not measured role; conflicts with physical naming house style               |
+| Expose full visible-row geometry for host-defined center policy | Premature; one package center policy keeps hosts simple                               |
 
 ## Consequences
 
@@ -52,4 +52,4 @@ only layout scroll state and is not the host persist/restore record.
 - Position / navigation constraints: [ADR 002](002-position-model.md)
 - Coordinate model: [docs/architecture/01-coordinate-model.md](../architecture/01-coordinate-model.md)
 - Navigation APIs: [docs/architecture/10-navigation-and-tail.md](../architecture/10-navigation-and-tail.md)
-- Glossary: [CONTEXT.md](../../CONTEXT.md) (*Anchor origin*, *Center-band ray*, *Center Band*, *ChatCenterBand*)
+- Glossary: [CONTEXT.md](../../CONTEXT.md) (_Anchor origin_, _Center-band ray_, _Center Band_, _ChatCenterBand_)

@@ -11,9 +11,14 @@ How the engineering skills should consume this repo's domain documentation when 
 - **`docs/adr/`** — accepted policy:
   - [ADR 001: Message ID Scheme](../adr/001-message-id-scheme.md)
   - [ADR 002: Position Model](../adr/002-position-model.md)
+  - [ADR 003: Viewport owns the span gesture](../adr/003-viewport-owned-span-gesture.md) (Chat Scroll)
   - [ADR 005: Stitch far path with navigation load-gate](../adr/005-stitch-far-path-and-load-gate.md) (Chat Scroll)
   - [ADR 006: Panel Catalog Viewport](../adr/006-panel-catalog-viewport.md)
   - [ADR 009: Center Band vs Anchor origin](../adr/009-center-band.md) (Chat Scroll)
+  - [ADR 010: Message-then-text (mobile policy; superseded)](../adr/010-message-then-text-selection.md) (Chat Scroll)
+  - [ADR 011: Markdown text selection bridge package (superseded)](../adr/011-markdown-selection-bridge.md) (Chat Scroll)
+  - [ADR 012: Cross-platform selection policies](../adr/012-cross-platform-selection-policies.md) (Chat Scroll)
+  - [ADR 013: Viewport owns markdown text selection](../adr/013-viewport-owns-markdown-text-selection.md) (Chat Scroll)
 
 Feature specs under `specs/` are incremental contracts. They do not replace the architecture bundle.
 
@@ -40,6 +45,8 @@ This is a **multi-context** repo:
 When your output names a domain concept (in an issue title, a refactor proposal, a hypothesis, a test name), use the term as defined in the **relevant** context glossary (`CONTEXT.md` or `docs/panel-catalog/CONTEXT.md`). Don't drift to synonyms the glossary explicitly avoids.
 
 If the concept you need isn't in the glossary yet, that's a signal — either you're inventing language the project doesn't use (reconsider) or there's a real gap (note it for `/domain-modeling`).
+
+Package and public-API naming also follow [portable-surface.md](portable-surface.md).
 
 ## Flag ADR conflicts
 

@@ -60,8 +60,8 @@ class ChatMessageThemeData extends ThemeExtension<ChatMessageThemeData> {
 
   /// [padding.top] is the gap before the first message in a sender run
   /// (unclustered / new run — ≈ 8dp). [padding.bottom] is the gap after the
-  /// last message in a run (Telegram `offsetBottom` when `!drawPinnedBottom`
-  /// — ≈ 2dp). Mid-run rows split [runGap] evenly across the shared edge
+  /// last message in a run when the bottom edge is unclustered (≈ 2dp).
+  /// Mid-run rows split [runGap] evenly across the shared edge
   /// (half bottom of the upper bubble + half top of the lower).
   final EdgeInsets padding;
 
@@ -83,8 +83,8 @@ class ChatMessageThemeData extends ThemeExtension<ChatMessageThemeData> {
 
   /// Large corner radius for a bubble that is not clustered on that edge.
   ///
-  /// Hosts typically expose this as a settings control (Telegram-style
-  /// “message corners”). Clustered outer corners use [nearRadius] instead.
+  /// Hosts typically expose this as a settings control for message corner
+  /// roundness. Clustered outer corners use [nearRadius] instead.
   /// See [ChatBubbleMetrics.bubbleBorderRadius].
   final double bubbleRadius;
 
@@ -105,7 +105,7 @@ class ChatMessageThemeData extends ThemeExtension<ChatMessageThemeData> {
   /// Horizontal [EdgeInsetsDirectional.start] / [EdgeInsetsDirectional.end]
   /// are the base content insets before [ChatMessageThemeData.extraTextX].
   /// [ChatBubbleMetrics.bubbleContentPadding] keeps them symmetric (no
-  /// Telegram tail-side +6) until a real bubble-tail path exists.
+  /// outer-only bias for a drawn tail) until a real bubble-tail path exists.
   final EdgeInsetsDirectional bubblePadding;
 
   /// Clustered outer-corner radius: `min([cornerNearCap], [bubbleRadius])`.
@@ -119,7 +119,7 @@ class ChatMessageThemeData extends ThemeExtension<ChatMessageThemeData> {
 
   /// Extra horizontal text inset that grows with [bubbleRadius].
   ///
-  /// Matches Telegram: ≥15 → 2, ≥11 → 1, else 0.
+  /// Scales with [bubbleRadius]: ≥15 → 2, ≥11 → 1, else 0.
   double get extraTextX {
     if (bubbleRadius >= 15) return 2;
     if (bubbleRadius >= 11) return 1;

@@ -1,4 +1,5 @@
 import 'package:chat_scroll_view/src/chat_scroll/chat_scroll_controller.dart';
+import 'package:chat_scroll_view/src/chat_scroll/chat_selection_controller.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 
@@ -18,6 +19,9 @@ import 'package:flutter/widgets.dart';
 ///   [reverse]). No-op when the target id is unknown (initial load).
 /// * `End` — `controller.jumpTo(controller.newestKnownId)` (or oldest when
 ///   [reverse]).
+/// * `Escape` — cancels active selection via
+///   [ChatSelectionController.cancelSelection] when [selectionController] is
+///   provided and selection is active.
 ///
 /// `controller.scrollBy` is anchor-relative, so PageUp / ArrowUp always
 /// reveal older history in both layouts — no direction flip is needed for
@@ -58,10 +62,11 @@ import 'package:flutter/widgets.dart';
 /// ```
 class ChatKeyboardShortcuts extends StatefulWidget {
   /// Wraps [child] with desktop scroll shortcuts bound to [controller]
-  /// boundary ids.
+  /// boundary ids and optional [selectionController] Escape dismissal.
   const ChatKeyboardShortcuts({
     required this.controller,
     required this.child,
+    this.selectionController,
     this.reverse = false,
     this.lineExtent = 60.0,
     this.pageExtent,
@@ -77,6 +82,10 @@ class ChatKeyboardShortcuts extends StatefulWidget {
   /// Typically a [ChatScrollView] — receives focus on tap when shortcuts
   /// should become active.
   final Widget child;
+
+  /// Optional selection controller whose active selection mode is cancelled
+  /// on Escape key press via [ChatSelectionController.cancelSelection].
+  final ChatSelectionController? selectionController;
 
   /// Mirrors `ChatScrollView.reverse`. When `true`, PageUp / Home reveal
   /// older history (the chat-app intuition) instead of "scroll the
@@ -133,6 +142,7 @@ class _ChatKeyboardShortcutsState extends State<ChatKeyboardShortcuts> {
         SingleActivator(LogicalKeyboardKey.pageDown): _ScrollPageDownIntent(),
         SingleActivator(LogicalKeyboardKey.home): _JumpHomeIntent(),
         SingleActivator(LogicalKeyboardKey.end): _JumpEndIntent(),
+        SingleActivator(LogicalKeyboardKey.escape): _CancelSelectionIntent(),
       };
 
   late final Map<Type, Action<Intent>> _actions = <Type, Action<Intent>>{
@@ -154,18 +164,55 @@ class _ChatKeyboardShortcutsState extends State<ChatKeyboardShortcuts> {
     _JumpEndIntent: CallbackAction<_JumpEndIntent>(
       onInvoke: (_) => _onJumpEnd(),
     ),
+    _CancelSelectionIntent: _CancelSelectionAction(this),
   };
 
   @override
   void initState() {
     super.initState();
     _focusNode = FocusNode(debugLabel: 'ChatKeyboardShortcuts');
+    HardwareKeyboard.instance.addHandler(_handleHardwareKey);
+    widget.selectionController?.addListener(_onSelectionChanged);
+  }
+
+  @override
+  void didUpdateWidget(ChatKeyboardShortcuts oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.selectionController != widget.selectionController) {
+      oldWidget.selectionController?.removeListener(_onSelectionChanged);
+      widget.selectionController?.addListener(_onSelectionChanged);
+    }
   }
 
   @override
   void dispose() {
+    HardwareKeyboard.instance.removeHandler(_handleHardwareKey);
+    widget.selectionController?.removeListener(_onSelectionChanged);
     _focusNode.dispose();
     super.dispose();
+  }
+
+  void _onSelectionChanged() {
+    final selection = widget.selectionController;
+    if (selection != null &&
+        selection.isSelectionMode &&
+        !selection.isTextSelectionActive) {
+      if (!_focusNode.hasFocus) {
+        _focusNode.requestFocus();
+      }
+    }
+  }
+
+  bool _handleHardwareKey(KeyEvent event) {
+    if (event is! KeyDownEvent) return false;
+    if (event.logicalKey != LogicalKeyboardKey.escape) return false;
+    final selection = widget.selectionController;
+    if (selection == null) return false;
+    if (selection.isTextSelectionActive || selection.isSelectionMode) {
+      selection.cancelSelection();
+      return true;
+    }
+    return false;
   }
 
   /// Scroll sign for keys whose intuition is "go back in time" (PageUp,
@@ -231,17 +278,23 @@ class _ChatKeyboardShortcutsState extends State<ChatKeyboardShortcuts> {
   /// soft keyboard.
   void _handlePointerDown(PointerDownEvent _) {
     if (_focusNode.hasFocus) return;
-    final scope = _focusNode.enclosingScope;
-    final focused = scope?.focusedChild ?? FocusManager.instance.primaryFocus;
-    if (focused != null && focused != _focusNode) {
-      // Walk up: if the current primary focus sits inside our subtree, the
-      // descendant intentionally claimed focus on this tap. Leave it alone.
-      FocusNode? n = focused;
-      while (n != null) {
-        if (n == _focusNode) return;
-        n = n.parent;
+    final selection = widget.selectionController;
+    final inSelectionMode =
+        selection != null &&
+        (selection.isSelectionMode || selection.isTextSelectionActive);
+    if (!inSelectionMode) {
+      final scope = _focusNode.enclosingScope;
+      final focused = scope?.focusedChild ?? FocusManager.instance.primaryFocus;
+      if (focused != null && focused != _focusNode) {
+        // Walk up: if the current primary focus sits inside our subtree, the
+        // descendant intentionally claimed focus on this tap. Leave it alone.
+        FocusNode? n = focused;
+        while (n != null) {
+          if (n == _focusNode) return;
+          n = n.parent;
+        }
+        if (widget.preserveExternalFocus) return;
       }
-      if (widget.preserveExternalFocus) return;
     }
     _focusNode.requestFocus();
   }
@@ -302,4 +355,28 @@ class _JumpHomeIntent extends Intent {
 
 class _JumpEndIntent extends Intent {
   const _JumpEndIntent();
+}
+
+class _CancelSelectionIntent extends Intent {
+  const _CancelSelectionIntent();
+}
+
+class _CancelSelectionAction extends Action<_CancelSelectionIntent> {
+  _CancelSelectionAction(this._state);
+
+  final _ChatKeyboardShortcutsState _state;
+
+  @override
+  bool isEnabled(_CancelSelectionIntent intent) {
+    if (_state.widget.selectionController case final selection?) {
+      return selection.isTextSelectionActive || selection.isSelectionMode;
+    }
+    return false;
+  }
+
+  @override
+  Object? invoke(_CancelSelectionIntent intent) {
+    _state.widget.selectionController?.cancelSelection();
+    return null;
+  }
 }

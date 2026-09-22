@@ -154,7 +154,9 @@ and follow-tail converge on the next layout.
   mode is on). The pinned floating date header is not a hit — the
   message underneath receives the long-press or tap. Rows do not attach
   a competing detector. A host `spanYield`
-  that returns true claims the long-press so selection does not start.
+  that returns true at `(messageId, globalOffset)` claims the long-press:
+  no span starts, membership does not change from that press, and
+  `addSpanYieldedListener` is notified once.
   A host `selectionAllowed` that is not selectable is not a span hit and
   does not join the selected set, even on the present-neighbor walk. Emptying
   the selected set does not end the span; membership stays empty.

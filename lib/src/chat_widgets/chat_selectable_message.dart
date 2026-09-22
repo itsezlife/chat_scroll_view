@@ -16,6 +16,16 @@ import 'package:flutter/services.dart';
 /// [ChatSelectionThemeData]; replace layout entirely with
 /// `ChatScrollView.selectionChromeBuilder`.
 ///
+/// ### Pointer forwarding
+///
+/// While **message selection** is active under mobile policy, unselected rows
+/// wrap the body in [IgnorePointer] so link/code chrome does not steal toggle
+/// taps. Selected rows stay hittable so a further long-press can enter **text
+/// selection** after the viewport yields (ADR 015). Desktop/web keeps children
+/// live so inline activation works during message selection without clearing
+/// membership. The **text selection subject** always forwards pointers so the
+/// per-body markdown scope can own continuous text gestures.
+///
 /// ### Freeze on exit
 ///
 /// When selection mode turns off — [ChatSelectionController.clear] or toggling
@@ -23,6 +33,11 @@ import 'package:flutter/services.dart';
 /// its last value. Only [ChatSelectionChromeState.modeProgress] animates to 0,
 /// so the check does not play an unselect animation. Re-entering snaps
 /// select progress to the live set before the mode animation runs.
+///
+/// Live flags ([ChatSelectionChromeState.isSelected],
+/// [ChatSelectionChromeState.isSelectionMode]) still rebuild immediately on
+/// facade notifies — bubble [ChatMessageChangeTransition.selectedColor] must
+/// not wait for an animation tick (drag cancel mid mode-enter).
 class SelectableMessage extends StatefulWidget {
   /// Wraps [child] with animated selection chrome for [id].
   const SelectableMessage({
@@ -63,7 +78,7 @@ class _SelectableMessageState extends State<SelectableMessage>
     with TickerProviderStateMixin {
   late final AnimationController _mode;
   late final AnimationController _select;
-  late final Listenable _animation;
+  late Listenable _animation;
   late bool _liveMode;
 
   @override
@@ -81,7 +96,11 @@ class _SelectableMessageState extends State<SelectableMessage>
       duration: ChatSelectionMetrics.selectDuration,
       value: c.isSelected(widget.id) ? 1.0 : 0.0,
     );
-    _animation = Listenable.merge(<Listenable>[_mode, _select]);
+    // Merge the facade: [isSelected] / [isSelectionMode] can flip without an
+    // animation tick (e.g. clearDrag mid mode-enter). Listening only to
+    // [_mode]/[_select] left [ChatSelectionStateScope] stale and painted
+    // ghost [ChatMessageChangeTransition.selectedColor].
+    _animation = Listenable.merge(<Listenable>[_mode, _select, c]);
     c.addListener(_onSelectionChanged);
   }
 
@@ -104,6 +123,11 @@ class _SelectableMessageState extends State<SelectableMessage>
     if (controllerSwapped) {
       oldWidget.controller.removeListener(_onSelectionChanged);
       widget.controller.addListener(_onSelectionChanged);
+      _animation = Listenable.merge(<Listenable>[
+        _mode,
+        _select,
+        widget.controller,
+      ]);
     }
     // Only re-sync when something the animation depends on actually changed.
     // Parent rebuilds with the same id+controller would otherwise enqueue
@@ -161,9 +185,23 @@ class _SelectableMessageState extends State<SelectableMessage>
   @override
   Widget build(BuildContext context) => AnimatedBuilder(
     animation: _animation,
-    builder: (context, child) => widget.chromeBuilder(
-      context,
-      ChatSelectionChromeState(
+    builder: (context, child) {
+      final isSubject = widget.controller.isTextSelectionActive &&
+          widget.controller.textSelectionSubject == widget.id;
+      final policy = widget.controller.selectionPolicy;
+      // Mobile multiselect: ignore unselected bodies so link/code do not steal
+      // row toggles. Selected rows stay hittable — viewport yields long-press
+      // into the per-body text scope (ADR 015). Text **subject** stays
+      // hittable for handles / drag. Host chrome gates via [canPerformActions].
+      final suppressHostChrome =
+          policy.suppressesLinkTapInMessageSelection &&
+          (widget.controller.isSelectionMode ||
+              widget.controller.isTextSelectionActive);
+      final ignoreChildren = suppressHostChrome &&
+          !isSubject &&
+          !widget.controller.isSelected(widget.id);
+      final canPerformActions = !suppressHostChrome;
+      final state = ChatSelectionChromeState(
         id: widget.id,
         modeProgress: _mode.value.clamp(0.0, 1.0),
         selectProgress: _select.value.clamp(0.0, 1.0),
@@ -172,9 +210,58 @@ class _SelectableMessageState extends State<SelectableMessage>
         showsCheck: widget.allowed.showsCheck,
         onTap: _handleTap,
         onLongPress: _handleLongPress,
-      ),
-      child!,
-    ),
+        policy: policy,
+        canPerformActions: canPerformActions,
+      );
+      return ChatSelectionStateScope(
+        state: state,
+        child: widget.chromeBuilder(
+          context,
+          state,
+          IgnorePointer(
+            ignoring: ignoreChildren,
+            child: child!,
+          ),
+        ),
+      );
+    },
     child: widget.child,
   );
+}
+
+/// Ambient selection state for a single selectable message row.
+///
+/// Descendant widgets (such as bubble containers or avatars) can query this
+/// to adapt their presentation when the row is selected.
+class ChatSelectionStateScope extends InheritedWidget {
+  /// Creates an ambient selection state scope for [state].
+  const ChatSelectionStateScope({
+    required this.state,
+    required super.child,
+    super.key,
+  });
+
+  /// The animated selection chrome state for this message row.
+  final ChatSelectionChromeState state;
+
+  /// Retrieves the ambient [ChatSelectionChromeState] for this message, or `null`.
+  static ChatSelectionChromeState? maybeOf(BuildContext context) =>
+      context
+          .dependOnInheritedWidgetOfExactType<ChatSelectionStateScope>()
+          ?.state;
+
+  /// Retrieves the ambient [ChatSelectionChromeState] for this message.
+  static ChatSelectionChromeState of(BuildContext context) {
+    final scope = maybeOf(context);
+    assert(scope != null, 'No ChatSelectionStateScope found in context');
+    return scope!;
+  }
+
+  @override
+  bool updateShouldNotify(ChatSelectionStateScope oldWidget) =>
+      state.modeProgress != oldWidget.state.modeProgress ||
+      state.selectProgress != oldWidget.state.selectProgress ||
+      state.isSelected != oldWidget.state.isSelected ||
+      state.isSelectionMode != oldWidget.state.isSelectionMode ||
+      state.canPerformActions != oldWidget.state.canPerformActions;
 }

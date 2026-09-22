@@ -6,7 +6,218 @@ this project is pre-1.0 and not strictly SemVer yet.
 
 ## [Unreleased]
 
+### Fixed
+
+- **Inline press ink aborts on past-slop travel.** `ChatMarkdownBody` mirrors
+  `ChatTapHighlight`: pointer move beyond touch slop calls
+  `abortSpanFeedback` so list pan and horizontal table pan clear the highlight
+  immediately (scrollables rarely deliver `PointerCancel` to a `Listener`).
+
+### Changed
+
+- **Message-selected bodies refuse nested table pan.** `ChatMarkdownBody`
+  builds `BlockPainter$ScrollableTable(enabled: !isSelected(messageId))` so
+  overflowing tables keep clipped layout but do not accept horizontal drag /
+  wheel pan while that message is in **message selection** (Telegram
+  nested-block pan). Theme cache includes membership so construct-time
+  `enabled` rebuilds on flip; selected rows stay hittable for text entry
+  (ADR 015).
+
 ### Added
+
+- **Scrollable overflowing markdown tables.** `ChatMarkdownBody` selects
+  `BlockPainter$ScrollableTable` so wide tables pan horizontally inside the
+  bubble (catalog painter opt-in, not a theme flag). Pan survives theme
+  rebuilds and engine row recycle via `MarkdownSelectionController`.
+
+- **Body linkify (host-invoked).** Opt-in `ChatBodyLinkify.apply` +
+  combinable `ChatLinkifyPolicy` bitmask (`webUrls`, `mentions`,
+  convenience `webAndMentions` default; `|` / `add` / `remove`). Rewrites
+  bare `http` / `https` / `www` and `@username` into markdown links.
+  Mentions become `[@username](mention:<username>)` and ride the existing
+  link **inline hit** channel. Skips fenced code, inline code, and existing
+  `[…](…)`. The viewport paint/build path does not call it
+  ([ADR 017](docs/adr/017-body-linkify-host-invoked.md)). Link preview
+  remains out of scope. Example hosts invoke the helper at send and
+  materialize, and branch activation on `http`/`https` vs `mention:`.
+
+- **Selection interaction facade.** Sealed `ChatSelectionInteraction`
+  (`ChatCopied`, `ChatLinkActivated`, `ChatCodeActivated`) with
+  `ChatSelectionController.onInteraction` /
+  `addInteractionListener`. Replaces parallel `onCopySuccess` /
+  `onLinkTap` / `onLinkLongPress` / `onCodeTap` and their typed
+  listeners. Code click-to-copy (`copyCodeOnClick: true`) emits a
+  single `ChatCopied(origin: codeTap)` — not a second code event —
+  so “Copied” chrome keys on `ChatCopied` alone. When auto-copy is
+  off, only `ChatCodeActivated` fires. Message-menu requests stay on
+  `ChatScrollView` (slot geometry), not this channel.
+
+- **Standalone tap highlight widget.** `ChatTapHighlight` wraps arbitrary
+  children with press-lifecycle contour ink (expand / hold / release; cancel
+  aborts). Past touch-slop travel also aborts (mobile list pan — scrollables
+  rarely deliver `PointerCancel` to a `Listener`). Desktop/mouse presses
+  exclude the pointer from viewport message pan; touch with null `onLongPress`
+  lets mobile **message selection** claim the press (Telegram name chrome).
+  Pointer handlers tolerate unmount mid-gesture. Selection-facade-free; under
+  `ChatSelectionStateScope` it respects `canPerformActions`. Label [color]
+  uses diluted ink alpha (`labelInkAlpha`); [padding] expands paint/hit only
+  (layout size unchanged). Demo sender name uses it.
+
+- **Mobile host-chrome gate during selection.** `ChatSelectableMessage` sets
+  `canPerformActions` false while mobile **message selection** or **text
+  selection** is active (host chrome / `ChatTapHighlight`). `IgnorePointer`
+  still covers **unselected** non-subject bodies only — selected rows stay
+  hittable so yielded long-press can enter **text selection** (ADR 015).
+  Desktop keeps host chrome hittable.
+
+- **Markdown text selection edge autoscroll.** `ChatMarkdownBody` drives the
+  anchor viewport through `ChatMarkdownAutoscroll`. Hosts pass
+  `ChatMarkdownAutoscrollOptions` (enabled / maxVelocity / edgeZone) — not the
+  raw markdown autoscroll config. Defaults: mobile half-line (~9) × Hz;
+  desktop fixed ~15ms near-edge product. Subject-flush stop when the text
+  subject is flush with the pad. Desktop text→message promotion at flush is
+  scratch issue 11.
+
+- **Message menu presentation (ADR 016).** `ChatMessageMenuPresentation`
+  (`sheet` / `popup`) defaults from **selection policy** (`$Mobile` →
+  scrim sheet with undimmed slot; `$Desktop` → pointer popup with no
+  viewport dim and no slot outline / lift). Pass `presentation:` to
+  override a single present; optional `selectionPolicy:` feeds the
+  default when presentation is omitted. Shared session still supports
+  presence abort, Escape / back / outside dismiss, and action / reaction
+  results. Reactions remain optional on either presentation.
+
+- **Secondary opt-in owns the full message slot.** When
+  `onSecondaryMessageTap` is set, the viewport claims right-click on the
+  entire **slot** (including markdown glyphs); per-body text yields so
+  Flutter’s text context menu does not stack. When the callback is null,
+  Flutter’s text menu remains on selectable markdown.
+
+### Changed
+
+- **Breaking: selection host observation.** Prefer
+  `ChatSelectionController(onInteraction: …)` /
+  `addInteractionListener`. Removed `onCopySuccess`, `onLinkTap`,
+  `onLinkLongPress`, `onCodeTap`, and the matching typed
+  `add*Listener` APIs.
+
+- **Message menu request (ADR 016).**
+  `ChatScrollView.onIdleMessageTap` / `onSecondaryMessageTap` receive a
+  [ChatMessageMenuRequest] with id, slot, tap, **point state** (body
+  Inside vs slot Outside), **membership** (idle / upon-selected /
+  elsewhere; upon-selected is **over-selection**), `hasTextSelection`
+  (subject has a live non-collapsed range), range-upon
+  `overlapsTextSelection` + optional plain-text snapshot, optional
+  `selectUpToIds` when elsewhere and under the selection cap, and
+  optional **inline hit** (link / code). Opening the menu still does not
+  clear membership or text selection. **Point state** uses the
+  host-reported message surface (bubble); **text overlap** is range-upon
+  at the tap (highlight rects), not subject-only. Example catalogs omit
+  both Copy and Copy Selected Text when text is selected but the press
+  is not upon the range; upon-selected rows use bulk labels; elsewhere
+  can offer Select up to. Hosts may pass `excludeActionIds` on the
+  example `MessageMenu` / catalog without forking the presenter.
+
+### Fixed
+
+- **Mid-drag toolbar on sibling hit during autoscroll.** With message
+  multi-select and a live text expand drag, hit-targeting a nearby selected
+  body briefly commits a cross-document range; the facade restores the last
+  on-subject range via the public markdown `selection` setter, which armed
+  `toolbarWanted`. Edge autoscroll scroll notifications then re-presented the
+  adaptive toolbar before drag end. Restore now clears `toolbarWanted` after
+  the clamp (drag-end `showToolbar` re-arms). Pair with the markdown scope
+  mid-drag scroll guard.
+
+- **Mobile retarget continuous text gesture.** With message multi-select and
+  text active on subject A, long-press on another selected body’s text yields
+  to that body’s markdown scope (same path as first entry) so drag-extend and
+  scope haptics work. Previously the viewport kept the press and one-shot
+  `enterTextSelection`, which settled immediately. Selected siblings mount
+  surfaces while text is live; adopt / Select All still prune the registry to
+  the subject (ADR 015). Handle drags that walk onto a sibling mount restore
+  the last on-subject range instead of clearing text or pinning to document
+  edges (which flashed full-body or reversed selection mid-gesture). Retarget
+  clears `toolbarWanted` so the prior adaptive toolbar does not linger
+  mid-gesture.
+
+- **Ghost bubble selectedColor.** `SelectableMessage` chrome now rebuilds on
+  facade notifies, not only mode/select animation ticks. Clearing a drag
+  preview mid mode-enter no longer leaves `ChatMessageChangeTransition`
+  painted with selectedColor while membership is empty.
+
+- **Message menu Inside after scroll.** Surface / body paint registration
+  stores the mounted [RenderBox] and resolves `localToGlobal` at hit time
+  (`reportMessageSurfaceBounds` / `reportBodyPaintBounds` now take
+  `RenderBox?`, not a cached global [Rect]). Cached rects went stale when
+  the list scrolled without rebuilding, so secondary taps looked Outside
+  (desktop Select-only — easy to read as “elsewhere”).
+
+- **Mobile text chrome with secondary wired.** Suppressing Flutter’s text
+  context menu when `onSecondaryMessageTap` is set is `$Desktop`-only
+  (`secondaryMessageTapOwnsFullSlot`). `$Mobile` keeps the adaptive toolbar
+  even when the host also wires secondary.
+
+- **Mobile inline hits vs selection (one matrix).** Idle: link / inline code /
+  COPY CODE fire. **Message selection** or a live **character-range**: all
+  three suppress (no more “fix COPY, break inline code” flip-flop). Desktop
+  message membership and arm-for-entry keep inline live; a live range
+  suppresses everywhere.
+
+- **Desktop text vs message pan (tdesktop Inside parity).** Message pan no
+  longer wins on empty line gutter / body surface padding: `containsGlobal`
+  is surface-bounds. While **text selection** is active, non-text clicks
+  dismiss text instead of starting message drag-select.
+
+
+### Changed
+
+- **Selection ownership (ADR 013).** Viewport owns markdown **text
+  selection**; optional-bridge / markdown-agnostic core (ADR 011) is
+  superseded. ADR 012 records policy amendments: engine-owned mobile
+  long-press routing (public **span yield** is not the lasting entry seam);
+  collapse-to-subject as this viewport’s mobile rule; mobile retarget as
+  policy; **inline hit** first-class vs idle dismiss; desktop drag-out
+  promotion to **message selection** accepted and deferred past foundation.
+
+- **`ChatSelectionController` is the selection facade.** Membership plus
+  **text selection** subject/range, **selection policy**, and Copy
+  observation live on one controller. New call sites do not compose a
+  second host text controller.
+
+### Added
+
+- **Viewport markdown dependency + text module.** `chat_scroll_view`
+  depends on `flutter_md` and owns an internal text-selection module
+  that reuses that library’s selection _model_ (documents, positions,
+  copy formatting). `ChatSelectionPolicy` (`$Mobile` / `$Desktop`,
+  `forPlatform` default) is constructed with the facade. Programmatic
+  `enterTextSelection` / `clearTextSelection` / `copyTextSelection`,
+  `putBody` / `removeBody`, and Copy-success listeners (plus optional
+  `onCopySuccess`) are the public text surface.
+
+- **`chat_md_selection` selection policy (ADR 012).** Sealed
+  `ChatMdSelectionPolicy` (`mobile` / `desktop`) with host override and
+  `forPlatform` default (iOS/Android → mobile; desktop OSes + web → desktop).
+  `ChatMdSelectionController` delegates entry, nesting, span-yield claim, and
+  Copy-success effects to the policy. Mobile preserves message-then-text and
+  Copy-clears-mode; desktop clears membership on enter and keeps the range on
+  Copy. Copy success notifies typed listeners + optional `onCopySuccess`
+  (feedback UI stays app-side).
+
+- **`chat_md_selection` package.** Message-then-text markdown selection against
+  `ChatSelectionController`: register bodies by Message ID, keep markdown
+  selection inert until `enterTextSelection`, collapse membership to the
+  text-selection subject, arm only that document, and start a word range at a
+  global point or select-all via an explicit enter (default Copy / Select all
+  chrome). Owns `spanYield`: claims only when the id is already selected and
+  the global point hits that body’s selectable text; the yield notify enters
+  text selection. Selected bodies mount hit-test surfaces while inactive;
+  only the subject mounts a surface (and is armed) while text-active. Exit
+  matrix (mobile policy): dismiss text keeps the subject selected;
+  `copyTextSelection` / default toolbar Copy clears text and message
+  selection; clearing message selection clears text; entering on a new subject
+  moves the range and collapses membership.
 
 - **Message highlight for open-at-message.** `ChatScrollController.highlight(id)`
   requests a one-slot attention wash without moving Anchor origin.
@@ -175,6 +386,14 @@ this project is pre-1.0 and not strictly SemVer yet.
 
 ### Changed
 
+- **Breaking — span yield API.** `ChatSelectionController.spanYield` is now
+  `(int messageId, Offset globalOffset) → bool`. When it returns `true`, the
+  viewport does not start a span or change membership from that press, and
+  `addSpanYieldedListener` / `removeSpanYieldedListener` fire once with the
+  same payload (`claimSpanYield`). Predicate MUST stay side-effect free —
+  start text selection from the typed notify. See ADR 003 / CONTEXT
+  (_Span yield_).
+
 - **chat_chrome chrome API → `KeyboardPanel*`.** Public panel, allow, tab,
   labels, callbacks, bottom bar/actions, type-tabs pill rename from
   `EmojiPanel*`. Unicode page / glyph / `emoji_data` stay `Emoji*`. Prefs
@@ -303,10 +522,11 @@ this project is pre-1.0 and not strictly SemVer yet.
   Absent ids occupy no height and never join the chain. Holding in the edge
   band auto-scrolls as the sole origin writer (follow-tail and close-path
   animate yield); delta is zero when content fits or a boundary pin is active.
-  `ChatSelectionController.spanYield` can claim the long-press so a future
-  in-bubble text selector can win (unused until then). The pinned floating
-  date header is not a hit — tap and long-press go through to the message
-  underneath.
+  `ChatSelectionController.spanYield` claims a long-press at
+  `(messageId, globalOffset)`; when claimed, no span starts and
+  `addSpanYieldedListener` is notified so the host can start text
+  selection programmatically. The pinned floating date header is not a
+  hit — tap and long-press go through to the message underneath.
 
 - **Selection-allowed and span abort** — optional
   `ChatSelectionController.selectionAllowed` (default `null` =
