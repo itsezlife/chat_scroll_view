@@ -45,8 +45,16 @@ class ChatSelectionThemeData extends ThemeExtension<ChatSelectionThemeData> {
   /// Dark-surface defaults.
   static const dark = ChatSelectionThemeData();
 
-  /// Row overlay while selected. `null` → `primary` at 13% opacity.
+  /// Row overlay while selected. Prefer a wash that already carries alpha
+  /// (Telegram `key_chat_selectedBackground` ≈ `0x280A90F0`). Opaque / null
+  /// falls back to [checkAccent] / [ColorScheme.primary] at
+  /// [defaultTintOpacity].
   final Color? selectedTint;
+
+  /// Opacity used when [selectedTint] is null or fully opaque.
+  ///
+  /// Matches Telegram light `key_chat_selectedBackground` (`0x28` ≈ 15.7%).
+  static const double defaultTintOpacity = 0x28 / 255.0;
 
   /// Checkbox fill. `null` → [ColorScheme.primary].
   final Color? checkAccent;

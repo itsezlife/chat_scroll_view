@@ -144,7 +144,15 @@ class DefaultSelectionChrome extends StatelessWidget {
     final s = state.selectProgress.clamp(0.0, 1.0);
     final accent = theme.checkAccent ?? scheme.primary;
     final overlay = state.overlayProgress.clamp(0.0, 1.0);
-    final tint = theme.selectedTint ?? accent;
+    // Prefer host [selectedTint] including its alpha (Telegram
+    // `key_chat_selectedBackground` is a blue wash ~0x28). Opaque / null tint
+    // falls back to accent at Telegram’s default opacity — not brand green @
+    // 13%, which disappears on light scaffolds.
+    final peakTint = switch (theme.selectedTint) {
+      final Color c when c.a < 1.0 - 1e-4 => c,
+      final Color c => c.withValues(alpha: ChatSelectionThemeData.defaultTintOpacity),
+      null => accent.withValues(alpha: ChatSelectionThemeData.defaultTintOpacity),
+    };
 
     if (m == 0.0 && overlay == 0.0) return child;
 
@@ -220,7 +228,11 @@ class DefaultSelectionChrome extends StatelessWidget {
                 child: IgnorePointer(
                   child: ColoredBox(
                     key: const ValueKey<String>('chatSelectionTint'),
-                    color: tint.withValues(alpha: 0.13 * overlay),
+                    color: Color.lerp(
+                      const Color(0x00000000),
+                      peakTint,
+                      overlay,
+                    )!,
                   ),
                 ),
               ),
