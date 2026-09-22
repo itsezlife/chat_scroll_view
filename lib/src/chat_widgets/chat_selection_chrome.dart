@@ -150,8 +150,12 @@ class DefaultSelectionChrome extends StatelessWidget {
     // 13%, which disappears on light scaffolds.
     final peakTint = switch (theme.selectedTint) {
       final Color c when c.a < 1.0 - 1e-4 => c,
-      final Color c => c.withValues(alpha: ChatSelectionThemeData.defaultTintOpacity),
-      null => accent.withValues(alpha: ChatSelectionThemeData.defaultTintOpacity),
+      final Color c => c.withValues(
+        alpha: ChatSelectionThemeData.defaultTintOpacity,
+      ),
+      null => accent.withValues(
+        alpha: ChatSelectionThemeData.defaultTintOpacity,
+      ),
     };
 
     if (m == 0.0 && overlay == 0.0) return child;
