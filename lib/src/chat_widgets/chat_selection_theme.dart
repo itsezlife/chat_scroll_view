@@ -108,8 +108,11 @@ class ChatSelectionThemeData extends ThemeExtension<ChatSelectionThemeData> {
       checkmark: Color.lerp(checkmark, other.checkmark, t)!,
       slotWidth: lerpDouble(slotWidth, other.slotWidth, t)!,
       checkSize: lerpDouble(checkSize, other.checkSize, t)!,
-      checkTrailingMargin:
-          lerpDouble(checkTrailingMargin, other.checkTrailingMargin, t)!,
+      checkTrailingMargin: lerpDouble(
+        checkTrailingMargin,
+        other.checkTrailingMargin,
+        t,
+      )!,
       modeDuration: lerpDuration(modeDuration, other.modeDuration, t),
       selectDuration: lerpDuration(selectDuration, other.selectDuration, t),
     );

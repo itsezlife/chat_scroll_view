@@ -36,9 +36,11 @@ final class ChatTextSelection {
   final bool _disposeMarkdown;
 
   final Map<int, _BodyEntry> _bodies = <int, _BodyEntry>{};
+
   /// Mounted body paint boxes — resolved to global rects at hit time so
   /// scroll does not stale a cached [Rect].
   final Map<int, RenderBox> _bodyPaintBoxes = <int, RenderBox>{};
+
   /// Mounted message-surface (bubble) boxes — same live-resolve contract.
   final Map<int, RenderBox> _messageSurfaceBoxes = <int, RenderBox>{};
 

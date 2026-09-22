@@ -68,7 +68,7 @@ sealed class ChatSelectionPolicy {
   ///
   /// `true` under [$Mobile] (Behavior: bubbles slide horizontally
   /// to reveal the start-side checkbox).
-  /// `false` under [$Desktop] (Behavior: bubbles remain stationary and the 
+  /// `false` under [$Desktop] (Behavior: bubbles remain stationary and the
   /// checkbox appears on the trailing edge).
   bool get shiftsBubbleForSelectionGutter;
 

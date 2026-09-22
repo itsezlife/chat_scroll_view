@@ -28,11 +28,7 @@ class ChatChunkFetchScheduler {
   /// (the anchor chunk is never evicted).
   ChatChunkFetchScheduler({
     required ChatDataSource dataSource,
-    required void Function(
-      int minChunk,
-      int maxChunk, {
-      bool allowWiden,
-    })
+    required void Function(int minChunk, int maxChunk, {bool allowWiden})
     requestRange,
     required int Function() anchorChunkIndex,
     Duration pollInterval = const Duration(milliseconds: 150),
@@ -42,11 +38,7 @@ class ChatChunkFetchScheduler {
        _pollInterval = pollInterval;
 
   final ChatDataSource _dataSource;
-  final void Function(
-    int minChunk,
-    int maxChunk, {
-    bool allowWiden,
-  })
+  final void Function(int minChunk, int maxChunk, {bool allowWiden})
   _requestRange;
   final int Function() _anchorChunkIndex;
   final Duration _pollInterval;

@@ -193,10 +193,9 @@ void main() {
         expect(selection.textSelection!.base.documentId, 1);
         expect(selection.textSelection!.extent.documentId, 1);
         expect(selection.markdownSelection.getText(), body1);
-        expect(
-          selection.markdownSelection.documents.map((d) => d.id),
-          <Object>[1],
-        );
+        expect(selection.markdownSelection.documents.map((d) => d.id), <Object>[
+          1,
+        ]);
       },
     );
 
@@ -2273,7 +2272,8 @@ void main() {
                   controller: controller,
                   selectionController: selection,
                   onIdleMessageTap: (request) => taps.add(request.messageId),
-                  onSecondaryMessageTap: (request) => secondaryTaps.add(request.messageId),
+                  onSecondaryMessageTap: (request) =>
+                      secondaryTaps.add(request.messageId),
                   messageBuilder: (context, id, message, status, runLayout) =>
                       SizedBox(height: 60, child: Text('msg-$id')),
                 ),
@@ -2709,7 +2709,8 @@ void main() {
         // contour — suppression must not special-case chrome vs inline code.
         const copyChromeHit1 = ChatInlineHit.code(
           messageId: 1,
-          code: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+          code:
+              'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
           language: null,
         );
 
@@ -2933,45 +2934,42 @@ void main() {
       },
     );
 
-    test(
-      'listener removal cleanly unregisters interaction observers',
-      () {
-        final selection = ChatSelectionController(
-          policy: const ChatSelectionPolicy.mobile(),
-        );
-        addTearDown(selection.dispose);
+    test('listener removal cleanly unregisters interaction observers', () {
+      final selection = ChatSelectionController(
+        policy: const ChatSelectionPolicy.mobile(),
+      );
+      addTearDown(selection.dispose);
 
-        var linkCalls = 0;
-        var codeCalls = 0;
-        void interactionListener(ChatSelectionInteraction i) {
-          switch (i) {
-            case ChatLinkActivated(gesture: ChatInlineGesture.tap):
-              linkCalls++;
-            case ChatCopied(origin: ChatCopyOrigin.codeTap):
-              codeCalls++;
-            case _:
-              break;
-          }
+      var linkCalls = 0;
+      var codeCalls = 0;
+      void interactionListener(ChatSelectionInteraction i) {
+        switch (i) {
+          case ChatLinkActivated(gesture: ChatInlineGesture.tap):
+            linkCalls++;
+          case ChatCopied(origin: ChatCopyOrigin.codeTap):
+            codeCalls++;
+          case _:
+            break;
         }
+      }
 
-        selection.addInteractionListener(interactionListener);
+      selection.addInteractionListener(interactionListener);
 
-        const linkHit = ChatInlineHit.link(messageId: 1, title: 'T', url: 'U');
-        const codeHit = ChatInlineHit.code(messageId: 1, code: 'C');
+      const linkHit = ChatInlineHit.link(messageId: 1, title: 'T', url: 'U');
+      const codeHit = ChatInlineHit.code(messageId: 1, code: 'C');
 
-        expect(selection.handleInlineHit(linkHit), isTrue);
-        expect(selection.handleInlineHit(codeHit), isTrue);
-        expect(linkCalls, 1);
-        expect(codeCalls, 1);
+      expect(selection.handleInlineHit(linkHit), isTrue);
+      expect(selection.handleInlineHit(codeHit), isTrue);
+      expect(linkCalls, 1);
+      expect(codeCalls, 1);
 
-        selection.removeInteractionListener(interactionListener);
+      selection.removeInteractionListener(interactionListener);
 
-        expect(selection.handleInlineHit(linkHit), isTrue);
-        expect(selection.handleInlineHit(codeHit), isTrue);
-        expect(linkCalls, 1);
-        expect(codeCalls, 1);
-      },
-    );
+      expect(selection.handleInlineHit(linkHit), isTrue);
+      expect(selection.handleInlineHit(codeHit), isTrue);
+      expect(linkCalls, 1);
+      expect(codeCalls, 1);
+    });
 
     testWidgets(
       'harness: tap on link with live text selection is suppressed (keeps or dismisses per idle-tap)',
@@ -3055,79 +3053,73 @@ void main() {
       },
     );
 
-    testWidgets(
-      'harness: tap on code with live text selection is suppressed',
-      (tester) async {
-        final dataSource = _LoadedSource([_msg(1)]);
-        final controller = ChatScrollController();
-        final interactions = <ChatSelectionInteraction>[];
-        final selection = ChatSelectionController(
-          policy: const ChatSelectionPolicy.desktop(),
-          onInteraction: interactions.add,
-        );
-        addTearDown(controller.dispose);
-        addTearDown(selection.dispose);
-        addTearDown(dataSource.dispose);
+    testWidgets('harness: tap on code with live text selection is suppressed', (
+      tester,
+    ) async {
+      final dataSource = _LoadedSource([_msg(1)]);
+      final controller = ChatScrollController();
+      final interactions = <ChatSelectionInteraction>[];
+      final selection = ChatSelectionController(
+        policy: const ChatSelectionPolicy.desktop(),
+        onInteraction: interactions.add,
+      );
+      addTearDown(controller.dispose);
+      addTearDown(selection.dispose);
+      addTearDown(dataSource.dispose);
 
-        final clipboard = <MethodCall>[];
-        TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-            .setMockMethodCallHandler(SystemChannels.platform, (call) async {
-              if (call.method == 'Clipboard.setData') clipboard.add(call);
-              return null;
-            });
-        addTearDown(
-          () => TestDefaultBinaryMessengerBinding
-              .instance
-              .defaultBinaryMessenger
-              .setMockMethodCallHandler(SystemChannels.platform, null),
-        );
+      final clipboard = <MethodCall>[];
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(SystemChannels.platform, (call) async {
+            if (call.method == 'Clipboard.setData') clipboard.add(call);
+            return null;
+          });
+      addTearDown(
+        () => TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+            .setMockMethodCallHandler(SystemChannels.platform, null),
+      );
 
-        selection.putBody(
-          1,
-          Markdown.fromString('```dart\nvoid main() {}\n```'),
-        );
+      selection.putBody(1, Markdown.fromString('```dart\nvoid main() {}\n```'));
 
-        await tester.pumpWidget(
-          MaterialApp(
-            home: Scaffold(
-              body: SizedBox(
-                width: 400,
-                height: 600,
-                child: ChatScrollView(
-                  dataSource: dataSource,
-                  controller: controller,
-                  selectionController: selection,
-                  messageBuilder: (context, id, message, status, runLayout) =>
-                      Container(
-                        key: ValueKey('container-$id'),
-                        height: 80,
-                        padding: const EdgeInsets.all(12),
-                        color: Colors.white,
-                        child: ChatMarkdownBody(
-                          key: ValueKey('md-$id'),
-                          controller: selection,
-                          messageId: id,
-                        ),
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: SizedBox(
+              width: 400,
+              height: 600,
+              child: ChatScrollView(
+                dataSource: dataSource,
+                controller: controller,
+                selectionController: selection,
+                messageBuilder: (context, id, message, status, runLayout) =>
+                    Container(
+                      key: ValueKey('container-$id'),
+                      height: 80,
+                      padding: const EdgeInsets.all(12),
+                      color: Colors.white,
+                      child: ChatMarkdownBody(
+                        key: ValueKey('md-$id'),
+                        controller: selection,
+                        messageId: id,
                       ),
-                ),
+                    ),
               ),
             ),
           ),
-        );
-        await tester.pumpAndSettle();
+        ),
+      );
+      await tester.pumpAndSettle();
 
-        expect(selection.enterTextSelection(1), isTrue);
-        expect(selection.isTextSelectionActive, isTrue);
+      expect(selection.enterTextSelection(1), isTrue);
+      expect(selection.isTextSelectionActive, isTrue);
 
-        final mdTopLeft = tester.getTopLeft(find.byKey(const ValueKey('md-1')));
-        await tester.tapAt(mdTopLeft + const Offset(50, 10));
-        await tester.pumpAndSettle();
+      final mdTopLeft = tester.getTopLeft(find.byKey(const ValueKey('md-1')));
+      await tester.tapAt(mdTopLeft + const Offset(50, 10));
+      await tester.pumpAndSettle();
 
-        // Live character-range suppresses fenced COPY chrome (ADR 012).
-        expect(interactions, isEmpty);
-        expect(clipboard, isEmpty);
-      },
-    );
+      // Live character-range suppresses fenced COPY chrome (ADR 012).
+      expect(interactions, isEmpty);
+      expect(clipboard, isEmpty);
+    });
 
     testWidgets(
       'harness: tap on non-inline chrome with active text selection dismisses text',
@@ -3512,7 +3504,8 @@ void main() {
                   dataSource: dataSource,
                   controller: controller,
                   selectionController: selection,
-                  onIdleMessageTap: (request) => idleTaps.add(request.messageId),
+                  onIdleMessageTap: (request) =>
+                      idleTaps.add(request.messageId),
                   messageBuilder: (context, id, message, status, runLayout) =>
                       Container(
                         key: ValueKey('container-$id'),
@@ -3889,10 +3882,8 @@ void main() {
                   messageId: 1,
                   text: content,
                 ),
-                metaBuilder: (context, editedOpacity) => const SizedBox(
-                  width: 40,
-                  height: 12,
-                ),
+                metaBuilder: (context, editedOpacity) =>
+                    const SizedBox(width: 40, height: 12),
                 color: const Color(0xFF2B5278),
                 borderRadius: BorderRadius.circular(12),
                 padding: const EdgeInsets.all(8),

@@ -104,7 +104,8 @@ void main() {
       expect(
         _render(tester).debugStretchOverscroll,
         greaterThan(0.01),
-        reason: 'unconsumed dy at the oldest edge must paint EdgeEffect stretch',
+        reason:
+            'unconsumed dy at the oldest edge must paint EdgeEffect stretch',
       );
       expect(
         tester.getTopLeft(find.text('msg-0')).dy,
@@ -115,7 +116,10 @@ void main() {
       await gesture.up();
       await tester.pumpAndSettle();
       expect(_render(tester).debugStretchOverscroll, closeTo(0, 0.001));
-      expect(tester.getTopLeft(find.text('msg-0')).dy, closeTo(viewportTop, 0.5));
+      expect(
+        tester.getTopLeft(find.text('msg-0')).dy,
+        closeTo(viewportTop, 0.5),
+      );
     });
 
     testWidgets('mid-content drag does not stretch', (tester) async {

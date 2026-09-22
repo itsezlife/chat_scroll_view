@@ -67,7 +67,9 @@ class ChatSelectionPointer {
   /// per-body text context menus can win the arena.
   void Function(int id, Offset localPosition)? get onSecondaryMessageTap =>
       _onSecondaryMessageTap;
-  set onSecondaryMessageTap(void Function(int id, Offset localPosition)? value) {
+  set onSecondaryMessageTap(
+    void Function(int id, Offset localPosition)? value,
+  ) {
     if (identical(_onSecondaryMessageTap, value)) return;
     _onSecondaryMessageTap = value;
     // Keep the live recognizer in sync without waiting for the next down.
@@ -259,15 +261,13 @@ class ChatSelectionPointer {
     } else {
       _longPress?.dispose();
       _longPress = null;
-      _pan ??=
-          PanGestureRecognizer(debugOwner: debugOwner)
-            ..onStart = _onPanStart
-            ..onUpdate = _onPanUpdate
-            ..onEnd = _onPanEnd
-            ..onCancel = _onPanCancel;
+      _pan ??= PanGestureRecognizer(debugOwner: debugOwner)
+        ..onStart = _onPanStart
+        ..onUpdate = _onPanUpdate
+        ..onEnd = _onPanEnd
+        ..onCancel = _onPanCancel;
     }
-    _tap ??=
-        TapGestureRecognizer(debugOwner: debugOwner)..onTap = _onTap;
+    _tap ??= TapGestureRecognizer(debugOwner: debugOwner)..onTap = _onTap;
     // Arm secondary only when the host opted in. Otherwise leave the arena
     // to per-body markdown so Flutter’s text context menu remains.
     _tap!.onSecondaryTapUp = _onSecondaryMessageTap == null

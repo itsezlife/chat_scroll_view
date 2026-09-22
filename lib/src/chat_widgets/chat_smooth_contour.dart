@@ -49,10 +49,7 @@ abstract final class ChatSmoothContour {
   ///
   /// Corner radius [radius] defaults to [defaultRadius]. If [radius] is zero or
   /// negative, the path is generated with sharp rectilinear corners.
-  static Path buildPath(
-    List<Rect> boxes, {
-    double radius = defaultRadius,
-  }) {
+  static Path buildPath(List<Rect> boxes, {double radius = defaultRadius}) {
     if (boxes.isEmpty) return Path();
 
     // 1. Filter out empty or non-positive dimension boxes
@@ -78,9 +75,12 @@ abstract final class ChatSmoothContour {
       }
 
       final last = mergedLines.last;
-      final verticalOverlap = math.min(last.bottom, box.bottom) - math.max(last.top, box.top);
-      final isSameLine = verticalOverlap > 0.5 * math.min(last.height, box.height) ||
-          ((last.top - box.top).abs() <= 2 && (last.bottom - box.bottom).abs() <= 2);
+      final verticalOverlap =
+          math.min(last.bottom, box.bottom) - math.max(last.top, box.top);
+      final isSameLine =
+          verticalOverlap > 0.5 * math.min(last.height, box.height) ||
+          ((last.top - box.top).abs() <= 2 &&
+              (last.bottom - box.bottom).abs() <= 2);
 
       if (isSameLine && box.left <= last.right + 2) {
         mergedLines[mergedLines.length - 1] = last.expandToInclude(box);
@@ -124,8 +124,13 @@ abstract final class ChatSmoothContour {
         if (effectiveRadius <= 0) {
           resultPath.addRect(rect);
         } else {
-          final r = math.min(effectiveRadius, math.min(rect.width / 2, rect.height / 2));
-          resultPath.addRRect(RRect.fromRectAndRadius(rect, Radius.circular(r)));
+          final r = math.min(
+            effectiveRadius,
+            math.min(rect.width / 2, rect.height / 2),
+          );
+          resultPath.addRRect(
+            RRect.fromRectAndRadius(rect, Radius.circular(r)),
+          );
         }
       } else {
         _buildMultilineContour(resultPath, cluster, effectiveRadius);
@@ -148,11 +153,17 @@ abstract final class ChatSmoothContour {
   static ChatCornerOrientation cornerOrientation(Offset u, Offset v) {
     final det = crossProduct(u, v);
     if (det.abs() < 1e-6) return ChatCornerOrientation.collinear;
-    return det > 0 ? ChatCornerOrientation.convex : ChatCornerOrientation.reflex;
+    return det > 0
+        ? ChatCornerOrientation.convex
+        : ChatCornerOrientation.reflex;
   }
 
   /// Generates a single closed smooth contour for a cluster of [N >= 2] connected lines.
-  static void _buildMultilineContour(Path path, List<Rect> lines, double radius) {
+  static void _buildMultilineContour(
+    Path path,
+    List<Rect> lines,
+    double radius,
+  ) {
     final lineCount = lines.length;
 
     // Harmonize seam vertical coordinates between consecutive lines
@@ -204,7 +215,8 @@ abstract final class ChatSmoothContour {
         deduped.add(v);
       }
     }
-    if (deduped.length > 1 && (deduped.first - deduped.last).distanceSquared < 1e-6) {
+    if (deduped.length > 1 &&
+        (deduped.first - deduped.last).distanceSquared < 1e-6) {
       deduped.removeLast();
     }
 
@@ -262,12 +274,18 @@ abstract final class ChatSmoothContour {
       final inLen = u.distance;
       final outLen = v.distance;
 
-      final uHat = inLen > 1e-6 ? Offset(u.dx / inLen, u.dy / inLen) : Offset.zero;
-      final vHat = outLen > 1e-6 ? Offset(v.dx / outLen, v.dy / outLen) : Offset.zero;
+      final uHat = inLen > 1e-6
+          ? Offset(u.dx / inLen, u.dy / inLen)
+          : Offset.zero;
+      final vHat = outLen > 1e-6
+          ? Offset(v.dx / outLen, v.dy / outLen)
+          : Offset.zero;
 
       final orientation = cornerOrientation(u, v);
       final minAdjoiningEdgeHalf = math.min(inLen / 2, outLen / 2);
-      final clampedRadius = radius < 0 ? 0.0 : math.min(radius, minAdjoiningEdgeHalf);
+      final clampedRadius = radius < 0
+          ? 0.0
+          : math.min(radius, minAdjoiningEdgeHalf);
 
       corners.add((
         entry: curr - Offset(uHat.dx * clampedRadius, uHat.dy * clampedRadius),

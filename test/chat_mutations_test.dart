@@ -403,29 +403,33 @@ void main() {
   });
 
   group('fetch merge respects local deletes', () {
-    test('does not resurrect removed message from fetchRange payload', () async {
-      final ds = _SpyDataSource(
-        fetchHandler: ({required fromId, required toId}) async =>
-            <IChatMessage>[_msg(10), _msg(11)],
-      )
-        ..insertMessage(_msg(10))
-        ..insertMessage(_msg(11));
+    test(
+      'does not resurrect removed message from fetchRange payload',
+      () async {
+        final ds =
+            _SpyDataSource(
+                fetchHandler: ({required fromId, required toId}) async =>
+                    <IChatMessage>[_msg(10), _msg(11)],
+              )
+              ..insertMessage(_msg(10))
+              ..insertMessage(_msg(11));
 
-      ds.removeMessages([10, 11]);
-      expect(ds.getMessage(10), isNull);
-      expect(ds.getMessage(11), isNull);
+        ds.removeMessages([10, 11]);
+        expect(ds.getMessage(10), isNull);
+        expect(ds.getMessage(11), isNull);
 
-      // Simulate engine LRU eviction before a later refetch.
-      ds.chunks.clear();
+        // Simulate engine LRU eviction before a later refetch.
+        ds.chunks.clear();
 
-      ds.requestChunks(0, 0);
-      await Future<void>.delayed(Duration.zero);
-      await Future<void>.delayed(Duration.zero);
+        ds.requestChunks(0, 0);
+        await Future<void>.delayed(Duration.zero);
+        await Future<void>.delayed(Duration.zero);
 
-      expect(ds.getMessage(10), isNull);
-      expect(ds.getMessage(11), isNull);
-      expect(ds.pendingRemovalIds, containsAll(<int>[10, 11]));
-    });
+        expect(ds.getMessage(10), isNull);
+        expect(ds.getMessage(11), isNull);
+        expect(ds.pendingRemovalIds, containsAll(<int>[10, 11]));
+      },
+    );
   });
 
   group('mutation listener dedup', () {

@@ -124,28 +124,31 @@ void main() {
       },
     );
 
-    testWidgets('long-press then lift without passing slop selects only origin', (
-      tester,
-    ) async {
-      const count = 32;
-      final controller = ChatScrollController()..jumpTo(count - 1);
-      final selection = ChatSelectionController();
-      addTearDown(controller.dispose);
-      addTearDown(selection.dispose);
+    testWidgets(
+      'long-press then lift without passing slop selects only origin',
+      (tester) async {
+        const count = 32;
+        final controller = ChatScrollController()..jumpTo(count - 1);
+        final selection = ChatSelectionController();
+        addTearDown(controller.dispose);
+        addTearDown(selection.dispose);
 
-      await tester.pumpWidget(
-        _harness(
-          dataSource: _LoadedSource([for (var i = 0; i < count; i++) _msg(i)]),
-          controller: controller,
-          selection: selection,
-        ),
-      );
-      await tester.pump();
+        await tester.pumpWidget(
+          _harness(
+            dataSource: _LoadedSource([
+              for (var i = 0; i < count; i++) _msg(i),
+            ]),
+            controller: controller,
+            selection: selection,
+          ),
+        );
+        await tester.pump();
 
-      await tester.longPress(find.text('msg-${count - 1}'));
-      await tester.pumpAndSettle();
-      expect(selection.selectedIds, {count - 1});
-    });
+        await tester.longPress(find.text('msg-${count - 1}'));
+        await tester.pumpAndSettle();
+        expect(selection.selectedIds, {count - 1});
+      },
+    );
 
     testWidgets('moving back toward the origin drops ids this gesture added', (
       tester,

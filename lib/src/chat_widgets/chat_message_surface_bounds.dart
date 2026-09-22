@@ -46,7 +46,10 @@ class _ChatMessageSurfaceBoundsState extends State<ChatMessageSurfaceBounds> {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.messageId != widget.messageId ||
         oldWidget.controller != widget.controller) {
-      oldWidget.controller.reportMessageSurfaceBounds(oldWidget.messageId, null);
+      oldWidget.controller.reportMessageSurfaceBounds(
+        oldWidget.messageId,
+        null,
+      );
       _scheduleReport();
     }
   }

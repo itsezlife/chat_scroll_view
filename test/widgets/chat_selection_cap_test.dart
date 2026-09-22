@@ -211,17 +211,17 @@ void main() {
       expect(selection.count, lessThan(cap));
       expect(selection.capHits.value, 0);
 
-        for (var i = 0; i < 90 && selection.count < cap; i++) {
-          await tester.pump(const Duration(milliseconds: 16));
-        }
-        expect(selection.count, cap);
-        for (var i = 0; i < 10 && selection.capHits.value == 0; i++) {
-          await tester.pump(const Duration(milliseconds: 16));
-        }
-        await tester.pump();
+      for (var i = 0; i < 90 && selection.count < cap; i++) {
+        await tester.pump(const Duration(milliseconds: 16));
+      }
+      expect(selection.count, cap);
+      for (var i = 0; i < 10 && selection.capHits.value == 0; i++) {
+        await tester.pump(const Duration(milliseconds: 16));
+      }
+      await tester.pump();
 
-        expect(selection.capHits.value, 1);
-        await gesture.up();
+      expect(selection.capHits.value, 1);
+      await gesture.up();
     });
 
     testWidgets(

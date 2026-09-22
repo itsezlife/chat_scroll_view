@@ -28,9 +28,10 @@ final class ChatSecondaryMessageTapScope extends InheritedWidget {
   static bool hostOwnsSecondaryOf(BuildContext context, {bool listen = true}) {
     final scope = listen
         ? context
-              .dependOnInheritedWidgetOfExactType<ChatSecondaryMessageTapScope>()
-        : context
-              .getInheritedWidgetOfExactType<ChatSecondaryMessageTapScope>();
+              .dependOnInheritedWidgetOfExactType<
+                ChatSecondaryMessageTapScope
+              >()
+        : context.getInheritedWidgetOfExactType<ChatSecondaryMessageTapScope>();
     return scope?.hostOwnsSecondary ?? false;
   }
 

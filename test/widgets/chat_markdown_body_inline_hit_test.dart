@@ -69,9 +69,7 @@ void main() {
               dataSource: dataSource,
               controller: controller,
               selectionController: selection,
-              onIdleMessageTap: onIdle == null
-                  ? null
-                  : (request) => onIdle(),
+              onIdleMessageTap: onIdle == null ? null : (request) => onIdle(),
               messageBuilder: (context, id, message, status, runLayout) =>
                   Container(
                     // Tall enough for long fenced code + mobile COPY CODE bar.
@@ -260,7 +258,8 @@ void main() {
         final md = find.byType(MarkdownWidget);
         final size = tester.getSize(md);
         final origin = tester.getTopLeft(md);
-        final bottom = origin +
+        final bottom =
+            origin +
             Offset(
               40,
               size.height - ChatCodeBlockPainter.mobileBottomBarHeight / 2,
@@ -324,7 +323,8 @@ void main() {
         final md = find.byType(MarkdownWidget);
         final size = tester.getSize(md);
         final origin = tester.getTopLeft(md);
-        final bottom = origin +
+        final bottom =
+            origin +
             Offset(
               40,
               size.height - ChatCodeBlockPainter.mobileBottomBarHeight / 2,
@@ -339,7 +339,8 @@ void main() {
         expect(
           selection.handleInlineHit(hit!),
           isFalse,
-          reason: 'facade must suppress COPY chrome while text selection active',
+          reason:
+              'facade must suppress COPY chrome while text selection active',
         );
         expect(codeTaps, isEmpty);
       } finally {

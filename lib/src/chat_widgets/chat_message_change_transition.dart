@@ -279,8 +279,8 @@ class _ChatMessageChangeTransitionState
         selection?.policy.appliesSelectedColorToBubble ?? true;
     final effectiveColor =
         (isSelected && appliesSelectedColor && widget.selectedColor != null)
-            ? widget.selectedColor!
-            : widget.color;
+        ? widget.selectedColor!
+        : widget.color;
 
     return _ChatMessageChangeTransition(
       key: _renderKey,

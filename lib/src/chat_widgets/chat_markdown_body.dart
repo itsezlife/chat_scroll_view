@@ -136,6 +136,7 @@ class _ChatMarkdownBodyState extends State<ChatMarkdownBody>
   MarkdownThemeData? _cachedAmbient;
   MarkdownThemeData? _cachedUserTheme;
   ChatSelectionPolicy? _cachedPolicy;
+
   /// Cached with theme so [BlockPainter$ScrollableTable.enabled] rebuilds when
   /// membership flips (`enabled` is construct-time, not a live callback).
   bool? _cachedTablePanEnabled;
@@ -154,6 +155,7 @@ class _ChatMarkdownBodyState extends State<ChatMarkdownBody>
   bool _armedInlinePress = false;
   int? _inlinePressPointer;
   Offset? _inlinePressDownGlobal;
+
   /// Cached in [didChangeDependencies] — do not read [context] on move after
   /// unmount (disposed [Listener] can still see moves).
   double _touchSlop = kTouchSlop;
@@ -363,8 +365,7 @@ class _ChatMarkdownBodyState extends State<ChatMarkdownBody>
 
     final policy = widget.controller.selectionPolicy;
     // ADR 015 keeps selected bodies hittable — IgnorePointer is not the gate.
-    final tablePanEnabled =
-        !widget.controller.isSelected(widget.messageId);
+    final tablePanEnabled = !widget.controller.isSelected(widget.messageId);
     if (_resolvedTheme case final resolved?
         when identical(ambient, _cachedAmbient) &&
             identical(widget.theme, _cachedUserTheme) &&

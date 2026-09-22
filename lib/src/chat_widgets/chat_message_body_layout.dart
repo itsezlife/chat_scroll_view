@@ -65,10 +65,7 @@ ChatMessageBodyLayout layoutChatMessageBody({
     final clusterH = headerH + metaSize.height;
     return ChatMessageBodyLayout(
       size: constraints.constrain(
-        Size(
-          padding.horizontal + clusterW,
-          padding.vertical + clusterH,
-        ),
+        Size(padding.horizontal + clusterW, padding.vertical + clusterH),
       ),
       headerOffset: headerOffset,
       contentOffset: Offset(padding.left, contentTop),

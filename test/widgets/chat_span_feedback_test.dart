@@ -223,64 +223,63 @@ void main() {
       },
     );
 
-    testWidgets(
-      'fenced copy chrome hits have no tap-highlight contour',
-      (tester) async {
-        final controller = ChatSelectionController(
-          policy: const ChatSelectionPolicy.desktop(),
-        );
+    testWidgets('fenced copy chrome hits have no tap-highlight contour', (
+      tester,
+    ) async {
+      final controller = ChatSelectionController(
+        policy: const ChatSelectionPolicy.desktop(),
+      );
 
-        final model = Markdown.fromString('```dart\nvoid main() {}\n```');
-        controller.registerBody(1, model);
+      final model = Markdown.fromString('```dart\nvoid main() {}\n```');
+      controller.registerBody(1, model);
 
-        await tester.pumpWidget(
-          MaterialApp(
-            home: Scaffold(
-              body: Align(
-                alignment: Alignment.topLeft,
-                child: SizedBox(
-                  width: 400,
-                  child: ChatMarkdownBody(
-                    controller: controller,
-                    messageId: 1,
-                    markdown: model,
-                  ),
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: Align(
+              alignment: Alignment.topLeft,
+              child: SizedBox(
+                width: 400,
+                child: ChatMarkdownBody(
+                  controller: controller,
+                  messageId: 1,
+                  markdown: model,
                 ),
               ),
             ),
           ),
-        );
-        await tester.pumpAndSettle();
+        ),
+      );
+      await tester.pumpAndSettle();
 
-        final surface = controller.markdownSelection.mountedSurfaces.first;
-        final renderBox = surface as RenderBox;
-        final codeBlockIndex = model.blocks.indexWhere((b) => b is MD$Code);
-        final boxes = surface.localBoxesForRange(codeBlockIndex, 0, 4);
-        expect(boxes, isNotEmpty);
+      final surface = controller.markdownSelection.mountedSurfaces.first;
+      final renderBox = surface as RenderBox;
+      final codeBlockIndex = model.blocks.indexWhere((b) => b is MD$Code);
+      final boxes = surface.localBoxesForRange(codeBlockIndex, 0, 4);
+      expect(boxes, isNotEmpty);
 
-        // Desktop header: above code body
-        final headerGlobal = renderBox.localToGlobal(
-          Offset(boxes.first.center.dx, boxes.first.top - 16),
-        );
-        final headerHit = controller.resolveInlineHit(1, headerGlobal);
-        expect(headerHit, isA<ChatInlineHit$Code>());
-        expect(
-          headerHit!.contourPath,
-          isNull,
-          reason: 'Copy chrome must not arm text-contour tap highlight',
-        );
-        expect(headerHit.touchOrigin, isNull);
+      // Desktop header: above code body
+      final headerGlobal = renderBox.localToGlobal(
+        Offset(boxes.first.center.dx, boxes.first.top - 16),
+      );
+      final headerHit = controller.resolveInlineHit(1, headerGlobal);
+      expect(headerHit, isA<ChatInlineHit$Code>());
+      expect(
+        headerHit!.contourPath,
+        isNull,
+        reason: 'Copy chrome must not arm text-contour tap highlight',
+      );
+      expect(headerHit.touchOrigin, isNull);
 
-        // Press on header must not begin span feedback
-        final gesture = await tester.startGesture(headerGlobal);
-        await tester.pump();
-        expect(controller.spanFeedback, isNull);
-        await gesture.up();
-        await tester.pump();
+      // Press on header must not begin span feedback
+      final gesture = await tester.startGesture(headerGlobal);
+      await tester.pump();
+      expect(controller.spanFeedback, isNull);
+      await gesture.up();
+      await tester.pump();
 
-        controller.dispose();
-      },
-    );
+      controller.dispose();
+    });
   });
 
   group('ChatMarkdownBody — Dynamic Cursor Resolution', () {
@@ -336,9 +335,7 @@ void main() {
         );
         addTearDown(gesture.removePointer);
 
-        await gesture.addPointer(
-          location: Offset.zero,
-        );
+        await gesture.addPointer(location: Offset.zero);
         await gesture.moveTo(renderBox.localToGlobal(linkBoxes.first.center));
         await tester.pump();
         expect(
@@ -464,9 +461,7 @@ void main() {
           codeBoxes.first.center.dx,
           codeBoxes.first.top - 12.0,
         );
-        await gesture.addPointer(
-          location: Offset.zero,
-        );
+        await gesture.addPointer(location: Offset.zero);
         await gesture.moveTo(renderBox.localToGlobal(headerPoint));
         await tester.pump();
         expect(
@@ -653,220 +648,216 @@ void main() {
       },
     );
 
-    testWidgets(
-      'pointer cancel aborts armed tap highlight immediately',
-      (tester) async {
-        final controller = ChatSelectionController(
-          policy: const ChatSelectionPolicy.mobile(),
-        );
+    testWidgets('pointer cancel aborts armed tap highlight immediately', (
+      tester,
+    ) async {
+      final controller = ChatSelectionController(
+        policy: const ChatSelectionPolicy.mobile(),
+      );
 
-        const markdownText = 'Cancel [this link](https://flutter.dev) press.';
-        final model = Markdown.fromString(markdownText);
-        controller.registerBody(6, model);
+      const markdownText = 'Cancel [this link](https://flutter.dev) press.';
+      final model = Markdown.fromString(markdownText);
+      controller.registerBody(6, model);
 
-        await tester.pumpWidget(
-          MaterialApp(
-            home: Scaffold(
-              body: Center(
-                child: SizedBox(
-                  width: 400,
-                  child: ChatMarkdownBody(
-                    controller: controller,
-                    messageId: 6,
-                    markdown: model,
-                  ),
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: Center(
+              child: SizedBox(
+                width: 400,
+                child: ChatMarkdownBody(
+                  controller: controller,
+                  messageId: 6,
+                  markdown: model,
                 ),
               ),
             ),
           ),
-        );
-        await tester.pumpAndSettle();
+        ),
+      );
+      await tester.pumpAndSettle();
 
-        final surface = controller.markdownSelection.mountedSurfaces.first;
-        final renderBox = surface as RenderBox;
-        final linkBoxes = surface.localBoxesForRange(
-          0,
-          'Cancel '.length,
-          'Cancel this link'.length,
-        );
-        final downPoint = renderBox.localToGlobal(linkBoxes.first.center);
+      final surface = controller.markdownSelection.mountedSurfaces.first;
+      final renderBox = surface as RenderBox;
+      final linkBoxes = surface.localBoxesForRange(
+        0,
+        'Cancel '.length,
+        'Cancel this link'.length,
+      );
+      final downPoint = renderBox.localToGlobal(linkBoxes.first.center);
 
-        final gesture = await tester.startGesture(downPoint);
-        await tester.pump();
-        expect(controller.spanFeedback, isNotNull);
+      final gesture = await tester.startGesture(downPoint);
+      await tester.pump();
+      expect(controller.spanFeedback, isNotNull);
 
-        await gesture.cancel();
-        await tester.pump();
-        expect(
-          controller.spanFeedback,
-          isNull,
-          reason: 'Pointer cancel must abort ink, not leave a held press',
-        );
+      await gesture.cancel();
+      await tester.pump();
+      expect(
+        controller.spanFeedback,
+        isNull,
+        reason: 'Pointer cancel must abort ink, not leave a held press',
+      );
 
-        controller.dispose();
-      },
-    );
+      controller.dispose();
+    });
 
-    testWidgets(
-      'move past touch slop aborts ink (list / table pan)',
-      (tester) async {
-        final controller = ChatSelectionController(
-          policy: const ChatSelectionPolicy.mobile(),
-        );
+    testWidgets('move past touch slop aborts ink (list / table pan)', (
+      tester,
+    ) async {
+      final controller = ChatSelectionController(
+        policy: const ChatSelectionPolicy.mobile(),
+      );
 
-        const markdownText = 'Pan [this link](https://flutter.dev) away.';
-        final model = Markdown.fromString(markdownText);
-        controller.registerBody(7, model);
+      const markdownText = 'Pan [this link](https://flutter.dev) away.';
+      final model = Markdown.fromString(markdownText);
+      controller.registerBody(7, model);
 
-        await tester.pumpWidget(
-          MaterialApp(
-            home: Scaffold(
-              body: Center(
-                child: SizedBox(
-                  width: 400,
-                  child: ChatMarkdownBody(
-                    controller: controller,
-                    messageId: 7,
-                    markdown: model,
-                  ),
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: Center(
+              child: SizedBox(
+                width: 400,
+                child: ChatMarkdownBody(
+                  controller: controller,
+                  messageId: 7,
+                  markdown: model,
                 ),
               ),
             ),
           ),
-        );
-        await tester.pumpAndSettle();
+        ),
+      );
+      await tester.pumpAndSettle();
 
-        final surface = controller.markdownSelection.mountedSurfaces.first;
-        final renderBox = surface as RenderBox;
-        final linkBoxes = surface.localBoxesForRange(
-          0,
-          'Pan '.length,
-          'Pan this link'.length,
-        );
-        final downPoint = renderBox.localToGlobal(linkBoxes.first.center);
+      final surface = controller.markdownSelection.mountedSurfaces.first;
+      final renderBox = surface as RenderBox;
+      final linkBoxes = surface.localBoxesForRange(
+        0,
+        'Pan '.length,
+        'Pan this link'.length,
+      );
+      final downPoint = renderBox.localToGlobal(linkBoxes.first.center);
 
-        final gesture = await tester.startGesture(downPoint);
-        await tester.pump();
-        expect(controller.spanFeedback, isNotNull);
+      final gesture = await tester.startGesture(downPoint);
+      await tester.pump();
+      expect(controller.spanFeedback, isNotNull);
 
-        // Horizontal travel past slop (table pan) — same as vertical list pan.
-        await gesture.moveBy(Offset(kTouchSlop + 1, 0));
-        await tester.pump();
-        expect(
-          controller.spanFeedback,
-          isNull,
-          reason: 'past-slop must abort immediately, not release-fade',
-        );
+      // Horizontal travel past slop (table pan) — same as vertical list pan.
+      await gesture.moveBy(const Offset(kTouchSlop + 1, 0));
+      await tester.pump();
+      expect(
+        controller.spanFeedback,
+        isNull,
+        reason: 'past-slop must abort immediately, not release-fade',
+      );
 
-        await gesture.up();
-        await tester.pumpAndSettle();
-        expect(controller.spanFeedback, isNull);
+      await gesture.up();
+      await tester.pumpAndSettle();
+      expect(controller.spanFeedback, isNull);
 
-        controller.dispose();
-      },
-    );
+      controller.dispose();
+    });
 
-    testWidgets(
-      'mobile: no tap highlight while message selection is active',
-      (tester) async {
-        final controller = ChatSelectionController(
-          policy: const ChatSelectionPolicy.mobile(),
-        );
+    testWidgets('mobile: no tap highlight while message selection is active', (
+      tester,
+    ) async {
+      final controller = ChatSelectionController(
+        policy: const ChatSelectionPolicy.mobile(),
+      );
 
-        const markdownText = 'Select [this link](https://flutter.dev) now.';
-        final model = Markdown.fromString(markdownText);
-        controller.registerBody(10, model);
-        controller.replaceSelectedIds(<int>{10});
-        expect(controller.isSelectionMode, isTrue);
+      const markdownText = 'Select [this link](https://flutter.dev) now.';
+      final model = Markdown.fromString(markdownText);
+      controller.registerBody(10, model);
+      controller.replaceSelectedIds(<int>{10});
+      expect(controller.isSelectionMode, isTrue);
 
-        await tester.pumpWidget(
-          MaterialApp(
-            home: Scaffold(
-              body: Center(
-                child: SizedBox(
-                  width: 400,
-                  child: ChatMarkdownBody(
-                    controller: controller,
-                    messageId: 10,
-                    markdown: model,
-                  ),
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: Center(
+              child: SizedBox(
+                width: 400,
+                child: ChatMarkdownBody(
+                  controller: controller,
+                  messageId: 10,
+                  markdown: model,
                 ),
               ),
             ),
           ),
-        );
-        await tester.pumpAndSettle();
+        ),
+      );
+      await tester.pumpAndSettle();
 
-        final surface = controller.markdownSelection.mountedSurfaces.first;
-        final renderBox = surface as RenderBox;
-        final linkBoxes = surface.localBoxesForRange(
-          0,
-          'Select '.length,
-          'Select this link'.length,
-        );
-        final downPoint = renderBox.localToGlobal(linkBoxes.first.center);
+      final surface = controller.markdownSelection.mountedSurfaces.first;
+      final renderBox = surface as RenderBox;
+      final linkBoxes = surface.localBoxesForRange(
+        0,
+        'Select '.length,
+        'Select this link'.length,
+      );
+      final downPoint = renderBox.localToGlobal(linkBoxes.first.center);
 
-        final gesture = await tester.startGesture(downPoint);
-        await tester.pump();
-        expect(controller.spanFeedback, isNull);
-        expect(controller.allowsInlineTapHighlight, isFalse);
+      final gesture = await tester.startGesture(downPoint);
+      await tester.pump();
+      expect(controller.spanFeedback, isNull);
+      expect(controller.allowsInlineTapHighlight, isFalse);
 
-        await gesture.up();
-        await tester.pump();
-        controller.dispose();
-      },
-    );
+      await gesture.up();
+      await tester.pump();
+      controller.dispose();
+    });
 
-    testWidgets(
-      'mobile: no tap highlight while text selection is active',
-      (tester) async {
-        final controller = ChatSelectionController(
-          policy: const ChatSelectionPolicy.mobile(),
-        );
+    testWidgets('mobile: no tap highlight while text selection is active', (
+      tester,
+    ) async {
+      final controller = ChatSelectionController(
+        policy: const ChatSelectionPolicy.mobile(),
+      );
 
-        const markdownText = 'Text [link here](https://flutter.dev) ok.';
-        final model = Markdown.fromString(markdownText);
-        controller.registerBody(11, model);
-        controller.replaceSelectedIds(<int>{11});
-        expect(controller.enterTextSelection(11), isTrue);
-        expect(controller.isTextSelectionActive, isTrue);
+      const markdownText = 'Text [link here](https://flutter.dev) ok.';
+      final model = Markdown.fromString(markdownText);
+      controller.registerBody(11, model);
+      controller.replaceSelectedIds(<int>{11});
+      expect(controller.enterTextSelection(11), isTrue);
+      expect(controller.isTextSelectionActive, isTrue);
 
-        await tester.pumpWidget(
-          MaterialApp(
-            home: Scaffold(
-              body: Center(
-                child: SizedBox(
-                  width: 400,
-                  child: ChatMarkdownBody(
-                    controller: controller,
-                    messageId: 11,
-                    markdown: model,
-                  ),
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: Center(
+              child: SizedBox(
+                width: 400,
+                child: ChatMarkdownBody(
+                  controller: controller,
+                  messageId: 11,
+                  markdown: model,
                 ),
               ),
             ),
           ),
-        );
-        await tester.pumpAndSettle();
+        ),
+      );
+      await tester.pumpAndSettle();
 
-        final surface = controller.markdownSelection.mountedSurfaces.first;
-        final renderBox = surface as RenderBox;
-        final linkBoxes = surface.localBoxesForRange(
-          0,
-          'Text '.length,
-          'Text link here'.length,
-        );
-        final downPoint = renderBox.localToGlobal(linkBoxes.first.center);
+      final surface = controller.markdownSelection.mountedSurfaces.first;
+      final renderBox = surface as RenderBox;
+      final linkBoxes = surface.localBoxesForRange(
+        0,
+        'Text '.length,
+        'Text link here'.length,
+      );
+      final downPoint = renderBox.localToGlobal(linkBoxes.first.center);
 
-        final gesture = await tester.startGesture(downPoint);
-        await tester.pump();
-        expect(controller.spanFeedback, isNull);
+      final gesture = await tester.startGesture(downPoint);
+      await tester.pump();
+      expect(controller.spanFeedback, isNull);
 
-        await gesture.up();
-        await tester.pump();
-        controller.dispose();
-      },
-    );
+      await gesture.up();
+      await tester.pump();
+      controller.dispose();
+    });
 
     testWidgets(
       'desktop: tap highlight still allowed during message selection',
@@ -932,7 +923,9 @@ void main() {
         final controller = ChatSelectionController(
           policy: const ChatSelectionPolicy.mobile(),
           onInteraction: (i) {
-            if (i case ChatLinkActivated(gesture: ChatInlineGesture.longPress)) {
+            if (i case ChatLinkActivated(
+              gesture: ChatInlineGesture.longPress,
+            )) {
               longPressCount++;
             }
           },

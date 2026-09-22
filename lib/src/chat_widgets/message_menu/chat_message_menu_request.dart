@@ -134,8 +134,7 @@ final class ChatMessageMenuRequest {
   final ChatInlineHit? inlineHit;
 
   /// Whether [selectUpToIds] offers a usable Select-up-to row.
-  bool get canSelectUpTo =>
-      selectUpToIds != null && selectUpToIds!.isNotEmpty;
+  bool get canSelectUpTo => selectUpToIds != null && selectUpToIds!.isNotEmpty;
 
   @override
   bool operator ==(Object other) =>

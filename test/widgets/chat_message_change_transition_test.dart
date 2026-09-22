@@ -66,7 +66,9 @@ void main() {
 
     await tester.pumpWidget(harness(content: 'hi', edited: false));
     await tester.pump();
-    final shortH = tester.getSize(find.byType(ChatMessageChangeTransition)).height;
+    final shortH = tester
+        .getSize(find.byType(ChatMessageChangeTransition))
+        .height;
 
     await tester.pumpWidget(harness(content: long, edited: true));
     await tester.pump(); // begin + measure frame
@@ -131,7 +133,9 @@ void main() {
 
     await tester.pumpWidget(harness(content: long, edited: true));
     await tester.pumpAndSettle();
-    final longH = tester.getSize(find.byType(ChatMessageChangeTransition)).height;
+    final longH = tester
+        .getSize(find.byType(ChatMessageChangeTransition))
+        .height;
 
     await tester.pumpWidget(harness(content: 'ok', edited: true));
     await tester.pump();
@@ -139,7 +143,9 @@ void main() {
     await tester.pump(const Duration(milliseconds: 80));
     await tester.pumpAndSettle();
 
-    final shortH = tester.getSize(find.byType(ChatMessageChangeTransition)).height;
+    final shortH = tester
+        .getSize(find.byType(ChatMessageChangeTransition))
+        .height;
     expect(shortH, lessThan(longH));
     expect(find.text('ok'), findsOneWidget);
   });

@@ -181,8 +181,8 @@ void main() {
           controller: controller,
           dataSource: _LoadedSource([for (var i = 0; i < count; i++) _msg(i)]),
           selectionAllowed: (id) => id == blocked
-            ? ChatSelectionAllowed.none
-            : ChatSelectionAllowed.full,
+              ? ChatSelectionAllowed.none
+              : ChatSelectionAllowed.full,
         );
 
         final gesture = await _longPressHold(
@@ -229,61 +229,63 @@ void main() {
       );
     });
 
-    testWidgets(
-      'gutterOnly wraps chrome without check and refuses selection',
-      (tester) async {
-        const count = 32;
-        const gutter = count - 1;
-        final controller = ChatScrollController()..jumpTo(count - 1);
-        final selection = await _pumpTail(
-          tester: tester,
-          controller: controller,
-          dataSource: _LoadedSource([for (var i = 0; i < count; i++) _msg(i)]),
-          selectionAllowed: (id) => id == gutter
-              ? ChatSelectionAllowed.gutterOnly
-              : ChatSelectionAllowed.full,
-        );
+    testWidgets('gutterOnly wraps chrome without check and refuses selection', (
+      tester,
+    ) async {
+      const count = 32;
+      const gutter = count - 1;
+      final controller = ChatScrollController()..jumpTo(count - 1);
+      final selection = await _pumpTail(
+        tester: tester,
+        controller: controller,
+        dataSource: _LoadedSource([for (var i = 0; i < count; i++) _msg(i)]),
+        selectionAllowed: (id) => id == gutter
+            ? ChatSelectionAllowed.gutterOnly
+            : ChatSelectionAllowed.full,
+      );
 
-        expect(
-          find.ancestor(
+      expect(
+        find.ancestor(
+          of: find.text('msg-$gutter'),
+          matching: find.byType(SelectableMessage),
+        ),
+        findsOneWidget,
+      );
+      expect(
+        find.byKey(const ValueKey<String>('chatSelectionCheck')),
+        findsNothing,
+      );
+
+      await tester.longPress(find.text('msg-$gutter'));
+      await tester.pumpAndSettle();
+      expect(selection.isSelectionMode, isFalse);
+      expect(selection.isSelected(gutter), isFalse);
+
+      await tester.longPress(find.text('msg-${count - 2}'));
+      await tester.pumpAndSettle();
+      expect(selection.selectedIds, {count - 2});
+      // Mode open: gutter row still has chrome; check remains only on selectable.
+      expect(
+        find.descendant(
+          of: find.ancestor(
             of: find.text('msg-$gutter'),
             matching: find.byType(SelectableMessage),
           ),
-          findsOneWidget,
-        );
-        expect(find.byKey(const ValueKey<String>('chatSelectionCheck')), findsNothing);
-
-        await tester.longPress(find.text('msg-$gutter'));
-        await tester.pumpAndSettle();
-        expect(selection.isSelectionMode, isFalse);
-        expect(selection.isSelected(gutter), isFalse);
-
-        await tester.longPress(find.text('msg-${count - 2}'));
-        await tester.pumpAndSettle();
-        expect(selection.selectedIds, {count - 2});
-        // Mode open: gutter row still has chrome; check remains only on selectable.
-        expect(
-          find.descendant(
-            of: find.ancestor(
-              of: find.text('msg-$gutter'),
-              matching: find.byType(SelectableMessage),
-            ),
-            matching: find.byKey(const ValueKey<String>('chatSelectionCheck')),
+          matching: find.byKey(const ValueKey<String>('chatSelectionCheck')),
+        ),
+        findsNothing,
+      );
+      expect(
+        find.descendant(
+          of: find.ancestor(
+            of: find.text('msg-${count - 2}'),
+            matching: find.byType(SelectableMessage),
           ),
-          findsNothing,
-        );
-        expect(
-          find.descendant(
-            of: find.ancestor(
-              of: find.text('msg-${count - 2}'),
-              matching: find.byType(SelectableMessage),
-            ),
-            matching: find.byKey(const ValueKey<String>('chatSelectionCheck')),
-          ),
-          findsOneWidget,
-        );
-      },
-    );
+          matching: find.byKey(const ValueKey<String>('chatSelectionCheck')),
+        ),
+        findsOneWidget,
+      );
+    });
 
     testWidgets(
       'assigning selectionAllowed drops chrome and selected membership',
@@ -345,8 +347,8 @@ void main() {
           controller: controller,
           dataSource: _LoadedSource([for (var i = 0; i < count; i++) _msg(i)]),
           selectionAllowed: (id) => banned.contains(id)
-          ? ChatSelectionAllowed.none
-          : ChatSelectionAllowed.full,
+              ? ChatSelectionAllowed.none
+              : ChatSelectionAllowed.full,
         );
 
         expect(

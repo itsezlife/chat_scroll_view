@@ -4493,8 +4493,7 @@ class RenderChatScrollView extends RenderBox {
     final slotGlobal = origin & Size(size.width, child.size.height);
     final tapGlobal = localToGlobal(local);
     final selection = _selectionController;
-    final inside =
-        selection?.containsMessageSurface(id, tapGlobal) ?? false;
+    final inside = selection?.containsMessageSurface(id, tapGlobal) ?? false;
     final pointState = inside
         ? ChatMessageMenuPointState.inside
         : ChatMessageMenuPointState.outside;
@@ -4506,8 +4505,7 @@ class RenderChatScrollView extends RenderBox {
     } else {
       membership = ChatMessageMenuMembership.elsewhere;
     }
-    final hasTextSelection =
-        selection?.hasTextSelectionOnMessage(id) ?? false;
+    final hasTextSelection = selection?.hasTextSelectionOnMessage(id) ?? false;
     final overlapsText =
         selection?.textSelectionOverlapsMessage(id, tapGlobal) ?? false;
     final String? selectedTextSnapshot;

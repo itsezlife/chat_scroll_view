@@ -1007,62 +1007,61 @@ void main() {
     await _driveAnimate(tester, future);
   });
 
-  testWidgets(
-    'tall on-screen neighbor uses close path not stitch',
-    (tester) async {
-      // Scroll mid-tall-body so the previous tall row still intersects the
-      // paint band (Telegram found → smoothScrollBy), even when |offset| > 2400.
-      const count = 30;
-      const originId = 20;
-      const targetId = 19;
-      const tallHeight = 3000.0;
+  testWidgets('tall on-screen neighbor uses close path not stitch', (
+    tester,
+  ) async {
+    // Scroll mid-tall-body so the previous tall row still intersects the
+    // paint band (Telegram found → smoothScrollBy), even when |offset| > 2400.
+    const count = 30;
+    const originId = 20;
+    const targetId = 19;
+    const tallHeight = 3000.0;
 
-      final controller = ChatScrollController()..jumpTo(originId);
-      final ds = _PreloadedDataSource(count);
-      addTearDown(controller.dispose);
-      addTearDown(ds.dispose);
+    final controller = ChatScrollController()..jumpTo(originId);
+    final ds = _PreloadedDataSource(count);
+    addTearDown(controller.dispose);
+    addTearDown(ds.dispose);
 
-      await tester.pumpWidget(
-        _scaffold(
-          dataSource: ds,
-          controller: controller,
-          cacheExtent: 8000,
-          messageHeight: (id) =>
-              id == originId || id == targetId ? tallHeight : 60.0,
-        ),
-      );
-      await tester.pump();
+    await tester.pumpWidget(
+      _scaffold(
+        dataSource: ds,
+        controller: controller,
+        cacheExtent: 8000,
+        messageHeight: (id) =>
+            id == originId || id == targetId ? tallHeight : 60.0,
+      ),
+    );
+    await tester.pump();
 
-      // Pull older content into view so targetId peeks into the band.
-      await tester.drag(find.byType(ChatScrollView), const Offset(0, 900));
-      await tester.pump();
-      await tester.pump(const Duration(milliseconds: 100));
+    // Pull older content into view so targetId peeks into the band.
+    await tester.drag(find.byType(ChatScrollView), const Offset(0, 900));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 100));
 
-      expect(
-        _render(tester).debugBuiltMessageIds.contains(targetId),
-        isTrue,
-        reason: 'fixture must keep target built after drag',
-      );
+    expect(
+      _render(tester).debugBuiltMessageIds.contains(targetId),
+      isTrue,
+      reason: 'fixture must keep target built after drag',
+    );
 
-      final future = controller.animateTo(
-        targetId,
-        duration: const Duration(milliseconds: 300),
-        highlight: false,
-        loadPolicy: AnimateToLoadPolicy.immediate,
-      );
-      await tester.pump();
-      await tester.pump(const Duration(milliseconds: 16));
+    final future = controller.animateTo(
+      targetId,
+      duration: const Duration(milliseconds: 300),
+      highlight: false,
+      loadPolicy: AnimateToLoadPolicy.immediate,
+    );
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 16));
 
-      expect(
-        _render(tester).debugFarAnimateActive,
-        isFalse,
-        reason: 'band-intersecting tall neighbor must not stitch',
-      );
+    expect(
+      _render(tester).debugFarAnimateActive,
+      isFalse,
+      reason: 'band-intersecting tall neighbor must not stitch',
+    );
 
-      await _driveAnimate(tester, future, maxPumps: 300);
-      expect(controller.anchorMessageId, targetId);
-    },
-  );
+    await _driveAnimate(tester, future, maxPumps: 300);
+    expect(controller.anchorMessageId, targetId);
+  });
 
   testWidgets(
     'tall outgoing toward newer uses full-strip travel (not viewport*4 cap)',
@@ -1258,64 +1257,59 @@ void main() {
     },
   );
 
-  testWidgets(
-    'stitch flight does not layout-thrash via range coverage',
-    (tester) async {
-      // Far strip is intentionally short; coverage checks must not
-      // markNeedsLayout every ticker frame (broken-logs layout.jump spam).
-      const count = 80;
-      const originId = 5;
-      const targetId = 70;
+  testWidgets('stitch flight does not layout-thrash via range coverage', (
+    tester,
+  ) async {
+    // Far strip is intentionally short; coverage checks must not
+    // markNeedsLayout every ticker frame (broken-logs layout.jump spam).
+    const count = 80;
+    const originId = 5;
+    const targetId = 70;
 
-      final controller = ChatScrollController()..jumpTo(originId);
-      final ds = _PreloadedDataSource(count);
-      addTearDown(controller.dispose);
-      addTearDown(ds.dispose);
+    final controller = ChatScrollController()..jumpTo(originId);
+    final ds = _PreloadedDataSource(count);
+    addTearDown(controller.dispose);
+    addTearDown(ds.dispose);
 
-      await tester.pumpWidget(
-        _scaffold(
-          dataSource: ds,
-          controller: controller,
-          cacheExtent: 200,
-        ),
-      );
-      await tester.pump();
+    await tester.pumpWidget(
+      _scaffold(dataSource: ds, controller: controller, cacheExtent: 200),
+    );
+    await tester.pump();
 
-      final future = controller.animateTo(
-        targetId,
-        duration: const Duration(milliseconds: 300),
-        curve: Curves.linear,
-        highlight: false,
-      );
-      await tester.pump();
-      expect(_render(tester).debugFarAnimateActive, isTrue);
+    final future = controller.animateTo(
+      targetId,
+      duration: const Duration(milliseconds: 300),
+      curve: Curves.linear,
+      highlight: false,
+    );
+    await tester.pump();
+    expect(_render(tester).debugFarAnimateActive, isTrue);
 
-      // Wait until measured dual-translate is moving.
-      await _pumpWhileStitching(
-        tester,
-        future,
-        predicate: (r) => r.debugStitchProgress > 0.05,
-      );
+    // Wait until measured dual-translate is moving.
+    await _pumpWhileStitching(
+      tester,
+      future,
+      predicate: (r) => r.debugStitchProgress > 0.05,
+    );
 
-      final layoutsAtMid = _render(tester).debugLayoutFrameId;
-      for (var i = 0; i < 20; i++) {
-        await tester.pump(const Duration(milliseconds: 16));
-        if (!_render(tester).debugFarAnimateActive) break;
-      }
-      final layoutsAfter = _render(tester).debugLayoutFrameId;
-      final layoutDelta = layoutsAfter - layoutsAtMid;
+    final layoutsAtMid = _render(tester).debugLayoutFrameId;
+    for (var i = 0; i < 20; i++) {
+      await tester.pump(const Duration(milliseconds: 16));
+      if (!_render(tester).debugFarAnimateActive) break;
+    }
+    final layoutsAfter = _render(tester).debugLayoutFrameId;
+    final layoutDelta = layoutsAfter - layoutsAtMid;
 
-      expect(
-        layoutDelta,
-        lessThan(8),
-        reason:
-            'mid-stitch ticker must paint, not re-layout every frame '
-            '(got $layoutDelta layouts over ~20 frames)',
-      );
+    expect(
+      layoutDelta,
+      lessThan(8),
+      reason:
+          'mid-stitch ticker must paint, not re-layout every frame '
+          '(got $layoutDelta layouts over ~20 frames)',
+    );
 
-      await _driveAnimate(tester, future, maxPumps: 300);
-    },
-  );
+    await _driveAnimate(tester, future, maxPumps: 300);
+  });
 }
 
 class _DayPreloadedDataSource extends ChatDataSource {

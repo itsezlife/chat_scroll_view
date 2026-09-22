@@ -81,27 +81,28 @@ Widget _harness({
 
 void main() {
   group('ChatScrollController.centerBand', () {
-    testWidgets('null before first layout; non-null after Message crosses mid-band', (
-      tester,
-    ) async {
-      const count = 40;
-      final controller = ChatScrollController()..jumpTo(count - 1);
-      final ds = _PreloadedDataSource(count);
-      addTearDown(controller.dispose);
-      addTearDown(ds.dispose);
+    testWidgets(
+      'null before first layout; non-null after Message crosses mid-band',
+      (tester) async {
+        const count = 40;
+        final controller = ChatScrollController()..jumpTo(count - 1);
+        final ds = _PreloadedDataSource(count);
+        addTearDown(controller.dispose);
+        addTearDown(ds.dispose);
 
-      expect(controller.centerBand.value, isNull);
+        expect(controller.centerBand.value, isNull);
 
-      await tester.pumpWidget(
-        _harness(dataSource: ds, controller: controller),
-      );
-      await tester.pump();
+        await tester.pumpWidget(
+          _harness(dataSource: ds, controller: controller),
+        );
+        await tester.pump();
 
-      final band = controller.centerBand.value;
-      expect(band, isNotNull);
-      expect(band!.messageId, inInclusiveRange(0, count - 1));
-      expect(band.offsetFromMessageTop, greaterThanOrEqualTo(0));
-    });
+        final band = controller.centerBand.value;
+        expect(band, isNotNull);
+        expect(band!.messageId, inInclusiveRange(0, count - 1));
+        expect(band.offsetFromMessageTop, greaterThanOrEqualTo(0));
+      },
+    );
 
     testWidgets('null when paint band has no Message intersection', (
       tester,
@@ -179,46 +180,45 @@ void main() {
       },
     );
 
-    testWidgets(
-      'mixed heights: geometric center Message, not id midpoint',
-      (tester) async {
-        const count = 80;
-        const tallId = 40;
-        const tallHeight = 400.0;
-        const shortHeight = 40.0;
-        const viewportHeight = 600.0;
-        // Tall row at band top: ray at 300 is inside tallId. Visible shorts
-        // below push lastId well past tallId, so (firstId+lastId)/2 ≠ tallId.
-        final controller = ChatScrollController()..jumpTo(tallId);
-        final ds = _PreloadedDataSource(count);
-        addTearDown(controller.dispose);
-        addTearDown(ds.dispose);
+    testWidgets('mixed heights: geometric center Message, not id midpoint', (
+      tester,
+    ) async {
+      const count = 80;
+      const tallId = 40;
+      const tallHeight = 400.0;
+      const shortHeight = 40.0;
+      const viewportHeight = 600.0;
+      // Tall row at band top: ray at 300 is inside tallId. Visible shorts
+      // below push lastId well past tallId, so (firstId+lastId)/2 ≠ tallId.
+      final controller = ChatScrollController()..jumpTo(tallId);
+      final ds = _PreloadedDataSource(count);
+      addTearDown(controller.dispose);
+      addTearDown(ds.dispose);
 
-        await tester.pumpWidget(
-          _harness(
-            dataSource: ds,
-            controller: controller,
-            viewportHeight: viewportHeight,
-            heightForId: (id) => id == tallId ? tallHeight : shortHeight,
-          ),
-        );
-        await tester.pump();
+      await tester.pumpWidget(
+        _harness(
+          dataSource: ds,
+          controller: controller,
+          viewportHeight: viewportHeight,
+          heightForId: (id) => id == tallId ? tallHeight : shortHeight,
+        ),
+      );
+      await tester.pump();
 
-        final range = controller.visibleRange.value;
-        expect(range, isNotNull);
-        final idMidpoint = ((range!.firstId + range.lastId) / 2).round();
-        expect(
-          idMidpoint,
-          isNot(tallId),
-          reason: 'fixture must make id-midpoint differ from geometric hit',
-        );
+      final range = controller.visibleRange.value;
+      expect(range, isNotNull);
+      final idMidpoint = ((range!.firstId + range.lastId) / 2).round();
+      expect(
+        idMidpoint,
+        isNot(tallId),
+        reason: 'fixture must make id-midpoint differ from geometric hit',
+      );
 
-        final band = controller.centerBand.value;
-        expect(band, isNotNull);
-        expect(band!.messageId, tallId);
-        expect(band.offsetFromMessageTop, closeTo(300, 2));
-      },
-    );
+      final band = controller.centerBand.value;
+      expect(band, isNotNull);
+      expect(band!.messageId, tallId);
+      expect(band.offsetFromMessageTop, closeTo(300, 2));
+    });
 
     testWidgets(
       'centerBand listener may call setState — deferred past layout',
@@ -240,8 +240,8 @@ void main() {
                   child: ChatScrollView(
                     dataSource: ds,
                     controller: controller,
-                    messageBuilder:
-                        (context, id, message, status, runLayout) => SizedBox(
+                    messageBuilder: (context, id, message, status, runLayout) =>
+                        SizedBox(
                           height: 60,
                           child: Text(
                             message == null ? 'shimmer-$id' : 'msg-$id',
@@ -368,116 +368,99 @@ void main() {
       },
     );
 
-    testWidgets(
-      'round-trip: observe → leave → apply restores within tolerance '
-      '(tall mid-bubble)',
-      (tester) async {
-        const count = 80;
-        const tallId = 40;
-        const tallHeight = 800.0;
-        const viewportHeight = 600.0;
-        final controller = ChatScrollController()..jumpTo(tallId);
-        final ds = _PreloadedDataSource(count);
-        addTearDown(controller.dispose);
-        addTearDown(ds.dispose);
+    testWidgets('round-trip: observe → leave → apply restores within tolerance '
+        '(tall mid-bubble)', (tester) async {
+      const count = 80;
+      const tallId = 40;
+      const tallHeight = 800.0;
+      const viewportHeight = 600.0;
+      final controller = ChatScrollController()..jumpTo(tallId);
+      final ds = _PreloadedDataSource(count);
+      addTearDown(controller.dispose);
+      addTearDown(ds.dispose);
 
-        await tester.pumpWidget(
-          _harness(
-            dataSource: ds,
-            controller: controller,
-            viewportHeight: viewportHeight,
-            heightForId: (id) => id == tallId ? tallHeight : 60,
-          ),
-        );
-        await tester.pump();
+      await tester.pumpWidget(
+        _harness(
+          dataSource: ds,
+          controller: controller,
+          viewportHeight: viewportHeight,
+          heightForId: (id) => id == tallId ? tallHeight : 60,
+        ),
+      );
+      await tester.pump();
 
-        final saved = controller.centerBand.value;
-        expect(saved, isNotNull);
-        expect(saved!.messageId, tallId);
-        expect(saved.offsetFromMessageTop, closeTo(300, 2));
+      final saved = controller.centerBand.value;
+      expect(saved, isNotNull);
+      expect(saved!.messageId, tallId);
+      expect(saved.offsetFromMessageTop, closeTo(300, 2));
 
-        controller.jumpTo(count - 1);
-        await tester.pumpAndSettle();
-        expect(
-          controller.centerBand.value?.messageId,
-          isNot(tallId),
-          reason: 'must leave the tall mid-bubble before restore',
-        );
+      controller.jumpTo(count - 1);
+      await tester.pumpAndSettle();
+      expect(
+        controller.centerBand.value?.messageId,
+        isNot(tallId),
+        reason: 'must leave the tall mid-bubble before restore',
+      );
 
-        controller.jumpToCenterBand(
-          saved.messageId,
-          saved.offsetFromMessageTop,
-        );
-        await tester.pumpAndSettle();
+      controller.jumpToCenterBand(saved.messageId, saved.offsetFromMessageTop);
+      await tester.pumpAndSettle();
 
-        final restored = controller.centerBand.value;
-        expect(restored, isNotNull);
-        expect(restored!.messageId, saved.messageId);
-        expect(
-          restored.offsetFromMessageTop,
-          closeTo(saved.offsetFromMessageTop, 2),
-        );
-      },
-    );
+      final restored = controller.centerBand.value;
+      expect(restored, isNotNull);
+      expect(restored!.messageId, saved.messageId);
+      expect(
+        restored.offsetFromMessageTop,
+        closeTo(saved.offsetFromMessageTop, 2),
+      );
+    });
 
-    testWidgets(
-      'absent target completes without assuming a visible row',
-      (tester) async {
-        const count = 20;
-        // Past known newest — same clamp path as jumpTo (ADR 002 caution:
-        // complete without error; do not assume a visible row at that id).
-        const absentId = 1_000_001;
-        final controller = ChatScrollController()..jumpTo(count - 1);
-        final ds = _PreloadedDataSource(count);
-        addTearDown(controller.dispose);
-        addTearDown(ds.dispose);
+    testWidgets('absent target completes without assuming a visible row', (
+      tester,
+    ) async {
+      const count = 20;
+      // Past known newest — same clamp path as jumpTo (ADR 002 caution:
+      // complete without error; do not assume a visible row at that id).
+      const absentId = 1_000_001;
+      final controller = ChatScrollController()..jumpTo(count - 1);
+      final ds = _PreloadedDataSource(count);
+      addTearDown(controller.dispose);
+      addTearDown(ds.dispose);
 
-        await tester.pumpWidget(
-          _harness(dataSource: ds, controller: controller),
-        );
-        await tester.pump();
+      await tester.pumpWidget(_harness(dataSource: ds, controller: controller));
+      await tester.pump();
 
-        expect(
-          () => controller.jumpToCenterBand(absentId, 40),
-          returnsNormally,
-        );
-        await tester.pumpAndSettle();
+      expect(() => controller.jumpToCenterBand(absentId, 40), returnsNormally);
+      await tester.pumpAndSettle();
 
-        expect(controller.centerBand.value?.messageId, isNot(absentId));
-        expect(find.text('msg-$absentId'), findsNothing);
-      },
-    );
+      expect(controller.centerBand.value?.messageId, isNot(absentId));
+      expect(find.text('msg-$absentId'), findsNothing);
+    });
 
-    testWidgets(
-      'emits ChatProgrammaticJump like jumpTo',
-      (tester) async {
-        const count = 40;
-        final controller = ChatScrollController()..jumpTo(count - 1);
-        final ds = _PreloadedDataSource(count);
-        addTearDown(controller.dispose);
-        addTearDown(ds.dispose);
+    testWidgets('emits ChatProgrammaticJump like jumpTo', (tester) async {
+      const count = 40;
+      final controller = ChatScrollController()..jumpTo(count - 1);
+      final ds = _PreloadedDataSource(count);
+      addTearDown(controller.dispose);
+      addTearDown(ds.dispose);
 
-        await tester.pumpWidget(
-          _harness(dataSource: ds, controller: controller),
-        );
-        await tester.pump();
+      await tester.pumpWidget(_harness(dataSource: ds, controller: controller));
+      await tester.pump();
 
-        final jumps = <int>[];
-        final events = <ChatScrollEvent>[];
-        controller
-          ..addJumpListener(jumps.add)
-          ..addScrollListener(events.add);
+      final jumps = <int>[];
+      final events = <ChatScrollEvent>[];
+      controller
+        ..addJumpListener(jumps.add)
+        ..addScrollListener(events.add);
 
-        controller.jumpToCenterBand(10, 20);
-        await tester.pump();
+      controller.jumpToCenterBand(10, 20);
+      await tester.pump();
 
-        expect(jumps, <int>[10]);
-        expect(
-          events.whereType<ChatProgrammaticJump>().map((e) => e.targetId),
-          <int>[10],
-        );
-      },
-    );
+      expect(jumps, <int>[10]);
+      expect(
+        events.whereType<ChatProgrammaticJump>().map((e) => e.targetId),
+        <int>[10],
+      );
+    });
 
     test('post-dispose jumpToCenterBand is a silent no-op', () {
       final controller = ChatScrollController()..jumpTo(5);
@@ -514,9 +497,7 @@ void main() {
         // Wheel before the pending Center Band layout apply — must not stick.
         final center = tester.getCenter(find.byType(ChatScrollView));
         final pointer = TestPointer(1, PointerDeviceKind.mouse)..hover(center);
-        await tester.sendEventToBinding(
-          pointer.scroll(const Offset(0, -200)),
-        );
+        await tester.sendEventToBinding(pointer.scroll(const Offset(0, -200)));
         await tester.pump();
         await tester.pump(const Duration(milliseconds: 32));
         await tester.pump();

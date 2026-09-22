@@ -186,7 +186,8 @@ class _SelectableMessageState extends State<SelectableMessage>
   Widget build(BuildContext context) => AnimatedBuilder(
     animation: _animation,
     builder: (context, child) {
-      final isSubject = widget.controller.isTextSelectionActive &&
+      final isSubject =
+          widget.controller.isTextSelectionActive &&
           widget.controller.textSelectionSubject == widget.id;
       final policy = widget.controller.selectionPolicy;
       // Mobile multiselect: ignore unselected bodies so link/code do not steal
@@ -197,7 +198,8 @@ class _SelectableMessageState extends State<SelectableMessage>
           policy.suppressesLinkTapInMessageSelection &&
           (widget.controller.isSelectionMode ||
               widget.controller.isTextSelectionActive);
-      final ignoreChildren = suppressHostChrome &&
+      final ignoreChildren =
+          suppressHostChrome &&
           !isSubject &&
           !widget.controller.isSelected(widget.id);
       final canPerformActions = !suppressHostChrome;
@@ -218,10 +220,7 @@ class _SelectableMessageState extends State<SelectableMessage>
         child: widget.chromeBuilder(
           context,
           state,
-          IgnorePointer(
-            ignoring: ignoreChildren,
-            child: child!,
-          ),
+          IgnorePointer(ignoring: ignoreChildren, child: child!),
         ),
       );
     },
@@ -245,10 +244,9 @@ class ChatSelectionStateScope extends InheritedWidget {
   final ChatSelectionChromeState state;
 
   /// Retrieves the ambient [ChatSelectionChromeState] for this message, or `null`.
-  static ChatSelectionChromeState? maybeOf(BuildContext context) =>
-      context
-          .dependOnInheritedWidgetOfExactType<ChatSelectionStateScope>()
-          ?.state;
+  static ChatSelectionChromeState? maybeOf(BuildContext context) => context
+      .dependOnInheritedWidgetOfExactType<ChatSelectionStateScope>()
+      ?.state;
 
   /// Retrieves the ambient [ChatSelectionChromeState] for this message.
   static ChatSelectionChromeState of(BuildContext context) {

@@ -822,53 +822,54 @@ void main() {
       expect(tester.getTopLeft(find.text('msg-0')).dy, closeTo(420, 1));
     });
 
-    testWidgets('short content drag keeps layout pinned (stretch is paint-only)', (
-      tester,
-    ) async {
-      const count = 3;
-      final controller = ChatScrollController()..jumpTo(count - 1);
-      await tester.pumpWidget(
-        MaterialApp(
-          home: Scaffold(
-            body: Center(
-              child: SizedBox(
-                width: 400,
-                height: 600,
-                child: ChatScrollView(
-                  dataSource: _PreloadedDataSource(_generate(count)),
-                  controller: controller,
-                  reverse: true,
-                  messageBuilder: (context, id, message, status, runLayout) =>
-                      SizedBox(height: 60, child: Text('msg-$id')),
+    testWidgets(
+      'short content drag keeps layout pinned (stretch is paint-only)',
+      (tester) async {
+        const count = 3;
+        final controller = ChatScrollController()..jumpTo(count - 1);
+        await tester.pumpWidget(
+          MaterialApp(
+            home: Scaffold(
+              body: Center(
+                child: SizedBox(
+                  width: 400,
+                  height: 600,
+                  child: ChatScrollView(
+                    dataSource: _PreloadedDataSource(_generate(count)),
+                    controller: controller,
+                    reverse: true,
+                    messageBuilder: (context, id, message, status, runLayout) =>
+                        SizedBox(height: 60, child: Text('msg-$id')),
+                  ),
                 ),
               ),
             ),
           ),
-        ),
-      );
-      await tester.pump();
+        );
+        await tester.pump();
 
-      final newestTopBefore = tester.getTopLeft(find.text('msg-2')).dy;
-      await tester.drag(find.byType(ChatScrollView), const Offset(0, -300));
-      await tester.pump();
-      await tester.pump(const Duration(milliseconds: 300));
-      expect(
-        tester.getTopLeft(find.text('msg-2')).dy,
-        closeTo(newestTopBefore, 1),
-      );
+        final newestTopBefore = tester.getTopLeft(find.text('msg-2')).dy;
+        await tester.drag(find.byType(ChatScrollView), const Offset(0, -300));
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 300));
+        expect(
+          tester.getTopLeft(find.text('msg-2')).dy,
+          closeTo(newestTopBefore, 1),
+        );
 
-      await tester.fling(
-        find.byType(ChatScrollView),
-        const Offset(0, -800),
-        2000,
-      );
-      await tester.pump();
-      await tester.pump(const Duration(seconds: 1));
-      expect(
-        tester.getTopLeft(find.text('msg-2')).dy,
-        closeTo(newestTopBefore, 1),
-      );
-    });
+        await tester.fling(
+          find.byType(ChatScrollView),
+          const Offset(0, -800),
+          2000,
+        );
+        await tester.pump();
+        await tester.pump(const Duration(seconds: 1));
+        expect(
+          tester.getTopLeft(find.text('msg-2')).dy,
+          closeTo(newestTopBefore, 1),
+        );
+      },
+    );
 
     testWidgets('short content still stacks at the top with default reverse', (
       tester,
@@ -945,9 +946,7 @@ void main() {
       );
     });
 
-    testWidgets('animateTo does not emit ChatViewportScrolled', (
-      tester,
-    ) async {
+    testWidgets('animateTo does not emit ChatViewportScrolled', (tester) async {
       const count = 256;
       final controller = ChatScrollController()..jumpTo(count - 1);
       await tester.pumpWidget(

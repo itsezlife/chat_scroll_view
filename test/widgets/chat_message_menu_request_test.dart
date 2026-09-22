@@ -282,111 +282,103 @@ void main() {
       },
     );
 
-    testWidgets(
-      'secondary on selected glyphs reports overlap; miss does not',
-      (tester) async {
-        debugDefaultTargetPlatformOverride = TargetPlatform.macOS;
-        try {
-          final dataSource = _LoadedSource([
-            _msg(1, content: 'Copy selected phrase here'),
-          ]);
-          final controller = ChatScrollController();
-          final selection = ChatSelectionController(
-            policy: const ChatSelectionPolicy.desktop(),
-          );
-          addTearDown(controller.dispose);
-          addTearDown(selection.dispose);
-          addTearDown(dataSource.dispose);
+    testWidgets('secondary on selected glyphs reports overlap; miss does not', (
+      tester,
+    ) async {
+      debugDefaultTargetPlatformOverride = TargetPlatform.macOS;
+      try {
+        final dataSource = _LoadedSource([
+          _msg(1, content: 'Copy selected phrase here'),
+        ]);
+        final controller = ChatScrollController();
+        final selection = ChatSelectionController(
+          policy: const ChatSelectionPolicy.desktop(),
+        );
+        addTearDown(controller.dispose);
+        addTearDown(selection.dispose);
+        addTearDown(dataSource.dispose);
 
-          selection.putBody(
-            1,
-            Markdown.fromString('Copy selected phrase here'),
-          );
+        selection.putBody(1, Markdown.fromString('Copy selected phrase here'));
 
-          final requests = <ChatMessageMenuRequest>[];
-          await tester.pumpWidget(
-            MaterialApp(
-              home: Scaffold(
-                body: SizedBox(
-                  width: 400,
-                  height: 600,
-                  child: ChatScrollView(
-                    dataSource: dataSource,
-                    controller: controller,
-                    selectionController: selection,
-                    onSecondaryMessageTap: requests.add,
-                    messageBuilder:
-                        (context, id, message, status, runLayout) =>
-                            ChatMessageSurfaceBounds(
-                              controller: selection,
-                              messageId: id,
-                              child: SizedBox(
-                                height: 120,
-                                width: 280,
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    const SizedBox(
-                                      key: Key('menu-hit-header'),
-                                      height: 24,
-                                      child: Text('header'),
-                                    ),
-                                    Expanded(
-                                      child: ChatMarkdownBody(
-                                        controller: selection,
-                                        messageId: id,
-                                      ),
-                                    ),
-                                  ],
+        final requests = <ChatMessageMenuRequest>[];
+        await tester.pumpWidget(
+          MaterialApp(
+            home: Scaffold(
+              body: SizedBox(
+                width: 400,
+                height: 600,
+                child: ChatScrollView(
+                  dataSource: dataSource,
+                  controller: controller,
+                  selectionController: selection,
+                  onSecondaryMessageTap: requests.add,
+                  messageBuilder: (context, id, message, status, runLayout) =>
+                      ChatMessageSurfaceBounds(
+                        controller: selection,
+                        messageId: id,
+                        child: SizedBox(
+                          height: 120,
+                          width: 280,
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const SizedBox(
+                                key: Key('menu-hit-header'),
+                                height: 24,
+                                child: Text('header'),
+                              ),
+                              Expanded(
+                                child: ChatMarkdownBody(
+                                  controller: selection,
+                                  messageId: id,
                                 ),
                               ),
-                            ),
-                  ),
+                            ],
+                          ),
+                        ),
+                      ),
                 ),
               ),
             ),
-          );
-          await tester.pumpAndSettle();
+          ),
+        );
+        await tester.pumpAndSettle();
 
-          final md = find.byType(MarkdownWidget);
-          expect(md, findsOneWidget);
-          final wordPos = tester.getTopLeft(md) + const Offset(40, 8);
-          expect(
-            selection.enterTextSelection(1, globalOffset: wordPos),
-            isTrue,
-          );
-          await tester.pumpAndSettle();
-          expect(selection.isTextSelectionActive, isTrue);
-          final expectedText = selection.markdownSelection.getText();
-          expect(expectedText, isNotEmpty);
+        final md = find.byType(MarkdownWidget);
+        expect(md, findsOneWidget);
+        final wordPos = tester.getTopLeft(md) + const Offset(40, 8);
+        expect(selection.enterTextSelection(1, globalOffset: wordPos), isTrue);
+        await tester.pumpAndSettle();
+        expect(selection.isTextSelectionActive, isTrue);
+        final expectedText = selection.markdownSelection.getText();
+        expect(expectedText, isNotEmpty);
 
-          // Upon selected glyphs → overlap.
-          await tester.tapAt(wordPos, buttons: kSecondaryMouseButton);
-          await tester.pump();
-          expect(requests, hasLength(1));
-          expect(requests.single.overlapsTextSelection, isTrue);
-          expect(requests.single.hasTextSelection, isTrue);
-          expect(requests.single.selectedTextSnapshot, expectedText);
-          expect(requests.single.pointState, ChatMessageMenuPointState.inside);
-          expect(selection.isTextSelectionActive, isTrue);
+        // Upon selected glyphs → overlap.
+        await tester.tapAt(wordPos, buttons: kSecondaryMouseButton);
+        await tester.pump();
+        expect(requests, hasLength(1));
+        expect(requests.single.overlapsTextSelection, isTrue);
+        expect(requests.single.hasTextSelection, isTrue);
+        expect(requests.single.selectedTextSnapshot, expectedText);
+        expect(requests.single.pointState, ChatMessageMenuPointState.inside);
+        expect(selection.isTextSelectionActive, isTrue);
 
-          requests.clear();
+        requests.clear();
 
-          // Header chrome is Inside the surface but not upon the highlight.
-          final header = tester.getTopLeft(md) + const Offset(20, -12);
-          await tester.tapAt(header, buttons: kSecondaryMouseButton);
-          await tester.pump();
-          expect(requests, hasLength(1));
-          expect(requests.single.hasTextSelection, isTrue);
-          expect(requests.single.overlapsTextSelection, isFalse);
-          expect(requests.single.selectedTextSnapshot, isNull);
-          expect(requests.single.pointState, ChatMessageMenuPointState.inside);
-          expect(selection.isTextSelectionActive, isTrue);
-        } finally {
-          debugDefaultTargetPlatformOverride = null;
-        }
-      },
-    );
+        // Header chrome is Inside the surface but not upon the highlight.
+        final header = tester.getTopLeft(md) + const Offset(20, -12);
+        await tester.tapAt(header, buttons: kSecondaryMouseButton);
+        await tester.pump();
+        expect(requests, hasLength(1));
+        expect(requests.single.hasTextSelection, isTrue);
+        expect(requests.single.overlapsTextSelection, isFalse);
+        expect(requests.single.selectedTextSnapshot, isNull);
+        expect(requests.single.pointState, ChatMessageMenuPointState.inside);
+        expect(selection.isTextSelectionActive, isTrue);
+      } finally {
+        debugDefaultTargetPlatformOverride = null;
+      }
+    });
 
     testWidgets(
       'secondary on markdown glyphs fires host callback (full-slot ownership)',
@@ -440,10 +432,7 @@ void main() {
 
           expect(requests, hasLength(1));
           expect(requests.single.messageId, 1);
-          expect(
-            requests.single.pointState,
-            ChatMessageMenuPointState.inside,
-          );
+          expect(requests.single.pointState, ChatMessageMenuPointState.inside);
           expect(find.byType(AdaptiveTextSelectionToolbar), findsNothing);
         } finally {
           debugDefaultTargetPlatformOverride = null;
@@ -480,26 +469,25 @@ void main() {
                     controller: controller,
                     selectionController: selection,
                     onSecondaryMessageTap: requests.add,
-                    messageBuilder:
-                        (context, id, message, status, runLayout) =>
-                            SizedBox(
-                              height: 80,
-                              child: Align(
+                    messageBuilder: (context, id, message, status, runLayout) =>
+                        SizedBox(
+                          height: 80,
+                          child: Align(
+                            alignment: Alignment.centerLeft,
+                            child: ChatMessageSurfaceBounds(
+                              controller: selection,
+                              messageId: id,
+                              child: Container(
+                                key: ValueKey('surface-$id'),
+                                width: 220,
+                                height: 56,
+                                color: const Color(0xFF224466),
                                 alignment: Alignment.centerLeft,
-                                child: ChatMessageSurfaceBounds(
-                                  controller: selection,
-                                  messageId: id,
-                                  child: Container(
-                                    key: ValueKey('surface-$id'),
-                                    width: 220,
-                                    height: 56,
-                                    color: const Color(0xFF224466),
-                                    alignment: Alignment.centerLeft,
-                                    child: Text('bubble-$id'),
-                                  ),
-                                ),
+                                child: Text('bubble-$id'),
                               ),
                             ),
+                          ),
+                        ),
                   ),
                 ),
               ),
@@ -518,10 +506,7 @@ void main() {
 
           // Scroll without rebuilding mounted children — cached global
           // rects go stale if the reporter only updates on build.
-          await tester.drag(
-            find.byType(ChatScrollView),
-            const Offset(0, 140),
-          );
+          await tester.drag(find.byType(ChatScrollView), const Offset(0, 140));
           await tester.pump();
 
           final after = tester.getCenter(target);
@@ -553,79 +538,75 @@ void main() {
       },
     );
 
-    testWidgets(
-      'null secondary keeps Flutter text menu on markdown glyphs',
-      (tester) async {
-        debugDefaultTargetPlatformOverride = TargetPlatform.macOS;
-        try {
-          final dataSource = _LoadedSource([
-            _msg(1, content: 'Hello selectable world'),
-          ]);
-          final controller = ChatScrollController();
-          final selection = ChatSelectionController(
-            policy: const ChatSelectionPolicy.desktop(),
-          );
-          addTearDown(controller.dispose);
-          addTearDown(selection.dispose);
-          addTearDown(dataSource.dispose);
+    testWidgets('null secondary keeps Flutter text menu on markdown glyphs', (
+      tester,
+    ) async {
+      debugDefaultTargetPlatformOverride = TargetPlatform.macOS;
+      try {
+        final dataSource = _LoadedSource([
+          _msg(1, content: 'Hello selectable world'),
+        ]);
+        final controller = ChatScrollController();
+        final selection = ChatSelectionController(
+          policy: const ChatSelectionPolicy.desktop(),
+        );
+        addTearDown(controller.dispose);
+        addTearDown(selection.dispose);
+        addTearDown(dataSource.dispose);
 
-          selection.putBody(1, Markdown.fromString('Hello selectable world'));
+        selection.putBody(1, Markdown.fromString('Hello selectable world'));
 
-          await tester.pumpWidget(
-            MaterialApp(
-              home: Scaffold(
-                body: SizedBox(
-                  width: 400,
-                  height: 600,
-                  child: ChatScrollView(
-                    dataSource: dataSource,
-                    controller: controller,
-                    selectionController: selection,
-                    messageBuilder: (context, id, message, status, runLayout) =>
-                        SizedBox(
-                          height: 120,
-                          child: ChatMarkdownBody(
-                            controller: selection,
-                            messageId: id,
-                          ),
+        await tester.pumpWidget(
+          MaterialApp(
+            home: Scaffold(
+              body: SizedBox(
+                width: 400,
+                height: 600,
+                child: ChatScrollView(
+                  dataSource: dataSource,
+                  controller: controller,
+                  selectionController: selection,
+                  messageBuilder: (context, id, message, status, runLayout) =>
+                      SizedBox(
+                        height: 120,
+                        child: ChatMarkdownBody(
+                          controller: selection,
+                          messageId: id,
                         ),
-                  ),
+                      ),
                 ),
               ),
             ),
-          );
-          await tester.pumpAndSettle();
+          ),
+        );
+        await tester.pumpAndSettle();
 
-          final md = find.byType(MarkdownWidget);
-          expect(md, findsOneWidget);
-          final tl = tester.getTopLeft(md);
-          final wordPos = tl + const Offset(40, 8);
+        final md = find.byType(MarkdownWidget);
+        expect(md, findsOneWidget);
+        final tl = tester.getTopLeft(md);
+        final wordPos = tl + const Offset(40, 8);
 
-          // Establish a live range so the chat context menu has Copy.
-          expect(
-            selection.enterTextSelection(1, globalOffset: wordPos),
-            isTrue,
-          );
-          await tester.pumpAndSettle();
-          expect(selection.isTextSelectionActive, isTrue);
+        // Establish a live range so the chat context menu has Copy.
+        expect(selection.enterTextSelection(1, globalOffset: wordPos), isTrue);
+        await tester.pumpAndSettle();
+        expect(selection.isTextSelectionActive, isTrue);
 
-          final gesture = await tester.startGesture(
-            wordPos,
-            kind: PointerDeviceKind.mouse,
-            buttons: kSecondaryMouseButton,
-          );
-          await gesture.up();
-          await tester.pumpAndSettle();
+        final gesture = await tester.startGesture(
+          wordPos,
+          kind: PointerDeviceKind.mouse,
+          buttons: kSecondaryMouseButton,
+        );
+        await gesture.up();
+        await tester.pumpAndSettle();
 
-          final scope = tester.state<MarkdownSelectionScopeState>(
-            find.byType(MarkdownSelectionScope),
-          );
-          expect(scope.toolbarIsVisible, isTrue);
-          expect(find.byType(AdaptiveTextSelectionToolbar), findsOneWidget);
-        } finally {
-          debugDefaultTargetPlatformOverride = null;
-        }
-      },
-    );
+        final scope = tester.state<MarkdownSelectionScopeState>(
+          find.byType(MarkdownSelectionScope),
+        );
+        expect(scope.toolbarIsVisible, isTrue);
+        expect(find.byType(AdaptiveTextSelectionToolbar), findsOneWidget);
+      } finally {
+        debugDefaultTargetPlatformOverride = null;
+      }
+    });
   });
 }

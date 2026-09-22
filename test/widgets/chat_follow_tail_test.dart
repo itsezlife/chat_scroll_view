@@ -187,62 +187,56 @@ void main() {
       },
     );
 
-    testWidgets(
-      'append while slightly past band edge still follow-pins',
-      (tester) async {
-        final ds = _GrowingDataSource(40);
-        final controller = ChatScrollController()..jumpTo(39);
-        final inset = ValueNotifier<double>(100);
-        addTearDown(controller.dispose);
-        addTearDown(ds.dispose);
-        addTearDown(inset.dispose);
+    testWidgets('append while slightly past band edge still follow-pins', (
+      tester,
+    ) async {
+      final ds = _GrowingDataSource(40);
+      final controller = ChatScrollController()..jumpTo(39);
+      final inset = ValueNotifier<double>(100);
+      addTearDown(controller.dispose);
+      addTearDown(ds.dispose);
+      addTearDown(inset.dispose);
 
-        await tester.pumpWidget(
-          _scaffold(
-            dataSource: ds,
-            controller: controller,
-            bottomPadding: inset,
-          ),
-        );
-        await tester.pump();
+      await tester.pumpWidget(
+        _scaffold(dataSource: ds, controller: controller, bottomPadding: inset),
+      );
+      await tester.pump();
 
-        controller.scrollBy(8);
-        await tester.pump();
-        expect(controller.isAtTail.value, isTrue);
+      controller.scrollBy(8);
+      await tester.pump();
+      expect(controller.isAtTail.value, isTrue);
 
-        ds.appendOne();
-        await tester.pump();
-        await tester.pump();
+      ds.appendOne();
+      await tester.pump();
+      await tester.pump();
 
-        final bandBottom =
-            tester.getBottomLeft(find.byType(ChatScrollView)).dy - inset.value;
-        expect(
-          tester.getBottomLeft(find.text('msg-40')).dy,
-          closeTo(bandBottom, 0.5),
-        );
-        expect(controller.isAtTail.value, isTrue);
-      },
-    );
+      final bandBottom =
+          tester.getBottomLeft(find.byType(ChatScrollView)).dy - inset.value;
+      expect(
+        tester.getBottomLeft(find.text('msg-40')).dy,
+        closeTo(bandBottom, 0.5),
+      );
+      expect(controller.isAtTail.value, isTrue);
+    });
 
-    testWidgets(
-      'scroll far past band edge does not count as at-tail',
-      (tester) async {
-        final ds = _GrowingDataSource(40);
-        final controller = ChatScrollController()..jumpTo(39);
-        addTearDown(controller.dispose);
-        addTearDown(ds.dispose);
+    testWidgets('scroll far past band edge does not count as at-tail', (
+      tester,
+    ) async {
+      final ds = _GrowingDataSource(40);
+      final controller = ChatScrollController()..jumpTo(39);
+      addTearDown(controller.dispose);
+      addTearDown(ds.dispose);
 
-        await tester.pumpWidget(
-          _scaffold(dataSource: ds, controller: controller),
-        );
-        await tester.pump();
-        expect(controller.isAtTail.value, isTrue);
+      await tester.pumpWidget(
+        _scaffold(dataSource: ds, controller: controller),
+      );
+      await tester.pump();
+      expect(controller.isAtTail.value, isTrue);
 
-        controller.scrollBy(200);
-        await tester.pump();
-        expect(controller.isAtTail.value, isFalse);
-      },
-    );
+      controller.scrollBy(200);
+      await tester.pump();
+      expect(controller.isAtTail.value, isFalse);
+    });
   });
 
   group('follow tail: auto-scroll on new message', () {
@@ -384,7 +378,8 @@ void main() {
         expect(
           tester.getBottomLeft(find.text('msg-19')).dy,
           closeTo(bandBottomAfter, 0.5),
-          reason: 'newest bottom must stay on scroll-band bottom while height '
+          reason:
+              'newest bottom must stay on scroll-band bottom while height '
               'grows (expand upward, not under composer)',
         );
         expect(controller.isAtTail.value, isTrue);

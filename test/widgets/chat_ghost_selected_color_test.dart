@@ -73,29 +73,28 @@ void main() {
     },
   );
 
-  testWidgets(
-    'desktop: last-item toggle must not leave ghost selectedColor',
-    (tester) async {
-      final controller = ChatSelectionController(
-        policy: const ChatSelectionPolicy.desktop(),
-      );
-      addTearDown(controller.dispose);
+  testWidgets('desktop: last-item toggle must not leave ghost selectedColor', (
+    tester,
+  ) async {
+    final controller = ChatSelectionController(
+      policy: const ChatSelectionPolicy.desktop(),
+    );
+    addTearDown(controller.dispose);
 
-      await pumpRow(tester, controller);
-      controller.startSelection(10);
-      await tester.pumpAndSettle();
-      expect(box(tester).color, selectedColor);
+    await pumpRow(tester, controller);
+    controller.startSelection(10);
+    await tester.pumpAndSettle();
+    expect(box(tester).color, selectedColor);
 
-      controller.toggle(10);
-      await tester.pump();
-      expect(controller.isSelected(10), isFalse);
-      expect(
-        box(tester).color,
-        normalColor,
-        reason: 'last toggle must clear bubble selectedColor immediately',
-      );
-    },
-  );
+    controller.toggle(10);
+    await tester.pump();
+    expect(controller.isSelected(10), isFalse);
+    expect(
+      box(tester).color,
+      normalColor,
+      reason: 'last toggle must clear bubble selectedColor immediately',
+    );
+  });
 
   testWidgets(
     'desktop: clearDrag mid mode-enter must not leave ghost selectedColor',
@@ -123,7 +122,8 @@ void main() {
       expect(
         box(tester).color,
         normalColor,
-        reason: 'clearDrag during mode-enter must not leave ghost selectedColor',
+        reason:
+            'clearDrag during mode-enter must not leave ghost selectedColor',
       );
 
       await tester.pumpAndSettle();
@@ -131,23 +131,22 @@ void main() {
     },
   );
 
-  testWidgets(
-    'desktop: clearDrag after settled mode drops selectedColor',
-    (tester) async {
-      final controller = ChatSelectionController(
-        policy: const ChatSelectionPolicy.desktop(),
-      );
-      addTearDown(controller.dispose);
+  testWidgets('desktop: clearDrag after settled mode drops selectedColor', (
+    tester,
+  ) async {
+    final controller = ChatSelectionController(
+      policy: const ChatSelectionPolicy.desktop(),
+    );
+    addTearDown(controller.dispose);
 
-      await pumpRow(tester, controller);
-      controller.updateDragSelection({10});
-      await tester.pumpAndSettle();
-      controller.clearDragSelection();
-      await tester.pump();
-      expect(controller.isSelected(10), isFalse);
-      expect(box(tester).color, normalColor);
-    },
-  );
+    await pumpRow(tester, controller);
+    controller.updateDragSelection({10});
+    await tester.pumpAndSettle();
+    controller.clearDragSelection();
+    await tester.pump();
+    expect(controller.isSelected(10), isFalse);
+    expect(box(tester).color, normalColor);
+  });
 
   testWidgets(
     'desktop: recycle SelectableMessage id after frozen selectProgress',

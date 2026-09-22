@@ -155,8 +155,9 @@ class DefaultSelectionChrome extends StatelessWidget {
       final layout = ChatScrollTheme.messageOf(context);
       return LayoutBuilder(
         builder: (context, constraints) {
-          final rowWidth =
-              constraints.maxWidth.isFinite ? constraints.maxWidth : null;
+          final rowWidth = constraints.maxWidth.isFinite
+              ? constraints.maxWidth
+              : null;
           final endSlack = constraints.maxWidth.isFinite
               ? layout.endSlack(constraints.maxWidth)
               : 0.0;
@@ -168,10 +169,7 @@ class DefaultSelectionChrome extends StatelessWidget {
           return Stack(
             clipBehavior: Clip.none,
             children: <Widget>[
-              SizedBox(
-                width: rowWidth,
-                child: child,
-              ),
+              SizedBox(width: rowWidth, child: child),
               if (m > 0.0)
                 Positioned.directional(
                   textDirection: Directionality.of(context),
@@ -182,9 +180,7 @@ class DefaultSelectionChrome extends StatelessWidget {
                       opacity: m,
                       child: state.showsCheck
                           ? CustomPaint(
-                              key: const ValueKey<String>(
-                                'chatSelectionCheck',
-                              ),
+                              key: const ValueKey<String>('chatSelectionCheck'),
                               size: Size.square(theme.checkSize),
                               painter: _CheckPainter(
                                 select: s,

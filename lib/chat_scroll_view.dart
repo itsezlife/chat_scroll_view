@@ -12,10 +12,7 @@
 library;
 
 export 'package:flutter_md/flutter_md.dart'
-    show
-        Markdown,
-        MarkdownSelection,
-        MarkdownPosition;
+    show Markdown, MarkdownSelection, MarkdownPosition;
 
 export 'src/chat_scroll/animate_to_busy_policy.dart';
 export 'src/chat_scroll/animate_to_disposition.dart';

@@ -1,7 +1,6 @@
 import 'package:chat_scroll_view/chat_scroll_view.dart';
 import 'package:flutter/foundation.dart';
-import 'package:flutter/gestures.dart'
-    show kLongPressTimeout, kPressTimeout;
+import 'package:flutter/gestures.dart' show kLongPressTimeout, kPressTimeout;
 import 'package:flutter/material.dart';
 import 'package:flutter_md/flutter_md.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -40,162 +39,160 @@ class _LoadedSource extends ChatDataSource {
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
-  testWidgets(
-    'mobile long-press text entry shows handles and toolbar',
-    (tester) async {
-      debugDefaultTargetPlatformOverride = TargetPlatform.iOS;
-      try {
-        final dataSource = _LoadedSource([_msg(1)]);
-        final controller = ChatScrollController();
-        final selection = ChatSelectionController(
-          policy: const ChatSelectionPolicy.mobile(),
-        );
-        addTearDown(controller.dispose);
-        addTearDown(selection.dispose);
-        addTearDown(dataSource.dispose);
+  testWidgets('mobile long-press text entry shows handles and toolbar', (
+    tester,
+  ) async {
+    debugDefaultTargetPlatformOverride = TargetPlatform.iOS;
+    try {
+      final dataSource = _LoadedSource([_msg(1)]);
+      final controller = ChatScrollController();
+      final selection = ChatSelectionController(
+        policy: const ChatSelectionPolicy.mobile(),
+      );
+      addTearDown(controller.dispose);
+      addTearDown(selection.dispose);
+      addTearDown(dataSource.dispose);
 
-        selection.putBody(1, Markdown.fromString('Hello selectable world'));
+      selection.putBody(1, Markdown.fromString('Hello selectable world'));
 
-        await tester.pumpWidget(
-          MaterialApp(
-            theme: ThemeData(platform: TargetPlatform.iOS),
-            home: Scaffold(
-              body: SizedBox(
-                width: 400,
-                height: 600,
-                child: ChatScrollView(
-                  dataSource: dataSource,
-                  controller: controller,
-                  selectionController: selection,
-                  messageBuilder: (context, id, message, status, runLayout) =>
-                      Container(
-                        key: ValueKey('container-$id'),
-                        height: 80,
-                        padding: const EdgeInsets.all(12),
-                        color: Colors.white,
-                        child: ChatMarkdownBody(
-                          key: ValueKey('md-$id'),
-                          controller: selection,
-                          messageId: id,
-                        ),
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: ThemeData(platform: TargetPlatform.iOS),
+          home: Scaffold(
+            body: SizedBox(
+              width: 400,
+              height: 600,
+              child: ChatScrollView(
+                dataSource: dataSource,
+                controller: controller,
+                selectionController: selection,
+                messageBuilder: (context, id, message, status, runLayout) =>
+                    Container(
+                      key: ValueKey('container-$id'),
+                      height: 80,
+                      padding: const EdgeInsets.all(12),
+                      color: Colors.white,
+                      child: ChatMarkdownBody(
+                        key: ValueKey('md-$id'),
+                        controller: selection,
+                        messageId: id,
                       ),
-                ),
+                    ),
               ),
             ),
           ),
-        );
-        await tester.pumpAndSettle();
+        ),
+      );
+      await tester.pumpAndSettle();
 
-        // Message-then-text: select row, then long-press body.
-        selection.startSelection(1);
-        await tester.pumpAndSettle();
+      // Message-then-text: select row, then long-press body.
+      selection.startSelection(1);
+      await tester.pumpAndSettle();
 
-        final mdCenter = tester.getCenter(find.byType(MarkdownWidget));
-        final gesture = await tester.startGesture(mdCenter);
-        await tester.pump(kLongPressTimeout + kPressTimeout);
-        await tester.pump(); // word-at-global post-frame
-        await tester.pump();
-        await gesture.up();
-        await tester.pumpAndSettle();
+      final mdCenter = tester.getCenter(find.byType(MarkdownWidget));
+      final gesture = await tester.startGesture(mdCenter);
+      await tester.pump(kLongPressTimeout + kPressTimeout);
+      await tester.pump(); // word-at-global post-frame
+      await tester.pump();
+      await gesture.up();
+      await tester.pumpAndSettle();
 
-        // Range landed (user's "first piece of text").
-        expect(selection.isTextSelectionActive, isTrue);
-        expect(selection.textSelection, isNotNull);
-        expect(selection.textSelection!.isCollapsed, isFalse);
-        expect(selection.markdownSelection.getText(), isNotEmpty);
+      // Range landed (user's "first piece of text").
+      expect(selection.isTextSelectionActive, isTrue);
+      expect(selection.textSelection, isNotNull);
+      expect(selection.textSelection!.isCollapsed, isFalse);
+      expect(selection.markdownSelection.getText(), isNotEmpty);
 
-        // Chrome that is dead on device: handles + toolbar.
-        final scope = tester.state<MarkdownSelectionScopeState>(
-          find.byType(MarkdownSelectionScope),
-        );
-        expect(
-          find.byType(CompositedTransformFollower),
-          findsNWidgets(2),
-          reason: 'mobile text selection must paint start+end handles',
-        );
-        expect(
-          scope.toolbarIsVisible,
-          isTrue,
-          reason: 'mobile text selection must show the adaptive toolbar',
-        );
-        expect(find.byType(AdaptiveTextSelectionToolbar), findsOneWidget);
-      } finally {
-        debugDefaultTargetPlatformOverride = null;
-      }
-    },
-  );
+      // Chrome that is dead on device: handles + toolbar.
+      final scope = tester.state<MarkdownSelectionScopeState>(
+        find.byType(MarkdownSelectionScope),
+      );
+      expect(
+        find.byType(CompositedTransformFollower),
+        findsNWidgets(2),
+        reason: 'mobile text selection must paint start+end handles',
+      );
+      expect(
+        scope.toolbarIsVisible,
+        isTrue,
+        reason: 'mobile text selection must show the adaptive toolbar',
+      );
+      expect(find.byType(AdaptiveTextSelectionToolbar), findsOneWidget);
+    } finally {
+      debugDefaultTargetPlatformOverride = null;
+    }
+  });
 
-  testWidgets(
-    'mobile toolbar stays when onSecondaryMessageTap is wired',
-    (tester) async {
-      debugDefaultTargetPlatformOverride = TargetPlatform.iOS;
-      try {
-        final dataSource = _LoadedSource([_msg(1)]);
-        final controller = ChatScrollController();
-        final selection = ChatSelectionController(
-          policy: const ChatSelectionPolicy.mobile(),
-        );
-        addTearDown(controller.dispose);
-        addTearDown(selection.dispose);
-        addTearDown(dataSource.dispose);
+  testWidgets('mobile toolbar stays when onSecondaryMessageTap is wired', (
+    tester,
+  ) async {
+    debugDefaultTargetPlatformOverride = TargetPlatform.iOS;
+    try {
+      final dataSource = _LoadedSource([_msg(1)]);
+      final controller = ChatScrollController();
+      final selection = ChatSelectionController(
+        policy: const ChatSelectionPolicy.mobile(),
+      );
+      addTearDown(controller.dispose);
+      addTearDown(selection.dispose);
+      addTearDown(dataSource.dispose);
 
-        selection.putBody(1, Markdown.fromString('Hello selectable world'));
+      selection.putBody(1, Markdown.fromString('Hello selectable world'));
 
-        await tester.pumpWidget(
-          MaterialApp(
-            theme: ThemeData(platform: TargetPlatform.iOS),
-            home: Scaffold(
-              body: SizedBox(
-                width: 400,
-                height: 600,
-                child: ChatScrollView(
-                  dataSource: dataSource,
-                  controller: controller,
-                  selectionController: selection,
-                  // Same wiring as the example host — must not kill mobile
-                  // text selection chrome.
-                  onSecondaryMessageTap: (_) {},
-                  messageBuilder: (context, id, message, status, runLayout) =>
-                      Container(
-                        key: ValueKey('container-$id'),
-                        height: 80,
-                        padding: const EdgeInsets.all(12),
-                        color: Colors.white,
-                        child: ChatMarkdownBody(
-                          key: ValueKey('md-$id'),
-                          controller: selection,
-                          messageId: id,
-                        ),
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: ThemeData(platform: TargetPlatform.iOS),
+          home: Scaffold(
+            body: SizedBox(
+              width: 400,
+              height: 600,
+              child: ChatScrollView(
+                dataSource: dataSource,
+                controller: controller,
+                selectionController: selection,
+                // Same wiring as the example host — must not kill mobile
+                // text selection chrome.
+                onSecondaryMessageTap: (_) {},
+                messageBuilder: (context, id, message, status, runLayout) =>
+                    Container(
+                      key: ValueKey('container-$id'),
+                      height: 80,
+                      padding: const EdgeInsets.all(12),
+                      color: Colors.white,
+                      child: ChatMarkdownBody(
+                        key: ValueKey('md-$id'),
+                        controller: selection,
+                        messageId: id,
                       ),
-                ),
+                    ),
               ),
             ),
           ),
-        );
-        await tester.pumpAndSettle();
+        ),
+      );
+      await tester.pumpAndSettle();
 
-        selection.startSelection(1);
-        await tester.pumpAndSettle();
+      selection.startSelection(1);
+      await tester.pumpAndSettle();
 
-        final mdCenter = tester.getCenter(find.byType(MarkdownWidget));
-        final gesture = await tester.startGesture(mdCenter);
-        await tester.pump(kLongPressTimeout + kPressTimeout);
-        await tester.pump();
-        await tester.pump();
-        await gesture.up();
-        await tester.pumpAndSettle();
+      final mdCenter = tester.getCenter(find.byType(MarkdownWidget));
+      final gesture = await tester.startGesture(mdCenter);
+      await tester.pump(kLongPressTimeout + kPressTimeout);
+      await tester.pump();
+      await tester.pump();
+      await gesture.up();
+      await tester.pumpAndSettle();
 
-        expect(selection.isTextSelectionActive, isTrue);
-        final scope = tester.state<MarkdownSelectionScopeState>(
-          find.byType(MarkdownSelectionScope),
-        );
-        expect(scope.toolbarIsVisible, isTrue);
-        expect(find.byType(AdaptiveTextSelectionToolbar), findsOneWidget);
-      } finally {
-        debugDefaultTargetPlatformOverride = null;
-      }
-    },
-  );
+      expect(selection.isTextSelectionActive, isTrue);
+      final scope = tester.state<MarkdownSelectionScopeState>(
+        find.byType(MarkdownSelectionScope),
+      );
+      expect(scope.toolbarIsVisible, isTrue);
+      expect(find.byType(AdaptiveTextSelectionToolbar), findsOneWidget);
+    } finally {
+      debugDefaultTargetPlatformOverride = null;
+    }
+  });
 
   testWidgets(
     'programmatic mobile enterTextSelection(word) shows handles and toolbar',
@@ -244,10 +241,7 @@ void main() {
         await tester.pumpAndSettle();
 
         final global = tester.getCenter(find.byType(MarkdownWidget));
-        expect(
-          selection.enterTextSelection(1, globalOffset: global),
-          isTrue,
-        );
+        expect(selection.enterTextSelection(1, globalOffset: global), isTrue);
         await tester.pump(); // post-frame word select
         await tester.pumpAndSettle();
 
@@ -518,10 +512,7 @@ void main() {
 
         final md1 = find.byKey(const ValueKey('md-1'));
         final start1 = tester.getTopLeft(md1) + const Offset(24, 16);
-        expect(
-          selection.enterTextSelection(1, globalOffset: start1),
-          isTrue,
-        );
+        expect(selection.enterTextSelection(1, globalOffset: start1), isTrue);
         await tester.pumpAndSettle();
 
         expect(selection.isTextSelectionActive, isTrue);
@@ -620,10 +611,7 @@ void main() {
 
         final md1 = find.byKey(const ValueKey('md-1'));
         final start1 = tester.getTopLeft(md1) + const Offset(24, 16);
-        expect(
-          selection.enterTextSelection(1, globalOffset: start1),
-          isTrue,
-        );
+        expect(selection.enterTextSelection(1, globalOffset: start1), isTrue);
         await tester.pumpAndSettle();
 
         final before = selection.textSelection!;
@@ -676,10 +664,7 @@ void main() {
         await tester.pump();
         expect(selection.isTextSelectionActive, isTrue);
         expect(selection.textSelection!.extent.documentId, 1);
-        expect(
-          selection.markdownSelection.getText().length,
-          greaterThan(0),
-        );
+        expect(selection.markdownSelection.getText().length, greaterThan(0));
 
         // Start handle into the sibling — same restore (no reverse / full-body).
         final mid = selection.textSelection!;
@@ -972,10 +957,7 @@ void main() {
         expect(selection.selectedIds, <int>{1, 2});
 
         final global = tester.getCenter(find.byType(MarkdownWidget).first);
-        expect(
-          selection.enterTextSelection(1, globalOffset: global),
-          isTrue,
-        );
+        expect(selection.enterTextSelection(1, globalOffset: global), isTrue);
         await tester.pump();
         await tester.pumpAndSettle();
 
@@ -987,8 +969,11 @@ void main() {
           // controller (message 2 stays enabled under mobile multi-select).
           final scopes = find.byType(MarkdownSelectionScope);
           for (var i = 0; i < scopes.evaluate().length; i++) {
-            final state = tester.state<MarkdownSelectionScopeState>(scopes.at(i));
-            if (state.selectionHandleLeadersAttached || state.toolbarIsVisible) {
+            final state = tester.state<MarkdownSelectionScopeState>(
+              scopes.at(i),
+            );
+            if (state.selectionHandleLeadersAttached ||
+                state.toolbarIsVisible) {
               return state;
             }
           }
@@ -1109,10 +1094,7 @@ void main() {
         await tester.pumpAndSettle();
 
         final global = tester.getCenter(find.byType(MarkdownWidget));
-        expect(
-          selection.enterTextSelection(10, globalOffset: global),
-          isTrue,
-        );
+        expect(selection.enterTextSelection(10, globalOffset: global), isTrue);
         await tester.pump();
         await tester.pumpAndSettle();
 
@@ -1226,10 +1208,7 @@ void main() {
         final boxes = surface!.localBoxesForRange(0, 0, 1);
         expect(boxes, isNotEmpty);
         final global = (surface as RenderBox).localToGlobal(boxes.first.center);
-        expect(
-          selection.enterTextSelection(1, globalOffset: global),
-          isTrue,
-        );
+        expect(selection.enterTextSelection(1, globalOffset: global), isTrue);
         await tester.pump();
         await tester.pumpAndSettle();
 
@@ -1253,10 +1232,9 @@ void main() {
         expect(selection.textSelection!.base.documentId, 1);
         expect(selection.textSelection!.extent.documentId, 1);
         expect(selection.markdownSelection.getText(), body1);
-        expect(
-          selection.markdownSelection.documents.map((d) => d.id),
-          <Object>[1],
-        );
+        expect(selection.markdownSelection.documents.map((d) => d.id), <Object>[
+          1,
+        ]);
 
         await tester.pumpAndSettle();
 
@@ -1287,106 +1265,100 @@ void main() {
     },
   );
 
-  testWidgets(
-    'toolbar re-anchors when reserved bottom inset shifts the band',
-    (tester) async {
-      debugDefaultTargetPlatformOverride = TargetPlatform.android;
-      try {
-        final dataSource = _LoadedSource([
-          for (var i = 1; i <= 12; i++) _msg(i),
-        ]);
-        final controller = ChatScrollController()..jumpTo(6);
-        final selection = ChatSelectionController(
-          policy: const ChatSelectionPolicy.mobile(),
-        );
-        final bottomPad = ValueNotifier<double>(0);
-        addTearDown(controller.dispose);
-        addTearDown(selection.dispose);
-        addTearDown(dataSource.dispose);
-        addTearDown(bottomPad.dispose);
+  testWidgets('toolbar re-anchors when reserved bottom inset shifts the band', (
+    tester,
+  ) async {
+    debugDefaultTargetPlatformOverride = TargetPlatform.android;
+    try {
+      final dataSource = _LoadedSource([for (var i = 1; i <= 12; i++) _msg(i)]);
+      final controller = ChatScrollController()..jumpTo(6);
+      final selection = ChatSelectionController(
+        policy: const ChatSelectionPolicy.mobile(),
+      );
+      final bottomPad = ValueNotifier<double>(0);
+      addTearDown(controller.dispose);
+      addTearDown(selection.dispose);
+      addTearDown(dataSource.dispose);
+      addTearDown(bottomPad.dispose);
 
-        selection.putBody(6, Markdown.fromString('Hello selectable world'));
+      selection.putBody(6, Markdown.fromString('Hello selectable world'));
 
-        await tester.pumpWidget(
-          MaterialApp(
-            theme: ThemeData(platform: TargetPlatform.android),
-            home: Scaffold(
-              body: SizedBox(
-                width: 400,
-                height: 600,
-                child: ChatScrollView(
-                  dataSource: dataSource,
-                  controller: controller,
-                  selectionController: selection,
-                  bottomPadding: bottomPad,
-                  messageBuilder: (context, id, message, status, runLayout) =>
-                      Container(
-                        height: 80,
-                        padding: const EdgeInsets.all(12),
-                        child: id == 6
-                            ? ChatMarkdownBody(
-                                controller: selection,
-                                messageId: id,
-                              )
-                            : Text('row $id'),
-                      ),
-                ),
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: ThemeData(platform: TargetPlatform.android),
+          home: Scaffold(
+            body: SizedBox(
+              width: 400,
+              height: 600,
+              child: ChatScrollView(
+                dataSource: dataSource,
+                controller: controller,
+                selectionController: selection,
+                bottomPadding: bottomPad,
+                messageBuilder: (context, id, message, status, runLayout) =>
+                    Container(
+                      height: 80,
+                      padding: const EdgeInsets.all(12),
+                      child: id == 6
+                          ? ChatMarkdownBody(
+                              controller: selection,
+                              messageId: id,
+                            )
+                          : Text('row $id'),
+                    ),
               ),
             ),
           ),
-        );
-        await tester.pumpAndSettle();
+        ),
+      );
+      await tester.pumpAndSettle();
 
-        selection.startSelection(6);
-        await tester.pumpAndSettle();
+      selection.startSelection(6);
+      await tester.pumpAndSettle();
 
-        final global = tester.getCenter(find.byType(MarkdownWidget));
-        expect(
-          selection.enterTextSelection(6, globalOffset: global),
-          isTrue,
-        );
-        await tester.pump();
-        await tester.pumpAndSettle();
+      final global = tester.getCenter(find.byType(MarkdownWidget));
+      expect(selection.enterTextSelection(6, globalOffset: global), isTrue);
+      await tester.pump();
+      await tester.pumpAndSettle();
 
-        final scope = tester.state<MarkdownSelectionScopeState>(
-          find.byType(MarkdownSelectionScope),
-        );
-        expect(scope.toolbarIsVisible, isTrue);
+      final scope = tester.state<MarkdownSelectionScopeState>(
+        find.byType(MarkdownSelectionScope),
+      );
+      expect(scope.toolbarIsVisible, isTrue);
 
-        final toolbarFinder = find.byType(AdaptiveTextSelectionToolbar);
-        final before = tester
-            .widget<AdaptiveTextSelectionToolbar>(toolbarFinder)
-            .anchors
-            .primaryAnchor;
-        final subjectBefore = tester.getCenter(find.byType(MarkdownWidget));
+      final toolbarFinder = find.byType(AdaptiveTextSelectionToolbar);
+      final before = tester
+          .widget<AdaptiveTextSelectionToolbar>(toolbarFinder)
+          .anchors
+          .primaryAnchor;
+      final subjectBefore = tester.getCenter(find.byType(MarkdownWidget));
 
-        bottomPad.value = 120;
-        await tester.pumpAndSettle();
+      bottomPad.value = 120;
+      await tester.pumpAndSettle();
 
-        expect(scope.toolbarIsVisible, isTrue);
-        final after = tester
-            .widget<AdaptiveTextSelectionToolbar>(toolbarFinder)
-            .anchors
-            .primaryAnchor;
-        final subjectAfter = tester.getCenter(find.byType(MarkdownWidget));
-        expect(
-          subjectAfter.dy,
-          isNot(equals(subjectBefore.dy)),
-          reason: 'reserved inset must shift on-screen subject geometry',
-        );
-        expect(
-          after,
-          isNot(equals(before)),
-          reason:
-              'text selection chrome must re-anchor when reserved inset '
-              'shifts the scroll band',
-        );
-        expect(find.byType(CompositedTransformFollower), findsNWidgets(2));
-      } finally {
-        debugDefaultTargetPlatformOverride = null;
-      }
-    },
-  );
+      expect(scope.toolbarIsVisible, isTrue);
+      final after = tester
+          .widget<AdaptiveTextSelectionToolbar>(toolbarFinder)
+          .anchors
+          .primaryAnchor;
+      final subjectAfter = tester.getCenter(find.byType(MarkdownWidget));
+      expect(
+        subjectAfter.dy,
+        isNot(equals(subjectBefore.dy)),
+        reason: 'reserved inset must shift on-screen subject geometry',
+      );
+      expect(
+        after,
+        isNot(equals(before)),
+        reason:
+            'text selection chrome must re-anchor when reserved inset '
+            'shifts the scroll band',
+      );
+      expect(find.byType(CompositedTransformFollower), findsNWidgets(2));
+    } finally {
+      debugDefaultTargetPlatformOverride = null;
+    }
+  });
 
   testWidgets(
     'mobile long-press on link or inline code of a selected body starts text selection',

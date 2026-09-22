@@ -461,9 +461,7 @@ void main() {
         final center = tester.getCenter(find.byType(ChatScrollView));
         final pointer = TestPointer(1, PointerDeviceKind.mouse)..hover(center);
         // Reveal older — same sign as settled-open wheel probes.
-        await tester.sendEventToBinding(
-          pointer.scroll(const Offset(0, -200)),
-        );
+        await tester.sendEventToBinding(pointer.scroll(const Offset(0, -200)));
         await tester.pump();
         await tester.pump(const Duration(milliseconds: 32));
 

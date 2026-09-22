@@ -253,10 +253,10 @@ class ChatMessageChangeParams {
     final y = settledMeta.dy + d.bottom - d.top;
 
     if (shouldAnimateMetaX && from != null) {
-      final lerpedX =
-          from.dx * oneMinusProgress + settledMeta.dx * progress;
-      final editedShift =
-          animateEditedEnter ? editedWidthDiff * oneMinusProgress : 0.0;
+      final lerpedX = from.dx * oneMinusProgress + settledMeta.dx * progress;
+      final editedShift = animateEditedEnter
+          ? editedWidthDiff * oneMinusProgress
+          : 0.0;
       return Offset(lerpedX - editedShift, y);
     }
 

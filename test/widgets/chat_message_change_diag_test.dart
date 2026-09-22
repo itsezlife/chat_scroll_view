@@ -37,25 +37,25 @@ void main() {
                 color: const Color(0xFF2B5278),
                 borderRadius: BorderRadius.circular(12),
                 padding: const EdgeInsets.fromLTRB(10, 6, 10, 6),
-            metaBuilder: (context, editedOpacity) => Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                if (edited) ...[
-                  Opacity(
-                    opacity: editedOpacity.clamp(0.0, 1.0),
-                    child: const Text(
-                      'edited',
+                metaBuilder: (context, editedOpacity) => Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    if (edited) ...[
+                      Opacity(
+                        opacity: editedOpacity.clamp(0.0, 1.0),
+                        child: const Text(
+                          'edited',
+                          style: TextStyle(color: Colors.white70, fontSize: 11),
+                        ),
+                      ),
+                      const SizedBox(width: 4),
+                    ],
+                    const Text(
+                      '12:00',
                       style: TextStyle(color: Colors.white70, fontSize: 11),
                     ),
-                  ),
-                  const SizedBox(width: 4),
-                ],
-                const Text(
-                  '12:00',
-                  style: TextStyle(color: Colors.white70, fontSize: 11),
+                  ],
                 ),
-              ],
-            ),
               ),
             ),
           ),
@@ -78,7 +78,6 @@ void main() {
       final oldLayout = ro.finalBackgroundRect;
       final oldPainted = ro.lastPaintedBackground;
 
-
       await tester.pumpWidget(harness(content: long, edited: true));
       // beginChange setState + post-frame that installs deltas at p=0
       await tester.pump();
@@ -90,7 +89,6 @@ void main() {
       final layout = after.finalBackgroundRect;
       final painted = after.lastPaintedBackground;
       final p = after.params.progress;
-
 
       // Layout must already be the tall final bubble.
       expect(
@@ -177,7 +175,6 @@ void main() {
     );
     final startSize = ro.finalBackgroundRect.size;
 
-
     for (var i = 0; i < 6; i++) {
       await tester.pump(const Duration(milliseconds: 40));
       final now = tester
@@ -218,8 +215,7 @@ void main() {
     expect(
       times,
       findsOneWidget,
-      reason:
-          'outgoing+incoming meta both mounted → layered timestamps/edited',
+      reason: 'outgoing+incoming meta both mounted → layered timestamps/edited',
     );
   });
 
@@ -247,7 +243,6 @@ void main() {
     );
     final settled = ro.finalBackgroundRect;
     final painted = ro.lastPaintedBackground;
-
 
     expect(
       settled.height,
@@ -334,7 +329,6 @@ void main() {
       final settledMeta = ro.metaOffset;
       final paintedMeta = ro.paintedMetaOffset;
 
-
       expect(ro.params.progress, lessThan(0.05));
       // Must not sit at the final (often off-painted) corner.
       expect(
@@ -383,7 +377,6 @@ void main() {
     );
     final settled = ro.finalBackgroundRect;
     final painted = ro.lastPaintedBackground;
-
 
     expect(settled.width, greaterThan(oldW + 20), reason: 'settled is final');
     expect(
