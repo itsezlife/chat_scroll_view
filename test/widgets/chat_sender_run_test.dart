@@ -464,6 +464,60 @@ void main() {
       expect(builds[1], afterFirst[1]);
       expect(builds[2], afterFirst[2]);
     });
+
+    testWidgets(
+      'Listenable policy notify reinflates only flipped extras',
+      (tester) async {
+        final ds = _LoadedSource([_msg(1), _msg(2), _msg(3)]);
+        final controller = ChatScrollController()..jumpTo(3);
+        final policy = _LiveExtrasRunLayout();
+        final builds = <int, int>{};
+
+        Widget builder(
+          BuildContext context,
+          int id,
+          IChatMessage? message,
+          ChatMessageStatus status,
+          MessageRunLayout runLayout,
+        ) {
+          builds[id] = (builds[id] ?? 0) + 1;
+          if (message == null) return const SizedBox(height: 40);
+          final tag = runLayout.extras == true ? 'extra' : 'plain';
+          return SizedBox(
+            height: 40,
+            child: Text('$tag-$id', key: ValueKey<String>('row-$id')),
+          );
+        }
+
+        await tester.pumpWidget(
+          _harness(
+            dataSource: ds,
+            controller: controller,
+            messageBuilder: builder,
+            senderRunLayout: policy,
+          ),
+        );
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 100));
+
+        expect(find.text('plain-1'), findsOneWidget);
+        expect(find.text('plain-2'), findsOneWidget);
+        expect(find.text('plain-3'), findsOneWidget);
+        final afterFirst = Map<int, int>.from(builds);
+
+        // Same policy instance; live input bump notifies Listenable.
+        policy.flagId(2);
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 100));
+
+        expect(find.text('plain-1'), findsOneWidget);
+        expect(find.text('extra-2'), findsOneWidget);
+        expect(find.text('plain-3'), findsOneWidget);
+        expect(builds[2], greaterThan(afterFirst[2]!));
+        expect(builds[1], afterFirst[1]);
+        expect(builds[3], afterFirst[3]);
+      },
+    );
   });
 }
 
@@ -510,4 +564,33 @@ class _ExtrasRunLayout implements ChatSenderRunLayout {
 
   @override
   int get hashCode => Object.hashAll(flaggedIds);
+}
+
+/// Live extras policy: one instance, [ChangeNotifier] bump without widget swap.
+final class _LiveExtrasRunLayout extends ChangeNotifier
+    implements ChatSenderRunLayout {
+  final Set<int> _flaggedIds = <int>{};
+
+  void flagId(int id) {
+    if (!_flaggedIds.add(id)) return;
+    notifyListeners();
+  }
+
+  @override
+  MessageRunLayout resolve({
+    required ChatDataSource dataSource,
+    required int messageId,
+    Object? Function(IChatMessage)? groupBy,
+  }) {
+    final base = DefaultChatSenderRunLayout.instance.resolve(
+      dataSource: dataSource,
+      messageId: messageId,
+      groupBy: groupBy,
+    );
+    return MessageRunLayout(
+      isFirstInSenderRun: base.isFirstInSenderRun,
+      isLastInSenderRun: base.isLastInSenderRun,
+      extras: _flaggedIds.contains(messageId),
+    );
+  }
 }

@@ -69,6 +69,13 @@ Hosts that need chrome beyond first/last wrap the default policy, set
 `MessageRunLayout.extras`, and cast in `messageBuilder` so skip-cache
 misses stay driven by value equality.
 
+Invalidate host `extras` without touching message inventory: pass a new
+unequal policy instance, or keep one `Listenable` / `ChangeNotifier` policy
+and notify. `RenderChatScrollView` listens when the policy is a `Listenable`
+and `markNeedsLayout`s; it does **not** clear `_builtRunLayout`, so unchanged
+extras still hit the skip path. Do **not** use `ChatDataSource.notifyDataChanged`
+for chrome-only updates.
+
 ### `_buildWidget`
 
 - Optional `Directionality` override + `Builder` so builders see the same

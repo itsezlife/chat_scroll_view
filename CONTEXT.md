@@ -155,8 +155,8 @@ Max `|createdAt|` between present same-sender neighbors that may share a sender 
 _Avoid_: SpacingType.timeDiff, per-row time checks in messageBuilder, forking package statics
 
 **Sender run layout**:
-Host-injected policy (`ChatSenderRunLayout`) that resolves `MessageRunLayout` for each built id. Package default is `DefaultChatSenderRunLayout`. Optional `MessageRunLayout.extras` is host chrome in the skip-rebuild cache (value equality), not clustering. Cast it in `messageBuilder`. Hosts wrap the default or a custom policy, close over host state, and return a snapshot with `extras` set.
-_Avoid_: Static package-only clustering, neighbor walks inside messageBuilder, domain receipts / typed chrome bags in the package, mutable or identity-only `extras`
+Host-injected policy (`ChatSenderRunLayout`) that resolves `MessageRunLayout` for each built id. Package default is `DefaultChatSenderRunLayout`. Optional `MessageRunLayout.extras` is host chrome in the skip-rebuild cache (value equality), not clustering. Cast it in `messageBuilder`. Hosts wrap the default or a custom policy, close over host state, and return a snapshot with `extras` set. Invalidate extras via a new unequal policy instance, or keep one `Listenable` / `ChangeNotifier` policy and notify — never via `ChatDataSource.notifyDataChanged` (that channel is message inventory, not chrome).
+_Avoid_: Static package-only clustering, neighbor walks inside messageBuilder, domain receipts / typed chrome bags in the package, mutable or identity-only `extras`, chrome ticks on the data source
 ### Selection
 
 **Message selection**:

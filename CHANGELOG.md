@@ -31,7 +31,10 @@ this project is pre-1.0 and not strictly SemVer yet.
   changing first/last clustering. Package default and degenerate layouts leave
   `extras` null. The engine never reads the bag. Wrap
   `DefaultChatSenderRunLayout`, close over host state, set `extras`, cast in
-  `messageBuilder`.
+  `messageBuilder`. Invalidate via a new unequal policy instance, or keep one
+  `Listenable` / `ChangeNotifier` policy and notify (`RenderChatScrollView`
+  listens). Do not use `ChatDataSource.notifyDataChanged` for chrome-only
+  updates.
 
 - **Scrollable overflowing markdown tables.** `ChatMarkdownBody` selects
   `BlockPainter$ScrollableTable` so wide tables pan horizontally inside the

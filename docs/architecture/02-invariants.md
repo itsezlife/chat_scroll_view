@@ -176,9 +176,12 @@ and passed into `buildChild` as `MessageRunLayout`. The engine does not read
 `getNextPresentMessage` ad hoc inside the builder. Run boundaries are owned by
 the injected `ChatSenderRunLayout` (`ChatScrollView.senderRunLayout`; default
 `DefaultChatSenderRunLayout`: same sender, optional `groupBy` bucket, optional
-5-minute `|createdAt|` window, `extras: null`). Hosts MUST replace the policy
-instance to change clustering or host chrome extras, not fork package statics.
-Typical host pattern: wrap the default policy, close over host state, return
+5-minute `|createdAt|` window, `extras: null`). Hosts change clustering with a
+new policy instance. Hosts invalidate live `extras` either by swapping to an
+unequal policy instance or by notifying a `Listenable` / `ChangeNotifier`
+policy (the render object listens). Hosts MUST NOT use
+`ChatDataSource.notifyDataChanged` for chrome-only extras updates. Typical host
+pattern: wrap the default policy, close over host state, return
 `MessageRunLayout(..., extras: …)`, cast in the builder.
 
 ## 18. Confirmed-absent ids are never built

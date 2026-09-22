@@ -26,6 +26,15 @@ import 'package:flutter/foundation.dart';
 /// typed bag wrap [DefaultChatSenderRunLayout] (or a custom policy), close
 /// over host state, set [extras], and cast in the builder. Give [extras] a
 /// real [operator ==]; identity-only or mutable bags never miss the cache.
+///
+/// Invalidating extras without a message inventory change:
+///
+/// 1. Rare inputs: pass a new value-unequal [ChatSenderRunLayout] instance
+///    (widget rebuild). The render object [markNeedsLayout]s on the setter.
+/// 2. Live inputs: keep one policy instance that also implements [Listenable]
+///    (e.g. [ChangeNotifier]), call [ChangeNotifier.notifyListeners] when
+///    extras inputs change. Do **not** use [ChatDataSource.notifyDataChanged]
+///    for host chrome.
 @immutable
 class MessageRunLayout {
   /// Position flags for a loaded message within its effective run.
@@ -88,6 +97,11 @@ class MessageRunLayout {
 /// Implement this to replace sender / time / bucket clustering without forking
 /// the package. Prefer immutable implementations with value [operator ==] so
 /// parent rebuilds with an equal policy do not force relayout.
+///
+/// For live [MessageRunLayout.extras] inputs, also implement [Listenable]
+/// (typically via [ChangeNotifier]) and notify when those inputs change. The
+/// viewport listens and relayouts. Do not route host chrome through
+/// [ChatDataSource.notifyDataChanged].
 abstract interface class ChatSenderRunLayout {
   /// Computes first/last-in-run for [messageId] at layout time.
   ///
