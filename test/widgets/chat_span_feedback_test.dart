@@ -708,6 +708,65 @@ void main() {
     );
 
     testWidgets(
+      'move past touch slop aborts ink (list / table pan)',
+      (tester) async {
+        final controller = ChatSelectionController(
+          policy: const ChatSelectionPolicy.mobile(),
+        );
+
+        const markdownText = 'Pan [this link](https://flutter.dev) away.';
+        final model = Markdown.fromString(markdownText);
+        controller.registerBody(7, model);
+
+        await tester.pumpWidget(
+          MaterialApp(
+            home: Scaffold(
+              body: Center(
+                child: SizedBox(
+                  width: 400,
+                  child: ChatMarkdownBody(
+                    controller: controller,
+                    messageId: 7,
+                    markdown: model,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        final surface = controller.markdownSelection.mountedSurfaces.first;
+        final renderBox = surface as RenderBox;
+        final linkBoxes = surface.localBoxesForRange(
+          0,
+          'Pan '.length,
+          'Pan this link'.length,
+        );
+        final downPoint = renderBox.localToGlobal(linkBoxes.first.center);
+
+        final gesture = await tester.startGesture(downPoint);
+        await tester.pump();
+        expect(controller.spanFeedback, isNotNull);
+
+        // Horizontal travel past slop (table pan) — same as vertical list pan.
+        await gesture.moveBy(Offset(kTouchSlop + 1, 0));
+        await tester.pump();
+        expect(
+          controller.spanFeedback,
+          isNull,
+          reason: 'past-slop must abort immediately, not release-fade',
+        );
+
+        await gesture.up();
+        await tester.pumpAndSettle();
+        expect(controller.spanFeedback, isNull);
+
+        controller.dispose();
+      },
+    );
+
+    testWidgets(
       'mobile: no tap highlight while message selection is active',
       (tester) async {
         final controller = ChatSelectionController(

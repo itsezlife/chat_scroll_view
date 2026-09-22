@@ -6,6 +6,23 @@ this project is pre-1.0 and not strictly SemVer yet.
 
 ## [Unreleased]
 
+### Fixed
+
+- **Inline press ink aborts on past-slop travel.** `ChatMarkdownBody` mirrors
+  `ChatTapHighlight`: pointer move beyond touch slop calls
+  `abortSpanFeedback` so list pan and horizontal table pan clear the highlight
+  immediately (scrollables rarely deliver `PointerCancel` to a `Listener`).
+
+### Changed
+
+- **Message-selected bodies refuse nested table pan.** `ChatMarkdownBody`
+  builds `BlockPainter$ScrollableTable(enabled: !isSelected(messageId))` so
+  overflowing tables keep clipped layout but do not accept horizontal drag /
+  wheel pan while that message is in **message selection** (Telegram
+  nested-block pan). Theme cache includes membership so construct-time
+  `enabled` rebuilds on flip; selected rows stay hittable for text entry
+  (ADR 015).
+
 ### Added
 
 - **Scrollable overflowing markdown tables.** `ChatMarkdownBody` selects

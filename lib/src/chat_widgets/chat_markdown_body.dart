@@ -2,7 +2,7 @@ import 'package:chat_scroll_view/src/chat_scroll/chat_selection_controller.dart'
 import 'package:chat_scroll_view/src/chat_widgets/chat_code_block_painter.dart';
 import 'package:chat_scroll_view/src/chat_widgets/chat_markdown_autoscroll.dart';
 import 'package:chat_scroll_view/src/chat_widgets/chat_secondary_message_tap_scope.dart';
-import 'package:flutter/gestures.dart' show PointerDeviceKind;
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart'
     show
         AdaptiveTextSelectionToolbar,
@@ -51,13 +51,16 @@ class ChatMarkdownBodyRegistration extends InheritedWidget {
 ///   code header/bottom bars from selectable code body text under the active
 ///   [controller.selectionPolicy].
 /// - [BlockPainter$ScrollableTable] so overflowing markdown tables pan
-///   horizontally inside the bubble (opt-in by choosing that painter, not a
-///   theme flag).
+///   horizontally inside the bubble (catalog painter opt-in, not a theme
+///   flag). [BlockPainter$ScrollableTable.enabled] is false while this
+///   [messageId] is in **message selection** (Telegram nested-block pan).
 /// - Dynamic hover cursor resolution via [theme.cursorResolver], reflecting
 ///   interactive links, inline code spans, click-to-copy headers/bars, and text bodies.
 /// - Press-lifecycle tactile feedback via [ChatSpanFeedbackPainter]: begin on
 ///   pointer down for pressable inline hits, hold while pressed, release fade
-///   on up; abort when the facade signals selection/span yield.
+///   on up; abort on cancel, past touch-slop travel (list / table pan — scroll
+///   rarely delivers [PointerCancel] to a [Listener]), or when the facade
+///   signals selection/span yield.
 ///
 /// ### Continuous text gestures (ADR 015)
 ///
@@ -133,6 +136,9 @@ class _ChatMarkdownBodyState extends State<ChatMarkdownBody>
   MarkdownThemeData? _cachedAmbient;
   MarkdownThemeData? _cachedUserTheme;
   ChatSelectionPolicy? _cachedPolicy;
+  /// Cached with theme so [BlockPainter$ScrollableTable.enabled] rebuilds when
+  /// membership flips (`enabled` is construct-time, not a live callback).
+  bool? _cachedTablePanEnabled;
   MarkdownThemeData? _resolvedTheme;
 
   /// Default when [ChatMarkdownBody.autoscroll] is null — rebuilt only when
@@ -146,12 +152,24 @@ class _ChatMarkdownBodyState extends State<ChatMarkdownBody>
   AnimationController? _releaseController;
   final _feedbackNotifier = ValueNotifier<ChatSpanFeedback?>(null);
   bool _armedInlinePress = false;
+  int? _inlinePressPointer;
+  Offset? _inlinePressDownGlobal;
+  /// Cached in [didChangeDependencies] — do not read [context] on move after
+  /// unmount (disposed [Listener] can still see moves).
+  double _touchSlop = kTouchSlop;
   int _feedbackGen = 0;
 
   @override
   void initState() {
     super.initState();
     _bindFeedbackListeners(widget.controller);
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _touchSlop =
+        MediaQuery.maybeGestureSettingsOf(context)?.touchSlop ?? kTouchSlop;
   }
 
   @override
@@ -251,8 +269,14 @@ class _ChatMarkdownBodyState extends State<ChatMarkdownBody>
 
   void _onSpanFeedbackAbort() {
     _feedbackGen++;
-    _armedInlinePress = false;
+    _disarmInlinePress();
     _clearFeedback();
+  }
+
+  void _disarmInlinePress() {
+    _armedInlinePress = false;
+    _inlinePressPointer = null;
+    _inlinePressDownGlobal = null;
   }
 
   void _clearFeedback() {
@@ -290,14 +314,14 @@ class _ChatMarkdownBodyState extends State<ChatMarkdownBody>
     );
   }
 
-  void _tryBeginInlinePress(Offset globalPosition) {
+  void _tryBeginInlinePress(PointerDownEvent event) {
     if (!widget.controller.allowsInlineTapHighlight) {
-      _armedInlinePress = false;
+      _disarmInlinePress();
       return;
     }
     final hit = widget.controller.resolveInlineHit(
       widget.messageId,
-      globalPosition,
+      event.position,
     );
     if (hit?.contourPath case final contour? when hit!.touchOrigin != null) {
       widget.controller.beginSpanFeedback(
@@ -306,8 +330,23 @@ class _ChatMarkdownBodyState extends State<ChatMarkdownBody>
         touchOrigin: hit.touchOrigin!,
       );
       _armedInlinePress = true;
+      _inlinePressPointer = event.pointer;
+      _inlinePressDownGlobal = event.position;
     } else {
-      _armedInlinePress = false;
+      _disarmInlinePress();
+    }
+  }
+
+  void _onInlinePressMove(PointerMoveEvent event) {
+    if (!_armedInlinePress || event.pointer != _inlinePressPointer) return;
+    final origin = _inlinePressDownGlobal;
+    if (origin == null) return;
+    // Scrollables / horizontal table pan rarely deliver [PointerCancel] to a
+    // [Listener]; past-slop travel is the reliable cancel (same as
+    // [ChatTapHighlight]).
+    if ((event.position - origin).distance > _touchSlop) {
+      _disarmInlinePress();
+      widget.controller.abortSpanFeedback();
     }
   }
 
@@ -323,16 +362,21 @@ class _ChatMarkdownBodyState extends State<ChatMarkdownBody>
         );
 
     final policy = widget.controller.selectionPolicy;
+    // ADR 015 keeps selected bodies hittable — IgnorePointer is not the gate.
+    final tablePanEnabled =
+        !widget.controller.isSelected(widget.messageId);
     if (_resolvedTheme case final resolved?
         when identical(ambient, _cachedAmbient) &&
             identical(widget.theme, _cachedUserTheme) &&
-            policy == _cachedPolicy) {
+            policy == _cachedPolicy &&
+            tablePanEnabled == _cachedTablePanEnabled) {
       return resolved;
     }
 
     _cachedAmbient = ambient;
     _cachedUserTheme = widget.theme;
     _cachedPolicy = policy;
+    _cachedTablePanEnabled = tablePanEnabled;
 
     final userBuilder = ambient.builder;
     final userCursorResolver = ambient.cursorResolver;
@@ -353,6 +397,7 @@ class _ChatMarkdownBodyState extends State<ChatMarkdownBody>
             rows: rows,
             alignments: alignments,
             theme: themeData,
+            enabled: tablePanEnabled,
           );
         }
         return chatCodeBlockBuilder(block, themeData, policy: policy);
@@ -542,7 +587,7 @@ class _ChatMarkdownBodyState extends State<ChatMarkdownBody>
         final md => Listener(
           behavior: HitTestBehavior.translucent,
           onPointerDown: (event) {
-            _tryBeginInlinePress(event.position);
+            _tryBeginInlinePress(event);
             if (event.kind == PointerDeviceKind.mouse) {
               final policy = widget.controller.selectionPolicy;
               if (policy.allowsTextEntryWithoutMessageSelection &&
@@ -558,19 +603,24 @@ class _ChatMarkdownBodyState extends State<ChatMarkdownBody>
               }
             }
           },
-          onPointerUp: (_) {
-            if (_armedInlinePress) {
-              _armedInlinePress = false;
-              widget.controller.releaseSpanFeedback();
+          onPointerMove: _onInlinePressMove,
+          onPointerUp: (event) {
+            if (!_armedInlinePress || event.pointer != _inlinePressPointer) {
+              return;
             }
+            _disarmInlinePress();
+            widget.controller.releaseSpanFeedback();
           },
-          onPointerCancel: (_) {
+          onPointerCancel: (event) {
             // System / arena cancel must clear ink immediately — not fade
             // through release (and must not leave a held press highlight).
-            if (_armedInlinePress) {
-              _armedInlinePress = false;
-              widget.controller.abortSpanFeedback();
+            if (!_armedInlinePress) return;
+            if (event.pointer != _inlinePressPointer &&
+                _inlinePressPointer != null) {
+              return;
             }
+            _disarmInlinePress();
+            widget.controller.abortSpanFeedback();
           },
           child: ValueListenableBuilder<ChatSpanFeedback?>(
             valueListenable: _feedbackNotifier,
