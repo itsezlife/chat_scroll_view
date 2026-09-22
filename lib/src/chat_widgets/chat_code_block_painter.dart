@@ -3,8 +3,64 @@ import 'dart:math' as math;
 import 'package:chat_scroll_view/src/chat_scroll/chat_selection_policy.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/rendering.dart';
 import 'package:flutter_md/flutter_md.dart';
+
+// --- Host labels -----------------------------------------------------------
+
+/// Host-owned copy for fenced-code chrome (package stays locale-agnostic).
+@immutable
+class ChatCodeBlockLabels {
+  /// Creates labels. Prefer app l10n; English defaults are for tests/demos.
+  const ChatCodeBlockLabels({
+    this.copyCode = 'COPY CODE',
+    this.untitled = 'CODE',
+  });
+
+  /// English defaults (tests / demos without l10n).
+  static const ChatCodeBlockLabels english = ChatCodeBlockLabels();
+
+  /// Mobile bottom-bar / desktop untitled-header copy affordance.
+  final String copyCode;
+
+  /// Desktop header when the fence has no language tag.
+  final String untitled;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is ChatCodeBlockLabels &&
+          copyCode == other.copyCode &&
+          untitled == other.untitled;
+
+  @override
+  int get hashCode => Object.hash(copyCode, untitled);
+}
+
+/// Ambient [ChatCodeBlockLabels] for descendant [ChatMarkdownBody] mounts.
+class ChatCodeBlockLabelsScope extends InheritedWidget {
+  /// Installs [labels] for the subtree.
+  const ChatCodeBlockLabelsScope({
+    required this.labels,
+    required super.child,
+    super.key,
+  });
+
+  /// Host chrome strings.
+  final ChatCodeBlockLabels labels;
+
+  /// Nearest labels, or [ChatCodeBlockLabels.english] when none.
+  static ChatCodeBlockLabels of(BuildContext context) =>
+      maybeOf(context) ?? ChatCodeBlockLabels.english;
+
+  /// Nearest labels, or null.
+  static ChatCodeBlockLabels? maybeOf(BuildContext context) => context
+      .dependOnInheritedWidgetOfExactType<ChatCodeBlockLabelsScope>()
+      ?.labels;
+
+  @override
+  bool updateShouldNotify(covariant ChatCodeBlockLabelsScope oldWidget) =>
+      labels != oldWidget.labels;
+}
 
 // --- Builder helper --------------------------------------------------------
 
@@ -17,6 +73,7 @@ BlockPainter? chatCodeBlockBuilder(
   MD$Block block,
   MarkdownThemeData theme, {
   ChatSelectionPolicy? policy,
+  ChatCodeBlockLabels labels = ChatCodeBlockLabels.english,
 }) {
   if (block case MD$Code(:final text, :final language)) {
     return ChatCodeBlockPainter(
@@ -24,6 +81,7 @@ BlockPainter? chatCodeBlockBuilder(
       language: language,
       theme: theme,
       policy: policy,
+      labels: labels,
     );
   }
   return null;
@@ -62,26 +120,48 @@ BlockPainter? chatCodeBlockBuilder(
 ///   interference from the header chrome.
 class ChatCodeBlockPainter with SelectableTextBlock implements BlockPainter {
   /// Creates a fenced code block painter.
-  ChatCodeBlockPainter({
+  factory ChatCodeBlockPainter({
+    required String text,
+    required String? language,
+    required MarkdownThemeData theme,
+    ChatSelectionPolicy? policy,
+    ChatCodeBlockLabels labels = ChatCodeBlockLabels.english,
+  }) {
+    final resolvedPolicy = policy ?? ChatSelectionPolicy.forPlatform();
+    final background =
+        theme.highlighter?.backgroundFor(language) ??
+        theme.surfaceColor ??
+        const Color(0xFF1E1E22);
+    final chromeInk = fenceChromeInk(background);
+    return ChatCodeBlockPainter._(
+      text: text,
+      language: language,
+      theme: theme,
+      policy: resolvedPolicy,
+      labels: labels,
+      background: background,
+      headerBackground: fenceChromeWash(background),
+      dividerColor: theme.dividerColor ?? chromeInk.withValues(alpha: 0.14),
+      iconColor: chromeInk.withValues(alpha: 0.7),
+      chromeInk: chromeInk,
+    );
+  }
+
+  ChatCodeBlockPainter._({
     required this.text,
     required this.language,
     required this.theme,
-    ChatSelectionPolicy? policy,
-  }) : policy = policy ?? ChatSelectionPolicy.forPlatform(),
-       _background =
-           theme.highlighter?.backgroundFor(language) ??
-           theme.surfaceColor ??
-           const Color(0xFF1E1E22),
-       _headerBackground =
-           theme.textStyle.color?.withValues(alpha: 0.08) ??
-           const Color(0x14FFFFFF),
-       _dividerColor =
-           theme.dividerColor ??
-           theme.textStyle.color?.withValues(alpha: 0.12) ??
-           const Color(0x1FFFFFFF),
-       _iconColor =
-           theme.textStyle.color?.withValues(alpha: 0.7) ??
-           const Color(0xB3FFFFFF),
+    required this.policy,
+    required this.labels,
+    required Color background,
+    required Color headerBackground,
+    required Color dividerColor,
+    required Color iconColor,
+    required Color chromeInk,
+  }) : _background = background,
+       _headerBackground = headerBackground,
+       _dividerColor = dividerColor,
+       _iconColor = iconColor,
        painter = TextPainter(
          text: _buildCodeSpan(text, language, theme),
          textAlign: TextAlign.start,
@@ -91,13 +171,37 @@ class ChatCodeBlockPainter with SelectableTextBlock implements BlockPainter {
        _headerPainter = _buildHeaderPainter(
          language,
          theme,
-         policy ?? ChatSelectionPolicy.forPlatform(),
+         policy,
+         chromeInk,
+         labels,
        ),
        _bottomBarPainter = _buildBottomBarPainter(
          text,
          theme,
-         policy ?? ChatSelectionPolicy.forPlatform(),
+         policy,
+         labels,
        );
+
+  /// Host chrome strings (copy bar / untitled language).
+  final ChatCodeBlockLabels labels;
+
+  /// Ink used for header/footer labels and washes on [fenceBackground].
+  ///
+  /// Keys off fence luminance — not bubble [MarkdownThemeData.textStyle] —
+  /// so dark highlighters (GitHub dark) still get a light chrome strip.
+  @visibleForTesting
+  static Color fenceChromeInk(Color fenceBackground) =>
+      fenceBackground.computeLuminance() > 0.45
+      ? const Color(0xFF000000)
+      : const Color(0xFFFFFFFF);
+
+  /// Header / bottom-bar fill on top of [fenceBackground].
+  @visibleForTesting
+  static Color fenceChromeWash(Color fenceBackground) {
+    final ink = fenceChromeInk(fenceBackground);
+    final alpha = fenceBackground.computeLuminance() > 0.45 ? 0.08 : 0.12;
+    return ink.withValues(alpha: alpha);
+  }
 
   // --- Geometry Constants --------------------------------------------------
 
@@ -444,10 +548,14 @@ class ChatCodeBlockPainter with SelectableTextBlock implements BlockPainter {
     String? language,
     MarkdownThemeData theme,
     ChatSelectionPolicy policy,
+    Color chromeInk,
+    ChatCodeBlockLabels labels,
   ) {
     final label = switch (language) {
       final l? when l.trim().isNotEmpty => l.trim().toUpperCase(),
-      _ => policy.hasInteractiveCodeHeader ? 'CODE' : '',
+      _ => policy.hasInteractiveCodeHeader
+          ? labels.untitled.toUpperCase()
+          : '',
     };
     if (label.isEmpty) return null;
 
@@ -455,9 +563,7 @@ class ChatCodeBlockPainter with SelectableTextBlock implements BlockPainter {
       fontSize: 11,
       fontWeight: FontWeight.w600,
       letterSpacing: 0.5,
-      color:
-          theme.textStyle.color?.withValues(alpha: 0.7) ??
-          const Color(0xB3FFFFFF),
+      color: chromeInk.withValues(alpha: 0.7),
       fontFamily: theme.textStyle.fontFamily,
     );
 
@@ -472,6 +578,7 @@ class ChatCodeBlockPainter with SelectableTextBlock implements BlockPainter {
     String text,
     MarkdownThemeData theme,
     ChatSelectionPolicy policy,
+    ChatCodeBlockLabels labels,
   ) {
     if (!policy.hasBottomCodeCopyBarForLength(text.length)) {
       return null;
@@ -487,7 +594,7 @@ class ChatCodeBlockPainter with SelectableTextBlock implements BlockPainter {
     );
 
     return TextPainter(
-      text: TextSpan(text: 'COPY CODE', style: style),
+      text: TextSpan(text: labels.copyCode.toUpperCase(), style: style),
       textDirection: theme.textDirection,
       textScaler: theme.textScaler,
     );

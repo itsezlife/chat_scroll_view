@@ -313,6 +313,34 @@ void main() {
       expect(painter.isLinkAtLocal(Offset(50, bottomBarY)), isTrue);
     });
 
+    test('host labels override untitled header and copy bar copy', () {
+      const labels = ChatCodeBlockLabels(
+        copyCode: 'Скопировать',
+        untitled: 'Код',
+      );
+      final untitled = ChatCodeBlockPainter(
+        text: 'print(1);',
+        language: null,
+        theme: defaultTheme,
+        policy: const ChatSelectionPolicy.desktop(),
+        labels: labels,
+      );
+      addTearDown(untitled.dispose);
+      expect(untitled.hasHeader, isTrue);
+      expect(untitled.labels.untitled, 'Код');
+
+      final long = ChatCodeBlockPainter(
+        text: sampleLongCode,
+        language: 'dart',
+        theme: defaultTheme,
+        policy: const ChatSelectionPolicy.mobile(),
+        labels: labels,
+      );
+      addTearDown(long.dispose);
+      expect(long.hasBottomBar, isTrue);
+      expect(long.labels.copyCode, 'Скопировать');
+    });
+
     test('snippet without language renders no top header on mobile', () {
       final painter = ChatCodeBlockPainter(
         text: sampleDartCode,
@@ -667,5 +695,21 @@ void main() {
         expect(controller.textSelection!.base.documentId, 1);
       },
     );
+  });
+
+  group('ChatCodeBlockPainter — fence chrome contrast', () {
+    test('dark fence uses light wash; light fence uses dark wash', () {
+      const darkFence = Color(0xFF0D1117); // GitHub dark
+      const lightFence = Color(0xFFF6F8FA); // GitHub light
+
+      expect(ChatCodeBlockPainter.fenceChromeInk(darkFence), Colors.white);
+      expect(ChatCodeBlockPainter.fenceChromeInk(lightFence), Colors.black);
+
+      final darkWash = ChatCodeBlockPainter.fenceChromeWash(darkFence);
+      final lightWash = ChatCodeBlockPainter.fenceChromeWash(lightFence);
+      expect(darkWash.a, greaterThan(lightWash.a));
+      expect(darkWash.computeLuminance(), greaterThan(darkFence.computeLuminance()));
+      expect(lightWash.computeLuminance(), lessThan(lightFence.computeLuminance()));
+    });
   });
 }

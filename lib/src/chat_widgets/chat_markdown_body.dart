@@ -136,6 +136,7 @@ class _ChatMarkdownBodyState extends State<ChatMarkdownBody>
   MarkdownThemeData? _cachedAmbient;
   MarkdownThemeData? _cachedUserTheme;
   ChatSelectionPolicy? _cachedPolicy;
+  ChatCodeBlockLabels? _cachedCodeBlockLabels;
 
   /// Cached with theme so [BlockPainter$ScrollableTable.enabled] rebuilds when
   /// membership flips (`enabled` is construct-time, not a live callback).
@@ -364,12 +365,14 @@ class _ChatMarkdownBodyState extends State<ChatMarkdownBody>
         );
 
     final policy = widget.controller.selectionPolicy;
+    final codeBlockLabels = ChatCodeBlockLabelsScope.of(context);
     // ADR 015 keeps selected bodies hittable — IgnorePointer is not the gate.
     final tablePanEnabled = !widget.controller.isSelected(widget.messageId);
     if (_resolvedTheme case final resolved?
         when identical(ambient, _cachedAmbient) &&
             identical(widget.theme, _cachedUserTheme) &&
             policy == _cachedPolicy &&
+            codeBlockLabels == _cachedCodeBlockLabels &&
             tablePanEnabled == _cachedTablePanEnabled) {
       return resolved;
     }
@@ -377,6 +380,7 @@ class _ChatMarkdownBodyState extends State<ChatMarkdownBody>
     _cachedAmbient = ambient;
     _cachedUserTheme = widget.theme;
     _cachedPolicy = policy;
+    _cachedCodeBlockLabels = codeBlockLabels;
     _cachedTablePanEnabled = tablePanEnabled;
 
     final userBuilder = ambient.builder;
@@ -401,7 +405,12 @@ class _ChatMarkdownBodyState extends State<ChatMarkdownBody>
             enabled: tablePanEnabled,
           );
         }
-        return chatCodeBlockBuilder(block, themeData, policy: policy);
+        return chatCodeBlockBuilder(
+          block,
+          themeData,
+          policy: policy,
+          labels: codeBlockLabels,
+        );
       },
       cursorResolver: (localOffset, blockIndex, block) {
         if (userCursorResolver?.call(localOffset, blockIndex, block)
