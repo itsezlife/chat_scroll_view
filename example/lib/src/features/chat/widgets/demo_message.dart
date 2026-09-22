@@ -243,9 +243,7 @@ class _Avatar extends StatelessWidget {
         ChatSelectionStateScope.maybeOf(context)?.canPerformActions ?? true;
     final tap = actionsAllowed ? onTap : null;
     return MouseRegion(
-      cursor: tap != null
-          ? SystemMouseCursors.click
-          : SystemMouseCursors.basic,
+      cursor: tap != null ? SystemMouseCursors.click : SystemMouseCursors.basic,
       child: GestureDetector(
         onTap: tap,
         onLongPress:
