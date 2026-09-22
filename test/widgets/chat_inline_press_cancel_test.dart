@@ -124,10 +124,7 @@ void main() {
     return (down, up);
   }
 
-  Offset linkCenter(
-    ChatSelectionController selection, {
-    int messageId = 1,
-  }) {
+  Offset linkCenter(ChatSelectionController selection, {int messageId = 1}) {
     final surface = selection.surfaceFor(messageId);
     expect(surface, isNotNull, reason: 'expected surface for $messageId');
     final box = surface! as RenderBox;
@@ -230,7 +227,8 @@ void main() {
           );
           // Tall list so VerticalDragGestureRecognizer can own a real scroll.
           final messages = [for (var i = 0; i < 40; i++) _msg(i)];
-          final controller = ChatScrollController()..jumpTo(messages.length - 1);
+          final controller = ChatScrollController()
+            ..jumpTo(messages.length - 1);
           final dataSource = _LoadedSource(messages);
           addTearDown(controller.dispose);
           addTearDown(selection.dispose);
@@ -284,66 +282,65 @@ void main() {
       },
     );
 
-    testWidgets(
-      'past-slop HORIZONTAL then up must not activate (control)',
-      (tester) async {
-        debugDefaultTargetPlatformOverride = TargetPlatform.iOS;
-        try {
-          final linkTaps = <String>[];
-          final selection = ChatSelectionController(
-            policy: const ChatSelectionPolicy.mobile(),
-            onInteraction: (i) {
-              if (i case ChatLinkActivated(
-                :final url,
-                gesture: ChatInlineGesture.tap,
-              )) {
-                linkTaps.add(url);
-              }
-            },
+    testWidgets('past-slop HORIZONTAL then up must not activate (control)', (
+      tester,
+    ) async {
+      debugDefaultTargetPlatformOverride = TargetPlatform.iOS;
+      try {
+        final linkTaps = <String>[];
+        final selection = ChatSelectionController(
+          policy: const ChatSelectionPolicy.mobile(),
+          onInteraction: (i) {
+            if (i case ChatLinkActivated(
+              :final url,
+              gesture: ChatInlineGesture.tap,
+            )) {
+              linkTaps.add(url);
+            }
+          },
+        );
+        final messages = [for (var i = 0; i < 40; i++) _msg(i)];
+        final controller = ChatScrollController()..jumpTo(messages.length - 1);
+        final dataSource = _LoadedSource(messages);
+        addTearDown(controller.dispose);
+        addTearDown(selection.dispose);
+        addTearDown(dataSource.dispose);
+
+        for (final m in messages) {
+          selection.putBody(
+            m.id,
+            Markdown.fromString(
+              m.id == messages.length - 1
+                  ? 'Prefix [link text](https://horizontal.dev) tail.'
+                  : 'body ${m.id}',
+            ),
           );
-          final messages = [for (var i = 0; i < 40; i++) _msg(i)];
-          final controller = ChatScrollController()..jumpTo(messages.length - 1);
-          final dataSource = _LoadedSource(messages);
-          addTearDown(controller.dispose);
-          addTearDown(selection.dispose);
-          addTearDown(dataSource.dispose);
-
-          for (final m in messages) {
-            selection.putBody(
-              m.id,
-              Markdown.fromString(
-                m.id == messages.length - 1
-                    ? 'Prefix [link text](https://horizontal.dev) tail.'
-                    : 'body ${m.id}',
-              ),
-            );
-          }
-
-          await pumpScroll(
-            tester,
-            selection: selection,
-            dataSource: dataSource,
-            controller: controller,
-          );
-
-          final down = linkCenter(selection, messageId: messages.length - 1);
-          final gesture = await tester.startGesture(down);
-          await tester.pump();
-          expect(selection.spanFeedback, isNotNull);
-
-          await gesture.moveBy(const Offset(kTouchSlop + 8, 0));
-          await tester.pump();
-          expect(selection.spanFeedback, isNull);
-
-          await gesture.up();
-          await tester.pumpAndSettle();
-
-          expect(linkTaps, isEmpty);
-        } finally {
-          debugDefaultTargetPlatformOverride = null;
         }
-      },
-    );
+
+        await pumpScroll(
+          tester,
+          selection: selection,
+          dataSource: dataSource,
+          controller: controller,
+        );
+
+        final down = linkCenter(selection, messageId: messages.length - 1);
+        final gesture = await tester.startGesture(down);
+        await tester.pump();
+        expect(selection.spanFeedback, isNotNull);
+
+        await gesture.moveBy(const Offset(kTouchSlop + 8, 0));
+        await tester.pump();
+        expect(selection.spanFeedback, isNull);
+
+        await gesture.up();
+        await tester.pumpAndSettle();
+
+        expect(linkTaps, isEmpty);
+      } finally {
+        debugDefaultTargetPlatformOverride = null;
+      }
+    });
 
     testWidgets('past-slop abort then pointer-up must not activate', (
       tester,

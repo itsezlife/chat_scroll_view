@@ -7,9 +7,7 @@ void main() {
   group('ChatBodyLinkifyUtil.materialize', () {
     test('rewrites bare https and @username into markdown links', () {
       expect(
-        ChatBodyLinkifyUtil.materialize(
-          'ping @alice at https://example.com',
-        ),
+        ChatBodyLinkifyUtil.materialize('ping @alice at https://example.com'),
         'ping [@alice](mention:alice) at '
         '[https://example.com](https://example.com)',
       );
@@ -26,11 +24,7 @@ void main() {
     test('classifies http and https as web', () {
       expect(
         LinkActivation.fromUrl('https://example.com'),
-        isA<WebLinkActivation>().having(
-          (a) => a.uri.scheme,
-          'scheme',
-          'https',
-        ),
+        isA<WebLinkActivation>().having((a) => a.uri.scheme, 'scheme', 'https'),
       );
       expect(
         LinkActivation.fromUrl('http://example.com'),

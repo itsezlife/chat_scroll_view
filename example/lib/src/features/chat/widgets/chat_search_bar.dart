@@ -84,7 +84,7 @@ class ChatSearchToggleButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final controller = context.controllerOf<ChatSearchController>(); 
+    final controller = context.controllerOf<ChatSearchController>();
     return ValueListenableBuilder(
       valueListenable: controller.select(
         (s) => s.maybeMap(closed: (_) => false, orElse: () => true),

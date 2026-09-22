@@ -495,28 +495,29 @@ void main() {
       expect(selection.isSelected(255), isTrue);
     });
 
-    testWidgets('non-selectable message does not start selection on long-press', (
-      tester,
-    ) async {
-      const count = 256;
-      final controller = ChatScrollController()..jumpTo(count - 1);
-      final selection = ChatSelectionController()
-        ..selectionAllowed = (id) => ChatSelectionAllowed.none;
-      await tester.pumpWidget(
-        _harness(
-          dataSource: _PreloadedDataSource(_generate(count)),
-          controller: controller,
-          selectionController: selection,
-        ),
-      );
-      await tester.pump();
+    testWidgets(
+      'non-selectable message does not start selection on long-press',
+      (tester) async {
+        const count = 256;
+        final controller = ChatScrollController()..jumpTo(count - 1);
+        final selection = ChatSelectionController()
+          ..selectionAllowed = (id) => ChatSelectionAllowed.none;
+        await tester.pumpWidget(
+          _harness(
+            dataSource: _PreloadedDataSource(_generate(count)),
+            controller: controller,
+            selectionController: selection,
+          ),
+        );
+        await tester.pump();
 
-      await tester.longPress(find.text('msg-255'));
-      await tester.pumpAndSettle();
+        await tester.longPress(find.text('msg-255'));
+        await tester.pumpAndSettle();
 
-      expect(selection.isSelectionMode, isFalse);
-      expect(selection.count, 0);
-    });
+        expect(selection.isSelectionMode, isFalse);
+        expect(selection.count, 0);
+      },
+    );
   });
 
   group('selection chrome', () {
@@ -555,7 +556,9 @@ void main() {
       expect(selection.isSelectionMode, isFalse);
     });
 
-    testWidgets('SelectionAppBar shakes the count on a cap hit', (tester) async {
+    testWidgets('SelectionAppBar shakes the count on a cap hit', (
+      tester,
+    ) async {
       final selection = ChatSelectionController()..selectionCap = 1;
       await tester.pumpWidget(
         MaterialApp(

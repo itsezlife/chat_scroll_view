@@ -7,9 +7,7 @@ import 'package:flutter_test/flutter_test.dart';
 void main() {
   group('demoDarkMarkdownTheme link underline', () {
     testWidgets('underlines links on Android', (tester) async {
-      await tester.pumpWidget(
-        const MaterialApp(home: SizedBox.shrink()),
-      );
+      await tester.pumpWidget(const MaterialApp(home: SizedBox.shrink()));
       final previous = debugDefaultTargetPlatformOverride;
       debugDefaultTargetPlatformOverride = TargetPlatform.android;
       try {
@@ -26,9 +24,7 @@ void main() {
     });
 
     testWidgets('does not underline links on macOS', (tester) async {
-      await tester.pumpWidget(
-        const MaterialApp(home: SizedBox.shrink()),
-      );
+      await tester.pumpWidget(const MaterialApp(home: SizedBox.shrink()));
       final previous = debugDefaultTargetPlatformOverride;
       debugDefaultTargetPlatformOverride = TargetPlatform.macOS;
       try {

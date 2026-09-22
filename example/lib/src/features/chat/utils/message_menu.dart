@@ -205,8 +205,7 @@ abstract final class MessageMenuCatalog {
     if (banned.isEmpty) return items;
     return [
       for (final item in items)
-        if (item is! ChatMessageMenuAction || !banned.contains(item.id))
-          item,
+        if (item is! ChatMessageMenuAction || !banned.contains(item.id)) item,
     ];
   }
 

@@ -144,6 +144,5 @@ final class ChatSearchController extends StateController<ChatSearchState> {
       state.maybeMap(populated: (s) => s.hits[s.index], orElse: () => null);
 
   /// Whether search chrome is visible (any state except [ChatSearchState.closed]).
-  bool get isOpen =>
-      state.maybeMap(closed: (_) => false, orElse: () => true);
+  bool get isOpen => state.maybeMap(closed: (_) => false, orElse: () => true);
 }

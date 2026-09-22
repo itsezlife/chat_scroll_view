@@ -43,9 +43,7 @@ void main() {
 
     test('idle: Reply→Copy→Forward→Pin→Edit→Delete; no Select', () {
       expect(
-        _actionIds(
-          MessageMenuCatalog.itemsFor(_request(messageId: 1), policy),
-        ),
+        _actionIds(MessageMenuCatalog.itemsFor(_request(messageId: 1), policy)),
         <String>[
           MessageMenuActionId.reply,
           MessageMenuActionId.copy,
@@ -60,10 +58,7 @@ void main() {
     test('outside still keeps full idle rows', () {
       final ids = _actionIds(
         MessageMenuCatalog.itemsFor(
-          _request(
-            messageId: 1,
-            pointState: ChatMessageMenuPointState.outside,
-          ),
+          _request(messageId: 1, pointState: ChatMessageMenuPointState.outside),
           policy,
         ),
       );
@@ -71,22 +66,25 @@ void main() {
       expect(ids, isNot(contains(MessageMenuActionId.select)));
     });
 
-    test('idle: live text omits whole-message Copy (text chrome owns range)', () {
-      final ids = _actionIds(
-        MessageMenuCatalog.itemsFor(
-          _request(
-            messageId: 1,
-            hasTextSelection: true,
-            overlapsTextSelection: true,
-            selectedTextSnapshot: 'hi',
+    test(
+      'idle: live text omits whole-message Copy (text chrome owns range)',
+      () {
+        final ids = _actionIds(
+          MessageMenuCatalog.itemsFor(
+            _request(
+              messageId: 1,
+              hasTextSelection: true,
+              overlapsTextSelection: true,
+              selectedTextSnapshot: 'hi',
+            ),
+            policy,
           ),
-          policy,
-        ),
-      );
-      expect(ids, isNot(contains(MessageMenuActionId.copySelected)));
-      expect(ids, isNot(contains(MessageMenuActionId.copy)));
-      expect(ids, isNot(contains(MessageMenuActionId.select)));
-    });
+        );
+        expect(ids, isNot(contains(MessageMenuActionId.copySelected)));
+        expect(ids, isNot(contains(MessageMenuActionId.copy)));
+        expect(ids, isNot(contains(MessageMenuActionId.select)));
+      },
+    );
 
     test('upon-selected: bulk labels + Reply; no Select', () {
       final items = MessageMenuCatalog.itemsFor(
@@ -192,10 +190,7 @@ void main() {
             policy,
           ),
         ),
-        <String>[
-          MessageMenuActionId.select,
-          MessageMenuActionId.selectUpTo,
-        ],
+        <String>[MessageMenuActionId.select, MessageMenuActionId.selectUpTo],
       );
     });
 

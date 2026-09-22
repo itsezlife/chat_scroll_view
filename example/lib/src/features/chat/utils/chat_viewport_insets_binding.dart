@@ -120,7 +120,9 @@ mixin ChatViewportInsetsBinding<T extends StatefulWidget> on State<T> {
     final target = iosKeyboardOpenTarget(
       keyboard: keyboard,
       panelTarget: bottomInsetController.panelTarget,
-      storedKeyboardHeight: keyboardPanelStore.heightFor(landscape: isLandscape),
+      storedKeyboardHeight: keyboardPanelStore.heightFor(
+        landscape: isLandscape,
+      ),
     );
     insets.setKeyboardTarget(target);
     insets.setKeyboard(keyboard);

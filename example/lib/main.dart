@@ -75,9 +75,7 @@ class ChatDemoApp extends StatelessWidget {
     ),
     builder: (context, child) => ChatChromeTheme(
       colors: const ChatChromeColors.dark(),
-      child: DemoMarkdownTheme(
-        child: DemoChatTheme(child: child!),
-      ),
+      child: DemoMarkdownTheme(child: DemoChatTheme(child: child!)),
     ),
     debugShowCheckedModeBanner: false,
     showPerformanceOverlay: false,

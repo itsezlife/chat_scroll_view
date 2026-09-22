@@ -79,11 +79,7 @@ final class CombineLatestValueListenable<T, R>
     bool Function(R previous, R next)? test,
   ]) => CombineLatestValueListenable<dynamic, R>(
     [a, b, c],
-    (values) => combiner(
-      values[0] as A,
-      values[1] as B,
-      values[2] as C,
-    ),
+    (values) => combiner(values[0] as A, values[1] as B, values[2] as C),
     test,
   );
 

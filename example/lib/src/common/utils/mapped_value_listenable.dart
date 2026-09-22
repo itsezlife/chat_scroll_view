@@ -52,9 +52,5 @@ extension ValueListenableUtilsX<T> on ValueListenable<T> {
   MappedValueListenable<T, R> map<R>(
     R Function(T value) map, {
     bool Function(R previous, R next)? equals,
-  }) => MappedValueListenable<T, R>(
-    source: this,
-    map: map,
-    equals: equals,
-  );
+  }) => MappedValueListenable<T, R>(source: this, map: map, equals: equals);
 }

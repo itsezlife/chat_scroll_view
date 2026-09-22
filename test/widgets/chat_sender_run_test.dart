@@ -465,59 +465,58 @@ void main() {
       expect(builds[2], afterFirst[2]);
     });
 
-    testWidgets(
-      'Listenable policy notify reinflates only flipped extras',
-      (tester) async {
-        final ds = _LoadedSource([_msg(1), _msg(2), _msg(3)]);
-        final controller = ChatScrollController()..jumpTo(3);
-        final policy = _LiveExtrasRunLayout();
-        final builds = <int, int>{};
+    testWidgets('Listenable policy notify reinflates only flipped extras', (
+      tester,
+    ) async {
+      final ds = _LoadedSource([_msg(1), _msg(2), _msg(3)]);
+      final controller = ChatScrollController()..jumpTo(3);
+      final policy = _LiveExtrasRunLayout();
+      final builds = <int, int>{};
 
-        Widget builder(
-          BuildContext context,
-          int id,
-          IChatMessage? message,
-          ChatMessageStatus status,
-          MessageRunLayout runLayout,
-        ) {
-          builds[id] = (builds[id] ?? 0) + 1;
-          if (message == null) return const SizedBox(height: 40);
-          final tag = runLayout.extras == true ? 'extra' : 'plain';
-          return SizedBox(
-            height: 40,
-            child: Text('$tag-$id', key: ValueKey<String>('row-$id')),
-          );
-        }
-
-        await tester.pumpWidget(
-          _harness(
-            dataSource: ds,
-            controller: controller,
-            messageBuilder: builder,
-            senderRunLayout: policy,
-          ),
+      Widget builder(
+        BuildContext context,
+        int id,
+        IChatMessage? message,
+        ChatMessageStatus status,
+        MessageRunLayout runLayout,
+      ) {
+        builds[id] = (builds[id] ?? 0) + 1;
+        if (message == null) return const SizedBox(height: 40);
+        final tag = runLayout.extras == true ? 'extra' : 'plain';
+        return SizedBox(
+          height: 40,
+          child: Text('$tag-$id', key: ValueKey<String>('row-$id')),
         );
-        await tester.pump();
-        await tester.pump(const Duration(milliseconds: 100));
+      }
 
-        expect(find.text('plain-1'), findsOneWidget);
-        expect(find.text('plain-2'), findsOneWidget);
-        expect(find.text('plain-3'), findsOneWidget);
-        final afterFirst = Map<int, int>.from(builds);
+      await tester.pumpWidget(
+        _harness(
+          dataSource: ds,
+          controller: controller,
+          messageBuilder: builder,
+          senderRunLayout: policy,
+        ),
+      );
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
 
-        // Same policy instance; live input bump notifies Listenable.
-        policy.flagId(2);
-        await tester.pump();
-        await tester.pump(const Duration(milliseconds: 100));
+      expect(find.text('plain-1'), findsOneWidget);
+      expect(find.text('plain-2'), findsOneWidget);
+      expect(find.text('plain-3'), findsOneWidget);
+      final afterFirst = Map<int, int>.from(builds);
 
-        expect(find.text('plain-1'), findsOneWidget);
-        expect(find.text('extra-2'), findsOneWidget);
-        expect(find.text('plain-3'), findsOneWidget);
-        expect(builds[2], greaterThan(afterFirst[2]!));
-        expect(builds[1], afterFirst[1]);
-        expect(builds[3], afterFirst[3]);
-      },
-    );
+      // Same policy instance; live input bump notifies Listenable.
+      policy.flagId(2);
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
+
+      expect(find.text('plain-1'), findsOneWidget);
+      expect(find.text('extra-2'), findsOneWidget);
+      expect(find.text('plain-3'), findsOneWidget);
+      expect(builds[2], greaterThan(afterFirst[2]!));
+      expect(builds[1], afterFirst[1]);
+      expect(builds[3], afterFirst[3]);
+    });
   });
 }
 

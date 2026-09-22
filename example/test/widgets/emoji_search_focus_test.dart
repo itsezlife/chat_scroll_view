@@ -70,60 +70,51 @@ void main() {
     await tester.pump(const Duration(milliseconds: 50));
   }
 
-  testWidgets(
-    'keeps search focus across empty ↔ non-empty keyword results',
-    (tester) async {
-      await tester.pumpWidget(harness());
-      await tester.pump();
+  testWidgets('keeps search focus across empty ↔ non-empty keyword results', (
+    tester,
+  ) async {
+    await tester.pumpWidget(harness());
+    await tester.pump();
 
-      // Drive the real TextField path (not only controller listeners).
-      await tester.tap(find.byType(TextField));
-      await tester.pump();
-      expect(searchFocus.hasFocus, isTrue, reason: 'precondition: focused');
+    // Drive the real TextField path (not only controller listeners).
+    await tester.tap(find.byType(TextField));
+    await tester.pump();
+    expect(searchFocus.hasFocus, isTrue, reason: 'precondition: focused');
 
-      final fieldState = tester.state(find.byType(EmojiSearchField));
+    final fieldState = tester.state(find.byType(EmojiSearchField));
 
-      await tester.enterText(find.byType(TextField), 'cat');
-      await settleSearch(tester);
-      expect(find.text('No emoji found'), findsNothing);
-      expect(
-        searchFocus.hasFocus,
-        isTrue,
-        reason: 'focus after first non-empty results',
-      );
-      expect(
-        identical(tester.state(find.byType(EmojiSearchField)), fieldState),
-        isTrue,
-        reason: 'EmojiSearchField State must survive first results',
-      );
+    await tester.enterText(find.byType(TextField), 'cat');
+    await settleSearch(tester);
+    expect(find.text('No emoji found'), findsNothing);
+    expect(
+      searchFocus.hasFocus,
+      isTrue,
+      reason: 'focus after first non-empty results',
+    );
+    expect(
+      identical(tester.state(find.byType(EmojiSearchField)), fieldState),
+      isTrue,
+      reason: 'EmojiSearchField State must survive first results',
+    );
 
-      await tester.enterText(find.byType(TextField), 'zzzznotanemoji');
-      await settleSearch(tester);
-      expect(find.text('No emoji found'), findsOneWidget);
-      expect(
-        searchFocus.hasFocus,
-        isTrue,
-        reason: 'focus after results → empty',
-      );
-      expect(
-        identical(tester.state(find.byType(EmojiSearchField)), fieldState),
-        isTrue,
-        reason: 'EmojiSearchField State must survive results → empty',
-      );
+    await tester.enterText(find.byType(TextField), 'zzzznotanemoji');
+    await settleSearch(tester);
+    expect(find.text('No emoji found'), findsOneWidget);
+    expect(searchFocus.hasFocus, isTrue, reason: 'focus after results → empty');
+    expect(
+      identical(tester.state(find.byType(EmojiSearchField)), fieldState),
+      isTrue,
+      reason: 'EmojiSearchField State must survive results → empty',
+    );
 
-      await tester.enterText(find.byType(TextField), 'dog');
-      await settleSearch(tester);
-      expect(find.text('No emoji found'), findsNothing);
-      expect(
-        searchFocus.hasFocus,
-        isTrue,
-        reason: 'focus after empty → results',
-      );
-      expect(
-        identical(tester.state(find.byType(EmojiSearchField)), fieldState),
-        isTrue,
-        reason: 'EmojiSearchField State must survive empty → results',
-      );
-    },
-  );
+    await tester.enterText(find.byType(TextField), 'dog');
+    await settleSearch(tester);
+    expect(find.text('No emoji found'), findsNothing);
+    expect(searchFocus.hasFocus, isTrue, reason: 'focus after empty → results');
+    expect(
+      identical(tester.state(find.byType(EmojiSearchField)), fieldState),
+      isTrue,
+      reason: 'EmojiSearchField State must survive empty → results',
+    );
+  });
 }

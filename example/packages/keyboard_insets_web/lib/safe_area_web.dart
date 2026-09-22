@@ -120,9 +120,8 @@ class SafeAreaMonitorWeb {
       )
       ..addEventListener(
         'error',
-        ((Event event) =>
-                completer.completeError('Failed to load SafeAreaMonitor script'))
-            .toJS,
+        ((Event event) => completer
+            .completeError('Failed to load SafeAreaMonitor script')).toJS,
       );
     document.head!.appendChild(script);
 
