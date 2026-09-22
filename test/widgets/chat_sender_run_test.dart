@@ -3,6 +3,7 @@ import 'package:chat_scroll_view/src/chat_scroll/chat_scroll_common.dart';
 import 'package:chat_scroll_view/src/chat_scroll/chat_scroll_controller.dart';
 import 'package:chat_scroll_view/src/chat_scroll/chat_sender_run_layout.dart';
 import 'package:chat_scroll_view/src/chat_widgets/chat_scroll_view.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import '../chat_message.dart';
@@ -354,6 +355,115 @@ void main() {
       expect(find.text('chrome-1'), findsOneWidget);
       expect(find.text('chrome-2'), findsOneWidget);
     });
+
+    testWidgets(
+      'extras change with same first/last reinflates only flipped ids',
+      (tester) async {
+        final ds = _LoadedSource([_msg(1), _msg(2), _msg(3)]);
+        final controller = ChatScrollController()..jumpTo(3);
+        final builds = <int, int>{};
+
+        Widget builder(
+          BuildContext context,
+          int id,
+          IChatMessage? message,
+          ChatMessageStatus status,
+          MessageRunLayout runLayout,
+        ) {
+          builds[id] = (builds[id] ?? 0) + 1;
+          if (message == null) return const SizedBox(height: 40);
+          final tag = runLayout.extras == true ? 'extra' : 'plain';
+          return SizedBox(
+            height: 40,
+            child: Text('$tag-$id', key: ValueKey<String>('row-$id')),
+          );
+        }
+
+        await tester.pumpWidget(
+          _harness(
+            dataSource: ds,
+            controller: controller,
+            messageBuilder: builder,
+            senderRunLayout: const _ExtrasRunLayout(flaggedIds: {}),
+          ),
+        );
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 100));
+
+        expect(find.text('plain-1'), findsOneWidget);
+        expect(find.text('plain-2'), findsOneWidget);
+        expect(find.text('plain-3'), findsOneWidget);
+        final afterFirst = Map<int, int>.from(builds);
+
+        await tester.pumpWidget(
+          _harness(
+            dataSource: ds,
+            controller: controller,
+            messageBuilder: builder,
+            senderRunLayout: const _ExtrasRunLayout(flaggedIds: {2}),
+          ),
+        );
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 100));
+
+        expect(find.text('plain-1'), findsOneWidget);
+        expect(find.text('extra-2'), findsOneWidget);
+        expect(find.text('plain-3'), findsOneWidget);
+        expect(builds[2], greaterThan(afterFirst[2]!));
+        expect(builds[1], afterFirst[1]);
+        expect(builds[3], afterFirst[3]);
+      },
+    );
+
+    testWidgets('same extras keeps skip-rebuild hit', (tester) async {
+      final ds = _LoadedSource([_msg(1), _msg(2)]);
+      final controller = ChatScrollController()..jumpTo(2);
+      final builds = <int, int>{};
+
+      Widget builder(
+        BuildContext context,
+        int id,
+        IChatMessage? message,
+        ChatMessageStatus status,
+        MessageRunLayout runLayout,
+      ) {
+        builds[id] = (builds[id] ?? 0) + 1;
+        if (message == null) return const SizedBox(height: 40);
+        return SizedBox(
+          height: 40,
+          child: Text('row-$id', key: ValueKey<String>('row-$id')),
+        );
+      }
+
+      const policy = _ExtrasRunLayout(flaggedIds: {1, 2});
+
+      await tester.pumpWidget(
+        _harness(
+          dataSource: ds,
+          controller: controller,
+          messageBuilder: builder,
+          senderRunLayout: policy,
+        ),
+      );
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
+      final afterFirst = Map<int, int>.from(builds);
+
+      // Equal policy instance → no markNeedsLayout; identical messages → skip.
+      await tester.pumpWidget(
+        _harness(
+          dataSource: ds,
+          controller: controller,
+          messageBuilder: builder,
+          senderRunLayout: policy,
+        ),
+      );
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
+
+      expect(builds[1], afterFirst[1]);
+      expect(builds[2], afterFirst[2]);
+    });
   });
 }
 
@@ -367,4 +477,37 @@ class _AlwaysAloneRunLayout implements ChatSenderRunLayout {
     Object? Function(IChatMessage)? groupBy,
   }) =>
       const MessageRunLayout(isFirstInSenderRun: true, isLastInSenderRun: true);
+}
+
+/// Wraps default clustering and tags [flaggedIds] via [MessageRunLayout.extras].
+@immutable
+class _ExtrasRunLayout implements ChatSenderRunLayout {
+  const _ExtrasRunLayout({required this.flaggedIds});
+
+  final Set<int> flaggedIds;
+
+  @override
+  MessageRunLayout resolve({
+    required ChatDataSource dataSource,
+    required int messageId,
+    Object? Function(IChatMessage)? groupBy,
+  }) {
+    final base = DefaultChatSenderRunLayout.instance.resolve(
+      dataSource: dataSource,
+      messageId: messageId,
+      groupBy: groupBy,
+    );
+    return MessageRunLayout(
+      isFirstInSenderRun: base.isFirstInSenderRun,
+      isLastInSenderRun: base.isLastInSenderRun,
+      extras: flaggedIds.contains(messageId),
+    );
+  }
+
+  @override
+  bool operator ==(Object other) =>
+      other is _ExtrasRunLayout && setEquals(other.flaggedIds, flaggedIds);
+
+  @override
+  int get hashCode => Object.hashAll(flaggedIds);
 }

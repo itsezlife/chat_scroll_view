@@ -143,6 +143,13 @@ void main() {
       final ds = _LoadedSource([]);
       final layout = _resolve(ds, 99, groupBy: null);
       expect(layout, const MessageRunLayout.degenerate());
+      expect(layout.extras, isNull);
+    });
+
+    test('default resolve leaves extras null', () {
+      final ds = _LoadedSource([_msg(1), _msg(2)]);
+      final layout = _resolve(ds, 1, groupBy: null);
+      expect(layout.extras, isNull);
     });
 
     test('value equality follows maxClusterGap', () {
@@ -155,6 +162,42 @@ void main() {
         const DefaultChatSenderRunLayout(maxClusterGap: null),
         isNot(DefaultChatSenderRunLayout.instance),
       );
+    });
+  });
+
+  group('MessageRunLayout.extras', () {
+    test('same first/last, different extras → not equal', () {
+      const a = MessageRunLayout(
+        isFirstInSenderRun: true,
+        isLastInSenderRun: false,
+        extras: 'read',
+      );
+      const b = MessageRunLayout(
+        isFirstInSenderRun: true,
+        isLastInSenderRun: false,
+        extras: 'unread',
+      );
+      expect(a, isNot(b));
+      expect(a.hashCode, isNot(b.hashCode));
+    });
+
+    test('same first/last + same extras → equal', () {
+      const a = MessageRunLayout(
+        isFirstInSenderRun: false,
+        isLastInSenderRun: true,
+        extras: 42,
+      );
+      const b = MessageRunLayout(
+        isFirstInSenderRun: false,
+        isLastInSenderRun: true,
+        extras: 42,
+      );
+      expect(a, b);
+      expect(a.hashCode, b.hashCode);
+    });
+
+    test('degenerate extras is null', () {
+      expect(const MessageRunLayout.degenerate().extras, isNull);
     });
   });
 

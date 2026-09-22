@@ -25,6 +25,14 @@ this project is pre-1.0 and not strictly SemVer yet.
 
 ### Added
 
+- **`MessageRunLayout.extras`.** Optional host chrome on the run-layout
+  snapshot (`Object?`, default `null`). Counts in skip-rebuild value
+  equality, so a custom `ChatSenderRunLayout` can flip per-id chrome without
+  changing first/last clustering. Package default and degenerate layouts leave
+  `extras` null. The engine never reads the bag. Wrap
+  `DefaultChatSenderRunLayout`, close over host state, set `extras`, cast in
+  `messageBuilder`.
+
 - **Scrollable overflowing markdown tables.** `ChatMarkdownBody` selects
   `BlockPainter$ScrollableTable` so wide tables pan horizontally inside the
   bubble (catalog painter opt-in, not a theme flag). Pan survives theme

@@ -142,10 +142,13 @@ must **not** call it again after `super`. `notifyDataChanged` is `@nonVirtual`.
 ## 14. Skip-rebuild uses message identity and layout context
 
 `ChatScrollElement` caches `identical(message)`, status, `startsNewDay`, and
-`MessageRunLayout` (value equality). In-place mutation of an `IChatMessage`
-instance without replacing it will not rebuild the child. Neighbor-dependent
-chrome must use the supplied `runLayout` — ad-hoc neighbor walks in
-`messageBuilder` bypass the cache and go stale after delete/insert.
+`MessageRunLayout` (value equality, including optional host `extras`). In-place
+mutation of an `IChatMessage` instance without replacing it will not rebuild the
+child. Neighbor-dependent chrome must use the supplied `runLayout`. Ad-hoc
+neighbor walks in `messageBuilder` bypass the cache and go stale after
+delete/insert. Host chrome that must invalidate rows without replacing the
+message instance belongs in `MessageRunLayout.extras` (value-equal bag), not in
+closed-over builder state alone.
 
 ## 15. `getMessage` is not “previous / next message”
 
@@ -164,17 +167,19 @@ back to the newest message.
 
 ## 17. Neighbor layout context is render-resolved
 
-Sender-run flags (`isFirstInSenderRun`, `isLastInSenderRun`) and any future
-position-specific chrome inputs MUST be resolved in the render layer
-(`ChatSenderRunLayout.resolve`) and passed into `buildChild` as `MessageRunLayout`.
-`ChatScrollElement` includes `runLayout` in the skip-rebuild cache (value
-equality). Integrators MUST consume `runLayout` in `ChatMessageBuilder` — not
-walk `getPreviousPresentMessage` / `getNextPresentMessage` ad hoc inside the
-builder. Run boundaries are owned by the injected `ChatSenderRunLayout`
-(`ChatScrollView.senderRunLayout`; default `DefaultChatSenderRunLayout` —
-same sender, optional `groupBy` bucket, optional 5-minute `|createdAt|`
-window). Hosts MUST replace the policy instance to change clustering, not
-fork package statics.
+Sender-run flags (`isFirstInSenderRun`, `isLastInSenderRun`) and optional host
+`extras` MUST be resolved in the render layer (`ChatSenderRunLayout.resolve`)
+and passed into `buildChild` as `MessageRunLayout`. The engine does not read
+`extras`. It only compares it for skip-rebuild. `ChatScrollElement` includes
+`runLayout` in the skip-rebuild cache. Integrators MUST consume `runLayout` in
+`ChatMessageBuilder`, not walk `getPreviousPresentMessage` /
+`getNextPresentMessage` ad hoc inside the builder. Run boundaries are owned by
+the injected `ChatSenderRunLayout` (`ChatScrollView.senderRunLayout`; default
+`DefaultChatSenderRunLayout`: same sender, optional `groupBy` bucket, optional
+5-minute `|createdAt|` window, `extras: null`). Hosts MUST replace the policy
+instance to change clustering or host chrome extras, not fork package statics.
+Typical host pattern: wrap the default policy, close over host state, return
+`MessageRunLayout(..., extras: …)`, cast in the builder.
 
 ## 18. Confirmed-absent ids are never built
 
