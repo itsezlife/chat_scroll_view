@@ -175,12 +175,7 @@ class ChatCodeBlockPainter with SelectableTextBlock implements BlockPainter {
          chromeInk,
          labels,
        ),
-       _bottomBarPainter = _buildBottomBarPainter(
-         text,
-         theme,
-         policy,
-         labels,
-       );
+       _bottomBarPainter = _buildBottomBarPainter(text, theme, policy, labels);
 
   /// Host chrome strings (copy bar / untitled language).
   final ChatCodeBlockLabels labels;
@@ -553,9 +548,7 @@ class ChatCodeBlockPainter with SelectableTextBlock implements BlockPainter {
   ) {
     final label = switch (language) {
       final l? when l.trim().isNotEmpty => l.trim().toUpperCase(),
-      _ => policy.hasInteractiveCodeHeader
-          ? labels.untitled.toUpperCase()
-          : '',
+      _ => policy.hasInteractiveCodeHeader ? labels.untitled.toUpperCase() : '',
     };
     if (label.isEmpty) return null;
 

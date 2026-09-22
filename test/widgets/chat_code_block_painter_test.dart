@@ -708,8 +708,14 @@ void main() {
       final darkWash = ChatCodeBlockPainter.fenceChromeWash(darkFence);
       final lightWash = ChatCodeBlockPainter.fenceChromeWash(lightFence);
       expect(darkWash.a, greaterThan(lightWash.a));
-      expect(darkWash.computeLuminance(), greaterThan(darkFence.computeLuminance()));
-      expect(lightWash.computeLuminance(), lessThan(lightFence.computeLuminance()));
+      expect(
+        darkWash.computeLuminance(),
+        greaterThan(darkFence.computeLuminance()),
+      );
+      expect(
+        lightWash.computeLuminance(),
+        lessThan(lightFence.computeLuminance()),
+      );
     });
   });
 }
