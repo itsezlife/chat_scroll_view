@@ -42,16 +42,24 @@ class ChatMessageMenuThemeData
       scheme.onSurface.withValues(alpha: 0.08),
       scheme.surface,
     );
+    // Light scaffolds read a 20% black dim as heavy; dark keeps the stronger
+    // wash so the undimmed slot still pops.
+    final scrimAlpha = scheme.brightness == Brightness.light ? 0.08 : 0.2;
     return ChatMessageMenuThemeData(
-      scrimColor: const Color.fromRGBO(0, 0, 0, 0.2),
+      scrimColor: Color.fromRGBO(0, 0, 0, scrimAlpha),
       holeRadius: 16,
       cardColor: fill,
       cardRadius: 12,
-      cardShadow: const <BoxShadow>[
+      cardShadow: <BoxShadow>[
         BoxShadow(
-          color: Color.fromRGBO(0, 0, 0, 0.35),
+          color: Color.fromRGBO(
+            0,
+            0,
+            0,
+            scheme.brightness == Brightness.light ? 0.18 : 0.35,
+          ),
           blurRadius: 12,
-          offset: Offset(0, 4),
+          offset: const Offset(0, 4),
         ),
       ],
       destructiveColor: scheme.error,

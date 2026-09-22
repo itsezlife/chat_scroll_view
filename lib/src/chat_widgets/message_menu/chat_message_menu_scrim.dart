@@ -1,7 +1,10 @@
 import 'package:chat_scroll_view/src/chat_widgets/chat_scroll_theme.dart';
 import 'package:flutter/material.dart';
 
-/// Target scrim opacity.
+/// Fallback scrim opacity when [ChatMessageMenuThemeData.scrimColor] is null.
+///
+/// Prefer brightness-aware tokens from
+/// [ChatMessageMenuThemeData.fromScheme] (0.08 light / 0.2 dark).
 const double kChatMessageMenuScrimOpacity = 0.2;
 
 /// Fade duration for the dim layer.
