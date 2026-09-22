@@ -63,8 +63,18 @@ buildChild(id, {startsNewDay, groupBucket, runLayout})
 
 `runLayout` is resolved by `RenderChatScrollView` via the injected
 `ChatSenderRunLayout` (`ChatScrollView.senderRunLayout`)
-(live present neighbors + optional `groupBy` bucket). The element does **not**
-walk neighbors itself — same pattern as `startsNewDay`.
+(live present neighbors + optional `groupBy` bucket + optional host `extras`).
+The element does **not** walk neighbors itself. Same pattern as `startsNewDay`.
+Hosts that need chrome beyond first/last wrap the default policy, set
+`MessageRunLayout.extras`, and cast in `messageBuilder` so skip-cache
+misses stay driven by value equality.
+
+Invalidate host `extras` without touching message inventory: pass a new
+unequal policy instance, or keep one `Listenable` / `ChangeNotifier` policy
+and notify. `RenderChatScrollView` listens when the policy is a `Listenable`
+and `markNeedsLayout`s; it does **not** clear `_builtRunLayout`, so unchanged
+extras still hit the skip path. Do **not** use `ChatDataSource.notifyDataChanged`
+for chrome-only updates.
 
 ### `_buildWidget`
 
@@ -91,7 +101,7 @@ The element does **not** compute day boundaries — it only consumes
 | `_builtMessage[id]` | `IChatMessage?` — **identity** via `identical` |
 | `_builtStatus[id]` | `ChatMessageStatus` |
 | `_builtStartsDay[id]` | `bool` |
-| `_builtRunLayout[id]` | `MessageRunLayout` — value equality |
+| `_builtRunLayout[id]` | `MessageRunLayout` value equality (first/last + optional host `extras`) |
 | `_builtSelectionAllowed[id]` | `ChatSelectionAllowed` — last resolved flags |
 
 **Hit:** existing element **and** status equal **and** `startsNewDay` equal
@@ -111,13 +121,16 @@ The element does **not** compute day boundaries — it only consumes
 
 **Per-id cleared** on remove / failed update / `forgetChild`.
 
-**Must not:** mutate a message in place without replacing the instance —
-rebuild will be skipped. **Must not** compute neighbor-dependent chrome inside
-`messageBuilder` without consuming `runLayout` — neighbor changes after delete
-or insert will not invalidate the cache otherwise. **Must not** mutate state
-closed over by `selectionAllowed` without reassigning the predicate or
-calling `reapplySelectionAllowed` — otherwise wrap can stay stale until
-a layout that re-evaluates the flags (and selected ids are not re-filtered).
+**Must not:** mutate a message in place without replacing the instance.
+Rebuild will be skipped. **Must not** compute neighbor-dependent chrome inside
+`messageBuilder` without consuming `runLayout`. Neighbor changes after delete
+or insert will not invalidate the cache otherwise. **Must not** put host
+chrome that should reinflate rows only in closed-over builder state. Put it in
+`MessageRunLayout.extras` with value equality so unequal chrome misses the
+skip path. **Must not** mutate state closed over by `selectionAllowed`
+without reassigning the predicate or calling `reapplySelectionAllowed`.
+Otherwise wrap can stay stale until a layout that re-evaluates the flags
+(and selected ids are not re-filtered).
 
 Inherited widgets (Theme, etc.) still rebuild via normal element dependencies.
 Width changes are handled by subsequent `child.layout()`, not this cache.

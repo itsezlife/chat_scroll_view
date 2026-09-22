@@ -26,7 +26,7 @@ import 'package:chat_scroll_view/src/chat_widgets/chat_selection_metrics.dart';
 import 'package:chat_scroll_view/src/chat_widgets/chat_selection_pointer.dart';
 import 'package:chat_scroll_view/src/chat_widgets/message_menu/chat_message_menu_request.dart';
 import 'package:flutter/foundation.dart'
-    show ValueListenable, precisionErrorTolerance;
+    show Listenable, ValueListenable, precisionErrorTolerance;
 import 'package:flutter/gestures.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/scheduler.dart';
@@ -576,12 +576,35 @@ class RenderChatScrollView extends RenderBox {
   }
 
   /// Host policy for [MessageRunLayout]. See [ChatScrollView.senderRunLayout].
+  ///
+  /// When the policy is also a [Listenable], the viewport listens and
+  /// [markNeedsLayout]s on notify so live [MessageRunLayout.extras] inputs
+  /// re-resolve without swapping the policy instance or calling
+  /// [ChatDataSource.notifyDataChanged].
   ChatSenderRunLayout _senderRunLayout;
   set senderRunLayout(ChatSenderRunLayout value) {
     if (_senderRunLayout == value) return;
+    if (attached) _detachSenderRunLayoutListener();
     _senderRunLayout = value;
+    if (attached) _attachSenderRunLayoutListener();
     markNeedsLayout();
   }
+
+  void _attachSenderRunLayoutListener() {
+    final policy = _senderRunLayout;
+    if (policy case final Listenable listenable) {
+      listenable.addListener(_onSenderRunLayoutChanged);
+    }
+  }
+
+  void _detachSenderRunLayoutListener() {
+    final policy = _senderRunLayout;
+    if (policy case final Listenable listenable) {
+      listenable.removeListener(_onSenderRunLayoutChanged);
+    }
+  }
+
+  void _onSenderRunLayoutChanged() => markNeedsLayout();
 
   /// Reading direction for paint mirroring (scrollbar position, future RTL
   /// chrome). Hit-tests against the scrollbar's trailing-edge strip read
@@ -1417,6 +1440,7 @@ class RenderChatScrollView extends RenderBox {
     _publishBoundaries();
     _bottomPadding?.addListener(_onBottomPaddingChanged);
     _topPadding?.addListener(_onTopPaddingChanged);
+    _attachSenderRunLayoutListener();
     _drag = _buildDragRecognizer();
     _selectionPointer = ChatSelectionPointer(debugOwner: this)
       ..messageIdAt = _presentMessageIdAt
@@ -1517,6 +1541,7 @@ class RenderChatScrollView extends RenderBox {
       _cancelAnimate(fadeHighlight: false);
       _bottomPadding?.removeListener(_onBottomPaddingChanged);
       _topPadding?.removeListener(_onTopPaddingChanged);
+      _detachSenderRunLayoutListener();
       _drag?.dispose();
       _drag = null;
       _selectionPointer?.dispose();

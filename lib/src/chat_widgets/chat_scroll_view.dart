@@ -302,6 +302,13 @@ class ChatScrollView extends RenderObjectWidget {
   /// [ChatSenderRunLayout] or `DefaultChatSenderRunLayout(maxClusterGap: …)`
   /// to change clustering without forking the package. Prefer a stable /
   /// value-equal instance across rebuilds.
+  ///
+  /// Host chrome via [MessageRunLayout.extras]:
+  ///
+  /// - Rare: pass a new unequal policy instance (widget rebuild).
+  /// - Live: keep one instance that implements [Listenable] and notify when
+  ///   extras inputs change. The render object listens; do not call
+  ///   [ChatDataSource.notifyDataChanged] for chrome-only updates.
   final ChatSenderRunLayout senderRunLayout;
 
   /// Peak colour of the navigate-select **underlay**.

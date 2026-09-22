@@ -10,35 +10,55 @@ import 'package:flutter/foundation.dart';
 /// [IChatMessage.sender], optional [ChatScrollView.groupBy] bucket, and an
 /// optional `|createdAt|` window.
 ///
-/// **Who computes this:** [RenderChatScrollView] calls
-/// [ChatSenderRunLayout.resolve] during layout and passes the result into
-/// [ChatChildManager.buildChild]. [ChatScrollElement] stores [MessageRunLayout]
-/// in the skip-rebuild cache (value equality). Integrators MUST consume
-/// [MessageRunLayout] from [ChatMessageBuilder] — walking neighbors inside the
+/// [RenderChatScrollView] calls [ChatSenderRunLayout.resolve] during layout
+/// and passes the result into [ChatChildManager.buildChild].
+/// [ChatScrollElement] stores [MessageRunLayout] in the skip-rebuild cache
+/// (value equality, including [extras]). Integrators MUST consume
+/// [MessageRunLayout] from [ChatMessageBuilder]. Walking neighbors inside the
 /// builder bypasses the cache and leaves chrome stale after mutations when
 /// [identical] message instances are reused.
 ///
-/// **Policy agnostic:** whether avatar, sender label, or bubble tail attach to
-/// first, last, or both is integrator/demo choice.
+/// Whether avatar, sender label, or bubble tail attach to first, last, or both
+/// is integrator choice.
+///
+/// [extras] is host chrome that rides skip-rebuild equality. It is not a
+/// clustering input. The package default leaves it `null`. Hosts that need a
+/// typed bag wrap [DefaultChatSenderRunLayout] (or a custom policy), close
+/// over host state, set [extras], and cast in the builder. Give [extras] a
+/// real [operator ==]; identity-only or mutable bags never miss the cache.
+///
+/// Invalidating extras without a message inventory change:
+///
+/// 1. Rare inputs: pass a new value-unequal [ChatSenderRunLayout] instance
+///    (widget rebuild). The render object [markNeedsLayout]s on the setter.
+/// 2. Live inputs: keep one policy instance that also implements [Listenable]
+///    (e.g. [ChangeNotifier]), call [ChangeNotifier.notifyListeners] when
+///    extras inputs change. Do **not** use [ChatDataSource.notifyDataChanged]
+///    for host chrome.
 @immutable
 class MessageRunLayout {
   /// Position flags for a loaded message within its effective run.
   ///
   /// Both flags may be `true` for a solitary message (including after a
   /// policy break splits one sender into two one-message runs).
+  ///
+  /// [extras] is optional host chrome for the skip-rebuild cache (default
+  /// `null`). It does not affect clustering.
   const MessageRunLayout({
     required this.isFirstInSenderRun,
     required this.isLastInSenderRun,
+    this.extras,
   });
 
   /// Placeholder when [ChatSenderRunLayout.resolve] runs for an unloaded slot.
   ///
-  /// Returns both flags `true` so builders that gate chrome on either end still
-  /// render a complete row for shimmer/loading — conservative default rather
-  /// than hiding avatar/sender before data arrives.
+  /// Both flags are `true` so builders that gate chrome on either end still
+  /// draw a complete shimmer/loading row instead of hiding avatar/sender
+  /// before data arrives. [extras] is always `null`.
   const MessageRunLayout.degenerate()
     : isFirstInSenderRun = true,
-      isLastInSenderRun = true;
+      isLastInSenderRun = true,
+      extras = null;
 
   /// `true` when there is no previous **present** neighbor in the same run
   /// ([ChatDataSource.getPreviousPresentMessage]).
@@ -48,14 +68,23 @@ class MessageRunLayout {
   /// ([ChatDataSource.getNextPresentMessage]).
   final bool isLastInSenderRun;
 
+  /// Host chrome for skip-rebuild. Not clustering.
+  ///
+  /// Package default and [MessageRunLayout.degenerate] leave this `null`.
+  /// Hosts cast to a typed bag in [ChatMessageBuilder]. The bag type must
+  /// implement [operator ==] / [hashCode] so only flipped rows reinflate.
+  final Object? extras;
+
   @override
   bool operator ==(Object other) =>
       other is MessageRunLayout &&
       other.isFirstInSenderRun == isFirstInSenderRun &&
-      other.isLastInSenderRun == isLastInSenderRun;
+      other.isLastInSenderRun == isLastInSenderRun &&
+      other.extras == extras;
 
   @override
-  int get hashCode => Object.hash(isFirstInSenderRun, isLastInSenderRun);
+  int get hashCode =>
+      Object.hash(isFirstInSenderRun, isLastInSenderRun, extras);
 }
 
 /// Host-owned policy that decides first/last-in-run for each message id.
@@ -68,6 +97,11 @@ class MessageRunLayout {
 /// Implement this to replace sender / time / bucket clustering without forking
 /// the package. Prefer immutable implementations with value [operator ==] so
 /// parent rebuilds with an equal policy do not force relayout.
+///
+/// For live [MessageRunLayout.extras] inputs, also implement [Listenable]
+/// (typically via [ChangeNotifier]) and notify when those inputs change. The
+/// viewport listens and relayouts. Do not route host chrome through
+/// [ChatDataSource.notifyDataChanged].
 abstract interface class ChatSenderRunLayout {
   /// Computes first/last-in-run for [messageId] at layout time.
   ///
