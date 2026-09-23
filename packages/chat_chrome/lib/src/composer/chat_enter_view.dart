@@ -292,14 +292,14 @@ class ChatEnterViewState extends State<ChatEnterView> {
               mainAxisSize: MainAxisSize.min,
               children: <Widget>[
                 ?switch ((widget.topBannerBuilder, widget.topBanner)) {
-                  (final builder?, _?) => builder(context),
+                  (final builder?, _) => builder(context),
                   (null, final banner?) => ChatEnterTopView(
                     title: banner.title,
                     subtitle: banner.subtitle,
                     isEdit: banner.isEdit,
                     onClose: widget.onTopBannerClose ?? () {},
                   ),
-                  (_, _) => null,
+                  (null, null) => null,
                 },
                 switch (widget.inputBuilder) {
                   final build? => build(
