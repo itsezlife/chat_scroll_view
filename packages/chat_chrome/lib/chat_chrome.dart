@@ -9,11 +9,14 @@ library;
 
 export 'package:emoji_data/emoji_data.dart';
 
+export 'src/composer/chat_composer_controller.dart';
+export 'src/composer/chat_composer_mode.dart';
 export 'src/composer/chat_enter_icons.dart';
 export 'src/composer/chat_enter_top_view.dart';
 export 'src/composer/chat_enter_view.dart';
 export 'src/composer/chat_input_metrics.dart';
 export 'src/composer/chat_content_bottom_fade.dart';
+export 'src/util/value_listenable_select.dart';
 export 'src/glass/glass_backdrop_source.dart';
 export 'src/glass/liquid_glass_shader.dart';
 export 'src/glass/telegram_glass.dart';
