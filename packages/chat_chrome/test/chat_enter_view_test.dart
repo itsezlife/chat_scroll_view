@@ -79,6 +79,55 @@ void main() {
       expect(identical(seen!.focusNode, focusNode), isTrue);
     },
   );
+
+  testWidgets('topBanner mounts stock ChatEnterTopView', (tester) async {
+    await tester.pumpWidget(
+      _harness(
+        ChatEnterView(
+          controller: controller,
+          focusNode: focusNode,
+          onSend: () {},
+          onEmojiPressed: () {},
+          topBanner: const ChatEnterTopBanner(
+            title: 'Ada',
+            subtitle: 'hello',
+          ),
+          onTopBannerClose: () {},
+        ),
+      ),
+    );
+    await tester.pump();
+
+    expect(find.byType(ChatEnterTopView), findsOneWidget);
+    expect(find.text('Ada'), findsOneWidget);
+    expect(find.text('hello'), findsOneWidget);
+  });
+
+  testWidgets('topBannerBuilder replaces stock top banner', (tester) async {
+    await tester.pumpWidget(
+      _harness(
+        ChatEnterView(
+          controller: controller,
+          focusNode: focusNode,
+          onSend: () {},
+          onEmojiPressed: () {},
+          topBanner: const ChatEnterTopBanner(
+            title: 'ignored',
+            subtitle: 'ignored',
+          ),
+          topBannerBuilder: (context) => const Text(
+            key: Key('custom-top-banner'),
+            'custom banner',
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    expect(find.byKey(const Key('custom-top-banner')), findsOneWidget);
+    expect(find.byType(ChatEnterTopView), findsNothing);
+    expect(find.text('ignored'), findsNothing);
+  });
 }
 
 Widget _harness(Widget child) {

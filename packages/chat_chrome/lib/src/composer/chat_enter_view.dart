@@ -59,6 +59,11 @@ class ChatEnterFieldHandle {
 typedef ChatEnterInputBuilder =
     Widget Function(BuildContext context, ChatEnterFieldHandle field);
 
+/// Builds a custom reply / edit strip above the composer row.
+///
+/// When set on [ChatEnterView], takes priority over [ChatEnterView.topBanner].
+typedef ChatEnterTopBannerBuilder = Widget Function(BuildContext context);
+
 /// Floating input island (glass bubble).
 ///
 /// Transparent outer host — the painted shape is the 22dp-radius island with
@@ -76,6 +81,7 @@ class ChatEnterView extends StatefulWidget {
     this.hintText = 'Message',
     this.emojiIconState = ChatEnterEmojiIconState.smile,
     this.topBanner,
+    this.topBannerBuilder,
     this.onTopBannerClose,
     this.enabled = true,
     this.sending = false,
@@ -112,10 +118,18 @@ class ChatEnterView extends StatefulWidget {
   /// Left emoji-button face.
   final ChatEnterEmojiIconState emojiIconState;
 
-  /// Reply / edit strip.
+  /// Reply / edit strip model for the stock [ChatEnterTopView].
+  ///
+  /// Ignored when [topBannerBuilder] is set.
   final ChatEnterTopBanner? topBanner;
 
-  /// Clears [topBanner].
+  /// Optional custom reply / edit strip above the input row.
+  ///
+  /// When set, replaces [topBanner] / [ChatEnterTopView]. Host owns close /
+  /// cancel chrome inside the built widget.
+  final ChatEnterTopBannerBuilder? topBannerBuilder;
+
+  /// Clears stock [topBanner] (unused when [topBannerBuilder] is set).
   final VoidCallback? onTopBannerClose;
 
   /// Disables editing.
@@ -277,13 +291,16 @@ class ChatEnterViewState extends State<ChatEnterView> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: <Widget>[
-                if (widget.topBanner case final banner?)
-                  ChatEnterTopView(
+                ?switch ((widget.topBannerBuilder, widget.topBanner)) {
+                  (final builder?, _?) => builder(context),
+                  (null, final banner?) => ChatEnterTopView(
                     title: banner.title,
                     subtitle: banner.subtitle,
                     isEdit: banner.isEdit,
                     onClose: widget.onTopBannerClose ?? () {},
                   ),
+                  (_, _) => null,
+                },
                 switch (widget.inputBuilder) {
                   final build? => build(
                     context,
