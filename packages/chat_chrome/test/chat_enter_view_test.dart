@@ -3,25 +3,21 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
-  late TextEditingController controller;
-  late FocusNode focusNode;
+  late ChatComposerController composer;
 
   setUp(() {
-    controller = TextEditingController();
-    focusNode = FocusNode(debugLabel: 'ChatEnterViewTest');
+    composer = ChatComposerController();
   });
 
   tearDown(() {
-    controller.dispose();
-    focusNode.dispose();
+    composer.dispose();
   });
 
   testWidgets('default path mounts the stock text field', (tester) async {
     await tester.pumpWidget(
       _harness(
         ChatEnterView(
-          controller: controller,
-          focusNode: focusNode,
+          composer: composer,
           onSend: () {},
           onEmojiPressed: () {},
         ),
@@ -36,8 +32,7 @@ void main() {
     await tester.pumpWidget(
       _harness(
         ChatEnterView(
-          controller: controller,
-          focusNode: focusNode,
+          composer: composer,
           onSend: () {},
           onEmojiPressed: () {},
           inputBuilder: (context, field) => const Text(
@@ -61,8 +56,7 @@ void main() {
       await tester.pumpWidget(
         _harness(
           ChatEnterView(
-            controller: controller,
-            focusNode: focusNode,
+            composer: composer,
             onSend: () {},
             onEmojiPressed: () {},
             inputBuilder: (context, field) {
@@ -75,8 +69,8 @@ void main() {
       await tester.pump();
 
       expect(seen, isNotNull);
-      expect(identical(seen!.controller, controller), isTrue);
-      expect(identical(seen!.focusNode, focusNode), isTrue);
+      expect(identical(seen!.controller, composer.text), isTrue);
+      expect(identical(seen!.focusNode, composer.focusNode), isTrue);
     },
   );
 
@@ -84,8 +78,7 @@ void main() {
     await tester.pumpWidget(
       _harness(
         ChatEnterView(
-          controller: controller,
-          focusNode: focusNode,
+          composer: composer,
           onSend: () {},
           onEmojiPressed: () {},
           topBanner: const ChatEnterTopBanner(
@@ -107,8 +100,7 @@ void main() {
     await tester.pumpWidget(
       _harness(
         ChatEnterView(
-          controller: controller,
-          focusNode: focusNode,
+          composer: composer,
           onSend: () {},
           onEmojiPressed: () {},
           topBanner: const ChatEnterTopBanner(
@@ -133,8 +125,7 @@ void main() {
     await tester.pumpWidget(
       _harness(
         ChatEnterView(
-          controller: controller,
-          focusNode: focusNode,
+          composer: composer,
           onSend: () {},
           onEmojiPressed: () {},
         ),
@@ -146,8 +137,7 @@ void main() {
     await tester.pumpWidget(
       _harness(
         ChatEnterView(
-          controller: controller,
-          focusNode: focusNode,
+          composer: composer,
           onSend: () {},
           onEmojiPressed: () {},
           topBanner: const ChatEnterTopBanner(
@@ -180,8 +170,7 @@ void main() {
     await tester.pumpWidget(
       _harness(
         ChatEnterView(
-          controller: controller,
-          focusNode: focusNode,
+          composer: composer,
           onSend: () {},
           onEmojiPressed: () {},
           topBanner: const ChatEnterTopBanner(
@@ -198,8 +187,7 @@ void main() {
     await tester.pumpWidget(
       _harness(
         ChatEnterView(
-          controller: controller,
-          focusNode: focusNode,
+          composer: composer,
           onSend: () {},
           onEmojiPressed: () {},
         ),
@@ -223,8 +211,7 @@ void main() {
       await tester.pumpWidget(
         _bottomAnchoredHarness(
           ChatEnterView(
-            controller: controller,
-            focusNode: focusNode,
+            composer: composer,
             onSend: () {},
             onEmojiPressed: () {},
             inputBuilder: (context, field) => SizedBox(
@@ -243,8 +230,7 @@ void main() {
       await tester.pumpWidget(
         _bottomAnchoredHarness(
           ChatEnterView(
-            controller: controller,
-            focusNode: focusNode,
+            composer: composer,
             onSend: () {},
             onEmojiPressed: () {},
             topBanner: const ChatEnterTopBanner(
@@ -285,23 +271,21 @@ void main() {
     await tester.pumpWidget(
       _bottomAnchoredHarness(
         ChatEnterView(
-          controller: controller,
-          focusNode: focusNode,
+          composer: composer,
           onSend: () {},
           onEmojiPressed: () {},
         ),
       ),
     );
     await tester.pumpAndSettle();
-    focusNode.requestFocus();
+    composer.focusNode.requestFocus();
     await tester.pump();
-    expect(focusNode.hasFocus, isTrue);
+    expect(composer.focusNode.hasFocus, isTrue);
 
     await tester.pumpWidget(
       _bottomAnchoredHarness(
         ChatEnterView(
-          controller: controller,
-          focusNode: focusNode,
+          composer: composer,
           onSend: () {},
           onEmojiPressed: () {},
           topBanner: const ChatEnterTopBanner(
@@ -316,13 +300,13 @@ void main() {
     for (var i = 0; i < 8; i++) {
       await tester.pump(KeyboardPanelMotion.duration * 0.1);
       expect(
-        focusNode.hasFocus,
+        composer.focusNode.hasFocus,
         isTrue,
         reason: 'focus lost at sample $i',
       );
     }
     await tester.pumpAndSettle();
-    expect(focusNode.hasFocus, isTrue);
+    expect(composer.focusNode.hasFocus, isTrue);
   });
 
   /// Mid-reveal must show the **top** of the banner first as `t` rises.
@@ -334,8 +318,7 @@ void main() {
     await tester.pumpWidget(
       _bottomAnchoredHarness(
         ChatEnterView(
-          controller: controller,
-          focusNode: focusNode,
+          composer: composer,
           onSend: () {},
           onEmojiPressed: () {},
         ),
@@ -346,8 +329,7 @@ void main() {
     await tester.pumpWidget(
       _bottomAnchoredHarness(
         ChatEnterView(
-          controller: controller,
-          focusNode: focusNode,
+          composer: composer,
           onSend: () {},
           onEmojiPressed: () {},
           topBannerBuilder: (context) => SizedBox(

@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 import 'dart:ui' show lerpDouble;
 
+import 'package:chat_chrome/src/composer/chat_composer_controller.dart';
 import 'package:chat_chrome/src/composer/chat_enter_icons.dart';
 import 'package:chat_chrome/src/composer/chat_enter_top_view.dart';
 import 'package:chat_chrome/src/composer/chat_input_metrics.dart';
@@ -8,6 +9,8 @@ import 'package:chat_chrome/src/glass/telegram_glass.dart';
 import 'package:chat_chrome/src/glass/telegram_glass_style.dart';
 import 'package:chat_chrome/src/motion/keyboard_panel_motion.dart';
 import 'package:chat_chrome/src/theme/chat_chrome_colors.dart';
+import 'package:chat_chrome/src/util/value_listenable_select.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/scheduler.dart';
@@ -48,7 +51,7 @@ class ChatEnterFieldHandle {
     required this.prepareKeyboardHandoff,
   });
 
-  /// Same controller passed to [ChatEnterView].
+  /// Same controller owned by [ChatEnterView.composer].
   final TextEditingController controller;
 
   /// Same focus node the shell listens to for IME suppress / show.
@@ -86,21 +89,15 @@ typedef ChatEnterTopBannerBuilder = Widget Function(BuildContext context);
 class ChatEnterView extends StatefulWidget {
   /// Creates the enter view.
   const ChatEnterView({
-    required this.controller,
-    required this.focusNode,
+    required this.composer,
     required this.onSend,
     required this.onEmojiPressed,
     this.onAttachPressed,
     this.onMicPressed,
     this.hintText = 'Message',
-    this.emojiIconState = ChatEnterEmojiIconState.smile,
     this.topBanner,
     this.topBannerBuilder,
     this.onTopBannerClose,
-    this.enabled = true,
-    this.sending = false,
-    this.isEditing = false,
-    this.onCancelEdit,
     this.maxWidth = 620,
     this.onFieldTapWhilePanelOpen,
     this.inputBuilder,
@@ -108,11 +105,8 @@ class ChatEnterView extends StatefulWidget {
     super.key,
   });
 
-  /// Text field controller.
-  final TextEditingController controller;
-
-  /// Field focus.
-  final FocusNode focusNode;
+  /// Composer state of truth (text, focus, mode, emoji, busy, enabled).
+  final ChatComposerController composer;
 
   /// Send / confirm.
   final VoidCallback? onSend;
@@ -129,12 +123,10 @@ class ChatEnterView extends StatefulWidget {
   /// Field hint.
   final String hintText;
 
-  /// Left emoji-button face.
-  final ChatEnterEmojiIconState emojiIconState;
-
   /// Reply / edit strip model for the stock [ChatEnterTopView].
   ///
-  /// Ignored when [topBannerBuilder] is set.
+  /// Ignored when [topBannerBuilder] is set. Typically derived from
+  /// [ChatComposerController.mode] by the host (l10n / titles).
   final ChatEnterTopBanner? topBanner;
 
   /// Optional custom reply / edit strip above the input row.
@@ -145,18 +137,6 @@ class ChatEnterView extends StatefulWidget {
 
   /// Clears stock [topBanner] (unused when [topBannerBuilder] is set).
   final VoidCallback? onTopBannerClose;
-
-  /// Disables editing.
-  final bool enabled;
-
-  /// In-flight send.
-  final bool sending;
-
-  /// Edit mode (check icon).
-  final bool isEditing;
-
-  /// Cancel edit affordance.
-  final VoidCallback? onCancelEdit;
 
   /// Max content width.
   final double maxWidth;
@@ -172,7 +152,7 @@ class ChatEnterView extends StatefulWidget {
   ///
   /// When null, builds the stock emoji / field / attach / send row.
   /// When set, receives a [ChatEnterFieldHandle] bound to this view's
-  /// [controller] / [focusNode] and IME handoff.
+  /// composer field / focus and IME handoff.
   final ChatEnterInputBuilder? inputBuilder;
 
   /// Default composer height (island paint height).
@@ -204,12 +184,16 @@ class ChatEnterViewState extends State<ChatEnterView>
   ChatEnterTopBannerBuilder? _cachedBannerBuilder;
   ChatEnterTopBanner? _cachedBanner;
 
+  TextEditingController get _text => widget.composer.text;
+  FocusNode get _focus => widget.composer.focusNode;
+
   @override
   void initState() {
     super.initState();
-    _hasText = ValueNotifier(widget.controller.text.trim().isNotEmpty);
-    widget.controller.addListener(_onText);
-    widget.focusNode.addListener(_onFocusChange);
+    _hasText = ValueNotifier(_text.text.trim().isNotEmpty);
+    _text.addListener(_onText);
+    _focus.addListener(_onFocusChange);
+    _bindComposer(widget.composer);
 
     final wantsTop = _wantsTopView;
     _cacheTopViewIfPresent();
@@ -240,14 +224,14 @@ class ChatEnterViewState extends State<ChatEnterView>
   @override
   void didUpdateWidget(ChatEnterView oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (!identical(oldWidget.controller, widget.controller)) {
-      oldWidget.controller.removeListener(_onText);
-      widget.controller.addListener(_onText);
-      _hasText.value = widget.controller.text.trim().isNotEmpty;
-    }
-    if (oldWidget.emojiIconState != widget.emojiIconState &&
-        _suppressSoftKeyboard) {
-      _suppressIme();
+    if (!identical(oldWidget.composer, widget.composer)) {
+      _unbindComposer(oldWidget.composer);
+      oldWidget.composer.text.removeListener(_onText);
+      oldWidget.composer.focusNode.removeListener(_onFocusChange);
+      _text.addListener(_onText);
+      _focus.addListener(_onFocusChange);
+      _bindComposer(widget.composer);
+      _hasText.value = _text.text.trim().isNotEmpty;
     }
     _syncTopViewVisibility();
   }
@@ -255,14 +239,40 @@ class ChatEnterViewState extends State<ChatEnterView>
   @override
   void dispose() {
     _topViewVisibility.removeStatusListener(_onTopViewStatus);
-    widget.controller.removeListener(_onText);
-    widget.focusNode.removeListener(_onFocusChange);
+    _unbindComposer(widget.composer);
+    _text.removeListener(_onText);
+    _focus.removeListener(_onFocusChange);
     _topViewCurved.dispose();
     _fieldHeightCurved.dispose();
     _topViewVisibility.dispose();
     _fieldHeightProgress.dispose();
     _hasText.dispose();
     super.dispose();
+  }
+
+  void _bindComposer(ChatComposerController composer) {
+    composer.bindEnterProjection(
+      onRequestKeyboard: requestKeyboard,
+      onHideKeyboard: hideKeyboard,
+      onHideKeyboardRetainingFocus: hideKeyboardRetainingFocus,
+      onPrepareKeyboardHandoff: prepareKeyboardHandoff,
+    );
+    // IME suppress only — chrome rebuilds via [select] on the input row.
+    _emojiImeListenable = composer.select((s) => s.data.emojiIcon);
+    _emojiImeListenable!.addListener(_onEmojiIconForIme);
+  }
+
+  void _unbindComposer(ChatComposerController composer) {
+    composer.bindEnterProjection();
+    _emojiImeListenable?.removeListener(_onEmojiIconForIme);
+    _emojiImeListenable = null;
+  }
+
+  ValueListenable<ChatEnterEmojiIconState>? _emojiImeListenable;
+
+  void _onEmojiIconForIme() {
+    if (!mounted) return;
+    if (_suppressSoftKeyboard) _suppressIme();
   }
 
   bool get _wantsTopView =>
@@ -328,7 +338,7 @@ class ChatEnterViewState extends State<ChatEnterView>
 
   /// Keyboard panel open → keyboard icon; suppress OS IME while focused.
   bool get _suppressSoftKeyboard =>
-      widget.emojiIconState == ChatEnterEmojiIconState.keyboard;
+      widget.composer.data.emojiIcon == ChatEnterEmojiIconState.keyboard;
 
   void _suppressIme() {
     SystemChannels.textInput.invokeMethod<void>('TextInput.hide');
@@ -341,7 +351,7 @@ class ChatEnterViewState extends State<ChatEnterView>
       SystemChannels.textInput.invokeMethod<void>('TextInput.show');
       return;
     }
-    if (!_suppressSoftKeyboard || !widget.focusNode.hasFocus) return;
+    if (!_suppressSoftKeyboard || !_focus.hasFocus) return;
     _suppressIme();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted && _suppressSoftKeyboard) _suppressIme();
@@ -349,7 +359,7 @@ class ChatEnterViewState extends State<ChatEnterView>
   }
 
   void _onText() {
-    final next = widget.controller.text.trim().isNotEmpty;
+    final next = _text.text.trim().isNotEmpty;
     if (next == _hasText.value) return;
     if (!mounted) return;
     _hasText.value = next;
@@ -359,6 +369,7 @@ class ChatEnterViewState extends State<ChatEnterView>
   ///
   /// Call on pointer-down of the composer field while the keyboard panel is
   /// open — [TextField] steals focus before [onTap], ahead of [requestKeyboard].
+  /// Prefer [ChatComposerController.prepareKeyboardHandoff] from hosts.
   void prepareKeyboardHandoff() {
     _allowImeOnce = true;
   }
@@ -367,15 +378,16 @@ class ChatEnterViewState extends State<ChatEnterView>
   ///
   /// Bypasses keyboard-panel IME suppression once so focus handoff from the
   /// emoji search field does not hide-then-show the soft keyboard.
+  /// Prefer [ChatComposerController.requestKeyboard] from hosts.
   void requestKeyboard() {
-    final alreadyFocused = widget.focusNode.hasFocus;
+    final alreadyFocused = _focus.hasFocus;
     // If focus already landed via a prepared tap, do not leave the arm stuck.
     _allowImeOnce = !alreadyFocused;
-    widget.focusNode.requestFocus();
+    _focus.requestFocus();
     SystemChannels.textInput.invokeMethod<void>('TextInput.show');
   }
 
-  /// Hides IME.
+  /// Hides IME. Prefer [ChatComposerController.hideKeyboard] from hosts.
   void hideKeyboard() {
     SystemChannels.textInput.invokeMethod<void>('TextInput.hide');
   }
@@ -383,10 +395,11 @@ class ChatEnterViewState extends State<ChatEnterView>
   /// Hides soft IME but keeps the field focused (keyboard panel open).
   ///
   /// Call only while [ChatEnterEmojiIconState.keyboard] suppresses IME show.
+  /// Prefer [ChatComposerController.hideKeyboardRetainingFocus] from hosts.
   void hideKeyboardRetainingFocus() {
     _suppressIme();
-    if (!widget.focusNode.hasFocus) {
-      widget.focusNode.requestFocus();
+    if (!_focus.hasFocus) {
+      _focus.requestFocus();
     }
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
@@ -419,41 +432,9 @@ class ChatEnterViewState extends State<ChatEnterView>
     );
   }
 
-  Widget _buildInputRow(BuildContext context, ChatChromeColors colors) {
-    return switch (widget.inputBuilder) {
-      final build? => build(
-        context,
-        ChatEnterFieldHandle(
-          controller: widget.controller,
-          focusNode: widget.focusNode,
-          prepareKeyboardHandoff: prepareKeyboardHandoff,
-        ),
-      ),
-      null => _InputRow(
-        controller: widget.controller,
-        focusNode: widget.focusNode,
-        colors: colors,
-        hintText: widget.hintText,
-        emojiIconState: widget.emojiIconState,
-        onEmojiPressed: widget.onEmojiPressed,
-        onAttachPressed: widget.onAttachPressed,
-        onSend: widget.onSend,
-        onMicPressed: widget.onMicPressed,
-        hasText: _hasText,
-        sending: widget.sending,
-        isEditing: widget.isEditing,
-        onCancelEdit: widget.onCancelEdit,
-        enabled: widget.enabled,
-        onFieldTapWhilePanelOpen: widget.onFieldTapWhilePanelOpen,
-        onPrepareKeyboardHandoff: widget.onFieldTapWhilePanelOpen == null
-            ? null
-            : prepareKeyboardHandoff,
-      ),
-    };
-  }
-
   @override
   Widget build(BuildContext context) {
+    final composer = widget.composer;
     final colors = ChatChromeTheme.of(context);
     final brightness = Theme.of(context).brightness;
     final glassStyle = TelegramGlassStyle.composerIsland(
@@ -461,9 +442,52 @@ class ChatEnterViewState extends State<ChatEnterView>
       brightness: brightness,
       cornerRadius: ChatInputMetrics.bubbleRadius,
     );
-    // Build the input **outside** [AnimatedBuilder] so animation ticks do not
-    // recreate the field subtree (IME / focus blink).
-    final inputRow = _buildInputRow(context, colors);
+    // Chrome facets via [select] — not height animation ticks (those would
+    // remount the field / blink IME).
+    final inputRow = ValueListenableBuilder(
+      valueListenable: widget.composer.select(
+        (s) => (
+          emoji: s.data.emojiIcon,
+          busy: s.data.busy,
+          enabled: s.data.enabled,
+          editing: s.data.mode.isEditing,
+        ),
+        (prev, next) => prev != next,
+      ),
+      child: switch (widget.inputBuilder) {
+        final builder? => builder(
+          context,
+          ChatEnterFieldHandle(
+            controller: composer.text,
+            focusNode: composer.focusNode,
+            prepareKeyboardHandoff: prepareKeyboardHandoff,
+          ),
+        ),
+        null => null,
+      },
+      builder: (context, data, child) => switch (child) {
+        final widget? => widget,
+        null => _InputRow(
+          controller: composer.text,
+          focusNode: composer.focusNode,
+          colors: colors,
+          hintText: widget.hintText,
+          emojiIconState: data.emoji,
+          onEmojiPressed: widget.onEmojiPressed,
+          onAttachPressed: widget.onAttachPressed,
+          onSend: widget.onSend,
+          onMicPressed: widget.onMicPressed,
+          hasText: _hasText,
+          sending: data.busy,
+          isEditing: data.editing,
+          enabled: data.enabled,
+          onFieldTapWhilePanelOpen: widget.onFieldTapWhilePanelOpen,
+          onPrepareKeyboardHandoff: widget.onFieldTapWhilePanelOpen == null
+              ? null
+              : prepareKeyboardHandoff,
+        ),
+      },
+    );
 
     return Material(
       color: Colors.transparent,
@@ -476,10 +500,7 @@ class ChatEnterViewState extends State<ChatEnterView>
             key: widget.glassKey,
             style: glassStyle,
             child: AnimatedBuilder(
-              animation: Listenable.merge([
-                _topViewCurved,
-                _fieldHeightCurved,
-              ]),
+              animation: Listenable.merge([_topViewCurved, _fieldHeightCurved]),
               child: inputRow,
               builder: (context, child) {
                 return Column(
@@ -706,7 +727,6 @@ class _InputRow extends StatelessWidget {
     required this.hasText,
     required this.sending,
     required this.isEditing,
-    required this.onCancelEdit,
     required this.enabled,
     this.onFieldTapWhilePanelOpen,
     this.onPrepareKeyboardHandoff,
@@ -724,7 +744,6 @@ class _InputRow extends StatelessWidget {
   final ValueNotifier<bool> hasText;
   final bool sending;
   final bool isEditing;
-  final VoidCallback? onCancelEdit;
   final bool enabled;
   final VoidCallback? onFieldTapWhilePanelOpen;
   final VoidCallback? onPrepareKeyboardHandoff;
