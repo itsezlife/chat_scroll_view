@@ -6,6 +6,10 @@ import 'package:flutter/material.dart';
 /// Color fast-path: a [fadeHeight] ramp at the **top** of [zoneHeight], then a
 /// clamped semi-opaque wash to the bottom edge.
 ///
+/// Hits on the wash are **absorbed** so messages under the fade cannot open
+/// the menu. The glass island is a later [Stack] sibling and still receives
+/// taps on top.
+///
 /// **Stacking:** mount **under** the glass island (earlier [Stack] sibling)
 /// and pass [glassKey] so the wash punches an island-shaped hole. The island
 /// [BackdropFilter] then samples chat through the hole — not this wash. When
@@ -184,7 +188,7 @@ class ChatContentBottomFadeState extends State<ChatContentBottomFade> {
     ];
     final positions = <double>[0, end / 3, end * 2 / 3, end, if (end < 1) 1];
 
-    return IgnorePointer(
+    return AbsorbPointer(
       child: SizedBox(
         height: widget.zoneHeight,
         width: double.infinity,
