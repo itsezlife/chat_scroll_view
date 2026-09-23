@@ -22,6 +22,7 @@ class _PreloadedDataSource extends ChatDataSource {
 }
 
 Widget _composerHarness({
+  required ChatComposerController composer,
   required ChatSelectionController selection,
   required ChatDataSource dataSource,
   required Future<void> Function(String text) onSend,
@@ -31,11 +32,11 @@ Widget _composerHarness({
       children: <Widget>[
         const Expanded(child: SizedBox()),
         ChatComposer(
+          composer: composer,
           selection: selection,
           dataSource: dataSource,
           onSend: onSend,
           onEmojiPressed: () {},
-          emojiIconState: ChatEnterEmojiIconState.smile,
         ),
       ],
     ),
@@ -59,12 +60,15 @@ void main() {
     ) async {
       final selection = ChatSelectionController();
       final dataSource = _PreloadedDataSource();
+      final composer = ChatComposerController();
       String? sent;
       addTearDown(selection.dispose);
       addTearDown(dataSource.dispose);
+      addTearDown(composer.dispose);
 
       await tester.pumpWidget(
         _composerHarness(
+          composer: composer,
           selection: selection,
           dataSource: dataSource,
           onSend: (text) async {
@@ -87,12 +91,15 @@ void main() {
     testWidgets('whitespace-only send does not invoke onSend', (tester) async {
       final selection = ChatSelectionController();
       final dataSource = _PreloadedDataSource();
+      final composer = ChatComposerController();
       var invoked = false;
       addTearDown(selection.dispose);
       addTearDown(dataSource.dispose);
+      addTearDown(composer.dispose);
 
       await tester.pumpWidget(
         _composerHarness(
+          composer: composer,
           selection: selection,
           dataSource: dataSource,
           onSend: (_) async {
@@ -117,14 +124,17 @@ void main() {
     ) async {
       final selection = ChatSelectionController();
       final dataSource = _PreloadedDataSource();
+      final composer = ChatComposerController();
       var attempts = 0;
       Object? asyncError;
       addTearDown(selection.dispose);
       addTearDown(dataSource.dispose);
+      addTearDown(composer.dispose);
 
       await runZonedGuarded(() async {
         await tester.pumpWidget(
           _composerHarness(
+            composer: composer,
             selection: selection,
             dataSource: dataSource,
             onSend: (text) async {

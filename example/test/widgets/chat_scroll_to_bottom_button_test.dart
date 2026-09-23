@@ -275,6 +275,7 @@ class _DemoPillScaffold extends StatefulWidget {
 
 class _DemoPillScaffoldState extends State<_DemoPillScaffold> {
   late final ChatSelectionController _selection = ChatSelectionController();
+  late final ChatComposerController _composer = ChatComposerController();
   ValueNotifier<double>? _ownedBottomInset;
 
   ValueNotifier<double> get _bottomInset =>
@@ -291,6 +292,7 @@ class _DemoPillScaffoldState extends State<_DemoPillScaffold> {
   @override
   void dispose() {
     _selection.dispose();
+    _composer.dispose();
     _ownedBottomInset?.dispose();
     super.dispose();
   }
@@ -359,11 +361,11 @@ class _DemoPillScaffoldState extends State<_DemoPillScaffold> {
                 child: MeasureSize(
                   onChange: (size) => _bottomInset.value = size.height,
                   child: ChatComposer(
+                    composer: _composer,
                     selection: _selection,
                     dataSource: widget.dataSource,
                     onSend: (_) async {},
                     onEmojiPressed: () {},
-                    emojiIconState: ChatEnterEmojiIconState.smile,
                   ),
                 ),
               ),

@@ -5,19 +5,23 @@ import 'package:chat_scroll_view_example/src/common/widgets/measure_size.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
-/// Floating Telegram-shaped composer island for the widget chat demo.
+/// Floating composer island for the widget chat demo.
 ///
 /// Idle / edit: [ChatEnterView]. Selection mode: hidden — actions live on the
-/// selection app bar (Telegram action mode), not a morph of this island.
-/// Does not host [KeyboardPanel]; the screen places the panel in the keyboard slot.
+/// selection app bar, not a morph of this island.
+/// Does not host [KeyboardPanel]; the screen places the panel in the keyboard
+/// slot.
+///
+/// Chrome SoT is [composer] ([ChatComposerController]). The host owns lifetime
+/// and drives reply / edit / emoji / IME without a [GlobalKey].
 class ChatComposer extends StatefulWidget {
   /// Creates the composer.
   const ChatComposer({
+    required this.composer,
     required this.selection,
     required this.dataSource,
     required this.onSend,
     required this.onEmojiPressed,
-    required this.emojiIconState,
     this.onEditSelected,
     this.onSizeChanged,
     this.onAttachPressed,
@@ -28,10 +32,13 @@ class ChatComposer extends StatefulWidget {
     super.key,
   });
 
+  /// Host-owned composer SoT.
+  final ChatComposerController composer;
+
   /// When selection is active, the island is hidden.
   final ChatSelectionController selection;
 
-  /// Source for edit content lookup.
+  /// Source for edit content lookup ([beginEdit]).
   final ChatDataSource dataSource;
 
   /// Persists a trimmed message.
@@ -39,9 +46,6 @@ class ChatComposer extends StatefulWidget {
 
   /// Emoji / keyboard toggle (host toggles panel open flag).
   final VoidCallback onEmojiPressed;
-
-  /// Left emoji-button face.
-  final ChatEnterEmojiIconState emojiIconState;
 
   /// Saves edited content for one message.
   final Future<void> Function(int messageId, String text)? onEditSelected;
@@ -74,17 +78,7 @@ class ChatComposer extends StatefulWidget {
 
 /// State for [ChatComposer].
 class ChatComposerState extends State<ChatComposer> {
-  final TextEditingController _text = TextEditingController();
-  final FocusNode _focus = FocusNode(debugLabel: 'ChatComposer');
-  final GlobalKey<ChatEnterViewState> _enterKey =
-      GlobalKey<ChatEnterViewState>();
-
   bool _selectionMode = false;
-  bool _sending = false;
-  int? _editingMessageId;
-
-  /// Exposed for emoji insertion from the panel.
-  TextEditingController get textController => _text;
 
   @override
   void initState() {
@@ -106,80 +100,40 @@ class ChatComposerState extends State<ChatComposer> {
   @override
   void dispose() {
     widget.selection.removeListener(_onSelectionChanged);
-    _text.dispose();
-    _focus.dispose();
     super.dispose();
   }
 
   void _onSelectionChanged() {
     final mode = widget.selection.isSelectionMode;
-    if (mode && _editingMessageId != null) {
-      _text.clear();
-      _editingMessageId = null;
+    if (mode && widget.composer.mode.isEditing) {
+      widget.composer.clear();
     }
     if (mode != _selectionMode) {
-      if (mode) _focus.unfocus();
+      if (mode) widget.composer.unfocus();
       setState(() => _selectionMode = mode);
     }
   }
 
-  /// Inserts [text] at the caret.
-  void insertText(String text) {
-    final value = _text.value;
-    final start = value.selection.start >= 0
-        ? value.selection.start
-        : value.text.length;
-    final end = value.selection.end >= 0
-        ? value.selection.end
-        : value.text.length;
-    final next = value.text.replaceRange(start, end, text);
-    _text.value = TextEditingValue(
-      text: next,
-      selection: TextSelection.collapsed(offset: start + text.length),
-    );
-  }
-
-  /// Deletes the last grapheme cluster.
-  void backspace() => emojiBackspace(_text);
-
-  /// Opens soft keyboard.
-  void requestKeyboard() {
-    _enterKey.currentState?.requestKeyboard();
-  }
-
-  /// Arms IME-suppress bypass before a composer field tap steals focus.
-  void prepareKeyboardHandoff() {
-    _enterKey.currentState?.prepareKeyboardHandoff();
-  }
-
-  /// Hides soft keyboard.
-  void hideKeyboard() => _enterKey.currentState?.hideKeyboard();
-
-  /// Hides soft IME; keeps caret + hardware keyboard (Telegram emoji open).
-  void hideKeyboardRetainingFocus() =>
-      _enterKey.currentState?.hideKeyboardRetainingFocus();
-
-  /// Drops focus — use only when the field should fully resign input.
-  void unfocus() => _focus.unfocus();
-
   Future<void> _handleSend() async {
-    if (_sending) return;
-    final text = _text.text.trim();
+    final composer = widget.composer;
+    if (composer.data.busy || !composer.data.enabled) return;
+    final text = composer.text.text.trim();
     if (text.isEmpty) return;
-    setState(() => _sending = true);
+    composer.setBusy(true);
     try {
-      final editingId = _editingMessageId;
-      if (editingId != null) {
-        await widget.onEditSelected?.call(editingId, text);
+      final mode = composer.mode;
+      if (mode is ChatComposerMode$Editing) {
+        final id = mode.id;
+        if (id is! int) return;
+        await widget.onEditSelected?.call(id, text);
         if (!mounted) return;
-        _editingMessageId = null;
       } else {
         await widget.onSend(text);
         if (!mounted) return;
       }
-      _text.clear();
+      composer.clear();
     } finally {
-      if (mounted) setState(() => _sending = false);
+      if (!composer.isDisposed) composer.setBusy(false);
     }
   }
 
@@ -188,24 +142,14 @@ class ChatComposerState extends State<ChatComposer> {
     final content = widget.dataSource.getMessage(messageId)?.text;
     if (content == null) return;
     widget.selection.clear();
-    setState(() {
-      _editingMessageId = messageId;
-      _text.value = TextEditingValue(
-        text: content,
-        selection: TextSelection.collapsed(offset: content.length),
-      );
-    });
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted) return;
-      requestKeyboard();
-    });
+    widget.composer.text.value = TextEditingValue(
+      text: content,
+      selection: TextSelection.collapsed(offset: content.length),
+    );
+    widget.composer.beginEdit(id: messageId, preview: content);
   }
 
-  void _cancelEdit() {
-    _text.clear();
-    if (_editingMessageId == null) return;
-    setState(() => _editingMessageId = null);
-  }
+  void _cancelEdit() => widget.composer.clear();
 
   @override
   Widget build(BuildContext context) {
@@ -213,58 +157,59 @@ class ChatComposerState extends State<ChatComposer> {
       return const SizedBox.shrink();
     }
 
-    final isEditing = _editingMessageId != null;
+    final composer = widget.composer;
     final safeBottom = MediaQuery.viewPaddingOf(context).bottom;
     const hPad = ChatInputMetrics.bubblePadding;
 
-    final child = MeasureSize(
-      onChange: (size) => widget.onSizeChanged?.call(size.height + safeBottom),
-      child: Center(
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(
-            hPad,
-            10,
-            hPad,
-            ChatInputMetrics.bubbleBottomGap,
+    return ValueListenableBuilder<ChatComposerMode>(
+      valueListenable: composer.select((s) => s.data.mode),
+      builder: (context, mode, _) {
+        final isEditing = mode is ChatComposerMode$Editing;
+        final child = MeasureSize(
+          onChange: (size) =>
+              widget.onSizeChanged?.call(size.height + safeBottom),
+          child: Center(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(
+                hPad,
+                10,
+                hPad,
+                ChatInputMetrics.bubbleBottomGap,
+              ),
+              child: ChatEnterView(
+                composer: composer,
+                onSend: _handleSend,
+                onEmojiPressed: widget.onEmojiPressed,
+                onAttachPressed: widget.onAttachPressed,
+                onMicPressed: widget.onMicPressed,
+                onFieldTapWhilePanelOpen: widget.onFieldTapWhilePanelOpen,
+                glassKey: widget.glassKey,
+                hintText: isEditing ? 'Edit message' : 'Message',
+                topBanner: isEditing
+                    ? const ChatEnterTopBanner(
+                        title: 'Edit message',
+                        subtitle: 'Tap ✕ to cancel',
+                        isEdit: true,
+                      )
+                    : null,
+                onTopBannerClose: isEditing ? _cancelEdit : null,
+              ),
+            ),
           ),
-          child: ChatEnterView(
-            key: _enterKey,
-            controller: _text,
-            focusNode: _focus,
-            onSend: _handleSend,
-            onEmojiPressed: widget.onEmojiPressed,
-            onAttachPressed: widget.onAttachPressed,
-            onMicPressed: widget.onMicPressed,
-            emojiIconState: widget.emojiIconState,
-            onFieldTapWhilePanelOpen: widget.onFieldTapWhilePanelOpen,
-            glassKey: widget.glassKey,
-            hintText: isEditing ? 'Edit message' : 'Message',
-            isEditing: isEditing,
-            sending: _sending,
-            onCancelEdit: isEditing ? _cancelEdit : null,
-            topBanner: isEditing
-                ? const ChatEnterTopBanner(
-                    title: 'Edit message',
-                    subtitle: 'Tap ✕ to cancel',
-                    isEdit: true,
-                  )
-                : null,
-            onTopBannerClose: isEditing ? _cancelEdit : null,
+        );
+
+        final bottomInset = widget.bottomInset;
+        if (bottomInset == null) return child;
+
+        return ValueListenableBuilder(
+          valueListenable: bottomInset,
+          child: child,
+          builder: (context, bottomInset, child) => Padding(
+            padding: EdgeInsets.only(bottom: bottomInset),
+            child: child,
           ),
-        ),
-      ),
-    );
-
-    final bottomInset = widget.bottomInset;
-    if (bottomInset == null) return child;
-
-    return ValueListenableBuilder(
-      valueListenable: bottomInset,
-      child: child,
-      builder: (context, bottomInset, child) => Padding(
-        padding: EdgeInsets.only(bottom: bottomInset),
-        child: child,
-      ),
+        );
+      },
     );
   }
 }

@@ -59,15 +59,14 @@ class _WidgetChatScreenState extends State<WidgetChatScreen>
   var _ownsEmojiDataSource = false;
   late final ChatScrollController _controller;
   late final ChatSelectionController _selection;
-  final GlobalKey<ChatComposerState> _composerKey =
-      GlobalKey<ChatComposerState>();
+  late final ChatComposerController _composer;
   final GlobalKey _composerGlassKey = GlobalKey(debugLabel: 'ComposerGlass');
   late final KeyboardPanelController _panelController;
 
   /// Demo: all type tabs so the floating glass pill matches Telegram.
   static const KeyboardPanelAllow _emojiAllow = KeyboardPanelAllow.all;
 
-  var _keyboardPanelOpen = false;
+  final ValueNotifier<bool> _keyboardPanelOpen = ValueNotifier(false);
   KeyboardPanelTab? _lastEmojiTab;
   ChatPreImeBackClaim? _emojiBackClaim;
 
@@ -103,7 +102,8 @@ class _WidgetChatScreenState extends State<WidgetChatScreen>
   void onKeyboardPanelStoreReady() {
     final tab = _lastTabFromStore(keyboardPanelStore);
     if (tab == null || tab == _lastEmojiTab || !mounted) return;
-    setState(() => _lastEmojiTab = tab);
+    _lastEmojiTab = tab;
+    _syncEmojiIcon();
   }
 
   @override
@@ -134,6 +134,10 @@ class _WidgetChatScreenState extends State<WidgetChatScreen>
     _controller = ChatScrollController();
     _selection = ChatSelectionController(onInteraction: _onSelectionInteraction)
       ..selectionCap = 100;
+    _composer = ChatComposerController()
+      ..text.addListener(_onComposerTextChanged);
+    _keyboardPanelOpen.addListener(_onKeyboardPanelOpenChanged);
+    _syncEmojiIcon();
     _pillLastSeenBaseline.addListener(_onPillBaselineChanged);
     _init();
   }
@@ -299,6 +303,9 @@ class _WidgetChatScreenState extends State<WidgetChatScreen>
       ..removeOpenListener(_onPanelControllerOpen)
       ..removeTabListener(_onPanelControllerTab)
       ..dispose();
+    _keyboardPanelOpen
+      ..removeListener(_onKeyboardPanelOpenChanged)
+      ..dispose();
     _pillLastSeenBaseline.removeListener(_onPillBaselineChanged);
     _flushPendingLastRead();
     _persistLastReadTimer?.cancel();
@@ -306,6 +313,9 @@ class _WidgetChatScreenState extends State<WidgetChatScreen>
     _search?.dispose();
     _controller.dispose();
     _selection.dispose();
+    _composer
+      ..text.removeListener(_onComposerTextChanged)
+      ..dispose();
     if (_ownsEmojiDataSource) {
       _emojiDataSource.dispose();
     }
@@ -342,8 +352,7 @@ class _WidgetChatScreenState extends State<WidgetChatScreen>
         actions: MessageMenuActions(
           onDelete: (messageId) => _handleDeleteSelected([messageId]),
           onDeleteSelected: _handleDeleteSelected,
-          onEdit: (messageId) =>
-              _composerKey.currentState?.beginEdit(messageId),
+          onEdit: _beginEdit,
           onCopy: _showCopiedSnack,
           onCopySelected: _showCopiedSnack,
           onCopyLink: _showCopiedSnack,
@@ -579,20 +588,41 @@ class _WidgetChatScreenState extends State<WidgetChatScreen>
   Widget _buildInitialSkeleton(BuildContext context) =>
       const DemoInitialSkeleton();
 
-  ChatEnterEmojiIconState get _emojiIconState => resolveEmojiIconState(
-    panelOpen: _keyboardPanelOpen,
-    textEmpty:
-        _composerKey.currentState?.textController.text.trim().isEmpty ?? true,
-    lastTab: _lastEmojiTab,
-  );
+  void _syncEmojiIcon() {
+    _composer.setEmojiIconState(
+      resolveEmojiIconState(
+        panelOpen: _keyboardPanelOpen.value,
+        textEmpty: _composer.text.text.trim().isEmpty,
+        lastTab: _lastEmojiTab,
+      ),
+    );
+  }
+
+  void _onComposerTextChanged() => _syncEmojiIcon();
+
+  void _beginEdit(int messageId) {
+    final content = _dataSource?.getMessage(messageId)?.text;
+    if (content == null) return;
+    _selection.clear();
+    _composer.text.value = TextEditingValue(
+      text: content,
+      selection: TextSelection.collapsed(offset: content.length),
+    );
+    _composer.beginEdit(id: messageId, preview: content);
+  }
 
   void _syncEmojiBackClaim() {
-    if (_keyboardPanelOpen) {
+    if (_keyboardPanelOpen.value) {
       _emojiBackClaim ??= ChatPreImeBackClaim.push(_handleKeyboardPanelBack);
     } else {
       _emojiBackClaim?.pop();
       _emojiBackClaim = null;
     }
+  }
+
+  void _onKeyboardPanelOpenChanged() {
+    _syncEmojiBackClaim();
+    _syncEmojiIcon();
   }
 
   /// Soft-IME dismiss while search is focused, then controller search→panel.
@@ -630,7 +660,7 @@ class _WidgetChatScreenState extends State<WidgetChatScreen>
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted || !_panelController.isOpen) return;
       // After rebuild: hide soft IME, keep focus for cursor + hardware keys.
-      _composerKey.currentState?.hideKeyboardRetainingFocus();
+      _composer.hideKeyboardRetainingFocus();
     });
   }
 
@@ -643,7 +673,7 @@ class _WidgetChatScreenState extends State<WidgetChatScreen>
     // Steal focus before search/panel collapse so soft keyboard does not drop.
     // Field-tap races focus ahead of [onTap]; [prepareKeyboardHandoff] on
     // pointer-down arms IME-suppress bypass before this runs.
-    _composerKey.currentState?.requestKeyboard();
+    _composer.requestKeyboard();
     if (!mounted) return;
     if (_panelController.isSearchOpen) {
       await _panelController.closeSearch(hideKeyboard: false);
@@ -680,19 +710,18 @@ class _WidgetChatScreenState extends State<WidgetChatScreen>
 
   void _editSelectedFromBar() {
     if (_selection.count != 1) return;
-    final id = _selection.selectedIds.first;
-    _composerKey.currentState?.beginEdit(id);
+    _beginEdit(_selection.selectedIds.first);
   }
 
   void _onPanelControllerOpen(bool open) {
-    if (_keyboardPanelOpen == open) return;
-    setState(() => _keyboardPanelOpen = open);
-    _syncEmojiBackClaim();
+    if (_keyboardPanelOpen.value == open) return;
+    _keyboardPanelOpen.value = open;
   }
 
   void _onPanelControllerTab(KeyboardPanelTab tab) {
     if (tab == _lastEmojiTab || !mounted) return;
-    setState(() => _lastEmojiTab = tab);
+    _lastEmojiTab = tab;
+    _syncEmojiIcon();
   }
 
   /// Safe band in the keyboard slot under [insets.keyboard].
@@ -756,7 +785,7 @@ class _WidgetChatScreenState extends State<WidgetChatScreen>
             _selection.clear();
             return;
           }
-          if (_keyboardPanelOpen) {
+          if (_keyboardPanelOpen.value) {
             unawaited(_handleKeyboardPanelBack());
             return;
           }
@@ -863,19 +892,21 @@ class _WidgetChatScreenState extends State<WidgetChatScreen>
                       child: Column(
                         mainAxisSize: MainAxisSize.min,
                         children: <Widget>[
-                          ChatComposer(
-                            key: _composerKey,
-                            glassKey: _composerGlassKey,
-                            selection: _selection,
-                            dataSource: _dataSource!,
-                            onSend: _handleSendMessage,
-                            onEditSelected: _handleEditSelected,
-                            onSizeChanged: insets.setComposerHeight,
-                            onEmojiPressed: _toggleKeyboardPanel,
-                            emojiIconState: _emojiIconState,
-                            onFieldTapWhilePanelOpen: _keyboardPanelOpen
-                                ? _onInputTapWhileEmojiOpen
-                                : null,
+                          ValueListenableBuilder<bool>(
+                            valueListenable: _keyboardPanelOpen,
+                            builder: (context, panelOpen, _) => ChatComposer(
+                              composer: _composer,
+                              glassKey: _composerGlassKey,
+                              selection: _selection,
+                              dataSource: _dataSource!,
+                              onSend: _handleSendMessage,
+                              onEditSelected: _handleEditSelected,
+                              onSizeChanged: insets.setComposerHeight,
+                              onEmojiPressed: _toggleKeyboardPanel,
+                              onFieldTapWhilePanelOpen: panelOpen
+                                  ? _onInputTapWhileEmojiOpen
+                                  : null,
+                            ),
                           ),
                           // Keyboard / emoji slot — one term only. Do not also
                           // pad the composer with the same inset (would double).
@@ -899,11 +930,9 @@ class _WidgetChatScreenState extends State<WidgetChatScreen>
                                 labels: KeyboardPanelLabels.russian,
                                 dataSource: _emojiDataSource,
                                 onEmojiSelected: (glyph) {
-                                  _composerKey.currentState?.insertText(glyph);
+                                  _composer.insertText(glyph);
                                 },
-                                onBackspace: () {
-                                  _composerKey.currentState?.backspace();
-                                },
+                                onBackspace: _composer.backspace,
                                 callbacks: KeyboardPanelCallbacks(
                                   onStickerSettings: () {
                                     ScaffoldMessenger.of(context).showSnackBar(
@@ -914,8 +943,7 @@ class _WidgetChatScreenState extends State<WidgetChatScreen>
                                     );
                                   },
                                   onSearchClosed: () {
-                                    _composerKey.currentState
-                                        ?.hideKeyboardRetainingFocus();
+                                    _composer.hideKeyboardRetainingFocus();
                                   },
                                 ),
                               ),
