@@ -5,11 +5,11 @@ import 'package:flutter_test/flutter_test.dart';
 
 void main() {
   group('ChatBodyLinkifyUtil.materialize', () {
-    test('rewrites bare https and @username into markdown links', () {
+    test('rewrites bare https and leaves @username plain', () {
+      // Host policy is ChatLinkifyPolicy.webUrls (mentions not auto-rewritten).
       expect(
         ChatBodyLinkifyUtil.materialize('ping @alice at https://example.com'),
-        'ping [@alice](mention:alice) at '
-        '[https://example.com](https://example.com)',
+        'ping @alice at [https://example.com](https://example.com)',
       );
     });
 
@@ -64,8 +64,7 @@ void main() {
       );
       expect(
         message.content,
-        'see [https://example.com](https://example.com) and '
-        '[@alice](mention:alice)',
+        'see [https://example.com](https://example.com) and @alice',
       );
       ds.dispose();
     });
@@ -76,8 +75,7 @@ void main() {
       ds.editMessage(sent, 'hi @carol https://flutter.dev');
       expect(
         ds.getMessage(sent.id)?.text,
-        'hi [@carol](mention:carol) '
-        '[https://flutter.dev](https://flutter.dev)',
+        'hi @carol [https://flutter.dev](https://flutter.dev)',
       );
       ds.dispose();
     });
