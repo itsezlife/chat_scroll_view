@@ -12,7 +12,7 @@ class ChatEnterTopView extends StatelessWidget {
     super.key,
   });
 
-  /// Painted height — 48dp painted height.
+  /// Strip height in logical pixels.
   static const double barHeight = 48;
 
   /// Author name or "Edit message".
@@ -30,7 +30,7 @@ class ChatEnterTopView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = ChatChromeTheme.of(context);
-    // Transparent — lives under [TelegramGlass]; an opaque panel fill would
+    // Transparent — lives under the glass island; an opaque panel fill would
     // paint over the liquid glass for this strip.
     return SizedBox(
       height: barHeight,

@@ -1,10 +1,16 @@
+import 'dart:math' as math;
+import 'dart:ui' show lerpDouble;
+
 import 'package:chat_chrome/src/composer/chat_enter_icons.dart';
 import 'package:chat_chrome/src/composer/chat_enter_top_view.dart';
 import 'package:chat_chrome/src/composer/chat_input_metrics.dart';
 import 'package:chat_chrome/src/glass/telegram_glass.dart';
 import 'package:chat_chrome/src/glass/telegram_glass_style.dart';
+import 'package:chat_chrome/src/motion/keyboard_panel_motion.dart';
 import 'package:chat_chrome/src/theme/chat_chrome_colors.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
+import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart';
 
 /// Optional reply / edit banner model for [ChatEnterView].
@@ -68,7 +74,15 @@ typedef ChatEnterTopBannerBuilder = Widget Function(BuildContext context);
 ///
 /// Transparent outer host — the painted shape is the 22dp-radius island with
 /// 7dp horizontal margins (see [ChatInputMetrics]). Selection actions do not
-/// live here; Those live on the action / selection chrome.
+/// live here; those live on the action / selection chrome.
+///
+/// **Motion:**
+/// - Top banner: visibility factor `t∈[0,1]` — layout height `48 * t`, child
+///   clip-revealed top-first (250ms list cubic).
+/// - Field height: animate-to measured row height with bottom gravity so the
+///   island grows upward from a fixed baseline.
+/// - Input row is built outside the animation builder so ticks do not remount
+///   the field (focus / IME stay put).
 class ChatEnterView extends StatefulWidget {
   /// Creates the enter view.
   const ChatEnterView({
@@ -161,7 +175,7 @@ class ChatEnterView extends StatefulWidget {
   /// [controller] / [focusNode] and IME handoff.
   final ChatEnterInputBuilder? inputBuilder;
 
-  /// Default composer height (`DEFAULT_HEIGHT` / island paint height).
+  /// Default composer height (island paint height).
   static const double rowHeight = ChatInputMetrics.islandHeight;
 
   @override
@@ -169,8 +183,26 @@ class ChatEnterView extends StatefulWidget {
 }
 
 /// State for [ChatEnterView].
-class ChatEnterViewState extends State<ChatEnterView> {
+class ChatEnterViewState extends State<ChatEnterView>
+    with TickerProviderStateMixin {
   late final ValueNotifier<bool> _hasText;
+
+  /// `animatorTopViewVisibility` — 0 hidden, 1 shown.
+  late final AnimationController _topViewVisibility;
+
+  /// Progress of the current field-height tween (0→1).
+  late final AnimationController _fieldHeightProgress;
+
+  late final CurvedAnimation _topViewCurved;
+  late final CurvedAnimation _fieldHeightCurved;
+
+  double _fieldHeightFrom = ChatEnterView.rowHeight;
+  double _fieldHeightTo = ChatEnterView.rowHeight;
+  var _fieldHeightLaidOut = false;
+
+  /// Keep painting the last banner while hide runs (`t→0`).
+  ChatEnterTopBannerBuilder? _cachedBannerBuilder;
+  ChatEnterTopBanner? _cachedBanner;
 
   @override
   void initState() {
@@ -178,6 +210,31 @@ class ChatEnterViewState extends State<ChatEnterView> {
     _hasText = ValueNotifier(widget.controller.text.trim().isNotEmpty);
     widget.controller.addListener(_onText);
     widget.focusNode.addListener(_onFocusChange);
+
+    final wantsTop = _wantsTopView;
+    _cacheTopViewIfPresent();
+
+    _topViewVisibility = AnimationController(
+      vsync: this,
+      duration: KeyboardPanelMotion.duration,
+      value: wantsTop ? 1 : 0,
+    );
+    _topViewCurved = CurvedAnimation(
+      parent: _topViewVisibility,
+      curve: KeyboardPanelMotion.curve,
+    );
+
+    _fieldHeightProgress = AnimationController(
+      vsync: this,
+      duration: KeyboardPanelMotion.duration,
+      value: 1,
+    );
+    _fieldHeightCurved = CurvedAnimation(
+      parent: _fieldHeightProgress,
+      curve: KeyboardPanelMotion.curve,
+    );
+
+    _topViewVisibility.addStatusListener(_onTopViewStatus);
   }
 
   @override
@@ -186,19 +243,85 @@ class ChatEnterViewState extends State<ChatEnterView> {
     if (!identical(oldWidget.controller, widget.controller)) {
       oldWidget.controller.removeListener(_onText);
       widget.controller.addListener(_onText);
-      _hasText = ValueNotifier(widget.controller.text.trim().isNotEmpty);
+      _hasText.value = widget.controller.text.trim().isNotEmpty;
     }
     if (oldWidget.emojiIconState != widget.emojiIconState &&
         _suppressSoftKeyboard) {
       _suppressIme();
     }
+    _syncTopViewVisibility();
   }
 
   @override
   void dispose() {
+    _topViewVisibility.removeStatusListener(_onTopViewStatus);
     widget.controller.removeListener(_onText);
     widget.focusNode.removeListener(_onFocusChange);
+    _topViewCurved.dispose();
+    _fieldHeightCurved.dispose();
+    _topViewVisibility.dispose();
+    _fieldHeightProgress.dispose();
+    _hasText.dispose();
     super.dispose();
+  }
+
+  bool get _wantsTopView =>
+      widget.topBannerBuilder != null || widget.topBanner != null;
+
+  double get _fieldHeight =>
+      lerpDouble(_fieldHeightFrom, _fieldHeightTo, _fieldHeightCurved.value)!;
+
+  void _cacheTopViewIfPresent() {
+    if (widget.topBannerBuilder != null) {
+      _cachedBannerBuilder = widget.topBannerBuilder;
+      _cachedBanner = null;
+    } else if (widget.topBanner != null) {
+      _cachedBanner = widget.topBanner;
+      _cachedBannerBuilder = null;
+    }
+  }
+
+  void _syncTopViewVisibility() {
+    final wants = _wantsTopView;
+    if (wants) {
+      _cacheTopViewIfPresent();
+      if (_topViewVisibility.status != AnimationStatus.forward &&
+          _topViewVisibility.value < 1) {
+        _topViewVisibility.animateTo(1);
+      } else if (_topViewVisibility.value == 1) {
+        // Already shown — rebuild for subtitle / title changes.
+      }
+    } else if (_topViewVisibility.value > 0 || _topViewVisibility.isAnimating) {
+      _topViewVisibility.animateTo(0);
+    }
+  }
+
+  void _onTopViewStatus(AnimationStatus status) {
+    if (status != AnimationStatus.dismissed) return;
+    if (_wantsTopView) return;
+    if (_cachedBannerBuilder == null && _cachedBanner == null) return;
+    setState(() {
+      _cachedBannerBuilder = null;
+      _cachedBanner = null;
+    });
+  }
+
+  void _onFieldMeasured(Size size) {
+    final target = math.max(ChatEnterView.rowHeight, size.height);
+    if ((target - _fieldHeightTo).abs() < 0.5) return;
+
+    // First layout / cold start — set height immediately, no tween.
+    if (!_fieldHeightLaidOut) {
+      _fieldHeightLaidOut = true;
+      _fieldHeightFrom = target;
+      _fieldHeightTo = target;
+      _fieldHeightProgress.value = 1;
+      return;
+    }
+
+    _fieldHeightFrom = _fieldHeight;
+    _fieldHeightTo = target;
+    _fieldHeightProgress.forward(from: 0);
   }
 
   var _allowImeOnce = false;
@@ -271,6 +394,64 @@ class ChatEnterViewState extends State<ChatEnterView> {
     });
   }
 
+  Widget? _buildTopView(BuildContext context) {
+    final t = _topViewCurved.value;
+    if (t <= 0 && !_wantsTopView) return null;
+
+    final child = switch ((_cachedBannerBuilder, _cachedBanner)) {
+      (final builder?, _) => builder(context),
+      (null, final banner?) => ChatEnterTopView(
+        title: banner.title,
+        subtitle: banner.subtitle,
+        isEdit: banner.isEdit,
+        onClose: widget.onTopBannerClose ?? () {},
+      ),
+      (null, null) => null,
+    };
+    if (child == null) return null;
+
+    // Layout height = barH * t; child always barH; clip from the top so the
+    // strip appears top-first as the slot grows.
+    return _TopViewReveal(
+      progress: t,
+      extent: ChatEnterTopView.barHeight,
+      child: child,
+    );
+  }
+
+  Widget _buildInputRow(BuildContext context, ChatChromeColors colors) {
+    return switch (widget.inputBuilder) {
+      final build? => build(
+        context,
+        ChatEnterFieldHandle(
+          controller: widget.controller,
+          focusNode: widget.focusNode,
+          prepareKeyboardHandoff: prepareKeyboardHandoff,
+        ),
+      ),
+      null => _InputRow(
+        controller: widget.controller,
+        focusNode: widget.focusNode,
+        colors: colors,
+        hintText: widget.hintText,
+        emojiIconState: widget.emojiIconState,
+        onEmojiPressed: widget.onEmojiPressed,
+        onAttachPressed: widget.onAttachPressed,
+        onSend: widget.onSend,
+        onMicPressed: widget.onMicPressed,
+        hasText: _hasText,
+        sending: widget.sending,
+        isEditing: widget.isEditing,
+        onCancelEdit: widget.onCancelEdit,
+        enabled: widget.enabled,
+        onFieldTapWhilePanelOpen: widget.onFieldTapWhilePanelOpen,
+        onPrepareKeyboardHandoff: widget.onFieldTapWhilePanelOpen == null
+            ? null
+            : prepareKeyboardHandoff,
+      ),
+    };
+  }
+
   @override
   Widget build(BuildContext context) {
     final colors = ChatChromeTheme.of(context);
@@ -280,63 +461,233 @@ class ChatEnterViewState extends State<ChatEnterView> {
       brightness: brightness,
       cornerRadius: ChatInputMetrics.bubbleRadius,
     );
+    // Build the input **outside** [AnimatedBuilder] so animation ticks do not
+    // recreate the field subtree (IME / focus blink).
+    final inputRow = _buildInputRow(context, colors);
+
     return Material(
       color: Colors.transparent,
-      child: Center(
+      // Bottom-anchored — island grows upward from a fixed baseline.
+      child: Align(
+        alignment: Alignment.bottomCenter,
         child: ConstrainedBox(
           constraints: BoxConstraints(maxWidth: widget.maxWidth),
           child: TelegramGlass(
             key: widget.glassKey,
             style: glassStyle,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: <Widget>[
-                ?switch ((widget.topBannerBuilder, widget.topBanner)) {
-                  (final builder?, _) => builder(context),
-                  (null, final banner?) => ChatEnterTopView(
-                    title: banner.title,
-                    subtitle: banner.subtitle,
-                    isEdit: banner.isEdit,
-                    onClose: widget.onTopBannerClose ?? () {},
-                  ),
-                  (null, null) => null,
-                },
-                switch (widget.inputBuilder) {
-                  final build? => build(
-                    context,
-                    ChatEnterFieldHandle(
-                      controller: widget.controller,
-                      focusNode: widget.focusNode,
-                      prepareKeyboardHandoff: prepareKeyboardHandoff,
+            child: AnimatedBuilder(
+              animation: Listenable.merge([
+                _topViewCurved,
+                _fieldHeightCurved,
+              ]),
+              child: inputRow,
+              builder: (context, child) {
+                return Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: <Widget>[
+                    ?_buildTopView(context),
+                    _AnimatedFieldHeight(
+                      height: _fieldHeight,
+                      onChildSize: _onFieldMeasured,
+                      child: child!,
                     ),
-                  ),
-                  null => _InputRow(
-                    controller: widget.controller,
-                    focusNode: widget.focusNode,
-                    colors: colors,
-                    hintText: widget.hintText,
-                    emojiIconState: widget.emojiIconState,
-                    onEmojiPressed: widget.onEmojiPressed,
-                    onAttachPressed: widget.onAttachPressed,
-                    onSend: widget.onSend,
-                    onMicPressed: widget.onMicPressed,
-                    hasText: _hasText,
-                    sending: widget.sending,
-                    isEditing: widget.isEditing,
-                    onCancelEdit: widget.onCancelEdit,
-                    enabled: widget.enabled,
-                    onFieldTapWhilePanelOpen: widget.onFieldTapWhilePanelOpen,
-                    onPrepareKeyboardHandoff:
-                        widget.onFieldTapWhilePanelOpen == null
-                        ? null
-                        : prepareKeyboardHandoff,
-                  ),
-                },
-              ],
+                  ],
+                );
+              },
             ),
           ),
         ),
       ),
+    );
+  }
+}
+
+/// Clip-reveals a fixed-[extent] child as [progress] rises (top-aligned).
+///
+/// Layout height is `extent * progress`; the child always lays out at [extent]
+/// and is clipped from the top so the upper part of the strip appears first.
+class _TopViewReveal extends SingleChildRenderObjectWidget {
+  const _TopViewReveal({
+    required this.progress,
+    required this.extent,
+    required Widget super.child,
+  });
+
+  final double progress;
+  final double extent;
+
+  @override
+  RenderObject createRenderObject(BuildContext context) {
+    return _RenderTopViewReveal(progress: progress, extent: extent);
+  }
+
+  @override
+  void updateRenderObject(
+    BuildContext context,
+    covariant _RenderTopViewReveal renderObject,
+  ) {
+    renderObject
+      ..progress = progress
+      ..extent = extent;
+  }
+}
+
+class _RenderTopViewReveal extends RenderBox
+    with RenderObjectWithChildMixin<RenderBox> {
+  _RenderTopViewReveal({required double progress, required double extent})
+    : _progress = progress,
+      _extent = extent;
+
+  double _progress;
+  double get progress => _progress;
+  set progress(double value) {
+    if (_progress == value) return;
+    _progress = value;
+    markNeedsLayout();
+  }
+
+  double _extent;
+  double get extent => _extent;
+  set extent(double value) {
+    if (_extent == value) return;
+    _extent = value;
+    markNeedsLayout();
+  }
+
+  @override
+  void performLayout() {
+    final width = constraints.hasBoundedWidth
+        ? constraints.maxWidth
+        : (child?.getMaxIntrinsicWidth(double.infinity) ?? 0);
+    final hostH = _extent * _progress.clamp(0.0, 1.0);
+    child?.layout(
+      BoxConstraints.tightFor(width: width, height: _extent),
+      parentUsesSize: true,
+    );
+    size = constraints.constrain(Size(width, hostH));
+  }
+
+  @override
+  void paint(PaintingContext context, Offset offset) {
+    final c = child;
+    if (c == null || size.isEmpty) return;
+    context.pushClipRect(needsCompositing, offset, Offset.zero & size, (
+      context,
+      offset,
+    ) {
+      // Top-aligned: as host grows, the top of the strip appears first.
+      context.paintChild(c, offset);
+    });
+  }
+
+  @override
+  bool hitTestChildren(BoxHitTestResult result, {required Offset position}) {
+    final c = child;
+    if (c == null) return false;
+    return result.addWithPaintOffset(
+      offset: Offset.zero,
+      position: position,
+      hitTest: (result, transformed) {
+        return transformed.dy <= size.height &&
+            c.hitTest(result, position: transformed);
+      },
+    );
+  }
+}
+
+/// Host height animates; child lays out intrinsically and paints bottom-aligned
+/// so growth expands above a fixed baseline.
+class _AnimatedFieldHeight extends SingleChildRenderObjectWidget {
+  const _AnimatedFieldHeight({
+    required this.height,
+    required this.onChildSize,
+    required Widget super.child,
+  });
+
+  final double height;
+  final ValueChanged<Size> onChildSize;
+
+  @override
+  RenderObject createRenderObject(BuildContext context) {
+    return _RenderAnimatedFieldHeight(height: height, onChildSize: onChildSize);
+  }
+
+  @override
+  void updateRenderObject(
+    BuildContext context,
+    covariant _RenderAnimatedFieldHeight renderObject,
+  ) {
+    renderObject
+      ..height = height
+      ..onChildSize = onChildSize;
+  }
+}
+
+class _RenderAnimatedFieldHeight extends RenderBox
+    with RenderObjectWithChildMixin<RenderBox> {
+  _RenderAnimatedFieldHeight({
+    required double height,
+    required this.onChildSize,
+  }) : _height = height;
+
+  ValueChanged<Size> onChildSize;
+  Size? _reported;
+
+  double _height;
+  double get height => _height;
+  set height(double value) {
+    if (_height == value) return;
+    _height = value;
+    markNeedsLayout();
+  }
+
+  @override
+  void performLayout() {
+    final width = constraints.hasBoundedWidth
+        ? constraints.maxWidth
+        : (child?.getMaxIntrinsicWidth(double.infinity) ?? 0);
+    final c = child;
+    if (c != null) {
+      c.layout(
+        BoxConstraints(
+          minWidth: width,
+          maxWidth: width,
+          maxHeight: double.infinity,
+        ),
+        parentUsesSize: true,
+      );
+      final childSize = c.size;
+      if (childSize != _reported) {
+        _reported = childSize;
+        final reported = childSize;
+        SchedulerBinding.instance.addPostFrameCallback((_) {
+          if (attached) onChildSize(reported);
+        });
+      }
+    }
+    size = constraints.constrain(Size(width, _height));
+  }
+
+  @override
+  void paint(PaintingContext context, Offset offset) {
+    final c = child;
+    if (c == null) return;
+    // Bottom-aligned: grow/shrink expands above the baseline.
+    final dy = size.height - c.size.height;
+    context.paintChild(c, offset + Offset(0, dy));
+  }
+
+  @override
+  bool hitTestChildren(BoxHitTestResult result, {required Offset position}) {
+    final c = child;
+    if (c == null) return false;
+    final dy = size.height - c.size.height;
+    return result.addWithPaintOffset(
+      offset: Offset(0, dy),
+      position: position,
+      hitTest: (result, transformed) {
+        return c.hitTest(result, position: transformed);
+      },
     );
   }
 }
@@ -381,7 +732,7 @@ class _InputRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      // Horizontal only — vertical chrome is the 44 island (`DEFAULT_HEIGHT`).
+      // Horizontal only — vertical chrome is the 44 island.
       // Extra top/bottom pad made the glass taller than 44, so radius 22 no
       // longer read as a stadium (half-height pill).
       padding: const EdgeInsetsDirectional.only(start: 2, end: 2),

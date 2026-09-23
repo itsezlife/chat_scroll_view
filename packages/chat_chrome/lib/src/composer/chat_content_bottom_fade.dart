@@ -3,10 +3,8 @@ import 'package:flutter/material.dart';
 
 /// Soft bottom content fade under the composer / keyboard chrome.
 ///
-/// Ports the color fast-path of Telegram's bottom
-/// `BlurredBackgroundWithFadeDrawable` (`opacity: true`): a [fadeHeight]
-/// ramp at the **top** of [zoneHeight], then a clamped semi-opaque wash to
-/// the bottom edge.
+/// Color fast-path: a [fadeHeight] ramp at the **top** of [zoneHeight], then a
+/// clamped semi-opaque wash to the bottom edge.
 ///
 /// **Stacking:** mount **under** the glass island (earlier [Stack] sibling)
 /// and pass [glassKey] so the wash punches an island-shaped hole. The island
@@ -27,7 +25,7 @@ class ChatContentBottomFade extends StatefulWidget {
     super.key,
   });
 
-  /// Soft-edge ramp (`setFadeHeightBottom(dp(48))`).
+  /// Soft-edge ramp.
   static const double defaultFadeHeight = 48;
 
   /// Full fade zone from the physical bottom (inset + island + gaps).
