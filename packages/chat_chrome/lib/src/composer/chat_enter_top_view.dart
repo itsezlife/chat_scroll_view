@@ -38,15 +38,6 @@ class ChatEnterTopView extends StatelessWidget {
         type: MaterialType.transparency,
         child: Row(
           children: <Widget>[
-            const SizedBox(width: 18),
-            Container(
-              width: 2,
-              height: 36,
-              decoration: BoxDecoration(
-                color: colors.replyLine,
-                borderRadius: BorderRadius.circular(1),
-              ),
-            ),
             const SizedBox(width: 12),
             Icon(
               isEdit ? Icons.edit_rounded : Icons.reply_rounded,
