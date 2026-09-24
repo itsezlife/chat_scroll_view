@@ -449,32 +449,27 @@ class ChatEnterViewState extends State<ChatEnterView>
       brightness: brightness,
       cornerRadius: ChatInputMetrics.bubbleRadius,
     );
-    // Chrome facets via [select] — not height animation ticks (those would
-    // remount the field / blink IME).
-    final inputRow = ValueListenableBuilder(
-      valueListenable: widget.composer.select(
-        (s) => (
-          emoji: s.data.emojiIcon,
-          busy: s.data.busy,
-          enabled: s.data.enabled,
-          editing: s.data.mode.isEditing,
+
+    final inputRow = switch (widget.inputBuilder) {
+      final builder? => builder(
+        context,
+        ChatEnterFieldHandle(
+          controller: composer.text,
+          focusNode: composer.focusNode,
+          prepareKeyboardHandoff: prepareKeyboardHandoff,
         ),
-        (prev, next) => prev != next,
       ),
-      child: switch (widget.inputBuilder) {
-        final builder? => builder(
-          context,
-          ChatEnterFieldHandle(
-            controller: composer.text,
-            focusNode: composer.focusNode,
-            prepareKeyboardHandoff: prepareKeyboardHandoff,
+      null => ValueListenableBuilder(
+        valueListenable: widget.composer.select(
+          (s) => (
+            emoji: s.data.emojiIcon,
+            busy: s.data.busy,
+            enabled: s.data.enabled,
+            editing: s.data.mode.isEditing,
           ),
+          (prev, next) => prev != next,
         ),
-        null => null,
-      },
-      builder: (context, data, child) => switch (child) {
-        final widget? => widget,
-        null => _InputRow(
+        builder: (context, data, child) => _InputRow(
           controller: composer.text,
           focusNode: composer.focusNode,
           colors: colors,
@@ -493,8 +488,8 @@ class ChatEnterViewState extends State<ChatEnterView>
               ? null
               : prepareKeyboardHandoff,
         ),
-      },
-    );
+      ),
+    };
 
     return Material(
       color: Colors.transparent,
