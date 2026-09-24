@@ -317,17 +317,24 @@ class ChatEnterViewState extends State<ChatEnterView>
   }
 
   void _onFieldMeasured(Size size) {
+    if (!mounted) return;
     final target = math.max(ChatEnterView.rowHeight, size.height);
-    if ((target - _fieldHeightTo).abs() < 0.5) return;
 
-    // First layout / cold start — set height immediately, no tween.
+    // First layout / cold start — set height immediately, no tween. Must run
+    // before the no-change check: a cold start at the default height still
+    // counts as laid out, otherwise the first real change would snap.
     if (!_fieldHeightLaidOut) {
       _fieldHeightLaidOut = true;
-      _fieldHeightFrom = target;
-      _fieldHeightTo = target;
-      _fieldHeightProgress.value = 1;
+      if ((target - _fieldHeightTo).abs() < 0.5) return;
+      setState(() {
+        _fieldHeightFrom = target;
+        _fieldHeightTo = target;
+        _fieldHeightProgress.value = 1;
+      });
       return;
     }
+
+    if ((target - _fieldHeightTo).abs() < 0.5) return;
 
     _fieldHeightFrom = _fieldHeight;
     _fieldHeightTo = target;

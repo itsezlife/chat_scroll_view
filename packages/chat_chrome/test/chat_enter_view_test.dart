@@ -309,6 +309,48 @@ void main() {
     expect(composer.focusNode.hasFocus, isTrue);
   });
 
+  /// User symptom: the first field growth snaps; only later changes animate.
+  testWidgets('first field height change animates', (tester) async {
+    final rowHeight = ValueNotifier<double>(ChatEnterView.rowHeight);
+    addTearDown(rowHeight.dispose);
+    const grown = ChatEnterView.rowHeight * 2;
+
+    await tester.pumpWidget(
+      _bottomAnchoredHarness(
+        ChatEnterView(
+          composer: composer,
+          onSend: () {},
+          onEmojiPressed: () {},
+          inputBuilder: (context, field) => ValueListenableBuilder(
+            valueListenable: rowHeight,
+            builder: (context, height, _) =>
+                SizedBox(height: height, width: double.infinity),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(
+      tester.getSize(find.byType(ChatEnterView)).height,
+      moreOrLessEquals(ChatEnterView.rowHeight, epsilon: 1),
+    );
+
+    rowHeight.value = grown;
+    await tester.pump();
+    await tester.pump();
+    await tester.pump(KeyboardPanelMotion.duration * 0.4);
+
+    final mid = tester.getSize(find.byType(ChatEnterView)).height;
+    expect(mid, greaterThan(ChatEnterView.rowHeight + 1));
+    expect(mid, lessThan(grown - 1));
+
+    await tester.pumpAndSettle();
+    expect(
+      tester.getSize(find.byType(ChatEnterView)).height,
+      moreOrLessEquals(grown, epsilon: 1),
+    );
+  });
+
   /// Mid-reveal must show the **top** of the banner first as `t` rises.
   /// A bottom-aligned overflow clip shows the wrong half and reads as float.
   testWidgets('banner mid-reveal shows top of strip first', (tester) async {
