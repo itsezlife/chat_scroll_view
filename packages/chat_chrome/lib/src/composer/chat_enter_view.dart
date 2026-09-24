@@ -463,7 +463,7 @@ class ChatEnterViewState extends State<ChatEnterView>
         valueListenable: widget.composer.select(
           (s) => (
             emoji: s.data.emojiIcon,
-            busy: s.data.busy,
+            busy: s.isProcessing,
             enabled: s.data.enabled,
             editing: s.data.mode.isEditing,
           ),

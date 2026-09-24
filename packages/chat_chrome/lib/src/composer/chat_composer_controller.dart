@@ -27,7 +27,6 @@ final class ChatComposerController extends ValueNotifier<ChatComposerState> {
              mode: const ChatComposerMode.idle(),
              emojiIcon: ChatEnterEmojiIconState.smile,
              enabled: enabled,
-             busy: false,
            ),
          ),
        );
@@ -70,32 +69,28 @@ final class ChatComposerController extends ValueNotifier<ChatComposerState> {
   /// Whether [dispose] has been called.
   bool get isDisposed => _disposed;
 
+  /// Sets the state of the composer.
   @nonVirtual
   @protected
-  /// Sets the state of the composer.
   void setState(ChatComposerState state) {
-    if (state.data == data) return;
+    if (super.value == state) return;
     if (_disposed) return;
     super.value = state;
   }
 
   // --- Commands -------------------------------------------------------------
 
+  /// Commits [next] without leaving an in-flight [setBusy] phase.
+  void _commit(ChatComposerStateEntity next, String message) => setState(
+    state.isProcessing
+        ? .processing(data: next, message: message)
+        : .idle(data: next, message: message),
+  );
+
   /// Enables or disables composer chrome. Same-value is a silent no-op.
   void setEnabled(bool value) {
     if (data.enabled == value) return;
-    setState(
-      .processing(
-        data: data,
-        message: 'Chaning enabled from ${data.enabled} to $value',
-      ),
-    );
-    setState(
-      .idle(
-        data: data.copyWith(enabled: value),
-        message: 'Enabled changed to $value',
-      ),
-    );
+    _commit(data.copyWith(enabled: value), 'Enabled changed to $value');
     if (!value) {
       unfocus();
     }
@@ -104,34 +99,16 @@ final class ChatComposerController extends ValueNotifier<ChatComposerState> {
   /// Sets the emoji-button face (host usually via [resolveEmojiIconState]).
   void setEmojiIconState(ChatEnterEmojiIconState state) {
     if (data.emojiIcon == state) return;
-    setState(
-      .processing(
-        data: data,
-        message: 'Chaning emoji icon from ${data.emojiIcon} to $state',
-      ),
-    );
-    setState(
-      .idle(
-        data: data.copyWith(emojiIcon: state),
-        message: 'Emoji icon changed to $state',
-      ),
-    );
+    _commit(data.copyWith(emojiIcon: state), 'Emoji icon changed to $state');
   }
 
-  /// Marks an in-flight send/edit. Same-value is a silent no-op.
-  void setBusy(bool value) {
-    if (data.busy == value) return;
+  /// Marks an in-flight send / edit. Same-value is a silent no-op.
+  void setBusy(bool value, {required String message}) {
+    if (state.isProcessing == value) return;
     setState(
-      .processing(
-        data: data,
-        message: 'Chaning busy from ${data.busy} to $value',
-      ),
-    );
-    setState(
-      .idle(
-        data: data.copyWith(busy: value),
-        message: 'Busy changed to $value',
-      ),
+      value
+          ? .processing(data: data, message: message)
+          : .idle(data: data, message: message),
     );
   }
 
@@ -144,18 +121,7 @@ final class ChatComposerController extends ValueNotifier<ChatComposerState> {
     if (!data.enabled) return;
     final next = ChatComposerMode$Editing(id: id, preview: preview);
     if (data.mode != next) {
-      setState(
-        .processing(
-          data: data,
-          message: 'Chaning mode from ${data.mode} to $next',
-        ),
-      );
-      setState(
-        .idle(
-          data: data.copyWith(mode: next),
-          message: 'Mode changed to $next',
-        ),
-      );
+      _commit(data.copyWith(mode: next), 'Mode changed to $next');
     }
     _scrollFieldToEnd();
     requestKeyboard();
@@ -174,37 +140,15 @@ final class ChatComposerController extends ValueNotifier<ChatComposerState> {
       subtitle: subtitle,
     );
     if (data.mode == next) return;
-    setState(
-      .processing(
-        data: data,
-        message: 'Chaning mode from ${data.mode} to $next',
-      ),
-    );
-    setState(
-      .idle(
-        data: data.copyWith(mode: next),
-        message: 'Mode changed to $next',
-      ),
-    );
+    _commit(data.copyWith(mode: next), 'Mode changed to $next');
     requestKeyboard();
   }
 
   /// Returns to idle without clearing [text].
   void cancelMode() {
     if (data.mode.isIdle) return;
-    final next = const ChatComposerMode.idle();
-    setState(
-      .processing(
-        data: data,
-        message: 'Chaning mode from ${data.mode} to $next',
-      ),
-    );
-    setState(
-      .idle(
-        data: data.copyWith(mode: next),
-        message: 'Mode changed to $next',
-      ),
-    );
+    const next = ChatComposerMode.idle();
+    _commit(data.copyWith(mode: next), 'Mode changed to $next');
   }
 
   /// Clears field text and returns to idle.
@@ -370,7 +314,6 @@ class ChatComposerStateEntity {
     required this.mode,
     required this.emojiIcon,
     required this.enabled,
-    required this.busy,
   });
 
   /// The current mode of the composer.
@@ -379,9 +322,6 @@ class ChatComposerStateEntity {
   /// The current emoji icon state of the composer.
   final ChatEnterEmojiIconState emojiIcon;
 
-  /// Whether the composer is busy.
-  final bool busy;
-
   /// Whether the composer is enabled.
   final bool enabled;
 
@@ -389,12 +329,10 @@ class ChatComposerStateEntity {
   ChatComposerStateEntity copyWith({
     ChatComposerMode? mode,
     ChatEnterEmojiIconState? emojiIcon,
-    bool? busy,
     bool? enabled,
   }) => ChatComposerStateEntity(
     mode: mode ?? this.mode,
     emojiIcon: emojiIcon ?? this.emojiIcon,
-    busy: busy ?? this.busy,
     enabled: enabled ?? this.enabled,
   );
 
@@ -404,11 +342,10 @@ class ChatComposerStateEntity {
       other is ChatComposerStateEntity &&
           mode == other.mode &&
           emojiIcon == other.emojiIcon &&
-          busy == other.busy &&
           enabled == other.enabled;
 
   @override
-  int get hashCode => Object.hash(mode, emojiIcon, busy, enabled);
+  int get hashCode => Object.hash(mode, emojiIcon, enabled);
 }
 
 /// {@template chat_composer_state}

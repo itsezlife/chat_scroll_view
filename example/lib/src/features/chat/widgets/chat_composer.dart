@@ -116,10 +116,11 @@ class ChatComposerState extends State<ChatComposer> {
 
   Future<void> _handleSend() async {
     final composer = widget.composer;
-    if (composer.data.busy || !composer.data.enabled) return;
+    if (composer.state.isProcessing || !composer.data.enabled) return;
     final text = composer.text.text.trim();
     if (text.isEmpty) return;
-    composer.setBusy(true);
+    final editing = composer.mode.isEditing;
+    composer.setBusy(true, message: editing ? 'Saving edit' : 'Sending');
     try {
       final mode = composer.mode;
       if (mode is ChatComposerMode$Editing) {
@@ -133,7 +134,10 @@ class ChatComposerState extends State<ChatComposer> {
       }
       composer.clear();
     } finally {
-      if (!composer.isDisposed) composer.setBusy(false);
+      composer.setBusy(
+        false,
+        message: editing ? 'Finished editing' : 'Finished sending',
+      );
     }
   }
 

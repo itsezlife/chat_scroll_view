@@ -64,13 +64,49 @@ void main() {
 
   test('same-value setBusy is silent for busy select', () {
     var count = 0;
-    final busy = composer.select((s) => s.data.busy);
-    busy.addListener(() => count++);
-    composer.setBusy(true);
-    composer.setBusy(true);
+    final busy = composer.select((s) => s.isProcessing);
+    void onBusy() => count++;
+    busy.addListener(onBusy);
+    composer.setBusy(true, message: 'Sending');
+    composer.setBusy(true, message: 'Sending');
     expect(count, 1);
-    expect(composer.data.busy, isTrue);
-    busy.removeListener(() => count++);
+    expect(composer.state.isProcessing, isTrue);
+    busy.removeListener(onBusy);
+  });
+
+  test('setBusy maps to processing / idle with the given message', () {
+    composer.setBusy(true, message: 'Saving edit');
+    expect(composer.state, isA<ChatComposerState$Processing>());
+    expect(composer.state.message, 'Saving edit');
+
+    composer.setBusy(false, message: 'Finished editing');
+    expect(composer.state, isA<ChatComposerState$Idle>());
+    expect(composer.state.message, 'Finished editing');
+  });
+
+  test('commands keep processing while busy', () {
+    composer.setBusy(true, message: 'Sending');
+    composer.setEmojiIconState(ChatEnterEmojiIconState.keyboard);
+    composer.beginReply(id: 1, title: 'A', subtitle: 'b');
+    composer.clear();
+
+    expect(composer.state.isProcessing, isTrue);
+    expect(composer.emojiIconState, ChatEnterEmojiIconState.keyboard);
+    expect(composer.mode, const ChatComposerMode.idle());
+  });
+
+  test('commands outside busy never emit processing', () {
+    final seen = <bool>[];
+    void onState() => seen.add(composer.state.isProcessing);
+    composer.addListener(onState);
+    composer.setEmojiIconState(ChatEnterEmojiIconState.keyboard);
+    composer.beginEdit(id: 1, preview: 'x');
+    composer.cancelMode();
+    composer.setEnabled(false);
+    composer.removeListener(onState);
+
+    expect(seen, isNotEmpty);
+    expect(seen, everyElement(isFalse));
   });
 
   test('insertText and backspace mutate caret', () {
