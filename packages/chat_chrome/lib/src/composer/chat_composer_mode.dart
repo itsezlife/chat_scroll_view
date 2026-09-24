@@ -61,6 +61,9 @@ final class ChatComposerMode$Editing extends ChatComposerMode {
 
   @override
   int get hashCode => Object.hash(id, preview);
+
+  @override
+  String toString() => 'ChatComposerMode.editing(id: $id, preview: $preview)';
 }
 
 /// {@template chat_composer_mode_replying}
@@ -96,6 +99,10 @@ final class ChatComposerMode$Replying extends ChatComposerMode {
 
   @override
   int get hashCode => Object.hash(id, title, subtitle);
+
+  @override
+  String toString() =>
+      'ChatComposerMode.replying(id: $id, title: $title, subtitle: $subtitle)';
 }
 
 /// Pattern matching for [ChatComposerState].
