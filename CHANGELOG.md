@@ -21,8 +21,9 @@
   `ChatScrollActivityTiming` defaults to a 500 ms idle delay, 1000 ms after
   navigation, and 150 ms sine fades. The built-in day header policies hide the
   floating header once scrolling is idle (`hidesWhenIdle`), except while it
-  stands in for an inline separator. The default `null` runs no clock, and
-  activity stays at `1`.
+  stands in for an inline separator. The clock starts idle, so the list opens
+  with the floating header hidden unless it stands in. The default `null` runs
+  no clock, and activity stays at `1`.
 - **DEPRECATED**: `DatedMessage` forwards to `ChatRowChrome` with one
   `fadeUnderHeader` item, and `RenderDatedMessage` is a typedef of
   `RenderChatRowChrome`. The inline separator fade now lives in

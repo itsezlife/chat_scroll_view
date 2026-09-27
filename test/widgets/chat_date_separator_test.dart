@@ -496,14 +496,15 @@ void main() {
       );
       await _shift(tester, controller, 10);
 
-      // Opening the list counts as navigation: shown, then hidden after
-      // 1000 ms + a 150 ms fade.
+      // The list opened with the header standing in for msg-8's separator.
+      // The shift ends that, so the header hides after the 500 ms idle delay
+      // and a 150 ms fade.
       await tester.pump(const Duration(milliseconds: 150));
       expect(ro.debugFloatingHeaderOpacity, 1);
       await tester.tapAt(const Offset(400, 5));
       expect(taps, <int>[1], reason: 'a visible header takes the tap');
 
-      await tester.pump(const Duration(milliseconds: 1000));
+      await tester.pump(const Duration(milliseconds: 350));
       await tester.pump(const Duration(milliseconds: 150));
       expect(ro.debugScrollActivity, 0);
       expect(ro.debugFloatingHeaderOpacity, 0);
@@ -535,6 +536,20 @@ void main() {
       await tester.pump(const Duration(milliseconds: 1));
       await tester.pump(const Duration(milliseconds: 150));
       expect(ro.debugScrollActivity, 0);
+    });
+
+    testWidgets('the list opens with the header hidden', (tester) async {
+      final controller = ChatScrollController()..jumpTo(9);
+      final ro = await pump(
+        tester,
+        controller,
+        scrollActivityTiming: const ChatScrollActivityTiming(),
+      );
+
+      await tester.pump(const Duration(milliseconds: 150));
+      expect(ro.debugHeaderDate?.day, 2);
+      expect(ro.debugScrollActivity, 0);
+      expect(ro.debugFloatingHeaderOpacity, 0);
     });
 
     testWidgets('an idle header stays while it stands in for a separator', (

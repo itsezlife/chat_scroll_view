@@ -624,13 +624,11 @@ class RenderChatScrollView extends RenderBox {
   /// Live while attached with a non-null [_scrollActivityTiming].
   ChatScrollActivityClock? _activity;
 
-  /// A clock that starts with a navigation [ChatScrollActivityClock.pulse] —
-  /// opening the list counts as arriving somewhere.
+  /// A clock that starts idle: the list opens with idle-hidden chrome hidden.
   ChatScrollActivityClock _createActivityClock(
     ChatScrollActivityTiming timing,
   ) => ChatScrollActivityClock(timing: timing, onChanged: _onActivityChanged)
-    ..muted = !_ticking
-    ..pulse();
+    ..muted = !_ticking;
 
   void _onActivityChanged() {
     if (!hasSize) return;

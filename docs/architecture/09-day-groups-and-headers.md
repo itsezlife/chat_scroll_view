@@ -150,7 +150,8 @@ a `Timer` for the idle hold, a dedicated `Ticker` for the fades.
 |------|------------|
 | A tick consumes scroll delta | `hold(navigation: animate-only delta)` |
 | Nothing moves the list (no drag, fling, animate, pending delta, span auto-scroll) | `release()` → hide after `idleDelay` (500 ms) or `navigationIdleDelay` (1000 ms) after navigation |
-| Jump (`_onJump`), attach | `pulse()` — show, hide after `navigationIdleDelay` unless holding |
+| Attach | none: the clock starts idle at `0`, so the list opens with idle-hidden chrome hidden |
+| Jump (`_onJump`) | `pulse()` — show, hide after `navigationIdleDelay` unless holding |
 | `scrollBy` | `pulse(navigation: false)` — hide after `idleDelay` unless holding |
 | Day header effect, every resolve | `pinned = effect.holdsActivity` (false with no header) |
 
