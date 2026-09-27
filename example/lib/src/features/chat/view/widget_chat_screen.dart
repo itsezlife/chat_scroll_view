@@ -436,8 +436,16 @@ class _WidgetChatScreenState extends State<WidgetChatScreen>
         source.addReconnectGapListener(_onReconnectGap);
       }
       switch (openPosition) {
-        case MessageOpenPosition(:final anchor, :final alignment):
-          _controller.jumpTo(anchor, alignment: alignment);
+        case MessageOpenPosition(
+          :final anchor,
+          :final alignment,
+          :final tailFitFraction,
+        ):
+          _controller.jumpTo(
+            anchor,
+            alignment: alignment,
+            tailFitFraction: tailFitFraction,
+          );
         case CenterBandOpenPosition(
           :final centerBand,
           :final pendingBoundaryFrom,

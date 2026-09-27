@@ -76,6 +76,11 @@ import 'package:flutter/widgets.dart' show AppLifecycleListener, WidgetsBinding;
 /// to any other target, instant jumps, and flights cancelled before
 /// choosing a path never clear it.
 ///
+/// A tail-or-target [ChatScrollController.jumpTo] that decides
+/// [TailOrTargetOutcome.tail] clears the boundary inside the deciding
+/// layout, so no frame paints the separator at the tail. One that decides
+/// [TailOrTargetOutcome.target] keeps it.
+///
 /// ## Pending boundary
 ///
 /// [setPendingBoundary] names where unread content starts before the row
@@ -145,7 +150,8 @@ final class UnreadBoundaryController implements ValueListenable<int?> {
       ..addMutationListener(_onMutation);
     _controller
       ..visibleRange.addListener(_judgeSeen)
-      ..addScrollListener(_onScrollEvent);
+      ..addScrollListener(_onScrollEvent)
+      ..addTailOrTargetListener(_onTailOrTarget);
     _readElsewhere?.addListener(clear);
     _lifecycle = AppLifecycleListener(onHide: _onHide, onShow: _onShow);
   }
@@ -279,10 +285,20 @@ final class UnreadBoundaryController implements ValueListenable<int?> {
       ..removeMutationListener(_onMutation);
     _controller
       ..visibleRange.removeListener(_judgeSeen)
-      ..removeScrollListener(_onScrollEvent);
+      ..removeScrollListener(_onScrollEvent)
+      ..removeTailOrTargetListener(_onTailOrTarget);
     _readElsewhere?.removeListener(clear);
     _listeners.clear();
     _tailNavigations.clear();
+  }
+
+  void _onTailOrTarget(TailOrTargetOutcome outcome) {
+    switch (outcome) {
+      case TailOrTargetOutcome.tail:
+        clear();
+      case TailOrTargetOutcome.target:
+        break;
+    }
   }
 
   void _onScrollEvent(ChatScrollEvent event) {

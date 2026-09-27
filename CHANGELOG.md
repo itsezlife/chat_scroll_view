@@ -172,6 +172,13 @@
   (a `ThemeExtension` with `light` and `dark` palettes) carries the strip,
   label and arrow colors; without a registered extension the palette follows
   the theme brightness.
+- **EXAMPLE**: Short unread content opens at the bottom, as with Telegram
+  Android's half-screen rule. An open at the unread boundary passes
+  `tailFitFraction: ChatDataSourceX.unreadBoundaryTailFitFraction` (`0.5`,
+  carried on `MessageOpenPosition.tailFitFraction`). When the unread
+  messages fit in half the viewport, the chat opens at the tail and
+  `UnreadBoundaryController` clears the boundary on the `tail` outcome, so
+  the bar never shows. Longer unread content opens at the bar as before.
 
 ### Navigation
 - **CHANGED**: Alignment hold. A `jumpTo` / `animateTo` alignment or a
@@ -204,6 +211,23 @@
   coalesced or ignored call, or an `animateTo` with no viewport bound (a
   plain `jumpTo`), still emits no `ChatAnimateEnd`. The return value of
   `animateTo` is still `AnimateToDisposition`.
+- **ADDED**: Tail-or-target jump. `jumpTo` takes an optional
+  `tailFitFraction` (`0..1`). The jump decides once, in the first layout
+  that lays out the target as a loaded row, so a jump issued before the view
+  mounts or onto a loading row works too. When the newest message is known
+  (`reachedNewest`) and loaded, and the span from the target's body top
+  (its row chrome, such as the unread separator, excluded) to the newest message's
+  bottom is at most that fraction of the viewport height, the chat opens
+  pinned at the tail. Otherwise the target is placed at `alignment` as a
+  plain `jumpTo` would place it. `addTailOrTargetListener` /
+  `removeTailOrTargetListener` report the `TailOrTargetOutcome` (`tail` or
+  `target`) synchronously inside that layout, with the usual listener
+  contract (dedup, snapshot dispatch, silent after `dispose`); a callback
+  that navigates fails an assert in debug builds. An unread boundary change
+  made in the callback is laid out in the same pass, so clearing it on
+  `tail` paints no separator in any frame. A jump released
+  before it decides (user scroll, `scrollBy`, next navigation) reports
+  nothing. Calls without the fraction are unchanged.
 
 ### Breaking changes
 

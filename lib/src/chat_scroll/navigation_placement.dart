@@ -33,12 +33,17 @@ import 'package:meta/meta.dart';
 sealed class NavigationPlacement {
   const NavigationPlacement({required this.messageId, required this.isHeld});
 
-  /// Alignment placement for [messageId]; [alignment] is clamped to `0..1`.
-  factory NavigationPlacement.alignment(int messageId, double alignment) =>
-      AlignmentPlacement(
-        messageId: messageId,
-        alignment: alignment.clamp(0.0, 1.0),
-      );
+  /// Alignment placement for [messageId]; [alignment] and [tailFitFraction]
+  /// are clamped to `0..1`.
+  factory NavigationPlacement.alignment(
+    int messageId,
+    double alignment, {
+    double? tailFitFraction,
+  }) => AlignmentPlacement(
+    messageId: messageId,
+    alignment: alignment.clamp(0.0, 1.0),
+    tailFitFraction: tailFitFraction?.clamp(0.0, 1.0),
+  );
 
   /// Center Band placement for [messageId]; [offsetFromMessageTop] is
   /// clamped into the row by the viewport at apply time.
@@ -66,31 +71,73 @@ sealed class NavigationPlacement {
 
 /// Band alignment placement: the target's top sits at
 /// `topPad + alignment * (band height - row height)`.
+///
+/// ## Tail-or-target decision
+///
+/// A non-null [tailFitFraction] is an undecided tail-or-target jump. The
+/// viewport decides in the first layout that lays out the target as a loaded
+/// row, before it applies the placement: a tail outcome releases the
+/// placement and pins the tail, a target outcome continues with
+/// [withoutTailFit] and the usual pending → held lifecycle. The decision
+/// rides the placement so every release — user scroll, `scrollBy`, the next
+/// navigation — also cancels it, and a cancelled decision reports nothing.
 @immutable
 final class AlignmentPlacement extends NavigationPlacement {
-  /// Creates an alignment placement; [alignment] MUST be in `0..1`.
+  /// Creates an alignment placement; [alignment] and [tailFitFraction] MUST
+  /// be in `0..1`.
   const AlignmentPlacement({
     required super.messageId,
     required this.alignment,
+    this.tailFitFraction,
     super.isHeld = false,
-  }) : assert(alignment >= 0 && alignment <= 1, 'alignment outside 0..1');
+  }) : assert(alignment >= 0 && alignment <= 1, 'alignment outside 0..1'),
+       assert(
+         tailFitFraction == null ||
+             (tailFitFraction >= 0 && tailFitFraction <= 1),
+         'tailFitFraction outside 0..1',
+       );
 
   /// Fraction of the free band space above the target, `0..1`.
   final double alignment;
 
+  /// Fraction of the viewport height the span from the target's body top to
+  /// the newest message's bottom must fit in for a tail outcome; `null` once
+  /// decided, or for a plain alignment jump.
+  final double? tailFitFraction;
+
+  /// This placement with the tail-or-target decision made for the target:
+  /// same target, alignment, and phase, no [tailFitFraction].
+  AlignmentPlacement withoutTailFit() => switch (tailFitFraction) {
+    null => this,
+    _ => AlignmentPlacement(
+      messageId: messageId,
+      alignment: alignment,
+      isHeld: isHeld,
+    ),
+  };
+
+  /// This placement in the held phase. Idempotent. The tail-or-target
+  /// decision MUST already be made: an undecided placement is never held.
   @override
-  AlignmentPlacement hold() => isHeld
-      ? this
-      : AlignmentPlacement(
-          messageId: messageId,
-          alignment: alignment,
-          isHeld: true,
-        );
+  AlignmentPlacement hold() {
+    assert(
+      tailFitFraction == null,
+      'a tail-or-target placement is decided before it is held',
+    );
+    return isHeld
+        ? this
+        : AlignmentPlacement(
+            messageId: messageId,
+            alignment: alignment,
+            isHeld: true,
+          );
+  }
 
   @override
   AlignmentPlacement retarget(int messageId) => AlignmentPlacement(
     messageId: messageId,
     alignment: alignment,
+    tailFitFraction: tailFitFraction,
     isHeld: isHeld,
   );
 
@@ -100,16 +147,18 @@ final class AlignmentPlacement extends NavigationPlacement {
     return other is AlignmentPlacement &&
         other.messageId == messageId &&
         other.alignment == alignment &&
+        other.tailFitFraction == tailFitFraction &&
         other.isHeld == isHeld;
   }
 
   @override
-  int get hashCode => Object.hash(messageId, alignment, isHeld);
+  int get hashCode =>
+      Object.hash(messageId, alignment, tailFitFraction, isHeld);
 
   @override
   String toString() =>
       'AlignmentPlacement(messageId: $messageId, alignment: $alignment, '
-      'isHeld: $isHeld)';
+      'tailFitFraction: $tailFitFraction, isHeld: $isHeld)';
 }
 
 /// Center Band placement: the fixed 50% paint-band ray hits

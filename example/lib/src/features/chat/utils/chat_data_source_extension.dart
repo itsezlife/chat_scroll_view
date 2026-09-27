@@ -9,11 +9,13 @@ sealed class ChatOpenPosition {
   const ChatOpenPosition();
 
   /// Opens with [ChatScrollController.jumpTo] on [anchor] at [alignment];
-  /// [unreadBoundary] is the row that carries the unread separator, if any.
+  /// [unreadBoundary] is the row that carries the unread separator, if any,
+  /// and [tailFitFraction] the jump's tail-or-target fraction, if any.
   const factory ChatOpenPosition.message({
     required int anchor,
     required double alignment,
     required int? unreadBoundary,
+    double? tailFitFraction,
   }) = MessageOpenPosition;
 
   /// Opens with [ChatScrollController.jumpToCenterBand] on [centerBand];
@@ -33,6 +35,7 @@ final class MessageOpenPosition extends ChatOpenPosition {
     required this.anchor,
     required this.alignment,
     required this.unreadBoundary,
+    this.tailFitFraction,
   });
 
   /// Message id handed to [ChatScrollController.jumpTo].
@@ -43,6 +46,12 @@ final class MessageOpenPosition extends ChatOpenPosition {
 
   /// Boundary row of the open, or `null` for no unread separator.
   final int? unreadBoundary;
+
+  /// `tailFitFraction` handed to [ChatScrollController.jumpTo]: the open
+  /// lands at the tail instead of [anchor] when the span from [anchor]'s
+  /// body to the newest message fits in this fraction of the viewport.
+  /// `null` for a plain jump.
+  final double? tailFitFraction;
 }
 
 /// An open that restores the reading position the reader left.
@@ -74,6 +83,10 @@ extension ChatDataSourceX on ChatDataSource {
   /// the background: the separator starts at the band top.
   static const double unreadBoundaryAlignment = 0;
 
+  /// Tail-or-target fraction of an open at the unread boundary: unread
+  /// content that fits in half the viewport opens at the tail instead.
+  static const double unreadBoundaryTailFitFraction = 0.5;
+
   /// Newer messages after the newest visible one that [resolveLeavePosition]
   /// inspects for an incoming message.
   static const int _leaveLookahead = 4;
@@ -91,7 +104,9 @@ extension ChatDataSourceX on ChatDataSource {
   ///
   /// Without one the result is a [MessageOpenPosition]. With an unread
   /// boundary (see [resolveUnreadBoundary]) the chat opens at it with
-  /// [unreadBoundaryAlignment]. Otherwise it opens at [resolveOpenAnchor]:
+  /// [unreadBoundaryAlignment] and [unreadBoundaryTailFitFraction], so short
+  /// unread content opens at the tail. Otherwise it opens at
+  /// [resolveOpenAnchor], with no tail-or-target fraction:
   /// at the tail with alignment `0`, or at the last-read message low in the
   /// band. A failed boundary fetch is logged and the chat opens without a
   /// boundary.
@@ -133,6 +148,7 @@ extension ChatDataSourceX on ChatDataSource {
         anchor: boundary,
         alignment: unreadBoundaryAlignment,
         unreadBoundary: boundary,
+        tailFitFraction: unreadBoundaryTailFitFraction,
       );
     }
     final newest = newestKnownId;

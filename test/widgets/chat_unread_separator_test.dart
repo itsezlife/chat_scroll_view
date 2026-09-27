@@ -75,6 +75,33 @@ class _LateSource extends ChatDataSource {
   }) => Completer<List<IChatMessage>>().future;
 }
 
+/// Ids `0..count-1` known, all loaded but [unloaded]; fetches never resolve,
+/// so an unloaded row stays shimmer and a reach flag stays as seeded.
+class _PartialSource extends ChatDataSource {
+  _PartialSource(
+    int count, {
+    Set<int> unloaded = const <int>{},
+    bool reachedNewest = true,
+  }) {
+    upsertMessages(<IChatMessage>[
+      for (var i = 0; i < count; i++)
+        if (!unloaded.contains(i)) _msg(i),
+    ]);
+    seedBoundaries(
+      oldestKnownId: 0,
+      newestKnownId: count - 1,
+      reachedOldest: true,
+      reachedNewest: reachedNewest,
+    );
+  }
+
+  @override
+  Future<List<IChatMessage>> fetchRange({
+    required int fromId,
+    required int toId,
+  }) => Completer<List<IChatMessage>>().future;
+}
+
 /// Every fetch fails, so every chunk ends in error.
 class _FailingSource extends ChatDataSource {
   _FailingSource(this.count) {
@@ -125,6 +152,28 @@ Widget _unread(BuildContext context) =>
 
 Widget _unreadAlt(BuildContext context) =>
     const SizedBox(height: _separatorHeight, child: Text('unread-alt'));
+
+/// Separator builder that counts the frames that paint a separator.
+final class _PaintedSeparator {
+  int paints = 0;
+
+  Widget call(BuildContext context) => CustomPaint(
+    painter: _CountingPainter(this),
+    child: _unread(context),
+  );
+}
+
+final class _CountingPainter extends CustomPainter {
+  _CountingPainter(this.counter);
+
+  final _PaintedSeparator counter;
+
+  @override
+  void paint(Canvas canvas, Size size) => counter.paints++;
+
+  @override
+  bool shouldRepaint(_CountingPainter oldDelegate) => false;
+}
 
 /// Message builder that counts how often each id is built.
 final class _BuildCounter {
@@ -796,6 +845,274 @@ void main() {
 
       expect(_top(tester, 'msg-20'), bodyTop);
       expect(_top(tester, 'unread'), bodyTop - _separatorHeight);
+    });
+  });
+
+  // 600 px viewport, 60 px rows, newest 63; fraction 0.5 allows 300 px from
+  // the target's body top to the newest row's bottom.
+  group('Tail-or-target open', () {
+    double bandTop(WidgetTester tester) =>
+        tester.getTopLeft(find.byType(ChatScrollView)).dy;
+    double bandBottom(WidgetTester tester) => bandTop(tester) + 600;
+
+    List<TailOrTargetOutcome> outcomesOf(ChatScrollController controller) {
+      final outcomes = <TailOrTargetOutcome>[];
+      controller.addTailOrTargetListener(outcomes.add);
+      return outcomes;
+    }
+
+    ChatScrollController tailOrTargetAt(int id) {
+      final controller = ChatScrollController()
+        ..jumpTo(id, tailFitFraction: 0.5);
+      addTearDown(controller.dispose);
+      return controller;
+    }
+
+    testWidgets('a span within the fraction opens pinned at the tail', (
+      tester,
+    ) async {
+      final controller = tailOrTargetAt(60);
+      final outcomes = outcomesOf(controller);
+      await tester.pumpWidget(
+        _harness(dataSource: _loaded(64), controller: controller),
+      );
+
+      expect(outcomes, <TailOrTargetOutcome>[TailOrTargetOutcome.tail]);
+      expect(tester.getBottomLeft(find.text('msg-63')).dy, bandBottom(tester));
+      expect(controller.isAtTail.value, isTrue);
+    });
+
+    testWidgets('a span beyond the fraction places the target as a plain '
+        'jump does', (tester) async {
+      final separator = _PaintedSeparator();
+      final controller = tailOrTargetAt(58);
+      final outcomes = outcomesOf(controller);
+      await tester.pumpWidget(
+        _harness(
+          dataSource: _loaded(64),
+          controller: controller,
+          unreadBoundary: _boundary(58),
+          unreadSeparatorBuilder: separator.call,
+        ),
+      );
+
+      expect(outcomes, <TailOrTargetOutcome>[TailOrTargetOutcome.target]);
+      expect(separator.paints, 1);
+      // Rows 58–63 and the separator are shorter than the band: the
+      // boundary clamp still pins the newest row, as after `jumpTo(58)`.
+      expect(tester.getBottomLeft(find.text('msg-63')).dy, bandBottom(tester));
+      expect(
+        _top(tester, 'unread'),
+        bandBottom(tester) - 6 * 60 - _separatorHeight,
+      );
+    });
+
+    testWidgets("the fit measure excludes the target row's row chrome", (
+      tester,
+    ) async {
+      // Rows 59–63 span exactly 300 px; the separator would add 32.
+      final controller = tailOrTargetAt(59);
+      final outcomes = outcomesOf(controller);
+      await tester.pumpWidget(
+        _harness(
+          dataSource: _loaded(64),
+          controller: controller,
+          unreadBoundary: _boundary(59),
+        ),
+      );
+
+      expect(outcomes, <TailOrTargetOutcome>[TailOrTargetOutcome.tail]);
+      expect(tester.getBottomLeft(find.text('msg-63')).dy, bandBottom(tester));
+    });
+
+    testWidgets('an unloaded newest message reports target', (tester) async {
+      final source = _PartialSource(64, unloaded: <int>{63});
+      addTearDown(source.dispose);
+      final controller = tailOrTargetAt(60);
+      final outcomes = outcomesOf(controller);
+      await tester.pumpWidget(
+        _harness(dataSource: source, controller: controller),
+      );
+
+      expect(outcomes, <TailOrTargetOutcome>[TailOrTargetOutcome.target]);
+    });
+
+    testWidgets('a newest message not yet reached aligns the target', (
+      tester,
+    ) async {
+      final source = _PartialSource(64, reachedNewest: false);
+      addTearDown(source.dispose);
+      final controller = tailOrTargetAt(60);
+      final outcomes = outcomesOf(controller);
+      await tester.pumpWidget(
+        _harness(dataSource: source, controller: controller),
+      );
+
+      expect(outcomes, <TailOrTargetOutcome>[TailOrTargetOutcome.target]);
+      expect(_top(tester, 'msg-60'), bandTop(tester));
+    });
+
+    testWidgets('a newest message beyond the built rows aligns the target', (
+      tester,
+    ) async {
+      final controller = tailOrTargetAt(20);
+      final outcomes = outcomesOf(controller);
+      await tester.pumpWidget(
+        _harness(dataSource: _loaded(64), controller: controller),
+      );
+
+      expect(outcomes, <TailOrTargetOutcome>[TailOrTargetOutcome.target]);
+      expect(_top(tester, 'msg-20'), bandTop(tester));
+    });
+
+    testWidgets('a boundary clear made by the listener lands in the same '
+        'layout: no frame paints the separator', (tester) async {
+      final separator = _PaintedSeparator();
+      final boundary = _boundary(60);
+      final controller = tailOrTargetAt(60)
+        ..addTailOrTargetListener((outcome) {
+          if (outcome == TailOrTargetOutcome.tail) boundary.value = null;
+        });
+      await tester.pumpWidget(
+        _harness(
+          dataSource: _loaded(64),
+          controller: controller,
+          unreadBoundary: boundary,
+          unreadSeparatorBuilder: separator.call,
+        ),
+      );
+
+      expect(separator.paints, 0);
+      expect(find.text('unread'), findsNothing);
+      expect(tester.getBottomLeft(find.text('msg-63')).dy, bandBottom(tester));
+      expect(_top(tester, 'msg-60'), bandBottom(tester) - 4 * 60);
+      for (var frame = 0; frame < 3; frame++) {
+        await tester.pump(const Duration(milliseconds: 16));
+        expect(separator.paints, 0, reason: 'frame $frame');
+      }
+    });
+
+    testWidgets('a boundary set by the listener on a target outcome is '
+        'seated with the target in the same layout', (tester) async {
+      final boundary = _boundary(null);
+      final controller = ChatScrollController()
+        ..jumpTo(20, alignment: 1, tailFitFraction: 0.5)
+        ..addTailOrTargetListener((outcome) {
+          if (outcome == TailOrTargetOutcome.target) boundary.value = 20;
+        });
+      addTearDown(controller.dispose);
+      await tester.pumpWidget(
+        _harness(
+          dataSource: _loaded(64),
+          controller: controller,
+          unreadBoundary: boundary,
+        ),
+      );
+
+      expect(tester.getBottomLeft(find.text('msg-20')).dy, bandBottom(tester));
+      expect(_top(tester, 'unread'), bandBottom(tester) - 60 - _separatorHeight);
+    });
+
+    testWidgets('a target that is not loaded resolves on the layout that '
+        'loads it', (tester) async {
+      final source = _LateSource();
+      addTearDown(source.dispose);
+      final controller = tailOrTargetAt(7);
+      final outcomes = outcomesOf(controller);
+      await tester.pumpWidget(
+        _harness(dataSource: source, controller: controller),
+      );
+      await tester.pump();
+      expect(outcomes, isEmpty);
+
+      source.upsertMessages(<IChatMessage>[for (var i = 0; i < 10; i++) _msg(i)]);
+      await tester.pump();
+
+      expect(outcomes, <TailOrTargetOutcome>[TailOrTargetOutcome.tail]);
+      expect(tester.getBottomLeft(find.text('msg-9')).dy, bandBottom(tester));
+    });
+
+    testWidgets('a jump released before its target loads reports nothing', (
+      tester,
+    ) async {
+      final source = _LateSource();
+      addTearDown(source.dispose);
+      final controller = tailOrTargetAt(7);
+      final outcomes = outcomesOf(controller);
+      await tester.pumpWidget(
+        _harness(dataSource: source, controller: controller),
+      );
+      controller.scrollBy(10);
+      await tester.pump();
+
+      source.upsertMessages(<IChatMessage>[for (var i = 0; i < 10; i++) _msg(i)]);
+      await tester.pump();
+
+      expect(outcomes, isEmpty);
+    });
+
+    testWidgets('a jump replaced before its first layout reports nothing', (
+      tester,
+    ) async {
+      final controller = tailOrTargetAt(60)..jumpTo(20);
+      final outcomes = outcomesOf(controller);
+      await tester.pumpWidget(
+        _harness(dataSource: _loaded(64), controller: controller),
+      );
+
+      expect(outcomes, isEmpty);
+      expect(_top(tester, 'msg-20'), bandTop(tester));
+    });
+
+    testWidgets('a listener that navigates fails an assert', (tester) async {
+      final controller = tailOrTargetAt(60);
+      controller.addTailOrTargetListener((_) => controller.scrollBy(10));
+      await tester.pumpWidget(
+        _harness(dataSource: _loaded(64), controller: controller),
+      );
+
+      expect(tester.takeException(), isAssertionError);
+    });
+
+    testWidgets('a jump issued after mount resolves on its next layout, '
+        'once', (tester) async {
+      final controller = _controllerAt(20);
+      final outcomes = outcomesOf(controller);
+      await tester.pumpWidget(
+        _harness(dataSource: _loaded(64), controller: controller),
+      );
+
+      controller.jumpTo(61, tailFitFraction: 0.5);
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 16));
+
+      expect(outcomes, <TailOrTargetOutcome>[TailOrTargetOutcome.tail]);
+      expect(tester.getBottomLeft(find.text('msg-63')).dy, bandBottom(tester));
+    });
+
+    testWidgets('outcome listeners dedup and dispatch over a snapshot', (
+      tester,
+    ) async {
+      final controller = tailOrTargetAt(60);
+      final calls = <String>[];
+      void first(TailOrTargetOutcome _) {
+        calls.add('first');
+        controller.removeTailOrTargetListener(first);
+      }
+
+      void second(TailOrTargetOutcome _) => calls.add('second');
+      void removed(TailOrTargetOutcome _) => calls.add('removed');
+      controller
+        ..addTailOrTargetListener(first)
+        ..addTailOrTargetListener(second)
+        ..addTailOrTargetListener(second)
+        ..addTailOrTargetListener(removed)
+        ..removeTailOrTargetListener(removed);
+      await tester.pumpWidget(
+        _harness(dataSource: _loaded(64), controller: controller),
+      );
+
+      expect(calls, <String>['first', 'second']);
     });
   });
 }

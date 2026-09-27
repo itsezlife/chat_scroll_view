@@ -2047,6 +2047,10 @@ class RenderChatScrollView extends RenderBox {
   ///   `[0, height)` so the ray stays inside the rect [_publishCenterBand]
   ///   reads.
   ///
+  /// Runs after [_resolveTailOrTarget] in the same pass: an alignment that
+  /// decided for the tail is already released and never reaches this seat,
+  /// and one that decided for the target is seated here like a plain jump.
+  ///
   /// **Pending** (not yet landed on a loaded row): snaps the target on every
   /// layout, so a skeleton target that loads with a new height is re-seated.
   /// Once the snap lands on a loaded row the placement becomes **held**.
@@ -2143,6 +2147,150 @@ class RenderChatScrollView extends RenderBox {
       _controller.holdNavigationPlacement();
     }
     return moved;
+  }
+
+  /// Decides an undecided tail-or-target jump (an [AlignmentPlacement] with
+  /// a [AlignmentPlacement.tailFitFraction]) once its target is laid out as
+  /// a loaded message row, and tells the host.
+  ///
+  /// Runs after renormalize and before [_applyNavigationPlacement], so the
+  /// outcome and any unread boundary change the host makes for it reach the
+  /// placement and the tail pin of this same pass:
+  ///
+  /// - **Tail** — [_layOutNewestBelow] yields the newest row, and the span
+  ///   from the target's body top (below its row chrome) to that row's
+  ///   bottom is at most the fraction of the viewport height — the whole
+  ///   viewport, not the scroll band. The placement is released, the anchor
+  ///   moves onto the newest row at its current offset, and the jump-to-tail
+  ///   pin is armed, so the boundary clamp puts the newest row's bottom on
+  ///   the bottom inset.
+  /// - **Target** — no newest row, or a longer span. The placement stays
+  ///   armed without the fraction and [_applyNavigationPlacement] seats and
+  ///   holds it.
+  ///
+  /// Listeners run inside [invokeLayoutCallback], where the viewport's
+  /// boundary listener may mark it dirty. When the unread boundary changed,
+  /// this pass consumes the row chrome change — the next layout must not
+  /// replay it as a hold — and re-fans, so every row is rebuilt against the
+  /// new boundary before the target is seated or the tail pinned, and no
+  /// painted frame shows the separator the host just removed or lacks the
+  /// one it just added. The re-fan leaves this pass's hold inputs
+  /// (`reapplyHold`, the row chrome reference) as computed before it; they
+  /// do not apply, because the placement is still pending on the target
+  /// outcome and gone on the tail outcome.
+  ///
+  /// Silent until the target row is built as a loaded message: a skeleton
+  /// target defers the decision to the layout that loads it.
+  void _resolveTailOrTarget(
+    BoxConstraints cc,
+    Set<int> built,
+    Set<int> builtChunks,
+  ) {
+    if (_controller.navigationPlacement case AlignmentPlacement(
+      messageId: final targetId,
+      tailFitFraction: final fraction?,
+    ) when _dataSource.getMessage(targetId) != null &&
+        (_children[targetId]?.hasSize ?? false)) {
+      final newest = _layOutNewestBelow(targetId, cc, built, builtChunks);
+      final span = switch ((_children[targetId], newest)) {
+        (final target?, (_, final last)) =>
+          _parentData(last).offset +
+              last.size.height -
+              _parentData(target).offset -
+              _parentData(target).messageBodyTop,
+        _ => null,
+      };
+      final limit = fraction * size.height;
+      final tail = switch ((newest, span)) {
+        ((final id, final last), final span?) when span <= limit => (id, last),
+        _ => null,
+      };
+      final outcome = switch (tail) {
+        null => TailOrTargetOutcome.target,
+        _ => TailOrTargetOutcome.tail,
+      };
+      _fetchAnchorEvent('layout.tailOrTarget', {
+        ..._fetchAnchorSnapshot(),
+        'targetId': targetId,
+        'span': switch (span) {
+          final span? => LogFormat.f(span),
+          null => null,
+        },
+        'limit': LogFormat.f(limit),
+        'outcome': outcome.name,
+      });
+      switch (tail) {
+        case (final newestId, final last):
+          _controller
+            ..releaseNavigationPlacement()
+            ..reassignAnchor(newestId, _parentData(last).offset);
+          _markPinTailOnJumpIfNeeded(newestId);
+        case null:
+          _controller.markTailFitDecided();
+      }
+      _dispatchTailOrTarget(outcome, cc, built, builtChunks);
+    }
+  }
+
+  /// Hands [outcome] to the controller's tail-or-target listeners inside a
+  /// layout callback, then re-fans when a listener changed the unread
+  /// boundary — see [_resolveTailOrTarget].
+  void _dispatchTailOrTarget(
+    TailOrTargetOutcome outcome,
+    BoxConstraints cc,
+    Set<int> built,
+    Set<int> builtChunks,
+  ) {
+    final boundaryBefore = _unreadBoundary?.value;
+    invokeLayoutCallback<BoxConstraints>(
+      (_) => _controller.notifyTailOrTarget(outcome),
+    );
+    final boundaryAfter = _unreadBoundary?.value;
+    if (boundaryAfter == boundaryBefore) return;
+    _laidOutUnreadBoundary = boundaryAfter;
+    _rowChromeChanged = false;
+    built.clear();
+    builtChunks.clear();
+    _layoutFromAnchor(cc, built, builtChunks);
+  }
+
+  /// The newest message's id and laid-out row, when it lies close enough
+  /// below the laid-out target [targetId] for a tail-or-target span to be
+  /// measured; `null` when the newest message is not known
+  /// ([ChatDataSource.reachedNewest]) or not loaded, or when it lies too far
+  /// below the target to fit any fraction.
+  ///
+  /// Mutates the layout when fan-out left a loaded newest row unbuilt: the
+  /// rows are re-fanned with the target's body top on the viewport's top
+  /// edge. Fan-out builds at least a viewport height below the anchor
+  /// ([_fanOutFromAnchor] fills to `size.height` plus the cache extent), so
+  /// a newest row still unbuilt is farther than a fraction of `1` allows.
+  /// The re-fan moves the anchor onto the target; the pending placement or
+  /// the tail pin re-seats it later in the pass.
+  (int, RenderBox)? _layOutNewestBelow(
+    int targetId,
+    BoxConstraints cc,
+    Set<int> built,
+    Set<int> builtChunks,
+  ) {
+    final newest = _dataSource.newestKnownId;
+    if (!_dataSource.reachedNewest || newest == null) return null;
+    if (_dataSource.getMessage(newest) == null) return null;
+    if (_children[newest] == null) {
+      if (_children[targetId] case final target?) {
+        _controller.reassignAnchor(
+          targetId,
+          -_parentData(target).messageBodyTop,
+        );
+        built.clear();
+        builtChunks.clear();
+        _layoutFromAnchor(cc, built, builtChunks);
+      }
+    }
+    return switch (_children[newest]) {
+      final last? => (newest, last),
+      null => null,
+    };
   }
 
   /// Clamp a pre-mount [jumpTo] anchor that landed past [newestKnownId].
@@ -2389,6 +2537,7 @@ class RenderChatScrollView extends RenderBox {
         'yAfter': LogFormat.f(anchorYAfterRenorm),
       });
     }
+    _resolveTailOrTarget(childConstraints, built, builtChunks);
     final navigationMoved = _applyNavigationPlacement(reapplyHold: reapplyHold);
     // Forcibly re-pin newest to the bottom edge when:
     // * follow-tail insert: viewport was at the tail and newest **id** advanced

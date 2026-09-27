@@ -13,7 +13,7 @@ resource: lib/src/chat_scroll/chat_scroll_controller.dart
 
 | API                              | Anchor effect                                      | Notifications                                                                   |
 | -------------------------------- | -------------------------------------------------- | ------------------------------------------------------------------------------- |
-| `jumpTo(id, {alignment, highlight})` | id = target, offset = `0` | Jump listeners + `ChatProgrammaticJump`; `highlight: true` then requests wash |
+| `jumpTo(id, {alignment, highlight, tailFitFraction})` | id = target, offset = `0`; with `tailFitFraction`, layout may move it to the newest (see [Tail or target](#tail-or-target)) | Jump listeners + `ChatProgrammaticJump`; `highlight: true` then requests wash; tail-or-target listeners get the outcome in layout |
 | `jumpToCenterBand(id, offset)`   | id = target; layout places ray at msg top + offset | Jump listeners + `ChatProgrammaticJump`; hard-clears highlight |
 | `scrollBy(px)`                   | offset += px                                       | ScrollBy listeners + `ChatProgrammaticScroll`; no-op if `px == 0` or non-finite |
 | `animateTo`                      | Animator drives; falls back to `jumpTo` (same `highlight` flag) if unbound | `ChatAnimateStart` / `ChatAnimateEnd` (with `path`); unbound: only `ChatProgrammaticJump` |
@@ -37,8 +37,10 @@ The controller keeps one `navigationPlacement` slot, typed as the sealed
 `NavigationPlacement` (`lib/src/chat_scroll/navigation_placement.dart`,
 engine-internal):
 
-- `AlignmentPlacement(messageId, alignment)`: armed by `jumpTo` /
-  `animateTo`. `alignment` runs from 0 (band top) to 1 (band bottom).
+- `AlignmentPlacement(messageId, alignment, {tailFitFraction})`: armed by
+  `jumpTo` / `animateTo`. `alignment` runs from 0 (band top) to 1 (band
+  bottom). A non-null `tailFitFraction` (tail-or-target `jumpTo` only)
+  marks a decision still to be made.
 - `CenterBandPlacement(messageId, offsetFromMessageTop)`: armed by
   `jumpToCenterBand` (see [Center Band](#center-band)).
 
@@ -82,6 +84,7 @@ changes elsewhere.
 | Next `jumpTo` / `animateTo` / `jumpToCenterBand` | New placement replaces the old one |
 | Held target no longer the anchor (absent-anchor reassignment, renormalize) | `_applyNavigationPlacement` |
 | Tail pin takes the geometry (`repinBottom`, e.g. follow-tail) | `performLayout` after tail-pin flags |
+| Tail-or-target decides **tail** | `_resolveTailOrTarget` |
 | Known-newest alignment target | `_applyNavigationPlacement` releases without snap |
 | Center Band placement on an empty scroll band | `_applyNavigationPlacement` |
 
@@ -92,7 +95,42 @@ Bottom-inset compensation is unchanged while held. A keyboard opening moves
 the held target with the rest of the content, and a later top-inset change
 re-seats it.
 
+### Tail or target
+
+`jumpTo(id, tailFitFraction: f)` arms an alignment placement that carries
+`f`. `_resolveTailOrTarget` runs right before `_applyNavigationPlacement`,
+on the first pass whose target is a loaded, laid-out row: a pre-mount jump
+decides on the first layout, and a jump onto a loading row decides on the
+layout that loads it. Frames before that paint the target region, never the
+tail.
+
+- **Measure:** target body top (below its row chrome — inline date, unread
+  separator) to the newest message's bottom. When the newest is loaded but
+  unbuilt, rows re-fan with the target body on the viewport top; fan-out
+  then builds at least a viewport height below it, so an unbuilt newest
+  means the span exceeds any fraction ≤ 1.
+- **Tail:** `reachedNewest`, newest loaded, span ≤ `f × viewport height`.
+  The placement is released, the anchor moves to the newest, and the tail
+  pin is marked (`_markPinTailOnJumpIfNeeded`); the clamp pins the newest
+  bottom this pass.
+- **Target:** anything else. `markTailFitDecided` drops `f`, keeping target,
+  alignment, and phase; the placement then runs the plain `jumpTo`
+  lifecycle, boundary clamp included.
+
+The outcome goes to `addTailOrTargetListener` callbacks inside
+`invokeLayoutCallback`, before the pass paints. A listener may change the
+`unreadBoundary` value; the pass detects the change, consumes
+`_rowChromeChanged`, records `_laidOutUnreadBoundary`, and re-fans before
+placement and the pin, so the new row chrome is in this frame's geometry.
+Listeners must not `setState` or navigate (the element has no own build
+scope). Because the decision rides the placement, every release before the
+decision (drag, `scrollBy`, next navigation) cancels it and nothing is
+reported; a decided jump reports once.
+
 ### `_applyNavigationPlacement(reapplyHold:)`
+
+Runs after `_resolveTailOrTarget`: a tail outcome has already released the
+placement; a target outcome is seated here as a plain jump.
 
 1. Stitch-measured freeze and close-path animate → return (dual-writer guard).
 2. Anchor ≠ target → release when held; keep when pending.
@@ -225,7 +263,9 @@ by the same predicate. Opening with `jumpTo(boundary, alignment: 0)` puts the
 boundary row — its inline date, unread separator, then body — at the band
 top. The alignment hold keeps it there when top chrome grows or the
 separator is added to that row after the open. The hold lasts until the
-reader first scrolls.
+reader first scrolls. With `tailFitFraction`, a short unread span opens at
+the tail instead, and a host that clears its boundary on the tail outcome
+gets no separator in any frame.
 
 ### `pinNewest` during delete recovery
 

@@ -32,6 +32,7 @@ flowchart TB
   Preserve[_preserveViewportAfterDelete]
   Hold[_holdRowChromeReference 6d]
   Renorm[_renormalizeAnchor]
+  TailFit[_resolveTailOrTarget]
   Align[_applyNavigationPlacement]
   Tail[Tail-pin flags]
   GapMatch[_matchExpectedBandGap]
@@ -45,7 +46,7 @@ flowchart TB
 
   Mode --> Comp --> Overlay
   Overlay -->|yes| OverlayPath
-  Overlay -->|no| DropOverlay --> JumpGC --> NormTail --> DelRec --> Fan1 --> Preserve --> Hold --> Renorm --> Align --> Tail --> GapMatch --> Clamp --> Fan2
+  Overlay -->|no| DropOverlay --> JumpGC --> NormTail --> DelRec --> Fan1 --> Preserve --> Hold --> Renorm --> TailFit --> Align --> Tail --> GapMatch --> Clamp --> Fan2
   Fan2 -->|yes| Fan2Yes --> GapMatch2 --> GC
   Fan2 -->|no| GapMatch2 --> GC
   GC --> Fetch --> Pub
@@ -168,6 +169,23 @@ If the anchor box is outside `[-cacheExtent, height + cacheExtent]`, rebase to
 the topmost visible child. **Skipped** when
 `_animator.isAnimating && !_animator.farAnimateActive` so close-path animate
 keeps the target as anchor even when off-screen.
+
+### 8b. `_resolveTailOrTarget`
+
+Runs only while the armed placement is an alignment placement with a
+`tailFitFraction` (a tail-or-target `jumpTo`), on the first pass whose
+target is a loaded, laid-out row. Measures the span from the target's body
+top (its row chrome excluded) to the newest message's bottom; a loaded
+newest that fan-out left unbuilt is reached by re-fanning with the target's
+body top on the viewport top. When the newest is reached and loaded and the
+span is at most the fraction of the viewport height, the placement is
+released and the anchor moves to the newest with the tail pin marked
+(**tail**); otherwise the fraction is dropped and step 9 seats the target
+(**target**). The outcome is dispatched to the controller's tail-or-target
+listeners inside a layout callback. When a listener changed the
+`unreadBoundary` value, this pass consumes `_rowChromeChanged`, records the
+new laid-out boundary, and re-fans, so steps 9–11 lay out the new row
+chrome and no frame paints the old one.
 
 ### 9. `_applyNavigationPlacement`
 

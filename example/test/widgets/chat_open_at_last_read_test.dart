@@ -189,13 +189,14 @@ int _openAnchor({required ChatDataSource ds, int? storedLastRead}) =>
 Future<MessageOpenPosition> _openAtMessage(
   ChatDataSource ds, {
   required int? storedLastRead,
-}) async => switch (await ds.resolveOpenPosition(
-  storedLastRead: storedLastRead,
-  isSelfMessage: _isSelf,
-)) {
-  final MessageOpenPosition position => position,
-  CenterBandOpenPosition() => throw StateError('opened at a Center Band'),
-};
+}) async =>
+    switch (await ds.resolveOpenPosition(
+      storedLastRead: storedLastRead,
+      isSelfMessage: _isSelf,
+    )) {
+      final MessageOpenPosition position => position,
+      CenterBandOpenPosition() => throw StateError('opened at a Center Band'),
+    };
 
 void main() {
   group('open at last read', () {
@@ -580,11 +581,13 @@ void main() {
       expect(withBoundary.unreadBoundary, 42);
       expect(withBoundary.anchor, 42);
       expect(withBoundary.alignment, 0.0);
+      expect(withBoundary.tailFitFraction, 0.5);
 
       final firstVisit = await _openAtMessage(ds, storedLastRead: null);
       expect(firstVisit.unreadBoundary, isNull);
       expect(firstVisit.anchor, 99);
       expect(firstVisit.alignment, 0.0);
+      expect(firstVisit.tailFitFraction, isNull);
 
       final ownTail = _PreloadedDataSource(100, selfIds: {97, 98, 99});
       addTearDown(ownTail.dispose);
@@ -592,6 +595,126 @@ void main() {
       expect(onlyOwnUnread.unreadBoundary, isNull);
       expect(onlyOwnUnread.anchor, 96);
       expect(onlyOwnUnread.alignment, 0.8);
+      expect(onlyOwnUnread.tailFitFraction, isNull);
+    });
+
+    group('tail or target', () {
+      const count = 151;
+      const newest = count - 1;
+
+      /// Opens at [storedLastRead] the way the demo screen does: the
+      /// boundary controller exists before the tail-or-target jump, and the
+      /// sender run policy listens to the same boundary.
+      Future<UnreadBoundaryController> open(
+        WidgetTester tester, {
+        required int storedLastRead,
+      }) async {
+        final ds = _PreloadedDataSource(count);
+        final position = await _openAtMessage(
+          ds,
+          storedLastRead: storedLastRead,
+        );
+        final controller = ChatScrollController();
+        final boundary = UnreadBoundaryController(
+          dataSource: ds,
+          controller: controller,
+          isSelfMessage: _isSelf,
+          boundary: position.unreadBoundary,
+        );
+        controller.jumpTo(
+          position.anchor,
+          alignment: position.alignment,
+          tailFitFraction: position.tailFitFraction,
+        );
+        addTearDown(controller.dispose);
+        addTearDown(ds.dispose);
+        addTearDown(boundary.dispose);
+
+        await tester.pumpWidget(
+          _harness(
+            dataSource: ds,
+            controller: controller,
+            unreadBoundary: boundary,
+            senderRunLayout: UnreadBoundarySenderRunLayout(boundary: boundary),
+          ),
+        );
+        return boundary;
+      }
+
+      double bandTop(WidgetTester tester) =>
+          tester.getTopLeft(find.byType(ChatScrollView)).dy;
+
+      double bandBottom(WidgetTester tester) =>
+          tester.getBottomLeft(find.byType(ChatScrollView)).dy;
+
+      testWidgets('unread content within half the viewport opens at the '
+          'tail with the boundary cleared', (tester) async {
+        const lastRead = newest - 3;
+        final boundary = await open(tester, storedLastRead: lastRead);
+
+        expect(boundary.value, isNull);
+        expect(find.text('unread'), findsNothing);
+        await _pumpOpenSettled(tester);
+        expect(find.text('unread'), findsNothing);
+        expect(
+          tester.getBottomLeft(find.text('msg-$newest')).dy,
+          bandBottom(tester),
+        );
+        expect(
+          tester.getTopLeft(find.text('msg-${lastRead + 1}')).dy,
+          tester.getBottomLeft(find.text('msg-$lastRead')).dy,
+          reason: 'no separator between the read and the unread messages',
+        );
+      });
+
+      testWidgets('unread content of exactly half the viewport opens at the '
+          'tail', (tester) async {
+        final boundary = await open(tester, storedLastRead: newest - 5);
+        await _pumpOpenSettled(tester);
+
+        expect(boundary.value, isNull);
+        expect(find.text('unread'), findsNothing);
+        expect(
+          tester.getBottomLeft(find.text('msg-$newest')).dy,
+          bandBottom(tester),
+        );
+      });
+
+      testWidgets('unread content past half the viewport keeps the boundary '
+          'and opens as a plain open at it', (tester) async {
+        const lastRead = newest - 6;
+        final boundary = await open(tester, storedLastRead: lastRead);
+        await _pumpOpenSettled(tester);
+
+        expect(boundary.value, lastRead + 1);
+        expect(
+          tester.getBottomLeft(find.text('msg-$newest')).dy,
+          bandBottom(tester),
+          reason: 'too little content below the separator to fill the band',
+        );
+        expect(
+          tester.getTopLeft(find.text('unread')).dy,
+          bandBottom(tester) - 6 * 60 - 32,
+        );
+        expect(
+          tester.getTopLeft(find.text('msg-${lastRead + 1}')).dy,
+          tester.getBottomLeft(find.text('unread')).dy,
+        );
+      });
+
+      testWidgets('a long unread backlog opens at the separator at the band '
+          'top', (tester) async {
+        const lastRead = newest - 40;
+        final boundary = await open(tester, storedLastRead: lastRead);
+        await _pumpOpenSettled(tester);
+
+        expect(boundary.value, lastRead + 1);
+        expect(tester.getTopLeft(find.text('unread')).dy, bandTop(tester));
+        expect(
+          tester.getTopLeft(find.text('msg-${lastRead + 1}')).dy,
+          bandTop(tester) + 32,
+        );
+      });
     });
 
     testWidgets('open puts the boundary row at the band top under the '
@@ -603,7 +726,11 @@ void main() {
       expect(position.unreadBoundary, lastRead + 1);
 
       final controller = ChatScrollController()
-        ..jumpTo(position.anchor, alignment: position.alignment);
+        ..jumpTo(
+          position.anchor,
+          alignment: position.alignment,
+          tailFitFraction: position.tailFitFraction,
+        );
       final boundaryId = ValueNotifier<int?>(position.unreadBoundary);
       final lastSeen = ValueNotifier<int?>(lastRead);
       addTearDown(controller.dispose);
@@ -655,7 +782,11 @@ void main() {
         final ds = _PreloadedDataSource(count);
         final position = await _openAtMessage(ds, storedLastRead: lastRead);
         final controller = ChatScrollController()
-          ..jumpTo(position.anchor, alignment: position.alignment);
+          ..jumpTo(
+            position.anchor,
+            alignment: position.alignment,
+            tailFitFraction: position.tailFitFraction,
+          );
         readElsewhere = _FakeReadElsewhere();
         final boundary = UnreadBoundaryController(
           dataSource: ds,
@@ -1009,7 +1140,10 @@ void main() {
       });
 
       test('a remove batch drops a pending boundary', () {
-        final (:ds, :boundary, :heard) = holder(initial: null, omitIds: {70});
+        final (:ds, :boundary, :heard) = holder(
+          initial: null,
+          omitIds: {70},
+        );
 
         boundary.setPendingBoundary(70);
         ds
@@ -1394,13 +1528,11 @@ void main() {
           isSelfMessage: _isSelf,
           savedCenterBand: saved,
         );
-        final CenterBandOpenPosition(
-          :centerBand,
-          :pendingBoundaryFrom,
-        ) = switch (position) {
-          final CenterBandOpenPosition restore => restore,
-          MessageOpenPosition() => throw StateError('opened at a message'),
-        };
+        final CenterBandOpenPosition(:centerBand, :pendingBoundaryFrom) =
+            switch (position) {
+              final CenterBandOpenPosition restore => restore,
+              MessageOpenPosition() => throw StateError('opened at a message'),
+            };
         final controller = ChatScrollController()
           ..jumpToCenterBand(
             centerBand.messageId,

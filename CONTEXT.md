@@ -113,6 +113,10 @@ _Avoid_: Stick to bottom, jump to end, keyboard follow
 When the full known conversation fits in the scroll band, the viewport is not scrollable.
 _Avoid_: Underscroll, empty list, disabled physics
 
+**Tail-or-target open**:
+A jump that decides once, in the first layout that lays out its target as a loaded row, between the target and the tail: when the newest message is known and loaded and the span from the target's body top (its **row chrome** excluded) to the newest message's bottom fits within a host-given fraction of the viewport height, the chat opens pinned at the tail; otherwise the target is placed as a plain jump. The host hears the outcome inside that layout.
+_Avoid_: Smart jump, auto-scroll to bottom, half-screen check (as the engine name)
+
 **Band-stable delete recovery**:
 After the origin ID becomes absent, keep the visible band’s bottom (the reading position) still, not the raw origin Y.
 _Avoid_: Compensate, keep anchor Y, correctBy

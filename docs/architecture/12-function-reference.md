@@ -24,7 +24,10 @@ Cross-links: [Layout Pipeline](./04-layout-pipeline.md),
 
 | Member                                     | Purpose                                   | Mutates                                               | Must not                                                  |
 | ------------------------------------------ | ----------------------------------------- | ----------------------------------------------------- | --------------------------------------------------------- |
-| `jumpTo`                                   | Teleport anchor to id                     | id, offset=`0`, alignment; optional highlight request | Assume visible row if absent                              |
+| `jumpTo`                                   | Teleport anchor to id; optional tail-or-target decision (`tailFitFraction`) | id, offset=`0`, alignment; optional highlight request | Assume visible row if absent                              |
+| `addTailOrTargetListener` / `removeTailOrTargetListener` | Outcome of a tail-or-target `jumpTo` | listener list (dedup)                          | `setState` / navigate from the callback (runs in layout)  |
+| `notifyTailOrTarget` (`@internal`)         | Dispatch the decided outcome              | — (snapshot; silent after dispose)                    | Call from app code                                        |
+| `markTailFitDecided` (`@internal`)         | Drop the fraction after a target outcome  | `navigationPlacement` fraction (target/phase kept)    | Call from app code                                        |
 | `jumpToCenterBand`                         | Place center-band ray at msg top + offset | id, pending Center Band apply; clears highlight       | Compose via `jumpTo`+`scrollBy`; assume visible if absent |
 | `highlight`                                | Request Message highlight                 | pending highlight id; absent/error drops the slot     | Treat as navigation / origin write                        |
 | `scrollBy`                                 | Programmatic pixel shift                  | offset; fade armed highlight / hard-clear pending     | Call with non-finite; expect Tier-1                       |
@@ -141,6 +144,9 @@ Cross-links: [Layout Pipeline](./04-layout-pipeline.md),
 | `_bucketOf` / `_startsDay`                                                      | Day grouping                      | Predecessor = `id-1` only today                                        |
 | `_nextNonAbsentIdDown` / `Up`                                                   | Absent skip                       | Return `bound±1`                                                       |
 | `_renormalizeAnchor`                                                            | Visible-origin rebase             | Skip on close path; skip on delete recovery                            |
+| `_resolveTailOrTarget`                                                          | Decide an armed tail-or-target jump | Before `_applyNavigationPlacement`; first pass with the target loaded and built; re-fans when the listener moved the unread boundary |
+| `_layOutNewestBelow`                                                            | Newest id + row for the fit span  | `null` when newest not reached / not loaded / too far; re-fans from the target body when newest is unbuilt |
+| `_dispatchTailOrTarget`                                                         | Notify outcome in layout callback | Re-fans and consumes `_rowChromeChanged` when a listener moved the unread boundary |
 | `_applyNavigationPlacement`                                                     | Seat target by kind; pending → held | Skip on close path; release alignment on newest; held snaps only on `reapplyHold` |
 | `_isNavigationTargetChromeChange`                                               | Row chrome change on placement target | Before 6d; skips the row chrome hold when true                     |
 | `_isNavigationTargetAnchored`                                                   | Placement target is the anchor    | Before 6d; with a held placement + moved top pad, skips the row chrome hold |
