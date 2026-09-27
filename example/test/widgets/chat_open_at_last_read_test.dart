@@ -14,19 +14,27 @@ import 'package:flutter_test/flutter_test.dart';
 // Test data
 // ---------------------------------------------------------------------------
 
-IChatMessage _msg(int i) => UserChatMessage(
+const _selfSender = 'Me';
+
+IChatMessage _msg(int i, {bool self = false}) => UserChatMessage(
   id: i,
-  sender: 'User',
+  sender: self ? _selfSender : 'User',
   createdAt: DateTime(2026),
   updatedAt: DateTime(2026),
   content: 'content $i',
 );
 
+bool _isSelf(IChatMessage message) => message.sender == _selfSender;
+
 class _PreloadedDataSource extends ChatDataSource {
-  _PreloadedDataSource(this.count, {Set<int> omitIds = const {}}) {
+  _PreloadedDataSource(
+    this.count, {
+    Set<int> omitIds = const {},
+    Set<int> selfIds = const {},
+  }) {
     for (var i = 0; i < count; i++) {
       if (!omitIds.contains(i)) {
-        upsertMessage(_msg(i));
+        upsertMessage(_msg(i, self: selfIds.contains(i)));
       }
     }
     seedBoundaries(
@@ -49,7 +57,11 @@ class _PreloadedDataSource extends ChatDataSource {
 /// Metadata-only at connect — like [BackendChatDataSource.connect] before the
 /// first [fetchRange]; exercises open-anchor resolution without cached bodies.
 class _MetadataOnlyDataSource extends ChatDataSource {
-  _MetadataOnlyDataSource(this.count) {
+  _MetadataOnlyDataSource(
+    this.count, {
+    this.selfIds = const {},
+    this.failFetch = false,
+  }) {
     seedBoundaries(
       oldestKnownId: 0,
       newestKnownId: count - 1,
@@ -59,11 +71,27 @@ class _MetadataOnlyDataSource extends ChatDataSource {
 
   final int count;
 
+  /// Ids the fetch returns as self messages.
+  final Set<int> selfIds;
+
+  /// Whether every fetch throws.
+  final bool failFetch;
+
+  /// Every `(fromId, toId)` range requested so far.
+  final List<(int, int)> fetches = <(int, int)>[];
+
   @override
   Future<List<IChatMessage>> fetchRange({
     required int fromId,
     required int toId,
-  }) async => const <IChatMessage>[];
+  }) async {
+    fetches.add((fromId, toId));
+    if (failFetch) throw StateError('fetch failed');
+    return <IChatMessage>[
+      for (var i = fromId; i <= toId && i < count; i++)
+        _msg(i, self: selfIds.contains(i)),
+    ];
+  }
 }
 
 const _viewportWidth = 400.0;
@@ -75,6 +103,7 @@ Widget _harness({
   bool reverse = true,
   ValueListenable<double>? bottomPadding,
   ValueNotifier<int?>? lastSeenNewestId,
+  ValueListenable<int?>? unreadBoundary,
 }) => MaterialApp(
   home: Scaffold(
     body: Center(
@@ -93,6 +122,9 @@ Widget _harness({
                     height: 60,
                     child: Text(message == null ? 'shimmer-$id' : 'msg-$id'),
                   ),
+              unreadBoundary: unreadBoundary,
+              unreadSeparatorBuilder: (context) =>
+                  const SizedBox(height: 32, child: Text('unread')),
             ),
             ChatScrollToBottomButton(
               controller: controller,
@@ -432,6 +464,163 @@ void main() {
       await tester.pump();
 
       expect(controller.anchorMessageId, 0);
+    });
+  });
+
+  group('unread boundary', () {
+    Future<int?> boundary(ChatDataSource ds, int? storedLastRead) =>
+        ds.resolveUnreadBoundary(
+          storedLastRead: storedLastRead,
+          isSelfMessage: _isSelf,
+        );
+
+    test('is the first incoming message after last-read, skipping own '
+        'messages', () async {
+      final ds = _PreloadedDataSource(100, selfIds: {41, 42});
+      addTearDown(ds.dispose);
+
+      expect(await boundary(ds, 40), 43);
+    });
+
+    test('is none when caught up', () async {
+      final ds = _PreloadedDataSource(100);
+      addTearDown(ds.dispose);
+
+      expect(await boundary(ds, 99), isNull);
+      expect(await boundary(ds, 150), isNull);
+    });
+
+    test('is none without a stored last-read', () async {
+      final ds = _PreloadedDataSource(100);
+      addTearDown(ds.dispose);
+
+      expect(await boundary(ds, null), isNull);
+    });
+
+    test('is none when every unread message is own', () async {
+      final ds = _PreloadedDataSource(100, selfIds: {96, 97, 98, 99});
+      addTearDown(ds.dispose);
+
+      expect(await boundary(ds, 95), isNull);
+    });
+
+    test('a loaded window resolves without fetching', () async {
+      final ds = _MetadataOnlyDataSource(100)..upsertMessage(_msg(41));
+      addTearDown(ds.dispose);
+
+      expect(await boundary(ds, 40), 41);
+      expect(ds.fetches, isEmpty);
+    });
+
+    test('an unloaded id fetches its whole chunk once', () async {
+      final ds = _MetadataOnlyDataSource(10004, selfIds: {9952, 9953});
+      addTearDown(ds.dispose);
+
+      expect(await boundary(ds, 9951), 9954);
+      expect(ds.fetches, <(int, int)>[(9920, 9983)]);
+    });
+
+    test('an open makes at most one fetch', () async {
+      final ds = _MetadataOnlyDataSource(
+        10004,
+        selfIds: {for (var i = 9952; i <= 9983; i++) i},
+      );
+      addTearDown(ds.dispose);
+
+      expect(await boundary(ds, 9951), isNull);
+      expect(ds.fetches, hasLength(1));
+    });
+
+    test('a failed fetch opens at last-read without a boundary', () async {
+      final ds = _MetadataOnlyDataSource(100, failFetch: true);
+      addTearDown(ds.dispose);
+
+      final position = await ds.resolveOpenPosition(
+        storedLastRead: 40,
+        isSelfMessage: _isSelf,
+      );
+      expect(ds.fetches, hasLength(1));
+      expect(position.unreadBoundary, isNull);
+      expect(position.anchor, 40);
+      expect(position.alignment, 0.8);
+    });
+
+    test('with a boundary the open position is the boundary at alignment 0; '
+        'without one it is the last-read open', () async {
+      final ds = _PreloadedDataSource(100, selfIds: {41});
+      addTearDown(ds.dispose);
+
+      final withBoundary = await ds.resolveOpenPosition(
+        storedLastRead: 40,
+        isSelfMessage: _isSelf,
+      );
+      expect(withBoundary.unreadBoundary, 42);
+      expect(withBoundary.anchor, 42);
+      expect(withBoundary.alignment, 0.0);
+
+      final firstVisit = await ds.resolveOpenPosition(
+        storedLastRead: null,
+        isSelfMessage: _isSelf,
+      );
+      expect(firstVisit.unreadBoundary, isNull);
+      expect(firstVisit.anchor, 99);
+      expect(firstVisit.alignment, 0.0);
+
+      final ownTail = _PreloadedDataSource(100, selfIds: {97, 98, 99});
+      addTearDown(ownTail.dispose);
+      final onlyOwnUnread = await ownTail.resolveOpenPosition(
+        storedLastRead: 96,
+        isSelfMessage: _isSelf,
+      );
+      expect(onlyOwnUnread.unreadBoundary, isNull);
+      expect(onlyOwnUnread.anchor, 96);
+      expect(onlyOwnUnread.alignment, 0.8);
+    });
+
+    testWidgets('open puts the boundary row at the band top under the '
+        'separator; pill count unchanged', (tester) async {
+      const count = 151;
+      const lastRead = 50;
+      final ds = _PreloadedDataSource(count);
+      final position = await ds.resolveOpenPosition(
+        storedLastRead: lastRead,
+        isSelfMessage: _isSelf,
+      );
+      expect(position.unreadBoundary, lastRead + 1);
+
+      final controller = ChatScrollController()
+        ..jumpTo(position.anchor, alignment: position.alignment);
+      final boundaryId = ValueNotifier<int?>(position.unreadBoundary);
+      final lastSeen = ValueNotifier<int?>(lastRead);
+      addTearDown(controller.dispose);
+      addTearDown(ds.dispose);
+      addTearDown(boundaryId.dispose);
+      addTearDown(lastSeen.dispose);
+
+      await tester.pumpWidget(
+        _harness(
+          dataSource: ds,
+          controller: controller,
+          lastSeenNewestId: lastSeen,
+          unreadBoundary: boundaryId,
+        ),
+      );
+      await _pumpOpenSettled(tester);
+
+      final bandTop = tester.getTopLeft(find.byType(ChatScrollView)).dy;
+      final separatorTop = tester.getTopLeft(find.text('unread')).dy;
+      expect(separatorTop, bandTop);
+      expect(
+        tester.getTopLeft(find.text('msg-${lastRead + 1}')).dy,
+        separatorTop + 32,
+      );
+      expect(
+        tester.getBottomLeft(find.text('msg-$lastRead')).dy,
+        lessThanOrEqualTo(bandTop),
+        reason: 'the last read message sits above the band',
+      );
+      expect(lastSeen.value, lastRead);
+      expect(_pillText(tester), _expectedPillLabel(count - 1 - lastRead));
     });
   });
 }

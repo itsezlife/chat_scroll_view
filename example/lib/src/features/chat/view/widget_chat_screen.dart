@@ -23,6 +23,7 @@ import 'package:chat_scroll_view_example/src/features/chat/widgets/demo_message.
 import 'package:chat_scroll_view_example/src/features/chat/widgets/scroll_to_bottom_button.dart';
 import 'package:chat_scroll_view_example/src/features/chat/widgets/selection_app_bar.dart';
 import 'package:chat_scroll_view_example/src/features/chat/widgets/side_controls/chat_side_controls.dart';
+import 'package:chat_scroll_view_example/src/features/chat/widgets/unread_separator.dart';
 import 'package:control/control.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -80,6 +81,11 @@ class _WidgetChatScreenState extends State<WidgetChatScreen>
   /// Highest message id counted as read for [ChatScrollToBottomButton]. Seeded
   /// to stored last-read on off-tail open; advanced by the FAB while scrolling.
   final ValueNotifier<int?> _pillLastSeenBaseline = ValueNotifier<int?>(null);
+
+  /// Unread boundary: the first unread incoming message, snapshotted once per
+  /// open. Independent of [_pillLastSeenBaseline] — reading advances the
+  /// baseline, never the boundary.
+  final ValueNotifier<int?> _unreadBoundary = ValueNotifier<int?>(null);
 
   /// Page-down chrome show-intent — drives [ChatSideControlsBar] stack slot.
   var _pageDownChromeVisible = false;
@@ -310,6 +316,7 @@ class _WidgetChatScreenState extends State<WidgetChatScreen>
     _flushPendingLastRead();
     _persistLastReadTimer?.cancel();
     _pillLastSeenBaseline.dispose();
+    _unreadBoundary.dispose();
     _search?.dispose();
     _controller.dispose();
     _selection.dispose();
@@ -334,7 +341,7 @@ class _WidgetChatScreenState extends State<WidgetChatScreen>
       // final backend = await BackendChatDataSource.connect(
       //   client: Supabase.instance.client,
       // );
-      final backend = await CommentsDataSource.load();
+      final ChatDataSource backend = await CommentsDataSource.load();
       // final backend = GeneratedChatDataSource(messageCount: 15);
 
       // The screen may have been popped while `load()` was in flight. The
@@ -345,7 +352,22 @@ class _WidgetChatScreenState extends State<WidgetChatScreen>
         backend.dispose();
         return;
       }
+      // Owned from here on: `dispose()` and the catch below free it.
       _dataSource = backend;
+
+      // Only the server-backed source persists read state; the bundled
+      // sources open without a stored last-read.
+      final lastRead = switch (backend) {
+        final BackendChatDataSource source =>
+          await source.getLastReadMessageId(),
+        _ => null,
+      };
+      final openPosition = await backend.resolveOpenPosition(
+        storedLastRead: lastRead,
+        isSelfMessage: _isSelfMessage,
+      );
+      if (!mounted) return;
+
       _messageMenu = MessageMenu(
         dataSource: backend,
         selection: _selection,
@@ -362,21 +384,15 @@ class _WidgetChatScreenState extends State<WidgetChatScreen>
       _search?.dispose();
       _search = ChatSearchController(dataSource: backend);
       final newest = backend.newestKnownId;
-      // final lastRead = await backend.getLastReadMessageId();
-      // ignore: prefer_const_declarations
-      final int? lastRead = null;
-
-      final anchor = backend.resolveOpenAnchor(
-        storedLastRead: lastRead,
-        newestKnownId: newest,
-        oldestKnownId: backend.oldestKnownId,
-      );
       _pillLastSeenBaseline.value =
           lastRead != null && newest != null && lastRead < newest
           ? lastRead
           : null;
-      final atTail = newest != null && anchor == newest;
-      _controller.jumpTo(anchor, alignment: atTail ? 0.0 : .8);
+      _unreadBoundary.value = openPosition.unreadBoundary;
+      _controller.jumpTo(
+        openPosition.anchor,
+        alignment: openPosition.alignment,
+      );
     } on Object catch (error, stackTrace) {
       dev.log(
         'Error initializing chat screen',
@@ -584,6 +600,8 @@ class _WidgetChatScreenState extends State<WidgetChatScreen>
   );
 
   Widget _buildEmpty(BuildContext context) => const DemoEmptyState();
+
+  Widget _buildUnreadSeparator(BuildContext context) => const UnreadSeparator();
 
   Widget _buildInitialSkeleton(BuildContext context) =>
       const DemoInitialSkeleton();
@@ -836,6 +854,8 @@ class _WidgetChatScreenState extends State<WidgetChatScreen>
                           dayHeaderDelegate: const ChatPushingDayHeader(),
                           dateSeparatorBuilder: (context, bucket, date) =>
                               DateSeparator(date: date),
+                          unreadBoundary: _unreadBoundary,
+                          unreadSeparatorBuilder: _buildUnreadSeparator,
                         ),
                       ),
                     ),
