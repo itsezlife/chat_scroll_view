@@ -1,9 +1,11 @@
 import 'package:flutter/rendering.dart';
+import 'package:meta/meta.dart';
 
 /// Paints [child] at [offset] and [opacity]: directly at `>= 0.999`, not at
 /// all at `<= 0.001`, and through [layer]'s retained [OpacityLayer] in
 /// between. The snaps keep a fade from creating and disposing a layer every
 /// frame at its ends.
+@internal
 void paintChildWithOpacity(
   PaintingContext context,
   RenderBox child,
