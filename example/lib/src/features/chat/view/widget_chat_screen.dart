@@ -362,6 +362,7 @@ class _WidgetChatScreenState extends State<WidgetChatScreen>
       final lastRead = switch (backend) {
         final BackendChatDataSource source =>
           await source.getLastReadMessageId(),
+        CommentsDataSource() => 9990,
         _ => null,
       };
       final openPosition = await backend.resolveOpenPosition(
@@ -458,32 +459,35 @@ class _WidgetChatScreenState extends State<WidgetChatScreen>
   static bool _isSelfMessage(IChatMessage message) =>
       message.sender == _demoSender;
 
+  /// Sends [text] as the signed-in user. A send that succeeds clears the
+  /// unread boundary of the open it was sent from, whether or not the tail
+  /// holding the sent message is loaded.
   Future<void> _handleSendMessage(String text) async {
-    final ds = _dataSource;
-    if (ds is CommentsDataSource) {
-      ds.sendMessage(sender: _demoSender, content: text);
-      return;
+    final boundary = _unreadBoundary;
+    switch (_dataSource) {
+      case final CommentsDataSource ds:
+        ds.sendMessage(sender: _demoSender, content: text);
+      case final GeneratedChatDataSource ds:
+        ds.sendMessage(sender: _demoSender, content: text);
+      case final BackendChatDataSource ds:
+        try {
+          await ds.sendMessage(text);
+        } on BackendConnectionException catch (error) {
+          if (!mounted) return;
+          ScaffoldMessenger.of(context)
+            ..hideCurrentSnackBar()
+            ..showSnackBar(
+              SnackBar(
+                content: Text(error.message),
+                behavior: SnackBarBehavior.floating,
+              ),
+            );
+          rethrow;
+        }
+      case _:
+        return;
     }
-    if (ds is GeneratedChatDataSource) {
-      ds.sendMessage(sender: _demoSender, content: text);
-      return;
-    }
-    if (ds is BackendChatDataSource) {
-      try {
-        await ds.sendMessage(text);
-      } on BackendConnectionException catch (error) {
-        if (!mounted) return;
-        ScaffoldMessenger.of(context)
-          ..hideCurrentSnackBar()
-          ..showSnackBar(
-            SnackBar(
-              content: Text(error.message),
-              behavior: SnackBarBehavior.floating,
-            ),
-          );
-        rethrow;
-      }
-    }
+    boundary?.clear();
   }
 
   void _handleDeleteSelected(Iterable<int> ids) {

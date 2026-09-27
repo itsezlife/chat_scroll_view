@@ -697,7 +697,9 @@ void main() {
         expect(boundary.value, boundaryId);
       });
 
-      testWidgets('an own send clears the boundary', (tester) async {
+      testWidgets('an own message that arrives loaded clears the boundary', (
+        tester,
+      ) async {
         final (:ds, :controller, :boundary, :lastSeen) = await open(tester);
         expect(controller.isAtTail.value, isFalse);
 
@@ -708,20 +710,46 @@ void main() {
         expect(find.text('unread'), findsNothing);
       });
 
-      testWidgets('an incoming message at the tail clears the boundary', (
+      testWidgets('an arrival that is not loaded keeps the boundary', (
         tester,
       ) async {
+        final (:ds, :controller, :boundary, :lastSeen) = await open(tester);
+
+        ds.seedBoundaries(newestKnownId: count);
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 16));
+
+        expect(boundary.value, boundaryId);
+        expect(find.text('unread'), findsOneWidget);
+      });
+
+      testWidgets('an incoming message at the tail keeps the boundary while '
+          'the list follows the tail', (tester) async {
         final (:ds, :controller, :boundary, :lastSeen) = await open(tester);
         controller.jumpTo(count - 1);
         await tester.pump();
         await tester.pump(const Duration(milliseconds: 16));
         expect(controller.isAtTail.value, isTrue);
-        expect(boundary.value, boundaryId);
 
         ds.insertMessage(_msg(count));
         await tester.pump();
+        await tester.pump(const Duration(milliseconds: 16));
 
-        expect(boundary.value, isNull);
+        expect(boundary.value, boundaryId);
+        expect(controller.isAtTail.value, isTrue);
+        final viewportBottom = tester
+            .getBottomLeft(find.byType(ChatScrollView))
+            .dy;
+        expect(
+          tester.getBottomLeft(find.text('msg-$count')).dy,
+          viewportBottom,
+          reason: 'follow tail pins the newest row to the bottom edge',
+        );
+
+        controller.jumpTo(boundaryId, alignment: 0);
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 16));
+        expect(find.text('unread'), findsOneWidget);
       });
 
       testWidgets('an incoming message off the tail keeps the boundary', (
@@ -738,6 +766,213 @@ void main() {
         expect(boundary.value, boundaryId);
         expect(find.text('unread'), findsOneWidget);
         expect(tester.getTopLeft(find.text('msg-$boundaryId')).dy, rowTop);
+      });
+
+      testWidgets('the separator counts as seen once its row is on screen; '
+          'a moved boundary starts unseen', (tester) async {
+        final (:ds, :controller, :boundary, :lastSeen) = await open(tester);
+        expect(boundary.separatorSeen, isTrue);
+
+        const movedId = boundaryId + 40;
+        boundary.setBoundary(movedId);
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 16));
+        expect(find.text('unread'), findsNothing);
+        expect(boundary.separatorSeen, isFalse);
+
+        controller.jumpTo(movedId, alignment: 0);
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 16));
+        expect(find.text('unread'), findsOneWidget);
+        expect(boundary.separatorSeen, isTrue);
+      });
+
+      testWidgets('the host can set the boundary again after a clear', (
+        tester,
+      ) async {
+        final (:ds, :controller, :boundary, :lastSeen) = await open(tester);
+        final separatorTop = tester.getTopLeft(find.text('unread')).dy;
+
+        boundary.clear();
+        await tester.pump();
+        expect(find.text('unread'), findsNothing);
+
+        boundary.setBoundary(boundaryId);
+        await tester.pump();
+        expect(boundary.value, boundaryId);
+        expect(find.text('unread'), findsOneWidget);
+        expect(
+          tester.getTopLeft(find.text('msg-$boundaryId')).dy,
+          tester.getBottomLeft(find.text('unread')).dy,
+        );
+        expect(tester.getTopLeft(find.text('unread')).dy, separatorTop);
+      });
+    });
+
+    group('host writes', () {
+      const count = 151;
+      const boundaryId = 51;
+
+      ({
+        _PreloadedDataSource ds,
+        UnreadBoundaryController boundary,
+        List<int?> heard,
+      })
+      holder({
+        int? initial = boundaryId,
+        Set<int> omitIds = const {},
+        Set<int> selfIds = const {},
+      }) {
+        final ds = _PreloadedDataSource(
+          count,
+          omitIds: omitIds,
+          selfIds: selfIds,
+        );
+        final controller = ChatScrollController();
+        final boundary = UnreadBoundaryController(
+          dataSource: ds,
+          controller: controller,
+          isSelfMessage: _isSelf,
+          boundary: initial,
+        );
+        final heard = <int?>[];
+        boundary.addListener(() => heard.add(boundary.value));
+        addTearDown(controller.dispose);
+        addTearDown(ds.dispose);
+        addTearDown(boundary.dispose);
+        return (ds: ds, boundary: boundary, heard: heard);
+      }
+
+      test('set, move, and clear each notify once, and a cleared boundary '
+          'can be set again', () {
+        final (:ds, :boundary, :heard) = holder();
+
+        boundary
+          ..clear()
+          ..setBoundary(boundaryId)
+          ..setBoundary(boundaryId + 5)
+          ..clear();
+
+        expect(heard, <int?>[null, boundaryId, boundaryId + 5, null]);
+        expect(boundary.value, isNull);
+      });
+
+      test('same-value writes are silent', () {
+        final (:ds, :boundary, :heard) = holder();
+
+        boundary
+          ..setBoundary(boundaryId)
+          ..clear()
+          ..clear();
+
+        expect(heard, <int?>[null]);
+      });
+
+      test('writes after dispose are silent and the value freezes', () {
+        final (:ds, :boundary, :heard) = holder();
+        boundary.dispose();
+
+        boundary
+          ..setBoundary(80)
+          ..setPendingBoundary(90)
+          ..clear();
+        ds.insertMessage(_msg(count, self: true));
+
+        expect(heard, isEmpty);
+        expect(boundary.value, boundaryId);
+      });
+
+      test('an incoming arrival never clears the boundary', () {
+        final (:ds, :boundary, :heard) = holder();
+
+        ds.insertMessage(_msg(count));
+
+        expect(heard, isEmpty);
+        expect(boundary.value, boundaryId);
+      });
+
+      test('a pending boundary resolves to the first loaded incoming message '
+          'at or after its id', () {
+        final (:ds, :boundary, :heard) = holder(
+          initial: null,
+          selfIds: {60, 61},
+        );
+
+        boundary.setPendingBoundary(60);
+
+        expect(heard, <int?>[62]);
+        expect(boundary.value, 62);
+      });
+
+      test('a pending boundary replaces the current one and waits for its '
+          'row to load', () {
+        final (:ds, :boundary, :heard) = holder(omitIds: {70});
+
+        boundary
+          ..setPendingBoundary(70)
+          ..setPendingBoundary(70);
+        expect(heard, <int?>[null]);
+
+        ds.upsertMessage(_msg(70));
+        expect(heard, <int?>[null, 70]);
+        expect(boundary.value, 70);
+      });
+
+      test('a pending boundary with no incoming message up to the reached '
+          'newest lapses; a later arrival does not resolve it', () {
+        final (:ds, :boundary, :heard) = holder(
+          initial: null,
+          selfIds: {count - 2, count - 1},
+        );
+
+        boundary.setPendingBoundary(count - 2);
+        expect(boundary.value, isNull);
+        boundary.setPendingBoundary(count + 5);
+        expect(boundary.value, isNull);
+
+        ds.insertMessage(_msg(count));
+        expect(boundary.value, isNull);
+        expect(heard, isEmpty);
+      });
+
+      test('a pending boundary whose rows load as own messages lapses', () {
+        final (:ds, :boundary, :heard) = holder(
+          initial: null,
+          omitIds: {count - 1},
+        );
+
+        boundary.setPendingBoundary(count - 1);
+        ds
+          ..upsertMessage(_msg(count - 1, self: true))
+          ..insertMessage(_msg(count));
+        expect(boundary.value, isNull);
+        expect(heard, isEmpty);
+      });
+
+      test('an own arrival, a set, or a clear drops a pending boundary', () {
+        final (:ds, :boundary, :heard) = holder(
+          initial: null,
+          omitIds: {70, 80, 90},
+        );
+
+        boundary.setPendingBoundary(70);
+        ds
+          ..insertMessage(_msg(count, self: true))
+          ..upsertMessage(_msg(70));
+        expect(boundary.value, isNull);
+
+        boundary
+          ..setPendingBoundary(80)
+          ..setBoundary(boundaryId);
+        ds.upsertMessage(_msg(80));
+        expect(boundary.value, boundaryId);
+
+        boundary
+          ..setPendingBoundary(90)
+          ..clear();
+        ds.upsertMessage(_msg(90));
+        expect(boundary.value, isNull);
+        expect(heard, <int?>[boundaryId, null]);
       });
     });
 
@@ -851,6 +1086,50 @@ void main() {
         );
         expect(runs[boundaryId - 1]?.isLastInSenderRun, isFalse);
         expect(runs[boundaryId]?.isFirstInSenderRun, isFalse);
+        expect(runs[movedId - 1]?.isLastInSenderRun, isTrue);
+        expect(runs[movedId]?.isFirstInSenderRun, isTrue);
+      });
+
+      testWidgets('the run break follows a host clear, set, and move', (
+        tester,
+      ) async {
+        final ds = _PreloadedDataSource(count);
+        final controller = ChatScrollController();
+        final boundary = UnreadBoundaryController(
+          dataSource: ds,
+          controller: controller,
+          isSelfMessage: _isSelf,
+          boundary: boundaryId,
+        );
+        addTearDown(ds.dispose);
+        addTearDown(boundary.dispose);
+
+        final runs = await open(
+          tester,
+          ds: ds,
+          boundary: boundary,
+          controller: controller,
+        );
+
+        runs.clear();
+        boundary.clear();
+        await tester.pump();
+        expect(runs[boundaryId - 1]?.isLastInSenderRun, isFalse);
+        expect(runs[boundaryId]?.isFirstInSenderRun, isFalse);
+
+        const setId = boundaryId + 2;
+        runs.clear();
+        boundary.setBoundary(setId);
+        await tester.pump();
+        expect(runs[setId - 1]?.isLastInSenderRun, isTrue);
+        expect(runs[setId]?.isFirstInSenderRun, isTrue);
+
+        const movedId = setId + 2;
+        runs.clear();
+        boundary.setBoundary(movedId);
+        await tester.pump();
+        expect(runs[setId - 1]?.isLastInSenderRun, isFalse);
+        expect(runs[setId]?.isFirstInSenderRun, isFalse);
         expect(runs[movedId - 1]?.isLastInSenderRun, isTrue);
         expect(runs[movedId]?.isFirstInSenderRun, isTrue);
       });

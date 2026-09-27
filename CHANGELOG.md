@@ -86,11 +86,20 @@
   boundary from cached messages; at the first uncached id they fetch that
   whole chunk once, so an open makes at most one fetch. A failed fetch is
   logged and the chat opens at last-read without the bar.
-- **EXAMPLE**: `UnreadBoundaryController` holds the boundary for one open.
-  The bar stays put while the reader scrolls through unread messages; only
-  the scroll-to-bottom pill's read baseline advances. The bar goes away when
-  an own message arrives, or when any message arrives while the reader is at
-  the tail. It stays when messages arrive while the reader is scrolled up.
+- **EXAMPLE**: `UnreadBoundaryController` holds the boundary for one open,
+  following Telegram Android's lifecycle. The bar stays put while the reader
+  scrolls through unread messages; only the scroll-to-bottom pill's read
+  baseline advances. Incoming messages never remove it: at the tail the list
+  follows them and the bar scrolls away with the rows above. A send from
+  this device removes it, and so does an own message from another device
+  that arrives loaded. The host can `setBoundary`, `setPendingBoundary` and
+  `clear` any number of times per open; each change notifies once and
+  same-value writes are silent. A pending boundary becomes the first loaded
+  message from someone else at or after its id, checked on every data
+  change. It lapses if there is no such message up to the newest one, and
+  later arrivals never resolve it. `separatorSeen` turns `true` on the first
+  visible range push that shows the loaded boundary row, and resets when the
+  boundary changes.
 - **EXAMPLE**: `UnreadBoundarySenderRunLayout` breaks the sender run at the
   bar. The message below it starts a new bubble cluster (full top corners,
   unclustered top inset) and the message above it ends one; every other row

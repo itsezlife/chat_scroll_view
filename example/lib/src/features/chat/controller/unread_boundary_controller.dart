@@ -2,36 +2,63 @@ import 'package:chat_scroll_view/chat_scroll_view.dart';
 import 'package:flutter/foundation.dart';
 
 /// The **unread boundary** of one chat open, as the listenable handed to
-/// [ChatScrollView.unreadBoundary].
+/// [ChatScrollView.unreadBoundary] and to the sender run policy.
 ///
-/// The value is the snapshot taken at open — the first incoming message
-/// after the stored last-read — and never advances while the reader catches
-/// up. Reading progress (the scroll-to-bottom badge baseline, persisted
+/// The host drives the boundary: during one open it may set the boundary,
+/// move it, make it pending, or clear it, any number of times and in any
+/// order. Reading progress (the scroll-to-bottom badge baseline, persisted
 /// last-read) is a separate host value: this controller never reads or
 /// writes it, and it never writes this one.
 ///
-/// While a boundary is set, each advance of [ChatDataSource.newestKnownId]
-/// past the newest id already seen is judged once:
+/// ## Arrivals
 ///
-/// - any arrived message that is loaded and passes `isSelfMessage` (an own
-///   send, from any device) clears the boundary;
-/// - otherwise, arriving while [ChatScrollController.isAtTail] is `true`
-///   clears it — the reader sees the new messages as they land;
-/// - otherwise (the reader is scrolled up) the boundary stays.
+/// Each advance of [ChatDataSource.newestKnownId] past the newest id already
+/// judged is judged once. An arrived message that is loaded and passes
+/// `isSelfMessage` — an own message, from this device or another — clears
+/// the boundary, pending or not. Every other arrival leaves it alone, at
+/// the tail or scrolled up: at the tail the viewport
+/// follows the new messages and the separator scrolls away with the rows
+/// above them. An arrival that is not loaded when its id becomes known is
+/// judged as not own, and loading it later does not judge it again.
 ///
-/// A cleared boundary stays cleared for the rest of the open. A new open
-/// is a new controller.
+/// ## Pending boundary
+///
+/// [setPendingBoundary] names where unread content starts before the row
+/// that carries the separator is known. The boundary becomes the first
+/// message at or after the pending id that is loaded and does not pass
+/// `isSelfMessage`; confirmed-absent ids and loaded own messages are
+/// skipped. The search runs when the pending boundary is set and again on
+/// every data source change, and ends in one of three ways:
+///
+/// - it finds that message: [value] becomes its id, and the viewport paints
+///   the separator when that row is built as a loaded message;
+/// - it meets an id that is not loaded yet: the boundary stays pending;
+/// - it passes [ChatDataSource.newestKnownId] while
+///   [ChatDataSource.reachedNewest] is `true`: the pending boundary lapses.
+///   Messages that arrive later never resolve it.
+///
+/// While pending, [value] is `null`.
+///
+/// ## Separator seen
+///
+/// [separatorSeen] becomes `true` on the first
+/// [ChatScrollController.visibleRange] push that has the boundary row, as a
+/// loaded message, between its first and last id — a layout that built the
+/// row with the separator. It stays `true` until [value] changes; every new
+/// boundary starts unseen.
+///
+/// ## Listeners
 ///
 /// Listeners follow the host controller contract: registering the same
 /// callback twice is a no-op, dispatch iterates a snapshot, and only a
-/// value change notifies.
+/// change of [value] notifies — once per change. [separatorSeen] flips
+/// without notifying.
 final class UnreadBoundaryController implements ValueListenable<int?> {
-  /// Snapshots [boundary] for this open and starts judging arrivals in
-  /// [dataSource] against [controller]'s tail state.
+  /// Starts the open with [boundary] (`null` for none) and begins judging
+  /// arrivals in [dataSource] and the visible range of [controller].
   ///
   /// Arrivals count from [ChatDataSource.newestKnownId] at construction:
-  /// messages already known when the open resolved never clear the
-  /// boundary.
+  /// messages already known when the open resolved are never judged.
   UnreadBoundaryController({
     required ChatDataSource dataSource,
     required ChatScrollController controller,
@@ -40,9 +67,15 @@ final class UnreadBoundaryController implements ValueListenable<int?> {
   }) : _dataSource = dataSource,
        _controller = controller,
        _isSelfMessage = isSelfMessage,
-       _value = boundary,
-       _seenNewestId = dataSource.newestKnownId {
-    _dataSource.addBoundaryListener(_onNewestKnownChanged);
+       _state = switch (boundary) {
+         final id? => _BoundaryState.placed(id),
+         null => const _BoundaryState.none(),
+       },
+       _judgedNewestId = dataSource.newestKnownId {
+    _dataSource
+      ..addBoundaryListener(_onNewestKnownChanged)
+      ..addDataListener(_onDataChanged);
+    _controller.visibleRange.addListener(_judgeSeen);
   }
 
   final ChatDataSource _dataSource;
@@ -50,17 +83,26 @@ final class UnreadBoundaryController implements ValueListenable<int?> {
   final bool Function(IChatMessage message) _isSelfMessage;
 
   /// Newest known id already judged; arrivals are the ids above it.
-  int? _seenNewestId;
+  int? _judgedNewestId;
+
+  _BoundaryState _state;
 
   final _listeners = <VoidCallback>[];
   bool _disposed = false;
 
-  int? _value;
-
-  /// Message id of the boundary row, or `null` once cleared (or when the
-  /// open had no unread incoming message).
+  /// Message id of the boundary row, or `null` when there is none — never
+  /// set, cleared, pending, or lapsed.
   @override
-  int? get value => _value;
+  int? get value => _state.id;
+
+  /// Whether the reader has seen the separator of the current boundary.
+  ///
+  /// `false` whenever [value] is `null`. See the class overview for when it
+  /// becomes `true`.
+  bool get separatorSeen => switch (_state) {
+    _PlacedBoundary(:final seen) => seen,
+    _NoBoundary() || _PendingBoundary() => false,
+  };
 
   @override
   void addListener(VoidCallback listener) {
@@ -71,45 +113,172 @@ final class UnreadBoundaryController implements ValueListenable<int?> {
   @override
   void removeListener(VoidCallback listener) => _listeners.remove(listener);
 
-  /// Stops judging arrivals and drops every listener. The value freezes;
-  /// later data source changes are ignored. Idempotent.
+  /// Makes message [id] the boundary row, replacing any pending boundary.
+  ///
+  /// The viewport paints the separator above [id] once that row is built as
+  /// a loaded message. A write of the current [value] is silent and keeps
+  /// [separatorSeen]. No-op after [dispose].
+  void setBoundary(int id) {
+    if (_disposed) return;
+    _transition(_BoundaryState.placed(id));
+  }
+
+  /// Makes the boundary pending from message [fromId] — see the class
+  /// overview for how it resolves or lapses.
+  ///
+  /// When the search resolves at once, [value] moves straight to the found
+  /// id; otherwise the current boundary is cleared. A later [setBoundary],
+  /// [clear], own arrival, or pending write replaces it. No-op after
+  /// [dispose].
+  void setPendingBoundary(int fromId) {
+    if (_disposed) return;
+    _transition(_search(fromId));
+  }
+
+  /// Removes the boundary, pending or not. Silent when there is none. No-op
+  /// after [dispose].
+  void clear() {
+    if (_disposed) return;
+    _transition(const _BoundaryState.none());
+  }
+
+  /// Stops judging arrivals and separator visibility, and drops every
+  /// listener. The value freezes; later writes, data source changes, and
+  /// range pushes are ignored. Idempotent.
   void dispose() {
     if (_disposed) return;
     _disposed = true;
-    _dataSource.removeBoundaryListener(_onNewestKnownChanged);
+    _dataSource
+      ..removeBoundaryListener(_onNewestKnownChanged)
+      ..removeDataListener(_onDataChanged);
+    _controller.visibleRange.removeListener(_judgeSeen);
     _listeners.clear();
   }
 
   void _onNewestKnownChanged() {
-    final seen = _seenNewestId;
+    final judged = _judgedNewestId;
     final newest = _dataSource.newestKnownId;
-    _seenNewestId = newest;
-    final arrived = switch ((seen, newest)) {
-      (final seen?, final newest?) when newest > seen => (seen + 1, newest),
+    _judgedNewestId = newest;
+    final arrived = switch ((judged, newest)) {
+      (final judged?, final newest?) when newest > judged => (
+        judged + 1,
+        newest,
+      ),
       (null, final newest?) => (newest, newest),
       _ => null,
     };
-    if (arrived case (final fromId, final toId) when _value != null) {
-      if (_controller.isAtTail.value || _hasOwnMessage(fromId, toId)) {
-        _clear();
-      }
-    }
+    if (arrived case (final fromId, final toId)) _judgeArrivals(fromId, toId);
   }
 
-  bool _hasOwnMessage(int fromId, int toId) {
+  /// Judges arrived ids [fromId]..[toId] — see the class overview.
+  void _judgeArrivals(int fromId, int toId) {
     for (var id = fromId; id <= toId; id++) {
-      if (_dataSource.getMessage(id) case final message?
-          when _isSelfMessage(message)) {
-        return true;
-      }
+      final message = _dataSource.getMessage(id);
+      if (message != null && _isSelfMessage(message)) clear();
     }
-    return false;
   }
 
-  void _clear() {
-    _value = null;
+  void _onDataChanged() {
+    if (_state case _PendingBoundary(:final fromId)) {
+      _transition(_search(fromId));
+    }
+  }
+
+  /// Where a pending search from [fromId] stands now: placed at the first
+  /// loaded message that is not own, still pending at an id that is not
+  /// loaded, or lapsed past the reached newest.
+  ///
+  /// The walk follows present ids up to [ChatDataSource.newestKnownId],
+  /// which is never confirmed absent — so a walk that stops short of it has
+  /// met an unloaded id.
+  _BoundaryState _search(int fromId) {
+    var searched = fromId - 1;
+    var message = _dataSource.getNextPresentMessage(searched);
+    while (message != null && _isSelfMessage(message)) {
+      searched = message.id;
+      message = _dataSource.getNextPresentMessage(searched);
+    }
+    if (message case final incoming?) {
+      return _BoundaryState.placed(incoming.id);
+    }
+    final lapsed = switch (_dataSource.newestKnownId) {
+      final newest? => searched >= newest && _dataSource.reachedNewest,
+      null => _dataSource.reachedNewest,
+    };
+    return lapsed
+        ? const _BoundaryState.none()
+        : _BoundaryState.pending(fromId);
+  }
+
+  void _judgeSeen() {
+    if (_state case _PlacedBoundary(:final id, seen: false)) {
+      if (_controller.visibleRange.value case final range?
+          when range.firstId <= id &&
+              id <= range.lastId &&
+              _dataSource.getMessage(id) != null) {
+        _state = _BoundaryState.placed(id, seen: true);
+      }
+    }
+  }
+
+  /// Moves to [next], notifying when [value] changes. Placing the id that
+  /// is already placed keeps the current state, and with it
+  /// [separatorSeen].
+  void _transition(_BoundaryState next) {
+    final previous = _state;
+    if ((previous, next) case (
+      _PlacedBoundary(id: final placed),
+      _PlacedBoundary(:final id),
+    ) when placed == id) {
+      return;
+    }
+    _state = next;
+    if (previous.id == next.id) return;
     for (final listener in List.of(_listeners, growable: false)) {
       listener();
     }
   }
+}
+
+/// Where the boundary of one open stands: none, pending from an id, or
+/// placed on a row — so a pending search and a placed row, or a seen flag
+/// without a row, can never coexist.
+sealed class _BoundaryState {
+  const _BoundaryState();
+
+  const factory _BoundaryState.none() = _NoBoundary;
+
+  const factory _BoundaryState.pending(int fromId) = _PendingBoundary;
+
+  const factory _BoundaryState.placed(int id, {bool seen}) = _PlacedBoundary;
+
+  /// The boundary row id the viewport paints, or `null`.
+  abstract final int? id;
+}
+
+final class _NoBoundary extends _BoundaryState {
+  const _NoBoundary();
+
+  @override
+  int? get id => null;
+}
+
+final class _PendingBoundary extends _BoundaryState {
+  const _PendingBoundary(this.fromId);
+
+  /// Id the search for the first loaded incoming message starts from.
+  final int fromId;
+
+  @override
+  int? get id => null;
+}
+
+final class _PlacedBoundary extends _BoundaryState {
+  const _PlacedBoundary(this.id, {this.seen = false});
+
+  @override
+  final int id;
+
+  /// Whether a visible range push has shown this row with the separator.
+  final bool seen;
 }
