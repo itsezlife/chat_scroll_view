@@ -16,6 +16,7 @@ import 'package:chat_scroll_view_example/src/features/chat/utils/chat_data_sourc
 import 'package:chat_scroll_view_example/src/features/chat/utils/chat_viewport_insets_binding.dart';
 import 'package:chat_scroll_view_example/src/features/chat/utils/ios_keyboard_safe_peel.dart';
 import 'package:chat_scroll_view_example/src/features/chat/utils/message_menu.dart';
+import 'package:chat_scroll_view_example/src/features/chat/utils/unread_boundary_sender_run_layout.dart';
 import 'package:chat_scroll_view_example/src/features/chat/widgets/chat_composer.dart';
 import 'package:chat_scroll_view_example/src/features/chat/widgets/chat_search_bar.dart';
 import 'package:chat_scroll_view_example/src/features/chat/widgets/date_separator.dart';
@@ -865,6 +866,12 @@ class _WidgetChatScreenState extends State<WidgetChatScreen>
                               DateSeparator(date: date),
                           unreadBoundary: _unreadBoundary,
                           unreadSeparatorBuilder: _buildUnreadSeparator,
+                          senderRunLayout: switch (_unreadBoundary) {
+                            final boundary? => UnreadBoundarySenderRunLayout(
+                              boundary: boundary,
+                            ),
+                            null => DefaultChatSenderRunLayout.instance,
+                          },
                         ),
                       ),
                     ),

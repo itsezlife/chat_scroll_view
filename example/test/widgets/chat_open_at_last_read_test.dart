@@ -2,10 +2,12 @@
 import 'package:chat_scroll_view/src/chat_scroll/chat_data_source.dart';
 import 'package:chat_scroll_view/src/chat_scroll/chat_scroll_common.dart';
 import 'package:chat_scroll_view/src/chat_scroll/chat_scroll_controller.dart';
+import 'package:chat_scroll_view/src/chat_scroll/chat_sender_run_layout.dart';
 import 'package:chat_scroll_view/src/chat_widgets/chat_scroll_view.dart';
 import 'package:chat_scroll_view_example/src/common/models/chat_message.dart';
 import 'package:chat_scroll_view_example/src/features/chat/controller/unread_boundary_controller.dart';
 import 'package:chat_scroll_view_example/src/features/chat/utils/chat_data_source_extension.dart';
+import 'package:chat_scroll_view_example/src/features/chat/utils/unread_boundary_sender_run_layout.dart';
 import 'package:chat_scroll_view_example/src/features/chat/widgets/scroll_to_bottom_button.dart';
 import 'package:flutter/foundation.dart' show ValueListenable, ValueNotifier;
 import 'package:flutter/material.dart';
@@ -105,6 +107,8 @@ Widget _harness({
   ValueListenable<double>? bottomPadding,
   ValueNotifier<int?>? lastSeenNewestId,
   ValueListenable<int?>? unreadBoundary,
+  ChatSenderRunLayout senderRunLayout = DefaultChatSenderRunLayout.instance,
+  void Function(int id, MessageRunLayout runLayout)? onBuildMessage,
 }) => MaterialApp(
   home: Scaffold(
     body: Center(
@@ -118,11 +122,14 @@ Widget _harness({
               dataSource: dataSource,
               controller: controller,
               bottomPadding: bottomPadding,
-              messageBuilder: (context, id, message, status, runLayout) =>
-                  SizedBox(
-                    height: 60,
-                    child: Text(message == null ? 'shimmer-$id' : 'msg-$id'),
-                  ),
+              senderRunLayout: senderRunLayout,
+              messageBuilder: (context, id, message, status, runLayout) {
+                onBuildMessage?.call(id, runLayout);
+                return SizedBox(
+                  height: 60,
+                  child: Text(message == null ? 'shimmer-$id' : 'msg-$id'),
+                );
+              },
               unreadBoundary: unreadBoundary,
               unreadSeparatorBuilder: (context) =>
                   const SizedBox(height: 32, child: Text('unread')),
@@ -731,6 +738,166 @@ void main() {
         expect(boundary.value, boundaryId);
         expect(find.text('unread'), findsOneWidget);
         expect(tester.getTopLeft(find.text('msg-$boundaryId')).dy, rowTop);
+      });
+    });
+
+    group('sender run', () {
+      const count = 151;
+      const lastRead = 50;
+      const boundaryId = lastRead + 1;
+
+      /// Opens at the boundary with every message in one sender run. The
+      /// returned map holds the run layout of each message build, keyed by
+      /// id; clearing it makes its keys the ids built afterwards.
+      Future<Map<int, MessageRunLayout>> open(
+        WidgetTester tester, {
+        required ChatDataSource ds,
+        required ValueListenable<int?> boundary,
+        ChatScrollController? controller,
+      }) async {
+        final runs = <int, MessageRunLayout>{};
+        controller ??= ChatScrollController();
+        addTearDown(controller.dispose);
+        controller.jumpTo(boundaryId, alignment: 0);
+
+        await tester.pumpWidget(
+          _harness(
+            dataSource: ds,
+            controller: controller,
+            unreadBoundary: boundary,
+            senderRunLayout: UnreadBoundarySenderRunLayout(boundary: boundary),
+            onBuildMessage: (id, runLayout) => runs[id] = runLayout,
+          ),
+        );
+        await _pumpOpenSettled(tester);
+        return runs;
+      }
+
+      testWidgets('the boundary row starts a run and its predecessor ends '
+          'one', (tester) async {
+        final ds = _PreloadedDataSource(count);
+        final boundary = ValueNotifier<int?>(boundaryId);
+        addTearDown(ds.dispose);
+        addTearDown(boundary.dispose);
+
+        final runs = await open(tester, ds: ds, boundary: boundary);
+
+        expect(runs[boundaryId - 1]?.isFirstInSenderRun, isFalse);
+        expect(runs[boundaryId - 1]?.isLastInSenderRun, isTrue);
+        expect(runs[boundaryId]?.isFirstInSenderRun, isTrue);
+        expect(runs[boundaryId]?.isLastInSenderRun, isFalse);
+        expect(runs[boundaryId + 1]?.isFirstInSenderRun, isFalse);
+      });
+
+      testWidgets('clearing the boundary rejoins the run, rebuilding only '
+          'the boundary row and its predecessor', (tester) async {
+        final ds = _PreloadedDataSource(count);
+        final controller = ChatScrollController();
+        final boundary = UnreadBoundaryController(
+          dataSource: ds,
+          controller: controller,
+          isSelfMessage: _isSelf,
+          boundary: boundaryId,
+        );
+        addTearDown(ds.dispose);
+        addTearDown(boundary.dispose);
+
+        final runs = await open(
+          tester,
+          ds: ds,
+          boundary: boundary,
+          controller: controller,
+        );
+        final built = runs.keys.toSet();
+        runs.clear();
+
+        ds.insertMessage(_msg(count, self: true));
+        await tester.pump();
+
+        expect(boundary.value, isNull);
+        expect(
+          runs.keys.where(built.contains),
+          unorderedEquals(<int>[boundaryId - 1, boundaryId]),
+          reason:
+              'the separator leaving exposes new rows; of the rows '
+              'already built, only the two whose flags flip rebuild',
+        );
+        expect(runs[boundaryId - 1]?.isLastInSenderRun, isFalse);
+        expect(runs[boundaryId]?.isFirstInSenderRun, isFalse);
+      });
+
+      testWidgets('moving the boundary moves the run break', (tester) async {
+        const movedId = boundaryId + 2;
+        final ds = _PreloadedDataSource(count);
+        final boundary = ValueNotifier<int?>(boundaryId);
+        addTearDown(ds.dispose);
+        addTearDown(boundary.dispose);
+
+        final runs = await open(tester, ds: ds, boundary: boundary);
+        final built = runs.keys.toSet();
+        runs.clear();
+
+        boundary.value = movedId;
+        await tester.pump();
+
+        expect(
+          runs.keys.where(built.contains),
+          unorderedEquals(<int>[
+            boundaryId - 1,
+            boundaryId,
+            movedId - 1,
+            movedId,
+          ]),
+        );
+        expect(runs[boundaryId - 1]?.isLastInSenderRun, isFalse);
+        expect(runs[boundaryId]?.isFirstInSenderRun, isFalse);
+        expect(runs[movedId - 1]?.isLastInSenderRun, isTrue);
+        expect(runs[movedId]?.isFirstInSenderRun, isTrue);
+      });
+
+      test('the predecessor is the nearest present message; an absent '
+          'boundary breaks nothing', () {
+        final ds = _PreloadedDataSource(count)
+          ..removeMessages([boundaryId - 1]);
+        addTearDown(ds.dispose);
+        final boundary = ValueNotifier<int?>(boundaryId);
+        addTearDown(boundary.dispose);
+        final policy = UnreadBoundarySenderRunLayout(boundary: boundary);
+        MessageRunLayout run(int id) =>
+            policy.resolve(dataSource: ds, messageId: id);
+
+        expect(run(boundaryId - 2).isLastInSenderRun, isTrue);
+        expect(run(boundaryId).isFirstInSenderRun, isTrue);
+        expect(run(boundaryId + 1).isFirstInSenderRun, isFalse);
+
+        ds.removeMessages([boundaryId]);
+        expect(run(boundaryId - 2).isLastInSenderRun, isFalse);
+        expect(run(boundaryId + 1).isFirstInSenderRun, isFalse);
+      });
+
+      test('policies over the same boundary and delegate are equal', () {
+        final boundary = ValueNotifier<int?>(boundaryId);
+        final other = ValueNotifier<int?>(boundaryId);
+        addTearDown(boundary.dispose);
+        addTearDown(other.dispose);
+
+        expect(
+          UnreadBoundarySenderRunLayout(boundary: boundary),
+          UnreadBoundarySenderRunLayout(boundary: boundary),
+        );
+        expect(
+          UnreadBoundarySenderRunLayout(boundary: boundary),
+          isNot(UnreadBoundarySenderRunLayout(boundary: other)),
+        );
+        expect(
+          UnreadBoundarySenderRunLayout(boundary: boundary),
+          isNot(
+            UnreadBoundarySenderRunLayout(
+              boundary: boundary,
+              delegate: const DefaultChatSenderRunLayout(maxClusterGap: null),
+            ),
+          ),
+        );
       });
     });
   });

@@ -91,6 +91,13 @@
   the scroll-to-bottom pill's read baseline advances. The bar goes away when
   an own message arrives, or when any message arrives while the reader is at
   the tail. It stays when messages arrive while the reader is scrolled up.
+- **EXAMPLE**: `UnreadBoundarySenderRunLayout` breaks the sender run at the
+  bar. The message below it starts a new bubble cluster (full top corners,
+  unclustered top inset) and the message above it ends one; every other row
+  keeps the wrapped policy's layout. The policy is a `Listenable` over the
+  same boundary listenable as the bar, so clearing or moving the bar rebuilds
+  only the rows whose run flags flip. The package default policy is
+  unchanged.
 
 ### Breaking changes
 
