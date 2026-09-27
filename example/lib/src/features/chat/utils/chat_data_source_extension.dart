@@ -3,33 +3,117 @@ import 'dart:math' as math;
 
 import 'package:chat_scroll_view/chat_scroll_view.dart';
 
-/// Demo helpers for opening a chat at the user's last-read position.
+/// Where a chat opens: at a message with an alignment, or at a saved
+/// Center Band.
+sealed class ChatOpenPosition {
+  const ChatOpenPosition();
+
+  /// Opens with [ChatScrollController.jumpTo] on [anchor] at [alignment];
+  /// [unreadBoundary] is the row that carries the unread separator, if any.
+  const factory ChatOpenPosition.message({
+    required int anchor,
+    required double alignment,
+    required int? unreadBoundary,
+  }) = MessageOpenPosition;
+
+  /// Opens with [ChatScrollController.jumpToCenterBand] on [centerBand];
+  /// [pendingBoundaryFrom] is the id a pending unread boundary searches
+  /// from, if any.
+  const factory ChatOpenPosition.centerBand({
+    required ChatCenterBand centerBand,
+    required int? pendingBoundaryFrom,
+  }) = CenterBandOpenPosition;
+}
+
+/// An open at a message: the unread boundary at the unread alignment, the
+/// tail, or the last-read message.
+final class MessageOpenPosition extends ChatOpenPosition {
+  /// Opens at [anchor] with [alignment], the separator on [unreadBoundary].
+  const MessageOpenPosition({
+    required this.anchor,
+    required this.alignment,
+    required this.unreadBoundary,
+  });
+
+  /// Message id handed to [ChatScrollController.jumpTo].
+  final int anchor;
+
+  /// Band alignment of [anchor] (`0` = band top, `1` = band bottom).
+  final double alignment;
+
+  /// Boundary row of the open, or `null` for no unread separator.
+  final int? unreadBoundary;
+}
+
+/// An open that restores the reading position the reader left.
+final class CenterBandOpenPosition extends ChatOpenPosition {
+  /// Restores [centerBand]; the boundary is pending from
+  /// [pendingBoundaryFrom].
+  const CenterBandOpenPosition({
+    required this.centerBand,
+    required this.pendingBoundaryFrom,
+  });
+
+  /// Saved Center Band, applied as one layout navigation.
+  final ChatCenterBand centerBand;
+
+  /// First unread id: the pending boundary resolves to the first loaded
+  /// incoming message at or after it. `null` when nothing is unread.
+  final int? pendingBoundaryFrom;
+}
+
+/// Demo helpers for opening a chat at the user's reading position and for
+/// deciding what to keep when leaving it.
 extension ChatDataSourceX on ChatDataSource {
   /// Alignment for an open at the last-read message: low in the band, so the
   /// messages after it show below.
   static const double _lastReadAlignment = 0.8;
 
-  /// Band alignment of the unread boundary row when the chat opens at it or
-  /// the app resumes onto a boundary moved in the background: the separator
-  /// starts at the band top.
+  /// Band alignment of the unread boundary row when the chat opens at it,
+  /// page-down navigates to it, or the app resumes onto a boundary moved in
+  /// the background: the separator starts at the band top.
   static const double unreadBoundaryAlignment = 0;
+
+  /// Newer messages after the newest visible one that [resolveLeavePosition]
+  /// inspects for an incoming message.
+  static const int _leaveLookahead = 4;
 
   /// The viewport's chunk size. [fetchRange] accepts only whole-chunk ranges.
   static const int _chunkSize = 64;
 
   /// Where to open the chat and which message carries the unread separator.
   ///
-  /// With an unread boundary (see [resolveUnreadBoundary]) the chat opens at
-  /// it with [unreadBoundaryAlignment], so the boundary row starts at the
-  /// band top. Otherwise it opens at [resolveOpenAnchor]: at the tail with
-  /// alignment `0`, or at the last-read message low in the band.
+  /// With a [savedCenterBand] the chat restores it: the result is a
+  /// [CenterBandOpenPosition] whose pending boundary starts right after
+  /// [storedLastRead] (clamped to [oldestKnownId]), or none when
+  /// [storedLastRead] is `null` or at or past [newestKnownId]. This path
+  /// never fetches; the pending boundary resolves as its rows load.
   ///
-  /// A failed boundary fetch is logged and the chat opens without a boundary.
-  Future<({int anchor, double alignment, int? unreadBoundary})>
-  resolveOpenPosition({
+  /// Without one the result is a [MessageOpenPosition]. With an unread
+  /// boundary (see [resolveUnreadBoundary]) the chat opens at it with
+  /// [unreadBoundaryAlignment]. Otherwise it opens at [resolveOpenAnchor]:
+  /// at the tail with alignment `0`, or at the last-read message low in the
+  /// band. A failed boundary fetch is logged and the chat opens without a
+  /// boundary.
+  Future<ChatOpenPosition> resolveOpenPosition({
     required int? storedLastRead,
     required bool Function(IChatMessage message) isSelfMessage,
+    ChatCenterBand? savedCenterBand,
   }) async {
+    if (savedCenterBand case final centerBand?) {
+      final newest = newestKnownId;
+      final pendingFrom = switch ((storedLastRead, newest)) {
+        (final lastRead?, final newest?) when lastRead < newest => math.max(
+          lastRead + 1,
+          oldestKnownId ?? 0,
+        ),
+        _ => null,
+      };
+      return ChatOpenPosition.centerBand(
+        centerBand: centerBand,
+        pendingBoundaryFrom: pendingFrom,
+      );
+    }
     int? boundary;
     try {
       boundary = await resolveUnreadBoundary(
@@ -45,7 +129,7 @@ extension ChatDataSourceX on ChatDataSource {
       );
     }
     if (boundary != null) {
-      return (
+      return ChatOpenPosition.message(
         anchor: boundary,
         alignment: unreadBoundaryAlignment,
         unreadBoundary: boundary,
@@ -57,11 +141,50 @@ extension ChatDataSourceX on ChatDataSource {
       newestKnownId: newest,
       oldestKnownId: oldestKnownId,
     );
-    return (
+    return ChatOpenPosition.message(
       anchor: anchor,
       alignment: anchor == newest ? 0.0 : _lastReadAlignment,
       unreadBoundary: null,
     );
+  }
+
+  /// The Center Band to keep for the next open when the reader leaves the
+  /// chat, or `null` to drop any saved one.
+  ///
+  /// `null` when:
+  ///
+  /// - [isAtTail] is `true` — a chat left at the tail reopens at the tail;
+  /// - [centerBand] is `null` — no message sits under the center-band ray;
+  /// - the newest visible message [newestVisibleId] is unread incoming (not
+  ///   own and after [readMark]) and one of the next four loaded messages
+  ///   after it is incoming — the reader stopped at the start of unread
+  ///   content, so the next open goes to the unread boundary instead.
+  ///
+  /// The look-ahead walks loaded messages only, skipping confirmed-absent
+  /// ids, and stops at the first id that is not loaded. A `null`
+  /// [readMark] counts nothing as unread.
+  ChatCenterBand? resolveLeavePosition({
+    required ChatCenterBand? centerBand,
+    required bool isAtTail,
+    required int newestVisibleId,
+    required int? readMark,
+    required bool Function(IChatMessage message) isSelfMessage,
+  }) {
+    if (isAtTail) return null;
+    final bottom = getMessage(newestVisibleId);
+    final bottomUnread = switch ((bottom, readMark)) {
+      (final message?, final mark?) =>
+        message.id > mark && !isSelfMessage(message),
+      _ => false,
+    };
+    if (bottomUnread) {
+      var message = getNextPresentMessage(newestVisibleId);
+      for (var step = 0; step < _leaveLookahead && message != null; step++) {
+        if (!isSelfMessage(message)) return null;
+        message = getNextPresentMessage(message.id);
+      }
+    }
+    return centerBand;
   }
 
   /// The unread boundary for an open: the smallest id after [storedLastRead]

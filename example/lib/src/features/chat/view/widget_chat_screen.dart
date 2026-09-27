@@ -9,6 +9,7 @@ import 'package:chat_scroll_view_example/src/features/chat/controller/chat_searc
 import 'package:chat_scroll_view_example/src/features/chat/controller/chat_search_state.dart';
 import 'package:chat_scroll_view_example/src/features/chat/controller/unread_boundary_controller.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/backend_chat_data_source.dart';
+import 'package:chat_scroll_view_example/src/features/chat/data/chat_center_band_store.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/comments_data_source.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/generated_chat_data_source.dart';
 import 'package:chat_scroll_view_example/src/features/chat/utils/chat_body_linkify_util.dart';
@@ -89,6 +90,12 @@ class _WidgetChatScreenState extends State<WidgetChatScreen>
   /// never the boundary.
   UnreadBoundaryController? _unreadBoundary;
 
+  /// Saved reading positions; `null` until the open resolves.
+  ChatCenterBandStore? _centerBandStore;
+
+  /// Saves or drops this chat's reading position when the app hides.
+  late final AppLifecycleListener _lifecycle;
+
   /// Page-down chrome show-intent — drives [ChatSideControlsBar] stack slot.
   var _pageDownChromeVisible = false;
 
@@ -147,6 +154,7 @@ class _WidgetChatScreenState extends State<WidgetChatScreen>
     _keyboardPanelOpen.addListener(_onKeyboardPanelOpenChanged);
     _syncEmojiIcon();
     _pillLastSeenBaseline.addListener(_onPillBaselineChanged);
+    _lifecycle = AppLifecycleListener(onHide: _saveReadingPosition);
     _init();
   }
 
@@ -315,6 +323,8 @@ class _WidgetChatScreenState extends State<WidgetChatScreen>
       ..removeListener(_onKeyboardPanelOpenChanged)
       ..dispose();
     _pillLastSeenBaseline.removeListener(_onPillBaselineChanged);
+    _lifecycle.dispose();
+    _saveReadingPosition();
     _flushPendingLastRead();
     _persistLastReadTimer?.cancel();
     _pillLastSeenBaseline.dispose();
@@ -376,11 +386,17 @@ class _WidgetChatScreenState extends State<WidgetChatScreen>
         CommentsDataSource() => 9990,
         _ => null,
       };
+      final store = await ChatCenterBandStore.open();
       final openPosition = await backend.resolveOpenPosition(
         storedLastRead: lastRead,
         isSelfMessage: _isSelfMessage,
+        savedCenterBand: switch (_readingPositionKey(backend)) {
+          final key? => store.read(key),
+          null => null,
+        },
       );
       if (!mounted) return;
+      _centerBandStore = store;
 
       _messageMenu = MessageMenu(
         dataSource: backend,
@@ -403,11 +419,14 @@ class _WidgetChatScreenState extends State<WidgetChatScreen>
           ? lastRead
           : null;
       _unreadBoundary?.dispose();
-      _unreadBoundary = UnreadBoundaryController(
+      final boundary = _unreadBoundary = UnreadBoundaryController(
         dataSource: backend,
         controller: _controller,
         isSelfMessage: _isSelfMessage,
-        boundary: openPosition.unreadBoundary,
+        boundary: switch (openPosition) {
+          MessageOpenPosition(:final unreadBoundary) => unreadBoundary,
+          CenterBandOpenPosition() => null,
+        },
         readElsewhere: switch (backend) {
           final BackendChatDataSource source => source.readElsewhere,
           _ => null,
@@ -416,10 +435,21 @@ class _WidgetChatScreenState extends State<WidgetChatScreen>
       if (backend case final BackendChatDataSource source) {
         source.addReconnectGapListener(_onReconnectGap);
       }
-      _controller.jumpTo(
-        openPosition.anchor,
-        alignment: openPosition.alignment,
-      );
+      switch (openPosition) {
+        case MessageOpenPosition(:final anchor, :final alignment):
+          _controller.jumpTo(anchor, alignment: alignment);
+        case CenterBandOpenPosition(
+          :final centerBand,
+          :final pendingBoundaryFrom,
+        ):
+          if (pendingBoundaryFrom case final fromId?) {
+            boundary.setPendingBoundary(fromId);
+          }
+          _controller.jumpToCenterBand(
+            centerBand.messageId,
+            centerBand.offsetFromMessageTop,
+          );
+      }
     } on Object catch (error, stackTrace) {
       dev.log(
         'Error initializing chat screen',
@@ -429,6 +459,7 @@ class _WidgetChatScreenState extends State<WidgetChatScreen>
       if (!mounted) return;
       _unreadBoundary?.dispose();
       _unreadBoundary = null;
+      _centerBandStore = null;
       _dataSource?.dispose();
       _dataSource = null;
       _messageMenu = null;
@@ -469,6 +500,62 @@ class _WidgetChatScreenState extends State<WidgetChatScreen>
     if (backend is! BackendChatDataSource) return;
     _pendingLastReadBaseline = null;
     unawaited(backend.updateLastReadMessageId(baseline));
+  }
+
+  /// Key of [source]'s chat in [ChatCenterBandStore], or `null` for a chat
+  /// whose history does not survive a relaunch.
+  static String? _readingPositionKey(ChatDataSource source) => switch (source) {
+    BackendChatDataSource(:final chatId) => 'backend/$chatId',
+    CommentsDataSource() => 'comments',
+    _ => null,
+  };
+
+  /// Saves the reading position for the next open, or drops it when the
+  /// chat is left at the tail or at the start of unread content — see
+  /// [ChatDataSourceX.resolveLeavePosition]. Leaves the store untouched
+  /// before the open's first layout.
+  void _saveReadingPosition() {
+    final (store, source) = (_centerBandStore, _dataSource);
+    if (store == null || source == null) return;
+    final key = _readingPositionKey(source);
+    final range = _controller.visibleRange.value;
+    if (key == null || range == null) return;
+    final centerBand = source.resolveLeavePosition(
+      centerBand: _controller.centerBand.value,
+      isAtTail: _controller.isAtTail.value,
+      newestVisibleId: range.lastId,
+      readMark: _pillLastSeenBaseline.value,
+      isSelfMessage: _isSelfMessage,
+    );
+    unawaited(
+      store.write(key, centerBand).catchError((
+        Object error,
+        StackTrace stackTrace,
+      ) {
+        dev.log(
+          'Saving the reading position failed',
+          name: 'chat_open',
+          error: error,
+          stackTrace: stackTrace,
+        );
+      }),
+    );
+  }
+
+  /// Page-down goes to the unread boundary until its separator has been
+  /// seen, pending boundaries included; afterwards it goes to the newest
+  /// message.
+  bool _pageDownToUnseenBoundary() {
+    final fromId = _unreadBoundary?.unseenFromId;
+    if (fromId == null) return false;
+    unawaited(
+      _controller.animateTo(
+        fromId,
+        alignment: ChatDataSourceX.unreadBoundaryAlignment,
+        highlight: false,
+      ),
+    );
+    return true;
   }
 
   static const String _demoSender = 'Hixie';
@@ -909,6 +996,7 @@ class _WidgetChatScreenState extends State<WidgetChatScreen>
                         dataSource: _dataSource!,
                         isSelfMessage: _isSelfMessage,
                         lastSeenNewestId: _pillLastSeenBaseline,
+                        interceptTap: _pageDownToUnseenBoundary,
                         onChromeVisibleChanged: (visible) {
                           if (_pageDownChromeVisible == visible) return;
                           setState(() => _pageDownChromeVisible = visible);

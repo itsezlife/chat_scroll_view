@@ -115,6 +115,21 @@
   `chat_read_state` changes for its chat and `userId`, and notifies
   `readElsewhere` for each change it did not write. It unsubscribes and
   goes silent on `dispose`.
+- **EXAMPLE**: A chat reopens where the reader left off, as in Telegram
+  Android. Leaving the demo chat (the screen is disposed or the app hides)
+  saves its Center Band per chat in `ChatCenterBandStore`
+  (`shared_preferences`). Leaving at the tail drops it, and so does leaving
+  with an unread message from someone else as the newest visible row and
+  another one among the next four loaded messages. With a saved Center
+  Band, `resolveOpenPosition` returns `ChatOpenPosition.centerBand`; the
+  screen restores it with `jumpToCenterBand` and makes the boundary pending
+  right after last-read, with no boundary fetch. The bar appears when the
+  reader reaches that row. `resolveOpenPosition` now returns the sealed
+  `ChatOpenPosition`; the open at a message (`MessageOpenPosition`) is
+  unchanged. Page-down goes to the unread boundary until its bar has been
+  seen (`UnreadBoundaryController.unseenFromId`), landing the bar at the
+  band top, and to the newest message afterwards.
+  `ChatScrollToBottomButton.interceptTap` lets the host take over a tap.
 - **EXAMPLE**: Messages that arrive while the app is in the background
   move the bar, as in Telegram Android. `UnreadBoundaryController` treats
   hide to show (`AppLifecycleListener.onHide` / `onShow`) as one pause. The

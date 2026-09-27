@@ -38,6 +38,7 @@ class ChatScrollToBottomButton extends StatefulWidget {
     this.scrollAwayThreshold = 100,
     this.embedded = false,
     this.onChromeVisibleChanged,
+    this.interceptTap,
     super.key,
   });
 
@@ -78,6 +79,13 @@ class ChatScrollToBottomButton extends StatefulWidget {
   ///
   /// Fires when the page-down visibility policy changes (not every frame).
   final ValueChanged<bool>? onChromeVisibleChanged;
+
+  /// Consulted first on every tap. Returning `true` means the host has
+  /// navigated somewhere other than the newest message: the tap then does
+  /// nothing else — no animate to newest, no chrome dismiss, no baseline
+  /// write. Returning `false` (or leaving this `null`) keeps the default
+  /// scroll to newest.
+  final bool Function()? interceptTap;
 
   @override
   State<ChatScrollToBottomButton> createState() =>
@@ -595,6 +603,7 @@ class _ChatScrollToBottomButtonState extends State<ChatScrollToBottomButton> {
   }
 
   Future<void> _onTap() async {
+    if (widget.interceptTap?.call() ?? false) return;
     final newest = widget.dataSource.newestKnownId;
     if (newest == null) return;
     // Dismiss chrome immediately; FrozenValue keeps the last badge count for

@@ -89,7 +89,8 @@ import 'package:flutter/widgets.dart' show AppLifecycleListener, WidgetsBinding;
 /// [ChatScrollController.visibleRange] push that has the boundary row, as a
 /// loaded message, between its first and last id — a layout that built the
 /// row with the separator. It stays `true` until [value] changes; every new
-/// boundary starts unseen.
+/// boundary starts unseen. [unseenFromId] names where unread content starts
+/// until then, pending boundaries included.
 ///
 /// ## Listeners
 ///
@@ -164,6 +165,17 @@ final class UnreadBoundaryController implements ValueListenable<int?> {
   bool get separatorSeen => switch (_state) {
     _PlacedBoundary(:final seen) => seen,
     _NoBoundary() || _PendingBoundary() => false,
+  };
+
+  /// Where unread content starts while the reader has not seen its
+  /// separator: the boundary row while placed and unseen, or the id a
+  /// pending search starts from — the boundary, once resolved, lies at or
+  /// after it. `null` when there is no boundary or its separator has been
+  /// seen.
+  int? get unseenFromId => switch (_state) {
+    _PlacedBoundary(:final id, seen: false) => id,
+    _PendingBoundary(:final fromId) => fromId,
+    _PlacedBoundary() || _NoBoundary() => null,
   };
 
   @override
