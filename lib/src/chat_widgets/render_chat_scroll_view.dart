@@ -182,6 +182,7 @@ class RenderChatScrollView extends RenderBox {
     ChatDayHeaderDelegate dayHeaderDelegate = const ChatFadingDayHeader(),
     ChatScrollActivityTiming? scrollActivityTiming,
     ChatSenderRunLayout senderRunLayout = DefaultChatSenderRunLayout.instance,
+    ValueListenable<int?>? unreadBoundary,
     bool hasErrorBuilder = false,
     bool hasEmptyBuilder = false,
     bool hasLoadingBuilder = false,
@@ -211,6 +212,7 @@ class RenderChatScrollView extends RenderBox {
        _dayHeaderDelegate = dayHeaderDelegate,
        _scrollActivityTiming = scrollActivityTiming,
        _senderRunLayout = senderRunLayout,
+       _unreadBoundary = unreadBoundary,
        _hasErrorBuilder = hasErrorBuilder,
        _hasEmptyBuilder = hasEmptyBuilder,
        _hasLoadingBuilder = hasLoadingBuilder,
@@ -667,6 +669,32 @@ class RenderChatScrollView extends RenderBox {
 
   void _onSenderRunLayoutChanged() => markNeedsLayout();
 
+  /// Unread boundary id. See [ChatScrollView.unreadBoundary].
+  ///
+  /// Listened to while attached. The element reads the value when it builds
+  /// a row and keeps a per-id "built with unread separator" bit in its skip
+  /// cache, so a changed value re-inflates only the rows whose bit flips —
+  /// the old and the new boundary row. This side owns the geometry: a value
+  /// change is a row chrome change, and the next layout holds the reading
+  /// position across it ([_holdRowChromeReference]).
+  ///
+  /// Swapping in a listenable with a different current value is a value
+  /// change; swapping in one with the same value only moves the subscription.
+  ValueListenable<int?>? _unreadBoundary;
+  set unreadBoundary(ValueListenable<int?>? value) {
+    if (identical(_unreadBoundary, value)) return;
+    final changed = _unreadBoundary?.value != value?.value;
+    if (attached) _unreadBoundary?.removeListener(_onUnreadBoundaryChanged);
+    _unreadBoundary = value;
+    if (attached) _unreadBoundary?.addListener(_onUnreadBoundaryChanged);
+    if (changed) _onUnreadBoundaryChanged();
+  }
+
+  void _onUnreadBoundaryChanged() {
+    _rowChromeChanged = true;
+    markNeedsLayout();
+  }
+
   /// Reading direction for paint mirroring (scrollbar position, future RTL
   /// chrome). Hit-tests against the scrollbar's trailing-edge strip read
   /// this too.
@@ -719,6 +747,11 @@ class RenderChatScrollView extends RenderBox {
   /// Drives the directional build-ahead lead.
   double _scrollVelocity = 0;
   static const double _leadFrames = 4;
+
+  /// Set when a row chrome input outside the data source changed (the
+  /// unread boundary); consumed by the next [performLayout], which holds the
+  /// reading position across the resulting row height change.
+  bool _rowChromeChanged = false;
 
   // --- Ticker / scroll physics ----------------------------------------------
 
@@ -1514,6 +1547,7 @@ class RenderChatScrollView extends RenderBox {
     _bottomPadding?.addListener(_onBottomPaddingChanged);
     _topPadding?.addListener(_onTopPaddingChanged);
     _attachSenderRunLayoutListener();
+    _unreadBoundary?.addListener(_onUnreadBoundaryChanged);
     _drag = _buildDragRecognizer();
     _selectionPointer = ChatSelectionPointer(debugOwner: this)
       ..messageIdAt = _presentMessageIdAt
@@ -1617,6 +1651,8 @@ class RenderChatScrollView extends RenderBox {
       _bottomPadding?.removeListener(_onBottomPaddingChanged);
       _topPadding?.removeListener(_onTopPaddingChanged);
       _detachSenderRunLayoutListener();
+      _unreadBoundary?.removeListener(_onUnreadBoundaryChanged);
+      _rowChromeChanged = false;
       _drag?.dispose();
       _drag = null;
       _selectionPointer?.dispose();
@@ -2221,6 +2257,9 @@ class RenderChatScrollView extends RenderBox {
 
     _compensateBottomPaddingChange();
 
+    final rowChromeChanged = _rowChromeChanged;
+    _rowChromeChanged = false;
+
     if (_dataSource.isEmpty || overlayKind != ChatOverlayKind.none) {
       _layoutOverlayMode(overlayKind);
       assert(() {
@@ -2278,6 +2317,10 @@ class RenderChatScrollView extends RenderBox {
 
     _normalizeAnchorToKnownTail();
 
+    final rowChromeReference = rowChromeChanged
+        ? _recordRowChromeReference()
+        : null;
+
     // Delete recovery (absent anchor delete):
     //   record geometry → reassign neighbor → purge tombstones → fan-out →
     //   preserve viewport → [optional refan if band null] → skip renormalize →
@@ -2294,6 +2337,11 @@ class RenderChatScrollView extends RenderBox {
     // Primary scroll shift is done; refan only when no band row exists yet
     // (mid-scroll off-screen — successor not intersecting the scroll band).
     if (_deleteCollapseRecoveryActive && _bottomBandMessage() == null) {
+      built.clear();
+      builtChunks.clear();
+      _layoutFromAnchor(childConstraints, built, builtChunks);
+    }
+    if (_holdRowChromeReference(rowChromeReference)) {
       built.clear();
       builtChunks.clear();
       _layoutFromAnchor(childConstraints, built, builtChunks);
@@ -2946,6 +2994,84 @@ class RenderChatScrollView extends RenderBox {
       _controller.applyScrollDelta(-gapCorrection);
       _repositionFromAnchor();
     }
+  }
+
+  /// Captures the reading position before a row chrome change re-lays out
+  /// the rows: the **reference row** and its bottom edge measured from the
+  /// anchor row's top.
+  ///
+  /// The reference row is the highest-id built message whose top sits above
+  /// the scroll band bottom (`height - bottomPad`) — the row at the band
+  /// bottom, or the newest row when content ends above it. Holding its
+  /// bottom edge keeps the bodies at and below a changed row in place while
+  /// that row is on screen or above it (the rows above absorb the change),
+  /// keeps the newest row pinned at the tail, and lets chrome that changes
+  /// below the band grow off screen without moving what is visible.
+  ///
+  /// Not [_bottomBandMessage]: that probe picks the row whose bottom is
+  /// nearest the band bottom, which can be a row above the one straddling
+  /// the edge. A changed row between the two would then grow downward into
+  /// the band instead of upward.
+  ///
+  /// Measured relative to the anchor, both edges from the same frame's
+  /// offsets, so a scroll delta or a jump queued since that frame does not
+  /// skew the result. `null` — nothing to hold — before the first layout,
+  /// while an animation or a stitch freeze owns the anchor, or when the
+  /// anchor row is not built.
+  _RowChromeReference? _recordRowChromeReference() {
+    if (_animator.isAnimating || _shouldFreezeStitchLayout()) return null;
+    final anchor = _resolveAnchorBox();
+    if (anchor == null || !anchor.box.hasSize) return null;
+    final bottomEdge = size.height - _bottomPad;
+    (int id, double bottom)? reference;
+    for (final MapEntry(key: id, value: child) in _children.entries) {
+      if (!child.hasSize) continue;
+      final top = _parentData(child).offset;
+      if (top >= bottomEdge) continue;
+      reference = (id, top + child.size.height);
+    }
+    return switch (reference) {
+      (final id, final bottom) => (
+        anchorId: _controller.anchorMessageId,
+        referenceId: id,
+        bottomFromAnchor: bottom - _parentData(anchor.box).offset,
+      ),
+      null => null,
+    };
+  }
+
+  /// Shifts the scroll origin so the row captured by
+  /// [_recordRowChromeReference] keeps its screen Y after the pass-1
+  /// fan-out re-laid out rows with changed row chrome.
+  ///
+  /// Silent when [reference] is `null`, when delete recovery owns this pass,
+  /// when the anchor id changed since the capture (reassignment or a jump to
+  /// another row — the relative measure no longer applies), or when either
+  /// row is no longer built. Runs before renormalize, navigation alignment,
+  /// and the boundary clamp, so an explicit jump alignment and the tail pin
+  /// still have the last word.
+  ///
+  /// Returns whether the origin moved. The shift only repositions built
+  /// rows, so the caller re-fans to fill the band edge the shift uncovered.
+  bool _holdRowChromeReference(_RowChromeReference? reference) {
+    if (reference == null || _deleteCollapseRecoveryActive) return false;
+    if (_controller.anchorMessageId != reference.anchorId) return false;
+    final anchor = _resolveAnchorBox();
+    final row = _children[reference.referenceId];
+    if (anchor == null || row == null) return false;
+    final bottomFromAnchor =
+        _parentData(row).offset +
+        row.size.height -
+        _parentData(anchor.box).offset;
+    final delta = reference.bottomFromAnchor - bottomFromAnchor;
+    if (delta.abs() <= _deleteCollapseEpsilon) return false;
+    _shiftLayoutByScrollDelta(delta);
+    _fetchAnchorEvent('layout.rowChromeHold', {
+      ..._fetchAnchorSnapshot(),
+      'referenceId': reference.referenceId,
+      'delta': LogFormat.f(delta),
+    });
+    return true;
   }
 
   void _reassignAnchorIfAbsent() {
@@ -6208,6 +6334,18 @@ class RenderChatScrollView extends RenderBox {
     super.dispose();
   }
 }
+
+/// Reading position captured before a row chrome change, held for one
+/// layout pass: the anchor it was measured against, the reference row, and
+/// that row's bottom edge relative to the anchor top.
+///
+/// Recorded by [RenderChatScrollView._recordRowChromeReference], consumed by
+/// [RenderChatScrollView._holdRowChromeReference].
+typedef _RowChromeReference = ({
+  int anchorId,
+  int referenceId,
+  double bottomFromAnchor,
+});
 
 /// Layout snapshot taken immediately before absent-anchor reassignment.
 ///

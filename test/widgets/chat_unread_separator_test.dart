@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:chat_scroll_view/chat_scroll_view.dart';
 import 'package:chat_scroll_view/src/chat_widgets/render_chat_scroll_view.dart';
 import 'package:flutter/foundation.dart';
@@ -54,6 +56,25 @@ class _SparseSource extends ChatDataSource {
   }) async => const <IChatMessage>[];
 }
 
+/// Boundaries 0–9; fetches never resolve, so rows stay shimmer until the
+/// test upserts them.
+class _LateSource extends ChatDataSource {
+  _LateSource() {
+    seedBoundaries(
+      oldestKnownId: 0,
+      newestKnownId: 9,
+      reachedOldest: true,
+      reachedNewest: true,
+    );
+  }
+
+  @override
+  Future<List<IChatMessage>> fetchRange({
+    required int fromId,
+    required int toId,
+  }) => Completer<List<IChatMessage>>().future;
+}
+
 /// Every fetch fails, so every chunk ends in error.
 class _FailingSource extends ChatDataSource {
   _FailingSource(this.count) {
@@ -103,11 +124,29 @@ Widget _unread(BuildContext context) =>
 Widget _unreadAlt(BuildContext context) =>
     const SizedBox(height: 32, child: Text('unread-alt'));
 
+/// Message builder that counts how often each id is built.
+final class _BuildCounter {
+  final Map<int, int> builds = <int, int>{};
+
+  Widget call(
+    BuildContext context,
+    int id,
+    IChatMessage? message,
+    ChatMessageStatus status,
+    MessageRunLayout runLayout,
+  ) {
+    builds.update(id, (count) => count + 1, ifAbsent: () => 1);
+    return _message(context, id, message, status, runLayout);
+  }
+}
+
 Widget _harness({
   required ChatDataSource dataSource,
   required ChatScrollController controller,
   ValueListenable<int?>? unreadBoundary,
   WidgetBuilder? unreadSeparatorBuilder = _unread,
+  ChatMessageBuilder messageBuilder = _message,
+  ValueListenable<double>? bottomPadding,
   bool separators = true,
   ChatSelectionController? selection,
   ChatMessageMenuRequestCallback? onIdleMessageTap,
@@ -122,10 +161,11 @@ Widget _harness({
         child: ChatScrollView(
           dataSource: dataSource,
           controller: controller,
+          bottomPadding: bottomPadding,
           selectionController: selection,
           onIdleMessageTap: onIdleMessageTap,
           onSecondaryMessageTap: onSecondaryMessageTap,
-          messageBuilder: _message,
+          messageBuilder: messageBuilder,
           dateSeparatorBuilder: separators ? _date : null,
           unreadBoundary: unreadBoundary,
           unreadSeparatorBuilder: unreadSeparatorBuilder,
@@ -438,26 +478,27 @@ void main() {
       expect(find.text('unread-alt'), findsOneWidget);
     });
 
-    testWidgets('swapping the boundary listenable moves the separator', (
-      tester,
-    ) async {
+    testWidgets('swapping the boundary listenable moves the separator and '
+        'follows only the new listenable', (tester) async {
       final source = _loaded(64);
       final controller = _controllerAt(14);
+      final first = _boundary(18);
       await tester.pumpWidget(
         _harness(
           dataSource: source,
           controller: controller,
-          unreadBoundary: _boundary(18),
+          unreadBoundary: first,
         ),
       );
       await tester.pump();
       expect(_top(tester, 'msg-18'), _top(tester, 'unread') + 32);
 
+      final second = _boundary(19);
       await tester.pumpWidget(
         _harness(
           dataSource: source,
           controller: controller,
-          unreadBoundary: _boundary(19),
+          unreadBoundary: second,
         ),
       );
       await tester.pump();
@@ -468,6 +509,158 @@ void main() {
         _top(tester, 'msg-18'),
         tester.getBottomLeft(find.text('msg-17')).dy,
       );
+
+      first.value = 17;
+      await tester.pump();
+      expect(_top(tester, 'msg-19'), _top(tester, 'unread') + 32);
+
+      second.value = 21;
+      await tester.pump();
+      expect(find.text('unread'), findsOneWidget);
+      expect(_top(tester, 'msg-21'), _top(tester, 'unread') + 32);
+    });
+  });
+
+  group('Live unread boundary', () {
+    testWidgets('moving the boundary rebuilds only the old and the new '
+        'boundary row', (tester) async {
+      final counter = _BuildCounter();
+      final boundary = _boundary(18);
+      await tester.pumpWidget(
+        _harness(
+          dataSource: _loaded(64),
+          controller: _controllerAt(14),
+          unreadBoundary: boundary,
+          messageBuilder: counter.call,
+        ),
+      );
+      await tester.pump();
+      final belowTop = _top(tester, 'msg-22');
+      counter.builds.clear();
+
+      boundary.value = 20;
+      await tester.pump();
+
+      expect(counter.builds, <int, int>{18: 1, 20: 1});
+      expect(find.text('unread'), findsOneWidget);
+      expect(_top(tester, 'msg-20'), _top(tester, 'unread') + 32);
+      expect(
+        _top(tester, 'msg-18'),
+        tester.getBottomLeft(find.text('msg-17')).dy,
+      );
+      expect(_top(tester, 'msg-22'), belowTop);
+    });
+
+    for (final (from, to, verb) in <(int?, int?, String)>[
+      (null, 18, 'setting'),
+      (18, null, 'clearing'),
+    ]) {
+      testWidgets('$verb the boundary off the tail keeps the bodies at and '
+          'below the row in place', (tester) async {
+        final boundary = _boundary(from);
+        await tester.pumpWidget(
+          _harness(
+            dataSource: _loaded(64),
+            controller: _controllerAt(14),
+            unreadBoundary: boundary,
+          ),
+        );
+        await tester.pump();
+        final bodies = <int, double>{
+          for (final id in <int>[18, 19, 22]) id: _top(tester, 'msg-$id'),
+        };
+        final aboveTop = _top(tester, 'msg-15');
+
+        boundary.value = to;
+        await tester.pump();
+
+        for (final MapEntry(key: id, value: top) in bodies.entries) {
+          expect(_top(tester, 'msg-$id'), top, reason: 'msg-$id');
+        }
+        expect(
+          _top(tester, 'msg-15'),
+          aboveTop + (to == null ? 32 : -32),
+          reason: 'the rows above the boundary row absorb the change',
+        );
+        expect(find.text('unread'), to == null ? findsNothing : findsOneWidget);
+      });
+
+      testWidgets('$verb the boundary at the tail keeps the newest row '
+          'pinned above the bottom inset', (tester) async {
+        final inset = ValueNotifier<double>(40);
+        addTearDown(inset.dispose);
+        final boundary = _boundary(from == null ? null : 60);
+        // Rows 56–63 are shorter than the band: the clamp pins the newest
+        // row to the band bottom and leaves the anchor above the boundary.
+        final controller = _controllerAt(56);
+        await tester.pumpWidget(
+          _harness(
+            dataSource: _loaded(64),
+            controller: controller,
+            unreadBoundary: boundary,
+            bottomPadding: inset,
+          ),
+        );
+        await tester.pump();
+        final bandBottom =
+            tester.getTopLeft(find.byType(ChatScrollView)).dy + 600 - 40;
+        expect(tester.getBottomLeft(find.text('msg-63')).dy, bandBottom);
+        final bodyTop = _top(tester, 'msg-61');
+
+        boundary.value = to == null ? null : 60;
+        await tester.pump();
+
+        expect(tester.getBottomLeft(find.text('msg-63')).dy, bandBottom);
+        expect(_top(tester, 'msg-61'), bodyTop);
+        expect(controller.isAtTail.value, isTrue);
+        expect(find.text('unread'), to == null ? findsNothing : findsOneWidget);
+      });
+    }
+
+    testWidgets('a boundary row that loads later gets the separator on that '
+        'build', (tester) async {
+      final source = _LateSource();
+      addTearDown(source.dispose);
+      await tester.pumpWidget(
+        _harness(
+          dataSource: source,
+          controller: _controllerAt(5),
+          unreadBoundary: _boundary(3),
+        ),
+      );
+      await tester.pump();
+      expect(find.text('shimmer-3'), findsOneWidget);
+      expect(find.text('unread'), findsNothing);
+
+      source.upsertMessage(_msg(3));
+      await tester.pump();
+
+      expect(find.text('unread'), findsOneWidget);
+      expect(_top(tester, 'msg-3'), _top(tester, 'unread') + 32);
+    });
+
+    testWidgets('moving the boundary onto an absent id paints nothing', (
+      tester,
+    ) async {
+      final source = _loaded(24);
+      final boundary = _boundary(22);
+      await tester.pumpWidget(
+        _harness(
+          dataSource: source,
+          controller: _controllerAt(23),
+          unreadBoundary: boundary,
+        ),
+      );
+      await tester.pump();
+      source.removeMessages(<int>[20]);
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
+
+      boundary.value = 20;
+      await tester.pump();
+
+      expect(find.text('msg-20'), findsNothing);
+      expect(find.text('unread'), findsNothing);
     });
   });
 }

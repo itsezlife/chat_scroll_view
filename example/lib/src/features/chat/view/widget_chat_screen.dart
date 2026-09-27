@@ -7,6 +7,7 @@ import 'package:chat_scroll_view_example/src/common/models/chat_message.dart';
 import 'package:chat_scroll_view_example/src/common/widgets/measure_size.dart';
 import 'package:chat_scroll_view_example/src/features/chat/controller/chat_search_controller.dart';
 import 'package:chat_scroll_view_example/src/features/chat/controller/chat_search_state.dart';
+import 'package:chat_scroll_view_example/src/features/chat/controller/unread_boundary_controller.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/backend_chat_data_source.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/comments_data_source.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/generated_chat_data_source.dart';
@@ -82,10 +83,10 @@ class _WidgetChatScreenState extends State<WidgetChatScreen>
   /// to stored last-read on off-tail open; advanced by the FAB while scrolling.
   final ValueNotifier<int?> _pillLastSeenBaseline = ValueNotifier<int?>(null);
 
-  /// Unread boundary: the first unread incoming message, snapshotted once per
-  /// open. Independent of [_pillLastSeenBaseline] — reading advances the
-  /// baseline, never the boundary.
-  final ValueNotifier<int?> _unreadBoundary = ValueNotifier<int?>(null);
+  /// Unread boundary of the current open; `null` until the open resolves.
+  /// Independent of [_pillLastSeenBaseline] — reading advances the baseline,
+  /// never the boundary.
+  UnreadBoundaryController? _unreadBoundary;
 
   /// Page-down chrome show-intent — drives [ChatSideControlsBar] stack slot.
   var _pageDownChromeVisible = false;
@@ -316,7 +317,7 @@ class _WidgetChatScreenState extends State<WidgetChatScreen>
     _flushPendingLastRead();
     _persistLastReadTimer?.cancel();
     _pillLastSeenBaseline.dispose();
-    _unreadBoundary.dispose();
+    _unreadBoundary?.dispose();
     _search?.dispose();
     _controller.dispose();
     _selection.dispose();
@@ -388,7 +389,13 @@ class _WidgetChatScreenState extends State<WidgetChatScreen>
           lastRead != null && newest != null && lastRead < newest
           ? lastRead
           : null;
-      _unreadBoundary.value = openPosition.unreadBoundary;
+      _unreadBoundary?.dispose();
+      _unreadBoundary = UnreadBoundaryController(
+        dataSource: backend,
+        controller: _controller,
+        isSelfMessage: _isSelfMessage,
+        boundary: openPosition.unreadBoundary,
+      );
       _controller.jumpTo(
         openPosition.anchor,
         alignment: openPosition.alignment,
@@ -400,6 +407,8 @@ class _WidgetChatScreenState extends State<WidgetChatScreen>
         stackTrace: stackTrace,
       );
       if (!mounted) return;
+      _unreadBoundary?.dispose();
+      _unreadBoundary = null;
       _dataSource?.dispose();
       _dataSource = null;
       _messageMenu = null;

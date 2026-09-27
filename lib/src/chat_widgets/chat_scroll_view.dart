@@ -320,12 +320,19 @@ class ChatScrollView extends RenderObjectWidget {
   /// absent paints nothing. The row gains the separator the next time it is
   /// built as a loaded message.
   ///
-  /// The viewport reads the value while it builds a row and does not listen
-  /// to it: set the value before the boundary row is first built. A value
-  /// changed later reaches only rows built after the change — a row built
-  /// earlier keeps the separator it was built with, so the old and the new
-  /// boundary row can both show one. Replacing the listenable with a
-  /// different instance rebuilds every built row.
+  /// The viewport listens while mounted. A value change — set, move, or
+  /// clear — rebuilds only the old and the new boundary row; no other row
+  /// rebuilds. Replacing the listenable with a different instance acts as
+  /// a change from the old value to the new one: the old instance is no
+  /// longer heard, and nothing rebuilds when both hold the same id.
+  ///
+  /// Adding or removing the separator changes the boundary row's height
+  /// without moving what the reader sees. The message row at the bottom of
+  /// the scroll band keeps its screen position: a boundary row on screen or
+  /// above it grows or shrinks upward, and one below the band grows off
+  /// screen. At the tail the newest row stays pinned above the bottom
+  /// inset. An in-flight navigation, a stitch, or a delete recovery keeps
+  /// ownership of the scroll origin for that frame.
   final ValueListenable<int?>? unreadBoundary;
 
   /// Builds the **unread separator** shown above the [unreadBoundary] row.
@@ -477,6 +484,7 @@ class ChatScrollView extends RenderObjectWidget {
       dayHeaderDelegate: dayHeaderDelegate,
       scrollActivityTiming: scrollActivityTiming,
       senderRunLayout: senderRunLayout,
+      unreadBoundary: unreadBoundary,
       hasErrorBuilder: chunkErrorBuilder != null,
       hasEmptyBuilder: emptyBuilder != null,
       hasLoadingBuilder: loadingBuilder != null,
@@ -510,6 +518,7 @@ class ChatScrollView extends RenderObjectWidget {
       ..dayHeaderDelegate = dayHeaderDelegate
       ..scrollActivityTiming = scrollActivityTiming
       ..senderRunLayout = senderRunLayout
+      ..unreadBoundary = unreadBoundary
       ..hasErrorBuilder = chunkErrorBuilder != null
       ..hasEmptyBuilder = emptyBuilder != null
       ..hasLoadingBuilder = loadingBuilder != null

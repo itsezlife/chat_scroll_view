@@ -30,6 +30,7 @@ flowchart TB
   DelRec[Delete recovery 6b–6c]
   Fan1[Pass-1 fan-out]
   Preserve[_preserveViewportAfterDelete]
+  Hold[_holdRowChromeReference 6d]
   Renorm[_renormalizeAnchor]
   Align[_applyNavigationAlignment]
   Tail[Tail-pin flags]
@@ -44,7 +45,7 @@ flowchart TB
 
   Mode --> Comp --> Overlay
   Overlay -->|yes| OverlayPath
-  Overlay -->|no| DropOverlay --> JumpGC --> NormTail --> DelRec --> Fan1 --> Preserve --> Renorm --> Align --> Tail --> GapMatch --> Clamp --> Fan2
+  Overlay -->|no| DropOverlay --> JumpGC --> NormTail --> DelRec --> Fan1 --> Preserve --> Hold --> Renorm --> Align --> Tail --> GapMatch --> Clamp --> Fan2
   Fan2 -->|yes| Fan2Yes --> GapMatch2 --> GC
   Fan2 -->|no| GapMatch2 --> GC
   GC --> Fetch --> Pub
@@ -125,6 +126,29 @@ When a before-delete snapshot was recorded:
    and [06-boundaries.md](06-boundaries.md).
 
 Recovery flags clear at end of `performLayout`.
+
+### 6d. Row chrome hold (after pass-1 fan-out and delete recovery)
+
+Runs only on a pass flagged by `_rowChromeChanged`, which an
+`unreadBoundary` value change or listenable swap sets — the unread separator
+appears on or leaves one or two rows.
+
+1. **`_recordRowChromeReference`** — right after step 6, before the fan-out
+   re-lays out the changed rows: from the previous frame's offsets, pick the
+   **reference row** (the highest built message id whose top is above
+   `height - bottomPad`) and record its bottom edge relative to the anchor
+   top. Skipped while an animation or a stitch freeze owns the anchor.
+2. **`_holdRowChromeReference`** — after pass-1 fan-out (and after delete
+   recovery's shift and refan): shift scroll so the reference row's bottom
+   returns to its recorded position relative to the anchor, then re-fan
+   pass 1 once when it shifted. Silent while delete recovery is active or
+   when the anchor id changed since the record.
+
+Effect: the bodies at and below a changed row on screen or above it keep
+their screen Y (the rows above absorb the height change); a change below
+the band grows off screen; at the tail the newest row stays at the band
+bottom. Renormalize, navigation alignment, and the clamp still run after
+the hold.
 
 ### 7. Pass-1 fan-out — `_layoutFromAnchor` → `_fanOutFromAnchor`
 

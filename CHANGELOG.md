@@ -68,10 +68,14 @@
   without day grouping. It paints only on a loaded message row, always opaque
   while the date above it fades, outside selection chrome and the
   secondary-tap scope. A tap, secondary tap, or long press on it produces no
-  message menu request and no selection. The viewport reads the boundary value
-  while building a row and does not listen to it: a value changed later
-  reaches only rows built after the change. Swapping the builder or the
-  listenable rebuilds every built row. A `null` boundary paints nothing.
+  message menu request and no selection. The viewport listens to the
+  boundary: setting, moving, or clearing it rebuilds only the old and the new
+  boundary row, and swapping the listenable counts as a value change. The
+  row at the bottom of the scroll band keeps its screen position across the
+  change: a boundary row on screen grows or shrinks upward, and at the tail
+  the newest row stays pinned above the bottom inset. A boundary row that
+  loads later gets the separator when it is built. Swapping the builder
+  rebuilds every built row. A `null` boundary paints nothing.
 - **EXAMPLE**: The demo reads the stored last-read id on open again, for the
   server-backed source. When a message from someone else follows it, that
   message becomes the unread boundary: the chat opens with
@@ -82,6 +86,11 @@
   boundary from cached messages; at the first uncached id they fetch that
   whole chunk once, so an open makes at most one fetch. A failed fetch is
   logged and the chat opens at last-read without the bar.
+- **EXAMPLE**: `UnreadBoundaryController` holds the boundary for one open.
+  The bar stays put while the reader scrolls through unread messages; only
+  the scroll-to-bottom pill's read baseline advances. The bar goes away when
+  an own message arrives, or when any message arrives while the reader is at
+  the tail. It stays when messages arrive while the reader is scrolled up.
 
 ### Breaking changes
 

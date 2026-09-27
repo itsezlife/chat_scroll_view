@@ -73,9 +73,11 @@ The viewport composes up to two items, only on a **loaded** message row
 A row with neither is a plain `RepaintBoundary`. The unread separator does
 not touch the day machinery: `startsDay`, `dayBucket`, the header scan, and
 `leadingSeparatorTop` ignore it, and the divider fade applies to the date item
-only. The element reads `unreadBoundary.value` at build time and does not
-listen to it; swapping the listenable or the builder clears the skip-rebuild
-cache.
+only. The render object listens to `unreadBoundary`; a value change rebuilds
+only the old and the new boundary row (the separator flag is a skip-rebuild
+input) and holds the row at the band bottom in place — see
+[Layout Pipeline](./04-layout-pipeline.md). Swapping the builder clears the
+skip-rebuild cache.
 
 | Concern | Rule |
 |---------|------|

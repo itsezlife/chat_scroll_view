@@ -4,6 +4,7 @@ import 'package:chat_scroll_view/src/chat_scroll/chat_scroll_common.dart';
 import 'package:chat_scroll_view/src/chat_scroll/chat_scroll_controller.dart';
 import 'package:chat_scroll_view/src/chat_widgets/chat_scroll_view.dart';
 import 'package:chat_scroll_view_example/src/common/models/chat_message.dart';
+import 'package:chat_scroll_view_example/src/features/chat/controller/unread_boundary_controller.dart';
 import 'package:chat_scroll_view_example/src/features/chat/utils/chat_data_source_extension.dart';
 import 'package:chat_scroll_view_example/src/features/chat/widgets/scroll_to_bottom_button.dart';
 import 'package:flutter/foundation.dart' show ValueListenable, ValueNotifier;
@@ -621,6 +622,116 @@ void main() {
       );
       expect(lastSeen.value, lastRead);
       expect(_pillText(tester), _expectedPillLabel(count - 1 - lastRead));
+    });
+
+    group('live', () {
+      const count = 151;
+      const lastRead = 50;
+      const boundaryId = lastRead + 1;
+
+      Future<
+        ({
+          _PreloadedDataSource ds,
+          ChatScrollController controller,
+          UnreadBoundaryController boundary,
+          ValueNotifier<int?> lastSeen,
+        })
+      >
+      open(WidgetTester tester) async {
+        final ds = _PreloadedDataSource(count);
+        final position = await ds.resolveOpenPosition(
+          storedLastRead: lastRead,
+          isSelfMessage: _isSelf,
+        );
+        final controller = ChatScrollController()
+          ..jumpTo(position.anchor, alignment: position.alignment);
+        final boundary = UnreadBoundaryController(
+          dataSource: ds,
+          controller: controller,
+          isSelfMessage: _isSelf,
+          boundary: position.unreadBoundary,
+        );
+        final lastSeen = ValueNotifier<int?>(lastRead);
+        addTearDown(controller.dispose);
+        addTearDown(ds.dispose);
+        addTearDown(boundary.dispose);
+        addTearDown(lastSeen.dispose);
+
+        await tester.pumpWidget(
+          _harness(
+            dataSource: ds,
+            controller: controller,
+            lastSeenNewestId: lastSeen,
+            unreadBoundary: boundary,
+          ),
+        );
+        await _pumpOpenSettled(tester);
+        expect(boundary.value, boundaryId);
+        expect(find.text('unread'), findsOneWidget);
+        return (
+          ds: ds,
+          controller: controller,
+          boundary: boundary,
+          lastSeen: lastSeen,
+        );
+      }
+
+      testWidgets('scroll-reading advances the read baseline, not the '
+          'boundary', (tester) async {
+        final (:ds, :controller, :boundary, :lastSeen) = await open(tester);
+
+        for (var step = 0; step < 8; step++) {
+          await tester.drag(find.byType(ChatScrollView), const Offset(0, -180));
+          await tester.pump();
+          await tester.pump(const Duration(milliseconds: 16));
+        }
+
+        expect(lastSeen.value, greaterThan(lastRead));
+        expect(boundary.value, boundaryId);
+      });
+
+      testWidgets('an own send clears the boundary', (tester) async {
+        final (:ds, :controller, :boundary, :lastSeen) = await open(tester);
+        expect(controller.isAtTail.value, isFalse);
+
+        ds.insertMessage(_msg(count, self: true));
+        await tester.pump();
+
+        expect(boundary.value, isNull);
+        expect(find.text('unread'), findsNothing);
+      });
+
+      testWidgets('an incoming message at the tail clears the boundary', (
+        tester,
+      ) async {
+        final (:ds, :controller, :boundary, :lastSeen) = await open(tester);
+        controller.jumpTo(count - 1);
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 16));
+        expect(controller.isAtTail.value, isTrue);
+        expect(boundary.value, boundaryId);
+
+        ds.insertMessage(_msg(count));
+        await tester.pump();
+
+        expect(boundary.value, isNull);
+      });
+
+      testWidgets('an incoming message off the tail keeps the boundary', (
+        tester,
+      ) async {
+        final (:ds, :controller, :boundary, :lastSeen) = await open(tester);
+        final rowTop = tester.getTopLeft(find.text('msg-$boundaryId')).dy;
+
+        ds.insertMessage(_msg(count));
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 16));
+
+        expect(controller.isAtTail.value, isFalse);
+        expect(boundary.value, boundaryId);
+        expect(find.text('unread'), findsOneWidget);
+        expect(tester.getTopLeft(find.text('msg-$boundaryId')).dy, rowTop);
+      });
     });
   });
 }

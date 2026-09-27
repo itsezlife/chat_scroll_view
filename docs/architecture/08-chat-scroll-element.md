@@ -89,7 +89,8 @@ for chrome-only updates.
 - Row chrome items, top to bottom, only when `message != null`:
   - date separator if `startsNewDay && separator != null && groupBucket != null`
     (delegate `dayHeaderDelegate.inlineSeparator`);
-  - unread separator if `unreadSeparatorBuilder != null &&
+  - unread separator if `hasUnreadSeparator` — resolved by `buildChild` as
+    `unreadSeparatorBuilder != null && message != null &&
     unreadBoundary?.value == id` (default `opaque()` delegate).
   Any item → `ChatRowChrome` above the body; none → `RepaintBoundary` + body.
 - Row chrome is **outside** selection and the secondary-tap scope, so it is
@@ -106,21 +107,24 @@ The element does **not** compute day boundaries — it only consumes
 | `_builtMessage[id]` | `IChatMessage?` — **identity** via `identical` |
 | `_builtStatus[id]` | `ChatMessageStatus` |
 | `_builtStartsDay[id]` | `bool` |
+| `_builtUnreadSeparator[id]` | `bool` — row was built with the unread separator |
 | `_builtRunLayout[id]` | `MessageRunLayout` value equality (first/last + optional host `extras`) |
 | `_builtSelectionAllowed[id]` | `ChatSelectionAllowed` — last resolved flags |
 
 **Hit:** existing element **and** status equal **and** `startsNewDay` equal
-**and** `runLayout` equal **and** selection-allowed equal **and**
-`identical(message)`.
+**and** unread-separator flag equal **and** `runLayout` equal **and**
+selection-allowed equal **and** `identical(message)`.
 
 **Miss → full `updateChild`.**
 
 **Cleared entirely** on widget `update` when builders (including
-`unreadSeparatorBuilder`) / selection / `textDirection` / the
-`unreadBoundary` listenable instance change. Use `==` on builder tear-offs,
-not `identical` (otherwise every parent rebuild drops the cache). The
-boundary **value** is not a cache input: a value change does not rebuild a
-cached row.
+`unreadSeparatorBuilder`) / selection / `textDirection` change. Use `==` on
+builder tear-offs, not `identical` (otherwise every parent rebuild drops the
+cache). The `unreadBoundary` listenable instance is **not** a clear trigger:
+the boundary value is a per-id cache input, so a value change — or a swap to
+an instance holding another id — misses only the old and the new boundary
+row. `RenderChatScrollView` listens to the boundary and `markNeedsLayout`s so
+those rows are revisited.
 
 **Selection-allowed map only** cleared on
 `ChatSelectionController` notify (`selectionAllowed` assign /
