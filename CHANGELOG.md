@@ -107,6 +107,12 @@
   `readElsewhere` listenable and clears on each notification, whatever read
   id the other client stored. This device's own read-progress writes never
   clear it.
+- **EXAMPLE**: A page-down that stitches to the tail removes the bar, as a
+  reloading page-down does in Telegram Android. When an `animateTo` whose
+  target was the newest known message when it started ends with
+  `ChatAnimateEnd.path == AnimateToPath.stitch`, `UnreadBoundaryController`
+  clears the boundary. A page-down near the tail that scrolls through built
+  rows keeps it, and navigations to any other target never clear it.
 - **EXAMPLE**: The demo backend syncs read state. `chat_read_state` joins
   the Realtime publication and gains a `write_tag` column, which
   `update_read_state` fills from an optional `write_tag` field and the
@@ -186,11 +192,27 @@
   or the list follows the tail. `scrollBy` now also cancels a placement
   that has not landed yet, so a `scrollBy` right after `jumpTo` sticks
   instead of being snapped back.
+- **ADDED**: `ChatAnimateEnd.path` (`AnimateToPath`) reports how an
+  `animateTo` flight reached its target: `close` when the target was a built
+  row and the list scrolled through the rows in between (a target already
+  in place included), `stitch` when it was not built and the viewport
+  teleported and slid the destination band in (a load-gate wait that ends
+  in a stitch included), `instant` for `duration <= 0`, and `none` when the
+  flight was cancelled on the load-gate before choosing. A flight
+  cancelled after it began reports the path it began. Path selection, load
+  policies and the load-gate are unchanged, and so are the events: a
+  coalesced or ignored call, or an `animateTo` with no viewport bound (a
+  plain `jumpTo`), still emits no `ChatAnimateEnd`. The return value of
+  `animateTo` is still `AnimateToDisposition`.
 
 ### Breaking changes
 
 Source-breaking for hosts that built against earlier revisions of this
 repository. Each entry says what to change.
+
+- **CHANGED**: `ChatScrollAnimator.animate` returns `Future<AnimateToPath>`
+  instead of `Future<void>`. The viewport binds its own animator; only a
+  custom implementation needs to complete with the path it took.
 
 - **REMOVED**: `onCopySuccess`, `onLinkTap`, `onLinkLongPress`, `onCodeTap` and
   the matching typed `add*Listener` APIs on `ChatSelectionController`. Use

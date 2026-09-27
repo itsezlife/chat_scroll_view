@@ -100,6 +100,10 @@ enum ChatHighlightPhase {
 ///   dual-translate paint. Runs only after the load-gate ([isDestinationReady]).
 ///   No whole-viewport opacity fade.
 ///
+/// [animate] completes with the [AnimateToPath] the flight entered — close,
+/// stitch, instant for `duration ≤ 0`, or none when cancelled on the
+/// load-gate.
+///
 /// ## Timing
 ///
 /// Both paths use [chatAnimateTravelDuration] + [Curves.easeOutQuint]. Caller
@@ -231,7 +235,17 @@ class ChatAnimator implements ChatScrollAnimator {
   int _lastProgressBucket = -1;
 
   /// Active `animateTo`'s completer, or `null` when no animation is running.
-  Completer<void>? animateCompleter;
+  ///
+  /// Completes with [_flightPath] on settle and on cancel.
+  Completer<AnimateToPath>? animateCompleter;
+
+  /// Path the in-flight animate entered; [AnimateToPath.none] until
+  /// [_beginClose] or [_beginStitch] runs.
+  ///
+  /// Written beside [_pathStarted] / [farAnimateActive] rather than derived
+  /// from them: those are cleared before the completer completes, and path
+  /// choice must never read this report back.
+  AnimateToPath _flightPath = AnimateToPath.none;
 
   /// Target id for the in-flight animation; for the close-target branch the
   /// anchor has already been reassigned to this id at the start.
@@ -376,7 +390,7 @@ class ChatAnimator implements ChatScrollAnimator {
   static const double _settleEpsilon = 1;
 
   @override
-  Future<void> animate(
+  Future<AnimateToPath> animate(
     int targetId, {
     required Duration duration,
     required Curve curve,
@@ -416,7 +430,7 @@ class ChatAnimator implements ChatScrollAnimator {
               ? LogFormat.ratio(stitchProgress)
               : null,
         });
-        return Future<void>.value();
+        return Future<AnimateToPath>.value(AnimateToPath.none);
       }
       fine(.animate, 'animate.replace', {
         'requested': targetId,
@@ -445,7 +459,7 @@ class ChatAnimator implements ChatScrollAnimator {
       if (highlight && highlightDuration > Duration.zero) {
         _requestHighlight(targetId, startHold: true);
       }
-      return Future<void>.value();
+      return Future<AnimateToPath>.value(AnimateToPath.close);
     }
 
     // Fresh animate owns attention: drop leftover highlight / stretch.
@@ -458,13 +472,14 @@ class ChatAnimator implements ChatScrollAnimator {
         'align': LogFormat.ratio(align),
       });
       _controller.jumpTo(targetId, alignment: align);
-      return Future<void>.value();
+      return Future<AnimateToPath>.value(AnimateToPath.instant);
     }
 
     animateHighlight = highlight;
     this.loadPolicy = loadPolicy;
-    final completer = Completer<void>();
+    final completer = Completer<AnimateToPath>();
     animateCompleter = completer;
+    _flightPath = AnimateToPath.none;
     animateTargetId = targetId;
     animateAlignment = align;
     animateDuration = duration;
@@ -677,6 +692,7 @@ class ChatAnimator implements ChatScrollAnimator {
 
   void _beginClose(double offsetToTarget) {
     _pathStarted = true;
+    _flightPath = AnimateToPath.close;
     _leaveLoadGateWait();
     final child = _childForId(animateTargetId);
     final endOffset = child != null
@@ -714,6 +730,7 @@ class ChatAnimator implements ChatScrollAnimator {
 
   void _beginStitch() {
     _pathStarted = true;
+    _flightPath = AnimateToPath.stitch;
     // End the load-gate wait, but keep (or establish) the destination-window
     // fetch pin for the flight. Stitch layout spans outgoing strip + incoming
     // band; without the pin, poll/jump-fetch contiguous-fills that gap.
@@ -791,6 +808,7 @@ class ChatAnimator implements ChatScrollAnimator {
       'progress': LogFormat.ratio(stitchProgress),
       'loadGateWaiting': loadGateWaiting,
       'fadeHighlight': fadeHighlight && animateHighlight,
+      'path': _flightPath.name,
     });
     animateCompleter = null;
     animateStartTime = null;
@@ -824,7 +842,7 @@ class ChatAnimator implements ChatScrollAnimator {
         (highlightTargetId != null || pendingHighlightTargetId != null)) {
       beginHighlightFade();
     }
-    if (!completer.isCompleted) completer.complete();
+    if (!completer.isCompleted) completer.complete(_flightPath);
   }
 
   /// Drive the in-flight animation by one tick. Returns the additional scroll
@@ -1025,7 +1043,7 @@ class ChatAnimator implements ChatScrollAnimator {
     }
     fine(.animate, 'animate.complete', {
       'target': targetId,
-      'path': wasFarPath ? 'stitch' : 'close',
+      'path': _flightPath.name,
       'anchorId': _controller.anchorMessageId,
       'anchorY': LogFormat.f(_controller.anchorPixelOffset),
       'highlight': animateHighlight && highlightDuration > Duration.zero,
@@ -1067,7 +1085,9 @@ class ChatAnimator implements ChatScrollAnimator {
     }
     _pendingSettleTargetId = targetId;
     _markNeedsPaint();
-    if (completer != null && !completer.isCompleted) completer.complete();
+    if (completer != null && !completer.isCompleted) {
+      completer.complete(_flightPath);
+    }
   }
 
   void _requestHighlight(int targetId, {required bool startHold}) {

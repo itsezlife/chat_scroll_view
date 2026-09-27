@@ -2,6 +2,7 @@
 import 'package:chat_scroll_view/src/chat_scroll/chat_data_source.dart';
 import 'package:chat_scroll_view/src/chat_scroll/chat_scroll_common.dart';
 import 'package:chat_scroll_view/src/chat_scroll/chat_scroll_controller.dart';
+import 'package:chat_scroll_view/src/chat_scroll/chat_scroll_events.dart';
 import 'package:chat_scroll_view/src/chat_scroll/chat_sender_run_layout.dart';
 import 'package:chat_scroll_view/src/chat_widgets/chat_scroll_view.dart';
 import 'package:chat_scroll_view_example/src/common/models/chat_message.dart';
@@ -849,6 +850,71 @@ void main() {
         expect(tester.getTopLeft(find.text('unread')).dy, separatorTop);
       });
 
+      /// Taps page-down; the returned list collects the path each
+      /// [ChatAnimateEnd] reports.
+      Future<List<AnimateToPath>> tapPageDown(
+        WidgetTester tester,
+        ChatScrollController controller,
+      ) async {
+        final paths = <AnimateToPath>[];
+        void onEvent(ChatScrollEvent event) {
+          if (event case ChatAnimateEnd(:final path)) paths.add(path);
+        }
+
+        controller.addScrollListener(onEvent);
+        addTearDown(() => controller.removeScrollListener(onEvent));
+        // Let the button finish sliding in so the tap lands on it.
+        await tester.pump(const Duration(milliseconds: 300));
+        await tester.tap(
+          find.byKey(const ValueKey<String>('scroll_to_bottom')),
+        );
+        await tester.pump();
+        return paths;
+      }
+
+      /// Pumps until page-down's flight has ended; returns its path.
+      Future<AnimateToPath> land(
+        WidgetTester tester,
+        List<AnimateToPath> paths,
+      ) async {
+        for (var i = 0; i < 200 && paths.isEmpty; i++) {
+          await tester.pump(const Duration(milliseconds: 16));
+        }
+        await tester.pump();
+        return paths.single;
+      }
+
+      testWidgets('a page-down that stitches to the tail clears the boundary '
+          'once it lands', (tester) async {
+        final (:ds, :controller, :boundary, :lastSeen) = await open(tester);
+
+        final paths = await tapPageDown(tester, controller);
+        await tester.pump(const Duration(milliseconds: 16));
+        expect(controller.isAnimating, isTrue);
+        expect(boundary.value, boundaryId, reason: 'still in flight');
+
+        expect(await land(tester, paths), AnimateToPath.stitch);
+        expect(controller.isAtTail.value, isTrue);
+        expect(boundary.value, isNull);
+        expect(find.text('unread'), findsNothing);
+      });
+
+      testWidgets('a page-down that scrolls through built rows keeps the '
+          'boundary', (tester) async {
+        final (:ds, :controller, :boundary, :lastSeen) = await open(tester);
+        controller.jumpTo(count - 11);
+        await _pumpOpenSettled(tester);
+        expect(controller.isAtTail.value, isFalse);
+
+        final paths = await tapPageDown(tester, controller);
+        expect(await land(tester, paths), AnimateToPath.close);
+        expect(controller.isAtTail.value, isTrue);
+        expect(boundary.value, boundaryId);
+
+        controller.jumpTo(boundaryId);
+        await tester.pump();
+        expect(find.text('unread'), findsOneWidget);
+      });
     });
 
     group('host writes', () {

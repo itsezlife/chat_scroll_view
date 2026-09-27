@@ -64,6 +64,18 @@ import 'package:flutter/widgets.dart' show AppLifecycleListener, WidgetsBinding;
 /// source behind `readElsewhere` MUST drop echoes of this client's own read
 /// writes.
 ///
+/// ## Navigations to the tail
+///
+/// A [ChatScrollController.animateTo] whose target is
+/// [ChatDataSource.newestKnownId] when it starts — the scroll-to-bottom tap,
+/// the tail hop after an own send — clears the boundary when its
+/// [ChatAnimateEnd.path] is [AnimateToPath.stitch]: the viewport reloaded
+/// the tail instead of scrolling through the rows in between. A stitch
+/// cancelled after it began counts too. A flight that took the close path
+/// keeps the boundary; the reader scrolled past the separator. Navigations
+/// to any other target, instant jumps, and flights cancelled before
+/// choosing a path never clear it.
+///
 /// ## Pending boundary
 ///
 /// [setPendingBoundary] names where unread content starts before the row
@@ -100,8 +112,8 @@ import 'package:flutter/widgets.dart' show AppLifecycleListener, WidgetsBinding;
 /// without notifying.
 final class UnreadBoundaryController implements ValueListenable<int?> {
   /// Starts the open with [boundary] (`null` for none) and begins judging
-  /// arrivals and deletions in [dataSource], the visible range of
-  /// [controller], [readElsewhere], and app visibility.
+  /// arrivals and deletions in [dataSource], the visible range and
+  /// navigations of [controller], [readElsewhere], and app visibility.
   ///
   /// Arrivals count from [ChatDataSource.newestKnownId] at construction:
   /// messages already known when the open resolved are never judged. App
@@ -131,7 +143,9 @@ final class UnreadBoundaryController implements ValueListenable<int?> {
       ..addBoundaryListener(_onNewestKnownChanged)
       ..addDataListener(_onDataChanged)
       ..addMutationListener(_onMutation);
-    _controller.visibleRange.addListener(_judgeSeen);
+    _controller
+      ..visibleRange.addListener(_judgeSeen)
+      ..addScrollListener(_onScrollEvent);
     _readElsewhere?.addListener(clear);
     _lifecycle = AppLifecycleListener(onHide: _onHide, onShow: _onShow);
   }
@@ -147,6 +161,15 @@ final class UnreadBoundaryController implements ValueListenable<int?> {
 
   /// The current background span, or `null` while the app is visible.
   _BackgroundSpan? _backgroundSpan;
+
+  /// Open [ChatAnimateStart]s per target, counted only for starts whose
+  /// target was [ChatDataSource.newestKnownId] at that moment.
+  ///
+  /// A count, not one id or a set: a replacing animate emits its start
+  /// before the replaced flight's end, and an instant or replacing call on
+  /// the same target emits its own start and end inside the flight it
+  /// overlaps.
+  final _tailNavigations = <int, int>{};
 
   _BoundaryState _state;
 
@@ -240,10 +263,10 @@ final class UnreadBoundaryController implements ValueListenable<int?> {
   }
 
   /// Stops judging arrivals, deletions, reads elsewhere, separator
-  /// visibility, and app visibility, and drops every listener. The value
-  /// freezes; later writes, data source changes, range pushes,
-  /// read-elsewhere notifications, and lifecycle changes are ignored, and a
-  /// background span in progress ends without a jump.
+  /// visibility, navigations, and app visibility, and drops every listener.
+  /// The value freezes; later writes, data source changes, range pushes,
+  /// scroll events, read-elsewhere notifications, and lifecycle changes are
+  /// ignored, and a background span in progress ends without a jump.
   /// Idempotent.
   void dispose() {
     if (_disposed) return;
@@ -254,9 +277,36 @@ final class UnreadBoundaryController implements ValueListenable<int?> {
       ..removeBoundaryListener(_onNewestKnownChanged)
       ..removeDataListener(_onDataChanged)
       ..removeMutationListener(_onMutation);
-    _controller.visibleRange.removeListener(_judgeSeen);
+    _controller
+      ..visibleRange.removeListener(_judgeSeen)
+      ..removeScrollListener(_onScrollEvent);
     _readElsewhere?.removeListener(clear);
     _listeners.clear();
+    _tailNavigations.clear();
+  }
+
+  void _onScrollEvent(ChatScrollEvent event) {
+    switch (event) {
+      case ChatAnimateStart(:final targetId)
+          when targetId == _dataSource.newestKnownId:
+        _tailNavigations.update(
+          targetId,
+          (open) => open + 1,
+          ifAbsent: () => 1,
+        );
+      case ChatAnimateEnd(:final targetId, :final path):
+        switch (_tailNavigations[targetId]) {
+          case null:
+            return;
+          case 1:
+            _tailNavigations.remove(targetId);
+          case final open:
+            _tailNavigations[targetId] = open - 1;
+        }
+        if (path == AnimateToPath.stitch) clear();
+      case _:
+        break;
+    }
   }
 
   void _onMutation(ChatMutation mutation) {

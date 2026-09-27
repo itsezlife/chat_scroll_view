@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:chat_scroll_view/src/chat_scroll/animate_to_busy_policy.dart';
 import 'package:chat_scroll_view/src/chat_scroll/animate_to_disposition.dart';
 import 'package:chat_scroll_view/src/chat_scroll/animate_to_load_policy.dart';
+import 'package:chat_scroll_view/src/chat_scroll/animate_to_path.dart';
 import 'package:chat_scroll_view/src/chat_scroll/chat_scroll_events.dart';
 import 'package:chat_scroll_view/src/chat_scroll/navigation_placement.dart';
 import 'package:flutter/animation.dart' show Curve, Curves;
@@ -12,6 +13,7 @@ import 'package:flutter/scheduler.dart';
 export 'package:chat_scroll_view/src/chat_scroll/animate_to_busy_policy.dart';
 export 'package:chat_scroll_view/src/chat_scroll/animate_to_disposition.dart';
 export 'package:chat_scroll_view/src/chat_scroll/animate_to_load_policy.dart';
+export 'package:chat_scroll_view/src/chat_scroll/animate_to_path.dart';
 
 /// Visibility metrics for one built message row intersecting the paint band.
 ///
@@ -126,7 +128,11 @@ abstract class ChatScrollAnimator {
   /// Same-target spam while animating coalesces onto the in-flight future.
   /// Different-target spam is ignored by default, or cancelled and replaced
   /// when [busyPolicy] is [AnimateToBusyPolicy.replace].
-  Future<void> animate(
+  ///
+  /// Completes with the [AnimateToPath] the flight took — on settle and on
+  /// cancel. A coalesced call completes with the in-flight flight's path; an
+  /// ignored call completes at once with [AnimateToPath.none].
+  Future<AnimateToPath> animate(
     int targetId, {
     required Duration duration,
     required Curve curve,
@@ -400,6 +406,14 @@ class ChatScrollController {
   ///   into the destination band (continuity illusion — not a viewport fade).
   ///   Stitch waits on the load-gate until the destination is a real row.
   ///
+  /// The resolved path is reported on the flight's [ChatAnimateEnd.path],
+  /// emitted before the returned future completes: [AnimateToPath.close] or
+  /// [AnimateToPath.stitch] as chosen above, [AnimateToPath.instant] for
+  /// `duration ≤ 0`, and [AnimateToPath.none] when the flight is cancelled
+  /// on the load-gate before choosing. With no viewport bound the call is a
+  /// [jumpTo] and emits [ChatProgrammaticJump] only — no animate events, so
+  /// no path.
+  ///
   /// ## Duration / curve
   ///
   /// Both paths use travel-scaled timing
@@ -503,8 +517,9 @@ class ChatScrollController {
     if (!coalesce) {
       _emitScroll(ChatAnimateStart(messageId, duration));
     }
+    var path = AnimateToPath.none;
     try {
-      await animator.animate(
+      path = await animator.animate(
         messageId,
         duration: duration,
         curve: curve,
@@ -515,7 +530,7 @@ class ChatScrollController {
       );
     } finally {
       if (!coalesce) {
-        _emitScroll(ChatAnimateEnd(messageId));
+        _emitScroll(ChatAnimateEnd(messageId, path: path));
       }
     }
     return coalesce
