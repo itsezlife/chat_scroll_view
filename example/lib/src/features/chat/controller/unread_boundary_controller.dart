@@ -1,5 +1,7 @@
 import 'package:chat_scroll_view/chat_scroll_view.dart';
+import 'package:chat_scroll_view_example/src/features/chat/utils/chat_data_source_extension.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/widgets.dart' show AppLifecycleListener, WidgetsBinding;
 
 /// The **unread boundary** of one chat open, as the listenable handed to
 /// [ChatScrollView.unreadBoundary] and to the sender run policy.
@@ -15,11 +17,40 @@ import 'package:flutter/foundation.dart';
 /// Each advance of [ChatDataSource.newestKnownId] past the newest id already
 /// judged is judged once. An arrived message that is loaded and passes
 /// `isSelfMessage` — an own message, from this device or another — clears
-/// the boundary, pending or not. Every other arrival leaves it alone, at
-/// the tail or scrolled up: at the tail the viewport
+/// the boundary, pending or not. In the foreground every other arrival
+/// leaves it alone, at the tail or scrolled up: at the tail the viewport
 /// follows the new messages and the separator scrolls away with the rows
 /// above them. An arrival that is not loaded when its id becomes known is
 /// judged as not own, and loading it later does not judge it again.
+///
+/// Arrived ids are judged in ascending order, so a batch that holds an own
+/// message and a background arrival ends in the state the later one leaves.
+///
+/// ## Background arrivals and resume
+///
+/// A background span runs from [AppLifecycleListener.onHide] to
+/// [AppLifecycleListener.onShow] — the app is not visible. Its first
+/// incoming arrival at a loaded tail becomes the boundary, replacing any
+/// placed or pending one; later incoming arrivals in the same span leave it
+/// there. An arrival is at a loaded tail when it is loaded and so is the
+/// nearest present message below it — the row that was the tail before it
+/// landed. Arrivals while the reader is far up, with that row evicted or
+/// never fetched, move nothing. When an own arrival clears the boundary the
+/// span placed, the next incoming arrival in the span places it again.
+///
+/// On show, if the span placed the boundary, the boundary still stands
+/// there, and [ChatScrollController.isAtTail] was `true` on hide, the
+/// controller jumps to it at [ChatDataSourceX.unreadBoundaryAlignment] — the
+/// alignment of an open at the first unread message. A reader who was
+/// scrolled up keeps the position, with the boundary moved below.
+///
+/// ## Reconnect gap
+///
+/// [markReconnectGap] records that the realtime feed dropped and messages
+/// may have been missed after a given id. The boundary becomes pending at
+/// the later of the first id after that one and the stored read mark, so
+/// the separator lands on the first missed incoming message at or after the
+/// read mark once its row loads.
 ///
 /// ## Deletions and reads elsewhere
 ///
@@ -38,8 +69,9 @@ import 'package:flutter/foundation.dart';
 /// [setPendingBoundary] names where unread content starts before the row
 /// that carries the separator is known. The boundary becomes the first
 /// message at or after the pending id that is loaded and does not pass
-/// `isSelfMessage`; confirmed-absent ids and loaded own messages are
-/// skipped. The search runs when the pending boundary is set and again on
+/// `isSelfMessage`; confirmed-absent ids, loaded own messages, and — once
+/// [ChatDataSource.reachedOldest] holds — ids below
+/// [ChatDataSource.oldestKnownId] are skipped. The search runs when the pending boundary is set and again on
 /// every data source change, and ends in one of three ways:
 ///
 /// - it finds that message: [value] becomes its id, and the viewport paints
@@ -68,10 +100,13 @@ import 'package:flutter/foundation.dart';
 final class UnreadBoundaryController implements ValueListenable<int?> {
   /// Starts the open with [boundary] (`null` for none) and begins judging
   /// arrivals and deletions in [dataSource], the visible range of
-  /// [controller], and [readElsewhere].
+  /// [controller], [readElsewhere], and app visibility.
   ///
   /// Arrivals count from [ChatDataSource.newestKnownId] at construction:
-  /// messages already known when the open resolved are never judged.
+  /// messages already known when the open resolved are never judged. App
+  /// visibility comes from [WidgetsBinding.instance], which MUST be
+  /// initialized; a controller built while the app is hidden starts outside
+  /// any background span.
   ///
   /// [readElsewhere] notifies once per read-state change for this chat that
   /// this client did not write; `null` when the source has no shared read
@@ -97,15 +132,20 @@ final class UnreadBoundaryController implements ValueListenable<int?> {
       ..addMutationListener(_onMutation);
     _controller.visibleRange.addListener(_judgeSeen);
     _readElsewhere?.addListener(clear);
+    _lifecycle = AppLifecycleListener(onHide: _onHide, onShow: _onShow);
   }
 
   final ChatDataSource _dataSource;
   final ChatScrollController _controller;
   final bool Function(IChatMessage message) _isSelfMessage;
   final Listenable? _readElsewhere;
+  late final AppLifecycleListener _lifecycle;
 
   /// Newest known id already judged; arrivals are the ids above it.
   int? _judgedNewestId;
+
+  /// The current background span, or `null` while the app is visible.
+  _BackgroundSpan? _backgroundSpan;
 
   _BoundaryState _state;
 
@@ -164,13 +204,40 @@ final class UnreadBoundaryController implements ValueListenable<int?> {
     _transition(const _BoundaryState.none());
   }
 
-  /// Stops judging arrivals, deletions, reads elsewhere, and separator
-  /// visibility, and drops every listener. The value freezes; later writes,
-  /// data source changes, range pushes, and read-elsewhere notifications are
-  /// ignored. Idempotent.
+  /// Makes the boundary pending after a realtime reconnect that may have
+  /// missed the messages above [newestBeforeDrop] — the newest id the source
+  /// knew before the feed dropped, or `null` when the chat was empty.
+  ///
+  /// The pending search starts at the later of `newestBeforeDrop + 1` and
+  /// [readMark], the stored last-read id (`null` when there is none), and
+  /// replaces the current boundary like [setPendingBoundary]. With neither,
+  /// it starts at id `0` and resolves at the chat's first incoming message
+  /// once [ChatDataSource.reachedOldest] confirms where the chat starts. The
+  /// data source MUST already know the newest id after the reconnect: a
+  /// search that walks past a stale [ChatDataSource.newestKnownId] lapses.
+  /// No-op after [dispose].
+  void markReconnectGap({required int? newestBeforeDrop, int? readMark}) {
+    final afterDrop = switch (newestBeforeDrop) {
+      final id? => id + 1,
+      null => 0,
+    };
+    setPendingBoundary(switch (readMark) {
+      final mark? when mark > afterDrop => mark,
+      _ => afterDrop,
+    });
+  }
+
+  /// Stops judging arrivals, deletions, reads elsewhere, separator
+  /// visibility, and app visibility, and drops every listener. The value
+  /// freezes; later writes, data source changes, range pushes,
+  /// read-elsewhere notifications, and lifecycle changes are ignored, and a
+  /// background span in progress ends without a jump.
+  /// Idempotent.
   void dispose() {
     if (_disposed) return;
     _disposed = true;
+    _lifecycle.dispose();
+    _backgroundSpan = null;
     _dataSource
       ..removeBoundaryListener(_onNewestKnownChanged)
       ..removeDataListener(_onDataChanged)
@@ -196,14 +263,57 @@ final class UnreadBoundaryController implements ValueListenable<int?> {
       (null, final newest?) => (newest, newest),
       _ => null,
     };
-    if (arrived case (final fromId, final toId)) _judgeArrivals(fromId, toId);
+    if (arrived case (final fromId, final toId)) {
+      _judgeArrivals(
+        fromId,
+        toId,
+        tailLoaded:
+            judged == null ||
+            _dataSource.getPreviousPresentMessage(fromId) != null,
+      );
+    }
   }
 
-  /// Judges arrived ids [fromId]..[toId] — see the class overview.
-  void _judgeArrivals(int fromId, int toId) {
+  /// Judges arrived ids [fromId]..[toId] in ascending order — see the class
+  /// overview. [tailLoaded] is judged once for the batch, against the row
+  /// below [fromId], so a batch row never counts as the tail under a later
+  /// one; an arrival into an empty chat has no row below and counts as at
+  /// a loaded tail.
+  void _judgeArrivals(int fromId, int toId, {required bool tailLoaded}) {
+    final span = _backgroundSpan;
     for (var id = fromId; id <= toId; id++) {
       final message = _dataSource.getMessage(id);
-      if (message != null && _isSelfMessage(message)) clear();
+      if (message == null) continue;
+      if (_isSelfMessage(message)) {
+        clear();
+      } else if (span != null && tailLoaded) {
+        _placeBackgroundArrival(span, id);
+      }
+    }
+  }
+
+  /// Places the boundary on background arrival [id] unless [span] already
+  /// placed one that still stands.
+  void _placeBackgroundArrival(_BackgroundSpan span, int id) {
+    if (span.standingPlacement(value) != null) return;
+    span.placedId = id;
+    setBoundary(id);
+  }
+
+  void _onHide() {
+    if (_disposed) return;
+    _backgroundSpan = _BackgroundSpan(atTailOnHide: _controller.isAtTail.value);
+  }
+
+  void _onShow() {
+    final span = _backgroundSpan;
+    _backgroundSpan = null;
+    if (_disposed || span == null || !span.atTailOnHide) return;
+    if (span.standingPlacement(value) case final placed?) {
+      _controller.jumpTo(
+        placed,
+        alignment: ChatDataSourceX.unreadBoundaryAlignment,
+      );
     }
   }
 
@@ -219,9 +329,14 @@ final class UnreadBoundaryController implements ValueListenable<int?> {
   ///
   /// The walk follows present ids up to [ChatDataSource.newestKnownId],
   /// which is never confirmed absent — so a walk that stops short of it has
-  /// met an unloaded id.
+  /// met an unloaded id. Once [ChatDataSource.reachedOldest] holds, it starts
+  /// no lower than [ChatDataSource.oldestKnownId]: no message exists below.
   _BoundaryState _search(int fromId) {
-    var searched = fromId - 1;
+    var searched = switch (_dataSource.oldestKnownId) {
+      final oldest? when _dataSource.reachedOldest && oldest > fromId =>
+        oldest - 1,
+      _ => fromId - 1,
+    };
     var message = _dataSource.getNextPresentMessage(searched);
     while (message != null && _isSelfMessage(message)) {
       searched = message.id;
@@ -267,6 +382,25 @@ final class UnreadBoundaryController implements ValueListenable<int?> {
       listener();
     }
   }
+}
+
+/// One span of the app being hidden, from hide to show.
+final class _BackgroundSpan {
+  _BackgroundSpan({required this.atTailOnHide});
+
+  /// Whether the reader was at the tail when the app was hidden; the span
+  /// ends in a jump to the boundary only then.
+  final bool atTailOnHide;
+
+  /// The boundary row this span placed, or `null` until its first incoming
+  /// arrival at a loaded tail.
+  int? placedId;
+
+  /// [placedId] while the placed boundary still stands as [boundary] (the
+  /// controller's current value); `null` when this span placed none, or an
+  /// own arrival, a clear, or a later write replaced it.
+  int? standingPlacement(int? boundary) =>
+      placedId == boundary ? placedId : null;
 }
 
 /// Where the boundary of one open stands: none, pending from an id, or

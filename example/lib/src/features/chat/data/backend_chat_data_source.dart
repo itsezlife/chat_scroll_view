@@ -1,12 +1,14 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:developer' as dev;
 import 'dart:math' as math;
 
 import 'package:chat_scroll_view/chat_scroll_view.dart';
 import 'package:chat_scroll_view_example/src/common/constant/demo_config.dart';
 import 'package:chat_scroll_view_example/src/common/models/chat_message.dart';
 import 'package:chat_scroll_view_example/src/features/chat/utils/chat_body_linkify_util.dart';
-import 'package:flutter/foundation.dart' show Listenable, VoidCallback;
+import 'package:flutter/foundation.dart'
+    show Listenable, ValueChanged, VoidCallback;
 import 'package:meta/meta.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -16,6 +18,16 @@ typedef EdgeFunctionInvoker =
       String functionName,
       Map<String, dynamic> body,
     );
+
+/// A realtime reconnect after which the chat has messages newer than
+/// [newestBeforeDrop], the newest id known when the feed dropped — `null`
+/// when the chat was empty then, so every message may have been missed.
+/// [lastReadMessageId] is the stored read mark re-read with the newest id,
+/// or `null` when there is none.
+typedef RealtimeReconnectGap = ({
+  int? newestBeforeDrop,
+  int? lastReadMessageId,
+});
 
 /// Supabase-backed [ChatDataSource] for the demo (Edge Functions + Realtime).
 ///
@@ -27,7 +39,25 @@ typedef EdgeFunctionInvoker =
 /// is not [writeTag] — another client's write, or an untagged server move of
 /// the cursor — notifies [readElsewhere]; an echo of this client's own
 /// [updateLastReadMessageId] is dropped. [dispose] removes the channel and
-/// silences [readElsewhere].
+/// silences [readElsewhere] and the reconnect gap listeners.
+///
+/// ## Reconnect gap
+///
+/// Inserts that land while the channel is down are never delivered. When a
+/// channel that was subscribed reports an error, a close, or a timeout, the
+/// source keeps [newestKnownId] as the newest id before the drop. On the
+/// next subscribe it re-reads the chat's newest message id and the stored
+/// read mark. If the newest id moved past the one before the drop, it seeds
+/// the new [newestKnownId] — the missed rows then load like any unloaded
+/// tail — and reports a [RealtimeReconnectGap] to every listener added with
+/// [addReconnectGapListener]. A chat that was empty at the drop and has
+/// messages now is reseeded like a fresh connect: the newest id is known,
+/// [reachedOldest] is `false`, and older pages load from the tail.
+///
+/// Re-reads run one at a time. After a drop during a re-read, the next gap
+/// starts at the newest id that re-read saw, so no missed span is reported
+/// twice. A reconnect with nothing new, the first subscribe (even after
+/// failed attempts), and a failed re-read (logged) report nothing.
 class BackendChatDataSource extends ChatDataSource {
   /// Creates a new [BackendChatDataSource] instance.
   ///
@@ -123,6 +153,27 @@ class BackendChatDataSource extends ChatDataSource {
   Listenable get readElsewhere => _readElsewhere;
   final _readElsewhere = _ReadElsewhereSignal();
 
+  final _reconnectGapListeners = <ValueChanged<RealtimeReconnectGap>>[];
+
+  /// Whether the channel is subscribed; `false` before the first subscribe
+  /// and after a drop.
+  bool _realtimeLive = false;
+
+  /// The drop of the live channel not yet consumed by a resubscribe, with
+  /// [newestKnownId] at that moment (`null` for an empty chat); `null` when
+  /// there is none.
+  ({int? newestKnownId})? _drop;
+
+  /// The last queued resync; each resync starts after the previous one
+  /// settles, even when a gap listener of the previous one threw.
+  Future<void> _resyncs = Future<void>.value();
+
+  /// The newest id the last re-read that found a gap saw. A drop during a
+  /// re-read records a [newestKnownId] from before that re-read's seed; the
+  /// next resync reports from this id instead, so no missed span is
+  /// reported twice.
+  int? _rereadNewestId;
+
   static String _newWriteTag() {
     final random = math.Random.secure();
     return [
@@ -132,6 +183,17 @@ class BackendChatDataSource extends ChatDataSource {
   }
 
   Future<void> _loadChatAndSeedBoundaries() async {
+    switch (await _loadNewestMessageId()) {
+      case final newestId?:
+        seedBoundaries(newestKnownId: newestId, reachedNewest: true);
+      case null:
+        seedBoundaries(reachedOldest: true, reachedNewest: true);
+    }
+  }
+
+  /// Id of the chat's newest message from `load_chat`, or `null` when the
+  /// chat has none. Throws [BackendConnectionException] on a backend error.
+  Future<int?> _loadNewestMessageId() async {
     final body = await _invokeJson(
       'load_chat',
       body: <String, dynamic>{'chat_id': chatId},
@@ -153,19 +215,10 @@ class BackendChatDataSource extends ChatDataSource {
       throw BackendConnectionException('load_chat returned no chat');
     }
 
-    final lastMessage = chat['last_message'];
-    if (lastMessage is! Map<String, Object?>) {
-      seedBoundaries(reachedOldest: true, reachedNewest: true);
-      return;
-    }
-
-    final newestId = lastMessage['id'];
-    if (newestId is! int) {
-      seedBoundaries(reachedOldest: true, reachedNewest: true);
-      return;
-    }
-
-    seedBoundaries(newestKnownId: newestId, reachedNewest: true);
+    return switch (chat['last_message']) {
+      {'id': final int newestId} => newestId,
+      _ => null,
+    };
   }
 
   void _subscribeRealtime() {
@@ -187,8 +240,111 @@ class BackendChatDataSource extends ChatDataSource {
           filter: _chatFilter,
           callback: (payload) => _applyRealtimeReadState(payload.newRecord),
         )
-        .subscribe();
+        .subscribe((status, error) {
+          if (error != null) {
+            dev.log(
+              'Realtime channel $status',
+              name: 'backend_chat',
+              error: error,
+            );
+          }
+          unawaited(_onRealtimeStatus(status));
+        });
   }
+
+  /// Tracks drops and resubscribes of the live channel — see the class
+  /// overview. Completes when a resubscribe's re-read has been applied.
+  Future<void> _onRealtimeStatus(RealtimeSubscribeStatus status) async {
+    if (isDisposed) return;
+    switch (status) {
+      case RealtimeSubscribeStatus.subscribed:
+        _realtimeLive = true;
+        final drop = _drop;
+        _drop = null;
+        if (drop case (:final newestKnownId)) {
+          final resync = _resyncs.then(
+            (_) => _resyncAfterReconnect(newestKnownId),
+          );
+          _resyncs = resync.catchError((Object _) {});
+          await resync;
+        }
+      case RealtimeSubscribeStatus.channelError ||
+          RealtimeSubscribeStatus.closed ||
+          RealtimeSubscribeStatus.timedOut:
+        if (!_realtimeLive) return;
+        _realtimeLive = false;
+        _drop = (newestKnownId: newestKnownId);
+    }
+  }
+
+  /// Re-reads the newest message id and the stored read mark after a
+  /// resubscribe. When the newest id moved past [recordedBeforeDrop] — or
+  /// past [_rereadNewestId] when that is later — seeds it and then reports
+  /// the gap from there, so listeners see the new
+  /// [ChatDataSource.newestKnownId]. With neither (the chat was empty), any
+  /// newest id counts and reseeds the chat like a fresh connect. A failed
+  /// re-read is logged and reports nothing. Callers queue it on [_resyncs].
+  Future<void> _resyncAfterReconnect(int? recordedBeforeDrop) async {
+    if (isDisposed) return;
+    final newestBeforeDrop = switch ((recordedBeforeDrop, _rereadNewestId)) {
+      (final recorded?, final reread?) => math.max(recorded, reread),
+      (final recorded, final reread) => recorded ?? reread,
+    };
+    final (int?, int?) reread;
+    try {
+      reread = await (_loadNewestMessageId(), getLastReadMessageId()).wait;
+    } on Object catch (error, stackTrace) {
+      dev.log(
+        'Re-read after realtime reconnect failed; the gap is not reported',
+        name: 'backend_chat',
+        error: error,
+        stackTrace: stackTrace,
+      );
+      return;
+    }
+    if (isDisposed) return;
+    final (newest, lastRead) = reread;
+    switch ((newest, newestBeforeDrop)) {
+      case (null, _):
+        return;
+      case (final newest?, final before?) when newest <= before:
+        return;
+      case (final newest?, _):
+        _rereadNewestId = newest;
+        seedBoundaries(
+          newestKnownId: math.max(newest, newestKnownId ?? newest),
+          reachedOldest: newestBeforeDrop == null ? false : null,
+          reachedNewest: true,
+        );
+    }
+    final gap = (
+      newestBeforeDrop: newestBeforeDrop,
+      lastReadMessageId: lastRead,
+    );
+    for (final listener in List.of(_reconnectGapListeners, growable: false)) {
+      listener(gap);
+    }
+  }
+
+  /// Subscribes [listener] to reconnect gaps — see the class overview.
+  /// Adding the same listener twice is a no-op; no-op after [dispose].
+  void addReconnectGapListener(ValueChanged<RealtimeReconnectGap> listener) {
+    if (isDisposed || _reconnectGapListeners.contains(listener)) return;
+    _reconnectGapListeners.add(listener);
+  }
+
+  /// Unsubscribes [listener] from reconnect gaps. Safe after [dispose] and
+  /// from inside a dispatch: a dispatch in flight still reaches every
+  /// listener subscribed when it began.
+  void removeReconnectGapListener(
+    ValueChanged<RealtimeReconnectGap> listener,
+  ) => _reconnectGapListeners.remove(listener);
+
+  /// Test hook for a realtime channel status without a live channel;
+  /// completes once a resubscribe's re-read has been applied.
+  @visibleForTesting
+  Future<void> applyRealtimeStatusForTest(RealtimeSubscribeStatus status) =>
+      _onRealtimeStatus(status);
 
   /// Realtime filters take one column; the user is matched in
   /// [_applyRealtimeReadState].
@@ -485,6 +641,7 @@ class BackendChatDataSource extends ChatDataSource {
       _channel = null;
     }
     _readElsewhere.dispose();
+    _reconnectGapListeners.clear();
     super.dispose();
   }
 }

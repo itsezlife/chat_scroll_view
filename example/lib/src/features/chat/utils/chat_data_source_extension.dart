@@ -9,15 +9,20 @@ extension ChatDataSourceX on ChatDataSource {
   /// messages after it show below.
   static const double _lastReadAlignment = 0.8;
 
+  /// Band alignment of the unread boundary row when the chat opens at it or
+  /// the app resumes onto a boundary moved in the background: the separator
+  /// starts at the band top.
+  static const double unreadBoundaryAlignment = 0;
+
   /// The viewport's chunk size. [fetchRange] accepts only whole-chunk ranges.
   static const int _chunkSize = 64;
 
   /// Where to open the chat and which message carries the unread separator.
   ///
   /// With an unread boundary (see [resolveUnreadBoundary]) the chat opens at
-  /// it with alignment `0`, so the boundary row starts at the band top.
-  /// Otherwise it opens at [resolveOpenAnchor]: at the tail with alignment
-  /// `0`, or at the last-read message low in the band.
+  /// it with [unreadBoundaryAlignment], so the boundary row starts at the
+  /// band top. Otherwise it opens at [resolveOpenAnchor]: at the tail with
+  /// alignment `0`, or at the last-read message low in the band.
   ///
   /// A failed boundary fetch is logged and the chat opens without a boundary.
   Future<({int anchor, double alignment, int? unreadBoundary})>
@@ -40,7 +45,11 @@ extension ChatDataSourceX on ChatDataSource {
       );
     }
     if (boundary != null) {
-      return (anchor: boundary, alignment: 0.0, unreadBoundary: boundary);
+      return (
+        anchor: boundary,
+        alignment: unreadBoundaryAlignment,
+        unreadBoundary: boundary,
+      );
     }
     final newest = newestKnownId;
     final anchor = resolveOpenAnchor(

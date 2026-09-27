@@ -115,6 +115,29 @@
   `chat_read_state` changes for its chat and `userId`, and notifies
   `readElsewhere` for each change it did not write. It unsubscribes and
   goes silent on `dispose`.
+- **EXAMPLE**: Messages that arrive while the app is in the background
+  move the bar, as in Telegram Android. `UnreadBoundaryController` treats
+  hide to show (`AppLifecycleListener.onHide` / `onShow`) as one pause. The
+  first incoming message that lands at a loaded tail during the pause
+  becomes the boundary, replacing a placed or pending one, and later
+  arrivals in the same pause leave it. An arrival while the tail row below
+  it is not loaded (the reader far up) moves nothing. On show, a reader who
+  was at the tail when the app hid jumps to the moved boundary at
+  `ChatDataSourceX.unreadBoundaryAlignment`; a reader scrolled up keeps the
+  position. The controller now needs an initialized `WidgetsBinding`.
+- **EXAMPLE**: A realtime reconnect that missed messages marks the gap.
+  `BackendChatDataSource` notices a resubscribe after a channel error,
+  close, or timeout, re-reads the newest message id and the stored read
+  mark, seeds the new newest id, and reports a `RealtimeReconnectGap` to
+  `addReconnectGapListener` listeners when the newest id moved. The screen
+  passes it to `UnreadBoundaryController.markReconnectGap`, which makes the
+  boundary pending at the later of the first id after the newest one
+  before the drop and the read mark, so the bar lands on the first missed
+  message from someone else once it loads. A chat that was empty at the
+  drop is reseeded like a fresh connect, and its bar lands on the chat's
+  first message from someone else. A reconnect with nothing new changes
+  nothing. A pending boundary now also skips ids below the oldest message
+  once the chat's start is reached.
 - **EXAMPLE**: `UnreadBoundarySenderRunLayout` breaks the sender run at the
   bar. The message below it starts a new bubble cluster (full top corners,
   unclustered top inset) and the message above it ends one; every other row

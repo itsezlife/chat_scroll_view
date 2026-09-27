@@ -328,10 +328,21 @@ class _WidgetChatScreenState extends State<WidgetChatScreen>
     if (_ownsEmojiDataSource) {
       _emojiDataSource.dispose();
     }
+    if (_dataSource case final BackendChatDataSource source) {
+      source.removeReconnectGapListener(_onReconnectGap);
+    }
     _dataSource?.dispose();
     _messageMenu = null;
     super.dispose();
   }
+
+  /// Makes the unread boundary pending where a realtime reconnect may have
+  /// missed messages.
+  void _onReconnectGap(RealtimeReconnectGap gap) =>
+      _unreadBoundary?.markReconnectGap(
+        newestBeforeDrop: gap.newestBeforeDrop,
+        readMark: gap.lastReadMessageId,
+      );
 
   Future<void> _init() async {
     setState(() {
@@ -402,6 +413,9 @@ class _WidgetChatScreenState extends State<WidgetChatScreen>
           _ => null,
         },
       );
+      if (backend case final BackendChatDataSource source) {
+        source.addReconnectGapListener(_onReconnectGap);
+      }
       _controller.jumpTo(
         openPosition.anchor,
         alignment: openPosition.alignment,
