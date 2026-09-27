@@ -29,6 +29,11 @@ IChatMessage _msg(int i, {bool self = false}) => UserChatMessage(
 
 bool _isSelf(IChatMessage message) => message.sender == _selfSender;
 
+/// Stands in for the backend's "read on another client" signal.
+class _FakeReadElsewhere extends ChangeNotifier {
+  void fire() => notifyListeners();
+}
+
 class _PreloadedDataSource extends ChatDataSource {
   _PreloadedDataSource(
     this.count, {
@@ -635,6 +640,7 @@ void main() {
       const count = 151;
       const lastRead = 50;
       const boundaryId = lastRead + 1;
+      late _FakeReadElsewhere readElsewhere;
 
       Future<
         ({
@@ -652,17 +658,20 @@ void main() {
         );
         final controller = ChatScrollController()
           ..jumpTo(position.anchor, alignment: position.alignment);
+        readElsewhere = _FakeReadElsewhere();
         final boundary = UnreadBoundaryController(
           dataSource: ds,
           controller: controller,
           isSelfMessage: _isSelf,
           boundary: position.unreadBoundary,
+          readElsewhere: readElsewhere,
         );
         final lastSeen = ValueNotifier<int?>(lastRead);
         addTearDown(controller.dispose);
         addTearDown(ds.dispose);
         addTearDown(boundary.dispose);
         addTearDown(lastSeen.dispose);
+        addTearDown(readElsewhere.dispose);
 
         await tester.pumpWidget(
           _harness(
@@ -768,6 +777,41 @@ void main() {
         expect(tester.getTopLeft(find.text('msg-$boundaryId')).dy, rowTop);
       });
 
+      testWidgets('deleting a message clears the boundary', (tester) async {
+        final (:ds, :controller, :boundary, :lastSeen) = await open(tester);
+
+        ds.removeMessages([boundaryId + 2]);
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 16));
+
+        expect(boundary.value, isNull);
+        expect(find.text('unread'), findsNothing);
+        expect(find.text('msg-$boundaryId'), findsOneWidget);
+      });
+
+      testWidgets('editing a message keeps the boundary', (tester) async {
+        final (:ds, :controller, :boundary, :lastSeen) = await open(tester);
+
+        ds.updateMessage(_msg(boundaryId));
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 16));
+
+        expect(boundary.value, boundaryId);
+        expect(find.text('unread'), findsOneWidget);
+      });
+
+      testWidgets('a read on another client clears the boundary', (
+        tester,
+      ) async {
+        final (:ds, :controller, :boundary, :lastSeen) = await open(tester);
+
+        readElsewhere.fire();
+        await tester.pump();
+
+        expect(boundary.value, isNull);
+        expect(find.text('unread'), findsNothing);
+      });
+
       testWidgets('the separator counts as seen once its row is on screen; '
           'a moved boundary starts unseen', (tester) async {
         final (:ds, :controller, :boundary, :lastSeen) = await open(tester);
@@ -813,6 +857,8 @@ void main() {
       const count = 151;
       const boundaryId = 51;
 
+      late _FakeReadElsewhere readElsewhere;
+
       ({
         _PreloadedDataSource ds,
         UnreadBoundaryController boundary,
@@ -829,17 +875,20 @@ void main() {
           selfIds: selfIds,
         );
         final controller = ChatScrollController();
+        readElsewhere = _FakeReadElsewhere();
         final boundary = UnreadBoundaryController(
           dataSource: ds,
           controller: controller,
           isSelfMessage: _isSelf,
           boundary: initial,
+          readElsewhere: readElsewhere,
         );
         final heard = <int?>[];
         boundary.addListener(() => heard.add(boundary.value));
         addTearDown(controller.dispose);
         addTearDown(ds.dispose);
         addTearDown(boundary.dispose);
+        addTearDown(readElsewhere.dispose);
         return (ds: ds, boundary: boundary, heard: heard);
       }
 
@@ -876,10 +925,59 @@ void main() {
           ..setBoundary(80)
           ..setPendingBoundary(90)
           ..clear();
-        ds.insertMessage(_msg(count, self: true));
+        ds
+          ..insertMessage(_msg(count, self: true))
+          ..removeMessages([boundaryId]);
+        readElsewhere.fire();
 
         expect(heard, isEmpty);
         expect(boundary.value, boundaryId);
+      });
+
+      test('a remove batch clears the boundary, even for an id that was '
+          'never loaded', () {
+        final (:ds, :boundary, :heard) = holder(omitIds: {120});
+
+        ds.removeMessages([120]);
+
+        expect(heard, <int?>[null]);
+        expect(boundary.value, isNull);
+      });
+
+      test('a remove batch drops a pending boundary', () {
+        final (:ds, :boundary, :heard) = holder(initial: null, omitIds: {70});
+
+        boundary.setPendingBoundary(70);
+        ds
+          ..removeMessages([100])
+          ..upsertMessage(_msg(70));
+
+        expect(boundary.value, isNull);
+        expect(heard, isEmpty);
+      });
+
+      test('an edit keeps the boundary', () {
+        final (:ds, :boundary, :heard) = holder();
+
+        ds
+          ..updateMessage(_msg(boundaryId))
+          ..updateMessages([_msg(60), _msg(61)]);
+
+        expect(heard, isEmpty);
+        expect(boundary.value, boundaryId);
+      });
+
+      test('a read elsewhere clears the boundary, pending or not', () {
+        final (:ds, :boundary, :heard) = holder(omitIds: {70});
+
+        readElsewhere.fire();
+        expect(heard, <int?>[null]);
+
+        boundary.setPendingBoundary(70);
+        readElsewhere.fire();
+        ds.upsertMessage(_msg(70));
+        expect(boundary.value, isNull);
+        expect(heard, <int?>[null]);
       });
 
       test('an incoming arrival never clears the boundary', () {

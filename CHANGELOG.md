@@ -100,6 +100,21 @@
   later arrivals never resolve it. `separatorSeen` turns `true` on the first
   visible range push that shows the loaded boundary row, and resets when the
   boundary changes.
+- **EXAMPLE**: Any deletion removes the bar, as in Telegram Android: every
+  remove batch from the data source clears the boundary, pending or not,
+  including ids that were never loaded. Edits keep it. A read on another
+  client removes it too: `UnreadBoundaryController` takes an optional
+  `readElsewhere` listenable and clears on each notification, whatever read
+  id the other client stored. This device's own read-progress writes never
+  clear it.
+- **EXAMPLE**: The demo backend syncs read state. `chat_read_state` joins
+  the Realtime publication and gains a `write_tag` column, which
+  `update_read_state` fills from an optional `write_tag` field and the
+  delete trigger clears when it moves the cursor. `BackendChatDataSource`
+  tags every read write with its per-instance `writeTag`, follows
+  `chat_read_state` changes for its chat and `userId`, and notifies
+  `readElsewhere` for each change it did not write. It unsubscribes and
+  goes silent on `dispose`.
 - **EXAMPLE**: `UnreadBoundarySenderRunLayout` breaks the sender run at the
   bar. The message below it starts a new bubble cluster (full top corners,
   unclustered top inset) and the message above it ends one; every other row

@@ -397,6 +397,10 @@ class _WidgetChatScreenState extends State<WidgetChatScreen>
         controller: _controller,
         isSelfMessage: _isSelfMessage,
         boundary: openPosition.unreadBoundary,
+        readElsewhere: switch (backend) {
+          final BackendChatDataSource source => source.readElsewhere,
+          _ => null,
+        },
       );
       _controller.jumpTo(
         openPosition.anchor,

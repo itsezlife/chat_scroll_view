@@ -6,6 +6,7 @@ import 'package:chat_scroll_view/chat_scroll_view.dart';
 import 'package:chat_scroll_view_example/src/common/constant/demo_config.dart';
 import 'package:chat_scroll_view_example/src/common/models/chat_message.dart';
 import 'package:chat_scroll_view_example/src/features/chat/utils/chat_body_linkify_util.dart';
+import 'package:flutter/foundation.dart' show Listenable, VoidCallback;
 import 'package:meta/meta.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -17,16 +18,32 @@ typedef EdgeFunctionInvoker =
     );
 
 /// Supabase-backed [ChatDataSource] for the demo (Edge Functions + Realtime).
+///
+/// ## Realtime
+///
+/// While subscribed, one channel for [chatId] delivers message inserts and
+/// read-state changes of [userId] in that chat. Message inserts upsert the
+/// row and advance [newestKnownId]. A read-state change whose `write_tag`
+/// is not [writeTag] — another client's write, or an untagged server move of
+/// the cursor — notifies [readElsewhere]; an echo of this client's own
+/// [updateLastReadMessageId] is dropped. [dispose] removes the channel and
+/// silences [readElsewhere].
 class BackendChatDataSource extends ChatDataSource {
   /// Creates a new [BackendChatDataSource] instance.
+  ///
+  /// [writeTag] defaults to a fresh random tag, so each instance counts as
+  /// its own client.
   BackendChatDataSource({
     required SupabaseClient client,
     this.chatId = DemoConfig.demoChatId,
+    this.userId = 1,
     this.requestTimeout = const Duration(seconds: 10),
     EdgeFunctionInvoker? invokeOverride,
     bool subscribeRealtime = true,
+    String? writeTag,
   }) : _client = client,
-       _invokeOverride = invokeOverride {
+       _invokeOverride = invokeOverride,
+       writeTag = writeTag ?? _newWriteTag() {
     if (subscribeRealtime && invokeOverride == null) {
       _subscribeRealtime();
     }
@@ -37,11 +54,13 @@ class BackendChatDataSource extends ChatDataSource {
   factory BackendChatDataSource.forTest({
     required EdgeFunctionInvoker invoke,
     int chatId = 1,
+    String? writeTag,
   }) => BackendChatDataSource(
     client: _placeholderClient,
     chatId: chatId,
     invokeOverride: invoke,
     subscribeRealtime: false,
+    writeTag: writeTag,
   );
 
   /// Connect via `load_chat` and seed newest boundary from `last_message.id`.
@@ -81,13 +100,36 @@ class BackendChatDataSource extends ChatDataSource {
   /// The chat id.
   final int chatId;
 
+  /// The signed-in user whose read state this source reads, writes, and
+  /// follows.
+  final int userId;
+
   /// The request timeout.
   final Duration requestTimeout;
+
+  /// Tag stored with every read-state write of this client, so realtime can
+  /// tell its echoes from other clients' writes.
+  final String writeTag;
 
   /// The invoke override.
   final EdgeFunctionInvoker? _invokeOverride;
 
   RealtimeChannel? _channel;
+
+  /// Notifies once per realtime read-state change of [userId] in [chatId]
+  /// that this client did not write — including one whose read id equals
+  /// the current one. Never notifies without a realtime subscription, and
+  /// never after [dispose].
+  Listenable get readElsewhere => _readElsewhere;
+  final _readElsewhere = _ReadElsewhereSignal();
+
+  static String _newWriteTag() {
+    final random = math.Random.secure();
+    return [
+      for (var i = 0; i < 16; i++)
+        random.nextInt(256).toRadixString(16).padLeft(2, '0'),
+    ].join();
+  }
 
   Future<void> _loadChatAndSeedBoundaries() async {
     final body = await _invokeJson(
@@ -133,16 +175,42 @@ class BackendChatDataSource extends ChatDataSource {
           event: PostgresChangeEvent.insert,
           schema: 'public',
           table: 'messages',
-          filter: PostgresChangeFilter(
-            type: PostgresChangeFilterType.eq,
-            column: 'chat_id',
-            value: chatId,
-          ),
+          filter: _chatFilter,
           callback: (payload) {
             _applyRealtimeInsert(payload.newRecord);
           },
         )
+        .onPostgresChanges(
+          event: PostgresChangeEvent.all,
+          schema: 'public',
+          table: 'chat_read_state',
+          filter: _chatFilter,
+          callback: (payload) => _applyRealtimeReadState(payload.newRecord),
+        )
         .subscribe();
+  }
+
+  /// Realtime filters take one column; the user is matched in
+  /// [_applyRealtimeReadState].
+  PostgresChangeFilter get _chatFilter => PostgresChangeFilter(
+    type: PostgresChangeFilterType.eq,
+    column: 'chat_id',
+    value: chatId,
+  );
+
+  /// A DELETE carries an empty new record, which matches no chat and is
+  /// dropped.
+  void _applyRealtimeReadState(Map<String, Object?> record) {
+    if (record['chat_id'] != chatId || record['user_id'] != userId) return;
+    if (record['write_tag'] == writeTag) return;
+    _readElsewhere.notify();
+  }
+
+  /// Test hook for a Realtime `chat_read_state` INSERT or UPDATE without a
+  /// live channel.
+  @visibleForTesting
+  void applyRealtimeReadStateForTest(Map<String, Object?> record) {
+    _applyRealtimeReadState(record);
   }
 
   /// Shared by Realtime subscription and tests (US5).
@@ -221,7 +289,7 @@ class BackendChatDataSource extends ChatDataSource {
       body: <String, dynamic>{
         'chat_id': chatId,
         'content': linkified,
-        'sender_id': 1,
+        'sender_id': userId,
       },
     );
 
@@ -243,7 +311,7 @@ class BackendChatDataSource extends ChatDataSource {
   Future<int?> getLastReadMessageId() async {
     final body = await _invokeJson(
       'get_read_state',
-      body: <String, dynamic>{'chat_id': chatId, 'user_id': 1},
+      body: <String, dynamic>{'chat_id': chatId, 'user_id': userId},
     );
 
     final error = body['error'];
@@ -258,14 +326,16 @@ class BackendChatDataSource extends ChatDataSource {
     return id is int ? id : null;
   }
 
-  /// Persists last-read at tail (`update_read_state`).
+  /// Persists last-read at tail (`update_read_state`), tagged with
+  /// [writeTag] so its realtime echo never reaches [readElsewhere].
   Future<void> updateLastReadMessageId(int messageId) async {
     final body = await _invokeJson(
       'update_read_state',
       body: <String, dynamic>{
         'chat_id': chatId,
-        'user_id': 1,
+        'user_id': userId,
         'last_read_message_id': messageId,
+        'write_tag': writeTag,
       },
     );
 
@@ -414,7 +484,36 @@ class BackendChatDataSource extends ChatDataSource {
       _client.removeChannel(channel);
       _channel = null;
     }
+    _readElsewhere.dispose();
     super.dispose();
+  }
+}
+
+/// Event-only [Listenable] behind [BackendChatDataSource.readElsewhere]:
+/// dedup on add, snapshot dispatch, silent after [dispose].
+final class _ReadElsewhereSignal implements Listenable {
+  final _listeners = <VoidCallback>[];
+  bool _disposed = false;
+
+  @override
+  void addListener(VoidCallback listener) {
+    if (_disposed || _listeners.contains(listener)) return;
+    _listeners.add(listener);
+  }
+
+  @override
+  void removeListener(VoidCallback listener) => _listeners.remove(listener);
+
+  void notify() {
+    if (_disposed) return;
+    for (final listener in List.of(_listeners, growable: false)) {
+      listener();
+    }
+  }
+
+  void dispose() {
+    _disposed = true;
+    _listeners.clear();
   }
 }
 

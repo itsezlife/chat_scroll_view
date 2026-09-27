@@ -21,6 +21,18 @@ import 'package:flutter/foundation.dart';
 /// above them. An arrival that is not loaded when its id becomes known is
 /// judged as not own, and loading it later does not judge it again.
 ///
+/// ## Deletions and reads elsewhere
+///
+/// Every [RemoveBatchMutation] from the data source clears the boundary,
+/// pending or not, whichever ids it removes — loaded, unloaded, or far from
+/// the boundary row. Update mutations (edits) leave it alone.
+///
+/// Every notification of the `readElsewhere` listenable clears it too,
+/// whatever read id the change stored. Reading progress on this device
+/// never reaches the controller, so it never clears the boundary; the
+/// source behind `readElsewhere` MUST drop echoes of this client's own read
+/// writes.
+///
 /// ## Pending boundary
 ///
 /// [setPendingBoundary] names where unread content starts before the row
@@ -55,18 +67,25 @@ import 'package:flutter/foundation.dart';
 /// without notifying.
 final class UnreadBoundaryController implements ValueListenable<int?> {
   /// Starts the open with [boundary] (`null` for none) and begins judging
-  /// arrivals in [dataSource] and the visible range of [controller].
+  /// arrivals and deletions in [dataSource], the visible range of
+  /// [controller], and [readElsewhere].
   ///
   /// Arrivals count from [ChatDataSource.newestKnownId] at construction:
   /// messages already known when the open resolved are never judged.
+  ///
+  /// [readElsewhere] notifies once per read-state change for this chat that
+  /// this client did not write; `null` when the source has no shared read
+  /// state. The controller only listens to it and never disposes it.
   UnreadBoundaryController({
     required ChatDataSource dataSource,
     required ChatScrollController controller,
     required bool Function(IChatMessage message) isSelfMessage,
     int? boundary,
+    Listenable? readElsewhere,
   }) : _dataSource = dataSource,
        _controller = controller,
        _isSelfMessage = isSelfMessage,
+       _readElsewhere = readElsewhere,
        _state = switch (boundary) {
          final id? => _BoundaryState.placed(id),
          null => const _BoundaryState.none(),
@@ -74,13 +93,16 @@ final class UnreadBoundaryController implements ValueListenable<int?> {
        _judgedNewestId = dataSource.newestKnownId {
     _dataSource
       ..addBoundaryListener(_onNewestKnownChanged)
-      ..addDataListener(_onDataChanged);
+      ..addDataListener(_onDataChanged)
+      ..addMutationListener(_onMutation);
     _controller.visibleRange.addListener(_judgeSeen);
+    _readElsewhere?.addListener(clear);
   }
 
   final ChatDataSource _dataSource;
   final ChatScrollController _controller;
   final bool Function(IChatMessage message) _isSelfMessage;
+  final Listenable? _readElsewhere;
 
   /// Newest known id already judged; arrivals are the ids above it.
   int? _judgedNewestId;
@@ -142,17 +164,24 @@ final class UnreadBoundaryController implements ValueListenable<int?> {
     _transition(const _BoundaryState.none());
   }
 
-  /// Stops judging arrivals and separator visibility, and drops every
-  /// listener. The value freezes; later writes, data source changes, and
-  /// range pushes are ignored. Idempotent.
+  /// Stops judging arrivals, deletions, reads elsewhere, and separator
+  /// visibility, and drops every listener. The value freezes; later writes,
+  /// data source changes, range pushes, and read-elsewhere notifications are
+  /// ignored. Idempotent.
   void dispose() {
     if (_disposed) return;
     _disposed = true;
     _dataSource
       ..removeBoundaryListener(_onNewestKnownChanged)
-      ..removeDataListener(_onDataChanged);
+      ..removeDataListener(_onDataChanged)
+      ..removeMutationListener(_onMutation);
     _controller.visibleRange.removeListener(_judgeSeen);
+    _readElsewhere?.removeListener(clear);
     _listeners.clear();
+  }
+
+  void _onMutation(ChatMutation mutation) {
+    if (mutation case RemoveBatchMutation()) clear();
   }
 
   void _onNewestKnownChanged() {
