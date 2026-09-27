@@ -1,4 +1,6 @@
 import 'package:chat_scroll_view/src/chat_scroll/chat_data_source.dart';
+import 'package:chat_scroll_view/src/chat_scroll/chat_day_header_delegate.dart';
+import 'package:chat_scroll_view/src/chat_scroll/chat_scroll_activity.dart';
 import 'package:chat_scroll_view/src/chat_scroll/chat_scroll_common.dart';
 import 'package:chat_scroll_view/src/chat_scroll/chat_scroll_controller.dart';
 import 'package:chat_scroll_view/src/chat_scroll/chat_selection_controller.dart';
@@ -139,6 +141,8 @@ class ChatScrollView extends RenderObjectWidget {
     this.topPadding,
     this.dateSeparatorBuilder,
     this.groupBy,
+    this.dayHeaderDelegate = const ChatFadingDayHeader(),
+    this.scrollActivityTiming,
     this.senderRunLayout = DefaultChatSenderRunLayout.instance,
     this.highlightColor,
     this.highlightDuration,
@@ -280,11 +284,35 @@ class ChatScrollView extends RenderObjectWidget {
   /// `bucket` when it is not a `DateTime`, or from `firstMessageDate` for day
   /// grouping.
   ///
-  /// The inline separator fades out as it scrolls up toward the floating
-  /// header, so the two are never both visible.
+  /// How the inline separator and the floating header share the top of the
+  /// viewport is the [dayHeaderDelegate]'s call.
   ///
   /// Pass a stable reference, like [messageBuilder].
   final ChatGroupSeparatorBuilder? dateSeparatorBuilder;
+
+  /// Day header policy: where the floating header paints, at what opacity,
+  /// and how inline separators behave near it. Consulted only when
+  /// [dateSeparatorBuilder] is set.
+  ///
+  /// Default: [ChatFadingDayHeader] — the header stays at its rest line and
+  /// inline separators fade out as they rise into it.
+  /// [ChatPushingDayHeader] pushes the header up with the next day's
+  /// separator instead. Implement [ChatDayHeaderDelegate] for any other
+  /// policy. Prefer a const or value-equal instance across rebuilds.
+  final ChatDayHeaderDelegate dayHeaderDelegate;
+
+  /// Timing of the viewport's scroll-activity clock, or `null` (the default)
+  /// to run none — activity then stays at `1`.
+  ///
+  /// Scroll activity rises when the list moves and falls once scrolling has
+  /// been idle; see [ChatScrollActivityTiming]. The viewport publishes it to
+  /// [dayHeaderDelegate] and to every row chrome delegate, so chrome such as
+  /// the floating header can hide while the list rests.
+  ///
+  /// Hiding takes both knobs: this clock supplies activity, and each delegate
+  /// decides whether to follow it (the built-in day header policies do by
+  /// default — see their `hidesWhenIdle`).
+  final ChatScrollActivityTiming? scrollActivityTiming;
 
   /// Groups messages into sections — messages whose returned keys are equal
   /// (`==`) share a section. Consulted only when [dateSeparatorBuilder] is
@@ -400,6 +428,8 @@ class ChatScrollView extends RenderObjectWidget {
       bottomPadding: bottomPadding,
       topPadding: topPadding,
       groupBy: _effectiveGroupBy,
+      dayHeaderDelegate: dayHeaderDelegate,
+      scrollActivityTiming: scrollActivityTiming,
       senderRunLayout: senderRunLayout,
       hasErrorBuilder: chunkErrorBuilder != null,
       hasEmptyBuilder: emptyBuilder != null,
@@ -431,6 +461,8 @@ class ChatScrollView extends RenderObjectWidget {
       ..bottomPadding = bottomPadding
       ..topPadding = topPadding
       ..groupBy = _effectiveGroupBy
+      ..dayHeaderDelegate = dayHeaderDelegate
+      ..scrollActivityTiming = scrollActivityTiming
       ..senderRunLayout = senderRunLayout
       ..hasErrorBuilder = chunkErrorBuilder != null
       ..hasEmptyBuilder = emptyBuilder != null

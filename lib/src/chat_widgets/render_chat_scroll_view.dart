@@ -8,8 +8,11 @@ import 'dart:math' as math;
 import 'package:chat_scroll_view/src/chat_scroll/chat_animator.dart';
 import 'package:chat_scroll_view/src/chat_scroll/chat_chunk_fetch_scheduler.dart';
 import 'package:chat_scroll_view/src/chat_scroll/chat_data_source.dart';
+import 'package:chat_scroll_view/src/chat_scroll/chat_day_header_delegate.dart';
 import 'package:chat_scroll_view/src/chat_scroll/chat_floating_header_controller.dart';
 import 'package:chat_scroll_view/src/chat_scroll/chat_mutations.dart';
+import 'package:chat_scroll_view/src/chat_scroll/chat_row_chrome_delegate.dart';
+import 'package:chat_scroll_view/src/chat_scroll/chat_scroll_activity.dart';
 import 'package:chat_scroll_view/src/chat_scroll/chat_scroll_chunk.dart';
 import 'package:chat_scroll_view/src/chat_scroll/chat_scroll_common.dart';
 import 'package:chat_scroll_view/src/chat_scroll/chat_scroll_controller.dart';
@@ -20,6 +23,9 @@ import 'package:chat_scroll_view/src/chat_scroll/chat_selection_controller.dart'
 import 'package:chat_scroll_view/src/chat_scroll/chat_sender_run_layout.dart';
 import 'package:chat_scroll_view/src/chat_scroll/chat_stretch_overscroll.dart';
 import 'package:chat_scroll_view/src/chat_widgets/chat_data_source_ext.dart';
+import 'package:chat_scroll_view/src/chat_widgets/chat_opacity_paint.dart';
+import 'package:chat_scroll_view/src/chat_widgets/chat_row_chrome.dart'
+    show RenderChatRowChrome;
 import 'package:chat_scroll_view/src/chat_widgets/chat_scroll_element.dart';
 import 'package:chat_scroll_view/src/chat_widgets/chat_scrollbar.dart';
 import 'package:chat_scroll_view/src/chat_widgets/chat_selection_metrics.dart';
@@ -37,8 +43,9 @@ import 'package:meta/meta.dart' show internal, visibleForTesting;
 /// For a message: its [id], the [offset] of its top edge within the viewport
 /// (viewport-local Y, may be negative), whether it [startsDay] (carries an
 /// inline date divider), its [dayBucket] (day-grouping key, `null` until the
-/// message loads), and the [dividerOpacity] of its inline date separator. The
-/// floating day header reuses this type — only [offset] is meaningful for it.
+/// message loads), and the row chrome inputs ([paintTop], [headerZone],
+/// [scrollActivity]). The floating day header reuses this type — only
+/// [offset] is meaningful for it.
 class ChatMessageParentData extends ParentData {
   /// Message id this render box represents; `0` for the floating day header.
   int id = 0;
@@ -55,15 +62,23 @@ class ChatMessageParentData extends ParentData {
   /// or grouping is disabled.
   Object? dayBucket;
 
-  /// Fade opacity (0..1) for this message's inline date separator — set by
-  /// `RenderChatScrollView` from [offset] so the separator fades out as it
-  /// rises into the floating day header's zone. Only meaningful when
-  /// [startsDay] is `true`; read by `RenderDatedMessage`.
-  double dividerOpacity = 1;
+  /// Viewport-local paint Y of this child's top edge: [offset] plus any
+  /// paint-only translation (far-path stitch). Row chrome resolves its
+  /// delegates against it.
+  double paintTop = 0;
 
-  /// Local Y of the message body within this child. `0` when the child is
-  /// the body. A dated row writes the inline separator height here during
-  /// layout so a long-press on the date chrome does not select.
+  /// Floating day header zone as of the viewport's latest frame.
+  ChatFloatingHeaderZone headerZone = ChatFloatingHeaderZone.none;
+
+  /// Scroll activity in `[0, 1]` as of the viewport's latest frame; `1` when
+  /// the viewport runs no activity clock.
+  double scrollActivity = 1;
+
+  /// Local Y of the message body within this child — the summed height of
+  /// its row chrome. `0` when the child is the body alone. A
+  /// `RenderChatRowChrome` writes it on every layout; pointer resolution
+  /// treats a press above it as row chrome, so long-press selection and the
+  /// message menu never start on chrome.
   double messageBodyTop = 0;
 }
 
@@ -163,6 +178,8 @@ class RenderChatScrollView extends RenderBox {
     ValueListenable<double>? bottomPadding,
     ValueListenable<double>? topPadding,
     Object Function(IChatMessage)? groupBy,
+    ChatDayHeaderDelegate dayHeaderDelegate = const ChatFadingDayHeader(),
+    ChatScrollActivityTiming? scrollActivityTiming,
     ChatSenderRunLayout senderRunLayout = DefaultChatSenderRunLayout.instance,
     bool hasErrorBuilder = false,
     bool hasEmptyBuilder = false,
@@ -190,6 +207,8 @@ class RenderChatScrollView extends RenderBox {
        _bottomPadding = bottomPadding,
        _topPadding = topPadding,
        _groupBy = groupBy,
+       _dayHeaderDelegate = dayHeaderDelegate,
+       _scrollActivityTiming = scrollActivityTiming,
        _senderRunLayout = senderRunLayout,
        _hasErrorBuilder = hasErrorBuilder,
        _hasEmptyBuilder = hasEmptyBuilder,
@@ -460,6 +479,7 @@ class RenderChatScrollView extends RenderBox {
     if (_ticking == value) return;
     _ticking = value;
     _ticker?.muted = !value;
+    _activity?.muted = !value;
     if (!value) _cancelFling();
   }
 
@@ -573,6 +593,64 @@ class RenderChatScrollView extends RenderBox {
     if (_groupBy == value) return;
     _groupBy = value;
     markNeedsLayout();
+  }
+
+  /// Day header policy. See [ChatScrollView.dayHeaderDelegate].
+  ChatDayHeaderDelegate _dayHeaderDelegate;
+  set dayHeaderDelegate(ChatDayHeaderDelegate value) {
+    if (_dayHeaderDelegate == value) return;
+    _dayHeaderDelegate = value;
+    markNeedsLayout();
+  }
+
+  /// Scroll-activity clock timing; `null` keeps activity at `1`. See
+  /// [ChatScrollView.scrollActivityTiming].
+  ChatScrollActivityTiming? _scrollActivityTiming;
+  set scrollActivityTiming(ChatScrollActivityTiming? value) {
+    if (_scrollActivityTiming == value) return;
+    _scrollActivityTiming = value;
+    if (!attached) return;
+    if (value == null) {
+      _activity?.dispose();
+      _activity = null;
+    } else if (_activity case final activity?) {
+      activity.timing = value;
+    } else {
+      _activity = _createActivityClock(value);
+    }
+    markNeedsLayout();
+  }
+
+  /// Live while attached with a non-null [_scrollActivityTiming].
+  ChatScrollActivityClock? _activity;
+
+  /// A clock that starts with a navigation [ChatScrollActivityClock.pulse] —
+  /// opening the list counts as arriving somewhere.
+  ChatScrollActivityClock _createActivityClock(
+    ChatScrollActivityTiming timing,
+  ) => ChatScrollActivityClock(timing: timing, onChanged: _onActivityChanged)
+    ..muted = !_ticking
+    ..pulse();
+
+  void _onActivityChanged() {
+    if (!hasSize) return;
+    _resolveRowChromeFrame();
+    markNeedsPaint();
+  }
+
+  /// Releases the activity hold once nothing moves the list — a finger held
+  /// still mid-drag keeps it.
+  void _releaseActivityIfSettled() {
+    final activity = _activity;
+    if (activity == null || !activity.isHolding) return;
+    if (_dragInProgress ||
+        _physics.isFlinging ||
+        _animator.isAnimating ||
+        _pendingScrollDelta != 0.0 ||
+        _spanAutoScrollOccupying) {
+      return;
+    }
+    activity.release();
   }
 
   /// Host policy for [MessageRunLayout]. See [ChatScrollView.senderRunLayout].
@@ -1229,12 +1307,23 @@ class RenderChatScrollView extends RenderBox {
   /// Currently built message ids (fan-out + stitch-pinned outgoing).
   Set<int> get debugBuiltMessageIds => _children.keys.toSet();
 
-  /// Inline-divider fade opacity (0..1) of the built child [id], or `null`
+  /// Resolved opacity (0..1) of the built child [id]'s first row chrome item
+  /// — its inline day separator — or `1` when the row has no chrome. `null`
   /// when [id] is not currently built.
-  double? debugDividerOpacity(int id) {
-    final child = _children[id];
-    return child == null ? null : _parentData(child).dividerOpacity;
-  }
+  double? debugDividerOpacity(int id) => switch (_children[id]) {
+    null => null,
+    final RenderChatRowChrome row when row.chromeCount > 0 =>
+      row.debugChromeEffect(0).opacity,
+    _ => 1.0,
+  };
+
+  /// Opacity the floating header resolved to this frame.
+  @visibleForTesting
+  double get debugFloatingHeaderOpacity => _headerEffect.opacity;
+
+  /// Current scroll activity; `1` without an activity clock.
+  @visibleForTesting
+  double get debugScrollActivity => _activity?.value ?? 1.0;
 
   /// Whether the built child [id] carries an inline day separator, or `false`
   /// when [id] is not currently built.
@@ -1429,6 +1518,9 @@ class RenderChatScrollView extends RenderBox {
     _floatingHeader?.attach(owner);
     _overlay?.attach(owner);
     _ticker = Ticker(_onTick)..muted = !_ticking;
+    if (_scrollActivityTiming case final timing?) {
+      _activity = _createActivityClock(timing);
+    }
     _dataSource
       ..addDataListener(_onDataChanged)
       ..addBoundaryListener(_onBoundaryChanged)
@@ -1510,6 +1602,8 @@ class RenderChatScrollView extends RenderBox {
       _flingCancelPointer = null;
       _ticker?.dispose();
       _ticker = null;
+      _activity?.dispose();
+      _activity = null;
       _chunkFetchScheduler.onDetach();
       _pinTailOnJump = false;
       _pendingTailPinUntilSettled = false;
@@ -2082,6 +2176,7 @@ class RenderChatScrollView extends RenderBox {
     }
     // Poll debounce + jump-fetch safety net — see [ChatChunkFetchScheduler.onJump].
     _chunkFetchScheduler.onJump();
+    _activity?.pulse();
     markNeedsLayout();
   }
 
@@ -2090,6 +2185,7 @@ class RenderChatScrollView extends RenderBox {
     _cancelAnimate(fadeHighlight: false);
     _cancelHighlightForPan();
     _cancelOverscroll();
+    _activity?.pulse(navigation: false);
     // Drop any drag delta accumulated since the last tick: the controller
     // has already shifted the anchor by `delta`; applying the pending drag
     // on top would make the drag appear to accelerate by `delta` for one
@@ -2425,6 +2521,7 @@ class RenderChatScrollView extends RenderBox {
     if (_animator.isAnimating && !_animator.farAnimateActive) {
       _animator.rebaseClosePathEnd(elapsed: _lastTickElapsed);
     }
+    _resolveRowChromeFrame();
 
     final anchorYEnd = _controller.anchorPixelOffset;
     final anchorDy = _fetchLogAnchorYAtLayoutStart == null
@@ -3747,9 +3844,7 @@ class RenderChatScrollView extends RenderBox {
 
   // --- Day separators --------------------------------------------------------
 
-  /// Set a child's viewport [offset]. For a day-starting message it also
-  /// refreshes the inline separator's fade opacity from the paint position —
-  /// Tier-1-safe (parent-data + optional stitch dy), no `getMessage`.
+  /// Set a child's viewport [offset].
   ///
   /// Marks [_childOffsetsMoved] when the Y actually changes so
   /// [_publishControllerState] can notify scroll-observer chrome.
@@ -3759,13 +3854,6 @@ class RenderChatScrollView extends RenderBox {
       _childOffsetsMoved = true;
     }
     pd.offset = offset;
-    if (pd.startsDay) {
-      pd.dividerOpacity = _floatingHeaderController.dividerOpacityFor(
-        topY: offset + _stitchPaintDyIfActive(pd.id),
-        topPad: _topPad,
-        floatingHeaderHeight: _effectiveFloatingHeaderHeight(),
-      );
-    }
   }
 
   /// Paint translation while stitch is jumped; `0` otherwise.
@@ -3774,23 +3862,71 @@ class RenderChatScrollView extends RenderBox {
       ? _stitchPaintDy(id)
       : 0.0;
 
-  /// Refresh inline-separator fades from paint Y during stitch ticks (progress
-  /// changes without `_setOffset`).
-  void _refreshStitchDividerOpacities() {
-    if (!_animator.farAnimateActive || !_animator.farAnimateJumped) return;
-    final headerH = _effectiveFloatingHeaderHeight();
-    for (final entry in _children.entries) {
-      final pd = _parentData(entry.value);
-      if (!pd.startsDay) continue;
-      pd.dividerOpacity = _floatingHeaderController.dividerOpacityFor(
-        topY: pd.offset + _stitchPaintDy(pd.id),
-        topPad: _topPad,
-        floatingHeaderHeight: headerH,
+  /// Floating header effect resolved by [_resolveRowChromeFrame].
+  ChatFloatingHeaderEffect _headerEffect = const ChatFloatingHeaderEffect(
+    opacity: 0,
+  );
+
+  final LayerHandle<OpacityLayer> _headerOpacityLayer =
+      LayerHandle<OpacityLayer>();
+
+  /// Resolves the floating header through [_dayHeaderDelegate], places it,
+  /// and publishes the row chrome inputs (paint top, header zone, activity)
+  /// into every child's parent data. Runs at the end of every layout, every
+  /// scroll tick, and every activity change. Tier-1-safe: parent-data reads
+  /// and writes only, plus the stitch paint translation.
+  void _resolveRowChromeFrame() {
+    final extent = _effectiveFloatingHeaderHeight();
+    final restTop = _floatingHeaderController.placeHeaderOffset(
+      topPad: _topPad,
+    );
+    final stitching = _animator.farAnimateActive && _animator.farAnimateJumped;
+    for (final child in _children.values) {
+      final pd = _parentData(child);
+      pd.paintTop = pd.offset + (stitching ? _stitchPaintDy(pd.id) : 0.0);
+    }
+
+    final ChatFloatingHeaderZone zone;
+    if (extent > 0) {
+      double? leading;
+      final above = restTop - extent;
+      for (final child in _children.values) {
+        final pd = _parentData(child);
+        if (!pd.startsDay) continue;
+        final top = pd.paintTop;
+        if (top > above && (leading == null || top < leading)) leading = top;
+      }
+      _headerEffect = _dayHeaderDelegate.resolveFloatingHeader(
+        ChatDayHeaderMetrics(
+          restTop: restTop,
+          extent: extent,
+          leadingSeparatorTop: leading,
+          activity: _activity?.value ?? 1.0,
+        ),
       );
+      zone = ChatFloatingHeaderZone(
+        restTop: restTop,
+        extent: extent,
+        offset: _headerEffect.offset,
+        opacity: _headerEffect.opacity,
+      );
+    } else {
+      _headerEffect = const ChatFloatingHeaderEffect(opacity: 0);
+      zone = ChatFloatingHeaderZone.none;
+    }
+    _activity?.pinned = _headerEffect.holdsActivity;
+    final activity = _activity?.value ?? 1.0;
+    if (_floatingHeader case final header?) {
+      _parentData(header).offset = restTop + _headerEffect.offset;
+    }
+    for (final child in _children.values) {
+      _parentData(child)
+        ..headerZone = zone
+        ..scrollActivity = activity;
     }
   }
 
-  /// Header height used for inline-divider fade — zero when the floating
+  /// Floating header height for the header zone — zero when the floating
   /// header is suppressed (short content / top overscroll above oldest).
   double _effectiveFloatingHeaderHeight() {
     if (!_shouldShowFloatingHeader()) return 0;
@@ -3849,9 +3985,10 @@ class RenderChatScrollView extends RenderBox {
     heightOf: (child) => child.size.height,
   );
 
-  /// Rebuild (only on a group change), lay out, and pin the floating header.
-  /// Called from [performLayout]. Widget inflation stays in the render object
-  /// via [invokeLayoutCallback]; bucket/date logic is on the controller.
+  /// Rebuild (only on a group change) and lay out the floating header.
+  /// Called from [performLayout]; [_resolveRowChromeFrame] places it. Widget
+  /// inflation stays in the render object via [invokeLayoutCallback];
+  /// bucket/date logic is on the controller.
   void _updateFloatingHeader() {
     if (!_shouldShowFloatingHeader()) {
       _clearFloatingHeaderWhenHidden();
@@ -3879,35 +4016,21 @@ class RenderChatScrollView extends RenderBox {
       BoxConstraints.tightFor(width: size.width),
       parentUsesSize: true,
     );
-    _placeFloatingHeader();
   }
 
-  /// During a Tier-1 scroll: re-pin the header and report whether the topmost
-  /// day changed — the caller then relayouts to rebuild the header text.
+  /// During a Tier-1 scroll: report whether the topmost day changed — the
+  /// caller then relayouts to rebuild the header text.
   bool _tickFloatingHeader() {
     if (_groupBy == null) return false;
     if (!_shouldShowFloatingHeader()) {
       return _floatingHeader != null;
     }
     if (_floatingHeader == null) return true;
-    final scan = _scanTopDay();
-    _placeFloatingHeader();
     return _floatingHeaderController.tickForDayChange(
-      scan: scan,
+      scan: _scanTopDay(),
       groupBy: _groupBy,
       hasFloatingHeader: _floatingHeader != null,
     );
-  }
-
-  /// Pin the floating header just below the top inset — see
-  /// [ChatFloatingHeaderController.placeHeaderOffset].
-  void _placeFloatingHeader() {
-    final header = _floatingHeader;
-    if (header != null) {
-      _parentData(header).offset = _floatingHeaderController.placeHeaderOffset(
-        topPad: _topPad,
-      );
-    }
   }
 
   // --- Scroll ----------------------------------------------------------------
@@ -3921,6 +4044,7 @@ class RenderChatScrollView extends RenderBox {
   }
 
   void _stopTickerIfIdle() {
+    _releaseActivityIfSettled();
     if (!_physics.isFlinging &&
         _pendingScrollDelta == 0.0 &&
         _animator.highlightTargetId == null &&
@@ -4023,6 +4147,7 @@ class RenderChatScrollView extends RenderBox {
     if (!hasScrollWork) {
       // Highlight-only frame: advance the fade and bail.
       if (_animator.tickHighlight(elapsed)) markNeedsPaint();
+      _releaseActivityIfSettled();
       if (_animator.highlightTargetId == null) _stopTickerIfIdle();
       return;
     }
@@ -4046,10 +4171,12 @@ class RenderChatScrollView extends RenderBox {
       _controller.notifyScrollEvent(const ChatFlingEnd());
     }
     var delta = userDelta;
+    var animateDelta = 0.0;
     if (occupyingSpanAutoScroll) {
       _cancelAnimate();
     } else {
-      delta += _animator.tickAnimate(elapsed);
+      animateDelta = _animator.tickAnimate(elapsed);
+      delta += animateDelta;
     }
     delta += _spanAutoScrollDelta(elapsed, lastElapsed);
 
@@ -4058,7 +4185,10 @@ class RenderChatScrollView extends RenderBox {
     }
     final unconsumed = _unconsumedOverscrollDelta(delta);
     final consumed = delta - unconsumed;
-    if (consumed != 0.0) _controller.applyScrollDelta(consumed);
+    if (consumed != 0.0) {
+      _controller.applyScrollDelta(consumed);
+      _activity?.hold(navigation: userDelta == 0.0 && animateDelta != 0.0);
+    }
     _scrollVelocity = _scrollVelocity * 0.7 + consumed * 0.3;
     _repositionFromAnchor();
     if (occupyingSpanAutoScroll) _applyLiveSpanHit();
@@ -4099,11 +4229,11 @@ class RenderChatScrollView extends RenderBox {
     }
     _updateScrollSemantics();
     _publishControllerState();
-    // Reposition the header (Tier-1); a day crossing needs a relayout to
-    // rebuild its text. Stitch also refreshes inline-separator fades from
-    // paint Y as dual-translate progress moves rows.
-    _refreshStitchDividerOpacities();
+    // A day crossing needs a relayout to rebuild the header text. Header
+    // placement and row chrome inputs follow paint Y (Tier-1), including
+    // stitch dual-translate progress.
     final headerDayChanged = _tickFloatingHeader();
+    _resolveRowChromeFrame();
 
     // The highlight runs alongside scroll/animate frames — advance it on
     // every tick where the scroll path also ran.
@@ -4139,6 +4269,7 @@ class RenderChatScrollView extends RenderBox {
       markNeedsPaint();
     }
 
+    _releaseActivityIfSettled();
     if (!_physics.isFlinging &&
         !_animator.isAnimating &&
         _animator.highlightTargetId == null &&
@@ -4592,7 +4723,7 @@ class RenderChatScrollView extends RenderBox {
   }
 
   /// Loaded message whose selectable body contains [local], or `null` when
-  /// the point is over overlay, chunk-error, shimmer, date chrome, or empty
+  /// the point is over overlay, chunk-error, shimmer, row chrome, or empty
   /// space. The pinned floating header is ignored by default so tap,
   /// long-press, and a span held in the top edge band hit the message
   /// underneath. Pass [hitThroughPinnedHeader] false only if a caller
@@ -4615,7 +4746,9 @@ class RenderChatScrollView extends RenderBox {
 
     final header = _floatingHeader;
     var pinnedHeaderCovers = false;
-    if (header != null && _shouldShowFloatingHeader()) {
+    if (header != null &&
+        _headerEffect.hitTestable &&
+        _shouldShowFloatingHeader()) {
       final top = _parentData(header).offset;
       pinnedHeaderCovers =
           local.dy >= top && local.dy < top + header.size.height;
@@ -4643,8 +4776,8 @@ class RenderChatScrollView extends RenderBox {
       if (requireSelectionAllowed && !_isSelectable(entry.key)) {
         return null;
       }
-      final inDateChrome = local.dy < pd.offset + pd.messageBodyTop;
-      if (inDateChrome && !hitFullRow && !pinnedHeaderCovers) return null;
+      final inRowChrome = local.dy < pd.offset + pd.messageBodyTop;
+      if (inRowChrome && !hitFullRow && !pinnedHeaderCovers) return null;
       return entry.key;
     }
     return null;
@@ -4776,7 +4909,9 @@ class RenderChatScrollView extends RenderBox {
     // affordance, etc. — actually fires instead of falling through to the
     // message under it.
     final header = _floatingHeader;
-    if (header != null && _shouldShowFloatingHeader()) {
+    if (header != null &&
+        _headerEffect.hitTestable &&
+        _shouldShowFloatingHeader()) {
       final headerOffset = _parentData(header).offset;
       final headerBottom = headerOffset + header.size.height;
       if (headerOffset < viewportHeight && headerBottom > 0) {
@@ -6029,8 +6164,17 @@ class RenderChatScrollView extends RenderBox {
 
   void _paintFloatingHeader(PaintingContext context, Offset offset) {
     final header = _floatingHeader;
-    if (header == null || !_shouldShowFloatingHeader()) return;
-    context.paintChild(header, offset + Offset(0, _parentData(header).offset));
+    if (header == null || !_shouldShowFloatingHeader()) {
+      _headerOpacityLayer.layer = null;
+      return;
+    }
+    paintChildWithOpacity(
+      context,
+      header,
+      offset + Offset(0, _parentData(header).offset),
+      _headerEffect.opacity,
+      _headerOpacityLayer,
+    );
   }
 
   void _paintScrollbar(PaintingContext context, Offset offset) {
@@ -6065,6 +6209,7 @@ class RenderChatScrollView extends RenderBox {
     _selectionPointer = null;
     _clipLayer.layer = null;
     _stretchLayer.layer = null;
+    _headerOpacityLayer.layer = null;
     super.dispose();
   }
 }

@@ -831,6 +831,9 @@ class _WidgetChatScreenState extends State<WidgetChatScreen>
                           chunkErrorBuilder: _buildChunkError,
                           emptyBuilder: _buildEmpty,
                           loadingBuilder: _buildInitialSkeleton,
+                          scrollActivityTiming:
+                              const ChatScrollActivityTiming(),
+                          dayHeaderDelegate: const ChatPushingDayHeader(),
                           dateSeparatorBuilder: (context, bucket, date) =>
                               DateSeparator(date: date),
                         ),

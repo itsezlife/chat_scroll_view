@@ -1,10 +1,11 @@
 import 'dart:collection';
 
+import 'package:chat_scroll_view/src/chat_scroll/chat_day_header_delegate.dart';
 import 'package:chat_scroll_view/src/chat_scroll/chat_scroll_common.dart';
 import 'package:chat_scroll_view/src/chat_scroll/chat_selection_allowed.dart';
 import 'package:chat_scroll_view/src/chat_scroll/chat_sender_run_layout.dart';
 import 'package:chat_scroll_view/src/chat_widgets/chat_data_source_ext.dart';
-import 'package:chat_scroll_view/src/chat_widgets/chat_dated_message.dart';
+import 'package:chat_scroll_view/src/chat_widgets/chat_row_chrome.dart';
 import 'package:chat_scroll_view/src/chat_widgets/chat_scroll_theme.dart';
 import 'package:chat_scroll_view/src/chat_widgets/chat_scroll_view.dart';
 import 'package:chat_scroll_view/src/chat_widgets/chat_secondary_message_tap_scope.dart';
@@ -229,6 +230,7 @@ class ChatScrollElement extends RenderObjectElement
         old.selectionController != newWidget.selectionController ||
         old.selectionChromeBuilder != newWidget.selectionChromeBuilder ||
         old.dateSeparatorBuilder != newWidget.dateSeparatorBuilder ||
+        old.dayHeaderDelegate != newWidget.dayHeaderDelegate ||
         old.textDirection != newWidget.textDirection ||
         (old.onSecondaryMessageTap == null) !=
             (newWidget.onSecondaryMessageTap == null)) {
@@ -256,11 +258,11 @@ class ChatScrollElement extends RenderObjectElement
   /// wrapped in [SelectableMessage]. [ChatSelectionAllowed.none] and
   /// shimmer / placeholder slots are not wrapped. Membership still follows
   /// [ChatSelectionAllowed.isSelectable]. When [startsNewDay] is set,
-  /// the message is built as a [DatedMessage] — an inline date separator
-  /// stacked above the body, *outside* [SelectableMessage] so selection
-  /// chrome never tints the date. Plain messages are wrapped in a
-  /// [RepaintBoundary] for picture / layer caching; [DatedMessage] does its
-  /// own wrapping.
+  /// the message is built as a [ChatRowChrome] whose only chrome is the
+  /// inline date separator — presented by the day header policy's
+  /// [ChatDayHeaderDelegate.inlineSeparator] — stacked above the body,
+  /// *outside* [SelectableMessage] so selection chrome never tints the date. Plain messages are wrapped in a [RepaintBoundary] for picture /
+  /// layer caching; [ChatRowChrome] does its own per-child wrapping.
   ///
   /// When an explicit `textDirection` override is supplied on
   /// `ChatScrollView`, [messageBuilder] and the date-separator builder are
@@ -317,9 +319,14 @@ class ChatScrollElement extends RenderObjectElement
         child: content,
       );
       return hasDateHeader
-          ? DatedMessage(
+          ? ChatRowChrome(
               key: ValueKey<int>(id),
-              separator: separator(context, groupBucket, message.createdAt),
+              chrome: <ChatRowChromeItem>[
+                ChatRowChromeItem(
+                  delegate: _widget.dayHeaderDelegate.inlineSeparator,
+                  child: separator(context, groupBucket, message.createdAt),
+                ),
+              ],
               body: content,
             )
           : RepaintBoundary(key: ValueKey<int>(id), child: content);

@@ -1,9 +1,12 @@
 import 'package:chat_scroll_view/src/chat_scroll/chat_data_source.dart';
+import 'package:chat_scroll_view/src/chat_scroll/chat_day_header_delegate.dart';
+import 'package:chat_scroll_view/src/chat_scroll/chat_scroll_activity.dart';
 import 'package:chat_scroll_view/src/chat_scroll/chat_scroll_common.dart';
 import 'package:chat_scroll_view/src/chat_scroll/chat_scroll_controller.dart';
 import 'package:chat_scroll_view/src/chat_widgets/chat_scroll_view.dart';
 import 'package:chat_scroll_view/src/chat_widgets/render_chat_scroll_view.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 import '../chat_message.dart';
 
@@ -51,6 +54,9 @@ Widget _harness({
   required ChatScrollController controller,
   bool separators = true,
   bool reverse = false,
+  ChatDayHeaderDelegate dayHeaderDelegate = const ChatFadingDayHeader(),
+  ChatScrollActivityTiming? scrollActivityTiming,
+  void Function(DateTime date)? onSeparatorTap,
 }) => MaterialApp(
   home: Scaffold(
     body: Center(
@@ -61,12 +67,20 @@ Widget _harness({
           dataSource: dataSource,
           controller: controller,
           reverse: reverse,
+          dayHeaderDelegate: dayHeaderDelegate,
+          scrollActivityTiming: scrollActivityTiming,
           messageBuilder: (context, id, message, status, runLayout) =>
               SizedBox(height: 60, child: Text('msg-$id')),
           dateSeparatorBuilder: separators
-              ? (context, bucket, date) => SizedBox(
-                  height: 24,
-                  child: Text('sep-${date.month}-${date.day}'),
+              ? (context, bucket, date) => GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onTap: onSeparatorTap == null
+                      ? null
+                      : () => onSeparatorTap(date),
+                  child: SizedBox(
+                    height: 24,
+                    child: Text('sep-${date.month}-${date.day}'),
+                  ),
                 )
               : null,
         ),
@@ -74,6 +88,17 @@ Widget _harness({
     ),
   ),
 );
+
+/// Shift content by [dy] (positive moves rows down) and relayout.
+Future<void> _shift(
+  WidgetTester tester,
+  ChatScrollController controller,
+  double dy,
+) async {
+  controller.applyScrollDelta(dy);
+  _render(tester).markNeedsLayout();
+  await tester.pump();
+}
 
 RenderChatScrollView _render(WidgetTester tester) =>
     tester.renderObject<RenderChatScrollView>(find.byType(ChatScrollView));
@@ -391,6 +416,184 @@ void main() {
       await tester.pump();
       expect(messageTaps, 1);
       expect(headerTaps, 1, reason: 'no double-count');
+    });
+  });
+
+  // Geometry: rows are 60 tall, a day-starting row adds a 24 px separator,
+  // the header is 24 tall and rests at y = 0. jumpTo(8) puts msg-8 (first of
+  // day 2) at the top.
+  group('ChatPushingDayHeader', () {
+    Future<RenderChatScrollView> pump(
+      WidgetTester tester,
+      ChatScrollController controller, {
+      ChatScrollActivityTiming? scrollActivityTiming,
+      void Function(DateTime date)? onSeparatorTap,
+    }) async {
+      await tester.pumpWidget(
+        _harness(
+          dataSource: _PreloadedDataSource(_generate(256)),
+          controller: controller,
+          dayHeaderDelegate: const ChatPushingDayHeader(),
+          scrollActivityTiming: scrollActivityTiming,
+          onSeparatorTap: onSeparatorTap,
+        ),
+      );
+      await tester.pump();
+      return _render(tester);
+    }
+
+    testWidgets('the header stands in for a separator at the rest line', (
+      tester,
+    ) async {
+      final controller = ChatScrollController()..jumpTo(8);
+      final ro = await pump(tester, controller);
+
+      expect(ro.debugHeaderDate, DateTime(2026, 1, 2, 9));
+      expect(ro.debugFloatingHeaderOffset, 0);
+      expect(ro.debugDividerOpacity(8), 0, reason: 'inline hides under it');
+      expect(ro.debugDividerOpacity(16), 1);
+    });
+
+    testWidgets('the next separator pushes the header up as it rises', (
+      tester,
+    ) async {
+      final controller = ChatScrollController()..jumpTo(8);
+      final ro = await pump(tester, controller);
+
+      // msg-8's separator at y = 10: the header (day 1 now) is pushed so its
+      // bottom touches the separator's top.
+      await _shift(tester, controller, 10);
+      expect(ro.debugHeaderDate?.day, 1);
+      expect(ro.debugFloatingHeaderOffset, closeTo(-14, 0.01));
+      expect(ro.debugDividerOpacity(8), 1);
+
+      // A full extent below the rest line: the header rests again.
+      await _shift(tester, controller, 20);
+      expect(ro.debugFloatingHeaderOffset, 0);
+    });
+
+    testWidgets('without an activity clock the header never hides', (
+      tester,
+    ) async {
+      final controller = ChatScrollController()..jumpTo(8);
+      final ro = await pump(tester, controller);
+      await _shift(tester, controller, 10);
+
+      await tester.pump(const Duration(seconds: 5));
+      expect(ro.debugScrollActivity, 1);
+      expect(ro.debugFloatingHeaderOpacity, 1);
+    });
+
+    testWidgets('with an activity clock the header hides once idle and '
+        'returns on drag', (tester) async {
+      final taps = <int>[];
+      final controller = ChatScrollController()..jumpTo(8);
+      final ro = await pump(
+        tester,
+        controller,
+        scrollActivityTiming: const ChatScrollActivityTiming(),
+        onSeparatorTap: (date) => taps.add(date.day),
+      );
+      await _shift(tester, controller, 10);
+
+      // Opening the list counts as navigation: shown, then hidden after
+      // 1000 ms + a 150 ms fade.
+      await tester.pump(const Duration(milliseconds: 150));
+      expect(ro.debugFloatingHeaderOpacity, 1);
+      await tester.tapAt(const Offset(400, 5));
+      expect(taps, <int>[1], reason: 'a visible header takes the tap');
+
+      await tester.pump(const Duration(milliseconds: 1000));
+      await tester.pump(const Duration(milliseconds: 150));
+      expect(ro.debugScrollActivity, 0);
+      expect(ro.debugFloatingHeaderOpacity, 0);
+      expect(
+        find.text('sep-1-1'),
+        findsOneWidget,
+        reason: 'the header stays built while hidden',
+      );
+      expect(
+        tester.layers.whereType<OpacityLayer>().where((l) => l.alpha! < 255),
+        isEmpty,
+        reason: 'a hidden header is skipped, not painted at alpha 0',
+      );
+      await tester.tapAt(const Offset(400, 5));
+      expect(taps, <int>[1], reason: 'a hidden header takes no input');
+
+      final gesture = await tester.startGesture(const Offset(400, 300));
+      await gesture.moveBy(const Offset(0, 30));
+      await tester.pump();
+      await gesture.moveBy(const Offset(0, 2));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 150));
+      expect(ro.debugScrollActivity, 1);
+
+      await gesture.up();
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 499));
+      expect(ro.debugScrollActivity, 1, reason: '500 ms user idle delay');
+      await tester.pump(const Duration(milliseconds: 1));
+      await tester.pump(const Duration(milliseconds: 150));
+      expect(ro.debugScrollActivity, 0);
+    });
+
+    testWidgets('an idle header stays while it stands in for a separator', (
+      tester,
+    ) async {
+      final controller = ChatScrollController()..jumpTo(8);
+      final ro = await pump(
+        tester,
+        controller,
+        scrollActivityTiming: const ChatScrollActivityTiming(),
+      );
+
+      await tester.pump(const Duration(seconds: 2));
+      expect(ro.debugScrollActivity, 1, reason: 'pinned while standing in');
+      expect(ro.debugFloatingHeaderOpacity, 1);
+      expect(ro.debugDividerOpacity(8), 0);
+    });
+
+    testWidgets('scrolling away from a standing-in header does not blink', (
+      tester,
+    ) async {
+      final controller = ChatScrollController()..jumpTo(8);
+      final ro = await pump(
+        tester,
+        controller,
+        scrollActivityTiming: const ChatScrollActivityTiming(),
+      );
+      await tester.pump(const Duration(seconds: 2));
+
+      await _shift(tester, controller, 10);
+      expect(ro.debugFloatingHeaderOffset, closeTo(-14, 0.01));
+      expect(ro.debugFloatingHeaderOpacity, 1);
+      await tester.pump(const Duration(milliseconds: 16));
+      expect(ro.debugFloatingHeaderOpacity, 1);
+
+      await tester.pump(const Duration(milliseconds: 500));
+      await tester.pump(const Duration(milliseconds: 150));
+      expect(ro.debugFloatingHeaderOpacity, 0, reason: 'then idles out');
+    });
+
+    // The pushing policy relies on this: the oldest row rests at the rest
+    // line, so the oldest separator never pushes a header showing its own
+    // day.
+    testWidgets('at the oldest message the header stands in for its '
+        'separator', (tester) async {
+      await tester.pumpWidget(
+        _harness(
+          dataSource: _PreloadedDataSource(_generate(9)),
+          controller: ChatScrollController(),
+          dayHeaderDelegate: const ChatPushingDayHeader(),
+        ),
+      );
+      await tester.pump();
+      final ro = _render(tester);
+
+      expect(ro.debugHeaderDate?.day, 1);
+      expect(ro.debugFloatingHeaderOffset, 0);
+      expect(ro.debugFloatingHeaderOpacity, 1);
+      expect(ro.debugDividerOpacity(0), 0);
     });
   });
 }

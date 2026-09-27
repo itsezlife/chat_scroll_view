@@ -2,34 +2,6 @@ import 'package:chat_scroll_view/src/chat_scroll/chat_floating_header_controller
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
-  group('dividerOpacityFor', () {
-    test('full opacity below fade band', () {
-      final controller = ChatFloatingHeaderController();
-      // topPad=10, headerHeight=32 → fadeEnd=42; topY=62 → (20/20+1) clamped to 1
-      expect(
-        controller.dividerOpacityFor(
-          topY: 62,
-          topPad: 10,
-          floatingHeaderHeight: 32,
-        ),
-        1.0,
-      );
-    });
-
-    test('zero opacity at fade end minus band', () {
-      final controller = ChatFloatingHeaderController();
-      // fadeEnd=42; topY=22 → (-20/20+1)=0
-      expect(
-        controller.dividerOpacityFor(
-          topY: 22,
-          topPad: 10,
-          floatingHeaderHeight: 32,
-        ),
-        0.0,
-      );
-    });
-  });
-
   group('evaluateLayoutRebuild', () {
     test('rebuilds when bucket changes', () {
       final controller = ChatFloatingHeaderController();

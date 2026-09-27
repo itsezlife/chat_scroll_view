@@ -4,7 +4,8 @@
 /// global content height. Integrate by implementing [ChatDataSource] and
 /// embedding [ChatScrollView].
 ///
-/// Host-facing helpers include [DatedMessage] (day separator + body),
+/// Host-facing helpers include [ChatRowChrome] (ordered row chrome such as
+/// the inline date separator, stacked above the message body),
 /// [ChatMessageBody] (in-bubble content + meta last-line packing),
 /// [ChatMessageChangeTransition] (edit morph: layout-final + paint deltas),
 /// [ChatBubbleMetrics] (theme + run → corner / padding resolvers), and
@@ -19,7 +20,11 @@ export 'src/chat_scroll/animate_to_disposition.dart';
 export 'src/chat_scroll/animate_to_load_policy.dart';
 export 'src/chat_scroll/chat_body_linkify.dart';
 export 'src/chat_scroll/chat_data_source.dart';
+export 'src/chat_scroll/chat_day_header_delegate.dart';
 export 'src/chat_scroll/chat_mutations.dart';
+export 'src/chat_scroll/chat_row_chrome_delegate.dart';
+export 'src/chat_scroll/chat_scroll_activity.dart'
+    show ChatScrollActivityTiming;
 export 'src/chat_scroll/chat_scroll_common.dart';
 export 'src/chat_scroll/chat_scroll_controller.dart';
 export 'src/chat_scroll/chat_scroll_events.dart';
@@ -38,6 +43,7 @@ export 'src/chat_widgets/chat_message_body.dart';
 export 'src/chat_widgets/chat_message_change_transition.dart';
 export 'src/chat_widgets/chat_message_surface_bounds.dart';
 export 'src/chat_widgets/chat_message_theme.dart';
+export 'src/chat_widgets/chat_row_chrome.dart';
 export 'src/chat_widgets/chat_scroll_theme.dart';
 export 'src/chat_widgets/chat_scroll_view.dart';
 export 'src/chat_widgets/chat_scrollbar.dart';
