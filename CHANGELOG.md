@@ -30,6 +30,23 @@
   `ChatRowChromeDelegate.fadeUnderHeader` instead of internal header-controller
   math.
 
+### Message menu scrim
+- **CHANGED**: The sheet scrim leaves only the message surface undimmed,
+  instead of the whole row. `ChatMessageSurfaceBounds.shape` (a
+  `ShapeBorder`) reports the bubble outline. The hole takes that outline,
+  including per-corner radii, and is clipped to the scroll band, so a
+  bubble partly under host chrome does not uncover the chrome. Without a
+  reported surface, the hole is still the slot, rounded by
+  `ChatMessageMenuThemeData.holeRadius`. Placement is unchanged.
+- **ADDED**: `ChatMessageMenuRequest.surfaceGlobal`, `.surfaceShape` and
+  `.bandGlobal`. `showChatMessageMenu` takes them as `surfaceRect`,
+  `surfaceShape` and `visibleRect`. `ChatMessageMenuScrim` gains `holeShape`
+  and `holeClip`. `ChatSelectionController.reportMessageSurfaceBounds`
+  takes an optional `shape`, and `messageSurfaceGlobal` reads the live
+  surface rect and outline.
+- **EXAMPLE**: The demo bubble reports its run-aware rounded outline, and
+  `MessageMenu` forwards the request geometry.
+
 ### Unread separator
 - **ADDED**: `ChatScrollView.unreadBoundary` (a `ValueListenable<int?>`) and
   `ChatScrollView.unreadSeparatorBuilder` (a `WidgetBuilder`). The viewport
