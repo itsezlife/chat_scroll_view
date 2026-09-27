@@ -98,6 +98,12 @@
   same boundary listenable as the bar, so clearing or moving the bar rebuilds
   only the rows whose run flags flip. The package default policy is
   unchanged.
+- **EXAMPLE**: The placeholder bar becomes a fixed-height strip with a
+  centered label and a trailing down arrow. The label ignores the text scale
+  and the ambient text style, so the row never grows. `UnreadSeparatorColors`
+  (a `ThemeExtension` with `light` and `dark` palettes) carries the strip,
+  label and arrow colors; without a registered extension the palette follows
+  the theme brightness.
 
 ### Breaking changes
 
