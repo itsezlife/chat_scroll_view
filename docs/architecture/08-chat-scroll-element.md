@@ -87,8 +87,10 @@ for chrome-only updates.
   check. Wrapping zero-size shrink output for absent ids still produces
   selectable ghost rows.
 - If `startsNewDay && separator != null && message != null && groupBucket != null`
-  → `DatedMessage(separator, body)`; else `RepaintBoundary` + body.
-- Separator is **outside** selection so date chrome is never tinted.
+  → `ChatRowChrome` with one item (the separator, delegate
+  `dayHeaderDelegate.inlineSeparator`) above the body; else
+  `RepaintBoundary` + body.
+- Row chrome is **outside** selection so date chrome is never tinted.
 
 The element does **not** compute day boundaries — it only consumes
 `startsNewDay` / `groupBucket` from the render object. See

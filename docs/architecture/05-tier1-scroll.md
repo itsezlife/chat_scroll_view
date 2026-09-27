@@ -86,8 +86,9 @@ anchor without rebuild or `child.layout`.
 - General path interleaves chunk-error tiles at chunk boundaries.
 - Null slots: **skip** (`continue`), never `break`.
 
-Also updates `dividerOpacity` for `startsDay` rows via `_setOffset` (Tier-1
-safe parent-data write).
+Row chrome inputs (`paintTop`, `headerZone`, `scrollActivity`) are published
+afterwards by `_resolveRowChromeFrame` on the same tick (Tier-1-safe
+parent-data writes).
 
 ## `_rangeNoLongerCovers`
 

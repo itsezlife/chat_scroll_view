@@ -49,7 +49,8 @@ On the tick path, after reposition/clamp/header tick:
 - Else → `markNeedsPaint` only.
 
 Tier-1 **must not** call `buildChild`, `child.layout`, or mutate widget trees.
-Parent-data writes (`offset`, `dividerOpacity`) are allowed.
+Parent-data writes (`offset`, and the row chrome inputs `paintTop`,
+`headerZone`, `scrollActivity`) are allowed.
 
 ## 5. Clamp ownership
 

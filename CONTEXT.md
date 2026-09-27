@@ -72,7 +72,7 @@ _Avoid_: Cache extent, build zone
 
 **Tier-1**:
 The ticker path that mutates the origin offset and repositions built rows, painting unless coverage fails.
-_Avoid_: Scroll activity, pointer route (as the name for this path)
+_Avoid_: Scroll path, pointer route (as the name for this path)
 
 **Tier-2**:
 The layout path that inflates, measures, and fans out children from the origin.
@@ -125,6 +125,18 @@ _Avoid_: Date, section, sticky header (as the key)
 
 **Starts day**:
 A row that opens a new day bucket and may show an inline date separator.
+
+**Row chrome**:
+Viewport-owned decoration stacked above the message body inside one message slot, such as the inline date separator of a row that starts a day. Each item has a **row chrome delegate** that resolves its opacity and input every frame from its paint position, the floating header zone, and **scroll activity**; the summed chrome height is the line above which presses are chrome, not message. Outside selection chrome; never message surface.
+_Avoid_: Header row, fake message, list item, part of the message builder, chrome role enum
+
+**Day header policy**:
+The delegate that decides how the floating header and the inline date separators share the top of the viewport: the header's push offset and opacity, and the row chrome delegate every inline separator uses. Built-ins fade separators under a resting header, or push the header up with the next day's separator. The header is *held* while it stands in for a separator hidden or faded under it: it stays shown and pins scroll activity at `1`, so leaving that position never finds it hidden.
+_Avoid_: Sticky header mode, header style enum
+
+**Scroll activity**:
+A viewport-owned factor in `[0, 1]`: rises when the list moves, holds while it moves, falls after an idle delay (longer after navigation). Delegates read it to hide chrome while the list rests; without a clock it stays `1`.
+_Avoid_: AFK timer per widget, scroll idle flag, is-scrolling bool
 
 **Slot**:
 One of four disjoint identity spaces: messages, chunk errors, floating header, overlay.

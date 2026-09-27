@@ -70,7 +70,7 @@ Cross-links: [Layout Pipeline](./04-layout-pipeline.md),
 | `buildChunkError`     | Inflate error tile               | —                                 |
 | `removeChunkErrors`   | Deactivate error tiles           | —                                 |
 | `buildOverlay`        | Loading/empty/none               | —                                 |
-| `_buildWidget`        | Compose DatedMessage / selection | Put separator inside selection    |
+| `_buildWidget`        | Compose ChatRowChrome / selection | Put separator inside selection    |
 | Skip-cache hit        | Reuse without `updateChild`      | Rely on deep equality of messages |
 
 ---
@@ -82,8 +82,7 @@ Cross-links: [Layout Pipeline](./04-layout-pipeline.md),
 | `scanTopDay`                                                 | Topmost visible bucket         | None (pure)                                 |
 | `evaluateLayoutRebuild`                                      | Whether header widget rebuilds | `headerBucket`, `headerDate`, `headerDirty` |
 | `tickForDayChange`                                           | Tier-1 day-change detect       | None                                        |
-| `dividerOpacityFor`                                          | Fade math                      | None                                        |
-| `placeHeaderOffset`                                          | Header Y (`topPad`)            | None                                        |
+| `placeHeaderOffset`                                          | Header rest Y (`topPad`)       | None                                        |
 | `invalidate` / `resetOnDataSourceChange` / `clearForOverlay` | Force/clear state              | header fields                               |
 
 ---

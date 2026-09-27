@@ -85,8 +85,8 @@ flowchart LR
 | **1** | `_onTick` | No | No (offsets only) | Drag, fling, bounceback, close-path animate |
 | **2** | `performLayout` | Yes (lazy inflate) | Yes | Jump, data change, range uncovered, day-header text change |
 
-Tier-1 relies on each message being a `RepaintBoundary` (or `DatedMessage`’s
-inner boundaries) so the framework moves cached layers when parent-data
+Tier-1 relies on each message being a `RepaintBoundary` (or `ChatRowChrome`’s
+per-child boundaries) so the framework moves cached layers when parent-data
 offsets change.
 
 ## File map
@@ -109,7 +109,8 @@ lib/src/
     chat_scroll_view.dart
     chat_scroll_element.dart
     render_chat_scroll_view.dart
-    chat_dated_message.dart
+    chat_row_chrome.dart
+    chat_dated_message.dart       # deprecated forward to ChatRowChrome
     chat_scrollbar.dart
     chat_selectable_message.dart
     chat_selection_pointer.dart
