@@ -156,6 +156,10 @@ users reading history back to the newest message.
 
 `_onTopPaddingChanged` only calls `markNeedsLayout`. Affects alignment band,
 floating header Y, and scrollbar insets. `pinOldest` still uses `y = 0`.
+On-screen rows do not move. The exception is a held navigation placement:
+the next layout sees the top pad differ from `_lastLaidOutTopPad` and re-applies
+the placement against the new band top. See
+[alignment lifecycle](./10-navigation-and-tail.md#alignment-lifecycle).
 
 ## Tail-pin state machine
 

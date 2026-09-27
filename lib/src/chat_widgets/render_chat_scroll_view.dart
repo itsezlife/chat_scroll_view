@@ -21,6 +21,7 @@ import 'package:chat_scroll_view/src/chat_scroll/chat_scroll_physics.dart';
 import 'package:chat_scroll_view/src/chat_scroll/chat_selection_controller.dart';
 import 'package:chat_scroll_view/src/chat_scroll/chat_sender_run_layout.dart';
 import 'package:chat_scroll_view/src/chat_scroll/chat_stretch_overscroll.dart';
+import 'package:chat_scroll_view/src/chat_scroll/navigation_placement.dart';
 import 'package:chat_scroll_view/src/chat_widgets/chat_data_source_ext.dart';
 import 'package:chat_scroll_view/src/chat_widgets/chat_opacity_paint.dart';
 import 'package:chat_scroll_view/src/chat_widgets/chat_row_chrome.dart'
@@ -558,6 +559,11 @@ class RenderChatScrollView extends RenderBox {
 
   /// Empty space reserved at the *top* of the viewport — compensation for top
   /// chrome (an app bar). The floating day header rests just below it.
+  ///
+  /// Not compensated like the bottom inset: a change moves the scroll band's
+  /// top edge and leaves on-screen rows in place, except that a held
+  /// navigation placement is re-applied against the new edge on the next
+  /// layout ([_lastLaidOutTopPad]).
   ValueListenable<double>? _topPadding;
   set topPadding(ValueListenable<double>? value) {
     if (identical(_topPadding, value)) return;
@@ -614,8 +620,9 @@ class RenderChatScrollView extends RenderBox {
   /// A clock that starts idle: the list opens with idle-hidden chrome hidden.
   ChatScrollActivityClock _createActivityClock(
     ChatScrollActivityTiming timing,
-  ) => ChatScrollActivityClock(timing: timing, onChanged: _onActivityChanged)
-    ..muted = !_ticking;
+  ) =>
+      ChatScrollActivityClock(timing: timing, onChanged: _onActivityChanged)
+        ..muted = !_ticking;
 
   void _onActivityChanged() {
     if (!hasSize) return;
@@ -676,7 +683,9 @@ class RenderChatScrollView extends RenderBox {
   /// cache, so a changed value re-inflates only the rows whose bit flips —
   /// the old and the new boundary row. This side owns the geometry: a value
   /// change is a row chrome change, and the next layout holds the reading
-  /// position across it ([_holdRowChromeReference]).
+  /// position across it ([_holdRowChromeReference]) — unless one of those
+  /// rows is the target of the armed navigation placement, which is then
+  /// re-applied instead ([_isNavigationTargetChromeChange]).
   ///
   /// Swapping in a listenable with a different current value is a value
   /// change; swapping in one with the same value only moves the subscription.
@@ -752,6 +761,16 @@ class RenderChatScrollView extends RenderBox {
   /// unread boundary); consumed by the next [performLayout], which holds the
   /// reading position across the resulting row height change.
   bool _rowChromeChanged = false;
+
+  /// Unread boundary value as of the latest [performLayout]. With the
+  /// current value it names the rows whose unread separator flips on a
+  /// [_rowChromeChanged] pass — the old and the new boundary row.
+  int? _laidOutUnreadBoundary;
+
+  /// Top inset the latest normal-mode [performLayout] used; `null` before
+  /// the first. A difference on the next pass re-applies a held navigation
+  /// placement — the top inset itself is not compensated.
+  double? _lastLaidOutTopPad;
 
   // --- Ticker / scroll physics ----------------------------------------------
 
@@ -1133,12 +1152,14 @@ class RenderChatScrollView extends RenderBox {
 
     // Close-path animation finished — the animator owned offset each tick.
     // Try one alignment snap; if the target row is still a skeleton, leave
-    // [navigationAlignment] pending so [performLayout] applies it once the real
-    // message is built (same contract as [jumpTo]). [_applyNavigationAlignment]
-    // clears when aligned; do not clear here unconditionally — that dropped
+    // the placement pending so [performLayout] applies it once the real
+    // message is built (same contract as [jumpTo]). [_applyNavigationPlacement]
+    // holds once landed; do not clear here unconditionally — that dropped
     // deferred alignment and regressed post-load landing for non-zero alignment.
-    if (_controller.navigationAlignment != 0.0) {
-      _applyNavigationAlignment();
+    if (_controller.navigationPlacement case AlignmentPlacement(
+      :final alignment,
+    ) when alignment != 0.0) {
+      _applyNavigationPlacement();
     }
 
     if (_pinTailOnJump) markNeedsLayout();
@@ -1409,9 +1430,7 @@ class RenderChatScrollView extends RenderBox {
       'anchorDirty': anchorStatus.isDirty,
       'anchorLoaded': _dataSource.getMessage(anchorId) != null,
       'anchorTop': anchorTop == null ? null : LogFormat.f(anchorTop),
-      'anchorBottom': anchorBottom == null
-          ? null
-          : LogFormat.f(anchorBottom),
+      'anchorBottom': anchorBottom == null ? null : LogFormat.f(anchorBottom),
       'anchorH': anchorH == null ? null : LogFormat.f(anchorH),
       'bottomEdge': bottomEdge == null ? null : LogFormat.f(bottomEdge),
       'bandId': band?.id,
@@ -2017,127 +2036,113 @@ class RenderChatScrollView extends RenderBox {
     return _alignedTopForMessage(messageHeight, alignment);
   }
 
-  /// Apply a pending [ChatScrollController.navigationAlignment] after the
-  /// anchor message is laid out. Returns whether the anchor offset moved.
+  /// Applies the armed [ChatScrollController.navigationPlacement] after the
+  /// anchor message is laid out, and advances its lifecycle. Returns whether
+  /// the anchor offset moved.
   ///
-  /// **Dual-writer guard:** close-path `animateTo` sets [navigationAlignment]
-  /// and [ChatAnimator.tickAnimate] interpolates [anchorPixelOffset] each tick.
-  /// Snapping here on every [performLayout] while that animation runs fights
-  /// the interpolator and produces the non-zero-alignment micro-jump (alignment
-  /// `0` never reaches this snap — it returns above). Deferred [jumpTo] and
-  /// post-[animateTo] settle call this when no close-path animation is in flight;
-  /// [navigationAlignment] stays set until the target row is built and aligned.
-  bool _applyNavigationAlignment() {
-    // Measured stitch owns paint translation — nav snap would fight dual-translate.
+  /// Seats the target by kind:
+  /// - [AlignmentPlacement] — top at [_alignedTopForMessage].
+  /// - [CenterBandPlacement] — the fixed 50% paint-band ray hits
+  ///   `target top + offsetFromMessageTop`, the offset clamped into
+  ///   `[0, height)` so the ray stays inside the rect [_publishCenterBand]
+  ///   reads.
+  ///
+  /// **Pending** (not yet landed on a loaded row): snaps the target on every
+  /// layout, so a skeleton target that loads with a new height is re-seated.
+  /// Once the snap lands on a loaded row the placement becomes **held**.
+  ///
+  /// **Held**: snaps again only when [reapplyHold] is set — the scroll band's
+  /// top edge moved, or the target row's row chrome changed this pass.
+  /// Otherwise it stays silent so bottom inset compensation, the boundary
+  /// clamp, and height changes elsewhere keep their effect instead of being
+  /// snapped back on every layout.
+  ///
+  /// **Release without a snap:**
+  /// - A held target that is no longer the anchor (absent-anchor
+  ///   reassignment, renormalize). A pending one is kept, because a far-path
+  ///   animate arms the placement while the anchor still sits on the
+  ///   outgoing strip.
+  /// - A known-newest alignment target: the tail pin owns that geometry. A
+  ///   Center Band target on the newest is still placed and held, so a
+  ///   mid-bubble restore on the conversation newest keeps its offset.
+  /// - A Center Band placement on an empty scroll band.
+  ///
+  /// **Dual-writer guard:** close-path `animateTo` arms an alignment
+  /// placement and [ChatAnimator.tickAnimate] interpolates
+  /// [anchorPixelOffset] each tick. Snapping here on every [performLayout]
+  /// while that animation runs fights the interpolator and produces the
+  /// non-zero-alignment micro-jump. A measured stitch owns paint translation
+  /// the same way. Deferred [jumpTo] and post-[animateTo] settle call this
+  /// when neither is in flight.
+  bool _applyNavigationPlacement({bool reapplyHold = false}) {
     if (_animator.farAnimateActive &&
         _animator.farAnimateJumped &&
         _animator.stitchMeasured) {
       return false;
     }
-    final alignment = _controller.navigationAlignment;
-    final targetId = _controller.navigationAlignmentMessageId;
-    if (targetId == null) return false;
+    final placement = _controller.navigationPlacement;
+    if (placement == null) return false;
     if (_animator.isAnimating && !_animator.farAnimateActive) {
       return false;
     }
+    final targetId = placement.messageId;
     if (_controller.anchorMessageId != targetId) {
+      if (placement.isHeld) _controller.releaseNavigationPlacement();
       return false;
     }
-
-    final newest = _dataSource.newestKnownId;
-    if (_dataSource.reachedNewest && newest != null && targetId == newest) {
-      _controller.clearNavigationAlignment();
+    if (placement is AlignmentPlacement && _isTailClosePathTarget(targetId)) {
+      _controller.releaseNavigationPlacement();
       return false;
     }
+    if (placement.isHeld && !reapplyHold) return false;
 
     final child = _boundaryBox(targetId);
     if (child == null || !child.hasSize) {
       return false;
     }
+    final rowHeight = child.size.height;
 
-    final desiredTop = _alignedTopForMessage(child.size.height, alignment);
+    final double desiredTop;
+    final String event;
+    final Map<String, Object?> kindFields;
+    switch (placement) {
+      case AlignmentPlacement(:final alignment):
+        desiredTop = _alignedTopForMessage(rowHeight, alignment);
+        event = 'layout.align';
+        kindFields = {'alignment': LogFormat.f(alignment)};
+      case CenterBandPlacement(:final offsetFromMessageTop):
+        final topEdge = _topPad;
+        final bandHeight = size.height - _bottomPad - topEdge;
+        if (bandHeight <= 0 || !bandHeight.isFinite) {
+          _controller.releaseNavigationPlacement();
+          return false;
+        }
+        final maxOffset = math.max<double>(0, rowHeight - 1e-6);
+        final offset = offsetFromMessageTop.clamp(0.0, maxOffset);
+        desiredTop = topEdge + bandHeight * 0.5 - offset;
+        event = 'layout.centerBand';
+        kindFields = {'offset': LogFormat.f(offset)};
+    }
+
     final currentTop = _controller.anchorPixelOffset;
-    if ((desiredTop - currentTop).abs() < 0.5) {
-      if (_dataSource.getMessage(targetId) != null) {
-        _controller.clearNavigationAlignment();
-      }
-      return false;
+    final moved = (desiredTop - currentTop).abs() >= 0.5;
+    if (moved) {
+      _fetchAnchorEvent(event, {
+        ..._fetchAnchorSnapshot(),
+        'targetId': targetId,
+        'from': LogFormat.f(currentTop),
+        'to': LogFormat.f(desiredTop),
+        ...kindFields,
+        'childH': LogFormat.f(rowHeight),
+        'held': placement.isHeld,
+      });
+      _controller.reassignAnchor(targetId, desiredTop);
+      _repositionFromAnchor();
     }
-
-    _fetchAnchorEvent('layout.align', {
-      ..._fetchAnchorSnapshot(),
-      'targetId': targetId,
-      'alignment': LogFormat.f(alignment),
-      'from': LogFormat.f(currentTop),
-      'to': LogFormat.f(desiredTop),
-      'childH': LogFormat.f(child.size.height),
-    });
-    _controller.reassignAnchor(targetId, desiredTop);
-    _repositionFromAnchor();
-    return true;
-  }
-
-  /// Apply a pending [ChatScrollController.jumpToCenterBand] after the target
-  /// Message is laid out. Returns whether the anchor offset moved.
-  ///
-  /// Places the Message so the fixed 50% paint-band ray hits
-  /// `message top + offsetFromMessageTop`. Unlike [_applyNavigationAlignment],
-  /// this runs for known-newest targets too — leave/reopen mid-bubble on the
-  /// conversation newest must not clear without snap. Dual-writer / stitch
-  /// guards match alignment. Offset is clamped into `[0, height)` so the ray
-  /// stays inside the Message rect used by [_publishCenterBand].
-  bool _applyNavigationCenterBand() {
-    if (_animator.farAnimateActive &&
-        _animator.farAnimateJumped &&
-        _animator.stitchMeasured) {
-      return false;
+    if (_dataSource.getMessage(targetId) != null) {
+      _controller.holdNavigationPlacement();
     }
-    final targetId = _controller.navigationCenterBandMessageId;
-    final offset = _controller.navigationCenterBandOffset;
-    if (targetId == null || offset == null) return false;
-    if (_animator.isAnimating && !_animator.farAnimateActive) {
-      return false;
-    }
-    if (_controller.anchorMessageId != targetId) {
-      return false;
-    }
-
-    final child = _boundaryBox(targetId);
-    if (child == null || !child.hasSize) {
-      return false;
-    }
-
-    final topEdge = _topPad;
-    final bottomEdge = size.height - _bottomPad;
-    final bandHeight = bottomEdge - topEdge;
-    if (bandHeight <= 0 || !bandHeight.isFinite) {
-      _controller.clearNavigationCenterBand();
-      return false;
-    }
-
-    final rayY = topEdge + bandHeight * 0.5;
-    final maxOffset = math.max<double>(0, child.size.height - 1e-6);
-    final clampedOffset = offset.clamp(0.0, maxOffset);
-    final desiredTop = rayY - clampedOffset;
-    final currentTop = _controller.anchorPixelOffset;
-    if ((desiredTop - currentTop).abs() < 0.5) {
-      if (_dataSource.getMessage(targetId) != null) {
-        _controller.clearNavigationCenterBand();
-      }
-      return false;
-    }
-
-    _fetchAnchorEvent('layout.centerBand', {
-      ..._fetchAnchorSnapshot(),
-      'targetId': targetId,
-      'offset': LogFormat.f(clampedOffset),
-      'from': LogFormat.f(currentTop),
-      'to': LogFormat.f(desiredTop),
-      'childH': LogFormat.f(child.size.height),
-    });
-    _controller.reassignAnchor(targetId, desiredTop);
-    _repositionFromAnchor();
-    return true;
+    return moved;
   }
 
   /// Clamp a pre-mount [jumpTo] anchor that landed past [newestKnownId].
@@ -2148,8 +2153,7 @@ class RenderChatScrollView extends RenderBox {
     if (targetId == anchorId) return;
     _controller
       ..reassignAnchor(targetId, 0)
-      ..syncNavigationAlignmentTarget(targetId)
-      ..syncNavigationCenterBandTarget(targetId);
+      ..syncNavigationPlacementTarget(targetId);
     if (!_controller.hasPendingNavigationCenterBand) {
       _markPinTailOnJumpIfNeeded(targetId);
     }
@@ -2160,11 +2164,9 @@ class RenderChatScrollView extends RenderBox {
     if (targetId != messageId) {
       _controller.reassignAnchor(targetId, 0);
     }
-    _controller
-      ..syncNavigationAlignmentTarget(targetId)
-      ..syncNavigationCenterBandTarget(targetId);
+    _controller.syncNavigationPlacementTarget(targetId);
     // Center Band mid-bubble restore on newest must not arm jump-to-tail pin —
-    // that would fight [_applyNavigationCenterBand] on the next layout.
+    // that would fight [_applyNavigationPlacement] on the next layout.
     if (!_controller.hasPendingNavigationCenterBand) {
       _markPinTailOnJumpIfNeeded(targetId);
     }
@@ -2259,6 +2261,8 @@ class RenderChatScrollView extends RenderBox {
 
     final rowChromeChanged = _rowChromeChanged;
     _rowChromeChanged = false;
+    final unreadBoundaryBefore = _laidOutUnreadBoundary;
+    _laidOutUnreadBoundary = _unreadBoundary?.value;
 
     if (_dataSource.isEmpty || overlayKind != ChatOverlayKind.none) {
       _layoutOverlayMode(overlayKind);
@@ -2317,7 +2321,27 @@ class RenderChatScrollView extends RenderBox {
 
     _normalizeAnchorToKnownTail();
 
-    final rowChromeReference = rowChromeChanged
+    // Held navigation placement triggers. When the placement is re-placed
+    // this pass (its target's own row chrome changed, or a held target meets
+    // a moved band top), the row chrome hold stands down — one origin writer
+    // per pass.
+    final topPad = _topPad;
+    final topPadMoved = switch (_lastLaidOutTopPad) {
+      final last? => last != topPad,
+      null => false,
+    };
+    _lastLaidOutTopPad = topPad;
+    final targetChromeChanged =
+        rowChromeChanged &&
+        _isNavigationTargetChromeChange(unreadBoundaryBefore);
+    final reapplyHold = topPadMoved || targetChromeChanged;
+    final placementOwnsPass =
+        targetChromeChanged ||
+        (topPadMoved &&
+            (_controller.navigationPlacement?.isHeld ?? false) &&
+            _isNavigationTargetAnchored());
+
+    final rowChromeReference = rowChromeChanged && !placementOwnsPass
         ? _recordRowChromeReference()
         : null;
 
@@ -2365,9 +2389,7 @@ class RenderChatScrollView extends RenderBox {
         'yAfter': LogFormat.f(anchorYAfterRenorm),
       });
     }
-    final alignmentMoved = _applyNavigationAlignment();
-    final centerBandMoved = _applyNavigationCenterBand();
-    final navigationMoved = alignmentMoved || centerBandMoved;
+    final navigationMoved = _applyNavigationPlacement(reapplyHold: reapplyHold);
     // Forcibly re-pin newest to the bottom edge when:
     // * follow-tail insert: viewport was at the tail and newest **id** advanced
     //   (new row lives below the previous bottomEdge), or
@@ -2424,6 +2446,11 @@ class RenderChatScrollView extends RenderBox {
       });
     }
     _pinTailOnJump = false;
+    // The tail pin takes the geometry: a held placement re-applied later
+    // would drag the followed newest back under the bottom inset.
+    if (repinBottom && (_controller.navigationPlacement?.isHeld ?? false)) {
+      _controller.releaseNavigationPlacement();
+    }
     // Fine-tune band gap before clamp — up to 3 passes; clamp may shift geometry.
     if (_deleteCollapseRecoveryActive &&
         _deleteCollapseExpectedBandGap != null) {
@@ -2443,8 +2470,7 @@ class RenderChatScrollView extends RenderBox {
       _fetchAnchorEvent('layout.refan', {
         ..._fetchAnchorSnapshot(),
         'clamped': clamped,
-        'alignmentMoved': alignmentMoved,
-        'centerBandMoved': centerBandMoved,
+        'navigationMoved': navigationMoved,
         'anchorIdChanged': _controller.anchorMessageId != anchorBefore,
       });
       built.clear();
@@ -2574,9 +2600,7 @@ class RenderChatScrollView extends RenderBox {
         'anchorIdChanged': idChanged,
         'bandIdWas': _fetchLogBandIdAtLayoutStart,
         'bandIdNow': bandAtEnd?.id,
-        'bandBottomDy': bandBottomDy == null
-            ? null
-            : LogFormat.f(bandBottomDy),
+        'bandBottomDy': bandBottomDy == null ? null : LogFormat.f(bandBottomDy),
         'clamped': clamped,
         'refan':
             clamped ||
@@ -2995,6 +3019,30 @@ class RenderChatScrollView extends RenderBox {
       _repositionFromAnchor();
     }
   }
+
+  /// Whether a row chrome change on this pass touches the armed navigation
+  /// placement's target while that target is the anchor: the target is the
+  /// old ([unreadBoundaryBefore]) or the new unread boundary row.
+  ///
+  /// When true the placement is re-applied instead of running the row chrome
+  /// hold, so a separator added to the target lands at the placement (for
+  /// alignment `0`, the band top) with the body below it, rather than
+  /// growing upward past the band top to keep the band bottom row still.
+  ///
+  /// Only the unread boundary drives row chrome today; a new row chrome
+  /// source must be compared here too.
+  bool _isNavigationTargetChromeChange(int? unreadBoundaryBefore) {
+    if (!_isNavigationTargetAnchored()) return false;
+    final targetId = _controller.anchorMessageId;
+    return targetId == unreadBoundaryBefore ||
+        targetId == _laidOutUnreadBoundary;
+  }
+
+  /// Whether the armed navigation placement's target is the current anchor —
+  /// the only state in which [_applyNavigationPlacement] places it instead
+  /// of releasing it.
+  bool _isNavigationTargetAnchored() =>
+      _controller.navigationPlacement?.messageId == _controller.anchorMessageId;
 
   /// Captures the reading position before a row chrome change re-lays out
   /// the rows: the **reference row** and its bottom edge measured from the
@@ -3551,8 +3599,11 @@ class RenderChatScrollView extends RenderBox {
     if (_animator.farAnimateActive) {
       pinned.addAll(_stitchOutgoingIds);
     }
-    final navTarget = _controller.navigationAlignmentMessageId;
-    if (navTarget != null) pinned.add(navTarget);
+    if (_controller.navigationPlacement case AlignmentPlacement(
+      :final messageId,
+    )) {
+      pinned.add(messageId);
+    }
     return pinned;
   }
 
@@ -4452,11 +4503,10 @@ class RenderChatScrollView extends RenderBox {
   // --- Gestures --------------------------------------------------------------
 
   void _onDragStart(DragStartDetails details) {
-    // User takes control — attach/jump pending settle must not compete.
+    // User takes control — attach/jump pending settle and a held placement
+    // must not compete.
     _cancelPendingTailPin();
-    _controller
-      ..clearNavigationAlignment()
-      ..clearNavigationCenterBand();
+    _controller.releaseNavigationPlacement();
     _cancelFling();
     // Drag takes over: cancel flight without a second highlight policy,
     // then pan-clear (armed fades; pending hard-clears with the slot).
@@ -4931,6 +4981,8 @@ class RenderChatScrollView extends RenderBox {
       if ((event is PointerUpEvent || event is PointerCancelEvent) &&
           _scrollbar.ownsPointer(event)) {
         _scrollbar.endDrag();
+        // The thumb's own jumps armed placements; a user scroll leaves none.
+        _controller.releaseNavigationPlacement();
         markNeedsPaint();
         return;
       }
@@ -4947,6 +4999,7 @@ class RenderChatScrollView extends RenderBox {
             bottomInset: _bottomPad,
           )) {
         _cancelFling();
+        _controller.releaseNavigationPlacement();
         markNeedsPaint();
         final thumbFraction = _currentScrollbarThumbFraction();
         _jumpToScrollbar(
@@ -4992,12 +5045,10 @@ class RenderChatScrollView extends RenderBox {
       _cancelFling();
       _drag?.addPointerPanZoom(event);
     } else if (event is PointerScrollEvent) {
-      // Same user-preemption as drag: pending tail pin and pending
-      // jumpTo / jumpToCenterBand settle must not yank wheel deltas back.
+      // Same user-preemption as drag: pending tail pin and a pending or held
+      // jumpTo / jumpToCenterBand placement must not yank wheel deltas back.
       _cancelPendingTailPin();
-      _controller
-        ..clearNavigationAlignment()
-        ..clearNavigationCenterBand();
+      _controller.releaseNavigationPlacement();
       _cancelFling();
       _cancelAnimate();
       _markScrollActive();
@@ -5925,13 +5976,9 @@ class RenderChatScrollView extends RenderBox {
       'topEdge': LogFormat.f(_topPad),
       'bottomEdge': LogFormat.f(bottomEdge),
       'newestTop': newestTop == null ? null : LogFormat.f(newestTop),
-      'newestBottom': newestBottom == null
-          ? null
-          : LogFormat.f(newestBottom),
+      'newestBottom': newestBottom == null ? null : LogFormat.f(newestBottom),
       'oldestTop': oldestTop == null ? null : LogFormat.f(oldestTop),
-      'anchorBottom': anchorBottom == null
-          ? null
-          : LogFormat.f(anchorBottom),
+      'anchorBottom': anchorBottom == null ? null : LogFormat.f(anchorBottom),
       'anchorIsNewest': newest != null && anchorId == newest,
       'anchorIsOldest': oldest != null && anchorId == oldest,
     };

@@ -279,6 +279,13 @@ class ChatScrollView extends RenderObjectWidget {
   /// Empty space reserved at the top of the viewport — for chrome stacked over
   /// the viewport top (an app bar). The floating day header rests just below
   /// this inset.
+  ///
+  /// A change moves the scroll band's top edge without shifting on-screen
+  /// messages (unlike [bottomPadding], it is not compensated) — except
+  /// while a [ChatScrollController.jumpTo] alignment or
+  /// [ChatScrollController.jumpToCenterBand] placement is held: the target
+  /// row is then re-placed against the new edge, so top chrome that appears
+  /// before the reader first scrolls does not cover it.
   final ValueListenable<double>? topPadding;
 
   /// When non-null, enables message grouping: an inline separator above the
@@ -332,7 +339,11 @@ class ChatScrollView extends RenderObjectWidget {
   /// above it grows or shrinks upward, and one below the band grows off
   /// screen. At the tail the newest row stays pinned above the bottom
   /// inset. An in-flight navigation, a stitch, or a delete recovery keeps
-  /// ownership of the scroll origin for that frame.
+  /// ownership of the scroll origin for that frame. When the changed row is
+  /// the target of a held [ChatScrollController.jumpTo] alignment (or
+  /// [ChatScrollController.jumpToCenterBand] placement), the placement is
+  /// re-applied instead: after `jumpTo(boundary, alignment: 0)` the added
+  /// separator lands at the band top with the body below it.
   final ValueListenable<int?>? unreadBoundary;
 
   /// Builds the **unread separator** shown above the [unreadBoundary] row.

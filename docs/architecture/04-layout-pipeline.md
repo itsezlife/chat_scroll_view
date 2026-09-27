@@ -32,7 +32,7 @@ flowchart TB
   Preserve[_preserveViewportAfterDelete]
   Hold[_holdRowChromeReference 6d]
   Renorm[_renormalizeAnchor]
-  Align[_applyNavigationAlignment]
+  Align[_applyNavigationPlacement]
   Tail[Tail-pin flags]
   GapMatch[_matchExpectedBandGap]
   Clamp[_clampBoundaries]
@@ -131,7 +131,14 @@ Recovery flags clear at end of `performLayout`.
 
 Runs only on a pass flagged by `_rowChromeChanged`, which an
 `unreadBoundary` value change or listenable swap sets — the unread separator
-appears on or leaves one or two rows.
+appears on or leaves one or two rows. The changed rows are the previous
+(`_laidOutUnreadBoundary`) and the current boundary. When one of them is the
+armed navigation placement's target and that target is the anchor
+(`_isNavigationTargetChromeChange`), the hold is skipped and step 9
+re-applies the placement instead. The hold is also skipped when the top
+inset moved on the same pass while a held placement's target is the anchor
+(`_isNavigationTargetAnchored`): step 9 re-places the target either way, so
+the row chrome hold would only be a second origin writer.
 
 1. **`_recordRowChromeReference`** — right after step 6, before the fan-out
    re-lays out the changed rows: from the previous frame's offsets, pick the
@@ -162,13 +169,21 @@ the topmost visible child. **Skipped** when
 `_animator.isAnimating && !_animator.farAnimateActive` so close-path animate
 keeps the target as anchor even when off-screen.
 
-### 9. `_applyNavigationAlignment`
+### 9. `_applyNavigationPlacement`
 
-If `navigationAlignmentMessageId` matches the anchor and the row is built,
-snap `anchorPixelOffset` to `_alignedTopForMessage`. **Skipped** during
-close-path animate (dual-writer guard). **Cleared without snap** when the
-target is the known newest (tail pin owns geometry). May call
-`_repositionFromAnchor`.
+If the armed `navigationPlacement` targets the anchor and the row is built,
+snap `anchorPixelOffset` by kind: an alignment placement to
+`_alignedTopForMessage`, a Center Band placement so the band ray hits its
+offset. **Skipped** during close-path animate (dual-writer guard). An
+alignment placement on the known newest is **released without snap** (tail
+pin owns geometry). May call `_repositionFromAnchor`.
+
+A pending placement snaps every pass and becomes **held** once it lands on a
+loaded row. A held placement snaps only when `reapplyHold` is set: the top pad
+moved since the last normal-mode pass, or the target's row chrome changed
+(6d). It is released when the anchor is no longer its target, and in step 10
+when `repinBottom` hands the geometry to the tail pin. See
+[alignment lifecycle](./10-navigation-and-tail.md#alignment-lifecycle).
 
 ### 10. Tail-pin flags → gap match → `_clampBoundaries`
 
@@ -185,7 +200,7 @@ If clamp applied → `_cancelFling()`. When delete recovery is active,
 
 ### 11. Pass-2 re-fan
 
-Re-run fan-out if `clamped || anchorId changed || alignmentMoved`. Pass-1 may
+Re-run fan-out if `clamped || anchorId changed || navigationMoved`. Pass-1 may
 have built a long chain from an off-screen anchor; pass-2 from the corrected
 anchor yields the tight set so extras fall outside `built` and are GC’d.
 
@@ -193,7 +208,8 @@ anchor yields the tight set so extras fall outside `built` and are GC’d.
 
 Remove message ids not in `built` and chunk-error indices not in `builtChunks`,
 except ids in `_gcPinnedDuringClosePath()` (`animateTargetId` and
-`navigationAlignmentMessageId`) so close-path targets survive while off-screen.
+the target of an armed alignment placement) so close-path targets survive
+while off-screen.
 
 ### 13. Fetch scheduler
 

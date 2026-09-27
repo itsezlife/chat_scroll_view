@@ -3,7 +3,11 @@ import 'dart:async';
 import 'package:chat_scroll_view/src/chat_scroll/chat_data_source.dart';
 import 'package:chat_scroll_view/src/chat_scroll/chat_scroll_common.dart';
 import 'package:chat_scroll_view/src/chat_scroll/chat_scroll_controller.dart';
+import 'package:chat_scroll_view/src/chat_scroll/navigation_placement.dart';
 import 'package:chat_scroll_view/src/chat_widgets/chat_scroll_view.dart';
+import 'package:chat_scroll_view/src/chat_widgets/chat_scrollbar.dart';
+import 'package:flutter/foundation.dart';
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -78,11 +82,15 @@ const _viewportWidth = 400.0;
 const _viewportHeight = 600.0;
 const _messageHeight = 60.0;
 
+/// A reserved inset that never changes.
+ValueListenable<double> _fixedInset(double value) =>
+    AlwaysStoppedAnimation<double>(value);
+
 Widget _harness({
   required ChatDataSource dataSource,
   required ChatScrollController controller,
-  double bottomPadding = 0,
-  double topPadding = 0,
+  ValueListenable<double> bottomPadding = const AlwaysStoppedAnimation(0),
+  ValueListenable<double> topPadding = const AlwaysStoppedAnimation(0),
 }) => MaterialApp(
   home: Scaffold(
     body: Center(
@@ -93,8 +101,8 @@ Widget _harness({
           reverse: true,
           dataSource: dataSource,
           controller: controller,
-          bottomPadding: ValueNotifier<double>(bottomPadding),
-          topPadding: ValueNotifier<double>(topPadding),
+          bottomPadding: bottomPadding,
+          topPadding: topPadding,
           messageBuilder: (context, id, message, status, runLayout) => SizedBox(
             height: _messageHeight,
             child: Text(message == null ? 'shimmer-$id' : 'msg-$id'),
@@ -222,7 +230,7 @@ void main() {
         _harness(
           dataSource: ds,
           controller: controller,
-          bottomPadding: bottomPadding,
+          bottomPadding: _fixedInset(bottomPadding),
         ),
       );
       await tester.pump();
@@ -248,7 +256,7 @@ void main() {
         _harness(
           dataSource: ds,
           controller: controller,
-          topPadding: topPadding,
+          topPadding: _fixedInset(topPadding),
         ),
       );
       await tester.pump();
@@ -278,8 +286,8 @@ void main() {
         _harness(
           dataSource: ds,
           controller: controller,
-          topPadding: topPadding,
-          bottomPadding: bottomPadding,
+          topPadding: _fixedInset(topPadding),
+          bottomPadding: _fixedInset(bottomPadding),
         ),
       );
       await tester.pump();
@@ -308,7 +316,7 @@ void main() {
         _harness(
           dataSource: ds,
           controller: controller,
-          topPadding: topPadding,
+          topPadding: _fixedInset(topPadding),
         ),
       );
       await tester.pump();
@@ -343,7 +351,11 @@ void main() {
       addTearDown(ds.dispose);
 
       await tester.pumpWidget(
-        _harness(dataSource: ds, controller: controller, bottomPadding: 96),
+        _harness(
+          dataSource: ds,
+          controller: controller,
+          bottomPadding: _fixedInset(96),
+        ),
       );
       await tester.pump();
 
@@ -414,7 +426,14 @@ void main() {
       );
       expect(controller.anchorMessageId, targetId);
       expect(controller.anchorPixelOffset, closeTo(expectedEnd, 1));
-      expect(controller.navigationAlignment, 0.0);
+      expect(
+        controller.navigationPlacement,
+        const AlignmentPlacement(
+          messageId: targetId,
+          alignment: 0.5,
+          isHeld: true,
+        ),
+      );
     });
 
     testWidgets('animateTo alignment 0 scroll up moves monotonically', (
@@ -598,7 +617,10 @@ void main() {
       for (var i = 0; i < 8; i++) {
         await tester.pump(const Duration(milliseconds: 16));
       }
-      expect(controller.navigationAlignment, 0.5);
+      expect(
+        controller.navigationPlacement,
+        const AlignmentPlacement(messageId: target, alignment: 0.5),
+      );
       expect(controller.anchorMessageId, isNot(target));
 
       ds.loadTargetWindow(aroundId: target);
@@ -621,6 +643,340 @@ void main() {
       expect(find.text('msg-$target'), findsOneWidget);
       expect(find.text('shimmer-$target'), findsNothing);
       expect(controller.anchorMessageId, target);
+    });
+  });
+
+  group('alignment hold', () {
+    const count = 100;
+    const grownTopInset = 56.0;
+
+    late _PreloadedDataSource ds;
+    late ChatScrollController controller;
+    late ValueNotifier<double> topInset;
+    late ValueNotifier<double> bottomInset;
+
+    setUp(() {
+      ds = _PreloadedDataSource(count);
+      controller = ChatScrollController();
+      topInset = ValueNotifier<double>(0);
+      bottomInset = ValueNotifier<double>(0);
+    });
+
+    tearDown(() {
+      controller.dispose();
+      ds.dispose();
+      topInset.dispose();
+      bottomInset.dispose();
+    });
+
+    Future<void> mount(WidgetTester tester) async {
+      await tester.pumpWidget(
+        _harness(
+          dataSource: ds,
+          controller: controller,
+          topPadding: topInset,
+          bottomPadding: bottomInset,
+        ),
+      );
+      await tester.pump();
+    }
+
+    double rowTop(WidgetTester tester, int id) =>
+        tester.getTopLeft(find.text('msg-$id')).dy -
+        tester.getTopLeft(find.byType(ChatScrollView)).dy;
+
+    double rowBottom(WidgetTester tester, int id) =>
+        tester.getBottomLeft(find.text('msg-$id')).dy -
+        tester.getTopLeft(find.byType(ChatScrollView)).dy;
+
+    Future<void> growTopInset(WidgetTester tester) async {
+      topInset.value = grownTopInset;
+      await tester.pump();
+    }
+
+    testWidgets('a top inset change re-applies alignment 0 to the target', (
+      tester,
+    ) async {
+      controller.jumpTo(50);
+      await mount(tester);
+      expect(rowTop(tester, 50), 0);
+
+      await growTopInset(tester);
+
+      expect(rowTop(tester, 50), grownTopInset);
+    });
+
+    testWidgets('a top inset change re-applies a fractional alignment', (
+      tester,
+    ) async {
+      controller.jumpTo(50, alignment: 0.5);
+      await mount(tester);
+
+      await growTopInset(tester);
+
+      expect(
+        rowTop(tester, 50),
+        _expectedAlignedTop(
+          viewportHeight: _viewportHeight,
+          topPadding: grownTopInset,
+          bottomPadding: 0,
+          messageHeight: _messageHeight,
+          alignment: 0.5,
+        ),
+      );
+    });
+
+    testWidgets('the hold survives unrelated layouts until a trigger', (
+      tester,
+    ) async {
+      controller.jumpTo(50);
+      await mount(tester);
+      await tester.pump(const Duration(seconds: 1));
+
+      await growTopInset(tester);
+      topInset.value = 24;
+      await tester.pump();
+
+      expect(rowTop(tester, 50), 24);
+    });
+
+    testWidgets('a drag releases the hold', (tester) async {
+      controller.jumpTo(50);
+      await mount(tester);
+      await tester.drag(find.byType(ChatScrollView), const Offset(0, 100));
+      await tester.pumpAndSettle();
+      final top = rowTop(tester, 50);
+
+      await growTopInset(tester);
+
+      expect(rowTop(tester, 50), top);
+    });
+
+    testWidgets('a fling releases the hold', (tester) async {
+      controller.jumpTo(50);
+      await mount(tester);
+      await tester.fling(
+        find.byType(ChatScrollView),
+        const Offset(0, 120),
+        1000,
+      );
+      await tester.pumpAndSettle();
+      final anchorId = controller.anchorMessageId;
+      final top = rowTop(tester, anchorId);
+
+      await growTopInset(tester);
+
+      expect(rowTop(tester, anchorId), top);
+    });
+
+    testWidgets('a wheel scroll releases the hold', (tester) async {
+      controller.jumpTo(50);
+      await mount(tester);
+      final pointer = TestPointer(1, PointerDeviceKind.mouse);
+      final center = tester.getCenter(find.byType(ChatScrollView));
+      await tester.sendEventToBinding(pointer.hover(center));
+      await tester.sendEventToBinding(pointer.scroll(const Offset(0, 50)));
+      await tester.pump();
+      final top = rowTop(tester, 50);
+      expect(top, isNot(0));
+
+      await growTopInset(tester);
+
+      expect(rowTop(tester, 50), top);
+    });
+
+    testWidgets('scrollBy releases the hold', (tester) async {
+      controller.jumpTo(50);
+      await mount(tester);
+      controller.scrollBy(30);
+      await tester.pump();
+      expect(rowTop(tester, 50), 30);
+
+      await growTopInset(tester);
+
+      expect(rowTop(tester, 50), 30);
+    });
+
+    testWidgets('a scrollbar drag releases the hold, including the jumps it '
+        'makes', (tester) async {
+      controller.jumpTo(50);
+      await mount(tester);
+      const scrollbarStrip = Offset(
+        _viewportWidth - ChatScrollbar.hitWidth / 2,
+        80,
+      );
+      final origin = tester.getTopLeft(find.byType(ChatScrollView));
+      final gesture = await tester.startGesture(origin + scrollbarStrip);
+      await tester.pump();
+      await gesture.moveBy(const Offset(0, 40));
+      await tester.pump();
+      await gesture.up();
+      await tester.pump();
+      final anchorId = controller.anchorMessageId;
+      expect(anchorId, isNot(50));
+      final top = rowTop(tester, anchorId);
+
+      await growTopInset(tester);
+
+      expect(rowTop(tester, anchorId), top);
+    });
+
+    testWidgets('another jumpTo moves the hold to its target', (tester) async {
+      controller.jumpTo(50);
+      await mount(tester);
+      controller.jumpTo(30, alignment: 0.5);
+      await tester.pump();
+
+      await growTopInset(tester);
+
+      expect(
+        rowTop(tester, 30),
+        _expectedAlignedTop(
+          viewportHeight: _viewportHeight,
+          topPadding: grownTopInset,
+          bottomPadding: 0,
+          messageHeight: _messageHeight,
+          alignment: 0.5,
+        ),
+      );
+      expect(find.text('msg-50'), findsNothing);
+    });
+
+    testWidgets('animateTo replaces the hold with its own settled alignment', (
+      tester,
+    ) async {
+      controller.jumpTo(50);
+      await mount(tester);
+      final future = controller.animateTo(48, alignment: 0.5, highlight: false);
+      await tester.pumpAndSettle();
+      await future;
+
+      await growTopInset(tester);
+
+      expect(
+        rowTop(tester, 48),
+        _expectedAlignedTop(
+          viewportHeight: _viewportHeight,
+          topPadding: grownTopInset,
+          bottomPadding: 0,
+          messageHeight: _messageHeight,
+          alignment: 0.5,
+        ),
+      );
+    });
+
+    testWidgets('a far-path animateTo holds its alignment after the stitch', (
+      tester,
+    ) async {
+      controller.jumpTo(10);
+      await mount(tester);
+      expect(find.text('msg-80'), findsNothing);
+      final future = controller.animateTo(80, alignment: 0.5, highlight: false);
+      await tester.pumpAndSettle();
+      await future;
+      expect(
+        controller.navigationPlacement,
+        const AlignmentPlacement(messageId: 80, alignment: 0.5, isHeld: true),
+      );
+
+      await growTopInset(tester);
+
+      expect(
+        rowTop(tester, 80),
+        _expectedAlignedTop(
+          viewportHeight: _viewportHeight,
+          topPadding: grownTopInset,
+          bottomPadding: 0,
+          messageHeight: _messageHeight,
+          alignment: 0.5,
+        ),
+      );
+    });
+
+    testWidgets('a held Center Band placement is re-placed on a top inset '
+        'change', (tester) async {
+      const offsetFromMessageTop = 20.0;
+      double rayOffsetTop(double topInset) =>
+          topInset + (_viewportHeight - topInset) / 2 - offsetFromMessageTop;
+      controller.jumpToCenterBand(50, offsetFromMessageTop);
+      await mount(tester);
+      expect(rowTop(tester, 50), rayOffsetTop(0));
+
+      await growTopInset(tester);
+
+      expect(rowTop(tester, 50), rayOffsetTop(grownTopInset));
+    });
+
+    testWidgets('jumpToCenterBand replaces the hold with its own placement', (
+      tester,
+    ) async {
+      controller.jumpTo(50);
+      await mount(tester);
+      controller.jumpToCenterBand(30, 20);
+      await tester.pump();
+
+      await growTopInset(tester);
+
+      expect(
+        controller.centerBand.value,
+        const ChatCenterBand(messageId: 30, offsetFromMessageTop: 20),
+      );
+    });
+
+    testWidgets('the target becoming absent releases the hold', (tester) async {
+      controller.jumpTo(50);
+      await mount(tester);
+      ds.removeMessages(<int>[50]);
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
+      final top = rowTop(tester, 51);
+
+      await growTopInset(tester);
+
+      expect(find.text('msg-50'), findsNothing);
+      expect(rowTop(tester, 51), top);
+    });
+
+    testWidgets('a bottom inset change is compensated, not re-aligned', (
+      tester,
+    ) async {
+      controller.jumpTo(50);
+      await mount(tester);
+
+      bottomInset.value = 100;
+      await tester.pump();
+      await tester.pump();
+
+      expect(rowTop(tester, 50), -100);
+    });
+
+    testWidgets('jump to the newest keeps the tail pin under a top inset '
+        'change', (tester) async {
+      controller.jumpTo(count - 1);
+      await mount(tester);
+
+      await growTopInset(tester);
+
+      expect(rowBottom(tester, count - 1), _viewportHeight);
+      expect(controller.isAtTail.value, isTrue);
+    });
+
+    testWidgets('following the tail releases the hold', (tester) async {
+      // Rows 90–99 fill the band exactly: the target sits at the band top
+      // and the newest at the band bottom.
+      controller.jumpTo(90);
+      await mount(tester);
+      expect(rowTop(tester, 90), 0);
+      expect(controller.isAtTail.value, isTrue);
+
+      ds.insertMessage(_msg(count));
+      await tester.pump();
+      expect(rowBottom(tester, count), _viewportHeight);
+
+      await growTopInset(tester);
+
+      expect(rowBottom(tester, count), _viewportHeight);
+      expect(controller.isAtTail.value, isTrue);
     });
   });
 }

@@ -16,7 +16,7 @@ resource: lib/src/chat_scroll/chat_scroll_controller.dart
 | `jumpTo(id, {alignment, highlight})` | id = target, offset = `0` | Jump listeners + `ChatProgrammaticJump`; `highlight: true` then requests wash |
 | `jumpToCenterBand(id, offset)`   | id = target; layout places ray at msg top + offset | Jump listeners + `ChatProgrammaticJump`; hard-clears highlight |
 | `scrollBy(px)`                   | offset += px                                       | ScrollBy listeners + `ChatProgrammaticScroll`; no-op if `px == 0` or non-finite |
-| `animateTo`                      | Animator drives; falls back to `jumpTo` (same `highlight` flag) if unbound | `ChatAnimateStart` / `ChatAnimateEnd`                                           |
+| `animateTo`                      | Animator drives; falls back to `jumpTo` (same `highlight` flag) if unbound | `ChatAnimateStart` / `ChatAnimateEnd` (with `path`); unbound: only `ChatProgrammaticJump` |
 | `highlight(id)`                  | none (attention slot only)                         | None — animator paints/holds/fades when bound                                   |
 | `applyScrollDelta` (`@internal`) | offset += delta                                    | None (tick / clamp / pad)                                                       |
 | `reassignAnchor` (`@internal`)   | silent id + offset                                 | None (renormalize / align / animator)                                           |
@@ -33,21 +33,77 @@ Consumers must **not** call `reassignAnchor`, `applyScrollDelta`,
 
 ## Alignment lifecycle
 
-`jumpTo` / `animateTo` set:
+The controller keeps one `navigationPlacement` slot, typed as the sealed
+`NavigationPlacement` (`lib/src/chat_scroll/navigation_placement.dart`,
+engine-internal):
 
-- `navigationAlignment` (0 = band top, 1 = band bottom)
-- `navigationAlignmentMessageId`
+- `AlignmentPlacement(messageId, alignment)`: armed by `jumpTo` /
+  `animateTo`. `alignment` runs from 0 (band top) to 1 (band bottom).
+- `CenterBandPlacement(messageId, offsetFromMessageTop)`: armed by
+  `jumpToCenterBand` (see [Center Band](#center-band)).
 
-Layout applies alignment via `_applyNavigationAlignment` after the target row
-is built:
+Each value carries `isHeld`, its phase. Arming either kind replaces the slot,
+so at most one placement exists. Values are immutable: `hold()` and
+`retarget(id)` (used after a jump-target clamp, via
+`syncNavigationPlacementTarget`) return new values.
 
-1. Needs matching `anchorMessageId`.
-2. **Dual-writer guard:** returns false while close-path animate runs.
-3. If target is known newest → **clear alignment without snap** (tail pin owns
-   geometry).
-4. Needs built child with size; if within `0.5px` of desired and message loaded
-   → clear alignment.
-5. Else `reassignAnchor(targetId, desiredTop)` + `_repositionFromAnchor`.
+### Pending → held → released
+
+| State | Entered by | Layout behavior |
+|-------|-----------|-----------------|
+| **Pending** | `jumpTo` / `animateTo` / `jumpToCenterBand` | Snap the target on every layout until it lands on a **loaded** row |
+| **Held** | The snap lands on a loaded row (`holdNavigationPlacement`) | Snap again only on a trigger; otherwise silent |
+| **Released** | See release table | Slot is `null`; the anchor stays where it is |
+
+**Held triggers** (`reapplyHold` in `performLayout`):
+
+- The top inset differs from the previous normal-mode layout
+  (`_lastLaidOutTopPad`).
+- A row chrome change touches the target while it is the anchor: the target
+  is the old or the new unread boundary row
+  (`_isNavigationTargetChromeChange`).
+
+On a pass where either trigger re-places an anchored held target, the row
+chrome hold (step 6d) stands down, including for a boundary change on
+another row in the same pass. Re-applying the placement is the only origin
+writer on that pass.
+
+A held placement re-snaps only on these triggers, not every layout. If it
+did, it would undo bottom-inset compensation, the boundary clamp, and height
+changes elsewhere.
+
+**Release:**
+
+| Event | Where |
+|-------|-------|
+| Drag start (fling follows a drag), wheel | `_onDragStart`, `handleEvent` → `releaseNavigationPlacement` |
+| Scrollbar drag start **and** end | `handleEvent`. The thumb's own `jumpTo` calls arm placements, and the end releases them |
+| `scrollBy` | `ChatScrollController.scrollBy` |
+| Next `jumpTo` / `animateTo` / `jumpToCenterBand` | New placement replaces the old one |
+| Held target no longer the anchor (absent-anchor reassignment, renormalize) | `_applyNavigationPlacement` |
+| Tail pin takes the geometry (`repinBottom`, e.g. follow-tail) | `performLayout` after tail-pin flags |
+| Known-newest alignment target | `_applyNavigationPlacement` releases without snap |
+| Center Band placement on an empty scroll band | `_applyNavigationPlacement` |
+
+A **pending** placement survives an anchor mismatch. Far-path animate arms
+it while the anchor is still on the outgoing strip.
+
+Bottom-inset compensation is unchanged while held. A keyboard opening moves
+the held target with the rest of the content, and a later top-inset change
+re-seats it.
+
+### `_applyNavigationPlacement(reapplyHold:)`
+
+1. Stitch-measured freeze and close-path animate → return (dual-writer guard).
+2. Anchor ≠ target → release when held; keep when pending.
+3. Alignment target is known newest → **release without snap** (tail pin owns
+   geometry). A known-newest Center Band target goes on and is held.
+4. Held and no trigger → return.
+5. Needs built child with size. Seat by kind: alignment →
+   `_alignedTopForMessage`; Center Band → band ray minus the clamped offset
+   (an empty band releases). `reassignAnchor(targetId, desiredTop)` +
+   `_repositionFromAnchor` unless within `0.5px`.
+6. Target loaded → mark held.
 
 `_alignedTopForMessage` uses the scroll band (`topPad` .. `height - bottomPad`).
 Tall **non-newest** messages (`height ≥ band`) always land at band top.
@@ -126,9 +182,10 @@ heuristic. `null` before first layout or when no Message intersects the ray.
 
 `jumpToCenterBand(messageId, offsetFromMessageTop)` places that ray in one
 navigation (not host `jumpTo` + `scrollBy`). Layout applies the pending offset
-after the target row is built — same settle lifecycle as alignment. Jump-to-
-newest tail pin is suppressed while Center Band apply is pending so mid-bubble
-restore on the conversation newest is not fought. See
+after the target row is built — same pending → held → released lifecycle as
+alignment (see [Alignment lifecycle](#alignment-lifecycle)). Jump-to-newest
+tail pin is suppressed while Center Band apply is **pending** (not held) so
+mid-bubble restore on the conversation newest is not fought. See
 [ADR 009](../adr/009-center-band.md).
 
 ## Scroll events
@@ -166,7 +223,9 @@ Unread chrome (example FAB) should share the same predicate and advance
 badge. A host that sets an **unread boundary** typically skips self messages
 by the same predicate. Opening with `jumpTo(boundary, alignment: 0)` puts the
 boundary row — its inline date, unread separator, then body — at the band
-top.
+top. The alignment hold keeps it there when top chrome grows or the
+separator is added to that row after the open. The hold lasts until the
+reader first scrolls.
 
 ### `pinNewest` during delete recovery
 

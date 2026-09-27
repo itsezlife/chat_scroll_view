@@ -118,11 +118,13 @@ Widget _message(
 Widget _date(BuildContext context, Object bucket, DateTime date) =>
     SizedBox(height: 24, child: Text('sep-${date.month}-${date.day}'));
 
+const _separatorHeight = 32.0;
+
 Widget _unread(BuildContext context) =>
-    const SizedBox(height: 32, child: Text('unread'));
+    const SizedBox(height: _separatorHeight, child: Text('unread'));
 
 Widget _unreadAlt(BuildContext context) =>
-    const SizedBox(height: 32, child: Text('unread-alt'));
+    const SizedBox(height: _separatorHeight, child: Text('unread-alt'));
 
 /// Message builder that counts how often each id is built.
 final class _BuildCounter {
@@ -147,6 +149,7 @@ Widget _harness({
   WidgetBuilder? unreadSeparatorBuilder = _unread,
   ChatMessageBuilder messageBuilder = _message,
   ValueListenable<double>? bottomPadding,
+  ValueListenable<double>? topPadding,
   bool separators = true,
   ChatSelectionController? selection,
   ChatMessageMenuRequestCallback? onIdleMessageTap,
@@ -162,6 +165,7 @@ Widget _harness({
           dataSource: dataSource,
           controller: controller,
           bottomPadding: bottomPadding,
+          topPadding: topPadding,
           selectionController: selection,
           onIdleMessageTap: onIdleMessageTap,
           onSecondaryMessageTap: onSecondaryMessageTap,
@@ -226,8 +230,8 @@ void main() {
 
       final dateTop = _top(tester, 'sep-1-3');
       expect(_top(tester, 'unread'), dateTop + 24);
-      expect(_top(tester, 'msg-16'), dateTop + 24 + 32);
-      expect(_rowOf(tester, 'unread').size.height, 24 + 32 + 60);
+      expect(_top(tester, 'msg-16'), dateTop + 24 + _separatorHeight);
+      expect(_rowOf(tester, 'unread').size.height, 24 + _separatorHeight + 60);
       expect(find.text('unread'), findsOneWidget);
     });
 
@@ -245,8 +249,8 @@ void main() {
 
       final sepTop = _top(tester, 'unread');
       expect(sepTop, tester.getBottomLeft(find.text('msg-17')).dy);
-      expect(_top(tester, 'msg-18'), sepTop + 32);
-      expect(_rowOf(tester, 'unread').size.height, 32 + 60);
+      expect(_top(tester, 'msg-18'), sepTop + _separatorHeight);
+      expect(_rowOf(tester, 'unread').size.height, _separatorHeight + 60);
     });
 
     testWidgets('with day grouping off the separator still paints', (
@@ -263,7 +267,7 @@ void main() {
       await tester.pump();
 
       expect(find.textContaining('sep-'), findsNothing);
-      expect(_top(tester, 'msg-16'), _top(tester, 'unread') + 32);
+      expect(_top(tester, 'msg-16'), _top(tester, 'unread') + _separatorHeight);
     });
   });
 
@@ -491,7 +495,7 @@ void main() {
         ),
       );
       await tester.pump();
-      expect(_top(tester, 'msg-18'), _top(tester, 'unread') + 32);
+      expect(_top(tester, 'msg-18'), _top(tester, 'unread') + _separatorHeight);
 
       final second = _boundary(19);
       await tester.pumpWidget(
@@ -504,7 +508,7 @@ void main() {
       await tester.pump();
 
       expect(find.text('unread'), findsOneWidget);
-      expect(_top(tester, 'msg-19'), _top(tester, 'unread') + 32);
+      expect(_top(tester, 'msg-19'), _top(tester, 'unread') + _separatorHeight);
       expect(
         _top(tester, 'msg-18'),
         tester.getBottomLeft(find.text('msg-17')).dy,
@@ -512,12 +516,12 @@ void main() {
 
       first.value = 17;
       await tester.pump();
-      expect(_top(tester, 'msg-19'), _top(tester, 'unread') + 32);
+      expect(_top(tester, 'msg-19'), _top(tester, 'unread') + _separatorHeight);
 
       second.value = 21;
       await tester.pump();
       expect(find.text('unread'), findsOneWidget);
-      expect(_top(tester, 'msg-21'), _top(tester, 'unread') + 32);
+      expect(_top(tester, 'msg-21'), _top(tester, 'unread') + _separatorHeight);
     });
   });
 
@@ -543,7 +547,7 @@ void main() {
 
       expect(counter.builds, <int, int>{18: 1, 20: 1});
       expect(find.text('unread'), findsOneWidget);
-      expect(_top(tester, 'msg-20'), _top(tester, 'unread') + 32);
+      expect(_top(tester, 'msg-20'), _top(tester, 'unread') + _separatorHeight);
       expect(
         _top(tester, 'msg-18'),
         tester.getBottomLeft(find.text('msg-17')).dy,
@@ -579,7 +583,7 @@ void main() {
         }
         expect(
           _top(tester, 'msg-15'),
-          aboveTop + (to == null ? 32 : -32),
+          aboveTop + (to == null ? _separatorHeight : -_separatorHeight),
           reason: 'the rows above the boundary row absorb the change',
         );
         expect(find.text('unread'), to == null ? findsNothing : findsOneWidget);
@@ -636,7 +640,7 @@ void main() {
       await tester.pump();
 
       expect(find.text('unread'), findsOneWidget);
-      expect(_top(tester, 'msg-3'), _top(tester, 'unread') + 32);
+      expect(_top(tester, 'msg-3'), _top(tester, 'unread') + _separatorHeight);
     });
 
     testWidgets('moving the boundary onto an absent id paints nothing', (
@@ -661,6 +665,137 @@ void main() {
 
       expect(find.text('msg-20'), findsNothing);
       expect(find.text('unread'), findsNothing);
+    });
+  });
+
+  group('Alignment hold', () {
+    double bandTop(WidgetTester tester) =>
+        tester.getTopLeft(find.byType(ChatScrollView)).dy;
+
+    testWidgets('adding the separator to the held target keeps the separator '
+        'at the band top and the body below it', (tester) async {
+      final boundary = _boundary(null);
+      await tester.pumpWidget(
+        _harness(
+          dataSource: _loaded(64),
+          controller: _controllerAt(20),
+          unreadBoundary: boundary,
+        ),
+      );
+      await tester.pump();
+      expect(_top(tester, 'msg-20'), bandTop(tester));
+
+      boundary.value = 20;
+      await tester.pump();
+
+      expect(_top(tester, 'unread'), bandTop(tester));
+      expect(_top(tester, 'msg-20'), bandTop(tester) + _separatorHeight);
+    });
+
+    testWidgets('clearing the separator from the held target keeps the body '
+        'at the band top', (tester) async {
+      final boundary = _boundary(20);
+      await tester.pumpWidget(
+        _harness(
+          dataSource: _loaded(64),
+          controller: _controllerAt(20),
+          unreadBoundary: boundary,
+        ),
+      );
+      await tester.pump();
+      expect(_top(tester, 'unread'), bandTop(tester));
+
+      boundary.value = null;
+      await tester.pump();
+
+      expect(find.text('unread'), findsNothing);
+      expect(_top(tester, 'msg-20'), bandTop(tester));
+    });
+
+    testWidgets('a top inset change keeps the held target, row chrome '
+        'included, at the band top', (tester) async {
+      final inset = ValueNotifier<double>(0);
+      addTearDown(inset.dispose);
+      await tester.pumpWidget(
+        _harness(
+          dataSource: _loaded(64),
+          controller: _controllerAt(20),
+          unreadBoundary: _boundary(20),
+          topPadding: inset,
+        ),
+      );
+      await tester.pump();
+      expect(_top(tester, 'unread'), bandTop(tester));
+
+      inset.value = 56;
+      await tester.pump();
+
+      expect(_top(tester, 'unread'), bandTop(tester) + 56);
+      expect(_top(tester, 'msg-20'), bandTop(tester) + 56 + _separatorHeight);
+    });
+
+    testWidgets('moving the separator off the held target keeps the body at '
+        'the band top', (tester) async {
+      final boundary = _boundary(20);
+      await tester.pumpWidget(
+        _harness(
+          dataSource: _loaded(64),
+          controller: _controllerAt(20),
+          unreadBoundary: boundary,
+        ),
+      );
+      await tester.pump();
+
+      boundary.value = 22;
+      await tester.pump();
+
+      expect(_top(tester, 'msg-20'), bandTop(tester));
+      expect(_top(tester, 'unread'), _top(tester, 'msg-22') - _separatorHeight);
+    });
+
+    testWidgets('a top inset change in the same pass as a separator on '
+        'another row keeps the held target at the band top', (tester) async {
+      final boundary = _boundary(null);
+      final inset = ValueNotifier<double>(0);
+      addTearDown(inset.dispose);
+      await tester.pumpWidget(
+        _harness(
+          dataSource: _loaded(64),
+          controller: _controllerAt(20),
+          unreadBoundary: boundary,
+          topPadding: inset,
+        ),
+      );
+      await tester.pump();
+
+      boundary.value = 22;
+      inset.value = 56;
+      await tester.pump();
+
+      expect(_top(tester, 'msg-20'), bandTop(tester) + 56);
+      expect(_top(tester, 'unread'), _top(tester, 'msg-22') - _separatorHeight);
+    });
+
+    testWidgets('after a drag the former target falls back to the row chrome '
+        'hold', (tester) async {
+      final boundary = _boundary(null);
+      await tester.pumpWidget(
+        _harness(
+          dataSource: _loaded(64),
+          controller: _controllerAt(20),
+          unreadBoundary: boundary,
+        ),
+      );
+      await tester.pump();
+      await tester.drag(find.byType(ChatScrollView), const Offset(0, 50));
+      await tester.pumpAndSettle();
+      final bodyTop = _top(tester, 'msg-20');
+
+      boundary.value = 20;
+      await tester.pump();
+
+      expect(_top(tester, 'msg-20'), bodyTop);
+      expect(_top(tester, 'unread'), bodyTop - _separatorHeight);
     });
   });
 }

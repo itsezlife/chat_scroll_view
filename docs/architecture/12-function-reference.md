@@ -31,10 +31,9 @@ Cross-links: [Layout Pipeline](./04-layout-pipeline.md),
 | `animateTo`                                | Smooth nav                                | alignment; animator drives offset                     | Call after dispose                                        |
 | `applyScrollDelta`                         | Silent tick/clamp delta                   | offset                                                | Call from app code                                        |
 | `reassignAnchor`                           | Silent id+offset                          | both                                                  | Notify listeners (it does not)                            |
-| `clearNavigationAlignment`                 | Drop pending align                        | alignment fields                                      | —                                                         |
-| `clearNavigationCenterBand`                | Drop pending Center Band apply            | Center Band nav fields                                | —                                                         |
-| `syncNavigationAlignmentTarget`            | Keep align on clamped id                  | alignment message id                                  | —                                                         |
-| `syncNavigationCenterBandTarget`           | Keep Center Band apply on clamped id      | Center Band message id                                | —                                                         |
+| `holdNavigationPlacement`                  | Pending → held after landing on loaded row | `navigationPlacement` phase (no-op when `null`)       | Call before the placement landed                          |
+| `releaseNavigationPlacement`               | Drop the armed placement, any kind/phase  | `navigationPlacement` → `null`                        | —                                                         |
+| `syncNavigationPlacementTarget`            | Keep placement on clamped id              | `navigationPlacement` target (phase kept)             | —                                                         |
 | `visibleRange` / `centerBand` / `isAtTail` | Listenables                               | deferred notify                                       | setState without deferral (already deferred)              |
 | `notifyScrollEvent`                        | Emit typed event                          | —                                                     | Call from physics                                         |
 | `dispose`                                  | Drop listeners / animator                 | all                                                   | —                                                         |
@@ -142,8 +141,9 @@ Cross-links: [Layout Pipeline](./04-layout-pipeline.md),
 | `_bucketOf` / `_startsDay`                                                      | Day grouping                      | Predecessor = `id-1` only today                                        |
 | `_nextNonAbsentIdDown` / `Up`                                                   | Absent skip                       | Return `bound±1`                                                       |
 | `_renormalizeAnchor`                                                            | Visible-origin rebase             | Skip on close path; skip on delete recovery                            |
-| `_applyNavigationAlignment`                                                     | Snap to alignment                 | Skip on close path; skip newest                                        |
-| `_applyNavigationCenterBand`                                                    | Place ray at msg top + offset     | Skip on close path; no newest skip                                     |
+| `_applyNavigationPlacement`                                                     | Seat target by kind; pending → held | Skip on close path; release alignment on newest; held snaps only on `reapplyHold` |
+| `_isNavigationTargetChromeChange`                                               | Row chrome change on placement target | Before 6d; skips the row chrome hold when true                     |
+| `_isNavigationTargetAnchored`                                                   | Placement target is the anchor    | Before 6d; with a held placement + moved top pad, skips the row chrome hold |
 | `_closePathEndOffsetFor`                                                        | Close-path animate end            | Tail newest → pin top; else band align                                 |
 | `_alignedTopForMessage`                                                         | Band alignment math               | Not true tail pin                                                      |
 | `_clampBoundaries`                                                              | pinNewest/pinOldest               | Skip drag/bounce; single pin when content fits; delete-recovery guards |

@@ -28,7 +28,7 @@ glossary → this document → older animateTo prose or changelog notes.
 
 `ChatScrollController.animateTo`:
 
-1. Sets `navigationAlignment` + `navigationAlignmentMessageId`.
+1. Arms an alignment `navigationPlacement` for the target.
 2. Emits `ChatAnimateStart`, awaits `ChatAnimator.animate(...)`, emits
    `ChatAnimateEnd` in `finally` (skipped when coalesced onto an in-flight
    same-target animate, or when the call is ignored while busy).
@@ -129,7 +129,7 @@ Does **not** write alignment on the controller each tick — only interpolates
 | Step                        | Suspended?                                     |
 | --------------------------- | ---------------------------------------------- |
 | `_renormalizeAnchor`        | Yes (`_skipRenormalizeDuringClosePath`)        |
-| `_applyNavigationAlignment` | Yes (dual-writer guard)                        |
+| `_applyNavigationPlacement` | Yes (dual-writer guard)                        |
 | GC of animate/nav targets   | Pinned (`_gcPinnedDuringClosePath`)            |
 | `_clampBoundaries`          | **No** (current code — pin can cancel animate) |
 

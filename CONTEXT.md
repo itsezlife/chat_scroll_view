@@ -361,6 +361,10 @@ _Avoid_: Per-message private decode stores, panel-only drawable maps as the long
 Where a jump or animate should land the target inside the scroll band (band top … band bottom).
 _Avoid_: Scroll offset, alignment in pixels
 
+**Alignment hold**:
+After a navigation's **navigation alignment** (or Center Band placement) lands on a loaded target row, the viewport keeps it on that row until the first user scroll, a programmatic scroll-by, or the next navigation. While held, a change of the top **reserved inset** or of the target row's **row chrome** re-applies it. Other geometry keeps its usual owner: bottom-inset compensation, the boundary clamp, the **row chrome** hold on other rows, and the tail pin. The hold ends without moving anything when the target stops being the **anchor origin**. The engine calls the armed alignment or Center Band placement the *navigation placement*; an **alignment hold** is that placement in its *held* phase (after *pending*, before *released*).
+_Avoid_: Sticky jump, re-jump on inset change, pinning the target
+
 **Close-path animation**:
 Continuous origin-offset interpolation when the target is already built (Telegram `found` → `smoothScrollBy`).
 _Avoid_: Animate pixels, lerp ScrollPosition

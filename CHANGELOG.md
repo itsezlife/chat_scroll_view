@@ -129,6 +129,26 @@
   label and arrow colors; without a registered extension the palette follows
   the theme brightness.
 
+### Navigation
+- **CHANGED**: Alignment hold. A `jumpTo` / `animateTo` alignment or a
+  `jumpToCenterBand` placement stays held on its target once it lands on a
+  loaded row. It lasts until the first user scroll (drag, fling, wheel,
+  scrollbar drag), `scrollBy`, or the next navigation. While held, a
+  `topPadding` change or a row chrome change on the target row (such as the
+  unread separator appearing on it) re-applies the placement. After
+  `jumpTo(boundary, alignment: 0)`, top chrome that grows before the reader
+  scrolls no longer covers the boundary row, and a separator added to that
+  row lands at the band top with the body below it. Before, the alignment
+  was dropped as soon as it was reached: a top inset change left the row
+  under the new chrome, and the separator grew upward past the band top.
+  Everything else behaves as before. Bottom inset changes are still
+  compensated, row chrome changes on other rows still keep the band bottom
+  row in place, and a jump to the known newest is still owned by the tail
+  pin. The hold ends without moving anything when the target becomes absent
+  or the list follows the tail. `scrollBy` now also cancels a placement
+  that has not landed yet, so a `scrollBy` right after `jumpTo` sticks
+  instead of being snapped back.
+
 ### Breaking changes
 
 Source-breaking for hosts that built against earlier revisions of this
