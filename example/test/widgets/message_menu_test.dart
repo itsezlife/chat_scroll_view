@@ -1,7 +1,28 @@
 import 'package:chat_scroll_view/chat_scroll_view.dart';
+import 'package:chat_scroll_view_example/src/common/models/chat_message.dart';
 import 'package:chat_scroll_view_example/src/features/chat/utils/message_menu.dart';
-import 'package:flutter/painting.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+
+class _OneMessageSource extends ChatDataSource {
+  _OneMessageSource() {
+    upsertMessages(<IChatMessage>[
+      UserChatMessage(
+        id: 1,
+        sender: 'User',
+        createdAt: DateTime(2026),
+        updatedAt: DateTime(2026),
+        content: 'hello',
+      ),
+    ]);
+  }
+
+  @override
+  Future<List<IChatMessage>> fetchRange({
+    required int fromId,
+    required int toId,
+  }) async => const <IChatMessage>[];
+}
 
 List<String> _actionIds(List<ChatMessageMenuItem> items) => [
   for (final item in items)
@@ -37,6 +58,55 @@ ChatMessageMenuRequest _request({
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
+
+  testWidgets('present frames the request surface, clipped to the band', (
+    tester,
+  ) async {
+    final dataSource = _OneMessageSource();
+    final selection = ChatSelectionController(
+      policy: const ChatSelectionPolicy.mobile(),
+    );
+    addTearDown(dataSource.dispose);
+    addTearDown(selection.dispose);
+    final menu = MessageMenu(
+      dataSource: dataSource,
+      selection: selection,
+      actions: MessageMenuActions(onDelete: (_) {}, onEdit: (_) {}),
+    );
+    const shape = RoundedRectangleBorder(
+      borderRadius: BorderRadius.all(Radius.circular(18)),
+    );
+    const request = ChatMessageMenuRequest(
+      messageId: 1,
+      slotGlobal: Rect.fromLTWH(0, 100, 400, 80),
+      tapGlobal: Offset(140, 130),
+      surfaceGlobal: Rect.fromLTWH(40, 110, 200, 56),
+      surfaceShape: shape,
+      bandGlobal: Rect.fromLTRB(0, 60, 400, 500),
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: Builder(
+            builder: (context) => TextButton(
+              onPressed: () => menu.present(context, request),
+              child: const Text('Open'),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.tap(find.text('Open'));
+    await tester.pump();
+
+    final scrim = tester.widget<ChatMessageMenuScrim>(
+      find.byType(ChatMessageMenuScrim),
+    );
+    expect(scrim.hole, request.surfaceGlobal);
+    expect(scrim.holeShape, shape);
+    expect(scrim.holeClip, request.bandGlobal);
+  });
 
   group(r'MessageMenuCatalog ($Mobile)', () {
     const policy = ChatSelectionPolicy.mobile();
