@@ -1,6 +1,7 @@
 import 'dart:collection';
 
 import 'package:chat_scroll_view/src/chat_scroll/chat_day_header_delegate.dart';
+import 'package:chat_scroll_view/src/chat_scroll/chat_row_chrome_delegate.dart';
 import 'package:chat_scroll_view/src/chat_scroll/chat_scroll_common.dart';
 import 'package:chat_scroll_view/src/chat_scroll/chat_selection_allowed.dart';
 import 'package:chat_scroll_view/src/chat_scroll/chat_sender_run_layout.dart';
@@ -231,6 +232,8 @@ class ChatScrollElement extends RenderObjectElement
         old.selectionChromeBuilder != newWidget.selectionChromeBuilder ||
         old.dateSeparatorBuilder != newWidget.dateSeparatorBuilder ||
         old.dayHeaderDelegate != newWidget.dayHeaderDelegate ||
+        old.unreadSeparatorBuilder != newWidget.unreadSeparatorBuilder ||
+        old.unreadBoundary != newWidget.unreadBoundary ||
         old.textDirection != newWidget.textDirection ||
         (old.onSecondaryMessageTap == null) !=
             (newWidget.onSecondaryMessageTap == null)) {
@@ -257,12 +260,19 @@ class ChatScrollElement extends RenderObjectElement
   /// null`) whose [ChatSelectionAllowed.showsChrome] is true are
   /// wrapped in [SelectableMessage]. [ChatSelectionAllowed.none] and
   /// shimmer / placeholder slots are not wrapped. Membership still follows
-  /// [ChatSelectionAllowed.isSelectable]. When [startsNewDay] is set,
-  /// the message is built as a [ChatRowChrome] whose only chrome is the
-  /// inline date separator — presented by the day header policy's
-  /// [ChatDayHeaderDelegate.inlineSeparator] — stacked above the body,
-  /// *outside* [SelectableMessage] so selection chrome never tints the date. Plain messages are wrapped in a [RepaintBoundary] for picture /
-  /// layer caching; [ChatRowChrome] does its own per-child wrapping.
+  /// [ChatSelectionAllowed.isSelectable].
+  ///
+  /// A loaded message that carries row chrome is built as a [ChatRowChrome]
+  /// with up to two items, top to bottom: the inline date separator when
+  /// [startsNewDay] is set (presented by the day header policy's
+  /// [ChatDayHeaderDelegate.inlineSeparator]), then the unread separator
+  /// when [id] equals the current `unreadBoundary` value (always opaque).
+  /// Both sit *outside* [SelectableMessage] and the secondary-tap scope, so
+  /// selection chrome never tints them and they never count as message
+  /// surface. The boundary value is read here, at build time — the skip
+  /// cache does not track it. Plain messages are wrapped in a
+  /// [RepaintBoundary] for picture / layer caching; [ChatRowChrome] does its
+  /// own per-child wrapping.
   ///
   /// When an explicit `textDirection` override is supplied on
   /// `ChatScrollView`, [messageBuilder] and the date-separator builder are
@@ -288,6 +298,11 @@ class ChatScrollElement extends RenderObjectElement
         separator != null &&
         message != null &&
         groupBucket != null;
+    final unreadSeparator = _widget.unreadSeparatorBuilder;
+    final hasUnreadSeparator =
+        unreadSeparator != null &&
+        message != null &&
+        _widget.unreadBoundary?.value == id;
 
     Widget compose(BuildContext context) {
       assert(
@@ -318,18 +333,25 @@ class ChatScrollElement extends RenderObjectElement
         hostOwnsSecondary: _widget.onSecondaryMessageTap != null,
         child: content,
       );
-      return hasDateHeader
-          ? ChatRowChrome(
-              key: ValueKey<int>(id),
-              chrome: <ChatRowChromeItem>[
-                ChatRowChromeItem(
-                  delegate: _widget.dayHeaderDelegate.inlineSeparator,
-                  child: separator(context, groupBucket, message.createdAt),
-                ),
-              ],
-              body: content,
-            )
-          : RepaintBoundary(key: ValueKey<int>(id), child: content);
+      if (!hasDateHeader && !hasUnreadSeparator) {
+        return RepaintBoundary(key: ValueKey<int>(id), child: content);
+      }
+      return ChatRowChrome(
+        key: ValueKey<int>(id),
+        chrome: <ChatRowChromeItem>[
+          if (hasDateHeader)
+            ChatRowChromeItem(
+              delegate: _widget.dayHeaderDelegate.inlineSeparator,
+              child: separator(context, groupBucket, message.createdAt),
+            ),
+          if (hasUnreadSeparator)
+            ChatRowChromeItem(
+              delegate: const ChatRowChromeDelegate.opaque(),
+              child: unreadSeparator(context),
+            ),
+        ],
+        body: content,
+      );
     }
 
     if (override != null) {

@@ -123,6 +123,10 @@ DateTime _defaultGroupBy(IChatMessage message) {
 /// Pass [dateSeparatorBuilder] to group messages by day — an inline separator
 /// above the first message of each day plus a floating header pinned to the
 /// top showing the topmost day.
+///
+/// Pass [unreadBoundary] and [unreadSeparatorBuilder] to mark where unread
+/// content begins — an unread separator stacked as row chrome above the
+/// boundary message.
 class ChatScrollView extends RenderObjectWidget {
   /// Creates an anchor-based chat viewport backed by [dataSource] and
   /// [controller], building each visible row with [messageBuilder].
@@ -142,6 +146,8 @@ class ChatScrollView extends RenderObjectWidget {
     this.dateSeparatorBuilder,
     this.groupBy,
     this.dayHeaderDelegate = const ChatFadingDayHeader(),
+    this.unreadBoundary,
+    this.unreadSeparatorBuilder,
     this.scrollActivityTiming,
     this.senderRunLayout = DefaultChatSenderRunLayout.instance,
     this.highlightColor,
@@ -300,6 +306,46 @@ class ChatScrollView extends RenderObjectWidget {
   /// separator instead. Implement [ChatDayHeaderDelegate] for any other
   /// policy. Prefer a const or value-equal instance across rebuilds.
   final ChatDayHeaderDelegate dayHeaderDelegate;
+
+  /// Message id of the **unread boundary**: the row that carries the unread
+  /// separator. `null` (or a `null` value) paints no separator.
+  ///
+  /// The host owns what the id means — which messages count as unread, when
+  /// the boundary appears, and when it goes away. The viewport only paints
+  /// [unreadSeparatorBuilder] above that id; it knows nothing about read
+  /// state, message authors, or unread counts.
+  ///
+  /// The separator appears only on a **loaded** message row. A boundary whose
+  /// row is still a placeholder (shimmer), sits in an errored chunk, or is
+  /// absent paints nothing. The row gains the separator the next time it is
+  /// built as a loaded message.
+  ///
+  /// The viewport reads the value while it builds a row and does not listen
+  /// to it: set the value before the boundary row is first built. A value
+  /// changed later reaches only rows built after the change — a row built
+  /// earlier keeps the separator it was built with, so the old and the new
+  /// boundary row can both show one. Replacing the listenable with a
+  /// different instance rebuilds every built row.
+  final ValueListenable<int?>? unreadBoundary;
+
+  /// Builds the **unread separator** shown above the [unreadBoundary] row.
+  /// Ignored when [unreadBoundary] is `null`.
+  ///
+  /// The separator is row chrome: it gets the full row width, picks its own
+  /// height, and stacks below the inline date separator (when the boundary
+  /// row starts a day) and above the message body. It works with or without
+  /// [dateSeparatorBuilder].
+  ///
+  /// Unlike the inline date separator, it is always painted opaque — the
+  /// [dayHeaderDelegate] never fades or hides it. It is composed outside
+  /// selection chrome and outside the secondary-tap scope, and a press on it
+  /// is row chrome: it never starts message selection and never produces a
+  /// message menu request. Gestures inside the built widget still work.
+  ///
+  /// The builder receives only a build context — text, localization, and
+  /// styling are host chrome. Pass a stable reference, like
+  /// [messageBuilder]: a new instance rebuilds every built row.
+  final WidgetBuilder? unreadSeparatorBuilder;
 
   /// Timing of the viewport's scroll-activity clock, or `null` (the default)
   /// to run none — activity then stays at `1`.
