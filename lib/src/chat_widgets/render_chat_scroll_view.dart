@@ -4635,8 +4635,12 @@ class RenderChatScrollView extends RenderBox {
     callback(request);
   }
 
-  /// Slot geometry + viewport-known menu context for [id] at [local].
+  /// Slot, surface, and band geometry + viewport-known menu context for [id]
+  /// at [local].
   ///
+  /// The surface rect and outline come from the host-registered message
+  /// surface (null without one); the band is the viewport rect inset by the
+  /// top / bottom padding, clamped to zero height when the pads overlap.
   /// Does not clear membership or text selection. Returns null when the
   /// present child is missing or unsized.
   ChatMessageMenuRequest? _messageMenuRequestAt(int id, Offset local) {
@@ -4646,7 +4650,14 @@ class RenderChatScrollView extends RenderBox {
     final origin = localToGlobal(Offset(0, pd.offset));
     final slotGlobal = origin & Size(size.width, child.size.height);
     final tapGlobal = localToGlobal(local);
+    final bandTop = math.min(_topPad, size.height);
+    final bandBottom = math.max(bandTop, size.height - _bottomPad);
+    final bandGlobal = Rect.fromPoints(
+      localToGlobal(Offset(0, bandTop)),
+      localToGlobal(Offset(size.width, bandBottom)),
+    );
     final selection = _selectionController;
+    final surface = selection?.messageSurfaceGlobal(id);
     final inside = selection?.containsMessageSurface(id, tapGlobal) ?? false;
     final pointState = inside
         ? ChatMessageMenuPointState.inside
@@ -4680,6 +4691,9 @@ class RenderChatScrollView extends RenderBox {
       messageId: id,
       slotGlobal: slotGlobal,
       tapGlobal: tapGlobal,
+      surfaceGlobal: surface?.rect,
+      surfaceShape: surface?.shape,
+      bandGlobal: bandGlobal,
       pointState: pointState,
       membership: membership,
       hasTextSelection: hasTextSelection,

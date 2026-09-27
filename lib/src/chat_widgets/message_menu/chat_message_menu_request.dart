@@ -33,7 +33,8 @@ enum ChatMessageMenuMembership {
 /// Structured packet the viewport emits when a message-menu entry gesture
 /// wins on a present message **slot**.
 ///
-/// Carries geometry the host needs to present chrome (id, slot, tap) plus
+/// Carries geometry the host needs to present chrome (id, slot, tap, the
+/// reported **message surface** and its outline, the **scroll band**) plus
 /// viewport-known **hit context** for choosing rows: **point state**,
 /// message-selection **membership**, whether this message has a live **text
 /// selection**, range-upon overlap (with optional plain-text snapshot),
@@ -59,6 +60,9 @@ final class ChatMessageMenuRequest {
     required this.messageId,
     required this.slotGlobal,
     required this.tapGlobal,
+    this.surfaceGlobal,
+    this.surfaceShape,
+    this.bandGlobal,
     this.pointState = ChatMessageMenuPointState.inside,
     ChatMessageMenuMembership membership = ChatMessageMenuMembership.idle,
     bool overSelection = false,
@@ -93,6 +97,23 @@ final class ChatMessageMenuRequest {
 
   /// Tap / secondary-tap position in global coordinates.
   final Offset tapGlobal;
+
+  /// Global rect of the host-reported **message surface** (the bubble box
+  /// registered through [ChatMessageSurfaceBounds]) when the request was
+  /// built; null when no surface is registered for [messageId].
+  ///
+  /// A snapshot — it does not follow later scroll or relayout.
+  final Rect? surfaceGlobal;
+
+  /// Outline of the message surface inside [surfaceGlobal], as reported
+  /// with it; null when there is no surface or it was reported without one.
+  final ShapeBorder? surfaceShape;
+
+  /// The viewport's **scroll band** in global coordinates: the viewport
+  /// rect inset by its top and bottom padding. Rows outside it sit under
+  /// host chrome. The viewport always sets it; null only on hand-built
+  /// requests.
+  final Rect? bandGlobal;
 
   /// Message-surface **Inside** vs slot-only **Outside**.
   final ChatMessageMenuPointState pointState;
@@ -142,6 +163,9 @@ final class ChatMessageMenuRequest {
       other.messageId == messageId &&
       other.slotGlobal == slotGlobal &&
       other.tapGlobal == tapGlobal &&
+      other.surfaceGlobal == surfaceGlobal &&
+      other.surfaceShape == surfaceShape &&
+      other.bandGlobal == bandGlobal &&
       other.pointState == pointState &&
       other.membership == membership &&
       other.hasTextSelection == hasTextSelection &&
@@ -155,6 +179,9 @@ final class ChatMessageMenuRequest {
     messageId,
     slotGlobal,
     tapGlobal,
+    surfaceGlobal,
+    surfaceShape,
+    bandGlobal,
     pointState,
     membership,
     hasTextSelection,

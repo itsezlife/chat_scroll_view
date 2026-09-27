@@ -28,6 +28,10 @@ Future<void> _openMenu(
   ChatMessageMenuPresentation presentation = ChatMessageMenuPresentation.sheet,
   ChatSelectionPolicy? selectionPolicy,
   Offset tapGlobal = const Offset(140, 140),
+  Rect messageRect = const Rect.fromLTWH(40, 120, 200, 48),
+  Rect? surfaceRect,
+  ShapeBorder? surfaceShape,
+  Rect? visibleRect,
 }) async {
   await tester.pumpWidget(
     MaterialApp(
@@ -42,7 +46,10 @@ Future<void> _openMenu(
                 onPressed: () async {
                   final result = await showChatMessageMenu(
                     context: context,
-                    messageRect: const Rect.fromLTWH(40, 120, 200, 48),
+                    messageRect: messageRect,
+                    surfaceRect: surfaceRect,
+                    surfaceShape: surfaceShape,
+                    visibleRect: visibleRect,
                     items: items,
                     tapGlobal: tapGlobal,
                     reactions: reactions,
@@ -385,6 +392,80 @@ void main() {
     );
 
     expect(find.byType(Divider), findsOneWidget);
+  });
+
+  group('scrim hole', () {
+    testWidgets('without a surface the hole is the rounded slot', (
+      tester,
+    ) async {
+      await _openMenu(tester, onDone: (_) {});
+
+      expect(
+        find.byType(ChatMessageMenuScrim),
+        paints..path(
+          includes: const <Offset>[Offset(8, 8), Offset(41, 121)],
+          excludes: const <Offset>[Offset(100, 144), Offset(236, 144)],
+        ),
+      );
+    });
+
+    testWidgets('a surface hole follows its shape, not the slot', (
+      tester,
+    ) async {
+      await _openMenu(
+        tester,
+        onDone: (_) {},
+        messageRect: const Rect.fromLTWH(0, 100, 400, 80),
+        surfaceRect: const Rect.fromLTWH(40, 110, 200, 56),
+        surfaceShape: const RoundedRectangleBorder(
+          borderRadius: BorderRadiusDirectional.only(
+            topStart: Radius.circular(18),
+            bottomEnd: Radius.circular(18),
+          ),
+        ),
+      );
+
+      expect(
+        find.byType(ChatMessageMenuScrim),
+        paints..path(
+          includes: const <Offset>[
+            // Slot, but outside the surface.
+            Offset(300, 130),
+            Offset(20, 170),
+            // Rounded start-top and end-bottom corners.
+            Offset(41, 111),
+            Offset(239, 165),
+          ],
+          excludes: const <Offset>[
+            Offset(140, 138),
+            // Square end-top and start-bottom corners.
+            Offset(239, 111),
+            Offset(41, 165),
+          ],
+        ),
+      );
+    });
+
+    testWidgets('the surface hole is clipped to the visible rect', (
+      tester,
+    ) async {
+      await _openMenu(
+        tester,
+        onDone: (_) {},
+        messageRect: const Rect.fromLTWH(0, 100, 400, 80),
+        surfaceRect: const Rect.fromLTWH(40, 110, 200, 56),
+        surfaceShape: const RoundedRectangleBorder(),
+        visibleRect: const Rect.fromLTRB(0, 0, 400, 140),
+      );
+
+      expect(
+        find.byType(ChatMessageMenuScrim),
+        paints..path(
+          includes: const <Offset>[Offset(140, 150)],
+          excludes: const <Offset>[Offset(140, 130)],
+        ),
+      );
+    });
   });
 
   group('message menu presentation', () {
