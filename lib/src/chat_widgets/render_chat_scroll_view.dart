@@ -16,7 +16,6 @@ import 'package:chat_scroll_view/src/chat_scroll/chat_scroll_activity.dart';
 import 'package:chat_scroll_view/src/chat_scroll/chat_scroll_chunk.dart';
 import 'package:chat_scroll_view/src/chat_scroll/chat_scroll_common.dart';
 import 'package:chat_scroll_view/src/chat_scroll/chat_scroll_controller.dart';
-import 'package:chat_scroll_view/src/chat_scroll/chat_scroll_dev_log.dart';
 import 'package:chat_scroll_view/src/chat_scroll/chat_scroll_events.dart';
 import 'package:chat_scroll_view/src/chat_scroll/chat_scroll_physics.dart';
 import 'package:chat_scroll_view/src/chat_scroll/chat_selection_controller.dart';
@@ -31,6 +30,8 @@ import 'package:chat_scroll_view/src/chat_widgets/chat_scrollbar.dart';
 import 'package:chat_scroll_view/src/chat_widgets/chat_selection_metrics.dart';
 import 'package:chat_scroll_view/src/chat_widgets/chat_selection_pointer.dart';
 import 'package:chat_scroll_view/src/chat_widgets/message_menu/chat_message_menu_request.dart';
+import 'package:chat_scroll_view/src/util/constants.dart';
+import 'package:chat_scroll_view/src/util/logger.dart';
 import 'package:flutter/foundation.dart'
     show Listenable, ValueListenable, precisionErrorTolerance;
 import 'package:flutter/gestures.dart';
@@ -262,24 +263,8 @@ class RenderChatScrollView extends RenderBox {
     );
   }
 
-  /// Chunk-load / anchor-persistence diagnostics — filter `ChatScrollFetchAnchor`.
-  final ChatScrollDevLog _fetchAnchorLog = ChatScrollDevLog(
-    'ChatScrollFetchAnchor',
-    enabled: false,
-  );
-
-  /// Scrollbar thumb / id-linear progress diagnostics — filter
-  /// `ChatScrollScrollbar`. Set [ChatScrollDevLog.enabled] to `true` while
-  /// investigating thumb jumps, stale position, or height-change drift.
-  final ChatScrollDevLog _scrollbarLog = ChatScrollDevLog(
-    'ChatScrollScrollbar',
-    enabled: false,
-  );
-
-  /// Paint-time edge stretch — filter `ChatScrollOverscroll`.
-  final ChatScrollDevLog _overscrollLog = ChatScrollDevLog(
-    'ChatScrollOverscroll',
-  );
+  /// Layout-pass counter for `anchor.*` diagnostics.
+  int _fetchAnchorLayoutFrame = 0;
 
   int? _scrollbarLogLastAnchorId;
   double? _scrollbarLogLastAnchorH;
@@ -763,9 +748,7 @@ class RenderChatScrollView extends RenderBox {
 
   late final ChatScrollPhysics _physics = ChatScrollPhysics();
 
-  late final ChatStretchOverscroll _stretch = ChatStretchOverscroll(
-    log: _overscrollLog,
-  );
+  final ChatStretchOverscroll _stretch = ChatStretchOverscroll();
 
   VerticalDragGestureRecognizer? _drag;
 
@@ -824,7 +807,7 @@ class RenderChatScrollView extends RenderBox {
     // Direction is known at capture — used for paint even before measure.
     _stitchTowardNewer = targetId > (_stitchAnchorIdBeforeJump ?? targetId);
     if (!hasSize) {
-      _animator.log.event('stitch.capture', {
+      fine(.animate, 'stitch.capture', {
         'target': targetId,
         'hasSize': false,
         'anchorBefore': _stitchAnchorIdBeforeJump,
@@ -844,14 +827,14 @@ class RenderChatScrollView extends RenderBox {
         _stitchFrozenHeights[entry.key] = height;
       }
     }
-    _animator.log.event('stitch.capture', {
+    fine(.animate, 'stitch.capture', {
       'target': targetId,
       'anchorBefore': _stitchAnchorIdBeforeJump,
       'towardNewer': _stitchTowardNewer,
-      'vh': DevLogFormat.f(viewportHeight),
+      'vh': LogFormat.f(viewportHeight),
       'outgoingN': _stitchOutgoingIds.length,
-      'outgoingIds': DevLogFormat.ids(_stitchOutgoingIds),
-      'stripH': DevLogFormat.f(_stitchOutgoingStripBottom()),
+      'outgoingIds': LogFormat.ids(_stitchOutgoingIds),
+      'stripH': LogFormat.f(_stitchOutgoingStripBottom()),
     });
   }
 
@@ -945,12 +928,12 @@ class RenderChatScrollView extends RenderBox {
     _fetchAnchorEvent('stitch.commit', {
       ..._fetchAnchorSnapshot(),
       'target': snapshot.targetId,
-      'progress': DevLogFormat.ratio(snapshot.progress),
-      'scrollLen': DevLogFormat.f(travel),
+      'progress': LogFormat.ratio(snapshot.progress),
+      'scrollLen': LogFormat.f(travel),
       'fromId': fromId,
-      'fromY': DevLogFormat.f(fromY),
+      'fromY': LogFormat.f(fromY),
       'toId': _controller.anchorMessageId,
-      'toY': DevLogFormat.f(_controller.anchorPixelOffset),
+      'toY': LogFormat.f(_controller.anchorPixelOffset),
     });
   }
 
@@ -1061,17 +1044,17 @@ class RenderChatScrollView extends RenderBox {
               (towardNewer ? -incomingTop : incomingBottom - viewportHeight)
         : math.max(finalHeight, viewportHeight);
     final travel = math.max<double>(scrollLength.abs(), 1);
-    _animator.log.event('stitch.measureGeom', {
+    fine(.animate, 'stitch.measureGeom', {
       'target': _animator.animateTargetId,
       'towardNewer': towardNewer,
-      'vh': DevLogFormat.f(viewportHeight),
-      'oldT': DevLogFormat.f(oldT),
-      'oldH': DevLogFormat.f(oldH),
-      'finalH': DevLogFormat.f(finalHeight),
+      'vh': LogFormat.f(viewportHeight),
+      'oldT': LogFormat.f(oldT),
+      'oldH': LogFormat.f(oldH),
+      'finalH': LogFormat.f(finalHeight),
       'hasIncoming': hasIncoming,
-      'inTop': hasIncoming ? DevLogFormat.f(incomingTop) : null,
-      'inBot': hasIncoming ? DevLogFormat.f(incomingBottom) : null,
-      'scrollLen': DevLogFormat.f(travel),
+      'inTop': hasIncoming ? LogFormat.f(incomingTop) : null,
+      'inBot': hasIncoming ? LogFormat.f(incomingBottom) : null,
+      'scrollLen': LogFormat.f(travel),
       'outgoingN': _stitchOutgoingIds.length,
       'outgoingLive': liveOutgoing,
       'childN': _children.length,
@@ -1331,11 +1314,11 @@ class RenderChatScrollView extends RenderBox {
   }
 
   void _fetchAnchorEvent(String tag, Map<String, Object?> fields) {
-    _fetchAnchorLog.event(tag, fields);
+    fine(.anchor, tag, fields);
   }
 
   void _scrollbarEvent(String tag, Map<String, Object?> fields) {
-    _scrollbarLog.event(tag, fields);
+    fine(.scrollbar, tag, fields);
   }
 
   /// Message built closest to the bottom inset — proxy for "what the user was
@@ -1385,23 +1368,23 @@ class RenderChatScrollView extends RenderBox {
     final band = _bottomBandMessage();
     final anchorStatus = _dataSource.statusOf(anchorId);
     return {
-      'layout': _fetchAnchorLog.layoutFrame,
+      'layout': _fetchAnchorLayoutFrame,
       'anchorId': anchorId,
-      'anchorY': DevLogFormat.f(anchorY),
+      'anchorY': LogFormat.f(anchorY),
       'anchorFetching': anchorStatus.isFetching,
       'anchorAbsent': anchorStatus.isAbsent,
       'anchorDirty': anchorStatus.isDirty,
       'anchorLoaded': _dataSource.getMessage(anchorId) != null,
-      'anchorTop': anchorTop == null ? null : DevLogFormat.f(anchorTop),
+      'anchorTop': anchorTop == null ? null : LogFormat.f(anchorTop),
       'anchorBottom': anchorBottom == null
           ? null
-          : DevLogFormat.f(anchorBottom),
-      'anchorH': anchorH == null ? null : DevLogFormat.f(anchorH),
-      'bottomEdge': bottomEdge == null ? null : DevLogFormat.f(bottomEdge),
+          : LogFormat.f(anchorBottom),
+      'anchorH': anchorH == null ? null : LogFormat.f(anchorH),
+      'bottomEdge': bottomEdge == null ? null : LogFormat.f(bottomEdge),
       'bandId': band?.id,
-      'bandTop': band == null ? null : DevLogFormat.f(band.top),
-      'bandBottom': band == null ? null : DevLogFormat.f(band.bottom),
-      'bandGap': band == null ? null : DevLogFormat.f(band.gapToBottomEdge),
+      'bandTop': band == null ? null : LogFormat.f(band.top),
+      'bandBottom': band == null ? null : LogFormat.f(band.bottom),
+      'bandGap': band == null ? null : LogFormat.f(band.gapToBottomEdge),
       'bandFullyAboveInset':
           band != null && bottomEdge != null && band.bottom <= bottomEdge + 0.5,
       'isAtTail': hasSize ? _computeIsAtTail() : null,
@@ -1686,7 +1669,7 @@ class RenderChatScrollView extends RenderBox {
     _abortSpanIfOriginAbsent();
     _fetchAnchorEvent('fetch.data', {
       ..._fetchAnchorSnapshot(),
-      'fetchingChunks': DevLogFormat.ids(_fetchingChunkIndices(), max: 8),
+      'fetchingChunks': LogFormat.ids(_fetchingChunkIndices(), max: 8),
     });
     markNeedsLayout();
   }
@@ -1833,9 +1816,9 @@ class RenderChatScrollView extends RenderBox {
     if (delta == 0.0) return;
     _fetchAnchorEvent('layout.bottomPadCompensate', {
       ..._fetchAnchorSnapshot(),
-      'prev': DevLogFormat.f(previous),
-      'current': DevLogFormat.f(current),
-      'delta': DevLogFormat.f(delta),
+      'prev': LogFormat.f(previous),
+      'current': LogFormat.f(current),
+      'delta': LogFormat.f(delta),
     });
     _controller.applyScrollDelta(delta);
     // Keep close-path travel clock running: inset moves the whole segment by
@@ -1943,8 +1926,8 @@ class RenderChatScrollView extends RenderBox {
             'action': 'clear',
             'reason': 'user-scrolled-off-tail',
             'newestId': newest,
-            'newestTop': DevLogFormat.f(pd.offset),
-            'bottomEdge': DevLogFormat.f(bottomEdge),
+            'newestTop': LogFormat.f(pd.offset),
+            'bottomEdge': LogFormat.f(bottomEdge),
           });
           _pendingTailPinUntilSettled = false;
           return;
@@ -2048,10 +2031,10 @@ class RenderChatScrollView extends RenderBox {
     _fetchAnchorEvent('layout.align', {
       ..._fetchAnchorSnapshot(),
       'targetId': targetId,
-      'alignment': DevLogFormat.f(alignment),
-      'from': DevLogFormat.f(currentTop),
-      'to': DevLogFormat.f(desiredTop),
-      'childH': DevLogFormat.f(child.size.height),
+      'alignment': LogFormat.f(alignment),
+      'from': LogFormat.f(currentTop),
+      'to': LogFormat.f(desiredTop),
+      'childH': LogFormat.f(child.size.height),
     });
     _controller.reassignAnchor(targetId, desiredTop);
     _repositionFromAnchor();
@@ -2111,10 +2094,10 @@ class RenderChatScrollView extends RenderBox {
     _fetchAnchorEvent('layout.centerBand', {
       ..._fetchAnchorSnapshot(),
       'targetId': targetId,
-      'offset': DevLogFormat.f(clampedOffset),
-      'from': DevLogFormat.f(currentTop),
-      'to': DevLogFormat.f(desiredTop),
-      'childH': DevLogFormat.f(child.size.height),
+      'offset': LogFormat.f(clampedOffset),
+      'from': LogFormat.f(currentTop),
+      'to': LogFormat.f(desiredTop),
+      'childH': LogFormat.f(child.size.height),
     });
     _controller.reassignAnchor(targetId, desiredTop);
     _repositionFromAnchor();
@@ -2257,7 +2240,7 @@ class RenderChatScrollView extends RenderBox {
       _overlayKind = ChatOverlayKind.none;
     }
 
-    _fetchAnchorLog.bumpLayoutFrame();
+    _fetchAnchorLayoutFrame++;
     _fetchLogAnchorIdAtLayoutStart = _controller.anchorMessageId;
     _fetchLogAnchorYAtLayoutStart = _controller.anchorPixelOffset;
     final bandAtStart = _bottomBandMessage();
@@ -2265,7 +2248,7 @@ class RenderChatScrollView extends RenderBox {
     _fetchLogBandBottomAtLayoutStart = bandAtStart?.bottom;
     _fetchAnchorEvent('layout.begin', {
       ..._fetchAnchorSnapshot(),
-      'fetchingChunks': DevLogFormat.ids(_fetchingChunkIndices(), max: 8),
+      'fetchingChunks': LogFormat.ids(_fetchingChunkIndices(), max: 8),
     });
     // Drop pre-jump children so renormalize/clamp do not fan across the wrong
     // id span — but keep stitch presence pins (outgoing strip + animate target).
@@ -2330,8 +2313,8 @@ class RenderChatScrollView extends RenderBox {
         ..._fetchAnchorSnapshot(),
         'anchorBefore': anchorBefore,
         'anchorAfter': anchorAfterRenorm,
-        'yBefore': DevLogFormat.f(anchorYBefore),
-        'yAfter': DevLogFormat.f(anchorYAfterRenorm),
+        'yBefore': LogFormat.f(anchorYBefore),
+        'yAfter': LogFormat.f(anchorYAfterRenorm),
       });
     }
     final alignmentMoved = _applyNavigationAlignment();
@@ -2443,7 +2426,7 @@ class RenderChatScrollView extends RenderBox {
       final sig = '$live/${gcPinned.length}/$wouldDrop';
       if (_stitchGcLogSig != sig) {
         _stitchGcLogSig = sig;
-        _animator.log.event('stitch.gc', {
+        fine(.animate, 'stitch.gc', {
           'pinned': gcPinned.length,
           'outgoingLive': live,
           'wouldDropOutgoing': wouldDrop,
@@ -2461,9 +2444,9 @@ class RenderChatScrollView extends RenderBox {
     if (staleMessages.isNotEmpty || staleErrorChunks.isNotEmpty) {
       _fetchAnchorEvent('layout.gc', {
         ..._fetchAnchorSnapshot(),
-        'removed': DevLogFormat.ids(staleMessages, max: 12),
+        'removed': LogFormat.ids(staleMessages, max: 12),
         'removedCount': staleMessages.length,
-        'removedChunks': DevLogFormat.ids(staleErrorChunks, max: 4),
+        'removedChunks': LogFormat.ids(staleErrorChunks, max: 4),
       });
       _invokeChildManagerLayout(() {
         if (staleMessages.isNotEmpty) {
@@ -2539,13 +2522,13 @@ class RenderChatScrollView extends RenderBox {
         bandIdChanged) {
       _fetchAnchorEvent('layout.jump', {
         ..._fetchAnchorSnapshot(),
-        'anchorDy': anchorDy == null ? null : DevLogFormat.f(anchorDy),
+        'anchorDy': anchorDy == null ? null : LogFormat.f(anchorDy),
         'anchorIdChanged': idChanged,
         'bandIdWas': _fetchLogBandIdAtLayoutStart,
         'bandIdNow': bandAtEnd?.id,
         'bandBottomDy': bandBottomDy == null
             ? null
-            : DevLogFormat.f(bandBottomDy),
+            : LogFormat.f(bandBottomDy),
         'clamped': clamped,
         'refan':
             clamped ||
@@ -2562,7 +2545,7 @@ class RenderChatScrollView extends RenderBox {
 
     if (_spanAutoScrollOccupying) _applyLiveSpanHit();
     _fetchAnchorEvent('layout.end', _fetchAnchorSnapshot());
-    if (_scrollbarLog.enabled) {
+    if (LogCategory.scrollbar.enabled) {
       final computed = _computeScrollbarProgress();
       if (computed != null) {
         _scrollbarEvent(
@@ -2746,21 +2729,21 @@ class RenderChatScrollView extends RenderBox {
       'deletedId': before.deletedId,
       'deletedHeight': before.deletedHeight == null
           ? null
-          : DevLogFormat.f(before.deletedHeight!),
-      'anchorYBefore': DevLogFormat.f(before.anchorYBefore),
-      'scrollDelta': DevLogFormat.f(scrollDelta),
-      'anchorHeightAfter': DevLogFormat.f(anchorHeightAfter),
+          : LogFormat.f(before.deletedHeight!),
+      'anchorYBefore': LogFormat.f(before.anchorYBefore),
+      'scrollDelta': LogFormat.f(scrollDelta),
+      'anchorHeightAfter': LogFormat.f(anchorHeightAfter),
       'bandIdBefore': before.bandIdBefore,
       'bandBottomBefore': before.bandBottomBefore == null
           ? null
-          : DevLogFormat.f(before.bandBottomBefore!),
+          : LogFormat.f(before.bandBottomBefore!),
       'bandBottomAfterPre': bandAfterLayout == null
           ? null
-          : DevLogFormat.f(bandAfterLayout.bottom),
+          : LogFormat.f(bandAfterLayout.bottom),
       'bandBottomAfter': bandAfter == null
           ? null
-          : DevLogFormat.f(bandAfter.bottom),
-      'bottomEdge': DevLogFormat.f(bottomEdge),
+          : LogFormat.f(bandAfter.bottom),
+      'bottomEdge': LogFormat.f(bottomEdge),
       'userPreemptedTailBefore': before.userPreemptedTailBefore,
       'pinNewestSuppressed':
           before.userPreemptedTailBefore && _deleteCollapseRecoveryActive,
@@ -3326,11 +3309,11 @@ class RenderChatScrollView extends RenderBox {
     child.layout(cc, parentUsesSize: true);
     _touchChunk(id);
     final loaded = _dataSource.getMessage(id) != null;
-    if (_fetchAnchorLog.enabled) {
+    if (LogCategory.anchor.enabled) {
       _fetchAnchorEvent('build.tile', {
         'id': id,
         'loaded': loaded,
-        'h': DevLogFormat.f(child.size.height),
+        'h': LogFormat.f(child.size.height),
         'isAnchor': id == _controller.anchorMessageId,
         'chunk': ChatScrollChunk.chunkOf(id),
       });
@@ -3492,10 +3475,10 @@ class RenderChatScrollView extends RenderBox {
         ..._fetchAnchorSnapshot(),
         'fromId': fromId,
         'toId': bestId,
-        'fromY': DevLogFormat.f(fromY),
-        'toY': DevLogFormat.f(bestOffset),
+        'fromY': LogFormat.f(fromY),
+        'toY': LogFormat.f(bestOffset),
       });
-      if (_scrollbarLog.enabled) {
+      if (LogCategory.scrollbar.enabled) {
         final before = _computeScrollbarProgress(
           anchorIdOverride: fromId,
           anchorYOverride: fromY,
@@ -3504,8 +3487,8 @@ class RenderChatScrollView extends RenderBox {
         _scrollbarEvent('renormalize', {
           'fromId': fromId,
           'toId': bestId,
-          'fromY': DevLogFormat.f(fromY),
-          'toY': DevLogFormat.f(bestOffset),
+          'fromY': LogFormat.f(fromY),
+          'toY': LogFormat.f(bestOffset),
         });
         if (before != null) {
           _scrollbarEvent(
@@ -3625,12 +3608,12 @@ class RenderChatScrollView extends RenderBox {
         final delta = bottomEdge - bottom;
         _fetchAnchorEvent('layout.pinNewest', {
           ..._fetchAnchorSnapshot(),
-          'delta': DevLogFormat.f(delta),
+          'delta': LogFormat.f(delta),
           'repinBottom': repinBottom,
           'newestId': newest,
-          'newestBottom': DevLogFormat.f(bottom),
-          'newestTop': DevLogFormat.f(_parentData(last).offset),
-          'newestH': DevLogFormat.f(last.size.height),
+          'newestBottom': LogFormat.f(bottom),
+          'newestTop': LogFormat.f(_parentData(last).offset),
+          'newestH': LogFormat.f(last.size.height),
           'newestLoaded': _dataSource.getMessage(newest) != null,
         });
         _controller.applyScrollDelta(delta);
@@ -3656,9 +3639,9 @@ class RenderChatScrollView extends RenderBox {
         final delta = -topY;
         _fetchAnchorEvent('layout.pinOldest', {
           ..._fetchAnchorSnapshot(),
-          'delta': DevLogFormat.f(delta),
+          'delta': LogFormat.f(delta),
           'oldestId': oldest,
-          'oldestTop': DevLogFormat.f(topY),
+          'oldestTop': LogFormat.f(topY),
         });
         _controller.applyScrollDelta(delta);
         _repositionFromAnchor();
@@ -5411,14 +5394,14 @@ class RenderChatScrollView extends RenderBox {
     final oldest = _dataSource.oldestKnownId;
     if (newest == null || oldest == null || newest <= oldest) return;
     final targetId = (oldest + progress * (newest - oldest)).round();
-    if (_scrollbarLog.enabled) {
+    if (LogCategory.scrollbar.enabled) {
       final current = _computeScrollbarProgress();
       _scrollbarEvent('jump', {
-        'dragProgress': DevLogFormat.f(progress),
+        'dragProgress': LogFormat.f(progress),
         'targetId': targetId,
         'oldest': oldest,
         'newest': newest,
-        if (current != null) 'thumbProgress': DevLogFormat.f(current.progress),
+        if (current != null) 'thumbProgress': LogFormat.f(current.progress),
         'anchorId': _controller.anchorMessageId,
       });
     }
@@ -5813,16 +5796,16 @@ class RenderChatScrollView extends RenderBox {
     return {
       'isAtTail': isAtTail,
       'isAtOldestHead': isAtOldestHead,
-      'topEdge': DevLogFormat.f(_topPad),
-      'bottomEdge': DevLogFormat.f(bottomEdge),
-      'newestTop': newestTop == null ? null : DevLogFormat.f(newestTop),
+      'topEdge': LogFormat.f(_topPad),
+      'bottomEdge': LogFormat.f(bottomEdge),
+      'newestTop': newestTop == null ? null : LogFormat.f(newestTop),
       'newestBottom': newestBottom == null
           ? null
-          : DevLogFormat.f(newestBottom),
-      'oldestTop': oldestTop == null ? null : DevLogFormat.f(oldestTop),
+          : LogFormat.f(newestBottom),
+      'oldestTop': oldestTop == null ? null : LogFormat.f(oldestTop),
       'anchorBottom': anchorBottom == null
           ? null
-          : DevLogFormat.f(anchorBottom),
+          : LogFormat.f(anchorBottom),
       'anchorIsNewest': newest != null && anchorId == newest,
       'anchorIsOldest': oldest != null && anchorId == oldest,
     };
@@ -5876,17 +5859,17 @@ class RenderChatScrollView extends RenderBox {
       'minBuilt': minBuilt,
       'maxBuilt': maxBuilt,
       'builtIdSpan': builtSpan,
-      'sumHAbove': DevLogFormat.f(sumAbove),
-      'sumHBelow': DevLogFormat.f(sumBelow),
-      'totalBuiltH': DevLogFormat.f(totalH),
+      'sumHAbove': LogFormat.f(sumAbove),
+      'sumHBelow': LogFormat.f(sumBelow),
+      'totalBuiltH': LogFormat.f(totalH),
       'progressByBuiltIds': progressByBuiltIds == null
           ? null
-          : DevLogFormat.f(progressByBuiltIds),
+          : LogFormat.f(progressByBuiltIds),
       'prevId': prevId,
-      'prevH': prevH == null ? null : DevLogFormat.f(prevH),
+      'prevH': prevH == null ? null : LogFormat.f(prevH),
       'nextId': nextId,
-      'nextH': nextH == null ? null : DevLogFormat.f(nextH),
-      'anchorTop': anchorTop == null ? null : DevLogFormat.f(anchorTop),
+      'nextH': nextH == null ? null : LogFormat.f(nextH),
+      'anchorTop': anchorTop == null ? null : LogFormat.f(anchorTop),
     };
   }
 
@@ -5958,52 +5941,52 @@ class RenderChatScrollView extends RenderBox {
     final extrapModel = hasSize ? _scrollbarHeightAtRef(_topPad) : null;
     return {
       'reason': reason,
-      'progress': DevLogFormat.ratio(computed.progress),
-      'thumbFraction': DevLogFormat.ratio(computed.thumbFraction),
-      if (thumbHeightPx != null) 'thumbHeightPx': DevLogFormat.f(thumbHeightPx),
-      'fractionalId': DevLogFormat.ratio(computed.fractionalId, decimals: 2),
-      'bandRefY': DevLogFormat.f(computed.bandRefY),
-      'heightAtBandTop': DevLogFormat.f(computed.heightAtBandTop),
+      'progress': LogFormat.ratio(computed.progress),
+      'thumbFraction': LogFormat.ratio(computed.thumbFraction),
+      if (thumbHeightPx != null) 'thumbHeightPx': LogFormat.f(thumbHeightPx),
+      'fractionalId': LogFormat.ratio(computed.fractionalId, decimals: 2),
+      'bandRefY': LogFormat.f(computed.bandRefY),
+      'heightAtBandTop': LogFormat.f(computed.heightAtBandTop),
       if (extrapModel != null)
-        'heightAtBandTopExtrap': DevLogFormat.f(extrapModel.heightAtRef),
-      'estimatedExtent': DevLogFormat.f(computed.estimatedExtent),
+        'heightAtBandTopExtrap': LogFormat.f(extrapModel.heightAtRef),
+      'estimatedExtent': LogFormat.f(computed.estimatedExtent),
       if (extrapModel != null)
-        'estimatedExtentExtrap': DevLogFormat.f(extrapModel.estimatedExtent),
-      'avgRowH': DevLogFormat.f(computed.avgRowH),
-      if (bandHeight != null) 'bandHeight': DevLogFormat.f(bandHeight),
-      if (maxScroll != null) 'maxScroll': DevLogFormat.f(maxScroll),
-      'progressIdLinear': DevLogFormat.ratio(computed.idLinearProgress),
+        'estimatedExtentExtrap': LogFormat.f(extrapModel.estimatedExtent),
+      'avgRowH': LogFormat.f(computed.avgRowH),
+      if (bandHeight != null) 'bandHeight': LogFormat.f(bandHeight),
+      if (maxScroll != null) 'maxScroll': LogFormat.f(maxScroll),
+      'progressIdLinear': LogFormat.ratio(computed.idLinearProgress),
       if (bandTopFrac != null)
-        'fractionalIdTop': DevLogFormat.ratio(bandTopFrac, decimals: 2),
+        'fractionalIdTop': LogFormat.ratio(bandTopFrac, decimals: 2),
       if (bandBottomFrac != null)
-        'fractionalIdBottom': DevLogFormat.ratio(bandBottomFrac, decimals: 2),
+        'fractionalIdBottom': LogFormat.ratio(bandBottomFrac, decimals: 2),
       if (bandTopFrac != null && bandBottomFrac != null)
-        'visibleIdSpan': DevLogFormat.ratio(
+        'visibleIdSpan': LogFormat.ratio(
           bandBottomFrac - bandTopFrac,
           decimals: 2,
         ),
-      if (hasSize) 'bandBottomRefY': DevLogFormat.f(size.height - _bottomPad),
-      'progressLegacy': DevLogFormat.ratio(computed.legacyProgress),
-      'fractionalIdLegacy': DevLogFormat.ratio(
+      if (hasSize) 'bandBottomRefY': LogFormat.f(size.height - _bottomPad),
+      'progressLegacy': LogFormat.ratio(computed.legacyProgress),
+      'fractionalIdLegacy': LogFormat.ratio(
         computed.legacyFractionalId,
         decimals: 2,
       ),
       'anchorId': computed.anchorId,
-      'anchorY': DevLogFormat.f(computed.anchorY),
-      'anchorH': DevLogFormat.f(computed.anchorH),
-      'slotHeight': DevLogFormat.f(computed.slotHeight),
+      'anchorY': LogFormat.f(computed.anchorY),
+      'anchorH': LogFormat.f(computed.anchorH),
+      'slotHeight': LogFormat.f(computed.slotHeight),
       'slotHeightIsFallback': computed.slotHeightIsFallback,
       'anchorBuilt': computed.anchorBuilt,
       'anchorLoaded': computed.anchorLoaded,
-      'offsetAsIdAtSlot': DevLogFormat.f(offsetAsIdAtSlot),
+      'offsetAsIdAtSlot': LogFormat.f(offsetAsIdAtSlot),
       if (offsetAsIdAtAnchorH != null)
-        'offsetAsIdAtAnchorH': DevLogFormat.f(offsetAsIdAtAnchorH),
+        'offsetAsIdAtAnchorH': LogFormat.f(offsetAsIdAtAnchorH),
       if (progressAtAnchorH != null)
-        'progressIfAnchorH': DevLogFormat.f(progressAtAnchorH),
-      'progressAtSlotH': DevLogFormat.f(progressAtSlotH),
+        'progressIfAnchorH': LogFormat.f(progressAtAnchorH),
+      'progressAtSlotH': LogFormat.f(progressAtSlotH),
       'progressDeltaVsAnchorH': progressAtAnchorH == null
           ? null
-          : DevLogFormat.f((computed.progress - progressAtAnchorH).abs()),
+          : LogFormat.f((computed.progress - progressAtAnchorH).abs()),
       'oldest': computed.oldest,
       'newest': computed.newest,
       'idRange': computed.idRange,
@@ -6011,11 +5994,11 @@ class RenderChatScrollView extends RenderBox {
       'fling': _physics.isFlinging,
       ...boundary,
       if (tailDeficit != null && tailDeficit > 0.01)
-        'tailDeficit': DevLogFormat.f(tailDeficit),
+        'tailDeficit': LogFormat.f(tailDeficit),
       if (legacyTailDeficit != null && legacyTailDeficit > 0.01)
-        'tailDeficitLegacy': DevLogFormat.f(legacyTailDeficit),
+        'tailDeficitLegacy': LogFormat.f(legacyTailDeficit),
       if (headSurplus != null && headSurplus > 0.01)
-        'headSurplus': DevLogFormat.f(headSurplus),
+        'headSurplus': LogFormat.f(headSurplus),
       if (isAtTail && computed.legacyProgress < 0.99)
         'hint': 'legacy_anchorY_formula_under_reports_at_tail',
       ..._scrollbarBuiltSpanMetrics(computed.anchorId),
@@ -6048,7 +6031,7 @@ class RenderChatScrollView extends RenderBox {
     computed, {
     required String reason,
   }) {
-    if (!_scrollbarLog.enabled) return;
+    if (!LogCategory.scrollbar.enabled) return;
 
     final progressDelta = _scrollbarLogLastProgress == null
         ? double.infinity

@@ -2,7 +2,7 @@ import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:chat_scroll_view/src/chat_scroll/chat_scroll_controller.dart';
-import 'package:chat_scroll_view/src/chat_scroll/chat_scroll_dev_log.dart';
+import 'package:chat_scroll_view/src/util/logger.dart';
 import 'package:flutter/animation.dart';
 import 'package:flutter/rendering.dart';
 
@@ -227,15 +227,6 @@ class ChatAnimator implements ChatScrollAnimator {
   final void Function(StitchCancelSnapshot snapshot) _onStitchCancelled;
   final void Function(StitchCancelSnapshot snapshot) _onStitchComplete;
 
-  /// Animate / stitch diagnostics — filter console for `ChatScrollAnimate`.
-  ///
-  /// Enabled in debug so reproduce steps can be pasted back. Set
-  /// [log.enabled] to `false` to silence.
-  final ChatScrollDevLog log = ChatScrollDevLog(
-    'ChatScrollAnimate',
-    enabled: false,
-  );
-
   /// Last logged progress bucket `0..10` for sparse tick lines.
   int _lastProgressBucket = -1;
 
@@ -404,30 +395,30 @@ class ChatAnimator implements ChatScrollAnimator {
           animateTargetId == targetId &&
           (animateAlignment - align).abs() < 0.001;
       if (sameTarget && duration > Duration.zero) {
-        log.event('animate.coalesce', {
+        fine(.animate, 'animate.coalesce', {
           'target': targetId,
           'far': farAnimateActive,
           'measured': stitchMeasured,
           'stitchProgress': farAnimateActive
-              ? DevLogFormat.ratio(stitchProgress)
+              ? LogFormat.ratio(stitchProgress)
               : null,
         });
         if (highlight) animateHighlight = true;
         return inFlight.future;
       }
       if (busyPolicy != AnimateToBusyPolicy.replace) {
-        log.event('animate.ignored', {
+        fine(.animate, 'animate.ignored', {
           'requested': targetId,
           'running': animateTargetId,
           'far': farAnimateActive,
           'preferBuiltWaiting': preferBuiltWaiting,
           'stitchProgress': farAnimateActive
-              ? DevLogFormat.ratio(stitchProgress)
+              ? LogFormat.ratio(stitchProgress)
               : null,
         });
         return Future<void>.value();
       }
-      log.event('animate.replace', {
+      fine(.animate, 'animate.replace', {
         'requested': targetId,
         'running': animateTargetId,
         'far': farAnimateActive,
@@ -440,11 +431,11 @@ class ChatAnimator implements ChatScrollAnimator {
     // Already painted at the aligned seat — no teleport / scroll.
     if (duration > Duration.zero &&
         _isAlreadyAtAlignedTarget(targetId, align)) {
-      log.event('animate.alreadyThere', {
+      fine(.animate, 'animate.alreadyThere', {
         'target': targetId,
-        'align': DevLogFormat.ratio(align),
+        'align': LogFormat.ratio(align),
         'anchorId': _controller.anchorMessageId,
-        'anchorY': DevLogFormat.f(_controller.anchorPixelOffset),
+        'anchorY': LogFormat.f(_controller.anchorPixelOffset),
       });
       clearHighlight();
       _cancelOverscroll();
@@ -462,9 +453,9 @@ class ChatAnimator implements ChatScrollAnimator {
     _cancelOverscroll();
     if (duration <= Duration.zero) {
       // Zero duration is instant jumpTo — no animation phase and no highlight.
-      log.event('animate.jumpInstant', {
+      fine(.animate, 'animate.jumpInstant', {
         'target': targetId,
-        'align': DevLogFormat.ratio(align),
+        'align': LogFormat.ratio(align),
       });
       _controller.jumpTo(targetId, alignment: align);
       return Future<void>.value();
@@ -486,16 +477,16 @@ class ChatAnimator implements ChatScrollAnimator {
 
     final offsetNow = _offsetToBuiltMessage(targetId);
     final readyNow = _isDestinationReady(targetId);
-    log.event('animate.start', {
+    fine(.animate, 'animate.start', {
       'target': targetId,
-      'align': DevLogFormat.ratio(animateAlignment),
+      'align': LogFormat.ratio(animateAlignment),
       'durationMs': duration.inMilliseconds,
       'loadPolicy': loadPolicy.name,
       'highlight': highlight,
       'ready': readyNow,
-      'offsetToTarget': offsetNow == null ? 'null' : DevLogFormat.f(offsetNow),
+      'offsetToTarget': offsetNow == null ? 'null' : LogFormat.f(offsetNow),
       'anchorId': _controller.anchorMessageId,
-      'anchorY': DevLogFormat.f(_controller.anchorPixelOffset),
+      'anchorY': LogFormat.f(_controller.anchorPixelOffset),
     });
 
     // Arm highlight at flight start so tint tracks the target through motion.
@@ -537,9 +528,9 @@ class ChatAnimator implements ChatScrollAnimator {
     }
 
     if (!_isDestinationReady(animateTargetId)) {
-      log.event('path.loadGate.stillUnready', {
+      fine(.animate, 'path.loadGate.stillUnready', {
         'target': animateTargetId,
-        'vh': DevLogFormat.f(viewportHeight),
+        'vh': LogFormat.f(viewportHeight),
       });
       // Do not re-request the dest window here — that reasserted the pin and
       // queued a fetch every layout frame, cancelling/restarting in-flight
@@ -549,10 +540,10 @@ class ChatAnimator implements ChatScrollAnimator {
 
     final offsetToTarget = _offsetToBuiltMessage(animateTargetId);
     if (_shouldUseClosePath(offsetToTarget)) {
-      log.event('path.loadGate.readyClose', {
+      fine(.animate, 'path.loadGate.readyClose', {
         'target': animateTargetId,
-        'offset': DevLogFormat.f(offsetToTarget!),
-        'vh': DevLogFormat.f(viewportHeight),
+        'offset': LogFormat.f(offsetToTarget!),
+        'vh': LogFormat.f(viewportHeight),
         'bandHit': _messageIntersectsPaintBand(animateTargetId),
       });
       loadGateWaiting = false;
@@ -561,12 +552,10 @@ class ChatAnimator implements ChatScrollAnimator {
     }
 
     // Ready but far, or ready and not yet built → stitch (deferred).
-    log.event('path.loadGate.readyStitch', {
+    fine(.animate, 'path.loadGate.readyStitch', {
       'target': animateTargetId,
-      'offset': offsetToTarget == null
-          ? 'null'
-          : DevLogFormat.f(offsetToTarget),
-      'vh': DevLogFormat.f(viewportHeight),
+      'offset': offsetToTarget == null ? 'null' : LogFormat.f(offsetToTarget),
+      'vh': LogFormat.f(viewportHeight),
     });
     loadGateWaiting = false;
     scheduleMicrotask(() {
@@ -596,11 +585,11 @@ class ChatAnimator implements ChatScrollAnimator {
     animateCurve = Curves.easeOutQuint;
     animateStartTime = elapsed;
     _lastProgressBucket = -1;
-    log.event('stitch.measure', {
+    fine(.animate, 'stitch.measure', {
       'target': animateTargetId,
-      'scrollLen': DevLogFormat.f(stitchScrollLength),
+      'scrollLen': LogFormat.f(stitchScrollLength),
       'towardNewer': towardNewer,
-      'vh': DevLogFormat.f(stitchViewportHeight),
+      'vh': LogFormat.f(stitchViewportHeight),
       'durationMs': animateDuration.inMilliseconds,
       'elapsedUs': elapsed?.inMicroseconds,
     });
@@ -634,7 +623,7 @@ class ChatAnimator implements ChatScrollAnimator {
 
   void _tryBeginPath() {
     if (!_isDestinationReady(animateTargetId)) {
-      log.event('path.loadGate.wait', {
+      fine(.animate, 'path.loadGate.wait', {
         'target': animateTargetId,
         'loadPolicy': loadPolicy.name,
       });
@@ -644,9 +633,9 @@ class ChatAnimator implements ChatScrollAnimator {
 
     final offsetToTarget = _offsetToBuiltMessage(animateTargetId);
     if (_shouldUseClosePath(offsetToTarget)) {
-      log.event('path.close', {
+      fine(.animate, 'path.close', {
         'target': animateTargetId,
-        'offset': DevLogFormat.f(offsetToTarget!),
+        'offset': LogFormat.f(offsetToTarget!),
         'bandHit': _messageIntersectsPaintBand(animateTargetId),
       });
       loadGateWaiting = false;
@@ -658,12 +647,12 @@ class ChatAnimator implements ChatScrollAnimator {
         offsetToTarget == null) {
       // Ready payload, row not yet in build range — one layout chance for
       // close-path (self-insert / follow-tail). Never timeout→force-stitch.
-      log.event('path.preferBuilt.wait', {'target': animateTargetId});
+      fine(.animate, 'path.preferBuilt.wait', {'target': animateTargetId});
       _enterLoadGateWait();
       return;
     }
 
-    log.event('path.stitch', {
+    fine(.animate, 'path.stitch', {
       'target': animateTargetId,
       'reason': 'notBuilt',
       'offset': 'null',
@@ -707,18 +696,18 @@ class ChatAnimator implements ChatScrollAnimator {
     _lastProgressBucket = -1;
     final travel = (animateEndOffset - animateStartOffset).abs();
     _applyCloseTravelTiming(travel);
-    log.event('close.begin', {
+    fine(.animate, 'close.begin', {
       'target': animateTargetId,
-      'startY': DevLogFormat.f(animateStartOffset),
-      'endY': DevLogFormat.f(animateEndOffset),
-      'travel': DevLogFormat.f(travel),
+      'startY': LogFormat.f(animateStartOffset),
+      'endY': LogFormat.f(animateEndOffset),
+      'travel': LogFormat.f(travel),
       'durationMs': animateDuration.inMilliseconds,
       'hasChild': child != null,
       'tailTarget': _isTailClosePathTarget(animateTargetId),
     });
     // Zero travel (already at end) — finish without a 300ms empty tween.
     if (travel < _settleEpsilon) {
-      log.event('close.noop', {'target': animateTargetId});
+      fine(.animate, 'close.noop', {'target': animateTargetId});
       _completeAnimate();
     }
   }
@@ -736,11 +725,11 @@ class ChatAnimator implements ChatScrollAnimator {
     stitchScrollLength = 0;
     _stitchMeasureLayoutAsked = false;
     _lastProgressBucket = -1;
-    log.event('stitch.begin', {
+    fine(.animate, 'stitch.begin', {
       'target': animateTargetId,
-      'align': DevLogFormat.ratio(animateAlignment),
+      'align': LogFormat.ratio(animateAlignment),
       'anchorBefore': _controller.anchorMessageId,
-      'anchorYBefore': DevLogFormat.f(_controller.anchorPixelOffset),
+      'anchorYBefore': LogFormat.f(_controller.anchorPixelOffset),
     });
     // Capture frozen outgoing geometry *before* the jump relocates fan-out.
     _prepareStitchCapture(animateTargetId);
@@ -761,10 +750,10 @@ class ChatAnimator implements ChatScrollAnimator {
     if (animateHighlight && highlightDuration > Duration.zero) {
       _requestHighlight(animateTargetId, startHold: false);
     }
-    log.event('stitch.jumped', {
+    fine(.animate, 'stitch.jumped', {
       'target': animateTargetId,
       'anchorAfter': _controller.anchorMessageId,
-      'anchorYAfter': DevLogFormat.f(_controller.anchorPixelOffset),
+      'anchorYAfter': LogFormat.f(_controller.anchorPixelOffset),
       'highlightId': highlightTargetId,
       'highlightPending': pendingHighlightTargetId,
     });
@@ -795,11 +784,11 @@ class ChatAnimator implements ChatScrollAnimator {
   void cancelAnimate({bool fadeHighlight = true}) {
     final completer = animateCompleter;
     if (completer == null) return;
-    log.event('animate.cancel', {
+    fine(.animate, 'animate.cancel', {
       'target': animateTargetId,
       'far': farAnimateActive,
       'measured': stitchMeasured,
-      'progress': DevLogFormat.ratio(stitchProgress),
+      'progress': LogFormat.ratio(stitchProgress),
       'loadGateWaiting': loadGateWaiting,
       'fadeHighlight': fadeHighlight && animateHighlight,
     });
@@ -851,17 +840,17 @@ class ChatAnimator implements ChatScrollAnimator {
       }
       final offsetToTarget = _offsetToBuiltMessage(animateTargetId);
       if (_shouldUseClosePath(offsetToTarget)) {
-        log.event('path.loadGate.tickClose', {
+        fine(.animate, 'path.loadGate.tickClose', {
           'target': animateTargetId,
-          'offset': DevLogFormat.f(offsetToTarget!),
+          'offset': LogFormat.f(offsetToTarget!),
           'bandHit': _messageIntersectsPaintBand(animateTargetId),
         });
         _beginClose(offsetToTarget);
         // Fall through to close-path tick below.
       } else if (offsetToTarget != null) {
-        log.event('path.loadGate.tickStitch', {
+        fine(.animate, 'path.loadGate.tickStitch', {
           'target': animateTargetId,
-          'offset': DevLogFormat.f(offsetToTarget),
+          'offset': LogFormat.f(offsetToTarget),
         });
         _beginStitch();
         return 0;
@@ -879,10 +868,12 @@ class ChatAnimator implements ChatScrollAnimator {
         // (`stitchMeasured` already true).
         if (!_stitchMeasureLayoutAsked) {
           _stitchMeasureLayoutAsked = true;
-          log.event('stitch.awaitMeasure', {'target': animateTargetId});
+          fine(.animate, 'stitch.awaitMeasure', {'target': animateTargetId});
           _markNeedsLayout();
         } else {
-          log.event('stitch.awaitMeasure.pending', {'target': animateTargetId});
+          fine(.animate, 'stitch.awaitMeasure.pending', {
+            'target': animateTargetId,
+          });
           _markNeedsLayout();
         }
         return 0;
@@ -900,7 +891,7 @@ class ChatAnimator implements ChatScrollAnimator {
         progress: stitchProgress,
         extra: {
           'towardNewer': stitchTowardNewer,
-          'scrollLen': DevLogFormat.f(stitchScrollLength),
+          'scrollLen': LogFormat.f(stitchScrollLength),
         },
       );
       if (stitchT >= 1.0) {
@@ -933,10 +924,10 @@ class ChatAnimator implements ChatScrollAnimator {
       t: segmentT,
       progress: eased,
       extra: {
-        'anchorY': DevLogFormat.f(_controller.anchorPixelOffset),
-        'targetY': DevLogFormat.f(target),
-        'delta': DevLogFormat.f(delta),
-        'endY': DevLogFormat.f(animateEndOffset),
+        'anchorY': LogFormat.f(_controller.anchorPixelOffset),
+        'targetY': LogFormat.f(target),
+        'delta': LogFormat.f(delta),
+        'endY': LogFormat.f(animateEndOffset),
       },
     );
     return delta;
@@ -953,10 +944,10 @@ class ChatAnimator implements ChatScrollAnimator {
     // Log 0%, 20%, 40%, …, 100% (even buckets) to keep volume low.
     if (bucket != 0 && bucket != 10 && bucket.isOdd) return;
     _lastProgressBucket = bucket;
-    log.event('tick.$path', {
+    fine(.animate, 'tick.$path', {
       'target': animateTargetId,
-      't': DevLogFormat.ratio(t),
-      'progress': DevLogFormat.ratio(progress),
+      't': LogFormat.ratio(t),
+      'progress': LogFormat.ratio(progress),
       ...extra,
     });
   }
@@ -985,11 +976,11 @@ class ChatAnimator implements ChatScrollAnimator {
       animateAlignment,
     );
     if ((newEnd - animateEndOffset).abs() < 0.5) return;
-    log.event('close.rebase', {
+    fine(.animate, 'close.rebase', {
       'target': animateTargetId,
-      'oldEnd': DevLogFormat.f(animateEndOffset),
-      'newEnd': DevLogFormat.f(newEnd),
-      'anchorY': DevLogFormat.f(_controller.anchorPixelOffset),
+      'oldEnd': LogFormat.f(animateEndOffset),
+      'newEnd': LogFormat.f(newEnd),
+      'anchorY': LogFormat.f(_controller.anchorPixelOffset),
     });
     animateStartOffset = _controller.anchorPixelOffset;
     animateEndOffset = newEnd;
@@ -1032,11 +1023,11 @@ class ChatAnimator implements ChatScrollAnimator {
         towardNewer: stitchTowardNewer,
       );
     }
-    log.event('animate.complete', {
+    fine(.animate, 'animate.complete', {
       'target': targetId,
       'path': wasFarPath ? 'stitch' : 'close',
       'anchorId': _controller.anchorMessageId,
-      'anchorY': DevLogFormat.f(_controller.anchorPixelOffset),
+      'anchorY': LogFormat.f(_controller.anchorPixelOffset),
       'highlight': animateHighlight && highlightDuration > Duration.zero,
     });
     animateCompleter = null;

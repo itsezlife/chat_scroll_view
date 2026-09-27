@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:developer' as dev;
 
 import 'package:chat_chrome/chat_chrome.dart';
 import 'package:chat_scroll_view_example/src/features/chat/utils/chat_viewport_insets.dart';
@@ -74,11 +75,12 @@ mixin ChatViewportInsetsBinding<T extends StatefulWidget> on State<T> {
     );
     _forwardInset = () {
       final h = bottomInsetController.height;
-      chatChromeLog(
+      dev.log(
         'forward inset→ChatViewportInsets h=$h '
         'owner=${bottomInsetController.owner} '
         'panel=${bottomInsetController.isPanelOpen} '
         'osKbd=${KeyboardInsets.keyboardHeight}',
+        name: 'chat_viewport_insets',
       );
       _publishKeyboardInset(h);
     };
@@ -87,11 +89,12 @@ mixin ChatViewportInsetsBinding<T extends StatefulWidget> on State<T> {
     unawaited(
       keyboardPanelStore.load().then((_) {
         final os = KeyboardInsets.keyboardHeight;
-        chatChromeLog(
+        dev.log(
           'KeyboardPanelStore loaded '
           'portrait=${keyboardPanelStore.heightFor(landscape: false)} '
           'selectedPage=${keyboardPanelStore.selectedPage} '
           'osPersistent=$os',
+          name: 'chat_viewport_insets',
         );
         if (os.isFinite && os >= KeyboardPanelStore.minSaneKeyboardHeight) {
           unawaited(keyboardPanelStore.record(os, landscape: false));
@@ -156,9 +159,10 @@ mixin ChatViewportInsetsBinding<T extends StatefulWidget> on State<T> {
     final height = isVisible && !isAnimating
         ? KeyboardInsets.keyboardHeight
         : 0.0;
-    chatChromeLog(
+    dev.log(
       'seedKeyboard visible=$isVisible animating=$isAnimating '
       'liveOrZero=$height osPersistent=$persistent',
+      name: 'chat_viewport_insets',
     );
     bottomInsetController.onImeHeight(
       height,

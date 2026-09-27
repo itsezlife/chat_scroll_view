@@ -7,9 +7,10 @@ import 'package:flutter/rendering.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/widgets.dart';
 import 'package:panel_catalog/src/data/catalog_data_source.dart';
-import 'package:panel_catalog/src/debug/panel_catalog_dev_log.dart';
 import 'package:panel_catalog/src/model/catalog_leaf.dart';
 import 'package:panel_catalog/src/model/catalog_leaf_presentation.dart';
+import 'package:panel_catalog/src/util/constants.dart';
+import 'package:panel_catalog/src/util/logger.dart';
 import 'package:panel_catalog/src/viewport/catalog_far_stitch.dart';
 import 'package:panel_catalog/src/viewport/catalog_leaf_binding_pool.dart';
 import 'package:panel_catalog/src/viewport/catalog_leaf_paint_theme.dart';
@@ -453,13 +454,8 @@ class RenderPanelCatalog extends RenderBox {
 
   // --- Diagnostics (filter DevTools / logcat by logger name) ----------------
 
-  final PanelCatalogDevLog _layoutLog = PanelCatalogDevLog(
-    'PanelCatalogLayout',
-  );
-  final PanelCatalogDevLog _scrollLog = PanelCatalogDevLog(
-    'PanelCatalogScroll',
-  );
-  final PanelCatalogDevLog _paintLog = PanelCatalogDevLog('PanelCatalogPaint');
+  int _layoutFrame = 0;
+  int _paintFrame = 0;
 
   double? _layoutLogLastExtent;
   int? _layoutLogLastSlotCount;
@@ -667,8 +663,8 @@ class RenderPanelCatalog extends RenderBox {
   }
 
   void _onDataChanged() {
-    if (_layoutLog.enabled) {
-      _layoutLog.event('data.notify', {
+    if (LogCategory.layout.enabled) {
+      fine(.layout, 'data.notify', {
         'sections': _dataSource.sections.length,
         'leaves': _dataSource.sections.fold<int>(
           0,
@@ -714,18 +710,18 @@ class RenderPanelCatalog extends RenderBox {
     _cancelSectionJumpMotion();
     _cancelFling();
     _onNavigation();
-    if (_scrollLog.enabled) {
-      _scrollLog.event('jump', {'offset': DevLogFormat.f(_controller.offset)});
+    if (LogCategory.scroll.enabled) {
+      fine(.scroll, 'jump', {'offset': LogFormat.f(_controller.offset)});
     }
   }
 
   void _onScrollBy(double delta) {
     _cancelSectionJumpMotion();
     _onNavigation();
-    if (_scrollLog.enabled) {
-      _scrollLog.event('scrollBy', {
-        'delta': DevLogFormat.f(delta),
-        'offset': DevLogFormat.f(_controller.offset),
+    if (LogCategory.scroll.enabled) {
+      fine(.scroll, 'scrollBy', {
+        'delta': LogFormat.f(delta),
+        'offset': LogFormat.f(_controller.offset),
       });
     }
   }
@@ -853,11 +849,11 @@ class RenderPanelCatalog extends RenderBox {
       viewportHeight: size.height,
     );
 
-    if (_scrollLog.enabled) {
-      _scrollLog.event('sectionJump.begin', {
+    if (LogCategory.scroll.enabled) {
+      fine(.scroll, 'sectionJump.begin', {
         'section': sectionIndex,
-        'from': DevLogFormat.f(_controller.offset),
-        'to': DevLogFormat.f(targetOffset),
+        'from': LogFormat.f(_controller.offset),
+        'to': LogFormat.f(targetOffset),
         'near': near,
         'sectionId': sections[sectionIndex].id,
       });
@@ -901,10 +897,10 @@ class RenderPanelCatalog extends RenderBox {
       _controller.setSectionJumpActive(false);
       _controller.completePendingSectionJump(sectionIndex: sectionIndex);
       _controller.notifyScrollEvent(PanelCatalogSectionJumpEnd(sectionIndex));
-      if (_scrollLog.enabled) {
-        _scrollLog.event('sectionJump.end', {
+      if (LogCategory.scroll.enabled) {
+        fine(.scroll, 'sectionJump.end', {
           'section': sectionIndex,
-          'offset': DevLogFormat.f(_controller.offset),
+          'offset': LogFormat.f(_controller.offset),
           'path': 'near',
         });
       }
@@ -1008,10 +1004,10 @@ class RenderPanelCatalog extends RenderBox {
       if (identical(_stitchFlightCompleter, flight)) {
         _stitchFlightCompleter = null;
       }
-      if (_scrollLog.enabled) {
-        _scrollLog.event('sectionJump.end', {
+      if (LogCategory.scroll.enabled) {
+        fine(.scroll, 'sectionJump.end', {
           'section': sectionIndex,
-          'offset': DevLogFormat.f(_controller.offset),
+          'offset': LogFormat.f(_controller.offset),
           'path': 'far',
         });
       }
@@ -1479,8 +1475,8 @@ class RenderPanelCatalog extends RenderBox {
   }
 
   void _logLayoutEnd(BoxConstraints constraints) {
-    if (!_layoutLog.enabled) return;
-    final frame = _layoutLog.bumpLayoutFrame();
+    if (!LogCategory.layout.enabled) return;
+    final frame = ++_layoutFrame;
     final slotCount = _slots.length;
     final leafSlots = _slots.whereType<CatalogLeafSlot>().length;
     final changed =
@@ -1495,27 +1491,27 @@ class RenderPanelCatalog extends RenderBox {
       double.infinity,
     );
     final cellW = usableW > 0 ? usableW / _spanCount : _cellExtent;
-    _layoutLog.event('layout.end', {
+    fine(.layout, 'layout.end', {
       'frame': frame,
-      'cw': DevLogFormat.f(constraints.maxWidth),
-      'ch': DevLogFormat.f(constraints.maxHeight),
-      'vw': DevLogFormat.f(size.width),
-      'vh': DevLogFormat.f(size.height),
+      'cw': LogFormat.f(constraints.maxWidth),
+      'ch': LogFormat.f(constraints.maxHeight),
+      'vw': LogFormat.f(size.width),
+      'vh': LogFormat.f(size.height),
       'span': _spanCount,
-      'cell': DevLogFormat.f(_cellExtent),
-      'cellW': DevLogFormat.f(cellW),
-      'header': DevLogFormat.f(_headerExtent),
-      'padT': DevLogFormat.f(_padding.top),
-      'padB': DevLogFormat.f(_padding.bottom),
-      'padH': DevLogFormat.f(_padding.horizontal),
-      'extent': DevLogFormat.f(_contentExtent),
-      'maxOff': DevLogFormat.f(maxOffset),
-      'offset': DevLogFormat.f(_controller.offset),
+      'cell': LogFormat.f(_cellExtent),
+      'cellW': LogFormat.f(cellW),
+      'header': LogFormat.f(_headerExtent),
+      'padT': LogFormat.f(_padding.top),
+      'padB': LogFormat.f(_padding.bottom),
+      'padH': LogFormat.f(_padding.horizontal),
+      'extent': LogFormat.f(_contentExtent),
+      'maxOff': LogFormat.f(maxOffset),
+      'offset': LogFormat.f(_controller.offset),
       'slots': slotCount,
       'leaves': leafSlots,
       'attached': _pool.attachedCount,
-      'winTop': DevLogFormat.f(winTop),
-      'winBot': DevLogFormat.f(winBottom),
+      'winTop': LogFormat.f(winTop),
+      'winBot': LogFormat.f(winBottom),
       'sections': _dataSource.sections.length,
     });
   }
@@ -1649,8 +1645,8 @@ class RenderPanelCatalog extends RenderBox {
   }
 
   void _logPaintSummary(double visibleTop, double visibleBottom) {
-    if (!_paintLog.enabled) return;
-    final frame = _paintLog.bumpPaintFrame();
+    if (!LogCategory.paint.enabled) return;
+    final frame = ++_paintFrame;
     if (frame % 15 != 0) return;
     var content = 0;
     var circle = 0;
@@ -1671,9 +1667,9 @@ class RenderPanelCatalog extends RenderBox {
           failed++;
       }
     }
-    _paintLog.event('paint.summary', {
+    fine(.paint, 'paint.summary', {
       'frame': frame,
-      'offset': DevLogFormat.f(_controller.offset),
+      'offset': LogFormat.f(_controller.offset),
       'content': content,
       'circle': circle,
       'thumb': thumb,

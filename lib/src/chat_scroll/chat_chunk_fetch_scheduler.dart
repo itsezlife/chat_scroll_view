@@ -3,7 +3,8 @@ import 'dart:math' as math;
 
 import 'package:chat_scroll_view/src/chat_scroll/chat_data_source.dart';
 import 'package:chat_scroll_view/src/chat_scroll/chat_scroll_chunk.dart';
-import 'package:chat_scroll_view/src/chat_scroll/chat_scroll_dev_log.dart';
+import 'package:chat_scroll_view/src/util/constants.dart';
+import 'package:chat_scroll_view/src/util/logger.dart';
 import 'package:flutter/scheduler.dart';
 
 /// Schedules lazy chunk fetching, scroll-aware polling, jump-fetch
@@ -47,11 +48,7 @@ class ChatChunkFetchScheduler {
   /// (look-ahead when pixel lead is thinner than a page).
   static const int scrollLookaheadChunks = 1;
 
-  /// Filter console by `ChatScrollFetchSched`.
-  final ChatScrollDevLog log = ChatScrollDevLog(
-    'ChatScrollFetchSched',
-    enabled: false,
-  );
+  int _layoutFrame = 0;
 
   /// Dedupes identical diagnostic lines so a zero-delay poll storm stays readable.
   String? _lastLogSignature;
@@ -111,7 +108,7 @@ class ChatChunkFetchScheduler {
     final next = messageId == null ? null : ChatScrollChunk.chunkOf(messageId);
     if (_navigationDestChunk == next) {
       if (next != null) {
-        log.event('dest.pin.reassert', {
+        fine(.fetch, 'dest.pin.reassert', {
           'dest': next,
           'id': messageId,
           'layout': '$_layoutMinChunk..$_layoutMaxChunk',
@@ -121,7 +118,7 @@ class ChatChunkFetchScheduler {
       }
       return;
     }
-    log.event('dest.pin', {
+    fine(.fetch, 'dest.pin', {
       'from': _navigationDestChunk,
       'to': next,
       'id': messageId,
@@ -153,13 +150,13 @@ class ChatChunkFetchScheduler {
   void _queueDestinationWindowFetch() {
     final dest = _navigationDestChunk;
     if (dest == null || _dispatchDetached) return;
-    log.event('dest.queue', {
+    fine(.fetch, 'dest.queue', {
       'dest': dest,
       'layout': '$_layoutMinChunk..$_layoutMaxChunk',
     });
     SchedulerBinding.instance.addPostFrameCallback((_) {
       if (_dispatchDetached || _navigationDestChunk != dest) {
-        log.event('dest.queue.skip', {
+        fine(.fetch, 'dest.queue.skip', {
           'dest': dest,
           'liveDest': _navigationDestChunk,
           'detached': _dispatchDetached,
@@ -183,7 +180,7 @@ class ChatChunkFetchScheduler {
   }
 
   void _schedEvent(String tag, Map<String, Object?> fields) {
-    if (!log.enabled) return;
+    if (!LogCategory.fetch.enabled) return;
     final signature =
         '$tag|${fields.entries.map((e) => '${e.key}=${e.value}').join(' ')}';
     if (signature == _lastLogSignature) {
@@ -191,18 +188,18 @@ class ChatChunkFetchScheduler {
       // Emit a heartbeat every 64 identical lines so storms are visible
       // without flooding the console.
       if (_logRepeatCount % 64 != 0) return;
-      log.event('$tag.repeat', {...fields, 'x': _logRepeatCount});
+      fine(.fetch, '$tag.repeat', {...fields, 'x': _logRepeatCount});
       return;
     }
     if (_logRepeatCount > 0) {
-      log.event('log.collapsed', {
+      fine(.fetch, 'log.collapsed', {
         'prev': _lastLogSignature,
         'x': _logRepeatCount,
       });
     }
     _lastLogSignature = signature;
     _logRepeatCount = 0;
-    log.event(tag, fields);
+    fine(.fetch, tag, fields);
   }
 
   /// Inclusive chunk range for the load-gate window, clamped to known ids.
@@ -419,7 +416,7 @@ class ChatChunkFetchScheduler {
   void onJump() {
     _lastScrollTs = 0;
     _jumpFetchPending = true;
-    log.event('onJump', {
+    fine(.fetch, 'onJump', {
       'dest': _navigationDestChunk,
       'layout': '$_layoutMinChunk..$_layoutMaxChunk',
       'outsideDest': _navigationDestChunk == null
@@ -434,14 +431,14 @@ class ChatChunkFetchScheduler {
   void queueJumpFetch() {
     if (_layoutMaxChunk < _layoutMinChunk) {
       _deferredSeedJumpFetch = true;
-      log.event('queueJumpFetch.deferred', {
+      fine(.fetch, 'queueJumpFetch.deferred', {
         'dest': _navigationDestChunk,
         'layout': '$_layoutMinChunk..$_layoutMaxChunk',
       });
       return;
     }
     _jumpFetchPending = true;
-    log.event('queueJumpFetch', {
+    fine(.fetch, 'queueJumpFetch', {
       'dest': _navigationDestChunk,
       'layout': '$_layoutMinChunk..$_layoutMaxChunk',
     });
@@ -456,14 +453,14 @@ class ChatChunkFetchScheduler {
       'dest': _navigationDestChunk,
       'jumpPending': _jumpFetchPending,
       'pending': _rangeHasPendingChunks(),
-      'frame': log.bumpLayoutFrame(),
+      'frame': ++_layoutFrame,
     });
     evictChunks();
     scheduleFetchPoll();
     if (_deferredSeedJumpFetch && _layoutMaxChunk >= _layoutMinChunk) {
       _deferredSeedJumpFetch = false;
       _jumpFetchPending = true;
-      log.event('queueJumpFetch', {
+      fine(.fetch, 'queueJumpFetch', {
         'dest': _navigationDestChunk,
         'layout': '$minChunk..$maxChunk',
         'via': 'deferredSeed',
@@ -578,7 +575,7 @@ class ChatChunkFetchScheduler {
       // Scrollbar jumps clear this pin via
       // [isOutsideNavigationDestination] / animate cancel.
       // Dest fetches run even mid-scroll (load-gate must stay warm).
-      log.event('poll.tick', {
+      fine(.fetch, 'poll.tick', {
         'branch': 'dest',
         'dest': dest,
         'layout': '$_layoutMinChunk..$_layoutMaxChunk',
@@ -610,7 +607,7 @@ class ChatChunkFetchScheduler {
           _logRequest('midScrollPage', page.$1, page.$2);
           _requestLayoutRange(page.$1, page.$2, allowWiden: false);
         } else {
-          log.event('poll.debounce', {
+          fine(.fetch, 'poll.debounce', {
             'reason': 'noUrgentPage',
             'sinceScrollMs': sinceScroll,
             'layout': '$_layoutMinChunk..$_layoutMaxChunk',
@@ -618,14 +615,14 @@ class ChatChunkFetchScheduler {
         }
       } else {
         // Hole-only while scrolling — wait for settle / poll interval.
-        log.event('poll.debounce', {
+        fine(.fetch, 'poll.debounce', {
           'reason': 'holesOnly',
           'sinceScrollMs': sinceScroll,
           'layout': '$_layoutMinChunk..$_layoutMaxChunk',
         });
       }
     } else {
-      log.event('poll.tick', {
+      fine(.fetch, 'poll.tick', {
         'branch': 'empty',
         'layout': '$_layoutMinChunk..$_layoutMaxChunk',
       });
@@ -698,13 +695,13 @@ class ChatChunkFetchScheduler {
     if (!_jumpFetchPending) return;
     _jumpFetchPending = false;
     if (_dispatchDetached) return;
-    log.event('jumpFetch.arm', {
+    fine(.fetch, 'jumpFetch.arm', {
       'dest': _navigationDestChunk,
       'layout': '$_layoutMinChunk..$_layoutMaxChunk',
     });
     SchedulerBinding.instance.addPostFrameCallback((_) {
       if (_dispatchDetached) {
-        log.event('jumpFetch.skip', {'reason': 'detached'});
+        fine(.fetch, 'jumpFetch.skip', {'reason': 'detached'});
         return;
       }
       final dest = _navigationDestChunk;
@@ -712,7 +709,7 @@ class ChatChunkFetchScheduler {
         if (_layoutSpansStitchGap(dest)) {
           // Stitch dual-strip: outgoing…incoming would gap-storm if we used
           // layout min…max. Keep the destination window only.
-          log.event('jumpFetch.dispatch', {
+          fine(.fetch, 'jumpFetch.dispatch', {
             'branch': 'stitchGap→dest',
             'dest': dest,
             'layout': '$_layoutMinChunk..$_layoutMaxChunk',
@@ -729,7 +726,7 @@ class ChatChunkFetchScheduler {
           // Load-gate still at origin (or empty layout): warm dest only.
           // Requesting origin layout here would cancel the dest fetch every
           // frame while poll re-requests dest.
-          log.event('jumpFetch.dispatch', {
+          fine(.fetch, 'jumpFetch.dispatch', {
             'branch': 'noOverlap→dest',
             'dest': dest,
             'destWin': '${range.$1}..${range.$2}',
@@ -739,7 +736,7 @@ class ChatChunkFetchScheduler {
           return;
         }
         // Layout already overlaps the dest window — fetch the on-screen band.
-        log.event('jumpFetch.dispatch', {
+        fine(.fetch, 'jumpFetch.dispatch', {
           'branch': 'overlap→layout',
           'dest': dest,
           'destWin': '${range.$1}..${range.$2}',
@@ -748,19 +745,19 @@ class ChatChunkFetchScheduler {
       }
       if (_layoutMaxChunk < _layoutMinChunk) {
         if (dest != null) {
-          log.event('jumpFetch.dispatch', {
+          fine(.fetch, 'jumpFetch.dispatch', {
             'branch': 'emptyLayout→dest',
             'dest': dest,
           });
           _requestDestinationWindow(dest);
         } else {
-          log.event('jumpFetch.dispatch', {'branch': 'emptyLayout→noop'});
+          fine(.fetch, 'jumpFetch.dispatch', {'branch': 'emptyLayout→noop'});
         }
         return;
       }
       // Scrollbar / normal jump (pin cleared on jump-away) — laid-out band.
       if (dest == null) {
-        log.event('jumpFetch.dispatch', {
+        fine(.fetch, 'jumpFetch.dispatch', {
           'branch': 'layout',
           'layout': '$_layoutMinChunk..$_layoutMaxChunk',
         });

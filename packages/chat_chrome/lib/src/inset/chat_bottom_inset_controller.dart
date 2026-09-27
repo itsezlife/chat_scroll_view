@@ -1,8 +1,8 @@
 import 'dart:async';
 import 'dart:math' as math;
 
-import 'package:chat_chrome/src/debug/chat_chrome_log.dart';
 import 'package:chat_chrome/src/inset/keyboard_panel_store.dart';
+import 'package:chat_chrome/src/util/logger.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/scheduler.dart';
 
@@ -147,14 +147,16 @@ final class ChatBottomInsetController extends ChangeNotifier {
 
     if (_openedReplacingIme) {
       _panelOccupancy = _panelTarget;
-      chatChromeLog(
+      fine(
+        .inset,
         'openPanel REPLACE target=$_panelTarget ime=$_imeHeight '
         'stored=$stored os=$os',
       );
       _setPublished(_panelTarget, force: true);
     } else {
       _panelOccupancy = 0;
-      chatChromeLog(
+      fine(
+        .inset,
         'openPanel COLD target=$_panelTarget stored=$stored os=$os '
         '(publish 0, animate occupancy)',
       );
@@ -231,7 +233,8 @@ final class ChatBottomInsetController extends ChangeNotifier {
     final hold = waitForIme && _published > _holdEpsilon
         ? _published
         : (waitForIme && _panelTarget > _holdEpsilon ? _panelTarget : 0.0);
-    chatChromeLog(
+    fine(
+      .inset,
       'closePanel waitForIme=$waitForIme published=$_published '
       'hold=$hold ime=$_imeHeight',
     );
@@ -279,7 +282,8 @@ final class ChatBottomInsetController extends ChangeNotifier {
       if (height > previous + _holdEpsilon &&
           height > _holdEpsilon &&
           height >= _panelTarget - _holdEpsilon) {
-        chatChromeLog(
+        fine(
+          .inset,
           'onImeHeight rising while panel (ignored) h=$height prev=$previous',
         );
       }
@@ -294,7 +298,8 @@ final class ChatBottomInsetController extends ChangeNotifier {
       if (height >= _holdFloor - _holdEpsilon) {
         _holdHitStreak++;
         if (_holdHitStreak >= 2) {
-          chatChromeLog(
+          fine(
+            .inset,
             'onImeHeight hold released (ime settled at floor) h=$height '
             'floor=$_holdFloor',
           );
@@ -317,7 +322,8 @@ final class ChatBottomInsetController extends ChangeNotifier {
       }
       final held = math.max(height, _holdFloor);
       if ((held - _published).abs() > 1) {
-        chatChromeLog(
+        fine(
+          .inset,
           'onImeHeight HOLD max(ime=$height, floor=$_holdFloor)=$held',
         );
       }
@@ -341,14 +347,16 @@ final class ChatBottomInsetController extends ChangeNotifier {
         }
         if (height <= _holdEpsilon) {
           if (!_postHoldSawDescent) {
-            chatChromeLog(
+            fine(
+              .inset,
               'onImeHeight post-hold sticky ignore zero glitch '
               'floor=$_postHoldFloor',
             );
             _setPublished(_postHoldFloor);
             return;
           }
-          chatChromeLog(
+          fine(
+            .inset,
             'onImeHeight post-hold sticky cleared (zero after descent) '
             'h=$height floor=$_postHoldFloor',
           );
@@ -363,7 +371,7 @@ final class ChatBottomInsetController extends ChangeNotifier {
     }
 
     if ((height - _published).abs() > 1) {
-      chatChromeLog('onImeHeight publish ime=$height (was $_published)');
+      fine(.inset, 'onImeHeight publish ime=$height (was $_published)');
     }
     _publish();
   }

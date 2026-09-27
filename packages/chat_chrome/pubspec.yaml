@@ -16,6 +16,7 @@ dependencies:
     path: ../catalog_assets
   emoji_data:
     path: ../emoji_data
+  meta: ^1.17.0
   panel_catalog:
     path: ../panel_catalog
   shared_preferences: ^2.5.3

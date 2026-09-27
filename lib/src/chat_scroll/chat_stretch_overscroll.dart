@@ -1,6 +1,6 @@
 import 'dart:math' as math;
 
-import 'package:chat_scroll_view/src/chat_scroll/chat_scroll_dev_log.dart';
+import 'package:chat_scroll_view/src/util/logger.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/physics.dart';
 import 'package:flutter/rendering.dart';
@@ -28,13 +28,6 @@ import 'package:flutter/rendering.dart';
 /// stretching overscroll indicator (natural frequency 24.657, damping 0.98,
 /// time factor 0.8).
 class ChatStretchOverscroll {
-  /// Creates a stretch controller. Pass [log] from the viewport host.
-  ChatStretchOverscroll({ChatScrollDevLog? log})
-    : log = log ?? ChatScrollDevLog('ChatScrollOverscroll');
-
-  /// Stretch diagnostics — filter `ChatScrollOverscroll`.
-  final ChatScrollDevLog log;
-
   /// Paint stretch in `[-1, 1]`. Positive = scale from the top edge.
   double overscroll = 0;
 
@@ -44,6 +37,7 @@ class ChatStretchOverscroll {
   double _interruptedOverscroll = 0;
   SpringSimulation? _simulation;
   Duration? _simStart;
+  int _tickFrame = 0;
 
   static const double _exponentialScalar = math.e / 0.33;
   static const double _stretchIntensity = 0.016;
@@ -78,9 +72,9 @@ class ChatStretchOverscroll {
       _interruptedOverscroll = overscroll;
     }
     _totalPullPx = 0;
-    log.event('drag.start', {
-      'stretch': DevLogFormat.ratio(overscroll),
-      'interrupted': DevLogFormat.ratio(_interruptedOverscroll),
+    fine(.overscroll, 'drag.start', {
+      'stretch': LogFormat.ratio(overscroll),
+      'interrupted': LogFormat.ratio(_interruptedOverscroll),
     });
   }
 
@@ -108,14 +102,14 @@ class ChatStretchOverscroll {
       -1,
       1,
     );
-    log.event('pull', {
-      'unconsumed': DevLogFormat.f(unconsumedPx),
-      'travel': DevLogFormat.f(travel),
+    fine(.overscroll, 'pull', {
+      'unconsumed': LogFormat.f(unconsumedPx),
+      'travel': LogFormat.f(travel),
       'fits': fits,
-      'totalPx': DevLogFormat.f(_totalPullPx),
-      'vh': DevLogFormat.f(viewportHeight),
-      'norm': DevLogFormat.ratio(normalized),
-      'stretch': DevLogFormat.ratio(overscroll),
+      'totalPx': LogFormat.f(_totalPullPx),
+      'vh': LogFormat.f(viewportHeight),
+      'norm': LogFormat.ratio(normalized),
+      'stretch': LogFormat.ratio(overscroll),
     });
   }
 
@@ -137,16 +131,16 @@ class ChatStretchOverscroll {
       overscroll = 0;
       _simulation = null;
       _simStart = null;
-      log.event('drag.end.idle', {'v': DevLogFormat.f(velocity)});
+      fine(.overscroll, 'drag.end.idle', {'v': LogFormat.f(velocity)});
       return;
     }
     if (velocity.abs() >= 50 &&
         velocity.sign != 0 &&
         overscroll.sign != 0 &&
         velocity.sign != overscroll.sign) {
-      log.event('drag.end.releaseFling', {
-        'v': DevLogFormat.f(velocity),
-        'from': DevLogFormat.ratio(overscroll),
+      fine(.overscroll, 'drag.end.releaseFling', {
+        'v': LogFormat.f(velocity),
+        'from': LogFormat.ratio(overscroll),
       });
       overscroll = 0;
       _interruptedOverscroll = 0;
@@ -158,18 +152,18 @@ class ChatStretchOverscroll {
         velocity.sign != 0 &&
         overscroll.sign != 0 &&
         velocity.sign == overscroll.sign) {
-      log.event('drag.end.absorb', {
-        'v': DevLogFormat.f(velocity),
-        'from': DevLogFormat.ratio(overscroll),
+      fine(.overscroll, 'drag.end.absorb', {
+        'v': LogFormat.f(velocity),
+        'from': LogFormat.ratio(overscroll),
       });
       absorbImpact(velocity);
       return;
     }
     _startSpring(0);
-    log.event('drag.end.spring', {
-      'v': DevLogFormat.f(velocity),
-      'scaledV': DevLogFormat.ratio(0),
-      'from': DevLogFormat.ratio(overscroll),
+    fine(.overscroll, 'drag.end.spring', {
+      'v': LogFormat.f(velocity),
+      'scaledV': LogFormat.ratio(0),
+      'from': LogFormat.ratio(overscroll),
     });
   }
 
@@ -182,10 +176,10 @@ class ChatStretchOverscroll {
       _maxAbsorbImpactVelocity,
     );
     _startSpring(scaled);
-    log.event('absorb', {
-      'v': DevLogFormat.f(velocity),
-      'scaledV': DevLogFormat.ratio(scaled),
-      'from': DevLogFormat.ratio(overscroll),
+    fine(.overscroll, 'absorb', {
+      'v': LogFormat.f(velocity),
+      'scaledV': LogFormat.ratio(scaled),
+      'from': LogFormat.ratio(overscroll),
     });
   }
 
@@ -201,7 +195,9 @@ class ChatStretchOverscroll {
       _totalPullPx = 0;
       return;
     }
-    log.event('release.intoContent', {'from': DevLogFormat.ratio(overscroll)});
+    fine(.overscroll, 'release.intoContent', {
+      'from': LogFormat.ratio(overscroll),
+    });
     _totalPullPx = 0;
     _startSpring(0);
   }
@@ -209,7 +205,7 @@ class ChatStretchOverscroll {
   /// Hard reset (overlay, controller swap, programmatic jump).
   void reset() {
     if (!isActive && _totalPullPx == 0) return;
-    log.event('reset', {'from': DevLogFormat.ratio(overscroll)});
+    fine(.overscroll, 'reset', {'from': LogFormat.ratio(overscroll)});
     overscroll = 0;
     _totalPullPx = 0;
     _interruptedOverscroll = 0;
@@ -226,7 +222,7 @@ class ChatStretchOverscroll {
         ((elapsed - start).inMicroseconds / Duration.microsecondsPerSecond) *
         1.0;
     if (simulation.isDone(seconds)) {
-      log.event('spring.done', {'t': DevLogFormat.ratio(seconds)});
+      fine(.overscroll, 'spring.done', {'t': LogFormat.ratio(seconds)});
       overscroll = 0;
       _interruptedOverscroll = 0;
       _simulation = null;
@@ -234,10 +230,10 @@ class ChatStretchOverscroll {
       return false;
     }
     overscroll = clampDouble(simulation.x(seconds), -1, 1);
-    if (log.bumpTickFrame() % 8 == 1) {
-      log.event('spring.tick', {
-        't': DevLogFormat.ratio(seconds),
-        'stretch': DevLogFormat.ratio(overscroll),
+    if (++_tickFrame % 8 == 1) {
+      fine(.overscroll, 'spring.tick', {
+        't': LogFormat.ratio(seconds),
+        'stretch': LogFormat.ratio(overscroll),
       });
     }
     return true;

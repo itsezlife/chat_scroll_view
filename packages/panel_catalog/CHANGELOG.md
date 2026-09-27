@@ -6,6 +6,16 @@ is pre-1.0.
 
 ## [Unreleased]
 
+### Changed
+
+- **Diagnostics logger.** `PanelCatalogDevLog`, `DevLogFormat` and
+  `kPanelCatalogDevLog` are removed from the public API. Diagnostics go through
+  an internal logger by category (`layout`, `binding`, `scroll`, `paint`),
+  off by default. Enable one with
+  `--dart-define=panel_catalog.debug.<category>=true` or a
+  `#panel_catalog.debug.<category>: true` zone value, or all of them with
+  `panel_catalog.debug`. Console name is `panel_catalog.<category>`.
+
 ### Fixed
 
 - **Warm-up yield timer on detach.** [CatalogLeafPainter.rasterizeGlyphsForWarmup]

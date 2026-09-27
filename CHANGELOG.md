@@ -1,5 +1,14 @@
 ## Unreleased
 
+### Diagnostics
+- **CHANGED**: The per-concern `ChatScrollDevLog` instances are replaced by
+  one internal logger (`fine` / `config` / `info` / `warning` / `severe`)
+  that takes a category: `animate`, `anchor`, `fetch`, `overscroll` or
+  `scrollbar`. Enable one with
+  `--dart-define=chat_scroll_view.debug.<category>=true` or a
+  `#chat_scroll_view.debug.<category>: true` zone value, or all of them with
+  `chat_scroll_view.debug`. Console name is `chat_scroll_view.<category>`.
+
 ### Row chrome and day header policy
 - **ADDED**: `ChatRowChrome` stacks viewport-owned chrome items above a
   message body in one slot. `messageBodyTop` holds the summed chrome height,

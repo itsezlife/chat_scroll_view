@@ -30,4 +30,3 @@ export 'src/viewport/panel_catalog_scroll_events.dart';
 export 'src/viewport/panel_catalog_viewport.dart';
 export 'src/viewport/catalog_section_navigation.dart'
     show kFarPathDistanceGateFactor, scrollOffsetForSectionHeader;
-export 'src/debug/panel_catalog_dev_log.dart';

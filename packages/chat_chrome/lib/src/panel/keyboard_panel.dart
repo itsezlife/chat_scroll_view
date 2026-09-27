@@ -2,7 +2,6 @@ import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:chat_chrome/src/composer/chat_input_metrics.dart';
-import 'package:chat_chrome/src/debug/chat_chrome_log.dart';
 import 'package:chat_chrome/src/inset/chat_bottom_inset_controller.dart';
 import 'package:chat_chrome/src/motion/keyboard_panel_motion.dart';
 import 'package:chat_chrome/src/panel/emoji_deferred_recents.dart';
@@ -16,6 +15,7 @@ import 'package:chat_chrome/src/panel/keyboard_panel_nav_bar_fade.dart';
 import 'package:chat_chrome/src/panel/keyboard_panel_controller.dart';
 import 'package:chat_chrome/src/panel/sticker_gif_stubs.dart';
 import 'package:chat_chrome/src/theme/chat_chrome_colors.dart';
+import 'package:chat_chrome/src/util/logger.dart';
 import 'package:emoji_data/emoji_data.dart';
 import 'package:flutter/material.dart';
 import 'package:panel_catalog/panel_catalog.dart';
@@ -194,7 +194,8 @@ class _KeyboardPanelState extends State<KeyboardPanel>
     _inset.addListener(_onController);
     _inset.heightListenable.addListener(_onInsetHeight);
     _bindPanelController(widget.controller);
-    chatChromeLog(
+    fine(
+      .panel,
       'KeyboardPanel initState isOpen=${widget.controller.isOpen} '
       'tabs=${_tabs.length}',
     );
@@ -368,7 +369,7 @@ class _KeyboardPanelState extends State<KeyboardPanel>
     if (_handoffToKeyboard) return;
 
     if (!_inset.isPanelOpen && (_visible || _progress.value > 0)) {
-      chatChromeLog('KeyboardPanel controller cleared panel → sync close');
+      fine(.panel, 'KeyboardPanel controller cleared panel → sync close');
       widget.controller.adoptClose();
       unawaited(_close(notifyController: false));
     }
@@ -429,7 +430,8 @@ class _KeyboardPanelState extends State<KeyboardPanel>
   /// Claims the inset only when the controller has not already claimed it
   /// (heal path — hosts MUST still [KeyboardPanelController.open] normally).
   Future<void> _open({bool replacingKeyboard = false}) async {
-    chatChromeLog(
+    fine(
+      .panel,
       'KeyboardPanel.open enter replacing=$replacingKeyboard '
       'visible=$_visible progress=${_progress.value} '
       'opening=$_opening closing=$_closing tabs=${_tabs.length} '
@@ -438,11 +440,11 @@ class _KeyboardPanelState extends State<KeyboardPanel>
       'published=${_inset.height}',
     );
     if (_tabs.isEmpty) {
-      chatChromeLog('KeyboardPanel.open ABORT empty tabs');
+      fine(.panel, 'KeyboardPanel.open ABORT empty tabs');
       return;
     }
     if (_opening) {
-      chatChromeLog('KeyboardPanel.open ABORT already opening');
+      fine(.panel, 'KeyboardPanel.open ABORT already opening');
       return;
     }
 
@@ -450,7 +452,8 @@ class _KeyboardPanelState extends State<KeyboardPanel>
     _restoreChromeForOpen();
 
     if (_visible && _progress.value >= 1 && _inset.isPanelOpen) {
-      chatChromeLog(
+      fine(
+        .panel,
         'KeyboardPanel.open ABORT already fully open heal=$healChrome',
       );
       if (healChrome && mounted) {
@@ -467,7 +470,7 @@ class _KeyboardPanelState extends State<KeyboardPanel>
         MediaQuery.orientationOf(context) == Orientation.landscape;
     final safeBottom = MediaQuery.viewPaddingOf(context).bottom;
     if (!_inset.isPanelOpen) {
-      chatChromeLog('KeyboardPanel.open claiming slot (controller did not)');
+      fine(.panel, 'KeyboardPanel.open claiming slot (controller did not)');
       _inset.openPanel(landscape: landscape);
       _replacingKeyboard = _inset.openedReplacingIme;
     }
@@ -496,7 +499,7 @@ class _KeyboardPanelState extends State<KeyboardPanel>
     }
 
     if (_replacingKeyboard) {
-      chatChromeLog('KeyboardPanel.open REPLACE snap progress=1');
+      fine(.panel, 'KeyboardPanel.open REPLACE snap progress=1');
       _progress.value = 1;
       _inset.setPanelOccupancy(_inset.panelTarget);
       _opening = false;
@@ -506,7 +509,7 @@ class _KeyboardPanelState extends State<KeyboardPanel>
       return;
     }
 
-    chatChromeLog('KeyboardPanel.open COLD animate 0→1');
+    fine(.panel, 'KeyboardPanel.open COLD animate 0→1');
     _progress.value = 0;
     _inset.setPanelOccupancy(0);
     // Layout the page, then warm glyphs without blocking the open animation.
@@ -518,7 +521,8 @@ class _KeyboardPanelState extends State<KeyboardPanel>
     _emojiPageKey.currentState?.warmAhead().ignore();
     await Future<void>.delayed(KeyboardPanelMotion.startDelay);
     if (!mounted || _closing) {
-      chatChromeLog(
+      fine(
+        .panel,
         'KeyboardPanel.open COLD aborted after delay '
         'mounted=$mounted closing=$_closing',
       );
@@ -527,12 +531,13 @@ class _KeyboardPanelState extends State<KeyboardPanel>
     }
     try {
       await _progress.animateTo(1, curve: KeyboardPanelMotion.curve);
-      chatChromeLog(
+      fine(
+        .panel,
         'KeyboardPanel.open COLD done progress=${_progress.value} '
         'published=${_inset.height}',
       );
     } catch (e, st) {
-      chatChromeLog('KeyboardPanel.open COLD animate error $e\n$st');
+      warning(.panel, e, st, 'KeyboardPanel.open COLD animate error');
     } finally {
       _opening = false;
       _ensurePageSyncedAfterOpen();
@@ -550,7 +555,8 @@ class _KeyboardPanelState extends State<KeyboardPanel>
     bool notifyController = true,
     bool waitForIme = false,
   }) async {
-    chatChromeLog(
+    fine(
+      .panel,
       'KeyboardPanel.close waitForIme=$waitForIme notify=$notifyController '
       'progress=${_progress.value} published=${_inset.height}',
     );
@@ -558,7 +564,7 @@ class _KeyboardPanelState extends State<KeyboardPanel>
 
     if (_handoffToKeyboard) {
       if (waitForIme) {
-        chatChromeLog('KeyboardPanel.close handoff duplicate → finish shell');
+        fine(.panel, 'KeyboardPanel.close handoff duplicate → finish shell');
         if (_inset.isHoldingForIme) {
           _inset.closePanel(waitForIme: false);
         }
@@ -599,7 +605,8 @@ class _KeyboardPanelState extends State<KeyboardPanel>
       if (mounted) {
         setState(() {});
       }
-      chatChromeLog(
+      fine(
+        .panel,
         'KeyboardPanel.close handoff shell-only progress=${_progress.value}',
       );
       return;
@@ -626,12 +633,13 @@ class _KeyboardPanelState extends State<KeyboardPanel>
 
     try {
       await _progress.animateTo(0, curve: KeyboardPanelMotion.curve);
-      chatChromeLog(
+      fine(
+        .panel,
         'KeyboardPanel.close COLD done progress=${_progress.value} '
         'published=${_inset.height}',
       );
     } catch (e, st) {
-      chatChromeLog('KeyboardPanel.close animate error $e\n$st');
+      warning(.panel, e, st, 'KeyboardPanel.close animate error');
     }
 
     if (notifyController) {
@@ -651,7 +659,7 @@ class _KeyboardPanelState extends State<KeyboardPanel>
       _searchFocus.unfocus();
       _inset.collapsePanelFromSearch();
     });
-    chatChromeLog('KeyboardPanel.close done published=${_inset.height}');
+    fine(.panel, 'KeyboardPanel.close done published=${_inset.height}');
   }
 
   // --- Picks / recents ------------------------------------------------------

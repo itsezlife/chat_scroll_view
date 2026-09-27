@@ -21,7 +21,6 @@ export 'src/glass/glass_backdrop_source.dart';
 export 'src/glass/liquid_glass_shader.dart';
 export 'src/glass/telegram_glass.dart';
 export 'src/glass/telegram_glass_style.dart';
-export 'src/debug/chat_chrome_log.dart';
 export 'src/inset/chat_bottom_inset_controller.dart';
 export 'src/inset/keyboard_panel_store.dart';
 export 'src/motion/scale_pressable.dart';
