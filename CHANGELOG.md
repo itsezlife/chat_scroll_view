@@ -29,6 +29,29 @@
   `ChatRowChromeDelegate.fadeUnderHeader` instead of internal header-controller
   math.
 
+### Unread separator
+- **ADDED**: `ChatScrollView.unreadBoundary` (a `ValueListenable<int?>`) and
+  `ChatScrollView.unreadSeparatorBuilder` (a `WidgetBuilder`). The viewport
+  stacks the built separator as row chrome in the boundary row, below the
+  inline date separator when that row starts a day and above the body, with or
+  without day grouping. It paints only on a loaded message row, always opaque
+  while the date above it fades, outside selection chrome and the
+  secondary-tap scope. A tap, secondary tap, or long press on it produces no
+  message menu request and no selection. The viewport reads the boundary value
+  while building a row and does not listen to it: a value changed later
+  reaches only rows built after the change. Swapping the builder or the
+  listenable rebuilds every built row. A `null` boundary paints nothing.
+- **EXAMPLE**: The demo reads the stored last-read id on open again, for the
+  server-backed source. When a message from someone else follows it, that
+  message becomes the unread boundary: the chat opens with
+  `jumpTo(boundary, alignment: 0)` and shows a placeholder bar above it,
+  labelled in Russian like the demo's day pill. Without one, the open path is
+  unchanged, and so is the scroll-to-bottom pill count.
+  `ChatDataSourceX.resolveOpenPosition` / `resolveUnreadBoundary` pick the
+  boundary from cached messages; at the first uncached id they fetch that
+  whole chunk once, so an open makes at most one fetch. A failed fetch is
+  logged and the chat opens at last-read without the bar.
+
 ### Breaking changes
 
 Source-breaking for hosts that built against earlier revisions of this

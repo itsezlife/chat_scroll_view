@@ -130,6 +130,14 @@ A row that opens a new day bucket and may show an inline date separator.
 Viewport-owned decoration stacked above the message body inside one message slot, such as the inline date separator of a row that starts a day. Each item has a **row chrome delegate** that resolves its opacity and input every frame from its paint position, the floating header zone, and **scroll activity**; the summed chrome height is the line above which presses are chrome, not message. Outside selection chrome; never message surface.
 _Avoid_: Header row, fake message, list item, part of the message builder, chrome role enum
 
+**Unread boundary**:
+The host-chosen message id where unread content begins — typically the first unread message from someone else, fixed when the chat opens and kept while the reader catches up. The host decides what counts as unread and when the boundary appears, moves, or goes away; the viewport only compares ids. Distinct from a read baseline that advances as the reader scrolls, and from **Starts day**.
+_Avoid_: Read baseline, last-read, unread row, first-unread index
+
+**Unread separator**:
+Host-built **row chrome** stacked inside the **unread boundary** row: below the inline date separator when that row **starts a day**, above the message body. Painted only on a loaded message row, always opaque (the day header policy never fades it), outside selection chrome, never message surface.
+_Avoid_: Unread row, fake message, divider item, part of the message builder
+
 **Day header policy**:
 The delegate that decides how the floating header and the inline date separators share the top of the viewport: the header's push offset and opacity, and the row chrome delegate every inline separator uses. Built-ins fade separators under a resting header, or push the header up with the next day's separator. The header is *held* while it stands in for a separator hidden or faded under it: it stays shown and pins scroll activity at `1`, so leaving that position never finds it hidden.
 _Avoid_: Sticky header mode, header style enum

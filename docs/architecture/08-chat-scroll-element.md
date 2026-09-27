@@ -86,11 +86,14 @@ for chrome-only updates.
   shimmer slots and `none` are not wrapped; `gutterOnly` wraps without a
   check. Wrapping zero-size shrink output for absent ids still produces
   selectable ghost rows.
-- If `startsNewDay && separator != null && message != null && groupBucket != null`
-  → `ChatRowChrome` with one item (the separator, delegate
-  `dayHeaderDelegate.inlineSeparator`) above the body; else
-  `RepaintBoundary` + body.
-- Row chrome is **outside** selection so date chrome is never tinted.
+- Row chrome items, top to bottom, only when `message != null`:
+  - date separator if `startsNewDay && separator != null && groupBucket != null`
+    (delegate `dayHeaderDelegate.inlineSeparator`);
+  - unread separator if `unreadSeparatorBuilder != null &&
+    unreadBoundary?.value == id` (default `opaque()` delegate).
+  Any item → `ChatRowChrome` above the body; none → `RepaintBoundary` + body.
+- Row chrome is **outside** selection and the secondary-tap scope, so it is
+  never tinted and never message surface.
 
 The element does **not** compute day boundaries — it only consumes
 `startsNewDay` / `groupBucket` from the render object. See
@@ -112,9 +115,12 @@ The element does **not** compute day boundaries — it only consumes
 
 **Miss → full `updateChild`.**
 
-**Cleared entirely** on widget `update` when builders / selection /
-`textDirection` change. Use `==` on builder tear-offs, not `identical`
-(otherwise every parent rebuild drops the cache).
+**Cleared entirely** on widget `update` when builders (including
+`unreadSeparatorBuilder`) / selection / `textDirection` / the
+`unreadBoundary` listenable instance change. Use `==` on builder tear-offs,
+not `identical` (otherwise every parent rebuild drops the cache). The
+boundary **value** is not a cache input: a value change does not rebuild a
+cached row.
 
 **Selection-allowed map only** cleared on
 `ChatSelectionController` notify (`selectionAllowed` assign /

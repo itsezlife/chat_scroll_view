@@ -163,7 +163,10 @@ object defers the self check to a microtask so `getMessage` resolves.
 
 Unread chrome (example FAB) should share the same predicate and advance
 `lastSeenNewestId` when the newest id is self so own sends never inflate the
-badge.
+badge. A host that sets an **unread boundary** typically skips self messages
+by the same predicate. Opening with `jumpTo(boundary, alignment: 0)` puts the
+boundary row — its inline date, unread separator, then body — at the band
+top.
 
 ### `pinNewest` during delete recovery
 

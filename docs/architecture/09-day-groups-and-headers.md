@@ -59,10 +59,23 @@ row (date chrome) vs plain row — it does not recompute boundaries.
 
 A row that carries viewport-owned chrome is a `ChatRowChrome`: an ordered
 stack of chrome items above the message body. Each item pairs a widget with a
-`ChatRowChromeDelegate`. The viewport composes the inline date separator of a
-row that starts a day with the day header policy's `inlineSeparator`
-delegate. `DatedMessage` is a deprecated forward to a one-item
-`ChatRowChrome` with `fadeUnderHeader`.
+`ChatRowChromeDelegate`. `DatedMessage` is a deprecated forward to a
+one-item `ChatRowChrome` with `fadeUnderHeader`.
+
+The viewport composes up to two items, only on a **loaded** message row
+(never shimmer, errored, or absent):
+
+| Item | When | Delegate |
+|------|------|----------|
+| Inline date separator (`dateSeparatorBuilder`) | Row starts a day | Day header policy's `inlineSeparator` |
+| Unread separator (`unreadSeparatorBuilder`) | Row id `== unreadBoundary.value` | `opaque()` — never fades or hides |
+
+A row with neither is a plain `RepaintBoundary`. The unread separator does
+not touch the day machinery: `startsDay`, `dayBucket`, the header scan, and
+`leadingSeparatorTop` ignore it, and the divider fade applies to the date item
+only. The element reads `unreadBoundary.value` at build time and does not
+listen to it; swapping the listenable or the builder clears the skip-rebuild
+cache.
 
 | Concern | Rule |
 |---------|------|
